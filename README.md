@@ -2,6 +2,19 @@
 
 Folia Android 的小米 17 Pro 背屏歌词适配测试版。保留 Folia 的歌词样式、主题和动画，背景铺满背屏，主要可读内容在右侧避开镜头。
 
+## r245 轻量手机界面测试版
+
+- [直接下载 r245 APK](https://github.com/huleixin/folia-rear-lyrics/releases/download/mobile-r245/Folia-Android-mobile-r245-debug.apk)
+- [r245 版本说明](https://github.com/huleixin/folia-rear-lyrics/releases/tag/mobile-r245)
+
+新增轻量化的首页、歌单 / 专辑和歌手页，采用虚拟列表和独立更新的底部播放条；保留原歌词舞台样式、在线播放及背屏核心。Android 默认使用新界面，设置中仍可切回旧界面。
+
+非官方 debug 测试版，versionCode `245`，版本 `0.7.20-android.194-rear.r245`。可覆盖安装同签名的 r244，请勿先卸载。已通过自动化验证，尚未进行真机测试。
+
+APK SHA-256：`0FB5EDDCCEAFBD873AD913DF191C9CAE45ED8653FE0055A25C29F0E081054EA2`
+
+## r244 历史版本说明
+
 ## 下载
 
 - [直接下载 r244 APK](https://github.com/huleixin/folia-rear-lyrics/releases/download/rear-r244/Folia-Android-rear-r244-debug.apk)
