@@ -5,7 +5,7 @@ Folia Android 的小米 17 Pro 背屏歌词适配测试版。保留 Folia 的歌
 ## 下载
 
 - [直接下载 r244 APK](https://github.com/huleixin/folia-rear-lyrics/releases/download/rear-r244/Folia-Android-rear-r244-debug.apk)
-- [版本说明](https://github.com/huleixin/folia-rear-lyrics/releases/tag/rear-r244)
+- [版本说明和对应源码](https://github.com/huleixin/folia-rear-lyrics/releases/tag/rear-r244)
 
 这是 **debug 测试版**，不是 Folia 官方 Android 发布。包名 `top.izuna.foliamajor`，versionCode `244`，版本 `0.7.20-android.194-rear.r244`。已安装本系列且签名一致的旧版本可以覆盖安装；高版本或不同签名的 Folia 不保证能直接覆盖，请先备份数据。
 
@@ -19,11 +19,11 @@ Folia Android 的小米 17 Pro 背屏歌词适配测试版。保留 Folia 的歌
 
 验证：54 项相关前端单测、27 项 Android 单测通过；两种尺寸的打包页面浏览器模拟验证通过。未连接真实手机，以上不等于真机兼容性保证。
 
-## 原项目与署名
+## 源码与署名
 
 原项目：[chthollyphile/folia-major](https://github.com/chthollyphile/folia-major)。Android 移植来源：[whycfawa/folia-android](https://github.com/whycfawa/folia-android)。感谢原作者及贡献者。
 
-本仓库目前用于分发安装包；本版修改源码尚未上传，需要另行确认公开授权。原项目许可证为 GNU AGPL v3，详见 [LICENSE](LICENSE)。
+本版对应源码快照随 Release 的 `Folia-rear-r244-source.zip` 提供，含修改代码、构建配置和构建说明，不含本机凭据或签名密钥。许可证为 GNU AGPL v3，详见 [LICENSE](LICENSE)；第三方说明见源码快照内的 `THIRD-PARTY-NOTICES.md`。
 
 APK SHA-256：
 
