@@ -1,0 +1,26 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Check, Loader2, Search, X, Music2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import type { SongResult } from '../../types';
+import { LYRIC_MATCH_SOURCES } from '../../utils/lyrics/lyricMatchSources';
+import { getLyricMatchSourceLabel, getMatchResultArtists, getMatchResultAlbumName, type LyricMatchSource } from '../modal/lyricMatchResultHelpers';
+import { LyricPreviewPanel } from '../modal/LyricPreviewPanel';
+import { formatSongName } from '../../utils/songNameFormatter';
+import './mobilePlayerSheet.css';
+
+// src/components/mobile-player/MobileLyricMatcher.tsx
+type Props={title:string;query:string;onQuery:(v:string)=>void;source:LyricMatchSource;onSource:(v:LyricMatchSource)=>void;results:SongResult[];selected:SongResult|null;onSelect:(v:SongResult)=>void;searching:boolean;matching:boolean;onSearch:()=>void;onConfirm:()=>void;onClose:()=>void;isDaylight:boolean;options?:React.ReactNode};
+export default function MobileLyricMatcher(p:Props){
+    const {t,i18n}=useTranslation(),zh=(i18n.resolvedLanguage||i18n.language).startsWith('zh');
+    const [preview,setPreview]=useState(false),ref=useRef<HTMLElement>(null),closeRef=useRef(p.onClose);
+    closeRef.current=p.onClose;
+    useEffect(()=>{const previous=document.activeElement as HTMLElement|null;ref.current?.focus();const key=(e:KeyboardEvent)=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeRef.current();}if(e.key!=='Tab')return;const nodes=[...(ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input,select,summary')??[])].filter(n=>n.getClientRects().length);if(e.shiftKey&&(document.activeElement===nodes[0]||document.activeElement===ref.current)){e.preventDefault();nodes.at(-1)?.focus();}else if(!e.shiftKey&&document.activeElement===nodes.at(-1)){e.preventDefault();nodes[0]?.focus();}};document.addEventListener('keydown',key,true);return()=>{document.removeEventListener('keydown',key,true);if(previous?.isConnected)previous.focus();};},[]);
+    return createPortal(<div className="ty-sheet-scrim ty-match-scrim" data-testid="mobile-lyric-matcher" onClick={e=>{if(e.target===e.currentTarget&&!p.matching)p.onClose();}}><section className="ty-sheet ty-match" ref={ref} role="dialog" aria-modal="true" aria-label={zh?'匹配歌词':'Match lyrics'} tabIndex={-1} data-light={p.isDaylight||undefined} data-folia-keyboard-window="true">
+        <div className="ty-sheet-grip" aria-hidden="true"/><header className="ty-sheet-header"><div><small>{zh?'匹配歌词':'Match lyrics'}</small><h2>{p.title}</h2></div><button className="ty-icon" aria-label={t('ui.close')} disabled={p.matching} onClick={p.onClose}><X size={22}/></button></header>
+        <form className="ty-match-search" onSubmit={e=>{e.preventDefault();p.onSearch();}}><label className="ty-select">{zh?'歌词平台':'Lyric provider'}<select aria-label={zh?'歌词平台':'Lyric provider'} value={p.source} disabled={p.matching} onChange={e=>{setPreview(false);p.onSource(e.target.value as LyricMatchSource);}}>{LYRIC_MATCH_SOURCES.map(id=><option key={id} value={id}>{getLyricMatchSourceLabel(id)}</option>)}</select></label><div className="ty-search-row"><input type="search" enterKeyHint="search" aria-label={zh?'歌名或歌手':'Song or artist'} placeholder={zh?'输入歌名或歌手':'Song or artist'} value={p.query} disabled={p.matching} onChange={e=>p.onQuery(e.target.value)}/><button type="submit" className="ty-icon" aria-label={t('localMusic.search')} disabled={p.searching||p.matching||!p.query.trim()}>{p.searching?<Loader2 className="animate-spin" size={20}/>:<Search size={20}/>}</button></div></form>
+        <div className="ty-sheet-body ty-match-results"><p className="ty-hint" role="status">{p.searching?(zh?'正在搜索…':'Searching…'):zh?`找到 ${p.results.length} 个结果，点选后可预览`:`${p.results.length} results. Select a song to preview.`}</p><div role="group" aria-label={zh?'匹配结果':'Match results'}>{p.results.map((song,i)=><button key={`${song.sourceRef?.kind}:${song.id}:${i}`} className="ty-match-result" aria-pressed={p.selected===song} disabled={p.matching} onClick={()=>{setPreview(false);p.onSelect(song);}}><Music2 size={20}/><span><strong>{formatSongName(song)}</strong><small>{[getMatchResultArtists(song),getMatchResultAlbumName(song)].filter(Boolean).join(' · ')}</small></span>{p.selected===song&&<Check size={20}/>}</button>)}</div>{!p.searching&&!p.results.length&&<p className="ty-empty">{t('localMusic.noResults')}</p>}
+        {p.selected&&<section className="ty-card ty-match-preview"><button className="ty-action" aria-expanded={preview} onClick={()=>setPreview(v=>!v)}>{preview?(zh?'收起歌词预览':'Hide preview'):(zh?'预览选中的歌词':'Preview selected lyrics')}</button>{preview&&<div className="ty-preview-body"><LyricPreviewPanel selectedResult={p.selected} source={p.source} isDaylight={p.isDaylight}/></div>}</section>}{p.options}</div>
+        <footer className="ty-match-footer"><button className="ty-confirm" disabled={!p.selected||p.matching||p.searching} onClick={p.onConfirm}>{p.matching?<Loader2 className="animate-spin" size={20}/>:<Check size={20}/>} {p.matching?t('localMusic.saving'):(zh?'使用这份歌词':'Use these lyrics')}</button></footer>
+    </section></div>,document.body);
+}

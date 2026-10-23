@@ -1,0 +1,10 @@
+{
+  "folium": 1,
+  "id": "sample-beta-hello",
+  "name": "Hello world（先行测试样例）",
+  "version": "1.0.0",
+  "author": "Folia Mod Samples",
+  "description": "先行测试渠道的示范模组：启用后在开发者工具的控制台打印 hello world。它用先行测试密钥签名，在模组面板里显示为「先行测试」，启用确认窗口给出先行测试的风险提示。",
+  "client": "client.mjs",
+  "preview": "preview.jpg"
+}

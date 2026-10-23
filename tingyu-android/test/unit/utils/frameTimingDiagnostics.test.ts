@@ -1,0 +1,158 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+    classifyRenderHealth,
+    computeFrameStats,
+    describeCpuIndex,
+    describeDeviceClass,
+    estimateRefreshRateHz,
+    noteFrameSample,
+    noteMotionActivity,
+    readFrameTimingSnapshot,
+    resetFrameTimingDiagnostics,
+    runCpuProbe,
+    summarizeLongAnimationFrame,
+} from '@/utils/frameTimingDiagnostics';
+
+afterEach(() => {
+    vi.restoreAllMocks();
+    resetFrameTimingDiagnostics();
+});
+
+describe('frameTimingDiagnostics', () => {
+    it('summarises frame intervals into percentiles and dropped-frame buckets', () => {
+        const intervals = [
+            ...Array.from({ length: 90 }, () => 16.7),
+            ...Array.from({ length: 8 }, () => 40),
+            140,
+        ];
+
+        const stats = computeFrameStats(intervals);
+
+        expect(stats.count).toBe(99);
+        expect(stats.p50Ms).toBe(16.7);
+        expect(stats.maxMs).toBe(140);
+        // 40ms 与 140ms 都超过 32ms，但只有 140ms 超过 50 和 100。
+        expect(stats.slowCount).toBe(9);
+        expect(stats.jankCount).toBe(1);
+        expect(stats.freezeCount).toBe(1);
+    });
+
+    it('reads an empty sample set as unknown instead of zero', () => {
+        const stats = computeFrameStats([]);
+
+        expect(stats.count).toBe(0);
+        expect(stats.p95Ms).toBeNull();
+        expect(classifyRenderHealth(stats, 60)).toBe('unknown');
+    });
+
+    it('guesses the display refresh rate from the typical interval', () => {
+        const atSixty = Array.from({ length: 120 }, () => 16.7);
+        const atOneTwenty = Array.from({ length: 120 }, () => 8.3);
+
+        expect(estimateRefreshRateHz(atSixty)).toBe(60);
+        expect(estimateRefreshRateHz(atOneTwenty)).toBe(120);
+        expect(estimateRefreshRateHz([16.7, 16.8])).toBeNull();
+    });
+
+    it('separates smooth rendering from heavy jank at the display budget', () => {
+        const smooth = computeFrameStats(Array.from({ length: 300 }, () => 16.7));
+        const heavy = computeFrameStats([
+            ...Array.from({ length: 260 }, () => 16.7),
+            ...Array.from({ length: 40 }, () => 70),
+        ]);
+
+        expect(classifyRenderHealth(smooth, 60)).toBe('smooth');
+        expect(classifyRenderHealth(heavy, 60)).toBe('heavy');
+    });
+
+    it('classifies device capability from cores and memory', () => {
+        expect(describeDeviceClass(8, 8)).toBe('high');
+        expect(describeDeviceClass(8, 4)).toBe('mid');
+        expect(describeDeviceClass(4, 2)).toBe('low');
+        expect(describeDeviceClass(null, null)).toBe('unknown');
+    });
+
+    it('runs the cpu probe and reports a comparable index', () => {
+        const result = runCpuProbe(40);
+
+        expect(result.ops).toBeGreaterThan(0);
+        expect(result.durationMs).toBeGreaterThan(0);
+        expect(result.opsPerSecond).toBeGreaterThan(0);
+        expect(['fast', 'moderate', 'slow']).toContain(result.index);
+        expect(describeCpuIndex(200e6)).toBe('fast');
+        expect(describeCpuIndex(50e6)).toBe('moderate');
+        expect(describeCpuIndex(10e6)).toBe('slow');
+        expect(describeCpuIndex(Number.NaN)).toBe('unknown');
+    });
+
+    // 卡顿归因的关键一步：这一帧是被脚本占住，还是被样式/布局占住，以及最重的是哪个文件。
+    it('attributes a long frame to script versus style and layout', () => {
+        const summary = summarizeLongAnimationFrame({
+            duration: 180,
+            blockingDuration: 130,
+            renderStart: 100,
+            styleAndLayoutStart: 60,
+            scripts: [
+                {
+                    duration: 40,
+                    invoker: 'requestAnimationFrame',
+                    sourceFunctionName: 'renderFrame',
+                    sourceURL: 'https://localhost/assets/folia-abc.js',
+                },
+                {
+                    duration: 60,
+                    invoker: 'timer',
+                    sourceFunctionName: 'tick',
+                    sourceURL: 'https://localhost/assets/main-def.js',
+                },
+            ],
+        });
+
+        expect(summary.blockingMs).toBe(130);
+        expect(summary.scriptMs).toBe(100);
+        expect(summary.styleLayoutMs).toBe(40);
+        // 最重的那段脚本（60ms）决定归因，且只留文件名。
+        expect(summary.invoker).toBe('timer@tick@main-def.js');
+    });
+
+    it('falls back to the frame duration when blockingDuration is missing', () => {
+        const summary = summarizeLongAnimationFrame({ duration: 120, scripts: [] });
+
+        expect(summary.blockingMs).toBe(70);
+        expect(summary.scriptMs).toBe(0);
+        expect(summary.invoker).toBe('');
+    });
+
+    // 「日常播放不卡、一移动就掉帧」：移动中的帧要单独统计，否则会被整体分位数稀释掉。
+    it('separates frames recorded while the user is moving', () => {
+        let clock = 1000;
+        vi.spyOn(performance, 'now').mockImplementation(() => clock);
+        resetFrameTimingDiagnostics();
+
+        noteFrameSample(16.7, 1000);
+        noteFrameSample(16.7, 1017);
+
+        noteMotionActivity();          // 开始滑动：窗口持续到 clock + 250ms
+        noteFrameSample(16.7, 1034);
+        noteFrameSample(70, 1104);     // 滑动过程中掉了一帧
+
+        clock = 2000;                  // 窗口已过期，这一帧只进整体统计
+        noteFrameSample(16.7, 2000);
+
+        const snapshot = readFrameTimingSnapshot();
+        expect(snapshot.motion.count).toBe(2);
+        expect(snapshot.motion.jankCount).toBe(1);
+        expect(snapshot.motion.stats.maxMs).toBe(70);
+        expect(snapshot.stats.count).toBe(5);
+    });
+
+    it('reports an uninstalled sampler without throwing off the browser', () => {
+        // 单测跑在 node 环境：没有 window / requestAnimationFrame，安装应当直接跳过。
+        const snapshot = readFrameTimingSnapshot();
+
+        expect(snapshot.installed).toBe(false);
+        expect(snapshot.frameCount).toBe(0);
+        expect(snapshot.renderHealth).toBe('unknown');
+        expect(snapshot.longTasks.count).toBe(0);
+    });
+});

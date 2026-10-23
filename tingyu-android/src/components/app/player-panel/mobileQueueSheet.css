@@ -1,0 +1,14 @@
+/* src/components/app/player-panel/mobileQueueSheet.css */
+.mobile-queue-scrim { position:fixed; inset:0; z-index:90; background:#0006; display:flex; align-items:flex-end; }
+.mobile-queue-sheet { width:min(100%,520px); margin:0 auto; padding:10px 16px calc(18px + var(--folia-main-inset-bottom,0px));
+    border:1px solid #ffffff20; border-radius:28px 28px 0 0; backdrop-filter:blur(18px); max-height:72dvh; overflow:auto; }
+.mobile-sheet-handle { display:block; width:32px; height:4px; border-radius:8px; margin:0 auto 14px; background:currentColor; opacity:.3; }
+.mobile-queue-sheet > header { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+.mobile-queue-sheet > header strong { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:16px; }
+.mobile-queue-sheet > header button { width:44px; height:44px; display:grid; place-items:center; border-radius:50%; background:#ffffff10; }
+.mobile-queue-sheet [role='list'] { min-height:180px; }
+.mobile-queue-sheet button { touch-action:manipulation; }
+.mobile-queue-sheet .group:focus-within { outline:1px solid #ffffff30; }
+.mobile-queue-sheet .group > .pointer-events-none.opacity-0 { opacity:.65; pointer-events:auto; }
+.mobile-queue-sheet .group button { min-width:32px; min-height:36px; }
+@media(max-height:520px) { .mobile-queue-sheet { max-height:90dvh; } }

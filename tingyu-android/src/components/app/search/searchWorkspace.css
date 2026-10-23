@@ -1,0 +1,316 @@
+/* src/components/app/search/searchWorkspace.css — 听屿搜索页专用样式，全部限定在 .ty-search 内。 */
+.ty-search {
+    --ty-bg: #03110c;
+    --ty-panel: #ffffff08;
+    --ty-panel-strong: #ffffff0e;
+    --ty-border: #ffffff12;
+    --ty-text: #eef5ef;
+    --ty-muted: #9db0a7;
+    --ty-accent: #9fe0c4;
+    --ty-accent-soft: #9fe0c42e;
+    position: fixed;
+    inset: 0;
+    /* 层级由组件按「是否已打开集合页」写进 --ty-z；否则固定的 50 会把歌手/歌单/专辑页压在下面。 */
+    z-index: var(--ty-z, 50);
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    overflow: hidden;
+    color: var(--ty-text);
+    background: linear-gradient(165deg, color-mix(in srgb, var(--ty-bg) 94%, #20432d) 0%, var(--ty-bg) 42%);
+    padding-top: var(--folia-main-inset-top, env(safe-area-inset-top, 0px));
+}
+.ty-search[data-light='true'] {
+    --ty-bg: #f4f6f1;
+    --ty-panel: #101c1610;
+    --ty-panel-strong: #101c1618;
+    --ty-border: #101c1624;
+    --ty-text: #12271e;
+    --ty-muted: #5c7066;
+    --ty-accent: #22775a;
+    --ty-accent-soft: #22775a1f;
+}
+.ty-search * { box-sizing: border-box; }
+:where(.ty-search) button { font: inherit; color: inherit; cursor: pointer; }
+:where(.ty-search) input { font: inherit; color: inherit; }
+.ty-search button:focus-visible { outline: 2px solid var(--ty-accent); outline-offset: 2px; }
+/* 输入框本身不画矩形焦点框：焦点反馈交给外层圆角容器，避免出现突兀的白色直角边框。 */
+.ty-search-field input,
+.ty-search-field input:focus,
+.ty-search-field input:focus-visible { outline: none; box-shadow: none; }
+.ty-search-field:focus-within {
+    border-color: color-mix(in srgb, var(--ty-accent) 55%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ty-accent) 28%, transparent), 0 6px 20px #00000024;
+}
+
+.ty-search-head { flex: none; padding: 10px 14px 0; }
+.ty-search-bar { display: flex; align-items: center; gap: 8px; }
+.ty-search-field {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-height: 46px;
+    border: 1px solid var(--ty-border);
+    border-radius: 999px;
+    background: var(--ty-panel);
+}
+.ty-search-field > svg { position: absolute; left: 14px; opacity: .5; pointer-events: none; }
+.ty-search-field input {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 44px 0 42px;
+    border: 0;
+    background: transparent;
+    font-size: 16px; /* 16px 以下 Android WebView 会在聚焦时缩放页面 */
+    outline: none;
+}
+.ty-search-field input::placeholder { color: var(--ty-muted); }
+/* 某些 WebView 会给 input[type=search] 画原生清除按钮；自定义按钮之外不再显示第二个。 */
+.ty-search-field input::-webkit-search-cancel-button,
+.ty-search-field input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }
+.ty-search-clear {
+    position: absolute;
+    right: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    opacity: .6;
+}
+.ty-search-clear:active { opacity: 1; background: var(--ty-panel-strong); }
+.ty-search-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    flex: none;
+    border: 0;
+    border-radius: 50%;
+    background: var(--ty-panel);
+}
+.ty-search-sources { display: flex; gap: 8px; padding: 10px 2px 2px; overflow-x: auto; scrollbar-width: none; }
+.ty-search-sources::-webkit-scrollbar { display: none; }
+.ty-search-chip {
+    flex: none;
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: var(--ty-panel);
+    color: var(--ty-muted);
+    font-size: 13px;
+}
+/* 选中态用柔和的强调色底 + 强调色文字，避免冷白色药丸压在深墨绿页面上。 */
+.ty-search-chip[aria-pressed='true'] {
+    background: var(--ty-accent-soft);
+    border-color: color-mix(in srgb, var(--ty-accent) 45%, transparent);
+    color: var(--ty-accent);
+    font-weight: 600;
+}
+.ty-suggest-search .ty-suggest-title { font-weight: 600; }
+.ty-suggest-history { margin-top: 14px; }
+.ty-suggest-history-title { margin: 0 0 4px; padding-left: 10px; font-size: 11px; letter-spacing: .04em; color: var(--ty-muted); }
+.ty-search-tabs {
+    display: flex;
+    gap: 2px;
+    margin-top: 8px;
+    border-bottom: 1px solid var(--ty-border);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.ty-search-tabs::-webkit-scrollbar { display: none; }
+.ty-search-tab {
+    position: relative;
+    flex: 1;
+    min-height: 44px;
+    padding: 0 8px;
+    border: 0;
+    background: transparent;
+    color: var(--ty-muted);
+    font-size: 14px;
+}
+.ty-search-tab[aria-selected='true'] { color: var(--ty-accent); font-weight: 650; }
+.ty-search-tab[aria-selected='true']::after {
+    content: '';
+    position: absolute;
+    left: 14px; right: 14px; bottom: -1px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--ty-accent);
+}
+.ty-search-tab:disabled { opacity: .35; cursor: default; }
+
+.ty-search-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 6px 14px max(18px, var(--folia-main-inset-bottom, env(safe-area-inset-bottom, 0px)));
+}
+/* 单曲页：虚拟列表自己滚动，外层不再滚动，避免「加载更多」被列表盖住。 */
+.ty-search-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 4px 14px max(12px, var(--folia-main-inset-bottom, env(safe-area-inset-bottom, 0px))); }
+.ty-search-body .ty-list-slot { flex: 1 1 0; min-height: 0; }
+.ty-search-body .ty-load-more { height: 68px; align-items: center; padding: 10px 0 16px; background: transparent; }
+/* 键盘已经占掉底部空间时不再叠加安全区，避免列表与键盘之间多出一块空档。 */
+.ty-search[data-keyboard='true'] .ty-search-scroll { padding-bottom: 10px; }
+.ty-search[data-keyboard='true'] .ty-search-body { padding-bottom: 10px; }
+.ty-search-empty { padding: 48px 16px; text-align: center; color: var(--ty-muted); font-size: 14px; }
+.ty-search-note { margin: 16px 0; padding: 12px 14px; border-radius: 14px; background: var(--ty-panel); color: var(--ty-muted); font-size: 13px; line-height: 1.6; }
+
+/* 联想：紧凑列表，不做卡片堆叠 */
+.ty-suggest-list { display: flex; flex-direction: column; gap: 0; padding-top: 8px; }
+.ty-suggest-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 52px;
+    padding: 7px 0;
+    border: 0;
+    border-radius: 0;
+    border-bottom: 1px solid var(--ty-border);
+    background: transparent;
+    text-align: left;
+}
+.ty-suggest-row:active { background: var(--ty-panel-strong); }
+.ty-suggest-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px; height: 36px;
+    flex: none;
+    overflow: hidden;
+    border-radius: 10px;
+    background: var(--ty-panel-strong);
+    color: var(--ty-muted);
+}
+.ty-suggest-icon[data-round='true'] { border-radius: 50%; }
+.ty-suggest-icon img { width: 100%; height: 100%; object-fit: cover; }
+.ty-suggest-copy { min-width: 0; flex: 1; }
+.ty-suggest-title { display: block; font-size: 14px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ty-suggest-meta { display: block; margin-top: 2px; font-size: 11px; color: var(--ty-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ty-suggest-kind { flex: none; font-size: 11px; color: var(--ty-muted); opacity: .8; }
+.ty-suggest-hit { color: var(--ty-accent); font-weight: 600; }
+
+/* 综合内容 */
+.ty-best {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 14px 0 6px;
+    padding: 14px;
+    border: 1px solid var(--ty-border);
+    border-radius: 18px;
+    background: var(--ty-panel);
+    width: 100%;
+    text-align: left;
+}
+.ty-best-avatar { width: 56px; height: 56px; flex: none; border-radius: 50%; overflow: hidden; background: var(--ty-panel-strong); display: flex; align-items: center; justify-content: center; color: var(--ty-muted); }
+.ty-best-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.ty-best-copy { min-width: 0; flex: 1; }
+.ty-best-label { font-size: 11px; color: var(--ty-muted); }
+.ty-best-name { margin-top: 2px; font-size: 17px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ty-best-meta { margin-top: 3px; font-size: 12px; color: var(--ty-muted); }
+
+.ty-section { margin-top: 18px; }
+.ty-section:first-child { margin-top: 6px; }
+.ty-artist-section .ty-row { padding: 10px; background: var(--ty-panel); border: 1px solid var(--ty-border); border-radius: 16px; }
+.ty-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.ty-section-title { font-size: 16px; font-weight: 650; margin: 0; }
+.ty-section-more { display: inline-flex; align-items: center; gap: 2px; min-height: 36px; padding: 0 8px; border: 0; border-radius: 10px; background: transparent; color: var(--ty-muted); font-size: 12px; }
+.ty-section-error { color: var(--ty-muted); font-size: 12px; }
+
+.ty-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 60px;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 14px;
+    background: transparent;
+    text-align: left;
+}
+.ty-row:active { background: var(--ty-panel); }
+.ty-row-art { width: 48px; height: 48px; flex: none; overflow: hidden; border-radius: 12px; background: var(--ty-panel-strong); display: flex; align-items: center; justify-content: center; color: var(--ty-muted); }
+.ty-row-art[data-round='true'] { border-radius: 50%; }
+.ty-row-art img { width: 100%; height: 100%; object-fit: cover; }
+.ty-row-copy { min-width: 0; flex: 1; }
+.ty-row-title { display: block; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ty-row-meta { display: block; margin-top: 3px; font-size: 12px; color: var(--ty-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ty-row-chevron { flex: none; opacity: .35; }
+.ty-row-artist { font-size: 11px; color: var(--ty-muted); }
+
+.ty-load-more { display: flex; justify-content: center; padding: 16px 0 8px; }
+.ty-load-more button {
+    min-height: 42px;
+    padding: 0 22px;
+    border: 1px solid var(--ty-border);
+    border-radius: 999px;
+    background: var(--ty-panel);
+    font-size: 13px;
+}
+.ty-load-more button:disabled { opacity: .5; }
+
+/* 搜索落地：历史与热门 */
+.ty-landing { padding: 16px 0 8px; }
+.ty-landing-head { display: flex; align-items: center; justify-content: space-between; margin: 6px 0 10px; }
+.ty-landing-title { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; font-weight: 650; }
+.ty-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ty-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 38px;
+    border: 1px solid var(--ty-border);
+    border-radius: 999px;
+    background: var(--ty-panel);
+    font-size: 13px;
+    overflow: hidden;
+}
+.ty-chip > button:first-child { padding: 0 12px; border: 0; background: transparent; min-height: 36px; }
+.ty-chip > button + button { padding: 0 10px; border: 0; background: transparent; min-height: 36px; color: var(--ty-muted); }
+.ty-hot { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 12px; }
+.ty-hot button { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 4px; border: 0; background: transparent; text-align: left; font-size: 13px; }
+.ty-hot-index { width: 16px; flex: none; color: var(--ty-muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+.ty-hot-word { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 340px) {
+    .ty-search-head { padding-inline: 10px; }
+    .ty-search-scroll { padding-inline: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ty-search * { scroll-behavior: auto !important; }
+}
+
+/* Compact rows reuse the existing playback/catalog callbacks and sheet. */
+.ty-search .ty-track-slot { padding: 0; }
+.ty-search .ty-track { display: flex; align-items: center; gap: 10px; height: 56px; border-bottom: 1px solid var(--ty-border); }
+.ty-search .ty-track button { border: 0; background: transparent; }
+.ty-search .ty-track-art { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; flex: none; padding: 0; overflow: hidden; border-radius: 7px; color: var(--ty-muted); }
+.ty-search .ty-track-art img { width: 100%; height: 100%; object-fit: cover; }
+.ty-search .ty-track-copy { min-width: 0; flex: 1; text-align: left; padding: 5px 0; }
+.ty-search .ty-track-copy strong { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; line-height: 20px; height: 20px; font-weight: 550; }
+.ty-search .ty-track-copy small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--ty-muted); font-size: 11px; margin-top: 2px; }
+.ty-search .ty-track-more { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: none; color: var(--ty-muted); border-radius: 50%; }
+.ty-search .ty-track-more:active { background: var(--ty-panel-strong); }
+.ty-search .ty-track[data-current='true'] .ty-track-copy strong { color: var(--ty-accent); }
+.ty-search .ty-track[data-unavailable='true'] .ty-track-copy, .ty-search .ty-track[data-unavailable='true'] .ty-track-art { opacity: .5; }
+.ty-search .ty-history, .ty-search .ty-discovery { padding-bottom: 20px; margin-bottom: 12px; border-bottom: 1px solid var(--ty-border); }
+.ty-search .ty-landing-icon { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 0; border-radius: 50%; background: transparent; color: var(--ty-muted); }
+.ty-search .ty-landing-source { font-size: 11px; color: var(--ty-muted); }
+.ty-search .ty-hot button[data-leading='true'] { color: var(--ty-accent); }
+.ty-search .ty-hot button[data-leading='true'] .ty-hot-index { color: var(--ty-accent); }
+.ty-search .ty-hot-expand { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 42px; margin-top: 12px; border: 1px solid var(--ty-border); border-radius: 999px; background: var(--ty-panel); color: var(--ty-muted); font-size: 12px; }
+.ty-search .ty-landing-retry { background: transparent; border: 0; padding: 12px 0; color: var(--ty-muted); font-size: 12px; }
+
+/* The shared formatter can contain a translated second line; keep compact search titles in one line. */
+.ty-search .ty-track-copy strong span { display: inline; }
+.ty-search .ty-track-copy strong > span > span.block::before { content: ' '; white-space: pre; }

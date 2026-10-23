@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">听屿</string>
+    <string name="title_activity_main">听屿</string>
+    <string name="package_name">io.github.huleixin.tingyu</string>
+    <string name="custom_url_scheme">io.github.huleixin.tingyu</string>
+</resources>

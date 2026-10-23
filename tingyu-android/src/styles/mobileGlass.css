@@ -1,0 +1,88 @@
+/* The optical engine applies backdrop-filter:url(#feDisplacementMap) inline. Keep only a
+   low-opacity tint/highlight here so the underlying artwork remains visible through the lens. */
+.mobile-library.ml-footer::before { display: none; }
+
+.mobile-library.ml-footer > .ml-mini,
+.mobile-library.ml-footer > nav {
+    position: relative;
+    background:
+        linear-gradient(155deg, #ffffff0c 0%, transparent 55%, #ffffff04 100%),
+        rgb(11 20 19 / 46%);
+    border-color: #ffffff20;
+    box-shadow: 0 5px 16px #0003;
+    -webkit-backdrop-filter: blur(10px) saturate(1.25);
+    backdrop-filter: blur(10px) saturate(1.25);
+    transition: background-color 180ms ease, border-color 180ms ease, transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.mobile-library.ml-footer > .ml-mini { isolation: isolate; }
+.mobile-library.ml-footer > nav {
+    isolation: isolate;
+    background-color: rgb(11 20 19 / 58%);
+}
+
+.mobile-library.ml-footer nav svg {
+    stroke-width: 1.8;
+    transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 180ms ease;
+}
+
+.mobile-library.ml-footer nav button[aria-current='page']:not([disabled]) {
+    background: linear-gradient(155deg, #ffffff20, #ffffff0b 72%);
+    border: 1px solid #ffffff18;
+    box-shadow: inset 0 1px 0 #ffffff20;
+    transition: transform 240ms cubic-bezier(0.2, 0.85, 0.25, 1), background-color 180ms ease;
+}
+
+.mobile-library.ml-footer nav button[aria-current='page'] svg {
+    fill: none;
+    stroke-width: 2;
+    transform: translateY(-1px);
+}
+
+/* Tingyu's independent vector assets own their fills; keep optical size stable on selection. */
+.mobile-library.ml-footer nav .tingyu-nav-icon {
+    width: 24px;
+    height: 24px;
+    flex: none;
+    object-fit: contain;
+}
+.mobile-library.ml-footer nav button[aria-current='page'] {
+    color: #ace6cb;
+}
+
+.mobile-library.ml-footer nav button,
+.mobile-library .ml-mini-controls .ml-icon {
+    transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1), color 180ms ease, background-color 180ms ease,
+        opacity 180ms ease;
+}
+
+.mobile-library.ml-footer nav button:active:not(:disabled),
+.mobile-library .ml-mini-controls .ml-icon:active:not(:disabled) {
+    transform: scale(0.96);
+}
+
+[data-folia-android='true'] [data-folia-search-workspace] {
+    padding-top: calc(14px + var(--folia-main-inset-top, 0px));
+    /* 搜索覆盖底栏，不能保留迷你播放器/导航的 130px 占位。
+       手势安全区由搜索内部的滚动容器处理，输入法展开时也不会重复预留。 */
+    padding-bottom: 0;
+}
+
+/* Non-Blink engines are explicitly marked by the hook and retain a restrained blur fallback. */
+[data-glass-engine='fallback-blur'] {
+    background-color: rgb(16 24 23 / 38%);
+}
+
+[data-glass-engine='backdrop-refraction'] {
+    --liquid-glass-active: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mobile-library.ml-footer > nav,
+    .mobile-library.ml-footer > .ml-mini,
+    .mobile-library.ml-footer nav svg,
+    .mobile-library.ml-footer nav button,
+    .mobile-library .ml-mini-controls .ml-icon {
+        transition: none !important;
+    }
+}

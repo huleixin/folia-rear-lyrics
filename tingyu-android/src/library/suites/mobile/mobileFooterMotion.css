@@ -1,0 +1,9 @@
+/* src/library/suites/mobile/mobileFooterMotion.css — interaction ownership only; lens styles stay unchanged. */
+.mobile-library.ml-footer[data-footer-motion='true'] { pointer-events: none; }
+.mobile-library.ml-footer[data-footer-motion='true'] > .ml-mini,
+.mobile-library.ml-footer[data-footer-motion='true'] > nav {
+    pointer-events: auto;
+    /* WAAPI owns translation; preserve the existing colour transitions without a second transform transition. */
+    transition: background-color 180ms ease, border-color 180ms ease;
+}
+.mobile-library.ml-footer[data-footer-motion='true'] > nav[aria-hidden='true'] { pointer-events: none; }

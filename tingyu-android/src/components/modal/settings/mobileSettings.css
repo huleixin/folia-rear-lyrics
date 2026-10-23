@@ -1,0 +1,133 @@
+/* src/components/modal/settings/mobileSettings.css */
+/* Page-only paint. Native MainSystemBars already provides transparent bars and real CSS insets. */
+[data-folia-settings-overlay][data-mobile-settings='true'] {
+    padding: 0;
+    background: #031510;
+    --ty-settings-line: rgba(165, 205, 185, .12);
+    --ty-settings-muted: #9eb3aa;
+    --ty-settings-mint: #74d9ba;
+}
+[data-mobile-settings='true'] > [data-folia-settings-panel] {
+    width: 100%; max-width: 100%; height: 100%; max-height: 100%; min-height: 0;
+    padding: 0; border: 0; border-radius: 0;
+    background: radial-gradient(ellipse at 14% -12%, #12453680, transparent 53%),
+        linear-gradient(155deg, #061d16, #02120e 64%, #041a13);
+    box-shadow: none; backdrop-filter: none; transition: none;
+}
+[data-mobile-settings='true'] > [data-folia-settings-panel] > .pointer-events-none { display: none; }
+[data-mobile-settings='true'] [data-mobile-settings-options] { gap: 0; }
+[data-mobile-settings='true'] [data-folia-settings-content],
+[data-mobile-settings='true'] [data-folia-settings-help] {
+    min-height: 0; overscroll-behavior-y: contain;
+    padding: 0 max(22px, var(--folia-main-inset-right, env(safe-area-inset-right, 0px)))
+        calc(22px + var(--folia-main-inset-bottom, env(safe-area-inset-bottom, 0px)))
+        max(22px, var(--folia-main-inset-left, env(safe-area-inset-left, 0px)));
+}
+[data-mobile-settings='true'] [data-mobile-section-heading] > div { border: 0; }
+[data-mobile-settings='true'] .ty-settings-header {
+    flex: none; display: flex; align-items: center; gap: 10px; position: relative; z-index: 10;
+    padding: calc(24px + var(--folia-main-inset-top, env(safe-area-inset-top, 0px)))
+        max(22px, var(--folia-main-inset-right, env(safe-area-inset-right, 0px))) 20px
+        max(22px, var(--folia-main-inset-left, env(safe-area-inset-left, 0px)));
+}
+[data-mobile-settings='true'] .ty-settings-header h1 {
+    flex: 1; min-width: 0; margin: 0; font-size: 22px; line-height: 1.25; font-weight: 700;
+    overflow-wrap: anywhere;
+}
+[data-mobile-settings='true'] .ty-settings-header-primary h1 { font-size: 32px; letter-spacing: -.04em; }
+[data-mobile-settings='true'] .ty-settings-header > button {
+    display: grid; place-items: center; flex: none; width: 40px; height: 40px;
+    padding: 0; border: 0; border-radius: 50%; color: #e5eee9; background: transparent;
+}
+[data-mobile-settings='true'] .ty-settings-header > .ty-settings-close { background: #99bba50b; }
+[data-mobile-settings='true'] .ty-settings-home {
+    flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; touch-action: pan-y;
+    padding: 0 max(22px, var(--folia-main-inset-right, env(safe-area-inset-right, 0px)))
+        calc(24px + var(--folia-main-inset-bottom, env(safe-area-inset-bottom, 0px)))
+        max(22px, var(--folia-main-inset-left, env(safe-area-inset-left, 0px)));
+}
+[data-mobile-settings='true'] .ty-settings-feature { margin: 0 0 16px; }
+[data-mobile-settings='true'] .ty-settings-group-title {
+    display: flex; align-items: center; gap: 10px; margin: 0 2px 8px;
+    color: #acbfb6; font-size: 13px; line-height: 20px; font-weight: 500;
+}
+[data-mobile-settings='true'] .ty-settings-card {
+    background: linear-gradient(125deg, #23493b33, #14362926);
+    border: 1px solid var(--ty-settings-line); border-radius: 14px;
+    box-shadow: inset 0 1px 0 #d9ffe805, 0 4px 12px #0011090a;
+}
+[data-mobile-settings='true'] .ty-settings-feature-title { margin: 0; font-size: 15px; line-height: 1.5; font-weight: 600; }
+[data-mobile-settings='true'] .ty-settings-description { margin: 4px 0 0; color: var(--ty-settings-muted); font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+[data-mobile-settings='true'] .ty-settings-row, [data-mobile-settings='true'] .ty-settings-detail-row {
+    display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px;
+    padding: 8px 14px; text-align: left; color: inherit;
+}
+[data-mobile-settings='true'] .ty-settings-row { border: 0; background: transparent; }
+[data-mobile-settings='true'] .ty-settings-row + .ty-settings-row { position: relative; }
+[data-mobile-settings='true'] .ty-settings-row + .ty-settings-row::before {
+    content: ''; position: absolute; left: 62px; right: 14px; top: 0; border-top: 1px solid #a5cdb90c;
+}
+[data-mobile-settings='true'] .ty-setting-symbol {
+    display: grid; place-items: center; width: 34px; height: 34px; flex: none;
+    border-radius: 50%; background: #a6d7bf0c; color: #d2e3da;
+}
+[data-mobile-settings='true'] .ty-settings-row-copy { flex: 1; min-width: 0; }
+[data-mobile-settings='true'] .ty-settings-row-copy strong { display: block; font-size: 13px; line-height: 1.45; font-weight: 500; }
+[data-mobile-settings='true'] .ty-settings-row-copy small { display: block; margin-top: 2px; font-size: 11px; line-height: 1.5; color: var(--ty-settings-muted); overflow-wrap: anywhere; }
+[data-mobile-settings='true'] .ty-settings-row > svg { flex: none; color: #c7d7ce; }
+[data-mobile-settings='true'] .ty-rear-card { padding: 14px 14px 0; }
+[data-mobile-settings='true'] .ty-rear-intro { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; padding: 0 3px 10px; }
+/* Anchor to the entire intro: the narrow button column must not cut the phone's left rim. */
+[data-mobile-settings='true'] .ty-rear-intro { position: relative; isolation: isolate; }
+[data-mobile-settings='true'] .ty-rear-intro > .min-w-0,
+[data-mobile-settings='true'] .ty-rear-intro > .ty-rear-toggle { position: relative; z-index: 1; }
+[data-mobile-settings='true'] .ty-rear-decoration {
+    position: absolute; z-index: 0; top: 40px; right: -14px; bottom: 0;
+    width: clamp(150px, 42.25vw, 180px);
+    overflow: hidden; pointer-events: none; user-select: none; opacity: .75;
+    -webkit-mask-image: linear-gradient(to right, #000 58%, #0008 82%, transparent);
+    mask-image: linear-gradient(to right, #000 58%, #0008 82%, transparent);
+}
+[data-mobile-settings='true'] .ty-rear-decoration > img {
+    position: absolute; right: 0; bottom: -12px; display: block;
+    width: 100%; max-width: none; height: auto; pointer-events: none;
+}
+[data-mobile-settings='true'] .ty-rear-toggle {
+    display: flex; align-items: center; justify-content: center; gap: 3px; min-height: 36px; margin-top: 0;
+    padding: 7px 9px; border-radius: 12px; font-size: 12px; font-weight: 500; white-space: nowrap;
+    color: #e0f8ed; background: linear-gradient(120deg, #387a60, #255a48); border: 1px solid #7fc2a51a;
+}
+[data-mobile-settings='true'] .ty-rear-toggle:disabled { opacity: .45; }
+[data-mobile-settings='true'] .ty-rear-card > .ty-settings-detail-row { padding-inline: 2px; }
+[data-mobile-settings='true'] .ty-rear-intro + .ty-settings-detail-row { border-top: 1px solid var(--ty-settings-line); }
+[data-mobile-settings='true'] .ty-rear-guide-link { border-top: 1px solid var(--ty-settings-line); padding-inline: 2px; }
+[data-mobile-settings='true'] .ty-settings-inline-status { margin: 4px 0 10px; color: var(--ty-settings-muted); font-size: 11px; line-height: 1.6; }
+[data-mobile-settings='true'] .ty-settings-row-copy .ty-rear-status-enabled,
+[data-mobile-settings='true'] .ty-settings-row-copy .ty-rear-status-disabled { color: var(--ty-settings-mint); }
+[data-mobile-settings='true'] .ty-settings-row-copy .ty-rear-status-failed { color: #e5b897; }
+[data-mobile-settings='true'] .ty-settings-text-action { flex: none; font-size: 11px; color: var(--ty-settings-mint); min-height: 40px; }
+[data-mobile-settings='true'] .ty-immersive-card { padding: 12px 14px 0; }
+[data-mobile-settings='true'] .ty-immersive-link { margin-top: 10px; border-top: 1px solid var(--ty-settings-line); padding-inline: 2px; }
+[data-mobile-settings='true'] .ty-settings-switch {
+    flex: none; width: 44px; height: 24px; padding: 3px; border: 0; border-radius: 20px; background: #333a3b;
+}
+[data-mobile-settings='true'] .ty-settings-switch[aria-checked='true'] { background: #409b7b; }
+[data-mobile-settings='true'] .ty-settings-switch > div { width: 18px; height: 18px; transform: translateX(0); }
+[data-mobile-settings='true'] .ty-settings-switch[aria-checked='true'] > div { transform: translateX(20px); }
+[data-mobile-settings='true'] .ty-settings-row:active { background: #a3d9bc09; }
+[data-mobile-settings='true'] .ty-rear-toggle:active:not(:disabled) { filter: brightness(1.1); }
+[data-mobile-settings='true'] button:focus-visible, [data-mobile-settings='true'] summary:focus-visible {
+    outline: 2px solid #82caae; outline-offset: 2px;
+}
+[data-mobile-settings='true'] .ty-rear-guide > .ty-settings-card { margin-bottom: 14px; padding: 16px; }
+[data-mobile-settings='true'] .ty-rear-guide h2 { margin: 0 0 8px; font-size: 15px; font-weight: 600; }
+[data-mobile-settings='true'] .ty-rear-guide p { color: var(--ty-settings-muted); font-size: 13px; line-height: 1.8; white-space: pre-line; }
+[data-mobile-settings='true'] .ty-rear-guide summary { min-height: 44px; padding-block: 12px; font-size: 13px; }
+.ty-rear-guide .ty-settings-diagnostics { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow-y: auto; font-size: 11px; }
+@media (max-width: 374px) {
+    [data-mobile-settings='true'] .ty-settings-header,
+    [data-mobile-settings='true'] .ty-settings-home,
+    [data-mobile-settings='true'] [data-folia-settings-content],
+    [data-mobile-settings='true'] [data-folia-settings-help] { padding-inline: max(18px, var(--folia-main-inset-left, env(safe-area-inset-left, 0px))) max(18px, var(--folia-main-inset-right, env(safe-area-inset-right, 0px))); }
+    [data-mobile-settings='true'] .ty-rear-intro { gap: 8px; }
+}

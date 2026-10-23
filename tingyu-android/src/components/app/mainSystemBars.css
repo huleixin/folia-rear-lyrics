@@ -1,0 +1,59 @@
+/* src/components/app/mainSystemBars.css */
+html[data-folia-mobile-scrollbars='true'] :not(.mobile-library, .mobile-library *) {
+    scrollbar-width: auto;
+}
+html[data-folia-mobile-scrollbars='true'] ::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+    background: transparent;
+}
+html[data-folia-mobile-scrollbars='true'] ::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 3px;
+    transition: background-color 180ms ease;
+}
+html[data-folia-mobile-scrollbars='true'] [data-folia-scrolling='true']::-webkit-scrollbar-thumb {
+    background: #c4d2cc80;
+}
+.folia-native-safe-content {
+    position: absolute;
+    /* Fixed search/settings/player overlays must also stay inside this native safe rectangle. */
+    contain: layout;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+[data-folia-android='true'] [data-wall-handoff-layer='home'] {
+    top: var(--folia-main-inset-top, 0px);
+    left: var(--folia-main-inset-left, 0px);
+    right: var(--folia-main-inset-right, 0px);
+}
+/* The mobile library paints its own page background all the way through the status bar.
+   Keep the mount at the true viewport top so its gradient / flat colour is continuous;
+   the page itself reserves the native top inset for interactive content. */
+[data-folia-android='true'][data-folia-mobile-library='true'] [data-wall-handoff-layer='home'] {
+    top: 0;
+}
+[data-folia-android='true'] .mps-header {
+    top: calc(10px + var(--folia-main-inset-top, 0px));
+}
+[data-folia-android='true'] .mps-player {
+    bottom: calc(12px + var(--folia-main-inset-bottom, 0px));
+}
+[data-folia-android='true'] .ml-footer {
+    bottom: calc(8px + var(--folia-main-inset-bottom, 0px));
+}
+[data-folia-app-shell][data-folia-android='true'][data-folia-mobile-library='true'] {
+    /* Transition underlay only. The visible colour comes from the active page so the
+       status bar never keeps the recommendation green on a different route. */
+    background: #030a09 !important;
+}
+[data-folia-status-toast] {
+    margin-top: var(--folia-main-inset-top, 0px);
+}
+.ml-sheet-scrim {
+    padding-bottom: var(--folia-main-inset-bottom, 0px);
+    padding-left: var(--folia-main-inset-left, 0px);
+    padding-right: var(--folia-main-inset-right, 0px);
+}

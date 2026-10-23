@@ -1,0 +1,193 @@
+/* Home recommendation cards use the supplied, local Folia artwork as-is. */
+.ml-featured {
+  margin: 0 calc(-1 * var(--ml-home-inset, 22px));
+}
+/* Pagination already communicates position. This is the custom overlay cue,
+   not the native scrollbar; leave other scroll-frame cues alone. */
+.ml-featured > .ml-scroll-frame > .ml-scroll-cue-x {
+  display: none;
+}
+.ml-feature-rail {
+  display: flex;
+  align-items: stretch;
+  gap: 11px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  padding: 0 var(--ml-home-inset, 22px) 4px;
+  scroll-padding-inline: var(--ml-home-inset, 22px);
+  touch-action: pan-x pan-y;
+}
+.ml-feature-card {
+  position: relative;
+  /* 620px hero / 852px original reference, independent of chat preview scaling. */
+  flex: 0 0 var(--ml-home-hero-width, 73vw);
+  min-width: 0;
+  max-width: 440px;
+  aspect-ratio: 7 / 6;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  overflow: hidden;
+  border-radius: var(--ml-home-hero-radius, 15px);
+  color: white;
+  background: #172320;
+}
+.ml-hero-art,
+.ml-hero-background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.ml-hero-background {
+  display: block;
+  object-fit: cover;
+}
+.ml-home .ml-feature-card .ml-hero-art {
+  border-radius: inherit;
+}
+.ml-hero-copy {
+  --ml-hero-title-size: clamp(31px, 9vw, 40px);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  /* Reserve two title lines, a flexible decoration slot, two description lines,
+     and the same bottom action slot even when the title is only one line. */
+  grid-template-rows: calc(var(--ml-hero-title-size) * 2.28) minmax(12px, 1fr) 36px 38px;
+  justify-items: start;
+  align-items: start;
+  padding: 50px 18px 14px;
+  isolation: isolate;
+}
+.ml-poster-brand {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 3px;
+  font-weight: 500;
+  opacity: 0.92;
+}
+.ml-poster-title {
+  max-width: 80%;
+  margin: 0 !important;
+  color: #fff;
+  font-size: var(--ml-hero-title-size);
+  line-height: 1.14;
+  letter-spacing: -1.1px;
+  font-weight: 780;
+  text-shadow: 0 1px 12px #140b3350;
+}
+.ml-poster-title-personal {
+  font-size: var(--ml-hero-title-size);
+}
+.ml-hero-divider {
+  grid-row: 2;
+  width: 16px;
+  height: 2px;
+  margin: 10px 0 8px;
+  border-radius: 2px;
+  background: #fff9;
+}
+.ml-hero-copy p {
+  grid-row: 3;
+  margin: 0;
+  max-width: 12em;
+  color: #fffdf2d9;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-line;
+  text-shadow: 0 1px 8px #23113666;
+}
+.mobile-library .ml-hero-play,
+.ml-hero-unavailable {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 38px;
+  grid-row: 4;
+  margin-top: 0;
+  align-self: end;
+  padding: 0 15px;
+  border: 1px solid #ffffff45;
+  border-radius: 24px;
+  background: #ffffff30;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: inset 0 1px #ffffff22;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.ml-hero-unavailable {
+  color: #ffffffcf;
+  background: #17132c58;
+}
+.ml-feature-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  height: 15px;
+  margin: 4px 0 6px;
+}
+.mobile-library .ml-feature-dots button {
+  width: 14px;
+  height: 3px;
+  border-radius: 4px;
+  background: #ffffff38;
+}
+.mobile-library .ml-feature-dots button[aria-current="true"] {
+  width: 14px;
+  background: #f1f5f2;
+}
+@media (min-width: 700px) {
+  .ml-feature-card {
+    flex-basis: min(73vw, 440px);
+  }
+}
+@media (max-width: 360px) {
+  .ml-hero-copy {
+    --ml-hero-title-size: 27px;
+    grid-template-rows: calc(var(--ml-hero-title-size) * 2.28) minmax(12px, 1fr) 30px 32px;
+    padding: 36px 15px 10px;
+  }
+  .ml-poster-title,
+  .ml-poster-title-personal {
+    font-size: 27px;
+  }
+  .ml-hero-copy p {
+    font-size: 10.5px;
+    line-height: 1.4;
+  }
+  .ml-poster-brand {
+    top: 13px;
+    left: 15px;
+    font-size: 9px;
+  }
+  .ml-hero-divider {
+    margin: 6px 0 5px;
+  }
+  .mobile-library .ml-hero-play,
+  .ml-hero-unavailable {
+    min-height: 32px;
+    margin-top: 0;
+    font-size: 12px;
+  }
+}
+/* The chart cover opens the existing collection; its separate play button keeps queue creation explicit. */
+.ml-feature-card-new .ml-new-chart-open {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+}
+.ml-feature-card-new .ml-hero-play,
+.ml-feature-card-new .ml-hero-unavailable {
+    position: relative;
+    z-index: 2;
+}

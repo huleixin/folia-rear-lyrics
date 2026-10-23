@@ -1,0 +1,10 @@
+{
+  "folium": 1,
+  "id": "sample-home-tab",
+  "name": "首页完整页面（样例）",
+  "version": "1.0.0",
+  "author": "Folia Mod Samples",
+  "description": "演示 Grid / Bravais 首页入口、完整双栏页面、输入隔离、挂载清理与移除后的安全返回。",
+  "client": "client.mjs",
+  "permissions": []
+}
