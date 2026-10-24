@@ -75,7 +75,8 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
 
     const containerRef = useRef<HTMLDivElement>(null);
     const axisLineRef = useRef<HTMLDivElement>(null);
-    const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+    const [dimensions, setDimensions] = useState(() => rearBox
+        ? { width: rearBox.paintWidth, height: rearBox.paintHeight } : { width: 800, height: 600 });
 
     // Smoothly animate axis line color and scale in response to audio power
     useEffect(() => {
@@ -152,7 +153,7 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
     // Initialize dimensions on mount to avoid zero size on first render
     useEffect(() => {
         const container = containerRef.current;
-        if (container) {
+        if (container && !getVisualizerSurface()) {
             const rect = container.getBoundingClientRect();
             if (rect.width > 0 && rect.height > 0) {
                 setDimensions({ width: rect.width, height: rect.height });

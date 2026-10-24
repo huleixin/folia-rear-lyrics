@@ -21,6 +21,7 @@ const SAMPLES: Record<string, string[]> = {
     reported: ['会越过越好 天天念想着远方', '思念的人住在弯月亮', '在思念里等你回来'],
     cappella: ['全世界只有两个人', '愿你现在过得幸福安稳', 'May your days be filled with happiness and peace'],
     twoLayouts: ['渐渐地忘记赶不上明天', '要用力地抓紧想念', '每一朵花都在春天盛开'],
+    claddagh: ['要用力地抓紧了想念', '明天再也没有你的笑脸', 'Send them your heart so they will know someone cares'],
 };
 const texts = SAMPLES[sample] ?? SAMPLES.long!;
 const lines: Line[] = texts.map((text, index) => {
@@ -42,7 +43,8 @@ const tick = () => {
 };
 if (!manual) requestAnimationFrame(tick);
 const zero = motionValue(0);
-const audioBands = { bass: zero, lowMid: zero, mid: zero, vocal: zero, treble: zero, spectrum: motionValue(new Uint8Array(32)) };
+const power = motionValue(Number(params.get('power') ?? 0));
+const audioBands = { bass: power, lowMid: zero, mid: zero, vocal: zero, treble: zero, spectrum: motionValue(new Uint8Array(32)) };
 
 document.documentElement.dataset.foliaSurface = params.get('surface') === 'front' ? 'rear-lyrics' : 'rear-lyrics-panel';
 document.documentElement.style.background = '#101614';

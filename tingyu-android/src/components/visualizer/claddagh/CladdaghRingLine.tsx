@@ -1,4 +1,4 @@
-import { getVisualizerSurface } from '../../../utils/visualizerSurface';
+import { getRearSafeInset, getVisualizerSurface } from '../../../utils/visualizerSurface';
 import React, { useMemo, useRef, useLayoutEffect, useCallback } from 'react';
 import { MotionValue } from 'framer-motion';
 import { type Line, type Theme } from '../../../types';
@@ -24,6 +24,7 @@ import {
     normalizeReadableAngle,
 } from './claddaghLayout';
 import { buildCladdaghGlowFilter } from './claddaghGlow';
+import { fitCladdaghRearLine, type CladdaghRearGlyph, type CladdaghRearTransform } from './claddaghRearLayout';
 
 // src/components/visualizer/claddagh/CladdaghRingLine.tsx
 // 投影到 3D 椭圆环上的一行歌词：在 useLayoutEffect 里直接写每个字素 span 的变换与样式。
@@ -131,8 +132,12 @@ export const RingLine: React.FC<RingLineProps> = ({
     const charRefs = useRef<(HTMLSpanElement | null)[]>([]);
     const previousTimeRef = useRef(currentTime.get());
     const holdResetFrameRef = useRef(false);
+    const rearFitRef = useRef<CladdaghRearTransform | null>(null);
 
     useLayoutEffect(() => {
+        const safe = getRearSafeInset();
+        // Read natural glyph sizes once per layout, never force a layout read on an animation frame.
+        const sizes = safe ? charRefs.current.map(el => ({ width: el?.offsetWidth ?? 0, height: el?.offsetHeight ?? 0 })) : [];
         // What each glyph span currently shows. Most of these strings repeat frame to frame (a sung
         // glyph keeps its colour and glow; the ring often holds still), and comparing them is far
         // cheaper than handing the same declaration back to the style engine to parse. Fresh on
@@ -255,6 +260,7 @@ export const RingLine: React.FC<RingLineProps> = ({
             const R_ref = currentRx;
             const R_major = currentRx;
             const R_minor = currentRx * 0.09; // Squashed minor axis for a slender ellipse (matching orange design)
+            const rearGlyphs: (CladdaghRearGlyph & { el: HTMLSpanElement; style: GlyphStyle })[] = [];
 
             for (let i = 0; i < mvsLength; i++) {
                 const el = charRefs.current[i];
@@ -439,13 +445,35 @@ export const RingLine: React.FC<RingLineProps> = ({
                     }
                 }
 
-                writeGlyph(el, {
+                const style = {
                     transform,
                     opacity: finalOpacity.toFixed(3),
                     color: targetColor,
                     textShadow,
                     filter: [glowFilter, blurFilter].filter(Boolean).join(' ') || 'none',
-                });
+                };
+                if (safe) rearGlyphs.push({ el, style, x, y, scale, angle: tiltAngle, opacity: finalOpacity,
+                    width: sizes[i]?.width ?? 0, height: sizes[i]?.height ?? 0 });
+                else writeGlyph(el, style);
+            }
+            if (safe) {
+                const originX = safe.left + safe.width / 2, originY = safe.top + safe.height / 2;
+                let fit = { x: originX, y: originY, scale: 1 };
+                if (lineIndex === centerLineIndex) {
+                    fit = fitCladdaghRearLine(rearGlyphs, safe);
+                    rearFitRef.current = fit;
+                } else if (lineIndex < centerLineIndex && rearFitRef.current) {
+                    // Release the previous sentence back onto the full-panel orbit as it exits.
+                    const amount = Math.max(0, 1 - lineDiffFromCenter), previous = rearFitRef.current;
+                    fit = { x: originX + (previous.x - originX) * amount,
+                        y: originY + (previous.y - originY) * amount, scale: 1 + (previous.scale - 1) * amount };
+                }
+                for (const glyph of rearGlyphs) {
+                    const x = fit.x + glyph.x * fit.scale - containerWidth / 2;
+                    const y = fit.y + glyph.y * fit.scale - containerHeight / 2;
+                    glyph.style.transform = `translate3d(calc(-50% + ${x.toFixed(1)}px), calc(-50% + ${y.toFixed(1)}px), 0px) rotate(${glyph.angle.toFixed(2)}deg) scale(${(glyph.scale * fit.scale).toFixed(3)})`;
+                    writeGlyph(glyph.el, glyph.style);
+                }
             }
         };
 
@@ -464,7 +492,8 @@ export const RingLine: React.FC<RingLineProps> = ({
     }, [spacingInfo, lineIndex, centerLineIndex, lineOffset, Rx, Ry, audioPower, currentTime, containerWidth, containerHeight, activeSpacingInfo, renderBaseIndex, highlightColor, baseColor, focusScaleRatio, ellipseTiltDeg, lines, line]);
 
     return (
-        <div className="absolute inset-0 pointer-events-none w-full h-full">
+        <div className="absolute inset-0 pointer-events-none w-full h-full"
+            data-claddagh-line={lineIndex} data-claddagh-current={lineIndex === centerLineIndex ? '' : undefined}>
             {spacingInfo.map((item, idx) => (
                 <span
                     key={idx}
