@@ -20,7 +20,8 @@ export function fitRearLyricFont(text: string, theme: Theme, options: {
     const key = [text, family, weight, width, height, maxLines, scale].join('|');
     const hit = cache.get(key);
     if (hit !== undefined) return hit;
-    let low = 10, high = Math.max(low, Math.min(44, surface.height * .42, width / 3));
+    // CJK glyphs are about one em wide: keep roughly seven per line so wrapping stays even.
+    let low = 10, high = Math.max(low, Math.min(28, surface.height * .22, width / 7));
     for (let i = 0; i < 7 && high - low > .5; i += 1) {
         const size = (low + high) / 2;
         const laid = layoutWithLines(prepareWithSegments(text, `${weight} ${size}px ${family}`), width, size * 1.35);

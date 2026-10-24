@@ -14,8 +14,8 @@ describe('rear reading box', () => {
         const box = resolveRearReadingBox(904, 572);
         expect(box.left).toBe(904 * .37);
         expect(box.left + box.width).toBeCloseTo(904 * .97);
-        expect(box.top).toBe(0);
-        expect(box.height).toBeLessThan(572 - 62);
+        expect(box.top).toBeCloseTo(572 * .03);
+        expect(box.height).toBeCloseTo(572 * .94);
     });
     it('exposes a zero-origin local surface of exactly the box size', () => {
         rear();

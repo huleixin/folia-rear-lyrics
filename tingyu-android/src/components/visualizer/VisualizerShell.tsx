@@ -10,7 +10,8 @@ import { getSizedCoverUrl } from '../../utils/coverUrl';
 import { FoliumStageLayerSlot } from '../../mods/folium/registries/stageLayers';
 import VideoLayer from './videoLayer/VideoLayer';
 import { isMainAppSurface } from '../../utils/appSurface';
-import { getRearReadingBox, getVisualizerSurface } from '../../utils/visualizerSurface';
+import './rearContentLayer.css';
+import { getRearSafeInset, getVisualizerSurface } from '../../utils/visualizerSurface';
 
 // Shared outer shell for all visualizers.
 // This is where we keep background layering, font injection, and the hover-only back button
@@ -76,10 +77,8 @@ const VisualizerShell = forwardRef<HTMLDivElement, VisualizerShellProps>(({
     const resolvedIsPanelOpen = sharedProps?.isPanelOpen ?? false;
     const onPlayerPanelGuideHotspotChange = sharedProps?.onPlayerPanelGuideHotspotChange;
     const isBackButtonVisible = sharedProps?.alwaysShowBackButton || showBackButton;
-    // Rear panel: lyrics sit beside the camera and above the native controls, so one box owns them.
-    const readingBox = getRearReadingBox();
-    // The subtitle is the last row inside the box; reserving it here keeps every renderer above it.
-    const subtitleReserve = readingBox ? Math.min(34, Math.max(26, readingBox.height * .24)) : 0;
+    // Artwork covers the whole panel; only the lyric text layer is moved beside the camera.
+    const rearSafe = getRearSafeInset();
     const showStageLayers = !sharedProps?.isPreviewMode && !resolvedStaticMode;
 
     const updatePlayerPanelGuideHotspot = (isActive: boolean) => {
@@ -137,6 +136,12 @@ const VisualizerShell = forwardRef<HTMLDivElement, VisualizerShellProps>(({
                 fontFamily: resolveThemeFontStack(theme),
                 fontWeight: resolveThemeFontWeight(theme, 400),
                 opacity: resolvedVisualizerOpacity,
+                ...(rearSafe ? {
+                    '--rear-safe-left': `${rearSafe.left}px`,
+                    '--rear-safe-top': `${rearSafe.top}px`,
+                    '--rear-safe-width': `${rearSafe.width}px`,
+                    '--rear-safe-height': `${rearSafe.height}px`,
+                } as React.CSSProperties : {}),
             }}
             onMouseMove={(event) => {
                 // Back button is intentionally hidden most of the time.
@@ -216,13 +221,7 @@ const VisualizerShell = forwardRef<HTMLDivElement, VisualizerShellProps>(({
                 />
             )}
 
-            {readingBox ? (
-                <div data-rear-reading-box="true" style={{
-                    position: 'absolute', left: readingBox.left, top: readingBox.top,
-                    width: readingBox.width, height: readingBox.height, overflow: 'visible',
-                    paddingBottom: subtitleReserve, boxSizing: 'border-box',
-                }}>{children}</div>
-            ) : children}
+            {children}
 
             {showStageLayers && (
                 <FoliumStageLayerSlot

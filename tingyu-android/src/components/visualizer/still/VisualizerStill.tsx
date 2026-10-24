@@ -50,7 +50,7 @@ const VisualizerStill: React.FC<VisualizerSharedProps> = ({
             />
 
             {showText && (
-                <div className={`absolute inset-0 z-0 flex flex-col items-center justify-center pointer-events-none ${getVisualizerSurface() ? 'gap-1 px-2 pb-6' : 'gap-8 px-12 pb-16'}`}>
+                <div data-rear-content-layer="true" className={`absolute inset-0 z-0 flex flex-col items-center justify-center pointer-events-none ${getVisualizerSurface() ? 'gap-1 px-1' : 'gap-8 px-12 pb-16'}`}>
                     {(getVisualizerSurface() ? [0] : [-1, 0, 1]).map((offset) => {
                         const lineIndex = effectiveIndex + offset;
                         const line = lines[lineIndex];

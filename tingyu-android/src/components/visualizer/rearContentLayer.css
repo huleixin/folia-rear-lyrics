@@ -1,0 +1,14 @@
+/* src/components/visualizer/rearContentLayer.css
+   Rear panel only: artwork stays full-bleed, lyric text moves beside the camera. */
+html[data-folia-surface="rear-lyrics-panel"] [data-rear-content-layer] {
+    position: absolute !important;
+    left: var(--rear-safe-left) !important;
+    top: var(--rear-safe-top) !important;
+    width: var(--rear-safe-width) !important;
+    height: var(--rear-safe-height) !important;
+    padding-bottom: 0 !important;
+    margin: 0 !important;
+}
+html[data-folia-surface="rear-lyrics-panel"] [data-rear-subtitles] {
+    padding: 0 6px;
+}

@@ -1,3 +1,4 @@
+import { getRearSafeInset } from '../../../utils/visualizerSurface';
 // Copyright (c) 2026 chthollyphile
 import type { BlurFilter, Container } from 'pixi.js';
 import type { Theme } from '../../../types';
@@ -84,6 +85,8 @@ export const buildHanabiSceneEntry = (pixi: PixiModule, context: HanabiSceneBuil
         icons: context.icons,
         spinDirection: hanabiSpinDirection(program.seed),
         opening: index === 0 && context.songTitle ? { title: context.songTitle, artist: context.songArtist } : null,
+        // Only the sung line moves beside the camera; fireworks, stickers and the stage stay full width.
+        textOffsetX: (() => { const safe = getRearSafeInset(); return safe ? (safe.left + safe.width / 2) - width / 2 : 0; })(),
     });
     scene.setLayerVisibility({ graphics: true, text: context.showText, mid: false });
     const holder = new pixi.Container();

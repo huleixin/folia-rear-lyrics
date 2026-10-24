@@ -65,6 +65,8 @@ export interface HanabiSceneShot {
 }
 
 export interface HanabiSceneOptions {
+    /** Shifts only the lyric text; decorations and fireworks stay full-bleed. */
+    textOffsetX?: number;
     width: number;
     height: number;
     resolution: number;
@@ -323,6 +325,8 @@ export const createHanabiScene = (pixi: PixiModule, options: HanabiSceneOptions)
             })
             : null;
         if (text) {
+            // The sung line must sit beside the camera, but fireworks and stickers keep the full panel.
+            if (options.textOffsetX) text.view.x += options.textOffsetX;
             container.addChild(text.view);
             // 素材层插在色块与字之间：字在哪个容器里，就插在那个容器里字的前面。
             const glyphParent = text.glyphs.parent;

@@ -2,12 +2,11 @@
 // The rear panel is one document. The background paints full-bleed; lyrics live in a reading box
 // to the right of the camera and above the native transport controls. Inside that box all
 // coordinates are local (0,0), so a renderer can never offset itself twice.
-const CONTROLS_GAP = 62;
-
+/** Content area to the right of the camera. Background artwork still covers the whole panel. */
 export function resolveRearReadingBox(width: number, height: number) {
-    const controls = Math.max(18, height * .08) + CONTROLS_GAP;
-    return { left: width * .37, top: 0, width: Math.max(1, width * .60),
-        height: Math.max(1, height - controls) };
+    const top = height * .03;
+    return { left: width * .37, top, width: Math.max(1, width * .60),
+        height: Math.max(1, height - top * 2) };
 }
 /** Local content rect: same size as the reading box, origin at zero. */
 const localOf = (box: { width: number; height: number }) => ({
@@ -25,6 +24,11 @@ export function getRearReadingBox() {
 export function getVisualizerSurface() {
     const box = getRearReadingBox();
     return box ? localOf(box) : null;
+}
+/** Panel-space rect for the content layer (absolute positioning, not a canvas origin). */
+export function getRearSafeInset() {
+    const box = getRearReadingBox();
+    return box ? { left: box.left, top: box.top, width: box.width, height: box.height } : null;
 }
 export function getVisualizerViewportWidth() {
     return getVisualizerSurface()?.width ?? (typeof window === 'undefined' ? 1200 : window.innerWidth);
