@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
     ChevronDown,
     Heart,
@@ -22,6 +22,7 @@ import { colorWithAlpha, mixColors, parseColorChannels } from '../../../visualiz
 import ProgressBar from '../../../ProgressBar';
 import type { AppOverlaysModel } from '../buildAppOverlaysModel';
 import MobileStageMenu from './MobileStageMenu';
+import { useMobileStageSubtitleClearance } from './useMobileStageSubtitleClearance';
 import './mobileStageChrome.css';
 import '../../../../styles/mobileGlass.css';
 
@@ -38,6 +39,9 @@ export default function MobileStageChrome({
     const [menuOpen, setMenuOpen] = useState(false);
     const closeMenu = useCallback(() => setMenuOpen(false), []);
     const panelOpen = useAppViewStore((state) => state.isPanelOpen);
+    const stageRef = useRef<HTMLDivElement>(null);
+    const hidden = panelOpen || (chrome.hidden && !menuOpen);
+    useMobileStageSubtitleClearance(stageRef, !hidden && !!controls && !controls.hideControlBar);
     const openQueue = () => {
         const state = useAppViewStore.getState();
         state.setPanelTab('queue');
@@ -59,10 +63,11 @@ export default function MobileStageChrome({
     const disabled = !controls || !!controls.controlsDisabled;
     return (
         <div
+            ref={stageRef}
             className="mobile-player-stage"
             style={style}
             data-testid="mobile-stage-chrome"
-            data-hidden={panelOpen || (chrome.hidden && !menuOpen) || undefined}
+            data-hidden={hidden || undefined}
         >
             <header className="mps-header">
                 <button className="mps-icon mps-back" aria-label={t('mobileStage.back')} onClick={chrome.onBack}>
