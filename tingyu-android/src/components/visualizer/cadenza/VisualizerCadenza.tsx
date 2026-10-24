@@ -43,6 +43,7 @@ import {
     splitGraphemes,
 } from './cadenzaEnvelopes';
 import { buildPreparedState } from './cadenzaPreparedState';
+import { useRearCurrentLineFit } from '../../../hooks/useRearCurrentLineFit';
 
 // This is the heavy layout mode.
 // The line does not just show up and animate; we first prebuild the active/upcoming lines,
@@ -103,6 +104,9 @@ const VisualizerCadenza: React.FC<VisualizerProps> = (props) => {
         getLineEndTime: getLineRenderEndTime,
     });
     const tuning = cadenzaTuning;
+    const rear = Boolean(getVisualizerSurface());
+    const { ref: rearFrameRef, update: fitRearLine } = useRearCurrentLineFit(currentTime, activeLine,
+        '[data-cadenza-words] > div > div > span:first-child', false);
     const emptyFontSize = `clamp(${(1.5 * lyricsFontScale).toFixed(3)}rem, ${(3.5 * lyricsFontScale).toFixed(3)}vw, ${(2.25 * lyricsFontScale).toFixed(3)}rem)`;
     const { translationFontSize, upcomingFontSize } = resolveSubtitleFontSizes(lyricsFontScale);
 
@@ -465,6 +469,8 @@ const VisualizerCadenza: React.FC<VisualizerProps> = (props) => {
                     overlayNodes.delete(key);
                 }
             });
+            // Use this draw loop's final transforms, rather than adding a second animation loop.
+            if (rear) fitRearLine();
 
             frameId = window.requestAnimationFrame(draw);
         };
@@ -487,6 +493,8 @@ const VisualizerCadenza: React.FC<VisualizerProps> = (props) => {
         tuning.motionAmount,
         viewport.height,
         viewport.width,
+        rear,
+        fitRearLine,
     ]);
 
     return (
@@ -497,6 +505,8 @@ const VisualizerCadenza: React.FC<VisualizerProps> = (props) => {
             audioBands={audioBands}
             sharedProps={props}
         >
+            <div ref={rearFrameRef} data-rear-current-fit={rear ? 'cadenza' : undefined}
+                style={rear ? { position: 'absolute', inset: 0, overflow: 'visible', transformOrigin: '0 0', pointerEvents: 'none' } : { display: 'contents' }}>
             <div
                 ref={lineLayerRef}
                 className="absolute inset-0 z-10 pointer-events-none"
@@ -508,8 +518,9 @@ const VisualizerCadenza: React.FC<VisualizerProps> = (props) => {
                     perspective: '1000px',
                 }}
             >
-                <div ref={overlayRef} className="absolute inset-0 w-full h-full pointer-events-none select-none" />
+                <div ref={overlayRef} data-cadenza-words className="absolute inset-0 w-full h-full pointer-events-none select-none" />
                 <canvas ref={textCanvasRef} className="absolute inset-0 w-full h-full" />
+            </div>
             </div>
 
             <div data-rear-content-layer="true" className={getVisualizerSurface()

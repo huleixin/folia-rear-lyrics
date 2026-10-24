@@ -19,6 +19,7 @@ import {
     resolvePartitaTuning,
 } from './partitaLayout';
 import { PartitaChunk } from './PartitaChunk';
+import { useRearCurrentLineFit } from '../../../hooks/useRearCurrentLineFit';
 
 // This one is still word-driven, but unlike Classic it needs to pre-build a column/chunk structure first.
 // The flow is basically: ask runtime for the active line, optionally preheat the upcoming line,
@@ -77,6 +78,9 @@ const VisualizerPartita: React.FC<VisualizerPartitaProps> = (props) => {
         getLineEndTime: getLineRenderEndTime,
     });
     const activeLineRenderProfile = activeLine ? resolveGlowWordRenderProfile(activeLine) : null;
+    const rear = Boolean(getVisualizerSurface());
+    const { ref: rearFrameRef } = useRearCurrentLineFit(currentTime, activeLine,
+        `[data-partita-line="${activeLine?.startTime}"] .inline-block.origin-center.whitespace-nowrap > span.relative.z-10.block`);
     const activeLineContainerMotion = getGlowWordLineContainerMotion(activeLineRenderProfile);
 
     const sequentialLayout = useMemo(() => {
@@ -147,6 +151,8 @@ const VisualizerPartita: React.FC<VisualizerPartitaProps> = (props) => {
             audioBands={audioBands}
             sharedProps={props}
         >
+            <div ref={rearFrameRef} data-rear-current-fit={rear ? 'partita' : undefined}
+                style={rear ? { position: 'absolute', inset: 0, overflow: 'visible', transformOrigin: '0 0', pointerEvents: 'none' } : { display: 'contents' }}>
             <motion.div
                 data-rear-content-layer="true" className="relative z-10 w-full h-full flex items-center justify-center p-2 pointer-events-none will-change-transform"
                 animate={lyricContainerFloat.animate}
@@ -156,6 +162,7 @@ const VisualizerPartita: React.FC<VisualizerPartitaProps> = (props) => {
                     {showText && activeLine && activeLineRenderProfile && (
                         <motion.div
                             key={activeLine.startTime}
+                            data-partita-line={activeLine.startTime}
                             initial={activeLineContainerMotion.initial}
                             animate={activeLineContainerMotion.animate}
                             exit={activeLineContainerMotion.exit}
@@ -170,7 +177,8 @@ const VisualizerPartita: React.FC<VisualizerPartitaProps> = (props) => {
                                 return (
                                     <div
                                         key={column.id}
-                                        className="relative flex min-h-[24rem] min-w-[3.8rem] items-center justify-center px-3"
+                                        className={rear ? 'relative flex min-h-0 min-w-0 items-center justify-center px-1'
+                                            : 'relative flex min-h-[24rem] min-w-[3.8rem] items-center justify-center px-3'}
                                     >
                                         <div className="relative z-10 flex flex-col items-center justify-start">
                                             {column.words.map(({ chunkWords, displayWords, config, order, rowIndex }) => (
@@ -215,6 +223,7 @@ const VisualizerPartita: React.FC<VisualizerPartitaProps> = (props) => {
                     )}
                 </AnimatePresence>
             </motion.div>
+            </div>
 
             <VisualizerSubtitleOverlay
                 showText={showText}

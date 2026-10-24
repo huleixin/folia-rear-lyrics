@@ -177,7 +177,7 @@ const buildSequentialColumns = (line: Line, theme: Theme, windowHeight: number, 
         const staggerMagnitude = getVisualizerSurface() ? 0 : tuning.staggerMin + random() * Math.max(tuning.staggerMax - tuning.staggerMin, 0);
         const staggerX = isStaggeredLeft ? -staggerMagnitude : staggerMagnitude;
 
-        const staggerScale = isCalm ? 1 : 0.8 + random() * 0.9;
+        const staggerScale = getVisualizerSurface() ? .95 + random() * .12 : isCalm ? 1 : 0.8 + random() * 0.9;
 
         currentWords.push({
             chunkUnits,

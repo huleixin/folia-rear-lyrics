@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { motionValue } from 'framer-motion';
 import './../src/index.css';
@@ -20,6 +20,7 @@ const SAMPLES: Record<string, string[]> = {
     short: ['花火', '现在已经回不去了', '老街'],
     reported: ['会越过越好 天天念想着远方', '思念的人住在弯月亮', '在思念里等你回来'],
     cappella: ['全世界只有两个人', '愿你现在过得幸福安稳', 'May your days be filled with happiness and peace'],
+    twoLayouts: ['渐渐地忘记赶不上明天', '要用力地抓紧想念', '每一朵花都在春天盛开'],
 };
 const texts = SAMPLES[sample] ?? SAMPLES.long!;
 const lines: Line[] = texts.map((text, index) => {
@@ -45,13 +46,23 @@ const audioBands = { bass: zero, lowMid: zero, mid: zero, vocal: zero, treble: z
 
 document.documentElement.dataset.foliaSurface = params.get('surface') === 'front' ? 'rear-lyrics' : 'rear-lyrics-panel';
 document.documentElement.style.background = '#101614';
-createRoot(document.getElementById('root')!).render(<React.StrictMode>
+function Preview() {
+    const [currentLine, setCurrentLine] = useState(at);
+    useEffect(() => currentTime.on('change', time => {
+        let next = 0;
+        for (let index = lines.length - 1; index >= 0; index--) {
+            if (lines[index]!.startTime <= time) { next = index; break; }
+        }
+        setCurrentLine(previous => previous === next ? previous : next);
+    }), []);
+    return (
     <div style={{ position: 'fixed', inset: 0 }} data-preview-mode={mode}>
-        <VisualizerRenderer mode={mode} visualizerTunings={{}} currentTime={currentTime} currentLineIndex={at}
+        <VisualizerRenderer mode={mode} visualizerTunings={{}} currentTime={currentTime} currentLineIndex={currentLine}
             lines={lines} theme={theme} subtitleTheme={theme} isDaylight={false} audioPower={zero} audioBands={audioBands}
             songTitle="老街" songArtist="李荣浩" songAlbum="模特" coverUrl="" showText staticMode={false} paused={false}
             visualizerOpacity={1} background={{ mode: 'common', transparent: true }} lyricsFontScale={Number(params.get('fontScale') ?? 1)}
             subtitleFontScale={1} subtitleOverlayOpacity={1} subtitleOverlayBackground={false} subtitleUpcomingLyricsBlur={false}
             hideTranslationSubtitle={false} showSubtitleTranslation subtitleContentMode="both" seed="rear-preview" />
-    </div>
-</React.StrictMode>);
+    </div>);
+}
+createRoot(document.getElementById('root')!).render(<React.StrictMode><Preview /></React.StrictMode>);
