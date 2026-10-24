@@ -7,7 +7,7 @@ import RearLyricsPanel from './components/rear/RearLyricsPanel';
 import { installGlobalVisualizerFrameRateLimiter } from './utils/frameRateLimiter';
 
 // The rear screen mounts only Folia's shared lyric renderer, never the player application or its navigation.
-installGlobalVisualizerFrameRateLimiter();
+installGlobalVisualizerFrameRateLimiter(undefined, true);
 const lyricsOnly = new URLSearchParams(window.location.search).get('layer') === 'lyrics';
 if (lyricsOnly) {
     document.documentElement.dataset.foliaSurface = 'rear-lyrics-panel';

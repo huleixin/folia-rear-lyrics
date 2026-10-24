@@ -5,6 +5,7 @@ import type { ObsBrowserSourceClock } from '../../types/obsBrowserSource';
 import { PlayerState, type Theme } from '../../types';
 import { SkipBack, SkipForward, Play, Pause } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { subscribeRearStateRelay } from '../../services/rearStateRelay';
 
 // src/components/rear/RearLyricsPanel.tsx
 // The renderer lays out on the right, but its transitions paint across the full rear iframe.
@@ -24,7 +25,9 @@ export default function RearLyricsPanel() {
             clock.current = value;
             const next = value.playerState === PlayerState.PLAYING;
             if (next !== playingRef.current) { playingRef.current = next; setPlaying(next); }
-        }, config => setTheme(config.theme));
+        }, config => setTheme(config.theme), true, {
+            receiveSnapshots: window.parent !== window ? subscribeRearStateRelay : undefined,
+        });
         return { subscribe: (events: Parameters<typeof source.subscribe>[0]) => source.subscribe({ ...events,
             // The outer document draws the selected background once across the whole rear panel.
             config: config => events.config({ ...config, background: { ...config.background, transparent: true } }),

@@ -7,6 +7,7 @@ import { PlayerState } from '../../types';
 import type { ObsBrowserSourceConfig } from '../../types/obsBrowserSource';
 import RearLyricsViewport from './RearLyricsViewport';
 import { useRearViewport } from '../../hooks/useRearViewport';
+import { createRearStateRelay } from '../../services/rearStateRelay';
 
 // src/components/rear/RearLyricsSurface.tsx
 // Full-panel wallpaper and a separate, transparent lyric viewport share the published Folia settings.
@@ -27,11 +28,12 @@ export default function RearLyricsSurface() {
     useEffect(() => {
         document.title = 'Folia Rear Lyrics';
         document.documentElement.dataset.foliaSurface = 'rear-lyrics';
-        const transport = createRearLyricsTransport(() => undefined, () => undefined, false);
+        const relay = createRearStateRelay(() => panel.current?.contentWindow);
+        const transport = createRearLyricsTransport(() => undefined, () => undefined, false, { onSnapshot: relay.publish });
         const unsubscribe = transport.subscribe({
             config: setConfig,
             clock: value => setPaused(value.playerState !== PlayerState.PLAYING),
-            connected: () => undefined,
+            connected: relay.setConnected,
             audio: value => {
                 audioPower.set(value.audioPower);
                 bass.set(value.bands.bass); lowMid.set(value.bands.lowMid); mid.set(value.bands.mid);
@@ -47,7 +49,7 @@ export default function RearLyricsSurface() {
             if (frame) frame.dispatchEvent(new CustomEvent('folia-rear-power', { detail }));
         };
         window.addEventListener('folia-rear-power', power);
-        return () => { unsubscribe(); window.removeEventListener('folia-rear-reveal', reveal); window.removeEventListener('folia-rear-power', power); };
+        return () => { relay.dispose(); unsubscribe(); window.removeEventListener('folia-rear-reveal', reveal); window.removeEventListener('folia-rear-power', power); };
     }, [audioPower, audioBands, bass, lowMid, mid, vocal, treble, spectrum, reveal]);
     return <main data-testid="rear-lyrics-surface" onPointerDownCapture={reveal}
         style={{ position: 'fixed', inset: 0, overflow: 'hidden', touchAction: 'none', userSelect: 'none', background: config?.theme.backgroundColor ?? '#09090b' }}>

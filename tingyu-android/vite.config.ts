@@ -4,6 +4,7 @@ import { type ConfigEnv, type UserConfig, type ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import { commandPinyinPlugin } from './dev/pinyin/commandPinyinPlugin.mjs';
 import { icuFoliaDataPlugin } from './dev/icuFolia/icuFoliaDataPlugin.mjs';
+import { visualizerFrameScopePlugin } from './dev/build/visualizerFrameScopePlugin.mjs';
 import { normalizeBuildCommit, resolveBuildKind, resolveBuildRepo, resolveDevBuildKindOverride } from './dev/build/buildIdentity.mjs';
 import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'child_process';
@@ -265,6 +266,7 @@ export default async function viteConfig(_config: ConfigEnv): Promise<UserConfig
       },
     },
     plugins: [
+      ...(isCapacitorBuild ? [visualizerFrameScopePlugin(__dirname)] : []),
       devLyricProxyPlugin(),
       commandPinyinPlugin(),
       icuFoliaDataPlugin(),

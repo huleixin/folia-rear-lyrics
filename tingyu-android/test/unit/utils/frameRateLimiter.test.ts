@@ -218,7 +218,10 @@ describe('frameRateLimiter', () => {
                 expect(platform.IS_ANDROID_WEBVIEW).toBe(true);
 
                 limiter.installGlobalVisualizerFrameRateLimiter();
-                const runs = countFramesPerSecond(fakeWindow, nativeCallbacks);
+                const channel = await import('../../../src/utils/visualizerFrameChannel');
+                const request = fakeWindow.requestAnimationFrame;
+                const runs = countFramesPerSecond({ ...fakeWindow, requestAnimationFrame: channel.requestVisualizerAnimationFrame }, nativeCallbacks);
+                expect(fakeWindow.requestAnimationFrame).toBe(request);
                 // 30FPS ≈ 30 帧/秒；60FPS 会到 60 上下，所以上界卡在 40 就足以区分。
                 expect(runs).toBeGreaterThan(20);
                 expect(runs).toBeLessThanOrEqual(40);
@@ -235,7 +238,8 @@ describe('frameRateLimiter', () => {
                 const { fakeWindow, nativeCallbacks } = installFakeWindow('120');
                 const limiter = await import('../../../src/utils/frameRateLimiter');
                 limiter.installGlobalVisualizerFrameRateLimiter();
-                const runs = countFramesPerSecond(fakeWindow, nativeCallbacks);
+                const channel = await import('../../../src/utils/visualizerFrameChannel');
+                const runs = countFramesPerSecond({ ...fakeWindow, requestAnimationFrame: channel.requestVisualizerAnimationFrame }, nativeCallbacks);
                 expect(runs).toBeGreaterThan(40);
             } finally {
                 Object.defineProperty(globalThis, 'window', { configurable: true, value: previousWindow });

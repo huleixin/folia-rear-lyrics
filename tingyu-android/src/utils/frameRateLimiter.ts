@@ -2,17 +2,19 @@
 // Shared helpers and global RAF gate for optional visualizer frame throttling.
 
 import type { VisualizerFrameRate } from '../types';
-import { IS_ANDROID_WEBVIEW } from './platform';
+import { isAndroidNativeRuntime } from './platform';
+import { configureVisualizerFrameChannel, hasVisualizerFrameChannel } from './visualizerFrameChannel';
 
 type AnimationFrameCallback = FrameRequestCallback;
 type RequestAnimationFrameFn = (callback: AnimationFrameCallback) => number;
 type CancelAnimationFrameFn = (handle: number) => void;
 
-type FrameRateLimitedRaf = {
+export type FrameRateLimitedRaf = {
     requestAnimationFrame: RequestAnimationFrameFn;
     cancelAnimationFrame: CancelAnimationFrameFn;
     setFrameRate: (frameRate: VisualizerFrameRate) => void;
     getFrameRate: () => VisualizerFrameRate;
+    dispose: () => void;
 };
 
 type WindowWithVisualizerFrameRateLimiter = Window & {
@@ -134,6 +136,11 @@ export const createFrameRateLimitedRaf = (
             scheduleNativeFrame();
         },
         getFrameRate: () => frameRate,
+        dispose: () => {
+            callbacks.clear();
+            if (nativeFrameHandle !== null) nativeCancelAnimationFrame(nativeFrameHandle);
+            nativeFrameHandle = null;
+        },
     };
 };
 
@@ -141,6 +148,10 @@ let installedLimiter: FrameRateLimitedRaf | null = null;
 
 export const setGlobalVisualizerFrameRate = (frameRate: VisualizerFrameRate) => {
     if (typeof window === 'undefined') {
+        return;
+    }
+    if (isAndroidNativeRuntime() || hasVisualizerFrameChannel()) {
+        configureVisualizerFrameChannel(frameRate, createFrameRateLimitedRaf);
         return;
     }
 
@@ -172,7 +183,7 @@ export const restoreGlobalVisualizerFrameRateLimiter = () => {
     installedLimiter = null;
 };
 
-export const installGlobalVisualizerFrameRateLimiter = (overrideFrameRate?: VisualizerFrameRate) => {
+export const installGlobalVisualizerFrameRateLimiter = (overrideFrameRate?: VisualizerFrameRate, scoped = isAndroidNativeRuntime()) => {
     if (typeof window === 'undefined') {
         return;
     }
@@ -186,9 +197,13 @@ export const installGlobalVisualizerFrameRateLimiter = (overrideFrameRate?: Visu
     const effectiveFrameRate = initialFrameRate === 'off'
         && !overrideFrameRate
         && storedFrameRateRaw === null
-        && IS_ANDROID_WEBVIEW
+        && scoped
         ? 30
         : initialFrameRate;
+    if (scoped) {
+        configureVisualizerFrameChannel(effectiveFrameRate, createFrameRateLimitedRaf);
+        return;
+    }
     if (effectiveFrameRate === 'off') {
         restoreGlobalVisualizerFrameRateLimiter();
         return;
