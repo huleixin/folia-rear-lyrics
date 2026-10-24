@@ -6,6 +6,8 @@ import { getLineRenderEndTime } from '../../../utils/lyrics/renderHints';
 import { shouldPreheatLine, useVisualizerRuntime } from '../runtime';
 import { type VisualizerSharedProps } from '../definition';
 import VisualizerShell from '../VisualizerShell';
+import { fitRearLyricFont } from '../rearTextFit';
+import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
 import { buildGlowWordLayoutVariants, glowWordBodyVariants } from '../glowWordVariants';
 import { getGlowWordLineContainerMotion, resolveGlowWordRenderProfile } from '../glowWordTiming';
@@ -104,7 +106,11 @@ const VisualizerPartita: React.FC<VisualizerPartitaProps> = (props) => {
     });
 
     const densityScale = sequentialLayout.totalGraphemes > 40 ? 0.8 : 1;
-    const mainFontSize = `clamp(${(2.5 * densityScale * lyricsFontScale).toFixed(3)}rem, ${(5.5 * densityScale * lyricsFontScale).toFixed(3)}vw, ${(4.5 * densityScale * lyricsFontScale).toFixed(3)}rem)`;
+    const rearRows = sequentialLayout.columns[0]?.words.length ?? 1;
+    const rearFit = fitRearLyricFont(activeLine?.fullText ?? '', theme, { scale: lyricsFontScale, maxLines: rearRows });
+    const mainFontSize = rearFit !== null
+        ? `${Math.max(10, Math.min(rearFit, (getVisualizerSurface()?.height ?? 200) * .86 / (rearRows * 1.5)))}px`
+        : `clamp(${(2.5 * densityScale * lyricsFontScale).toFixed(3)}rem, ${(5.5 * densityScale * lyricsFontScale).toFixed(3)}vw, ${(4.5 * densityScale * lyricsFontScale).toFixed(3)}rem)`;
     const emptyFontSize = `clamp(${(1.2 * lyricsFontScale).toFixed(3)}rem, ${(2.8 * lyricsFontScale).toFixed(3)}vw, ${(1.9 * lyricsFontScale).toFixed(3)}rem)`;
     const translationFontSize = `clamp(${(1.05 * lyricsFontScale).toFixed(3)}rem, ${(2.2 * lyricsFontScale).toFixed(3)}vw, ${(1.2 * lyricsFontScale).toFixed(3)}rem)`;
     const upcomingFontSize = `clamp(${(0.875 * lyricsFontScale).toFixed(3)}rem, ${(1.8 * lyricsFontScale).toFixed(3)}vw, ${(1 * lyricsFontScale).toFixed(3)}rem)`;
@@ -142,7 +148,7 @@ const VisualizerPartita: React.FC<VisualizerPartitaProps> = (props) => {
             sharedProps={props}
         >
             <motion.div
-                className="relative z-10 w-full h-[70vh] flex items-center justify-center p-8 pointer-events-none will-change-transform"
+                className={`relative z-10 w-full h-full flex items-center justify-center p-2 pointer-events-none will-change-transform ${getVisualizerSurface() ? 'pb-9' : ''}`}
                 animate={lyricContainerFloat.animate}
                 transition={lyricContainerFloat.transition}
             >
@@ -157,7 +163,7 @@ const VisualizerPartita: React.FC<VisualizerPartitaProps> = (props) => {
                             style={{
                                 perspective: `${sequentialLayout.lineConfig.perspective}px`,
                                 gap: sequentialLayout.lineConfig.columnGap,
-                                minHeight: '320px',
+                                minHeight: rearFit !== null ? 0 : '320px',
                             }}
                         >
                             {sequentialLayout.columns.map((column) => {

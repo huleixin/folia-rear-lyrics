@@ -1,3 +1,4 @@
+import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, useMotionValueEvent, type MotionValue } from 'framer-motion';
 import { type CappellaTuning, type Theme } from '../../../types';
@@ -50,6 +51,7 @@ export const CappellaMessageRow = React.forwardRef<HTMLDivElement, CappellaMessa
     customAvatarImages,
     fontsEpoch,
 }, ref) => {
+    const rear = Boolean(getVisualizerSurface());
     const isRight = message.side === 'right';
     const timedData: CappellaTimedMessage | null = isTimedMessage(message) ? message : null;
     const timedState = timedData ? getTimedMessageState(timedData, currentTime.get(), currentLineIndex) : null;
@@ -234,18 +236,18 @@ export const CappellaMessageRow = React.forwardRef<HTMLDivElement, CappellaMessa
                 }}
                 transition={{ type: 'spring', ...motionConfig.avatarSpring }}
                 // w-full 用于防止右侧气泡宽度变化导致的次像素抖动
-                className={`flex w-full max-w-[78%] items-end gap-3 sm:max-w-[68%] ${isRight ? 'flex-row-reverse' : 'flex-row'}`}
+                className={`flex w-full items-end gap-3 ${rear ? 'max-w-full' : 'max-w-[78%] sm:max-w-[68%]'} ${isRight ? 'flex-row-reverse' : 'flex-row'}`}
                 style={{
                     transformOrigin: isRight ? '100% 100%' : '0% 100%',
                 }}
             >
-                <CappellaAvatar
+                {rear ? null : <CappellaAvatar
                     avatarUrl={avatarUrl}
                     avatarIndex={message.avatarIndex}
                     theme={theme}
                     side={message.side}
                     useAvatarGridCrop={useAvatarGridCrop}
-                />
+                />}
                 {isEmoMessage
                     ? (
                         <motion.div

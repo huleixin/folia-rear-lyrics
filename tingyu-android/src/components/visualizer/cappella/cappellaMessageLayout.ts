@@ -1,3 +1,4 @@
+import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 import { type Line, type Theme } from '../../../types';
 import { mixColors } from '../colorMix';
 import { type CappellaIntensityConfig, type CappellaMessage, type CappellaTimedMessage, isTimedMessage } from './cappellaTypes';
@@ -89,6 +90,12 @@ export const getVisibleMessages = (
 
         return message.lineIndex <= visibleLineIndex;
     });
+
+    // The rear box shows one lyric at a time; stacking history pushes every bubble out of view.
+    if (getVisualizerSurface()) {
+        const latest = messages.filter(message => message.kind === 'lyric').at(-1);
+        return latest ? [latest] : messages.slice(-1);
+    }
 
     // 计算气泡展示区域的可用高度：总高度减去底部播放控制条区域 (~160px) 和顶部状态栏/间距 (~80px)
     const usableHeight = Math.max(200, viewportHeight - 240);

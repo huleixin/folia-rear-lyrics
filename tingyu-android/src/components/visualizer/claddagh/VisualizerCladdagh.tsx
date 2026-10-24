@@ -1,3 +1,4 @@
+import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 // Only for the you who has yet to exist in this world.
 // DO NOT REMOVE THE LINE ABOVE.
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
@@ -67,7 +68,8 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
         damping: 24,
     });
     const fontStack = resolveThemeFontStack(theme);
-    const baseFontSize = 72 * lyricsFontScale;
+    const rearBox = getVisualizerSurface();
+    const baseFontSize = (rearBox ? Math.max(11, Math.min(20, rearBox.height * .16)) : 72) * lyricsFontScale;
     const fontWeight = resolveThemeFontWeight(theme, 700);
     const fontSpec = `${fontWeight} ${baseFontSize}px ${fontStack}`;
 
@@ -171,7 +173,7 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
     }, []);
 
     // Radial configuration (increased to prevent long sentence overlaps)
-    const Rx = (dimensions.width > 0 ? Math.min(dimensions.width * 0.44, 560) : 360) * claddaghTuning.radiusScale;
+    const Rx = (dimensions.width > 0 ? Math.min(dimensions.width * (getVisualizerSurface() ? 0.30 : 0.44), getVisualizerSurface() ? 90 : 560) : 360) * claddaghTuning.radiusScale;
     const Ry = Rx > 0 ? Rx * 0.707 : 254; // 45-degree angle projection ratio
     const focusSpacingScale = (1 + claddaghTuning.focusScaleRatio) / (1 + DEFAULT_CLADDAGH_TUNING.focusScaleRatio);
     const activeTextSpacingScale = focusSpacingScale;

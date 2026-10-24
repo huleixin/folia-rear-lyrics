@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { resolveThemeFontStack, resolveThemeFontWeight, resolveThemeTranslationFontStack } from '../../../utils/fontStacks';
 import type { VisualizerSharedProps } from '../definition';
 import VisualizerShell from '../VisualizerShell';
+import { fitRearLyricFont } from '../rearTextFit';
+import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 
 // src/components/visualizer/still/VisualizerStill.tsx
 // Renders static lyrics inside the shared shell while leaving the background renderer unmounted.
@@ -48,8 +50,8 @@ const VisualizerStill: React.FC<VisualizerSharedProps> = ({
             />
 
             {showText && (
-                <div className="absolute inset-0 z-0 flex flex-col items-center justify-center pointer-events-none px-12 pb-16 gap-8">
-                    {[-1, 0, 1].map((offset) => {
+                <div className={`absolute inset-0 z-0 flex flex-col items-center justify-center pointer-events-none ${getVisualizerSurface() ? 'gap-1 px-2 pb-6' : 'gap-8 px-12 pb-16'}`}>
+                    {(getVisualizerSurface() ? [0] : [-1, 0, 1]).map((offset) => {
                         const lineIndex = effectiveIndex + offset;
                         const line = lines[lineIndex];
                         if (!line) {
@@ -61,11 +63,12 @@ const VisualizerStill: React.FC<VisualizerSharedProps> = ({
                             <div key={lineIndex} className="flex flex-col items-center w-full max-w-4xl">
                                 {line.fullText && (
                                     <div
-                                        className={`drop-shadow-md text-center tracking-[0.02em] ${isCurrent ? 'text-[2.5rem] opacity-100 leading-tight' : 'text-3xl opacity-30'}`}
+                                        className={`drop-shadow-md text-center tracking-[0.02em] ${isCurrent ? 'opacity-100 leading-tight' : 'text-3xl opacity-30'} ${getVisualizerSurface() ? '' : isCurrent ? 'text-[2.5rem]' : ''}`}
                                         style={{
                                             color: theme.primaryColor,
                                             fontFamily: resolveThemeFontStack(theme),
-                                            scale: lyricsFontScale,
+                                            fontSize: getVisualizerSurface() ? `${fitRearLyricFont(line.fullText, theme, { scale: lyricsFontScale }) ?? 20}px` : undefined,
+                                            scale: getVisualizerSurface() ? 1 : lyricsFontScale,
                                             fontWeight: resolveThemeFontWeight(theme, isCurrent ? 700 : 600),
                                         }}
                                     >
@@ -75,11 +78,12 @@ const VisualizerStill: React.FC<VisualizerSharedProps> = ({
                                 {/* Still reads line.translation directly and ignores subtitleContentMode, so the 'both' option changes nothing here (phase 2). */}
                                 {line.translation && !hideTranslationSubtitle && (
                                     <div
-                                        className={`drop-shadow-sm text-center tracking-wide ${isCurrent ? 'text-2xl opacity-80 mt-3' : 'text-xl opacity-30 mt-2'}`}
+                                        className={`drop-shadow-sm text-center tracking-wide ${getVisualizerSurface() ? 'opacity-90' : isCurrent ? 'text-2xl opacity-80 mt-3' : 'text-xl opacity-30 mt-2'}`}
                                         style={{
                                             color: resolvedSubtitleTheme.secondaryColor,
                                             fontFamily: resolveThemeTranslationFontStack(resolvedSubtitleTheme),
-                                            scale: lyricsFontScale * subtitleFontScale,
+                                            fontSize: getVisualizerSurface() ? `${Math.max(10, Math.min(12, 11 * subtitleFontScale))}px` : undefined,
+                                            scale: getVisualizerSurface() ? 1 : lyricsFontScale * subtitleFontScale,
                                             fontWeight: resolveThemeFontWeight(resolvedSubtitleTheme, isCurrent ? 500 : 400),
                                         }}
                                     >

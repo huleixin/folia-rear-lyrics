@@ -6,6 +6,8 @@ import { getLineRenderEndTime } from '../../../utils/lyrics/renderHints';
 import { useVisualizerRuntime } from '../runtime';
 import { type VisualizerSharedProps } from '../definition';
 import VisualizerShell from '../VisualizerShell';
+import { getVisualizerSurface } from '../../../utils/visualizerSurface';
+import { fitRearLyricFont, rearJitterScale } from '../rearTextFit';
 import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
 import { resolveSubtitleFontSizes } from '../subtitleFontSizes';
 import { buildPostLyricLayoutUnits, buildDisplayWordsFromLayoutUnits } from '../../../utils/lyrics/cjkSemanticLayout';
@@ -137,7 +139,10 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
         return buildDisplayWordsFromLayoutUnits(layoutUnits);
     }, [activeLine, resolvedClassicTuning.useLegacyLayout]);
 
-    const mainFontSize = resolveVisualizerCssSize(`clamp(${(2.25 * lyricsFontScale).toFixed(3)}rem, ${(6 * lyricsFontScale).toFixed(3)}vw, ${(4.5 * lyricsFontScale).toFixed(3)}rem)`);
+    const rearFontPx = fitRearLyricFont(activeLine?.fullText ?? '', theme, { scale: lyricsFontScale });
+    const mainFontSize = rearFontPx !== null
+        ? `${rearFontPx}px`
+        : resolveVisualizerCssSize(`clamp(${(2.25 * lyricsFontScale).toFixed(3)}rem, ${(6 * lyricsFontScale).toFixed(3)}vw, ${(4.5 * lyricsFontScale).toFixed(3)}rem)`);
     const emptyFontSize = resolveVisualizerCssSize(`clamp(${(1.5 * lyricsFontScale).toFixed(3)}rem, ${(3.5 * lyricsFontScale).toFixed(3)}vw, ${(2.25 * lyricsFontScale).toFixed(3)}rem)`);
     const { translationFontSize, upcomingFontSize } = resolveSubtitleFontSizes(lyricsFontScale);
 
@@ -306,7 +311,7 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
         >
             {/* Main Container */}
             <motion.div
-                className="relative z-10 w-full h-[70vh] flex items-center justify-center p-8 pointer-events-none will-change-transform"
+                className={`relative z-10 w-full h-full flex items-center justify-center p-2 pointer-events-none will-change-transform ${getVisualizerSurface() ? 'pb-9' : ''}`}
                 animate={lyricContainerFloat?.animate}
                 transition={lyricContainerFloat?.transition}
             >
@@ -318,7 +323,7 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
                             animate={activeLineContainerMotion.animate}
                             exit={activeLineContainerMotion.exit}
                             className={`flex flex-wrap w-full max-w-6xl content-center ${lineConfig.justifyContent} ${lineConfig.alignItems}`}
-                            style={{ perspective: `${lineConfig.perspective}px`, minHeight: '300px' }}
+                            style={{ perspective: `${lineConfig.perspective}px`, minHeight: rearFontPx !== null ? 0 : '300px' }}
                         >
                             {displayWords.map((word, idx) => {
                                 const config = wordConfigs[idx] || { id: `fallback-${idx}`, x: 0, y: 0, rotate: 0, scale: 1, marginRight: '0.5rem', alignSelf: 'auto', passedRotate: 0 };
@@ -329,7 +334,9 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
                                     <GlowWord
                                         key={`${word.text}-${idx}-${activeLine.startTime}`}
                                         word={word}
-                                        config={config}
+                                        config={rearFontPx !== null ? { ...config,
+                                            x: config.x * rearJitterScale(), y: config.y * rearJitterScale(),
+                                            rotate: config.rotate * rearJitterScale() } : config}
                                         currentTime={currentTime}
                                         theme={theme}
                                         layoutVariants={layoutVariants}
@@ -339,7 +346,7 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
                                         renderProfile={activeWordRenderProfile!}
                                         isChorus={activeLine.isChorus}
                                         fontSize={mainFontSize}
-                                        layoutStyle={{ marginRight: config.marginRight, alignSelf: config.alignSelf }}
+                                        layoutStyle={{ marginRight: rearFontPx !== null ? '0.2em' : config.marginRight, alignSelf: config.alignSelf }}
                                     />
                                 );
                             })}

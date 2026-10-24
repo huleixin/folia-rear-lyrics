@@ -7,6 +7,7 @@ import { shouldPreheatLine, useVisualizerRuntime } from '../runtime';
 import { type VisualizerSharedProps } from '../definition';
 import VisualizerShell from '../VisualizerShell';
 import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
+import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 import { builtinEmoImages } from './emoImages';
 import type { PreparedBubbleMetrics } from './cappellaTypes';
 import { CAPPELLA_PREHEAT_WINDOW } from './cappellaConstants';
@@ -179,7 +180,7 @@ const VisualizerCappella: React.FC<VisualizerCappellaProps> = (props) => {
             sharedProps={props}
         >
             {showText && (
-                <div className="relative z-10 flex h-full w-full items-start justify-center overflow-visible px-4 pb-36 pt-12 sm:px-8 sm:pb-40 sm:pt-16 lg:px-14 lg:pt-20">
+                <div className={`relative z-10 flex h-full w-full items-start justify-center overflow-visible ${getVisualizerSurface() ? 'px-1 pb-8 pt-1' : 'px-4 pb-36 pt-12 sm:px-8 sm:pb-40 sm:pt-16 lg:px-14 lg:pt-20'}`}>
                     <div className="relative flex w-full max-w-4xl flex-col justify-start gap-3 overflow-visible">
                         <AnimatePresence initial={false} mode="popLayout">
                             {visibleMessages.map((message) => (

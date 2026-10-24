@@ -1,3 +1,4 @@
+import { resolveVisualizerDimension } from '../../../utils/visualizerSurface';
 import type { TemperaTuning, Theme } from '../../../types';
 import { resolveThemeFontStack, resolveThemeFontWeight } from '../../../utils/fontStacks';
 import { buildWordColorRangesFromMatchers, prepareWordColorMatchers } from '../wordColoring';
@@ -378,8 +379,8 @@ export const buildTemperaScene = (
     paragraph: TemperaParagraph,
 ): TemperaSceneView => {
     const { Container, Graphics } = pixi;
-    const width = Math.max(options.host.clientWidth, 320);
-    const height = Math.max(options.host.clientHeight, 240);
+    const width = resolveVisualizerDimension(options.host.clientWidth, 320);
+    const height = resolveVisualizerDimension(options.host.clientHeight, 240);
     const container = new Container();
     const { tuning } = options;
     const palette = resolveTemperaPalette(options.theme, tuning, options.coverColors);

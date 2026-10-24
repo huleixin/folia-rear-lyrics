@@ -639,7 +639,7 @@ const VisualizerTilt: React.FC<VisualizerTiltProps & { staticMode?: boolean; }> 
             audioBands={audioBands}
             sharedProps={props}
         >
-            <div className="relative z-10 w-full h-[70vh] flex items-center justify-center p-8 pointer-events-none">
+            <div className="relative z-10 w-full h-full flex items-center justify-center p-2 pointer-events-none">
                 <AnimatePresence mode='popLayout'>
                     {showText && activeLine && layout ? (
                         <motion.div

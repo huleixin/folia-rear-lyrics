@@ -1,3 +1,4 @@
+import { resolveVisualizerDimension } from '../../../utils/visualizerSurface';
 import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 // Copyright (c) 2026 chthollyphile
 import type { MotionValue } from 'framer-motion';
@@ -127,8 +128,8 @@ export class HanabiPixiRuntime {
         } as const;
         const context = await makePixiContext(pixi, contextOptions, options.signal);
         const app = new pixi.Application();
-        const width = getVisualizerSurface()?.paintWidth ?? Math.max(options.host.clientWidth, MIN_WIDTH);
-        const height = Math.max(options.host.clientHeight, MIN_HEIGHT);
+        const width = getVisualizerSurface()?.paintWidth ?? resolveVisualizerDimension(options.host.clientWidth, MIN_WIDTH);
+        const height = resolveVisualizerDimension(options.host.clientHeight, MIN_HEIGHT);
         const resolution = resolveRenderResolution(window.devicePixelRatio);
         await app.init({
             width,
@@ -191,10 +192,10 @@ export class HanabiPixiRuntime {
     private resizeToHost(immediate: boolean) {
         if (this.destroyed) return false;
         const surface = getVisualizerSurface();
-        const paintWidth = surface?.paintWidth ?? Math.max(this.options.host.clientWidth, MIN_WIDTH);
+        const paintWidth = surface?.paintWidth ?? resolveVisualizerDimension(this.options.host.clientWidth, MIN_WIDTH);
         const width = surface?.width ?? paintWidth;
         const readingLeft = surface?.left ?? 0;
-        const height = Math.max(this.options.host.clientHeight, MIN_HEIGHT);
+        const height = resolveVisualizerDimension(this.options.host.clientHeight, MIN_HEIGHT);
         const resolution = resolveRenderResolution(window.devicePixelRatio);
         if (width === this.width && paintWidth === this.paintWidth && readingLeft === this.readingLeft && height === this.height && resolution === this.renderResolution) return false;
         this.width = width;

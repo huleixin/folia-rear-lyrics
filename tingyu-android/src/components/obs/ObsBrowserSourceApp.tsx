@@ -77,10 +77,10 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
                 const isPortrait = window.innerHeight > window.innerWidth;
                 const baseWidth = isPortrait ? 1080 : 1920;
                 
-                // Read the physical dimensions from documentElement to avoid infinite loops when mocking innerWidth
-                const surface = getVisualizerSurface();
-                const realWidth = surface?.width ?? window.document.documentElement.clientWidth;
-                const realHeight = surface?.height ?? window.document.documentElement.clientHeight;
+                // The rear reading box is positioned by VisualizerShell; this root stays full-panel so a
+                // surface offset is never applied a second time here.
+                const realWidth = window.document.documentElement.clientWidth;
+                const realHeight = window.document.documentElement.clientHeight;
                 
                 const scale = transport ? 1 : Math.max(1, realWidth / baseWidth);
                 setObsScale(scale);

@@ -118,7 +118,7 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
     const surface = getVisualizerSurface();
     const scaleFontSize = (fontSize: string, factor = 1) => {
         const size = resolveVisualizerCssSize(fontSize.replace(/(-?\d*\.?\d+)(rem|vw|px)/g, (_match, value, unit) => `${(Number(value) * subtitleFontScale * factor).toFixed(3)}${unit}`));
-        return surface ? `min(${size}, ${Math.max(16, Math.min(22, surface.width * .055))}px)` : size;
+        return surface ? `min(${size}, ${Math.max(11, Math.min(14, surface.height * .075))}px)` : size;
     };
     const contentClassName = subtitleOverlayBackground
         ? `relative isolate inline-block px-1.5 py-0.5${surface ? ' max-w-full' : ''}`
@@ -147,7 +147,9 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
                     }}
                     // bottom 由共享 MotionValue 直接驱动，跟着底部基线走。
                     // 不要改回 transform：这一层下面压着 blur 辉光，多一个合成层就会变色。
-                    style={{ bottom: surface ? '18%' : subtitleBottomPx }}
+                    // Inside the rear reading box the subtitle is the last row: keep it at the bottom
+                    // and size it from the box height so two tracks still fit above the controls.
+                    style={surface ? { bottom: 0 } : { bottom: subtitleBottomPx }}
                     className="absolute left-0 right-0 text-center space-y-2 px-4 z-20 pointer-events-none"
                 >
                     {subtitleText ? (
