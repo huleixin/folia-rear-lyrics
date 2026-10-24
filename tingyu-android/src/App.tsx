@@ -87,7 +87,7 @@ import { useElectronVideoExportController } from './hooks/useElectronVideoExport
 import { useElectronWindowPlaybackHandoff } from './hooks/useElectronWindowPlaybackHandoff';
 import { useMediaSessionBridge } from './hooks/useMediaSessionBridge';
 import { useColorOsLyricFeed } from './hooks/useColorOsLyricFeed';
-import { usePlayerChromeAutoHide } from './hooks/usePlayerChromeAutoHide';
+import { usePlayerChromeMode } from './hooks/usePlayerChromeMode';
 import { usePlaybackAudioBridge } from './hooks/usePlaybackAudioBridge';
 import { useTranscodeFallback } from './hooks/useTranscodeFallback';
 import { useAutomixDecks, type AutomixDeckId } from './services/automix/useAutomixDecks';
@@ -482,7 +482,7 @@ export default function App() {
     const {
         playerChromeVisibilityMode,
         cyclePlayerChromeVisibilityMode,
-    } = usePlayerChromeAutoHide({
+    } = usePlayerChromeMode({
         autoHidePlayerChrome,
         initialPlayerChromeHidden: isPlayerChromeHidden,
         suppressPointerReveal: isMainWindowClickThroughEnabled,

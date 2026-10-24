@@ -15,7 +15,8 @@ export default {
     "retryDetection": "重新检测",
     "rearActionFailed": "操作未完成，请查看启动说明后重试。",
     "diagnosticsUnavailable": "暂时无法获取启动详情，请稍后重试。",
-    "immersiveDescription": "在播放界面自动收起控制栏和功能按钮，让歌词舞台更加纯粹。",
+    "immersiveTitle": "播放界面自动隐藏",
+    "immersiveDescription": "开启后，播放界面闲置约3秒收起控件和系统栏，触摸唤回；关闭后保持显示。",
     "displaySettings": "显示设置",
     "displaySettingsDescription": "调整播放界面的显示与控制栏。",
     "rearState": {

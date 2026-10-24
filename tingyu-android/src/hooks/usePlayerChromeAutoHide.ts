@@ -13,6 +13,8 @@ type UsePlayerChromeAutoHideOptions = {
     autoHidePlayerChrome: boolean;
     initialPlayerChromeHidden: boolean;
     suppressPointerReveal?: boolean;
+    /** Another surface owns visibility without changing the saved classic preference. */
+    suspended?: boolean;
     setIsPlayerChromeHidden: React.Dispatch<React.SetStateAction<boolean>>;
     setAutoHidePlayerChromePreference: (enabled: boolean) => void;
     onModeChange?: (mode: PlayerChromeVisibilityMode) => void;
@@ -38,6 +40,7 @@ export const usePlayerChromeAutoHide = ({
     autoHidePlayerChrome,
     initialPlayerChromeHidden,
     suppressPointerReveal = false,
+    suspended = false,
     setIsPlayerChromeHidden,
     setAutoHidePlayerChromePreference,
     onModeChange,
@@ -146,6 +149,8 @@ export const usePlayerChromeAutoHide = ({
             scheduleAutoHide(300);
         };
 
+        if (suspended) return clearAutoHideTimer;
+
         if (playerChromeVisibilityMode === 'always-hidden') {
             setIsPlayerChromeHidden(true);
             return clearAutoHideTimer;
@@ -187,7 +192,7 @@ export const usePlayerChromeAutoHide = ({
             window.removeEventListener('wheel', showAndResetTimer);
             window.removeEventListener('blur', handleWindowBlur);
         };
-    }, [playerChromeVisibilityMode, suppressPointerReveal, setIsPlayerChromeHidden]);
+    }, [playerChromeVisibilityMode, suppressPointerReveal, suspended, setIsPlayerChromeHidden]);
 
     return { playerChromeVisibilityMode, cyclePlayerChromeVisibilityMode };
 };

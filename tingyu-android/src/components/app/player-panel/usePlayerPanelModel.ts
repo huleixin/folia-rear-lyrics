@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { resolvePlayerChromeHidden, useAndroidMobilePlayerStage } from '../../../hooks/useAndroidMobilePlayerStage';
 import { useTranslation } from 'react-i18next';
 import { DAYLIGHT_THEME, DEFAULT_THEME } from '../../../services/baseThemes';
 import { resolveSongLiked } from '../../../utils/resolveSongLiked';
@@ -56,6 +57,7 @@ export const usePlayerPanelModel = ({
     ...deps
 }: PlayerPanelModelInputs): PlayerPanelViewModel => {
     const { t } = useTranslation();
+    const isAndroidMobileStage = useAndroidMobilePlayerStage();
     const isPanelOpen = useAppViewStore(state => state.isPanelOpen);
     const panelTab = useAppViewStore(state => state.panelTab);
     const isPlayerChromeHidden = useAppChromeStore(state => state.isPlayerChromeHidden);
@@ -130,7 +132,7 @@ export const usePlayerPanelModel = ({
         isMuted,
         showOpenPanelCloseButton,
         isPanelGuideHotspotActive,
-        hideToggleButton: isPlayerChromeHidden || shouldHidePlayerRightPanelButton || immersivePlayerChromeHidden,
+        hideToggleButton: resolvePlayerChromeHidden(isAndroidMobileStage, isPlayerChromeHidden, immersivePlayerChromeHidden) || shouldHidePlayerRightPanelButton,
         activePlaybackContext,
         audioQuality,
         useCoverColorBg,
@@ -159,6 +161,7 @@ export const usePlayerPanelModel = ({
         showOpenPanelCloseButton,
         isPanelGuideHotspotActive,
         immersivePlayerChromeHidden,
+        isAndroidMobileStage,
         isPlayerChromeHidden,
         shouldHidePlayerRightPanelButton,
         activePlaybackContext,

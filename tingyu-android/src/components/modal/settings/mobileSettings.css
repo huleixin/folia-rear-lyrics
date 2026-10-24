@@ -106,8 +106,7 @@
 [data-mobile-settings='true'] .ty-settings-row-copy .ty-rear-status-disabled { color: var(--ty-settings-mint); }
 [data-mobile-settings='true'] .ty-settings-row-copy .ty-rear-status-failed { color: #e5b897; }
 [data-mobile-settings='true'] .ty-settings-text-action { flex: none; font-size: 11px; color: var(--ty-settings-mint); min-height: 40px; }
-[data-mobile-settings='true'] .ty-immersive-card { padding: 12px 14px 0; }
-[data-mobile-settings='true'] .ty-immersive-link { margin-top: 10px; border-top: 1px solid var(--ty-settings-line); padding-inline: 2px; }
+[data-mobile-settings='true'] .ty-immersive-card { padding: 12px 14px; }
 [data-mobile-settings='true'] .ty-settings-switch {
     flex: none; width: 44px; height: 24px; padding: 3px; border: 0; border-radius: 20px; background: #333a3b;
 }

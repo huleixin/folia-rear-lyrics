@@ -144,6 +144,7 @@ describe('mobile options navigation and existing controls', () => {
         const groups = buildSettingsNavGroups(translate, { isElectron: false });
         const render = (index: boolean) => root.render(h(MobileSettingsNavigation, { groups, index, onSelect, onGuide, onHelp }));
         await act(async () => render(true));
+        expect(host.textContent).not.toContain('显示设置');
         const rows = host.querySelectorAll('.ty-settings-navigation .ty-settings-row');
         expect(rows.length).toBe(groups.flatMap(group => group.items).length + 1);
         const scroller = host.querySelector<HTMLElement>('.ty-settings-home')!; scroller.scrollTop = 460;
@@ -154,15 +155,15 @@ describe('mobile options navigation and existing controls', () => {
         act(() => render(false)); expect(host.textContent).toBe('');
         await act(async () => render(true)); expect(host.querySelector<HTMLElement>('.ty-settings-home')!.scrollTop).toBe(460);
     });
-    it('updates the original immersive store and storage key, preserving display settings access', async () => {
-        const onOpenDisplaySettings = vi.fn();
-        await act(async () => root.render(h(AndroidImmersiveSetting, { isDaylight: false, settingsCardClass: '', compact: true, onOpenDisplaySettings })));
+    it('updates the original immersive preference without a duplicate display shortcut', async () => {
+        await act(async () => root.render(h(AndroidImmersiveSetting, { isDaylight: false, settingsCardClass: '', compact: true })));
         const toggle = host.querySelector<HTMLButtonElement>('[role="switch"]')!;
         act(() => toggle.click());
         expect(useAndroidLayoutSettingsStore.getState().immersiveModeEnabled).toBe(true);
         expect(storage.get('folia_android_immersive_mode')).toBe('true');
         expect(toggle.getAttribute('aria-checked')).toBe('true');
-        act(() => host.querySelector<HTMLButtonElement>('.ty-immersive-link')!.click()); expect(onOpenDisplaySettings).toHaveBeenCalledOnce();
+        expect(host.querySelector('.ty-immersive-link')).toBeNull();
+        expect(host.textContent).toContain('播放界面自动隐藏');
         act(() => toggle.click()); expect(storage.get('folia_android_immersive_mode')).toBe('false');
     });
     it('keeps the existing daylight control in the compact secondary view', () => {

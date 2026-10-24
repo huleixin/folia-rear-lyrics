@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useAndroidMobilePlayerStage } from '../../../hooks/useAndroidMobilePlayerStage';
 import { Command } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { openCommandPalette, useAppViewStore } from '../../../stores/useAppViewStore';
@@ -17,7 +18,9 @@ const ACTIVITY_EVENTS = ['pointerdown', 'pointermove', 'touchstart', 'keydown', 
 
 const BottomCommandPaletteButton: React.FC = () => {
     const { t } = useTranslation();
-    const autoHide = usePlayerChromeSettingsStore(state => state.autoHideCommandPaletteButton);
+    const isAndroidMobileStage = useAndroidMobilePlayerStage();
+    const legacyAutoHide = usePlayerChromeSettingsStore(state => state.autoHideCommandPaletteButton);
+    const autoHide = !isAndroidMobileStage && legacyAutoHide;
     // 全沉浸模式：强制隐藏命令面板按钮。关闭后按钮回到 autoHide 决定的状态；
     // 如果 autoHide 本来就是开的，则保持自动隐藏，不会被强制常显。
     const immersiveModeEnabled = useAndroidLayoutSettingsStore(state => state.immersiveModeEnabled);

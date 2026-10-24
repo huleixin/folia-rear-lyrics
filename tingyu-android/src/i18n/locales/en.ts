@@ -15,7 +15,8 @@ export default {
     "retryDetection": "Check again",
     "rearActionFailed": "The operation did not complete. Check the guide before retrying.",
     "diagnosticsUnavailable": "Startup details are unavailable. Please try again later.",
-    "immersiveDescription": "Automatically hide controls and action buttons during playback for a clearer lyrics stage.",
+    "immersiveTitle": "Auto-hide player controls",
+    "immersiveDescription": "When enabled, player controls and system bars hide after about 3 seconds idle. Touch to reveal; turn off to keep them visible.",
     "displaySettings": "Display settings",
     "displaySettingsDescription": "Adjust playback appearance and controls.",
     "rearState": {

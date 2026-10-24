@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Capacitor } from '@capacitor/core';
+import { resolvePlayerChromeHidden, useAndroidMobilePlayerStage } from '../../../hooks/useAndroidMobilePlayerStage';
 import { currentTime, lyricCurrentTime } from '../../../stores/motionSignals';
 import { useAppViewStore } from '../../../stores/useAppViewStore';
 import { useAppChromeStore } from '../../../stores/useAppChromeStore';
@@ -43,9 +43,7 @@ export const useAppOverlaysModel = (deps: AppOverlaysDeps): AppOverlaysModel => 
     const currentView = useAppViewStore(state => state.view);
     const activeLibrarySuiteId = useActiveLibrarySuiteId();
     const shuffleEnabled = useAudioSettingsStore(state => state.shuffleEnabled);
-    const isAndroidMobileStage = Capacitor.getPlatform() === 'android'
-        && activeLibrarySuiteId === 'mobile'
-        && currentView === 'player';
+    const isAndroidMobileStage = useAndroidMobilePlayerStage();
     const isPlayerChromeHidden = useAppChromeStore(state => state.isPlayerChromeHidden);
     const immersiveModeEnabled = useAndroidLayoutSettingsStore(state => state.immersiveModeEnabled);
     const autoHidePlayerChrome = usePlayerChromeSettingsStore(state => state.autoHidePlayerChrome);
@@ -100,7 +98,7 @@ export const useAppOverlaysModel = (deps: AppOverlaysDeps): AppOverlaysModel => 
     const settingsOpen = useSettingsModalStore(state => state.settingsModalState.isOpen);
     const onSystemBarsVisible = useSettingsSystemBarsVisibility(settingsOpen);
     useImmersiveChromeReveal({
-        immersiveEnabled: immersiveModeEnabled || isAndroidMobileStage,
+        immersiveEnabled: immersiveModeEnabled,
         isPlayerView: currentView === 'player',
         // The compact Android stage owns its reveal timer so header and transport hide together,
         // regardless of the desktop player's auto-hide preference.
@@ -111,10 +109,10 @@ export const useAppOverlaysModel = (deps: AppOverlaysDeps): AppOverlaysModel => 
 
     // 全沉浸模式只在播放视图生效：强制收起控制条、命令面板按钮与右侧齿轮/面板按钮。
     // 歌单、歌曲浏览等界面保持原样，不会因为全沉浸而少掉浏览控件。
-    const immersivePlayerChromeHidden = (immersiveModeEnabled || isAndroidMobileStage)
+    const immersivePlayerChromeHidden = immersiveModeEnabled
         && currentView === 'player'
         && immersiveChromeHidden;
-    const effectivePlayerChromeHidden = isPlayerChromeHidden || immersivePlayerChromeHidden;
+    const effectivePlayerChromeHidden = resolvePlayerChromeHidden(isAndroidMobileStage, isPlayerChromeHidden, immersivePlayerChromeHidden);
 
     return useMemo(() => buildAppOverlaysModel({
         ...deps,
