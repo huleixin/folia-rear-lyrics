@@ -11,7 +11,7 @@ import {
 } from '../../utils/lyrics/subtitleTrackStyle';
 import { colorWithAlpha } from './colorMix';
 import { usePlayerSubtitleBottomPx } from '../../hooks/usePlayerBottomBarBottomPx';
-import { getVisualizerSurface, resolveVisualizerCssSize } from '../../utils/visualizerSurface';
+import { getRearSafeInset, getVisualizerSurface, resolveVisualizerCssSize } from '../../utils/visualizerSurface';
 
 // Some songs' lyric data carries pure marker/separator lines ("//", "●●●", dashes, stray slashes from
 // instrumental breaks or credits formatting). Those are timing placeholders, never display text: a
@@ -116,6 +116,7 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
     });
     const resolvedOpacity = subtitleOverlayOpacity ?? opacity;
     const surface = getVisualizerSurface();
+    const rearSafe = getRearSafeInset();
     const scaleFontSize = (fontSize: string, factor = 1) => {
         const size = resolveVisualizerCssSize(fontSize.replace(/(-?\d*\.?\d+)(rem|vw|px)/g, (_match, value, unit) => `${(Number(value) * subtitleFontScale * factor).toFixed(3)}${unit}`));
         return surface ? `min(${size}, ${Math.max(11, Math.min(14, surface.height * .075))}px)` : size;
@@ -149,7 +150,7 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
                     // 不要改回 transform：这一层下面压着 blur 辉光，多一个合成层就会变色。
                     // Inside the rear reading box the subtitle is the last row: keep it at the bottom
                     // and size it from the box height so two tracks still fit above the controls.
-                    style={surface ? { bottom: 0 } : { bottom: subtitleBottomPx }}
+                    style={rearSafe ? { bottom: rearSafe.top, left: rearSafe.left, right: 'auto', width: rearSafe.width, padding: '0 4px' } : { bottom: subtitleBottomPx }}
                     className="absolute left-0 right-0 text-center space-y-2 px-4 z-20 pointer-events-none"
                 >
                     {subtitleText ? (

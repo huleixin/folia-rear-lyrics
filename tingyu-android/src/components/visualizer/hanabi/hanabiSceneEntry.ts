@@ -1,4 +1,3 @@
-import { getRearSafeInset } from '../../../utils/visualizerSurface';
 // Copyright (c) 2026 chthollyphile
 import type { BlurFilter, Container } from 'pixi.js';
 import type { Theme } from '../../../types';
@@ -50,7 +49,6 @@ export const buildHanabiSceneEntry = (pixi: PixiModule, context: HanabiSceneBuil
     const { width, height, program } = context;
     const paragraph = program.paragraphs[index]!;
     const lineMap = new Map(paragraph.lineIndices.map((lineIndex, k) => [lineIndex, paragraph.lines[k]!]));
-    const rearSafe = getRearSafeInset();
     const shots: HanabiSceneShot[] = paragraph.shots.map(shot => {
         const profile = resolveShotProfile(shot);
         return {
@@ -61,7 +59,7 @@ export const buildHanabiSceneEntry = (pixi: PixiModule, context: HanabiSceneBuil
             isBridge: shot.isBridge,
             line: shot.isBridge ? null : shotLine(lineMap, shot.slices),
             // Each layout owns its own text centre; shift that centre into the camera-free column.
-            textOffsetX: rearSafe ? (rearSafe.left + rearSafe.width / 2) - profile.region.cx * width : 0,
+            textOffsetX: 0,
         };
     });
     if (shots.length === 0) {

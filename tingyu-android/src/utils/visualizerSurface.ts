@@ -1,17 +1,23 @@
+import { resolveRearContentFrame } from './rearFrameGeometry';
+import { resolveRearSafeLeft } from './rearCameraSafeArea';
+
 // src/utils/visualizerSurface.ts
-// The rear panel is one document. The background paints full-bleed; lyrics live in a reading box
-// to the right of the camera and above the native transport controls. Inside that box all
-// coordinates are local (0,0), so a renderer can never offset itself twice.
+// Reading geometry and paint geometry are independent. Only the physical panel clips animations.
 /** Content area to the right of the camera. Background artwork still covers the whole panel. */
 export function resolveRearReadingBox(width: number, height: number) {
-    const top = height * .03;
-    return { left: width * .37, top, width: Math.max(1, width * .60),
-        height: Math.max(1, height - top * 2) };
+    const params = typeof window !== 'undefined' ? new URLSearchParams(window.location?.search ?? '') : null;
+    const cameraRight = resolveRearSafeLeft(width, Number(params?.get('safeLeftPx')) || undefined,
+        Number(params?.get('physicalWidthPx')) || undefined);
+    const padding = Math.max(3, width * .015);
+    const frame = resolveRearContentFrame({ stageWidth: Math.max(1, width - cameraRight - padding * 2),
+        stageHeight: Math.max(1, height - padding * 2), frame: { canvasX: cameraRight + padding,
+            canvasY: padding, centerOffsetX: 0, centerOffsetY: 0, effectScaleX: 1, effectScaleY: 1 } });
+    return { left: frame.canvasLeft, top: frame.canvasTop, width: frame.canvasWidth, height: frame.canvasHeight };
 }
 /** Local content rect: same size as the reading box, origin at zero. */
-const localOf = (box: { width: number; height: number }) => ({
+const localOf = (box: { width: number; height: number }, width: number, height: number) => ({
     left: 0, top: 0, width: box.width, height: box.height,
-    paintWidth: box.width, paintHeight: box.height,
+    paintWidth: width, paintHeight: height,
 });
 let cachedBox: { key: string; box: ReturnType<typeof resolveRearReadingBox> } | null = null;
 export function getRearReadingBox() {
@@ -23,7 +29,7 @@ export function getRearReadingBox() {
 }
 export function getVisualizerSurface() {
     const box = getRearReadingBox();
-    return box ? localOf(box) : null;
+    return box ? localOf(box, document.documentElement.clientWidth, document.documentElement.clientHeight) : null;
 }
 /** Panel-space rect for the content layer (absolute positioning, not a canvas origin). */
 export function getRearSafeInset() {

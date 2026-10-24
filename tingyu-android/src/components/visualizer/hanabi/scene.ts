@@ -1,5 +1,7 @@
 // Copyright (c) 2026 chthollyphile
 import type { Container } from 'pixi.js';
+import { getRearSafeInset } from '../../../utils/visualizerSurface';
+import { fitRearCurrentLine, type RearRect } from '../../../utils/rearCameraSafeArea';
 import type { Line, Theme } from '../../../types';
 import type { BeatFxEvent } from '../../../services/beatFx/clock';
 import { firstBeatAtOrAfter, HANABI_BEAT_SHELL_LIFE, resolveHanabiBeatShell } from './hanabiBeatFx';
@@ -101,6 +103,7 @@ export interface HanabiBeatSource {
 }
 
 export interface HanabiScene {
+    constrainCurrentLine: (time: number) => RearRect | null;
     view: Container;
     timeline: Timeline;
     /** 各镜头预先算好的烟花事件（调试与测试用）。 */
@@ -573,6 +576,11 @@ export const createHanabiScene = (pixi: PixiModule, options: HanabiSceneOptions)
                 return;
             }
             if (!item.rig) item.rig = buildRig(item);
+            // Reset the previous frame's safety correction before applying the original animation.
+            if (getRearSafeInset() && item.text) {
+                item.text.view.position.set(0, 0);
+                item.text.view.scale.set(1);
+            }
             item.text?.update(time);
             if (item.rig.fireworks) {
                 activeBursts.length = 0;
@@ -613,6 +621,33 @@ export const createHanabiScene = (pixi: PixiModule, options: HanabiSceneOptions)
 
     const midLayer = (time: number) => built[timeline.shotAt(time)]?.mid ?? null;
 
+    // Like the reference's current-group projection correction, run after ALL ancestor transforms.
+    // Decorations and neighbouring shots remain on the full panel, without a reading-box mask.
+    const constrainCurrentLine = (time: number): RearRect | null => {
+        const safe = getRearSafeInset();
+        if (!safe) return null;
+        let last: RearRect | null = null;
+        for (const item of built) {
+            if (!item.text || !item.shot.line || item.shot.textHidden
+                || time < item.shot.line.startTime || time >= item.shot.line.endTime) continue;
+            const text = item.text;
+            const bounds = text.glyphs.getBounds();
+            if (bounds.width < 1 || bounds.height < 1) continue;
+            const fitted = fitRearCurrentLine({ left: bounds.x, top: bounds.y, width: bounds.width, height: bounds.height }, safe);
+            text.view.scale.set(fitted.scale);
+            const resized = text.glyphs.getBounds();
+            const correction = fitRearCurrentLine({ left: resized.x, top: resized.y, width: resized.width, height: resized.height }, safe);
+            const parent = text.view.parent!;
+            const before = parent.toLocal({ x: resized.x, y: resized.y });
+            const after = parent.toLocal({ x: correction.left, y: correction.top });
+            text.view.position.x += after.x - before.x;
+            text.view.position.y += after.y - before.y;
+            const final = text.glyphs.getBounds();
+            last = { left: final.x, top: final.y, width: final.width, height: final.height };
+        }
+        return last;
+    };
+
     return {
         view,
         timeline,
@@ -621,6 +656,7 @@ export const createHanabiScene = (pixi: PixiModule, options: HanabiSceneOptions)
         camera,
         rest,
         update,
+        constrainCurrentLine,
         prepare,
         setLayerVisibility: next => {
             layers = { ...next };

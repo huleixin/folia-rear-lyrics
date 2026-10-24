@@ -9,6 +9,7 @@ import { prepareActiveAndUpcoming, useVisualizerRuntime } from '../runtime';
 import { type VisualizerSharedProps } from '../definition';
 import { prepareVisualizerCanvas } from '../../../utils/visualizerSurface';
 import VisualizerShell from '../VisualizerShell';
+import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
 import { resolveSubtitleFontSizes } from '../subtitleFontSizes';
 import type {
@@ -511,7 +512,9 @@ const VisualizerCadenza: React.FC<VisualizerProps> = (props) => {
                 <canvas ref={textCanvasRef} className="absolute inset-0 w-full h-full" />
             </div>
 
-            <div className="relative z-10 w-full h-[70vh] flex items-center justify-center p-8 pointer-events-none">
+            <div data-rear-content-layer="true" className={getVisualizerSurface()
+                ? 'relative z-10 w-full h-full flex items-center justify-center p-2 pointer-events-none'
+                : 'relative z-10 w-full h-[70vh] flex items-center justify-center p-8 pointer-events-none'}>
                 <AnimatePresence mode="wait">
                     {showText && !activeLine && (
                         <motion.div

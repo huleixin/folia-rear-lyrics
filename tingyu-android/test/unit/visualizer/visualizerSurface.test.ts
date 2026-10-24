@@ -10,12 +10,12 @@ function rear(width = 904, height = 572, surface = 'rear-lyrics-panel') {
     vi.stubGlobal('window', { innerWidth: width, innerHeight: height, devicePixelRatio: 1.625 });
 }
 describe('rear reading box', () => {
-    it('places the box right of the camera and above the transport controls', () => {
+    it('places the reading box beyond the measured camera band, with full usable height', () => {
         const box = resolveRearReadingBox(904, 572);
-        expect(box.left).toBe(904 * .37);
-        expect(box.left + box.width).toBeCloseTo(904 * .97);
-        expect(box.top).toBeCloseTo(572 * .03);
-        expect(box.height).toBeCloseTo(572 * .94);
+        expect(box.left).toBeCloseTo(904 * (277 / 976 + .015));
+        expect(box.left + box.width).toBeCloseTo(904 * .985);
+        expect(box.top).toBeCloseTo(904 * .015);
+        expect(box.height).toBeCloseTo(572 - 904 * .03);
     });
     it('exposes a zero-origin local surface of exactly the box size', () => {
         rear();
@@ -25,6 +25,8 @@ describe('rear reading box', () => {
         expect(surface.top).toBe(0);
         expect(surface.width).toBe(box.width);
         expect(surface.height).toBe(box.height);
+        expect(surface.paintWidth).toBe(904);
+        expect(surface.paintHeight).toBe(572);
         expect(getVisualizerViewportWidth()).toBe(box.width);
         expect(resolveVisualizerCssSize('6vw')).toBe(`${6 * box.width / 100}px`);
     });
@@ -53,6 +55,6 @@ describe('rear reading box', () => {
     it('recomputes after a rear viewport resize', () => {
         rear(556, 352); const previous = getRearReadingBox();
         rear(904, 572); expect(getRearReadingBox()).not.toBe(previous);
-        expect(getRearReadingBox()!.left).toBe(904 * .37);
+        expect(getRearReadingBox()!.left).toBeCloseTo(904 * (277 / 976 + .015));
     });
 });

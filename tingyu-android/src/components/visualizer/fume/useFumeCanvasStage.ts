@@ -8,7 +8,8 @@ import { clamp } from './fumeMath';
 import { createStaticBlockSnapshot, drawFumeLiveBlock, type FumeLiveBlockParams } from './fumeCanvasText';
 import { FumeLiveRaster } from './fumeLiveRaster';
 import { readFumeAudioLevels, type FumeStageDriver, type FumeStageScene } from './fumeStage';
-import { getVisualizerSurface, prepareVisualizerCanvas } from '../../../utils/visualizerSurface';
+import { getRearSafeInset, getVisualizerSurface, prepareVisualizerCanvas } from '../../../utils/visualizerSurface';
+import { fitRearCurrentLine } from '../../../utils/rearCameraSafeArea';
 import { settleFumeSurfaceEntry } from './settleFumeSurfaceEntry';
 
 // src/components/visualizer/fume/useFumeCanvasStage.ts
@@ -204,10 +205,38 @@ export const useFumeCanvasStage = (
 
             if (showText) {
                 for (const block of article.blocks) {
-                    if (!isFumeBlockOnScreen(block, camera, viewport, 180 + paint.offsetX)) {
+                    const safe = getRearSafeInset();
+                    const isCurrent = safe && time >= block.line.startTime && time < block.line.endTime;
+                    if (!isCurrent && !isFumeBlockOnScreen(block, camera, viewport, 180 + paint.offsetX)) {
                         continue;
                     }
-
+                    if (isCurrent) context.save();
+                    let currentFrame = liveFrame;
+                    try {
+                    // Final screen-space correction protects the current sentence even during spring overshoot.
+                    // Only this block moves; the full-panel camera, background and passed lyrics keep animating.
+                    if (isCurrent) {
+                        const rowLeft = Math.min(...block.renderLines.map(row => row.left));
+                        const rowRight = Math.max(...block.renderLines.map(row => row.left + row.width));
+                        const rowTop = Math.min(...block.renderLines.map(row => row.top));
+                        const rowBottom = Math.max(...block.renderLines.map(row => row.top + block.lineHeight));
+                        const worldX = block.x + rowLeft, worldY = block.y + rowTop;
+                        const projected = { left: viewportCenterX + (worldX - camera.x) * screenScale,
+                            top: viewportCenterY + (worldY - camera.y) * screenScale,
+                            width: (rowRight - rowLeft) * screenScale, height: (rowBottom - rowTop) * screenScale };
+                        const fit = fitRearCurrentLine(projected, safe);
+                        context.transform(fit.scale, 0, 0, fit.scale,
+                            (1 - fit.scale) * worldX + (fit.left - projected.left) / screenScale,
+                            (1 - fit.scale) * worldY + (fit.top - projected.top) / screenScale);
+                        const fittedScale = screenScale * fit.scale;
+                        // Raster cache culling must use the corrected transform, or the visible sentence gets clipped internally.
+                        currentFrame = { ...liveFrame, deviceScale: fittedScale * (window.devicePixelRatio || 1),
+                            visible: { left: worldX - fit.left / fittedScale - margin,
+                                top: worldY - fit.top / fittedScale - margin,
+                                right: worldX + (viewport.width - fit.left) / fittedScale + margin,
+                                bottom: worldY + (viewport.height - fit.top) / fittedScale + margin } };
+                        if (import.meta.env.DEV) canvas.dataset.rearCurrentBounds = JSON.stringify(fit);
+                    }
                     const timing = resolveFumeBlockTiming(
                         block,
                         time,
@@ -245,10 +274,11 @@ export const useFumeCanvasStage = (
                         drawFumeLiveBlock(context, block, timing, liveParams);
                         continue;
                     }
-                    const image = liveRaster.draw(block, timing, liveParams, liveFrame, now);
+                    const image = liveRaster.draw(block, timing, liveParams, currentFrame, now);
                     if (image) {
                         context.drawImage(image.canvas, 0, 0, image.width, image.height, image.x, image.y, image.worldWidth, image.worldHeight);
                     }
+                    } finally { if (isCurrent) context.restore(); }
                 }
             }
             context.restore();

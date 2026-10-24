@@ -93,8 +93,9 @@ export const getVisibleMessages = (
 
     // The rear box shows one lyric at a time; stacking history pushes every bubble out of view.
     if (getVisualizerSurface()) {
-        const latest = messages.filter(message => message.kind === 'lyric').at(-1);
-        return latest ? [latest] : messages.slice(-1);
+        const current = messages.find(message => message.kind === 'lyric' && message.lineIndex === currentLineIndex);
+        const latest = visible.filter(message => message.kind === 'lyric').at(-1);
+        return current ? [current] : latest ? [latest] : visible.slice(-1);
     }
 
     // 计算气泡展示区域的可用高度：总高度减去底部播放控制条区域 (~160px) 和顶部状态栏/间距 (~80px)

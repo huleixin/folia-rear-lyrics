@@ -1,3 +1,4 @@
+import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 import React from 'react';
 import { DEFAULT_PARTITA_TUNING, Line, Theme, Word as WordType, type PartitaTuning } from '../../../types';
 import { buildDisplayWordsFromLayoutUnits, buildPostLyricLayoutUnits, type LyricLayoutUnit } from '../../../utils/lyrics/cjkSemanticLayout';
@@ -121,7 +122,9 @@ const buildSequentialColumns = (line: Line, theme: Theme, windowHeight: number, 
     const baseRowHeight = 100;
     const availableHeight = windowHeight * 0.65;
     const targetRowCount = Math.max(1, Math.floor(availableHeight / baseRowHeight));
-    const actualRowCount = Math.min(layoutUnits.length, targetRowCount);
+    // Rear panel: wrap rows by width instead of height, so a long line never runs off the box.
+    const rearRows = getVisualizerSurface() ? Math.max(1, Math.min(4, Math.ceil(totalGraphemes / 5))) : 0;
+    const actualRowCount = Math.min(layoutUnits.length, rearRows || targetRowCount);
 
     let seed = line.startTime;
     const random = () => {
@@ -171,7 +174,7 @@ const buildSequentialColumns = (line: Line, theme: Theme, windowHeight: number, 
 
         // Stagger is the core "Partita" move.
         // The chunk positions should feel offset and sequenced, but still readable as a single line.
-        const staggerMagnitude = tuning.staggerMin + random() * Math.max(tuning.staggerMax - tuning.staggerMin, 0);
+        const staggerMagnitude = getVisualizerSurface() ? 0 : tuning.staggerMin + random() * Math.max(tuning.staggerMax - tuning.staggerMin, 0);
         const staggerX = isStaggeredLeft ? -staggerMagnitude : staggerMagnitude;
 
         const staggerScale = isCalm ? 1 : 0.8 + random() * 0.9;
@@ -209,7 +212,7 @@ const buildSequentialColumns = (line: Line, theme: Theme, windowHeight: number, 
             perspective: theme.animationIntensity === 'chaotic' ? 720 : 1000,
             alignItems: 'items-center',
             justifyContent: 'justify-center',
-            columnGap: '2rem',
+            columnGap: getVisualizerSurface() ? '.2rem' : '2rem',
         },
     };
 };
