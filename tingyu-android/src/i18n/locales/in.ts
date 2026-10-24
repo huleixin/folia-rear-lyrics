@@ -1,6 +1,7 @@
 
 
 export default {
+  "mobileSettings": { "playbackStartup": "Pemutaran saat mulai", "playerDisplay": "Tampilan pemutar" },
   "libraryBravais": {
     "suiteName": "Dinding Bravais",
     "homeTitle": "Pustaka",

@@ -1,3 +1,4 @@
+import { isAndroidNativeRuntime } from '../../../utils/platform';
 import React, { useState } from 'react';
 import { Gauge, MonitorCog } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -103,20 +104,20 @@ const GraphicsSettingsSubview: React.FC<GraphicsSettingsSubviewProps> = ({
                 <SettingsSectionHeading icon={MonitorCog} label={t('options.labPerformanceSection')} />
                 <div className={`rounded-xl border overflow-hidden ${settingsCardClass}`}>
                     <SettingsRow
-                        title={t('options.enableStaticMode')}
+                        title={t(isAndroidNativeRuntime() ? 'mobileSettings.staticModeTitle' : 'options.enableStaticMode')}
                         description={t('options.enableStaticModeDesc')}
                         note={t('options.enableStaticModeDescSub')}
                         control={renderToggle(staticMode, () => onToggleStaticMode(!staticMode))}
                         dividerClass={dividerClass}
                     />
-                    <SettingsRow
+                    {!isAndroidNativeRuntime() && <SettingsRow
                         title={t('options.disableHomeDynamicBackground')}
                         description={t('options.disableHomeDynamicBackgroundDesc')}
                         note={t('options.disableHomeDynamicBackgroundWarning')}
                         control={renderToggle(disableHomeDynamicBackground, () => onToggleDisableHomeDynamicBackground(!disableHomeDynamicBackground))}
                         dividerClass={dividerClass}
-                    />
-                    {!isLinux && (
+                    />}
+                    {!isLinux && !isAndroidNativeRuntime() && (
                         <SettingsRow
                             title={t('options.enablePlayerPageNativeBlur')}
                             description={t('options.enablePlayerPageNativeBlurDesc')}
@@ -125,8 +126,8 @@ const GraphicsSettingsSubview: React.FC<GraphicsSettingsSubviewProps> = ({
                         />
                     )}
                     <SettingsRow
-                        title={t('options.visualizerFrameRate')}
-                        description={t('options.visualizerFrameRateDesc')}
+                        title={t(isAndroidNativeRuntime() ? 'mobileSettings.frameRateTitle' : 'options.visualizerFrameRate')}
+                        description={t(isAndroidNativeRuntime() ? 'mobileSettings.frameRateDescription' : 'options.visualizerFrameRateDesc')}
                         control={renderToggle(
                             isVisualizerFrameRateLimiterEnabled,
                             () => onVisualizerFrameRateChange(isVisualizerFrameRateLimiterEnabled ? 'off' : selectedVisualizerFrameRate),
@@ -158,7 +159,7 @@ const GraphicsSettingsSubview: React.FC<GraphicsSettingsSubviewProps> = ({
                             </div>
                         </div>
                     </SettingsRow>
-                    <SettingsRow
+                    {!isAndroidNativeRuntime() && <SettingsRow
                         title={t('options.glowBlurQuantize')}
                         description={(
                             <>
@@ -177,7 +178,7 @@ const GraphicsSettingsSubview: React.FC<GraphicsSettingsSubviewProps> = ({
                         control={renderToggle(glowBlurQuantize, () => onToggleGlowBlurQuantize(!glowBlurQuantize))}
                         dividerClass={dividerClass}
                         isLast
-                    />
+                    />}
                 </div>
             </SettingsAnchor>
 

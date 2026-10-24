@@ -2,6 +2,27 @@
 
 export default {
   "mobileSettings": {
+    "enterLyricsStage": "Open lyrics stage",
+    "playbackStartup": "Startup playback",
+    "playerDisplay": "Player display",
+    "autoPlayDescription": "Resume playback after the last track is successfully restored at startup. When off, restore the track and wait for Play.",
+    "subtitleDescription": "Hide only the front player’s bottom subtitle layer. The lyrics stage and rear-display synchronization stay available.",
+    "libraryCategories": "Library categories",
+    "phoneFitDescription": "Use only if layout proportions or orientation are incorrect. Enables a compact compatibility layout with optional landscape locking; leave off when display is normal.",
+    "frameRateTitle": "Animation frame-rate limit",
+    "frameRateDescription": "Limit interface animation refresh to reduce load, without changing music speed. Actual frame rate depends on the device and system.",
+    "staticModeTitle": "Static lyrics stage",
+    "microMotionDescription": "Reduce mini-player position changes and connection-button animations.",
+    "playbackDestination": "After tapping a track",
+    "playbackDestinationDescription": "Open the lyrics stage or stay on the current page when playback starts. The queue is unchanged.",
+    "touchHelpTitle": "Phone playback controls",
+    "touchStageTitle": "Open the lyrics stage",
+    "touchStageDescription": "Tap the mini-player artwork or track information. Use the top-left Back button to return to music.",
+    "touchTransportTitle": "Play and switch tracks",
+    "touchTransportDescription": "Use the player’s play, pause and track buttons. On the lyrics stage, use Previous, Next or drag the seek bar.",
+    "touchQueueTitle": "View the playback queue",
+    "touchQueueDescription": "Tap Playback queue on the lyrics stage to view and choose queued tracks.",
+
     "back": "Back",
     "usageGuide": "Usage guide",
     "about": "About & help",

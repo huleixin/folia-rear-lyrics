@@ -117,6 +117,8 @@ export const InteractionSettingsSubview: React.FC<InteractionSettingsSubviewProp
             .map(command => ({ value: command.id, label: getCommandTitle(command, t) })),
     ];
 
+    if (isAndroidNativeRuntime()) return null;
+
     return (
         <div className="space-y-5">
             {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="gridActionButton" label={t('options.gridActionButton')}>
@@ -173,7 +175,7 @@ export const InteractionSettingsSubview: React.FC<InteractionSettingsSubviewProp
                 </div>
             </SettingsAnchor>}
 
-            <SettingsAnchor anchorId="customShortcut" label={t('options.customShortcut')}>
+            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="customShortcut" label={t('options.customShortcut')}>
                 <SettingsSectionHeading icon={Keyboard} label={t('options.customShortcut')} />
                 <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
                     <div className="space-y-1">
@@ -208,7 +210,7 @@ export const InteractionSettingsSubview: React.FC<InteractionSettingsSubviewProp
                         </div>
                     </div>
                 </div>
-            </SettingsAnchor>
+            </SettingsAnchor>}
         </div>
     );
 };

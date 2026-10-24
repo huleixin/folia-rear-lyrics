@@ -43,7 +43,7 @@ const AndroidPhoneFitSetting: React.FC<AndroidPhoneFitSettingProps> = ({
                             {t('options.phoneFit')}
                         </div>
                         <div className="text-xs opacity-50 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                            {t('options.phoneFitDesc')}
+                            {t('mobileSettings.phoneFitDescription')}
                         </div>
                     </div>
                     <button

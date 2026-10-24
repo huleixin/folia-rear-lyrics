@@ -1,3 +1,5 @@
+import { isAndroidNativeRuntime } from '../../../utils/platform';
+import { SettingsToggle } from './SettingsRow';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Theme } from '../../../types';
@@ -62,21 +64,13 @@ const MotionReductionSettingsSection: React.FC<MotionReductionSettingsSectionPro
                     </div>
                 )}
             </div>
-            <button
-                type="button"
-                onClick={() => onChange(!active)}
-                className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!active ? toggleOffBackgroundClass : ''}`}
-                style={{ backgroundColor: active ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
-                aria-pressed={active}
-                aria-label={label}
-            >
-                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${active ? 'translate-x-6' : 'translate-x-0'}`} />
-            </button>
+            <SettingsToggle checked={active} onChange={() => onChange(!active)} disabled={forcedBySystem}
+                offClass={toggleOffBackgroundClass} onColor={theme?.secondaryColor} ariaLabel={label} />
         </div>
     );
 
     // 跟随系统打开且系统确实要求降级时，每一面都已经被压住了，此时再显示自己的开关为「关」
-    // 会让人以为动效还在。所以那种情况下逐项开关照常可点，但补一行说明是谁在压它。
+    // 会让人以为动效还在。因此显示实际开启状态并禁用单项开关，关闭跟随系统后恢复个人选择。
     const forcedBySystem = followSystem && systemPrefers;
 
     return (
@@ -97,14 +91,14 @@ const MotionReductionSettingsSection: React.FC<MotionReductionSettingsSectionPro
             </div>
 
             <div className={`border-t pt-4 space-y-4 ${settingsDividerClass}`}>
-                {MOTION_SURFACE_IDS.map(surface => (
+                {MOTION_SURFACE_IDS.filter(surface => !isAndroidNativeRuntime() || ['monetBackground', 'uiMicroMotion', 'settingsScroll'].includes(surface)).map(surface => (
                     <React.Fragment key={surface}>
                         {renderToggleRow(
                             t(SURFACE_LABEL_KEYS[surface].label),
-                            t(SURFACE_LABEL_KEYS[surface].desc),
-                            surfaces[surface],
+                            t(isAndroidNativeRuntime() && surface === 'uiMicroMotion' ? 'mobileSettings.microMotionDescription' : SURFACE_LABEL_KEYS[surface].desc),
+                            surfaces[surface] || forcedBySystem,
                             next => toggleSurface(surface, next),
-                            forcedBySystem && !surfaces[surface],
+                            forcedBySystem,
                         )}
                     </React.Fragment>
                 ))}

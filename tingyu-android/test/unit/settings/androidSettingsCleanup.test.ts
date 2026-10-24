@@ -41,8 +41,9 @@ describe('Android settings cleanup boundaries', () => {
         const remembered = useHomeLayoutSettingsStore.getState().rememberHomeCardPosition;
         act(() => root.render(h(GeneralSettingsSubview, props)));
         for (const marker of ['pinned','adaptive','rear','immersive','command','position']) expect(host.textContent).not.toContain(marker+'-marker');
-        for (const marker of ['controls','awake','phone']) expect(host.textContent).toContain(marker+'-marker');
+        for (const marker of ['awake','phone']) expect(host.textContent).toContain(marker+'-marker');
         expect(host.textContent).toContain('options.showHomeTabPlaylist');
+        expect(host.textContent).not.toContain('controls-marker');
         expect(useHomeLayoutSettingsStore.getState().rememberHomeCardPosition).toBe(remembered);
     });
     it('retains the prior general entries for non-Android builds', () => {
@@ -54,7 +55,7 @@ describe('Android settings cleanup boundaries', () => {
         for (const id of ['grid3dCardStyle','rememberHomeCardPosition','pinnedCommands','gridActionButton','gridPaletteHotkey']) {
             expect(ids(true)).not.toContain(id); expect(ids(false)).toContain(id);
         }
-        expect(ids(true)).toContain('homeTabsVisibility'); expect(ids(true)).toContain('customShortcut');
+        expect(ids(true)).toContain('homeTabsVisibility'); expect(ids(true)).not.toContain('customShortcut');
     });
     it('blocks hidden settings commands as well as their navigation anchors', () => {
         const open = vi.fn();

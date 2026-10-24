@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import MobilePlaybackStartupSetting from './MobilePlaybackStartupSetting';
 import { AudioLines, ChevronRight, ListFilter, Monitor, PlayCircle, Radio, RefreshCw, Settings2, Timer } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
@@ -188,6 +189,7 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
 
     return (
         <div className="space-y-5">
+            <MobilePlaybackStartupSetting isDaylight={isDaylight} settingsCardClass={settingsCardClass} theme={theme} />
             <SettingsAnchor anchorId="queueSettings" label={t('options.queueSettings')}>
                 <SettingsSectionHeading icon={PlayCircle} label={t('options.queueSettings')} />
                 <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>

@@ -1,3 +1,4 @@
+import { isAndroidNativeRuntime } from '../../../utils/platform';
 import React, { useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Boxes, Check, ChevronLeft, ChevronsLeftRight, GamepadDirectional, Mic, Monitor, Moon, Play, Settings2, Sparkles } from 'lucide-react';
@@ -133,6 +134,8 @@ const LabSettingsModal: React.FC<LabSettingsModalProps> = ({
             onClose();
         }
     };
+
+    if (isAndroidNativeRuntime()) return null;
 
     const content = (
         <>

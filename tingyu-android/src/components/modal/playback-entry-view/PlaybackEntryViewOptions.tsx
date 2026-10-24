@@ -1,3 +1,4 @@
+import { isAndroidNativeRuntime } from '../../../utils/platform';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LatticeViewArt, PlayerViewArt, StayViewArt } from './playbackEntryViewArt';
@@ -33,7 +34,7 @@ export const PlaybackEntryViewOptions: React.FC<PlaybackEntryViewOptionsProps> =
     const cards = useMemo<OnboardingChoiceCard<PlaybackEntryView>[]>(() => OPTIONS.map(({ value: optionValue, art, i18nKey }) => ({
         value: optionValue,
         art,
-        title: t(`playbackEntryView.${i18nKey}.title`),
+        title: t(isAndroidNativeRuntime() && optionValue === 'player' ? 'mobileSettings.enterLyricsStage' : `playbackEntryView.${i18nKey}.title`),
         description: t(`playbackEntryView.${i18nKey}.description`),
     })), [t]);
 

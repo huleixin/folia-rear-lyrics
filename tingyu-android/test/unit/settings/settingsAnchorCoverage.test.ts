@@ -47,6 +47,7 @@ describe('settings section anchors', () => {
     it('keeps playback navigation in the same order as the rendered settings', () => {
         const source = fs.readFileSync(path.join(SETTINGS_DIR, 'PlaybackSettingsSubview.tsx'), 'utf8');
         const renderedOrder = [
+            ['playbackStartup', '<MobilePlaybackStartupSetting'],
             ['queueSettings', 'anchorId="queueSettings"'],
             ['scrobbleSettings', 'anchorId="scrobbleSettings"'],
             ['transitionSettings', '<TransitionSettingsSection'],

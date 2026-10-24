@@ -170,10 +170,10 @@ describe('mobile options navigation and existing controls', () => {
         expect(host.textContent).toContain('播放界面自动隐藏');
         act(() => toggle.click()); expect(storage.get('folia_android_immersive_mode')).toBe('false');
     });
-    it('keeps the existing daylight control in the compact secondary view', () => {
+    it('removes the unused daylight control from the phone secondary view', () => {
         const onSetDaylightPreference = vi.fn();
         act(() => root.render(h(SettingsSectionHeader, { compact: true, title: '视觉设置', description: '设置', showDaylightToggle: true, isDaylight: false, onSetDaylightPreference, daylightLabel: '日间模式', utilityGhostButtonClass: '' })));
         expect(host.querySelector('h2')).toBeNull();
-        act(() => host.querySelector('button')!.click()); expect(onSetDaylightPreference).toHaveBeenCalledWith(true);
+        expect(host.querySelector('button')).toBeNull(); expect(onSetDaylightPreference).not.toHaveBeenCalled();
     });
 });

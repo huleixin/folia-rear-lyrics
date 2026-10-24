@@ -1,3 +1,4 @@
+import { isAndroidNativeRuntime } from '../../../../utils/platform';
 import type { SettingsSubviewId } from '../../../../stores/useSettingsModalStore';
 
 // src/components/modal/settings/navigation/settingsAnchorModel.ts
@@ -9,12 +10,14 @@ import type { SettingsSubviewId } from '../../../../stores/useSettingsModalStore
 
 export const SETTINGS_ANCHOR_DEFINITIONS = {
     // AppearanceSettingsSubview
+    mobilePlayerDisplay: { section: 'appearance', labelKey: 'mobileSettings.playerDisplay', androidOnly: true },
     lyricsRenderer: { section: 'appearance', labelKey: 'options.lyricsRenderer' },
     themePresets: { section: 'appearance', labelKey: 'options.themePresets' },
-    stageTrackPill: { section: 'appearance', labelKey: 'options.stageTrackPill' },
+    mobileAiProvider: { section: 'appearance', labelKey: 'ui.aiTheme', androidOnly: true },
+    stageTrackPill: { section: 'appearance', labelKey: 'options.stageTrackPill', androidHidden: true },
     grid3dCardStyle: { section: 'appearance', labelKey: 'options.grid3dCardStyle', androidHidden: true },
-    latticeSettings: { section: 'appearance', labelKey: 'options.latticeSettings' },
-    gridViewCardSettings: { section: 'appearance', labelKey: 'options.gridViewCardSettings' },
+    latticeSettings: { section: 'appearance', labelKey: 'options.latticeSettings', androidHidden: true },
+    gridViewCardSettings: { section: 'appearance', labelKey: 'options.gridViewCardSettings', androidHidden: true },
     videoLayerSettings: { section: 'appearance', labelKey: 'options.videoLayerSettings' },
     importExportTitle: { section: 'appearance', labelKey: 'options.importExportTitle' },
 
@@ -27,10 +30,11 @@ export const SETTINGS_ANCHOR_DEFINITIONS = {
     librarySuite: { section: 'general', labelKey: 'options.librarySuite', requiresLibrarySuiteChoice: true },
     // bravais 独有的设置（透光、每块窗数、集合叠页边）：只在生效 suite 是 bravais 时渲染（isBravaisLibraryActive）。
     bravaisSettings: { section: 'general', labelKey: 'options.bravaisSettings', requiresBravaisSuite: true },
-    bottomUiSettings: { section: 'general', labelKey: 'options.bottomUiSettings' },
+    bottomUiSettings: { section: 'general', labelKey: 'options.bottomUiSettings', androidHidden: true },
     pinnedCommands: { section: 'general', labelKey: 'options.pinnedCommands', androidHidden: true },
 
     // PlaybackSettingsSubview (TransitionSettingsSection renders inside it)
+    playbackStartup: { section: 'playback', labelKey: 'mobileSettings.playbackStartup', androidOnly: true },
     queueSettings: { section: 'playback', labelKey: 'options.queueSettings' },
     scrobbleSettings: { section: 'playback', labelKey: 'options.scrobbleSettings' },
     transitionSettings: { section: 'playback', labelKey: 'options.transitionSettings' },
@@ -41,7 +45,7 @@ export const SETTINGS_ANCHOR_DEFINITIONS = {
     // InteractionSettingsSubview
     gridActionButton: { section: 'interaction', labelKey: 'options.gridActionButton', androidHidden: true },
     gridPaletteHotkey: { section: 'interaction', labelKey: 'options.gridPaletteHotkey', androidHidden: true },
-    customShortcut: { section: 'interaction', labelKey: 'options.customShortcut' },
+    customShortcut: { section: 'interaction', labelKey: 'options.customShortcut', androidHidden: true },
 
     // 听屿 Android 只保留 Navidrome 与系统歌词；Discord / OBS / Stage / 歌词 API 面板已随桌面功能移除。
     colorOsLyrics: { section: 'integration', labelKey: 'options.colorOsLyrics' },
@@ -68,9 +72,9 @@ export const SETTINGS_ANCHOR_DEFINITIONS = {
     modList: { section: 'mods', labelKey: 'mods.title', electronOnly: true },
 
     // LabSettingsModal
-    labPlayerUi: { section: 'lab', labelKey: 'options.labPlayerUiSection' },
-    labWindowAndTools: { section: 'lab', labelKey: 'options.labWindowAndToolsSection' },
-} as const satisfies Record<string, { section: SettingsSubviewId; labelKey: string; electronOnly?: boolean; requiresLibrarySuiteChoice?: boolean; requiresBravaisSuite?: boolean; androidHidden?: boolean }>;
+    labPlayerUi: { section: 'lab', labelKey: 'options.labPlayerUiSection', androidHidden: true },
+    labWindowAndTools: { section: 'lab', labelKey: 'options.labWindowAndToolsSection', androidHidden: true },
+} as const satisfies Record<string, { section: SettingsSubviewId; labelKey: string; electronOnly?: boolean; requiresLibrarySuiteChoice?: boolean; requiresBravaisSuite?: boolean; androidHidden?: boolean; androidOnly?: boolean }>;
 
 export type SettingsAnchorId = keyof typeof SETTINGS_ANCHOR_DEFINITIONS;
 
@@ -81,3 +85,14 @@ export const SETTINGS_ANCHOR_SECTION = Object.fromEntries(
 export const settingsAnchorSubview = (anchorId: SettingsAnchorId): SettingsSubviewId => (
     SETTINGS_ANCHOR_SECTION[anchorId]
 );
+
+/** One platform policy for navigation, remembered routes and settings commands. */
+export const isSettingsSubviewAvailable = (subview: string | null | undefined, android = isAndroidNativeRuntime()): boolean => (
+    !android || (subview !== 'interaction' && subview !== 'lab')
+);
+
+export const isSettingsAnchorAvailable = (anchorId: SettingsAnchorId, android = isAndroidNativeRuntime()): boolean => {
+    const definition = SETTINGS_ANCHOR_DEFINITIONS[anchorId];
+    return !(android && 'androidHidden' in definition && definition.androidHidden)
+        && !(!android && 'androidOnly' in definition && definition.androidOnly);
+};

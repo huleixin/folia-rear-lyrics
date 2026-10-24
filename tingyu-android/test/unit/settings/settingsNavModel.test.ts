@@ -52,7 +52,7 @@ describe('settingsNavModel', () => {
     it('expands every declared anchor under its owning section', () => {
         const items = flattenSettingsNavItems(buildSettingsNavGroups(echo, { isElectron: true, hasLibrarySuiteChoice: true, isBravaisSuiteActive: true }));
         const rendered = items.flatMap(item => item.anchors.map(anchor => [anchor.id, item.id]));
-        const declared = Object.entries(SETTINGS_ANCHOR_DEFINITIONS).map(([id, definition]) => [id, definition.section]);
+        const declared = Object.entries(SETTINGS_ANCHOR_DEFINITIONS).filter(([, definition]) => !('androidOnly' in definition && definition.androidOnly)).map(([id, definition]) => [id, definition.section]);
 
         expect(rendered).toEqual(declared);
     });

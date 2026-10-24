@@ -1,6 +1,6 @@
 import { isAndroidNativeRuntime } from '../../../../utils/platform';
 import { Boxes, Command, Database, FlaskConical, Gauge, Keyboard, Languages, PlayCircle, Server, Sparkles, Terminal, type LucideIcon } from 'lucide-react';
-import { SETTINGS_ANCHOR_DEFINITIONS, type SettingsAnchorId } from './settingsAnchorModel';
+import { SETTINGS_ANCHOR_DEFINITIONS, isSettingsAnchorAvailable, isSettingsSubviewAvailable, type SettingsAnchorId } from './settingsAnchorModel';
 // src/components/modal/settings/navigation/settingsNavModel.ts
 // Single source of truth for the options-tab sections: sidebar order, grouping, titles and descriptions.
 
@@ -113,16 +113,16 @@ export const buildSettingsNavGroups = (
             id: group.id,
             label: t(group.labelKey),
             items: group.sections
-                .filter(section => !section.electronOnly || options.isElectron)
+                .filter(section => (!section.electronOnly || options.isElectron) && isSettingsSubviewAvailable(section.id, options.isAndroid ?? isAndroidNativeRuntime()))
                 .map(section => ({
                     id: section.id,
                     icon: section.icon,
                     label: t(section.labelKey),
                     description: t(section.descriptionKey),
                     anchors: (Object.entries(SETTINGS_ANCHOR_DEFINITIONS) as [SettingsAnchorId, typeof SETTINGS_ANCHOR_DEFINITIONS[SettingsAnchorId]][])
-                        .filter(([, definition]) => (
+                        .filter(([id, definition]) => (
                             definition.section === section.id
-                            && (!('androidHidden' in definition) || !definition.androidHidden || !(options.isAndroid ?? isAndroidNativeRuntime()))
+                            && isSettingsAnchorAvailable(id, options.isAndroid ?? isAndroidNativeRuntime())
                             && (!('electronOnly' in definition) || !definition.electronOnly || options.isElectron)
                             && (!('requiresLibrarySuiteChoice' in definition) || !definition.requiresLibrarySuiteChoice || Boolean(options.hasLibrarySuiteChoice))
                             && (!('requiresBravaisSuite' in definition) || !definition.requiresBravaisSuite || Boolean(options.isBravaisSuiteActive))

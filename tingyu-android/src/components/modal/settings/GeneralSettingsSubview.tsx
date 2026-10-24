@@ -128,8 +128,8 @@ const GeneralSettingsSubview: React.FC<GeneralSettingsSubviewProps> = ({
                 </div>
             </SettingsAnchor>
 
-            <SettingsAnchor anchorId="homeTabsVisibility" label={t('options.homeTabsVisibility')}>
-                <SettingsSectionHeading icon={LayoutList} label={t('options.homeTabsVisibility')} />
+            <SettingsAnchor anchorId="homeTabsVisibility" label={t(isAndroidNativeRuntime() ? 'mobileSettings.libraryCategories' : 'options.homeTabsVisibility')}>
+                <SettingsSectionHeading icon={LayoutList} label={t(isAndroidNativeRuntime() ? 'mobileSettings.libraryCategories' : 'options.homeTabsVisibility')} />
                 <div className={`rounded-xl border ${settingsCardClass} overflow-hidden`}>
                     <div className={`flex items-center justify-between p-4 border-b ${settingsDividerClassFor(isDaylight)}`}>
                         <div className="space-y-1">
@@ -213,7 +213,7 @@ const GeneralSettingsSubview: React.FC<GeneralSettingsSubviewProps> = ({
                 theme={theme}
             />
 
-            <SettingsAnchor anchorId="bottomUiSettings" label={t('options.bottomUiSettings')} className="space-y-4">
+            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="bottomUiSettings" label={t('options.bottomUiSettings')} className="space-y-4">
                 <SettingsSectionHeading icon={Move} label={t('options.bottomUiSettings')} />
                 <PlayerBottomBarSection
                     settingsCardClass={settingsCardClass}
@@ -222,7 +222,7 @@ const GeneralSettingsSubview: React.FC<GeneralSettingsSubviewProps> = ({
                     isDaylight={isDaylight}
                     theme={theme}
                 />
-            </SettingsAnchor>
+            </SettingsAnchor>}
 
             {!isAndroidNativeRuntime() && <PinnedCommandSettings
                 isDaylight={isDaylight}

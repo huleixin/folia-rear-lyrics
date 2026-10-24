@@ -1,3 +1,4 @@
+import { isAndroidNativeRuntime } from '../../../utils/platform';
 import React from 'react';
 import { MonitorPlay } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -31,11 +32,11 @@ const PlaybackEntryViewSection: React.FC<PlaybackEntryViewSectionProps> = ({
     const accentColor = theme?.accentColor || (isDaylight ? '#3b82f6' : '#60a5fa');
 
     return (
-        <SettingsAnchor anchorId="playbackEntryView" label={t('options.playbackEntryView')}>
-            <SettingsSectionHeading icon={MonitorPlay} label={t('options.playbackEntryView')} />
+        <SettingsAnchor anchorId="playbackEntryView" label={t(isAndroidNativeRuntime() ? 'mobileSettings.playbackDestination' : 'options.playbackEntryView')}>
+            <SettingsSectionHeading icon={MonitorPlay} label={t(isAndroidNativeRuntime() ? 'mobileSettings.playbackDestination' : 'options.playbackEntryView')} />
             <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
                 <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
-                    {t('options.playbackEntryViewDesc')}
+                    {t(isAndroidNativeRuntime() ? 'mobileSettings.playbackDestinationDescription' : 'options.playbackEntryViewDesc')}
                 </div>
                 <PlaybackEntryViewOptions
                     value={playbackEntryView}

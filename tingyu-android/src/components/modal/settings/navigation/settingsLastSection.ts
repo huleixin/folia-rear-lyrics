@@ -1,3 +1,5 @@
+import { isSettingsSubviewAvailable } from './settingsAnchorModel';
+import { isAndroidNativeRuntime } from '../../../../utils/platform';
 import type { SettingsSubviewId } from '../../../../stores/useSettingsModalStore';
 import { SETTINGS_NAV_GROUP_SPECS, type SettingsSectionId } from './settingsNavModel';
 
@@ -19,13 +21,14 @@ export type SettingsSectionStorage = Pick<Storage, 'getItem' | 'setItem'>;
 
 export interface SettingsSectionAvailability {
     isElectron: boolean;
+    isAndroid?: boolean;
 }
 
 /** Section ids the sidebar actually shows on this runtime, in sidebar order. */
-export const getAvailableSettingsSectionIds = ({ isElectron }: SettingsSectionAvailability): SettingsSectionId[] => (
+export const getAvailableSettingsSectionIds = ({ isElectron, isAndroid = isAndroidNativeRuntime() }: SettingsSectionAvailability): SettingsSectionId[] => (
     SETTINGS_NAV_GROUP_SPECS
         .flatMap(group => group.sections)
-        .filter(section => !section.electronOnly || isElectron)
+        .filter(section => (!section.electronOnly || isElectron) && isSettingsSubviewAvailable(section.id, isAndroid))
         .map(section => section.id)
 );
 
@@ -112,7 +115,8 @@ export const resolveInitialSettingsSection = (
 ): SettingsSectionId => {
     const { initialSubview, hasInitialAnchor } = request;
     if (initialSubview || hasInitialAnchor) {
-        return sectionForSettingsSubview(initialSubview) ?? DEFAULT_SETTINGS_SECTION;
+        const target = sectionForSettingsSubview(initialSubview);
+        return target && getAvailableSettingsSectionIds(request).includes(target) ? target : DEFAULT_SETTINGS_SECTION;
     }
     return readLastSettingsSection(request, storage === undefined ? getDefaultStorage() : storage) ?? DEFAULT_SETTINGS_SECTION;
 };

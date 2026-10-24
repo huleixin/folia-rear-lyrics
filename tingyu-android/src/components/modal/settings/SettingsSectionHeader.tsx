@@ -1,3 +1,4 @@
+import { isAndroidNativeRuntime } from '../../../utils/platform';
 import React from 'react';
 import { Moon, Sun } from 'lucide-react';
 // src/components/modal/settings/SettingsSectionHeader.tsx
@@ -24,7 +25,7 @@ export const SettingsSectionHeader: React.FC<SettingsSectionHeaderProps> = ({
     daylightLabel,
     utilityGhostButtonClass,
     compact = false,
-}) => compact && !showDaylightToggle ? null : (
+}) => compact ? null : (
     <div className="mb-4 md:mb-6 border-b border-white/10 pb-3 md:pb-4">
         <div className="flex items-start justify-between gap-4">
             <div>
@@ -35,7 +36,7 @@ export const SettingsSectionHeader: React.FC<SettingsSectionHeaderProps> = ({
                     {compact ? daylightLabel : description}
                 </p>
             </div>
-            {showDaylightToggle && (
+            {showDaylightToggle && !isAndroidNativeRuntime() && (
                 <button
                     type="button"
                     onClick={() => onSetDaylightPreference(!isDaylight)}

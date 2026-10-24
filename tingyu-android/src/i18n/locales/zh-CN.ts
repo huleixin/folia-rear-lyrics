@@ -2,6 +2,27 @@
 
 export default {
   "mobileSettings": {
+    "enterLyricsStage": "打开歌词舞台",
+    "playbackStartup": "启动播放",
+    "playerDisplay": "播放页显示",
+    "autoPlayDescription": "启动应用并成功恢复上次歌曲后自动续播；关闭后恢复歌曲但等待手动播放。",
+    "subtitleDescription": "仅隐藏正面播放页的底部字幕层，不会关闭歌词舞台或背屏歌词同步。",
+    "libraryCategories": "资料库分类",
+    "phoneFitDescription": "仅在界面比例或方向异常时开启。开启后使用紧凑兼容布局，并可选择锁定横屏；正常显示时无需开启。",
+    "frameRateTitle": "动画帧率上限",
+    "frameRateDescription": "限制界面动画的最高刷新频率以降低负载，不改变音乐播放速度；实际帧率由设备和系统决定。",
+    "staticModeTitle": "歌词舞台静态模式",
+    "microMotionDescription": "减少底部播放器切换位置、连接按钮等界面动画。",
+    "playbackDestination": "点击歌曲后的去向",
+    "playbackDestinationDescription": "选择开始播放后打开歌词舞台，还是留在当前页面。不会改变播放队列。",
+    "touchHelpTitle": "手机播放操作",
+    "touchStageTitle": "进入歌词舞台",
+    "touchStageDescription": "点击底部迷你播放器的封面或歌曲信息；点击左上角返回按钮回到音乐页面。",
+    "touchTransportTitle": "播放与切歌",
+    "touchTransportDescription": "使用播放器上的播放、暂停和切歌按钮；歌词舞台支持上一首、下一首及拖动进度。",
+    "touchQueueTitle": "查看播放队列",
+    "touchQueueDescription": "在歌词舞台点击“播放队列”，查看和选择队列中的歌曲。",
+
     "back": "返回",
     "usageGuide": "使用说明",
     "about": "关于与使用说明",

@@ -1,3 +1,4 @@
+import { isAndroidNativeRuntime } from '../../utils/platform';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { MotionValue } from 'framer-motion';
@@ -47,6 +48,7 @@ import { useActiveLibrarySuiteId } from '../../library/app/librarySuiteChoice';
 import SettingsSidebarWide from './settings/navigation/SettingsSidebarWide';
 import { settingsAnchorSubview } from './settings/navigation/settingsAnchorModel';
 import SettingsSectionHeader from './settings/SettingsSectionHeader';
+import MobilePlaybackHelp from './help/MobilePlaybackHelp';
 import { buildSettingsNavGroups, findSettingsNavItem, type SettingsSectionId } from './settings/navigation/settingsNavModel';
 import { isSettingsSectionSubview, resolveInitialSettingsSection, sectionForSettingsSubview, writeLastSettingsSection } from './settings/navigation/settingsLastSection';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
@@ -466,9 +468,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         const targetSection = sectionForSettingsSubview(initialSubview);
         if (targetSection) {
             // 这两个是播放页歌词区里的二级面板，关掉后应该落回它们的入口所在分区。
-            setActiveSettingsSection(targetSection);
+            const availableTarget = resolveInitialSettingsSection({
+                initialSubview, hasInitialAnchor: initialAnchor !== null, isElectron: hasElectronBridge(),
+            });
+            setActiveSettingsSection(availableTarget);
             // 只有真正进入某个分区页才记忆；二级面板和调参台不算「进入」分区。
-            if (isSettingsSectionSubview(initialSubview)) {
+            if (isSettingsSectionSubview(initialSubview) && targetSection === availableTarget) {
                 writeLastSettingsSection(targetSection, { isElectron: hasElectronBridge() });
             }
         } else {
@@ -1513,8 +1518,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                 I'll iterate through original items and verify.
                             */}
 
+                                {isAndroidNativeRuntime() && <MobilePlaybackHelp />}
                                 {/* Shortcuts */}
-                                <div>
+                                {!isAndroidNativeRuntime() && <div>
                                     <h3 className="text-sm font-bold uppercase tracking-wider opacity-50 mb-3 flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
                                         <Keyboard size={14} /> {t('help.keyboardShortcuts')}
                                     </h3>
@@ -1530,10 +1536,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                             </li>
                                         ))}
                                     </ul>
-                                </div>
+                                </div>}
 
                                 {/* Player Controls */}
-                                <div>
+                                {!isAndroidNativeRuntime() && <div>
                                     <h3 className="text-sm font-bold uppercase tracking-wider opacity-50 mb-3 flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
                                         <Keyboard size={14} /> {t('help.playerControls')}
                                     </h3>
@@ -1556,7 +1562,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                         </li>
 
                                     </ul>
-                                </div>
+                                </div>}
 
                                 {/* User Guide Button */}
                                 <div className="mt-6 flex flex-wrap justify-center gap-3">

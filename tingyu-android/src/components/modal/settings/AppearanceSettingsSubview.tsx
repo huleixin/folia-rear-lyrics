@@ -18,6 +18,8 @@ import { ACTIVATE_CUSTOM_THEME_KEY, buildImportPlan, THEME_DARK_KEY, THEME_LIGHT
 import { isFontFamilyAvailable } from '../../../utils/fontAvailability';
 import ImportConfirmDialog from './ImportConfirmDialog';
 import AndroidImmersiveSetting from './AndroidImmersiveSetting';
+import MobilePlayerDisplaySetting from './MobilePlayerDisplaySetting';
+import AiProviderSettings from './AiProviderSettings';
 import { extractCfgFromInput } from '../../../utils/obsUrl';
 import { buildCurrentObsUrl } from '../../../services/obs/currentObsUrl';
 import { ObsCopyUrlButton } from '../../shared/ObsCopyUrlButton';
@@ -630,6 +632,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
     return (
         <div className="space-y-6">
             <AndroidImmersiveSetting isDaylight={isDaylight} settingsCardClass={settingsCardClass} theme={theme} compact />
+            <MobilePlayerDisplaySetting isDaylight={isDaylight} settingsCardClass={settingsCardClass} theme={theme} />
             {/* Section 1: Lyrics Animation & Player View */}
             <SettingsAnchor anchorId="lyricsRenderer" label={t('options.lyricsRenderer')}>
                 <SettingsSectionHeading icon={Monitor} label={t('options.lyricsRenderer')} />
@@ -910,7 +913,12 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                 </div>
             </SettingsAnchor>
             {/* Section 3: Now playing card */}
-            <SettingsAnchor anchorId="stageTrackPill" label={t('options.stageTrackPill')}>
+            {isAndroidNativeRuntime() && <SettingsAnchor anchorId="mobileAiProvider" label={t('ui.aiTheme')}>
+                <SettingsSectionHeading icon={Palette} label={t('ui.aiTheme')} />
+                <AiProviderSettings settingsCardClass={settingsCardClass} isDaylight={isDaylight} />
+            </SettingsAnchor>}
+
+            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="stageTrackPill" label={t('options.stageTrackPill')}>
                 <SettingsSectionHeading icon={Music2} label={t('options.stageTrackPill')} />
                 <NowPlayingCardSettingsSection
                     accentOutlineColor={accentOutlineColor}
@@ -925,7 +933,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                     onChangeTimeoutSec={onChangeStageTrackPillTimeoutSec}
                     onToggleShowOnHome={onToggleStageTrackPillOnHome}
                 />
-            </SettingsAnchor>
+            </SettingsAnchor>}
 
             {/* Section 4: Grid card style */}
             {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="grid3dCardStyle" label={t('options.grid3dCardStyle')}>
@@ -963,7 +971,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
             </SettingsAnchor>}
 
             {/* Section 5: Tile wall appearance (queue collage + bravais library wall) */}
-            <SettingsAnchor anchorId="latticeSettings" label={t('options.latticeSettings')}>
+            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="latticeSettings" label={t('options.latticeSettings')}>
                 <SettingsSectionHeading icon={PanelsTopLeft} label={t('options.latticeSettings')} />
                 <LatticeSettingsSection
                     settingsCardClass={settingsCardClass}
@@ -971,10 +979,10 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                     isDaylight={isDaylight}
                     theme={theme}
                 />
-            </SettingsAnchor>
+            </SettingsAnchor>}
 
             {/* Section 6: Folia card grid, sitting with the poster wall it shares its look with. */}
-            <SettingsAnchor anchorId="gridViewCardSettings" label={t('options.gridViewCardSettings')}>
+            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="gridViewCardSettings" label={t('options.gridViewCardSettings')}>
                 <SettingsSectionHeading icon={Images} label={t('options.gridViewCardSettings')} />
                 <GridViewSettingsSection
                     settingsCardClass={settingsCardClass}
@@ -982,7 +990,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                     toggleOffBackgroundClass={toggleOffBackgroundClass}
                     theme={theme}
                 />
-            </SettingsAnchor>
+            </SettingsAnchor>}
 
             {/* Section 7: Video layer behind the lyrics. Not part of the import/export payload below. */}
             <SettingsAnchor anchorId="videoLayerSettings" label={t('options.videoLayerSettings')}>
