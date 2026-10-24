@@ -24,7 +24,7 @@ android {
         applicationId "io.github.huleixin.tingyu"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
+        versionCode (packageJson.androidVersionCode as int)
         versionName "${packageJson.version}"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

@@ -117,11 +117,10 @@ public class FoliaPlaybackService extends Service {
             wakeLock.setReferenceCounted(false);
         }
         WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
-        if (wifiManager != null) {
-            int lockMode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-                ? WifiManager.WIFI_MODE_FULL_LOW_LATENCY
-                : WifiManager.WIFI_MODE_FULL_HIGH_PERF;
-            wifiLock = wifiManager.createWifiLock(lockMode, "Folia:Playback");
+        // Android 10+ low-latency locks are for interactive networking: they cost power and
+        // are inactive with the screen off. Buffered music needs no gaming Wi-Fi mode.
+        if (wifiManager != null && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL, "Folia:Playback");
             wifiLock.setReferenceCounted(false);
         }
         recordServiceLifecycle("service-create", "Foreground playback service created");
@@ -471,9 +470,9 @@ public class FoliaPlaybackService extends Service {
     /**
      * Keeps the remote-audio proxy alive in the background.
      *
-     * A foreground service keeps the process visible, but it does not stop Doze from throttling
-     * the CPU or the Wi-Fi radio. Playback pulls the stream through LocalAudioServer, so losing
-     * either one shows up as intermittent audio while the screen is off.
+     * Playback pulls the stream through LocalAudioServer, so CPU protection remains while
+     * playing to avoid interruptions when the screen is off. Only pre-Android-10 devices need the legacy
+     * normal Wi-Fi lock; modern Android manages buffered network audio without a low-latency lock.
      */
     private void updatePlaybackLocks(boolean playing) {
         try {

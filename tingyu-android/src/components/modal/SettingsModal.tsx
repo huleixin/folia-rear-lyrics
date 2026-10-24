@@ -1580,7 +1580,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
                                 {/* Author Info (Moved from Footer) */}
                                 <div className="mt-6 text-center text-xs opacity-75" data-tingyu-attribution="true">
-                                    听屿 · Tingyu 1.0.0 · 基于 Folia 的独立衍生版本<br />
+                                    听屿 · Tingyu {__APP_VERSION__} · 基于 Folia 的独立衍生版本<br />
                                     <a href="https://github.com/huleixin/folia-rear-lyrics/releases" target="_blank" rel="noopener noreferrer" className="underline">听屿下载与完整源码</a>
                                     {' · '}AGPL-3.0 · 原作者及第三方署名见下方
                                 </div>

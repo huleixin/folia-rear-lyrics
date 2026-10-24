@@ -8,6 +8,10 @@ import { setCurrentLineIndex, setPlayerState } from '../stores/usePlaybackStore'
 import { selectDisplayLyrics, usePlaybackStore } from '../stores/usePlaybackStore';
 import { audioBands, audioPower, currentTime, lyricCurrentTime } from '../stores/motionSignals';
 import type { RearPlaybackClockReader } from '../types/rearLyricsClock';
+import { useAppViewStore } from '../stores/useAppViewStore';
+import { useRearRuntimeStore } from '../stores/useRearRuntimeStore';
+import { isAndroidNativeRuntime } from '../utils/platform';
+import { playbackWorkPolicy, startPlaybackWorkScheduler } from '../utils/playbackWorkScheduler';
 
 // src/hooks/usePlaybackVisualizerBridge.ts
 
@@ -74,11 +78,13 @@ export function usePlaybackVisualizerBridge({
     const duration = usePlaybackStore(state => state.duration);
     // The lyrics on screen, matching the deck getDisplayElement points at.
     const lyrics = usePlaybackStore(selectDisplayLyrics);
+    const view = useAppViewStore(state => state.view);
+    const rearAwake = useRearRuntimeStore(state => state.enabled && !state.sleeping);
 
     const currentLineIndexRef = useRef(-1);
     const frequencyDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
 
-    const updateLoop = useCallback(() => {
+    const updateLoop = useCallback((sampleAudio: boolean) => {
         // Normally the active deck; the outgoing one for as long as a blend holds the picture on
         // the track it is finishing, so that clock and picture never describe different songs.
         const audioElement = getDisplayElement?.() ?? audioRef.current;
@@ -88,7 +94,7 @@ export function usePlaybackVisualizerBridge({
         // a visible stutter at exactly the moment meant to be seamless.
         const hasAudibleSignal = isActuallyPlaying || isTransitionAudible();
 
-        if (hasAudibleSignal && analyserRef.current) {
+        if (sampleAudio && hasAudibleSignal && analyserRef.current) {
             const bufferLength = analyserRef.current.frequencyBinCount;
             let dataArray = frequencyDataRef.current;
             if (!dataArray || dataArray.length !== bufferLength) {
@@ -126,7 +132,7 @@ export function usePlaybackVisualizerBridge({
             audioBands.mid.set(process(mid, 2));
             audioBands.vocal.set(process(vocal, 1.5));
             audioBands.treble.set(process(treble, 2));
-        } else {
+        } else if (sampleAudio) {
             const time = Date.now() / 2000;
             const breath = (Math.sin(time) + 1) * 20;
             audioPower.set(breath);
@@ -235,7 +241,6 @@ export function usePlaybackVisualizerBridge({
             }
         }
 
-        animationFrameRef.current = requestAnimationFrame(updateLoop);
     }, [
         activePlaybackContext,
         analyserRef,
@@ -267,13 +272,10 @@ export function usePlaybackVisualizerBridge({
     ]);
 
     useEffect(() => {
-        animationFrameRef.current = requestAnimationFrame(updateLoop);
-        return () => {
-            if (animationFrameRef.current) {
-                cancelAnimationFrame(animationFrameRef.current);
-            }
-        };
-    }, [animationFrameRef, updateLoop]);
+        return startPlaybackWorkScheduler(updateLoop, () => playbackWorkPolicy(
+            isAndroidNativeRuntime(), !document.hidden, view === 'player', rearAwake && playerState === PlayerState.PLAYING,
+        ), animationFrameRef);
+    }, [animationFrameRef, updateLoop, view, rearAwake, playerState]);
 
     // The rear publisher must sample independently of this WebView's RAF lifecycle.
     return useCallback<RearPlaybackClockReader>(() => {

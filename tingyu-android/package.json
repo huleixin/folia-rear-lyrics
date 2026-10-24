@@ -8,13 +8,17 @@
     "email": "chthollyphile@users.noreply.github.com"
   },
   "private": true,
-  "version": "1.2.2",
+  "version": "1.2.3",
+  "androidVersionCode": 6,
   "license": "AGPL-3.0",
   "type": "module",
   "engines": {
     "node": ">=24.0.0"
   },
   "scripts": {
+    "release:bump": "node dev/build/bumpAndroidVersion.mjs",
+    "release:android": "npm run release:bump && npm run build:android:release",
+    "build:android:release": "npm run cap:sync:android && cd android && gradlew.bat assembleRelease",
     "dev": "vite",
     "dev:probe": "vite --open /dev-probe.html",
     "build": "vite build",

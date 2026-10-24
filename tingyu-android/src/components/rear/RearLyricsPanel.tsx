@@ -54,6 +54,7 @@ export default function RearLyricsPanel() {
         return () => { clearTimeout(hideTimer.current); window.removeEventListener('folia-rear-reveal', reveal); };
     }, [reveal]);
     useEffect(() => {
+        if (!progressVisible) return;
         let frame = 0;
         const format = (time: number) => `${Math.floor(time / 60).toString().padStart(2, '0')}:${Math.floor(time % 60).toString().padStart(2, '0')}`;
         const update = () => {
@@ -69,7 +70,7 @@ export default function RearLyricsPanel() {
         };
         frame = requestAnimationFrame(update);
         return () => cancelAnimationFrame(frame);
-    }, []);
+    }, [progressVisible]);
     return <main data-testid="rear-lyrics-panel" onPointerDownCapture={reveal}
         style={{ position: 'fixed', inset: 0, overflow: 'hidden', touchAction: 'none', userSelect: 'none', background: 'transparent' }}>
         <div style={{ width: '100%', height: '100%', pointerEvents: 'none' }}>

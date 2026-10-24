@@ -110,6 +110,16 @@ QQ 的同一套形状也用于专辑订阅与歌单写入。
 
 ## 构建状态
 
+### 听屿发布版本（当前维护流程）
+
+听屿 Android 包名为 `io.github.huleixin.tingyu`，继续沿用已配置的正式签名。
+`package.json` 的 `version` 同时提供应用内版本和 Android `versionName`，`androidVersionCode` 提供系统升级序号。
+每次正式交付新升级前执行一次 `npm run release:bump`（默认补丁升级，例如 1.2.3 → 1.2.4，同时递增 versionCode）；
+大版本可用 `npm run release:bump -- minor` 或 `-- major`。
+然后执行 `npm run build:android:release`。常规补丁发布也可直接用 `npm run release:android` 一次完成递增和构建。
+构建重试只用 `npm run build:android:release`，不用再升级版本；不要只修改 Release 标题或手写固定 versionCode。
+脚本会校验并同步 package-lock.json 中的版本。下面的旧移植构建记录只作为历史背景。
+
 - `npm run build:capacitor` 已通过
 - `npx cap sync android` 已通过
 - `gradlew assembleDebug` 已通过，产出 `android/app/build/outputs/apk/debug/app-debug.apk`

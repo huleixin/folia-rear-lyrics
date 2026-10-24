@@ -752,6 +752,17 @@ public class FoliaNativePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void getRearLyricsRuntimeState(PluginCall call) {
+        // Hot-path polling must not assemble diagnostic traces or inspect Shizuku permissions.
+        RearLyricsCoordinator coordinator = RearLyricsCoordinator.get(getContext());
+        JSObject result = new JSObject();
+        result.put("enabled", coordinator.isEnabled());
+        result.put("starting", coordinator.isStarting());
+        result.put("sleeping", coordinator.isSleeping());
+        call.resolve(result);
+    }
+
+    @PluginMethod
     public void getRearLyricsStatus(PluginCall call) {
         JSObject result = new JSObject();
         result.put("shizukuAvailable", Shizuku.pingBinder());
