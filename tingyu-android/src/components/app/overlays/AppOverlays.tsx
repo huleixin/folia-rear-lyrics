@@ -1,9 +1,9 @@
 import { isAndroidNativeRuntime } from '../../../utils/platform';
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import FloatingPlayerControls from '../../FloatingPlayerControls';
-import SearchWorkspace from '../search/SearchWorkspace';
-import DevDebugOverlay from '../../DevDebugOverlay';
-import MemoryMonitorWindow from '../../debug/MemoryMonitorWindow';
+const SearchWorkspace = lazy(() => import('../search/SearchWorkspace'));
+const DevDebugOverlay = lazy(() => import('../../DevDebugOverlay'));
+const MemoryMonitorWindow = lazy(() => import('../../debug/MemoryMonitorWindow'));
 import NowPlayingToast from './NowPlayingToast';
 import BottomCommandPaletteButton from './BottomCommandPaletteButton';
 import type { AppOverlaysModel } from './buildAppOverlaysModel';
@@ -11,6 +11,7 @@ import { countRender } from '../../../dev/renderCount';
 import { useLatticeControlsStore } from '../../../stores/useLatticeControlsStore';
 import { useActiveLibrarySuiteId } from '../../../library/app/librarySuiteChoice';
 import { useAppViewStore } from '../../../stores/useAppViewStore';
+import { useSearchNavigationStore } from '../../../stores/useSearchNavigationStore';
 
 // Centralized app-level overlay renderer so App.tsx does not mount leaf overlays directly.
 type AppOverlaysProps = {
@@ -23,6 +24,10 @@ const AppOverlays: React.FC<AppOverlaysProps> = ({ model }) => {
     const isCurrentSongPosterVisible = useLatticeControlsStore(state => state.isCurrentSongPosterVisible);
     const suite = useActiveLibrarySuiteId();
     const view = useAppViewStore(state => state.view);
+    const searchOpen = useSearchNavigationStore(state => state.isSearchOpen);
+    const [searchLoaded, setSearchLoaded] = useState(searchOpen);
+    // After first use retain the workspace so its existing close/reset effects and exit animation run.
+    useEffect(() => { if (searchOpen) setSearchLoaded(true); }, [searchOpen]);
     // The mobile library owns its mini-player and navigation. Stage controls remain unchanged.
     const ownsLibraryChrome = suite === 'mobile' && view === 'home';
     const ownsStageChrome = suite === 'mobile' && view === 'player' && !!model.mobileStage;
@@ -36,11 +41,11 @@ const AppOverlays: React.FC<AppOverlaysProps> = ({ model }) => {
 
     return (
         <>
-            {searchOverlay && <SearchWorkspace {...searchOverlay} />}
+            {searchOverlay && (searchOpen || searchLoaded) && <Suspense fallback={null}><SearchWorkspace {...searchOverlay} /></Suspense>}
 
-            {debugOverlay && <DevDebugOverlay {...debugOverlay} />}
+            {debugOverlay && <Suspense fallback={null}><DevDebugOverlay {...debugOverlay} /></Suspense>}
 
-            {memoryMonitor && <MemoryMonitorWindow {...memoryMonitor} />}
+            {memoryMonitor && <Suspense fallback={null}><MemoryMonitorWindow {...memoryMonitor} /></Suspense>}
 
             {ownsStageChrome && <Suspense fallback={null}><MobileStageChrome chrome={model.mobileStage!} controls={floatingControls ?? null} /></Suspense>}
 

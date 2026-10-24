@@ -1,6 +1,7 @@
 import { PlayerState } from '../types';
 import { currentTime } from '../stores/motionSignals';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
+import { createProviderSongMetadata } from '../utils/songMetadata';
 import {
   selectDisplayDuration,
   selectDisplayPlayerState,
@@ -30,20 +31,29 @@ type NativePlaybackPayload = {
   duration: number;
 };
 
+const milliseconds = (value: number): number => Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
+
+export const buildNativePlaybackPayload = (
+  song: NonNullable<ReturnType<typeof selectDisplaySong>>, playing: boolean, positionSeconds: number, durationSeconds: number,
+): NativePlaybackPayload => {
+  const metadata = createProviderSongMetadata(song);
+  return {
+    title: song.name || 'Unknown Song',
+    artist: metadata.artists.map(artist => artist.name).filter(Boolean).join(' / '),
+    album: metadata.album.name,
+    coverUrl: metadata.coverUrl || (song as unknown as { coverUrl?: string }).coverUrl || '',
+    songKey: getPlaybackSongKey(song),
+    playing,
+    position: milliseconds(positionSeconds * 1000),
+    duration: milliseconds(durationSeconds > 0 ? durationSeconds * 1000 : metadata.durationMs),
+  };
+};
+
 const readPayload = (): NativePlaybackPayload | null => {
   const state = usePlaybackStore.getState();
   const song = selectDisplaySong(state);
-  if (!song) return null;
-  return {
-    title: song.name || 'Unknown Song',
-    artist: song.artists?.map((artist) => artist.name).filter(Boolean).join(' / ') || '',
-    album: song.album?.name || '',
-    coverUrl: song.album?.coverUrl || (song as unknown as { coverUrl?: string }).coverUrl || '',
-    songKey: getPlaybackSongKey(song),
-    playing: selectDisplayPlayerState(state) === PlayerState.PLAYING,
-    position: Math.max(0, Math.round(currentTime.get() * 1000)),
-    duration: Math.max(0, Math.round(selectDisplayDuration(state) * 1000)),
-  };
+  return song ? buildNativePlaybackPayload(song, selectDisplayPlayerState(state) === PlayerState.PLAYING,
+    currentTime.get(), selectDisplayDuration(state)) : null;
 };
 
 /**
@@ -54,7 +64,7 @@ const readPayload = (): NativePlaybackPayload | null => {
  * 就是这个订阅在没有去重的情况下被播放中的状态写入反复触发。
  *
  * 位置不在 store 里（走 motionSignals），所以这里按内容去重：只有这些字段变化才立刻重发，
- * 播放进度交给每秒的心跳带上。
+ * 播放进度交给低频心跳；系统用 PlaybackState 时钟自行插值。
  */
 export const buildNativePlaybackIdentity = (payload: NativePlaybackPayload): string => JSON.stringify([
   payload.title,
@@ -63,23 +73,40 @@ export const buildNativePlaybackIdentity = (payload: NativePlaybackPayload): str
   payload.coverUrl,
   payload.songKey,
   payload.playing,
+  payload.duration,
 ]);
 
-let lastPushedIdentity = '';
-
-const pushState = (plugin: NativePlaybackPlugin, options: { force?: boolean } = {}) => {
-  const payload = readPayload();
-  if (!payload) {
-    lastPushedIdentity = '';
-    void plugin.clearPlaybackState().catch(() => undefined);
-    return;
-  }
-  const identity = buildNativePlaybackIdentity(payload);
-  if (!options.force && identity === lastPushedIdentity) return;
-  lastPushedIdentity = identity;
-  void plugin.updatePlaybackState({
-    ...payload,
-  }).catch(() => undefined);
+/** Serializes bridge writes and keeps only the newest pending state. Failed writes stay retryable. */
+export const createNativePlaybackPublisher = (plugin: Pick<NativePlaybackPlugin, 'updatePlaybackState' | 'clearPlaybackState'>) => {
+  let acknowledged: string | undefined;
+  let active = false;
+  let pending: { payload: NativePlaybackPayload | null; force: boolean } | null = null;
+  return (payload: NativePlaybackPayload | null, { force = false }: { force?: boolean } = {}): void => {
+    pending = { payload, force };
+    if (active) return;
+    active = true;
+    void (async () => {
+      try {
+        while (pending) {
+          const next = pending;
+          pending = null;
+          const identity = next.payload ? buildNativePlaybackIdentity(next.payload) : '__empty__';
+          if (!next.force && acknowledged === identity) continue;
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          try {
+            const work = next.payload ? plugin.updatePlaybackState({ ...next.payload }) : plugin.clearPlaybackState();
+            await Promise.race([work, new Promise<never>((_resolve, reject) => {
+              timer = setTimeout(() => reject(new Error('Native media publication timed out')), 4000);
+            })]);
+            acknowledged = identity;
+          } catch (error) {
+            // Do not acknowledge a dropped native write. The periodic/visibility sync retries it.
+            console.warn('[FoliaNativePlayback] Failed to publish media state', error);
+          } finally { clearTimeout(timer); }
+        }
+      } finally { active = false; }
+    })();
+  };
 };
 
 export const installNativePlaybackBridge = async (
@@ -88,23 +115,30 @@ export const installNativePlaybackBridge = async (
   if (installed) return;
   installed = true;
 
-  try {
-    await plugin.addListener('mediaAction', ({ action }) => {
-      if (!action) return;
-      window.dispatchEvent(new CustomEvent('folia-native-media-action', {
-        detail: { action },
-      }));
-    });
-  } catch (error) {
-    console.warn('[FoliaNativePlayback] Failed to listen for media actions', error);
-  }
+  // Listener registration is independent of metadata/API readiness; a lost listener reply must
+  // not hold every native API request behind it during startup.
+  void (async () => {
+    try {
+      await plugin.addListener('mediaAction', ({ action }) => {
+        if (!action) return;
+        window.dispatchEvent(new CustomEvent('folia-native-media-action', {
+          detail: { action },
+        }));
+      });
+    } catch (error) {
+      console.warn('[FoliaNativePlayback] Failed to listen for media actions', error);
+    }
+  })();
 
-  usePlaybackStore.subscribe(() => pushState(plugin));
+  const publish = createNativePlaybackPublisher(plugin);
+  const pushState = (force = false) => publish(readPayload(), { force });
+  usePlaybackStore.subscribe(() => pushState());
   window.setInterval(() => {
     const state = usePlaybackStore.getState();
-    if (selectDisplayPlayerState(state) === PlayerState.PLAYING) {
-      pushState(plugin, { force: true });
-    }
-  }, 1000);
-  pushState(plugin);
+    pushState(selectDisplayPlayerState(state) === PlayerState.PLAYING);
+  }, 5000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') pushState(true);
+  });
+  pushState();
 };

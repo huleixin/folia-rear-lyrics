@@ -1023,16 +1023,8 @@ public class FoliaNativePlugin extends Plugin {
 
     @PluginMethod
     public void updatePlaybackState(PluginCall call) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-            && getPermissionState("notifications") != PermissionState.GRANTED) {
-            requestPermissionForAlias("notifications", call, "notificationsPermissionCallback");
-            return;
-        }
-        applyPlaybackState(call);
-    }
-
-    @PermissionCallback
-    private void notificationsPermissionCallback(PluginCall call) {
+        // Media-session notifications are exempt from POST_NOTIFICATIONS. Never delay metadata
+        // behind a permission dialog, especially when background bridge calls cannot show one.
         applyPlaybackState(call);
     }
 

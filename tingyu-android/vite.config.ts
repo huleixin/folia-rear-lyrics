@@ -187,6 +187,7 @@ export default async function viteConfig(_config: ConfigEnv): Promise<UserConfig
   // 开发服务器可以用 FOLIA_DEV_BUILD_KIND 钉住（Playwright 用）；vite build 不认这个变量。
   const buildKind = resolveDevBuildKindOverride(_config.command, process.env) ?? resolveBuildKind(process.env);
 
+  const isCapacitorBuild = process.env.FOLIA_BUILD_TARGET === 'capacitor';
   const appVersionLabel = process.env.APP_VERSION_LABEL?.trim() || 'Realeco';
   const appReleaseChannel = process.env.APP_RELEASE_CHANNEL?.trim().toLowerCase() || 'realeco';
   const dockerStackVersion = process.env.DOCKER_STACK_VERSION?.trim() || '';
@@ -270,17 +271,20 @@ export default async function viteConfig(_config: ConfigEnv): Promise<UserConfig
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['icon.svg'],
+        includeAssets: isCapacitorBuild ? [] : ['icon.svg'],
         devOptions: {
           enabled: true
         },
         workbox: {
+          // APK assets are already offline. Keep the OPFS cover worker, but do not duplicate
+          // every bundled screen/model into Workbox during Android startup (~14 MB per update).
+          ...(isCapacitorBuild ? { globPatterns: [], navigateFallback: null } : {}),
           maximumFileSizeToCacheInBytes: 5000000,
           importScripts: [localCoverWorkerImport],
           // Docker serves this file dynamically; it must never be pinned in the PWA precache.
           // The cover route is stored with the worker script itself, so precaching it is redundant.
           globIgnores: ['**/runtime-config.js', '**/assets/folium-icons/**', '**/folia-cover-sw.js'],
-          runtimeCaching: [{
+          runtimeCaching: isCapacitorBuild ? [] : [{
             // Per-icon chunks load on demand. Their names are content-hashed, so an icon cached on
             // first use can be served as-is when the app later starts offline.
             urlPattern: /\/assets\/folium-icons\/[^/]+\.js$/,

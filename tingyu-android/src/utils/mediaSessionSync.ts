@@ -34,13 +34,13 @@ export const getSupportedMediaSessionArtworkUrl = (source: string, baseUrl?: str
     }
 };
 
-// Rejects late events from the previous source and sources whose timeline is not usable yet.
+// Rejects late events from the previous source; title publication does not require a finite timeline.
 export const isMediaSessionSourceReady = (
     audio: Pick<HTMLAudioElement, 'currentSrc' | 'readyState' | 'duration'>,
     expectedSource: string,
     baseUrl?: string
 ) => {
-    if (audio.readyState < 1 || !Number.isFinite(audio.duration) || audio.duration <= 0) {
+    if (audio.readyState < 1) {
         return false;
     }
 
@@ -72,7 +72,7 @@ export const createMediaSessionPositionState = (
     };
 };
 
-// Position must be valid before metadata is replaced; Chromium otherwise clears the platform session.
+// Publish a usable clock first when supported, but a WebView clock failure must not discard song metadata.
 export const publishMediaSessionTrack = (
     mediaSession: MediaSession,
     audio: Pick<HTMLAudioElement, 'currentTime' | 'duration' | 'playbackRate'>,
@@ -80,11 +80,10 @@ export const publishMediaSessionTrack = (
     createMetadata: MediaSessionMetadataFactory = init => new MediaMetadata(init)
 ) => {
     const positionState = createMediaSessionPositionState(audio);
-    if (!positionState) {
-        return false;
+    if (positionState && typeof mediaSession.setPositionState === 'function') {
+        try { mediaSession.setPositionState(positionState); }
+        catch { /* Older WebViews can expose the method but reject it. Metadata still works. */ }
     }
-
-    mediaSession.setPositionState(positionState);
     const artworkUrl = getSupportedMediaSessionArtworkUrl(track.artworkUrl);
     mediaSession.metadata = createMetadata({
         title: track.title,

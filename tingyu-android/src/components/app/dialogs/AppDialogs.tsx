@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import LyricMatchModal from '../../modal/LyricMatchModal';
-import NaviLyricMatchModal from '../../modal/NaviLyricMatchModal';
-import OnlineLyricMatchModal from '../../modal/OnlineLyricMatchModal';
-import UnavailableReplacementDialog from '../../modal/UnavailableReplacementDialog';
-import SettingsModal from '../../modal/SettingsModal';
+const LyricMatchModal = lazy(() => import('../../modal/LyricMatchModal'));
+const NaviLyricMatchModal = lazy(() => import('../../modal/NaviLyricMatchModal'));
+const OnlineLyricMatchModal = lazy(() => import('../../modal/OnlineLyricMatchModal'));
+const UnavailableReplacementDialog = lazy(() => import('../../modal/UnavailableReplacementDialog'));
+const SettingsModal = lazy(() => import('../../modal/SettingsModal'));
 import ConfirmDialog from '../../shared/ConfirmDialog';
 import type { AppDialogsModel } from './buildAppDialogsModel';
 import { countRender } from '../../../dev/renderCount';
@@ -64,14 +64,14 @@ const AppDialogs: React.FC<AppDialogsProps> = ({ model }) => {
                 document.body,
             )}
 
-            {lyricMatchDialog && <LyricMatchModal {...lyricMatchDialog} />}
-            {naviLyricMatchDialog && <NaviLyricMatchModal {...naviLyricMatchDialog} />}
-            {onlineLyricMatchDialog && <OnlineLyricMatchModal {...onlineLyricMatchDialog} />}
-            {unavailableReplacementDialog && <UnavailableReplacementDialog {...unavailableReplacementDialog} />}
+            {lyricMatchDialog && <Suspense fallback={null}><LyricMatchModal {...lyricMatchDialog} /></Suspense>}
+            {naviLyricMatchDialog && <Suspense fallback={null}><NaviLyricMatchModal {...naviLyricMatchDialog} /></Suspense>}
+            {onlineLyricMatchDialog && <Suspense fallback={null}><OnlineLyricMatchModal {...onlineLyricMatchDialog} /></Suspense>}
+            {unavailableReplacementDialog && <Suspense fallback={null}><UnavailableReplacementDialog {...unavailableReplacementDialog} /></Suspense>}
             {wallpaperEntryConfirmDialog && <ConfirmDialog {...wallpaperEntryConfirmDialog} />}
-            <AnimatePresence>
+            <Suspense fallback={null}><AnimatePresence>
                 {settingsDialog && <SettingsModal {...settingsDialog} />}
-            </AnimatePresence>
+            </AnimatePresence></Suspense>
         </>
     );
 };

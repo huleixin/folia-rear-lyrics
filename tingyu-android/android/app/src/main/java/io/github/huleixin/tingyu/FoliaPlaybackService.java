@@ -10,6 +10,7 @@ import android.graphics.BitmapFactory;
 import android.content.Intent;
 import android.net.wifi.WifiManager;
 import android.media.MediaMetadata;
+import android.media.AudioAttributes;
 import android.media.session.MediaSession;
 import android.media.session.PlaybackState;
 import android.os.Build;
@@ -22,7 +23,11 @@ import android.os.SystemClock;
 import androidx.annotation.Nullable;
 
 import java.io.InputStream;
-import java.util.Map;
+import java.io.ByteArrayOutputStream;
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import android.util.LruCache;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -42,8 +47,16 @@ public class FoliaPlaybackService extends Service {
     public static final String ACTION_REFRESH_METADATA = "io.github.huleixin.tingyu.action.REFRESH_METADATA";
     private MediaSession mediaSession;
     private final ExecutorService artworkExecutor = Executors.newSingleThreadExecutor();
-    private final OkHttpClient artworkClient = new OkHttpClient();
-    private final Map<String, Bitmap> artworkCache = new ConcurrentHashMap<>();
+    private final OkHttpClient artworkClient = new OkHttpClient.Builder()
+        .callTimeout(15, TimeUnit.SECONDS).build();
+    // Notification thumbnails must not retain every full-resolution cover for the whole session.
+    private final LruCache<String, Bitmap> artworkCache = new LruCache<String, Bitmap>(4 * 1024 * 1024) {
+        @Override protected int sizeOf(String key, Bitmap value) { return value.getAllocationByteCount(); }
+    };
+    private final Set<String> pendingArtworkUrls = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private boolean publishedPlayback = false;
+    private String artworkAttemptUrl = "";
+    private long artworkAttemptAt = 0L;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private volatile String currentArtworkUrl = "";
     private volatile String appliedArtworkUrl = "";
@@ -85,6 +98,11 @@ public class FoliaPlaybackService extends Service {
         running = true;
         createNotificationChannel();
         mediaSession = new MediaSession(this, "FoliaPlayback");
+        mediaSession.setPlaybackToLocal(new AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build());
+        mediaSession.setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS | MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS);
+        mediaSession.setSessionActivity(PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class),
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
         mediaSession.setCallback(new MediaSession.Callback() {
             @Override public void onPlay() { emit("play"); }
             @Override public void onPause() { emit("pause"); }
@@ -127,24 +145,43 @@ public class FoliaPlaybackService extends Service {
             return START_STICKY;
         }
 
-        cachedTitle = intent.getStringExtra("title");
-        cachedArtist = intent.getStringExtra("artist");
-        cachedAlbum = intent.getStringExtra("album");
-        cachedCoverUrl = intent.getStringExtra("coverUrl");
-        cachedSongKey = intent.getStringExtra("songKey");
-        cachedPlaying = intent.getBooleanExtra("playing", false);
-        cachedPositionMs = intent.getLongExtra("position", 0);
-        cachedDurationMs = intent.getLongExtra("duration", 0);
-        if (cachedTitle == null) cachedTitle = "";
-        if (cachedArtist == null) cachedArtist = "";
-        if (cachedAlbum == null) cachedAlbum = "";
-        if (cachedCoverUrl == null) cachedCoverUrl = "";
-        if (cachedSongKey == null) cachedSongKey = "";
+        String title = intent.getStringExtra("title");
+        String artist = intent.getStringExtra("artist");
+        String album = intent.getStringExtra("album");
+        String cover = intent.getStringExtra("coverUrl");
+        String songKey = intent.getStringExtra("songKey");
+        title = title == null ? "" : title;
+        artist = artist == null ? "" : artist;
+        album = album == null ? "" : album;
+        cover = cover == null ? "" : cover;
+        songKey = songKey == null ? "" : songKey;
+        boolean playing = intent.getBooleanExtra("playing", false);
+        long duration = intent.getLongExtra("duration", 0L);
+        boolean metadataChanged = !title.equals(cachedTitle) || !artist.equals(cachedArtist)
+            || !album.equals(cachedAlbum) || !cover.equals(cachedCoverUrl) || !songKey.equals(cachedSongKey)
+            || duration != cachedDurationMs;
+        boolean progressOnly = publishedPlayback && !metadataChanged && playing == cachedPlaying;
+        cachedTitle = title;
+        cachedArtist = artist;
+        cachedAlbum = album;
+        cachedCoverUrl = cover;
+        cachedSongKey = songKey;
+        cachedPlaying = playing;
+        cachedPositionMs = Math.max(0L, intent.getLongExtra("position", 0L));
+        cachedDurationMs = Math.max(0L, duration);
+        if (progressOnly) {
+            // Android extrapolates position from PlaybackState's timestamp. A clock refresh must
+            // not restart foreground publication or rebuild artwork/queue/notification metadata.
+            mediaSession.setPlaybackState(buildPlaybackState(cachedPlaying, cachedPositionMs, cachedSongKey));
+            refreshArtwork();
+            return START_STICKY;
+        }
+        publishedPlayback = true;
         lastPlaying = cachedPlaying;
         recordServiceStartIfNoteworthy();
         currentArtworkUrl = cachedCoverUrl.trim();
         Bitmap retainedArtwork = appliedArtworkBitmap;
-        if (currentArtworkUrl.isEmpty()) {
+        if (!currentArtworkUrl.equals(appliedArtworkUrl) || currentArtworkUrl.isEmpty()) {
             appliedArtworkUrl = "";
             appliedArtworkBitmap = null;
             retainedArtwork = null;
@@ -167,17 +204,26 @@ public class FoliaPlaybackService extends Service {
         startForeground(NOTIFICATION_ID, notification);
         updatePlaybackLocks(cachedPlaying);
         RearLyricsCoordinator.get(this).playback(cachedPlaying);
+        refreshArtwork();
+        return START_STICKY;
+    }
+
+    private void refreshArtwork() {
+        if (currentArtworkUrl.isEmpty() || currentArtworkUrl.equals(appliedArtworkUrl)) return;
+        long now = SystemClock.elapsedRealtime();
+        if (currentArtworkUrl.equals(artworkAttemptUrl) && now - artworkAttemptAt < 30_000L) return;
+        artworkAttemptUrl = currentArtworkUrl;
+        artworkAttemptAt = now;
         String requestedCover = currentArtworkUrl;
         loadArtwork(requestedCover, bitmap -> {
             if (!requestedCover.equals(currentArtworkUrl)) return;
-            mediaSession.setMetadata(buildMetadata(cachedTitle, cachedArtist, cachedAlbum, cachedDurationMs, bitmap, cachedCoverUrl, cachedSongKey));
+            publishMetadata(bitmap);
             FoliaNativePlugin.notePlaybackArtworkApplied(bitmap != null);
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.notify(NOTIFICATION_ID, buildNotification(cachedTitle, cachedArtist, cachedPlaying, bitmap));
             }
         });
-        return START_STICKY;
     }
 
     @Override
@@ -203,6 +249,10 @@ public class FoliaPlaybackService extends Service {
         String songKey
     ) {
         MediaMetadata.Builder metadata = new MediaMetadata.Builder()
+            .putString(MediaMetadata.METADATA_KEY_MEDIA_ID, songKey)
+            .putString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE, title == null ? "听屿" : title)
+            .putString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE, artist == null ? "" : artist)
+            .putString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST, artist == null ? "" : artist)
             .putString(MediaMetadata.METADATA_KEY_TITLE, title == null ? "听屿" : title)
             .putString(MediaMetadata.METADATA_KEY_ARTIST, artist == null ? "" : artist)
             .putString(MediaMetadata.METADATA_KEY_ALBUM, album == null ? "" : album)
@@ -227,15 +277,7 @@ public class FoliaPlaybackService extends Service {
     private void applyCachedMetadata(boolean notify) {
         if (mediaSession == null) return;
         Bitmap retained = appliedArtworkBitmap;
-        mediaSession.setMetadata(buildMetadata(
-            cachedTitle,
-            cachedArtist,
-            cachedAlbum,
-            cachedDurationMs,
-            retained,
-            cachedCoverUrl,
-            cachedSongKey
-        ));
+        publishMetadata(retained);
         mediaSession.setPlaybackState(buildPlaybackState(cachedPlaying, cachedPositionMs, cachedSongKey));
         if (notify) {
             NotificationManager manager = getSystemService(NotificationManager.class);
@@ -245,8 +287,21 @@ public class FoliaPlaybackService extends Service {
         }
     }
 
+    /** Keep AVRCP's current item, media ID and active queue item coherent; this is only the real current track. */
+    private void publishMetadata(Bitmap artwork) {
+        MediaMetadata metadata = buildMetadata(cachedTitle, cachedArtist, cachedAlbum, cachedDurationMs,
+            artwork, cachedCoverUrl, cachedSongKey);
+        mediaSession.setMetadata(metadata);
+        mediaSession.setQueue(Collections.singletonList(new MediaSession.QueueItem(metadata.getDescription(), queueId(cachedSongKey))));
+    }
+
+    private static long queueId(String songKey) {
+        return Integer.toUnsignedLong(songKey.hashCode());
+    }
+
     private PlaybackState buildPlaybackState(boolean playing, long position, String songKey) {
         PlaybackState.Builder builder = new PlaybackState.Builder()
+            .setActiveQueueItemId(queueId(songKey))
             .setActions(
                 PlaybackState.ACTION_PLAY
                     | PlaybackState.ACTION_PAUSE
@@ -344,7 +399,9 @@ public class FoliaPlaybackService extends Service {
             FoliaNativePlugin.notePlaybackArtwork(value, "error", "unsupported-cover-url");
             return;
         }
+        if (!pendingArtworkUrls.add(value)) return;
         artworkExecutor.execute(() -> {
+            if (!value.equals(currentArtworkUrl)) { pendingArtworkUrls.remove(value); return; }
             Bitmap bitmap = null;
             String failure = "";
             try (Response response = artworkClient.newCall(new Request.Builder()
@@ -354,7 +411,28 @@ public class FoliaPlaybackService extends Service {
                 ResponseBody body = response.body();
                 if (response.isSuccessful() && body != null) {
                     try (InputStream input = body.byteStream()) {
-                        bitmap = BitmapFactory.decodeStream(input);
+                        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+                        byte[] buffer = new byte[8192];
+                        int read;
+                        while ((read = input.read(buffer)) != -1) {
+                            if (bytes.size() + read > 8 * 1024 * 1024) throw new java.io.IOException("Artwork exceeds thumbnail download limit");
+                            bytes.write(buffer, 0, read);
+                        }
+                        byte[] encoded = bytes.toByteArray();
+                        BitmapFactory.Options options = new BitmapFactory.Options();
+                        options.inJustDecodeBounds = true;
+                        BitmapFactory.decodeByteArray(encoded, 0, encoded.length, options);
+                        options.inSampleSize = PlaybackArtworkSizing.sampleSize(options.outWidth, options.outHeight);
+                        options.inJustDecodeBounds = false;
+                        bitmap = BitmapFactory.decodeByteArray(encoded, 0, encoded.length, options);
+                        if (bitmap != null) {
+                            int[] size = PlaybackArtworkSizing.fit(bitmap.getWidth(), bitmap.getHeight());
+                            if (size[0] != bitmap.getWidth() || size[1] != bitmap.getHeight()) {
+                                Bitmap scaled = Bitmap.createScaledBitmap(bitmap, size[0], size[1], true);
+                                if (scaled != bitmap) bitmap.recycle();
+                                bitmap = scaled;
+                            }
+                        }
                     }
                     if (bitmap == null) failure = "decode-failed";
                 } else {
@@ -362,6 +440,8 @@ public class FoliaPlaybackService extends Service {
                 }
             } catch (Exception error) {
                 failure = error.getClass().getSimpleName();
+            } finally {
+                pendingArtworkUrls.remove(value);
             }
             if (bitmap != null) artworkCache.put(value, bitmap);
             Bitmap resolved = bitmap;
@@ -483,7 +563,10 @@ public class FoliaPlaybackService extends Service {
         mainHandler.removeCallbacks(serviceHeartbeatRunnable);
         updatePlaybackLocks(false);
         RearLyricsCoordinator.get(this).stopped();
+        currentArtworkUrl = "";
+        artworkClient.dispatcher().cancelAll();
         artworkExecutor.shutdownNow();
+        artworkCache.evictAll();
         if (mediaSession != null) {
             mediaSession.setActive(false);
             mediaSession.release();

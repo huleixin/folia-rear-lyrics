@@ -41,5 +41,6 @@ describe('native playback push identity', () => {
         expect(buildNativePlaybackIdentity(payload({ coverUrl: 'https://example.test/2.jpg' }))).not.toBe(base);
         expect(buildNativePlaybackIdentity(payload({ songKey: 'netease:2' }))).not.toBe(base);
         expect(buildNativePlaybackIdentity(payload({ playing: false }))).not.toBe(base);
+        expect(buildNativePlaybackIdentity(payload({ duration: 250000 }))).not.toBe(base);
     });
 });

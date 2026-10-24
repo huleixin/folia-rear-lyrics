@@ -104,4 +104,15 @@ describe('mediaSessionSync', () => {
 
         expect(metadata?.artwork).toEqual([]);
     });
+    it.each(['missing', 'rejects', 'unknown-duration'])('keeps metadata when the position API %s', mode => {
+        const metadata = vi.fn();
+        const session = { setPositionState: mode === 'missing' ? undefined : vi.fn(() => { throw new Error('unsupported'); }),
+            set metadata(value: unknown) { metadata(value); } } as unknown as MediaSession;
+        expect(publishMediaSessionTrack(session, { currentTime: 1, duration: mode === 'unknown-duration' ? Infinity : 200, playbackRate: 1 },
+            { title: 'Car track', artist: 'Real artist', album: 'Real album', artworkUrl: '' },
+            init => init as unknown as MediaMetadata)).toBe(true);
+        expect(metadata).toHaveBeenCalledWith(expect.objectContaining({ title: 'Car track', artist: 'Real artist' }));
+        expect(isMediaSessionSourceReady({ currentSrc: 'https://example.test/song', readyState: 1, duration: Infinity }, 'https://example.test/song')).toBe(true);
+    });
+
 });
