@@ -1,4 +1,3 @@
-import { getVisualizerSurface } from '../../utils/visualizerSurface';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, type MotionValue, useMotionValueEvent, useTransform } from 'framer-motion';
 import type { Line, LyricBackgroundVocal, SubtitleContentMode, Theme, Word } from '../../types';
@@ -217,7 +216,7 @@ const VisualizerHarmonyOverlay: React.FC<VisualizerHarmonyOverlayProps> = ({
                         y: { duration: 0.2, ease: 'easeOut' },
                     }}
                     className="pointer-events-none absolute left-0 right-0 z-30 flex flex-col items-center gap-1.5 px-5 text-center"
-                    style={getVisualizerSurface() ? { top: 0, maxHeight: 28, overflow: 'hidden' } : { top: harmonyTopPx }}
+                    style={{ top: harmonyTopPx }}
                 >
                     <div
                         className={`relative isolate flex max-w-full flex-col items-center gap-1.5 ${harmonySubtitleBackground ? 'px-4 py-2' : ''}`}

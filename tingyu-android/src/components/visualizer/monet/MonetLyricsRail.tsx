@@ -1,4 +1,3 @@
-import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, MotionValue } from 'framer-motion';
 import { type Theme, type AudioBands, type Line, type SubtitleContentMode } from '../../../types';
@@ -279,7 +278,7 @@ const MonetLyricsRail: React.FC<MonetLyricsRailProps> = ({
             ref={railRef}
             className="relative select-none overflow-hidden"
             style={{
-                height: getVisualizerSurface() ? Math.max(1, getVisualizerSurface()!.lyricHeight - 16) : `clamp(280px, 52vh, ${railMaxHeightPx}px)`,
+                height: `clamp(280px, 52vh, ${railMaxHeightPx}px)`,
                 maxWidth: `${railMaxWidthPx}px`,
                 marginLeft: `-${glowBufferPx}px`,
                 marginRight: `-${glowBufferPx}px`,

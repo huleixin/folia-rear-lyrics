@@ -1,4 +1,3 @@
-import { resolveVisualizerDimension } from '../../../utils/visualizerSurface';
 import type { MotionValue } from 'framer-motion';
 import type { AudioBands, SonnetTuning, Theme } from '../../../types';
 import type { SonnetProgram } from './types';
@@ -136,8 +135,8 @@ export class SonnetPixiRuntime {
     static async create(options: SonnetRuntimeOptions) {
         const pixi = await loadPixi();
         const app = new pixi.Application();
-        const width = resolveVisualizerDimension(options.host.clientWidth, 320);
-        const height = resolveVisualizerDimension(options.host.clientHeight, 240);
+        const width = Math.max(options.host.clientWidth, 320);
+        const height = Math.max(options.host.clientHeight, 240);
         await app.init({
             width,
             height,
@@ -186,8 +185,8 @@ export class SonnetPixiRuntime {
 
     private resizeToHost() {
         if (this.destroyed) return false;
-        const width = resolveVisualizerDimension(this.options.host.clientWidth, 320);
-        const height = resolveVisualizerDimension(this.options.host.clientHeight, 240);
+        const width = Math.max(this.options.host.clientWidth, 320);
+        const height = Math.max(this.options.host.clientHeight, 240);
         if (width === this.lastWidth && height === this.lastHeight) return false;
         this.lastWidth = width;
         this.lastHeight = height;

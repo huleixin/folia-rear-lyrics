@@ -1,4 +1,3 @@
-import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 import { type Line, type Theme } from '../../../types';
 import { mixColors } from '../colorMix';
 import { type CappellaIntensityConfig, type CappellaMessage, type CappellaTimedMessage, isTimedMessage } from './cappellaTypes';
@@ -91,14 +90,8 @@ export const getVisibleMessages = (
         return message.lineIndex <= visibleLineIndex;
     });
 
-    // On the rear panel, preserve the current message instead of squeezing a two-message history.
-    if (getVisualizerSurface()) {
-        const current = visible.filter(message => message.kind === 'lyric').at(-1);
-        return current ? [current] : visible.filter(message => message.kind === 'title').slice(-1);
-    }
-
     // 计算气泡展示区域的可用高度：总高度减去底部播放控制条区域 (~160px) 和顶部状态栏/间距 (~80px)
-    const usableHeight = getVisualizerSurface() ? Math.max(1, viewportHeight - 20) : Math.max(200, viewportHeight - 240);
+    const usableHeight = Math.max(200, viewportHeight - 240);
     let accumulatedHeight = 0;
     const result: CappellaMessage[] = [];
 
@@ -116,7 +109,7 @@ export const getVisibleMessages = (
             maxTextWidth
         );
 
-        if (accumulatedHeight + estHeight > usableHeight && result.length >= (getVisualizerSurface() ? 1 : 2)) {
+        if (accumulatedHeight + estHeight > usableHeight && result.length >= 2) {
             // 保留至少 2 条消息做为上下文，其余超出高度的不再包括
             break;
         }

@@ -1,4 +1,3 @@
-import { getVisualizerViewportWidth, getVisualizerViewportHeight, getVisualizerSurface } from '../../../utils/visualizerSurface';
 import { clearCache, layoutWithLines, prepareWithSegments } from '@chenglou/pretext';
 import { measureRichInlineStats, prepareRichInline, type RichInlineItem } from '@chenglou/pretext/rich-inline';
 import type { Line, SubtitleContentMode } from '../../../types';
@@ -183,7 +182,7 @@ export const resolveMonetLargeScreenScale = (containerWidthPx?: number): number 
     // up as if it owned the screen. Falls back to the viewport before the first measurement lands.
     const referenceWidth = containerWidthPx && containerWidthPx > 0
         ? containerWidthPx
-        : typeof window !== 'undefined' ? getVisualizerViewportWidth() : VIEWPORT_WIDTH_FALLBACK_PX;
+        : typeof window !== 'undefined' ? window.innerWidth : VIEWPORT_WIDTH_FALLBACK_PX;
     if (referenceWidth <= MONET_LARGE_SCREEN_MIN_PX) {
         return 1;
     }
@@ -196,9 +195,8 @@ export const resolveMonetLargeScreenScale = (containerWidthPx?: number): number 
 };
 
 export const resolveClampFontPx = (minRem: number, preferredVw: number, maxRem: number): number => {
-    const viewportWidth = typeof window !== 'undefined' ? getVisualizerViewportWidth() : VIEWPORT_WIDTH_FALLBACK_PX;
-    const result = Math.min(maxRem * ROOT_FONT_PX, Math.max(minRem * ROOT_FONT_PX, viewportWidth * (preferredVw / 100)));
-    return getVisualizerSurface() ? Math.min(result, Math.max(18, viewportWidth * .085)) : result;
+    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : VIEWPORT_WIDTH_FALLBACK_PX;
+    return Math.min(maxRem * ROOT_FONT_PX, Math.max(minRem * ROOT_FONT_PX, viewportWidth * (preferredVw / 100)));
 };
 
 export const splitMonetGraphemes = (text: string): string[] => {

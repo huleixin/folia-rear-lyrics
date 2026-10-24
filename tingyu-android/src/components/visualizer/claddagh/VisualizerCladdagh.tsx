@@ -1,4 +1,3 @@
-import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 // Only for the you who has yet to exist in this world.
 // DO NOT REMOVE THE LINE ABOVE.
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
@@ -68,13 +67,13 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
         damping: 24,
     });
     const fontStack = resolveThemeFontStack(theme);
-    const baseFontSize = (getVisualizerSurface() ? Math.min(32, getVisualizerSurface()!.lyricHeight * .18) : 72) * lyricsFontScale;
+    const baseFontSize = 72 * lyricsFontScale;
     const fontWeight = resolveThemeFontWeight(theme, 700);
     const fontSpec = `${fontWeight} ${baseFontSize}px ${fontStack}`;
 
     const containerRef = useRef<HTMLDivElement>(null);
     const axisLineRef = useRef<HTMLDivElement>(null);
-    const [dimensions, setDimensions] = useState(() => { const rear = getVisualizerSurface(); return rear ? { width: rear.width, height: rear.lyricHeight } : { width: 800, height: 600 }; });
+    const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
     // Smoothly animate axis line color and scale in response to audio power
     useEffect(() => {
@@ -172,7 +171,7 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
     }, []);
 
     // Radial configuration (increased to prevent long sentence overlaps)
-    const Rx = (dimensions.width > 0 ? Math.min(dimensions.width * 0.44, getVisualizerSurface() ? dimensions.height * .34 / .707 : 560) : 360) * (getVisualizerSurface() ? Math.min(1, claddaghTuning.radiusScale) : claddaghTuning.radiusScale);
+    const Rx = (dimensions.width > 0 ? Math.min(dimensions.width * 0.44, 560) : 360) * claddaghTuning.radiusScale;
     const Ry = Rx > 0 ? Rx * 0.707 : 254; // 45-degree angle projection ratio
     const focusSpacingScale = (1 + claddaghTuning.focusScaleRatio) / (1 + DEFAULT_CLADDAGH_TUNING.focusScaleRatio);
     const activeTextSpacingScale = focusSpacingScale;

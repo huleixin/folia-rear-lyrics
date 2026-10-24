@@ -94,7 +94,7 @@ export const useFumeCanvasStage = (
             const fumeBackgroundAudioLevels = readFumeAudioLevels(driver);
 
             if (!article) {
-                if (!staticMode && !getVisualizerSurface()) {
+                if (!staticMode) {
                     context.save();
                     context.translate(viewportCenterX, viewportCenterY);
                     context.translate(-backgroundScene.width * 0.5, -backgroundScene.height * 0.5);
@@ -142,7 +142,7 @@ export const useFumeCanvasStage = (
 
             const screenScale = camera.scale;
 
-            if (!staticMode && !getVisualizerSurface()) {
+            if (!staticMode) {
                 const {
                     backgroundCenterX,
                     backgroundCenterY,

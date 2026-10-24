@@ -1,4 +1,3 @@
-import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 import React, { useState } from 'react';
 import { motion, MotionValue, Variants, useMotionValueEvent } from 'framer-motion';
 import { Theme, Word as WordType } from '../../../types';
@@ -194,7 +193,7 @@ export const PartitaChunk: React.FC<{
                     <GlowWord
                         key={`${w.text}-${idx}`}
                         word={w}
-                        config={getVisualizerSurface() ? { ...wordConfig, x: Math.max(-5, Math.min(5, wordConfig.x)), y: Math.max(-5, Math.min(5, wordConfig.y)), scale: 1, rotate: Math.max(-8, Math.min(8, wordConfig.rotate)) } : wordConfig}
+                        config={wordConfig}
                         currentTime={currentTime}
                         theme={theme}
                         layoutVariants={layoutVariants}
@@ -204,7 +203,7 @@ export const PartitaChunk: React.FC<{
                         renderProfile={renderProfile}
                         isChorus={isChorus}
                         fontSize={fontSize}
-                        layoutStyle={getVisualizerSurface() ? { marginRight: ".2em" } : PARTITA_WORD_LAYOUT_STYLE}
+                        layoutStyle={PARTITA_WORD_LAYOUT_STYLE}
                     />
                 );
             })}

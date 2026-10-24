@@ -1,4 +1,3 @@
-import { resolveVisualizerDimension } from '../../../utils/visualizerSurface';
 import type { MotionValue } from 'framer-motion';
 import type { TemperaTuning, Theme } from '../../../types';
 import {
@@ -145,8 +144,8 @@ export class TemperaPixiRuntime {
     static async create(options: TemperaRuntimeOptions) {
         const pixi = await loadPixi();
         const app = new pixi.Application();
-        const width = resolveVisualizerDimension(options.host.clientWidth, 320);
-        const height = resolveVisualizerDimension(options.host.clientHeight, 240);
+        const width = Math.max(options.host.clientWidth, 320);
+        const height = Math.max(options.host.clientHeight, 240);
         const resolution = snapResolutionToTexturePool(width, height, options.tuning.textureResolution);
         await app.init({
             width,
@@ -204,15 +203,15 @@ export class TemperaPixiRuntime {
      * still right if a tuning change arrives before the first resize pass has run.
      */
     private resolveRenderResolution(tuning: TemperaTuning) {
-        const width = this.lastWidth || resolveVisualizerDimension(this.options.host.clientWidth, 320);
-        const height = this.lastHeight || resolveVisualizerDimension(this.options.host.clientHeight, 240);
+        const width = this.lastWidth || Math.max(this.options.host.clientWidth, 320);
+        const height = this.lastHeight || Math.max(this.options.host.clientHeight, 240);
         return snapResolutionToTexturePool(width, height, tuning.textureResolution);
     }
 
     private resizeToHost() {
         if (this.destroyed) return false;
-        const width = resolveVisualizerDimension(this.options.host.clientWidth, 320);
-        const height = resolveVisualizerDimension(this.options.host.clientHeight, 240);
+        const width = Math.max(this.options.host.clientWidth, 320);
+        const height = Math.max(this.options.host.clientHeight, 240);
         if (width === this.lastWidth && height === this.lastHeight) return false;
         this.lastWidth = width;
         this.lastHeight = height;
@@ -389,8 +388,8 @@ export class TemperaPixiRuntime {
         }
         // The size the renderer was last fitted to. Reading the host here instead would force a
         // synchronous layout every frame, and the ResizeObserver refits both together anyway.
-        const width = this.lastWidth || resolveVisualizerDimension(this.options.host.clientWidth, 320);
-        const height = this.lastHeight || resolveVisualizerDimension(this.options.host.clientHeight, 240);
+        const width = this.lastWidth || Math.max(this.options.host.clientWidth, 320);
+        const height = this.lastHeight || Math.max(this.options.host.clientHeight, 240);
         const finalParagraph = this.options.program.paragraphs.at(-1);
         const creditsFrame = resolveTemperaCreditsFrame(
             time,

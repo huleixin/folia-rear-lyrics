@@ -1,4 +1,3 @@
-import { resolveVisualizerDimension } from '../../../utils/visualizerSurface';
 // Copyright (c) 2026 chthollyphile
 import type { MotionValue } from 'framer-motion';
 import type { Filter } from 'pixi.js';
@@ -123,8 +122,8 @@ export class LumierePixiRuntime {
     static async create(options: LumiereRuntimeOptions) {
         const pixi = await loadPixi();
         const app = new pixi.Application();
-        const width = resolveVisualizerDimension(options.host.clientWidth, MIN_WIDTH);
-        const height = resolveVisualizerDimension(options.host.clientHeight, MIN_HEIGHT);
+        const width = Math.max(options.host.clientWidth, MIN_WIDTH);
+        const height = Math.max(options.host.clientHeight, MIN_HEIGHT);
         const resolution = resolveLumiereRenderResolution(window.devicePixelRatio);
         await app.init({
             width,
@@ -182,8 +181,8 @@ export class LumierePixiRuntime {
     /** 尺寸没变返回 false。渲染器立刻跟上，场景（尺寸烘焙在里面）防抖重建。 */
     private resizeToHost(immediate: boolean) {
         if (this.destroyed) return false;
-        const width = resolveVisualizerDimension(this.options.host.clientWidth, MIN_WIDTH);
-        const height = resolveVisualizerDimension(this.options.host.clientHeight, MIN_HEIGHT);
+        const width = Math.max(this.options.host.clientWidth, MIN_WIDTH);
+        const height = Math.max(this.options.host.clientHeight, MIN_HEIGHT);
         const resolution = resolveLumiereRenderResolution(window.devicePixelRatio);
         if (width === this.width && height === this.height && resolution === this.renderResolution) return false;
         this.width = width;

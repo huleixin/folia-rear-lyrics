@@ -576,7 +576,7 @@ const VisualizerTilt: React.FC<VisualizerTiltProps & { staticMode?: boolean; }> 
     });
 
     const readingWidth = getVisualizerViewportWidth();
-    const readingHeight = getVisualizerSurface()?.lyricHeight;
+    const readingHeight = getVisualizerSurface()?.height;
     const layout = useMemo<TiltLayout | null>(() => {
         if (!activeLine?.fullText) return null;
         return fitTiltReadingLayout(buildTiltLayout(activeLine.fullText, activeLine.startTime, tiltTuning, theme, lyricsFontScale), theme, lyricsFontScale);
