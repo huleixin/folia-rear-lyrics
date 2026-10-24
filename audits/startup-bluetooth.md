@@ -60,6 +60,8 @@ API 依据：[Android MediaSession](https://developer.android.com/reference/andr
 - `android/app/src/main/java/io/github/huleixin/tingyu/PlaybackArtworkSizing.java`
 - `android/app/src/test/java/io/github/huleixin/tingyu/PlaybackArtworkSizingTest.java`
 
+- `android/app/src/main/assets/capacitor.config.json`（同步自动生成的原生配置，与 root capacitor.config.json 保持一致。）
+
 ## 交付
 
-源码分支 tingyu/startup-bluetooth；main 下载说明分支不变。Release 附 APK、完整对应源码 ZIP、局部补丁、本报告、构建指标与 SHA256 校验和。请安装 Tingyu-Android-v1.2.2-startup-bluetooth.apk，才能使用新原生媒体服务和启动配置。
+源码分支 tingyu/startup-bluetooth；main 下载说明分支不变。最终校验 Release 标签 tingyu-v1.2.2-startup-bluetooth-r2。Release 附 APK、完整对应源码 ZIP、局部补丁、本报告、构建指标与 SHA256 校验和。请安装 Tingyu-Android-v1.2.2-startup-bluetooth.apk，才能使用新原生媒体服务和启动配置。
