@@ -159,10 +159,12 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
         const isCalm = intensity === 'calm';
 
         // Container layout decides how the whole line sits in the visual field before word offsets kick in.
-        const justifyOptions = isCalm
+        // Rear panel: keep the sung line centred in the safe column instead of scattering it off-screen.
+        const rearCompact = getVisualizerSurface() !== null;
+        const justifyOptions = isCalm || rearCompact
             ? ['justify-center']
             : ['justify-start', 'justify-center', 'justify-end', 'justify-around', 'justify-between'];
-        const alignOptions = isCalm
+        const alignOptions = isCalm || rearCompact
             ? ['items-center']
             : ['items-start', 'items-center', 'items-end'];
 
@@ -255,13 +257,14 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
                 marginRight = `${finalMargin.toFixed(1)}px`;
             }
 
+            // On the rear the fitted line must stay inside the camera-free column: no scatter, no spin.
             return {
                 id: `${w.text}-${i}-${seed}`,
-                x: xVal,
-                y: yVal,
-                rotate: resolvedClassicTuning.enableWordRotation ? (random(3) - 0.5) * baseRotate * 2 : 0,
-                scale: wordConfigScale,
-                marginRight,
+                x: rearCompact ? 0 : xVal,
+                y: rearCompact ? 0 : yVal,
+                rotate: rearCompact ? 0 : resolvedClassicTuning.enableWordRotation ? (random(3) - 0.5) * baseRotate * 2 : 0,
+                scale: rearCompact ? 1 : wordConfigScale,
+                marginRight: rearCompact ? '0.05em' : marginRight,
                 alignSelf: isChaotic && random(6) > 0.7 ? (random(7) > 0.5 ? 'flex-start' : 'flex-end') : 'auto',
                 passedRotate: resolvedClassicTuning.enableWordRotation ? (random(8) - 0.5) * 45 : 0
             };

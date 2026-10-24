@@ -50,14 +50,20 @@ export const buildHanabiSceneEntry = (pixi: PixiModule, context: HanabiSceneBuil
     const { width, height, program } = context;
     const paragraph = program.paragraphs[index]!;
     const lineMap = new Map(paragraph.lineIndices.map((lineIndex, k) => [lineIndex, paragraph.lines[k]!]));
-    const shots: HanabiSceneShot[] = paragraph.shots.map(shot => ({
-        id: shot.id,
-        profile: resolveShotProfile(shot),
-        startTime: shot.startTime,
-        endTime: shot.endTime,
-        isBridge: shot.isBridge,
-        line: shot.isBridge ? null : shotLine(lineMap, shot.slices),
-    }));
+    const rearSafe = getRearSafeInset();
+    const shots: HanabiSceneShot[] = paragraph.shots.map(shot => {
+        const profile = resolveShotProfile(shot);
+        return {
+            id: shot.id,
+            profile,
+            startTime: shot.startTime,
+            endTime: shot.endTime,
+            isBridge: shot.isBridge,
+            line: shot.isBridge ? null : shotLine(lineMap, shot.slices),
+            // Each layout owns its own text centre; shift that centre into the camera-free column.
+            textOffsetX: rearSafe ? (rearSafe.left + rearSafe.width / 2) - profile.region.cx * width : 0,
+        };
+    });
     if (shots.length === 0) {
         // 编译器保证每段至少一个镜头；防御：给一个覆盖整段的间奏。
         shots.push({
@@ -86,7 +92,6 @@ export const buildHanabiSceneEntry = (pixi: PixiModule, context: HanabiSceneBuil
         spinDirection: hanabiSpinDirection(program.seed),
         opening: index === 0 && context.songTitle ? { title: context.songTitle, artist: context.songArtist } : null,
         // Only the sung line moves beside the camera; fireworks, stickers and the stage stay full width.
-        textOffsetX: (() => { const safe = getRearSafeInset(); return safe ? (safe.left + safe.width / 2) - width / 2 : 0; })(),
     });
     scene.setLayerVisibility({ graphics: true, text: context.showText, mid: false });
     const holder = new pixi.Container();

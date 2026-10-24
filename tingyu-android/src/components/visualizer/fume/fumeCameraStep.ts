@@ -1,3 +1,4 @@
+import { getRearSafeInset } from '../../../utils/visualizerSurface';
 import type { Theme } from '../../../types';
 import type { FumeBackgroundScene } from '../FumeBackground';
 import type { CameraRetargetState, CameraTarget, CameraViewTarget, FumeArticleLayout, ViewportSize } from './fumeTypes';
@@ -133,8 +134,14 @@ export const stepFumeCamera = (state: FumeCameraState, input: FumeCameraStepInpu
             didRetargetThisFrame = true;
         }
     } else if (focusBlock) {
-        const readingTarget = input.fitReadingLine ? resolveFumeReadingCamera(focusBlock,
-            resolvePrintedGraphemeProgress(focusBlock.line, focusBlock.wordRanges, focusBlock.graphemes.length, time), viewport) : null;
+        const readingTarget = input.fitReadingLine ? (() => {
+            const safe = getRearSafeInset();
+            const fitted = resolveFumeReadingCamera(focusBlock,
+                resolvePrintedGraphemeProgress(focusBlock.line, focusBlock.wordRanges, focusBlock.graphemes.length, time), viewport, safe?.width);
+            // Centre the sung row in the camera-free column, not on the whole panel.
+            if (fitted && safe) fitted.x -= ((safe.left + safe.width / 2) - viewport.width / 2) / fitted.scale;
+            return fitted;
+        })() : null;
         const focusPoint = readingTarget ?? (cameraTrackingMode === 'stepped'
             ? resolveSteppedBlockFocusPoint(
                 focusBlock,

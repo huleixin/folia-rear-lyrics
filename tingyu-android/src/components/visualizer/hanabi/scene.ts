@@ -53,6 +53,8 @@ import type {
 
 /** 单元里的一个镜头（组件已经套进 profile）。 */
 export interface HanabiSceneShot {
+    /** Rear panel: shift this shot's lyric text into the camera-free column. */
+    textOffsetX?: number;
     id: string;
     profile: HanabiProfile;
     startTime: number;
@@ -326,7 +328,8 @@ export const createHanabiScene = (pixi: PixiModule, options: HanabiSceneOptions)
             : null;
         if (text) {
             // The sung line must sit beside the camera, but fireworks and stickers keep the full panel.
-            if (options.textOffsetX) text.view.x += options.textOffsetX;
+            const textOffsetX = shot.textOffsetX ?? options.textOffsetX;
+            if (textOffsetX) text.view.x += textOffsetX;
             container.addChild(text.view);
             // 素材层插在色块与字之间：字在哪个容器里，就插在那个容器里字的前面。
             const glyphParent = text.glyphs.parent;
