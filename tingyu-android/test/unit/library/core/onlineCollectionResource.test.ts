@@ -101,9 +101,25 @@ describe('online collection resource: loading', () => {
         expect(ids(resource.getSnapshot().tracks)).toEqual(ids(all));
         expect(resource.getSnapshot().status).toBe('ready');
         expect(resource.getSnapshot().sync).toEqual({ status: 'none' });
-        // 缓存命中立即提交，补页是后台更新。
+        // Loading is urgent; both cached tracks and later pages use the interruptible renderer path.
         expect(hints).toContain('urgent');
         expect(hints).toContain('background');
+    });
+
+    it('publishes a cold full-cache hit as background without delaying resource readiness or changing order', async () => {
+        const all = songs(3000);
+        const h = harness(all, {}, { tracks: all, snapshotTime: TARGET_TIME,
+            schemaVersion: ONLINE_TRACKS_CACHE_SCHEMA_VERSION, nextOffset: all.length, hasMore: false });
+        const resource = createOnlineCollectionResource('cold-cache', h.deps);
+        const updates: Array<{ hint: string; count: number }> = [];
+        resource.subscribe(() => updates.push({ hint: resource.getSnapshot().hint, count: resource.getSnapshot().tracks.length }));
+        resource.ensure(playlist({ trackCount: all.length }), {});
+        await settle();
+        expect(updates.filter(update => update.count > 0)).toEqual([{ hint: 'background', count: 3000 }]);
+        expect(resource.getSnapshot().status).toBe('ready');
+        expect(resource.getSnapshot().tracks).toBe(all);
+        expect(h.pages).toEqual([]);
+        resource.dispose();
     });
 
     it.each([

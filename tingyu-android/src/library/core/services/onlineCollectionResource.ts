@@ -188,7 +188,9 @@ export const createOnlineCollectionResource = (key: string, deps: OnlineCollecti
                 upstreamOffset = cached.nextOffset!;
                 loading = false;
                 fetchedAt = cached.fetchedAt ?? 0;
-                state.set({ status: 'ready', tracks }, 'urgent');
+                // Cached whole playlists can be larger than a network first page. Use the
+                // same interruptible renderer path, so cache hits do not block the entry animation.
+                state.set({ status: 'ready', tracks }, 'background');
                 recordCollectionOrderMerged({
                     phase: 'merged', source: 'cache', providerId: collection.providerId,
                     collectionId: String(collection.id), collectionType: collection.type,

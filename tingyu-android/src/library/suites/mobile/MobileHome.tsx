@@ -12,6 +12,7 @@ import { LocalDirectory, NavidromeDirectory } from './MobileSourceDirectories';
 import MobileHomeOverview from './MobileHomeOverview';
 import MobileLibraryOnline from './MobileLibraryOnline';
 import { MobileSourceSheet } from './MobileHomeSources';
+import { useMobileCollectionPreload } from './useMobileCollectionPreload';
 import './mobileLibrary.css';
 import './mobileLibraryPage.css';
 
@@ -20,6 +21,7 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
     const { t } = useTranslation();
     const sources = useLibraryHomeSources(props);
     const page = useMobileLibraryStore((state) => state.page);
+    const preloadCollection = useMobileCollectionPreload(props.isInteractive);
     useEffect(() => {
         const back = (event: KeyboardEvent) => {
             if (
@@ -50,7 +52,8 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
     const [showSources, setShowSources] = useState(false);
     const closeSources = useCallback(() => setShowSources(false), []);
     return (
-        <main className="mobile-library ml-page ml-home" data-page={page} inert={!props.isInteractive} data-testid="mobile-home">
+        <main className="mobile-library ml-page ml-home" data-page={page} inert={!props.isInteractive} data-testid="mobile-home"
+            onPointerDownCapture={preloadCollection} onFocusCapture={preloadCollection}>
             <header className="ml-home-header">
                 <div className="ml-home-heading">
                     <h1 className="ml-brand">

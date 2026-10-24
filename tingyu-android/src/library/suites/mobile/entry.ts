@@ -1,5 +1,6 @@
 import React from 'react';
 import type { LibrarySuiteManifest } from '../../core/contracts/suite';
+import { mobileCollectionLoader } from './mobileCollectionPreload';
 
 // src/library/suites/mobile/entry.ts
 // A separate browsing shell; playback, account dialogs and the lyrics stage stay with their existing owners.
@@ -31,7 +32,7 @@ const mobile: LibrarySuiteManifest = {
             actions: ['home-import-folder', 'home-refresh-folders', 'home-import-playlist', 'home-refresh-navidrome'],
         },
         collection: {
-            component: React.lazy(() => import('./MobileCollection')),
+            component: mobileCollectionLoader.Component,
             actions: [
                 'play',
                 'enqueue',
