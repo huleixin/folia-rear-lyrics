@@ -1,3 +1,4 @@
+import { getVisualizerViewportWidth, getVisualizerViewportHeight, getVisualizerSurface } from '../../../utils/visualizerSurface';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, useMotionValueEvent } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -52,7 +53,7 @@ const VisualizerCappella: React.FC<VisualizerCappellaProps> = (props) => {
     const [viewportSize, setViewportSize] = useState(() => (
         typeof window === 'undefined'
             ? { width: 1280, height: 900 }
-            : { width: window.innerWidth, height: window.innerHeight }
+            : { width: getVisualizerViewportWidth(), height: getVisualizerViewportHeight() }
     ));
     const bubbleMetricsCacheRef = useRef(new Map<string, PreparedBubbleMetrics>());
     const fontsEpoch = useFontsEpoch();
@@ -66,7 +67,12 @@ const VisualizerCappella: React.FC<VisualizerCappellaProps> = (props) => {
     }, [fontsEpoch]);
     const titleText = songTitle?.trim() || t('ui.noTrack');
     const avatarSeed = seed ?? titleText;
-    const intensityConfig = useMemo(() => getCappellaIntensityConfig(theme.animationIntensity), [theme.animationIntensity]);
+    const intensityConfig = useMemo(() => {
+        const config = getCappellaIntensityConfig(theme.animationIntensity);
+        return getVisualizerSurface() ? { ...config, motion: { ...config.motion, activeScale: 1,
+            activeFontMultiplier: 1, activePaddingY: 8, inactivePaddingY: 6, activeMinHeight: 0,
+            rowEnterY: 8, rowExitY: -8 } } : config;
+    }, [theme.animationIntensity]);
     const resolvedCappellaTuning = useMemo<CappellaTuning>(() => ({
         showEmoMessages: cappellaTuning.showEmoMessages ?? DEFAULT_CAPPELLA_TUNING.showEmoMessages,
         emojiPackSource: (
@@ -94,9 +100,9 @@ const VisualizerCappella: React.FC<VisualizerCappellaProps> = (props) => {
         () => buildCappellaMessages(lines, titleText, intensityConfig, resolvedCappellaTuning, activeEmoImages, isPreviewMode),
         [activeEmoImages, intensityConfig, isPreviewMode, lines, resolvedCappellaTuning, titleText]
     );
-    const baseFontSize = Math.max(15, Math.min(26, 18 * lyricsFontScale));
+    const baseFontSize = getVisualizerSurface() ? Math.max(18, Math.min(26, viewportSize.width * .068 * lyricsFontScale)) : Math.max(15, Math.min(26, 18 * lyricsFontScale));
     const maxPanelWidth = Math.min(Math.max(viewportSize.width - 32, 1), 896);
-    const bubbleGroupRatio = viewportSize.width >= 640 ? 0.68 : 0.78;
+    const bubbleGroupRatio = getVisualizerSurface() ? .9 : viewportSize.width >= 640 ? 0.68 : 0.78;
     const maxTextWidth = Math.max(96, Math.floor(maxPanelWidth * bubbleGroupRatio - 56));
     const visibleMessages = useMemo(
         () => getVisibleMessages(
@@ -132,8 +138,8 @@ const VisualizerCappella: React.FC<VisualizerCappellaProps> = (props) => {
     useEffect(() => {
         const handleResize = () => {
             setViewportSize({
-                width: window.innerWidth,
-                height: window.innerHeight,
+                width: getVisualizerViewportWidth(),
+                height: getVisualizerViewportHeight(),
             });
         };
 

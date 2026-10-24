@@ -1,3 +1,4 @@
+import { getVisualizerViewportWidth, getVisualizerViewportHeight, getVisualizerSurface } from '../../../utils/visualizerSurface';
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValueEvent } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -52,13 +53,13 @@ const VisualizerPartita: React.FC<VisualizerPartitaProps> = (props) => {
         subtitleContentMode,
     } = props;
     const { t } = useTranslation();
-    const [windowHeight, setWindowHeight] = useState(800);
+    const [windowHeight, setWindowHeight] = useState(() => getVisualizerSurface()?.lyricHeight ?? 800);
     const resolvedPartitaTuning = useMemo(() => resolvePartitaTuning(partitaTuning), [partitaTuning]);
     const layoutCacheRef = useRef<Map<string, PartitaSequentialLayout>>(new Map());
 
     useEffect(() => {
-        setWindowHeight(window.innerHeight);
-        const handleResize = () => setWindowHeight(window.innerHeight);
+        setWindowHeight(getVisualizerViewportHeight());
+        const handleResize = () => setWindowHeight(getVisualizerViewportHeight());
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
@@ -104,7 +105,12 @@ const VisualizerPartita: React.FC<VisualizerPartitaProps> = (props) => {
     });
 
     const densityScale = sequentialLayout.totalGraphemes > 40 ? 0.8 : 1;
-    const mainFontSize = `clamp(${(2.5 * densityScale * lyricsFontScale).toFixed(3)}rem, ${(5.5 * densityScale * lyricsFontScale).toFixed(3)}vw, ${(4.5 * densityScale * lyricsFontScale).toFixed(3)}rem)`;
+    const desktopFontSize = `clamp(${(2.5 * densityScale * lyricsFontScale).toFixed(3)}rem, ${(5.5 * densityScale * lyricsFontScale).toFixed(3)}vw, ${(4.5 * densityScale * lyricsFontScale).toFixed(3)}rem)`;
+    const rear = getVisualizerSurface();
+    const columnUnits = sequentialLayout.columns.map(column => Math.max(1, ...column.words.map(row => Array.from(row.displayWords.map(word => word.text).join('')).length)));
+    const rowCount = Math.max(1, ...sequentialLayout.columns.map(column => column.words.length));
+    const rearFont = rear ? Math.max(16, Math.min(32 * lyricsFontScale, rear.width * .80 / Math.max(1, columnUnits.reduce((sum, count) => sum + count, 0)), rear.lyricHeight * .72 / (rowCount * 1.5))) : 0;
+    const mainFontSize = rear ? `${rearFont}px` : desktopFontSize;
     const emptyFontSize = `clamp(${(1.2 * lyricsFontScale).toFixed(3)}rem, ${(2.8 * lyricsFontScale).toFixed(3)}vw, ${(1.9 * lyricsFontScale).toFixed(3)}rem)`;
     const translationFontSize = `clamp(${(1.05 * lyricsFontScale).toFixed(3)}rem, ${(2.2 * lyricsFontScale).toFixed(3)}vw, ${(1.2 * lyricsFontScale).toFixed(3)}rem)`;
     const upcomingFontSize = `clamp(${(0.875 * lyricsFontScale).toFixed(3)}rem, ${(1.8 * lyricsFontScale).toFixed(3)}vw, ${(1 * lyricsFontScale).toFixed(3)}rem)`;
@@ -156,15 +162,15 @@ const VisualizerPartita: React.FC<VisualizerPartitaProps> = (props) => {
                             className="flex flex-row-reverse items-stretch justify-center w-full max-w-5xl"
                             style={{
                                 perspective: `${sequentialLayout.lineConfig.perspective}px`,
-                                gap: sequentialLayout.lineConfig.columnGap,
-                                minHeight: '320px',
+                                gap: rear ? 8 : sequentialLayout.lineConfig.columnGap,
+                                minHeight: rear ? 0 : '320px',
                             }}
                         >
                             {sequentialLayout.columns.map((column) => {
                                 return (
                                     <div
                                         key={column.id}
-                                        className="relative flex min-h-[24rem] min-w-[3.8rem] items-center justify-center px-3"
+                                        className={rear ? "relative flex min-w-0 items-center justify-center px-1" : "relative flex min-h-[24rem] min-w-[3.8rem] items-center justify-center px-3"}
                                     >
                                         <div className="relative z-10 flex flex-col items-center justify-start">
                                             {column.words.map(({ chunkWords, displayWords, config, order, rowIndex }) => (
@@ -172,7 +178,7 @@ const VisualizerPartita: React.FC<VisualizerPartitaProps> = (props) => {
                                                     key={`${config.id}`}
                                                     chunkWords={chunkWords}
                                                     displayWords={displayWords}
-                                                    config={config}
+                                                    config={rear ? { ...config, x: Math.max(-6, Math.min(6, config.x)), y: Math.max(-6, Math.min(6, config.y)), scale: 1, rotate: Math.max(-10, Math.min(10, config.rotate)) } : config}
                                                     guideIndex={rowIndex}
                                                     currentTime={currentTime}
                                                     theme={theme}

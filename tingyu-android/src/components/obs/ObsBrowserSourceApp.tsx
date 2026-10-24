@@ -32,7 +32,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
     const [currentLineIndex, setCurrentLineIndex] = useState(-1);
     const [playbackState, setPlaybackState] = useState<PlayerState>(PlayerState.IDLE);
     const [obsScale, setObsScale] = useState(1);
-    const [obsDimensions, setObsDimensions] = useState({ width: '100vw', height: '100vh' });
+    const [obsDimensions, setObsDimensions] = useState(() => { const surface = getVisualizerSurface(); return surface ? { width: `${surface.width}px`, height: `${surface.height}px` } : { width: '100vw', height: '100vh' }; });
     const currentLineIndexRef = useRef(-1);
     const clockRef = useRef<ObsBrowserSourceClock | null>(null);
     const configRef = useRef<ObsBrowserSourceConfig | null>(null);
@@ -220,7 +220,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
                 position: getVisualizerSurface() ? 'absolute' : undefined,
                 left: getVisualizerSurface()?.left,
                 top: getVisualizerSurface()?.top,
-                overflow: getVisualizerSurface() ? 'visible' : 'hidden',
+                overflow: 'hidden',
                 width: obsDimensions.width,
                 height: obsDimensions.height,
                 zoom: obsScale,

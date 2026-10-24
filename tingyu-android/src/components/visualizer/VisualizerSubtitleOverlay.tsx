@@ -1,3 +1,4 @@
+import { rearSubtitleFont } from './rearTextLayout';
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Line, SubtitleContentMode, Theme } from '../../types';
@@ -116,7 +117,9 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
     });
     const resolvedOpacity = subtitleOverlayOpacity ?? opacity;
     const surface = getVisualizerSurface();
+    const rearFontPx = rearSubtitleFont(subtitleTracks.length ? subtitleTracks.map(track => track.text) : upcomingLines.map(line => line.fullText), subtitleTheme ?? theme, subtitleFontScale);
     const scaleFontSize = (fontSize: string, factor = 1) => {
+        if (rearFontPx !== null) return `${rearFontPx * factor}px`;
         const size = resolveVisualizerCssSize(fontSize.replace(/(-?\d*\.?\d+)(rem|vw|px)/g, (_match, value, unit) => `${(Number(value) * subtitleFontScale * factor).toFixed(3)}${unit}`));
         return surface ? `min(${size}, ${Math.max(16, Math.min(22, surface.width * .055))}px)` : size;
     };
@@ -147,7 +150,8 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
                     }}
                     // bottom 由共享 MotionValue 直接驱动，跟着底部基线走。
                     // 不要改回 transform：这一层下面压着 blur 辉光，多一个合成层就会变色。
-                    style={{ bottom: surface ? '18%' : subtitleBottomPx }}
+                    style={surface ? { top: surface.lyricHeight + 8, bottom: 'auto', maxHeight: surface.subtitleHeight, overflow: 'hidden' } : { bottom: subtitleBottomPx }}
+                    data-rear-subtitles={surface ? 'true' : undefined}
                     className="absolute left-0 right-0 text-center space-y-2 px-4 z-20 pointer-events-none"
                 >
                     {subtitleText ? (
@@ -175,7 +179,7 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
                                             data-font-debug-target="visualizer-translation"
                                             data-subtitle-track={track.role}
                                             style={{
-                                                color: theme.secondaryColor,
+                                                color: surface ? theme.primaryColor : theme.secondaryColor,
                                                 fontSize: scaleFontSize(translationFontSize, isSecondaryRow ? SECONDARY_TRACK_SIZE_FACTOR : 1),
                                                 fontFamily: resolveThemeTranslationFontStack(subtitleTheme ?? theme),
                                                 fontWeight: resolveThemeFontWeight(subtitleTheme ?? theme, isSecondaryRow ? SECONDARY_TRACK_FONT_WEIGHT_FALLBACK : 500),
@@ -205,7 +209,7 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
                                         key={index}
                                         className={getUpcomingLyricsClassName(subtitleUpcomingLyricsBlur)}
                                         style={{
-                                            color: theme.secondaryColor,
+                                            color: surface ? theme.primaryColor : theme.secondaryColor,
                                             fontSize: scaleFontSize(upcomingFontSize),
                                             fontWeight: resolveThemeFontWeight(subtitleTheme ?? theme, 400),
                                             textShadow,

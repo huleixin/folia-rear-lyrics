@@ -1,4 +1,4 @@
-import { getVisualizerSurface } from '../../../utils/visualizerSurface';
+import { getVisualizerSurface, resolveVisualizerDimension } from '../../../utils/visualizerSurface';
 // Copyright (c) 2026 chthollyphile
 import type { MotionValue } from 'framer-motion';
 import type { Container } from 'pixi.js';
@@ -85,7 +85,6 @@ export class HanabiPixiRuntime {
     private width = 0;
     private paintWidth = 0;
     private readingLeft = 0;
-    private readingMask: import('pixi.js').Graphics | null = null;
     private height = 0;
     private renderResolution = 1;
     private rebuildTimer: ReturnType<typeof setTimeout> | null = null;
@@ -127,8 +126,8 @@ export class HanabiPixiRuntime {
         } as const;
         const context = await makePixiContext(pixi, contextOptions, options.signal);
         const app = new pixi.Application();
-        const width = getVisualizerSurface()?.paintWidth ?? Math.max(options.host.clientWidth, MIN_WIDTH);
-        const height = Math.max(options.host.clientHeight, MIN_HEIGHT);
+        const width = resolveVisualizerDimension(options.host.clientWidth, MIN_WIDTH);
+        const height = resolveVisualizerDimension(options.host.clientHeight, MIN_HEIGHT);
         const resolution = resolveRenderResolution(window.devicePixelRatio);
         await app.init({
             width,
@@ -190,11 +189,10 @@ export class HanabiPixiRuntime {
     /** 尺寸没变返回 false。渲染器立刻跟上，场景（尺寸烘焙在里面）防抖重建。 */
     private resizeToHost(immediate: boolean) {
         if (this.destroyed) return false;
-        const surface = getVisualizerSurface();
-        const paintWidth = surface?.paintWidth ?? Math.max(this.options.host.clientWidth, MIN_WIDTH);
-        const width = surface?.width ?? paintWidth;
-        const readingLeft = surface?.left ?? 0;
-        const height = Math.max(this.options.host.clientHeight, MIN_HEIGHT);
+        const paintWidth = resolveVisualizerDimension(this.options.host.clientWidth, MIN_WIDTH);
+        const width = paintWidth;
+        const readingLeft = 0;
+        const height = resolveVisualizerDimension(this.options.host.clientHeight, MIN_HEIGHT);
         const resolution = resolveRenderResolution(window.devicePixelRatio);
         if (width === this.width && paintWidth === this.paintWidth && readingLeft === this.readingLeft && height === this.height && resolution === this.renderResolution) return false;
         this.width = width;
@@ -202,16 +200,6 @@ export class HanabiPixiRuntime {
         this.readingLeft = readingLeft;
         this.overlayLayer.x = readingLeft;
         this.credits.holder.x = readingLeft;
-        if (surface) {
-            if (!this.readingMask) {
-                this.readingMask = new this.pixi.Graphics();
-                this.app.stage.addChild(this.readingMask);
-                this.sceneLayer.mask = this.readingMask;
-                this.credits.holder.mask = this.readingMask;
-                this.overlayLayer.mask = this.readingMask;
-            }
-            this.readingMask.clear().rect(readingLeft, 0, width, height).fill(0xffffff);
-        }
         this.height = height;
         this.renderResolution = resolution;
         this.app.renderer.resize(paintWidth, height, resolution);
@@ -320,7 +308,7 @@ export class HanabiPixiRuntime {
         }
         const { program, theme } = this.options.song;
         const { tuning } = this.options;
-        this.sky.update(theme, tuning.textOnly ? 0 : tuning.sky, this.paintWidth, this.height);
+        this.sky.update(theme, getVisualizerSurface() || tuning.textOnly ? 0 : tuning.sky, this.paintWidth, this.height);
         const frames = resolveHanabiSceneFrames(program, time, !this.options.staticMode);
         let builtThisFrame = false;
         if (frames.activeIndex !== this.activeIndex) {

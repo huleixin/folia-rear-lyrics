@@ -1,3 +1,4 @@
+import { resolveVisualizerDimension } from '../../../utils/visualizerSurface';
 import type { SonnetTuning, Theme } from '../../../types';
 import { normalizeFontWeight, resolveThemeFontStack } from '../../../utils/fontStacks';
 import type { SonnetParagraph, SonnetShot } from './types';
@@ -82,8 +83,8 @@ export const buildSonnetScene = (
     paragraph: SonnetParagraph,
 ): SceneView => {
     const { Container, Graphics, Sprite } = pixi;
-    const width = Math.max(options.host.clientWidth, 320);
-    const height = Math.max(options.host.clientHeight, 240);
+    const width = resolveVisualizerDimension(options.host.clientWidth, 320);
+    const height = resolveVisualizerDimension(options.host.clientHeight, 240);
     const container = new Container();
     const sceneBackgroundLayer = new Container();
     // Resolve visibility once while building; playback only mutates animation state afterward.

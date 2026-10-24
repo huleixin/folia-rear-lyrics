@@ -61,6 +61,20 @@ const glyphAabb = (glyph: PlacedGlyph, pad = 0) => {
 };
 
 describe('hanabi text layout', () => {
+    it.each([{ w: 172, h: 68 }, { w: 285, h: 152 }, { w: 465, h: 260 }])('fits all nine text layouts on a rear body $w x $h without deforming glyphs', region => {
+        for (const layout of LAYOUTS) for (const text of SAMPLES) {
+            const result = placeLine(text, layout, 'pill', region, .8, .08);
+            for (const glyph of result.glyphs.filter(item => !item.blank)) {
+                const bounds = glyphAabb(glyph);
+                expect(bounds.minX).toBeGreaterThanOrEqual(-region.w / 2 - .5);
+                expect(bounds.maxX).toBeLessThanOrEqual(region.w / 2 + .5);
+                expect(bounds.minY).toBeGreaterThanOrEqual(-region.h / 2 - .5);
+                expect(bounds.maxY).toBeLessThanOrEqual(region.h / 2 + .5);
+                expect(glyph.size).toBeGreaterThan(0);
+            }
+        }
+    });
+
     it('keeps every glyph inside the text region for all layouts and block styles', () => {
         const region = { w: 900, h: 420 };
         for (const layout of LAYOUTS) {

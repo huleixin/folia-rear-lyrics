@@ -1,3 +1,4 @@
+import { rearLyricFont } from '../rearTextLayout';
 import { layoutWithLines, prepareWithSegments } from '@chenglou/pretext';
 import { Line, Theme } from '../../../types';
 import { resolveThemeFontStack, resolveThemeFontWeight } from '../../../utils/fontStacks';
@@ -30,7 +31,7 @@ export const buildPreparedState = (
         return null;
     }
 
-    const fontPx = clamp(chooseFontPx(viewport.width, line) * tuning.fontScale, 24, 132);
+    const fontPx = rearLyricFont(line.fullText, theme, tuning.fontScale) ?? clamp(chooseFontPx(viewport.width, line) * tuning.fontScale, 24, 132);
     const font = buildCanvasFont(theme, fontPx);
     // This is the expensive part of the mode.
     // Once a line reaches here, we fully measure it, wrap it, split it, and convert it into placement-ready fragments.

@@ -1,3 +1,4 @@
+import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, useMotionValueEvent, type MotionValue } from 'framer-motion';
 import { type CappellaTuning, type Theme } from '../../../types';
@@ -237,6 +238,7 @@ export const CappellaMessageRow = React.forwardRef<HTMLDivElement, CappellaMessa
                 className={`flex w-full max-w-[78%] items-end gap-3 sm:max-w-[68%] ${isRight ? 'flex-row-reverse' : 'flex-row'}`}
                 style={{
                     transformOrigin: isRight ? '100% 100%' : '0% 100%',
+                    maxWidth: getVisualizerSurface() ? '100%' : undefined,
                 }}
             >
                 <CappellaAvatar

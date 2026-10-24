@@ -1,3 +1,4 @@
+import './rearVisualizerLayout.css';
 import React, { forwardRef, useEffect, useRef, useState } from 'react';
 import { motion, MotionValue } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -126,8 +127,10 @@ const VisualizerShell = forwardRef<HTMLDivElement, VisualizerShellProps>(({
     return (
         <div
             ref={ref}
+            data-rear-lyric-shell={getVisualizerSurface() ? 'true' : undefined}
             className={`w-full h-full flex flex-col items-center justify-center overflow-hidden relative ${fontClassName} transition-colors duration-1000 ${className}`.trim()}
             style={{
+                height: getVisualizerSurface()?.lyricHeight,
                 backgroundColor: 'transparent',
                 overflow: getVisualizerSurface() ? 'visible' : 'hidden',
                 fontFamily: resolveThemeFontStack(theme),

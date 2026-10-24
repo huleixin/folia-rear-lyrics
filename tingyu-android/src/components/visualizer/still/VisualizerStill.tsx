@@ -1,3 +1,5 @@
+import { rearLyricFont } from '../rearTextLayout';
+import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 import React, { useEffect, useState } from 'react';
 import { resolveThemeFontStack, resolveThemeFontWeight, resolveThemeTranslationFontStack } from '../../../utils/fontStacks';
 import type { VisualizerSharedProps } from '../definition';
@@ -48,8 +50,9 @@ const VisualizerStill: React.FC<VisualizerSharedProps> = ({
             />
 
             {showText && (
-                <div className="absolute inset-0 z-0 flex flex-col items-center justify-center pointer-events-none px-12 pb-16 gap-8">
-                    {[-1, 0, 1].map((offset) => {
+                <div data-rear-still-lines={getVisualizerSurface() ? "true" : undefined}
+                    className="absolute inset-0 z-0 flex flex-col items-center justify-center pointer-events-none px-12 pb-16 gap-8">
+                    {(getVisualizerSurface() ? [0] : [-1, 0, 1]).map((offset) => {
                         const lineIndex = effectiveIndex + offset;
                         const line = lines[lineIndex];
                         if (!line) {
@@ -65,7 +68,8 @@ const VisualizerStill: React.FC<VisualizerSharedProps> = ({
                                         style={{
                                             color: theme.primaryColor,
                                             fontFamily: resolveThemeFontStack(theme),
-                                            scale: lyricsFontScale,
+                                            fontSize: getVisualizerSurface() ? (rearLyricFont(line.fullText, theme, lyricsFontScale) ?? 24) * (isCurrent ? 1 : .65) : undefined,
+                                            scale: getVisualizerSurface() ? 1 : lyricsFontScale,
                                             fontWeight: resolveThemeFontWeight(theme, isCurrent ? 700 : 600),
                                         }}
                                     >
@@ -79,7 +83,8 @@ const VisualizerStill: React.FC<VisualizerSharedProps> = ({
                                         style={{
                                             color: resolvedSubtitleTheme.secondaryColor,
                                             fontFamily: resolveThemeTranslationFontStack(resolvedSubtitleTheme),
-                                            scale: lyricsFontScale * subtitleFontScale,
+                                            fontSize: getVisualizerSurface() ? (isCurrent ? 14 : 12) * subtitleFontScale : undefined,
+                                            scale: getVisualizerSurface() ? 1 : lyricsFontScale * subtitleFontScale,
                                             fontWeight: resolveThemeFontWeight(resolvedSubtitleTheme, isCurrent ? 500 : 400),
                                         }}
                                     >

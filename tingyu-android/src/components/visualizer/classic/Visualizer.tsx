@@ -1,3 +1,5 @@
+import { rearLyricFont } from '../rearTextLayout';
+import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -137,7 +139,8 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
         return buildDisplayWordsFromLayoutUnits(layoutUnits);
     }, [activeLine, resolvedClassicTuning.useLegacyLayout]);
 
-    const mainFontSize = resolveVisualizerCssSize(`clamp(${(2.25 * lyricsFontScale).toFixed(3)}rem, ${(6 * lyricsFontScale).toFixed(3)}vw, ${(4.5 * lyricsFontScale).toFixed(3)}rem)`);
+    const rearFont = rearLyricFont(activeLine?.fullText ?? '', theme, lyricsFontScale);
+    const mainFontSize = rearFont ? `${rearFont}px` : resolveVisualizerCssSize(`clamp(${(2.25 * lyricsFontScale).toFixed(3)}rem, ${(6 * lyricsFontScale).toFixed(3)}vw, ${(4.5 * lyricsFontScale).toFixed(3)}rem)`);
     const emptyFontSize = resolveVisualizerCssSize(`clamp(${(1.5 * lyricsFontScale).toFixed(3)}rem, ${(3.5 * lyricsFontScale).toFixed(3)}vw, ${(2.25 * lyricsFontScale).toFixed(3)}rem)`);
     const { translationFontSize, upcomingFontSize } = resolveSubtitleFontSizes(lyricsFontScale);
 
@@ -318,7 +321,7 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
                             animate={activeLineContainerMotion.animate}
                             exit={activeLineContainerMotion.exit}
                             className={`flex flex-wrap w-full max-w-6xl content-center ${lineConfig.justifyContent} ${lineConfig.alignItems}`}
-                            style={{ perspective: `${lineConfig.perspective}px`, minHeight: '300px' }}
+                            style={{ perspective: `${lineConfig.perspective}px`, minHeight: getVisualizerSurface() ? 0 : '300px', gap: getVisualizerSurface() ? '4px 6px' : undefined }}
                         >
                             {displayWords.map((word, idx) => {
                                 const config = wordConfigs[idx] || { id: `fallback-${idx}`, x: 0, y: 0, rotate: 0, scale: 1, marginRight: '0.5rem', alignSelf: 'auto', passedRotate: 0 };
@@ -329,7 +332,7 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
                                     <GlowWord
                                         key={`${word.text}-${idx}-${activeLine.startTime}`}
                                         word={word}
-                                        config={config}
+                                        config={getVisualizerSurface() ? { ...config, x: Math.max(-8, Math.min(8, config.x)), y: Math.max(-8, Math.min(8, config.y)), scale: Math.min(1.08, config.scale), rotate: Math.max(-12, Math.min(12, config.rotate)) } : config}
                                         currentTime={currentTime}
                                         theme={theme}
                                         layoutVariants={layoutVariants}
@@ -339,7 +342,7 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
                                         renderProfile={activeWordRenderProfile!}
                                         isChorus={activeLine.isChorus}
                                         fontSize={mainFontSize}
-                                        layoutStyle={{ marginRight: config.marginRight, alignSelf: config.alignSelf }}
+                                        layoutStyle={{ marginRight: getVisualizerSurface() ? 0 : config.marginRight, alignSelf: config.alignSelf }}
                                     />
                                 );
                             })}

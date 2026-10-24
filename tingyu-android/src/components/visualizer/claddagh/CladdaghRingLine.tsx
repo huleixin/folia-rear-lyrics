@@ -1,3 +1,4 @@
+import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 import React, { useMemo, useRef, useLayoutEffect, useCallback } from 'react';
 import { MotionValue } from 'framer-motion';
 import { type Line, type Theme } from '../../../types';
@@ -83,7 +84,7 @@ export const RingLine: React.FC<RingLineProps> = ({
     letterSpacingOffset = 0,
 }) => {
     const fontStack = resolveThemeFontStack(theme);
-    const baseFontSize = 72 * lyricsFontScale;
+    const baseFontSize = (getVisualizerSurface() ? Math.min(32, getVisualizerSurface()!.lyricHeight * .18) : 72) * lyricsFontScale;
     const fontWeight = resolveThemeFontWeight(theme, 700);
     const fontSpec = `${fontWeight} ${baseFontSize}px ${fontStack}`;
 

@@ -1,3 +1,4 @@
+import { getVisualizerViewportWidth, getVisualizerViewportHeight } from '../../../utils/visualizerSurface';
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { motion, useSpring, useTransform } from 'framer-motion';
 import { Star, type LucideIcon } from 'lucide-react';
@@ -67,8 +68,8 @@ const VisualizerPendolo: React.FC<VisualizerSharedProps> = (props) => {
     } = props;
 
     const [viewportSize, setViewportSize] = useState({
-        width: typeof window !== 'undefined' ? window.innerWidth : 1920,
-        height: typeof window !== 'undefined' ? window.innerHeight : 1080,
+        width: typeof window !== 'undefined' ? getVisualizerViewportWidth() : 1920,
+        height: typeof window !== 'undefined' ? getVisualizerViewportHeight() : 1080,
     });
     const visualizerRef = useRef<HTMLDivElement | null>(null);
 

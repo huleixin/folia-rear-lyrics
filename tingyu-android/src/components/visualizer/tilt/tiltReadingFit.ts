@@ -22,6 +22,6 @@ export function fitTiltReadingLayout<T extends {
         totalHeight += px * 1.4;
     }
     const fit = Math.min(1, surface.width * .84 / Math.max(1, widest),
-        Math.max(48, surface.height * .7 - 48 - (layout.segments.length - 1) * 12) / Math.max(1, totalHeight));
+        Math.max(48, surface.lyricHeight * .7 - 48 - (layout.segments.length - 1) * 12) / Math.max(1, totalHeight));
     return { ...layout, scaleMultiplier: layout.scaleMultiplier * fit };
 }
