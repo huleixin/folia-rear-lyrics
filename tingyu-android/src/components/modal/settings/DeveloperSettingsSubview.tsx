@@ -169,7 +169,7 @@ const DeveloperSettingsSubview: React.FC<DeveloperSettingsSubviewProps> = ({
                     />
                 </div>
 
-                <FileRow
+                {debug.available && <FileRow
                     label={t('options.debugLogsToFile') || 'Save to file'}
                     path={debug.runtimeFile}
                     onOpen={() => void openDebugLogsFolder('runtime')}
@@ -189,7 +189,7 @@ const DeveloperSettingsSubview: React.FC<DeveloperSettingsSubviewProps> = ({
                             toggleOffBackgroundClass={toggleOffBackgroundClass}
                         />
                     </div>
-                </FileRow>
+                </FileRow>}
 
                 {/* Rendered either way: the panel answers for the switch itself, so this page and
                     the Alt+Shift+D overlay cannot disagree about whether anything is being kept. */}
@@ -200,7 +200,7 @@ const DeveloperSettingsSubview: React.FC<DeveloperSettingsSubviewProps> = ({
                 />
             </div>
 
-            <div className={`rounded-2xl border p-4 space-y-4 ${settingsCardClass}`}>
+            {debug.available && <div className={`rounded-2xl border p-4 space-y-4 ${settingsCardClass}`}>
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex min-w-0 items-start gap-3">
                         <div className="p-2 rounded-lg opacity-60 shrink-0">
@@ -274,7 +274,7 @@ const DeveloperSettingsSubview: React.FC<DeveloperSettingsSubviewProps> = ({
                         })}
                     </div>
                 </div>
-            </div>
+            </div>}
 
             <div className="text-[11px] leading-relaxed opacity-45" style={{ color: 'var(--text-secondary)' }}>
                 {t('options.consoleLogConvention')

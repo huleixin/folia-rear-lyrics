@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { Command, SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useAppViewStore, openCommandPalette } from '../../../../stores/useAppViewStore';
+import { useAppViewStore } from '../../../../stores/useAppViewStore';
 import { openSettings } from '../../../../stores/useSettingsModalStore';
 
 // src/components/app/overlays/mobile-stage/MobileStageMenu.tsx
@@ -61,10 +61,6 @@ export default function MobileStageMenu({
             <button role="menuitem" onClick={() => run(() => { const state=useAppViewStore.getState();state.setPanelTab('onlineLyrics');state.setIsPanelOpen(true); })}>
                 <SlidersHorizontal size={18} />
                 {t('localMusic.lyrics')}
-            </button>
-            <button role="menuitem" onClick={() => run(openCommandPalette)}>
-                <Command size={18} />
-                {t('mobileStage.commands')}
             </button>
             <button role="menuitem" onClick={() => run(() => openSettings('options', 'playback'))}>
                 <SlidersHorizontal size={18} />

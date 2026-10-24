@@ -145,6 +145,7 @@ describe('mobile options navigation and existing controls', () => {
         const render = (index: boolean) => root.render(h(MobileSettingsNavigation, { groups, index, onSelect, onGuide, onHelp }));
         await act(async () => render(true));
         expect(host.textContent).not.toContain('显示设置');
+        expect(host.textContent).not.toContain('播放界面自动隐藏');
         const rows = host.querySelectorAll('.ty-settings-navigation .ty-settings-row');
         expect(rows.length).toBe(groups.flatMap(group => group.items).length + 1);
         const scroller = host.querySelector<HTMLElement>('.ty-settings-home')!; scroller.scrollTop = 460;
@@ -162,6 +163,9 @@ describe('mobile options navigation and existing controls', () => {
         expect(useAndroidLayoutSettingsStore.getState().immersiveModeEnabled).toBe(true);
         expect(storage.get('folia_android_immersive_mode')).toBe('true');
         expect(toggle.getAttribute('aria-checked')).toBe('true');
+        const thumb = toggle.firstElementChild!;
+        expect(thumb.className).toBe('ty-settings-switch-thumb');
+        expect(thumb.className).not.toMatch(/translate-x/);
         expect(host.querySelector('.ty-immersive-link')).toBeNull();
         expect(host.textContent).toContain('播放界面自动隐藏');
         act(() => toggle.click()); expect(storage.get('folia_android_immersive_mode')).toBe('false');

@@ -1,3 +1,4 @@
+import { isAndroidNativeRuntime } from '../../../utils/platform';
 import React from 'react';
 import { Languages, LayoutList, Move } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -192,7 +193,7 @@ const GeneralSettingsSubview: React.FC<GeneralSettingsSubviewProps> = ({
                 </div>
             </SettingsAnchor>
 
-            <HomeCardPositionSection isDaylight={isDaylight} settingsCardClass={settingsCardClass} theme={theme} />
+            {!isAndroidNativeRuntime() && <HomeCardPositionSection isDaylight={isDaylight} settingsCardClass={settingsCardClass} theme={theme} />}
 
             <PlaybackEntryViewSection
                 isDaylight={isDaylight}
@@ -223,29 +224,29 @@ const GeneralSettingsSubview: React.FC<GeneralSettingsSubviewProps> = ({
                 />
             </SettingsAnchor>
 
-            <PinnedCommandSettings
+            {!isAndroidNativeRuntime() && <PinnedCommandSettings
                 isDaylight={isDaylight}
                 settingsCardClass={settingsCardClass}
                 theme={theme}
-            />
+            />}
 
-            <AdaptiveLayoutSetting
+            {!isAndroidNativeRuntime() && <AdaptiveLayoutSetting
                 isDaylight={isDaylight}
                 settingsCardClass={settingsCardClass}
                 theme={theme}
-            />
+            />}
 
-            <AndroidRearLyricsSetting
+            {!isAndroidNativeRuntime() && <AndroidRearLyricsSetting
                 isDaylight={isDaylight}
                 settingsCardClass={settingsCardClass}
                 theme={theme}
-            />
+            />}
 
-            <AndroidImmersiveSetting
+            {!isAndroidNativeRuntime() && <AndroidImmersiveSetting
                 isDaylight={isDaylight}
                 settingsCardClass={settingsCardClass}
                 theme={theme}
-            />
+            />}
 
             <AndroidKeepScreenOnSetting
                 isDaylight={isDaylight}
@@ -259,11 +260,11 @@ const GeneralSettingsSubview: React.FC<GeneralSettingsSubviewProps> = ({
                 theme={theme}
             />
 
-            <CommandPaletteButtonSetting
+            {!isAndroidNativeRuntime() && <CommandPaletteButtonSetting
                 isDaylight={isDaylight}
                 settingsCardClass={settingsCardClass}
                 theme={theme}
-            />
+            />}
 
         </div>
     );

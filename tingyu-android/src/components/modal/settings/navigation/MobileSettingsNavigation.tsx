@@ -3,7 +3,6 @@ import { ChevronRight, CircleHelp, Database, PlayCircle, Settings2, Sparkles } f
 import { useTranslation } from 'react-i18next';
 import type { SettingsNavGroup, SettingsSectionId } from './settingsNavModel';
 import AndroidRearLyricsSetting from '../AndroidRearLyricsSetting';
-import AndroidImmersiveSetting from '../AndroidImmersiveSetting';
 import '../mobileSettings.css';
 
 // src/components/modal/settings/navigation/MobileSettingsNavigation.tsx
@@ -23,7 +22,6 @@ export default function MobileSettingsNavigation({ groups, index, onSelect, onGu
     const symbols = { appearance: Sparkles, controls: PlayCircle, connections: Database, system: Settings2 };
     return <div className="ty-settings-home" data-mobile-settings-home="true" ref={scroller}>
         <AndroidRearLyricsSetting isDaylight={false} settingsCardClass="ty-settings-card" compact onOpenGuide={onGuide} />
-        <AndroidImmersiveSetting isDaylight={false} settingsCardClass="ty-settings-card" compact />
         <nav className="ty-settings-navigation" aria-label={t('ui.options')}>
             {groups.map(group => {
                 const Icon = symbols[group.id as keyof typeof symbols] ?? Settings2;

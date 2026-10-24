@@ -1962,7 +1962,7 @@ export default {
     "rememberHomeCardPosition": "Remember home card position",
     "rememberHomeCardPositionDesc": "Return to the last card in each section when switching tabs or leaving the player. Positions are kept until you close or reload the app.",
     "homeTabsVisibilityDesc": "Customize the capsule entries shown at the top of the home page",
-  "bottomUiSettings": "Bottom Controls",
+  "bottomUiSettings": "Player controls",
   "adaptiveDisplay": "Adaptive screen resolution",
   "immersiveMode": "Full immersive mode",
   "immersiveModeDesc": "Applies to the player view only: it auto-hides the control bar, the up-next card, the command palette button, and the right-side gear/panel button for a cleaner stage. Playlist and song browsing screens are unaffected. Turning it off restores the command palette button; if Auto hide was already on, it keeps hiding automatically.",

@@ -248,7 +248,7 @@ const LabSettingsModal: React.FC<LabSettingsModalProps> = ({
                                     {renderToggle(autoPlayOnLaunch, () => onToggleAutoPlayOnLaunch(!autoPlayOnLaunch))}
                                 </div>
 
-                                <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${settingsCardClass}`}>
+                                {isElectron && <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${settingsCardClass}`}>
                                     <div className="space-y-1">
                                         <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                                             <Monitor size={14} />
@@ -259,7 +259,7 @@ const LabSettingsModal: React.FC<LabSettingsModalProps> = ({
                                         </div>
                                     </div>
                                     {renderToggle(alwaysShowMainWindowTitlebar, () => onToggleAlwaysShowMainWindowTitlebar(!alwaysShowMainWindowTitlebar))}
-                                </div>
+                                </div>}
 
                                 {isMacElectron && (
                                     <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${settingsCardClass}`}>

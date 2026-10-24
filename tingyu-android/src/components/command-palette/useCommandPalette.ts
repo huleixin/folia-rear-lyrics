@@ -8,7 +8,7 @@ import { readCommandFrequencyState, recordCommandUse, type CommandFrequencyState
 import type { CommandPaletteContext, CommandPaletteCommand, CommandPaletteMatch } from './types';
 import { resolvePinnedCommandSlots } from './pinnedCommandPreferences';
 import { FILTER_VIEW_COMMAND_ID } from './commands/filterViewCommand';
-import { isPrimaryModifierPressed, isSecondaryModifierPressed } from '../../utils/platform';
+import { isAndroidNativeRuntime, isPrimaryModifierPressed, isSecondaryModifierPressed } from '../../utils/platform';
 import { useSettingsModalStore } from '../../stores/useSettingsModalStore';
 import { useAppViewStore } from '../../stores/useAppViewStore';
 import { useInteractionSettingsStore } from '../../stores/useInteractionSettingsStore';
@@ -195,12 +195,13 @@ export const useCommandPalette = ({
     }, [activeIndex, matches]);
 
     const open = useCallback(() => {
+        if (isAndroidNativeRuntime()) { close(); return; }
         if (isBlocked) {
             return;
         }
         setIsOpen(true);
         setActiveIndex(0);
-    }, [isBlocked]);
+    }, [close, isBlocked]);
 
     const recordRecentCommand = useCallback((command: CommandPaletteCommand) => {
         if (isRecordableRecentCommand(command, COMMAND_PALETTE_COMMANDS)) {
@@ -626,6 +627,11 @@ export const useCommandPalette = ({
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [context, customShortcutCommand, customShortcutLetter, filterCommand, invokeCommand, isBlocked, isOpen, open, openCommand, ownsBareKeys, paletteHotkeyOnFilteringSurface]);
 
+    const changeActiveCommand = useCallback((command: CommandPaletteCommand | null) => {
+        if (!command && isAndroidNativeRuntime()) { close(); return; }
+        setActiveCommand(command);
+    }, [close]);
+
     return {
         activeIndex,
         activePreview,
@@ -634,7 +640,7 @@ export const useCommandPalette = ({
         canInvokeCommandById,
         invokeCommandById,
         availableCommands,
-        setActiveCommand,
+        setActiveCommand: changeActiveCommand,
         isExecuting,
         close,
         executeActive,

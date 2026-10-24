@@ -1,3 +1,4 @@
+import { isAndroidNativeRuntime } from '../../../utils/platform';
 import React, { lazy, Suspense } from 'react';
 import FloatingPlayerControls from '../../FloatingPlayerControls';
 import SearchWorkspace from '../search/SearchWorkspace';
@@ -50,7 +51,7 @@ const AppOverlays: React.FC<AppOverlaysProps> = ({ model }) => {
             {!ownsLibraryChrome && !ownsStageChrome && nowPlayingToast && <NowPlayingToast {...nowPlayingToast} />}
 
             {/* 桌面版有 Ctrl+K，触屏设备需要这个按钮才能打开命令面板。 */}
-            {!ownsLibraryChrome && !ownsStageChrome && typeof window !== 'undefined' && !(window as unknown as { electron?: unknown }).electron && (
+            {!isAndroidNativeRuntime() && !ownsLibraryChrome && !ownsStageChrome && typeof window !== 'undefined' && !(window as unknown as { electron?: unknown }).electron && (
                 <BottomCommandPaletteButton />
             )}
         </>

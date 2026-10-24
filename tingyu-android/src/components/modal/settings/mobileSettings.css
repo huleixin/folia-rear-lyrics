@@ -108,11 +108,17 @@
 [data-mobile-settings='true'] .ty-settings-text-action { flex: none; font-size: 11px; color: var(--ty-settings-mint); min-height: 40px; }
 [data-mobile-settings='true'] .ty-immersive-card { padding: 12px 14px; }
 [data-mobile-settings='true'] .ty-settings-switch {
-    flex: none; width: 44px; height: 24px; padding: 3px; border: 0; border-radius: 20px; background: #333a3b;
+    position: relative; box-sizing: border-box; flex: none; width: 44px; height: 24px; padding: 3px; border: 0; border-radius: 20px; background: #333a3b;
 }
 [data-mobile-settings='true'] .ty-settings-switch[aria-checked='true'] { background: #409b7b; }
-[data-mobile-settings='true'] .ty-settings-switch > div { width: 18px; height: 18px; transform: translateX(0); }
-[data-mobile-settings='true'] .ty-settings-switch[aria-checked='true'] > div { transform: translateX(20px); }
+[data-mobile-settings='true'] .ty-settings-switch-thumb {
+    position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: white;
+    box-shadow: 0 1px 2px #0002; transform: translateX(0); transition: transform 180ms ease;
+}
+[data-mobile-settings='true'] .ty-settings-switch[aria-checked='true'] > .ty-settings-switch-thumb { transform: translateX(20px); }
+@media (prefers-reduced-motion: reduce) {
+    [data-mobile-settings='true'] .ty-settings-switch-thumb { transition: none; }
+}
 [data-mobile-settings='true'] .ty-settings-row:active { background: #a3d9bc09; }
 [data-mobile-settings='true'] .ty-rear-toggle:active:not(:disabled) { filter: brightness(1.1); }
 [data-mobile-settings='true'] button:focus-visible, [data-mobile-settings='true'] summary:focus-visible {

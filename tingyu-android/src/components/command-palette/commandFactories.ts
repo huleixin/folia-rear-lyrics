@@ -1,3 +1,4 @@
+import { isAndroidNativeRuntime } from '../../utils/platform';
 import type { HomeViewTab, ReplayGainMode, VisualizerMode } from '../../types';
 import type { AppLanguagePreference } from '../../i18n/config';
 import type { PanelTab } from '../UnifiedPanel';
@@ -8,7 +9,7 @@ import { useLibraryHomeSurfaceStore } from '../../library/core/state/useLibraryH
 import type { LibraryArtistSurfaceActionId } from '../../library/core/contracts/artist';
 import type { LibrarySuiteChromeActionMeta } from '../../library/core/contracts/suiteChrome';
 import { libraryChromeCommandId } from '../../library/core/model/suiteChrome';
-import { settingsAnchorSubview, type SettingsAnchorId } from '../modal/settings/navigation/settingsAnchorModel';
+import { SETTINGS_ANCHOR_DEFINITIONS, settingsAnchorSubview, type SettingsAnchorId } from '../modal/settings/navigation/settingsAnchorModel';
 import type { CommandPaletteCommand, CommandPaletteContext, CommandPaletteGroup } from './types';
 
 // src/components/command-palette/commandFactories.ts
@@ -82,8 +83,15 @@ export const createSettingsAnchorCommand = (
     description,
     keywords,
     ...options,
+    isAvailable: context => {
+        const definition = SETTINGS_ANCHOR_DEFINITIONS[anchorId];
+        return !(isAndroidNativeRuntime() && 'androidHidden' in definition && definition.androidHidden)
+            && (options.isAvailable?.(context) ?? true);
+    },
     settingsTarget: { subview: settingsAnchorSubview(anchorId), anchorId },
     execute: (_input, context) => {
+        const definition = SETTINGS_ANCHOR_DEFINITIONS[anchorId];
+        if (isAndroidNativeRuntime() && 'androidHidden' in definition && definition.androidHidden) return false;
         context.settings.openSettings('options', settingsAnchorSubview(anchorId), null, anchorId);
         return true;
     },

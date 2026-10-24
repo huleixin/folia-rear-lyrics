@@ -1,3 +1,4 @@
+import { isAndroidNativeRuntime } from '../../../utils/platform';
 import React, { useCallback } from 'react';
 import { Command, Keyboard, MousePointerClick } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -118,7 +119,7 @@ export const InteractionSettingsSubview: React.FC<InteractionSettingsSubviewProp
 
     return (
         <div className="space-y-5">
-            <SettingsAnchor anchorId="gridActionButton" label={t('options.gridActionButton')}>
+            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="gridActionButton" label={t('options.gridActionButton')}>
                 <SettingsSectionHeading icon={MousePointerClick} label={t('options.gridActionButton')} />
                 <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
                     <div className="space-y-1">
@@ -149,9 +150,9 @@ export const InteractionSettingsSubview: React.FC<InteractionSettingsSubviewProp
                         ))}
                     </div>
                 </div>
-            </SettingsAnchor>
+            </SettingsAnchor>}
 
-            <SettingsAnchor anchorId="gridPaletteHotkey" label={t('options.gridPaletteHotkey')}>
+            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="gridPaletteHotkey" label={t('options.gridPaletteHotkey')}>
                 <SettingsSectionHeading icon={Command} label={t('options.gridPaletteHotkey')} />
                 <div className={`p-4 rounded-xl border ${settingsCardClass}`}>
                     <div className="flex items-center justify-between gap-4">
@@ -170,7 +171,7 @@ export const InteractionSettingsSubview: React.FC<InteractionSettingsSubviewProp
                         )}
                     </div>
                 </div>
-            </SettingsAnchor>
+            </SettingsAnchor>}
 
             <SettingsAnchor anchorId="customShortcut" label={t('options.customShortcut')}>
                 <SettingsSectionHeading icon={Keyboard} label={t('options.customShortcut')} />

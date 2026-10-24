@@ -1,3 +1,4 @@
+import { isAndroidNativeRuntime } from '../../utils/platform';
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, CircleHelp, Command, CornerDownLeft, Loader2, Search, X } from 'lucide-react';
@@ -457,7 +458,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                                 </div>
                             )}
                             {renderQueryInput('min-w-0 flex-1 bg-transparent py-2 text-sm outline-none placeholder:opacity-45 disabled:opacity-50')}
-                            <button
+                            {!isAndroidNativeRuntime() && <button
                                 type="button"
                                 onClick={() => setIsShowingAllCommands(current => !current)}
                                 className={`rounded-full p-2 transition-colors ${isShowingAllCommands ? itemActiveBg : (isDaylight ? 'hover:bg-black/10' : 'hover:bg-white/10')}`}
@@ -465,7 +466,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                                 title={t('commandPalette.showAllCommands') || 'Show all commands'}
                             >
                                 <CircleHelp size={17} />
-                            </button>
+                            </button>}
                             <button
                                 type="button"
                                 onClick={onClose}

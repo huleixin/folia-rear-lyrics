@@ -1,3 +1,4 @@
+import { isAndroidNativeRuntime } from '../../../../utils/platform';
 import { Boxes, Command, Database, FlaskConical, Gauge, Keyboard, Languages, PlayCircle, Server, Sparkles, Terminal, type LucideIcon } from 'lucide-react';
 import { SETTINGS_ANCHOR_DEFINITIONS, type SettingsAnchorId } from './settingsAnchorModel';
 // src/components/modal/settings/navigation/settingsNavModel.ts
@@ -105,7 +106,7 @@ export const SETTINGS_NAV_GROUP_SPECS: GroupSpec[] = [
  */
 export const buildSettingsNavGroups = (
     t: Translate,
-    options: { isElectron: boolean; hasLibrarySuiteChoice?: boolean; isBravaisSuiteActive?: boolean },
+    options: { isElectron: boolean; hasLibrarySuiteChoice?: boolean; isBravaisSuiteActive?: boolean; isAndroid?: boolean },
 ): SettingsNavGroup[] => (
     SETTINGS_NAV_GROUP_SPECS
         .map(group => ({
@@ -121,6 +122,7 @@ export const buildSettingsNavGroups = (
                     anchors: (Object.entries(SETTINGS_ANCHOR_DEFINITIONS) as [SettingsAnchorId, typeof SETTINGS_ANCHOR_DEFINITIONS[SettingsAnchorId]][])
                         .filter(([, definition]) => (
                             definition.section === section.id
+                            && (!('androidHidden' in definition) || !definition.androidHidden || !(options.isAndroid ?? isAndroidNativeRuntime()))
                             && (!('electronOnly' in definition) || !definition.electronOnly || options.isElectron)
                             && (!('requiresLibrarySuiteChoice' in definition) || !definition.requiresLibrarySuiteChoice || Boolean(options.hasLibrarySuiteChoice))
                             && (!('requiresBravaisSuite' in definition) || !definition.requiresBravaisSuite || Boolean(options.isBravaisSuiteActive))

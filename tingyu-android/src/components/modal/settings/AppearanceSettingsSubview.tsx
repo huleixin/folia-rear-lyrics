@@ -1,3 +1,4 @@
+import { isAndroidNativeRuntime } from '../../../utils/platform';
 import React, { useState } from 'react';
 import { Monitor, Palette, Settings2, LayoutGrid, PanelsTopLeft, Images, Download, Copy, Check, ChevronRight, AlertTriangle, KeyRound, Music2, Film } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +17,7 @@ import { importFoliumParams, snapshotFoliumParams } from '../../../mods/folium/p
 import { ACTIVATE_CUSTOM_THEME_KEY, buildImportPlan, THEME_DARK_KEY, THEME_LIGHT_KEY, type ImportPlan } from '../../../utils/appearanceImportPlan';
 import { isFontFamilyAvailable } from '../../../utils/fontAvailability';
 import ImportConfirmDialog from './ImportConfirmDialog';
+import AndroidImmersiveSetting from './AndroidImmersiveSetting';
 import { extractCfgFromInput } from '../../../utils/obsUrl';
 import { buildCurrentObsUrl } from '../../../services/obs/currentObsUrl';
 import { ObsCopyUrlButton } from '../../shared/ObsCopyUrlButton';
@@ -627,6 +629,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
 
     return (
         <div className="space-y-6">
+            <AndroidImmersiveSetting isDaylight={isDaylight} settingsCardClass={settingsCardClass} theme={theme} compact />
             {/* Section 1: Lyrics Animation & Player View */}
             <SettingsAnchor anchorId="lyricsRenderer" label={t('options.lyricsRenderer')}>
                 <SettingsSectionHeading icon={Monitor} label={t('options.lyricsRenderer')} />
@@ -687,7 +690,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                 <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${transparentPlayerBackground ? 'translate-x-6' : 'translate-x-0'}`} />
                             </button>
                         </div>
-                        <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-4">
+                        {!isAndroidNativeRuntime() && <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-4">
                             <div className="space-y-1">
                                 <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                                     {t('options.autoHidePlayerChrome')}
@@ -703,10 +706,10 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                             >
                                 <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${autoHidePlayerChrome ? 'translate-x-6' : 'translate-x-0'}`} />
                             </button>
-                        </div>
+                        </div>}
                         {/* 指针隐藏是控制栏自动隐藏的附加项：上面那个开关关着时它无事可做，
                             所以整行淡出，但仍可点击——先设好偏好再开自动隐藏也是合理的顺序。 */}
-                        <div className={`pl-4 border-l-2 border-white/10 flex items-center justify-between gap-4 transition-opacity ${autoHidePlayerChrome ? '' : 'opacity-40'}`}>
+                        {!isAndroidNativeRuntime() && <div className={`pl-4 border-l-2 border-white/10 flex items-center justify-between gap-4 transition-opacity ${autoHidePlayerChrome ? '' : 'opacity-40'}`}>
                             <div className="space-y-1">
                                 <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                                     {t('options.autoHideCursorWithPlayerChrome')}
@@ -722,7 +725,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                             >
                                 <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${autoHideCursorWithPlayerChrome ? 'translate-x-6' : 'translate-x-0'}`} />
                             </button>
-                        </div>
+                        </div>}
                     </div>
                 </div>
             </SettingsAnchor>
@@ -925,7 +928,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
             </SettingsAnchor>
 
             {/* Section 4: Grid card style */}
-            <SettingsAnchor anchorId="grid3dCardStyle" label={t('options.grid3dCardStyle')}>
+            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="grid3dCardStyle" label={t('options.grid3dCardStyle')}>
                 <SettingsSectionHeading icon={LayoutGrid} label={t('options.grid3dCardStyle')} />
                 <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
                     <div className="space-y-1">
@@ -957,7 +960,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                         </button>
                     </div>
                 </div>
-            </SettingsAnchor>
+            </SettingsAnchor>}
 
             {/* Section 5: Tile wall appearance (queue collage + bravais library wall) */}
             <SettingsAnchor anchorId="latticeSettings" label={t('options.latticeSettings')}>

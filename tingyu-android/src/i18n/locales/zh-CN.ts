@@ -1961,7 +1961,7 @@ export default {
     "rememberHomeCardPosition": "记住主页卡片位置",
     "rememberHomeCardPositionDesc": "切换顶部入口或从播放界面返回时，回到各入口上次浏览的卡片。位置仅在本次打开应用期间保留。",
     "homeTabsVisibilityDesc": "自定义首页顶部显示的胶囊选项",
-   "bottomUiSettings": "底部界面",
+   "bottomUiSettings": "播放页控制栏",
    "adaptiveDisplay": "自适应屏幕分辨率",
    "immersiveMode": "全沉浸模式",
    "immersiveModeDesc": "只在播放界面生效：自动收起控制条、即将播放卡片、命令面板按钮和右侧齿轮/面板按钮，让画面更干净。浏览歌单和歌曲的界面不受影响。关闭后命令面板按钮恢复显示；若“自动隐藏命令面板按钮”本来就是打开的，则继续保持自动隐藏。",

@@ -513,10 +513,9 @@ describe('command palette registry', () => {
         playerBackButtonMatch.command.execute(playerBackButtonMatch.input, context);
         expect(context.settings.toggleAlwaysShowPlayerBackButton).toHaveBeenCalled();
 
-        const [mainWindowTitlebarMatch] = getCommandPaletteMatches('始终显示标题栏');
-        expect(mainWindowTitlebarMatch.command.id).toBe('settings-toggle-main-window-titlebar');
-        mainWindowTitlebarMatch.command.execute(mainWindowTitlebarMatch.input, context);
-        expect(context.settings.toggleAlwaysShowMainWindowTitlebar).toHaveBeenCalled();
+        // Desktop-only controls are stripped from this Android registry.
+        expect(COMMAND_PALETTE_COMMANDS.some(command => command.id === 'settings-toggle-main-window-titlebar')).toBe(false);
+        expect(context.settings.toggleAlwaysShowMainWindowTitlebar).not.toHaveBeenCalled();
 
         const [matchSubtitleCycle] = getCommandPaletteMatches('字幕翻译');
         expect(matchSubtitleCycle.command.id).toBe('settings-cycle-subtitle-content-mode');

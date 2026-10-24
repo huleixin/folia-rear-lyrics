@@ -12,7 +12,7 @@ export const SETTINGS_ANCHOR_DEFINITIONS = {
     lyricsRenderer: { section: 'appearance', labelKey: 'options.lyricsRenderer' },
     themePresets: { section: 'appearance', labelKey: 'options.themePresets' },
     stageTrackPill: { section: 'appearance', labelKey: 'options.stageTrackPill' },
-    grid3dCardStyle: { section: 'appearance', labelKey: 'options.grid3dCardStyle' },
+    grid3dCardStyle: { section: 'appearance', labelKey: 'options.grid3dCardStyle', androidHidden: true },
     latticeSettings: { section: 'appearance', labelKey: 'options.latticeSettings' },
     gridViewCardSettings: { section: 'appearance', labelKey: 'options.gridViewCardSettings' },
     videoLayerSettings: { section: 'appearance', labelKey: 'options.videoLayerSettings' },
@@ -21,14 +21,14 @@ export const SETTINGS_ANCHOR_DEFINITIONS = {
     // GeneralSettingsSubview (PinnedCommandSettings and PonderHintSettingsSection render inside it)
     languageSettings: { section: 'general', labelKey: 'options.languageSettings' },
     homeTabsVisibility: { section: 'general', labelKey: 'options.homeTabsVisibility' },
-    rememberHomeCardPosition: { section: 'general', labelKey: 'options.rememberHomeCardPosition' },
+    rememberHomeCardPosition: { section: 'general', labelKey: 'options.rememberHomeCardPosition', androidHidden: true },
     playbackEntryView: { section: 'general', labelKey: 'options.playbackEntryView' },
     // Rendered only when more than one library suite is available (hasLibrarySuiteChoice).
     librarySuite: { section: 'general', labelKey: 'options.librarySuite', requiresLibrarySuiteChoice: true },
     // bravais 独有的设置（透光、每块窗数、集合叠页边）：只在生效 suite 是 bravais 时渲染（isBravaisLibraryActive）。
     bravaisSettings: { section: 'general', labelKey: 'options.bravaisSettings', requiresBravaisSuite: true },
     bottomUiSettings: { section: 'general', labelKey: 'options.bottomUiSettings' },
-    pinnedCommands: { section: 'general', labelKey: 'options.pinnedCommands' },
+    pinnedCommands: { section: 'general', labelKey: 'options.pinnedCommands', androidHidden: true },
 
     // PlaybackSettingsSubview (TransitionSettingsSection renders inside it)
     queueSettings: { section: 'playback', labelKey: 'options.queueSettings' },
@@ -39,8 +39,8 @@ export const SETTINGS_ANCHOR_DEFINITIONS = {
     audioOutputSettings: { section: 'playback', labelKey: 'options.audioOutputSettings' },
 
     // InteractionSettingsSubview
-    gridActionButton: { section: 'interaction', labelKey: 'options.gridActionButton' },
-    gridPaletteHotkey: { section: 'interaction', labelKey: 'options.gridPaletteHotkey' },
+    gridActionButton: { section: 'interaction', labelKey: 'options.gridActionButton', androidHidden: true },
+    gridPaletteHotkey: { section: 'interaction', labelKey: 'options.gridPaletteHotkey', androidHidden: true },
     customShortcut: { section: 'interaction', labelKey: 'options.customShortcut' },
 
     // 听屿 Android 只保留 Navidrome 与系统歌词；Discord / OBS / Stage / 歌词 API 面板已随桌面功能移除。
@@ -70,7 +70,7 @@ export const SETTINGS_ANCHOR_DEFINITIONS = {
     // LabSettingsModal
     labPlayerUi: { section: 'lab', labelKey: 'options.labPlayerUiSection' },
     labWindowAndTools: { section: 'lab', labelKey: 'options.labWindowAndToolsSection' },
-} as const satisfies Record<string, { section: SettingsSubviewId; labelKey: string; electronOnly?: boolean; requiresLibrarySuiteChoice?: boolean; requiresBravaisSuite?: boolean }>;
+} as const satisfies Record<string, { section: SettingsSubviewId; labelKey: string; electronOnly?: boolean; requiresLibrarySuiteChoice?: boolean; requiresBravaisSuite?: boolean; androidHidden?: boolean }>;
 
 export type SettingsAnchorId = keyof typeof SETTINGS_ANCHOR_DEFINITIONS;
 
