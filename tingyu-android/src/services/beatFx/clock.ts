@@ -32,4 +32,3 @@ export const resolveBeatFxAccentGain = (
     if (!event || event.impact === undefined) return trackScale;
     return (BEAT_FX_WEAK_BEAT_FLOOR + (1 - BEAT_FX_WEAK_BEAT_FLOOR) * event.impact) * trackScale;
 };
-
