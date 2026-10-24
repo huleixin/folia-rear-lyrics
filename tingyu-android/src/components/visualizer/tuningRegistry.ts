@@ -1,3 +1,4 @@
+import type { HanabiTuning } from './hanabi/types';
 import type {
     CappellaTuning,
     CadenzaTuning,
@@ -32,6 +33,7 @@ export interface VisualizerTuningMap {
     sonnet: SonnetTuning;
     tempera: TemperaTuning;
     lumiere: LumiereTuning;
+    hanabi: HanabiTuning;
 }
 
 export type VisualizerTuningMode = keyof VisualizerTuningMap;

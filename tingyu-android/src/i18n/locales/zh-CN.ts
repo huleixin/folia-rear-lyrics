@@ -381,6 +381,7 @@ export default {
     "loggingOut": "正在登出…"
   },
   "notifications": {
+    "hanabiReset": "花火参数已重置",
     "coverColorAdded": "添加封面色彩",
     "coverColorDefault": "使用默认色彩",
     "staticModeOn": "静态模式已开启",
@@ -1013,6 +1014,7 @@ export default {
     }
   },
   "ui": {
+    "visualizerHanabi": "花火",
     "noTrack": "无音轨",
     "selectPlaceholder": "请选择...",
     "previousTrack": "上一首",
@@ -1469,6 +1471,8 @@ export default {
     "statusFailed": "切换私人 FM 模式失败"
   },
   "home": {
+    "loginTitleQishui": "用抖音扫码登录汽水音乐",
+    "loginNoteQishui": "请使用抖音 App 扫码并确认授权",
     "welcome": "欢迎使用听屿",
     "lattice": "队列拼贴",
     "latticeLabel": "队列拼贴",
@@ -1720,6 +1724,7 @@ export default {
     "version": "版本"
   },
   "lyricProvider": {
+    "qishui": "汽水音乐",
     "netease": "网易云音乐",
     "qq": "QQ 音乐",
     "kugou": "酷狗音乐",
@@ -1798,6 +1803,50 @@ export default {
     "lyricMatchPriorityDesc": "在多个歌词源都存在高置信度匹配时，优先选择该歌词源的结果。"
   },
   "options": {
+    "randomStyleRange": "随机歌词样式范围",
+    "randomStylePerSong": "每首歌随机歌词样式",
+    "randomStyleRangeHint": "勾选参与随机的样式，至少保留一项；选择多项时不会连续重复。",
+
+    "hanabiFontSizeAutoNotice": "花火模式会根据画面尺寸和每个镜头的文字区自动计算歌词字号；通用字体尺寸设置在此模式下只影响底部字幕。",
+    "hanabiFireworksSection": "烟花",
+    "hanabiStageSection": "画面",
+    "hanabiTextSection": "文字",
+    "hanabiDecorSection": "装饰",
+    "hanabiColorSection": "配色",
+    "hanabiSparkAmount": "火花数量",
+    "hanabiGlow": "烟花辉光",
+    "hanabiChorusBloom": "副歌辉光",
+    "hanabiChorusBloomHint": "副歌时整个画面亮起一层辉光，副歌开始时慢慢亮起、结束时收回。副歌按歌词判断：歌词自带的标记，或按重复的歌词识别。",
+    "hanabiBloom": "整体辉光",
+    "hanabiBloomHint": "整首歌常驻的全屏辉光，叠在副歌辉光下面。0 时只有副歌亮。",
+    "hanabiLaunches": "升空尾迹",
+    "hanabiLaunchesHint": "每发烟花先从画面底边升空再开花，把一个镜头接到下一个镜头。",
+    "hanabiSky": "夜空",
+    "hanabiSkyHint": "烟花底下的一层夜空渐变。调低会透出共享背景；低于一半时配色按主题背景色取。",
+    "hanabiRiseSpeed": "上升",
+    "hanabiRiseSpeedHint": "镜头之间摄影机往上走多远。0 时每个镜头原地切换。",
+    "hanabiSpin": "旋转",
+    "hanabiSpinHint": "镜头之间整个画面随上升一起大角度转过去，段落转场也带着转。0 时不转。",
+    "hanabiAmbient": "环境火星",
+    "hanabiOverlayFrame": "画框",
+    "hanabiTextOnly": "仅显示歌词文字",
+    "hanabiTextOnlyHint": "只画歌词和它的字底色块、逐字动画；烟花、贴纸、夜空和画框都不画。",
+    "hanabiTextMotion": "文字动作",
+    "hanabiBlockOpacity": "字底色块",
+    "hanabiCollage": "PV 拼贴",
+    "hanabiCollageHint": "歌词周围的电影胶片、剪切线、蕾丝花边、重复字、贴纸、胶带和主题图标。",
+    "hanabiOrnamentAmount": "MG 装饰件",
+    "hanabiColorMode": "配色",
+    "hanabiColorModeHint": "混合会把每个镜头的鲜艳配色往主题强调色偏。",
+    "hanabiColorModeMixed": "混合",
+    "hanabiColorModeVivid": "鲜艳",
+    "hanabiColorModeTheme": "主题",
+    "hanabiPerformanceSection": "性能",
+    "hanabiRenderQuality": "画质",
+    "hanabiRenderQualityFull": "全分辨率",
+    "hanabiRenderQualityBalanced": "均衡",
+    "hanabiRenderQualityLow": "省电",
+    "hanabiRenderQualityHint": "均衡 / 省电会降低烟花辉光的分辨率，省电还会少画一些环境火星；歌词和全屏辉光仍是全分辨率。集成显卡上卡顿时可以试试。",
     "ponderHints": "思索教程提示",
     "ponderHintsDesc": "把指针停在可教学的控件上会提示长按 G，松手后打开一段演示该手势的动画教程。",
     "ponderHintsAlways": "始终显示",

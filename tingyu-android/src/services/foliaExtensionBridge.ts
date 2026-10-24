@@ -7,7 +7,7 @@ const BRIDGE_REQUEST_TIMEOUT_MS = 45_000;
 
 export const FOLIA_EXTENSION_API_BASE = 'extension';
 
-export type FoliaBridgeProvider = 'netease' | 'qq' | 'kugou' | 'bodian' | 'qq_raw';
+export type FoliaBridgeProvider = 'netease' | 'qq' | 'kugou' | 'bodian' | 'qishui' | 'qq_raw';
 
 export interface FoliaBridgeRequest {
   provider: FoliaBridgeProvider;
@@ -15,7 +15,7 @@ export interface FoliaBridgeRequest {
   method?: string;
   path?: string;
   query?: Record<string, string | number | boolean | undefined>;
-  params?: Record<string, string | number | boolean | undefined>;
+  params?: Record<string, import('../types/onlineMusic').JsonValue | undefined>;
   body?: unknown;
   headers?: Record<string, string>;
 }

@@ -1,3 +1,4 @@
+import { normalizeRandomVisualizerModes } from '../../utils/randomVisualizerModes';
 import { sanitizeDualTheme } from '../themeSanitizer';
 // 背景模式没有 mod 投稿通道，静态清单与活注册表在任何时刻都等价。
 import { isBuiltinVisualizerBackgroundMode } from '../../types/visualizerModes';
@@ -43,6 +44,7 @@ const isVisualizerBackgroundMode = (value: unknown): value is NonNullable<Synced
 
 const parseSyncedVisualSettings = (value: Record<string, unknown>): SyncedVisualSettings => {
     const settings: SyncedVisualSettings = {};
+    if (Array.isArray(value.randomVisualizerModes)) settings.randomVisualizerModes = normalizeRandomVisualizerModes(value.randomVisualizerModes);
 
     if (typeof value.followSystemTheme === 'boolean') settings.followSystemTheme = value.followSystemTheme;
     if (typeof value.visualizerMode === 'string' && value.visualizerMode.trim()) settings.visualizerMode = value.visualizerMode;

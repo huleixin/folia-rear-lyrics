@@ -9,6 +9,7 @@ import type { SettingsSubviewId } from '../../../../stores/useSettingsModalStore
 // navigation destination.
 
 export const SETTINGS_ANCHOR_DEFINITIONS = {
+    randomStyleRange: { section: 'appearance', labelKey: 'options.randomStyleRange' },
     // AppearanceSettingsSubview
     mobilePlayerDisplay: { section: 'appearance', labelKey: 'mobileSettings.playerDisplay', androidOnly: true },
     lyricsRenderer: { section: 'appearance', labelKey: 'options.lyricsRenderer' },

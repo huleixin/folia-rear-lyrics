@@ -399,9 +399,19 @@ const getAudioSource = async (song: SongResult, quality: AudioQualityPreference)
         likelyCause,
     });
 
+    let networkRetryUsed = false;
+    const requestPlay = async (params: Record<string, string>) => {
+        try { return await requestQq<any>('music_play', params); }
+        catch (error) {
+            if (networkRetryUsed || !(error instanceof OnlineProviderError) || error.code !== 'network'
+                || error.httpStatus !== undefined || error.retryAfterMs !== undefined || error.details?.stage === 'upstream') throw error;
+            networkRetryUsed = true;
+            return await requestQq<any>('music_play', params);
+        }
+    };
     for (const candidate of QQ_QUALITY_FALLBACKS[quality]) {
         try {
-            const response = await requestQq<any>('music_play', {
+            const response = await requestPlay({
                 songmid,
                 ...(mediaId ? { mediaId } : {}),
                 quality: candidate.apiQuality,

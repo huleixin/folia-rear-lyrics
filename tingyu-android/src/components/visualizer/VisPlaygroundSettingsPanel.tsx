@@ -173,6 +173,7 @@ const LYRICS_FONT_SIZE_AUTO_NOTICE_KEYS: Partial<Record<string, string>> = {
     sonnet: 'options.sonnetFontSizeAutoNotice',
     tempera: 'options.temperaFontSizeAutoNotice',
     lumiere: 'options.lumiereFontSizeAutoNotice',
+    hanabi: 'options.hanabiFontSizeAutoNotice',
 };
 
 const SECTION_OPTIONS: VisPlaygroundEditSection[] = ['common', 'background', 'visualizer', 'subtitle'];

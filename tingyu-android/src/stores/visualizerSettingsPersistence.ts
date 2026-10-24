@@ -1,3 +1,5 @@
+import { normalizeHanabiTuning } from '../components/visualizer/hanabi/hanabiTuning';
+import { DEFAULT_HANABI_TUNING, type HanabiTuning } from '../components/visualizer/hanabi/types';
 import { DEFAULT_CADENZA_TUNING, DEFAULT_CAPPELLA_TUNING, DEFAULT_CLADDAGH_TUNING, DEFAULT_CLASSIC_TUNING, DEFAULT_DIORAMA_TUNING, DEFAULT_FUME_TUNING, DEFAULT_LATENT_BACKGROUND_TUNING, DEFAULT_LUMIERE_TUNING, DEFAULT_MONET_BACKGROUND_TUNING, DEFAULT_MONET_TUNING, DEFAULT_NOMAND_BACKGROUND_TUNING, DEFAULT_PARTITA_TUNING, DEFAULT_PENDOLO_TUNING, DEFAULT_SONNET_TUNING, DEFAULT_SORA_BACKGROUND_TUNING, DEFAULT_TEMPERA_LAYER_IMAGE, DEFAULT_TEMPERA_TUNING, DEFAULT_TILT_TUNING, DIORAMA_PARTICLE_DENSITY_MAX, DIORAMA_PARTICLE_DENSITY_MIN, DIORAMA_PARTICLE_GLOW_INTENSITY_MAX, DIORAMA_PARTICLE_GLOW_INTENSITY_MIN, DIORAMA_PARTICLE_SIZE_MAX, DIORAMA_PARTICLE_SIZE_MIN, TEMPERA_MAX_LAYER_IMAGES, type CadenzaTuning, type CappellaAvatarSource, type CappellaTuning, type ClassicTuning, type CladdaghTuning, type DioramaTuning, type FumeTuning, type LatentBackgroundColorSource, type LatentBackgroundDisplayMode, type LatentBackgroundTuning, type LumiereTuning, type MonetBackgroundLayout, type MonetBackgroundSource, type MonetBackgroundTuning, type MonetBackgroundWashColorMode, type MonetPortraitSource, type MonetTuning, type NomandBackgroundDitheringType, type NomandBackgroundEffect, type NomandBackgroundSource, type NomandBackgroundTuning, type PartitaTuning, type PendoloTuning, type SonnetTuning, type SoraBackgroundTuning, type TemperaLayerImage, type TemperaTuning, type TiltTuning, type UrlBackgroundItem, type VisualizerBackgroundMode, type VisualizerFrameRate, type VisualizerMode } from '../types';
 import {
     resolveTemperaTuningDefaults,
@@ -1034,4 +1036,11 @@ export const readStoredMonetTuning = (): MonetTuning => {
     } catch {
         return DEFAULT_MONET_TUNING;
     }
+};
+
+export const readStoredHanabiTuning = (): HanabiTuning => {
+    try {
+        const stored = typeof localStorage === 'undefined' ? null : localStorage.getItem('hanabi_tuning');
+        return normalizeHanabiTuning(stored ? JSON.parse(stored) : { ...DEFAULT_HANABI_TUNING, renderQuality: 'balanced' });
+    } catch { return normalizeHanabiTuning({ ...DEFAULT_HANABI_TUNING, renderQuality: 'balanced' }); }
 };

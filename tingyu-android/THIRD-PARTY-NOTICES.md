@@ -23,6 +23,8 @@
 - [yakult-green-tea/qq-music-api](https://github.com/yakult-green-tea/qq-music-api) — MIT
 - [NeteaseCloudMusicApiEnhanced/api-enhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced) — MIT
 
+汽水音乐协议基于上游 Android.280 的 WebCrypto 移植，接口类型来自 `qishui-music-api@0.2.2`（MIT）；许可原文保存在 `src/services/onlineMusic/qishui/PROTOCOL-LICENSE.txt`。花火歌词样式来自 Folia 上游，保留原有 AGPL-3.0 许可。
+
 ## 3. 运行期 npm 依赖
 
 | 包 | 许可 |

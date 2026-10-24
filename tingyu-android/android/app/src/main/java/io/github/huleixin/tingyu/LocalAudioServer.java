@@ -59,7 +59,8 @@ final class LocalAudioServer {
      * 它的 CDN 不下发 CORS 头，而 <audio> 带 crossOrigin="anonymous"，
      * 于是播放被同源策略挡掉（表现是 MEDIA_ELEMENT_ERROR: Format error）。
      */
-    private static final String[] REMOTE_AUDIO_HOST_SUFFIXES = { "kuwo.cn", "music.126.net" };
+    private static final String[] BYTEDANCE_AUDIO_HOST_SUFFIXES = { "365yg.com", "douyinscdn.com", "douyinvod.com", "bytefcdn.com", "bytecdn.cn", "byteicdn.com", "ibytedtos.com", "pstatp.com", "bytedance.com", "bytetos.com", "volcvideo.com", "volccdn.com", "volces.com", "volcengineapi.com", "douyin.com", "qishui.com", "zijieapi.com", "zjcdn.com", "snssdk.com" };
+    private static final String[] REMOTE_AUDIO_HOST_SUFFIXES = { "kuwo.cn", "music.126.net", "365yg.com", "douyinscdn.com", "douyinvod.com", "bytefcdn.com", "bytecdn.cn", "byteicdn.com", "ibytedtos.com", "pstatp.com", "bytedance.com", "bytetos.com", "volcvideo.com", "volccdn.com", "volces.com", "volcengineapi.com", "douyin.com", "qishui.com", "zijieapi.com", "zjcdn.com", "snssdk.com" };
     private static final String REMOTE_AUDIO_USER_AGENT =
         "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36";
     private static final String REMOTE_AUDIO_REFERER = "https://www.kuwo.cn/";
@@ -154,6 +155,9 @@ final class LocalAudioServer {
     private static String remoteAudioReferer(String value) {
         try {
             String host = new URL(value).getHost();
+            if (host != null) for (String suffix : BYTEDANCE_AUDIO_HOST_SUFFIXES) {
+                if (host.equals(suffix) || host.endsWith("." + suffix)) return "https://music.douyin.com/";
+            }
             if (host != null && (host.equals("music.126.net") || host.endsWith(".music.126.net"))) {
                 return NETEASE_REMOTE_AUDIO_REFERER;
             }

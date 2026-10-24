@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react';
+import type { IconNode, LucideIcon } from 'lucide-react';
 
 // src/services/lucideIconResolver.ts
 // Resolves a theme's lyricsIcons entry (a PascalCase lucide name coming from AI output or the
@@ -176,3 +176,15 @@ export const subscribeLucideIcons = (listener: () => void) => {
 
 /** Bumps every time an icon (or the name table) finishes loading or fails. */
 export const getLucideIconRevision = () => revision;
+
+export const resolveLucideIconNode = (name: string | null | undefined): IconNode | null => {
+    const icon = resolveLucideIcon(name) as unknown as { render?: (props: object, ref: null) => unknown } | null;
+    if (!icon || typeof icon.render !== 'function') return null;
+    try {
+        const element = icon.render({}, null) as { props?: { iconNode?: unknown; icon?: { node?: unknown } } } | null;
+        const node = element?.props?.iconNode ?? element?.props?.icon?.node;
+        return Array.isArray(node) ? node as IconNode : null;
+    } catch {
+        return null;
+    }
+};

@@ -6,6 +6,7 @@ import { neteaseProvider } from './neteaseProvider';
 import { kugouProvider } from './kugouProvider';
 import { qqProvider } from './qqProvider';
 import { bodianProvider } from './bodianProvider';
+import { qishuiProvider } from './qishui/qishuiProvider';
 
 // src/services/onlineMusic/providerRegistry.ts
 
@@ -82,3 +83,4 @@ registerOnlineMusicProvider(neteaseProvider);
 registerOnlineMusicProvider(kugouProvider);
 registerOnlineMusicProvider(qqProvider);
 registerOnlineMusicProvider(bodianProvider);
+registerOnlineMusicProvider(qishuiProvider);

@@ -212,6 +212,7 @@ export default {
     "loggingOut": "Sedang keluar…"
   },
   "notifications": {
+    "hanabiReset": "Setelan Hanabi direset",
     "coverColorAdded": "Warna sampul ditambahkan",
     "coverColorDefault": "Menggunakan warna bawaan",
     "staticModeOn": "Mode statis diaktifkan",
@@ -842,6 +843,7 @@ export default {
     }
   },
   "ui": {
+    "visualizerHanabi": "Hanabi",
     "noTrack": "Tidak Ada Trek",
     "selectPlaceholder": "Pilih...",
     "previousTrack": "Lagu sebelumnya",
@@ -1295,6 +1297,8 @@ export default {
     "statusFailed": "Gagal mengganti mode FM Pribadi"
   },
   "home": {
+    "loginTitleQishui": "Masuk ke Qishui Music dengan Douyin",
+    "loginNoteQishui": "Pindai dengan aplikasi Douyin dan konfirmasi otorisasi",
     "welcome": "Selamat datang di Folia",
     "lattice": "Kolase antrean",
     "latticeLabel": "Kolase antrean",
@@ -1544,6 +1548,7 @@ export default {
     "version": "versi"
   },
   "lyricProvider": {
+    "qishui": "Qishui Music",
     "netease": "NetEase Cloud Music",
     "qq": "QQ Music",
     "kugou": "Kugou Music",
@@ -1622,6 +1627,50 @@ export default {
     "lyricMatchPriorityDesc": "Saat beberapa sumber lirik memiliki kecocokan berkualitas tinggi, utamakan sumber ini terlebih dahulu."
   },
   "options": {
+    "randomStyleRange": "Random lyric style range",
+    "randomStylePerSong": "Random lyric style per song",
+    "randomStyleRangeHint": "Choose at least one style. With multiple choices, consecutive songs use different styles.",
+
+    "hanabiFontSizeAutoNotice": "Hanabi menyesuaikan ukuran lirik berdasarkan area pandang dan wilayah teks tiap shot; pengaturan ukuran font umum hanya memengaruhi subtitle dalam mode ini.",
+    "hanabiFireworksSection": "Kembang api",
+    "hanabiStageSection": "Panggung",
+    "hanabiTextSection": "Teks",
+    "hanabiDecorSection": "Dekorasi",
+    "hanabiColorSection": "Warna",
+    "hanabiSparkAmount": "Percikan",
+    "hanabiGlow": "Pendar kembang api",
+    "hanabiChorusBloom": "Pendar reff",
+    "hanabiChorusBloomHint": "Seluruh gambar berpendar saat reff, menyala perlahan di awal dan meredup di akhir. Reff diambil dari lirik: ditandai oleh sumber atau ditemukan dari baris yang berulang.",
+    "hanabiBloom": "Pendar keseluruhan",
+    "hanabiBloomHint": "Pendar layar penuh sepanjang lagu, di bawah pendar reff. 0 hanya menyisakan pendar reff.",
+    "hanabiLaunches": "Jejak luncur",
+    "hanabiLaunchesHint": "Setiap kembang api naik dari tepi bawah sebelum meledak, menyambung satu shot ke shot berikutnya.",
+    "hanabiSky": "Langit malam",
+    "hanabiSkyHint": "Gradasi langit malam di bawah kembang api. Turunkan agar latar bersama terlihat; di bawah setengah, warna mengikuti latar tema.",
+    "hanabiRiseSpeed": "Naik",
+    "hanabiRiseSpeedHint": "Seberapa jauh kamera naik di antara shot. 0 membuat setiap shot tetap di tempat.",
+    "hanabiSpin": "Putar",
+    "hanabiSpinHint": "Di antara shot, seluruh adegan berputar dengan sudut besar sambil naik, dan pergantian bagian ikut berputar. 0 mematikannya.",
+    "hanabiAmbient": "Percikan sekitar",
+    "hanabiOverlayFrame": "Bingkai",
+    "hanabiTextOnly": "Lirik saja",
+    "hanabiTextOnlyHint": "Hanya menggambar lirik beserta blok warna dan gerak hurufnya. Kembang api, stiker, langit malam, dan bingkai disembunyikan.",
+    "hanabiTextMotion": "Gerak huruf",
+    "hanabiBlockOpacity": "Blok warna",
+    "hanabiCollage": "Kolase PV",
+    "hanabiCollageHint": "Pita film, garis potong, renda, kata berulang, stiker, selotip, dan ikon tema di sekitar lirik.",
+    "hanabiOrnamentAmount": "Ornamen MG",
+    "hanabiColorMode": "Palet",
+    "hanabiColorModeHint": "Campuran mencondongkan palet cerah tiap shot ke warna aksen tema.",
+    "hanabiColorModeMixed": "Campuran",
+    "hanabiColorModeVivid": "Cerah",
+    "hanabiColorModeTheme": "Tema",
+    "hanabiPerformanceSection": "Performa",
+    "hanabiRenderQuality": "Kualitas render",
+    "hanabiRenderQualityFull": "Penuh",
+    "hanabiRenderQualityBalanced": "Seimbang",
+    "hanabiRenderQualityLow": "Hemat daya",
+    "hanabiRenderQualityHint": "Seimbang dan Hemat daya merender pendar kembang api pada resolusi lebih rendah, dan Hemat daya juga menggambar lebih sedikit bara di latar; lirik dan pendar layar penuh tetap beresolusi penuh. Layak dicoba jika pemutaran tersendat di grafis terintegrasi.",
     "ponderHints": "Petunjuk tutorial Ponder",
     "ponderHintsDesc": "Mengarahkan kursor ke kontrol yang bisa dipelajari akan memunculkan petunjuk untuk menahan G, yang membuka panduan animasi gerakan tersebut.",
     "ponderHintsAlways": "Selalu tampilkan",

@@ -96,6 +96,7 @@ const LOGIN_COPY_BY_PROVIDER: Readonly<Record<string, { title: string; note: str
     kugou: { title: 'home.loginTitleKugou', note: 'home.loginNoteKugou' },
     qq: { title: 'home.loginTitleQq', note: 'home.loginNoteQq' },
     bodian: { title: 'home.loginTitleBodian', note: 'home.loginNoteBodian' },
+    qishui: { title: 'home.loginTitleQishui', note: 'home.loginNoteQishui' },
 };
 const NETEASE_LOGIN_COPY = { title: 'home.loginTitle', note: 'home.loginNote' };
 

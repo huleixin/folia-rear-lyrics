@@ -381,6 +381,7 @@ export default {
     "loggingOut": "Signing out…"
   },
   "notifications": {
+    "hanabiReset": "Hanabi tuning reset",
     "coverColorAdded": "Cover color added",
     "coverColorDefault": "Using default color",
     "staticModeOn": "Static mode enabled",
@@ -1013,6 +1014,7 @@ export default {
     }
   },
   "ui": {
+    "visualizerHanabi": "Hanabi",
     "noTrack": "No Track",
     "selectPlaceholder": "Select...",
     "previousTrack": "Previous track",
@@ -1470,6 +1472,8 @@ export default {
     "statusFailed": "Failed to switch the Personal FM mode"
   },
   "home": {
+    "loginTitleQishui": "Sign in to Qishui Music with Douyin",
+    "loginNoteQishui": "Scan with the Douyin app and confirm authorization",
     "welcome": "Welcome to Folia",
     "lattice": "Queue collage",
     "latticeLabel": "Queue collage",
@@ -1721,6 +1725,7 @@ export default {
     "version": "version"
   },
   "lyricProvider": {
+    "qishui": "Qishui Music",
     "netease": "NetEase Cloud Music",
     "qq": "QQ Music",
     "kugou": "Kugou Music",
@@ -1799,6 +1804,50 @@ export default {
     "lyricMatchPriorityDesc": "When multiple lyric sources have high-confidence matches, prefer this source first."
   },
   "options": {
+    "randomStyleRange": "Random lyric style range",
+    "randomStylePerSong": "Random lyric style per song",
+    "randomStyleRangeHint": "Choose at least one style. With multiple choices, consecutive songs use different styles.",
+
+    "hanabiFontSizeAutoNotice": "Hanabi sizes lyrics from the viewport and each shot's text region; the generic font size setting only affects the subtitles in this mode.",
+    "hanabiFireworksSection": "Fireworks",
+    "hanabiStageSection": "Stage",
+    "hanabiTextSection": "Text",
+    "hanabiDecorSection": "Decorations",
+    "hanabiColorSection": "Colors",
+    "hanabiSparkAmount": "Sparks",
+    "hanabiGlow": "Firework glow",
+    "hanabiChorusBloom": "Chorus glow",
+    "hanabiChorusBloomHint": "The whole picture glows during the chorus, swelling in as it starts and settling as it ends. Choruses come from the lyrics: marked by the source or found from repeated lines.",
+    "hanabiBloom": "Overall glow",
+    "hanabiBloomHint": "A full-screen glow over the whole song, under the chorus glow. 0 leaves only the chorus glow.",
+    "hanabiLaunches": "Launch trails",
+    "hanabiLaunchesHint": "Each shell climbs from the bottom edge before it bursts, linking one shot to the next.",
+    "hanabiSky": "Night sky",
+    "hanabiSkyHint": "A night gradient under the fireworks. Lower it to let the shared background show through; below half, colors follow your theme background.",
+    "hanabiRiseSpeed": "Rise",
+    "hanabiRiseSpeedHint": "How far the camera climbs between shots. 0 keeps every shot in place.",
+    "hanabiSpin": "Spin",
+    "hanabiSpinHint": "Between shots the whole scene swings round by a large angle as it rises, and section changes turn too. 0 turns it off.",
+    "hanabiAmbient": "Ambient sparks",
+    "hanabiOverlayFrame": "Frame",
+    "hanabiTextOnly": "Lyrics only",
+    "hanabiTextOnlyHint": "Draws just the lyrics with their color blocks and letter motion. Fireworks, stickers, the night sky and the frame are hidden.",
+    "hanabiTextMotion": "Letter motion",
+    "hanabiBlockOpacity": "Color blocks",
+    "hanabiCollage": "PV collage",
+    "hanabiCollageHint": "Film strips, cut lines, lace trims, repeated words, stickers, tape and theme icons around the lyrics.",
+    "hanabiOrnamentAmount": "MG ornaments",
+    "hanabiColorMode": "Palette",
+    "hanabiColorModeHint": "Mixed leans each shot's vivid palette toward your theme accent.",
+    "hanabiColorModeMixed": "Mixed",
+    "hanabiColorModeVivid": "Vivid",
+    "hanabiColorModeTheme": "Theme",
+    "hanabiPerformanceSection": "Performance",
+    "hanabiRenderQuality": "Render quality",
+    "hanabiRenderQualityFull": "Full",
+    "hanabiRenderQualityBalanced": "Balanced",
+    "hanabiRenderQualityLow": "Low",
+    "hanabiRenderQualityHint": "Balanced and Low render the firework glow at reduced resolution, and Low also draws fewer ambient embers; lyrics and the full-screen glow stay at full resolution. Worth trying if playback stutters on integrated graphics.",
     "ponderHints": "Ponder tutorial hints",
     "ponderHintsDesc": "Hovering a teachable control shows a hint to hold G, which opens an animated walkthrough of that gesture.",
     "ponderHintsAlways": "Always show",

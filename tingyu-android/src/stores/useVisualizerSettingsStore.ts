@@ -1,3 +1,7 @@
+import { normalizeRandomVisualizerModes, readRandomVisualizerModes, RANDOM_VISUALIZER_POOL_STORAGE_KEY } from '../utils/randomVisualizerModes';
+import { normalizeHanabiTuning } from '../components/visualizer/hanabi/hanabiTuning';
+import { DEFAULT_HANABI_TUNING, type HanabiTuning } from '../components/visualizer/hanabi/types';
+import { readStoredHanabiTuning } from './visualizerSettingsPersistence';
 // src/stores/useVisualizerSettingsStore.ts
 // Visualizer and background settings: the active mode, the background mode and URL background
 // list, opacity/frame-rate, and the fifteen per-mode tuning objects.
@@ -35,6 +39,8 @@ export type VisualizerSettingsState = {
     visualizerFrameRate: VisualizerFrameRate;
     visualizerMode: VisualizerMode;
     randomVisualizerModePerSong: boolean;
+    randomVisualizerModes: VisualizerMode[];
+    handleSetRandomVisualizerModes: (modes: readonly VisualizerMode[]) => void;
     /** Snap animated glow blur radii to a bounded set. See components/visualizer/wordGlow.ts. */
     glowBlurQuantize: boolean;
     classicTuning: ClassicTuning;
@@ -54,6 +60,7 @@ export type VisualizerSettingsState = {
     sonnetTuning: SonnetTuning;
     temperaTuning: TemperaTuning;
     lumiereTuning: LumiereTuning;
+    hanabiTuning: HanabiTuning;
     handleToggleDisableVisualizerVignette: (disable: boolean) => void;
     handleToggleDisableVisualizerGeometricBackground: (disable: boolean) => void;
     handleSetBackgroundOpacity: (opacity: number) => void;
@@ -102,6 +109,8 @@ export type VisualizerSettingsState = {
     handleSetTemperaTuning: (patch: Partial<TemperaTuning>) => void;
     handleResetTemperaTuning: () => void;
     handleSetLumiereTuning: (patch: Partial<LumiereTuning>) => void;
+    handleSetHanabiTuning: (patch: Partial<HanabiTuning>) => void;
+    handleResetHanabiTuning: () => void;
     handleResetLumiereTuning: () => void;
     handleUploadMonetBackgroundImage: (files: File[]) => Promise<{ ok: boolean; error?: string; }>;
     handleClearMonetBackgroundImage: () => Promise<void>;
@@ -124,6 +133,12 @@ export const useVisualizerSettingsStore = create<VisualizerSettingsState>((set, 
     visualizerFrameRate: readStoredVisualizerFrameRate(),
     visualizerMode: readStoredVisualizerMode(),
     randomVisualizerModePerSong: getStoredBoolean('random_visualizer_mode_per_song', false),
+    randomVisualizerModes: readRandomVisualizerModes(),
+    handleSetRandomVisualizerModes: value => {
+        const modes = normalizeRandomVisualizerModes(value);
+        if (typeof localStorage !== 'undefined') localStorage.setItem(RANDOM_VISUALIZER_POOL_STORAGE_KEY, JSON.stringify(modes));
+        set({ randomVisualizerModes: modes });
+    },
     glowBlurQuantize: readStoredGlowBlurQuantize(),
     classicTuning: readStoredClassicTuning(),
     cadenzaTuning: readStoredCadenzaTuning(),
@@ -142,6 +157,17 @@ export const useVisualizerSettingsStore = create<VisualizerSettingsState>((set, 
     sonnetTuning: readStoredSonnetTuning(),
     temperaTuning: readStoredTemperaTuning(),
     lumiereTuning: readStoredLumiereTuning(),
+    hanabiTuning: readStoredHanabiTuning(),
+    handleSetHanabiTuning: patch => {
+        const next = normalizeHanabiTuning({ ...get().hanabiTuning, ...patch });
+        if (typeof localStorage !== 'undefined') localStorage.setItem('hanabi_tuning', JSON.stringify(next));
+        set({ hanabiTuning: next });
+    },
+    handleResetHanabiTuning: () => {
+        const next = normalizeHanabiTuning({ ...DEFAULT_HANABI_TUNING, renderQuality: 'balanced' });
+        if (typeof localStorage !== 'undefined') localStorage.setItem('hanabi_tuning', JSON.stringify(next));
+        set({ hanabiTuning: next });
+    },
     handleToggleDisableVisualizerVignette: (disable) => {
         setStoredBoolean('disable_visualizer_vignette', disable);
         set({ disableVisualizerVignette: disable });
@@ -880,6 +906,8 @@ export const selectVisualizerSettingsSnapshot = (state: VisualizerSettingsState)
     handleSetFumeTuning: state.handleSetFumeTuning,
     handleSetLatentBackgroundTuning: state.handleSetLatentBackgroundTuning,
     handleSetLumiereTuning: state.handleSetLumiereTuning,
+    handleSetHanabiTuning: state.handleSetHanabiTuning,
+    handleResetHanabiTuning: state.handleResetHanabiTuning,
     handleSetMonetBackgroundTuning: state.handleSetMonetBackgroundTuning,
     handleSetMonetTuning: state.handleSetMonetTuning,
     handleSetNomandBackgroundTuning: state.handleSetNomandBackgroundTuning,
@@ -898,17 +926,20 @@ export const selectVisualizerSettingsSnapshot = (state: VisualizerSettingsState)
     handleToggleDisableVisualizerGeometricBackground: state.handleToggleDisableVisualizerGeometricBackground,
     handleToggleDisableVisualizerVignette: state.handleToggleDisableVisualizerVignette,
     handleToggleRandomVisualizerModePerSong: state.handleToggleRandomVisualizerModePerSong,
+    handleSetRandomVisualizerModes: state.handleSetRandomVisualizerModes,
     handleUpdateUrlBackgroundItem: state.handleUpdateUrlBackgroundItem,
     handleUploadMonetBackgroundImage: state.handleUploadMonetBackgroundImage,
     handleUploadMonetPortraitImage: state.handleUploadMonetPortraitImage,
     latentBackgroundTuning: state.latentBackgroundTuning,
     lumiereTuning: state.lumiereTuning,
+    hanabiTuning: state.hanabiTuning,
     monetBackgroundTuning: state.monetBackgroundTuning,
     monetTuning: state.monetTuning,
     nomandBackgroundTuning: state.nomandBackgroundTuning,
     partitaTuning: state.partitaTuning,
     pendoloTuning: state.pendoloTuning,
     randomVisualizerModePerSong: state.randomVisualizerModePerSong,
+    randomVisualizerModes: state.randomVisualizerModes,
     sonnetTuning: state.sonnetTuning,
     soraBackgroundTuning: state.soraBackgroundTuning,
     temperaTuning: state.temperaTuning,

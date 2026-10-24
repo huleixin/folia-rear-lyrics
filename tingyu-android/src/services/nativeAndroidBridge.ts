@@ -50,6 +50,8 @@ const API_HOSTS = [
   'y.qq.com',
   // QQ 的 QIMEI 设备指纹引导（参考实现的 android comm 带 QIMEI / QIMEI36，写接口尤其需要）。
   'api.tencentmusic.com',
+  // Qishui QR/session APIs and public scene artwork.
+  'qishui.com', 'douyin.com', 'snssdk.com', 'douyinpic.com',
 ];
 
 type NativePlugin = {

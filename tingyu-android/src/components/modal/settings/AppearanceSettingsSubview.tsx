@@ -1,3 +1,4 @@
+import MobileRandomVisualizerSettings from './MobileRandomVisualizerSettings';
 import { isAndroidNativeRuntime } from '../../../utils/platform';
 import React, { useState } from 'react';
 import { Monitor, Palette, Settings2, LayoutGrid, PanelsTopLeft, Images, Download, Copy, Check, ChevronRight, AlertTriangle, KeyRound, Music2, Film } from 'lucide-react';
@@ -220,6 +221,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
     const storeVisualizer = useVisualizerSettingsStore(useShallow(state => ({
         visualizerMode: state.visualizerMode,
         randomVisualizerModePerSong: state.randomVisualizerModePerSong,
+        randomVisualizerModes: state.randomVisualizerModes,
         visualizerBackgroundMode: state.visualizerBackgroundMode,
         backgroundOpacity: state.backgroundOpacity,
         visualizerOpacity: state.visualizerOpacity,
@@ -244,6 +246,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
         urlBackgroundSelectedId: state.urlBackgroundSelectedId,
         handleSetVisualizerMode: state.handleSetVisualizerMode,
         handleToggleRandomVisualizerModePerSong: state.handleToggleRandomVisualizerModePerSong,
+        handleSetRandomVisualizerModes: state.handleSetRandomVisualizerModes,
         handleSetVisualizerBackgroundMode: state.handleSetVisualizerBackgroundMode,
         handleSetBackgroundOpacity: state.handleSetBackgroundOpacity,
         handleSetVisualizerOpacity: state.handleSetVisualizerOpacity,
@@ -419,6 +422,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
             if (has('visualizerMode') && config.visualizerMode) {
                 storeVisualizer.handleSetVisualizerMode(config.visualizerMode);
             }
+            if (has('randomVisualizerModes')) storeVisualizer.handleSetRandomVisualizerModes(config.randomVisualizerModes);
             if (has('randomVisualizerModePerSong')) {
                 storeVisualizer.handleToggleRandomVisualizerModePerSong(Boolean(config.randomVisualizerModePerSong));
             }
@@ -633,6 +637,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
         <div className="space-y-6">
             <AndroidImmersiveSetting isDaylight={isDaylight} settingsCardClass={settingsCardClass} theme={theme} compact />
             <MobilePlayerDisplaySetting isDaylight={isDaylight} settingsCardClass={settingsCardClass} theme={theme} />
+            <MobileRandomVisualizerSettings />
             {/* Section 1: Lyrics Animation & Player View */}
             <SettingsAnchor anchorId="lyricsRenderer" label={t('options.lyricsRenderer')}>
                 <SettingsSectionHeading icon={Monitor} label={t('options.lyricsRenderer')} />

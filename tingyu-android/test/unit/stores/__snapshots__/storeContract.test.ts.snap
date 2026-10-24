@@ -51,6 +51,7 @@ exports[`store contract > keeps every localStorage key the stores read or write 
   "gridview_min_card_opacity",
   "gridview_min_card_scale",
   "gridview_square_cards",
+  "hanabi_tuning",
   "harmony_subtitle_background",
   "hidden_grid_playlists",
   "hide_taskbar_icon",

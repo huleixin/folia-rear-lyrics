@@ -770,7 +770,8 @@ declare global {
 
   interface Window {
     electron?: {
-      webUtils?: {
+      qishuiRequest?: (operation: import('./services/onlineMusic/qishui/qishuiProtocol').QishuiOperation, params: import('./services/onlineMusic/qishui/qishuiProtocol').QishuiParams) => Promise<import('./services/onlineMusic/qishui/qishuiProtocol').QishuiBridgeResult>;
+            webUtils?: {
         /** Resolves the OS path of a dropped File (File.path was removed in modern Electron). */
         getPathForFile: (file: File) => string;
       };

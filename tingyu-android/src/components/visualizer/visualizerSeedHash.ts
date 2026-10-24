@@ -22,3 +22,22 @@ export const mixVisualizerSeed = (seed: number, salt: number) => (
 export const visualizerHash01 = (seed: number, index: number, salt: number) => (
     mixVisualizerSeed(seed + Math.imul(index + 1, 97), salt) / 4294967296
 );
+
+// Deterministic upstream mulberry32 stream for the new Hanabi director.
+export const createVisualizerRng = (seed: string | number) => {
+    let state = typeof seed === 'number' ? seed >>> 0 : hashVisualizerSeed(seed);
+    return () => {
+        state = (state + 0x6d2b79f5) | 0;
+        let t = Math.imul(state ^ (state >>> 15), 1 | state);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+};
+
+/**
+ * 与 createVisualizerRng(seed) 同一条流，但从第 skip 个值之后开始：mulberry32 每取一次状态加一个常数，跳过是 O(1)。
+ */
+export const createVisualizerRngAt = (seed: string | number, skip: number) => {
+    const state = typeof seed === 'number' ? seed >>> 0 : hashVisualizerSeed(seed);
+    return createVisualizerRng((state + Math.imul(skip, 0x6d2b79f5)) >>> 0);
+};

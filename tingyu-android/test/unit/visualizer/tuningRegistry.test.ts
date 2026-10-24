@@ -16,6 +16,7 @@ describe('visualizer tuning registry', () => {
             'classic',
             'diorama',
             'fume',
+            'hanabi',
             'lumiere',
             'monet',
             'partita',

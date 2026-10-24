@@ -938,7 +938,7 @@ describe('qqProvider', () => {
             expect(requestMock).toHaveBeenCalledTimes(1);
         });
 
-        it('degrades past a network failure and returns the next quality that has a URL', async () => {
+        it('retries a transient transport failure once without degrading the requested quality', async () => {
             requestMock
                 .mockRejectedValueOnce(new OnlineProviderError('network', 'QQMusicApi music_play unreachable: Failed to fetch', 'qq'))
                 .mockResolvedValueOnce(PLAYABLE);
@@ -946,7 +946,7 @@ describe('qqProvider', () => {
             await expect(qqProvider.playback!.getAudioSource(SONG, 'lossless')).resolves.toEqual({
                 url: 'https://audio.example.test/song.mp3',
                 fetchedAt: expect.any(Number),
-                quality: 'high',
+                quality: 'lossless',
             });
             expect(requestMock).toHaveBeenCalledTimes(2);
         });

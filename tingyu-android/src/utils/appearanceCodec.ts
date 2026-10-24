@@ -1,3 +1,4 @@
+import { normalizeRandomVisualizerModes } from './randomVisualizerModes';
 import {
     DEFAULT_CLADDAGH_TUNING,
     DEFAULT_DIORAMA_TUNING,
@@ -504,6 +505,7 @@ export const compressConfig = (config: any): string => {
     }
     if (config.visualizerMode) minified.vm = config.visualizerMode;
     if (config.randomVisualizerModePerSong !== undefined) minified.rvms = config.randomVisualizerModePerSong;
+    if (config.randomVisualizerModes !== undefined) minified.rvmp = normalizeRandomVisualizerModes(config.randomVisualizerModes);
     if (config.visualizerBackgroundMode) minified.vbm = config.visualizerBackgroundMode;
     if (config.backgroundOpacity !== undefined) minified.bo = config.backgroundOpacity;
     if (config.useCoverColorBg !== undefined) minified.ccb = config.useCoverColorBg;
@@ -642,6 +644,7 @@ export const decompressConfig = (str: string): any => {
         }
         if (parsed.vm) decompressed.visualizerMode = parsed.vm;
         if (parsed.rvms !== undefined) decompressed.randomVisualizerModePerSong = parsed.rvms;
+        if (parsed.rvmp !== undefined) decompressed.randomVisualizerModes = normalizeRandomVisualizerModes(parsed.rvmp);
         if (parsed.vbm) decompressed.visualizerBackgroundMode = parsed.vbm;
         if (parsed.bo !== undefined) decompressed.backgroundOpacity = parsed.bo;
         if (parsed.ccb !== undefined) decompressed.useCoverColorBg = parsed.ccb;
@@ -706,7 +709,7 @@ export const decompressConfig = (str: string): any => {
         return decompressed;
     } else {
         const validKeys = [
-            'theme', 'visualizerMode', 'randomVisualizerModePerSong', 'visualizerBackgroundMode', 'backgroundOpacity',
+            'theme', 'visualizerMode', 'randomVisualizerModePerSong', 'randomVisualizerModes', 'visualizerBackgroundMode', 'backgroundOpacity',
             'useCoverColorBg', 'disableVisualizerGeometricBackground', 'disableVisualizerVignette', 'staticMode',
             'visualizerOpacity', 'hidePlayerTranslationSubtitle', 'showSubtitleTranslation', 'subtitleContentMode',
             'subtitleOverlayBackground', 'subtitleUpcomingLyricsBlur', 'subtitleOverlayOpacity',
