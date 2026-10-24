@@ -10,6 +10,7 @@ import { CAPPELLA_BUBBLE_FONT_WEIGHT } from './cappellaConstants';
 import { getBubbleTargetCharacterCount, getCharacterCountAtTime, getTimestampReadyTime } from './cappellaReveal';
 import { getBubbleColors, getTimedMessageState } from './cappellaMessageLayout';
 import { getOrBuildBubbleMetrics, measureBubbleText } from './cappellaBubbleMetrics';
+import { fitCappellaRearFont, resolveCappellaRearBudget } from './cappellaRearLayout';
 import { ActiveCappellaText, AnimatedBubbleFrame, CappellaAvatar, CappellaBubbleGlow, CappellaText, CappellaTimestamp } from './CappellaBubbleParts';
 
 // src/components/visualizer/cappella/CappellaMessageRow.tsx
@@ -45,13 +46,14 @@ export const CappellaMessageRow = React.forwardRef<HTMLDivElement, CappellaMessa
     cappellaTuning,
     avatarSeed,
     baseFontSize,
-    maxTextWidth,
+    maxTextWidth: requestedMaxTextWidth,
     metricsCache,
     intensityConfig,
     customAvatarImages,
     fontsEpoch,
 }, ref) => {
-    const rear = Boolean(getVisualizerSurface());
+    const rearSurface = getVisualizerSurface();
+    const rear = Boolean(rearSurface);
     const isRight = message.side === 'right';
     const timedData: CappellaTimedMessage | null = isTimedMessage(message) ? message : null;
     const timedState = timedData ? getTimedMessageState(timedData, currentTime.get(), currentLineIndex) : null;
@@ -59,13 +61,22 @@ export const CappellaMessageRow = React.forwardRef<HTMLDivElement, CappellaMessa
     const isPassedMessage = timedState?.isPassed ?? false;
     const isEmoMessage = message.kind === 'emo';
     const motionConfig = intensityConfig.motion;
-    const bubbleFontSize = isActiveMessage
+    const desiredFontSize = isActiveMessage
         ? baseFontSize * motionConfig.activeFontMultiplier
         : message.kind === 'title'
             ? baseFontSize
             : baseFontSize * motionConfig.inactiveFontMultiplier;
     const bubblePaddingX = isActiveMessage ? motionConfig.activePaddingX : motionConfig.inactivePaddingX;
     const bubblePaddingY = isActiveMessage ? motionConfig.activePaddingY : motionConfig.inactivePaddingY;
+    const rearBudget = rearSurface ? resolveCappellaRearBudget(rearSurface, bubblePaddingX, bubblePaddingY) : null;
+    const maxTextWidth = rearBudget?.maxTextWidth ?? requestedMaxTextWidth;
+    const text = message.kind === 'lyric' ? message.line.fullText : message.kind === 'title' ? message.text : '';
+    const rearMaxHeight = rearBudget?.maxHeight;
+    const bubbleFontSize = useMemo(() => rearMaxHeight === undefined ? desiredFontSize
+        : fitCappellaRearFont(desiredFontSize, rearMaxHeight, fontSize => measureBubbleText({
+            text, theme, fontSize, lineHeightPx: fontSize * 1.45, maxTextWidth,
+            paddingX: bubblePaddingX, paddingY: bubblePaddingY,
+        }).height), [desiredFontSize, rearMaxHeight, text, theme, maxTextWidth, bubblePaddingX, bubblePaddingY, fontsEpoch]);
     const bubbleColors = getBubbleColors(message, theme);
     const avatarUrl = resolveCappellaAvatarUrl({
         avatarSource: cappellaTuning.avatarSource,
@@ -216,6 +227,7 @@ export const CappellaMessageRow = React.forwardRef<HTMLDivElement, CappellaMessa
     return (
         <motion.div
             ref={ref}
+            data-cappella-rear-row={rear ? message.side : undefined}
             layout="position"
             initial={{ opacity: 0, y: motionConfig.rowEnterY, scale: motionConfig.rowEnterScale }}
             animate={{ opacity: 1, y: 0, scale: 1 }}

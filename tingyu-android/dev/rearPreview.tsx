@@ -13,11 +13,13 @@ const mode = (params.get('mode') ?? 'hanabi') as VisualizerMode;
 const sample = params.get('sample') ?? 'long';
 // The rear panel is a colour display: default to light lyrics on a dark backing.
 const theme = { ...FALLBACK_AI_DUAL_THEME.dark, backgroundColor: '#101614', primaryColor: '#ffffff',
-    secondaryColor: '#d7e3de', accentColor: '#8ff0c8' };
+    secondaryColor: '#d7e3de', accentColor: '#8ff0c8',
+    animationIntensity: (params.get('intensity') ?? 'normal') as 'calm' | 'normal' | 'chaotic' };
 const SAMPLES: Record<string, string[]> = {
     long: ['你是无意穿堂风 偏偏孤倨引山洪', '爸妈又一起走过的老街', 'Send them your heart so they will know someone cares'],
     short: ['花火', '现在已经回不去了', '老街'],
     reported: ['会越过越好 天天念想着远方', '思念的人住在弯月亮', '在思念里等你回来'],
+    cappella: ['全世界只有两个人', '愿你现在过得幸福安稳', 'May your days be filled with happiness and peace'],
 };
 const texts = SAMPLES[sample] ?? SAMPLES.long!;
 const lines: Line[] = texts.map((text, index) => {
@@ -48,7 +50,7 @@ createRoot(document.getElementById('root')!).render(<React.StrictMode>
         <VisualizerRenderer mode={mode} visualizerTunings={{}} currentTime={currentTime} currentLineIndex={at}
             lines={lines} theme={theme} subtitleTheme={theme} isDaylight={false} audioPower={zero} audioBands={audioBands}
             songTitle="老街" songArtist="李荣浩" songAlbum="模特" coverUrl="" showText staticMode={false} paused={false}
-            visualizerOpacity={1} background={{ mode: 'common', transparent: true }} lyricsFontScale={1}
+            visualizerOpacity={1} background={{ mode: 'common', transparent: true }} lyricsFontScale={Number(params.get('fontScale') ?? 1)}
             subtitleFontScale={1} subtitleOverlayOpacity={1} subtitleOverlayBackground={false} subtitleUpcomingLyricsBlur={false}
             hideTranslationSubtitle={false} showSubtitleTranslation subtitleContentMode="both" seed="rear-preview" />
     </div>
