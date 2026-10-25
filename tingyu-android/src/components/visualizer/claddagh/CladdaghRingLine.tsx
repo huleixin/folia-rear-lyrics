@@ -24,7 +24,8 @@ import {
     normalizeReadableAngle,
 } from './claddaghLayout';
 import { buildCladdaghGlowFilter } from './claddaghGlow';
-import { fitCladdaghRearLine, type CladdaghRearGlyph, type CladdaghRearTransform } from './claddaghRearLayout';
+import { resolveCladdaghRearOrbit } from './claddaghRearLayout';
+import { advanceCladdaghRearOffset, type RearOffsetTransition } from './claddaghRearMotion';
 
 // src/components/visualizer/claddagh/CladdaghRingLine.tsx
 // 投影到 3D 椭圆环上的一行歌词：在 useLayoutEffect 里直接写每个字素 span 的变换与样式。
@@ -132,12 +133,18 @@ export const RingLine: React.FC<RingLineProps> = ({
     const charRefs = useRef<(HTMLSpanElement | null)[]>([]);
     const previousTimeRef = useRef(currentTime.get());
     const holdResetFrameRef = useRef(false);
-    const rearFitRef = useRef<CladdaghRearTransform | null>(null);
+    const rearOffsetRef = useRef<RearOffsetTransition | null>(null);
 
     useLayoutEffect(() => {
         const safe = getRearSafeInset();
         // Read natural glyph sizes once per layout, never force a layout read on an animation frame.
         const sizes = safe ? charRefs.current.map(el => ({ width: el?.offsetWidth ?? 0, height: el?.offsetHeight ?? 0 })) : [];
+        const rearFit = safe ? resolveCladdaghRearOrbit(safe, {
+            radius: Rx, ellipseTiltDeg: ellipseTiltDeg ?? 45, focusScaleRatio: focusScaleRatio ?? .65,
+            intensity: theme.animationIntensity ?? 'normal',
+            glyphRadius: Math.max(0, ...sizes.map((size, i) => Math.hypot(size.width, size.height) / 2 * (spacingInfo[i]?.scaleFactor ?? 1))),
+            chorusStagger: line.isChorus ? baseFontSize * .18 : 0,
+        }) : null;
         // What each glyph span currently shows. Most of these strings repeat frame to frame (a sung
         // glyph keeps its colour and glow; the ring often holds still), and comparing them is far
         // cheaper than handing the same declaration back to the style engine to parse. Fresh on
@@ -257,10 +264,15 @@ export const RingLine: React.FC<RingLineProps> = ({
                 ) * backFollowFactor;
             }
 
+            if (rearFit) {
+                rearOffsetRef.current = advanceCladdaghRearOffset(rearOffsetRef.current, centerLineIndex,
+                    wordOffset, performance.now());
+                wordOffset = rearOffsetRef.current.value;
+            }
+
             const R_ref = currentRx;
             const R_major = currentRx;
             const R_minor = currentRx * 0.09; // Squashed minor axis for a slender ellipse (matching orange design)
-            const rearGlyphs: (CladdaghRearGlyph & { el: HTMLSpanElement; style: GlyphStyle })[] = [];
 
             for (let i = 0; i < mvsLength; i++) {
                 const el = charRefs.current[i];
@@ -361,7 +373,10 @@ export const RingLine: React.FC<RingLineProps> = ({
                 const blur = 8.0 * (1 - D) * (1 - 0.5 * F);
                 const tiltAngle = clamp(tangentAngle * (0.4 + 0.6 * D), -38, 38);
 
-                const transform = `translate3d(calc(-50% + ${x.toFixed(1)}px), calc(-50% + ${y.toFixed(1)}px), 0px) rotate(${tiltAngle.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
+                const renderedX = rearFit ? rearFit.x + x * rearFit.scale - containerWidth / 2 : x;
+                const renderedY = rearFit ? rearFit.y + y * rearFit.scale - containerHeight / 2 : y;
+                const renderedScale = scale * (rearFit?.scale ?? 1);
+                const transform = `translate3d(calc(-50% + ${renderedX.toFixed(1)}px), calc(-50% + ${renderedY.toFixed(1)}px), 0px) rotate(${tiltAngle.toFixed(2)}deg) scale(${renderedScale.toFixed(3)})`;
                 const blurFilter = blur < 0.2 ? '' : `blur(${blur.toFixed(2)}px)`;
                 // The glow's drop-shadows go in front of the blur (see below); written together once the glow is known.
                 let glowFilter = '';
@@ -445,35 +460,13 @@ export const RingLine: React.FC<RingLineProps> = ({
                     }
                 }
 
-                const style = {
+                writeGlyph(el, {
                     transform,
                     opacity: finalOpacity.toFixed(3),
                     color: targetColor,
                     textShadow,
                     filter: [glowFilter, blurFilter].filter(Boolean).join(' ') || 'none',
-                };
-                if (safe) rearGlyphs.push({ el, style, x, y, scale, angle: tiltAngle, opacity: finalOpacity,
-                    width: sizes[i]?.width ?? 0, height: sizes[i]?.height ?? 0 });
-                else writeGlyph(el, style);
-            }
-            if (safe) {
-                const originX = safe.left + safe.width / 2, originY = safe.top + safe.height / 2;
-                let fit = { x: originX, y: originY, scale: 1 };
-                if (lineIndex === centerLineIndex) {
-                    fit = fitCladdaghRearLine(rearGlyphs, safe);
-                    rearFitRef.current = fit;
-                } else if (lineIndex < centerLineIndex && rearFitRef.current) {
-                    // Release the previous sentence back onto the full-panel orbit as it exits.
-                    const amount = Math.max(0, 1 - lineDiffFromCenter), previous = rearFitRef.current;
-                    fit = { x: originX + (previous.x - originX) * amount,
-                        y: originY + (previous.y - originY) * amount, scale: 1 + (previous.scale - 1) * amount };
-                }
-                for (const glyph of rearGlyphs) {
-                    const x = fit.x + glyph.x * fit.scale - containerWidth / 2;
-                    const y = fit.y + glyph.y * fit.scale - containerHeight / 2;
-                    glyph.style.transform = `translate3d(calc(-50% + ${x.toFixed(1)}px), calc(-50% + ${y.toFixed(1)}px), 0px) rotate(${glyph.angle.toFixed(2)}deg) scale(${(glyph.scale * fit.scale).toFixed(3)})`;
-                    writeGlyph(glyph.el, glyph.style);
-                }
+                });
             }
         };
 
@@ -489,7 +482,7 @@ export const RingLine: React.FC<RingLineProps> = ({
             unsubscribeTime();
             unsubscribeOffset();
         };
-    }, [spacingInfo, lineIndex, centerLineIndex, lineOffset, Rx, Ry, audioPower, currentTime, containerWidth, containerHeight, activeSpacingInfo, renderBaseIndex, highlightColor, baseColor, focusScaleRatio, ellipseTiltDeg, lines, line]);
+    }, [spacingInfo, lineIndex, centerLineIndex, lineOffset, Rx, Ry, audioPower, currentTime, containerWidth, containerHeight, activeSpacingInfo, renderBaseIndex, highlightColor, baseColor, focusScaleRatio, ellipseTiltDeg, lines, line, theme.animationIntensity]);
 
     return (
         <div className="absolute inset-0 pointer-events-none w-full h-full"

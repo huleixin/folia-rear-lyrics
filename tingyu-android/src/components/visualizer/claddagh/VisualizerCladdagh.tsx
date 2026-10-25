@@ -1,4 +1,4 @@
-import { getVisualizerSurface } from '../../../utils/visualizerSurface';
+import { getRearSafeInset, getVisualizerSurface } from '../../../utils/visualizerSurface';
 // Only for the you who has yet to exist in this world.
 // DO NOT REMOVE THE LINE ABOVE.
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
@@ -14,6 +14,7 @@ import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
 import { adjustCladdaghTimeline } from './claddaghTimeline';
 import { buildMeasuredSpacingInfo } from './claddaghLayout';
 import { RingLine } from './CladdaghRingLine';
+import { resolveCladdaghRearAxis } from './claddaghRearLayout';
 
 // src/components/visualizer/claddagh/VisualizerCladdagh.tsx
 
@@ -77,6 +78,8 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
     const axisLineRef = useRef<HTMLDivElement>(null);
     const [dimensions, setDimensions] = useState(() => rearBox
         ? { width: rearBox.paintWidth, height: rearBox.paintHeight } : { width: 800, height: 600 });
+    const rearSafe = getRearSafeInset();
+    const rearAxis = rearSafe ? resolveCladdaghRearAxis(rearSafe, centerNormalTiltDeg) : null;
 
     // Smoothly animate axis line color and scale in response to audio power
     useEffect(() => {
@@ -117,7 +120,7 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
             const bassSqr = bassPower * bassPower;
 
             // Apply dynamic length scaling using scaleX and subtle thickness scaling using scaleY
-            const scaleX = 1.0 + bassSqr * 1.5;
+            const scaleX = Math.min(1.0 + bassSqr * 1.5, rearAxis?.maxScaleX ?? Infinity);
             const scaleY = 1.0 + bassSqr * 0.5;
             lineEl.style.transform = `translate(-50%, -50%) rotate(${centerNormalTiltDeg}deg) scale(${scaleX}, ${scaleY})`;
 
@@ -148,7 +151,7 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
         return () => {
             cancelAnimationFrame(frameId);
         };
-    }, [smoothedBass, smoothedVocal, theme.primaryColor, theme.accentColor, theme.secondaryColor, centerNormalTiltDeg, paused, isChorus, claddaghTuning.showAxisLine]);
+    }, [smoothedBass, smoothedVocal, theme.primaryColor, theme.accentColor, theme.secondaryColor, centerNormalTiltDeg, paused, isChorus, claddaghTuning.showAxisLine, rearAxis?.maxScaleX]);
 
     // Initialize dimensions on mount to avoid zero size on first render
     useEffect(() => {
@@ -265,11 +268,12 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
                     {claddaghTuning.showAxisLine && (
                         <div
                             ref={axisLineRef}
+                            data-claddagh-axis
                             style={{
                                 position: 'absolute',
-                                left: '50%',
-                                top: '50%',
-                                width: '300px',
+                                left: rearAxis ? `${rearAxis.x}px` : '50%',
+                                top: rearAxis ? `${rearAxis.y}px` : '50%',
+                                width: rearAxis ? `${rearAxis.width}px` : '300px',
                                 height: '4px',
                                 transform: `translate(-50%, -50%) rotate(${centerNormalTiltDeg}deg) scale(1, 1)`,
                                 transformOrigin: 'center center',
