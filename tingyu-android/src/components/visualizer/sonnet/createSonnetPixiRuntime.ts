@@ -1,10 +1,12 @@
-import { resolveVisualizerDimension } from '../../../utils/visualizerSurface';
+import { getRearSafeInset, resolveVisualizerDimension } from '../../../utils/visualizerSurface';
+import type { RearRect } from '../../../utils/rearCameraSafeArea';
+import { resolveSonnetRearReadingArea } from './sonnetRearReadingArea';
 import type { MotionValue } from 'framer-motion';
 import type { AudioBands, SonnetTuning, Theme } from '../../../types';
 import type { SonnetProgram } from './types';
 import { findSonnetParagraphIndexAtTime } from './sonnetProgram';
 import { buildSonnetScene, type SceneView } from './sonnetSceneBuilder';
-import { snapResolutionToTexturePool } from '../pixiTextureBudget';
+import { snapResolutionToTexturePool, texturePoolAxis } from '../pixiTextureBudget';
 import {
     destroySonnetContainerChildren,
     destroySonnetDisplayTree,
@@ -119,6 +121,9 @@ export class SonnetPixiRuntime {
     } | null = null;
     private swapCover: import('pixi.js').Graphics | null = null;
     private resizeObserver: ResizeObserver | null = null;
+    private rearSafe = getRearSafeInset();
+    private subtitleSpace = 0;
+    private rearReadingArea: RearRect | null = null;
     private lastWidth = 0;
     private lastHeight = 0;
 
@@ -189,8 +194,10 @@ export class SonnetPixiRuntime {
         const width = resolveVisualizerDimension(this.options.host.clientWidth, 320);
         const height = resolveVisualizerDimension(this.options.host.clientHeight, 240);
         if (width === this.lastWidth && height === this.lastHeight) return false;
+        this.rearSafe = getRearSafeInset();
         this.lastWidth = width;
         this.lastHeight = height;
+        this.refreshRearReadingArea();
         // The texture-pool snap depends on the viewport, so a resize can move the pooled filter
         // targets across a bucket boundary even though the setting never changed. Sonnet's own
         // passes carry fixed resolutions, so only the canvas has to follow.
@@ -199,6 +206,9 @@ export class SonnetPixiRuntime {
             height,
             snapResolutionToTexturePool(width, height, this.options.tuning.textureResolution),
         );
+        // autoDensity rounds the backing store; keep its CSS box fitted to the entire panel after every resize.
+        this.app.canvas.style.width = '100%';
+        this.app.canvas.style.height = '100%';
         // Staged against the old viewport, so its layout no longer fits.
         if (this.songSwap?.staged) {
             this.destroyScene(this.songSwap.staged.scene);
@@ -277,6 +287,7 @@ export class SonnetPixiRuntime {
         unloadSonnetDisplayTree(scene.container);
         scene.container.filters = null;
         scene.shots.forEach(shot => {
+            shot.rearFit?.reset();
             shot.haloLayer.filters = null;
         });
         scene.postProcessFilters.forEach(filter => filter.destroy());
@@ -361,6 +372,10 @@ export class SonnetPixiRuntime {
             mod: this.mod,
         };
 
+        const bounds: RearRect[] = [];
+        let readingArea = this.rearReadingArea;
+        let glitchAmount = 0;
+        const safe = this.rearSafe ? { ...this.rearSafe, height: Math.max(20, this.rearSafe.height - this.subtitleSpace) } : null;
         this.sceneCache.forEach((scene, index) => {
             const isActive = index === paragraphIndex;
 
@@ -387,6 +402,7 @@ export class SonnetPixiRuntime {
                 const isShotActive = shotIndex === visibleShotIndex;
                 shot.container.visible = isShotActive;
                 if (!isShotActive) return;
+                shot.rearFit?.reset();
                 updateSonnetShot(shot, time, width, height, 0, shotFrameContext);
             });
             if (scene.activeShotIndex !== visibleShotIndex) {
@@ -420,11 +436,27 @@ export class SonnetPixiRuntime {
                 scene.transitionGlitchEffect.filter.enabled = transitionFrame.glitch > 0.01;
             }
 
+            if (safe) {
+                readingArea = this.rearReadingArea ?? safe;
+                glitchAmount = transitionFrame.glitch * transitionGlitchScale;
+                if (glitchAmount > .01) {
+                    // The shader shifts pooled texture UVs, so its maximum pixel displacement depends on resolution.
+                    const resolution = this.app.renderer.resolution;
+                    const shift = .13 * glitchAmount * texturePoolAxis(width, resolution) / resolution;
+                    readingArea = resolveSonnetRearReadingArea(safe, width, height, this.options.tuning, this.options.staticMode, shift);
+                }
+                const fitted = scene.shots[visibleShotIndex]?.rearFit?.constrain(time, readingArea);
+                if (fitted) bounds.push(fitted);
+            }
             if (isFinalScene && hasCredits) {
                 this.outroBlur.update(scene, creditsFrame.lyricBlur);
             }
         });
 
+        if (import.meta.env.DEV && this.rearSafe) {
+            this.app.canvas.dataset.rearCurrentBounds = JSON.stringify({ safe, readingArea, glitchAmount, bounds, time,
+                shot: sonnetDebugState.activeShot, paragraphIndex });
+        }
         if (!creditsFrame.active || !hasCredits) this.outroBlur.clear();
         this.creditsContainer.visible = creditsFrame.active && hasCredits && !this.options.tuning.showOnlyText;
         this.creditsContainer.alpha = creditsFrame.posterAlpha;
@@ -608,6 +640,7 @@ export class SonnetPixiRuntime {
     setTuning(tuning: SonnetTuning) {
         if (this.destroyed || this.options.tuning === tuning) return;
         this.options.tuning = tuning;
+        this.refreshRearReadingArea();
         // Staged against the old tuning, so it can no longer be adopted.
         if (this.songSwap?.staged) {
             this.destroyScene(this.songSwap.staged.scene);
@@ -628,6 +661,20 @@ export class SonnetPixiRuntime {
         if (this.destroyed) return;
         this.options.modulation = modulation;
         if (this.options.paused) this.renderOnce();
+    }
+
+    private refreshRearReadingArea() {
+        if (!this.rearSafe || !this.lastWidth || !this.lastHeight) { this.rearReadingArea = null; return; }
+        const safe = { ...this.rearSafe, height: Math.max(20, this.rearSafe.height - this.subtitleSpace) };
+        this.rearReadingArea = resolveSonnetRearReadingArea(safe, this.lastWidth, this.lastHeight, this.options.tuning, this.options.staticMode);
+    }
+
+    setSubtitleSpace(height: number) {
+        if (this.destroyed || height === this.subtitleSpace) return;
+        this.subtitleSpace = height;
+        this.refreshRearReadingArea();
+        // Captions can appear between animation frames; commit their layout before that paint.
+        this.renderOnce();
     }
 
     setPaused(paused: boolean) {

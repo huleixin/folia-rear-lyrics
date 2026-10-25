@@ -1,4 +1,5 @@
-import { resolveVisualizerDimension } from '../../../utils/visualizerSurface';
+import { getRearSafeInset, resolveVisualizerDimension } from '../../../utils/visualizerSurface';
+import { createSonnetRearFit, type SonnetRearFit } from './sonnetRearFit';
 import type { SonnetTuning, Theme } from '../../../types';
 import { normalizeFontWeight, resolveThemeFontStack } from '../../../utils/fontStacks';
 import type { SonnetParagraph, SonnetShot } from './types';
@@ -34,6 +35,7 @@ type PixiModule = typeof import('pixi.js');
 
 export interface ShotView {
     shot: SonnetShot;
+    rearFit?: SonnetRearFit;
     container: import('pixi.js').Container;
     segments: SegmentView[];
     debugInfo: SonnetDebugShotInfo;
@@ -85,6 +87,9 @@ export const buildSonnetScene = (
     const { Container, Graphics, Sprite } = pixi;
     const width = resolveVisualizerDimension(options.host.clientWidth, 320);
     const height = resolveVisualizerDimension(options.host.clientHeight, 240);
+    const rearArea = getRearSafeInset();
+    const textWidth = rearArea ? Math.max(1, rearArea.width - 10) : width;
+    const textHeight = rearArea ? Math.max(1, rearArea.height - 10) : height;
     const container = new Container();
     const sceneBackgroundLayer = new Container();
     // Resolve visibility once while building; playback only mutates animation state afterward.
@@ -180,15 +185,15 @@ export const buildSonnetScene = (
         const wordCount = Math.max(1, segments.filter(segment => segment.isWordLike).length);
         const heroScale = shot.kind === 'type-impact' ? 1.55 : shot.kind === 'quiet-tableau' ? 0.82 : 1;
         const fontSize = Math.max(24, Math.min(112, (
-            width / Math.max(7, wordCount * 2.15)
+            textWidth / Math.max(7, wordCount * 2.15)
         ) * heroScale * options.lyricsFontScale));
         const views: SegmentView[] = [];
         const placements = resolveSonnetTypographyLayout({
             lines: linesSegments,
             shotKind: shot.kind,
             paragraphKind: paragraph.kind,
-            width,
-            height,
+            width: textWidth,
+            height: textHeight,
             baseFontSize: fontSize,
             fontFamily,
             fontWeight: manualFontWeight,
@@ -238,7 +243,7 @@ export const buildSonnetScene = (
                 if (staffViewAdded) return;
                 staffViewAdded = true;
             }
-            views.push(buildSonnetTextView(
+            const segmentView = buildSonnetTextView(
                 pixi,
                 {
                     segment,
@@ -259,7 +264,9 @@ export const buildSonnetScene = (
                     textLayer,
                     caLayer,
                 },
-            ));
+            );
+            segmentView.sourceLine = compiledLines.find(line => line.segments.includes(segment))?.line;
+            views.push(segmentView);
         });
         const bounds = shotContainer.getLocalBounds();
         // `mask-reveal` is revealed by the glyph timeline. A bounds-sized mask would stay
@@ -305,6 +312,7 @@ export const buildSonnetScene = (
             shot,
             container: shotContainer,
             segments: views,
+            rearFit: rearArea ? createSonnetRearFit(pixi, views) : undefined,
             debugInfo,
             baseX: shotContainer.x,
             baseY: shotContainer.y,

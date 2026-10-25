@@ -1,6 +1,6 @@
 import { layoutWithLines, prepareWithSegments } from '@chenglou/pretext';
 import 'pixi.js/advanced-blend-modes';
-import type { Theme } from '../../../types';
+import type { Line, Theme } from '../../../types';
 import { buildSonnetGlyphLayout } from './sonnetGlyphLayout';
 import { resolveSonnetSegmentDepth, resolveSonnetSegmentNormalOffset } from './sonnetMotion';
 import { hashSonnetSeed } from './sonnetRandom';
@@ -32,6 +32,7 @@ export interface GlyphGhostView {
 
 export interface GlyphView {
     display: import('pixi.js').Container;
+    ink?: import('pixi.js').Container;
     halo: import('pixi.js').Text | null;
     // Lives in the shot's shared aberration layer, not under `display`; the runtime copies the
     // wrapper's transform onto it each frame.
@@ -56,6 +57,7 @@ export interface GlyphView {
 }
 
 export interface SegmentView {
+    sourceLine?: Line;
     segmentIndex: number;
     displayText: string;
     role: SonnetSegmentRole;
@@ -316,6 +318,7 @@ export const buildSonnetTextView = (
 
         return {
             display: wrapper,
+            ink: display,
             halo: null,
             caWrapper: caWrapperNode,
             caCyan: caCyanNode,

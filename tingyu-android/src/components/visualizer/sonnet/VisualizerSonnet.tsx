@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { MotionValue } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { useRearSubtitleSpace } from '../../../hooks/useRearSubtitleSpace';
 import { DEFAULT_SONNET_TUNING } from '../../../types';
 import type { Line } from '../../../types';
 import { resolveThemeFontStack, resolveThemeFontWeight } from '../../../utils/fontStacks';
@@ -58,6 +59,10 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
     // Keys are the Folium tunables declared in ./entry.tsx.
     const modulation = useFoliumTunings('sonnet');
     const hostRef = useRef<HTMLDivElement>(null);
+    const subtitleRef = useRef<HTMLDivElement>(null);
+    const subtitleSpace = useRearSubtitleSpace(subtitleRef, showText, height => runtimeRef.current?.setSubtitleSpace(height));
+    const subtitleSpaceRef = useRef(subtitleSpace);
+    subtitleSpaceRef.current = subtitleSpace;
     const pausedRef = useRef(paused);
     pausedRef.current = paused;
     const sonnetTuningRef = useRef(sonnetTuning);
@@ -161,6 +166,7 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
                 signal,
                 modulation,
             });
+            runtime.setSubtitleSpace(subtitleSpaceRef.current);
             runtime.setSongMetadata(latestSongMetadataRef.current);
             // The tuning may have moved on while Pixi was importing or initializing.
             runtime.setTuning(sonnetTuningRef.current);
@@ -172,6 +178,10 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
         destroy: runtime => runtime.destroy(),
         onFailedChange: setRuntimeFailed,
     });
+
+    useLayoutEffect(() => {
+        runtimeRef.current?.setSubtitleSpace(subtitleSpace);
+    }, [subtitleSpace, runtimeRef]);
 
     useEffect(() => {
         runtimeRef.current?.setSongMetadata(latestSongMetadataRef.current);
@@ -224,24 +234,26 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
                 )}
             </div>
 
-            <VisualizerSubtitleOverlay
-                showText={showText}
-                activeLine={activeLine}
-                recentCompletedLine={creditsRecentCompletedLine}
-                nextLines={nextLines}
-                theme={theme}
-                subtitleTheme={subtitleTheme}
-                translationFontSize={`clamp(${1.05 * lyricsFontScale}rem, ${2.2 * lyricsFontScale}vw, ${1.25 * lyricsFontScale}rem)`}
-                upcomingFontSize={`clamp(${0.9 * lyricsFontScale}rem, ${1.8 * lyricsFontScale}vw, ${1.05 * lyricsFontScale}rem)`}
-                subtitleFontScale={subtitleFontScale}
-                subtitleOverlayOpacity={subtitleOverlayOpacity}
-                subtitleOverlayBackground={subtitleOverlayBackground}
-                subtitleUpcomingLyricsBlur={subtitleUpcomingLyricsBlur}
-                isPlayerChromeHidden={isPlayerChromeHidden}
-                hideTranslationSubtitle={hideTranslationSubtitle}
-                showSubtitleTranslation={showSubtitleTranslation}
-                subtitleContentMode={subtitleContentMode}
-            />
+            <div ref={subtitleRef} className="contents">
+                <VisualizerSubtitleOverlay
+                    showText={showText}
+                    activeLine={activeLine}
+                    recentCompletedLine={creditsRecentCompletedLine}
+                    nextLines={nextLines}
+                    theme={theme}
+                    subtitleTheme={subtitleTheme}
+                    translationFontSize={`clamp(${1.05 * lyricsFontScale}rem, ${2.2 * lyricsFontScale}vw, ${1.25 * lyricsFontScale}rem)`}
+                    upcomingFontSize={`clamp(${0.9 * lyricsFontScale}rem, ${1.8 * lyricsFontScale}vw, ${1.05 * lyricsFontScale}rem)`}
+                    subtitleFontScale={subtitleFontScale}
+                    subtitleOverlayOpacity={subtitleOverlayOpacity}
+                    subtitleOverlayBackground={subtitleOverlayBackground}
+                    subtitleUpcomingLyricsBlur={subtitleUpcomingLyricsBlur}
+                    isPlayerChromeHidden={isPlayerChromeHidden}
+                    hideTranslationSubtitle={hideTranslationSubtitle}
+                    showSubtitleTranslation={showSubtitleTranslation}
+                    subtitleContentMode={subtitleContentMode}
+                />
+            </div>
         </VisualizerShell>
     );
 };
