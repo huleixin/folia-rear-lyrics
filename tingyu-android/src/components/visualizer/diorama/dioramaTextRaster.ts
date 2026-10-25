@@ -98,6 +98,8 @@ export interface DioramaUnitRaster {
     canvasHeightPx: number;
     /** Typographic advance of the unit in raster px (for layout). */
     advancePx: number;
+    /** Visible ink inside the shared padded canvas; excludes the blur's transparent padding. */
+    inkBounds?: { left: number; top: number; width: number; height: number };
 }
 
 /** Rasterise one lyric unit (base + glow layers share one canvas geometry). */
@@ -122,7 +124,14 @@ export const rasterDioramaUnit = (text: string, fontSpec: string): DioramaUnitRa
         return makeTexture(canvas);
     };
 
+    let inkBounds: DioramaUnitRaster['inkBounds'];
     const baseTexture = draw((ctx) => {
+        const metrics = ctx.measureText(text);
+        const left = Math.max(0, drawX - metrics.actualBoundingBoxLeft);
+        const top = Math.max(0, drawY - metrics.actualBoundingBoxAscent);
+        inkBounds = { left, top,
+            width: Math.max(1, Math.min(canvasWidthPx, drawX + metrics.actualBoundingBoxRight) - left),
+            height: Math.max(1, Math.min(canvasHeightPx, drawY + metrics.actualBoundingBoxDescent) - top) };
         ctx.fillStyle = '#ffffff';
         ctx.fillText(text, drawX, drawY);
     });
@@ -130,7 +139,7 @@ export const rasterDioramaUnit = (text: string, fontSpec: string): DioramaUnitRa
         drawGlowGlyph(ctx, text, drawX, drawY, em * GLOW_BLUR_EM);
     });
 
-    return { baseTexture, glowTexture, canvasWidthPx, canvasHeightPx, advancePx };
+    return { baseTexture, glowTexture, canvasWidthPx, canvasHeightPx, advancePx, inkBounds };
 };
 
 export interface DioramaLineRaster {

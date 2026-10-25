@@ -14,16 +14,17 @@ interface DioramaActiveUnitPlanesProps {
     planes: DioramaUnitPlanes;
     primaryColor: string;
     accentColor: string;
+    rear?: boolean;
 }
 
-export const DioramaActiveUnitPlanes: React.FC<DioramaActiveUnitPlanesProps> = ({ units, planes, primaryColor, accentColor }) => (
+export const DioramaActiveUnitPlanes: React.FC<DioramaActiveUnitPlanesProps> = ({ units, planes, primaryColor, accentColor, rear = false }) => (
     <>
         {units.map((placed, unitIndex) => (
             <React.Fragment key={unitIndex}>
                 <mesh
                     ref={el => { planes.glowMeshes[unitIndex] = el; }}
                     visible={false}
-                    position={[placed.centerX, 0, -0.01]}
+                    position={[placed.centerX, placed.centerY ?? 0, -0.01]}
                     renderOrder={17}
                 >
                     <planeGeometry args={[placed.width, placed.height]} />
@@ -36,14 +37,15 @@ export const DioramaActiveUnitPlanes: React.FC<DioramaActiveUnitPlanesProps> = (
                         depthWrite={false}
                         blending={THREE.AdditiveBlending}
                         color={accentColor}
+                        fog={!rear}
                     />
                 </mesh>
                 {/* 灵魂出窍 ghost: the CRISP base raster (not the blurred glow) drawn
                     additively; useFrame lifts/swells/fades it as its envelope releases. */}
                 <mesh
-                    ref={el => { planes.soulMeshes[unitIndex] = el; }}
+                    ref={el => { planes.soulMeshes[unitIndex] = el; (planes.soulBaseY ??= [])[unitIndex] = placed.centerY ?? 0; }}
                     visible={false}
-                    position={[placed.centerX, 0, -0.005]}
+                    position={[placed.centerX, placed.centerY ?? 0, -0.005]}
                     renderOrder={18}
                 >
                     <planeGeometry args={[placed.width, placed.height]} />
@@ -56,9 +58,10 @@ export const DioramaActiveUnitPlanes: React.FC<DioramaActiveUnitPlanesProps> = (
                         depthWrite={false}
                         blending={THREE.AdditiveBlending}
                         color={accentColor}
+                        fog={!rear}
                     />
                 </mesh>
-                <mesh position={[placed.centerX, 0, 0]} renderOrder={19}>
+                <mesh position={[placed.centerX, placed.centerY ?? 0, 0]} renderOrder={19}>
                     <planeGeometry args={[placed.width, placed.height]} />
                     <meshBasicMaterial
                         ref={el => { planes.baseMats[unitIndex] = el; }}
@@ -68,6 +71,7 @@ export const DioramaActiveUnitPlanes: React.FC<DioramaActiveUnitPlanesProps> = (
                         depthTest={false}
                         depthWrite={false}
                         color={primaryColor}
+                        fog={!rear}
                     />
                 </mesh>
             </React.Fragment>

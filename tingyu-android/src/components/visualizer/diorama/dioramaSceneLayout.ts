@@ -16,6 +16,7 @@ import {
 } from './dioramaSceneConstants';
 import { frameQuaternion } from './dioramaSceneUnits';
 import { CJK_GRAPHEME_RE, type LyricUnit, type PlacedUnitRaster, type VisibleLineEntry } from './dioramaSceneTypes';
+import { layoutDioramaRearText } from './dioramaRearTextLayout';
 
 // src/components/visualizer/diorama/dioramaSceneLayout.ts
 // 镜台场景的结构推导（纯函数，由 DioramaScene 的 useMemo 调用）：挂载哪些行、每行在路径上的位置，
@@ -194,20 +195,24 @@ export const layoutDioramaActiveUnits = (
     activeLine: Line | null,
     activeLineUnits: readonly LyricUnit[],
     fontSpec: string,
+    rearMaxWidthPx?: number,
 ) => {
     if (!activeLine?.fullText || activeLineUnits.length === 0) return null;
     const worldPerPx = LINE_FONT_SIZE / DIORAMA_RASTER_FONT_PX;
     const full = activeLine.fullText;
     const totalPx = measureDioramaText(full, fontSpec);
-    const units: PlacedUnitRaster[] = activeLineUnits.map((unit) => {
-        const prefixPx = measureDioramaText(full.slice(0, unit.charStart), fontSpec);
+    const rearRows = rearMaxWidthPx ? layoutDioramaRearText(full, activeLineUnits, fontSpec, rearMaxWidthPx) : null;
+    const units: PlacedUnitRaster[] = activeLineUnits.map((unit, index) => {
+        const row = rearRows?.positions[index];
+        const prefixPx = row?.prefixPx ?? measureDioramaText(full.slice(0, unit.charStart), fontSpec);
         const raster = rasterDioramaUnit(full.slice(unit.charStart, unit.charEnd), fontSpec);
         return {
             raster,
-            centerX: (-totalPx / 2 + prefixPx + raster.advancePx / 2) * worldPerPx,
+            centerX: (-(row?.widthPx ?? totalPx) / 2 + prefixPx + raster.advancePx / 2) * worldPerPx,
+            centerY: row?.centerY ?? 0,
             width: raster.canvasWidthPx * worldPerPx,
             height: raster.canvasHeightPx * worldPerPx,
         };
     });
-    return { units, lineWidth: totalPx * worldPerPx };
+    return { units, lineWidth: (rearRows ? Math.max(...rearRows.rows.map(row => row.width)) : totalPx) * worldPerPx };
 };

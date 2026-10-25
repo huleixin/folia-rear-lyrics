@@ -130,6 +130,7 @@ export interface DioramaUnitPlanes {
     glowMeshes: Array<THREE.Mesh | null>;
     soulMats: Array<THREE.MeshBasicMaterial | null>;
     soulMeshes: Array<THREE.Mesh | null>;
+    soulBaseY?: number[];
 }
 
 export interface DioramaActiveUnitsInput {
@@ -277,7 +278,7 @@ export const updateDioramaActiveUnits = ({
             const flown = flightMix * soulStrength;          // out-of-body flight, finished glyph only
             soulMat.color.copy(baseMat.color);
             soulMat.opacity = Math.min(1, SOUL_MAX_OPACITY * life * soulVals[i] * (onGlyph + flown));
-            soulMesh.position.y = LINE_FONT_SIZE * (SOUL_ACTIVE_LIFT_EM * onGlyph + SOUL_DETACH_LIFT_EM * flown);
+            soulMesh.position.y = (planes.soulBaseY?.[i] ?? 0) + LINE_FONT_SIZE * (SOUL_ACTIVE_LIFT_EM * onGlyph + SOUL_DETACH_LIFT_EM * flown);
             const soulSwell = 1 + SOUL_ACTIVE_SWELL * onGlyph + SOUL_DETACH_SWELL * flown;
             soulMesh.scale.set(soulSwell, soulSwell, 1);
             soulMesh.visible = soulMat.opacity > 0.015;

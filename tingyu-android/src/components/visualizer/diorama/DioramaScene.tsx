@@ -1,5 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
+import { getRearSafeInset } from '../../../utils/visualizerSurface';
+import { DIORAMA_RASTER_FONT_PX } from './dioramaTextRaster';
+import { getDioramaInkBox } from './dioramaRearFit';
+import { useDioramaRearFit } from './useDioramaRearFit';
 import { type MotionValue } from 'framer-motion';
 import * as THREE from 'three';
 import { type AudioBands, type DioramaGeometryVisibility, type Theme } from '../../../types';
@@ -65,6 +69,7 @@ import { DioramaActiveUnitPlanes } from './DioramaActiveUnitPlanes';
 // 结构推导在 dioramaSceneLayout（纯函数），邻行栅格缓存在 dioramaLineRasterCache，每帧的写入在
 // dioramaSceneFrame，当前行逐单元平面在 DioramaActiveUnitPlanes；这里只做 React 装配与 useFrame 调度。
 interface DioramaSceneProps {
+    rearSubtitleHeight?: number;
     theme: Theme;
     // The continuous-tunnel sequencer + the sticky GLOBAL line index. The scene resolves each global
     // index in the mounted window to its segment/local line/world frame, so the window can straddle a
@@ -143,6 +148,7 @@ const DioramaScene: React.FC<DioramaSceneProps> = ({
     soulActiveEnabled,
     gradientIntensity,
     keywordColoringEnabled,
+    rearSubtitleHeight = 0,
 }) => {
     // Neighbour line planes (one rasterised texture per line) - meshes for the fit scale, materials
     // for per-frame colour/opacity. Keyed by GLOBAL line index (which grows without bound across the
@@ -329,10 +335,26 @@ const DioramaScene: React.FC<DioramaSceneProps> = ({
     // Rasterise + lay out the active line's units. Layout measures PREFIX strings of the full line, so
     // every unit lands at its exact kerned slot; each unit's base/glow textures share one canvas
     // geometry, so the glow registers on the strokes exactly. Synchronous - ready the frame it's built.
+    const rearSafe = getRearSafeInset();
+    const rearMaxWidth = rearSafe ? DIORAMA_RASTER_FONT_PX * Math.max(5, Math.min(10, rearSafe.width / rearSafe.height * 6)) : undefined;
     const activeUnitsRaster = useMemo(
-        () => layoutDioramaActiveUnits(activeLine, activeLineUnits, fontSpec),
-        [activeLine, activeLineUnits, fontSpec],
+        () => layoutDioramaActiveUnits(activeLine, activeLineUnits, fontSpec, rearMaxWidth),
+        [activeLine, activeLineUnits, fontSpec, rearMaxWidth],
     );
+    const rearInk = useMemo(() => activeUnitsRaster ? getDioramaInkBox(activeUnitsRaster.units) : null, [activeUnitsRaster]);
+    const rearFit = useDioramaRearFit(unitsGroupRef, rearInk, rearSubtitleHeight);
+    const layoutCamera = useThree(state => state.camera);
+    // A freshly keyed lyric must be protected before its first paint, not one scene frame later.
+    useLayoutEffect(() => {
+        const group = unitsGroupRef.current;
+        if (!group || !rearFit || !rearInk || !activeUnitsRaster || !activeEntry) return;
+        const perspective = layoutCamera instanceof THREE.PerspectiveCamera;
+        group.scale.setScalar(resolveFrameFitScale(activeUnitsRaster.lineWidth, DIORAMA_HERO_DISTANCE,
+            perspective ? layoutCamera.fov : 55, perspective ? layoutCamera.aspect : 1)
+            * activeEntry.placement.scale * lyricsFontScale);
+        group.matrixAutoUpdate = false;
+        rearFit.apply(group, layoutCamera, rearInk, lyricsFontScale);
+    }, [rearFit, rearInk, activeUnitsRaster, activeEntry, lyricsFontScale, layoutCamera]);
     // Dispose the previous line's unit textures once a new set is in place.
     useEffect(() => {
         const current = activeUnitsRaster;
@@ -511,7 +533,7 @@ const DioramaScene: React.FC<DioramaSceneProps> = ({
             unitsGroup.scale.setScalar(fit);
             // Publish the active line's world width so CameraRig sizes its word-following truck.
             activeLineWidthRef.current = activeUnitsRaster.lineWidth * fit;
-            const life = resolveTextLife(unitsGroup.position.distanceTo(camPos));
+            const life = rearFit ? 1 : resolveTextLife(unitsGroup.position.distanceTo(camPos));
             const now = currentTime.get();
             const breath = 0.9 + 0.1 * Math.sin(frameState.clock.elapsedTime * 1.9);
             updateDioramaActiveUnits({
@@ -531,6 +553,10 @@ const DioramaScene: React.FC<DioramaSceneProps> = ({
                 soulActiveEnabled,
                 gradientIntensity,
             });
+            if (rearFit && rearInk) {
+                unitsGroup.matrixAutoUpdate = false;
+                rearFit.apply(unitsGroup, camera, rearInk, lyricsFontScale);
+            }
         } else {
             activeLineWidthRef.current = 0;
         }
@@ -624,12 +650,15 @@ const DioramaScene: React.FC<DioramaSceneProps> = ({
                 // glow raster of the SAME glyph - registration is exact by construction; its opacity/
                 // scale breathe per-frame. The active line never depth-tests, so geometry can frame it
                 // from any angle without covering the words.
-                <group key={globalIndex} ref={unitsGroupRef} position={activeEntry.position} quaternion={activeEntry.quaternion}>
+                <group key={globalIndex} ref={unitsGroupRef} position={activeEntry.position} quaternion={activeEntry.quaternion}
+                    name="diorama-current-lyric" userData={{ lineIndex: globalIndex,
+                        rows: new Set(activeUnitsRaster.units.map(unit => unit.centerY ?? 0)).size }}>
                     <DioramaActiveUnitPlanes
                         units={activeUnitsRaster.units}
                         planes={unitPlanesRef.current}
                         primaryColor={colors.primary}
                         accentColor={colors.accent}
+                        rear={Boolean(rearFit)}
                     />
                 </group>
             )}

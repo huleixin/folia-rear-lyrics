@@ -21,6 +21,7 @@ import {
     updateActiveSegmentLines,
 } from './dioramaSequencer';
 import { pickTransitionOffset, TRANSITION_DURATION } from './dioramaTransition';
+import { useDioramaRearSubtitleSpace } from './useDioramaRearSubtitleSpace';
 
 // src/components/visualizer/diorama/VisualizerDiorama.tsx
 // A 3D "flythrough" style: lyric lines are actual staged text objects along a winding path in world
@@ -120,6 +121,8 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
         dioramaTuning,
     } = props;
     const { t } = useTranslation();
+    const rearSubtitleRef = useRef<HTMLDivElement>(null);
+    const rearSubtitleHeight = useDioramaRearSubtitleSpace(rearSubtitleRef, showText && (subtitleOverlayOpacity ?? .6) > 0);
 
     const { activeLine, recentCompletedLine, nextLines } = useVisualizerRuntime({
         currentTime,
@@ -425,6 +428,7 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
                         transitionEpoch={transitionEpochRef.current}
                     />
                     <DioramaScene
+                        rearSubtitleHeight={rearSubtitleHeight}
                         theme={theme}
                         sequencer={seq}
                         globalIndex={globalIndex}
@@ -481,6 +485,7 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
                 </AnimatePresence>
             </div>
 
+            <div ref={rearSubtitleRef} className="contents">
             <VisualizerSubtitleOverlay
                 showText={showText}
                 activeLine={activeLine}
@@ -498,6 +503,7 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
                 hideTranslationSubtitle={hideTranslationSubtitle}
                 subtitleContentMode={subtitleContentMode}
             />
+            </div>
         </VisualizerShell>
     );
 };

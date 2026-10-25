@@ -44,6 +44,7 @@ export const CJK_GRAPHEME_RE = /[⺀-鿿぀-ヿ豈-﫿ｦ-ﾟ•·■-◿]/;
 export interface PlacedUnitRaster {
     raster: DioramaUnitRaster;
     centerX: number;
+    centerY?: number;
     width: number;
     height: number;
 }
