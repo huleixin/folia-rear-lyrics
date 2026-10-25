@@ -1,5 +1,7 @@
 // Copyright (c) 2026 chthollyphile
 import type { Container } from 'pixi.js';
+import { getRearSafeInset } from '../../../utils/visualizerSurface';
+import type { RearRect } from '../../../utils/rearCameraSafeArea';
 import type { Line, Theme } from '../../../types';
 import { createRng } from './lumiereRandom';
 import { resolveThemeFontStack, resolveThemeFontWeight } from '../../../utils/fontStacks';
@@ -83,6 +85,7 @@ export interface LumiereSceneOptions {
 
 export interface LumiereScene {
     view: Container;
+    constrainCurrentLine?: (time: number, safe: RearRect) => RearRect | null;
     graphics: Container;
     mid: Container;
     text: Container;
@@ -288,6 +291,7 @@ export const createLumiereScene = (pixi: PixiModule, options: LumiereSceneOption
     // 文字组。第 i 行成为当前行时，用它所在镜头的排版（不在任何镜头里的行跟随前一个镜头）。
     const typographyOfLine = lumiereTypographyOfLine(shots);
     const window = createLyricWindow(pixi, {
+        readingArea: getRearSafeInset(),
         width,
         height,
         lines: options.lines,
@@ -381,24 +385,7 @@ export const createLumiereScene = (pixi: PixiModule, options: LumiereSceneOption
         return index;
     };
 
-    const update = (time: number) => {
-        const local = time - options.startTime;
-        // 开场各段交叠：光柱在点亮前 0.4 秒就开始慢慢升起、1.6 秒才到满，不是「星落完 → 光亮 → 线稿」一段段来。
-        // 没有开场的单元一开始就是满光（衔接交给运行时的转场），不从暗处升起。
-        const enter = opening ? smooth((local - ignition + 0.4) / 1.6) : 1;
-        // 点亮的一瞬光源处闪一下。
-        const ignite = opening && local >= ignition ? 1.8 * Math.exp(-(local - ignition) / 0.35) : 0;
-        const fadeOut = options.fadeOut;
-        const exit = fadeOut ? 1 - smooth((time - fadeOut.start) / Math.max(fadeOut.end - fadeOut.start, 0.05)) : 1;
-        const intensity = enter * exit;
-
-        const transform = camera(time);
-        stage.pivot.set(transform.pivotX, transform.pivotY);
-        stage.position.set(transform.x, transform.y);
-        stage.scale.set(transform.scale);
-        stage.rotation = transform.rotation;
-
-        // 正在进行的爆闪（最多 MAX_BURSTS 个），以及它们给整个光场的一下提亮。
+    const burstFrame = (time: number) => {
         const events: BurstEvent[] = [];
         let boost = 0;
         for (const trigger of burstTriggers) {
@@ -417,7 +404,28 @@ export const createLumiereScene = (pixi: PixiModule, options: LumiereSceneOption
             }
         }
         // 一串小十字连着炸时提亮会叠加，封个顶。
-        boost = Math.min(boost, 0.45);
+        return { events, boost: Math.min(boost, 0.45) };
+    };
+
+    const update = (time: number) => {
+        const local = time - options.startTime;
+        // 开场各段交叠：光柱在点亮前 0.4 秒就开始慢慢升起、1.6 秒才到满，不是「星落完 → 光亮 → 线稿」一段段来。
+        // 没有开场的单元一开始就是满光（衔接交给运行时的转场），不从暗处升起。
+        const enter = opening ? smooth((local - ignition + 0.4) / 1.6) : 1;
+        // 点亮的一瞬光源处闪一下。
+        const ignite = opening && local >= ignition ? 1.8 * Math.exp(-(local - ignition) / 0.35) : 0;
+        const fadeOut = options.fadeOut;
+        const exit = fadeOut ? 1 - smooth((time - fadeOut.start) / Math.max(fadeOut.end - fadeOut.start, 0.05)) : 1;
+        const intensity = enter * exit;
+
+        const transform = camera(time);
+        stage.pivot.set(transform.pivotX, transform.pivotY);
+        stage.position.set(transform.x, transform.y);
+        stage.scale.set(transform.scale);
+        stage.rotation = transform.rotation;
+
+        // 正在进行的爆闪（最多 MAX_BURSTS 个），以及它们给整个光场的一下提亮。
+        const { events, boost } = burstFrame(time);
         burst?.update(events);
 
         // 光位：当前镜头的光束渐强、上一个镜头的渐弱，两套都进光场（超过上限时留最亮的）。
@@ -504,6 +512,11 @@ export const createLumiereScene = (pixi: PixiModule, options: LumiereSceneOption
         front,
         burstTimes: burstTriggers.map(trigger => trigger.time),
         lineAnchor: window.lineAnchor,
+        constrainCurrentLine: (time, safe) => {
+            const bounds = window.constrainCurrentLine(time, safe);
+            if (burst) burst.update(burstFrame(time).events);
+            return bounds;
+        },
         camera,
         rest,
         update,

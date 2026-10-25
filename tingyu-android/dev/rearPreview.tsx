@@ -5,7 +5,7 @@ import './../src/index.css';
 import VisualizerRenderer from '../src/components/visualizer/VisualizerRenderer';
 import { FALLBACK_AI_DUAL_THEME } from '../src/services/themeSanitizer';
 import type { Line, SubtitleContentMode, VisualizerMode } from '../src/types';
-import { DEFAULT_MONET_TUNING, DEFAULT_PENDOLO_TUNING, DEFAULT_DIORAMA_TUNING } from '../src/types';
+import { DEFAULT_MONET_TUNING, DEFAULT_PENDOLO_TUNING, DEFAULT_DIORAMA_TUNING, DEFAULT_LUMIERE_TUNING } from '../src/types';
 
 // dev/rearPreview.tsx
 // Local rear-panel harness: renders one lyric style at the real rear CSS size so layout bugs can be seen.
@@ -21,6 +21,7 @@ const SAMPLES: Record<string, string[]> = {
     short: ['花火', '现在已经回不去了', '老街'],
     reported: ['会越过越好 天天念想着远方', '思念的人住在弯月亮', '在思念里等你回来'],
     cappella: ['全世界只有两个人', '愿你现在过得幸福安稳', 'May your days be filled with happiness and peace'],
+    lumiere: ['渐渐地忘记 赶不上明天', '明天再也 没有你的笑脸', '要用力地抓紧了想念'],
     twoLayouts: ['渐渐地忘记赶不上明天', '要用力地抓紧想念', '每一朵花都在春天盛开'],
     claddagh: ['要用力地抓紧了想念', '明天再也没有你的笑脸', 'Send them your heart so they will know someone cares'],
     pendolo: ['鲜艳过的画面', '我只要沿着记忆的路线', 'Send them your heart so they will know someone cares'],
@@ -75,11 +76,12 @@ function Preview() {
             dioramaTuning={mode === 'diorama' ? { ...DEFAULT_DIORAMA_TUNING,
                 motionAmount: Number(params.get('motionAmount') ?? 1), cameraSpeed: Number(params.get('cameraSpeed') ?? 1),
                 soulActiveEnabled: params.get('soulActive') === '1' } : undefined}
+            lumiereTuning={mode === 'lumiere' ? { ...DEFAULT_LUMIERE_TUNING, seamlessTransitions: params.get('seamless') !== '0' } : undefined}
             monetTuning={mode === 'monet' ? { ...DEFAULT_MONET_TUNING, audioStyle: params.get('audioStyle') === 'line' ? 'line' : 'bar' } : undefined}
             songTitle="老街" songArtist="李荣浩" songAlbum="模特" coverUrl="" showText staticMode={false} paused={false}
             visualizerOpacity={1} background={{ mode: 'common', transparent: true }} lyricsFontScale={Number(params.get('fontScale') ?? 1)}
             subtitleFontScale={1} subtitleOverlayOpacity={1} subtitleOverlayBackground={false} subtitleUpcomingLyricsBlur={false}
-            hideTranslationSubtitle={false} showSubtitleTranslation subtitleContentMode={(params.get('subtitles') ?? 'both') as SubtitleContentMode} seed="rear-preview" />
+            hideTranslationSubtitle={false} showSubtitleTranslation subtitleContentMode={(params.get('subtitles') ?? 'both') as SubtitleContentMode} seed={params.get('seed') ?? 'rear-preview'} />
     </div>);
 }
 createRoot(document.getElementById('root')!).render(<React.StrictMode><Preview /></React.StrictMode>);

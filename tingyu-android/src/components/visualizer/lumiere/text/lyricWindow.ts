@@ -1,5 +1,7 @@
 // Copyright (c) 2026 chthollyphile
 import type { Container } from 'pixi.js';
+import type { RearRect } from '../../../../utils/rearCameraSafeArea';
+import { createLumiereRearFit } from './rearFit';
 import type { Line } from '../../../../types';
 import { compressLight, lightAt, type ResolvedBeam } from '../light/rig';
 import type { LightSprites } from '../light/sprites';
@@ -66,6 +68,7 @@ export interface LyricWindowOptions {
     weight: number;
     resolution: number;
     region: WindowRegion;
+    readingArea?: RearRect | null;
     /** 当前行的字号（逻辑像素）。 */
     heroPx: number;
     /** 当前行之外显示几行：1 = 上一行，2 = 上一行 + 下一行。 */
@@ -111,6 +114,7 @@ export interface GlyphAnchor {
 
 export interface LyricWindow {
     view: Container;
+    constrainCurrentLine: (time: number, safe: RearRect) => RearRect | null;
     /** 径迹、光晕、字、闪点几层；bloom 挂在 view 上。 */
     update: (frame: LyricWindowFrame) => void;
     /** 每行可见字（非空白）的点亮时刻，给爆闪选引爆的字。 */
@@ -137,7 +141,17 @@ export const createLyricWindow = (pixi: PixiModule, options: LyricWindowOptions)
     const nextAlpha = options.neighbors >= 2 ? 0.95 : 0;
     // 长度上限：横排用画框内的整个宽度（纵横交错留一成给四周的行），竖排用画框内的整个高度（避开底部字幕）。
     // 文字区只决定中心，不再限制行长。
-    const band = frameBand(options.width, height);
+    // Rear panels use the camera-safe reading width for wrapping; animation layers remain full-panel and unmasked.
+    const area = options.readingArea;
+    const band = area ? {
+        left: (area.left + 5) / height, right: (area.left + area.width - 5) / height,
+        top: (area.top + 5) / height, bottom: (area.top + area.height - 5) / height,
+    } : frameBand(options.width, height);
+    if (area) options = { ...options, region: {
+        ...options.region, cx: (area.left + area.width / 2) / height,
+        w: (area.width - 10) / height,
+    } };
+    const rearFit = area ? createLumiereRearFit(pixi) : null;
     const columnCap = (band.bottom - band.top) * height;
     const maxWidthOf = (kind: WindowTypography) => (band.right - band.left) * height * (kind === 'crossed' ? 0.9 : 1);
     const measurer = createTextMeasurer(options.font, options.weight, options.letterSpacing ?? 0);
@@ -211,6 +225,7 @@ export const createLyricWindow = (pixi: PixiModule, options: LyricWindowOptions)
     };
 
     const update = (frame: LyricWindowFrame) => {
+        rearFit?.reset();
         const { time, beams, litColor, unlitColor, unlitAlpha, intensity } = frame;
         trackLayer.visible = frame.hideTrails !== true;
         // 径迹只在行滑动时有；空着的层不再每帧 clear（clear 一个空 Graphics 也会让它重新合批）。
@@ -342,6 +357,20 @@ export const createLyricWindow = (pixi: PixiModule, options: LyricWindowOptions)
     return {
         view,
         update,
+        constrainCurrentLine: (time, safe) => {
+            if (!rearFit) return null;
+            const { low, high } = activeRange(time);
+            let current: RearRect | null = null;
+            for (let index = low; index <= high; index += 1) {
+                const line = options.lines[index]!;
+                // A short handoff lets outgoing letters regain the full animation canvas without a boundary jump.
+                if (time < line.startTime - 0.5 || time >= line.endTime + 0.5) continue;
+                const weight = smooth((time - line.startTime + 0.5) / 0.5) * (1 - smooth((time - line.endTime) / 0.5));
+                const bounds = rearFit.constrain(lineOf(index), safe, weight);
+                if (time >= line.startTime && time < line.endTime) current = bounds;
+            }
+            return current;
+        },
         glyphTimes: lineIndex => {
             const meta = metas[lineIndex];
             if (!meta) return [];
@@ -354,7 +383,8 @@ export const createLyricWindow = (pixi: PixiModule, options: LyricWindowOptions)
             const view = lineOf(lineIndex);
             const local = glyphLocal(view, view.glyphs[glyphIndex]!, time, transform);
             const world = toWorld(transform, local);
-            return { x: world.x, y: world.y, fontPx: heroPx * transform.scale * local.scale };
+            const anchor = { x: world.x, y: world.y, fontPx: heroPx * transform.scale * local.scale };
+            return rearFit?.anchor(view, glyphLayer, anchor) ?? anchor;
         },
         lineAnchor: (lineIndex, time) => {
             const transform = lineTransform(lineIndex, time);
@@ -366,6 +396,7 @@ export const createLyricWindow = (pixi: PixiModule, options: LyricWindowOptions)
             return keywordColorsOf(meta, KEYWORDS)?.[glyphIndex] ?? null;
         },
         destroy: () => {
+            rearFit?.reset();
             lines.releaseAll();
             // trackLayer 是自建 context 的 Graphics，带 context: true 才会连 GPU 批数据一起放掉（见 lineArt 的 destroy）。
             view.destroy({ children: true, context: true });

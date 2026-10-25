@@ -1,4 +1,4 @@
-import { resolveVisualizerDimension } from '../../../utils/visualizerSurface';
+import { getRearSafeInset, resolveVisualizerDimension } from '../../../utils/visualizerSurface';
 // Copyright (c) 2026 chthollyphile
 import type { MotionValue } from 'framer-motion';
 import type { Filter } from 'pixi.js';
@@ -85,6 +85,8 @@ export class LumierePixiRuntime {
     private activeIndex = -1;
     private destroyed = false;
     private resizeObserver: ResizeObserver | null = null;
+    private rearSafe = getRearSafeInset();
+    private subtitleSpace = 0;
     private width = 0;
     private height = 0;
     private renderResolution = 1;
@@ -186,6 +188,7 @@ export class LumierePixiRuntime {
         const height = resolveVisualizerDimension(this.options.host.clientHeight, MIN_HEIGHT);
         const resolution = resolveLumiereRenderResolution(window.devicePixelRatio);
         if (width === this.width && height === this.height && resolution === this.renderResolution) return false;
+        this.rearSafe = getRearSafeInset();
         this.width = width;
         this.height = height;
         this.renderResolution = resolution;
@@ -307,6 +310,8 @@ export class LumierePixiRuntime {
         const lyricAlpha = creditsFrame.active ? creditsFrame.lyricAlpha : 1;
         const lyricBlur = creditsFrame.active ? creditsFrame.lyricBlur : 0;
         const blurResolution = this.renderResolution * 0.5;
+        const currentBounds: unknown[] = [];
+        const safe = this.rearSafe ? { ...this.rearSafe, height: Math.max(20, this.rearSafe.height - this.subtitleSpace) } : null;
         this.sceneCache.forEach((entry, index) => {
             // 同时在画的段落最多两三个，直接找，不必每帧建一张表。
             const layer = frames.layers.find(candidate => candidate.index === index);
@@ -319,7 +324,14 @@ export class LumierePixiRuntime {
                 scale: layer.scale,
                 blur: Math.max(layer.blur, lyricBlur),
             }, blurResolution);
+            if (safe) {
+                const bounds = entry.unit.scene.constrainCurrentLine?.(time, safe);
+                if (bounds) currentBounds.push(bounds);
+            }
         });
+        if (import.meta.env.DEV && this.rearSafe) {
+            this.app.canvas.dataset.rearCurrentBounds = JSON.stringify({ safe, bounds: currentBounds, time, layerAlpha: Math.max(0, ...frames.layers.map(layer => layer.alpha * lyricAlpha)) });
+        }
         this.credits.update(time, creditsFrame, this.width, this.height);
     };
 
@@ -398,6 +410,12 @@ export class LumierePixiRuntime {
             || previousTuning.textOnly !== tuning.textOnly
             || previousTuning.themeColorMix !== tuning.themeColorMix
         ) this.drawOverlay();
+        if (this.options.paused) this.renderOnce();
+    }
+
+    setSubtitleSpace(height: number) {
+        if (this.destroyed || height === this.subtitleSpace) return;
+        this.subtitleSpace = height;
         if (this.options.paused) this.renderOnce();
     }
 

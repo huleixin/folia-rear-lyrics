@@ -1,6 +1,7 @@
 // Copyright (c) 2026 chthollyphile
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useRearSubtitleSpace } from '../../../hooks/useRearSubtitleSpace';
 import { DEFAULT_LUMIERE_TUNING } from '../../../types';
 import type { Line } from '../../../types';
 import { loadLucideIcons } from '../../../services/lucideIconResolver';
@@ -52,6 +53,10 @@ const VisualizerLumiere: React.FC<VisualizerSharedProps> = (props) => {
     const { t } = useTranslation();
     const hostRef = useRef<HTMLDivElement>(null);
     const [runtimeFailed, setRuntimeFailed] = useState(false);
+    const subtitleRef = useRef<HTMLDivElement>(null);
+    const subtitleSpace = useRearSubtitleSpace(subtitleRef, showText);
+    const subtitleSpaceRef = useRef(subtitleSpace);
+    subtitleSpaceRef.current = subtitleSpace;
 
     // 运行时创建期间这些输入可能已经变了；create 完成后按最新值补一次。
     const latestRef = useRef({ tuning: lumiereTuning, paused, showText, staticMode, audioPower, audioBands });
@@ -116,6 +121,7 @@ const VisualizerLumiere: React.FC<VisualizerSharedProps> = (props) => {
                 signal,
             });
             const current = latestRef.current;
+            runtime.setSubtitleSpace(subtitleSpaceRef.current);
             runtime.setSongMetadata(metadataRef.current);
             runtime.setTuning(current.tuning);
             runtime.setShowText(current.showText);
@@ -131,6 +137,10 @@ const VisualizerLumiere: React.FC<VisualizerSharedProps> = (props) => {
         destroy: runtime => runtime.destroy(),
         onFailedChange: setRuntimeFailed,
     });
+
+    useEffect(() => {
+        runtimeRef.current?.setSubtitleSpace(subtitleSpace);
+    }, [subtitleSpace, runtimeRef]);
 
     useEffect(() => {
         runtimeRef.current?.setTuning(lumiereTuning);
@@ -192,24 +202,26 @@ const VisualizerLumiere: React.FC<VisualizerSharedProps> = (props) => {
                 )}
             </div>
 
-            <VisualizerSubtitleOverlay
-                showText={showText}
-                activeLine={activeLine}
-                recentCompletedLine={creditsRecentCompletedLine}
-                nextLines={nextLines}
-                theme={theme}
-                subtitleTheme={subtitleTheme}
-                translationFontSize={subtitleFontSizes.translationFontSize}
-                upcomingFontSize={subtitleFontSizes.upcomingFontSize}
-                subtitleFontScale={subtitleFontScale}
-                subtitleOverlayOpacity={subtitleOverlayOpacity}
-                subtitleOverlayBackground={subtitleOverlayBackground}
-                subtitleUpcomingLyricsBlur={subtitleUpcomingLyricsBlur}
-                isPlayerChromeHidden={isPlayerChromeHidden}
-                hideTranslationSubtitle={hideTranslationSubtitle}
-                showSubtitleTranslation={showSubtitleTranslation}
-                subtitleContentMode={subtitleContentMode}
-            />
+            <div ref={subtitleRef} className="contents">
+                <VisualizerSubtitleOverlay
+                    showText={showText}
+                    activeLine={activeLine}
+                    recentCompletedLine={creditsRecentCompletedLine}
+                    nextLines={nextLines}
+                    theme={theme}
+                    subtitleTheme={subtitleTheme}
+                    translationFontSize={subtitleFontSizes.translationFontSize}
+                    upcomingFontSize={subtitleFontSizes.upcomingFontSize}
+                    subtitleFontScale={subtitleFontScale}
+                    subtitleOverlayOpacity={subtitleOverlayOpacity}
+                    subtitleOverlayBackground={subtitleOverlayBackground}
+                    subtitleUpcomingLyricsBlur={subtitleUpcomingLyricsBlur}
+                    isPlayerChromeHidden={isPlayerChromeHidden}
+                    hideTranslationSubtitle={hideTranslationSubtitle}
+                    showSubtitleTranslation={showSubtitleTranslation}
+                    subtitleContentMode={subtitleContentMode}
+                />
+            </div>
         </VisualizerShell>
     );
 };
