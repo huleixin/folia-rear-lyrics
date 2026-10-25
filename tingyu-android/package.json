@@ -8,8 +8,8 @@
     "email": "chthollyphile@users.noreply.github.com"
   },
   "private": true,
-  "version": "1.3.8",
-  "androidVersionCode": 21,
+  "version": "1.3.9",
+  "androidVersionCode": 22,
   "license": "AGPL-3.0",
   "type": "module",
   "engines": {

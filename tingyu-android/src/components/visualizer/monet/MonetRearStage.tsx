@@ -48,8 +48,8 @@ export default function MonetRearStage({ sharedProps: props, entries }: {
                 keywordColoringEnabled={monetTuning.keywordColoringEnabled} emptyText=""
                 audioPower={audioPower} audioBands={audioBands} rearFrame={safe}
                 onLyricLineSeek={props.onLyricLineSeek} seekDisabled={isPreviewMode} />
-            {monetTuning.showAudioVisualization && <div className="absolute bottom-0 left-0 z-20 h-10 overflow-hidden px-5 sm:px-8 lg:px-14"
-                style={{ width: 'min(450px, 55vw)' }}>
+            {monetTuning.showAudioVisualization && <div data-monet-rear-audio className="absolute z-20 h-10 overflow-hidden"
+                style={{ left: safe.left, width: safe.width, bottom: safe.top, paddingInline: Math.max(3, safe.width * .02) }}>
                 <AudioOverlay audioPower={audioPower} audioBands={audioBands} theme={theme} mode={monetTuning.audioStyle}
                     staticMode={staticMode} isPreviewMode={isPreviewMode} />
             </div>}
