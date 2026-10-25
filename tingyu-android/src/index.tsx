@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { Buffer } from 'buffer';
 import { installGlobalVisualizerFrameRateLimiter } from './utils/frameRateLimiter';
 import { installConsoleLogCapture } from './utils/consoleLogBuffer';
@@ -23,7 +24,7 @@ installChunkLoadRecovery();
 installDebugModule();
 installMemorySampleFeed();
 // 帧耗时 / 长任务采样，供设置里的「复制诊断数据」判断卡顿是渲染开销还是设备性能。
-installFrameTimingDiagnostics();
+installFrameTimingDiagnostics(Capacitor.getPlatform() !== 'android');
 // Cover size audit, left wired but switched off: it answered whether the provider CDNs honour the
 // size in a cover URL - they do - and that is not a question worth re-asking every session. The
 // collector and its panel are still in the tree, and `?probe=coverSizeAudit` still reaches them.

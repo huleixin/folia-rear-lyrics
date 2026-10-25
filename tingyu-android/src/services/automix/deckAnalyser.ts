@@ -60,11 +60,11 @@ export interface DeckAnalyser {
     reset: () => void;
 }
 
-export const createDeckAnalyser = (
+const createDeckMeasurement = (
     context: AudioContext,
     input: AudioNode,
     sink: AudioNode,
-): DeckAnalyser => {
+): DeckAnalyser & { dispose: () => void } => {
     const node = context.createAnalyser();
     node.fftSize = FFT_SIZE;
     // Flux is the change between consecutive frames; the engine's own smoothing would average
@@ -155,6 +155,10 @@ export const createDeckAnalyser = (
     };
 
     return {
+        dispose: () => {
+            input.disconnect(shelf);
+            shelf.disconnect(); rumble.disconnect(); node.disconnect(); silent.disconnect();
+        },
         tick,
         loudnessDb: () => (frames >= MIN_FRAMES_FOR_LEVEL ? peakDb : null),
         levelHistory: () => (
@@ -172,4 +176,25 @@ export const createDeckAnalyser = (
             cachedAt = -Infinity;
         },
     };
+};
+
+
+/** No analyser, weighting filters or silent sink are allocated until mixing requests measurements. */
+export const createDeckAnalyser = (context: AudioContext, input: AudioNode, sink: AudioNode, enabled = true) => {
+    let measurement: ReturnType<typeof createDeckMeasurement> | null = null;
+    const setEnabled = (next: boolean) => {
+        if (next && !measurement) measurement = createDeckMeasurement(context, input, sink);
+        else if (!next && measurement) { measurement.dispose(); measurement = null; }
+    };
+    setEnabled(enabled);
+    return {
+        tick: (time: number) => measurement?.tick(time),
+        loudnessDb: () => measurement?.loudnessDb() ?? null,
+        levelHistory: () => measurement?.levelHistory() ?? null,
+        tempo: () => measurement?.tempo() ?? null,
+        nextBeatIn: (time: number) => measurement?.nextBeatIn(time) ?? null,
+        reset: () => measurement?.reset(),
+        setEnabled,
+        dispose: () => setEnabled(false),
+    } satisfies DeckAnalyser & { setEnabled: (enabled: boolean) => void; dispose: () => void };
 };

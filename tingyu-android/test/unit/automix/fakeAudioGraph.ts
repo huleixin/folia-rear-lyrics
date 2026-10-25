@@ -133,6 +133,7 @@ export const createFakeChain = (readings: FakeAnalyserReadings = {}): FakeDeckCh
     const bpm = readings.bpm ?? null;
 
     return {
+        setProcessingEnabled: () => undefined,
         source: {} as MediaElementAudioSourceNode,
         // The shared mix point. Never reached by these tests - a stem gesture needs real buffers -
         // but the chain has to be shaped like the real one.

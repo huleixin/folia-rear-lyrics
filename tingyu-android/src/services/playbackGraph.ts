@@ -18,6 +18,7 @@ type BuildPlaybackGraphParams = {
     connectDecks: (context: AudioContext, output: AudioNode) => boolean;
     equalizerNodesRef: { current: BiquadFilterNode[] };
     settings: AudioEqualizerSettings;
+    analysisEnabled?: boolean;
 };
 
 export type PlaybackGraph = {
@@ -32,6 +33,9 @@ export type PlaybackGraph = {
     effectChain: AudioEffectChain;
     /** False when a deck was missing, so automix will stay idle. Audio still flows. */
     decksConnected: boolean;
+    equalizer: ReturnType<typeof connectAudioEqualizerGraph>;
+    setAnalysisEnabled: (enabled: boolean) => void;
+    dispose: () => void;
 };
 
 export const buildPlaybackGraph = ({
@@ -40,6 +44,7 @@ export const buildPlaybackGraph = ({
     connectDecks,
     equalizerNodesRef,
     settings,
+    analysisEnabled = true,
 }: BuildPlaybackGraphParams): PlaybackGraph => {
     // The shared mix point. Both decks land here, so the equaliser and the analyser each exist
     // once and see the sum: the tone never steps mid-blend and the visualiser draws what is
@@ -49,7 +54,7 @@ export const buildPlaybackGraph = ({
 
     // Keeps a stable seam between the equalizer bands and the effect chain.
     const equalizerOutput = context.createGain();
-    connectAudioEqualizerGraph({
+    const equalizer = connectAudioEqualizerGraph({
         context,
         input: mixNode,
         output: equalizerOutput,
@@ -93,8 +98,19 @@ export const buildPlaybackGraph = ({
 
     // The analyser stays last, so the visualiser draws what is actually being heard - including
     // the volume the listener set.
-    fadeNode.connect(analyser);
-    analyser.connect(context.destination);
+    let analysing = analysisEnabled;
+    const connectOutput = () => {
+        if (analysing) { fadeNode.connect(analyser); analyser.connect(context.destination); }
+        else fadeNode.connect(context.destination);
+    };
+    connectOutput();
+    const setAnalysisEnabled = (enabled: boolean) => {
+        if (enabled === analysing) return;
+        fadeNode.disconnect(analysing ? analyser : context.destination);
+        if (analysing) analyser.disconnect(context.destination);
+        analysing = enabled;
+        connectOutput();
+    };
 
     // Once per audio context. Printed rather than assumed because the ORDER is the fix: if this
     // ever reads "volume" before "effects" again, the vinyl noise has stopped answering the
@@ -106,5 +122,11 @@ export const buildPlaybackGraph = ({
         + ` noise ${settings.effects.noise}, crush ${settings.effects.crush}, punch ${settings.effects.punch})`,
     );
 
-    return { gainNode, fadeNode, effectChain, decksConnected };
+    return { gainNode, fadeNode, effectChain, decksConnected, equalizer, setAnalysisEnabled,
+        dispose: () => {
+            equalizer.dispose(); effectChain.dispose();
+            mixNode.disconnect(); equalizerOutput.disconnect(); gainNode.disconnect(); fadeNode.disconnect();
+            if (analysing) analyser.disconnect(context.destination);
+        },
+    };
 };

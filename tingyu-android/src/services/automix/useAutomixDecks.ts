@@ -216,6 +216,8 @@ export function useAutomixDecks({
     const audioQuality = useAudioSettingsStore(state => state.audioQuality);
     const shuffleEnabled = useAudioSettingsStore(state => state.shuffleEnabled);
 
+    const enabledRef = useRef(isEnabled);
+    enabledRef.current = isEnabled;
     const [activeDeck, setActiveDeck] = useState<AutomixDeckId>('A');
     const [tailSrc, setTailSrc] = useState<string | null>(null);
     /**
@@ -521,7 +523,7 @@ export function useAutomixDecks({
         (['A', 'B'] as const).forEach(deck => {
             const element = elementsRef.current[deck];
             if (!element || chainsRef.current[deck]) return;
-            chainsRef.current[deck] = connectAutomixDeck(context, element, output);
+            chainsRef.current[deck] = connectAutomixDeck(context, element, output, enabledRef.current);
             // The song changes no blend was ever scheduled for. The analyser is only reset by
             // whatever starts the next track on this deck, so the readings are still the finished
             // track's when this fires.
@@ -529,6 +531,13 @@ export function useAutomixDecks({
         });
         return Boolean(chainsRef.current.A && chainsRef.current.B);
     }, []);
+
+    useEffect(() => {
+        // Finish an already audible/armed handover before removing its routes. Its existing
+        // completion changes tailSrc and revisits this effect, without an extra polling timer.
+        const processing = isEnabled || session.getPhase() !== 'idle';
+        (['A', 'B'] as const).forEach(deck => chainsRef.current[deck]?.setProcessingEnabled(processing));
+    }, [isEnabled, session, tailSrc]);
 
     /**
      * One console line per song, whichever way the decision went.

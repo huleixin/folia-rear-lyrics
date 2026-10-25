@@ -1,3 +1,4 @@
+import { sampleFrameTimingWindow } from './frameTimingDemand';
 import { getLibraryTraceLines } from '../nativeBridge/api/libraryTrace.js';
 import { getQrLoginTraceLines } from '../nativeBridge/api/qrLoginTrace.js';
 import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
@@ -588,6 +589,7 @@ const readVideoLayerLines = async (): Promise<string[]> => {
 };
 
 export const buildDiagnosticReport = async (): Promise<string> => {
+    await sampleFrameTimingWindow();
     const appVersion = typeof __APP_VERSION__ === 'undefined' ? 'unknown' : __APP_VERSION__;
     const heartbeats = await readDiagnosticsHeartbeats();
     const capacitor = (window as unknown as { Capacitor?: { getPlatform?: () => string; isNativePlatform?: () => boolean } }).Capacitor;

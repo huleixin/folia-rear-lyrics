@@ -204,6 +204,7 @@ let motionUntilMs = 0;
 let motionListener: (() => void) | null = null;
 
 let installed = false;
+let samplingFrames = true;
 let installedAtMs: number | null = null;
 let frameLoopHandle: number | null = null;
 let visibilityListener: (() => void) | null = null;
@@ -471,7 +472,7 @@ const stopFrameLoop = (): void => {
 
 const onFrame = (timestamp: number): void => {
     frameLoopHandle = null;
-    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    if (!samplingFrames || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) return;
     const tickAtMs = nowMs();
     if (lastTickAtMs !== null) visibleMs += Math.max(0, tickAtMs - lastTickAtMs);
     lastTickAtMs = tickAtMs;
@@ -497,7 +498,7 @@ const onVisibilityChange = (): void => {
     lastTickAtMs = null;
     bucketStartedAt = null;
     bucketFrames = 0;
-    if (frameLoopHandle === null) frameLoopHandle = nativeRequestAnimationFrame(onFrame);
+    if (samplingFrames && frameLoopHandle === null) frameLoopHandle = nativeRequestAnimationFrame(onFrame);
 };
 
 const installLongTaskObserver = (): void => {
@@ -580,15 +581,16 @@ const installLongAnimationFrameObserver = (): void => {
     }
 };
 
-export const installFrameTimingDiagnostics = (): void => {
+export const installFrameTimingDiagnostics = (sampleFrames = true): void => {
     if (installed) return;
     if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') return;
     installed = true;
+    samplingFrames = sampleFrames;
     installedAtMs = nowMs();
     installLongTaskObserver();
     installLongAnimationFrameObserver();
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') hiddenSinceMs = nowMs();
-    else frameLoopHandle = nativeRequestAnimationFrame(onFrame);
+    else if (samplingFrames) frameLoopHandle = nativeRequestAnimationFrame(onFrame);
     if (typeof document !== 'undefined') {
         visibilityListener = onVisibilityChange;
         document.addEventListener('visibilitychange', visibilityListener);
@@ -598,6 +600,17 @@ export const installFrameTimingDiagnostics = (): void => {
         document.addEventListener('touchmove', motionListener, { capture: true, passive: true });
     }
 };
+
+/** Passive observers stay installed; demand sampling must not keep the display clock awake. */
+export const setFrameTimingSamplingEnabled = (enabled: boolean): void => {
+    if (!installed || samplingFrames === enabled) return;
+    samplingFrames = enabled;
+    stopFrameLoop(); lastFrameAt = null; lastTickAtMs = null; bucketStartedAt = null; bucketFrames = 0;
+    if (enabled && (typeof document === 'undefined' || document.visibilityState !== 'hidden')) {
+        frameLoopHandle = nativeRequestAnimationFrame(onFrame);
+    }
+};
+export const isFrameTimingSamplingEnabled = () => installed && samplingFrames;
 
 /** 测试与诊断用：把采样状态复位，避免用例之间互相污染。 */
 export const resetFrameTimingDiagnostics = (): void => {
@@ -612,6 +625,7 @@ export const resetFrameTimingDiagnostics = (): void => {
     }
     motionListener = null;
     installed = false;
+    samplingFrames = true;
     intervalCursor = 0;
     intervalCount = 0;
     motionCursor = 0;

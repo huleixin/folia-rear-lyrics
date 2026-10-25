@@ -24,6 +24,7 @@ const createFilter = () => ({
     Q: createAudioParam(),
     gain: createAudioParam(),
     connect: vi.fn(),
+    disconnect: vi.fn(),
 });
 
 describe('audio equalizer model', () => {
@@ -162,9 +163,10 @@ describe('audio equalizer graph', () => {
         const filters = AUDIO_EQUALIZER_BANDS.map(() => createFilter());
         const context = {
             sampleRate: 48_000,
+            currentTime: 0,
             createBiquadFilter: vi.fn(() => filters.shift()),
         } as unknown as AudioContext;
-        const input = { connect: vi.fn() } as unknown as AudioNode;
+        const input = { connect: vi.fn(), disconnect: vi.fn() } as unknown as AudioNode;
         const output = {} as AudioNode;
         const nodesRef = { current: [] as BiquadFilterNode[] };
 
@@ -182,13 +184,14 @@ describe('audio equalizer graph', () => {
             },
         });
 
+        expect(input.disconnect).toHaveBeenCalledWith(output);
         expect(nodesRef.current).toHaveLength(10);
         expect(input.connect).toHaveBeenCalledWith(nodesRef.current[0]);
         expect(nodesRef.current[0].type).toBe('lowshelf');
         expect(nodesRef.current[9].type).toBe('highshelf');
         expect(nodesRef.current[9].connect).toHaveBeenCalledWith(output);
-        expect(nodesRef.current[0].gain.value).toBe(-5);
-        expect(nodesRef.current[9].gain.value).toBe(4);
+        expect(nodesRef.current[0].gain.setTargetAtTime).toHaveBeenCalledWith(-5, 0, .015);
+        expect(nodesRef.current[9].gain.setTargetAtTime).toHaveBeenCalledWith(4, 0, .015);
     });
 
     it('smoothly bypasses every band when disabled', () => {

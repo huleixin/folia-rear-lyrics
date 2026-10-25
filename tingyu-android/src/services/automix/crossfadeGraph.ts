@@ -1,11 +1,10 @@
-import { createDeckAnalyser, type DeckAnalyser } from './deckAnalyser';
+import type { DeckAnalyser } from './deckAnalyser';
+import { createDeckProcessing } from './deckProcessing';
 import {
     buildBandCurves,
     buildCrossfadeCurves,
     dbToGain,
     type BandBlendRequest,
-    TONE_EDGE_HZ,
-    TONE_MID_HZ,
 } from './signalAnalysis';
 import { STEM_NAMES, type StemName, type TrackStems } from './stems';
 import { OTHER_SWEEP_END, OTHER_SWEEP_HZ } from './stemGesture';
@@ -47,16 +46,9 @@ export interface AutomixDeckChain {
     analyser: DeckAnalyser;
     /** The shared mix point. Kept so a stem window can be wired in past this deck's own fade. */
     output: AudioNode;
+    /** Rewire only after an active transition has settled. */
+    setProcessingEnabled: (enabled: boolean) => void;
 }
-
-/**
- * Bell width for the middle band.
- *
- * Wide - a Q under one spans well over two octaves - because this is not an equaliser correcting a
- * resonance, it is a tone control asked to lean a whole master slightly one way. A narrow bell
- * would be audible as a filter rather than as a difference in character.
- */
-const MID_BELL_Q = 0.8;
 
 /** Longest a scheduled band curve is allowed to still be running once its deck is alone. */
 const TONE_RESET_SEC = 0.12;
@@ -76,9 +68,8 @@ const CURVE_TAIL_GUARD_SEC = 0.006;
  * derived instead, because an echo that repeats off the grid is heard as a fault rather than as an
  * effect.
  */
+
 const DEFAULT_THROW_DELAY_SEC = 0.25;
-/** How much of each repeat survives into the next. Four or five audible repeats, then gone. */
-const THROW_FEEDBACK = 0.45;
 /** How much of the outgoing track is fed in at the moment of the throw. */
 const THROW_SEND = 0.6;
 /** How long the send takes to open. Long enough not to click, short enough to be one gesture. */
@@ -93,60 +84,29 @@ const THROW_OPEN_SEC = 0.15;
  * same param during a blend throws, and folding them together would let a discrete gain change scale
  * the curve.
  *
- * The three tone filters sit between the trim and the fade and are exactly transparent at rest: a
- * shelf or bell at 0dB reduces to unity, not an approximation of it - which matters because this chain
- * carries every second of playback, not only the transitions.
+ * When mixing is enabled, three tone filters sit between the trim and fade. Ordinary playback
+ * bypasses those filters, the echo send and the measurement branch; enabling a mix restores them.
  */
 export const connectAutomixDeck = (
     context: AudioContext,
     element: HTMLAudioElement,
     output: AudioNode,
+    processingEnabled = true,
 ): AutomixDeckChain => {
     const source = context.createMediaElementSource(element);
     const replayGain = context.createGain();
     const trim = context.createGain();
     const fade = context.createGain();
 
-    const band = (type: BiquadFilterType, frequency: number, q?: number) => {
-        const filter = context.createBiquadFilter();
-        filter.type = type;
-        filter.frequency.value = frequency;
-        filter.gain.value = 0;
-        if (q !== undefined) filter.Q.value = q;
-        return filter;
-    };
-    const tone: AutomixToneStack = {
-        low: band('lowshelf', TONE_EDGE_HZ[0]),
-        mid: band('peaking', TONE_MID_HZ, MID_BELL_Q),
-        high: band('highshelf', TONE_EDGE_HZ[1]),
-    };
-
-    source.connect(replayGain).connect(trim)
-        .connect(tone.low).connect(tone.mid).connect(tone.high)
-        .connect(fade).connect(output);
-
-    // Fed from BEFORE the fade on purpose. The whole point of a throw is that the outgoing track
-    // scatters instead of stopping, so what is thrown has to survive the curve that is removing it.
-    const send = context.createGain();
-    send.gain.value = 0;
-    const delay = context.createDelay(2);
-    delay.delayTime.value = DEFAULT_THROW_DELAY_SEC;
-    const feedback = context.createGain();
-    feedback.gain.value = THROW_FEEDBACK;
-    tone.high.connect(send).connect(delay).connect(output);
-    delay.connect(feedback).connect(delay);
-
-    // Tapped off replayGain: the reading has to include the track's own loudness compensation and
-    // exclude our trim, or the balance correction would be measuring its own effect.
+    source.connect(replayGain).connect(trim);
+    fade.connect(output);
+    const processing = createDeckProcessing(context, trim, fade, replayGain, output, processingEnabled);
     return {
-        source,
-        replayGain,
-        trim,
-        tone,
-        fade,
-        throw: { send, delay, feedback },
-        analyser: createDeckAnalyser(context, replayGain, output),
-        output,
+        source, replayGain, trim, fade, output,
+        get tone() { return processing.tone; },
+        get throw() { return processing.echo; },
+        analyser: processing.analyser,
+        setProcessingEnabled: processing.setEnabled,
     };
 };
 

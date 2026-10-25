@@ -29,7 +29,7 @@ export type AudioEffectChain = {
 };
 
 // Creates the effect chain between two existing nodes and returns a handle for later updates.
-export const createAudioEffectChain = ({
+const createActiveAudioEffectChain = ({
     context,
     input,
     output,
@@ -120,4 +120,28 @@ export const createAudioEffectChain = ({
             disconnectAudioEffectNodes(nodes, input);
         },
     };
+};
+
+
+/** Disabled/neutral effects allocate no DSP nodes, curves, delay buffers or generators. */
+export const createAudioEffectChain = (options: CreateAudioEffectChainParams): AudioEffectChain => {
+    let active: AudioEffectChain | null = null;
+    let direct = true;
+    options.input.connect(options.output);
+    const apply = (effects: AudioEffectSettings, enabled: boolean) => {
+        const needed = enabled && !isNeutralAudioEffects(normalizeAudioEffects(effects));
+        if (!needed) {
+            if (active) { active.dispose(); active = null; }
+            if (!direct) { options.input.connect(options.output); direct = true; }
+        } else {
+            if (direct) { options.input.disconnect(options.output); direct = false; }
+            if (!active) active = createActiveAudioEffectChain({ ...options, effects, enabled: true });
+            else active.apply(effects, true);
+        }
+    };
+    apply(options.effects, options.enabled);
+    return { apply, dispose: () => {
+        active?.dispose(); active = null;
+        if (direct) { options.input.disconnect(options.output); direct = false; }
+    } };
 };

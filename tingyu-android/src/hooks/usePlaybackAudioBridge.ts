@@ -1,3 +1,5 @@
+import { isAndroidNativeRuntime } from '../utils/platform';
+import { useRearRuntimeStore } from '../stores/useRearRuntimeStore';
 import { useCallback, useEffect, useRef } from 'react';
 import type { MutableRefObject, RefObject } from 'react';
 import { PlayerState } from '../types';
@@ -5,9 +7,7 @@ import type { ReplayGainInfo, ReplayGainMode, SongResult, StatusMessage } from '
 import type { LocalSong } from '../types';
 import { resolveNavidromePlaybackCarrier } from '../utils/appPlaybackGuards';
 import { calculateReplayGain } from '../utils/replayGain';
-import { applyAudioEqualizerSettings } from '../services/audioEqualizerGraph';
-import { type AudioEffectChain } from '../services/audioEffects/effectChain';
-import { buildPlaybackGraph } from '../services/playbackGraph';
+import { buildPlaybackGraph, type PlaybackGraph } from '../services/playbackGraph';
 import { cachePlayedTrackAssets } from '../services/playedTrackCache';
 import { registerPlaybackFadeGraph } from '../services/playbackFade';
 import { rampGain, type AutomixDeckChain } from '../services/automix/crossfadeGraph';
@@ -21,6 +21,12 @@ import { useAppViewStore } from '../stores/useAppViewStore';
 import { noteAudioContext } from '../utils/mediaDiagnostics';
 
 // src/hooks/usePlaybackAudioBridge.ts
+
+const needsPlaybackAnalysis = () => {
+    const rear = useRearRuntimeStore.getState();
+    return !isAndroidNativeRuntime() || (usePlaybackStore.getState().playerState === PlayerState.PLAYING
+        && ((!document.hidden && useAppViewStore.getState().view === 'player') || (rear.enabled && !rear.sleeping)));
+};
 
 type UsePlaybackAudioBridgeParams = {
 
@@ -75,7 +81,11 @@ export function usePlaybackAudioBridge({
     const previousAudioSrcRef = useRef<string | null>(null);
     const replayGainLogSignatureRef = useRef<string | null>(null);
     const equalizerNodesRef = useRef<BiquadFilterNode[]>([]);
-    const effectChainRef = useRef<AudioEffectChain | null>(null);
+    const graphRef = useRef<PlaybackGraph | null>(null);
+    const view = useAppViewStore(state => state.view);
+    const playing = usePlaybackStore(state => state.playerState) === PlayerState.PLAYING;
+    const rearAwake = useRearRuntimeStore(state => state.enabled && !state.sleeping);
+
     const audioEqualizerSettings = useAudioSettingsStore(state => state.audioEqualizerSettings);
 
     // Recalculates source-specific gain after the audio graph or playback settings become ready.
@@ -150,18 +160,20 @@ export function usePlaybackAudioBridge({
             analyser.smoothingTimeConstant = 0.6;
             analyserRef.current = analyser;
 
-            const { gainNode, fadeNode, effectChain, decksConnected } = buildPlaybackGraph({
+            const graph = buildPlaybackGraph({
                 context: ctx,
                 analyser,
                 connectDecks,
                 equalizerNodesRef,
                 settings: audioEqualizerSettings,
+                analysisEnabled: needsPlaybackAnalysis(),
             });
+            graphRef.current = graph;
+            const { gainNode, fadeNode, decksConnected } = graph;
             gainNodeRef.current = gainNode;
             // Hands the transport its own fade node; until this runs (or if setup fails) pause and
             // resume see no graph and fall back to plain element pause/play.
             registerPlaybackFadeGraph({ context: ctx, gain: fadeNode });
-            effectChainRef.current = effectChain;
             if (!decksConnected) {
                 console.warn('[AudioContext] Deck setup incomplete, automix will stay idle');
             }
@@ -220,16 +232,22 @@ export function usePlaybackAudioBridge({
 
     useEffect(() => {
         const context = audioContextRef.current;
-        if (!context || equalizerNodesRef.current.length === 0) {
+        if (!context || !graphRef.current) {
             return;
         }
-        applyAudioEqualizerSettings(context, equalizerNodesRef.current, audioEqualizerSettings);
-        effectChainRef.current?.apply(audioEqualizerSettings.effects, audioEqualizerSettings.enabled);
+        graphRef.current.equalizer.apply(audioEqualizerSettings);
+        graphRef.current.effectChain.apply(audioEqualizerSettings.effects, audioEqualizerSettings.enabled);
     }, [audioContextRef, audioEqualizerSettings]);
 
+    useEffect(() => {
+        const update = () => graphRef.current?.setAnalysisEnabled(needsPlaybackAnalysis());
+        update(); document.addEventListener('visibilitychange', update);
+        return () => document.removeEventListener('visibilitychange', update);
+    }, [view, rearAwake, playing]);
+
     useEffect(() => () => {
-        effectChainRef.current?.dispose();
-        effectChainRef.current = null;
+        graphRef.current?.dispose();
+        graphRef.current = null;
     }, []);
 
     useEffect(() => {

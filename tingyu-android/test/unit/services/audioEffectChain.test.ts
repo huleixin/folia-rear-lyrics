@@ -26,7 +26,7 @@ const createFakeContext = () => {
         convolvers: [] as unknown[],
         bufferSources: [] as Array<{ start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn> }>,
         oscillators: [] as Array<{ start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn> }>,
-        gains: [] as Array<{ gain: ReturnType<typeof createParam> }>,
+        gains: [] as Array<{ gain: ReturnType<typeof createParam>; disconnect: ReturnType<typeof vi.fn> }>,
     };
 
     const context = {
@@ -89,7 +89,8 @@ describe('audio effect chain', () => {
         expect(created.bufferSources).toHaveLength(0);
         expect(created.oscillators).toHaveLength(0);
         expect(input.connect).toHaveBeenCalledWith(output);
-        expect(input.disconnect).toHaveBeenCalled();
+        expect(input.disconnect).not.toHaveBeenCalled();
+        expect(created.gains).toHaveLength(0);
     });
 
     it('allocates reverb, noise and modulation only once the preset asks for them', () => {
@@ -116,11 +117,28 @@ describe('audio effect chain', () => {
 
         chain.apply(AUDIO_SOUND_PRESETS.radio.effects, false);
 
-        // A disabled chain falls back to the neutral set, so the mid/side cross feed goes silent again.
-        expect(created.gains.some(node => node.gain.value === expectedCross)).toBe(false);
-        expect(created.gains.filter(node => node.gain.value === 1).length).toBeGreaterThanOrEqual(4);
+        // Disabled processing now disconnects the entire chain instead of retaining neutral DSP.
+        // Old nodes may keep their parameter values, but none of their output edges may survive.
+        created.gains.forEach(node => expect(node.disconnect).toHaveBeenCalled());
         expect(input.connect).toHaveBeenCalledWith(output);
         expect(input.disconnect).toHaveBeenCalled();
+    });
+
+    it('allocates nothing when disabled and releases/recreates optional generators on demand', () => {
+        const { chain, created, input, output } = createChain(AUDIO_SOUND_PRESETS.lofi.effects, false);
+        expect(created.gains).toHaveLength(0);
+        expect(created.bufferSources).toHaveLength(0);
+        chain.apply(AUDIO_SOUND_PRESETS.lofi.effects, true);
+        chain.apply(AUDIO_SOUND_PRESETS.lofi.effects, false);
+        expect(created.bufferSources[0].stop).toHaveBeenCalledOnce();
+        created.oscillators.forEach(node => expect(node.stop).toHaveBeenCalledOnce());
+        expect(input.connect).toHaveBeenLastCalledWith(output);
+        chain.apply(AUDIO_SOUND_PRESETS.lofi.effects, true);
+        expect(created.bufferSources).toHaveLength(2);
+        expect(created.oscillators).toHaveLength(4);
+        chain.dispose();
+        created.bufferSources.forEach(node => expect(node.stop).toHaveBeenCalledOnce());
+        created.oscillators.forEach(node => expect(node.stop).toHaveBeenCalledOnce());
     });
 
     it('releases the noise source and oscillators on dispose', () => {

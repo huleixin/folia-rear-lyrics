@@ -16,7 +16,7 @@ const resolveFilterFrequency = (context: AudioContext, frequency: number) => (
     Math.min(frequency, context.sampleRate * 0.475)
 );
 
-// Creates one stable ten-filter chain for the lifetime of the MediaElementAudioSourceNode.
+// Allocates EQ only when non-flat EQ is requested; inactive filters are disconnected.
 export const connectAudioEqualizerGraph = ({
     context,
     input,
@@ -24,24 +24,46 @@ export const connectAudioEqualizerGraph = ({
     nodesRef,
     settings,
 }: ConnectAudioEqualizerGraphParams) => {
-    const nodes = AUDIO_EQUALIZER_BANDS.map((band, index) => {
-        const filter = context.createBiquadFilter();
-        filter.type = index === 0
-            ? 'lowshelf'
-            : index === AUDIO_EQUALIZER_BANDS.length - 1
-                ? 'highshelf'
-                : 'peaking';
-        filter.frequency.value = resolveFilterFrequency(context, band.frequency);
-        filter.Q.value = 1.4;
-        filter.gain.value = settings.enabled ? settings.gains[index] : 0;
-        return filter;
-    });
-
-    nodes.reduce<AudioNode>((previousNode, filter) => {
-        previousNode.connect(filter);
-        return filter;
-    }, input).connect(output);
-    nodesRef.current = nodes;
+    let nodes: BiquadFilterNode[] = [], connected = false;
+    let bypassTimer: ReturnType<typeof setTimeout> | undefined;
+    input.connect(output);
+    const apply = (next: AudioEqualizerSettings) => {
+        clearTimeout(bypassTimer); bypassTimer = undefined;
+        // Flat/disabled EQ should be a wire, not ten nominally neutral DSP stages.
+        const needed = next.enabled && next.gains.some(gain => gain !== 0);
+        if (needed && nodes.length === 0) {
+            nodes = AUDIO_EQUALIZER_BANDS.map((band, index) => {
+                const filter = context.createBiquadFilter();
+                filter.type = index === 0 ? 'lowshelf' : index === AUDIO_EQUALIZER_BANDS.length - 1 ? 'highshelf' : 'peaking';
+                filter.frequency.value = resolveFilterFrequency(context, band.frequency);
+                filter.Q.value = 1.4;
+                filter.gain.value = 0;
+                return filter;
+            });
+            nodesRef.current = nodes;
+        }
+        applyAudioEqualizerSettings(context, nodes, next);
+        if (needed === connected) return;
+        if (needed) {
+            input.disconnect(output);
+            nodes.reduce<AudioNode>((previous, node) => { previous.connect(node); return node; }, input).connect(output);
+            connected = true;
+        } else {
+            // Let the 15ms gain smoothing settle before taking filters out of the live route.
+            // A quick reversal cancels this one-shot; no timer survives the disabled steady state.
+            bypassTimer = setTimeout(() => {
+                input.disconnect(nodes[0]); nodes.forEach(node => node.disconnect());
+                input.connect(output); connected = false; bypassTimer = undefined;
+            }, 150);
+        }
+    };
+    apply(settings);
+    return { apply, dispose: () => {
+        clearTimeout(bypassTimer);
+        input.disconnect(connected ? nodes[0] : output);
+        nodes.forEach(node => node.disconnect());
+        nodesRef.current = [];
+    } };
 };
 
 // Smoothly applies discrete slider commits while keeping React out of the audio processing loop.
