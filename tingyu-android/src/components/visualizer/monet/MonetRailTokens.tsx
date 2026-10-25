@@ -194,7 +194,7 @@ const MonetWordSweep: React.FC<{
 
         return (
             <span className="relative inline-block whitespace-pre-wrap break-words">
-                <motion.span style={{ color: resolvedBaseColor, textShadow: glowShadow }}>
+                <motion.span data-monet-original style={{ color: resolvedBaseColor, textShadow: glowShadow }}>
                     {text}
                 </motion.span>
                 {isLineActive ? (

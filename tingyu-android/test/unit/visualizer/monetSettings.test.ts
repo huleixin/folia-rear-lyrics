@@ -13,6 +13,7 @@ import { resolveMonetWordColor } from '@/components/visualizer/monet/monetRailLa
 import { buildMonetDisplayTokens, resolveMonetLyricContext } from '@/components/visualizer/monet/VisualizerMonet';
 import { buildMonetVisibleLineEntries, measureMonetLineLayout, resolveMonetSweepEdgeSoftness, resolveMonetSweepEnd } from '@/components/visualizer/monet/monetLyricsModel';
 import { colorWithAlpha, mixColors, parseColorChannels } from '@/components/visualizer/colorMix';
+import { clampMonetRearLineY, resolveMonetRearTypography } from '@/components/visualizer/monet/monetRearLayout';
 import { buildWordColorRanges, prepareWordColorMatchers, resolveTokenColorMap } from '@/components/visualizer/wordColoring';
 import { resolveStoredLatentBackgroundTuning, resolveStoredMonetBackgroundTuning, resolveStoredMonetTuning, resolveStoredNomandBackgroundTuning, resolveVisualizerBackgroundMode } from '@/stores/visualizerSettingsPersistence';
 
@@ -48,6 +49,40 @@ vi.mock('@chenglou/pretext/rich-inline', () => ({
 }));
 
 describe('Monet tuning and lyric helpers', () => {
+    it('keeps a newly sung rear block visible throughout its scrolling and scale transition', () => {
+        for (const scale of [.72, .9, 1]) for (const incomingY of [-30, 70, 190, 300]) {
+            const y = clampMonetRearLineY(incomingY, scale, 90, 198);
+            expect(y).toBeGreaterThanOrEqual(3);
+            expect(y + 90 * scale).toBeLessThanOrEqual(195);
+        }
+        expect(clampMonetRearLineY(70, 1, 90, 198)).toBe(70);
+    });
+
+    it('keeps a short rear lyric readable at the real panel size', () => {
+        const safe = { left: 104, top: 5, width: 238, height: 202 };
+        const line = { fullText: '谎言还在回旋', startTime: 0, endTime: 8, words: [] } as Line;
+        const result = resolveMonetRearTypography(line, safe, 1, 1, {
+            fontStack: 'sans-serif', translationFontStack: 'sans-serif', fontWeight: 600,
+            translationFontWeight: 500, secondaryTranslationFontWeight: 400, subtitleContentMode: 'both',
+        });
+        expect(result.lyricFontPx).toBeCloseTo(21.21);
+        expect(result.inactiveFontPx).toBeLessThan(result.lyricFontPx);
+    });
+
+    it('fits the full wrapped rear paragraph instead of relying on the desktop row cap', () => {
+        const safe = { left: 104, top: 5, width: 238, height: 202 };
+        const line = { fullText: '我'.repeat(160), startTime: 0, endTime: 8, words: [] } as Line;
+        const fonts = { fontStack: 'sans-serif', translationFontStack: 'sans-serif', fontWeight: 600,
+            translationFontWeight: 500, secondaryTranslationFontWeight: 400, subtitleContentMode: 'none' as const };
+        const result = resolveMonetRearTypography(line, safe, 1.5, 1, fonts);
+        const layout = measureMonetLineLayout({ line, status: 'active', ...fonts,
+            fontPx: result.lyricFontPx, translationFontPx: result.translationFontPx, maxWidthPx: safe.width - 8 });
+        const bodyHeight = layout.textLineCount * layout.lineHeightPx + layout.textPaddingTopPx + layout.textPaddingBottomPx;
+        expect(bodyHeight).toBeLessThanOrEqual(safe.height * .8);
+        expect(result.lyricFontPx).toBeGreaterThan(8);
+        expect(result.lyricFontPx).toBeLessThan(21.21 * 1.5);
+    });
+
     it('keeps bright wash targets bright in daylight themes instead of pulling them toward dark text color', () => {
         const washColor = resolveWashColor(
             0.95,

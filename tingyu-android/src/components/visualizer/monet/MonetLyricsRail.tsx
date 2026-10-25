@@ -9,6 +9,7 @@ import { MONET_RAIL_BASE_MAX_HEIGHT_PX, MONET_RAIL_BASE_MAX_WIDTH_PX, clearMonet
 import { MONET_RAIL_MIN_ROWS, MONET_RAIL_SCROLL_EVENT_OPTIONS, MONET_SCROLL_IDLE_RESET_MS, MONET_SCROLL_STEP_PX, MONET_TOUCH_STEP_PX, type MonetLayoutCache, buildPositionedEntries, buildScrollableRailEntries, clamp, clampScrollSteps, getScrollDirection } from './monetRailLayout';
 import { useMonetRailSize } from './useMonetRailSize';
 import { MonetRailLine } from './MonetRailLine';
+import type { RearRect } from '../../../utils/rearCameraSafeArea';
 
 // src/components/visualizer/monet/MonetLyricsRail.tsx
 // Renders Monet lyrics on fixed transform tracks so scrolling stays smooth without layout reflow jumps.
@@ -35,6 +36,7 @@ interface MonetLyricsRailProps {
     seekDisabled?: boolean;
     /** Shared large-screen factor. Owned by VisualizerMonet so the column and the font scale together. */
     layoutScale?: number;
+    rearFrame?: RearRect;
 }
 
 const MonetLyricsRail: React.FC<MonetLyricsRailProps> = ({
@@ -57,6 +59,7 @@ const MonetLyricsRail: React.FC<MonetLyricsRailProps> = ({
     onLyricLineSeek,
     seekDisabled = false,
     layoutScale = 1,
+    rearFrame,
 }) => {
     const railRef = useRef<HTMLDivElement | null>(null);
     const layoutCacheRef = useRef<MonetLayoutCache>(new Map());
@@ -67,11 +70,14 @@ const MonetLyricsRail: React.FC<MonetLyricsRailProps> = ({
     const touchAccumulatorRef = useRef(0);
     const touchDirectionRef = useRef(0);
     const [manualScrollAnchorIndex, setManualScrollAnchorIndex] = useState<number | null>(null);
-    const railSize = useMonetRailSize(railRef);
+    const measuredRailSize = useMonetRailSize(railRef);
     const fontsEpoch = useFontsEpoch();
     const handledFontsEpochRef = useRef(0);
     const glowBufferPx = Math.round(lyricFontPx * 1.2);
     const vGlowBufferPx = Math.round(lyricFontPx * 1.2);
+    const railSize = useMemo(() => rearFrame
+        ? { width: rearFrame.width + glowBufferPx * 2, height: rearFrame.height } : measuredRailSize,
+        [rearFrame?.width, rearFrame?.height, glowBufferPx, measuredRailSize]);
     // Grows with the same factor as the font, so the column-to-font ratio — and the wrapping — holds.
     const railMaxWidthPx = Math.round(MONET_RAIL_BASE_MAX_WIDTH_PX * layoutScale);
     const railMaxHeightPx = Math.round(Math.max(
@@ -276,6 +282,7 @@ const MonetLyricsRail: React.FC<MonetLyricsRailProps> = ({
     return (
         <div
             ref={railRef}
+            data-monet-rail
             className="relative select-none overflow-hidden"
             style={{
                 height: `clamp(280px, 52vh, ${railMaxHeightPx}px)`,
@@ -289,6 +296,9 @@ const MonetLyricsRail: React.FC<MonetLyricsRailProps> = ({
                 WebkitUserSelect: 'none',
                 WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 11%, black 88%, transparent 100%)',
                 maskImage: 'linear-gradient(to bottom, transparent 0%, black 11%, black 88%, transparent 100%)',
+                ...(rearFrame ? { position: 'absolute', left: rearFrame.left, top: rearFrame.top,
+                    width: rearFrame.width + glowBufferPx * 2, maxWidth: 'none', height: rearFrame.height,
+                    overflow: 'visible', WebkitMaskImage: 'none', maskImage: 'none' } : {}),
             }}
         >
             {positionedEntries.length > 0 ? (
@@ -311,6 +321,8 @@ const MonetLyricsRail: React.FC<MonetLyricsRailProps> = ({
                             canSeek={canSeek}
                             disableEntryMotion={isManualScrolling}
                             renderStaticPassed={isManualScrolling && entry.index !== currentLineIndex}
+                            rearPanel={Boolean(rearFrame)}
+                            rearHeight={rearFrame?.height}
                         />
                     ))}
                 </AnimatePresence>

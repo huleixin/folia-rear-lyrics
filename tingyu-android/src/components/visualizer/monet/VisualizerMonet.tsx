@@ -15,6 +15,8 @@ import AudioOverlay from './AudioOverlay';
 import MonetFloatingDecor from './MonetFloatingDecor';
 import MonetLyricsRail from './MonetLyricsRail';
 import MonetPortraitImage from './MonetPortraitImage';
+import MonetRearStage from './MonetRearStage';
+import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 import {
     MONET_PORTRAIT_BASE_MAX_PX,
     MONET_PORTRAIT_INNER_BASE_MAX_PX,
@@ -170,6 +172,8 @@ const VisualizerMonet: React.FC<VisualizerMonetProps> = (props) => {
     const portraitUrl = monetTuning.portraitSource === 'custom'
         ? monetPortraitImage?.url ?? coverUrl
         : coverUrl ?? monetPortraitImage?.url;
+
+    if (getVisualizerSurface()) return <MonetRearStage sharedProps={props} entries={visibleLineEntries} />;
 
     return (
         <VisualizerShell

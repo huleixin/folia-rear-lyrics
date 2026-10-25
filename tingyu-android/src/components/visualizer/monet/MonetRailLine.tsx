@@ -7,6 +7,7 @@ import { type WordColorMatcher } from '../wordColoring';
 import { MONET_SCROLL_TRANSITION, MONET_SUBTITLE_TRACK_STAGGER_S, type PositionedMonetLineEntry } from './monetRailLayout';
 import { composeLineMasks, getClippedTextMask, getEdgeFadeMask, getLineMask } from './monetRailMasks';
 import { MonetTimedTokenSpan } from './MonetRailTokens';
+import { clampMonetRearLineY } from './monetRearLayout';
 
 // src/components/visualizer/monet/MonetRailLine.tsx
 // 歌词栏中的一行：位置、缩放、模糊与副字幕轨，按行状态切换静态或扫字渲染。
@@ -27,8 +28,10 @@ export const MonetRailLine: React.FC<{
     canSeek?: boolean;
     disableEntryMotion?: boolean;
     renderStaticPassed?: boolean;
-}> = ({ entry, currentTime, theme, lyricFontPx, fontStack, translationFontStack, glowBufferPx, vGlowBufferPx, fontsEpoch, wordColorMatchers, audioPower, onLineSeek, canSeek = false, disableEntryMotion = false, renderStaticPassed = false }) => {
-    const initialOffset = entry.offset >= 0 ? 34 : -34;
+    rearPanel?: boolean;
+    rearHeight?: number;
+}> = ({ entry, currentTime, theme, lyricFontPx, fontStack, translationFontStack, glowBufferPx, vGlowBufferPx, fontsEpoch, wordColorMatchers, audioPower, onLineSeek, canSeek = false, disableEntryMotion = false, renderStaticPassed = false, rearPanel = false, rearHeight = 0 }) => {
+    const initialOffset = (entry.offset >= 0 ? 1 : -1) * (rearPanel ? 8 : 34);
     const exitOffset = entry.status === 'passed' || entry.offset < 0 ? -38 : 38;
     // The active lyric must never be truncated, so its box is sized by its own wrapped
     // content instead of the pre-measured height, and it carries no truncation fade.
@@ -58,6 +61,8 @@ export const MonetRailLine: React.FC<{
 
     return (
         <motion.div
+            data-monet-line={entry.index}
+            data-monet-current={isActiveLine ? '' : undefined}
             role={canSeek ? 'button' : undefined}
             tabIndex={canSeek ? 0 : undefined}
             onClick={canSeek ? handleClickSeek : undefined}
@@ -88,6 +93,10 @@ export const MonetRailLine: React.FC<{
                 transition: { duration: 0.2, ease: [0.32, 0.72, 0, 1] },
             }}
             transition={MONET_SCROLL_TRANSITION}
+            transformTemplate={rearPanel && isActiveLine ? latest => {
+                const y = Number.parseFloat(String(latest.y ?? 0)), scale = Number(latest.scale ?? 1);
+                return `translateY(${clampMonetRearLineY(y, scale, entry.layout.visualHeightPx, rearHeight)}px) scale(${scale})`;
+            } : undefined}
             style={{
                 left: `${glowBufferPx}px`,
                 right: `${glowBufferPx}px`,
@@ -112,6 +121,7 @@ export const MonetRailLine: React.FC<{
                 />
             )}
             <div
+                data-monet-body
                 className="min-w-0 overflow-hidden pointer-events-none"
                 style={{
                     marginLeft: `-${glowBufferPx}px`,
