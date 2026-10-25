@@ -1,3 +1,5 @@
+import { getRearSafeInset } from '../../../utils/visualizerSurface';
+import { createTemperaRearFit, type TemperaRearFit } from './temperaRearFit';
 import { resolveVisualizerDimension } from '../../../utils/visualizerSurface';
 import type { TemperaTuning, Theme } from '../../../types';
 import { resolveThemeFontStack, resolveThemeFontWeight } from '../../../utils/fontStacks';
@@ -69,6 +71,7 @@ const createTemperaTextFilter = (
 };
 
 export interface TemperaShotView {
+    rearFit: TemperaRearFit | null;
     shot: TemperaShot;
     container: import('pixi.js').Container;
     glyphs: TemperaGlyphView[];
@@ -566,6 +569,7 @@ export const buildTemperaScene = (
             shot,
             container: shotContainer,
             glyphs,
+            rearFit: getRearSafeInset() ? createTemperaRearFit(pixi, glyphs, shot) : null,
             blocks,
             images,
             baseX: shotContainer.x,

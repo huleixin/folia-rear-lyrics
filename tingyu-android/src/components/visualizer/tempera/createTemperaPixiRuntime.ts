@@ -1,4 +1,6 @@
-import { resolveVisualizerDimension } from '../../../utils/visualizerSurface';
+import type { RearRect } from '../../../utils/rearCameraSafeArea';
+import { resolveSonnetRearReadingArea } from '../sonnet/sonnetRearReadingArea';
+import { getRearSafeInset, resolveVisualizerDimension } from '../../../utils/visualizerSurface';
 import type { MotionValue } from 'framer-motion';
 import type { TemperaTuning, Theme } from '../../../types';
 import {
@@ -107,6 +109,9 @@ export class TemperaPixiRuntime {
         destroy: scene => this.destroyScene(scene),
         detach: scene => this.sceneContainer.removeChild(scene.container),
     });
+    private rearSafe = getRearSafeInset();
+    private subtitleSpace = 0;
+    private rearReadingArea: RearRect | null = null;
     private activeParagraphIndex = -1;
     private destroyed = false;
     private resizeObserver: ResizeObserver | null = null;
@@ -221,6 +226,10 @@ export class TemperaPixiRuntime {
         // its resolution on one call, and the scenes are dropped below anyway.
         this.renderResolution = this.resolveRenderResolution(this.options.tuning);
         this.app.renderer.resize(width, height, this.renderResolution);
+        this.app.canvas.style.width = '100%';
+        this.app.canvas.style.height = '100%';
+        this.rearSafe = getRearSafeInset();
+        this.refreshRearReadingArea();
         // Staged against the old viewport, so its layout no longer fits.
         this.songSwap.dropStaged();
         this.clearScenes();
@@ -322,6 +331,7 @@ export class TemperaPixiRuntime {
         unloadPixiDisplayTree(scene.container);
         scene.container.filters = null;
         scene.shots.forEach(shot => {
+            shot.rearFit?.reset();
             shot.textLayer.filters = null;
         });
         scene.postProcessFilters.forEach(filter => filter.destroy());
@@ -398,6 +408,8 @@ export class TemperaPixiRuntime {
         );
         const hasCredits = this.creditsLayer.hasPoster;
         let wipeDrawn = false;
+        let bounds: RearRect | null = null;
+        const safe = this.rearSafe ? { ...this.rearSafe, height: Math.max(20, this.rearSafe.height - this.subtitleSpace) } : null;
 
         const transitionsEnabled = this.options.tuning.enableTransitions && !this.options.staticMode;
         const outgoingTransition = this.options.program.paragraphs[paragraphIndex]?.transitionOut ?? null;
@@ -448,6 +460,7 @@ export class TemperaPixiRuntime {
             // off to each other directly, which is what makes a paragraph read as one take.
             const transitionFrame = paragraphTransitionFrame;
             scene.shots.forEach((shot, shotIndex) => {
+                shot.rearFit?.reset();
                 // The outgoing shot stays on screen through its hand-off window, so two
                 // compositions overlap exactly while one is pushing the other out.
                 const isShotActive = shotIndex === activeShotIndex;
@@ -472,6 +485,11 @@ export class TemperaPixiRuntime {
             // Attached only while it blurs: a parked filter on this container would take
             // over the lyric inversion's backdrop copy (`temperaSceneFilters.ts`).
             setTemperaTransitionBlur(scene, transitionFrame.blur);
+            if (this.rearReadingArea) for (const shot of scene.shots) {
+                if (!shot.container.visible) continue;
+                const fitted = shot.rearFit?.constrain(time, this.rearReadingArea);
+                if (isActive && fitted) bounds = fitted;
+            }
             if (transitionFrame.wipe > 0.001 && transitionFrame.wipe < 1.999) {
                 this.overlay.drawWipe(
                     transitionFrame.wipe,
@@ -484,6 +502,9 @@ export class TemperaPixiRuntime {
             }
         });
 
+        if (import.meta.env.DEV && this.rearSafe) this.app.canvas.dataset.rearCurrentBounds = JSON.stringify({
+            safe, readingArea: this.rearReadingArea, bounds, time, subtitleSpace: this.subtitleSpace,
+        });
         if (!wipeDrawn) this.overlay.drawWipe(0, 0, width, height, '#000000');
         this.creditsLayer.applyFrame(creditsFrame, hasCredits, time, finalParagraph?.endTime, width, height);
     };
@@ -588,6 +609,7 @@ export class TemperaPixiRuntime {
         const previous = this.options.tuning;
         if (previous === tuning) return;
         this.options.tuning = tuning;
+        this.refreshRearReadingArea();
         // Compared on the snapped value, not the setting: two nearby slider positions can share
         // one pool bucket, and re-pointing the surface at the resolution it already has would
         // reallocate it for nothing. `requiresSceneRebuild` still watches the raw setting, so a
@@ -620,6 +642,20 @@ export class TemperaPixiRuntime {
             }
         }
         if (this.options.paused) this.renderOnce();
+    }
+
+    private refreshRearReadingArea() {
+        if (!this.rearSafe || !this.lastWidth || !this.lastHeight) { this.rearReadingArea = null; return; }
+        const safe = { ...this.rearSafe, height: Math.max(20, this.rearSafe.height - this.subtitleSpace) };
+        this.rearReadingArea = resolveSonnetRearReadingArea(safe, this.lastWidth, this.lastHeight,
+            { ...this.options.tuning, postProcessLensDispersion: 0 }, this.options.staticMode);
+    }
+
+    setSubtitleSpace(height: number) {
+        if (this.destroyed || height === this.subtitleSpace) return;
+        this.subtitleSpace = height;
+        this.refreshRearReadingArea();
+        this.renderOnce();
     }
 
     setPaused(paused: boolean) {

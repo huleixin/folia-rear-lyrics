@@ -4,7 +4,7 @@ import type { RearRect } from '../../../utils/rearCameraSafeArea';
 // src/components/visualizer/sonnet/sonnetRearReadingArea.ts
 // Mirrors the lens shader's output-to-input mapping. Calculate only when layout/settings change.
 export function resolveSonnetRearReadingArea(safe: RearRect, width: number, height: number,
-    tuning: SonnetTuning, staticMode: boolean, horizontalShift = 0): RearRect {
+    tuning: Pick<SonnetTuning, 'postProcessEnabled' | 'postProcessLensDispersion' | 'postProcessRgbShift' | 'postProcessLensDistortion'>, staticMode: boolean, horizontalShift = 0): RearRect {
     if (staticMode || (!tuning.postProcessEnabled && horizontalShift <= 0)) return safe;
     const guard = tuning.postProcessEnabled
         ? 2 + height * .012 * tuning.postProcessLensDispersion + 3 * tuning.postProcessRgbShift : 1;

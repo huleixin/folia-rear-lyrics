@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useRearSubtitleSpace } from '../../../hooks/useRearSubtitleSpace';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DEFAULT_TEMPERA_TUNING } from '../../../types';
 import type { Line } from '../../../types';
@@ -54,6 +55,10 @@ const VisualizerTempera: React.FC<VisualizerSharedProps> = (props) => {
     } = props;
     const { t } = useTranslation();
     const hostRef = useRef<HTMLDivElement>(null);
+    const subtitleRef = useRef<HTMLDivElement>(null);
+    const subtitleSpace = useRearSubtitleSpace(subtitleRef, showText, height => runtimeRef.current?.setSubtitleSpace(height));
+    const subtitleSpaceRef = useRef(subtitleSpace);
+    subtitleSpaceRef.current = subtitleSpace;
     const pausedRef = useRef(paused);
     pausedRef.current = paused;
     const temperaTuningRef = useRef(temperaTuning);
@@ -205,6 +210,7 @@ const VisualizerTempera: React.FC<VisualizerSharedProps> = (props) => {
                 songAlbum: metadata.album,
                 signal,
             });
+            runtime.setSubtitleSpace(subtitleSpaceRef.current);
             runtime.setSongMetadata(latestSongMetadataRef.current);
             // The tuning may have moved on while Pixi was importing or initializing.
             runtime.setTuning(temperaTuningRef.current);
@@ -216,6 +222,10 @@ const VisualizerTempera: React.FC<VisualizerSharedProps> = (props) => {
         destroy: runtime => runtime.destroy(),
         onFailedChange: setRuntimeFailed,
     });
+
+    useLayoutEffect(() => {
+        runtimeRef.current?.setSubtitleSpace(subtitleSpace);
+    }, [subtitleSpace, runtimeRef]);
 
     // Tuning is pushed into the live renderer rather than rebuilding it. A rebuild per pointer
     // move re-initialises WebGL, re-decodes every placed image and re-measures every line.
@@ -266,24 +276,26 @@ const VisualizerTempera: React.FC<VisualizerSharedProps> = (props) => {
                 )}
             </div>
 
-            <VisualizerSubtitleOverlay
-                showText={showText}
-                activeLine={activeLine}
-                recentCompletedLine={creditsRecentCompletedLine}
-                nextLines={nextLines}
-                theme={theme}
-                subtitleTheme={subtitleTheme}
-                translationFontSize={`clamp(${1.05 * lyricsFontScale}rem, ${2.2 * lyricsFontScale}vw, ${1.25 * lyricsFontScale}rem)`}
-                upcomingFontSize={`clamp(${0.9 * lyricsFontScale}rem, ${1.8 * lyricsFontScale}vw, ${1.05 * lyricsFontScale}rem)`}
-                subtitleFontScale={subtitleFontScale}
-                subtitleOverlayOpacity={subtitleOverlayOpacity}
-                subtitleOverlayBackground={subtitleOverlayBackground}
-                subtitleUpcomingLyricsBlur={subtitleUpcomingLyricsBlur}
-                isPlayerChromeHidden={isPlayerChromeHidden}
-                hideTranslationSubtitle={hideTranslationSubtitle}
-                showSubtitleTranslation={showSubtitleTranslation}
-                subtitleContentMode={subtitleContentMode}
-            />
+            <div ref={subtitleRef} className="contents">
+                <VisualizerSubtitleOverlay
+                    showText={showText}
+                    activeLine={activeLine}
+                    recentCompletedLine={creditsRecentCompletedLine}
+                    nextLines={nextLines}
+                    theme={theme}
+                    subtitleTheme={subtitleTheme}
+                    translationFontSize={`clamp(${1.05 * lyricsFontScale}rem, ${2.2 * lyricsFontScale}vw, ${1.25 * lyricsFontScale}rem)`}
+                    upcomingFontSize={`clamp(${0.9 * lyricsFontScale}rem, ${1.8 * lyricsFontScale}vw, ${1.05 * lyricsFontScale}rem)`}
+                    subtitleFontScale={subtitleFontScale}
+                    subtitleOverlayOpacity={subtitleOverlayOpacity}
+                    subtitleOverlayBackground={subtitleOverlayBackground}
+                    subtitleUpcomingLyricsBlur={subtitleUpcomingLyricsBlur}
+                    isPlayerChromeHidden={isPlayerChromeHidden}
+                    hideTranslationSubtitle={hideTranslationSubtitle}
+                    showSubtitleTranslation={showSubtitleTranslation}
+                    subtitleContentMode={subtitleContentMode}
+                />
+            </div>
         </VisualizerShell>
     );
 };
