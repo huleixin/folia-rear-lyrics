@@ -13,6 +13,7 @@ interface PendoloRotatingLineProps {
     fontFamily: string;
     fontWeight: number;
     canSeek: boolean;
+    interactive?: boolean;
     onClick: React.MouseEventHandler<HTMLDivElement>;
     children: React.ReactNode;
 }
@@ -27,6 +28,7 @@ const PendoloRotatingLine: React.FC<PendoloRotatingLineProps> = ({
     fontFamily,
     fontWeight,
     canSeek,
+    interactive = true,
     onClick,
     children,
 }) => {
@@ -44,6 +46,7 @@ const PendoloRotatingLine: React.FC<PendoloRotatingLineProps> = ({
                 opacity,
                 fontFamily,
                 fontWeight,
+                pointerEvents: interactive ? 'auto' : 'none',
             }}
             onClick={onClick}
         >

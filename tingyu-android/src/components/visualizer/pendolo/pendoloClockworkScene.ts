@@ -122,7 +122,7 @@ export const resolvePendoloClockworkAnchors = (layout: PendoloClockworkLayout) =
 };
 
 /** Resolves the furthest clockwork pixel from the wheel centre in CSS pixels. */
-const resolveClockworkReach = (baseRadius: number, hasCenterGradient: boolean) => (
+export const resolveClockworkReach = (baseRadius: number, hasCenterGradient: boolean) => (
     baseRadius * (hasCenterGradient ? 1.65 : 1.4) + 16
 );
 

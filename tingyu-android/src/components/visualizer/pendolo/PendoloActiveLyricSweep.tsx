@@ -84,7 +84,7 @@ const PendoloSweepLine: React.FC<PendoloSweepLineProps> = ({
 
     return (
         <span className="relative block whitespace-pre overflow-visible" style={{ width: `${layoutLine.width}px`, height: `${lineHeight}px` }}>
-            <span style={{ color: colorWithAlpha(primaryTextColor, 0.52) }}>
+            <span data-pendolo-original style={{ color: colorWithAlpha(primaryTextColor, 0.52) }}>
                 {colorRuns.map(run => <span key={run.key}>{run.text}</span>)}
             </span>
             <span
