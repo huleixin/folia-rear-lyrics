@@ -12,27 +12,22 @@ import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
 import { buildColorOsLyricInfo } from '../utils/lyrics/colorOsLyricInfo';
 
 // src/hooks/useColorOsLyricFeed.ts
-// 把当前歌曲与歌词写进 MediaSession 的 MediaMetadata["lyricInfo"]，
-// 让 ColorOS 的原生锁屏 / AOD 歌词页直接消费（装了 Bridge 之后再由它做逐字与样式增强）。
-//
-// 和 Lyricon 那条路最大的差别：**这里不需要任何第三方 App 或 Xposed 模块** ——
-// ColorOS SystemUI 自己认这个键。所以开关不交给用户，只由原生侧的 ROM 探测决定：
-// 不是 ColorOS 16+ 就整条通道不启动。
-//
-// 另一个差别是**不需要喂进度**：SystemUI 从 PlaybackState 自己取时钟往前推，
-// 我们在段内一句话都不说，只在换歌 / 歌词换源时写一次。
+// 沿用历史名称，发布标准 LyricInfo 供 ColorOS 或第三方灵动岛模块消费。
+// 只在换歌、时长/歌词补齐时发布；不启动舞台、不逐帧传输，进度沿用 PlaybackState。
 
 type UseColorOsLyricFeedOptions = {
     lyrics: LyricData | null;
     song: SongResult | null;
     /** 时长（秒）。 */
     duration?: number;
+    timelineOffsetMs?: number;
 };
 
 export const useColorOsLyricFeed = ({
     lyrics,
     song,
     duration,
+    timelineOffsetMs = 0,
 }: UseColorOsLyricFeedOptions): void => {
     const enabled = isCapacitorAndroid();
     const [supported, setSupported] = React.useState(false);
@@ -83,6 +78,7 @@ export const useColorOsLyricFeed = ({
             lines: lyrics.lines,
             isWordByWord: lyrics.isWordByWord === true,
             sessionGeneration: generationRef.current,
+            timelineOffsetMs,
         });
         // 拼不出来（全是空行 / 体积越界）就当没词，别塞个空壳进去。
         if (!built) {
@@ -92,5 +88,5 @@ export const useColorOsLyricFeed = ({
         // songKey 必须一起过去：原生拿它跟当前 metadata 上的歌对齐，
         // 对不上就拒绝 —— 「旧异步结果覆盖新歌」正是协议点名要防的。
         void publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, songKey);
-    }, [active, songKey, song, lyrics, duration]);
+    }, [active, songKey, song, lyrics, duration, timelineOffsetMs]);
 };

@@ -282,10 +282,15 @@ public final class ColorOsLyricBridge {
      */
     private static volatile Payload pending = null;
 
-    public static void setPending(String json, boolean hasTranslation, String songKey) {
+    public static synchronized boolean setPending(String json, boolean hasTranslation, String songKey) {
+        if (json != null && json.length() > 200000) throw new IllegalArgumentException("LyricInfo too large");
+        Payload previous = pending;
+        if (previous != null && java.util.Objects.equals(previous.json, json)
+                && java.util.Objects.equals(previous.songKey, songKey) && previous.hasTranslation == hasTranslation) return false;
         pending = (json == null || json.isEmpty())
                 ? null
                 : new Payload(json, hasTranslation, songKey);
+        return previous != null || pending != null;
     }
 
     public static void clear() {

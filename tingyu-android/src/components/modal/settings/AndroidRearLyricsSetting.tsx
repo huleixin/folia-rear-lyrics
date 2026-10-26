@@ -5,6 +5,7 @@ import SettingsSectionHeading from './navigation/SettingsSectionHeading';
 import { rearSettingsCanToggle, rearSettingsHint, rearSettingsState } from './rearLyricsSettingsModel';
 import { useRearLyricsSettings } from './useRearLyricsSettings';
 import RearLyricsGuide from './RearLyricsGuide';
+import RearBridgeSettings from './RearBridgeSettings';
 import rearDecoration from '../../../../assets/tingyu/xiaomi-backscreen-decoration.webp';
 
 // src/components/modal/settings/AndroidRearLyricsSetting.tsx
@@ -60,6 +61,7 @@ export default function AndroidRearLyricsSetting({ isDaylight, settingsCardClass
                 {failed && <button type="button" className="ty-settings-text-action" onClick={() => void refresh()}>{t('mobileSettings.retryDetection')}</button>}
             </div>
             {(hint || actionFailed) && <p className="ty-settings-inline-status" role="status">{hint ? t(hint) : t('mobileSettings.rearActionFailed')}</p>}
+            <RearBridgeSettings snapshot={snapshot} refresh={refresh} />
             <button type="button" className={compact ? 'ty-settings-row ty-rear-guide-link' : 'flex items-center gap-3 mt-4 w-full text-left'}
                 onClick={() => onOpenGuide ? onOpenGuide() : setShowGuide(value => !value)} aria-expanded={onOpenGuide ? undefined : showGuide}>
                 <span className="ty-setting-symbol"><Info size={20} /></span>

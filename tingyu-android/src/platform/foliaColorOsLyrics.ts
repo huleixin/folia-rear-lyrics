@@ -1,15 +1,9 @@
 import { registerPlugin } from '@capacitor/core';
 
 // src/platform/foliaColorOsLyrics.ts
-// ColorOS 原生锁屏歌词的 Web 侧入口。原生实现见 android/.../coloros/ColorOsLyricBridge。
-//
-// 与状态栏歌词（Lyricon）不是一回事：
-//   Lyricon        → 推给第三方中心服务，渲染在**状态栏**。
-//   ColorOS 歌词   → 写进我们自己 MediaSession 的 MediaMetadata["lyricInfo"]，
-//                    由**系统锁屏 / AOD 歌词页**原生渲染，Bridge 只是可选增强。
-//
-// 是否启用**完全由原生判定**：只有真机探测为 ColorOS 16+ 才返回 supported=true。
-// 用户没有手动开关 —— 不是那台机器就当这条路不存在。
+// 历史插件名保持兼容；LyricInfo 现在发布到所有 Android ROM 的同一个 MediaSession。
+// ColorOS 可原生消费，HyperOS 灵动岛等界面需另装支持 LyricInfo 的显示模块。
+// supported 只代表播放器支持发布，不代表系统已安装接收模块或已显示歌词。
 
 export interface ColorOsLyricsSupport {
     supported: boolean;

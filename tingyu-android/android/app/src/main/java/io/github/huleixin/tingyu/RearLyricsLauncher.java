@@ -30,7 +30,7 @@ final class RearLyricsLauncher {
         if (starting) { callback.failure("背屏歌词正在启动，请稍候", null); return; }
         starting = true;
         boolean locked = isLocked(context);
-        boolean reuse = (!locked || RearLyricsCoordinator.get(context).preserveSleepSession())
+        boolean reuse = (!locked || LspRearBridge.selected(context) || RearLyricsCoordinator.get(context).preserveSleepSession())
             && RearLyricsActivity.attachedWindowOnDisplay(rearDisplayId) != null;
         // HyperOS rejects third-party direct rear launches while locked, including an existing task.
         // Recreate only the native host and stage it transparently; Chromium starts after migration.
@@ -47,7 +47,7 @@ final class RearLyricsLauncher {
         try {
             boolean locked = isLocked(context);
             boolean shown = false;
-            if (!locked || reuse) {
+            if (!locked || reuse || LspRearBridge.selected(context)) {
                 command(shell, ShellUserService.TRANSACTION_START, rear, session, -1, "Direct launch", trace);
                 command(shell, ShellUserService.TRANSACTION_WAKE, rear, session, -1, "Wake rear", trace);
                 shown = awaitWindow(context, session, rear, 8000, true);

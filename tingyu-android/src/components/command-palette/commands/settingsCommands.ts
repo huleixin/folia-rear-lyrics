@@ -14,12 +14,20 @@ import { reduceMotionSurface } from '../surfaces/reduceMotionSurface';
 import { librarySuitePickerSurface } from '../surfaces/librarySuitePickerSurface';
 import { libraryWallLookCommands } from './libraryWallLookCommands';
 import { openCurrentPagePonder } from '../../../services/ponder/pagePonderTarget';
-import { canUseRearLyrics, toggleRearLyrics, toggleRearCoverSleep } from '../../../services/rearLyricsControl';
+import { canUseRearLyrics, toggleRearLyrics, toggleRearCoverSleep, setRearLyricsBackend } from '../../../services/rearLyricsControl';
 
 // src/components/command-palette/commands/settingsCommands.ts
 // Commands in the `settings` group: settings subviews, app toggles, theme, sync, and desktop-only switches.
 
 export const settingsCommands: CommandPaletteCommand[] = [
+    ...(['lsp', 'shizuku'] as const).map(mode => defineCommand({
+        id: `rear-backend-${mode}`, group: 'settings' as const,
+        title: mode === 'lsp' ? 'Use LSP rear mode' : 'Use Shizuku rear mode',
+        description: 'Close rear lyrics before switching the control backend',
+        keywords: ['rear backend', '背屏模式', mode === 'lsp' ? '框架模式' : '无线调试模式'],
+        isAvailable: canUseRearLyrics,
+        execute: () => setRearLyricsBackend(mode),
+    })),
     defineCommand({
         id: 'rear-cover-sleep-toggle', group: 'settings', title: 'Rear cover to sleep',
         description: 'Toggle rear-screen cover and tabletop power saving',

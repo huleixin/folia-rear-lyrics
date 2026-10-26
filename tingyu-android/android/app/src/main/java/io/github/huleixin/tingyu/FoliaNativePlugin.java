@@ -773,6 +773,10 @@ public class FoliaNativePlugin extends Plugin {
     @PluginMethod
     public void getRearLyricsStatus(PluginCall call) {
         JSObject result = new JSObject();
+        if (LspRearBridge.selected(getContext())) LspRearBridge.request(getContext());
+        result.put("backendMode", LspRearBridge.selected(getContext()) ? "lsp" : "shizuku");
+        result.put("lspConnected", LspRearBridge.get() != null);
+        result.put("lspDetail", LspRearBridge.detail());
         result.put("shizukuAvailable", Shizuku.pingBinder());
         result.put("authorized", Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED);
         RearLyricsCoordinator coordinator = RearLyricsCoordinator.get(getContext());
@@ -811,12 +815,26 @@ public class FoliaNativePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void setRearLyricsBackend(PluginCall call) {
+        String mode = call.getString("mode");
+        if (!"lsp".equals(mode) && !"shizuku".equals(mode)) { call.reject("未知背屏模式"); return; }
+        RearLyricsCoordinator coordinator = RearLyricsCoordinator.get(getContext());
+        if (!coordinator.canChangeBackend()) { call.reject("请先关闭背屏歌词，等待背屏电源恢复后再切换模式"); return; }
+        getContext().getSharedPreferences("rear_lyrics", 0).edit().putString("backend", mode).apply();
+        coordinator.backendChanged();
+        if ("lsp".equals(mode)) LspRearBridge.request(getContext());
+        call.resolve();
+    }
+
+    @PluginMethod
     public void startRearLyrics(PluginCall call) {
-        if (!Shizuku.pingBinder()) {
+        boolean lsp = LspRearBridge.selected(getContext());
+        if (lsp) LspRearBridge.request(getContext());
+        if (!lsp && !Shizuku.pingBinder()) {
             call.reject("请先启动 Shizuku，再回到听屿 重试");
             return;
         }
-        if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
+        if (!lsp && Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
             Shizuku.requestPermission(SHIZUKU_REQUEST_CODE);
             call.reject("已向 Shizuku 请求 听屿授权；授权后请再点一次");
             return;

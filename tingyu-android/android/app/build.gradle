@@ -57,12 +57,14 @@ android {
 }
 
 repositories {
+    maven { url 'https://api.xposed.info/' }
     flatDir{
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
     }
 }
 
 dependencies {
+    compileOnly 'de.robv.android.xposed:api:82'
     implementation 'com.github.Dimezis:BlurView:version-4.0.0'
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"

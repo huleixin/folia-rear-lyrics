@@ -21,6 +21,7 @@ export function rearSettingsCanToggle(snapshot: RearLyricsStatus | null, busy: b
 
 export function rearSettingsHint(snapshot: RearLyricsStatus | null): string | null {
     if (!snapshot || (snapshot.rearDisplayId ?? -1) < 0) return null;
+    if (snapshot.backendMode === 'lsp') return snapshot.lspConnected ? null : 'rearBridge.waiting';
     if (!snapshot.shizukuAvailable) return 'options.rearLyricsStartShizuku';
     if (!snapshot.authorized) return 'options.rearLyricsAuthorize';
     return null;
@@ -29,5 +30,6 @@ export function rearSettingsHint(snapshot: RearLyricsStatus | null): string | nu
 /** Native diagnostics include timestamps; they must not invalidate the whole card each poll. */
 export function rearSettingsFingerprint(snapshot: RearLyricsStatus): string {
     return JSON.stringify([snapshot.enabled, snapshot.active, snapshot.starting, snapshot.rearDisplayId,
-        snapshot.shizukuAvailable, snapshot.authorized, snapshot.build, snapshot.sleeping]);
+        snapshot.shizukuAvailable, snapshot.authorized, snapshot.build, snapshot.sleeping,
+        snapshot.backendMode, snapshot.lspConnected, snapshot.lspDetail]);
 }

@@ -7,25 +7,22 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 /**
- * ColorOS 原生锁屏歌词的 Web 侧入口。
+ * 标准 LyricInfo 的 Web 侧入口；保留 ColorOS 历史插件名以兼容已有调用。
  *
  * 与状态栏歌词（Lyricon）同一套路：换歌时把整条时间轴交过去，播放中一句话都不说。
- * 判定在原生侧做（要读 ROM 属性），Web 层只问一句「支不支持」再决定推不推。
+ * 所有 Android ROM 均可发布；消费端能力和 ColorOS 专属翻译动作另行判断。
  */
 @CapacitorPlugin(name = "FoliaColorOsLyrics")
 public class FoliaColorOsLyricsPlugin extends Plugin {
 
-    /**
-     * 这台机器要不要走 ColorOS 原生歌词通道。
-     *
-     * 不是「万能开关」：只有真机判定为 ColorOS 16+ 才返回 true，Web 层据此决定
-     * 这条路走不走。用户没有手动开关 —— 判定不通过就当这条路不存在。
-     */
+    /** LyricInfo 发布能力，与是否安装显示模块、ROM 是否自带消费端分开判断。 */
     @PluginMethod
     public void isSupported(PluginCall call) {
         ColorOsLyricBridge.Detection detection = ColorOsLyricBridge.detect();
         JSObject result = new JSObject();
-        result.put("supported", detection.supported);
+        // LyricInfo is MediaSession metadata, independent of the display consumer or ROM.
+        result.put("supported", true);
+        result.put("nativeColorOs", detection.supported);
         result.put("colorOsMajor", detection.colorOsMajor);
         result.put("detail", detection.detail);
         call.resolve(result);
@@ -40,13 +37,14 @@ public class FoliaColorOsLyricsPlugin extends Plugin {
     @PluginMethod
     public void publish(PluginCall call) {
         String lyricInfo = call.getString("lyricInfo");
+        if (lyricInfo != null && lyricInfo.length() > 200000) { call.reject("LyricInfo payload too large"); return; }
         Boolean hasTranslation = call.getBoolean("hasTranslation");
         String songKey = call.getString("songKey");
-        ColorOsLyricBridge.setPending(
+        boolean changed = ColorOsLyricBridge.setPending(
                 lyricInfo,
                 hasTranslation != null && hasTranslation,
                 songKey);
-        ColorOsLyricBridge.requestRefresh(getContext());
+        if (changed) ColorOsLyricBridge.requestRefresh(getContext());
         JSObject result = new JSObject();
         result.put("ok", lyricInfo != null && !lyricInfo.isEmpty());
         call.resolve(result);

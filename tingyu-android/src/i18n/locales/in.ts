@@ -1,6 +1,16 @@
 
 
 export default {
+  "rearBridge": {
+    "help": "Panduan LSP dan lirik pulau",
+    "mode": "Mode kontrol layar belakang",
+    "switchHint": "Tutup lirik belakang sebelum mengganti mode. Kedua mode memakai tata letak aman kamera yang sama.",
+    "connected": "Jembatan sistem LSP tersambung; tampilan tetap perlu diverifikasi.",
+    "waiting": "Aktifkan modul Tingyu di pengelola LSP, pilih System Framework, lalu mulai ulang.",
+    "setup": "Memerlukan LSPosed / Vector dengan API Xposed lama. Tidak perlu cakupan SystemUI.",
+    "lyricInfo": "LyricInfo menyediakan lirik melalui sesi media. Lirik pulau memerlukan modul tampilan terpisah yang mendukung LyricInfo; layar belakang boleh mati.",
+    "failed": "Gagal mengganti mode. Tutup lirik belakang dan tunggu daya layar pulih."
+},
   "mobileSettings": { "playbackStartup": "Pemutaran saat mulai", "playerDisplay": "Tampilan pemutar" },
   "libraryBravais": {
     "suiteName": "Dinding Bravais",
@@ -599,6 +609,8 @@ export default {
     "commands": {
       "playback-shuffle-mode": { "title": "Pemutaran acak", "description": "Putar secara acak tanpa mengubah urutan daftar lagu" },
       "rear-cover-sleep-toggle": { "title": "Tidur saat layar belakang tertutup", "description": "Alihkan hemat daya layar belakang saat tertutup atau diletakkan terbalik" },
+      "rear-backend-lsp": {"title": "Gunakan mode LSP", "description": "Tutup lirik belakang lalu gunakan kerangka"},
+      "rear-backend-shizuku": {"title": "Gunakan mode Shizuku", "description": "Tutup lirik belakang lalu gunakan Shizuku"},
       "rear-lyrics-toggle": { "title": "Lirik layar belakang", "description": "Aktifkan atau nonaktifkan lirik otomatis di layar belakang Xiaomi" },
       "settings-ponder-hints": { "title": "Petunjuk tutorial Ponder", "description": "Atur kapan petunjuk tahan G muncul" },
       "ponder-hints-always": { "title": "Petunjuk Ponder: selalu tampilkan", "description": "Tampilkan petunjuk tahan G pada setiap kontrol yang bisa dipelajari" },

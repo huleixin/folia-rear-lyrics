@@ -67,6 +67,8 @@ exports[`command palette registry contract > keeps the registered command order 
   "playback-clear-queue",
   "playback-auto-match-best-lyric",
   "playback-toggle-pure-music",
+  "rear-backend-lsp",
+  "rear-backend-shizuku",
   "rear-cover-sleep-toggle",
   "rear-lyrics-toggle",
   "settings-help",

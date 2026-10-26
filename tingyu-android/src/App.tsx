@@ -1486,12 +1486,13 @@ export default function App() {
         isNowPlayingControlDisabledRef,
     });
 
-    // Android + ColorOS 16+ only: publish the current lyric timeline into the system
-    // MediaSession metadata so the native lock-screen / AOD lyric page can render it.
+    // Publish LyricInfo on Android independently of either stage. A compatible system/module
+    // consumes this metadata and the existing PlaybackState clock without another renderer.
     useColorOsLyricFeed({
         lyrics,
         song: displaySong,
         duration,
+        timelineOffsetMs: effectiveLyricTimelineOffsetMs,
     });
 
     const {

@@ -33,6 +33,8 @@ export interface ColorOsLyricInfoInput {
     isWordByWord?: boolean;
     /** 真实换曲时递增的代次。同一首歌补齐元数据不递增。 */
     sessionGeneration?: number;
+    /** Positive offsets delay lyrics, matching the stage's mediaTime - offset clock. */
+    timelineOffsetMs?: number;
 }
 
 export interface ColorOsLyricInfoResult {
@@ -80,7 +82,7 @@ interface PreparedLine {
  * 预备每一行：时间强制单调不减（协议要求「行起点不得倒退」），
  * 并顺手把逐字 lane 拼出来。
  */
-const prepareLines = (lines: Line[], withWords: boolean): {
+const prepareLines = (lines: Line[], withWords: boolean, offsetMs: number): {
     prepared: PreparedLine[];
     hasTranslation: boolean;
 } => {
@@ -90,7 +92,7 @@ const prepareLines = (lines: Line[], withWords: boolean): {
     for (const line of lines ?? []) {
         const text = sanitize(line?.fullText ?? '');
         if (!text) continue;
-        const start = Math.max(lastStart, Math.round((line?.startTime ?? 0) * 1000));
+        const start = Math.max(0, lastStart, Math.round((line?.startTime ?? 0) * 1000 + offsetMs));
         lastStart = start;
         const translation = sanitize(line?.translation ?? '');
         if (translation) hasTranslation = true;
@@ -98,7 +100,7 @@ const prepareLines = (lines: Line[], withWords: boolean): {
             start,
             text,
             translation,
-            rawLine: withWords ? buildRawLine(line, start) : null,
+            rawLine: withWords ? buildRawLine(line, start, offsetMs) : null,
         });
     }
     return { prepared, hasTranslation };
@@ -159,9 +161,10 @@ const alignWords = (line: Line): AlignedWord[] => {
  * 注意标签的位置：`<t>` 是**紧跟着那个字的开始时间**，所以第 n 个字的开始时间
  * 写在第 n-1 个字的文本后面，最后再补一个标签标记末字的视觉结束点。
  */
-const buildRawLine = (line: Line, lineStartMs: number): string | null => {
+const buildRawLine = (line: Line, lineStartMs: number, offsetMs: number): string | null => {
     if ((line?.words ?? []).length < 2) return null;
-    const words = alignWords(line);
+    const words = alignWords(line).map(word => ({ ...word,
+        startMs: Math.max(0, word.startMs + offsetMs), endMs: Math.max(0, word.endMs + offsetMs) }));
     if (words.length < 2) return null;
 
     let body = '';
@@ -181,7 +184,7 @@ const buildRawLine = (line: Line, lineStartMs: number): string | null => {
 
     const lineEnd = Math.max(
         previousEnd ?? 0,
-        Math.round((line?.endTime ?? 0) * 1000),
+        Math.round((line?.endTime ?? 0) * 1000 + offsetMs),
         lineStartMs);
     return `[${formatTag(lineStartMs)}]${body}<${formatTag(lineEnd)}>`;
 };
@@ -196,7 +199,8 @@ export const buildColorOsLyricInfo = (
     if (lines.length === 0) return null;
 
     const withWords = input.isWordByWord === true;
-    const { prepared, hasTranslation } = prepareLines(lines, withWords);
+    const offsetMs = Number.isFinite(input.timelineOffsetMs) ? input.timelineOffsetMs! : 0;
+    const { prepared, hasTranslation } = prepareLines(lines, withWords, offsetMs);
     if (prepared.length === 0) return null;
 
     const lyric = prepared.map(entry => `[${formatTag(entry.start)}]${entry.text}`).join('\n') + '\n';

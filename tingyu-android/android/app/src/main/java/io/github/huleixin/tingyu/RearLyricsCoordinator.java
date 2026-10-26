@@ -38,13 +38,13 @@ final class RearLyricsCoordinator {
     private int failures, generation;
     private long nextAttempt;
     private final Runnable check = () -> { scheduled = false; checkWindow(); };
-    private final Runnable bindTimeout = () -> finishFailure("连接 Shizuku 服务超时，已保留自动启动开关", null);
+    private final Runnable bindTimeout = () -> finishFailure("连接背屏服务超时，已保留自动启动开关", null);
     private final ServiceConnection connection = new ServiceConnection() {
         @Override public void onServiceConnected(ComponentName name, IBinder service) {
-            main.post(() -> { main.removeCallbacks(bindTimeout); shell = service; if (pending && wanted()) launch(); });
+            main.post(() -> { if (LspRearBridge.selected(context)) return; main.removeCallbacks(bindTimeout); shell = service; if (pending && wanted()) launch(); });
         }
         @Override public void onServiceDisconnected(ComponentName name) {
-            main.post(() -> { shell = null; if (pending) finishFailure("Shizuku 已断开，等待恢复后自动重试", null); });
+            main.post(() -> { if (LspRearBridge.selected(context)) return; shell = null; if (pending) finishFailure("Shizuku 已断开，等待恢复后自动重试", null); });
         }
     };
 
@@ -63,6 +63,9 @@ final class RearLyricsCoordinator {
         main.post(this::watchDisplays);
     }
     boolean isEnabled() { return enabled; }
+    boolean canChangeBackend() { return !wanted() && !isStarting() && !sleeping && !powerBusy; }
+    void backendChanged() { main.post(() -> { shell = null; nextAttempt = 0; nudge(); }); }
+    void lspConnected() { main.post(() -> { if (LspRearBridge.selected(context)) { shell = LspRearBridge.get(); nextAttempt = 0; nudge(); } }); }
     boolean isStarting() { return pending || RearLyricsLauncher.isStarting(); }
     boolean wanted() { return RearLyricsPolicy.shouldMaintain(enabled, playing, manual); }
     boolean isSleeping() { return sleeping; }
@@ -113,7 +116,8 @@ final class RearLyricsCoordinator {
     }
     String diagnostics() { return "enabled=" + enabled + ", playing=" + playing + ", manual=" + manual
         + ", pending=" + pending + ", failures=" + failures + ", rearWakeTried=" + wakeTried
-        + ", covered=" + covered + ", lockRecovery=" + lockRecovery + ", frontTask=" + frontTask; }
+        + ", covered=" + covered + ", lockRecovery=" + lockRecovery + ", frontTask=" + frontTask
+        + ", backend=" + (LspRearBridge.selected(context) ? "lsp" : "shizuku") + ", lsp=" + LspRearBridge.detail(); }
 
     void enable(RearLyricsLauncher.Callback callback) {
         main.post(() -> {
@@ -191,6 +195,13 @@ final class RearLyricsCoordinator {
     private void begin() {
         if (!wanted()) return;
         try {
+            if (LspRearBridge.selected(context)) {
+                LspRearBridge.request(context);
+                shell = LspRearBridge.get();
+                if (shell == null) { finishFailure(LspRearBridge.detail(), null); return; }
+                if (findRearDisplayId(context) < 0) { finishFailure("未检测到适配的背屏", null); return; }
+                pending = true; launch(); return;
+            }
             if (!Shizuku.pingBinder() || Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
                 finishFailure("等待 Shizuku 运行并授权听屿；自动启动开关已保留", null); return;
             }

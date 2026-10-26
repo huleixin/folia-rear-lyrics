@@ -1,6 +1,16 @@
 
 
 export default {
+  "rearBridge": {
+    "help": "LSP and island lyric setup",
+    "mode": "Rear control mode",
+    "switchHint": "Close rear lyrics before switching. Both modes share the existing stage and camera-safe layout.",
+    "connected": "LSP system bridge connected. Rear visibility still requires a successful launch check.",
+    "waiting": "Waiting for LSP: enable Tingyu in the framework manager, select System Framework, then reboot.",
+    "setup": "Requires LSPosed / Vector with legacy Xposed API compatibility. SystemUI scope is not needed; this module controls only Tingyu rear lyrics.",
+    "lyricInfo": "LyricInfo publishes lyrics through the system media session. Island lyrics require a separate compatible display module using LyricInfo. Rear lyrics can stay off.",
+    "failed": "Switch failed. Close rear lyrics and wait for the display power policy to restore before retrying."
+},
   "mobileSettings": {
     "enterLyricsStage": "Open lyrics stage",
     "playbackStartup": "Startup playback",
@@ -770,6 +780,8 @@ export default {
     "commands": {
       "playback-shuffle-mode": { "title": "Shuffle playback", "description": "Play a random sequence without changing playlist order" },
       "rear-cover-sleep-toggle": { "title": "Rear cover to sleep", "description": "Toggle rear-screen cover and tabletop power saving" },
+      "rear-backend-lsp": {"title": "Use LSP rear mode", "description": "Close rear lyrics, then switch to framework control"},
+      "rear-backend-shizuku": {"title": "Use Shizuku rear mode", "description": "Close rear lyrics, then switch to Shizuku control"},
       "rear-lyrics-toggle": { "title": "Rear-screen lyrics", "description": "Toggle automatic Xiaomi rear-screen lyrics" },
       "settings-ponder-hints": { "title": "Ponder tutorial hints", "description": "Choose when the hold-G tutorial hint appears" },
       "ponder-hints-always": { "title": "Ponder hints: always show", "description": "Show the hold-G hint on every teachable control" },

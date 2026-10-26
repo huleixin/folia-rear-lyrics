@@ -69,6 +69,7 @@ public class FoliaPlaybackService extends Service {
     private volatile String cachedSongKey = "";
     private volatile long cachedDurationMs = 0L;
     private volatile long cachedPositionMs = 0L;
+    private volatile long cachedPositionUpdatedAt = 0L;
     private volatile boolean cachedPlaying = false;
     private static volatile boolean running = false;
     private PowerManager.WakeLock wakeLock;
@@ -167,6 +168,7 @@ public class FoliaPlaybackService extends Service {
         cachedSongKey = songKey;
         cachedPlaying = playing;
         cachedPositionMs = Math.max(0L, intent.getLongExtra("position", 0L));
+        cachedPositionUpdatedAt = SystemClock.elapsedRealtime();
         cachedDurationMs = Math.max(0L, duration);
         if (progressOnly) {
             // Android extrapolates position from PlaybackState's timestamp. A clock refresh must
@@ -299,6 +301,8 @@ public class FoliaPlaybackService extends Service {
     }
 
     private PlaybackState buildPlaybackState(boolean playing, long position, String songKey) {
+        position = PlaybackPositionClock.at(playing, position, cachedPositionUpdatedAt,
+            SystemClock.elapsedRealtime(), cachedDurationMs);
         PlaybackState.Builder builder = new PlaybackState.Builder()
             .setActiveQueueItemId(queueId(songKey))
             .setActions(
@@ -310,7 +314,7 @@ public class FoliaPlaybackService extends Service {
                     | PlaybackState.ACTION_SEEK_TO
             )
             .setState(playing ? PlaybackState.STATE_PLAYING : PlaybackState.STATE_PAUSED, position, playing ? 1f : 0f);
-        if (ColorOsLyricBridge.hasTranslationFor(songKey)) {
+        if (ColorOsLyricBridge.isSupported() && ColorOsLyricBridge.hasTranslationFor(songKey)) {
             builder.addCustomAction(new PlaybackState.CustomAction.Builder(
                 ColorOsLyricBridge.ACTION_TOGGLE_TRANSLATION,
                 "翻译",

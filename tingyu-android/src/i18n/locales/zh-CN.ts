@@ -1,6 +1,16 @@
 
 
 export default {
+  "rearBridge": {
+    "help": "LSP 与灵动岛歌词说明",
+    "mode": "背屏控制模式",
+    "switchHint": "请先关闭背屏歌词再切换。两种模式共用当前画面和摄像头避让设置。",
+    "connected": "LSP 系统桥已连接；背屏显示仍以实际启动验证为准。",
+    "waiting": "等待 LSP：在框架管理器启用听屿模块，勾选系统框架并重启手机。",
+    "setup": "需要兼容传统 Xposed API 的 LSPosed / Vector 框架。无需勾选系统界面；本模块只协调听屿背屏。",
+    "lyricInfo": "支持通过 LyricInfo 向系统媒体会话提供歌词。灵动岛需另装支持 LyricInfo 的显示模块，并选择此歌词来源；不依赖背屏开关。",
+    "failed": "切换失败，请先关闭背屏并等待电源恢复后重试。"
+},
   "mobileSettings": {
     "enterLyricsStage": "打开歌词舞台",
     "playbackStartup": "启动播放",
@@ -770,6 +780,8 @@ export default {
     "commands": {
       "playback-shuffle-mode": { "title": "随机播放", "description": "开启随机播放，保留原歌单顺序" },
       "rear-cover-sleep-toggle": { "title": "背屏遮盖息屏", "description": "切换背屏遮挡与朝下静置的省电息屏" },
+      "rear-backend-lsp": {"title": "使用 LSP 背屏模式", "description": "关闭背屏后切换到框架控制"},
+      "rear-backend-shizuku": {"title": "使用 Shizuku 背屏模式", "description": "关闭背屏后切换到 Shizuku 控制"},
       "rear-lyrics-toggle": { "title": "小米背屏歌词", "description": "开启或关闭自动背屏歌词" },
       "settings-ponder-hints": { "title": "思索教程提示", "description": "设置长按 G 的提示什么时候出现" },
       "ponder-hints-always": { "title": "思索提示：始终显示", "description": "所有可教学的控件都提示长按 G" },
