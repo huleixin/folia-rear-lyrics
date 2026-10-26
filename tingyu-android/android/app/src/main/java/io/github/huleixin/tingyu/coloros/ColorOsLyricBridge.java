@@ -315,6 +315,13 @@ public final class ColorOsLyricBridge {
         return null;
     }
 
+    /** Some consumers retain omitted metadata for the same track; explicitly publish an empty timeline. */
+    public static String metadataLyricInfoFor(String songKey) {
+        if (songKey == null || songKey.isEmpty()) return null;
+        String json = lyricInfoFor(songKey);
+        return json != null ? json : "{\"lyricType\":0,\"lyric\":\"\",\"noLyric\":true}";
+    }
+
     /** 有没有翻译 lane —— 决定要不要挂 Bridge 的公共翻译按钮。 */
     public static boolean hasTranslationFor(String songKey) {
         Payload current = pending;
@@ -334,7 +341,7 @@ public final class ColorOsLyricBridge {
         if (builder == null) {
             return;
         }
-        String json = lyricInfoFor(songKey);
+        String json = metadataLyricInfoFor(songKey);
         if (json != null) {
             builder.putString(METADATA_KEY_LYRIC_INFO, json);
         }

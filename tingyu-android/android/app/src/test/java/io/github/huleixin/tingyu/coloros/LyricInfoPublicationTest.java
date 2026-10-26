@@ -5,6 +5,14 @@ import static org.junit.Assert.*;
 
 // android/app/src/test/java/io/github/huleixin/tingyu/coloros/LyricInfoPublicationTest.java
 public class LyricInfoPublicationTest {
+    @Test public void clearingSameTrackPublishesAnExplicitEmptyTimeline() {
+        ColorOsLyricBridge.setPending("{\"lyric\":\"first\"}", false, "song-one");
+        assertEquals("{\"lyric\":\"first\"}", ColorOsLyricBridge.metadataLyricInfoFor("song-one"));
+        ColorOsLyricBridge.clear();
+        assertEquals("{\"lyricType\":0,\"lyric\":\"\",\"noLyric\":true}", ColorOsLyricBridge.metadataLyricInfoFor("song-one"));
+        assertNull(ColorOsLyricBridge.metadataLyricInfoFor(null));
+        assertNull(ColorOsLyricBridge.metadataLyricInfoFor(""));
+    }
     @Test public void neverCarriesPreviousTrackLyricsToAnotherMediaId() {
         ColorOsLyricBridge.clear();
         assertTrue(ColorOsLyricBridge.setPending("{\"lyric\":\"first\"}", true, "song-one"));
