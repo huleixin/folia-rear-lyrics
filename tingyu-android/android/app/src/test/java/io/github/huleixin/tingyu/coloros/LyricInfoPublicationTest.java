@@ -8,7 +8,8 @@ public class LyricInfoPublicationTest {
     @Test public void clearingSameTrackPublishesAnExplicitEmptyTimeline() {
         ColorOsLyricBridge.setPending("{\"lyric\":\"first\"}", false, "song-one");
         assertEquals("{\"lyric\":\"first\"}", ColorOsLyricBridge.metadataLyricInfoFor("song-one"));
-        ColorOsLyricBridge.clear();
+        assertTrue(ColorOsLyricBridge.clear());
+        assertFalse(ColorOsLyricBridge.clear());
         assertEquals("{\"lyricType\":0,\"lyric\":\"\",\"noLyric\":true}", ColorOsLyricBridge.metadataLyricInfoFor("song-one"));
         assertNull(ColorOsLyricBridge.metadataLyricInfoFor(null));
         assertNull(ColorOsLyricBridge.metadataLyricInfoFor(""));

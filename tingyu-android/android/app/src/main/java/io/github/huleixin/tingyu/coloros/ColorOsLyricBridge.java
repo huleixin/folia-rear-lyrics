@@ -293,8 +293,10 @@ public final class ColorOsLyricBridge {
         return previous != null || pending != null;
     }
 
-    public static void clear() {
+    public static synchronized boolean clear() {
+        if (pending == null) return false;
         pending = null;
+        return true;
     }
 
     /**

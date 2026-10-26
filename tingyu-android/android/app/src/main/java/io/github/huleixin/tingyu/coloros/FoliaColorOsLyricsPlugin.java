@@ -53,8 +53,7 @@ public class FoliaColorOsLyricsPlugin extends Plugin {
     /** 没有在播的东西了（或者这首歌没词）：把上一段歌词撤掉。 */
     @PluginMethod
     public void clear(PluginCall call) {
-        ColorOsLyricBridge.clear();
-        ColorOsLyricBridge.requestRefresh(getContext());
+        if (ColorOsLyricBridge.clear()) ColorOsLyricBridge.requestRefresh(getContext());
         call.resolve();
     }
 }
