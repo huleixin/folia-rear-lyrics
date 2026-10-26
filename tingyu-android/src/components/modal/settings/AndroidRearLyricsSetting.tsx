@@ -56,7 +56,7 @@ export default function AndroidRearLyricsSetting({ isDaylight, settingsCardClass
             <div className={compact ? 'ty-settings-detail-row' : 'flex items-center gap-3 mt-3'}>
                 <span className="ty-setting-symbol"><Activity size={20} /></span>
                 <span className="ty-settings-row-copy"><strong>{t('mobileSettings.currentStatus')}</strong>
-                    <small role="status" className={`ty-rear-status ty-rear-status-${state}`}>{t(`mobileSettings.rearState.${state}`)}</small>
+                    <small role="status" className={`ty-rear-status ty-rear-status-${state}`}>{t(state === 'system' ? 'rearBridge.system' : `mobileSettings.rearState.${state}`)}</small>
                 </span>
                 {failed && <button type="button" className="ty-settings-text-action" onClick={() => void refresh()}>{t('mobileSettings.retryDetection')}</button>}
             </div>

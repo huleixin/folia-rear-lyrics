@@ -101,6 +101,19 @@ final class RearLyricsLauncher {
 
     interface FrontTaskCallback { void complete(String summary); }
     interface PowerCallback { void complete(boolean success, String detail); }
+    /** Relinquish power without waking a paused/covered screen merely to close its lyric window. */
+    static void restoreRearPowerPolicy(IBinder shell, int rear, PowerCallback callback) {
+        String session = RearLyricsActivity.currentSession();
+        WORKER.execute(() -> {
+            StringBuilder trace = new StringBuilder();
+            try {
+                if (rear <= 0) throw new IllegalStateException("No rear display");
+                RearLyricsCommandResult result = command(shell, ShellUserService.TRANSACTION_RESTORE_POWER,
+                    rear, session, -1, "Relinquish rear power", trace);
+                callback.complete(!result.failed(), trace.toString());
+            } catch (Exception error) { callback.complete(false, trace + "\n" + error.getMessage()); }
+        });
+    }
     static void setRearSleeping(Context context, IBinder shell, int rear, boolean sleeping, PowerCallback callback) {
         String session = RearLyricsActivity.currentSession();
         WORKER.execute(() -> {

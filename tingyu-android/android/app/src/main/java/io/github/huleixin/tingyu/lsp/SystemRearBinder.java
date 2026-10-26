@@ -23,9 +23,12 @@ import java.util.List;
 /** Fixed rear operations under system identity; never spawn a shell in system_server. */
 final class SystemRearBinder extends Binder {
     private final Context context;
-    private android.os.IBinder client;
+    private final RearDisplayPower power;
+    private volatile android.os.IBinder client;
     private volatile int overriddenDisplay = -1;
-    SystemRearBinder(Context context) { this.context = context; attachInterface(null, RearBridgeContract.DESCRIPTOR); }
+    SystemRearBinder(Context context, RearDisplayPower power) {
+        this.context = context; this.power = power; attachInterface(null, RearBridgeContract.DESCRIPTOR);
+    }
 
     synchronized void watchClient(android.os.IBinder lifeline, android.os.Handler handler) throws RemoteException {
         if (lifeline == null || lifeline.equals(client)) return;
@@ -34,6 +37,7 @@ final class SystemRearBinder extends Binder {
             synchronized (SystemRearBinder.this) {
                 if (!lifeline.equals(client)) return;
                 client = null;
+                power.clear();
                 int display = overriddenDisplay;
                 if (display <= 0) return;
                 try { requireRear(display, false); execute(5, display, "cleanup", -1, 0); }
@@ -45,10 +49,10 @@ final class SystemRearBinder extends Binder {
     String profile() {
         return "LSP bridge v" + RearBridgeContract.VERSION + " · " + android.os.Build.MANUFACTURER
             + " / " + android.os.Build.DEVICE + " · Android API " + android.os.Build.VERSION.SDK_INT
-            + " · framework APIs detected at request time; ROM behavior requires device verification";
+            + " · " + power.status() + " · ROM behavior requires device verification";
     }
     @Override protected boolean onTransact(int code, Parcel data, Parcel reply, int flags) throws RemoteException {
-        if (code < FIRST_CALL_TRANSACTION || code > FIRST_CALL_TRANSACTION + 5)
+        if (code < FIRST_CALL_TRANSACTION || code > RearBridgeContract.RELEASE_POWER)
             return super.onTransact(code, data, reply, flags);
         data.enforceInterface(RearBridgeContract.DESCRIPTOR);
         int uid = Binder.getCallingUid();
@@ -82,6 +86,15 @@ final class SystemRearBinder extends Binder {
         if (!RearBridgeContract.isRearSize(size.x, size.y)) throw new SecurityException("Unrecognized rear display geometry");
     }
     private String execute(int operation, int display, String session, int task, int user) throws Exception {
+        if (operation == 6 || operation == 7) {
+            synchronized (this) {
+                if (operation == 6) {
+                    if (client == null || !client.isBinderAlive()) throw new IllegalStateException("Player process disconnected");
+                    power.acquire(display, session);
+                } else power.release(display, session);
+            }
+            return operation == 6 ? "Rear bright policy leased for 60s" : "Matching rear bright policy released";
+        }
         if (operation == 0) {
             Intent intent = new Intent().setComponent(new ComponentName(RearBridgeContract.PACKAGE, RearBridgeContract.ACTIVITY))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("folia_rear_session", session);
@@ -134,7 +147,11 @@ final class SystemRearBinder extends Binder {
         Object result = Class.forName("android.hardware.display.IDisplayManager")
             .getMethod("requestDisplayPower", int.class, int.class)
             .invoke(dm, display, operation == 4 ? Display.STATE_OFF : Display.STATE_UNKNOWN);
-        if (!Boolean.TRUE.equals(result)) throw new IllegalStateException("Rear power override rejected");
+        // AOSP returns false when the physical panel already matches the requested policy.
+        // Reset is idempotent; an already-off rear also counts as a successful sleep request.
+        if (!Boolean.TRUE.equals(result) && operation != 5
+                && context.getSystemService(DisplayManager.class).getDisplay(display).getState() != Display.STATE_OFF)
+            throw new IllegalStateException("Rear power override rejected");
         overriddenDisplay = operation == 4 ? display : -1;
         return "LSP rear power policy updated";
     }

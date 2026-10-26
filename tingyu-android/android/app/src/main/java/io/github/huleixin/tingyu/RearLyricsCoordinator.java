@@ -31,12 +31,19 @@ final class RearLyricsCoordinator {
     private boolean preservedSleepSession;
     private String powerDetail = "not tested";
     private volatile boolean enabled, playing, manual, pending;
+    private volatile boolean requestedPlaying;
     private boolean scheduled, waking, wakeTried, probing, covered, lockRecovery;
     private String frontTask = "unknown";
     private long lastProbe;
     private IBinder shell;
     private int failures, generation;
     private long nextAttempt;
+    private final RearPlaybackHandoff handoff = new RearPlaybackHandoff();
+    private volatile boolean closing;
+    private boolean lspPowerBusy, lspHolding, lastHoldDesired;
+    private long nextHoldRefresh;
+    private String leaseSession = "", lspPowerDetail = "not requested";
+    private final Runnable pauseTimeout = this::returnAfterPause;
     private final Runnable check = () -> { scheduled = false; checkWindow(); };
     private final Runnable bindTimeout = () -> finishFailure("连接背屏服务超时，已保留自动启动开关", null);
     private final ServiceConnection connection = new ServiceConnection() {
@@ -63,11 +70,13 @@ final class RearLyricsCoordinator {
         main.post(this::watchDisplays);
     }
     boolean isEnabled() { return enabled; }
-    boolean canChangeBackend() { return !wanted() && !isStarting() && !sleeping && !powerBusy; }
-    void backendChanged() { main.post(() -> { shell = null; nextAttempt = 0; nudge(); }); }
-    void lspConnected() { main.post(() -> { if (LspRearBridge.selected(context)) { shell = LspRearBridge.get(); nextAttempt = 0; nudge(); } }); }
-    boolean isStarting() { return pending || RearLyricsLauncher.isStarting(); }
-    boolean wanted() { return RearLyricsPolicy.shouldMaintain(enabled, playing, manual); }
+    boolean canChangeBackend() { return !wanted() && !isStarting() && !sleeping && !powerBusy && !closing; }
+    void backendChanged() { main.post(() -> { shell = null; handoff.reset(); nextAttempt = 0; nudge(); }); }
+    void lspConnected() { main.post(() -> { if (LspRearBridge.selected(context)) { shell = LspRearBridge.get(); nextAttempt = 0; nextHoldRefresh = 0; nudge(); } }); }
+    boolean isStarting() { return closing || pending || RearLyricsLauncher.isStarting(); }
+    boolean wanted() { return handoff.wanted(enabled, playing, manual, LspRearBridge.selected(context)); }
+    boolean returnedToSystem() { return LspRearBridge.selected(context) && handoff.returned()
+        && !closing && !RearLyricsActivity.isEnabled(); }
     boolean isSleeping() { return sleeping; }
     boolean preserveSleepSession() { return preservedSleepSession; }
     boolean coverSleepEnabled() { return coverSleepEnabled; }
@@ -86,22 +95,47 @@ final class RearLyricsCoordinator {
         if (coverSleepEnabled && wanted() && !sleepUnsupported) coverMonitor.start(); else coverMonitor.stop();
     }
     private void closeWindow() {
-        if (!sleeping && !powerBusy) { RearLyricsLauncher.close(context); return; }
+        if (closing) return;
+        closing = true;
+        String current = RearLyricsActivity.currentSession();
+        String session = current.isEmpty() ? leaseSession : current;
+        if (LspRearBridge.selected(context) && !session.isEmpty()) {
+            RearLspPowerControl.apply(main, shell, findRearDisplayId(context), session, false, (success, detail) -> {
+                lspPowerDetail = detail; lspHolding = false; closeAfterLease();
+            });
+        } else closeAfterLease();
+    }
+    /** Finish only after cover power restoration, and block resume launches until this cleanup completes. */
+    private void closeAfterLease() {
+        if (!sleeping && !powerBusy) { finishClosing(); return; }
         int rear = findRearDisplayId(context);
         // Release our power override before invalidating the session used by the shell.
-        if (shell != null && rear > 0) RearLyricsLauncher.setRearSleeping(context, shell, rear, false, (success, detail) -> main.post(() -> {
+        if (shell != null && rear > 0) RearLyricsLauncher.restoreRearPowerPolicy(shell, rear, (success, detail) -> main.post(() -> {
             powerDetail = detail;
-            if (success) { sleeping = false; RearLyricsActivity.setPowerSleeping(false); RearLyricsLauncher.close(context); }
+            if (success) { sleeping = false; powerBusy = false; RearLyricsActivity.setPowerSleeping(false); finishClosing(); }
+            else { closing = false; retryClose(); }
         }));
+        else { closing = false; retryClose(); }
+    }
+    private void finishClosing() {
+        RearLyricsLauncher.close(context);
+        closing = false; lockRecovery = false; covered = false; nextAttempt = 0;
+        if (wanted()) nudge();
+    }
+    private void retryClose() {
+        main.postDelayed(() -> { if (!wanted()) closeWindow(); else nudge(); }, 5000);
     }
     private void changeSleep(boolean value) {
-        if (powerBusy || value == sleeping || (value && sleepUnsupported)) return;
+        if (!value && !closing && enabled && !playing && LspRearBridge.selected(context)
+                && handoff.due(SystemClock.elapsedRealtime())) { returnAfterPause(); return; }
+        if (closing || powerBusy || value == sleeping || (value && sleepUnsupported)) return;
         int rear = findRearDisplayId(context);
-        if (rear <= 0 || shell == null || !shell.isBinderAlive() || (value && !active(rear))) return;
+        if (rear <= 0 || shell == null || !shell.isBinderAlive()
+                || (value && RearLyricsActivity.attachedWindowOnDisplay(rear) == null)) return;
         powerBusy = true;
         if (value) sleeping = true; // Guard before the display-off event reaches the keeper.
         RearLyricsActivity.setPowerSleeping(value);
-        RearLyricsLauncher.setRearSleeping(context, shell, rear, value, (success, detail) -> main.post(() -> {
+        Runnable apply = () -> RearLyricsLauncher.setRearSleeping(context, shell, rear, value, (success, detail) -> main.post(() -> {
             powerBusy = false; powerDetail = detail;
             nextAttempt = SystemClock.elapsedRealtime() + 4000;
             if (success) { sleeping = value; if (value) preservedSleepSession = true; }
@@ -110,22 +144,61 @@ final class RearLyricsCoordinator {
             RearLyricsActivity.setPowerSleeping(sleeping);
             RearLyricsTrace.record(context, "cover-power", "requested=" + value + ", success=" + success + ", " + detail);
             syncCoverMonitor();
-            if (!sleeping) { nextAttempt = SystemClock.elapsedRealtime() + 2500; nudge(); }
+            if (!sleeping && !closing) { nextAttempt = SystemClock.elapsedRealtime() + 2500; nudge(); }
             else if (success && !physicalCover) changeSleep(false);
         }));
+        if (LspRearBridge.selected(context)) {
+            RearLspPowerControl.apply(main, shell, rear, RearLyricsActivity.currentSession(), !value && wanted(), (success, detail) -> {
+                lspPowerDetail = detail; lspHolding = success && !value; nextHoldRefresh = 0;
+                apply.run();
+            });
+        } else apply.run();
     }
     String diagnostics() { return "enabled=" + enabled + ", playing=" + playing + ", manual=" + manual
         + ", pending=" + pending + ", failures=" + failures + ", rearWakeTried=" + wakeTried
         + ", covered=" + covered + ", lockRecovery=" + lockRecovery + ", frontTask=" + frontTask
-        + ", backend=" + (LspRearBridge.selected(context) ? "lsp" : "shizuku") + ", lsp=" + LspRearBridge.detail(); }
+        + ", backend=" + (LspRearBridge.selected(context) ? "lsp" : "shizuku") + ", lsp=" + LspRearBridge.detail()
+        + ", closing=" + closing + ", returnedToSystem=" + returnedToSystem()
+        + ", lspHolding=" + lspHolding + ", lspPower=" + lspPowerDetail; }
+
+    private void schedulePauseReturn() {
+        main.removeCallbacks(pauseTimeout);
+        if (enabled && !playing && LspRearBridge.selected(context) && !handoff.returned())
+            main.postDelayed(pauseTimeout, handoff.remaining(SystemClock.elapsedRealtime()));
+    }
+    private void returnAfterPause() {
+        if (!enabled || playing || !LspRearBridge.selected(context) || !handoff.due(SystemClock.elapsedRealtime())) return;
+        handoff.returnToSystem(); manual = false; generation++; pending = false;
+        coverMonitor.stop(); physicalCover = false;
+        main.removeCallbacks(check); main.removeCallbacks(bindTimeout); scheduled = false;
+        complete(false, -1, "暂停超时，已让回系统背屏；恢复播放后自动切回", null);
+        closeWindow();
+    }
+    /** Renew every 20 seconds; ordinary two-second window checks do not make another IPC call. */
+    private void syncLspPower() {
+        if (!LspRearBridge.selected(context) || closing || powerBusy || lspPowerBusy) return;
+        String session = RearLyricsActivity.currentSession();
+        if (session.isEmpty() || shell == null || !shell.isBinderAlive()) return;
+        boolean desired = wanted() && !sleeping && !(coverSleepEnabled && physicalCover);
+        long now = SystemClock.elapsedRealtime();
+        if (desired == lastHoldDesired && session.equals(leaseSession) && now < nextHoldRefresh) return;
+        if (!desired && !lspHolding && !lastHoldDesired) return;
+        lspPowerBusy = true; lastHoldDesired = desired; leaseSession = session;
+        RearLspPowerControl.apply(main, shell, findRearDisplayId(context), session, desired, (success, detail) -> {
+            lspPowerBusy = false; lspHolding = success && desired; lspPowerDetail = detail;
+            nextHoldRefresh = SystemClock.elapsedRealtime() + (success ? 20_000 : 10_000);
+            if (!closing && RearLyricsActivity.isCurrentSession(session)) syncLspPower();
+        });
+    }
 
     void enable(RearLyricsLauncher.Callback callback) {
         main.post(() -> {
             enabled = true; manual = true; failures = 0; nextAttempt = 0;
+            handoff.start(playing, SystemClock.elapsedRealtime()); schedulePauseReturn();
             syncCoverMonitor();
             context.getSharedPreferences("rear_lyrics", 0).edit().putBoolean("auto_enabled", true).apply();
             int rear = findRearDisplayId(context);
-            if (active(rear)) { callback.success(rear, "背屏歌词已启用，之后播放时自动显示"); return; }
+            if (!closing && active(rear)) { callback.success(rear, "背屏歌词已启用，之后播放时自动显示"); return; }
             callbacks.add(callback);
             if (!pending && !RearLyricsLauncher.isStarting()) begin();
             schedule(2000);
@@ -137,27 +210,32 @@ final class RearLyricsCoordinator {
         context.getSharedPreferences("rear_lyrics", 0).edit().putBoolean("auto_enabled", false).apply();
         main.post(() -> {
             coverMonitor.stop(); physicalCover = false;
+            main.removeCallbacks(pauseTimeout); handoff.reset();
             closeWindow();
             manual = false; preservedSleepSession = false; generation++; pending = false;
             main.removeCallbacks(bindTimeout); main.removeCallbacks(check); scheduled = false;
             complete(false, -1, "背屏歌词已关闭", null);
         });
     }
-    void playback(boolean value) {
-        if (playing == value) return;
+    synchronized void playback(boolean value) {
+        if (requestedPlaying == value) return;
+        requestedPlaying = value;
         main.post(() -> {
             if (playing == value) return;
             playing = value;
+            handoff.playback(value, SystemClock.elapsedRealtime()); schedulePauseReturn();
             syncCoverMonitor();
             if (value) { failures = 0; nextAttempt = 0; }
-            schedule(150);
+            nudge();
         });
     }
     void stopped() {
         main.post(() -> {
             coverMonitor.stop(); physicalCover = false;
+            main.removeCallbacks(pauseTimeout); handoff.reset();
+            if (LspRearBridge.selected(context)) handoff.returnToSystem();
             closeWindow();
-            playing = false; manual = false; generation++; pending = false;
+            playing = false; requestedPlaying = false; manual = false; generation++; pending = false;
             main.removeCallbacks(bindTimeout); main.removeCallbacks(check); scheduled = false;
             complete(false, -1, "播放服务已停止，背屏开关仍保留", null);
         });
@@ -173,8 +251,12 @@ final class RearLyricsCoordinator {
     }
     private void checkWindow() {
         if (!wanted()) return;
+        if (!playing && LspRearBridge.selected(context) && handoff.due(SystemClock.elapsedRealtime())) { returnAfterPause(); return; }
+        if (closing) { schedule(500); return; }
         syncCoverMonitor();
-        if (!RearCoverPolicy.mayRecoverWindow(sleeping, powerBusy)) {
+        syncLspPower();
+        if (!RearCoverPolicy.mayRecoverWindow(sleeping, powerBusy, coverSleepEnabled, physicalCover)) {
+            if (coverSleepEnabled && physicalCover && !sleeping && !powerBusy) changeSleep(true);
             if (sleeping && !physicalCover && !powerBusy && SystemClock.elapsedRealtime() >= nextAttempt) changeSleep(false);
             schedule(2000); return;
         }
@@ -194,6 +276,7 @@ final class RearLyricsCoordinator {
     }
     private void begin() {
         if (!wanted()) return;
+        if (closing) { schedule(500); return; }
         try {
             if (LspRearBridge.selected(context)) {
                 LspRearBridge.request(context);
@@ -249,6 +332,7 @@ final class RearLyricsCoordinator {
                 main.post(() -> { if (token == generation) finishFailure(message, error); });
             }
         }, shell, findRearDisplayId(context));
+        syncLspPower();
     }
     private void finishFailure(String message, Exception error) {
         pending = false; main.removeCallbacks(bindTimeout);

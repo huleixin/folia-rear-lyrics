@@ -10,7 +10,7 @@ import { PlayerState } from '../types';
 import { setRearRuntime } from '../stores/useRearRuntimeStore';
 
 type Plugin = {
-    getRearLyricsStatus: () => Promise<{ enabled?: boolean; starting?: boolean; sleeping?: boolean }>;
+    getRearLyricsStatus: () => Promise<{ enabled?: boolean; starting?: boolean; sleeping?: boolean; returnedToSystem?: boolean }>;
     getRearLyricsRuntimeState?: Plugin['getRearLyricsStatus'];
     publishRearLyricsSnapshot: (snapshot: unknown) => Promise<void>;
 };
@@ -44,7 +44,8 @@ export function useRearLyricsPublisher(config: ObsBrowserSourceConfig, clock: ()
                 }) : plugin.getRearLyricsStatus());
                 if (!closed) {
                     const wasEnabled = enabled;
-                    enabled = result.enabled === true || result.starting === true; sleeping = result.sleeping === true;
+                    enabled = (result.enabled === true || result.starting === true) && result.returnedToSystem !== true;
+                    sleeping = result.sleeping === true;
                     setRearRuntime(enabled, sleeping);
                     if (!enabled || sleeping) { clearTimeout(publishTimer); publishTimer = 0; }
                     else if (!wasEnabled || !publishTimer) schedulePublish(0);

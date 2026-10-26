@@ -5,6 +5,7 @@ import { getFoliaNative } from '../platform/foliaNative';
 // Native preferences own this device-specific opt-in; never infer it from temporary window visibility.
 export type RearLyricsStatus = {
     backendMode?: 'shizuku' | 'lsp'; lspConnected?: boolean; lspDetail?: string;
+    returnedToSystem?: boolean; pauseReturnSeconds?: number;
     shizukuAvailable?: boolean; authorized?: boolean; rearDisplayId?: number; active?: boolean;
     enabled?: boolean; starting?: boolean; message?: string; diagnostics?: string; build?: number;
     coverSleepEnabled?: boolean; sleeping?: boolean; sleepUnsupported?: boolean; sensorAvailable?: boolean; sleepDiagnostics?: string;

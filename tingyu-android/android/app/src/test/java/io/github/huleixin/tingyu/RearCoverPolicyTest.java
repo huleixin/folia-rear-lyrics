@@ -5,6 +5,12 @@ import static org.junit.Assert.*;
 
 // android/app/src/test/java/top/izuna/foliamajor/RearCoverPolicyTest.java
 public class RearCoverPolicyTest {
+    @Test public void coverBlocksWakeEvenBeforePowerOffIsConfirmedOrWhenTheOverrideFails() {
+        assertFalse(RearCoverPolicy.mayRecoverWindow(false, false, true, true));
+        assertTrue(RearCoverPolicy.mayRecoverWindow(false, false, false, true));
+        assertTrue(RearCoverPolicy.mayRecoverWindow(false, false, true, false));
+        assertFalse(RearCoverPolicy.mayRecoverWindow(true, false, true, false));
+    }
     @Test public void frontProximityCannotClaimRearCover() {
         assertFalse(RearCoverPolicy.rearSensor("Front proximity sensor"));
         assertFalse(RearCoverPolicy.rearSensor("Proximity sensor"));

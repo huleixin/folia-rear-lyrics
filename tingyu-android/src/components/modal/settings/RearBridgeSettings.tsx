@@ -31,7 +31,7 @@ export default function RearBridgeSettings({ snapshot, refresh }: {
             <p className="text-xs" role="status">{t('rearBridge.connected')}</p>}
         <details className="text-xs opacity-70 leading-relaxed">
             <summary className="cursor-pointer py-2">{t('rearBridge.help')}</summary>
-            <p>{t('rearBridge.setup')}</p><p className="mt-2">{t('rearBridge.lyricInfo')}</p>
+            <p>{t('rearBridge.setup')}</p><p className="mt-2">{t('rearBridge.behavior')}</p><p className="mt-2">{t('rearBridge.lyricInfo')}</p>
         </details>
         {failed && <p role="alert" className="text-xs">{t('rearBridge.failed')}</p>}
     </div>;

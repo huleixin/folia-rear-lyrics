@@ -18,8 +18,10 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
 /** Framework scope only. Never inject Chromium, rendering loops or music into SystemUI. */
 public final class TingyuXposedModule implements IXposedHookLoadPackage {
     private static boolean installed;
+    private static final RearDisplayPower power = new RearDisplayPower();
     @Override public void handleLoadPackage(XC_LoadPackage.LoadPackageParam param) {
         if (!"android".equals(param.packageName) || !"android".equals(param.processName)) return;
+        power.install(param.classLoader);
         try {
             Class<?> ams = XposedHelpers.findClass("com.android.server.am.ActivityManagerService", param.classLoader);
             XposedBridge.hookAllMethods(ams, "systemReady", new XC_MethodHook() {
@@ -36,7 +38,8 @@ public final class TingyuXposedModule implements IXposedHookLoadPackage {
     private static void install(Context context) {
         HandlerThread thread = new HandlerThread("TingyuRearBridge"); thread.start();
         Handler handler = new Handler(thread.getLooper());
-        SystemRearBinder service = new SystemRearBinder(context);
+        power.setTimer(context, handler);
+        SystemRearBinder service = new SystemRearBinder(context, power);
         BroadcastReceiver receiver = new BroadcastReceiver() {
             @Override public void onReceive(Context c, Intent intent) {
                 if (!RearBridgeContract.REQUEST.equals(intent.getAction())) return;

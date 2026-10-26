@@ -2,6 +2,8 @@
 
 export default {
   "rearBridge": {
+    "behavior": "Layar belakang tetap menyala saat memutar. Setelah jeda 30 detik kembali ke sistem; lirik pulih saat diputar. Tidur saat tertutup diprioritaskan.",
+    "system": "Layar sistem; lirik kembali saat diputar",
     "help": "Panduan LSP dan lirik pulau",
     "mode": "Mode kontrol layar belakang",
     "switchHint": "Tutup lirik belakang sebelum mengganti mode. Kedua mode memakai tata letak aman kamera yang sama.",

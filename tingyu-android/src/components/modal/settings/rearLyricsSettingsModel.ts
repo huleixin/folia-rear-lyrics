@@ -1,13 +1,14 @@
 import type { RearLyricsStatus } from '../../../services/rearLyricsControl';
 
 // src/components/modal/settings/rearLyricsSettingsModel.ts
-export type RearSettingsState = 'detecting' | 'failed' | 'unsupported' | 'starting' | 'enabled' | 'disabled';
+export type RearSettingsState = 'detecting' | 'failed' | 'unsupported' | 'starting' | 'enabled' | 'disabled' | 'system';
 
 /** The persisted preference controls the button; a hidden/locked window is not a disabled preference. */
 export function rearSettingsState(snapshot: RearLyricsStatus | null, failed: boolean): RearSettingsState {
     if (failed) return 'failed';
     if (!snapshot) return 'detecting';
     if (snapshot.starting) return 'starting';
+    if (snapshot.enabled && snapshot.returnedToSystem) return 'system';
     if (snapshot.enabled) return 'enabled';
     if (typeof snapshot.rearDisplayId === 'number' && snapshot.rearDisplayId < 0) return 'unsupported';
     return 'disabled';
@@ -31,5 +32,5 @@ export function rearSettingsHint(snapshot: RearLyricsStatus | null): string | nu
 export function rearSettingsFingerprint(snapshot: RearLyricsStatus): string {
     return JSON.stringify([snapshot.enabled, snapshot.active, snapshot.starting, snapshot.rearDisplayId,
         snapshot.shizukuAvailable, snapshot.authorized, snapshot.build, snapshot.sleeping,
-        snapshot.backendMode, snapshot.lspConnected, snapshot.lspDetail]);
+        snapshot.backendMode, snapshot.lspConnected, snapshot.lspDetail, snapshot.returnedToSystem]);
 }

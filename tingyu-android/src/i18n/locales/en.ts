@@ -2,6 +2,8 @@
 
 export default {
   "rearBridge": {
+    "behavior": "Keep the rear display on while playing. After 30 seconds paused, return it to the system; playback restores lyrics. Cover-to-sleep takes priority.",
+    "system": "System rear display; resumes with music",
     "help": "LSP and island lyric setup",
     "mode": "Rear control mode",
     "switchHint": "Close rear lyrics before switching. Both modes share the existing stage and camera-safe layout.",

@@ -767,6 +767,7 @@ public class FoliaNativePlugin extends Plugin {
         result.put("enabled", coordinator.isEnabled());
         result.put("starting", coordinator.isStarting());
         result.put("sleeping", coordinator.isSleeping());
+        result.put("returnedToSystem", coordinator.returnedToSystem());
         call.resolve(result);
     }
 
@@ -788,6 +789,8 @@ public class FoliaNativePlugin extends Plugin {
         result.put("active", active);
         result.put("starting", starting);
         result.put("enabled", coordinator.isEnabled());
+        result.put("returnedToSystem", coordinator.returnedToSystem());
+        result.put("pauseReturnSeconds", RearPlaybackHandoff.PAUSE_DELAY_MS / 1000);
         result.put("coverSleepEnabled", coordinator.coverSleepEnabled());
         result.put("sleeping", coordinator.isSleeping());
         result.put("sleepUnsupported", coordinator.sleepUnsupported());

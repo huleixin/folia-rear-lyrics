@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { canUseRearLyrics, toggleRearLyrics, setRearLyricsBackend, type RearLyricsStatus } from '../../../src/services/rearLyricsControl';
-import { rearSettingsHint, rearSettingsFingerprint } from '../../../src/components/modal/settings/rearLyricsSettingsModel';
+import { rearSettingsHint, rearSettingsFingerprint, rearSettingsState } from '../../../src/components/modal/settings/rearLyricsSettingsModel';
 
 // test/unit/services/rearLyricsControl.test.ts
 // A temporarily hidden window must not turn an enabled setting back into a start button.
@@ -13,6 +13,15 @@ function install(status: RearLyricsStatus) {
     return plugin;
 }
 describe('rear lyrics persistent control', () => {
+    it('keeps the opt-in enabled while reporting that the system currently owns the rear screen', async () => {
+        const status = { enabled: true, active: false, returnedToSystem: true };
+        const plugin = install(status);
+        expect(rearSettingsState(status, false)).toBe('system');
+        expect(rearSettingsFingerprint(status)).not.toBe(rearSettingsFingerprint({ ...status, returnedToSystem: false }));
+        await toggleRearLyrics();
+        expect(plugin.returnFromRearLyrics).toHaveBeenCalledOnce();
+        expect(plugin.startRearLyrics).not.toHaveBeenCalled();
+    });
     it('switches a closed stage to LSP without starting either stage', async () => {
         const plugin = install({ enabled: false, active: false });
         expect(await setRearLyricsBackend('lsp')).toBe(true);

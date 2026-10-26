@@ -15,7 +15,7 @@ vi.mock('@/platform/foliaNative',()=>({getFoliaNative:()=>native}));
 vi.mock('@/services/rearLyricsFont',()=>({resolveRearUploadedFont:vi.fn().mockResolvedValue(null)}));
 vi.mock('@/stores/useTypographySettingsStore',()=>({useTypographySettingsStore:(select:(state:unknown)=>unknown)=>select({lyricsCustomFont:null})}));
 (globalThis as {IS_REACT_ACT_ENVIRONMENT?:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
-let root:Root,host:HTMLDivElement, enabled:boolean, sleeping:boolean;
+let root:Root,host:HTMLDivElement, enabled:boolean, sleeping:boolean, returnedToSystem:boolean;
 let state:PlayerState, time:number;
 const config={activePlaybackContext:'main',stageSource:null,song:{id:'real-track',name:'real-track'},songArtist:'artist'} as unknown as ObsBrowserSourceConfig;
 const audio=()=>({audioPower:0,bands:{bass:0,lowMid:0,mid:0,vocal:0,treble:0},spectrum:[],sentAtMs:Date.now()}) as ObsBrowserSourceAudio;
@@ -23,8 +23,8 @@ const clock=()=>({currentTime:time,duration:100,playerState:state,playbackRate:1
 const read=()=>({currentTime:time,playbackRate:1,advancing:state===PlayerState.PLAYING});
 function Harness({revision=0}:{revision?:number}) { useRearLyricsPublisher(revision?{...config}:config,clock,audio,read);return null; }
 beforeEach(()=>{
-    vi.useFakeTimers();vi.clearAllMocks();enabled=false;sleeping=false;state=PlayerState.PLAYING;time=10;
-    native.getRearLyricsRuntimeState.mockImplementation(async()=>({enabled,sleeping}));native.getRearLyricsStatus.mockResolvedValue({enabled:false});
+    vi.useFakeTimers();vi.clearAllMocks();enabled=false;sleeping=false;returnedToSystem=false;state=PlayerState.PLAYING;time=10;
+    native.getRearLyricsRuntimeState.mockImplementation(async()=>({enabled,sleeping,returnedToSystem}));native.getRearLyricsStatus.mockResolvedValue({enabled:false});
     native.publishRearLyricsSnapshot.mockResolvedValue(undefined);
     host=document.createElement('div');document.body.appendChild(host);root=createRoot(host);
 });
@@ -35,6 +35,22 @@ it('does not schedule 100ms publication or collect diagnostic reports while disa
     expect(native.getRearLyricsRuntimeState).toHaveBeenCalledTimes(11);
     expect(native.getRearLyricsStatus).not.toHaveBeenCalled();expect(native.publishRearLyricsSnapshot).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(1);
+});
+it('stops clock/audio publication while the system owns the rear screen and resumes at the live position',async()=>{
+    enabled=true;
+    await act(async()=>root.render(h(Harness)));await act(async()=>vi.advanceTimersByTimeAsync(500));
+    state=PlayerState.PAUSED;returnedToSystem=true;
+    await act(async()=>vi.advanceTimersByTimeAsync(1000));
+    const count=native.publishRearLyricsSnapshot.mock.calls.length;
+    expect(useRearRuntimeStore.getState().enabled).toBe(false);
+    await act(async()=>root.render(h(Harness,{revision:1})));
+    await act(async()=>vi.advanceTimersByTimeAsync(30000));
+    expect(native.publishRearLyricsSnapshot).toHaveBeenCalledTimes(count);
+    expect(vi.getTimerCount()).toBe(1);
+    state=PlayerState.PLAYING;time=55;returnedToSystem=false;
+    await act(async()=>vi.advanceTimersByTimeAsync(2100));
+    expect(useRearRuntimeStore.getState().enabled).toBe(true);
+    expect(native.publishRearLyricsSnapshot.mock.lastCall?.[0].clock.currentTime).toBe(55);
 });
 it('keeps 10Hz playing snapshots, sparsely heartbeats when paused, and wakes for config changes',async()=>{
     enabled=true;

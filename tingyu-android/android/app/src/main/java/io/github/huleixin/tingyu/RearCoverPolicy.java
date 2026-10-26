@@ -13,4 +13,7 @@ final class RearCoverPolicy {
         return sampled && motion < .8f && z > 8.5f && Math.abs(x) < 3f && Math.abs(y) < 3f;
     }
     static boolean mayRecoverWindow(boolean sleeping, boolean powerBusy) { return !sleeping && !powerBusy; }
+    static boolean mayRecoverWindow(boolean sleeping, boolean powerBusy, boolean coverEnabled, boolean physicallyCovered) {
+        return mayRecoverWindow(sleeping, powerBusy) && !(coverEnabled && physicallyCovered);
+    }
 }
