@@ -1,3 +1,4 @@
+import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import { resolveVisualizerDimension } from '../../../utils/visualizerSurface';
 import { getVisualizerSurface } from '../../../utils/visualizerSurface';
 // Copyright (c) 2026 chthollyphile
@@ -62,7 +63,7 @@ const MAX_RESOLUTION = 2;
 const DARK_SKY = 0.5;
 const NIGHT_BACKGROUND = '#0b0d24';
 
-const resolveRenderResolution = (devicePixelRatio: number) => Math.min(MAX_RESOLUTION, Math.max(1, devicePixelRatio || 1));
+const resolveRenderResolution = (devicePixelRatio: number) => resolveStageRenderRatio(devicePixelRatio, MAX_RESOLUTION);
 
 export class HanabiPixiRuntime {
     private readonly sceneCache = new PixiSceneCache<HanabiSceneEntry>({

@@ -15,20 +15,22 @@ export const useHomeModel = (deps: HomeModelDeps): HomeViewModel => {
     const activePlaybackContext = usePlaybackStore(state => state.activePlaybackContext);
     const navidromeEnabled = useLibraryStore(state => state.navidromeEnabled);
     // fb3：应用的 togglePlay 随播放状态换身份；不稳定化的话每次暂停 / 继续都会重建整个首页模型（与下游所有 surface 的 props）。
-    const { togglePlayback, nextTrack } = useStableCallbacks({
+    const { togglePlayback, nextTrack, previousTrack } = useStableCallbacks({
         togglePlayback: deps.togglePlayback,
         nextTrack: () => deps.nextTrack?.(),
+        previousTrack: () => deps.previousTrack?.(),
     });
 
     return useMemo(() => buildHomeModel({
         ...deps,
         togglePlayback,
         nextTrack: deps.nextTrack ? nextTrack : undefined,
+        previousTrack: deps.previousTrack ? previousTrack : undefined,
         currentSong,
         activePlaybackContext,
         navidromeEnabled,
         // Spread rather than `deps`: the caller passes an object literal, so depending on the object
         // would rebuild this every render. The key set is fixed by the call site.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }), [...Object.entries(deps).filter(([key]) => key !== 'togglePlayback' && key !== 'nextTrack').map(([, value]) => value), togglePlayback, nextTrack, Boolean(deps.nextTrack), currentSong, activePlaybackContext, navidromeEnabled]);
+    }), [...Object.entries(deps).filter(([key]) => key !== 'togglePlayback' && key !== 'nextTrack' && key !== 'previousTrack').map(([, value]) => value), togglePlayback, nextTrack, Boolean(deps.nextTrack), previousTrack, Boolean(deps.previousTrack), currentSong, activePlaybackContext, navidromeEnabled]);
 };

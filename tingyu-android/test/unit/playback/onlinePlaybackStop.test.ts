@@ -141,6 +141,7 @@ function controller({ mainPlaybackSnapshotRef = { current: null }, onPlayNavidro
     const playbackAutoSkipCountRef = { current: 0 };
     const blobUrlRef = { current: null as string | null };
     const persistLastPlaybackCache = vi.fn(async () => undefined);
+    const navigateToPlaybackView = vi.fn();
     const setLyrics = vi.fn();
     const result = usePlaybackQueueController({
         localSongs: [], localLibraryCatalog: {}, isNowPlayingStageActive: false, shouldNavigateToPlayerOnTrackChange: true,
@@ -149,16 +150,28 @@ function controller({ mainPlaybackSnapshotRef = { current: null }, onPlayNavidro
         lastAudioRecoverySourceRef: { current: null }, currentOnlineAudioUrlFetchedAtRef: { current: null },
         mainPlaybackSnapshotRef,
         setIsLyricsLoading: vi.fn(), setLyrics, persistLastPlaybackCache,
-        navigateToPlaybackView: vi.fn(), restoreCachedThemeForSong: vi.fn(async () => undefined),
+        navigateToPlaybackView, restoreCachedThemeForSong: vi.fn(async () => undefined),
         interruptStagePlaybackForMainTransition: vi.fn(),
         onPlayNavidromeSong,
     } as never);
     const setPendingUnavailableReplacement = stateSetters.at(-1)!;
     return {
         ...result, pause, shouldAutoPlayRef, currentSongRef, playbackAutoSkipCountRef, blobUrlRef,
-        persistLastPlaybackCache, setLyrics, setPendingUnavailableReplacement,
+        persistLastPlaybackCache, setLyrics, setPendingUnavailableReplacement, navigateToPlaybackView,
     };
 }
+
+describe('mini-player transport stays in its route', () => {
+    it.each(['next', 'previous'] as const)('%s changes audio without forcing the stage open', async direction => {
+        usePlaybackStore.setState({ currentSong: songs[1] });
+        loader.mockResolvedValue({ kind: 'ok', audioSrc: 'https://cdn.example/next.mp3' });
+        const queue = controller();
+        if (direction === 'next') await queue.handleNextTrack({ shouldNavigateToPlayer: false });
+        else queue.handlePrevTrack({ shouldNavigateToPlayer: false });
+        await vi.waitFor(() => expect(usePlaybackStore.getState().currentSong?.id).toBe(direction === 'next' ? '3' : '1'));
+        expect(queue.navigateToPlaybackView).not.toHaveBeenCalled();
+    });
+});
 
 describe('online playback stop conditions', () => {
     it.each([

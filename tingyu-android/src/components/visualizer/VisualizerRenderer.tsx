@@ -49,4 +49,5 @@ const VisualizerRenderer: React.FC<VisualizerRendererProps> = ({ mode, ...props 
     );
 };
 
-export default VisualizerRenderer;
+// Transport/chrome changes must not rebuild unchanged lyric renderer props.
+export default React.memo(VisualizerRenderer);

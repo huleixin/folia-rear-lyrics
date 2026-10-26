@@ -22,6 +22,7 @@ import { colorWithAlpha, mixColors, parseColorChannels } from '../../../visualiz
 import ProgressBar from '../../../ProgressBar';
 import type { AppOverlaysModel } from '../buildAppOverlaysModel';
 import MobileStageMenu from './MobileStageMenu';
+import { useMobileGlass } from '../../../../hooks/useMobileGlass';
 import { useMobileStageSubtitleClearance } from './useMobileStageSubtitleClearance';
 import './mobileStageChrome.css';
 import '../../../../styles/mobileGlass.css';
@@ -40,7 +41,9 @@ export default function MobileStageChrome({
     const closeMenu = useCallback(() => setMenuOpen(false), []);
     const panelOpen = useAppViewStore((state) => state.isPanelOpen);
     const stageRef = useRef<HTMLDivElement>(null);
+    const playerRef = useRef<HTMLElement>(null);
     const hidden = panelOpen || (chrome.hidden && !menuOpen);
+    useMobileGlass(playerRef, !hidden && !!controls && !controls.hideControlBar);
     useMobileStageSubtitleClearance(stageRef, !hidden && !!controls && !controls.hideControlBar);
     const openQueue = () => {
         const state = useAppViewStore.getState();
@@ -119,7 +122,7 @@ export default function MobileStageChrome({
                 {menuOpen && <MobileStageMenu onClose={closeMenu} />}
             </header>
             {controls && !controls.hideControlBar && (
-                <section className="mps-player" aria-label={t('mobileStage.playback')}>
+                <section ref={playerRef} className="mps-player" aria-label={t('mobileStage.playback')}>
                     <div className="mps-transport">
                         <button
                             className="mps-secondary"

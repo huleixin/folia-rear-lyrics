@@ -1,3 +1,4 @@
+import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import React, { useEffect, useRef } from 'react';
 import type { AudioBands, MonetAudioStyle, Theme } from '../../../types';
 import { colorWithAlpha } from '../colorMix';
@@ -179,7 +180,7 @@ const AudioOverlay: React.FC<AudioOverlayProps> = ({
 
         const resizeCanvas = () => {
             const rect = canvas.getBoundingClientRect();
-            const dpr = window.devicePixelRatio || 1;
+            const dpr = resolveStageRenderRatio(window.devicePixelRatio, window.devicePixelRatio || 1);
             const nextWidth = Math.max(1, Math.floor(rect.width * dpr));
             const nextHeight = Math.max(1, Math.floor(rect.height * dpr));
             canvasWidth = rect.width;

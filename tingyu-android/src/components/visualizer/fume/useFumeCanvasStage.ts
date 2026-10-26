@@ -1,3 +1,4 @@
+import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import { useEffect, useRef, type RefObject } from 'react';
 import { drawFumeBackground } from '../FumeBackground';
 import { isGlowBlurQuantized } from '../../../utils/glowBlurQuantize';
@@ -187,14 +188,14 @@ export const useFumeCanvasStage = (
                 passedGlowBase,
                 passedFadeDuration,
                 overviewTextRestoreProgress,
-                snapshotScale: clamp(window.devicePixelRatio || 1, 1, 2),
+                snapshotScale: resolveStageRenderRatio(window.devicePixelRatio, 2),
             };
 
             const rasterLive = isGlowBlurQuantized();
             // A little margin so glyphs entering the screen are already drawn.
             const margin = 32 / screenScale;
             const liveFrame = {
-                deviceScale: screenScale * (window.devicePixelRatio || 1),
+                deviceScale: screenScale * resolveStageRenderRatio(window.devicePixelRatio, window.devicePixelRatio || 1),
                 visible: {
                     left: camera.x - (viewportCenterX + paint.offsetX) / screenScale - margin,
                     top: camera.y - viewportCenterY / screenScale - margin,
@@ -230,7 +231,7 @@ export const useFumeCanvasStage = (
                             (1 - fit.scale) * worldY + (fit.top - projected.top) / screenScale);
                         const fittedScale = screenScale * fit.scale;
                         // Raster cache culling must use the corrected transform, or the visible sentence gets clipped internally.
-                        currentFrame = { ...liveFrame, deviceScale: fittedScale * (window.devicePixelRatio || 1),
+                        currentFrame = { ...liveFrame, deviceScale: fittedScale * resolveStageRenderRatio(window.devicePixelRatio, window.devicePixelRatio || 1),
                             visible: { left: worldX - fit.left / fittedScale - margin,
                                 top: worldY - fit.top / fittedScale - margin,
                                 right: worldX + (viewport.width - fit.left) / fittedScale + margin,

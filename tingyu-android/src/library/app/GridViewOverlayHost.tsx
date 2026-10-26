@@ -641,6 +641,10 @@ const GridViewOverlayHost: React.FC<GridViewOverlayHostProps> = ({
                 onTogglePlayback={surfaceProps.onTogglePlayback}
                 onNextTrack={surfaceProps.onNextTrack}
                 canNextTrack={surfaceProps.canNextTrack}
+                onPreviousTrack={surfaceProps.onPreviousTrack}
+                canPreviousTrack={surfaceProps.canPreviousTrack}
+                nextTrackLabel={surfaceProps.nextTrackLabel}
+                previousTrackLabel={surfaceProps.previousTrackLabel}
                 onEnterPlaybackView={surfaceProps.onEnterPlaybackView}
                 onOpenLattice={surfaceProps.onOpenLattice}
             />

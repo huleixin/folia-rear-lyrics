@@ -1,3 +1,4 @@
+import { resolveStageRenderRatio } from './stageRenderBudget';
 import { resolveRearContentFrame } from './rearFrameGeometry';
 import { resolveRearSafeLeft } from './rearCameraSafeArea';
 
@@ -57,7 +58,7 @@ export function getVisualizerPaintBounds(width: number, height: number) {
 /** Bitmap and CSS size describe the same local rectangle; no extra camera translation. */
 export function prepareVisualizerCanvas(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D, width: number, height: number) {
     const paint = getVisualizerPaintBounds(width, height);
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = resolveStageRenderRatio(window.devicePixelRatio, window.devicePixelRatio || 1);
     const pixelsWide = Math.max(1, Math.floor(paint.width * dpr));
     const pixelsHigh = Math.max(1, Math.floor(paint.height * dpr));
     if (canvas.width !== pixelsWide || canvas.height !== pixelsHigh) {

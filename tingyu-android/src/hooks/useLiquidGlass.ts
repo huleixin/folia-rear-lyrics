@@ -35,10 +35,11 @@ export function useLiquidGlassOnRef<T extends HTMLElement>(
     ref: RefObject<T | null>,
     activationKey?: string | boolean,
     options = DEFAULT_OPTIONS,
+    enabled = true,
 ) {
     useEffect(() => {
         const target = ref.current;
-        if (!target) return;
+        if (!target || !enabled) return;
 
         let disposed = false;
         let destroy: (() => void) | undefined;
@@ -85,6 +86,6 @@ export function useLiquidGlassOnRef<T extends HTMLElement>(
         };
     // Glass geometry is static; activationKey is used only when a selected-tab lens changes target.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activationKey]);
+    }, [activationKey, enabled]);
 
 }

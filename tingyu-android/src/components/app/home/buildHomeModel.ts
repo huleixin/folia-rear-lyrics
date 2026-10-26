@@ -37,6 +37,10 @@ export type HomeModelDeps = {
     togglePlayback: NonNullable<HomeSurfaceProps['onTogglePlayback']>;
     nextTrack?: HomeSurfaceProps['onNextTrack'];
     canNextTrack?: boolean;
+    previousTrack?: HomeSurfaceProps['onPreviousTrack'];
+    canPreviousTrack?: boolean;
+    nextTrackLabel?: string;
+    previousTrackLabel?: string;
     /** fb3：按「播放后进入的视图」进入播放视图（播放胶囊的同一个导航）。 */
     enterPlaybackView: NonNullable<HomeSurfaceProps['onEnterPlaybackView']>;
     refreshOnlineProviderPlaylists: () => Promise<unknown>;
@@ -81,6 +85,10 @@ export const buildHomeModel = ({
     togglePlayback,
     nextTrack,
     canNextTrack,
+    previousTrack,
+    canPreviousTrack,
+    nextTrackLabel,
+    previousTrackLabel,
     enterPlaybackView,
     refreshOnlineProviderPlaylists,
     user,
@@ -127,6 +135,10 @@ export const buildHomeModel = ({
             onTogglePlayback: togglePlayback,
             onNextTrack: nextTrack,
             canNextTrack,
+            nextTrackLabel,
+            previousTrackLabel,
+            onPreviousTrack: previousTrack,
+            canPreviousTrack,
             onEnterPlaybackView: enterPlaybackView,
             onRefreshUser: () => refreshOnlineProviderPlaylists(),
             // An anonymous selected provider must not inherit a different platform's account.

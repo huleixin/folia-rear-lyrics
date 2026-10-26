@@ -1,3 +1,4 @@
+import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -406,7 +407,7 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
             <div className="absolute inset-0 z-0">
                 <Canvas
                     camera={{ position: [0, 0.6, 9], fov: 55 }}
-                    dpr={[1, 2]}
+                    dpr={[1, resolveStageRenderRatio(2)]}
                     // 暂停时切 demand：画面静止就不再每帧重画 3D 场景，恢复播放由 R3F 自动续帧。
                     frameloop={props.paused ? 'demand' : 'always'}
                     gl={{

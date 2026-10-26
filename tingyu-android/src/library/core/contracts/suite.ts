@@ -373,6 +373,10 @@ export type LibrarySuiteStageProps = {
     onLibraryHome?: () => void;
     onNextTrack?: () => void;
     canNextTrack?: boolean;
+    onPreviousTrack?: () => void;
+    canPreviousTrack?: boolean;
+    nextTrackLabel?: string;
+    previousTrackLabel?: string;
     /** 首页外壳层的值（不是首页 surface 的值：集合层打开时 stage 仍可交互）。另一层盖在上面时为 false。 */
     isInteractive: boolean;
     theme: Theme;

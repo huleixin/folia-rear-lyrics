@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LibrarySuiteStageProps } from '../../core/contracts/suite';
 import { useMobileLibraryStore } from '../../../stores/useMobileLibraryStore';
@@ -8,9 +8,10 @@ import MobileMiniPlayer from './MobileMiniPlayer';
 import TingyuNavIcon from './TingyuNavIcon';
 import './mobileLibrary.css';
 import '../../../styles/mobileGlass.css';
-import { useLiquidGlass } from '../../../hooks/useLiquidGlass';
+import { useMobileGlass } from '../../../hooks/useMobileGlass';
 import { useMobileFooterMotion } from './useMobileFooterMotion';
 import './mobileFooterMotion.css';
+import { useNativeGlassNav } from '../../../hooks/useNativeGlassNav';
 
 // src/library/suites/mobile/MobileLibraryStage.tsx
 function MobileLibraryStage(props: LibrarySuiteStageProps) {
@@ -22,9 +23,14 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
     const libraryActive = !searchOpen && !settingsOpen && page === 'library';
     const playlistDetail = props.navigation.depth > 0 && props.navigation.activeType === 'playlist';
     // 两个玻璃节点持续挂载；切页只改变位置和透明度，不重建透镜或播放器。
-    const navRef = useLiquidGlass<HTMLElement>();
+    const navRef = useRef<HTMLElement>(null);
     const footerRef = useRef<HTMLElement>(null);
     useMobileFooterMotion(footerRef, navRef, playlistDetail);
+    const nativeNavigate = useCallback((index: number) => {
+        navRef.current?.querySelectorAll('button')[index]?.click();
+    }, [navRef]);
+    const nativeGlass = useNativeGlassNav(navRef, props.isInteractive && !settingsOpen && !searchOpen, `${playlistDetail}:${page}`, nativeNavigate);
+    useMobileGlass(navRef, !nativeGlass);
     useEffect(() => {
         // The host registers its occlusion owner in an effect. Report after that registration.
         const frame = requestAnimationFrame(() => props.reportPlayerOcclusion(true));
@@ -41,6 +47,10 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
                 onTogglePlayback={props.onTogglePlayback}
                 onNextTrack={props.onNextTrack}
                 canNextTrack={props.canNextTrack}
+                onPreviousTrack={props.onPreviousTrack}
+                canPreviousTrack={props.canPreviousTrack}
+                nextTrackLabel={props.nextTrackLabel}
+                previousTrackLabel={props.previousTrackLabel}
             />
             <nav ref={navRef} inert={playlistDetail} aria-hidden={playlistDetail || undefined} aria-label={t('mobileLibrary.navigation')}>
                 <button

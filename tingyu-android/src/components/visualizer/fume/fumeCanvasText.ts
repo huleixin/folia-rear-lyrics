@@ -1,3 +1,4 @@
+import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import { Theme } from '../../../types';
 import { resolveThemeFontStack } from '../../../utils/fontStacks';
 import { colorWithAlpha, mixColors } from '../colorMix';
@@ -69,7 +70,7 @@ export const createStaticBlockSnapshot = (
         return null;
     }
 
-    const rasterScale = clamp(window.devicePixelRatio || 1, 1, 2);
+    const rasterScale = resolveStageRenderRatio(window.devicePixelRatio, 2);
     const padding = Math.ceil(Math.max(block.fontPx * 0.32, shadowBlur + block.fontPx * 0.08, 4));
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.ceil((block.width + padding * 2) * rasterScale));

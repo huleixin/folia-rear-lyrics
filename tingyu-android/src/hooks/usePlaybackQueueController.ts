@@ -1082,9 +1082,11 @@ export function usePlaybackQueueController({
         }
     }, [audioRef, currentSong, endHeldTransition, getDisplaySong, isFmMode, isNowPlayingStageActive, loopMode, playQueue, playSong, setPlayQueue, setPlayerState, shouldNavigateToPlayerOnTrackChange]);
 
-    const handlePrevTrack = useCallback(() => {
+    const handlePrevTrack = useCallback((options?: Pick<PlaybackNavigationOptions, 'shouldNavigateToPlayer'>) => {
         if (isNowPlayingStageActive) return;
         if (!currentSong || playQueue.length === 0) return;
+
+        const shouldNavigateToPlayer = options?.shouldNavigateToPlayer ?? shouldNavigateToPlayerOnTrackChange;
 
         // Same as handleNextTrack, and more visibly wrong without it: stepping back from the track
         // a blend has already advanced to lands on the one the listener is hearing, so "previous"
@@ -1094,7 +1096,7 @@ export function usePlaybackQueueController({
         const currentSongKey = getPlaybackSongKey(heldSong ?? currentSong);
         if (!isFmMode && shufflePlayback.active()) {
             const previous = shufflePlayback.previous(playQueue, heldSong ?? currentSong, true);
-            if (previous) void playSong(previous, playQueue, false, { shouldNavigateToPlayer: shouldNavigateToPlayerOnTrackChange });
+            if (previous) void playSong(previous, playQueue, false, { shouldNavigateToPlayer });
             return;
         }
         const currentIndex = playQueue.findIndex(song => getPlaybackSongKey(song) === currentSongKey);
@@ -1108,7 +1110,7 @@ export function usePlaybackQueueController({
 
         if (prevIndex >= 0) {
             void playSong(playQueue[prevIndex], playQueue, isFmMode, {
-                shouldNavigateToPlayer: shouldNavigateToPlayerOnTrackChange,
+                shouldNavigateToPlayer,
             });
         }
     }, [currentSong, endHeldTransition, getDisplaySong, isFmMode, isNowPlayingStageActive, loopMode, playQueue, playSong, shouldNavigateToPlayerOnTrackChange]);

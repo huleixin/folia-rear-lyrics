@@ -16,6 +16,7 @@ import {
     type DebugLogMode,
 } from '../../../services/debug/debugModule';
 import ConsoleLogPanel from '../../shared/ConsoleLogPanel';
+import GlassExperimentSection from './GlassExperimentSection';
 
 // src/components/modal/settings/DeveloperSettingsSubview.tsx
 // The debug module's switches: what is recorded, how its file opens, and where it lands.
@@ -135,6 +136,7 @@ const DeveloperSettingsSubview: React.FC<DeveloperSettingsSubviewProps> = ({
 
     return (
         <div className="space-y-4">
+            <GlassExperimentSection />
             <div className={`rounded-2xl border p-4 space-y-4 ${settingsCardClass}`}>
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex min-w-0 items-start gap-3">

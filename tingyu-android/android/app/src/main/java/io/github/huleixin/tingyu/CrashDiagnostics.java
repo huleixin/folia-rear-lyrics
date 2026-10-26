@@ -103,7 +103,26 @@ public final class CrashDiagnostics {
         );
     }
 
+    // Routine navigation must not fsync preferences on the UI thread during launcher animation.
+    private static final java.util.concurrent.Executor BREADCRUMBS = new java.util.concurrent.ThreadPoolExecutor(
+        1, 1, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
+        new java.util.concurrent.ArrayBlockingQueue<>(32), task -> {
+            Thread thread = new Thread(task, "tingyu-lifecycle-log"); thread.setDaemon(true); return thread;
+        }, new java.util.concurrent.ThreadPoolExecutor.DiscardOldestPolicy());
+
     public static void recordText(
+        Context context, String source, String threadName, String type, String message, String stack
+    ) {
+        if (context == null) return;
+        if ("activity-lifecycle".equals(source)) {
+            Context app = context.getApplicationContext();
+            BREADCRUMBS.execute(() -> writeRecord(app, source, threadName, type, message, stack));
+        } else {
+            writeRecord(context, source, threadName, type, message, stack);
+        }
+    }
+
+    private static synchronized void writeRecord(
         Context context,
         String source,
         String threadName,

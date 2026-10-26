@@ -120,6 +120,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { clampMediaVolume, toSafeRemoteUrl } from './utils/appPlaybackHelpers';
 import { getSizedCoverUrl } from './utils/coverUrl';
 import { prewarmCoverImage } from './utils/coverPrewarm';
+import { resolvePlaybackNeighbors } from './utils/playbackNeighbors';
 import { getOnlineProviderIdForSong, getPlaybackSongKey, isLocalPlaybackSong, isNavidromePlaybackSong, isStagePlaybackSong } from './utils/appPlaybackGuards';
 import {
     noteAudioElementEvent,
@@ -2213,6 +2214,9 @@ export default function App() {
         clearQueue,
         saveCurrentQueueAsLocalPlaylist,
     });
+    const miniPlayerNeighbors = useMemo(() => resolvePlaybackNeighbors({
+        playQueue, currentSong, loopMode: effectiveLoopMode, isFmMode, isStageActive: isNowPlayingStageActive,
+    }), [playQueue, currentSong, effectiveLoopMode, isFmMode, isNowPlayingStageActive]);
     const homeModel = useHomeModel({
         account: accountController,
         activeProvider,
@@ -2220,8 +2224,12 @@ export default function App() {
         navigateToPlayer,
         navigateToLattice,
         togglePlayback: togglePlay,
-        nextTrack: handleNextTrack,
-        canNextTrack: !isNowPlayingControlDisabled && Boolean(nextUpTrack || isFmMode),
+        nextTrack: () => { void handleNextTrack({ shouldNavigateToPlayer: false }); },
+        previousTrack: () => handlePrevTrack({ shouldNavigateToPlayer: false }),
+        canPreviousTrack: !isNowPlayingControlDisabled && miniPlayerNeighbors.prev.canGo,
+        canNextTrack: !isNowPlayingControlDisabled && miniPlayerNeighbors.next.canGo,
+        nextTrackLabel: miniPlayerNeighbors.next.title ?? undefined,
+        previousTrackLabel: miniPlayerNeighbors.prev.title ?? undefined,
         enterPlaybackView: navigateFromPlayerCapsule,
         refreshOnlineProviderPlaylists: refreshActiveProviderPlaylists,
         user,

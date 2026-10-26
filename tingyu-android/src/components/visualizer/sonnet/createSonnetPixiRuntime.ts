@@ -1,3 +1,4 @@
+import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import { getRearSafeInset, resolveVisualizerDimension } from '../../../utils/visualizerSurface';
 import type { RearRect } from '../../../utils/rearCameraSafeArea';
 import { resolveSonnetRearReadingArea } from './sonnetRearReadingArea';
@@ -149,7 +150,7 @@ export class SonnetPixiRuntime {
             backgroundAlpha: 0,
             antialias: true,
             autoDensity: true,
-            resolution: snapResolutionToTexturePool(width, height, options.tuning.textureResolution),
+            resolution: snapResolutionToTexturePool(width, height, resolveStageRenderRatio(options.tuning.textureResolution, options.tuning.textureResolution)),
             autoStart: false,
             sharedTicker: false,
             preference: 'webgl',
@@ -204,7 +205,7 @@ export class SonnetPixiRuntime {
         this.app.renderer.resize(
             width,
             height,
-            snapResolutionToTexturePool(width, height, this.options.tuning.textureResolution),
+            snapResolutionToTexturePool(width, height, resolveStageRenderRatio(this.options.tuning.textureResolution, this.options.tuning.textureResolution)),
         );
         // autoDensity rounds the backing store; keep its CSS box fitted to the entire panel after every resize.
         this.app.canvas.style.width = '100%';

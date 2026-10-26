@@ -1,5 +1,13 @@
-/* The optical engine applies backdrop-filter:url(#feDisplacementMap) inline. Keep only a
-   low-opacity tint/highlight here so the underlying artwork remains visible through the lens. */
+/* Phone surfaces share one restrained material. Optical refraction is not needed for transport. */
+.mobile-library.ml-footer > nav[data-native-glass] {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    pointer-events: none;
+}
+.mobile-library.ml-footer > nav[data-native-glass] > * { visibility: hidden; }
 .mobile-library.ml-footer::before { display: none; }
 
 .mobile-library.ml-footer > .ml-mini,
@@ -60,6 +68,55 @@
 .mobile-library .ml-mini-controls .ml-icon:active:not(:disabled) {
     transform: scale(0.96);
 }
+
+.mobile-library.ml-footer > [data-soft-glass],
+.mobile-player-stage .mps-player[data-soft-glass] {
+    background: linear-gradient(150deg, #ffffff12, #ffffff02 55%), rgb(12 23 21 / 62%);
+    border: 1px solid #ffffff26;
+    box-shadow: inset 0 1px 0 #ffffff22, 0 4px 14px #0003;
+    -webkit-backdrop-filter: blur(10px) saturate(1.15);
+    backdrop-filter: blur(10px) saturate(1.15);
+    /* A moving filter/transform transition would compete with the existing footer WAAPI. */
+    transition: background-color 160ms ease, border-color 160ms ease;
+}
+[data-soft-glass='sleeping'],
+.mobile-player-stage[data-hidden='true'] .mps-player,
+.ml-footer[inert] > [data-soft-glass] {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+.mobile-library button { touch-action: manipulation; }
+.ml-mini-swipe-window {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    border-radius: 19px;
+    touch-action: pan-y;
+}
+.mobile-library .ml-mini-track { width: 100%; touch-action: pan-y; }
+.ml-mini[data-dragging] .ml-mini-track { will-change: transform; transition: none !important; }
+.ml-mini-preview {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+}
+.ml-mini-preview > span { display: none; }
+.ml-mini[data-swipe='next'] [data-direction='next'],
+.ml-mini[data-swipe='previous'] [data-direction='previous'] { display: inline; }
+.mobile-library .ml-mini-controls .ml-mini-toggle { position: relative; }
+.ml-mini-toggle > svg:not(.ml-mini-progress) { width: 17px; height: 17px; }
+.ml-mini-progress { position: absolute; width: 40px; height: 40px; pointer-events: none; }
+.ml-mini-progress circle { fill: none; stroke-width: 2.2; }
+.ml-mini-progress-track { stroke: #ffffff35; }
+.ml-mini-progress-value { stroke: currentColor; stroke-linecap: round; }
+/* Press feedback starts immediately; expensive layout/filter properties are never animated. */
+.mobile-library.ml-footer button, .mobile-player-stage button { transition-duration: 90ms; }
 
 [data-folia-android='true'] [data-folia-search-workspace] {
     padding-top: calc(14px + var(--folia-main-inset-top, 0px));
