@@ -150,6 +150,20 @@ describe('frameRateLimiter', () => {
         nativeCallbacks[1](1016); expect(processed).toEqual(['first', 'next']);
     });
 
+    it('keeps the requested cadence on 60/90/120Hz displays instead of rounding 60Hz down to 45Hz', () => {
+        for (const displayHz of [60, 90, 120]) for (const target of [30, 60] as const) {
+            let id=0;const callbacks=new Map<number,FrameRequestCallback>(), times:number[]=[];
+            const limiter=createFrameRateLimitedRaf(cb=>{callbacks.set(++id,cb);return id;},handle=>callbacks.delete(handle),target);
+            const tick=(time:number)=>{times.push(time);limiter.requestAnimationFrame(tick);};
+            limiter.requestAnimationFrame(tick);
+            for(let n=0;n<displayHz*10;n++) {const batch=[...callbacks.values()];callbacks.clear();batch.forEach(fn=>fn(n*1000/displayHz));}
+            expect(times.length).toBeGreaterThanOrEqual(target*10-1);
+            expect(times.length).toBeLessThanOrEqual(target*10+1);
+            expect(Math.max(...times.slice(1).map((t,i)=>t-times[i]))).toBeLessThanOrEqual(1000/target+1000/displayHz+.01);
+            limiter.dispose();expect(callbacks.size).toBe(0);
+        }
+    });
+
     it('restores native requestAnimationFrame when disabled globally', () => {
         const previousWindow = (globalThis as { window?: Window; }).window;
         const originalRequestAnimationFrame = () => 1;
@@ -178,7 +192,7 @@ describe('frameRateLimiter', () => {
         }
     });
 
-    // 安卓手机 WebView 上，用户从未手动设置过帧率时默认 30FPS（绘制次数减半、明显降温省电）。
+    // 安卓歌词默认 60FPS，独立背景采用 30FPS；显式用户设置保持有效。
     // 用户一旦手动选过（storage 有值）或调用方显式覆盖，就永远以用户为准。
     describe('Android WebView default frame rate', () => {
         const installFakeWindow = (storedValue: string | null) => {
@@ -208,7 +222,7 @@ describe('frameRateLimiter', () => {
             return runs;
         };
 
-        it('caps at 30 FPS when nothing was ever stored', async () => {
+        it('uses 60 FPS foreground when nothing was ever stored', async () => {
             vi.resetModules();
             const previousWindow = (globalThis as { window?: unknown }).window;
             try {
@@ -222,9 +236,9 @@ describe('frameRateLimiter', () => {
                 const request = fakeWindow.requestAnimationFrame;
                 const runs = countFramesPerSecond({ ...fakeWindow, requestAnimationFrame: channel.requestVisualizerAnimationFrame }, nativeCallbacks);
                 expect(fakeWindow.requestAnimationFrame).toBe(request);
-                // 30FPS ≈ 30 帧/秒；60FPS 会到 60 上下，所以上界卡在 40 就足以区分。
-                expect(runs).toBeGreaterThan(20);
-                expect(runs).toBeLessThanOrEqual(40);
+                // Foreground motion is smooth by default; wallpaper is tested separately.
+                expect(runs).toBeGreaterThanOrEqual(58);
+                expect(runs).toBeLessThanOrEqual(63);
             } finally {
                 Object.defineProperty(globalThis, 'window', { configurable: true, value: previousWindow });
                 vi.resetModules();

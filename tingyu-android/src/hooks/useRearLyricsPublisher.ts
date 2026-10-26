@@ -46,7 +46,7 @@ export function useRearLyricsPublisher(config: ObsBrowserSourceConfig, clock: ()
                     const wasEnabled = enabled;
                     enabled = result.enabled === true || result.starting === true; sleeping = result.sleeping === true;
                     setRearRuntime(enabled, sleeping);
-                    if (!enabled) { clearTimeout(publishTimer); publishTimer = 0; }
+                    if (!enabled || sleeping) { clearTimeout(publishTimer); publishTimer = 0; }
                     else if (!wasEnabled || !publishTimer) schedulePublish(0);
                 }
             } catch { /* A disconnected rear surface must not disturb playback. */ }
@@ -60,7 +60,7 @@ export function useRearLyricsPublisher(config: ObsBrowserSourceConfig, clock: ()
             publishTimer = window.setTimeout(() => { publishTimer = 0; void publish(); }, delay);
         };
         const publish = async () => {
-            if (closed || !enabled || publishing) return;
+            if (closed || !enabled || sleeping || publishing) return;
             publishing = true;
             const value = latest.current;
             let advancing = false;
@@ -80,7 +80,7 @@ export function useRearLyricsPublisher(config: ObsBrowserSourceConfig, clock: ()
                     loadedFont = await resolveRearUploadedFont(fontId);
                     loadedFontId = fontId;
                 }
-                if (closed) return;
+                if (closed || sleeping || !enabled) return;
                 await plugin.publishRearLyricsSnapshot({
                     ...(changed ? { config: value.config, uploadedFont: loadedFont } : {}),
                     clock, audio: value.audio(),
@@ -88,12 +88,12 @@ export function useRearLyricsPublisher(config: ObsBrowserSourceConfig, clock: ()
                 publishedConfig = value.config; publishedFont = fontId;
                 lastClockKey = clockKey; lastPublish = Date.now();
             } catch { /* Retry a dropped update on the next tick. */ }
-            finally { publishing = false; if (!closed && enabled) schedulePublish(advancing ? 100 : 1000); }
+            finally { publishing = false; if (!closed && enabled && !sleeping) schedulePublish(advancing ? 100 : 1000); }
         };
         const refresh = () => { clearTimeout(statusTimer); void poll(); };
         const visible = () => { if (!document.hidden) refresh(); };
         wake.current = () => {
-            if (closed) return;
+            if (closed || sleeping) return;
             if (!enabled) refresh();
             else if (!publishing) schedulePublish(0);
         };

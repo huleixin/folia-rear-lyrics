@@ -193,9 +193,16 @@ public class MainActivity extends BridgeActivity {
         });
     }
 
+    private void updateStageActivity(boolean visible) {
+        if (getBridge() == null || getBridge().getWebView() == null) return;
+        getBridge().getWebView().evaluateJavascript("window.__tingyuMainVisible=" + visible
+            + ";window.dispatchEvent(new Event('tingyu-main-stage-activity'))", null);
+    }
+
     @Override
     public void onResume() {
         super.onResume();
+        updateStageActivity(true);
         if (getBridge() != null) {
             WebView webView = getBridge().getWebView();
             if (webView != null) {
@@ -226,6 +233,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onStop() {
+        updateStageActivity(false);
         CrashDiagnostics.recordText(
             getApplicationContext(),
             "activity-lifecycle",

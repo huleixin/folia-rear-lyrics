@@ -143,7 +143,8 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
                 lineEl.style.filter = 'none';
             }
 
-            frameId = requestAnimationFrame(updateColors);
+            // Finish a pending glow transition, then hold the axis without an idle RAF loop.
+            if (!paused || Math.abs(diff) > 0.01) frameId = requestAnimationFrame(updateColors);
         };
 
         frameId = requestAnimationFrame(updateColors);

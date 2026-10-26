@@ -6,15 +6,18 @@ import type { FrameRateLimitedRaf } from './frameRateLimiter';
 type FrameWindow = Window & { __foliaNativeRequestAnimationFrame?: typeof requestAnimationFrame; __foliaNativeCancelAnimationFrame?: typeof cancelAnimationFrame };
 let owner: FrameWindow | null = null;
 let queue: FrameRateLimitedRaf | null = null;
+let backgroundQueue: FrameRateLimitedRaf | null = null;
+const backgroundRate = (rate: VisualizerFrameRate): VisualizerFrameRate => rate === 'off' ? 'off' : Math.min(30, rate) as VisualizerFrameRate;
 export function configureVisualizerFrameChannel(rate: VisualizerFrameRate,
     create: (request: typeof requestAnimationFrame, cancel: typeof cancelAnimationFrame, rate: VisualizerFrameRate) => FrameRateLimitedRaf) {
     const current = window as FrameWindow;
     if (owner !== current) {
-        queue?.dispose(); owner = current;
+        queue?.dispose(); backgroundQueue?.dispose(); owner = current;
         const request = current.__foliaNativeRequestAnimationFrame ?? current.requestAnimationFrame;
         const cancel = current.__foliaNativeCancelAnimationFrame ?? current.cancelAnimationFrame;
         queue = create(callback => request.call(current, callback), handle => cancel.call(current, handle), rate);
-    } else queue?.setFrameRate(rate);
+        backgroundQueue = create(callback => request.call(current, callback), handle => cancel.call(current, handle), backgroundRate(rate));
+    } else { queue?.setFrameRate(rate); backgroundQueue?.setFrameRate(backgroundRate(rate)); }
 }
 export const hasVisualizerFrameChannel = () => typeof window !== 'undefined' && owner === window && queue !== null;
 export const requestVisualizerAnimationFrame = (callback: FrameRequestCallback): number => (
@@ -22,5 +25,14 @@ export const requestVisualizerAnimationFrame = (callback: FrameRequestCallback):
 );
 export const cancelVisualizerAnimationFrame = (handle: number): void => {
     if (hasVisualizerFrameChannel()) queue!.cancelAnimationFrame(handle);
+    else window.cancelAnimationFrame(handle);
+};
+
+/** Soft wallpaper has a lower budget; text, camera motion and UI keep their own cadence. */
+export const requestVisualizerBackgroundFrame = (callback: FrameRequestCallback): number => (
+    hasVisualizerFrameChannel() ? backgroundQueue!.requestAnimationFrame(callback) : window.requestAnimationFrame(callback)
+);
+export const cancelVisualizerBackgroundFrame = (handle: number): void => {
+    if (hasVisualizerFrameChannel()) backgroundQueue!.cancelAnimationFrame(handle);
     else window.cancelAnimationFrame(handle);
 };

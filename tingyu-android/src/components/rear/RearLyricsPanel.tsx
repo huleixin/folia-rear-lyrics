@@ -1,3 +1,4 @@
+import { useRearStageActive } from '../../hooks/useStageActivity';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ObsBrowserSourceApp from '../obs/ObsBrowserSourceApp';
 import { createRearLyricsTransport } from '../../services/rearLyricsTransport';
@@ -11,11 +12,13 @@ import { subscribeRearStateRelay } from '../../services/rearStateRelay';
 // The renderer lays out on the right, but its transitions paint across the full rear iframe.
 export default function RearLyricsPanel() {
     const { t } = useTranslation();
+    const active = useRearStageActive();
     const [playing, setPlaying] = useState(false);
     const playingRef = useRef(false);
     const [sending, setSending] = useState(false);
     const [controlFailed, setControlFailed] = useState(false);
     const clock = useRef<ObsBrowserSourceClock | null>(null);
+    const refreshPausedProgress = useRef<(() => void) | null>(null);
     const bar = useRef<HTMLDivElement>(null), elapsedText = useRef<HTMLSpanElement>(null), durationText = useRef<HTMLSpanElement>(null);
     const hideTimer = useRef(0);
     const [progressVisible, setProgressVisible] = useState(true);
@@ -23,6 +26,7 @@ export default function RearLyricsPanel() {
     const transport = useMemo(() => {
         const source = createRearLyricsTransport(value => {
             clock.current = value;
+            refreshPausedProgress.current?.();
             const next = value.playerState === PlayerState.PLAYING;
             if (next !== playingRef.current) { playingRef.current = next; setPlaying(next); }
         }, config => setTheme(config.theme), true, {
@@ -57,7 +61,7 @@ export default function RearLyricsPanel() {
         return () => { clearTimeout(hideTimer.current); window.removeEventListener('folia-rear-reveal', reveal); };
     }, [reveal]);
     useEffect(() => {
-        if (!progressVisible) return;
+        if (!progressVisible || !active) return;
         let frame = 0;
         const format = (time: number) => `${Math.floor(time / 60).toString().padStart(2, '0')}:${Math.floor(time % 60).toString().padStart(2, '0')}`;
         const update = () => {
@@ -69,11 +73,12 @@ export default function RearLyricsPanel() {
                 if (elapsedText.current) elapsedText.current.textContent = format(elapsed);
                 if (durationText.current) durationText.current.textContent = format(value.duration);
             }
-            frame = requestAnimationFrame(update);
+            if (playing) frame = requestAnimationFrame(update);
         };
-        frame = requestAnimationFrame(update);
-        return () => cancelAnimationFrame(frame);
-    }, [progressVisible]);
+        refreshPausedProgress.current = playing ? null : update;
+        update();
+        return () => { refreshPausedProgress.current = null; cancelAnimationFrame(frame); };
+    }, [progressVisible, active, playing]);
     return <main data-testid="rear-lyrics-panel" onPointerDownCapture={reveal}
         style={{ position: 'fixed', inset: 0, overflow: 'hidden', touchAction: 'none', userSelect: 'none', background: 'transparent' }}>
         <div style={{ width: '100%', height: '100%', pointerEvents: 'none' }}>

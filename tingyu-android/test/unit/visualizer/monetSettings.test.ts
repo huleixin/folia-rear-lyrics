@@ -305,9 +305,9 @@ describe('Monet tuning and lyric helpers', () => {
         })).toEqual(DEFAULT_LATENT_BACKGROUND_TUNING);
     });
 
-    it('keeps Latent moving slowly during playback pause without overriding explicit zero speed', () => {
-        expect(resolveLatentShaderSpeed(0.35, 1.2, 0.8, true)).toBeCloseTo(0.042);
-        expect(resolveLatentShaderSpeed(0.3, 1.4, 0.9, true)).toBeCloseTo(0.036);
+    it('freezes Latent GPU animation during playback pause and preserves its playing speed', () => {
+        expect(resolveLatentShaderSpeed(0.35, 1.2, 0.8, true)).toBe(0);
+        expect(resolveLatentShaderSpeed(0.3, 1.4, 0.9, true)).toBe(0);
         expect(resolveLatentShaderSpeed(0, 1.4, 0.9, true)).toBe(0);
         expect(resolveLatentShaderSpeed(0.3, 1.3, 0.5, false)).toBeCloseTo(0.8);
     });

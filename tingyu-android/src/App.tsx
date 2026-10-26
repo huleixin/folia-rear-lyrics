@@ -34,6 +34,7 @@ import { createOnlineGridViewCollection, type GridViewCollectionDescriptor } fro
 import { buildAppStyle } from './components/app/presentation/buildAppStyle';
 import { buildDebugSnapshot } from './components/app/presentation/buildDebugSnapshot';
 import { buildHomeSurfacePresentation } from './components/app/presentation/buildHomeSurfacePresentation';
+import { useMainStageActive } from './hooks/useStageActivity';
 import { shouldMountPlayerVisualizer } from './components/app/presentation/playerVisualizerMount';
 import { resolveWallHandoffPresentation } from './components/app/presentation/wallHandoffPresentation';
 import { useWallHandoffDirector } from './components/app/presentation/wallHandoffDirector';
@@ -2455,7 +2456,8 @@ export default function App() {
     // 首页一被面板盖住 / 离开就立即重挂；设置弹窗盖着时首页仍显示在遮罩下面，不重挂。App 只认报告，不认识 suite。
     const libraryOccludesPlayer = useLibraryPlayerOcclusionStore(selectLibraryOccludesPlayer);
     const hasLibraryOcclusionSettled = useLibraryOcclusionSettled(shouldRevealHomeSurface && libraryOccludesPlayer);
-    const shouldMountVisualizer = shouldMountPlayerVisualizer({
+    const mainStageActive = useMainStageActive();
+    const shouldMountVisualizer = mainStageActive && shouldMountPlayerVisualizer({
         currentView,
         hasLatticeExited,
         shouldRevealHomeSurface,
@@ -2828,13 +2830,13 @@ export default function App() {
             <AppOverlays model={appOverlaysModel} />
 
             {/* Folium `app.overlay` stage layers: above the whole app, inert unless a layer opts in. */}
-            <FoliumStageLayerSlot
+            {mainStageActive && <FoliumStageLayerSlot
                 slot="app.overlay"
                 theme={theme}
                 isDaylight={isDaylight}
                 paused={playerState !== PlayerState.PLAYING}
                 className="fixed inset-0 pointer-events-none z-[1000]"
-            />
+            />}
 
             {/* Not in the overlays model: it takes no state from this file and no click from anyone.
                 Mounted whenever its own switch is on, so the lazy animejs chunk loads only when it is
@@ -2844,7 +2846,7 @@ export default function App() {
                 card was up, which on the lyrics page - the one people watch - meant the ring was never
                 seen again after the card shipped. Two pictures of one blend is now something the
                 listener asks for rather than something this file rules out. */}
-            {transitionAnimation && transitionMode === 'automix' && (
+            {mainStageActive && transitionAnimation && transitionMode === 'automix' && (
                 <Suspense fallback={null}>
                     <AutomixTransitionAnimation theme={theme} isDaylight={isDaylight} />
                 </Suspense>

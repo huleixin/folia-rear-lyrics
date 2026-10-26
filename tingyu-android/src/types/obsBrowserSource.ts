@@ -19,6 +19,7 @@ import type {
     UrlBackgroundItem,
     VisualizerBackgroundMode,
     VisualizerMode,
+    VisualizerFrameRate,
 } from '../types';
 import type { VisualizerTuningBundle } from '../components/visualizer/tuningRegistry';
 import type { VisualizerBackgroundConfig } from '../components/visualizer/backgrounds/definition';
@@ -47,6 +48,7 @@ export interface ObsBrowserSourceConfig {
     subtitleTheme?: Theme;
     isDaylight: boolean;
     visualizerMode: VisualizerMode;
+    visualizerFrameRate?: VisualizerFrameRate;
     visualizerTunings?: VisualizerTuningBundle;
     background?: VisualizerBackgroundConfig;
     /** @deprecated Kept for OBS pages loaded before the background registry refactor. */

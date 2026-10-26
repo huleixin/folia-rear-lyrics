@@ -145,6 +145,8 @@ export const useObsBrowserSourcePublisher = ({
     const isDaylight = useThemeSettingsStore(state => state.isDaylight);
     const staticMode = useThemeSettingsStore(state => state.staticMode);
     const visualizerMode = useVisualizerSettingsStore(state => state.visualizerMode);
+    const frameRatePreference = useVisualizerSettingsStore(state => state.visualizerFrameRate);
+    const visualizerFrameRate = localStorage.getItem('visualizer_frame_rate') === null ? undefined : frameRatePreference;
     const visualizerOpacity = useVisualizerSettingsStore(state => state.visualizerOpacity);
     const lyricsFontScale = useTypographySettingsStore(state => state.lyricsFontScale);
     const subtitleFontScale = useTypographySettingsStore(state => state.subtitleFontScale);
@@ -269,6 +271,7 @@ export const useObsBrowserSourcePublisher = ({
             subtitleTheme,
             isDaylight,
             visualizerMode,
+            visualizerFrameRate,
             visualizerTunings,
             background: resolvedBackground,
             ...buildLegacyObsBrowserSourceBackgroundConfig(resolvedBackground),
@@ -315,6 +318,7 @@ export const useObsBrowserSourcePublisher = ({
         theme,
         subtitleTheme,
         visualizerMode,
+        visualizerFrameRate,
         visualizerTunings,
         visualizerOpacity,
     ]);

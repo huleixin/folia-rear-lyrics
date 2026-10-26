@@ -16,6 +16,7 @@ interface MonetBackgroundLayerProps {
     tuning?: MonetBackgroundTuning;
     transparentBackground?: boolean;
     staticMode?: boolean;
+    paused?: boolean;
 }
 
 const PIPELINE_DEBOUNCE_MS = 180;
@@ -32,7 +33,10 @@ const useMonetBackgroundDrift = (
     enabled: boolean,
     strength: number,
     reducedMotion: boolean,
+    paused: boolean,
 ) => {
+    const liveAnimation = useRef<Animation | null>(null);
+    const pausedRef = useRef(paused); pausedRef.current = paused;
     useEffect(() => {
         const element = ref.current;
         if (!element || !enabled || strength <= 0 || typeof element.animate !== 'function') {
@@ -48,8 +52,11 @@ const useMonetBackgroundDrift = (
             easing: 'linear',
         });
 
-        return () => animation.cancel();
+        liveAnimation.current = animation;
+        if (pausedRef.current) animation.pause();
+        return () => { animation.cancel(); liveAnimation.current = null; };
     }, [enabled, ref, strength, reducedMotion]);
+    useEffect(() => { if (paused) liveAnimation.current?.pause(); else liveAnimation.current?.play(); }, [paused]);
 };
 
 const resolveSourceUrl = (
@@ -70,6 +77,7 @@ const MonetBackgroundLayer: React.FC<MonetBackgroundLayerProps> = ({
     tuning = DEFAULT_MONET_BACKGROUND_TUNING,
     transparentBackground = false,
     staticMode = false,
+    paused = false,
 }) => {
     const [pipelineUrl, setPipelineUrl] = useState<string | null>(null);
     const sourceUrl = resolveSourceUrl(coverUrl, monetBackgroundImage, tuning);
@@ -128,7 +136,7 @@ const MonetBackgroundLayer: React.FC<MonetBackgroundLayerProps> = ({
     const driftStrength = clamp(tuning.backgroundDriftStrength ?? 0, 0, 1);
     const driftEnabled = Boolean(tuning.backgroundDriftEnabled) && !staticMode && driftStrength > 0;
     const reduceBackgroundMotion = useReducedMotionFor('monetBackground');
-    useMonetBackgroundDrift(driftRef, driftEnabled, driftStrength, reduceBackgroundMotion);
+    useMonetBackgroundDrift(driftRef, driftEnabled, driftStrength, reduceBackgroundMotion, paused);
     // Only promote the layer while it actually moves; an idle drift wrapper stays a plain div.
     const driftStyle = useMemo<React.CSSProperties | undefined>(
         () => (driftEnabled ? { willChange: 'transform' } : undefined),

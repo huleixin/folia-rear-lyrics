@@ -13,7 +13,7 @@ export default defineVisualizerBackground({
     order: 20,
     labelKey: 'options.visualizerBackgroundModeMonet',
     labelFallback: 'Monet',
-    render: ({ config, coverUrl, theme, isDaylight, staticMode }) => (
+    render: ({ config, coverUrl, theme, isDaylight, staticMode, paused }) => (
         <MonetBackgroundLayer
             coverUrl={coverUrl}
             monetBackgroundImage={config?.customImage}
@@ -22,6 +22,7 @@ export default defineVisualizerBackground({
             tuning={config?.monet?.tuning}
             transparentBackground={config?.transparent}
             staticMode={staticMode}
+            paused={paused}
         />
     ),
     renderSettingsPanel: ({

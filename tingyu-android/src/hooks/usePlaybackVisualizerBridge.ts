@@ -10,6 +10,7 @@ import { audioBands, audioPower, currentTime, lyricCurrentTime } from '../stores
 import type { RearPlaybackClockReader } from '../types/rearLyricsClock';
 import { useAppViewStore } from '../stores/useAppViewStore';
 import { useRearRuntimeStore } from '../stores/useRearRuntimeStore';
+import { isMainStageActive } from '../utils/stageActivity';
 import { isAndroidNativeRuntime } from '../utils/platform';
 import { playbackWorkPolicy, startPlaybackWorkScheduler } from '../utils/playbackWorkScheduler';
 
@@ -273,7 +274,7 @@ export function usePlaybackVisualizerBridge({
 
     useEffect(() => {
         return startPlaybackWorkScheduler(updateLoop, () => playbackWorkPolicy(
-            isAndroidNativeRuntime(), !document.hidden, view === 'player', rearAwake && playerState === PlayerState.PLAYING,
+            isAndroidNativeRuntime(), isMainStageActive(), view === 'player', rearAwake && playerState === PlayerState.PLAYING, playerState === PlayerState.PLAYING,
         ), animationFrameRef);
     }, [animationFrameRef, updateLoop, view, rearAwake, playerState]);
 

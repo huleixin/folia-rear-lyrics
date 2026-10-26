@@ -1,3 +1,5 @@
+import { useMainStageActive } from './useStageActivity';
+import { isMainStageActive } from '../utils/stageActivity';
 import { isAndroidNativeRuntime } from '../utils/platform';
 import { useRearRuntimeStore } from '../stores/useRearRuntimeStore';
 import { useCallback, useEffect, useRef } from 'react';
@@ -25,7 +27,7 @@ import { noteAudioContext } from '../utils/mediaDiagnostics';
 const needsPlaybackAnalysis = () => {
     const rear = useRearRuntimeStore.getState();
     return !isAndroidNativeRuntime() || (usePlaybackStore.getState().playerState === PlayerState.PLAYING
-        && ((!document.hidden && useAppViewStore.getState().view === 'player') || (rear.enabled && !rear.sleeping)));
+        && ((isMainStageActive() && useAppViewStore.getState().view === 'player') || (rear.enabled && !rear.sleeping)));
 };
 
 type UsePlaybackAudioBridgeParams = {
@@ -82,6 +84,7 @@ export function usePlaybackAudioBridge({
     const replayGainLogSignatureRef = useRef<string | null>(null);
     const equalizerNodesRef = useRef<BiquadFilterNode[]>([]);
     const graphRef = useRef<PlaybackGraph | null>(null);
+    const mainStageActive = useMainStageActive();
     const view = useAppViewStore(state => state.view);
     const playing = usePlaybackStore(state => state.playerState) === PlayerState.PLAYING;
     const rearAwake = useRearRuntimeStore(state => state.enabled && !state.sleeping);
@@ -243,7 +246,7 @@ export function usePlaybackAudioBridge({
         const update = () => graphRef.current?.setAnalysisEnabled(needsPlaybackAnalysis());
         update(); document.addEventListener('visibilitychange', update);
         return () => document.removeEventListener('visibilitychange', update);
-    }, [view, rearAwake, playing]);
+    }, [view, rearAwake, playing, mainStageActive]);
 
     useEffect(() => () => {
         graphRef.current?.dispose();

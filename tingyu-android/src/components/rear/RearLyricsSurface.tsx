@@ -1,3 +1,5 @@
+import { useRearStageActive } from '../../hooks/useStageActivity';
+import { setGlobalVisualizerFrameRate } from '../../utils/frameRateLimiter';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMotionValue } from 'framer-motion';
 import VisualizerBackgroundRenderer from '../visualizer/backgrounds/VisualizerBackgroundRenderer';
@@ -13,6 +15,7 @@ import { createRearStateRelay } from '../../services/rearStateRelay';
 // Full-panel wallpaper and a separate, transparent lyric viewport share the published Folia settings.
 export default function RearLyricsSurface() {
     const panel = useRef<HTMLIFrameElement>(null);
+    const active = useRearStageActive();
     const viewport = useRearViewport();
     const [config, setConfig] = useState<ObsBrowserSourceConfig | null>(null);
     const [paused, setPaused] = useState(true);
@@ -31,7 +34,7 @@ export default function RearLyricsSurface() {
         const relay = createRearStateRelay(() => panel.current?.contentWindow);
         const transport = createRearLyricsTransport(() => undefined, () => undefined, false, { onSnapshot: relay.publish });
         const unsubscribe = transport.subscribe({
-            config: setConfig,
+            config: value => { setConfig(value); setGlobalVisualizerFrameRate(value.visualizerFrameRate ?? 60); },
             clock: value => setPaused(value.playerState !== PlayerState.PLAYING),
             connected: relay.setConnected,
             audio: value => {
@@ -54,7 +57,7 @@ export default function RearLyricsSurface() {
     return <main data-testid="rear-lyrics-surface" onPointerDownCapture={reveal}
         style={{ position: 'fixed', inset: 0, overflow: 'hidden', touchAction: 'none', userSelect: 'none', background: config?.theme.backgroundColor ?? '#09090b' }}>
         <div data-testid="rear-wallpaper" style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', opacity: config?.visualizerOpacity ?? 1 }}>
-            {config && <VisualizerBackgroundRenderer config={config.background} theme={config.theme}
+            {config && active && <VisualizerBackgroundRenderer config={config.background} theme={config.theme}
                 isDaylight={config.isDaylight} coverUrl={getSizedCoverUrl(config.coverUrl, 1024)}
                 audioPower={audioPower} audioBands={audioBands} seed={config.seed} staticMode={config.staticMode} paused={paused || sleeping} />}
         </div>

@@ -34,3 +34,19 @@ it('suspends rear polling during deliberate sleep and resumes without resetting 
     await vi.advanceTimersByTimeAsync(500);
     expect(fetcher).toHaveBeenCalledTimes(after);
 });
+
+it('deduplicates unchanged paused packets, then forwards a paused seek and playing packets',async()=>{
+    vi.useFakeTimers();const target=new EventTarget();vi.stubGlobal('window',Object.assign(target,{setTimeout,clearTimeout}));
+    let time=10,stamp=1,state='PAUSED';
+    const fetcher=vi.fn(async()=>({ok:true,json:async()=>({revision:1,config:{theme:{}},
+        clock:{currentTime:time,duration:100,playerState:state,playbackRate:1,sentAtMs:stamp},
+        audio:{audioPower:0,bands:{},spectrum:[],sentAtMs:stamp}})}));
+    vi.stubGlobal('fetch',fetcher);const forward=vi.fn(),clock=vi.fn(),audio=vi.fn();
+    const stop=createRearLyricsTransport(()=>undefined,()=>undefined,false,{onSnapshot:forward}).subscribe({config:vi.fn(),clock,audio,connected:vi.fn()});
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fetcher).toHaveBeenCalledTimes(5);expect(forward).toHaveBeenCalledTimes(1);expect(clock).toHaveBeenCalledTimes(1);expect(audio).toHaveBeenCalledTimes(1);
+    time=50;stamp=Date.now();await vi.advanceTimersByTimeAsync(250);expect(clock.mock.lastCall?.[0].currentTime).toBe(50);expect(audio).toHaveBeenCalledTimes(2);
+    state='PLAYING';stamp=Date.now();await vi.advanceTimersByTimeAsync(250);const count=fetcher.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(1000);expect(fetcher.mock.calls.length-count).toBe(10);
+    stop();expect(vi.getTimerCount()).toBe(0);
+});

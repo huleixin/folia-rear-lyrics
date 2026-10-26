@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { parseAst } from 'vite';
+import { parseAst, normalizePath } from 'vite';
 import MagicString from 'magic-string';
 
 // dev/build/visualizerFrameScopePlugin.mjs
@@ -7,7 +7,7 @@ import MagicString from 'magic-string';
 const virtualId = 'virtual:tingyu-visual-frames';
 export function frameScopeKind(id) {
     const file = id.replaceAll('\\', '/').split('?')[0];
-    if (file.includes('/src/components/visualizer/') && /\.[cm]?[jt]sx?$/.test(file)) return 'visualizer';
+    if (file.includes('/src/components/visualizer/') && /\.[cm]?[jt]sx?$/.test(file)) return file.includes('/backgrounds/') ? 'background' : 'visualizer';
     if (file.endsWith('/@paper-design/shaders/dist/shader-mount.js')) return 'paper';
     if (file.endsWith('/pixi.js/lib/ticker/Ticker.mjs')) return 'pixi';
     if (/\/@react-three\/fiber\/dist\/events-[^/]+\.esm\.js$/.test(file)) return 'r3f';
@@ -37,14 +37,18 @@ export function rewriteVisualizerFrames(code, id) {
     };
     visit(source);
     if (!requests && !cancels) return null;
-    result.prepend(`import { requestVisualizerAnimationFrame as __tingyuVisualRequest, cancelVisualizerAnimationFrame as __tingyuVisualCancel } from '${virtualId}';\n`);
+    const background = kind === 'background' || kind === 'paper';
+    result.prepend(`import { ${background ? 'requestVisualizerBackgroundFrame' : 'requestVisualizerAnimationFrame'} as __tingyuVisualRequest, ${background ? 'cancelVisualizerBackgroundFrame' : 'cancelVisualizerAnimationFrame'} as __tingyuVisualCancel } from '${virtualId}';\n`);
     return { code: result.toString(), map: result.generateMap({ hires: true, source: id, includeContent: true }), kind, requests, cancels };
 }
 export function visualizerFrameScopePlugin(root) {
     const stats = [];
+    // Rollup/Vite IDs use forward slashes even on Windows. A backslash ID creates a second
+    // module instance whose queue is never configured, silently bypassing the graphics cap.
+    const frameModuleId = normalizePath(path.resolve(root, 'src/utils/visualizerFrameChannel.ts'));
     return {
         name: 'tingyu-visualizer-frame-scope', enforce: 'pre', apply: 'build',
-        resolveId(id) { if (id === virtualId) return path.resolve(root, 'src/utils/visualizerFrameChannel.ts'); },
+        resolveId(id) { if (id === virtualId) return frameModuleId; },
         transform(code, id) {
             const output = rewriteVisualizerFrames(code, id);
             if (!output) return null;
@@ -55,6 +59,9 @@ export function visualizerFrameScopePlugin(root) {
             return { code: output.code, map: output.map };
         },
         generateBundle() {
+            const instances = [...this.getModuleIds()].filter(id => normalizePath(id) === frameModuleId);
+            if (instances.length !== 1) this.error(`Expected one configured visual frame module, found ${instances.length}`);
+            this.emitFile({ type: 'asset', fileName: 'visualizer-frame-runtime.json', source: JSON.stringify({ moduleInstances: instances.length, module: 'src/utils/visualizerFrameChannel.ts' }) });
             for (const kind of ['paper', 'pixi', 'r3f']) if (!stats.some(entry => entry.kind === kind))
                 this.error(`Missing graphics RAF scope for ${kind}; check locked dependency paths before release.`);
             this.emitFile({ type: 'asset', fileName: 'visualizer-frame-scope.json', source: JSON.stringify(stats, null, 2) });

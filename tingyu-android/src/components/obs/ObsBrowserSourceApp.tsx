@@ -1,3 +1,6 @@
+import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../utils/visualizerFrameChannel';
+import { useRearStageActive } from '../../hooks/useStageActivity';
+import { setGlobalVisualizerFrameRate } from '../../utils/frameRateLimiter';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useMotionValue } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -27,6 +30,7 @@ const buildEventSourceUrl = () => {
 
 const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConfigured?: () => void }> = ({ transport, onConfigured }) => {
     const { t } = useTranslation();
+    const surfaceActive = useRearStageActive();
     const [config, setConfig] = useState<ObsBrowserSourceConfig | null>(null);
     const [connected, setConnected] = useState(false);
     const [currentLineIndex, setCurrentLineIndex] = useState(-1);
@@ -35,6 +39,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
     const [obsDimensions, setObsDimensions] = useState({ width: '100vw', height: '100vh' });
     const currentLineIndexRef = useRef(-1);
     const clockRef = useRef<ObsBrowserSourceClock | null>(null);
+    const refreshPausedClock = useRef<(() => void) | null>(null);
     const configRef = useRef<ObsBrowserSourceConfig | null>(null);
     const configSignatureRef = useRef<string | null>(null);
     const surfaceRef = useRef<HTMLDivElement>(null);
@@ -122,9 +127,11 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
                     if (signature === configSignatureRef.current) return;
                     configSignatureRef.current = signature;
                     setConfig(nextConfig);
+                    if (transport) setGlobalVisualizerFrameRate(nextConfig.visualizerFrameRate ?? 60);
                 },
                 clock: nextClock => {
                     clockRef.current = nextClock;
+                    refreshPausedClock.current?.();
                     setPlaybackState(previous => previous === nextClock.playerState ? previous : nextClock.playerState);
                 },
                 audio: nextAudio => {
@@ -150,6 +157,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
         eventSource.addEventListener('clock', event => {
             const nextClock = JSON.parse((event as MessageEvent).data) as ObsBrowserSourceClock;
             clockRef.current = nextClock;
+            refreshPausedClock.current?.();
             setPlaybackState(prev => (
                 prev === nextClock.playerState ? prev : nextClock.playerState
             ));
@@ -171,7 +179,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
     }, [audioPower, bass, lowMid, mid, spectrum, treble, vocal, transport]);
 
     useEffect(() => {
-        if (!config || !onConfigured) return;
+        if (!config || !onConfigured || !surfaceActive) return;
         let frame = 0;
         const confirm = () => {
             // A lazy mode must have mounted its shell/canvas before the native display can report success.
@@ -180,9 +188,10 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
         };
         frame = requestAnimationFrame(confirm);
         return () => cancelAnimationFrame(frame);
-    }, [config, onConfigured]);
+    }, [config, onConfigured, surfaceActive]);
 
     useEffect(() => {
+        if (!surfaceActive) return;
         let frameId = 0;
         const tick = () => {
             const lyricTime = resolveObsBrowserSourceClockTime(clockRef.current);
@@ -196,12 +205,13 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
                 setCurrentLineIndex(nextLineIndex);
             }
 
-            frameId = window.requestAnimationFrame(tick);
+            if (playbackState === PlayerState.PLAYING) frameId = requestVisualizerAnimationFrame(tick);
         };
 
-        frameId = window.requestAnimationFrame(tick);
-        return () => window.cancelAnimationFrame(frameId);
-    }, [currentTime]);
+        refreshPausedClock.current = playbackState === PlayerState.PLAYING ? null : tick;
+        tick();
+        return () => { refreshPausedClock.current = null; cancelVisualizerAnimationFrame(frameId); };
+    }, [currentTime, playbackState, surfaceActive, config]);
 
     if (!config) {
         return (
@@ -228,7 +238,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
                 color: config.theme.primaryColor,
             }}
         >
-            <VisualizerRenderer
+            {surfaceActive && <VisualizerRenderer
                 mode={config.visualizerMode}
                 visualizerTunings={config.visualizerTunings}
                 currentTime={currentTime}
@@ -264,7 +274,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
                 cappellaCustomAvatarImages={config.cappellaCustomAvatarImages}
                 monetPortraitImage={config.monetPortraitImage}
                 temperaLayerImageAssets={config.temperaLayerImageAssets}
-            />
+            />}
         </div>
     );
 };

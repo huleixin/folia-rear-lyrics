@@ -33,3 +33,8 @@ it('keeps the desktop visualizer cadence and rear sampling independent from the 
     expect(playbackWorkPolicy(false, true, false, false).animate).toBe(true);
     expect(playbackWorkPolicy(true, false, false, true)).toEqual({ animate: false, sampleAudio: true, delay: 100 });
 });
+
+it('stops Android paused sampling/RAF while keeping sparse progress updates and desktop behaviour',()=>{
+    expect(playbackWorkPolicy(true,true,true,true,false)).toEqual({animate:false,sampleAudio:false,delay:100});
+    expect(playbackWorkPolicy(false,true,true,false,false).animate).toBe(true);
+});

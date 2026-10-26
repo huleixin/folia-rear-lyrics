@@ -59,3 +59,15 @@ it('cleans up listeners/timers and ignores late native replies after unmount',as
     expect(native.publishRearLyricsSnapshot).not.toHaveBeenCalled();expect(vi.getTimerCount()).toBe(0);
     expect(useRearRuntimeStore.getState().enabled).toBe(false);
 });
+
+it('does not sample or send audio during rear sleep and resumes from the current media clock',async()=>{
+    enabled=true;
+    await act(async()=>root.render(h(Harness)));await act(async()=>vi.advanceTimersByTimeAsync(300));
+    sleeping=true;await act(async()=>vi.advanceTimersByTimeAsync(1000));
+    const asleep=native.publishRearLyricsSnapshot.mock.calls.length;
+    time=60;await act(async()=>vi.advanceTimersByTimeAsync(10000));
+    expect(native.publishRearLyricsSnapshot).toHaveBeenCalledTimes(asleep);
+    sleeping=false;await act(async()=>vi.advanceTimersByTimeAsync(1000));
+    expect(native.publishRearLyricsSnapshot.mock.calls.length).toBeGreaterThan(asleep);
+    expect(native.publishRearLyricsSnapshot.mock.lastCall?.[0].clock.currentTime).toBe(60);
+});

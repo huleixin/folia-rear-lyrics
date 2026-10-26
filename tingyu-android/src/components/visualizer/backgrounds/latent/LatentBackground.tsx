@@ -27,7 +27,8 @@ interface LatentBackgroundProps {
 }
 
 const MAX_SHADER_PIXELS = 1280 * 720;
-const PAUSED_SPEED_SCALE = 0.12;
+// A slow shader still redraws at the same FPS. Zero stops its GPU loop while preserving the image.
+const PAUSED_SPEED_SCALE = 0;
 const normalizeAudio = (value: number) => Math.min(1, Math.max(0, value / 255));
 const clampShaderSpeed = (value: number) => Math.min(2, Math.max(0, value));
 const clampAudioAmount = (value: number) => Math.min(1, Math.max(0, value));

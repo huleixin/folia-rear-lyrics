@@ -73,7 +73,7 @@ export const createFrameRateLimitedRaf = (
     let frameRate = initialFrameRate;
     let nextHandle = 1;
     let nativeFrameHandle: number | null = null;
-    let lastProcessedTimestamp = 0;
+    let lastProcessedTimestamp: number | null = null;
     const callbacks = new Map<number, AnimationFrameCallback>();
 
     const scheduleNativeFrame = () => {
@@ -87,12 +87,17 @@ export const createFrameRateLimitedRaf = (
     const processNativeFrame = (timestamp: number) => {
         nativeFrameHandle = null;
 
-        if (!shouldProcessFrameAtRate(timestamp, lastProcessedTimestamp, frameRate)) {
+        if (lastProcessedTimestamp !== null && frameRate !== 'off'
+            && timestamp - lastProcessedTimestamp < 1000 / frameRate - FRAME_INTERVAL_TOLERANCE_MS) {
             scheduleNativeFrame();
             return;
         }
 
-        lastProcessedTimestamp = timestamp;
+        if (frameRate === 'off' || lastProcessedTimestamp === null) lastProcessedTimestamp = timestamp;
+        else {
+            const interval = 1000 / frameRate, elapsed = timestamp - lastProcessedTimestamp;
+            lastProcessedTimestamp = elapsed >= interval ? timestamp - elapsed % interval : lastProcessedTimestamp + interval;
+        }
         const frameHandles = Array.from(callbacks.keys());
 
         for (const handle of frameHandles) {
@@ -127,7 +132,7 @@ export const createFrameRateLimitedRaf = (
         },
         setFrameRate: (nextFrameRate) => {
             frameRate = nextFrameRate;
-            lastProcessedTimestamp = 0;
+            lastProcessedTimestamp = null;
 
             if (nativeFrameHandle !== null) {
                 nativeCancelAnimationFrame(nativeFrameHandle);
@@ -190,15 +195,14 @@ export const installGlobalVisualizerFrameRateLimiter = (overrideFrameRate?: Visu
 
     const initialFrameRate = overrideFrameRate
         ?? parseVisualizerFrameRate(window.localStorage.getItem(VISUALIZER_FRAME_RATE_STORAGE_KEY));
-    // 安卓手机 WebView 上，用户**从未手动设置过**帧率时默认 30FPS：把可视化器/背景动画的 GPU
-    // 绘制次数减半，明显降低发热与耗电；30fps 对音乐律动依然顺滑。这只是默认值 —— 设置里仍有
-    // 30/60/90/120/不限制，用户一旦手动选过（storage 里有值）就永远以他的选择为准。
+    // Android defaults to 60Hz for readable foreground motion, with a separate 30Hz wallpaper
+    // budget. Explicit user frame caps (including unlimited) remain authoritative.
     const storedFrameRateRaw = window.localStorage.getItem(VISUALIZER_FRAME_RATE_STORAGE_KEY);
     const effectiveFrameRate = initialFrameRate === 'off'
         && !overrideFrameRate
         && storedFrameRateRaw === null
         && scoped
-        ? 30
+        ? 60
         : initialFrameRate;
     if (scoped) {
         configureVisualizerFrameChannel(effectiveFrameRate, createFrameRateLimitedRaf);
