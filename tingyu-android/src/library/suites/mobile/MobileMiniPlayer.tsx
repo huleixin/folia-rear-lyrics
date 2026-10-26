@@ -36,8 +36,6 @@ export default function MobileMiniPlayer({
     useMobileGlass(glassRef);
     useMiniPlayerSwipe(glassRef, onNextTrack, onPreviousTrack, !!song && !!canNextTrack, !!song && !!canPreviousTrack);
     const openQueue = () => {
-        // The shared player panel belongs to the player route; otherwise App closes it on home.
-        onBackToPlayer?.();
         const view = useAppViewStore.getState(); view.setPanelTab('queue'); view.setIsPanelOpen(true);
     };
     return (

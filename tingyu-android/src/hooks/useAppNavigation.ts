@@ -619,6 +619,11 @@ export function useAppNavigation() {
         popCollectionLayer();
     }, [popCollectionLayer]);
 
+    const canNavigateBackInApp = useCallback(() => pendingTraversalRef.current !== null
+        || useAppViewStore.getState().view !== 'home'
+        || Boolean(useCollectionNavigationStore.getState().snapshot)
+        || useSearchNavigationStore.getState().isSearchOpen, []);
+
     const navigateBackInApp = useCallback(() => {
         if (pendingTraversalRef.current !== null) return true;
         if (useAppViewStore.getState().view === 'player') {
@@ -658,5 +663,6 @@ export function useAppNavigation() {
         popCollectionTo,
         backCollection,
         navigateBackInApp,
+        canNavigateBackInApp,
     };
 }

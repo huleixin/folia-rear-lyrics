@@ -80,8 +80,7 @@
     transition: background-color 160ms ease, border-color 160ms ease;
 }
 [data-soft-glass='sleeping'],
-.mobile-player-stage[data-hidden='true'] .mps-player,
-.ml-footer[inert] > [data-soft-glass] {
+.mobile-player-stage[data-hidden='true'] .mps-player {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
 }

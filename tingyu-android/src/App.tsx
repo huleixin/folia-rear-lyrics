@@ -270,7 +270,7 @@ export default function App() {
     // Watches the imported local folders and rescans them when their contents change.
     useLocalLibraryAutoScan();
 
-    // Auto-close the player panel when leaving the player view
+    // Auto-close other player panels when leaving the player view
     // (Effect moved to after useAppNavigation where currentView is defined)
     const { settingsModalState } = useSettingsModalStore(useShallow(state => ({
         settingsModalState: state.settingsModalState,
@@ -696,6 +696,7 @@ export default function App() {
         popCollectionTo,
         backCollection,
         navigateBackInApp,
+        canNavigateBackInApp,
     } = useAppNavigation();
     const reduceLatticeMotion = useReducedMotionFor('lattice');
     const [hasLatticeExited, setHasLatticeExited] = useState(currentView !== 'lattice');
@@ -707,12 +708,13 @@ export default function App() {
     usePlayerBottomBarOffset(playerBottomBarOffset);
     usePlayerBottomBarPositioningEntry(navigateToPlayer);
 
-    // Auto-close the player panel when leaving the player view
+    const isHomeQueueOpen = currentView === 'home' && isPanelOpen && panelTab === 'queue';
+    // Auto-close other player panels when leaving the player view
     useEffect(() => {
-        if (currentView !== 'player' && isPanelOpen) {
+        if (currentView !== 'player' && !isHomeQueueOpen && isPanelOpen) {
             setIsPanelOpen(false);
         }
-    }, [currentView, isPanelOpen]);
+    }, [currentView, isPanelOpen, isHomeQueueOpen]);
 
     useEffect(() => {
         if (isPanelOpen) {
@@ -1595,7 +1597,7 @@ export default function App() {
         next: () => { void handleNextTrack(); },
         previous: () => { void handlePrevTrack(); },
     });
-    useNativeBackButton(navigateBackInApp);
+    useNativeBackButton(navigateBackInApp, canNavigateBackInApp);
 
     const { personalFmSelection, personalFmSelectionLabel, isPersonalFmModeSupported, setPersonalFmSelection } = usePersonalFmModeController({
         isFmMode,
@@ -2450,6 +2452,7 @@ export default function App() {
         isSettingsModalOpen,
         isPanelOpen,
         keepsHomeForHandoff: wallHandoff.keepsHome,
+        panelKeepsHomeVisible: isHomeQueueOpen,
     });
     useEffect(() => {
         if (shouldKeepHomeMounted) {
@@ -2868,7 +2871,7 @@ export default function App() {
                 animejs 不进 bootstrap chunk。 */}
 
 
-            {currentView === 'player' && !showLyricMatchModal && (
+            {(currentView === 'player' || isHomeQueueOpen) && !showLyricMatchModal && (
                 <PlayerPanel model={playerPanelModel} />
             )}
 

@@ -92,3 +92,10 @@ describe('buildHomeSurfacePresentation', () => {
         });
     });
 });
+
+it('keeps Home visible and non-interactive under its own queue without revealing the lyric stage', () => {
+    expect(buildHomeSurfacePresentation({ currentView: 'home', isSettingsModalOpen: false,
+        isPanelOpen: true, panelKeepsHomeVisible: true })).toEqual({
+        shouldKeepHomeMounted: true, shouldShowHomeSurface: false, shouldRevealHomeSurface: true,
+    });
+});

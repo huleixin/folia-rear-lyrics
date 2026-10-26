@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { hasBlockingWindow } from '../utils/keyboardTargets';
+import { installNativeBackPolicy, hasNativeBackOverlay } from '../utils/nativeBackPolicy';
 
 type NativeBackPlugin = {
     addListener: (
@@ -7,6 +7,7 @@ type NativeBackPlugin = {
         listener: () => void,
     ) => Promise<{ remove: () => Promise<void> }> | { remove: () => Promise<void> };
     exitApp: () => Promise<unknown>;
+    setBackHandlerState?: (state: { handledInWeb: boolean; revision: number }) => Promise<unknown>;
     moveTaskToBack?: () => Promise<unknown>;
     recordRuntimeDiagnostic?: (payload: {
         source: string;
@@ -78,7 +79,7 @@ export const applyNativeBackPress = (
  * event the app moves to the background instead of exiting, so playback keeps running.
  */
 export const dispatchNativeBack = (navigateBack?: () => boolean): boolean => {
-    const blocking = hasBlockingWindow();
+    const blocking = hasNativeBackOverlay();
     const event = new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true });
     // Dispatch from the DOM so document-capture dialogs also receive the event.
     const target = document.activeElement?.isConnected ? document.activeElement : document.body;
@@ -86,13 +87,17 @@ export const dispatchNativeBack = (navigateBack?: () => boolean): boolean => {
     return consumed || blocking || !!navigateBack?.();
 };
 
-export const useNativeBackButton = (navigateBack?: () => boolean): void => {
+export const useNativeBackButton = (navigateBack?: () => boolean, canNavigateBack?: () => boolean): void => {
     const navigateRef = useRef(navigateBack);
     navigateRef.current = navigateBack;
+    const canNavigateRef = useRef(canNavigateBack);
+    canNavigateRef.current = canNavigateBack;
     useEffect(() => {
         const plugin = getPlugin();
         if (!plugin) return;
 
+        const removePolicy = canNavigateRef.current
+            ? installNativeBackPolicy(plugin, () => canNavigateRef.current?.() ?? true) : () => {};
         let disposed = false;
         let listenerHandle: { remove: () => Promise<void> } | { remove: () => void } | null = null;
         const registered = plugin.addListener('backButton', () => {
@@ -113,6 +118,7 @@ export const useNativeBackButton = (navigateBack?: () => boolean): void => {
 
         return () => {
             disposed = true;
+            removePolicy();
             if (listenerHandle) void listenerHandle.remove();
         };
     }, []);

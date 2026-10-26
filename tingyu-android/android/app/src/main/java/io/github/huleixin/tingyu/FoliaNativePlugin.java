@@ -144,8 +144,16 @@ public class FoliaNativePlugin extends Plugin {
     }
 
     /** True when the WebView handled Back; otherwise the activity backgrounds without killing playback. */
+    private final MainBackPolicy mainBackPolicy = new MainBackPolicy();
+
+    @PluginMethod public void setBackHandlerState(PluginCall call) {
+        mainBackPolicy.update(call.getBoolean("handledInWeb", true), call.getData().optLong("revision", 0));
+        call.resolve();
+    }
+
     static boolean emitBackPressed() {
         FoliaNativePlugin plugin = instance;
+        if (plugin != null && !plugin.mainBackPolicy.needsWebHandler()) return false;
         if (plugin == null || !plugin.hasListeners("backButton")) {
             if (plugin != null) {
                 CrashDiagnostics.recordText(

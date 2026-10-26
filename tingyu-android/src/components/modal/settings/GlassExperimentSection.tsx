@@ -13,7 +13,7 @@ export default function GlassExperimentSection() {
         return () => { disposed = true; };
     }, []);
     if (!GLASS_LAB) return null;
-    return <section data-testid="glass-experiment" className="rounded-2xl border border-current/15 p-4 space-y-3">
+    return <div data-testid="glass-experiment" className="rounded-2xl border border-current/15 p-4 space-y-3">
         <div className="font-medium">底栏材质 · 本机实验</div>
         <p className="text-xs opacity-70">默认的底栏、迷你播放器和舞台控件统一使用轻量柔光。此处仅实验导航栏的原生材质，关闭设置后查看效果。</p>
         <div className="flex flex-wrap gap-2">
@@ -24,5 +24,5 @@ export default function GlassExperimentSection() {
                     style={{ background: mode === value ? '#86d8b82b' : 'transparent' }}>{label}</button>)}
         </div>
         <p className="text-xs opacity-60 break-words">{status?.detail ?? '正在检查本机支持情况…'}</p>
-    </section>;
+    </div>;
 }

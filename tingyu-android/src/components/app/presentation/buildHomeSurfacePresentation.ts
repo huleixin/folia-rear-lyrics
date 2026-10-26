@@ -4,6 +4,7 @@ type BuildHomeSurfacePresentationInput = {
     currentView: string;
     isSettingsModalOpen: boolean;
     isPanelOpen: boolean;
+    panelKeepsHomeVisible?: boolean;
     /** 翻牌交接进 Lattice 期间（wallHandoffPresentation.keepsHome）：首页层留着、保持显示，Lattice 叠在上面落下来。 */
     keepsHomeForHandoff?: boolean;
 };
@@ -20,12 +21,13 @@ export const buildHomeSurfacePresentation = ({
     isSettingsModalOpen,
     isPanelOpen,
     keepsHomeForHandoff = false,
+    panelKeepsHomeVisible = false,
 }: BuildHomeSurfacePresentationInput) => {
     // Overlays may hide Home while it is active, but must not remount it from the player view.
     const shouldKeepHomeMounted = currentView === 'home' || keepsHomeForHandoff;
     const shouldShowHomeSurface = currentView === 'home' && !isSettingsModalOpen && !isPanelOpen;
     // 显示比可交互多两种情况：设置弹窗盖着首页（墙在遮罩下面看得见），交接进 Lattice 时首页墙还看得见；两者都不接输入。
-    const shouldRevealHomeSurface = (currentView === 'home' && !isPanelOpen) || keepsHomeForHandoff;
+    const shouldRevealHomeSurface = (currentView === 'home' && (!isPanelOpen || panelKeepsHomeVisible)) || keepsHomeForHandoff;
 
     return {
         shouldKeepHomeMounted,

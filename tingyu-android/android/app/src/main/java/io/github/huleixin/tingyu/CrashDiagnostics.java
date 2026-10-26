@@ -114,7 +114,7 @@ public final class CrashDiagnostics {
         Context context, String source, String threadName, String type, String message, String stack
     ) {
         if (context == null) return;
-        if ("activity-lifecycle".equals(source)) {
+        if ("activity-lifecycle".equals(source) || "back-press".equals(source)) {
             Context app = context.getApplicationContext();
             BREADCRUMBS.execute(() -> writeRecord(app, source, threadName, type, message, stack));
         } else {

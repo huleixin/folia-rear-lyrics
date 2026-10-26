@@ -6,7 +6,7 @@ const LyricMatchModal = lazy(() => import('../../modal/LyricMatchModal'));
 const NaviLyricMatchModal = lazy(() => import('../../modal/NaviLyricMatchModal'));
 const OnlineLyricMatchModal = lazy(() => import('../../modal/OnlineLyricMatchModal'));
 const UnavailableReplacementDialog = lazy(() => import('../../modal/UnavailableReplacementDialog'));
-const SettingsModal = lazy(() => import('../../modal/SettingsModal'));
+import SettingsDialogHost from './SettingsDialogHost';
 import ConfirmDialog from '../../shared/ConfirmDialog';
 import type { AppDialogsModel } from './buildAppDialogsModel';
 import { countRender } from '../../../dev/renderCount';
@@ -70,7 +70,7 @@ const AppDialogs: React.FC<AppDialogsProps> = ({ model }) => {
             {unavailableReplacementDialog && <Suspense fallback={null}><UnavailableReplacementDialog {...unavailableReplacementDialog} /></Suspense>}
             {wallpaperEntryConfirmDialog && <ConfirmDialog {...wallpaperEntryConfirmDialog} />}
             <Suspense fallback={null}><AnimatePresence>
-                {settingsDialog && <SettingsModal {...settingsDialog} />}
+                {settingsDialog && <SettingsDialogHost {...settingsDialog} />}
             </AnimatePresence></Suspense>
         </>
     );
