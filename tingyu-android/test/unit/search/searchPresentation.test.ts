@@ -12,10 +12,11 @@ import { useVisualViewport, type VisualViewportBox } from '@/components/app/sear
 import { useSearchHistoryStore } from '@/stores/useSearchHistoryStore';
 import { usePlaybackStore } from '@/stores/usePlaybackStore';
 import type { UnifiedSong } from '@/types';
+import { useOnlineProviderAccountStore } from '@/stores/useOnlineProviderAccountStore';
 
 // test/unit/search/searchPresentation.test.ts
 vi.mock('react-i18next', async importOriginal => ({ ...await importOriginal<typeof import('react-i18next')>(), useTranslation: () => ({ t: (key: string, args?: { query?: string }) => args?.query ? `${key}:${args.query}` : key }) }));
-vi.mock('@/services/onlineMusic/omni', () => ({ omni: { getProviderLabel: () => 'QQ音乐', getSearchCapabilities: () => ({ song: true, artist: true, album: true, playlist: true, suggest: true }), getSearchDiscovery: async () => ({ suggestions: [], hot: Array.from({ length: 16 }, (_, index) => `真实测试样本${index + 1}`) }) } }));
+vi.mock('@/services/onlineMusic/omni', () => ({ omni: { subscribeProviders:()=>()=>{},getProviderRegistryVersion:()=>0,getProviderSummaries:()=>[],getProviderLabel: () => 'QQ音乐', getSearchCapabilities: () => ({ song: true, artist: true, album: true, playlist: true, suggest: true }), getSearchDiscovery: async () => ({ suggestions: [], hot: Array.from({ length: 16 }, (_, index) => `真实测试样本${index + 1}`) }) } }));
 vi.mock('@/services/onlineMusic/catalogRefs', () => ({ canResolveSongCatalogRef: () => true }));
 vi.mock('framer-motion', async importOriginal => {
     const actual = await importOriginal<typeof import('framer-motion')>();
@@ -31,6 +32,7 @@ beforeEach(() => {
     vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener() {}, removeEventListener() {} }));
     host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
     useSearchHistoryStore.setState({ terms: { qq: ['许嵩', '周杰伦'] } }); usePlaybackStore.setState({ currentSong: null });
+    useOnlineProviderAccountStore.setState({activeProviderId:'qq'});
 });
 afterEach(() => { act(() => root.unmount()); host.remove(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 const song: UnifiedSong = { id: 'song1', name: '真实歌曲样本', artists: [{ id: 'artist1', name: '歌手样本' }], album: { id: 'album1', name: '专辑样本' }, durationMs: 180000, sourceRef: { kind: 'online', providerId: 'qq', mediaId: 'song1' } };
@@ -44,7 +46,7 @@ describe('search presentation delegates real existing operations', () => {
         expect(host.querySelectorAll('[role=tab]')).toHaveLength(5);
         act(() => useSearchNavigationStore.getState().hideSearchOverlay());
         await act(async () => useSearchNavigationStore.getState().restoreSearch({ query: '', sourceTab: 'qq' }));
-        expect(host.querySelector('[data-testid=tingyu-search-landing]')).not.toBeNull();
+        expect(host.querySelector('.ty-landing')).not.toBeNull();
         expect(host.querySelectorAll('[role=tab]')).toHaveLength(0);
         act(() => useSearchNavigationStore.getState().hideSearchOverlay());
     });

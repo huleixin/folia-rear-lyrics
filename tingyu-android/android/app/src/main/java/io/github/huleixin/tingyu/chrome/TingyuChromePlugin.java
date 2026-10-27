@@ -11,9 +11,18 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 public class TingyuChromePlugin extends Plugin {
     private ComposeChromeHost host;
     private ComposeChromeHost host() {
+        if(host==null&&getActivity() instanceof io.github.huleixin.tingyu.MainActivity)
+            host=((io.github.huleixin.tingyu.MainActivity)getActivity()).getNativeShell();
         if (host == null) host = new ComposeChromeHost(getBridge().getWebView(), (id,session,action,value) -> {
             JSObject event = new JSObject(); event.put("id",id); event.put("session",session); event.put("action",action); event.put("value",value);
             notifyListeners("action",event);
+        });
+        host.setListener((id,session,action,value) -> {
+            JSObject event=new JSObject();event.put("id",id);event.put("session",session);event.put("action",action);event.put("value",value);notifyListeners("action",event);
+        });
+        host.setPageListener((id,session,key,action,text,value) -> {
+            JSObject event=new JSObject();event.put("id",id);event.put("session",session);event.put("key",key);
+            event.put("action",action);event.put("text",text);event.put("value",value);notifyListeners("pageAction",event);
         });
         return host;
     }
@@ -27,9 +36,22 @@ public class TingyuChromePlugin extends Plugin {
             catch (Exception error) { call.reject(error.getMessage(),error); }
             return kotlin.Unit.INSTANCE;
         }); }
-        catch (Exception error) { if (host != null) host.destroy(); host = null; call.reject(error.getMessage(),error); }
+        // Reject only this packet. Destroying the shell exposes the underlying renderer.
+        catch (Exception error) { call.reject(error.getMessage(),error); }
     }); }
     @PluginMethod public void clock(PluginCall call) { getActivity().runOnUiThread(() -> { if (host != null) host.clock(call.getData()); call.resolve(); }); }
+    @PluginMethod public void pageUpdate(PluginCall call) { getActivity().runOnUiThread(() -> {
+        try { host().pageUpdate(call.getData(), result -> {
+            try { call.resolve(JSObject.fromJSONObject(result)); } catch(Exception error) { call.reject(error.getMessage(),error); }
+            return kotlin.Unit.INSTANCE;
+        }); } catch(Exception error) { call.reject(error.getMessage(),error); }
+    }); }
+    @PluginMethod public void pageRemove(PluginCall call) { getActivity().runOnUiThread(() -> {
+        if(host!=null)host.pageRemove(call.getString("id",""),call.getString("session",""));call.resolve();
+    }); }
+    @PluginMethod public void shell(PluginCall call) { getActivity().runOnUiThread(() -> {
+        try { host().shell(call.getData());call.resolve(); } catch(Exception error){call.reject(error.getMessage(),error);}
+    }); }
     @PluginMethod public void remove(PluginCall call) { getActivity().runOnUiThread(() -> { if (host != null) host.remove(call.getString("id",""),call.getString("session","")); call.resolve(); }); }
     @Override protected void handleOnPause() { if (host != null) host.suspend(); }
     @Override protected void handleOnResume() { if (host != null) host.resume(); }

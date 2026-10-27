@@ -7,24 +7,24 @@ import { isMainStageActive, subscribeMainStageActivity } from '../utils/stageAct
 // Event-driven metadata/layout; a live clock is anchored every 2s and on discontinuous seeks.
 export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfaceId,active:boolean,data:ChromeData,
     actions:Record<string,((value:number)=>void)|undefined>,clock?:MotionValue<number>) {
-    const [ready,setReady]=useState(false);
+    const [ready,setReady]=useState(PREHIDE_COMPOSE_CHROME);
     const latest=useRef({active,data,actions,clock});latest.current={active,data,actions,clock};
     const scheduleRef=useRef<()=>void>(()=>{});
-    useLayoutEffect(()=>{scheduleRef.current();});
+    useLayoutEffect(()=>{if(PREHIDE_COMPOSE_CHROME&&ref.current)ref.current.dataset.composeNative='true';scheduleRef.current();});
     useLayoutEffect(()=>{
         const node=ref.current;if(!node||!active)return;
-        // Keep complete, usable web controls until native content has actually drawn.
-        // A probe/update acknowledgement alone does not mean Compose has painted a frame.
+        // Android owns these controls from Activity startup; acknowledgements only update data.
+        // A slow or failed bridge must never expose the legacy control tree.
         let held=false,failed=false;
         let disposed=false,started=false,frame=0,deadline=0,revision=0,last='',lastAt=-Infinity,lastPosition=0;
         const session=crypto.randomUUID(),generation=newChromeGeneration();
         let listener:{remove:()=>Promise<void>}|undefined,resize:ResizeObserver|undefined,mutations:MutationObserver|undefined;
         let unsubscribeClock:(()=>void)|undefined,unsubscribeActivity:(()=>void)|undefined;
-        const mark=(value:boolean,keepPending=false)=>{if(disposed)return;if(!value&&held){held=false;chromeWindowInteraction('end');}if(value)node.dataset.composeNative='true';else delete node.dataset.composeNative;
-            if(keepPending&&PREHIDE_COMPOSE_CHROME)node.dataset.composePending='true';else delete node.dataset.composePending;setReady(value);};
+        const mark=(value:boolean,keepPending=false)=>{if(disposed)return;if(!value&&held){held=false;chromeWindowInteraction('end');}if(value||PREHIDE_COMPOSE_CHROME)node.dataset.composeNative='true';else delete node.dataset.composeNative;
+            if(keepPending&&PREHIDE_COMPOSE_CHROME)node.dataset.composePending='true';else delete node.dataset.composePending;setReady(PREHIDE_COMPOSE_CHROME||value);};
         const remove=()=>chromeNative.remove({id,session}).catch(()=>{});
-        // All surfaces share one native host. A host failure must restore every web fallback.
-        const hostFailed=()=>{failed=true;started=false;mark(false);void remove();};
+        // Keep the last native presentation on an engine failure; never switch renderers.
+        const hostFailed=()=>{failed=true;started=false;mark(false);};
         window.addEventListener(COMPOSE_CHROME_FAILURE_EVENT,hostFailed);
         const position=()=>latest.current.clock?.get()??0;
         const measure=async()=>{
@@ -46,7 +46,7 @@ export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfac
                     const accepted=result.accepted&&result.session===session;
                     mark(enabled&&accepted,!enabled&&accepted);
                     lastAt=performance.now();lastPosition=position();
-                }catch(error){if(sentRevision===revision){console.warn('[ComposeChrome] Keeping web controls after native failure',error);window.dispatchEvent(new Event(COMPOSE_CHROME_FAILURE_EVENT));}}
+                }catch(error){if(sentRevision===revision){console.warn('[ComposeChrome] Native control update failed',error);window.dispatchEvent(new Event(COMPOSE_CHROME_FAILURE_EVENT));}}
             }
         };
         const schedule=()=>{deadline=performance.now()+400;if(started&&!frame&&!disposed)frame=requestAnimationFrame(()=>void measure());};
@@ -69,7 +69,7 @@ export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfac
             if(disposed||failed)return;
             if(!supported){mark(false);return;}
             listener=await chromeNative.addListener('action',event=>{
-                if(disposed||event.id!==id||event.session!==session)return;
+                if(disposed||failed||event.id!==id||event.session!==session)return;
                 if(event.action==='interactionEnd'){held=false;chromeWindowInteraction('end');return;}
                 if(!latest.current.active||node.dataset.composeNative!=='true'||hasBlockingChromeWindow())return;
                 if(event.action==='interactionStart'){held=true;chromeWindowInteraction('start');return;}
@@ -85,13 +85,13 @@ export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfac
             window.addEventListener('transitionrun',onTransition);syncVisibility();
         }).catch(error=>{console.warn('[ComposeChrome] Native host unavailable',error);mark(false);});
         return()=>{
-            disposed=true;if(held)chromeWindowInteraction('end');setReady(false);cancelAnimationFrame(frame);resize?.disconnect();mutations?.disconnect();unsubscribeActivity?.();unsubscribeClock?.();
+            disposed=true;if(held)chromeWindowInteraction('end');setReady(PREHIDE_COMPOSE_CHROME);cancelAnimationFrame(frame);resize?.disconnect();mutations?.disconnect();unsubscribeActivity?.();unsubscribeClock?.();
             window.removeEventListener('resize',schedule);window.visualViewport?.removeEventListener('resize',schedule);window.removeEventListener('transitionrun',onTransition);
             window.removeEventListener(COMPOSE_CHROME_FAILURE_EVENT,hostFailed);
             // During a route exit the WebView footer can stay mounted for its outgoing animation.
             // Keep its legacy paint suppressed until it either unmounts or native takeover restarts.
             const wasNative=node.dataset.composeNative==='true'||node.dataset.composePending==='true';
-            delete node.dataset.composeNative;
+            if(!PREHIDE_COMPOSE_CHROME)delete node.dataset.composeNative;
             if(wasNative&&PREHIDE_COMPOSE_CHROME)node.dataset.composePending='true';else delete node.dataset.composePending;
             void listener?.remove();if(started)void remove();scheduleRef.current=()=>{};
         };

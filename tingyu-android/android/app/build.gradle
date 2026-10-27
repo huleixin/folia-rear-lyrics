@@ -23,7 +23,7 @@ android {
         }
     }
     defaultConfig {
-        buildConfigField 'boolean', 'COMPOSE_CHROME', (System.getenv('TINGYU_COMPOSE_CHROME') == 'true' ? 'true' : 'false')
+        buildConfigField 'boolean', 'COMPOSE_CHROME', (System.getenv('TINGYU_COMPOSE_CHROME') == 'false' ? 'false' : 'true')
         buildConfigField 'boolean', 'GLASS_LAB', (System.getenv('TINGYU_GLASS_LAB') == 'true' ? 'true' : 'false')
         applicationId "io.github.huleixin.tingyu"
         minSdkVersion rootProject.ext.minSdkVersion

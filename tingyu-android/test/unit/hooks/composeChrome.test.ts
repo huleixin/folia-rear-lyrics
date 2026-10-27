@@ -39,17 +39,17 @@ it('has no idle polling and removes native controls when inactive',async()=>{
     expect(host.firstElementChild?.hasAttribute('data-compose-pending')).toBe(false);
     const count=bridge.update.mock.calls.length;await settle(10000);expect(bridge.update).toHaveBeenCalledTimes(count);expect(vi.getTimerCount()).toBe(0);
     await act(async()=>root.render(h(Probe,{active:false})));
-    expect(host.firstElementChild?.hasAttribute('data-compose-native')).toBe(false);
+    expect(host.firstElementChild?.getAttribute('data-compose-native')).toBe('true');
     expect(host.firstElementChild?.getAttribute('data-compose-pending')).toBe('true');
     expect(bridge.remove).toHaveBeenCalled();
 });
-it('restores the original controls if the native probe is unsupported',async()=>{
+it('never reveals legacy controls if a native probe fails',async()=>{
     bridge.supported=false;
     act(()=>root.render(h(Probe)));
     expect(host.firstElementChild?.hasAttribute('data-compose-pending')).toBe(false);
     await settle();
     expect(host.firstElementChild?.hasAttribute('data-compose-pending')).toBe(false);
-    expect(host.firstElementChild?.hasAttribute('data-compose-native')).toBe(false);
+    expect(host.firstElementChild?.getAttribute('data-compose-native')).toBe('true');
     expect(bridge.update).not.toHaveBeenCalled();
 });
 it('ignores stale events, preserves active actions and releases a held gesture on hide',async()=>{
@@ -65,19 +65,22 @@ it('bridges low-rate anchors instead of every progress frame',async()=>{
     for(let tick=1;tick<=240;tick++){await settle(1000/60);act(()=>clock.set(tick/60));}
     expect(bridge.clock.mock.calls.length).toBeLessThanOrEqual(3);expect(bridge.clock.mock.calls.length).toBeGreaterThanOrEqual(1);
 });
-it('restores every web fallback when the shared native host fails',async()=>{
+it('retains native ownership and ignores actions when the bridge fails',async()=>{
     await act(async()=>root.render(h(React.Fragment,null,h(Probe),h(Probe,{id:'nav'}))));await settle();
     expect(host.querySelectorAll('[data-compose-native=true]')).toHaveLength(2);
     act(()=>window.dispatchEvent(new Event('tingyu-compose-chrome-failed')));
-    expect(host.querySelectorAll('[data-compose-native=true]')).toHaveLength(0);
+    expect(host.querySelectorAll('[data-compose-native=true]')).toHaveLength(2);
+    const frame=bridge.update.mock.calls.at(-1)![0];
+    act(()=>bridge.callback?.({id:frame.id,session:frame.session,action:'queue',value:0}));
+    expect(queue).not.toHaveBeenCalled();
     const count=bridge.update.mock.calls.length;await settle(2000);expect(bridge.update).toHaveBeenCalledTimes(count);
 });
-it('keeps cold-start controls intact until native content is drawn',async()=>{
+it('suppresses legacy paint from the first layout even with a delayed reply',async()=>{
     let drawn:(value:any)=>void=()=>{};
     bridge.update.mockImplementation(f=>new Promise(resolve=>{drawn=value=>resolve({session:f.session,...value});}));
     await act(async()=>root.render(h(Probe)));
     await settle(1500);
-    expect(host.firstElementChild?.hasAttribute('data-compose-native')).toBe(false);
+    expect(host.firstElementChild?.getAttribute('data-compose-native')).toBe('true');
     expect(host.firstElementChild?.hasAttribute('data-compose-pending')).toBe(false);
     await act(async()=>drawn({accepted:true}));
     expect(host.firstElementChild?.getAttribute('data-compose-native')).toBe('true');
@@ -91,7 +94,7 @@ it('sends modal hiding immediately even while native takeover is awaiting a draw
     expect(bridge.update.mock.calls.at(-1)?.[0].enabled).toBe(false);
     expect(bridge.update).toHaveBeenCalledTimes(2);
     await act(async()=>replies[0]());
-    expect(host.firstElementChild?.hasAttribute('data-compose-native')).toBe(false);
+    expect(host.firstElementChild?.getAttribute('data-compose-native')).toBe('true');
     await act(async()=>replies[1]());
     expect(host.firstElementChild?.getAttribute('data-compose-pending')).toBe('true');
     await act(async()=>blocker.remove());

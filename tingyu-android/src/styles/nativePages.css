@@ -1,0 +1,19 @@
+/* src/styles/nativePages.css — fixed ownership, never paint a legacy page behind native UI. */
+[data-native-page='true'] {
+    content-visibility: hidden !important;
+    pointer-events: none !important;
+    clip-path: inset(50%) !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+html[data-native-first='true'],
+html[data-native-first='true'] body,
+html[data-native-first='true'] #root { background: transparent !important; }
+html[data-native-first='true'] #app-splash { display: none !important; }
+html[data-native-first='true']:is([data-native-route='home'],[data-native-route='collection'],[data-native-route='search'],[data-native-route='settings']) [data-folia-app-shell] {
+    background: transparent !important;
+}
+html[data-native-first='true']:is([data-native-route='home'],[data-native-route='collection'],[data-native-route='search'],[data-native-route='settings']) [data-library-backdrop] {
+    display: none !important;
+}

@@ -13,6 +13,9 @@ import MobileHomeOverview from './MobileHomeOverview';
 import MobileLibraryOnline from './MobileLibraryOnline';
 import { MobileSourceSheet } from './MobileHomeSources';
 import { useMobileCollectionPreload } from './useMobileCollectionPreload';
+import { useNativePagesAvailable } from '../../../hooks/useNativePage';
+import NativeHomePage from './native/NativeHomePage';
+import { NATIVE_FIRST } from '../../../services/nativePages';
 import './mobileLibrary.css';
 import './mobileLibraryPage.css';
 
@@ -50,10 +53,16 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
         },
     });
     const [showSources, setShowSources] = useState(false);
+    const rootRef=React.useRef<HTMLElement>(null);
+    const nativeAvailable=useNativePagesAvailable();
+    const [nativeReady,setNativeReady]=useState(NATIVE_FIRST);
     const closeSources = useCallback(() => setShowSources(false), []);
     return (
-        <main className="mobile-library ml-page ml-home" data-page={page} inert={!props.isInteractive} data-testid="mobile-home"
+        <main ref={rootRef} className="mobile-library ml-page ml-home" data-page={page} inert={!props.isInteractive} data-testid="mobile-home"
             onPointerDownCapture={preloadCollection} onFocusCapture={preloadCollection}>
+            {nativeAvailable&&<NativeHomePage key={`${page}:${sources.tab}:${sources.online.providerId}`} root={rootRef} page={page} props={props} sources={sources}
+                onReady={setNativeReady} onSources={()=>setShowSources(true)}/>}
+            {!nativeReady&&<>
             <header className="ml-home-header">
                 <div className="ml-home-heading">
                     <h1 className="ml-brand">
@@ -98,6 +107,7 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
             ) : (
                 <MobileHomeOverview key={page} props={props} sources={sources} overview={page === 'home'} />
             )}
+            </>}
             {showSources && (
                 <MobileSourceSheet
                     account={props.account}

@@ -4,6 +4,7 @@ import { useAndroidLayoutSettingsStore } from '../../../stores/useAndroidLayoutS
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import MobileSettingsLanding from '../../modal/settings/MobileSettingsLanding';
 import type SettingsModalType from '../../modal/SettingsModal';
+import { NATIVE_FIRST } from '../../../services/nativePages';
 
 // src/components/app/dialogs/SettingsDialogHost.tsx
 const SettingsModal = lazy(() => import('../../modal/SettingsModal'));
@@ -11,7 +12,7 @@ export default function SettingsDialogHost(props: React.ComponentProps<typeof Se
     const suite = useActiveLibrarySuiteId();
     const phoneFit = useAndroidLayoutSettingsStore(state => state.phoneFitEnabled);
     const wide = useMediaQuery('(min-width: 768px)') && !phoneFit;
-    const index = suite === 'mobile' && !wide && (!props.initialTab || props.initialTab === 'options')
+    const index = suite === 'mobile' && (!wide||NATIVE_FIRST) && (!props.initialTab || props.initialTab === 'options')
         && !props.initialSubview && !props.initialAnchor && !props.initialVisualizerSection;
     return index ? <MobileSettingsLanding onClose={props.onClose} />
         : <Suspense fallback={suite === 'mobile' ? <MobileSettingsLanding onClose={props.onClose} /> : null}>

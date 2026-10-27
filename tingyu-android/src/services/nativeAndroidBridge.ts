@@ -1,3 +1,5 @@
+import { installNativeShellRouting } from './nativeShellRouting';
+
 // Android-only shim that makes the bundled Folia Bridge API modules believe they
 // are running inside a browser extension while all privileged work is delegated
 // to the native Capacitor plugin.
@@ -432,6 +434,7 @@ export const installNativeAndroidBridge = async (): Promise<void> => {
   if (typeof window === 'undefined') return;
   const capacitor = (window as any).Capacitor;
   if (!capacitor?.isNativePlatform?.() && capacitor?.getPlatform?.() !== 'android') return;
+  installNativeShellRouting();
 
   const plugin = getPlugin();
   if (!plugin) {

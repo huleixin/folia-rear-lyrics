@@ -23,6 +23,8 @@ import { useSearchHistoryStore } from '../../../stores/useSearchHistoryStore';
 import { omni } from '../../../services/onlineMusic/omni';
 import { getNavidromeConfig } from '../../../services/navidromeService';
 import { hasBlockingWindow } from '../../../utils/keyboardTargets';
+import { NATIVE_FIRST } from '../../../services/nativePages';
+import { useNativeSearchPage } from './useNativeSearchPage';
 import './searchWorkspace.css';
 
 // src/components/app/search/SearchWorkspace.tsx
@@ -207,18 +209,27 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
         }
     };
 
+    const rootRef=useRef<HTMLElement>(null);
+    const native=useNativeSearchPage({root:rootRef,active:isSearchOpen&&!hasCollection,query:searchQuery,source:searchSourceTab,
+        mode,tab,tabs:visibleTabs,sources,results,searching:isSearching,loadingMore:isLoadingMore,error:searchError,
+        hasMore,needsSetup:sourceNeedsSetup,artists,albums,playlists,suggestions:suggestionState,historyMatches,
+        close:onClose,change:(text,composing)=>{setComposing(composing);useSearchExploreStore.getState().reset();setSearchQuery(text);setMode(text.trim()?'suggest':'landing')},
+        submit,selectTab:setTab,switchSource,sourceLabel:getSourceLabel,loadMore:onLoadMore,loadExplore:loadMoreExplore,
+        openHit,play:onPlayTrack,enqueue:onAddTrackToQueue,openArtist:onOpenArtist,openAlbum:onOpenAlbum});
+
     return (
         <AnimatePresence>
             {isSearchOpen && (
                 <motion.section
+                    ref={rootRef}
                     data-folia-search-workspace="true"
                     data-testid="tingyu-search-workspace"
                     data-mode={mode}
                     data-tabs={visibleTabs.join(',')}
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={NATIVE_FIRST?false:{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 20 }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    transition={{ duration: NATIVE_FIRST?0:0.2, ease: 'easeOut' }}
                     className="ty-search"
                     data-light={isDaylight ? 'true' : undefined}
                     data-keyboard={viewport.keyboardOpen ? 'true' : undefined}
@@ -228,7 +239,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
                         ...(viewport.height > 0 ? { height: viewport.height, top: viewport.offsetTop, bottom: 'auto' } : {}),
                     } as React.CSSProperties}
                 >
-                    <header className="ty-search-head">
+                    {!native&&<><header className="ty-search-head">
                         <div className="ty-search-bar">
                             <form
                                 className="ty-search-field"
@@ -410,6 +421,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
                             )}
                         </div>
                     )}
+                    </>}
                 </motion.section>
             )}
         </AnimatePresence>

@@ -34,6 +34,8 @@ public class MainActivity extends BridgeActivity {
     private long lastUserLeaveRecordAt = 0L;
     private long lastTrimMemoryRecordAt = 0L;
     private int lastTrimMemoryLevel = Integer.MIN_VALUE;
+    private io.github.huleixin.tingyu.chrome.ComposeChromeHost nativeShell;
+    public io.github.huleixin.tingyu.chrome.ComposeChromeHost getNativeShell() { return nativeShell; }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -57,6 +59,11 @@ public class MainActivity extends BridgeActivity {
         );
         installWebViewRendererGuard();
         WebView webView = getBridge().getWebView();
+        if (BuildConfig.COMPOSE_CHROME) {
+            // Attach packaged Compose UI before the Activity can present its first application frame.
+            nativeShell = new io.github.huleixin.tingyu.chrome.ComposeChromeHost(webView, (id,session,action,value) -> {});
+            nativeShell.bootstrap();
+        }
         WebSettings settings = webView.getSettings();
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
@@ -207,6 +214,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onResume() {
         super.onResume();
+        if (nativeShell != null) nativeShell.resume();
         updateStageActivity(true);
         if (getBridge() != null) {
             WebView webView = getBridge().getWebView();
@@ -238,6 +246,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onStop() {
+        if (nativeShell != null) nativeShell.suspend();
         updateStageActivity(false);
         CrashDiagnostics.recordText(
             getApplicationContext(),
@@ -261,6 +270,7 @@ public class MainActivity extends BridgeActivity {
             "onDestroy"
         );
         super.onDestroy();
+        if (nativeShell != null) { nativeShell.destroy(); nativeShell = null; }
     }
 
     @Override

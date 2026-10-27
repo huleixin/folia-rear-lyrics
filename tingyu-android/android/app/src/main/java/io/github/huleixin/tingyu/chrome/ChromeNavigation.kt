@@ -55,7 +55,7 @@ import kotlin.math.roundToInt
                 val names=listOf("recommend","library","search","settings")
                 val bitmap=remember(index,active,px){(GlassNavIcons.load(context,names[index],active,px) as BitmapDrawable).bitmap.asImageBitmap()}
                 Column(Modifier.then(if(s.vertical)Modifier.fillMaxWidth().height(maxHeight/4) else Modifier.width(maxWidth/4).fillMaxHeight())
-                    .semantics {selected=active}.clickable(role=Role.Tab){action("navigate",index.toDouble())},horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
+                    .semantics {selected=active}.clickable(enabled=!s.disabled,role=Role.Tab){action("navigate",index.toDouble())},horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
                     Image(bitmap,contentDescription=null,modifier=Modifier.size(23.dp));Spacer(Modifier.height(2.dp))
                     Text(s.label("nav$index",listOf("推荐","资料库","搜索","设置")[index]),color=if(active)accent else ink.copy(alpha=.82f),fontSize=10.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
                 }

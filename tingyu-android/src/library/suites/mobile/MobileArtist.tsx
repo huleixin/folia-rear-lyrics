@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowLeft, MoreVertical, Play, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +17,8 @@ import MobileArtwork from './MobileArtwork';
 import MobileDirectory from './MobileDirectory';
 import MobileTrackList from './MobileTrackList';
 import MobileSheet from './MobileSheet';
+import { NATIVE_FIRST } from '../../../services/nativePages';
+import { useNativeArtistPage } from './native/useNativeArtistPage';
 import './mobileLibrary.css';
 
 // src/library/suites/mobile/MobileArtist.tsx
@@ -42,17 +44,20 @@ function MobileArtist(props: LibraryArtistSurfaceProps) {
     );
     const albumLink = menu && menu !== 'artist' ? resolveTrackAlbumLink(menu, canResolveSongCatalogRef) : null;
     const artistLinks = menu && menu !== 'artist' ? resolveTrackArtistLinks(menu, canResolveSongCatalogRef) : [];
+    const root=useRef<HTMLElement>(null);
+    const native=useNativeArtistPage(root,props,model,tracks,tab,setTab,playSong,setMenu);
     return (
         <motion.section
-            initial={{ opacity: 0, x: reducedMotion ? 0 : 18 }}
+            ref={root}
+            initial={NATIVE_FIRST?false:{ opacity: 0, x: reducedMotion ? 0 : 18 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: reducedMotion ? 0 : 24, pointerEvents: 'none' }}
-            transition={{ duration: reducedMotion ? 0 : 0.24, ease: [0.2, 0.8, 0.2, 1] }}
+            transition={{ duration: NATIVE_FIRST||reducedMotion ? 0 : 0.24, ease: [0.2, 0.8, 0.2, 1] }}
             className="mobile-library ml-page ml-collection"
             inert={!props.isInteractive}
             data-testid="mobile-artist"
         >
-            <div className="ml-collection-top">
+            {!native&&<><div className="ml-collection-top">
                 <button className="ml-icon" aria-label={t('mobileLibrary.back')} onClick={props.onBack}>
                     <ArrowLeft />
                 </button>
@@ -139,6 +144,7 @@ function MobileArtist(props: LibraryArtistSurfaceProps) {
                     {t('mobileLibrary.loading')}
                 </p>
             )}
+            </>}
             {menu && (
                 <MobileSheet
                     title={menu === 'artist' ? t('mobileLibrary.artistActions') : menu.name}

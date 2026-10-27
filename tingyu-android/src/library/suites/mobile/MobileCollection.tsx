@@ -11,6 +11,8 @@ import MobileTrackList from './MobileTrackList';
 import MobileCollectionMenu, { type MobileMenuTarget } from './MobileCollectionMenu';
 import MobilePlaylistHeader from './MobilePlaylistHeader';
 import MobilePlaylistBackdrop from './MobilePlaylistBackdrop';
+import { useNativeCollectionPage } from './native/useNativeCollectionPage';
+import { NATIVE_FIRST } from '../../../services/nativePages';
 import './mobileLibrary.css';
 import './mobilePlaylistDetail.css';
 
@@ -51,16 +53,20 @@ function MobileCollection(props: LibraryCollectionSurfaceProps) {
             setNotice(t('mobileLibrary.actionFailed'));
         }
     };
+    const root=React.useRef<HTMLElement>(null);
+    const native=useNativeCollectionPage(root,props,model,name,count,openSongMenu,()=>setTarget('collection'),()=>{void toggleSubscribe()});
     return (
         <motion.section
-            initial={{ opacity: 0, x: reducedMotion ? 0 : 18 }}
+            ref={root}
+            initial={NATIVE_FIRST?false:{ opacity: 0, x: reducedMotion ? 0 : 18 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: reducedMotion ? 0 : 24, pointerEvents: 'none' }}
-            transition={{ duration: reducedMotion ? 0 : 0.24, ease: [0.2, 0.8, 0.2, 1] }}
+            transition={{ duration: reducedMotion||NATIVE_FIRST ? 0 : 0.24, ease: [0.2, 0.8, 0.2, 1] }}
             className={`mobile-library ml-page ml-collection${isPlaylist ? ' ml-playlist-detail' : ''}`}
             inert={!props.isInteractive}
             data-testid="mobile-collection"
         >
+            {!native&&<>
             {isPlaylist && <MobilePlaylistBackdrop cover={detail?.coverUrl || props.collection.coverUrl} />}
             <div className="ml-collection-top">
                 <button className="ml-icon" aria-label={t('mobileLibrary.back')} onClick={props.onBack}>
@@ -185,6 +191,7 @@ function MobileCollection(props: LibraryCollectionSurfaceProps) {
                     </>
                 }
             />
+            </>}
             {target && <MobileCollectionMenu props={props} model={model} target={target} onClose={closeMenu} />}
         </motion.section>
     );

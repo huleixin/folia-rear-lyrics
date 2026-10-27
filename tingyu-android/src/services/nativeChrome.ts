@@ -1,5 +1,6 @@
 import { registerPlugin } from '@capacitor/core';
 import { isAndroidNativeRuntime } from '../utils/platform';
+import type { NativePageEvent, NativePageFrame, NativePageId } from '../types/nativePages';
 
 // src/services/nativeChrome.ts
 export const COMPOSE_CHROME = import.meta.env.VITE_TINGYU_COMPOSE_CHROME === 'true';
@@ -15,11 +16,15 @@ export type ChromeAction = {id: ChromeSurfaceId; session: string; action: string
 export type ChromeFrame = {id: ChromeSurfaceId; session: string; generation: number; revision: number; enabled: boolean;
     left: number; top: number; width: number; height: number; alpha: number; viewportWidth: number; data: ChromeData & {position?: number}};
 export const chromeNative = registerPlugin<{
-    probe(): Promise<{supported:boolean;engine:string}>;
+    probe(): Promise<{supported:boolean;engine:string;pages?:boolean}>;
     update(frame: ChromeFrame): Promise<{accepted:boolean;session:string}>;
     clock(value:{id:ChromeSurfaceId;session:string;trackKey:string;position:number}):Promise<void>;
     remove(value:{id:ChromeSurfaceId;session:string}):Promise<void>;
+    pageUpdate(frame:NativePageFrame):Promise<{accepted:boolean;session:string}>;
+    pageRemove(value:{id:NativePageId;session:string}):Promise<void>;
+    shell(value:{generation:number;revision:number;route:string;webOverlay:boolean;selectedTab:number}):Promise<void>;
     addListener(name:'action',callback:(value:ChromeAction)=>void):Promise<{remove:()=>Promise<void>}>;
+    addListener(name:'pageAction',callback:(value:NativePageEvent)=>void):Promise<{remove:()=>Promise<void>}>;
 }>('TingyuChrome');
 let probe:Promise<boolean>|undefined;
 let generation=0;

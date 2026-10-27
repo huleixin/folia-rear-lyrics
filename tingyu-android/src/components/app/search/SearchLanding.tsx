@@ -12,7 +12,7 @@ const cache = new Map<string, { data: Discovery; saved: number }>();
 const pending = new Map<string, Promise<Discovery>>();
 const EMPTY: string[] = [];
 
-function discovery(source: Exclude<SearchSource, 'local' | 'navidrome'>) {
+export function loadSearchDiscovery(source: Exclude<SearchSource, 'local' | 'navidrome'>) {
     const saved = cache.get(source);
     if (saved && Date.now() - saved.saved < 600_000) return Promise.resolve(saved.data);
     let request = pending.get(source);
@@ -37,7 +37,7 @@ export default function SearchLanding({ source, onSearch }: { source: SearchSour
         let active = true;
         setData(null); setFailed(false); setExpanded(false);
         if (source !== 'local' && source !== 'navidrome') {
-            discovery(source).then(value => { if (active) setData(value); }).catch(() => { if (active) setFailed(true); });
+            loadSearchDiscovery(source).then(value => { if (active) setData(value); }).catch(() => { if (active) setFailed(true); });
         }
         return () => { active = false; };
     }, [source, attempt]);

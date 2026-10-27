@@ -5,6 +5,7 @@ import androidx.core.graphics.toColorInt
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -53,6 +54,8 @@ fun chromeColor(value: String, fallback: Color = Color.White): Color = try { Col
 @Composable fun Modifier.chromeGlass(backdrop: Backdrop, light: Boolean, radius: Dp = 28.dp): Modifier {
     val density = LocalDensity.current
     val shape = RoundedCornerShape(radius)
+    if(Build.VERSION.SDK_INT<31)return background(if(light)Color(0xE6F3F5F4)else Color(0xE6203029),shape)
+        .border(0.8.dp,Color.White.copy(alpha=.23f),shape)
     val blurRadius = with(density) { 4.dp.toPx() }
     val lensHeight = with(density) { 12.dp.toPx() }
     return drawBackdrop(backdrop = backdrop, shape = { shape }, effects = {
