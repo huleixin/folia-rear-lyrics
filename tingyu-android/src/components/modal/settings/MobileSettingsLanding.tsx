@@ -6,10 +6,7 @@ import MobileSettingsHeader from './MobileSettingsHeader';
 import { buildSettingsNavGroups, type SettingsSectionId } from './navigation/settingsNavModel';
 import { writeLastSettingsSection } from './navigation/settingsLastSection';
 import { openSettings } from '../../../stores/useSettingsModalStore';
-import { useNativePage } from '../../../hooks/useNativePage';
-import { useRearLyricsSettings } from './useRearLyricsSettings';
-import { rearSettingsCanToggle, rearSettingsState, rearSettingsHint } from './rearLyricsSettingsModel';
-import type { NativePageModel, PageActions, PageSection } from '../../../types/nativePages';
+import { useNativeSettingsPage } from './useNativeSettingsPage';
 import './mobileSettings.css';
 
 // src/components/modal/settings/MobileSettingsLanding.tsx
@@ -34,22 +31,7 @@ export default function MobileSettingsLanding({ onClose }: { onClose: () => void
         openSettings('options', section);
     };
     const root=useRef<HTMLDivElement>(null);
-    const rear=useRearLyricsSettings(!guide);
-    const actions:PageActions={close:onClose,guide:()=>setGuide(true),help:()=>openSettings('help'),rear:()=>{void rear.toggle()},refresh:()=>{void rear.refresh()}};
-    const sections:PageSection[]=[];
-    if(rear.available)sections.push({id:'rear',title:t('options.rearLyricsTitle'),layout:'rows',items:[{
-        id:'toggle',title:t(rear.snapshot?.enabled?'options.rearLyricsReturn':'mobileSettings.rearEnable'),
-        subtitle:t(`mobileSettings.rearState.${rearSettingsState(rear.snapshot,rear.failed)}`),action:'rear',
-        disabled:rear.failed||!rearSettingsCanToggle(rear.snapshot,rear.busy),selected:rear.snapshot?.enabled===true,
-    },{id:'guide',title:t('mobileSettings.startupGuide'),action:'guide'},
-        {id:'refresh',title:'刷新背屏状态',subtitle:rearSettingsHint(rear.snapshot)?t(rearSettingsHint(rear.snapshot)!):undefined,action:'refresh'}]});
-    for(const group of groups)sections.push({id:group.id,title:group.label,layout:'rows',items:group.items.map(item=>{
-        actions[`settings:${item.id}`]=()=>select(item.id);
-        return{id:item.id,title:item.label,subtitle:item.description,action:`settings:${item.id}`};
-    })});
-    sections.push({id:'about',layout:'rows',items:[{id:'about',title:t('mobileSettings.about'),subtitle:t('mobileSettings.aboutDescription'),action:'help'}]});
-    const model:NativePageModel={key:'settings:index',title:t('ui.options'),leading:'close',bottomClearance:28,sections};
-    const native=useNativePage(root,'settings',!guide,model,actions);
+    const native=useNativeSettingsPage(root,guide,onClose,()=>setGuide(true),groups,select,()=>openSettings('help'));
     return createPortal(<div key={guide?'guide':'index'} ref={guide?undefined:root} data-folia-settings-overlay="true" data-mobile-settings="true"
         data-folia-keyboard-window="true" data-testid="mobile-settings-landing" className="fixed inset-0" style={{ zIndex: 136 }}>
         {(!native||guide)&&<div data-folia-settings-panel="true" role="dialog" aria-modal="true" aria-label={t('ui.options')}

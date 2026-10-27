@@ -42,11 +42,12 @@ export function useNativeSearchPage(p: Props) {
     const [discovery,setDiscovery]=useState<{suggestions:string[];hot:string[]}|null>(null);
     const [discoveryError,setDiscoveryError]=useState(false);
     const [retry,setRetry]=useState(0);
+    const [hotExpanded,setHotExpanded]=useState(false);
     const terms=useSearchHistoryStore(s=>s.terms[p.source]??EMPTY);
     useEffect(()=>{setOffset(0);setMenu(null)},[p.source,p.query,p.tab,p.active]);
     useEffect(()=>{
         if(!NATIVE_FIRST||!p.active||p.query.trim())return;
-        let alive=true;setDiscovery(null);setDiscoveryError(false);
+        let alive=true;setDiscovery(null);setDiscoveryError(false);setHotExpanded(false);
         if(p.source!=='local'&&p.source!=='navidrome')void loadSearchDiscovery(p.source)
             .then(value=>{if(alive)setDiscovery(value)}).catch(()=>{if(alive)setDiscoveryError(true)});
         return()=>{alive=false};
@@ -59,7 +60,7 @@ export function useNativeSearchPage(p: Props) {
     const actions:PageActions={close:p.close,change:event=>p.change(event.text??'',event.value===1),submit:event=>p.submit(event.text),
         range:event=>setOffset(Math.max(0,Math.floor((event.value??0)/100)*100)),
         retry:()=>p.submit(),more:p.loadMore,explore:p.loadExplore,
-        clearHistory:()=>useSearchHistoryStore.getState().clear(p.source),discoveryRetry:()=>setRetry(v=>v+1),back:()=>setMenu(null)};
+        clearHistory:()=>useSearchHistoryStore.getState().clear(p.source),discoveryRetry:()=>setRetry(v=>v+1),back:()=>setMenu(null),hotExpand:()=>setHotExpanded(value=>!value)};
     const sections:PageSection[]=[{id:'query',layout:'input',value:p.query,placeholder:t('search.placeholder'),action:'change',submit:'submit'},
         {id:'sources',layout:'chips',items:p.sources.map(source=>{
             actions[`source:${source}`]=()=>p.switchSource(source);
@@ -77,7 +78,8 @@ export function useNativeSearchPage(p: Props) {
     if(!p.query.trim()) {
         words('history',t('mobileEnhancements.history'),terms,true);
         words('discovery',t('mobileEnhancements.discover'),discovery?.suggestions??[]);
-        words('hot',t('mobileEnhancements.hotSearch'),discovery?.hot??[]);
+        words('hot',t('mobileEnhancements.hotSearch'),discovery?.hot.slice(0,hotExpanded?undefined:10)??[]);
+        if(discovery&&discovery.hot.length>10){const hot=sections.find(section=>section.id==='hot');if(hot){hot.more='hotExpand';hot.moreLabel=t(hotExpanded?'mobileLibrary.collapseHot':'mobileLibrary.expandHot')}}
         if(discoveryError)sections.push({id:'discoveryError',layout:'message',text:t('mobileEnhancements.searchUnavailable'),more:'discoveryRetry',moreLabel:t('search.retry')});
         else if(!discovery&&p.source!=='local'&&p.source!=='navidrome')sections.push({id:'discoveryLoading',layout:'message',busy:true});
     } else if(p.mode==='suggest') {

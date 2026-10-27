@@ -29,7 +29,7 @@ export default function NativeHomeOverview({root,props,sources,onReady,onSources
     const play=useLibraryTrackPlayback(props.onPlaySong,props.onTogglePlayback);
     const playlists=useMemo(()=>buildOnlinePlaylistCards(sources.online.collections,t),[sources.online.collections,t]);
     const [all,setAll]=useState(false),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
-    const [menu,setMenu]=useState<SongResult|null>(null);
+    const [menu,setMenu]=useState<{kind:'track';song:SongResult}|{kind:'playlist';card:LibraryHomeCard}|null>(null);
     const pending=useRef(false),provider=useRef(sources.online.providerId);provider.current=sources.online.providerId;
     const open=async(card:LibraryHomeCard,autoplay=false)=>{
         if(pending.current||sources.online.accountView==='resolving')return;
@@ -59,15 +59,15 @@ export default function NativeHomeOverview({root,props,sources,onReady,onSources
         })});
     }
     sections.push({id:'recent',title:t('mobileLibrary.recent'),layout:all?'rows':'cards',more:'all',moreLabel:t(all?'mobileLibrary.back':'mobileLibrary.all'),items:recent.slice(0,all?100:12).map((song,index)=>{
-        const key=`recent:${index}:${getPlaybackSongKey(song)}`;actions[key]=()=>play(song,recent);actions[`${key}:menu`]=()=>setMenu(song);
+        const key=`recent:${index}:${getPlaybackSongKey(song)}`;actions[key]=()=>play(song,recent);actions[`${key}:menu`]=()=>setMenu({kind:'track',song});
         return{id:key,title:song.name,subtitle:getSongArtistLabel(song),image:absolutePageImage(getSongCoverUrl(song)),action:key,disabled:isSongUnavailable(song),secondary:`${key}:menu`,secondaryLabel:'⋮'};
     })});
     if(!recent.length)sections.push({id:'recent-empty',layout:'message',text:t('mobileLibrary.noRecent')});
     if(!all){
         sections.push({id:'playlists',title:t('mobileLibrary.myPlaylists'),layout:'cards',more:'library',moreLabel:t('mobileLibrary.all'),items:playlists.slice(0,4).map((card,index)=>{
-            const key=`playlist:${index}:${card.id}`;actions[key]=()=>{void open(card)};actions[`${key}:play`]=()=>{void open(card,true)};
+            const key=`playlist:${index}:${card.id}`;actions[key]=()=>{void open(card)};actions[`${key}:menu`]=()=>setMenu({kind:'playlist',card});
             return{id:key,title:card.name,subtitle:card.trackCount!=null?t('mobileLibrary.trackCount',{count:card.trackCount}):card.description,
-                image:absolutePageImage(card.coverUrl),action:key,secondary:`${key}:play`,secondaryLabel:t('mobileLibrary.playAll')};
+                image:absolutePageImage(card.coverUrl),action:key,secondary:`${key}:menu`,secondaryLabel:'⋮'};
         })});
         if(!playlists.length)sections.push({id:'playlist-empty',layout:'message',text:t('mobileLibrary.noPlaylists')});
     }
@@ -75,8 +75,13 @@ export default function NativeHomeOverview({root,props,sources,onReady,onSources
     const model:NativePageModel={key:`home:${sources.online.providerId}:${sources.online.user?.id??''}:${all}`,title:t('mobileLibrary.recommend'),
         subtitle:t('mobileLibrary.discoverMoreMusic'),trailing:'sources',trailingLabel:sources.online.providerLabel,background:'home',bottomClearance:152,topPadding:32,sections};
     useNativePage(root,'home',props.isInteractive,model,actions,onReady);
-    return menu?<MobileSheet title={menu.name} onClose={()=>setMenu(null)}>
-        <button className="ml-sheet-action" disabled={isSongUnavailable(menu)} onClick={()=>{play(menu,recent);setMenu(null)}}>{t('mobileLibrary.play')}</button>
-        {props.onAddSongToQueue&&<button className="ml-sheet-action" onClick={()=>{props.onAddSongToQueue?.(menu);setMenu(null)}}>{t('mobileLibrary.enqueue')}</button>}
+    return menu?<MobileSheet title={menu.kind==='track'?menu.song.name:menu.card.name} onClose={()=>setMenu(null)}>
+        {menu.kind==='track'?<>
+            <button className="ml-sheet-action" disabled={isSongUnavailable(menu.song)} onClick={()=>{play(menu.song,recent);setMenu(null)}}>{t('mobileLibrary.play')}</button>
+            {props.onAddSongToQueue&&<button className="ml-sheet-action" disabled={isSongUnavailable(menu.song)} onClick={()=>{props.onAddSongToQueue?.(menu.song);setMenu(null)}}>{t('mobileLibrary.enqueue')}</button>}
+        </>:<>
+            <button className="ml-sheet-action" onClick={()=>{void open(menu.card);setMenu(null)}}>{t('mobileLibrary.openPlaylist',{name:menu.card.name})}</button>
+            <button className="ml-sheet-action" onClick={()=>{void open(menu.card,true);setMenu(null)}}>{t('mobileLibrary.playAll')}</button>
+        </>}
     </MobileSheet>:null;
 }

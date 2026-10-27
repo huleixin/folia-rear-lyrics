@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLibraryHomeOnline } from '../../../core/bindings/useLibraryHomeOnline';
 import { useLibraryHomeNavidrome } from '../../../core/bindings/useLibraryHomeNavidrome';
 import { resolveNavidromeCollectionType } from '../../../core/model/navidromeHomeModel';
@@ -10,8 +11,9 @@ import type { PageActions } from '../../../../types/nativePages';
 // src/library/suites/mobile/native/NativeHomePage.tsx
 function OnlineLibrary(args:NativeHomeProps) {
     const {props,sources}=args;const online=useLibraryHomeOnline(props.homeResources,sources);
+    const {t}=useTranslation();
     return <NativeDirectoryPage {...args} key={`${sources.online.providerId}:${sources.tab}`} route={`${sources.online.providerId}:${sources.tab}`}
-        cards={online.items} emptyMessage={online.emptyMessage} onOpen={card=>{void props.homeResources.actions.openOnlineCard(card,sources.online.providerId,props.onOpenGridView)}}/>;
+        cards={online.items} heading={sources.tab==='playlist'?t('mobileLibrary.myPlaylists'):online.title} enableSort={sources.tab==='playlist'} emptyMessage={online.emptyMessage} onOpen={card=>{void props.homeResources.actions.openOnlineCard(card,sources.online.providerId,props.onOpenGridView)}}/>;
 }
 function NaviLibrary(args:NativeHomeProps) {
     const {props}=args;const model=useLibraryHomeNavidrome(props.homeResources.navidromeOverview);

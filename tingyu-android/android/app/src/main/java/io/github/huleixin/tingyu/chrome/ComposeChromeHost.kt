@@ -137,7 +137,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     if(scale.isFinite()&&scale>0) savedPages.SaveableStateProvider(page.key) {
                         val placement=Modifier.zIndex(1f).offset{IntOffset((page.rect.left*scale).roundToInt(),(page.rect.top*scale).roundToInt())}
                             .size(with(density){(page.rect.width*scale).toDp()},with(density){(page.rect.height*scale).toDp()})
-                        NativePageView(page,placement){action,text,value->
+                        NativePageView(page,placement,scale){action,text,value->
                             val current=pages[page.id]
                             if(active&&current?.enabled==true&&current.session==page.session&&current.key==page.key&&current.revision==page.revision)
                                 pageListener?.onAction(page.id,page.session,page.key,action,text,value)

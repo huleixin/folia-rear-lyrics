@@ -7,7 +7,7 @@ data class NativePageItem(val id: String, val title: String, val subtitle: Strin
     val action: String, val secondary: String, val secondaryLabel: String, val disabled: Boolean, val selected: Boolean)
 data class NativePageSection(val id: String, val title: String, val layout: String, val items: List<NativePageItem>,
     val text: String, val value: String, val placeholder: String, val action: String, val submit: String,
-    val more: String, val moreLabel: String, val busy: Boolean, val total: Int, val offset: Int, val request: String, val dataKey:String="")
+    val more: String, val moreLabel: String, val busy: Boolean, val total: Int, val offset: Int, val request: String, val dataKey:String="", val image:String="")
 data class NativePage(val id: String, val session: String, val generation: Long, val revision: Long, val enabled: Boolean,
     val rect: ChromeRect, val viewport: Float, val safeTop: Float, val safeBottom: Float,
     val key: String, val title: String, val subtitle: String, val leading: String, val trailing: String,
@@ -34,7 +34,7 @@ data class NativePage(val id: String, val session: String, val generation: Long,
                 NativePageSection(block.optString("id"),block.optString("title"),layout,items,block.optString("text"),block.optString("value"),
                     block.optString("placeholder"),block.optString("action"),block.optString("submit"),block.optString("more"),
                     block.optString("moreLabel","加载更多"),block.optBoolean("busy"),block.optInt("total",items.size).coerceIn(0,1000000),
-                    block.optInt("offset").coerceAtLeast(0),block.optString("request"),block.optString("key"))
+                    block.optInt("offset").coerceAtLeast(0),block.optString("request"),block.optString("key"),block.optString("image"))
             }
             fun metric(key: String,fallback:Double)=model.optDouble(key,fallback).let{if(it.isFinite())it.toFloat().coerceIn(0f,1000f)else fallback.toFloat()}
             return NativePage(id,session,value.optLong("generation"),value.optLong("revision"),value.optBoolean("enabled"),

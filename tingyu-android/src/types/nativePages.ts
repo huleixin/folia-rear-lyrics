@@ -11,7 +11,7 @@ export type PageSection = {
     id: string; title?: string; layout: 'rows' | 'cards' | 'hero' | 'chips' | 'input' | 'message';
     items?: PageItem[]; text?: string; value?: string; placeholder?: string; action?: string;
     submit?: string; more?: string; moreLabel?: string; busy?: boolean;
-    total?: number; offset?: number; request?: string; key?: string;
+    total?: number; offset?: number; request?: string; key?: string; image?: string;
 };
 export type NativePageModel = {
     key: string; title: string; subtitle?: string; leading?: string; trailing?: string;

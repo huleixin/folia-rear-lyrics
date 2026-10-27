@@ -9,9 +9,11 @@ import org.json.JSONObject
 internal class NativeShellCache(context: Context) {
     private val prefs=context.getSharedPreferences("native_shell_ui_v1",Context.MODE_PRIVATE)
     private val values=mutableMapOf<String,String>()
-    init { for(id in listOf("home","library","settings","search","collection","nav","mini","stage"))prefs.getString(id,null)?.let{values[id]=it} }
+    // Keep transport snapshots, but do not replay the old settings schema (missing backend controls).
+    private fun storageKey(id:String)=if(id=="settings")"settings_design_v2" else id
+    init { for(id in listOf("home","library","settings","search","collection","nav","mini","stage"))prefs.getString(storageKey(id),null)?.let{values[id]=it} }
     private fun read(id:String)=runCatching{JSONObject(values[id]?:"")}.getOrNull()
-    private fun save(id:String,value:JSONObject){val text=value.toString();if(text.length<=250000&&values[id]!=text){values[id]=text;prefs.edit().putString(id,text).apply()}}
+    private fun save(id:String,value:JSONObject){val text=value.toString();if(text.length<=250000&&values[id]!=text){values[id]=text;prefs.edit().putString(storageKey(id),text).apply()}}
     fun page(value:JSONObject){val model=value.optJSONObject("model")?:return;val id=value.optString("id")
         // Queries are already owned by the search-history store; do not create another disk copy.
         val blocks=model.optJSONArray("sections")
@@ -21,7 +23,7 @@ internal class NativeShellCache(context: Context) {
     }
     fun chrome(value:JSONObject){val data=value.optJSONObject("data")?:return;val copy=JSONObject(data.toString());copy.remove("position");save(value.optString("id"),copy)}
     fun page(id:String,width:Float,height:Float,top:Float):NativePage {
-        val model=read(id)?:JSONObject().put("key","boot:$id").put("title",when(id){"settings"->"设置";"search"->"搜索";"collection"->"歌单";else->"推荐"})
+        val model=read(id)?:JSONObject().put("key","boot:$id").put("title",when(id){"settings"->"选项";"search"->"搜索";"collection"->"歌单";else->"推荐"})
             .put("trailing",if(id=="home"||id=="library")"sources"else"").put("trailingLabel","音乐来源")
             .put("subtitle",if(id=="home")"为你发现更多音乐"else"").put("background",if(id=="home")"home"else"dark")
             .put("bottomClearance",if(id=="home")152 else 24).put("sections",if(id=="home")JSONArray().put(JSONObject().put("id","hero").put("layout","hero").put("items",JSONArray().apply{

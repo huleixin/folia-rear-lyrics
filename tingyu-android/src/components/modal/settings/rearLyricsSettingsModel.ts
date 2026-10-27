@@ -2,6 +2,7 @@ import type { RearLyricsStatus } from '../../../services/rearLyricsControl';
 
 // src/components/modal/settings/rearLyricsSettingsModel.ts
 export type RearSettingsState = 'detecting' | 'failed' | 'unsupported' | 'starting' | 'enabled' | 'disabled' | 'system';
+export const rearSettingsLabelKey=(state:RearSettingsState)=>state==='system'?'rearBridge.system':`mobileSettings.rearState.${state}`;
 
 /** The persisted preference controls the button; a hidden/locked window is not a disabled preference. */
 export function rearSettingsState(snapshot: RearLyricsStatus | null, failed: boolean): RearSettingsState {
