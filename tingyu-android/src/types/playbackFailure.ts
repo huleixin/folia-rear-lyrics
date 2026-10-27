@@ -67,6 +67,7 @@ export type OnlineAudioSourceResult =
     | { kind: 'failed'; failure: PlaybackFailure };   // 原来的 'unavailable' 改名，避免暗示“下架”
 
 export interface OnlineRecoveryOptions {
+    qualityOverride?: import('./onlineMusic').AudioQualityPreference;
     failedSrc?: string | null;
     resumeAt?: number;
     autoplay: boolean;

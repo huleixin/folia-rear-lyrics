@@ -42,6 +42,7 @@ const AudioEqualizerDialog: React.FC<AudioEqualizerDialogProps> = ({ isDaylight,
     const updateDraft = (next: AudioEqualizerSettings) => {
         draftRef.current = next;
         setDraft(next);
+        useAudioSettingsStore.setState({ audioEqualizerSettings: next });
     };
 
     useEffect(() => {
@@ -54,7 +55,7 @@ const AudioEqualizerDialog: React.FC<AudioEqualizerDialogProps> = ({ isDaylight,
                 customSlots: settings.customSlots.map(slot => ({ gains: [...slot.gains], effects: { ...slot.effects } })),
             });
         }
-    }, [isOpen, settings]);
+    }, [isOpen]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -67,7 +68,7 @@ const AudioEqualizerDialog: React.FC<AudioEqualizerDialogProps> = ({ isDaylight,
         };
 
         window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        return () => { commitSettings(draftRef.current); window.removeEventListener('keydown', handleKeyDown); };
     }, [close, isOpen]);
 
     // Edits are always written into a custom slot: the active one, or the first while a built-in plays.
@@ -149,6 +150,7 @@ const AudioEqualizerDialog: React.FC<AudioEqualizerDialogProps> = ({ isDaylight,
             title={t('ui.equalizerTitle')}
             description={t('ui.equalizerDescription')}
             maxWidthClass="max-w-2xl"
+            panelKind="equalizer"
         >
             {/* display:contents，布局一如从前；在的意义只是让这扇对话框自己也能被思索命中。 */}
             <div data-ponder="audio-equalizer" className="contents">

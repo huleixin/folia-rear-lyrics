@@ -635,6 +635,8 @@ export default {
       "playback-replaygain-off": { "title": "Nonaktifkan ReplayGain", "description": "Putar audio tanpa penyesuaian ReplayGain" },
       "playback-replaygain-track": { "title": "ReplayGain: Mode Trek", "description": "Terapkan penyesuaian ReplayGain per trek" },
       "playback-replaygain-album": { "title": "ReplayGain: Mode Album", "description": "Terapkan penyesuaian ReplayGain album" },
+      "audio-quality-picker": {"title": "Kualitas audio", "description": "Ganti kualitas tanpa kehilangan posisi pemutaran"},
+      "lx-source-manager": {"title": "Sumber kustom LX", "description": "Impor, uji dan kelola skrip LX"},
       "playback-equalizer": { "title": "Efek audio", "description": "Buka equalizer dan rantai efek" },
       "playback-sound-preset-flat": { "title": "Suara: Netral", "description": "Bersihkan equalizer dan semua efek" },
       "playback-sound-preset-lofi": { "title": "Suara: Lo-Fi", "description": "Filter, crush, dan goyang dengan noise vinyl" },

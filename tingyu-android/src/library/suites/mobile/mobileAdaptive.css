@@ -1,0 +1,41 @@
+/* src/library/suites/mobile/mobileAdaptive.css — usable CSS viewport, including split-screen. */
+.ml-folder-path { display:flex; align-items:center; gap:8px; min-height:46px; }
+.ml-folder-path > span { display:flex; align-items:center; gap:6px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
+.ml-folder-path .ml-text-button { display:flex; align-items:center; gap:4px; flex:none; }
+@media (min-width:840px) {
+    .mobile-library { --ml-footer:100px; }
+    .mobile-library.ml-page { padding-left:116px; padding-right:32px; }
+    .mobile-library.ml-home[data-page='home'] { --ml-home-inset:0px; }
+    .mobile-library .ml-home-header { padding-left:0; padding-right:0; }
+    .mobile-library.ml-footer { left:0; right:0; bottom:0; height:100%; background:none; pointer-events:none; }
+    .mobile-library.ml-footer nav { position:absolute; top:calc(16px + var(--ml-safe-top)); bottom:16px; left:12px; width:80px; height:auto; max-width:none; display:flex; flex-direction:column; justify-content:center; gap:18px; border-radius:28px; }
+    .mobile-library.ml-footer nav button { min-height:64px; }
+    .mobile-library.ml-footer > .ml-mini { position:absolute; bottom:calc(14px + env(safe-area-inset-bottom,0px)); left:116px; right:32px; width:auto; max-width:none; height:62px; margin:0; }
+    .mobile-library .ml-feature-card { flex-basis:min(46vw,560px); }
+    .mobile-library .ml-recent > .ml-recent-card { flex-basis:150px; }
+    .mobile-library .ml-sheet-frame { max-width:620px; }
+}
+@media (min-width:840px) and (max-height:600px) {
+    .mobile-library { font-size:16px; --ml-footer:88px; }
+    .mobile-library.ml-page { padding-top:calc(8px + var(--ml-safe-top)); padding-left:108px; padding-right:20px; }
+    .mobile-library .ml-home-header { min-height:64px; margin-bottom:8px; }
+    .mobile-library .ml-home-header h1 { font-size:28px; }
+    .mobile-library .ml-home-header p { display:none; }
+    .mobile-library.ml-footer nav { gap:4px; left:8px; }
+    .mobile-library.ml-footer nav button { min-height:60px; font-size:12px; }
+    .mobile-library.ml-footer > .ml-mini { left:108px; right:20px; bottom:8px; height:64px; }
+    .mobile-library .ml-mini-controls .ml-icon { width:58px; height:58px; }
+    .mobile-library .ml-mini .ml-art { width:48px; height:48px; }
+    .mobile-library .ml-mini-copy strong { font-size:17px; }
+    .mobile-library .ml-mini-copy small { font-size:13px; }
+    .mobile-library .ml-feature-card { min-height:210px; }
+    .mobile-library button,.mobile-library input { min-height:44px; }
+    .mobile-library .ml-feature-dots button { min-height:3px; }
+}
+
+@media (min-width:840px) and (max-height:600px) {
+    .mobile-library.ml-home[data-page='home'] .ml-feature-card { height:240px; min-height:240px; aspect-ratio:auto; flex-basis:440px; }
+    .mobile-library .ml-hero-copy { --ml-hero-title-size:30px; padding-top:40px; grid-template-rows:72px minmax(4px,1fr) 30px 38px; }
+    .mobile-library.ml-home[data-page='home'] { --ml-home-title-size:28px; }
+    .mobile-library.ml-home[data-page='home'] .ml-home-header { min-height:60px; }
+}

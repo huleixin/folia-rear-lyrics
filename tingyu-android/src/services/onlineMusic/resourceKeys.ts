@@ -1,3 +1,5 @@
+import { useLxSourceStore } from '../../stores/useLxSourceStore';
+import { useAudioSettingsStore } from '../../stores/useAudioSettingsStore';
 import type { SongResult } from '../../types';
 import { getPlaybackSongKey, getPlaybackSourceRef } from '../../utils/appPlaybackGuards';
 
@@ -12,10 +14,13 @@ export const getSongResourceCacheKey = (kind: SongResourceKind, song: SongResult
         && sourceRef.providerId === 'kugou'
         ? 'cover_v2'
         : kind;
-    return `${versionedKind}_${getPlaybackSongKey(song)}`;
+    const lxId = kind === 'audio' ? useLxSourceStore.getState().activeId : null;
+    const variant = lxId ? `lx_${lxId}_${useAudioSettingsStore.getState().audioQuality}_` : '';
+    return `${versionedKind}_${variant}${getPlaybackSongKey(song)}`;
 };
 
 export const getLegacySongResourceCacheKeys = (kind: SongResourceKind, song: SongResult): string[] => {
+    if (kind === 'audio' && useLxSourceStore.getState().activeId) return [];
     const sourceRef = getPlaybackSourceRef(song);
     if (sourceRef.kind !== 'online' || sourceRef.providerId !== 'netease') return [];
     return [

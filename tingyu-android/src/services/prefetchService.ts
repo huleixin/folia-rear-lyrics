@@ -1,3 +1,4 @@
+import { useLxSourceStore } from '../stores/useLxSourceStore';
 /**
  * Song Prefetch Service
  * 
@@ -637,3 +638,5 @@ export const invalidateAndRefetch = async (
     cleanupPrefetchCache(queue);
     await prefetchNearbySongs(currentSong, queue, audioQuality, userId);
 };
+
+useLxSourceStore.subscribe((state, previous) => { if (state.revision !== previous.revision) clearPrefetchRuntime(); });

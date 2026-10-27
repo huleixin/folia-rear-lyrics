@@ -1,5 +1,5 @@
 import type { LocalSong } from '../types';
-import { saveLocalSongs } from './db';
+import { saveLocalSongs, getLocalSongs } from './db';
 import { buildImportedMetadataSnapshot } from '../utils/localSongMetadata';
 import { parseEmbeddedMetadataAsync } from '../utils/localMetadataWorkerClient';
 import { noteLibraryStep } from '../nativeBridge/api/libraryTrace.js';
@@ -24,6 +24,7 @@ import { noteLibraryStep } from '../nativeBridge/api/libraryTrace.js';
 type NativeAudioTrack = {
     id: string;
     fileName: string;
+    folderPath?: string;
     title?: string;
     artist?: string;
     album?: string;
@@ -211,9 +212,12 @@ export const scanAndroidDeviceMusic = async (): Promise<LocalSong[]> => {
             }
         }
         const now = Date.now();
+        const existing = new Map((await getLocalSongs()).map(song => [song.id, song]));
         const songs = (response.tracks || []).map((track): LocalSong => {
             const fileName = track.fileName || `track-${track.id}`;
             const title = track.title || titleFromFileName(fileName);
+            const previous = existing.get(`android-media-${track.id}`);
+            if (previous) return { ...previous, folderName: track.folderPath || previous.folderName || ANDROID_MEDIA_FOLDER_NAME, nativeAudioRef: track.id };
             return {
                 id: `android-media-${track.id}`,
                 fileName,
@@ -233,7 +237,7 @@ export const scanAndroidDeviceMusic = async (): Promise<LocalSong[]> => {
                     fallbackArtist: track.artist || '',
                     fallbackAlbum: track.album || '',
                 }),
-                folderName: ANDROID_MEDIA_FOLDER_NAME,
+                folderName: track.folderPath || ANDROID_MEDIA_FOLDER_NAME,
                 hasManualLyricSelection: false,
                 noAutoMatch: false,
             };
@@ -348,7 +352,7 @@ export const pickAndroidLocalMusic = async (): Promise<LocalSong[]> => {
                 embeddedAlbum: metadata?.album,
                 fallbackAlbum: track.album || '',
             }),
-            folderName: ANDROID_IMPORTED_FOLDER_NAME,
+            folderName: track.folderPath || ANDROID_IMPORTED_FOLDER_NAME,
             hasManualLyricSelection: false,
             noAutoMatch: false,
         });

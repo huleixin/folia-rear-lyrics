@@ -15,6 +15,8 @@ import Home from './components/app/Home';
 import PlayerPanel from './components/app/PlayerPanel';
 import ThemeQuickEditorHost from './components/panelTab/ThemeQuickEditor';
 import AppDialogs from './components/app/dialogs/AppDialogs';
+import AudioToolsHost from './components/audio-tools/AudioToolsHost';
+import { useAudioQualitySwitch } from './hooks/useAudioQualitySwitch';
 import { useSettingsDialogModel } from './components/app/dialogs/useSettingsDialogModel';
 import AppOverlays from './components/app/overlays/AppOverlays';
 import AutomixModelReminder from './components/modal/AutomixModelReminder';
@@ -606,6 +608,8 @@ export default function App() {
         onlineAudioUrlTtlMs: ONLINE_AUDIO_URL_TTL_MS,
         onlineAudioUrlRefreshBufferMs: ONLINE_AUDIO_URL_REFRESH_BUFFER_MS,
     }), [audioQuality, audioSrc, audioRef, blobUrlRef, currentOnlineAudioUrlFetchedAtRef, currentSong, currentSongRef, lastAudioRecoverySourceRef, onlinePlaybackRecoveryRef, pendingResumeTimeRef, persistLastPlaybackCache, playQueue, playbackGenerationRef, setAudioSrc, setCurrentSong, setPlayQueue, shouldAutoPlay]);
+
+    useAudioQualitySwitch(recoverOnlinePlaybackSource);
 
     const getCoverUrl = useMemo(
         () => createCoverUrlResolver(cachedCoverUrl, currentSong),
@@ -2921,6 +2925,7 @@ export default function App() {
             />
 
             <AppDialogs model={appDialogsModel} />
+            <AudioToolsHost theme={theme} isDaylight={isDaylight} />
             <ReleaseNotesDialog
                 isOpen={startupExperience.isReleaseNotesOpen}
                 isDaylight={isDaylight}

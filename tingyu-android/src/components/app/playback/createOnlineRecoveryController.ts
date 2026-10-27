@@ -15,7 +15,11 @@ import {
 } from '../../../utils/appPlaybackGuards';
 import { setAudioSrc, setCurrentSong, setPlayQueue, usePlaybackStore } from '../../../stores/usePlaybackStore';
 
+import { probeAudioSource } from '../../../services/probeAudioSource';
+
 // src/components/app/playback/createOnlineRecoveryController.ts
+
+const explicitQualityEpoch = new WeakMap<object, number>();
 
 type RecoveryControllerParams = {
     audioQuality: AudioQualityPreference;
@@ -105,6 +109,7 @@ export const createOnlineRecoveryController = ({
         shouldAutoplay,
         force = false,
         bypassMediaCache = false,
+        qualityOverride,
     }: OnlineRecoveryOptions): Promise<OnlineRecoveryResult> => {
         const song = currentSong;
         const audioElement = audioRef.current;
@@ -124,21 +129,30 @@ export const createOnlineRecoveryController = ({
         // 成功时把进度拉回第一次出错的位置。所以按「歌曲 key + 播放代次」去重：代次变了就新开任务，不接手旧任务
         // （否则重播自己的出错会拿到旧任务的 stale 而被吞掉），旧任务的结果也按陈旧处理。
         const generation = playbackGenerationRef.current;
-        const recoveryKey = `${songKey}#${generation}`;
+        const baseKey = `${songKey}#${generation}`;
+        const pendingMap = onlinePlaybackRecoveryRef.current;
+        if (!qualityOverride) {
+            const qualityTask = Array.from(pendingMap.entries()).find(([key]) => key.startsWith(`${baseKey}#quality:`));
+            if (qualityTask) return qualityTask[1];
+        }
+        const recoveryKey = qualityOverride ? `${baseKey}#quality:${qualityOverride}` : baseKey;
         const pendingRecovery = onlinePlaybackRecoveryRef.current.get(recoveryKey);
         if (pendingRecovery) {
             return pendingRecovery;
         }
+        if (qualityOverride) explicitQualityEpoch.set(pendingMap, (explicitQualityEpoch.get(pendingMap) ?? 0) + 1);
+        const qualityEpoch = explicitQualityEpoch.get(pendingMap) ?? 0;
+        const isCurrent = () => playbackGenerationRef.current === generation && currentSongRef.current === songKey && (explicitQualityEpoch.get(pendingMap) ?? 0) === qualityEpoch;
 
         const providerId = getOnlineProviderIdForSong(song) ?? undefined;
         const recoveryTask = (async (): Promise<OnlineRecoveryResult> => {
-            if (normalizedFailedSrc) {
+            if (normalizedFailedSrc && !qualityOverride) {
                 lastAudioRecoverySourceRef.current = normalizedFailedSrc;
             }
 
             try {
-                const audioResult = await loadOnlineSongAudioSource(song, audioQuality, null, { stage: 'refresh', bypassMediaCache });
-                if (playbackGenerationRef.current !== generation || currentSongRef.current !== songKey || !audioRef.current) {
+                const audioResult = await loadOnlineSongAudioSource(song, qualityOverride ?? audioQuality, null, { stage: 'refresh', bypassMediaCache });
+                if (!isCurrent() || !audioRef.current) {
                     if (audioResult.kind === 'ok' && audioResult.blobUrl) {
                         URL.revokeObjectURL(audioResult.blobUrl);
                     }
@@ -147,6 +161,11 @@ export const createOnlineRecoveryController = ({
 
                 if (audioResult.kind === 'failed') {
                     return { status: 'failed', failure: { ...audioResult.failure, stage: 'refresh' } };
+                }
+
+                if (qualityOverride) {
+                    await probeAudioSource(audioResult.audioSrc, isCurrent);
+                    if (!isCurrent()) return { status: 'stale' };
                 }
 
                 if (blobUrlRef.current && blobUrlRef.current !== audioResult.blobUrl) {

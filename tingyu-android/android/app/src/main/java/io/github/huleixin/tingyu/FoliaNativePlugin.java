@@ -912,12 +912,20 @@ public class FoliaNativePlugin extends Plugin {
             } catch (Exception ignored) {
                 // Some providers do not offer persistable grants; the current grant is still usable.
             }
-            collectAudioDocuments(treeUri, DocumentsContract.getTreeDocumentId(treeUri), uris);
+            new Thread(() -> {
+                java.util.Map<String, String> folders = new java.util.HashMap<>();
+                String rootId = DocumentsContract.getTreeDocumentId(treeUri);
+                String rootName = queryDisplayName(getContext().getContentResolver(), DocumentsContract.buildDocumentUriUsingTree(treeUri, rootId));
+                String rootPath = "导入文件夹/" + (rootName == null ? "文件夹" : rootName) + " [" + Integer.toHexString(treeUri.toString().hashCode()) + "]";
+                collectAudioDocuments(treeUri, rootId, uris, folders, rootPath);
+                completePickedAudioImport(call, uris, resultCode, folders);
+            }, "tingyu-folder-scan").start();
+            return;
         }
         completePickedAudioImport(call, uris, resultCode);
     }
 
-    private void collectAudioDocuments(Uri treeUri, String parentDocumentId, List<Uri> output) {
+    private void collectAudioDocuments(Uri treeUri, String parentDocumentId, List<Uri> output, java.util.Map<String, String> folders, String folderPath) {
         Uri childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentDocumentId);
         String[] projection = new String[]{
             DocumentsContract.Document.COLUMN_DOCUMENT_ID,
@@ -931,11 +939,13 @@ public class FoliaNativePlugin extends Plugin {
                 String displayName = cursor.getString(1);
                 String mimeType = cursor.getString(2);
                 if (DocumentsContract.Document.MIME_TYPE_DIR.equals(mimeType)) {
-                    collectAudioDocuments(treeUri, documentId, output);
+                    collectAudioDocuments(treeUri, documentId, output, folders, folderPath + "/" + displayName);
                     continue;
                 }
                 if (isAudioDocument(displayName, mimeType)) {
-                    output.add(DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId));
+                    Uri audioUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId);
+                    output.add(audioUri);
+                    folders.put(audioUri.toString(), folderPath);
                 }
             }
         } catch (Exception ignored) {
@@ -952,6 +962,10 @@ public class FoliaNativePlugin extends Plugin {
     }
 
     private void completePickedAudioImport(PluginCall call, List<Uri> uris, int resultCode) {
+        completePickedAudioImport(call, uris, resultCode, java.util.Collections.emptyMap());
+    }
+
+    private void completePickedAudioImport(PluginCall call, List<Uri> uris, int resultCode, java.util.Map<String, String> folders) {
         if (uris.isEmpty()) {
             JSObject result = new JSObject();
             result.put("tracks", new JSArray());
@@ -981,7 +995,7 @@ public class FoliaNativePlugin extends Plugin {
                     String displayName = queryDisplayName(resolver, uri);
                     long fileSize = queryFileSize(resolver, uri);
                     if (displayName == null || displayName.isEmpty()) displayName = "track-" + System.currentTimeMillis();
-                    String safeName = "imported-" + stableFileId(displayName, fileSize, directory);
+                    String safeName = "imported-" + stableFileId(displayName, fileSize, uri.toString());
                     File target = new File(directory, safeName);
                     if (!target.isFile() || target.length() != fileSize) {
                         try (InputStream source = resolver.openInputStream(uri);
@@ -998,6 +1012,7 @@ public class FoliaNativePlugin extends Plugin {
                     JSObject track = new JSObject();
                     track.put("id", safeName);
                     track.put("fileName", displayName);
+                    track.put("folderPath", folders.get(uri.toString()));
                     track.put("fileSize", target.length());
                     track.put("mimeType", LocalAudioServer.guessMimeType(safeName));
                     track.put("url", "http://127.0.0.1:" + port + "/audio/" + safeName);
@@ -1030,7 +1045,7 @@ public class FoliaNativePlugin extends Plugin {
         }, "folia-audio-import").start();
     }
 
-    private static String stableFileId(String displayName, long fileSize, File directory) {
+    private static String stableFileId(String displayName, long fileSize, String sourceUri) {
         String candidate = displayName.replaceAll("[^A-Za-z0-9._-]", "_");
         if (candidate.length() > 60) {
             candidate = candidate.substring(candidate.length() - 60);
@@ -1038,9 +1053,8 @@ public class FoliaNativePlugin extends Plugin {
         int dot = candidate.lastIndexOf('.');
         String base = dot > 0 ? candidate.substring(0, dot) : candidate;
         String extension = dot > 0 ? candidate.substring(dot) : "";
-        String stamp = Integer.toHexString((displayName + ':' + fileSize).hashCode());
+        String stamp = Integer.toHexString((sourceUri + ':' + displayName + ':' + fileSize).hashCode());
         String name = base + "-" + stamp + extension;
-        if (new File(directory, name).isFile()) return name;
         return name;
     }
 
@@ -1114,7 +1128,9 @@ public class FoliaNativePlugin extends Plugin {
                 MediaStore.Audio.Media.ALBUM,
                 MediaStore.Audio.Media.DURATION,
                 MediaStore.Audio.Media.SIZE,
-                MediaStore.Audio.Media.MIME_TYPE
+                MediaStore.Audio.Media.MIME_TYPE,
+                Build.VERSION.SDK_INT >= 29 ? MediaStore.MediaColumns.RELATIVE_PATH : MediaStore.Audio.Media.DATA,
+                Build.VERSION.SDK_INT >= 29 ? MediaStore.MediaColumns.VOLUME_NAME : MediaStore.Audio.Media.DATA
             };
             try (Cursor cursor = getContext().getContentResolver().query(
                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
@@ -1136,6 +1152,9 @@ public class FoliaNativePlugin extends Plugin {
                         long id = cursor.getLong(idColumn);
                         JSObject track = new JSObject();
                         track.put("id", String.valueOf(id));
+                        String location = cursor.getString(8);
+                        String volume = Build.VERSION.SDK_INT >= 29 ? cursor.getString(9) : "";
+                        track.put("folderPath", NativeAudioFolders.mediaFolder(location, volume, Build.VERSION.SDK_INT >= 29));
                         track.put("fileName", cursor.getString(nameColumn));
                         track.put("title", cursor.getString(titleColumn));
                         track.put("artist", cursor.getString(artistColumn));

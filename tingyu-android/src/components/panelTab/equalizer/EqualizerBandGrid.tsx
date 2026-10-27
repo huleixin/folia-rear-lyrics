@@ -23,11 +23,11 @@ const EqualizerBandGrid: React.FC<EqualizerBandGridProps> = ({ gains, styles, on
 
     return (
         <div data-folia-equalizer-bands="true" className={`overflow-x-auto rounded-2xl border p-4 ${styles.surfaceClass}`}>
-            <div className="mb-3 flex min-w-[520px] items-center justify-between text-[10px] font-semibold uppercase tracking-[0.18em]">
+            <div className="mb-3 flex min-w-0 items-center justify-between text-[10px] font-semibold uppercase tracking-[0.18em]">
                 <span className={`flex items-center gap-1.5 ${styles.inactiveText}`}><AudioLines size={13} />{t('ui.equalizerGain')}</span>
                 <span className={styles.inactiveText}>+12 dB · 0 · −12 dB</span>
             </div>
-            <div className="grid min-w-[520px] grid-cols-10 gap-2">
+            <div className="grid min-w-0 grid-cols-5 sm:grid-cols-10 gap-x-2 gap-y-4">
                 {AUDIO_EQUALIZER_BANDS.map((band, index) => {
                     const gain = gains[index] ?? 0;
                     return (
@@ -51,7 +51,7 @@ const EqualizerBandGrid: React.FC<EqualizerBandGridProps> = ({ gains, styles, on
                                 onPointerCancel={onCommit}
                                 onKeyUp={onCommit}
                                 onBlur={onCommit}
-                                className={`h-32 w-1.5 cursor-pointer appearance-none rounded-full ${styles.trackClass}`}
+                                className={`h-24 sm:h-32 w-1.5 cursor-pointer appearance-none rounded-full ${styles.trackClass}`}
                                 style={{
                                     writingMode: 'vertical-lr',
                                     direction: 'rtl',
@@ -63,7 +63,7 @@ const EqualizerBandGrid: React.FC<EqualizerBandGridProps> = ({ gains, styles, on
                     );
                 })}
             </div>
-            <div className={`mt-2 min-w-[520px] text-center text-[9px] uppercase tracking-[0.2em] ${styles.inactiveText}`}>Hz</div>
+            <div className={`mt-2 min-w-0 text-center text-[9px] uppercase tracking-[0.2em] ${styles.inactiveText}`}>Hz</div>
         </div>
     );
 };

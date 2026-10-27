@@ -1,3 +1,4 @@
+import { useLxSourceStore } from '../../stores/useLxSourceStore';
 import type { SongResult, UnifiedSong } from '../../types';
 import type {
     AudioQualityPreference,
@@ -586,6 +587,12 @@ export const omni = {
     },
 
     async getAudioSource(song: SongResult, quality: AudioQualityPreference): Promise<OmniAudioSource | null> {
+        const lxState = useLxSourceStore.getState();
+        if (lxState.activeId) {
+            const { resolveLxSource } = await import('../lxSource/playback');
+            const lxSource = await resolveLxSource(song, quality);
+            if (lxSource) return lxSource;
+        }
         const provider = providerForSong(song);
         // 取流是「暂时无法播放这首歌」所有来源里唯一必经的入口：三档结果都留痕，报告才分得清
         // 是「provider 没给地址」还是「provider 抛错（权限/地区/会员/网络）」。

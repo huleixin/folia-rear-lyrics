@@ -806,6 +806,8 @@ export default {
       "playback-replaygain-off": { "title": "Disable ReplayGain", "description": "Play audio without ReplayGain adjustment" },
       "playback-replaygain-track": { "title": "ReplayGain: Track mode", "description": "Apply per-track ReplayGain adjustment" },
       "playback-replaygain-album": { "title": "ReplayGain: Album mode", "description": "Apply album ReplayGain adjustment" },
+      "audio-quality-picker": {"title": "Audio quality", "description": "Switch quality while keeping playback position"},
+      "lx-source-manager": {"title": "LX custom sources", "description": "Import, test and manage LX scripts"},
       "playback-equalizer": { "title": "Audio effects", "description": "Open the equalizer and effect chain" },
       "playback-sound-preset-flat": { "title": "Sound: Level", "description": "Clear the equalizer and every effect" },
       "playback-sound-preset-lofi": { "title": "Sound: Lo-Fi", "description": "Filtered, crushed and wobbly with vinyl noise" },

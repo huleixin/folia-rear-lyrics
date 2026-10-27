@@ -15,6 +15,7 @@ import { useMobileGlass } from '../../../hooks/useMobileGlass';
 import { useAppViewStore } from '../../../stores/useAppViewStore';
 import { useMiniPlayerSwipe } from './useMiniPlayerSwipe';
 import MiniPlayerProgress from './MiniPlayerProgress';
+import { QualityButton } from '../../../components/audio-tools/AudioToolButtons';
 
 // src/library/suites/mobile/MobileMiniPlayer.tsx
 // Transport actions stay with the host; gestures and the tiny progress ring never re-render the page.
@@ -53,6 +54,7 @@ export default function MobileMiniPlayer({
                 </span>
             </button>
             </div>
+            <QualityButton />
             <div className="ml-mini-controls">
                 <button
                     className="ml-icon ml-mini-toggle"

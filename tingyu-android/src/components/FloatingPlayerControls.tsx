@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Play, Pause } from 'lucide-react';
 import { MotionValue } from 'framer-motion';
 import ProgressBar from './ProgressBar';
+import AudioToolButtons from './audio-tools/AudioToolButtons';
 import { PlayerState, LyricData, Theme } from '../types';
 import LyricsTimelineModal from './modal/LyricsTimelineModal';
 import TrackTitleNavigator from './floating-player/TrackTitleNavigator';
@@ -404,6 +405,7 @@ const FloatingPlayerControls: React.FC<FloatingPlayerControlsProps> = ({
                             ${isPositioning ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}
                             ${showExpanded ? `p-3 ${glassBgExpanded} w-full` : `px-4 py-2 ${glassBgCollapsed} ${COLLAPSED_WIDTH_CLASS}`}`}
                     >
+                        {showExpanded && currentView === 'player' && <AudioToolButtons />}
                         <motion.div
                             layout
                             transition={{ layout: CONTROL_LAYOUT_SPRING }}

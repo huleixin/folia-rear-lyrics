@@ -1,3 +1,5 @@
+import { useAudioToolsStore } from '../../../stores/useAudioToolsStore';
+import { useLxSourceStore } from '../../../stores/useLxSourceStore';
 import { PlayerState } from '../../../types';
 import { Heart, ListX, Pause, Piano, Play, Repeat, Shuffle, SkipBack, SkipForward, Star, VolumeX } from 'lucide-react';
 import { executeModeCommand } from './executeModeCommand';
@@ -14,6 +16,8 @@ import { usePlaybackStore } from '../../../stores/usePlaybackStore';
 // sound presets.
 
 export const playbackCommands: CommandPaletteCommand[] = [
+    defineCommand({ id: 'audio-quality-picker', group: 'playback', title: 'Audio quality', description: 'Change stream quality', keywords: ['quality', '音质'], execute: () => { useAudioToolsStore.getState().show(); return true; } }),
+    defineCommand({ id: 'lx-source-manager', group: 'settings', title: 'LX custom sources', description: 'Import and manage LX scripts', keywords: ['洛雪', '自定义音源'], execute: () => { useLxSourceStore.getState().show(); return true; } }),
     defineCommand({
         id: 'playback-shuffle-mode', group: 'playback', title: 'Shuffle playback',
         description: 'Play a random sequence without changing playlist order',
@@ -39,15 +43,12 @@ export const playbackCommands: CommandPaletteCommand[] = [
     {
         id: 'playback-equalizer',
         // It opens the controls panel tab to reach the equalizer, so it needs the player surface.
-        scope: 'player-surface',
         executeShortcut: 'e',
         group: 'playback',
         title: 'Audio effects',
         description: 'Open the equalizer and effect chain',
         keywords: ['equalizer', 'audio equalizer', 'eq', '10 band eq', 'effect chain', '均衡器', '音频均衡器', '十段均衡器', '音效', '效果器', 'jhh', 'ypjhh'],
         execute: (_input, context) => {
-            context.panel.setPanelTab('controls');
-            context.panel.setIsPanelOpen(true);
             context.playback.openAudioEqualizer();
             return true;
         },

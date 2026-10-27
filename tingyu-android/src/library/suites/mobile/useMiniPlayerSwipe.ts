@@ -27,7 +27,7 @@ export function useMiniPlayerSwipe(ref: RefObject<HTMLDivElement | null>, next: 
         };
         const down = (event: PointerEvent) => {
             if (!event.isPrimary || event.button !== 0 || !(event.target instanceof Element)
-                || event.target.closest('.ml-mini-controls') || root.closest('[inert]')) return;
+                || event.target.closest('.ml-mini-controls,.ty-quality-button') || root.closest('[inert]')) return;
             animation?.cancel(); entering?.cancel(); clearTimeout(timer); reset();
             pointer = event.pointerId; startX = lastX = event.clientX; startY = event.clientY;
             lastAt = event.timeStamp; dx = velocity = 0; dragging = false; suppressClick = false;

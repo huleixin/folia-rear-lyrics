@@ -806,6 +806,8 @@ export default {
       "playback-replaygain-off": { "title": "关闭 ReplayGain", "description": "播放音频时不应用 ReplayGain 调整" },
       "playback-replaygain-track": { "title": "ReplayGain：单曲模式", "description": "按每首歌曲的 ReplayGain 数据调整响度" },
       "playback-replaygain-album": { "title": "ReplayGain：专辑模式", "description": "按专辑 ReplayGain 数据调整响度" },
+      "audio-quality-picker": {"title": "音质切换", "description": "切换在线音质并保留播放位置"},
+      "lx-source-manager": {"title": "洛雪自定义音源", "description": "导入、检查和管理洛雪脚本"},
       "playback-equalizer": { "title": "音频效果器", "description": "打开均衡器和效果链" },
       "playback-sound-preset-flat": { "title": "音效：水平", "description": "清空均衡器和所有效果" },
       "playback-sound-preset-lofi": { "title": "音效：Lo-Fi", "description": "削频、降质、抖晃并加入黑胶噪声" },

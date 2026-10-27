@@ -5,6 +5,7 @@ import { useLibraryHomeLocal } from '../../core/bindings/useLibraryHomeLocal';
 import { useLibraryHomeNavidrome } from '../../core/bindings/useLibraryHomeNavidrome';
 import { resolveNavidromeCollectionType } from '../../core/model/navidromeHomeModel';
 import MobileDirectory from './MobileDirectory';
+import MobileLocalFolders from './MobileLocalFolders';
 import { MobileLocalTools } from './MobileHomeSources';
 
 // src/library/suites/mobile/MobileSourceDirectories.tsx
@@ -31,7 +32,7 @@ export function LocalDirectory(props: LibraryHomeSurfaceProps) {
                 ))}
             </div>
             <MobileLocalTools homeResources={props.homeResources} />
-            <MobileDirectory
+            {local.activeSection.key === 'folders' ? <MobileLocalFolders isInteractive={props.isInteractive} songs={props.localSongs} onOpen={group => props.homeResources.actions.openLocalGroup(group, props.onOpenGridView)} /> : <MobileDirectory
                 fillBehindFooter
                 key={local.activeSection.key}
                 alwaysShowFilter
@@ -44,7 +45,7 @@ export function LocalDirectory(props: LibraryHomeSurfaceProps) {
                         props.onOpenGridView
                     )
                 }
-            />
+            />}
         </>
     );
 }

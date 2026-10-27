@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const probeMock = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock('@/services/probeAudioSource', () => ({ probeAudioSource: probeMock }));
 const loadAudioSourceMock = vi.hoisted(() => vi.fn());
 const setAudioSrcMock = vi.hoisted(() => vi.fn());
 const setPlayQueueMock = vi.hoisted(() => vi.fn());
@@ -107,6 +109,7 @@ describe('online playback recovery bounds', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         loadAudioSourceMock.mockReset();
+        probeMock.mockReset().mockResolvedValue(undefined);
     });
 
     it('keys retries on the media path so a re-minted stream token cannot restart the loop', () => {
@@ -192,6 +195,7 @@ describe('online playback recovery results', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         loadAudioSourceMock.mockReset();
+        probeMock.mockReset().mockResolvedValue(undefined);
     });
 
     it('asks the loader for a refresh and passes bypassMediaCache through', async () => {
@@ -352,4 +356,44 @@ describe('online playback recovery results', () => {
         await expect(controller.recoverOnlinePlaybackSource({ autoplay: true })).resolves.toEqual({ status: 'not-attempted' });
         expect(loadAudioSourceMock).not.toHaveBeenCalled();
     });
+    it('prepares requested quality and only then preserves live progress in the commit', async () => {
+        const { controller, pendingResumeTimeRef } = createController(streamUrl('old'));
+        loadAudioSourceMock.mockResolvedValue({ kind:'ok', audioSrc:streamUrl('quality') });
+        const result = await controller.recoverOnlinePlaybackSource({ autoplay:false, force:true, bypassMediaCache:true, qualityOverride:'lossless' });
+        expect(result.status).toBe('recovered');
+        expect(loadAudioSourceMock).toHaveBeenCalledWith(song,'lossless',null,expect.objectContaining({bypassMediaCache:true}));
+        expect(probeMock).toHaveBeenCalled();
+        expect(pendingResumeTimeRef.current).toBe(0);
+        expect(setAudioSrcMock).toHaveBeenCalledWith(streamUrl('quality'));
+    });
+    it('keeps the old source when requested quality cannot decode', async () => {
+        const { controller } = createController(streamUrl('old'));
+        loadAudioSourceMock.mockResolvedValue({ kind:'ok', audioSrc:streamUrl('bad') });
+        probeMock.mockRejectedValue(new Error('decode failure'));
+        const result = await controller.recoverOnlinePlaybackSource({ autoplay:true, force:true, qualityOverride:'hires' });
+        expect(result.status).toBe('failed');
+        expect(setAudioSrcMock).not.toHaveBeenCalled();
+    });
+    it('cannot commit a quality request after the song changes during preparation', async () => {
+        const { controller, playbackGenerationRef } = createController(streamUrl('old'));
+        loadAudioSourceMock.mockResolvedValue({kind:'ok',audioSrc:streamUrl('new')});
+        probeMock.mockImplementation(async () => { playbackGenerationRef.current++; });
+        expect((await controller.recoverOnlinePlaybackSource({autoplay:true,force:true,qualityOverride:'high'})).status).toBe('stale');
+        expect(setAudioSrcMock).not.toHaveBeenCalled();
+    });
+
+    it('a late automatic refresh cannot overwrite an explicit quality switch', async () => {
+        const { controller } = createController(streamUrl('old'));
+        const automatic=pendingLoad(), quality=pendingLoad();
+        loadAudioSourceMock.mockReturnValueOnce(automatic.promise).mockReturnValueOnce(quality.promise);
+        const a=controller.recoverOnlinePlaybackSource({autoplay:true,force:true});
+        const b=controller.recoverOnlinePlaybackSource({autoplay:true,force:true,qualityOverride:'lossless'});
+        quality.finish({kind:'ok',audioSrc:streamUrl('lossless')});
+        expect((await b).status).toBe('recovered');
+        automatic.finish({kind:'ok',audioSrc:streamUrl('automatic')});
+        expect((await a).status).toBe('stale');
+        expect(setAudioSrcMock).toHaveBeenCalledTimes(1);
+        expect(setAudioSrcMock).toHaveBeenCalledWith(streamUrl('lossless'));
+    });
+
 });

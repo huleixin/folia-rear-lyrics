@@ -11,6 +11,8 @@ import '../../../styles/mobileGlass.css';
 import { useMobileGlass } from '../../../hooks/useMobileGlass';
 import { useMobileFooterMotion } from './useMobileFooterMotion';
 import './mobileFooterMotion.css';
+import './mobileAdaptive.css';
+import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { useNativeGlassNav } from '../../../hooks/useNativeGlassNav';
 
 // src/library/suites/mobile/MobileLibraryStage.tsx
@@ -21,6 +23,7 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
     const settingsOpen = useSettingsModalStore((state) => state.settingsModalState.isOpen);
     const homeActive = !searchOpen && !settingsOpen && page === 'home';
     const libraryActive = !searchOpen && !settingsOpen && page === 'library';
+    const wide = useMediaQuery('(min-width:840px)');
     const playlistDetail = props.navigation.depth > 0 && props.navigation.activeType === 'playlist';
     // 两个玻璃节点持续挂载；切页只改变位置和透明度，不重建透镜或播放器。
     const navRef = useRef<HTMLElement>(null);
@@ -52,7 +55,7 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
                 nextTrackLabel={props.nextTrackLabel}
                 previousTrackLabel={props.previousTrackLabel}
             />
-            <nav ref={navRef} inert={playlistDetail} aria-hidden={playlistDetail || undefined} aria-label={t('mobileLibrary.navigation')}>
+            <nav ref={navRef} inert={playlistDetail && !wide} aria-hidden={playlistDetail && !wide || undefined} aria-label={t('mobileLibrary.navigation')}>
                 <button
                     aria-current={homeActive ? 'page' : undefined}
                     onClick={() => go('home')}

@@ -1,3 +1,4 @@
+import { useLxSourceStore } from '../../../stores/useLxSourceStore';
 import React, { useEffect, useState } from 'react';
 import { Activity, AlertCircle, Check, Loader2, RotateCcw, Server, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -99,6 +100,7 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
     const navidromeFolderCount=navidromeServerProfile?.musicFolders.length??0;
     const navidromeServerLabel=navidromeServerProfile?.serverVersion||navidromeServerProfile?.serverType||t('navidrome.serverProfileUnavailable');
     return (<>
+        <button className="ty-source-entry" onClick={() => useLxSourceStore.getState().show()}>洛雪自定义音源 · 导入 / 管理</button>
             {isAndroid && (
                 <SettingsAnchor anchorId="colorOsLyrics" label={t('options.colorOsLyrics') || 'ColorOS lock-screen lyrics'}>
                     <SettingsSectionHeading icon={Activity} label={t('options.colorOsLyrics') || 'ColorOS lock-screen lyrics'} />
