@@ -23,7 +23,15 @@ LSP 模式播放期间维持背屏亮起，主屏可单独息屏。暂停后保�
 
 启用遮盖息屏时，它优先于播放常亮。交还系统后不再采集和发送背屏舞台的时钟、频谱，恢复播放后再恢复发布；LyricInfo 独立工作。
 
-本版系统桥协议升级到 v2。**覆盖安装后必须重启手机**，才能载入新的 LSP 模块；仅重启听屿不够。设置诊断包含 `rearPowerHook`、亮屏租约和系统交还状态。系统私有实现与 AOSP 不同仍可能导致钩子不可用，实际息屏/亮屏需要实机确认。
+当前系统桥协议为 v4。**覆盖安装后必须重启手机**，才能载入新的 LSP 模块；仅重启听屿不够。旧模块握手会提示版本不匹配和重启要求。设置诊断包含 `rearPowerHook`、`rearWindowHook`、亮屏租约和系统交还状态。系统私有实现与 AOSP 不同仍可能导致钩子不可用，实际息屏/亮屏需要实机确认。
+
+### 锁屏窗口保活（beta.6）
+
+Android 的显示电源与应用窗口休眠是两套策略。beta.6 在已有背屏亮屏租约之外，补充 `DisplayContent.shouldSleep` / 可用时的 `isScreenSleeping` 处理：仅当目标背屏租约有效、前台 Activity 恰为听屿 `RearLyricsActivity` 时保留其窗口运行。主屏、其他应用窗口及失效租约均使用系统原判定；不删除系统休眠令牌，也不解除主屏锁屏。
+
+获取、释放和到期时，在框架原有的线程与全局锁下请求重新计算休眠状态。主屏锁屏事件立即触发续期，暂停超时、遮盖息屏和进程死亡仍恢复系统管理。接口不存在时记录诊断并保留其他可用功能。本机已验证租约范围、到期及释放的纯逻辑；HyperOS 框架钩子的实际行为仍需实机确认。
+
+实现依据：[AOSP DisplayContent](https://android.googlesource.com/platform/frameworks/base/+/android16-qpr2-release/services/core/java/com/android/server/wm/DisplayContent.java) 的显示休眠与前台 Activity 判定。
 
 ## LyricInfo / 灵动岛
 

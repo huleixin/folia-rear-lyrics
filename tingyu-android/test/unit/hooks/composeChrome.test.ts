@@ -10,6 +10,7 @@ const bridge=vi.hoisted(()=>({update:vi.fn(),clock:vi.fn(),remove:vi.fn(),callba
 vi.mock('@/services/nativeChrome',()=>({COMPOSE_CHROME_FAILURE_EVENT:'tingyu-compose-chrome-failed',PREHIDE_COMPOSE_CHROME:true,canUseComposeChrome:async()=>bridge.supported,newChromeGeneration:()=>1,
     chromeNative:{update:bridge.update,clock:bridge.clock,remove:bridge.remove,addListener:async(_name:string,callback:(e:any)=>void)=>{bridge.callback=callback;return{remove:async()=>{}}}},
     chromeWindowInteraction:bridge.interact,
+    hasBlockingChromeWindow:()=>[...document.querySelectorAll<HTMLElement>('[data-folia-keyboard-window="true"]')].some(n=>n.dataset.nativeChromeOverlay!=='nonblocking'),
     chromeClockNeedsAnchor:(now:number,at:number,p:number,last:number,playing:boolean)=>now-at>=2000||Math.abs(p-last-(playing?(now-at)/1000:0))>.65,
 }));
 vi.mock('@/utils/stageActivity',()=>({isMainStageActive:()=>true,subscribeMainStageActivity:()=>()=>{}}));
@@ -32,7 +33,7 @@ beforeEach(()=>{
 afterEach(()=>{act(()=>root.unmount());host.remove();vi.useRealTimers();vi.unstubAllGlobals();vi.restoreAllMocks();});
 it('has no idle polling and removes native controls when inactive',async()=>{
     act(()=>root.render(h(Probe)));
-    expect(host.firstElementChild?.getAttribute('data-compose-pending')).toBe('true');
+    expect(host.firstElementChild?.hasAttribute('data-compose-pending')).toBe(false);
     await settle();
     expect(host.firstElementChild?.getAttribute('data-compose-native')).toBe('true');
     expect(host.firstElementChild?.hasAttribute('data-compose-pending')).toBe(false);
@@ -45,7 +46,7 @@ it('has no idle polling and removes native controls when inactive',async()=>{
 it('restores the original controls if the native probe is unsupported',async()=>{
     bridge.supported=false;
     act(()=>root.render(h(Probe)));
-    expect(host.firstElementChild?.getAttribute('data-compose-pending')).toBe('true');
+    expect(host.firstElementChild?.hasAttribute('data-compose-pending')).toBe(false);
     await settle();
     expect(host.firstElementChild?.hasAttribute('data-compose-pending')).toBe(false);
     expect(host.firstElementChild?.hasAttribute('data-compose-native')).toBe(false);
@@ -70,4 +71,39 @@ it('restores every web fallback when the shared native host fails',async()=>{
     act(()=>window.dispatchEvent(new Event('tingyu-compose-chrome-failed')));
     expect(host.querySelectorAll('[data-compose-native=true]')).toHaveLength(0);
     const count=bridge.update.mock.calls.length;await settle(2000);expect(bridge.update).toHaveBeenCalledTimes(count);
+});
+it('keeps cold-start controls intact until native content is drawn',async()=>{
+    let drawn:(value:any)=>void=()=>{};
+    bridge.update.mockImplementation(f=>new Promise(resolve=>{drawn=value=>resolve({session:f.session,...value});}));
+    await act(async()=>root.render(h(Probe)));
+    await settle(1500);
+    expect(host.firstElementChild?.hasAttribute('data-compose-native')).toBe(false);
+    expect(host.firstElementChild?.hasAttribute('data-compose-pending')).toBe(false);
+    await act(async()=>drawn({accepted:true}));
+    expect(host.firstElementChild?.getAttribute('data-compose-native')).toBe('true');
+});
+it('sends modal hiding immediately even while native takeover is awaiting a draw',async()=>{
+    const replies:Array<()=>void>=[];
+    bridge.update.mockImplementation(f=>new Promise(resolve=>{replies.push(()=>resolve({accepted:true,session:f.session}));}));
+    await act(async()=>root.render(h(Probe)));await settle(20);
+    const blocker=document.createElement('div');blocker.dataset.foliaKeyboardWindow='true';
+    await act(async()=>document.body.append(blocker));
+    expect(bridge.update.mock.calls.at(-1)?.[0].enabled).toBe(false);
+    expect(bridge.update).toHaveBeenCalledTimes(2);
+    await act(async()=>replies[0]());
+    expect(host.firstElementChild?.hasAttribute('data-compose-native')).toBe(false);
+    await act(async()=>replies[1]());
+    expect(host.firstElementChild?.getAttribute('data-compose-pending')).toBe('true');
+    await act(async()=>blocker.remove());
+    expect(bridge.update.mock.calls.at(-1)?.[0].enabled).toBe(true);
+    await act(async()=>root.render(h(Probe,{active:false})));
+    expect(host.firstElementChild?.getAttribute('data-compose-pending')).toBe('true');
+});
+it('keeps transport painted behind a non-overlapping stage menu',async()=>{
+    await act(async()=>root.render(h(Probe)));await settle();
+    const menu=document.createElement('div');menu.dataset.foliaKeyboardWindow='true';menu.dataset.nativeChromeOverlay='nonblocking';
+    await act(async()=>document.body.append(menu));
+    expect(bridge.update.mock.calls.at(-1)?.[0].enabled).toBe(true);
+    expect(host.firstElementChild?.getAttribute('data-compose-native')).toBe('true');
+    await act(async()=>menu.remove());
 });

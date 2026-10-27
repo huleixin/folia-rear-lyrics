@@ -14,6 +14,7 @@ import de.robv.android.xposed.XposedHelpers;
 /** Preserve the system request; temporarily clone only the leased rear controller's power policy. */
 final class RearDisplayPower {
     private final RearDisplayLease lease = new RearDisplayLease();
+    private final RearWindowLease windows = new RearWindowLease(lease);
     private final Map<Integer, Request> requests = new HashMap<>();
     private final ThreadLocal<Boolean> replaying = new ThreadLocal<>();
     private Handler timer;
@@ -29,6 +30,7 @@ final class RearDisplayPower {
     };
 
     void install(ClassLoader loader) {
+        windows.install(loader);
         try {
             requestType = XposedHelpers.findClass("android.hardware.display.DisplayManagerInternal$DisplayPowerRequest", loader);
             brightPolicy = XposedHelpers.getStaticIntField(requestType, "POLICY_BRIGHT");
@@ -62,7 +64,7 @@ final class RearDisplayPower {
             cpuLease.setReferenceCounted(false);
         }
     }
-    String status() { return "rearPowerHook=" + installed + ", hookError=" + loggedFailure; }
+    String status() { return "rearPowerHook=" + installed + ", hookError=" + loggedFailure + ", " + windows.status(); }
 
     synchronized void acquire(int display, String session) {
         synchronized (requests) {
@@ -74,21 +76,21 @@ final class RearDisplayPower {
         cpuLease.acquire(RearDisplayLease.TIMEOUT_MS + 5000);
         timer.removeCallbacks(releaseCpuWhenIdle);
         int previous = lease.acquire(display, session, SystemClock.elapsedRealtime());
-        if (previous > 0 && previous != display) replay(previous);
-        replay(display);
+        if (previous > 0 && previous != display) { replay(previous); windows.refresh(previous); }
+        replay(display); windows.refresh(display);
         Handler handler = timer;
         if (handler != null) { handler.removeCallbacks(expiry); handler.postDelayed(expiry, RearDisplayLease.TIMEOUT_MS); }
     }
     synchronized void release(int display, String session) {
-        if (lease.release(display, session)) { timer.removeCallbacks(expiry); replay(display); releaseCpu(); }
+        if (lease.release(display, session)) { timer.removeCallbacks(expiry); replay(display); windows.refresh(display); releaseCpu(); }
     }
     synchronized void clear() {
         int old = lease.clear(); if (timer != null) timer.removeCallbacks(expiry);
-        if (old > 0) replay(old); releaseCpu();
+        if (old > 0) { replay(old); windows.refresh(old); } releaseCpu();
     }
     private synchronized void expire() {
         int old = lease.expire(SystemClock.elapsedRealtime());
-        if (old > 0) { replay(old); releaseCpu(); }
+        if (old > 0) { replay(old); windows.refresh(old); releaseCpu(); }
         long remaining = lease.remaining(SystemClock.elapsedRealtime());
         if (remaining > 0 && timer != null) timer.postDelayed(expiry, remaining);
     }

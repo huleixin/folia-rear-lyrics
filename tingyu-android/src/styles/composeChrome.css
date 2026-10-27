@@ -7,6 +7,9 @@
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     pointer-events: none !important;
+    /* Remove the entire fallback paint, including compositor blur and decorations,
+       without changing the geometry/opacity sampled for the native surface. */
+    clip-path: inset(50%) !important;
 }
 [data-compose-native='true'] > *,
 [data-compose-pending='true'] > * { visibility: hidden !important; }

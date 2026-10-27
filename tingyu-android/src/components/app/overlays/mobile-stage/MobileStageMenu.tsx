@@ -44,9 +44,12 @@ export default function MobileStageMenu({
         };
         document.addEventListener('pointerdown', outside, true);
         document.addEventListener('keydown', key, true);
+        const nativeInteraction=()=>onClose();
+        window.addEventListener('tingyu-native-chrome-interaction',nativeInteraction);
         return () => {
             document.removeEventListener('pointerdown', outside, true);
             document.removeEventListener('keydown', key, true);
+            window.removeEventListener('tingyu-native-chrome-interaction',nativeInteraction);
             previous?.isConnected && previous.focus();
         };
     }, [onClose]);
@@ -60,6 +63,7 @@ export default function MobileStageMenu({
             role="menu"
             aria-label={t('mobileStage.more')}
             data-folia-keyboard-window="true"
+            data-native-chrome-overlay="nonblocking"
             className="mps-menu"
         >
             <button role="menuitem" onClick={() => run(() => useAudioToolsStore.getState().show())}>

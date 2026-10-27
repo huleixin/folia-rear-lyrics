@@ -35,4 +35,15 @@ public class RearDisplayLeaseTest {
         assertEquals(2, lease.acquire(3, "session", 1000));
         assertFalse(lease.holds(2, 1001)); assertTrue(lease.holds(3, 1001));
     }
+    @Test public void onlyTheLeasedRearLyricsWindowCanStayAwakeWhileLocked() {
+        RearDisplayLease lease = new RearDisplayLease(); lease.acquire(2, "session", 0);
+        assertTrue(lease.holdsWindow(2, RearBridgeContract.PACKAGE, RearBridgeContract.ACTIVITY, 1));
+        assertFalse(lease.holdsWindow(0, RearBridgeContract.PACKAGE, RearBridgeContract.ACTIVITY, 1));
+        assertFalse(lease.holdsWindow(3, RearBridgeContract.PACKAGE, RearBridgeContract.ACTIVITY, 1));
+        assertFalse(lease.holdsWindow(2, "com.android.systemui", RearBridgeContract.ACTIVITY, 1));
+        assertFalse(lease.holdsWindow(2, RearBridgeContract.PACKAGE, RearBridgeContract.PACKAGE + ".MainActivity", 1));
+        assertFalse(lease.holdsWindow(2, RearBridgeContract.PACKAGE, RearBridgeContract.ACTIVITY, 60000));
+        lease.release(2, "session");
+        assertFalse(lease.holdsWindow(2, RearBridgeContract.PACKAGE, RearBridgeContract.ACTIVITY, 2));
+    }
 }

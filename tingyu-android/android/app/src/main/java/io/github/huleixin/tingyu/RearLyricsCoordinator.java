@@ -264,7 +264,11 @@ final class RearLyricsCoordinator {
         boolean visible = rear >= 0 && !covered && RearLyricsActivity.isShowingOnDisplay(rear);
         long now = SystemClock.elapsedRealtime();
         inspectFront(rear, now);
-        if (active(rear)) wakeTried = false;
+        if (active(rear)) {
+            wakeTried = false;
+            // A leased, still-visible LSP window survived the lock; do not restart its WebView.
+            if (LspRearBridge.selected(context) && lspHolding) lockRecovery = false;
+        }
         if (!pending && !waking && !wakeTried && now >= nextAttempt && rear >= 0 && shell != null && shell.isBinderAlive()
                 && RearLyricsActivity.isEnabled() && RearLyricsLauncher.displayState(context, rear) != Display.STATE_ON) {
             waking = true; wakeTried = true; nextAttempt = now + 4000;
@@ -355,7 +359,10 @@ final class RearLyricsCoordinator {
         BroadcastReceiver receiver = new BroadcastReceiver() {
             @Override public void onReceive(Context context, Intent intent) {
                 if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction()) && wanted() && !sleeping && !powerBusy) {
-                    lockRecovery = true; nextAttempt = 0;
+                    lockRecovery = true; nextAttempt = 0; wakeTried = false; nextHoldRefresh = 0;
+                    // Renew the window/power lease immediately; normal heartbeats may be delayed
+                    // while Android stops the main Activity during the lock transition.
+                    syncLspPower();
                 }
                 lastProbe = 0; RearLyricsTrace.record(context, "power-event", intent.getAction()); nudge();
             }

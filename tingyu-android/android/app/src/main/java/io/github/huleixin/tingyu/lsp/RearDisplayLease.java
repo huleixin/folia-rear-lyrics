@@ -14,6 +14,9 @@ final class RearDisplayLease {
         return previous;
     }
     synchronized boolean holds(int id, long now) { return id > 0 && id == display && now < until; }
+    synchronized boolean holdsWindow(int id, String pkg, String activity, long now) {
+        return holds(id, now) && RearBridgeContract.PACKAGE.equals(pkg) && RearBridgeContract.ACTIVITY.equals(activity);
+    }
     synchronized boolean release(int id, String token) {
         if (id != display || !session.equals(token)) return false;
         clear(); return true;

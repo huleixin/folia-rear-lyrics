@@ -28,6 +28,11 @@ export function canUseComposeChrome():Promise<boolean> {
     if (!COMPOSE_CHROME || !isAndroidNativeRuntime()) return Promise.resolve(false);
     return probe ??= chromeNative.probe().then(value=>value.supported).catch(()=>false);
 }
+export function hasBlockingChromeWindow():boolean {
+    // The stage's small top menu does not overlap the transport; sheets and dialogs do.
+    return [...document.querySelectorAll<HTMLElement>('[data-folia-keyboard-window="true"]')]
+        .some(node=>node.dataset.nativeChromeOverlay!=='nonblocking');
+}
 export function chromeClockNeedsAnchor(now:number,lastAt:number,position:number,lastPosition:number,playing:boolean):boolean {
     if(!Number.isFinite(position))return false;
     const expected=lastPosition+(playing?(now-lastAt)/1000:0);

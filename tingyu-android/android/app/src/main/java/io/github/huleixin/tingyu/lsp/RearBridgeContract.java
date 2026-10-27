@@ -9,7 +9,7 @@ public final class RearBridgeContract {
     public static final String REQUEST = PACKAGE + ".LSP_CONNECT";
     public static final String PERMISSION = PACKAGE + ".permission.LSP_CONNECT";
     public static final String DESCRIPTOR = PACKAGE + ".REAR_LYRICS_V2";
-    public static final int VERSION = 3;
+    public static final int VERSION = 4;
     public static final int HOLD_POWER = android.os.IBinder.FIRST_CALL_TRANSACTION + 6;
     public static final int RELEASE_POWER = android.os.IBinder.FIRST_CALL_TRANSACTION + 7;
     private RearBridgeContract() {}

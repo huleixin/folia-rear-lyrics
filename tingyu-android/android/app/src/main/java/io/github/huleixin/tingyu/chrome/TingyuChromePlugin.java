@@ -22,7 +22,11 @@ public class TingyuChromePlugin extends Plugin {
         catch (Exception error) { call.reject(error.getMessage(),error); }
     }); }
     @PluginMethod public void update(PluginCall call) { getActivity().runOnUiThread(() -> {
-        try { call.resolve(JSObject.fromJSONObject(host().update(call.getData()))); }
+        try { host().update(call.getData(), result -> {
+            try { call.resolve(JSObject.fromJSONObject(result)); }
+            catch (Exception error) { call.reject(error.getMessage(),error); }
+            return kotlin.Unit.INSTANCE;
+        }); }
         catch (Exception error) { if (host != null) host.destroy(); host = null; call.reject(error.getMessage(),error); }
     }); }
     @PluginMethod public void clock(PluginCall call) { getActivity().runOnUiThread(() -> { if (host != null) host.clock(call.getData()); call.resolve(); }); }

@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -28,6 +29,7 @@ class ComposeChromeHost(private val web: WebView, private val listener: ChromeAc
     private val surfaces = mutableStateMapOf<String, ChromeSurface>()
     private val clocks = mutableStateMapOf<String, ChromeTimeline>()
     private val frameOrder = ChromeFrameOrder()
+    private val draws = ChromeDrawGate()
     private var active by mutableStateOf(true)
     private var host: ComposeView? = null
     private var parent: ViewGroup? = null
@@ -36,15 +38,26 @@ class ComposeChromeHost(private val web: WebView, private val listener: ChromeAc
     private var updates = 0L
     fun status() = JSONObject().put("supported", Build.VERSION.SDK_INT >= 31).put("engine", "compose-backdrop-1.0.6")
         .put("mounted",host != null).put("active",active).put("surfaces",surfaces.values.count { it.enabled && active }).put("updates",updates)
-    fun update(value: JSONObject): JSONObject {
+    fun update(value: JSONObject, reply: (JSONObject) -> Unit) {
         check(Build.VERSION.SDK_INT >= 31) { "Native chrome needs Android 12+" }
         val next = ChromeSurface.parse(value)
-        if (!frameOrder.accept(next.id,next.session,next.generation,next.revision)) return status()
+        if (!frameOrder.accept(next.id,next.session,next.generation,next.revision)) { reply(status().put("accepted",false)); return }
         if (next.enabled && host == null) attach()
+        draws.cancel(next.id)
         surfaces[next.id] = next
         clocks[next.id] = ChromeTimeline(next.position,next.duration,next.playing,SystemClock.elapsedRealtime())
         updates++
-        return status().put("session",next.session).put("accepted",true)
+        if (!next.enabled) { reply(status().put("session",next.session).put("accepted",true)); return }
+        draws.await(next.id,next.session,next.revision) { drawn ->
+            reply(status().put("session",next.session).put("accepted",drawn))
+        }
+        host?.postDelayed({
+            if (draws.waiting(next.id,next.session,next.revision)) {
+                surfaces[next.id]?.takeIf { it.session==next.session && it.revision==next.revision }
+                    ?.let { surfaces[next.id]=it.copy(enabled=false) }
+                draws.cancel(next.id,next.session)
+            }
+        },2000)
     }
     fun clock(value: JSONObject) {
         val current = surfaces[value.optString("id")] ?: return
@@ -54,9 +67,10 @@ class ComposeChromeHost(private val web: WebView, private val listener: ChromeAc
     }
     fun remove(id: String, session: String) {
         frameOrder.retire(id,session)
+        draws.cancel(id,session)
         if (surfaces[id]?.session == session) { surfaces.remove(id); clocks.remove(id) }
     }
-    fun suspend() { active = false }
+    fun suspend() { active = false; draws.clear() }
     fun resume() { active = true }
     private fun attach() {
         val original = web.parent as? ViewGroup ?: error("WebView has no parent")
@@ -82,8 +96,20 @@ class ComposeChromeHost(private val web: WebView, private val listener: ChromeAc
                     val placement = Modifier.offset { IntOffset((rect.left*scale).roundToInt(),(rect.top*scale).roundToInt()) }
                         .size(with(density){(rect.width*scale).toDp()},with(density){(rect.height*scale).toDp()})
                         .graphicsLayer { alpha = rect.alpha }
+                        .drawWithContent {
+                            drawContent()
+                            if (draws.waiting(surface.id,surface.session,surface.revision)) host?.post {
+                                draws.drawn(surface.id,surface.session,surface.revision)
+                            }
+                        }
                     val actions: (String,Double)->Unit = { action,value ->
-                        if (active && surfaces[surface.id]?.session == surface.session && (action !in setOf("next","previous","toggle","seek") || surfaces[surface.id]?.trackKey == surface.trackKey)) listener.onAction(surface.id,surface.session,action,value)
+                        if (active && surfaces[surface.id]?.enabled==true && surfaces[surface.id]?.session == surface.session && (action !in setOf("next","previous","toggle","seek") || surfaces[surface.id]?.trackKey == surface.trackKey)) {
+                            // Dismiss home chrome on the UI thread before the JS route transition starts.
+                            if (surface.id=="mini" && action=="openStage") {
+                                for (id in listOf("nav","mini")) surfaces[id]?.let { surfaces[id]=it.copy(enabled=false); draws.cancel(id) }
+                            }
+                            listener.onAction(surface.id,surface.session,action,value)
+                        }
                     }
                     val interactivePlacement = placement.chromeInteraction(actions)
                     when(surface.id) {
@@ -97,7 +123,7 @@ class ComposeChromeHost(private val web: WebView, private val listener: ChromeAc
     }
     fun destroy() {
         val compose = host ?: return
-        active = false; surfaces.clear(); clocks.clear()
+        active = false; draws.clear(); surfaces.clear(); clocks.clear()
         compose.disposeComposition()
         (web.parent as? ViewGroup)?.removeView(web)
         (compose.parent as? ViewGroup)?.removeView(compose)
