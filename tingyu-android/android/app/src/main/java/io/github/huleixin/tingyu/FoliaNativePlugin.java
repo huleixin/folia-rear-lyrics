@@ -536,7 +536,8 @@ public class FoliaNativePlugin extends Plugin {
         }
         try {
             if (localAudioServer == null) localAudioServer = new LocalAudioServer(getContext());
-            String localUrl = localAudioServer.registerRemoteAudio(url);
+            String localUrl = Boolean.TRUE.equals(call.getBoolean("lxSource", false))
+                ? localAudioServer.registerLxAudio(url) : localAudioServer.registerRemoteAudio(url);
             JSObject result = new JSObject();
             result.put("url", localUrl);
             call.resolve(result);

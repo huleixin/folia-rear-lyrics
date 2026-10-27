@@ -57,3 +57,21 @@ html[data-folia-mobile-scrollbars='true'] [data-folia-scrolling='true']::-webkit
     padding-left: var(--folia-main-inset-left, 0px);
     padding-right: var(--folia-main-inset-right, 0px);
 }
+
+/* Detailed source failures need a readable phone width even when phone-fit scaling is disabled. */
+@media (max-width: 699px) {
+    [data-folia-status-toast='true'] {
+        display: grid;
+        grid-template-columns: 18px minmax(0, 1fr) auto;
+        width: calc(100vw - 24px);
+        max-width: 26rem;
+        border-radius: 16px;
+        padding: 12px;
+        gap: 8px;
+        font-size: 12px;
+    }
+    [data-folia-status-toast='true'] > svg { grid-column: 1; align-self: start; margin-top: 2px; }
+    [data-folia-status-toast='true'] > span { grid-column: 2 / -1; min-width: 0; line-height: 1.5; overflow-wrap: anywhere; }
+    [data-folia-status-toast='true'] > button { grid-row: 2; grid-column: 2; justify-self: end; white-space: nowrap; min-height: 32px; }
+    [data-folia-status-toast='true'] > button:last-child { grid-column: 3; }
+}

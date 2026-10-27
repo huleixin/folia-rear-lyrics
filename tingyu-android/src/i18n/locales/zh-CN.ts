@@ -559,6 +559,7 @@ export default {
     "missingApiKey": "请在设置中配置你的 AI API 密钥",
     "coverThemeApplied": "已根据封面生成主题：{{themeName}}",
     "aiFallbackThemeUsed": "AI功能未配置，使用内置主题",
+    "sourcePlaybackError": "自定义源播放失败：{{detail}}",
     "playbackError": "播放出错",
     "loadingSong": "正在获取歌曲链接...",
     "cacheCleared": "缓存已清除",

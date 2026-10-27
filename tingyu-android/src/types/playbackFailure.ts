@@ -34,6 +34,7 @@ export interface PlaybackFailure {
     mediaErrorCode?: number;
     attempts?: readonly ProviderPlaybackAttempt[];
     message?: string;
+    displayMessage?: string;
     cause?: unknown;
 }
 
@@ -41,6 +42,7 @@ export type PlaybackFailureContext = 'play' | 'restore' | 'mid-playback';
 export type PlaybackFailureAction = 'retry' | 'skip';
 
 export type PlaybackFailureMessageKey =
+    | 'status.sourcePlaybackError'
     | 'status.songLoginRequired' | 'status.loginExpired'
     | 'status.songMembershipRequired' | 'status.songPurchaseRequired' | 'status.songEntitlementRequired'
     | 'status.songPreviewOnly' | 'status.songRegionRestricted' | 'status.songUnavailable'
@@ -52,7 +54,7 @@ export type PlaybackFailureMessageKey =
 
 export interface PlaybackFailurePolicy {
     messageKey: PlaybackFailureMessageKey;
-    messageParams?: { seconds: number };
+    messageParams?: Record<string, string | number>;
     countdownKey?: SkipPromptMessageKey;     // 仅 autoSkip==='countdown'
     stopPlayback: boolean;                   // 暂停旧音频、shouldAutoPlay=false；play 置 IDLE，mid-playback 置 PAUSED
     autoSkip: 'countdown' | 'none';

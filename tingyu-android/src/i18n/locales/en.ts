@@ -559,6 +559,7 @@ export default {
     "missingApiKey": "Please configure your AI API Key in Settings",
     "coverThemeApplied": "Applied a cover-derived theme: {{themeName}}",
     "aiFallbackThemeUsed": "AI is not configured, using a built-in theme",
+    "sourcePlaybackError": "Custom source playback failed: {{detail}}",
     "playbackError": "Playback Error",
     "loadingSong": "Loading song URL...",
     "cacheCleared": "Cache cleared",

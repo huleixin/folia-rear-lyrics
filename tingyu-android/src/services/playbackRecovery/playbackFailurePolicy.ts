@@ -94,7 +94,8 @@ export const PLAYBACK_FAILURE_POLICY: Readonly<Record<PlaybackFailureReason, Pla
 /** 文案及其变体：限流带等待秒数、服务未配置、证据不足但登录可能有用或后端认出了「可能」原因。 */
 export const getPlaybackFailureMessage = (
     failure: PlaybackFailure,
-): { key: PlaybackFailureMessageKey; params?: { seconds: number } } => {
+): { key: PlaybackFailureMessageKey; params?: Record<string, string | number> } => {
+    if (failure.displayMessage) return { key: 'status.sourcePlaybackError', params: { detail: failure.displayMessage } };
     switch (failure.reason) {
         case 'rate-limited':
             if (typeof failure.retryAfterMs === 'number' && failure.retryAfterMs > 0) {
@@ -166,6 +167,7 @@ export const PLAYBACK_RETRYING_MESSAGE_KEY = 'status.songRetrying';
 
 // 用对象字面量登记全部文案 key：漏掉 PlaybackFailureMessageKey 的任何成员 tsc 都会报错。
 const MESSAGE_KEY_REGISTRY: Record<PlaybackFailureMessageKey, true> = {
+    'status.sourcePlaybackError': true,
     'status.songLoginRequired': true,
     'status.loginExpired': true,
     'status.songMembershipRequired': true,

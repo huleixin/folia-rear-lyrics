@@ -1,10 +1,10 @@
 import type { SongResult } from '../../types';
-import type { AudioQualityPreference, OmniAudioSource } from '../../types/onlineMusic';
+import { OnlineProviderError, type AudioQualityPreference, type OmniAudioSource } from '../../types/onlineMusic';
 import { getPlaybackSourceRef } from '../../utils/appPlaybackGuards';
 import { getProviderSongMetadata } from '../onlineMusic/songMetadata';
 import { useLxSourceStore } from '../../stores/useLxSourceStore';
 import { chooseLxQuality, LX_QUALITIES, validateRemoteUrl } from './contract';
-import { proxyNativeRemoteAudioUrl } from '../nativeRemoteAudio';
+import { prepareLxAudio } from './media';
 import { LxRuntime } from './client';
 
 // src/services/lxSource/playback.ts
@@ -42,8 +42,12 @@ export async function resolveLxSource(song: SongResult, quality: AudioQualityPre
         const value = await active.request({ source, action: 'musicUrl', info: { type, musicInfo } });
         if (useLxSourceStore.getState().revision !== state.revision) throw Error('音源已更换');
         if (typeof value !== 'string') throw Error('音源未返回播放地址');
-        const url = await proxyNativeRemoteAudioUrl(validateRemoteUrl(value));
+        const url = await prepareLxAudio(validateRemoteUrl(value));
         if (useLxSourceStore.getState().revision !== state.revision) throw Error('音源已更换');
         return { url, fetchedAt: Date.now(), quality: (['standard','high','lossless','hires'] as const)[LX_QUALITIES.indexOf(type)] };
+    } catch (error) {
+        const detail = (error instanceof Error ? error.message : String(error)).replace(/https?:\/\/[^\s"'<>]+/gi, '[地址]').replace(/[\r\n\t]/g, ' ').slice(0, 140);
+        throw new OnlineProviderError('unavailable', detail, ref.providerId, undefined, undefined, undefined,
+            { userMessage: detail || '自定义源未能提供播放地址' });
     } finally { idle = setTimeout(() => { active.stop(); if (runtime === active) runtime = null; }, 30000); }
 }

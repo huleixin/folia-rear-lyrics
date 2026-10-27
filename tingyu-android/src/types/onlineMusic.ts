@@ -280,6 +280,8 @@ export interface ProviderPlaybackAttempt {
 }
 
 export interface OnlineProviderErrorDetails {
+    /** Adapter-supplied short explanation, without audio URLs or credentials. */
+    userMessage?: string;
     /** 'config' | 'backend' | 'runtime' | 'ipc' | 'upstream' | 'local-api' | 'song-url' | 'audio-source' ... */
     stage?: string;
     upstreamCode?: number | string;

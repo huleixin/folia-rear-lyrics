@@ -384,6 +384,7 @@ export default {
     "missingApiKey": "Konfigurasi Kunci API AI di Pengaturan",
     "coverThemeApplied": "Tema berdasarkan sampul diterapkan: {{themeName}}",
     "aiFallbackThemeUsed": "AI belum dikonfigurasi, menggunakan tema bawaan",
+    "sourcePlaybackError": "Pemutaran sumber kustom gagal: {{detail}}",
     "playbackError": "Kesalahan Pemutaran",
     "loadingSong": "Memuat URL lagu...",
     "cacheCleared": "Cache dihapus",

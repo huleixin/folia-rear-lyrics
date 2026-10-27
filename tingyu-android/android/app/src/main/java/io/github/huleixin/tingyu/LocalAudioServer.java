@@ -72,6 +72,7 @@ final class LocalAudioServer {
         .followSslRedirects(true)
         .build();
     private final Map<String, String> remoteAudioUrls = new LinkedHashMap<>();
+    private final java.util.Set<String> lxAudioTokens = new java.util.HashSet<>();
     /** 转发时要额外带上的请求头（按 token 存）；没有时为 null，见 {@link #registerRemoteAudio}。 */
     private final Map<String, Map<String, String>> remoteAudioHeaders = new LinkedHashMap<>();
     private ServerSocket serverSocket;
@@ -117,6 +118,11 @@ final class LocalAudioServer {
         return registerRemoteAudio(value, null, false);
     }
 
+    synchronized String registerLxAudio(String value) throws IOException {
+        LxAudioProxy.validate(value);
+        return registerRemoteAudio(value, null, true, true);
+    }
+
     /**
      * 同 {@link #registerRemoteAudio(String)}，但多两个开关：转发时要附带的请求头，以及"允许任意主机"。
      *
@@ -126,6 +132,9 @@ final class LocalAudioServer {
      * 两个开关都由调用方显式打开，白名单那一路（Kuwo / 网易）行为不变。
      */
     synchronized String registerRemoteAudio(String value, Map<String, String> headers, boolean allowAnyHost) throws IOException {
+        return registerRemoteAudio(value, headers, allowAnyHost, false);
+    }
+    private String registerRemoteAudio(String value, Map<String, String> headers, boolean allowAnyHost, boolean lxSource) throws IOException {
         URL url = new URL(value);
         String host = url.getHost() == null ? "" : url.getHost().toLowerCase(Locale.ROOT);
         if (!("http".equals(url.getProtocol()) || "https".equals(url.getProtocol()))
@@ -133,18 +142,20 @@ final class LocalAudioServer {
             throw new IOException("Unsupported remote audio host");
         }
         int localPort = start();
-        String token = android.util.Base64.encodeToString(
+        String token = lxSource ? "lx-" + java.util.UUID.randomUUID() : android.util.Base64.encodeToString(
             value.getBytes(StandardCharsets.UTF_8),
             android.util.Base64.URL_SAFE | android.util.Base64.NO_PADDING | android.util.Base64.NO_WRAP
         );
         synchronized (remoteAudioUrls) {
             remoteAudioUrls.remove(token);
             remoteAudioUrls.put(token, value);
+            if (lxSource) lxAudioTokens.add(token);
             remoteAudioHeaders.remove(token);
             if (headers != null && !headers.isEmpty()) remoteAudioHeaders.put(token, new HashMap<>(headers));
             while (remoteAudioUrls.size() > 128) {
                 String oldest = remoteAudioUrls.keySet().iterator().next();
                 remoteAudioUrls.remove(oldest);
+                lxAudioTokens.remove(oldest);
                 remoteAudioHeaders.remove(oldest);
             }
         }
@@ -363,8 +374,10 @@ final class LocalAudioServer {
         String token
     ) throws IOException {
         String target;
+        boolean lxSource;
         synchronized (remoteAudioUrls) {
             target = remoteAudioUrls.get(token);
+            lxSource = lxAudioTokens.contains(token);
         }
         if (target == null) {
             Log.w(TAG, "remote audio token unknown: " + token);
@@ -380,7 +393,7 @@ final class LocalAudioServer {
         // 有些 CDN 看 UA / Referer 决定给不给资源，不带的话会回一段 HTML 而不是音频
         // —— 那种回包喂进 <audio> 正是「Format error」的经典来源。
         request.header("User-Agent", REMOTE_AUDIO_USER_AGENT);
-        request.header("Referer", remoteAudioReferer(target));
+        if (!lxSource || isRemoteAudioHostAllowed(new URL(target).getHost())) request.header("Referer", remoteAudioReferer(target));
         // 调用方带来的头（飞牛的 music-token）最后写：同名的以它为准。
         if (extraHeaders != null) {
             for (Map.Entry<String, String> entry : extraHeaders.entrySet()) {
@@ -390,12 +403,13 @@ final class LocalAudioServer {
         String range = headers.get("range");
         if (range != null && range.startsWith("bytes=")) request.header("Range", range);
 
-        Response upstream = remoteAudioClient.newCall(request.build()).execute();
+        Response upstream = lxSource ? LxAudioProxy.execute(request.build()) : remoteAudioClient.newCall(request.build()).execute();
         try {
             ResponseBody body = upstream.body();
             if (!upstream.isSuccessful() || body == null) {
-                Log.w(TAG, "remote audio upstream " + upstream.code() + " for " + target);
-                writeStatus(output, 502, "Upstream Error");
+                Log.w(TAG, "remote audio upstream " + upstream.code() + " for " + (lxSource ? new URL(target).getHost() : target));
+                if (lxSource) writeLxError(output, upstream.code());
+                else writeStatus(output, 502, "Upstream Error");
                 return;
             }
             String contentType = body.contentType() != null ? body.contentType().toString() : "audio/mpeg";
@@ -414,7 +428,7 @@ final class LocalAudioServer {
             }
             boolean partial = upstream.code() == 206 || contentRange != null;
 
-            Log.i(TAG, "remote " + target + " -> " + upstream.code()
+            Log.i(TAG, "remote " + (lxSource ? new URL(target).getHost() : target) + " -> " + upstream.code()
                 + " type=" + contentType + " size=" + size + " range=" + (contentRange == null ? "-" : contentRange));
 
             StringBuilder response = new StringBuilder();
@@ -590,6 +604,13 @@ final class LocalAudioServer {
      * 也就是那句毫无特征的 MEDIA_ELEMENT_ERROR: Format error。
      * 带上 ACAO 之后，上层用 fetch 探一次就能读到真实的 404/502，不用再猜。
      */
+    private static void writeLxError(OutputStream output, int upstreamStatus) throws IOException {
+        String response = "HTTP/1.1 502 Upstream Error\r\nContent-Length: 0\r\n"
+            + "Access-Control-Allow-Origin: *\r\nAccess-Control-Expose-Headers: X-Tingyu-Upstream-Status\r\n"
+            + "X-Tingyu-Upstream-Status: " + upstreamStatus + "\r\nConnection: close\r\n\r\n";
+        output.write(response.getBytes(StandardCharsets.US_ASCII)); output.flush();
+    }
+
     private static void writeStatus(OutputStream output, int status, String message) throws IOException {
         String response = "HTTP/1.1 " + status + " " + message + "\r\n"
             + "Content-Type: text/plain\r\n"

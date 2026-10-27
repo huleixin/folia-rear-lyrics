@@ -127,6 +127,7 @@ export const classifyPlaybackError = (error: unknown, ctx: PlaybackFailureClassi
             hint: resolveFailureHint(details),
             attempts: details?.attempts,
             message: error.message,
+            displayMessage: details?.userMessage,
             cause: error,
         });
     }
