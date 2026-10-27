@@ -15,6 +15,16 @@ import { useMobileGlass } from '../../../hooks/useMobileGlass';
 import { useAppViewStore } from '../../../stores/useAppViewStore';
 import { useMiniPlayerSwipe } from './useMiniPlayerSwipe';
 import MiniPlayerProgress from './MiniPlayerProgress';
+import { currentTime } from '../../../stores/motionSignals';
+import { getPlaybackSongKey } from '../../../utils/appPlaybackGuards';
+import { selectDisplayDuration } from '../../../stores/usePlaybackStore';
+import { useComposeChrome } from '../../../hooks/useComposeChrome';
+import { useNativeChromeCover } from '../../../hooks/useNativeChromeCover';
+import { useReducedMotionFor } from '../../../hooks/useReducedMotionFor';
+import { useSearchNavigationStore } from '../../../stores/useSearchNavigationStore';
+import { useSettingsModalStore } from '../../../stores/useSettingsModalStore';
+import { useAudioSettingsStore } from '../../../stores/useAudioSettingsStore';
+import { useAudioToolsStore, QUALITY_LABELS } from '../../../stores/useAudioToolsStore';
 import { QualityButton } from '../../../components/audio-tools/AudioToolButtons';
 
 // src/library/suites/mobile/MobileMiniPlayer.tsx
@@ -34,11 +44,25 @@ export default function MobileMiniPlayer({
     const cover = usePlaybackStore(selectDisplayCoverUrl);
     const state = usePlaybackStore(selectDisplayPlayerState);
     const glassRef = useRef<HTMLDivElement>(null);
-    useMobileGlass(glassRef);
+
     useMiniPlayerSwipe(glassRef, onNextTrack, onPreviousTrack, !!song && !!canNextTrack, !!song && !!canPreviousTrack);
     const openQueue = () => {
         const view = useAppViewStore.getState(); view.setPanelTab('queue'); view.setIsPanelOpen(true);
     };
+    const active = useAppViewStore(s=>s.view==='home'&&!s.isPanelOpen);
+    const searchOpen = useSearchNavigationStore(s=>s.isSearchOpen);
+    const settingsOpen = useSettingsModalStore(s=>s.settingsModalState.isOpen);
+    const duration = usePlaybackStore(selectDisplayDuration);
+    const quality = useAudioSettingsStore(s=>s.audioQuality);
+    const reducedMotion = useReducedMotionFor('uiMicroMotion');
+    const nativeCover = useNativeChromeCover(cover,active&&!searchOpen&&!settingsOpen);
+    const compose = useComposeChrome(glassRef,'mini',active&&!searchOpen&&!settingsOpen,{
+        title:song?.name||t('mobileLibrary.nothingPlaying'),artist:song?getSongArtistLabel(song):t('mobileLibrary.chooseMusic'),cover:nativeCover,
+        trackKey:song?getPlaybackSongKey(song):'',playing:state===PlayerState.PLAYING,disabled:!song||!onTogglePlayback,
+        duration,canNext:!!song&&!!canNextTrack,canPrevious:!!song&&!!canPreviousTrack,reducedMotion,ink:'#eef5ef',accent:'#86d8b8',
+        labels:{next:nextTrackLabel||t('ui.nextTrack'),previous:previousTrackLabel||t('ui.previousTrack'),play:t('mobileLibrary.play'),pause:t('mobileLibrary.pause'),queue:t('mobileLibrary.queue'),quality:'音质切换',qualityValue:QUALITY_LABELS[quality]},
+    },{openStage:onBackToPlayer,toggle:onTogglePlayback,next:onNextTrack,previous:onPreviousTrack,queue:openQueue,quality:()=>useAudioToolsStore.getState().show()},currentTime);
+    useMobileGlass(glassRef,!compose);
     return (
         <div ref={glassRef} className="ml-mini" data-testid="mobile-mini-player">
             <div className="ml-mini-swipe-window">
@@ -62,7 +86,7 @@ export default function MobileMiniPlayer({
                     onClick={onTogglePlayback}
                     aria-label={t(state === PlayerState.PLAYING ? 'mobileLibrary.pause' : 'mobileLibrary.play')}
                 >
-                    <MiniPlayerProgress />
+                    <MiniPlayerProgress renderActive={!compose} />
                     {state === PlayerState.PLAYING ? (
                         <Pause size={22} fill="currentColor" />
                     ) : (

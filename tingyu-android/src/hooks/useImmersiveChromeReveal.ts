@@ -83,9 +83,16 @@ export const useImmersiveChromeReveal = ({
         ACTIVITY_EVENTS.forEach(eventName => {
             window.addEventListener(eventName, reveal, { passive: true });
         });
+        const nativeGesture = (event: Event) => {
+            if ((event as CustomEvent<{held:boolean}>).detail?.held) { applyHidden(false); clearTimer(); }
+            else reveal();
+        };
+        window.addEventListener('tingyu-native-chrome-interaction',nativeGesture);
+
 
         return () => {
             clearTimer();
+            window.removeEventListener('tingyu-native-chrome-interaction',nativeGesture);
             ACTIVITY_EVENTS.forEach(eventName => {
                 window.removeEventListener(eventName, reveal);
             });

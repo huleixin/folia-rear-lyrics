@@ -3,6 +3,8 @@ import groovy.json.JsonSlurper
 // 当前文件：Folia Android 应用版本、SDK 与可选发布签名配置。
 
 apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 def packageJson = new JsonSlurper().parseText(file('../../package.json').text)
 def keystorePropertiesFile = rootProject.file('keystore.properties')
@@ -21,6 +23,7 @@ android {
         }
     }
     defaultConfig {
+        buildConfigField 'boolean', 'COMPOSE_CHROME', (System.getenv('TINGYU_COMPOSE_CHROME') == 'true' ? 'true' : 'false')
         buildConfigField 'boolean', 'GLASS_LAB', (System.getenv('TINGYU_GLASS_LAB') == 'true' ? 'true' : 'false')
         applicationId "io.github.huleixin.tingyu"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -34,7 +37,8 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    buildFeatures { buildConfig true }
+    buildFeatures { buildConfig true; compose true }
+    kotlinOptions { jvmTarget = '21' }
     signingConfigs {
         if (hasReleaseKeystore) {
             release {
@@ -68,6 +72,12 @@ repositories {
 
 dependencies {
     compileOnly 'de.robv.android.xposed:api:82'
+    implementation 'androidx.activity:activity-compose:1.12.4'
+    implementation 'androidx.compose.ui:ui:1.10.3'
+    implementation 'androidx.compose.foundation:foundation:1.10.3'
+    implementation 'androidx.compose.material3:material3:1.4.0'
+    implementation 'io.github.kyant0:backdrop:1.0.6'
+    implementation 'io.coil-kt:coil-compose:2.7.0'
     implementation 'com.github.Dimezis:BlurView:version-4.0.0'
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"

@@ -14,6 +14,10 @@ import './mobileFooterMotion.css';
 import './mobileAdaptive.css';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { useNativeGlassNav } from '../../../hooks/useNativeGlassNav';
+import { useComposeChrome } from '../../../hooks/useComposeChrome';
+import { COMPOSE_CHROME } from '../../../services/nativeChrome';
+import { useReducedMotionFor } from '../../../hooks/useReducedMotionFor';
+import '../../../styles/composeChrome.css';
 
 // src/library/suites/mobile/MobileLibraryStage.tsx
 function MobileLibraryStage(props: LibrarySuiteStageProps) {
@@ -32,8 +36,13 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
     const nativeNavigate = useCallback((index: number) => {
         navRef.current?.querySelectorAll('button')[index]?.click();
     }, [navRef]);
-    const nativeGlass = useNativeGlassNav(navRef, props.isInteractive && !settingsOpen && !searchOpen, `${playlistDetail}:${page}`, nativeNavigate);
-    useMobileGlass(navRef, !nativeGlass);
+    const nativeGlass = useNativeGlassNav(navRef, !COMPOSE_CHROME && props.isInteractive && !settingsOpen && !searchOpen, `${playlistDetail}:${page}`, nativeNavigate);
+    const reducedMotion = useReducedMotionFor('uiMicroMotion');
+    const compose = useComposeChrome(navRef,'nav',props.isInteractive && !settingsOpen && !searchOpen,{
+        selected:homeActive?0:libraryActive?1:searchOpen?2:settingsOpen?3:-1,vertical:wide,reducedMotion,
+        accent:'#86d8b8',ink:'#eef5ef',labels:{nav0:t('mobileLibrary.recommend'),nav1:t('mobileLibrary.libraryNav'),nav2:t('mobileLibrary.search'),nav3:t('mobileLibrary.settingsNav')},
+    },{navigate:nativeNavigate});
+    useMobileGlass(navRef, !nativeGlass && !compose);
     useEffect(() => {
         // The host registers its occlusion owner in an effect. Report after that registration.
         const frame = requestAnimationFrame(() => props.reportPlayerOcclusion(true));

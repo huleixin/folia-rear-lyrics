@@ -4,10 +4,11 @@ import { usePlaybackStore, selectDisplayDuration } from '../../../stores/usePlay
 import { isMainStageActive, subscribeMainStageActivity } from '../../../utils/stageActivity';
 
 // src/library/suites/mobile/MiniPlayerProgress.tsx
-export default function MiniPlayerProgress() {
+export default function MiniPlayerProgress({renderActive=true}:{renderActive?:boolean}) {
     const duration = usePlaybackStore(selectDisplayDuration);
     const ref = useRef<SVGCircleElement>(null);
     useEffect(() => {
+        if(!renderActive)return;
         let lastStep = -1;
         const update = () => {
             const node = ref.current;
@@ -27,7 +28,7 @@ export default function MiniPlayerProgress() {
         const footer = ref.current?.closest('footer');
         if (footer) visibility.observe(footer, { attributes: true, attributeFilter: ['inert'] });
         return () => { unsubscribe(); activity(); visibility.disconnect(); };
-    }, [duration]);
+    }, [duration,renderActive]);
     return <svg className="ml-mini-progress" viewBox="0 0 40 40" aria-hidden="true">
         <circle cx="20" cy="20" r="16" className="ml-mini-progress-track" />
         <circle ref={ref} cx="20" cy="20" r="16" pathLength="100" strokeDasharray="100" strokeDashoffset="100"

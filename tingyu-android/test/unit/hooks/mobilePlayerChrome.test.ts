@@ -60,6 +60,15 @@ describe('one owner for Android mobile player visibility', () => {
         act(() => vi.advanceTimersByTime(6000)); expect(hidden()).toBe('false');
         expect(vi.getTimerCount()).toBe(0); expect(bars).toHaveBeenLastCalledWith(true);
     });
+    it('keeps chrome visible throughout a long native seek gesture', () => {
+        act(() => root.render(h(Probe, { enabled: true })));
+        act(() => window.dispatchEvent(new CustomEvent('tingyu-native-chrome-interaction', { detail: { held: true } })));
+        act(() => vi.advanceTimersByTime(10000));
+        expect(hidden()).toBe('false'); expect(vi.getTimerCount()).toBe(0);
+        act(() => window.dispatchEvent(new CustomEvent('tingyu-native-chrome-interaction', { detail: { held: false } })));
+        act(() => vi.advanceTimersByTime(2999)); expect(hidden()).toBe('false');
+        act(() => vi.advanceTimersByTime(1)); expect(hidden()).toBe('true');
+    });
     it('cleans up the immersive timer when leaving the player and restores the classic owner', () => {
         act(() => root.render(h(Probe, { enabled: true }))); act(() => vi.advanceTimersByTime(1000));
         act(() => root.render(h(Probe, { enabled: true, player: false })));

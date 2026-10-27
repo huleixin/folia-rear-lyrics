@@ -40,12 +40,13 @@ public class MainActivity extends BridgeActivity {
         CrashDiagnostics.install(getApplicationContext());
         clearWebViewCachesAfterAppUpdate();
         registerPlugin(FoliaNativePlugin.class);
+        if (BuildConfig.COMPOSE_CHROME) registerPlugin(io.github.huleixin.tingyu.chrome.TingyuChromePlugin.class);
         if (BuildConfig.GLASS_LAB) {
             registerPlugin(io.github.huleixin.tingyu.glass.TingyuGlassPlugin.class);
         }
         registerPlugin(io.github.huleixin.tingyu.coloros.FoliaColorOsLyricsPlugin.class);
         super.onCreate(savedInstanceState);
-        if (BuildConfig.GLASS_LAB) WebView.setWebContentsDebuggingEnabled(true);
+        if (BuildConfig.DEBUG && (BuildConfig.GLASS_LAB || BuildConfig.COMPOSE_CHROME)) WebView.setWebContentsDebuggingEnabled(true);
         CrashDiagnostics.recordText(
             getApplicationContext(),
             "activity-lifecycle",

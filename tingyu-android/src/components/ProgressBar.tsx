@@ -1,5 +1,5 @@
 import React, { useCallback, useLayoutEffect, useRef } from 'react';
-import { MotionValue, useMotionValueEvent } from 'framer-motion';
+import { MotionValue } from 'framer-motion';
 import { FoliumControlButtonSlot, FoliumProgressLayers, useFoliumProgressContext } from '../mods/folium/registries/progress';
 
 // Folium public parts (mods/README.md): `data-folium-part` marks what mod CSS may
@@ -10,6 +10,7 @@ import { FoliumControlButtonSlot, FoliumProgressLayers, useFoliumProgressContext
 
 interface ProgressBarProps {
     ariaLabel?: string;
+    renderActive?: boolean;
     currentTime: MotionValue<number>;
     duration: number;
     onSeek: (time: number) => void;
@@ -34,6 +35,7 @@ const formatTime = (time: number) => {
 
 const ProgressBar: React.FC<ProgressBarProps> = ({
     ariaLabel,
+    renderActive = true,
     currentTime,
     duration,
     onSeek,
@@ -56,7 +58,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
 
     // Keeps continuous progress on the compositor while coarse values update only when needed.
     const updateUI = useCallback((value: number, force = false, syncInput = true, bypassDrag = false) => {
-        if (!bypassDrag && isDraggingRef.current) return;
+        if (!renderActive || !bypassDrag && isDraggingRef.current) return;
 
         const safeValue = Number.isFinite(value) ? Math.max(0, value) : 0;
         const clampedValue = duration > 0 ? Math.min(safeValue, duration) : safeValue;
@@ -90,15 +92,16 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
             inputRef.current.value = clampedValue.toString();
             lastInputSecondRef.current = displayedSecond;
         }
-    }, [duration, edgeStyle]);
+    }, [duration, edgeStyle, renderActive]);
 
     useLayoutEffect(() => {
         updateUI(currentTime.get(), true);
     }, [currentTime, updateUI]);
 
-    useMotionValueEvent(currentTime, "change", (latest: number) => {
-        updateUI(latest);
-    });
+    useLayoutEffect(() => {
+        if (!renderActive) return;
+        return currentTime.on('change',latest=>updateUI(latest));
+    },[currentTime,renderActive,updateUI]);
 
     const handleInput = (e: React.FormEvent<HTMLInputElement>) => {
         if (disabled) {

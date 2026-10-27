@@ -24,6 +24,11 @@ import type { AppOverlaysModel } from '../buildAppOverlaysModel';
 import MobileStageMenu from './MobileStageMenu';
 import { useMobileGlass } from '../../../../hooks/useMobileGlass';
 import { useMobileStageSubtitleClearance } from './useMobileStageSubtitleClearance';
+import { useComposeChrome } from '../../../../hooks/useComposeChrome';
+import { useReducedMotionFor } from '../../../../hooks/useReducedMotionFor';
+import { getPlaybackSongKey } from '../../../../utils/appPlaybackGuards';
+import { usePlaybackStore } from '../../../../stores/usePlaybackStore';
+import '../../../../styles/composeChrome.css';
 import './mobileStageChrome.css';
 import '../../../../styles/mobileGlass.css';
 
@@ -43,7 +48,7 @@ export default function MobileStageChrome({
     const stageRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<HTMLElement>(null);
     const hidden = panelOpen || (chrome.hidden && !menuOpen);
-    useMobileGlass(playerRef, !hidden && !!controls && !controls.hideControlBar);
+
     useMobileStageSubtitleClearance(stageRef, !hidden && !!controls && !controls.hideControlBar);
     const openQueue = () => {
         const state = useAppViewStore.getState();
@@ -64,6 +69,16 @@ export default function MobileStageChrome({
         '--mps-accent': accent,
     } as React.CSSProperties;
     const disabled = !controls || !!controls.controlsDisabled;
+    const song = usePlaybackStore(s=>s.currentSong);
+    const reducedMotion = useReducedMotionFor('uiMicroMotion');
+    const loop = controls?.shuffleEnabled?'shuffle':controls?.loopMode||'off';
+    const compose = useComposeChrome(playerRef,'stage',!hidden&&!!controls&&!controls.hideControlBar,{
+        playing:controls?.playerState===PlayerState.PLAYING,disabled,duration:controls?.duration||0,
+        trackKey:song?getPlaybackSongKey(song):'',canNext:!!controls?.trackNavigation?.canNext,canPrevious:!!controls?.trackNavigation?.canPrev,
+        loop,accent,ink,reducedMotion,labels:{play:t('mobileLibrary.play'),pause:t('mobileLibrary.pause'),queue:t('mobileStage.queue'),seek:t('mobileStage.seek'),loop:t('mobileStage.loop'),loopValue:t(`mobileStage.loop_${loop}`),
+        previous:controls?.trackNavigation?.prevLabel||t('ui.previousTrack'),next:controls?.trackNavigation?.nextLabel||t('ui.nextTrack')},
+    },{toggle:controls?.onTogglePlay,previous:controls?.trackNavigation?.onPrev,next:controls?.trackNavigation?.onNext,loop:controls?.onToggleLoop,queue:openQueue,seek:controls?.onSeek},controls?.currentTime);
+    useMobileGlass(playerRef,!compose&&!hidden&&!!controls&&!controls.hideControlBar);
     return (
         <div
             ref={stageRef}
@@ -179,6 +194,7 @@ export default function MobileStageChrome({
                     </div>
                     <div className="mps-progress">
                         <ProgressBar
+                            renderActive={!compose}
                             currentTime={controls.currentTime}
                             duration={controls.duration}
                             onSeek={controls.onSeek}
