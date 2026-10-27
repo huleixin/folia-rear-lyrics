@@ -12,3 +12,14 @@
 @media (max-width:699px) { [data-folia-themed-dialog-kind='audio-tools'],[data-folia-themed-dialog-kind='equalizer'] { align-self:flex-end; padding:20px; } }
 @media (min-width:1000px) { [data-folia-themed-dialog-overlay]:has([data-folia-themed-dialog-kind='equalizer']) { justify-content:flex-end; } }
 @media (min-width:840px) and (max-height:600px) { .ty-quality-choices button,.ty-lx-actions button { min-height:48px; font-size:17px; } [data-folia-themed-dialog-kind='equalizer'] input { min-height:44px; } }
+
+/* Audio sheets follow the same compact type scale as the mobile library. */
+[data-folia-themed-dialog-kind='audio-tools'] { font:13px/1.5 system-ui,-apple-system,'Segoe UI','Microsoft YaHei',sans-serif; border-radius:20px; }
+[data-folia-themed-dialog-kind='audio-tools'] h2 { font-size:17px; font-weight:650; }
+[data-folia-themed-dialog-kind='audio-tools'] > .mb-5 { margin-bottom:16px; }
+[data-folia-themed-dialog-kind='audio-tools'] > .mb-5 p { font-size:12px; line-height:1.6; }
+.ty-quality-choices { gap:8px; }
+.ty-quality-choices button,.ty-source-entry,.ty-lx-actions button { font-size:13px; line-height:1.5; padding:9px 12px; min-height:40px; border-radius:11px; }
+.ty-source-entry { margin-top:8px; }
+.ty-audio-hint { font-size:11px; margin:12px 0; }
+@media(min-width:840px) and (max-height:600px) { .ty-quality-choices button,.ty-source-entry,.ty-lx-actions button { min-height:48px; font-size:15px; } }

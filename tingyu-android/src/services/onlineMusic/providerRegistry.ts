@@ -1,3 +1,4 @@
+import { installLxProviders } from './lxProviders';
 import { OnlineProviderError } from '../../types/onlineMusic';
 import type { OnlineMusicProvider, OnlineProviderId, ProviderCapabilities } from '../../types/onlineMusic';
 import type { SongResult } from '../../types';
@@ -84,3 +85,5 @@ registerOnlineMusicProvider(kugouProvider);
 registerOnlineMusicProvider(qqProvider);
 registerOnlineMusicProvider(bodianProvider);
 registerOnlineMusicProvider(qishuiProvider);
+
+installLxProviders(registerOnlineMusicProvider, unregisterOnlineMusicProvider, getOnlineMusicProvider);

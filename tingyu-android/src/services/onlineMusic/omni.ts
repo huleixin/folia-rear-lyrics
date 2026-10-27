@@ -146,6 +146,18 @@ const withActiveProvider = async <T>(run: (provider: OnlineMusicProvider) => Pro
 };
 
 export const omni = {
+    activateLxSource(scriptId: string | null): void {
+        const previous = activeProviderId();
+        useLxSourceStore.getState().activate(scriptId);
+        this.invalidateActiveRequests();
+        const baseToLx: Record<string,string> = {netease:'lx-wy',qq:'lx-tx',kugou:'lx-kg'};
+        const candidates = this.getProviderSummaries().filter(p=>p.providerId.startsWith('lx-')&&p.availability.configured);
+        const preferred = previous.startsWith('lx-') ? previous : baseToLx[previous];
+        const original = Object.entries(baseToLx).find(([,value])=>value===previous)?.[0] || 'netease';
+        const target = scriptId ? candidates.find(p=>p.providerId===preferred)?.providerId || candidates[0]?.providerId : previous.startsWith('lx-') ? original : previous;
+        if (target) useOnlineProviderAccountStore.getState().setActiveProviderId(target);
+    },
+
     invalidateActiveRequests(): void {
         activeRequestGeneration += 1;
     },

@@ -16,8 +16,11 @@ public final class LspRearProvider extends ContentProvider {
     @Override public boolean onCreate() { return true; }
     @Override public Bundle call(String method, String arg, Bundle extras) {
         if (Binder.getCallingUid() != Process.SYSTEM_UID) throw new SecurityException("System only");
-        if (!"connect".equals(method) || extras == null || extras.getInt("protocol") != RearBridgeContract.VERSION)
-            throw new IllegalArgumentException("Unsupported bridge protocol");
+        if (!"connect".equals(method) || extras == null) throw new IllegalArgumentException("Unsupported bridge method");
+        if (extras.getInt("protocol") != RearBridgeContract.VERSION) {
+            LspRearBridge.outdated(extras.getInt("protocol"));
+            Bundle result = new Bundle(); result.putBoolean("connected", false); return result;
+        }
         try { LspRearBridge.accept(getContext(), extras.getBinder("service"), extras.getString("profile", "LSP")); }
         catch (Exception error) { throw new IllegalStateException("LSP connection rejected", error); }
         Bundle result = new Bundle(); result.putBoolean("connected", true); result.putBinder("lifeline", lifeline); return result;

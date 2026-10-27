@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertCircle, Loader2, Search, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -96,8 +96,16 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     })));
     const activeOnlineProviderId = useOnlineProviderAccountStore(state => state.activeProviderId);
     const hasCollection = useCollectionNavigationStore(state => Boolean(state.snapshot?.stack.length));
-    const sources = useMemo<SearchSource[]>(() => [activeOnlineProviderId, 'local', 'navidrome'], [activeOnlineProviderId]);
-    const capabilities = useMemo(() => exploreCapabilities(searchSourceTab), [searchSourceTab]);
+    const registryVersion = useSyncExternalStore(omni.subscribeProviders, omni.getProviderRegistryVersion, () => 0);
+    const sources = useMemo<SearchSource[]>(() => [...new Set<SearchSource>([
+        activeOnlineProviderId,
+        ...omni.getProviderSummaries().filter(provider => provider.providerId.startsWith('lx-') && provider.availability.configured).map(provider => provider.providerId),
+        'local', 'navidrome',
+    ])], [activeOnlineProviderId, registryVersion]);
+    useEffect(() => {
+        if (!sources.includes(searchSourceTab)) useSearchNavigationStore.getState().selectSearchSource(activeOnlineProviderId);
+    }, [sources, searchSourceTab, activeOnlineProviderId]);
+    const capabilities = useMemo(() => exploreCapabilities(searchSourceTab), [searchSourceTab, registryVersion]);
     const viewport = useVisualViewport();
     const sourceNeedsSetup = searchSourceTab === 'navidrome' && !getNavidromeConfig();
 

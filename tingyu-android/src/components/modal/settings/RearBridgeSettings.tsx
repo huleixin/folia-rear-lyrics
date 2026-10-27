@@ -29,6 +29,7 @@ export default function RearBridgeSettings({ snapshot, refresh }: {
         <p className="text-xs opacity-70 leading-relaxed">{t('rearBridge.switchHint')}</p>
         {snapshot?.backendMode === 'lsp' && snapshot.lspConnected &&
             <p className="text-xs" role="status">{t('rearBridge.connected')}</p>}
+        {snapshot?.backendMode === 'lsp' && !snapshot.lspConnected && snapshot.lspDetail && <p className="text-xs leading-relaxed" role="status">{snapshot.lspDetail}</p>}
         <details className="text-xs opacity-70 leading-relaxed">
             <summary className="cursor-pointer py-2">{t('rearBridge.help')}</summary>
             <p>{t('rearBridge.setup')}</p><p className="mt-2">{t('rearBridge.behavior')}</p><p className="mt-2">{t('rearBridge.lyricInfo')}</p>

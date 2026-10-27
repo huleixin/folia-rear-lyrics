@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { rearLyricsPlugin } from '../../../services/rearLyricsControl';
+import RearLspGuide from './RearLspGuide';
 
 // src/components/modal/settings/RearLyricsGuide.tsx
 export default function RearLyricsGuide() {
@@ -12,13 +13,14 @@ export default function RearLyricsGuide() {
         setBusy(true);
         try {
             const result = await rearLyricsPlugin()?.getRearLyricsStatus();
-            setDiagnostics([result?.diagnostics, result?.sleepDiagnostics].filter(Boolean).join('\n') || t('mobileSettings.diagnosticsUnavailable'));
+            setDiagnostics([`backend=${result?.backendMode || 'unknown'}, lspConnected=${!!result?.lspConnected}`, result?.lspDetail, result?.message, result?.diagnostics, result?.sleepDiagnostics].filter(Boolean).join('\n') || t('mobileSettings.diagnosticsUnavailable'));
         } catch (error) {
             console.error('[settings/rear-lyrics] diagnostics unavailable', error);
             setDiagnostics(t('mobileSettings.diagnosticsUnavailable'));
         } finally { setBusy(false); }
     };
     return <article className="ty-rear-guide">
+        <RearLspGuide />
         {['requirements', 'enable', 'synchronization', 'recovery', 'troubleshooting'].map(topic => <div className="ty-settings-card" key={topic}>
             <h2>{t(`mobileSettings.guide.${topic}Title`)}</h2><p>{t(`mobileSettings.guide.${topic}`)}</p>
         </div>)}

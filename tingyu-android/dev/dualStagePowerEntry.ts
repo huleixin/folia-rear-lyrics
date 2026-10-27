@@ -37,3 +37,8 @@ import {useLxSourceStore} from '../src/stores/useLxSourceStore';
 import {useMobileLibraryStore} from '../src/stores/useMobileLibraryStore';
 import {resolveLxSource} from '../src/services/lxSource/playback';
 (window as any).__featureQa={audio:useAudioToolsStore,lx:useLxSourceStore,playback:usePlaybackStore,library:useMobileLibraryStore,resolveLxSource};
+
+import {omni} from '../src/services/onlineMusic/omni';
+import {useSearchNavigationStore} from '../src/stores/useSearchNavigationStore';
+import {openSettings} from '../src/stores/useSettingsModalStore';
+Object.assign((window as any).__featureQa,{omni,search:useSearchNavigationStore,openSettings});

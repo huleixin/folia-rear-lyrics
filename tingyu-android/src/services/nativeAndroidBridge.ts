@@ -36,6 +36,7 @@ const API_HOSTS = [
   // here, which is why a missing host silently returns an empty result rather than an error.
   'kugou.com',
   'kuwo.cn',
+  'migu.cn',
   'api.qrserver.com',
   // 封面与头像。前端会为了封面缓存 / 预加载直接 fetch 这些 CDN（coverCache、playedTrackCache、
   // useLocalCoverPreloader 都是 `mode: 'cors'`），漏掉一个就是「封面永远缓存不上」且不报错。

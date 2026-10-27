@@ -2,6 +2,11 @@
 
 export default {
   "rearBridge": {
+    "tutorialTitle": "LSP 框架模式启动教程",
+    "tutorial": {"install": "手机需要已安装并正常运行的 LSPosed / Vector 等兼容传统 Xposed API 的框架；听屿 APK 本身就是模块，不需要另装一个听屿模块。", "scope": "打开框架管理器 → 模块 → 听屿，启用模块，作用域勾选「系统框架 / android」。本模块不需要勾选 SystemUI，也不要把其他应用全部加入作用域。", "reboot": "完整重启手机，让系统框架加载模块。只关闭听屿或重启界面不能代替此步骤。", "select": "重启后打开听屿 → 设置 → 小米背屏歌词。先关闭背屏开关，再把「背屏控制模式」改为「LSP / LSPosed」。", "start": "确认状态显示 LSP 已连接，再点击开启背屏歌词。先在主屏解锁时测试，确认能显示后再测试锁屏；播放时常亮，暂停 30 秒后交回系统，重新播放会自动恢复。"},
+    "updateNotice": "更新听屿后，框架中的旧模块可能仍在系统进程中运行。本版桥接协议为 v3；出现旧模块或版本不匹配提示时，请确认模块仍启用并完整重启手机。LSP 模式不需要同时启动 Shizuku。",
+    "failureNotice": "「LSP 已连接」只代表框架通信成功，不代表背屏窗口已启动。若仍失败，展开下方诊断，查看 Direct launch / Move lyrics task / Failure 的具体报错；请保留这些信息以便定位系统适配问题。",
+
     "behavior": "播放时保持背屏亮起；暂停 30 秒后返回系统背屏，继续播放时自动恢复。遮盖息屏仍然优先。",
     "system": "已返回系统背屏，播放后自动切回",
     "help": "LSP 与灵动岛歌词说明",
@@ -62,15 +67,15 @@ export default {
     },
     "guide": {
         "requirementsTitle": "设备与系统要求",
-        "requirements": "需要系统提供可检测的小米背屏，并已启动 Shizuku。请先在系统设置中开启背屏；当前设备的实际适配状态以设置首页的检测结果为准。",
+        "requirements": "需要系统提供可检测的小米背屏，并选择 LSP 或 Shizuku 其中一种控制模式。请先在系统设置中开启背屏；实际适配状态以设置首页的检测结果为准。",
         "enableTitle": "如何开启",
-        "enable": "点击“开启背屏歌词”。首次使用时，在 Shizuku 弹窗中允许听屿；授权完成后再次点击开启。设置会记住真实启用状态，可随时点击“关闭背屏歌词”。",
+        "enable": "先选择背屏控制模式：LSP 按上方教程启用模块并重启；Shizuku 模式启动服务并授权听屿。准备完成后点击“开启背屏歌词”，可随时关闭。",
         "synchronizationTitle": "歌词与播放同步",
         "synchronization": "背屏使用当前播放歌曲和同一份歌词时间轴，跟随播放、暂停与切歌同步，支持逐字高亮。镜头避让和右侧视觉重心由现有适配自动处理，无需手动调整。",
         "recoveryTitle": "锁屏后恢复",
-        "recovery": "开启偏好会保留。锁屏后按系统允许的时机恢复背屏显示，暂时未显示歌词不代表设置已关闭。恢复时请确认 Shizuku 仍在运行且听屿已获得授权。",
+        "recovery": "开启偏好会保留。锁屏后按系统允许的时机恢复背屏显示，暂时未显示歌词不代表设置已关闭。LSP 模式需保持模块已加载；Shizuku 模式需保持服务运行且听屿已获授权。",
         "troubleshootingTitle": "常见问题",
-        "troubleshooting": "未检测到背屏：检查系统背屏开关和设备适配。\n无法启动：确认 Shizuku 已运行并授权，然后重试。\n没有歌词：确认当前歌曲提供歌词且正在播放。\n仍有异常时，可展开下方启动详情供排查使用。"
+        "troubleshooting": "未检测到背屏：检查系统背屏开关和设备适配。\n无法启动：LSP 模式检查模块、系统框架作用域和重启状态；Shizuku 模式检查服务与授权，然后重试。\n没有歌词：确认当前歌曲提供歌词且正在播放。\n仍有异常时，可展开下方启动详情供排查使用。"
     }
 },
   "mobileEnhancements": {
@@ -91,7 +96,7 @@ export default {
 
     "loop_shuffle": "随机播放",
     "back": "返回音乐页", "more": "更多播放选项", "commands": "快捷命令", "songDetails": "歌曲详情",
-    "like": "喜欢歌曲", "unlike": "取消喜欢", "lyricSettings": "歌词样式", "audioSettings": "音效与播放设置", "playback": "播放控制",
+    "like": "喜欢歌曲", "unlike": "取消喜欢", "lyricSettings": "歌词样式", "audioSettings": "播放设置", "playback": "播放控制",
     "loop": "切换循环模式", "loop_off": "顺序播放", "loop_all": "列表循环", "loop_one": "单曲循环", "queue": "队列", "seek": "播放进度"
   },
   "mobileLibrary": {

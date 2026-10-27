@@ -45,7 +45,11 @@ final class RearLyricsLauncher {
     private static void launch(Context context, Callback callback, IBinder shell, int rear, String session, boolean reuse) {
         StringBuilder trace = new StringBuilder("Folia rear " + REVISION + "\nTarget display=" + rear + "\n");
         try {
+            trace.append("Backend: ").append(LspRearBridge.selected(context) ? LspRearBridge.detail() : "Shizuku").append('\n');
             boolean locked = isLocked(context);
+            if (LspRearBridge.selected(context)) {
+                command(shell, io.github.huleixin.tingyu.lsp.RearBridgeContract.HOLD_POWER, rear, session, -1, "Hold rear before launch", trace);
+            }
             boolean shown = false;
             if (!locked || reuse || LspRearBridge.selected(context)) {
                 command(shell, ShellUserService.TRANSACTION_START, rear, session, -1, "Direct launch", trace);

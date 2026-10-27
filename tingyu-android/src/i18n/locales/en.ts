@@ -2,6 +2,11 @@
 
 export default {
   "rearBridge": {
+    "tutorialTitle": "Start rear lyrics with LSP",
+    "tutorial": {"install": "Install and enable a framework compatible with the legacy Xposed API, such as LSPosed or Vector. The Tingyu APK is also the module.", "scope": "In the framework manager, enable Tingyu and select System Framework (android). SystemUI and unrelated apps are not required.", "reboot": "Fully reboot the phone to load the module into the system process. Restarting Tingyu is insufficient.", "select": "Open Tingyu → Settings → Xiaomi rear lyrics. Turn rear lyrics off before selecting LSP / LSPosed as the backend.", "start": "Wait for LSP connected, then enable rear lyrics. Test while unlocked first. Playback keeps the rear on; after 30 seconds paused it returns to the system and resumes with playback."},
+    "updateNotice": "After updating Tingyu, a previously loaded module may remain in the system process. This build uses bridge protocol v3. If it reports an old module, confirm the module is enabled and reboot. Shizuku is not needed in LSP mode.",
+    "failureNotice": "Connected confirms communication, not a visible rear window. On failure, expand diagnostics and retain the Direct launch / Move lyrics task / Failure lines.",
+
     "behavior": "Keep the rear display on while playing. After 30 seconds paused, return it to the system; playback restores lyrics. Cover-to-sleep takes priority.",
     "system": "System rear display; resumes with music",
     "help": "LSP and island lyric setup",
@@ -62,15 +67,15 @@ export default {
     },
     "guide": {
         "requirementsTitle": "Device and system requirements",
-        "requirements": "A detectable Xiaomi rear display and running Shizuku service are required. Enable the rear display in system settings first. The status on the settings home reflects the actual detected support.",
+        "requirements": "A detectable Xiaomi rear display and either the LSP or Shizuku backend are required. Enable the rear display in system settings first. The status on the settings home reflects the actual detected support.",
         "enableTitle": "Enabling rear lyrics",
-        "enable": "Select Enable rear lyrics. On first use, grant Tingyu permission in Shizuku, then select Enable again. Your enabled preference is remembered; use Disable rear lyrics to turn it off.",
+        "enable": "Choose a backend first: enable the LSP module and reboot using the tutorial above, or start Shizuku and grant Tingyu permission. Then select Enable rear lyrics. Your enabled preference is remembered; use Disable rear lyrics to turn it off.",
         "synchronizationTitle": "Lyrics and playback",
         "synchronization": "The rear display follows the current song and shared lyric timeline, including pause, track changes and word highlighting. Existing adaptation handles camera avoidance and right-side placement automatically.",
         "recoveryTitle": "Recovery after locking",
-        "recovery": "The enabled preference is retained. The rear display resumes when permitted by the system. A temporarily hidden window does not mean the preference is disabled. Keep Shizuku running and Tingyu authorized.",
+        "recovery": "The enabled preference is retained. The rear display resumes when permitted by the system. A temporarily hidden window does not mean the preference is disabled. Keep the LSP module loaded, or keep Shizuku running with Tingyu authorized, according to the selected backend.",
         "troubleshootingTitle": "Troubleshooting",
-        "troubleshooting": "Display not detected: check system settings and device support.\nStartup failed: confirm Shizuku is running and permission is granted, then retry.\nNo lyrics: confirm the playing track has lyrics.\nExpand startup details below for further diagnostics."
+        "troubleshooting": "Display not detected: check system settings and device support.\nStartup failed: check the LSP module, System Framework scope and reboot state, or the Shizuku service and permission for the selected backend.\nNo lyrics: confirm the playing track has lyrics.\nExpand startup details below for further diagnostics."
     }
 },
   "mobileEnhancements": {
@@ -91,7 +96,7 @@ export default {
 
     "loop_shuffle": "Shuffle",
     "back": "Back to music", "more": "More playback options", "commands": "Quick commands", "songDetails": "Track details",
-    "like": "Like track", "unlike": "Unlike track", "lyricSettings": "Lyrics style", "audioSettings": "Audio & playback settings", "playback": "Playback controls",
+    "like": "Like track", "unlike": "Unlike track", "lyricSettings": "Lyrics style", "audioSettings": "Playback settings", "playback": "Playback controls",
     "loop": "Change repeat mode", "loop_off": "Repeat off", "loop_all": "Repeat all", "loop_one": "Repeat one", "queue": "Queue", "seek": "Playback position"
   },
   "mobileLibrary": {

@@ -61,6 +61,7 @@ export default function AndroidRearLyricsSetting({ isDaylight, settingsCardClass
                 {failed && <button type="button" className="ty-settings-text-action" onClick={() => void refresh()}>{t('mobileSettings.retryDetection')}</button>}
             </div>
             {(hint || actionFailed) && <p className="ty-settings-inline-status" role="status">{hint ? t(hint) : t('mobileSettings.rearActionFailed')}</p>}
+            {actionFailed && snapshot?.message && <p className="ty-settings-inline-status" role="status">{snapshot.message}</p>}
             <RearBridgeSettings snapshot={snapshot} refresh={refresh} />
             <button type="button" className={compact ? 'ty-settings-row ty-rear-guide-link' : 'flex items-center gap-3 mt-4 w-full text-left'}
                 onClick={() => onOpenGuide ? onOpenGuide() : setShowGuide(value => !value)} aria-expanded={onOpenGuide ? undefined : showGuide}>

@@ -17,6 +17,7 @@ final class LspRearBridge {
     }
     static IBinder get() { IBinder value = binder; return value != null && value.isBinderAlive() ? value : null; }
     static String detail() { return detail; }
+    static void outdated(int protocol) { binder = null; detail = "检测到旧 LSP 模块 v" + protocol + "，更新听屿后请重启手机以加载 v" + RearBridgeContract.VERSION; }
     static synchronized void accept(Context context, IBinder service, String profile) throws Exception {
         if (service == null || !RearBridgeContract.DESCRIPTOR.equals(service.getInterfaceDescriptor()))
             throw new SecurityException("Invalid LSP rear service");

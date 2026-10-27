@@ -1,6 +1,5 @@
 package io.github.huleixin.tingyu.lsp;
 
-import android.app.ActivityManager;
 import android.app.ActivityOptions;
 import android.content.ComponentName;
 import android.content.Context;
@@ -109,23 +108,14 @@ final class SystemRearBinder extends Binder {
             Class<?> api = Class.forName("android.app.IActivityTaskManager");
             if (operation == 3) {
                 List<?> roots = (List<?>) api.getMethod("getAllRootTaskInfosOnDisplay", int.class).invoke(atm, display);
-                for (Object root : roots) {
-                    ActivityManager.RunningTaskInfo info = (ActivityManager.RunningTaskInfo) root;
-                    if (info.topActivity != null) return info.taskId + " " + info.topActivity.flattenToShortString();
-                }
-                return "-1 unknown";
+                return RearTaskMetadata.front(roots);
             }
             List<?> roots = (List<?>) api.getMethod("getAllRootTaskInfos").invoke(atm);
-            for (Object root : roots) {
-                ActivityManager.RunningTaskInfo info = (ActivityManager.RunningTaskInfo) root;
-                if (info.taskId != task || root.getClass().getField("userId").getInt(root) != user || info.baseActivity == null
-                    || !RearBridgeContract.ACTIVITY.equals(info.baseActivity.getClassName())
-                    || !RearBridgeContract.PACKAGE.equals(info.baseActivity.getPackageName())) continue;
-                api.getMethod("moveRootTaskToDisplay", int.class, int.class).invoke(atm, task, display);
-                return "LSP moved own rear task";
-            }
-            throw new SecurityException("Task does not belong to Tingyu rear lyrics");
+            int ownRoot = RearTaskMetadata.ownedRoot(roots, task, user);
+            api.getMethod("moveRootTaskToDisplay", int.class, int.class).invoke(atm, ownRoot, display);
+            return "LSP moved own rear task, root=" + ownRoot + ", task=" + task;
         }
+
         if (operation == 2) {
             Class<?> type = Class.forName("android.hardware.input.InputManagerGlobal");
             Object manager = type.getMethod("getInstance").invoke(null);

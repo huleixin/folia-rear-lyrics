@@ -4,6 +4,11 @@ export default {
   "mobileStage": {
     "playbackSettings": "Pengaturan pemutaran", "audioQuality": "Kualitas audio", "audioEffects": "Efek audio", "effectsOn": "Aktif", "effectsOff": "Nonaktif" },
   "rearBridge": {
+    "tutorialTitle": "Memulai lirik belakang dengan LSP",
+    "tutorial": {"install": "Gunakan LSPosed / Vector yang mendukung API Xposed lama. APK Tingyu juga merupakan modulnya.", "scope": "Aktifkan Tingyu di pengelola kerangka dan pilih System Framework (android). SystemUI dan aplikasi lain tidak diperlukan.", "reboot": "Mulai ulang seluruh ponsel agar modul dimuat ke proses sistem. Menutup Tingyu saja tidak cukup.", "select": "Buka Pengaturan → Lirik layar belakang Xiaomi. Matikan lirik belakang sebelum memilih mode LSP / LSPosed.", "start": "Tunggu status LSP tersambung, lalu aktifkan lirik belakang. Uji saat tidak terkunci dahulu; setelah jeda 30 detik kembali ke sistem dan pulih saat memutar."},
+    "updateNotice": "Setelah pembaruan, modul lama bisa tetap berjalan. Protokol jembatan versi ini v3. Aktifkan modul lalu mulai ulang ponsel bila versi tidak cocok. LSP tidak memerlukan Shizuku.",
+    "failureNotice": "Tersambung hanya memastikan komunikasi. Jika gagal, buka diagnostik dan simpan baris Direct launch / Move lyrics task / Failure.",
+
     "behavior": "Layar belakang tetap menyala saat memutar. Setelah jeda 30 detik kembali ke sistem; lirik pulih saat diputar. Tidur saat tertutup diprioritaskan.",
     "system": "Layar sistem; lirik kembali saat diputar",
     "help": "Panduan LSP dan lirik pulau",
