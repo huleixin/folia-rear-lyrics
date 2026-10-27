@@ -83,6 +83,12 @@ export default {
     "rearSensorUnavailable": "No supported cover sensor was detected", "rearSleep": "Sleep rear screen", "rearWake": "Wake rear screen"
   },
   "mobileStage": {
+    "playbackSettings": "Playback settings",
+    "audioQuality": "Audio quality",
+    "audioEffects": "Audio effects",
+    "effectsOn": "On",
+    "effectsOff": "Off",
+
     "loop_shuffle": "Shuffle",
     "back": "Back to music", "more": "More playback options", "commands": "Quick commands", "songDetails": "Track details",
     "like": "Like track", "unlike": "Unlike track", "lyricSettings": "Lyrics style", "audioSettings": "Audio & playback settings", "playback": "Playback controls",

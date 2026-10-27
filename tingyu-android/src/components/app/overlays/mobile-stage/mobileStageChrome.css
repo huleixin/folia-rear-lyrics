@@ -142,6 +142,9 @@
 .mps-menu button:hover {
     background: var(--mps-track);
 }
+.mps-menu-label { flex: 1; min-width: 0; }
+.mps-menu-value { font-size: 12px; opacity: 0.65; white-space: nowrap; }
+.mps-menu button > svg { flex: none; }
 .mps-player {
     position: absolute;
     bottom: max(12px, env(safe-area-inset-bottom, 0px));

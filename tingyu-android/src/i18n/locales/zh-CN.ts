@@ -83,6 +83,12 @@ export default {
     "rearSensorUnavailable": "未检测到可用的遮挡传感器", "rearSleep": "背屏息屏", "rearWake": "唤醒背屏"
   },
   "mobileStage": {
+    "playbackSettings": "播放设置",
+    "audioQuality": "音质",
+    "audioEffects": "音效调节",
+    "effectsOn": "已开启",
+    "effectsOff": "已关闭",
+
     "loop_shuffle": "随机播放",
     "back": "返回音乐页", "more": "更多播放选项", "commands": "快捷命令", "songDetails": "歌曲详情",
     "like": "喜欢歌曲", "unlike": "取消喜欢", "lyricSettings": "歌词样式", "audioSettings": "音效与播放设置", "playback": "播放控制",

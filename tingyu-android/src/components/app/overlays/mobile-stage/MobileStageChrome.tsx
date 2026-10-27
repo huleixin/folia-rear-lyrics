@@ -20,7 +20,6 @@ import { openSettings } from '../../../../stores/useSettingsModalStore';
 import { PlayerState } from '../../../../types';
 import { colorWithAlpha, mixColors, parseColorChannels } from '../../../visualizer/colorMix';
 import ProgressBar from '../../../ProgressBar';
-import AudioToolButtons from '../../../audio-tools/AudioToolButtons';
 import type { AppOverlaysModel } from '../buildAppOverlaysModel';
 import MobileStageMenu from './MobileStageMenu';
 import { useMobileGlass } from '../../../../hooks/useMobileGlass';
@@ -124,7 +123,6 @@ export default function MobileStageChrome({
             </header>
             {controls && !controls.hideControlBar && (
                 <section ref={playerRef} className="mps-player" aria-label={t('mobileStage.playback')}>
-                    <AudioToolButtons />
                     <div className="mps-transport">
                         <button
                             className="mps-secondary"

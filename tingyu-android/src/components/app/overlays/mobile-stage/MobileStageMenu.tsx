@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from 'react';
-import { SlidersHorizontal } from 'lucide-react';
+import { AudioLines, Captions, Settings2, SlidersHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppViewStore } from '../../../../stores/useAppViewStore';
 import { openSettings } from '../../../../stores/useSettingsModalStore';
+import { useAudioSettingsStore } from '../../../../stores/useAudioSettingsStore';
+import { useAudioToolsStore, QUALITY_LABELS } from '../../../../stores/useAudioToolsStore';
 
 // src/components/app/overlays/mobile-stage/MobileStageMenu.tsx
 export default function MobileStageMenu({
@@ -11,6 +13,8 @@ export default function MobileStageMenu({
     onClose: () => void;
 }) {
     const { t } = useTranslation();
+    const quality = useAudioSettingsStore(state => state.audioQuality);
+    const effectsEnabled = useAudioSettingsStore(state => state.audioEqualizerSettings.enabled);
     const ref = useRef<HTMLDivElement>(null);
     useEffect(() => {
         const previous = document.activeElement as HTMLElement | null;
@@ -58,13 +62,23 @@ export default function MobileStageMenu({
             data-folia-keyboard-window="true"
             className="mps-menu"
         >
-            <button role="menuitem" onClick={() => run(() => { const state=useAppViewStore.getState();state.setPanelTab('onlineLyrics');state.setIsPanelOpen(true); })}>
+            <button role="menuitem" onClick={() => run(() => useAudioToolsStore.getState().show())}>
+                <AudioLines size={18} />
+                <span className="mps-menu-label">{t('mobileStage.audioQuality')}</span>
+                <span className="mps-menu-value">{QUALITY_LABELS[quality]}</span>
+            </button>
+            <button role="menuitem" onClick={() => run(() => useAudioSettingsStore.getState().openAudioEqualizer())}>
                 <SlidersHorizontal size={18} />
+                <span className="mps-menu-label">{t('mobileStage.audioEffects')}</span>
+                <span className="mps-menu-value">{t(effectsEnabled ? 'mobileStage.effectsOn' : 'mobileStage.effectsOff')}</span>
+            </button>
+            <button role="menuitem" onClick={() => run(() => { const state=useAppViewStore.getState();state.setPanelTab('onlineLyrics');state.setIsPanelOpen(true); })}>
+                <Captions size={18} />
                 {t('localMusic.lyrics')}
             </button>
             <button role="menuitem" onClick={() => run(() => openSettings('options', 'playback'))}>
-                <SlidersHorizontal size={18} />
-                {t('mobileStage.audioSettings')}
+                <Settings2 size={18} />
+                {t('mobileStage.playbackSettings')}
             </button>
         </div>
     );

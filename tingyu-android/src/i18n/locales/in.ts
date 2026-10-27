@@ -1,6 +1,8 @@
 
 
 export default {
+  "mobileStage": {
+    "playbackSettings": "Pengaturan pemutaran", "audioQuality": "Kualitas audio", "audioEffects": "Efek audio", "effectsOn": "Aktif", "effectsOff": "Nonaktif" },
   "rearBridge": {
     "behavior": "Layar belakang tetap menyala saat memutar. Setelah jeda 30 detik kembali ke sistem; lirik pulih saat diputar. Tidur saat tertutup diprioritaskan.",
     "system": "Layar sistem; lirik kembali saat diputar",
