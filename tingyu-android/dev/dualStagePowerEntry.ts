@@ -19,7 +19,7 @@ w.__stagePowerQa={
         const lines=texts.map((text,index)=>({fullText:text,startTime:index*2.5,endTime:index*2.5+2.4,
             words:[...text].map((text,i,a)=>({text,startTime:index*2.5+i*2.4/a.length,endTime:index*2.5+(i+1)*2.4/a.length}))}));
         useAudioSettingsStore.setState({audioEqualizerSettings:resolveAudioEqualizerSettings({enabled:false})});
-        usePlaybackStore.setState({currentSong:{id:'stage-power',name:'双屏舞台验收',artists:[],album:{id:1,name:''},durationMs:8000},
+        usePlaybackStore.setState({currentSong:{id:999101,name:'双屏舞台验收',artists:[],album:{id:1,name:''},durationMs:8000},
             audioSrc:makeTone(),duration:8,playerState:'PAUSED' as never,lyrics:{lines},playQueue:[]});
         useVisualizerSettingsStore.setState({visualizerMode:'fume'});
     },
@@ -42,3 +42,5 @@ import {omni} from '../src/services/onlineMusic/omni';
 import {useSearchNavigationStore} from '../src/stores/useSearchNavigationStore';
 import {openSettings} from '../src/stores/useSettingsModalStore';
 Object.assign((window as any).__featureQa,{omni,search:useSearchNavigationStore,openSettings});
+import {useCollectionNavigationStore} from '../src/stores/useCollectionNavigationStore';
+Object.assign((window as any).__featureQa,{collections:useCollectionNavigationStore});

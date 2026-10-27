@@ -62,6 +62,11 @@ const GlobalLyricOffsetRuler: React.FC<GlobalLyricOffsetRulerProps> = ({
         (next: number) => Math.round(Math.max(-limitMs, Math.min(limitMs, next))),
         [limitMs],
     );
+    useEffect(()=>{
+        const node=trackRef.current;if(!node)return;
+        const edit=(event:Event)=>{const value=(event as CustomEvent<number>).detail;if(Number.isFinite(value))onChangeRef.current(clamp(value))};
+        node.addEventListener('tingyu-native-value',edit);return()=>node.removeEventListener('tingyu-native-value',edit);
+    },[clamp]);
 
     const ticks = useMemo(() => {
         const result: Tick[] = [];
@@ -159,6 +164,7 @@ const GlobalLyricOffsetRuler: React.FC<GlobalLyricOffsetRulerProps> = ({
     return (
         <div
             ref={trackRef}
+            data-native-ruler="true"
             role="slider"
             tabIndex={0}
             aria-label={ariaLabel}

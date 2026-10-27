@@ -1,3 +1,4 @@
+import SettingsPresence from './settings/SettingsPresence';
 import { isAndroidNativeRuntime } from '../../utils/platform';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -75,6 +76,8 @@ import { selectDesktopSettingsSnapshot, useDesktopSettingsStore } from '../../st
 import { selectStageSettingsSnapshot, useStageSettingsStore } from '../../stores/useStageSettingsStore';
 import { useSettingsModalStore } from '../../stores/useSettingsModalStore';
 import { useAndroidLayoutSettingsStore } from '../../stores/useAndroidLayoutSettingsStore';
+import { NATIVE_FIRST } from '../../services/nativePages';
+import { useNativeSettingsDocument } from '../../hooks/useNativeSettingsDocument';
 import { selectAudioSettingsSnapshot, useAudioSettingsStore } from '../../stores/useAudioSettingsStore';
 import { selectHomeLayoutSettingsSnapshot, useHomeLayoutSettingsStore } from '../../stores/useHomeLayoutSettingsStore';
 import { setNavidromeEnabledState, useLibraryStore } from '../../stores/useLibraryStore';
@@ -442,6 +445,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     const phoneFitEnabled = useAndroidLayoutSettingsStore(state => state.phoneFitEnabled);
     const isWideSettingsLayout = useMediaQuery('(min-width: 768px)') && !phoneFitEnabled;
     const isMobileSettings = useActiveLibrarySuiteId() === 'mobile' && !isWideSettingsLayout;
+    const returnFromMobileSection = () => {
+        if(useSettingsModalStore.getState().settingsModalState.returnToIndex)useSettingsModalStore.getState().returnSettingsToIndex();
+        else onClose();
+    };
     const settingsAnchorStore = useSettingsAnchorStore();
     const settingsAnchors = useSettingsAnchorList(settingsAnchorStore);
 
@@ -455,7 +462,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     const [stageAddressCopied, setStageAddressCopied] = useState(false);
     const [authorClickCount, setAuthorClickCount] = useState(0);
     const [meowEasterEgg, setMeowEasterEgg] = useState<{ id: number; } | null>(null);
-    const shouldCloseModalOnSubviewBack = initialSubview !== null;
+    // A nested editor goes back one level; only an editor opened directly from the
+    // stage closes the modal. Entering playback from the index is not a direct editor.
+    const shouldCloseModalOnSubviewBack = initialSubview !== null && (!NATIVE_FIRST||['visualizer','themePark','lyricFilter','globalLyricOffset'].includes(initialSubview));
 
     useEffect(() => {
         setActiveTab(initialTab);
@@ -1175,9 +1184,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 event.stopPropagation();
                 if (isAnySubviewOpen) {
                     closeAllSubviews();
+                } else if (NATIVE_FIRST) {
+                    if(activeTab==='help'&&initialTab!=='help')setActiveTab('options');else returnFromMobileSection();
                 } else if (isMobileSettings && activeTab === 'help') {
+                    if(NATIVE_FIRST&&initialTab==='help'){returnFromMobileSection();return;}
                     setActiveTab('options');
                 } else if (isMobileSettings && activeTab === 'options' && !mobileSettingsIndex) {
+                    if(NATIVE_FIRST){returnFromMobileSection();return;}
                     setMobileRearGuide(false);
                     setMobileSettingsIndex(true);
                 } else {
@@ -1242,7 +1255,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         action?: React.ReactNode;
         zIndex?: number;
     }) => (
-        <AnimatePresence>
+        <SettingsPresence>
             {isOpen && (
                 <motion.div
                     initial={{ opacity: 0 }}
@@ -1302,7 +1315,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     </motion.div>
                 </motion.div>
             )}
-        </AnimatePresence>
+        </SettingsPresence>
     );
     const closeSubviewOrModal = (closeSubview: () => void) => {
         if (shouldCloseModalOnSubviewBack) {
@@ -1385,10 +1398,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     // a scrollTop write would abort the smooth scroll this starts.
     useSettingsInitialAnchor(initialAnchor, settingsAnchors, scrollToAnchor);
 
+    const nativeDocumentRef=useRef<HTMLDivElement>(null);
+    useNativeSettingsDocument(nativeDocumentRef,NATIVE_FIRST,
+        `${activeTab}:${activeSettingsSection}:${showVisPlayground}:${showThemePark}:${showLyricFilterSettings}:${showGlobalLyricOffset}:${showAiHelpPrompt}:${showReleaseNotes}`,
+        showVisPlayground?t('options.lyricsStyleSettings'):activeSettingsNavItem?.label??t('ui.options'));
+
 
     return (
         <motion.div
-            initial={{ opacity: 0 }}
+            ref={nativeDocumentRef}
+            initial={NATIVE_FIRST?false:{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={shellTransition}
@@ -1407,7 +1426,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={(event) => handleBackdropClose(event, onClose)}
         >
             <motion.div
-                {...panelMotion}
+                {...(NATIVE_FIRST?{}:panelMotion)}
                 transition={shellTransition}
                 className={`${glassBg} border ${borderColor} p-6 md:p-8 rounded-3xl ${activeTab === 'options' ? 'w-full md:max-w-4xl md:w-[900px] h-[90vh] md:h-[85vh]' : 'w-full md:max-w-lg'} relative shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-all duration-300`}
                 onClick={(event) => event.stopPropagation()}
@@ -1439,7 +1458,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     primary={activeTab === 'options' && mobileSettingsIndex}
                     title={activeTab === 'help' ? t('mobileSettings.about') : mobileSettingsIndex ? t('ui.options') : mobileRearGuide ? t('mobileSettings.startupGuide') : activeSettingsNavItem?.label ?? ''}
                     onClose={onClose}
-                    onBack={() => { if (activeTab === 'help') setActiveTab('options'); else { setMobileRearGuide(false); setMobileSettingsIndex(true); } }}
+                    onBack={() => { if(NATIVE_FIRST&&activeTab==='help'&&initialTab==='help')returnFromMobileSection();else if (activeTab === 'help') setActiveTab('options'); else if(NATIVE_FIRST)returnFromMobileSection();else { setMobileRearGuide(false); setMobileSettingsIndex(true); } }}
                     onHelp={activeTab === 'options' && !mobileSettingsIndex ? () => setActiveTab('help') : undefined}
                 /> : <div className="relative shrink-0 z-10 mb-6 select-none">
                     <div data-folia-settings-tabs="true" className="flex items-center gap-6">
@@ -1479,7 +1498,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>}
 
                 <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative z-10">
-                    <AnimatePresence mode="popLayout" initial={false}>
+                    <SettingsPresence mode="popLayout" initial={false}>
                         {activeTab === 'help' ? (
                             <motion.div
                                 key="help-tab"
@@ -2051,12 +2070,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             </motion.div>
 
                         )}
-                    </AnimatePresence>
+                    </SettingsPresence>
                 </div>
 
                 {/* Footer (Empty now) */}
                 {/* <div className="mt-8 pt-0 border-t-0 p-0" /> */}
-                <AnimatePresence>
+                <SettingsPresence>
                     {meowEasterEgg && (
                         <motion.img
                             key={meowEasterEgg.id}
@@ -2073,9 +2092,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             }}
                         />
                     )}
-                </AnimatePresence>
+                </SettingsPresence>
             </motion.div>
-            <AnimatePresence>
+            <SettingsPresence>
                 {showVisPlayground && (
                     <VisPlayground
                         theme={theme}
@@ -2233,8 +2252,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         onClose={() => closeSubviewOrModal(() => setShowVisPlayground(false))}
                     />
                 )}
-            </AnimatePresence>
-            <AnimatePresence>
+            </SettingsPresence>
+            <SettingsPresence>
                 {showThemePark && (
                     <ThemePark
                         initialTheme={themeParkInitialTheme}
@@ -2295,7 +2314,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         onClose={() => closeSubviewOrModal(() => setShowThemePark(false))}
                     />
                 )}
-            </AnimatePresence>
+            </SettingsPresence>
 
             <LyricFilterSettingsModal
                 isOpen={showLyricFilterSettings}

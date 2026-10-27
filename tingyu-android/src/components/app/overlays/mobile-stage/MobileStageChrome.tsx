@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ChevronDown,
     Heart,
@@ -28,6 +28,7 @@ import { useComposeChrome } from '../../../../hooks/useComposeChrome';
 import { useReducedMotionFor } from '../../../../hooks/useReducedMotionFor';
 import { getPlaybackSongKey } from '../../../../utils/appPlaybackGuards';
 import { usePlaybackStore } from '../../../../stores/usePlaybackStore';
+import { warmSettingsModule } from '../../dialogs/settingsModule';
 import '../../../../styles/composeChrome.css';
 import './mobileStageChrome.css';
 import '../../../../styles/mobileGlass.css';
@@ -48,6 +49,10 @@ export default function MobileStageChrome({
     const stageRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<HTMLElement>(null);
     const hidden = panelOpen || (chrome.hidden && !menuOpen);
+    useEffect(()=>{
+        if('requestIdleCallback' in window){const id=window.requestIdleCallback(warmSettingsModule,{timeout:2200});return()=>window.cancelIdleCallback(id)}
+        const id=setTimeout(warmSettingsModule,900);return()=>clearTimeout(id);
+    },[]);
 
     useMobileStageSubtitleClearance(stageRef, !hidden && !!controls && !controls.hideControlBar);
     const openQueue = () => {
@@ -111,6 +116,7 @@ export default function MobileStageChrome({
                 <button
                     className="mps-icon"
                     aria-label={t('mobileStage.lyricSettings')}
+                    onPointerDown={warmSettingsModule}
                     onClick={() => openSettings('options', 'visualizer', 'visualizer')}
                 >
                     <Palette size={21} />

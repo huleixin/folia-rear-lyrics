@@ -6,7 +6,8 @@ import { nativeCoverThumbnail } from '../services/nativeCoverThumbnail';
 // src/hooks/useNativePageImages.ts
 export function useNativePageImages(model:NativePageModel,active:boolean):NativePageModel {
     const [images,setImages]=useState<Record<string,string>>({});
-    const urls=JSON.stringify([...new Set(model.sections.flatMap(section=>section.items??[]).map(item=>item.image).filter((url):url is string=>!!url?.startsWith('blob:')))]);
+    const urls=JSON.stringify([...new Set([...model.sections.flatMap(section=>section.items??[]).map(item=>item.image),
+        ...(model.document?.paints.map(paint=>paint.image)??[])].filter((url):url is string=>!!url?.startsWith('blob:')))]);
     useEffect(()=>{
         if(!NATIVE_FIRST||!active)return;
         const list=JSON.parse(urls) as string[];if(!list.length)return;
@@ -16,6 +17,7 @@ export function useNativePageImages(model:NativePageModel,active:boolean):Native
         return()=>{alive=false};
     },[urls,active]);
     if(urls==='[]')return model;
-    return {...model,sections:model.sections.map(section=>({...section,items:section.items?.map(item=>
+    return {...model,document:model.document?{...model.document,paints:model.document.paints.map(paint=>paint.image?.startsWith('blob:')?{...paint,image:images[paint.image]??''}:paint)}:undefined,
+        sections:model.sections.map(section=>({...section,items:section.items?.map(item=>
         item.image?.startsWith('blob:')?{...item,image:images[item.image]??''}:item)}))};
 }

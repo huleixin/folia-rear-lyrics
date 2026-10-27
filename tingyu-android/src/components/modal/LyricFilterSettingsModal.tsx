@@ -1,3 +1,5 @@
+import SettingsPresence from './settings/SettingsPresence';
+import {NATIVE_FIRST} from '../../services/nativePages';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -93,6 +95,10 @@ const LyricFilterSettingsModal: React.FC<LyricFilterSettingsModalProps> = ({
                     setPreviewLyrics(lyrics);
                 }
             })
+            .catch(() => {
+                // Offline preview failure must not reject the entire editor's open operation.
+                if(active)setPreviewLyrics(null);
+            })
             .finally(() => {
                 if (active) {
                     setIsLoadingPreview(false);
@@ -155,7 +161,7 @@ const LyricFilterSettingsModal: React.FC<LyricFilterSettingsModalProps> = ({
     };
 
     return (
-        <AnimatePresence>
+        <SettingsPresence>
             {isOpen && (
                 <motion.div
                     initial={{ opacity: 0 }}
@@ -167,7 +173,7 @@ const LyricFilterSettingsModal: React.FC<LyricFilterSettingsModalProps> = ({
                     onClick={onClose}
                 >
                     <motion.div
-                        {...panelMotion}
+                        {...(NATIVE_FIRST?{initial:false,animate:{opacity:1,y:0,scale:1}}:panelMotion)}
                         transition={shellTransition}
                         className={`mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded-[32px] border ${borderColor} ${glassBg} shadow-[0_24px_80px_rgba(0,0,0,0.28)]`}
                         onClick={(event) => event.stopPropagation()}
@@ -262,7 +268,7 @@ const LyricFilterSettingsModal: React.FC<LyricFilterSettingsModalProps> = ({
                     </motion.div>
                 </motion.div>
             )}
-        </AnimatePresence>
+        </SettingsPresence>
     );
 };
 

@@ -17,7 +17,7 @@ import org.json.JSONObject
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageIcon.kt
 // Geometry is exported from the same bundled Lucide icons used by the original pages.
 private var definitions:JSONObject?=null
-@Composable internal fun PageIcon(name:String,color:Color,modifier:Modifier) {
+@Composable internal fun PageIcon(name:String,color:Color,modifier:Modifier,filled:Boolean=false) {
     val context=LocalContext.current
     val paths=remember(name){
         val root=definitions?:context.resources.openRawResource(R.raw.native_page_icons).bufferedReader().use{JSONObject(it.readText())}.also{definitions=it}
@@ -41,7 +41,7 @@ private var definitions:JSONObject?=null
     }
     val paint=remember { Paint(Paint.ANTI_ALIAS_FLAG).apply{style=Paint.Style.STROKE;strokeWidth=2f;strokeCap=Paint.Cap.ROUND;strokeJoin=Paint.Join.ROUND} }
     Canvas(modifier){drawIntoCanvas { canvas ->
-        paint.color=color.toArgb();val native=canvas.nativeCanvas;native.save();native.scale(size.width/24f,size.height/24f)
+        paint.color=color.toArgb();paint.style=if(filled)Paint.Style.FILL_AND_STROKE else Paint.Style.STROKE;val native=canvas.nativeCanvas;native.save();native.scale(size.width/24f,size.height/24f)
         paths.forEach{native.drawPath(it,paint)};native.restore()
     }}
 }

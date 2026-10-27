@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { NATIVE_FIRST } from '../../services/nativePages';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import {
@@ -207,7 +208,7 @@ const ThemePark: React.FC<ThemeParkProps> = ({
 
     return (
         <motion.div
-            initial={{ opacity: 0 }}
+            initial={NATIVE_FIRST?false:{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
@@ -217,7 +218,7 @@ const ThemePark: React.FC<ThemeParkProps> = ({
             onClick={handleOverlayClick}
         >
             <motion.div
-                initial={{ opacity: 0, y: 18, scale: 0.98 }}
+                initial={NATIVE_FIRST?false:{ opacity: 0, y: 18, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 18, scale: 0.98 }}
                 transition={{ duration: 0.2, ease: 'easeOut' }}
@@ -237,7 +238,7 @@ const ThemePark: React.FC<ThemeParkProps> = ({
                 />
 
                 <div className="grid min-h-0 flex-1 gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,1.2fr)_380px] lg:items-stretch">
-                    <div className="min-h-[300px] lg:min-h-0 lg:h-full">
+                    <div data-native-live={NATIVE_FIRST?'true':undefined} className="min-h-[300px] lg:min-h-0 lg:h-full">
                         <ThemePreview
                             theme={previewTheme[mode]}
                             mode={mode}

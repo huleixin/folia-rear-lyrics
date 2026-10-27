@@ -19,7 +19,7 @@ internal typealias PageAction = (String, String, Double) -> Unit
     val density = LocalDensity.current
     val focus = LocalFocusManager.current
     val action: PageAction = { id, text, value ->
-        if (page.sections.none { it.action == id || it.request == id }) focus.clearFocus()
+        if (!page.keepsEditing(id)) focus.clearFocus()
         onAction(id, text, value)
     }
     val colors = when {
@@ -28,15 +28,19 @@ internal typealias PageAction = (String, String, Double) -> Unit
         page.home -> listOf(Color(0xFF102D25), Color(0xFF010E0D), Color(0xFF010D0C))
         else -> listOf(Color(0xFF03221A), Color(0xFF03130E), Color(0xFF031812))
     }
-    Box(modifier.background(Brush.verticalGradient(colors))) {
+    Box(if(page.document!=null)modifier else modifier.background(Brush.verticalGradient(colors))) {
         // Match CSS viewport pixels, independent of Android system text magnification.
         CompositionLocalProvider(LocalDensity provides Density(cssScale ?: density.density, 1f)) {
             when {
+                page.document!=null -> NativeSettingsDocumentView(page.document,Modifier.fillMaxSize(),action)
                 page.id == "settings" -> NativeSettingsPage(page, Modifier.fillMaxSize(), action)
                 page.id == "search" -> NativeSearchPage(page, Modifier.fillMaxSize(), action)
                 page.id == "home" && !page.key.startsWith("library:") -> NativeHomePage(page, Modifier.fillMaxSize(), action)
+                page.sections.any{it.id=="playlistIntro"} -> NativePlaylistPage(page,Modifier.fillMaxSize(),action)
                 else -> NativeDirectoryPage(page, Modifier.fillMaxSize(), action)
             }
         }
     }
 }
+internal fun NativePage.keepsEditing(action:String)=action.startsWith("scroll:")||sections.any{it.action==action||it.request==action}
+    ||document?.controls?.any{it.id==action&&it.kind!="click"}==true

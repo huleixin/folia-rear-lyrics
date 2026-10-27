@@ -19,7 +19,8 @@ export function installNativeShellRouting() {
         const index=settings.initialTab==='options'&&!settings.initialSubview&&!settings.initialAnchor&&!settings.initialVisualizerSection;
         const {route,selectedTab}=nativeShellRoute({settingsOpen:settings.isOpen,settingsIndex:index,searchOpen:search,
             collectionOpen:collection,view:view.view,libraryPage:useMobileLibraryStore.getState().page});
-        const webOverlay=nativeShellHasWebOverlay(document.querySelectorAll<HTMLElement>('[data-folia-keyboard-window="true"]'));
+        const webOverlay=settings.isOpen&&document.documentElement.dataset.nativeSettingsDocument==='true'?false:
+            nativeShellHasWebOverlay(document.querySelectorAll<HTMLElement>('[data-folia-keyboard-window="true"]'));
         const key=JSON.stringify({route,webOverlay,selectedTab});if(key===last)return;last=key;
         document.documentElement.dataset.nativeRoute=route;
         void nativePages.shell({generation,revision:++revision,route,webOverlay,selectedTab}).catch(error=>console.warn('[NativeShell] Route update failed',error));

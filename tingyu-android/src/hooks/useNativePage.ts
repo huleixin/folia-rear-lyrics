@@ -41,7 +41,7 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
             frame = 0; if (disposed || !started) return;
             const current = latest.current, rect = node.getBoundingClientRect(), style = getComputedStyle(node);
             const enabled = current.active && isMainStageActive() && !node.closest('[inert]')
-                && style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+                && (style.visibility !== 'hidden'||node.dataset.nativeDocumentRoot==='true') && style.display !== 'none' && rect.width > 0 && rect.height > 0;
             const safeTop = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--folia-main-inset-top')) || 0;
             const safeBottom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--folia-main-inset-bottom')) || 0;
             const packet = { id, session, generation, enabled, left: rect.left, top: rect.top, width: rect.width,

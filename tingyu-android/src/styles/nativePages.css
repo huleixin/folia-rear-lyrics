@@ -1,5 +1,5 @@
 /* src/styles/nativePages.css — fixed ownership, never paint a legacy page behind native UI. */
-[data-native-page='true'] {
+[data-native-page='true']:not([data-native-document-root]):not([data-native-settings-portal]) {
     content-visibility: hidden !important;
     pointer-events: none !important;
     clip-path: inset(50%) !important;
@@ -11,6 +11,26 @@ html[data-native-first='true'],
 html[data-native-first='true'] body,
 html[data-native-first='true'] #root { background: transparent !important; }
 html[data-native-first='true'] #app-splash { display: none !important; }
+/* Preserve original layout measurement, but Compose alone paints the form. The
+   existing live lyric/theme engine is an explicit island, not a second settings UI. */
+html[data-native-settings-document='true'] [data-native-document-root],
+html[data-native-settings-document='true'] [data-native-settings-portal],
+html[data-native-settings-document='true'] [data-folia-keyboard-window='true'],
+html[data-native-settings-document='true'] [role='listbox'],
+html[data-native-settings-document='true'] [role='dialog'] {
+    content-visibility: visible !important; clip-path: none !important; opacity: 1 !important;
+    visibility: hidden !important; pointer-events: none !important;
+}
+html[data-native-settings-document='true'] :is([data-native-document-root],[data-native-settings-portal]) * {
+    animation-duration: 0s !important; transition-duration: 0s !important;
+    visibility: hidden !important;
+}
+html[data-native-settings-document='true'] [data-native-live-carrier='true'] { visibility: visible !important; }
+html[data-native-settings-document='true'] [data-native-live='true'],
+html[data-native-settings-document='true'] [data-native-live='true'] * {
+    visibility: visible !important;
+    pointer-events: auto !important;
+}
 html[data-native-first='true']:is([data-native-route='home'],[data-native-route='collection'],[data-native-route='search'],[data-native-route='settings']) [data-folia-app-shell] {
     background: transparent !important;
 }

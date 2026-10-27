@@ -1,3 +1,5 @@
+import SettingsPresence from './SettingsPresence';
+import {NATIVE_FIRST} from '../../../services/nativePages';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -71,7 +73,7 @@ const GlobalLyricOffsetModal: React.FC<GlobalLyricOffsetModalProps> = ({
     const isDirty = draftOffsetMs !== appliedOffsetMs;
 
     return (
-        <AnimatePresence>
+        <SettingsPresence>
             {isOpen && (
                 <motion.div
                     initial={{ opacity: 0 }}
@@ -83,7 +85,7 @@ const GlobalLyricOffsetModal: React.FC<GlobalLyricOffsetModalProps> = ({
                     onClick={onClose}
                 >
                     <motion.div
-                        {...panelMotion}
+                        {...(NATIVE_FIRST?{initial:false,animate:{opacity:1,y:0,scale:1}}:panelMotion)}
                         transition={shellTransition}
                         className={`flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-[32px] border ${borderColor} ${glassBg} shadow-[0_24px_80px_rgba(0,0,0,0.28)]`}
                         onClick={(event) => event.stopPropagation()}
@@ -196,7 +198,7 @@ const GlobalLyricOffsetModal: React.FC<GlobalLyricOffsetModalProps> = ({
                     </motion.div>
                 </motion.div>
             )}
-        </AnimatePresence>
+        </SettingsPresence>
     );
 };
 

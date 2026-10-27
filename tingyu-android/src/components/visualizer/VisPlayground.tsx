@@ -60,6 +60,7 @@ import VisPlaygroundPreviewHotspots, { type VisPlaygroundEditSection } from './V
 import VisPlaygroundSettingsPanel from './VisPlaygroundSettingsPanel';
 import type { VisualizerBackgroundActions, VisualizerBackgroundConfig } from './backgrounds/definition';
 import { useVisPlaygroundPreviewPlayback } from './useVisPlaygroundPreviewPlayback';
+import { NATIVE_FIRST } from '../../services/nativePages';
 
 interface VisPlaygroundProps {
     theme?: Theme;
@@ -413,6 +414,10 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
     const [previewPlaceholderId, setPreviewPlaceholderId] = useState<PreviewPlaceholderId>('default');
     const previewPlaceholder = VIS_PLAYGROUND_PREVIEW_PLACEHOLDERS[previewPlaceholderId];
     const [isPreviewPaused, setIsPreviewPaused] = useState(false);
+    // Show the complete controls first; creating WebGL/canvas previews must not block entry.
+    const [previewReady,setPreviewReady]=useState(!NATIVE_FIRST);
+    useEffect(()=>{if(!NATIVE_FIRST)return;let second=0;const first=requestAnimationFrame(()=>{second=requestAnimationFrame(()=>setPreviewReady(true))});
+        return()=>{cancelAnimationFrame(first);cancelAnimationFrame(second)}},[]);
     const [currentLineIndex, setCurrentLineIndex] = useState(() => findPreviewPlaceholderLineIndex(previewPlaceholder.lines, 0));
     const [fontPickerTarget, setFontPickerTarget] = useState<'lyrics' | 'subtitle' | 'none'>('none');
     const isFontPickerOpen = fontPickerTarget !== 'none';
@@ -625,7 +630,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
         visualizerMode,
         loopDuration: previewPlaceholder.loopDuration,
         playbackKey: previewPlaceholderId,
-        isPaused: isPreviewPaused,
+        isPaused: isPreviewPaused||!previewReady,
     });
 
     useEffect(() => {
@@ -1144,7 +1149,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
 
     return (
         <motion.div
-            initial={{ opacity: 0 }}
+            initial={NATIVE_FIRST?false:{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
@@ -1153,7 +1158,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
             onClick={onClose}
         >
             <motion.div
-                initial={{ opacity: 0, y: 18, scale: 0.98 }}
+                initial={NATIVE_FIRST?false:{ opacity: 0, y: 18, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 18, scale: 0.98 }}
                 transition={{ duration: 0.2, ease: 'easeOut' }}
@@ -1180,7 +1185,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                 </div>
 
                 <div className="grid min-h-0 flex-1 gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,1.25fr)_360px]">
-                    <div className="relative min-h-[320px] overflow-hidden rounded-[28px] border border-white/10 bg-black/20">
+                    <div data-native-live={NATIVE_FIRST?'true':undefined} className="relative min-h-[320px] overflow-hidden rounded-[28px] border border-white/10 bg-black/20">
                         <div className="absolute left-4 top-4 z-20 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/25 px-3 py-1.5 text-xs uppercase tracking-[0.22em] backdrop-blur-md" style={{ color: 'rgba(255,255,255,0.78)' }}>
                             <Sparkles size={13} />
                             <span>{t('ui.livePreview')}</span>
@@ -1190,7 +1195,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                         </div>
 
                         <div className="absolute inset-0">
-                            <VisualizerRenderer
+                            {previewReady&&<VisualizerRenderer
                                 mode={visualizerMode}
                                 currentTime={currentTime}
                                 currentLineIndex={currentLineIndex}
@@ -1223,7 +1228,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                                 cappellaCustomAvatarImages={cappellaCustomAvatarImages}
                                 monetPortraitImage={monetPortraitImage}
                                 seed={getVisualizerScopedSeed(visualizerMode, 'vis-playground')}
-                            />
+                            />}
                         </div>
                         <VisPlaygroundPreviewHotspots
                             activeSection={activeEditSection}

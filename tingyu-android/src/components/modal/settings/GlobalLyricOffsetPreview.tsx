@@ -156,7 +156,7 @@ const GlobalLyricOffsetPreview: React.FC<GlobalLyricOffsetPreviewProps> = ({
     }
 
     return (
-        <div className={`flex min-h-[132px] flex-col items-center justify-center gap-2 rounded-2xl border px-4 py-5 ${previewBoxBg}`}>
+        <div data-native-live="true" className={`flex min-h-[132px] flex-col items-center justify-center gap-2 rounded-2xl border px-4 py-5 ${previewBoxBg}`}>
             <div className="flex h-9 w-full items-center justify-center overflow-hidden">
                 <AnimatePresence mode="wait">
                     <motion.div

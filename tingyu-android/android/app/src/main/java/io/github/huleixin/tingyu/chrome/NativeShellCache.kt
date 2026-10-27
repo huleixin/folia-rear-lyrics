@@ -19,7 +19,8 @@ internal class NativeShellCache(context: Context) {
         val blocks=model.optJSONArray("sections")
         // Persist the initial window only; a scrolled window cannot stand in for the start of a list.
         if((0 until (blocks?.length()?:0)).any{blocks!!.getJSONObject(it).optInt("offset")>0})return
-        if(id=="home"||id=="settings")save(if(id=="home"&&model.optString("key").startsWith("library:"))"library"else id,model)
+        // Form documents may contain typed credentials. Only cache the public index schema.
+        if(id=="home"||id=="settings"&&model.optString("key")=="settings:index")save(if(id=="home"&&model.optString("key").startsWith("library:"))"library"else id,model)
     }
     fun chrome(value:JSONObject){val data=value.optJSONObject("data")?:return;val copy=JSONObject(data.toString());copy.remove("position");save(value.optString("id"),copy)}
     fun page(id:String,width:Float,height:Float,top:Float):NativePage {

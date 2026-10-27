@@ -32,6 +32,7 @@ export type SettingsModalState = {
      * Carries a seq so that asking for the same anchor twice still scrolls the second time.
      */
     initialAnchor?: { id: SettingsAnchorId; seq: number } | null;
+    returnToIndex?: boolean;
 };
 
 // Separate from the retired guide key so people who saw the old carousel still receive the Ponder lesson.
@@ -54,6 +55,8 @@ export type SettingsModalUiState = {
         initialAnchorId?: SettingsAnchorId | null,
     ) => void;
     closeSettings: () => void;
+    openSettingsFromIndex: (section: SettingsSubviewId|'help') => void;
+    returnSettingsToIndex: () => void;
     handleSetAppLanguagePreference: (preference: AppLanguagePreference) => Promise<void>;
     setPinnedCommandId: (slotIndex: number, commandId: string | null) => void;
 };
@@ -96,6 +99,9 @@ export const useSettingsModalStore = create<SettingsModalUiState>((set, get) => 
             isOpen: false,
         },
     })),
+    openSettingsFromIndex: (section) => set({settingsModalState:{isOpen:true,initialTab:section==='help'?'help':'options',initialSubview:section==='help'?null:section,
+        initialVisualizerSection:null,initialAnchor:null,returnToIndex:true}}),
+    returnSettingsToIndex: () => {get().openSettings('options');},
     handleSetAppLanguagePreference: async (preference) => {
         await applyAppLanguagePreference(preference);
         set({ appLanguagePreference: preference });

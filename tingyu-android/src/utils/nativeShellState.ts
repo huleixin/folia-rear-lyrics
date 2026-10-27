@@ -4,7 +4,7 @@ export function nativeShellRoute(state: {
     view:string; libraryPage:string;
 }) {
     return {
-        route:state.settingsOpen?(state.settingsIndex?'settings':'web')
+        route:state.settingsOpen?'settings'
             :state.searchOpen&&!state.collectionOpen?'search':state.collectionOpen?'collection'
                 :state.view==='player'?'stage':state.view==='home'?'home':'web',
         selectedTab:state.libraryPage==='library'?1:0,

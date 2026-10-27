@@ -10,7 +10,7 @@ it('routes immediately from store state, without a painted-page acknowledgement'
     expect(nativeShellRoute({...home,view:'player'}).route).toBe('stage');
     expect(nativeShellRoute({...home,searchOpen:true,collectionOpen:true}).route).toBe('collection');
     expect(nativeShellRoute({...home,settingsOpen:true,searchOpen:true,collectionOpen:true}).route).toBe('settings');
-    expect(nativeShellRoute({...home,settingsOpen:true,settingsIndex:false}).route).toBe('web');
+    expect(nativeShellRoute({...home,settingsOpen:true,settingsIndex:false}).route).toBe('settings');
     expect(nativeShellRoute({...home,libraryPage:'library'})).toEqual({route:'home',selectedTab:1});
 });
 it('keeps native pages behind HTML dialogs and ignores the small stage menu',()=>{
