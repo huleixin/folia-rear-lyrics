@@ -37,7 +37,11 @@ Media3 测试会关闭测试版的均衡器、自动混音、ReplayGain 和新�
 
 在 `tingyu-android` 执行 `npm run build:playback-test`，再在 `android` 目录执行 `gradlew.bat -PtingyuPlaybackTest=true :app:assembleRelease`。测试 Web 资源含专用标记；Gradle 会拒绝把测试资源与普通应用身份混用。
 
-普通发行仍使用原来的构建命令；不会因测试版里保存的内核选择而启用 Media3。
+普通发行从 1.3.25 起默认启用系统原生播放（`BuildConfig.NATIVE_PLAYBACK`）；构建纯 WebView 版本时设置 `TINGYU_NATIVE_PLAYBACK=false`。正式包不包含测试资源，Gradle 会拒绝测试资源与普通应用身份混用。
+
+## 正式启用
+
+1.3.25 起原生播放为默认通道：`PlaybackSpectrumProcessor` 忽略空输入，原生失败会在本次会话锁回兼容通道，设置页提供手动切换。诊断版与正式版共用同一存储键 `tingyu_playback_test_engine_v1`，正式版默认 `media3`，诊断版默认 `web`。
 
 ## 第二版测试包：空缓冲区故障修复
 
