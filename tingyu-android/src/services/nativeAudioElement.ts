@@ -22,7 +22,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     const time=()=>Math.max(0,Math.min(duration||Infinity,position+(playing&&!paused?(performance.now()-anchor)/1000:0)));
     const rejectPending=(reason:unknown)=>{if(pending){clearTimeout(pending.timer);pending.reject(reason);pending=null;}};
     const onState=(value:NativeAudioState)=>{
-        if(blocked||disposed||value.id!==id)return;
+        if(blocked||disposed||value.id!==id||(!value.external&&value.sequence<lastIntent))return;
         if(value.type!=='clock'&&!value.spectrum)notePlaybackTest('native-state',{type:value.type,status:value.status,playing:value.playing,paused:value.paused,position:value.position,error:value.message??''});
         if(value.spectrum){bands.spectrum.set(value.spectrum.length<=1024?value.spectrum:value.spectrum.slice(0,1024));return;}
         const wasPlaying=playing;
@@ -48,7 +48,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     const send=(action:string,data:Record<string,unknown>={})=>{
         const token=id,revision=++sequence;const started=performance.now();
         if(action!=='volume')notePlaybackTest('native-command',{action,sequence:revision,...(action==='prepare'?playbackTestUriInfo(String(data.uri??'')):{})});
-        work=work.catch(()=>{}).then(async()=>{if(blocked)throw abort();const result=await port.command({action,id:token,sequence:revision,...data});if(action!=='volume')notePlaybackTest('native-command-result',{action,accepted:result.accepted,elapsedMs:Math.round(performance.now()-started)});if(!result.accepted)throw abort();});
+        work=work.catch(()=>{}).then(async()=>{if(blocked||(action!=='detach'&&(disposed||token!==id)))throw abort();const result=await port.command({action,id:token,sequence:revision,...data});if(action!=='volume')notePlaybackTest('native-command-result',{action,accepted:result.accepted,elapsedMs:Math.round(performance.now()-started)});if(!result.accepted)throw abort();});
         void work.catch(error=>notePlaybackTest('native-command-failed',{action,error,elapsedMs:Math.round(performance.now()-started)}));
         return work;
     };
@@ -83,7 +83,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         setSource(uri:string,key:string){
             if(uri===source&&key===track)return;
             if(!uri&&id)void send('detach').catch(()=>{});
-            rejectPending(abort());source=uri;track=key;id=crypto.randomUUID();sequence=0;lastIntent=0;
+            rejectPending(abort());source=uri;track=key;id=uri?crypto.randomUUID():'';sequence=0;lastIntent=0;
             position=0;duration=0;buffered=0;anchor=performance.now();paused=true;playing=false;ended=false;error=null;ready=1;metadata=false;bands.spectrum.fill(0);
             event('loadstart');if(!uri)return;
             const preparing=id;

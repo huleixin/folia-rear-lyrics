@@ -276,7 +276,9 @@ export function usePlaybackAudioBridge({
             return;
         }
 
-        if (audioSrc && previousAudioSrcRef.current && previousAudioSrcRef.current !== audioSrc) {
+        // Native setSource already replaces the outgoing item in the layout phase. A second
+        // pause here would apply to the NEW item and consume its autoplay intent via onPause.
+        if (!isNativeAudioElement(audioElement) && audioSrc && previousAudioSrcRef.current && previousAudioSrcRef.current !== audioSrc) {
             audioElement.pause();
             audioElement.load();
         }

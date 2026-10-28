@@ -75,3 +75,8 @@ html[data-folia-mobile-scrollbars='true'] [data-folia-scrolling='true']::-webkit
     [data-folia-status-toast='true'] > button { grid-row: 2; grid-column: 2; justify-self: end; white-space: nowrap; min-height: 32px; }
     [data-folia-status-toast='true'] > button:last-child { grid-column: 3; }
 }
+
+/* A status notification must sit below the safe player header, not across its title. */
+html[data-native-route='stage'] [data-folia-status-toast='true'] {
+    top: 90px;
+}

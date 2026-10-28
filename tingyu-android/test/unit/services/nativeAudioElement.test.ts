@@ -92,3 +92,16 @@ it('a native output timeout pauses the transport and does not leave a playing-lo
     expect(f.element.paused).toBe(true);expect(paused).toHaveBeenCalledOnce();expect(f.commands.at(-1)?.action).toBe('pause');
     await f.adapter.dispose();
 });
+
+it('ignores late transport events and obsolete queued sources during rapid skips',async()=>{
+    const f=await fixture();const played=f.element.play();await f.flush();
+    const playCommand=f.commands.at(-1)!;
+    f.state({paused:false,playing:true,position:2});await played;
+    f.element.pause();await f.flush();
+    f.state({sequence:playCommand.sequence,paused:false,playing:true,position:3});
+    expect(f.element.paused).toBe(true);
+    f.adapter.setSource('https://music.example/b.mp3','b');
+    f.adapter.setSource('https://music.example/c.mp3','c');await f.flush();
+    expect(f.commands.filter(c=>c.action==='prepare').map(c=>c.uri)).toEqual(['https://music.example/a.mp3','https://music.example/c.mp3']);
+    await f.adapter.dispose();
+});

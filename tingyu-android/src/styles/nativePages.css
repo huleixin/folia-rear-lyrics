@@ -37,3 +37,9 @@ html[data-native-first='true']:is([data-native-route='home'],[data-native-route=
 html[data-native-first='true']:is([data-native-route='home'],[data-native-route='collection'],[data-native-route='search'],[data-native-route='settings']) [data-library-backdrop] {
     display: none !important;
 }
+/* Route ownership is published before React retires the retained stage. Do not let
+   that outgoing canvas paint through a native page during the intervening commit. */
+html[data-native-first='true']:is([data-native-route='home'],[data-native-route='collection'],[data-native-route='search']) [data-testid='player-visual-surface'] {
+    visibility: hidden !important;
+    pointer-events: none !important;
+}

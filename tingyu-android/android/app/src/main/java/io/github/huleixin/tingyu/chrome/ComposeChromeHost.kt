@@ -83,7 +83,17 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var shellGeneration=0L
     private var shellRevision=0L
     private var firstHomeFrame by mutableStateOf(true)
-    fun bootstrap() { NativeArtworkCache.install(web.context);if(host==null)attach();web.setBackgroundColor(android.graphics.Color.TRANSPARENT) }
+    private var webStageBackground: Boolean? = null
+    // A stage is a full-window destination, not a transparent preview island. Clearing its
+    // WebView backing prevents native outgoing pages surviving behind canvas damage regions.
+    private fun syncWebBackground() {
+        val stage = destination == "stage"
+        if (webStageBackground == stage) return
+        webStageBackground = stage
+        web.setBackgroundColor(if (stage) android.graphics.Color.rgb(3,10,9) else android.graphics.Color.TRANSPARENT)
+        web.invalidate()
+    }
+    fun bootstrap() { NativeArtworkCache.install(web.context);if(host==null)attach();syncWebBackground() }
     fun shell(value:JSONObject) {
         val generation=value.optLong("generation");val revision=value.optLong("revision")
         if(generation<shellGeneration||generation==shellGeneration&&revision<shellRevision)return
@@ -94,6 +104,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         require(next in setOf("home","collection","search","settings","stage","web"))
         val routeChanged=next!=destination||value.optString("pageTarget")!=pageTarget||value.optString("entryKey")!=entryKey||value.optInt("selectedTab").coerceIn(0,1)!=selectedTab
         destination=next;webOverlay=value.optBoolean("webOverlay");selectedTab=value.optInt("selectedTab").coerceIn(0,1)
+        syncWebBackground()
         pageTarget=value.optString("pageTarget");entryKey=value.optString("entryKey");reducedMotion=value.optBoolean("reducedMotion")
         navigation=value.optString("navigation")
         playlistDetail=value.optBoolean("playlistDetail")
@@ -181,13 +192,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             val safeBottom=if(nativeBottom>=0)nativeBottom else WindowInsets.navigationBars.getBottom(density)/density.density
             val bootId=if(destination=="home"&&selectedTab==1)"library"else if(destination in setOf("home","collection","search","settings"))destination else "home"
             val bootPage=remember(bootId,width,height,safeTop,safeBottom){cache.page(bootId,width,height,safeTop).copy(safeBottom=safeBottom)}
-            val seedHome=firstHomeFrame&&destination=="home"&&!webOverlay
-            Box(Modifier.fillMaxSize().then(if((visible.isNotEmpty()||seedHome)&&Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop)else Modifier)) {
+            // Keep the capture node attached across auto-hide and route changes. Removing it
+            // recreates the AndroidView/GPU recording while the lyric canvas is drawing.
+            Box(Modifier.fillMaxSize().then(if(Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop)else Modifier)) {
                 AndroidView(factory = { web }, modifier = Modifier.fillMaxSize().stageExitTransform(stageExit,exitProgress).zIndex(if(webOverlay||stageExit.active)2f else 0f))
                 if(page==null&&firstHomeFrame&&destination=="home")NativePageView(bootPage,Modifier.fillMaxSize().zIndex(1f)){_,_,_->}
                 // One route-level animation, with no HTML exit animation or full-screen blur.
                 // Data/clock revisions keep the same content key and do not restart it.
-                AnimatedContent(page,modifier=Modifier.fillMaxSize().zIndex(1f),contentKey={it?.key?:"stage"},
+                AnimatedContent(if(destination=="stage"&&!stageExit.active)null else page,modifier=Modifier.fillMaxSize().zIndex(1f),contentKey={it?.key?:"stage"},
                     transitionSpec={
                         val from=initialState?.key?:if(firstHomeFrame)""else"stage"
                         val to=targetState?.key?:"stage"
@@ -242,12 +254,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             // Dismiss home chrome on the UI thread before the JS route transition starts.
                             if (surface.id=="mini" && action=="openStage") {
                                 destination="stage";firstHomeFrame=false
+                                syncWebBackground()
                                 pageTarget="";entryKey="";resolvePage()
                                 // Route visibility hides these immediately. Keep their live
                                 // enabled state so returning without a song change restores them.
                             }
                             if(surface.id=="nav"&&action=="navigate"){
                                 destination=when(value.toInt()){2->"search";3->"settings";else->"home"}
+                                syncWebBackground()
                                 if(value.toInt() in 0..1)selectedTab=value.toInt()
                                 pageTarget=if(destination=="settings")"settings:index"else"";entryKey=pageTarget;resolvePage()
                             }

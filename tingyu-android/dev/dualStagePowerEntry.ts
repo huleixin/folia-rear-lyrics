@@ -44,3 +44,5 @@ import {openSettings} from '../src/stores/useSettingsModalStore';
 Object.assign((window as any).__featureQa,{omni,search:useSearchNavigationStore,openSettings});
 import {useCollectionNavigationStore} from '../src/stores/useCollectionNavigationStore';
 Object.assign((window as any).__featureQa,{collections:useCollectionNavigationStore});
+import {setStatusMessage} from '../src/stores/useStatusMessageStore';
+Object.assign((window as any).__featureQa,{setStatusMessage});
