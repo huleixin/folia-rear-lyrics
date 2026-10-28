@@ -26,5 +26,6 @@ export type NativePageFrame = {
     id: NativePageId; session: string; generation: number; revision: number; enabled: boolean;
     left: number; top: number; width: number; height: number; viewportWidth: number;
     safeTop: number; safeBottom: number; model: NativePageModel;
+    navigation?: string;
 };
 export type NativePageEvent = { id: NativePageId; session: string; key: string; action: string; text?: string; value?: number };

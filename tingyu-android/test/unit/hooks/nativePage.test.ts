@@ -24,6 +24,12 @@ function Adapter({element}:{element:React.RefObject<HTMLElement|null>}){
     useNativePage(element,'home',true,{key:'home:adapter',title:'推荐',sections:[]},{});return null;
 }
 function ParentOwnedRef(){const ref=useRef<HTMLDivElement>(null);return h('div',{ref},h(Adapter,{element:ref}))}
+function DocumentProbe({captured=false}:{captured?:boolean}){
+    const ref=useRef<HTMLDivElement>(null);
+    useNativePage(ref,'settings',true,{key:'settings:document:options:general',title:'界面设置',sections:[],
+        document:captured?{paints:[],controls:[],areas:[],live:[]}:undefined},{});
+    return h('div',{ref});
+}
 beforeEach(()=>{
     vi.clearAllMocks();bridge.supported=true;
     vi.stubGlobal('ResizeObserver',class{observe(){}disconnect(){}});
@@ -60,4 +66,13 @@ it('keeps native pages owned while inactive without polling or legacy reappearan
     await act(async()=>root.render(h(Probe)));expect(bridge.update).toHaveBeenCalledTimes(count);
     await act(async()=>root.render(h(Probe,{active:false})));
     expect(host.textContent).toBe('native-owned');expect(bridge.remove).toHaveBeenCalled();
+});
+it('never substitutes the settings index while a new document key is being captured',async()=>{
+    document.documentElement.dataset.nativeNavigation='route:2';
+    await act(async()=>root.render(h(DocumentProbe)));
+    expect(bridge.update).not.toHaveBeenCalled();
+    await act(async()=>root.render(h(DocumentProbe,{captured:true})));
+    expect(bridge.update).toHaveBeenCalledTimes(1);
+    expect(bridge.update.mock.calls[0][0].navigation).toBe('route:2');
+    delete document.documentElement.dataset.nativeNavigation;
 });

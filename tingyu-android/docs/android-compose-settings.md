@@ -38,6 +38,26 @@ not retain exiting HTML editors, and unloaded editors never substitute the index
 The settings module warms during idle time/on pointer intent. Preview engine mount
 is deferred by two animation frames so it does not compete with control entry.
 
+Route frames now carry a navigation revision as well as their adapter session.
+An outgoing frame cannot claim a newer route, including another settings page with
+the same surface id. The host retains up to 12 logical page presentations in memory;
+adapter removal retires input, not the return presentation. Index, section and editor
+keys remain distinct. Boot-cache UI is used only at initial home startup, never to
+fill a normal navigation gap. Direct editor entry initializes its final subview before
+capture, and incomplete document models are not published. The app-level settings
+presence also removes outgoing HTML immediately, preventing a second exit animation.
+
+Native page navigation shares a 220 ms eased, short horizontal transition, reversed
+on return. Data/clock revisions do not restart it. Initial home data does not animate
+over the startup presentation, and the existing reduced-motion preference skips it.
+The WebView stays below the native route layer except for actual WebView dialogs.
+
+Generic settings SVGs retain their viewBox, aspect ratio, group transforms and
+resolved fill/stroke opacity. The 160×100 device illustrations no longer use Lucide's
+24×24 icon coordinates. Each SVG clips to its own measured viewport. Playlist ambient
+art is separately composited with a vertical fade to transparent; the image covers
+the fade bounds, so its old fixed-height edge cannot cut across the track list.
+
 ## Validation limits
 
 Type checking, targeted JS tests, Android JVM tests, release compilation and mocked

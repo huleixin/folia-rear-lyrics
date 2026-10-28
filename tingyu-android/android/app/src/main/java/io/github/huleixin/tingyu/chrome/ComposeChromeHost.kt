@@ -14,6 +14,14 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.CompositingStrategy
@@ -37,6 +45,27 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private val pages = mutableStateMapOf<String, NativePage>()
     var pageListener: NativePageActionListener? = null
     private val cache=NativeShellCache(web.context)
+    private val retained=NativePageRetention()
+    private val routeMotion=NativeRouteMotion()
+    private var presented by mutableStateOf<NativePage?>(null)
+    private var pageTarget=""
+    private var entryKey=""
+    private var navigation=""
+    private var backwards by mutableStateOf(false)
+    private var reducedMotion by mutableStateOf(false)
+    private var motionKey=""
+    private fun recordMotion(key:String){if(motionKey!=key){motionKey=key;backwards=routeMotion.visit(key)}}
+    private fun resolvePage(){
+        if(destination in setOf("stage","web")){
+            recordMotion(destination);presented=null;return
+        }
+        retained.find(destination,selectedTab,entryKey.ifEmpty{pageTarget})?.let{next->
+            recordMotion(next.key)
+            presented=next
+        }
+        // A first visit keeps its outgoing native composition until the incoming
+        // model arrives; never replay a boot/index screen during ordinary navigation.
+    }
     private var destination by mutableStateOf("home")
     private var webOverlay by mutableStateOf(false)
     private var selectedTab by mutableIntStateOf(0)
@@ -50,7 +79,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         shellGeneration=generation;shellRevision=revision
         val next=value.optString("route","home")
         require(next in setOf("home","collection","search","settings","stage","web"))
+        val routeChanged=next!=destination||value.optString("pageTarget")!=pageTarget||value.optString("entryKey")!=entryKey||value.optInt("selectedTab").coerceIn(0,1)!=selectedTab
         destination=next;webOverlay=value.optBoolean("webOverlay");selectedTab=value.optInt("selectedTab").coerceIn(0,1)
+        pageTarget=value.optString("pageTarget");entryKey=value.optString("entryKey");reducedMotion=value.optBoolean("reducedMotion")
+        navigation=value.optString("navigation")
+        if(routeChanged||presented==null)resolvePage()
         if(next!="home")firstHomeFrame=false
     }
     private val frameOrder = ChromeFrameOrder()
@@ -69,6 +102,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         if(!frameOrder.accept(id,next.session,next.generation,next.revision)){reply(status().put("accepted",false));return}
         if(next.enabled&&host==null)attach()
         pages[next.id]=next
+        if(retained.update(next)&&pageBelongsToRoute(next,destination,selectedTab,pageTarget,value.optString("navigation"),navigation)){
+            recordMotion(next.key)
+            presented=next
+        }
         if(next.enabled)cache.page(value)
         reply(status().put("accepted",true).put("session",next.session))
     }
@@ -115,7 +152,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             it.enabled && it.rect.width > 0 && it.rect.height > 0 &&
                 (if(it.id=="stage")destination=="stage" else destination in setOf("home","collection"))
         } else emptyList()
-        val page=if(active)pages[destination]?.takeIf{it.enabled&&(destination!="home"||it.key.startsWith(if(selectedTab==1)"library:"else"home:"))}else null
+        val page=if(active)presented else null
         val savedPages=rememberSaveableStateHolder()
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val density=LocalDensity.current;val width=maxWidth.value;val height=maxHeight.value
@@ -125,24 +162,34 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             val bootPage=remember(bootId,width,height,safeTop,safeBottom){cache.page(bootId,width,height,safeTop).copy(safeBottom=safeBottom)}
             val seedHome=active&&firstHomeFrame&&destination=="home"&&!webOverlay
             Box(Modifier.fillMaxSize().then(if((visible.isNotEmpty()||seedHome)&&Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop).graphicsLayer{compositingStrategy=CompositingStrategy.Offscreen}else Modifier)) {
-                AndroidView(factory = { web }, modifier = Modifier.fillMaxSize().zIndex(if(webOverlay||destination in setOf("stage","web"))2f else 0f))
-                if(active&&page==null&&destination!="stage")NativePageView(bootPage,Modifier.fillMaxSize().zIndex(1f)){_,_,_->}
-                if(page!=null) {
-                    DisposableEffect(page.key){
-                        savedPageKeys.remove(page.key);savedPageKeys.add(page.key)
+                AndroidView(factory = { web }, modifier = Modifier.fillMaxSize().zIndex(if(webOverlay)2f else 0f))
+                if(active&&page==null&&firstHomeFrame&&destination=="home")NativePageView(bootPage,Modifier.fillMaxSize().zIndex(1f)){_,_,_->}
+                // One route-level animation, with no HTML exit animation or full-screen blur.
+                // Data/clock revisions keep the same content key and do not restart it.
+                AnimatedContent(page,modifier=Modifier.fillMaxSize().zIndex(1f),contentKey={it?.key?:"stage"},
+                    transitionSpec={
+                        val time=if(reducedMotion||firstHomeFrame&&initialState==null)0 else 220
+                        val ease=CubicBezierEasing(.2f,0f,0f,1f);val sign=if(backwards)-1 else 1
+                        (slideInHorizontally(tween(time,easing=ease)){(18*density.density*sign).roundToInt()}+fadeIn(tween(time),initialAlpha=.85f)) togetherWith
+                            (slideOutHorizontally(tween(time,easing=ease)){(-8*density.density*sign).roundToInt()}+fadeOut(tween(time)))
+                    },label="native-route") { shown ->
+                if(shown!=null) {
+                    DisposableEffect(shown.key){
+                        savedPageKeys.remove(shown.key);savedPageKeys.add(shown.key)
                         while(savedPageKeys.size>12){val oldest=savedPageKeys.first();savedPageKeys.remove(oldest);savedPages.removeState(oldest)}
                         onDispose{}
                     }
-                    val density=LocalDensity.current;val scale=web.width/page.viewport
-                    if(scale.isFinite()&&scale>0) savedPages.SaveableStateProvider(page.key) {
-                        val placement=Modifier.zIndex(1f).offset{IntOffset((page.rect.left*scale).roundToInt(),(page.rect.top*scale).roundToInt())}
-                            .size(with(density){(page.rect.width*scale).toDp()},with(density){(page.rect.height*scale).toDp()})
-                        NativePageView(page,placement,scale){action,text,value->
-                            val current=pages[page.id]
-                            if(active&&current?.enabled==true&&current.session==page.session&&current.key==page.key&&current.revision==page.revision)
-                                pageListener?.onAction(page.id,page.session,page.key,action,text,value)
+                    val density=LocalDensity.current;val scale=web.width/shown.viewport
+                    if(scale.isFinite()&&scale>0) savedPages.SaveableStateProvider(shown.key) {
+                        val placement=Modifier.offset{IntOffset((shown.rect.left*scale).roundToInt(),(shown.rect.top*scale).roundToInt())}
+                            .size(with(density){(shown.rect.width*scale).toDp()},with(density){(shown.rect.height*scale).toDp()})
+                        NativePageView(shown,placement,scale){action,text,value->
+                            val current=pages[shown.id]
+                            if(active&&destination==shown.id&&presented?.key==shown.key&&current?.enabled==true&&current.session==shown.session&&current.key==shown.key&&current.revision==shown.revision)
+                                pageListener?.onAction(shown.id,shown.session,shown.key,action,text,value)
                         }
                     }
+                }
                 }
             }
             if(active&&firstHomeFrame&&destination=="home"&&!webOverlay) {
@@ -165,11 +212,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             // Dismiss home chrome on the UI thread before the JS route transition starts.
                             if (surface.id=="mini" && action=="openStage") {
                                 destination="stage";firstHomeFrame=false
+                                pageTarget="";entryKey="";resolvePage()
                                 for (id in listOf("nav","mini")) surfaces[id]?.let { surfaces[id]=it.copy(enabled=false) }
                             }
                             if(surface.id=="nav"&&action=="navigate"){
                                 destination=when(value.toInt()){2->"search";3->"settings";else->"home"}
                                 if(value.toInt() in 0..1)selectedTab=value.toInt()
+                                pageTarget=if(destination=="settings")"settings:index"else"";entryKey=pageTarget;resolvePage()
                             }
                             listener.onAction(surface.id,surface.session,action,value)
                         }
@@ -186,7 +235,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     }
     fun destroy() {
         val compose = host ?: return
-        active = false; surfaces.clear(); clocks.clear();pages.clear()
+        active = false; surfaces.clear(); clocks.clear();pages.clear();retained.clear();presented=null
         compose.disposeComposition()
         (web.parent as? ViewGroup)?.removeView(web)
         (compose.parent as? ViewGroup)?.removeView(compose)

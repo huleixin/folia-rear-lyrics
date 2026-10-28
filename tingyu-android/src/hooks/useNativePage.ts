@@ -40,12 +40,16 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
         const measure = () => {
             frame = 0; if (disposed || !started) return;
             const current = latest.current, rect = node.getBoundingClientRect(), style = getComputedStyle(node);
+            // A document capture and its key are one model. Never publish a header-only
+            // settings/index substitute between the two layout-effect passes.
+            if(current.model.key.startsWith('settings:document:')&&!current.model.document)return;
             const enabled = current.active && isMainStageActive() && !node.closest('[inert]')
                 && (style.visibility !== 'hidden'||node.dataset.nativeDocumentRoot==='true') && style.display !== 'none' && rect.width > 0 && rect.height > 0;
             const safeTop = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--folia-main-inset-top')) || 0;
             const safeBottom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--folia-main-inset-bottom')) || 0;
             const packet = { id, session, generation, enabled, left: rect.left, top: rect.top, width: rect.width,
-                height: rect.height, viewportWidth: innerWidth, safeTop, safeBottom, model: current.model };
+                height: rect.height, viewportWidth: innerWidth, safeTop, safeBottom, model: current.model,
+                navigation:document.documentElement.dataset.nativeNavigation??'' };
             const key = JSON.stringify(packet); if (key === last) return; last = key;
             const sent = ++revision; if (!enabled) mark(false);
             void nativePages.pageUpdate({ ...packet, revision: sent }).then(result => {

@@ -10,6 +10,7 @@ import SettingsDialogHost from './SettingsDialogHost';
 import ConfirmDialog from '../../shared/ConfirmDialog';
 import type { AppDialogsModel } from './buildAppDialogsModel';
 import { countRender } from '../../../dev/renderCount';
+import SettingsPresence from '../../modal/settings/SettingsPresence';
 
 // Centralized app-level dialog and toast renderer for the player shell.
 type AppDialogsProps = {
@@ -69,9 +70,9 @@ const AppDialogs: React.FC<AppDialogsProps> = ({ model }) => {
             {onlineLyricMatchDialog && <Suspense fallback={null}><OnlineLyricMatchModal {...onlineLyricMatchDialog} /></Suspense>}
             {unavailableReplacementDialog && <Suspense fallback={null}><UnavailableReplacementDialog {...unavailableReplacementDialog} /></Suspense>}
             {wallpaperEntryConfirmDialog && <ConfirmDialog {...wallpaperEntryConfirmDialog} />}
-            <Suspense fallback={null}><AnimatePresence>
+            <Suspense fallback={null}><SettingsPresence>
                 {settingsDialog && <SettingsDialogHost {...settingsDialog} />}
-            </AnimatePresence></Suspense>
+            </SettingsPresence></Suspense>
         </>
     );
 };

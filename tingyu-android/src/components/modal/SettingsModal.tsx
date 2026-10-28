@@ -452,10 +452,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     const settingsAnchorStore = useSettingsAnchorStore();
     const settingsAnchors = useSettingsAnchorList(settingsAnchorStore);
 
-    const [showVisPlayground, setShowVisPlayground] = useState(false);
-    const [showThemePark, setShowThemePark] = useState(false);
-    const [showLyricFilterSettings, setShowLyricFilterSettings] = useState(false);
-    const [showGlobalLyricOffset, setShowGlobalLyricOffset] = useState(false);
+    const [showVisPlayground, setShowVisPlayground] = useState(initialSubview === 'visualizer');
+    const [showThemePark, setShowThemePark] = useState(initialSubview === 'themePark');
+    const [showLyricFilterSettings, setShowLyricFilterSettings] = useState(initialSubview === 'lyricFilter');
+    const [showGlobalLyricOffset, setShowGlobalLyricOffset] = useState(initialSubview === 'globalLyricOffset');
     const [showAiHelpPrompt, setShowAiHelpPrompt] = useState(false);
     const [showReleaseNotes, setShowReleaseNotes] = useState(false);
     const [versionCopied, setVersionCopied] = useState(false);

@@ -33,7 +33,20 @@ export function captureSettingsDocument(root:HTMLElement){
         if(painted(style.backgroundColor)||edges.some(edge=>edge.width>0)||style.backgroundImage.includes('gradient')){
             paints.push({...common,kind:'box',background:style.backgroundColor,gradient:style.backgroundImage,border:style.borderTopColor,borderWidth:n(style.borderTopWidth),radius:n(style.borderTopLeftRadius),edges});
         }
-        if(element instanceof SVGSVGElement){paints.push({...common,kind:'svg',svg:new XMLSerializer().serializeToString(element),color:style.color});return;}
+        if(element instanceof SVGSVGElement){
+            // Resolve CSS/inherited colours before leaving the browser. Geometry stays vector,
+            // including the illustration's own viewBox (it is not necessarily a 24px icon).
+            const copy=element.cloneNode(true) as SVGSVGElement;
+            const targets=[copy,...copy.querySelectorAll('*')];
+            [element,...element.querySelectorAll('*')].forEach((source,index)=>{
+                const target=targets[index],computed=getComputedStyle(source);
+                for(const name of ['fill','stroke','stroke-width','stroke-linecap','stroke-linejoin','fill-opacity','stroke-opacity','fill-rule']){
+                    const value=computed.getPropertyValue(name);target.setAttribute(name,value==='currentcolor'?computed.color:value);
+                }
+                target.setAttribute('opacity',index===0?'1':computed.opacity);
+            });
+            paints.push({...common,kind:'svg',svg:new XMLSerializer().serializeToString(copy),color:style.color});return;
+        }
         if(element instanceof HTMLImageElement){
             paints.push({...common,kind:'image',image:absolutePageImage(element.currentSrc||element.src),radius:n(style.borderTopLeftRadius)});return;
         }

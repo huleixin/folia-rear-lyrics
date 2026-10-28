@@ -2,15 +2,10 @@ package io.github.huleixin.tingyu.chrome
 
 import android.graphics.Canvas
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.Typeface
 import android.graphics.LinearGradient
 import android.graphics.Shader
-import android.util.Xml
 import android.os.Build
-import androidx.core.graphics.PathParser
-import java.io.StringReader
-import org.xmlpull.v1.XmlPullParser
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeSettingsPaint.kt
 // Native vector/text drawing; paths and fonts are prepared once per discrete form model.
@@ -27,7 +22,7 @@ internal class SettingsDrawing(val node:SettingPaint){
         if(Build.VERSION.SDK_INT>=28)Typeface.create(base,node.weight.coerceIn(1,1000),node.italic)
         else Typeface.create(base,(if(node.weight>=600)Typeface.BOLD else Typeface.NORMAL) or (if(node.italic)Typeface.ITALIC else 0))
     }
-    private val vectors=if(node.kind=="svg")readSettingVectors(node.svg)else emptyList()
+    private val vector=if(node.kind=="svg")NativeSettingsSvg(node.svg,node.color)else null
     private val gradient=settingsGradient(node.gradient,node.rect)
     fun draw(canvas:Canvas){
         canvas.save();node.clip?.let{canvas.clipRect(it.x,it.y,it.x+it.w,it.y+it.h)}
@@ -47,35 +42,8 @@ internal class SettingsDrawing(val node:SettingPaint){
             }
             "text"->{paint.color=settingColor(node.color);paint.alpha=(android.graphics.Color.alpha(paint.color)*node.opacity).toInt();paint.textSize=node.font;paint.typeface=font
                 val fm=paint.fontMetrics;canvas.drawText(node.text,r.x,r.y+(r.h-fm.descent-fm.ascent)/2,paint)}
-            "svg"->{canvas.translate(r.x,r.y);canvas.scale(r.w/24f,r.h/24f);vectors.forEach{vector->
-                paint.color=settingColor(node.color,android.graphics.Color.WHITE);paint.alpha=(android.graphics.Color.alpha(paint.color)*node.opacity).toInt();paint.strokeWidth=vector.width
-                paint.strokeJoin=Paint.Join.ROUND;paint.strokeCap=Paint.Cap.ROUND;paint.style=if(vector.fill)Paint.Style.FILL else Paint.Style.STROKE
-                canvas.drawPath(vector.path,paint)
-            }}
+            "svg"->vector?.draw(canvas,r,node.opacity,paint)
         }
         canvas.restore()
     }
 }
-private data class SettingsVector(val path:Path,val width:Float,val fill:Boolean)
-private fun readSettingVectors(svg:String):List<SettingsVector> = runCatching{
-    val parser=Xml.newPullParser();parser.setInput(StringReader(svg));val out=mutableListOf<SettingsVector>();var event=parser.eventType
-    var width=2f;var rootFill=false
-    while(event!=XmlPullParser.END_DOCUMENT){
-        if(event==XmlPullParser.START_TAG){
-            fun attr(name:String)=parser.getAttributeValue(null,name)
-            fun num(name:String)=attr(name)?.toFloatOrNull()?:0f
-            if(parser.name=="svg"){width=attr("stroke-width")?.toFloatOrNull()?:2f;rootFill=attr("fill")?.let{it!="none"}?:false}
-            val path=Path()
-            when(parser.name){
-                "path"->attr("d")?.let{PathParser.createPathFromPathData(it)?.let(path::set)}
-                "circle"->path.addCircle(num("cx"),num("cy"),num("r"),Path.Direction.CW)
-                "ellipse"->path.addOval(num("cx")-num("rx"),num("cy")-num("ry"),num("cx")+num("rx"),num("cy")+num("ry"),Path.Direction.CW)
-                "rect"->path.addRoundRect(num("x"),num("y"),num("x")+num("width"),num("y")+num("height"),num("rx"),num("rx"),Path.Direction.CW)
-                "line"->{path.moveTo(num("x1"),num("y1"));path.lineTo(num("x2"),num("y2"))}
-                "polyline","polygon"->{val points=Regex("-?[\\d.]+").findAll(attr("points")?:"").map{it.value.toFloat()}.toList();points.chunked(2).forEachIndexed{i,p->if(p.size==2){if(i==0)path.moveTo(p[0],p[1])else path.lineTo(p[0],p[1])}};if(parser.name=="polygon")path.close()}
-            }
-            if(!path.isEmpty)out.add(SettingsVector(path,attr("stroke-width")?.toFloatOrNull()?:width,attr("fill")?.let{it!="none"}?:rootFill))
-        }
-        event=parser.next()
-    };out
-}.getOrDefault(emptyList())
