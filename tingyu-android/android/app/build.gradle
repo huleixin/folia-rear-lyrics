@@ -29,6 +29,7 @@ android {
     defaultConfig {
         buildConfigField 'boolean', 'COMPOSE_CHROME', (System.getenv('TINGYU_COMPOSE_CHROME') == 'false' ? 'false' : 'true')
         buildConfigField 'boolean', 'GLASS_LAB', (System.getenv('TINGYU_GLASS_LAB') == 'true' ? 'true' : 'false')
+        buildConfigField 'boolean', 'NATIVE_PLAYBACK', (System.getenv('TINGYU_NATIVE_PLAYBACK') == 'false' ? 'false' : 'true')
         buildConfigField 'boolean', 'PLAYBACK_ENGINE_TEST', playbackTestBuild.toString()
         applicationId (playbackTestBuild ? "io.github.huleixin.tingyu.playbacktest" : "io.github.huleixin.tingyu")
         manifestPlaceholders['tingyuAppLabel'] = playbackTestBuild ? '听屿播放测试' : '听屿'

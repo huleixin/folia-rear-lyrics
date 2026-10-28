@@ -7,9 +7,10 @@ import java.util.function.Consumer;
 // android/app/src/main/java/io/github/huleixin/tingyu/playback/TingyuPlaybackPlugin.java
 @CapacitorPlugin(name="TingyuPlayback")
 public final class TingyuPlaybackPlugin extends Plugin {
-    // Keep cached 1.3.23 Web bundles on the verified playback path as well.
-    // Re-enable only after native audio has passed device playback validation.
-    private static final boolean ENABLED = io.github.huleixin.tingyu.BuildConfig.PLAYBACK_ENGINE_TEST;
+    // Native audio passed device validation in the 1.3.24 test builds; the empty-buffer fix in
+    // PlaybackSpectrumProcessor is what made it playable. The flag stays overridable so a build
+    // can still ship WebView-only audio.
+    private static final boolean ENABLED = io.github.huleixin.tingyu.BuildConfig.NATIVE_PLAYBACK;
     private NativeAudioEngine engine;
     private JSObject prepared,lastState;
     private final Consumer<JSObject> events=value->{if(!"spectrum".equals(value.optString("type")))lastState=value;notifyListeners("state",value);};

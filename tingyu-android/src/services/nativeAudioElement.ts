@@ -1,11 +1,11 @@
-import { PLAYBACK_TEST_BUILD } from '../utils/playbackEngineTestBuild';
 import { notePlaybackTest,playbackTestUriInfo } from './playbackTestLog';
 import type { NativeAudioOptions, NativeAudioPort, NativeAudioState } from '../types/nativeAudio';
 
 // src/services/nativeAudioElement.ts
 // Preserve the existing DOM media-event contract while Media3 owns fetching/decoding/output.
-let testStopping=false;
-export function blockNativeAudioCommandsForTest(){if(PLAYBACK_TEST_BUILD)testStopping=true;}
+let blocked=false;
+/** Latches out stale queued commands while the transport changes hands; only an explicit switch calls this. */
+export function setNativeAudioCommandsBlocked(value:boolean){blocked=value;}
 const elements=new WeakMap<HTMLMediaElement,{spectrum:Uint8Array}>();
 export const isNativeAudioElement=(element:HTMLMediaElement|null)=>!!element&&elements.has(element);
 export const nativeAudioSpectrum=(element:HTMLMediaElement|null)=>element?elements.get(element)?.spectrum:null;
@@ -22,7 +22,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     const time=()=>Math.max(0,Math.min(duration||Infinity,position+(playing&&!paused?(performance.now()-anchor)/1000:0)));
     const rejectPending=(reason:unknown)=>{if(pending){clearTimeout(pending.timer);pending.reject(reason);pending=null;}};
     const onState=(value:NativeAudioState)=>{
-        if(testStopping||disposed||value.id!==id)return;
+        if(blocked||disposed||value.id!==id)return;
         if(value.type!=='clock'&&!value.spectrum)notePlaybackTest('native-state',{type:value.type,status:value.status,playing:value.playing,paused:value.paused,position:value.position,error:value.message??''});
         if(value.spectrum){bands.spectrum.set(value.spectrum.length<=1024?value.spectrum:value.spectrum.slice(0,1024));return;}
         const wasPlaying=playing;
@@ -48,7 +48,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     const send=(action:string,data:Record<string,unknown>={})=>{
         const token=id,revision=++sequence;const started=performance.now();
         if(action!=='volume')notePlaybackTest('native-command',{action,sequence:revision,...(action==='prepare'?playbackTestUriInfo(String(data.uri??'')):{})});
-        work=work.catch(()=>{}).then(async()=>{if(testStopping)throw abort();const result=await port.command({action,id:token,sequence:revision,...data});if(action!=='volume')notePlaybackTest('native-command-result',{action,accepted:result.accepted,elapsedMs:Math.round(performance.now()-started)});if(!result.accepted)throw abort();});
+        work=work.catch(()=>{}).then(async()=>{if(blocked)throw abort();const result=await port.command({action,id:token,sequence:revision,...data});if(action!=='volume')notePlaybackTest('native-command-result',{action,accepted:result.accepted,elapsedMs:Math.round(performance.now()-started)});if(!result.accepted)throw abort();});
         void work.catch(error=>notePlaybackTest('native-command-failed',{action,error,elapsedMs:Math.round(performance.now()-started)}));
         return work;
     };

@@ -31,7 +31,7 @@ export function useNativeAudioDeck(audioRef:RefObject<HTMLAudioElement|null>,act
     // keep its existing compatible pipeline for this session rather than repeatedly swapping it.
     const compatibility=useRef(!nativeAudioUri(source)||effects||mixing||gain!=='off');
     if(!nativeAudioUri(source)||effects||mixing||gain!=='off')compatibility.current=true;
-    const requested=PLAYBACK_TEST_SESSION_ENGINE==='media3';
+    const requested=PLAYBACK_TEST_SESSION_ENGINE!=='web',nativeFailed=useRef(false);
     const own=requested&&android&&supported!==false&&!compatibility.current;
     const songKey=song?getPlaybackSongKey(song):'';
     const analysis=playing&&((main&&view==='player')||rear);
@@ -40,8 +40,18 @@ export function useNativeAudioDeck(audioRef:RefObject<HTMLAudioElement|null>,act
         void native.probe().then(value=>{if(!disposed){clearTimeout(timer);notePlaybackTest('native-probe-result',{supported:value.supported,engine:value.engine});setSupported(value.supported===true)}}).catch(error=>{if(!disposed){clearTimeout(timer);notePlaybackTest('native-probe-failed',{error});setSupported(false)}});
         return()=>{disposed=true;clearTimeout(timer)};
     },[android,requested]);
-    const reason=!requested?'selected-stable':compatibility.current?(!nativeAudioUri(source)?'blob-or-unsupported-uri':effects?'effects':mixing?'automix':gain!=='off'?'replaygain':'compatibility-latched'):supported===null?'probing':supported===false?'native-unavailable':'native-selected';
+    const reason=!requested?'selected-stable':compatibility.current?(!nativeAudioUri(source)?'blob-or-unsupported-uri':effects?'effects':mixing?'automix':gain!=='off'?'replaygain':'compatibility-latched'):supported===null?'probing':supported===false?(nativeFailed.current?'native-error-fallback':'native-unavailable'):'native-selected';
     useEffect(()=>{const actual=own?(supported===true?'media3':'pending'):'web';setPlaybackTestActual(actual,reason);notePlaybackTest('actual-engine',{actual,reason});},[own,supported,reason]);
+    // A native failure latches this session onto the WebView pipeline, so the listener's next Play
+    // press succeeds instead of repeating the same failure. The layout effect cleanup performs the
+    // handoff: it waits for native to stop, restores the element source and resumes if needed.
+    useEffect(()=>{
+        const element=audioRef.current;
+        if(!own||supported!==true||!element)return;
+        const fallback=()=>{notePlaybackTest('native-error-fallback');nativeFailed.current=true;setSupported(false);};
+        element.addEventListener('error',fallback);
+        return()=>element.removeEventListener('error',fallback);
+    },[own,supported,audioRef]);
     useLayoutEffect(()=>{
         if(!own||supported!==true)return;
         const element=audioRef.current;if(!element)return;

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
-import { attachNativeAudioElement, blockNativeAudioCommandsForTest } from '@/services/nativeAudioElement';
+import { attachNativeAudioElement, setNativeAudioCommandsBlocked } from '@/services/nativeAudioElement';
 
 // test/unit/services/playbackTestStopBarrier.test.ts
 vi.mock('@/utils/playbackEngineTestBuild', () => ({ PLAYBACK_TEST_BUILD: true, PLAYBACK_TEST_SESSION_ENGINE: 'media3' }));
@@ -18,7 +18,7 @@ it('cannot revive native playback through an old queued Play after a test reset'
     adapter.setSource('https://test.example/audio.mp3', 'test');
     for (let i = 0; i < 10; i++) await Promise.resolve();
     const played = element.play().catch(error => error.name);
-    blockNativeAudioCommandsForTest(); element.pause();
+    setNativeAudioCommandsBlocked(true); element.pause();
     expect(await played).toBe('AbortError'); finishPrepare();
     for (let i = 0; i < 30; i++) await Promise.resolve();
     expect(commands).toEqual(['prepare']);

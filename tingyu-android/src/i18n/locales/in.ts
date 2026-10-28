@@ -1,7 +1,8 @@
 
 
 export default {
-  playbackTest: {"title": "Playback engine test", "description": "Separate test app; the stable engine is the default. Apply stops playback and reloads.", "web": "Stable engine", "media3": "Media3 (test)", "pending": "Checking", "actual": "Actual engine: {{engine}}", "apply": "Stop playback and apply", "compatibility": "Media3 testing disables EQ, automix, ReplayGain and new audio caching. Existing cached audio or advanced effects use the stable engine for this session. Check the actual engine above.", "tone": "Load 10-second test tone", "toneLoaded": "Loaded. Return to Home or the stage and press Play to hear the tone. This replaces the test queue.", "export": "Export playback log", "failed": "Operation failed. Export the log and send it to the developer. A failed switch never starts a second engine.", "reason": {"probing": "Checking", "native-unavailable": "Native channel unavailable or timed out", "blob-or-unsupported-uri": "Cached audio or URI requires the stable engine", "effects": "Effects require stable playback", "automix": "Mixing requires stable playback", "replaygain": "Gain requires stable playback", "compatibility-latched": "Compatibility mode for this session; apply again to retry"}},
+  playbackEngine: {"title": "Playback engine", "description": "Native playback is the default and keeps audio running while the screen is off. The compatible path is used for the equalizer, automix, ReplayGain, cached audio, or when native output is unavailable.", "native": "System native", "compatible": "Compatible", "pending": "Checking", "actual": "In use: {{engine}}", "apply": "Stop playback and apply", "note": "Applying stops playback first. The compatible path runs audio inside the player surface and supports the equalizer, automix, ReplayGain and cached audio. A native failure switches this session back to it.", "failed": "Switch did not complete; the previous engine stays active.", "reason": {"probing": "Checking", "native-selected": "System native", "selected-stable": "Compatible path selected", "native-unavailable": "Native channel unavailable or timed out", "native-error-fallback": "Native playback failed; switched to the compatible path", "blob-or-unsupported-uri": "Cached audio or this URI needs the compatible path", "effects": "Audio effects need the compatible path", "automix": "Mixing needs the compatible path", "replaygain": "Gain needs the compatible path", "compatibility-latched": "Compatible path active for this session; apply again to retry"}},
+  playbackTest: {"tone": "Load 10-second test tone", "toneLoaded": "Loaded. Return to Home or the stage and press Play to hear the tone. This replaces the test queue.", "export": "Export playback log"},
   "mobileStage": {
     "playbackSettings": "Pengaturan pemutaran", "audioQuality": "Kualitas audio", "audioEffects": "Efek audio", "effectsOn": "Aktif", "effectsOff": "Nonaktif" },
   "rearBridge": {
@@ -618,7 +619,7 @@ export default {
       }
     },
     "commands": {
-      "playback-test-settings": {"title": "Playback engine test", "description": "Open engine selection and diagnostic export in the test app"},
+      "playback-engine": {"title": "Playback engine", "description": "Choose native or compatible audio output; applying reloads the app"},
       "playback-test-tone": {"title": "Load test audio", "description": "Replace the test queue with a 10-second tone"},
       "playback-test-export": {"title": "Export playback log", "description": "Share local playback engine diagnostics"},
 

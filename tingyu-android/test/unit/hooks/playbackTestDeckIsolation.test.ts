@@ -39,3 +39,33 @@ it('does not probe native output with the default stable selection; a timed-out 
         usePlaybackStore.setState(playback); useAudioSettingsStore.setState(audio); useAutomixSettingsStore.setState(mix);
     }
 });
+
+it('hands the same track back to the WebView pipeline after a native failure', async () => {
+    (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+    const playback = usePlaybackStore.getState(), audio = useAudioSettingsStore.getState(), mix = useAutomixSettingsStore.getState();
+    const load = vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
+    usePlaybackStore.setState({ audioSrc: 'https://audio.example/test.mp3', replayGainMode: 'off' });
+    useAudioSettingsStore.setState({ audioEqualizerSettings: { ...audio.audioEqualizerSettings, enabled: false } });
+    useAutomixSettingsStore.setState({ automixEnabled: false });
+    config.engine = 'media3';
+    config.probe.mockImplementation(async () => ({ supported: true, engine: 'media3' }));
+    config.addListener.mockImplementation(async () => ({ remove: async () => {} }));
+    config.command.mockImplementation(async () => ({ accepted: true }));
+    const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+    function Probe() { const ref = useRef<HTMLAudioElement>(null), deck = useNativeAudioDeck(ref, 'A');
+        return h('audio', { ref, src: deck.suppressBrowserSource ? undefined : 'https://audio.example/test.mp3' }); }
+    try {
+        await act(async () => root.render(h(Probe)));
+        expect(host.querySelector('audio')?.hasAttribute('src')).toBe(false);
+        await act(async () => {
+            host.querySelector('audio')!.dispatchEvent(new Event('error'));
+            await new Promise(resolve => setTimeout(resolve));
+            await new Promise(resolve => setTimeout(resolve));
+        });
+        expect(host.querySelector('audio')?.getAttribute('src')).toContain('audio.example');
+        expect(config.command.mock.calls.some(([value]) => value.action === 'detach')).toBe(true);
+    } finally {
+        await act(async () => root.unmount()); host.remove(); load.mockRestore();
+        usePlaybackStore.setState(playback); useAudioSettingsStore.setState(audio); useAutomixSettingsStore.setState(mix);
+    }
+});

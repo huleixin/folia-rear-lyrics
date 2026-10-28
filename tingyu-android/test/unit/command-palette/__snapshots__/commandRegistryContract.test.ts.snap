@@ -37,7 +37,7 @@ exports[`command palette registry contract > keeps the registered command order 
   "search-local",
   "search-navidrome",
   "search-netease",
-  "playback-test-settings",
+  "playback-engine",
   "playback-test-tone",
   "playback-test-export",
   "audio-quality-picker",

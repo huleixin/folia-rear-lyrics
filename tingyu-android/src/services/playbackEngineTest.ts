@@ -8,7 +8,7 @@ import { useAutomixSettingsStore } from '../stores/useAutomixSettingsStore';
 import { PlayerState, type UnifiedSong } from '../types';
 import { exportDiagnosticReport } from './exportDiagnosticReport';
 import { notePlaybackTest, playbackTestUriInfo, readPlaybackTestLog, redactPlaybackTestText } from './playbackTestLog';
-import { blockNativeAudioCommandsForTest } from './nativeAudioElement';
+import { setNativeAudioCommandsBlocked } from './nativeAudioElement';
 import { getFoliaNative } from '../platform/foliaNative';
 import { playbackFade } from './playbackFade';
 
@@ -27,6 +27,8 @@ export function testDeadline<T>(promise: Promise<T>, ms: number): Promise<T> {
     });
 }
 const requireTest = () => { if (!canUsePlaybackEngineTest()) throw new Error('Playback test build required'); };
+/** Engine selection is a shipping setting; the tone and log export stay test-only. */
+export const canSelectPlaybackEngine = () => isAndroidNativeRuntime();
 let switching = false, loadingTone = false;
 function stopWebAudio() {
     playbackFade.flush();
@@ -34,29 +36,33 @@ function stopWebAudio() {
     usePlaybackStore.getState().setPlayerState(PlayerState.PAUSED);
 }
 /** Stop acknowledgment is mandatory: a failed native bridge must never start a second engine. */
-export async function applyPlaybackTestEngine(engine: PlaybackTestEngine, reload = () => window.location.reload()) {
-    requireTest();
-    if (switching || loadingTone) throw new Error('Test operation in progress');
+export async function applyPlaybackEngine(engine: PlaybackTestEngine, reload = () => window.location.reload()) {
+    if (!canSelectPlaybackEngine()) throw new Error('Android runtime required');
+    if (switching || loadingTone) throw new Error('Switch already in progress');
     switching = true;
     try {
         notePlaybackTest('switch-start', { from: PLAYBACK_TEST_SESSION_ENGINE, to: engine });
-        blockNativeAudioCommandsForTest();
+        setNativeAudioCommandsBlocked(true);
         stopWebAudio();
         const result = await testDeadline(native.resetForTest(), 5000);
         if (result.stopped !== true) throw new Error('Native stop was not acknowledged');
-        const audio = useAudioSettingsStore.getState();
-        audio.handleToggleAutoPlayOnLaunch(false);
-        if (engine === 'media3') {
-            audio.handleSetAudioEqualizerSettings({ ...audio.audioEqualizerSettings, enabled: false });
-            useAutomixSettingsStore.getState().handleToggleAutomix(false);
-            usePlaybackStore.getState().setReplayGainMode('off');
-            localStorage.setItem('local_replaygain_mode', 'off');
-            audio.handleToggleMediaCache(false);
+        // Diagnostic builds force the native path; a shipped build keeps every audio preference.
+        if (PLAYBACK_TEST_BUILD) {
+            const audio = useAudioSettingsStore.getState();
+            audio.handleToggleAutoPlayOnLaunch(false);
+            if (engine === 'media3') {
+                audio.handleSetAudioEqualizerSettings({ ...audio.audioEqualizerSettings, enabled: false });
+                useAutomixSettingsStore.getState().handleToggleAutomix(false);
+                usePlaybackStore.getState().setReplayGainMode('off');
+                localStorage.setItem('local_replaygain_mode', 'off');
+                audio.handleToggleMediaCache(false);
+            }
         }
         localStorage.setItem(PLAYBACK_TEST_SELECTION_KEY, engine);
         notePlaybackTest('switch-applied', { engine });
         reload();
     } catch (error) {
+        setNativeAudioCommandsBlocked(false);
         notePlaybackTest('switch-failed', { error });
         throw error;
     } finally { switching = false; }

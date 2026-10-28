@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import { applyPlaybackTestEngine, buildPlaybackTestReport, exportPlaybackTestLog, loadPlaybackTestTone, testDeadline } from '@/services/playbackEngineTest';
+import { applyPlaybackEngine, buildPlaybackTestReport, exportPlaybackTestLog, loadPlaybackTestTone, testDeadline } from '@/services/playbackEngineTest';
 import { isLocalPlaybackSong } from '@/utils/appPlaybackGuards';
 import { usePlaybackStore } from '@/stores/usePlaybackStore';
 import { useAudioSettingsStore } from '@/stores/useAudioSettingsStore';
@@ -17,7 +17,7 @@ vi.mock('@capacitor/core', () => ({ registerPlugin: (name: string) => name === '
     : { preparePlaybackTestTone: mocks.tone } }));
 vi.mock('@/utils/playbackEngineTestBuild', () => ({ PLAYBACK_TEST_BUILD: true, PLAYBACK_TEST_SESSION_ENGINE: 'web', PLAYBACK_TEST_SELECTION_KEY: 'test_engine' }));
 vi.mock('@/utils/platform', () => ({ isAndroidNativeRuntime: () => mocks.enabled }));
-vi.mock('@/services/nativeAudioElement', () => ({ blockNativeAudioCommandsForTest: mocks.block }));
+vi.mock('@/services/nativeAudioElement', () => ({ setNativeAudioCommandsBlocked: mocks.block }));
 vi.mock('@/services/playbackFade', () => ({ playbackFade: { flush: vi.fn() } }));
 vi.mock('@/services/exportDiagnosticReport', () => ({ exportDiagnosticReport: mocks.share }));
 const playback = usePlaybackStore.getState(), audio = useAudioSettingsStore.getState(), mixing = useAutomixSettingsStore.getState();
@@ -35,7 +35,7 @@ describe('acknowledged manual engine switching', () => {
         const element = document.createElement('audio'); element.pause = vi.fn(); document.body.append(element);
         let acknowledge!: (v: { stopped: boolean }) => void;
         mocks.reset.mockImplementation(() => new Promise(resolve => { acknowledge = resolve; }));
-        const reload = vi.fn(); const pending = applyPlaybackTestEngine('media3', reload);
+        const reload = vi.fn(); const pending = applyPlaybackEngine('media3', reload);
         expect(element.pause).toHaveBeenCalled(); expect(mocks.block).toHaveBeenCalled();
         expect(reload).not.toHaveBeenCalled(); expect(localStorage.getItem('test_engine')).toBeNull();
         acknowledge({ stopped: true }); await pending;
@@ -48,21 +48,21 @@ describe('acknowledged manual engine switching', () => {
     });
     it('does not apply or reload when native stop fails', async () => {
         mocks.reset.mockRejectedValue(new Error('bridge broken')); const reload = vi.fn();
-        await expect(applyPlaybackTestEngine('web', reload)).rejects.toThrow('bridge broken');
+        await expect(applyPlaybackEngine('web', reload)).rejects.toThrow('bridge broken');
         expect(reload).not.toHaveBeenCalled(); expect(localStorage.getItem('test_engine')).toBeNull();
     });
     it('rejects missing acknowledgment and duplicate switch attempts', async () => {
         mocks.reset.mockResolvedValue({ stopped: false });
-        await expect(applyPlaybackTestEngine('web', vi.fn())).rejects.toThrow('acknowledged');
+        await expect(applyPlaybackEngine('web', vi.fn())).rejects.toThrow('acknowledged');
         mocks.reset.mockImplementation(() => new Promise(() => {})); vi.useFakeTimers();
-        const first = applyPlaybackTestEngine('media3', vi.fn()); const rejected = expect(first).rejects.toThrow('timed out');
-        await expect(applyPlaybackTestEngine('web', vi.fn())).rejects.toThrow('in progress');
+        const first = applyPlaybackEngine('media3', vi.fn()); const rejected = expect(first).rejects.toThrow('timed out');
+        await expect(applyPlaybackEngine('web', vi.fn())).rejects.toThrow('in progress');
         await vi.advanceTimersByTimeAsync(5001); await rejected;
         expect(localStorage.getItem('test_engine')).toBeNull();
     });
     it('cannot run in a non-Android environment', async () => {
         mocks.enabled = false;
-        await expect(applyPlaybackTestEngine('media3', vi.fn())).rejects.toThrow('required');
+        await expect(applyPlaybackEngine('media3', vi.fn())).rejects.toThrow('required');
         expect(mocks.reset).not.toHaveBeenCalled();
     });
 });
