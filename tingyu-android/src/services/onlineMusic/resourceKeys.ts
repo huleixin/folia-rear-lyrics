@@ -1,5 +1,6 @@
 import { useLxSourceStore } from '../../stores/useLxSourceStore';
 import { useAudioSettingsStore } from '../../stores/useAudioSettingsStore';
+import type { AudioQualityPreference } from '../../types/onlineMusic';
 import type { SongResult } from '../../types';
 import { getPlaybackSongKey, getPlaybackSourceRef } from '../../utils/appPlaybackGuards';
 
@@ -7,7 +8,7 @@ import { getPlaybackSongKey, getPlaybackSourceRef } from '../../utils/appPlaybac
 
 export type SongResourceKind = 'audio' | 'lyric' | 'cover' | 'theme' | 'replayGain';
 
-export const getSongResourceCacheKey = (kind: SongResourceKind, song: SongResult): string => {
+export const getSongResourceCacheKey = (kind: SongResourceKind, song: SongResult, quality?: AudioQualityPreference): string => {
     const sourceRef = getPlaybackSourceRef(song);
     const versionedKind = kind === 'cover'
         && sourceRef.kind === 'online'
@@ -15,7 +16,7 @@ export const getSongResourceCacheKey = (kind: SongResourceKind, song: SongResult
         ? 'cover_v2'
         : kind;
     const lxId = kind === 'audio' ? useLxSourceStore.getState().activeId : null;
-    const variant = lxId ? `lx_${lxId}_${useAudioSettingsStore.getState().audioQuality}_` : '';
+    const variant = lxId ? `lx_${lxId}_${quality ?? useAudioSettingsStore.getState().audioQuality}_` : '';
     return `${versionedKind}_${variant}${getPlaybackSongKey(song)}`;
 };
 

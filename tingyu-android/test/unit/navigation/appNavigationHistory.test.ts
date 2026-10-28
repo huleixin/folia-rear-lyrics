@@ -1,3 +1,4 @@
+import { APP_HISTORY_SESSION } from '@/hooks/navigationHistoryJournal';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
     blockLatticeNavigationInFm,
@@ -21,6 +22,7 @@ const state = (
 ): NavigationHistoryState => ({
     view,
     appHistoryIndex,
+    appHistorySession:APP_HISTORY_SESSION,
     search: null,
     collection: null,
 });
@@ -33,6 +35,10 @@ afterEach(() => {
 describe('player navigation history', () => {
     it('returns through browser history when the player was opened from an app page', () => {
         expect(shouldNavigatePlayerBackThroughHistory(state('player', 2))).toBe(true);
+    });
+
+    it('does not traverse history persisted by a previous app process',()=>{
+        expect(shouldNavigatePlayerBackThroughHistory({...state('player',2),appHistorySession:'old'})).toBe(false);
     });
 
     it('uses the direct-home fallback for a player startup entry', () => {

@@ -29,7 +29,6 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
@@ -103,6 +102,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     }
     private val frameOrder = ChromeFrameOrder()
     private var active by mutableStateOf(true)
+    private var focused by mutableStateOf(true)
+    fun windowFocusChanged(value:Boolean){focused=value;host?.invalidate()}
+    fun requiresWebBack():Boolean=destination!="home"||selectedTab!=0||webOverlay||stageExit.active
     private var host: ComposeView? = null
     private var parent: ViewGroup? = null
     private var params: ViewGroup.LayoutParams? = null
@@ -111,32 +113,32 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private val savedPageKeys=LinkedHashSet<String>()
     fun status() = JSONObject().put("supported", Build.VERSION.SDK_INT >= 24).put("engine", "compose-backdrop-1.0.6")
         .put("mounted",host != null).put("active",active).put("surfaces",surfaces.values.count { it.enabled && active }).put("updates",updates).put("pages",Build.VERSION.SDK_INT >= 24)
-    fun pageUpdate(value: JSONObject, reply: (JSONObject) -> Unit) {
+    fun pageUpdate(value: PreparedNativePage, reply: (JSONObject) -> Unit) {
         check(Build.VERSION.SDK_INT >= 24)
-        val next=NativePage.parse(value);val id="page:${next.id}"
+        val next=value.page;val id="page:${next.id}"
         if(!frameOrder.accept(id,next.session,next.generation,next.revision)){reply(status().put("accepted",false));return}
         if(next.enabled&&host==null)attach()
         pages[next.id]=next
-        if(retained.update(next)&&pageBelongsToRoute(next,destination,selectedTab,pageTarget,value.optString("navigation"),navigation)){
+        if(retained.update(next)&&pageBelongsToRoute(next,destination,selectedTab,pageTarget,value.navigation,navigation)){
             recordMotion(next.key)
             presented=next
         }
-        if(next.enabled)cache.page(value)
+        cache.commit(value.cache)
         reply(status().put("accepted",true).put("session",next.session))
     }
     fun pageRemove(id: String, session: String) {
         frameOrder.retire("page:$id",session)
         if(pages[id]?.session==session)pages.remove(id)
     }
-    fun update(value: JSONObject, reply: (JSONObject) -> Unit) {
+    fun update(value: PreparedChromeSurface, reply: (JSONObject) -> Unit) {
         check(Build.VERSION.SDK_INT >= 24)
-        val next = ChromeSurface.parse(value)
+        val next = value.surface
         if (!frameOrder.accept(next.id,next.session,next.generation,next.revision)) { reply(status().put("accepted",false)); return }
         if (next.enabled && host == null) attach()
         surfaces[next.id] = next
         clocks[next.id] = ChromeTimeline(next.position,next.duration,next.playing,SystemClock.elapsedRealtime())
         updates++
-        if(next.enabled)cache.chrome(value)
+        cache.commit(value.cache)
         reply(status().put("session",next.session).put("accepted",true))
     }
     fun clock(value: JSONObject) {
@@ -164,24 +166,25 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     @Composable private fun Scene() {
         val backdrop = rememberLayerBackdrop()
         val exitProgress=rememberStageExitProgress(stageExit,reducedMotion)
-        val visible = if (active&&!webOverlay) surfaces.values.filter {
+        val visible = if (!webOverlay) surfaces.values.filter {
             it.enabled && NativeFooterLayout.visible(it.id,destination,playlistDetail,it.viewportWidth) &&
                 (it.id!="stage"||it.rect.width>0&&it.rect.height>0)
         } else emptyList()
         // Reuse the route's one retained composition beneath the collapsing stage.
         // Creating a second underlay would duplicate saveable keys during a quick Back.
-        val page=if(active)presented?:if(stageExit.active)stageExit.returning else null else null
+        val page=presented?:if(stageExit.active)stageExit.returning else null
         val savedPages=rememberSaveableStateHolder()
         BoxWithConstraints(Modifier.fillMaxSize()) {
+            CompositionLocalProvider(LocalChromeRendering provides (active&&focused)) {
             val density=LocalDensity.current;val width=maxWidth.value;val height=maxHeight.value
             val safeTop=if(nativeTop>=0)nativeTop else WindowInsets.statusBars.getTop(density)/density.density
             val safeBottom=if(nativeBottom>=0)nativeBottom else WindowInsets.navigationBars.getBottom(density)/density.density
             val bootId=if(destination=="home"&&selectedTab==1)"library"else if(destination in setOf("home","collection","search","settings"))destination else "home"
             val bootPage=remember(bootId,width,height,safeTop,safeBottom){cache.page(bootId,width,height,safeTop).copy(safeBottom=safeBottom)}
-            val seedHome=active&&firstHomeFrame&&destination=="home"&&!webOverlay
-            Box(Modifier.fillMaxSize().then(if((visible.isNotEmpty()||seedHome)&&Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop).graphicsLayer{compositingStrategy=CompositingStrategy.Offscreen}else Modifier)) {
+            val seedHome=firstHomeFrame&&destination=="home"&&!webOverlay
+            Box(Modifier.fillMaxSize().then(if((visible.isNotEmpty()||seedHome)&&Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop)else Modifier)) {
                 AndroidView(factory = { web }, modifier = Modifier.fillMaxSize().stageExitTransform(stageExit,exitProgress).zIndex(if(webOverlay||stageExit.active)2f else 0f))
-                if(active&&page==null&&firstHomeFrame&&destination=="home")NativePageView(bootPage,Modifier.fillMaxSize().zIndex(1f)){_,_,_->}
+                if(page==null&&firstHomeFrame&&destination=="home")NativePageView(bootPage,Modifier.fillMaxSize().zIndex(1f)){_,_,_->}
                 // One route-level animation, with no HTML exit animation or full-screen blur.
                 // Data/clock revisions keep the same content key and do not restart it.
                 AnimatedContent(page,modifier=Modifier.fillMaxSize().zIndex(1f),contentKey={it?.key?:"stage"},
@@ -190,7 +193,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         val to=targetState?.key?:"stage"
                         val ease=CubicBezierEasing(.16f,1f,.3f,1f)
                         val position=spring<IntOffset>(dampingRatio=NativeMotionPolicy.Damping,stiffness=NativeMotionPolicy.Stiffness,visibilityThreshold=IntOffset(1,1))
-                        when(NativeMotionPolicy.kind(from,to,backwards,reducedMotion||stageExit.suppressReturnMotion&&from=="stage")){
+                        when(NativeMotionPolicy.kind(from,to,backwards,!focused||!active||reducedMotion||stageExit.suppressReturnMotion&&from=="stage")){
                             NativeMotionKind.NONE->EnterTransition.None togetherWith ExitTransition.None
                             NativeMotionKind.TAB,NativeMotionKind.STAGE->fadeIn(tween(140,easing=ease)) togetherWith fadeOut(tween(100,easing=ease))
                             NativeMotionKind.PUSH->slideInHorizontally(position){it} togetherWith slideOutHorizontally(position){(-it*.22f).roundToInt()}
@@ -216,7 +219,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 }
                 }
             }
-            if(active&&firstHomeFrame&&destination=="home"&&!webOverlay) {
+            if(firstHomeFrame&&destination=="home"&&!webOverlay) {
                 for(id in listOf("nav","mini"))if(!surfaces.containsKey(id)){
                     val seed=remember(id,width,height,selectedTab,safeBottom,safeTop){cache.chrome(id,width,height,safeBottom,safeTop).let{if(id=="nav")it.copy(selected=selectedTab)else it}}
                     val placement=Modifier.offset{IntOffset(with(density){seed.rect.left.dp.roundToPx()},with(density){seed.rect.top.dp.roundToPx()})}
@@ -227,10 +230,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             visible.forEach { surface -> key(surface.id,surface.session) {
                 val scale = web.width / surface.viewportWidth
                 if (scale.isFinite() && scale > 0) {
-                    val rect=if(surface.id=="stage")surface.rect else NativeFooterLayout.rect(surface.id,
+                    val rect=NativeFooterLayout.rect(surface.id,
                         width*density.density/scale,height*density.density/scale,safeTop*density.density/scale,safeBottom*density.density/scale,playlistDetail)
                     val y=rect.top
-                    val animatedY by animateFloatAsState(y,if(surface.reducedMotion||reducedMotion)snap()else spring(dampingRatio=NativeMotionPolicy.Damping,stiffness=NativeMotionPolicy.Stiffness),label="native-chrome-y")
+                    val animatedY by animateFloatAsState(y,if(surface.id=="stage"||!focused||!active||surface.reducedMotion||reducedMotion)snap()else spring(dampingRatio=NativeMotionPolicy.Damping,stiffness=NativeMotionPolicy.Stiffness),label="native-chrome-y")
                     val placement = Modifier.offset { IntOffset((rect.left*scale).roundToInt(),(animatedY*scale).roundToInt()) }
                         .size(with(density){(rect.width*scale).toDp()},with(density){(rect.height*scale).toDp()})
                         .graphicsLayer { alpha = rect.alpha }
@@ -260,6 +263,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 }
             } }
             if(stageExit.active)Box(Modifier.fillMaxSize().zIndex(4f).pointerInput(Unit){awaitPointerEventScope{while(true)awaitPointerEvent().changes.forEach{it.consume()}}})
+            }
         }
     }
     fun destroy() {

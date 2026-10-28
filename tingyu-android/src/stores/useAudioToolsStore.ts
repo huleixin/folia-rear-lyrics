@@ -5,7 +5,7 @@ import type { AudioQualityPreference } from '../types/onlineMusic';
 export const QUALITY_LABELS: Record<AudioQualityPreference, string> = { standard: '标准', high: '高品质', lossless: '无损', hires: 'Hi-Res' };
 export const useAudioToolsStore = create<{
     open: boolean; switching: boolean; error: string; actual: { key: string; quality: AudioQualityPreference } | null;
-    request: { quality: AudioQualityPreference; id: number } | null;
+    request: { quality: AudioQualityPreference; id: number; reason?: 'source' } | null;
     show: () => void; close: () => void; switchQuality: (quality: AudioQualityPreference) => void;
 }>(set => ({
     open: false, switching: false, error: '', actual: null, request: null,

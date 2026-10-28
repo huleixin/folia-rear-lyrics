@@ -70,7 +70,7 @@ const getAppHistoryIndex = (state: unknown): number => {
 
 export const shouldNavigatePlayerBackThroughHistory = (
     state: NavigationHistoryState | null,
-): boolean => state?.view === 'player' && getAppHistoryIndex(state) > 0;
+): boolean => state?.view === 'player' && state.appHistorySession === APP_HISTORY_SESSION && getAppHistoryIndex(state) > 0;
 
 export const shouldReplacePlayerNavigation = (
     state: NavigationHistoryState | null,
@@ -451,13 +451,15 @@ export function useAppNavigation() {
     const navigateBackFromPlayer = useCallback(() => {
         returnFromNativeStage(()=>{
         const historyState = window.history.state as NavigationHistoryState | null;
-        if (shouldNavigatePlayerBackThroughHistory(historyState)) {
+        if (shouldNavigatePlayerBackThroughHistory(historyState) && historyJournal.get(getAppHistoryIndex(historyState)-1)) {
             window.history.back();
             return;
         }
-        navigateDirectHome();
+        // Missing browser history after a renderer restore is not permission to leave the app.
+        // Retain the playlist/search context encoded by the player entry.
+        pushNavigationState({view:'home',replace:true,hash:'#home',collection:historyState?.collection??null,search:historyState?.search??null});
         });
-    }, [navigateDirectHome]);
+    }, [historyJournal,pushNavigationState]);
 
     const navigateToSearch = useCallback(({
         query,

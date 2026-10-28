@@ -1,3 +1,4 @@
+import { useLxSourceStore } from '../../../stores/useLxSourceStore';
 import { useCallback, useMemo, useRef } from 'react';
 import type { SongResult } from '../../../types';
 import { isSongUnavailable } from '../../../services/onlineMusic/songAvailability';
@@ -49,7 +50,8 @@ export const useCollectionView = ({
         () => deriveDisplayTracks(tracks, hiddenKeys, localSort),
         [hiddenKeys, localSort, tracks],
     );
-    const playableTracks = useMemo(() => derivePlayableTracks(displayTracks, isSongUnavailable), [displayTracks]);
+    const lxRevision=useLxSourceStore(state=>state.revision);
+    const playableTracks = useMemo(() => derivePlayableTracks(displayTracks, isSongUnavailable), [displayTracks,lxRevision]);
 
     const occurrenceCacheRef = useRef<DuplicateOccurrenceCache | null>(null);
     const occurrences = useMemo(() => {

@@ -22,7 +22,8 @@ export default function LxSourceDialog({ isDaylight }: { isDaylight: boolean }) 
         <label className="ty-source-entry" style={{ display:'block' }}>导入并启用 .js 文件<input type="file" accept=".js,text/javascript,application/javascript" disabled={busy} onChange={async event => { const file = event.target.files?.[0]; event.target.value = ''; if (!file) return; try { if (file.size > 1048576) throw Error('文件不能超过 1 MB'); await test(parseLxScript(await file.text()), true); } catch(error) { setMessage(String(error)); } }}/></label>
         <div className="ty-lx-actions"><button aria-pressed={!state.activeId} onClick={() => omni.activateLxSource(null)}>使用原音源</button></div>
         {state.scripts.map(script => <section key={script.id} style={{ borderBottom:'1px solid #8884', padding:'12px 0' }}><strong>{script.name} {script.version}</strong><p className="ty-audio-hint">{script.description}<br/>{Object.values(script.capabilities).map(c => `${c.name}: ${c.qualitys.join('/')}`).join(' · ')}</p><div className="ty-lx-actions"><button disabled={busy} aria-pressed={state.activeId === script.id} onClick={() => omni.activateLxSource(script.id)}>{state.activeId === script.id ? '已启用 ✓' : '启用'}</button><button disabled={busy} onClick={() => void test(script, false)}>检查</button><button disabled={busy} onClick={() => { if (state.activeId===script.id) omni.activateLxSource(null); state.remove(script.id); }}>删除</button></div></section>)}
-        <p role="status" className="ty-audio-hint">{message || '未启用时不会运行音源脚本。音源切换从下次取流生效。'}</p>
+        <p role="status" className="ty-audio-hint">{message || '未启用时不会运行音源脚本。切换后会为当前在线歌曲重新取流，并保留播放位置。'}</p>
+        <p className="ty-audio-hint">启用后，已登录平台的歌单和收藏也会使用所选音源播放，歌单归属和收藏操作保持原平台。跨平台时按歌名、歌手和时长匹配；匹配失败会提示，不会悄悄改回原音源。</p>
         <p className="ty-audio-hint">支持常用 request、Buffer、MD5、AES；依赖 RSA、zlib 或 multipart 的脚本暂不兼容。不内置第三方音源。</p>
     </ThemedDialog>;
 }

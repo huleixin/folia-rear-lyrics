@@ -5,6 +5,8 @@ import { isMainStageActive, subscribeMainStageActivity } from '../utils/stageAct
 import type { NativePageId, NativePageModel, PageActions } from '../types/nativePages';
 import '../styles/nativePages.css';
 import { useNativePageImages } from './useNativePageImages';
+import { useStableNativeData } from './useStableNativeData';
+import { sameNativeEnvelope } from '../utils/nativePacketData';
 import {flushNativeShellRoute} from '../services/nativeShellCommit';
 
 export function useNativePagesAvailable() {
@@ -17,19 +19,19 @@ export function useNativePagesAvailable() {
 // A page sends discrete models only. Scrolling, IME, image loading and list recycling are native.
 export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePageId, active: boolean,
     model: NativePageModel, actions: PageActions, onReady?: (ready: boolean) => void) {
-    model=useNativePageImages(model,active);
+    model=useNativePageImages(useStableNativeData(model),active);
     const [ready, setReady] = useState(NATIVE_FIRST);
     const latest = useRef({ active, model, actions, onReady }); latest.current = { active, model, actions, onReady };
     const sync = useRef<() => void>(() => {});
-    const modelSignature=JSON.stringify(model);
-    useLayoutEffect(() => { if(NATIVE_FIRST&&ref.current)ref.current.dataset.nativePage='true';sync.current(); },[modelSignature,active,ref]);
+    useLayoutEffect(() => { if(NATIVE_FIRST&&ref.current)ref.current.dataset.nativePage='true';sync.current(); },[model,active,ref]);
     // Adapters may live below the element owning ref. Its DOM ref is attached after
     // descendant layout effects; subscribe after commit so cold-start data is never missed.
     useEffect(() => {
         const node = ref.current; if (!node || !active) return;
         if(NATIVE_FIRST)node.dataset.nativePage='true';
         const session = crypto.randomUUID(), generation = newChromeGeneration();
-        let disposed = false, started = false, revision = 0, last = '', frame = 0;
+        let disposed = false, started = false, revision = 0, frame = 0;
+        let last: object | undefined;
         let listener: { remove(): Promise<void> } | undefined;
         let resize: ResizeObserver | undefined, mutation: MutationObserver | undefined, unsubscribe: (() => void) | undefined;
         const mark = (value: boolean) => {
@@ -41,6 +43,7 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
         const remove = () => nativePages.pageRemove({ id, session }).catch(() => {});
         const measure = () => {
             frame = 0; if (disposed || !started) return;
+            if(!isMainStageActive())return;
             flushNativeShellRoute();
             const current = latest.current, rect = node.getBoundingClientRect(), style = getComputedStyle(node);
             // A document capture and its key are one model. Never publish a header-only
@@ -53,7 +56,7 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
             const packet = { id, session, generation, enabled, left: rect.left, top: rect.top, width: rect.width,
                 height: rect.height, viewportWidth: innerWidth, safeTop, safeBottom, model: current.model,
                 navigation:document.documentElement.dataset.nativeNavigation??'' };
-            const key = JSON.stringify(packet); if (key === last) return; last = key;
+            if (sameNativeEnvelope(last, packet)) return; last = packet;
             const sent = ++revision; if (!enabled) mark(false);
             void nativePages.pageUpdate({ ...packet, revision: sent }).then(result => {
                 if (disposed) { void remove(); return; }
@@ -61,7 +64,7 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
             }).catch(error => {
                 if (sent !== revision || disposed) return;
                 console.warn('[NativePages] Native page update failed', error);
-                last = ''; mark(false);
+                last = undefined; mark(false);
             });
         };
         const schedule = () => { if (!frame && !disposed) frame = requestAnimationFrame(measure); };

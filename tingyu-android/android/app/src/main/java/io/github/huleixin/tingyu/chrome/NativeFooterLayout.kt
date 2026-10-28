@@ -10,6 +10,11 @@ internal object NativeFooterLayout {
     }
     fun rect(id:String,width:Float,height:Float,top:Float,bottom:Float,playlist:Boolean):ChromeRect {
         val wide=width>=840f;val short=wide&&height<=600f
+        if(id=="stage"){
+            val stageWidth=minOf(width-32f,if(wide)600f else width-32f)
+            val stageHeight=136f
+            return ChromeRect((width-stageWidth)/2,height-stageHeight-bottom-10f,stageWidth,stageHeight,1f)
+        }
         return if(id=="nav"){
             if(wide)ChromeRect(if(short)8f else 12f,16f+top,80f,height-32f-top,1f)
             else ChromeRect(10f,height-62f-bottom,width-20f,54f,1f)

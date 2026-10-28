@@ -30,8 +30,12 @@ public class TingyuChromePlugin extends Plugin {
         try { call.resolve(JSObject.fromJSONObject(host().status())); }
         catch (Exception error) { call.reject(error.getMessage(),error); }
     }); }
-    @PluginMethod public void update(PluginCall call) { getActivity().runOnUiThread(() -> {
-        try { host().update(call.getData(), result -> {
+    @PluginMethod public void update(PluginCall call) {
+        final PreparedChromeSurface packet;
+        try { packet=PreparedChromeSurface.parse(call.getData()); }
+        catch(Exception error){call.reject(error.getMessage(),error);return;}
+        getActivity().runOnUiThread(() -> {
+        try { host().update(packet, result -> {
             try { call.resolve(JSObject.fromJSONObject(result)); }
             catch (Exception error) { call.reject(error.getMessage(),error); }
             return kotlin.Unit.INSTANCE;
@@ -40,8 +44,12 @@ public class TingyuChromePlugin extends Plugin {
         catch (Exception error) { call.reject(error.getMessage(),error); }
     }); }
     @PluginMethod public void clock(PluginCall call) { getActivity().runOnUiThread(() -> { if (host != null) host.clock(call.getData()); call.resolve(); }); }
-    @PluginMethod public void pageUpdate(PluginCall call) { getActivity().runOnUiThread(() -> {
-        try { host().pageUpdate(call.getData(), result -> {
+    @PluginMethod public void pageUpdate(PluginCall call) {
+        final PreparedNativePage packet;
+        try { packet=PreparedNativePage.parse(call.getData()); }
+        catch(Exception error){call.reject(error.getMessage(),error);return;}
+        getActivity().runOnUiThread(() -> {
+        try { host().pageUpdate(packet, result -> {
             try { call.resolve(JSObject.fromJSONObject(result)); } catch(Exception error) { call.reject(error.getMessage(),error); }
             return kotlin.Unit.INSTANCE;
         }); } catch(Exception error) { call.reject(error.getMessage(),error); }

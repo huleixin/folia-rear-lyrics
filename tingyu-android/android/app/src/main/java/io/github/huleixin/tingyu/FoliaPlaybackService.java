@@ -479,6 +479,7 @@ public class FoliaPlaybackService extends Service {
      * normal Wi-Fi lock; modern Android manages buffered network audio without a low-latency lock.
      */
     private void updatePlaybackLocks(boolean playing) {
+        playing=playing&&!io.github.huleixin.tingyu.playback.NativeAudioEngine.isActive(); // Media3 owns its wake policy.
         try {
             if (playing) {
                 if (wakeLock != null && !wakeLock.isHeld()) wakeLock.acquire();
@@ -561,6 +562,7 @@ public class FoliaPlaybackService extends Service {
 
     @Override
     public void onDestroy() {
+        io.github.huleixin.tingyu.playback.NativeAudioEngine.releaseIfPresent();
         recordServiceLifecycle("service-destroy", "Foreground playback service destroyed");
         running = false;
         mainHandler.removeCallbacks(serviceHeartbeatRunnable);

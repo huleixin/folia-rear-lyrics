@@ -28,7 +28,7 @@ it('mounts the app without loading closed settings/lyric editors, then opens set
     try {
         await act(async () => root.render(h(AppDialogs, { model: {} })));
         expect(loads).toEqual({ settings: 0, lyrics: 0 });
-        await act(async () => root.render(h(AppDialogs, { model: { settingsDialog: {} } as AppDialogsModel })));
+        await act(async () => root.render(h(AppDialogs, { model: { settingsDialog: {initialSubview:'general'} } as AppDialogsModel })));
         expect(loads.settings).toBe(1); expect(loads.lyrics).toBe(0);
         expect(host.querySelector('[data-test-settings]')?.textContent).toBe('Settings ready');
         await act(async () => root.render(h(AppDialogs, { model: {} })));

@@ -143,7 +143,8 @@ export default function MobileStageChrome({
                 {menuOpen && <MobileStageMenu onClose={closeMenu} />}
             </header>
             {controls && !controls.hideControlBar && (
-                <section ref={playerRef} className="mps-player" aria-label={t('mobileStage.playback')}>
+                <section ref={playerRef} className="mps-player" style={compose?{height:136,boxSizing:"border-box"}:undefined} aria-label={t('mobileStage.playback')}>
+                    {!compose && <>
                     <div className="mps-transport">
                         <button
                             className="mps-secondary"
@@ -211,6 +212,7 @@ export default function MobileStageChrome({
                             ariaLabel={t('mobileStage.seek')}
                         />
                     </div>
+                    </>}
                 </section>
             )}
         </div>

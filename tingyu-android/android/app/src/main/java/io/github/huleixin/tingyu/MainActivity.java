@@ -42,6 +42,7 @@ public class MainActivity extends BridgeActivity {
         CrashDiagnostics.install(getApplicationContext());
         clearWebViewCachesAfterAppUpdate();
         registerPlugin(FoliaNativePlugin.class);
+        registerPlugin(io.github.huleixin.tingyu.playback.TingyuPlaybackPlugin.class);
         if (BuildConfig.COMPOSE_CHROME) registerPlugin(io.github.huleixin.tingyu.chrome.TingyuChromePlugin.class);
         if (BuildConfig.GLASS_LAB) {
             registerPlugin(io.github.huleixin.tingyu.glass.TingyuGlassPlugin.class);
@@ -73,7 +74,9 @@ public class MainActivity extends BridgeActivity {
                 // Let the WebView close its own settings/effects layer first. When nothing is open the
                 // JS handler now moves the task to the background so playback keeps running; this
                 // Also preserve playback if Back arrives before the JS listener is ready.
-                if (FoliaNativePlugin.emitBackPressed()) return;
+                boolean pageBack = nativeShell != null && nativeShell.requiresWebBack();
+                if (FoliaNativePlugin.emitBackPressed(pageBack)) return;
+                if (pageBack) return; // A not-yet-bound stage must never background the task.
                 CrashDiagnostics.recordText(
                     getApplicationContext(),
                     "activity-lifecycle",
@@ -292,11 +295,13 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
+        if(nativeShell!=null)nativeShell.windowFocusChanged(hasFocus);
         if (hasFocus && getBridge() != null) {
             WebView webView = getBridge().getWebView();
             if (webView != null) {
-                webView.post(() -> restoreAdaptiveLayout(webView));
-                webView.post(() -> PhoneFitCutout.apply(this));
+                // A floating system dialog did not change the window layout policy. Reinstalling
+                // edge-to-edge here produces transient inset/RenderNode poses behind its dim layer.
+                webView.post(webView::invalidate);
             }
         }
     }

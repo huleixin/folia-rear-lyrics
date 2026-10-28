@@ -1,3 +1,4 @@
+import { captureAudioSourceBinding } from './audioSourceBinding';
 import { useLxSourceStore } from '../../stores/useLxSourceStore';
 import type { SongResult, UnifiedSong } from '../../types';
 import type {
@@ -154,7 +155,9 @@ export const omni = {
         const candidates = this.getProviderSummaries().filter(p=>p.providerId.startsWith('lx-')&&p.availability.configured);
         const preferred = previous.startsWith('lx-') ? previous : baseToLx[previous];
         const original = Object.entries(baseToLx).find(([,value])=>value===previous)?.[0] || 'netease';
-        const target = scriptId ? candidates.find(p=>p.providerId===preferred)?.providerId || candidates[0]?.providerId : previous.startsWith('lx-') ? original : previous;
+        // Choosing playback bytes must not replace the account/catalogue currently being browsed.
+        const target = !previous.startsWith('lx-') ? previous : scriptId
+            ? candidates.find(p=>p.providerId===preferred)?.providerId || candidates[0]?.providerId || original : original;
         if (target) useOnlineProviderAccountStore.getState().setActiveProviderId(target);
     },
 
@@ -599,11 +602,12 @@ export const omni = {
     },
 
     async getAudioSource(song: SongResult, quality: AudioQualityPreference): Promise<OmniAudioSource | null> {
+        const bind = captureAudioSourceBinding(song, quality);
         const lxState = useLxSourceStore.getState();
         if (lxState.activeId) {
             const { resolveLxSource } = await import('../lxSource/playback');
             const lxSource = await resolveLxSource(song, quality);
-            if (lxSource) return lxSource;
+            if (lxSource) return bind(lxSource);
         }
         const provider = providerForSong(song);
         // 取流是「暂时无法播放这首歌」所有来源里唯一必经的入口：三档结果都留痕，报告才分得清
@@ -623,7 +627,7 @@ export const omni = {
                     stage: 'resolve', outcome: 'ok', providerId: provider.id, mediaId, quality,
                     kind: 'hook-rescued', elapsedMs: Date.now() - startedAt,
                 });
-                return rescued;
+                return bind(rescued);
             }
             noteOnlinePlaybackError({
                 stage: 'resolve', providerId: provider.id, mediaId, quality,
@@ -648,7 +652,7 @@ export const omni = {
             detail: resolved?.url ? '' : 'provider returned no playable url',
             elapsedMs: Date.now() - startedAt,
         });
-        return resolved;
+        return bind(resolved);
     },
 
     // Asked once per track, including for local and Navidrome songs, so an unsupported source is a

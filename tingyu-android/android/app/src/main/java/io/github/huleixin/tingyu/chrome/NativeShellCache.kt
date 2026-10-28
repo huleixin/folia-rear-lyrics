@@ -13,16 +13,29 @@ internal class NativeShellCache(context: Context) {
     private fun storageKey(id:String)=if(id=="settings")"settings_design_v2" else id
     init { for(id in listOf("home","library","settings","search","collection","nav","mini","stage"))prefs.getString(storageKey(id),null)?.let{values[id]=it} }
     private fun read(id:String)=runCatching{JSONObject(values[id]?:"")}.getOrNull()
-    private fun save(id:String,value:JSONObject){val text=value.toString();if(text.length<=250000&&values[id]!=text){values[id]=text;prefs.edit().putString(storageKey(id),text).apply()}}
-    fun page(value:JSONObject){val model=value.optJSONObject("model")?:return;val id=value.optString("id")
-        // Queries are already owned by the search-history store; do not create another disk copy.
-        val blocks=model.optJSONArray("sections")
-        // Persist the initial window only; a scrolled window cannot stand in for the start of a list.
-        if((0 until (blocks?.length()?:0)).any{blocks!!.getJSONObject(it).optInt("offset")>0})return
-        // Form documents may contain typed credentials. Only cache the public index schema.
-        if(id=="home"||id=="settings"&&model.optString("key")=="settings:index")save(if(id=="home"&&model.optString("key").startsWith("library:"))"library"else id,model)
+    fun commit(snapshot:NativeCachedPresentation?){
+        snapshot?:return
+        if(values[snapshot.id]!=snapshot.text){values[snapshot.id]=snapshot.text;prefs.edit().putString(storageKey(snapshot.id),snapshot.text).apply()}
     }
-    fun chrome(value:JSONObject){val data=value.optJSONObject("data")?:return;val copy=JSONObject(data.toString());copy.remove("position");save(value.optString("id"),copy)}
+    companion object {
+        private fun snapshot(id:String,value:JSONObject):NativeCachedPresentation? {
+            val text=value.toString()
+            return if(text.length<=250000)NativeCachedPresentation(id,text)else null
+        }
+        fun preparePage(value:JSONObject):NativeCachedPresentation? {
+            val model=value.optJSONObject("model")?:return null;val id=value.optString("id")
+            val blocks=model.optJSONArray("sections")
+            if((0 until (blocks?.length()?:0)).any{blocks!!.getJSONObject(it).optInt("offset")>0})return null
+            // Never persist form documents, typed credentials or search queries.
+            if(id!="home"&&!(id=="settings"&&model.optString("key")=="settings:index"))return null
+            return snapshot(if(id=="home"&&model.optString("key").startsWith("library:"))"library"else id,model)
+        }
+        fun prepareChrome(value:JSONObject):NativeCachedPresentation? {
+            val data=value.optJSONObject("data")?:return null;val copy=JSONObject()
+            data.keys().forEach{key->if(key!="position")copy.put(key,data.get(key))}
+            return snapshot(value.optString("id"),copy)
+        }
+    }
     fun page(id:String,width:Float,height:Float,top:Float):NativePage {
         val model=read(id)?:JSONObject().put("key","boot:$id").put("title",when(id){"settings"->"选项";"search"->"搜索";"collection"->"歌单";else->"推荐"})
             .put("trailing",if(id=="home"||id=="library")"sources"else"").put("trailingLabel","音乐来源")

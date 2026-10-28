@@ -46,9 +46,10 @@ internal fun playlistBarHeight(phase: Float, bar: Int): Float =
 /** Only this visible draw node ticks. No audio analysis, bridge traffic or list recomposition. */
 @Composable internal fun PlaylistPlaybackIndicator(playing: Boolean) {
     val phase=remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(playing) {
+    val rendering=LocalChromeRendering.current
+    LaunchedEffect(playing,rendering) {
         phase.floatValue=0f
-        if(!playing || (coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f)==0f)return@LaunchedEffect
+        if(!rendering || !playing || (coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f)==0f)return@LaunchedEffect
         val start=SystemClock.elapsedRealtime()
         while(isActive){ delay(50);phase.floatValue=(SystemClock.elapsedRealtime()-start)%1500/1500f }
     }

@@ -2,6 +2,7 @@ import type { SongResult } from '../../types';
 import type { ProviderSongAvailability, ProviderSongReplacement } from '../../types/onlineMusic';
 import { getOnlineMusicProviderForSong } from './providerRegistry';
 import { getPlaybackSourceRef } from '../../utils/appPlaybackGuards';
+import { selectedLxScript } from '../lxSource/selection';
 
 // src/services/onlineMusic/songAvailability.ts
 
@@ -11,6 +12,7 @@ const UNKNOWN: ProviderSongAvailability = { state: 'unknown' };
 // Resolves provider-owned availability without exposing provider-specific fields to UI code.
 export const getSongAvailability = (song: SongResult): ProviderSongAvailability => {
     if (getPlaybackSourceRef(song).kind !== 'online') return PLAYABLE;
+    if(selectedLxScript())return UNKNOWN; // Account-tier restrictions are not the selected script's availability.
 
     const provider = getOnlineMusicProviderForSong(song);
     return provider?.playback?.getAvailability?.(song) || UNKNOWN;

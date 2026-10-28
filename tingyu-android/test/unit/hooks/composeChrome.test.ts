@@ -49,10 +49,11 @@ it('connects a native footer without waiting for an invisible ancestor entry ani
     expect(bridge.update.mock.calls.at(-1)?.[0].enabled).toBe(true);
     expect(bridge.update.mock.calls.at(-1)?.[0].safeBottom).toBe(0);
 });
-it('still honours entry inertness for stage controls',async()=>{
+it('native stage controls do not inherit the hidden HTML entry animation inertness',async()=>{
     host.setAttribute('inert','');
     await act(async()=>root.render(h(Probe,{id:'stage'})));await settle(20);
-    expect(bridge.update.mock.calls.at(-1)?.[0].enabled).toBe(false);
+    expect(bridge.update.mock.calls.at(-1)?.[0].enabled).toBe(true);
+    expect(bridge.update.mock.calls.at(-1)?.[0].height).toBe(136);
 });
 it('never reveals legacy controls if a native probe fails',async()=>{
     bridge.supported=false;

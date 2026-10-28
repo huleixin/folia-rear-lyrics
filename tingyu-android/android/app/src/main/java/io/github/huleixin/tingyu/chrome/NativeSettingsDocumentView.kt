@@ -31,6 +31,8 @@ import kotlinx.coroutines.FlowPreview
     val scrolls=document.areas.associate{area->area.id to key(area.id){remember{mutableFloatStateOf(area.offset.toFloat())}}}
     val drawings=remember(document.paints){document.paints.map{SettingsDrawing(it)}}
     val images=document.paints.filter{it.kind=="image"}.associate{it.image to rememberAsyncImagePainter(pageImage(it.image))}
+    val needsIsolation=remember(document.paints){document.paints.any{it.kind=="live"}}
+    val clearPaint=remember{android.graphics.Paint().apply{xfermode=android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR)}}
     val latestAction by rememberUpdatedState(action)
     fun offset(id:String)=if(id.isEmpty())0f else scrolls[id]?.floatValue?:0f
     fun hit(x:Float,y:Float):SettingControl?=document.controls.asReversed().firstOrNull{control->
@@ -42,15 +44,14 @@ import kotlinx.coroutines.FlowPreview
         if(control!=null&&!control.disabled&&control.kind=="click")latestAction(control.id,"",0.0)
         else if(document.live.any{it.contains(x,y)})latestAction("liveTap","{\"x\":$x,\"y\":$y}",0.0)
     }}){
-        Canvas(Modifier.fillMaxSize().graphicsLayer{compositingStrategy=CompositingStrategy.Offscreen}){
+        Canvas(Modifier.fillMaxSize().then(if(needsIsolation)Modifier.graphicsLayer{compositingStrategy=CompositingStrategy.Offscreen}else Modifier)){
             drawings.forEach{drawing->val p=drawing.node;val area=document.areas.firstOrNull{it.id==p.area};val dy=offset(p.area)
                 if(area!=null&&(p.rect.y-dy+p.rect.h<area.rect.y||p.rect.y-dy>area.rect.y+area.rect.h))return@forEach
                 drawIntoCanvas{composeCanvas->val canvas=composeCanvas.nativeCanvas;canvas.save();canvas.scale(scale,scale)
                     if(area!=null)canvas.clipRect(area.rect.x,area.rect.y,area.rect.x+area.rect.w,area.rect.y+area.rect.h)
                     canvas.translate(0f,-dy)
                     when(p.kind){
-                        "live"->{val paint=android.graphics.Paint();paint.xfermode=android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR)
-                            canvas.drawRoundRect(p.rect.x,p.rect.y,p.rect.x+p.rect.w,p.rect.y+p.rect.h,p.radius,p.radius,paint)}
+                        "live"->{canvas.drawRoundRect(p.rect.x,p.rect.y,p.rect.x+p.rect.w,p.rect.y+p.rect.h,p.radius,p.radius,clearPaint)}
                         "image"->{canvas.translate(p.rect.x,p.rect.y);val clip=android.graphics.Path();clip.addRoundRect(0f,0f,p.rect.w,p.rect.h,p.radius,p.radius,android.graphics.Path.Direction.CW);canvas.clipPath(clip)
                             images[p.image]?.let{painter->with(painter){draw(Size(p.rect.w,p.rect.h),p.opacity)}}}
                         else->drawing.draw(canvas)

@@ -80,6 +80,7 @@ it('does not remeasure or resend unchanged models across repeated parent renders
     await act(async()=>root.render(h(Probe)));
     const measure=vi.mocked(HTMLElement.prototype.getBoundingClientRect),count=measure.mock.calls.length;
     const packets=bridge.update.mock.calls.length;
+    const stringify=vi.spyOn(JSON,'stringify');
     for(let i=0;i<30;i++)await act(async()=>root.render(h(Probe)));
-    expect(measure.mock.calls.length).toBe(count);expect(bridge.update.mock.calls.length).toBe(packets);
+    expect(measure.mock.calls.length).toBe(count);expect(bridge.update.mock.calls.length).toBe(packets);expect(stringify).not.toHaveBeenCalled();
 });

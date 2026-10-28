@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StatusMessage } from '../../../src/types';
 
@@ -29,6 +30,8 @@ const reactHooks = vi.hoisted(() => {
 });
 
 vi.mock('react', () => ({
+    useSyncExternalStore: (_subscribe:unknown,getSnapshot:()=>unknown)=>getSnapshot(),
+    useDebugValue:()=>{},
     useCallback: (callback: unknown) => callback,
     useMemo: (factory: () => unknown) => factory(),
     useRef: (initial: unknown) => reactHooks.useRef(initial),
@@ -57,6 +60,8 @@ vi.mock('../../../src/stores/useAppViewStore', () => ({
         panelTab: 'queue',
     }),
 }));
+vi.mock('../../../src/stores/useRearRuntimeStore',()=>({useRearRuntimeStore:Object.assign((selector:(state:unknown)=>unknown)=>selector({enabled:false,sleeping:true}),{getState:()=>({enabled:false,sleeping:true})})}));
+vi.mock('../../../src/stores/useAutomixSettingsStore',()=>({useAutomixSettingsStore:(selector:(state:unknown)=>unknown)=>selector({automixEnabled:false})}));
 vi.mock('../../../src/stores/useStatusMessageStore', () => ({ setStatusMessage: vi.fn() }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('../../../src/utils/appPlaybackGuards', () => ({ resolveNavidromePlaybackCarrier: () => null }));
@@ -88,6 +93,7 @@ const renderBridge = (deck: ReturnType<typeof createDeck>, shouldAutoPlayRef: { 
     usePlaybackAudioBridge({
         audioRef: { current: deck as unknown as HTMLAudioElement },
         localSongs: [],
+        getAudioElements:()=>[deck as unknown as HTMLAudioElement],
         isLyricsLoading: false,
         shouldAutoPlayRef,
         audioContextRef: { current: null },

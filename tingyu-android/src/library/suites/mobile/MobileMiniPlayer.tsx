@@ -65,6 +65,7 @@ export default function MobileMiniPlayer({
     useMobileGlass(glassRef,!compose);
     return (
         <div ref={glassRef} className="ml-mini" data-testid="mobile-mini-player">
+            {!compose && <>
             <div className="ml-mini-swipe-window">
                 <span className="ml-mini-preview" aria-hidden="true">
                     <span data-direction="next">{nextTrackLabel || t('ui.nextTrack')}</span>
@@ -101,6 +102,7 @@ export default function MobileMiniPlayer({
                     <ListMusic size={24} />
                 </button>
             </div>
+            </>}
         </div>
     );
 }

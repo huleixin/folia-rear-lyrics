@@ -112,6 +112,7 @@ public class FoliaNativePlugin extends Plugin {
     }
 
     static void emitMediaAction(String action) {
+        if(io.github.huleixin.tingyu.playback.NativeAudioEngine.mediaAction(action))return;
         FoliaNativePlugin plugin = instance;
         if (plugin == null) return;
         JSObject payload = new JSObject();
@@ -152,8 +153,11 @@ public class FoliaNativePlugin extends Plugin {
     }
 
     static boolean emitBackPressed() {
+        return emitBackPressed(false);
+    }
+    static boolean emitBackPressed(boolean forceWeb) {
         FoliaNativePlugin plugin = instance;
-        if (plugin != null && !plugin.mainBackPolicy.needsWebHandler()) return false;
+        if (!forceWeb && plugin != null && !plugin.mainBackPolicy.needsWebHandler()) return false;
         if (plugin == null || !plugin.hasListeners("backButton")) {
             if (plugin != null) {
                 CrashDiagnostics.recordText(

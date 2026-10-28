@@ -13,6 +13,7 @@ import { useRearRuntimeStore } from '../stores/useRearRuntimeStore';
 import { isMainStageActive } from '../utils/stageActivity';
 import { isAndroidNativeRuntime } from '../utils/platform';
 import { playbackWorkPolicy, startPlaybackWorkScheduler } from '../utils/playbackWorkScheduler';
+import { nativeAudioSpectrum } from '../services/nativeAudioElement';
 
 // src/hooks/usePlaybackVisualizerBridge.ts
 
@@ -95,14 +96,15 @@ export function usePlaybackVisualizerBridge({
         // a visible stutter at exactly the moment meant to be seamless.
         const hasAudibleSignal = isActuallyPlaying || isTransitionAudible();
 
-        if (sampleAudio && hasAudibleSignal && analyserRef.current) {
-            const bufferLength = analyserRef.current.frequencyBinCount;
+        const nativeBins=nativeAudioSpectrum(audioElement);
+        if (sampleAudio && hasAudibleSignal && (analyserRef.current||nativeBins)) {
+            const bufferLength = nativeBins?.length??analyserRef.current!.frequencyBinCount;
             let dataArray = frequencyDataRef.current;
             if (!dataArray || dataArray.length !== bufferLength) {
                 dataArray = new Uint8Array(bufferLength);
                 frequencyDataRef.current = dataArray;
             }
-            analyserRef.current.getByteFrequencyData(dataArray);
+            if(nativeBins)dataArray.set(nativeBins);else analyserRef.current!.getByteFrequencyData(dataArray);
             audioBands.spectrum?.set(dataArray);
 
             const getEnergy = (minHz: number, maxHz: number): number => {

@@ -23,6 +23,7 @@ import { useAppViewStore } from '../stores/useAppViewStore';
 import { noteAudioContext } from '../utils/mediaDiagnostics';
 import { useAutomixSettingsStore } from '../stores/useAutomixSettingsStore';
 import { bindPlaybackContextIdle, needsProcessedPlayback } from '../services/playbackPower';
+import { isNativeAudioElement } from '../services/nativeAudioElement';
 
 // src/hooks/usePlaybackAudioBridge.ts
 
@@ -156,7 +157,7 @@ export function usePlaybackAudioBridge({
     const setupAudioAnalyzer = useCallback(() => {
         // The context is the sentinel, not the source node: a deck that failed to connect must
         // not let this run twice, because createMediaElementSource throws on a second call.
-        if (!audioRef.current || audioContextRef.current) return;
+        if (!audioRef.current || audioContextRef.current || isNativeAudioElement(audioRef.current)) return;
         if (!needsProcessedPlayback({ android: isAndroidNativeRuntime(), analysis: needsPlaybackAnalysis(),
             equalizer: audioEqualizerSettings.enabled, automix: automixEnabled, replayGain: replayGainMode, fade: fadeEnabled })) return;
         try {

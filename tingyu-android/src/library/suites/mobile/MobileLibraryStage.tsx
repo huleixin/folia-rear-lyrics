@@ -35,8 +35,10 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
     const footerRef = useRef<HTMLElement>(null);
     useMobileFooterMotion(footerRef, navRef, playlistDetail);
     const nativeNavigate = useCallback((index: number) => {
-        navRef.current?.querySelectorAll('button')[index]?.click();
-    }, [navRef]);
+        if(index===0||index===1){useMobileLibraryStore.getState().setPage(index===0?'home':'library');props.onLibraryHome?.();}
+        else if(index===2){const search=useSearchNavigationStore.getState();search.restoreSearch({query:'',sourceTab:search.searchSourceTab,returnView:'home'});}
+        else if(index===3)useSettingsModalStore.getState().openSettings('options');
+    }, [props.onLibraryHome]);
     const nativeGlass = useNativeGlassNav(navRef, !COMPOSE_CHROME && props.isInteractive && !settingsOpen && !searchOpen, `${playlistDetail}:${page}`, nativeNavigate);
     const reducedMotion = useReducedMotionFor('uiMicroMotion');
     const homeView = useAppViewStore(state=>state.view==='home'&&!state.isPanelOpen);
@@ -67,6 +69,7 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
                 previousTrackLabel={props.previousTrackLabel}
             />
             <nav ref={navRef} inert={playlistDetail && !wide} aria-hidden={playlistDetail && !wide || undefined} aria-label={t('mobileLibrary.navigation')}>
+                {!compose && <>
                 <button
                     aria-current={homeActive ? 'page' : undefined}
                     onClick={() => go('home')}
@@ -98,6 +101,7 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
                     <TingyuNavIcon name="settings" active={settingsOpen} />
                     <span>{t('mobileLibrary.settingsNav')}</span>
                 </button>
+                </>}
             </nav>
         </footer>
     );

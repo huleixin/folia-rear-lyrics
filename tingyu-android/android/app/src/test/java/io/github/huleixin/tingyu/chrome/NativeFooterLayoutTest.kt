@@ -5,6 +5,12 @@ import org.junit.Test
 
 // android/app/src/test/java/io/github/huleixin/tingyu/chrome/NativeFooterLayoutTest.kt
 class NativeFooterLayoutTest {
+    @Test fun stageGeometryIsIndependentOfHiddenHtmlAnimationPoses(){
+        val stage=NativeFooterLayout.rect("stage",393f,852f,30f,22f,false)
+        assertEquals(136f,stage.height,0f);assertEquals(32f,852f-stage.top-stage.height,0f)
+        assertEquals(16f,stage.left,0f)
+        assertEquals(stage,NativeFooterLayout.rect("stage",393f,852f,30f,22f,true))
+    }
     @Test fun returningWithoutChangingSongRestoresTheHomeNavigationAndMiniPosition(){
         val home=NativeFooterLayout.rect("mini",393f,852f,30f,22f,false)
         val detail=NativeFooterLayout.rect("mini",393f,852f,30f,22f,true)

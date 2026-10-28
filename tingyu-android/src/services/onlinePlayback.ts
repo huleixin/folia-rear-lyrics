@@ -1,4 +1,5 @@
 import { useAudioToolsStore } from '../stores/useAudioToolsStore';
+import { selectedLxScript } from './lxSource/selection';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
 import { LyricData, OnlineLyricsState, ReplayGainInfo, SongResult } from '../types';
 import { saveToCache } from './db';
@@ -47,6 +48,7 @@ export async function loadOnlineSongAudioSource(
     prefetched: PrefetchedSongData | null,
     options: LoadOnlineAudioSourceOptions = {},
 ): Promise<OnlineAudioSourceResult> {
+    const lxSelected=!!selectedLxScript();
     // 缓存 blob 解码失败过（distrust）或调用方要求绕过时不读缓存；读缓存出错只记日志，继续走 provider。
     if (!options.bypassMediaCache && !isCachedSongAudioDistrusted(song)) {
         let cachedAudioBlob: Blob | null = null;
@@ -85,7 +87,7 @@ export async function loadOnlineSongAudioSource(
 
     for (let attempt = 0; ; attempt += 1) {
         const cooldown = providerId ? getProviderPlaybackCooldown(providerId, 'play') : null;
-        if (cooldown) {
+        if (cooldown && !lxSelected) {
             // 冷却期内**不会发起取流**，所以这条必须单独留痕：报告里否则既没有请求也没有失败。
             noteOnlinePlaybackOutcome({
                 stage: 'resolve',
@@ -132,7 +134,7 @@ export async function loadOnlineSongAudioSource(
             console.warn('[OnlinePlayback] Provider returned no playable audio URL', failure.reason);
         }
 
-        noteProviderFailure(failure);
+        if(!lxSelected)noteProviderFailure(failure);
         // 「暂时无法播放这首歌」来自 invalid-response / unknown 两档；这里把它们真正的原因
         // （stage、reason、上游码、是否拿到了地址）记下来，否则报告里只有一条 ok 记录、对不上。
         noteOnlinePlaybackOutcome({

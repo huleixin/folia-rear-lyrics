@@ -15,11 +15,14 @@ import kotlin.math.max
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ChromePlayback.kt
 // The ticking state is read by draw nodes only; it never re-renders the WebView or whole control tree.
+internal val LocalChromeRendering = staticCompositionLocalOf { true }
+
 @Composable fun rememberChromeNow(timeline: ChromeTimeline?): State<Long> {
     val now=remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
-    LaunchedEffect(timeline) {
+    val rendering=LocalChromeRendering.current
+    LaunchedEffect(timeline,rendering) {
         now.longValue=SystemClock.elapsedRealtime()
-        if(timeline?.playing==true) while(SystemClock.elapsedRealtime()-timeline.receivedAt<2600) { delay(33);now.longValue=SystemClock.elapsedRealtime() }
+        if(rendering&&timeline?.playing==true) while(SystemClock.elapsedRealtime()-timeline.receivedAt<2600) { delay(33);now.longValue=SystemClock.elapsedRealtime() }
     }
     return now
 }

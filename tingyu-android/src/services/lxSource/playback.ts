@@ -6,6 +6,8 @@ import { useLxSourceStore } from '../../stores/useLxSourceStore';
 import { chooseLxQuality, LX_QUALITIES, validateRemoteUrl } from './contract';
 import { prepareLxAudio } from './media';
 import { LxRuntime } from './client';
+import { lxPlatformFor } from './selection';
+import { matchLxCatalogSong } from './catalogMatch';
 
 // src/services/lxSource/playback.ts
 let runtime: LxRuntime | null = null;
@@ -15,17 +17,17 @@ useLxSourceStore.subscribe(state => { if (state.revision !== revision) { runtime
 export async function resolveLxSource(song: SongResult, quality: AudioQualityPreference): Promise<OmniAudioSource | null> {
     const state = useLxSourceStore.getState();
     const script = state.scripts.find(s => s.id === state.activeId);
-    const ref = getPlaybackSourceRef(song);
+    let ref = getPlaybackSourceRef(song);
     if (!script || ref.kind !== 'online') return null;
-    const platform: Record<string, string> = { netease: 'wy', qq: 'tx', kugou: 'kg' };
-    const source = ref.providerId.startsWith('lx-') ? ref.providerId.slice(3) : platform[ref.providerId];
-    if (!source) return null;
     if (idle) clearTimeout(idle);
     if (!runtime || revision !== state.revision) { runtime?.stop(); runtime = new LxRuntime(script); revision = state.revision; }
     const active = runtime;
     try {
         const capabilities = await active.ready;
-        if (!capabilities[source]) return null;
+        song=await matchLxCatalogSong(song,capabilities);
+        ref=getPlaybackSourceRef(song);if(ref.kind!=='online')throw Error('歌曲平台信息无效');
+        const source=lxPlatformFor(ref.providerId);
+        if(!source||!capabilities[source])throw Error('所选音源不支持此歌曲平台');
         const type = chooseLxQuality(quality, capabilities[source].qualitys);
         const metadata = getProviderSongMetadata(song);
         const data = ref.providerData || {};
@@ -47,7 +49,7 @@ export async function resolveLxSource(song: SongResult, quality: AudioQualityPre
         return { url, fetchedAt: Date.now(), quality: (['standard','high','lossless','hires'] as const)[LX_QUALITIES.indexOf(type)] };
     } catch (error) {
         const detail = (error instanceof Error ? error.message : String(error)).replace(/https?:\/\/[^\s"'<>]+/gi, '[地址]').replace(/[\r\n\t]/g, ' ').slice(0, 140);
-        throw new OnlineProviderError('unavailable', detail, ref.providerId, undefined, undefined, undefined,
+        throw new OnlineProviderError('unavailable', detail, ref.kind==='online'?ref.providerId:undefined, undefined, undefined, undefined,
             { userMessage: detail || '自定义源未能提供播放地址' });
     } finally { idle = setTimeout(() => { active.stop(); if (runtime === active) runtime = null; }, 30000); }
 }
