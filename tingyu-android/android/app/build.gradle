@@ -9,6 +9,8 @@ apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 def playbackTestBuild = (project.findProperty('tingyuPlaybackTest') == 'true')
 
 def packageJson = new JsonSlurper().parseText(file('../../package.json').text)
+def playbackTestRevision = (packageJson.playbackTestRevision ?: 1) as int
+
 def keystorePropertiesFile = rootProject.file('keystore.properties')
 def keystoreProperties = new Properties()
 def hasReleaseKeystore = keystorePropertiesFile.exists()
@@ -32,8 +34,8 @@ android {
         manifestPlaceholders['tingyuAppLabel'] = playbackTestBuild ? '听屿播放测试' : '听屿'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode (packageJson.androidVersionCode as int)
-        versionName "${packageJson.version}${playbackTestBuild ? '-playback-test.1' : ''}"
+        versionCode (playbackTestBuild ? (packageJson.androidVersionCode as int) * 100 + playbackTestRevision : packageJson.androidVersionCode as int)
+        versionName "${packageJson.version}${playbackTestBuild ? "-playback-test.${playbackTestRevision}" : ''}"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -117,6 +119,10 @@ try {
 tasks.register('verifyPlaybackTestAssets') {
     doLast {
         def marker = file('src/main/assets/public/tingyu-playback-test.json')
+        if (playbackTestBuild && marker.exists()) {
+            def payload = new JsonSlurper().parse(marker)
+            if (payload.version != android.defaultConfig.versionName || payload.packageName != android.defaultConfig.applicationId || payload.testBuild != true) throw new GradleException('Stale playback test assets; rebuild and copy the test web bundle')
+        }
         if (playbackTestBuild != marker.exists()) throw new GradleException('Playback test flag and web assets do not match; rebuild and copy the correct web bundle')
     }
 }

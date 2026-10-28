@@ -28,9 +28,9 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         const wasPlaying=playing;
         position=value.position;duration=value.duration;buffered=value.buffered;anchor=performance.now();playing=value.playing;
         if(value.errorCode){
-            if(error)return;
+            const firstError=!error;
             error={code:value.errorCode>=2000&&value.errorCode<3000?2:3,message:`原生播放失败：${value.message??value.errorCode}`} as MediaError;
-            paused=true;playing=false;rejectPending(Error(error.message));event('error');return;
+            paused=true;playing=false;ready=0;rejectPending(Error(error.message));if(firstError)event('error');return;
         }
         if(value.status===3){ready=4;if(!metadata){metadata=true;event('loadedmetadata');event('loadeddata');event('canplay');}}
         if(value.type==='seeked'){event('seeked');event('timeupdate');}
@@ -69,9 +69,15 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     set('play',{value:()=>{
         if(!source)return Promise.reject(new DOMException('No playback source','NotSupportedError'));
         if(playing&&!paused)return Promise.resolve();
-        rejectPending(abort());paused=false;ended=false;lastIntent=sequence+1;event('play');
-        const result=new Promise<void>((resolve,reject)=>{pending={resolve,reject,timer:setTimeout(()=>{notePlaybackTest('native-play-timeout');rejectPending(Error('原生播放器等待音频超时'))},15000)};});
-        void send('play').catch(reason=>{rejectPending(reason);});return result;
+        rejectPending(abort());error=null;paused=false;ended=false;lastIntent=sequence+1;event('play');
+        const playId=id,playIntent=lastIntent;
+        const failPlay=(reason:unknown)=>{
+            if(id!==playId||lastIntent!==playIntent)return;
+            position=time();anchor=performance.now();paused=true;playing=false;
+            rejectPending(reason);lastIntent=sequence+1;void send('pause').catch(()=>{});event('pause');
+        };
+        const result=new Promise<void>((resolve,reject)=>{pending={resolve,reject,timer:setTimeout(()=>{notePlaybackTest('native-play-timeout');failPlay(Error('原生播放器等待音频超时'))},15000)};});
+        void send('play').catch(failPlay);return result;
     }});
     return {
         setSource(uri:string,key:string){

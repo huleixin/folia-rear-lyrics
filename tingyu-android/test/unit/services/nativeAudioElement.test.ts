@@ -66,3 +66,29 @@ it('emits terminal ended/error once, even if native events are coalesced or repe
 it('does not acknowledge engine handoff when native output has not confirmed stopping',async()=>{
     const f=await fixture(true);await expect(f.adapter.dispose()).rejects.toThrow('detach failed');expect(f.remove).toHaveBeenCalledOnce();
 });
+
+it('a retry after a prepare error rejects on the new native error instead of remaining falsely unpaused',async()=>{
+    const f=await fixture(),errors=vi.fn();f.element.addEventListener('error',errors);
+    f.state({type:'error',status:1,errorCode:1004,message:'ERROR_CODE_FAILED_RUNTIME_CHECK'});
+    const played=f.element.play().catch(reason=>reason.message);await f.flush();
+    f.state({type:'state',status:2,paused:false});
+    f.state({type:'error',status:1,paused:false,errorCode:1004,message:'ERROR_CODE_FAILED_RUNTIME_CHECK'});
+    expect(await played).toContain('ERROR_CODE_FAILED_RUNTIME_CHECK');
+    // Repeated native notifications may carry desiredPaused=false after an error.
+    f.state({type:'state',status:1,paused:false,errorCode:1004,message:'ERROR_CODE_FAILED_RUNTIME_CHECK'});
+    expect(f.element.paused).toBe(true);expect(f.element.readyState).toBe(0);expect(errors).toHaveBeenCalledTimes(2);
+    await f.adapter.dispose();
+});
+it('a successful retry clears its previous media error',async()=>{
+    const f=await fixture();f.state({type:'error',status:1,errorCode:1004,message:'failed'});
+    const played=f.element.play();await f.flush();f.state({status:3,playing:true,paused:false});await played;
+    expect(f.element.error).toBeNull();expect(f.element.paused).toBe(false);expect(f.element.readyState).toBe(4);
+    await f.adapter.dispose();
+});
+it('a native output timeout pauses the transport and does not leave a playing-looking element',async()=>{
+    vi.useFakeTimers();const f=await fixture(),paused=vi.fn();f.element.addEventListener('pause',paused);
+    const played=f.element.play().catch(reason=>reason.message);await f.flush();
+    await vi.advanceTimersByTimeAsync(15001);expect(await played).toContain('超时');
+    expect(f.element.paused).toBe(true);expect(paused).toHaveBeenCalledOnce();expect(f.commands.at(-1)?.action).toBe('pause');
+    await f.adapter.dispose();
+});

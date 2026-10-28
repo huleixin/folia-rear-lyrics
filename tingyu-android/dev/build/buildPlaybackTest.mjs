@@ -13,7 +13,7 @@ for (const [bin, args] of [['npm', ['run', 'build:capacitor']], ['npx', ['cap', 
 }
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 writeFileSync('android/app/src/main/assets/public/tingyu-playback-test.json', JSON.stringify({
-    packageName: 'io.github.huleixin.tingyu.playbacktest', version: `${pkg.version}-playback-test.1`,
+    packageName: 'io.github.huleixin.tingyu.playbacktest', version: `${pkg.version}-playback-test.${pkg.playbackTestRevision ?? 1}`,
     defaultEngine: 'web', testBuild: true,
 }, null, 2));
 console.log('Test assets ready. Build Android with -PtingyuPlaybackTest=true.');

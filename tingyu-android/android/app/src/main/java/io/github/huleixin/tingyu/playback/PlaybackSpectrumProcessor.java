@@ -18,6 +18,9 @@ final class PlaybackSpectrumProcessor extends BaseAudioProcessor {
     PlaybackSpectrumProcessor(Consumer<int[]> sink){this.sink=sink;}
     @Override protected AudioFormat onConfigure(AudioFormat format){return format.encoding==C.ENCODING_PCM_16BIT?format:AudioFormat.NOT_SET;}
     @Override public void queueInput(ByteBuffer input){
+        // Media3 polls active processors with its shared EMPTY_BUFFER. Do not replace
+        // pending output or attempt EMPTY_BUFFER.put(EMPTY_BUFFER) on these polls.
+        if(!input.hasRemaining())return;
         if(enabled){
             ByteBuffer pcm=input.duplicate().order(ByteOrder.LITTLE_ENDIAN);
             int channels=Math.max(1,inputAudioFormat.channelCount),frameBytes=channels*2;
