@@ -1,6 +1,7 @@
 
 
 export default {
+  playbackTest: {"title": "Playback engine test", "description": "Separate test app; the stable engine is the default. Apply stops playback and reloads.", "web": "Stable engine", "media3": "Media3 (test)", "pending": "Checking", "actual": "Actual engine: {{engine}}", "apply": "Stop playback and apply", "compatibility": "Media3 testing disables EQ, automix, ReplayGain and new audio caching. Existing cached audio or advanced effects use the stable engine for this session. Check the actual engine above.", "tone": "Load 10-second test tone", "toneLoaded": "Loaded. Return to Home or the stage and press Play to hear the tone. This replaces the test queue.", "export": "Export playback log", "failed": "Operation failed. Export the log and send it to the developer. A failed switch never starts a second engine.", "reason": {"probing": "Checking", "native-unavailable": "Native channel unavailable or timed out", "blob-or-unsupported-uri": "Cached audio or URI requires the stable engine", "effects": "Effects require stable playback", "automix": "Mixing requires stable playback", "replaygain": "Gain requires stable playback", "compatibility-latched": "Compatibility mode for this session; apply again to retry"}},
   "rearBridge": {
     "tutorialTitle": "Start rear lyrics with LSP",
     "tutorial": {"install": "Install and enable a framework compatible with the legacy Xposed API, such as LSPosed or Vector. The Tingyu APK is also the module.", "scope": "In the framework manager, enable Tingyu and select System Framework (android). SystemUI and unrelated apps are not required.", "reboot": "Fully reboot the phone to load the module into the system process. Restarting Tingyu is insufficient.", "select": "Open Tingyu → Settings → Xiaomi rear lyrics. Turn rear lyrics off before selecting LSP / LSPosed as the backend.", "start": "Wait for LSP connected, then enable rear lyrics. Test while unlocked first. Playback keeps the rear on; after 30 seconds paused it returns to the system and resumes with playback."},
@@ -792,6 +793,10 @@ export default {
       }
     },
     "commands": {
+      "playback-test-settings": {"title": "Playback engine test", "description": "Open engine selection and diagnostic export in the test app"},
+      "playback-test-tone": {"title": "Load test audio", "description": "Replace the test queue with a 10-second tone"},
+      "playback-test-export": {"title": "Export playback log", "description": "Share local playback engine diagnostics"},
+
       "playback-shuffle-mode": { "title": "Shuffle playback", "description": "Play a random sequence without changing playlist order" },
       "rear-cover-sleep-toggle": { "title": "Rear cover to sleep", "description": "Toggle rear-screen cover and tabletop power saving" },
       "rear-backend-lsp": {"title": "Use LSP rear mode", "description": "Close rear lyrics, then switch to framework control"},

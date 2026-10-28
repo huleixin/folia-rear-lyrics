@@ -1,6 +1,7 @@
 
 
 export default {
+  playbackTest: {"title": "播放内核测试", "description": "独立测试版，默认稳定内核。选择后点击应用，会停止播放并重新载入。", "web": "稳定内核", "media3": "Media3（测试）", "pending": "正在检测", "actual": "实际使用：{{engine}}", "apply": "停止播放并应用选择", "compatibility": "Media3 测试会关闭均衡器、自动混音、ReplayGain 和新音频缓存。遇到旧缓存或高级音效，本次会使用稳定内核；实际使用结果以上方为准。", "tone": "加载 10 秒测试音频", "toneLoaded": "已加载。返回首页或歌词舞台，点击播放，试听 10 秒提示音。加载会替换测试版当前队列。", "export": "导出播放日志", "failed": "操作未完成。请导出日志后发给开发者；切换失败时不会启动另一内核。", "reason": {"probing": "检测中", "native-unavailable": "原生通道未响应或不可用", "blob-or-unsupported-uri": "缓存或音频地址需要稳定内核", "effects": "音效需要稳定内核", "automix": "混音需要稳定内核", "replaygain": "增益需要稳定内核", "compatibility-latched": "本次使用兼容播放，重新应用内核可重试"}},
   "rearBridge": {
     "tutorialTitle": "LSP 框架模式启动教程",
     "tutorial": {"install": "手机需要已安装并正常运行的 LSPosed / Vector 等兼容传统 Xposed API 的框架；听屿 APK 本身就是模块，不需要另装一个听屿模块。", "scope": "打开框架管理器 → 模块 → 听屿，启用模块，作用域勾选「系统框架 / android」。本模块不需要勾选 SystemUI，也不要把其他应用全部加入作用域。", "reboot": "完整重启手机，让系统框架加载模块。只关闭听屿或重启界面不能代替此步骤。", "select": "重启后打开听屿 → 设置 → 小米背屏歌词。先关闭背屏开关，再把「背屏控制模式」改为「LSP / LSPosed」。", "start": "确认状态显示 LSP 已连接，再点击开启背屏歌词。先在主屏解锁时测试，确认能显示后再测试锁屏；播放时常亮，暂停 30 秒后交回系统，重新播放会自动恢复。"},
@@ -792,6 +793,10 @@ export default {
       }
     },
     "commands": {
+      "playback-test-settings": {"title": "播放内核测试", "description": "打开独立测试版的内核选择与日志导出"},
+      "playback-test-tone": {"title": "加载测试音频", "description": "替换测试队列并加载10秒提示音"},
+      "playback-test-export": {"title": "导出播放日志", "description": "分享本机播放内核测试诊断"},
+
       "playback-shuffle-mode": { "title": "随机播放", "description": "开启随机播放，保留原歌单顺序" },
       "rear-cover-sleep-toggle": { "title": "背屏遮盖息屏", "description": "切换背屏遮挡与朝下静置的省电息屏" },
       "rear-backend-lsp": {"title": "使用 LSP 背屏模式", "description": "关闭背屏后切换到框架控制"},

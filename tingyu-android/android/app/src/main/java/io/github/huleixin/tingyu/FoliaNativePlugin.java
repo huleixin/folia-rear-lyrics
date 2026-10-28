@@ -515,6 +515,13 @@ public class FoliaNativePlugin extends Plugin {
         startActivityForResult(call, intent, "handlePickedAudioFolder");
     }
 
+    @PluginMethod
+    public void preparePlaybackTestTone(PluginCall call){
+        if(!BuildConfig.PLAYBACK_ENGINE_TEST){call.reject("Not a playback test build");return;}
+        try{if(localAudioServer==null)localAudioServer=new LocalAudioServer(getContext());call.resolve(PlaybackTestTone.prepare(localAudioServer));}
+        catch(Exception error){io.github.huleixin.tingyu.playback.PlaybackTestDiagnostics.error("test-tone-error",error);call.reject("生成测试音频失败",error);}
+    }
+
     /** 供 WebView 重建导入音频的流地址（端口每次启动都可能不同）。 */
     @PluginMethod
     public void localAudioServerPort(PluginCall call) {

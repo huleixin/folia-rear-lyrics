@@ -1,4 +1,5 @@
 import React from 'react';
+import PlaybackEngineTestSettings from './PlaybackEngineTestSettings';
 import { useTranslation } from 'react-i18next';
 import type { Theme } from '../../../types';
 import { isAndroidNativeRuntime } from '../../../utils/platform';
@@ -24,5 +25,6 @@ export default function MobilePlaybackStartupSetting({ isDaylight, settingsCardC
                 control={<SettingsToggle checked={enabled} onChange={() => toggle(!enabled)}
                     ariaLabel={t('options.autoPlayOnLaunch')} offClass={isDaylight ? 'bg-zinc-200' : 'bg-[#2A2D35]'} onColor={theme?.secondaryColor} />} />
         </div>
+        <PlaybackEngineTestSettings settingsCardClass={settingsCardClass} />
     </SettingsAnchor>;
 }

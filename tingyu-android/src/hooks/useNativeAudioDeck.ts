@@ -1,5 +1,8 @@
+import { PLAYBACK_TEST_SESSION_ENGINE } from '../utils/playbackEngineTestBuild';
+import { setPlaybackTestActual } from '../stores/usePlaybackEngineTestStore';
+import { installPlaybackTestMediaLog,notePlaybackTest } from '../services/playbackTestLog';
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { registerPlugin } from '@capacitor/core';
+import { getTingyuPlayback } from '../platform/tingyuPlayback';
 import { attachNativeAudioElement } from '../services/nativeAudioElement';
 import type { NativeAudioPort } from '../types/nativeAudio';
 import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
@@ -14,7 +17,7 @@ import { setStatusMessage } from '../stores/useStatusMessageStore';
 import { PlayerState } from '../types';
 
 // src/hooks/useNativeAudioDeck.ts
-const native=registerPlugin<NativeAudioPort>('TingyuPlayback');
+const native=getTingyuPlayback<NativeAudioPort>();
 export const nativeAudioUri=(source:string|null)=>!source||/^(https?:|content:|file:)/.test(source);
 export function useNativeAudioDeck(audioRef:RefObject<HTMLAudioElement|null>,activeDeck:string){
     const android=isAndroidNativeRuntime(),[supported,setSupported]=useState<boolean|null>(android?null:false);
@@ -28,13 +31,17 @@ export function useNativeAudioDeck(audioRef:RefObject<HTMLAudioElement|null>,act
     // keep its existing compatible pipeline for this session rather than repeatedly swapping it.
     const compatibility=useRef(!nativeAudioUri(source)||effects||mixing||gain!=='off');
     if(!nativeAudioUri(source)||effects||mixing||gain!=='off')compatibility.current=true;
-    const own=android&&supported!==false&&!compatibility.current;
+    const requested=PLAYBACK_TEST_SESSION_ENGINE==='media3';
+    const own=requested&&android&&supported!==false&&!compatibility.current;
     const songKey=song?getPlaybackSongKey(song):'';
     const analysis=playing&&((main&&view==='player')||rear);
-    useEffect(()=>{if(!android)return;let disposed=false;
-        void native.probe().then(value=>{if(!disposed)setSupported(value.supported===true)}).catch(()=>{if(!disposed)setSupported(false)});
-        return()=>{disposed=true};
-    },[android]);
+    useEffect(()=>{installPlaybackTestMediaLog();if(!android||!requested)return;let disposed=false;const timer=setTimeout(()=>{if(!disposed){disposed=true;notePlaybackTest('native-probe-timeout');setSupported(false)}},4000);
+        notePlaybackTest('native-probe-start');
+        void native.probe().then(value=>{if(!disposed){clearTimeout(timer);notePlaybackTest('native-probe-result',{supported:value.supported,engine:value.engine});setSupported(value.supported===true)}}).catch(error=>{if(!disposed){clearTimeout(timer);notePlaybackTest('native-probe-failed',{error});setSupported(false)}});
+        return()=>{disposed=true;clearTimeout(timer)};
+    },[android,requested]);
+    const reason=!requested?'selected-stable':compatibility.current?(!nativeAudioUri(source)?'blob-or-unsupported-uri':effects?'effects':mixing?'automix':gain!=='off'?'replaygain':'compatibility-latched'):supported===null?'probing':supported===false?'native-unavailable':'native-selected';
+    useEffect(()=>{const actual=own?(supported===true?'media3':'pending'):'web';setPlaybackTestActual(actual,reason);notePlaybackTest('actual-engine',{actual,reason});},[own,supported,reason]);
     useLayoutEffect(()=>{
         if(!own||supported!==true)return;
         const element=audioRef.current;if(!element)return;

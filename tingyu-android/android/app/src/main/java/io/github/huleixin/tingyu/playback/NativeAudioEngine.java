@@ -43,6 +43,7 @@ public final class NativeAudioEngine {
     private PlaybackException failure;
     private final Runnable heartbeat=new Runnable(){public void run(){if(!sourceId.isEmpty()){emit("clock",false);if(needsClock())main.postDelayed(this,1000);}}};
     private NativeAudioEngine(Context context){
+        PlaybackTestDiagnostics.note("engine-create-start",new JSObject());
         spectrum=new PlaybackSpectrumProcessor(this::emitSpectrum);
         DefaultRenderersFactory renderers=new DefaultRenderersFactory(context){
             @Override protected AudioSink buildAudioSink(Context context,boolean floating,boolean params){
@@ -56,9 +57,10 @@ public final class NativeAudioEngine {
             .setHandleAudioBecomingNoisy(true).setWakeMode(C.WAKE_MODE_LOCAL).build();
         player.addListener(new Player.Listener(){
             @Override public void onEvents(Player p,Player.Events events){if(!events.containsAny(Player.EVENT_PLAYBACK_STATE_CHANGED,Player.EVENT_IS_PLAYING_CHANGED,Player.EVENT_PLAY_WHEN_READY_CHANGED,Player.EVENT_PLAYER_ERROR,Player.EVENT_TIMELINE_CHANGED,Player.EVENT_POSITION_DISCONTINUITY))return;emit("state",false);main.removeCallbacks(heartbeat);if(needsClock())main.postDelayed(heartbeat,1000);}
-            @Override public void onPlayerError(PlaybackException error){failure=error;emit("error",false);}
+            @Override public void onPlayerError(PlaybackException error){failure=error;PlaybackTestDiagnostics.error("player-error",error);emit("error",false);}
             @Override public void onPositionDiscontinuity(Player.PositionInfo old,Player.PositionInfo next,int reason){if(reason==Player.DISCONTINUITY_REASON_SEEK)emit("seeked",false);}
         });
+        PlaybackTestDiagnostics.note("engine-create-ready",new JSObject());
     }
     public void listen(Consumer<JSObject> listener){this.listener=listener;}
     public void unlisten(Consumer<JSObject> listener){if(this.listener==listener)this.listener=null;}
@@ -68,6 +70,7 @@ public final class NativeAudioEngine {
             if(id.isEmpty())throw new IllegalArgumentException("Missing source identity");
             String url=value.optString("uri");Uri uri=Uri.parse(url);
             if(!java.util.Arrays.asList("http","https","content","file").contains(uri.getScheme()))throw new IllegalArgumentException("Unsupported native audio URI");
+            PlaybackTestDiagnostics.note("prepare",new JSObject().put("scheme",uri.getScheme()).put("host",uri.getHost()));
             sourceId="";sequence=seq;failure=null;desiredPaused=true;cancelFade();player.pause();
             configure(value);player.setMediaItem(MediaItem.fromUri(uri),Math.max(0,value.optLong("position")));sourceId=id;player.prepare();emit("load",false);
         }else{
@@ -116,9 +119,14 @@ public final class NativeAudioEngine {
         value.put("buffered",Math.max(0,player.getBufferedPosition())/1000.0);value.put("playing",player.isPlaying());value.put("paused",desiredPaused||!player.getPlayWhenReady());
         value.put("status",player.getPlaybackState());
         if(failure!=null){value.put("errorCode",failure.errorCode);value.put("message",failure.getErrorCodeName());}
+        if(type.equals("diagnostics")){
+            value.put("volume",player.getVolume()).put("playWhenReady",player.getPlayWhenReady()).put("suppressionReason",player.getPlaybackSuppressionReason()).put("audioSessionId",player.getAudioSessionId());
+            androidx.media3.common.Format format=player.getAudioFormat();
+            if(format!=null)value.put("mime",format.sampleMimeType).put("sampleRate",format.sampleRate).put("channels",format.channelCount).put("pcmEncoding",format.pcmEncoding);
+        }
         return value;
     }
-    private void emit(String type,boolean external){if(listener!=null&&!sourceId.isEmpty())listener.accept(snapshot(type,external));}
+    private void emit(String type,boolean external){if(!type.equals("clock"))PlaybackTestDiagnostics.note(type,snapshot(type,external));if(listener!=null&&!sourceId.isEmpty())listener.accept(snapshot(type,external));}
     private void emitSpectrum(int[] bins){String token=sourceId;main.post(()->{
         if(!spectrum.enabled||sourceId.isEmpty()||!sourceId.equals(token)||listener==null)return;
         JSObject value=snapshot("spectrum",false);JSArray array=new JSArray();for(int bin:bins)array.put(bin);

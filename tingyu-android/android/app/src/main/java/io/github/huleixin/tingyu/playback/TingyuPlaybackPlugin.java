@@ -9,15 +9,37 @@ import java.util.function.Consumer;
 public final class TingyuPlaybackPlugin extends Plugin {
     // Keep cached 1.3.23 Web bundles on the verified playback path as well.
     // Re-enable only after native audio has passed device playback validation.
-    private static final boolean ENABLED = false;
+    private static final boolean ENABLED = io.github.huleixin.tingyu.BuildConfig.PLAYBACK_ENGINE_TEST;
     private NativeAudioEngine engine;
     private JSObject prepared,lastState;
     private final Consumer<JSObject> events=value->{if(!"spectrum".equals(value.optString("type")))lastState=value;notifyListeners("state",value);};
+    @Override public void load(){if(ENABLED)PlaybackTestDiagnostics.initialize(getContext());}
+    @PluginMethod public void diagnostics(PluginCall call){
+        if(!ENABLED){call.reject("Not a playback test build");return;}
+        getActivity().runOnUiThread(()->{
+            JSObject value=new JSObject().put("testBuild",true).put("packageName",getContext().getPackageName())
+                .put("sdk",android.os.Build.VERSION.SDK_INT).put("manufacturer",android.os.Build.MANUFACTURER).put("model",android.os.Build.MODEL)
+                .put("appVersion",io.github.huleixin.tingyu.BuildConfig.VERSION_NAME).put("engineVersion","media3-1.11.1").put("events",PlaybackTestDiagnostics.snapshot());
+            try{if(engine!=null)value.put("player",engine.snapshot("diagnostics",false));}
+            catch(Exception error){PlaybackTestDiagnostics.error("diagnostics-error",error);value.put("snapshotError",PlaybackTestDiagnostics.redact(error.toString()));}
+            call.resolve(value);
+        });
+    }
+    @PluginMethod public void resetForTest(PluginCall call){
+        if(!ENABLED){call.reject("Not a playback test build");return;}
+        getActivity().runOnUiThread(()->{
+            try{PlaybackTestDiagnostics.note("reset-start",new JSObject());NativeAudioEngine.releaseIfPresent();
+                engine=null;prepared=null;lastState=null;removeAllListeners();
+                PlaybackTestDiagnostics.note("reset-complete",new JSObject());call.resolve(new JSObject().put("stopped",true));
+            }catch(Exception error){PlaybackTestDiagnostics.error("reset-error",error);call.reject("停止原生播放器失败");}
+        });
+    }
     @PluginMethod public void probe(PluginCall call){call.resolve(new JSObject().put("supported",ENABLED).put("engine","media3-1.11.1"));}
     @PluginMethod public void command(PluginCall call){
         if(!ENABLED){call.reject("原生播放通道暂未启用");return;}
         getActivity().runOnUiThread(()->{
         try{
+            PlaybackTestDiagnostics.note("command",new JSObject().put("action",call.getString("action")).put("sequence",call.getData().optLong("sequence")));
             NativeAudioEngine current=NativeAudioEngine.get(getContext());
             if(current!=engine){
                 if(engine!=null)engine.unlisten(events);
@@ -34,7 +56,7 @@ public final class TingyuPlaybackPlugin extends Plugin {
             if("detach".equals(call.getString("action"))){prepared=null;lastState=null;}
             call.resolve(result);
         }
-        catch(Exception error){call.reject("原生播放命令失败："+error.getClass().getSimpleName());}
+        catch(Exception|LinkageError error){PlaybackTestDiagnostics.error("command-error",error);call.reject("原生播放命令失败："+error.getClass().getSimpleName());}
     });}
     @Override protected void handleOnDestroy(){if(engine!=null)engine.unlisten(events);super.handleOnDestroy();}
 }

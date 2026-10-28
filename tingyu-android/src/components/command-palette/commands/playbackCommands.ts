@@ -1,3 +1,6 @@
+import { canUsePlaybackEngineTest, exportPlaybackTestLog, loadPlaybackTestTone } from '../../../services/playbackEngineTest';
+import { setStatusMessage } from '../../../stores/useStatusMessageStore';
+import i18n from '../../../i18n/config';
 import { useAudioToolsStore } from '../../../stores/useAudioToolsStore';
 import { useLxSourceStore } from '../../../stores/useLxSourceStore';
 import { PlayerState } from '../../../types';
@@ -7,7 +10,7 @@ import { queueCommand } from './queueCommand';
 import { volumeCommand } from './volumeCommand';
 import { fmModeCommand } from './fmModeCommand';
 import type { CommandPaletteCommand } from '../types';
-import { createToggleCommand, createReplayGainCommand, createSoundPresetCommand, defineCommand } from '../commandFactories';
+import { createSettingsAnchorCommand, createToggleCommand, createReplayGainCommand, createSoundPresetCommand, defineCommand } from '../commandFactories';
 import { useAudioSettingsStore } from '../../../stores/useAudioSettingsStore';
 import { usePlaybackStore } from '../../../stores/usePlaybackStore';
 
@@ -16,6 +19,12 @@ import { usePlaybackStore } from '../../../stores/usePlaybackStore';
 // sound presets.
 
 export const playbackCommands: CommandPaletteCommand[] = [
+    defineCommand(createSettingsAnchorCommand('playback-test-settings', 'Playback engine test', 'Open engine selection and diagnostic export in the test app', ['engine diagnostics', '内核测试'], 'playbackStartup', { isAvailable: canUsePlaybackEngineTest })),
+    defineCommand({ id: 'playback-test-tone', group: 'playback', title: 'Load test audio', description: 'Replace the test queue with a 10-second tone', keywords: ['test tone', '测试音频'], isAvailable: canUsePlaybackEngineTest,
+        execute: () => { void loadPlaybackTestTone().then(() => setStatusMessage({ type: 'info', text: i18n.t('playbackTest.toneLoaded') })).catch(() => setStatusMessage({ type: 'error', text: i18n.t('playbackTest.failed') })); return true; } }),
+    defineCommand({ id: 'playback-test-export', group: 'playback', title: 'Export playback log', description: 'Share local playback engine diagnostics', keywords: ['diagnostic file', '播放日志'], isAvailable: canUsePlaybackEngineTest,
+        execute: () => { void exportPlaybackTestLog().catch(() => setStatusMessage({ type: 'error', text: i18n.t('playbackTest.failed') })); return true; } }),
+
     defineCommand({ id: 'audio-quality-picker', group: 'playback', title: 'Audio quality', description: 'Change stream quality', keywords: ['quality', '音质'], execute: () => { useAudioToolsStore.getState().show(); return true; } }),
     defineCommand({ id: 'lx-source-manager', group: 'settings', title: 'LX custom sources', description: 'Import and manage LX scripts', keywords: ['洛雪', '自定义音源'], execute: () => { useLxSourceStore.getState().show(); return true; } }),
     defineCommand({

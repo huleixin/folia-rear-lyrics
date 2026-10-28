@@ -6,6 +6,8 @@ apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
+def playbackTestBuild = (project.findProperty('tingyuPlaybackTest') == 'true')
+
 def packageJson = new JsonSlurper().parseText(file('../../package.json').text)
 def keystorePropertiesFile = rootProject.file('keystore.properties')
 def keystoreProperties = new Properties()
@@ -25,11 +27,13 @@ android {
     defaultConfig {
         buildConfigField 'boolean', 'COMPOSE_CHROME', (System.getenv('TINGYU_COMPOSE_CHROME') == 'false' ? 'false' : 'true')
         buildConfigField 'boolean', 'GLASS_LAB', (System.getenv('TINGYU_GLASS_LAB') == 'true' ? 'true' : 'false')
-        applicationId "io.github.huleixin.tingyu"
+        buildConfigField 'boolean', 'PLAYBACK_ENGINE_TEST', playbackTestBuild.toString()
+        applicationId (playbackTestBuild ? "io.github.huleixin.tingyu.playbacktest" : "io.github.huleixin.tingyu")
+        manifestPlaceholders['tingyuAppLabel'] = playbackTestBuild ? '听屿播放测试' : '听屿'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode (packageJson.androidVersionCode as int)
-        versionName "${packageJson.version}"
+        versionName "${packageJson.version}${playbackTestBuild ? '-playback-test.1' : ''}"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -108,3 +112,12 @@ try {
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }
+
+// Prevent a test UI from being accidentally packaged as the normal application (or vice versa).
+tasks.register('verifyPlaybackTestAssets') {
+    doLast {
+        def marker = file('src/main/assets/public/tingyu-playback-test.json')
+        if (playbackTestBuild != marker.exists()) throw new GradleException('Playback test flag and web assets do not match; rebuild and copy the correct web bundle')
+    }
+}
+tasks.named('preBuild').configure { dependsOn 'verifyPlaybackTestAssets' }

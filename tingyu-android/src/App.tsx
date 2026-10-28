@@ -1,3 +1,4 @@
+import { usePlaybackTestDeck } from './hooks/usePlaybackTestDeck';
 import { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useMobileListeningHistory } from './hooks/useMobileListeningHistory';
 import { AnimatePresence, motion, useMotionValueEvent } from 'framer-motion';
@@ -1383,6 +1384,7 @@ export default function App() {
         }
     }, [audioSrc, audioRef, setDuration]);
 
+    const playbackTestDeck=usePlaybackTestDeck(audioRef,automix.activeDeck);
     const { setupAudioAnalyzer, cacheSongAssets, cacheSongAssetsFor, adoptActiveDeckSource } = usePlaybackAudioBridge({
         audioRef,
         localSongs,
@@ -2496,7 +2498,7 @@ export default function App() {
         <audio
             key={deck}
             ref={register}
-            src={automix.deckSrc(deck)}
+            src={playbackTestDeck.suppressBrowserSource?undefined:automix.deckSrc(deck)}
             preload="auto"
             crossOrigin="anonymous"
             loop={effectiveLoopMode === 'one' && automix.activeDeck === deck}

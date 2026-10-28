@@ -1,7 +1,11 @@
+import { PLAYBACK_TEST_BUILD } from '../utils/playbackEngineTestBuild';
+import { notePlaybackTest,playbackTestUriInfo } from './playbackTestLog';
 import type { NativeAudioOptions, NativeAudioPort, NativeAudioState } from '../types/nativeAudio';
 
 // src/services/nativeAudioElement.ts
 // Preserve the existing DOM media-event contract while Media3 owns fetching/decoding/output.
+let testStopping=false;
+export function blockNativeAudioCommandsForTest(){if(PLAYBACK_TEST_BUILD)testStopping=true;}
 const elements=new WeakMap<HTMLMediaElement,{spectrum:Uint8Array}>();
 export const isNativeAudioElement=(element:HTMLMediaElement|null)=>!!element&&elements.has(element);
 export const nativeAudioSpectrum=(element:HTMLMediaElement|null)=>element?elements.get(element)?.spectrum:null;
@@ -18,7 +22,8 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     const time=()=>Math.max(0,Math.min(duration||Infinity,position+(playing&&!paused?(performance.now()-anchor)/1000:0)));
     const rejectPending=(reason:unknown)=>{if(pending){clearTimeout(pending.timer);pending.reject(reason);pending=null;}};
     const onState=(value:NativeAudioState)=>{
-        if(disposed||value.id!==id)return;
+        if(testStopping||disposed||value.id!==id)return;
+        if(value.type!=='clock'&&!value.spectrum)notePlaybackTest('native-state',{type:value.type,status:value.status,playing:value.playing,paused:value.paused,position:value.position,error:value.message??''});
         if(value.spectrum){bands.spectrum.set(value.spectrum.length<=1024?value.spectrum:value.spectrum.slice(0,1024));return;}
         const wasPlaying=playing;
         position=value.position;duration=value.duration;buffered=value.buffered;anchor=performance.now();playing=value.playing;
@@ -41,8 +46,10 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     let listener:{remove():Promise<void>}|undefined;
     let work=port.addListener('state',onState).then(value=>{listener=value;if(disposed)void value.remove();});
     const send=(action:string,data:Record<string,unknown>={})=>{
-        const token=id,revision=++sequence;
-        work=work.catch(()=>{}).then(async()=>{const result=await port.command({action,id:token,sequence:revision,...data});if(!result.accepted)throw abort();});
+        const token=id,revision=++sequence;const started=performance.now();
+        if(action!=='volume')notePlaybackTest('native-command',{action,sequence:revision,...(action==='prepare'?playbackTestUriInfo(String(data.uri??'')):{})});
+        work=work.catch(()=>{}).then(async()=>{if(testStopping)throw abort();const result=await port.command({action,id:token,sequence:revision,...data});if(action!=='volume')notePlaybackTest('native-command-result',{action,accepted:result.accepted,elapsedMs:Math.round(performance.now()-started)});if(!result.accepted)throw abort();});
+        void work.catch(error=>notePlaybackTest('native-command-failed',{action,error,elapsedMs:Math.round(performance.now()-started)}));
         return work;
     };
     const set=(name:string,descriptor:PropertyDescriptor)=>{original.set(name,Object.getOwnPropertyDescriptor(element,name));Object.defineProperty(element,name,{configurable:true,...descriptor});};
@@ -57,13 +64,13 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     set('load',{value:()=>{}}); // setSource commits once; the audio bridge must not prepare it twice.
     set('pause',{value:()=>{
         const wasPaused=paused;position=time();anchor=performance.now();paused=true;playing=false;rejectPending(abort());
-        lastIntent=sequence+1;void send('pause').catch(()=>{});if(!wasPaused)event('pause');
+        lastIntent=sequence+1;if(id)void send('pause').catch(()=>{});if(!wasPaused)event('pause');
     }});
     set('play',{value:()=>{
         if(!source)return Promise.reject(new DOMException('No playback source','NotSupportedError'));
         if(playing&&!paused)return Promise.resolve();
         rejectPending(abort());paused=false;ended=false;lastIntent=sequence+1;event('play');
-        const result=new Promise<void>((resolve,reject)=>{pending={resolve,reject,timer:setTimeout(()=>rejectPending(Error('原生播放器等待音频超时')),30000)};});
+        const result=new Promise<void>((resolve,reject)=>{pending={resolve,reject,timer:setTimeout(()=>{notePlaybackTest('native-play-timeout');rejectPending(Error('原生播放器等待音频超时'))},15000)};});
         void send('play').catch(reason=>{rejectPending(reason);});return result;
     }});
     return {

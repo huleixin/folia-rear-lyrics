@@ -16,6 +16,7 @@ const { port } = vi.hoisted(() => ({ port: {
     command: vi.fn(async (_value: Record<string, unknown>) => ({ accepted: true })),
     addListener: vi.fn(async () => ({ remove: async () => {} })),
 } }));
+vi.mock('@/utils/playbackEngineTestBuild', () => ({ PLAYBACK_TEST_BUILD: true, PLAYBACK_TEST_SESSION_ENGINE: 'media3' }));
 vi.mock('@capacitor/core', () => ({ registerPlugin: () => port }));
 vi.mock('@/utils/platform', () => ({ isAndroidNativeRuntime: () => true }));
 vi.mock('@/hooks/useStageActivity', () => ({ useMainStageActive: () => true }));
