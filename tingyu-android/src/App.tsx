@@ -151,7 +151,6 @@ import { selectAudioSettingsSnapshot, useAudioSettingsStore } from './stores/use
 import { useSettingsModalStore } from './stores/useSettingsModalStore';
 import { PREHIDE_COMPOSE_CHROME } from './services/nativeChrome';
 import { useNativeStagePresentation } from './hooks/useNativeStagePresentation';
-import { useNativeAudioDeck } from './hooks/useNativeAudioDeck';
 import { audioBands, audioPower, bass, currentTime, lowMid, lyricCurrentTime, mid, spectrum, treble, vocal } from './stores/motionSignals';
 import { useAppChromeStore } from './stores/useAppChromeStore';
 import { useAppViewStore } from './stores/useAppViewStore';
@@ -1384,7 +1383,6 @@ export default function App() {
         }
     }, [audioSrc, audioRef, setDuration]);
 
-    const nativeAudioDeck=useNativeAudioDeck(audioRef,automix.activeDeck);
     const { setupAudioAnalyzer, cacheSongAssets, cacheSongAssetsFor, adoptActiveDeckSource } = usePlaybackAudioBridge({
         audioRef,
         localSongs,
@@ -2498,7 +2496,7 @@ export default function App() {
         <audio
             key={deck}
             ref={register}
-            src={nativeAudioDeck.suppressBrowserSource?undefined:automix.deckSrc(deck)}
+            src={automix.deckSrc(deck)}
             preload="auto"
             crossOrigin="anonymous"
             loop={effectiveLoopMode === 'one' && automix.activeDeck === deck}
