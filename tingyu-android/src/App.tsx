@@ -150,6 +150,7 @@ import { selectStageSettingsSnapshot, useStageSettingsStore } from './stores/use
 import { selectAudioSettingsSnapshot, useAudioSettingsStore } from './stores/useAudioSettingsStore';
 import { useSettingsModalStore } from './stores/useSettingsModalStore';
 import { PREHIDE_COMPOSE_CHROME } from './services/nativeChrome';
+import { useNativeStagePresentation } from './hooks/useNativeStagePresentation';
 import { audioBands, audioPower, bass, currentTime, lowMid, lyricCurrentTime, mid, spectrum, treble, vocal } from './stores/motionSignals';
 import { useAppChromeStore } from './stores/useAppChromeStore';
 import { useAppViewStore } from './stores/useAppViewStore';
@@ -1392,6 +1393,7 @@ export default function App() {
         gainNodeRef,
         connectDecks: automix.connectDecks,
         getActiveChain: automix.getActiveChain,
+        getAudioElements: automix.getAudioElements,
         suppressAutoplayRef: automix.suppressAutoplayRef,
         isAutoplayHeld: automix.autoplayHeld,
         syncOutputGain,
@@ -2474,7 +2476,8 @@ export default function App() {
     const libraryOccludesPlayer = useLibraryPlayerOcclusionStore(selectLibraryOccludesPlayer);
     const hasLibraryOcclusionSettled = useLibraryOcclusionSettled(shouldRevealHomeSurface && libraryOccludesPlayer);
     const mainStageActive = useMainStageActive();
-    const shouldMountVisualizer = mainStageActive && (PREHIDE_COMPOSE_CHROME ? currentView === 'player' : shouldMountPlayerVisualizer({
+    const nativeStagePresentation = useNativeStagePresentation(currentView === 'player', mainStageActive, visualizerRendererModel);
+    const shouldMountVisualizer = mainStageActive && (PREHIDE_COMPOSE_CHROME ? nativeStagePresentation.mounted : shouldMountPlayerVisualizer({
         currentView,
         hasLatticeExited,
         shouldRevealHomeSurface,
@@ -2829,11 +2832,11 @@ export default function App() {
                 className={`absolute inset-0 z-0${shouldHidePlayerCursor ? ' cursor-auto-hidden' : ''}`}
                 data-testid="player-visual-surface"
                 data-library-backdrop-blur={blursVisualizerBackdrop || undefined}
-                style={visualizerBackdropStyle(blursVisualizerBackdrop)}
+                style={{...visualizerBackdropStyle(blursVisualizerBackdrop),...(PREHIDE_COMPOSE_CHROME && currentView !== 'player' ? {visibility:'hidden',pointerEvents:'none'} : {})}}
                 onClick={handleContainerClick}
             >
                 <PlayerBottomBarLayoutContext.Provider value={currentView === 'player'}>
-                    {shouldMountVisualizer && <VisualizerRenderer {...visualizerRendererModel} />}
+                    {shouldMountVisualizer && <VisualizerRenderer {...(PREHIDE_COMPOSE_CHROME ? nativeStagePresentation.model : visualizerRendererModel)} />}
                 </PlayerBottomBarLayoutContext.Provider>
             </div>
 

@@ -515,6 +515,8 @@ export function useAutomixDecks({
         () => chainsRef.current[session.getActiveDeck()] ?? null,
         [session],
     );
+    const getAudioElements = useCallback(() => Object.values(elementsRef.current)
+        .filter((element): element is HTMLAudioElement => element !== null), []);
 
     // Called once from the audio bridge on the first play, so both decks share the mix point, the
     // equaliser and the analyser. One equaliser downstream of the mix keeps CPU flat and, more
@@ -836,6 +838,7 @@ export function useAutomixDecks({
         getDisplayElement,
         connectDecks,
         getActiveChain,
+        getAudioElements,
         checkTransitionPoint,
         handleActiveDeckPlaying,
         handleTailEnded,

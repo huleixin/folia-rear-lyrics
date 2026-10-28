@@ -1,4 +1,4 @@
-import { useEffect,useState, type RefObject } from 'react';
+import { useEffect,useMemo,useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LibraryCollectionSurfaceProps } from '../../../core/contracts/suite';
 import type { useMobileCollection } from '../useMobileCollection';
@@ -32,7 +32,7 @@ export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:L
     const indexes=model.view.matchIndexes;
     const total=indexes?.length??model.view.displayTracks.length;
     const playing=usePlaybackStore(selectDisplayPlayerState)===PlayerState.PLAYING;
-    const originalActive=model.view.displayTracks.findIndex(song=>getPlaybackSongKey(song)===activeKey);
+    const originalActive=useMemo(()=>model.view.displayTracks.findIndex(song=>getPlaybackSongKey(song)===activeKey),[model.view.displayTracks,activeKey]);
     const activeIndex=indexes?indexes.indexOf(originalActive):originalActive;
     const [locateRevision,setLocateRevision]=useState(0),[pendingLocate,setPendingLocate]=useState('');
     const locate=()=>{if(originalActive<0)return;if(activeIndex<0){setPendingLocate(activeKey);model.setQuery('');setFilterOpen(false)}
@@ -41,11 +41,11 @@ export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:L
     const actions:PageActions={back:props.onBack,menu:onCollectionMenu,playAll:model.actions.playScope,enqueueAll:model.actions.enqueueScope,
         reload:model.actions.reload,resume:model.actions.resumeSync,subscribe:onSubscribe,locateCurrent:locate,
         filterToggle:()=>setFilterOpen(value=>!value),filter:e=>{model.setQuery(e.text??'');setOffset(0)},range:e=>setOffset(Math.max(0,Math.floor((e.value??0)/100)*100))};
-    const items=Array.from({length:Math.max(0,Math.min(100,total-offset))},(_,local)=>{
+    const items=useMemo(()=>Array.from({length:Math.max(0,Math.min(100,total-offset))},(_,local)=>{
         const index=indexes?.[offset+local]??offset+local,song=model.view.displayTracks[index],key=getPlaybackSongKey(song);
         return{id:`${index}:${key}`,title:props.collection.type==='playlist'?song.name:`${index+1}. ${song.name}`,number:String(index+1).padStart(2,'0'),duration:formatTime(getSongDurationMs(song)/1000),subtitle:getSongArtistLabel(song),image:absolutePageImage(getSongCoverUrl(song)),
             action:`play:${index}:${key}`,secondary:`menu:${index}:${key}`,secondaryLabel:t('mobileLibrary.trackActions',{name:song.name}),disabled:isSongUnavailable(song),selected:key===activeKey};
-    });
+    }),[model.view.displayTracks,indexes,total,offset,activeKey,props.collection.type,t]);
     const controls=[{id:'play',title:t('mobileLibrary.playAll'),action:'playAll',disabled:!model.actions.capabilities.scope.enabled}];
     if(model.actions.capabilities.scope.supported)controls.push({id:'queue',title:t('mobileLibrary.enqueue'),action:'enqueueAll',disabled:!model.actions.capabilities.scope.enabled});
     if(model.mutations.capabilities.subscribe.supported)controls.push({id:'subscribe',title:t(model.mutations.subscribed?'mobileLibrary.saved':'mobileLibrary.save'),action:'subscribe',disabled:!model.mutations.capabilities.subscribe.enabled});

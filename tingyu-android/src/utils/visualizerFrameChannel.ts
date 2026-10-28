@@ -8,6 +8,14 @@ let owner: FrameWindow | null = null;
 let queue: FrameRateLimitedRaf | null = null;
 let backgroundQueue: FrameRateLimitedRaf | null = null;
 const rateListeners = new Set<(rate: VisualizerFrameRate) => void>();
+const suspensionListeners = new Set<(suspended: boolean) => void>();
+let renderingSuspended = false;
+export function setVisualizerRenderingSuspended(value: boolean): void {
+    if (renderingSuspended === value) return;
+    renderingSuspended = value;
+    queue?.setSuspended?.(value); backgroundQueue?.setSuspended?.(value);
+    for (const listener of suspensionListeners) listener(value);
+}
 const backgroundRate = (rate: VisualizerFrameRate): VisualizerFrameRate => rate === 'off' ? 'off' : Math.min(30, rate) as VisualizerFrameRate;
 export function configureVisualizerFrameChannel(rate: VisualizerFrameRate,
     create: (request: typeof requestAnimationFrame, cancel: typeof cancelAnimationFrame, rate: VisualizerFrameRate) => FrameRateLimitedRaf) {
@@ -19,13 +27,20 @@ export function configureVisualizerFrameChannel(rate: VisualizerFrameRate,
         queue = create(callback => request.call(current, callback), handle => cancel.call(current, handle), rate);
         backgroundQueue = create(callback => request.call(current, callback), handle => cancel.call(current, handle), backgroundRate(rate));
     } else { queue?.setFrameRate(rate); backgroundQueue?.setFrameRate(backgroundRate(rate)); }
+    queue?.setSuspended?.(renderingSuspended); backgroundQueue?.setSuspended?.(renderingSuspended);
     for (const listener of rateListeners) listener(rate);
 }
 /** Pixi owns its RAF; cap that ticker without touching browser/UI animation scheduling. */
-export function bindVisualizerTickerRate(ticker: { maxFPS: number }): () => void {
+export function bindVisualizerTickerRate(ticker: { maxFPS: number; started?: boolean; stop?: () => void; start?: () => void }): () => void {
     const update = (rate: VisualizerFrameRate) => { ticker.maxFPS = rate === 'off' ? 0 : rate; };
     update(queue?.getFrameRate() ?? 'off'); rateListeners.add(update);
-    return () => { rateListeners.delete(update); };
+    let resume = false;
+    const suspend = (value: boolean) => {
+        if(value){ resume = !!ticker.started; ticker.stop?.(); }
+        else if(resume){ resume = false; ticker.start?.(); }
+    };
+    suspensionListeners.add(suspend); if(renderingSuspended)suspend(true);
+    return () => { rateListeners.delete(update); suspensionListeners.delete(suspend); };
 }
 export const hasVisualizerFrameChannel = () => typeof window !== 'undefined' && owner === window && queue !== null;
 export const requestVisualizerAnimationFrame = (callback: FrameRequestCallback): number => (

@@ -8,6 +8,7 @@ import { setRearRuntime } from '../../src/stores/useRearRuntimeStore';
 import { useAudioSettingsStore } from '../../src/stores/useAudioSettingsStore';
 import { resolveAudioEqualizerSettings } from '../../src/utils/audioEqualizer';
 import { PlayerState } from '../../src/types';
+import { useAutomixSettingsStore } from '../../src/stores/useAutomixSettingsStore';
 import type { ProbeDefinition } from './definition';
 
 // dev/probes/ordinaryPlaybackPower.probe.tsx
@@ -32,8 +33,9 @@ function OrdinaryPlaybackPower() {
         isEnabled:mixing,transition:DEFAULT_TRANSITION_SETTINGS,onAdvanceTrack:noop});
     const bridge=usePlaybackAudioBridge({audioRef,audioContextRef:context,analyserRef:analyser,gainNodeRef:gain,
         localSongs:[],isLyricsLoading:false,shouldAutoPlayRef:auto,connectDecks:decks.connectDecks,getActiveChain:decks.getActiveChain,
+        getAudioElements:decks.getAudioElements,
         suppressAutoplayRef:decks.suppressAutoplayRef,isAutoplayHeld:decks.autoplayHeld,
-        syncOutputGain:()=>{if(gain.current)gain.current.gain.value=.5;},getTargetPlaybackVolume:()=>.5,
+        syncOutputGain:()=>{if(gain.current){gain.current.gain.value=.5;if(audioRef.current)audioRef.current.volume=1;}else if(audioRef.current)audioRef.current.volume=.5;},getTargetPlaybackVolume:()=>.5,
         getCoverUrl:()=>null,updateCacheSize:noop});
     useEffect(()=>{
         useAppViewStore.setState({view:'home'});setRearRuntime(false,false);
@@ -46,7 +48,10 @@ function OrdinaryPlaybackPower() {
         (window as unknown as {__ordinaryPlaybackProbe:unknown}).__ordinaryPlaybackProbe={
             read:()=>({time:audioRef.current?.currentTime,paused:audioRef.current?.paused,context:context.current?.state,
                 playing:usePlaybackStore.getState().playerState,mixing,view:useAppViewStore.getState().view,
-                gain:gain.current?.gain.value}),
+                gain:gain.current?.gain.value,graphCreated:!!context.current}),
+            plain:()=>{useAudioSettingsStore.setState({playbackFadeEnabled:false,audioEqualizerSettings:resolveAudioEqualizerSettings({enabled:false})});
+                usePlaybackStore.setState({replayGainMode:'off'});useAutomixSettingsStore.setState({automixEnabled:false});},
+            spectrum:()=>{const values=new Uint8Array(1024);analyser.current?.getByteFrequencyData(values);return Math.max(...values);},
         };
     },[mixing]);
     return <main style={{padding:24}}><h1>Ordinary playback lifecycle QA</h1>
@@ -55,7 +60,7 @@ function OrdinaryPlaybackPower() {
         <button onClick={()=>{audioRef.current?.pause();setPlayerState(PlayerState.PAUSED);}}>Pause</button>
         <button onClick={()=>useAppViewStore.setState({view:'home'})}>Library</button>
         <button onClick={()=>useAppViewStore.setState({view:'player'})}>Stage</button>
-        <button onClick={()=>setMixing(value=>!value)}>Toggle mixing</button>
+        <button onClick={()=>setMixing(value=>{useAutomixSettingsStore.setState({automixEnabled:!value});return !value;})}>Toggle mixing</button>
         <button onClick={()=>setRearRuntime(true,false)}>Rear awake</button>
         <button onClick={()=>setRearRuntime(false,false)}>Rear off</button>
         <output>{failure}</output>

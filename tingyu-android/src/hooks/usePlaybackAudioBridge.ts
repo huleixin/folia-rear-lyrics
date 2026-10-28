@@ -21,6 +21,8 @@ import { useTranslation } from 'react-i18next';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
 import { useAppViewStore } from '../stores/useAppViewStore';
 import { noteAudioContext } from '../utils/mediaDiagnostics';
+import { useAutomixSettingsStore } from '../stores/useAutomixSettingsStore';
+import { bindPlaybackContextIdle, needsProcessedPlayback } from '../services/playbackPower';
 
 // src/hooks/usePlaybackAudioBridge.ts
 
@@ -43,6 +45,7 @@ type UsePlaybackAudioBridgeParams = {
     connectDecks: (context: AudioContext, output: AudioNode) => boolean;
     /** The deck the app is currently listening through, for per-track loudness compensation. */
     getActiveChain: () => AutomixDeckChain | null;
+    getAudioElements: () => HTMLAudioElement[];
     /** Set when a pause interrupted an armed transition; suppresses exactly one autoplay. */
     suppressAutoplayRef: MutableRefObject<boolean>;
     /** True while automix has the next track loaded but its blend is not due to start yet. */
@@ -64,6 +67,7 @@ export function usePlaybackAudioBridge({
     gainNodeRef,
     connectDecks,
     getActiveChain,
+    getAudioElements,
     suppressAutoplayRef,
     isAutoplayHeld,
     syncOutputGain,
@@ -84,12 +88,15 @@ export function usePlaybackAudioBridge({
     const replayGainLogSignatureRef = useRef<string | null>(null);
     const equalizerNodesRef = useRef<BiquadFilterNode[]>([]);
     const graphRef = useRef<PlaybackGraph | null>(null);
+    const idleCleanup = useRef<(() => void) | null>(null);
     const mainStageActive = useMainStageActive();
     const view = useAppViewStore(state => state.view);
     const playing = usePlaybackStore(state => state.playerState) === PlayerState.PLAYING;
     const rearAwake = useRearRuntimeStore(state => state.enabled && !state.sleeping);
 
     const audioEqualizerSettings = useAudioSettingsStore(state => state.audioEqualizerSettings);
+    const fadeEnabled = useAudioSettingsStore(state => state.playbackFadeEnabled);
+    const automixEnabled = useAutomixSettingsStore(state => state.automixEnabled);
 
     // Recalculates source-specific gain after the audio graph or playback settings become ready.
     const applyReplayGain = useCallback(() => {
@@ -150,6 +157,8 @@ export function usePlaybackAudioBridge({
         // The context is the sentinel, not the source node: a deck that failed to connect must
         // not let this run twice, because createMediaElementSource throws on a second call.
         if (!audioRef.current || audioContextRef.current) return;
+        if (!needsProcessedPlayback({ android: isAndroidNativeRuntime(), analysis: needsPlaybackAnalysis(),
+            equalizer: audioEqualizerSettings.enabled, automix: automixEnabled, replayGain: replayGainMode, fade: fadeEnabled })) return;
         try {
             const AudioContextClass = window.AudioContext || (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
             // Music playback favors stability over the browser's tiny interactive buffer. On
@@ -182,10 +191,14 @@ export function usePlaybackAudioBridge({
             }
             applyReplayGain();
             syncOutputGain(getTargetPlaybackVolume(), 0);
+            if (isAndroidNativeRuntime()) idleCleanup.current = bindPlaybackContextIdle(ctx, getAudioElements());
         } catch (error) {
             console.error('Audio Context Setup Failed:', error);
         }
-    }, [analyserRef, applyReplayGain, audioContextRef, audioEqualizerSettings, audioRef, connectDecks, gainNodeRef, getTargetPlaybackVolume, syncOutputGain]);
+    }, [analyserRef, applyReplayGain, audioContextRef, audioEqualizerSettings, audioRef, connectDecks, gainNodeRef, getAudioElements, getTargetPlaybackVolume, syncOutputGain, automixEnabled, replayGainMode, fadeEnabled]);
+
+    // A listener can enable effects or open either stage during plain-element playback.
+    useEffect(() => { if (playing) setupAudioAnalyzer(); }, [playing, view, rearAwake, mainStageActive, setupAudioAnalyzer]);
 
     /**
      * Writes a fully-played track's audio and cover into the media cache.
@@ -249,6 +262,8 @@ export function usePlaybackAudioBridge({
     }, [view, rearAwake, playing, mainStageActive]);
 
     useEffect(() => () => {
+        idleCleanup.current?.(); idleCleanup.current = null;
+        registerPlaybackFadeGraph(null);
         graphRef.current?.dispose();
         graphRef.current = null;
     }, []);

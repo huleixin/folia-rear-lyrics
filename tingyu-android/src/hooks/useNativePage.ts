@@ -21,7 +21,8 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
     const [ready, setReady] = useState(NATIVE_FIRST);
     const latest = useRef({ active, model, actions, onReady }); latest.current = { active, model, actions, onReady };
     const sync = useRef<() => void>(() => {});
-    useLayoutEffect(() => { if(NATIVE_FIRST&&ref.current)ref.current.dataset.nativePage='true';sync.current(); });
+    const modelSignature=JSON.stringify(model);
+    useLayoutEffect(() => { if(NATIVE_FIRST&&ref.current)ref.current.dataset.nativePage='true';sync.current(); },[modelSignature,active,ref]);
     // Adapters may live below the element owning ref. Its DOM ref is attached after
     // descendant layout effects; subscribe after commit so cold-start data is never missed.
     useEffect(() => {

@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalDensity
 import coil.compose.AsyncImage
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePlaylistPage.kt
@@ -116,7 +117,7 @@ private val PlaylistJade=Color(0xFF7EE0C2)
                 page.sections.filter{it.layout=="input"}.forEach{section->item(section.id){Box(Modifier.padding(horizontal=18.dp,vertical=8.dp)){NativePageInput(section,action)}}}
                 items(tracks.total,key={index->"${tracks.dataKey}:$index"}){index->
                     val item=cache.get(tracks,index)
-                    if(item!=null)NativePlaylistTrack(item.copy(selected=item.id.substringAfter(':')==tracks.activeKey),index==0,tracks.playing,action)
+                    if(item!=null)NativePlaylistTrack(item.copy(selected=item.id.substringAfter(':')==tracks.activeKey),index==0,tracks.playing,maxOf(tracks.total.toString().length,item.number.length),action)
                     else {Spacer(Modifier.height(52.dp));LaunchedEffect(page.key,page.session,tracks.dataKey,index/100){if(cache.request(index,page.session))action(tracks.request,"",(index/100*100).toDouble())}}
                 }
                 page.sections.filter{it.layout=="message"&&it.id!="songHeading"}.forEach{section->item(section.id){Column(Modifier.padding(18.dp)){
@@ -126,24 +127,23 @@ private val PlaylistJade=Color(0xFF7EE0C2)
             }
         }
         if(toolbar.any{it.id=="locateCurrent"}&&(!currentVisible||tracks.activeIndex<0))Box(Modifier.align(Alignment.BottomEnd).padding(end=18.dp,bottom=(page.safeBottom+74).dp)){
-            PagePill(label("locateCurrent"),{action("locateCurrent","",0.0)},selected=true,height=40.dp,font=12)
+            PlaylistLocateButton(label("locateCurrent")){action("locateCurrent","",0.0)}
         }
     }
 }
-@Composable private fun NativePlaylistTrack(item:NativePageItem,first:Boolean,playing:Boolean,action:PageAction){
+@Composable private fun NativePlaylistTrack(item:NativePageItem,first:Boolean,playing:Boolean,numberDigits:Int,action:PageAction){
+    val numberWidth=playlistNumberWidth(numberDigits,LocalDensity.current.fontScale).dp
     Column(Modifier.fillMaxWidth().then(if(first)Modifier.clip(RoundedCornerShape(topStart=26.dp,topEnd=26.dp))else Modifier).background(if(item.selected)Color(0x247EE0C2)else Color.Transparent)
         .drawBehind{if(item.selected)drawRect(PlaylistJade,size=Size(3.dp.toPx(),size.height))}){
         Row(Modifier.fillMaxWidth().height(51.dp).padding(start=18.dp,end=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
-            Text(item.number,color=if(item.selected)PlaylistJade else PageMuted,fontSize=11.sp,modifier=Modifier.width(17.dp))
+            Text(item.number,color=if(item.selected)PlaylistJade else PageMuted,fontSize=11.sp,maxLines=1,softWrap=false,
+                textAlign=TextAlign.End,modifier=Modifier.width(numberWidth))
             PageArtwork(item.image,Modifier.size(36.dp).clickable(enabled=!item.disabled){action(item.action,"",0.0)},7.dp)
             Column(Modifier.weight(1f).clickable(enabled=!item.disabled){action(item.action,"",0.0)}){
                 Text(item.title,color=if(item.selected)PlaylistJade else PageInk.copy(alpha=if(item.disabled).45f else 1f),fontSize=14.sp,fontWeight=FontWeight(if(item.selected)700 else 550),maxLines=1,overflow=TextOverflow.Ellipsis)
                 Text(item.subtitle,color=PageMuted,fontSize=11.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=1.dp))
             }
-            if(item.selected)Canvas(Modifier.width(12.dp).height(15.dp)){
-                if(playing)listOf(.4f,.9f,.65f).forEachIndexed{i,h->drawLine(PlaylistJade,Offset(size.width*(i+.5f)/3,size.height),Offset(size.width*(i+.5f)/3,size.height*(1-h)),2.dp.toPx(),StrokeCap.Round)}
-                else listOf(.3f,.7f).forEach{x->drawLine(PlaylistJade,Offset(size.width*x,size.height*.2f),Offset(size.width*x,size.height*.8f),2.dp.toPx(),StrokeCap.Round)}
-            }
+            if(item.selected)PlaylistPlaybackIndicator(playing)
             Text(item.duration,color=PageMuted,fontSize=11.sp,textAlign=TextAlign.End,modifier=Modifier.width(34.dp))
             ChromeButton(item.secondaryLabel,size=36.dp,onClick={action(item.secondary,"",0.0)}){PageIcon("ellipsis-vertical",PageMuted,Modifier.size(19.dp))}
         }

@@ -15,6 +15,7 @@ export type FrameRateLimitedRaf = {
     setFrameRate: (frameRate: VisualizerFrameRate) => void;
     getFrameRate: () => VisualizerFrameRate;
     dispose: () => void;
+    setSuspended?: (suspended: boolean) => void;
 };
 
 type WindowWithVisualizerFrameRateLimiter = Window & {
@@ -71,13 +72,14 @@ export const createFrameRateLimitedRaf = (
     initialFrameRate: VisualizerFrameRate = 60,
 ): FrameRateLimitedRaf => {
     let frameRate = initialFrameRate;
+    let suspended = false;
     let nextHandle = 1;
     let nativeFrameHandle: number | null = null;
     let lastProcessedTimestamp: number | null = null;
     const callbacks = new Map<number, AnimationFrameCallback>();
 
     const scheduleNativeFrame = () => {
-        if (nativeFrameHandle !== null || callbacks.size === 0) {
+        if (suspended || nativeFrameHandle !== null || callbacks.size === 0) {
             return;
         }
 
@@ -86,6 +88,7 @@ export const createFrameRateLimitedRaf = (
 
     const processNativeFrame = (timestamp: number) => {
         nativeFrameHandle = null;
+        if (suspended) return;
 
         if (lastProcessedTimestamp !== null && frameRate !== 'off'
             && timestamp - lastProcessedTimestamp < 1000 / frameRate - FRAME_INTERVAL_TOLERANCE_MS) {
@@ -101,6 +104,7 @@ export const createFrameRateLimitedRaf = (
         const frameHandles = Array.from(callbacks.keys());
 
         for (const handle of frameHandles) {
+            if (suspended) break;
             // Match native RAF: an earlier callback may cancel a later one in the same frame.
             const callback = callbacks.get(handle);
             if (!callback) continue;
@@ -116,6 +120,11 @@ export const createFrameRateLimitedRaf = (
     };
 
     return {
+        setSuspended: (value) => {
+            suspended = value;
+            if (value && nativeFrameHandle !== null) { nativeCancelAnimationFrame(nativeFrameHandle); nativeFrameHandle = null; }
+            if (!value) { lastProcessedTimestamp = null; scheduleNativeFrame(); }
+        },
         requestAnimationFrame: (callback) => {
             const handle = nextHandle;
             nextHandle += 1;

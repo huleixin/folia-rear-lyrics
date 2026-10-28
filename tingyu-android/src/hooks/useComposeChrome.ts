@@ -12,7 +12,8 @@ export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfac
     const [ready,setReady]=useState(PREHIDE_COMPOSE_CHROME);
     const latest=useRef({active,data,actions,clock});latest.current={active,data,actions,clock};
     const scheduleRef=useRef<()=>void>(()=>{});
-    useLayoutEffect(()=>{if(PREHIDE_COMPOSE_CHROME&&ref.current)ref.current.dataset.composeNative='true';scheduleRef.current();});
+    const dataSignature=JSON.stringify(data);
+    useLayoutEffect(()=>{if(PREHIDE_COMPOSE_CHROME&&ref.current)ref.current.dataset.composeNative='true';scheduleRef.current();},[dataSignature,active,ref]);
     useLayoutEffect(()=>{
         const node=ref.current;if(!node||!active)return;
         // Android owns these controls from Activity startup; acknowledgements only update data.
@@ -34,10 +35,14 @@ export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfac
             flushNativeShellRoute();
             // Track only short layout transitions; a slow draw reply must not stall geometry.
             if(performance.now()<deadline)frame=requestAnimationFrame(()=>void measure());
-            const current=latest.current,rect=node.getBoundingClientRect(),style=getComputedStyle(node);
+            const current=latest.current;
             // The native shell already owns route/overlay interaction. An invisible
             // ancestor's web-entry inert timer must not hold its footer for another 400ms.
             const nativeFooter=PREHIDE_COMPOSE_CHROME&&(id==='nav'||id==='mini');
+            // Native footers own their placement. Measuring hidden HTML here can
+            // synchronously lay out the whole browsing tree for no visual benefit.
+            const rect=nativeFooter?{left:0,top:0,width:innerWidth,height:id==='nav'?54:46}:node.getBoundingClientRect();
+            const style=nativeFooter?{opacity:'1',visibility:'visible',display:'block'}:getComputedStyle(node);
             const enabled=current.active&&isMainStageActive()&&!hasBlockingChromeWindow()&&(nativeFooter||!node.closest('[inert]')&&node.getAttribute('aria-hidden')!=='true'
                 &&style.visibility!=='hidden'&&style.display!=='none'&&Number(style.opacity)>.01&&rect.width>0&&rect.height>0);
             const safeBottom=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--folia-main-inset-bottom'))||0;

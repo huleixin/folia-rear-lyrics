@@ -76,3 +76,10 @@ it('never substitutes the settings index while a new document key is being captu
     expect(bridge.update.mock.calls[0][0].navigation).toBe('route:2');
     delete document.documentElement.dataset.nativeNavigation;
 });
+it('does not remeasure or resend unchanged models across repeated parent renders',async()=>{
+    await act(async()=>root.render(h(Probe)));
+    const measure=vi.mocked(HTMLElement.prototype.getBoundingClientRect),count=measure.mock.calls.length;
+    const packets=bridge.update.mock.calls.length;
+    for(let i=0;i<30;i++)await act(async()=>root.render(h(Probe)));
+    expect(measure.mock.calls.length).toBe(count);expect(bridge.update.mock.calls.length).toBe(packets);
+});
