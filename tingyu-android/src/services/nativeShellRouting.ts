@@ -9,6 +9,7 @@ import { nativeShellRoute, nativeShellHasWebOverlay } from '../utils/nativeShell
 import { resolveInitialSettingsSection } from '../components/modal/settings/navigation/settingsLastSection';
 import { collectionKey } from '../library/core/model/collectionIdentity';
 import { useMotionSettingsStore, readReducedMotion } from '../stores/useMotionSettingsStore';
+import {setNativeShellPublisher,scheduleNativeShellRoute} from './nativeShellCommit';
 
 // src/services/nativeShellRouting.ts
 // The native shell owns its UI from process start; JS only supplies destinations and data.
@@ -31,16 +32,18 @@ export function installNativeShellRouting() {
             route==='collection'?`collection:${stack?.at(-1)?.type==='artist'?'artist:':''}${collectionKey(stack?.at(-1))}`:'';
         const entryKey=route==='settings'&&!index?`${pageTarget}${['visualizer','themePark','lyricFilter','globalLyricOffset','aiHelp','releaseNotes'].map(id=>settings.initialSubview===id).join(':')}`:pageTarget;
         const reducedMotion=readReducedMotion('uiMicroMotion');
+        const playlistDetail=route==='collection'&&stack?.at(-1)?.type==='playlist';
         const routeKey=JSON.stringify({route,selectedTab,pageTarget,entryKey});
         if(routeKey!==lastRoute){lastRoute=routeKey;document.documentElement.dataset.nativeNavigation=`${generation}:${++navigationRevision}`;}
         const navigation=document.documentElement.dataset.nativeNavigation??'';
-        const key=JSON.stringify({route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion});if(key===last)return;last=key;
+        const key=JSON.stringify({route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,playlistDetail});if(key===last)return;last=key;
         document.documentElement.dataset.nativeRoute=route;
-        void nativePages.shell({generation,revision:++revision,route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,navigation}).catch(error=>console.warn('[NativeShell] Route update failed',error));
+        void nativePages.shell({generation,revision:++revision,route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,navigation,playlistDetail}).catch(error=>console.warn('[NativeShell] Route update failed',error));
     };
-    [useAppViewStore,useSettingsModalStore,useSearchNavigationStore,useCollectionNavigationStore,useMobileLibraryStore,useMotionSettingsStore].forEach(store=>store.subscribe(publish));
+    setNativeShellPublisher(publish);
+    [useAppViewStore,useSettingsModalStore,useSearchNavigationStore,useCollectionNavigationStore,useMobileLibraryStore,useMotionSettingsStore].forEach(store=>store.subscribe(scheduleNativeShellRoute));
     const observer=new MutationObserver(records=>{if(records.some(record=>record.type==='attributes'||[...record.addedNodes,...record.removedNodes].some(node=>node instanceof Element&&
-        (node.matches('[data-folia-keyboard-window]')||node.querySelector('[data-folia-keyboard-window]')))))publish()});
+        (node.matches('[data-folia-keyboard-window]')||node.querySelector('[data-folia-keyboard-window]')))))scheduleNativeShellRoute()});
     observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['data-folia-keyboard-window','data-native-page']});
     publish();
 }

@@ -1,3 +1,4 @@
+import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../../utils/visualizerFrameChannel';
 import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import React, { useEffect, useMemo, useRef } from 'react';
 import type { MotionValue } from 'framer-motion';
@@ -250,7 +251,7 @@ const PendoloClockworkCanvas: React.FC<PendoloClockworkCanvasProps> = ({
             const width = box.width;
             const height = box.height;
             if (width <= 0 || height <= 0) {
-                animationFrameId = window.requestAnimationFrame(render);
+                animationFrameId = requestVisualizerAnimationFrame(render);
                 return;
             }
             const dpr = resolveStageRenderRatio(window.devicePixelRatio, window.devicePixelRatio || 1);
@@ -277,13 +278,13 @@ const PendoloClockworkCanvas: React.FC<PendoloClockworkCanvasProps> = ({
                 if (webglCanvasRef.current) webglCanvasRef.current.style.visibility = 'hidden';
                 const canvas = canvas2dRef.current;
                 if (!canvas) {
-                    animationFrameId = window.requestAnimationFrame(render);
+                    animationFrameId = requestVisualizerAnimationFrame(render);
                     return;
                 }
                 canvas.style.visibility = 'visible';
                 const ctx = canvas.getContext('2d');
                 if (!ctx) {
-                    animationFrameId = window.requestAnimationFrame(render);
+                    animationFrameId = requestVisualizerAnimationFrame(render);
                     return;
                 }
                 const pixelWidth = Math.round(width * dpr);
@@ -299,13 +300,13 @@ const PendoloClockworkCanvas: React.FC<PendoloClockworkCanvasProps> = ({
                 ctx.restore();
             }
 
-            animationFrameId = window.requestAnimationFrame(render);
+            animationFrameId = requestVisualizerAnimationFrame(render);
         };
 
-        animationFrameId = window.requestAnimationFrame(render);
+        animationFrameId = requestVisualizerAnimationFrame(render);
 
         return () => {
-            if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
+            if (animationFrameId) cancelVisualizerAnimationFrame(animationFrameId);
             webglCanvas?.removeEventListener('webglcontextlost', handleContextLost);
             webglCanvas?.removeEventListener('webglcontextrestored', handleContextRestored);
         };

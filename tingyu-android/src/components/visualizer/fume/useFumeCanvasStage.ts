@@ -1,3 +1,4 @@
+import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../../utils/visualizerFrameChannel';
 import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import { useEffect, useRef, type RefObject } from 'react';
 import { drawFumeBackground } from '../FumeBackground';
@@ -112,7 +113,7 @@ export const useFumeCanvasStage = (
                 }
 
                 if (!paused) {
-                    frameId = window.requestAnimationFrame(draw);
+                    frameId = requestVisualizerAnimationFrame(draw);
                 }
                 return;
             }
@@ -287,13 +288,13 @@ export const useFumeCanvasStage = (
             releaseSnapshots(staticBlockSnapshotCacheRef.current, now);
 
             if (!paused) {
-                frameId = window.requestAnimationFrame(draw);
+                frameId = requestVisualizerAnimationFrame(draw);
             }
         };
 
         draw();
         return () => {
-            window.cancelAnimationFrame(frameId);
+            cancelVisualizerAnimationFrame(frameId);
             lastFrameAt = null;
         };
     }, [article, canvasRef, driver, paused, scene, theme]);

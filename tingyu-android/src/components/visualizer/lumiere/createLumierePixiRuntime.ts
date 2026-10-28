@@ -1,3 +1,4 @@
+import { bindVisualizerTickerRate } from '../../../utils/visualizerFrameChannel';
 import { getRearSafeInset, resolveVisualizerDimension } from '../../../utils/visualizerSurface';
 // Copyright (c) 2026 chthollyphile
 import type { MotionValue } from 'framer-motion';
@@ -71,6 +72,7 @@ const MIN_WIDTH = 320;
 const MIN_HEIGHT = 240;
 
 export class LumierePixiRuntime {
+    private unbindFrameRate: (() => void) | null = null;
     /** 换歌时换下来的场景进缓存的 retired 队列，之后一帧销毁一个，免得交接那一帧卡住。 */
     private readonly sceneCache = new PixiSceneCache<LumiereSceneEntry>({
         count: () => this.options.song.program.paragraphs.length,
@@ -171,6 +173,7 @@ export class LumierePixiRuntime {
 
     private install() {
         this.resizeToHost(true);
+        this.unbindFrameRate = bindVisualizerTickerRate(this.app.ticker);
         this.app.ticker.add(this.renderFrame);
         this.resizeObserver = new ResizeObserver(() => {
             if (this.destroyed || !this.resizeToHost(false)) return;
@@ -469,6 +472,7 @@ export class LumierePixiRuntime {
     }
 
     destroy() {
+        this.unbindFrameRate?.(); this.unbindFrameRate = null;
         if (this.destroyed) return;
         this.destroyed = true;
         // 先放掉等交接的人，否则 pixiRuntimeHost 的 drain 循环会一直停在这个 promise 上。

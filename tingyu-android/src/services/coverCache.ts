@@ -1,7 +1,7 @@
 import { getFromCache, removeFromCache, saveToCache } from './db';
 import { createSafeObjectUrl, isBlob } from '../utils/blobGuards';
 import {
-    clearCoverAssets,
+    clearCoverAssets as clearStoredCoverAssets,
     getCoverAssetUsage,
     readCoverAsset,
     removeCoverAsset,
@@ -41,15 +41,15 @@ const fetchCoverBlob = async (coverUrl: string): Promise<Blob> => {
     return await response.blob();
 };
 
-export async function getCachedCoverUrl(cacheKey: string): Promise<string | null> {
+async function readCachedCoverBlob(cacheKey: string): Promise<Blob | null> {
     const stored = await getFromCache<unknown>(cacheKey);
     if (isBlob(stored)) {
         const descriptor = await writeCoverAsset(cacheKey, stored).catch(() => null);
         if (!descriptor) {
-            return createSafeObjectUrl(stored);
+            return stored;
         }
         await saveToCache(cacheKey, descriptor);
-        return createSafeObjectUrl(stored);
+        return stored;
     }
 
     if (stored !== null && !isStoredCoverDescriptor(stored)) {
@@ -63,7 +63,7 @@ export async function getCachedCoverUrl(cacheKey: string): Promise<string | null
         if (stored) await removeFromCache(cacheKey);
         return null;
     }
-    return createSafeObjectUrl(cachedCover);
+    return cachedCover;
 }
 
 /**
@@ -79,19 +79,52 @@ export async function hasCachedCover(cacheKey: string): Promise<boolean> {
     return isBlob(stored) || isStoredCoverDescriptor(stored);
 }
 
+// Coalesce file reads and downloads. Each caller still owns its own object URL, so
+// existing revokeObjectURL cleanup cannot invalidate a different page's artwork.
+const blobReads = new Map<string, Promise<Blob | null>>();
+const downloads = new Map<string, Promise<Blob>>();
+let residentBytes = 0;
+const residentSizes = new Map<string, number>();
+function forgetCover(key: string) {
+    blobReads.delete(key); downloads.delete(key);
+    residentBytes -= residentSizes.get(key) ?? 0; residentSizes.delete(key);
+}
+function rememberCover(key: string, load: Promise<Blob | null>): Promise<Blob | null> {
+    blobReads.set(key, load);
+    void load.then(blob => {
+        if (blobReads.get(key) !== load) return;
+        if (!blob) { blobReads.delete(key); return; }
+        residentSizes.set(key, blob.size); residentBytes += blob.size;
+        while (blobReads.size > 64 || residentBytes > 8 * 1024 * 1024) {
+            const oldest = blobReads.keys().next().value;
+            if (oldest === undefined) break;
+            forgetCover(oldest);
+        }
+    }, () => { if (blobReads.get(key) === load) forgetCover(key); });
+    return load;
+}
+export async function getCachedCoverUrl(cacheKey: string): Promise<string | null> {
+    const blob = await (blobReads.get(cacheKey) ?? rememberCover(cacheKey, readCachedCoverBlob(cacheKey)));
+    return createSafeObjectUrl(blob);
+}
 export async function loadCachedOrFetchCover(cacheKey: string, coverUrl?: string | null): Promise<string | null> {
     if (!coverUrl) return null;
-
     try {
-        const cachedCoverUrl = await getCachedCoverUrl(cacheKey);
-        if (cachedCoverUrl) {
-            return cachedCoverUrl;
+        const cached = await getCachedCoverUrl(cacheKey);
+        if (cached) return cached;
+        let job = downloads.get(cacheKey);
+        if (!job) {
+            job = (async () => {
+                const blob = await fetchCoverBlob(coverUrl);
+                const descriptor = await writeCoverAsset(cacheKey, blob).catch(() => null);
+                if (descriptor) await saveToCache(cacheKey, descriptor);
+                rememberCover(cacheKey, Promise.resolve(blob));
+                return blob;
+            })();
+            downloads.set(cacheKey, job);
+            void job.finally(() => { if (downloads.get(cacheKey) === job) downloads.delete(cacheKey); }).catch(() => {});
         }
-
-        const coverBlob = await fetchCoverBlob(coverUrl);
-        const descriptor = await writeCoverAsset(cacheKey, coverBlob).catch(() => null);
-        if (descriptor) await saveToCache(cacheKey, descriptor);
-        return createSafeObjectUrl(coverBlob) || coverUrl;
+        return createSafeObjectUrl(await job) || coverUrl;
     } catch (error) {
         console.warn('Failed to cache cover:', error);
         return coverUrl;
@@ -99,6 +132,7 @@ export async function loadCachedOrFetchCover(cacheKey: string, coverUrl?: string
 }
 
 export async function saveCoverBlob(cacheKey: string, coverBlob: Blob): Promise<void> {
+    forgetCover(cacheKey);
     const descriptor = await writeCoverAsset(cacheKey, coverBlob).catch(() => null);
     if (descriptor) {
         await saveToCache(cacheKey, descriptor);
@@ -123,7 +157,12 @@ export async function cacheLocalSongOnlineCover(songId: string, coverUrl: string
 }
 
 export async function removeCachedCover(cacheKey: string): Promise<void> {
+    forgetCover(cacheKey);
     await Promise.all([removeFromCache(cacheKey), removeCoverAsset(cacheKey)]);
 }
 
-export { clearCoverAssets, getCoverAssetUsage };
+export async function clearCoverAssets(): Promise<void> {
+    blobReads.clear(); downloads.clear(); residentSizes.clear(); residentBytes = 0;
+    await clearStoredCoverAssets();
+}
+export { getCoverAssetUsage };

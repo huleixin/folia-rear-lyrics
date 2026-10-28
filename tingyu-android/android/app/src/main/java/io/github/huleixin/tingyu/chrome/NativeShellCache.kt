@@ -48,10 +48,7 @@ internal class NativeShellCache(context: Context) {
         if(id=="mini"&&data.optString("title").isBlank())data.put("title","听屿").put("artist","选择一首音乐开始播放")
         val value=frame(id,width,height).put("data",data)
         when(id){
-            "nav"->if(wide)value.put("left",if(short)8 else 12).put("top",16+top).put("width",80).put("height",height-32-top)
-                else value.put("left",10).put("top",height-62-bottom).put("width",width-20).put("height",54)
-            "mini"->value.put("left",if(short)108 else if(wide)116 else 10).put("top",height-(if(short)72 else if(wide)76 else 114)-(if(wide)0f else bottom))
-                .put("width",width-(if(short)128 else if(wide)148 else 20)).put("height",if(short)64 else if(wide)62 else 46)
+            "nav","mini"->NativeFooterLayout.rect(id,width,height,top,bottom,false).let{rect->value.put("left",rect.left).put("top",rect.top).put("width",rect.width).put("height",rect.height)}
             "stage"->value.put("left",16).put("top",height-148).put("width",width-32).put("height",132)
         }
         return ChromeSurface.parse(value)

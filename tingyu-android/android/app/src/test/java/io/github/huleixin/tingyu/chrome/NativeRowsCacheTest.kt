@@ -26,4 +26,13 @@ class NativeRowsCacheTest {
         val replacement=first.copy(items=listOf(first.items[0].copy(title="Updated")))
         cache.accept(replacement);assertEquals("Updated",cache.get(section(100),0)?.title)
     }
+    @Test fun returningToAPlaylistRetainsRowsAndRetriesRetiredAdapterRequests(){
+        val retention=NativeRowRetention(2);val first=retention.get("playlist:one")
+        first.accept(section(300));assertTrue(first.request(500,"retired"));assertFalse(first.request(501,"retired"))
+        val returned=retention.get("playlist:one");assertSame(first,returned)
+        assertEquals("305",returned.get(section(0),305)?.id)
+        assertTrue(returned.request(500,"new-session"))
+        retention.get("playlist:two");retention.get("playlist:three")
+        assertNotSame(first,retention.get("playlist:one"))
+    }
 }

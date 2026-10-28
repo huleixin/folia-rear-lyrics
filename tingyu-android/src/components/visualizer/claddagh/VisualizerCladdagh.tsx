@@ -1,3 +1,4 @@
+import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../../utils/visualizerFrameChannel';
 import { getRearSafeInset, getVisualizerSurface } from '../../../utils/visualizerSurface';
 // Only for the you who has yet to exist in this world.
 // DO NOT REMOVE THE LINE ABOVE.
@@ -144,13 +145,13 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
             }
 
             // Finish a pending glow transition, then hold the axis without an idle RAF loop.
-            if (!paused || Math.abs(diff) > 0.01) frameId = requestAnimationFrame(updateColors);
+            if (!paused || Math.abs(diff) > 0.01) frameId = requestVisualizerAnimationFrame(updateColors);
         };
 
-        frameId = requestAnimationFrame(updateColors);
+        frameId = requestVisualizerAnimationFrame(updateColors);
 
         return () => {
-            cancelAnimationFrame(frameId);
+            cancelVisualizerAnimationFrame(frameId);
         };
     }, [smoothedBass, smoothedVocal, theme.primaryColor, theme.accentColor, theme.secondaryColor, centerNormalTiltDeg, paused, isChorus, claddaghTuning.showAxisLine, rearAxis?.maxScaleX]);
 

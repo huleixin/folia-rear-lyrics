@@ -1,3 +1,4 @@
+import { requestVisualizerBackgroundFrame, cancelVisualizerBackgroundFrame } from '../../../../utils/visualizerFrameChannel';
 import React, { useEffect, useRef } from 'react';
 import * as twgl from 'twgl.js';
 import { Theme } from '../../../../types';
@@ -147,7 +148,7 @@ const SoraBackground: React.FC<SoraBackgroundProps> = ({ theme, isDaylight, paus
     // While paused, render only when inputs or dimensions change.
     const invalidate = () => {
       if (animationRef.current === null) {
-        animationRef.current = requestAnimationFrame(render);
+        animationRef.current = requestVisualizerBackgroundFrame(render);
       }
     };
 
@@ -196,7 +197,7 @@ const SoraBackground: React.FC<SoraBackgroundProps> = ({ theme, isDaylight, paus
       invalidateRef.current = null;
       resizeObserver.disconnect();
       if (animationRef.current !== null) {
-        cancelAnimationFrame(animationRef.current);
+        cancelVisualizerBackgroundFrame(animationRef.current);
         animationRef.current = null;
       }
       gl.deleteProgram(programInfo.program);

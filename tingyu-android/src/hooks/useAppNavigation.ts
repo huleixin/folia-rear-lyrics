@@ -24,6 +24,7 @@ import {
 import { useAppViewStore } from '../stores/useAppViewStore';
 import type { AppView } from '../stores/useAppViewStore';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
+import {returnFromNativeStage} from '../services/nativeStageReturn';
 import { resolvePlaybackSurface, usePlaybackEntryViewStore, type PlaybackEntryView } from '../stores/usePlaybackEntryViewStore';
 import { setStatusMessage } from '../stores/useStatusMessageStore';
 import i18n from '../i18n/config';
@@ -448,12 +449,14 @@ export function useAppNavigation() {
     }, [pushNavigationState, resetLocalNavigationContext]);
 
     const navigateBackFromPlayer = useCallback(() => {
+        returnFromNativeStage(()=>{
         const historyState = window.history.state as NavigationHistoryState | null;
         if (shouldNavigatePlayerBackThroughHistory(historyState)) {
             window.history.back();
             return;
         }
         navigateDirectHome();
+        });
     }, [navigateDirectHome]);
 
     const navigateToSearch = useCallback(({

@@ -165,7 +165,7 @@ export function usePlaybackInteractionBridge({
             } else {
                 startPlaybackFromInteraction();
             }
-        }
+        } else startPlaybackFromInteraction();
     }, [activePlaybackContext, audioRef, audioSrc, isNowPlayingStageActive, isTransitionAudible, pausePlayback, playerState, startPlaybackFromInteraction, stageActiveEntryKind]);
 
     const toggleLoop = useCallback((event?: React.MouseEvent) => {

@@ -89,7 +89,7 @@ internal fun LazyListScope.pagedNativeRows(page:NativePage,section:NativePageSec
         if(item!=null)NativePageRow(item,height.dp,if(chevron)NativePageDesign.DirectoryArt.dp else 40.dp,if(chevron)15 else 14,if(chevron)12 else 11,divider=!chevron,chevron=chevron){action(it,"",0.0)}
         else {
             Spacer(Modifier.height(height.dp))
-            if(section.request.isNotBlank())LaunchedEffect(page.key,section.id,section.dataKey,index/100){if(cache.request(index))action(section.request,"",(index/100*100).toDouble())}
+            if(section.request.isNotBlank())LaunchedEffect(page.key,page.session,section.id,section.dataKey,index/100){if(cache.request(index,page.session))action(section.request,"",(index/100*100).toDouble())}
         }
     }
 }

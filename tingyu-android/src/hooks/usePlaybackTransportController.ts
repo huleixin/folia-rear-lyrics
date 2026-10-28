@@ -10,6 +10,7 @@ import { markProgrammaticPause, playbackFade, type PlaybackFadeSettleReason } fr
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
 import { getPlaybackFailureMessage, isPlaybackFailureStatus } from '../services/playbackRecovery/playbackFailurePolicy';
 import type { OnlineRecoveryOptions, OnlineRecoveryResult, PlaybackFailure } from '../types/playbackFailure';
+import { isPlaybackSourceCommitted, waitForPlaybackReady } from '../services/playbackReady';
 
 // src/hooks/usePlaybackTransportController.ts
 
@@ -69,9 +70,11 @@ export function usePlaybackTransportController({
     const duration = usePlaybackStore(state => state.duration);
     const transportRevision = useRef(0);
     const wantsPlayback = useRef(false);
+    const pendingReady = useRef<AbortController | null>(null);
     useEffect(() => () => {
         transportRevision.current++;
         wantsPlayback.current = false;
+        pendingReady.current?.abort();
     }, []);
 
     const resumePlayback = useCallback(async () => {
@@ -79,6 +82,7 @@ export function usePlaybackTransportController({
             return;
         }
         const revision = ++transportRevision.current;
+        pendingReady.current?.abort();
         wantsPlayback.current = true;
 
         if (activePlaybackContext === 'stage' && stageActiveEntryKind === 'lyrics' && !audioSrc) {
@@ -102,10 +106,24 @@ export function usePlaybackTransportController({
             return;
         }
 
-        const audio = audioRef.current;
-        if (!audio) {
-            return;
+        const pressedSong = usePlaybackStore.getState().currentSong;
+        const pressedKey = pressedSong ? getPlaybackSongKey(pressedSong) : null;
+        const sameIntent = () => revision === transportRevision.current && wantsPlayback.current
+            && (usePlaybackStore.getState().currentSong ? getPlaybackSongKey(usePlaybackStore.getState().currentSong!) : null) === pressedKey;
+        if (!isPlaybackSourceCommitted(audioRef.current, usePlaybackStore.getState().audioSrc)) {
+            const controller = new AbortController();
+            pendingReady.current = controller;
+            setStatusMsg({ type: 'info', text: t('status.loadingSong') });
+            try { await waitForPlaybackReady(() => audioRef.current, controller.signal); }
+            catch (error) {
+                if (!sameIntent() || controller.signal.aborted) return;
+                setStatusMsg(prev => isPlaybackFailureStatus(prev) ? prev : { type: 'error', text: t('status.playbackError') });
+                setPlayerState(PlayerState.PAUSED);
+                throw error;
+            } finally { if (pendingReady.current === controller) pendingReady.current = null; }
         }
+        if (!sameIntent()) return;
+        const audio = audioRef.current!;
         // A pause does not cancel source loading, but it must cancel an older
         // asynchronous resume. Store notifications alone cannot identify that
         // stale PLAYING event once a caller has already observed PAUSED.
@@ -125,7 +143,7 @@ export function usePlaybackTransportController({
                 throw error;
             }
         }
-        if (!isCurrent()) return;
+        if (!sameIntent() || !isCurrent()) return;
 
         syncOutputGain(getTargetPlaybackVolume(), 0);
         // A failed TTL refresh still falls back to the old URL below, as before. Its reason is kept
@@ -158,7 +176,7 @@ export function usePlaybackTransportController({
             setPlayerState(PlayerState.PLAYING);
             // Playback is back, so a leftover playback-failure toast goes too: its two buttons are
             // retry and skip, with no close control. Countdowns and every other toast stay.
-            setStatusMsg(prev => (isPlaybackFailureStatus(prev) ? null : prev));
+            setStatusMsg(prev => (isPlaybackFailureStatus(prev) || prev?.type === 'info' && prev.text === t('status.loadingSong') ? null : prev));
         } catch (error) {
             playbackFade.abortFadeIn(fadeToken);
             if (!isCurrent()) return;
@@ -204,6 +222,8 @@ export function usePlaybackTransportController({
         }
         transportRevision.current++;
         wantsPlayback.current = false;
+        pendingReady.current?.abort();
+        setStatusMsg(prev => prev?.type === 'info' && prev.text === t('status.loadingSong') ? null : prev);
 
         if (activePlaybackContext === 'stage' && stageActiveEntryKind === 'lyrics' && !audioSrc) {
             const currentSyntheticTime = getSyntheticStageLyricsTime();
@@ -272,7 +292,7 @@ export function usePlaybackTransportController({
         if (settlePause()) {
             setPlayerState(PlayerState.PAUSED);
         }
-    }, [activePlaybackContext, audioRef, audioSrc, currentTime, duration, getSyntheticStageLyricsTime, getTargetPlaybackVolume, isNowPlayingStageActive, isTransitionAudible, pauseDuringTransition, setPlayerState, stageActiveEntryKind, stageLyricsClockRef, syncOutputGain, syncStageLyricsClock]);
+    }, [activePlaybackContext, audioRef, audioSrc, currentTime, duration, getSyntheticStageLyricsTime, getTargetPlaybackVolume, isNowPlayingStageActive, isTransitionAudible, pauseDuringTransition, setPlayerState, stageActiveEntryKind, stageLyricsClockRef, syncOutputGain, syncStageLyricsClock, t]);
 
     return {
         resumePlayback,

@@ -1,3 +1,4 @@
+import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../../utils/visualizerFrameChannel';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Hourglass } from 'lucide-react';
@@ -164,7 +165,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
         let timeoutId = 0;
         const delay = hasResolvedArticleRef.current ? LAYOUT_REBUILD_DEBOUNCE_MS : 0;
 
-        rafId = window.requestAnimationFrame(() => {
+        rafId = requestVisualizerAnimationFrame(() => {
             timeoutId = window.setTimeout(() => {
                 if (layoutBuildVersionRef.current !== requestVersion) {
                     return;
@@ -189,7 +190,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
         });
 
         return () => {
-            window.cancelAnimationFrame(rafId);
+            cancelVisualizerAnimationFrame(rafId);
             window.clearTimeout(timeoutId);
         };
     }, [layoutFumeTuning, layoutTheme, lines, lyricsFontScale, viewport]);

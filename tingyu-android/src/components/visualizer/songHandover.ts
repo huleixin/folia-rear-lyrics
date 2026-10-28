@@ -1,3 +1,4 @@
+import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../utils/visualizerFrameChannel';
 import { useEffect, useRef, useState } from 'react';
 import type { MotionValue } from 'framer-motion';
 import type { Line } from '../../types';
@@ -224,10 +225,10 @@ export const useVisualizerSongCommit = ({
                 setCommitted({ seed, lines: EMPTY_COMMITTED_LINES, isInstrumental: true });
                 return;
             }
-            raf = requestAnimationFrame(watch);
+            raf = requestVisualizerAnimationFrame(watch);
         };
-        raf = requestAnimationFrame(watch);
-        return () => cancelAnimationFrame(raf);
+        raf = requestVisualizerAnimationFrame(watch);
+        return () => cancelVisualizerAnimationFrame(raf);
     }, [
         committedSeed,
         committedSignature,

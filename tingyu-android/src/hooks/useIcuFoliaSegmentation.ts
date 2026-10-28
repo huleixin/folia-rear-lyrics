@@ -9,6 +9,7 @@ import { useRearRuntimeStore } from '../stores/useRearRuntimeStore';
 import { useSettingsModalStore } from '../stores/useSettingsModalStore';
 import { isAndroidNativeRuntime } from '../utils/platform';
 import { useMainStageActive } from './useStageActivity';
+import { segmentLyricsOffThread, applySegmentResults } from '../services/lyricSegmentationWorker';
 
 // src/hooks/useIcuFoliaSegmentation.ts
 // Loads icu-folia's engines when they would change something on screen, and bakes its split onto
@@ -33,6 +34,7 @@ export function useIcuFoliaSegmentation(visualizerMode: VisualizerMode) {
     const usesWords = Boolean(getVisualizerRegistryEntry(visualizerMode).usesWordSegmentation);
     const lyrics = usePlaybackStore(state => state.lyrics);
     const hasCjText = useMemo(() => Boolean(lyrics?.lines.some(line => HAN_OR_KANA.test(line.fullText))), [lyrics]);
+    const textKey = useMemo(() => JSON.stringify(untransformedLyrics(lyrics)?.lines.map(line => line.fullText) ?? []), [lyrics]);
     const wanted = usesWords && hasCjText && (!isAndroidNativeRuntime()||stage&&foreground||rear||preview&&foreground);
 
     useEffect(() => {
@@ -41,6 +43,18 @@ export function useIcuFoliaSegmentation(visualizerMode: VisualizerMode) {
         }
 
         let cancelled = false;
+        if (isAndroidNativeRuntime()) {
+            const texts: string[] = JSON.parse(textKey);
+            void segmentLyricsOffThread(texts).then(segments => {
+                if (cancelled || !segments) return;
+                setLyricsState(previous => {
+                    const source = untransformedLyrics(previous);
+                    const segmented = applySegmentResults(source, texts, segments);
+                    return segmented === source ? previous : applyLyricsTransform(segmented);
+                });
+            });
+            return () => { cancelled = true; };
+        }
         // loadIcuFolia starts the load once and hands every later caller the same promise, so this
         // effect re-running (StrictMode, a mode switch) does not load twice.
         void loadIcuFolia().then(ready => {
@@ -57,5 +71,5 @@ export function useIcuFoliaSegmentation(visualizerMode: VisualizerMode) {
         return () => {
             cancelled = true;
         };
-    }, [wanted]);
+    }, [wanted, textKey]);
 }

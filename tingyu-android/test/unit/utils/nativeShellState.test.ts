@@ -8,6 +8,7 @@ const home={settingsOpen:false,settingsIndex:true,searchOpen:false,collectionOpe
 it('routes immediately from store state, without a painted-page acknowledgement',()=>{
     expect(nativeShellRoute(home)).toEqual({route:'home',selectedTab:0});
     expect(nativeShellRoute({...home,view:'player'}).route).toBe('stage');
+    expect(nativeShellRoute({...home,view:'player',collectionOpen:true,searchOpen:true}).route).toBe('stage');
     expect(nativeShellRoute({...home,searchOpen:true,collectionOpen:true}).route).toBe('collection');
     expect(nativeShellRoute({...home,settingsOpen:true,searchOpen:true,collectionOpen:true}).route).toBe('settings');
     expect(nativeShellRoute({...home,settingsOpen:true,settingsIndex:false}).route).toBe('settings');

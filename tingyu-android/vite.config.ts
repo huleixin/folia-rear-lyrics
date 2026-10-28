@@ -206,7 +206,8 @@ export default async function viteConfig(_config: ConfigEnv): Promise<UserConfig
   return {
     base: process.env.ELECTRON === 'true' ? './' : '/',
     worker: {
-      format: 'es'
+      format: 'es',
+      plugins: () => [icuFoliaDataPlugin()],
     },
     optimizeDeps: {
       // Only metadataParser.worker.ts imports music-metadata, and the startup dep scan does not

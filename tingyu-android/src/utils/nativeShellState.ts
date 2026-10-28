@@ -5,8 +5,8 @@ export function nativeShellRoute(state: {
 }) {
     return {
         route:state.settingsOpen?'settings'
-            :state.searchOpen&&!state.collectionOpen?'search':state.collectionOpen?'collection'
-                :state.view==='player'?'stage':state.view==='home'?'home':'web',
+            :state.view==='player'?'stage':state.searchOpen&&!state.collectionOpen?'search':state.collectionOpen?'collection'
+                :state.view==='home'?'home':'web',
         selectedTab:state.libraryPage==='library'?1:0,
     };
 }

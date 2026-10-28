@@ -1,3 +1,4 @@
+import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../../utils/visualizerFrameChannel';
 import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import React, { useEffect, useRef } from 'react';
 import type { AudioBands, MonetAudioStyle, Theme } from '../../../types';
@@ -318,12 +319,12 @@ const AudioOverlay: React.FC<AudioOverlayProps> = ({
 
         const loop = () => {
             draw();
-            frameId = window.requestAnimationFrame(loop);
+            frameId = requestVisualizerAnimationFrame(loop);
         };
 
         loop();
         return () => {
-            window.cancelAnimationFrame(frameId);
+            cancelVisualizerAnimationFrame(frameId);
             window.removeEventListener('resize', handleResize);
         };
     }, [audioBands, audioPower, isPreviewMode, mode, staticMode, theme]);

@@ -1,3 +1,4 @@
+import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../../utils/visualizerFrameChannel';
 import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
@@ -192,10 +193,10 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
                 setCommittedSong({ seed, lines: linesRef.current });
                 return;
             }
-            raf = requestAnimationFrame(watch);
+            raf = requestVisualizerAnimationFrame(watch);
         };
-        raf = requestAnimationFrame(watch);
-        return () => cancelAnimationFrame(raf);
+        raf = requestVisualizerAnimationFrame(watch);
+        return () => cancelVisualizerAnimationFrame(raf);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [seed, lyricsSig, committedSong.seed, committedSig, currentTime]);
     const gatedSeed = committedSong.seed;
@@ -237,10 +238,10 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
                 instrumentalIndexRef.current = idx;
                 setInstrumentalIndex(idx);
             }
-            raf = requestAnimationFrame(tick);
+            raf = requestVisualizerAnimationFrame(tick);
         };
-        raf = requestAnimationFrame(tick);
-        return () => cancelAnimationFrame(raf);
+        raf = requestVisualizerAnimationFrame(tick);
+        return () => cancelVisualizerAnimationFrame(raf);
     }, [isInstrumental, gatedSeed, currentTime]);
 
     // The read-head index the whole machine runs on: the sung line for a lyric song, the time-driven frame

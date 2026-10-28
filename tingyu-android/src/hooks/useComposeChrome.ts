@@ -2,11 +2,13 @@ import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import type { MotionValue } from 'framer-motion';
 import { COMPOSE_CHROME_FAILURE_EVENT, PREHIDE_COMPOSE_CHROME, canUseComposeChrome, newChromeGeneration, chromeNative, chromeClockNeedsAnchor, chromeWindowInteraction, hasBlockingChromeWindow, type ChromeSurfaceId, type ChromeData } from '../services/nativeChrome';
 import { isMainStageActive, subscribeMainStageActivity } from '../utils/stageActivity';
+import {flushNativeShellRoute} from '../services/nativeShellCommit';
+import { dispatchChromeAction, type ChromeActionHandlers } from '../services/nativeChromeActions';
 
 // src/hooks/useComposeChrome.ts
 // Event-driven metadata/layout; a live clock is anchored every 2s and on discontinuous seeks.
 export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfaceId,active:boolean,data:ChromeData,
-    actions:Record<string,((value:number)=>void)|undefined>,clock?:MotionValue<number>) {
+    actions:ChromeActionHandlers,clock?:MotionValue<number>) {
     const [ready,setReady]=useState(PREHIDE_COMPOSE_CHROME);
     const latest=useRef({active,data,actions,clock});latest.current={active,data,actions,clock};
     const scheduleRef=useRef<()=>void>(()=>{});
@@ -29,14 +31,15 @@ export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfac
         const position=()=>latest.current.clock?.get()??0;
         const measure=async()=>{
             frame=0;if(disposed||!started)return;
+            flushNativeShellRoute();
             // Track only short layout transitions; a slow draw reply must not stall geometry.
             if(performance.now()<deadline)frame=requestAnimationFrame(()=>void measure());
             const current=latest.current,rect=node.getBoundingClientRect(),style=getComputedStyle(node);
             // The native shell already owns route/overlay interaction. An invisible
             // ancestor's web-entry inert timer must not hold its footer for another 400ms.
             const nativeFooter=PREHIDE_COMPOSE_CHROME&&(id==='nav'||id==='mini');
-            const enabled=current.active&&isMainStageActive()&&!hasBlockingChromeWindow()&&(nativeFooter||!node.closest('[inert]'))&&node.getAttribute('aria-hidden')!=='true'
-                &&style.visibility!=='hidden'&&style.display!=='none'&&Number(style.opacity)>.01&&rect.width>0&&rect.height>0;
+            const enabled=current.active&&isMainStageActive()&&!hasBlockingChromeWindow()&&(nativeFooter||!node.closest('[inert]')&&node.getAttribute('aria-hidden')!=='true'
+                &&style.visibility!=='hidden'&&style.display!=='none'&&Number(style.opacity)>.01&&rect.width>0&&rect.height>0);
             const safeBottom=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--folia-main-inset-bottom'))||0;
             const packet={id,session,generation,enabled,left:rect.left,top:rect.top,width:rect.width,height:rect.height,alpha:Number(style.opacity),viewportWidth:innerWidth,safeBottom,data:current.data};
             const key=JSON.stringify(packet);
@@ -77,8 +80,7 @@ export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfac
                 if(event.action==='interactionEnd'){held=false;chromeWindowInteraction('end');return;}
                 if(!latest.current.active||node.dataset.composeNative!=='true'||hasBlockingChromeWindow())return;
                 if(event.action==='interactionStart'){held=true;chromeWindowInteraction('start');return;}
-                const handler=latest.current.actions[event.action];if(!handler)return;
-                chromeWindowInteraction('start');try{handler(Number.isFinite(event.value)?event.value:0);}finally{chromeWindowInteraction('end');}
+                chromeWindowInteraction('start');try{dispatchChromeAction(latest.current.actions,event.action,event.value);}finally{chromeWindowInteraction('end');}
             });
             if(disposed||failed){void listener.remove();return;}
             started=true;resize=new ResizeObserver(schedule);resize.observe(node);

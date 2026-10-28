@@ -16,6 +16,7 @@ internal class NativePageRetention(private val limit:Int=12) {
             (target.isEmpty()||if(target.endsWith(":"))page.key.startsWith(target)else page.key==target)
     }
     fun clear(){frames.clear()}
+    fun lastBrowsing():NativePage?=frames.values.lastOrNull{it.id in setOf("home","collection","search")}
 }
 internal fun pageBelongsToRoute(page:NativePage,route:String,selected:Int,target:String,packetNavigation:String,navigation:String):Boolean =
     packetNavigation==navigation&&page.id==route&&

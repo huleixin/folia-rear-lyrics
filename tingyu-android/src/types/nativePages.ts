@@ -15,6 +15,7 @@ export type PageSection = {
     submit?: string; more?: string; moreLabel?: string; busy?: boolean;
     total?: number; offset?: number; request?: string; key?: string; image?: string;
     description?: string; creator?: string; creatorImage?: string;
+    activeKey?:string;playing?:boolean;activeIndex?:number;locateRevision?:number;
 };
 export type NativePageModel = {
     key: string; title: string; subtitle?: string; leading?: string; trailing?: string;

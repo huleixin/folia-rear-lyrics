@@ -52,6 +52,10 @@ public class TingyuChromePlugin extends Plugin {
     @PluginMethod public void shell(PluginCall call) { getActivity().runOnUiThread(() -> {
         try { host().shell(call.getData());call.resolve(); } catch(Exception error){call.reject(error.getMessage(),error);}
     }); }
+    @PluginMethod public void collapseStage(PluginCall call) { getActivity().runOnUiThread(() -> {
+        try { host().collapseStage(() -> { call.resolve();return kotlin.Unit.INSTANCE; }); }
+        catch(Exception error){call.reject(error.getMessage(),error);}
+    }); }
     @PluginMethod public void remove(PluginCall call) { getActivity().runOnUiThread(() -> { if (host != null) host.remove(call.getString("id",""),call.getString("session","")); call.resolve(); }); }
     @Override protected void handleOnPause() { if (host != null) host.suspend(); }
     @Override protected void handleOnResume() { if (host != null) host.resume(); }

@@ -1,3 +1,4 @@
+import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../../utils/visualizerFrameChannel';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -269,7 +270,7 @@ const VisualizerCadenza: React.FC<VisualizerProps> = (props) => {
                 lineLayer.style.transform = 'scale(1)';
                 lineLayer.style.perspective = '1000px';
                 clearOverlayWordNodes(overlayNodesRef.current);
-                frameId = window.requestAnimationFrame(draw);
+                frameId = requestVisualizerAnimationFrame(draw);
                 return;
             }
 
@@ -472,12 +473,12 @@ const VisualizerCadenza: React.FC<VisualizerProps> = (props) => {
             // Use this draw loop's final transforms, rather than adding a second animation loop.
             if (rear) fitRearLine();
 
-            frameId = window.requestAnimationFrame(draw);
+            frameId = requestVisualizerAnimationFrame(draw);
         };
 
         draw();
         return () => {
-            window.cancelAnimationFrame(frameId);
+            cancelVisualizerAnimationFrame(frameId);
             fontSet?.removeEventListener('loadingdone', forgetAscents);
             lastFrameTimeRef.current = null;
             clearOverlayWordNodes(overlayNodesRef.current);

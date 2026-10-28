@@ -7,6 +7,7 @@ type FrameWindow = Window & { __foliaNativeRequestAnimationFrame?: typeof reques
 let owner: FrameWindow | null = null;
 let queue: FrameRateLimitedRaf | null = null;
 let backgroundQueue: FrameRateLimitedRaf | null = null;
+const rateListeners = new Set<(rate: VisualizerFrameRate) => void>();
 const backgroundRate = (rate: VisualizerFrameRate): VisualizerFrameRate => rate === 'off' ? 'off' : Math.min(30, rate) as VisualizerFrameRate;
 export function configureVisualizerFrameChannel(rate: VisualizerFrameRate,
     create: (request: typeof requestAnimationFrame, cancel: typeof cancelAnimationFrame, rate: VisualizerFrameRate) => FrameRateLimitedRaf) {
@@ -18,6 +19,13 @@ export function configureVisualizerFrameChannel(rate: VisualizerFrameRate,
         queue = create(callback => request.call(current, callback), handle => cancel.call(current, handle), rate);
         backgroundQueue = create(callback => request.call(current, callback), handle => cancel.call(current, handle), backgroundRate(rate));
     } else { queue?.setFrameRate(rate); backgroundQueue?.setFrameRate(backgroundRate(rate)); }
+    for (const listener of rateListeners) listener(rate);
+}
+/** Pixi owns its RAF; cap that ticker without touching browser/UI animation scheduling. */
+export function bindVisualizerTickerRate(ticker: { maxFPS: number }): () => void {
+    const update = (rate: VisualizerFrameRate) => { ticker.maxFPS = rate === 'off' ? 0 : rate; };
+    update(queue?.getFrameRate() ?? 'off'); rateListeners.add(update);
+    return () => { rateListeners.delete(update); };
 }
 export const hasVisualizerFrameChannel = () => typeof window !== 'undefined' && owner === window && queue !== null;
 export const requestVisualizerAnimationFrame = (callback: FrameRequestCallback): number => (

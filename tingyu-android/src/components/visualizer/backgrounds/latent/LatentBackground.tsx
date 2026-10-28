@@ -1,3 +1,4 @@
+import { requestVisualizerBackgroundFrame, cancelVisualizerBackgroundFrame } from '../../../../utils/visualizerFrameChannel';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { PaperShaderElement } from '@paper-design/shaders';
 import { Dithering, MeshGradient } from '@paper-design/shaders-react';
@@ -276,15 +277,15 @@ const LatentBackground: React.FC<LatentBackgroundProps> = ({
             // 暂停时不再调度下一帧：paper shader 的 speed 已为 0（其内部 GL 循环自己停帧），
             // 连这里的逐帧 JS 归一化与 filter/transform 样式写入也一并省掉，避免手机上空转耗电。
             if (!isPaused) {
-                animationFrame = requestAnimationFrame(updateAudioResponse);
+                animationFrame = requestVisualizerBackgroundFrame(updateAudioResponse);
             }
         };
 
         // 初始就处于暂停时不启动循环；恢复播放时下方的 effect 依赖 paused 会重新启动。
         if (!paused) {
-            animationFrame = requestAnimationFrame(updateAudioResponse);
+            animationFrame = requestVisualizerBackgroundFrame(updateAudioResponse);
         }
-        return () => cancelAnimationFrame(animationFrame);
+        return () => cancelVisualizerBackgroundFrame(animationFrame);
     }, [audioBands, audioPower, showMesh, staticMode, tuning, paused]);
 
     return (

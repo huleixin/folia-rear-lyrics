@@ -9,7 +9,7 @@ data class NativePageItem(val id: String, val title: String, val subtitle: Strin
 data class NativePageSection(val id: String, val title: String, val layout: String, val items: List<NativePageItem>,
     val text: String, val value: String, val placeholder: String, val action: String, val submit: String,
     val more: String, val moreLabel: String, val busy: Boolean, val total: Int, val offset: Int, val request: String, val dataKey:String="", val image:String="",
-    val description:String="",val creator:String="",val creatorImage:String="")
+    val description:String="",val creator:String="",val creatorImage:String="",val activeKey:String="",val playing:Boolean=false,val activeIndex:Int=-1,val locateRevision:Long=0)
 data class NativePage(val id: String, val session: String, val generation: Long, val revision: Long, val enabled: Boolean,
     val rect: ChromeRect, val viewport: Float, val safeTop: Float, val safeBottom: Float,
     val key: String, val title: String, val subtitle: String, val leading: String, val trailing: String,
@@ -37,7 +37,7 @@ data class NativePage(val id: String, val session: String, val generation: Long,
                     block.optString("placeholder"),block.optString("action"),block.optString("submit"),block.optString("more"),
                     block.optString("moreLabel","加载更多"),block.optBoolean("busy"),block.optInt("total",items.size).coerceIn(0,1000000),
                     block.optInt("offset").coerceAtLeast(0),block.optString("request"),block.optString("key"),block.optString("image"),
-                    block.optString("description"),block.optString("creator"),block.optString("creatorImage"))
+                    block.optString("description"),block.optString("creator"),block.optString("creatorImage"),block.optString("activeKey"),block.optBoolean("playing"),block.optInt("activeIndex",-1),block.optLong("locateRevision"))
             }
             fun metric(key: String,fallback:Double)=model.optDouble(key,fallback).let{if(it.isFinite())it.toFloat().coerceIn(0f,1000f)else fallback.toFloat()}
             return NativePage(id,session,value.optLong("generation"),value.optLong("revision"),value.optBoolean("enabled"),

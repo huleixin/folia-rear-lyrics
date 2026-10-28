@@ -1,3 +1,4 @@
+import { bindVisualizerTickerRate } from '../../../utils/visualizerFrameChannel';
 import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import { resolveVisualizerDimension } from '../../../utils/visualizerSurface';
 import { getVisualizerSurface } from '../../../utils/visualizerSurface';
@@ -66,6 +67,7 @@ const NIGHT_BACKGROUND = '#0b0d24';
 const resolveRenderResolution = (devicePixelRatio: number) => resolveStageRenderRatio(devicePixelRatio, MAX_RESOLUTION);
 
 export class HanabiPixiRuntime {
+    private unbindFrameRate: (() => void) | null = null;
     private readonly sceneCache = new PixiSceneCache<HanabiSceneEntry>({
         count: () => this.options.song.program.paragraphs.length,
         build: index => {
@@ -178,6 +180,7 @@ export class HanabiPixiRuntime {
         if (this.options.signal?.aborted) return;
         this.options.host.appendChild(this.app.canvas);
         this.app.canvas.style.cssText = 'width:100%;height:100%;display:block';
+        this.unbindFrameRate = bindVisualizerTickerRate(this.app.ticker);
         this.app.ticker.add(this.renderFrame);
         this.resizeObserver = new ResizeObserver(() => {
             if (this.destroyed || !this.resizeToHost(false)) return;
@@ -538,6 +541,7 @@ export class HanabiPixiRuntime {
     }
 
     destroy() {
+        this.unbindFrameRate?.(); this.unbindFrameRate = null;
         if (this.destroyed) return;
         this.destroyed = true;
         // 先放掉等交接的人，否则 pixiRuntimeHost 的 drain 循环会一直停在这个 promise 上。

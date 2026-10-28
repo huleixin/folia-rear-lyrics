@@ -30,7 +30,7 @@ import kotlin.math.abs
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ChromeMiniPlayer.kt
 @Composable fun ChromeMiniPlayer(s: ChromeSurface, timeline: ChromeTimeline?, backdrop: Backdrop, modifier: Modifier, action: (String,Double)->Unit) {
     val ink=chromeColor(s.ink);val accent=chromeColor(s.accent)
-    val cover=remember(s.cover){if(s.cover.startsWith("data:image") && s.cover.contains(',')) runCatching{Base64.decode(s.cover.substringAfter(','),Base64.DEFAULT)}.getOrNull() else s.cover}
+    val cover=pageImage(s.cover)
     Row(modifier.chromeGlass(backdrop,s.light,28.dp).padding(horizontal=6.dp,vertical=3.dp),verticalAlignment=Alignment.CenterVertically) {
         val scope=rememberCoroutineScope();val offset=remember{Animatable(0f)}
         var dx by remember{mutableFloatStateOf(0f)};var width by remember{mutableFloatStateOf(1f)}

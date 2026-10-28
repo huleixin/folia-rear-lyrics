@@ -22,18 +22,28 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageWidgets.kt
 internal val PageInk = Color(0xFFF4F7F5)
 internal val PageMuted = Color(0xFFA2B6AC)
 internal val PageAccent = Color(0xFF9FE0C4)
-@Composable internal fun pageImage(url: String): Any? = remember(url) {
-    if (url.startsWith("data:image") && url.contains(',')) runCatching { Base64.decode(url.substringAfter(','), Base64.DEFAULT) }.getOrNull()
+@Composable internal fun pageImage(url: String): Any? {
+    val context=LocalContext.current
+    return remember(url,context) {
+    if (url.startsWith("data:image") && url.contains(',')) runCatching {
+        ImageRequest.Builder(context).data(Base64.decode(url.substringAfter(','), Base64.DEFAULT))
+            .memoryCacheKey(url).crossfade(false).build()
+    }.getOrNull()
     else {
         val uri = runCatching { Uri.parse(url) }.getOrNull()
         if (uri?.host in setOf("localhost", "rear.folia.local") && uri?.path?.startsWith("/assets/") == true)
-            "file:///android_asset/public${uri.path}" else url
+            "file:///android_asset/public${uri.path}"
+        else if(uri?.host in setOf("localhost","rear.folia.local")&&uri?.path=="/api/lyric-proxy")uri.getQueryParameter("url")?:url
+        else url
     }
+}
 }
 @Composable internal fun PageArtwork(url: String, modifier: Modifier, radius: Dp = 9.dp) {
     Box(modifier.clip(RoundedCornerShape(radius)).background(Color(0xFF14211E)), contentAlignment = Alignment.Center) {

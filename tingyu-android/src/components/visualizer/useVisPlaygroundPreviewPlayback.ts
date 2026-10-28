@@ -1,3 +1,4 @@
+import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../utils/visualizerFrameChannel';
 import { useEffect, useRef } from 'react';
 import { type MotionValue } from 'framer-motion';
 import { type VisualizerMode } from '../../types';
@@ -79,10 +80,10 @@ export const useVisPlaygroundPreviewPlayback = ({
             }
             spectrum.set(nextSpectrum);
 
-            frameId = window.requestAnimationFrame(tick);
+            frameId = requestVisualizerAnimationFrame(tick);
         };
 
-        frameId = window.requestAnimationFrame(tick);
-        return () => window.cancelAnimationFrame(frameId);
+        frameId = requestVisualizerAnimationFrame(tick);
+        return () => cancelVisualizerAnimationFrame(frameId);
     }, [audioPower, bass, currentTime, isPaused, loopDuration, lowMid, mid, spectrum, treble, vocal]);
 };

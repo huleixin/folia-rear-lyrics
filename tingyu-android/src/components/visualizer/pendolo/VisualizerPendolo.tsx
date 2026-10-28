@@ -1,3 +1,4 @@
+import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../../utils/visualizerFrameChannel';
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { motion, useSpring, useTransform } from 'framer-motion';
 import { Star, type LucideIcon } from 'lucide-react';
@@ -151,10 +152,10 @@ const VisualizerPendolo: React.FC<VisualizerSharedProps> = (props) => {
                 setIsInstrumental(true);
                 return;
             }
-            raf = requestAnimationFrame(watch);
+            raf = requestVisualizerAnimationFrame(watch);
         };
-        raf = requestAnimationFrame(watch);
-        return () => cancelAnimationFrame(raf);
+        raf = requestVisualizerAnimationFrame(watch);
+        return () => cancelVisualizerAnimationFrame(raf);
     }, [props.seed, lyricsSig, currentTime]);
 
     const [instrumentalIndex, setInstrumentalIndex] = useState(0);
@@ -171,10 +172,10 @@ const VisualizerPendolo: React.FC<VisualizerSharedProps> = (props) => {
                 instrumentalIndexRef.current = idx;
                 setInstrumentalIndex(idx);
             }
-            raf = requestAnimationFrame(tick);
+            raf = requestVisualizerAnimationFrame(tick);
         };
-        raf = requestAnimationFrame(tick);
-        return () => cancelAnimationFrame(raf);
+        raf = requestVisualizerAnimationFrame(tick);
+        return () => cancelVisualizerAnimationFrame(raf);
     }, [isInstrumental, currentTime]);
 
     const targetLineIndex = useMemo(() => {

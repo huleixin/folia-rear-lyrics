@@ -16,6 +16,7 @@ export function useMobileFooterMotion(footerRef: RefObject<HTMLElement | null>, 
     latest.current = { detail, calm };
     const runtime = useRef<ReturnType<typeof createMobileFooterMotion> | null>(null);
     useLayoutEffect(() => {
+        if(PREHIDE_COMPOSE_CHROME)return;
         const footer = footerRef.current, nav = navRef.current;
         const mini = footer?.querySelector<HTMLElement>(':scope > .ml-mini');
         if (!footer || !nav || !mini) return;

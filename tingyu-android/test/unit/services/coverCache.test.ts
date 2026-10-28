@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getCachedCoverUrl, loadCachedOrFetchCover } from '@/services/coverCache';
+import { getCachedCoverUrl, loadCachedOrFetchCover, clearCoverAssets, removeCachedCover } from '@/services/coverCache';
 
 // test/unit/services/coverCache.test.ts
 // Verifies invalid persisted cover payloads degrade to cache misses and legacy Blobs migrate safely.
@@ -27,7 +27,8 @@ vi.mock('@/services/binaryAssetStore', () => ({
 }));
 
 describe('coverCache', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
+        await clearCoverAssets();
         vi.clearAllMocks();
         mocks.getFromCache.mockResolvedValue(null);
         mocks.readCoverAsset.mockResolvedValue(null);
@@ -87,4 +88,21 @@ describe('coverCache', () => {
         expect(mocks.saveToCache).not.toHaveBeenCalled();
         expect(URL.createObjectURL).toHaveBeenCalled();
     });
+
+
+it('coalesces repeated cover downloads while giving each page its own URL lease', async () => {
+    const blob = new Blob(['art'], { type: 'image/jpeg' });
+    vi.mocked(fetch).mockResolvedValue(new Response(blob));
+    await Promise.all(Array.from({length: 6}, () => loadCachedOrFetchCover('shared-art', 'https://example.com/shared.jpg')));
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(6);
+    const reads = mocks.getFromCache.mock.calls.length;
+    await loadCachedOrFetchCover('shared-art', 'https://example.com/shared.jpg');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(mocks.getFromCache).toHaveBeenCalledTimes(reads);
+    await removeCachedCover('shared-art');
+    await loadCachedOrFetchCover('shared-art', 'https://example.com/shared.jpg');
+    expect(fetch).toHaveBeenCalledTimes(2);
+});
+
 });

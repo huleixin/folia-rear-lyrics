@@ -149,6 +149,7 @@ import { selectSleepTimerSnapshot, useSleepTimerStore } from './stores/useSleepT
 import { selectStageSettingsSnapshot, useStageSettingsStore } from './stores/useStageSettingsStore';
 import { selectAudioSettingsSnapshot, useAudioSettingsStore } from './stores/useAudioSettingsStore';
 import { useSettingsModalStore } from './stores/useSettingsModalStore';
+import { PREHIDE_COMPOSE_CHROME } from './services/nativeChrome';
 import { audioBands, audioPower, bass, currentTime, lowMid, lyricCurrentTime, mid, spectrum, treble, vocal } from './stores/motionSignals';
 import { useAppChromeStore } from './stores/useAppChromeStore';
 import { useAppViewStore } from './stores/useAppViewStore';
@@ -2473,14 +2474,14 @@ export default function App() {
     const libraryOccludesPlayer = useLibraryPlayerOcclusionStore(selectLibraryOccludesPlayer);
     const hasLibraryOcclusionSettled = useLibraryOcclusionSettled(shouldRevealHomeSurface && libraryOccludesPlayer);
     const mainStageActive = useMainStageActive();
-    const shouldMountVisualizer = mainStageActive && shouldMountPlayerVisualizer({
+    const shouldMountVisualizer = mainStageActive && (PREHIDE_COMPOSE_CHROME ? currentView === 'player' : shouldMountPlayerVisualizer({
         currentView,
         hasLatticeExited,
         shouldRevealHomeSurface,
         libraryOccludesPlayer,
         hasLibraryOcclusionSettled,
         handoffKeepsVisualizer: wallHandoff.keepsVisualizer,
-    });
+    }));
     // 首页墙透出来的 visualizer 加模糊（bravais「墙后的画面」，stage 报告；只在首页墙露着时）。
     const libraryBackdropBlur = useLibraryPlayerOcclusionStore(state => selectLibraryPlayerBackdrop(state).blur);
     const blursVisualizerBackdrop = resolveVisualizerBackdropBlur({ shouldRevealHomeSurface, backdropBlur: libraryBackdropBlur });

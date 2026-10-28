@@ -92,7 +92,23 @@ const showRestoreFailure = (failure: PlaybackFailure): boolean => {
 
 // Restores the remembered song's source and lyrics. 'stale' means the listener moved on to another
 // song while this was awaiting, so nothing was written for the old one.
-export const restorePlaybackSourceForSong = async (
+export const restorePlaybackSourceForSong = (song: SongResult, params: RestorePlaybackSourceParams): Promise<RestorePlaybackSourceOutcome> => {
+    if (lastRestore && isSamePlaybackSong(lastRestore.song, song) && lastRestore.pending) return lastRestore.pending;
+    const entry = { song, params, pending: null as Promise<RestorePlaybackSourceOutcome> | null };
+    lastRestore = entry;
+    entry.pending = restoreSource(song, params).finally(() => { entry.pending = null; });
+    return entry.pending;
+};
+let lastRestore: { song: SongResult; params: RestorePlaybackSourceParams; pending: Promise<RestorePlaybackSourceOutcome> | null } | null = null;
+
+/** Retry the remembered source using its original local/online credentials, never a different song. */
+export const retryRememberedPlaybackSource = (): Promise<RestorePlaybackSourceOutcome> | null => {
+    const current = usePlaybackStore.getState().currentSong;
+    return current && lastRestore && isSamePlaybackSong(current, lastRestore.song)
+        ? restorePlaybackSourceForSong(current, lastRestore.params) : null;
+};
+
+const restoreSource = async (
     song: SongResult,
     {
         audioQuality,
@@ -107,12 +123,14 @@ export const restorePlaybackSourceForSong = async (
         hasFallbackSource = false,
     }: RestorePlaybackSourceParams,
 ): Promise<RestorePlaybackSourceOutcome> => {
-    await restoreCachedThemeForSong?.(song, {
+    // Artwork/theme decoding must not delay a user's first Play after startup.
+    void restoreCachedThemeForSong?.(song, {
         allowLastUsedFallback: true,
         preserveCurrentOnMiss: false,
-    });
-
-    setCachedCoverUrl(await getCachedSongCoverUrl(song));
+    }).catch(error => console.warn('[Restore] Theme unavailable', error));
+    void getCachedSongCoverUrl(song).then(cover => {
+        if (isCurrent() && cover) setCachedCoverUrl(cover);
+    }).catch(error => console.warn('[Restore] Artwork unavailable', error));
 
     // Every await below can outlive the restore: the listener may pick another song meanwhile, and
     // a late write would put this song's status, source or lyrics over theirs.

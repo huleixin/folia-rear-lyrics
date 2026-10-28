@@ -219,3 +219,34 @@ describe('transport failure reasons', () => {
         expect(useStatusMessageStore.getState().message).toBe(countdown);
     });
 });
+
+
+describe('explicit Play during session restore', () => {
+    it('waits for the remembered source and plays it without requiring a skip', async () => {
+        const host = mount();
+        act(() => usePlaybackStore.setState({ audioSrc: null }));
+        let pending!: Promise<void>;
+        act(() => { pending = host.actions().resumePlayback(); });
+        expect(host.audio.play).not.toHaveBeenCalled();
+        expect(useStatusMessageStore.getState().message?.text).toBe('status.loadingSong');
+        await act(async () => { usePlaybackStore.setState({ audioSrc: 'restored.mp3' }); await pending; });
+        expect(host.audio.play).toHaveBeenCalledOnce();
+        expect(usePlaybackStore.getState().playerState).toBe(PlayerState.PLAYING);
+    });
+    it('Pause cancels a pending source so it cannot start later', async () => {
+        const host = mount();
+        act(() => usePlaybackStore.setState({ audioSrc: null }));
+        let pending!: Promise<void>;
+        act(() => { pending = host.actions().resumePlayback(); host.actions().pausePlayback(); });
+        await act(async () => { await pending; usePlaybackStore.setState({ audioSrc: 'late.mp3' }); });
+        expect(host.audio.play).not.toHaveBeenCalled();
+    });
+    it('a song switch cancels an older empty-source play request', async () => {
+        const host = mount();
+        act(() => usePlaybackStore.setState({ audioSrc: null, currentSong: { id: 'old', name: 'old' } as any }));
+        let pending!: Promise<void>;
+        act(() => { pending = host.actions().resumePlayback(); });
+        await act(async () => { usePlaybackStore.setState({ audioSrc: 'new.mp3', currentSong: { id: 'new', name: 'new' } as any }); await pending; });
+        expect(host.audio.play).not.toHaveBeenCalled();
+    });
+});

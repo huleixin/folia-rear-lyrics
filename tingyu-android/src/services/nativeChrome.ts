@@ -22,7 +22,8 @@ export const chromeNative = registerPlugin<{
     remove(value:{id:ChromeSurfaceId;session:string}):Promise<void>;
     pageUpdate(frame:NativePageFrame):Promise<{accepted:boolean;session:string}>;
     pageRemove(value:{id:NativePageId;session:string}):Promise<void>;
-    shell(value:{generation:number;revision:number;route:string;webOverlay:boolean;selectedTab:number;pageTarget?:string;entryKey?:string;reducedMotion?:boolean;navigation?:string}):Promise<void>;
+    shell(value:{generation:number;revision:number;route:string;webOverlay:boolean;selectedTab:number;pageTarget?:string;entryKey?:string;reducedMotion?:boolean;navigation?:string;playlistDetail?:boolean}):Promise<void>;
+    collapseStage():Promise<void>;
     addListener(name:'action',callback:(value:ChromeAction)=>void):Promise<{remove:()=>Promise<void>}>;
     addListener(name:'pageAction',callback:(value:NativePageEvent)=>void):Promise<{remove:()=>Promise<void>}>;
 }>('TingyuChrome');

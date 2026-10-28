@@ -1,6 +1,7 @@
 package io.github.huleixin.tingyu.chrome
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,6 +14,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.BlendMode
@@ -38,6 +43,11 @@ private val PlaylistJade=Color(0xFF7EE0C2)
     val cache=rememberNativeRows(page.key,tracks)
     val list=rememberLazyListState()
     LaunchedEffect(tracks.dataKey){list.scrollToItem(0)}
+    val headerItems=1+page.sections.count{it.layout=="input"}
+    val currentVisible by remember(tracks.activeIndex,headerItems){derivedStateOf{list.layoutInfo.visibleItemsInfo.any{it.index==tracks.activeIndex+headerItems}}}
+    LaunchedEffect(tracks.locateRevision){if(tracks.locateRevision>0&&tracks.activeIndex>=0){
+        list.animateScrollToItem(tracks.activeIndex+headerItems,-100)
+    }}
     BoxWithConstraints(modifier){
         val short=maxHeight<500.dp;val width=maxWidth.value;val ambientHeight=minOf(560.dp,maxHeight*.7f)
         // Fade the isolated cover layer, never the scrolling rows or controls. The mask
@@ -106,8 +116,8 @@ private val PlaylistJade=Color(0xFF7EE0C2)
                 page.sections.filter{it.layout=="input"}.forEach{section->item(section.id){Box(Modifier.padding(horizontal=18.dp,vertical=8.dp)){NativePageInput(section,action)}}}
                 items(tracks.total,key={index->"${tracks.dataKey}:$index"}){index->
                     val item=cache.get(tracks,index)
-                    if(item!=null)NativePlaylistTrack(item,index==0,action)
-                    else {Spacer(Modifier.height(52.dp));LaunchedEffect(page.key,tracks.dataKey,index/100){if(cache.request(index))action(tracks.request,"",(index/100*100).toDouble())}}
+                    if(item!=null)NativePlaylistTrack(item.copy(selected=item.id.substringAfter(':')==tracks.activeKey),index==0,tracks.playing,action)
+                    else {Spacer(Modifier.height(52.dp));LaunchedEffect(page.key,page.session,tracks.dataKey,index/100){if(cache.request(index,page.session))action(tracks.request,"",(index/100*100).toDouble())}}
                 }
                 page.sections.filter{it.layout=="message"&&it.id!="songHeading"}.forEach{section->item(section.id){Column(Modifier.padding(18.dp)){
                     if(section.text.isNotBlank())Text(section.text,color=PageMuted,fontSize=12.sp)
@@ -115,16 +125,24 @@ private val PlaylistJade=Color(0xFF7EE0C2)
                 }}}
             }
         }
+        if(toolbar.any{it.id=="locateCurrent"}&&(!currentVisible||tracks.activeIndex<0))Box(Modifier.align(Alignment.BottomEnd).padding(end=18.dp,bottom=(page.safeBottom+74).dp)){
+            PagePill(label("locateCurrent"),{action("locateCurrent","",0.0)},selected=true,height=40.dp,font=12)
+        }
     }
 }
-@Composable private fun NativePlaylistTrack(item:NativePageItem,first:Boolean,action:PageAction){
-    Column(Modifier.fillMaxWidth().then(if(first)Modifier.clip(RoundedCornerShape(topStart=26.dp,topEnd=26.dp))else Modifier).background(if(item.selected)Color(0x0685DFBA)else Color.Transparent)){
+@Composable private fun NativePlaylistTrack(item:NativePageItem,first:Boolean,playing:Boolean,action:PageAction){
+    Column(Modifier.fillMaxWidth().then(if(first)Modifier.clip(RoundedCornerShape(topStart=26.dp,topEnd=26.dp))else Modifier).background(if(item.selected)Color(0x247EE0C2)else Color.Transparent)
+        .drawBehind{if(item.selected)drawRect(PlaylistJade,size=Size(3.dp.toPx(),size.height))}){
         Row(Modifier.fillMaxWidth().height(51.dp).padding(start=18.dp,end=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
             Text(item.number,color=if(item.selected)PlaylistJade else PageMuted,fontSize=11.sp,modifier=Modifier.width(17.dp))
             PageArtwork(item.image,Modifier.size(36.dp).clickable(enabled=!item.disabled){action(item.action,"",0.0)},7.dp)
             Column(Modifier.weight(1f).clickable(enabled=!item.disabled){action(item.action,"",0.0)}){
-                Text(item.title,color=PageInk.copy(alpha=if(item.disabled).45f else 1f),fontSize=14.sp,fontWeight=FontWeight(550),maxLines=1,overflow=TextOverflow.Ellipsis)
+                Text(item.title,color=if(item.selected)PlaylistJade else PageInk.copy(alpha=if(item.disabled).45f else 1f),fontSize=14.sp,fontWeight=FontWeight(if(item.selected)700 else 550),maxLines=1,overflow=TextOverflow.Ellipsis)
                 Text(item.subtitle,color=PageMuted,fontSize=11.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=1.dp))
+            }
+            if(item.selected)Canvas(Modifier.width(12.dp).height(15.dp)){
+                if(playing)listOf(.4f,.9f,.65f).forEachIndexed{i,h->drawLine(PlaylistJade,Offset(size.width*(i+.5f)/3,size.height),Offset(size.width*(i+.5f)/3,size.height*(1-h)),2.dp.toPx(),StrokeCap.Round)}
+                else listOf(.3f,.7f).forEach{x->drawLine(PlaylistJade,Offset(size.width*x,size.height*.2f),Offset(size.width*x,size.height*.8f),2.dp.toPx(),StrokeCap.Round)}
             }
             Text(item.duration,color=PageMuted,fontSize=11.sp,textAlign=TextAlign.End,modifier=Modifier.width(34.dp))
             ChromeButton(item.secondaryLabel,size=36.dp,onClick={action(item.secondary,"",0.0)}){PageIcon("ellipsis-vertical",PageMuted,Modifier.size(19.dp))}

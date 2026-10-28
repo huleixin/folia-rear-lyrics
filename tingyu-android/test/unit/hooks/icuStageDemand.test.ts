@@ -14,7 +14,8 @@ vi.mock('@/hooks/useStageActivity',()=>({useMainStageActive:()=>state.foreground
 vi.mock('@/stores/usePlaybackStore',()=>({usePlaybackStore:(s:any)=>s({lyrics:{lines:[{fullText:'恢复的中文歌词'}]}}),setLyricsState:vi.fn()}));
 vi.mock('@/components/visualizer/registry',()=>({getVisualizerRegistryEntry:()=>({usesWordSegmentation:true})}));
 vi.mock('@/utils/lyrics/icuFolia',()=>({loadIcuFolia:state.load,applyAutoWordSegmentation:vi.fn()}));
-vi.mock('@/services/hostExtensionHooks',()=>({applyLyricsTransform:vi.fn(),untransformedLyrics:vi.fn()}));
+vi.mock('@/services/hostExtensionHooks',()=>({applyLyricsTransform:vi.fn(),untransformedLyrics:(v:any)=>v}));
+vi.mock('@/services/lyricSegmentationWorker',()=>({segmentLyricsOffThread:state.load,applySegmentResults:vi.fn()}));
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
 let root:Root|undefined;
 function Probe(){useIcuFoliaSegmentation('classic');return null}

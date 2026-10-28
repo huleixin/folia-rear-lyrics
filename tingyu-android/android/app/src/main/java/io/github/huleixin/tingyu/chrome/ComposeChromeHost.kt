@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.input.pointer.pointerInput
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import org.json.JSONObject
@@ -52,6 +53,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private val cache=NativeShellCache(web.context)
     private val retained=NativePageRetention()
     private val routeMotion=NativeRouteMotion()
+    private val stageExit=NativeStageExit()
+    fun collapseStage(reply:()->Unit){if(destination!="stage"||webOverlay){reply();return};stageExit.begin(retained.lastBrowsing(),reply)}
     private var presented by mutableStateOf<NativePage?>(null)
     private var pageTarget=""
     private var entryKey=""
@@ -77,20 +80,24 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var destination by mutableStateOf("home")
     private var webOverlay by mutableStateOf(false)
     private var selectedTab by mutableIntStateOf(0)
+    private var playlistDetail by mutableStateOf(false)
     private var shellGeneration=0L
     private var shellRevision=0L
     private var firstHomeFrame by mutableStateOf(true)
-    fun bootstrap() { if(host==null)attach();web.setBackgroundColor(android.graphics.Color.TRANSPARENT) }
+    fun bootstrap() { NativeArtworkCache.install(web.context);if(host==null)attach();web.setBackgroundColor(android.graphics.Color.TRANSPARENT) }
     fun shell(value:JSONObject) {
         val generation=value.optLong("generation");val revision=value.optLong("revision")
         if(generation<shellGeneration||generation==shellGeneration&&revision<shellRevision)return
         shellGeneration=generation;shellRevision=revision
         val next=value.optString("route","home")
+        if(next!="stage")stageExit.clear()
+        else if(destination!="stage")stageExit.suppressReturnMotion=false
         require(next in setOf("home","collection","search","settings","stage","web"))
         val routeChanged=next!=destination||value.optString("pageTarget")!=pageTarget||value.optString("entryKey")!=entryKey||value.optInt("selectedTab").coerceIn(0,1)!=selectedTab
         destination=next;webOverlay=value.optBoolean("webOverlay");selectedTab=value.optInt("selectedTab").coerceIn(0,1)
         pageTarget=value.optString("pageTarget");entryKey=value.optString("entryKey");reducedMotion=value.optBoolean("reducedMotion")
         navigation=value.optString("navigation")
+        playlistDetail=value.optBoolean("playlistDetail")
         if(routeChanged||presented==null)resolvePage()
         if(next!="home")firstHomeFrame=false
     }
@@ -142,7 +149,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         frameOrder.retire(id,session)
         if (surfaces[id]?.session == session) { surfaces.remove(id); clocks.remove(id) }
     }
-    fun suspend() { active = false }
+    fun suspend() { active = false;stageExit.clear() }
     fun resume() { active = true }
     private fun attach() {
         val original = web.parent as? ViewGroup ?: error("WebView has no parent")
@@ -156,11 +163,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     }
     @Composable private fun Scene() {
         val backdrop = rememberLayerBackdrop()
+        val exitProgress=rememberStageExitProgress(stageExit,reducedMotion)
         val visible = if (active&&!webOverlay) surfaces.values.filter {
-            it.enabled && it.rect.width > 0 && it.rect.height > 0 &&
-                (if(it.id=="stage")destination=="stage" else destination in setOf("home","collection"))
+            it.enabled && NativeFooterLayout.visible(it.id,destination,playlistDetail,it.viewportWidth) &&
+                (it.id!="stage"||it.rect.width>0&&it.rect.height>0)
         } else emptyList()
-        val page=if(active)presented else null
+        // Reuse the route's one retained composition beneath the collapsing stage.
+        // Creating a second underlay would duplicate saveable keys during a quick Back.
+        val page=if(active)presented?:if(stageExit.active)stageExit.returning else null else null
         val savedPages=rememberSaveableStateHolder()
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val density=LocalDensity.current;val width=maxWidth.value;val height=maxHeight.value
@@ -170,7 +180,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             val bootPage=remember(bootId,width,height,safeTop,safeBottom){cache.page(bootId,width,height,safeTop).copy(safeBottom=safeBottom)}
             val seedHome=active&&firstHomeFrame&&destination=="home"&&!webOverlay
             Box(Modifier.fillMaxSize().then(if((visible.isNotEmpty()||seedHome)&&Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop).graphicsLayer{compositingStrategy=CompositingStrategy.Offscreen}else Modifier)) {
-                AndroidView(factory = { web }, modifier = Modifier.fillMaxSize().zIndex(if(webOverlay)2f else 0f))
+                AndroidView(factory = { web }, modifier = Modifier.fillMaxSize().stageExitTransform(stageExit,exitProgress).zIndex(if(webOverlay||stageExit.active)2f else 0f))
                 if(active&&page==null&&firstHomeFrame&&destination=="home")NativePageView(bootPage,Modifier.fillMaxSize().zIndex(1f)){_,_,_->}
                 // One route-level animation, with no HTML exit animation or full-screen blur.
                 // Data/clock revisions keep the same content key and do not restart it.
@@ -180,7 +190,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         val to=targetState?.key?:"stage"
                         val ease=CubicBezierEasing(.16f,1f,.3f,1f)
                         val position=spring<IntOffset>(dampingRatio=NativeMotionPolicy.Damping,stiffness=NativeMotionPolicy.Stiffness,visibilityThreshold=IntOffset(1,1))
-                        when(NativeMotionPolicy.kind(from,to,backwards,reducedMotion)){
+                        when(NativeMotionPolicy.kind(from,to,backwards,reducedMotion||stageExit.suppressReturnMotion&&from=="stage")){
                             NativeMotionKind.NONE->EnterTransition.None togetherWith ExitTransition.None
                             NativeMotionKind.TAB,NativeMotionKind.STAGE->fadeIn(tween(140,easing=ease)) togetherWith fadeOut(tween(100,easing=ease))
                             NativeMotionKind.PUSH->slideInHorizontally(position){it} togetherWith slideOutHorizontally(position){(-it*.22f).roundToInt()}
@@ -216,10 +226,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             }
             visible.forEach { surface -> key(surface.id,surface.session) {
                 val scale = web.width / surface.viewportWidth
-                val rect = surface.rect
                 if (scale.isFinite() && scale > 0) {
-                    val y=if(surface.id in setOf("nav","mini")&&surface.viewportWidth<840f)
-                        chromeSafeTop(rect.top,safeBottom*density.density/scale,surface.safeBottom) else rect.top
+                    val rect=if(surface.id=="stage")surface.rect else NativeFooterLayout.rect(surface.id,
+                        width*density.density/scale,height*density.density/scale,safeTop*density.density/scale,safeBottom*density.density/scale,playlistDetail)
+                    val y=rect.top
                     val animatedY by animateFloatAsState(y,if(surface.reducedMotion||reducedMotion)snap()else spring(dampingRatio=NativeMotionPolicy.Damping,stiffness=NativeMotionPolicy.Stiffness),label="native-chrome-y")
                     val placement = Modifier.offset { IntOffset((rect.left*scale).roundToInt(),(animatedY*scale).roundToInt()) }
                         .size(with(density){(rect.width*scale).toDp()},with(density){(rect.height*scale).toDp()})
@@ -230,7 +240,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             if (surface.id=="mini" && action=="openStage") {
                                 destination="stage";firstHomeFrame=false
                                 pageTarget="";entryKey="";resolvePage()
-                                for (id in listOf("nav","mini")) surfaces[id]?.let { surfaces[id]=it.copy(enabled=false) }
+                                // Route visibility hides these immediately. Keep their live
+                                // enabled state so returning without a song change restores them.
                             }
                             if(surface.id=="nav"&&action=="navigate"){
                                 destination=when(value.toInt()){2->"search";3->"settings";else->"home"}
@@ -244,15 +255,16 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     when(surface.id) {
                         "nav" -> ChromeNavigation(surface,backdrop,interactivePlacement,actions)
                         "mini" -> ChromeMiniPlayer(surface,clocks[surface.id],backdrop,interactivePlacement,actions)
-                        "stage" -> ChromeStagePlayer(surface,clocks[surface.id],backdrop,interactivePlacement,actions)
+                        "stage" -> Box(Modifier.fillMaxSize().stageExitTransform(stageExit,exitProgress)){ChromeStagePlayer(surface,clocks[surface.id],backdrop,interactivePlacement,actions)}
                     }
                 }
             } }
+            if(stageExit.active)Box(Modifier.fillMaxSize().zIndex(4f).pointerInput(Unit){awaitPointerEventScope{while(true)awaitPointerEvent().changes.forEach{it.consume()}}})
         }
     }
     fun destroy() {
         val compose = host ?: return
-        active = false; surfaces.clear(); clocks.clear();pages.clear();retained.clear();presented=null
+        active = false;stageExit.clear(); surfaces.clear(); clocks.clear();pages.clear();retained.clear();presented=null
         compose.disposeComposition()
         (web.parent as? ViewGroup)?.removeView(web)
         (compose.parent as? ViewGroup)?.removeView(compose)
