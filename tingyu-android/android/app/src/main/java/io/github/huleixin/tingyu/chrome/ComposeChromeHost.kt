@@ -22,6 +22,11 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.CompositingStrategy
@@ -54,6 +59,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var backwards by mutableStateOf(false)
     private var reducedMotion by mutableStateOf(false)
     private var motionKey=""
+    private var nativeTop by mutableFloatStateOf(-1f)
+    private var nativeBottom by mutableFloatStateOf(-1f)
+    fun setSafeInsets(top:Float,bottom:Float){nativeTop=top.coerceAtLeast(0f);nativeBottom=bottom.coerceAtLeast(0f)}
     private fun recordMotion(key:String){if(motionKey!=key){motionKey=key;backwards=routeMotion.visit(key)}}
     private fun resolvePage(){
         if(destination in setOf("stage","web")){
@@ -156,8 +164,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val savedPages=rememberSaveableStateHolder()
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val density=LocalDensity.current;val width=maxWidth.value;val height=maxHeight.value
-            val safeTop=WindowInsets.statusBars.getTop(density)/density.density
-            val safeBottom=WindowInsets.navigationBars.getBottom(density)/density.density
+            val safeTop=if(nativeTop>=0)nativeTop else WindowInsets.statusBars.getTop(density)/density.density
+            val safeBottom=if(nativeBottom>=0)nativeBottom else WindowInsets.navigationBars.getBottom(density)/density.density
             val bootId=if(destination=="home"&&selectedTab==1)"library"else if(destination in setOf("home","collection","search","settings"))destination else "home"
             val bootPage=remember(bootId,width,height,safeTop,safeBottom){cache.page(bootId,width,height,safeTop).copy(safeBottom=safeBottom)}
             val seedHome=active&&firstHomeFrame&&destination=="home"&&!webOverlay
@@ -168,10 +176,16 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 // Data/clock revisions keep the same content key and do not restart it.
                 AnimatedContent(page,modifier=Modifier.fillMaxSize().zIndex(1f),contentKey={it?.key?:"stage"},
                     transitionSpec={
-                        val time=if(reducedMotion||firstHomeFrame&&initialState==null)0 else 220
-                        val ease=CubicBezierEasing(.2f,0f,0f,1f);val sign=if(backwards)-1 else 1
-                        (slideInHorizontally(tween(time,easing=ease)){(18*density.density*sign).roundToInt()}+fadeIn(tween(time),initialAlpha=.85f)) togetherWith
-                            (slideOutHorizontally(tween(time,easing=ease)){(-8*density.density*sign).roundToInt()}+fadeOut(tween(time)))
+                        val from=initialState?.key?:if(firstHomeFrame)""else"stage"
+                        val to=targetState?.key?:"stage"
+                        val ease=CubicBezierEasing(.16f,1f,.3f,1f)
+                        val position=spring<IntOffset>(dampingRatio=NativeMotionPolicy.Damping,stiffness=NativeMotionPolicy.Stiffness,visibilityThreshold=IntOffset(1,1))
+                        when(NativeMotionPolicy.kind(from,to,backwards,reducedMotion)){
+                            NativeMotionKind.NONE->EnterTransition.None togetherWith ExitTransition.None
+                            NativeMotionKind.TAB,NativeMotionKind.STAGE->fadeIn(tween(140,easing=ease)) togetherWith fadeOut(tween(100,easing=ease))
+                            NativeMotionKind.PUSH->slideInHorizontally(position){it} togetherWith slideOutHorizontally(position){(-it*.22f).roundToInt()}
+                            NativeMotionKind.POP->(slideInHorizontally(position){(-it*.22f).roundToInt()} togetherWith slideOutHorizontally(position){it}).apply{targetContentZIndex=-1f}
+                        }
                     },label="native-route") { shown ->
                 if(shown!=null) {
                     DisposableEffect(shown.key){
@@ -204,7 +218,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 val scale = web.width / surface.viewportWidth
                 val rect = surface.rect
                 if (scale.isFinite() && scale > 0) {
-                    val placement = Modifier.offset { IntOffset((rect.left*scale).roundToInt(),(rect.top*scale).roundToInt()) }
+                    val y=if(surface.id in setOf("nav","mini")&&surface.viewportWidth<840f)
+                        chromeSafeTop(rect.top,safeBottom*density.density/scale,surface.safeBottom) else rect.top
+                    val animatedY by animateFloatAsState(y,if(surface.reducedMotion||reducedMotion)snap()else spring(dampingRatio=NativeMotionPolicy.Damping,stiffness=NativeMotionPolicy.Stiffness),label="native-chrome-y")
+                    val placement = Modifier.offset { IntOffset((rect.left*scale).roundToInt(),(animatedY*scale).roundToInt()) }
                         .size(with(density){(rect.width*scale).toDp()},with(density){(rect.height*scale).toDp()})
                         .graphicsLayer { alpha = rect.alpha }
                     val actions: (String,Double)->Unit = { action,value ->

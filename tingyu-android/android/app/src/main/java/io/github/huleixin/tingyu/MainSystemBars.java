@@ -100,6 +100,10 @@ final class MainSystemBars {
                     density = nextDensity;
                     FoliaNativePlugin.emitMainWindowInsets(getInsets());
                 }
+                // Compose is below this listener and receives consumed (zero) insets.
+                // Feed its startup geometry the same authoritative values as the WebView.
+                io.github.huleixin.tingyu.chrome.ComposeChromeHost shell = ((MainActivity) activity).getNativeShell();
+                if (shell != null) shell.setSafeInsets(safe.top / nextDensity, safe.bottom / nextDensity);
                 int keyboard = insets.isVisible(WindowInsetsCompat.Type.ime()) ? insets.getInsets(WindowInsetsCompat.Type.ime()).bottom : 0;
                 view.setPadding(0, 0, 0, keyboard);
                 return new WindowInsetsCompat.Builder(insets).setInsets(safeTypes | WindowInsetsCompat.Type.ime(), Insets.NONE).build();

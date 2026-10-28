@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { installAndroidMainInsets } from './services/androidMainInsets';
 import { Buffer } from 'buffer';
 import { installGlobalVisualizerFrameRateLimiter } from './utils/frameRateLimiter';
 import { installConsoleLogCapture } from './utils/consoleLogBuffer';
@@ -33,6 +34,7 @@ installFrameTimingDiagnostics(Capacitor.getPlatform() !== 'android');
 // observer or the rows it retains.
 // if (import.meta.env.DEV) installCoverSizeAudit();
 installGlobalVisualizerFrameRateLimiter();
+installAndroidMainInsets();
 installAndroidPhoneFitPreference();
 // 屏幕常亮：启动时套用保存的开关状态（安卓走原生窗口标志）。
 installKeepScreenOnPreference();

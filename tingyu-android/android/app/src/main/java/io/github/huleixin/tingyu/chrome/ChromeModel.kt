@@ -19,7 +19,7 @@ data class ChromeSurface(
     val playing: Boolean, val disabled: Boolean, val canNext: Boolean, val canPrevious: Boolean,
     val duration: Double, val position: Double, val selected: Int, val loop: String,
     val light: Boolean, val reducedMotion: Boolean, val accent: String, val ink: String,
-    val labels: Map<String, String>, val vertical: Boolean
+    val labels: Map<String, String>, val vertical: Boolean, val safeBottom:Float=0f
 ) {
     fun label(key: String, fallback: String) = labels[key]?.takeIf { it.isNotBlank() } ?: fallback
     companion object {
@@ -40,7 +40,7 @@ data class ChromeSurface(
                 data.optBoolean("canNext"), data.optBoolean("canPrevious"), seconds("duration"), seconds("position"),
                 data.optInt("selected",0).coerceIn(-1,3), data.optString("loop","off"), data.optBoolean("light"), data.optBoolean("reducedMotion"),
                 data.optString("accent","#86d8b8"), data.optString("ink","#fffdf6"),
-                labels.keys().asSequence().associateWith { labels.optString(it).take(120) }, data.optBoolean("vertical"))
+                labels.keys().asSequence().associateWith { labels.optString(it).take(120) }, data.optBoolean("vertical"),finite("safeBottom").toFloat().coerceIn(0f,200f))
         }
     }
 }

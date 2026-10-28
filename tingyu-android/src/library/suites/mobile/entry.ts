@@ -1,6 +1,9 @@
 import React from 'react';
 import type { LibrarySuiteManifest } from '../../core/contracts/suite';
 import { mobileCollectionLoader } from './mobileCollectionPreload';
+import MobileLibraryStage from './MobileLibraryStage';
+import MobileHome from './MobileHome';
+import { COMPOSE_CHROME } from '../../../services/nativeChrome';
 
 // src/library/suites/mobile/entry.ts
 // A separate browsing shell; playback, account dialogs and the lyrics stage stay with their existing owners.
@@ -28,7 +31,7 @@ const mobile: LibrarySuiteManifest = {
             ],
         },
         home: {
-            component: React.lazy(() => import('./MobileHome')),
+            component: COMPOSE_CHROME ? MobileHome : React.lazy(() => import('./MobileHome')),
             actions: ['home-import-folder', 'home-refresh-folders', 'home-import-playlist', 'home-refresh-navidrome'],
         },
         collection: {
@@ -60,6 +63,8 @@ const mobile: LibrarySuiteManifest = {
             ],
         },
     },
-    stage: React.lazy(() => import('./MobileLibraryStage')),
+    // The native startup UI is already visible. Its action adapter is a startup
+    // dependency, not an optional screen behind React.lazy's fallback delay.
+    stage: COMPOSE_CHROME ? MobileLibraryStage : React.lazy(() => import('./MobileLibraryStage')),
 };
 export default mobile;

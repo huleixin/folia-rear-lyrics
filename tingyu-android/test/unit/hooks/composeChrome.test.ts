@@ -17,7 +17,7 @@ vi.mock('@/utils/stageActivity',()=>({isMainStageActive:()=>true,subscribeMainSt
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
 let root:Root,host:HTMLDivElement;
 const clock=motionValue(0),queue=vi.fn();
-function Probe({active=true,id='mini'}:{active?:boolean;id?:'mini'|'nav'}){
+function Probe({active=true,id='mini'}:{active?:boolean;id?:'mini'|'nav'|'stage'}){
     const ref=useRef<HTMLDivElement>(null);
     useComposeChrome(ref,id,active,{trackKey:'one',playing:true,duration:200},{queue},clock);
     return h('div',{ref,style:{opacity:1},'data-testid':'control'},'Fallback');
@@ -42,6 +42,17 @@ it('has no idle polling and removes native controls when inactive',async()=>{
     expect(host.firstElementChild?.getAttribute('data-compose-native')).toBe('true');
     expect(host.firstElementChild?.getAttribute('data-compose-pending')).toBe('true');
     expect(bridge.remove).toHaveBeenCalled();
+});
+it('connects a native footer without waiting for an invisible ancestor entry animation',async()=>{
+    host.setAttribute('inert','');
+    await act(async()=>root.render(h(Probe,{id:'nav'})));await settle(20);
+    expect(bridge.update.mock.calls.at(-1)?.[0].enabled).toBe(true);
+    expect(bridge.update.mock.calls.at(-1)?.[0].safeBottom).toBe(0);
+});
+it('still honours entry inertness for stage controls',async()=>{
+    host.setAttribute('inert','');
+    await act(async()=>root.render(h(Probe,{id:'stage'})));await settle(20);
+    expect(bridge.update.mock.calls.at(-1)?.[0].enabled).toBe(false);
 });
 it('never reveals legacy controls if a native probe fails',async()=>{
     bridge.supported=false;

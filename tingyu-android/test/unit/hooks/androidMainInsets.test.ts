@@ -12,6 +12,13 @@ let root: Root | undefined;
 const Probe = () => { useAndroidMainInsets(); return null; };
 afterEach(() => { if (root) act(() => root!.unmount()); root = undefined; vi.resetAllMocks(); });
 describe('Android edge-to-edge safe content', () => {
+    it('requests initial safe geometry without waiting for listener registration',async()=>{
+        bridge.addListener.mockImplementation(()=>new Promise(()=>{}));
+        bridge.getMainWindowInsets.mockResolvedValue({top:30,bottom:22,left:0,right:0});
+        await act(async()=>{root=createRoot(document.createElement('div'));root.render(React.createElement(Probe))});
+        expect(bridge.getMainWindowInsets).toHaveBeenCalledTimes(1);
+        expect(document.documentElement.style.getPropertyValue('--folia-main-inset-bottom')).toBe('22px');
+    });
     it('uses measured dp insets once, updates on rotation and clears listeners on unmount', async () => {
         let update!: (value: { top: number; bottom: number; left: number; right: number }) => void;
         const remove = vi.fn(async () => {});

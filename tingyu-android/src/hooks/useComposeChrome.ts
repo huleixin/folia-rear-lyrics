@@ -32,9 +32,13 @@ export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfac
             // Track only short layout transitions; a slow draw reply must not stall geometry.
             if(performance.now()<deadline)frame=requestAnimationFrame(()=>void measure());
             const current=latest.current,rect=node.getBoundingClientRect(),style=getComputedStyle(node);
-            const enabled=current.active&&isMainStageActive()&&!hasBlockingChromeWindow()&&!node.closest('[inert]')&&node.getAttribute('aria-hidden')!=='true'
+            // The native shell already owns route/overlay interaction. An invisible
+            // ancestor's web-entry inert timer must not hold its footer for another 400ms.
+            const nativeFooter=PREHIDE_COMPOSE_CHROME&&(id==='nav'||id==='mini');
+            const enabled=current.active&&isMainStageActive()&&!hasBlockingChromeWindow()&&(nativeFooter||!node.closest('[inert]'))&&node.getAttribute('aria-hidden')!=='true'
                 &&style.visibility!=='hidden'&&style.display!=='none'&&Number(style.opacity)>.01&&rect.width>0&&rect.height>0;
-            const packet={id,session,generation,enabled,left:rect.left,top:rect.top,width:rect.width,height:rect.height,alpha:Number(style.opacity),viewportWidth:innerWidth,data:current.data};
+            const safeBottom=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--folia-main-inset-bottom'))||0;
+            const packet={id,session,generation,enabled,left:rect.left,top:rect.top,width:rect.width,height:rect.height,alpha:Number(style.opacity),viewportWidth:innerWidth,safeBottom,data:current.data};
             const key=JSON.stringify(packet);
             if(key!==last){
                 last=key;const sentRevision=++revision;
@@ -49,9 +53,9 @@ export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfac
                 }catch(error){if(sentRevision===revision){console.warn('[ComposeChrome] Native control update failed',error);window.dispatchEvent(new Event(COMPOSE_CHROME_FAILURE_EVENT));}}
             }
         };
-        const schedule=()=>{deadline=performance.now()+400;if(started&&!frame&&!disposed)frame=requestAnimationFrame(()=>void measure());};
+        const schedule=()=>{deadline=performance.now()+(PREHIDE_COMPOSE_CHROME?0:400);if(started&&!frame&&!disposed)frame=requestAnimationFrame(()=>void measure());};
         // React visibility/route changes are delivered in the layout effect, before paint.
-        scheduleRef.current=()=>{deadline=performance.now()+400;cancelAnimationFrame(frame);frame=0;void measure();};
+        scheduleRef.current=()=>{deadline=performance.now()+(PREHIDE_COMPOSE_CHROME?0:400);cancelAnimationFrame(frame);frame=0;void measure();};
         const onClock=()=>{
             if(!started||disposed||node.dataset.composeNative!=='true'||!isMainStageActive())return;
             const now=performance.now(),time=position();

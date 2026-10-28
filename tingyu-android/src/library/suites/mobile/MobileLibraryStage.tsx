@@ -15,7 +15,7 @@ import './mobileAdaptive.css';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { useNativeGlassNav } from '../../../hooks/useNativeGlassNav';
 import { useComposeChrome } from '../../../hooks/useComposeChrome';
-import { COMPOSE_CHROME } from '../../../services/nativeChrome';
+import { COMPOSE_CHROME,PREHIDE_COMPOSE_CHROME } from '../../../services/nativeChrome';
 import { useReducedMotionFor } from '../../../hooks/useReducedMotionFor';
 import { useAppViewStore } from '../../../stores/useAppViewStore';
 import '../../../styles/composeChrome.css';
@@ -40,7 +40,7 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
     const nativeGlass = useNativeGlassNav(navRef, !COMPOSE_CHROME && props.isInteractive && !settingsOpen && !searchOpen, `${playlistDetail}:${page}`, nativeNavigate);
     const reducedMotion = useReducedMotionFor('uiMicroMotion');
     const homeView = useAppViewStore(state=>state.view==='home'&&!state.isPanelOpen);
-    const compose = useComposeChrome(navRef,'nav',homeView && props.isInteractive && !settingsOpen && !searchOpen,{
+    const compose = useComposeChrome(navRef,'nav',homeView && (PREHIDE_COMPOSE_CHROME||props.isInteractive) && !settingsOpen && !searchOpen,{
         selected:homeActive?0:libraryActive?1:searchOpen?2:settingsOpen?3:-1,vertical:wide,reducedMotion,
         accent:'#86d8b8',ink:'#eef5ef',labels:{nav0:t('mobileLibrary.recommend'),nav1:t('mobileLibrary.libraryNav'),nav2:t('mobileLibrary.search'),nav3:t('mobileLibrary.settingsNav')},
     },{navigate:nativeNavigate});
@@ -55,7 +55,7 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
         props.onLibraryHome?.();
     };
     return (
-        <footer ref={footerRef} className="mobile-library ml-footer" data-footer-motion="true" data-playlist-detail={playlistDetail ? 'true' : undefined} inert={!props.isInteractive}>
+        <footer ref={footerRef} className="mobile-library ml-footer" data-footer-motion="true" data-playlist-detail={playlistDetail ? 'true' : undefined} inert={!props.isInteractive&&!PREHIDE_COMPOSE_CHROME}>
             <MobileMiniPlayer
                 onBackToPlayer={props.onBackToPlayer}
                 onTogglePlayback={props.onTogglePlayback}

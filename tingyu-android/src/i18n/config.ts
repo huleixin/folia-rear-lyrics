@@ -11,12 +11,11 @@ import { resolveMissingTranslation } from './missingTranslation';
  * Flattened at build-time from zh-CN.ts so every key has a Chinese fallback
  * baked directly into the JS bundle — no dependency on i18next resource loading.
  */
-function flattenLocale(obj: Record<string, any>, prefix = ''): Record<string, string> {
-  let result: Record<string, string> = {};
+function flattenLocale(obj: Record<string, any>, prefix = '', result:Record<string,string> = {}): Record<string, string> {
   for (const [key, value] of Object.entries(obj)) {
     const path = prefix ? `${prefix}.${key}` : key;
     if (typeof value === 'object' && value !== null) {
-      result = { ...result, ...flattenLocale(value, path) };
+      flattenLocale(value, path, result);
     } else {
       result[path] = String(value);
     }

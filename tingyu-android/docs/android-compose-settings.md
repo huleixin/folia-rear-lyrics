@@ -47,10 +47,29 @@ fill a normal navigation gap. Direct editor entry initializes its final subview 
 capture, and incomplete document models are not published. The app-level settings
 presence also removes outgoing HTML immediately, preventing a second exit animation.
 
-Native page navigation shares a 220 ms eased, short horizontal transition, reversed
-on return. Data/clock revisions do not restart it. Initial home data does not animate
-over the startup presentation, and the existing reduced-motion preference skips it.
-The WebView stays below the native route layer except for actual WebView dialogs.
+Native navigation uses a critically damped spring for depth changes: details enter
+from the right and reverse on return, with a small outgoing-page parallax. Tab switches
+and stage/home replacement use a short eased dissolve with no page translation.
+No opacity crossfade is added to detail pushes. Initial home data and reduced-motion
+navigation skip movement. Native chrome movement uses the same spring; its hidden
+HTML counterpart settles instantly rather than running a second WAAPI animation or
+polling geometry for 400 ms after every render.
+
+Startup uses safe insets supplied directly by MainSystemBars before they are consumed
+at the content root. The boot footer and initial live footer share that rectangle;
+late CSS inset packets are corrected at placement, so they cannot sink controls into
+the gesture bar. JS subscribes/requests insets in parallel before importing the React
+application and retains the subscription across route mounts. Native footer actions
+no longer wait for the invisible web home-entry animation. This does not remove the
+cost of initializing the JS business layer; cached startup actions remain inactive
+until their live adapter connects.
+
+On Android, restoring Chinese lyrics on home no longer loads the ~4.4 MB word
+segmentation engines. Loading requires a visible stage, an awake rear surface or a
+visible settings preview. Translation fallback flattening writes into one accumulator
+instead of repeatedly copying the accumulated dictionary during startup. APK updates
+retain self-validating V8 code and GPU shader caches; only stale HTTP/service-worker
+response caches are invalidated, avoiding forced shader recompilation after upgrades.
 
 Generic settings SVGs retain their viewBox, aspect ratio, group transforms and
 resolved fill/stroke opacity. The 160×100 device illustrations no longer use Lucide's

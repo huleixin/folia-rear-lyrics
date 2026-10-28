@@ -35,7 +35,7 @@ import kotlin.math.roundToInt
 @Composable fun ChromeNavigation(s: ChromeSurface, backdrop: Backdrop, modifier: Modifier, action: (String,Double)->Unit) {
     val ink=chromeColor(s.ink);val accent=chromeColor(s.accent)
     var drag by remember { mutableStateOf<Float?>(null) }
-    val selection by animateFloatAsState(s.selected.coerceAtLeast(0).toFloat(),animationSpec=if(s.reducedMotion)snap()else spring(),label="selected-tab")
+    val selection by animateFloatAsState(s.selected.coerceAtLeast(0).toFloat(),animationSpec=if(s.reducedMotion)snap()else spring(dampingRatio=NativeMotionPolicy.Damping,stiffness=NativeMotionPolicy.Stiffness),label="selected-tab")
     BoxWithConstraints(modifier.chromeGlass(backdrop,s.light,if(s.vertical)28.dp else 32.dp).padding(4.dp)) {
         val extent=with(LocalDensity.current){(if(s.vertical)maxHeight else maxWidth).toPx()}/4
         val position=drag ?: selection

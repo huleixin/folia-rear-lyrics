@@ -4,6 +4,11 @@ import { setLyricsState, usePlaybackStore } from '../stores/usePlaybackStore';
 import { getVisualizerRegistryEntry } from '../components/visualizer/registry';
 import { applyAutoWordSegmentation, loadIcuFolia } from '../utils/lyrics/icuFolia';
 import { applyLyricsTransform, untransformedLyrics } from '../services/hostExtensionHooks';
+import { useAppViewStore } from '../stores/useAppViewStore';
+import { useRearRuntimeStore } from '../stores/useRearRuntimeStore';
+import { useSettingsModalStore } from '../stores/useSettingsModalStore';
+import { isAndroidNativeRuntime } from '../utils/platform';
+import { useMainStageActive } from './useStageActivity';
 
 // src/hooks/useIcuFoliaSegmentation.ts
 // Loads icu-folia's engines when they would change something on screen, and bakes its split onto
@@ -21,10 +26,14 @@ import { applyLyricsTransform, untransformedLyrics } from '../services/hostExten
 const HAN_OR_KANA = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u;
 
 export function useIcuFoliaSegmentation(visualizerMode: VisualizerMode) {
+    const stage=useAppViewStore(state=>state.view==='player');
+    const rear=useRearRuntimeStore(state=>state.enabled&&!state.sleeping);
+    const preview=useSettingsModalStore(state=>state.isSubSettingsViewOpen);
+    const foreground=useMainStageActive();
     const usesWords = Boolean(getVisualizerRegistryEntry(visualizerMode).usesWordSegmentation);
     const lyrics = usePlaybackStore(state => state.lyrics);
     const hasCjText = useMemo(() => Boolean(lyrics?.lines.some(line => HAN_OR_KANA.test(line.fullText))), [lyrics]);
-    const wanted = usesWords && hasCjText;
+    const wanted = usesWords && hasCjText && (!isAndroidNativeRuntime()||stage&&foreground||rear||preview&&foreground);
 
     useEffect(() => {
         if (!wanted) {

@@ -99,8 +99,9 @@ public class MainActivity extends BridgeActivity {
      * The PWA service worker caches index.html and every hashed asset. After an APK update the
      * cached index.html can reference chunks that no longer exist in the new package, and that
      * first launch has to run the old JS before the new bundle can repair anything. Clear only
-     * WebView's HTTP / service-worker / code caches once per install so the first launch reads the
-     * fresh index.html from the APK. Cookies, localStorage and IndexedDB are deliberately kept.
+     * the HTTP / service-worker response caches once per install. Hashed script code and GPU
+     * shader caches validate their own contents; deleting them forced needless JS/shader
+     * recompilation immediately after every upgrade. Cookies, localStorage and IndexedDB stay.
      */
     private void clearWebViewCachesAfterAppUpdate() {
         long updateTime;
@@ -125,10 +126,6 @@ public class MainActivity extends BridgeActivity {
         File webViewRoot = new File(getDataDir(), "app_webview/Default");
         String[] cachePaths = {
             "HTTP Cache",
-            "Code Cache",
-            "GPUCache",
-            "DawnGraphiteCache",
-            "DawnWebGPUCache",
             "Service Worker",
             "Cache",
         };

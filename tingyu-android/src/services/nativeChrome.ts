@@ -14,7 +14,7 @@ export type ChromeData = {
 };
 export type ChromeAction = {id: ChromeSurfaceId; session: string; action: string; value: number};
 export type ChromeFrame = {id: ChromeSurfaceId; session: string; generation: number; revision: number; enabled: boolean;
-    left: number; top: number; width: number; height: number; alpha: number; viewportWidth: number; data: ChromeData & {position?: number}};
+    left: number; top: number; width: number; height: number; alpha: number; viewportWidth: number; safeBottom?:number; data: ChromeData & {position?: number}};
 export const chromeNative = registerPlugin<{
     probe(): Promise<{supported:boolean;engine:string;pages?:boolean}>;
     update(frame: ChromeFrame): Promise<{accepted:boolean;session:string}>;
