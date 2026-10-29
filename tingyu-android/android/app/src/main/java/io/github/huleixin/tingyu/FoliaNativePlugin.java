@@ -846,10 +846,12 @@ public class FoliaNativePlugin extends Plugin {
         result.put("sleeping", coordinator.isSleeping());
         result.put("sleepUnsupported", coordinator.sleepUnsupported());
         result.put("sensorAvailable", coordinator.sensorAvailable());
+        result.put("cameraSuspended", coordinator.cameraSuspended());
         result.put("sleepDiagnostics", coordinator.sleepDiagnostics());
         String message = RearLyricsLauncher.message(getContext());
         if (!active && !starting && coordinator.isEnabled() && (message.isEmpty() || message.startsWith("已确认背屏")))
             message = "背屏歌词已启用，播放音乐时自动显示；锁屏后按需恢复";
+        if (coordinator.isEnabled() && coordinator.cameraSuspended()) message = "等待相机空闲／状态稳定，随后自动恢复背屏歌词";
         result.put("message", message);
         RearLyricsActivity.WindowState window = RearLyricsActivity.windowState();
         result.put("diagnostics", RearLyricsLauncher.diagnostics(getContext()) + "\nCurrent window: " + window

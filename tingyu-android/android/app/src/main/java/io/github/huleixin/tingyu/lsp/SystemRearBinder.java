@@ -92,7 +92,7 @@ final class SystemRearBinder extends Binder {
                     power.acquire(display, session);
                 } else power.release(display, session);
             }
-            return operation == 6 ? "Rear bright policy leased for 60s" : "Matching rear bright policy released";
+            return (operation == 6 ? "Rear bright policy leased for 60s; " : "Matching rear bright policy released; ") + power.status();
         }
         if (operation == 0) {
             Intent intent = new Intent().setComponent(new ComponentName(RearBridgeContract.PACKAGE, RearBridgeContract.ACTIVITY))

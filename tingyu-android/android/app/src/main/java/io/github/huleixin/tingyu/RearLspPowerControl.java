@@ -19,6 +19,7 @@ final class RearLspPowerControl {
             try {
                 if (display <= 0 || !RearBridgeContract.validSession(session)) throw new IllegalStateException("No rear session");
                 if (hold && !RearLyricsActivity.isCurrentSession(session)) throw new IllegalStateException("Cancelled rear session");
+                if (hold && !RearLyricsCoordinator.presentationAllowed()) throw new IllegalStateException("Rear display yielded or disabled");
                 if (service == null || !service.isBinderAlive()) throw new IllegalStateException("LSP disconnected");
                 request.writeInterfaceToken(RearBridgeContract.DESCRIPTOR);
                 request.writeInt(display); request.writeString(session); request.writeInt(-1);

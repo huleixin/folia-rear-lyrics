@@ -160,6 +160,10 @@ final class RearLyricsLauncher {
     private static RearLyricsCommandResult command(IBinder shell, int transaction, int display, String session,
             int task, String label, StringBuilder trace) throws Exception {
         if (!RearLyricsActivity.isCurrentSession(session)) throw new IllegalStateException("启动已取消");
+        if ((transaction == ShellUserService.TRANSACTION_START || transaction == ShellUserService.TRANSACTION_MOVE
+                || transaction == ShellUserService.TRANSACTION_WAKE
+                || transaction == io.github.huleixin.tingyu.lsp.RearBridgeContract.HOLD_POWER)
+                && !RearLyricsCoordinator.presentationAllowed()) throw new IllegalStateException("背屏已让给相机或本次显示已取消");
         if (!shell.isBinderAlive()) throw new IllegalStateException("Shizuku 服务已断开");
         Parcel data = Parcel.obtain(), reply = Parcel.obtain();
         try {

@@ -30,6 +30,7 @@ public final class RearLyricsActivity extends Activity {
     private static volatile WindowState lastWindowState;
     private String session = "";
     private boolean visible, drewFrame, contentReady, opaque, backRegistered, rendererQueued;
+    private boolean yieldingToCamera;
     private int rendererRecoveries;
     private FrameLayout root;
     private WebView renderer;
@@ -117,6 +118,7 @@ public final class RearLyricsActivity extends Activity {
     /** Wallpaper fills the rear display; the web surface supplies a separate camera-safe lyric viewport. */
     private void updateViewport() {
         if (root == null) return;
+        if (yieldingToCamera) return;
         boolean onRear = currentDisplayId() == requestedDisplay;
         if (!onRear) { if (renderer != null) renderer.setVisibility(View.INVISIBLE); return; }
         if (renderer == null) {
@@ -149,6 +151,7 @@ public final class RearLyricsActivity extends Activity {
         RearLyricsActivity activity = shownActivity;
         if (activity == null) return;
         activity.runOnUiThread(() -> {
+            if (activity.yieldingToCamera) return;
             if (sleeping) activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             else activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             if (activity.renderer != null) {
@@ -170,7 +173,7 @@ public final class RearLyricsActivity extends Activity {
     }
     @Override protected void onStart() {
         super.onStart(); visible = true; drewFrame = false;
-        if (renderer != null && !RearLyricsCoordinator.get(this).isSleeping()) renderer.onResume();
+        if (renderer != null && !yieldingToCamera && !RearLyricsCoordinator.get(this).isSleeping()) renderer.onResume();
         updateViewport(); reportWindow(); record("start", "display=" + currentDisplayId());
     }
     @Override protected void onStop() {
@@ -232,6 +235,20 @@ public final class RearLyricsActivity extends Activity {
         requestedSession = ""; requestedDisplay = -1;
         RearLyricsActivity activity = shownActivity;
         if (activity != null) activity.runOnUiThread(activity::finish);
+    }
+    /** Hide only the dedicated rear task immediately, while its power lease is released asynchronously. */
+    static void yieldToCamera() {
+        RearLyricsActivity activity = shownActivity;
+        if (activity == null) return;
+        activity.runOnUiThread(() -> {
+            if (activity.isFinishing()) return;
+            activity.yieldingToCamera = true;
+            activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            if (activity.root != null) activity.root.setVisibility(View.INVISIBLE);
+            if (activity.renderer != null) { activity.renderer.setVisibility(View.INVISIBLE); activity.renderer.onPause(); }
+            try { activity.moveTaskToBack(true); }
+            catch (RuntimeException error) { activity.record("camera-yield", error.getClass().getSimpleName()); }
+        });
     }
     private int currentDisplayId() {
         Display display = getWindow().getDecorView().getDisplay();
