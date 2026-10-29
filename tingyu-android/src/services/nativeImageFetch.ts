@@ -69,7 +69,7 @@ const readContentType = (headers?: NativeHeaderEntry[] | Record<string, string>)
  * - 安卓容器里走原生桥取字节，返回需要 revoke 的 blob URL。
  * - 其他情况返回 null，让调用方按原来的方式加载。
  */
-export const resolveSameOriginImageSource = async (url: string): Promise<SameOriginImageSource | null> => {
+export const fetchNativeImageBlob = async (url: string): Promise<Blob | null> => {
     if (!url || !/^https?:/i.test(url)) return null;
     const plugin = getNativePlugin();
     if (!plugin?.httpRequest) return null;
@@ -90,13 +90,18 @@ export const resolveSameOriginImageSource = async (url: string): Promise<SameOri
 
         const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
         const blob = new Blob([buffer], { type: readContentType(result.headers) });
-        const objectUrl = URL.createObjectURL(blob);
-        return {
-            url: objectUrl,
-            revoke: () => URL.revokeObjectURL(objectUrl),
-        };
+        return blob;
     } catch (error) {
         console.warn('[nativeImageFetch] failed to fetch image bytes, falling back to direct load', error);
         return null;
     }
+};
+
+/** Share the stored bytes, while each consumer owns and revokes only its own URL. */
+export const resolveSameOriginImageSource = async (url: string): Promise<SameOriginImageSource | null> => {
+    if (!/^https?:/i.test(url) || !getNativePlugin()?.httpRequest) return null;
+    const { loadCachedOrFetchCover } = await import('./coverCache');
+    const local = await loadCachedOrFetchCover(`native-image:${url}`, url);
+    if (!local?.startsWith('blob:')) return null;
+    return { url: local, revoke: () => URL.revokeObjectURL(local) };
 };

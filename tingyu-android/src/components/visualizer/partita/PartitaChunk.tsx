@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { motion, MotionValue, Variants, useMotionValueEvent } from 'framer-motion';
+import { useLyricPhase } from '../useLyricPhase';
+import React from 'react';
+import { motion, MotionValue, Variants } from 'framer-motion';
 import { Theme, Word as WordType } from '../../../types';
 import { GlowWord } from '../GlowWord';
 import { getGlowWordActiveEndTime, type GlowWordRenderProfile } from '../glowWordTiming';
@@ -27,20 +28,11 @@ export const PartitaChunk: React.FC<{
     showGuideLines: boolean;
     fontSize: string;
 }> = ({ chunkWords, displayWords, config, guideIndex, currentTime, theme, layoutVariants, bodyVariants, baseColor, renderProfile, isChorus, showGuideLines, fontSize }) => {
-    const [chunkStatus, setChunkStatus] = useState<'waiting' | 'active' | 'passed'>('waiting');
 
     const chunkStartTime = chunkWords[0].startTime;
     const chunkEndTime = getGlowWordActiveEndTime(chunkWords[chunkWords.length - 1], renderProfile);
 
-    useMotionValueEvent(currentTime, 'change', (latest: number) => {
-        let newStatus: 'waiting' | 'active' | 'passed' = 'waiting';
-        if (latest >= chunkStartTime - renderProfile.wordLookahead && latest <= chunkEndTime) {
-            newStatus = 'active';
-        } else if (latest > chunkEndTime) {
-            newStatus = 'passed';
-        }
-        if (newStatus !== chunkStatus) setChunkStatus(newStatus);
-    });
+    const chunkStatus = useLyricPhase(currentTime, chunkStartTime - renderProfile.wordLookahead, chunkEndTime);
 
     const activeColor = getActiveColor(displayWords.map(w => w.text).join(' '), theme);
     const guidePosition = guideIndex % 2 === 0 ? 'left' : 'right';

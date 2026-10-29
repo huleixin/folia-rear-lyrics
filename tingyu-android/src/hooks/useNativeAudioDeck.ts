@@ -1,3 +1,4 @@
+import { shouldUseCompatibleDecoder } from '../utils/nativePlaybackFailure';
 import { PLAYBACK_TEST_SESSION_ENGINE } from '../utils/playbackEngineTestBuild';
 import { setPlaybackTestActual } from '../stores/usePlaybackEngineTestStore';
 import { installPlaybackTestMediaLog,notePlaybackTest } from '../services/playbackTestLog';
@@ -48,7 +49,7 @@ export function useNativeAudioDeck(audioRef:RefObject<HTMLAudioElement|null>,act
     useEffect(()=>{
         const element=audioRef.current;
         if(!own||supported!==true||!element)return;
-        const fallback=()=>{notePlaybackTest('native-error-fallback');nativeFailed.current=true;setSupported(false);};
+        const fallback=()=>{if(!shouldUseCompatibleDecoder(element.error))return;notePlaybackTest('native-error-fallback',{code:(element.error as MediaError & {nativeCode?:number})?.nativeCode});setStatusMessage({type:'info',text:'当前音频解码失败，已切换兼容通道'});nativeFailed.current=true;setSupported(false);};
         element.addEventListener('error',fallback);
         return()=>element.removeEventListener('error',fallback);
     },[own,supported,audioRef]);

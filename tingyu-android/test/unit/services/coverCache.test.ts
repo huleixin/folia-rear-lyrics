@@ -85,7 +85,7 @@ describe('coverCache', () => {
 
         await expect(loadCachedOrFetchCover('cover_local_session', 'https://example.com/cover.jpg'))
             .resolves.toBe('blob:safe-cover');
-        expect(mocks.saveToCache).not.toHaveBeenCalled();
+        expect(mocks.saveToCache).toHaveBeenCalledWith('cover_local_session',expect.any(Blob));
         expect(URL.createObjectURL).toHaveBeenCalled();
     });
 

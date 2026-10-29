@@ -41,6 +41,8 @@ public final class NativeAudioEngine {
     private boolean fade=true;
     private boolean desiredPaused=true;
     private PlaybackException failure;
+    private int networkRetries;
+    private long retryGeneration;
     private final Runnable heartbeat=new Runnable(){public void run(){if(!sourceId.isEmpty()){emit("clock",false);if(needsClock())main.postDelayed(this,1000);}}};
     private NativeAudioEngine(Context context){
         PlaybackTestDiagnostics.note("engine-create-start",new JSObject());
@@ -57,7 +59,17 @@ public final class NativeAudioEngine {
             .setHandleAudioBecomingNoisy(true).setWakeMode(C.WAKE_MODE_LOCAL).build();
         player.addListener(new Player.Listener(){
             @Override public void onEvents(Player p,Player.Events events){if(!events.containsAny(Player.EVENT_PLAYBACK_STATE_CHANGED,Player.EVENT_IS_PLAYING_CHANGED,Player.EVENT_PLAY_WHEN_READY_CHANGED,Player.EVENT_PLAYER_ERROR,Player.EVENT_TIMELINE_CHANGED,Player.EVENT_POSITION_DISCONTINUITY))return;emit("state",false);main.removeCallbacks(heartbeat);if(needsClock())main.postDelayed(heartbeat,1000);}
-            @Override public void onPlayerError(PlaybackException error){failure=error;PlaybackTestDiagnostics.error("player-error",error);emit("error",false);}
+            @Override public void onPlayerError(PlaybackException error){
+                PlaybackTestDiagnostics.error("player-error",error);
+                if(!desiredPaused&&NativeRetryPolicy.canRetry(error.errorCode,networkRetries)){
+                    int attempt=++networkRetries;String token=sourceId;long generation=++retryGeneration;
+                    PlaybackTestDiagnostics.note("network-retry",new JSObject().put("attempt",attempt).put("code",error.errorCode));
+                    main.postDelayed(()->{if(generation!=retryGeneration||!sourceId.equals(token)||desiredPaused)return;
+                        failure=null;player.prepare();player.play();},attempt*400L);
+                    return;
+                }
+                failure=error;emit("error",false);
+            }
             @Override public void onPositionDiscontinuity(Player.PositionInfo old,Player.PositionInfo next,int reason){if(reason==Player.DISCONTINUITY_REASON_SEEK)emit("seeked",false);}
         });
         PlaybackTestDiagnostics.note("engine-create-ready",new JSObject());
@@ -71,7 +83,7 @@ public final class NativeAudioEngine {
             String url=value.optString("uri");Uri uri=Uri.parse(url);
             if(!java.util.Arrays.asList("http","https","content","file").contains(uri.getScheme()))throw new IllegalArgumentException("Unsupported native audio URI");
             PlaybackTestDiagnostics.note("prepare",new JSObject().put("scheme",uri.getScheme()).put("host",uri.getHost()));
-            sourceId="";sequence=seq;failure=null;desiredPaused=true;cancelFade();player.pause();
+            sourceId="";sequence=seq;failure=null;networkRetries=0;retryGeneration++;desiredPaused=true;cancelFade();player.pause();
             configure(value);player.setMediaItem(MediaItem.fromUri(uri),Math.max(0,value.optLong("position")));sourceId=id;player.prepare();emit("load",false);
         }else{
             if(!sourceId.equals(id)||seq<sequence)return new JSObject().put("accepted",false);
@@ -99,8 +111,9 @@ public final class NativeAudioEngine {
     private void transport(String action,boolean external){
         cancelFade();
         desiredPaused=!action.equals("play");
+        if(desiredPaused)retryGeneration++;
         if(action.equals("stop")){player.pause();player.seekTo(0);emit("state",external);main.removeCallbacks(heartbeat);return;}
-        if(action.equals("play")){if(player.getPlaybackState()==Player.STATE_IDLE&&player.getCurrentMediaItem()!=null){failure=null;player.prepare();}
+        if(action.equals("play")){if(player.getPlaybackState()==Player.STATE_IDLE&&player.getCurrentMediaItem()!=null){failure=null;networkRetries=0;player.prepare();}
             boolean fadeIn=fade&&!player.isPlaying();player.setVolume(fadeIn?0:volume);player.play();emit("state",external);
             if(fadeIn){long generation=fadeGeneration,start=SystemClock.elapsedRealtime();main.post(new Runnable(){public void run(){
                 if(generation!=fadeGeneration)return;float progress=Math.min(1,(SystemClock.elapsedRealtime()-start)/200f);player.setVolume(volume*progress);

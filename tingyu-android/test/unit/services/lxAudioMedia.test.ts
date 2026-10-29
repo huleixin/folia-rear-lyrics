@@ -12,11 +12,11 @@ const local='http://127.0.0.1:12345/remote-audio/lx-test';
 beforeEach(()=>{native.enabled=true;vi.stubGlobal('window',{Capacitor:{Plugins:{FoliaNative:{registerRemoteAudio:vi.fn(async()=>({url:local}))}}}});});
 afterEach(()=>vi.unstubAllGlobals());
 describe('custom-source audio forwarding',()=>{
- it('opts into LX forwarding and verifies only the first byte',async()=>{
-  const request=vi.fn(async(_url: string,_options: RequestInit)=>new Response(new Uint8Array([73]),{status:206,headers:{'content-type':'audio/mpeg'}}));vi.stubGlobal('fetch',request);
+ it('registers the issued stream once without consuming or rejecting it in a tiny-range probe',async()=>{
+  const request=vi.fn();vi.stubGlobal('fetch',request);
   expect(await prepareLxAudio('https://custom.example/song')).toBe(local);
   expect((window as any).Capacitor.Plugins.FoliaNative.registerRemoteAudio).toHaveBeenCalledWith({url:'https://custom.example/song',lxSource:true});
-  expect((request.mock.calls[0][1].headers as Record<string,string>).Range).toBe('bytes=0-0');
+  expect(request).not.toHaveBeenCalled();
  });
  it('does not silently fall back to a cross-origin URL after LX proxy rejection',async()=>{
   (window as any).Capacitor.Plugins.FoliaNative.registerRemoteAudio.mockRejectedValue(Error('Unsupported remote audio host'));
@@ -26,18 +26,6 @@ describe('custom-source audio forwarding',()=>{
  it('rejects a bridge returning a direct remote URL',async()=>{
   (window as any).Capacitor.Plugins.FoliaNative.registerRemoteAudio.mockResolvedValue({url:'https://custom.example/song'});
   await expect(prepareLxAudio('https://custom.example/song')).rejects.toThrow('转发失败');
- });
- it('reports the actual upstream HTTP failure before media decoding',async()=>{
-  vi.stubGlobal('fetch',vi.fn(async()=>new Response(null,{status:502,headers:{'X-Tingyu-Upstream-Status':'404'}})));
-  await expect(prepareLxAudio('https://custom.example/song')).rejects.toThrow('HTTP 404');
- });
- it('rejects HTML or JSON advertised as successful audio',async()=>{
-  vi.stubGlobal('fetch',vi.fn(async()=>new Response('<html>error</html>',{headers:{'content-type':'text/html'}})));
-  await expect(prepareLxAudio('https://custom.example/song')).rejects.toThrow('没有返回音频');
- });
- it('rejects empty audio',async()=>{
-  vi.stubGlobal('fetch',vi.fn(async()=>new Response(new Uint8Array(0),{headers:{'content-type':'audio/mpeg'}})));
-  await expect(prepareLxAudio('https://custom.example/song')).rejects.toThrow('空音频');
  });
  it('keeps web URLs unchanged',async()=>{native.enabled=false;expect(await prepareLxAudio('https://custom.example/song')).toBe('https://custom.example/song');});
  it('retains a safe source explanation through classification and display',()=>{

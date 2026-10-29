@@ -30,3 +30,13 @@ it('draws expanded content and removes it again after collapse',()=>{
     details.open=false;
     expect(captureSettingsDocument(root).document.paints.some(p=>p.kind==='text'&&p.text==='不应绘制的折叠正文')).toBe(false);
 });
+
+it('isolates native input controls and scroll areas beneath a modal portal',()=>{
+ const root=fixture();root.innerHTML='<input placeholder="例如: http://localhost:4533"><button>背景操作</button>';
+ const modal=document.createElement('div');modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.innerHTML='<button>关闭音源</button>';
+ document.body.append(modal);
+ const result=captureSettingsDocument(root).document;
+ expect(result.controls.map(c=>c.label)).toEqual(['关闭音源']);
+ expect(result.controls.some(c=>c.placeholder?.includes('localhost'))).toBe(false);
+ modal.remove();expect(captureSettingsDocument(root).document.controls.some(c=>c.placeholder?.includes('localhost'))).toBe(true);
+});

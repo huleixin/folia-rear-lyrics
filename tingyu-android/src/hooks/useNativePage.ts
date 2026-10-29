@@ -68,7 +68,7 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
             });
         };
         const schedule = () => { if (!frame && !disposed) frame = requestAnimationFrame(measure); };
-        sync.current = measure;
+        sync.current = schedule;
         void canUseNativePages().then(async supported => {
             if (!supported || disposed) return;
             listener = await nativePages.addListener('pageAction', event => {

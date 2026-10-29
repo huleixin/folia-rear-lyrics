@@ -59,7 +59,7 @@ export const getGlowWordLineContainerMotion = (renderProfile: GlowWordRenderProf
     if (renderProfile?.lineTransitionMode === 'none') {
         return {
             initial: { opacity: 1, scale: 1, filter: 'blur(0px)' },
-            animate: { opacity: 1, scale: 1, filter: 'blur(0px)', transitionEnd: { filter: 'none' } },
+            animate: { opacity: 1, scale: 1, filter: 'blur(0px)', transitionEnd: { filter: 'blur(0px)' } },
             exit: { opacity: 0, scale: 1.02, filter: 'blur(6px)', transition: { duration: 0.12, ease: 'easeOut' as const } },
         };
     }
@@ -72,7 +72,7 @@ export const getGlowWordLineContainerMotion = (renderProfile: GlowWordRenderProf
                 scale: 1,
                 filter: 'blur(0px)',
                 transition: { duration: 0.16, ease: 'easeOut' as const },
-                transitionEnd: { filter: 'none' },
+                transitionEnd: { filter: 'blur(0px)' },
             },
             exit: {
                 opacity: 0,
@@ -85,7 +85,7 @@ export const getGlowWordLineContainerMotion = (renderProfile: GlowWordRenderProf
 
     return {
         initial: { opacity: 0, scale: 0.9, filter: 'blur(10px)' },
-        animate: { opacity: 1, scale: 1, filter: 'blur(0px)', transitionEnd: { filter: 'none' } },
+        animate: { opacity: 1, scale: 1, filter: 'blur(0px)', transitionEnd: { filter: 'blur(0px)' } },
         exit: { opacity: 0, scale: 1.1, filter: 'blur(20px)', transition: { duration: 0.3 } },
     };
 };

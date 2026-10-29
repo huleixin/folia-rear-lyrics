@@ -95,12 +95,19 @@ export function captureSettingsDocument(root:HTMLElement){
         const style=getComputedStyle(node),box=node.getBoundingClientRect();
         return style.display!=='none'&&style.position==='fixed'&&box.width>=base.width*.7&&box.height>=base.height*.5;
     }).sort((a,b)=>(Number(getComputedStyle(a).zIndex)||0)-(Number(getComputedStyle(b).zIndex)||0));
-    visit(editors.at(-1)??root);
-    // CustomSelect and confirmation dialogs use React portals. They belong to the same native document.
     const portalSelector='[data-folia-keyboard-window="true"],[role="listbox"],[role="dialog"]';
     const portals=[...document.querySelectorAll<HTMLElement>(portalSelector)]
         .filter(node=>node!==root&&!root.contains(node)&&!node.closest('[data-native-document-root]')&&!node.parentElement?.closest(portalSelector));
-    for(const portal of portals){portal.dataset.nativeSettingsPortal='true';portal.dataset.nativePage='true';visit(portal);}
+    const modal=[...editors,...portals].filter(node=>node.matches('[aria-modal="true"],[role="dialog"]') && getComputedStyle(node).display!=='none')
+        .sort((a,b)=>(Number(getComputedStyle(a).zIndex)||0)-(Number(getComputedStyle(b).zIndex)||0)).at(-1);
+    // Native editors paint above Canvas. Exclude background editors and scroll panes
+    // rather than relying on a modal's background colour to occlude native controls.
+    visit(modal??editors.at(-1)??root);
+    // CustomSelect and confirmation dialogs use React portals. They belong to the same native document.
+    for(const portal of portals){
+        portal.dataset.nativeSettingsPortal='true';portal.dataset.nativePage='true';
+        if(portal!==modal&&(!modal||modal.contains(portal)))visit(portal);
+    }
     actions.liveTap=event=>{try{const {x,y}=JSON.parse(event.text??'{}');const target=document.elementFromPoint(x+base.left,y+base.top);
         const button=target?.closest<HTMLElement>('button,a,[role="button"]');
         if(button&&button.closest('[data-native-live]'))button.click();}catch{/* Ignore stale/invalid pointer coordinates. */}};

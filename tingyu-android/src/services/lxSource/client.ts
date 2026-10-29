@@ -34,7 +34,7 @@ export class LxRuntime {
         } else if (data.kind === 'http') {
             if (this.network.size >= 12) return this.stop(new Error('音源同时请求过多'));
             const controller = new AbortController(); this.network.set(data.id, controller);
-            const timer = setTimeout(() => controller.abort(), 15000);
+            const timer = setTimeout(() => controller.abort(), Math.min(30000,Math.max(1000,Number(data.options?.timeout)||15000))+100);
             try { const response = await lxHttp(String(data.url), data.options || {}, controller.signal); if (!this.closed) this.worker.postMessage({ kind: 'deliver', id: data.id, response }); }
             catch (error) { if (!this.closed) this.worker.postMessage({ kind: 'deliver', id: data.id, error: String(error) }); }
             finally { clearTimeout(timer); this.network.delete(data.id); }
@@ -51,7 +51,7 @@ export class LxRuntime {
         if (this.closed) throw Error('音源已停止');
         const id = ++this.serial;
         return new Promise((resolve, reject) => {
-            const timer = setTimeout(() => this.stop(new Error('音源取流超时')), 20000);
+            const timer = setTimeout(() => this.stop(new Error('音源取流超时')), 45000);
             this.pending.set(id, { resolve, reject, timer });
             this.worker.postMessage({ kind: 'request', id, payload });
         });

@@ -127,3 +127,29 @@ it('ignores late transport events and obsolete queued sources during rapid skips
     expect(f.commands.filter(c=>c.action==='prepare').map(c=>c.uri)).toEqual(['https://music.example/a.mp3','https://music.example/c.mp3']);
     await f.adapter.dispose();
 });
+
+it('does not replay word highlights on small packet drift and ignores older samples',async()=>{
+ vi.useFakeTimers({now:100000,toFake:['Date','performance','setTimeout','clearTimeout']});
+ const f=await fixture(),play=f.element.play();await f.flush();f.state({playing:true,paused:false,position:12.98,capturedAtMs:100000});await play;
+ vi.advanceTimersByTime(100);f.state({type:'clock',playing:true,paused:false,position:12.99,capturedAtMs:100100});
+ expect(f.element.currentTime).toBeCloseTo(13.08);
+ f.state({type:'clock',playing:true,paused:false,position:8,capturedAtMs:99950});expect(f.element.currentTime).toBeCloseTo(13.08);
+ f.element.currentTime=12.9;await f.flush();f.state({type:'seeked',playing:true,paused:false,position:12.9,capturedAtMs:100100});
+ expect(f.element.currentTime).toBeCloseTo(12.9);await f.adapter.dispose();
+});
+it('does not let a heartbeat undo an explicit backward seek before its acknowledgement',async()=>{
+ const f=await fixture();f.state({position:40});f.element.currentTime=10;await f.flush();
+ f.state({type:'clock',position:40.2});expect(f.element.currentTime).toBe(10);
+ f.state({type:'seeked',position:10});expect(f.element.currentTime).toBe(10);await f.adapter.dispose();
+});
+it('compensates packets delayed by a busy UI without latching a changed wall clock',async()=>{
+ vi.useFakeTimers({now:100000,toFake:['Date','performance','setTimeout','clearTimeout']});
+ const f=await fixture(),play=f.element.play();await f.flush();
+ f.state({playing:true,paused:false,position:10,capturedAtMs:100000});await play;
+ vi.advanceTimersByTime(2500);f.state({type:'clock',playing:true,paused:false,position:10.5,capturedAtMs:100500});
+ expect(f.element.currentTime).toBeCloseTo(12.5);
+ // A future timestamp after a system-clock change must not block subsequent valid packets.
+ f.state({type:'clock',playing:true,paused:false,position:13,capturedAtMs:200000});
+ f.state({type:'clock',playing:true,paused:false,position:14,capturedAtMs:102500});
+ expect(f.element.currentTime).toBeCloseTo(14);await f.adapter.dispose();
+});

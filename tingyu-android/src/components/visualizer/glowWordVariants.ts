@@ -57,13 +57,13 @@ export const glowWordBodyVariants: Variants = {
     }),
     active: ({ activeColor, duration, wordRevealMode }: any) => ({
         color: activeColor,
-        filter: "none",
+        filter: "blur(0px)",
         transition: {
             color: { duration: duration || 0.2, ease: "linear" },
             filter: { type: "tween", duration: wordRevealMode === 'instant' ? 0.08 : wordRevealMode === 'fast' ? 0.12 : 0.2 }
         },
         transitionEnd: {
-            filter: "none"
+            filter: "blur(0px)"
         }
     }),
     passed: ({ baseColor, wordRevealMode }: any) => ({
@@ -74,7 +74,7 @@ export const glowWordBodyVariants: Variants = {
             filter: { duration: wordRevealMode === 'instant' ? 0.12 : wordRevealMode === 'fast' ? 0.2 : 0.5 }
         },
         transitionEnd: {
-            filter: "none"
+            filter: "blur(0px)"
         }
     })
 };

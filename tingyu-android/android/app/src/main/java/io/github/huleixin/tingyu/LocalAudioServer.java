@@ -415,17 +415,7 @@ final class LocalAudioServer {
             String contentType = body.contentType() != null ? body.contentType().toString() : "audio/mpeg";
             String contentRange = upstream.header("Content-Range");
             long size = body.contentLength();
-            // 上游不给长度（chunked）时，拿 Content-Range 里的 total 兜底。
-            if (size < 0 && contentRange != null) {
-                int slash = contentRange.indexOf('/');
-                if (slash >= 0 && slash + 1 < contentRange.length()) {
-                    try {
-                        size = Long.parseLong(contentRange.substring(slash + 1).trim());
-                    } catch (NumberFormatException ignored) {
-                        size = -1;
-                    }
-                }
-            }
+            if(size<0)size=RemoteAudioRange.bodyLength(contentRange);
             boolean partial = upstream.code() == 206 || contentRange != null;
 
             Log.i(TAG, "remote " + (lxSource ? new URL(target).getHost() : target) + " -> " + upstream.code()
@@ -449,6 +439,7 @@ final class LocalAudioServer {
             }
             response.append("\r\n");
             output.write(response.toString().getBytes(StandardCharsets.US_ASCII));
+            output.flush();
 
             if ("GET".equals(requestParts[0])) {
                 try (InputStream audio = body.byteStream()) {

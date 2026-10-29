@@ -1,3 +1,4 @@
+import { fetchNativeImageBlob } from './nativeImageFetch';
 import { getFromCache, removeFromCache, saveToCache } from './db';
 import { createSafeObjectUrl, isBlob } from '../utils/blobGuards';
 import {
@@ -36,6 +37,8 @@ const buildCoverRequestUrl = (coverUrl: string): string => {
 };
 
 const fetchCoverBlob = async (coverUrl: string): Promise<Blob> => {
+    const native = await fetchNativeImageBlob(coverUrl);
+    if (native) return native;
     const response = await fetch(buildCoverRequestUrl(coverUrl), { mode: 'cors' });
     if (response.ok === false) throw new Error(`Cover request failed: ${response.status}`);
     return await response.blob();
@@ -117,7 +120,7 @@ export async function loadCachedOrFetchCover(cacheKey: string, coverUrl?: string
             job = (async () => {
                 const blob = await fetchCoverBlob(coverUrl);
                 const descriptor = await writeCoverAsset(cacheKey, blob).catch(() => null);
-                if (descriptor) await saveToCache(cacheKey, descriptor);
+                await Promise.resolve(saveToCache(cacheKey, descriptor ?? blob)).catch(() => {});
                 rememberCover(cacheKey, Promise.resolve(blob));
                 return blob;
             })();

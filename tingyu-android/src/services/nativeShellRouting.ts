@@ -37,8 +37,12 @@ export function installNativeShellRouting() {
         if(routeKey!==lastRoute){lastRoute=routeKey;document.documentElement.dataset.nativeNavigation=`${generation}:${++navigationRevision}`;}
         const navigation=document.documentElement.dataset.nativeNavigation??'';
         const key=JSON.stringify({route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,playlistDetail});if(key===last)return;last=key;
-        document.documentElement.dataset.nativeRoute=route;
-        void nativePages.shell({generation,revision:++revision,route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,navigation,playlistDetail}).catch(error=>console.warn('[NativeShell] Route update failed',error));
+        const sent=++revision;
+        const leavingStage=document.documentElement.dataset.nativeRoute==='stage'&&route!=='stage';
+        if(!leavingStage)document.documentElement.dataset.nativeRoute=route;
+        void nativePages.shell({generation,revision:sent,route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,navigation,playlistDetail}).then(()=>{
+            if(sent===revision)document.documentElement.dataset.nativeRoute=route;
+        }).catch(error=>console.warn('[NativeShell] Route update failed',error));
     };
     setNativeShellPublisher(publish);
     [useAppViewStore,useSettingsModalStore,useSearchNavigationStore,useCollectionNavigationStore,useMobileLibraryStore,useMotionSettingsStore].forEach(store=>store.subscribe(scheduleNativeShellRoute));

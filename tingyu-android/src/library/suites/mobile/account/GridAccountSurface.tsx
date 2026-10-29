@@ -1,3 +1,4 @@
+import { NATIVE_FIRST } from '../../../../services/nativePages';
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence } from 'framer-motion';
@@ -149,7 +150,7 @@ const GridAccountSurface: React.FC<LibraryAccountSurfaceProps> = ({ account, isD
 
     return (
         <>
-            {layerElement ? createPortal(loginModal, layerElement) : loginModal}
+            {NATIVE_FIRST && canPortal ? createPortal(loginModal, document.body) : layerElement ? createPortal(loginModal, layerElement) : loginModal}
             {pendingSwitch && canPortal && createPortal(
                 <ConfirmDialog
                     isOpen
