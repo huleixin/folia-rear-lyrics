@@ -20,6 +20,7 @@
     "release:bump": "node dev/build/bumpAndroidVersion.mjs",
     "release:android": "npm run release:bump && npm run build:android:release",
     "build:playback-test": "node dev/build/buildPlaybackTest.mjs",
+    "build:graphics-test": "node dev/build/buildGraphicsTest.mjs",
     "build:android:release": "npm run cap:sync:android && cd android && gradlew.bat assembleRelease",
     "dev": "vite",
     "dev:probe": "vite --open /dev-probe.html",

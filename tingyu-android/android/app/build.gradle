@@ -7,6 +7,7 @@ apply plugin: 'org.jetbrains.kotlin.android'
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 def playbackTestBuild = (project.findProperty('tingyuPlaybackTest') == 'true')
+def graphicsTestBuild = (project.findProperty('tingyuGraphicsDiagnostics') == 'true')
 
 def packageJson = new JsonSlurper().parseText(file('../../package.json').text)
 def playbackTestRevision = (packageJson.playbackTestRevision ?: 1) as int
@@ -30,13 +31,14 @@ android {
         buildConfigField 'boolean', 'COMPOSE_CHROME', (System.getenv('TINGYU_COMPOSE_CHROME') == 'false' ? 'false' : 'true')
         buildConfigField 'boolean', 'GLASS_LAB', (System.getenv('TINGYU_GLASS_LAB') == 'true' ? 'true' : 'false')
         buildConfigField 'boolean', 'NATIVE_PLAYBACK', (System.getenv('TINGYU_NATIVE_PLAYBACK') == 'false' ? 'false' : 'true')
-        buildConfigField 'boolean', 'PLAYBACK_ENGINE_TEST', playbackTestBuild.toString()
+        buildConfigField 'boolean', 'PLAYBACK_ENGINE_TEST', (playbackTestBuild || graphicsTestBuild).toString()
+        buildConfigField 'boolean', 'GRAPHICS_DIAGNOSTICS', graphicsTestBuild.toString()
         applicationId (playbackTestBuild ? "io.github.huleixin.tingyu.playbacktest" : "io.github.huleixin.tingyu")
         manifestPlaceholders['tingyuAppLabel'] = playbackTestBuild ? '听屿播放测试' : '听屿'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode (playbackTestBuild ? (packageJson.androidVersionCode as int) * 100 + playbackTestRevision : packageJson.androidVersionCode as int)
-        versionName "${packageJson.version}${playbackTestBuild ? "-playback-test.${playbackTestRevision}" : ''}"
+        versionName "${packageJson.version}${playbackTestBuild ? "-playback-test.${playbackTestRevision}" : graphicsTestBuild ? '-graphics-test.1' : ''}"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

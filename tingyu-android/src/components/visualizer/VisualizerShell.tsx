@@ -12,6 +12,8 @@ import VideoLayer from './videoLayer/VideoLayer';
 import { isMainAppSurface } from '../../utils/appSurface';
 import './rearContentLayer.css';
 import { getRearSafeInset, getVisualizerSurface } from '../../utils/visualizerSurface';
+import { GRAPHICS_DIAGNOSTICS } from '../../utils/graphicsDiagnosticsBuild';
+import { graphicsShellMounted } from '../../services/graphicsDiagnostics';
 
 // Shared outer shell for all visualizers.
 // This is where we keep background layering, font injection, and the hover-only back button
@@ -63,6 +65,7 @@ const VisualizerShell = forwardRef<HTMLDivElement, VisualizerShellProps>(({
     children,
     className = '',
 }, ref) => {
+    useEffect(()=>{if(GRAPHICS_DIAGNOSTICS&&isMainAppSurface&&!sharedProps?.isPreviewMode)return graphicsShellMounted()},[]);
     const { t } = useTranslation();
     const [showBackButton, setShowBackButton] = useState(false);
     const playerPanelGuideHotspotRef = useRef(false);
@@ -129,6 +132,7 @@ const VisualizerShell = forwardRef<HTMLDivElement, VisualizerShellProps>(({
     return (
         <div
             ref={ref}
+            data-graphics-shell={GRAPHICS_DIAGNOSTICS&&isMainAppSurface&&!sharedProps?.isPreviewMode?'true':undefined}
             className={`w-full h-full flex flex-col items-center justify-center overflow-hidden relative ${fontClassName} transition-colors duration-1000 ${className}`.trim()}
             style={{
                 backgroundColor: 'transparent',

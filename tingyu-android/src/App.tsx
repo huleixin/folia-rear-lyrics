@@ -117,6 +117,7 @@ import { useThemeController } from './hooks/useThemeController';
 import { useOnlineSongMetadataHydration } from './hooks/useOnlineSongMetadataHydration';
 import { useNativeMediaActions } from './hooks/useNativeMediaActions';
 import { useNativeQueuedPlayback } from './hooks/useNativeQueuedPlayback';
+import { installGraphicsDiagnostics } from './services/graphicsDiagnostics';
 import { useNativeBackButton } from './hooks/useNativeBackButton';
 import { resolveCommandPaletteSearchSource, resolveSearchSource, useSearchNavigationStore } from './stores/useSearchNavigationStore';
 import { useOnlineProviderAccountStore } from './stores/useOnlineProviderAccountStore';
@@ -189,6 +190,7 @@ const LOCAL_TAIL_DECODE_ERROR_TOLERANCE_SEC = 3;
 const NEXT_UP_LEAD_SEC = 5;
 
 export default function App() {
+    useEffect(installGraphicsDiagnostics,[]);
     useMobileListeningHistory();
     countRender('App');
     const { t } = useTranslation();

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { usePlaybackEngineTestStore } from '../../../stores/usePlaybackEngineTestStore';
 import { applyPlaybackEngine, canSelectPlaybackEngine, canUsePlaybackEngineTest, exportPlaybackTestLog, loadPlaybackTestTone } from '../../../services/playbackEngineTest';
 import { notePlaybackTest } from '../../../services/playbackTestLog';
+import GraphicsDiagnosticsSettings from './GraphicsDiagnosticsSettings';
 
 // src/components/modal/settings/PlaybackEngineTestSettings.tsx
 // The engine preference is a functional setting: it is applied only through an acknowledged stop
@@ -41,5 +42,6 @@ export default function PlaybackEngineTestSettings({ settingsCardClass }: { sett
             }); }}>{t('playbackTest.export')}</button>
         </>}
         {message && <p role="status" className="text-xs leading-relaxed">{message}</p>}
+        <GraphicsDiagnosticsSettings />
     </div>;
 }

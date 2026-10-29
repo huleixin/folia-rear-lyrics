@@ -3,6 +3,12 @@ package io.github.huleixin.tingyu.chrome
 import android.os.Build
 import android.os.SystemClock
 import android.view.ViewGroup
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
 import android.webkit.WebView
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -45,6 +51,11 @@ import kotlin.math.roundToInt
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ComposeChromeHost.kt
 // One stable composition and one GPU backdrop for all three surfaces; never snapshot WebView pixels.
 class ComposeChromeHost(private val web: WebView, var listener: ChromeActionListener) {
+    private val graphics=GraphicsProbe(web)
+    private var graphicsMarker:(()->Unit)?=null
+    fun setGraphicsMarkerListener(listener:()->Unit){graphicsMarker=listener}
+    fun graphicsSnapshot()=graphics.snapshot(destination,webOverlay)
+    fun graphicsConfigure(mode:String)=graphics.configure(mode)
     private val surfaces = mutableStateMapOf<String, ChromeSurface>()
     private val clocks = mutableStateMapOf<String, ChromeTimeline>()
     private val pages = mutableStateMapOf<String, NativePage>()
@@ -172,6 +183,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         compose.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         original.addView(compose,index,params)
         host = compose
+        if(graphics.enabled)graphics.compositions++
         compose.setContent { Scene() }
     }
     @Composable private fun Scene() {
@@ -194,13 +206,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             val bootPage=remember(bootId,width,height,safeTop,safeBottom){cache.page(bootId,width,height,safeTop).copy(safeBottom=safeBottom)}
             // Keep the capture node attached across auto-hide and route changes. Removing it
             // recreates the AndroidView/GPU recording while the lyric canvas is drawing.
-            Box(Modifier.fillMaxSize().then(if(Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop)else Modifier)) {
-                // Keep the hardware WebView in one stable texture before the backdrop
-                // records it. Replaying its live drawing functor directly in both the
-                // scene and glass sampling can lose individual text/WebGL layers.
-                // The node stays attached across routes/auto-hide; no software drawing.
+            Box(Modifier.fillMaxSize().then(if(Build.VERSION.SDK_INT>=31&&graphics.sampleStage(destination))Modifier.layerBackdrop(backdrop)else Modifier)) {
+                // A reproduces the unverified 1.3.32 isolation hypothesis; a TextureView
+                // workaround is not evidence that this fixes WebView. C31 removes only
+                // this modifier. Neither path changes lyric effects or global frame rate.
+                if(graphics.enabled&&graphics.mode!=GraphicsProbeMode.C31)DisposableEffect(Unit){graphics.layerMounts++;onDispose{graphics.layerDisposals++}}
                 AndroidView(factory = { web }, modifier = Modifier.fillMaxSize()
-                    .graphicsLayer { alpha = if(Build.VERSION.SDK_INT>=31).999f else 1f }
+                    .then(if(graphics.mode!=GraphicsProbeMode.C31)Modifier.graphicsLayer { alpha = if(Build.VERSION.SDK_INT>=31).999f else 1f }else Modifier)
                     .stageExitTransform(stageExit,exitProgress).zIndex(if(destination=="stage"||webOverlay||stageExit.active)2f else 0f))
                 if(page==null&&firstHomeFrame&&destination=="home")NativePageView(bootPage,Modifier.fillMaxSize().zIndex(1f)){_,_,_->}
                 // One route-level animation, with no HTML exit animation or full-screen blur.
@@ -283,10 +295,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 }
             } }
             if(stageExit.active)Box(Modifier.fillMaxSize().zIndex(4f).pointerInput(Unit){awaitPointerEventScope{while(true)awaitPointerEvent().changes.forEach{it.consume()}}})
+            if(graphics.enabled)Text("N · 记闪烁",color=Color(0xFFB8FFE3),fontSize=10.sp,
+                modifier=Modifier.zIndex(20f).offset(12.dp,(safeTop+3).dp).background(Color(0xDD09251C))
+                    .clickable{graphicsMarker?.invoke()}.padding(horizontal=5.dp,vertical=3.dp))
             }
         }
     }
     fun destroy() {
+        graphics.close()
         val compose = host ?: return
         active = false;stageExit.clear(); surfaces.clear(); clocks.clear();pages.clear();retained.clear();presented=null
         compose.disposeComposition()

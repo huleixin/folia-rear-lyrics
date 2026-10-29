@@ -24,12 +24,29 @@ public class TingyuChromePlugin extends Plugin {
             JSObject event=new JSObject();event.put("id",id);event.put("session",session);event.put("key",key);
             event.put("action",action);event.put("text",text);event.put("value",value);notifyListeners("pageAction",event);
         });
+        if(io.github.huleixin.tingyu.BuildConfig.GRAPHICS_DIAGNOSTICS)host.setGraphicsMarkerListener(()->{
+            try{notifyListeners("graphicsMark",JSObject.fromJSONObject(host.graphicsSnapshot()).put("at",System.currentTimeMillis()));}
+            catch(Exception ignored){}
+            return kotlin.Unit.INSTANCE;
+        });
         return host;
     }
     @PluginMethod public void probe(PluginCall call) { getActivity().runOnUiThread(() -> {
         try { call.resolve(JSObject.fromJSONObject(host().status())); }
         catch (Exception error) { call.reject(error.getMessage(),error); }
     }); }
+    @PluginMethod public void graphicsProbe(PluginCall call) {
+        if(!io.github.huleixin.tingyu.BuildConfig.GRAPHICS_DIAGNOSTICS){call.reject("Graphics diagnostic build required");return;}
+        getActivity().runOnUiThread(()->{try{call.resolve(JSObject.fromJSONObject(host().graphicsSnapshot()).put("at",System.currentTimeMillis()));}catch(Exception error){call.reject(error.getMessage(),error);}});
+    }
+    @PluginMethod public void graphicsConfigure(PluginCall call) {
+        if(!io.github.huleixin.tingyu.BuildConfig.GRAPHICS_DIAGNOSTICS){call.reject("Graphics diagnostic build required");return;}
+        getActivity().runOnUiThread(()->{try{
+            if(!host().graphicsConfigure(call.getString("mode","")))throw new IllegalStateException("Saving experiment failed");
+            call.resolve(new JSObject().put("saved",true));
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(()->getActivity().recreate(),300);
+        }catch(Exception error){call.reject(error.getMessage(),error);}});
+    }
     @PluginMethod public void update(PluginCall call) {
         final PreparedChromeSurface packet;
         try { packet=PreparedChromeSurface.parse(call.getData()); }
