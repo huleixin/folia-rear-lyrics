@@ -43,9 +43,13 @@ public final class NativeAudioEngine {
         if(action.equals("next")&&Looper.myLooper()==Looper.getMainLooper()&&instance.player.hasNextMediaItem()){
             instance.player.seekToNextMediaItem();return true;
         }
-        if(!java.util.Arrays.asList("play","pause","stop").contains(action))return false;
+        if(!java.util.Arrays.asList("play","pause","stop","toggle").contains(action))return false;
         NativeAudioEngine engine=instance;
-        if(Looper.myLooper()==Looper.getMainLooper())engine.transport(action,true);else engine.main.post(()->engine.transport(action,true));return true;
+        Runnable transport=()->{
+            if(instance!=engine||engine.sourceId.isEmpty())return;
+            engine.transport(NativeTransportIntent.resolve(action,engine.desiredPaused,engine.player.getPlayWhenReady()),true);
+        };
+        if(Looper.myLooper()==Looper.getMainLooper())transport.run();else engine.main.post(transport);return true;
     }
     public static void releaseIfPresent(){if(instance!=null){instance.release();instance=null;}}
     private final Handler main=new Handler(Looper.getMainLooper());
@@ -231,6 +235,10 @@ public final class NativeAudioEngine {
         return value;
     }
     private void emit(String type,boolean external){
+        // The system session must follow Media3 even with no plugin listener or a sleeping WebView.
+        // Deduplicated native events only; clock/spectrum frames never rebuild the notification.
+        if(!sourceId.isEmpty()&&!type.equals("clock")&&!type.equals("spectrum")&&!type.equals("diagnostics"))
+            io.github.huleixin.tingyu.FoliaPlaybackService.nativePlaybackChanged(type.equals("seeked"));
         if(listener==null&&!io.github.huleixin.tingyu.BuildConfig.PLAYBACK_ENGINE_TEST)return;
         JSObject value=snapshot(type,external);
         if(!type.equals("clock")&&io.github.huleixin.tingyu.BuildConfig.PLAYBACK_ENGINE_TEST){JSObject safe=copy(value);safe.remove("uri");PlaybackTestDiagnostics.note(type,safe);}
@@ -242,5 +250,5 @@ public final class NativeAudioEngine {
         JSObject value=snapshot("spectrum",false);JSArray array=new JSArray();for(int bin:bins)array.put(bin);
         value.put("spectrum",array);listener.accept(value);
     });}
-    private void release(){releaseHandoff();cancelFade();main.removeCallbacksAndMessages(null);player.release();spectrum.close();sourceId="";listener=null;}
+    private void release(){releaseHandoff();cancelFade();main.removeCallbacksAndMessages(null);sourceId="";listener=null;player.release();spectrum.close();}
 }

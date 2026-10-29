@@ -73,6 +73,7 @@ public class FoliaPlaybackService extends Service {
     private volatile boolean cachedPlaying = false;
     private long lastSystemSeekAt;
     private static volatile boolean running = false;
+    private static volatile FoliaPlaybackService activeService;
     private PowerManager.WakeLock wakeLock;
     private WifiManager.WifiLock wifiLock;
     private static volatile String powerDiagnostic = "inactive";
@@ -133,12 +134,46 @@ public class FoliaPlaybackService extends Service {
             wifiLock.setReferenceCounted(false);
         }
         recordServiceLifecycle("service-create", "Foreground playback service created");
+        activeService = this;
         mainHandler.post(serviceHeartbeatRunnable);
     }
 
     /** ColorOS lyric bridge uses this to decide whether a metadata refresh intent is worth sending. */
     public static boolean isRunning() {
         return running;
+    }
+
+    /** Media3 state changes reach the system without routing through JS or restarting this service. */
+    public static void nativePlaybackChanged(boolean forcePosition) {
+        FoliaPlaybackService service = activeService;
+        if (service == null) return;
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            service.mainHandler.post(() -> nativePlaybackChanged(forcePosition)); return;
+        }
+        if (!service.publishedPlayback || !running) return;
+        // Publish a pause before returning to the looper: Media3 can release its wake lock now.
+        service.refreshNativePlayback(forcePosition);
+    }
+
+    private void refreshNativePlayback(boolean forcePosition) {
+        if (activeService != this || !running || mediaSession == null) return;
+        long[] nativeClock = io.github.huleixin.tingyu.playback.NativeAudioEngine.mediaClock(cachedSongKey);
+        if (nativeClock == null) return; // A new track's metadata is published separately by Media3.
+        PlaybackSessionClock state = PlaybackSessionClock.resolve(cachedPlaying, cachedPositionMs, nativeClock);
+        long now = SystemClock.elapsedRealtime();
+        long projected = PlaybackPositionClock.at(cachedPlaying, cachedPositionMs, cachedPositionUpdatedAt, now, cachedDurationMs);
+        if (!state.shouldPublish(cachedPlaying, projected, forcePosition)) return;
+        boolean changed = cachedPlaying != state.playing;
+        cachedPlaying = state.playing; cachedPositionMs = state.position;
+        cachedPositionUpdatedAt = now; lastPlaying = cachedPlaying;
+        mediaSession.setPlaybackState(buildPlaybackState(cachedPlaying, cachedPositionMs, cachedSongKey));
+        if (changed) {
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) manager.notify(NOTIFICATION_ID, buildNotification(cachedTitle, cachedArtist, cachedPlaying, appliedArtworkBitmap));
+            updatePlaybackLocks(cachedPlaying);
+            RearLyricsCoordinator.get(this).playback(cachedPlaying);
+            recordServiceLifecycle("native-session-state", "playing=" + cachedPlaying + ", positionMs=" + cachedPositionMs);
+        }
     }
 
     /** Publish the new item's lock-screen metadata without waiting for a WebView round trip. */
@@ -175,9 +210,11 @@ public class FoliaPlaybackService extends Service {
         songKey = songKey == null ? "" : songKey;
         // A sleeping UI can still publish the preceding item after Media3 advanced.
         // Native prepare/transition publishes its own metadata, so stale UI cannot replace it.
-        if(io.github.huleixin.tingyu.playback.NativeAudioEngine.isActive()
-            && io.github.huleixin.tingyu.playback.NativeAudioEngine.mediaClock(songKey)==null)return START_STICKY;
-        boolean playing = intent.getBooleanExtra("playing", false);
+        long[] nativeClock = io.github.huleixin.tingyu.playback.NativeAudioEngine.mediaClock(songKey);
+        if(io.github.huleixin.tingyu.playback.NativeAudioEngine.isActive() && nativeClock==null)return START_STICKY;
+        PlaybackSessionClock state = PlaybackSessionClock.resolve(intent.getBooleanExtra("playing", false),
+            intent.getLongExtra("position", 0L), nativeClock);
+        boolean playing = state.playing;
         long duration = intent.getLongExtra("duration", 0L);
         boolean songChanged = !songKey.equals(cachedSongKey);
         boolean metadataChanged = !title.equals(cachedTitle) || !artist.equals(cachedArtist)
@@ -191,8 +228,8 @@ public class FoliaPlaybackService extends Service {
         cachedSongKey = songKey;
         cachedPlaying = playing;
         // In-flight JS publications sampled before a system seek cannot undo that seek.
-        if (songChanged || intent.getLongExtra("capturedAtMs", 0L) >= lastSystemSeekAt) {
-            cachedPositionMs = Math.max(0L, intent.getLongExtra("position", 0L));
+        if (nativeClock != null || songChanged || intent.getLongExtra("capturedAtMs", 0L) >= lastSystemSeekAt) {
+            cachedPositionMs = state.position;
             cachedPositionUpdatedAt = SystemClock.elapsedRealtime();
         }
         cachedDurationMs = Math.max(0L, duration);
@@ -375,7 +412,7 @@ public class FoliaPlaybackService extends Service {
         PendingIntent playPauseIntent = PendingIntent.getBroadcast(
             this,
             1,
-            new Intent(this, PlaybackActionReceiver.class).setAction(playing ? "pause" : "play"),
+            new Intent(this, PlaybackActionReceiver.class).setAction("toggle"),
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
         PendingIntent previousIntent = PendingIntent.getBroadcast(
@@ -591,9 +628,10 @@ public class FoliaPlaybackService extends Service {
 
     @Override
     public void onDestroy() {
+        if (activeService == this) activeService = null;
+        running = false;
         io.github.huleixin.tingyu.playback.NativeAudioEngine.releaseIfPresent();
         recordServiceLifecycle("service-destroy", "Foreground playback service destroyed");
-        running = false;
         mainHandler.removeCallbacks(serviceHeartbeatRunnable);
         updatePlaybackLocks(false);
         RearLyricsCoordinator.get(this).stopped();
