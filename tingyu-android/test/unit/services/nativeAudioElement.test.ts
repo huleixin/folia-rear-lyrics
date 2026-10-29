@@ -1,10 +1,24 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
-import { attachNativeAudioElement, isNativeAudioElement, nativeAudioSpectrum } from '@/services/nativeAudioElement';
+import { attachNativeAudioElement, isNativeAudioElement, nativeAudioSpectrum, setNativeAudioQueue, markNativeQueueAdoption } from '@/services/nativeAudioElement';
 import type { NativeAudioState } from '@/types/nativeAudio';
 
 // test/unit/services/nativeAudioElement.test.ts
 afterEach(()=>vi.useRealTimers());
+it('reconciles a native auto-transition once without ending, seeking or restarting the old track',async()=>{
+    const f=await fixture(),transition=vi.fn(),ended=vi.fn();
+    window.addEventListener('tingyu-native-queue-track',transition);f.element.addEventListener('ended',ended);
+    try{
+        await setNativeAudioQueue(f.element,[{songKey:'qq:2',uri:'https://music.example/2.mp3',title:'Next',artist:'A',album:'B',coverUrl:'',duration:200000}]);
+        const before=f.commands.length;
+        f.state({songKey:'qq:2',uri:'https://music.example/2.mp3',type:'queue-transition',position:0,playing:true,paused:false});
+        f.state({songKey:'qq:2',uri:'https://music.example/2.mp3',type:'clock',position:1,playing:true,paused:false});
+        expect(transition).toHaveBeenCalledOnce();expect(ended).not.toHaveBeenCalled();expect(f.commands).toHaveLength(before);
+        markNativeQueueAdoption('qq:2');f.adapter.setSource('https://music.example/2.mp3','qq:2');await f.flush();
+        expect(f.commands.at(-1)).toMatchObject({action:'prepare',adopt:true,songKey:'qq:2'});
+        expect(f.commands.slice(before).some(c=>['seek','pause','detach'].includes(c.action))).toBe(false);
+    }finally{window.removeEventListener('tingyu-native-queue-track',transition);await f.adapter.dispose()}
+});
 async function fixture(rejectDetach=false){
     const element=document.createElement('audio'),remove=vi.fn(async()=>{}),commands:Record<string,any>[]=[];
     let callback!:(state:NativeAudioState)=>void;

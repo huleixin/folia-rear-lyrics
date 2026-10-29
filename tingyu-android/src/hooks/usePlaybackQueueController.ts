@@ -36,6 +36,9 @@ import type { SearchReturnView, SearchSource } from '../stores/useSearchNavigati
 import { dispatchSearchTrackAction } from '../components/app/search/searchTrackActions';
 import { playbackFade } from '../services/playbackFade';
 import { getProviderSongMetadata } from '../services/onlineMusic/songMetadata';
+import { markNativeQueueAdoption } from '../services/nativeAudioElement';
+import { resolveLocalSongLyrics } from '../utils/lyrics/localSongLyrics';
+import { useLyricSettingsStore } from '../stores/useLyricSettingsStore';
 import { setStatusMessage as setStatusMsg } from '../stores/useStatusMessageStore';
 import { noteLyricsDiagnostic } from '../utils/lyricsDiagnostics';
 import { setAudioSrc, setCachedCoverUrl, setCurrentLineIndex, setCurrentSong, setDuration, setIsFmMode, setPlayQueue, setPlayerState, usePlaybackStore } from '../stores/usePlaybackStore';
@@ -529,6 +532,34 @@ export function usePlaybackQueueController({
         let preloadedOnlineAudioResult: Awaited<ReturnType<typeof loadOnlineSongAudioSource>> | null = null;
         const queueContext = queue.length > 0 ? queue : playQueue.length === 0 ? [song] : playQueue;
         const newQueue = getPlayableOnlineQueue(queueContext);
+        if(options.nativeHandoff){
+            const handoff=options.nativeHandoff,key=getPlaybackSongKey(song),generation=++playbackGenerationRef.current;
+            currentSongRef.current=key;shouldAutoPlayRef.current=false;pendingResumeTimeRef.current=null;
+            lastAudioRecoverySourceRef.current=null;currentOnlineAudioUrlFetchedAtRef.current=Date.now();
+            fmModeBeforePendingPlayRef.current=null;markNativeQueueAdoption(key);
+            retireBlobUrl(blobUrlRef.current);blobUrlRef.current=null;
+            setLyrics(null);setCurrentLineIndex(-1);setCachedCoverUrl(null);setCurrentSong(song);
+            setAudioSrc(handoff.uri);setDuration((song.durationMs??0)/1000);currentTime.set(handoff.position);
+            setPlayerState(handoff.playing?PlayerState.PLAYING:PlayerState.PAUSED);setIsLyricsLoading(true);
+            const isCurrent=()=>currentSongRef.current===key&&playbackGenerationRef.current===generation;
+            void persistLastPlaybackCache(song,queueContext);
+            void getCachedSongCoverUrl(song).then(cover=>{if(isCurrent())setCachedCoverUrl(cover);else if(cover?.startsWith('blob:'))URL.revokeObjectURL(cover)}).catch(()=>{});
+            void (async()=>{
+                try{
+                    if(isLocal){
+                        const record=await getLocalSong(song.localRef.songId);
+                        if(record){const result=await resolveLocalSongLyrics(record,useLyricSettingsStore.getState().localLyricsPriority);
+                            if(isCurrent()){setLyrics(result.lyrics);usePlaybackStore.getState().setActiveLocalLyricsSource(result.source);}}
+                    }else await loadOnlineSongLyrics(song,getPrefetchedData(song,audioQuality),userId,{
+                        isCurrent,onLyrics:lyrics=>{if(isCurrent())setLyrics(lyrics)},
+                        onPureMusicChange:()=>{},onStateChange:state=>{if(isCurrent())setCurrentSong(prev=>prev?{...prev,onlineLyricsState:state??undefined}:prev)},
+                        onAutoMatchStart:()=>{},onDone:()=>{if(isCurrent())setIsLyricsLoading(false)},
+                    });
+                }catch(error){console.warn('[NativeQueue] Optional lyrics failed',error)}
+                finally{if(isCurrent())setIsLyricsLoading(false)}
+            })();
+            return;
+        }
         const skipCount = options.unavailableSkipCount ?? 0;
         playbackAutoSkipCountRef.current = skipCount;
         // For the plays this one defers (the replacement dialog, the timed skip): they start after a
@@ -758,18 +789,22 @@ export function usePlaybackQueueController({
         }
         setPlayerState(PlayerState.IDLE);
 
-        const cachedCoverUrl = await getCachedSongCoverUrl(song);
+        // Artwork is optional UI work, not a prerequisite for starting the next decoder.
+        // A slow cache/network read must not hold an otherwise prepared background track.
+        void getCachedSongCoverUrl(song).then(cachedCoverUrl => {
+            if (currentSongRef.current !== songKey || playbackGenerationRef.current !== landedGeneration) {
+                if (cachedCoverUrl?.startsWith('blob:')) URL.revokeObjectURL(cachedCoverUrl);
+                return;
+            }
+            if (cachedCoverUrl) setCachedCoverUrl(cachedCoverUrl);
+            else if (prefetched?.coverUrl) setCachedCoverUrl(prefetched.coverUrl);
+        }).catch(error => console.warn('[Playback] Optional artwork load failed', error));
         // 本次请求已经落地（当前歌曲、队列都已写入、audioSrc 已置空）：只有别的播放也落地了才放弃，
         // 并回收这个还没交给任何 deck 的 blob。更新的请求只是开始、尚未落地不算取代，仍要接上音源，
         // 否则那次请求失败时，当前歌会停在没有音源的半落地状态。
         if (currentSongRef.current !== songKey || playbackGenerationRef.current !== landedGeneration) {
             if (audioResult.blobUrl) URL.revokeObjectURL(audioResult.blobUrl);
             return;
-        }
-        if (cachedCoverUrl) {
-            setCachedCoverUrl(cachedCoverUrl);
-        } else if (prefetched?.coverUrl) {
-            setCachedCoverUrl(prefetched.coverUrl);
         }
 
         if (audioResult.blobUrl) {

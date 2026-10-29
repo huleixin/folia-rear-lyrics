@@ -43,6 +43,11 @@ internal val PageAccent = Color(0xFF9FE0C4)
         else if(uri?.host in setOf("localhost","rear.folia.local")&&uri?.path=="/api/lyric-proxy")uri.getQueryParameter("url")?:url
         else url
     }
+    .let { data ->
+        if(data is String)ImageRequest.Builder(context).data(data)
+            .memoryCacheKey(data).diskCacheKey(data).placeholderMemoryCacheKey(data).crossfade(false).build()
+        else data
+    }
 }
 }
 @Composable internal fun PageArtwork(url: String, modifier: Modifier, radius: Dp = 9.dp) {

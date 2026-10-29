@@ -13,7 +13,7 @@ public final class TingyuPlaybackPlugin extends Plugin {
     private static final boolean ENABLED = io.github.huleixin.tingyu.BuildConfig.NATIVE_PLAYBACK;
     private NativeAudioEngine engine;
     private JSObject prepared,lastState;
-    private final Consumer<JSObject> events=value->{if(!"spectrum".equals(value.optString("type")))lastState=value;notifyListeners("state",value);};
+    private final Consumer<JSObject> events=value->{if(!"spectrum".equals(value.optString("type")))lastState=value;notifyListeners("state",value,value.optInt("status")==4&&!"spectrum".equals(value.optString("type")));};
     @Override public void load(){if(ENABLED)PlaybackTestDiagnostics.initialize(getContext());}
     @PluginMethod public void diagnostics(PluginCall call){
         if(!ENABLED){call.reject("Not a playback test build");return;}

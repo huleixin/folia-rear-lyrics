@@ -11,6 +11,19 @@ import static org.junit.Assert.*;
 
 // android/app/src/test/java/io/github/huleixin/tingyu/playback/PlaybackSpectrumProcessorTest.java
 public final class PlaybackSpectrumProcessorTest {
+    @Test(timeout=5000) public void slowVisualizationConsumerCannotBlockPcmOutput() throws Exception {
+        java.util.concurrent.CountDownLatch entered=new java.util.concurrent.CountDownLatch(1),finish=new java.util.concurrent.CountDownLatch(1);
+        PlaybackSpectrumProcessor processor=new PlaybackSpectrumProcessor(bins->{entered.countDown();try{finish.await();}catch(InterruptedException ignored){}},()->1000L);
+        try{
+            processor.configure(new AudioProcessor.AudioFormat(48000,2,C.ENCODING_PCM_16BIT));processor.flush();processor.enabled=true;
+            ByteBuffer input=ByteBuffer.allocateDirect(4096).order(ByteOrder.nativeOrder());while(input.hasRemaining())input.putShort((short)1000);input.flip();
+            processor.queueInput(input);
+            assertTrue(entered.await(2,java.util.concurrent.TimeUnit.SECONDS));
+            assertEquals(4096,processor.getOutput().remaining());
+            // A blocked consumer cannot queue unlimited analysis work behind the audio thread.
+            input.rewind();processor.queueInput(input);assertEquals(4096,processor.getOutput().remaining());
+        }finally{finish.countDown();processor.close();}
+    }
     @Test public void sharedEmptyBufferDoesNotCopyItself() throws Exception {
         PlaybackSpectrumProcessor processor=new PlaybackSpectrumProcessor(bins->{});
         processor.configure(new AudioProcessor.AudioFormat(22050,1,C.ENCODING_PCM_16BIT));processor.flush();

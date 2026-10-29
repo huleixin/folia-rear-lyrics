@@ -14,6 +14,8 @@ import type { MediaId } from './onlineMusic';
 
 // Shared playback-specific types extracted from App.tsx.
 export type PlaybackNavigationOptions = {
+    /** Reconcile an item already started by the native queue, without loading it again. */
+    nativeHandoff?: { uri:string;position:number;playing:boolean };
     shouldNavigateToPlayer?: boolean;
     unavailableSkipCount?: number;
     unifiedQueue?: SongResult[];

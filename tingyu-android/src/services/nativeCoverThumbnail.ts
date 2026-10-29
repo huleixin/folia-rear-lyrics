@@ -1,6 +1,8 @@
 // src/services/nativeCoverThumbnail.ts
 // Shared, bounded thumbnail cache for blob artwork. No WebView frame capture or external requests.
 const covers=new Map<string,Promise<string>>();
+const ready=new Map<string,string>();
+export const peekNativeCoverThumbnail=(url:string)=>ready.get(url);
 export function nativeCoverThumbnail(url:string):Promise<string> {
     const existing=covers.get(url);if(existing)return existing;
     const task=fetch(url).then(r=>r.blob()).then(async blob=>{
@@ -8,7 +10,9 @@ export function nativeCoverThumbnail(url:string):Promise<string> {
         try{
             const canvas=document.createElement('canvas');canvas.width=96;canvas.height=96;
             const context=canvas.getContext('2d');if(!context)return '';
-            context.drawImage(image,0,0,96,96);return canvas.toDataURL('image/jpeg',.72);
+            context.drawImage(image,0,0,96,96);const result=canvas.toDataURL('image/jpeg',.72);
+            ready.set(url,result);while(ready.size>128)ready.delete(ready.keys().next().value!);
+            return result;
         }finally{image.close()}
     }).catch(()=>{covers.delete(url);return ''});
     if(covers.size>=128)covers.delete(covers.keys().next().value!);

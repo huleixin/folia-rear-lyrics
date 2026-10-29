@@ -5,8 +5,10 @@ package io.github.huleixin.tingyu.playback;
 public final class PcmSpectrum {
     public static final int SIZE=2048;
     private final double[] real=new double[SIZE],imaginary=new double[SIZE];
+    private final double[] window=new double[SIZE];
+    public PcmSpectrum(){for(int i=0;i<SIZE;i++)window[i]=.5-.5*Math.cos(2*Math.PI*i/(SIZE-1));}
     public int[] bins(float[] samples,int cursor,int sampleRate){
-        for(int i=0;i<SIZE;i++){real[i]=samples[(cursor+i)%SIZE]*(.5-.5*Math.cos(2*Math.PI*i/(SIZE-1)));imaginary[i]=0;}
+        for(int i=0;i<SIZE;i++){real[i]=samples[(cursor+i)%SIZE]*window[i];imaginary[i]=0;}
         for(int i=1,j=0;i<SIZE;i++){
             int bit=SIZE>>1;for(; (j&bit)!=0;bit>>=1)j^=bit;j^=bit;
             if(i<j){double temp=real[i];real[i]=real[j];real[j]=temp;}

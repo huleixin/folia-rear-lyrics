@@ -14,13 +14,14 @@ type NativePlaybackPlugin = {
   clearPlaybackState: () => Promise<unknown>;
   addListener: (
     eventName: string,
-    listener: (event: { action?: string }) => void,
+    listener: (event: { action?: string; position?: number }) => void,
   ) => Promise<{ remove: () => Promise<void> }> | { remove: () => Promise<void> };
 };
 
 let installed = false;
 
 type NativePlaybackPayload = {
+  capturedAtMs?: number;
   title: string;
   artist: string;
   album: string;
@@ -38,6 +39,7 @@ export const buildNativePlaybackPayload = (
 ): NativePlaybackPayload => {
   const metadata = createProviderSongMetadata(song);
   return {
+    capturedAtMs: Date.now(),
     title: song.name || 'Unknown Song',
     artist: metadata.artists.map(artist => artist.name).filter(Boolean).join(' / '),
     album: metadata.album.name,
@@ -119,10 +121,10 @@ export const installNativePlaybackBridge = async (
   // not hold every native API request behind it during startup.
   void (async () => {
     try {
-      await plugin.addListener('mediaAction', ({ action }) => {
+      await plugin.addListener('mediaAction', ({ action, position }) => {
         if (!action) return;
         window.dispatchEvent(new CustomEvent('folia-native-media-action', {
-          detail: { action },
+          detail: { action, position: typeof position === 'number' ? position / 1000 : undefined },
         }));
       });
     } catch (error) {

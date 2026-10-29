@@ -71,6 +71,7 @@ public class FoliaPlaybackService extends Service {
     private volatile long cachedPositionMs = 0L;
     private volatile long cachedPositionUpdatedAt = 0L;
     private volatile boolean cachedPlaying = false;
+    private long lastSystemSeekAt;
     private static volatile boolean running = false;
     private PowerManager.WakeLock wakeLock;
     private WifiManager.WifiLock wifiLock;
@@ -110,6 +111,13 @@ public class FoliaPlaybackService extends Service {
             @Override public void onSkipToNext() { emit("next"); }
             @Override public void onSkipToPrevious() { emit("previous"); }
             @Override public void onStop() { emit("stop"); }
+            @Override public void onSeekTo(long positionMs) {
+                cachedPositionMs = Math.max(0L, cachedDurationMs > 0 ? Math.min(positionMs, cachedDurationMs) : positionMs);
+                cachedPositionUpdatedAt = SystemClock.elapsedRealtime();
+                lastSystemSeekAt = System.currentTimeMillis();
+                FoliaNativePlugin.emitMediaSeek(cachedPositionMs);
+                mediaSession.setPlaybackState(buildPlaybackState(cachedPlaying, cachedPositionMs, cachedSongKey));
+            }
         });
         mediaSession.setActive(true);
         PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
@@ -131,6 +139,16 @@ public class FoliaPlaybackService extends Service {
     /** ColorOS lyric bridge uses this to decide whether a metadata refresh intent is worth sending. */
     public static boolean isRunning() {
         return running;
+    }
+
+    /** Publish the new item's lock-screen metadata without waiting for a WebView round trip. */
+    public static void publishQueuedTrack(android.content.Context context, JSONObject track, boolean playing) {
+        if(!running)return;
+        Intent intent=new Intent(context,FoliaPlaybackService.class);
+        for(String key:new String[]{"title","artist","album","coverUrl","songKey"})intent.putExtra(key,track.optString(key));
+        intent.putExtra("duration",track.optLong("duration")).putExtra("position",0L)
+            .putExtra("capturedAtMs",System.currentTimeMillis()).putExtra("playing",playing);
+        context.startService(intent);
     }
 
     @Override
@@ -155,8 +173,13 @@ public class FoliaPlaybackService extends Service {
         album = album == null ? "" : album;
         cover = cover == null ? "" : cover;
         songKey = songKey == null ? "" : songKey;
+        // A sleeping UI can still publish the preceding item after Media3 advanced.
+        // Native prepare/transition publishes its own metadata, so stale UI cannot replace it.
+        if(io.github.huleixin.tingyu.playback.NativeAudioEngine.isActive()
+            && io.github.huleixin.tingyu.playback.NativeAudioEngine.mediaClock(songKey)==null)return START_STICKY;
         boolean playing = intent.getBooleanExtra("playing", false);
         long duration = intent.getLongExtra("duration", 0L);
+        boolean songChanged = !songKey.equals(cachedSongKey);
         boolean metadataChanged = !title.equals(cachedTitle) || !artist.equals(cachedArtist)
             || !album.equals(cachedAlbum) || !cover.equals(cachedCoverUrl) || !songKey.equals(cachedSongKey)
             || duration != cachedDurationMs;
@@ -167,9 +190,13 @@ public class FoliaPlaybackService extends Service {
         cachedCoverUrl = cover;
         cachedSongKey = songKey;
         cachedPlaying = playing;
-        cachedPositionMs = Math.max(0L, intent.getLongExtra("position", 0L));
-        cachedPositionUpdatedAt = SystemClock.elapsedRealtime();
+        // In-flight JS publications sampled before a system seek cannot undo that seek.
+        if (songChanged || intent.getLongExtra("capturedAtMs", 0L) >= lastSystemSeekAt) {
+            cachedPositionMs = Math.max(0L, intent.getLongExtra("position", 0L));
+            cachedPositionUpdatedAt = SystemClock.elapsedRealtime();
+        }
         cachedDurationMs = Math.max(0L, duration);
+        if(songChanged)lastSystemSeekAt=0L;
         if (progressOnly) {
             // Android extrapolates position from PlaybackState's timestamp. A clock refresh must
             // not restart foreground publication or rebuild artwork/queue/notification metadata.
@@ -303,6 +330,8 @@ public class FoliaPlaybackService extends Service {
     private PlaybackState buildPlaybackState(boolean playing, long position, String songKey) {
         position = PlaybackPositionClock.at(playing, position, cachedPositionUpdatedAt,
             SystemClock.elapsedRealtime(), cachedDurationMs);
+        long[] nativeClock = io.github.huleixin.tingyu.playback.NativeAudioEngine.mediaClock(songKey);
+        if (nativeClock != null) { position = nativeClock[0]; playing = nativeClock[1] == 1; }
         PlaybackState.Builder builder = new PlaybackState.Builder()
             .setActiveQueueItemId(queueId(songKey))
             .setActions(

@@ -26,7 +26,7 @@ it('autoplays three consecutive native sources without a legacy pause consuming 
     const noop=()=>{},elements=()=>[],target=()=>1;
     function Probe(){const ref=useRef<HTMLAudioElement>(null),deck=useNativeAudioDeck(ref,'A');
         const context=useRef<AudioContext|null>(null),analyser=useRef<AnalyserNode|null>(null),gain=useRef<GainNode|null>(null),suppress=useRef(false);
-        usePlaybackAudioBridge({audioRef:ref,localSongs:[],isLyricsLoading:false,shouldAutoPlayRef:intent,audioContextRef:context,analyserRef:analyser,gainNodeRef:gain,
+        usePlaybackAudioBridge({audioRef:ref,localSongs:[],isLyricsLoading:true,shouldAutoPlayRef:intent,audioContextRef:context,analyserRef:analyser,gainNodeRef:gain,
             connectDecks:()=>false,getActiveChain:()=>null,getAudioElements:elements,suppressAutoplayRef:suppress,isAutoplayHeld:false,
             syncOutputGain:noop,getTargetPlaybackVolume:target,getCoverUrl:()=>null,updateCacheSize:noop});
         const source=usePlaybackStore(s=>s.audioSrc);

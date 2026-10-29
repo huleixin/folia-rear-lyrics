@@ -16,6 +16,7 @@ import { isAndroidNativeRuntime } from '../utils/platform';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
 import { setStatusMessage } from '../stores/useStatusMessageStore';
 import { PlayerState } from '../types';
+import { buildNativePlaybackPayload } from '../services/nativePlaybackBridge';
 
 // src/hooks/useNativeAudioDeck.ts
 const native=getTingyuPlayback<NativeAudioPort>();
@@ -79,6 +80,6 @@ export function useNativeAudioDeck(audioRef:RefObject<HTMLAudioElement|null>,act
         };
     },[own,supported,activeDeck,audioRef]);
     useLayoutEffect(()=>{adapter.current?.configure({fade,analysis,loop:loop==='one'});},[fade,analysis,loop,own,supported]);
-    useLayoutEffect(()=>{adapter.current?.setSource(source??'',songKey);},[source,songKey,own,supported]);
-    return { suppressBrowserSource:own };
+    useLayoutEffect(()=>{adapter.current?.setSource(source??'',songKey,song?buildNativePlaybackPayload(song,playing,0,(song.durationMs??0)/1000):{});},[source,songKey,own,supported]);
+    return { suppressBrowserSource:own, nativeReady:own&&supported===true };
 }

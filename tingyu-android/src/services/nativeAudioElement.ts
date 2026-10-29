@@ -1,22 +1,25 @@
 import { notePlaybackTest,playbackTestUriInfo } from './playbackTestLog';
-import type { NativeAudioOptions, NativeAudioPort, NativeAudioState } from '../types/nativeAudio';
+import type { NativeAudioOptions, NativeAudioPort, NativeAudioState, NativeQueueTrack } from '../types/nativeAudio';
 
 // src/services/nativeAudioElement.ts
 // Preserve the existing DOM media-event contract while Media3 owns fetching/decoding/output.
 let blocked=false;
 /** Latches out stale queued commands while the transport changes hands; only an explicit switch calls this. */
 export function setNativeAudioCommandsBlocked(value:boolean){blocked=value;}
-const elements=new WeakMap<HTMLMediaElement,{spectrum:Uint8Array}>();
+const elements=new WeakMap<HTMLMediaElement,{spectrum:Uint8Array;queue:(tracks:NativeQueueTrack[])=>Promise<unknown>}>();
+export const setNativeAudioQueue=(element:HTMLMediaElement,tracks:NativeQueueTrack[])=>elements.get(element)?.queue(tracks);
 export const isNativeAudioElement=(element:HTMLMediaElement|null)=>!!element&&elements.has(element);
 export const nativeAudioSpectrum=(element:HTMLMediaElement|null)=>element?elements.get(element)?.spectrum:null;
 const abort=()=>new DOMException('Playback intent replaced','AbortError');
+const adoptions=new Set<string>();
+export const markNativeQueueAdoption=(key:string)=>{adoptions.clear();adoptions.add(key);};
 export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAudioPort){
     const original=new Map<string,PropertyDescriptor|undefined>();
     const originalAttribute=element.getAttribute.bind(element);
-    const bands={spectrum:new Uint8Array(1024)};elements.set(element,bands);
+    const bands={spectrum:new Uint8Array(1024)};
     let source='',track='',id='',sequence=0,lastIntent=0,position=0,duration=0,buffered=0,anchor=performance.now();
     let paused=true,playing=false,ended=false,ready=0,volume=element.volume,muted=element.muted,disposed=false,metadata=false;
-    let lastSample=-Infinity,seekTarget:number|null=null,seekUntil=0;
+    let lastSample=-Infinity,seekTarget:number|null=null,seekUntil=0,announcedTrack='';
     let error:(MediaError & {nativeCode?:number})|null=null,options:NativeAudioOptions={fade:true,analysis:false,loop:false};
     let pending:{resolve:()=>void;reject:(error:unknown)=>void;timer:ReturnType<typeof setTimeout>}|null=null;
     const event=(name:string)=>{if(!disposed)element.dispatchEvent(new Event(name));};
@@ -24,6 +27,12 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     const rejectPending=(reason:unknown)=>{if(pending){clearTimeout(pending.timer);pending.reject(reason);pending=null;}};
     const onState=(value:NativeAudioState)=>{
         if(blocked||disposed||value.id!==id||(!value.external&&value.sequence<lastIntent))return;
+        // Media3 may advance several prepared items while JS is asleep. Reconcile the
+        // current native item without replaying or rewinding it when the UI catches up.
+        if(value.songKey&&value.songKey!==track&&value.uri){
+            if(announcedTrack!==value.songKey){announcedTrack=value.songKey;window.dispatchEvent(new CustomEvent('tingyu-native-queue-track',{detail:value}));}
+            return;
+        }
         if(value.type!=='clock'&&!value.spectrum)notePlaybackTest('native-state',{type:value.type,status:value.status,playing:value.playing,paused:value.paused,position:value.position,error:value.message??''});
         if(value.spectrum){bands.spectrum.set(value.spectrum.length<=1024?value.spectrum:value.spectrum.slice(0,1024));return;}
         const sampleAge=value.capturedAtMs===undefined?Infinity:Date.now()-value.capturedAtMs;
@@ -66,10 +75,13 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     const send=(action:string,data:Record<string,unknown>={})=>{
         const token=id,revision=++sequence;const started=performance.now();
         if(action!=='volume')notePlaybackTest('native-command',{action,sequence:revision,...(action==='prepare'?playbackTestUriInfo(String(data.uri??'')):{})});
-        work=work.catch(()=>{}).then(async()=>{if(blocked||(action!=='detach'&&(disposed||token!==id)))throw abort();const result=await port.command({action,id:token,sequence:revision,...data});if(action!=='volume')notePlaybackTest('native-command-result',{action,accepted:result.accepted,elapsedMs:Math.round(performance.now()-started)});if(!result.accepted)throw abort();});
+        work=work.catch(()=>{}).then(async()=>{if(blocked||(action!=='detach'&&(disposed||token!==id)))throw abort();const result=await port.command({action,id:token,sequence:revision,...data});if(action!=='volume')notePlaybackTest('native-command-result',{action,accepted:result.accepted,elapsedMs:Math.round(performance.now()-started)});if(!result.accepted)throw abort();if('state' in result&&result.state)onState(result.state as NativeAudioState);});
         void work.catch(error=>notePlaybackTest('native-command-failed',{action,error,elapsedMs:Math.round(performance.now()-started)}));
         return work;
     };
+    elements.set(element,{...bands,queue:tracks=>send('queue',{songKey:track,tracks})});
+    const refresh=()=>{if(document.visibilityState==='visible'&&id)void send('snapshot').catch(()=>{});};
+    document.addEventListener('visibilitychange',refresh);
     const set=(name:string,descriptor:PropertyDescriptor)=>{original.set(name,Object.getOwnPropertyDescriptor(element,name));Object.defineProperty(element,name,{configurable:true,...descriptor});};
     set('getAttribute',{value:(name:string)=>name.toLowerCase()==='src'?(source||null):originalAttribute(name)});
     set('src',{get:()=>source,set:(value:string)=>element.setAttribute('src',value)});set('currentSrc',{get:()=>source});set('duration',{get:()=>duration});set('paused',{get:()=>paused});
@@ -98,21 +110,21 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         void send('play').catch(failPlay);return result;
     }});
     return {
-        setSource(uri:string,key:string){
+        setSource(uri:string,key:string,sourceMetadata:Record<string,unknown>={}){
             if(uri===source&&key===track)return;
             if(!uri&&id)void send('detach').catch(()=>{});
             rejectPending(abort());source=uri;track=key;id=uri?crypto.randomUUID():'';sequence=0;lastIntent=0;
             position=0;duration=0;buffered=0;lastSample=-Infinity;seekTarget=null;anchor=performance.now();paused=true;playing=false;ended=false;error=null;ready=1;metadata=false;bands.spectrum.fill(0);
             event('loadstart');if(!uri)return;
             const preparing=id;
-            void send('prepare',{uri,volume:muted?0:volume,...options}).catch(reason=>{
+            void send('prepare',{...sourceMetadata,uri,songKey:key,adopt:adoptions.delete(key),volume:muted?0:volume,...options}).catch(reason=>{
                 if(disposed||preparing!==id)return;error={code:4,message:String(reason)} as MediaError;rejectPending(reason);event('error');
             });
         },
         configure(next:NativeAudioOptions){options=next;if(id)void send('configure',next).catch(()=>{});},
         snapshot:()=>({position:time(),paused,source,track,volume,muted}),
         dispose(){
-            if(disposed)return Promise.resolve();disposed=true;rejectPending(abort());elements.delete(element);
+            if(disposed)return Promise.resolve();disposed=true;rejectPending(abort());elements.delete(element);document.removeEventListener('visibilitychange',refresh);
             for(const [name,descriptor] of original){if(descriptor)Object.defineProperty(element,name,descriptor);else delete (element as unknown as Record<string,unknown>)[name];}
             element.volume=volume;element.muted=muted;
             const stop=id?send('detach'):Promise.resolve();

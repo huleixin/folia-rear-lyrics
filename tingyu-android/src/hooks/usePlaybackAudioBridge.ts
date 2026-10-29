@@ -309,7 +309,7 @@ export function usePlaybackAudioBridge({
             // source runs this effect again, and that run is the one meant to start it.
             if (audioRef.current.error) return;
 
-            if (shouldAutoPlayRef.current && !isLyricsLoading) {
+            if (shouldAutoPlayRef.current && (!isLyricsLoading || isNativeAudioElement(audioRef.current))) {
                 // The deck has its source and is buffering, but its blend is not due yet. Bail
                 // WITHOUT spending the intent - this effect runs again when the hold lifts, and
                 // that run is the one meant to start it.

@@ -121,6 +121,14 @@ public class FoliaNativePlugin extends Plugin {
         plugin.getActivity().runOnUiThread(() -> plugin.notifyListeners("mediaAction", payload));
     }
 
+    static void emitMediaSeek(long positionMs) {
+        if (io.github.huleixin.tingyu.playback.NativeAudioEngine.mediaSeek(positionMs)) return;
+        FoliaNativePlugin plugin = instance;
+        if (plugin == null) return;
+        JSObject payload = new JSObject().put("action", "seek").put("position", positionMs);
+        plugin.getActivity().runOnUiThread(() -> plugin.notifyListeners("mediaAction", payload));
+    }
+
     static void emitMainWindowInsets(JSObject payload) {
         FoliaNativePlugin plugin = instance;
         if (plugin != null) plugin.notifyListeners("mainWindowInsetsChanged", payload, true);
@@ -1136,6 +1144,7 @@ public class FoliaNativePlugin extends Plugin {
         Double position = call.getDouble("position");
         Double duration = call.getDouble("duration");
         intent.putExtra("position", position == null ? 0L : position.longValue());
+        intent.putExtra("capturedAtMs", call.getData().optLong("capturedAtMs", System.currentTimeMillis()));
         intent.putExtra("duration", duration == null ? 0L : duration.longValue());
         ContextCompat.startForegroundService(getContext(), intent);
         call.resolve();

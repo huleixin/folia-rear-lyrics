@@ -116,6 +116,7 @@ import { useSongThemeAutoGeneration } from './hooks/useSongThemeAutoGeneration';
 import { useThemeController } from './hooks/useThemeController';
 import { useOnlineSongMetadataHydration } from './hooks/useOnlineSongMetadataHydration';
 import { useNativeMediaActions } from './hooks/useNativeMediaActions';
+import { useNativeQueuedPlayback } from './hooks/useNativeQueuedPlayback';
 import { useNativeBackButton } from './hooks/useNativeBackButton';
 import { resolveCommandPaletteSearchSource, resolveSearchSource, useSearchNavigationStore } from './stores/useSearchNavigationStore';
 import { useOnlineProviderAccountStore } from './stores/useOnlineProviderAccountStore';
@@ -1385,6 +1386,7 @@ export default function App() {
     }, [audioSrc, audioRef, setDuration]);
 
     const playbackDeck=usePlaybackDeck(audioRef,automix.activeDeck);
+    useNativeQueuedPlayback(audioRef,playbackDeck.nativeReady,localSongs,playSong);
     const { setupAudioAnalyzer, cacheSongAssets, cacheSongAssetsFor, adoptActiveDeckSource } = usePlaybackAudioBridge({
         audioRef,
         localSongs,
@@ -1606,6 +1608,10 @@ export default function App() {
         toggle: () => togglePlay(),
         next: () => { void handleNextTrack(); },
         previous: () => { void handlePrevTrack(); },
+        seek: position => {
+            if (seekDuringTransitionRef.current(position)) return;
+            if (audioRef.current) { audioRef.current.currentTime = position; currentTime.set(position); }
+        },
     });
     useNativeBackButton(navigateBackInApp, canNavigateBackInApp);
 

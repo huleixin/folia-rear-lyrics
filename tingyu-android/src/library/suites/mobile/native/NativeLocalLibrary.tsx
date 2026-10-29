@@ -9,6 +9,10 @@ import NativeDirectoryPage from './NativeDirectoryPage';
 import MobileSheet from '../MobileSheet';
 import { MobileLocalTools } from '../MobileHomeSources';
 import { hasBlockingWindow } from '../../../../utils/keyboardTargets';
+import { buildLocalQueue, LIST_ROW_COVER_SIZE } from '../../../../services/playbackAdapters';
+import { getSongArtistLabel, getSongCoverUrl } from '../../../../services/onlineMusic/songMetadata';
+import { absolutePageImage } from '../../../../services/nativePages';
+import { useLibraryTrackPlayback } from '../../../../hooks/useLibraryTrackPlayback';
 
 // src/library/suites/mobile/native/NativeLocalLibrary.tsx
 export default function NativeLocalLibrary(args:NativeHomeProps) {
@@ -17,6 +21,11 @@ export default function NativeLocalLibrary(args:NativeHomeProps) {
     const [tools,setTools]=useState(false),[path,setPath]=useState('');
     const tree=useMemo(()=>buildMusicFolders(props.localSongs),[props.localSongs]);
     const folder=useMemo(()=>folderAt(tree,path),[tree,path]);
+    const [query,setQuery]=useState(''),[songOffset,setSongOffset]=useState(0);
+    const tracks=useMemo(()=>buildLocalQueue(folder.songs,undefined,props.localLibraryCatalog,LIST_ROW_COVER_SIZE),[folder.songs,props.localLibraryCatalog]);
+    const play=useLibraryTrackPlayback(props.onPlaySong,props.onTogglePlayback);
+    const filtered=useMemo(()=>tracks.filter(song=>`${song.name} ${getSongArtistLabel(song)}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())),[tracks,query]);
+    useEffect(()=>{setSongOffset(0);setQuery('')},[path,local.activeSection.key]);
     useEffect(()=>{
         const back=(event:KeyboardEvent)=>{
             if(event.key!=='Escape'||!props.isInteractive||local.activeSection.key!=='folders'||!folder.path||hasBlockingWindow())return;
@@ -25,6 +34,7 @@ export default function NativeLocalLibrary(args:NativeHomeProps) {
         window.addEventListener('keydown',back,true);return()=>window.removeEventListener('keydown',back,true);
     },[folder.path,local.activeSection.key,props.isInteractive]);
     const actions:PageActions={tools:()=>setTools(true)};
+    const tailSections:PageSection[]=[];
     const sections:PageSection[]=[{id:'local-sections',layout:'chips',items:local.sections.map(section=>{
         actions[`local:${section.key}`]=()=>props.setLocalMusicState(previous=>({...previous,activeRow:section.row}));
         return{id:section.key,title:section.label,selected:section.key===local.activeSection.key,action:`local:${section.key}`};
@@ -43,10 +53,16 @@ export default function NativeLocalLibrary(args:NativeHomeProps) {
             {id:'all',title:`查看全部 ${folder.count}`,action:'folderSongs',disabled:!folder.count},
             ...(folder.songs.length?[{id:'direct',title:`当前文件夹的歌曲 · ${folder.songs.length}`,action:'directSongs'}]:[]),
         ]});
+        actions.songRange=e=>setSongOffset(Math.max(0,Math.floor((e.value??0)/100)*100));
+        filtered.forEach(song=>{actions[`local-song:${song.id}`]=()=>play(song,tracks)});
+        tailSections.push({id:'local-songs',title:`当前文件夹的歌曲 · ${filtered.length}`,layout:'rows',key:`${path}:${query}`,
+            total:filtered.length,offset:songOffset,request:'songRange',items:filtered.slice(songOffset,songOffset+100).map(song=>({
+                id:`local-song:${song.id}`,title:song.name,subtitle:getSongArtistLabel(song),image:absolutePageImage(getSongCoverUrl(song)),action:`local-song:${song.id}`,
+            }))});
     }
     return <>
         <NativeDirectoryPage {...args} key={`${local.activeSection.key}:${path}`} route={`local:${local.activeSection.key}:${path}`} cards={cards}
-            onOpen={open} sections={sections} extraActions={actions} emptyMessage={local.activeSection.emptyMessage}/>
+            onOpen={open} sections={sections} tailSections={tailSections} onFilter={value=>{setQuery(value);setSongOffset(0)}} extraActions={actions} emptyMessage={local.activeSection.emptyMessage}/>
         {tools&&<MobileSheet title={t('mobileLibrary.importMusic')} onClose={()=>setTools(false)}><MobileLocalTools homeResources={props.homeResources}/></MobileSheet>}
     </>;
 }
