@@ -22,6 +22,9 @@ interface ThemedDialogProps {
     closeDisabled?: boolean;
     /** Native `title` for the dimmed X, naming the run that has to finish before closing. */
     closeDisabledTitle?: string;
+    /** Explicit surface/scrim colours for capture by the native settings display list. */
+    surfaceColor?: string;
+    scrimColor?: string;
 }
 
 const ThemedDialog: React.FC<ThemedDialogProps> = ({
@@ -37,12 +40,15 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
     panelKind,
     closeDisabled = false,
     closeDisabledTitle,
+    surfaceColor,
+    scrimColor,
 }) => {
     const bgClass = isDaylight ? 'bg-white/90 border-white/30' : 'bg-zinc-900/95 border-white/10';
     const textPrimary = isDaylight ? 'text-zinc-900' : 'text-white';
     const textSecondary = isDaylight ? 'text-zinc-500' : 'text-zinc-400';
     const closeBtnHover = isDaylight ? 'hover:bg-zinc-200/60' : 'hover:bg-white/10';
     const isMouseDownOnOverlayRef = useRef(false);
+    const panelRef = useRef<HTMLDivElement>(null);
 
     // A fixed sheet must own the gesture stream. Without this, a swipe that starts on
     // the dimmed backdrop can chain through to the library page underneath the dialog.
@@ -55,6 +61,22 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
         return () => {
             body.style.overflow = bodyOverflow; root.style.overflow = rootOverflow;
             root.style.overscrollBehavior = rootOverscroll;
+        };
+    }, [isOpen]);
+
+    // Touch/wheel must not chain to the native page behind the sheet. Scroll inside the
+    // panel still works; only the dimmed backdrop is inert.
+    useEffect(() => {
+        if (!isOpen) return undefined;
+        const block = (event: Event) => {
+            const target = event.target;
+            if (!(target instanceof Node) || !panelRef.current?.contains(target)) event.preventDefault();
+        };
+        document.addEventListener('wheel', block, { passive: false });
+        document.addEventListener('touchmove', block, { passive: false });
+        return () => {
+            document.removeEventListener('wheel', block);
+            document.removeEventListener('touchmove', block);
         };
     }, [isOpen]);
 
@@ -78,7 +100,9 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
                     exit={{ opacity: 0 }}
                     data-folia-keyboard-window="true"
                     data-folia-themed-overlay="true"
+                    role="presentation"
                     className="fixed inset-0 z-[200] flex items-center justify-center overscroll-contain bg-black/60 backdrop-blur-md p-4"
+                    style={{ backgroundColor: scrimColor, touchAction: 'none', overscrollBehavior: 'contain' }}
                     onMouseDown={handleOverlayMouseDown}
                     onClick={handleBackdropClick}
                 >
@@ -88,9 +112,13 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
                         exit={{ scale: 0.94, opacity: 0 }}
                         transition={{ type: 'spring', stiffness: 280, damping: 24 }}
                         onClick={(event) => event.stopPropagation()}
+                        ref={panelRef}
                         data-folia-themed-dialog="true"
                         data-folia-themed-dialog-kind={panelKind}
+                        role="dialog"
+                        aria-modal="true"
                         className={`relative w-full ${maxWidthClass} overscroll-contain rounded-3xl border ${bgClass} p-6 shadow-2xl backdrop-blur-sm`}
+                        style={{ backgroundColor: surfaceColor, touchAction: 'pan-y', overscrollBehavior: 'contain' }}
                     >
                         <button
                             type="button"

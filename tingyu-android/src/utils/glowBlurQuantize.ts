@@ -13,18 +13,18 @@
 // and GPU process, and the renderer's soft limit of 1024 runs out after ~35 minutes of playback. The
 // full story is in docs/linux-glyph-cache-fd-leak.md.
 //
-// On by default on Linux only: the drop-shadow glow looks nearly, but not exactly, the same, and
-// elsewhere the leak costs a few MB a day - too little to be worth any visual difference.
+// On by default on Linux and Android: both expose animated text-shadow through WebView/Chromium
+// raster caches that can flicker under load. The drop-shadow path is fitted to the original glow.
 
 export const GLOW_BLUR_QUANTIZE_STORAGE_KEY = 'visualizer_glow_blur_quantize';
 
-/** Linux, desktop or browser - the one platform where the leak ends in a frozen compositor. */
-const isLinuxRuntime = () => {
+/** WebView/desktop runtimes where animated glyph shadows produce unstable raster caches. */
+const isGlyphCacheSensitiveRuntime = () => {
     if (typeof window === 'undefined') return false;
     const electronPlatform = (window as Window & { electron?: { platform?: string } }).electron?.platform;
     if (electronPlatform) return electronPlatform === 'linux';
     const userAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent;
-    return /Linux/.test(userAgent) && !/Android/.test(userAgent);
+    return /Linux/.test(userAgent) || /Android/.test(userAgent);
 };
 
 /** The stored choice, or the platform default when the user never touched the switch. */
@@ -35,7 +35,7 @@ export const readStoredGlowBlurQuantize = (): boolean => {
     } catch {
         // Storage blocked: fall through to the default.
     }
-    return isLinuxRuntime();
+    return isGlyphCacheSensitiveRuntime();
 };
 
 // Module-level on purpose, like the frame-rate limiter: the canvas renderers read it every frame and

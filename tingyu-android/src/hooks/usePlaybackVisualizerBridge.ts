@@ -85,12 +85,25 @@ export function usePlaybackVisualizerBridge({
 
     const currentLineIndexRef = useRef(-1);
     const frequencyDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
+    const lastLyricTimeRef = useRef(0);
 
     const updateLoop = useCallback((sampleAudio: boolean) => {
         // Normally the active deck; the outgoing one for as long as a blend holds the picture on
         // the track it is finishing, so that clock and picture never describe different songs.
         const audioElement = getDisplayElement?.() ?? audioRef.current;
         const isActuallyPlaying = Boolean(audioElement && !audioElement.paused && !audioElement.ended);
+        // The visualizers consume this clock directly. Sampling can briefly deliver an older
+        // value while a transport snapshot is being replaced; a sub-frame rewind would replay
+        // a word's reveal/flash. Real seeks are larger and pass through immediately.
+        const publishLyricTime = (value: number, monotonic: boolean) => {
+            let next = value;
+            if (monotonic && next < lastLyricTimeRef.current && lastLyricTimeRef.current - next < 0.25) {
+                next = lastLyricTimeRef.current;
+            }
+            lastLyricTimeRef.current = next;
+            lyricCurrentTime.set(next);
+            return next;
+        };
         // Mid-handover a deck can be loading while the other one is still sounding. The analyser
         // is downstream of both, so it has real signal: dropping to the idle breath here would put
         // a visible stutter at exactly the moment meant to be seamless.
@@ -151,8 +164,7 @@ export function usePlaybackVisualizerBridge({
             const time = audioElement.currentTime;
             currentTime.set(time);
 
-            const effectiveLyricTime = time - lyricTimelineOffsetMs / 1000;
-            lyricCurrentTime.set(effectiveLyricTime);
+            const effectiveLyricTime = publishLyricTime(time - lyricTimelineOffsetMs / 1000, isActuallyPlaying);
 
             if (lyrics) {
                 const foundIndex = findLatestActiveLineIndex(lyrics.lines, effectiveLyricTime);
@@ -167,8 +179,8 @@ export function usePlaybackVisualizerBridge({
 
             currentTime.set(nextTime);
 
-            const effectiveLyricTime = nextTime - lyricTimelineOffsetMs / 1000;
-            lyricCurrentTime.set(effectiveLyricTime);
+            const effectiveLyricTime = publishLyricTime(nextTime - lyricTimelineOffsetMs / 1000,
+                playerState === PlayerState.PLAYING);
 
             if (lyrics) {
                 const foundIndex = findLatestActiveLineIndex(lyrics.lines, effectiveLyricTime);
@@ -202,8 +214,8 @@ export function usePlaybackVisualizerBridge({
             const nextTime = getPlayerCapDisplayTime();
             currentTime.set(nextTime);
 
-            const effectiveLyricTime = nextTime - lyricTimelineOffsetMs / 1000;
-            lyricCurrentTime.set(effectiveLyricTime);
+            const effectiveLyricTime = publishLyricTime(nextTime - lyricTimelineOffsetMs / 1000,
+                playerState === PlayerState.PLAYING);
 
             if (lyrics) {
                 const foundIndex = findLatestActiveLineIndex(lyrics.lines, effectiveLyricTime);

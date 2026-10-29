@@ -32,6 +32,10 @@ it('skips hidden FFT work without freezing the playback or rear clock',async()=>
         useAppViewStore.setState({view:'home'});useRearRuntimeStore.setState({enabled:false,sleeping:false});
         await act(async()=>root.render(h(Harness)));
         expect(fft).not.toHaveBeenCalled();expect(currentTime.get()).toBe(12);expect(lyricCurrentTime.get()).toBe(11.5);
+        // A transport snapshot arriving a few milliseconds late must not rewind the lyric clock
+        // (that replays a word's glow/flash); a real seek still passes through.
+        audio.currentTime=11.9;await act(async()=>vi.advanceTimersByTimeAsync(300));expect(lyricCurrentTime.get()).toBe(11.5);
+        audio.currentTime=3;await act(async()=>vi.advanceTimersByTimeAsync(300));expect(lyricCurrentTime.get()).toBe(2.5);
         audio.currentTime=25;await act(async()=>vi.advanceTimersByTimeAsync(250));expect(currentTime.get()).toBe(25);
         await act(async()=>useAppViewStore.setState({view:'player'}));expect(fft).toHaveBeenCalled();
         fft.mockClear();Object.defineProperty(document,'hidden',{configurable:true,value:true});

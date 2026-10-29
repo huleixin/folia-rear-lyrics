@@ -31,7 +31,9 @@ export default function LxSourceDialog({ isDaylight }: { isDaylight: boolean }) 
         } catch (error) { setFailed(true); setMessage(error instanceof Error ? error.message : String(error)); }
         finally { setBusy(false); }
     };
-    return <ThemedDialog isOpen onClose={state.close} closeDisabled={busy} isDaylight={isDaylight} title="洛雪自定义音源" panelKind="audio-tools" description="导入自定义脚本，为搜索和已登录平台的歌单选择播放音源。">
+    return <ThemedDialog isOpen onClose={state.close} closeDisabled={busy} isDaylight={isDaylight} title="洛雪自定义音源" panelKind="audio-tools"
+        description="导入自定义脚本，为搜索和已登录平台的歌单选择播放音源。"
+        surfaceColor={isDaylight ? '#f3f6ef' : '#101e19'} scrimColor={isDaylight ? 'rgba(3,10,8,0.90)' : 'rgba(3,10,8,0.94)'}>
         <div className="ty-lx-manager" data-light={isDaylight || undefined}>
             <button type="button" className="ty-lx-import" disabled={busy} onClick={() => void importFile()}>
                 <Upload size={19}/><span><strong>{busy ? '正在处理…' : '导入并启用音源'}</strong><small>.js 文件 · 最大 1 MB</small></span>
