@@ -35,8 +35,14 @@ it('gives native playback exclusive ownership and enables analysis only for an a
         expect(port.command.mock.calls.filter(([c])=>c.action==='prepare')).toHaveLength(1);
         const analysis=()=>port.command.mock.calls.filter(([c])=>c.action==='configure'||c.action==='prepare').at(-1)![0].analysis;
         expect(analysis()).toBe(false);
-        await act(async()=>useAppViewStore.setState({view:'player'}));expect(analysis()).toBe(true);
-        await act(async()=>useAppViewStore.setState({view:'home'}));expect(analysis()).toBe(false);
+        const transportBefore=port.command.mock.calls.filter(([c])=>['prepare','play','pause','detach','seek'].includes(String(c.action))).length;
+        for(let i=0;i<8;i++){
+            await act(async()=>useAppViewStore.setState({view:'player'}));expect(analysis()).toBe(true);
+            await act(async()=>useAppViewStore.setState({view:'home'}));expect(analysis()).toBe(false);
+        }
+        const configurations=port.command.mock.calls.filter(([c])=>c.action==='configure'||c.action==='prepare');
+        expect(configurations.every(([c])=>c.interactive===true)).toBe(true);
+        expect(port.command.mock.calls.filter(([c])=>['prepare','play','pause','detach','seek'].includes(String(c.action)))).toHaveLength(transportBefore);
         await act(async()=>useRearRuntimeStore.setState({enabled:true,sleeping:false}));expect(analysis()).toBe(true);
         await act(async()=>useRearRuntimeStore.setState({sleeping:true}));expect(analysis()).toBe(false);
         expect(port.command.mock.calls.filter(([c])=>c.action==='prepare')).toHaveLength(1);

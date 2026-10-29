@@ -49,9 +49,10 @@ import org.json.JSONObject
 import kotlin.math.roundToInt
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ComposeChromeHost.kt
-// One stable composition and one GPU backdrop for all three surfaces; never snapshot WebView pixels.
+// Stable WebView identity; native pages and the live stage use separate GPU backdrop sources.
 class ComposeChromeHost(private val web: WebView, var listener: ChromeActionListener) {
     private val graphics=GraphicsProbe(web)
+    private val webSamplingLayer=WebSamplingLayer(web)
     private var graphicsMarker:(()->Unit)?=null
     fun setGraphicsMarkerListener(listener:()->Unit){graphicsMarker=listener}
     fun graphicsSnapshot()=graphics.snapshot(destination,webOverlay)
@@ -188,6 +189,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     }
     @Composable private fun Scene() {
         val backdrop = rememberLayerBackdrop()
+        val stageBackdrop = rememberLayerBackdrop()
         val exitProgress=rememberStageExitProgress(stageExit,reducedMotion)
         val visible = if (!webOverlay) surfaces.values.filter {
             it.enabled && NativeFooterLayout.visible(it.id,destination,playlistDetail,it.viewportWidth) &&
@@ -196,6 +198,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // Reuse the route's one retained composition beneath the collapsing stage.
         // Creating a second underlay would duplicate saveable keys during a quick Back.
         val page=presented?:if(stageExit.active)stageExit.returning else null
+        val legacySampling=graphics.enabled
+        val sampleWeb=ChromeSamplingPolicy.webReader(destination,stageExit.active,webOverlay,active,focused,visible.size)
+        SideEffect{if(!legacySampling)webSamplingLayer.update(Build.VERSION.SDK_INT>=31&&sampleWeb)}
         val savedPages=rememberSaveableStateHolder()
         BoxWithConstraints(Modifier.fillMaxSize()) {
             CompositionLocalProvider(LocalChromeRendering provides (active&&focused)) {
@@ -204,16 +209,22 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             val safeBottom=if(nativeBottom>=0)nativeBottom else WindowInsets.navigationBars.getBottom(density)/density.density
             val bootId=if(destination=="home"&&selectedTab==1)"library"else if(destination in setOf("home","collection","search","settings"))destination else "home"
             val bootPage=remember(bootId,width,height,safeTop,safeBottom){cache.page(bootId,width,height,safeTop).copy(safeBottom=safeBottom)}
-            // Keep the capture node attached across auto-hide and route changes. Removing it
-            // recreates the AndroidView/GPU recording while the lyric canvas is drawing.
-            Box(Modifier.fillMaxSize().then(if(Build.VERSION.SDK_INT>=31&&graphics.sampleStage(destination))Modifier.layerBackdrop(backdrop)else Modifier)) {
+            // Historical diagnostic groups retain the original whole-scene sampling path.
+            // Normal builds exclude WebView from native-page sampling and gate stage recording.
+            Box(Modifier.fillMaxSize().then(if(legacySampling&&Build.VERSION.SDK_INT>=31&&graphics.sampleStage(destination))Modifier.layerBackdrop(backdrop)else Modifier)) {
                 // A reproduces the unverified 1.3.32 isolation hypothesis; a TextureView
                 // workaround is not evidence that this fixes WebView. C31 removes only
                 // this modifier. Neither path changes lyric effects or global frame rate.
                 if(graphics.enabled&&graphics.mode!=GraphicsProbeMode.C31)DisposableEffect(Unit){graphics.layerMounts++;onDispose{graphics.layerDisposals++}}
+                // This wrapper/AndroidView keeps the same identity across routes and auto-hide.
+                // A live reader uses the tested C2 texture only for the reader's lifetime.
+                Box(Modifier.fillMaxSize().zIndex(if(destination=="stage"||webOverlay||stageExit.active)2f else 0f)
+                    .then(if(!legacySampling&&Build.VERSION.SDK_INT>=31&&sampleWeb)Modifier.layerBackdrop(stageBackdrop)else Modifier)) {
                 AndroidView(factory = { web }, modifier = Modifier.fillMaxSize()
-                    .then(if(graphics.mode!=GraphicsProbeMode.C31)Modifier.graphicsLayer { alpha = if(Build.VERSION.SDK_INT>=31).999f else 1f }else Modifier)
-                    .stageExitTransform(stageExit,exitProgress).zIndex(if(destination=="stage"||webOverlay||stageExit.active)2f else 0f))
+                    .then(if(legacySampling&&graphics.mode!=GraphicsProbeMode.C31)Modifier.graphicsLayer { alpha = if(Build.VERSION.SDK_INT>=31).999f else 1f }else Modifier)
+                    .stageExitTransform(stageExit,exitProgress))
+                }
+                Box(Modifier.fillMaxSize().zIndex(1f).then(if(!legacySampling&&Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop)else Modifier)) {
                 if(page==null&&firstHomeFrame&&destination=="home")NativePageView(bootPage,Modifier.fillMaxSize().zIndex(1f)){_,_,_->}
                 // One route-level animation, with no HTML exit animation or full-screen blur.
                 // Data/clock revisions keep the same content key and do not restart it.
@@ -246,6 +257,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                                 pageListener?.onAction(shown.id,shown.session,shown.key,action,text,value)
                         }
                     }
+                }
                 }
                 }
             }
@@ -290,7 +302,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     when(surface.id) {
                         "nav" -> ChromeNavigation(surface,backdrop,interactivePlacement,actions)
                         "mini" -> ChromeMiniPlayer(surface,clocks[surface.id],backdrop,interactivePlacement,actions)
-                        "stage" -> Box(Modifier.fillMaxSize().stageExitTransform(stageExit,exitProgress)){ChromeStagePlayer(surface,clocks[surface.id],backdrop,interactivePlacement,actions)}
+                        "stage" -> Box(Modifier.fillMaxSize().stageExitTransform(stageExit,exitProgress)){ChromeStagePlayer(surface,clocks[surface.id],if(legacySampling)backdrop else stageBackdrop,interactivePlacement,actions)}
                     }
                 }
             } }
@@ -302,6 +314,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         }
     }
     fun destroy() {
+        webSamplingLayer.close()
         graphics.close()
         val compose = host ?: return
         active = false;stageExit.clear(); surfaces.clear(); clocks.clear();pages.clear();retained.clear();presented=null

@@ -79,7 +79,9 @@ export function useNativeAudioDeck(audioRef:RefObject<HTMLAudioElement|null>,act
             }).catch(()=>{if(element.isConnected)setStatusMessage({type:'error',text:'播放引擎切换未完成，请重新打开听屿后重试'});});
         };
     },[own,supported,activeDeck,audioRef]);
-    useLayoutEffect(()=>{adapter.current?.configure({fade,analysis,loop:loop==='one'});},[fade,analysis,loop,own,supported]);
+    // Route changes may enable FFT, but browsing and the stage use the same output mode.
+    // A background-only session can still use DSP offload at safe track/pause boundaries.
+    useLayoutEffect(()=>{adapter.current?.configure({fade,analysis,loop:loop==='one',interactive:main||rear});},[fade,analysis,loop,main,rear,own,supported]);
     useLayoutEffect(()=>{adapter.current?.setSource(source??'',songKey,song?buildNativePlaybackPayload(song,playing,0,(song.durationMs??0)/1000):{});},[source,songKey,own,supported]);
     return { suppressBrowserSource:own, nativeReady:own&&supported===true };
 }

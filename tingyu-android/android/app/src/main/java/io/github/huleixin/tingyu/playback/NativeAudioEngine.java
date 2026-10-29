@@ -52,6 +52,8 @@ public final class NativeAudioEngine {
     private final ExoPlayer player;
     private final Context context;
     private final PlaybackSpectrumProcessor spectrum;
+    private final NativeAudioOutputPolicy outputPolicy=new NativeAudioOutputPolicy();
+    private boolean interactive=true;
     private Consumer<JSObject> listener;
     private volatile String sourceId="";
     private String songKey="";
@@ -87,6 +89,7 @@ public final class NativeAudioEngine {
                 if(sourceId.isEmpty()||item==null||item.localConfiguration==null||!(item.localConfiguration.tag instanceof JSObject))return;
                 JSObject queued=(JSObject)item.localConfiguration.tag;
                 songKey=item.mediaId;endedHandoff=false;
+                if(reason==Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)applyOutputPolicy(true);
                 io.github.huleixin.tingyu.FoliaPlaybackService.publishQueuedTrack(context,queued,player.getPlayWhenReady());
                 emit("queue-transition",true);
             }
@@ -98,6 +101,7 @@ public final class NativeAudioEngine {
                     endedHandoff=true;if(handoffWake!=null)handoffWake.acquire(20_000L);
                 }
                 if(p.isPlaying()||p.getPlayerError()!=null)releaseHandoff();
+                if(!p.getPlayWhenReady()||p.getPlaybackState()==Player.STATE_ENDED)applyOutputPolicy(true);
                 emit("state",false);main.removeCallbacks(heartbeat);if(needsClock())main.postDelayed(heartbeat,1000);
             }
             @Override public void onPlayerError(PlaybackException error){
@@ -173,8 +177,15 @@ public final class NativeAudioEngine {
         fade=value.optBoolean("fade",fade);spectrum.enabled=value.optBoolean("analysis",spectrum.enabled);
         if(value.has("volume")){volume=(float)Math.max(0,Math.min(1,value.optDouble("volume",volume)));player.setVolume(volume);}
         player.setRepeatMode(value.optBoolean("loop",false)?Player.REPEAT_MODE_ONE:Player.REPEAT_MODE_OFF);
+        interactive=value.optBoolean("interactive",interactive);
+        outputPolicy.request(interactive,spectrum.enabled);
+        applyOutputPolicy(!player.getPlayWhenReady()||player.getPlaybackState()==Player.STATE_IDLE||player.getPlaybackState()==Player.STATE_ENDED);
+    }
+    private void applyOutputPolicy(boolean safeBoundary){
+        int mode=outputPolicy.change(safeBoundary);if(mode<0)return;
+        PlaybackTestDiagnostics.note("output-policy",new JSObject().put("offloadPreference",mode).put("safeBoundary",safeBoundary).put("interactive",interactive).put("analysis",spectrum.enabled));
         player.setTrackSelectionParameters(player.getTrackSelectionParameters().buildUpon().setAudioOffloadPreferences(
-            new TrackSelectionParameters.AudioOffloadPreferences.Builder().setAudioOffloadMode(spectrum.enabled?0:1).build()).build());
+            new TrackSelectionParameters.AudioOffloadPreferences.Builder().setAudioOffloadMode(mode).build()).build());
     }
     private boolean needsClock(){return player.getPlayWhenReady()&&player.getPlaybackState()!=Player.STATE_ENDED&&player.getPlayerError()==null;}
     private void cancelFade(){fadeGeneration++;}
@@ -212,7 +223,7 @@ public final class NativeAudioEngine {
         if(failure!=null){value.put("errorCode",failure.errorCode);value.put("message",failure.getErrorCodeName());}
         if(type.equals("diagnostics")){
             value.put("nativeQueueItems",player.getMediaItemCount()).put("nativeQueueIndex",player.getCurrentMediaItemIndex())
-                .put("analysis",spectrum.enabled).put("handoffWakeHeld",handoffWake!=null&&handoffWake.isHeld());
+                .put("analysis",spectrum.enabled).put("offloadPreference",outputPolicy.applied()).put("interactive",interactive).put("handoffWakeHeld",handoffWake!=null&&handoffWake.isHeld());
             value.put("volume",player.getVolume()).put("playWhenReady",player.getPlayWhenReady()).put("suppressionReason",player.getPlaybackSuppressionReason()).put("audioSessionId",player.getAudioSessionId());
             androidx.media3.common.Format format=player.getAudioFormat();
             if(format!=null)value.put("mime",format.sampleMimeType).put("sampleRate",format.sampleRate).put("channels",format.channelCount).put("pcmEncoding",format.pcmEncoding);
