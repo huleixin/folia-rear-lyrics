@@ -115,6 +115,9 @@ public final class NativeAudioEngine {
     }
     public JSObject snapshot(String type,boolean external){
         JSObject value=new JSObject();value.put("id",sourceId);value.put("sequence",sequence);value.put("type",type);value.put("external",external);
+        // JS receives this asynchronously. Anchor interpolation to sampling, not delivery,
+        // so delayed heartbeats cannot rewind lyric/word animations at a boundary.
+        value.put("capturedAtMs",System.currentTimeMillis());
         value.put("position",Math.max(0,player.getCurrentPosition())/1000.0);value.put("duration",Math.max(0,player.getDuration())/1000.0);
         value.put("buffered",Math.max(0,player.getBufferedPosition())/1000.0);value.put("playing",player.isPlaying());value.put("paused",desiredPaused||!player.getPlayWhenReady());
         value.put("status",player.getPlaybackState());

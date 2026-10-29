@@ -32,6 +32,28 @@ it('resolves Play on native output, anchors the clock, and does not replay playi
     const values=new Array(1024).fill(21);f.state({type:'spectrum',spectrum:values});expect(nativeAudioSpectrum(f.element)![10]).toBe(21);
     await f.adapter.dispose();
 });
+it('does not replay a lyric boundary when a native clock packet arrives late',async()=>{
+    vi.useFakeTimers({now:100000,toFake:['Date','performance','setTimeout','clearTimeout']});
+    const f=await fixture(),play=f.element.play();await f.flush();
+    f.state({paused:false,playing:true,position:12.9,capturedAtMs:Date.now()});await play;
+    vi.advanceTimersByTime(220);const before=f.element.currentTime;
+    // Native sampled 70ms before JS could process the packet; that delay is not a seek.
+    f.state({type:'clock',paused:false,playing:true,position:13.05,capturedAtMs:Date.now()-70});
+    expect(f.element.currentTime).toBeCloseTo(before,5);
+    expect(f.element.currentTime).toBeGreaterThan(13.1);
+    // Real backward seeks (including short ones) must remain immediate.
+    f.element.currentTime=12.98;await f.flush();
+    f.state({type:'seeked',paused:false,playing:true,position:12.98,capturedAtMs:Date.now()});
+    expect(f.element.currentTime).toBeCloseTo(12.98);await f.adapter.dispose();
+});
+it('never extrapolates paused packets or implausibly old timestamps',async()=>{
+    vi.useFakeTimers({now:100000,toFake:['Date','performance','setTimeout','clearTimeout']});
+    const f=await fixture();f.state({position:12,capturedAtMs:Date.now()-400});
+    expect(f.element.currentTime).toBe(12);
+    const play=f.element.play();await f.flush();
+    f.state({playing:true,paused:false,position:15,capturedAtMs:Date.now()-60000});await play;
+    expect(f.element.currentTime).toBe(15);await f.adapter.dispose();
+});
 it('cancels stale Play on Pause, freezes its local clock, and passes seek/volume without UI-frame polling',async()=>{
     const f=await fixture();const promise=f.element.play().catch(reason=>reason.name);await f.flush();f.element.pause();
     expect(await promise).toBe('AbortError');expect(f.element.paused).toBe(true);

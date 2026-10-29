@@ -26,7 +26,12 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         if(value.type!=='clock'&&!value.spectrum)notePlaybackTest('native-state',{type:value.type,status:value.status,playing:value.playing,paused:value.paused,position:value.position,error:value.message??''});
         if(value.spectrum){bands.spectrum.set(value.spectrum.length<=1024?value.spectrum:value.spectrum.slice(0,1024));return;}
         const wasPlaying=playing;
-        position=value.position;duration=value.duration;buffered=value.buffered;anchor=performance.now();playing=value.playing;
+        // Native and WebView share the system wall clock; performance.now remains the
+        // local monotonic clock between packets. Ignore missing/stale timestamps after
+        // backgrounding or a wall-clock adjustment, and never advance stopped output.
+        const deliveryMs=value.capturedAtMs===undefined?0:Date.now()-value.capturedAtMs;
+        const deliverySec=value.playing&&!value.paused&&value.status===3&&deliveryMs>=0&&deliveryMs<=1000?deliveryMs/1000:0;
+        position=value.position+deliverySec;duration=value.duration;buffered=value.buffered;anchor=performance.now();playing=value.playing;
         if(value.errorCode){
             const firstError=!error;
             error={code:value.errorCode>=2000&&value.errorCode<3000?2:3,message:`原生播放失败：${value.message??value.errorCode}`} as MediaError;

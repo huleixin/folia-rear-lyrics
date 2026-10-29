@@ -75,7 +75,10 @@ export function captureSettingsDocument(root:HTMLElement){
         }
         let childClip=childArea!==area?undefined:clip;
         if(childArea===area&&/(hidden|clip)/.test(style.overflow))childClip=box;
-        const children=[...element.childNodes];
+        // Closed details retain descendant geometry in Chromium, but only their first
+        // summary is painted. Exporting the hidden body overlaps the controls below it.
+        const summary=element instanceof HTMLDetailsElement&&!element.open?element.querySelector(':scope > summary'):null;
+        const children=element instanceof HTMLDetailsElement&&!element.open?(summary?[summary]:[]):[...element.childNodes];
         // Positioned menus paint after normal siblings, like the original browser stacking order.
         children.sort((a,b)=>{const z=(node:Node)=>node instanceof Element?Number(getComputedStyle(node).zIndex)||0:0;return z(a)-z(b)});
         for(const child of children){
