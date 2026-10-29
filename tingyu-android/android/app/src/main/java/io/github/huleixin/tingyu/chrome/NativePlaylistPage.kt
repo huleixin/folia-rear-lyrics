@@ -117,7 +117,7 @@ private val PlaylistJade=Color(0xFF7EE0C2)
                 page.sections.filter{it.layout=="input"}.forEach{section->item(section.id){Box(Modifier.padding(horizontal=18.dp,vertical=8.dp)){NativePageInput(section,action)}}}
                 items(tracks.total,key={index->"${tracks.dataKey}:$index"}){index->
                     val item=cache.get(tracks,index)
-                    if(item!=null)NativePlaylistTrack(item.copy(selected=item.id.substringAfter(':')==tracks.activeKey),index==0,tracks.playing,maxOf(tracks.total.toString().length,item.number.length),action)
+                    if(item!=null)NativePlaylistTrack(item.copy(selected=item.id.substringAfter(':')==tracks.activeKey),tracks.playing,maxOf(tracks.total.toString().length,item.number.length),action)
                     else {Spacer(Modifier.height(52.dp));LaunchedEffect(page.key,page.session,tracks.dataKey,index/100){if(cache.request(index,page.session))action(tracks.request,"",(index/100*100).toDouble())}}
                 }
                 page.sections.filter{it.layout=="message"&&it.id!="songHeading"}.forEach{section->item(section.id){Column(Modifier.padding(18.dp)){
@@ -131,9 +131,9 @@ private val PlaylistJade=Color(0xFF7EE0C2)
         }
     }
 }
-@Composable private fun NativePlaylistTrack(item:NativePageItem,first:Boolean,playing:Boolean,numberDigits:Int,action:PageAction){
+@Composable private fun NativePlaylistTrack(item:NativePageItem,playing:Boolean,numberDigits:Int,action:PageAction){
     val numberWidth=playlistNumberWidth(numberDigits,LocalDensity.current.fontScale).dp
-    Column(Modifier.fillMaxWidth().then(if(first)Modifier.clip(RoundedCornerShape(topStart=26.dp,topEnd=26.dp))else Modifier).background(if(item.selected)Color(0x247EE0C2)else Color.Transparent)
+    Column(Modifier.fillMaxWidth().background(if(item.selected)Color(0x247EE0C2)else Color.Transparent)
         .drawBehind{if(item.selected)drawRect(PlaylistJade,size=Size(3.dp.toPx(),size.height))}){
         Row(Modifier.fillMaxWidth().height(51.dp).padding(start=18.dp,end=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
             Text(item.number,color=if(item.selected)PlaylistJade else PageMuted,fontSize=11.sp,maxLines=1,softWrap=false,

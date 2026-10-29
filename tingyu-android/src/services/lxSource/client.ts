@@ -10,6 +10,7 @@ export class LxRuntime {
     private timers = new Map<number, ReturnType<typeof setTimeout>>();
     private serial = 0;
     private closed = false;
+    get isClosed(): boolean { return this.closed; }
     readonly ready: Promise<LxCapabilities>;
     private initResolve!: (value: LxCapabilities) => void;
     private initReject!: (reason: Error) => void;

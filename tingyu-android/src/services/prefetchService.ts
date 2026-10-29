@@ -182,7 +182,7 @@ export const resolvePrefetchAudioUrl = async (
     const sourceRef = getPlaybackSourceRef(song);
     const providerId = sourceRef.kind === 'online' ? sourceRef.providerId : undefined;
     try {
-        const audioExists = await hasCachedSongAudio(song);
+        const audioExists = !useLxSourceStore.getState().activeId && await hasCachedSongAudio(song);
         if (signal.aborted) return null;
         if (audioExists) {
             console.log(`[Prefetch] Audio already cached for: ${song.name}`);

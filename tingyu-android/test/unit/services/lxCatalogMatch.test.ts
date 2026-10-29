@@ -22,3 +22,8 @@ it('tries another declared platform after a search failure, rejecting wrong arti
     expect(original.sourceRef).toMatchObject({ providerId: 'unsupported' });
     expect(search).toHaveBeenCalledTimes(2);
 });
+it('excludes the failed QQ channel and rejects cover/live/different-duration alternatives',async()=>{
+    search.mockReset().mockResolvedValue({items:[song('lx-kw','Song (Live)'),song('lx-kw','Song','Cover Singer'),song('lx-kw','Song','Singer',300000)]});
+    await expect(matchLxCatalogSong(song('qq'),{tx:{name:'QQ',qualitys:['128k']},kw:{name:'Kuwo',qualitys:['128k']}},new Set(['tx']))).rejects.toThrow('未找到匹配');
+    expect(search).toHaveBeenCalledOnce();expect(search.mock.calls[0][0]).toBe('lx-kw');
+});

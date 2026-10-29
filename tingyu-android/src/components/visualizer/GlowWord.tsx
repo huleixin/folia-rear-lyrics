@@ -56,6 +56,8 @@ export const GlowWord = <TConfig extends { id: string }>({
     return (
         <motion.div
             key={`${config.id}`}
+            data-lyric-phase={status}
+            data-lyric-start={word.startTime}
             custom={{
                 config,
                 activeColor,

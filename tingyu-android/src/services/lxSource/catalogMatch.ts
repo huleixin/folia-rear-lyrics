@@ -5,16 +5,19 @@ import { createProviderSongMetadata } from '../../utils/songMetadata';
 
 // src/services/lxSource/catalogMatch.ts
 // Explicit cross-provider playback: preserve the original queue/library identity.
-export async function matchLxCatalogSong(song:SongResult,capabilities:LxCapabilities):Promise<SongResult>{
+export async function matchLxCatalogSong(song:SongResult,capabilities:LxCapabilities,excluded:ReadonlySet<string>=new Set()):Promise<SongResult>{
     const ref=song.sourceRef;
     if(ref?.kind!=='online')return song;
     const platform=lxPlatformFor(ref.providerId);
-    if(platform&&capabilities[platform])return song;
+    if(platform&&capabilities[platform]&&!excluded.has(platform))return song;
     const {omni}=await import('../onlineMusic/omni');
     const {normalizeLyricMatchText:normalize}=await import('../../utils/lyrics/matchScore');
     const metadata=createProviderSongMetadata(song),title=normalize(song.name);
     const artists=new Set(metadata.artists.map(artist=>normalize(artist.name)).filter(Boolean));
-    for(const source of Object.keys(capabilities).slice(0,5)){
+    // Prefer the public catalog before platforms requiring account transport.
+    const sources=Object.keys(capabilities).filter(source=>!excluded.has(source));
+    if(sources.includes('kw')){sources.splice(sources.indexOf('kw'),1);sources.unshift('kw')}
+    for(const source of sources.slice(0,5)){
         let page;
         try {page=await omni.searchProviderSongs(`lx-${source}`,`${song.name} ${metadata.artists[0]?.name??''}`,{limit:20,offset:0});}catch(error){if(error instanceof DOMException&&error.name==='AbortError')throw error;continue;}
         const candidate=page.items.find(item=>{

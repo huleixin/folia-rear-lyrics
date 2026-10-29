@@ -50,7 +50,9 @@ export async function loadOnlineSongAudioSource(
 ): Promise<OnlineAudioSourceResult> {
     const lxSelected=!!selectedLxScript();
     // 缓存 blob 解码失败过（distrust）或调用方要求绕过时不读缓存；读缓存出错只记日志，继续走 provider。
-    if (!options.bypassMediaCache && !isCachedSongAudioDistrusted(song)) {
+    // Legacy downloaded audio has no source provenance and may be the platform's
+    // preview. Selecting a custom source must actually resolve through that source.
+    if (!lxSelected && !options.bypassMediaCache && !isCachedSongAudioDistrusted(song)) {
         let cachedAudioBlob: Blob | null = null;
         try {
             cachedAudioBlob = await getCachedSongAudioBlob(song);

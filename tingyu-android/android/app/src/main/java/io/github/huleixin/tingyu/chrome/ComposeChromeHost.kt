@@ -195,7 +195,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             // Keep the capture node attached across auto-hide and route changes. Removing it
             // recreates the AndroidView/GPU recording while the lyric canvas is drawing.
             Box(Modifier.fillMaxSize().then(if(Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop)else Modifier)) {
-                AndroidView(factory = { web }, modifier = Modifier.fillMaxSize().stageExitTransform(stageExit,exitProgress).zIndex(if(destination=="stage"||webOverlay||stageExit.active)2f else 0f))
+                // Keep the hardware WebView in one stable texture before the backdrop
+                // records it. Replaying its live drawing functor directly in both the
+                // scene and glass sampling can lose individual text/WebGL layers.
+                // The node stays attached across routes/auto-hide; no software drawing.
+                AndroidView(factory = { web }, modifier = Modifier.fillMaxSize()
+                    .graphicsLayer { alpha = if(Build.VERSION.SDK_INT>=31).999f else 1f }
+                    .stageExitTransform(stageExit,exitProgress).zIndex(if(destination=="stage"||webOverlay||stageExit.active)2f else 0f))
                 if(page==null&&firstHomeFrame&&destination=="home")NativePageView(bootPage,Modifier.fillMaxSize().zIndex(1f)){_,_,_->}
                 // One route-level animation, with no HTML exit animation or full-screen blur.
                 // Data/clock revisions keep the same content key and do not restart it.
