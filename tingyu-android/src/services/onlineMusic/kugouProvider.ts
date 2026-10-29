@@ -1,4 +1,5 @@
 import type { SongResult, UnifiedSong } from '../../types';
+import { kugouCatalogAudioFields } from './catalogAudioSpecs';
 import {
     OnlineProviderError,
     type AudioQualityPreference,
@@ -358,6 +359,7 @@ export const normalizeKugouSong = (raw: unknown): UnifiedSong => {
         album,
         durationMs: duration,
         kgHash: hash,
+        ...kugouCatalogAudioFields(item),
         sourceRef: { kind: 'online', providerId: 'kugou', mediaId: hash, providerData },
     };
 };

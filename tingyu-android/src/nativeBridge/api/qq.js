@@ -396,6 +396,12 @@ function mapQQTrack(track, fallback) {
   const albumName = albumObj.name || albumObj.title || (typeof track.album === 'string' ? track.album : '') || track.albumname || track.albumName || fallback.album || '';
   const qqId = track.id || track.songid || track.songId || track.songID || fallback.qqId || fallback.id || '';
   const interval = Number(track.interval || track.songInterval || track.duration || fallback.interval || 0) || 0;
+  // Keep only named catalog sizes, not playback URLs or undocumented capability bit masks.
+  const catalogFile = {};
+  for (const key of ['size_320mp3', 'size_ape', 'size_flac', 'size_hires', 'size_dolby', 'size_dts']) {
+    const value = Number(track.file?.[key] ?? fallback.file?.[key]);
+    if (Number.isFinite(value) && value > 0) catalogFile[key] = value;
+  }
   return {
     provider: 'qq',
     source: 'qq',
@@ -405,6 +411,7 @@ function mapQQTrack(track, fallback) {
     mid,
     songmid: mid,
     mediaMid: (track.file && track.file.media_mid) || track.strMediaMid || track.media_mid || track.mediaMid || fallback.mediaMid || '',
+    ...(Object.keys(catalogFile).length ? { file: catalogFile } : {}),
     name: track.name || track.title || track.songname || track.songName || fallback.name || '',
     artist: artistText || fallback.artist || '',
     artists: artists.length ? artists : (artistText ? [{ name: artistText }] : fallback.artists || []),

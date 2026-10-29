@@ -7,6 +7,7 @@ import type {
     ProviderUser,
 } from '../../types/onlineMusic';
 import { getOriginalCoverUrl } from '../../utils/coverUrl';
+import { qqCatalogAudioFields } from './catalogAudioSpecs';
 
 // src/services/onlineMusic/qqNormalize.ts
 
@@ -152,6 +153,7 @@ export const normalizeQqSong = (raw: unknown): UnifiedSong => {
                 ? bridgeDurationMs
                 : Number.isFinite(intervalSeconds) ? intervalSeconds * 1000 : 0,
         ...(songMid ? { qqMid: songMid } : {}),
+        ...qqCatalogAudioFields(item),
         sourceRef: {
             kind: 'online',
             providerId: 'qq',

@@ -19,6 +19,7 @@ import { useCollectionNavigationStore } from '../../../../stores/useCollectionNa
 import { useAppViewStore } from '../../../../stores/useAppViewStore';
 import { useSettingsModalStore } from '../../../../stores/useSettingsModalStore';
 import { collectionKey } from '../../../core/model/collectionIdentity';
+import { getCatalogAudioLabels } from '../../../../utils/catalogAudioLabels';
 
 // src/library/suites/mobile/native/useNativeCollectionPage.ts
 export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:LibraryCollectionSurfaceProps,model:ReturnType<typeof useMobileCollection>,
@@ -43,7 +44,9 @@ export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:L
         filterToggle:()=>setFilterOpen(value=>!value),filter:e=>{model.setQuery(e.text??'');setOffset(0)},range:e=>setOffset(Math.max(0,Math.floor((e.value??0)/100)*100))};
     const items=useMemo(()=>Array.from({length:Math.max(0,Math.min(100,total-offset))},(_,local)=>{
         const index=indexes?.[offset+local]??offset+local,song=model.view.displayTracks[index],key=getPlaybackSongKey(song);
+        const audioSpecs=getCatalogAudioLabels(song,t);
         return{id:`${index}:${key}`,title:props.collection.type==='playlist'?song.name:`${index+1}. ${song.name}`,number:String(index+1).padStart(2,'0'),duration:formatTime(getSongDurationMs(song)/1000),subtitle:getSongArtistLabel(song),image:absolutePageImage(getSongCoverUrl(song)),
+            ...(audioSpecs.length?{audioSpecs,audioSpecsLabel:t('catalogAudioSpecs.description',{specs:audioSpecs.join(' / ')})}:{}),
             action:`play:${index}:${key}`,secondary:`menu:${index}:${key}`,secondaryLabel:t('mobileLibrary.trackActions',{name:song.name}),disabled:isSongUnavailable(song),selected:key===activeKey};
     }),[model.view.displayTracks,indexes,total,offset,activeKey,props.collection.type,t]);
     const controls=[{id:'play',title:t('mobileLibrary.playAll'),action:'playAll',disabled:!model.actions.capabilities.scope.enabled}];

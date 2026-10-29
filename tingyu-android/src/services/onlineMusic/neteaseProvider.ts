@@ -1,4 +1,5 @@
 import type { SongResult, UnifiedSong } from '../../types';
+import { neteaseCatalogAudioFields } from './catalogAudioSpecs';
 import { OnlineProviderError } from '../../types/onlineMusic';
 import type {
     AudioQualityPreference,
@@ -264,6 +265,7 @@ export const normalizeNeteaseSong = (raw: unknown): UnifiedSong => {
         noCopyrightRcmd: normalized.noCopyrightRcmd,
         resourceState: normalized.resourceState,
         privilege: normalized.privilege,
+        ...neteaseCatalogAudioFields(raw),
         sourceRef: {
             kind: 'online',
             providerId: 'netease',

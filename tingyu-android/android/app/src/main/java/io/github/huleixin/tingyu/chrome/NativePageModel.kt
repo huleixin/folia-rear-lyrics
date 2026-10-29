@@ -5,7 +5,7 @@ import org.json.JSONObject
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageModel.kt
 data class NativePageItem(val id: String, val title: String, val subtitle: String, val image: String,
     val action: String, val secondary: String, val secondaryLabel: String, val disabled: Boolean, val selected: Boolean,
-    val number:String="", val duration:String="")
+    val number:String="", val duration:String="", val audioSpecs:List<String> = emptyList(), val audioSpecsLabel:String="")
 data class NativePageSection(val id: String, val title: String, val layout: String, val items: List<NativePageItem>,
     val text: String, val value: String, val placeholder: String, val action: String, val submit: String,
     val more: String, val moreLabel: String, val busy: Boolean, val total: Int, val offset: Int, val request: String, val dataKey:String="", val image:String="",
@@ -30,7 +30,9 @@ data class NativePage(val id: String, val session: String, val generation: Long,
                     val item=rows!!.getJSONObject(row)
                     NativePageItem(item.optString("id").take(600),item.optString("title").take(500),item.optString("subtitle").take(1000),
                         item.optString("image").take(200000),item.optString("action").take(800),item.optString("secondary").take(800),
-                        item.optString("secondaryLabel",""),item.optBoolean("disabled"),item.optBoolean("selected"),item.optString("number"),item.optString("duration"))
+                        item.optString("secondaryLabel",""),item.optBoolean("disabled"),item.optBoolean("selected"),item.optString("number"),item.optString("duration"),
+                        item.optJSONArray("audioSpecs").let { specs -> (0 until minOf(specs?.length()?:0,2)).mapNotNull { (specs?.opt(it) as? String)?.take(16)?.takeIf { text -> text.isNotBlank() } } },
+                        item.optString("audioSpecsLabel").take(240))
                 }
                 val layout=block.optString("layout");require(layout in setOf("rows","cards","hero","chips","input","message"))
                 NativePageSection(block.optString("id"),block.optString("title"),layout,items,block.optString("text"),block.optString("value"),

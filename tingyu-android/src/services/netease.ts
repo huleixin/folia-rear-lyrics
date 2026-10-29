@@ -1,4 +1,5 @@
 import { NeteaseUser, NeteasePlaylist, NoCopyrightRecommendation, SongPrivilege, SongResult } from "../types";
+import { neteaseCatalogAudioFields } from './onlineMusic/catalogAudioSpecs';
 import { readProviderSessionValue, removeProviderSessionValue, writeProviderSessionValue } from './onlineMusic/providerStorage';
 import type { PersonalFmRequestOptions } from '../types/onlineMusic';
 import {
@@ -395,6 +396,7 @@ const normalizeSongResult = (raw: any): SongResult => {
       coverUrl: picUrl || undefined,
     },
     durationMs: duration,
+    ...neteaseCatalogAudioFields(raw),
     aliases: Array.isArray(base?.alia) ? base.alia : [],
     translatedNames: Array.isArray(base?.tns) ? base.tns : [],
     t: tValue,

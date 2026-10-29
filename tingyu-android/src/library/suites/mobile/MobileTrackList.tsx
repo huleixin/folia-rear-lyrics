@@ -14,6 +14,7 @@ import MobileScrollFrame from './MobileScrollFrame';
 import MobilePlayingIndicator from './MobilePlayingIndicator';
 import { useMobileTrackLocator } from './useMobileTrackLocator';
 import MobileArtwork from './MobileArtwork';
+import MobileSongSubtitle from './MobileSongSubtitle';
 
 // src/library/suites/mobile/MobileTrackList.tsx
 const scrollPositions = new Map<string, number>();
@@ -81,7 +82,7 @@ function TrackRow({
             </button>}
             <button className="ml-song-copy" onClick={() => onPlay(song)} disabled={isSongUnavailable(song)}>
                 <strong>{song.name}</strong>
-                <small>{getSongArtistLabel(song)}</small>
+                <MobileSongSubtitle artist={getSongArtistLabel(song)} song={song} t={t} />
             </button>
             {active && <MobilePlayingIndicator playing={playing} />}
             <span className="ml-duration">{formatTime(getSongDurationMs(song) / 1000)}</span>

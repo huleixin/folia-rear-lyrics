@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import type { LineRenderHints } from './utils/lyrics/renderHints';
 import type { MediaId, PlaybackSourceRef, ProviderCatalogRef } from './types/onlineMusic';
+import type { CatalogAudioSpec } from './types/catalogAudioSpecs';
 
 export interface LyricRuby {
   text: string;
@@ -1233,6 +1234,8 @@ export interface SongResult {
   t?: 0 | 1 | 2;
   sourceType?: 'netease' | 'cloud';
   sourceRef?: PlaybackSourceRef;
+  /** Platform-declared catalog specifications; distinct from the stream actually being played. */
+  catalogAudioSpecs?: readonly CatalogAudioSpec[];
   /** Identity of the concrete bytes selected for playback; used to reject stale derived media. */
   playbackSourceRevision?: string;
   fee?: number;

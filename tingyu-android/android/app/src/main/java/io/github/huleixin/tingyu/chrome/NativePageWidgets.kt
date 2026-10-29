@@ -106,7 +106,7 @@ internal val PageAccent = Color(0xFF9FE0C4)
         Column(Modifier.weight(1f)) {
             Text(item.title,color=if(item.selected)PageAccent else PageInk.copy(alpha=if(item.disabled).45f else 1f),fontSize=titleSize.sp,lineHeight=(titleSize*1.4).sp,
                 fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)
-            if(item.subtitle.isNotBlank())Text(item.subtitle,color=PageMuted,fontSize=subtitleSize.sp,lineHeight=(subtitleSize*1.5).sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=2.dp))
+            if(item.subtitle.isNotBlank()||item.audioSpecs.isNotEmpty())NativeSongSubtitle(item,size=subtitleSize,lineHeight=(subtitleSize*1.5).sp,modifier=Modifier.padding(top=2.dp))
         }
         if(item.secondary.isNotBlank())ChromeButton("更多",size=36.dp,onClick={action(item.secondary)}){PageIcon("ellipsis-vertical",PageMuted,Modifier.size(18.dp))}
         else if(chevron)PageIcon("chevron-right",PageMuted,Modifier.size(16.dp))

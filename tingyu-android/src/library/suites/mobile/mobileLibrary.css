@@ -980,6 +980,30 @@
     text-overflow: ellipsis;
     margin-top: 3px;
 }
+.ml-song-copy .ml-song-subtitle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+    line-height: 18px;
+}
+.ml-song-artist { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ml-audio-specs { display: inline-flex; align-items: center; gap: 4px; flex: none; max-width: 55%; overflow: hidden; }
+.ml-audio-spec {
+    flex: 0 1 auto;
+    min-width: 0;
+    padding: 0 4px;
+    border: 1px solid color-mix(in srgb, var(--ml-jade) 22%, transparent);
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--ml-jade) 7%, transparent);
+    color: color-mix(in srgb, var(--ml-jade) 78%, var(--ml-muted));
+    font-size: 9px;
+    line-height: 13px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 .ml-song-playing {
     color: var(--ml-jade);
     flex: none;

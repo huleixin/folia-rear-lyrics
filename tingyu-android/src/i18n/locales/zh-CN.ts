@@ -1,6 +1,7 @@
 
 
 export default {
+  catalogAudioSpecs: { high: 'HQ', lossless: '无损', hires: 'Hi-Res', dolby: '杜比', dts: 'DTS', description: '平台标注规格：{{specs}}，不代表当前播放音质' },
   playbackEngine: {"title": "播放引擎", "description": "默认使用系统原生播放，锁屏和息屏时也能连续播放。均衡器、自动混音、ReplayGain、缓存音频或原生不可用时会自动使用兼容通道。", "native": "系统原生", "compatible": "兼容通道", "pending": "正在检测", "actual": "当前使用：{{engine}}", "apply": "停止播放并应用", "note": "切换会先停止当前播放。兼容通道使用播放页内的音频管线，支持均衡器、自动混音、ReplayGain 和播放缓存。原生播放失败时，本次会锁回兼容通道。", "failed": "切换未完成，原来的引擎仍在生效。", "reason": {"probing": "正在检测", "native-selected": "系统原生", "selected-stable": "已选择兼容通道", "native-unavailable": "原生通道未响应或不可用", "native-error-fallback": "原生播放失败，已切回兼容通道", "blob-or-unsupported-uri": "缓存或该音频地址需要使用兼容通道", "effects": "音效需要使用兼容通道", "automix": "混音需要使用兼容通道", "replaygain": "增益需要使用兼容通道", "compatibility-latched": "本次已使用兼容通道，可再应用一次重试"}},
   playbackTest: {"tone": "加载 10 秒测试音频", "toneLoaded": "已加载。返回首页或歌词舞台，点击播放，试听 10 秒提示音。加载会替换测试版当前队列。", "export": "导出播放日志"},
   "rearBridge": {
