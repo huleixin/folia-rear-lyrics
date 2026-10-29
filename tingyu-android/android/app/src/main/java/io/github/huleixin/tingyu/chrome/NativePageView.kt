@@ -26,7 +26,7 @@ internal typealias PageAction = (String, String, Double) -> Unit
         page.id == "settings" -> listOf(Color(0xFF061D16), Color(0xFF02120E), Color(0xFF041A13))
         page.id == "search" -> listOf(Color(0xFF05170F), Color(0xFF03110C))
         page.home -> listOf(Color(0xFF102D25), Color(0xFF010E0D), Color(0xFF010D0C))
-        else -> listOf(Color(0xFF03221A), Color(0xFF03130E), Color(0xFF031812))
+        else -> PlaylistBackgroundColors
     }
     Box(if(page.document!=null)modifier else modifier.background(Brush.verticalGradient(colors))) {
         // Match CSS viewport pixels, independent of Android system text magnification.

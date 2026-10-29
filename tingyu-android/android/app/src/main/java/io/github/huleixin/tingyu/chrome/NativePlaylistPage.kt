@@ -11,17 +11,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.draw.BlurredEdgeTreatment
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -50,17 +44,8 @@ private val PlaylistJade=Color(0xFF7EE0C2)
         list.animateScrollToItem(tracks.activeIndex+headerItems,-100)
     }}
     BoxWithConstraints(modifier){
-        val short=maxHeight<500.dp;val width=maxWidth.value;val ambientHeight=minOf(560.dp,maxHeight*.7f)
-        // Fade the isolated cover layer, never the scrolling rows or controls. The mask
-        // reaches zero before its bounds so blur cannot leave a rectangular bottom edge.
-        if(cover.image.isNotBlank())Box(Modifier.fillMaxWidth().height(ambientHeight)
-            .graphicsLayer{compositingStrategy=CompositingStrategy.Offscreen;clip=true}
-            .drawWithCache{val fade=Brush.verticalGradient(0f to Color.White,.28f to Color.White,1f to Color.Transparent)
-                onDrawWithContent{drawContent();drawRect(fade,blendMode=BlendMode.DstIn)}}){
-            AsyncImage(pageImage(cover.image),null,Modifier.align(Alignment.TopEnd).offset(y=(-30).dp)
-                .fillMaxWidth().height(maxOf(440.dp,ambientHeight+60.dp)).graphicsLayer{alpha=.28f}
-                .blur(22.dp,edgeTreatment=BlurredEdgeTreatment.Unbounded),contentScale=ContentScale.Crop)
-        }
+        val short=maxHeight<500.dp;val width=maxWidth.value
+        NativePlaylistBackdrop(cover.image,maxHeight)
         Column(Modifier.fillMaxSize().padding(top=(page.safeTop+8).dp)){
             Row(Modifier.fillMaxWidth().padding(horizontal=10.dp).height(44.dp),verticalAlignment=Alignment.CenterVertically){
                 ChromeButton(label("back"),size=44.dp,onClick={action(page.leading,"",0.0)}){PageIcon("arrow-left",PageInk,Modifier.size(23.dp))}
