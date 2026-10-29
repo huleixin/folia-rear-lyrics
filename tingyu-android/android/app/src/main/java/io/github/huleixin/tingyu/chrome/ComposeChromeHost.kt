@@ -92,8 +92,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var webOverlay by mutableStateOf(false)
     private var selectedTab by mutableIntStateOf(0)
     private var playlistDetail by mutableStateOf(false)
-    private var shellGeneration=0L
-    private var shellRevision=0L
+    private val routeFence=NativeRouteFence()
+    private var pendingStageEntry by mutableStateOf(false)
+    private var stageEntryRequest=0L
     private var firstHomeFrame by mutableStateOf(true)
     private var webStageBackground: Boolean? = null
     // A stage is a full-window destination, not a transparent preview island. Clearing its
@@ -108,8 +109,21 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     fun bootstrap() { NativeArtworkCache.install(web.context);if(host==null)attach();syncWebBackground() }
     fun shell(value:JSONObject) {
         val generation=value.optLong("generation");val revision=value.optLong("revision")
-        if(generation<shellGeneration||generation==shellGeneration&&revision<shellRevision)return
-        shellGeneration=generation;shellRevision=revision
+        val ticket=routeFence.request(generation,revision)?:return
+        stageEntryRequest++
+        val next=value.optString("route","home")
+        require(next in setOf("home","collection","search","settings","stage","web"))
+        if(next=="stage"&&destination!="stage") {
+            pendingStageEntry=true
+            // The JS DOM commit precedes this request. Keep the outgoing native page in
+            // place until Chromium can draw that commit, instead of exposing its old frame.
+            web.postVisualStateCallback(revision,object:WebView.VisualStateCallback(){
+                override fun onComplete(requestId:Long){if(routeFence.current(ticket))commitShell(value)}
+            })
+        } else commitShell(value)
+    }
+    private fun commitShell(value:JSONObject) {
+        pendingStageEntry=false;stageEntryRequest++
         val next=value.optString("route","home")
         if(next!="stage")stageExit.clear()
         else if(destination!="stage")stageExit.suppressReturnMotion=false
@@ -127,7 +141,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var active by mutableStateOf(true)
     private var focused by mutableStateOf(true)
     fun windowFocusChanged(value:Boolean){focused=value;host?.invalidate()}
-    fun requiresWebBack():Boolean=destination!="home"||selectedTab!=0||webOverlay||stageExit.active
+    fun requiresWebBack():Boolean=pendingStageEntry||destination!="home"||selectedTab!=0||webOverlay||stageExit.active
     private var host: ComposeView? = null
     private var parent: ViewGroup? = null
     private var params: ViewGroup.LayoutParams? = null
@@ -142,11 +156,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         if(!frameOrder.accept(id,next.session,next.generation,next.revision)){reply(status().put("accepted",false));return}
         if(next.enabled&&host==null)attach()
         pages[next.id]=next
-        if(retained.update(next)&&pageBelongsToRoute(next,destination,selectedTab,pageTarget,value.navigation,navigation)){
+        // Do not poison retained geometry with an enabled packet from a route being
+        // retired (e.g. the home DOM acquiring the stage's safe-area coordinates).
+        val ownsPresentation=retained.updateForRoute(next,destination,selectedTab,pageTarget,value.navigation,navigation)
+        if(ownsPresentation){
             recordMotion(next.key)
             presented=next
         }
-        cache.commit(value.cache)
+        if(ownsPresentation)cache.commit(value.cache)
         reply(status().put("accepted",true).put("session",next.session))
     }
     fun pageRemove(id: String, session: String) {
@@ -191,7 +208,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val backdrop = rememberLayerBackdrop()
         val stageBackdrop = rememberLayerBackdrop()
         val exitProgress=rememberStageExitProgress(stageExit,reducedMotion)
-        val visible = if (!webOverlay) surfaces.values.filter {
+        val visible = if (!webOverlay&&!pendingStageEntry) surfaces.values.filter {
             it.enabled && NativeFooterLayout.visible(it.id,destination,playlistDetail,it.viewportWidth) &&
                 (it.id!="stage"||it.rect.width>0&&it.rect.height>0)
         } else emptyList()
@@ -222,7 +239,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     .then(if(!legacySampling&&Build.VERSION.SDK_INT>=31&&sampleWeb)Modifier.layerBackdrop(stageBackdrop)else Modifier)) {
                 AndroidView(factory = { web }, modifier = Modifier.fillMaxSize()
                     .then(if(legacySampling&&graphics.mode!=GraphicsProbeMode.C31)Modifier.graphicsLayer { alpha = if(Build.VERSION.SDK_INT>=31).999f else 1f }else Modifier)
-                    .stageExitTransform(stageExit,exitProgress))
+                    .stageExitTransform(stageExit,exitProgress,webOwnsRoutePixels(destination,webOverlay,stageExit.active)))
                 }
                 Box(Modifier.fillMaxSize().zIndex(1f).then(if(!legacySampling&&Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop)else Modifier)) {
                 if(page==null&&firstHomeFrame&&destination=="home")NativePageView(bootPage,Modifier.fillMaxSize().zIndex(1f)){_,_,_->}
@@ -283,11 +300,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         if (active && surfaces[surface.id]?.enabled==true && surfaces[surface.id]?.session == surface.session && (action !in setOf("next","previous","toggle","seek") || surfaces[surface.id]?.trackKey == surface.trackKey)) {
                             // Dismiss home chrome on the UI thread before the JS route transition starts.
                             if (surface.id=="mini" && action=="openStage") {
-                                destination="stage";firstHomeFrame=false
-                                syncWebBackground()
-                                pageTarget="";entryKey="";resolvePage()
-                                // Route visibility hides these immediately. Keep their live
-                                // enabled state so returning without a song change restores them.
+                                pendingStageEntry=true
+                                val request=++stageEntryRequest
+                                // Hide the footer immediately, but do not promote an old WebView
+                                // frame over the outgoing native page before React commits stage.
+                                web.postDelayed({if(request==stageEntryRequest&&destination!="stage")pendingStageEntry=false},900)
                             }
                             if(surface.id=="nav"&&action=="navigate"){
                                 destination=when(value.toInt()){2->"search";3->"settings";else->"home"}
@@ -314,6 +331,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         }
     }
     fun destroy() {
+        routeFence.close()
         webSamplingLayer.close()
         graphics.close()
         val compose = host ?: return

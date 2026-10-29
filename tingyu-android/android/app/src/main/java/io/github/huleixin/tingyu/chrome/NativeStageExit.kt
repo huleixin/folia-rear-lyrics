@@ -32,7 +32,7 @@ internal class NativeStageExit {
     }
     return progress.asState()
 }
-internal fun Modifier.stageExitTransform(exit:NativeStageExit,progress:State<Float>)=graphicsLayer{
+internal fun Modifier.stageExitTransform(exit:NativeStageExit,progress:State<Float>,visible:Boolean=true)=graphicsLayer{
     val p=if(exit.active)progress.value else 0f
-    translationY=size.height*.14f*p;scaleX=1f-.035f*p;scaleY=scaleX;alpha=1f-p
+    translationY=size.height*.14f*p;scaleX=1f-.035f*p;scaleY=scaleX;alpha=if(visible)1f-p else 0f
 }

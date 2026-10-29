@@ -50,4 +50,12 @@ class NativePageRetentionTest {
         val frames=NativePageRetention(2);frames.update(page("home:a"));frames.update(page("home:b"));frames.update(page("home:c"))
         assertNull(frames.find("home",0,"home:a"));frames.clear();assertNull(frames.find("home",0,""))
     }
+    @Test fun anOutgoingHomeMeasurementCannotPoisonReturnGeometry(){
+        val frames=NativePageRetention();val home=page("home:qq")
+        assertTrue(frames.updateForRoute(home,"home",0,"","nav:1","nav:1"))
+        val stale=home.copy(rect=home.rect.copy(top=32f))
+        assertFalse(frames.updateForRoute(stale,"stage",0,"","nav:2","nav:2"))
+        assertFalse(frames.updateForRoute(stale,"home",0,"","nav:1","nav:3"))
+        assertEquals(home.rect,frames.find("home",0,"")?.rect)
+    }
 }

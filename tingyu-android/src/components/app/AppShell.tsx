@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Lock, LockOpen } from 'lucide-react';
@@ -10,6 +10,7 @@ import { useMobileScrollbars } from '../../hooks/useMobileScrollbars';
 import { useActiveLibrarySuiteId } from '../../library/app/librarySuiteChoice';
 import './mainSystemBars.css';
 import '../../styles/mobileGlass.css';
+import {flushNativeShellRoute} from '../../services/nativeShellCommit';
 
 // Shared shell for the app container, Electron titlebar, and mounted audio node.
 type AppShellProps = {
@@ -52,6 +53,7 @@ const AppShell: React.FC<AppShellProps> = ({
     const mobileSuite = useActiveLibrarySuiteId() === 'mobile';
     const mobileLibrary = mobileSuite && !isPlayerView;
     const android = Capacitor.getPlatform() === 'android';
+    useLayoutEffect(()=>{if(android)flushNativeShellRoute()},[android,isPlayerView]);
     useMobileScrollbars(android || mobileLibrary);
     const [isWindowMaximized, setIsWindowMaximized] = useState(false);
     const hasFullscreenTitlebarButton = isElectronWindow && !hideFullscreenButton;

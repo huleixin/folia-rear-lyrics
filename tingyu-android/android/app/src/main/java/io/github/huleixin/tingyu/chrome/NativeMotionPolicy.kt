@@ -10,10 +10,9 @@ internal object NativeMotionPolicy {
     fun kind(from:String,to:String,back:Boolean,reduced:Boolean):NativeMotionKind=when {
         reduced||from.isEmpty()||from==to->NativeMotionKind.NONE
         root(from)&&root(to)->NativeMotionKind.TAB
-        // Settings documents contain live WebView preview holes. Translating them
-        // while the preview unmounts exposes a moving piece of the stage below.
-        from.startsWith("settings:")&&to=="stage"||to.startsWith("settings:")&&from=="stage"->NativeMotionKind.STAGE
-        from=="stage"&&root(to)||to=="stage"&&root(from)->NativeMotionKind.STAGE
+        // Stage owns its full-window transition, including playlist/detail return paths.
+        // A route key's depth must never add a second horizontal page movement to it.
+        from=="stage"||to=="stage"->NativeMotionKind.STAGE
         back->NativeMotionKind.POP
         else->NativeMotionKind.PUSH
     }

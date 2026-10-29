@@ -10,6 +10,7 @@ import { resolveInitialSettingsSection } from '../components/modal/settings/navi
 import { collectionKey } from '../library/core/model/collectionIdentity';
 import { useMotionSettingsStore, readReducedMotion } from '../stores/useMotionSettingsStore';
 import {setNativeShellPublisher,scheduleNativeShellRoute} from './nativeShellCommit';
+import {canPublishNativeStage} from '../utils/nativeStageCommit';
 
 // src/services/nativeShellRouting.ts
 // The native shell owns its UI from process start; JS only supplies destinations and data.
@@ -24,6 +25,7 @@ export function installNativeShellRouting() {
         const index=settings.initialTab==='options'&&!settings.initialSubview&&!settings.initialAnchor&&!settings.initialVisualizerSection;
         const {route,selectedTab}=nativeShellRoute({settingsOpen:settings.isOpen,settingsIndex:index,searchOpen:search,
             collectionOpen:collection,view:view.view,libraryPage:useMobileLibraryStore.getState().page});
+        if(!canPublishNativeStage(route,document.querySelector('[data-folia-app-shell]')))return;
         // Ownership follows the route, not a document flag removed during React cleanup.
         // Settings portals are captured into the same native document.
         const webOverlay=settings.isOpen?false:

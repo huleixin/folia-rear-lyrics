@@ -72,6 +72,8 @@ it('never substitutes the settings index while a new document key is being captu
     await act(async()=>root.render(h(DocumentProbe)));
     expect(bridge.update).not.toHaveBeenCalled();
     await act(async()=>root.render(h(DocumentProbe,{captured:true})));
+    // New models are published on the next layout frame, not within React's commit.
+    await act(async()=>{await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()))});
     expect(bridge.update).toHaveBeenCalledTimes(1);
     expect(bridge.update.mock.calls[0][0].navigation).toBe('route:2');
     delete document.documentElement.dataset.nativeNavigation;

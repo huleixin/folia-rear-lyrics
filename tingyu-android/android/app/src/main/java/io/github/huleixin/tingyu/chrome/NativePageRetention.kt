@@ -5,6 +5,8 @@ package io.github.huleixin.tingyu.chrome
 // settings documents are never written to disk. Loading/disabled packets never replace UI.
 internal class NativePageRetention(private val limit:Int=12) {
     private val frames=LinkedHashMap<String,NativePage>()
+    fun updateForRoute(page:NativePage,route:String,selected:Int,target:String,packetNavigation:String,navigation:String)=
+        pageBelongsToRoute(page,route,selected,target,packetNavigation,navigation)&&update(page)
     fun update(page:NativePage):Boolean{
         if(!page.enabled||page.key.startsWith("settings:loading:")||page.key.startsWith("settings:document:")&&page.document==null)return false
         frames.remove(page.key);frames[page.key]=page
