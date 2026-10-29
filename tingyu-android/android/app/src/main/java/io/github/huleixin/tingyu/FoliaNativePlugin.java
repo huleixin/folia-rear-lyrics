@@ -97,6 +97,7 @@ public class FoliaNativePlugin extends Plugin {
         .build();
     private LocalAudioServer localAudioServer;
     private boolean isAudioPickerOpen = false;
+    private boolean isSourcePickerOpen = false;
     private static final int SHIZUKU_REQUEST_CODE = 0xF017;
 
     @Override
@@ -500,6 +501,36 @@ public class FoliaNativePlugin extends Plugin {
             .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
         isAudioPickerOpen = true;
         startActivityForResult(call, intent, "handlePickedAudio");
+    }
+
+    /** Compose actions do not carry browser user activation; open SAF directly. */
+    @PluginMethod
+    public void pickLxSourceFile(PluginCall call) {
+        if (isSourcePickerOpen) { call.reject("文件选择器已打开"); return; }
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+            .setType("*/*").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        isSourcePickerOpen = true;
+        try { startActivityForResult(call, intent, "handlePickedLxSource"); }
+        catch (Exception error) { isSourcePickerOpen = false; call.reject("无法打开系统文件选择器", error); }
+    }
+
+    @ActivityCallback
+    private void handlePickedLxSource(PluginCall call, ActivityResult result) {
+        isSourcePickerOpen = false;
+        if (call == null) return;
+        Uri uri = result.getData() == null ? null : result.getData().getData();
+        if (result.getResultCode() != Activity.RESULT_OK || uri == null) {
+            call.resolve(new JSObject().put("cancelled", true)); return;
+        }
+        new Thread(() -> {
+            try {
+                String name = queryDisplayName(getContext().getContentResolver(), uri);
+                if (name == null || !name.toLowerCase(Locale.ROOT).endsWith(".js")) throw new IOException("请选择 .js 音源文件");
+                try (InputStream input = getContext().getContentResolver().openInputStream(uri)) {
+                    call.resolve(new JSObject().put("name", name).put("text", NativeTextDocument.read(input)));
+                }
+            } catch (Exception error) { call.reject(error.getMessage(), error); }
+        }, "tingyu-source-import").start();
     }
 
     /** 选择整个文件夹；原生侧递归扫描其中的音频，用户可以一次导入整张专辑/目录。 */

@@ -1012,7 +1012,7 @@ function createAuth(client, { onSignOut = () => {} } = {}) {
   async function renew() {
     const old = sessions.get();
     if (!old) return null;
-    const revision = sessions.revision;
+    let revision = sessions.revision;
     const signOut = () => {
       if (revision !== sessions.revision) return;
       sessions.clear();
@@ -1021,12 +1021,43 @@ function createAuth(client, { onSignOut = () => {} } = {}) {
     };
     try {
       let candidate = old;
-      if (old.expiresAt < Date.now() + 3600000) {
-        const result = await http(query(`https://open.qishui.com${QISHUI_PREFIX}/access/code/refresh/`, { access_code: old.accessCode }, old.deviceId));
-        const access = result.data.data || result.data;
-        candidate = await ticket({ ...access, open_id: access.open_id || access.open_uid || old.openId }, old, old.deviceId);
+      // Persist a rotated access code before the next network request. If ticket/account
+      // verification is interrupted, restarting must not retry the now-obsolete code.
+      const retain = value => {
+        if (revision !== sessions.revision) return false;
+        sessions.set({ ...value, userId: old.userId, user: old.user });
+        revision = sessions.revision;
+        candidate = sessions.get();
+        return true;
+      };
+      const renewTicket = async () => {
+        if (revision !== sessions.revision) return false;
+        let access = { access_code: candidate.accessCode, open_id: candidate.openId, expires_time: candidate.expiresAt };
+        if (candidate.expiresAt < Date.now() + 3600000) {
+          const result = await http(query(`https://open.qishui.com${QISHUI_PREFIX}/access/code/refresh/`, { access_code: candidate.accessCode }, candidate.deviceId));
+          const value = result.data.data || result.data;
+          if (typeof value.access_code !== 'string' || !value.access_code) throw new QishuiError('invalid-response', 'Access code is missing');
+          access = { ...value, open_id: value.open_id || value.open_uid || candidate.openId };
+          if (!retain({ ...candidate, accessCode: access.access_code, openId: access.open_id,
+            expiresAt: qishuiCredentialExpiry(access.expires_time).getTime() })) return false;
+        }
+        const next = await ticket(access, candidate, candidate.deviceId);
+        return retain(next);
+      };
+      let renewed = false;
+      if (candidate.expiresAt < Date.now() + 3600000) {
+        if (!await renewTicket()) return null;
+        renewed = true;
       }
-      const user = await getUser(candidate);
+      let user;
+      try { user = await getUser(candidate); }
+      catch (error) {
+        // A guard ticket can expire before its access code. Recover once using the
+        // saved authorization, rather than erasing a still-renewable account.
+        if (renewed || !(error instanceof QishuiError) || error.code !== 'auth-required') throw error;
+        if (!await renewTicket()) return null;
+        user = await getUser(candidate);
+      }
       if (user.id !== old.userId) { signOut(); throw new QishuiError('auth-required', 'Qishui account identity changed'); }
       if (revision !== sessions.revision) return null;
       sessions.set({ ...candidate, userId: user.id, user });

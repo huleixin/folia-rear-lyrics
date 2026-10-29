@@ -23,3 +23,43 @@
 .ty-source-entry { margin-top:8px; }
 .ty-audio-hint { font-size:11px; margin:12px 0; }
 @media(min-width:840px) and (max-height:600px) { .ty-quality-choices button,.ty-source-entry,.ty-lx-actions button { min-height:48px; font-size:15px; } }
+
+/* Source management uses the library's jade, compact cards and secondary text scale. */
+[data-folia-themed-dialog-kind='audio-tools']:has(.ty-lx-manager) { background:#101e19f5; border-color:#c6ffe11c; }
+[data-folia-themed-dialog-kind='audio-tools']:has(.ty-lx-manager[data-light]) { background:#f3f6effa; border-color:#153d261c; }
+.ty-lx-manager { --lx-ink:#e5eee9; --lx-muted:#a7b9af; --lx-accent:#91ddc0; --lx-card:#ffffff07; --lx-border:#d4ffe314; color:var(--lx-ink); }
+.ty-lx-manager[data-light] { --lx-ink:#18392e; --lx-muted:#60766a; --lx-accent:#247b5c; --lx-card:#ffffffb0; --lx-border:#153d261a; }
+.ty-lx-manager button { font:inherit; color:inherit; cursor:pointer; transition:background-color 160ms ease; }
+.ty-lx-manager button:disabled { opacity:.45; cursor:default; }
+.ty-lx-manager :is(button,summary):focus-visible { outline:2px solid var(--lx-accent); outline-offset:3px; }
+.ty-lx-import { display:flex; align-items:center; gap:12px; width:100%; padding:12px 14px; text-align:left; border:1px solid color-mix(in srgb,var(--lx-accent) 40%,transparent); border-radius:14px; background:color-mix(in srgb,var(--lx-accent) 11%,transparent); color:var(--lx-accent)!important; min-height:60px; }
+.ty-lx-import span { display:flex; flex-direction:column; gap:3px; }
+.ty-lx-import strong { font-size:13px; font-weight:600; }
+.ty-lx-import small { font-size:11px; color:var(--lx-muted); }
+.ty-lx-current { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:14px 2px; font-size:11px; color:var(--lx-muted); }
+.ty-lx-current>span { min-width:0; }
+.ty-lx-current strong { display:block; color:var(--lx-ink); font-size:12px; font-weight:550; margin-top:3px; overflow-wrap:anywhere; }
+.ty-lx-current button { flex:none; padding:6px 10px; min-height:40px; border:1px solid var(--lx-border); border-radius:10px; background:var(--lx-card); font-size:11px; }
+.ty-lx-scripts { display:flex; flex-direction:column; gap:10px; }
+.ty-lx-card { border:1px solid var(--lx-border); background:var(--lx-card); border-radius:14px; padding:12px; }
+.ty-lx-card[data-active] { border-color:color-mix(in srgb,var(--lx-accent) 35%,transparent); }
+.ty-lx-heading { display:flex; align-items:flex-start; gap:8px; }
+.ty-lx-heading>svg { flex:none; margin-top:2px; color:var(--lx-accent); }
+.ty-lx-heading>strong { min-width:0; flex:1; font-size:13px; line-height:1.5; font-weight:600; overflow-wrap:anywhere; }
+.ty-lx-badge { flex:none; display:inline-flex; align-items:center; gap:3px; color:var(--lx-accent); font-size:10px; line-height:20px; }
+.ty-lx-meta { color:var(--lx-muted); font-size:10px; margin:5px 0 10px; overflow-wrap:anywhere; }
+.ty-lx-platforms { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.ty-lx-platforms>span { font-size:11px; padding:5px 8px; border-radius:8px; background:var(--lx-card); }
+.ty-lx-platforms small { display:block; font-size:10px; color:var(--lx-muted); margin-top:2px; }
+.ty-lx-manager details { font-size:11px; line-height:1.65; color:var(--lx-muted); }
+.ty-lx-manager summary { cursor:pointer; min-height:40px; padding:10px 0; }
+.ty-lx-manager details p { margin:0 0 10px; overflow-wrap:anywhere; white-space:pre-line; }
+.ty-lx-manager .ty-lx-actions { margin:5px 0 0; gap:7px; }
+.ty-lx-manager .ty-lx-actions button { min-height:40px; border:1px solid var(--lx-border); background:var(--lx-card); font-size:12px; padding:7px 12px; border-radius:10px; }
+.ty-lx-manager .ty-lx-actions button:first-child { color:var(--lx-accent); }
+.ty-lx-manager .ty-lx-remove { margin-left:auto; color:var(--lx-muted); }
+.ty-lx-message { padding:10px 12px; background:var(--lx-card); border-radius:10px; font-size:11px; line-height:1.6; overflow-wrap:anywhere; }
+.ty-lx-message[role='alert'] { color:#ef9b90; }
+.ty-lx-help { border-top:1px solid var(--lx-border); margin-top:14px; }
+.ty-lx-empty { padding:24px 10px; display:flex; flex-direction:column; align-items:center; gap:8px; color:var(--lx-muted); font-size:12px; }
+.ty-lx-empty small { font-size:11px; }
