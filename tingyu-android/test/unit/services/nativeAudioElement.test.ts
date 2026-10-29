@@ -54,6 +54,21 @@ it('never extrapolates paused packets or implausibly old timestamps',async()=>{
     f.state({playing:true,paused:false,position:15,capturedAtMs:Date.now()-60000});await play;
     expect(f.element.currentTime).toBe(15);await f.adapter.dispose();
 });
+it('keeps the lyric clock monotonic across late packets but accepts a real seek',async()=>{
+    vi.useFakeTimers({now:200000,toFake:['Date','performance','setTimeout','clearTimeout']});
+    const f=await fixture(),play=f.element.play();await f.flush();
+    f.state({paused:false,playing:true,position:20,capturedAtMs:Date.now()});await play;
+    vi.advanceTimersByTime(400);
+    const before=f.element.currentTime;
+    // A transport packet sampled 120ms late is not a seek: it must not move the clock back.
+    f.state({type:'clock',paused:false,playing:true,position:20.16,capturedAtMs:Date.now()-120});
+    expect(f.element.currentTime).toBeGreaterThanOrEqual(before-0.001);
+    // A user seek is explicit and still lands immediately.
+    f.element.currentTime=8;await f.flush();
+    f.state({type:'seeked',paused:false,playing:true,position:8,capturedAtMs:Date.now()});
+    expect(f.element.currentTime).toBeCloseTo(8);
+    await f.adapter.dispose();
+});
 it('cancels stale Play on Pause, freezes its local clock, and passes seek/volume without UI-frame polling',async()=>{
     const f=await fixture();const promise=f.element.play().catch(reason=>reason.name);await f.flush();f.element.pause();
     expect(await promise).toBe('AbortError');expect(f.element.paused).toBe(true);

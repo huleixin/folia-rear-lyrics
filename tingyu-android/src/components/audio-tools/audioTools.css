@@ -25,8 +25,9 @@
 @media(min-width:840px) and (max-height:600px) { .ty-quality-choices button,.ty-source-entry,.ty-lx-actions button { min-height:48px; font-size:15px; } }
 
 /* Source management uses the library's jade, compact cards and secondary text scale. */
-[data-folia-themed-dialog-kind='audio-tools']:has(.ty-lx-manager) { background:#101e19f5; border-color:#c6ffe11c; }
-[data-folia-themed-dialog-kind='audio-tools']:has(.ty-lx-manager[data-light]) { background:#f3f6effa; border-color:#153d261c; }
+[data-folia-themed-overlay]:has(.ty-lx-manager) { background:#030a08e6 !important; }
+[data-folia-themed-dialog-kind='audio-tools']:has(.ty-lx-manager) { background:#101e19; border-color:#c6ffe11c; }
+[data-folia-themed-dialog-kind='audio-tools']:has(.ty-lx-manager[data-light]) { background:#f3f6ef; border-color:#153d261c; }
 .ty-lx-manager { --lx-ink:#e5eee9; --lx-muted:#a7b9af; --lx-accent:#91ddc0; --lx-card:#ffffff07; --lx-border:#d4ffe314; color:var(--lx-ink); }
 .ty-lx-manager[data-light] { --lx-ink:#18392e; --lx-muted:#60766a; --lx-accent:#247b5c; --lx-card:#ffffffb0; --lx-border:#153d261a; }
 .ty-lx-manager button { font:inherit; color:inherit; cursor:pointer; transition:background-color 160ms ease; }

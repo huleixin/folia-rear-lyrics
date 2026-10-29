@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 
@@ -44,6 +44,20 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
     const closeBtnHover = isDaylight ? 'hover:bg-zinc-200/60' : 'hover:bg-white/10';
     const isMouseDownOnOverlayRef = useRef(false);
 
+    // A fixed sheet must own the gesture stream. Without this, a swipe that starts on
+    // the dimmed backdrop can chain through to the library page underneath the dialog.
+    useEffect(() => {
+        if (!isOpen) return undefined;
+        const body = document.body, root = document.documentElement;
+        const bodyOverflow = body.style.overflow, rootOverflow = root.style.overflow;
+        const rootOverscroll = root.style.overscrollBehavior;
+        body.style.overflow = 'hidden'; root.style.overflow = 'hidden'; root.style.overscrollBehavior = 'none';
+        return () => {
+            body.style.overflow = bodyOverflow; root.style.overflow = rootOverflow;
+            root.style.overscrollBehavior = rootOverscroll;
+        };
+    }, [isOpen]);
+
     const handleOverlayMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
         isMouseDownOnOverlayRef.current = event.target === event.currentTarget;
     };
@@ -64,7 +78,7 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
                     exit={{ opacity: 0 }}
                     data-folia-keyboard-window="true"
                     data-folia-themed-overlay="true"
-                    className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
+                    className="fixed inset-0 z-[200] flex items-center justify-center overscroll-contain bg-black/60 backdrop-blur-md p-4"
                     onMouseDown={handleOverlayMouseDown}
                     onClick={handleBackdropClick}
                 >
@@ -76,7 +90,7 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
                         onClick={(event) => event.stopPropagation()}
                         data-folia-themed-dialog="true"
                         data-folia-themed-dialog-kind={panelKind}
-                        className={`relative w-full ${maxWidthClass} rounded-3xl border ${bgClass} p-6 shadow-2xl backdrop-blur-sm`}
+                        className={`relative w-full ${maxWidthClass} overscroll-contain rounded-3xl border ${bgClass} p-6 shadow-2xl backdrop-blur-sm`}
                     >
                         <button
                             type="button"

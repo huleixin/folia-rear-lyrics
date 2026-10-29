@@ -51,6 +51,8 @@ import { useLyricWordSegmentation } from './hooks/useLyricWordSegmentation';
 import { useIcuFoliaSegmentation } from './hooks/useIcuFoliaSegmentation';
 import { createOnlineRecoveryController } from './components/app/playback/createOnlineRecoveryController';
 import { handleOnlineMediaFailure } from './components/app/playback/handleOnlineMediaFailure';
+import { selectedLxScript } from './services/lxSource/selection';
+import { shouldRenewPrematureLxEnd } from './services/lxSource/prematureEnd';
 import { persistPlaybackCache } from './components/app/playback/persistPlaybackCache';
 import { useAppOverlaysModel } from './components/app/overlays/useAppOverlaysModel';
 import { resolveNextUpTrack } from './components/app/overlays/now-playing-toast/resolveNextUpTrack';
@@ -381,6 +383,8 @@ export default function App() {
     // Buffer progress debug helper. Uncomment this ref, the reset effect below,
     // and the audio `onProgress` handler to log buffered percent again.
     // const lastBufferedPercentLogRef = useRef<number | null>(null);
+    /** A custom source may hand back a short-lived URL; renew each playback once before skipping. */
+    const lxPrematureEndRetryRef = useRef(new Map<string, number>());
     const [isLyricsLoading, setIsLyricsLoading] = useState(false);
     const isNowPlayingControlDisabledRef = useRef(false);
 
@@ -2634,6 +2638,25 @@ export default function App() {
                 // A track finishing in the background has already handed the queue over.
                 if (!automix.isActiveDeck(e.currentTarget)) {
                     automix.handleTailEnded();
+                    return;
+                }
+
+                // Some LX scripts issue a URL that expires, or a stream that stops at the first
+                // preview boundary, while the catalog still reports the full song length. A new
+                // token and a seek back to that point recovers the rest of the song. Retry once
+                // per playback: a source whose file is genuinely one minute must not loop forever.
+                const audioElement = e.currentTarget;
+                const expectedDuration = currentSong?.durationMs ? currentSong.durationMs / 1000 : 0;
+                const retryKey = currentSong ? `${getPlaybackSongKey(currentSong)}#${playbackGenerationRef.current}` : '';
+                if (shouldRenewPrematureLxEnd({ lxSelected: Boolean(selectedLxScript()), expectedDurationSec: expectedDuration,
+                    endedAtSec: audioElement.currentTime, retryKey, lastRenewedAtSec: lxPrematureEndRetryRef.current.get(retryKey) })) {
+                    const resumeAt = audioElement.currentTime;
+                    lxPrematureEndRetryRef.current.set(retryKey, resumeAt);
+                    void recoverOnlinePlaybackSource({ failedSrc: audioElement.currentSrc || audioSrc, resumeAt, autoplay: true, force: true,
+                        shouldAutoplay: () => usePlaybackStore.getState().playerState === PlayerState.PLAYING || shouldAutoPlay.current })
+                        .then(result => {
+                            if (result.status === 'failed') void handleNextTrack({ allowStopOnMissing: true, shouldNavigateToPlayer: false });
+                        });
                     return;
                 }
 

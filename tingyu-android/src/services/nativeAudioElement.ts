@@ -17,6 +17,9 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     let source='',track='',id='',sequence=0,lastIntent=0,position=0,duration=0,buffered=0,anchor=performance.now();
     let paused=true,playing=false,ended=false,ready=0,volume=element.volume,muted=element.muted,disposed=false,metadata=false;
     let error:MediaError|null=null,options:NativeAudioOptions={fade:true,analysis:false,loop:false};
+    /** The last position we explicitly asked native to seek to, until a packet confirms it. */
+    let seekTarget:number|null=null;
+    let seekDeadline=0;
     let pending:{resolve:()=>void;reject:(error:unknown)=>void;timer:ReturnType<typeof setTimeout>}|null=null;
     const event=(name:string)=>{if(!disposed)element.dispatchEvent(new Event(name));};
     const time=()=>Math.max(0,Math.min(duration||Infinity,position+(playing&&!paused?(performance.now()-anchor)/1000:0)));
@@ -29,9 +32,22 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         // Native and WebView share the system wall clock; performance.now remains the
         // local monotonic clock between packets. Ignore missing/stale timestamps after
         // backgrounding or a wall-clock adjustment, and never advance stopped output.
+        const previousTime=time();
         const deliveryMs=value.capturedAtMs===undefined?0:Date.now()-value.capturedAtMs;
         const deliverySec=value.playing&&!value.paused&&value.status===3&&deliveryMs>=0&&deliveryMs<=1000?deliveryMs/1000:0;
-        position=value.position+deliverySec;duration=value.duration;buffered=value.buffered;anchor=performance.now();playing=value.playing;
+        let nextPosition=value.position+deliverySec;
+        if(seekTarget!==null){
+            // Packets already in flight describe the old read head. Keep the requested
+            // position until native confirms the seek, otherwise the lyric clock jumps
+            // backwards and replays the previous line's reveal animations.
+            if(value.type==='seeked'||Math.abs(nextPosition-seekTarget)<=0.35||performance.now()>seekDeadline)seekTarget=null;
+            else nextPosition=previousTime;
+        }else if(value.playing&&!value.paused&&value.type!=='seeked'&&nextPosition<previousTime&&previousTime-nextPosition<0.25){
+            // Heartbeats are sampled a little before delivery. A few milliseconds of
+            // reordering is transport noise, not a seek; keep the lyric clock monotonic.
+            nextPosition=previousTime;
+        }
+        position=nextPosition;duration=value.duration;buffered=value.buffered;anchor=performance.now();playing=value.playing;
         if(value.errorCode){
             const firstError=!error;
             error={code:value.errorCode>=2000&&value.errorCode<3000?2:3,message:`原生播放失败：${value.message??value.errorCode}`} as MediaError;
@@ -62,7 +78,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     set('src',{get:()=>source,set:(value:string)=>element.setAttribute('src',value)});set('currentSrc',{get:()=>source});set('duration',{get:()=>duration});set('paused',{get:()=>paused});
     set('ended',{get:()=>ended});set('error',{get:()=>error});set('readyState',{get:()=>ready});set('networkState',{get:()=>ready===4?1:2});
     set('buffered',{get:()=>({length:buffered>0?1:0,start:()=>0,end:()=>buffered})});
-    set('currentTime',{get:time,set:(value:number)=>{position=Math.max(0,value);anchor=performance.now();ended=false;event('seeking');void send('seek',{position:position*1000}).catch(()=>{});}});
+    set('currentTime',{get:time,set:(value:number)=>{position=Math.max(0,value);anchor=performance.now();seekTarget=position;seekDeadline=performance.now()+2000;ended=false;event('seeking');void send('seek',{position:position*1000}).catch(()=>{});}});
     const updateVolume=()=>{if(id)void send('volume',{volume:muted?0:volume}).catch(()=>{});};
     set('volume',{get:()=>volume,set:(value:number)=>{const next=Math.max(0,Math.min(1,value));if(next===volume)return;volume=next;if(!muted)updateVolume();}});
     set('muted',{get:()=>muted,set:(value:boolean)=>{if(muted===value)return;muted=value;updateVolume();}});
@@ -88,7 +104,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         setSource(uri:string,key:string){
             if(uri===source&&key===track)return;
             if(!uri&&id)void send('detach').catch(()=>{});
-            rejectPending(abort());source=uri;track=key;id=uri?crypto.randomUUID():'';sequence=0;lastIntent=0;
+            rejectPending(abort());source=uri;track=key;id=uri?crypto.randomUUID():'';sequence=0;lastIntent=0;seekTarget=null;seekDeadline=0;
             position=0;duration=0;buffered=0;anchor=performance.now();paused=true;playing=false;ended=false;error=null;ready=1;metadata=false;bands.spectrum.fill(0);
             event('loadstart');if(!uri)return;
             const preparing=id;

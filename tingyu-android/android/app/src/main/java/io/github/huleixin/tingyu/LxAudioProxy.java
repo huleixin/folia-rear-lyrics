@@ -21,7 +21,10 @@ final class LxAudioProxy {
                 throw new UnknownHostException("Custom audio must resolve to a public address");
             return addresses;
         })
-        .connectTimeout(8, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS)
+        // Audio streams can legitimately leave the socket quiet while the player drains its
+        // buffer. A short read timeout turns that pause into a closed proxy and a one-minute
+        // cut-off on slow CDNs; the connect timeout still bounds an unreachable host.
+        .connectTimeout(8, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS)
         .followRedirects(false).followSslRedirects(false).build();
 
     static boolean isPublicAddress(InetAddress address) {
