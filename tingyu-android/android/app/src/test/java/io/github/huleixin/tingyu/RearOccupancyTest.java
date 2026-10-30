@@ -26,10 +26,14 @@ public class RearOccupancyTest {
 
     private RearOccupancy.Action camera(long now) {
         return at(true, true, CAMERA, false, true, now);
+    }    private RearOccupancy.Action ours(long now) {
+        return at(true, true, OWN, true, true, now);
     }
 
-    private RearOccupancy.Action ours(long now) {
-        return at(true, true, OWN, true, true, now);
+    /** The listing could not be parsed; {@code unreadableFor} is how long that has been the case. */
+    private RearOccupancy.Action blind(boolean deviceBusy, long unreadableFor, long now) {
+        look.set(true, false, null, -1, false, true, now, deviceBusy, unreadableFor);
+        return occupancy.evaluate(look);
     }
 
     /** Camera arrives, then leaves and the panel is confirmed back with us. */
@@ -160,5 +164,84 @@ public class RearOccupancyTest {
         assertFalse(occupancy.isCameraPackage("com.xiaomi.subscreencenter"));
         assertFalse(occupancy.isCameraPackage(OWN));
         assertFalse(occupancy.isCameraPackage(null));
+    }
+
+    // ------------------------------------------------------------------ plan A wiring
+
+    /**
+     * One restore per camera episode. The launcher is slow (two 8 s timeouts), so a heartbeat can
+     * easily land while a rebuild is still running; that look must not queue a second one.
+     */
+    @Test public void onlyOneRestoreIsIssuedPerCameraEpisode() {
+        assertEquals(RearOccupancy.Action.YIELD, camera(1_000));
+        assertEquals(RearOccupancy.Action.NONE, ours(1_600));
+        assertEquals(RearOccupancy.Action.RESTORE, ours(2_000));
+        long attempt = occupancy.generation();
+        for (int i = 1; i <= 8; i++) {
+            // 700 ms heartbeat while the launcher is still confirming the window.
+            assertEquals(RearOccupancy.Action.NONE, ours(2_000 + i * 700L));
+        }
+        assertTrue(occupancy.restoreFinished(true, attempt, 8_000));
+        assertEquals(1, occupancy.restores());
+        assertEquals(RearOccupancy.Owner.TINGYU, occupancy.owner());
+    }
+
+    /** A track change is not a reason to touch the window; only ownership changes are. */
+    @Test public void aFastTrackChangeNeverRebuildsTheWindow() {
+        assertEquals(RearOccupancy.Action.NONE, ours(1_000));
+        for (int i = 0; i < 12; i++) {
+            // Lyrics stage republishing, metadata updates, a new song every 2 s: all ordinary looks.
+            assertEquals(RearOccupancy.Action.NONE, ours(2_000 + i * 400L));
+        }
+        assertEquals(0, occupancy.episodes());
+        assertEquals(0, occupancy.restores());
+        assertEquals(RearOccupancy.Owner.TINGYU, occupancy.owner());
+    }
+
+    /** While a camera owns the panel, no wake may be attempted - not even for a dark screen. */
+    @Test public void theCameraKeepsThePanelIncludingItsPower() {
+        assertEquals(RearOccupancy.Action.YIELD, camera(1_000));
+        for (int i = 0; i < 6; i++) {
+            assertEquals(RearOccupancy.Action.NONE, at(true, true, CAMERA, false, false, 1_500 + i * 2_000L));
+        }
+        assertTrue(occupancy.externalOwned());
+        assertEquals(1, occupancy.yields());
+    }
+
+    /**
+     * The camera opened its rear preview but the task list cannot be read. Yielding is the safe
+     * direction: the old build kept presenting over a running camera whenever the dump failed.
+     */
+    @Test public void aCameraHoldingTheDeviceTakesThePanelEvenWithoutAListing() {
+        assertEquals(RearOccupancy.Action.YIELD, blind(true, 500, 1_000));
+        assertTrue(occupancy.externalOwned());
+        assertEquals(1, occupancy.episodes());
+        // The device is still held: repeated blind looks change nothing.
+        assertEquals(RearOccupancy.Action.NONE, blind(true, 1_500, 2_000));
+        assertEquals(RearOccupancy.Action.NONE, blind(true, 9_000, 9_500));
+        assertEquals(1, occupancy.yields());
+    }
+
+    /**
+     * A ROM that stopped exposing its task list must not leave the panel dark until reboot, but
+     * the escape is bounded and requires that no camera holds the device.
+     */
+    @Test public void anUnreadableListHandsThePanelBackOnlyAfterTheEscapeWindow() {
+        assertEquals(RearOccupancy.Action.YIELD, camera(1_000));
+        assertEquals(RearOccupancy.Action.NONE, blind(false, 6_000, 7_000));
+        assertEquals(RearOccupancy.Action.NONE, blind(false, 11_000, 12_000));
+        assertTrue(occupancy.externalOwned());
+        assertEquals(RearOccupancy.Action.RESTORE, blind(false, 13_000, 14_000));
+        long attempt = occupancy.generation();
+        assertTrue(occupancy.restoreFinished(true, attempt, 14_100));
+        assertEquals(RearOccupancy.Owner.TINGYU, occupancy.owner());
+    }
+
+    /** The same escape must never fire while the camera is still holding the device. */
+    @Test public void anUnreadableListNeverHandsThePanelBackToALiveCamera() {
+        assertEquals(RearOccupancy.Action.YIELD, camera(1_000));
+        assertEquals(RearOccupancy.Action.NONE, blind(true, 60_000, 61_000));
+        assertTrue(occupancy.externalOwned());
+        assertEquals(0, occupancy.restores());
     }
 }

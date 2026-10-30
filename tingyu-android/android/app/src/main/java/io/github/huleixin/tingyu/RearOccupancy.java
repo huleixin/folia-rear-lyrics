@@ -13,9 +13,12 @@ package io.github.huleixin.tingyu;
  * <p>Rules, each traceable to a real failure or a verified open-source implementation:
  *
  * <ul>
- *   <li><b>One witness.</b> Ownership is decided from the rear display's front task only.
- *       CameraManager availability is not consulted: a lens switch flips it for ~900 ms and
- *       used to cause a yield/restore cycle that destroyed and rebuilt the lyric window.
+ *   <li><b>One witness.</b> Ownership is decided from the rear display's front task. CameraManager
+ *       availability is not consulted for it: a lens switch flips it for ~900 ms and used to
+ *       cause a yield/restore cycle that destroyed and rebuilt the lyric window. The one
+ *       exception is deliberate and one-directional - when the list cannot be read at all, a
+ *       camera that is positively holding the device may still take the panel (see
+ *       {@link #unreadable}), because yielding is the safe direction and the reverse is not.
  *       (Mi Back Screen, MIT: {@code LendWatchdog} reads {@code am stack list} and nothing else.)</li>
  *   <li><b>Unreadable is not free.</b> A listing that could not be parsed never ends an
  *       external owner. (Same source: {@code LendMisses.inFront} returns null, which "counts for
@@ -49,6 +52,13 @@ final class RearOccupancy {
     static final int RETURN_LOOKS_TO_RESTORE = 2;
     /** A wake lights the panel for roughly 16 s; bursts are what keeps it awake for nothing. */
     static final long WAKE_MIN_GAP_MS = 10_000L;
+    /**
+     * How long an external owner may stay proven only by an unreadable list before the panel is
+     * handed back anyway. The old engine used the same idea with an 8 s stale window; this is
+     * deliberately longer, because the only way to lose the panel without any camera running is
+     * a ROM that stopped exposing its task list, and the cost of being wrong is a dark screen.
+     */
+    static final long EVIDENCE_ESCAPE_MS = 12_000L;
     private static final long[] RESTORE_BACKOFF_MS = { 1_200, 3_000, 6_000, 12_000 };
     private static final long RESTORE_SLOW_MS = 20_000;
 
@@ -58,29 +68,40 @@ final class RearOccupancy {
         boolean readable;
         boolean ownFront;
         boolean panelLit;
+        /** CameraManager availability. Consulted only when the task list cannot be read. */
+        boolean deviceBusy;
+        /** Milliseconds since the rear task list was last readable; 0 while readable. */
+        long unreadableFor;
         String frontPackage;
         int frontTaskId;
         long now;
 
         void set(boolean wanted, boolean readable, String frontPackage, int frontTaskId,
                  boolean ownFront, boolean panelLit, long now) {
+            set(wanted, readable, frontPackage, frontTaskId, ownFront, panelLit, now, false, 0);
+        }
+
+        void set(boolean wanted, boolean readable, String frontPackage, int frontTaskId,
+                 boolean ownFront, boolean panelLit, long now, boolean deviceBusy, long unreadableFor) {
             this.wanted = wanted; this.readable = readable;
             this.frontPackage = frontPackage; this.frontTaskId = frontTaskId;
             this.ownFront = ownFront; this.panelLit = panelLit; this.now = now;
+            this.deviceBusy = deviceBusy; this.unreadableFor = unreadableFor;
         }
 
         String describe() {
             return "wanted=" + wanted + ", readable=" + readable + ", front=" + frontPackage
-                + ", task=" + frontTaskId + ", ownFront=" + ownFront + ", lit=" + panelLit;
+                + ", task=" + frontTaskId + ", ownFront=" + ownFront + ", lit=" + panelLit
+                + ", deviceBusy=" + deviceBusy + ", unreadableFor=" + unreadableFor;
         }
     }
 
     private final String ownPackage;
     private Owner owner = Owner.SYSTEM;
     private RearLend lend;
-    private long lendIds, generation, episodes, yields, restores, wakeAt, nextRestoreAt;
+    private long lendIds, generation, episodes, yields, restores, wakeAt, nextRestoreAt, inFlightGeneration;
     private int returnLooks, restoreAttempts;
-    private boolean dismissed, pendingRestore, woke;
+    private boolean dismissed, pendingRestore, restoreInFlight, woke;
 
     RearOccupancy(String ownPackage) {
         this.ownPackage = ownPackage == null ? "" : ownPackage;
@@ -104,6 +125,7 @@ final class RearOccupancy {
         dismissed = value;
         generation++;
         pendingRestore = false;
+        restoreInFlight = false; inFlightGeneration = 0;
         returnLooks = 0;
         restoreAttempts = 0;
         nextRestoreAt = 0;
@@ -116,16 +138,16 @@ final class RearOccupancy {
 
     /** Advances the machine and reports the single effect to perform. */
     Action evaluate(Look look) {
-        // No evidence changes nothing. "Unreadable" must never be read as "the camera left".
-        if (!look.readable) return Action.NONE;
-
-        boolean camera = isCameraPackage(look.frontPackage);
-
         if (dismissed) {
             // A camera that is still there keeps the panel; we simply never act.
-            if (!camera && owner == Owner.EXTERNAL) owner = Owner.DISMISSED;
+            if (look.readable && owner == Owner.EXTERNAL && !isCameraPackage(look.frontPackage))
+                owner = Owner.DISMISSED;
             return Action.NONE;
         }
+        // No evidence changes nothing. "Unreadable" must never be read as "the camera left".
+        if (!look.readable) return unreadable(look);
+
+        boolean camera = isCameraPackage(look.frontPackage);
 
         if (!look.wanted) {
             // Playback stopped or the feature was switched off. Do not pretend a present camera
@@ -134,6 +156,7 @@ final class RearOccupancy {
                 owner = Owner.SYSTEM;
                 lend = null;
                 pendingRestore = false;
+                restoreInFlight = false; inFlightGeneration = 0;
                 returnLooks = 0;
             }
             return Action.NONE;
@@ -148,6 +171,7 @@ final class RearOccupancy {
                 yields++;
                 returnLooks = 0;
                 pendingRestore = false;
+                restoreInFlight = false; inFlightGeneration = 0;
                 restoreAttempts = 0;
                 nextRestoreAt = 0;
                 return Action.YIELD;
@@ -171,6 +195,9 @@ final class RearOccupancy {
         }
 
         if (pendingRestore) {
+            // A restore can take up to two launcher timeouts. Without this, every heartbeat during
+            // it queued another rebuild - the double restore the old engine produced.
+            if (restoreInFlight) return Action.NONE;
             Action action = restore(look);
             if (action != Action.NONE) return action;
         }
@@ -190,11 +217,55 @@ final class RearOccupancy {
         return Action.NONE;
     }
 
+    /**
+     * The listing could not be parsed. Ownership is unchanged and nothing is ever handed back
+     * on the strength of a missing observation, but two bounded exceptions exist, and both are
+     * chosen so that a wrong answer cannot leave the camera without its panel or the user
+     * without their lyrics forever:
+     *
+     * <ul>
+     *   <li>A camera that is positively holding the device may take the panel even though the
+     *       list says nothing. Yielding is the safe direction; the old build kept presenting
+     *       over a running camera whenever the dump failed to parse.</li>
+     *   <li>An external owner whose evidence has been unreadable for {@link #EVIDENCE_ESCAPE_MS}
+     *       while no camera holds the device is handed back. Without this, one ROM build whose
+     *       task list we cannot read would pin the panel dark until reboot.</li>
+     * </ul>
+     */
+    private Action unreadable(Look look) {
+        if (owner == Owner.EXTERNAL) {
+            if (!look.deviceBusy && look.unreadableFor >= EVIDENCE_ESCAPE_MS) {
+                owner = Owner.SYSTEM;
+                lend = null;
+                returnLooks = 0;
+                pendingRestore = true;
+                generation++;
+                return restore(look);
+            }
+            return Action.NONE;
+        }
+        if (!look.wanted || !look.deviceBusy) return Action.NONE;
+        lend = new RearLend(RearLend.Reason.CAMERA, "device-busy", -1, ++lendIds);
+        owner = Owner.EXTERNAL;
+        episodes++;
+        generation++;
+        yields++;
+        returnLooks = 0;
+        pendingRestore = false;
+        restoreInFlight = false; inFlightGeneration = 0;
+        restoreAttempts = 0;
+        nextRestoreAt = 0;
+        return Action.YIELD;
+    }
+
     private Action restore(Look look) {
         if (!look.wanted) return Action.NONE;
+        if (restoreInFlight) return Action.NONE;
         if (restoreAttempts > 0 && look.now < nextRestoreAt) return Action.NONE;
         restoreAttempts++;
+        restoreInFlight = true;
         generation++;
+        inFlightGeneration = generation;
         return Action.RESTORE;
     }
 
@@ -205,6 +276,9 @@ final class RearOccupancy {
      * @return true when the result was applied
      */
     boolean restoreFinished(boolean success, long attemptGeneration, long now) {
+        // Only the attempt that is actually holding the single-flight flag may release it; a late
+        // callback from an older episode must not clear the flag of a newer one.
+        if (attemptGeneration == inFlightGeneration) { restoreInFlight = false; inFlightGeneration = 0; }
         if (attemptGeneration != generation) return false;
         if (success) {
             owner = Owner.TINGYU;
@@ -247,7 +321,8 @@ final class RearOccupancy {
         return "owner=" + owner + ", lend=" + (lend == null ? "-" : lend.toString())
             + ", episodes=" + episodes + ", yields=" + yields + ", restores=" + restores
             + ", dismissed=" + dismissed + ", returnLooks=" + returnLooks
-            + ", pendingRestore=" + pendingRestore + ", restoreAttempts=" + restoreAttempts
+            + ", pendingRestore=" + pendingRestore + ", restoreInFlight=" + restoreInFlight
+            + ", restoreAttempts=" + restoreAttempts
             + ", nextRestoreIn=" + (nextRestoreAt == 0 ? "-" : Math.max(0, nextRestoreAt - now) + "ms")
             + ", generation=" + generation;
     }

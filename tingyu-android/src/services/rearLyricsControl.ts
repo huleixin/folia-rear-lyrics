@@ -3,8 +3,11 @@ import { getFoliaNative } from '../platform/foliaNative';
 
 // src/services/rearLyricsControl.ts
 // Native preferences own this device-specific opt-in; never infer it from temporary window visibility.
+/** Which rear-screen controller is running. `legacy` is the one-tap rollback. */
+export type RearControlEngine = 'plan-a' | 'legacy';
 export type RearLyricsStatus = {
     backendMode?: 'shizuku' | 'lsp'; lspConnected?: boolean; lspDetail?: string;
+    controlEngine?: RearControlEngine;
     returnedToSystem?: boolean; pauseReturnSeconds?: number;
     shizukuAvailable?: boolean; authorized?: boolean; rearDisplayId?: number; active?: boolean;
     enabled?: boolean; starting?: boolean; message?: string; diagnostics?: string; build?: number;
@@ -12,6 +15,7 @@ export type RearLyricsStatus = {
 };
 export type RearLyricsPlugin = {
     setRearLyricsBackend: (options: { mode: 'shizuku' | 'lsp' }) => Promise<void>;
+    setRearControlEngine: (options: { engine: RearControlEngine }) => Promise<{ engine?: RearControlEngine }>;
     getRearLyricsStatus: () => Promise<RearLyricsStatus>;
     startRearLyrics: () => Promise<{ verified?: boolean }>;
     returnFromRearLyrics: () => Promise<void>;
@@ -29,8 +33,16 @@ export async function setRearLyricsBackend(mode: 'shizuku' | 'lsp') {
     await plugin.setRearLyricsBackend({ mode });
     return true;
 }
-export async function toggleRearCoverSleep() {
+/** One-tap rollback of the rear-screen controller; both engines stay compiled in. */
+export async function setRearControlEngine(engine: RearControlEngine) {
     const plugin = rearLyricsPlugin();
+    if (!plugin) return false;
+    const status = await plugin.getRearLyricsStatus();
+    if (status.enabled || status.starting || status.sleeping) return false;
+    const result = await plugin.setRearControlEngine({ engine });
+    return result?.engine === engine;
+}
+export async function toggleRearCoverSleep() {    const plugin = rearLyricsPlugin();
     if (!plugin) return false;
     const status = await plugin.getRearLyricsStatus();
     await plugin.setRearCoverSleep({ enabled: !status.coverSleepEnabled });

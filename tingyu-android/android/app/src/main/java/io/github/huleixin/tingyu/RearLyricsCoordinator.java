@@ -41,9 +41,21 @@ final class RearLyricsCoordinator {
     private final RearCoverMonitor coverMonitor;
     private final RearCameraMonitor cameraMonitor;
     private final RearPlaybackHandoff playback = new RearPlaybackHandoff();
-    /** Sole owner of "who has the rear screen"; see the class doc of RearHandoffState. */
+    /** Sole owner of "who has the rear screen" for the previous engine; see RearHandoffState. */
     private final RearHandoffState rear = new RearHandoffState();
     private final RearHandoffState.Observation observation = new RearHandoffState.Observation();
+    /**
+     * Plan A: one owner machine instead of three overlapping ones. When it is in charge,
+     * {@link #rear} is not evaluated at all and {@link #gate} refuses every legacy command, so
+     * the two engines can never yield, wake or restore at the same time.
+     */
+    private final RearOccupancy occupancy;
+    private final RearOccupancy.Look planLook = new RearOccupancy.Look();
+    private final RearCommandGate gate = new RearCommandGate();
+    private volatile RearLyricsTaskList.Evidence evidence;
+    private long lastReadableAt, planAttemptGeneration, nextPlanWakeAt;
+    private boolean planRestoring, reuseBroken, dismissed;
+    private int hardYieldTries;
 
     private volatile boolean coverSleepEnabled, sleeping, powerBusy, sleepUnsupported;
     private boolean physicalCover, preservedSleepSession;
@@ -86,6 +98,12 @@ final class RearLyricsCoordinator {
     }
     private RearLyricsCoordinator(Context context) {
         this.context = context;
+        occupancy = new RearOccupancy(context.getPackageName());
+        // A dismissal outlives this object on purpose: the service, the Activity and this
+        // coordinator are recreated independently, and none of them may undo the user's choice.
+        dismissed = RearPlanA.dismissed(context);
+        occupancy.setDismissed(dismissed);
+        gate.install(RearPlanA.enabled(context) ? RearCommandGate.Source.PLAN_A : RearCommandGate.Source.LEGACY);
         enabled = context.getSharedPreferences("rear_lyrics", 0).getBoolean("auto_enabled", false);
         coverSleepEnabled = context.getSharedPreferences("rear_lyrics", 0).getBoolean("cover_sleep", false);
         coverMonitor = new RearCoverMonitor(context, main, value -> {
@@ -102,9 +120,13 @@ final class RearLyricsCoordinator {
     boolean isStarting() { return closing || pending || RearLyricsLauncher.isStarting(); }
     boolean wanted() { return playback.wanted(enabled, playing, manual, LspRearBridge.selected(context)); }
 
+    /** The active engine decides; callers never ask one machine about the other one's state. */
+    private boolean planA() { return RearPlanA.enabled(context); }
+    /** True while an external app (a camera) legitimately owns the rear panel. */
+    boolean cameraOwned() { return planA() ? occupancy.externalOwned() : rear.blocksPresentation(); }
     /** Presentation (launch / move / wake) is allowed unless a camera owns the panel. */
-    boolean canPresent() { return wanted() && !rear.blocksPresentation(); }
-    boolean cameraSuspended() { return rear.blocksPresentation(); }
+    boolean canPresent() { return wanted() && !dismissed && !cameraOwned(); }
+    boolean cameraSuspended() { return cameraOwned(); }
     static boolean presentationAllowed() { RearLyricsCoordinator value = instance; return value != null && value.canPresent(); }
     boolean returnedToSystem() { return LspRearBridge.selected(context) && playback.returned()
         && !closing && !RearLyricsActivity.isEnabled(); }
@@ -147,6 +169,7 @@ final class RearLyricsCoordinator {
     private void evaluateRear(long now) {
         int display = findRearDisplayId(context);
         if (display > 0) { RearLyricsLauncher.rememberRear(context, display); missingRearWakes = 0; }
+        if (planA()) { evaluatePlanA(display, now); return; }
         boolean readable = lastRearTaskAt > 0 && !RearCameraPolicy.evidenceStale(lastRearTaskAt, now);
         if (!readable && (rearTaskCamera || mainTaskCamera)) {
             // An unreadable list must not pin the panel forever; camera availability takes over.
@@ -176,7 +199,136 @@ final class RearLyricsCoordinator {
         recordOwnershipChange();
     }
 
-    /** Hide our viewport at once, then tear the window, lease and power down in the background. */
+    // ---------------------------------------------------------------- plan A: one owner
+
+    /**
+     * One look, one effect. Ownership comes from the rear task list alone; the camera
+     * availability callback no longer decides anything, it only shortens the wait for the next
+     * look. That is what removes the three overlapping camera signals the old engine had.
+     */
+    private void evaluatePlanA(int display, long now) {
+        RearLyricsTaskList.Evidence current = evidence;
+        boolean fresh = lastRearTaskAt > 0 && !RearCameraPolicy.evidenceStale(lastRearTaskAt, now);
+        boolean readable = display >= 0 && current != null && current.readable && fresh;
+        if (readable) lastReadableAt = now;
+        long unreadableFor = readable ? 0 : (lastReadableAt == 0 ? Long.MAX_VALUE : now - lastReadableAt);
+        boolean ours = readable && context.getPackageName().equals(current.rearPackage())
+            && RearLyricsActivity.isShowingOnDisplay(display);
+        planLook.set(wanted(), readable, readable ? current.component : null, readable ? current.taskId : -1,
+            ours, display >= 0 && RearLyricsLauncher.displayState(context, display) == Display.STATE_ON,
+            now, cameraMonitor.blocked(), unreadableFor);
+        RearOccupancy.Action action = occupancy.evaluate(planLook);
+        if (action == RearOccupancy.Action.YIELD) planYield(now);
+        else if (action == RearOccupancy.Action.RESTORE) planRestore(now);
+        else if (action == RearOccupancy.Action.WAKE) planWake(display, now);
+        recordOwnershipChange();
+    }
+
+    /**
+     * The camera takes the panel, not the window. Hiding the viewport and moving the task behind
+     * the camera is enough - a task that is not in front cannot keep the touch surface - and it
+     * lets the exit reuse the same Activity and the same WebView instead of rebuilding both,
+     * which is the black frame the previous engine produced on every camera open.
+     *
+     * <p>The power lease is not released here with a new mechanism: {@link #syncLspPower} already
+     * asks for exactly that once {@link #cameraOwned()} is true, so the camera gets a panel with
+     * no foreign bright policy and no second power path is introduced.
+     */
+    private void planYield(long now) {
+        if (!gate.submit(RearCommandGate.Source.PLAN_A, RearCommandGate.YIELD, now)) return;
+        RearLyricsTrace.record(context, "camera-yield", occupancy.describe(now) + "; " + planLook.describe()
+            + "; window=" + RearLyricsActivity.windowState() + "; " + cameraMonitor.status());
+        RearLyricsActivity.yieldToCamera();
+        covered = false; lockRecovery = false; wakeTried = false; hardYieldTries = 0;
+        main.removeCallbacks(check); scheduled = false;
+        syncCoverMonitor();
+        syncLspPower();
+        schedule(700);
+    }
+
+    /**
+     * Rebuild the lyric session via the same launcher the rest of the app uses, at most one
+     * attempt in flight. The generation is captured here and quoted back on completion, so a
+     * callback that belongs to an earlier camera episode can never report a result for this one.
+     */
+    private void planRestore(long now) {
+        if (planRestoring) return;
+        if (!wanted()) return;
+        if (!gate.submit(RearCommandGate.Source.PLAN_A, RearCommandGate.RESTORE, now)) return;
+        planRestoring = true;
+        planAttemptGeneration = occupancy.generation();
+        lastRestoreAt = now;
+        if (reuseBroken) {
+            // The reused window could not be brought back (a lock transition, or the task was
+            // moved by the ROM). Only now is a fresh task staged - the single rebuild this
+            // engine allows, and the reason the reuse path is safe to prefer everywhere else.
+            reuseBroken = false;
+            RearLyricsTrace.record(context, "reuse-fallback", "reusing the existing window failed; staging one new task");
+            RearLyricsActivity.finishIfShown();
+        }
+        failures = 0; nextAttempt = 0; covered = false; lockRecovery = false; wakeTried = false;
+        // A window that yielded is hidden, not gone; make it drawable again before validating.
+        RearLyricsActivity.resumeFromCamera();
+        RearLyricsTrace.record(context, "camera-restore", "attemptGen=" + planAttemptGeneration + "; "
+            + occupancy.describe(now) + "; " + planLook.describe());
+        begin();
+        // begin() can decline without ever calling back (no shell, no display, a launch already
+        // running). Release the single-flight flag instead of leaving the machine waiting for a
+        // result that will never arrive.
+        if (planRestoring && !pending && !RearLyricsLauncher.isStarting()) finishPlanARestore(false);
+    }
+
+    /** Reports the outcome of a plan-A restore; a stale generation is dropped, not applied. */
+    private void finishPlanARestore(boolean success) {
+        planRestoring = false;
+        long now = SystemClock.elapsedRealtime();
+        if (!occupancy.restoreFinished(success, planAttemptGeneration, now)) {
+            RearLyricsTrace.record(context, "camera-restore-stale",
+                "attemptGen=" + planAttemptGeneration + " superseded; " + occupancy.describe(now));
+            return;
+        }
+        if (!success) reuseBroken = true;
+        else { reuseBroken = false; covered = false; }
+    }
+
+    /** A wake is only ever a hint that the panel may have slept; it is throttled by the machine. */
+    private void planWake(int display, long now) {
+        if (display < 0 || waking || now < nextPlanWakeAt) return;
+        if (shell == null || !shell.isBinderAlive()) return;
+        if (RearLyricsLauncher.displayState(context, display) == Display.STATE_ON) return;
+        if (!gate.submit(RearCommandGate.Source.PLAN_A, RearCommandGate.WAKE, now)) return;
+        nextPlanWakeAt = now + RearOccupancy.WAKE_MIN_GAP_MS;
+        waking = true; wakeTried = true; nextAttempt = now + 4000;
+        RearLyricsTrace.record(context, "camera-wake", occupancy.describe(now));
+        RearLyricsLauncher.wake(context, shell, display, () -> main.post(() -> { waking = false; schedule(700); }));
+    }
+
+    /** The user closed the window: no component may present, wake or rebuild it again. */
+    private void dismiss(String why) {
+        dismissed = true;
+        RearPlanA.markDismissed(context);
+        occupancy.setDismissed(true);
+        planRestoring = false; reuseBroken = false;
+        RearLyricsTrace.record(context, "camera-dismiss", why + "; " + occupancy.describe(SystemClock.elapsedRealtime()));
+    }
+
+    /** Called when the engine preference changes; hands the command channel over atomically. */
+    void engineChanged() {
+        main.post(() -> {
+            boolean plan = planA();
+            gate.install(plan ? RearCommandGate.Source.PLAN_A : RearCommandGate.Source.LEGACY);
+            occupancy.setDismissed(dismissed);
+            planRestoring = false; reuseBroken = false;
+            nextAttempt = 0;
+            RearLyricsTrace.record(context, "engine-changed", "engine=" + RearPlanA.engine(context));
+            nudge();
+        });
+    }
+    /**
+     * Legacy engine only. Hide the viewport at once, then tear the window, lease and power down
+     * in the background - which is exactly the destroy-on-yield this plan replaces. Plan A
+     * reaches {@link #planYield} instead and never calls this.
+     */
     private void startCameraRelease(long now) {
         if (lastRestoreAt != 0 && now - lastRestoreAt < 4_000) {
             // The camera came back within seconds of a rebuild: either it was never really gone,
@@ -194,7 +346,7 @@ final class RearLyricsCoordinator {
         schedule(700);
     }
 
-    /** Rebuild the lyric session once the camera is confirmed gone. */
+    /** Legacy engine only. Rebuild the lyric session once the camera is confirmed gone. */
     private void startCameraRestore(long now) {
         if (!wanted()) { rear.markSystemOwned("no-intent"); return; }
         lastRestoreAt = now;
@@ -279,14 +431,15 @@ final class RearLyricsCoordinator {
         RearLyricsLauncher.close(context, reason == CloseReason.CAMERA);
         closing = false; closeReason = CloseReason.USER; closeRetries = 0;
         lockRecovery = false; covered = false; nextAttempt = 0;
-        if (reason == CloseReason.CAMERA) rear.releaseFinished(true, now);
+        if (reason == CloseReason.CAMERA) { if (!planA()) rear.releaseFinished(true, now); }
         else rear.markSystemOwned("window-closed");
+        if (planA()) planRestoring = false;
         if (wanted()) nudge();
     }
 
     private void changeSleep(boolean value) {
         // Only a real camera hold (or its exit tail) blocks power work.
-        if (rear.blocksPresentation()) return;
+        if (cameraOwned()) return;
         if (!value && !closing && enabled && !playing && LspRearBridge.selected(context)
                 && playback.due(SystemClock.elapsedRealtime())) { returnAfterPause(); return; }
         if (closing || powerBusy || value == sleeping || (value && sleepUnsupported)) return;
@@ -322,6 +475,11 @@ final class RearLyricsCoordinator {
             + ", pending=" + pending + ", failures=" + failures + ", rearWakeTried=" + wakeTried
             + ", covered=" + covered + ", lockRecovery=" + lockRecovery + ", frontTask=" + frontTask
             + ", ownership=" + RearOwnershipState.describe(lastOwnership)
+            + ", engine=" + RearPlanA.engine(context) + ", " + gate.describe(now)
+            + ", occupied=" + occupancy.describe(now)
+            + ", planRestoring=" + planRestoring + ", reuseBroken=" + reuseBroken
+            + ", hardYieldTries=" + hardYieldTries + ", dismissed=" + dismissed
+            + ", look={" + planLook.describe() + "}"
             + ", " + rear.describe(now)
             + ", live=" + observation.describe()
             + ", cameraIdleFor=" + cameraMonitor.idleFor() + "ms"
@@ -351,7 +509,7 @@ final class RearLyricsCoordinator {
         if (!LspRearBridge.selected(context) || closing || powerBusy || lspPowerBusy) return;
         String session = RearLyricsActivity.currentSession();
         if (session.isEmpty() || shell == null || !shell.isBinderAlive()) return;
-        boolean desired = !rear.blocksPresentation() && wanted() && !sleeping
+        boolean desired = !cameraOwned() && wanted() && !sleeping
             && !(coverSleepEnabled && physicalCover);
         long now = SystemClock.elapsedRealtime();
         if (desired == lastHoldDesired && session.equals(leaseSession) && now < nextHoldRefresh) return;
@@ -369,13 +527,18 @@ final class RearLyricsCoordinator {
     void enable(RearLyricsLauncher.Callback callback) {
         main.post(() -> {
             enabled = true; manual = true; failures = 0; nextAttempt = 0;
+            // Asking for the window again is the only thing that clears a dismissal.
+            dismissed = false;
+            RearPlanA.clearDismissed(context);
+            occupancy.setDismissed(false);
+            reuseBroken = false;
             playback.start(playing, SystemClock.elapsedRealtime()); schedulePauseReturn();
             syncCoverMonitor();
             context.getSharedPreferences("rear_lyrics", 0).edit().putBoolean("auto_enabled", true).apply();
             cameraMonitor.start();
             int display = rearDisplayForShell();
             evaluateRear(SystemClock.elapsedRealtime());
-            if (rear.blocksPresentation()) {
+            if (cameraOwned()) {
                 // The camera is already up: never take the panel from it, just record the intent.
                 callback.success(display, "背屏歌词已启用；相机使用期间让屏，空闲后自动恢复");
                 schedule(1000);
@@ -392,6 +555,9 @@ final class RearLyricsCoordinator {
         enabled = false;
         context.getSharedPreferences("rear_lyrics", 0).edit().putBoolean("auto_enabled", false).apply();
         main.post(() -> {
+            // The user closed the window. Persist it: a restarted service or a camera episode
+            // that outlives this process must not be able to bring it back.
+            dismiss("user-disabled");
             cameraMonitor.stop();
             coverMonitor.stop(); physicalCover = false;
             main.removeCallbacks(pauseTimeout); playback.reset();
@@ -440,14 +606,15 @@ final class RearLyricsCoordinator {
         if (!wanted()) return;
         long now = SystemClock.elapsedRealtime();
         evaluateRear(now);
-        if (rear.blocksPresentation()) {
+        if (cameraOwned()) {
             // A camera owns the panel. Only a read-only probe is allowed here; it keeps the exit
             // evidence fresh so the machine can confirm the departure instead of guessing.
             if (!closing && !pending && !RearLyricsLauncher.isStarting()) inspectFront(findRearDisplayId(context), now);
             // Fast while the handoff is settling, slower while a camera is confirmed to be using
             // the panel: the task list is the only evidence of the exit, but it must not turn into
             // a two-second shell poll for the whole camera session.
-            schedule(rear.state() == RearHandoffState.State.RELEASING ? 600 : observation.deviceBusy ? 3_000 : 1_000);
+            schedule(planA() ? RearWindowPolicy.cameraBeatMs(planRestoring, planLook.deviceBusy)
+                : rear.state() == RearHandoffState.State.RELEASING ? 600 : observation.deviceBusy ? 3_000 : 1_000);
             return;
         }
         if (pending || RearLyricsLauncher.isStarting()) { schedule(1_200); return; }
@@ -530,26 +697,47 @@ final class RearLyricsCoordinator {
         RearLyricsLauncher.inspectFront(shell, display, summary -> main.post(() -> {
             probing = false;
             RearLyricsTaskList.Evidence evidence = RearLyricsTaskList.parse(summary, display);
+            // Plan A decides on this evidence; keep the whole look, not just the camera flags.
+            this.evidence = evidence;
             // Only a real listing refreshes the evidence clock. An unreadable dump must let the
             // evidence go stale, otherwise it would keep the camera hold alive forever.
             if (evidence.readable) lastRearTaskAt = SystemClock.elapsedRealtime();
             String described = evidence.describe();
             if (!described.equals(frontTask)) { frontTask = described; RearLyricsTrace.record(context, "rear-front", described); }
-            if (!evidence.readable) { schedule(1_500); return; }
+            if (!evidence.readable) {
+                if (planA()) evaluateRear(SystemClock.elapsedRealtime());
+                schedule(1_500);
+                return;
+            }
             boolean rearCamera = evidence.rearCameraTask(), mainCamera = evidence.mainCameraTask();
             boolean changed = rearCamera != rearTaskCamera || mainCamera != mainTaskCamera;
             rearTaskCamera = rearCamera; mainTaskCamera = mainCamera;
+            // The decision runs on fresh evidence, not only on the heartbeat.
+            if (planA()) evaluateRear(SystemClock.elapsedRealtime());
             if (changed) {
                 RearLyricsTrace.record(context, "rear-front-ownership", "rearCameraTask=" + rearCamera + ", mainCameraTask=" + mainCamera);
                 nudge();
                 return;
             }
-            if (!rearCamera && rear.blocksPresentation() && context.getPackageName().equals(evidence.rearPackage())) {
-                // moveTaskToBack lost the race: our window is still the rear task while a camera
-                // owns the panel. Finish it outright - a finished window is always recoverable,
-                // a crashed camera is not.
-                RearLyricsTrace.record(context, "camera-yield-hard-release", "our task is still front on the rear display; finishing it");
-                RearLyricsActivity.finishIfShown();
+            if (!rearCamera && cameraOwned() && context.getPackageName().equals(evidence.rearPackage())) {
+                if (RearWindowPolicy.mayFinishForCamera(planA())) {
+                    // Legacy: moveTaskToBack lost the race. Finish it outright.
+                    RearLyricsTrace.record(context, "camera-yield-hard-release", "our task is still front on the rear display; finishing it");
+                    RearLyricsActivity.finishIfShown();
+                } else if (hardYieldTries++ < 3) {
+                    // Plan A: moveTaskToBack lost the race. Ask again before destroying anything;
+                    // a rebuild costs a renderer and a black frame, and the camera only needs the
+                    // task to stop being in front.
+                    RearLyricsTrace.record(context, "camera-yield-retry",
+                        "our task is still front on the rear display; retry " + hardYieldTries);
+                    RearLyricsActivity.yieldToCamera();
+                } else {
+                    // Three moves were refused. A window in front of a running camera is worse
+                    // than a rebuilt one, so this is the only place plan A gives up the Activity.
+                    RearLyricsTrace.record(context, "camera-yield-fallback",
+                        "moveTaskToBack refused 3x; finishing the window so the camera can draw");
+                    RearLyricsActivity.finishIfShown();
+                }
                 return;
             }
             if (!RearLyricsActivity.isCurrentSession(session)) return; // Our window is gone; ownership handled above.
@@ -574,14 +762,16 @@ final class RearLyricsCoordinator {
                     long now = SystemClock.elapsedRealtime();
                     if (!canPresent()) {
                         // The camera took the panel while we were confirming the window.
-                        rear.restoreFinished(true, now);
-                        RearLyricsTrace.record(context, "camera-restore-superseded", rear.describe(now));
+                        if (planA()) { if (planRestoring) finishPlanARestore(false); }
+                        else rear.restoreFinished(true, now);
+                        RearLyricsTrace.record(context, "camera-restore-superseded",
+                            (planA() ? occupancy.describe(now) : rear.describe(now)));
                         schedule(700);
                         return;
                     }
                     covered = false; lockRecovery = false; failures = 0; nextAttempt = now + 2000;
-                    rear.restoreFinished(true, now);
-                    rear.markActive();
+                    if (planA()) { if (planRestoring) finishPlanARestore(true); }
+                    else { rear.restoreFinished(true, now); rear.markActive(); }
                     if (coverSleepEnabled && physicalCover) changeSleep(true);
                     complete(true, display, message, null); schedule(2000);
                 });
@@ -598,16 +788,18 @@ final class RearLyricsCoordinator {
     private void finishFailure(String message, Exception error) {
         pending = false; main.removeCallbacks(bindTimeout);
         long now = SystemClock.elapsedRealtime();
-        boolean restoring = rear.restoring();
+        boolean restoring = planA() ? planRestoring : rear.restoring();
         if (restoring) {
             // A rebuild failure is retried on the handoff backoff, not the launch backoff that
             // grows to a minute: the user is holding the phone and just closed the camera.
-            rear.restoreFinished(false, now);
-            nextAttempt = now + Math.min(6_000, RearHandoffState.backoff(rear.restoreAttempts()));
+            int attempts;
+            if (planA()) { finishPlanARestore(false); attempts = 1; nextAttempt = now + 2_000; }
+            else { rear.restoreFinished(false, now); attempts = rear.restoreAttempts();
+                nextAttempt = now + Math.min(6_000, RearHandoffState.backoff(attempts)); }
             context.getSharedPreferences("rear_lyrics", 0).edit()
                 .putString("launch_message", "相机退出后恢复背屏歌词失败：" + message + "，稍后自动重试").apply();
             RearLyricsTrace.record(context, "camera-restore-failed", message);
-            if (rear.restoreAttempts() >= 3) RearCameraLog.capture(context, shell, "restore failed " + rear.restoreAttempts() + "x: " + message);
+            if (attempts >= 3) RearCameraLog.capture(context, shell, "restore failed " + attempts + "x: " + message);
         } else {
             nextAttempt = now + RearLyricsPolicy.retryDelay(failures++);
             context.getSharedPreferences("rear_lyrics", 0).edit().putString("launch_message", message).apply();
@@ -621,6 +813,9 @@ final class RearLyricsCoordinator {
      */
     private void finishCancelled(String reason) {
         pending = false;
+        // The attempt ended without a verdict. Release the single-flight flag, and let the
+        // generation check decide whether the outcome still belongs to the current episode.
+        if (planA() && planRestoring) finishPlanARestore(false);
         RearLyricsTrace.record(context, "camera-restore-cancelled", reason);
         schedule(600);
     }
@@ -669,13 +864,13 @@ final class RearLyricsCoordinator {
                         // Key HyperOS 4 evidence: the panel went off while we held a valid
                         // bright lease and were not dimming on purpose. This distinguishes
                         // "system rear-sleep defeats our lease" from our own cover sleep.
-                        if (state == Display.STATE_OFF && lspHolding && !sleeping && !powerBusy && !rear.blocksPresentation())
+                        if (state == Display.STATE_OFF && lspHolding && !sleeping && !powerBusy && !cameraOwned())
                             RearLyricsTrace.record(context, "rear-sleep-defeated", "lease held but the panel slept; " + lspPowerDetail);
                         RearLyricsTrace.record(context, "rear-power-changed", "window=" + RearLyricsActivity.windowState()
                             + ", holding=" + lspHolding + ", " + lspPowerDetail);
                     }
                 }
-                if (id == findRearDisplayId(context) && sleeping && !powerBusy && !rear.blocksPresentation()
+                if (id == findRearDisplayId(context) && sleeping && !powerBusy && !cameraOwned()
                         && RearLyricsLauncher.displayState(context, id) == Display.STATE_ON) {
                     // OEM double-tap-to-wake is handled by the system, then reuses this same WebView.
                     sleeping = false; physicalCover = false; coverMonitor.userWake();
@@ -709,8 +904,9 @@ final class RearLyricsCoordinator {
 
     private RearOwnershipState.State ownership() {
         int display = findRearDisplayId(context);
-        return RearOwnershipState.resolve(rear.blocksPresentation(),
-            closing || rear.state() == RearHandoffState.State.RELEASING, sleeping, covered, physicalCover,
+        return RearOwnershipState.resolve(cameraOwned(),
+            closing || (planA() ? planRestoring : rear.state() == RearHandoffState.State.RELEASING),
+            sleeping, covered, physicalCover,
             display >= 0 && RearLyricsActivity.isShowingOnDisplay(display));
     }
     private void recordOwnershipChange() {

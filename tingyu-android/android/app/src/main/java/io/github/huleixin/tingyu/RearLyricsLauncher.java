@@ -58,8 +58,13 @@ final class RearLyricsLauncher {
         if (starting) { callback.failure("背屏歌词正在启动，请稍候", null); return; }
         starting = true;
         boolean locked = isLocked(context);
-        boolean reuse = (!locked || LspRearBridge.selected(context) || RearLyricsCoordinator.get(context).preserveSleepSession())
-            && RearLyricsActivity.attachedWindowOnDisplay(rearDisplayId) != null;
+        // Plan A: an existing task is always preferred, locked or not. HyperOS rejects new
+        // third-party rear launches behind the keyguard, but a task we still own can be brought
+        // back - and reusing it is the difference between a resumed window and a rebuilt WebView.
+        boolean reuse = RearWindowPolicy.mayReuseWindow(
+            RearLyricsActivity.attachedWindowOnDisplay(rearDisplayId) != null,
+            locked, LspRearBridge.selected(context),
+            RearLyricsCoordinator.get(context).preserveSleepSession(), RearPlanA.enabled(context));
         // A reused instance that yielded to a camera must be allowed to draw again before the
         // launch is validated, otherwise awaitWindow() can never see it visible.
         if (reuse) RearLyricsActivity.resumeFromCamera();

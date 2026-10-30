@@ -827,6 +827,7 @@ public class FoliaNativePlugin extends Plugin {
         JSObject result = new JSObject();
         if (LspRearBridge.selected(getContext())) LspRearBridge.request(getContext());
         result.put("backendMode", LspRearBridge.selected(getContext()) ? "lsp" : "shizuku");
+        result.put("controlEngine", RearPlanA.engine(getContext()));
         result.put("lspConnected", LspRearBridge.get() != null);
         result.put("lspDetail", LspRearBridge.detail());
         result.put("shizukuAvailable", Shizuku.pingBinder());
@@ -883,6 +884,22 @@ public class FoliaNativePlugin extends Plugin {
         coordinator.backendChanged();
         if ("lsp".equals(mode)) LspRearBridge.request(getContext());
         call.resolve();
+    }
+
+    @PluginMethod
+    public void setRearControlEngine(PluginCall call) {
+        // One-tap rollback: both engines stay compiled in, only the command channel moves.
+        String engine = call.getString("engine");
+        if (!RearPlanA.ENGINE_PLAN_A.equals(engine) && !RearPlanA.ENGINE_LEGACY.equals(engine)) {
+            call.reject("未知背屏控制引擎"); return;
+        }
+        RearLyricsCoordinator coordinator = RearLyricsCoordinator.get(getContext());
+        if (!coordinator.canChangeBackend()) { call.reject("请先关闭背屏歌词，等待背屏电源恢复后再切换"); return; }
+        RearPlanA.setEngine(getContext(), engine);
+        coordinator.engineChanged();
+        JSObject result = new JSObject();
+        result.put("engine", RearPlanA.engine(getContext()));
+        call.resolve(result);
     }
 
     @PluginMethod

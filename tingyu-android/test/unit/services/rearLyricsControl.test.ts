@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { canUseRearLyrics, toggleRearLyrics, setRearLyricsBackend, type RearLyricsStatus } from '../../../src/services/rearLyricsControl';
+import { canUseRearLyrics, toggleRearLyrics, setRearLyricsBackend, setRearControlEngine, type RearLyricsStatus } from '../../../src/services/rearLyricsControl';
 import { rearSettingsHint, rearSettingsFingerprint, rearSettingsState } from '../../../src/components/modal/settings/rearLyricsSettingsModel';
 
 // test/unit/services/rearLyricsControl.test.ts
@@ -63,5 +63,23 @@ describe('rear lyrics persistent control', () => {
         const plugin = install({ enabled: true, active: true });
         await toggleRearLyrics();
         expect(plugin.returnFromRearLyrics).toHaveBeenCalledOnce();
+    });
+    // The rollback switch: replace the rear controller in one tap, but never mid-session.
+    it('switches the rear control engine only while the stage is closed', async () => {
+        const plugin = { getRearLyricsStatus: vi.fn().mockResolvedValue({ enabled: false, active: false, controlEngine: 'legacy' }),
+            startRearLyrics: vi.fn(), returnFromRearLyrics: vi.fn(),
+            setRearLyricsBackend: vi.fn(), setRearControlEngine: vi.fn().mockResolvedValue({ engine: 'legacy' }) };
+        vi.stubGlobal('window', { Capacitor: { getPlatform: () => 'android', Plugins: { FoliaNative: plugin } } });
+        expect(await setRearControlEngine('legacy')).toBe(true);
+        expect(plugin.setRearControlEngine).toHaveBeenCalledWith({ engine: 'legacy' });
+        expect(plugin.startRearLyrics).not.toHaveBeenCalled();
+    });
+    it('refuses to swap the engine during a live session', async () => {
+        const plugin = { getRearLyricsStatus: vi.fn().mockResolvedValue({ enabled: true }),
+            startRearLyrics: vi.fn(), returnFromRearLyrics: vi.fn(),
+            setRearLyricsBackend: vi.fn(), setRearControlEngine: vi.fn().mockResolvedValue({ engine: 'legacy' }) };
+        vi.stubGlobal('window', { Capacitor: { getPlatform: () => 'android', Plugins: { FoliaNative: plugin } } });
+        expect(await setRearControlEngine('legacy')).toBe(false);
+        expect(plugin.setRearControlEngine).not.toHaveBeenCalled();
     });
 });

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { setRearLyricsBackend, type RearLyricsStatus } from '../../../services/rearLyricsControl';
+import { setRearControlEngine, setRearLyricsBackend, type RearControlEngine, type RearLyricsStatus } from '../../../services/rearLyricsControl';
 
 // src/components/modal/settings/RearBridgeSettings.tsx
 export default function RearBridgeSettings({ snapshot, refresh }: {
@@ -16,6 +16,14 @@ export default function RearBridgeSettings({ snapshot, refresh }: {
         catch { setFailed(true); }
         finally { setBusy(false); }
     };
+    // The previous controller stays available for exactly this control: one tap back to it.
+    const changeEngine = async (engine: RearControlEngine) => {
+        if (busy) return;
+        setBusy(true); setFailed(false);
+        try { if (!await setRearControlEngine(engine)) setFailed(true); await refresh(); }
+        catch { setFailed(true); }
+        finally { setBusy(false); }
+    };
     return <div className="mt-4 space-y-2">
         <label className="flex items-center justify-between gap-3 text-sm">
             <span>{t('rearBridge.mode')}</span>
@@ -27,6 +35,17 @@ export default function RearBridgeSettings({ snapshot, refresh }: {
             </select>
         </label>
         <p className="text-xs opacity-70 leading-relaxed">{t('rearBridge.switchHint')}</p>
+        <label className="flex items-center justify-between gap-3 text-sm">
+            <span>{t('rearBridge.engine')}</span>
+            <select aria-label={t('rearBridge.engine')} className="rounded-lg bg-black/10 p-2"
+                value={snapshot?.controlEngine ?? 'plan-a'}
+                disabled={!snapshot || busy || snapshot.enabled || snapshot.starting || snapshot.sleeping}
+                onChange={event => void changeEngine(event.target.value as RearControlEngine)}>
+                <option value="plan-a">{t('rearBridge.enginePlanA')}</option>
+                <option value="legacy">{t('rearBridge.engineLegacy')}</option>
+            </select>
+        </label>
+        <p className="text-xs opacity-70 leading-relaxed">{t('rearBridge.engineHint')}</p>
         {snapshot?.backendMode === 'lsp' && snapshot.lspConnected &&
             <p className="text-xs" role="status">{t('rearBridge.connected')}</p>}
         {snapshot?.backendMode === 'lsp' && !snapshot.lspConnected && snapshot.lspDetail && <p className="text-xs leading-relaxed" role="status">{snapshot.lspDetail}</p>}

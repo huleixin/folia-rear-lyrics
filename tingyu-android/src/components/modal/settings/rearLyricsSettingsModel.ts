@@ -33,5 +33,6 @@ export function rearSettingsHint(snapshot: RearLyricsStatus | null): string | nu
 export function rearSettingsFingerprint(snapshot: RearLyricsStatus): string {
     return JSON.stringify([snapshot.enabled, snapshot.active, snapshot.starting, snapshot.rearDisplayId,
         snapshot.shizukuAvailable, snapshot.authorized, snapshot.build, snapshot.sleeping,
-        snapshot.backendMode, snapshot.lspConnected, snapshot.lspDetail, snapshot.returnedToSystem]);
+        snapshot.backendMode, snapshot.lspConnected, snapshot.lspDetail, snapshot.returnedToSystem,
+        snapshot.controlEngine]);
 }
