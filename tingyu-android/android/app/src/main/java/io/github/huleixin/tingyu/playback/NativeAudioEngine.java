@@ -115,6 +115,17 @@ public final class NativeAudioEngine {
     /** Last verdict the engine actually honoured; diagnostics only. */
     private String lastVerdict="none";
     private long lastQueueAppliedAt;
+    /**
+     * Forensics for "the WebView stopped answering".
+     *
+     * Every command that crosses the bridge is proof the renderer ran at that instant, so the
+     * age of the newest one is the only number that separates "JS is dead" from "JS answered
+     * and the answer was wrong". It is sampled next to every queue ask so one report answers
+     * the question without a second reproduction.
+     */
+    private long lastJsCommandAt=0L;
+    private int jsCommands=0;
+    private long jsSilentAtAsk=-1L;
     private final Runnable superviseTick=new Runnable(){public void run(){superviseQueue("tick");}};
 
     private final Runnable heartbeat=new Runnable(){public void run(){if(!sourceId.isEmpty()){emit("clock",false);if(needsClock())main.postDelayed(this,1000);}}};
@@ -160,8 +171,15 @@ public final class NativeAudioEngine {
                 // A background auto-advance into a track whose timeline was never primed leaves
                 // the island empty. Ask the WebView for it now (it answers whenever it does run);
                 // the player itself keeps going either way.
-                if("pending".equals(io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.stateOf(songKey)))
+                if("pending".equals(io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.stateOf(songKey))){
+                    // The island goes blank at exactly this boundary when nothing is primed. It was
+                    // never recorded before, so "lyrics vanished" had no native trace at all.
+                    PlaybackDiagnostics.note("lyric-request",new JSObject()
+                        .put("song",PlaybackDiagnostics.anonKey(songKey))
+                        .put("state","pending").put("index",player.getCurrentMediaItemIndex())
+                        .put("jsSilentMs",lastJsCommandAt==0L?-1L:SystemClock.elapsedRealtime()-lastJsCommandAt));
                     emit("lyric-request",false);
+                }
                 PlaybackDiagnostics.note("queue-transition",new JSObject().put("reason",reason)
                     .put("song",PlaybackDiagnostics.anonKey(songKey)).put("index",player.getCurrentMediaItemIndex())
                     .put("items",player.getMediaItemCount()).put("remaining",Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1)));
@@ -246,10 +264,11 @@ public final class NativeAudioEngine {
         });
         PlaybackTestDiagnostics.note("engine-create-ready",new JSObject());
     }
-    public void listen(Consumer<JSObject> listener){this.listener=listener;}
-    public void unlisten(Consumer<JSObject> listener){if(this.listener==listener)this.listener=null;}
+    public void listen(Consumer<JSObject> listener){this.listener=listener;PlaybackLifecycle.noteBridge(true);}
+    public void unlisten(Consumer<JSObject> listener){if(this.listener==listener){this.listener=null;PlaybackLifecycle.noteBridge(false);}}
     public JSObject command(JSObject value){
         String action=value.optString("action"),id=value.optString("id");long seq=value.optLong("sequence");
+        lastJsCommandAt=SystemClock.elapsedRealtime();jsCommands++;PlaybackLifecycle.noteJsCommand();
         if(action.equals("prepare")){
             if(id.isEmpty())throw new IllegalArgumentException("Missing source identity");
             String url=value.optString("uri");Uri uri=Uri.parse(url);
@@ -408,18 +427,20 @@ public final class NativeAudioEngine {
         int remaining=Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1);
         boolean ended=player.getPlaybackState()==Player.STATE_ENDED;
         QueueSupervision.Action action=supervision.evaluate(songKey,remaining,ended,desiredPaused,SystemClock.elapsedRealtime());
+        jsSilentAtAsk=lastJsCommandAt==0L?-1L:SystemClock.elapsedRealtime()-lastJsCommandAt;
         switch(action){
             case REQUEST:
                 PlaybackDiagnostics.note("queue-request",new JSObject().put("reason",reason)
                     .put("song",PlaybackDiagnostics.anonKey(songKey)).put("remaining",remaining)
-                    .put("index",player.getCurrentMediaItemIndex()).put("items",player.getMediaItemCount()));
+                    .put("index",player.getCurrentMediaItemIndex()).put("items",player.getMediaItemCount())
+                    .put("jsSilentMs",jsSilentAtAsk));
                 emit("queue-request",false);
                 break;
             case WAIT:
                 PlaybackDiagnostics.note("queue-wait",new JSObject().put("reason",reason)
                     .put("song",PlaybackDiagnostics.anonKey(songKey)).put("positionMs",Math.max(0,player.getCurrentPosition()))
                     .put("index",player.getCurrentMediaItemIndex()).put("items",player.getMediaItemCount())
-                    .put("budget",QueueSupervision.retryBudget()));
+                    .put("budget",QueueSupervision.retryBudget()).put("jsSilentMs",jsSilentAtAsk));
                 // Bounded CPU window so a merely throttled (not dead) WebView gets its chance to
                 // answer; nothing is held once the budget or the retry schedule runs out.
                 if(handoffWake!=null)handoffWake.acquire(15_000L);
@@ -539,7 +560,12 @@ public final class NativeAudioEngine {
             .put("queueLivenessRearms",supervision.livenessRearms())
             .put("queueHeldOpen",player.getPlaybackState()==Player.STATE_ENDED
                 && supervision.waiting()&&supervision.continues())
-            .put("queueBudget",QueueSupervision.retryBudget());
+            .put("queueBudget",QueueSupervision.retryBudget())
+            // "Did JS ever run?" in one number. -1 = no command has ever crossed the bridge.
+            .put("jsSilentMs",lastJsCommandAt==0L?-1L:SystemClock.elapsedRealtime()-lastJsCommandAt)
+            .put("jsCommands",jsCommands)
+            .put("bridgeAttached",listener!=null)
+            .put("jsSilentAtLastAskMs",jsSilentAtAsk);
     }
     private void emit(String type,boolean external){
         // The system session must follow Media3 even with no plugin listener or a sleeping WebView.
@@ -547,6 +573,18 @@ public final class NativeAudioEngine {
         if(!sourceId.isEmpty()&&!type.equals("clock")&&!type.equals("spectrum")&&!type.equals("diagnostics")
             &&!type.equals("queue-request"))
             io.github.huleixin.tingyu.FoliaPlaybackService.nativePlaybackChanged(type.equals("seeked"));
+        // An ask with no listener is a positive observation, not an absence of one: it means the
+        // engine wanted to reach JS and the bridge was gone. Recorded for the two asks that keep
+        // a session alive; "state" frames are far too frequent to note here.
+        if(listener==null&&("queue-request".equals(type)||"lyric-request".equals(type)||"error".equals(type))){
+            PlaybackLifecycle.noteDroppedAsk(type);
+            if("queue-request".equals(type))
+                PlaybackDiagnostics.note("ask-dropped",new JSObject().put("type",type)
+                    .put("song",PlaybackDiagnostics.anonKey(songKey))
+                    .put("items",player.getMediaItemCount())
+                    .put("remaining",Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1))
+                    .put("jsSilentMs",PlaybackLifecycle.jsSilentMs()));
+        }
         if(listener==null&&!io.github.huleixin.tingyu.BuildConfig.PLAYBACK_ENGINE_TEST)return;
         JSObject value=snapshot(type,external);
         if(!type.equals("clock")&&io.github.huleixin.tingyu.BuildConfig.PLAYBACK_ENGINE_TEST){JSObject safe=copy(value);safe.remove("uri");PlaybackTestDiagnostics.note(type,safe);}
@@ -559,5 +597,5 @@ public final class NativeAudioEngine {
         value.put("spectrum",array);listener.accept(value);
     });}
     private void release(){PlaybackDiagnostics.note("engine-release",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
-            .put("positionMs",Math.max(0,player.getCurrentPosition())));releaseHandoff();cancelFade();main.removeCallbacksAndMessages(null);sourceId="";listener=null;player.release();spectrum.close();}
+            .put("positionMs",Math.max(0,player.getCurrentPosition())));releaseHandoff();cancelFade();main.removeCallbacksAndMessages(null);sourceId="";listener=null;PlaybackLifecycle.noteBridge(false);player.release();spectrum.close();}
 }

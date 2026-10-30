@@ -621,6 +621,158 @@ const readVideoLayerLines = async (): Promise<string[]> => {
  * 原生队列（剩余/等待/判定/补队列结果）、MediaSession 上的歌词状态、以及 JS 认为在播的歌
  * 是否就是原生在播的那一首。缺任何一项，报告就只能证明「停了」，不能证明「为什么停」。
  */
+type NativeTrailEvent = {
+    at: number;
+    since?: number;
+    repeat?: number;
+    type: string;
+    data?: Record<string, unknown>;
+};
+
+type NativeTrailBundle = {
+    critical: NativeTrailEvent[];
+    routine: NativeTrailEvent[];
+    lifecycle: Record<string, unknown> | null;
+    epoch: number;
+    error: string;
+};
+
+/**
+ * 原生常开播放轨迹（PlaybackDiagnostics，正式版也写入，落 SharedPreferences）。
+ *
+ * 这份记录是**唯一**能在正式版上留下「停播那一刻发生了什么」的东西：不依赖测试构建、
+ * 不依赖 logcat、不含 URL 与歌词正文，且进程被杀后仍在，重开应用即可导出。
+ *
+ * 双通道是刻意的：以前只有一条环形缓冲，定时重试的 queue-wait 每几秒一条，
+ * 会把真正解释停播的那条挤出窗口。critical（状态变化/错误/生命周期/歌词发布）
+ * 只能被另一条 critical 挤掉，routine（队列询问/等待）单独成环并合并重复项。
+ */
+const readNativeTrailBundle = async (): Promise<NativeTrailBundle> => {
+    const empty: NativeTrailBundle = { critical: [], routine: [], lifecycle: null, epoch: 0, error: '' };
+    if (typeof window === 'undefined') return { ...empty, error: 'unavailable in this environment' };
+    const plugins = (window as unknown as { Capacitor?: { Plugins?: Record<string, any> } }).Capacitor?.Plugins ?? {};
+    const playback = plugins.TingyuPlayback;
+    if (typeof playback?.playbackDiagnostics !== 'function') return { ...empty, error: 'plugin missing' };
+    try {
+        const result = await playback.playbackDiagnostics();
+        const read = (value: unknown): NativeTrailEvent[] => (
+            Array.isArray(value)
+                ? value.map((raw: any) => ({
+                    at: Number(raw?.at ?? 0),
+                    since: Number(raw?.since ?? 0) || undefined,
+                    repeat: Number(raw?.repeat ?? 0) || undefined,
+                    type: String(raw?.type ?? 'unknown'),
+                    data: raw?.data && typeof raw.data === 'object' ? raw.data : undefined,
+                }))
+                : []
+        );
+        return {
+            critical: read(result?.critical),
+            routine: read(result?.routine),
+            lifecycle: result?.lifecycle && typeof result.lifecycle === 'object' ? result.lifecycle : null,
+            epoch: Number(result?.epoch ?? 0),
+            error: '',
+        };
+    } catch (error) {
+        return { ...empty, error: error instanceof Error ? error.message : 'unknown' };
+    }
+};
+
+const clock = (at: number): string => (at > 0 ? new Date(at).toISOString().slice(11, 19) : '--:--:--');
+
+const formatTrailEvent = (event: NativeTrailEvent): string => {
+    const data = event.data ?? {};
+    const fields = Object.keys(data)
+        .filter(key => key !== 'song')
+        .map(key => `${key}=${String(data[key])}`)
+        .join(' ');
+    const repeat = event.repeat && event.repeat > 1
+        ? ` x${event.repeat} since ${clock(event.since ?? 0)}`
+        : '';
+    return `  ${clock(event.at)} ${event.type}`
+        + (data.song === undefined ? '' : ` song=${String(data.song)}`)
+        + (fields ? ` ${fields}` : '')
+        + repeat;
+};
+
+const readNativePlaybackTrailLines = (bundle: NativeTrailBundle): string[] => {
+    if (bundle.error) return [`  error ${bundle.error}`];
+    const lines: string[] = [];
+    lines.push(`  process epoch: ${bundle.epoch} (a new epoch means the process restarted)`);
+    if (bundle.critical.length === 0 && bundle.routine.length === 0) {
+        lines.push('  (empty)');
+        return lines;
+    }
+    lines.push(`  critical (${bundle.critical.length}, last 60):`);
+    if (bundle.critical.length === 0) lines.push('    (none)');
+    else for (const event of bundle.critical.slice(-60)) lines.push(`  ${formatTrailEvent(event)}`);
+    lines.push(`  routine (${bundle.routine.length}, last 12, coalesced):`);
+    if (bundle.routine.length === 0) lines.push('    (none)');
+    else for (const event of bundle.routine.slice(-12)) lines.push(`  ${formatTrailEvent(event)}`);
+    return lines;
+};
+
+/**
+ * 后台 JS 到底还活着吗 —— 四个互相独立的信号。
+ *
+ * `jsSilentMs` 单独一个数什么都证明不了：被系统冻结的 renderer、被系统销毁的 renderer、
+ * 被销毁的 Activity、以及一个活着但无话可说的 WebView，在这一个数上完全相同。
+ * 所以这里只并列四个信号，不下结论；判断要由人结合下面几行一起做。
+ */
+const readJsLivenessLines = (bundle: NativeTrailBundle): string[] => {
+    const life = bundle.lifecycle;
+    if (!life) return ['  (unavailable)', bundle.error ? `  error ${bundle.error}` : '  (no lifecycle state)'].filter(Boolean);
+    const value = (key: string): string => (life[key] === undefined || life[key] === null ? 'n/a' : String(life[key]));
+    const ms = (key: string): string => (Number(life[key] ?? -1) < 0 ? 'n/a' : `${Number(life[key])}ms`);
+    return [
+        `  activity: state=${value('activityState')} alive=${value('activityAlive')} forMs=${ms('activityStateForMs')}`,
+        `  renderer: gone=${value('rendererGone')} count=${value('rendererGoneCount')} crashed=${value('rendererCrashed')} forMs=${ms('rendererGoneForMs')}`,
+        `  bridge:   attached=${value('bridgeAttached')} detachedForMs=${ms('bridgeDetachedForMs')}`,
+        `  commands: total=${value('jsCommands')} lastAt=${value('lastJsCommandAt') === '0' ? 'never' : clock(Number(life.lastJsCommandAt ?? 0))}`
+        + ` silentMs=${value('jsSilentMs')} droppedAsks=${value('droppedAsks')} lastDropped=${value('lastDroppedAskType') || 'none'}`,
+        '  note: silentMs alone does NOT mean "JS is dead". A frozen renderer, a destroyed',
+        '        renderer and a destroyed Activity all produce the same number. The four lines',
+        '        above have to agree before any conclusion is drawn.',
+    ];
+};
+
+/**
+ * 灵动岛歌词的三层证据，必须分开看：
+ *
+ *   layer 1 built     —— 我们构造出的 MediaMetadata 里到底有没有 lyricInfo（written=timeline/absent/stub）
+ *   layer 2 published —— MediaSession 现在实际持有的 lyricInfo（用 MediaController 读回）
+ *   layer 3 consumed  —— 系统 UI / 灵动岛模块是否渲染。这一层在本进程**不可观测**，
+ *                        不做 Hook 就永远只能给出边界，不能给出结论。
+ */
+const readLyricSessionLines = (bundle: NativeTrailBundle): string[] => {
+    const last = (type: string): NativeTrailEvent | null => {
+        for (let i = bundle.critical.length - 1; i >= 0; i -= 1) {
+            if (bundle.critical[i].type === type) return bundle.critical[i];
+        }
+        return null;
+    };
+    const describe = (label: string, event: NativeTrailEvent | null): string => {
+        if (!event) return `  ${label}: (never recorded)`;
+        const data = event.data ?? {};
+        return `  ${label}: ${clock(event.at)} written=${String(data.written ?? 'n/a')}`
+            + ` state=${String(data.state ?? '-')} song=${String(data.song ?? '-')}`
+            + ` sessionSong=${String(data.sessionSong ?? '-')} songMatches=${String(data.songMatches ?? '-')}`
+            + ` len=${String(data.len ?? '-')}`;
+    };
+    const request = last('lyric-request');
+    return [
+        describe('layer1 built    ', last('lyric-metadata')),
+        describe('layer2 published', last('lyric-session')),
+        '  layer3 consumed : NOT OBSERVABLE from this process (no hook into the system lyric UI).',
+        '                    If layer2 says written=timeline + songMatches=yes for the song that is',
+        '                    actually playing and the island is still empty, the remaining link is',
+        '                    the consumer - that is a boundary, not a claim.',
+        request
+            ? `  last lyric-request: ${clock(request.at)} song=${String(request.data?.song ?? '-')}`
+            : '  last lyric-request: (none)',
+    ];
+};
+
 const readBackgroundContinuityLines = async (): Promise<string[]> => {
     if (typeof window === 'undefined') return ['  (unavailable in this environment)'];
     const plugins = (window as unknown as { Capacitor?: { Plugins?: Record<string, any> } }).Capacitor?.Plugins ?? {};
@@ -647,6 +799,14 @@ const readBackgroundContinuityLines = async (): Promise<string[]> => {
                 + ` suppression=${player.suppressionReason} offload=${player.offloadPreference}`
                 + ` error=${player.message || 'none'}`,
             );
+            // 后台 JS 到底还活着吗：跨桥命令的新旧程度是一个信号，但单凭它不能下结论，
+            // 完整的四信号并列在下面的 "js liveness" 段。
+            lines.push(
+                `  js bridge: attached=${player.bridgeAttached === true ? 'yes' : 'no'}`
+                + ` commands=${player.jsCommands ?? 0}`
+                + ` silentMs=${player.jsSilentMs ?? -1} (not proof on its own; see "js liveness")`
+                + ` silentAtLastAskMs=${player.jsSilentAtLastAskMs ?? -1}`,
+            );
         }
     } catch (error) {
         lines.push(`  native queue: error ${error instanceof Error ? error.message : 'unknown'}`);
@@ -671,6 +831,7 @@ export const buildDiagnosticReport = async (): Promise<string> => {
     await sampleFrameTimingWindow();
     const appVersion = typeof __APP_VERSION__ === 'undefined' ? 'unknown' : __APP_VERSION__;
     const heartbeats = await readDiagnosticsHeartbeats();
+    const nativeTrail = await readNativeTrailBundle();
     const capacitor = (window as unknown as { Capacitor?: { getPlatform?: () => string; isNativePlatform?: () => boolean } }).Capacitor;
     const lines: string[] = [
         '### Folia diagnostics',
@@ -714,6 +875,19 @@ export const buildDiagnosticReport = async (): Promise<string> => {
         // 后台连续播放与灵动岛歌词的共同现场：三方状态放在一起才解释得了「为什么停」。
         'background continuity:',
         ...(await readBackgroundContinuityLines()),
+        '',
+        // 原生侧常开轨迹：停播/掉词那一刻的事件序列（匿名、无 URL、无歌词正文）。
+        // 进程被杀后仍然保留在 SharedPreferences 里，重开应用即可导出。
+        'native playback trail (persisted across process death):',
+        ...readNativePlaybackTrailLines(nativeTrail),
+        '',
+        // 后台 JS 是否仍在工作：四个互相独立的信号，并列不下结论。
+        'js liveness (four independent signals, no verdict):',
+        ...readJsLivenessLines(nativeTrail),
+        '',
+        // 灵动岛歌词：构造 / 发布 / 消费 三层分开，第三层明确标注为不可观测。
+        'lyric pipeline (built / published / consumed):',
+        ...readLyricSessionLines(nativeTrail),
         '',
         'playback heartbeat:',
         `  previous: ${formatPlaybackHeartbeat(heartbeats.playback.previous)}`,

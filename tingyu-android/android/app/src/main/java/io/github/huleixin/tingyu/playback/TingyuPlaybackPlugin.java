@@ -38,7 +38,17 @@ public final class TingyuPlaybackPlugin extends Plugin {
     @PluginMethod public void probe(PluginCall call){call.resolve(new JSObject().put("supported",ENABLED).put("engine","media3-1.11.1"));}
     /** Always-on playback failure trail (release builds included); entries are anonymous and URL-free. */
     @PluginMethod public void playbackDiagnostics(PluginCall call){
-        try{PlaybackDiagnostics.initialize(getContext());call.resolve(new JSObject().put("events",PlaybackDiagnostics.snapshot()));}
+        try{
+            PlaybackDiagnostics.initialize(getContext());
+            // Critical and routine are returned separately: a merged list lets a retry tick push
+            // the failure record out of the window the report prints.
+            call.resolve(new JSObject()
+                .put("events",PlaybackDiagnostics.snapshot())
+                .put("critical",PlaybackDiagnostics.snapshotCritical())
+                .put("routine",PlaybackDiagnostics.snapshotRoutine())
+                .put("lifecycle",PlaybackLifecycle.snapshot())
+                .put("epoch",PlaybackDiagnostics.epoch()));
+        }
         catch(Exception error){call.reject("读取播放诊断失败："+error.getClass().getSimpleName());}
     }
     @PluginMethod public void clearPlaybackDiagnostics(PluginCall call){

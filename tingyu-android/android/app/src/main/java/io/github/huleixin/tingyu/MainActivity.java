@@ -40,6 +40,10 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         CrashDiagnostics.install(getApplicationContext());
+        // The playback trail must exist before anything else can fail, and must be reloaded from
+        // disk on every process start so a trail recorded before a kill is still exportable.
+        io.github.huleixin.tingyu.playback.PlaybackDiagnostics.initialize(getApplicationContext());
+        io.github.huleixin.tingyu.playback.PlaybackLifecycle.noteActivity("create", true);
         clearWebViewCachesAfterAppUpdate();
         registerPlugin(FoliaNativePlugin.class);
         registerPlugin(io.github.huleixin.tingyu.playback.TingyuPlaybackPlugin.class);
@@ -173,6 +177,13 @@ public class MainActivity extends BridgeActivity {
             public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
                 boolean didCrash = detail != null && detail.didCrash();
                 int priority = detail == null ? -1 : detail.rendererPriorityAtExit();
+                // The playback trail, not only the crash trail: a renderer death is the one event
+                // that silences the WebView half of both reported bugs at the same instant.
+                io.github.huleixin.tingyu.playback.PlaybackDiagnostics.initialize(getApplicationContext());
+                io.github.huleixin.tingyu.playback.PlaybackLifecycle.noteRendererGone(didCrash);
+                io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("renderer-gone",
+                    new com.getcapacitor.JSObject().put("didCrash", didCrash).put("priorityAtExit", priority)
+                        .put("jsSilentMs", io.github.huleixin.tingyu.playback.PlaybackLifecycle.jsSilentMs()));
                 CrashDiagnostics.recordText(
                     getApplicationContext(),
                     "webview-renderer-gone",
@@ -229,6 +240,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onResume() {
         super.onResume();
+        io.github.huleixin.tingyu.playback.PlaybackLifecycle.noteActivity("resume", true);
         if (nativeShell != null) nativeShell.resume();
         updateStageActivity(true);
         if (getBridge() != null) {
@@ -248,6 +260,10 @@ public class MainActivity extends BridgeActivity {
             return;
         }
         lastUserLeaveRecordAt = now;
+        // Wall-clock anchor for "when the screen went away"; every later trail entry is read
+        // relative to this moment.
+        io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("user-leave", new com.getcapacitor.JSObject()
+            .put("jsSilentMs", io.github.huleixin.tingyu.playback.PlaybackLifecycle.jsSilentMs()));
         CrashDiagnostics.recordText(
             getApplicationContext(),
             "activity-lifecycle",
@@ -261,6 +277,10 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onStop() {
+        io.github.huleixin.tingyu.playback.PlaybackDiagnostics.initialize(getApplicationContext());
+        io.github.huleixin.tingyu.playback.PlaybackLifecycle.noteActivity("stop", false);
+        io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("activity-stop", new com.getcapacitor.JSObject()
+            .put("finishing", isFinishing()).put("changingConfigurations", isChangingConfigurations()));
         if (nativeShell != null) nativeShell.suspend();
         updateStageActivity(false);
         CrashDiagnostics.recordText(
@@ -276,6 +296,13 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onDestroy() {
+        // The Activity owns the Capacitor bridge, and the bridge is the only path JS has into the
+        // engine. Its destruction is therefore a playback event, not only a lifecycle one.
+        io.github.huleixin.tingyu.playback.PlaybackDiagnostics.initialize(getApplicationContext());
+        io.github.huleixin.tingyu.playback.PlaybackLifecycle.noteActivity("destroy", false);
+        io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("activity-destroy", new com.getcapacitor.JSObject()
+            .put("finishing", isFinishing()).put("changingConfigurations", isChangingConfigurations())
+            .put("jsSilentMs", io.github.huleixin.tingyu.playback.PlaybackLifecycle.jsSilentMs()));
         CrashDiagnostics.recordText(
             getApplicationContext(),
             "activity-lifecycle",
@@ -295,6 +322,11 @@ public class MainActivity extends BridgeActivity {
             && (level != lastTrimMemoryLevel || now - lastTrimMemoryRecordAt >= 10000L)) {
             lastTrimMemoryLevel = level;
             lastTrimMemoryRecordAt = now;
+            // Memory pressure is the usual reason the OS destroys the Activity or the renderer
+            // while audio is still playing; it belongs on the same timeline as the stop.
+            io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("memory-pressure",
+                new com.getcapacitor.JSObject().put("level", level)
+                    .put("jsSilentMs", io.github.huleixin.tingyu.playback.PlaybackLifecycle.jsSilentMs()));
             CrashDiagnostics.recordText(
                 getApplicationContext(),
                 "memory-pressure",

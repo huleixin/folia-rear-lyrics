@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, ClipboardCopy, FileDown, Lightbulb, Loader2, Sparkles, Trash2 } from 'lucide-react';
+import { Check, ClipboardCopy, Eraser, FileDown, Lightbulb, Loader2, Sparkles, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
     canDeleteExportedDiagnostics,
@@ -18,6 +18,7 @@ type SettingsHelpActionsProps = {
 type CopyState = 'idle' | 'working' | 'copied' | 'failed';
 type ExportState = 'idle' | 'working' | 'shared' | 'downloaded' | 'failed';
 type DeleteState = 'idle' | 'working' | 'done' | 'empty' | 'failed';
+type TrailState = 'idle' | 'working' | 'cleared' | 'failed' | 'unsupported';
 
 const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
     onOpenReleaseNotes,
@@ -30,6 +31,7 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
     const [deleteState, setDeleteState] = useState<DeleteState>('idle');
     const [deletedCount, setDeletedCount] = useState(0);
     const [canDeleteDiagnostics] = useState(() => canDeleteExportedDiagnostics());
+    const [trailState, setTrailState] = useState<TrailState>('idle');
 
     const handleCopyDiagnostics = async () => {
         setCopyState('working');
@@ -68,6 +70,26 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
         }
     };
 
+    /**
+     * 取证起点：清空原生播放轨迹，让下一次复现的报告只有这一次的事件。
+     * 轨迹本身常开写入，不清空也能用，但一次复现前的清零能把判读时间从几分钟压到几十秒。
+     */
+    const handleClearPlaybackTrail = async () => {
+        setTrailState('working');
+        try {
+            const plugin = (window as any).Capacitor?.Plugins?.TingyuPlayback ?? null;
+            if (typeof plugin?.clearPlaybackDiagnostics !== 'function') {
+                setTrailState('unsupported');
+                return;
+            }
+            await plugin.clearPlaybackDiagnostics();
+            setTrailState('cleared');
+        } catch (error) {
+            console.warn('[Settings] playback trail:clear-failed', error);
+            setTrailState('failed');
+        }
+    };
+
     const CopyIcon = copyState === 'working' ? Loader2 : copyState === 'copied' ? Check : ClipboardCopy;
     const ExportIcon = exportState === 'working'
         ? Loader2
@@ -75,6 +97,7 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
             ? Check
             : FileDown;
     const DeleteIcon = deleteState === 'working' ? Loader2 : deleteState === 'done' ? Check : Trash2;
+    const TrailIcon = trailState === 'working' ? Loader2 : trailState === 'cleared' ? Check : Eraser;
 
     return (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -113,6 +136,34 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
                                 : t('help.copyDiagnostics')}
                     </span>
                     <span className="mt-0.5 block text-xs opacity-55">{t('help.copyDiagnosticsDescription')}</span>
+                </span>
+            </button>
+            <button
+                type="button"
+                data-testid="help-clear-playback-trail"
+                onClick={() => void handleClearPlaybackTrail()}
+                disabled={trailState === 'working'}
+                className="flex items-center gap-3 rounded-2xl bg-white/5 p-4 text-left transition-colors hover:bg-white/10 disabled:opacity-50 disabled:cursor-default sm:col-span-2"
+                style={{ color: 'var(--text-primary)' }}
+            >
+                <TrailIcon
+                    size={19}
+                    className={`shrink-0 opacity-75 ${trailState === 'working' ? 'animate-spin' : ''}`}
+                    aria-hidden="true"
+                />
+                <span>
+                    <span className="block text-sm font-semibold">
+                        {trailState === 'cleared'
+                            ? '播放轨迹已清空'
+                            : trailState === 'failed'
+                                ? '清空播放轨迹失败'
+                                : trailState === 'unsupported'
+                                    ? '当前平台不支持'
+                                    : '清空播放轨迹（取证用）'}
+                    </span>
+                    <span className="mt-0.5 block text-xs opacity-55">
+                        只清空原生播放轨迹，不影响播放列表、音源设置与任何用户数据
+                    </span>
                 </span>
             </button>
             <button

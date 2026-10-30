@@ -11,6 +11,7 @@ import android.content.Intent;
 import android.net.wifi.WifiManager;
 import android.media.MediaMetadata;
 import android.media.AudioAttributes;
+import android.media.session.MediaController;
 import android.media.session.MediaSession;
 import android.media.session.PlaybackState;
 import android.os.Build;
@@ -86,6 +87,9 @@ public class FoliaPlaybackService extends Service {
     private volatile boolean lastPlaying = false;
     /** Last (track, lyric state) pair written to metadata; only used to dedupe diagnostics. */
     private volatile String lastLyricState = "";
+    private volatile String lastLyricSessionState = "";
+    /** Own-session controller, used only to read back what the session really exposes. */
+    private volatile MediaController selfController;
     private volatile long lastServiceStartRecordAt = 0L;
     private volatile boolean lastServiceStartPlaying = false;
     private volatile String lastServiceStartSongKey = "";
@@ -407,8 +411,13 @@ public class FoliaPlaybackService extends Service {
         // not be able to evict its timeline, or the boundary publishes an empty lyric field.
         ColorOsLyricBridge.pin(songKey);
         ColorOsLyricBridge.attach(metadata, songKey);
-        noteLyricPublication(songKey);
-        return metadata.build();
+        MediaMetadata built = metadata.build();
+        // Read the payload back out of the object that is about to reach the session, instead of
+        // trusting that "we asked for lyrics for this songKey". songKey equality says nothing
+        // about whether a payload exists: pending writes no key at all, and a confirmed-no-lyric
+        // track writes a stub that looks identical to a blank island from the outside.
+        noteLyricPublication(songKey, built);
+        return built;
     }
 
     /**
@@ -420,12 +429,29 @@ public class FoliaPlaybackService extends Service {
      * the transition in the trail is what makes the difference provable from a device report.
      */
     private void noteLyricPublication(String songKey) {
+        noteLyricPublication(songKey, null);
+    }
+
+    /**
+     * @param published the metadata just built, when the caller has it; its `lyricInfo` is read
+     *                  back so the trail says what the session actually received.
+     */
+    private void noteLyricPublication(String songKey, MediaMetadata published) {
         String state = ColorOsLyricBridge.stateOf(songKey);
-        String identity = state + "|" + io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey);
+        String written = published == null ? null : published.getString(ColorOsLyricBridge.METADATA_KEY_LYRIC_INFO);
+        // Independent of songKey: absent / empty stub / a real timeline are three different
+        // answers to "does the island have something to show for this track".
+        String kind = written == null ? "absent"
+            : written.isEmpty() ? "empty"
+            : written.contains("\"noLyric\":true") ? "stub" : "timeline";
+        String identity = state + "|" + kind + "|"
+            + io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey);
         if (identity.equals(lastLyricState)) return;
         lastLyricState = identity;
         io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("lyric-metadata", new com.getcapacitor.JSObject()
             .put("state", state)
+            .put("written", kind)
+            .put("len", written == null ? -1 : written.length())
             .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey))
             .put("playing", cachedPlaying));
     }
@@ -454,6 +480,61 @@ public class FoliaPlaybackService extends Service {
             artwork, cachedCoverUrl, cachedSongKey);
         mediaSession.setMetadata(metadata);
         mediaSession.setQueue(Collections.singletonList(new MediaSession.QueueItem(metadata.getDescription(), queueId(cachedSongKey))));
+        noteLyricSessionState(cachedSongKey);
+    }
+
+    /**
+     * Layer 2 of the lyric evidence: read {@code lyricInfo} back out of the MediaSession itself.
+     *
+     * Layer 1 ({@code lyric-metadata}) only proves what we built. This proves what the session
+     * actually exposes to whoever reads it; the two can disagree when metadata is replaced,
+     * dropped or shadowed between construction and publication. Layer 3 - whether the system UI
+     * then renders it - is outside this process and cannot be observed without hooking the
+     * consumer, so the report states the boundary instead of guessing.
+     */
+    private void noteLyricSessionState(String songKey) {
+        if (mediaSession == null || songKey == null || songKey.isEmpty()) return;
+        MediaMetadata published;
+        try {
+            published = readSessionMetadata();
+        } catch (Throwable error) {
+            published = null;
+        }
+        String written = published == null ? null : published.getString(ColorOsLyricBridge.METADATA_KEY_LYRIC_INFO);
+        String sessionSong = published == null ? null : published.getString(MediaMetadata.METADATA_KEY_MEDIA_ID);
+        String kind = written == null ? "absent"
+            : written.isEmpty() ? "empty"
+            : written.contains("\"noLyric\":true") ? "stub" : "timeline";
+        String identity = kind
+            + "|" + io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey)
+            + "|" + (sessionSong == null ? "none"
+                : io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(sessionSong));
+        if (identity.equals(lastLyricSessionState)) return;
+        lastLyricSessionState = identity;
+        io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("lyric-session", new com.getcapacitor.JSObject()
+            .put("written", kind)
+            .put("len", written == null ? -1 : written.length())
+            .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey))
+            .put("sessionSong", sessionSong == null ? "none"
+                : io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(sessionSong))
+            .put("songMatches", sessionSong != null && sessionSong.equals(songKey))
+            .put("sessionActive", mediaSession.isActive())
+            .put("playing", cachedPlaying));
+    }
+
+    /** Reads the session through a plain controller: the same path any consumer would use. */
+    private MediaMetadata readSessionMetadata() {
+        try {
+            if (selfController == null) {
+                MediaSession.Token token = mediaSession.getSessionToken();
+                if (token == null) return null;
+                selfController = new MediaController(this, token);
+            }
+            return selfController.getMetadata();
+        } catch (Throwable error) {
+            selfController = null;
+            return null;
+        }
     }
 
     private static long queueId(String songKey) {
@@ -747,6 +828,8 @@ public class FoliaPlaybackService extends Service {
         artworkClient.dispatcher().cancelAll();
         artworkExecutor.shutdownNow();
         artworkCache.evictAll();
+        // No callback was ever registered; the controller was only a read-back handle.
+        selfController = null;
         if (mediaSession != null) {
             mediaSession.setActive(false);
             mediaSession.release();
