@@ -26,11 +26,22 @@ object LxHttp {
     private val BLOCKED_HEADERS = setOf("cookie", "host", "origin")
     private val SENSITIVE_HEADERS = setOf("authorization", "cookie", "x-token")
 
+    // 真机 1.3.50 的第二次停播里，后台解析连续三次 `connection closed`（status=-1）。
+    // 原来每一跳都 `CLIENT.newBuilder().build()`：OkHttp 的 Builder 在没显式给
+    // connectionPool/dispatcher 时**每次都会新建一个**，于是每个请求一条新连接池、
+    // 一套新线程池（旧的从不 shutdown）。后果是在后台弱网下每次都重新 DNS+TCP+TLS，
+    // 握手窗口一旦被系统网络省电掐掉就是 connection closed，前面也没法复用已验证的连接。
+    // 这里把连接池与调度器提成进程级共享，per-request 的 client 只是换超时，不再新建池。
+    private val POOL = okhttp3.ConnectionPool(8, 5, TimeUnit.MINUTES)
+    private val DISPATCHER = okhttp3.Dispatcher()
+
     private val CLIENT = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .followRedirects(false)
         .followSslRedirects(false)
+        .connectionPool(POOL)
+        .dispatcher(DISPATCHER)
         .build()
 
     /**
@@ -54,6 +65,12 @@ object LxHttp {
         val timeout = clamp(options.opt("timeout"), 1_000, 30_000).toLong()
         val method = options.optString("method", "GET").uppercase(Locale.US).let { if (it.isEmpty()) "GET" else it }
         if (!METHODS.contains(method)) throw IllegalArgumentException("HTTP method unsupported: $method")
+        // 脚本没给 UA 时不要露出 okhttp/4.x：一部分音源站按 UA 分流甚至直接关连接。
+        // 用系统 UA（与 WebView 侧 CapacitorHttp 同一来源），脚本显式给的一律优先。
+        if (headers.keys.none { it.equals("User-Agent", true) }) {
+            headers["User-Agent"] = System.getProperty("http.agent")?.takeIf { it.isNotBlank() }
+                ?: "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36"
+        }
 
         var body: String? = null
         val form = options.opt("form")

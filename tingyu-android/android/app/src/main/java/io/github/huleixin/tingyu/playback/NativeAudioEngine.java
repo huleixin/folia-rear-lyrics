@@ -112,6 +112,16 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     private long retryGeneration;
     private long queueGeneration=-1;
     private int queueAccepted,queueRejected,queueStale,staleNudges;
+    /**
+     * 最近一次窗口同步对队列做了什么。
+     *
+     * 真机 1.3.50 的停播里，唯一能看出"下一首被删了"的线索是 `accepted=0 removed=1`
+     * 这两个数字，而删掉的是哪一首、它是不是已经接管好的，报告里完全没有 ——
+     * 于是只能靠猜。这几位把「谁被删、谁被保留、保留的是不是已接管项」固定下来。
+     */
+    private volatile int lastQueueRemoved,lastQueuePreserved,lastQueueAdded;
+    private volatile String lastQueueDroppedAdopted="",lastQueueAddedFirst="";
+    private volatile long lastQueueDiffAtMs;
     /** Last verdict the engine actually honoured; diagnostics only. */
     private String lastVerdict="none";
     private long lastQueueAppliedAt;
@@ -346,10 +356,14 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 .put("song",PlaybackDiagnostics.anonKey(track.songKey)).put("reason","paused-or-detached"));
             return;
         }
-        if(generation!=io.github.huleixin.tingyu.playback.NativePlaylist.get().generation()){
+        // 只在「这首歌真的被移出逻辑歌单」时作废。代次相等不是条件：一次普通同步就会
+        // 让代次 +1，但它并不改变这首歌的地址；拿代次卡这里，等于把已经准备好的下一首
+        // 在用户看不见的地方丢掉（真机 1.3.50：adopt → playlist-sync → 同一首重新解析）。
+        if(!io.github.huleixin.tingyu.playback.NativePlaylist.get().contains(track.songKey)){
             PlaybackDiagnostics.note("continuation-rejected",new JSObject()
-                .put("song",PlaybackDiagnostics.anonKey(track.songKey)).put("reason","generation")
-                .put("generation",generation));
+                .put("song",PlaybackDiagnostics.anonKey(track.songKey)).put("reason","dropped-from-playlist")
+                .put("generation",generation)
+                .put("generationNow",io.github.huleixin.tingyu.playback.NativePlaylist.get().generation()));
             return;
         }
         if(queueContainsInternal(track.songKey)){
@@ -422,6 +436,26 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         return false;
     }
 
+    /**
+     * 这一项是不是原生自己取到地址放进来的（而不是 JS 窗口给的）。
+     *
+     * 区别只在「谁保证它有地址」：JS 窗口项由 JS 负责，窗口换代就该整体替换；
+     * 原生接管项是已经解析完成的，一次解析不出东西的窗口不能把它带走。
+     */
+    private static boolean isAdoptedContinuation(MediaItem item){
+        if(item==null||item.localConfiguration==null)return false;
+        Object tag=item.localConfiguration.tag;
+        return tag instanceof JSObject&&((JSObject)tag).optBoolean("nativeContinuation",false);
+    }
+
+    /** 当前曲之后是否已经有一首原生接管好的（=后台续播的把握）。诊断用。 */
+    private boolean hasAdoptedAhead(){
+        for(int i=player.getCurrentMediaItemIndex()+1;i<player.getMediaItemCount();i++){
+            if(isAdoptedContinuation(player.getMediaItemAt(i)))return true;
+        }
+        return false;
+    }
+
     private JSObject applyQueue(JSObject value){
         String anchor=value.optString("songKey");
         org.json.JSONArray entries=value.optJSONArray("tracks");
@@ -469,25 +503,77 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         if(start>0)items=new java.util.ArrayList<>(items.subList(start,items.size()));
         boolean wasEnded=player.getPlaybackState()==Player.STATE_ENDED;
         int next=player.getCurrentMediaItemIndex()+1;
-        int removed=next<player.getMediaItemCount()?player.getMediaItemCount()-next:0;
-        if(next<player.getMediaItemCount())player.removeMediaItems(next,player.getMediaItemCount());
-        if(!items.isEmpty())player.addMediaItems(items);
+        int before=player.getMediaItemCount();
+        int removed=0,preserved=0;
+        String droppedFirst="",droppedAdopted="",addedFirst=items.isEmpty()?"":items.get(0).mediaId;
+        // 空窗口的意思是「这一轮一首都没解析出来」，不是「当前曲后面应该清空」。
+        //
+        // 老代码无条件 `removeMediaItems(next, count)` 再 `addMediaItems(items)`：只要 JS 那次
+        // 窗口一首都没解析出来（备用域名挂了、网络被掐、候选全跳过），就会把原生已经接管、
+        // 已经握着可播放地址的下一首一起删掉。真机 1.3.50 的
+        // `queue-replenish accepted=0 removed=1` → 剩余 1 首变 0 首 → 播完当前曲 queue-exhausted
+        // 就是这一行，与 QueueLedger 里「空窗口是合法答案，不是拒绝」的约定相反。
+        if(!items.isEmpty()){
+            java.util.HashSet<String> offered=new java.util.HashSet<>();
+            for(MediaItem item:items)offered.add(item.mediaId);
+            java.util.ArrayList<String> afterIds=new java.util.ArrayList<>();
+            java.util.ArrayList<Boolean> afterAdopted=new java.util.ArrayList<>();
+            for(int i=next;i<player.getMediaItemCount();i++){
+                MediaItem existing=player.getMediaItemAt(i);
+                afterIds.add(existing==null?"":existing.mediaId);
+                afterAdopted.add(isAdoptedContinuation(existing));
+                if(existing!=null&&droppedFirst.isEmpty())droppedFirst=existing.mediaId;
+            }
+            QueuePrune.Plan prune=QueuePrune.plan(afterIds,afterAdopted,offered);
+            if(prune.replace&&next<player.getMediaItemCount()){
+                java.util.ArrayList<MediaItem> keep=new java.util.ArrayList<>();
+                for(int index:prune.keepIndices){
+                    MediaItem existing=player.getMediaItemAt(next+index);
+                    if(existing!=null){
+                        keep.add(existing);
+                        if(droppedAdopted.isEmpty())droppedAdopted=existing.mediaId;
+                    }
+                }
+                removed=player.getMediaItemCount()-next;
+                player.removeMediaItems(next,player.getMediaItemCount());
+                player.addMediaItems(items);
+                if(!keep.isEmpty()){player.addMediaItems(keep);preserved=keep.size();}
+            }
+        }
         queueAccepted++;
         lastQueueAppliedAt=SystemClock.elapsedRealtime();
         staleNudges=0;
         int remaining=Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1);
         PlaybackDiagnostics.note("queue-replenish",new JSObject().put("accepted",items.size()).put("rejected",rejected)
-            .put("trimmed",start).put("removed",removed).put("items",player.getMediaItemCount())
+            .put("trimmed",start).put("removed",removed).put("preserved",preserved).put("items",player.getMediaItemCount())
             .put("index",player.getCurrentMediaItemIndex()).put("remaining",remaining)
             .put("verdict",verdict.name().toLowerCase(java.util.Locale.US)).put("continues",supervision.continues())
-            .put("generation",supervision.generation()).put("wasEnded",wasEnded));
+            .put("generation",supervision.generation()).put("wasEnded",wasEnded)
+            // 空窗口时 removed 必然为 0（没动队列），这一位让报告能直接读出"是空窗口，不是删了"
+            .put("emptyWindow",items.isEmpty()));
+        PlaybackDiagnostics.note("queue-diff",new JSObject()
+            .put("before",before).put("after",player.getMediaItemCount())
+            .put("removed",removed).put("preserved",preserved).put("added",items.size())
+            .put("droppedFirst",PlaybackDiagnostics.anonKey(droppedFirst))
+            .put("droppedAdopted",PlaybackDiagnostics.anonKey(droppedAdopted))
+            .put("addedFirst",PlaybackDiagnostics.anonKey(addedFirst))
+            .put("generation",supervision.generation()).put("source","js-window"));
+        lastQueueRemoved=removed;lastQueuePreserved=preserved;lastQueueAdded=items.size();
+        lastQueueDroppedAdopted=droppedAdopted;lastQueueAddedFirst=addedFirst;
+        lastQueueDiffAtMs=SystemClock.elapsedRealtime();
         if(items.isEmpty()){
+            // 这一轮一首都没解析出来。如果后面还有已备好的（JS 早先给的窗口项或原生接管的），
+            // 就不算危机：按正常低水位节奏等下一个窗口，不要 1.5 秒一次地催。
+            if(remaining>QueueSupervision.LOW_WATER){
+                supervision.satisfied();
+                return new JSObject().put("accepted",true).put("remaining",remaining).put("emptyWindow",true);
+            }
             // An answer that resolved nothing must not look like a successful refill: stay in the
             // waiting state and owe another attempt immediately.
             supervision.rearm(SystemClock.elapsedRealtime());
             main.removeCallbacks(superviseTick);
             main.postDelayed(superviseTick,1_500L);
-            return new JSObject().put("accepted",true).put("remaining",remaining);
+            return new JSObject().put("accepted",true).put("remaining",remaining).put("emptyWindow",true);
         }
         if(wasEnded)resumeFromWindow();
         else if(remaining>QueueSupervision.LOW_WATER)supervision.satisfied();
@@ -693,6 +779,15 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             .put("jsCommands",jsCommands)
             .put("bridgeAttached",listener!=null)
             .put("jsSilentAtLastAskMs",jsSilentAtAsk);
+        // 队列保活：上一次窗口同步删了几首、保住了几首已接管项、加进来的是哪一首。
+        // 停播复盘时这几项直接回答"已经准备好的下一首有没有被同步带走"。
+        value.put("queueLastRemoved",lastQueueRemoved)
+            .put("queueLastPreserved",lastQueuePreserved)
+            .put("queueLastAdded",lastQueueAdded)
+            .put("queueLastDroppedAdopted",lastQueueDroppedAdopted)
+            .put("queueLastAddedFirst",lastQueueAddedFirst)
+            .put("queueLastDiffAgeMs",lastQueueDiffAtMs==0L?-1L:SystemClock.elapsedRealtime()-lastQueueDiffAtMs)
+            .put("queueNextAdopted",hasAdoptedAhead());
         // 阶段 A/B：原生现在自己知道下一首是谁，也能自己取地址 —— 这两个字段说明它做得怎么样。
         value.put("ledgerSize",io.github.huleixin.tingyu.playback.NativePlaylist.get().size())
             .put("ledgerKnowsCurrent",io.github.huleixin.tingyu.playback.NativePlaylist.get().canDecide(songKey))

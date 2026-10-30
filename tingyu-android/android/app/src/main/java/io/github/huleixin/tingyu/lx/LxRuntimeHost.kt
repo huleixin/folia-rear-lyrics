@@ -46,9 +46,20 @@ object LxRuntimeHost {
     @Volatile private var lastStatus = 0
     @Volatile private var lastMethod = ""
     @Volatile private var lastOptionKeys = ""
+    @Volatile private var lastHttpError = ""
+    @Volatile private var lastHttpErrorAt = 0L
 
     private val hooks = object : LxHooks {
         override fun note(event: String, fields: JSONObject) {
+            // 网络失败的「谁关的这条连接」必须留在快照里，否则真机报告只有 status=-1。
+            if (event == "lx-http-error") {
+                lastHttpError = "type=" + fields.optString("type") +
+                    " cause=" + fields.optString("cause").ifEmpty { "-" } +
+                    " msg=" + fields.optString("message").ifEmpty { "-" } +
+                    " host=" + fields.optString("host") +
+                    " ms=" + fields.optLong("elapsedMs")
+                lastHttpErrorAt = System.currentTimeMillis()
+            }
             PlaybackDiagnostics.note(event, fields)
         }
 
@@ -236,6 +247,9 @@ object LxRuntimeHost {
             .put("lastMethod", lastMethod)
             .put("lastOptionKeys", lastOptionKeys)
             .put("lastError", redact(lastError).take(160))
+            .put("lastHttpError", lastHttpError.take(200))
+            .put("lastHttpErrorAgeMs", if (lastHttpErrorAt <= 0L) -1L
+                else System.currentTimeMillis() - lastHttpErrorAt)
     }
 
     // ------------------------------------------------------------------ internals

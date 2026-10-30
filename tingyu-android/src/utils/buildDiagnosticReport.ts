@@ -821,6 +821,22 @@ const readBackgroundContinuityLines = async (): Promise<string[]> => {
                 + ` blocked=${player.continuationBudgetBlocked ?? 0}/${player.continuationBudgetMax ?? '-'}`,
             );
             lines.push(`  native resolvers: ${player.resolvers ?? '-'}`);
+            // 队列保活：一次普通的 JS 歌单同步有没有把"已经准备好的下一首"带走。
+            // 真机 1.3.50 停播的决定性证据只有 accepted=0 removed=1 两个数字，
+            // 删的是哪一首、是不是已接管项都无从判断 —— 这一段补上那个缺口。
+            lines.push(
+                `  native queue: items=${player.queueItems ?? 0} index=${player.queueIndex ?? -1}`
+                + ` remaining=${player.queueRemaining ?? 0} generation=${player.queueGeneration ?? -1}`
+                + ` adoptedAhead=${player.queueNextAdopted === true ? 'yes' : 'no'}`,
+            );
+            lines.push(
+                `  native queue last sync: removed=${player.queueLastRemoved ?? 0}`
+                + ` preserved=${player.queueLastPreserved ?? 0}`
+                + ` added=${player.queueLastAdded ?? 0}`
+                + ` droppedAdopted=${player.queueLastDroppedAdopted ? player.queueLastDroppedAdopted : 'none'}`
+                + ` addedFirst=${player.queueLastAddedFirst ? player.queueLastAddedFirst : 'none'}`
+                + ` ageMs=${player.queueLastDiffAgeMs ?? -1}`,
+            );
             // 音源兼容性：这首歌原本从哪来、原生挑了哪个解析器、洛雪引擎跑到哪一步。
             // 缺了这一段，就无法判断"本轮有没有覆盖用户实际的故障链路"。
             lines.push(
@@ -844,6 +860,13 @@ const readBackgroundContinuityLines = async (): Promise<string[]> => {
                     + ` lastOptions=${player.lxLastOptionKeys || '-'}`
                     + ` lastError=${player.lxLastError || 'none'}`,
                 );
+                // status=-1 只说明"没拿到响应"。谁关的连接要单列，否则只能猜是系统杀后台。
+                if (player.lxLastHttpError) {
+                    lines.push(
+                        `  lx last http failure: ${player.lxLastHttpError}`
+                        + ` ageMs=${player.lxLastHttpErrorAgeMs ?? -1}`,
+                    );
+                }
             }
         }
     } catch (error) {

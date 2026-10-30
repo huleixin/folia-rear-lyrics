@@ -168,13 +168,25 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
         val options = LxJson.toJsonObject(args.getOrNull(1))
         return withContext(Dispatchers.IO) {
             val host = LxHttp.hostOf(url)
+            val method = options.optString("method", "GET").uppercase()
             hooks.request(url, options)
+            val startedAt = System.nanoTime()
             try {
                 val text = LxHttp.request(url, options)
                 hooks.http(host, statusOf(text), text.length)
                 text
             } catch (failure: Throwable) {
                 hooks.http(host, -1, 0)
+                // 真机日志里只有 status=-1 和一句 "connection closed"，看不出是谁关的：
+                // 本地取消、对端 RST、DNS 失败、TLS 中断、超时全都会落到同一个 -1。
+                // 这里把异常类型、内层 cause、耗时一并记下，真机才分得清是哪一种。
+                hooks.note("lx-http-error", JSONObject()
+                    .put("host", host.take(48))
+                    .put("method", method)
+                    .put("type", failure.javaClass.simpleName)
+                    .put("cause", failure.cause?.javaClass?.simpleName ?: "")
+                    .put("message", describeNetwork(failure))
+                    .put("elapsedMs", (System.nanoTime() - startedAt) / 1_000_000L))
                 throw failure
             }
         }
@@ -199,5 +211,13 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
     private fun describe(failure: Throwable): String {
         val message = failure.message?.take(160) ?: ""
         return (failure.javaClass.simpleName + (if (message.isEmpty()) "" else ": $message"))
+    }
+
+    /** 网络异常的文字摘要：抹掉可能夹带的 URL/查询串，只留异常自己的描述。 */
+    private fun describeNetwork(failure: Throwable): String {
+        val raw = failure.message ?: return ""
+        return raw.replace(Regex("https?://\\S+"), "<url>")
+            .replace(Regex("[\\r\\n\\t]+"), " ")
+            .take(96)
     }
 }

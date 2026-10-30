@@ -233,6 +233,19 @@ public final class BackgroundContinuation {
         SourceResolver chosen = ResolverRegistry.get().forTrack(step.track);
         final String resolverId = chosen == null ? "none" : chosen.id();
         final String budgetKey = step.track.songKey + "|" + resolverId;
+        // 这首歌已经排在当前曲之后了（多半就是上一轮 adopt 进来的）：再取一次地址只会重复
+        // 消耗预算和流量。老代码只在 adopt 那一刻查过一次队列，之后队列一被动过（同步、
+        // 跳过、被误删）就查不到，于是同一首在真机上被反复解析，还各自烧掉三档尝试。
+        if (host.queueContains(step.track.songKey)) {
+            lastOutcome = "already-queued";
+            PlaybackDiagnostics.note("continuation-skip", new com.getcapacitor.JSObject()
+                .put("song", PlaybackDiagnostics.anonKey(step.track.songKey))
+                .put("reason", "already-queued")
+                .put("resolver", resolverId)
+                .put("remaining", facts.remaining)
+                .put("ended", facts.ended));
+            return;
+        }
         // 有界重试：这首歌已经被熔断（明确不可恢复）就不再取地址，也不再排程。
         if (blocked(budgetKey)) {
             lastOutcome = Decision.FALLBACK_TO_JS.name().toLowerCase(java.util.Locale.US);
@@ -290,16 +303,22 @@ public final class BackgroundContinuation {
     private void finish(Host host, SourceResolution resolution, NativePlaylist.Track track,
                         long requestId, long generation, String anchor, String quality,
                         String resolverId) {
-        // 过期结果拒绝：请求号、歌单代次、用户意图，三者任一变化就丢弃。
+        // 过期结果拒绝：请求号、歌曲身份、以及「这首歌是否还在逻辑歌单里」。
+        // 代次**不**参与判定：一次普通同步就会让代次 +1，但它不会让已经取到的地址失效。
+        // 真机 1.3.50 就是在这里把握手成功的地址丢掉的（generation 5→7 → stale），
+        // 然后重新解析同一首，撞上后台网络失败，最后 giveup、队列空、停播。
         boolean stale = requestId != activeRequestId
-            || generation != NativePlaylist.get().generation()
-            || !track.songKey.equals(activeSongKey);
+            || !track.songKey.equals(activeSongKey)
+            || !NativePlaylist.get().contains(track.songKey);
         resolving = false;
         if (stale) {
             PlaybackDiagnostics.note("continuation-stale", new com.getcapacitor.JSObject()
                 .put("song", PlaybackDiagnostics.anonKey(track.songKey))
                 .put("requestId", requestId)
-                .put("generation", generation));
+                .put("requestIdNow", activeRequestId)
+                .put("generation", generation)
+                .put("generationNow", NativePlaylist.get().generation())
+                .put("inPlaylist", NativePlaylist.get().contains(track.songKey)));
             return;
         }
         final String budgetKey = track.songKey + "|" + resolverId;

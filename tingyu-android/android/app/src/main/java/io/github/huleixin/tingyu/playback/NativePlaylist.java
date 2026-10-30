@@ -175,6 +175,23 @@ public final class NativePlaylist {
         synchronized (lock) { return tracks.isEmpty(); }
     }
 
+    /**
+     * 这首歌是否仍在这份逻辑歌单里。
+     *
+     * 续播结果的过期判定用它，而不是用「代次必须相等」：代次表达的是「歌单内容变过一次」，
+     * 一次普通同步（哪怕只是顺序微调）就会 +1，但**已经取到的播放地址与歌单重排无关**。
+     * 用代次当过期条件，会让握手成功的地址在同步之后被丢掉、然后重新解析一遍 ——
+     * 真机 1.3.50 的 "adopt 成功 → playlist-sync 换代次 → 同一首重新解析 → 网络失败 giveup"
+     * 就是这条。这首歌真的被移出歌单时才该作废。
+     */
+    public boolean contains(String songKey) {
+        if (songKey == null || songKey.isEmpty()) return false;
+        synchronized (lock) {
+            for (Track track : tracks) if (songKey.equals(track.songKey)) return true;
+            return false;
+        }
+    }
+
     /** 逻辑歌单里第 index 首。越界返回 null。 */
     public Track at(int index) {
         synchronized (lock) {
