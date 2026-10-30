@@ -1,10 +1,11 @@
 import type { ObsBrowserSourceAudio, ObsBrowserSourceConfig } from '../types/obsBrowserSource';
 import type { RearLyricsClock } from '../types/rearLyricsClock';
+import type { RearNativeTrack } from './rearLyricsTransport';
 import type { RearUploadedFont } from './rearLyricsFont';
 
 // src/services/rearStateRelay.ts
 // One native state read feeds both same-origin rear documents; only the intended iframe may subscribe.
-export type RearStateSnapshot = { revision: number; config?: ObsBrowserSourceConfig; uploadedFont?: RearUploadedFont | null; clock?: RearLyricsClock; audio?: ObsBrowserSourceAudio };
+export type RearStateSnapshot = { revision: number; track?: RearNativeTrack; config?: ObsBrowserSourceConfig; uploadedFont?: RearUploadedFont | null; clock?: RearLyricsClock; audio?: ObsBrowserSourceAudio };
 const SUBSCRIBE = 'tingyu-rear-state-subscribe', UNSUBSCRIBE = 'tingyu-rear-state-unsubscribe', STATE = 'tingyu-rear-state', READY = 'tingyu-rear-relay-ready';
 export type RearSnapshotReceiver = (snapshot: (value: RearStateSnapshot) => void, connected: (value: boolean) => void) => () => void;
 

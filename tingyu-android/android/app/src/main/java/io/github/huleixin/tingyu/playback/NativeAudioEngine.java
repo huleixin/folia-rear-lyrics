@@ -238,6 +238,21 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                     .put("takeover",((JSObject)item.localConfiguration.tag).optBoolean("nativeContinuation",false))
                     .put("index",player.getCurrentMediaItemIndex()).put("ahead",aheadKey==null?"":PlaybackDiagnostics.anonKey(aheadKey)));
                 io.github.huleixin.tingyu.FoliaPlaybackService.publishQueuedTrack(context,queued,player.getPlayWhenReady());
+                // 背屏的「当前歌曲」权威来源与上面同源：真实的 MediaItem id + 队列 tag。
+                // 换曲即递增 epoch，背屏据此丢弃上一首的时间轴，不再外推旧歌。
+                io.github.huleixin.tingyu.RearNativeTrack.onTrack(songKey,queued);
+                io.github.huleixin.tingyu.RearNativeTrack.onDuration(durationMsFor(songKey));
+                io.github.huleixin.tingyu.RearNativeTrack.onPlayback(player.getPlayWhenReady()&&player.isPlaying(),
+                    Math.max(0L,player.getCurrentPosition()));
+                // The first link of the rear lyric chain, written to the same trace as the rear
+                // renderer's own report: without it there is no way to tell whether a stuck line
+                // was Media3 not switching, a lyric not arriving, or the renderer not applying it.
+                io.github.huleixin.tingyu.RearLyricsTrace.record(context,"media3-track",
+                    "song="+PlaybackDiagnostics.anonKey(io.github.huleixin.tingyu.RearNativeTrack.songKey())
+                    +", epoch="+io.github.huleixin.tingyu.RearNativeTrack.epoch()
+                    +", title="+queued.optString("title","")
+                    +", index="+player.getCurrentMediaItemIndex()
+                    +", playing="+(player.getPlayWhenReady()&&player.isPlaying()));
                 // 原生自己在后台把歌词和封面补齐：身份取真实的当前 MediaItem，顺序取 Media3 的真实队列
                 // （随机播放也已经是洗好的顺序）。这一步不依赖 Activity、不依赖 WebView。
                 scheduleSongInfo(item);
@@ -271,6 +286,9 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 // Only real audible playback proves the current item is healthy; a skip that
                 // immediately fails again keeps its budget.
                 if(isPlaying)errorSkips=0;
+                // Backscreen clock authority: the WebView that used to feed it is frozen in the
+                // background, so playing state and position must also be readable natively.
+                io.github.huleixin.tingyu.RearNativeTrack.onPlayback(isPlaying,player.getCurrentPosition());
             }
             @Override public void onPlayWhenReadyChanged(boolean playWhenReady,int reason){
                 // The reason field distinguishes user pause from focus loss / noisy output /
@@ -279,6 +297,8 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 PlaybackDiagnostics.note("play-when-ready",new JSObject().put("playWhenReady",playWhenReady)
                     .put("reason",reason).put("suppression",player.getPlaybackSuppressionReason())
                     .put("song",PlaybackDiagnostics.anonKey(songKey)));
+                io.github.huleixin.tingyu.RearNativeTrack.onPlayback(playWhenReady&&player.isPlaying(),
+                    player.getCurrentPosition());
             }
             @Override public void onPlaybackSuppressionReasonChanged(int reason){
                 PlaybackDiagnostics.note("suppression",new JSObject().put("reason",reason)

@@ -5,9 +5,15 @@ import android.content.Context;
 import android.os.SystemClock;
 import rikka.shizuku.Shizuku;
 
-/** Retains the lock transition after the user unlocks to read diagnostics. No audio/lyrics are logged. */
-final class RearLyricsTrace {
-    static synchronized void record(Context context, String event, String message) {
+/** Retains the lock transition after the user unlocks to read diagnostics. No audio/lyrics are logged.
+ *
+ * <p>Visible outside the package on purpose: the song identity chain crosses three owners
+ * (Media3 in {@code playback}, the native lyric cache, the rear renderer), and only one trace
+ * file can tell whether a stuck lyric line came from a missing event, a missing lyric or a
+ * renderer that never switched.
+ */
+public final class RearLyricsTrace {
+    public static synchronized void record(Context context, String event, String message) {
         try {
         android.content.SharedPreferences prefs = context.getSharedPreferences("rear_lyrics", 0);
         KeyguardManager keyguard = (KeyguardManager) context.getSystemService(Context.KEYGUARD_SERVICE);

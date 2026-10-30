@@ -44,6 +44,23 @@ final class RearLyricsWebClient extends WebViewClient {
             try { revision = Integer.parseInt(uri.getQueryParameter("revision")); } catch (Exception ignored) { }
             return text("application/json", RearLyricsState.snapshot(revision));
         }
+        // The current song's lyrics straight from the native cache. The foreground WebView used
+        // to be the only source, which is why the rear kept the previous song once that WebView
+        // was frozen; this endpoint answers even when nothing else in the app is running.
+        if ("/__folia_rear/lyrics".equals(path)) {
+            return text("application/json", RearNativeLyricLines.json(context,
+                uri.getQueryParameter("key"), uri.getQueryParameter("epoch")));
+        }
+        // The rear renderer reporting what it actually drew. Same file as the native events, so a
+        // stuck lyric can be read as one timeline instead of two stories that disagree.
+        if ("/__folia_rear/trace".equals(path)) {
+            String event = uri.getQueryParameter("event");
+            if (event != null) {
+                String detail = uri.getQueryParameter("detail");
+                RearLyricsTrace.record(context, "rear/" + event, detail == null ? "" : detail);
+            }
+            return text("application/json", "{}");
+        }
         if ("/__folia_rear/ready".equals(path)) { view.post(events::ready); return text("application/json", "{}"); }
         if ("/__folia_rear/viewport".equals(path)) return text("application/json", RearLyricsViewportMetrics.snapshot());
         if ("/__folia_rear/viewport-report".equals(path)) {

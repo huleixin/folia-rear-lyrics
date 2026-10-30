@@ -23,6 +23,11 @@ final class RearLyricsState {
         try {
             JSONObject value = new JSONObject().put("revision", revision).put("clock", clock).put("audio", audio);
             if (knownRevision != revision && config != null) value.put("config", config).put("uploadedFont", uploadedFont);
+            // Native track authority: present on every packet, because it is cheap and because a
+            // rear surface that reconnects must be able to tell "this is a different song now"
+            // without waiting for the (possibly frozen) foreground WebView to publish again.
+            JSONObject track = RearNativeTrack.snapshot();
+            if (track.length() > 0) value.put("track", track);
             return value.toString();
         } catch (Exception error) { return "{}"; }
     }
