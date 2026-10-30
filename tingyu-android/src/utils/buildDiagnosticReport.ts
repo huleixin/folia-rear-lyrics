@@ -737,6 +737,45 @@ const readJsLivenessLines = (bundle: NativeTrailBundle): string[] => {
 };
 
 /**
+ * C1/C2 的采样行：一次切歌、锁屏连播中、回到前台，各落一条 `session-sample`。
+ *
+ * 三行并排就能回答「卡片 00:00」属于哪一种：
+ *   - durationMs 本身很小 + durationSource=playlist → 我们发布错了（单位/来源问题）；
+ *   - durationMs=0 + durationSource=none           → 谁都不知道，Media3 还没解析出来；
+ *   - durationMs 正确但 state/speed 不对            → 发布没问题，是系统端没刷新。
+ */
+const readSessionSampleLines = (bundle: NativeTrailBundle): string[] => {
+    const samples = bundle.routine.filter(event => event.type === 'session-sample');
+    const last = [...samples].reverse().find(event => (event.data?.trigger as string) === 'transition') ?? null;
+    const latest = samples.length > 0 ? samples[samples.length - 1] : null;
+    const format = (label: string, event: NativeTrailEvent | null): string => {
+        if (!event) return `  ${label}: (never recorded)`;
+        const data = event.data ?? {};
+        return `  ${label}: ${clock(event.at)} trigger=${String(data.trigger ?? '-')} song=${String(data.song ?? '-')}`
+            + ` positionMs=${String(data.positionMs ?? '-')} durationMs=${String(data.durationMs ?? '-')}`
+            + ` durationSource=${String(data.durationSource ?? '-')}`
+            + ` playing=${String(data.playing ?? '-')} state=${String(data.state ?? '-')} speed=${String(data.speed ?? '-')}`
+            + ` takeover=${String(data.takeover ?? '-')}`
+            + ` lyric=${String(data.lyricState ?? '-')} cached=${String(data.lyricCached ?? '-')}`
+            + ` lyricAgeMs=${String(data.lyricPublishAgeMs ?? '-')}`;
+    };
+    const lyricLookup = [...bundle.critical].reverse().find(event => event.type === 'lyric-lookup') ?? null;
+    const lookupLine = lyricLookup
+        ? `  last lyric-lookup: ${clock(lyricLookup.at)} song=${String(lyricLookup.data?.song ?? '-')}`
+            + ` cache=${String(lyricLookup.data?.state ?? '-')} cached=${String(lyricLookup.data?.cached ?? '-')}`
+            + ` lastPublishAgeMs=${String(lyricLookup.data?.lastPublishAgeMs ?? '-')}`
+            + ` takeover=${String(lyricLookup.data?.takeover ?? '-')} ahead=${String(lyricLookup.data?.ahead ?? '-')}`
+        : '  last lyric-lookup: (never recorded)';
+    return [
+        format('sample at transition', last),
+        format('sample latest      ', latest),
+        lookupLine,
+        '  note: durationSource=media3 means Media3 resolved the real container duration;',
+        '        playlist means the value came from the queue before Media3 knew better.',
+    ];
+};
+
+/**
  * 灵动岛歌词的三层证据，必须分开看：
  *
  *   layer 1 built     —— 我们构造出的 MediaMetadata 里到底有没有 lyricInfo（written=timeline/absent/stub）
@@ -949,6 +988,10 @@ export const buildDiagnosticReport = async (): Promise<string> => {
         // 灵动岛歌词：构造 / 发布 / 消费 三层分开，第三层明确标注为不可观测。
         'lyric pipeline (built / published / consumed):',
         ...readLyricSessionLines(nativeTrail),
+        '',
+        // C1/C2：切歌 / 锁屏连播 / 回前台三个时点的会话采样。
+        'lock-screen session samples (position / duration / lyric):',
+        ...readSessionSampleLines(nativeTrail),
         '',
         'playback heartbeat:',
         `  previous: ${formatPlaybackHeartbeat(heartbeats.playback.previous)}`,

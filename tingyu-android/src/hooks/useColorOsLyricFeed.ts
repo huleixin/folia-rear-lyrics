@@ -6,6 +6,8 @@ import {
 } from '../platform/foliaColorOsLyrics';
 import { isCapacitorAndroid } from '../platform/runtime';
 import { getSongAlbumLabel, getSongArtistLabel } from '../services/onlineMusic/songMetadata';
+import { getSongCacheWithLegacyMigration } from '../services/onlineMusic/resourceCache';
+import { migrateLyricDataRenderHints } from '../utils/lyrics/renderHints';
 import { nextColorOsGeneration } from '../services/lyricSessionGeneration';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
 import type { SongResult } from '../types';
@@ -71,6 +73,36 @@ export const useColorOsLyricFeed = ({
             generationRef.current = { key, value: nextColorOsGeneration() };
         }
         return generationRef.current.value;
+    };
+
+    /**
+     * 原生问的那一首不一定是 UI 正在显示的那一首（后台已自动换歌，React 还停在上一次渲染）。
+     *
+     * 只读本地持久缓存（IndexedDB / 预取内存），**不联网**：这条路径的语义是「把已经有的
+     * 时间轴补过去」，不是重新跑一遍取词。拿不到就什么都不做 —— 留白比写一个错的强。
+     */
+    const publishCachedLyricFor = async (key: string): Promise<void> => {
+        const queue = usePlaybackStore.getState().playQueue ?? [];
+        const target = queue.find(item => getPlaybackSongKey(item) === key);
+        if (!target) return;
+        try {
+            const cached = await getSongCacheWithLegacyMigration<LyricData>(
+                'lyric', target, migrateLyricDataRenderHints);
+            if (!cached?.lines?.length) return;
+            const built = buildColorOsLyricInfo({
+                title: target.name ?? '',
+                artist: getSongArtistLabel(target),
+                album: getSongAlbumLabel(target),
+                songId: target.id == null ? null : String(target.id),
+                durationMs: Math.max(0, Math.round(target.durationMs ?? 0)),
+                lines: cached.lines,
+                isWordByWord: cached.isWordByWord === true,
+                sessionGeneration: generationFor(key),
+            });
+            if (built) await publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, key);
+        } catch {
+            // 缓存读失败不影响播放：这首歌继续按「等待补充」留白。
+        }
     };
 
     React.useEffect(() => {
@@ -141,7 +173,13 @@ export const useColorOsLyricFeed = ({
          */
         const onNativeRequest = (event: Event) => {
             const requested = (event as CustomEvent<{ songKey?: string } | undefined>).detail?.songKey;
-            if (requested && requested !== songKey) return;
+            if (requested && requested !== songKey) {
+                // 请求的不是界面正在显示的那一首：后台已经自己换过歌了，而 React 的 currentSong
+                // 还停在上一次渲染。只从**本地缓存**里取（不联网、不发新请求），把那一首的
+                // 时间轴补进原生缓存；拿不到就什么都不做，等它被预置或等下次换歌。
+                void publishCachedLyricFor(requested);
+                return;
+            }
             const built = build();
             if (!built) return;
             publishedKeyRef.current = songKey;

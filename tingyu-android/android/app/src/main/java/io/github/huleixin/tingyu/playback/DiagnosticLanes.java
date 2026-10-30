@@ -16,7 +16,7 @@ final class DiagnosticLanes {
     static final int MAX_ROUTINE = 40;
 
     private static final String[] ROUTINE_TYPES = {
-        "queue-request", "queue-wait", "native-session-state", "clock", "heartbeat"
+        "queue-request", "queue-wait", "native-session-state", "clock", "heartbeat", "session-sample"
     };
 
     private JSONArray critical = new JSONArray();

@@ -70,10 +70,11 @@ public class LyricInfoPublicationTest {
 
     @Test public void theCacheStaysBounded() {
         ColorOsLyricBridge.clear();
-        for (int i = 0; i < 12; i++) ColorOsLyricBridge.setPending("{\"lyric\":\"" + i + "\"}", false, "song-" + i);
-        // A whole playlist of timelines is not retained; only the recent window is.
+        // 容量 16：一次长连播（当前曲 + 一整轮预置窗口）之内不该掉词，之后必须有界。
+        for (int i = 0; i < 20; i++) ColorOsLyricBridge.setPending("{\"lyric\":\"" + i + "\"}", false, "song-" + i);
         assertEquals("pending", ColorOsLyricBridge.stateOf("song-0"));
-        assertEquals("ready", ColorOsLyricBridge.stateOf("song-11"));
+        assertEquals("ready", ColorOsLyricBridge.stateOf("song-19"));
+        assertEquals(16, ColorOsLyricBridge.cachedCount());
         ColorOsLyricBridge.clear();
     }
 
@@ -85,21 +86,41 @@ public class LyricInfoPublicationTest {
     @Test public void primingTheNextWindowCannotEvictTheTrackThatIsPlaying() {
         ColorOsLyricBridge.clear();
         ColorOsLyricBridge.pin("");
+        ColorOsLyricBridge.protectAhead("");
         ColorOsLyricBridge.setPending("{\"lyric\":\"current\"}", false, "playing");
         ColorOsLyricBridge.pin("playing");
-        for (int i = 0; i < 10; i++) ColorOsLyricBridge.setPending("{\"lyric\":\"" + i + "\"}", false, "next-" + i);
+        for (int i = 0; i < 20; i++) ColorOsLyricBridge.setPending("{\"lyric\":\"" + i + "\"}", false, "next-" + i);
         assertEquals("ready", ColorOsLyricBridge.stateOf("playing"));
         assertEquals("{\"lyric\":\"current\"}", ColorOsLyricBridge.metadataLyricInfoFor("playing"));
-        // The window keeps the newest five; the pinned track survives all ten insertions. What
-        // fell out reads as pending (not "no lyrics"), which is the recoverable state.
-        assertEquals("ready", ColorOsLyricBridge.stateOf("next-9"));
-        assertEquals("ready", ColorOsLyricBridge.stateOf("next-5"));
+        // 缓存有界：最新的窗口留得住，被挤掉的读作 pending（可恢复），不是"没有词"。
+        assertEquals("ready", ColorOsLyricBridge.stateOf("next-19"));
+        assertEquals("ready", ColorOsLyricBridge.stateOf("next-10"));
         assertEquals("pending", ColorOsLyricBridge.stateOf("next-0"));
+    }
+
+    /**
+     * 「紧接着要播的那一首」必须和当前曲一起被保护。
+     *
+     * 它是这一轮最早写进来的，也就是 LRU 的下一刀；而它恰恰是换歌那一刻唯一需要的东西。
+     * 锁屏连播到第 7 首开始没词，就是它先被淘汰的结果。
+     */
+    @Test public void theNextTrackSurvivesTheFollowingPrimingWindow() {
+        ColorOsLyricBridge.clear();
+        ColorOsLyricBridge.pin("playing");
+        ColorOsLyricBridge.setPending("{\"lyric\":\"current\"}", false, "playing");
+        ColorOsLyricBridge.setPending("{\"lyric\":\"next\"}", false, "next");
+        ColorOsLyricBridge.protectAhead("next");
+        for (int i = 0; i < 20; i++) ColorOsLyricBridge.setPending("{\"lyric\":\"" + i + "\"}", false, "later-" + i);
+        // 25 次写入后，只有被钉住的两首一定还在。
+        assertEquals("{\"lyric\":\"next\"}", ColorOsLyricBridge.metadataLyricInfoFor("next"));
+        assertEquals("{\"lyric\":\"current\"}", ColorOsLyricBridge.metadataLyricInfoFor("playing"));
+        ColorOsLyricBridge.protectAhead("");
     }
 
     @Test public void pinningMovesWithPlaybackAndReleasesTheOldTrack() {
         ColorOsLyricBridge.clear();
         ColorOsLyricBridge.pin("");
+        ColorOsLyricBridge.protectAhead("");
         ColorOsLyricBridge.setPending("{\"lyric\":\"a\"}", false, "a");
         ColorOsLyricBridge.pin("a");
         for (int i = 0; i < 8; i++) ColorOsLyricBridge.setPending("{\"lyric\":\"" + i + "\"}", false, "b" + i);
@@ -116,7 +137,8 @@ public class LyricInfoPublicationTest {
     @Test public void anEvictedTrackIsPendingRatherThanConfirmedEmpty() {
         ColorOsLyricBridge.clear();
         ColorOsLyricBridge.pin("");
-        for (int i = 0; i < 12; i++) ColorOsLyricBridge.setPending("{\"lyric\":\"" + i + "\"}", false, "k" + i);
+        ColorOsLyricBridge.protectAhead("");
+        for (int i = 0; i < 20; i++) ColorOsLyricBridge.setPending("{\"lyric\":\"" + i + "\"}", false, "k" + i);
         assertEquals("pending", ColorOsLyricBridge.stateOf("k0"));
         assertNull(ColorOsLyricBridge.metadataLyricInfoFor("k0"));
     }

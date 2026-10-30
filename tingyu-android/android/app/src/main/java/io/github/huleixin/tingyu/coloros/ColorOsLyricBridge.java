@@ -278,11 +278,15 @@ public final class ColorOsLyricBridge {
      * Media3 自动切歌那一刻原生已经知道真正的 songKey，只要这里有它就能立刻写进 metadata，
      * 完全不必等 WebView 醒来。锁屏/灵动岛上的歌词因此不再依赖 React 是否还在跑。
      *
-     * 上限 6 条（≈ 一个原生预取窗口）：歌词是整首歌的时间轴，没有理由长期留整张歌单。
-     * 淘汰按 LRU，但**正在播的那一首被钉住**：预置下一窗口时把当前曲淘汰掉，等于在换歌前
-     * 一秒把自己唯一的歌词来源丢掉。
+     * 上限从 6 提到 16：6 是照着"一个原生预取窗口"定的，但真正预置进来的条数是
+     * `PRIMED_LIMIT=16`（JS 侧），缓存比预置浅的那 10 条等于白拿 —— 而且 LRU 淘汰的
+     * 恰好是窗口里**最靠前**的那几首（先被 put 进去 = 最旧），也就是「紧接着要播的那一首」。
+     * 锁屏连播 10 首时第 7 首起必然空词，成因就在这里。
+     *
+     * 16 = 当前曲 + 一整轮预置窗口，够覆盖一次长连播；歌词是整首歌的时间轴，占内存但可控，
+     * 所以仍然有界，不做无限制增长。
      */
-    private static final int MAX_CACHED_SONGS = 6;
+    private static final int MAX_CACHED_SONGS = 16;
 
     private static final java.util.LinkedHashMap<String, Payload> timelines =
             new java.util.LinkedHashMap<String, Payload>(8, 0.75f, true) {
@@ -295,18 +299,35 @@ public final class ColorOsLyricBridge {
     /** The track the player is on; never evicted, however many primed windows follow it. */
     private static volatile String pinnedKey = "";
 
+    /**
+     * 媒体队列里紧接着的那一首。也不许被淘汰。
+     *
+     * 只保护「当前曲」是不够的：一次预置会把后面 5 首都写进来，它们在表里比当前曲更新，
+     * 之后的下一轮预置又比它们更新，于是「最近最少使用」的刀总是先砍到**最靠前的下一首**。
+     * 换歌那一刻正是它最需要存在的时候。
+     */
+    private static volatile String aheadKey = "";
+
     /** Remembers which track playback is really on, so priming cannot evict its timeline. */
     public static void pin(String songKey) {
         pinnedKey = songKey == null ? "" : songKey;
         trimTimelines();
     }
 
+    /** 记下媒体队列里的下一首，让它和当前曲一样免于淘汰。 */
+    public static void protectAhead(String songKey) {
+        aheadKey = songKey == null ? "" : songKey;
+        trimTimelines();
+    }
+
     private static void trimTimelines() {
         if (timelines.size() <= MAX_CACHED_SONGS) return;
+        String pinned = pinnedKey;
+        String ahead = aheadKey;
         java.util.Iterator<String> oldestFirst = timelines.keySet().iterator();
         while (timelines.size() > MAX_CACHED_SONGS && oldestFirst.hasNext()) {
             String key = oldestFirst.next();
-            if (key.equals(pinnedKey)) continue;
+            if (key.equals(pinned) || key.equals(ahead)) continue;
             oldestFirst.remove();
         }
     }
@@ -472,7 +493,17 @@ public final class ColorOsLyricBridge {
         pendingCount = lastRequestedKey.isEmpty() ? 0 : (stateOf(lastRequestedKey).equals("pending") ? 1 : 0);
         return "lyricState=" + stateOf(songKey) + ", cached=" + timelines.size() + "/" + MAX_CACHED_SONGS
             + ", noLyric=" + noLyric.size() + ", cachedKeys=[" + keys + "], publishes=" + publishCount
-            + ", lastPublishAgeMs=" + (lastPublishAt == 0L ? -1L : System.currentTimeMillis() - lastPublishAt);
+            + ", lastPublishAgeMs=" + lastPublishAgeMs();
+    }
+
+    /** 原生缓存里现有多少条时间轴（诊断用，不暴露身份）。 */
+    public static synchronized int cachedCount() {
+        return timelines.size();
+    }
+
+    /** 距最后一次歌词写入过去了多久；-1 表示本次进程还没写过。 */
+    public static long lastPublishAgeMs() {
+        return lastPublishAt == 0L ? -1L : System.currentTimeMillis() - lastPublishAt;
     }
 
     private static String hash(String value) {

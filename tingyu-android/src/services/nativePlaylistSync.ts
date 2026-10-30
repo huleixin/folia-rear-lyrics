@@ -2,6 +2,7 @@ import { getPlaybackSongKey, getPlaybackSourceRef } from '../utils/appPlaybackGu
 import { shufflePlayback } from './shufflePlayback';
 import { readQqNativeResolverConfig } from './onlineMusic/qqTransport';
 import { getTingyuPlayback } from '../platform/tingyuPlayback';
+import { primeNativeLyricsForSongs, LYRIC_PRIME_AHEAD } from './nativeLyricPriming';
 import type { SongResult } from '../types';
 import type { AudioQualityPreference } from '../types/onlineMusic';
 
@@ -23,7 +24,13 @@ export interface NativePlaylistTrackPayload {
     title: string;
     artist: string;
     album: string;
-    duration: number;
+    /**
+     * 毫秒。字段名里带单位，是因为这里曾经发过**秒**，而原生 `durationMs` 直接当毫秒用：
+     * 200 秒的《阿拉斯加海湾》被发布成 200ms，锁屏卡片总时长 00:00、进度条被
+     * `PlaybackPositionClock` 钳在 200ms 不动。同一批数据走窗口通道时发的是毫秒，
+     * 两条路径单位不一致，只有原生接管的那一首中招 —— 也解释了"重开 App 就恢复"。
+     */
+    durationMs: number;
     artwork: string;
     providerData?: Record<string, unknown>;
 }
@@ -77,7 +84,9 @@ const toPayload = (song: SongResult): NativePlaylistTrackPayload | null => {
         title: titleOf(song),
         artist: artistOf(song),
         album: albumOf(song),
-        duration: Math.max(0, Math.round((song.durationMs ?? 0) / 1000)),
+        // 毫秒，不在这里换算：唯一一次转换发生在 `SongResult.durationMs` 本来就以毫秒表达的地方。
+        // 之前这里 `/1000` 是整条错链的起点。
+        durationMs: Math.max(0, Math.round(song.durationMs ?? 0)),
         artwork: artworkOf(song),
         ...(online?.providerData ? { providerData: online.providerData as Record<string, unknown> } : {}),
     };
@@ -138,6 +147,10 @@ export const syncNativePlaylist = async (options: {
     try {
         const native = getTingyuPlayback<TingyuPlaybackNative>();
         await native.setNativePlaylist({ mode, loopAll: loop === 'all', quality, tracks });
+        // 这份 `ordered` 就是原生真正会走的顺序：按它预置歌词，锁屏连播才有词可用。
+        // 与窗口预置（只有 5 首）不同，这里能看到更远的 10 首；只读本地缓存，最多
+        // LYRIC_PRIME_AHEAD 首，不发网络请求，失败静默。
+        void primeNativeLyricsForSongs(ordered.slice(0, LYRIC_PRIME_AHEAD), quality);
     } catch {
         // 同步是增强：失败时原生只是拿不到逻辑歌单，原有 JS 通道照旧。
     }

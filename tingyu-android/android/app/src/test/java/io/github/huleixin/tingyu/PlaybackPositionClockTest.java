@@ -16,4 +16,14 @@ public class PlaybackPositionClockTest {
         assertEquals(20000, PlaybackPositionClock.at(true, 19900, 500, 1250, 20000));
         assertEquals(10000, PlaybackPositionClock.at(true, 10000, 1000, 500, 0));
     }
+    /**
+     * 发布错单位时卡片是什么样 —— 这条断言就是真机上看到的「进度条不动」。
+     *
+     * 200 秒的歌被发布成 200ms 后，任何真实位置都会被钳到 200ms，系统插值也走不动；
+     * 而同一首歌按毫秒发布时，进度正常增长。修复前后各断言一次，防止再退回秒。
+     */
+    @Test public void aDurationPublishedInSecondsFreezesTheProgressBar() {
+        assertEquals(200, PlaybackPositionClock.at(true, 10000, 0, 1000, 200));
+        assertEquals(11000, PlaybackPositionClock.at(true, 10000, 0, 1000, 200000));
+    }
 }

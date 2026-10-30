@@ -35,6 +35,13 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
             window.dispatchEvent(new CustomEvent('tingyu-native-queue-request',{detail:value}));
             return;
         }
+        // 原生说「这首歌我还没有时间轴」。这条事件以前**从来没有被转发过**：
+        // useColorOsLyricFeed 里挂着的 tingyu-native-lyric-request 监听器因此永远不触发，
+        // 后台换歌后歌词只能靠下一次 App 打开 —— 也就是"要重新打开才恢复"的那一半原因。
+        if(value.type==='lyric-request'){
+            window.dispatchEvent(new CustomEvent('tingyu-native-lyric-request',{detail:{songKey:value.songKey}}));
+            return;
+        }
         // Media3 may advance several prepared items while JS is asleep. Reconcile the
         // current native item without replaying or rewinding it when the UI catches up.
         if(value.songKey&&value.songKey!==track&&value.uri){

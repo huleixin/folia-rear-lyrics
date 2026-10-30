@@ -69,6 +69,12 @@ public class FoliaPlaybackService extends Service {
     private volatile String cachedCoverUrl = "";
     private volatile String cachedSongKey = "";
     private volatile long cachedDurationMs = 0L;
+    /**
+     * 这个时长是从哪来的：`media3`（播放器真实解析值，最可信）/ `playlist`（歌单给的值，
+     * 换歌瞬间的期望值）/ `none`（谁都不知道）。诊断里必须能和 positionMs 一起看，
+     * 否则「卡片 00:00」到底是发布错了还是播放器还没解析出来，就无法区分。
+     */
+    private volatile String cachedDurationSource = "none";
     private volatile long cachedPositionMs = 0L;
     private volatile long cachedPositionUpdatedAt = 0L;
     private volatile boolean cachedPlaying = false;
@@ -97,6 +103,8 @@ public class FoliaPlaybackService extends Service {
         @Override
         public void run() {
             recordServiceHeartbeat();
+            // 锁屏连播期间的第三个采样时点：卡片上看到的一切，10s 落一次。
+            noteSessionSample("tick");
             mainHandler.postDelayed(this, SERVICE_HEARTBEAT_INTERVAL_MS);
         }
     };
@@ -204,6 +212,22 @@ public class FoliaPlaybackService extends Service {
         if (activeService != this || !running || mediaSession == null) return;
         long[] nativeClock = io.github.huleixin.tingyu.playback.NativeAudioEngine.mediaClock(cachedSongKey);
         if (nativeClock == null) return; // A new track's metadata is published separately by Media3.
+        // 换歌瞬间 Media3 还没解析出容器时长，卡片先用歌单给的先验值。READY 之后真实值到了，
+        // 这里纠正**一次**并重建 metadata：不做的话，凡是歌单时长与容器时长不一致的曲目，
+        // 总时长会一直是错的，只有用户重新打开 App（JS 重新推一遍）才会好 —— 正是要消掉的行为。
+        long engineDuration = io.github.huleixin.tingyu.playback.NativeAudioEngine.durationMsFor(cachedSongKey);
+        if (engineDuration > 0L && Math.abs(engineDuration - cachedDurationMs) > 1_000L) {
+            long previous = cachedDurationMs;
+            cachedDurationMs = engineDuration;
+            cachedDurationSource = "media3";
+            io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("duration-corrected",
+                new com.getcapacitor.JSObject()
+                    .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(cachedSongKey))
+                    .put("fromMs", previous).put("toMs", engineDuration));
+            publishMetadata(appliedArtworkBitmap);
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) manager.notify(NOTIFICATION_ID, buildNotification(cachedTitle, cachedArtist, cachedPlaying, appliedArtworkBitmap));
+        }
         PlaybackSessionClock state = PlaybackSessionClock.resolve(cachedPlaying, cachedPositionMs, nativeClock);
         long now = SystemClock.elapsedRealtime();
         long projected = PlaybackPositionClock.at(cachedPlaying, cachedPositionMs, cachedPositionUpdatedAt, now, cachedDurationMs);
@@ -295,7 +319,21 @@ public class FoliaPlaybackService extends Service {
         PlaybackSessionClock state = PlaybackSessionClock.resolve(intent.getBooleanExtra("playing", false),
             intent.getLongExtra("position", 0L), nativeClock);
         boolean playing = state.playing;
+        // 时长的权威是 Media3 自己：它已经解析出容器时长时，歌单里的数字只是先验。
+        // 换歌那一瞬间 Media3 往往还是 TIME_UNSET（durationMsFor 返回 -1），此时才回退到
+        // 歌单给的 durationMs —— 两条来源都记录在 durationSource 里，报告可判。
         long duration = intent.getLongExtra("duration", 0L);
+        String durationSource = duration > 0L ? "playlist" : "none";
+        long engineDuration = io.github.huleixin.tingyu.playback.NativeAudioEngine.durationMsFor(songKey);
+        if (engineDuration > 0L) { duration = engineDuration; durationSource = "media3"; }
+        if (duration != cachedDurationMs || !durationSource.equals(cachedDurationSource)) {
+            io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("duration-source",
+                new com.getcapacitor.JSObject()
+                    .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey))
+                    .put("durationMs", duration).put("source", durationSource)
+                    .put("playlistMs", intent.getLongExtra("duration", 0L))
+                    .put("media3Ms", engineDuration));
+        }
         boolean songChanged = !songKey.equals(cachedSongKey);
         boolean metadataChanged = !title.equals(cachedTitle) || !artist.equals(cachedArtist)
             || !album.equals(cachedAlbum) || !cover.equals(cachedCoverUrl) || !songKey.equals(cachedSongKey)
@@ -313,12 +351,14 @@ public class FoliaPlaybackService extends Service {
             cachedPositionUpdatedAt = SystemClock.elapsedRealtime();
         }
         cachedDurationMs = Math.max(0L, duration);
+        cachedDurationSource = durationSource;
         if(songChanged)lastSystemSeekAt=0L;
         if (progressOnly) {
             // Android extrapolates position from PlaybackState's timestamp. A clock refresh must
             // not restart foreground publication or rebuild artwork/queue/notification metadata.
             mediaSession.setPlaybackState(buildPlaybackState(cachedPlaying, cachedPositionMs, cachedSongKey));
             refreshArtwork();
+            noteSessionSample("publish");
             return START_STICKY;
         }
         publishedPlayback = true;
@@ -350,6 +390,7 @@ public class FoliaPlaybackService extends Service {
         updatePlaybackLocks(cachedPlaying);
         RearLyricsCoordinator.get(this).playback(cachedPlaying);
         refreshArtwork();
+        noteSessionSample(songChanged ? "transition" : "publish");
         return START_STICKY;
     }
 
@@ -779,6 +820,45 @@ public class FoliaPlaybackService extends Service {
             message,
             "FoliaPlaybackService"
         );
+    }
+
+    /**
+     * C1/C2 的统一采样点：一个时点的「会话到底在发布什么」。
+     *
+     * 三个调用时机对应三种提问：
+     * <ul>
+     *   <li>{@code transition} / {@code publish}：原生自动切歌、或 JS 推来一次新元数据；</li>
+     *   <li>{@code tick}：锁屏持续播放期间（10s 一次，走 routine 泳道，只留最近 40 条）；</li>
+     *   <li>返回前台后 JS 会强制推一次，于是又落一条 {@code publish}，与 tick 直接可比。</li>
+     * </ul>
+     *
+     * 一行里同时有 position/duration/durationSource/state/speed 和歌词四层的前三层
+     * （取到没有 = lyricState、缓存里几条 = lyricCached、多久之前写的 = lyricPublishAgeMs）。
+     * 第四层「系统端真的显示了吗」在进程外，无法在这里观测，报告里只能写边界。
+     */
+    private void noteSessionSample(String trigger) {
+        try {
+            com.getcapacitor.JSObject tag = io.github.huleixin.tingyu.playback.NativeAudioEngine.currentTrackTag();
+            boolean takeover = tag != null && tag.optBoolean("nativeContinuation", false);
+            MediaController controller = mediaSession == null ? null : mediaSession.getController();
+            PlaybackState published = controller == null ? null : controller.getPlaybackState();
+            io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("session-sample",
+                new com.getcapacitor.JSObject()
+                    .put("trigger", trigger)
+                    .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(cachedSongKey))
+                    .put("positionMs", cachedPositionMs)
+                    .put("durationMs", cachedDurationMs)
+                    .put("durationSource", cachedDurationSource)
+                    .put("playing", cachedPlaying)
+                    .put("state", published == null ? -1 : published.getState())
+                    .put("speed", published == null ? 0f : published.getPlaybackSpeed())
+                    .put("lyricState", ColorOsLyricBridge.stateOf(cachedSongKey))
+                    .put("lyricCached", ColorOsLyricBridge.cachedCount())
+                    .put("lyricPublishAgeMs", ColorOsLyricBridge.lastPublishAgeMs())
+                    .put("takeover", takeover));
+        } catch (Throwable ignored) {
+            // 诊断永远不能影响播放。
+        }
     }
 
     /**

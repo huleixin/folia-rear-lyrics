@@ -20,7 +20,17 @@ import type { LyricData, SongResult } from '../types';
 // These are cache reads only (prefetch memory -> IndexedDB). No network, no new work per track,
 // and a bounded set so the same track is never rebuilt twice in a session.
 
-const PRIMED_LIMIT = 16;
+/**
+ * 本地「已经交过去」的记录长度。
+ *
+ * 必须**小于**原生缓存容量（`ColorOsLyricBridge.MAX_CACHED_SONGS = 16`）：这个列表只用来
+ * 避免重复构建，它假定「记过的这首原生还留着」。列表和缓存一样深（原来是 16 vs 6）时，
+ * 被原生淘汰掉的歌还留在列表里，就再也不会被补交 —— 锁屏连播到第 7 首开始空词正是这个。
+ * 10 留出了足够的余量：列表里任何一首都是最近 10 次交出去的，原生一定还留着。
+ */
+const PRIMED_LIMIT = 10;
+/** 一次最多向原生预置多少首（含当前曲之后的顺序），与原生缓存容量对齐。 */
+export const LYRIC_PRIME_AHEAD = 12;
 const primed: string[] = [];
 
 const markPrimed = (key: string) => {
@@ -57,7 +67,8 @@ export const primeNativeLyricsForSongs = async (
     songs: SongResult[],
     quality: AudioQualityPreference,
 ): Promise<void> => {
-    for (const song of songs) {
+    const bounded = songs.slice(0, LYRIC_PRIME_AHEAD);
+    for (const song of bounded) {
         const key = getPlaybackSongKey(song);
         if (!key || isPrimed(key) || isLocalPlaybackSong(song) || isNavidromePlaybackSong(song)) continue;
         const lyrics = await readCachedLyrics(song, quality);

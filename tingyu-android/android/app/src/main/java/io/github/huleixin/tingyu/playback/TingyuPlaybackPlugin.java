@@ -78,7 +78,8 @@ public final class TingyuPlaybackPlugin extends Plugin {
                 if(songKey.isEmpty())continue;
                 tracks.add(new NativePlaylist.Track(songKey,raw.optString("providerId",""),raw.optString("mediaId",""),
                     raw.optString("title",""),raw.optString("artist",""),raw.optString("album",""),
-                    raw.optLong("duration",0L),raw.optString("artwork",""),
+                    // 毫秒契约（旧秒值自动迁移），见 PlaylistDuration。
+                    PlaylistDuration.read(raw),raw.optString("artwork",""),
                     raw.opt("providerData") instanceof org.json.JSONObject
                         ?raw.optJSONObject("providerData").toString():raw.optString("providerData","")));
             }

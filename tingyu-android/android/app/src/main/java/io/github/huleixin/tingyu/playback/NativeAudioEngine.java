@@ -63,6 +63,19 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         return value;
     }
 
+    /**
+     * Media3 对**当前这首歌**真实有效的时长；未知（TIME_UNSET / ≤0）或不是当前曲时返回 -1。
+     *
+     * 系统卡片的「总时长」和进度条的上界都由它说话，tag 里的 durationMs 只是先验
+     * （换歌瞬间 Media3 还没解析出时长，只能用歌单给的值）。两者优先级反了，卡片就会
+     * 显示一个和播放器无关的数字，或者像 1.3.50 那样显示 00:00。
+     */
+    public static long durationMsFor(String songKey){
+        NativeAudioEngine engine=instance;
+        if(engine==null||engine.sourceId.isEmpty()||songKey==null||!songKey.equals(engine.songKey))return -1L;
+        long duration=engine.player.getDuration();
+        return duration>0L?duration:-1L;
+    }
     public static boolean mediaSeek(long positionMs){
         if(!isActive())return false;
         NativeAudioEngine engine=instance;
@@ -177,6 +190,21 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 JSObject queued=(JSObject)item.localConfiguration.tag;
                 songKey=item.mediaId;endedHandoff=false;staleNudges=0;
                 if(reason==Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)applyOutputPolicy(true);
+                // 歌词按**真实的 MediaItem id** 取，且先钉住当前曲、再保护下一首：换歌这一刻
+                // 缓存里的「下一首」若被预置淘汰掉，灵动岛就会空到下一次换歌。
+                int aheadIndex=player.getNextMediaItemIndex();
+                String aheadKey=aheadIndex<0||aheadIndex>=player.getMediaItemCount()?null:player.getMediaItemAt(aheadIndex).mediaId;
+                io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.protectAhead(aheadKey);
+                // 四层证据的第一层：这首歌在原生缓存里到底有没有、有多少条、上次写入多久之前。
+                // 没有这一行，「灵动岛空着」分不清是没取到、没构建、没发布，还是发布了没人消费。
+                PlaybackDiagnostics.note("lyric-lookup",new JSObject()
+                    .put("song",PlaybackDiagnostics.anonKey(songKey))
+                    .put("mediaItemId",PlaybackDiagnostics.anonKey(songKey))
+                    .put("state",io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.stateOf(songKey))
+                    .put("cached",io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.cachedCount())
+                    .put("lastPublishAgeMs",io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.lastPublishAgeMs())
+                    .put("takeover",((JSObject)item.localConfiguration.tag).optBoolean("nativeContinuation",false))
+                    .put("index",player.getCurrentMediaItemIndex()).put("ahead",aheadKey==null?"":PlaybackDiagnostics.anonKey(aheadKey)));
                 io.github.huleixin.tingyu.FoliaPlaybackService.publishQueuedTrack(context,queued,player.getPlayWhenReady());
                 // A background auto-advance into a track whose timeline was never primed leaves
                 // the island empty. Ask the WebView for it now (it answers whenever it does run);

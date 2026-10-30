@@ -33,6 +33,13 @@ vi.mock('../../../src/platform/tingyuPlayback', () => ({
     getTingyuPlayback: () => ({ setNativePlaylist, setNativePlaylistMode, setResolverCredentials }),
 }));
 
+// 预置歌词读的是 IndexedDB / 预取缓存，与"交给原生什么"无关；这里只关心载荷本身。
+const primeNativeLyricsForSongs = vi.fn(async () => undefined);
+vi.mock('../../../src/services/nativeLyricPriming', () => ({
+    primeNativeLyricsForSongs: (...args: unknown[]) => primeNativeLyricsForSongs(...args as []),
+    LYRIC_PRIME_AHEAD: 12,
+}));
+
 const song = (id: string, providerId = 'qq') => ({
     id,
     name: `song-${id}`,
@@ -67,7 +74,11 @@ describe('nativePlaylistSync', () => {
         expect(payload.mode).toBe('off');
         expect(payload.tracks[0].providerId).toBe('qq');
         expect(payload.tracks[0].providerData).toEqual({ mediaMid: 'mm-a' });
-        expect(payload.tracks[0].duration).toBe(200);
+        // 契约是**毫秒**。这首歌 200 秒 → 200000ms。老测试断言 200（秒），正是因为它在
+        // 保护错误的契约，真机上才一路绿灯地把卡片时长发成 200ms。
+        expect(payload.tracks[0].durationMs).toBe(200_000);
+        // 旧的秒字段不许再出现：两条路径（窗口 / 逻辑歌单）单位不同才是这次的根因。
+        expect(payload.tracks[0]).not.toHaveProperty('duration');
     });
 
     it('never puts a playable url in the payload', async () => {
@@ -109,5 +120,23 @@ describe('nativePlaylistSync', () => {
     it('stays silent when nothing is playing', async () => {
         await syncNativePlaylist({ song: null, queue: [song('a')], loop: 'off', shuffle: false, quality: 'high' });
         expect(setNativePlaylist).not.toHaveBeenCalled();
+    });
+
+    it('publishes a 200-second song as 200000ms, never as 200', async () => {
+        // 真机上「锁屏总时长 00:00、进度条不动」就是这条数字发成 200 的结果：
+        // 发布 200ms 后，PlaybackPositionClock 会把任何位置钳在 200ms。
+        const queue = [song('aq'), song('bq')];
+        await syncNativePlaylist({ song: queue[0], queue, loop: 'off', shuffle: false, quality: 'high' });
+        const first = lastPlaylist().tracks[0];
+        expect(first.durationMs).toBe(200_000);
+        expect(Number(first.durationMs)).toBeGreaterThan(1_000);
+    });
+
+    it('keeps an unknown duration at 0 instead of inventing a value', async () => {
+        const unknown = { ...(song('u') as Record<string, unknown>), durationMs: undefined };
+        await syncNativePlaylist({
+            song: unknown as never, queue: [unknown as never], loop: 'off', shuffle: false, quality: 'high',
+        });
+        expect(lastPlaylist().tracks[0].durationMs).toBe(0);
     });
 });
