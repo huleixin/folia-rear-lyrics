@@ -34,8 +34,21 @@ public final class PlaybackDiagnostics {
     private static SharedPreferences prefs;
     private static DiagnosticLanes lanes;
     private static int epoch;
+    private static Context appContext;
+
+    /**
+     * 进程级 ApplicationContext。后台续播要在没有 Activity、没有插件实例的情况下登记本地代理地址，
+     * 所以它需要一个不随 Activity 消失的 context（持有的是 applicationContext，不存在泄漏）。
+     */
+    public static Context contextOrNull() {
+        return appContext;
+    }
 
     public static synchronized void initialize(Context context) {
+        if (context != null) {
+            Context app = context.getApplicationContext();
+            appContext = app == null ? context : app;
+        }
         if (prefs != null) return;
         if (context == null) return;
         Context app = context.getApplicationContext();

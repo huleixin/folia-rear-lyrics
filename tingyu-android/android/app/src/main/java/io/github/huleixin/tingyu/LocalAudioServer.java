@@ -44,7 +44,7 @@ import okhttp3.ResponseBody;
  * 所以原生起一个只监听 127.0.0.1 的小服务，把音频以 http 的形式喂回去。
  * 必须支持 Range：<audio> 拖进度、以及某些格式要先读文件尾部的元数据，都靠它。
  */
-final class LocalAudioServer {
+public final class LocalAudioServer {
     private static final String TAG = "LocalAudioServer";
     private static final String AUDIO_PATH_PREFIX = "/audio/";
     private static final String REMOTE_AUDIO_PATH_PREFIX = "/remote-audio/";
@@ -77,6 +77,30 @@ final class LocalAudioServer {
     private final Map<String, Map<String, String>> remoteAudioHeaders = new LinkedHashMap<>();
     private ServerSocket serverSocket;
     private int port;
+
+    /**
+     * 进程内唯一实例。
+     *
+     * 为什么必须是静态的：端口与 token→URL 的映射原本挂在插件实例上，而插件随 Bridge 走、
+     * Bridge 随 Activity 走。`MainActivity.recreate()` 之后会换一个新实例 —— 新端口、空映射，
+     * 于是 Media3 队列里那些 `http://127.0.0.1:<旧端口>/remote-audio/<token>` 全部 404，
+     * 而旧 ServerSocket 还开着没人关。后台链路又不能依赖 Activity 活着，所以这里升为进程级。
+     */
+    private static volatile LocalAudioServer shared;
+
+    public static LocalAudioServer shared(Context context) {
+        LocalAudioServer current = shared;
+        if (current != null) return current;
+        synchronized (LocalAudioServer.class) {
+            if (shared == null) shared = new LocalAudioServer(context);
+            return shared;
+        }
+    }
+
+    /** 测试用：只影响单测进程内的一次性注入。 */
+    static void resetSharedForTest() {
+        synchronized (LocalAudioServer.class) { shared = null; }
+    }
 
     LocalAudioServer(Context context) {
         this.context = context.getApplicationContext();
@@ -133,6 +157,36 @@ final class LocalAudioServer {
      */
     synchronized String registerRemoteAudio(String value, Map<String, String> headers, boolean allowAnyHost) throws IOException {
         return registerRemoteAudio(value, headers, allowAnyHost, false);
+    }
+
+    /**
+     * 原生解析器自己取到的地址走这里。
+     *
+     * 与 {@link #registerLxAudio} 的区别只有一处：那个白名单（{@link #REMOTE_AUDIO_HOST_SUFFIXES}）
+     * 是给"脚本/网页说要播什么"用的；这里是**我们自己的解析器**向用户配置的后端要来的地址，
+     * 于是改成"公网地址"这一条规则，而不是逐个域名放行。自建服务（Navidrome 等）由调用方
+     * 显式打开 {@code allowPrivateHost}，因为那个域名是用户自己敲进去的。
+     */
+    public synchronized String registerResolvedAudio(String value, boolean allowPrivateHost) throws IOException {
+        if (!allowPrivateHost) LxAudioProxy.validate(value);
+        else {
+            URL url = new URL(value);
+            String host = url.getHost() == null ? "" : url.getHost();
+            if (!("http".equals(url.getProtocol()) || "https".equals(url.getProtocol())) || host.isEmpty())
+                throw new IOException("Unsupported resolved audio URL");
+        }
+        return registerRemoteAudio(value, null, true, false);
+    }
+
+    /** 原生解析器登记的地址是否还在（token 未被 LRU 挤掉）。 */
+    public synchronized boolean hasToken(String token) {
+        if (token == null || token.isEmpty()) return false;
+        synchronized (remoteAudioUrls) { return remoteAudioUrls.containsKey(token); }
+    }
+
+    /** 登记的远端地址条数，仅诊断用。 */
+    public synchronized int remoteAudioCount() {
+        synchronized (remoteAudioUrls) { return remoteAudioUrls.size(); }
     }
     private String registerRemoteAudio(String value, Map<String, String> headers, boolean allowAnyHost, boolean lxSource) throws IOException {
         URL url = new URL(value);

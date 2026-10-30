@@ -8,6 +8,7 @@ import { resolveNativeQueueWindow } from '../services/nativeQueueWindow';
 import { primeNativeLyricsForSongs } from '../services/nativeLyricPriming';
 import { setNativeAudioQueue } from '../services/nativeAudioElement';
 import { configureNativeQueueSupervisor, installNativeQueueSupervisor, nextNativeQueueGeneration } from '../services/nativeQueueSupervisor';
+import { syncNativePlaylist, syncNativePlaylistMode, syncResolverCredentials } from '../services/nativePlaylistSync';
 import type { LocalSong, SongResult } from '../types';
 import type { PlaybackNavigationOptions } from '../types/appPlayback';
 import type { NativeAudioState } from '../types/nativeAudio';
@@ -50,6 +51,20 @@ export function useNativeQueuedPlayback(
     useEffect(() => {
         configureNativeQueueSupervisor({ getElement: () => audio.current, localSongs });
     }, [audio, localSongs, enabled]);
+
+    // 阶段 A：把逻辑歌单交给原生。这是"后台 JS 不跑时下一首是谁"的唯一来源，
+    // 所以必须在前台每次渲染都保持最新；同步签名未变时不会重复下发。
+    useEffect(() => {
+        if (!enabled || context !== 'main') return;
+        void syncNativePlaylist({ song, queue, loop, shuffle, quality });
+        void syncResolverCredentials();
+    }, [enabled, context, song, queue, loop, shuffle, quality]);
+
+    // 只改模式也要单独同步：换代次会作废在飞的原生解析，避免"已切单曲循环还去取下一首"。
+    useEffect(() => {
+        if (!enabled || context !== 'main') return;
+        void syncNativePlaylistMode(loop, shuffle);
+    }, [enabled, context, loop, shuffle]);
 
     useEffect(() => {
         if (!enabled) return;

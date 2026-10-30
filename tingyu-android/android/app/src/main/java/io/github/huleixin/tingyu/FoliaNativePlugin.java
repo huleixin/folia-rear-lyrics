@@ -557,7 +557,7 @@ public class FoliaNativePlugin extends Plugin {
     @PluginMethod
     public void preparePlaybackTestTone(PluginCall call){
         if(!BuildConfig.PLAYBACK_ENGINE_TEST){call.reject("Not a playback test build");return;}
-        try{if(localAudioServer==null)localAudioServer=new LocalAudioServer(getContext());call.resolve(PlaybackTestTone.prepare(localAudioServer));}
+        try{if(localAudioServer==null)localAudioServer=LocalAudioServer.shared(getContext());call.resolve(PlaybackTestTone.prepare(localAudioServer));}
         catch(Exception error){io.github.huleixin.tingyu.playback.PlaybackTestDiagnostics.error("test-tone-error",error);call.reject("生成测试音频失败",error);}
     }
 
@@ -565,7 +565,7 @@ public class FoliaNativePlugin extends Plugin {
     @PluginMethod
     public void localAudioServerPort(PluginCall call) {
         try {
-            if (localAudioServer == null) localAudioServer = new LocalAudioServer(getContext());
+            if (localAudioServer == null) localAudioServer = LocalAudioServer.shared(getContext());
             int port = localAudioServer.start();
             JSObject result = new JSObject();
             result.put("port", port);
@@ -585,7 +585,7 @@ public class FoliaNativePlugin extends Plugin {
             return;
         }
         try {
-            if (localAudioServer == null) localAudioServer = new LocalAudioServer(getContext());
+            if (localAudioServer == null) localAudioServer = LocalAudioServer.shared(getContext());
             String localUrl = Boolean.TRUE.equals(call.getBoolean("lxSource", false))
                 ? localAudioServer.registerLxAudio(url) : localAudioServer.registerRemoteAudio(url);
             JSObject result = new JSObject();
@@ -1038,7 +1038,7 @@ public class FoliaNativePlugin extends Plugin {
         final Activity activity = getActivity();
         new Thread(() -> {
           try {
-            if (localAudioServer == null) localAudioServer = new LocalAudioServer(getContext());
+            if (localAudioServer == null) localAudioServer = LocalAudioServer.shared(getContext());
             int port = localAudioServer.start();
             File directory = localAudioServer.importedAudioDirectory();
             ContentResolver resolver = getContext().getContentResolver();
@@ -1173,7 +1173,7 @@ public class FoliaNativePlugin extends Plugin {
     private void resolveLocalAudioScan(PluginCall call) {
         try {
             if (localAudioServer == null) {
-                localAudioServer = new LocalAudioServer(getContext());
+                localAudioServer = LocalAudioServer.shared(getContext());
             }
             int port = localAudioServer.start();
             JSArray tracks = new JSArray();
@@ -1302,7 +1302,7 @@ public class FoliaNativePlugin extends Plugin {
         JSArray deleted = new JSArray();
         JSArray failed = new JSArray();
         try {
-            if (localAudioServer == null) localAudioServer = new LocalAudioServer(getContext());
+            if (localAudioServer == null) localAudioServer = LocalAudioServer.shared(getContext());
             File directory = localAudioServer.importedAudioDirectory();
             for (int index = 0; index < refs.length(); index += 1) {
                 String ref = refs.getString(index);

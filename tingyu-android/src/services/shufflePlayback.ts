@@ -62,6 +62,18 @@ export function createShufflePlayback(random: () => number = Math.random) {
             const key = forward ?? remaining[0] ?? current;
             return queue.find(item => getPlaybackSongKey(item) === key) ?? null;
         },
+        /**
+         * 当前曲目之后的随机播放顺序（只读，不推进历史）。
+         *
+         * 原生要知道"下一首是谁"，而随机序列只有这里知道。给原生一份真实的洗牌结果，
+         * 它就不必（也不可能）在 Kotlin 里复刻洗牌算法，两条通道也不会算出不同顺序。
+         */
+        forwardKeys(): string[] {
+            if (!active()) return [];
+            const forward = history.slice(cursor + 1);
+            const seen = new Set(forward);
+            return forward.concat(remaining.filter(key => !seen.has(key)));
+        },
         previous(queue: SongResult[], song: SongResult, select = false): SongResult | null {
             if (!active()) return null;
             const held = getPlaybackSongKey(song);

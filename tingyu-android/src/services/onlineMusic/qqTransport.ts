@@ -455,3 +455,16 @@ export const requestQq = async <T = unknown>(
     persistConfirmedSession(operation, body);
     return body as T;
 };
+
+/**
+ * 原生解析器要用的同一份会话串与后端地址。
+ *
+ * 只由 {@link ../../services/nativePlaylistSync.ts} 调用，交给原生后**只存在内存里**，不落盘。
+ * `extension`（浏览器扩展桥）在原生侧没有对应物，调用方必须过滤掉。
+ */
+export const readQqNativeResolverConfig = (): { base: string; cookie: string } => {
+    if (getElectronQqPortReader()) return { base: '', cookie: '' };
+    const base = getWebApiBase();
+    if (!base || /^extension$/i.test(base.trim()) || base.startsWith('/')) return { base: '', cookie: '' };
+    return { base, cookie: getWebSessionCookie() };
+};

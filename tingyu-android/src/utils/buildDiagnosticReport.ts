@@ -807,6 +807,19 @@ const readBackgroundContinuityLines = async (): Promise<string[]> => {
                 + ` silentMs=${player.jsSilentMs ?? -1} (not proof on its own; see "js liveness")`
                 + ` silentAtLastAskMs=${player.jsSilentAtLastAskMs ?? -1}`,
             );
+            // 阶段 A/B：原生逻辑歌单、后台续播与解析器。字段里没有任何 URL 与凭据。
+            lines.push(
+                `  native ledger: size=${player.ledgerSize ?? 0} mode=${player.ledgerMode ?? '-'}`
+                + ` knowsCurrent=${player.ledgerKnowsCurrent === true ? 'yes' : 'no'}`,
+            );
+            lines.push(
+                `  native continuation: last=${player.continuationLastDecision ?? '-'}`
+                + ` resolving=${player.continuationResolving === true ? 'yes' : 'no'}`
+                + ` takeovers=${player.continuationTakeovers ?? 0}`
+                + ` fallbacks=${player.continuationFallbacks ?? 0}`
+                + ` failures=${player.continuationFailures ?? 0}`,
+            );
+            lines.push(`  native resolvers: ${player.resolvers ?? '-'}`);
         }
     } catch (error) {
         lines.push(`  native queue: error ${error instanceof Error ? error.message : 'unknown'}`);

@@ -21,7 +21,7 @@ import okhttp3.OkHttpClient;
 
 // android/app/src/main/java/io/github/huleixin/tingyu/playback/NativeAudioEngine.java
 /** Process/service-owned Media3 player; Activity focus and WebView drawing do not own playback. */
-public final class NativeAudioEngine {
+public final class NativeAudioEngine implements BackgroundContinuation.Host {
     /** Consecutive broken items the engine may skip through before it reports the error. */
     private static final int MAX_ERROR_SKIPS=3;
     /**
@@ -285,6 +285,7 @@ public final class NativeAudioEngine {
             }
             PlaybackTestDiagnostics.note("prepare",new JSObject().put("scheme",uri.getScheme()).put("host",uri.getHost()));
             sourceId="";songKey=value.optString("songKey");endedHandoff=false;sequence=seq;failure=null;networkRetries=0;retryGeneration++;desiredPaused=true;cancelFade();player.pause();
+        BackgroundContinuation.get().cancel();
             // A new source starts a new continuation story; the window command that follows
             // re-declares it. The generation is never invented here - JS owns that counter.
             supervision.continuation(false,supervision.generation());supervision.satisfied();errorSkips=0;
@@ -328,6 +329,94 @@ public final class NativeAudioEngine {
      * the anchor nor the current item cannot be reconciled at all and is refused - the engine
      * then asks for a fresh window instead of corrupting the order.
      */
+    /**
+     * 采纳原生自己解析出来的下一首（阶段 B）。
+     *
+     * 走的是与 JS 窗口同一套校验，只是来源不同：代次、请求号、用户意图、队列去重，
+     * 任一不过就丢弃 —— 迟到的解析结果绝不能盖掉已经播起来的队列。
+     */
+    void adoptContinuation(io.github.huleixin.tingyu.playback.NativePlaylist.Track track, String uri,
+                           long requestId, long generation){
+        if(track==null||uri==null||uri.isEmpty())return;
+        if(desiredPaused||sourceId.isEmpty()){
+            PlaybackDiagnostics.note("continuation-rejected",new JSObject()
+                .put("song",PlaybackDiagnostics.anonKey(track.songKey)).put("reason","paused-or-detached"));
+            return;
+        }
+        if(generation!=io.github.huleixin.tingyu.playback.NativePlaylist.get().generation()){
+            PlaybackDiagnostics.note("continuation-rejected",new JSObject()
+                .put("song",PlaybackDiagnostics.anonKey(track.songKey)).put("reason","generation")
+                .put("generation",generation));
+            return;
+        }
+        if(queueContainsInternal(track.songKey)){
+            // JS 终究还是答了（或者这首歌本来就在窗口里）：原生这份作废，不能出现两遍。
+            PlaybackDiagnostics.note("continuation-rejected",new JSObject()
+                .put("song",PlaybackDiagnostics.anonKey(track.songKey)).put("reason","duplicate")
+                .put("requestId",requestId));
+            return;
+        }
+        Uri parsed=Uri.parse(uri);
+        if(!java.util.Arrays.asList("http","https").contains(parsed.getScheme())){
+            PlaybackDiagnostics.note("continuation-rejected",new JSObject()
+                .put("song",PlaybackDiagnostics.anonKey(track.songKey)).put("reason","bad-uri"));
+            return;
+        }
+        JSObject tag=new JSObject();
+        tag.put("songKey",track.songKey);
+        tag.put("title",track.title);
+        tag.put("artist",track.artist);
+        tag.put("album",track.album);
+        tag.put("duration",track.durationMs);
+        tag.put("artwork",track.artwork);
+        tag.put("providerId",track.providerId);
+        tag.put("mediaId",track.mediaId);
+        tag.put("nativeContinuation",true);
+        boolean wasEnded=player.getPlaybackState()==Player.STATE_ENDED;
+        player.addMediaItem(new MediaItem.Builder().setUri(parsed).setMediaId(track.songKey).setTag(tag).build());
+        int remaining=Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1);
+        PlaybackDiagnostics.note("continuation-adopt",new JSObject()
+            .put("song",PlaybackDiagnostics.anonKey(track.songKey)).put("requestId",requestId)
+            .put("index",player.getCurrentMediaItemIndex()).put("items",player.getMediaItemCount())
+            .put("remaining",remaining).put("wasEnded",wasEnded));
+        if(wasEnded)resumeFromWindow();
+        else if(remaining>QueueSupervision.LOW_WATER)supervision.satisfied();
+    }
+
+    // ---------------------------------------------------------------------------------
+    // BackgroundContinuation.Host —— 原生续播需要的全部观测量，没有一项来自 WebView。
+    // ---------------------------------------------------------------------------------
+    @Override public String currentSongKey(){return currentKey();}
+    @Override public boolean desiredPaused(){return desiredPaused;}
+    @Override public int remaining(){
+        return Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1);
+    }
+    @Override public boolean ended(){return player.getPlaybackState()==Player.STATE_ENDED;}
+    @Override public long msSinceJsWindow(){
+        if(lastQueueAppliedAt==0L)return -1L;
+        return SystemClock.elapsedRealtime()-lastQueueAppliedAt;
+    }
+    @Override public boolean queueContains(String songKey){return queueContainsInternal(songKey);}
+    @Override public void adopt(NativePlaylist.Track track,String uri,long requestId,long generation){
+        adoptContinuation(track,uri,requestId,generation);
+    }
+    @Override public void rearmSupervision(){
+        supervision.rearm(SystemClock.elapsedRealtime());
+        main.removeCallbacks(superviseTick);
+        main.postDelayed(superviseTick,1_500L);
+    }
+    @Override public void runOnMain(Runnable action){main.post(action);}
+
+    /** 当前位置之后（含当前项）是否已经有这首歌。用于原生与 JS 两条通道的去重。 */
+    private boolean queueContainsInternal(String songKey){
+        if(songKey==null||songKey.isEmpty())return false;
+        for(int i=player.getCurrentMediaItemIndex();i<player.getMediaItemCount();i++){
+            MediaItem item=player.getMediaItemAt(i);
+            if(item!=null&&songKey.equals(item.mediaId))return true;
+        }
+        return false;
+    }
+
     private JSObject applyQueue(JSObject value){
         String anchor=value.optString("songKey");
         org.json.JSONArray entries=value.optJSONArray("tracks");
@@ -453,6 +542,9 @@ public final class NativeAudioEngine {
             default:
                 break;
         }
+        // 阶段 B：JS 沉默够久时，下一首由原生自己取地址。它跑在 Media3 回调里，
+        // 不依赖 Capacitor 监听器、React Hook 或 WebView 定时器是否还活着。
+        BackgroundContinuation.get().consider(this,reason);
         long delay=supervision.retryDelay(SystemClock.elapsedRealtime());
         main.removeCallbacks(superviseTick);
         if(delay>=0)main.postDelayed(superviseTick,delay);
@@ -505,6 +597,8 @@ public final class NativeAudioEngine {
         if(desiredPaused)releaseHandoff();
         if(desiredPaused){
             retryGeneration++;main.removeCallbacks(superviseTick);supervision.satisfied();
+            // 用户主动暂停/停止：作废在飞的原生解析，迟到的结果不许再往队列里塞。
+            BackgroundContinuation.get().cancel();
         }
         if(action.equals("stop")){player.pause();player.seekTo(0);emit("state",external);main.removeCallbacks(heartbeat);return;}
         if(action.equals("play")){if(player.getPlaybackState()==Player.STATE_IDLE&&player.getCurrentMediaItem()!=null){failure=null;networkRetries=0;player.prepare();}
@@ -566,6 +660,17 @@ public final class NativeAudioEngine {
             .put("jsCommands",jsCommands)
             .put("bridgeAttached",listener!=null)
             .put("jsSilentAtLastAskMs",jsSilentAtAsk);
+        // 阶段 A/B：原生现在自己知道下一首是谁，也能自己取地址 —— 这两个字段说明它做得怎么样。
+        value.put("ledgerSize",io.github.huleixin.tingyu.playback.NativePlaylist.get().size())
+            .put("ledgerKnowsCurrent",io.github.huleixin.tingyu.playback.NativePlaylist.get().canDecide(songKey))
+            .put("ledgerMode",io.github.huleixin.tingyu.playback.NativePlaylist.get().mode().name().toLowerCase(java.util.Locale.US));
+        try{
+            org.json.JSONObject continuation=BackgroundContinuation.get().snapshot();
+            java.util.Iterator<String> keys=continuation.keys();
+            while(keys.hasNext()){String key=keys.next();value.put("continuation"+Character.toUpperCase(key.charAt(0))+key.substring(1),continuation.opt(key));}
+        }catch(Exception ignored){}
+        // 解析器只暴露"能不能"，绝不暴露地址与凭据。
+        value.put("resolvers",io.github.huleixin.tingyu.resolver.ResolverRegistry.get().describe());
     }
     private void emit(String type,boolean external){
         // The system session must follow Media3 even with no plugin listener or a sleeping WebView.
