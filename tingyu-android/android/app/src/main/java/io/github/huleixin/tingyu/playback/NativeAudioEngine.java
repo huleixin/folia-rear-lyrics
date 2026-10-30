@@ -221,8 +221,13 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             }
         };
         OkHttpClient http=new OkHttpClient.Builder().connectTimeout(15,TimeUnit.SECONDS).readTimeout(30,TimeUnit.SECONDS).build();
+        // 音频 CDN 请求头：与前台 WebView 播放环境对齐（浏览器 UA + y.qq.com Referer）。
+        // 旧版用 OkHttp 默认 UA，某些音频服务器会因此拒掉本可通过的请求；不带任何凭据。
         player=new ExoPlayer.Builder(context,renderers)
-            .setMediaSourceFactory(new DefaultMediaSourceFactory(new DefaultDataSource.Factory(context,new OkHttpDataSource.Factory(http))))
+            .setMediaSourceFactory(new DefaultMediaSourceFactory(new DefaultDataSource.Factory(context,
+                new OkHttpDataSource.Factory(http)
+                    .setUserAgent("Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36")
+                    .setDefaultRequestProperties(java.util.Collections.singletonMap("Referer","https://y.qq.com/")))))
             .setAudioAttributes(new AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),true)
             .setHandleAudioBecomingNoisy(true).setWakeMode(C.WAKE_MODE_LOCAL).build();
         player.addListener(new Player.Listener(){
@@ -345,12 +350,24 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             }
             @Override public void onPlayerError(PlaybackException error){
                 PlaybackTestDiagnostics.error("player-error",error);
+                int httpStatus=httpStatusOf(error);
+                // 失败定位（不含任何凭据/完整 URL）：真实状态码、音频服务器域名、音质档、
+                // 失败阶段（InvalidResponseCodeException 只在 open 阶段抛 → URL 打开被拒；
+                // 否则是读数据阶段）、是否伴随重定向头。
+                String phase=httpStatus>0?"url-open":"read-or-unknown";
+                Uri currentUri=player.getCurrentMediaItem()==null||player.getCurrentMediaItem().localConfiguration==null
+                    ?null:player.getCurrentMediaItem().localConfiguration.uri;
                 PlaybackDiagnostics.note("player-error",new JSObject().put("code",error.errorCode)
                     .put("name",error.getErrorCodeName()).put("song",PlaybackDiagnostics.anonKey(songKey))
                     .put("positionMs",Math.max(0,player.getCurrentPosition()))
                     .put("index",player.getCurrentMediaItemIndex()).put("items",player.getMediaItemCount())
                     .put("remaining",Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1))
-                    .put("retries",networkRetries));
+                    .put("retries",networkRetries)
+                    .put("httpStatus",httpStatus>0?httpStatus:"?")
+                    .put("host",currentUri==null?"":String.valueOf(currentUri.getHost()))
+                    .put("qualityPrefix",currentUri==null?"":io.github.huleixin.tingyu.resolver.QqResolver.prefixFromFilename(String.valueOf(currentUri.getLastPathSegment())))
+                    .put("phase",phase)
+                    .put("redirectSeen",redirectSeen(error)));
                 if(!desiredPaused&&NativeRetryPolicy.canRetry(error.errorCode,networkRetries)){
                     int attempt=++networkRetries;String token=sourceId;long generation=++retryGeneration;
                     PlaybackTestDiagnostics.note("network-retry",new JSObject().put("attempt",attempt).put("code",error.errorCode));
@@ -548,6 +565,70 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         return track!=null&&io.github.huleixin.tingyu.resolver.ResolverRegistry.get().canResolveNatively(track);
     }
 
+    // ---- HTTP 事实提取：只取状态码/提示头，绝不记录 Cookie、musicKey、完整签名 URL ----
+
+    /** 从异常 cause chain 里取 `InvalidResponseCodeException.responseCode`；取不到返回 0。 */
+    static int httpStatusOf(Throwable error){
+        Throwable cause=error;
+        for(int depth=0;cause!=null&&depth<8;depth++){
+            if(cause instanceof androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException){
+                return ((androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException)cause).responseCode;
+            }
+            cause=cause.getCause();
+        }
+        return 0;
+    }
+
+    /** 429 的 Retry-After 提示（毫秒）；没有或不可解析返回 0。 */
+    static long retryAfterMsOf(Throwable error){
+        Throwable cause=error;
+        for(int depth=0;cause!=null&&depth<8;depth++){
+            if(cause instanceof androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException){
+                java.util.Map<String,java.util.List<String>> headers=
+                    ((androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException)cause).headerFields;
+                if(headers==null)return 0;
+                for(java.util.Map.Entry<String,java.util.List<String>> entry:headers.entrySet()){
+                    if(entry.getKey()!=null&&"retry-after".equalsIgnoreCase(entry.getKey())
+                        &&entry.getValue()!=null&&!entry.getValue().isEmpty()){
+                        try{return Long.parseLong(entry.getValue().get(0).trim())*1000L;}catch(NumberFormatException ignored){}
+                    }
+                }
+                return 0;
+            }
+            cause=cause.getCause();
+        }
+        return 0;
+    }
+
+    /** 响应里是否带了 Location 头（OkHttp 自动跟随重定向；仍带此头说明链上发生过跳转）。 */
+    static boolean redirectSeen(Throwable error){
+        Throwable cause=error;
+        for(int depth=0;cause!=null&&depth<8;depth++){
+            if(cause instanceof androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException){
+                java.util.Map<String,java.util.List<String>> headers=
+                    ((androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException)cause).headerFields;
+                if(headers==null)return false;
+                for(String key:headers.keySet()){
+                    if("location".equalsIgnoreCase(key))return true;
+                }
+                return false;
+            }
+            cause=cause.getCause();
+        }
+        return false;
+    }
+
+    /** 当前播放项的音质前缀（从 URL 尾段认，如 RS01/F000/M800/M500）。 */
+    private String currentQualityPrefix(){
+        MediaItem item=player.getCurrentMediaItem();
+        if(item==null||item.localConfiguration==null)return"";
+        return io.github.huleixin.tingyu.resolver.QqResolver.prefixFromFilename(
+            String.valueOf(item.localConfiguration.uri.getLastPathSegment()));
+    }
+
+    /** 本会话内已对哪首歌做过音质降级（同一首只降一轮）。 */
+    private String downgradeTriedKey="";
+
     /** 返回 true 表示这次失败已经被接管（重试/跳过/全局暂停），调用方不要再当致命错误上报。 */
     private boolean handleUnplayableError(PlaybackException error){
         // 用户主动暂停/停止：这条规则不存在。缓冲中的抖动也不会走到这里（那不是 error）。
@@ -563,12 +644,21 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         boolean hasNext=player.getNextMediaItemIndex()>=0;
         boolean materializable=step!=null&&step.hasTrack()&&canResolveNatively(step.track);
         boolean hasCandidates=list.remainingAfter(songKey)>0;
+        int httpStatus=httpStatusOf(error);
+        String prefix=currentQualityPrefix();
+        String nextPrefix=io.github.huleixin.tingyu.resolver.QqResolver.nextLowerPrefix(prefix);
+        boolean canDowngrade=!nextPrefix.isEmpty()&&!downgradeTriedKey.equals(songKey);
         PlaybackSkipPolicy.Facts facts=new PlaybackSkipPolicy.Facts(error.errorCode,networkRetries,
             consecutiveSkips,list.mode(),desiredPaused,sourceId.isEmpty(),hasNext,materializable,hasCandidates);
+        facts.httpStatus=httpStatus;
+        facts.retryAfterMs=retryAfterMsOf(error);
+        facts.canDowngrade=canDowngrade;
+        facts.downgradeTried=!canDowngrade&&downgradeTriedKey.equals(songKey);
         PlaybackSkipPolicy.Decision decision=PlaybackSkipPolicy.decide(facts);
         lastSkipReason=decision.reason;
         PlaybackDiagnostics.note("skip-decision",new JSObject()
             .put("code",error.errorCode).put("song",PlaybackDiagnostics.anonKey(songKey))
+            .put("httpStatus",httpStatus>0?httpStatus:"?")
             .put("action",decision.action.name().toLowerCase(java.util.Locale.US))
             .put("reason",decision.reason)
             .put("retries",networkRetries).put("consecutiveSkips",consecutiveSkips)
@@ -601,6 +691,36 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 skipPending=true;
                 BackgroundContinuation.get().consider(this,"skip-unplayable");
                 return true;
+            case DOWNGRADE_RETRY: {
+                // 同一首、降一档音质重取地址（RS01→F000→M800→M500）。降级也只这一轮：
+                // 重新解析失败或低档也播不动，就走正常的重试/跳过路径。
+                downgradeTriedKey=songKey;
+                NativePlaylist.Track self=list.trackFor(songKey);
+                String quality=io.github.huleixin.tingyu.resolver.QqResolver.qualityTokenForPrefix(nextPrefix);
+                io.github.huleixin.tingyu.resolver.SourceResolution resolution=self==null?null
+                    :io.github.huleixin.tingyu.resolver.ResolverRegistry.get().resolve(self,quality);
+                if(resolution==null||!resolution.ok()){
+                    PlaybackDiagnostics.note("quality-downgrade-failed",new JSObject()
+                        .put("song",PlaybackDiagnostics.anonKey(songKey))
+                        .put("reason",resolution==null?"no-track":resolution.reason)
+                        .put("nextPrefix",nextPrefix));
+                    if(hasNext){executeSkip("downgrade-unavailable");return true;}
+                    return false;
+                }
+                MediaItem current=player.getCurrentMediaItem();
+                if(current==null||current.localConfiguration==null)return false;
+                MediaItem lowered=new MediaItem.Builder()
+                    .setUri(resolution.url).setMediaId(current.mediaId)
+                    .setTag(copy((JSObject)current.localConfiguration.tag)).build();
+                int index=Math.max(0,player.getCurrentMediaItemIndex());
+                player.replaceMediaItem(index,lowered);
+                player.prepare();player.play();
+                PlaybackDiagnostics.note("quality-downgrade",new JSObject()
+                    .put("song",PlaybackDiagnostics.anonKey(songKey))
+                    .put("from",prefix).put("to",nextPrefix)
+                    .put("httpStatus",httpStatus>0?httpStatus:"?"));
+                return true;
+            }
             case SKIP_NEXT:
             default:
                 executeSkip(decision.reason);
@@ -876,17 +996,32 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             QueuePrune.Plan prune=QueuePrune.plan(afterIds,afterAdopted,offered);
             if(prune.replace&&next<player.getMediaItemCount()){
                 java.util.ArrayList<MediaItem> keep=new java.util.ArrayList<>();
+                java.util.HashSet<String> keptIds=new java.util.HashSet<>();
                 for(int index:prune.keepIndices){
                     MediaItem existing=player.getMediaItemAt(next+index);
                     if(existing!=null){
                         keep.add(existing);
+                        keptIds.add(existing.mediaId);
                         if(droppedAdopted.isEmpty())droppedAdopted=existing.mediaId;
                     }
                 }
+                // 已接管项与 JS 窗口同曲时只保留一份：旧代码把同名项删了重加，队列在
+                // queue-diff 里反复 removed/added 抖动，还可能把原生握着的可用地址换掉。
+                // 与保留项重复的窗口项直接丢弃，不参与"删除后重加"。
+                int beforeDedupe=items.size();
+                java.util.ArrayList<MediaItem> deduped=new java.util.ArrayList<>();
+                for(MediaItem item:items){
+                    if(item!=null&&keptIds.contains(item.mediaId))continue;
+                    deduped.add(item);
+                }
+                int dedupedOut=beforeDedupe-deduped.size();
+                items=deduped;
                 removed=player.getMediaItemCount()-next;
                 player.removeMediaItems(next,player.getMediaItemCount());
                 player.addMediaItems(items);
                 if(!keep.isEmpty()){player.addMediaItems(keep);preserved=keep.size();}
+                if(dedupedOut>0)PlaybackDiagnostics.note("queue-dedupe",new JSObject()
+                    .put("dropped",dedupedOut).put("preserved",preserved));
             }
         }
         queueAccepted++;

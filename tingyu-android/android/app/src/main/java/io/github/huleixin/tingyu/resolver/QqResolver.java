@@ -165,26 +165,55 @@ public final class QqResolver implements SourceResolver {
         return "";
     }
 
-    /** 前台 `QQ_QUALITY_CANDIDATE_TEMPLATES` 的原生镜像（顺序一致）。 */
+    /** 前台 `QQ_QUALITY_CANDIDATE_TEMPLATES` 的原生镜像（顺序一致：hires→aac）。 */
     static final String[][] FILE_TEMPLATES = {
         { "RS01", ".flac" }, { "F000", ".flac" }, { "M800", ".mp3" }, { "M500", ".mp3" }, { "C400", ".m4a" },
     };
 
-    /** filename 候选：mediaMid 优先、songmid 兜底，各乘一遍音质模板。纯函数。 */
-    static String[] authedFilenameCandidates(String mediaMid, String songmid) {
+    /** 用户音质偏好 → 从哪一档开始降级（与前台 `qualityCandidatesFrom` 的 slice(start) 同规则）。 */
+    static int templateStart(String quality) {
+        if ("standard".equals(quality)) return 3; // M500
+        if ("lossless".equals(quality)) return 1; // F000
+        if ("hires".equals(quality)) return 0;    // RS01
+        // high / 未知 / 空：从前台实测行为取值 —— 用户的音质设置解析出来是 exhigh(320k)，
+        // 请求里只有 M800/M500/C400。旧版无视这个参数、永远从 RS01 开降，是"原生挑了
+        // FLAC 而前台用 MP3"差异的根源。
+        return 2; // M800
+    }
+
+    /**
+     * filename 候选：按用户音质偏好从高到低降级，mediaMid 优先、songmid 兜底。
+     * 纯函数。候选顺序直接决定取哪一档 —— `parseAuthedMusicu` 取第一个有 purl 的行，
+     * 所以排在前面的就是实际会播的音质。
+     */
+    static String[] authedFilenameCandidates(String mediaMid, String songmid, String quality) {
         java.util.ArrayList<String> ids = new java.util.ArrayList<>();
         if (mediaMid != null && !mediaMid.isEmpty()) ids.add(mediaMid);
         if (songmid != null && !songmid.isEmpty() && !ids.contains(songmid)) ids.add(songmid);
         java.util.ArrayList<String> names = new java.util.ArrayList<>();
-        for (String id : ids) for (String[] tpl : FILE_TEMPLATES) names.add(tpl[0] + id + tpl[1]);
+        for (int t = templateStart(quality); t < FILE_TEMPLATES.length; t++) {
+            String[] tpl = FILE_TEMPLATES[t];
+            for (String id : ids) names.add(tpl[0] + id + tpl[1]);
+        }
         return names.toArray(new String[0]);
+    }
+
+    /** filename 候选（兼容旧调用：不传偏好 = 从 M800 起降，与前台默认一致）。 */
+    static String[] authedFilenameCandidates(String mediaMid, String songmid) {
+        return authedFilenameCandidates(mediaMid, songmid, "high");
     }
 
     /** 前台 web 形态的 CgiGetVkey 请求体。纯函数，字段与 handleQQSongUrl 一一对应。 */
     public static String buildAuthedMusicuBody(String songmid, String mediaMid, String guid,
                                                String uin, String musicKey) {
+        return buildAuthedMusicuBody(songmid, mediaMid, guid, uin, musicKey, "high");
+    }
+
+    /** 同上，但音质降级链按用户偏好排序。 */
+    public static String buildAuthedMusicuBody(String songmid, String mediaMid, String guid,
+                                               String uin, String musicKey, String quality) {
         try {
-            String[] filenames = authedFilenameCandidates(mediaMid, songmid);
+            String[] filenames = authedFilenameCandidates(mediaMid, songmid, quality);
             org.json.JSONArray songmids = new org.json.JSONArray();
             org.json.JSONArray types = new org.json.JSONArray();
             org.json.JSONArray files = new org.json.JSONArray();
@@ -252,10 +281,10 @@ public final class QqResolver implements SourceResolver {
     }
 
     /** 登录态通道：一次请求带全部 filename 候选，返回可播放地址或失败原因。 */
-    private SourceResolution viaAuthedMusicu(String songmid, String mediaMid) {
+    private SourceResolution viaAuthedMusicu(String songmid, String mediaMid, String quality) {
         String uin = uinFromCookie(loginCookie);
         String musicKey = musicKeyFromCookie(loginCookie);
-        String payload = buildAuthedMusicuBody(songmid, mediaMid, randomGuid(), uin, musicKey);
+        String payload = buildAuthedMusicuBody(songmid, mediaMid, randomGuid(), uin, musicKey, quality);
         if (payload.isEmpty()) return SourceResolution.failure("failed to build authed musicu body");
         Request request = new Request.Builder()
             .url(MUSICU_URL)
@@ -479,7 +508,7 @@ public final class QqResolver implements SourceResolver {
         // 登录态 web 形态：与前台 handleQQSongUrl 成功链路同构。有 uin + 播放票据才走；
         // 取不到会如实说"登录可能过期"，绝不回落到注定空的匿名通道假装成功。
         if (hasLoginContext()) {
-            return viaAuthedMusicu(songmid, mediaMid);
+            return viaAuthedMusicu(songmid, mediaMid, quality);
         }
         // 匿名直连通道默认关闭：实测 purl 恒空 / result=104003，开了只能制造"解析过了"的假象。
         if (!allowAnonymous) {
@@ -576,6 +605,38 @@ public final class QqResolver implements SourceResolver {
         if ("M500".equals(code) || "128".equals(code)) return "standard";
         if ("F000".equals(code) || "flac".equals(code)) return "lossless";
         return "high";
+    }
+
+    // ---------------------------------------------------------------- 播放失败音质降级
+    //
+    // 解析接口返回非空 ≠ 真能播：真机 1.3.52 里 RS01 FLAC 的 purl 存在，Media3 打开时却
+    // 吃了非 2xx。降级规则：同一首、按 FILE_TEMPLATES 往下挪一档重取地址，M500 还是
+    // 不行才把这首歌判死。绝不因此切音源、绝不绕过账号权限。
+
+    /** 从播放地址（或 filename）里认出音质前缀；认不出返回空。纯函数。 */
+    public static String prefixFromFilename(String filenameOrUrl) {
+        if (filenameOrUrl == null) return "";
+        for (String[] tpl : FILE_TEMPLATES) {
+            if (filenameOrUrl.contains(tpl[0])) return tpl[0];
+        }
+        return "";
+    }
+
+    /** 当前音质档的下一低档；已经是最低档（C400）或认不出时返回空串。纯函数。 */
+    public static String nextLowerPrefix(String prefix) {
+        for (int i = 0; i < FILE_TEMPLATES.length - 1; i++) {
+            if (FILE_TEMPLATES[i][0].equals(prefix)) return FILE_TEMPLATES[i + 1][0];
+        }
+        return "";
+    }
+
+    /** 把 filename 前缀映射回 resolve(track, quality) 的 quality 值。纯函数。 */
+    public static String qualityTokenForPrefix(String prefix) {
+        if ("RS01".equals(prefix)) return "hires";
+        if ("F000".equals(prefix)) return "lossless";
+        if ("M500".equals(prefix)) return "standard";
+        if ("C400".equals(prefix)) return "aac";
+        return "high"; // M800
     }
 
     static String randomGuid() {

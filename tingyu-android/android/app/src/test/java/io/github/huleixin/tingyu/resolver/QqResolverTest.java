@@ -163,14 +163,47 @@ public class QqResolverTest {
         assertEquals("1234567", param.getString("uin"));
         assertEquals(1, param.getInt("loginflag"));
         assertEquals("20", param.getString("platform"));
-        // mediaMid 优先 + songmid 兜底 × 5 档音质模板 = 10 个 filename 候选。
+        // 默认偏好（high）：从前台实测行为对齐 —— M800 起降，不带用户没点的 Hi-Res。
+        // 真机 1.3.52：旧版永远从 RS01 开降，同一首歌原生挑了 FLAC、前台用 M800 MP3，
+        // FLAC 的 purl 解析非空却播不动（HTTP 非 2xx）。
         org.json.JSONArray files = param.getJSONArray("filename");
-        assertEquals(10, files.length());
-        assertEquals("RS010039MnYb.flac", files.getString(0));
-        assertEquals("C4000039MnYb.m4a", files.getString(4));
-        assertEquals("RS010039MnYb0qxYhV.flac", files.getString(5));
+        assertEquals(6, files.length());
+        assertEquals("M8000039MnYb.mp3", files.getString(0));
+        assertEquals("C4000039MnYb0qxYhV.m4a", files.getString(5));
         // songmid 数组与 filename 数组等长（前台契约）。
         assertEquals(files.length(), param.getJSONArray("songmid").length());
+    }
+
+    @Test
+    public void qualityPreferenceOrdersTheFilenameChain() {
+        // high → M800,M500,C400（mediaMid 一份）：与前台 exhigh 的 slice 一致。
+        String[] high = QqResolver.authedFilenameCandidates("MID", "SMID", "high");
+        assertEquals(6, high.length);
+        assertEquals("M800MID.mp3", high[0]);
+        assertEquals("C400SMID.m4a", high[5]);
+        // standard → M500,C400 两档。
+        String[] standard = QqResolver.authedFilenameCandidates("MID", "", "standard");
+        assertEquals(2, standard.length);
+        assertEquals("M500MID.mp3", standard[0]);
+        assertEquals("C400MID.m4a", standard[1]);
+        // lossless → F000,M800,M500,C400；hires → 全五档。
+        assertEquals("F000MID.flac", QqResolver.authedFilenameCandidates("MID", "", "lossless")[0]);
+        assertEquals("RS01MID.flac", QqResolver.authedFilenameCandidates("MID", "", "hires")[0]);
+    }
+
+    @Test
+    public void downgradeChainWalksOneTierAtATime() {
+        assertEquals("RS01", QqResolver.prefixFromFilename("https://isure.stream.qqmusic.qq.com/RS01000abc.flac?x=1"));
+        assertEquals("M800", QqResolver.prefixFromFilename("M800000Ruzp13WbdUP.mp3"));
+        assertEquals("", QqResolver.prefixFromFilename("https://example.com/song.mp3"));
+        assertEquals("F000", QqResolver.nextLowerPrefix("RS01"));
+        assertEquals("M800", QqResolver.nextLowerPrefix("F000"));
+        assertEquals("M500", QqResolver.nextLowerPrefix("M800"));
+        assertEquals("", QqResolver.nextLowerPrefix("C400"));
+        assertEquals("", QqResolver.nextLowerPrefix(""));
+        assertEquals("lossless", QqResolver.qualityTokenForPrefix("F000"));
+        assertEquals("high", QqResolver.qualityTokenForPrefix("M800"));
+        assertEquals("standard", QqResolver.qualityTokenForPrefix("M500"));
     }
 
     @Test
