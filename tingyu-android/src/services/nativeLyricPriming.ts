@@ -74,7 +74,10 @@ export const primeNativeLyricsForSongs = async (
             sessionGeneration: nextColorOsGeneration(),
         });
         if (!built) continue;
-        markPrimed(key);
-        await publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, key);
+        // Mark only what actually landed. Marking before the await meant one failed bridge call
+        // (renderer busy, service restarting) permanently retired that song: it was never primed
+        // again in this session, so a background auto-advance into it published no timeline at
+        // all even though the lyrics were sitting in the cache.
+        if (await publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, key)) markPrimed(key);
     }
 };

@@ -403,6 +403,9 @@ public class FoliaPlaybackService extends Service {
             metadata.putBitmap(MediaMetadata.METADATA_KEY_ART, artwork);
             metadata.putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, artwork);
         }
+        // The track being published is the one the player is on: priming the next window must
+        // not be able to evict its timeline, or the boundary publishes an empty lyric field.
+        ColorOsLyricBridge.pin(songKey);
         ColorOsLyricBridge.attach(metadata, songKey);
         noteLyricPublication(songKey);
         return metadata.build();

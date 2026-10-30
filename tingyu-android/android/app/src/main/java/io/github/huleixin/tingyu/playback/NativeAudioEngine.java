@@ -24,6 +24,13 @@ import okhttp3.OkHttpClient;
 public final class NativeAudioEngine {
     /** Consecutive broken items the engine may skip through before it reports the error. */
     private static final int MAX_ERROR_SKIPS=3;
+    /**
+     * How many times an unreconcilable window may be re-asked inside one track. A stale anchor
+     * means the UI store is looking at an older item than Media3, which one window rebuilt from
+     * the engine's own position usually fixes; the cap keeps a permanently confused resolver from
+     * becoming a request loop. The counter resets on every transition.
+     */
+    private static final int MAX_STALE_NUDGES=5;
     private static NativeAudioEngine instance;
     public static NativeAudioEngine get(Context context){if(instance==null)instance=new NativeAudioEngine(context.getApplicationContext());return instance;}
     public static boolean isActive(){return instance!=null&&!instance.sourceId.isEmpty();}
@@ -35,6 +42,13 @@ public final class NativeAudioEngine {
      * BUFFERING rather than PAUSED for the gap.
      */
     public static boolean isWaitingForNext(){return instance!=null&&instance.supervision.waiting();}
+    /** The item Media3 is really on, for callers that must not trust the UI's idea of it. */
+    public static String currentKey(){
+        NativeAudioEngine engine=instance;
+        if(engine==null||engine.sourceId.isEmpty())return "";
+        MediaItem item=engine.player.getCurrentMediaItem();
+        return item==null?engine.songKey:item.mediaId;
+    }
     /** The item Media3 is really on, so a rebuilt service can restore metadata without JS. */
     public static JSObject currentTrackTag(){
         NativeAudioEngine engine=instance;
@@ -98,6 +112,8 @@ public final class NativeAudioEngine {
     private long retryGeneration;
     private long queueGeneration=-1;
     private int queueAccepted,queueRejected,queueStale,staleNudges;
+    /** Last verdict the engine actually honoured; diagnostics only. */
+    private String lastVerdict="none";
     private long lastQueueAppliedAt;
     private final Runnable superviseTick=new Runnable(){public void run(){superviseQueue("tick");}};
 
@@ -141,6 +157,11 @@ public final class NativeAudioEngine {
                 songKey=item.mediaId;endedHandoff=false;staleNudges=0;
                 if(reason==Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)applyOutputPolicy(true);
                 io.github.huleixin.tingyu.FoliaPlaybackService.publishQueuedTrack(context,queued,player.getPlayWhenReady());
+                // A background auto-advance into a track whose timeline was never primed leaves
+                // the island empty. Ask the WebView for it now (it answers whenever it does run);
+                // the player itself keeps going either way.
+                if("pending".equals(io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.stateOf(songKey)))
+                    emit("lyric-request",false);
                 PlaybackDiagnostics.note("queue-transition",new JSObject().put("reason",reason)
                     .put("song",PlaybackDiagnostics.anonKey(songKey)).put("index",player.getCurrentMediaItemIndex())
                     .put("items",player.getMediaItemCount()).put("remaining",Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1)));
@@ -260,13 +281,18 @@ public final class NativeAudioEngine {
             if(!sourceId.equals(id)||seq<sequence)return new JSObject().put("accepted",false);
             sequence=seq;
             switch(action){
-                case "play":case "pause":case "stop":transport(action,false);break;
+                case "play":case "pause":case "stop":transport(action,false);if("play".equals(action))noteLiveness("play");break;
                 case "detach":cancelFade();PlaybackDiagnostics.note("engine-detach",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
                         .put("positionMs",Math.max(0,player.getCurrentPosition())));player.stop();player.clearMediaItems();sourceId="";main.removeCallbacks(heartbeat);supervision.continuation(false,supervision.generation());supervision.satisfied();main.removeCallbacks(superviseTick);break;
                 case "seek":player.seekTo(Math.max(0,value.optLong("position")));break;
                 case "volume":volume=(float)Math.max(0,Math.min(1,value.optDouble("volume",1)));cancelFade();player.setVolume(volume);break;
                 case "configure":configure(value);break;
-                case "snapshot":return new JSObject().put("accepted",true).put("state",snapshot("snapshot",true));
+                case "snapshot":{
+                    // Sent by the element whenever the page becomes visible again: the one reliable
+                    // "the renderer is alive" signal a backgrounded session produces.
+                    noteLiveness("snapshot");
+                    return new JSObject().put("accepted",true).put("state",snapshot("snapshot",true));
+                }
                 default:throw new IllegalArgumentException("Unknown native playback command");
             }
         }
@@ -286,11 +312,15 @@ public final class NativeAudioEngine {
     private JSObject applyQueue(JSObject value){
         String anchor=value.optString("songKey");
         org.json.JSONArray entries=value.optJSONArray("tracks");
-        boolean continues=value.optBoolean("continues",true);
+        // `verdict` is the three-valued answer; `continues` is the legacy boolean. A resolver
+        // that could not decide (aborted, anchor not found, every candidate failed) must not be
+        // able to declare the playlist finished - that single conversion is what turned one lost
+        // window into a session that never asked for another.
+        QueueSupervision.Continuation verdict=QueueSupervision.Continuation.parse(
+            value.has("verdict")?value.optString("verdict"):null,value.optBoolean("continues",true));
         long generation=value.optLong("generation",-1L);
-        if(generation>=0)supervision.continuation(continues,generation);
-        else supervision.continuation(continues,supervision.generation());
         java.util.ArrayList<MediaItem> items=new java.util.ArrayList<>();
+        java.util.ArrayList<String> ids=new java.util.ArrayList<>();
         int rejected=0;
         if(entries!=null)for(int i=0;i<Math.min(1000,entries.length());i++){
             org.json.JSONObject raw=entries.optJSONObject(i);if(raw==null)break;
@@ -298,27 +328,31 @@ public final class NativeAudioEngine {
             if(!java.util.Arrays.asList("http","https","content","file").contains(uri.getScheme())||raw.optString("songKey").isEmpty()){rejected++;continue;}
             JSObject tag=copy(raw);
             items.add(new MediaItem.Builder().setUri(uri).setMediaId(tag.optString("songKey")).setTag(tag).build());
+            ids.add(tag.optString("songKey"));
         }
-        int start=0;
-        if(!anchor.isEmpty()&&!anchor.equals(songKey)){
-            int found=-1;
-            for(int i=0;i<items.size();i++)if(items.get(i).mediaId.equals(songKey)){found=i;break;}
-            if(found>=0)start=found+1;
-            else{
-                queueStale++;queueRejected++;
-                PlaybackDiagnostics.note("queue-stale",new JSObject().put("anchor",PlaybackDiagnostics.anonKey(anchor))
-                    .put("song",PlaybackDiagnostics.anonKey(songKey)).put("offered",items.size()).put("continues",continues)
-                    .put("nudges",staleNudges));
-                // Ask again with the engine's own position as the anchor; the caller rebuilds the
-                // window from here. Never mutate the playlist on an unreconcilable window - and
-                // never let a permanently unresolvable anchor become a request loop.
-                if(staleNudges++<2){
-                    main.removeCallbacks(superviseTick);
-                    main.postDelayed(()->requestWindow("stale-anchor"),1000);
-                }
-                return new JSObject().put("accepted",false).put("reason","stale-anchor");
-            }
+        java.util.ArrayList<String> nativeIds=new java.util.ArrayList<>();
+        for(int i=0;i<player.getMediaItemCount();i++)nativeIds.add(player.getMediaItemAt(i).mediaId);
+        QueueLedger.Plan plan=QueueLedger.reconcile(nativeIds,player.getCurrentMediaItemIndex(),anchor,ids);
+        if(!plan.accepted){
+            queueStale++;queueRejected++;
+            PlaybackDiagnostics.note("queue-stale",new JSObject().put("anchor",PlaybackDiagnostics.anonKey(anchor))
+                .put("song",PlaybackDiagnostics.anonKey(songKey)).put("offered",items.size())
+                .put("verdict",verdict.name().toLowerCase(java.util.Locale.US)).put("nudges",staleNudges));
+            // A window we cannot reconcile says nothing trustworthy about the playlist either, so
+            // its verdict is deliberately dropped. The important part is that we keep asking: a
+            // stale anchor means JS is alive but looking at an older item, which one more window
+            // built from the engine's own position fixes. Going quiet here was the old behaviour
+            // and it is exactly the state a drained session never came back from.
+            if(staleNudges++<MAX_STALE_NUDGES)requestWindow("stale-anchor");
+            supervision.rearm(SystemClock.elapsedRealtime());
+            main.removeCallbacks(superviseTick);
+            main.postDelayed(superviseTick,1_500L);
+            return new JSObject().put("accepted",false).put("reason","stale-anchor");
         }
+        if(generation>=0)supervision.continuation(verdict,generation);
+        else supervision.continuation(verdict,supervision.generation());
+        lastVerdict=verdict.name().toLowerCase(java.util.Locale.US);
+        int start=plan.trim;
         if(start>0)items=new java.util.ArrayList<>(items.subList(start,items.size()));
         boolean wasEnded=player.getPlaybackState()==Player.STATE_ENDED;
         int next=player.getCurrentMediaItemIndex()+1;
@@ -331,7 +365,8 @@ public final class NativeAudioEngine {
         int remaining=Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1);
         PlaybackDiagnostics.note("queue-replenish",new JSObject().put("accepted",items.size()).put("rejected",rejected)
             .put("trimmed",start).put("removed",removed).put("items",player.getMediaItemCount())
-            .put("index",player.getCurrentMediaItemIndex()).put("remaining",remaining).put("continues",continues)
+            .put("index",player.getCurrentMediaItemIndex()).put("remaining",remaining)
+            .put("verdict",verdict.name().toLowerCase(java.util.Locale.US)).put("continues",supervision.continues())
             .put("generation",supervision.generation()).put("wasEnded",wasEnded));
         if(items.isEmpty()){
             // An answer that resolved nothing must not look like a successful refill: stay in the
@@ -403,6 +438,20 @@ public final class NativeAudioEngine {
         else if(supervision.waiting())PlaybackDiagnostics.note("queue-wait-exhausted",new JSObject()
             .put("song",PlaybackDiagnostics.anonKey(songKey)).put("retries",supervision.retries())
             .put("index",player.getCurrentMediaItemIndex()).put("items",player.getMediaItemCount()));
+    }
+    /**
+     * Any command from the WebView proves the renderer is running again. A drained session whose
+     * retry budget had already run out is restarted from here instead of waiting for the user to
+     * reopen the app - which was, until now, the only thing that ever restarted it.
+     */
+    private void noteLiveness(String reason){
+        if(supervision.liveness(SystemClock.elapsedRealtime())){
+            PlaybackDiagnostics.note("queue-rearm",new JSObject().put("reason",reason)
+                .put("song",PlaybackDiagnostics.anonKey(songKey))
+                .put("index",player.getCurrentMediaItemIndex()).put("items",player.getMediaItemCount())
+                .put("rearms",supervision.livenessRearms()));
+            superviseQueue("liveness");
+        }
     }
     /** Explicit "please rebuild the window from my current item" nudge. */
     private void requestWindow(String reason){
@@ -483,6 +532,14 @@ public final class NativeAudioEngine {
             .put("queueGeneration",supervision.generation()).put("queueRetries",supervision.retries())
             .put("queueAccepted",queueAccepted).put("queueRejected",queueRejected).put("queueStale",queueStale)
             .put("lastQueueAppliedAtMs",lastQueueAppliedAt).put("errorSkips",errorSkips);
+        // The joint post-mortem fields: was the session drained while the logical playlist still
+        // had music ("stopped" rather than "finished"), and did an answer admit it could not tell?
+        value.put("queueVerdict",lastVerdict)
+            .put("queueUnknownAnswers",supervision.unknownAnswers())
+            .put("queueLivenessRearms",supervision.livenessRearms())
+            .put("queueHeldOpen",player.getPlaybackState()==Player.STATE_ENDED
+                && supervision.waiting()&&supervision.continues())
+            .put("queueBudget",QueueSupervision.retryBudget());
     }
     private void emit(String type,boolean external){
         // The system session must follow Media3 even with no plugin listener or a sleeping WebView.

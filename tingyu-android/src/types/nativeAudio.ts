@@ -7,11 +7,13 @@ export type NativeQueueTrack={songKey:string;uri:string;title:string;artist:stri
  * Window metadata for the native playlist.
  *
  * `anchor` is the track the window was computed for - the engine's own current item, which is
- * not necessarily what the UI thinks is playing. `continues` is the difference between "the
- * playlist ended" and "the resolved window ended"; without it the native player had no way to
- * tell the two apart and simply stopped. `generation` lets a late window be recognised as late.
+ * not necessarily what the UI thinks is playing. `verdict` is the difference between "the
+ * playlist ended", "more music follows" and "this resolver could not tell"; without it the native
+ * player had no way to tell the three apart and simply stopped on the first one it saw.
+ * `continues` is kept for older native builds and is derived from `verdict`.
+ * `generation` lets a late window be recognised as late.
  */
-export type NativeQueueWindow={anchor:string;continues:boolean;generation:number};
+export type NativeQueueWindow={anchor:string;continues:boolean;generation:number;verdict?:'continues'|'finished'|'unknown'};
 export type NativeAudioPort={
     probe():Promise<{supported:boolean;engine:string}>;
     command(value:Record<string,unknown>):Promise<{accepted:boolean}>;

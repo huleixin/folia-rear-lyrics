@@ -140,4 +140,87 @@ public class QueueSupervisionTest {
         supervision.rearm(0);
         assertFalse(supervision.waiting());
     }
+
+    /**
+     * A resolver that cannot decide - aborted because the playback intent changed, or an anchor
+     * the UI store no longer holds - used to arrive as `continues=false`, i.e. "the playlist
+     * finished". One lost window then ended a session that still had music in it, and nothing
+     * ever asked again. That conversion is what this pins down.
+     */
+    @Test
+    public void anUndecidableAnswerNeverEndsTheSession() {
+        QueueSupervision supervision = running(1);
+        supervision.continuation(QueueSupervision.Continuation.UNKNOWN, 2);
+        assertTrue("an answer about the resolver is not an answer about the queue", supervision.continues());
+        assertEquals(1, supervision.unknownAnswers());
+        // And it still holds a drained window open, exactly like any other gap.
+        assertEquals(QueueSupervision.Action.WAIT, supervision.evaluate("a", 0, true, false, 0));
+    }
+
+    @Test
+    public void aDecidedAnswerStillEndsThePlaylist() {
+        QueueSupervision supervision = running(1);
+        supervision.continuation(QueueSupervision.Continuation.FINISHED, 2);
+        assertFalse(supervision.continues());
+        assertEquals(QueueSupervision.Action.NONE, supervision.evaluate("a", 0, true, false, 0));
+    }
+
+    /**
+     * The budget runs out after ~9 minutes. Before, silence after that point was permanent - only
+     * reopening the app restarted it. A command from the WebView is proof it runs again, and that
+     * is enough to give the schedule one fresh budget.
+     */
+    @Test
+    public void aLivenessSignalRestartsAnExhaustedSchedule() {
+        QueueSupervision supervision = running(1);
+        long now = 0;
+        assertEquals(QueueSupervision.Action.WAIT, supervision.evaluate("a", 0, true, false, now));
+        for (int i = 0; i < 40; i++) {
+            now += 300_000L;
+            supervision.evaluate("a", 0, true, false, now);
+        }
+        assertEquals("the schedule is spent", -1L, supervision.retryDelay(now));
+
+        assertTrue(supervision.liveness(now));
+        assertEquals("the revived schedule owes an attempt immediately",
+            QueueSupervision.Action.RETRY, supervision.evaluate("a", 0, true, false, now));
+        assertEquals(1, supervision.livenessRearms());
+    }
+
+    @Test
+    public void livenessChangesNothingWhileTheScheduleStillHasBudget() {
+        QueueSupervision supervision = running(1);
+        assertEquals(QueueSupervision.Action.WAIT, supervision.evaluate("a", 0, true, false, 0));
+        assertFalse(supervision.liveness(1_000));
+        assertEquals(0, supervision.livenessRearms());
+    }
+
+    @Test
+    public void livenessCannotBeUsedToPoll() {
+        QueueSupervision supervision = running(1);
+        long now = 0;
+        assertEquals(QueueSupervision.Action.WAIT, supervision.evaluate("a", 0, true, false, now));
+        int rearms = 0;
+        for (int i = 0; i < 200; i++) {
+            now += 400_000L;
+            supervision.evaluate("a", 0, true, false, now);
+            if (supervision.liveness(now)) rearms++;
+        }
+        assertEquals(6, rearms);
+    }
+
+    @Test
+    public void aNewWindowGetsAFreshLivenessBudget() {
+        QueueSupervision supervision = running(1);
+        long now = 0;
+        assertEquals(QueueSupervision.Action.WAIT, supervision.evaluate("a", 0, true, false, now));
+        for (int i = 0; i < 200; i++) {
+            now += 400_000L;
+            supervision.evaluate("a", 0, true, false, now);
+            supervision.liveness(now);
+        }
+        assertEquals(6, supervision.livenessRearms());
+        supervision.satisfied();
+        assertEquals(0, supervision.livenessRearms());
+    }
 }

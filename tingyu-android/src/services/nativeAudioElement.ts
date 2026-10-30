@@ -40,8 +40,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         if(value.songKey&&value.songKey!==track&&value.uri){
             if(announcedTrack!==value.songKey){announcedTrack=value.songKey;window.dispatchEvent(new CustomEvent('tingyu-native-queue-track',{detail:value}));}
             return;
-        }
-        if(value.type!=='clock'&&!value.spectrum)notePlaybackTest('native-state',{type:value.type,status:value.status,playing:value.playing,paused:value.paused,position:value.position,error:value.message??''});
+        }        if(value.type!=='clock'&&!value.spectrum)notePlaybackTest('native-state',{type:value.type,status:value.status,playing:value.playing,paused:value.paused,position:value.position,error:value.message??''});
         if(value.spectrum){bands.spectrum.set(value.spectrum.length<=1024?value.spectrum:value.spectrum.slice(0,1024));return;}
         const sampleAge=value.capturedAtMs===undefined?Infinity:Date.now()-value.capturedAtMs;
         const freshSample=sampleAge>=0&&sampleAge<=10000;
@@ -91,8 +90,24 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         // The anchor names whose successors these are; without window metadata the element's own
         // track is the anchor, which is what a foreground call means.
         songKey:queueWindow?.anchor??track,tracks,
-        continues:queueWindow?.continues??true,generation:queueWindow?.generation??0})});
-    const refresh=()=>{if(document.visibilityState==='visible'&&id)void send('snapshot').catch(()=>{});};
+        continues:queueWindow?.continues??true,
+        // Native only ends a session on an explicit `finished`; `unknown` keeps it waiting.
+        verdict:queueWindow?.verdict??(queueWindow?.continues===false?'finished':'continues'),
+        generation:queueWindow?.generation??0})});
+    /**
+     * Becoming visible again is a new delivery epoch for track announcements.
+     *
+     * The dedupe below suppresses the duplicate `state` frames the engine emits for one
+     * transition, but it used to suppress them for the whole session: a transition announced to a
+     * renderer that was frozen or killed in that instant could never be announced again, so the
+     * UI (and every lyric published from it) stayed on the previous song until the next boundary.
+     * Clearing the marker makes the snapshot taken on resume re-announce the real current track.
+     */
+    const refresh=()=>{
+        if(document.visibilityState!=='visible'||!id)return;
+        announcedTrack='';
+        void send('snapshot').catch(()=>{});
+    };
     document.addEventListener('visibilitychange',refresh);
     const set=(name:string,descriptor:PropertyDescriptor)=>{original.set(name,Object.getOwnPropertyDescriptor(element,name));Object.defineProperty(element,name,{configurable:true,...descriptor});};
     set('getAttribute',{value:(name:string)=>name.toLowerCase()==='src'?(source||null):originalAttribute(name)});

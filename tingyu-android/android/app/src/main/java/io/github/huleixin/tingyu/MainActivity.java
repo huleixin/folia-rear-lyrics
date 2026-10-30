@@ -68,6 +68,21 @@ public class MainActivity extends BridgeActivity {
         WebSettings settings = webView.getSettings();
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        /**
+         * 挂在通知栏播放的后台会话，续播仍然需要 WebView 活着：下一首的播放地址只能由 JS 解析。
+         *
+         * 默认策略是「不可见时把 renderer 降为 waived」，锁屏十几分钟后这个 renderer 就是最先
+         * 被回收的对象 —— 之后队列补不上（歌停在某首唱完）、歌词也补不上（灵动岛变空）。
+         * 这里只把「不可见时降级」关掉：不申请唤醒锁、不阻止页面被冻结、也不改变前台行为，
+         * 只是让系统在回收时把我们当成仍在工作的应用，而不是一个闲置页面。
+         */
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            try {
+                webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false);
+            } catch (Throwable ignored) {
+                // Vendor WebViews have refused this before; playback must not depend on it.
+            }
+        }
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {

@@ -279,15 +279,37 @@ public final class ColorOsLyricBridge {
      * 完全不必等 WebView 醒来。锁屏/灵动岛上的歌词因此不再依赖 React 是否还在跑。
      *
      * 上限 6 条（≈ 一个原生预取窗口）：歌词是整首歌的时间轴，没有理由长期留整张歌单。
+     * 淘汰按 LRU，但**正在播的那一首被钉住**：预置下一窗口时把当前曲淘汰掉，等于在换歌前
+     * 一秒把自己唯一的歌词来源丢掉。
      */
     private static final int MAX_CACHED_SONGS = 6;
 
     private static final java.util.LinkedHashMap<String, Payload> timelines =
             new java.util.LinkedHashMap<String, Payload>(8, 0.75f, true) {
                 @Override protected boolean removeEldestEntry(java.util.Map.Entry<String, Payload> eldest) {
-                    return size() > MAX_CACHED_SONGS;
+                    // Eviction is done by trimTimelines() so the pinned track cannot be the victim.
+                    return false;
                 }
             };
+
+    /** The track the player is on; never evicted, however many primed windows follow it. */
+    private static volatile String pinnedKey = "";
+
+    /** Remembers which track playback is really on, so priming cannot evict its timeline. */
+    public static void pin(String songKey) {
+        pinnedKey = songKey == null ? "" : songKey;
+        trimTimelines();
+    }
+
+    private static void trimTimelines() {
+        if (timelines.size() <= MAX_CACHED_SONGS) return;
+        java.util.Iterator<String> oldestFirst = timelines.keySet().iterator();
+        while (timelines.size() > MAX_CACHED_SONGS && oldestFirst.hasNext()) {
+            String key = oldestFirst.next();
+            if (key.equals(pinnedKey)) continue;
+            oldestFirst.remove();
+        }
+    }
 
     /** 明确「这首歌没有词」——与「还没拿到」必须分开，前者该清空，后者要留白等补。 */
     private static final java.util.LinkedHashMap<String, Boolean> noLyric =
@@ -327,6 +349,7 @@ public final class ColorOsLyricBridge {
         }
         noLyric.remove(key);
         Payload previous = timelines.put(key, new Payload(json, hasTranslation));
+        trimTimelines();
         if (previous != null && previous.json.equals(json) && previous.hasTranslation == hasTranslation) {
             return false;
         }
@@ -343,6 +366,11 @@ public final class ColorOsLyricBridge {
      */
     public static synchronized boolean clear() {
         String last = lastRequestedKey;
+        // A WebView that lost its own idea of the current song (renderer restarted, store reset,
+        // playback restored from native) must not blank the island while the player keeps
+        // playing: the timeline we hold for that exact track is still the right one.
+        String keep = currentPlaybackKey();
+        Payload kept = keep.isEmpty() ? null : timelines.get(keep);
         boolean changed = !timelines.isEmpty();
         if (!changed) {
             for (String key : noLyric.keySet()) {
@@ -351,8 +379,19 @@ public final class ColorOsLyricBridge {
         }
         timelines.clear();
         noLyric.clear();
+        if (kept != null) timelines.put(keep, kept);
         if (!last.isEmpty()) noLyric.put(last, Boolean.TRUE);
         return changed;
+    }
+
+    /** The track the native player is really on, or "" when nothing is playing. */
+    private static String currentPlaybackKey() {
+        try {
+            if (!io.github.huleixin.tingyu.playback.NativeAudioEngine.isPlaybackActive()) return "";
+            return io.github.huleixin.tingyu.playback.NativeAudioEngine.currentKey();
+        } catch (Throwable ignored) {
+            return "";
+        }
     }
 
     /** 只撤掉某一首：换歌时用，不要连累已经预取好的下一首。 */

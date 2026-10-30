@@ -17,6 +17,13 @@ package io.github.huleixin.tingyu.playback;
  *       queue resumes playback; a user pause, a stop or a real list end exits the state.</li>
  * </ul>
  *
+ * The continuation flag is only ever changed by an explicit answer. A window resolver can fail
+ * for reasons that say nothing about the playlist - it was aborted because the playback intent
+ * changed, or it could not find the anchor because the UI store lagged behind the engine. Those
+ * answers used to arrive as {@code continues=false}, which latched "playlist finished" and turned
+ * one lost window into a session that never asked again. {@link Continuation#UNKNOWN} is the fix:
+ * it is an answer about the resolver, not about the queue.
+ *
  * Pure logic on purpose: every branch below is unit tested without a device.
  */
 final class QueueSupervision {
@@ -32,6 +39,27 @@ final class QueueSupervision {
         RETRY
     }
 
+    /**
+     * What a window answer says about the logical playlist.
+     *
+     * {@link #CONTINUES} and {@link #FINISHED} are statements about the queue; {@link #UNKNOWN}
+     * is an admission that the resolver could not decide, and must never end a session.
+     */
+    enum Continuation {
+        CONTINUES, FINISHED, UNKNOWN;
+
+        /** Parses the protocol field; a missing field keeps the legacy boolean meaning. */
+        static Continuation parse(String value, boolean legacyContinues) {
+            if (value == null) return legacyContinues ? CONTINUES : FINISHED;
+            switch (value) {
+                case "continues": return CONTINUES;
+                case "finished": return FINISHED;
+                case "unknown": return UNKNOWN;
+                default: return legacyContinues ? CONTINUES : FINISHED;
+            }
+        }
+    }
+
     /** Requests start one item before the end so a refill can land before the gap. */
     static final int LOW_WATER = 1;
 
@@ -42,11 +70,19 @@ final class QueueSupervision {
      */
     private static final long[] RETRY_DELAYS_MS = {4_000L, 10_000L, 30_000L, 60_000L, 120_000L, 300_000L};
 
-    private boolean continues;
+    /** A WebView that talks to us again is proof the schedule should get a fresh budget. */
+    private static final long REARM_COOLDOWN_MS = 3_000L;
+    /** Each drained episode gets a fresh budget at most this many times from liveness alone. */
+    private static final int MAX_LIVENESS_REARMS = 6;
+
+    private boolean continues = true;
     private long generation = -1L;
     private boolean waiting;
     private int retries;
     private long lastRequestAt;
+    private long lastRearmAt = Long.MIN_VALUE;
+    private int livenessRearms;
+    private int unknownAnswers;
     private String lastRequestSong = "";
     private int lastRequestRemaining = Integer.MAX_VALUE;
 
@@ -55,13 +91,22 @@ final class QueueSupervision {
      *
      * A stale generation is ignored for the "true" direction (an old window cannot declare new
      * music) but always honoured for "false": ending the list is a safe, terminal statement.
+     * {@link Continuation#UNKNOWN} changes nothing - it is not a statement about the queue.
      */
     void continuation(boolean continues, long generation) {
+        continuation(continues ? Continuation.CONTINUES : Continuation.FINISHED, generation);
+    }
+
+    void continuation(Continuation verdict, long generation) {
         if (generation >= this.generation) {
             this.generation = generation;
-            this.continues = continues;
-        } else if (!continues) {
+            if (verdict == Continuation.CONTINUES) this.continues = true;
+        }
+        if (verdict == Continuation.FINISHED) {
             this.continues = false;
+        } else if (verdict == Continuation.UNKNOWN) {
+            unknownAnswers++;
+            return;
         }
         if (!this.continues) {
             waiting = false;
@@ -85,6 +130,15 @@ final class QueueSupervision {
 
     int retries() {
         return retries;
+    }
+
+    /** How many answers this session admitted it could not decide; diagnostics only. */
+    int unknownAnswers() {
+        return unknownAnswers;
+    }
+
+    int livenessRearms() {
+        return livenessRearms;
     }
 
     /**
@@ -132,10 +186,32 @@ final class QueueSupervision {
         return Action.NONE;
     }
 
+    /**
+     * The WebView proved it is alive (it sent us a command) while a drained session had already
+     * spent its retry budget. Silence after that point used to be permanent: the schedule ran
+     * out, and only the user reopening the app could restart it. Give the schedule one fresh
+     * budget so a throttled renderer that comes back can actually answer.
+     *
+     * @return true when a request is owed immediately
+     */
+    boolean liveness(long now) {
+        if (!continues || !waiting) return false;
+        if (retries < RETRY_DELAYS_MS.length) return false;
+        if (livenessRearms >= MAX_LIVENESS_REARMS) return false;
+        if (lastRearmAt != Long.MIN_VALUE && now - lastRearmAt < REARM_COOLDOWN_MS) return false;
+        lastRearmAt = now;
+        livenessRearms++;
+        retries = 0;
+        // Owe the attempt now rather than in four seconds: we already know the WebView runs.
+        lastRequestAt = now - RETRY_DELAYS_MS[0];
+        return true;
+    }
+
     /** A window landed (or playback restarted): forget the waiting episode entirely. */
     void satisfied() {
         waiting = false;
         retries = 0;
+        livenessRearms = 0;
         lastRequestSong = "";
         lastRequestRemaining = Integer.MAX_VALUE;
     }

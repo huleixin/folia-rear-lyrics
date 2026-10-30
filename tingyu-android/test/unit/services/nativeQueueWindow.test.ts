@@ -103,3 +103,62 @@ it('only offers the shuffled pick when shuffle owns the order',async()=>{
     });
     expect(result.tracks.map(track=>track.uri)).toEqual(['https://test.example/3.mp3']);
 });
+
+// --- 三态判定 ---------------------------------------------------------------
+// 与 `continues` 的区别是这次修复的核心：`continues:false` 曾经有三个来源（真正播完、
+// 被取消、锚点找不到），原生把它们全都当成「歌单结束」并从此不再请求。判定必须分清
+// 「关于队列的结论」和「关于这次解析的结论」。
+
+it('reports a genuinely finished playlist as finished',async()=>{
+    const queue=[song(1),song(2),song(3)];
+    const result=await resolveNativeQueueWindow({
+        songKey:keyOf(queue,0),queue,localSongs:[],quality:'high',loop:'off',shuffleActive:false,
+        signal:new AbortController().signal,isCurrent:()=>true,
+    });
+    expect(result.verdict).toBe('finished');
+    expect(result.continues).toBe(false);
+});
+
+it('reports a continued playlist as continuing',async()=>{
+    const queue=Array.from({length:12},(_,i)=>song(i+1));
+    const result=await resolveNativeQueueWindow({
+        songKey:keyOf(queue,0),queue,localSongs:[],quality:'high',loop:'off',shuffleActive:false,
+        signal:new AbortController().signal,isCurrent:()=>true,
+    });
+    expect(result.verdict).toBe('continues');
+});
+
+it('an aborted resolve says unknown instead of ending the playlist',async()=>{
+    const queue=[song(1),song(2)];
+    const controller=new AbortController();
+    const pending=resolveNativeQueueWindow({
+        songKey:keyOf(queue,0),queue,localSongs:[],quality:'high',loop:'off',shuffleActive:false,
+        signal:controller.signal,isCurrent:()=>true,
+    });
+    controller.abort();
+    const result=await pending;
+    expect(result.verdict).toBe('unknown');
+    expect(result.continues).toBe(true);
+});
+
+it('an anchor the queue no longer holds says unknown instead of ending the playlist',async()=>{
+    const queue=[song(1),song(2)];
+    const result=await resolveNativeQueueWindow({
+        songKey:'online:qq:999',queue,localSongs:[],quality:'high',loop:'off',shuffleActive:false,
+        signal:new AbortController().signal,isCurrent:()=>true,
+    });
+    expect(result.tracks).toHaveLength(0);
+    expect(result.verdict).toBe('unknown');
+    expect(result.continues).toBe(true);
+});
+
+it('a window where every candidate failed says unknown instead of finished',async()=>{
+    const queue=[song(1),song(2)];
+    bridge.resolve.mockImplementation(async()=>({audioUrl:null}));
+    const result=await resolveNativeQueueWindow({
+        songKey:keyOf(queue,0),queue,localSongs:[],quality:'high',loop:'off',shuffleActive:false,
+        signal:new AbortController().signal,isCurrent:()=>true,
+    });
+    expect(result.tracks).toHaveLength(0);
+    expect(result.verdict).toBe('unknown');
+});

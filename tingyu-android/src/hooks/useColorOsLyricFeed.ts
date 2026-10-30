@@ -115,23 +115,43 @@ export const useColorOsLyricFeed = ({
     // 回到前台再推一次：原生进程若被回收过，缓存是空的，而这段 payload 还在 WebView 里。
     React.useEffect(() => {
         if (!active || !songKey || !hasLines) return;
+        const build = () => buildColorOsLyricInfo({
+            title: song?.name ?? '',
+            artist: song ? getSongArtistLabel(song) : '',
+            album: song ? getSongAlbumLabel(song) : '',
+            songId: song?.id == null ? null : String(song.id),
+            durationMs: Math.max(0, Math.round((duration ?? 0) * 1000)),
+            lines: lyrics!.lines,
+            isWordByWord: lyrics!.isWordByWord === true,
+            sessionGeneration: generationFor(songKey),
+            timelineOffsetMs,
+        });
         const republish = () => {
             if (document.visibilityState !== 'visible') return;
             if (publishedKeyRef.current !== songKey) return;
-            const built = buildColorOsLyricInfo({
-                title: song?.name ?? '',
-                artist: song ? getSongArtistLabel(song) : '',
-                album: song ? getSongAlbumLabel(song) : '',
-                songId: song?.id == null ? null : String(song.id),
-                durationMs: Math.max(0, Math.round((duration ?? 0) * 1000)),
-                lines: lyrics!.lines,
-                isWordByWord: lyrics!.isWordByWord === true,
-                sessionGeneration: generationFor(songKey),
-                timelineOffsetMs,
-            });
+            const built = build();
             if (built) void publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, songKey);
         };
+        /**
+         * 原生侧「这首歌我还没有时间轴」的请求。
+         *
+         * Media3 在后台自动换歌时，若这首歌的歌词没有被预置过（锁屏期间 WebView 不跑，
+         * 无法自己补），原生只能先不写 lyricInfo。等 JS 真的活过来时它会主动来问一次，
+         * 这里必须回答 —— 否则灵动岛会一直空到下一次换歌。
+         */
+        const onNativeRequest = (event: Event) => {
+            const requested = (event as CustomEvent<{ songKey?: string } | undefined>).detail?.songKey;
+            if (requested && requested !== songKey) return;
+            const built = build();
+            if (!built) return;
+            publishedKeyRef.current = songKey;
+            void publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, songKey);
+        };
         document.addEventListener('visibilitychange', republish);
-        return () => document.removeEventListener('visibilitychange', republish);
+        window.addEventListener('tingyu-native-lyric-request', onNativeRequest);
+        return () => {
+            document.removeEventListener('visibilitychange', republish);
+            window.removeEventListener('tingyu-native-lyric-request', onNativeRequest);
+        };
     }, [active, songKey, song, lyrics, hasLines, duration, timelineOffsetMs]);
 };

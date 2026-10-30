@@ -11,6 +11,7 @@ import { configureNativeQueueSupervisor, installNativeQueueSupervisor, nextNativ
 import type { LocalSong, SongResult } from '../types';
 import type { PlaybackNavigationOptions } from '../types/appPlayback';
 import type { NativeAudioState } from '../types/nativeAudio';
+import type { NativeQueueVerdict } from '../services/nativeQueueWindow';
 
 // src/hooks/useNativeQueuedPlayback.ts
 // Keeps a bounded window of resolved tracks in front of Media3, and adopts the tracks Media3
@@ -74,11 +75,15 @@ export function useNativeQueuedPlayback(
         const valid = () => !abort.signal.aborted
             && usePlaybackStore.getState().currentSong != null
             && getPlaybackSongKey(usePlaybackStore.getState().currentSong!) === key;
-        const send = async (tracks: Parameters<typeof setNativeAudioQueue>[1], continues: boolean) => {
+        const send = async (
+            tracks: Parameters<typeof setNativeAudioQueue>[1],
+            verdict: NativeQueueVerdict,
+        ) => {
             if (valid()) {
                 await setNativeAudioQueue(element, tracks.slice(), {
                     anchor: key,
-                    continues,
+                    continues: verdict !== 'finished',
+                    verdict,
                     generation: nextNativeQueueGeneration(),
                 });
             }
@@ -90,7 +95,8 @@ export function useNativeQueuedPlayback(
         const resolve = async () => {
             const live = usePlaybackStore.getState();
             const liveSong = live.currentSong;
-            if (!liveSong) return { tracks: [], continues: false, songs: [] };
+            // Nothing established: the native player must keep waiting, not end the playlist.
+            if (!liveSong) return { tracks: [], continues: true, verdict: 'unknown' as const, songs: [] };
             return resolveNativeQueueWindow({
                 songKey: key,
                 queue: live.playQueue,
@@ -101,18 +107,19 @@ export function useNativeQueuedPlayback(
                 signal: abort.signal,
                 isCurrent: valid,
                 // First usable URI goes over immediately; the rest follow in one final window.
-                onProgress: tracks => send(tracks, true),
+                onProgress: tracks => send(tracks, 'continues'),
             });
         };
         void (async () => {
             // Extension hooks must retain their ability to cancel a track before it sounds, and
             // repeat-one is owned by Media3 itself.
             if (loop === 'one' || hasBeforePlayHook()) {
-                await send([], false);
+                // Native repeat-one owns the boundary: an explicit "nothing follows this window".
+                await send([], 'finished');
                 return;
             }
             const window = await resolve();
-            await send(window.tracks, window.continues);
+            await send(window.tracks, window.verdict);
             void primeNativeLyricsForSongs(window.songs, quality);
             let sent = window.tracks;
             // A transient failure that leaves the window empty heals here instead of waiting for
@@ -122,7 +129,7 @@ export function useNativeQueuedPlayback(
                 if (!valid()) return;
                 retries++;
                 const retried = await resolve();
-                await send(retried.tracks, retried.continues);
+                await send(retried.tracks, retried.verdict);
                 sent = retried.tracks;
             }
         })().catch(error => {

@@ -167,3 +167,33 @@ it('compensates packets delayed by a busy UI without latching a changed wall clo
  f.state({type:'clock',playing:true,paused:false,position:14,capturedAtMs:102500});
  expect(f.element.currentTime).toBeCloseTo(14);await f.adapter.dispose();
 });
+
+it('sends the three-valued queue verdict instead of a bare boolean',async()=>{
+ const f=await fixture();
+ await setNativeAudioQueue(f.element,[],{anchor:'original-platform:song-1',continues:true,verdict:'unknown',generation:7});
+ await f.flush();
+ expect(f.commands.at(-1)).toMatchObject({action:'queue',songKey:'original-platform:song-1',verdict:'unknown',continues:true,generation:7});
+ await setNativeAudioQueue(f.element,[],{anchor:'original-platform:song-1',continues:false,verdict:'finished',generation:8});
+ await f.flush();
+ expect(f.commands.at(-1)).toMatchObject({verdict:'finished',continues:false});
+ await f.adapter.dispose();
+});
+
+it('re-announces the real native track once the page is visible again',async()=>{
+ const f=await fixture(),heard:any[]=[];
+ const listener=(event:Event)=>heard.push((event as CustomEvent).detail.songKey);
+ window.addEventListener('tingyu-native-queue-track',listener);
+ try{
+  f.state({songKey:'qq:2',uri:'https://music.example/2.mp3',type:'queue-transition',playing:true,paused:false});
+  // The duplicate frames of the same boundary are still suppressed.
+  f.state({songKey:'qq:2',uri:'https://music.example/2.mp3',type:'clock',playing:true,paused:false});
+  expect(heard).toEqual(['qq:2']);
+  // The renderer may not have been running when that announcement was sent. Returning is a new
+  // delivery epoch: the snapshot taken now is the only chance to adopt the track that is really
+  // playing, and dropping it leaves the UI (and every lyric published from it) on the old song.
+  document.dispatchEvent(new Event('visibilitychange'));
+  await f.flush();
+  f.state({songKey:'qq:2',uri:'https://music.example/2.mp3',type:'state',playing:true,paused:false});
+  expect(heard).toEqual(['qq:2','qq:2']);
+ }finally{window.removeEventListener('tingyu-native-queue-track',listener);await f.adapter.dispose();}
+});

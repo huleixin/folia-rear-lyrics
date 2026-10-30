@@ -89,7 +89,9 @@ export const replenishNativeQueue = async (reason: string, songKey: string): Pro
         try {
             if (settings.loopMode === 'one' || hasBeforePlayHook()) {
                 // Native repeat-one owns the boundary; extension hooks must be able to cancel.
-                await setNativeAudioQueue(element, [], { anchor, continues: false, generation: nextNativeQueueGeneration() });
+                await setNativeAudioQueue(element, [], {
+                    anchor, continues: false, verdict: 'finished', generation: nextNativeQueueGeneration(),
+                });
                 return;
             }
             const window = await resolveNativeQueueWindow({
@@ -106,6 +108,7 @@ export const replenishNativeQueue = async (reason: string, songKey: string): Pro
             await setNativeAudioQueue(element, window.tracks, {
                 anchor,
                 continues: window.continues,
+                verdict: window.verdict,
                 generation: nextNativeQueueGeneration(),
             });
             // Lyrics for the tracks just handed over: cache reads only, so a background

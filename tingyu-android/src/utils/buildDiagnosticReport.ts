@@ -13,6 +13,7 @@ import { getCollectionOrderDiagnosticLines } from './collectionOrderDiagnostics'
 import { getOnlineMutationDiagnosticLines } from './onlineMutationDiagnostics';
 import { getOnlinePlaybackDiagnosticLines } from './onlinePlaybackDiagnostics';
 import { getLyricsDiagnosticLines } from './lyricsDiagnostics';
+import { getPlaybackSongKey } from './appPlaybackGuards';
 import { getLocalLibraryDiagnosticLines } from './localLibraryDiagnostics';
 import {
     loadVideoLayerFileBlob,
@@ -613,6 +614,59 @@ const readVideoLayerLines = async (): Promise<string[]> => {
     return lines;
 };
 
+/**
+ * 「为什么第 N 首结束后不播了」和「为什么第 N 首之后灵动岛没词了」的共同现场。
+ *
+ * 两个问题都来自同一处：后台时原生队列与 WebView 谁也不再同步。因此这里把三方放在一起报：
+ * 原生队列（剩余/等待/判定/补队列结果）、MediaSession 上的歌词状态、以及 JS 认为在播的歌
+ * 是否就是原生在播的那一首。缺任何一项，报告就只能证明「停了」，不能证明「为什么停」。
+ */
+const readBackgroundContinuityLines = async (): Promise<string[]> => {
+    if (typeof window === 'undefined') return ['  (unavailable in this environment)'];
+    const plugins = (window as unknown as { Capacitor?: { Plugins?: Record<string, any> } }).Capacitor?.Plugins ?? {};
+    const lines: string[] = [];
+    let nativeSongKey = '';
+    try {
+        const playback = plugins.TingyuPlayback;
+        const diagnostics = typeof playback?.diagnostics === 'function' ? await playback.diagnostics() : null;
+        const player = diagnostics?.player;
+        if (!player) {
+            lines.push('  native queue: (unavailable)');
+        } else {
+            nativeSongKey = String(player.songKey ?? '');
+            lines.push(
+                `  native queue: items=${player.queueItems} index=${player.queueIndex} remaining=${player.queueRemaining}`
+                + ` continues=${player.queueContinues} waiting=${player.queueWaiting} heldOpen=${player.queueHeldOpen}`
+                + ` verdict=${player.queueVerdict ?? 'none'} unknownAnswers=${player.queueUnknownAnswers ?? 0}`
+                + ` livenessRearms=${player.queueLivenessRearms ?? 0}`
+                + ` retries=${player.queueRetries}/${player.queueBudget ?? 0}`
+                + ` accepted=${player.queueAccepted} rejected=${player.queueRejected} stale=${player.queueStale}`,
+            );
+            lines.push(
+                `  native playback: state=${player.status} playWhenReady=${player.playWhenReady}`
+                + ` suppression=${player.suppressionReason} offload=${player.offloadPreference}`
+                + ` error=${player.message || 'none'}`,
+            );
+        }
+    } catch (error) {
+        lines.push(`  native queue: error ${error instanceof Error ? error.message : 'unknown'}`);
+    }
+    try {
+        const lyrics = plugins.FoliaColorOsLyrics;
+        const status = typeof lyrics?.status === 'function' ? await lyrics.status({}) : null;
+        lines.push(`  session lyric: state=${status?.state ?? 'unknown'}${status?.detail ? ` ${status.detail}` : ''}`);
+    } catch {
+        lines.push('  session lyric: (unavailable)');
+    }
+    // 身份对齐：两者不同就说明 WebView 还停在上一首，歌词与补队列都会跟着用错锚点。
+    const current = usePlaybackStore.getState().currentSong;
+    if (current) {
+        const matches = getPlaybackSongKey(current) === nativeSongKey;
+        lines.push(`  identity: webview-song-matches-native=${nativeSongKey === '' ? 'unknown' : String(matches)}`);
+    }
+    return lines;
+};
+
 export const buildDiagnosticReport = async (): Promise<string> => {
     await sampleFrameTimingWindow();
     const appVersion = typeof __APP_VERSION__ === 'undefined' ? 'unknown' : __APP_VERSION__;
@@ -656,6 +710,10 @@ export const buildDiagnosticReport = async (): Promise<string> => {
         '',
         'playback continuity:',
         ...readPlaybackContinuityLines(),
+        '',
+        // 后台连续播放与灵动岛歌词的共同现场：三方状态放在一起才解释得了「为什么停」。
+        'background continuity:',
+        ...(await readBackgroundContinuityLines()),
         '',
         'playback heartbeat:',
         `  previous: ${formatPlaybackHeartbeat(heartbeats.playback.previous)}`,

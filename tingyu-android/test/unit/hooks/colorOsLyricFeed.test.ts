@@ -44,3 +44,33 @@ it('never claims a track has no lyrics while they are still loading, and clears 
         expect(bridge.clear).not.toHaveBeenCalledWith();
     }finally{await act(()=>root.unmount());usePlaybackStore.setState(old);}
 });
+
+// 原生在后台换歌时，如果那一首的歌词没有被预置过（锁屏期间 WebView 不跑，原生补不了），
+// 它只能先不写 lyricInfo。等 JS 真的活过来时必须能被问一次并回答，否则灵动岛会一直空到
+// 下一次换歌 —— 而「下一次换歌」可能还要半小时。
+it('answers a native lyric request for the track that is current',async()=>{
+    (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
+    const old=usePlaybackStore.getState(),root=createRoot(document.createElement('div')),current=song(3);
+    const Probe=({lines,now}:{lines:any;now:any})=>{
+        useColorOsLyricFeed({lyrics:lines,song:now,duration:200,lyricsLoading:false});
+        return null;
+    };
+    try{
+        usePlaybackStore.setState({audioSrc:'https://test.example/3.mp3'});
+        await act(async()=>{root.render(h(Probe,{lines:lyrics('hello'),now:current}));});
+        bridge.publish.mockClear();
+
+        await act(async()=>{
+            window.dispatchEvent(new CustomEvent('tingyu-native-lyric-request',{detail:{songKey:getPlaybackSongKey(current)}}));
+        });
+        expect(bridge.publish).toHaveBeenCalledWith(expect.any(String),false,getPlaybackSongKey(current));
+
+        // The UI is still on the previous song: answering with ours would bind the wrong lyric
+        // to the track the system panel is showing.
+        bridge.publish.mockClear();
+        await act(async()=>{
+            window.dispatchEvent(new CustomEvent('tingyu-native-lyric-request',{detail:{songKey:'online:qq:999'}}));
+        });
+        expect(bridge.publish).not.toHaveBeenCalled();
+    }finally{await act(()=>root.unmount());usePlaybackStore.setState(old);}
+});

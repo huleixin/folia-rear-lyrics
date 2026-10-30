@@ -76,4 +76,48 @@ public class LyricInfoPublicationTest {
         assertEquals("ready", ColorOsLyricBridge.stateOf("song-11"));
         ColorOsLyricBridge.clear();
     }
+
+    /**
+     * Priming a window of upcoming tracks must never evict the track that is playing: the
+     * boundary then publishes a metadata with no lyricInfo at all, and the island goes blank at
+     * exactly the moment the pre-fetched timeline was supposed to take over.
+     */
+    @Test public void primingTheNextWindowCannotEvictTheTrackThatIsPlaying() {
+        ColorOsLyricBridge.clear();
+        ColorOsLyricBridge.pin("");
+        ColorOsLyricBridge.setPending("{\"lyric\":\"current\"}", false, "playing");
+        ColorOsLyricBridge.pin("playing");
+        for (int i = 0; i < 10; i++) ColorOsLyricBridge.setPending("{\"lyric\":\"" + i + "\"}", false, "next-" + i);
+        assertEquals("ready", ColorOsLyricBridge.stateOf("playing"));
+        assertEquals("{\"lyric\":\"current\"}", ColorOsLyricBridge.metadataLyricInfoFor("playing"));
+        // The window keeps the newest five; the pinned track survives all ten insertions. What
+        // fell out reads as pending (not "no lyrics"), which is the recoverable state.
+        assertEquals("ready", ColorOsLyricBridge.stateOf("next-9"));
+        assertEquals("ready", ColorOsLyricBridge.stateOf("next-5"));
+        assertEquals("pending", ColorOsLyricBridge.stateOf("next-0"));
+    }
+
+    @Test public void pinningMovesWithPlaybackAndReleasesTheOldTrack() {
+        ColorOsLyricBridge.clear();
+        ColorOsLyricBridge.pin("");
+        ColorOsLyricBridge.setPending("{\"lyric\":\"a\"}", false, "a");
+        ColorOsLyricBridge.pin("a");
+        for (int i = 0; i < 8; i++) ColorOsLyricBridge.setPending("{\"lyric\":\"" + i + "\"}", false, "b" + i);
+        assertEquals("ready", ColorOsLyricBridge.stateOf("a"));
+        ColorOsLyricBridge.pin("b7");
+        assertEquals("ready", ColorOsLyricBridge.stateOf("b7"));
+        // The old track is no longer protected and may be evicted by later windows.
+        for (int i = 0; i < 8; i++) ColorOsLyricBridge.setPending("{\"lyric\":\"c" + i + "\"}", false, "c" + i);
+        assertEquals("ready", ColorOsLyricBridge.stateOf("b7"));
+        assertEquals("pending", ColorOsLyricBridge.stateOf("a"));
+    }
+
+    /** A track we simply never heard about reads as pending, never as a confirmed empty claim. */
+    @Test public void anEvictedTrackIsPendingRatherThanConfirmedEmpty() {
+        ColorOsLyricBridge.clear();
+        ColorOsLyricBridge.pin("");
+        for (int i = 0; i < 12; i++) ColorOsLyricBridge.setPending("{\"lyric\":\"" + i + "\"}", false, "k" + i);
+        assertEquals("pending", ColorOsLyricBridge.stateOf("k0"));
+        assertNull(ColorOsLyricBridge.metadataLyricInfoFor("k0"));
+    }
 }
