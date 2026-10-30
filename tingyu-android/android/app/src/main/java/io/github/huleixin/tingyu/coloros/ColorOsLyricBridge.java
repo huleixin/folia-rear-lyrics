@@ -309,18 +309,18 @@ public final class ColorOsLyricBridge {
     private static volatile String aheadKey = "";
 
     /** Remembers which track playback is really on, so priming cannot evict its timeline. */
-    public static void pin(String songKey) {
+    public static synchronized void pin(String songKey) {
         pinnedKey = songKey == null ? "" : songKey;
         trimTimelines();
     }
 
     /** 记下媒体队列里的下一首，让它和当前曲一样免于淘汰。 */
-    public static void protectAhead(String songKey) {
+    public static synchronized void protectAhead(String songKey) {
         aheadKey = songKey == null ? "" : songKey;
         trimTimelines();
     }
 
-    private static void trimTimelines() {
+    private static synchronized void trimTimelines() {
         if (timelines.size() <= MAX_CACHED_SONGS) return;
         String pinned = pinnedKey;
         String ahead = aheadKey;
@@ -429,7 +429,7 @@ public final class ColorOsLyricBridge {
      * songKey 校验是「旧异步结果不能覆盖新歌」那条约束的落点：表按 key 存，取也按 key 取，
      * 对不上就自然拿不到上一首的词。
      */
-    public static String lyricInfoFor(String songKey) {
+    public static synchronized String lyricInfoFor(String songKey) {
         Payload current = timelines.get(slot(songKey));
         return current == null ? null : current.json;
     }
@@ -444,7 +444,7 @@ public final class ColorOsLyricBridge {
      * 第三条是关键：「等待补充」既不是有词也不是没词，不能用一个假的 noLyric 冒充，
      * 否则灵动岛会在换歌瞬间被我们主动清空，而真正的词随后到达也无法恢复显示。
      */
-    public static String metadataLyricInfoFor(String songKey) {
+    public static synchronized String metadataLyricInfoFor(String songKey) {
         if (songKey == null || songKey.isEmpty()) return null;
         Payload current = timelines.get(slot(songKey));
         if (current != null) return current.json;
@@ -453,7 +453,7 @@ public final class ColorOsLyricBridge {
     }
 
     /** 歌词状态，只用于诊断：ready / none / pending。 */
-    public static String stateOf(String songKey) {
+    public static synchronized String stateOf(String songKey) {
         if (songKey == null || songKey.isEmpty()) return "no-song";
         if (timelines.containsKey(slot(songKey))) return "ready";
         if (noLyric.containsKey(slot(songKey))) return "none";
@@ -461,7 +461,7 @@ public final class ColorOsLyricBridge {
     }
 
     /** 有没有翻译 lane —— 决定要不要挂 Bridge 的公共翻译按钮。 */
-    public static boolean hasTranslationFor(String songKey) {
+    public static synchronized boolean hasTranslationFor(String songKey) {
         if (songKey == null || songKey.isEmpty()) return false;
         Payload current = timelines.get(slot(songKey));
         return current != null && current.hasTranslation;
@@ -473,7 +473,7 @@ public final class ColorOsLyricBridge {
      * 注意这里只 **加** 字段：歌词是 metadata 的附加项，不是替代品，
      * 封面、时长、歌名这些一个都不能被它顶掉（协议第 7 节）。
      */
-    public static void attach(MediaMetadata.Builder builder, String songKey) {
+    public static synchronized void attach(MediaMetadata.Builder builder, String songKey) {
         if (builder == null) {
             return;
         }
@@ -484,7 +484,7 @@ public final class ColorOsLyricBridge {
     }
 
     /** 诊断用：缓存里有几首、当前这首是什么状态。全部只出现哈希后的身份。 */
-    public static String describe(String songKey) {
+    public static synchronized String describe(String songKey) {
         StringBuilder keys = new StringBuilder();
         for (String key : timelines.keySet()) {
             if (keys.length() > 0) keys.append(',');

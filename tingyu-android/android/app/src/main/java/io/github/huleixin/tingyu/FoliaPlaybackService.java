@@ -182,7 +182,11 @@ public class FoliaPlaybackService extends Service {
         if (tag.has("artist")) cachedArtist = tag.optString("artist");
         if (tag.has("album")) cachedAlbum = tag.optString("album");
         if (tag.has("coverUrl")) cachedCoverUrl = tag.optString("coverUrl");
+        // 队列项的封面字段名是 `artwork`（只有播放插件推当前曲时才叫 coverUrl）。少了这一条，
+        // 服务被系统重建后卡片一定会退回占位图，而且原生自己也补不回来。
+        if (cachedCoverUrl.isEmpty() && tag.has("artwork")) cachedCoverUrl = tag.optString("artwork");
         long duration = tag.optLong("duration", 0L);
+        if (duration <= 0L) duration = tag.optLong("durationMs", 0L);
         if (duration > 0) cachedDurationMs = duration;
         cachedPositionMs = Math.max(0L, tag.optLong("position", 0L));
         cachedPositionUpdatedAt = SystemClock.elapsedRealtime();
@@ -279,21 +283,26 @@ public class FoliaPlaybackService extends Service {
         FoliaPlaybackService service = activeService;
         if (service == null || !running || songKey == null) return false;
         service.mainHandler.post(() -> {
-            if (activeService != service || !running) return;
-            boolean matched = songKey.equals(service.cachedSongKey);
-            io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("lyrics-apply",
-                new com.getcapacitor.JSObject()
-                    .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey))
-                    .put("matched", matched)
-                    .put("state", ColorOsLyricBridge.stateOf(songKey))
-                    .put("wrote", json == null ? "none" : "timeline"));
-            if (!matched) return;
-            service.publishMetadata(service.appliedArtworkBitmap);
-            NotificationManager manager = service.getSystemService(NotificationManager.class);
-            if (manager != null) {
-                manager.notify(NOTIFICATION_ID,
-                    service.buildNotification(service.cachedTitle, service.cachedArtist,
-                        service.cachedPlaying, service.appliedArtworkBitmap));
+            try {
+                if (activeService != service || !running) return;
+                boolean matched = songKey.equals(service.cachedSongKey);
+                io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("lyrics-apply",
+                    new com.getcapacitor.JSObject()
+                        .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey))
+                        .put("matched", matched)
+                        .put("state", ColorOsLyricBridge.stateOf(songKey))
+                        .put("wrote", json == null ? "none" : "timeline"));
+                if (!matched) return;
+                service.publishMetadata(service.appliedArtworkBitmap);
+                NotificationManager manager = service.getSystemService(NotificationManager.class);
+                if (manager != null) {
+                    manager.notify(NOTIFICATION_ID,
+                        service.buildNotification(service.cachedTitle, service.cachedArtist,
+                            service.cachedPlaying, service.appliedArtworkBitmap));
+                }
+            } catch (Throwable error) {
+                // 后台歌词只是附加信息：重建 metadata 失败不能把正在放歌的进程带走。
+                io.github.huleixin.tingyu.CrashDiagnostics.record(service, "lyrics-apply", "main", error);
             }
         });
         return true;
@@ -309,23 +318,27 @@ public class FoliaPlaybackService extends Service {
         FoliaPlaybackService service = activeService;
         if (service == null || !running || songKey == null || bitmap == null || bitmap.isRecycled()) return false;
         service.mainHandler.post(() -> {
-            if (activeService != service || !running) return;
-            boolean matched = songKey.equals(service.cachedSongKey);
-            io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("artwork-apply",
-                new com.getcapacitor.JSObject()
-                    .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey))
-                    .put("matched", matched)
-                    .put("w", bitmap.getWidth()).put("h", bitmap.getHeight()));
-            if (!matched) return;
-            service.appliedArtworkBitmap = bitmap;
-            service.appliedArtworkUrl = service.currentArtworkUrl;
-            service.lastRequestedCoverUrl = service.currentArtworkUrl;
-            service.publishMetadata(bitmap);
-            NotificationManager manager = service.getSystemService(NotificationManager.class);
-            if (manager != null) {
-                manager.notify(NOTIFICATION_ID,
-                    service.buildNotification(service.cachedTitle, service.cachedArtist,
-                        service.cachedPlaying, bitmap));
+            try {
+                if (activeService != service || !running) return;
+                boolean matched = songKey.equals(service.cachedSongKey);
+                io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("artwork-apply",
+                    new com.getcapacitor.JSObject()
+                        .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey))
+                        .put("matched", matched)
+                        .put("w", bitmap.getWidth()).put("h", bitmap.getHeight()));
+                if (!matched) return;
+                service.appliedArtworkBitmap = bitmap;
+                service.appliedArtworkUrl = service.currentArtworkUrl;
+                service.lastRequestedCoverUrl = service.currentArtworkUrl;
+                service.publishMetadata(bitmap);
+                NotificationManager manager = service.getSystemService(NotificationManager.class);
+                if (manager != null) {
+                    manager.notify(NOTIFICATION_ID,
+                        service.buildNotification(service.cachedTitle, service.cachedArtist,
+                            service.cachedPlaying, bitmap));
+                }
+            } catch (Throwable error) {
+                io.github.huleixin.tingyu.CrashDiagnostics.record(service, "artwork-apply", "main", error);
             }
         });
         return true;

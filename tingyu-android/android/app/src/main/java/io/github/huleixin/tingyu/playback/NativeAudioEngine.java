@@ -46,8 +46,16 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     public static String currentKey(){
         NativeAudioEngine engine=instance;
         if(engine==null||engine.sourceId.isEmpty())return "";
-        MediaItem item=engine.player.getCurrentMediaItem();
-        return item==null?engine.songKey:item.mediaId;
+        // Media3 的 Player 只能在它自己的应用线程（主线程）上读。后台线程（原生取词/取图）也会问
+        // 「现在还是这首吗」，直接访问 player 会抛 IllegalStateException —— 那条线程上的任务会
+        // 静默消失，表现成「原生取词从来没跑过」。非主线程一律读缓存下来的身份。
+        if(Looper.myLooper()!=Looper.getMainLooper())return engine.songKey==null?"":engine.songKey;
+        try{
+            MediaItem item=engine.player.getCurrentMediaItem();
+            return item==null?engine.songKey:item.mediaId;
+        }catch(Throwable error){
+            return engine.songKey==null?"":engine.songKey;
+        }
     }
     /** The item Media3 is really on, so a rebuilt service can restore metadata without JS. */
     public static JSObject currentTrackTag(){
@@ -520,9 +528,14 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
 
     /** 服务重建后补一次：把当前曲重新交给歌曲信息调度器（不换代次）。 */
     public static void scheduleSongInfoForCurrent(){
-        NativeAudioEngine engine=instance;
-        if(engine==null||engine.sourceId.isEmpty())return;
-        engine.scheduleSongInfo(engine.player.getCurrentMediaItem());
+        try{
+            NativeAudioEngine engine=instance;
+            if(engine==null||engine.sourceId.isEmpty()||engine.player==null)return;
+            if(Looper.myLooper()!=Looper.getMainLooper()){engine.main.post(NativeAudioEngine::scheduleSongInfoForCurrent);return;}
+            engine.scheduleSongInfo(engine.player.getCurrentMediaItem());
+        }catch(Throwable ignored){
+            // 补一次信息失败不是播放错误：服务已经恢复了，别让它再塌一次。
+        }
     }
 
     /**
@@ -532,19 +545,29 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
      * 已经是洗好的顺序，所以这里不需要（也不应该）再问 JS「下一首是谁」。
      */
     private void scheduleSongInfo(MediaItem item){
-        if(item==null||item.localConfiguration==null||!(item.localConfiguration.tag instanceof JSObject))return;
-        SongInfoLoader loader=SongInfoLoader.attach(context);
-        int generation=loader.generation();
-        SongInfo current=SongInfo.fromTag((JSObject)item.localConfiguration.tag,generation);
-        if(current==null)return;
-        java.util.ArrayList<SongInfo> upcoming=new java.util.ArrayList<>(2);
-        for(int i=player.getCurrentMediaItemIndex()+1;i<player.getMediaItemCount()&&upcoming.size()<2;i++){
-            MediaItem next=player.getMediaItemAt(i);
-            if(next==null||next.localConfiguration==null||!(next.localConfiguration.tag instanceof JSObject))continue;
-            SongInfo info=SongInfo.fromTag((JSObject)next.localConfiguration.tag,generation);
-            if(info!=null)upcoming.add(info);
+        // 「顺带把歌词/封面准备好」是增值动作，不是播放的前置条件。它跑在播放装载与换歌的
+        // 主线程上，任何异常都不能传导到播放本身（之前正是这里能把进程带走）。
+        try{
+            if(item==null||item.localConfiguration==null||!(item.localConfiguration.tag instanceof JSObject))return;
+            SongInfoLoader loader=SongInfoLoader.attach(context);
+            int generation=loader.generation();
+            SongInfo current=SongInfo.fromTag((JSObject)item.localConfiguration.tag,generation);
+            if(current==null)return;
+            java.util.ArrayList<SongInfo> upcoming=new java.util.ArrayList<>(2);
+            for(int i=player.getCurrentMediaItemIndex()+1;i<player.getMediaItemCount()&&upcoming.size()<2;i++){
+                MediaItem next=player.getMediaItemAt(i);
+                if(next==null||next.localConfiguration==null||!(next.localConfiguration.tag instanceof JSObject))continue;
+                SongInfo info=SongInfo.fromTag((JSObject)next.localConfiguration.tag,generation);
+                if(info!=null)upcoming.add(info);
+            }
+            loader.onTrackChanged(current,upcoming);
+        }catch(Throwable error){
+            try{
+                io.github.huleixin.tingyu.CrashDiagnostics.record(context,"engine-songinfo","main",error);
+                PlaybackDiagnostics.note("songinfo-failure",new JSObject()
+                    .put("source","engine-schedule").put("error",error.getClass().getSimpleName()));
+            }catch(Throwable ignored){}
         }
-        loader.onTrackChanged(current,upcoming);
     }
 
     private JSObject applyQueue(JSObject value){

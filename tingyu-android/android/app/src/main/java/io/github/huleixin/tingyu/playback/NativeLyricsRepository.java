@@ -8,8 +8,8 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -427,11 +427,26 @@ public final class NativeLyricsRepository {
         return result;
     }
 
+    /**
+     * 整文件读入。用 {@code FileInputStream} 而不是 {@code java.nio.file.Files}：
+     * 后者在 Android 上是 API 26 才有的类，本项目 minSdk 24，在老机器上第一次读缓存
+     * 就会 {@code NoClassDefFoundError} 闪退。
+     */
+    private static byte[] readAllBytes(File file) throws IOException {
+        try (java.io.FileInputStream stream = new java.io.FileInputStream(file)) {
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream((int) Math.max(64, file.length()));
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = stream.read(buffer)) != -1) out.write(buffer, 0, read);
+            return out.toByteArray();
+        }
+    }
+
     private JSONObject readRecord(String songKey) {
         File file = fileFor(songKey);
         if (!file.isFile()) return null;
         try {
-            byte[] bytes = Files.readAllBytes(file.toPath());
+            byte[] bytes = readAllBytes(file);
             JSONObject record = new JSONObject(new String(bytes, StandardCharsets.UTF_8));
             // 身份校验：缓存文件名是 key 的哈希，内容里再核一次，避免哈希碰撞或文件被替换后串词。
             if (!songKey.equals(record.optString("songKey"))) return null;

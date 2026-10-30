@@ -246,11 +246,21 @@ public final class NativeArtworkRepository {
         return new File(dir, NativeLyricsRepository.sha1(songKey) + ".img");
     }
 
-    /** 只是为了避免在多个文件里重复写 Files.readAllBytes 的 try/catch。 */
+    /**
+     * 只是为了避免在多个文件里重复写「整文件读入」的 try/catch。
+     *
+     * <p>用 {@code FileInputStream} 而不是 {@code java.nio.file.Files}：后者在 Android 上
+     * 是 API 26 才有的，而本项目 minSdk 是 24 —— 在 24/25 的机器上，第一次读缓存就会以
+     * {@code NoClassDefFoundError} 的形式直接闪退。
+     */
     private static final class Files {
         static byte[] readAll(File file) {
-            try {
-                return java.nio.file.Files.readAllBytes(file.toPath());
+            try (java.io.FileInputStream stream = new java.io.FileInputStream(file)) {
+                ByteArrayOutputStream out = new ByteArrayOutputStream((int) Math.max(64, file.length()));
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = stream.read(buffer)) != -1) out.write(buffer, 0, read);
+                return out.toByteArray();
             } catch (Exception error) {
                 return null;
             }

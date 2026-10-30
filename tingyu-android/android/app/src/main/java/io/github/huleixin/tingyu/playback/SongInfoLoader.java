@@ -103,6 +103,17 @@ public final class SongInfoLoader {
      */
     public void onTrackChanged(SongInfo current, List<SongInfo> upcoming) {
         if (current == null) return;
+        try {
+            runTrackChanged(current, upcoming);
+        } catch (Throwable error) {
+            // 这段跑在**主线程**（Media3 的换歌/装载回调里）。以前这里任何一个异常都会直接把
+            // 进程带走 —— 表现就是「点一下播放就闪退」。歌曲信息永远不该有这种权力：
+            // 记一条带栈的崩溃线索，然后让播放继续。
+            crash("songinfo-schedule", error);
+        }
+    }
+
+    private void runTrackChanged(SongInfo current, List<SongInfo> upcoming) {
         boolean changed = !current.songKey.equals(currentKey);
         if (changed) {
             currentKey = current.songKey;
@@ -140,17 +151,43 @@ public final class SongInfoLoader {
     /** 队列同步/服务重建时补一次：不换代次，只保证当前窗口的都已经被安排过。 */
     public void refresh(SongInfo current, List<SongInfo> upcoming) {
         if (current == null) return;
-        int gen = generation.get();
-        submitLyrics(current.withGeneration(gen));
-        if (upcoming != null) {
-            for (int i = 0; i < Math.min(AHEAD_COUNT, upcoming.size()); i++) {
-                if (upcoming.get(i) != null) submitLyrics(upcoming.get(i).withGeneration(gen));
+        try {
+            if (currentKey.isEmpty()) currentKey = current.songKey;
+            int gen = generation.get();
+            submitLyrics(current.withGeneration(gen));
+            if (upcoming != null) {
+                for (int i = 0; i < Math.min(AHEAD_COUNT, upcoming.size()); i++) {
+                    if (upcoming.get(i) != null) submitLyrics(upcoming.get(i).withGeneration(gen));
+                }
             }
+        } catch (Throwable error) {
+            crash("songinfo-refresh", error);
+        }
+    }
+
+    /** 原生出错的唯一出口：写进崩溃诊断（报告里能看到栈），但不影响播放。 */
+    private void crash(String source, Throwable error) {
+        try {
+            PlaybackDiagnostics.note("songinfo-failure", new JSObject()
+                    .put("source", source)
+                    .put("error", error.getClass().getSimpleName())
+                    .put("thread", Thread.currentThread().getName()));
+        } catch (Throwable ignored) {
+            // 诊断本身失败就算了。
+        }
+        try {
+            io.github.huleixin.tingyu.CrashDiagnostics.record(
+                    context, source, Thread.currentThread().getName(), error);
+        } catch (Throwable ignored) {
+            // 同上。
         }
     }
 
     public boolean isCurrent(String songKey) {
-        return songKey != null && songKey.equals(NativeAudioEngine.currentKey());
+        // 只跟本调度器在**主线程**记下的「换歌入口曲」比，不去碰 Media3 的 Player：
+        // Player 只能在应用线程上读，而这里绝大多数调用来自取词/取图线程。
+        String current = currentKey;
+        return songKey != null && !current.isEmpty() && songKey.equals(current);
     }
 
     // ---- 歌词 ----
@@ -173,6 +210,10 @@ public final class SongInfoLoader {
         lyricsExecutor.execute(() -> {
             try {
                 runLyrics(info);
+            } catch (Throwable error) {
+                // 取词线程上的异常以前会静默干掉这条任务（线程死亡、日志里只有一行），
+                // 现在统一记账，报告里能看出「没取到」还是「取的过程炸了」。
+                crash("lyrics-task", error);
             } finally {
                 lyricsInFlight.remove(info.songKey);
             }
@@ -229,7 +270,16 @@ public final class SongInfoLoader {
                         .put("reason", "already-ready"));
                 return;
             }
-            boolean changed = ColorOsLyricBridge.setPending(result.json, result.hasTranslation, info.songKey);
+            boolean changed;
+            try {
+                changed = ColorOsLyricBridge.setPending(result.json, result.hasTranslation, info.songKey);
+            } catch (IllegalArgumentException tooLarge) {
+                // 桥上有 200k 的硬上限（超出会抛）。原生这份是我们自己拼的，正常远低于它；
+                // 真遇上就明确记一笔并放弃这一首，绝不把异常抛到线程外。
+                PlaybackDiagnostics.note("lyrics-failure", describe("native", info, isCurrent(info.songKey))
+                        .put("reason", "payload-too-large").put("chars", result.json.length()));
+                return;
+            }
             // 「存进按 key 索引的缓存」与「重建 metadata」是两件事：前者哪怕过期也该做（那首歌
             // 自己的词，之后播到它仍然用得上），后者只能是当前曲。判定集中在纯策略里，便于验证。
             SongInfoPublishPolicy.Decision decision = SongInfoPublishPolicy.forLyrics(
@@ -293,6 +343,8 @@ public final class SongInfoLoader {
         artworkExecutor.execute(() -> {
             try {
                 runArtwork(info);
+            } catch (Throwable error) {
+                crash("artwork-task", error);
             } finally {
                 artworkInFlight.remove(info.songKey);
             }
