@@ -832,8 +832,11 @@ public class FoliaNativePlugin extends Plugin {
         result.put("shizukuAvailable", Shizuku.pingBinder());
         result.put("authorized", Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED);
         RearLyricsCoordinator coordinator = RearLyricsCoordinator.get(getContext());
-        int rear = RearLyricsCoordinator.findRearDisplayId(getContext());
+        // A camera can power the panel off, which removes it from DisplayManager; the last known
+        // id keeps the settings page usable and lets recovery wake it again.
+        int rear = RearLyricsCoordinator.rearDisplayForShell(getContext());
         result.put("rearDisplayId", rear);
+        result.put("yieldingToCamera", RearLyricsActivity.isYieldingToCamera());
         boolean active = rear >= 0 && RearLyricsActivity.isShowingOnDisplay(rear)
             && RearLyricsLauncher.displayState(getContext(), rear) == Display.STATE_ON;
         boolean starting = coordinator.isStarting();
@@ -895,7 +898,7 @@ public class FoliaNativePlugin extends Plugin {
             call.reject("已向 Shizuku 请求 听屿授权；授权后请再点一次");
             return;
         }
-        int displayId = RearLyricsCoordinator.findRearDisplayId(getContext());
+        int displayId = RearLyricsCoordinator.rearDisplayForShell(getContext());
         if (displayId < 0) {
             call.reject("未检测到小米背屏，请先在系统设置中开启背屏");
             return;

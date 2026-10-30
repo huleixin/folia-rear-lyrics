@@ -40,7 +40,12 @@ final class RearDisplayPower {
         long now = SystemClock.elapsedRealtime();
         int id = lease.displayId();
         if (id <= 0) return;
-        try { if (Boolean.TRUE.equals(windows.hasOwnWindow(id))) lease.renewForWindow(id, now); }
+        try {
+            // A camera on the rear display owns the panel: stop extending our bright lease so the
+            // OEM camera's own power requests are not overridden while it is starting.
+            if (Boolean.TRUE.equals(windows.hasOwnWindow(id)) && !windows.cameraOnTopRecently(id, now))
+                lease.renewForWindow(id, now);
+        }
         catch (Throwable error) { logOnce(error); }
         Handler handler = timer;
         if (handler != null && lease.remaining(now) > 0) handler.postDelayed(windowRenew, RearDisplayLease.WINDOW_RENEW_MS / 2);
@@ -63,7 +68,8 @@ final class RearDisplayPower {
                                 (Handler) XposedHelpers.getObjectField(hook.thisObject, "mHandler"));
                             synchronized (requests) { requests.put(display, record); }
                         }
-                        if (lease.holds(display, SystemClock.elapsedRealtime())) {
+                        if (lease.holds(display, SystemClock.elapsedRealtime())
+                                && !windows.cameraOnTopRecently(display, SystemClock.elapsedRealtime())) {
                             Object own = copy(hook.args[0]);
                             XposedHelpers.setIntField(own, "policy", brightPolicy);
                             hook.args[0] = own;

@@ -51,7 +51,7 @@ final class SystemRearBinder extends Binder {
             + " · " + power.status() + " · ROM behavior requires device verification";
     }
     @Override protected boolean onTransact(int code, Parcel data, Parcel reply, int flags) throws RemoteException {
-        if (code < FIRST_CALL_TRANSACTION || code > RearBridgeContract.RELEASE_POWER)
+        if (code < FIRST_CALL_TRANSACTION || code > RearBridgeContract.LOG_SNAPSHOT)
             return super.onTransact(code, data, reply, flags);
         data.enforceInterface(RearBridgeContract.DESCRIPTOR);
         int uid = Binder.getCallingUid();
@@ -66,7 +66,7 @@ final class SystemRearBinder extends Binder {
         long identity = Binder.clearCallingIdentity();
         try {
             if (!RearBridgeContract.validSession(session)) throw new IllegalArgumentException("Invalid lyric session");
-            requireRear(display, code == FIRST_CALL_TRANSACTION);
+            if (code != RearBridgeContract.LOG_SNAPSHOT) requireRear(display, code == FIRST_CALL_TRANSACTION);
             String result = execute(code - FIRST_CALL_TRANSACTION, display, session, task, uid / 100000);
             reply.writeNoException(); reply.writeInt(0); reply.writeString(result);
         } catch (Throwable error) {
@@ -85,6 +85,10 @@ final class SystemRearBinder extends Binder {
         if (!RearBridgeContract.isRearSize(size.x, size.y)) throw new SecurityException("Unrecognized rear display geometry");
     }
     private String execute(int operation, int display, String session, int task, int user) throws Exception {
+        if (operation == 8) {
+            // Deliberately unsupported: forking logcat from system_server is not worth the risk.
+            return "unavailable: LSP mode does not collect system logs";
+        }
         if (operation == 6 || operation == 7) {
             synchronized (this) {
                 if (operation == 6) {

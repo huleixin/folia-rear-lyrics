@@ -12,6 +12,8 @@ public final class RearBridgeContract {
     public static final int VERSION = 5;
     public static final int HOLD_POWER = android.os.IBinder.FIRST_CALL_TRANSACTION + 6;
     public static final int RELEASE_POWER = android.os.IBinder.FIRST_CALL_TRANSACTION + 7;
+    /** Reserved for the bounded log snapshot; always rejected in LSP mode (never fork from system_server). */
+    public static final int LOG_SNAPSHOT = android.os.IBinder.FIRST_CALL_TRANSACTION + 8;
     private RearBridgeContract() {}
 
     public static boolean isRearSize(int width, int height) {

@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 
 /** Starts, moves and wakes only Folia's lyrics window through the Shizuku shell process. */
 public final class ShellUserService extends Binder {
-    static final int VERSION = 250;
+    static final int VERSION = 251;
     static final String DESCRIPTOR = "io.github.huleixin.tingyu.REAR_LYRICS_V2";
     static final int TRANSACTION_START = FIRST_CALL_TRANSACTION;
     static final int TRANSACTION_MOVE = FIRST_CALL_TRANSACTION + 1;
@@ -22,6 +22,8 @@ public final class ShellUserService extends Binder {
     static final int TRANSACTION_FRONT_TASK = FIRST_CALL_TRANSACTION + 3;
     static final int TRANSACTION_SLEEP = FIRST_CALL_TRANSACTION + 4;
     static final int TRANSACTION_RESTORE_POWER = FIRST_CALL_TRANSACTION + 5;
+    /** Bounded camera/window log snapshot; the only transaction that returns no command output. */
+    static final int TRANSACTION_LOG_SNAPSHOT = FIRST_CALL_TRANSACTION + 8;
     private static final ExecutorService OUTPUT_READER = Executors.newCachedThreadPool();
 
     public ShellUserService() {
@@ -32,12 +34,19 @@ public final class ShellUserService extends Binder {
     protected boolean onTransact(int code, Parcel data, Parcel reply, int flags) throws RemoteException {
         // Shizuku's reserved destroy transaction is used when this service version changes.
         if (code == 16777115) { System.exit(0); return true; }
-        if (code < TRANSACTION_START || code > TRANSACTION_RESTORE_POWER) return super.onTransact(code, data, reply, flags);
+        if (code < TRANSACTION_START || (code > TRANSACTION_RESTORE_POWER && code != TRANSACTION_LOG_SNAPSHOT))
+            return super.onTransact(code, data, reply, flags);
         data.enforceInterface(DESCRIPTOR);
         int displayId = data.readInt();
         String session = data.readString();
         int taskId = data.readInt();
         try {
+            if (code == TRANSACTION_LOG_SNAPSHOT) {
+                reply.writeNoException();
+                reply.writeInt(0);
+                reply.writeString(RearCameraLog.snapshot());
+                return true;
+            }
             if (displayId < 0 || session == null || session.isEmpty()) throw new IllegalArgumentException("Invalid rear-screen request");
             String targetDisplay = Integer.toString(displayId);
             String[] command;
@@ -77,7 +86,10 @@ public final class ShellUserService extends Binder {
                 throw new RemoteException("Timed out running am start on display " + targetDisplay);
             }
             String result = output.get(2, TimeUnit.SECONDS);
-            if (code == TRANSACTION_FRONT_TASK && process.exitValue() == 0) result = RearLyricsTaskList.front(result, displayId);
+            // The whole listing is returned, not just the rear front: the app parses both the
+            // rear and the main display from it (camera task on either one suspends the lyrics),
+            // and parsing app-side keeps that logic unit-testable instead of living in the
+            // Shizuku daemon.
             reply.writeNoException();
             reply.writeInt(process.exitValue());
             reply.writeString(result);

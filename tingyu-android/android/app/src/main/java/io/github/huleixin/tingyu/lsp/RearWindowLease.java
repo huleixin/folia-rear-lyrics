@@ -29,6 +29,15 @@ final class RearWindowLease {
     // time and whether our lease was actually held there. Counters only; no task content.
     private volatile long consulted, keptAwake, systemSleepRequests, windowRenewals;
     private volatile String lastTop = "", lastDecision = "not consulted";
+    /**
+     * Last time a camera package was seen on top of a rear display. Used to stop renewing our
+     * bright-policy lease while a camera is using the panel: the OEM camera requests power for
+     * its own preview, and a stale bright override from us is exactly the interference that
+     * makes the camera dismiss itself or come back to the front. Recorded from the existing
+     * shouldSleep hook, so no extra lock or reflection call is introduced.
+     */
+    private final Map<Integer, Long> cameraOnTopAt = new ConcurrentHashMap<>();
+    private volatile long cameraPreemptions;
     RearWindowLease(RearDisplayLease lease) { this.lease = lease; }
 
     void install(ClassLoader loader) {
@@ -54,6 +63,13 @@ final class RearWindowLease {
                         String pkg = readString(component, "getPackageName");
                         String activity = readString(component, "getClassName");
                         lastTop = pkg + "/" + component;
+                        if (RearBridgeContract.isCameraPackage(pkg)) {
+                            cameraOnTopAt.put(id, SystemClock.elapsedRealtime());
+                            cameraPreemptions++;
+                            lastDecision = "camera-on-top";
+                            systemSleepRequests++;
+                            return; // Never keep the panel awake on behalf of a stale lease.
+                        }
                         // The client is frozen while the main screen is locked, so its renew
                         // IPC stops arriving. A still-attached window is proof it is alive.
                         Boolean ownWindow = hasOwnWindow(hook.thisObject);
@@ -113,6 +129,13 @@ final class RearWindowLease {
     }
     Boolean hasOwnWindow(int id) { return hasOwnWindow(displays.get(id)); }
 
+    /** True when a camera was on top of this rear display within [CAMERA_GRACE_MS]. */
+    boolean cameraOnTopRecently(int id, long now) {
+        Long at = cameraOnTopAt.get(id);
+        return at != null && now - at <= CAMERA_GRACE_MS;
+    }
+    static final long CAMERA_GRACE_MS = 10_000;
+
     /** Re-evaluate existing sleep tokens, without deleting them or unlocking the main display. */
     void refresh(int id) {
         Object display = displays.get(id);
@@ -128,6 +151,7 @@ final class RearWindowLease {
         } catch (Throwable error) { logOnce(error); }
     }
     String status() { return "rearWindowHook=" + installed + ", windowHookError=" + failed
+        + ", cameraPreemptions=" + cameraPreemptions
         + ", sleepConsulted=" + consulted + ", keptOwnWindow=" + keptAwake
         + ", systemSleep=" + systemSleepRequests + ", windowRenewals=" + windowRenewals
         + ", lastDecision=" + lastDecision + ", lastTop=" + lastTop; }

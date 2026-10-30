@@ -25,6 +25,8 @@ import java.util.UUID;
 public final class RearLyricsActivity extends Activity {
     static final String EXTRA_SESSION = "folia_rear_session";
     private static volatile String requestedSession = "";
+    /** Set while the window is hidden for a camera; {@link #isShowingOnDisplay} must not lie. */
+    private static volatile String yieldedSession = "";
     private static volatile int requestedDisplay = -1;
     private static volatile RearLyricsActivity shownActivity;
     private static volatile WindowState lastWindowState;
@@ -223,8 +225,12 @@ public final class RearLyricsActivity extends Activity {
     }
     static WindowState windowState() { return windowState(requestedSession); }
     static boolean isShowingOnDisplay(int id) {
+        if (!yieldedSession.isEmpty() && yieldedSession.equals(requestedSession)) return false;
         WindowState state = windowState();
         return state != null && state.displayId == id && state.visible && state.drawn && state.width > 0 && state.height > 0;
+    }
+    static boolean isYieldingToCamera() {
+        return !yieldedSession.isEmpty() && yieldedSession.equals(requestedSession);
     }
     static WindowState attachedWindowOnDisplay(int id) {
         RearLyricsActivity activity = shownActivity;
@@ -232,12 +238,13 @@ public final class RearLyricsActivity extends Activity {
         return activity != null && !activity.isFinishing() && state != null && state.displayId == id ? state : null;
     }
     static void finishIfShown() {
-        requestedSession = ""; requestedDisplay = -1;
+        requestedSession = ""; requestedDisplay = -1; yieldedSession = "";
         RearLyricsActivity activity = shownActivity;
         if (activity != null) activity.runOnUiThread(activity::finish);
     }
     /** Hide only the dedicated rear task immediately, while its power lease is released asynchronously. */
     static void yieldToCamera() {
+        yieldedSession = requestedSession;
         RearLyricsActivity activity = shownActivity;
         if (activity == null) return;
         activity.runOnUiThread(() -> {
@@ -257,6 +264,7 @@ public final class RearLyricsActivity extends Activity {
      * out with "原背屏歌词窗口未能恢复到前台" every single time.
      */
     static void resumeFromCamera() {
+        yieldedSession = "";
         RearLyricsActivity activity = shownActivity;
         if (activity == null) return;
         activity.runOnUiThread(() -> {
@@ -267,7 +275,11 @@ public final class RearLyricsActivity extends Activity {
                 activity.renderer.setVisibility(View.VISIBLE);
                 if (!RearLyricsCoordinator.get(activity).isSleeping()) activity.renderer.onResume();
             }
-            activity.record("camera-yield-ended", "rear display returned to Tingyu");
+            // A window that yielded before Chromium was created still needs its renderer; the
+            // normal layout/display callbacks may already have fired while yielding was true.
+            activity.updateViewport();
+            activity.reportWindow();
+            activity.record("camera-yield-ended", "rear display returned to Tingyu, display=" + activity.currentDisplayId());
         });
     }
     private int currentDisplayId() {
