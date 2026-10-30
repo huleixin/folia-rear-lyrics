@@ -137,8 +137,40 @@ export type DiagnosticsHeartbeats = {
 
 const emptyHeartbeat = (): HeartbeatSnapshot => ({ last: null, previous: null });
 
-export const readDiagnosticsHeartbeats = async (): Promise<DiagnosticsHeartbeats> => {
-    const plugin = getNativePlugin();
+export type NativePlaybackDiagnosticEvent = {
+    at: number;
+    type: string;
+    data?: Record<string, unknown>;
+};
+
+const getPlaybackPlugin = (): any => (
+    typeof window === 'undefined' ? null : (window as any).Capacitor?.Plugins?.TingyuPlayback ?? null
+);
+
+/**
+ * Always-on native playback failure trail (release builds included). Entries are
+ * anonymous by design: song keys are hashed, and URLs/cookies/tokens are never written.
+ */
+export const readNativePlaybackFailureTrace = async (): Promise<NativePlaybackDiagnosticEvent[]> => {
+    const plugin = getPlaybackPlugin();
+    if (!plugin?.playbackDiagnostics) return [];
+    try {
+        const result = await plugin.playbackDiagnostics();
+        const events = result?.events;
+        if (!Array.isArray(events)) return [];
+        return events
+            .map((raw: any) => ({
+                at: Number(raw?.at) || 0,
+                type: String(raw?.type || 'unknown').slice(0, 80),
+                data: raw?.data && typeof raw.data === 'object' ? raw.data : undefined,
+            }))
+            .filter((entry: NativePlaybackDiagnosticEvent) => entry.at > 0);
+    } catch {
+        return [];
+    }
+};
+
+export const readDiagnosticsHeartbeats = async (): Promise<DiagnosticsHeartbeats> => {    const plugin = getNativePlugin();
     if (!plugin?.getCrashDiagnostics) {
         return { playback: emptyHeartbeat(), service: emptyHeartbeat() };
     }

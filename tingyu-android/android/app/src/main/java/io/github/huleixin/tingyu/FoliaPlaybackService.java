@@ -134,6 +134,9 @@ public class FoliaPlaybackService extends Service {
             wifiLock.setReferenceCounted(false);
         }
         recordServiceLifecycle("service-create", "Foreground playback service created");
+        io.github.huleixin.tingyu.playback.PlaybackDiagnostics.initialize(this);
+        io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("service-create",
+            new com.getcapacitor.JSObject().put("pid", android.os.Process.myPid()));
         activeService = this;
         mainHandler.post(serviceHeartbeatRunnable);
     }
@@ -167,8 +170,10 @@ public class FoliaPlaybackService extends Service {
         cachedPlaying = state.playing; cachedPositionMs = state.position;
         cachedPositionUpdatedAt = now; lastPlaying = cachedPlaying;
         mediaSession.setPlaybackState(buildPlaybackState(cachedPlaying, cachedPositionMs, cachedSongKey));
-        if (changed) {
-            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (changed) {
+                io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("native-session-state",
+                    new com.getcapacitor.JSObject().put("playing", cachedPlaying).put("positionMs", cachedPositionMs));
+                NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) manager.notify(NOTIFICATION_ID, buildNotification(cachedTitle, cachedArtist, cachedPlaying, appliedArtworkBitmap));
             updatePlaybackLocks(cachedPlaying);
             RearLyricsCoordinator.get(this).playback(cachedPlaying);
@@ -188,8 +193,40 @@ public class FoliaPlaybackService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent == null || "clear".equals(intent.getAction())) {
+        io.github.huleixin.tingyu.playback.PlaybackDiagnostics.initialize(this);
+        if ("clear".equals(intent == null ? null : intent.getAction())) {
             recordServiceLifecycle("service-stop-command", "Stop command received");
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+        if (intent == null) {
+            // A null intent means the system restarted this START_STICKY service. If the
+            // engine in this same process still owns an unpaused source (service-only
+            // restart, e.g. after a crash of the service or an LMK trim), tearing the
+            // service down would strand a playing engine without its foreground
+            // notification and the system would kill playback shortly after. Re-publish
+            // the notification from cached metadata and keep living. If nothing is
+            // playing, the restart is stale bookkeeping and stopping remains correct.
+            boolean keepAlive = io.github.huleixin.tingyu.playback.NativeAudioEngine.isPlaybackActive();
+            io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("service-restart",
+                new com.getcapacitor.JSObject().put("keepAlive", keepAlive));
+            if (keepAlive) {
+                try {
+                    applyCachedMetadata();
+                    startForeground(NOTIFICATION_ID, buildNotification(cachedTitle, cachedArtist, cachedPlaying, appliedArtworkBitmap));
+                    updatePlaybackLocks(cachedPlaying);
+                    recordServiceLifecycle("service-restart-keepalive", "Sticky restart with active playback; foreground publication restored");
+                    return START_STICKY;
+                } catch (Exception error) {
+                    // A background-restricted restart may refuse startForeground; without the
+                    // notification the system will stop us anyway, so fall through to the
+                    // honest stop path instead of half-keeping playback alive.
+                    io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("service-restart-denied",
+                        new com.getcapacitor.JSObject().put("error", error.getClass().getSimpleName()));
+                    recordServiceLifecycle("service-restart-denied", error.getClass().getSimpleName());
+                }
+            }
+            recordServiceLifecycle("service-stop-command", "Restart with no active playback; stop command received");
             stopSelf();
             return START_NOT_STICKY;
         }
@@ -628,6 +665,12 @@ public class FoliaPlaybackService extends Service {
 
     @Override
     public void onDestroy() {
+        // Recorded before the engine is released so the trail keeps the last song and
+        // position; releaseIfPresent then writes its own engine-release entry.
+        io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("service-destroy",
+            new com.getcapacitor.JSObject()
+                .put("lastSong", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(cachedSongKey))
+                .put("positionMs", cachedPositionMs).put("playing", cachedPlaying));
         if (activeService == this) activeService = null;
         running = false;
         io.github.huleixin.tingyu.playback.NativeAudioEngine.releaseIfPresent();

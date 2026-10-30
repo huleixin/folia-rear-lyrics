@@ -36,6 +36,14 @@ public final class TingyuPlaybackPlugin extends Plugin {
         });
     }
     @PluginMethod public void probe(PluginCall call){call.resolve(new JSObject().put("supported",ENABLED).put("engine","media3-1.11.1"));}
+    /** Always-on playback failure trail (release builds included); entries are anonymous and URL-free. */
+    @PluginMethod public void playbackDiagnostics(PluginCall call){
+        try{PlaybackDiagnostics.initialize(getContext());call.resolve(new JSObject().put("events",PlaybackDiagnostics.snapshot()));}
+        catch(Exception error){call.reject("读取播放诊断失败："+error.getClass().getSimpleName());}
+    }
+    @PluginMethod public void clearPlaybackDiagnostics(PluginCall call){
+        try{PlaybackDiagnostics.clear();call.resolve();}catch(Exception error){call.reject("清除播放诊断失败："+error.getClass().getSimpleName());}
+    }
     @PluginMethod public void command(PluginCall call){
         if(!ENABLED){call.reject("原生播放通道暂未启用");return;}
         getActivity().runOnUiThread(()->{

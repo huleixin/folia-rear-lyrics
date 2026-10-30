@@ -3,7 +3,7 @@ import { getLibraryTraceLines } from '../nativeBridge/api/libraryTrace.js';
 import { getQrLoginTraceLines } from '../nativeBridge/api/qrLoginTrace.js';
 import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
-import { readCrashDiagnostics, readDiagnosticsHeartbeats } from './crashDiagnostics';
+import { readCrashDiagnostics, readDiagnosticsHeartbeats, readNativePlaybackFailureTrace } from './crashDiagnostics';
 import { readPlaybackContinuitySnapshot } from './mediaDiagnostics';
 import { readFrameTimingSnapshot, runCpuProbe } from './frameTimingDiagnostics';
 import { readLastAiThemeAttempt, readAiThemeAttempts, readFailedAiThemeAttempts } from './aiThemeDiagnostics';
@@ -732,6 +732,21 @@ export const buildDiagnosticReport = async (): Promise<string> => {
         lines.push(`  applied: ${playbackDiagnostics.applied ? 'yes' : 'no'}`);
         lines.push(`  at: ${playbackDiagnostics.at ? new Date(playbackDiagnostics.at).toISOString() : '(not recorded)'}`);
         lines.push(`  power: ${playbackDiagnostics.power || '(not recorded)'}`);
+    }
+
+    // 常开的原生播放故障轨迹：队列耗尽、错误码、焦点/抑制变更、Service 生命周期等。
+    // 条目本身已匿名化（歌曲只留哈希），这里再兜底做一次 URL 抹除。
+    const failureTrace = await readNativePlaybackFailureTrace().catch(() => []);
+    lines.push('', 'native playback failure trace:');
+    if (failureTrace.length === 0) {
+        lines.push('  (none)');
+    } else {
+        failureTrace.slice(-30).forEach((entry, index) => {
+            const data = entry.data
+                ? Object.entries(entry.data).map(([key, value]) => `${key}=${String(value)}`).join(' ').slice(0, 300)
+                : '';
+            lines.push(`  [${index + 1}] at=${new Date(entry.at).toISOString()} type=${entry.type}${data ? ` ${data}` : ''}`);
+        });
     }
 
     lines.push('```');

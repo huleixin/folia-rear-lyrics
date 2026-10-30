@@ -25,6 +25,8 @@ public final class NativeAudioEngine {
     private static NativeAudioEngine instance;
     public static NativeAudioEngine get(Context context){if(instance==null)instance=new NativeAudioEngine(context.getApplicationContext());return instance;}
     public static boolean isActive(){return instance!=null&&!instance.sourceId.isEmpty();}
+    /** True while the engine holds a source and the user has not paused it; lets the service survive a sticky restart with playback intact. */
+    public static boolean isPlaybackActive(){return instance!=null&&!instance.sourceId.isEmpty()&&!instance.desiredPaused;}
     public static boolean mediaSeek(long positionMs){
         if(!isActive())return false;
         NativeAudioEngine engine=instance;
@@ -74,6 +76,21 @@ public final class NativeAudioEngine {
     private NativeAudioEngine(Context context){
         this.context=context;
         PlaybackTestDiagnostics.note("engine-create-start",new JSObject());
+        PlaybackDiagnostics.initialize(context);
+        android.media.AudioManager audioManager=(android.media.AudioManager)context.getSystemService(Context.AUDIO_SERVICE);
+        if(audioManager!=null)audioManager.registerAudioDeviceCallback(new android.media.AudioDeviceCallback(){
+            private JSObject describe(android.media.AudioDeviceInfo[] devices){
+                JSObject value=new JSObject();
+                for(int i=0;i<Math.min(8,devices.length);i++)value.put("type"+i,devices[i].getType());
+                return value;
+            }
+            @Override public void onAudioDevicesAdded(android.media.AudioDeviceInfo[] added){
+                PlaybackDiagnostics.note("audio-devices-added",describe(added));
+            }
+            @Override public void onAudioDevicesRemoved(android.media.AudioDeviceInfo[] removed){
+                PlaybackDiagnostics.note("audio-devices-removed",describe(removed));
+            }
+        },null);
         PowerManager power=(PowerManager)context.getSystemService(Context.POWER_SERVICE);
         handoffWake=power==null?null:power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"Tingyu:TrackHandoff");
         if(handoffWake!=null)handoffWake.setReferenceCounted(false);
@@ -95,7 +112,22 @@ public final class NativeAudioEngine {
                 songKey=item.mediaId;endedHandoff=false;
                 if(reason==Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)applyOutputPolicy(true);
                 io.github.huleixin.tingyu.FoliaPlaybackService.publishQueuedTrack(context,queued,player.getPlayWhenReady());
+                PlaybackDiagnostics.note("queue-transition",new JSObject().put("reason",reason)
+                    .put("song",PlaybackDiagnostics.anonKey(songKey)).put("index",player.getCurrentMediaItemIndex())
+                    .put("items",player.getMediaItemCount()).put("remaining",Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1)));
                 emit("queue-transition",true);
+            }
+            @Override public void onPlayWhenReadyChanged(boolean playWhenReady,int reason){
+                // The reason field distinguishes user pause from focus loss / noisy output /
+                // remote commands; this is the difference between "user stopped it" and
+                // "the system stopped it" in a post-mortem.
+                PlaybackDiagnostics.note("play-when-ready",new JSObject().put("playWhenReady",playWhenReady)
+                    .put("reason",reason).put("suppression",player.getPlaybackSuppressionReason())
+                    .put("song",PlaybackDiagnostics.anonKey(songKey)));
+            }
+            @Override public void onPlaybackSuppressionReasonChanged(int reason){
+                PlaybackDiagnostics.note("suppression",new JSObject().put("reason",reason)
+                    .put("playing",player.isPlaying()).put("song",PlaybackDiagnostics.anonKey(songKey)));
             }
             @Override public void onEvents(Player p,Player.Events events){
                 if(!events.containsAny(Player.EVENT_PLAYBACK_STATE_CHANGED,Player.EVENT_IS_PLAYING_CHANGED,Player.EVENT_PLAY_WHEN_READY_CHANGED,Player.EVENT_PLAYER_ERROR,Player.EVENT_TIMELINE_CHANGED,Player.EVENT_POSITION_DISCONTINUITY))return;
@@ -105,11 +137,25 @@ public final class NativeAudioEngine {
                     endedHandoff=true;if(handoffWake!=null)handoffWake.acquire(20_000L);
                 }
                 if(p.isPlaying()||p.getPlayerError()!=null)releaseHandoff();
+                if(p.getPlaybackState()==Player.STATE_ENDED&&p.getNextMediaItemIndex()<0&&!desiredPaused&&!sourceId.isEmpty())
+                    // The playlist drained with no queued successor: the single most important
+                    // long-session stop signature. Records where it stopped so a later report
+                    // shows whether JS replenishment was late or never came.
+                    PlaybackDiagnostics.note("queue-exhausted",new JSObject()
+                        .put("song",PlaybackDiagnostics.anonKey(songKey)).put("positionMs",Math.max(0,p.getCurrentPosition()))
+                        .put("index",p.getCurrentMediaItemIndex()).put("items",p.getMediaItemCount())
+                        .put("playWhenReady",p.getPlayWhenReady()).put("suppression",p.getPlaybackSuppressionReason()));
                 if(!p.getPlayWhenReady()||p.getPlaybackState()==Player.STATE_ENDED)applyOutputPolicy(true);
                 emit("state",false);main.removeCallbacks(heartbeat);if(needsClock())main.postDelayed(heartbeat,1000);
             }
             @Override public void onPlayerError(PlaybackException error){
                 PlaybackTestDiagnostics.error("player-error",error);
+                PlaybackDiagnostics.note("player-error",new JSObject().put("code",error.errorCode)
+                    .put("name",error.getErrorCodeName()).put("song",PlaybackDiagnostics.anonKey(songKey))
+                    .put("positionMs",Math.max(0,player.getCurrentPosition()))
+                    .put("index",player.getCurrentMediaItemIndex()).put("items",player.getMediaItemCount())
+                    .put("remaining",Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1))
+                    .put("retries",networkRetries));
                 if(!desiredPaused&&NativeRetryPolicy.canRetry(error.errorCode,networkRetries)){
                     int attempt=++networkRetries;String token=sourceId;long generation=++retryGeneration;
                     PlaybackTestDiagnostics.note("network-retry",new JSObject().put("attempt",attempt).put("code",error.errorCode));
@@ -150,7 +196,8 @@ public final class NativeAudioEngine {
             sequence=seq;
             switch(action){
                 case "play":case "pause":case "stop":transport(action,false);break;
-                case "detach":cancelFade();player.stop();player.clearMediaItems();sourceId="";main.removeCallbacks(heartbeat);break;
+                case "detach":cancelFade();PlaybackDiagnostics.note("engine-detach",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
+                        .put("positionMs",Math.max(0,player.getCurrentPosition())));player.stop();player.clearMediaItems();sourceId="";main.removeCallbacks(heartbeat);break;
                 case "seek":player.seekTo(Math.max(0,value.optLong("position")));break;
                 case "volume":volume=(float)Math.max(0,Math.min(1,value.optDouble("volume",1)));cancelFade();player.setVolume(volume);break;
                 case "configure":configure(value);break;
@@ -174,8 +221,12 @@ public final class NativeAudioEngine {
             items.add(new MediaItem.Builder().setUri(uri).setMediaId(tag.optString("songKey")).setTag(tag).build());
         }
         int next=player.getCurrentMediaItemIndex()+1;
+        int removed=next<player.getMediaItemCount()?player.getMediaItemCount()-next:0;
         if(next<player.getMediaItemCount())player.removeMediaItems(next,player.getMediaItemCount());
         if(!items.isEmpty())player.addMediaItems(items);
+        PlaybackDiagnostics.note("queue-replenish",new JSObject().put("accepted",items.size()).put("rejected",entries==null?0:Math.max(0,entries.length()-items.size()))
+            .put("removed",removed).put("items",player.getMediaItemCount()).put("index",player.getCurrentMediaItemIndex())
+            .put("remaining",Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1)));
     }
     private void configure(JSObject value){
         fade=value.optBoolean("fade",fade);spectrum.enabled=value.optBoolean("analysis",spectrum.enabled);
@@ -188,6 +239,7 @@ public final class NativeAudioEngine {
     private void applyOutputPolicy(boolean safeBoundary){
         int mode=outputPolicy.change(safeBoundary);if(mode<0)return;
         PlaybackTestDiagnostics.note("output-policy",new JSObject().put("offloadPreference",mode).put("safeBoundary",safeBoundary).put("interactive",interactive).put("analysis",spectrum.enabled));
+        PlaybackDiagnostics.note("output-policy",new JSObject().put("offloadPreference",mode).put("safeBoundary",safeBoundary));
         player.setTrackSelectionParameters(player.getTrackSelectionParameters().buildUpon().setAudioOffloadPreferences(
             new TrackSelectionParameters.AudioOffloadPreferences.Builder().setAudioOffloadMode(mode).build()).build());
     }
@@ -250,5 +302,6 @@ public final class NativeAudioEngine {
         JSObject value=snapshot("spectrum",false);JSArray array=new JSArray();for(int bin:bins)array.put(bin);
         value.put("spectrum",array);listener.accept(value);
     });}
-    private void release(){releaseHandoff();cancelFade();main.removeCallbacksAndMessages(null);sourceId="";listener=null;player.release();spectrum.close();}
+    private void release(){PlaybackDiagnostics.note("engine-release",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
+            .put("positionMs",Math.max(0,player.getCurrentPosition())));releaseHandoff();cancelFade();main.removeCallbacksAndMessages(null);sourceId="";listener=null;player.release();spectrum.close();}
 }
