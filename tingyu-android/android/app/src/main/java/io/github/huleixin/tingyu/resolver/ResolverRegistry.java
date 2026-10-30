@@ -19,6 +19,10 @@ public final class ResolverRegistry {
     private final List<SourceResolver> resolvers = new ArrayList<>();
 
     private ResolverRegistry() {
+        // 顺序即优先级：先洛雪脚本（用户真正在用的音源），再 QQ 官方后端，最后是没有
+        // 原生等价物的兜底说明。
+        resolvers.add(new LxNativeResolver());
+        resolvers.add(QqResolver.fromCredentials());
         resolvers.add(new LxScriptResolver());
     }
 
@@ -29,12 +33,25 @@ public final class ResolverRegistry {
     /** 凭据变化时刷新（例如用户在设置里改了后端地址）。 */
     public synchronized void refresh() {
         resolvers.clear();
-        resolvers.add(new LxScriptResolver());
+        resolvers.add(new LxNativeResolver());
         resolvers.add(QqResolver.fromCredentials());
+        resolvers.add(new LxScriptResolver());
     }
 
+    /**
+     * 选出这个 provider 的解析器。
+     *
+     * 两轮：先问"真的支持吗"（能力表已经拿到），再问"值不值得试一次"
+     * （洛雪引擎还没初始化，能力表是空的，但脚本装着 —— 此时必须让它去试，
+     * 由 {@link LxNativeResolver#resolve} 自己给出 UNSUPPORTED 还是 OK）。
+     */
     public synchronized SourceResolver forProvider(String providerId) {
         for (SourceResolver resolver : resolvers) if (resolver.supports(providerId)) return resolver;
+        for (SourceResolver resolver : resolvers) {
+            if (resolver instanceof LxNativeResolver && ((LxNativeResolver) resolver).canAttempt(providerId)) {
+                return resolver;
+            }
+        }
         return null;
     }
 
@@ -63,6 +80,7 @@ public final class ResolverRegistry {
     public boolean canResolveNatively(NativePlaylist.Track track) {
         if (track == null) return false;
         SourceResolver resolver = forProvider(track.providerId);
+        // LxScriptResolver 是"明确没有原生等价物"的说明，不是可执行解析器。
         return resolver != null && !(resolver instanceof LxScriptResolver);
     }
 
@@ -83,6 +101,7 @@ public final class ResolverRegistry {
 
     public synchronized void resetForTest() {
         resolvers.clear();
+        resolvers.add(new LxNativeResolver());
         resolvers.add(new LxScriptResolver());
     }
 

@@ -9,6 +9,7 @@ import { primeNativeLyricsForSongs } from '../services/nativeLyricPriming';
 import { setNativeAudioQueue } from '../services/nativeAudioElement';
 import { configureNativeQueueSupervisor, installNativeQueueSupervisor, nextNativeQueueGeneration } from '../services/nativeQueueSupervisor';
 import { syncNativePlaylist, syncNativePlaylistMode, syncResolverCredentials } from '../services/nativePlaylistSync';
+import { syncLxScriptToNative } from '../services/lxNativeScriptSync';
 import type { LocalSong, SongResult } from '../types';
 import type { PlaybackNavigationOptions } from '../types/appPlayback';
 import type { NativeAudioState } from '../types/nativeAudio';
@@ -58,6 +59,8 @@ export function useNativeQueuedPlayback(
         if (!enabled || context !== 'main') return;
         void syncNativePlaylist({ song, queue, loop, shuffle, quality });
         void syncResolverCredentials();
+        // 阶段 B（洛雪）：脚本本身也要交给原生，否则后台没人能跑它。
+        void syncLxScriptToNative();
     }, [enabled, context, song, queue, loop, shuffle, quality]);
 
     // 只改模式也要单独同步：换代次会作废在飞的原生解析，避免"已切单曲循环还去取下一首"。

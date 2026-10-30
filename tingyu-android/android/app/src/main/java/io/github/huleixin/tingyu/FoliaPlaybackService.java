@@ -140,6 +140,9 @@ public class FoliaPlaybackService extends Service {
             wifiLock.setReferenceCounted(false);
         }
         recordServiceLifecycle("service-create", "Foreground playback service created");
+        // 洛雪音源运行时归播放进程所有：它拿的是 applicationContext，
+        // MainActivity 重建、插件实例重建都与它无关。
+        io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.attach(this);
         io.github.huleixin.tingyu.playback.PlaybackDiagnostics.initialize(this);
         io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("service-create",
             new com.getcapacitor.JSObject().put("pid", android.os.Process.myPid()));

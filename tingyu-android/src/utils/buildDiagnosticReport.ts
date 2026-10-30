@@ -820,6 +820,25 @@ const readBackgroundContinuityLines = async (): Promise<string[]> => {
                 + ` failures=${player.continuationFailures ?? 0}`,
             );
             lines.push(`  native resolvers: ${player.resolvers ?? '-'}`);
+            // 音源兼容性：这首歌原本从哪来、原生挑了哪个解析器、洛雪引擎跑到哪一步。
+            // 缺了这一段，就无法判断"本轮有没有覆盖用户实际的故障链路"。
+            lines.push(
+                `  native source: provider=${player.songSourceType ?? '-'}`
+                + ` lxSource=${player.songLxSource ?? '-'}`
+                + ` resolver=${player.songResolver ?? '-'}`,
+            );
+            if (player.lxInstalled !== undefined) {
+                lines.push(
+                    `  lx engine: installed=${player.lxInstalled === true ? 'yes' : 'no'}`
+                    + ` started=${player.lxStarted === true ? 'yes' : 'no'}`
+                    + ` sources=${player.lxSources ?? '-'}`
+                    + ` requests=${player.lxRequests ?? 0}`
+                    + ` ok=${player.lxOk ?? 0}`
+                    + ` failed=${player.lxFailed ?? 0}`
+                    + ` lastHost=${player.lxLastHost ?? '-'}`
+                    + ` lastError=${player.lxLastError || 'none'}`,
+                );
+            }
         }
     } catch (error) {
         lines.push(`  native queue: error ${error instanceof Error ? error.message : 'unknown'}`);

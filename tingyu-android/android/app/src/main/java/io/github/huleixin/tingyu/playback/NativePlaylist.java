@@ -182,6 +182,12 @@ public final class NativePlaylist {
         }
     }
 
+    /** 取逻辑歌单里 songKey 对应的那一首，用于诊断说明"这首歌原本从哪个音源来"。 */
+    public Track trackFor(String songKey) {
+        int index = indexOf(songKey);
+        return index < 0 ? null : at(index);
+    }
+
     /** 找到 songKey 在逻辑歌单里的位置；不在列表里返回 -1。 */
     public int indexOf(String songKey) {
         if (songKey == null || songKey.isEmpty()) return -1;

@@ -94,6 +94,10 @@ dependencies {
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    // 洛雪音源脚本的原生执行引擎（QuickJS）。1.0.5 是与本项目 Kotlin 2.3 兼容的最后一版，
+    // 自带 arm64-v8a/armeabi-v7a/x86/x86_64，且 .so 已是 16KB 页对齐（Android 15+ 要求）。
+    implementation 'io.github.dokar3:quickjs-kt-android:1.0.5'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0'
     implementation 'androidx.media:media:1.7.0'
     implementation 'androidx.media3:media3-exoplayer:1.11.1'
     implementation 'androidx.media3:media3-datasource-okhttp:1.11.1'

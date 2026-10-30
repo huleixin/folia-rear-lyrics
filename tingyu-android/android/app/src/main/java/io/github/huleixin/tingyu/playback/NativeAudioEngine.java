@@ -223,6 +223,9 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                         .put("index",p.getCurrentMediaItemIndex()).put("items",p.getMediaItemCount())
                         .put("playWhenReady",p.getPlayWhenReady()).put("suppression",p.getPlaybackSuppressionReason())
                         .put("continues",supervision.continues()));
+                // 原生接管的那一首是否**真的播起来了**：解析成功 ≠ 播放成功。
+                // 这里记的是 Media3 自己的事实：进入 READY、以及播到结尾（位置等于时长）。
+                noteNativeContinuationProgress(p,drained);
                 // Decide before the state is published: a drained window with playlist left is a
                 // gap to bridge, not a finished session, and the session layer reports it as such.
                 if(drained||p.getPlaybackState()==Player.STATE_READY)superviseQueue(drained?"drained":"events");
@@ -590,6 +593,32 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     }
     private boolean needsClock(){return player.getPlayWhenReady()&&player.getPlaybackState()!=Player.STATE_ENDED&&player.getPlayerError()==null;}
     private void cancelFade(){fadeGeneration++;}
+    /**
+     * 原生接管链路的"真播放"证据。
+     *
+     * 解析拿到地址只是第一步；这一段回答的是后面三步：Media3 真的接纳了这个 MediaItem、
+     * 它真的进入了 STATE_READY、播放位置真的在推进（播完时位置等于时长）。
+     */
+    private void noteNativeContinuationProgress(Player p,boolean drained){
+        if(sourceId.isEmpty())return;
+        MediaItem item=p.getCurrentMediaItem();
+        if(item==null||item.localConfiguration==null||!(item.localConfiguration.tag instanceof JSObject))return;
+        JSObject tag=(JSObject)item.localConfiguration.tag;
+        if(!tag.optBoolean("nativeContinuation"))return;
+        String key=item.mediaId==null?songKey:item.mediaId;
+        long position=Math.max(0,p.getCurrentPosition());
+        long duration=p.getDuration();
+        if(p.getPlaybackState()==Player.STATE_READY){
+            PlaybackDiagnostics.note("continuation-ready",new JSObject()
+                .put("song",PlaybackDiagnostics.anonKey(key)).put("positionMs",position)
+                .put("durationMs",duration>0?duration:0));
+        }else if(drained){
+            PlaybackDiagnostics.note("continuation-completed",new JSObject()
+                .put("song",PlaybackDiagnostics.anonKey(key)).put("positionMs",position)
+                .put("durationMs",duration>0?duration:0));
+        }
+    }
+
     private void releaseHandoff(){if(handoffWake!=null&&handoffWake.isHeld())handoffWake.release();}
     private void transport(String action,boolean external){
         cancelFade();
@@ -600,7 +629,9 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             // 用户主动暂停/停止：作废在飞的原生解析，迟到的结果不许再往队列里塞。
             BackgroundContinuation.get().cancel();
         }
-        if(action.equals("stop")){player.pause();player.seekTo(0);emit("state",external);main.removeCallbacks(heartbeat);return;}
+        if(action.equals("stop")){player.pause();player.seekTo(0);emit("state",external);main.removeCallbacks(heartbeat);
+            // 用户主动停止：洛雪脚本引擎没有理由继续占着内存，脚本本身留着（下次播放再起）。
+            io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.release();return;}
         if(action.equals("play")){if(player.getPlaybackState()==Player.STATE_IDLE&&player.getCurrentMediaItem()!=null){failure=null;networkRetries=0;player.prepare();}
             boolean fadeIn=fade&&!player.isPlaying();player.setVolume(fadeIn?0:volume);player.play();emit("state",external);
             // Pressing play on a drained window is an explicit "I still want music": re-arm the
@@ -671,6 +702,25 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         }catch(Exception ignored){}
         // 解析器只暴露"能不能"，绝不暴露地址与凭据。
         value.put("resolvers",io.github.huleixin.tingyu.resolver.ResolverRegistry.get().describe());
+        // 音源兼容性：当前这首歌"原本从哪来 / 原生用哪个解析器 / 洛雪引擎跑到哪一步"。
+        // 这一段是判定"本轮到底有没有覆盖用户故障链路"的唯一依据。
+        try{
+            io.github.huleixin.tingyu.playback.NativePlaylist.Track current=
+                io.github.huleixin.tingyu.playback.NativePlaylist.get().trackFor(songKey);
+            if(current!=null){
+                String provider=current.providerId==null?"":current.providerId;
+                io.github.huleixin.tingyu.resolver.SourceResolver chosen=
+                    io.github.huleixin.tingyu.resolver.ResolverRegistry.get().forProvider(provider);
+                value.put("songSourceType",provider)
+                    .put("songLxSource",String.valueOf(io.github.huleixin.tingyu.lx.LxPlatform.INSTANCE.sourceFor(provider)))
+                    .put("songResolver",chosen==null?"none":chosen.id());
+            }
+        }catch(Exception ignored){}
+        try{
+            org.json.JSONObject lx=io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.snapshot();
+            java.util.Iterator<String> keys=lx.keys();
+            while(keys.hasNext()){String key=keys.next();value.put("lx"+Character.toUpperCase(key.charAt(0))+key.substring(1),lx.opt(key));}
+        }catch(Exception ignored){}
     }
     private void emit(String type,boolean external){
         // The system session must follow Media3 even with no plugin listener or a sleeping WebView.
@@ -702,5 +752,6 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         value.put("spectrum",array);listener.accept(value);
     });}
     private void release(){PlaybackDiagnostics.note("engine-release",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
-            .put("positionMs",Math.max(0,player.getCurrentPosition())));releaseHandoff();cancelFade();main.removeCallbacksAndMessages(null);sourceId="";listener=null;PlaybackLifecycle.noteBridge(false);player.release();spectrum.close();}
+            .put("positionMs",Math.max(0,player.getCurrentPosition())));releaseHandoff();cancelFade();main.removeCallbacksAndMessages(null);sourceId="";listener=null;PlaybackLifecycle.noteBridge(false);player.release();spectrum.close();
+            io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.release();}
 }

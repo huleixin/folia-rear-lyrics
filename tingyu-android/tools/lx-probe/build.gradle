@@ -1,0 +1,38 @@
+// 洛雪音源原生引擎的**真实**集成探针。
+//
+// 这不是单元测试：它用的是与 APK 完全相同的引擎源码（../android/.../lx），
+// 只是把 QuickJS 换成 JVM 变体，在真实网络下跑真实的用户脚本。
+// 目的只有一个：证明"原生侧能在没有 WebView 的情况下拿到可播放地址"，
+// 而不是证明某个 mock 返回了字符串。
+
+plugins {
+    id 'org.jetbrains.kotlin.jvm' version '2.3.10'
+}
+
+repositories {
+    mavenCentral()
+}
+
+sourceSets {
+    main {
+        kotlin {
+            srcDirs = ['src/main/kotlin', '../../android/app/src/main/java/io/github/huleixin/tingyu/lx']
+            exclude 'LxRuntimeHost.kt'
+        }
+    }
+}
+
+dependencies {
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'org.json:json:20250517'
+    implementation 'io.github.dokar3:quickjs-kt-jvm:1.0.5'
+}
+
+tasks.register('probe', JavaExec) {
+    group = 'verification'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.github.huleixin.tingyu.probe.LxProbeKt'
+    // 用法：./gradlew probe --args="<脚本路径> <songmid1> <songmid2> ..."
+    standardInput = System.in
+}

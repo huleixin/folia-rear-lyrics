@@ -47,6 +47,7 @@ public final class TingyuPlaybackPlugin extends Plugin {
                 .put("critical",PlaybackDiagnostics.snapshotCritical())
                 .put("routine",PlaybackDiagnostics.snapshotRoutine())
                 .put("lifecycle",PlaybackLifecycle.snapshot())
+                .put("lxSource",io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.snapshot())
                 .put("epoch",PlaybackDiagnostics.epoch()));
         }
         catch(Exception error){call.reject("读取播放诊断失败："+error.getClass().getSimpleName());}
@@ -126,6 +127,40 @@ public final class TingyuPlaybackPlugin extends Plugin {
         }
         catch(Exception error){call.reject("配置解析器凭据失败："+error.getClass().getSimpleName());}
     }
+    /**
+     * 阶段 B（洛雪）：把用户启用的音源脚本交给原生，**由播放进程持有**。
+     *
+     * 脚本落盘到 app 私有目录，进程被系统杀掉后重新起来也能自己把引擎拉起来 ——
+     * 后台取地址不再需要 WebView 先活过来。code 为空表示用户停用了脚本。
+     * 绝不记录脚本内容，只记名字与体积。
+     */
+    @PluginMethod public void setLxScript(PluginCall call){
+        if(!ENABLED){call.reject("原生播放通道暂未启用");return;}
+        try{
+            io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.attach(getContext().getApplicationContext());
+            org.json.JSONObject data=call.getData();
+            String code=data==null?"":String.valueOf(data.opt("code"));
+            boolean installed=io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.install(
+                data==null?"":String.valueOf(data.opt("id")),
+                data==null?"":String.valueOf(data.opt("name")),
+                data==null?"":String.valueOf(data.opt("version")),
+                data==null?"":String.valueOf(data.opt("description")),
+                data==null?"":String.valueOf(data.opt("author")),
+                data==null?"":String.valueOf(data.opt("homepage")),
+                "null".equals(code)?"":code);
+            call.resolve(new JSObject().put("installed",installed));
+        }
+        catch(Exception error){call.reject("安装音源脚本失败："+error.getClass().getSimpleName());}
+    }
+
+    /** 洛雪原生引擎的运行状态，进诊断报告。 */
+    @PluginMethod public void lxSourceStatus(PluginCall call){
+        try{
+            io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.attach(getContext().getApplicationContext());
+            call.resolve(new JSObject().put("engine",io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.snapshot()));
+        }catch(Exception error){call.reject("读取音源状态失败："+error.getClass().getSimpleName());}
+    }
+
     private static NativePlaylist.Mode parseMode(String value){
         if(value==null)return NativePlaylist.Mode.SEQUENCE;
         switch(value){
