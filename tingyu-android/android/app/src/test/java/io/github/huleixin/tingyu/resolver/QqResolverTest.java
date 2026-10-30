@@ -117,4 +117,90 @@ public class QqResolverTest {
         assertEquals("https://x/abc.mp3", QqResolver.parseBackendUrl(body, "abc"));
         assertEquals("https://x/other.mp3", QqResolver.parseBackendUrl(body, "missing"));
     }
+
+    // ------------------------------------------------------- 登录态 web 形态通道（本轮新增）
+
+    @Test
+    public void uinIsReadFromTheLoginCookieAndLosesItsOPrefix() {
+        assertEquals("1234567", QqResolver.uinFromCookie("uin=o1234567; qm_keyst=K1"));
+        assertEquals("1234567", QqResolver.uinFromCookie("uin=1234567"));
+        assertEquals("", QqResolver.uinFromCookie("uin="));
+        assertEquals("", QqResolver.uinFromCookie(""));
+    }
+
+    @Test
+    public void musicKeyPrefersQmKeystAndFallsBackToLegacyName() {
+        assertEquals("K1", QqResolver.musicKeyFromCookie("uin=1; qm_keyst=K1; QQMusic_key=K2"));
+        assertEquals("K2", QqResolver.musicKeyFromCookie("uin=1; QQMusic_key=K2"));
+        assertEquals("", QqResolver.musicKeyFromCookie("uin=1"));
+    }
+
+    @Test
+    public void loginContextRequiresBothUinAndPlaybackKey() {
+        QqResolver full = new QqResolver("", "", false, false, "uin=o1234567; qm_keyst=K1");
+        assertTrue(full.hasLoginContext());
+        assertTrue("有登录态就该宣称可解析", full.canAttempt());
+        QqResolver missingKey = new QqResolver("", "", false, false, "uin=o1234567");
+        assertFalse(missingKey.hasLoginContext());
+        assertFalse(missingKey.canAttempt());
+        QqResolver none = new QqResolver("", "", false, false, "");
+        assertFalse(none.hasLoginContext());
+    }
+
+    @Test
+    public void authedBodyMatchesTheForegroundWebShape() throws Exception {
+        String body = QqResolver.buildAuthedMusicuBody("0039MnYb0qxYhV", "0039MnYb", "g1", "1234567", "K1");
+        org.json.JSONObject root = new org.json.JSONObject(body);
+        org.json.JSONObject comm = root.getJSONObject("comm");
+        assertEquals("1234567", comm.getString("uin"));
+        assertEquals(19, comm.getInt("ct"));
+        assertEquals("yqq.json", comm.getString("platform"));
+        assertEquals("K1", comm.getString("authst"));
+        org.json.JSONObject req = root.getJSONObject("req_0");
+        assertEquals("vkey.GetVkeyServer", req.getString("module"));
+        assertEquals("CgiGetVkey", req.getString("method"));
+        org.json.JSONObject param = req.getJSONObject("param");
+        assertEquals("1234567", param.getString("uin"));
+        assertEquals(1, param.getInt("loginflag"));
+        assertEquals("20", param.getString("platform"));
+        // mediaMid 优先 + songmid 兜底 × 5 档音质模板 = 10 个 filename 候选。
+        org.json.JSONArray files = param.getJSONArray("filename");
+        assertEquals(10, files.length());
+        assertEquals("RS010039MnYb.flac", files.getString(0));
+        assertEquals("C4000039MnYb.m4a", files.getString(4));
+        assertEquals("RS010039MnYb0qxYhV.flac", files.getString(5));
+        // songmid 数组与 filename 数组等长（前台契约）。
+        assertEquals(files.length(), param.getJSONArray("songmid").length());
+    }
+
+    @Test
+    public void authedBodyWithoutMusicKeyOmitsAuthstAndUsesCt24() throws Exception {
+        String body = QqResolver.buildAuthedMusicuBody("0039MnYb0qxYhV", "", "g1", "1234567", "");
+        org.json.JSONObject comm = new org.json.JSONObject(body).getJSONObject("comm");
+        assertEquals(24, comm.getInt("ct"));
+        assertTrue(!comm.has("authst"));
+    }
+
+    @Test
+    public void authedResponseParserScansAllRowsForAPurl() {
+        String body = "{\"req_0\":{\"code\":0,\"data\":{"
+            + "\"sip\":[\"https://ws.stream.qqmusic.qq.com/\"],"
+            + "\"midurlinfo\":["
+            + "{\"filename\":\"RS01x.flac\",\"purl\":\"\"},"
+            + "{\"filename\":\"M800x.mp3\",\"purl\":\"D060.mp3?fromtag=0\"}"
+            + "]}}}";
+        String[] parsed = QqResolver.parseAuthedMusicu(body);
+        assertEquals("https://ws.stream.qqmusic.qq.com/D060.mp3?fromtag=0", parsed[0]);
+        assertEquals("M800x.mp3", parsed[1]);
+    }
+
+    @Test
+    public void authedResponseWithoutPurlIsEmptyNotFake() {
+        String body = "{\"req_0\":{\"code\":0,\"data\":{\"sip\":[\"https://s/\"],"
+            + "\"midurlinfo\":[{\"filename\":\"M500x.mp3\",\"purl\":\"\"}]}}}";
+        assertEquals("", QqResolver.parseAuthedMusicu(body)[0]);
+        assertEquals("", QqResolver.parseAuthedMusicu("")[0]);
+        assertEquals("", QqResolver.parseAuthedMusicu(null)[0]);
+        assertEquals("", QqResolver.parseAuthedMusicu("not json")[0]);
+    }
 }

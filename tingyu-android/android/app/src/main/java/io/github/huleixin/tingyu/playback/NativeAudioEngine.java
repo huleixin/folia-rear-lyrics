@@ -391,7 +391,40 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 return new JSObject().put("accepted",true).put("state",snapshot("queue-transition",true));
             }
             PlaybackTestDiagnostics.note("prepare",new JSObject().put("scheme",uri.getScheme()).put("host",uri.getHost()));
-            sourceId="";songKey=value.optString("songKey");endedHandoff=false;sequence=seq;failure=null;networkRetries=0;retryGeneration++;desiredPaused=true;cancelFade();player.pause();
+            String wantKey=value.optString("songKey");
+            String haveKey=active!=null&&active.localConfiguration!=null?active.mediaId:"";
+            String haveUri=active!=null&&active.localConfiguration!=null?active.localConfiguration.uri.toString():"";
+            PrepareGuard.Action guard=PrepareGuard.decide(haveKey,haveUri,wantKey,url);
+            PlaybackDiagnostics.note("prepare-guard",new JSObject()
+                .put("action",guard.name().toLowerCase(java.util.Locale.US))
+                .put("song",PlaybackDiagnostics.anonKey(wantKey))
+                .put("itemsBefore",player.getMediaItemCount())
+                .put("index",player.getCurrentMediaItemIndex()));
+            if(guard==PrepareGuard.Action.KEEP_WINDOW){
+                // 同曲同址的重复 prepare：Media3 的 setMediaItem 会清空整个播放列表，
+                // 这里绝不能跟着走。窗口、位置、continuation-adopt 的下一首全部保留，
+                // 只把这次 JS 会话重新挂回引擎。
+                sourceId=id;sequence=seq;failure=null;errorSkips=0;desiredPaused=false;
+                emit("load",false);
+                PlaybackDiagnostics.note("prepare-kept-window",new JSObject()
+                    .put("items",player.getMediaItemCount())
+                    .put("remaining",Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1)));
+                return new JSObject().put("accepted",true);
+            }
+            if(guard==PrepareGuard.Action.REPLACE_CURRENT){
+                // 同一首歌、地址刷新了：只换当前项的地址，队列其余部分与已入队的下一首保留。
+                configure(value);
+                MediaItem refreshed=new MediaItem.Builder().setUri(uri).setMediaId(wantKey).setTag(copy(value)).build();
+                sourceId=id;sequence=seq;failure=null;networkRetries=0;errorSkips=0;desiredPaused=false;
+                player.replaceMediaItem(Math.max(0,player.getCurrentMediaItemIndex()),refreshed);
+                player.prepare();player.play();
+                scheduleSongInfo(player.getCurrentMediaItem());emit("load",false);
+                PlaybackDiagnostics.note("prepare-replaced-current",new JSObject()
+                    .put("items",player.getMediaItemCount())
+                    .put("remaining",Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1)));
+                return new JSObject().put("accepted",true);
+            }
+            sourceId="";songKey=wantKey;endedHandoff=false;sequence=seq;failure=null;networkRetries=0;retryGeneration++;desiredPaused=true;cancelFade();player.pause();
         BackgroundContinuation.get().cancel();
             // A new source starts a new continuation story; the window command that follows
             // re-declares it. The generation is never invented here - JS owns that counter.

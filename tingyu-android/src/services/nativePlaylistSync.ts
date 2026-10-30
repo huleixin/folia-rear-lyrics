@@ -205,24 +205,32 @@ export const syncNativePlaylistMode = async (loop: 'off' | 'all' | 'one', shuffl
 };
 
 /**
- * 把原生解析需要的后端地址与会话交给原生。
+ * 把原生解析需要的凭据交给原生：自建后端地址（用户配置）+ QQ 音乐登录 Cookie
+ * （y.qq.com 扫码登录后 WebView 里已有的 uin/qm_keyst）。
  *
- * 只传用户在设置里填的东西；`extension`（浏览器扩展桥）在原生侧无法使用，直接不传，
- * 原生会退回匿名直连通道。绝不传任何硬编码凭据。
+ * 登录态是后台 QQ 原版续播的钥匙：前台 `handleQQSongUrl` 的 web 形态 musicu 靠它拿到
+ * purl，原生 QqResolver 的同名通道逐字段复刻了这个请求。Cookie 只进原生内存，
+ * 不落盘、不进日志；没有登录态时就不传，原生 `canAttempt` 会如实报"无法解析"，
+ * 绝不退回已被证伪的匿名通道假装成功。
  */
 export const syncResolverCredentials = async (): Promise<void> => {
-    // 只取用户自己配置的真实 http(s) 后端。`extension`（浏览器扩展桥）与相对路径在原生侧
-    // 都没有意义，这里直接不传，原生会走匿名直连通道 —— 不是"配了但用不了"。
     const { base, cookie } = readQqNativeResolverConfig();
-    if (!base) return;
+    let loginCookie = '';
+    try {
+        const { getQQCookie } = await import('../nativeBridge/api/cookies.js');
+        loginCookie = await getQQCookie();
+    } catch {
+        // 拿不到登录态（未登录/非登录场景）就不传：原生会明确报告缺少凭据。
+    }
+    if (!base && !loginCookie) return;
     try {
         const native = getTingyuPlayback<TingyuPlaybackNative>();
         await native.setResolverCredentials({
             providerId: 'qq',
-            values: { base, cookie, cookieAsHeader: 'false' },
+            values: { base, cookie, cookieAsHeader: 'false', loginCookie },
         });
     } catch {
-        // 同上。
+        // 同上：增强，不是关键路径。
     }
 };
 

@@ -41,6 +41,10 @@ public final class QqResolver implements SourceResolver {
     public static final String MUSICU_URL = "https://u.y.qq.com/cgi-bin/musicu.fcg?format=json";
     static final String MUSICU_USER_AGENT = "okhttp/3.14.9";
     static final String MUSICU_COOKIE = "tmeLoginType=-1;";
+    /** 前台已验证可用的 web 形态请求头：不带这些，登录态 vkey 会被拒。 */
+    static final String WEB_USER_AGENT =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+    static final String WEB_REFERER = "https://y.qq.com/";
     /** 匿名网关给不出高音质时，把 purl 拼到这个 CDN 前缀上。 */
     static final String DEFAULT_SIP = "https://isure.stream.qqmusic.qq.com/";
 
@@ -57,6 +61,8 @@ public final class QqResolver implements SourceResolver {
     private final String backendBase;
     private final String backendCookie;
     private final boolean cookieAsHeader;
+    /** QQ 音乐登录 Cookie（含 uin + qm_keyst）。只存内存，绝不落盘、不进日志。 */
+    private final String loginCookie;
     /**
      * 是否还允许匿名 musicu 直连。
      *
@@ -71,10 +77,16 @@ public final class QqResolver implements SourceResolver {
     }
 
     public QqResolver(String backendBase, String backendCookie, boolean cookieAsHeader, boolean allowAnonymous) {
+        this(backendBase, backendCookie, cookieAsHeader, allowAnonymous, "");
+    }
+
+    public QqResolver(String backendBase, String backendCookie, boolean cookieAsHeader, boolean allowAnonymous,
+                      String loginCookie) {
         this.backendBase = backendBase == null ? "" : backendBase.trim();
         this.backendCookie = backendCookie == null ? "" : backendCookie;
         this.cookieAsHeader = cookieAsHeader;
         this.allowAnonymous = allowAnonymous;
+        this.loginCookie = loginCookie == null ? "" : loginCookie;
     }
 
     /** 从内存凭据构造。`extension` 与相对路径都不算可用后端；匿名直连一律关闭。 */
@@ -83,7 +95,8 @@ public final class QqResolver implements SourceResolver {
         if (!isUsableBackendBase(base)) base = "";
         return new QqResolver(base,
             ResolverCredentials.value("qq", "cookie"),
-            Boolean.parseBoolean(ResolverCredentials.value("qq", "cookieAsHeader")), false);
+            Boolean.parseBoolean(ResolverCredentials.value("qq", "cookieAsHeader")), false,
+            ResolverCredentials.value("qq", "loginCookie"));
     }
 
     // ---------------------------------------------------------------- 匿名 musicu 熔断
@@ -110,11 +123,163 @@ public final class QqResolver implements SourceResolver {
     }
 
     /**
-     * 这条链路现在值不值得试。**只有用户自己的后端算数**：匿名 musicu 已被证实取不到地址，
-     * 让它撑着"能试"的判定，只会把后台续播带到注定失败的那条路上。
+     * 这条链路现在值不值得试：自建后端可用，或带着已验证的登录态走 web 形态 musicu。
+     * 匿名 musicu 已被证实取不到地址，不让它撑着"能试"的判定。
      */
     public boolean canAttempt() {
-        return backendUsable();
+        return backendUsable() || hasLoginContext();
+    }
+
+    // ---------------------------------------------------------------- 登录态 web 形态通道
+    //
+    // 前台 QQ 原版成功的链路（nativeBridge/api/qq.js handleQQSongUrl）逐字段移植：
+    // POST u.y.qq.com/cgi-bin/musicu.fcg，comm.uin/authst=登录票据、platform=yqq.json、
+    // filename 候选全量一次带上，Referer/浏览器 UA/Cookie 一个不能少。
+    // 匿名失败是因为缺这些，不是 musicu 协议本身不可用。
+
+    /** 是否具备登录态上下文：cookie 里有 uin 和播放票据（qm_keyst / QQMusic_key）。 */
+    public boolean hasLoginContext() {
+        return !uinFromCookie(loginCookie).isEmpty() && !musicKeyFromCookie(loginCookie).isEmpty();
+    }
+
+    /** 从 cookie 里取 uin（QQ 的 uin 可能带 o 前缀，统一剥掉）。纯函数。 */
+    static String uinFromCookie(String cookie) {
+        String raw = cookieValue(cookie, "uin");
+        if (raw.startsWith("o")) raw = raw.substring(1);
+        return raw.matches("\\d+") ? raw : "";
+    }
+
+    /** 播放票据：qm_keyst（新）或 QQMusic_key（旧）。纯函数。 */
+    static String musicKeyFromCookie(String cookie) {
+        String key = cookieValue(cookie, "qm_keyst");
+        return key.isEmpty() ? cookieValue(cookie, "QQMusic_key") : key;
+    }
+
+    static String cookieValue(String cookie, String name) {
+        if (cookie == null) return "";
+        for (String entry : cookie.split(";")) {
+            int separator = entry.indexOf('=');
+            if (separator <= 0) continue;
+            if (entry.substring(0, separator).trim().equals(name)) return entry.substring(separator + 1).trim();
+        }
+        return "";
+    }
+
+    /** 前台 `QQ_QUALITY_CANDIDATE_TEMPLATES` 的原生镜像（顺序一致）。 */
+    static final String[][] FILE_TEMPLATES = {
+        { "RS01", ".flac" }, { "F000", ".flac" }, { "M800", ".mp3" }, { "M500", ".mp3" }, { "C400", ".m4a" },
+    };
+
+    /** filename 候选：mediaMid 优先、songmid 兜底，各乘一遍音质模板。纯函数。 */
+    static String[] authedFilenameCandidates(String mediaMid, String songmid) {
+        java.util.ArrayList<String> ids = new java.util.ArrayList<>();
+        if (mediaMid != null && !mediaMid.isEmpty()) ids.add(mediaMid);
+        if (songmid != null && !songmid.isEmpty() && !ids.contains(songmid)) ids.add(songmid);
+        java.util.ArrayList<String> names = new java.util.ArrayList<>();
+        for (String id : ids) for (String[] tpl : FILE_TEMPLATES) names.add(tpl[0] + id + tpl[1]);
+        return names.toArray(new String[0]);
+    }
+
+    /** 前台 web 形态的 CgiGetVkey 请求体。纯函数，字段与 handleQQSongUrl 一一对应。 */
+    public static String buildAuthedMusicuBody(String songmid, String mediaMid, String guid,
+                                               String uin, String musicKey) {
+        try {
+            String[] filenames = authedFilenameCandidates(mediaMid, songmid);
+            org.json.JSONArray songmids = new org.json.JSONArray();
+            org.json.JSONArray types = new org.json.JSONArray();
+            org.json.JSONArray files = new org.json.JSONArray();
+            for (int i = 0; i < filenames.length; i++) {
+                songmids.put(songmid); types.put(0); files.put(filenames[i]);
+            }
+            if (filenames.length == 0) { songmids.put(songmid); types.put(0); }
+            org.json.JSONObject param = new org.json.JSONObject()
+                .put("guid", guid)
+                .put("songmid", songmids)
+                .put("songtype", types)
+                .put("uin", uin)
+                .put("loginflag", 1)
+                .put("platform", "20");
+            if (files.length() > 0) param.put("filename", files);
+            org.json.JSONObject comm = new org.json.JSONObject()
+                .put("uin", uin)
+                .put("format", "json")
+                .put("ct", musicKey.isEmpty() ? 24 : 19)
+                .put("cv", 0)
+                .put("platform", "yqq.json");
+            if (!musicKey.isEmpty()) comm.put("authst", musicKey);
+            org.json.JSONObject req = new org.json.JSONObject()
+                .put("module", "vkey.GetVkeyServer")
+                .put("method", "CgiGetVkey")
+                .put("param", param);
+            return new org.json.JSONObject().put("comm", comm).put("req_0", req).toString();
+        } catch (Exception error) {
+            return "";
+        }
+    }
+
+    /**
+     * 扫描登录态响应的全部 midurlinfo 行，取第一个非空 purl。
+     * 与前台 `rows.find(item => item.purl)` 同规则；filename 用于回读音质档。
+     * 返回 [url, filename]；取不到时 url 为空串。纯函数。
+     */
+    static String[] parseAuthedMusicu(String body) {
+        if (body == null || body.isEmpty()) return new String[] { "", "" };
+        try {
+            org.json.JSONObject root = new org.json.JSONObject(body);
+            org.json.JSONObject node = root.optJSONObject("req_0");
+            if (node == null) return new String[] { "", "" };
+            org.json.JSONObject data = node.optJSONObject("data");
+            if (data == null) return new String[] { "", "" };
+            org.json.JSONArray infos = data.optJSONArray("midurlinfo");
+            if (infos == null) return new String[] { "", "" };
+            String sip = "";
+            org.json.JSONArray sips = data.optJSONArray("sip");
+            if (sips != null && sips.length() > 0) {
+                String first = sips.optString(0, "");
+                if (!first.isEmpty()) sip = first.endsWith("/") ? first : first + "/";
+            }
+            if (sip.isEmpty()) sip = DEFAULT_SIP;
+            for (int i = 0; i < infos.length(); i++) {
+                org.json.JSONObject info = infos.optJSONObject(i);
+                if (info == null) continue;
+                String purl = info.optString("purl", "");
+                if (!purl.isEmpty()) return new String[] { sip + purl, info.optString("filename", "") };
+            }
+            return new String[] { "", "" };
+        } catch (Exception error) {
+            return new String[] { "", "" };
+        }
+    }
+
+    /** 登录态通道：一次请求带全部 filename 候选，返回可播放地址或失败原因。 */
+    private SourceResolution viaAuthedMusicu(String songmid, String mediaMid) {
+        String uin = uinFromCookie(loginCookie);
+        String musicKey = musicKeyFromCookie(loginCookie);
+        String payload = buildAuthedMusicuBody(songmid, mediaMid, randomGuid(), uin, musicKey);
+        if (payload.isEmpty()) return SourceResolution.failure("failed to build authed musicu body");
+        Request request = new Request.Builder()
+            .url(MUSICU_URL)
+            .addHeader("Content-Type", "application/json;charset=UTF-8")
+            .addHeader("Referer", WEB_REFERER)
+            .addHeader("User-Agent", WEB_USER_AGENT)
+            .addHeader("Cookie", loginCookie)
+            .post(RequestBody.create(payload, MediaType.get("application/json; charset=utf-8")))
+            .build();
+        try (Response response = CLIENT.newCall(request).execute()) {
+            int status = response.code();
+            if (status == 401 || status == 403) {
+                return SourceResolution.failure("authed musicu rejected the session (HTTP " + status + ")");
+            }
+            if (status < 200 || status >= 300) return SourceResolution.failure("authed musicu HTTP " + status);
+            String body = response.body() == null ? "" : response.body().string();
+            String[] parsed = parseAuthedMusicu(body);
+            if (!isPlayable(parsed[0])) {
+                return SourceResolution.failure("authed musicu returned no purl (login may be expired)");
+            }
+            return SourceResolution.ok(parsed[0], parsed[1], System.currentTimeMillis());
+        } catch (IOException error) {
+            return SourceResolution.failure("authed musicu unreachable: " + error.getClass().getSimpleName());
+        }
     }
 
     /** 测试用：极少数自测需要保留匿名通道时可以显式打开。 */
@@ -310,6 +475,11 @@ public final class QqResolver implements SourceResolver {
                 SourceResolution resolved = viaBackend(songmid, mediaMid, apiQuality);
                 if (resolved.ok()) return resolved;
             }
+        }
+        // 登录态 web 形态：与前台 handleQQSongUrl 成功链路同构。有 uin + 播放票据才走；
+        // 取不到会如实说"登录可能过期"，绝不回落到注定空的匿名通道假装成功。
+        if (hasLoginContext()) {
+            return viaAuthedMusicu(songmid, mediaMid);
         }
         // 匿名直连通道默认关闭：实测 purl 恒空 / result=104003，开了只能制造"解析过了"的假象。
         if (!allowAnonymous) {
