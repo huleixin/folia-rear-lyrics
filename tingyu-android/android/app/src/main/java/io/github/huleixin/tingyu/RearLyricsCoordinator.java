@@ -56,6 +56,13 @@ final class RearLyricsCoordinator {
     private long lastReadableAt, planAttemptGeneration, nextPlanWakeAt;
     private boolean planRestoring, reuseBroken, dismissed;
     private int hardYieldTries;
+    /**
+     * Shizuku backend only. Under LSP the module keeps the rear panel awake through its own
+     * shouldSleep hook, so nothing here runs. Without that hook HyperOS powers the rear panel
+     * down on lock and a single failed {@code input keyevent} used to end every recovery attempt
+     * for the whole session: the window was still attached, the panel was simply dark.
+     */
+    private final RearLockWakeBudget lockBudget = new RearLockWakeBudget();
 
     private volatile boolean coverSleepEnabled, sleeping, powerBusy, sleepUnsupported;
     private boolean physicalCover, preservedSleepSession;
@@ -640,9 +647,11 @@ final class RearLyricsCoordinator {
             wakeMissingRear(now);
             schedule(2000); return;
         }
-        if (!pending && !waking && !wakeTried && now >= nextAttempt && shell != null && shell.isBinderAlive()
+        if (!pending && !waking && (!wakeTried || lockBudget.take())
+                && now >= nextAttempt && shell != null && shell.isBinderAlive()
                 && RearLyricsActivity.isEnabled() && RearLyricsLauncher.displayState(context, display) != Display.STATE_ON) {
             waking = true; wakeTried = true; nextAttempt = now + 4000;
+            if (lockBudget.candidate()) probeLock("wake" + lockBudget.wakes());
             RearLyricsLauncher.wake(context, shell, display, () -> main.post(() -> { waking = false; schedule(700); }));
         } else if (RearLyricsPolicy.shouldAttempt(enabled, playing, manual, RearLyricsState.hasConfig(),
                 visible && RearLyricsLauncher.displayState(context, display) == Display.STATE_ON,
@@ -829,6 +838,33 @@ final class RearLyricsCoordinator {
         return display >= 0 && !covered && RearLyricsActivity.isShowingOnDisplay(display)
             && RearLyricsLauncher.displayState(context, display) == Display.STATE_ON;
     }
+    /**
+     * One line that tells the four ways a rear window can "disappear" apart: the panel was
+     * physically switched off, the window was moved off the rear display, the window is there
+     * but stopped rendering, or something else (the OEM rear centre / a keyguard layer) is on top.
+     * They must never be answered with the same wake() patch.
+     */
+    private void probeLock(String tag) {
+        int display = findRearDisplayId(context);
+        int state = display >= 0 ? RearLyricsLauncher.displayState(context, display) : -1;
+        RearLyricsActivity.WindowState window = RearLyricsActivity.windowState();
+        String verdict;
+        if (display < 0) verdict = "rear-display-absent";
+        else if (state != Display.STATE_ON) verdict = "panel-off";
+        else if (window == null || window.displayId != display) verdict = "window-not-on-rear";
+        else if (!window.visible || !window.drawn) verdict = "window-not-rendering";
+        else verdict = "window-visible";
+        long now = SystemClock.elapsedRealtime();
+        RearLyricsTrace.record(context, "lock-probe", tag + ": " + verdict
+            + ", display=" + display + ", state=" + state + ", window=" + window
+            + ", front=" + frontTask
+            + ", backend=" + (LspRearBridge.selected(context) ? "lsp" : "shizuku")
+            + ", engine=" + RearPlanA.engine(context)
+            + ", sleeping=" + sleeping + ", covered=" + covered + ", coverSleep=" + coverSleepEnabled
+            + ", physicalCover=" + physicalCover + ", lock=" + lockBudget
+            + ", holding=" + lspHolding + ", lease=" + lspPowerDetail
+            + ", " + (planA() ? occupancy.describe(now) : rear.describe(now)));
+    }
     private void watchDisplays() {
         IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_OFF);
         filter.addAction(Intent.ACTION_SCREEN_ON); filter.addAction(Intent.ACTION_USER_PRESENT);
@@ -836,9 +872,22 @@ final class RearLyricsCoordinator {
             @Override public void onReceive(Context context, Intent intent) {
                 if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction()) && wanted() && !sleeping && !powerBusy) {
                     lockRecovery = true; nextAttempt = 0; wakeTried = false; nextHoldRefresh = 0;
+                    if (LspRearBridge.selected(context)) {
+                        // LSP keeps the panel awake through the module's own shouldSleep hook.
+                        lockBudget.lockStarted(true);
+                        probeLock("lsp");
+                    } else {
+                        // Shizuku has no such hook: HyperOS may power the rear panel down on lock.
+                        // Allow a bounded number of wake attempts for THIS lock instead of the
+                        // single one a failure used to consume for the rest of the session.
+                        lockBudget.lockStarted(false);
+                        probeLock("shizuku");
+                    }
                     // Renew the window/power lease immediately; normal heartbeats may be delayed
                     // while Android stops the main Activity during the lock transition.
                     syncLspPower();
+                } else if (!Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
+                    lockBudget.unlocked();
                 }
                 lastProbe = 0; RearLyricsTrace.record(context, "power-event", intent.getAction()); nudge();
             }
