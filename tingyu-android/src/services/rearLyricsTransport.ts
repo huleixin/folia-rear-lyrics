@@ -16,6 +16,12 @@ export const REAR_TRACE_PATH = '/__folia_rear/trace';
 export const NATIVE_STALE_MS = 2500;
 const NATIVE_LYRIC_RETRIES = 8;
 const NATIVE_LYRIC_RETRY_MS = 1500;
+// 快重试耗尽后的慢速恢复：真机 2026-10-31 里歌词在切歌 12 秒后才补到背屏（锁屏链路慢），
+// 旧实现 8 次×1.5s 用完就永远停在 loading。慢速档有界（4 次×5s），不做高频轮询，
+// 到顶就接受现实（留白），绝不无限等。
+const NATIVE_LYRIC_SLOW_RETRIES = 4;
+const NATIVE_LYRIC_SLOW_RETRY_MS = 5000;
+const NATIVE_LYRIC_MAX_ATTEMPTS = NATIVE_LYRIC_RETRIES + NATIVE_LYRIC_SLOW_RETRIES;
 
 export type RearNativeTrack = {
     songKey?: string;
@@ -41,6 +47,11 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         let lastConfig: ObsBrowserSourceConfig | null = null;
         let appliedEpoch = '';
         let lyricRetry = 0;
+        // 当前生效的原生轨与歌词链路状态：断连/恢复（refresh）时用于判断要不要续上
+        // 还没拿到的歌词 —— 只续有界的剩余次数，不重置计数、不轮询。
+        let activeTrack: RearNativeTrack | null = null;
+        let lyricAttempt = 0;
+        let lyricLines = 0;
         const inactive = () => sleeping || (typeof document !== 'undefined' && document.hidden);
         const abort = new AbortController();
         const synchronizer = createRearClockSynchronizer();
@@ -75,6 +86,8 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         const applyNativeTrack = (track: RearNativeTrack) => {
             const base = lastConfig;
             if (!base) return;
+            activeTrack = track;
+            lyricLines = 0;
             emitConfig({
                 ...base,
                 song: { id: track.songKey ?? '', name: track.title || base.song?.name || '' },
@@ -87,6 +100,10 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         };
         const loadNativeLyrics = async (track: RearNativeTrack, attempt: number) => {
             if (closed || appliedEpoch !== track.epoch) return;
+            lyricAttempt = attempt;
+            const positionMs = Math.round(track.positionMs ?? 0);
+            trace('lyric-request', `song=${track.songKey ?? ''} epoch=${track.epoch ?? ''}`
+                + ` attempt=${attempt} pos=${positionMs}`);
             let result: NativeLyricResult | null = null;
             try {
                 const response = await fetch(`${REAR_LYRICS_PATH}?key=${encodeURIComponent(track.songKey ?? '')}`
@@ -95,27 +112,36 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
             } catch { result = null; }
             if (closed || appliedEpoch !== track.epoch) return;
             const state = result?.state ?? 'loading';
+            const lineCount = state === 'ready' && Array.isArray(result?.lines) ? result!.lines!.length : 0;
+            trace('lyric-delivered', `song=${track.songKey ?? ''} epoch=${track.epoch ?? ''}`
+                + ` attempt=${attempt} state=${state} lines=${lineCount}`);
             if (state === 'stale') return;
-            if (state === 'loading' && attempt < NATIVE_LYRIC_RETRIES) {
-                // The native fetcher may still be downloading this track; poll it a bounded number
-                // of times instead of holding a line from the previous song on screen.
+            if (state === 'loading' && attempt < NATIVE_LYRIC_MAX_ATTEMPTS) {
+                // The native fetcher may still be downloading this track: poll a bounded number
+                // of times (fast first, then a slow recovery tier) instead of holding a line from
+                // the previous song on screen — and never forever.
                 if (!lyricRetry) lyricRetry = window.setTimeout(() => {
                     lyricRetry = 0; void loadNativeLyrics(track, attempt + 1);
-                }, NATIVE_LYRIC_RETRY_MS);
+                }, attempt < NATIVE_LYRIC_RETRIES ? NATIVE_LYRIC_RETRY_MS : NATIVE_LYRIC_SLOW_RETRY_MS);
                 return;
+            }
+            if (state === 'loading') {
+                trace('lyric-timeout', `song=${track.songKey ?? ''} epoch=${track.epoch ?? ''}`
+                    + ` attempts=${NATIVE_LYRIC_MAX_ATTEMPTS} pos=${positionMs}`);
             }
             const base = lastConfig;
             if (!base) return;
             emitConfig({
                 ...base,
                 lyrics: {
-                    lines: state === 'ready' && Array.isArray(result?.lines) ? result!.lines! : [],
+                    lines: lineCount > 0 ? result!.lines! : [],
                     title: track.title, artist: track.artist,
                 },
                 updatedAt: Date.now(),
             });
+            lyricLines = lineCount;
             trace('render', `song=${track.songKey ?? ''} epoch=${track.epoch ?? ''} state=${state}`
-                + ` lines=${state === 'ready' && Array.isArray(result?.lines) ? result!.lines!.length : 0}`);
+                + ` lines=${lineCount}`);
         };
         const accept = async (snapshot: RearStateSnapshot) => {
                 if (closed || inactive()) return;
@@ -221,7 +247,20 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         const refresh = () => {
             clearTimeout(timer);
             receiveCleanup?.(); receiveCleanup = undefined; pending = null;
-            if (!inactive()) start();
+            if (!inactive()) {
+                // 恢复（visibilitychange / power / 重连）时，如果这首歌的歌词一次都没到过
+                // 且重试预算还有剩，就从慢速档续上 —— 真机 2026-10-31：锁屏切歌后歌词
+                // 12 秒才补到，旧链路此时早已放弃，只能靠点亮主屏救回。
+                if (activeTrack && appliedEpoch === activeTrack.epoch && !lyricRetry
+                    && lyricLines === 0 && lyricAttempt < NATIVE_LYRIC_MAX_ATTEMPTS) {
+                    lyricRetry = window.setTimeout(() => {
+                        lyricRetry = 0;
+                        const track = activeTrack;
+                        if (track) void loadNativeLyrics(track, lyricAttempt + 1);
+                    }, NATIVE_LYRIC_SLOW_RETRY_MS);
+                }
+                start();
+            }
         };
         const power = (event: Event) => {
             sleeping = (event as CustomEvent<{ sleeping: boolean }>).detail?.sleeping === true;

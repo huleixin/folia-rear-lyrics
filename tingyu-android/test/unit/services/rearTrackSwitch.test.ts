@@ -116,3 +116,56 @@ it('reports every link of the identity chain once, so a stuck line is attributab
     expect(beacons.filter(beacon => beacon.includes('event=render'))).toHaveLength(1);
     stop();
 });
+
+it('keeps asking past the fast tier so a late lyric still reaches the rear screen', async () => {
+    vi.useFakeTimers();
+    // 真机 2026-10-31：歌词在切歌 ~12s 后才补到（锁屏链路慢）。旧实现 8 次×1.5s 用完就
+    // 永远 loading；新实现慢速档继续有界恢复。
+    const target = new EventTarget();
+    vi.stubGlobal('window', Object.assign(target, { setTimeout, clearTimeout }));
+    let lyricCalls = 0;
+    const fetcher = vi.fn(async (url: string) => {
+        if (!url.includes('/lyrics')) return { ok: true, json: async () => ({ revision: 3, config: baseConfig, clock: { currentTime: 1, duration: 100, playerState: 'PLAYING', playbackRate: 1, sentAtMs: Date.now() - 60_000 }, track: { songKey: 'k9', epoch: 'k9#1', title: 'Late', positionMs: 1_000, durationMs: 100_000, playing: true } }) };
+        lyricCalls += 1;
+        return lyricCalls <= 9
+            ? { ok: true, json: async () => ({ state: 'loading' }) }
+            : { ok: true, json: async () => ({ state: 'ready', lines: [{ fullText: 'late line', startTime: 1, endTime: 5, words: [] }] }) };
+    });
+    vi.stubGlobal('fetch', fetcher);
+    vi.stubGlobal('Image', function (this: unknown) { return { set src(_value: string) { } }; } as never);
+    const config = vi.fn();
+    const stop = createRearLyricsTransport(() => undefined, () => undefined, false)
+        .subscribe({ config, clock: vi.fn(), audio: vi.fn(), connected: vi.fn() });
+    // 快速档 8 次×1.5s + 慢速档第 2 次命中（2×5s）≈ 23s，全部用假时钟推进。
+    await vi.advanceTimersByTimeAsync(25_000);
+    const applied = config.mock.calls.filter(call => call[0].lyrics?.lines?.length === 1);
+    expect(applied.length).toBeGreaterThan(0);
+    expect(applied[applied.length - 1][0].lyrics.lines[0].fullText).toBe('late line');
+    expect(lyricCalls).toBeLessThanOrEqual(12);
+    stop();
+});
+
+it('a never-arriving lyric gives up bounded and never polls forever', async () => {
+    vi.useFakeTimers();
+    const target = new EventTarget();
+    vi.stubGlobal('window', Object.assign(target, { setTimeout, clearTimeout }));
+    let lyricCalls = 0;
+    const fetcher = vi.fn(async (url: string) => {
+        if (!url.includes('/lyrics')) return { ok: true, json: async () => ({ revision: 3, config: baseConfig, clock: { currentTime: 1, duration: 100, playerState: 'PLAYING', playbackRate: 1, sentAtMs: Date.now() - 60_000 }, track: { songKey: 'k10', epoch: 'k10#1', title: 'None', positionMs: 0, durationMs: 100_000, playing: true } }) };
+        lyricCalls += 1;
+        return { ok: true, json: async () => ({ state: 'loading' }) };
+    });
+    vi.stubGlobal('fetch', fetcher);
+    const beacons: string[] = [];
+    vi.stubGlobal('Image', function (this: unknown) { return { set src(value: string) { beacons.push(value); } }; } as never);
+    const stop = createRearLyricsTransport(() => undefined, () => undefined, false)
+        .subscribe({ config: vi.fn(), clock: vi.fn(), audio: vi.fn(), connected: vi.fn() });
+    await vi.advanceTimersByTimeAsync(120_000);
+    // 首次 + 8 次快 + 4 次慢 = 13 次封顶，之后一分钟内零请求。
+    expect(lyricCalls).toBe(13);
+    expect(beacons.join(' ')).toContain('event=lyric-timeout');
+    const after = lyricCalls;
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(lyricCalls).toBe(after);
+    stop();
+});

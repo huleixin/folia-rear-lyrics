@@ -1,6 +1,7 @@
 package io.github.huleixin.tingyu;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.json.JSONArray;
@@ -49,5 +50,48 @@ public class RearNativeLyricLinesTest {
         JSONArray lines = result.getJSONArray("lines");
         assertEquals(1, lines.length());
         assertEquals("real", lines.getJSONObject(0).getString("fullText"));
+    }
+
+    // ---- 真机 2026-10-31 07:33 回归：锁屏切歌后背屏 12 秒仍 loading ----
+    //
+    // Media3 已切到下一首、原生 lyric-session 已写入 timeline（ColorOsLyricBridge.timelines
+    // 里有这首歌），但旧实现只查 NativeLyricsRepository（LRCLIB 磁盘缓存），从不看 Bridge
+    // 里已经 ready 的那份 —— WebView 发布的词（QQ QRC，LRCLIB 上没有）永远到不了背屏，
+    // 直到主屏点亮才恢复。
+
+    @Test public void aBridgeTimelineBecomesRearRows() throws Exception {
+        String lyricInfo = new JSONObject()
+            .put("lyric", "[00:01.00]不爱我\n[00:05.50]就直说")
+            .put("translationLyric", "[00:01.00]If you don't love me")
+            .toString();
+        JSONObject result = new JSONObject(
+            RearNativeLyricLines.rowsFromLyricInfo(lyricInfo, "online:qq:0013KFa32c9lVn"));
+        assertEquals("ready", result.getString("state"));
+        JSONArray lines = result.getJSONArray("lines");
+        assertEquals(2, lines.length());
+        assertEquals("不爱我", lines.getJSONObject(0).getString("fullText"));
+        assertEquals("If you don't love me", lines.getJSONObject(0).getString("translation"));
+        assertEquals(1.0, lines.getJSONObject(0).getDouble("startTime"), 0.001);
+    }
+
+    @Test public void aBridgePayloadWithoutTranslationStillParses() throws Exception {
+        String lyricInfo = new JSONObject().put("lyric", "[00:02.00]没有翻译的一首").toString();
+        JSONObject result = new JSONObject(RearNativeLyricLines.rowsFromLyricInfo(lyricInfo, "k"));
+        assertEquals("ready", result.getString("state"));
+        assertTrue(!result.getJSONArray("lines").getJSONObject(0).has("translation"));
+    }
+
+    @Test public void anEmptyOrNullBridgePayloadMeansStillWaitingNotNoLyrics() throws Exception {
+        // null/空串/坏 JSON = 桥上也没有：端点继续回 loading（词可能马上到），不能假扮无词。
+        assertNull(RearNativeLyricLines.rowsFromLyricInfo(null, "k"));
+        assertNull(RearNativeLyricLines.rowsFromLyricInfo("", "k"));
+        assertNull(RearNativeLyricLines.rowsFromLyricInfo("not json", "k"));
+        // 空时间轴且明确 noLyric 标记 = 确认无词：state=none（与 metadataLyricInfoFor 的写法一致）。
+        String none = RearNativeLyricLines.rowsFromLyricInfo(
+            new JSONObject().put("lyric", "").put("noLyric", true).toString(), "k");
+        assertEquals("none", new JSONObject(none).optString("state"));
+        // 空时间轴但没有 noLyric 标记 = 还没拿到：继续等待。
+        assertNull(RearNativeLyricLines.rowsFromLyricInfo(
+            new JSONObject().put("lyric", "").toString(), "k"));
     }
 }
