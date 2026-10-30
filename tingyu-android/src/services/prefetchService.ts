@@ -411,6 +411,16 @@ const prefetchSong = async (
 
     prefetchCache.set(songKey, data);
 
+    // 歌词刚刚到手这件事必须广播出去。
+    //
+    // 锁屏连播时「原生预置歌词」与这里是一条并行的两段式异步：换歌那一刻预置先跑，
+    // 而这一首的歌词还在网络上，于是预置只能跳过它；等这里拿到词时，没有任何东西会再
+    // 通知原生一次 —— 第二首就整场空着，直到用户打开 App。这条通知就是那个缺失的出口：
+    // 原生缓存里还没有这一首时，监听方（nativeLyricPriming）会立刻把它补进去。
+    if (data.lyrics?.lines?.length && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('tingyu-lyrics-prefetched', { detail: { song } }));
+    }
+
     // Measured here because this is where the bytes are cheapest: the track is about to be cached
     // anyway, so with song caching on it is one download feeding both the cache and the analysis,
     // and with it off nothing is fetched at all.

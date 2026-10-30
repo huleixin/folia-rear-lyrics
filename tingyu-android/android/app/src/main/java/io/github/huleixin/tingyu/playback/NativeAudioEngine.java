@@ -150,6 +150,30 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     private int jsCommands=0;
     private long jsSilentAtAsk=-1L;
     private final Runnable superviseTick=new Runnable(){public void run(){superviseQueue("tick");}};
+    // ---- 后台补词的有界重问 ----
+    // 只在这首歌仍然是当前曲、且原生缓存里仍然没有它的时间轴时才再问一次；换歌/暂停即取消。
+    // 两次（3s / 12s）足够覆盖「监听器正在重挂」和「联网取词慢」两种情况，也不构成重试风暴。
+    private static final long[] LYRIC_RETRY_MS=LyricRetryPolicy.RETRY_DELAYS_MS;
+    private int lyricRetryAttempt=0;
+    private String lyricRetrySongKey="";
+    private final Runnable lyricRetryTick=new Runnable(){public void run(){
+        if(!LyricRetryPolicy.shouldAsk(lyricRetrySongKey,songKey,
+            io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.stateOf(songKey),lyricRetryAttempt))return;
+        PlaybackDiagnostics.note("lyric-request",new JSObject()
+            .put("song",PlaybackDiagnostics.anonKey(songKey)).put("state","pending")
+            .put("retry",lyricRetryAttempt+1)
+            .put("jsSilentMs",lastJsCommandAt==0L?-1L:SystemClock.elapsedRealtime()-lastJsCommandAt));
+        emit("lyric-request",false);
+        lyricRetryAttempt++;
+        long next=LyricRetryPolicy.delayFor(lyricRetryAttempt);
+        if(next>0L)main.postDelayed(this,next);
+    }};
+    private void scheduleLyricRetry(String key){
+        main.removeCallbacks(lyricRetryTick);
+        lyricRetrySongKey=key==null?"":key;
+        lyricRetryAttempt=0;
+        if(!lyricRetrySongKey.isEmpty())main.postDelayed(lyricRetryTick,LYRIC_RETRY_MS[0]);
+    }
 
     private final Runnable heartbeat=new Runnable(){public void run(){if(!sourceId.isEmpty()){emit("clock",false);if(needsClock())main.postDelayed(this,1000);}}};
     private NativeAudioEngine(Context context){
@@ -217,6 +241,12 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                         .put("state","pending").put("index",player.getCurrentMediaItemIndex())
                         .put("jsSilentMs",lastJsCommandAt==0L?-1L:SystemClock.elapsedRealtime()-lastJsCommandAt));
                     emit("lyric-request",false);
+                    // 一次询问可能落空（监听器正好在重挂、或 JS 正在重载），也可能这首歌的
+                    // 词本来就要联网取几十秒。有界地再问一两次，换歌即取消 —— 不重试的话，
+                    // 第一次没答上就等于整首没词，只能等用户打开 App。
+                    scheduleLyricRetry(songKey);
+                }else{
+                    main.removeCallbacks(lyricRetryTick);
                 }
                 PlaybackDiagnostics.note("queue-transition",new JSObject().put("reason",reason)
                     .put("song",PlaybackDiagnostics.anonKey(songKey)).put("index",player.getCurrentMediaItemIndex())

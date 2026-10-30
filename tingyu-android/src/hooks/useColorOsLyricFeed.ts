@@ -6,8 +6,7 @@ import {
 } from '../platform/foliaColorOsLyrics';
 import { isCapacitorAndroid } from '../platform/runtime';
 import { getSongAlbumLabel, getSongArtistLabel } from '../services/onlineMusic/songMetadata';
-import { getSongCacheWithLegacyMigration } from '../services/onlineMusic/resourceCache';
-import { migrateLyricDataRenderHints } from '../utils/lyrics/renderHints';
+import { ensureNativeLyric, installNativeLyricPrimer } from '../services/nativeLyricPriming';
 import { nextColorOsGeneration } from '../services/lyricSessionGeneration';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
 import type { SongResult } from '../types';
@@ -60,6 +59,13 @@ export const useColorOsLyricFeed = ({
         };
     }, [enabled]);
 
+    // 预取完成的通知出口：预置与预取是两条并行链，谁先完成都有可能。预取这一侧完成时
+    // 主动把「队列窗口里还没词的那一首」补进原生缓存 —— 这就是第二首没词的修复点。
+    React.useEffect(() => {
+        if (!enabled) return;
+        return installNativeLyricPrimer();
+    }, [enabled]);
+
     const active = enabled && supported;
     const songKey = song ? getPlaybackSongKey(song) : null;
     const hasLines = Boolean(lyrics?.lines?.length);
@@ -81,28 +87,16 @@ export const useColorOsLyricFeed = ({
      * 只读本地持久缓存（IndexedDB / 预取内存），**不联网**：这条路径的语义是「把已经有的
      * 时间轴补过去」，不是重新跑一遍取词。拿不到就什么都不做 —— 留白比写一个错的强。
      */
-    const publishCachedLyricFor = async (key: string): Promise<void> => {
+    const answerFor = async (key: string, allowFetch: boolean): Promise<void> => {
         const queue = usePlaybackStore.getState().playQueue ?? [];
-        const target = queue.find(item => getPlaybackSongKey(item) === key);
+        // 界面停在上一首是常态：身份必须来自原生问的那一首，而不是 React 正在渲染的那一首。
+        const target = queue.find(item => getPlaybackSongKey(item) === key)
+            ?? (songKey === key ? song : null);
         if (!target) return;
-        try {
-            const cached = await getSongCacheWithLegacyMigration<LyricData>(
-                'lyric', target, migrateLyricDataRenderHints);
-            if (!cached?.lines?.length) return;
-            const built = buildColorOsLyricInfo({
-                title: target.name ?? '',
-                artist: getSongArtistLabel(target),
-                album: getSongAlbumLabel(target),
-                songId: target.id == null ? null : String(target.id),
-                durationMs: Math.max(0, Math.round(target.durationMs ?? 0)),
-                lines: cached.lines,
-                isWordByWord: cached.isWordByWord === true,
-                sessionGeneration: generationFor(key),
-            });
-            if (built) await publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, key);
-        } catch {
-            // 缓存读失败不影响播放：这首歌继续按「等待补充」留白。
-        }
+        // 复用播放器页的取词/缓存/发布链路（nativeLyricPriming），而不是在这里再写一套：
+        // 预取内存 → IndexedDB → （允许时）联网取一次并落盘。旧实现只读 IndexedDB，
+        // 而预取拿到的歌词从不写盘，于是「预取成功」在后台等于没有。
+        await ensureNativeLyric(target, undefined, { fetch: allowFetch });
     };
 
     React.useEffect(() => {
@@ -146,8 +140,11 @@ export const useColorOsLyricFeed = ({
 
     // 回到前台再推一次：原生进程若被回收过，缓存是空的，而这段 payload 还在 WebView 里。
     React.useEffect(() => {
-        if (!active || !songKey || !hasLines) return;
-        const build = () => buildColorOsLyricInfo({
+        // 监听器**不能**依附于「界面这一首有词」：锁屏自动切歌时 React 常常还停在一首
+        // 没有词/正在加载的歌上，而原生问的是另一首 —— 监听器不挂，询问就被整条丢掉，
+        // 灵动岛一直空着，直到用户打开 App。挂载条件只保留「通道可用且知道有歌」。
+        if (!active || !songKey) return;
+        const build = () => (hasLines ? buildColorOsLyricInfo({
             title: song?.name ?? '',
             artist: song ? getSongArtistLabel(song) : '',
             album: song ? getSongAlbumLabel(song) : '',
@@ -157,7 +154,7 @@ export const useColorOsLyricFeed = ({
             isWordByWord: lyrics!.isWordByWord === true,
             sessionGeneration: generationFor(songKey),
             timelineOffsetMs,
-        });
+        }) : null);
         const republish = () => {
             if (document.visibilityState !== 'visible') return;
             if (publishedKeyRef.current !== songKey) return;
@@ -167,23 +164,26 @@ export const useColorOsLyricFeed = ({
         /**
          * 原生侧「这首歌我还没有时间轴」的请求。
          *
-         * Media3 在后台自动换歌时，若这首歌的歌词没有被预置过（锁屏期间 WebView 不跑，
-         * 无法自己补），原生只能先不写 lyricInfo。等 JS 真的活过来时它会主动来问一次，
-         * 这里必须回答 —— 否则灵动岛会一直空到下一次换歌。
+         * Media3 在后台自动换歌时，若这首歌的歌词没有被预置过，原生只能先不写 lyricInfo，
+         * 随后（有界地）再问一次。这里必须真的能补上：
+         *   - 界面还停在上一首 → 用**被问的那一首**的身份去补（不是当前渲染的那一首）；
+         *   - 本地两处都没有 → 允许联网取一次并落盘，这是「后台独立补词」的唯一入口；
+         *   - 界面这一首就有词 → 直接用这份 payload 作答（带时间轴偏移，最贴近舞台）。
          */
         const onNativeRequest = (event: Event) => {
             const requested = (event as CustomEvent<{ songKey?: string } | undefined>).detail?.songKey;
             if (requested && requested !== songKey) {
-                // 请求的不是界面正在显示的那一首：后台已经自己换过歌了，而 React 的 currentSong
-                // 还停在上一次渲染。只从**本地缓存**里取（不联网、不发新请求），把那一首的
-                // 时间轴补进原生缓存；拿不到就什么都不做，等它被预置或等下次换歌。
-                void publishCachedLyricFor(requested);
+                void answerFor(requested, true);
                 return;
             }
             const built = build();
-            if (!built) return;
-            publishedKeyRef.current = songKey;
-            void publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, songKey);
+            if (built) {
+                publishedKeyRef.current = songKey;
+                void publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, songKey);
+                return;
+            }
+            // 界面这一首自己也没词：仍然按它的身份去补一次，别让请求掉在地上。
+            void answerFor(songKey, true);
         };
         document.addEventListener('visibilitychange', republish);
         window.addEventListener('tingyu-native-lyric-request', onNativeRequest);
