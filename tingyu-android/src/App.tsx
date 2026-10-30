@@ -1501,11 +1501,14 @@ export default function App() {
 
     // Publish LyricInfo on Android independently of either stage. A compatible system/module
     // consumes this metadata and the existing PlaybackState clock without another renderer.
+    // `lyricsLoading` is what separates "this track has no lyrics" from "they are still coming":
+    // declaring the former while the WebView is asleep is what emptied the island for good.
     useColorOsLyricFeed({
         lyrics,
         song: displaySong,
         duration,
         timelineOffsetMs: effectiveLyricTimelineOffsetMs,
+        lyricsLoading: isLyricsLoading,
     });
 
     const {

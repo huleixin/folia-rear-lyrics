@@ -21,7 +21,8 @@ interface FoliaColorOsLyricsPlugin {
         /** 与通知栏同一个歌曲身份；对不上时原生会拒绝这段歌词。 */
         songKey?: string | null;
     }): Promise<{ ok: boolean }>;
-    clear(): Promise<void>;
+    clear(options?: { songKey?: string | null }): Promise<void>;
+    status(options?: { songKey?: string | null }): Promise<{ state: string; detail: string }>;
 }
 
 const FoliaColorOsLyrics = registerPlugin<FoliaColorOsLyricsPlugin>('FoliaColorOsLyrics');
@@ -65,11 +66,26 @@ export const publishColorOsLyricInfo = async (
     }
 };
 
-/** 没有在播的东西（或这首歌没词）：把上一段歌词撤掉。 */
-export const clearColorOsLyricInfo = async (): Promise<void> => {
+/**
+ * 撤掉歌词。
+ *
+ * 带 songKey = 只宣告「这一首没有词」，原生给这一首写空时间轴，已经预取好的下一首不受影响。
+ * 不带 = 整条通道作废（停止播放）。
+ */
+export const clearColorOsLyricInfo = async (songKey?: string | null): Promise<void> => {
     try {
-        await FoliaColorOsLyrics.clear();
+        await FoliaColorOsLyrics.clear(songKey ? { songKey } : undefined);
     } catch {
         // 同上。
+    }
+};
+
+/** 诊断用：这一首的歌词在原生侧是什么状态（ready / none / pending）。 */
+export const readColorOsLyricState = async (songKey?: string | null): Promise<string> => {
+    try {
+        const result = await FoliaColorOsLyrics.status(songKey ? { songKey } : undefined);
+        return String(result?.state ?? 'unknown');
+    } catch {
+        return 'unavailable';
     }
 };

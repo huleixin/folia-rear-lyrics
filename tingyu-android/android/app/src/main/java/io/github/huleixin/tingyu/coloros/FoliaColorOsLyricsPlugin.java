@@ -50,10 +50,30 @@ public class FoliaColorOsLyricsPlugin extends Plugin {
         call.resolve(result);
     }
 
-    /** 没有在播的东西了（或者这首歌没词）：把上一段歌词撤掉。 */
+    /**
+     * 撤掉歌词。
+     *
+     * 带 songKey = 「这首歌确认没有词」（只影响这一首，metadata 会明确写 noLyric）；
+     * 不带 = 「整条通道作废」（停止播放）。绝不能因为换歌就整条清空 —— 那样已经预取好的
+     * 下一首会被一起丢掉，灵动岛在后台就再也补不回来。
+     */
     @PluginMethod
     public void clear(PluginCall call) {
-        if (ColorOsLyricBridge.clear()) ColorOsLyricBridge.requestRefresh(getContext());
+        String songKey = call.getString("songKey");
+        boolean changed = songKey == null || songKey.isEmpty()
+                ? ColorOsLyricBridge.clear()
+                : ColorOsLyricBridge.clearSong(songKey);
+        if (changed) ColorOsLyricBridge.requestRefresh(getContext());
         call.resolve();
+    }
+
+    /** 当前歌词通道状态（诊断面板用；只有哈希后的身份，不含歌词正文）。 */
+    @PluginMethod
+    public void status(PluginCall call) {
+        String songKey = call.getString("songKey");
+        JSObject result = new JSObject();
+        result.put("state", ColorOsLyricBridge.stateOf(songKey));
+        result.put("detail", ColorOsLyricBridge.describe(songKey));
+        call.resolve(result);
     }
 }

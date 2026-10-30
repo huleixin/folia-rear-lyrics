@@ -771,7 +771,9 @@ export const buildDiagnosticReport = async (): Promise<string> => {
     if (failureTrace.length === 0) {
         lines.push('  (none)');
     } else {
-        failureTrace.slice(-30).forEach((entry, index) => {
+        // The native ring holds 80 entries; a long background session is exactly when queue and
+        // lyric transitions matter, so most of it is exported instead of only the last 30.
+        failureTrace.slice(-60).forEach((entry, index) => {
             const data = entry.data
                 ? Object.entries(entry.data).map(([key, value]) => `${key}=${String(value)}`).join(' ').slice(0, 300)
                 : '';

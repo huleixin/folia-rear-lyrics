@@ -84,6 +84,8 @@ public class FoliaPlaybackService extends Service {
      */
     private static final long SERVICE_START_RECORD_INTERVAL_MS = 5_000L;
     private volatile boolean lastPlaying = false;
+    /** Last (track, lyric state) pair written to metadata; only used to dedupe diagnostics. */
+    private volatile String lastLyricState = "";
     private volatile long lastServiceStartRecordAt = 0L;
     private volatile boolean lastServiceStartPlaying = false;
     private volatile String lastServiceStartSongKey = "";
@@ -144,6 +146,39 @@ public class FoliaPlaybackService extends Service {
     /** ColorOS lyric bridge uses this to decide whether a metadata refresh intent is worth sending. */
     public static boolean isRunning() {
         return running;
+    }
+
+    /**
+     * A sticky restart inherits the engine but not the WebView's last push.
+     *
+     * Cached fields can still be empty (the service was recycled before any push landed in this
+     * instance), and rebuilding metadata from empty fields would publish a nameless session -
+     * for the lyric consumer that looks like "this track has no lyrics". The engine's current
+     * media item is the authority here, so the identity, title and position are taken from it,
+     * and the lyric timeline for that exact song key is attached by the usual metadata build.
+     */
+    private void restoreFromEngine() {
+        com.getcapacitor.JSObject tag = io.github.huleixin.tingyu.playback.NativeAudioEngine.currentTrackTag();
+        if (tag == null) return;
+        String key = tag.optString("songKey");
+        if (key.isEmpty()) return;
+        cachedSongKey = key;
+        if (tag.has("title")) cachedTitle = tag.optString("title");
+        if (tag.has("artist")) cachedArtist = tag.optString("artist");
+        if (tag.has("album")) cachedAlbum = tag.optString("album");
+        if (tag.has("coverUrl")) cachedCoverUrl = tag.optString("coverUrl");
+        long duration = tag.optLong("duration", 0L);
+        if (duration > 0) cachedDurationMs = duration;
+        cachedPositionMs = Math.max(0L, tag.optLong("position", 0L));
+        cachedPositionUpdatedAt = SystemClock.elapsedRealtime();
+        cachedPlaying = tag.optBoolean("playing", false);
+        publishedPlayback = true;
+        currentArtworkUrl = cachedCoverUrl.trim();
+        io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("service-restore-engine",
+            new com.getcapacitor.JSObject()
+                .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(cachedSongKey))
+                .put("positionMs", cachedPositionMs)
+                .put("lyric", ColorOsLyricBridge.stateOf(cachedSongKey)));
     }
 
     /** Media3 state changes reach the system without routing through JS or restarting this service. */
@@ -212,6 +247,7 @@ public class FoliaPlaybackService extends Service {
                 new com.getcapacitor.JSObject().put("keepAlive", keepAlive));
             if (keepAlive) {
                 try {
+                    restoreFromEngine();
                     applyCachedMetadata();
                     startForeground(NOTIFICATION_ID, buildNotification(cachedTitle, cachedArtist, cachedPlaying, appliedArtworkBitmap));
                     updatePlaybackLocks(cachedPlaying);
@@ -368,7 +404,27 @@ public class FoliaPlaybackService extends Service {
             metadata.putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, artwork);
         }
         ColorOsLyricBridge.attach(metadata, songKey);
+        noteLyricPublication(songKey);
         return metadata.build();
+    }
+
+    /**
+     * The lyric side of the session, recorded only when the (track, state) pair changes.
+     *
+     * "pending" is the state that used to be invisible: the system panel had already moved to
+     * the next track while the WebView had not yet produced its timeline, so the bridge published
+     * an explicit no-lyric payload and the island stayed empty even after lyrics arrived. Keeping
+     * the transition in the trail is what makes the difference provable from a device report.
+     */
+    private void noteLyricPublication(String songKey) {
+        String state = ColorOsLyricBridge.stateOf(songKey);
+        String identity = state + "|" + io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey);
+        if (identity.equals(lastLyricState)) return;
+        lastLyricState = identity;
+        io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("lyric-metadata", new com.getcapacitor.JSObject()
+            .put("state", state)
+            .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey))
+            .put("playing", cachedPlaying));
     }
 
     private void applyCachedMetadata() {
@@ -406,6 +462,12 @@ public class FoliaPlaybackService extends Service {
             SystemClock.elapsedRealtime(), cachedDurationMs);
         long[] nativeClock = io.github.huleixin.tingyu.playback.NativeAudioEngine.mediaClock(songKey);
         if (nativeClock != null) { position = nativeClock[0]; playing = nativeClock[1] == 1; }
+        // A drained native window with playlist left is a gap being bridged, not a finished
+        // session: report buffering so the system panel does not tear the session down while
+        // the next resolved items are on their way.
+        boolean bridging = !playing && io.github.huleixin.tingyu.playback.NativeAudioEngine.isWaitingForNext();
+        int state = playing ? PlaybackState.STATE_PLAYING
+            : bridging ? PlaybackState.STATE_BUFFERING : PlaybackState.STATE_PAUSED;
         PlaybackState.Builder builder = new PlaybackState.Builder()
             .setActiveQueueItemId(queueId(songKey))
             .setActions(
@@ -416,7 +478,7 @@ public class FoliaPlaybackService extends Service {
                     | PlaybackState.ACTION_SKIP_TO_PREVIOUS
                     | PlaybackState.ACTION_SEEK_TO
             )
-            .setState(playing ? PlaybackState.STATE_PLAYING : PlaybackState.STATE_PAUSED, position, playing ? 1f : 0f);
+            .setState(state, position, playing ? 1f : 0f);
         if (ColorOsLyricBridge.isSupported() && ColorOsLyricBridge.hasTranslationFor(songKey)) {
             builder.addCustomAction(new PlaybackState.CustomAction.Builder(
                 ColorOsLyricBridge.ACTION_TOGGLE_TRANSLATION,

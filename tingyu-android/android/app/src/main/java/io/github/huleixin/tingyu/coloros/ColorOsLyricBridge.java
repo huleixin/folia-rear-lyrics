@@ -259,78 +259,152 @@ public final class ColorOsLyricBridge {
         return map;
     }
 
-    // ---- 待发布的歌词 payload ----
+    // ---- 歌词时间轴缓存 ----
 
     private static final class Payload {
         final String json;
         final boolean hasTranslation;
-        final String songKey;
 
-        Payload(String json, boolean hasTranslation, String songKey) {
+        Payload(String json, boolean hasTranslation) {
             this.json = json;
             this.hasTranslation = hasTranslation;
-            this.songKey = songKey;
         }
     }
 
     /**
-     * 最近一次 Web 层交过来的歌词。
+     * 已准备好的时间轴，按 songKey 存。
      *
-     * 做成进程级静态而不是「插件 → 服务 intent 里的 extra」：歌词可能比播放早到
-     * （Web 层先拿到词、用户还没按播放），那时前台服务还没起来，extra 就丢了。
-     * 服务每次构造 metadata 时自己来这里取，谁先谁后都对。
+     * 从「只有一个槽位」改成小容量表，是为了让**下一首**的词能提前跟原生队列一起就位：
+     * Media3 自动切歌那一刻原生已经知道真正的 songKey，只要这里有它就能立刻写进 metadata，
+     * 完全不必等 WebView 醒来。锁屏/灵动岛上的歌词因此不再依赖 React 是否还在跑。
+     *
+     * 上限 6 条（≈ 一个原生预取窗口）：歌词是整首歌的时间轴，没有理由长期留整张歌单。
      */
-    private static volatile Payload pending = null;
+    private static final int MAX_CACHED_SONGS = 6;
 
-    public static synchronized boolean setPending(String json, boolean hasTranslation, String songKey) {
-        if (json != null && json.length() > 200000) throw new IllegalArgumentException("LyricInfo too large");
-        Payload previous = pending;
-        if (previous != null && java.util.Objects.equals(previous.json, json)
-                && java.util.Objects.equals(previous.songKey, songKey) && previous.hasTranslation == hasTranslation) return false;
-        pending = (json == null || json.isEmpty())
-                ? null
-                : new Payload(json, hasTranslation, songKey);
-        return previous != null || pending != null;
+    private static final java.util.LinkedHashMap<String, Payload> timelines =
+            new java.util.LinkedHashMap<String, Payload>(8, 0.75f, true) {
+                @Override protected boolean removeEldestEntry(java.util.Map.Entry<String, Payload> eldest) {
+                    return size() > MAX_CACHED_SONGS;
+                }
+            };
+
+    /** 明确「这首歌没有词」——与「还没拿到」必须分开，前者该清空，后者要留白等补。 */
+    private static final java.util.LinkedHashMap<String, Boolean> noLyric =
+            new java.util.LinkedHashMap<String, Boolean>(8, 0.75f, true) {
+                @Override protected boolean removeEldestEntry(java.util.Map.Entry<String, Boolean> eldest) {
+                    return size() > MAX_CACHED_SONGS;
+                }
+            };
+
+    /** 没有 songKey 时的兜底槽位：老调用方（或拿不到身份的场景）仍然要能出词。 */
+    private static final String UNKEYED = "*";
+
+    private static volatile String lastRequestedKey = "";
+    private static volatile long lastPublishAt = 0L;
+    private static volatile int publishCount = 0;
+    private static volatile int pendingCount = 0;
+
+    private static String slot(String songKey) {
+        return songKey == null || songKey.isEmpty() ? UNKEYED : songKey;
     }
 
-    public static synchronized boolean clear() {
-        if (pending == null) return false;
-        pending = null;
+    /**
+     * 交一份歌词。按 songKey 入表，因此既可以交当前曲，也可以提前交下一首。
+     *
+     * 空 payload 表示「这首歌确认没有词」：撤掉它的时间轴并标记，metadata 才敢明确写 noLyric。
+     *
+     * @return 是否有变化（决定要不要让前台服务重建一次 metadata）
+     */
+    public static synchronized boolean setPending(String json, boolean hasTranslation, String songKey) {
+        if (json != null && json.length() > 200000) throw new IllegalArgumentException("LyricInfo too large");
+        String key = slot(songKey);
+        lastRequestedKey = key;
+        if (json == null || json.isEmpty()) {
+            Payload previous = timelines.remove(key);
+            Boolean marked = noLyric.put(key, Boolean.TRUE);
+            return previous != null || marked == null;
+        }
+        noLyric.remove(key);
+        Payload previous = timelines.put(key, new Payload(json, hasTranslation));
+        if (previous != null && previous.json.equals(json) && previous.hasTranslation == hasTranslation) {
+            return false;
+        }
+        publishCount++;
+        lastPublishAt = System.currentTimeMillis();
         return true;
     }
 
     /**
-     * 当前这首歌能用的 {@code lyricInfo}；没有或对不上歌就返回 null。
+     * 整条通道作废（停止播放 / 换到另一套会话）。
      *
-     * songKey 校验是「旧异步结果不能覆盖新歌」那条约束的落点：Web 层用与通知栏
-     * 同一个 key（`getPlaybackSongKey`），两边一致才认。任一侧拿不到 key 时放行，
-     * 免得整条通道因为一个空值彻底不出歌词。
+     * 只留下来自「最后发布过的那一首」的一条空时间轴：同一次 media id 上如果直接省略 lyricInfo，
+     * 部分消费端会继续显示上一段文字；明确写空的 noLyric 才是干净的收尾。
+     */
+    public static synchronized boolean clear() {
+        String last = lastRequestedKey;
+        boolean changed = !timelines.isEmpty();
+        if (!changed) {
+            for (String key : noLyric.keySet()) {
+                if (!key.equals(last)) { changed = true; break; }
+            }
+        }
+        timelines.clear();
+        noLyric.clear();
+        if (!last.isEmpty()) noLyric.put(last, Boolean.TRUE);
+        return changed;
+    }
+
+    /** 只撤掉某一首：换歌时用，不要连累已经预取好的下一首。 */
+    public static synchronized boolean clearSong(String songKey) {
+        String key = slot(songKey);
+        Payload removed = timelines.remove(key);
+        Boolean marked = noLyric.put(key, Boolean.TRUE);
+        return removed != null || marked == null;
+    }
+
+    /**
+     * 当前这首歌能用的 {@code lyricInfo}；没有就返回 null（**不**代表这首歌没有词）。
+     *
+     * songKey 校验是「旧异步结果不能覆盖新歌」那条约束的落点：表按 key 存，取也按 key 取，
+     * 对不上就自然拿不到上一首的词。
      */
     public static String lyricInfoFor(String songKey) {
-        Payload current = pending;
-        if (current == null) {
-            return null;
-        }
-        if (songKey == null || current.songKey == null || songKey.equals(current.songKey)) {
-            return current.json;
-        }
+        Payload current = timelines.get(slot(songKey));
+        return current == null ? null : current.json;
+    }
+
+    /**
+     * 能写进 metadata 的 {@code lyricInfo}：
+     * <ul>
+     *   <li>有准备好的时间轴 → 原样写；</li>
+     *   <li>已确认没有词 → 写空的 noLyric 时间轴，让消费端明确收掉；</li>
+     *   <li>还没拿到（后台 WebView 还没醒）→ 返回 null，调用方**不写这个字段**。</li>
+     * </ul>
+     * 第三条是关键：「等待补充」既不是有词也不是没词，不能用一个假的 noLyric 冒充，
+     * 否则灵动岛会在换歌瞬间被我们主动清空，而真正的词随后到达也无法恢复显示。
+     */
+    public static String metadataLyricInfoFor(String songKey) {
+        if (songKey == null || songKey.isEmpty()) return null;
+        Payload current = timelines.get(slot(songKey));
+        if (current != null) return current.json;
+        if (noLyric.containsKey(slot(songKey))) return "{\"lyricType\":0,\"lyric\":\"\",\"noLyric\":true}";
         return null;
     }
 
-    /** Some consumers retain omitted metadata for the same track; explicitly publish an empty timeline. */
-    public static String metadataLyricInfoFor(String songKey) {
-        if (songKey == null || songKey.isEmpty()) return null;
-        String json = lyricInfoFor(songKey);
-        return json != null ? json : "{\"lyricType\":0,\"lyric\":\"\",\"noLyric\":true}";
+    /** 歌词状态，只用于诊断：ready / none / pending。 */
+    public static String stateOf(String songKey) {
+        if (songKey == null || songKey.isEmpty()) return "no-song";
+        if (timelines.containsKey(slot(songKey))) return "ready";
+        if (noLyric.containsKey(slot(songKey))) return "none";
+        return "pending";
     }
 
     /** 有没有翻译 lane —— 决定要不要挂 Bridge 的公共翻译按钮。 */
     public static boolean hasTranslationFor(String songKey) {
-        Payload current = pending;
-        if (current == null || !current.hasTranslation) {
-            return false;
-        }
-        return songKey == null || current.songKey == null || songKey.equals(current.songKey);
+        if (songKey == null || songKey.isEmpty()) return false;
+        Payload current = timelines.get(slot(songKey));
+        return current != null && current.hasTranslation;
     }
 
     /**
@@ -347,6 +421,23 @@ public final class ColorOsLyricBridge {
         if (json != null) {
             builder.putString(METADATA_KEY_LYRIC_INFO, json);
         }
+    }
+
+    /** 诊断用：缓存里有几首、当前这首是什么状态。全部只出现哈希后的身份。 */
+    public static String describe(String songKey) {
+        StringBuilder keys = new StringBuilder();
+        for (String key : timelines.keySet()) {
+            if (keys.length() > 0) keys.append(',');
+            keys.append(UNKEYED.equals(key) ? "*" : hash(key));
+        }
+        pendingCount = lastRequestedKey.isEmpty() ? 0 : (stateOf(lastRequestedKey).equals("pending") ? 1 : 0);
+        return "lyricState=" + stateOf(songKey) + ", cached=" + timelines.size() + "/" + MAX_CACHED_SONGS
+            + ", noLyric=" + noLyric.size() + ", cachedKeys=[" + keys + "], publishes=" + publishCount
+            + ", lastPublishAgeMs=" + (lastPublishAt == 0L ? -1L : System.currentTimeMillis() - lastPublishAt);
+    }
+
+    private static String hash(String value) {
+        return Integer.toHexString(value.hashCode());
     }
 
     /**

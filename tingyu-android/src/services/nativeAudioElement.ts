@@ -1,13 +1,13 @@
 import { notePlaybackTest,playbackTestUriInfo } from './playbackTestLog';
-import type { NativeAudioOptions, NativeAudioPort, NativeAudioState, NativeQueueTrack } from '../types/nativeAudio';
+import type { NativeAudioOptions, NativeAudioPort, NativeAudioState, NativeQueueTrack, NativeQueueWindow } from '../types/nativeAudio';
 
 // src/services/nativeAudioElement.ts
 // Preserve the existing DOM media-event contract while Media3 owns fetching/decoding/output.
 let blocked=false;
 /** Latches out stale queued commands while the transport changes hands; only an explicit switch calls this. */
 export function setNativeAudioCommandsBlocked(value:boolean){blocked=value;}
-const elements=new WeakMap<HTMLMediaElement,{spectrum:Uint8Array;queue:(tracks:NativeQueueTrack[])=>Promise<unknown>}>();
-export const setNativeAudioQueue=(element:HTMLMediaElement,tracks:NativeQueueTrack[])=>elements.get(element)?.queue(tracks);
+const elements=new WeakMap<HTMLMediaElement,{spectrum:Uint8Array;queue:(tracks:NativeQueueTrack[],window?:NativeQueueWindow)=>Promise<unknown>}>();
+export const setNativeAudioQueue=(element:HTMLMediaElement,tracks:NativeQueueTrack[],window?:NativeQueueWindow)=>elements.get(element)?.queue(tracks,window);
 export const isNativeAudioElement=(element:HTMLMediaElement|null)=>!!element&&elements.has(element);
 export const nativeAudioSpectrum=(element:HTMLMediaElement|null)=>element?elements.get(element)?.spectrum:null;
 const abort=()=>new DOMException('Playback intent replaced','AbortError');
@@ -27,6 +27,14 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     const rejectPending=(reason:unknown)=>{if(pending){clearTimeout(pending.timer);pending.reject(reason);pending=null;}};
     const onState=(value:NativeAudioState)=>{
         if(blocked||disposed||value.id!==id||(!value.external&&value.sequence<lastIntent))return;
+        // Native queue supervision runs on Media3's own callbacks, so these signals arrive even
+        // when the UI is showing a stale track (the very case that used to starve the queue).
+        // They are therefore handled before track reconciliation, and dispatched to a listener
+        // that needs no React render to answer them.
+        if(value.type==='queue-request'||value.type==='queue-wait'){
+            window.dispatchEvent(new CustomEvent('tingyu-native-queue-request',{detail:value}));
+            return;
+        }
         // Media3 may advance several prepared items while JS is asleep. Reconcile the
         // current native item without replaying or rewinding it when the UI catches up.
         if(value.songKey&&value.songKey!==track&&value.uri){
@@ -79,7 +87,11 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         void work.catch(error=>notePlaybackTest('native-command-failed',{action,error,elapsedMs:Math.round(performance.now()-started)}));
         return work;
     };
-    elements.set(element,{...bands,queue:tracks=>send('queue',{songKey:track,tracks})});
+    elements.set(element,{...bands,queue:(tracks,queueWindow)=>send('queue',{
+        // The anchor names whose successors these are; without window metadata the element's own
+        // track is the anchor, which is what a foreground call means.
+        songKey:queueWindow?.anchor??track,tracks,
+        continues:queueWindow?.continues??true,generation:queueWindow?.generation??0})});
     const refresh=()=>{if(document.visibilityState==='visible'&&id)void send('snapshot').catch(()=>{});};
     document.addEventListener('visibilitychange',refresh);
     const set=(name:string,descriptor:PropertyDescriptor)=>{original.set(name,Object.getOwnPropertyDescriptor(element,name));Object.defineProperty(element,name,{configurable:true,...descriptor});};
