@@ -21,4 +21,12 @@ final class RearLyricsTaskList {
     static int taskId(String summary) {
         try { return Integer.parseInt(summary.split(" ")[0]); } catch (Exception ignored) { return -1; }
     }
+    /** "12 com.android.camera/.Camera" or "12 com.android.camera" -> "com.android.camera"; null when unknown. */
+    static String packageName(String summary) {
+        try {
+            String component = summary.split(" ")[1];
+            int slash = component.indexOf('/');
+            return slash > 0 ? component.substring(0, slash) : component;
+        } catch (Exception ignored) { return null; }
+    }
 }

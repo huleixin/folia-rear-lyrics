@@ -68,7 +68,7 @@ final class RearDisplayPower {
         }
     }
     String status() { return "rearPowerHook=" + installed + ", hookError=" + loggedFailure + ", " + windows.status()
-        + ", " + direct.status() + ", leaseRemainingMs=" + lease.remaining(SystemClock.elapsedRealtime()); }
+        + ", " + direct.status() + ", " + lease.describe() + ", leaseRemainingMs=" + lease.remaining(SystemClock.elapsedRealtime()); }
 
     synchronized void acquire(int display, String session) {
         synchronized (requests) {

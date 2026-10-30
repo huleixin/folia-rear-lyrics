@@ -17,6 +17,10 @@ final class RearWindowLease {
     private final ThreadLocal<Boolean> inspecting = new ThreadLocal<>();
     private boolean installed;
     private volatile boolean failed;
+    // Sleep-path diagnostics: on-device evidence of whether the hook is consulted at lock
+    // time and whether our lease was actually held there. Counters only; no task content.
+    private volatile long consulted, keptAwake, systemSleepRequests;
+    private volatile String lastTop = "", lastDecision = "not consulted";
     RearWindowLease(RearDisplayLease lease) { this.lease = lease; }
 
     void install(ClassLoader loader) {
@@ -29,12 +33,30 @@ final class RearWindowLease {
                         int id = XposedHelpers.getIntField(hook.thisObject, "mDisplayId");
                         if (id <= 0) return;
                         displays.put(id, hook.thisObject);
-                        if (!Boolean.TRUE.equals(hook.getResult()) || !lease.holds(id, SystemClock.elapsedRealtime())) return;
+                        if (!Boolean.TRUE.equals(hook.getResult())) return;
+                        consulted++;
+                        if (!lease.holds(id, SystemClock.elapsedRealtime())) {
+                            systemSleepRequests++;
+                            lastDecision = "no-lease";
+                            return;
+                        }
                         inspecting.set(true);
                         Object top = XposedHelpers.callMethod(hook.thisObject, "topRunningActivity");
                         ComponentName component = top == null ? null : (ComponentName) XposedHelpers.getObjectField(top, "mActivityComponent");
-                        if (lease.holdsWindow(id, component == null ? "" : component.getPackageName(),
-                                component == null ? "" : component.getClassName(), SystemClock.elapsedRealtime())) hook.setResult(false);
+                        String pkg = component == null ? "" : component.getPackageName();
+                        String activity = component == null ? "" : component.getClassName();
+                        lastTop = pkg + "/" + (component == null ? "?" : component.getShortClassName());
+                        if (lease.holdsWindow(id, pkg, activity, SystemClock.elapsedRealtime())) {
+                            keptAwake++;
+                            lastDecision = "kept-own-window";
+                            hook.setResult(false);
+                        } else {
+                            systemSleepRequests++;
+                            lastDecision = "top-not-own";
+                            // The rear display sleeps because something else became the top
+                            // activity while we held the lease - the key HyperOS 4 lock-time
+                            // signature to confirm on a real device.
+                        }
                     } catch (Throwable error) { logOnce(error); }
                     finally { inspecting.remove(); }
                 }
@@ -61,7 +83,9 @@ final class RearWindowLease {
             });
         } catch (Throwable error) { logOnce(error); }
     }
-    String status() { return "rearWindowHook=" + installed + ", windowHookError=" + failed; }
+    String status() { return "rearWindowHook=" + installed + ", windowHookError=" + failed
+        + ", sleepConsulted=" + consulted + ", keptOwnWindow=" + keptAwake
+        + ", systemSleep=" + systemSleepRequests + ", lastDecision=" + lastDecision + ", lastTop=" + lastTop; }
     private void logOnce(Throwable error) {
         if (!failed) { failed = true; XposedBridge.log("Tingyu rear window: " + error); }
     }

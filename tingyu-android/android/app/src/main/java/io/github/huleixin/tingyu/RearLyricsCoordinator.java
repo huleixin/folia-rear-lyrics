@@ -28,9 +28,13 @@ final class RearLyricsCoordinator {
     private final RearCoverMonitor coverMonitor;
     private final RearCameraMonitor cameraMonitor;
     private volatile boolean cameraBlocked, cameraYielding;
+    private volatile boolean cameraExitPending, rearTaskCamera;
     private volatile boolean coverSleepEnabled, sleeping, powerBusy, sleepUnsupported;
     private boolean physicalCover;
     private boolean preservedSleepSession;
+    private boolean stuckReported;
+    private long cameraIdleAt;
+    private RearOwnershipState.State lastOwnership;
     private String powerDetail = "not tested";
     private volatile boolean enabled, playing, manual, pending;
     private volatile boolean requestedPlaying;
@@ -79,8 +83,8 @@ final class RearLyricsCoordinator {
     void lspConnected() { main.post(() -> { if (LspRearBridge.selected(context)) { shell = LspRearBridge.get(); nextAttempt = 0; nextHoldRefresh = 0; nudge(); } }); }
     boolean isStarting() { return closing || pending || RearLyricsLauncher.isStarting(); }
     boolean wanted() { return handoff.wanted(enabled, playing, manual, LspRearBridge.selected(context)); }
-    boolean canPresent() { return wanted() && !cameraBlocked && !cameraYielding; }
-    boolean cameraSuspended() { return cameraBlocked || cameraYielding; }
+    boolean canPresent() { return wanted() && !cameraBlocked && !cameraYielding && !cameraExitPending; }
+    boolean cameraSuspended() { return cameraBlocked || cameraYielding || cameraExitPending; }
     static boolean presentationAllowed() { RearLyricsCoordinator value = instance; return value != null && value.canPresent(); }
     boolean returnedToSystem() { return LspRearBridge.selected(context) && handoff.returned()
         && !closing && !RearLyricsActivity.isEnabled(); }
@@ -101,20 +105,95 @@ final class RearLyricsCoordinator {
     private void syncCoverMonitor() {
         if (coverSleepEnabled && canPresent() && !sleepUnsupported) coverMonitor.start(); else coverMonitor.stop();
     }
-    /** Relinquish the separate lyric task; the music service and persisted opt-in remain untouched. */
+    /**
+     * Camera handoff. The camera owns the rear screen with absolute priority: availability
+     * callbacks and rear-task evidence both funnel into {@link #enterCameraOwnership}, and
+     * leaving CAMERA_OWNED additionally requires the exit confirmation in checkWindow.
+     */
     private void cameraChanged(boolean blocked) {
         cameraBlocked = blocked;
-        RearLyricsTrace.record(context, "camera-handoff", cameraMonitor.status());
-        if (!enabled) return;
-        generation++; pending = false; lockRecovery = false; nextAttempt = 0;
+        RearLyricsTrace.record(context, "camera-handoff", "availability=" + blocked + ", " + cameraMonitor.status());
+        if (!enabled) { recordOwnershipChange(); return; }
+        if (blocked) {
+            rearTaskCamera = true; // A busy camera may already be on the rear display.
+            enterCameraOwnership("camera-availability");
+        } else {
+            cameraIdleAt = SystemClock.elapsedRealtime();
+            cameraExitPending = true; // checkWindow confirms the exit before any resume.
+            RearLyricsTrace.record(context, "camera-exit-pending", ownershipDiagnostics());
+            recordOwnershipChange();
+            nudge();
+        }
+    }
+
+    /** Single funnel for every path that hands the rear screen to a camera. */
+    private void enterCameraOwnership(String reason) {
+        cameraExitPending = true;
+        RearLyricsTrace.record(context, "camera-ownership", reason + ", " + ownershipDiagnostics());
+        RearLyricsActivity.yieldToCamera();
+        if (RearLyricsActivity.isEnabled() || lspHolding || sleeping || powerBusy) { cameraYielding = true; closeWindow(); }
+        generation++; pending = false; lockRecovery = false; nextAttempt = 0; waking = false;
         main.removeCallbacks(check); main.removeCallbacks(bindTimeout); scheduled = false;
         syncCoverMonitor();
-        if (blocked) {
-            physicalCover = false;
-            RearLyricsActivity.yieldToCamera();
-            if (RearLyricsActivity.isEnabled() || lspHolding || sleeping || powerBusy) { cameraYielding = true; closeWindow(); }
-            complete(true, findRearDisplayId(context), "背屏歌词已启用；相机使用期间让屏，空闲后自动恢复", null);
-        } else nudge();
+        physicalCover = false;
+        main.postDelayed(() -> verifyCameraYield(0), 2500);
+        recordOwnershipChange();
+        complete(true, findRearDisplayId(context), "背屏歌词已启用；相机使用期间让屏，空闲后自动恢复", null);
+    }
+
+    /**
+     * A third-party task launched while the camera was taking over can survive
+     * moveTaskToBack. Verify the yield with the rear task list; if our task is still in
+     * front, finish it outright - a finished window is always recoverable, a crashed
+     * camera is not.
+     */
+    private void verifyCameraYield(int attempt) {
+        if (!cameraYielding || closing) return;
+        String frontPackage = RearLyricsTaskList.packageName(frontTask);
+        if (frontPackage == null && attempt < 3) { main.postDelayed(() -> verifyCameraYield(attempt + 1), 2500); return; }
+        if (context.getPackageName().equals(frontPackage)) {
+            RearLyricsTrace.record(context, "camera-yield-hard-release", "our task still front after yield; finishing the rear activity");
+            RearLyricsActivity.finishIfShown();
+        }
+    }
+
+    /**
+     * Availability callbacks resume us after ENTER settle, but HyperCamera holds the rear
+     * task after both camera handles close. Resume only when the task list no longer shows
+     * a camera there (or cannot be read at all); an unconfirmed exit keeps everything blocked.
+     */
+    private void confirmCameraExit() {
+        long now = SystemClock.elapsedRealtime();
+        if (rearTaskCamera) {
+            if (!stuckReported && now - cameraIdleAt > RearCameraPolicy.EXIT_SETTLE_MS + RearCameraPolicy.STUCK_REPORT_MS) {
+                stuckReported = true;
+                // Either HyperCamera wedged on the rear display or crashed while its task
+                // stayed; keep waiting and surface it - never force the screen back.
+                RearLyricsTrace.record(context, "camera-stuck", "camera device idle but its task still owns the rear display; not resuming");
+            }
+            return;
+        }
+        if (now - cameraIdleAt < RearCameraPolicy.EXIT_SETTLE_MS) return;
+        cameraExitPending = false; stuckReported = false;
+        RearLyricsTrace.record(context, "camera-exit-confirmed", ownershipDiagnostics());
+        recordOwnershipChange();
+        nudge();
+    }
+
+    private RearOwnershipState.State ownership() {
+        int rear = findRearDisplayId(context);
+        return RearOwnershipState.resolve(cameraBlocked || cameraYielding || cameraExitPending, closing, sleeping,
+            covered, physicalCover, rear >= 0 && RearLyricsActivity.isShowingOnDisplay(rear));
+    }
+    private String ownershipDiagnostics() {
+        return "state=" + RearOwnershipState.describe(ownership()) + ", cameraExitPending=" + cameraExitPending
+            + ", rearTaskCamera=" + rearTaskCamera + ", frontTask=" + frontTask;
+    }
+    private void recordOwnershipChange() {
+        RearOwnershipState.State state = ownership();
+        if (state == lastOwnership) return;
+        lastOwnership = state;
+        RearLyricsTrace.record(context, "ownership", RearOwnershipState.describe(state));
     }
     private void closeWindow() {
         if (closing) return;
@@ -149,6 +228,8 @@ final class RearLyricsCoordinator {
         main.postDelayed(() -> { if (cameraYielding || !wanted()) closeWindow(); else nudge(); }, 5000);
     }
     private void changeSleep(boolean value) {
+        // The camera owns the rear display's power; never race it with our own overrides.
+        if (cameraBlocked || cameraYielding || cameraExitPending) return;
         if (!value && !closing && enabled && !playing && LspRearBridge.selected(context)
                 && handoff.due(SystemClock.elapsedRealtime())) { returnAfterPause(); return; }
         if (closing || powerBusy || value == sleeping || (value && sleepUnsupported)) return;
@@ -180,6 +261,8 @@ final class RearLyricsCoordinator {
     String diagnostics() { return "enabled=" + enabled + ", playing=" + playing + ", manual=" + manual
         + ", pending=" + pending + ", failures=" + failures + ", rearWakeTried=" + wakeTried
         + ", covered=" + covered + ", lockRecovery=" + lockRecovery + ", frontTask=" + frontTask
+        + ", ownership=" + RearOwnershipState.describe(lastOwnership)
+        + ", cameraExitPending=" + cameraExitPending + ", rearTaskCamera=" + rearTaskCamera
         + ", backend=" + (LspRearBridge.selected(context) ? "lsp" : "shizuku") + ", lsp=" + LspRearBridge.detail()
         + ", closing=" + closing + ", returnedToSystem=" + returnedToSystem()
         + ", lspHolding=" + lspHolding + ", lspPower=" + lspPowerDetail + ", cameraYielding=" + cameraYielding + ", " + cameraMonitor.status(); }
@@ -280,9 +363,19 @@ final class RearLyricsCoordinator {
     private void checkWindow() {
         if (!wanted()) return;
         if (cameraBlocked) return; // Availability callbacks resume us; never fight the camera in a retry loop.
+        if (cameraExitPending) {
+            confirmCameraExit();
+            // Keep inspecting the rear task while the exit is unconfirmed; the task list is
+            // the only evidence that can flip rearTaskCamera back to false.
+            inspectFront(findRearDisplayId(context), SystemClock.elapsedRealtime());
+            recordOwnershipChange();
+            schedule(1000);
+            return;
+        }
         if (cameraYielding) { if (!closing) closeWindow(); schedule(2000); return; }
         if (!playing && LspRearBridge.selected(context) && handoff.due(SystemClock.elapsedRealtime())) { returnAfterPause(); return; }
         if (closing) { schedule(500); return; }
+        recordOwnershipChange();
         syncCoverMonitor();
         syncLspPower();
         if (!RearCoverPolicy.mayRecoverWindow(sleeping, powerBusy, coverSleepEnabled, physicalCover)) {
@@ -331,17 +424,30 @@ final class RearLyricsCoordinator {
         } catch (Exception error) { finishFailure("无法连接 Shizuku：" + error.getMessage(), error); }
     }
     private void inspectFront(int rear, long now) {
+        // Camera ownership must be observable even while our own window is absent, so the
+        // session guard only applies to the occlusion logic inside the callback.
         if (rear < 0 || probing || pending || RearLyricsLauncher.isStarting() || now - lastProbe < 2000
-                || shell == null || !shell.isBinderAlive() || RearLyricsActivity.windowState() == null) return;
+                || shell == null || !shell.isBinderAlive()) return;
         probing = true; lastProbe = now;
         String session = RearLyricsActivity.currentSession();
         RearLyricsLauncher.inspectFront(shell, rear, summary -> main.post(() -> {
             probing = false;
-            if (!RearLyricsActivity.isCurrentSession(session)) return;
-            RearLyricsActivity.WindowState window = RearLyricsActivity.windowState();
+            String topPackage = RearLyricsTaskList.packageName(summary);
             int top = RearLyricsTaskList.taskId(summary);
-            boolean occluded = top >= 0 && window != null && top != window.taskId;
+            boolean cameraFront = RearCameraPolicy.isCameraTask(summary);
             if (!summary.equals(frontTask)) { frontTask = summary; RearLyricsTrace.record(context, "rear-front", summary); }
+            if (cameraFront && !rearTaskCamera) {
+                // The camera's rear preview took the display, with or without a camera handle open.
+                rearTaskCamera = true;
+                if (enabled) { enterCameraOwnership("rear-task=" + topPackage); return; }
+            } else if (!cameraFront && rearTaskCamera) {
+                rearTaskCamera = false; stuckReported = false;
+                if (cameraBlocked) cameraIdleAt = SystemClock.elapsedRealtime();
+                RearLyricsTrace.record(context, "camera-rear-task", "camera released the rear display" + (topPackage == null ? "" : "; front=" + topPackage));
+            }
+            if (!RearLyricsActivity.isCurrentSession(session)) return; // Our window is gone; ownership handled above.
+            RearLyricsActivity.WindowState window = RearLyricsActivity.windowState();
+            boolean occluded = top >= 0 && window != null && top != window.taskId;
             if (top >= 0 && covered != occluded) {
                 covered = occluded;
                 if (covered) nextAttempt = 0;
@@ -408,11 +514,17 @@ final class RearLyricsCoordinator {
                     int state = RearLyricsLauncher.displayState(context, id);
                     if (state != lastRearPower) {
                         lastRearPower = state;
+                        // Key HyperOS 4 evidence: the panel went off while we held a valid
+                        // bright lease and were not dimming on purpose. This distinguishes
+                        // "system rear-sleep defeats our lease" from our own cover sleep.
+                        if (state == Display.STATE_OFF && lspHolding && !sleeping && !powerBusy && !cameraSuspended())
+                            RearLyricsTrace.record(context, "rear-sleep-defeated", "lease held but the panel slept; " + lspPowerDetail);
                         RearLyricsTrace.record(context, "rear-power-changed", "window=" + RearLyricsActivity.windowState()
                             + ", holding=" + lspHolding + ", " + lspPowerDetail);
                     }
                 }
-                if (id == findRearDisplayId(context) && sleeping && !powerBusy && RearLyricsLauncher.displayState(context, id) == Display.STATE_ON) {
+                if (id == findRearDisplayId(context) && sleeping && !powerBusy && !cameraSuspended()
+                        && RearLyricsLauncher.displayState(context, id) == Display.STATE_ON) {
                     // OEM double-tap-to-wake is handled by the system, then reuses this same WebView.
                     sleeping = false; physicalCover = false; coverMonitor.userWake();
                     RearLyricsActivity.setPowerSleeping(false);

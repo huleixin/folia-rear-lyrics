@@ -1,5 +1,7 @@
 package io.github.huleixin.tingyu.lsp;
 
+import android.os.SystemClock;
+
 // android/app/src/main/java/io/github/huleixin/tingyu/lsp/RearDisplayLease.java
 /** A renewable, session-scoped rear-only lease. A crashed/stalled player cannot hold it forever. */
 final class RearDisplayLease {
@@ -24,4 +26,8 @@ final class RearDisplayLease {
     synchronized int clear() { int old = display; display = -1; session = ""; until = 0; return old; }
     synchronized int expire(long now) { return display > 0 && now >= until ? clear() : -1; }
     synchronized long remaining(long now) { return display > 0 ? Math.max(0, until - now) : 0; }
+    /** Diagnostic snapshot; the session is a random UUID, so a prefix carries no user data. */
+    synchronized String describe() { return display <= 0 ? "lease=none" : "lease=display" + display
+        + ", session=" + session.substring(0, Math.min(8, session.length())) + "…"
+        + ", remainingMs=" + Math.max(0, until - SystemClock.elapsedRealtime()); }
 }

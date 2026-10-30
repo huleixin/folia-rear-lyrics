@@ -95,6 +95,7 @@ final class RearLyricsLauncher {
 
     /** Wake only the rear display on a worker, without rebuilding a still-visible lyric window. */
     static void wake(Context context, IBinder shell, int rear, Runnable completed) {
+        if (!RearLyricsCoordinator.presentationAllowed()) { completed.run(); return; } // Never fight a camera for power.
         String session = RearLyricsActivity.currentSession();
         WORKER.execute(() -> {
             try { command(shell, ShellUserService.TRANSACTION_WAKE, rear, session, -1, "Restore rear power", new StringBuilder()); }
@@ -159,11 +160,20 @@ final class RearLyricsLauncher {
 
     private static RearLyricsCommandResult command(IBinder shell, int transaction, int display, String session,
             int task, String label, StringBuilder trace) throws Exception {
-        if (!RearLyricsActivity.isCurrentSession(session)) throw new IllegalStateException("启动已取消");
-        if ((transaction == ShellUserService.TRANSACTION_START || transaction == ShellUserService.TRANSACTION_MOVE
-                || transaction == ShellUserService.TRANSACTION_WAKE
-                || transaction == io.github.huleixin.tingyu.lsp.RearBridgeContract.HOLD_POWER)
-                && !RearLyricsCoordinator.presentationAllowed()) throw new IllegalStateException("背屏已让给相机或本次显示已取消");
+        // Camera-priority gate: launching, moving, waking or sleeping the rear display is
+        // forbidden while a camera owns it. Releasing power and reading the task list stay
+        // allowed - releasing is exactly what a camera handoff needs, and the task list is
+        // how ownership is observed.
+        boolean sessionBound = transaction == ShellUserService.TRANSACTION_START
+            || transaction == ShellUserService.TRANSACTION_MOVE
+            || transaction == ShellUserService.TRANSACTION_WAKE
+            || transaction == ShellUserService.TRANSACTION_SLEEP
+            || transaction == io.github.huleixin.tingyu.lsp.RearBridgeContract.HOLD_POWER;
+        if (sessionBound && !RearLyricsActivity.isCurrentSession(session)) throw new IllegalStateException("启动已取消");
+        if (sessionBound && !RearLyricsCoordinator.presentationAllowed()) throw new IllegalStateException("背屏已让给相机或本次显示已取消");
+        if (transaction != ShellUserService.TRANSACTION_FRONT_TASK
+                && transaction != ShellUserService.TRANSACTION_RESTORE_POWER
+                && !RearLyricsActivity.isCurrentSession(session)) throw new IllegalStateException("启动已取消");
         if (!shell.isBinderAlive()) throw new IllegalStateException("Shizuku 服务已断开");
         Parcel data = Parcel.obtain(), reply = Parcel.obtain();
         try {

@@ -30,11 +30,24 @@ final class RearCoverMonitor implements SensorEventListener {
         if (manager != null) {
             acceleration = manager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER, true);
             if (acceleration == null) acceleration = manager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-            for (Sensor sensor : manager.getSensorList(Sensor.TYPE_PROXIMITY)) {
-                if (RearCoverPolicy.rearSensor(sensor.getName())) { rear = sensor; break; }
-            }
+            rear = findRearProximity(manager);
         }
         gravity = acceleration; rearProximity = rear;
+    }
+    /**
+     * HyperOS exposes the rear proximity sensor (tcs3760_sec_back Proximity Back Sensor) by
+     * name, not always under TYPE_PROXIMITY. Search every type for a proximity sensor whose
+     * name marks it as the rear one; when none exists, tabletop gravity stays a hint only -
+     * it never claims to be a confirmed rear cover.
+     */
+    private static Sensor findRearProximity(SensorManager manager) {
+        for (Sensor sensor : manager.getSensorList(Sensor.TYPE_ALL)) {
+            String name = sensor.getName() == null ? "" : sensor.getName();
+            String normalized = name.toLowerCase(java.util.Locale.ROOT);
+            boolean proximity = sensor.getType() == Sensor.TYPE_PROXIMITY || normalized.contains("proximity");
+            if (proximity && RearCoverPolicy.rearSensor(name)) return sensor;
+        }
+        return null;
     }
     boolean available() { return gravity != null || rearProximity != null; }
     String description() { return "tabletop=" + (gravity != null) + ", rearCoverSensor=" + (rearProximity == null ? "unavailable" : rearProximity.getName()); }
