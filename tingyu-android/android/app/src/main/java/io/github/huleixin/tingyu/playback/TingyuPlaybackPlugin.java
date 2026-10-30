@@ -148,7 +148,24 @@ public final class TingyuPlaybackPlugin extends Plugin {
                 data==null?"":String.valueOf(data.opt("author")),
                 data==null?"":String.valueOf(data.opt("homepage")),
                 "null".equals(code)?"":code);
-            call.resolve(new JSObject().put("installed",installed));
+            // 脚本换了，之前"这首取不到"的判定不再适用：清掉续播的有界预算。
+            BackgroundContinuation.get().resetBudgets();
+            // 预热：前台就把 QuickJS 拉起来。后台真要取地址时引擎已经是热的，
+            // 诊断里也就能看到 started=yes / sources=tx，而不是等到续播失败才发现没起来。
+            // 引擎初始化会阻塞，所以放在后台线程，不占主线程。
+            Thread warmer=new Thread(() -> {
+                boolean started=io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.warmUp();
+                org.json.JSONObject snapshot=io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.snapshot();
+                PlaybackDiagnostics.note("lx-script-sync",new JSObject()
+                    .put("installed",installed)
+                    .put("started",started)
+                    .put("sources",snapshot.optString("sources",""))
+                    .put("version",snapshot.optString("version",""))
+                    .put("bytes",code.length()));
+            },"tingyu-lx-warmup");
+            warmer.setDaemon(true);
+            warmer.start();
+            call.resolve(new JSObject().put("installed",installed).put("warming",installed));
         }
         catch(Exception error){call.reject("安装音源脚本失败："+error.getClass().getSimpleName());}
     }

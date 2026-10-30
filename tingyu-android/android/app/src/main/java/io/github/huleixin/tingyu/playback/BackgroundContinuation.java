@@ -5,6 +5,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
 import io.github.huleixin.tingyu.resolver.ResolverRegistry;
+import io.github.huleixin.tingyu.resolver.SourceResolver;
 import io.github.huleixin.tingyu.resolver.SourceResolution;
 
 /**
@@ -77,6 +78,28 @@ public final class BackgroundContinuation {
     /** 低于这个余量就该准备下一首，与现有低水位一致。 */
     private static final int LOW_WATER = QueueSupervision.LOW_WATER;
 
+    // ------------------------------------------------------------------ 有界重试
+    //
+    // 真机 1.3.48 的教训：失败后无条件 `rearmSupervision()` → 1.5 秒后再来一次，
+    // 同一首歌 187 次、每次还串三档音质。失败必须是有界的：
+    // - UNSUPPORTED（脚本没装 / 音源没声明这个平台）一次都不重试 —— 重试不可能让它变成支持；
+    // - 普通失败最多三次，且按退避拉开间隔；
+    // - 预算用完就熔断这一首，回落到原来的 JS 通道，不再排程。
+    // 熔断按「歌曲 + 解析器」记，换歌、换代次、用户操作都会清空。
+
+    private static final int MAX_ATTEMPTS = 3;
+    private static final long[] BACKOFF_MS = { 5_000L, 20_000L, 60_000L };
+    private static final int MAX_TRACKED = 64;
+
+    private static final class Budget {
+        int attempts;
+        long nextAttemptAt;
+        boolean blocked;
+        String reason = "";
+    }
+
+    private final java.util.LinkedHashMap<String, Budget> budgets = new java.util.LinkedHashMap<>();
+
     private static volatile BackgroundContinuation instance;
 
     private final ExecutorService worker = Executors.newSingleThreadExecutor(runnable -> {
@@ -134,8 +157,8 @@ public final class BackgroundContinuation {
         boolean queueContains(String songKey);
         /** 主线程执行：把解析好的条目加进 Media3 并在需要时恢复播放。 */
         void adopt(NativePlaylist.Track track, String uri, long requestId, long generation);
-        /** 让监督器重新排程（用于失败后按原有稀疏退避再试）。 */
-        void rearmSupervision();
+        /** 让监督器在 delayMs 之后重新排程（失败后退避再试，而不是每 1.5 秒一次）。 */
+        void rearmSupervision(long delayMs);
         /** 主线程执行。 */
         void runOnMain(Runnable action);
     }
@@ -161,8 +184,15 @@ public final class BackgroundContinuation {
         registrar = value == null ? DEFAULT : value;
     }
 
-    private static long now() {
-        return System.nanoTime() / 1_000_000L;
+    private volatile long clockShiftMs = 0L;
+
+    /** 测试用：把"现在"往前推，用来验证退避与有界重试。 */
+    public void advanceClockForTest(long deltaMs) {
+        clockShiftMs += deltaMs;
+    }
+
+    private long now() {
+        return System.nanoTime() / 1_000_000L + clockShiftMs;
     }
 
     /** 由引擎在每次 supervise 时调用。 */
@@ -200,6 +230,21 @@ public final class BackgroundContinuation {
                 .put("resolvable", resolvable));
             return;
         }
+        SourceResolver chosen = ResolverRegistry.get().forTrack(step.track);
+        final String resolverId = chosen == null ? "none" : chosen.id();
+        final String budgetKey = step.track.songKey + "|" + resolverId;
+        // 有界重试：这首歌已经被熔断（明确不可恢复）就不再取地址，也不再排程。
+        if (blocked(budgetKey)) {
+            lastOutcome = Decision.FALLBACK_TO_JS.name().toLowerCase(java.util.Locale.US);
+            PlaybackDiagnostics.note("continuation-blocked", new com.getcapacitor.JSObject()
+                .put("song", PlaybackDiagnostics.anonKey(step.track.songKey))
+                .put("resolver", resolverId)
+                .put("reason", blockReason(budgetKey))
+                .put("reason0", "budget exhausted / not supported"));
+            return;
+        }
+        // 退避窗口内不重复取；下一次排程由失败时的 rearm 决定。
+        if (now() < nextAttemptAt(budgetKey)) return;
         // 已经在飞的请求只认同一首歌；换了歌就作废重来。
         if (resolving && activeSongKey.equals(step.track.songKey)) return;
         resolving = true;
@@ -215,6 +260,8 @@ public final class BackgroundContinuation {
         PlaybackDiagnostics.note("continuation-fetch", new com.getcapacitor.JSObject()
             .put("song", PlaybackDiagnostics.anonKey(track.songKey))
             .put("provider", track.providerId)
+            .put("resolver", resolverId)
+            .put("attempt", attemptCount(budgetKey) + 1)
             .put("requestId", requestId)
             .put("generation", generation)
             .put("anchor", PlaybackDiagnostics.anonKey(anchor))
@@ -227,7 +274,7 @@ public final class BackgroundContinuation {
             } catch (Throwable error) {
                 resolution = SourceResolution.failure("resolver crashed: " + error.getClass().getSimpleName());
             }
-            finish(host, resolution, track, requestId, generation, anchor, quality);
+            finish(host, resolution, track, requestId, generation, anchor, quality, resolverId);
         };
         // 测试开关：让"后台续播 30 首"这类模拟可以在 JVM 上确定性重放，正式代码永远走线程池。
         if (inlineForTest) job.run();
@@ -241,7 +288,8 @@ public final class BackgroundContinuation {
     }
 
     private void finish(Host host, SourceResolution resolution, NativePlaylist.Track track,
-                        long requestId, long generation, String anchor, String quality) {
+                        long requestId, long generation, String anchor, String quality,
+                        String resolverId) {
         // 过期结果拒绝：请求号、歌单代次、用户意图，三者任一变化就丢弃。
         boolean stale = requestId != activeRequestId
             || generation != NativePlaylist.get().generation()
@@ -254,16 +302,30 @@ public final class BackgroundContinuation {
                 .put("generation", generation));
             return;
         }
+        final String budgetKey = track.songKey + "|" + resolverId;
         if (resolution == null || !resolution.ok()) {
             failures++;
             String status = resolution == null ? "null" : resolution.status.name().toLowerCase(java.util.Locale.US);
+            String reason = resolution == null ? "null resolution" : resolution.reason;
             PlaybackDiagnostics.note("continuation-failed", new com.getcapacitor.JSObject()
                 .put("song", PlaybackDiagnostics.anonKey(track.songKey))
+                .put("resolver", resolverId)
                 .put("status", status)
-                .put("reason", resolution == null ? "null resolution" : resolution.reason)
+                .put("reason", reason)
                 .put("requestId", requestId));
-            // 失败不是结束：按原有稀疏退避再试，不新增任何定时器。
-            host.runOnMain(host::rearmSupervision);
+            // 有界重试：UNSUPPORTED 一次都不重试（重试不可能让脚本突然装上），
+            // 其余失败退避递增，预算用完就熔断这一首，不再排程。
+            long backoff = noteFailure(budgetKey, resolution == null ? null : resolution.status, reason);
+            if (backoff < 0) {
+                PlaybackDiagnostics.note("continuation-giveup", new com.getcapacitor.JSObject()
+                    .put("song", PlaybackDiagnostics.anonKey(track.songKey))
+                    .put("resolver", resolverId)
+                    .put("status", status)
+                    .put("reason", reason));
+                return;
+            }
+            final long delay = backoff;
+            host.runOnMain(() -> host.rearmSupervision(delay));
             return;
         }
         String uri;
@@ -273,12 +335,17 @@ public final class BackgroundContinuation {
             failures++;
             PlaybackDiagnostics.note("continuation-failed", new com.getcapacitor.JSObject()
                 .put("song", PlaybackDiagnostics.anonKey(track.songKey))
+                .put("resolver", resolverId)
                 .put("status", "register")
                 .put("reason", error.getClass().getSimpleName())
                 .put("requestId", requestId));
-            host.runOnMain(host::rearmSupervision);
+            long backoff = noteFailure(budgetKey, SourceResolution.Status.FAILURE, "register");
+            if (backoff < 0) return;
+            final long delay = backoff;
+            host.runOnMain(() -> host.rearmSupervision(delay));
             return;
         }
+        clearBudget(budgetKey);
         takeovers++;
         PlaybackDiagnostics.note("continuation-resolved", new com.getcapacitor.JSObject()
             .put("song", PlaybackDiagnostics.anonKey(track.songKey))
@@ -289,6 +356,85 @@ public final class BackgroundContinuation {
         host.runOnMain(() -> host.adopt(track, uri, requestId, generation));
     }
 
+    // ------------------------------------------------------------------ budget internals
+
+    private Budget budget(String key) {
+        synchronized (budgets) {
+            Budget value = budgets.get(key);
+            if (value == null) {
+                // 极简 LRU：跟踪的歌有限，超了就把最老的丢掉，避免后台长时间播放越攒越多。
+                if (budgets.size() >= MAX_TRACKED) {
+                    java.util.Iterator<String> keys = budgets.keySet().iterator();
+                    if (keys.hasNext()) keys.remove();
+                }
+                value = new Budget();
+                budgets.put(key, value);
+            }
+            return value;
+        }
+    }
+
+    private boolean blocked(String key) {
+        synchronized (budgets) {
+            Budget value = budgets.get(key);
+            return value != null && value.blocked;
+        }
+    }
+
+    private String blockReason(String key) {
+        synchronized (budgets) {
+            Budget value = budgets.get(key);
+            return value == null ? "" : value.reason;
+        }
+    }
+
+    private long nextAttemptAt(String key) {
+        synchronized (budgets) {
+            Budget value = budgets.get(key);
+            return value == null ? 0L : value.nextAttemptAt;
+        }
+    }
+
+    private int attemptCount(String key) {
+        synchronized (budgets) {
+            Budget value = budgets.get(key);
+            return value == null ? 0 : value.attempts;
+        }
+    }
+
+    private void clearBudget(String key) {
+        synchronized (budgets) { budgets.remove(key); }
+    }
+
+    /** 脚本换了、音源换了：之前的失败判定不再适用，全部作废。 */
+    public void resetBudgets() {
+        synchronized (budgets) { budgets.clear(); }
+    }
+
+    /**
+     * 记一次失败，返回下次重试前要等多久；返回 -1 表示**别再试了**（熔断）。
+     *
+     * UNSUPPORTED 直接熔断：洛雪脚本没装、或脚本没声明这个平台，重试一万次也不会变。
+     */
+    private long noteFailure(String key, SourceResolution.Status status, String reason) {
+        synchronized (budgets) {
+            Budget value = budget(key);
+            value.attempts++;
+            value.reason = reason == null ? "" : reason;
+            if (status == SourceResolution.Status.UNSUPPORTED) {
+                value.blocked = true;
+                return -1L;
+            }
+            if (value.attempts >= MAX_ATTEMPTS) {
+                value.blocked = true;
+                return -1L;
+            }
+            long delay = BACKOFF_MS[Math.min(value.attempts - 1, BACKOFF_MS.length - 1)];
+            value.nextAttemptAt = now() + delay;
+            return delay;
+        }
+    }
+
     /** 用户暂停/停止/换歌时调用：作废在飞的解析，避免迟到的结果污染队列。 */
     public void cancel() {
         activeRequestId = requestIds.incrementAndGet();
@@ -297,6 +443,10 @@ public final class BackgroundContinuation {
     }
 
     public org.json.JSONObject snapshot() {
+        int blockedCount = 0;
+        synchronized (budgets) {
+            for (Budget value : budgets.values()) if (value.blocked) blockedCount++;
+        }
         try {
             return new org.json.JSONObject()
                 .put("lastDecision", lastOutcome)
@@ -304,7 +454,11 @@ public final class BackgroundContinuation {
                 .put("resolving", resolving)
                 .put("takeovers", takeovers)
                 .put("fallbacks", fallbacks)
-                .put("failures", failures);
+                .put("failures", failures)
+                // 有界重试是否真的有界：熔断了几首、跟踪了几首。
+                .put("budgetBlocked", blockedCount)
+                .put("budgetTracked", budgets.size())
+                .put("budgetMax", MAX_ATTEMPTS);
         } catch (Exception error) {
             return new org.json.JSONObject();
         }

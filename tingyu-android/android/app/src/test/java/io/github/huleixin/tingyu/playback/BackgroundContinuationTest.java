@@ -38,6 +38,7 @@ public class BackgroundContinuationTest {
         final List<String> adopted = new ArrayList<>();
         final List<String> played = new ArrayList<>();
         int rearms;
+        long lastRearmDelay;
 
         void offerInitial(String... songKeys) {
             for (String key : songKeys) queue.add(key);
@@ -60,7 +61,7 @@ public class BackgroundContinuationTest {
                 cursor = queue.indexOf(track.songKey);
             }
         }
-        @Override public void rearmSupervision() { rearms++; }
+        @Override public void rearmSupervision(long delayMs) { rearms++; lastRearmDelay = delayMs; }
         @Override public void runOnMain(Runnable action) { action.run(); }
 
         /**
@@ -117,11 +118,12 @@ public class BackgroundContinuationTest {
         NativePlaylist.resetForTest();
         QualityPreference.resetForTest();
         ResolverRegistry.get().resetForTest();
-        resolver = new FakeResolver("qq");
+        resolver = new FakeResolver("demo");
         ResolverRegistry.get().registerForTest(resolver);
         engine = new FakeEngine();
         continuation = BackgroundContinuation.get();
         continuation.cancel();
+        continuation.resetBudgets();
         continuation.setInlineForTest(true);
         continuation.setRegistrarForTest(url -> "http://127.0.0.1:1/remote-audio/" + Math.abs(url.hashCode()));
     }
@@ -131,6 +133,7 @@ public class BackgroundContinuationTest {
         continuation.setInlineForTest(false);
         continuation.setRegistrarForTest(null);
         continuation.cancel();
+        continuation.resetBudgets();
         ResolverRegistry.get().resetForTest();
         NativePlaylist.resetForTest();
     }
@@ -138,7 +141,7 @@ public class BackgroundContinuationTest {
     private static List<NativePlaylist.Track> ledger(int count) {
         List<NativePlaylist.Track> tracks = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            tracks.add(new NativePlaylist.Track("song-" + i, "qq", "mid-" + i, "T", "A", "B", 100_000L, "", ""));
+            tracks.add(new NativePlaylist.Track("song-" + i, "demo", "mid-" + i, "T", "A", "B", 100_000L, "", ""));
         }
         return tracks;
     }
@@ -202,7 +205,7 @@ public class BackgroundContinuationTest {
         NativePlaylist.get().replace(ledger(5), NativePlaylist.Mode.SEQUENCE, false, 0L, "test");
         engine.offerInitial("song-0");
         engine.msSinceJsWindow = 600_000L;
-        resolver.unsupportedProvider = "qq";
+        resolver.unsupportedProvider = "demo";
 
         engine.drain();
         continuation.consider(engine, "drained");
@@ -222,8 +225,10 @@ public class BackgroundContinuationTest {
         continuation.consider(engine, "drained");
         assertTrue("a failed resolution must not invent a track", engine.adopted.isEmpty());
         assertTrue("and it must ask again on the existing sparse schedule", engine.rearms > 0);
+        assertTrue("重试必须退避，真机那种 1.5 秒一次不允许", engine.lastRearmDelay >= 5_000L);
 
-        // 退避之后再问一次：这一次成功了，播放继续。
+        // 退避窗口过去之后再问一次：这一次成功了，播放继续。
+        continuation.advanceClockForTest(10_000L);
         continuation.consider(engine, "retry");
         assertEquals("song-1", engine.adopted.get(0));
     }
@@ -336,6 +341,60 @@ public class BackgroundContinuationTest {
         continuation.consider(engine, "drained");
         assertEquals("a late JS window must not duplicate what native already added",
             afterFirst, engine.adopted.size());
+    }
+
+    @Test
+    public void theThirdAndFourthSongsComeFromNativeWhileTheActivityNeverRuns() {
+        // D：主界面 JS 全程不执行（msSinceJsWindow 一直停在 10 分钟），预存的只有前两首，
+        // 第三首、第四首必须由 Service 自己取地址 —— 这正是真机停播的那一刻。
+        startBackgroundSession(12, 2);
+        engine.msSinceJsWindow = 600_000L;
+
+        engine.drain();                       // song-0 播完
+        continuation.consider(engine, "drained");
+        engine.drain();                       // song-1 播完，预存窗口真正耗尽
+        continuation.consider(engine, "drained");
+        engine.drain();
+        continuation.consider(engine, "drained");
+
+        assertEquals("三次边界各解析一次，不靠加大预取窗口", 3, resolver.asked.size());
+        assertEquals("song-2", engine.adopted.get(0));
+        assertEquals("song-3", engine.adopted.get(1));
+        assertEquals("song-4", engine.adopted.get(2));
+        assertEquals("JS 从来没有补过窗口", 600_000L, engine.msSinceJsWindow);
+        assertFalse("播放没有被停在 ended 上", engine.ended());
+    }
+
+    @Test
+    public void aFailingResolverIsRetriedAtMostThreeTimesPerSong() {
+        // E：真机 1.3.48 同一首歌 187 次失败。这里证明它是有界的。
+        startBackgroundSession(10, 1);
+        resolver.failuresLeft = Integer.MAX_VALUE;   // 这个解析器从此永远失败
+        for (int i = 0; i < 25; i++) {
+            engine.drain();
+            continuation.consider(engine, "drained");
+            continuation.advanceClockForTest(120_000L);   // 越过退避窗口，逼出下一次尝试
+        }
+        assertTrue("同一首歌最多试 3 次，实测 " + resolver.asked.size(),
+            resolver.asked.size() <= 3);
+        for (String asked : resolver.asked) assertEquals("只该试那一首", "song-1", asked);
+        assertTrue("预算用完后不再排程重试", continuation.snapshot().optInt("budgetBlocked", 0) >= 1);
+        assertTrue("失败确实被记进了诊断", continuation.failuresForTest() > 0);
+    }
+
+    @Test
+    public void anUnsupportedSourceIsNeverRetried() {
+        // E：UNSUPPORTED（脚本没装 / 音源没声明这个平台）一次都不该重试 ——
+        // 重试不可能让脚本突然装上。
+        startBackgroundSession(10, 1);
+        resolver.unsupportedProvider = "demo";
+        for (int i = 0; i < 10; i++) {
+            engine.drain();
+            continuation.consider(engine, "drained");
+            continuation.advanceClockForTest(120_000L);
+        }
+        assertEquals("UNSUPPORTED 只能试一次", 1, resolver.asked.size());
+        assertEquals("原样回落到 JS 通道，不当成失败重试风暴", 0, engine.rearms);
     }
 
     @Test

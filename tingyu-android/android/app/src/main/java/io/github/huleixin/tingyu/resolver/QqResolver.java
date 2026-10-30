@@ -73,6 +73,55 @@ public final class QqResolver implements SourceResolver {
             Boolean.parseBoolean(ResolverCredentials.value("qq", "cookieAsHeader")));
     }
 
+    // ---------------------------------------------------------------- 匿名 musicu 熔断
+    //
+    // 实测（5 个真实 songmid × M500/M800/F000/C400/RS01 × 8 组参数）：HTTP 200、code=0，
+    // 但 midurlinfo[0].purl 恒空、result=104003 —— 匿名通道今天取不到地址。
+    // 真机 1.3.48 因为路由错误连续打了 187 次（每次 3 档音质 = 561 个请求），
+    // 所以这里给它一个熔断器：连续几次空结果后整条匿名通道停一段时间，不再空转。
+
+    private static final int MUSICU_MISS_LIMIT = 3;
+    private static final long MUSICU_BLOCK_MS = 15 * 60_000L;
+    @SuppressWarnings("unused")
+    private static volatile int musicuMisses = 0;
+    private static volatile long musicuBlockedUntil = 0L;
+
+    /** 用户自建后端是否可用（`extension` 桥不算）。 */
+    public boolean backendUsable() {
+        return isUsableBackendBase(backendBase);
+    }
+
+    /** 熔断是否打开。 */
+    public static boolean musicuOpen() {
+        return System.currentTimeMillis() >= musicuBlockedUntil;
+    }
+
+    /** 这条链路现在值不值得试：自建后端可用，或匿名通道没被熔断。 */
+    public boolean canAttempt() {
+        return backendUsable() || musicuOpen();
+    }
+
+    /** 测试用：模拟一次"匿名通道又给了空结果"。 */
+    static void noteMusicuMissForTest() {
+        noteMusicuMiss();
+    }
+
+    /** 测试用：把熔断复位。 */
+    public static void resetMusicuBreakerForTest() {
+        musicuMisses = 0;
+        musicuBlockedUntil = 0L;
+    }
+
+    private static void noteMusicuMiss() {
+        musicuMisses++;
+        if (musicuMisses >= MUSICU_MISS_LIMIT) musicuBlockedUntil = System.currentTimeMillis() + MUSICU_BLOCK_MS;
+    }
+
+    private static void noteMusicuHit() {
+        musicuMisses = 0;
+        musicuBlockedUntil = 0L;
+    }
+
     /** 浏览器扩展桥在原生侧永远不可用：它没有 HTTP 地址，也没有 window。 */
     static boolean isUsableBackendBase(String base) {
         if (base == null) return false;
@@ -244,11 +293,16 @@ public final class QqResolver implements SourceResolver {
             }
         }
         // 直连通道：匿名 musicu，无需任何用户凭据，也不依赖扩展桥或脚本。
+        // 熔断打开时整条通道直接跳过：明知道取不到还打，只会把流量和电量烧在重试上。
+        if (!musicuOpen()) {
+            return SourceResolution.failure("musicu circuit open (anonymous vkey keeps returning no url)");
+        }
         String lastReason = "musicu returned no playable url";
         for (String prefix : qualityChain(quality)) {
             try {
                 String url = requestMusicu(songmid, prefix);
                 if (isPlayable(url)) {
+                    noteMusicuHit();
                     return SourceResolution.ok(url, resolvedQuality(prefix), System.currentTimeMillis());
                 }
             } catch (IOException error) {
@@ -257,6 +311,8 @@ public final class QqResolver implements SourceResolver {
                 lastReason = "musicu failed: " + error.getClass().getSimpleName();
             }
         }
+        // 空结果说明匿名通道对这首歌（乃至这个时段）就是给不出地址：累计几次就熔断。
+        if ("musicu returned no playable url".equals(lastReason)) noteMusicuMiss();
         return SourceResolution.failure(lastReason);
     }
 

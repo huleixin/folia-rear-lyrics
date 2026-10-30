@@ -403,10 +403,12 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     @Override public void adopt(NativePlaylist.Track track,String uri,long requestId,long generation){
         adoptContinuation(track,uri,requestId,generation);
     }
-    @Override public void rearmSupervision(){
+    @Override public void rearmSupervision(long delayMs){
         supervision.rearm(SystemClock.elapsedRealtime());
         main.removeCallbacks(superviseTick);
-        main.postDelayed(superviseTick,1_500L);
+        // 失败后退避再试：1.5 秒只是下限（换歌成功的正常路径），真正的失败重试由
+        // BackgroundContinuation 的有界预算给出间隔，避免真机那样 187 次连打。
+        main.postDelayed(superviseTick,Math.max(1_500L,delayMs));
     }
     @Override public void runOnMain(Runnable action){main.post(action);}
 
@@ -709,11 +711,14 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 io.github.huleixin.tingyu.playback.NativePlaylist.get().trackFor(songKey);
             if(current!=null){
                 String provider=current.providerId==null?"":current.providerId;
+                // 注意：必须是 forTrack（看这首歌的链路），不是 forProvider（只看身份）——
+                // 真机 1.3.48 就是在这一行上把 lxSource=tx 的歌判给了 resolver=qq。
                 io.github.huleixin.tingyu.resolver.SourceResolver chosen=
-                    io.github.huleixin.tingyu.resolver.ResolverRegistry.get().forProvider(provider);
+                    io.github.huleixin.tingyu.resolver.ResolverRegistry.get().forTrack(current);
                 value.put("songSourceType",provider)
                     .put("songLxSource",String.valueOf(io.github.huleixin.tingyu.lx.LxPlatform.INSTANCE.sourceFor(provider)))
-                    .put("songResolver",chosen==null?"none":chosen.id());
+                    .put("songResolver",chosen==null?"none":chosen.id())
+                    .put("songResolvable",io.github.huleixin.tingyu.resolver.ResolverRegistry.get().canResolveNatively(current));
             }
         }catch(Exception ignored){}
         try{

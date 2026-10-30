@@ -45,6 +45,21 @@ public final class LxNativeResolver implements SourceResolver {
             && LxRuntimeHost.INSTANCE.hasScript();
     }
 
+    public boolean canAttempt(NativePlaylist.Track track) {
+        return track != null && canAttempt(track.providerId);
+    }
+
+    /**
+     * 这首歌的取地址链路是不是洛雪自定义源。
+     *
+     * `provider=qq` 说的是**这首歌是谁**（身份），`lxSource=tx` 说的是**地址从哪来**（链路）。
+     * `omni.getAudioSource` 里只要用户启用了脚本，所有在线歌曲都先走洛雪，所以这里判定的
+     * 是"平台有没有对应的洛雪源"，与 provider 是不是 qq 无关。
+     */
+    public static boolean isLxTrack(NativePlaylist.Track track) {
+        return track != null && LxPlatform.INSTANCE.sourceFor(track.providerId) != null;
+    }
+
     @Override
     public SourceResolution resolve(NativePlaylist.Track track, String quality) {
         if (track == null) return SourceResolution.failure("no track");
@@ -52,9 +67,19 @@ public final class LxNativeResolver implements SourceResolver {
         if (source == null) {
             return SourceResolution.unsupported("no lx platform for provider " + track.providerId);
         }
-        List<String> qualitys = LxRuntimeHost.INSTANCE.capabilitiesFor(track.providerId);
+        if (!LxRuntimeHost.INSTANCE.hasScript()) {
+            // 用户没启用自定义源：这不是故障，也不是"这首歌播不了"，明确说出来，
+            // 让调用方回落到 JS 通道 —— 绝不能因为 provider=qq 就静默改走 musicu。
+            return SourceResolution.unsupported("SCRIPT_NOT_INSTALLED");
+        }
+        // prepare 会先把引擎拉起来，再给出能力表。顺序反了就永远走不到执行脚本这一步。
+        List<String> qualitys = LxRuntimeHost.INSTANCE.prepare(track.providerId);
         if (qualitys == null || qualitys.isEmpty()) {
-            return SourceResolution.unsupported("lx script declares no " + source + " musicUrl");
+            String initError = LxRuntimeHost.INSTANCE.lastInitError();
+            if (initError != null && !initError.isEmpty()) {
+                return SourceResolution.failure("lx engine unavailable: " + initError);
+            }
+            return SourceResolution.unsupported("SOURCE_NOT_READY: no " + source + " musicUrl");
         }
         String type;
         try {

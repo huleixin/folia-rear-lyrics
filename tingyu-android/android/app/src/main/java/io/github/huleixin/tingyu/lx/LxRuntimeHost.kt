@@ -116,6 +116,43 @@ object LxRuntimeHost {
     /** 有没有装脚本（不管引擎有没有起来）。用于决定"要不要尝试"，而不是"能不能成功"。 */
     fun hasScript(): Boolean = installed != null
 
+    /** 上一次初始化失败的原因。解析器的诊断要区分"没装脚本"和"装了但起不来"。 */
+    fun lastInitError(): String? = lastError
+
+    /**
+     * 显式把引擎拉起来，不解析任何歌。
+     *
+     * 用途有两个：① 用户导入/切换脚本后立刻预热，后台真要取地址时引擎已经是热的；
+     * ② 让"脚本能不能在原生跑起来"这件事在**前台**就暴露，而不是等到后台续播失败时
+     * 才在诊断里看到 `started=no`。会阻塞调用线程，别在主线程调。
+     */
+    fun warmUp(): Boolean {
+        val script = installed ?: return false
+        val live = ensureEngine(script)
+        PlaybackDiagnostics.note("lx-warmup", JSONObject()
+            .put("started", live?.started == true)
+            .put("sources", live?.capabilities?.keys?.joinToString(",") ?: "")
+            .put("reason", redact(lastError).take(160)))
+        return live != null
+    }
+
+    /**
+     * 解析器专用：先确保引擎起来了，再给出这个 provider 的能力表。
+     *
+     * 之前的写法是"先看能力表，能力表为空就判 UNSUPPORTED"，而能力表只有引擎起来之后
+     * 才有 —— 于是原生洛雪链路永远走不到真正执行脚本那一步。这里把顺序倒过来。
+     *
+     * 返回 null 有两种含义，调用方必须分开报告：
+     * - 没装脚本 → SCRIPT_NOT_INSTALLED（用户没启用自定义源，不是故障）；
+     * - 装了但引擎起不来，或脚本没声明这个平台 → SOURCE_NOT_READY。
+     */
+    fun prepare(providerId: String): List<String>? {
+        val source = LxPlatform.sourceFor(providerId) ?: return null
+        val script = installed ?: return null
+        val live = ensureEngine(script) ?: return null
+        return live.capabilities[source]
+    }
+
     /** 这个 provider 原生能不能自己取地址（脚本装了且声明了对应平台）。 */
     fun capabilitiesFor(providerId: String): List<String>? {
         val source = LxPlatform.sourceFor(providerId) ?: return null
@@ -152,8 +189,10 @@ object LxRuntimeHost {
             .put("quality", quality)
             .put("host", lastHost.take(48))
             .put("status", lastStatus)
-            .put("reason", outcome.reason.take(160)))
-        return outcome
+            // 脚本给出的错误里可能带着播放地址或签名，进诊断前必须抹掉。
+            .put("reason", redact(outcome.reason).take(160)))
+        // 返回给调用方的原因同样要干净：它会原样进续播的失败诊断。
+        return if (outcome.ok) outcome else outcome.copy(reason = redact(outcome.reason).take(160))
     }
 
     /** 用户主动停止播放：引擎释放，脚本保留。 */
@@ -161,6 +200,8 @@ object LxRuntimeHost {
         synchronized(lock) {
             val live = engine
             engine = null
+            // 下一次播放是全新的一次机会：别让上一次的失败冷却期挡住它。
+            initFailedAt = 0L
             if (live != null) runBlocking { live.close() }
         }
         PlaybackDiagnostics.note("lx-release", JSONObject().put("requests", requests).put("ok", successes))
@@ -180,7 +221,7 @@ object LxRuntimeHost {
             .put("failed", failures)
             .put("lastHost", lastHost.take(48))
             .put("lastStatus", lastStatus)
-            .put("lastError", lastError?.take(160) ?: "")
+            .put("lastError", redact(lastError).take(160))
     }
 
     // ------------------------------------------------------------------ internals
@@ -202,7 +243,7 @@ object LxRuntimeHost {
                 engine = created
                 created
             } catch (failure: Throwable) {
-                lastError = failure.message?.take(160) ?: failure.javaClass.simpleName
+                lastError = redact(failure.message ?: failure.javaClass.simpleName).take(160)
                 initFailedAt = System.currentTimeMillis()
                 runBlocking { created.close() }
                 PlaybackDiagnostics.note("lx-init-failed", JSONObject().put("reason", lastError))
@@ -250,6 +291,16 @@ object LxRuntimeHost {
             null
         }
     }
+
+    /**
+     * 脚本返回的错误文本里可能夹着播放地址或签名参数，进诊断报告前一律抹掉。
+     * 与 JS 侧 `resolveLxSource` 的处理规则一致。
+     */
+    private val URL_PATTERN = Regex("https?://[^\\s\"'<>]+")
+
+    private fun redact(text: String?): String = (text ?: "")
+        .replace(URL_PATTERN, "[地址]")
+        .replace(Regex("[\\r\\n\\t]"), " ")
 
     /** 诊断字段里出现的文本统一裁剪，避免脚本把大段内容塞进诊断。 */
     private fun String.take(max: Int) = if (length <= max) this else substring(0, max)

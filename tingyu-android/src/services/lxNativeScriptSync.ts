@@ -25,6 +25,12 @@ interface TingyuPlaybackLx {
 let lastCode = '';
 let lastActiveId: string | null = null;
 
+/** 最近一次下发的结果。诊断里能回答"脚本到底有没有交到播放进程"。 */
+let lastSync: { at: number; installed: boolean | null; error: string | null } =
+    { at: 0, installed: null, error: null };
+
+export const readLxNativeSyncState = () => ({ ...lastSync });
+
 export const syncLxScriptToNative = async (): Promise<void> => {
     const { scripts, activeId } = useLxSourceStore.getState();
     const active = scripts.find(script => script.id === activeId) ?? null;
@@ -34,7 +40,7 @@ export const syncLxScriptToNative = async (): Promise<void> => {
     lastCode = code;
     try {
         const native = getTingyuPlayback<TingyuPlaybackLx>();
-        await native.setLxScript({
+        const result = await native.setLxScript({
             id: active?.id ?? '',
             name: active?.name ?? '',
             version: active?.version ?? '',
@@ -43,7 +49,13 @@ export const syncLxScriptToNative = async (): Promise<void> => {
             homepage: active?.homepage ?? '',
             code,
         });
-    } catch {
+        lastSync = { at: Date.now(), installed: result?.installed === true, error: null };
+        // 启用了脚本却没装上：这是后台续播会失败的明确前兆，必须留痕（不记脚本内容）。
+        if (active && result?.installed !== true) {
+            console.warn('[lx-native] 脚本已启用但未交给播放进程，后台将无法独立取流');
+        }
+    } catch (error) {
+        lastSync = { at: Date.now(), installed: false, error: error instanceof Error ? error.name : 'unknown' };
         // 同步是增强：失败时原生只是跑不了脚本，前台那条 JS 通道照旧。
     }
 };

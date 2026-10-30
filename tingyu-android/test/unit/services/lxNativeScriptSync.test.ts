@@ -30,7 +30,7 @@ vi.mock('../../../src/platform/tingyuPlayback', () => ({
 }));
 
 const { useLxSourceStore } = await import('../../../src/stores/useLxSourceStore');
-const { syncLxScriptToNative, resetLxScriptSyncForTest } = await import(
+const { syncLxScriptToNative, resetLxScriptSyncForTest, readLxNativeSyncState } = await import(
     '../../../src/services/lxNativeScriptSync'
 );
 
@@ -47,7 +47,13 @@ const script = (id: string, name: string, code: string) => ({
 
 describe('lxNativeScriptSync', () => {
     beforeEach(() => {
-        setLxScript.mockClear();
+        // mockReset 而不是 mockClear：前一个用例的 mockRejectedValueOnce 会残留，
+        // 把本该成功的下发变成失败，测出来的"同步状态"就是假的。
+        setLxScript.mockReset();
+        setLxScript.mockImplementation(async (payload: ScriptPayload) => {
+            scriptCalls.push(payload);
+            return { installed: payload.code.length > 0 };
+        });
         scriptCalls.length = 0;
         resetLxScriptSyncForTest();
         useLxSourceStore.setState({ scripts: [], activeId: null });
@@ -102,5 +108,26 @@ describe('lxNativeScriptSync', () => {
         useLxSourceStore.setState({ scripts: [script('a', '源A', 'code-a')], activeId: 'a' });
         setLxScript.mockRejectedValueOnce(new Error('bridge down'));
         await expect(syncLxScriptToNative()).resolves.toBeUndefined();
+    });
+
+    // 真机 1.3.48 的教训：插件方法存在、APK 里有 libquickjs.so，都不等于脚本真的
+    // 交到了播放进程。同步结果必须可查，失败不能被静默吞掉。
+    it('records whether the script actually reached the playback process', async () => {
+        // 只走 store 订阅那条路径：显式调用会因为签名相同而提前返回，
+        // 读到的就是上一次的状态，测出来的结论是假的。
+        useLxSourceStore.setState({ scripts: [script('a', '源A', 'code-a')], activeId: 'a' });
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const state = readLxNativeSyncState();
+        expect(state.installed).toBe(true);
+        expect(state.error).toBeNull();
+    });
+
+    it('records a failure instead of silently assuming native can run the script', async () => {
+        setLxScript.mockRejectedValueOnce(new Error('bridge down'));
+        useLxSourceStore.setState({ scripts: [script('z', '源Z', 'code-z')], activeId: 'z' });
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const state = readLxNativeSyncState();
+        expect(state.installed).toBe(false);
+        expect(state.error).toBe('Error');
     });
 });

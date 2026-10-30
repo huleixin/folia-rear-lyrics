@@ -817,7 +817,8 @@ const readBackgroundContinuityLines = async (): Promise<string[]> => {
                 + ` resolving=${player.continuationResolving === true ? 'yes' : 'no'}`
                 + ` takeovers=${player.continuationTakeovers ?? 0}`
                 + ` fallbacks=${player.continuationFallbacks ?? 0}`
-                + ` failures=${player.continuationFailures ?? 0}`,
+                + ` failures=${player.continuationFailures ?? 0}`
+                + ` blocked=${player.continuationBudgetBlocked ?? 0}/${player.continuationBudgetMax ?? '-'}`,
             );
             lines.push(`  native resolvers: ${player.resolvers ?? '-'}`);
             // 音源兼容性：这首歌原本从哪来、原生挑了哪个解析器、洛雪引擎跑到哪一步。
@@ -825,7 +826,8 @@ const readBackgroundContinuityLines = async (): Promise<string[]> => {
             lines.push(
                 `  native source: provider=${player.songSourceType ?? '-'}`
                 + ` lxSource=${player.songLxSource ?? '-'}`
-                + ` resolver=${player.songResolver ?? '-'}`,
+                + ` resolver=${player.songResolver ?? '-'}`
+                + ` nativeReady=${player.songResolvable === true ? 'yes' : 'no'}`,
             );
             if (player.lxInstalled !== undefined) {
                 lines.push(

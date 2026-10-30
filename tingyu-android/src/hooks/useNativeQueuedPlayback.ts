@@ -61,7 +61,7 @@ export function useNativeQueuedPlayback(
         void syncResolverCredentials();
         // 阶段 B（洛雪）：脚本本身也要交给原生，否则后台没人能跑它。
         void syncLxScriptToNative();
-    }, [enabled, context, song, queue, loop, shuffle, quality]);
+    }, [enabled, context, song, queue, loop, shuffle, quality, lx]);
 
     // 只改模式也要单独同步：换代次会作废在飞的原生解析，避免"已切单曲循环还去取下一首"。
     useEffect(() => {
