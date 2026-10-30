@@ -57,20 +57,33 @@ public final class QqResolver implements SourceResolver {
     private final String backendBase;
     private final String backendCookie;
     private final boolean cookieAsHeader;
+    /**
+     * 是否还允许匿名 musicu 直连。
+     *
+     * <p>实测（5 个真实 songmid × 5 档音质）：HTTP 200、code=0，但 {@code purl} 恒空、
+     * {@code result=104003} —— 匿名通道今天取不到地址。正式链路一律关掉：发一堆注定空的
+     * 请求既解决不了续播，又会把用户推向"好像解析过、其实没地址"的假象。
+     */
+    private final boolean allowAnonymous;
 
     public QqResolver(String backendBase, String backendCookie, boolean cookieAsHeader) {
+        this(backendBase, backendCookie, cookieAsHeader, true);
+    }
+
+    public QqResolver(String backendBase, String backendCookie, boolean cookieAsHeader, boolean allowAnonymous) {
         this.backendBase = backendBase == null ? "" : backendBase.trim();
         this.backendCookie = backendCookie == null ? "" : backendCookie;
         this.cookieAsHeader = cookieAsHeader;
+        this.allowAnonymous = allowAnonymous;
     }
 
-    /** 从内存凭据构造。`extension` 与相对路径都不算可用后端，只有直连通道会生效。 */
+    /** 从内存凭据构造。`extension` 与相对路径都不算可用后端；匿名直连一律关闭。 */
     public static QqResolver fromCredentials() {
         String base = ResolverCredentials.value("qq", "base");
         if (!isUsableBackendBase(base)) base = "";
         return new QqResolver(base,
             ResolverCredentials.value("qq", "cookie"),
-            Boolean.parseBoolean(ResolverCredentials.value("qq", "cookieAsHeader")));
+            Boolean.parseBoolean(ResolverCredentials.value("qq", "cookieAsHeader")), false);
     }
 
     // ---------------------------------------------------------------- 匿名 musicu 熔断
@@ -96,10 +109,16 @@ public final class QqResolver implements SourceResolver {
         return System.currentTimeMillis() >= musicuBlockedUntil;
     }
 
-    /** 这条链路现在值不值得试：自建后端可用，或匿名通道没被熔断。 */
+    /**
+     * 这条链路现在值不值得试。**只有用户自己的后端算数**：匿名 musicu 已被证实取不到地址，
+     * 让它撑着"能试"的判定，只会把后台续播带到注定失败的那条路上。
+     */
     public boolean canAttempt() {
-        return backendUsable() || musicuOpen();
+        return backendUsable();
     }
+
+    /** 测试用：极少数自测需要保留匿名通道时可以显式打开。 */
+    public boolean allowsAnonymous() { return allowAnonymous; }
 
     /** 测试用：模拟一次"匿名通道又给了空结果"。 */
     static void noteMusicuMissForTest() {
@@ -292,7 +311,10 @@ public final class QqResolver implements SourceResolver {
                 if (resolved.ok()) return resolved;
             }
         }
-        // 直连通道：匿名 musicu，无需任何用户凭据，也不依赖扩展桥或脚本。
+        // 匿名直连通道默认关闭：实测 purl 恒空 / result=104003，开了只能制造"解析过了"的假象。
+        if (!allowAnonymous) {
+            return SourceResolution.failure("anonymous musicu disabled: proven to return no url (result=104003)");
+        }
         // 熔断打开时整条通道直接跳过：明知道取不到还打，只会把流量和电量烧在重试上。
         if (!musicuOpen()) {
             return SourceResolution.failure("musicu circuit open (anonymous vkey keeps returning no url)");

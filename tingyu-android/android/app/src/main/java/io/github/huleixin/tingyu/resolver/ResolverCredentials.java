@@ -18,23 +18,37 @@ public final class ResolverCredentials {
     private static final Map<String, Map<String, String>> BY_PROVIDER =
         Collections.synchronizedMap(new HashMap<>());
 
+    /** 每次配置的时刻：后台长时间播放时，会话可能早就过期了，必须能说出"配了多久"。 */
+    private static final Map<String, Long> STAMPED_AT =
+        Collections.synchronizedMap(new HashMap<>());
+
     private ResolverCredentials() { throw new AssertionError(); }
 
     public static void configure(String providerId, Map<String, String> values) {
         if (providerId == null || providerId.isEmpty()) return;
         if (values == null || values.isEmpty()) {
             BY_PROVIDER.remove(providerId);
+            STAMPED_AT.remove(providerId);
             return;
         }
         BY_PROVIDER.put(providerId, Collections.unmodifiableMap(new HashMap<>(values)));
+        STAMPED_AT.put(providerId, System.currentTimeMillis());
     }
 
     public static void clear(String providerId) {
         if (providerId != null) BY_PROVIDER.remove(providerId);
+        if (providerId != null) STAMPED_AT.remove(providerId);
     }
 
     public static void clearAll() {
         BY_PROVIDER.clear();
+        STAMPED_AT.clear();
+    }
+
+    /** 这次凭据配了多久；没配返回 -1。后台会话失效排查要用，但永远不写值。 */
+    public static long ageMs(String providerId) {
+        Long at = providerId == null ? null : STAMPED_AT.get(providerId);
+        return at == null ? -1L : Math.max(0L, System.currentTimeMillis() - at);
     }
 
     public static String value(String providerId, String key) {

@@ -81,6 +81,16 @@ describe('nativePlaylistSync', () => {
         expect(payload.tracks[0]).not.toHaveProperty('duration');
     });
 
+    it('tells native which source the user actually selected', async () => {
+        // providerId 只说这首歌属于哪个平台，sourceId 才说地址该走哪条链路。
+        // 没有它，原生只能猜 —— 1.3.50 就是把 QQ 原版判给了洛雪解析器然后不接管。
+        const queue = [song('a'), song('b')];
+        await syncNativePlaylist({ song: queue[0], queue, loop: 'off', shuffle: false, quality: 'high' });
+        const payload = lastPlaylist();
+        expect(payload.tracks[0].providerId).toBe('qq');
+        expect(payload.tracks[0].sourceId).toBe('qq-original');
+    });
+
     it('never puts a playable url in the payload', async () => {
         const queue = [song('a'), song('b')];
         await syncNativePlaylist({ song: queue[0], queue, loop: 'all', shuffle: false, quality: 'high' });

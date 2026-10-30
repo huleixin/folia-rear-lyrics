@@ -50,9 +50,24 @@ public final class NativePlaylist {
         public final String artwork;
         /** 音源引用里解析地址要用的补充数据（如 QQ 的 mediaMid）。 */
         public final String providerData;
+        /**
+         * **用户选的播放音源**：{@code lx:tx}（洛雪脚本）或 {@code qq-original}（QQ 原版）。
+         *
+         * <p>它与 {@link #providerId} 不是一回事：providerId 说这首属于哪个平台，sourceId 说
+         * 地址该走哪条链路。原生只有拿着它才能与前台 {@code omni.getAudioSource} 的分支保持一致，
+         * 否则选了 QQ 原版也会被判给洛雪解析器，然后在没装脚本的设备上回答 SCRIPT_NOT_INSTALLED。
+         *
+         * <p>空串表示前端没说（老版本同步包、本地与局域网曲目），此时沿用平台启发式。
+         */
+        public final String sourceId;
 
         public Track(String songKey, String providerId, String mediaId, String title, String artist,
                      String album, long durationMs, String artwork, String providerData) {
+            this(songKey, providerId, mediaId, title, artist, album, durationMs, artwork, providerData, "");
+        }
+
+        public Track(String songKey, String providerId, String mediaId, String title, String artist,
+                     String album, long durationMs, String artwork, String providerData, String sourceId) {
             this.songKey = songKey == null ? "" : songKey;
             this.providerId = providerId == null ? "" : providerId;
             this.mediaId = mediaId == null ? "" : mediaId;
@@ -62,11 +77,22 @@ public final class NativePlaylist {
             this.durationMs = durationMs;
             this.artwork = artwork == null ? "" : artwork;
             this.providerData = providerData == null ? "" : providerData;
+            this.sourceId = sourceId == null ? "" : sourceId;
         }
+
+        /** 用户是否明确选了洛雪自定义源来播这首。 */
+        public boolean prefersLx() { return SourceRouting.prefersLx(sourceId); }
+
+        /** 用户是否明确选了平台原版链路来播这首。 */
+        public boolean prefersOriginal() { return SourceRouting.prefersOriginal(sourceId, providerId); }
+
+        /** 诊断用三元组（不含任何凭据或 URL）。 */
+        public String routing() { return SourceRouting.describe(sourceId, providerId, null); }
 
         @Override
         public String toString() {
-            return "Track{" + songKey + "," + providerId + "," + mediaId + "}";
+            return "Track{" + songKey + "," + providerId + "," + mediaId
+                + (sourceId.isEmpty() ? "" : "," + sourceId) + "}";
         }
     }
 

@@ -76,22 +76,37 @@ public final class TingyuPlaybackPlugin extends Plugin {
                 if(raw==null)continue;
                 String songKey=raw.optString("songKey","");
                 if(songKey.isEmpty())continue;
-                tracks.add(new NativePlaylist.Track(songKey,raw.optString("providerId",""),raw.optString("mediaId",""),
+                String providerId=raw.optString("providerId","");
+                // 用户选的播放音源（`lx:tx` / `qq-original`）。没有它，原生只能按平台猜，
+                // 也就是 1.3.50 把 QQ 原版判给洛雪解析器的原因。
+                String sourceId=raw.optString("sourceId","");
+                tracks.add(new NativePlaylist.Track(songKey,providerId,raw.optString("mediaId",""),
                     raw.optString("title",""),raw.optString("artist",""),raw.optString("album",""),
                     // 毫秒契约（旧秒值自动迁移），见 PlaylistDuration。
                     PlaylistDuration.read(raw),raw.optString("artwork",""),
                     raw.opt("providerData") instanceof org.json.JSONObject
-                        ?raw.optJSONObject("providerData").toString():raw.optString("providerData","")));
+                        ?raw.optJSONObject("providerData").toString():raw.optString("providerData",""),
+                    sourceId));
             }
             if(!quality.isEmpty())QualityPreference.set(quality);
             long generation=NativePlaylist.get().replace(tracks,mode,loopAll,
                 android.os.SystemClock.elapsedRealtime(),"webview");
             PlaybackDiagnostics.note("playlist-sync",new JSObject().put("size",tracks.size())
                 .put("mode",mode.name().toLowerCase(java.util.Locale.US)).put("loopAll",loopAll)
-                .put("generation",generation));
+                .put("generation",generation)
+                // 用户选的音源到底是什么：这份统计让"换歌后 resolver 没跟着换"能一眼看出来。
+                .put("lxTracks",count(tracks,SourceRouting.Kind.LX))
+                .put("originalTracks",count(tracks,SourceRouting.Kind.ORIGINAL))
+                .put("unmarkedTracks",count(tracks,SourceRouting.Kind.UNKNOWN)));
             call.resolve(new JSObject().put("generation",generation).put("size",tracks.size()));
         }
         catch(Exception error){call.reject("同步逻辑歌单失败："+error.getClass().getSimpleName());}
+    }
+    /** 同步包里各类音源的条数。只是计数，不含标题/地址/凭据。 */
+    private static int count(java.util.List<NativePlaylist.Track> tracks, SourceRouting.Kind kind){
+        int total=0;
+        for(NativePlaylist.Track track:tracks) if(track!=null&&SourceRouting.kindOf(track.sourceId)==kind) total++;
+        return total;
     }
     /** 只改播放模式（用户在界面/通知栏切循环或随机），同样换代次以作废在飞的解析。 */
     @PluginMethod public void setNativePlaylistMode(PluginCall call){

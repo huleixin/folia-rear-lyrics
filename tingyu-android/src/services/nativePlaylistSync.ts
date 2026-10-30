@@ -2,6 +2,8 @@ import { getPlaybackSongKey, getPlaybackSourceRef } from '../utils/appPlaybackGu
 import { getSongAlbumCoverUrl } from '../utils/songMetadata';
 import { shufflePlayback } from './shufflePlayback';
 import { readQqNativeResolverConfig } from './onlineMusic/qqTransport';
+import { LX_PLATFORMS } from './onlineMusic/lxProviders';
+import { useLxSourceStore } from '../stores/useLxSourceStore';
 import { getTingyuPlayback } from '../platform/tingyuPlayback';
 import { primeNativeLyricsForSongs, LYRIC_PRIME_AHEAD } from './nativeLyricPriming';
 import type { SongResult } from '../types';
@@ -34,6 +36,14 @@ export interface NativePlaylistTrackPayload {
     durationMs: number;
     artwork: string;
     providerData?: Record<string, unknown>;
+    /**
+     * 用户选的播放音源：`lx:tx`（洛雪脚本）/ `qq-original`（平台原版）。
+     *
+     * 没有它，原生只能按 providerId 猜 —— 真机 1.3.50 就是把 `provider=qq` 的 QQ 原版
+     * 判给了洛雪解析器，而设备没装脚本，于是回答 SCRIPT_NOT_INSTALLED、不接管、
+     * 回落给已经停止活动的 WebView，放完一首就停。
+     */
+    sourceId?: string;
 }
 
 export type NativePlaylistMode = 'off' | 'all' | 'one' | 'shuffle';
@@ -80,14 +90,29 @@ const artworkOf = (song: SongResult): string => {
     return typeof legacy === 'string' ? legacy : '';
 };
 
+/**
+ * 用户选的播放音源，必须与 `omni.getAudioSource` 的分支同构。
+ *
+ * 那边是：启用了脚本 → 先问洛雪；没有 → 走 provider 自己的链。这里必须给出同样的答案，
+ * 否则"原生继续的下一首"和"前台会播的下一首"走的不是同一条链路。
+ * 非在线来源（本地 / Navidrome / 舞台）返回空串，交给旧的平台启发式。
+ */
+const selectedSourceId = (providerId: string): string => {
+    if (!providerId) return '';
+    if (!useLxSourceStore.getState().activeId) return `${providerId}-original`;
+    const platform = Object.keys(LX_PLATFORMS).find(key => LX_PLATFORMS[key].original === providerId);
+    return platform ? `lx:${platform}` : `${providerId}-original`;
+};
+
 const toPayload = (song: SongResult): NativePlaylistTrackPayload | null => {
     const songKey = getPlaybackSongKey(song);
     if (!songKey) return null;
     const ref = getPlaybackSourceRef(song);
     const online = ref?.kind === 'online' ? ref : null;
+    const providerId = online?.providerId ?? '';
     return {
         songKey,
-        providerId: online?.providerId ?? '',
+        providerId,
         mediaId: online?.mediaId ?? '',
         title: titleOf(song),
         artist: artistOf(song),
@@ -96,6 +121,8 @@ const toPayload = (song: SongResult): NativePlaylistTrackPayload | null => {
         // 之前这里 `/1000` 是整条错链的起点。
         durationMs: Math.max(0, Math.round(song.durationMs ?? 0)),
         artwork: artworkOf(song),
+        // 用户选的音源：原生据此挑解析器，不再靠 providerId 猜。
+        sourceId: selectedSourceId(providerId),
         ...(online?.providerData ? { providerData: online.providerData as Record<string, unknown> } : {}),
     };
 };
@@ -154,6 +181,9 @@ export const syncNativePlaylist = async (options: {
     lastSignature = signature;
     try {
         const native = getTingyuPlayback<TingyuPlaybackNative>();
+        // 歌单每次同步都顺带刷新一次解析器凭据：后台播放几个小时，会话早就可能过期，
+        // 而凭据只在内存里（不落盘），不刷新就等于让原生拿一份旧会话去取地址。
+        void syncResolverCredentials();
         await native.setNativePlaylist({ mode, loopAll: loop === 'all', quality, tracks });
         // 这份 `ordered` 就是原生真正会走的顺序：按它预置歌词，锁屏连播才有词可用。
         // 与窗口预置（只有 5 首）不同，这里能看到更远的 10 首；只读本地缓存，最多

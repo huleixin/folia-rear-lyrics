@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Locale;
 
 import io.github.huleixin.tingyu.playback.NativePlaylist;
+import io.github.huleixin.tingyu.playback.SourceRouting;
 
 /**
  * 解析器注册中心。
@@ -70,6 +71,23 @@ public final class ResolverRegistry {
      */
     public synchronized SourceResolver forTrack(NativePlaylist.Track track) {
         if (track == null) return null;
+        SourceRouting.Kind kind = SourceRouting.kindOf(track.sourceId);
+        if (kind == SourceRouting.Kind.LX) {
+            // 用户选了洛雪：只有洛雪能答。脚本没装时它明确回 SCRIPT_NOT_INSTALLED，
+            // 绝不因为 provider=qq 就静默改走后台 musicu —— 那正是 1.3.50 的 bug。
+            return lxResolver();
+        }
+        if (kind == SourceRouting.Kind.ORIGINAL && track.prefersOriginal()) {
+            // 用户选了平台原版：只认这个平台自己的解析器（QQ 原版 → QqResolver）。
+            // 这里必须与前台 omni.getAudioSource 在未启用脚本时走的分支一致。
+            for (SourceResolver resolver : resolvers) if (resolver.supports(track.providerId)) return resolver;
+            return null;
+        }
+        // 前端没说（老版本同步包 / 本地与局域网曲目）：沿用旧的平台启发式，行为不变。
+        return heuristic(track);
+    }
+
+    private SourceResolver heuristic(NativePlaylist.Track track) {
         if (LxNativeResolver.isLxTrack(track)) {
             LxNativeResolver lx = lxResolver();
             if (lx != null && lx.canAttempt(track)) return lx;

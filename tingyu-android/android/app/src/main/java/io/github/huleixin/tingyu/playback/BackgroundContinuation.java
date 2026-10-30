@@ -461,6 +461,9 @@ public final class BackgroundContinuation {
         resolving = false;
     }
 
+    /** 是否正在解析某一首。诊断里用来区分"等原生解析"与"后面真的没歌了"。 */
+    public boolean isResolving() { return resolving; }
+
     public org.json.JSONObject snapshot() {
         int blockedCount = 0;
         synchronized (budgets) {

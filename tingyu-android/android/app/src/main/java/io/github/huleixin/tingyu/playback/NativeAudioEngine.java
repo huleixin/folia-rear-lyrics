@@ -130,6 +130,15 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     private PlaybackException failure;
     private int networkRetries;
     private int errorSkips;
+    /** 连续跳过的坏歌数量：中间只要有一首真的播出声就清零，达到上限就停下来说清楚。 */
+    private int consecutiveSkips;
+    /** 整场会话累计跳过了多少首。 */
+    private int skipCount;
+    /** 429 / 鉴权失效之类的全局故障：同类请求暂停到这个时刻，期间不逐首判失效。 */
+    private long globalSuspendUntil;
+    /** 队列里没有下一首时先让原生解析一首，成功后由这个标记补上跳转。 */
+    private boolean skipPending;
+    private String lastSkipReason="",lastSkipTarget="";
     private long retryGeneration;
     private long queueGeneration=-1;
     private int queueAccepted,queueRejected,queueStale,staleNudges;
@@ -286,6 +295,9 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 // Only real audible playback proves the current item is healthy; a skip that
                 // immediately fails again keeps its budget.
                 if(isPlaying)errorSkips=0;
+                // 真的播出声 = 这首歌没问题：连续跳过的计数在这里清零，
+                // 否则一份开头坏几首的歌单会在后面被误判成"全是坏歌"。
+                if(isPlaying)consecutiveSkips=0;
                 // Backscreen clock authority: the WebView that used to feed it is frozen in the
                 // background, so playing state and position must also be readable natively.
                 io.github.huleixin.tingyu.RearNativeTrack.onPlayback(isPlaying,player.getCurrentPosition());
@@ -349,17 +361,10 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 // A dead/expired URL for one queued item must not end the session: the next
                 // resolved items are already in the native playlist, and in the background the
                 // WebView may never run its own failure handling. Skip natively, bounded, so a
-                // playlist of broken sources still surfaces an error instead of spinning.
-                if(!desiredPaused&&errorSkips<MAX_ERROR_SKIPS&&player.getNextMediaItemIndex()>=0){
-                    errorSkips++;
-                    PlaybackDiagnostics.note("queue-skip-error",new JSObject().put("code",error.errorCode)
-                        .put("song",PlaybackDiagnostics.anonKey(songKey)).put("skips",errorSkips)
-                        .put("index",player.getCurrentMediaItemIndex()).put("items",player.getMediaItemCount())
-                        .put("remaining",Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1)));
-                    failure=null;networkRetries=0;
-                    player.seekToNextMediaItem();player.prepare();player.play();
-                    return;
-                }
+                // playlist of broken sources still surfaces an error instead of spinning-
+                // 规则集中在 PlaybackSkipPolicy（纯逻辑、已单测）：用户主动暂停不算故障、
+                // 429 与鉴权失效全局暂停、单曲循环不替用户跳、连续跳过有上限。
+                if(handleUnplayableError(error))return;
                 failure=error;emit("error",false);
             }
             @Override public void onPositionDiscontinuity(Player.PositionInfo old,Player.PositionInfo next,int reason){if(reason==Player.DISCONTINUITY_REASON_SEEK)emit("seeked",false);}
@@ -492,6 +497,152 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             .put("remaining",remaining).put("wasEnded",wasEnded));
         if(wasEnded)resumeFromWindow();
         else if(remaining>QueueSupervision.LOW_WATER)supervision.satisfied();
+        // 上一首不可播放、当时队列里又没有下一首：现在补上了，把那次欠着的跳转做完。
+        if(skipPending)completePendingSkip(track.songKey);
+    }
+
+    // ---------------------------------------------------------------------------------
+    // 不可播放歌曲：重试 / 跳过 / 停止 / 全局暂停
+    //
+    // 规则本体在 PlaybackSkipPolicy（纯逻辑、可单测）。这里只负责把 Media3 的事实喂进去，
+    // 并把结果翻译成播放器动作，绝不在两处各自实现一半规则。
+    // ---------------------------------------------------------------------------------
+
+    /** 429/鉴权失效之类的全局故障暂停时长。 */
+    private static final long GLOBAL_SUSPEND_MS=60_000L;
+
+    private boolean canResolveNatively(NativePlaylist.Track track){
+        return track!=null&&io.github.huleixin.tingyu.resolver.ResolverRegistry.get().canResolveNatively(track);
+    }
+
+    /** 返回 true 表示这次失败已经被接管（重试/跳过/全局暂停），调用方不要再当致命错误上报。 */
+    private boolean handleUnplayableError(PlaybackException error){
+        // 用户主动暂停/停止：这条规则不存在。缓冲中的抖动也不会走到这里（那不是 error）。
+        if(desiredPaused||sourceId.isEmpty())return false;
+        if(SystemClock.elapsedRealtime()<globalSuspendUntil){
+            PlaybackDiagnostics.note("player-error-suspended",new JSObject()
+                .put("code",error.errorCode).put("song",PlaybackDiagnostics.anonKey(songKey))
+                .put("resumeInMs",globalSuspendUntil-SystemClock.elapsedRealtime()));
+            return true;
+        }
+        NativePlaylist list=NativePlaylist.get();
+        NativePlaylist.Step step=list.canDecide(songKey)?list.advance(songKey):null;
+        boolean hasNext=player.getNextMediaItemIndex()>=0;
+        boolean materializable=step!=null&&step.hasTrack()&&canResolveNatively(step.track);
+        boolean hasCandidates=list.remainingAfter(songKey)>0;
+        PlaybackSkipPolicy.Facts facts=new PlaybackSkipPolicy.Facts(error.errorCode,networkRetries,
+            consecutiveSkips,list.mode(),desiredPaused,sourceId.isEmpty(),hasNext,materializable,hasCandidates);
+        PlaybackSkipPolicy.Decision decision=PlaybackSkipPolicy.decide(facts);
+        lastSkipReason=decision.reason;
+        PlaybackDiagnostics.note("skip-decision",new JSObject()
+            .put("code",error.errorCode).put("song",PlaybackDiagnostics.anonKey(songKey))
+            .put("action",decision.action.name().toLowerCase(java.util.Locale.US))
+            .put("reason",decision.reason)
+            .put("retries",networkRetries).put("consecutiveSkips",consecutiveSkips)
+            .put("skipCount",skipCount)
+            .put("hasNext",hasNext).put("canMaterializeNext",materializable)
+            .put("candidates",hasCandidates)
+            .put("mode",list.mode().name().toLowerCase(java.util.Locale.US))
+            .put("target",step!=null&&step.hasTrack()?PlaybackDiagnostics.anonKey(step.track.songKey):""));
+        switch(decision.action){
+            case STOP:
+                return false;
+            case SUSPEND:
+                // 整个音源都受影响：不把任何一首判成坏歌，也不再发同类请求。
+                globalSuspendUntil=SystemClock.elapsedRealtime()+GLOBAL_SUSPEND_MS;
+                failure=error;emit("error",false);return true;
+            case RETRY_SAME: {
+                int attempt=++networkRetries;String token=sourceId;long generation=++retryGeneration;
+                String target=songKey;
+                main.postDelayed(()->{
+                    if(generation!=retryGeneration||!sourceId.equals(token)||desiredPaused)return;
+                    PlaybackDiagnostics.note("skip-retry",new JSObject()
+                        .put("attempt",attempt).put("song",PlaybackDiagnostics.anonKey(target))
+                        .put("reason",decision.reason));
+                    failure=null;player.prepare();player.play();
+                },Math.max(400L,attempt*800L));
+                return true;
+            }
+            case MATERIALIZE_THEN_SKIP:
+                // 队列里还没有下一首：先按用户选的音源解析一首加进来，补上了再跳。
+                skipPending=true;
+                BackgroundContinuation.get().consider(this,"skip-unplayable");
+                return true;
+            case SKIP_NEXT:
+            default:
+                executeSkip(decision.reason);
+                return true;
+        }
+    }
+
+    /** 跳过这一首：计数、留痕、然后真的往前一首。 */
+    private void executeSkip(String reason){
+        if(desiredPaused||player.getNextMediaItemIndex()<0)return;
+        consecutiveSkips++;skipCount++;errorSkips++;
+        failure=null;networkRetries=0;retryGeneration++;
+        noteSkip(reason,PlaybackDiagnostics.anonKey(songKey));
+        player.seekToNextMediaItem();player.prepare();player.play();
+    }
+
+    /** 原生补上下一首之后，把欠着的跳步做完。 */
+    private void completePendingSkip(String adopted){
+        skipPending=false;
+        if(desiredPaused||player.getNextMediaItemIndex()<0)return;
+        consecutiveSkips++;skipCount++;errorSkips++;
+        failure=null;networkRetries=0;retryGeneration++;
+        noteSkip(lastSkipReason,PlaybackDiagnostics.anonKey(songKey));
+        PlaybackDiagnostics.note("skip-decision",new JSObject()
+            .put("action","skip-after-native-enqueue")
+            .put("reason",lastSkipReason).put("adopted",PlaybackDiagnostics.anonKey(adopted))
+            .put("skipCount",skipCount));
+        player.seekToNextMediaItem();player.prepare();player.play();
+    }
+
+    // ---- 诊断：路由三元组与解析能力，全部只读，不含任何凭据或 URL ----
+
+    /** 当前曲目在逻辑歌单里的 providerId。 */
+    private String songProvider(){
+        NativePlaylist.Track track=NativePlaylist.get().trackFor(songKey);
+        return track==null?"":track.providerId;
+    }
+
+    /** 当前曲目上用户选的播放音源（`lx:tx` / `qq-original`）。 */
+    private String selectedSourceId(){
+        NativePlaylist.Track track=NativePlaylist.get().trackFor(songKey);
+        return track==null?"":track.sourceId;
+    }
+
+    /** 下一首实际会由哪个解析器接。 */
+    private String actualResolverId(){
+        NativePlaylist list=NativePlaylist.get();
+        NativePlaylist.Step step=list.canDecide(songKey)?list.advance(songKey):null;
+        if(step==null||!step.hasTrack())return "none";
+        io.github.huleixin.tingyu.resolver.SourceResolver chosen=
+            io.github.huleixin.tingyu.resolver.ResolverRegistry.get().forTrack(step.track);
+        return chosen==null?"none":chosen.id();
+    }
+
+    /** 下一首原生能不能自己取到地址。 */
+    private boolean nativeReady(){
+        NativePlaylist list=NativePlaylist.get();
+        NativePlaylist.Step step=list.canDecide(songKey)?list.advance(songKey):null;
+        if(step==null||!step.hasTrack())return false;
+        return canResolveNatively(step.track);
+    }
+
+    /** 是否正因为队列空而等待原生解析（区分"等原生"与"真的没歌了"）。 */
+    private boolean awaitingNativeResolution(){
+        return skipPending||(player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1<=QueueSupervision.LOW_WATER
+            &&!desiredPaused&&BackgroundContinuation.get().isResolving());
+    }
+
+    private void noteSkip(String reason,String target){
+        lastSkipTarget=target;
+        PlaybackDiagnostics.note("queue-skip-error",new JSObject()
+            .put("reason",reason).put("song",target)
+            .put("skipCount",skipCount).put("consecutiveSkips",consecutiveSkips)
+            .put("index",player.getCurrentMediaItemIndex()).put("items",player.getMediaItemCount())
+            .put("remaining",Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1)));
     }
 
     // ---------------------------------------------------------------------------------
@@ -930,7 +1081,21 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             .put("queueContinues",supervision.continues()).put("queueWaiting",supervision.waiting())
             .put("queueGeneration",supervision.generation()).put("queueRetries",supervision.retries())
             .put("queueAccepted",queueAccepted).put("queueRejected",queueRejected).put("queueStale",queueStale)
-            .put("lastQueueAppliedAtMs",lastQueueAppliedAt).put("errorSkips",errorSkips);
+            .put("lastQueueAppliedAtMs",lastQueueAppliedAt).put("errorSkips",errorSkips)
+            // ---- 失败自动跳过 ----
+            .put("skipCount",skipCount).put("consecutiveSkips",consecutiveSkips)
+            .put("lastSkipReason",lastSkipReason)
+            .put("lastSkipTarget",PlaybackDiagnostics.anonKey(lastSkipTarget))
+            .put("skipPending",skipPending)
+            .put("globalSuspendInMs",Math.max(0L,globalSuspendUntil-SystemClock.elapsedRealtime()))
+            // ---- 音源路由：provider / 用户选的音源 / 实际解析器 三者分开 ----
+            .put("selectedPlaybackSource",selectedSourceId())
+            .put("songProvider",songProvider())
+            .put("actualResolver",actualResolverId())
+            .put("nativeReady",nativeReady())
+            .put("candidateCount",NativePlaylist.get().size())
+            .put("materializedMediaItemCount",player.getMediaItemCount())
+            .put("awaitingNativeResolution",awaitingNativeResolution());
         // The joint post-mortem fields: was the session drained while the logical playlist still
         // had music ("stopped" rather than "finished"), and did an answer admit it could not tell?
         value.put("queueVerdict",lastVerdict)
