@@ -34,10 +34,13 @@ object LxHttp {
         .build()
 
     /**
-     * 执行脚本的一次请求，返回交给 JS 的 JSON 文本：{statusCode, headers, body}。
-     * 失败直接抛，由引擎映射成脚本回调里的 err。
+     * 「脚本给的 options」→「真正要发出去的那一跳」的映射。
+     *
+     * 抽出来是因为这正是出故障的地方：method / body / headers 全在这里落地。
+     * 有了它，双引擎对照台和单元测试都能直接断言"脚本要 POST + JSON 体，
+     * 宿主有没有照做"，而不用真的打网络。
      */
-    fun request(rawUrl: String, options: JSONObject): String {
+    fun plan(rawUrl: String, options: JSONObject): LxRequestPlan {
         val url = validateUrl(rawUrl)
         val headers = LinkedHashMap<String, String>()
         val declared = options.opt("headers")
@@ -67,16 +70,26 @@ object LxHttp {
         } else if (options.has("formData")) {
             throw IllegalArgumentException("multipart unsupported")
         } else if (!options.isNull("body")) {
-            val raw = options.opt("body")
-            body = if (raw is String) raw else raw.toString()
+            // 对象/数组请求体必须按 JSON 序列化（与 WebView http.ts 的 JSON.stringify 同语义）；
+            // 早先是 raw.toString()，对象会变成 Java 的 com.xxx@hash，服务端永远读不懂。
+            body = LxJson.bodyText(options.opt("body"))
             if (!headers.keys.any { it.equals("Content-Type", true) }) headers["Content-Type"] = "application/json"
         }
         if ((body?.length ?: 0) > MAX_BODY) throw IllegalArgumentException("Request too large")
+        return LxRequestPlan(url, method, headers, body, timeout)
+    }
 
-        var target = url
-        var activeMethod = method
-        var activeBody = body
-        var activeHeaders = headers
+    /**
+     * 执行脚本的一次请求，返回交给 JS 的 JSON 文本：{statusCode, headers, body}。
+     * 失败直接抛，由引擎映射成脚本回调里的 err。
+     */
+    fun request(rawUrl: String, options: JSONObject): String {
+        val first = plan(rawUrl, options)
+        var target = first.url
+        var activeMethod = first.method
+        var activeBody = first.body
+        var activeHeaders = first.headers
+        val timeout = first.timeoutMs
         var redirect = 0
         while (true) {
             val response = execute(target, activeMethod, activeHeaders, activeBody, timeout)
@@ -99,6 +112,15 @@ object LxHttp {
             return response.toString()
         }
     }
+
+    /** 一跳请求的完整形态。重定向时 method/body/headers 会在循环里被改写，所以每跳都要重新算。 */
+    data class LxRequestPlan(
+        val url: String,
+        val method: String,
+        val headers: Map<String, String>,
+        val body: String?,
+        val timeoutMs: Long,
+    )
 
     private fun execute(url: String, method: String, headers: Map<String, String>, body: String?, timeoutMs: Long): JSONObject {
         val builder = Request.Builder().url(url)

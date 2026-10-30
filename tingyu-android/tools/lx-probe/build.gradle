@@ -29,6 +29,28 @@ dependencies {
     implementation 'io.github.dokar3:quickjs-kt-jvm:1.0.5'
 }
 
+tasks.register('musicinfo', JavaExec) {
+    group = 'verification'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.github.huleixin.tingyu.probe.LxMusicInfoDumpKt'
+    standardInput = System.in
+}
+
+// 原生侧取证：跑真实脚本 + 真实网络，同时把每一次外出请求按统一格式记下来。
+tasks.register('record', JavaExec) {
+    group = 'verification'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.github.huleixin.tingyu.probe.LxRecordKt'
+    standardInput = System.in
+}
+
+tasks.register('types', JavaExec) {
+    group = 'verification'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.github.huleixin.tingyu.probe.LxTypeProbeKt'
+    standardInput = System.in
+}
+
 tasks.register('probe', JavaExec) {
     group = 'verification'
     classpath = sourceSets.main.runtimeClasspath

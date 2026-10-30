@@ -13,6 +13,15 @@ interface LxHooks {
     /** HTTP 桥每次真实外出请求后回调，只给主机与状态码。 */
     fun http(host: String, status: Int, bytes: Int)
 
+    /**
+     * 脚本发起请求**之前**回调一次，给的是引擎解析后的 options。
+     *
+     * 存在的理由：options 一旦在宿主管卡上被丢掉（method/body 全部消失），
+     * 只看状态码就只能看到 404，看不出是"服务端没有这个路由"还是"我们把 POST 发成了 GET"。
+     * 默认空实现，宿主不实现就没有开销。
+     */
+    fun request(url: String, options: JSONObject) = Unit
+
     companion object {
         val NONE: LxHooks = object : LxHooks {
             override fun note(event: String, fields: JSONObject) = Unit

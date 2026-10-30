@@ -163,17 +163,12 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
 
     private suspend fun http(args: Array<Any?>): String {
         val url = args.getOrNull(0)?.toString() ?: throw IllegalArgumentException("missing url")
-        val options = when (val raw = args.getOrNull(1)) {
-            is JSONObject -> raw
-            is String -> try {
-                JSONObject(raw)
-            } catch (_: Throwable) {
-                JSONObject()
-            }
-            else -> JSONObject()
-        }
+        // 收到什么都要能解析：JSON 文本（shim 现在给的是这个）、JsObject/Map、JSONObject。
+        // 以前只认 JSONObject，其余静默变成空 options —— 那正是 POST 被发成 GET 的原因。
+        val options = LxJson.toJsonObject(args.getOrNull(1))
         return withContext(Dispatchers.IO) {
             val host = LxHttp.hostOf(url)
+            hooks.request(url, options)
             try {
                 val text = LxHttp.request(url, options)
                 hooks.http(host, statusOf(text), text.length)

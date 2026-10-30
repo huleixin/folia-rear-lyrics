@@ -44,6 +44,8 @@ object LxRuntimeHost {
     @Volatile private var failures = 0
     @Volatile private var lastHost = ""
     @Volatile private var lastStatus = 0
+    @Volatile private var lastMethod = ""
+    @Volatile private var lastOptionKeys = ""
 
     private val hooks = object : LxHooks {
         override fun note(event: String, fields: JSONObject) {
@@ -56,7 +58,17 @@ object LxRuntimeHost {
             PlaybackDiagnostics.note("lx-http", JSONObject()
                 .put("host", host.take(48))
                 .put("status", status)
+                .put("method", lastMethod)
                 .put("bytes", bytes))
+        }
+
+        /**
+         * 只记"脚本要的是什么"，不记值：options 一旦在宿主管卡上被丢光，
+         * 诊断里就只剩 404 —— 上一轮真机正是因为缺这一行，才看不出 POST 被发成了 GET。
+         */
+        override fun request(url: String, options: JSONObject) {
+            lastMethod = options.optString("method", "GET").uppercase()
+            lastOptionKeys = options.keys().asSequence().toList().sorted().joinToString(",").take(48)
         }
     }
 
@@ -221,6 +233,8 @@ object LxRuntimeHost {
             .put("failed", failures)
             .put("lastHost", lastHost.take(48))
             .put("lastStatus", lastStatus)
+            .put("lastMethod", lastMethod)
+            .put("lastOptionKeys", lastOptionKeys)
             .put("lastError", redact(lastError).take(160))
     }
 

@@ -838,6 +838,10 @@ const readBackgroundContinuityLines = async (): Promise<string[]> => {
                     + ` ok=${player.lxOk ?? 0}`
                     + ` failed=${player.lxFailed ?? 0}`
                     + ` lastHost=${player.lxLastHost ?? '-'}`
+                    + ` lastMethod=${player.lxLastMethod || '-'}`
+                    + ` lastStatus=${player.lxLastStatus ?? '-'}`
+                    // 这次故障的关键证据：options 若被丢光，这里会是空，而 lastMethod 会退回 GET。
+                    + ` lastOptions=${player.lxLastOptionKeys || '-'}`
                     + ` lastError=${player.lxLastError || 'none'}`,
                 );
             }

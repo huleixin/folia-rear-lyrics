@@ -69,7 +69,11 @@ object LxBootstrap {
     send: (name, data) => { emit(JSON.stringify({ kind: name, data })); return Promise.resolve(); },
     request: (url, options, callback) => {
       if (typeof options === 'function') { callback = options; options = {}; }
-      const promise = http(String(url), options || {}).then(text => JSON.parse(text));
+      // options 必须序列化成 JSON 文本再交给宿主：QuickJS 绑定把 JS 对象交给 Kotlin 时
+      // 用的是它自己的 JsObject，直接传对象会让宿主认不出 method/body/headers
+      // （曾经的后果：POST 变 GET、请求体消失 → 服务端 Cannot GET）。
+      // JSON.stringify 的语义与 WebView 侧把 options 交给 CapacitorHttp 时的桥序列化一致。
+      const promise = http(String(url), JSON.stringify(options || {})).then(text => JSON.parse(text));
       if (typeof callback === 'function') {
         promise.then(response => callback(null, response, response && response.body),
           error => callback(error instanceof Error ? error : Error(String(error))));

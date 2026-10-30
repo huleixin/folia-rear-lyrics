@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import type { LxQuality } from '../../../src/services/lxSource/contract';
 
 // 洛雪音源原生化的 JS 侧：把用户启用的**脚本本身**交给播放进程。
 // 这里只验证交出去的是什么、以及什么时候交，不验证原生怎么执行它（那是 JVM 侧的责任）。
@@ -34,6 +35,7 @@ const { syncLxScriptToNative, resetLxScriptSyncForTest, readLxNativeSyncState } 
     '../../../src/services/lxNativeScriptSync'
 );
 
+// qualitys 必须是字面量联合类型，否则 LxCapability 收不下（tsc 会报 string[] 不兼容）。
 const script = (id: string, name: string, code: string) => ({
     id,
     name,
@@ -42,7 +44,7 @@ const script = (id: string, name: string, code: string) => ({
     author: '',
     homepage: '',
     code,
-    capabilities: { tx: { name: 'QQ音乐', qualitys: ['128k', '320k'] } },
+    capabilities: { tx: { name: 'QQ音乐', qualitys: ['128k', '320k'] as LxQuality[] } },
 });
 
 describe('lxNativeScriptSync', () => {
