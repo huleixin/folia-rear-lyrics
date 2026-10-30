@@ -455,7 +455,11 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         tag.put("artist",track.artist);
         tag.put("album",track.album);
         tag.put("duration",track.durationMs);
+        // 两个字段名都写：队列窗口用 `coverUrl`，逻辑歌单用 `artwork`，而读的人在服务与
+        // 歌曲信息调度器两边。只写一个，另一侧就会把封面当成空值 —— 这正是"原生自动切歌
+        // 后封面消失"的形态。
         tag.put("artwork",track.artwork);
+        tag.put("coverUrl",track.artwork);
         tag.put("providerId",track.providerId);
         tag.put("mediaId",track.mediaId);
         tag.put("nativeContinuation",true);
@@ -553,12 +557,13 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             int generation=loader.generation();
             SongInfo current=SongInfo.fromTag((JSObject)item.localConfiguration.tag,generation);
             if(current==null)return;
+            current=withPlaylistArtwork(current);
             java.util.ArrayList<SongInfo> upcoming=new java.util.ArrayList<>(2);
             for(int i=player.getCurrentMediaItemIndex()+1;i<player.getMediaItemCount()&&upcoming.size()<2;i++){
                 MediaItem next=player.getMediaItemAt(i);
                 if(next==null||next.localConfiguration==null||!(next.localConfiguration.tag instanceof JSObject))continue;
                 SongInfo info=SongInfo.fromTag((JSObject)next.localConfiguration.tag,generation);
-                if(info!=null)upcoming.add(info);
+                if(info!=null)upcoming.add(withPlaylistArtwork(info));
             }
             loader.onTrackChanged(current,upcoming);
         }catch(Throwable error){
@@ -568,6 +573,23 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                     .put("source","engine-schedule").put("error",error.getClass().getSimpleName()));
             }catch(Throwable ignored){}
         }
+    }
+
+    /**
+     * tag 里没有封面地址时，回到**当前**的逻辑歌单按 songKey 再查一次。
+     *
+     * <p>队列里的 MediaItem 带的是它入队那一刻的 tag。旧版本同步交上来的 `artwork` 恒为空，
+     * 即使之后 JS 用正确字段重新同步，队列里那一项的 tag 也不会变 —— 切到它时封面仍然缺。
+     * 逻辑歌单是按 songKey 索引的最新副本，用它补齐即可；查不到就保持空，不乱猜图。
+     */
+    private SongInfo withPlaylistArtwork(SongInfo info){
+        if(info==null||!info.artworkUrl.isEmpty())return info;
+        String artwork=io.github.huleixin.tingyu.playback.NativePlaylist.get().artworkFor(info.songKey);
+        if(artwork==null||artwork.isEmpty())return info;
+        PlaybackDiagnostics.note("artwork-uri",new JSObject()
+            .put("song",PlaybackDiagnostics.anonKey(info.songKey))
+            .put("state","from-playlist"));
+        return info.withArtwork(artwork);
     }
 
     private JSObject applyQueue(JSObject value){
@@ -588,6 +610,15 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             Uri uri=Uri.parse(raw.optString("uri"));
             if(!java.util.Arrays.asList("http","https","content","file").contains(uri.getScheme())||raw.optString("songKey").isEmpty()){rejected++;continue;}
             JSObject tag=copy(raw);
+            // 队列窗口的 tag 只有 `coverUrl`。原生其余读封面的人（服务、歌曲信息调度器）
+            // 两个名字都认，但把这份 tag 再读出来的人可能只认 `artwork` —— 这里补齐，
+            // 让一个 MediaItem 无论从哪条路径进来，封面字段都是完整的。
+            if(tag.optString("artwork","").isEmpty()&&!tag.optString("coverUrl","").isEmpty()){
+                tag.put("artwork",tag.optString("coverUrl"));
+            }
+            if(tag.optString("coverUrl","").isEmpty()&&!tag.optString("artwork","").isEmpty()){
+                tag.put("coverUrl",tag.optString("artwork"));
+            }
             items.add(new MediaItem.Builder().setUri(uri).setMediaId(tag.optString("songKey")).setTag(tag).build());
             ids.add(tag.optString("songKey"));
         }

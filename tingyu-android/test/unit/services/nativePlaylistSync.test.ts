@@ -140,3 +140,25 @@ describe('nativePlaylistSync', () => {
         expect(lastPlaylist().tracks[0].durationMs).toBe(0);
     });
 });
+
+// ---- 封面：SongResult 把它放在 album.coverUrl ----
+//
+// 之前这里读的是顶层 `coverUrl`，而 `SongResult` 根本没有这个字段 —— 于是交给原生的
+// `artwork` 恒为空串。前台播放看不出问题（系统卡片由 JS 推当前曲，带的是正确地址），
+// 但只要 Media3 自己切歌、由原生接管，那个 MediaItem 就没有封面，锁屏只剩占位图。
+describe('nativePlaylistSync artwork', () => {
+    const COVER = 'https://y.gtimg.cn/music/photo_new/T002R300x300M000004Z8cTB0FsM7A.jpg';
+
+    it('takes the cover from album.coverUrl, the only place SongResult keeps it', async () => {
+        const covered = { ...(song('cv') as Record<string, unknown>), album: { id: 3, name: 'album', coverUrl: COVER } };
+        await syncNativePlaylist({
+            song: covered as never, queue: [covered as never], loop: 'off', shuffle: false, quality: 'high',
+        });
+        expect(lastPlaylist().tracks[0].artwork).toBe(COVER);
+    });
+
+    it('keeps it empty rather than inventing a cover when the album has none', async () => {
+        await syncNativePlaylist({ song: song('nc'), queue: [song('nc')], loop: 'off', shuffle: false, quality: 'high' });
+        expect(lastPlaylist().tracks[0].artwork).toBe('');
+    });
+});

@@ -79,4 +79,10 @@ public final class SongInfo {
         return new SongInfo(songKey, title, artist, album, durationMs, artworkUrl,
                 providerId, mediaId, value);
     }
+
+    /** 只换封面地址（tag 里缺、逻辑歌单里有）。其余身份不变。 */
+    public SongInfo withArtwork(String url) {
+        return new SongInfo(songKey, title, artist, album, durationMs, url,
+                providerId, mediaId, generation);
+    }
 }

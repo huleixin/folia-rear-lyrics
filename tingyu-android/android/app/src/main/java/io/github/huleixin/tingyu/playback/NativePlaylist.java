@@ -192,9 +192,26 @@ public final class NativePlaylist {
         }
     }
 
-    /** 逻辑歌单里第 index 首。越界返回 null。 */
-    public Track at(int index) {
+    /**
+     * 逻辑歌单里这首歌的封面地址（没有就空串）。
+     *
+     * <p>存在的理由：已经进入 Media3 队列的 MediaItem 带着**当时**的 tag。如果那一次同步
+     * 交上来的封面是空的（旧版本读错了字段），即使之后 JS 重新同步补上了正确地址，
+     * 队列里那一项的 tag 也不会变 —— 切到它时仍然没有封面。这里给读取方一条「按 songKey
+     * 回到当前逻辑歌单查一次」的路，让修正过的数据能追上已经在队列里的项。
+     */
+    public String artworkFor(String songKey) {
+        if (songKey == null || songKey.isEmpty()) return "";
         synchronized (lock) {
+            for (Track track : tracks) {
+                if (songKey.equals(track.songKey)) return track.artwork;
+            }
+            return "";
+        }
+    }
+
+    /** 逻辑歌单里第 index 首。越界返回 null。 */
+    public Track at(int index) {        synchronized (lock) {
             return index >= 0 && index < tracks.size() ? tracks.get(index) : null;
         }
     }

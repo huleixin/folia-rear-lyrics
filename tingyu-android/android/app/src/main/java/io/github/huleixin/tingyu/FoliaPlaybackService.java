@@ -315,6 +315,17 @@ public class FoliaPlaybackService extends Service {
      * 把上一首的封面写进新歌，比不显示封面糟得多。
      */
     public static boolean applyNativeArtwork(String songKey, Bitmap bitmap) {
+        return applyNativeArtwork(songKey, bitmap, 1);
+    }
+
+    /**
+     * @param retries 还剩几次补救机会。仅用于「结果到得比服务的换歌发布还早」这一种时序：
+     *                `startService` 投递的 `onStartCommand` 与本方法都排在主线程队列上，
+     *                缓存命中的封面可能先到，此时 {@code cachedSongKey} 还停在上一首。
+     *                直接丢弃会让这首永远没有封面（服务自己的下载路径可能同样失败），
+     *                所以这里给它一次按引擎当前曲确认过的延后重试。
+     */
+    private static boolean applyNativeArtwork(String songKey, Bitmap bitmap, int retries) {
         FoliaPlaybackService service = activeService;
         if (service == null || !running || songKey == null || bitmap == null || bitmap.isRecycled()) return false;
         service.mainHandler.post(() -> {
@@ -325,11 +336,27 @@ public class FoliaPlaybackService extends Service {
                     new com.getcapacitor.JSObject()
                         .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey))
                         .put("matched", matched)
+                        .put("retries", retries)
                         .put("w", bitmap.getWidth()).put("h", bitmap.getHeight()));
-                if (!matched) return;
+                if (!matched) {
+                    // 服务还没跟上，但引擎已经在放这一首：稍后再认一次，仍然要求服务那时
+                    // 的当前曲就是它 —— 不能用「引擎说是」直接把封面写进别人的 metadata。
+                    boolean engineIsSong = songKey.equals(
+                        io.github.huleixin.tingyu.playback.NativeAudioEngine.currentKey());
+                    if (retries > 0 && engineIsSong && !bitmap.isRecycled()) {
+                        service.mainHandler.postDelayed(
+                            () -> applyNativeArtwork(songKey, bitmap, retries - 1), 700L);
+                    }
+                    return;
+                }
+                // 记「这张图属于哪个地址」时用服务自己的封面字段：`currentArtworkUrl` 可能要等到
+                // 下一次 onStartCommand。若在这里写进一个空串，紧接着的发布就会因为
+                // 「URL 为空」把刚拿到的封面当成过期清掉。
+                String url = service.cachedCoverUrl == null ? "" : service.cachedCoverUrl.trim();
+                if (url.isEmpty()) url = service.currentArtworkUrl;
                 service.appliedArtworkBitmap = bitmap;
-                service.appliedArtworkUrl = service.currentArtworkUrl;
-                service.lastRequestedCoverUrl = service.currentArtworkUrl;
+                service.appliedArtworkUrl = url;
+                if (!url.isEmpty()) service.lastRequestedCoverUrl = url;
                 service.publishMetadata(bitmap);
                 NotificationManager manager = service.getSystemService(NotificationManager.class);
                 if (manager != null) {
@@ -494,6 +521,18 @@ public class FoliaPlaybackService extends Service {
     }
 
     private void refreshArtwork() {
+        refreshArtwork(1);
+    }
+
+    /**
+     * @param retries 网络失败后的补救次数（一次，4 秒后）。
+     *
+     *                <p>换歌瞬间的封面请求经常正好撞上切网/弱信号：一次失败之后，30 秒冷却闸门
+     *                会把同一张图挡住，而之后只有元数据再变才会重入这个方法 —— 于是一首两分钟
+     *                的歌从头到尾都没有封面。补救是有界的：同一首歌最多多试一次，且必须仍然是
+     *                这一首、这张地址。
+     */
+    private void refreshArtwork(int retries) {
         if (currentArtworkUrl.isEmpty() || currentArtworkUrl.equals(appliedArtworkUrl)) return;
         long now = SystemClock.elapsedRealtime();
         if (currentArtworkUrl.equals(artworkAttemptUrl) && now - artworkAttemptAt < 30_000L) return;
@@ -502,6 +541,16 @@ public class FoliaPlaybackService extends Service {
         String requestedCover = currentArtworkUrl;
         loadArtwork(requestedCover, bitmap -> {
             if (!requestedCover.equals(currentArtworkUrl)) return;
+            if (bitmap == null && retries > 0) {
+                io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("artwork-retry",
+                    new com.getcapacitor.JSObject()
+                        .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(cachedSongKey))
+                        .put("remaining", retries - 1));
+                // 放开冷却闸门，让下一跳真的会再联网一次。
+                artworkAttemptUrl = "";
+                mainHandler.postDelayed(() -> refreshArtwork(retries - 1), 4_000L);
+                return;
+            }
             publishMetadata(bitmap);
             FoliaNativePlugin.notePlaybackArtworkApplied(bitmap != null);
             NotificationManager manager = getSystemService(NotificationManager.class);

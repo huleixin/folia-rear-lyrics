@@ -155,9 +155,13 @@ public final class SongInfoLoader {
             if (currentKey.isEmpty()) currentKey = current.songKey;
             int gen = generation.get();
             submitLyrics(current.withGeneration(gen));
+            submitArtwork(current.withGeneration(gen));
             if (upcoming != null) {
                 for (int i = 0; i < Math.min(AHEAD_COUNT, upcoming.size()); i++) {
-                    if (upcoming.get(i) != null) submitLyrics(upcoming.get(i).withGeneration(gen));
+                    if (upcoming.get(i) != null) {
+                        submitLyrics(upcoming.get(i).withGeneration(gen));
+                        submitArtwork(upcoming.get(i).withGeneration(gen));
+                    }
                 }
             }
         } catch (Throwable error) {

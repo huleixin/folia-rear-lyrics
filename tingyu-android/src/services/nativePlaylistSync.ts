@@ -1,4 +1,5 @@
 import { getPlaybackSongKey, getPlaybackSourceRef } from '../utils/appPlaybackGuards';
+import { getSongAlbumCoverUrl } from '../utils/songMetadata';
 import { shufflePlayback } from './shufflePlayback';
 import { readQqNativeResolverConfig } from './onlineMusic/qqTransport';
 import { getTingyuPlayback } from '../platform/tingyuPlayback';
@@ -67,9 +68,16 @@ const albumOf = (song: SongResult): string => {
     return typeof album === 'string' ? album : (album.name ?? '');
 };
 const artworkOf = (song: SongResult): string => {
-    const cover = (song as { coverUrl?: unknown; cover?: unknown }).coverUrl
+    // 封面的**唯一**真实位置是 `album.coverUrl`（`SongResult` 没有顶层 coverUrl）。
+    //
+    // 这里曾经只读顶层 `coverUrl`，于是交给原生的 `artwork` 恒为空串：前台播放看不出问题
+    // （系统卡片由 JS 推当前曲时带的是正确地址），但只要 Media3 自己切歌、由原生接管，
+    // 那个 MediaItem 的 tag 里就没有封面 —— 锁屏和通知只剩占位图，歌词却正常。
+    const albumCover = getSongAlbumCoverUrl(song);
+    if (albumCover) return albumCover;
+    const legacy = (song as { coverUrl?: unknown; cover?: unknown }).coverUrl
         ?? (song as { cover?: unknown }).cover;
-    return typeof cover === 'string' ? cover : '';
+    return typeof legacy === 'string' ? legacy : '';
 };
 
 const toPayload = (song: SongResult): NativePlaylistTrackPayload | null => {
