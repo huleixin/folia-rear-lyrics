@@ -230,6 +230,9 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                     .put("takeover",((JSObject)item.localConfiguration.tag).optBoolean("nativeContinuation",false))
                     .put("index",player.getCurrentMediaItemIndex()).put("ahead",aheadKey==null?"":PlaybackDiagnostics.anonKey(aheadKey)));
                 io.github.huleixin.tingyu.FoliaPlaybackService.publishQueuedTrack(context,queued,player.getPlayWhenReady());
+                // 原生自己在后台把歌词和封面补齐：身份取真实的当前 MediaItem，顺序取 Media3 的真实队列
+                // （随机播放也已经是洗好的顺序）。这一步不依赖 Activity、不依赖 WebView。
+                scheduleSongInfo(item);
                 // A background auto-advance into a track whose timeline was never primed leaves
                 // the island empty. Ask the WebView for it now (it answers whenever it does run);
                 // the player itself keeps going either way.
@@ -362,7 +365,8 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             supervision.continuation(false,supervision.generation());supervision.satisfied();errorSkips=0;
             main.removeCallbacks(superviseTick);
             configure(value);player.setMediaItem(new MediaItem.Builder().setUri(uri).setMediaId(songKey).setTag(copy(value)).build(),Math.max(0,value.optLong("position")));sourceId=id;player.prepare();
-            io.github.huleixin.tingyu.FoliaPlaybackService.publishQueuedTrack(context,value,false);emit("load",false);
+            io.github.huleixin.tingyu.FoliaPlaybackService.publishQueuedTrack(context,value,false);
+            scheduleSongInfo(player.getCurrentMediaItem());emit("load",false);
         }else{
             // A queue update is not transport. It arrives exactly when identity has just churned
             // (the engine auto-advanced while JS was asleep), so gating it on `id`/`sequence`
@@ -512,6 +516,35 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             if(isAdoptedContinuation(player.getMediaItemAt(i)))return true;
         }
         return false;
+    }
+
+    /** 服务重建后补一次：把当前曲重新交给歌曲信息调度器（不换代次）。 */
+    public static void scheduleSongInfoForCurrent(){
+        NativeAudioEngine engine=instance;
+        if(engine==null||engine.sourceId.isEmpty())return;
+        engine.scheduleSongInfo(engine.player.getCurrentMediaItem());
+    }
+
+    /**
+     * 把「当前曲 + 后面两首」交给原生的歌曲信息调度器。
+     *
+     * <p>身份只认 Media3 当前的 MediaItem，顺序只认 Media3 的真实队列 —— 随机播放时队列本身
+     * 已经是洗好的顺序，所以这里不需要（也不应该）再问 JS「下一首是谁」。
+     */
+    private void scheduleSongInfo(MediaItem item){
+        if(item==null||item.localConfiguration==null||!(item.localConfiguration.tag instanceof JSObject))return;
+        SongInfoLoader loader=SongInfoLoader.attach(context);
+        int generation=loader.generation();
+        SongInfo current=SongInfo.fromTag((JSObject)item.localConfiguration.tag,generation);
+        if(current==null)return;
+        java.util.ArrayList<SongInfo> upcoming=new java.util.ArrayList<>(2);
+        for(int i=player.getCurrentMediaItemIndex()+1;i<player.getMediaItemCount()&&upcoming.size()<2;i++){
+            MediaItem next=player.getMediaItemAt(i);
+            if(next==null||next.localConfiguration==null||!(next.localConfiguration.tag instanceof JSObject))continue;
+            SongInfo info=SongInfo.fromTag((JSObject)next.localConfiguration.tag,generation);
+            if(info!=null)upcoming.add(info);
+        }
+        loader.onTrackChanged(current,upcoming);
     }
 
     private JSObject applyQueue(JSObject value){

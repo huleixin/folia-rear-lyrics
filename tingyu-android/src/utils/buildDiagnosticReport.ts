@@ -799,6 +799,23 @@ const readLyricSessionLines = (bundle: NativeTrailBundle): string[] => {
             + ` len=${String(data.len ?? '-')}`;
     };
     const request = last('lyric-request');
+    // 原生补词链（C3）：所有取词都由播放服务自己做，所以这里每一步都必须能在设备上看得到。
+    const native = (type: string): NativeTrailEvent | null => {
+        for (let i = bundle.critical.length - 1; i >= 0; i -= 1) {
+            if (bundle.critical[i].type === type) return bundle.critical[i];
+        }
+        for (let i = bundle.routine.length - 1; i >= 0; i -= 1) {
+            if (bundle.routine[i].type === type) return bundle.routine[i];
+        }
+        return null;
+    };
+    const chain = (label: string, type: string, fields: string[]): string => {
+        const event = native(type);
+        if (!event) return `  ${label}: (never recorded)`;
+        const data = event.data ?? {};
+        const extra = fields.map(field => `${field}=${String(data[field] ?? '-')}`).join(' ');
+        return `  ${label}: ${clock(event.at)} song=${String(data.song ?? '-')} ${extra}`;
+    };
     return [
         describe('layer1 built    ', last('lyric-metadata')),
         describe('layer2 published', last('lyric-session')),
@@ -809,6 +826,55 @@ const readLyricSessionLines = (bundle: NativeTrailBundle): string[] => {
         request
             ? `  last lyric-request: ${clock(request.at)} song=${String(request.data?.song ?? '-')}`
             : '  last lyric-request: (none)',
+        '',
+        '  native fetch chain (independent of Activity and of the WebView):',
+        chain('request     ', 'lyrics-request', ['source', 'generation', 'activityStopped', 'durationMs']),
+        chain('cache-hit   ', 'lyrics-cache-hit', ['source', 'state']),
+        chain('fetch       ', 'lyrics-fetch', ['status', 'http', 'candidates', 'score', 'durationDeltaMs', 'elapsedMs']),
+        chain('built       ', 'lyrics-built', ['chars', 'translation', 'reason']),
+        chain('published   ', 'lyrics-published', ['wrote', 'matched', 'applied']),
+        chain('failure     ', 'lyrics-failure', ['status', 'reason', 'http', 'elapsedMs']),
+        chain('apply       ', 'lyrics-apply', ['matched', 'state', 'wrote']),
+        '  note: lyrics-request with no matching lyrics-built/published/failure means the native',
+        '        fetch is still in flight; lyrics-failure reason=network/rate-limited is retryable,',
+        '        reason=none means the public lyric source really has no synced lyric for this track.',
+    ];
+};
+
+/**
+ * 原生封面链：地址 → 下载 → 解码 → 发布，四层分开。
+ *
+ * 混成一个「封面加载失败」就无法判断是队列里没有地址、图片 404、解码失败，还是根本没发布。
+ */
+const readNativeArtworkLines = (bundle: NativeTrailBundle): string[] => {
+    const last = (type: string): NativeTrailEvent | null => {
+        for (let i = bundle.critical.length - 1; i >= 0; i -= 1) {
+            if (bundle.critical[i].type === type) return bundle.critical[i];
+        }
+        for (let i = bundle.routine.length - 1; i >= 0; i -= 1) {
+            if (bundle.routine[i].type === type) return bundle.routine[i];
+        }
+        return null;
+    };
+    const line = (label: string, type: string, fields: string[]): string => {
+        const event = last(type);
+        if (!event) return `  ${label}: (never recorded)`;
+        const data = event.data ?? {};
+        const extra = fields.map(field => `${field}=${String(data[field] ?? '-')}`).join(' ');
+        return `  ${label}: ${clock(event.at)} song=${String(data.song ?? '-')} ${extra}`;
+    };
+    return [
+        line('uri        ', 'artwork-uri', ['state', 'matched']),
+        line('fetch      ', 'artwork-fetch', ['status', 'http', 'bytes', 'elapsedMs']),
+        line('cache-hit  ', 'artwork-cache-hit', ['source', 'state']),
+        line('decoded    ', 'artwork-decoded', ['width', 'height']),
+        line('published  ', 'artwork-published', ['matched', 'applied', 'reason', 'foreground']),
+        line('apply      ', 'artwork-apply', ['matched', 'w', 'h']),
+        line('failure    ', 'artwork-failure', ['status', 'http', 'elapsedMs']),
+        line('kept       ', 'artwork-kept', ['reason']),
+        '  note: artwork-uri state=missing means the queue item carried no cover address at all;',
+        '        a fetch failure with status=HTTP_ERROR is a dead URL, NETWORK is retryable.',
+        '        Whether the system lock screen actually shows the bitmap is not observable here.',
     ];
 };
 
@@ -988,6 +1054,10 @@ export const buildDiagnosticReport = async (): Promise<string> => {
         // 灵动岛歌词：构造 / 发布 / 消费 三层分开，第三层明确标注为不可观测。
         'lyric pipeline (built / published / consumed):',
         ...readLyricSessionLines(nativeTrail),
+        '',
+        // 原生封面链：只在服务进程内发生，因此每一层都必须是可读的痕迹。
+        'native artwork pipeline (uri / fetch / cache / decode / publish):',
+        ...readNativeArtworkLines(nativeTrail),
         '',
         // C1/C2：切歌 / 锁屏连播 / 回前台三个时点的会话采样。
         'lock-screen session samples (position / duration / lyric):',

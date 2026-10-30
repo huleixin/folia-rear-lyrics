@@ -16,7 +16,11 @@ final class DiagnosticLanes {
     static final int MAX_ROUTINE = 40;
 
     private static final String[] ROUTINE_TYPES = {
-        "queue-request", "queue-wait", "native-session-state", "clock", "heartbeat", "session-sample"
+        "queue-request", "queue-wait", "native-session-state", "clock", "heartbeat", "session-sample",
+        // 原生歌曲信息服务（歌词/封面）的高频记账：每首歌都会有几条，属于常规痕迹，
+        // 不该把 critical 泳道里「为什么停播」的证据挤掉。构建/发布/失败仍留在 critical。
+        "songinfo-schedule", "lyrics-request", "lyrics-cache-hit", "lyrics-fetch",
+        "artwork-uri", "artwork-cache-hit", "artwork-fetch", "lyrics-apply", "artwork-apply"
     };
 
     private JSONArray critical = new JSONArray();

@@ -194,6 +194,8 @@ public class FoliaPlaybackService extends Service {
                 .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(cachedSongKey))
                 .put("positionMs", cachedPositionMs)
                 .put("lyric", ColorOsLyricBridge.stateOf(cachedSongKey)));
+        // 服务进程被重建后同样要补一次歌曲信息：歌词/封面都该由原生自己续上，而不是等 App 打开。
+        io.github.huleixin.tingyu.playback.NativeAudioEngine.scheduleSongInfoForCurrent();
     }
 
     /** Media3 state changes reach the system without routing through JS or restarting this service. */
@@ -251,10 +253,82 @@ public class FoliaPlaybackService extends Service {
     public static void publishQueuedTrack(android.content.Context context, JSONObject track, boolean playing) {
         if(!running)return;
         Intent intent=new Intent(context,FoliaPlaybackService.class);
-        for(String key:new String[]{"title","artist","album","coverUrl","songKey"})intent.putExtra(key,track.optString(key));
-        intent.putExtra("duration",track.optLong("duration")).putExtra("position",0L)
+        for(String key:new String[]{"title","artist","album","songKey"})intent.putExtra(key,track.optString(key));
+        // 封面字段有**两个**名字：JS 播放插件推当前曲时叫 coverUrl，原生队列项（以及续播接管项）
+        // 的 tag 里叫 artwork。这里过去只读 coverUrl，于是每次原生自动切歌都把封面当成空值推给
+        // 服务 —— 这就是「锁屏切第二首连封面也没了」的直接原因：不是没下载到，是地址在换歌那一刻就丢了。
+        String cover=track.optString("coverUrl","");
+        if(cover.isEmpty())cover=track.optString("artwork","");
+        intent.putExtra("coverUrl",cover);
+        // 同理 `duration` 与 `durationMs` 两种写法都要认（原生队列项只有后者）。
+        long duration=track.optLong("duration",0L);
+        if(duration<=0L)duration=track.optLong("durationMs",0L);
+        intent.putExtra("duration",duration).putExtra("position",0L)
             .putExtra("capturedAtMs",System.currentTimeMillis()).putExtra("playing",playing);
         context.startService(intent);
+    }
+
+    /**
+     * 原生取到的歌词要写进当前 metadata。
+     *
+     * <p>只在这一首**仍然是服务正在发布的那一首**时重建：迟到的结果既不能覆盖新歌，也不能
+     * 在用户已经切走之后把卡片改回去。歌词本身早已按 songKey 存进 {@link ColorOsLyricBridge}，
+     * 所以这里真正的动作是「让系统面板读一次」。
+     */
+    public static boolean applyNativeLyric(String songKey, String json) {
+        FoliaPlaybackService service = activeService;
+        if (service == null || !running || songKey == null) return false;
+        service.mainHandler.post(() -> {
+            if (activeService != service || !running) return;
+            boolean matched = songKey.equals(service.cachedSongKey);
+            io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("lyrics-apply",
+                new com.getcapacitor.JSObject()
+                    .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey))
+                    .put("matched", matched)
+                    .put("state", ColorOsLyricBridge.stateOf(songKey))
+                    .put("wrote", json == null ? "none" : "timeline"));
+            if (!matched) return;
+            service.publishMetadata(service.appliedArtworkBitmap);
+            NotificationManager manager = service.getSystemService(NotificationManager.class);
+            if (manager != null) {
+                manager.notify(NOTIFICATION_ID,
+                    service.buildNotification(service.cachedTitle, service.cachedArtist,
+                        service.cachedPlaying, service.appliedArtworkBitmap));
+            }
+        });
+        return true;
+    }
+
+    /**
+     * 原生取到的封面要写进当前 metadata。
+     *
+     * <p>三道闸：仍在这一首、服务仍在跑、位图非空。任何一条不满足就什么都不做 ——
+     * 把上一首的封面写进新歌，比不显示封面糟得多。
+     */
+    public static boolean applyNativeArtwork(String songKey, Bitmap bitmap) {
+        FoliaPlaybackService service = activeService;
+        if (service == null || !running || songKey == null || bitmap == null || bitmap.isRecycled()) return false;
+        service.mainHandler.post(() -> {
+            if (activeService != service || !running) return;
+            boolean matched = songKey.equals(service.cachedSongKey);
+            io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("artwork-apply",
+                new com.getcapacitor.JSObject()
+                    .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey))
+                    .put("matched", matched)
+                    .put("w", bitmap.getWidth()).put("h", bitmap.getHeight()));
+            if (!matched) return;
+            service.appliedArtworkBitmap = bitmap;
+            service.appliedArtworkUrl = service.currentArtworkUrl;
+            service.lastRequestedCoverUrl = service.currentArtworkUrl;
+            service.publishMetadata(bitmap);
+            NotificationManager manager = service.getSystemService(NotificationManager.class);
+            if (manager != null) {
+                manager.notify(NOTIFICATION_ID,
+                    service.buildNotification(service.cachedTitle, service.cachedArtist,
+                        service.cachedPlaying, bitmap));
+            }
+        });
+        return true;
     }
 
     @Override
@@ -312,6 +386,18 @@ public class FoliaPlaybackService extends Service {
         album = album == null ? "" : album;
         cover = cover == null ? "" : cover;
         songKey = songKey == null ? "" : songKey;
+        // 空封面不能覆盖已经正确的封面：同一个 songKey 上，前台 JS 偶尔会推一条 coverUrl 为空的
+        // 更新（预取未完成、封面字段缺失、或渲染进程重挂后状态回退）。那条更新只该改标题/进度，
+        // 不该把原生已经拿到的封面擦掉 —— 擦掉之后系统卡片就只剩占位图，且不会再恢复。
+        if (cover.isEmpty() && songKey.equals(cachedSongKey)
+            && appliedArtworkBitmap != null && !appliedArtworkUrl.isEmpty()) {
+            cover = appliedArtworkUrl;
+            io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("artwork-kept",
+                new com.getcapacitor.JSObject()
+                    .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey))
+                    .put("reason", "empty-push")
+                    .put("url", appliedArtworkUrl.isEmpty() ? "none" : "kept"));
+        }
         // A sleeping UI can still publish the preceding item after Media3 advanced.
         // Native prepare/transition publishes its own metadata, so stale UI cannot replace it.
         long[] nativeClock = io.github.huleixin.tingyu.playback.NativeAudioEngine.mediaClock(songKey);
