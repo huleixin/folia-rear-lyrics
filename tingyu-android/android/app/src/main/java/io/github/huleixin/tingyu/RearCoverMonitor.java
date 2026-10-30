@@ -18,8 +18,6 @@ final class RearCoverMonitor implements SensorEventListener {
     private final Sensor gravity, rearProximity;
     private boolean running, rearNear, candidate, reported;
     private long ignoreUntil;
-    private float lastX, lastY, lastZ;
-    private boolean hasSample;
     private final Runnable settle = this::settled;
     private void settled() { if (running && candidate && SystemClock.elapsedRealtime() >= ignoreUntil) { reported = true; callback.cover(true); } }
 
@@ -50,10 +48,10 @@ final class RearCoverMonitor implements SensorEventListener {
         return null;
     }
     boolean available() { return gravity != null || rearProximity != null; }
-    String description() { return "tabletop=" + (gravity != null) + ", rearCoverSensor=" + (rearProximity == null ? "unavailable" : rearProximity.getName()); }
+    String description() { return "gravitySensor=" + (gravity != null) + ", rearCoverSensor=" + (rearProximity == null ? "unavailable" : rearProximity.getName()); }
     void start() {
         if (running || manager == null) return;
-        running = true; hasSample = false;
+        running = true;
         if (gravity != null) manager.registerListener(this, gravity, SensorManager.SENSOR_DELAY_NORMAL, main);
         if (rearProximity != null) manager.registerListener(this, rearProximity, SensorManager.SENSOR_DELAY_NORMAL, main);
     }
@@ -73,10 +71,10 @@ final class RearCoverMonitor implements SensorEventListener {
             rearNear = event.values[0] < Math.min(5f, rearProximity.getMaximumRange());
             covered = rearNear;
         } else {
-            float x = event.values[0], y = event.values[1], z = event.values[2];
-            float motion = Math.abs(x-lastX) + Math.abs(y-lastY) + Math.abs(z-lastZ);
-            covered = rearNear || RearCoverPolicy.tabletop(x, y, z, motion, hasSample);
-            lastX=x; lastY=y; lastZ=z; hasSample=true;
+            // Gravity never confirms a cover on its own. A phone lying face-down on a desk is
+            // not evidence that Xiaomi's rear screen is covered, and without the rear
+            // proximity sensor the only honest answer is "unknown".
+            covered = rearProximity != null && rearNear;
         }
         if (SystemClock.elapsedRealtime() < ignoreUntil) covered = false;
         if (covered == candidate) return;

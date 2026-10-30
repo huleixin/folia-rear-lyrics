@@ -250,6 +250,26 @@ public final class RearLyricsActivity extends Activity {
             catch (RuntimeException error) { activity.record("camera-yield", error.getClass().getSimpleName()); }
         });
     }
+    /**
+     * The camera gave the rear display back. Without this the yield flag stayed set for the
+     * lifetime of the activity instance: reportWindow() returns early while it is true, so a
+     * reused lyric window could never report itself visible again and the resume launch timed
+     * out with "原背屏歌词窗口未能恢复到前台" every single time.
+     */
+    static void resumeFromCamera() {
+        RearLyricsActivity activity = shownActivity;
+        if (activity == null) return;
+        activity.runOnUiThread(() -> {
+            if (activity.isFinishing() || !activity.yieldingToCamera) return;
+            activity.yieldingToCamera = false;
+            if (activity.root != null) activity.root.setVisibility(View.VISIBLE);
+            if (activity.renderer != null) {
+                activity.renderer.setVisibility(View.VISIBLE);
+                if (!RearLyricsCoordinator.get(activity).isSleeping()) activity.renderer.onResume();
+            }
+            activity.record("camera-yield-ended", "rear display returned to Tingyu");
+        });
+    }
     private int currentDisplayId() {
         Display display = getWindow().getDecorView().getDisplay();
         if (display == null) display = getWindowManager().getDefaultDisplay();

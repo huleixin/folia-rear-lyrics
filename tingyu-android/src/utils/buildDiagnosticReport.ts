@@ -335,6 +335,31 @@ const readNativePlaybackDiagnostics = async (): Promise<{
 };
 
 /**
+ * 背屏诊断：所有权状态机、相机持有/退出确认、LSP 租约命中与最近 40 条锁屏轨迹。
+ * 原生侧只记录事件名、包名与显示电源状态，不含歌名、Cookie 或音源 URL。
+ */
+const readRearScreenLines = async (): Promise<string[]> => {
+    if (typeof window === 'undefined') return ['  (no window)'];
+    const capacitor = (window as unknown as {
+        Capacitor?: {
+            isNativePlatform?: () => boolean;
+            Plugins?: { FoliaNative?: { getRearLyricsStatus?: () => Promise<{ diagnostics?: string; message?: string; enabled?: boolean; cameraSuspended?: boolean }> } };
+        };
+    }).Capacitor;
+    if (!capacitor?.isNativePlatform?.()) return ['  (not an android runtime)'];
+    const plugin = capacitor.Plugins?.FoliaNative;
+    if (typeof plugin?.getRearLyricsStatus !== 'function') return ['  (rear diagnostics unavailable)'];
+    try {
+        const status = await plugin.getRearLyricsStatus();
+        const body = String(status?.diagnostics ?? '').trim();
+        if (!body) return [`  (no rear diagnostics) enabled=${status?.enabled ?? 'unknown'} cameraSuspended=${status?.cameraSuspended ?? 'unknown'}`];
+        return body.split('\n').map(line => `  ${line}`);
+    } catch (error) {
+        return [`  (read failed: ${error instanceof Error ? error.message : String(error)})`];
+    }
+};
+
+/**
  * 手机厂商屏幕顶部（挖孔 / 刘海）的现场。
  *
  * 「顶部还有黑边」时最需要知道的就是系统到底报了什么：cutout mode 是否已经切成
@@ -606,6 +631,11 @@ export const buildDiagnosticReport = async (): Promise<string> => {
         // 挖孔/刘海适配的现场：cutout mode、是否有挖孔、安全区矩形。
         'display cutout:',
         ...(await readDisplayCutoutLines()),
+        '',
+        // 背屏现场：所有权状态机、相机让屏、LSP 租约命中与锁屏轨迹。
+        // 这是唯一能区分「相机仍在占用」和「我们的任务卡死」的证据，必须随报告导出。
+        'rear screen:',
+        ...(await readRearScreenLines()),
         '',
         'session storage:',
         `  qq session: ${readLocalStorageFlag('online_provider:qq:cookie')}`,

@@ -5,10 +5,14 @@ import static org.junit.Assert.*;
 
 // android/app/src/test/java/io/github/huleixin/tingyu/RearCameraPolicyTest.java
 public class RearCameraPolicyTest {
-    @Test public void waitsForInitialAvailabilityBeforeLaunchingALyricWindow() {
+    @Test public void registeringTheCallbackIsNotACameraEvent() {
         RearCameraPolicy policy = new RearCameraPolicy();
         assertFalse(policy.blocked(0)); policy.start(0);
-        assertTrue(policy.blocked(899)); assertFalse(policy.blocked(900));
+        // Seeding readyAt with ENTER_SETTLE_MS made the very first publish() look like a
+        // camera takeover; enable() then aborted its own launch. Registration must be idle.
+        assertFalse(policy.blocked(1));
+        assertFalse(policy.blocked(899));
+        assertEquals(0, policy.busyCount());
     }
     @Test public void cameraAlreadyOpenAtRegistrationBlocksUntilItCloses() {
         RearCameraPolicy policy = new RearCameraPolicy(); policy.start(0);
@@ -43,7 +47,11 @@ public class RearCameraPolicyTest {
         RearCameraPolicy policy = new RearCameraPolicy(); policy.start(0);
         policy.available("0", false, 1000); policy.stop(); policy.available("0", false, 2000);
         assertFalse(policy.blocked(2000)); assertEquals(0, policy.busyCount());
-        policy.start(3000); assertTrue(policy.blocked(3000)); assertFalse(policy.blocked(3900));
+        // Re-enabling starts idle as well: an idle camera must not block the fresh opt-in.
+        policy.start(3000); assertFalse(policy.blocked(3000)); assertFalse(policy.blocked(3900));
+        // ...but a camera that is genuinely open still blocks immediately after re-enabling.
+        policy.stop(); policy.start(5000); policy.available("back", false, 5100);
+        assertTrue(policy.blocked(5200));
     }
     @Test public void duplicateIdleEventsDoNotPostponeResume() {
         RearCameraPolicy policy = new RearCameraPolicy(); policy.start(0);
@@ -64,6 +72,18 @@ public class RearCameraPolicyTest {
         policy.available("back", false, 2000); // idle -> busy: a genuinely new session
         assertEquals(initial + 2, policy.episodeId());
     }
+    @Test public void unreadableTaskEvidenceExpiresInsteadOfPinningThePanel() {
+        // A camera shown on the rear task list holds the panel... but the list cannot always
+        // be read (unbound Shizuku, protected tasks). Unproven evidence must expire so the
+        // coordinator cannot deadlock in CAMERA_OWNED.
+        assertFalse(RearCameraPolicy.evidenceStale(10_000, 10_000 + RearCameraPolicy.EVIDENCE_STALE_MS));
+        assertTrue(RearCameraPolicy.evidenceStale(10_000, 10_000 + RearCameraPolicy.EVIDENCE_STALE_MS + 1));
+        assertTrue("never read at all", RearCameraPolicy.evidenceStale(0, 1));
+        // The fallback window is shorter than the stuck report: an unreadable list resolves
+        // well before we would ever claim the camera is wedged.
+        assertTrue(RearCameraPolicy.EVIDENCE_STALE_MS < RearCameraPolicy.STUCK_REPORT_MS);
+    }
+
     @Test public void cameraTaskDetection() {
         assertTrue(RearCameraPolicy.isCameraTask("12 com.android.camera/.Camera"));
         assertTrue(RearCameraPolicy.isCameraTask("12 com.xiaomi.camera/.VideoCamera"));

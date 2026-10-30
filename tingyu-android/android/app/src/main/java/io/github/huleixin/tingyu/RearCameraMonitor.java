@@ -43,6 +43,8 @@ final class RearCameraMonitor {
         publish();
     }
     boolean blocked() { return policy.blocked(SystemClock.elapsedRealtime()); }
+    /** Milliseconds since the camera device last went idle; -1 while busy or never busy. */
+    long idleFor() { return policy.idleFor(SystemClock.elapsedRealtime()); }
     String status() { return "cameraMonitor=" + running + ", cameraBlocked=" + blocked()
         + ", unavailableCameras=" + policy.busyCount() + ", cameraMonitorError=" + error; }
     private void availability(CameraManager.AvailabilityCallback owner, String id, boolean available) {

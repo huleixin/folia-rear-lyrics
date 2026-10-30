@@ -32,6 +32,9 @@ final class RearLyricsLauncher {
         boolean locked = isLocked(context);
         boolean reuse = (!locked || LspRearBridge.selected(context) || RearLyricsCoordinator.get(context).preserveSleepSession())
             && RearLyricsActivity.attachedWindowOnDisplay(rearDisplayId) != null;
+        // A reused instance that yielded to a camera must be allowed to draw again before the
+        // launch is validated, otherwise awaitWindow() can never see it visible.
+        if (reuse) RearLyricsActivity.resumeFromCamera();
         // HyperOS rejects third-party direct rear launches while locked, including an existing task.
         // Recreate only the native host and stage it transparently; Chromium starts after migration.
         if (locked && !reuse) RearLyricsActivity.finishIfShown();
@@ -171,9 +174,6 @@ final class RearLyricsLauncher {
             || transaction == io.github.huleixin.tingyu.lsp.RearBridgeContract.HOLD_POWER;
         if (sessionBound && !RearLyricsActivity.isCurrentSession(session)) throw new IllegalStateException("启动已取消");
         if (sessionBound && !RearLyricsCoordinator.presentationAllowed()) throw new IllegalStateException("背屏已让给相机或本次显示已取消");
-        if (transaction != ShellUserService.TRANSACTION_FRONT_TASK
-                && transaction != ShellUserService.TRANSACTION_RESTORE_POWER
-                && !RearLyricsActivity.isCurrentSession(session)) throw new IllegalStateException("启动已取消");
         if (!shell.isBinderAlive()) throw new IllegalStateException("Shizuku 服务已断开");
         Parcel data = Parcel.obtain(), reply = Parcel.obtain();
         try {

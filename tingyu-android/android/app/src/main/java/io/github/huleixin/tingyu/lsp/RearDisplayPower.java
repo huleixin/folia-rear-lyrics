@@ -29,6 +29,22 @@ final class RearDisplayPower {
             if (lease.remaining(SystemClock.elapsedRealtime()) == 0 && cpuLease != null && cpuLease.isHeld()) cpuLease.release();
         }
     };
+    private final Runnable windowRenew = this::runWindowRenew;
+    /**
+     * Keeps the lease alive while the rear window is still attached. HyperOS freezes the
+     * client once the main display locks, so its own renew IPC stops arriving; without this
+     * the lease lapsed exactly one minute into a locked screen and the panel went to sleep.
+     * Bounded by RearDisplayLease.MAX_WINDOW_RENEWALS.
+     */
+    private void runWindowRenew() {
+        long now = SystemClock.elapsedRealtime();
+        int id = lease.displayId();
+        if (id <= 0) return;
+        try { if (Boolean.TRUE.equals(windows.hasOwnWindow(id))) lease.renewForWindow(id, now); }
+        catch (Throwable error) { logOnce(error); }
+        Handler handler = timer;
+        if (handler != null && lease.remaining(now) > 0) handler.postDelayed(windowRenew, RearDisplayLease.WINDOW_RENEW_MS / 2);
+    }
 
     void install(ClassLoader loader) {
         windows.install(loader);
@@ -69,7 +85,6 @@ final class RearDisplayPower {
     }
     String status() { return "rearPowerHook=" + installed + ", hookError=" + loggedFailure + ", " + windows.status()
         + ", " + direct.status() + ", " + lease.describe() + ", leaseRemainingMs=" + lease.remaining(SystemClock.elapsedRealtime()); }
-
     synchronized void acquire(int display, String session) {
         synchronized (requests) {
             if (!installed || loggedFailure || timer == null || cpuLease == null || !requests.containsKey(display))
@@ -83,18 +98,21 @@ final class RearDisplayPower {
         if (previous > 0 && previous != display) { replay(previous); windows.refresh(previous); direct.replay(previous); }
         replay(display); windows.refresh(display); direct.replay(display);
         Handler handler = timer;
-        if (handler != null) { handler.removeCallbacks(expiry); handler.postDelayed(expiry, RearDisplayLease.TIMEOUT_MS); }
+        if (handler != null) {
+            handler.removeCallbacks(expiry); handler.postDelayed(expiry, RearDisplayLease.TIMEOUT_MS);
+            handler.removeCallbacks(windowRenew); handler.postDelayed(windowRenew, RearDisplayLease.WINDOW_RENEW_MS / 2);
+        }
     }
     synchronized void release(int display, String session) {
-        if (lease.release(display, session)) { timer.removeCallbacks(expiry); replay(display); windows.refresh(display); direct.replay(display); releaseCpu(); }
+        if (lease.release(display, session)) { if (timer != null) timer.removeCallbacks(windowRenew); replay(display); windows.refresh(display); direct.replay(display); releaseCpu(); }
     }
     synchronized void clear() {
-        int old = lease.clear(); if (timer != null) timer.removeCallbacks(expiry);
+        int old = lease.clear(); if (timer != null) { timer.removeCallbacks(expiry); timer.removeCallbacks(windowRenew); }
         if (old > 0) { replay(old); windows.refresh(old); direct.replay(old); } releaseCpu();
     }
     private synchronized void expire() {
         int old = lease.expire(SystemClock.elapsedRealtime());
-        if (old > 0) { replay(old); windows.refresh(old); direct.replay(old); releaseCpu(); }
+        if (old > 0) { if (timer != null) timer.removeCallbacks(windowRenew); replay(old); windows.refresh(old); direct.replay(old); releaseCpu(); }
         long remaining = lease.remaining(SystemClock.elapsedRealtime());
         if (remaining > 0 && timer != null) timer.postDelayed(expiry, remaining);
     }
