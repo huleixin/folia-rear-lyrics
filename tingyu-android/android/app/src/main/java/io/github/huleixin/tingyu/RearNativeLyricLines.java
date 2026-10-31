@@ -22,9 +22,14 @@ import io.github.huleixin.tingyu.playback.NativeLyricsRepository;
  *
  * <p>只读本地缓存，不联网：换歌那一刻同步响应；网络取词仍然由 SongInfoLoader 负责，两件事不混。
  */
-final class RearNativeLyricLines {
+public final class RearNativeLyricLines {
 
-    private static final int MAX_CACHED = 8;
+    /**
+     * 已渲染行结构的短缓存。**键里带版本**：同一首歌的歌词从 pending 变成 ready、
+     * 或舞台换了版本时，缓存键随之改变 —— 旧实现只按 songKey 缓存，一旦第一次构建出
+     * 「无词」结果就会一直返回它，歌词后来到了也永不刷新。
+     */
+    private static final int MAX_CACHED = 12;
     private static final Map<String, String> parsed = new LinkedHashMap<>(16, 0.75f, true) {
         @Override protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
             return size() > MAX_CACHED;
@@ -51,18 +56,21 @@ final class RearNativeLyricLines {
             }
             RearLyricsTrace.record(context, "rear/lyric-request",
                 "song=" + anon + " epoch=" + epoch);
+            String cacheKey = cacheKey(context, key);
             String cached;
-            synchronized (parsed) { cached = parsed.get(key); }
+            synchronized (parsed) { cached = parsed.get(cacheKey); }
             String source = "memory";
             if (cached == null) {
                 cached = build(context, key);
-                if (cached != null) synchronized (parsed) { parsed.put(key, cached); }
-                source = "disk-or-bridge";
+                if (cached != null) synchronized (parsed) { parsed.put(cacheKey, cached); }
+                source = "resolved";
             }
             if (cached == null) {
-                // 还没取到：可能是后台仍在取词。回 loading（有界重试在渲染器一侧）。
+                // 还没取到：后台仍在取词或发布。状态指纹变化会让渲染器立刻重读，
+                // 因此这里返回 loading 不是「放弃」。
                 RearLyricsTrace.record(context, "rear/lyric-miss",
-                    "song=" + anon + " epoch=" + epoch);
+                    "song=" + anon + " epoch=" + epoch + " lyric="
+                        + io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.fingerprint(key));
                 value.put("state", "loading"); return value.toString();
             }
             JSONObject lyric = new JSONObject(cached);
@@ -71,10 +79,13 @@ final class RearNativeLyricLines {
             value.put("title", RearNativeTrack.snapshot().optString("title", ""));
             if (lyric.has("lines")) {
                 value.put("lines", lyric.getJSONArray("lines"));
+                int lines = lyric.getJSONArray("lines").length();
                 RearLyricsTrace.record(context, "rear/lyric-delivered",
                     "song=" + anon + " epoch=" + epoch + " state=" + state
-                        + " lines=" + lyric.getJSONArray("lines").length()
-                        + " source=" + source);
+                        + " lines=" + lines + " source=" + source);
+                // 账本：这一首真的交到渲染端了。「有词但没交付」从此可以被自动归因。
+                io.github.huleixin.tingyu.playback.SongInfoLoader.ledger()
+                    .rearDelivered(key, lines);
             }
             return value.toString();
         } catch (Exception error) {
@@ -89,28 +100,77 @@ final class RearNativeLyricLines {
         return current.isEmpty() || current.equals(epoch);
     }
 
-    /** null = 还没取到（可能仍在后台取）；{@code state:none} = 确认无词。 */
-    private static String build(Context context, String songKey) {
-        NativeLyricsRepository.Result cached = NativeLyricsRepository.get(context).readCache(songKey);
-        if (cached == null) {
-            // 磁盘缓存没有 ≠ 没有歌词：LRCLIB 上没有的歌（如 QQ QRC）的词在前台/会话链路
-            // 发布时存在 ColorOsLyricBridge 的 16 条 LRU 里。真机 2026-10-31：锁屏自动切歌
-            // 后 Bridge 明明 ready，背屏却因为只查这一个仓库而 loading 到重试耗尽。
-            String rows = rowsFromLyricInfo(
-                io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.lyricInfoFor(songKey), songKey);
-            if (rows == null) {
-                // 第三级回退：统一歌词仓库。Bridge 表是内存态（挤出/进程重启即空），
-                // 而这里落盘 —— 只要这首歌曾经被任何一端确认过歌词，背屏就不该 loading。
-                io.github.huleixin.tingyu.playback.UnifiedLyricsStore.Record record =
-                    io.github.huleixin.tingyu.playback.UnifiedLyricsStore.get(context).get(songKey);
-                if (record != null) rows = rowsFromLyricInfo(record.json, songKey);
-            }
-            return rows;
+    /** 缓存键带上三端的版本信息：任一来源内容变化都必须重新构建。 */
+    private static String cacheKey(Context context, String songKey) {
+        int bridgeRevision = io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.revisionOf(songKey);
+        int unifiedRevision = -1;
+        try {
+            io.github.huleixin.tingyu.playback.UnifiedLyricsStore.Record record =
+                io.github.huleixin.tingyu.playback.UnifiedLyricsStore.get(context).get(songKey);
+            if (record != null) unifiedRevision = record.revision;
+        } catch (Throwable ignored) {
+            // 版本读不到就退化成「只按桥的版本」，不影响正确性（最坏多构建一次）。
         }
-        if (!cached.hasTimeline()) return rows("", "", songKey);
-        JSONObject payload;
-        try { payload = new JSONObject(cached.json); } catch (Exception error) { return null; }
-        return rows(payload.optString("lyric", ""), payload.optString("translationLyric", ""), songKey);
+        return songKey + "|" + bridgeRevision + "|" + unifiedRevision;
+    }
+
+    /**
+     * 解析这一首现在能不能出词。判定次序由
+     * {@link io.github.huleixin.tingyu.playback.LyricDelivery} 单点决定：
+     * <b>任何一处有时间轴就是 READY</b>，只有全都给不出时间轴、且某处明确宣告无词时才是 NONE。
+     *
+     * <p>旧实现先读原生磁盘缓存，一撞上那条「LRCLIB+酷狗都没命中」的负记录就直接返回
+     * 0 行 —— 哪怕舞台刚确认过完整时间轴。QQ/网易云独占曲几乎必然踩中，
+     * 这就是「个别歌曲背屏没有歌词、打开主界面才恢复」。
+     *
+     * @return null = 还没取到（继续等）；{@code state:none} = 确认无词
+     */
+    private static String build(Context context, String songKey) {
+        String bridgeState = io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.stateOf(songKey);
+        boolean bridgeTimeline = "ready".equals(bridgeState);
+        String bridgeJson = io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.lyricInfoFor(songKey);
+        String rows = bridgeTimeline ? rowsFromLyricInfo(bridgeJson, songKey) : null;
+        if (rows != null && !rows.isEmpty()) return rows;
+
+        io.github.huleixin.tingyu.playback.UnifiedLyricsStore.Record record = null;
+        try {
+            record = io.github.huleixin.tingyu.playback.UnifiedLyricsStore.get(context).get(songKey);
+        } catch (Throwable ignored) {
+            // 统一仓库读失败不是致命错误：继续看原生缓存。
+        }
+        boolean unifiedTimeline = record != null && record.hasTimeline();
+        if (unifiedTimeline) {
+            rows = rowsFromLyricInfo(record.json, songKey);
+            if (rows != null && !rows.isEmpty()) return rows;
+        }
+
+        NativeLyricsRepository.Result cached = NativeLyricsRepository.get(context).readCache(songKey);
+        boolean nativeTimeline = cached != null && cached.hasTimeline();
+        boolean nativeNone = cached != null && !cached.hasTimeline();
+        boolean bridgeNone = "none".equals(bridgeState);
+
+        io.github.huleixin.tingyu.playback.LyricDelivery.Decision decision =
+            io.github.huleixin.tingyu.playback.LyricDelivery.decide(bridgeTimeline, unifiedTimeline,
+                nativeTimeline, bridgeNone || nativeNone);
+        if (decision.ready()) {
+            if (nativeTimeline) return rowsFromNative(cached.json, songKey);
+            return null;   // READY 但上面两个来源的行结构没解析出来：让下一次重试再试
+        }
+        if (decision.state == io.github.huleixin.tingyu.playback.LyricDelivery.State.NONE) {
+            return rows("", "", songKey);
+        }
+        return null;
+    }
+
+    private static String rowsFromNative(String json, String songKey) {
+        if (json == null || json.isEmpty()) return null;
+        try {
+            JSONObject payload = new JSONObject(json);
+            return rows(payload.optString("lyric", ""),
+                payload.optString("translationLyric", ""), songKey);
+        } catch (Exception error) {
+            return null;
+        }
     }
 
     /**
@@ -118,7 +178,7 @@ final class RearNativeLyricLines {
      * 背屏行结构。纯函数：JVM 单测直接调它。没有可用 payload 时返回 null
      * （= 继续等待，**不是**无词）；payload 明确给出空时间轴时返回 {@code state:none}。
      */
-    static String rowsFromLyricInfo(String lyricInfo, String songKey) {
+    public static String rowsFromLyricInfo(String lyricInfo, String songKey) {
         if (lyricInfo == null || lyricInfo.isEmpty()) return null;
         JSONObject payload;
         try { payload = new JSONObject(lyricInfo); } catch (Exception error) { return null; }
@@ -131,7 +191,7 @@ final class RearNativeLyricLines {
     }
 
     /** 纯函数：两段 LRC → 背屏行结构。单测直接调用它，不碰磁盘与网络。 */
-    static String rows(String lrc, String translation, String songKey) {
+    public static String rows(String lrc, String translation, String songKey) {
         List<LrcParser.Line> lines = LrcParser.parse(lrc == null ? "" : lrc);
         Map<Long, String> translated = new LinkedHashMap<>();
         for (LrcParser.Line line : LrcParser.parse(translation == null ? "" : translation)) {

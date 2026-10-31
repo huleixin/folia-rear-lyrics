@@ -348,6 +348,44 @@ public final class ColorOsLyricBridge {
     private static volatile int publishCount = 0;
     private static volatile int pendingCount = 0;
 
+    /**
+     * 每一首歌词内容的递增版本号（诊断 + 交付端重同步）。
+     *
+     * <p>为什么需要它：背屏渲染器以前只在「换歌」和「固定次数的重试」两个时机去读歌词 ——
+     * 一首歌的取词若晚于重试预算（四条网络链串行，慢网络下很容易超过 30 秒），
+     * 那一首在整首歌里就再也不会被重读，表现是永久停在 loading / 0 行。
+     * 有了版本号，背屏每次收到状态快照时都能判断「这首歌的歌词内容变了没」，
+     * 变了就立即重读 —— 事件驱动，不轮询、不看定时器。
+     */
+    private static final java.util.LinkedHashMap<String, Integer> revisions =
+            new java.util.LinkedHashMap<String, Integer>(8, 0.75f, true) {
+                @Override protected boolean removeEldestEntry(java.util.Map.Entry<String, Integer> eldest) {
+                    return size() > MAX_CACHED_SONGS * 2;
+                }
+            };
+
+    /** 这首歌当前歌词内容的版本号；0 = 还没有任何结论（pending）。 */
+    public static synchronized int revisionOf(String songKey) {
+        Integer value = revisions.get(slot(songKey));
+        return value == null ? 0 : value;
+    }
+
+    /**
+     * 交付端用的指纹：{@code state@revision}。
+     *
+     * <p>背屏把它放进状态快照的比较键里：只要某首歌的歌词从 pending 变成 ready
+     * （或版本更新），指纹就变，渲染器立刻重读一次 —— 这就是「歌词 ready 但背屏没更新」
+     * 的结构性修复，而不是靠再加重试次数。
+     */
+    public static synchronized String fingerprint(String songKey) {
+        return stateOf(songKey) + "@" + revisionOf(songKey);
+    }
+
+    private static void bumpRevision(String key) {
+        Integer current = revisions.get(key);
+        revisions.put(key, current == null ? 1 : current + 1);
+    }
+
     private static String slot(String songKey) {
         return songKey == null || songKey.isEmpty() ? UNKEYED : songKey;
     }
@@ -366,6 +404,7 @@ public final class ColorOsLyricBridge {
         if (json == null || json.isEmpty()) {
             Payload previous = timelines.remove(key);
             Boolean marked = noLyric.put(key, Boolean.TRUE);
+            bumpRevision(key);
             return previous != null || marked == null;
         }
         noLyric.remove(key);
@@ -374,6 +413,7 @@ public final class ColorOsLyricBridge {
         if (previous != null && previous.json.equals(json) && previous.hasTranslation == hasTranslation) {
             return false;
         }
+        bumpRevision(key);
         publishCount++;
         lastPublishAt = System.currentTimeMillis();
         return true;
@@ -400,6 +440,7 @@ public final class ColorOsLyricBridge {
         }
         timelines.clear();
         noLyric.clear();
+        revisions.clear();
         if (kept != null) timelines.put(keep, kept);
         if (!last.isEmpty()) noLyric.put(last, Boolean.TRUE);
         return changed;
@@ -420,6 +461,7 @@ public final class ColorOsLyricBridge {
         String key = slot(songKey);
         Payload removed = timelines.remove(key);
         Boolean marked = noLyric.put(key, Boolean.TRUE);
+        bumpRevision(key);
         return removed != null || marked == null;
     }
 

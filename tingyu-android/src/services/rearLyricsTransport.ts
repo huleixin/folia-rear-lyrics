@@ -31,6 +31,14 @@ export type RearNativeTrack = {
     durationMs?: number;
     positionMs?: number;
     playing?: boolean;
+    /**
+     * 当前曲的歌词状态指纹 `state@revision`（原生侧 ColorOsLyricBridge.fingerprint）。
+     *
+     * 有了它，「歌词准备好了」就不再依赖重试预算：指纹一变就重读一次。
+     * 旧实现只有固定次数的定时重试，取词比预算慢（四条网络链串行、慢网络下很常见）
+     * 就永久停在 loading —— 这就是「播到某首之后背屏再也没歌词」的交付端成因。
+     */
+    lyric?: string;
 };
 
 type NativeLyricResult = { state?: string; lines?: LyricData['lines'] };
@@ -52,6 +60,8 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         let activeTrack: RearNativeTrack | null = null;
         let lyricAttempt = 0;
         let lyricLines = 0;
+        /** 已经处理过的歌词指纹；变化即「这首歌的歌词内容变了」，必须重读一次。 */
+        let lyricFingerprint = '';
         const inactive = () => sleeping || (typeof document !== 'undefined' && document.hidden);
         const abort = new AbortController();
         const synchronizer = createRearClockSynchronizer();
@@ -88,6 +98,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
             if (!base) return;
             activeTrack = track;
             lyricLines = 0;
+            lyricFingerprint = track.lyric ?? '';
             emitConfig({
                 ...base,
                 song: { id: track.songKey ?? '', name: track.title || base.song?.name || '' },
@@ -179,6 +190,14 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                     // its lyrics are richer (word-by-word, translations); only take over when it
                     // has gone quiet. No downgrade, no flicker in the normal case.
                     if (!jsFresh) applyNativeTrack(track);
+                } else if (track?.epoch && (track.lyric ?? '') !== lyricFingerprint) {
+                    // 同一首歌，但原生侧的歌词内容变了（pending → ready，或换了版本）。
+                    // 这是交付端的重同步：不等定时器、不等用户开 App，立刻重读一次。
+                    // 重读把重试计数清零 —— 内容变了就是一次新的尝试，不受之前的预算限制。
+                    lyricFingerprint = track.lyric ?? '';
+                    clearTimeout(lyricRetry); lyricRetry = 0;
+                    trace('lyric-revision', `epoch=${track.epoch} lyric=${lyricFingerprint}`);
+                    void loadNativeLyrics(track, 0);
                 }
                 if (snapshot.clock && (jsFresh || !track?.epoch)) {
                     // Without a native track there is nothing better than the published clock, so
@@ -231,7 +250,9 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                 // The native track is part of the key: it is the one field that still moves while
                 // the foreground WebView is frozen, and skipping it would keep the old lyrics.
                 const key = JSON.stringify([snapshot.revision, snapshot.clock, snapshot.audio?.sentAtMs,
-                    snapshot.track?.epoch, snapshot.track?.positionMs, snapshot.track?.playing]);
+                    snapshot.track?.epoch, snapshot.track?.positionMs, snapshot.track?.playing,
+                    // 歌词指纹是「有词了」的唯一事件源：不进比较键就收不到重同步。
+                    snapshot.track?.lyric]);
                 if (key !== lastSnapshotKey) {
                     options.onSnapshot?.(snapshot); await accept(snapshot); lastSnapshotKey = key;
                 }

@@ -276,7 +276,7 @@ public class FoliaPlaybackService extends Service {
         service.mainHandler.post(() -> {
             try {
                 if (activeService != service || !running) return;
-                applyNativeLyric(songKey, json, 3);
+                applyNativeLyric(songKey, json, 6);
             } catch (Throwable error) {
                 // 后台歌词只是附加信息：重建 metadata 失败不能把正在放歌的进程带走。
                 io.github.huleixin.tingyu.CrashDiagnostics.record(service, "lyrics-apply", "main", error);
@@ -309,6 +309,11 @@ public class FoliaPlaybackService extends Service {
             if (retries > 0 && engineIsSong) {
                 service.mainHandler.postDelayed(
                     () -> applyNativeLyric(songKey, json, retries - 1), 700L);
+            } else if (engineIsSong) {
+                // 补救次数用完，但引擎确实在这一首：再要一次 metadata 重建（走既有的
+                // ACTION_REFRESH_METADATA，不新建会话），让桥上的时间轴在下一轮发布里被带上。
+                // 不做这一步的话，这一首的灵动岛歌词会一直空到下一次元数据变化。
+                ColorOsLyricBridge.requestRefresh(service);
             }
             return;
         }
@@ -655,6 +660,11 @@ public class FoliaPlaybackService extends Service {
             : written.contains("\"noLyric\":true") ? "stub" : "timeline";
         String identity = state + "|" + kind + "|"
             + io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey);
+        // 会话侧真的带上时间轴 = 灵动岛这一段链路走通；写进账本，「有词但没发布」可被自动归因。
+        if ("timeline".equals(kind)) {
+            io.github.huleixin.tingyu.playback.SongInfoLoader.ledger()
+                .sessionPublished(songKey, written == null ? 0 : written.length());
+        }
         if (identity.equals(lastLyricState)) return;
         lastLyricState = identity;
         io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("lyric-metadata", new com.getcapacitor.JSObject()
@@ -1004,6 +1014,10 @@ public class FoliaPlaybackService extends Service {
                     // 「Bridge ready 但灵动岛不显示」时，这一位区分是会话侧丢了（len=-1）
                     // 还是会话侧完好、问题在系统消费端。
                     .put("sessionLyricLen", readSessionLyricLen())
+                    // 最近 50 首的链路账本摘要 + 自动归因码：一次采样就能看出是「这首真没词」
+                    // （song-missing）、「取词失败」（fetch-failed）、「调度停了」（chain-broken /
+                    // prefetch-stalled），还是「有词没交付」（ready-not-delivered / -published）。
+                    .put("lyricLedger", io.github.huleixin.tingyu.playback.SongInfoLoader.ledger().describe())
                     // 灵动岛歌词「亮屏有、锁屏无」类问题需要这一位来分组归因。
                     .put("locked", ((android.app.KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE))
                         .isKeyguardLocked())

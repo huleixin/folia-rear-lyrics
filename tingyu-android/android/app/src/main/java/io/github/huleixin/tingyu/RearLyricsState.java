@@ -27,7 +27,14 @@ final class RearLyricsState {
             // rear surface that reconnects must be able to tell "this is a different song now"
             // without waiting for the (possibly frozen) foreground WebView to publish again.
             JSONObject track = RearNativeTrack.snapshot();
-            if (track.length() > 0) value.put("track", track);
+            if (track.length() > 0) {
+                // 当前曲的歌词状态指纹：state@revision。背屏渲染器把它放进快照比较键 ——
+                // 歌词从 pending 变成 ready（或版本更新）时渲染器立刻重读，不再依赖
+                // 固定次数的重试预算（那正是「等到重试耗尽就永久空白」的成因）。
+                track.put("lyric", io.github.huleixin.tingyu.coloros.ColorOsLyricBridge
+                    .fingerprint(track.optString("songKey", "")));
+                value.put("track", track);
+            }
             return value.toString();
         } catch (Exception error) { return "{}"; }
     }
