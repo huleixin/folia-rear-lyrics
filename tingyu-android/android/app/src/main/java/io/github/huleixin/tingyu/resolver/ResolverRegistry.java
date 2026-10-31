@@ -25,6 +25,9 @@ public final class ResolverRegistry {
         resolvers.add(new LxNativeResolver());
         resolvers.add(QqResolver.fromCredentials());
         resolvers.add(NeteaseResolver.fromCredentials());
+        resolvers.add(KugouResolver.fromCredentials());
+        resolvers.add(BodianResolver.fromCredentials());
+        resolvers.add(QishuiResolver.fromCredentials());
         resolvers.add(new LxScriptResolver());
     }
 
@@ -38,6 +41,9 @@ public final class ResolverRegistry {
         resolvers.add(new LxNativeResolver());
         resolvers.add(QqResolver.fromCredentials());
         resolvers.add(NeteaseResolver.fromCredentials());
+        resolvers.add(KugouResolver.fromCredentials());
+        resolvers.add(BodianResolver.fromCredentials());
+        resolvers.add(QishuiResolver.fromCredentials());
         resolvers.add(new LxScriptResolver());
     }
 
@@ -152,6 +158,7 @@ public final class ResolverRegistry {
         if (resolver instanceof QqResolver) return ((QqResolver) resolver).canAttempt();
         // 网易云：JS 同步过 Cookie（含匿名设备 Cookie）才值得接管；没有就回落 JS 通道。
         if (resolver instanceof NeteaseResolver) return ((NeteaseResolver) resolver).canAttempt();
+        // 酷狗/波点/汽水：匿名链不依赖登录态，恒可接管；登录曲目缺凭据时由各自 resolve 如实报错。
         return true;
     }
 

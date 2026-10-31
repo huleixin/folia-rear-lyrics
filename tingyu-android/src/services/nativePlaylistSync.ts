@@ -185,6 +185,9 @@ export const syncNativePlaylist = async (options: {
         // 而凭据只在内存里（不落盘），不刷新就等于让原生拿一份旧会话去取地址。
         void syncResolverCredentials();
         void syncNeteaseResolverCredentials();
+        void syncKugouResolverCredentials();
+        void syncBodianResolverCredentials();
+        void syncQishuiResolverCredentials();
         await native.setNativePlaylist({ mode, loopAll: loop === 'all', quality, tracks });
         // 这份 `ordered` 就是原生真正会走的顺序：按它预置歌词，锁屏连播才有词可用。
         // 与窗口预置（只有 5 首）不同，这里能看到更远的 10 首；只读本地缓存，最多
@@ -249,6 +252,68 @@ export const syncNeteaseResolverCredentials = async (): Promise<void> => {
         await native.setResolverCredentials({ providerId: 'netease', values: { cookie } });
     } catch {
         // 拿不到登录态/插件不在：原生会如实报告缺少凭据并回落 JS 通道。
+    }
+};
+
+/**
+ * 酷狗同构通道：把 WebView CookieManager 里的酷狗 Cookie（userid/token/dfid/vip_token）
+ * 交给原生 KugouResolver —— 后台续播时由原生直连酷狗网关与 tracker 取地址，
+ * 与前台 handleKGSongUrl 的五条取链策略同构（原生移植了 v5/playInfo/getdata/tracker 四条）。
+ * Cookie 只进原生内存，不落盘、不进日志。
+ */
+export const syncKugouResolverCredentials = async (): Promise<void> => {
+    try {
+        const { getKGCookie } = await import('../nativeBridge/api/cookies.js');
+        const cookie = await getKGCookie();
+        if (!cookie) return;
+        const native = getTingyuPlayback<TingyuPlaybackNative>();
+        await native.setResolverCredentials({ providerId: 'kugou', values: { cookie } });
+    } catch {
+        // 同上：增强，不是关键路径。
+    }
+};
+
+/**
+ * 波点同构通道：bodian.js 的会话存 localStorage bodianSessionV1（{uid, token}），
+ * 波点 API 不用 Cookie，凭据走这里下发；匿名（uid=-1）也能播免费曲目，因此没有会话就不传。
+ */
+export const syncBodianResolverCredentials = async (): Promise<void> => {
+    try {
+        const raw = localStorage.getItem('bodianSessionV1');
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as { uid?: unknown; token?: unknown } | null;
+        const uid = parsed && typeof parsed.uid === 'string' ? parsed.uid : '';
+        const token = parsed && typeof parsed.token === 'string' ? parsed.token : '';
+        if (!uid || !token) return;
+        const native = getTingyuPlayback<TingyuPlaybackNative>();
+        await native.setResolverCredentials({ providerId: 'bodian', values: { session: JSON.stringify({ uid, token }) } });
+    } catch {
+        // 同上。
+    }
+};
+
+/**
+ * 汽水同构通道：qishui.js 的车机会话存 localStorage qishuiSessionV1
+ * （{userId, ticket, guardKey(P-256 PKCS#8 PEM), guardCert, guardTsSign, …}）+ qishuiDeviceId。
+ * 原生 QishuiResolver 用同一份凭据在后台做 ticket-guard ECDSA 签名直连 media/mget。
+ * 无会话时不传：原生走匿名 client-token 通道播免费曲目。凭据只进原生内存。
+ */
+export const syncQishuiResolverCredentials = async (): Promise<void> => {
+    try {
+        const raw = localStorage.getItem('qishuiSessionV1');
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as Record<string, unknown> | null;
+        const ticket = parsed && typeof parsed.ticket === 'string' ? parsed.ticket : '';
+        const guardKey = parsed && typeof parsed.guardKey === 'string' ? parsed.guardKey : '';
+        const guardCert = parsed && typeof parsed.guardCert === 'string' ? parsed.guardCert : '';
+        const guardTsSign = parsed && typeof parsed.guardTsSign === 'string' ? parsed.guardTsSign : '';
+        const userId = parsed && typeof parsed.userId === 'string' ? parsed.userId : '';
+        if (!ticket || !guardKey || !guardCert || !guardTsSign) return;
+        const deviceId = localStorage.getItem('qishuiDeviceId') ?? '';
+        const native = getTingyuPlayback<TingyuPlaybackNative>();
+        await native.setResolverCredentials({ providerId: 'qishui', values: { session: JSON.stringify({ userId, ticket, guardKey, guardCert, guardTsSign, deviceId }) } });
+    } catch {
+        // 同上。
     }
 };
 

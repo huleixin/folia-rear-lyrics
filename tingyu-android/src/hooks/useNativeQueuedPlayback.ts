@@ -8,7 +8,7 @@ import { resolveNativeQueueWindow } from '../services/nativeQueueWindow';
 import { primeNativeLyricsForSongs } from '../services/nativeLyricPriming';
 import { setNativeAudioQueue } from '../services/nativeAudioElement';
 import { configureNativeQueueSupervisor, installNativeQueueSupervisor, nextNativeQueueGeneration } from '../services/nativeQueueSupervisor';
-import { syncNativePlaylist, syncNativePlaylistMode, syncNeteaseResolverCredentials, syncResolverCredentials } from '../services/nativePlaylistSync';
+import { syncNativePlaylist, syncNativePlaylistMode, syncNeteaseResolverCredentials, syncResolverCredentials, syncKugouResolverCredentials, syncBodianResolverCredentials, syncQishuiResolverCredentials } from '../services/nativePlaylistSync';
 import { syncLxScriptToNative } from '../services/lxNativeScriptSync';
 import type { LocalSong, SongResult } from '../types';
 import type { PlaybackNavigationOptions } from '../types/appPlayback';
@@ -60,6 +60,9 @@ export function useNativeQueuedPlayback(
         void syncNativePlaylist({ song, queue, loop, shuffle, quality });
         void syncResolverCredentials();
         void syncNeteaseResolverCredentials();
+        void syncKugouResolverCredentials();
+        void syncBodianResolverCredentials();
+        void syncQishuiResolverCredentials();
         // 阶段 B（洛雪）：脚本本身也要交给原生，否则后台没人能跑它。
         void syncLxScriptToNative();
     }, [enabled, context, song, queue, loop, shuffle, quality, lx]);
