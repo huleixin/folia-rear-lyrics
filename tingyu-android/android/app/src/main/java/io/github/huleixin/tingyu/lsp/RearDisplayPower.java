@@ -16,6 +16,7 @@ final class RearDisplayPower {
     private final RearDisplayLease lease = new RearDisplayLease();
     private final RearWindowLease windows = new RearWindowLease(lease);
     private final RearDirectPower direct = new RearDirectPower(lease);
+    private final RearDreamGuard dreams = new RearDreamGuard();
     private final Map<Integer, Request> requests = new HashMap<>();
     private final ThreadLocal<Boolean> replaying = new ThreadLocal<>();
     private Handler timer;
@@ -54,6 +55,20 @@ final class RearDisplayPower {
     void install(ClassLoader loader) {
         windows.install(loader);
         direct.install(loader);
+        // Fault B: the system rear-AOD DreamService (com.xiaomi.subscreencenter.doze.
+        // DozeService) takes the panel over when the main display locks with the system
+        // "rear sleep" toggle on. While our lyric lease is held the dream start is refused;
+        // the toggle itself is never read or changed, and native AOD returns once released.
+        dreams.install(loader, new RearDreamGuard.LeaseView() {
+            @Override public boolean lyricsLeaseHeld() {
+                int id = lease.displayId();
+                return id > 0 && lease.holds(id, SystemClock.elapsedRealtime());
+            }
+            @Override public boolean cameraRecentlyOnLeasedDisplay() {
+                int id = lease.displayId();
+                return id > 0 && windows.cameraOnTopRecently(id, SystemClock.elapsedRealtime());
+            }
+        });
         try {
             requestType = XposedHelpers.findClass("android.hardware.display.DisplayManagerInternal$DisplayPowerRequest", loader);
             brightPolicy = XposedHelpers.getStaticIntField(requestType, "POLICY_BRIGHT");
@@ -90,7 +105,7 @@ final class RearDisplayPower {
         }
     }
     String status() { return "rearPowerHook=" + installed + ", hookError=" + loggedFailure + ", " + windows.status()
-        + ", " + direct.status() + ", " + lease.describe() + ", leaseRemainingMs=" + lease.remaining(SystemClock.elapsedRealtime()); }
+        + ", " + direct.status() + ", " + dreams.status() + ", " + lease.describe() + ", leaseRemainingMs=" + lease.remaining(SystemClock.elapsedRealtime()); }
     synchronized void acquire(int display, String session) {
         synchronized (requests) {
             if (!installed || loggedFailure || timer == null || cpuLease == null || !requests.containsKey(display))
