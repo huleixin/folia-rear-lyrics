@@ -58,24 +58,26 @@ final class RearLyricsCoordinator {
     private int hardYieldTries;
     /**
      * Shizuku backend only. Under LSP the module keeps the rear panel awake through its own
-     * shouldSleep hook, so nothing here runs. Without that hook HyperOS powers the rear panel
-     * down on lock and a single failed {@code input keyevent} used to end every recovery attempt
-     * for the whole session: the window was still attached, the panel was simply dark.
+     * shouldSleep / requestPowerState hooks, so nothing here runs. Without those hooks HyperOS
+     * powers the rear panel down on lock; the window is still attached, the panel is simply dark,
+     * so the only shell-side answer is a bounded re-light (see {@link RearPanelLease}).
      */
-    private final RearLockWakeBudget lockBudget = new RearLockWakeBudget();
+    private final RearPanelLease panelLease = new RearPanelLease();
     /**
-     * Shizuku 后端专用：锁屏播放期间临时接管背屏休眠超时（subscreen_display_time），
-     * 退出时原值恢复。事件驱动，没有轮询唤醒；策略层修复而非 CPU 保活。
+     * 锁屏后被系统背屏桌面（AOD）顶掉时的重建节流：两种模式共用同一套判定，
+     * 底层动作分别是 LSP 的拦截 + 系统身份重建、Shizuku 的复用任务重建。
      */
-    private final RearKeepAwakePolicy keepAwake = new RearKeepAwakePolicy();
+    private final RearTakeoverPolicy takeover = new RearTakeoverPolicy();
+    private boolean relightBusy, takeoverReported;
     /**
-     * Shizuku 锁屏保亮：观测背屏电源状态，非 ON 且保亮条件成立时有界恢复
-     * （bright 真机验证的 WAKE → power 恢复命令序列；每锁屏周期 12 次硬上限）。
+     * 安全阀：如果某次背屏点亮把<b>主屏</b>也点亮了（有的 ROM 把 KEYCODE_WAKEUP 当成整机唤醒），
+     * 立刻停用锁屏租约并且本次进程不再尝试 —— 用户明确禁止「强行点亮主屏」。
      */
-    private final RearPanelReassert panelReassert = new RearPanelReassert();
-    private boolean keepAwakeBusy, reassertBusy;
-    private static final String PREF_KEEP_AWAKE_PREV = "keep_awake_prev_value";
-    private static final String PREF_KEEP_AWAKE_OWED = "keep_awake_restore_owed";
+    private boolean relightWakesMain;
+    /** 点亮前的主屏状态，用来判断这次点亮有没有波及主屏。 */
+    private int relightMainBefore = Display.STATE_UNKNOWN;
+    /** 上一周期读到的 subscreen_display_time，仅用于证明锁屏前后它没有变化（不再写它）。 */
+    private String lockSettingValue = "";
 
     private volatile boolean coverSleepEnabled, sleeping, powerBusy, sleepUnsupported;
     private boolean physicalCover, preservedSleepSession;
@@ -105,10 +107,10 @@ final class RearLyricsCoordinator {
     private final Runnable bindTimeout = () -> finishFailure("连接背屏服务超时，已保留自动启动开关", null);
     private final ServiceConnection connection = new ServiceConnection() {
         @Override public void onServiceConnected(ComponentName name, IBinder service) {
-            main.post(() -> { if (LspRearBridge.selected(context)) return; main.removeCallbacks(bindTimeout); shell = service; syncShizukuKeepAwake(); if (pending && wanted()) launch(); });
+            main.post(() -> { if (LspRearBridge.selected(context)) return; main.removeCallbacks(bindTimeout); shell = service; syncPanelLease("shell-connected"); if (pending && wanted()) launch(); });
         }
         @Override public void onServiceDisconnected(ComponentName name) {
-            main.post(() -> { if (LspRearBridge.selected(context)) return; shell = null; syncShizukuKeepAwake(); if (pending) finishFailure("Shizuku 已断开，等待恢复后自动重试", null); });
+            main.post(() -> { if (LspRearBridge.selected(context)) return; shell = null; panelLease.end(); takeover.reset(); if (pending) finishFailure("Shizuku 已断开，等待恢复后自动重试", null); });
         }
     };
 
@@ -126,13 +128,6 @@ final class RearLyricsCoordinator {
         gate.install(RearPlanA.enabled(context) ? RearCommandGate.Source.PLAN_A : RearCommandGate.Source.LEGACY);
         enabled = context.getSharedPreferences("rear_lyrics", 0).getBoolean("auto_enabled", false);
         coverSleepEnabled = context.getSharedPreferences("rear_lyrics", 0).getBoolean("cover_sleep", false);
-        // A previous process may have died while holding the MAX timeout: adopt the persisted
-        // restore debt so the first usable shell write repairs the system state.
-        android.content.SharedPreferences prefs = context.getSharedPreferences("rear_lyrics", 0);
-        if (prefs.getBoolean(PREF_KEEP_AWAKE_OWED, false)) {
-            keepAwake.adoptOwedRestore(prefs.getString(PREF_KEEP_AWAKE_PREV, RearKeepAwakePolicy.DEFAULT_VALUE));
-            RearLyricsTrace.record(context, "keep-awake-adopt", "restore owed from a previous process; " + keepAwake);
-        }
         registerPanelStateListener();
         coverMonitor = new RearCoverMonitor(context, main, value -> {
             physicalCover = value;
@@ -271,7 +266,7 @@ final class RearLyricsCoordinator {
         main.removeCallbacks(check); scheduled = false;
         syncCoverMonitor();
         syncLspPower();
-        syncShizukuKeepAwake();
+        syncPanelLease("camera-yield");
         schedule(700);
     }
 
@@ -398,10 +393,10 @@ final class RearLyricsCoordinator {
     private void closeWindow(CloseReason reason) {
         if (closing) return;
         closing = true; closeReason = reason; closeRetries = 0;
-        // Whatever the reason, the timeout override must go back to the system now that the
-        // window is going away (user close, pause expiry or camera handoff).
-        panelReassert.end();
-        syncShizukuKeepAwake();
+        // Whatever the reason, the lock lease must end now: the panel goes back to the system
+        // the moment the window is going away (user close, pause expiry or camera handoff).
+        panelLease.end();
+        takeover.reset(); takeoverReported = false;
         releaseLeaseThenClose();
     }
     private void releaseLeaseThenClose() {
@@ -518,7 +513,8 @@ final class RearLyricsCoordinator {
             + ", cameraIdleFor=" + cameraMonitor.idleFor() + "ms"
             + ", missingRearWakes=" + missingRearWakes
             + ", backend=" + (LspRearBridge.selected(context) ? "lsp" : "shizuku") + ", lsp=" + LspRearBridge.detail()
-            + ", keepAwake=" + keepAwake + ", panelReassert=" + panelReassert
+            + ", panelLease=" + panelLease + ", takeover=" + takeover
+            + ", lockSetting=" + lockSettingValue + ", mainWokenByRelight=" + relightWakesMain
             + ", closing=" + closing + ", closeRetries=" + closeRetries + ", returnedToSystem=" + returnedToSystem()
             + ", lspHolding=" + lspHolding + ", lspPower=" + lspPowerDetail + ", " + cameraMonitor.status()
             + "\nSystem log snapshot: " + RearCameraLog.last();
@@ -539,84 +535,85 @@ final class RearLyricsCoordinator {
         closeWindow(CloseReason.USER);
     }
     /**
-     * Shizuku 后端：锁屏播放期间把背屏休眠超时临时写成 MAX，停止播放/关闭/相机/断连时
-     * 恢复原值。从所有状态变化点调用（锁屏广播、播放回调、开关、相机让屏、关窗），
-     * 策略对象保证每个转换只执行一次写操作 —— 没有定时器，没有轮询唤醒。
+     * Shizuku 后端锁屏保亮：观测背屏面板，非 ON 且租约条件成立时有界点亮一次并回读。
+     *
+     * <p>旧的两条路径都已删除，且都已在真机上被证伪：
+     * <ul>
+     *   <li>写 {@code settings system subscreen_display_time = 2147483647}：该键只控制解锁态
+     *       的背屏超时，锁屏熄屏走 PowerManagerService → 显示组休眠，与它无关。真机锁屏
+     *       依旧熄屏。而且它在全局设置里留下一个 MAX，还带着「必须恢复」的债务。</li>
+     *   <li>{@code RearLockWakeBudget} 的 3 次与 {@code RearPanelReassert} 的 12 次：一次
+     *       点亮只够约 16 秒，两分钟内额度耗尽后永久放弃 —— 「锁屏几分钟后就不亮」。</li>
+     * </ul>
+     * 现在整场锁屏由 {@link RearPanelLease} 维护：每次动作之前都必须有一次新的熄屏观测，
+     * 失败按退避走，连续 6 次无效才停并留证据。
      */
-    private void syncShizukuKeepAwake() {
-        if (LspRearBridge.selected(context) || keepAwakeBusy) return;
-        boolean shellUsable = shell != null && shell.isBinderAlive();
-        RearKeepAwakePolicy.Action action = keepAwake.sync(
-            !LspRearBridge.selected(context), shellUsable, wanted(), playing,
-            cameraOwned(), closing, sleeping);
-        if (action == RearKeepAwakePolicy.Action.NONE) return;
-        keepAwakeBusy = true;
-        android.content.SharedPreferences prefs = context.getSharedPreferences("rear_lyrics", 0);
-        switch (action) {
-            case READ_THEN_APPLY:
-                RearLyricsLauncher.readSubscreenTimeout(shell, (ok, raw) -> main.post(() -> {
-                    keepAwakeBusy = false;
-                    if (!ok) {
-                        // Cannot read the original: refuse to overwrite it. A single wake via
-                        // the existing budget stays the fallback for this lock.
-                        RearLyricsTrace.record(context, "keep-awake-read-failed", "raw=" + raw + "; not overwriting");
-                        return;
-                    }
-                    keepAwake.onPreviousRead(raw);
-                    prefs.edit().putString(PREF_KEEP_AWAKE_PREV, keepAwake.restoreValue()).apply();
-                    RearLyricsTrace.record(context, "keep-awake-captured", "original=" + keepAwake.restoreValue());
-                    keepAwakeBusy = true;
-                    applyMaxTimeout(prefs);
-                }));
-                return;
-            case WRITE_MAX:
-                applyMaxTimeout(prefs);
-                return;
-            case WRITE_RESTORE: {
-                String value = keepAwake.restoreValue();
-                RearLyricsLauncher.writeSubscreenTimeout(shell, parseTimeout(value), (ok, detail) -> main.post(() -> {
-                    keepAwakeBusy = false;
-                    if (ok) {
-                        keepAwake.onRestored();
-                        prefs.edit().putBoolean(PREF_KEEP_AWAKE_OWED, false).remove(PREF_KEEP_AWAKE_PREV).apply();
-                        RearLyricsTrace.record(context, "keep-awake-restored", "value=" + value);
-                    } else {
-                        prefs.edit().putBoolean(PREF_KEEP_AWAKE_OWED, true).apply();
-                        RearLyricsTrace.record(context, "keep-awake-restore-retry", "value=" + value + ", " + detail);
-                    }
-                    nudge();
-                }));
-                return;
-            }
-            case MARK_RESTORE_OWED:
-                keepAwakeBusy = false;
-                prefs.edit().putBoolean(PREF_KEEP_AWAKE_OWED, true)
-                    .putString(PREF_KEEP_AWAKE_PREV, keepAwake.restoreValue()).apply();
-                RearLyricsTrace.record(context, "keep-awake-debt", "shell lost while holding; restore owed; " + keepAwake);
-                return;
-            default:
-                keepAwakeBusy = false;
+    private void syncPanelLease(String source) {
+        if (LspRearBridge.selected(context) || relightBusy) return;
+        if (relightWakesMain) { panelLease.end(); return; }
+        int id = RearLyricsLauncher.rememberedRear(context);
+        if (id <= 0) { panelLease.end(); return; }
+        long now = SystemClock.elapsedRealtime();
+        boolean guarding = wanted() && playing && !closing && !sleeping && presentationAllowed();
+        boolean locked = lockedNow();
+        // The lease exists only while the main display is locked. Entering it from every entry
+        // order (lock before play, play after lock, re-lock) keeps one owner for the re-light
+        // instead of relying on a broadcast that may arrive before playback starts.
+        if (!locked) { if (panelLease.active()) panelLease.end(); return; }
+        if (guarding && !panelLease.active()) panelLease.begin(now);
+        boolean panelOn = RearLyricsLauncher.displayState(context, id) == Display.STATE_ON;
+        boolean attached = RearLyricsActivity.attachedWindowOnDisplay(id) != null;
+        RearPanelLease.Action action = panelLease.observe(guarding, panelOn, attached, now);
+        if (action != RearPanelLease.Action.RELIGHT) return;
+        IBinder binder = shell;
+        if (binder == null || !binder.isBinderAlive()) {
+            panelLease.onResult(false, now);
+            return;
         }
-    }
-
-    private void applyMaxTimeout(android.content.SharedPreferences prefs) {
-        RearLyricsLauncher.writeSubscreenTimeout(shell, parseTimeout(RearKeepAwakePolicy.MAX_VALUE), (ok, detail) -> main.post(() -> {
-            keepAwakeBusy = false;
-            if (ok) {
-                keepAwake.onMaxApplied();
-                prefs.edit().putBoolean(PREF_KEEP_AWAKE_OWED, true).apply();
-                RearLyricsTrace.record(context, "keep-awake-held",
-                    "rear sleep timeout set to MAX while lyrics play; " + keepAwake);
-            } else {
-                RearLyricsTrace.record(context, "keep-awake-apply-failed", detail);
+        relightBusy = true;
+        int state = RearLyricsLauncher.displayState(context, id);
+        relightMainBefore = RearLyricsLauncher.displayState(context, 0);
+        RearLyricsActivity.WindowState window = RearLyricsActivity.windowState();
+        RearLyricsTrace.record(context, "panel-relight", source + ": state=" + state
+            + ", main=" + relightMainBefore + ", window=" + window + ", display=" + id + ", " + panelLease);
+        RearLyricsLauncher.wake(context, binder, id, () -> main.postDelayed(() -> {
+            relightBusy = false;
+            long at = SystemClock.elapsedRealtime();
+            int after = RearLyricsLauncher.displayState(context, id);
+            boolean on = after == Display.STATE_ON;
+            int mainAfter = RearLyricsLauncher.displayState(context, 0);
+            if (relightMainBefore != Display.STATE_ON && mainAfter == Display.STATE_ON) {
+                // 这个 ROM 把 KEYCODE_WAKEUP 当成整机唤醒：立即停手，绝不反复点亮主屏。
+                relightWakesMain = true;
+                panelLease.end();
+                RearLyricsTrace.record(context, "relight-woke-main",
+                    "lighting the rear panel also turned the main display on; lock-time re-light disabled for this session");
+                nudge();
+                return;
             }
+            panelLease.onResult(on, at);
+            RearLyricsTrace.record(context, "panel-relight-outcome", "state=" + after
+                + (on ? " (recovered)" : " (still dark)") + ", main=" + mainAfter + ", " + panelLease);
             nudge();
-        }));
+        }, RearPanelLease.VERIFY_MS));
     }
 
-    private static int parseTimeout(String value) {
-        try { return (int) Long.parseLong(value.trim()); }
-        catch (NumberFormatException error) { return (int) Long.parseLong(RearKeepAwakePolicy.DEFAULT_VALUE); }
+    /**
+     * 只读探针：锁屏瞬间与解锁后各读一次 {@code subscreen_display_time}。它不是用来保亮的，
+     * 而是为了让下一次真机回报能直接回答「锁屏前后这个值有没有变化、系统是否改写了它」，
+     * 不需要再手工抓日志。任何情况下都不再写这个键。
+     */
+    private void probeLockSetting(String tag) {
+        if (LspRearBridge.selected(context)) return;
+        IBinder binder = shell;
+        if (binder == null || !binder.isBinderAlive()) return;
+        RearLyricsLauncher.readSubscreenTimeout(binder, (ok, raw) -> main.post(() -> {
+            String value = ok ? raw.trim() : "read-failed";
+            boolean changed = !lockSettingValue.isEmpty() && !lockSettingValue.equals(value);
+            RearLyricsTrace.record(context, "lock-setting", tag + ": subscreen_display_time=" + value
+                + (changed ? " (CHANGED from " + lockSettingValue + ")" : " (unchanged)"));
+            lockSettingValue = value;
+        }));
     }
 
     /**
@@ -632,53 +629,11 @@ final class RearLyricsCoordinator {
                 @Override public void onDisplayRemoved(int displayId) { }
                 @Override public void onDisplayChanged(int displayId) {
                     if (displayId <= 0) return;
-                    main.post(() -> syncPanelReassert("display-event"));
+                    main.post(() -> syncPanelLease("display-event"));
                 }
             }, main);
         } catch (Throwable error) {
             RearLyricsTrace.record(context, "panel-listener", "registration failed: " + error);
-        }
-    }
-
-    /** 保亮条件：歌词活动 + 播放中 + 用户开启 + 无相机 + 非合盖 + 未在关闭流程中。 */
-    private boolean panelGuardWanted() {
-        return wanted() && playing && !closing && !sleeping && presentationAllowed();
-    }
-
-    /**
-     * 观测背屏电源状态；非 ON 时执行一次有界恢复（WAKE 优先，连续失败退到 power
-     * 恢复命令）。每个观测点只发一次动作，结果在动作后 1.2s 回读并记录 —— 不轮询、
-     * 不循环，预算耗尽即停。
-     */
-    private void syncPanelReassert(String source) {
-        if (LspRearBridge.selected(context) || reassertBusy) return;
-        int id = RearLyricsLauncher.rememberedRear(context);
-        if (id <= 0) { panelReassert.end(); return; }
-        boolean awake = RearLyricsLauncher.displayState(context, id) == android.view.Display.STATE_ON;
-        boolean guardWanted = panelGuardWanted();
-        if (!guardWanted) { if (panelReassert.holdingBudget() || panelReassert.exhausted()) panelReassert.end(); return; }
-        if (!panelReassert.holdingBudget()) panelReassert.begin();
-        RearPanelReassert.Action action = panelReassert.observe(true, awake, SystemClock.elapsedRealtime());
-        if (action == RearPanelReassert.Action.NONE) return;
-        IBinder shell = this.shell;
-        if (shell == null || !shell.isBinderAlive()) return;
-        reassertBusy = true;
-        RearLyricsTrace.record(context, "panel-reassert", source + ": state=" + RearLyricsLauncher.displayState(context, id)
-            + ", attempt=" + panelReassert.attempts() + "/" + RearPanelReassert.MAX_ATTEMPTS_PER_EPISODE);
-        Runnable after = () -> main.postDelayed(() -> {
-            reassertBusy = false;
-            int state = RearLyricsLauncher.displayState(context, id);
-            RearLyricsTrace.record(context, "panel-reassert-outcome",
-                "attempt=" + panelReassert.attempts() + ", state=" + state + (state == android.view.Display.STATE_ON ? " (recovered)" : " (still dark)"));
-            nudge();
-        }, 1200);
-        if (action == RearPanelReassert.Action.WAKE) {
-            RearLyricsLauncher.wake(context, shell, id, after);
-        } else {
-            RearLyricsLauncher.restoreRearPowerPolicy(shell, id, (ok, detail) -> {
-                RearLyricsTrace.record(context, "panel-reassert-power", "ok=" + ok + ", " + detail);
-                after.run();
-            });
         }
     }
 
@@ -706,6 +661,7 @@ final class RearLyricsCoordinator {
     void enable(RearLyricsLauncher.Callback callback) {
         main.post(() -> {
             enabled = true; manual = true; failures = 0; nextAttempt = 0;
+            takeover.reset(); takeoverReported = false;
             // Asking for the window again is the only thing that clears a dismissal.
             dismissed = false;
             RearPlanA.clearDismissed(context);
@@ -756,7 +712,7 @@ final class RearLyricsCoordinator {
             playback.playback(value, SystemClock.elapsedRealtime()); schedulePauseReturn();
             syncCoverMonitor();
             if (value) { failures = 0; nextAttempt = 0; }
-            syncShizukuKeepAwake(); // pause stops holding immediately; resume re-applies
+            syncPanelLease("playback");
             nudge();
         });
     }
@@ -766,7 +722,7 @@ final class RearLyricsCoordinator {
             main.removeCallbacks(pauseTimeout); playback.reset();
             if (LspRearBridge.selected(context)) playback.returnToSystem();
             playing = false; requestedPlaying = false; manual = false;
-            syncShizukuKeepAwake();
+            panelLease.end(); takeover.reset(); takeoverReported = false;
             rear.markSystemOwned("stopped");
             attemptToken++; pending = false;
             main.removeCallbacks(bindTimeout); main.removeCallbacks(check); scheduled = false;
@@ -804,8 +760,7 @@ final class RearLyricsCoordinator {
         recordOwnershipChange();
         syncCoverMonitor();
         syncLspPower();
-        syncShizukuKeepAwake();
-        syncPanelReassert("heartbeat");
+        syncPanelLease("heartbeat");
         if (!RearCoverPolicy.mayRecoverWindow(sleeping, powerBusy, coverSleepEnabled, physicalCover)) {
             if (coverSleepEnabled && physicalCover && !sleeping && !powerBusy) changeSleep(true);
             if (sleeping && !physicalCover && !powerBusy && now >= nextAttempt) changeSleep(false);
@@ -823,13 +778,10 @@ final class RearLyricsCoordinator {
             wakeMissingRear(now);
             schedule(2000); return;
         }
-        if (!pending && !waking && (!wakeTried || lockBudget.take())
-                && now >= nextAttempt && shell != null && shell.isBinderAlive()
-                && RearLyricsActivity.isEnabled() && RearLyricsLauncher.displayState(context, display) != Display.STATE_ON) {
-            waking = true; wakeTried = true; nextAttempt = now + 4000;
-            if (lockBudget.candidate()) probeLock("wake" + lockBudget.wakes());
-            RearLyricsLauncher.wake(context, shell, display, () -> main.post(() -> { waking = false; schedule(700); }));
-        } else if (RearLyricsPolicy.shouldAttempt(enabled, playing, manual, RearLyricsState.hasConfig(),
+        // 熄灭后的点亮只有一个负责人：锁屏期间是 RearPanelLease（有回读、有退避、有总量上限），
+        // 非锁屏时由重建路径自带的一次 WAKE 完成。这里不再叠加第三条唤醒路径。
+        boolean takeoverBlocked = takeover.exhausted();
+        if (!takeoverBlocked && RearLyricsPolicy.shouldAttempt(enabled, playing, manual, RearLyricsState.hasConfig(),
                 visible && RearLyricsLauncher.displayState(context, display) == Display.STATE_ON,
                 pending || waking || RearLyricsLauncher.isStarting(), now, nextAttempt, lockRecovery)) begin();
         schedule(2000);
@@ -872,6 +824,39 @@ final class RearLyricsCoordinator {
                 .tag("folia-rear-lyrics").version(ShellUserService.VERSION).processNameSuffix("rear_lyrics").daemon(false), connection);
         } catch (Exception error) { finishFailure("无法连接 Shizuku：" + error.getMessage(), error); }
     }
+    /**
+     * 背屏被系统背屏桌面（AOD）顶掉后的有界重夺。复用既有重建路径（同一个 Activity、
+     * 同一个会话 token、同一块 WebView），不新建播放器、不重启歌词舞台；每个锁屏周期
+     * 最多三次、间隔 20 秒，用完即停并留 {@code takeover-exhausted} 证据。
+     */
+    private void recoverFromTakeover(long now) {
+        if (pending || RearLyricsLauncher.isStarting()) return;
+        RearTakeoverPolicy.Decision decision = takeover.evaluate(
+            wanted(), lockedNow(), true, cameraOwned(), closing, now);
+        if (decision != RearTakeoverPolicy.Decision.RECOVER) {
+            if (takeover.exhausted() && !takeoverReported) {
+                takeoverReported = true;
+                RearLyricsTrace.record(context, "takeover-exhausted",
+                    "the system rear home took the panel back " + takeover.attempts()
+                        + "x while lyrics were wanted; no further re-front this lock; " + takeover);
+            }
+            return;
+        }
+        covered = false; nextAttempt = 0;
+        RearLyricsTrace.record(context, "takeover-recover", "rear front=" + frontTask
+            + "; attempt " + takeover.attempts() + "/" + RearTakeoverPolicy.MAX_ATTEMPTS_PER_LOCK
+            + ", backend=" + (LspRearBridge.selected(context) ? "lsp" : "shizuku"));
+        begin();
+    }
+
+    /** 主屏锁定或熄灭即视为锁屏态（与 RearLyricsLauncher 内部判定保持一致）。 */
+    private boolean lockedNow() {
+        android.app.KeyguardManager keyguard =
+            (android.app.KeyguardManager) context.getSystemService(Context.KEYGUARD_SERVICE);
+        return keyguard != null && (keyguard.isKeyguardLocked()
+            || (keyguard.isDeviceSecure() && RearLyricsLauncher.displayState(context, 0) != Display.STATE_ON));
+    }
+
     private void inspectFront(int display, long now) {
         // Camera ownership must be observable even while our own window is absent, so the
         // session guard only applies to the occlusion logic inside the callback.
@@ -897,6 +882,14 @@ final class RearLyricsCoordinator {
             boolean rearCamera = evidence.rearCameraTask(), mainCamera = evidence.mainCameraTask();
             boolean changed = rearCamera != rearTaskCamera || mainCamera != mainTaskCamera;
             rearTaskCamera = rearCamera; mainTaskCamera = mainCamera;
+            // 锁屏后被系统背屏桌面（AOD）顶掉：LSP 与 Shizuku 都要面对这条接管
+            // （REAREye 证据：背屏中心在 reason="aod" 时把自己拉到背屏）。
+            // LSP 在系统 server 侧拦截，Shizuku 只能夺回；两种模式共用同一个节流器，
+            // 因此不会退化成每 2 秒一次的抢前台闪烁。
+            String rearPkg = evidence.rearPackage();
+            boolean oursInFront = context.getPackageName().equals(rearPkg);
+            if (oursInFront) takeover.onRecovered();
+            else if (RearTakeoverPolicy.REAR_CENTRE_PACKAGE.equals(rearPkg)) recoverFromTakeover(SystemClock.elapsedRealtime());
             // The decision runs on fresh evidence, not only on the heartbeat.
             if (planA()) evaluateRear(SystemClock.elapsedRealtime());
             if (changed) {
@@ -1037,7 +1030,8 @@ final class RearLyricsCoordinator {
             + ", backend=" + (LspRearBridge.selected(context) ? "lsp" : "shizuku")
             + ", engine=" + RearPlanA.engine(context)
             + ", sleeping=" + sleeping + ", covered=" + covered + ", coverSleep=" + coverSleepEnabled
-            + ", physicalCover=" + physicalCover + ", lock=" + lockBudget
+            + ", physicalCover=" + physicalCover + ", panelLease=" + panelLease
+            + ", takeover=" + takeover + ", lockSetting=" + lockSettingValue
             + ", holding=" + lspHolding + ", lease=" + lspPowerDetail
             + ", " + (planA() ? occupancy.describe(now) : rear.describe(now)));
     }
@@ -1048,24 +1042,27 @@ final class RearLyricsCoordinator {
             @Override public void onReceive(Context context, Intent intent) {
                 if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction()) && wanted() && !sleeping && !powerBusy) {
                     lockRecovery = true; nextAttempt = 0; wakeTried = false; nextHoldRefresh = 0;
+                    takeover.reset(); takeoverReported = false;
                     if (LspRearBridge.selected(context)) {
-                        // LSP keeps the panel awake through the module's own shouldSleep hook.
-                        lockBudget.lockStarted(true);
+                        // LSP keeps the panel awake through the module's own shouldSleep /
+                        // requestPowerState hooks; the app only renews the lease.
                         probeLock("lsp");
                     } else {
-                        // Shizuku has no such hook: HyperOS may power the rear panel down on lock.
-                        // Allow a bounded number of wake attempts for THIS lock instead of the
-                        // single one a failure used to consume for the rest of the session.
-                        lockBudget.lockStarted(false);
+                        // Shizuku has no such hook: HyperOS powers the rear panel down on lock and
+                        // the process can only re-light it. The lease owns that for the whole lock.
+                        panelLease.begin(SystemClock.elapsedRealtime());
                         probeLock("shizuku");
                     }
                     // Renew the window/power lease immediately; normal heartbeats may be delayed
                     // while Android stops the main Activity during the lock transition.
                     syncLspPower();
-                    syncShizukuKeepAwake();
-                    syncPanelReassert("screen-off");
+                    syncPanelLease("screen-off");
+                    probeLockSetting("at-lock");
                 } else if (!Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
-                    lockBudget.unlocked();
+                    // 解锁即交还：租约解除、重夺额度清零。用户主动关掉背屏后不会被重新点亮。
+                    panelLease.end();
+                    takeover.reset(); takeoverReported = false;
+                    probeLockSetting("at-unlock");
                 }
                 lastProbe = 0; RearLyricsTrace.record(context, "power-event", intent.getAction()); nudge();
             }

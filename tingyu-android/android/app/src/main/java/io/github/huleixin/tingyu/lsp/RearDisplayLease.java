@@ -15,7 +15,14 @@ final class RearDisplayLease {
      * that without weakening the crash guarantee: the absolute cap below still applies.
      */
     static final long WINDOW_RENEW_MS = 30_000;
-    static final int MAX_WINDOW_RENEWALS = 30; // 15 minutes absolute, then the panel is the system's again
+    /**
+     * 240 renewals ≈ 60 minutes. The old cap of 30 stopped renewing after ~7 minutes, which is
+     * shorter than a normal locked listening session: the lease lapsed, the bright override
+     * stopped being applied and the rear panel fell asleep mid-album even though the window was
+     * still attached. The window itself is the crash guarantee (a dead client's window is
+     * removed with its process), so a longer cap does not weaken it.
+     */
+    static final int MAX_WINDOW_RENEWALS = 240;
     private int display = -1;
     private String session = "";
     private long until;
