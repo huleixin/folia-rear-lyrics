@@ -902,6 +902,10 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 SongInfo info=SongInfo.fromTag((JSObject)next.localConfiguration.tag,generation);
                 if(info!=null)upcoming.add(withPlaylistArtwork(info));
             }
+            // Media3 窗口只是「已解析地址的几首」，低水位时可能只剩 1 首甚至 0 首 ——
+            // 歌词/封面的预取深度不能跟着窗口深度缩水。窗口不足 2 首时用逻辑歌单
+            // 补齐（随机播放时它也是洗好的真实顺序），查到的歌仍以 songKey 去重。
+            upcoming = fillUpcomingFromPlaylist(current, upcoming, generation);
             loader.onTrackChanged(current,upcoming);
         }catch(Throwable error){
             try{
@@ -910,6 +914,29 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                     .put("source","engine-schedule").put("error",error.getClass().getSimpleName()));
             }catch(Throwable ignored){}
         }
+    }
+
+    /**
+     * Media3 窗口不足 2 首时，用逻辑歌单把预取窗口补齐到「当前曲+后 2 首」。
+     *
+     * <p>纯函数（可 JVM 直测）：只读 {@link NativePlaylist}，去重靠 songKey，
+     * guard 兜底保证在 wrap+全重复的退化歌单上也不会死循环。
+     * 返回的列表直接交给 {@link SongInfoLoader}，不需要再过 {@link #withPlaylistArtwork} ——
+     * {@code Track.artwork} 本来就来自同一份逻辑歌单。
+     */
+    static java.util.ArrayList<SongInfo> fillUpcomingFromPlaylist(SongInfo current,
+            java.util.ArrayList<SongInfo> upcoming, int generation){
+        int guard=0;
+        for(int offset=upcoming.size()+1;upcoming.size()<2&&guard<16;offset++,guard++){
+            NativePlaylist.Track next=NativePlaylist.get().lookahead(current.songKey,offset);
+            if(next==null)break;
+            SongInfo info=SongInfo.fromTrack(next,generation);
+            if(info==null)continue;
+            boolean duplicate=info.songKey.equals(current.songKey);
+            if(!duplicate)for(SongInfo seen:upcoming)if(seen.songKey.equals(info.songKey)){duplicate=true;break;}
+            if(!duplicate)upcoming.add(info);
+        }
+        return upcoming;
     }
 
     /**

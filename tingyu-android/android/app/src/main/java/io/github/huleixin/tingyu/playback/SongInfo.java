@@ -75,6 +75,16 @@ public final class SongInfo {
                 generation);
     }
 
+    /**
+     * 从逻辑歌单的 Track 构造（预取窗口补齐用）：Media3 队列窗口浅时，
+     * 「后面还有谁」的权威答案是 NativePlaylist.lookahead。
+     */
+    public static SongInfo fromTrack(NativePlaylist.Track track, int generation) {
+        if (track == null || track.songKey.isEmpty()) return null;
+        return new SongInfo(track.songKey, track.title, track.artist, track.album,
+                track.durationMs, track.artwork, track.providerId, track.mediaId, generation);
+    }
+
     public SongInfo withGeneration(int value) {
         return new SongInfo(songKey, title, artist, album, durationMs, artworkUrl,
                 providerId, mediaId, value);

@@ -1,6 +1,6 @@
 package io.github.huleixin.tingyu.playback;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -36,11 +36,22 @@ public final class LyricRetryCoordinator {
         Pending(Runnable posted) { this.posted = posted; }
     }
 
+    /** 追踪上限（LRU 淘汰）：长后台播放+大面积网络失败的极端组合下，账本不许无界增长。 */
+    private static final int MAX_TRACKED = 64;
+
     private final long[] delays;
     private final Runner runner;
     private final Gate gate;
-    private final Map<String, Pending> pending = new HashMap<>();
-    private final Map<String, Integer> attempts = new HashMap<>();
+    private final Map<String, Pending> pending = new LinkedHashMap<String, Pending>(16, 0.75f, true) {
+        @Override protected boolean removeEldestEntry(Map.Entry<String, Pending> eldest) {
+            return size() > MAX_TRACKED;
+        }
+    };
+    private final Map<String, Integer> attempts = new LinkedHashMap<String, Integer>(16, 0.75f, true) {
+        @Override protected boolean removeEldestEntry(Map.Entry<String, Integer> eldest) {
+            return size() > MAX_TRACKED;
+        }
+    };
 
     public LyricRetryCoordinator(long[] delays, Runner runner, Gate gate) {
         this.delays = delays.clone();

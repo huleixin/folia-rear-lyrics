@@ -6,7 +6,6 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.content.Context;
 import android.content.Intent;
 import android.net.wifi.WifiManager;
@@ -24,20 +23,11 @@ import android.os.SystemClock;
 
 import androidx.annotation.Nullable;
 
-import java.io.InputStream;
-import java.io.ByteArrayOutputStream;
 import java.util.Collections;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import android.util.LruCache;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
 
 import org.json.JSONObject;
 
@@ -49,12 +39,9 @@ public class FoliaPlaybackService extends Service {
     public static final String ACTION_REFRESH_METADATA = "io.github.huleixin.tingyu.action.REFRESH_METADATA";
     private MediaSession mediaSession;
     private final ExecutorService artworkExecutor = Executors.newSingleThreadExecutor();
-    private final OkHttpClient artworkClient = new OkHttpClient.Builder()
-        .callTimeout(15, TimeUnit.SECONDS).build();
-    // Notification thumbnails must not retain every full-resolution cover for the whole session.
-    private final LruCache<String, Bitmap> artworkCache = new LruCache<String, Bitmap>(4 * 1024 * 1024) {
-        @Override protected int sizeOf(String key, Bitmap value) { return value.getAllocationByteCount(); }
-    };
+    // 封面下载统一走 NativeArtworkRepository（songKey 键，内存 LRU + 磁盘缓存）。
+    // 此前服务这里自建 OkHttp、以 URL 为键独立下载独立缓存 —— 与 SongInfoLoader 的
+    // 仓库互不命中，同一张图被两条链各下载一次、各存一份，锁屏与舞台还会互相触发重建。
     private final Set<String> pendingArtworkUrls = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private boolean publishedPlayback = false;
     private String artworkAttemptUrl = "";
@@ -380,15 +367,16 @@ public class FoliaPlaybackService extends Service {
                 // 「URL 为空」把刚拿到的封面当成过期清掉。
                 String url = service.cachedCoverUrl == null ? "" : service.cachedCoverUrl.trim();
                 if (url.isEmpty()) url = service.currentArtworkUrl;
-                service.appliedArtworkBitmap = bitmap;
+                Bitmap fitted = fitForNotification(bitmap);
+                service.appliedArtworkBitmap = fitted;
                 service.appliedArtworkUrl = url;
                 if (!url.isEmpty()) service.lastRequestedCoverUrl = url;
-                service.publishMetadata(bitmap);
+                service.publishMetadata(fitted);
                 NotificationManager manager = service.getSystemService(NotificationManager.class);
                 if (manager != null) {
                     manager.notify(NOTIFICATION_ID,
                         service.buildNotification(service.cachedTitle, service.cachedArtist,
-                            service.cachedPlaying, bitmap));
+                            service.cachedPlaying, fitted));
                 }
             } catch (Throwable error) {
                 io.github.huleixin.tingyu.CrashDiagnostics.record(service, "artwork-apply", "main", error);
@@ -617,7 +605,10 @@ public class FoliaPlaybackService extends Service {
             .putString(MediaMetadata.METADATA_KEY_ARTIST, artist == null ? "" : artist)
             .putString(MediaMetadata.METADATA_KEY_ALBUM, album == null ? "" : album)
             .putLong(MediaMetadata.METADATA_KEY_DURATION, duration);
-        if (artwork == null && coverUrl != null && !coverUrl.isEmpty()) {
+        // 只有系统进程真的能解析的 URI 才值得写进 ART_URI：`folia-cover:` / `blob:` /
+        // 相对路径写给 SystemUI 只会得到「解码失败」的占位图。http(s) 之外一律不写，
+        // 交由原生位图路径（或无封面）兜底，而不是给系统一个必然打不开的地址。
+        if (artwork == null && isPublishableArtworkUri(coverUrl)) {
             metadata.putString(MediaMetadata.METADATA_KEY_ART_URI, coverUrl);
             metadata.putString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI, coverUrl);
         }
@@ -849,22 +840,6 @@ public class FoliaPlaybackService extends Service {
     private void loadArtwork(String value, ArtworkCallback callback) {
         if (value == null || value.isEmpty()) return;
         if (value.equals(appliedArtworkUrl)) return;
-        Bitmap cached = artworkCache.get(value);
-        if (cached != null) {
-            mainHandler.post(() -> {
-                if (value.equals(currentArtworkUrl)) {
-                    appliedArtworkUrl = value;
-                    appliedArtworkBitmap = cached;
-                    FoliaNativePlugin.notePlaybackArtwork(
-                        value,
-                        "loaded",
-                        "cached " + cached.getWidth() + "x" + cached.getHeight()
-                    );
-                }
-                callback.onLoaded(cached);
-            });
-            return;
-        }
         if (!(value.startsWith("http://") || value.startsWith("https://"))) {
             FoliaNativePlugin.notePlaybackArtwork(value, "error", "unsupported-cover-url");
             return;
@@ -872,48 +847,17 @@ public class FoliaPlaybackService extends Service {
         if (!pendingArtworkUrls.add(value)) return;
         artworkExecutor.execute(() -> {
             if (!value.equals(currentArtworkUrl)) { pendingArtworkUrls.remove(value); return; }
-            Bitmap bitmap = null;
-            String failure = "";
-            try (Response response = artworkClient.newCall(new Request.Builder()
-                .url(value)
-                .header("User-Agent", "Mozilla/5.0 (Linux; Android 13; Mobile)")
-                .build()).execute()) {
-                ResponseBody body = response.body();
-                if (response.isSuccessful() && body != null) {
-                    try (InputStream input = body.byteStream()) {
-                        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-                        byte[] buffer = new byte[8192];
-                        int read;
-                        while ((read = input.read(buffer)) != -1) {
-                            if (bytes.size() + read > 8 * 1024 * 1024) throw new java.io.IOException("Artwork exceeds thumbnail download limit");
-                            bytes.write(buffer, 0, read);
-                        }
-                        byte[] encoded = bytes.toByteArray();
-                        BitmapFactory.Options options = new BitmapFactory.Options();
-                        options.inJustDecodeBounds = true;
-                        BitmapFactory.decodeByteArray(encoded, 0, encoded.length, options);
-                        options.inSampleSize = PlaybackArtworkSizing.sampleSize(options.outWidth, options.outHeight);
-                        options.inJustDecodeBounds = false;
-                        bitmap = BitmapFactory.decodeByteArray(encoded, 0, encoded.length, options);
-                        if (bitmap != null) {
-                            int[] size = PlaybackArtworkSizing.fit(bitmap.getWidth(), bitmap.getHeight());
-                            if (size[0] != bitmap.getWidth() || size[1] != bitmap.getHeight()) {
-                                Bitmap scaled = Bitmap.createScaledBitmap(bitmap, size[0], size[1], true);
-                                if (scaled != bitmap) bitmap.recycle();
-                                bitmap = scaled;
-                            }
-                        }
-                    }
-                    if (bitmap == null) failure = "decode-failed";
-                } else {
-                    failure = "http-" + response.code();
-                }
-            } catch (Exception error) {
-                failure = error.getClass().getSimpleName();
-            } finally {
-                pendingArtworkUrls.remove(value);
-            }
-            if (bitmap != null) artworkCache.put(value, bitmap);
+            // 统一封面通道：与 SongInfoLoader 共用同一个 songKey 键的仓库。
+            // 前台(或预取)已经拿到的封面，这里直接命中，不再重新下载。
+            String cacheKey = cachedSongKey == null || cachedSongKey.isEmpty() ? "url:" + value : cachedSongKey;
+            io.github.huleixin.tingyu.playback.NativeArtworkRepository.Result result =
+                io.github.huleixin.tingyu.playback.NativeArtworkRepository
+                    .get(getApplicationContext()).load(cacheKey, value);
+            pendingArtworkUrls.remove(value);
+            Bitmap bitmap = result.bitmap;
+            String failure = bitmap == null ? result.status.name().toLowerCase(java.util.Locale.US)
+                + (result.httpStatus > 0 ? "-" + result.httpStatus : "") : "";
+            if (bitmap != null) bitmap = fitForNotification(bitmap);
             Bitmap resolved = bitmap;
             if (resolved != null) {
                 mainHandler.post(() -> {
@@ -936,6 +880,28 @@ public class FoliaPlaybackService extends Service {
 
     private interface ArtworkCallback {
         void onLoaded(Bitmap bitmap);
+    }
+
+    /**
+     * 通知/锁屏缩略图统一 512px 口径：仓库层落盘的是 768px，直接塞进
+     * {@code METADATA_KEY_ART} 与 {@code setLargeIcon} 会多占约 1.6MB 常驻内存。
+     */
+    private static Bitmap fitForNotification(Bitmap source) {
+        if (source == null || source.isRecycled()) return source;
+        int[] size = PlaybackArtworkSizing.fit(source.getWidth(), source.getHeight());
+        if (size[0] == source.getWidth() && size[1] == source.getHeight()) return source;
+        try {
+            return Bitmap.createScaledBitmap(source, size[0], size[1], true);
+        } catch (Throwable error) {
+            return source;
+        }
+    }
+
+    /** 只有 http(s) 地址系统进程才解析得动；本地歌曲的封面必须走原生位图路径。 */
+    private static boolean isPublishableArtworkUri(String url) {
+        if (url == null) return false;
+        String value = url.trim();
+        return value.startsWith("http://") || value.startsWith("https://");
     }
 
     /**
@@ -1154,9 +1120,7 @@ public class FoliaPlaybackService extends Service {
         updatePlaybackLocks(false);
         RearLyricsCoordinator.get(this).stopped();
         currentArtworkUrl = "";
-        artworkClient.dispatcher().cancelAll();
         artworkExecutor.shutdownNow();
-        artworkCache.evictAll();
         // No callback was ever registered; the controller was only a read-back handle.
         selfController = null;
         if (mediaSession != null) {

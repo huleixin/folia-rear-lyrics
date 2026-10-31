@@ -99,8 +99,48 @@ public final class TingyuPlaybackPlugin extends Plugin {
                 .put("originalTracks",count(tracks,SourceRouting.Kind.ORIGINAL))
                 .put("unmarkedTracks",count(tracks,SourceRouting.Kind.UNKNOWN)));
             call.resolve(new JSObject().put("generation",generation).put("size",tracks.size()));
+            prefetchAfterPlaylistSync(tracks);
         }
         catch(Exception error){call.reject("同步逻辑歌单失败："+error.getClass().getSimpleName());}
+    }
+
+    /**
+     * 队列一同步就预取当前曲+后两首的歌词与封面，不等 Media3 装载。
+     *
+     * <p>此前 {@link SongInfoLoader#refresh} 是死代码：预取只发生在 Media3 真实换歌/装载时，
+     * 冷启动与低水位窗口下「切歌瞬间无词无图，现场取词期间灵动岛留白」。
+     * 逻辑歌单是洗好的播放顺序，lookahead 的答案在任何模式下都确定。
+     */
+    private static void prefetchAfterPlaylistSync(java.util.List<NativePlaylist.Track> tracks){
+        try{
+            if(tracks==null||tracks.isEmpty())return;
+            SongInfoLoader loader=SongInfoLoader.get();
+            if(loader==null)return;
+            NativePlaylist playlist=NativePlaylist.get();
+            String currentKey=io.github.huleixin.tingyu.playback.NativeAudioEngine.currentKey();
+            SongInfo current=currentKey==null||currentKey.isEmpty()
+                ?null:SongInfo.fromTrack(playlist.trackFor(currentKey),loader.generation());
+            if(current==null)current=SongInfo.fromTrack(tracks.get(0),loader.generation());
+            if(current==null)return;
+            java.util.List<SongInfo> upcoming=new java.util.ArrayList<>();
+            for(int offset=1;upcoming.size()<2&&offset<=tracks.size();offset++){
+                NativePlaylist.Track next=playlist.lookahead(current.songKey,offset);
+                if(next==null)break;
+                SongInfo info=SongInfo.fromTrack(next,loader.generation());
+                if(info==null||info.songKey.equals(current.songKey))continue;
+                boolean duplicate=false;
+                for(SongInfo seen:upcoming)if(seen.songKey.equals(info.songKey)){duplicate=true;break;}
+                if(!duplicate)upcoming.add(info);
+            }
+            loader.refresh(current,upcoming);
+            PlaybackDiagnostics.note("songinfo-prefetch",new JSObject()
+                .put("current",PlaybackDiagnostics.anonKey(current.songKey))
+                .put("upcoming",upcoming.size()));
+        }catch(Throwable error){
+            // 预取是增值动作：队列同步本身永远不该被它拖累。
+            PlaybackDiagnostics.note("songinfo-failure",new JSObject()
+                .put("source","playlist-prefetch").put("error",error.getClass().getSimpleName()));
+        }
     }
     /** 同步包里各类音源的条数。只是计数，不含标题/地址/凭据。 */
     private static int count(java.util.List<NativePlaylist.Track> tracks, SourceRouting.Kind kind){

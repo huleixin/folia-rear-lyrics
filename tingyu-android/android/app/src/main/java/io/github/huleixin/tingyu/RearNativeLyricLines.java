@@ -96,8 +96,16 @@ final class RearNativeLyricLines {
             // 磁盘缓存没有 ≠ 没有歌词：LRCLIB 上没有的歌（如 QQ QRC）的词在前台/会话链路
             // 发布时存在 ColorOsLyricBridge 的 16 条 LRU 里。真机 2026-10-31：锁屏自动切歌
             // 后 Bridge 明明 ready，背屏却因为只查这一个仓库而 loading 到重试耗尽。
-            String bridged = io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.lyricInfoFor(songKey);
-            return rowsFromLyricInfo(bridged, songKey);
+            String rows = rowsFromLyricInfo(
+                io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.lyricInfoFor(songKey), songKey);
+            if (rows == null) {
+                // 第三级回退：统一歌词仓库。Bridge 表是内存态（挤出/进程重启即空），
+                // 而这里落盘 —— 只要这首歌曾经被任何一端确认过歌词，背屏就不该 loading。
+                io.github.huleixin.tingyu.playback.UnifiedLyricsStore.Record record =
+                    io.github.huleixin.tingyu.playback.UnifiedLyricsStore.get(context).get(songKey);
+                if (record != null) rows = rowsFromLyricInfo(record.json, songKey);
+            }
+            return rows;
         }
         if (!cached.hasTimeline()) return rows("", "", songKey);
         JSONObject payload;
