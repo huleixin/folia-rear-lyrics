@@ -51,6 +51,16 @@ public final class SongInfoLoader {
 
     private static volatile SongInfoLoader instance;
 
+    /**
+     * 进程级歌词链路账本：调度器写结论、背屏渲染端写交付、服务端写会话发布。
+     * 三处共用一份，才能在诊断里一眼看出「哪一首断在哪一段」。
+     */
+    private static final LyricChainLedger LEDGER = new LyricChainLedger();
+
+    public static LyricChainLedger ledger() {
+        return LEDGER;
+    }
+
     public static SongInfoLoader get() {
         return instance;
     }
@@ -66,6 +76,15 @@ public final class SongInfoLoader {
     /** 三端共用的统一歌词仓库：舞台确认版优先，原生取词只补空位。 */
     private final UnifiedLyricsStore unified;
     private final ExecutorService lyricsExecutor;
+    /**
+     * 「后面几首」的取词线程。
+     *
+     * <p>以前当前曲和预取共用一条串行线程：一首歌最坏要串四条网络链（4×14s），
+     * 队列一旦落后，**当前正在播的那一首要排在三首预取任务后面**，于是它的词在整首歌里
+     * 都到不了，灵动岛/背屏只能继续空白 —— 这就是「播到第 N 首开始没词」的队头阻塞。
+     * 现在分两条：当前曲永远不等预取。
+     */
+    private final ExecutorService aheadLyricsExecutor;
     private final ExecutorService artworkExecutor;
     /** 这一轮真正需要的 songKey（当前曲 + 后面两首），任务执行前会再核一次。 */
     private final Set<String> wanted = Collections.synchronizedSet(new LinkedHashSet<String>());
@@ -88,6 +107,11 @@ public final class SongInfoLoader {
         this.unified = UnifiedLyricsStore.get(this.context);
         this.lyricsExecutor = Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, "tingyu-lyrics");
+            thread.setDaemon(true);
+            return thread;
+        });
+        this.aheadLyricsExecutor = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "tingyu-lyrics-ahead");
             thread.setDaemon(true);
             return thread;
         });
@@ -157,6 +181,8 @@ public final class SongInfoLoader {
                 .put("lyric", ColorOsLyricBridge.stateOf(current.songKey))
                 .put("artwork", current.artworkUrl.isEmpty() ? "uri-missing" : "has-uri"));
         for (SongInfo info : targets) {
+            boolean playingNow = info.songKey.equals(current.songKey);
+            LEDGER.planned(info.songKey, gen, !playingNow);
             submitLyrics(info);
             submitArtwork(info);
         }
@@ -225,13 +251,17 @@ public final class SongInfoLoader {
             return;
         }
         if (!lyricsInFlight.add(info.songKey)) return;
-        lyricsExecutor.execute(() -> {
+        // 当前曲走独立线程：预取再忙也不能把正在播的这一首挡在后面（队头阻塞是
+        // 「播到第 N 首开始没词」的供给端成因，见 {@link LyricFetchBudget}）。
+        ExecutorService executor = isCurrent(info.songKey) ? lyricsExecutor : aheadLyricsExecutor;
+        executor.execute(() -> {
             try {
                 runLyrics(info);
             } catch (Throwable error) {
                 // 取词线程上的异常以前会静默干掉这条任务（线程死亡、日志里只有一行），
                 // 现在统一记账，报告里能看出「没取到」还是「取的过程炸了」。
                 crash("lyrics-task", error);
+                LEDGER.outcome(info.songKey, LyricChainLedger.Outcome.FAILED, "exception", 0);
             } finally {
                 lyricsInFlight.remove(info.songKey);
             }
@@ -282,9 +312,13 @@ public final class SongInfoLoader {
                 .put("title", info.title.isEmpty() ? "missing" : "present")
                 .put("durationMs", info.durationMs)
                 .put("foreground", activityAlive()));
+        // 单首歌的总预算 + 「队列已经走过去就别再问」：没有这两道闸，四条串行网络链会让
+        // 当前曲的取词排在三首预取后面，几首之后每首歌在播放期间都拿不到词。
+        LyricFetchBudget budget = LyricFetchBudget.start(startedAt);
         NativeLyricsRepository.Result result;
         try {
-            result = lyrics.load(info, info.generation);
+            result = lyrics.load(info, info.generation, budget,
+                    () -> isWanted(info.songKey) && info.generation == generation.get());
         } catch (Throwable error) {
             result = null;
         }
@@ -293,6 +327,7 @@ public final class SongInfoLoader {
             PlaybackDiagnostics.note("lyrics-failure", describe("exception", info, isCurrent(info.songKey))
                     .put("reason", "exception").put("elapsedMs", elapsed));
             lyricsCooldown.put(info.songKey, SystemClock.elapsedRealtime() + RETRY_COOLDOWN_MS);
+            LEDGER.outcome(info.songKey, LyricChainLedger.Outcome.FAILED, "exception", 0);
             // 网络类临时失败：这首歌若仍是当前曲、Bridge 仍没拿到词，就慢速重试一次 ——
             // 不做的话，取词那一下撞上抖动/503 的歌整首播放期间灵动岛都留白。
             scheduleLyricFetchRetry(info, "EXCEPTION");
@@ -316,6 +351,9 @@ public final class SongInfoLoader {
 
         if (result.hasTimeline()) {
             lyricRetries.cancel(info.songKey);   // 拿到词了：撤销一切挂起补问
+            // 之前可能落过一条「服务端明确无词」的负记录：现在有真时间轴了，把它删掉，
+            // 否则背屏与日后重播都会按那条旧结论判成无词。
+            lyrics.forgetNegative(info.songKey);
             // 前台 WebView 若在这几秒里先答上了（它的词更全：可能带逐字/翻译），不要用我们这份
             // 逐行 LRC 盖掉它。原生只负责「没人答的时候也有词」。
             if ("ready".equals(ColorOsLyricBridge.stateOf(info.songKey))) {
@@ -323,6 +361,7 @@ public final class SongInfoLoader {
                         .put("wrote", "skipped")
                         .put("matched", isCurrent(info.songKey))
                         .put("reason", "already-ready"));
+                LEDGER.outcome(info.songKey, LyricChainLedger.Outcome.READY, "bridge", 0);
                 return;
             }
             // 统一简繁规则：原生取到的词在入库与发布前先过同一条规则（舞台那份由 Web 转换）。
@@ -353,12 +392,25 @@ public final class SongInfoLoader {
                     .put("changed", changed)
                     .put("reason", decision.reason));
             publishLyrics(info, payload, decision.refreshSession);
+            LEDGER.outcome(info.songKey, LyricChainLedger.Outcome.READY, "native-" + result.source,
+                    countLines(payload));
             return;
         }
 
         // 没时间轴：区分「服务端明确没有」与「这次没取到」。
         switch (result.status) {
-            case NOT_FOUND:
+            case NOT_FOUND: {
+                // 双源都说没有 —— 但舞台可能在这段时间里已经确认了这首歌的版本
+                // （用户手动匹配、或前台链路取到了平台独占歌词）。先复核统一仓库，
+                // 有就直接用，绝不用一个「无词」结论把它盖掉。
+                UnifiedLyricsStore.Record late = unified.get(info.songKey);
+                if (late != null && late.hasTimeline()) {
+                    lyricRetries.cancel(info.songKey);
+                    lyrics.forgetNegative(info.songKey);
+                    publishUnified(info, late);
+                    LEDGER.outcome(info.songKey, LyricChainLedger.Outcome.READY, "unified-late", 0);
+                    return;
+                }
                 lyricRetries.cancel(info.songKey);   // 明确无词：再问也是同一个答案
                 // 纯音乐/没有同步歌词：明确清空这一首，避免继续显示上一首的词。
                 ColorOsLyricBridge.setPending(null, false, info.songKey);
@@ -366,22 +418,42 @@ public final class SongInfoLoader {
                 publishLyrics(info, null, SongInfoPublishPolicy
                         .forLyrics(result.status.name(), false, isCurrent(info.songKey),
                                 info.generation == generation.get()).refreshSession);
+                LEDGER.outcome(info.songKey, LyricChainLedger.Outcome.NONE, result.source, 0);
                 break;
+            }
             case RATE_LIMITED:
                 // 遵守对方限流：本轮不打，等下一次换歌再说。
                 lyricsCooldown.put(info.songKey, SystemClock.elapsedRealtime() + 5L * 60_000L);
                 PlaybackDiagnostics.note("lyrics-failure", detail.put("reason", "rate-limited"));
+                LEDGER.outcome(info.songKey, LyricChainLedger.Outcome.FAILED, "rate-limited", 0);
                 break;
             case NO_IDENTITY:
                 lyricsCooldown.put(info.songKey, SystemClock.elapsedRealtime() + 10L * 60_000L);
                 PlaybackDiagnostics.note("lyrics-failure", detail.put("reason", "no-identity"));
+                LEDGER.outcome(info.songKey, LyricChainLedger.Outcome.FAILED, "no-identity", 0);
                 break;
             default:
                 lyricsCooldown.put(info.songKey, SystemClock.elapsedRealtime() + RETRY_COOLDOWN_MS);
                 PlaybackDiagnostics.note("lyrics-failure", detail.put("reason", "network"));
+                LEDGER.outcome(info.songKey, LyricChainLedger.Outcome.FAILED, result.attempt, 0);
                 // 同上：网络抖动 ≠ 这首没词。仍是当前曲且有界次数内就慢速补问。
                 scheduleLyricFetchRetry(info, "NETWORK");
                 break;
+        }
+    }
+
+    /** 诊断/账本用的行数：payload 里 {@code lyric} 字段的时间标签数量；解析失败记 0。 */
+    private static int countLines(String payload) {
+        if (payload == null || payload.isEmpty()) return 0;
+        try {
+            String lrc = new org.json.JSONObject(payload).optString("lyric", "");
+            int lines = 0;
+            for (int index = 0; index < lrc.length(); index++) {
+                if (lrc.charAt(index) == '\n') lines++;
+            }
+            return lines + 1;
+        } catch (Exception error) {
+            return 0;
         }
     }
 
@@ -493,6 +565,8 @@ public final class SongInfoLoader {
                 .put("changed", bridgeChanged)
                 .put("reason", decision.reason));
         publishLyrics(info, record.json, decision.refreshSession);
+        LEDGER.outcome(info.songKey, LyricChainLedger.Outcome.READY, record.sourceId,
+                countLines(record.json));
     }
 
     private void publishArtwork(SongInfo info, Bitmap bitmap) {

@@ -66,8 +66,40 @@ public final class UnifiedLyricPolicy {
      */
     public static Decision decide(Boolean oldUserChoice, String oldConfirmedBy, String oldHash,
                                   boolean newUserChoice, String newConfirmedBy, String newHash) {
+        // 老签名等价于「两边都是有效时间轴」：状态规则不影响这条路径。
+        return decide("ok", oldUserChoice, oldConfirmedBy, oldHash,
+                      "ok", newUserChoice, newConfirmedBy, newHash);
+    }
+
+    /**
+     * 带状态的裁决：{@code status} 为 {@code "ok"}（有时间轴）或 {@code "none"}（确认无词）。
+     *
+     * <p>为什么必须看状态：层级只能解决「谁的版本更好」，解决不了「这条记录是不是一个结论」。
+     * 现实里出现过这样的次序 —— 前台取词失败后按「确认无词」给这首歌落了一条 stage 层级的
+     * {@code none}，随后原生后台真正取到了完整时间轴（native 层级），却因为「低层级」被拒，
+     * 于是这首歌在统一仓库里永远是无词，只有再打开一次主界面才恢复。
+     *
+     * <p>所以：
+     * <ul>
+     *   <li>旧记录是 {@code none}、新记录是 {@code ok} → 一律接受（正面结论覆盖负面结论）；</li>
+     *   <li>旧记录是 {@code ok}、新记录是 {@code none} → 一律拒绝（一个自动的「没有词」
+     *       不该抹掉已经存在的时间轴；真要清词走用户手动层级）；</li>
+     *   <li>两侧同性质 → 走原有层级规则。</li>
+     * </ul>
+     */
+    public static Decision decide(String oldStatus, Boolean oldUserChoice, String oldConfirmedBy,
+                                  String oldHash, String newStatus, boolean newUserChoice,
+                                  String newConfirmedBy, String newHash) {
         if (oldUserChoice == null) {
             return new Decision(true, "first-record");
+        }
+        boolean oldPositive = !"none".equals(oldStatus);
+        boolean newPositive = !"none".equals(newStatus);
+        if (!oldPositive && newPositive) {
+            return new Decision(true, "positive-overrides-negative");
+        }
+        if (oldPositive && !newPositive) {
+            return new Decision(false, "negative-cannot-erase-timeline");
         }
         int oldTier = tierOf(oldUserChoice, oldConfirmedBy);
         int newTier = tierOf(newUserChoice, newConfirmedBy);

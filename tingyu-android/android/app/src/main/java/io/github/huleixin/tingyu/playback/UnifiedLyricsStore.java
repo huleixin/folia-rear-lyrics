@@ -139,10 +139,11 @@ public final class UnifiedLyricsStore {
         Record old = get(songKey);
         String hash = json == null ? "" : shortHash(json);
         UnifiedLyricPolicy.Decision decision = UnifiedLyricPolicy.decide(
+                old == null ? "ok" : old.status,
                 old == null ? null : old.userChoice,
                 old == null ? null : old.confirmedBy,
                 old == null ? null : old.lyricsHash,
-                userChoice, confirmedBy, hash);
+                status, userChoice, confirmedBy, hash);
         PlaybackDiagnostics.note("unified-lyrics", new com.getcapacitor.JSObject()
                 .put("song", PlaybackDiagnostics.anonKey(songKey))
                 .put("op", "put")

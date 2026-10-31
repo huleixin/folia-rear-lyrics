@@ -146,6 +146,25 @@ public final class NativeLyricsRepository {
 
     /** 阻塞调用，必须在后台线程执行。 */
     public Result load(SongInfo info, int generation) {
+        return load(info, generation, null, null);
+    }
+
+    /**
+     * 带预算与失效判定的取词（阻塞，后台线程）。
+     *
+     * <p>四条网络链串行时，一首歌最坏要 4×14s；而调度器一次要准备「当前曲 + 后两首」。
+     * 不加约束时队列会一路落后于播放位置，几首之后**每首歌在播放期间都拿不到词**，
+     * 只有用户打开 App 让前台链路一次性补齐 —— 这正是「播放几首后歌词消失」的供给端成因。
+     *
+     * <p>所以每跨过一条链之前都要过两道闸：{@code stillWanted}（队列已经走过去了就别再问）
+     * 与 {@code budget}（超时就放弃）。放弃返回 {@link Status#NETWORK}，
+     * 属于「这次没取到」，**绝不**写负缓存 —— 下一次换歌/重试还能再问。
+     *
+     * @param budget      可为 null（老调用方：无预算限制）
+     * @param stillWanted 可为 null（无失效判定）
+     */
+    public Result load(SongInfo info, int generation, LyricFetchBudget budget,
+                       java.util.function.BooleanSupplier stillWanted) {
         if (info == null || info.songKey.isEmpty()) return new Result(Status.NO_IDENTITY, null, false, "", 0, "none", 0, 0, -1);
         Result cached = readCache(info.songKey);
         if (cached != null) return cached;
@@ -153,19 +172,20 @@ public final class NativeLyricsRepository {
             return new Result(Status.NO_IDENTITY, null, false, "", 0, "none", 0, 0, -1);
         }
 
-        Attempt attempt = null;
         // 1) 精准取：LRCLIB 的 /api/get 只在时长匹配（±2s）时才返回，正好就是我们要的防错词行为。
-        attempt = requestGet(info);
+        Attempt attempt = requestGet(info);
         if (attempt.result.status == Status.RATE_LIMITED) return attempt.result;
         if (attempt.result.hasTimeline()) return persist(info, attempt.result);
 
         // 2) 搜索兜底：/api/get 404 不代表库里没有，可能只是时长或专辑名对不上。
+        if (!mayContinue(budget, stillWanted, "search")) return aborted("search", attempt.result);
         Attempt search = requestSearch(info);
         if (search.result.status == Status.RATE_LIMITED) return search.result;
         if (search.result.hasTimeline()) return persist(info, search.result);
 
         // 3) 国内可达性兜底：LRCLIB 在部分网络下不可达或没有中文曲库，酷狗的公开歌词接口
         //    在同样的曲目上通常能命中。只用**歌名 + 时长（±2s）**判定，宁可判无也不拿错版本。
+        if (!mayContinue(budget, stillWanted, "kugou")) return aborted("kugou", search.result);
         Attempt kugou = requestKugou(info);
         if (kugou.result.hasTimeline()) return persist(info, kugou.result);
         if (kugou.result.status == Status.RATE_LIMITED) return kugou.result;
@@ -179,6 +199,49 @@ public final class NativeLyricsRepository {
         }
         // 网络失败/超时：不要写负缓存，下一次换歌或重试还能再问。
         return search.result.status == Status.NOT_FOUND ? kugou.result : search.result;
+    }
+
+    /** 预算与失效两道闸；两条都通过才允许继续走下一条链。 */
+    private static boolean mayContinue(LyricFetchBudget budget,
+                                       java.util.function.BooleanSupplier stillWanted,
+                                       String stage) {
+        if (stillWanted != null) {
+            boolean wanted;
+            try {
+                wanted = stillWanted.getAsBoolean();
+            } catch (Throwable error) {
+                wanted = false;
+            }
+            if (!wanted) return false;
+        }
+        if (budget != null && budget.expired(android.os.SystemClock.elapsedRealtime())) return false;
+        return true;
+    }
+
+    /** 中途放弃：结论是「这次没取到」（可重试），不是「没有词」。 */
+    private static Result aborted(String stage, Result fallback) {
+        Result base = fallback == null ? null : fallback;
+        int http = base == null ? -1 : base.httpStatus;
+        int candidates = base == null ? 0 : base.candidateCount;
+        return new Result(Status.NETWORK, null, false, "aborted", http, stage + "-aborted",
+                candidates, 0, -1);
+    }
+
+    /**
+     * 删掉某一首的**负**记录（「服务端明确无词」）。
+     *
+     * <p>只有负记录该删：它记录的是「当时那两个公开源没这首歌」，而舞台/统一仓库之后
+     * 可能已经确认了完整时间轴。留着它，日后重播会被判成无词，背屏也会拿到 0 行。
+     * 正记录（status=ok）保留 —— 那是真的时间轴。
+     */
+    public boolean forgetNegative(String songKey) {
+        if (songKey == null || songKey.isEmpty()) return false;
+        JSONObject record = readRecord(songKey);
+        if (record == null) return false;
+        if ("ok".equals(record.optString("status"))) return false;
+        File file = fileFor(songKey);
+        //noinspection ResultOfMethodCallIgnored
+        return file.delete();
     }
 
     // ---- LRCLIB ----
