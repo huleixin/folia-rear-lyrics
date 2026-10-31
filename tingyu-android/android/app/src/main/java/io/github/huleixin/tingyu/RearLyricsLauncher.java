@@ -181,6 +181,34 @@ final class RearLyricsLauncher {
 
     interface FrontTaskCallback { void complete(String summary); }
     interface PowerCallback { void complete(boolean success, String detail); }
+    interface TimeoutCallback { void complete(boolean success, String value); }
+
+    /**
+     * Read the HyperOS rear sleep timeout through the Shizuku shell. Used once per hold
+     * episode, before the MAX write, so the original value is captured for the restore.
+     */
+    static void readSubscreenTimeout(IBinder shell, TimeoutCallback callback) {
+        WORKER.execute(() -> {
+            try {
+                RearLyricsCommandResult result = command(shell, ShellUserService.TRANSACTION_TIMEOUT_GET,
+                    1, RearLyricsActivity.currentSession().isEmpty() ? NO_SESSION : RearLyricsActivity.currentSession(),
+                    -1, "Read rear timeout", new StringBuilder(), false);
+                callback.complete(!result.failed(), result.failed() ? "" : result.output);
+            } catch (Exception error) { callback.complete(false, error.getMessage()); }
+        });
+    }
+
+    /** Write the rear sleep timeout; called with MAX while lyrics play, the original on release. */
+    static void writeSubscreenTimeout(IBinder shell, int value, TimeoutCallback callback) {
+        WORKER.execute(() -> {
+            try {
+                RearLyricsCommandResult result = command(shell, ShellUserService.TRANSACTION_TIMEOUT_PUT,
+                    1, RearLyricsActivity.currentSession().isEmpty() ? NO_SESSION : RearLyricsActivity.currentSession(),
+                    value, "Write rear timeout", new StringBuilder(), false);
+                callback.complete(!result.failed(), result.failed() ? "" : result.output);
+            } catch (Exception error) { callback.complete(false, error.getMessage()); }
+        });
+    }
     /** Relinquish power without waking a paused/covered screen merely to close its lyric window. */
     static void restoreRearPowerPolicy(IBinder shell, int rear, PowerCallback callback) {
         String session = RearLyricsActivity.currentSession();

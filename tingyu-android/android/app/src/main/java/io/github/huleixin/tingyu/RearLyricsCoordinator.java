@@ -63,6 +63,14 @@ final class RearLyricsCoordinator {
      * for the whole session: the window was still attached, the panel was simply dark.
      */
     private final RearLockWakeBudget lockBudget = new RearLockWakeBudget();
+    /**
+     * Shizuku 后端专用：锁屏播放期间临时接管背屏休眠超时（subscreen_display_time），
+     * 退出时原值恢复。事件驱动，没有轮询唤醒；策略层修复而非 CPU 保活。
+     */
+    private final RearKeepAwakePolicy keepAwake = new RearKeepAwakePolicy();
+    private boolean keepAwakeBusy;
+    private static final String PREF_KEEP_AWAKE_PREV = "keep_awake_prev_value";
+    private static final String PREF_KEEP_AWAKE_OWED = "keep_awake_restore_owed";
 
     private volatile boolean coverSleepEnabled, sleeping, powerBusy, sleepUnsupported;
     private boolean physicalCover, preservedSleepSession;
@@ -92,10 +100,10 @@ final class RearLyricsCoordinator {
     private final Runnable bindTimeout = () -> finishFailure("连接背屏服务超时，已保留自动启动开关", null);
     private final ServiceConnection connection = new ServiceConnection() {
         @Override public void onServiceConnected(ComponentName name, IBinder service) {
-            main.post(() -> { if (LspRearBridge.selected(context)) return; main.removeCallbacks(bindTimeout); shell = service; if (pending && wanted()) launch(); });
+            main.post(() -> { if (LspRearBridge.selected(context)) return; main.removeCallbacks(bindTimeout); shell = service; syncShizukuKeepAwake(); if (pending && wanted()) launch(); });
         }
         @Override public void onServiceDisconnected(ComponentName name) {
-            main.post(() -> { if (LspRearBridge.selected(context)) return; shell = null; if (pending) finishFailure("Shizuku 已断开，等待恢复后自动重试", null); });
+            main.post(() -> { if (LspRearBridge.selected(context)) return; shell = null; syncShizukuKeepAwake(); if (pending) finishFailure("Shizuku 已断开，等待恢复后自动重试", null); });
         }
     };
 
@@ -113,6 +121,13 @@ final class RearLyricsCoordinator {
         gate.install(RearPlanA.enabled(context) ? RearCommandGate.Source.PLAN_A : RearCommandGate.Source.LEGACY);
         enabled = context.getSharedPreferences("rear_lyrics", 0).getBoolean("auto_enabled", false);
         coverSleepEnabled = context.getSharedPreferences("rear_lyrics", 0).getBoolean("cover_sleep", false);
+        // A previous process may have died while holding the MAX timeout: adopt the persisted
+        // restore debt so the first usable shell write repairs the system state.
+        android.content.SharedPreferences prefs = context.getSharedPreferences("rear_lyrics", 0);
+        if (prefs.getBoolean(PREF_KEEP_AWAKE_OWED, false)) {
+            keepAwake.adoptOwedRestore(prefs.getString(PREF_KEEP_AWAKE_PREV, RearKeepAwakePolicy.DEFAULT_VALUE));
+            RearLyricsTrace.record(context, "keep-awake-adopt", "restore owed from a previous process; " + keepAwake);
+        }
         coverMonitor = new RearCoverMonitor(context, main, value -> {
             physicalCover = value;
             if (coverSleepEnabled && wanted()) changeSleep(value);
@@ -250,6 +265,7 @@ final class RearLyricsCoordinator {
         main.removeCallbacks(check); scheduled = false;
         syncCoverMonitor();
         syncLspPower();
+        syncShizukuKeepAwake();
         schedule(700);
     }
 
@@ -376,6 +392,9 @@ final class RearLyricsCoordinator {
     private void closeWindow(CloseReason reason) {
         if (closing) return;
         closing = true; closeReason = reason; closeRetries = 0;
+        // Whatever the reason, the timeout override must go back to the system now that the
+        // window is going away (user close, pause expiry or camera handoff).
+        syncShizukuKeepAwake();
         releaseLeaseThenClose();
     }
     private void releaseLeaseThenClose() {
@@ -492,6 +511,7 @@ final class RearLyricsCoordinator {
             + ", cameraIdleFor=" + cameraMonitor.idleFor() + "ms"
             + ", missingRearWakes=" + missingRearWakes
             + ", backend=" + (LspRearBridge.selected(context) ? "lsp" : "shizuku") + ", lsp=" + LspRearBridge.detail()
+            + ", keepAwake=" + keepAwake
             + ", closing=" + closing + ", closeRetries=" + closeRetries + ", returnedToSystem=" + returnedToSystem()
             + ", lspHolding=" + lspHolding + ", lspPower=" + lspPowerDetail + ", " + cameraMonitor.status()
             + "\nSystem log snapshot: " + RearCameraLog.last();
@@ -511,8 +531,90 @@ final class RearLyricsCoordinator {
         complete(false, -1, "暂停超时，已让回系统背屏；恢复播放后自动切回", null);
         closeWindow(CloseReason.USER);
     }
+    /**
+     * Shizuku 后端：锁屏播放期间把背屏休眠超时临时写成 MAX，停止播放/关闭/相机/断连时
+     * 恢复原值。从所有状态变化点调用（锁屏广播、播放回调、开关、相机让屏、关窗），
+     * 策略对象保证每个转换只执行一次写操作 —— 没有定时器，没有轮询唤醒。
+     */
+    private void syncShizukuKeepAwake() {
+        if (LspRearBridge.selected(context) || keepAwakeBusy) return;
+        boolean shellUsable = shell != null && shell.isBinderAlive();
+        RearKeepAwakePolicy.Action action = keepAwake.sync(
+            !LspRearBridge.selected(context), shellUsable, wanted(), playing,
+            cameraOwned(), closing, sleeping);
+        if (action == RearKeepAwakePolicy.Action.NONE) return;
+        keepAwakeBusy = true;
+        android.content.SharedPreferences prefs = context.getSharedPreferences("rear_lyrics", 0);
+        switch (action) {
+            case READ_THEN_APPLY:
+                RearLyricsLauncher.readSubscreenTimeout(shell, (ok, raw) -> main.post(() -> {
+                    keepAwakeBusy = false;
+                    if (!ok) {
+                        // Cannot read the original: refuse to overwrite it. A single wake via
+                        // the existing budget stays the fallback for this lock.
+                        RearLyricsTrace.record(context, "keep-awake-read-failed", "raw=" + raw + "; not overwriting");
+                        return;
+                    }
+                    keepAwake.onPreviousRead(raw);
+                    prefs.edit().putString(PREF_KEEP_AWAKE_PREV, keepAwake.restoreValue()).apply();
+                    RearLyricsTrace.record(context, "keep-awake-captured", "original=" + keepAwake.restoreValue());
+                    keepAwakeBusy = true;
+                    applyMaxTimeout(prefs);
+                }));
+                return;
+            case WRITE_MAX:
+                applyMaxTimeout(prefs);
+                return;
+            case WRITE_RESTORE: {
+                String value = keepAwake.restoreValue();
+                RearLyricsLauncher.writeSubscreenTimeout(shell, parseTimeout(value), (ok, detail) -> main.post(() -> {
+                    keepAwakeBusy = false;
+                    if (ok) {
+                        keepAwake.onRestored();
+                        prefs.edit().putBoolean(PREF_KEEP_AWAKE_OWED, false).remove(PREF_KEEP_AWAKE_PREV).apply();
+                        RearLyricsTrace.record(context, "keep-awake-restored", "value=" + value);
+                    } else {
+                        prefs.edit().putBoolean(PREF_KEEP_AWAKE_OWED, true).apply();
+                        RearLyricsTrace.record(context, "keep-awake-restore-retry", "value=" + value + ", " + detail);
+                    }
+                    nudge();
+                }));
+                return;
+            }
+            case MARK_RESTORE_OWED:
+                keepAwakeBusy = false;
+                prefs.edit().putBoolean(PREF_KEEP_AWAKE_OWED, true)
+                    .putString(PREF_KEEP_AWAKE_PREV, keepAwake.restoreValue()).apply();
+                RearLyricsTrace.record(context, "keep-awake-debt", "shell lost while holding; restore owed; " + keepAwake);
+                return;
+            default:
+                keepAwakeBusy = false;
+        }
+    }
+
+    private void applyMaxTimeout(android.content.SharedPreferences prefs) {
+        RearLyricsLauncher.writeSubscreenTimeout(shell, parseTimeout(RearKeepAwakePolicy.MAX_VALUE), (ok, detail) -> main.post(() -> {
+            keepAwakeBusy = false;
+            if (ok) {
+                keepAwake.onMaxApplied();
+                prefs.edit().putBoolean(PREF_KEEP_AWAKE_OWED, true).apply();
+                RearLyricsTrace.record(context, "keep-awake-held",
+                    "rear sleep timeout set to MAX while lyrics play; " + keepAwake);
+            } else {
+                RearLyricsTrace.record(context, "keep-awake-apply-failed", detail);
+            }
+            nudge();
+        }));
+    }
+
+    private static int parseTimeout(String value) {
+        try { return (int) Long.parseLong(value.trim()); }
+        catch (NumberFormatException error) { return (int) Long.parseLong(RearKeepAwakePolicy.DEFAULT_VALUE); }
+    }
+
     /** Renew every 20 seconds; ordinary two-second window checks do not make another IPC call. */
     private void syncLspPower() {
+
         if (!LspRearBridge.selected(context) || closing || powerBusy || lspPowerBusy) return;
         String session = RearLyricsActivity.currentSession();
         if (session.isEmpty() || shell == null || !shell.isBinderAlive()) return;
@@ -584,6 +686,7 @@ final class RearLyricsCoordinator {
             playback.playback(value, SystemClock.elapsedRealtime()); schedulePauseReturn();
             syncCoverMonitor();
             if (value) { failures = 0; nextAttempt = 0; }
+            syncShizukuKeepAwake(); // pause stops holding immediately; resume re-applies
             nudge();
         });
     }
@@ -593,6 +696,7 @@ final class RearLyricsCoordinator {
             main.removeCallbacks(pauseTimeout); playback.reset();
             if (LspRearBridge.selected(context)) playback.returnToSystem();
             playing = false; requestedPlaying = false; manual = false;
+            syncShizukuKeepAwake();
             rear.markSystemOwned("stopped");
             attemptToken++; pending = false;
             main.removeCallbacks(bindTimeout); main.removeCallbacks(check); scheduled = false;
@@ -630,6 +734,7 @@ final class RearLyricsCoordinator {
         recordOwnershipChange();
         syncCoverMonitor();
         syncLspPower();
+        syncShizukuKeepAwake();
         if (!RearCoverPolicy.mayRecoverWindow(sleeping, powerBusy, coverSleepEnabled, physicalCover)) {
             if (coverSleepEnabled && physicalCover && !sleeping && !powerBusy) changeSleep(true);
             if (sleeping && !physicalCover && !powerBusy && now >= nextAttempt) changeSleep(false);
@@ -886,6 +991,7 @@ final class RearLyricsCoordinator {
                     // Renew the window/power lease immediately; normal heartbeats may be delayed
                     // while Android stops the main Activity during the lock transition.
                     syncLspPower();
+                    syncShizukuKeepAwake();
                 } else if (!Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
                     lockBudget.unlocked();
                 }

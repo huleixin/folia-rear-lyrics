@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 
 /** Starts, moves and wakes only Folia's lyrics window through the Shizuku shell process. */
 public final class ShellUserService extends Binder {
-    static final int VERSION = 251;
+    static final int VERSION = 252;
     static final String DESCRIPTOR = "io.github.huleixin.tingyu.REAR_LYRICS_V2";
     static final int TRANSACTION_START = FIRST_CALL_TRANSACTION;
     static final int TRANSACTION_MOVE = FIRST_CALL_TRANSACTION + 1;
@@ -22,6 +22,10 @@ public final class ShellUserService extends Binder {
     static final int TRANSACTION_FRONT_TASK = FIRST_CALL_TRANSACTION + 3;
     static final int TRANSACTION_SLEEP = FIRST_CALL_TRANSACTION + 4;
     static final int TRANSACTION_RESTORE_POWER = FIRST_CALL_TRANSACTION + 5;
+    /** Read the HyperOS rear-screen sleep timeout (settings get system subscreen_display_time). */
+    static final int TRANSACTION_TIMEOUT_GET = FIRST_CALL_TRANSACTION + 6;
+    /** Write it back (either MAX while lyrics play, or the saved original on release). */
+    static final int TRANSACTION_TIMEOUT_PUT = FIRST_CALL_TRANSACTION + 7;
     /** Bounded camera/window log snapshot; the only transaction that returns no command output. */
     static final int TRANSACTION_LOG_SNAPSHOT = FIRST_CALL_TRANSACTION + 8;
     private static final ExecutorService OUTPUT_READER = Executors.newCachedThreadPool();
@@ -34,7 +38,7 @@ public final class ShellUserService extends Binder {
     protected boolean onTransact(int code, Parcel data, Parcel reply, int flags) throws RemoteException {
         // Shizuku's reserved destroy transaction is used when this service version changes.
         if (code == 16777115) { System.exit(0); return true; }
-        if (code < TRANSACTION_START || (code > TRANSACTION_RESTORE_POWER && code != TRANSACTION_LOG_SNAPSHOT))
+        if (code < TRANSACTION_START || (code > TRANSACTION_TIMEOUT_PUT && code != TRANSACTION_LOG_SNAPSHOT))
             return super.onTransact(code, data, reply, flags);
         data.enforceInterface(DESCRIPTOR);
         int displayId = data.readInt();
@@ -61,6 +65,15 @@ public final class ShellUserService extends Binder {
             } else if (code == TRANSACTION_FRONT_TASK) {
                 if (displayId == 0) throw new IllegalArgumentException("Only the rear task may be inspected");
                 command = new String[] {"/system/bin/am", "stack", "list"};
+            } else if (code == TRANSACTION_TIMEOUT_GET) {
+                // The rear sleep timeout is a rear-only settings key (the main display never
+                // consults it), so the displayId==0 guard does not apply here. The task slot
+                // carries nothing; the value arrives on the reply stream.
+                command = new String[] {"/system/bin/settings", "get", "system", RearKeepAwakePolicy.SETTING};
+            } else if (code == TRANSACTION_TIMEOUT_PUT) {
+                if (taskId < 0) throw new IllegalArgumentException("Invalid rear timeout value");
+                command = new String[] {"/system/bin/settings", "put", "system",
+                    RearKeepAwakePolicy.SETTING, Integer.toString(taskId)};
             } else if (code == TRANSACTION_SLEEP || code == TRANSACTION_RESTORE_POWER) {
                 if (displayId == 0) throw new IllegalArgumentException("Never change the main display power");
                 // Android 15 uses power-on, Android 16 restores the normal policy with power-reset.
