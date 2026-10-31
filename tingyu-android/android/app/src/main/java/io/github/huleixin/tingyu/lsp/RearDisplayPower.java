@@ -17,6 +17,19 @@ final class RearDisplayPower {
     private final RearWindowLease windows = new RearWindowLease(lease);
     private final RearDirectPower direct = new RearDirectPower(lease);
     private final RearDreamGuard dreams = new RearDreamGuard();
+    /** 锁屏背屏接管的真实路径（背屏中心 home-to-front）在系统调用层的拦截。 */
+    private final RearHomeGuard homes = new RearHomeGuard();
+    private final RearLeaseView leaseView = new RearLeaseView() {
+        @Override public boolean lyricsLeaseHeld() {
+            int id = lease.displayId();
+            return id > 0 && lease.holds(id, SystemClock.elapsedRealtime());
+        }
+        @Override public boolean cameraRecentlyOnLeasedDisplay() {
+            int id = lease.displayId();
+            return id > 0 && windows.cameraOnTopRecently(id, SystemClock.elapsedRealtime());
+        }
+        @Override public int leasedDisplayId() { return lease.displayId(); }
+    };
     private final Map<Integer, Request> requests = new HashMap<>();
     private final ThreadLocal<Boolean> replaying = new ThreadLocal<>();
     private Handler timer;
@@ -55,20 +68,13 @@ final class RearDisplayPower {
     void install(ClassLoader loader) {
         windows.install(loader);
         direct.install(loader);
-        // Fault B: the system rear-AOD DreamService (com.xiaomi.subscreencenter.doze.
-        // DozeService) takes the panel over when the main display locks with the system
-        // "rear sleep" toggle on. While our lyric lease is held the dream start is refused;
-        // the toggle itself is never read or changed, and native AOD returns once released.
-        dreams.install(loader, new RearDreamGuard.LeaseView() {
-            @Override public boolean lyricsLeaseHeld() {
-                int id = lease.displayId();
-                return id > 0 && lease.holds(id, SystemClock.elapsedRealtime());
-            }
-            @Override public boolean cameraRecentlyOnLeasedDisplay() {
-                int id = lease.displayId();
-                return id > 0 && windows.cameraOnTopRecently(id, SystemClock.elapsedRealtime());
-            }
-        });
+        // Fault B: the real lock-time takeover (REAREye evidence) is the rear centre's
+        // home-to-front pulling SubScreenLauncher onto the rear display. Intercept both the
+        // start and the move paths while our lyric lease is held; the dream path is a fallback.
+        homes.install(loader, leaseView);
+        // The DreamService route stays guarded as a lower-confidence second layer, now with
+        // explicit match counting so a silent zero-match install can never masquerade as success.
+        dreams.install(loader, leaseView);
         try {
             requestType = XposedHelpers.findClass("android.hardware.display.DisplayManagerInternal$DisplayPowerRequest", loader);
             brightPolicy = XposedHelpers.getStaticIntField(requestType, "POLICY_BRIGHT");
@@ -105,7 +111,7 @@ final class RearDisplayPower {
         }
     }
     String status() { return "rearPowerHook=" + installed + ", hookError=" + loggedFailure + ", " + windows.status()
-        + ", " + direct.status() + ", " + dreams.status() + ", " + lease.describe() + ", leaseRemainingMs=" + lease.remaining(SystemClock.elapsedRealtime()); }
+        + ", " + direct.status() + ", " + homes.status() + ", " + dreams.status() + ", " + lease.describe() + ", leaseRemainingMs=" + lease.remaining(SystemClock.elapsedRealtime()); }
     synchronized void acquire(int display, String session) {
         synchronized (requests) {
             if (!installed || loggedFailure || timer == null || cpuLease == null || !requests.containsKey(display))
