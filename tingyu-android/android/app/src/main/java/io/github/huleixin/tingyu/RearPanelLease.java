@@ -53,6 +53,13 @@ final class RearPanelLease {
     private long startedAt, lastAttemptAt, nextAttemptAt;
     private int relights, recoveries, failures, consecutive;
     private String stopped = "";
+    /**
+     * 最近一次「没有点亮」的原因。
+     *
+     * <p>没有这一项时，Shizuku 锁屏不亮的现场只剩一个 {@code relights=0}，无法区分
+     * 「没有窗口」「面板本来就是亮的」「被相机挡住」「还在退避」。真机判读全靠它。
+     */
+    private String lastSkip = "none";
 
     /** 锁屏周期开始（SCREEN_OFF 且歌词活动、正在播放）。重复调用不重置本次周期。 */
     void begin(long now) {
@@ -80,25 +87,28 @@ final class RearPanelLease {
      *                       不算丢失 —— 那正是面板熄灭的结果，不是原因）
      */
     Action observe(boolean guarding, boolean panelOn, boolean windowAttached, long now) {
-        if (!active) return Action.NONE;
-        if (!guarding) { end(); return Action.NONE; }
+        if (!active) { lastSkip = "no-lease"; return Action.NONE; }
+        if (!guarding) { lastSkip = "guarding-off"; end(); return Action.NONE; }
         if (panelOn) {
+            lastSkip = "panel-on";
             // 面板亮着：上一次点亮（如果有）已经生效，清零失败计数。
             if (awaiting) { awaiting = false; recoveries++; }
             consecutive = 0; nextAttemptAt = 0;
             return Action.NONE;
         }
-        if (!windowAttached) return Action.NONE; // 没有我们的窗口在背屏上，点亮只会照亮 OEM 背屏桌面
-        if (!stopped.isEmpty()) return Action.NONE;
-        if (now - startedAt > MAX_SESSION_MS) { stopped = "session-cap"; return Action.NONE; }
-        if (awaiting && now - lastAttemptAt < VERIFY_MS) return Action.NONE;
+        // 没有我们的窗口在背屏上，点亮只会照亮 OEM 背屏桌面 —— 这条约束保留，
+        // 但必须留下原因：真机上「窗口已被销毁」与「窗口状态读不到」是两种不同的故障。
+        if (!windowAttached) { lastSkip = "no-window"; return Action.NONE; }
+        if (!stopped.isEmpty()) { lastSkip = stopped; return Action.NONE; }
+        if (now - startedAt > MAX_SESSION_MS) { stopped = "session-cap"; lastSkip = stopped; return Action.NONE; }
+        if (awaiting && now - lastAttemptAt < VERIFY_MS) { lastSkip = "verify-wait"; return Action.NONE; }
         if (awaiting) {
             // 回读到仍然熄灭：这一次算失败，按退避重排。
             awaiting = false;
             registerFailure(now);
         }
-        if (now < nextAttemptAt) return Action.NONE;
-        awaiting = true; lastAttemptAt = now; relights++;
+        if (now < nextAttemptAt) { lastSkip = "backoff"; return Action.NONE; }
+        awaiting = true; lastAttemptAt = now; relights++; lastSkip = "relight";
         return Action.RELIGHT;
     }
 
@@ -106,7 +116,7 @@ final class RearPanelLease {
     void onResult(boolean recovered, long now) {
         if (!awaiting) return;
         awaiting = false;
-        if (recovered) { recoveries++; consecutive = 0; nextAttemptAt = 0; return; }
+        if (recovered) { recoveries++; consecutive = 0; nextAttemptAt = 0; lastSkip = "relight-ok"; return; }
         registerFailure(now);
     }
 
@@ -126,11 +136,13 @@ final class RearPanelLease {
     int failures() { return failures; }
     /** 本周期为什么停了：空串表示仍在维护，{@code relight-ineffective} / {@code session-cap} 表示已交还系统。 */
     String stoppedReason() { return stopped; }
+    /** 最近一次没有点亮的具体原因：no-window / panel-on / backoff / verify-wait / relight-ok … */
+    String lastSkip() { return lastSkip; }
 
     @Override public String toString() {
         return "active=" + active + ", relights=" + relights + ", recovered=" + recoveries
             + ", failed=" + failures + ", consecutiveFailures=" + consecutive
-            + ", awaiting=" + awaiting
+            + ", awaiting=" + awaiting + ", lastSkip=" + lastSkip
             + (stopped.isEmpty() ? "" : ", stopped=" + stopped);
     }
 }

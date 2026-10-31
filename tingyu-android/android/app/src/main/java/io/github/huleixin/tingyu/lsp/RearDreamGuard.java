@@ -18,7 +18,12 @@ import de.robv.android.xposed.XposedHelpers;
 final class RearDreamGuard {
     private boolean installed;
     private volatile boolean failed;
-    private volatile int dreamHooks, consulted, blocked, allowedNoLease, allowedCamera, allowedOtherOrUnknown, unresolvable;
+    private volatile int dreamHooks, consulted, blocked, allowedNoLease, allowedCamera, allowedOtherOrUnknown,
+        unresolvable, skipped;
+    /** 最近一次「本该拦但拦不了」的具体原因（返回类型不允许取消调用）。 */
+    private volatile String lastSkip = "none";
+    /** 真正挂上的方法名（扫描匹配的结果），用于核对，而不是「安装了」这种笼统状态。 */
+    private volatile String hookedNames = "none";
     private volatile String lastDecision = "not consulted";
     private volatile boolean loggedFirst;
 
@@ -38,9 +43,20 @@ final class RearDreamGuard {
                         boolean camera = lease.cameraRecentlyOnLeasedDisplay();
                         RearDreamPolicy.Decision decision = RearDreamPolicy.evaluate(pkg, held, camera);
                         if (decision == RearDreamPolicy.Decision.BLOCK) {
+                            // 返回值安全性：{@code startDream} 在不同 ROM 上是 void / boolean / int。
+                            // 过去的写法无条件 {@code setResult(null)} —— 对非 void 方法，取消一个
+                            // 方法却不能给出合法返回值，调用方拆箱时会抛异常；而「拦不住」时这里
+                            // 又没有计数，真机上看起来和「没命中」一模一样。
+                            Class<?> returns = returnTypeOf(hook);
+                            if (returns != void.class && returns != boolean.class) {
+                                skipped++;
+                                lastSkip = "return=" + returns.getSimpleName();
+                                lastDecision = "cannot-cancel dream (pkg=" + pkg + ", " + lastSkip + ")";
+                                return;
+                            }
                             blocked++;
                             lastDecision = "blocked rear-aod dream (pkg=" + pkg + ")";
-                            hook.setResult(null);
+                            hook.setResult(returns == void.class ? null : Boolean.FALSE);
                             return;
                         }
                         if (pkg == null) unresolvable++;
@@ -51,13 +67,60 @@ final class RearDreamGuard {
                     } catch (Throwable error) { logOnce(error); }
                 }
             };
-            XposedBridge.hookAllMethods(dreams, "startDream", guard);
-            XposedBridge.hookAllMethods(dreams, "startDozeDream", guard);
-            XposedBridge.hookAllMethods(dreams, "requestStartDream", guard);
-            dreamHooks = countMethods(dreams, "startDream") + countMethods(dreams, "startDozeDream")
-                + countMethods(dreams, "requestStartDream");
-            installed = true;
+            // 按名字精确匹配在 API 37 上得到 0（1.3.61 真机：dreamHooks=0，而
+            // rearDreamHook 仍然报 true）。这里改成按签名特征扫描：凡是名字里带 dream、
+            // 且以 start/request 开头的方法都挂上 —— DozeService/DozeDream 正是这个形状。
+            // 每个真正挂上的方法名都记进 hookedNames，下一次日志可以直接核对。
+            StringBuilder hooked = new StringBuilder();
+            for (java.lang.reflect.Method method : dreams.getDeclaredMethods()) {
+                String name = method.getName();
+                String lower = name.toLowerCase(java.util.Locale.ROOT);
+                if (!lower.contains("dream")) continue;
+                if (!(name.startsWith("start") || name.startsWith("request"))) continue;
+                try {
+                    XposedBridge.hookMethod(method, guard);
+                    if (hooked.length() > 0) hooked.append(',');
+                    hooked.append(name);
+                    dreamHooks++;
+                } catch (Throwable ignored) { /* 已废弃或不可挂：跳过，由总数反映。 */ }
+            }
+            hookedNames = hooked.length() == 0 ? "none" : hooked.toString();
+            // 1.3.61 在这里无条件 installed = true：hookAllMethods 对不存在的名字是**静默零命中**，
+            // 于是日志出现「rearDreamHook=true, dreamHookError=false, dreamHooks=0」——
+            // 一个自相矛盾的「安装成功」。零命中必须算失败，并把候选名与类里真实的方法名带出来，
+            // 下一次真机日志才能直接告诉我们该挂哪个方法。
+            if (dreamHooks == 0) {
+                failed = true;
+                lastSkip = "no method matched startDream/startDozeDream/requestStartDream; declared="
+                    + declared(dreams);
+                installed = false;
+                XposedBridge.log("Tingyu rear dream guard: " + lastSkip);
+            } else {
+                installed = true;
+            }
         } catch (Throwable error) { logOnce(error); }
+    }
+
+    /** {@code MethodHookParam.method} 是 {@code Member}，要转型才能取返回类型。 */
+    private static Class<?> returnTypeOf(XC_MethodHook.MethodHookParam hook) {
+        java.lang.reflect.Member member = hook.method;
+        return member instanceof java.lang.reflect.Method
+            ? ((java.lang.reflect.Method) member).getReturnType() : void.class;
+    }
+
+    /** 零命中时把类里真实的方法名列出来（有上限），供下一次真机日志定位。 */
+    private static String declared(Class<?> owner) {
+        StringBuilder text = new StringBuilder();
+        try {
+            int shown = 0;
+            for (java.lang.reflect.Method method : owner.getDeclaredMethods()) {
+                if (shown >= 24) { text.append("…"); break; }
+                if (text.length() > 0) text.append(',');
+                text.append(method.getName());
+                shown++;
+            }
+        } catch (Throwable error) { return "unreadable"; }
+        return text.toString();
     }
 
     private static int countMethods(Class<?> owner, String name) {
@@ -109,10 +172,12 @@ final class RearDreamGuard {
     boolean installed() { return installed; }
     String status() {
         return "rearDreamHook=" + installed + ", dreamHookError=" + failed
-            + ", dreamHooks=" + dreamHooks + ", dreamConsulted=" + consulted
+            + ", dreamHooks=" + dreamHooks + ", dreamHooked=[" + hookedNames + "]"
+            + ", dreamConsulted=" + consulted
             + ", rearAodBlocked=" + blocked + ", allowedNoLease=" + allowedNoLease
             + ", allowedCamera=" + allowedCamera + ", allowedOther=" + allowedOtherOrUnknown
-            + ", unresolvable=" + unresolvable + ", lastDecision=" + lastDecision;
+            + ", unresolvable=" + unresolvable + ", skipped=" + skipped + ", lastSkip=" + lastSkip
+            + ", lastDecision=" + lastDecision;
     }
     private void logOnce(Throwable error) {
         if (!failed) { failed = true; XposedBridge.log("Tingyu rear dream guard: " + error); }

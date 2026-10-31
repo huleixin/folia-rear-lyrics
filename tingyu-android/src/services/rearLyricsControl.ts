@@ -5,9 +5,17 @@ import { getFoliaNative } from '../platform/foliaNative';
 // Native preferences own this device-specific opt-in; never infer it from temporary window visibility.
 /** Which rear-screen controller is running. `legacy` is the one-tap rollback. */
 export type RearControlEngine = 'plan-a' | 'legacy';
+/**
+ * 锁屏后的启动路线（A/B）。
+ * - auto：看得见就复用，看不见就走 1.3.39 的「Display 0 暂存 → 迁移」；
+ * - reuse：只让已有任务回前台，永不迁移；
+ * - migrate：无条件迁移。
+ * 只影响 Shizuku；LSP 的判定未改。
+ */
+export type RearLockedRoute = 'auto' | 'reuse' | 'migrate';
 export type RearLyricsStatus = {
     backendMode?: 'shizuku' | 'lsp'; lspConnected?: boolean; lspDetail?: string;
-    controlEngine?: RearControlEngine;
+    controlEngine?: RearControlEngine; lockedRoute?: RearLockedRoute; lastLaunchRoute?: string;
     returnedToSystem?: boolean; pauseReturnSeconds?: number;
     shizukuAvailable?: boolean; authorized?: boolean; rearDisplayId?: number; active?: boolean;
     enabled?: boolean; starting?: boolean; message?: string; diagnostics?: string; build?: number;
@@ -16,6 +24,7 @@ export type RearLyricsStatus = {
 export type RearLyricsPlugin = {
     setRearLyricsBackend: (options: { mode: 'shizuku' | 'lsp' }) => Promise<void>;
     setRearControlEngine: (options: { engine: RearControlEngine }) => Promise<{ engine?: RearControlEngine }>;
+    setRearLockedRoute: (options: { mode: RearLockedRoute }) => Promise<{ lockedRoute?: RearLockedRoute }>;
     getRearLyricsStatus: () => Promise<RearLyricsStatus>;
     startRearLyrics: () => Promise<{ verified?: boolean }>;
     returnFromRearLyrics: () => Promise<void>;
@@ -41,6 +50,13 @@ export async function setRearControlEngine(engine: RearControlEngine) {
     if (status.enabled || status.starting || status.sleeping) return false;
     const result = await plugin.setRearControlEngine({ engine });
     return result?.engine === engine;
+}
+/** A/B for the locked-screen path. Cheap to flip so a device test can compare both. */
+export async function setRearLockedRoute(mode: RearLockedRoute) {
+    const plugin = rearLyricsPlugin();
+    if (!plugin) return false;
+    const result = await plugin.setRearLockedRoute({ mode });
+    return result?.lockedRoute === mode;
 }
 export async function toggleRearCoverSleep() {    const plugin = rearLyricsPlugin();
     if (!plugin) return false;

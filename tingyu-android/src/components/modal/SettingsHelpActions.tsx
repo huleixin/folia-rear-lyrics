@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, ClipboardCopy, Eraser, FileDown, Lightbulb, Loader2, Sparkles, Trash2 } from 'lucide-react';
+import { Activity, Check, ClipboardCopy, Eraser, FileDown, Lightbulb, Loader2, Sparkles, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
     canDeleteExportedDiagnostics,
@@ -19,6 +19,7 @@ type CopyState = 'idle' | 'working' | 'copied' | 'failed';
 type ExportState = 'idle' | 'working' | 'shared' | 'downloaded' | 'failed';
 type DeleteState = 'idle' | 'working' | 'done' | 'empty' | 'failed';
 type TrailState = 'idle' | 'working' | 'cleared' | 'failed' | 'unsupported';
+type FaultState = 'idle' | 'working' | 'shared' | 'failed';
 
 const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
     onOpenReleaseNotes,
@@ -32,6 +33,7 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
     const [deletedCount, setDeletedCount] = useState(0);
     const [canDeleteDiagnostics] = useState(() => canDeleteExportedDiagnostics());
     const [trailState, setTrailState] = useState<TrailState>('idle');
+    const [faultState, setFaultState] = useState<FaultState>('idle');
 
     const handleCopyDiagnostics = async () => {
         setCopyState('working');
@@ -90,6 +92,26 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
         }
     };
 
+    /**
+     * 「背屏故障诊断」：先让原生层立刻采一条状态快照（不依赖主界面是否还活着），
+     * 再把整份诊断（含锁屏前后 0/5/60 秒的采样）交给系统分享面板。
+     */
+    const handleRearFaultDiagnostics = async () => {
+        setFaultState('working');
+        try {
+            const plugin = (window as any).Capacitor?.Plugins?.FoliaNative ?? null;
+            if (typeof plugin?.captureRearFaultDiagnostics === 'function') {
+                await plugin.captureRearFaultDiagnostics();
+            }
+            const report = await buildDiagnostics();
+            const result = await exportDiagnosticReport(report, '听屿 背屏故障诊断');
+            setFaultState(result === 'cancelled' ? 'idle' : 'shared');
+        } catch (error) {
+            console.warn('[Settings] rear-fault:export-failed', error);
+            setFaultState('failed');
+        }
+    };
+
     const CopyIcon = copyState === 'working' ? Loader2 : copyState === 'copied' ? Check : ClipboardCopy;
     const ExportIcon = exportState === 'working'
         ? Loader2
@@ -98,6 +120,7 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
             : FileDown;
     const DeleteIcon = deleteState === 'working' ? Loader2 : deleteState === 'done' ? Check : Trash2;
     const TrailIcon = trailState === 'working' ? Loader2 : trailState === 'cleared' ? Check : Eraser;
+    const FaultIcon = faultState === 'working' ? Loader2 : faultState === 'shared' ? Check : Activity;
 
     return (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -163,6 +186,32 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
                     </span>
                     <span className="mt-0.5 block text-xs opacity-55">
                         只清空原生播放轨迹，不影响播放列表、音源设置与任何用户数据
+                    </span>
+                </span>
+            </button>
+            <button
+                type="button"
+                data-testid="help-rear-fault"
+                onClick={() => void handleRearFaultDiagnostics()}
+                disabled={faultState === 'working'}
+                className="flex items-center gap-3 rounded-2xl bg-white/5 p-4 text-left transition-colors hover:bg-white/10 disabled:opacity-50 disabled:cursor-default sm:col-span-2"
+                style={{ color: 'var(--text-primary)' }}
+            >
+                <FaultIcon
+                    size={19}
+                    className={`shrink-0 opacity-75 ${faultState === 'working' ? 'animate-spin' : ''}`}
+                    aria-hidden="true"
+                />
+                <span>
+                    <span className="block text-sm font-semibold">
+                        {faultState === 'shared'
+                            ? '背屏故障诊断已导出'
+                            : faultState === 'failed'
+                                ? '背屏故障诊断导出失败'
+                                : '背屏故障诊断'}
+                    </span>
+                    <span className="mt-0.5 block text-xs opacity-55">
+                        立刻采集一次背屏状态并导出；锁屏前后 0/5/60 秒的快照会自动记录，不需要重新打开应用
                     </span>
                 </span>
             </button>

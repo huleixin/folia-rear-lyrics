@@ -68,12 +68,47 @@ final class RearLyricsCoordinator {
      * 底层动作分别是 LSP 的拦截 + 系统身份重建、Shizuku 的复用任务重建。
      */
     private final RearTakeoverPolicy takeover = new RearTakeoverPolicy();
-    private boolean relightBusy, takeoverReported;
     /**
-     * 安全阀：如果某次背屏点亮把<b>主屏</b>也点亮了（有的 ROM 把 KEYCODE_WAKEUP 当成整机唤醒），
-     * 立刻停用锁屏租约并且本次进程不再尝试 —— 用户明确禁止「强行点亮主屏」。
+     * 锁屏后被系统背屏桌面盖住时的恢复状态机（1.3.62）。
+     *
+     * <p>它与 {@link RearTakeoverPolicy} 的分工：后者只管「重建」（换一个新任务，代价是
+     * 一个 WebView），前者管「置顶已有任务」（不重建任何东西）。1.3.61 把两者混成一条
+     * {@code am start} 路径，于是窗口明明还在、却只能反复重建，直到额度烧光。
      */
-    private boolean relightWakesMain;
+    private final RearCoveredRecovery coveredRecovery = new RearCoveredRecovery();
+    private boolean relightBusy, takeoverReported;
+    /** 正在执行 COVERED_RECOVERY 的某个机制；用来避免探测回调重入同一个机制。 */
+    private boolean coveredBusy;
+    /** 已发出置顶命令、等待 onStart 的机制与截止时刻。 */
+    private RearCoveredRecovery.Mechanism pendingVerify;
+    /**
+     * 下一次 {@code launch()} 是否强制走 1.3.39 的迁移路径。
+     *
+     * <p>由 {@link RearCoveredRecovery.Mechanism#MAIN_STAGE_MIGRATE} 置位、用完即清：
+     * 只有「旧任务置顶失败、需要换机制」这一条路能触发它，界面上的普通启动永远不会。
+     */
+    private boolean migrateOnce;
+    /**
+     * 最近一次迁移的结果，给诊断与 A/B 判读用。
+     *
+     * <p>形如 {@code migrate=RELAUNCHED(task=123, display=1) / FAILED(stage rejected)}。
+     * 真机上「A 失败 B 成功」与「两条都失败」必须一眼分开。
+     */
+    private volatile String lastMigrate = "none";
+    /**
+     * 一次迁移的等待上限：Display 0 上建任务（≤6s）+ 迁移命令 + 回到前台（≤8s）。
+     * 到点还没可见就按真实前台结算，不再给它第二次机会。
+     */
+    private static final long MIGRATE_TIMEOUT_MS = 22_000;
+    private long pendingVerifyAt;
+    /**
+     * 安全阀：有的 ROM 把 KEYCODE_WAKEUP 当成整机唤醒，点亮背屏会连带点亮主屏。归因、会话
+     * 锁存与跨周期升级都在 {@link RearPanelRelightGuard} 里（纯逻辑，可单测）—— v1.3.59 是
+     * 一个永不解除的布尔字段，一次误判就让本次进程再也不点亮背屏。
+     */
+    private final RearPanelRelightGuard relight = new RearPanelRelightGuard();
+    /** 上一轮观察到的锁屏态；只在 false→true 的跳变上开启新周期，避免每次重开租约都清锁存。 */
+    private boolean relightLockedCycle;
     /** 点亮前的主屏状态，用来判断这次点亮有没有波及主屏。 */
     private int relightMainBefore = Display.STATE_UNKNOWN;
     /** 上一周期读到的 subscreen_display_time，仅用于证明锁屏前后它没有变化（不再写它）。 */
@@ -129,6 +164,8 @@ final class RearLyricsCoordinator {
         enabled = context.getSharedPreferences("rear_lyrics", 0).getBoolean("auto_enabled", false);
         coverSleepEnabled = context.getSharedPreferences("rear_lyrics", 0).getBoolean("cover_sleep", false);
         registerPanelStateListener();
+        // 「背屏故障诊断」：详细状态由协调器提供，采样由锁屏跳变驱动（见 checkWindow）。
+        RearFaultDiagnostics.bind(this::diagnostics);
         coverMonitor = new RearCoverMonitor(context, main, value -> {
             physicalCover = value;
             if (coverSleepEnabled && wanted()) changeSleep(value);
@@ -459,6 +496,7 @@ final class RearLyricsCoordinator {
         RearLyricsLauncher.close(context, reason == CloseReason.CAMERA);
         closing = false; closeReason = CloseReason.USER; closeRetries = 0;
         lockRecovery = false; covered = false; nextAttempt = 0;
+        coveredRecovery.reset(); pendingVerify = null; coveredBusy = false; migrateOnce = false;
         if (reason == CloseReason.CAMERA) { if (!planA()) rear.releaseFinished(true, now); }
         else rear.markSystemOwned("window-closed");
         if (planA()) planRestoring = false;
@@ -512,9 +550,18 @@ final class RearLyricsCoordinator {
             + ", live=" + observation.describe()
             + ", cameraIdleFor=" + cameraMonitor.idleFor() + "ms"
             + ", missingRearWakes=" + missingRearWakes
-            + ", backend=" + (LspRearBridge.selected(context) ? "lsp" : "shizuku") + ", lsp=" + LspRearBridge.detail()
+            // Shizuku 模式下 LSP 模块即便被 LSPosed 加载也只是纯观察（所有行为路径都以
+            // LspRearBridge.selected() 为门），这里明确标注，避免把它的 profile 误读成
+            // 「两种模式在共享状态」。
+            + ", backend=" + (LspRearBridge.selected(context) ? "lsp" : "shizuku")
+            + ", lsp=" + (LspRearBridge.selected(context) ? LspRearBridge.detail() : "not-selected (module profile unused)")
             + ", panelLease=" + panelLease + ", takeover=" + takeover
-            + ", lockSetting=" + lockSettingValue + ", mainWokenByRelight=" + relightWakesMain
+            + ", coveredRecovery={" + coveredRecovery + "}"
+            + ", lockedRoute=" + RearLaunchRoute.readMode(context).value
+            + ", lastLaunchRoute=" + RearLyricsLauncher.routeLabel()
+            + ", lastMigrate=" + lastMigrate
+            + ", lastRefront=" + RearLyricsLauncher.lastRefront()
+            + ", lockSetting=" + lockSettingValue + ", " + relight.describe()
             + ", closing=" + closing + ", closeRetries=" + closeRetries + ", returnedToSystem=" + returnedToSystem()
             + ", lspHolding=" + lspHolding + ", lspPower=" + lspPowerDetail + ", " + cameraMonitor.status()
             + "\nSystem log snapshot: " + RearCameraLog.last();
@@ -550,21 +597,45 @@ final class RearLyricsCoordinator {
      */
     private void syncPanelLease(String source) {
         if (LspRearBridge.selected(context) || relightBusy) return;
-        if (relightWakesMain) { panelLease.end(); return; }
         int id = RearLyricsLauncher.rememberedRear(context);
-        if (id <= 0) { panelLease.end(); return; }
         long now = SystemClock.elapsedRealtime();
-        boolean guarding = wanted() && playing && !closing && !sleeping && presentationAllowed();
         boolean locked = lockedNow();
         // The lease exists only while the main display is locked. Entering it from every entry
         // order (lock before play, play after lock, re-lock) keeps one owner for the re-light
         // instead of relying on a broadcast that may arrive before playback starts.
-        if (!locked) { if (panelLease.active()) panelLease.end(); return; }
+        if (!locked) {
+            if (relightLockedCycle) { relightLockedCycle = false; relight.onUnlock(); }
+            // 新周期：解锁后置顶额度与「系统拒绝」判定都要复位，否则一次锁屏的结论会带到下一次。
+            if (pendingVerify == null && coveredBusy) { coveredBusy = false; }
+            if (pendingVerify == null) coveredRecovery.reset();
+            if (panelLease.active()) panelLease.end();
+            return;
+        }
+        if (!relightLockedCycle) { relightLockedCycle = true; relight.onLock(); }
+        if (id <= 0) { panelLease.end(); return; }
+        boolean guarding = wanted() && playing && !closing && !sleeping && presentationAllowed();
+        // 已判定本周期无法恢复（系统锁屏期间不允许第三方任务回到背屏前台）时，
+        // 继续点亮面板只会照亮系统背屏桌面 —— 那是耗电，不是修复。
+        if (coveredRecovery.blocked()) {
+            if (panelLease.active()) panelLease.end();
+            return;
+        }
         if (guarding && !panelLease.active()) panelLease.begin(now);
         boolean panelOn = RearLyricsLauncher.displayState(context, id) == Display.STATE_ON;
         boolean attached = RearLyricsActivity.attachedWindowOnDisplay(id) != null;
+        // 观测永远先做：租约自身的状态推进不能因为下面这条安全阀被跳过。
         RearPanelLease.Action action = panelLease.observe(guarding, panelOn, attached, now);
         if (action != RearPanelLease.Action.RELIGHT) return;
+        // 真正要发唤醒事件之前才问安全阀。主屏还亮着时不去点背屏：KEYCODE_WAKEUP 在部分 ROM
+        // 上同时算「用户活动」，会在主屏已亮时继续给它续命 —— 那就是用功耗换表面稳定。
+        RearPanelRelightGuard.Verdict relightVerdict =
+            relight.verdict(RearLyricsLauncher.displayState(context, 0) == Display.STATE_ON);
+        if (relightVerdict == RearPanelRelightGuard.Verdict.STOP_SESSION
+                || relightVerdict == RearPanelRelightGuard.Verdict.STOP_DISABLED) {
+            panelLease.end();
+            return;
+        }
+        if (relightVerdict == RearPanelRelightGuard.Verdict.SKIP_MAIN_ON) return;
         IBinder binder = shell;
         if (binder == null || !binder.isBinderAlive()) {
             panelLease.onResult(false, now);
@@ -582,14 +653,23 @@ final class RearLyricsCoordinator {
             int after = RearLyricsLauncher.displayState(context, id);
             boolean on = after == Display.STATE_ON;
             int mainAfter = RearLyricsLauncher.displayState(context, 0);
-            if (relightMainBefore != Display.STATE_ON && mainAfter == Display.STATE_ON) {
-                // 这个 ROM 把 KEYCODE_WAKEUP 当成整机唤醒：立即停手，绝不反复点亮主屏。
-                relightWakesMain = true;
+            // 归因必须同时看「点亮前主屏是否熄灭」和「验证时是否仍然锁屏」：用户在这个窗口里
+            // 自己解锁，是 v1.3.59 把主屏点亮错误算到自己头上、从而永久停用的主要原因。
+            RearPanelRelightGuard.Attribution attribution = relight.attribute(
+                relightMainBefore == Display.STATE_ON, mainAfter == Display.STATE_ON, lockedNow());
+            if (attribution == RearPanelRelightGuard.Attribution.OURS
+                    || attribution == RearPanelRelightGuard.Attribution.OURS_FINAL) {
+                // 这个 ROM 把唤醒事件当整机唤醒：本周期立即停手，绝不反复点亮主屏。
                 panelLease.end();
                 RearLyricsTrace.record(context, "relight-woke-main",
-                    "lighting the rear panel also turned the main display on; lock-time re-light disabled for this session");
+                    "lighting the rear panel also turned the main display on; lock-time re-light stopped ("
+                        + attribution + "); " + relight.describe());
                 nudge();
                 return;
+            }
+            if (attribution == RearPanelRelightGuard.Attribution.USER_UNLOCK) {
+                RearLyricsTrace.record(context, "relight-main-on-by-user",
+                    "the main display came on because the session was unlocked; re-light stays armed");
             }
             panelLease.onResult(on, at);
             RearLyricsTrace.record(context, "panel-relight-outcome", "state=" + after
@@ -662,6 +742,7 @@ final class RearLyricsCoordinator {
         main.post(() -> {
             enabled = true; manual = true; failures = 0; nextAttempt = 0;
             takeover.reset(); takeoverReported = false;
+            coveredRecovery.reset(); pendingVerify = null; coveredBusy = false; migrateOnce = false;
             // Asking for the window again is the only thing that clears a dismissal.
             dismissed = false;
             RearPlanA.clearDismissed(context);
@@ -723,6 +804,7 @@ final class RearLyricsCoordinator {
             if (LspRearBridge.selected(context)) playback.returnToSystem();
             playing = false; requestedPlaying = false; manual = false;
             panelLease.end(); takeover.reset(); takeoverReported = false;
+            coveredRecovery.reset(); pendingVerify = null; coveredBusy = false; migrateOnce = false;
             rear.markSystemOwned("stopped");
             attemptToken++; pending = false;
             main.removeCallbacks(bindTimeout); main.removeCallbacks(check); scheduled = false;
@@ -742,6 +824,8 @@ final class RearLyricsCoordinator {
     private void checkWindow() {
         if (!wanted()) return;
         long now = SystemClock.elapsedRealtime();
+        // 锁屏跳变 → 0/5/60 秒三次快照。放在这里是因为它对两种后端都成立，且不依赖 Activity。
+        RearFaultDiagnostics.onLockChanged(context, main, lockedNow());
         evaluateRear(now);
         if (cameraOwned()) {
             // A camera owns the panel. Only a read-only probe is allowed here; it keeps the exit
@@ -780,7 +864,19 @@ final class RearLyricsCoordinator {
         }
         // 熄灭后的点亮只有一个负责人：锁屏期间是 RearPanelLease（有回读、有退避、有总量上限），
         // 非锁屏时由重建路径自带的一次 WAKE 完成。这里不再叠加第三条唤醒路径。
-        boolean takeoverBlocked = takeover.exhausted();
+        // 「被系统背屏桌面盖住」这一种故障只有一个负责人：COVERED_RECOVERY。
+        //
+        // 1.3.61 的循环是这样形成的：checkWindow 每 2 秒发现 visible=false，就调用 begin()，
+        // 而 begin() 只会执行同一条 am start —— 于是「重复同一种失败操作」不是重试策略，
+        // 而是心跳本身。这里把判定写清楚：窗口还在、只是被背屏桌面盖住时，不允许 begin()。
+        // 窗口真的消失（attached==null）时 coveredNow=false，安全重建照旧可用。
+        boolean coveredNow = display >= 0 && evidence != null && evidence.readable
+            && RearTakeoverPolicy.REAR_CENTRE_PACKAGE.equals(evidence.rearPackage())
+            && RearLyricsActivity.attachedWindowOnDisplay(display) != null
+            && !RearLyricsActivity.isShowingOnDisplay(display);
+        // 系统已明确拒绝把任务置顶（或前台是我们却仍不可见）时，重建同样没有意义：
+        // 继续 begin() 只会烧掉额度并让背屏每 20 秒闪一次。
+        boolean takeoverBlocked = takeover.exhausted() || coveredRecovery.blocked() || coveredNow;
         if (!takeoverBlocked && RearLyricsPolicy.shouldAttempt(enabled, playing, manual, RearLyricsState.hasConfig(),
                 visible && RearLyricsLauncher.displayState(context, display) == Display.STATE_ON,
                 pending || waking || RearLyricsLauncher.isStarting(), now, nextAttempt, lockRecovery)) begin();
@@ -830,23 +926,193 @@ final class RearLyricsCoordinator {
      * 最多三次、间隔 20 秒，用完即停并留 {@code takeover-exhausted} 证据。
      */
     private void recoverFromTakeover(long now) {
-        if (pending || RearLyricsLauncher.isStarting()) return;
+        if (pending || RearLyricsLauncher.isStarting() || coveredBusy) return;
         RearTakeoverPolicy.Decision decision = takeover.evaluate(
             wanted(), lockedNow(), true, cameraOwned(), closing, now);
         if (decision != RearTakeoverPolicy.Decision.RECOVER) {
             if (takeover.exhausted() && !takeoverReported) {
                 takeoverReported = true;
                 RearLyricsTrace.record(context, "takeover-exhausted",
-                    "the system rear home took the panel back " + takeover.attempts()
-                        + "x while lyrics were wanted; no further re-front this lock; " + takeover);
+                    "no further re-front this lock; rear front=" + frontTask + "; " + takeover);
             }
             return;
         }
         covered = false; nextAttempt = 0;
         RearLyricsTrace.record(context, "takeover-recover", "rear front=" + frontTask
             + "; attempt " + takeover.attempts() + "/" + RearTakeoverPolicy.MAX_ATTEMPTS_PER_LOCK
+            + ", consecutiveFailures=" + takeover.consecutiveFailures()
+                + "/" + RearTakeoverPolicy.MAX_CONSECUTIVE_FAILURES
             + ", backend=" + (LspRearBridge.selected(context) ? "lsp" : "shizuku"));
         begin();
+    }
+
+    // ---------------------------------------------------------------- covered recovery
+
+    /**
+     * 背屏被系统背屏桌面盖住时的恢复入口。
+     *
+     * <p>判据全部来自真机日志：窗口 {@code attached=true/rendered=true/visible=false}、
+     * 面板 {@code STATE_ON}、前台是系统背屏中心。它与「相机让位」「窗口被销毁」「面板熄灭」
+     * 是四件事，必须走四条不同的路。1.3.62 在这里放了三个「机制」，其中
+     * {@code SHELL_REFRONT} 实际只是 {@code am start} 的翻版，已被删除。
+     */
+    private void recoverCovered(long now) {
+        if (pending || planRestoring || coveredBusy || RearLyricsLauncher.isStarting()) return;
+        if (!wanted() || closing) { coveredRecovery.reset(); return; }
+        int display = findRearDisplayId(context);
+        if (display < 0) return;
+        boolean alive = RearLyricsActivity.attachedWindowOnDisplay(display) != null;
+        boolean visible = RearLyricsActivity.isShowingOnDisplay(display);
+        RearLaunchRoute.Mode mode = LspRearBridge.selected(context)
+            ? RearLaunchRoute.Mode.REUSE                       // LSP 有自己的路径，不再迁移
+            : RearLaunchRoute.readMode(context);
+        // A/B 门控：REUSE 只跑「置顶」，MIGRATE 只跑「迁移」，AUTO 先 A 后 B。
+        boolean allowRefront = mode != RearLaunchRoute.Mode.MIGRATE;
+        boolean allowMigrate = mode != RearLaunchRoute.Mode.REUSE
+            && !LspRearBridge.selected(context);               // 迁移只在 Shizuku 下启用
+        RearCoveredRecovery.Plan plan = coveredRecovery.evaluate(wanted(), cameraOwned(), closing,
+            alive, visible, true, allowRefront, allowMigrate, now);
+        switch (plan.decision) {
+            case REBUILD:
+                RearLyricsTrace.record(context, "covered-rebuild",
+                    "the lyric window is gone (not hidden); one safe rebuild; " + plan.reason);
+                reuseBroken = true;
+                recoverFromTakeover(now);
+                return;
+            case ATTEMPT:
+                runCoveredMechanism(plan.mechanism, display, now);
+                return;
+            default:
+                if (coveredRecovery.claimReport()) {
+                    RearLyricsTrace.record(context, "covered-blocked",
+                        "不再抢前台：" + coveredRecovery.blockedReason()
+                            + "; window=" + RearLyricsActivity.windowState()
+                            + "; rear=" + RearFaultDiagnostics.stateName(RearLyricsLauncher.displayState(context, display))
+                            + "; front=" + frontTask
+                            + "; probe=" + RearLyricsLauncher.lastFrontProbe()
+                            + "; " + coveredRecovery);
+                }
+                return;
+        }
+    }
+
+    /** 执行一个机制。每个机制每个锁屏周期只执行一次（去重由 {@link RearCoveredRecovery} 负责）。 */
+    private void runCoveredMechanism(RearCoveredRecovery.Mechanism mechanism, int display, long now) {
+        coveredBusy = true;
+        RearLyricsTrace.record(context, "covered-recover", mechanism + "; window="
+            + RearLyricsActivity.windowState() + "; rear="
+            + RearFaultDiagnostics.stateName(RearLyricsLauncher.displayState(context, display))
+            + "; front=" + frontTask + "; " + coveredRecovery);
+        if (mechanism == RearCoveredRecovery.Mechanism.MAIN_STAGE_MIGRATE) {
+            // 1.3.39 的机制：新建一个透明任务再整体搬到背屏。它和「让旧任务回前台」是
+            // 任务树里不同层级的操作，所以旧路径失败不能推出这一条也失败。
+            coveredBusy = false;
+            migrateOnce = true;
+            pendingVerify = mechanism;
+            pendingVerifyAt = now + MIGRATE_TIMEOUT_MS;
+            lastMigrate = "started";
+            RearLyricsTrace.record(context, "covered-migrate",
+                "stage a transparent task on display 0 and move it to " + display
+                    + "; window=" + RearLyricsActivity.windowState()
+                    + "; front=" + frontTask + "; mode=" + RearLaunchRoute.readMode(context));
+            begin();
+            return;
+        }
+        RearLyricsActivity.WindowState window = RearLyricsActivity.windowState();
+        int task = window == null ? -1 : window.taskId;
+        RearTaskRefront.moveToFront(context, task, result -> main.post(() -> {
+            if (result.refused()) {
+                coveredRecovery.onResult(mechanism, RearCoveredRecovery.Result.PERMISSION_DENIED, false,
+                    result.toString(), SystemClock.elapsedRealtime());
+                coveredBusy = false;
+                nudge();
+                return;
+            }
+            armVerify(mechanism, RearCoveredRecovery.VERIFY_MS);
+        }));
+    }
+
+    private void armVerify(RearCoveredRecovery.Mechanism mechanism, long delayMs) {
+        pendingVerify = mechanism;
+        pendingVerifyAt = SystemClock.elapsedRealtime() + delayMs;
+        main.postDelayed(this::verifyTick, delayMs);
+    }
+
+    /**
+     * 到点结算：先看窗口是否真的可见；不可见就**读一次真实前台**再分类。
+     *
+     * <p>这一步是 1.3.62 缺的：它只用 2 秒前的心跳证据，于是「表读不出来」被写成
+     * 「前台不是我们」。现在每次结算都做一次显式探针，六种结论各有出处。
+     */
+    private void verifyTick() {
+        if (pendingVerify == null) return;
+        if (SystemClock.elapsedRealtime() < pendingVerifyAt) return;
+        final RearCoveredRecovery.Mechanism mechanism = pendingVerify;
+        int display = findRearDisplayId(context);
+        if (display < 0) { finishVerify(mechanism, RearCoveredRecovery.Result.WINDOW_GONE, "rear display gone"); return; }
+        if (RearLyricsActivity.isShowingOnDisplay(display)) {
+            finishVerify(mechanism, RearCoveredRecovery.Result.RECOVERED, "window visible");
+            return;
+        }
+        RearLyricsActivity.WindowState window = RearLyricsActivity.windowState();
+        int task = window == null ? -1 : window.taskId;
+        RearLyricsLauncher.probeFront(context, shell, display, task, (lookup, raw) -> main.post(() -> {
+            long now = SystemClock.elapsedRealtime();
+            boolean visible = RearLyricsActivity.isShowingOnDisplay(findRearDisplayId(context));
+            RearCoveredRecovery.Result result;
+            String detail;
+            if (visible) {
+                result = RearCoveredRecovery.Result.RECOVERED;
+                detail = "window visible";
+            } else if (lookup.status == RearTaskTable.Status.UNREADABLE) {
+                // 表读不出来 ≠ 任务不存在 ≠ 权限被拒。这是 1.3.62 最大的误判来源。
+                result = RearCoveredRecovery.Result.COMMAND_UNSUPPORTED;
+                detail = "front table unreadable: " + lookup.reason;
+            } else if (lookup.status == RearTaskTable.Status.TASK_ABSENT) {
+                result = RearCoveredRecovery.Result.TASK_NOT_FOUND;
+                detail = "task " + task + " absent from a readable table";
+            } else {
+                String pkg = RearTaskTable.packageOf(lookup.front == null ? null : lookup.front.component);
+                if (context.getPackageName().equals(pkg)) {
+                    result = RearCoveredRecovery.Result.NOT_FRONTED;
+                    detail = "front is ours but the window is stopped (" + window + ")";
+                } else if (RearTakeoverPolicy.REAR_CENTRE_PACKAGE.equals(pkg)) {
+                    result = RearCoveredRecovery.Result.SYSTEM_RETAKEN;
+                    detail = "front is the rear centre again (" + lookup.front.component + ")";
+                } else {
+                    result = RearCoveredRecovery.Result.NOT_FRONTED;
+                    detail = "front=" + (lookup.front == null ? "?" : lookup.front.component);
+                }
+            }
+            finishVerify(mechanism, result, detail);
+            nudge();
+        }));
+    }
+
+    private void finishVerify(RearCoveredRecovery.Mechanism mechanism, RearCoveredRecovery.Result result,
+                              String detail) {
+        pendingVerify = null;
+        long now = SystemClock.elapsedRealtime();
+        boolean ours = result == RearCoveredRecovery.Result.RECOVERED;
+        coveredRecovery.onResult(mechanism, result, ours, detail, now);
+        coveredBusy = false;
+        RearLyricsTrace.record(context, "covered-outcome", mechanism + " -> " + result
+            + " (" + detail + "); window=" + RearLyricsActivity.windowState()
+            + "; rear=" + RearFaultDiagnostics.stateName(RearLyricsLauncher.displayState(context,
+                findRearDisplayId(context)))
+            + "; " + coveredRecovery);
+        if (result == RearCoveredRecovery.Result.RECOVERED) {
+            covered = false; lockRecovery = false; failures = 0; reuseBroken = false;
+            nextAttempt = now + 2_000;
+            if (planA() && planRestoring) finishPlanARestore(true);
+            complete(true, findRearDisplayId(context), "背屏歌词已恢复到前台", null);
+        } else if (coveredRecovery.blocked()) {
+            // 已经判定本周期不可能恢复：把租约交还，停止点亮一块只会显示系统桌面的面板。
+            panelLease.end();
+            RearLyricsTrace.record(context, "covered-give-up",
+                "stop re-lighting the rear panel; " + coveredRecovery.blockedReason());
+        }
+        nudge();
     }
 
     /** 主屏锁定或熄灭即视为锁屏态（与 RearLyricsLauncher 内部判定保持一致）。 */
@@ -888,8 +1154,17 @@ final class RearLyricsCoordinator {
             // 因此不会退化成每 2 秒一次的抢前台闪烁。
             String rearPkg = evidence.rearPackage();
             boolean oursInFront = context.getPackageName().equals(rearPkg);
-            if (oursInFront) takeover.onRecovered();
-            else if (RearTakeoverPolicy.REAR_CENTRE_PACKAGE.equals(rearPkg)) recoverFromTakeover(SystemClock.elapsedRealtime());
+            // 每次探测都让节流器看到「现在最前的是不是我们」：稳定恢复（STABLE_MS 内一直在前）
+            // 会归还连续失败额度，这样「成功夺回」不会永久吃掉重试预算。
+            long probeNow = SystemClock.elapsedRealtime();
+            if (oursInFront) {
+                takeover.observe(true, probeNow);
+                // 只有窗口真的在显示才算恢复；「前台是我们但窗口被 onStop」是另一类故障，
+                // 不能在这里被当成成功，否则状态机会被清零并重新开始抢前台。
+                if (RearLyricsActivity.isShowingOnDisplay(display)) coveredRecovery.onVisible();
+            } else if (RearTakeoverPolicy.REAR_CENTRE_PACKAGE.equals(rearPkg)) {
+                recoverCovered(probeNow);
+            }
             // The decision runs on fresh evidence, not only on the heartbeat.
             if (planA()) evaluateRear(SystemClock.elapsedRealtime());
             if (changed) {
@@ -929,6 +1204,10 @@ final class RearLyricsCoordinator {
         }));
     }
     private void launch() {
+        // 一次性标记必须在这里就取走：下面的 early-return 一旦跳过启动，标记若留在字段里，
+        // 下一次**普通**启动就会被强制迁移 —— 那不是 A/B，是串味。
+        final boolean migrate = migrateOnce;
+        migrateOnce = false;
         if (!canPresent()) { pending = false; return; }
         if (RearLyricsLauncher.isStarting()) return;
         final int token = ++attemptToken;
@@ -948,6 +1227,13 @@ final class RearLyricsCoordinator {
                         return;
                     }
                     covered = false; lockRecovery = false; failures = 0; nextAttempt = now + 2000;
+                    if (pendingVerify == RearCoveredRecovery.Mechanism.MAIN_STAGE_MIGRATE) {
+                        // 迁移成功：窗口已在背屏真正可见（start() 的成功判据就是它）。
+                        lastMigrate = "RECOVERED(" + RearLyricsLauncher.routeLabel() + ")";
+                        coveredRecovery.onResult(RearCoveredRecovery.Mechanism.MAIN_STAGE_MIGRATE,
+                            RearCoveredRecovery.Result.RECOVERED, true, "migrated and visible", now);
+                        pendingVerify = null;
+                    }
                     if (planA()) { if (planRestoring) finishPlanARestore(true); }
                     else { rear.restoreFinished(true, now); rear.markActive(); }
                     if (coverSleepEnabled && physicalCover) changeSleep(true);
@@ -960,12 +1246,44 @@ final class RearLyricsCoordinator {
             @Override public void cancelled(String reason) {
                 main.post(() -> { if (token == attemptToken) finishCancelled(reason); });
             }
-        }, shell, rearDisplayForShell());
+            @Override public void covered(String message, String detail) {
+                main.post(() -> { if (token == attemptToken) finishCovered(message, detail); });
+            }
+        }, shell, rearDisplayForShell(), migrate);
         syncLspPower();
+    }
+    /**
+     * 窗口还在、被系统背屏桌面盖住。不是失败：不后退避、不报错给界面，
+     * 直接进入 COVERED_RECOVERY（置顶已有任务），成功判据是窗口真正可见。
+     */
+    private void finishCovered(String message, String detail) {
+        pending = false; main.removeCallbacks(bindTimeout);
+        long now = SystemClock.elapsedRealtime();
+        covered = true; lockRecovery = true;
+        // 新的一次「被覆盖」事件：1.3.62 的 recovered 只会被置真、永不复位，于是诊断里
+        // 出现 recovered=true 配 visible=false 的自相矛盾状态。
+        coveredRecovery.beginEpisode();
+        // 单飞失败不代表窗口丢了：只有 attachedWindowOnDisplay 为空才算真正的销毁。
+        if (planA() && planRestoring) finishPlanARestore(false);
+        context.getSharedPreferences("rear_lyrics", 0).edit()
+            .putString("launch_message", message).apply();
+        RearLyricsTrace.record(context, "covered-detected", message + "; " + detail
+            + "; " + coveredRecovery);
+        complete(false, -1, message, null);
+        nudge();
     }
     private void finishFailure(String message, Exception error) {
         pending = false; main.removeCallbacks(bindTimeout);
         long now = SystemClock.elapsedRealtime();
+        if (pendingVerify == RearCoveredRecovery.Mechanism.MAIN_STAGE_MIGRATE) {
+            // 迁移自己失败：把原文留给诊断，让下一次判定走「停手」而不是再排一次迁移。
+            lastMigrate = "FAILED(" + message + ")";
+            RearLyricsTrace.record(context, "covered-migrate-failed", message
+                + "; " + RearLyricsLauncher.routeLabel());
+            coveredRecovery.onResult(RearCoveredRecovery.Mechanism.MAIN_STAGE_MIGRATE,
+                RearCoveredRecovery.Result.NOT_FRONTED, false, message, now);
+            pendingVerify = null; migrateOnce = false;
+        }
         boolean restoring = planA() ? planRestoring : rear.restoring();
         if (restoring) {
             // A rebuild failure is retried on the handoff backoff, not the launch backoff that

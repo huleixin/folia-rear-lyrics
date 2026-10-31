@@ -822,6 +822,29 @@ public class FoliaNativePlugin extends Plugin {
         call.resolve(result);
     }
 
+    /** 立即采一条「背屏故障诊断」快照；返回当前累积的全部条目。 */
+    @PluginMethod
+    public void captureRearFaultDiagnostics(PluginCall call) {
+        RearFaultDiagnostics.captureNow(getContext(), "manual", null);
+        JSObject result = new JSObject();
+        result.put("count", RearFaultDiagnostics.count(getContext()));
+        result.put("text", RearFaultDiagnostics.read(getContext()));
+        result.put("lastWake", RearLyricsLauncher.lastWake());
+        // A/B 路由：真机用同一份诊断对比「只置顶」与「1.3.39 迁移」哪条有效。
+        result.put("lockedRoute", RearLaunchRoute.readMode(getContext()).value);
+        result.put("lastLaunchRoute", RearLyricsLauncher.routeLabel());
+        call.resolve(result);
+    }
+
+    /** 只清空故障诊断记录，不影响播放、背屏开关与任何用户数据。 */
+    @PluginMethod
+    public void clearRearFaultDiagnostics(PluginCall call) {
+        RearFaultDiagnostics.clear(getContext());
+        JSObject result = new JSObject();
+        result.put("count", RearFaultDiagnostics.count(getContext()));
+        call.resolve(result);
+    }
+
     @PluginMethod
     public void getRearLyricsStatus(PluginCall call) {
         JSObject result = new JSObject();
@@ -838,6 +861,11 @@ public class FoliaNativePlugin extends Plugin {
         int rear = RearLyricsCoordinator.rearDisplayForShell(getContext());
         result.put("rearDisplayId", rear);
         result.put("yieldingToCamera", RearLyricsActivity.isYieldingToCamera());
+        // 「背屏故障诊断」：锁屏前后 0/5/60 秒的状态快照（JSON lines），以及最近一次背屏唤醒
+        // 的完整结果（含执行后的真实面板状态）。两者都随「导出诊断数据」一起带走。
+        result.put("faultLog", RearFaultDiagnostics.read(getContext()));
+        result.put("faultCount", RearFaultDiagnostics.count(getContext()));
+        result.put("lastWake", RearLyricsLauncher.lastWake());
         boolean active = rear >= 0 && RearLyricsActivity.isShowingOnDisplay(rear)
             && RearLyricsLauncher.displayState(getContext(), rear) == Display.STATE_ON;
         boolean starting = coordinator.isStarting();
@@ -899,6 +927,27 @@ public class FoliaNativePlugin extends Plugin {
         coordinator.engineChanged();
         JSObject result = new JSObject();
         result.put("engine", RearPlanA.engine(getContext()));
+        call.resolve(result);
+    }
+
+    /**
+     * A/B：锁屏后的启动路线。
+     *
+     * <ul>
+     *   <li>{@code auto}：看得见就复用，看不见就走 1.3.39 的迁移（默认）；</li>
+     *   <li>{@code reuse}：只让已有任务回前台，永不迁移 —— 用来证明「A 单独确实不行」；</li>
+     *   <li>{@code migrate}：无条件迁移 —— 用来单独验证迁移在当前固件是否还成立。</li>
+     * </ul>
+     * 只影响 Shizuku 后端；LSP 的路线判定一行都没改。
+     */
+    @PluginMethod
+    public void setRearLockedRoute(PluginCall call) {
+        String mode = call.getString("mode");
+        RearLaunchRoute.Mode parsed = RearLaunchRoute.Mode.of(mode);
+        if (mode == null || !parsed.value.equals(mode)) { call.reject("未知锁屏启动路线"); return; }
+        RearLaunchRoute.writeMode(getContext(), parsed);
+        JSObject result = new JSObject();
+        result.put("lockedRoute", parsed.value);
         call.resolve(result);
     }
 

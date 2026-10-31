@@ -137,4 +137,61 @@ public class RearPanelLeaseTest {
         assertEquals(RearPanelLease.Action.NONE, dark(lease, t));
         assertEquals("session-cap", lease.stoppedReason());
     }
+
+    // ---- v1.3.61：每次「没有点亮」都必须留下原因，否则真机现场只剩一个 relights=0 ----
+
+    private static RearPanelLease started() {
+        RearPanelLease lease = new RearPanelLease();
+        lease.begin(0);
+        return lease;
+    }
+
+    @Test
+    public void anInactiveLeaseSaysSo() {
+        RearPanelLease lease = new RearPanelLease();
+        assertEquals(RearPanelLease.Action.NONE, lease.observe(true, false, true, 1_000));
+        assertEquals("no-lease", lease.lastSkip());
+    }
+
+    @Test
+    public void aMissingLeaseConditionEndsTheCycleAndSaysWhy() {
+        RearPanelLease lease = started();
+        assertEquals(RearPanelLease.Action.NONE, lease.observe(false, false, true, 1_000));
+        assertEquals("guarding-off", lease.lastSkip());
+    }
+
+    @Test
+    public void aPanelThatIsAlreadyOnIsNotRelit() {
+        RearPanelLease lease = started();
+        assertEquals(RearPanelLease.Action.NONE, lease.observe(true, true, true, 1_000));
+        assertEquals("panel-on", lease.lastSkip());
+        assertEquals(0, lease.relights());
+    }
+
+    /** 窗口不在背屏上时不点亮，但原因必须与「在退避」可区分。 */
+    @Test
+    public void aDetachedWindowIsRecordedInsteadOfSilentlySkipped() {
+        RearPanelLease lease = started();
+        assertEquals(RearPanelLease.Action.NONE, lease.observe(true, false, false, 1_000));
+        assertEquals("no-window", lease.lastSkip());
+        assertEquals(0, lease.relights());
+    }
+
+    @Test
+    public void aFailedRelightBacksOffAndRecordsIt() {
+        RearPanelLease lease = started();
+        assertEquals(RearPanelLease.Action.RELIGHT, dark(lease, 1_000));
+        lease.onResult(false, 2_200);
+        assertEquals(RearPanelLease.Action.NONE, dark(lease, 2_300));
+        assertEquals("backoff", lease.lastSkip());
+    }
+
+    @Test
+    public void aSuccessfulRelightIsRecordedAsSuch() {
+        RearPanelLease lease = started();
+        assertEquals(RearPanelLease.Action.RELIGHT, dark(lease, 1_000));
+        lease.onResult(true, 2_200);
+        assertEquals("relight-ok", lease.lastSkip());
+        assertTrue(lease.toString().contains("lastSkip=relight-ok"));
+    }
 }

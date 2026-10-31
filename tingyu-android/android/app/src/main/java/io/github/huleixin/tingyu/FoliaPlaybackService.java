@@ -81,8 +81,21 @@ public class FoliaPlaybackService extends Service {
     private volatile boolean lastPlaying = false;
     /** Last (track, lyric state) pair written to metadata; only used to dedupe diagnostics. */
     private volatile String lastLyricState = "";
-    /** {@link #ensureLyricPublished()} 每首歌只自检一次的去重标记。 */
-    private String lyricSelfHealDoneFor = "";
+    /**
+     * 会话侧歌词自检。v1.3.59 是一个「每首歌只跑一次」的字符串标记，且标记写在判定之前 ——
+     * 换歌瞬间歌词还 pending 时额度就被消耗掉，等歌词 ready 时函数第一行就 return 了。
+     * 现在交给纯状态机 {@link LyricPublishGuard}：pending 不消耗额度、ready 要验证身份与版本、
+     * 每个 (songKey, 歌词版本) 最多重发 3 次。
+     */
+    private final io.github.huleixin.tingyu.playback.LyricPublishGuard lyricGuard =
+        new io.github.huleixin.tingyu.playback.LyricPublishGuard();
+    /**
+     * 歌曲切换代次。异步补发（回读后的再检、延迟重发）都带着它，换代次即作废，
+     * 旧歌的迟到任务不会把新歌的 metadata 改回去。
+     */
+    private volatile long lyricGeneration;
+    /** 自检回读的间隔：MediaSession 的 setMetadata 到 controller 可见之间有一次 IPC + 回调。 */
+    private static final long LYRIC_RECHECK_MS = 400L;
     private volatile String lastLyricSessionState = "";
     /** Own-session controller, used only to read back what the session really exposes. */
     private volatile MediaController selfController;
@@ -95,6 +108,9 @@ public class FoliaPlaybackService extends Service {
             recordServiceHeartbeat();
             // 锁屏连播期间的第三个采样时点：卡片上看到的一切，10s 落一次。
             noteSessionSample("tick");
+            // 心跳顺带一次受控自检：guard 是幂等的（版本一致时什么都不做），
+            // 且每个 (songKey, 版本) 最多重发 3 次，因此这不是轮询、也不会反复刷新。
+            if (cachedPlaying) ensureLyricPublished("heartbeat");
             mainHandler.postDelayed(this, SERVICE_HEARTBEAT_INTERVAL_MS);
         }
     };
@@ -168,6 +184,8 @@ public class FoliaPlaybackService extends Service {
         String key = tag.optString("songKey");
         if (key.isEmpty()) return;
         cachedSongKey = key;
+        lyricGeneration++;
+        lyricGuard.onTrack(key, lyricGeneration);
         if (tag.has("title")) cachedTitle = tag.optString("title");
         if (tag.has("artist")) cachedArtist = tag.optString("artist");
         if (tag.has("album")) cachedAlbum = tag.optString("album");
@@ -232,7 +250,7 @@ public class FoliaPlaybackService extends Service {
         cachedPlaying = state.playing; cachedPositionMs = state.position;
         cachedPositionUpdatedAt = now; lastPlaying = cachedPlaying;
         mediaSession.setPlaybackState(buildPlaybackState(cachedPlaying, cachedPositionMs, cachedSongKey));
-        ensureLyricPublished();
+        ensureLyricPublished("native-state");
             if (changed) {
                 io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("native-session-state",
                     new com.getcapacitor.JSObject().put("playing", cachedPlaying).put("positionMs", cachedPositionMs));
@@ -489,6 +507,11 @@ public class FoliaPlaybackService extends Service {
         cachedAlbum = album;
         cachedCoverUrl = cover;
         cachedSongKey = songKey;
+        if (songChanged) {
+            // 换代次：所有按时间排队的歌词补发都属于上一首，必须作废。
+            lyricGeneration++;
+            lyricGuard.onTrack(songKey, lyricGeneration);
+        }
         cachedPlaying = playing;
         // In-flight JS publications sampled before a system seek cannot undo that seek.
         if (nativeClock != null || songChanged || intent.getLongExtra("capturedAtMs", 0L) >= lastSystemSeekAt) {
@@ -536,6 +559,16 @@ public class FoliaPlaybackService extends Service {
         RearLyricsCoordinator.get(this).playback(cachedPlaying);
         refreshArtwork();
         noteSessionSample(songChanged ? "transition" : "publish");
+        // 换歌时启动一次受控自检：这一首的歌词很可能还在路上（pending），
+        // 于是这一次不会消耗任何额度，等 ready 之后由 heartbeat / 原生交付路径继续推进。
+        ensureLyricPublished(songChanged ? "transition" : "publish");
+        if (songChanged) {
+            long generation = lyricGeneration;
+            mainHandler.postDelayed(() -> {
+                if (generation != lyricGeneration) return;
+                ensureLyricPublished("transition-retry");
+            }, 1_500L);
+        }
         return START_STICKY;
     }
 
@@ -699,6 +732,10 @@ public class FoliaPlaybackService extends Service {
             artwork, cachedCoverUrl, cachedSongKey);
         mediaSession.setMetadata(metadata);
         mediaSession.setQueue(Collections.singletonList(new MediaSession.QueueItem(metadata.getDescription(), queueId(cachedSongKey))));
+        // 记账：会话里现在装的是哪个歌曲版本。applyNativeLyric / requestRefresh /
+        // ensureLyricPublished 三条路径都经过这里，因此它们互相之间天然去重，
+        // 不会各自再刷新一次（重复重建 metadata 会拖慢播放、闪烁卡片）。
+        lyricGuard.onPublished(cachedSongKey, ColorOsLyricBridge.revisionOf(cachedSongKey), lyricGeneration);
         noteLyricSessionState(cachedSongKey);
     }
 
@@ -1014,6 +1051,7 @@ public class FoliaPlaybackService extends Service {
                     // 「Bridge ready 但灵动岛不显示」时，这一位区分是会话侧丢了（len=-1）
                     // 还是会话侧完好、问题在系统消费端。
                     .put("sessionLyricLen", readSessionLyricLen())
+                    .put("publishGuard", lyricGuard.describe())
                     // 最近 50 首的链路账本摘要 + 自动归因码：一次采样就能看出是「这首真没词」
                     // （song-missing）、「取词失败」（fetch-failed）、「调度停了」（chain-broken /
                     // prefetch-stalled），还是「有词没交付」（ready-not-delivered / -published）。
@@ -1067,24 +1105,122 @@ public class FoliaPlaybackService extends Service {
         }
     }
 
-    /** 每首歌只跑一次的会话侧自检：Bridge 已 ready 而会话却没带上 lyricInfo 时补发一次。 */
-    private void ensureLyricPublished() {
-        if (mediaSession == null || cachedSongKey == null || cachedSongKey.isEmpty()) return;
-        if (cachedSongKey.equals(lyricSelfHealDoneFor)) return;
-        lyricSelfHealDoneFor = cachedSongKey;
+    /**
+     * 会话侧歌词自检入口。
+     *
+     * <p>取代 v1.3.59 那个「每首歌只跑一次」的实现，规则全部在
+     * {@link io.github.huleixin.tingyu.playback.LyricPublishGuard} 里：
+     * <ul>
+     *   <li>歌词 pending：什么都不做，也<b>不</b>标记完成 —— 这正是连播后歌词消失的根因；</li>
+     *   <li>歌词 ready：验证会话 MEDIA_ID 是不是本首、payload 是不是占位桩、版本对不对；</li>
+     *   <li>不满足才受控重发，每个 (songKey, 版本) 最多 3 次，发完回读一次再判；</li>
+     *   <li>换代次即作废，旧歌的迟到任务不能污染新歌。</li>
+     * </ul>
+     *
+     * <p>与 {@link #applyNativeLyric(String, String)}、{@link ColorOsLyricBridge#requestRefresh}
+     * 两条既有路径共用同一个 {@code publishedRevision} 记账：任何一条路径重建过 metadata，
+     * 这里就会看到「版本已一致」而不再重发，因此不会互相叠加刷新、拖慢播放。
+     */
+    private void ensureLyricPublished(String trigger) {
+        ensureLyricPublished(trigger, 0);
+    }
+
+    private void ensureLyricPublished(String trigger, int round) {
+        if (mediaSession == null) return;
+        String songKey = cachedSongKey;
+        if (songKey == null || songKey.isEmpty()) return;
+        long generation = lyricGeneration;
         try {
-            boolean bridgeReady = "ready".equals(ColorOsLyricBridge.stateOf(cachedSongKey));
-            int sessionLen = readSessionLyricLen();
-            if (bridgeReady && sessionLen < 0) {
-                io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("lyric-self-heal",
-                    new com.getcapacitor.JSObject()
-                        .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(cachedSongKey))
-                        .put("sessionLyricLen", sessionLen));
+            lyricGuard.onTrack(songKey, generation);
+            io.github.huleixin.tingyu.playback.LyricPublishGuard.Observation observation =
+                io.github.huleixin.tingyu.playback.LyricPublishGuard.Observation.of(songKey, generation);
+            observation.bridgeState = ColorOsLyricBridge.stateOf(songKey);
+            observation.bridgeRevision = ColorOsLyricBridge.revisionOf(songKey);
+            SessionLyric session = readSessionLyric();
+            observation.sessionSongKey = session.songKey;
+            observation.sessionPayloadLen = session.length;
+            observation.sessionPayloadIsStub = session.stub;
+            io.github.huleixin.tingyu.playback.LyricPublishGuard.Verdict verdict =
+                lyricGuard.evaluate(observation);
+            if (verdict.publish()) {
+                noteLyricSelfHeal(trigger, round, verdict, observation);
                 publishMetadata(appliedArtworkBitmap);
+                NotificationManager manager = getSystemService(NotificationManager.class);
+                if (manager != null) {
+                    manager.notify(NOTIFICATION_ID,
+                        buildNotification(cachedTitle, cachedArtist, cachedPlaying, appliedArtworkBitmap));
+                }
+                // 受控回读：一次 IPC + 回调之后再看一眼。仍然是同一代次才继续。
+                if (round + 1 < io.github.huleixin.tingyu.playback.LyricPublishGuard.MAX_ATTEMPTS_PER_KEY) {
+                    mainHandler.postDelayed(() -> {
+                        if (generation != lyricGeneration) return; // 已经换歌：旧任务作废
+                        ensureLyricPublished(trigger, round + 1);
+                    }, LYRIC_RECHECK_MS);
+                }
+                return;
             }
-        } catch (Throwable ignored) {
+            if (round == 0) noteLyricSelfHeal(trigger, round, verdict, observation);
+        } catch (Throwable error) {
             // 自愈失败不能影响播放状态发布。
+            io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("lyric-self-heal-error",
+                new com.getcapacitor.JSObject()
+                    .put("trigger", trigger)
+                    .put("error", error.getClass().getSimpleName())
+                    .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey)));
         }
+    }
+
+    /**
+     * 让诊断能区分四层失败：取词（pending）、交付（桥上没内容）、会话发布（metadata 里没有/
+     * 错曲/占位桩）、系统消费端（会话内容正确但仍不显示 —— 那一层在进程外，只能写明边界）。
+     */
+    private void noteLyricSelfHeal(String trigger, int round,
+                                   io.github.huleixin.tingyu.playback.LyricPublishGuard.Verdict verdict,
+                                   io.github.huleixin.tingyu.playback.LyricPublishGuard.Observation observation) {
+        io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("lyric-self-heal",
+            new com.getcapacitor.JSObject()
+                .put("trigger", trigger)
+                .put("round", round)
+                .put("action", verdict.action.name().toLowerCase(java.util.Locale.US))
+                .put("reason", verdict.reason)
+                .put("layer", verdict.layer.name().toLowerCase(java.util.Locale.US))
+                .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(observation.songKey))
+                .put("bridgeState", observation.bridgeState)
+                .put("bridgeRevision", observation.bridgeRevision)
+                .put("publishedRevision", lyricGuard.publishedRevision())
+                .put("sessionSong", observation.sessionSongKey == null
+                    ? "unreadable" : io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(observation.sessionSongKey))
+                .put("sessionLen", observation.sessionPayloadLen)
+                .put("sessionStub", observation.sessionPayloadIsStub)
+                .put("generation", observation.generation)
+                .put("attempts", lyricGuard.attempts()));
+    }
+
+    /** 一次读回：会话 MEDIA_ID + lyricInfo 长度 + 是否占位桩。三个答案必须一起取。 */
+    private static final class SessionLyric {
+        String songKey;
+        int length = -1;
+        boolean stub;
+    }
+
+    private SessionLyric readSessionLyric() {
+        SessionLyric result = new SessionLyric();
+        MediaMetadata published;
+        try {
+            published = readSessionMetadata();
+        } catch (Throwable error) {
+            published = null;
+        }
+        if (published == null) {
+            result.songKey = null;
+            result.length = io.github.huleixin.tingyu.playback.LyricPublishGuard.SESSION_UNREADABLE;
+            return result;
+        }
+        result.songKey = published.getString(MediaMetadata.METADATA_KEY_MEDIA_ID);
+        String info = published.getString(ColorOsLyricBridge.METADATA_KEY_LYRIC_INFO);
+        result.length = info == null ? io.github.huleixin.tingyu.playback.LyricPublishGuard.SESSION_ABSENT : info.length();
+        result.stub = info != null && info.contains("\"noLyric\":true");
+        return result;
     }
 
     /**

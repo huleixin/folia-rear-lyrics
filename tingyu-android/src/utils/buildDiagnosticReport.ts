@@ -344,7 +344,7 @@ const readRearScreenLines = async (): Promise<string[]> => {
     const capacitor = (window as unknown as {
         Capacitor?: {
             isNativePlatform?: () => boolean;
-            Plugins?: { FoliaNative?: { getRearLyricsStatus?: () => Promise<{ diagnostics?: string; message?: string; enabled?: boolean; cameraSuspended?: boolean }> } };
+            Plugins?: { FoliaNative?: { getRearLyricsStatus?: () => Promise<{ diagnostics?: string; message?: string; enabled?: boolean; cameraSuspended?: boolean; faultLog?: string; faultCount?: number; lastWake?: string }> } };
         };
     }).Capacitor;
     if (!capacitor?.isNativePlatform?.()) return ['  (not an android runtime)'];
@@ -353,8 +353,22 @@ const readRearScreenLines = async (): Promise<string[]> => {
     try {
         const status = await plugin.getRearLyricsStatus();
         const body = String(status?.diagnostics ?? '').trim();
-        if (!body) return [`  (no rear diagnostics) enabled=${status?.enabled ?? 'unknown'} cameraSuspended=${status?.cameraSuspended ?? 'unknown'}`];
-        return body.split('\n').map(line => `  ${line}`);
+        const lines = body
+            ? body.split('\n').map(line => `  ${line}`)
+            : [`  (no rear diagnostics) enabled=${status?.enabled ?? 'unknown'} cameraSuspended=${status?.cameraSuspended ?? 'unknown'}`];
+        // 「背屏故障诊断」：锁屏前后 0/5/60 秒的状态快照。判读一次「背屏不亮」需要同时看到
+        // 面板真实状态（off / doze / on）、窗口三重身份（存在 / 附着 / 可见）与租约失效原因，
+        // 这三类信息只在快照里共存。
+        const faultCount = Number(status?.faultCount ?? 0);
+        const faultLog = String(status?.faultLog ?? '').trim();
+        lines.push(`  fault samples: ${faultCount}`);
+        if (status?.lastWake) lines.push(`  last wake: ${String(status.lastWake)}`);
+        if (!faultLog) {
+            lines.push('  fault log: (empty — 锁屏一次或点「背屏故障诊断」后再导出)');
+        } else {
+            faultLog.split('\n').slice(-24).forEach(line => lines.push(`  ${line}`));
+        }
+        return lines;
     } catch (error) {
         return [`  (read failed: ${error instanceof Error ? error.message : String(error)})`];
     }

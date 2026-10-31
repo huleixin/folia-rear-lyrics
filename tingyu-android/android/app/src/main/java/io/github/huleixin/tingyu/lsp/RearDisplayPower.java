@@ -30,6 +30,14 @@ final class RearDisplayPower {
         }
         @Override public int leasedDisplayId() { return lease.displayId(); }
     };
+    /**
+     * 1.3.61 真机证明的真正接管入口：背屏中心把自己的**已存在任务**提到前台
+     * （{@code moveTaskToFront}）或系统在该显示上恢复桌面（{@code resumeHomeActivity}）。
+     * 旧的两处钩子（{@code executeRequest}、{@code moveRootTaskToDisplay}）在这台固件上
+     * 一次都没被调用，所以接管从未被拦到。
+     */
+    private final RearFrontGuard fronts = new RearFrontGuard(leaseView, windows);
+
     private final Map<Integer, Request> requests = new HashMap<>();
     private final ThreadLocal<Boolean> replaying = new ThreadLocal<>();
     private Handler timer;
@@ -37,6 +45,15 @@ final class RearDisplayPower {
     private Class<?> requestType;
     private int brightPolicy;
     private volatile boolean installed, loggedFailure;
+    /**
+     * 租约背屏上「系统自己要什么电源状态」的最近一次记录。
+     *
+     * <p>用来区分两种完全不同的故障：系统真的把面板关掉（policy=OFF），还是面板一直被
+     * 系统留在 ON、只是内容被背屏桌面盖住。1.3.61 的日志里只有 app 侧的
+     * {@code rearPower=2}，无法回答「同一时刻系统请求的是什么」。
+     */
+    private volatile String lastPolicy = "not consulted";
+    private volatile long policyOverrides;
     private final Runnable expiry = this::expire;
     private final Runnable releaseCpuWhenIdle = () -> {
         synchronized (RearDisplayPower.this) {
@@ -49,20 +66,33 @@ final class RearDisplayPower {
      * client once the main display locks, so its own renew IPC stops arriving; without this
      * the lease lapsed exactly one minute into a locked screen and the panel went to sleep.
      * Bounded by RearDisplayLease.MAX_WINDOW_RENEWALS.
+     *
+     * <p>v1.3.59 里这一循环事实上从不续租：{@code hasOwnWindow()} 只扫窗口树第一层，
+     * 永远返回 false。现在改为三值探测 + 纯判定（{@link RearWindowRenewPolicy}）：
+     * true/本应用在最前 → 续租；false → 停止；unknown → 只观测、不续租。循环本身不新增
+     * 唤醒源，只在租约仍然绑定（含过期后的宽限观测）时按 15 秒间隔重排。
      */
     private void runWindowRenew() {
         long now = SystemClock.elapsedRealtime();
+        // 第一行就计数：1.3.61 的日志里 windowRenewals/probePresent/probeUnknown 全是 0、
+        // lastRenew=not consulted，却无法区分「循环没跑」与「跑了但没解析出显示」。
+        windows.noteRenewTick(lease.displayId(), now);
         int id = lease.displayId();
-        if (id <= 0) return;
+        if (id <= 0) { windows.noteRenewDecision("stop:no-lease"); return; }
         try {
-            // A camera on the rear display owns the panel: stop extending our bright lease so the
-            // OEM camera's own power requests are not overridden while it is starting.
-            if (Boolean.TRUE.equals(windows.hasOwnWindow(id)) && !windows.cameraOnTopRecently(id, now))
-                lease.renewForWindow(id, now);
-        }
-        catch (Throwable error) { logOnce(error); }
+            RearWindowRenewPolicy.Verdict verdict = RearWindowRenewPolicy.decide(
+                windows.evidence(id, now), lease.holds(id, now),
+                lease.windowRenewals(), RearDisplayLease.MAX_WINDOW_RENEWALS);
+            if (verdict.decision == RearWindowRenewPolicy.Decision.RENEW
+                    && lease.renewForWindow(id, now)) {
+                windows.noteWindowRenewed();
+            }
+            windows.noteRenewDecision(verdict.toString());
+        } catch (Throwable error) { logOnce(error); }
         Handler handler = timer;
-        if (handler != null && lease.remaining(now) > 0) handler.postDelayed(windowRenew, RearDisplayLease.WINDOW_RENEW_MS / 2);
+        // 只在「这一跳之后租约仍然有效」时重排：到期即停，绝不自己续命。
+        if (handler != null && lease.remaining(now) > 0)
+            handler.postDelayed(windowRenew, RearDisplayLease.WINDOW_RENEW_MS / 2);
     }
 
     void install(ClassLoader loader) {
@@ -72,6 +102,7 @@ final class RearDisplayPower {
         // home-to-front pulling SubScreenLauncher onto the rear display. Intercept both the
         // start and the move paths while our lyric lease is held; the dream path is a fallback.
         homes.install(loader, leaseView);
+        fronts.install(loader);
         // The DreamService route stays guarded as a lower-confidence second layer, now with
         // explicit match counting so a silent zero-match install can never masquerade as success.
         dreams.install(loader, leaseView);
@@ -89,8 +120,16 @@ final class RearDisplayPower {
                                 (Handler) XposedHelpers.getObjectField(hook.thisObject, "mHandler"));
                             synchronized (requests) { requests.put(display, record); }
                         }
-                        if (lease.holds(display, SystemClock.elapsedRealtime())
-                                && !windows.cameraOnTopRecently(display, SystemClock.elapsedRealtime())) {
+                        int requested = XposedHelpers.getIntField(hook.args[0], "policy");
+                        boolean override = lease.holds(display, SystemClock.elapsedRealtime())
+                            && !windows.cameraOnTopRecently(display, SystemClock.elapsedRealtime());
+                        if (display == lease.displayId()) {
+                            // replay 是我们自己把原始请求写回去，不该计入「覆盖次数」。
+                            if (override && !Boolean.TRUE.equals(replaying.get())) policyOverrides++;
+                            lastPolicy = "policy=" + requested + (override ? "->bright" : " (passed through)")
+                                + ", leased=" + lease.displayId();
+                        }
+                        if (override) {
                             Object own = copy(hook.args[0]);
                             XposedHelpers.setIntField(own, "policy", brightPolicy);
                             hook.args[0] = own;
@@ -111,7 +150,8 @@ final class RearDisplayPower {
         }
     }
     String status() { return "rearPowerHook=" + installed + ", hookError=" + loggedFailure + ", " + windows.status()
-        + ", " + direct.status() + ", " + homes.status() + ", " + dreams.status() + ", " + lease.describe() + ", leaseRemainingMs=" + lease.remaining(SystemClock.elapsedRealtime()); }
+        + ", " + direct.status() + ", " + homes.status() + ", " + fronts.status() + ", " + dreams.status()
+        + ", " + lease.describe() + ", leaseRemainingMs=" + lease.remaining(SystemClock.elapsedRealtime()); }
     synchronized void acquire(int display, String session) {
         synchronized (requests) {
             if (!installed || loggedFailure || timer == null || cpuLease == null || !requests.containsKey(display))
@@ -138,9 +178,14 @@ final class RearDisplayPower {
         if (old > 0) { replay(old); windows.refresh(old); direct.replay(old); } releaseCpu();
     }
     private synchronized void expire() {
-        int old = lease.expire(SystemClock.elapsedRealtime());
-        if (old > 0) { if (timer != null) timer.removeCallbacks(windowRenew); replay(old); windows.refresh(old); direct.replay(old); releaseCpu(); }
-        long remaining = lease.remaining(SystemClock.elapsedRealtime());
+        long now = SystemClock.elapsedRealtime();
+        int old = lease.expire(now);
+        if (old > 0) {
+            if (timer != null) timer.removeCallbacks(windowRenew);
+            replay(old); windows.refresh(old); direct.replay(old); releaseCpu();
+            windows.noteRenewDecision("stop:expired");
+        }
+        long remaining = lease.remaining(now);
         if (remaining > 0 && timer != null) timer.postDelayed(expiry, remaining);
     }
     private void releaseCpu() {

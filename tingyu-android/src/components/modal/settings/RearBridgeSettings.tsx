@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { setRearControlEngine, setRearLyricsBackend, type RearControlEngine, type RearLyricsStatus } from '../../../services/rearLyricsControl';
+import { setRearControlEngine, setRearLockedRoute, setRearLyricsBackend, type RearControlEngine, type RearLockedRoute, type RearLyricsStatus } from '../../../services/rearLyricsControl';
 
 // src/components/modal/settings/RearBridgeSettings.tsx
 export default function RearBridgeSettings({ snapshot, refresh }: {
@@ -21,6 +21,15 @@ export default function RearBridgeSettings({ snapshot, refresh }: {
         if (busy) return;
         setBusy(true); setFailed(false);
         try { if (!await setRearControlEngine(engine)) setFailed(true); await refresh(); }
+        catch { setFailed(true); }
+        finally { setBusy(false); }
+    };
+    // A/B for the locked-screen path: flipping this is the only difference between
+    // "re-front the existing task" and "stage a transparent task on display 0, then move it".
+    const changeRoute = async (mode: RearLockedRoute) => {
+        if (busy) return;
+        setBusy(true); setFailed(false);
+        try { if (!await setRearLockedRoute(mode)) setFailed(true); await refresh(); }
         catch { setFailed(true); }
         finally { setBusy(false); }
     };
@@ -46,6 +55,18 @@ export default function RearBridgeSettings({ snapshot, refresh }: {
             </select>
         </label>
         <p className="text-xs opacity-70 leading-relaxed">{t('rearBridge.engineHint')}</p>
+        <label className="flex items-center justify-between gap-3 text-sm">
+            <span>{t('rearBridge.lockedRoute')}</span>
+            <select aria-label={t('rearBridge.lockedRoute')} className="rounded-lg bg-black/10 p-2"
+                value={snapshot?.lockedRoute ?? 'auto'}
+                disabled={!snapshot || busy || snapshot.backendMode === 'lsp'}
+                onChange={event => void changeRoute(event.target.value as RearLockedRoute)}>
+                <option value="auto">{t('rearBridge.routeAuto')}</option>
+                <option value="reuse">{t('rearBridge.routeReuse')}</option>
+                <option value="migrate">{t('rearBridge.routeMigrate')}</option>
+            </select>
+        </label>
+        <p className="text-xs opacity-70 leading-relaxed">{t('rearBridge.lockedRouteHint')}</p>
         {snapshot?.backendMode === 'lsp' && snapshot.lspConnected &&
             <p className="text-xs" role="status">{t('rearBridge.connected')}</p>}
         {snapshot?.backendMode === 'lsp' && !snapshot.lspConnected && snapshot.lspDetail && <p className="text-xs leading-relaxed" role="status">{snapshot.lspDetail}</p>}
