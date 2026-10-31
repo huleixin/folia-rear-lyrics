@@ -94,6 +94,8 @@ public class FoliaPlaybackService extends Service {
     private volatile boolean lastPlaying = false;
     /** Last (track, lyric state) pair written to metadata; only used to dedupe diagnostics. */
     private volatile String lastLyricState = "";
+    /** {@link #ensureLyricPublished()} 每首歌只自检一次的去重标记。 */
+    private String lyricSelfHealDoneFor = "";
     private volatile String lastLyricSessionState = "";
     /** Own-session controller, used only to read back what the session really exposes. */
     private volatile MediaController selfController;
@@ -243,6 +245,7 @@ public class FoliaPlaybackService extends Service {
         cachedPlaying = state.playing; cachedPositionMs = state.position;
         cachedPositionUpdatedAt = now; lastPlaying = cachedPlaying;
         mediaSession.setPlaybackState(buildPlaybackState(cachedPlaying, cachedPositionMs, cachedSongKey));
+        ensureLyricPublished();
             if (changed) {
                 io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("native-session-state",
                     new com.getcapacitor.JSObject().put("playing", cachedPlaying).put("positionMs", cachedPositionMs));
@@ -286,27 +289,49 @@ public class FoliaPlaybackService extends Service {
         service.mainHandler.post(() -> {
             try {
                 if (activeService != service || !running) return;
-                boolean matched = songKey.equals(service.cachedSongKey);
-                io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("lyrics-apply",
-                    new com.getcapacitor.JSObject()
-                        .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey))
-                        .put("matched", matched)
-                        .put("state", ColorOsLyricBridge.stateOf(songKey))
-                        .put("wrote", json == null ? "none" : "timeline"));
-                if (!matched) return;
-                service.publishMetadata(service.appliedArtworkBitmap);
-                NotificationManager manager = service.getSystemService(NotificationManager.class);
-                if (manager != null) {
-                    manager.notify(NOTIFICATION_ID,
-                        service.buildNotification(service.cachedTitle, service.cachedArtist,
-                            service.cachedPlaying, service.appliedArtworkBitmap));
-                }
+                applyNativeLyric(songKey, json, 3);
             } catch (Throwable error) {
                 // 后台歌词只是附加信息：重建 metadata 失败不能把正在放歌的进程带走。
                 io.github.huleixin.tingyu.CrashDiagnostics.record(service, "lyrics-apply", "main", error);
             }
         });
         return true;
+    }
+
+    /**
+     * @param retries 服务身份尚未跟上的补救机会。换歌瞬间歌词结果与 {@code onStartCommand}
+     *                都排在主线程队列上，歌词可能先到 —— 直接丢弃会让这首歌在灵动岛上
+     *                整首留白（真机 2026-10-31：第一首正常、第二/三首无词的主因）。
+     *                与封面路径同款处理：若引擎当前曲就是它，短暂延后重认，仍要求到点时
+     *                服务的当前曲确实是它。
+     */
+    private static void applyNativeLyric(String songKey, String json, int retries) {
+        FoliaPlaybackService service = activeService;
+        if (service == null || !running) return;
+        boolean matched = songKey.equals(service.cachedSongKey);
+        io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("lyrics-apply",
+            new com.getcapacitor.JSObject()
+                .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(songKey))
+                .put("matched", matched)
+                .put("retries", retries)
+                .put("state", ColorOsLyricBridge.stateOf(songKey))
+                .put("wrote", json == null ? "none" : "timeline"));
+        if (!matched) {
+            boolean engineIsSong = songKey.equals(
+                io.github.huleixin.tingyu.playback.NativeAudioEngine.currentKey());
+            if (retries > 0 && engineIsSong) {
+                service.mainHandler.postDelayed(
+                    () -> applyNativeLyric(songKey, json, retries - 1), 700L);
+            }
+            return;
+        }
+        service.publishMetadata(service.appliedArtworkBitmap);
+        NotificationManager manager = service.getSystemService(NotificationManager.class);
+        if (manager != null) {
+            manager.notify(NOTIFICATION_ID,
+                service.buildNotification(service.cachedTitle, service.cachedArtist,
+                    service.cachedPlaying, service.appliedArtworkBitmap));
+        }
     }
 
     /**
@@ -1027,6 +1052,26 @@ public class FoliaPlaybackService extends Service {
             return info == null ? -1 : info.length();
         } catch (Throwable error) {
             return -2;
+        }
+    }
+
+    /** 每首歌只跑一次的会话侧自检：Bridge 已 ready 而会话却没带上 lyricInfo 时补发一次。 */
+    private void ensureLyricPublished() {
+        if (mediaSession == null || cachedSongKey == null || cachedSongKey.isEmpty()) return;
+        if (cachedSongKey.equals(lyricSelfHealDoneFor)) return;
+        lyricSelfHealDoneFor = cachedSongKey;
+        try {
+            boolean bridgeReady = "ready".equals(ColorOsLyricBridge.stateOf(cachedSongKey));
+            int sessionLen = readSessionLyricLen();
+            if (bridgeReady && sessionLen < 0) {
+                io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("lyric-self-heal",
+                    new com.getcapacitor.JSObject()
+                        .put("song", io.github.huleixin.tingyu.playback.PlaybackDiagnostics.anonKey(cachedSongKey))
+                        .put("sessionLyricLen", sessionLen));
+                publishMetadata(appliedArtworkBitmap);
+            }
+        } catch (Throwable ignored) {
+            // 自愈失败不能影响播放状态发布。
         }
     }
 

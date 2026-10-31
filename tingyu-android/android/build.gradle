@@ -27,6 +27,25 @@ allprojects {
     }
 }
 
+// androidTest 变体：espresso/androidx.test 传递拉入 kotlin-stdlib-jdk8:1.6.21，
+// 与 kotlin-stdlib:1.8.22（1.8 起已内并 jdk7/jdk8 内容）撞类，duplicate classes
+// 硬失败。对全部模块统一对齐到 1.8.22 的空壳 jdk7/jdk8 模块（cap sync 会重写
+// capacitor-cordova-android-plugins/build.gradle，所以必须放在根文件里）。
+subprojects {
+    pluginManager.withPlugin('com.android.library') {
+        dependencies {
+            androidTestImplementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22'
+            androidTestImplementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22'
+        }
+    }
+    pluginManager.withPlugin('com.android.application') {
+        dependencies {
+            androidTestImplementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22'
+            androidTestImplementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22'
+        }
+    }
+}
+
 task clean(type: Delete) {
     delete rootProject.buildDir
 }

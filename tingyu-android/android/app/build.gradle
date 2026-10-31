@@ -108,6 +108,10 @@ dependencies {
     testImplementation 'org.json:json:20250517'
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    // androidx.test 传递依赖把 kotlin-stdlib-jdk7/jdk8 1.6.21 拉进 androidTest 变体，
+    // 与主工程的 kotlin-stdlib 1.8.22（已内并 jdk7/jdk8 内容）撞类。显式对齐到空壳版本。
+    androidTestImplementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22"
+    androidTestImplementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22"
     implementation project(':capacitor-cordova-android-plugins')
 }
 
