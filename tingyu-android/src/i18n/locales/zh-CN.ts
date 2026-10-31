@@ -2249,6 +2249,9 @@ export default {
     "disableHomeDynamicBackgroundDesc": "关闭后主页不再继续播放背景动画，可降低 GPU 占用。",
     "disableHomeDynamicBackgroundWarning": "默认情况下允许动态背景。",
     "autoUseBestLyric": "自动使用最佳歌词",
+
+    "lyricVariantSimplified": "统一简体歌词",
+    "lyricVariantSimplifiedDesc": "歌词舞台、背屏与灵动岛共用同一条简繁规则，繁体歌词统一转为简体。手动选定的歌词版本始终优先。",
     "autoUseBestLyricDesc": "自动检索网易云、AMLLDB、QQ 和酷狗歌词，若存在完美匹配的逐字歌词则自动优先采用。",
     "lyricMatchPriority": "歌词匹配优先级",
     "lyricMatchPriorityDesc": "在多个歌词源都存在匹配度满足要求的歌词时，优先选择该歌词源的结果。",

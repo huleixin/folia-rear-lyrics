@@ -13,6 +13,7 @@ import { type LocalLyricsPriority, type LyricProviderSource } from '../types';
 import { getLyricProviderPreferenceLabel } from '../utils/lyrics/lyricSourceLabels';
 import { normalizeLocalLyricFormatOrder, type LocalLyricFileFormat } from '../utils/lyrics/localLyricFormatOrder';
 import { migratePreferredLyricSource } from '../utils/lyrics/sourcePriority';
+import { normalizeLyricVariantRule, readStoredLyricVariant, type LyricVariantRule, LYRIC_VARIANT_STORAGE_KEY } from '../utils/lyrics/variant';
 import { DEFAULT_LYRIC_STAFF_ABSORB_MODE, DEFAULT_LYRIC_STAFF_MIN_DWELL_SECONDS, DEFAULT_LYRIC_STAFF_POLICY, LYRIC_STAFF_MIN_DWELL_RANGE, type LyricStaffAbsorbMode, type LyricStaffPolicy } from '../utils/lyrics/staffCreditsPolicy';
 import { getStoredBoolean, getStoredString, setStoredBoolean } from './storagePrimitives';
 import { setStatusMessage } from './useStatusMessageStore';
@@ -133,6 +134,8 @@ export type LyricSettingsState = {
     lyricStaffMinDwellSeconds: number;
     lyricStaffAbsorbMode: LyricStaffAbsorbMode;
     lyricStaffPattern: string;
+    // 统一简繁规则：三端（舞台/背屏/灵动岛）共用。t2s 把繁体歌词统一转成简体。
+    lyricVariant: LyricVariantRule;
     handleToggleAutoUseBestLyric: (enable: boolean) => void;
     handleSetPreferredAlternativeLyricSource: (source: LyricProviderSource) => void;
     handleSetLocalLyricsPriority: (priority: LocalLyricsPriority) => void;
@@ -144,6 +147,7 @@ export type LyricSettingsState = {
     handleSetLyricStaffMinDwellSeconds: (seconds: number) => void;
     handleSetLyricStaffAbsorbMode: (mode: LyricStaffAbsorbMode) => void;
     handleSetLyricStaffPattern: (pattern: string) => void;
+    handleSetLyricVariant: (rule: LyricVariantRule) => void;
 };
 
 const initialLyricFilterPattern = readStoredLyricFilterPattern();
@@ -160,6 +164,7 @@ export const useLyricSettingsStore = create<LyricSettingsState>((set, get) => ({
     lyricStaffMinDwellSeconds: readStoredLyricStaffMinDwellSeconds(),
     lyricStaffAbsorbMode: readStoredLyricStaffAbsorbMode(),
     lyricStaffPattern: getStoredString('lyrics_staff_pattern', ''),
+    lyricVariant: normalizeLyricVariantRule(readStoredLyricVariant()),
     handleToggleAutoUseBestLyric: (enable) => {
         setStoredBoolean('auto_use_best_lyric', enable);
         set({ autoUseBestLyric: enable });
@@ -246,6 +251,13 @@ export const useLyricSettingsStore = create<LyricSettingsState>((set, get) => ({
         }
 
         localStorage.setItem('lyrics_staff_absorb_mode', mode);
+    },
+    handleSetLyricVariant: (rule) => {
+        const next = normalizeLyricVariantRule(rule);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem(LYRIC_VARIANT_STORAGE_KEY, next);
+        }
+        set({ lyricVariant: next });
     },
     handleSetLyricStaffPattern: (pattern) => {
         const next = pattern.trim();

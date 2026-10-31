@@ -33,17 +33,35 @@ public class FoliaColorOsLyricsPlugin extends Plugin {
      *
      * `lyricInfo` 是 Web 侧按 Bridge 协议拼好的 JSON 字符串（含逐行 / 逐字 / 翻译三条 lane），
      * 原生不解析它的内容，只在 metadata 上转发 —— 契约归播放器所有。
+     *
+     * 同时落**统一歌词仓库**（stage 层级）：这是「歌词舞台最终确认的版本 = 全局优先版本」
+     * 的落点。后台播到同一首时，原生从仓库读这一份，打开主界面重推同一份内容时
+     * `setPending` 按内容去重 —— 三端不再换版本。
      */
     @PluginMethod
     public void publish(PluginCall call) {
         String lyricInfo = call.getString("lyricInfo");
         if (lyricInfo != null && lyricInfo.length() > 200000) { call.reject("LyricInfo payload too large"); return; }
         Boolean hasTranslation = call.getBoolean("hasTranslation");
+        Boolean hasWordByWord = call.getBoolean("hasWordByWord");
+        Boolean userChoice = call.getBoolean("userChoice");
+        String sourceId = call.getString("source");
         String songKey = call.getString("songKey");
         boolean changed = ColorOsLyricBridge.setPending(
                 lyricInfo,
                 hasTranslation != null && hasTranslation,
                 songKey);
+        // 统一仓库写 stage 层级记录。异步落盘，不阻塞发布。
+        // 只在真的带着时间轴来时落库：空 payload 不构成「确认无词」，走 clear 语义。
+        if (songKey != null && !songKey.isEmpty() && lyricInfo != null && !lyricInfo.isEmpty()) {
+            io.github.huleixin.tingyu.playback.UnifiedLyricsStore store =
+                    io.github.huleixin.tingyu.playback.UnifiedLyricsStore.get(getContext());
+            store.put(songKey, "ok", lyricInfo, hasTranslation != null && hasTranslation,
+                    hasWordByWord != null && hasWordByWord,
+                    sourceId == null || sourceId.isEmpty() ? "stage" : sourceId,
+                    "stage", userChoice != null && userChoice,
+                    io.github.huleixin.tingyu.playback.LyricVariantConverter.currentRule(getContext()).id);
+        }
         if (changed) ColorOsLyricBridge.requestRefresh(getContext());
         JSObject result = new JSObject();
         result.put("ok", lyricInfo != null && !lyricInfo.isEmpty());
@@ -63,8 +81,45 @@ public class FoliaColorOsLyricsPlugin extends Plugin {
         boolean changed = songKey == null || songKey.isEmpty()
                 ? ColorOsLyricBridge.clear()
                 : ColorOsLyricBridge.clearSong(songKey);
+        // 前台加载完成确认「这首没词」时落一条 stage 层级 none 记录：
+        // 后台取词链据此不再重复联网；层级裁决保证它顶不掉已有的有效歌词（用户选定版）。
+        if (songKey != null && !songKey.isEmpty()) {
+            io.github.huleixin.tingyu.playback.UnifiedLyricsStore.get(getContext())
+                    .put(songKey, "none", null, false, false, "stage", "stage", false,
+                            io.github.huleixin.tingyu.playback.LyricVariantConverter.currentRule(getContext()).id);
+        }
         if (changed) ColorOsLyricBridge.requestRefresh(getContext());
         call.resolve();
+    }
+
+    /**
+     * 用户在软件内手动选定歌词（歌词匹配 / 手动导入）后调用：
+     * 把这首歌的统一仓库记录升级为 userChoice 层级 —— 任何自动链路从此不得覆盖。
+     */
+    @PluginMethod
+    public void markUserChoice(PluginCall call) {
+        String songKey = call.getString("songKey");
+        boolean changed = io.github.huleixin.tingyu.playback.UnifiedLyricsStore.get(getContext())
+                .markUserChoice(songKey == null ? "" : songKey,
+                        io.github.huleixin.tingyu.playback.LyricVariantConverter.currentRule(getContext()).id);
+        JSObject result = new JSObject();
+        result.put("ok", changed);
+        call.resolve(result);
+    }
+
+    /**
+     * Web 侧同步统一简繁规则（off / t2s）。规则变了由 Web 触发歌词重载，
+     * 三端随之重新收敛到同一份转换后的文本。
+     */
+    @PluginMethod
+    public void setVariantRule(PluginCall call) {
+        String rule = call.getString("rule");
+        boolean changed = io.github.huleixin.tingyu.playback.LyricVariantConverter
+                .setRule(getContext(), rule);
+        JSObject result = new JSObject();
+        result.put("ok", true);
+        result.put("changed", changed);
+        call.resolve(result);
     }
 
     /** 当前歌词通道状态（诊断面板用；只有哈希后的身份，不含歌词正文）。 */

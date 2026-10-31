@@ -20,9 +20,19 @@ interface FoliaColorOsLyricsPlugin {
         hasTranslation: boolean;
         /** 与通知栏同一个歌曲身份；对不上时原生会拒绝这段歌词。 */
         songKey?: string | null;
+        /** 这份歌词是否带逐字时间轴（统一仓库记录用）。 */
+        hasWordByWord?: boolean;
+        /** 是否用户手动选定（歌词匹配/导入）——统一仓库最高层级。 */
+        userChoice?: boolean;
+        /** 来源标识（统一仓库记录用），如 stage / stage-override。 */
+        source?: string;
     }): Promise<{ ok: boolean }>;
     clear(options?: { songKey?: string | null }): Promise<void>;
     status(options?: { songKey?: string | null }): Promise<{ state: string; detail: string }>;
+    /** 用户手动选定歌词后调用：统一仓库记录升级为 userChoice 层级。 */
+    markUserChoice(options: { songKey: string }): Promise<{ ok: boolean }>;
+    /** 同步统一简繁规则（off / t2s）给原生，后台取词应用同一条规则。 */
+    setVariantRule(options: { rule: string }): Promise<{ ok: boolean; changed: boolean }>;
 }
 
 const FoliaColorOsLyrics = registerPlugin<FoliaColorOsLyricsPlugin>('FoliaColorOsLyrics');
@@ -53,16 +63,47 @@ export const getColorOsLyricsSupport = async (): Promise<ColorOsLyricsSupport> =
     return cachedSupport;
 };
 
+export interface ColorOsLyricPublishOptions {
+    hasWordByWord?: boolean;
+    userChoice?: boolean;
+    source?: string;
+}
+
 export const publishColorOsLyricInfo = async (
     lyricInfo: string,
     hasTranslation: boolean,
     songKey: string | null,
+    options?: ColorOsLyricPublishOptions,
 ): Promise<boolean> => {
     try {
-        const result = await FoliaColorOsLyrics.publish({ lyricInfo, hasTranslation, songKey });
+        const result = await FoliaColorOsLyrics.publish({
+            lyricInfo,
+            hasTranslation,
+            songKey,
+            ...(options ?? {}),
+        });
         return Boolean(result?.ok);
     } catch {
         return false;
+    }
+};
+
+/** 用户手动选定歌词（匹配/导入）后调用，原生统一仓库升级为 userChoice 层级。 */
+export const markLyricUserChoice = async (songKey: string): Promise<boolean> => {
+    try {
+        const result = await FoliaColorOsLyrics.markUserChoice({ songKey });
+        return Boolean(result?.ok);
+    } catch {
+        return false;
+    }
+};
+
+/** 把统一简繁规则同步给原生；原生据此转换后台独立取词的歌词。 */
+export const setLyricVariantRule = async (rule: 'off' | 't2s'): Promise<void> => {
+    try {
+        await FoliaColorOsLyrics.setVariantRule({ rule });
+    } catch {
+        // 规则同步失败不影响前台显示；后台短暂沿用旧规则，下次同步纠正。
     }
 };
 

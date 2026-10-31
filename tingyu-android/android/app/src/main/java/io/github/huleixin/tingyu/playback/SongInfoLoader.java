@@ -63,6 +63,8 @@ public final class SongInfoLoader {
     private final Context context;
     private final NativeLyricsRepository lyrics;
     private final NativeArtworkRepository artwork;
+    /** 三端共用的统一歌词仓库：舞台确认版优先，原生取词只补空位。 */
+    private final UnifiedLyricsStore unified;
     private final ExecutorService lyricsExecutor;
     private final ExecutorService artworkExecutor;
     /** 这一轮真正需要的 songKey（当前曲 + 后面两首），任务执行前会再核一次。 */
@@ -83,6 +85,7 @@ public final class SongInfoLoader {
         this.context = context.getApplicationContext();
         this.lyrics = NativeLyricsRepository.get(this.context);
         this.artwork = NativeArtworkRepository.get(this.context);
+        this.unified = UnifiedLyricsStore.get(this.context);
         this.lyricsExecutor = Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, "tingyu-lyrics");
             thread.setDaemon(true);
@@ -265,6 +268,15 @@ public final class SongInfoLoader {
                     .put("reason", "dropped"));
             return;
         }
+        // 统一歌词仓库优先：前台歌词舞台确认过的版本就是全局优先版本。
+        // 后台播到这首歌时直接用同一份，绝不因为「前台没开」就换一个来源 ——
+        // 这正是「打开主界面歌词就换版本」的根治点：两边读的是同一条记录。
+        UnifiedLyricsStore.Record confirmed = unified.get(info.songKey);
+        if (confirmed != null && confirmed.hasTimeline()) {
+            lyricRetries.cancel(info.songKey);
+            publishUnified(info, confirmed);
+            return;
+        }
         long startedAt = SystemClock.elapsedRealtime();
         PlaybackDiagnostics.note("lyrics-request", describe("native", info, isCurrent(info.songKey))
                 .put("title", info.title.isEmpty() ? "missing" : "present")
@@ -313,14 +325,20 @@ public final class SongInfoLoader {
                         .put("reason", "already-ready"));
                 return;
             }
+            // 统一简繁规则：原生取到的词在入库与发布前先过同一条规则（舞台那份由 Web 转换）。
+            String payload = LyricVariantConverter.convertLyricInfoJson(context, result.json);
+            // 落统一仓库：层级 native。舞台随后确认同一首时会以 stage 层级覆盖它。
+            unified.put(info.songKey, "ok", payload, result.hasTranslation, false,
+                    "native-" + result.source, "native", false,
+                    LyricVariantConverter.currentRule(context).id);
             boolean changed;
             try {
-                changed = ColorOsLyricBridge.setPending(result.json, result.hasTranslation, info.songKey);
+                changed = ColorOsLyricBridge.setPending(payload, result.hasTranslation, info.songKey);
             } catch (IllegalArgumentException tooLarge) {
                 // 桥上有 200k 的硬上限（超出会抛）。原生这份是我们自己拼的，正常远低于它；
                 // 真遇上就明确记一笔并放弃这一首，绝不把异常抛到线程外。
                 PlaybackDiagnostics.note("lyrics-failure", describe("native", info, isCurrent(info.songKey))
-                        .put("reason", "payload-too-large").put("chars", result.json.length()));
+                        .put("reason", "payload-too-large").put("chars", payload.length()));
                 return;
             }
             // 「存进按 key 索引的缓存」与「重建 metadata」是两件事：前者哪怕过期也该做（那首歌
@@ -328,11 +346,13 @@ public final class SongInfoLoader {
             SongInfoPublishPolicy.Decision decision = SongInfoPublishPolicy.forLyrics(
                     result.status.name(), true, isCurrent(info.songKey), info.generation == generation.get());
             PlaybackDiagnostics.note("lyrics-built", describe("native", info, isCurrent(info.songKey))
-                    .put("chars", result.json.length())
+                    .put("chars", payload.length())
                     .put("translation", result.hasTranslation)
+                    .put("sourceId", "native-" + result.source)
+                    .put("variantRule", LyricVariantConverter.currentRule(context).id)
                     .put("changed", changed)
                     .put("reason", decision.reason));
-            publishLyrics(info, result.json, decision.refreshSession);
+            publishLyrics(info, payload, decision.refreshSession);
             return;
         }
 
@@ -435,10 +455,44 @@ public final class SongInfoLoader {
         // （下一首的词就该提前待在表里），真正需要「只能是当前曲」的是 metadata 重建。
         boolean applied = refreshSession
                 && io.github.huleixin.tingyu.FoliaPlaybackService.applyNativeLyric(info.songKey, json);
+        UnifiedLyricsStore.Record record = unified.get(info.songKey);
         PlaybackDiagnostics.note("lyrics-published", describe("native", info, isCurrent(info.songKey))
                 .put("wrote", json == null ? "none" : "timeline")
                 .put("matched", isCurrent(info.songKey))
-                .put("applied", applied));
+                .put("applied", applied)
+                .put("sourceId", record == null ? "" : record.sourceId)
+                .put("lyricsHash", record == null ? "" : record.lyricsHash)
+                .put("revision", record == null ? -1 : record.revision));
+    }
+
+    /**
+     * 用统一仓库里已确认的版本发布（原生后台取词链的第一优先来源）。
+     *
+     * <p>这条记录要么是前台歌词舞台确认过的版本（stage 层级），要么是之前原生取到后
+     * 落库的版本（native 层级）。无论哪种，三端看到的都是同一条记录 ——
+     * 打开主界面时舞台发布同一份内容，{@code setPending} 按内容去重，歌词纹丝不动。
+     */
+    private void publishUnified(SongInfo info, UnifiedLyricsStore.Record record) {
+        boolean bridgeChanged;
+        try {
+            bridgeChanged = ColorOsLyricBridge.setPending(record.json, record.hasTranslation, info.songKey);
+        } catch (IllegalArgumentException tooLarge) {
+            PlaybackDiagnostics.note("lyrics-failure", describe("unified", info, isCurrent(info.songKey))
+                    .put("reason", "payload-too-large").put("chars", record.json.length()));
+            return;
+        }
+        SongInfoPublishPolicy.Decision decision = SongInfoPublishPolicy.forLyrics(
+                "CACHE_HIT", true, isCurrent(info.songKey), info.generation == generation.get());
+        PlaybackDiagnostics.note("lyrics-built", describe("unified", info, isCurrent(info.songKey))
+                .put("chars", record.json.length())
+                .put("translation", record.hasTranslation)
+                .put("sourceId", record.sourceId)
+                .put("lyricsHash", record.lyricsHash)
+                .put("revision", record.revision)
+                .put("variantRule", record.variantRule)
+                .put("changed", bridgeChanged)
+                .put("reason", decision.reason));
+        publishLyrics(info, record.json, decision.refreshSession);
     }
 
     private void publishArtwork(SongInfo info, Bitmap bitmap) {

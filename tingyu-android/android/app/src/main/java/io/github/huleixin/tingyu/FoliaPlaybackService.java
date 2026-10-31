@@ -1029,6 +1029,11 @@ public class FoliaPlaybackService extends Service {
                     .put("lyricState", ColorOsLyricBridge.stateOf(cachedSongKey))
                     .put("lyricCached", ColorOsLyricBridge.cachedCount())
                     .put("lyricPublishAgeMs", ColorOsLyricBridge.lastPublishAgeMs())
+                    // 三端版本一致性证据：当前曲在统一仓库里的来源/哈希/版本号。
+                    // 「舞台版与灵动岛版是否同源」直接对比这三项即可，不含歌词正文。
+                    .put("unifiedSource", unifiedSourceOf(cachedSongKey))
+                    .put("unifiedHash", unifiedHashOf(cachedSongKey))
+                    .put("unifiedRevision", unifiedRevisionOf(cachedSongKey))
                     // 第四层证据之外的会话侧读数：直接从已发布的 MediaMetadata 读回 lyricInfo。
                     // 「Bridge ready 但灵动岛不显示」时，这一位区分是会话侧丢了（len=-1）
                     // 还是会话侧完好、问题在系统消费端。
@@ -1039,6 +1044,33 @@ public class FoliaPlaybackService extends Service {
                     .put("takeover", takeover));
         } catch (Throwable ignored) {
             // 诊断永远不能影响播放。
+        }
+    }
+
+    private String unifiedSourceOf(String songKey) {
+        try {
+            io.github.huleixin.tingyu.playback.UnifiedLyricsStore.Record record = io.github.huleixin.tingyu.playback.UnifiedLyricsStore.get(this).get(songKey);
+            return record == null ? "" : record.sourceId;
+        } catch (Throwable error) {
+            return "";
+        }
+    }
+
+    private String unifiedHashOf(String songKey) {
+        try {
+            io.github.huleixin.tingyu.playback.UnifiedLyricsStore.Record record = io.github.huleixin.tingyu.playback.UnifiedLyricsStore.get(this).get(songKey);
+            return record == null ? "" : record.lyricsHash;
+        } catch (Throwable error) {
+            return "";
+        }
+    }
+
+    private int unifiedRevisionOf(String songKey) {
+        try {
+            io.github.huleixin.tingyu.playback.UnifiedLyricsStore.Record record = io.github.huleixin.tingyu.playback.UnifiedLyricsStore.get(this).get(songKey);
+            return record == null ? -1 : record.revision;
+        } catch (Throwable error) {
+            return -1;
         }
     }
 

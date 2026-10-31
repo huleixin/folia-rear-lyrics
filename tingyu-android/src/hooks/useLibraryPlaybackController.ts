@@ -45,6 +45,7 @@ import type { NavidromeSong } from '../types/navidrome';
 import type { NavidromeMatchData } from '../components/modal/NaviLyricMatchModal';
 import { applyQueueAddBehavior } from '../utils/queueAddBehavior';
 import { loadOnlineLyricsState, resolveOnlineLyrics, saveOnlineLyricsState, getOnlineLyricsStateCacheKey } from '../utils/onlineLyricsState';
+import { markLyricUserChoice } from '../platform/foliaColorOsLyrics';
 import { hasLocalSongCover } from '../utils/localSongCover';
 import { isSameLocalSongRecord } from '../utils/localSongRecordEquality';
 import { getLocalCoverAssetUrl } from '../services/localCoverAssetUrl';
@@ -1122,6 +1123,7 @@ export function useLibraryPlaybackController({
                 matchedLyricsProviderPlatform: previousState?.matchedLyricsProviderPlatform,
             };
             await saveOnlineLyricsState(currentSong, nextState);
+            void markLyricUserChoice(getPlaybackSongKey(currentSong));
 
             const updatedSong = { ...currentSong, onlineLyricsState: nextState };
             setCurrentSong(prev => isSamePlaybackSong(prev, currentSong) ? updatedSong : prev);
@@ -1159,6 +1161,7 @@ export function useLibraryPlaybackController({
 
         try {
             await saveOnlineLyricsState(currentSong, nextState);
+            void markLyricUserChoice(getPlaybackSongKey(currentSong));
             const baseLyrics = await loadBaseOnlineLyrics(currentSong, lyrics);
             const nextLyrics = resolveOnlineLyrics(nextState, baseLyrics);
             const updatedSong = { ...currentSong, onlineLyricsState: nextState };
@@ -1407,6 +1410,7 @@ export function useLibraryPlaybackController({
                 matchedLyricsProviderPlatform: bestMatch.matchedLyricsProviderPlatform,
             };
             await saveOnlineLyricsState(currentSong, nextState);
+            void markLyricUserChoice(getPlaybackSongKey(currentSong));
 
             const updatedSong = { ...currentSong, onlineLyricsState: nextState, isPureMusic: false };
             setCurrentSong(prev => isSamePlaybackSong(prev, currentSong) ? updatedSong : prev);

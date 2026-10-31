@@ -2048,6 +2048,9 @@ export default {
     "disableHomeDynamicBackgroundDesc": "Saat diaktifkan, halaman beranda menghentikan animasi latar belakang untuk mengurangi penggunaan GPU.",
     "disableHomeDynamicBackgroundWarning": "Secara default mati, jadi latar belakang dinamis tetap aktif kecuali Anda mengaktifkannya.",
     "autoUseBestLyric": "Gunakan Lirik Terbaik Otomatis",
+
+    "lyricVariantSimplified": "Seragamkan lirik bahasa Mandarin",
+    "lyricVariantSimplifiedDesc": "Mengubah lirik karakter tradisional menjadi sederhana di panggung lirik, layar belakang, dan pulau dengan satu aturan bersama.",
     "autoUseBestLyricDesc": "Secara otomatis mencari lirik NetEase, AMLLDB, QQ, dan Kugou, mengutamakan lirik per kata dengan kecocokan waktu sempurna.",
     "lyricMatchPriority": "Prioritas pencocokan lirik",
     "lyricMatchPriorityDesc": "Saat beberapa sumber lirik memiliki kecocokan berkualitas tinggi, utamakan sumber ini terlebih dahulu.",

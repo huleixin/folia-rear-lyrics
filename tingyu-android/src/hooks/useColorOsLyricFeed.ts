@@ -3,12 +3,14 @@ import {
     clearColorOsLyricInfo,
     getColorOsLyricsSupport,
     publishColorOsLyricInfo,
+    setLyricVariantRule,
 } from '../platform/foliaColorOsLyrics';
 import { isCapacitorAndroid } from '../platform/runtime';
 import { getSongAlbumLabel, getSongArtistLabel } from '../services/onlineMusic/songMetadata';
 import { ensureNativeLyric, installNativeLyricPrimer } from '../services/nativeLyricPriming';
 import { nextColorOsGeneration } from '../services/lyricSessionGeneration';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
+import { useLyricSettingsStore } from '../stores/useLyricSettingsStore';
 import type { SongResult } from '../types';
 import type { LyricData } from '../types';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
@@ -69,6 +71,13 @@ export const useColorOsLyricFeed = ({
     const active = enabled && supported;
     const songKey = song ? getPlaybackSongKey(song) : null;
     const hasLines = Boolean(lyrics?.lines?.length);
+    const lyricVariant = useLyricSettingsStore((state) => state.lyricVariant);
+
+    // 统一简繁规则同步给原生：后台独立取词应用同一条规则，避免后台突然出现繁体。
+    React.useEffect(() => {
+        if (!enabled) return;
+        void setLyricVariantRule(lyricVariant);
+    }, [enabled, lyricVariant]);
 
     /** 上一首发布过的身份：同一首歌的补齐不换代次，真换歌才递增。 */
     const publishedKeyRef = React.useRef<string | null>(null);
@@ -135,7 +144,11 @@ export const useColorOsLyricFeed = ({
         publishedKeyRef.current = songKey;
         // songKey 必须一起过去：原生按它存/取，对不上就自然拿不到上一首的词 ——
         // 「旧异步结果覆盖新歌」正是协议点名要防的。
-        void publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, songKey);
+        // hasWordByWord 一并交给统一仓库记录，供诊断判断逐字 lane 的来源层级。
+        void publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, songKey, {
+            hasWordByWord: lyrics!.isWordByWord === true,
+            source: 'stage',
+        });
     }, [active, songKey, song, lyrics, hasLines, lyricsLoading, duration, timelineOffsetMs]);
 
     // 回到前台再推一次：原生进程若被回收过，缓存是空的，而这段 payload 还在 WebView 里。
@@ -159,7 +172,15 @@ export const useColorOsLyricFeed = ({
             if (document.visibilityState !== 'visible') return;
             if (publishedKeyRef.current !== songKey) return;
             const built = build();
-            if (built) void publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, songKey);
+            if (built) {
+                // 重推的是舞台当前确认的同一份内容：统一仓库里已是这条记录（层级 stage），
+                // 原生 setPending 按内容去重，灵动岛/背屏不会因此换版本 ——
+                // 这是「打开主界面歌词换版本」问题的收敛点。
+                void publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, songKey, {
+                    hasWordByWord: lyrics!.isWordByWord === true,
+                    source: 'stage',
+                });
+            }
         };
         /**
          * 原生侧「这首歌我还没有时间轴」的请求。
@@ -179,7 +200,10 @@ export const useColorOsLyricFeed = ({
             const built = build();
             if (built) {
                 publishedKeyRef.current = songKey;
-                void publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, songKey);
+                void publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, songKey, {
+                    hasWordByWord: lyrics!.isWordByWord === true,
+                    source: 'stage',
+                });
                 return;
             }
             // 界面这一首自己也没词：仍然按它的身份去补一次，别让请求掉在地上。

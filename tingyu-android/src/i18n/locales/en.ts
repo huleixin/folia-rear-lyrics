@@ -2250,6 +2250,9 @@ export default {
     "disableHomeDynamicBackgroundDesc": "When enabled, the home page stops background animation to reduce GPU usage.",
     "disableHomeDynamicBackgroundWarning": "Off by default, so dynamic background remains enabled unless you turn this on.",
     "autoUseBestLyric": "Auto Use Best Lyric",
+
+    "lyricVariantSimplified": "Unify Simplified Chinese",
+    "lyricVariantSimplifiedDesc": "Convert traditional-character lyrics to simplified across the lyric stage, rear screen and island, using one shared rule. User-selected lyrics always win.",
     "autoUseBestLyricDesc": "Automatically search NetEase, AMLLDB, QQ, and Kugou lyrics, prioritizing word-by-word lyrics with perfect timing matches.",
     "lyricMatchPriority": "Lyric match priority",
     "lyricMatchPriorityDesc": "When multiple lyric sources have high-confidence matches, prefer this source first.",

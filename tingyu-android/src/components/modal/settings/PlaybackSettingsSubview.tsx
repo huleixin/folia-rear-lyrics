@@ -83,17 +83,21 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
         preferredAlternativeLyricSource,
         localLyricsPriority,
         globalLyricTimelineOffsetMs,
+        lyricVariant,
         onToggleAutoUseBestLyric,
         onPreferredAlternativeLyricSourceChange,
         onLocalLyricsPriorityChange,
+        onLyricVariantChange,
     } = useLyricSettingsStore(useShallow(state => ({
         autoUseBestLyric: state.autoUseBestLyric,
         preferredAlternativeLyricSource: state.preferredAlternativeLyricSource,
         localLyricsPriority: state.localLyricsPriority,
         globalLyricTimelineOffsetMs: state.globalLyricTimelineOffsetMs,
+        lyricVariant: state.lyricVariant,
         onToggleAutoUseBestLyric: state.handleToggleAutoUseBestLyric,
         onPreferredAlternativeLyricSourceChange: state.handleSetPreferredAlternativeLyricSource,
         onLocalLyricsPriorityChange: state.handleSetLocalLyricsPriority,
+        onLyricVariantChange: state.handleSetLyricVariant,
     })));
     const {
         devices: audioOutputDevices,
@@ -316,6 +320,17 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                             </div>
                         </div>
                         {renderToggle(autoUseBestLyric, () => onToggleAutoUseBestLyric(!autoUseBestLyric))}
+                    </div>
+                    <div className="p-4 flex items-center justify-between gap-4 border-t" style={{ borderColor: 'var(--border-primary, rgba(255,255,255,0.06))' }}>
+                        <div className="space-y-1">
+                            <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                                {t('options.lyricVariantSimplified')}
+                            </div>
+                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                                {t('options.lyricVariantSimplifiedDesc')}
+                            </div>
+                        </div>
+                        {renderToggle(lyricVariant === 't2s', () => onLyricVariantChange(lyricVariant === 't2s' ? 'off' : 't2s'))}
                     </div>
                     <div className="p-4 space-y-3 border-t" style={{ borderColor: 'var(--border-primary, rgba(255,255,255,0.06))' }}>
                         <div className="space-y-1">

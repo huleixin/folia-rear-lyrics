@@ -11,6 +11,8 @@ import { getLyricSegmentationRecord } from '../../../stores/useLyricSegmentation
 import { applyDetectedChorusEffects, applyNeteaseChorusByTime } from '../../../utils/lyrics/chorusEffects';
 import type { NeteaseChorusRange } from '../../../utils/lyrics/chorusEffects';
 import { getPlaybackSongKey } from '../../../utils/appPlaybackGuards';
+import { applyLyricVariantToData } from '../../../utils/lyrics/variant';
+import { useLyricSettingsStore } from '../../../stores/useLyricSettingsStore';
 import { applyLyricsTransform, untransformedLyrics } from '../../../services/hostExtensionHooks';
 import { describeLyricsShape, noteLyricsDiagnostic } from '../../../utils/lyricsDiagnostics';
 
@@ -52,7 +54,12 @@ export const createLyricsSetter = (
     return (incomingLyrics: LyricData | null) => {
         // Lyrics already on screen (e.g. re-applied after an automix cancel) re-enter from
         // their pre-transform source, so the extension transform below never stacks.
-        const nextLyrics = untransformedLyrics(incomingLyrics);
+        // 统一简繁规则在链最前端应用：舞台显示与原生发布（useColorOsLyricFeed）都派生自
+        // 这一次转换的结果 —— 三端共用同一份文本，不会出现「舞台简体、灵动岛繁体」。
+        const nextLyrics = applyLyricVariantToData(
+            untransformedLyrics(incomingLyrics),
+            useLyricSettingsStore.getState().lyricVariant,
+        );
         const currentSong = currentSongFullRef?.current ?? null;
         const currentSongId = currentSong ? getPlaybackSongKey(currentSong) : null;
 
