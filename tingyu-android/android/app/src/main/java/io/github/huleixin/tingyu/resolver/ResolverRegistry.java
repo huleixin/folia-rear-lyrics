@@ -20,10 +20,11 @@ public final class ResolverRegistry {
     private final List<SourceResolver> resolvers = new ArrayList<>();
 
     private ResolverRegistry() {
-        // 顺序即优先级：先洛雪脚本（用户真正在用的音源），再 QQ 官方后端，最后是没有
-        // 原生等价物的兜底说明。
+        // 顺序即优先级：先洛雪脚本（用户真正在用的音源），再平台原版解析器，最后是
+        // 没有原生等价物的兜底说明。
         resolvers.add(new LxNativeResolver());
         resolvers.add(QqResolver.fromCredentials());
+        resolvers.add(NeteaseResolver.fromCredentials());
         resolvers.add(new LxScriptResolver());
     }
 
@@ -31,11 +32,12 @@ public final class ResolverRegistry {
         return INSTANCE;
     }
 
-    /** 凭据变化时刷新（例如用户在设置里改了后端地址）。 */
+    /** 凭据变化时刷新（例如用户在设置里改了后端地址、登录态同步）。 */
     public synchronized void refresh() {
         resolvers.clear();
         resolvers.add(new LxNativeResolver());
         resolvers.add(QqResolver.fromCredentials());
+        resolvers.add(NeteaseResolver.fromCredentials());
         resolvers.add(new LxScriptResolver());
     }
 
@@ -148,6 +150,8 @@ public final class ResolverRegistry {
         if (resolver instanceof LxNativeResolver) return ((LxNativeResolver) resolver).canAttempt(track);
         // QQ：只有在用户自建后端可用、或 musicu 熔断未打开时才值得接管。
         if (resolver instanceof QqResolver) return ((QqResolver) resolver).canAttempt();
+        // 网易云：JS 同步过 Cookie（含匿名设备 Cookie）才值得接管；没有就回落 JS 通道。
+        if (resolver instanceof NeteaseResolver) return ((NeteaseResolver) resolver).canAttempt();
         return true;
     }
 

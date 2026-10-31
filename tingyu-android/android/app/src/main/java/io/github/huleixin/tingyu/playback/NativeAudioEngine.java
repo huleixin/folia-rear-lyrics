@@ -619,6 +619,12 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     }
 
     /** 当前播放项的音质前缀（从 URL 尾段认，如 RS01/F000/M800/M500）。 */
+    /** 当前这首歌所属平台；歌单对不上时返回空串。 */
+    private static String providerOf(NativePlaylist list, String songKey) {
+        NativePlaylist.Track track = list.trackFor(songKey);
+        return track == null ? "" : track.providerId;
+    }
+
     private String currentQualityPrefix(){
         MediaItem item=player.getCurrentMediaItem();
         if(item==null||item.localConfiguration==null)return"";
@@ -647,7 +653,12 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         int httpStatus=httpStatusOf(error);
         String prefix=currentQualityPrefix();
         String nextPrefix=io.github.huleixin.tingyu.resolver.QqResolver.nextLowerPrefix(prefix);
-        boolean canDowngrade=!nextPrefix.isEmpty()&&!downgradeTriedKey.equals(songKey);
+        // 网易云没有 QQ 的 filename 前缀；降档按上次实际解析到的 level 往下走一档。
+        boolean netease=nextPrefix.isEmpty()&&"netease".equals(providerOf(list,songKey));
+        String neteaseQuality=netease
+            ?io.github.huleixin.tingyu.resolver.NeteaseResolver.lowerLevelFor(songKey):"";
+        boolean canDowngrade=(!nextPrefix.isEmpty()||!neteaseQuality.isEmpty())
+            &&!downgradeTriedKey.equals(songKey);
         PlaybackSkipPolicy.Facts facts=new PlaybackSkipPolicy.Facts(error.errorCode,networkRetries,
             consecutiveSkips,list.mode(),desiredPaused,sourceId.isEmpty(),hasNext,materializable,hasCandidates);
         facts.httpStatus=httpStatus;
@@ -696,7 +707,9 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 // 重新解析失败或低档也播不动，就走正常的重试/跳过路径。
                 downgradeTriedKey=songKey;
                 NativePlaylist.Track self=list.trackFor(songKey);
-                String quality=io.github.huleixin.tingyu.resolver.QqResolver.qualityTokenForPrefix(nextPrefix);
+                String quality=nextPrefix.isEmpty()
+                    ?neteaseQuality
+                    :io.github.huleixin.tingyu.resolver.QqResolver.qualityTokenForPrefix(nextPrefix);
                 io.github.huleixin.tingyu.resolver.SourceResolution resolution=self==null?null
                     :io.github.huleixin.tingyu.resolver.ResolverRegistry.get().resolve(self,quality);
                 if(resolution==null||!resolution.ok()){

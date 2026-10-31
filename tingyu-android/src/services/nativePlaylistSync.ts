@@ -184,6 +184,7 @@ export const syncNativePlaylist = async (options: {
         // 歌单每次同步都顺带刷新一次解析器凭据：后台播放几个小时，会话早就可能过期，
         // 而凭据只在内存里（不落盘），不刷新就等于让原生拿一份旧会话去取地址。
         void syncResolverCredentials();
+        void syncNeteaseResolverCredentials();
         await native.setNativePlaylist({ mode, loopAll: loop === 'all', quality, tracks });
         // 这份 `ordered` 就是原生真正会走的顺序：按它预置歌词，锁屏连播才有词可用。
         // 与窗口预置（只有 5 首）不同，这里能看到更远的 10 首；只读本地缓存，最多
@@ -231,6 +232,23 @@ export const syncResolverCredentials = async (): Promise<void> => {
         });
     } catch {
         // 同上：增强，不是关键路径。
+    }
+};
+
+/**
+ * 网易云同构通道：把 WebView 里的网易云 Cookie（MUSIC_U 等登录态 + 匿名设备 Cookie）
+ * 交给原生 NeteaseResolver —— 后台续播时由原生直连 interface.music.163.com 的 eapi 接口
+ * 取地址，与前台 handleSongUrl 逐字段同构。Cookie 只进原生内存，不落盘、不进日志。
+ */
+export const syncNeteaseResolverCredentials = async (): Promise<void> => {
+    try {
+        const { getNeteaseCookie } = await import('../nativeBridge/api/cookies.js');
+        const cookie = await getNeteaseCookie();
+        if (!cookie) return;
+        const native = getTingyuPlayback<TingyuPlaybackNative>();
+        await native.setResolverCredentials({ providerId: 'netease', values: { cookie } });
+    } catch {
+        // 拿不到登录态/插件不在：原生会如实报告缺少凭据并回落 JS 通道。
     }
 };
 
