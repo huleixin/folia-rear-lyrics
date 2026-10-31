@@ -68,7 +68,12 @@ final class RearLyricsCoordinator {
      * 退出时原值恢复。事件驱动，没有轮询唤醒；策略层修复而非 CPU 保活。
      */
     private final RearKeepAwakePolicy keepAwake = new RearKeepAwakePolicy();
-    private boolean keepAwakeBusy;
+    /**
+     * Shizuku 锁屏保亮：观测背屏电源状态，非 ON 且保亮条件成立时有界恢复
+     * （bright 真机验证的 WAKE → power 恢复命令序列；每锁屏周期 12 次硬上限）。
+     */
+    private final RearPanelReassert panelReassert = new RearPanelReassert();
+    private boolean keepAwakeBusy, reassertBusy;
     private static final String PREF_KEEP_AWAKE_PREV = "keep_awake_prev_value";
     private static final String PREF_KEEP_AWAKE_OWED = "keep_awake_restore_owed";
 
@@ -128,6 +133,7 @@ final class RearLyricsCoordinator {
             keepAwake.adoptOwedRestore(prefs.getString(PREF_KEEP_AWAKE_PREV, RearKeepAwakePolicy.DEFAULT_VALUE));
             RearLyricsTrace.record(context, "keep-awake-adopt", "restore owed from a previous process; " + keepAwake);
         }
+        registerPanelStateListener();
         coverMonitor = new RearCoverMonitor(context, main, value -> {
             physicalCover = value;
             if (coverSleepEnabled && wanted()) changeSleep(value);
@@ -394,6 +400,7 @@ final class RearLyricsCoordinator {
         closing = true; closeReason = reason; closeRetries = 0;
         // Whatever the reason, the timeout override must go back to the system now that the
         // window is going away (user close, pause expiry or camera handoff).
+        panelReassert.end();
         syncShizukuKeepAwake();
         releaseLeaseThenClose();
     }
@@ -511,7 +518,7 @@ final class RearLyricsCoordinator {
             + ", cameraIdleFor=" + cameraMonitor.idleFor() + "ms"
             + ", missingRearWakes=" + missingRearWakes
             + ", backend=" + (LspRearBridge.selected(context) ? "lsp" : "shizuku") + ", lsp=" + LspRearBridge.detail()
-            + ", keepAwake=" + keepAwake
+            + ", keepAwake=" + keepAwake + ", panelReassert=" + panelReassert
             + ", closing=" + closing + ", closeRetries=" + closeRetries + ", returnedToSystem=" + returnedToSystem()
             + ", lspHolding=" + lspHolding + ", lspPower=" + lspPowerDetail + ", " + cameraMonitor.status()
             + "\nSystem log snapshot: " + RearCameraLog.last();
@@ -610,6 +617,69 @@ final class RearLyricsCoordinator {
     private static int parseTimeout(String value) {
         try { return (int) Long.parseLong(value.trim()); }
         catch (NumberFormatException error) { return (int) Long.parseLong(RearKeepAwakePolicy.DEFAULT_VALUE); }
+    }
+
+    /**
+     * DisplayListener：背屏电源状态变化是系统事件，不需要轮询。事件到达时执行一次
+     * 有界恢复判定；2 秒窗口心跳（checkWindow）只作为兜底观测点。
+     */
+    private void registerPanelStateListener() {
+        DisplayManager manager = (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);
+        if (manager == null) return;
+        try {
+            manager.registerDisplayListener(new DisplayManager.DisplayListener() {
+                @Override public void onDisplayAdded(int displayId) { }
+                @Override public void onDisplayRemoved(int displayId) { }
+                @Override public void onDisplayChanged(int displayId) {
+                    if (displayId <= 0) return;
+                    main.post(() -> syncPanelReassert("display-event"));
+                }
+            }, main);
+        } catch (Throwable error) {
+            RearLyricsTrace.record(context, "panel-listener", "registration failed: " + error);
+        }
+    }
+
+    /** 保亮条件：歌词活动 + 播放中 + 用户开启 + 无相机 + 非合盖 + 未在关闭流程中。 */
+    private boolean panelGuardWanted() {
+        return wanted() && playing && !closing && !sleeping && presentationAllowed();
+    }
+
+    /**
+     * 观测背屏电源状态；非 ON 时执行一次有界恢复（WAKE 优先，连续失败退到 power
+     * 恢复命令）。每个观测点只发一次动作，结果在动作后 1.2s 回读并记录 —— 不轮询、
+     * 不循环，预算耗尽即停。
+     */
+    private void syncPanelReassert(String source) {
+        if (LspRearBridge.selected(context) || reassertBusy) return;
+        int id = RearLyricsLauncher.rememberedRear(context);
+        if (id <= 0) { panelReassert.end(); return; }
+        boolean awake = RearLyricsLauncher.displayState(context, id) == android.view.Display.STATE_ON;
+        boolean guardWanted = panelGuardWanted();
+        if (!guardWanted) { if (panelReassert.holdingBudget() || panelReassert.exhausted()) panelReassert.end(); return; }
+        if (!panelReassert.holdingBudget()) panelReassert.begin();
+        RearPanelReassert.Action action = panelReassert.observe(true, awake, SystemClock.elapsedRealtime());
+        if (action == RearPanelReassert.Action.NONE) return;
+        IBinder shell = this.shell;
+        if (shell == null || !shell.isBinderAlive()) return;
+        reassertBusy = true;
+        RearLyricsTrace.record(context, "panel-reassert", source + ": state=" + RearLyricsLauncher.displayState(context, id)
+            + ", attempt=" + panelReassert.attempts() + "/" + RearPanelReassert.MAX_ATTEMPTS_PER_EPISODE);
+        Runnable after = () -> main.postDelayed(() -> {
+            reassertBusy = false;
+            int state = RearLyricsLauncher.displayState(context, id);
+            RearLyricsTrace.record(context, "panel-reassert-outcome",
+                "attempt=" + panelReassert.attempts() + ", state=" + state + (state == android.view.Display.STATE_ON ? " (recovered)" : " (still dark)"));
+            nudge();
+        }, 1200);
+        if (action == RearPanelReassert.Action.WAKE) {
+            RearLyricsLauncher.wake(context, shell, id, after);
+        } else {
+            RearLyricsLauncher.restoreRearPowerPolicy(shell, id, (ok, detail) -> {
+                RearLyricsTrace.record(context, "panel-reassert-power", "ok=" + ok + ", " + detail);
+                after.run();
+            });
+        }
     }
 
     /** Renew every 20 seconds; ordinary two-second window checks do not make another IPC call. */
@@ -735,6 +805,7 @@ final class RearLyricsCoordinator {
         syncCoverMonitor();
         syncLspPower();
         syncShizukuKeepAwake();
+        syncPanelReassert("heartbeat");
         if (!RearCoverPolicy.mayRecoverWindow(sleeping, powerBusy, coverSleepEnabled, physicalCover)) {
             if (coverSleepEnabled && physicalCover && !sleeping && !powerBusy) changeSleep(true);
             if (sleeping && !physicalCover && !powerBusy && now >= nextAttempt) changeSleep(false);
@@ -992,6 +1063,7 @@ final class RearLyricsCoordinator {
                     // while Android stops the main Activity during the lock transition.
                     syncLspPower();
                     syncShizukuKeepAwake();
+                    syncPanelReassert("screen-off");
                 } else if (!Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
                     lockBudget.unlocked();
                 }
