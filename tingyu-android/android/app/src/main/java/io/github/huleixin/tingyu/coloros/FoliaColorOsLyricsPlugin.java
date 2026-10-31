@@ -71,6 +71,16 @@ public class FoliaColorOsLyricsPlugin extends Plugin {
     @PluginMethod
     public void status(PluginCall call) {
         String songKey = call.getString("songKey");
+        if (songKey == null || songKey.isEmpty()) {
+            // 诊断报告调用 status({}) 时不带 key：过去 stateOf(null) 恒回 no-song，
+            // 与 lyric-session 的 sessionActive=true/ready 自相矛盾，排查时误导。
+            // 不带 key 就按播放器当前曲作答 —— 问的就是「现在这首歌的通道状态」。
+            try {
+                songKey = io.github.huleixin.tingyu.playback.NativeAudioEngine.currentKey();
+            } catch (Throwable ignored) {
+                // 无播放引擎（未初始化/进程刚起）：维持 no-song，这时的确没有歌。
+            }
+        }
         JSObject result = new JSObject();
         result.put("state", ColorOsLyricBridge.stateOf(songKey));
         result.put("detail", ColorOsLyricBridge.describe(songKey));

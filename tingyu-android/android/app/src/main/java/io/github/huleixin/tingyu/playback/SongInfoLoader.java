@@ -2,6 +2,8 @@ package io.github.huleixin.tingyu.playback;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 
 import com.getcapacitor.JSObject;
@@ -73,6 +75,9 @@ public final class SongInfoLoader {
     private final AtomicInteger generation = new AtomicInteger(1);
     private volatile String currentKey = "";
     private volatile long lastScheduledAtElapsed = 0L;
+    /** 网络类取词失败的慢速有界重试（见 {@link LyricFetchRetryPolicy}）。 */
+    private final Map<String, Integer> lyricRetryAttempts = new ConcurrentHashMap<>();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     private SongInfoLoader(Context context) {
         this.context = context.getApplicationContext();
@@ -116,6 +121,8 @@ public final class SongInfoLoader {
     private void runTrackChanged(SongInfo current, List<SongInfo> upcoming) {
         boolean changed = !current.songKey.equals(currentKey);
         if (changed) {
+            // 换歌即作废旧曲的重试预算：计数清掉，到点的回调用闸门自行放弃。
+            lyricRetryAttempts.remove(currentKey);
             currentKey = current.songKey;
             generation.incrementAndGet();
         }
@@ -224,6 +231,37 @@ public final class SongInfoLoader {
         });
     }
 
+    /**
+     * 网络类取词失败后的慢速有界重试。四道闸在触发时逐一核对：
+     * 仍是当前曲、Bridge 仍是 pending（没被 WebView/上一轮答案接走）、代次没换、
+     * 次数没超封顶。任何一道不过就放弃 —— 绝不变成对 LRCLIB 的轮询。
+     */
+    private void scheduleLyricFetchRetry(SongInfo info, String status) {
+        int attempt = lyricRetryAttempts.getOrDefault(info.songKey, 0);
+        LyricFetchRetryPolicy.Decision decision = LyricFetchRetryPolicy.decide(status, attempt);
+        if (!decision.retry) {
+            if (attempt > 0) lyricRetryAttempts.remove(info.songKey);
+            return;
+        }
+        lyricRetryAttempts.put(info.songKey, attempt + 1);
+        mainHandler.postDelayed(() -> {
+            try {
+                if (!info.songKey.equals(currentKey)) return;              // 换歌了：作废
+                if (info.generation != generation.get()) return;           // 代次换了：作废
+                String state = ColorOsLyricBridge.stateOf(info.songKey);
+                if (!"pending".equals(state)) {                            // 有人补上了/确认无词
+                    lyricRetryAttempts.remove(info.songKey);
+                    return;
+                }
+                PlaybackDiagnostics.note("lyrics-retry", describe("native", info, true)
+                        .put("attempt", attempt + 1).put("delayMs", decision.delayMs));
+                submitLyrics(info.withGeneration(generation.get()));
+            } catch (Throwable error) {
+                crash("lyrics-retry", error);
+            }
+        }, decision.delayMs);
+    }
+
     private void runLyrics(SongInfo info) {
         if (!isWanted(info.songKey)) {
             PlaybackDiagnostics.note("lyrics-failure", describe("not-wanted", info, false)
@@ -246,6 +284,9 @@ public final class SongInfoLoader {
             PlaybackDiagnostics.note("lyrics-failure", describe("exception", info, isCurrent(info.songKey))
                     .put("reason", "exception").put("elapsedMs", elapsed));
             lyricsCooldown.put(info.songKey, SystemClock.elapsedRealtime() + RETRY_COOLDOWN_MS);
+            // 网络类临时失败：这首歌若仍是当前曲、Bridge 仍没拿到词，就慢速重试一次 ——
+            // 不做的话，取词那一下撞上抖动/503 的歌整首播放期间灵动岛都留白。
+            scheduleLyricFetchRetry(info, "EXCEPTION");
             return;
         }
         JSObject detail = describe(result.attempt, info, isCurrent(info.songKey))
@@ -319,6 +360,8 @@ public final class SongInfoLoader {
             default:
                 lyricsCooldown.put(info.songKey, SystemClock.elapsedRealtime() + RETRY_COOLDOWN_MS);
                 PlaybackDiagnostics.note("lyrics-failure", detail.put("reason", "network"));
+                // 同上：网络抖动 ≠ 这首没词。仍是当前曲且有界次数内就慢速补问。
+                scheduleLyricFetchRetry(info, "NETWORK");
                 break;
         }
     }

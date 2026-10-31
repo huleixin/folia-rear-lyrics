@@ -7,6 +7,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.content.Context;
 import android.content.Intent;
 import android.net.wifi.WifiManager;
 import android.media.MediaMetadata;
@@ -1003,6 +1004,9 @@ public class FoliaPlaybackService extends Service {
                     .put("lyricState", ColorOsLyricBridge.stateOf(cachedSongKey))
                     .put("lyricCached", ColorOsLyricBridge.cachedCount())
                     .put("lyricPublishAgeMs", ColorOsLyricBridge.lastPublishAgeMs())
+                    // 灵动岛歌词「亮屏有、锁屏无」类问题需要这一位来分组归因。
+                    .put("locked", ((android.app.KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE))
+                        .isKeyguardLocked())
                     .put("takeover", takeover));
         } catch (Throwable ignored) {
             // 诊断永远不能影响播放。
