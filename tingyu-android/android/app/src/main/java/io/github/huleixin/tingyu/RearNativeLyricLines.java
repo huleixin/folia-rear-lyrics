@@ -86,12 +86,32 @@ public final class RearNativeLyricLines {
                 // 账本：这一首真的交到渲染端了。「有词但没交付」从此可以被自动归因。
                 io.github.huleixin.tingyu.playback.SongInfoLoader.ledger()
                     .rearDelivered(key, lines);
+                // 端到端同步账本：背屏拿到的到底是**哪一版**（哈希），而不是「有没有拿到」。
+                // 三端一致性的比对键就是这个哈希 —— 与岛、舞台比的是同一个值。
+                io.github.huleixin.tingyu.playback.LyricSyncLedger.get()
+                    .rearDelivered(key, epoch, authoritativeHash(context, key),
+                        lines, System.currentTimeMillis());
             }
             return value.toString();
         } catch (Exception error) {
             try { value.put("state", "loading"); } catch (Exception ignored) { }
             return value.toString();
         }
+    }
+
+    /** 背屏拿到的那一版到底是哪一版：与岛、舞台比的是同一个哈希。 */
+    private static String authoritativeHash(Context context, String songKey) {
+        io.github.huleixin.tingyu.playback.UnifiedLyricsStore.Record record = null;
+        try {
+            record = io.github.huleixin.tingyu.playback.UnifiedLyricsStore.get(context).get(songKey);
+        } catch (Throwable ignored) {
+            // 读不到仓库就退化成只按桥的内容算，仍然是可比对的。
+        }
+        io.github.huleixin.tingyu.playback.LyricTimelineAuthority.Selection selection =
+            io.github.huleixin.tingyu.playback.LyricTimelineAuthority.select(record,
+                io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.lyricInfoFor(songKey), false,
+                io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.offsetKnownOf(songKey));
+        return selection.hash;
     }
 
     private static boolean epochMatches(String epoch) {
@@ -129,8 +149,6 @@ public final class RearNativeLyricLines {
         String bridgeState = io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.stateOf(songKey);
         boolean bridgeTimeline = "ready".equals(bridgeState);
         String bridgeJson = io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.lyricInfoFor(songKey);
-        String rows = bridgeTimeline ? rowsFromLyricInfo(bridgeJson, songKey) : null;
-        if (rows != null && !rows.isEmpty()) return rows;
 
         io.github.huleixin.tingyu.playback.UnifiedLyricsStore.Record record = null;
         try {
@@ -138,9 +156,31 @@ public final class RearNativeLyricLines {
         } catch (Throwable ignored) {
             // 统一仓库读失败不是致命错误：继续看原生缓存。
         }
+        // 背屏不再自己挑版本：和灵动岛读同一个权威（统一仓库最终选定版；仓库没记录时才用桥）。
+        // 以前这里是「桥优先、仓库次之」，于是在「舞台宣告无词、但仓库里确实存着时间轴」
+        // 这类情形里，岛上是空的而背屏照常出词 —— 三端当场分家。
+        io.github.huleixin.tingyu.playback.LyricTimelineAuthority.Selection selection =
+            io.github.huleixin.tingyu.playback.LyricTimelineAuthority.select(
+                record, bridgeJson,
+                io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.hasTranslationFor(songKey),
+                io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.offsetKnownOf(songKey));
         boolean unifiedTimeline = record != null && record.hasTimeline();
+        // 背屏行的偏移交付点：权威版本是原始时间轴时在这里应用用户偏移（恰一次）。
+        // 旧缓存（offsetKnown=false，可能已烘焙、用量未知）原样交付，绝不叠加。
+        if (selection.ready()) {
+            String rows = rowsFromLyricInfo(io.github.huleixin.tingyu.playback.LyricTimelineOffset
+                .bakeIfKnown(selection.json, songKey, selection.offsetKnown), songKey);
+            if (rows != null && !rows.isEmpty()) return rows;
+        }
         if (unifiedTimeline) {
-            rows = rowsFromLyricInfo(record.json, songKey);
+            String rows = rowsFromLyricInfo(io.github.huleixin.tingyu.playback.LyricTimelineOffset
+                .bakeIfKnown(record.json, songKey, record.offsetKnown), songKey);
+            if (rows != null && !rows.isEmpty()) return rows;
+        }
+        if (bridgeTimeline) {
+            String rows = rowsFromLyricInfo(io.github.huleixin.tingyu.playback.LyricTimelineOffset
+                .bakeIfKnown(bridgeJson, songKey,
+                    io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.offsetKnownOf(songKey)), songKey);
             if (rows != null && !rows.isEmpty()) return rows;
         }
 
@@ -229,5 +269,6 @@ public final class RearNativeLyricLines {
         return result.toString();
     }
 
-    static synchronized void clear() { parsed.clear(); }
+    /** 偏移变化等交付参数变化时由插件调用：清掉行缓存，下一次读取按新参数重建。 */
+    public static synchronized void clear() { parsed.clear(); }
 }

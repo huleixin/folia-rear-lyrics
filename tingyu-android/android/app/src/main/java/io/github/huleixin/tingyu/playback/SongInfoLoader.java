@@ -365,11 +365,27 @@ public final class SongInfoLoader {
                 return;
             }
             // 统一简繁规则：原生取到的词在入库与发布前先过同一条规则（舞台那份由 Web 转换）。
+            // 用户偏移不在这里烘焙：仓库只存原始时间轴，交付点（metadata attach / 背屏行
+            // 构建）应用恰好一次 —— 否则改偏移对已缓存版本永远不生效（userChoice 层级
+            // 还会挡住重取词）。
             String payload = LyricVariantConverter.convertLyricInfoJson(context, result.json);
-            // 落统一仓库：层级 native。舞台随后确认同一首时会以 stage 层级覆盖它。
-            unified.put(info.songKey, "ok", payload, result.hasTranslation, false,
-                    "native-" + result.source, "native", false,
-                    LyricVariantConverter.currentRule(context).id);
+            // 三端版本仲裁：先落库（native 层级），再回读判定。仓库里若已经存在更高层级
+            // （stage / 用户选定）的版本，这一次 put 会被拒 —— 那就必须用仓库里那一版，
+            // 而不是我们刚取到的这份。以前这里直接把原生版写进桥，灵动岛于是显示逐行
+            // LRC，而背屏与舞台是舞台版。
+            LyricTimelineAuthority.Selection selection = LyricTimelineAuthority.commitNative(
+                    unified, info.songKey, payload, result.hasTranslation,
+                    "native-" + result.source, LyricVariantConverter.currentRule(context).id);
+            boolean overridden = selection.ready() && !selection.json.equals(payload);
+            if (overridden) {
+                payload = selection.json;
+                PlaybackDiagnostics.note("lyrics-authority", describe("native", info, isCurrent(info.songKey))
+                        .put("reason", "unified-keeps-higher-tier")
+                        .put("sourceId", selection.sourceId)
+                        .put("lyricsHash", selection.hash));
+            }
+            LyricSyncLedger.get().track(info.songKey, io.github.huleixin.tingyu.RearNativeTrack.epoch());
+            LyricSyncLedger.get().unified(info.songKey, selection);
             boolean changed;
             try {
                 changed = ColorOsLyricBridge.setPending(payload, result.hasTranslation, info.songKey);
@@ -545,9 +561,16 @@ public final class SongInfoLoader {
      * 打开主界面时舞台发布同一份内容，{@code setPending} 按内容去重，歌词纹丝不动。
      */
     private void publishUnified(SongInfo info, UnifiedLyricsStore.Record record) {
+        // 三端版本记账：这条记录就是最终选定版本，岛/背屏/舞台比对的都是它的哈希。
+        LyricTimelineAuthority.Selection selection =
+                LyricTimelineAuthority.select(record, record == null ? null : record.json,
+                        record != null && record.hasTranslation);
+        LyricSyncLedger.get().track(info.songKey, io.github.huleixin.tingyu.RearNativeTrack.epoch());
+        LyricSyncLedger.get().unified(info.songKey, selection);
         boolean bridgeChanged;
         try {
-            bridgeChanged = ColorOsLyricBridge.setPending(record.json, record.hasTranslation, info.songKey);
+            bridgeChanged = ColorOsLyricBridge.setPending(record.json, record.hasTranslation,
+                    info.songKey, record.offsetKnown);
         } catch (IllegalArgumentException tooLarge) {
             PlaybackDiagnostics.note("lyrics-failure", describe("unified", info, isCurrent(info.songKey))
                     .put("reason", "payload-too-large").put("chars", record.json.length()));

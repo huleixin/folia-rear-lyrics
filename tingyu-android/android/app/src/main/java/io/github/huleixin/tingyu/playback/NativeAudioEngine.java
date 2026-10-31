@@ -192,7 +192,23 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         if(!lyricRetrySongKey.isEmpty())main.postDelayed(lyricRetryTick,LYRIC_RETRY_MS[0]);
     }
 
-    private final Runnable heartbeat=new Runnable(){public void run(){if(!sourceId.isEmpty()){emit("clock",false);if(needsClock())main.postDelayed(this,1000);}}};
+    private final Runnable heartbeat=new Runnable(){public void run(){if(!sourceId.isEmpty()){
+        emit("clock",false);
+        // 背屏的时钟权威：1 s 一次把 Media3 的真实位置与时长灌进去。
+        // 只有两个 volatile 写入，不取词、不连带、不写诊断 —— 它替代的是「背屏靠
+        // 上一次快照外推」这个旧行为（外推在暂停/追帧/切后台后必然偏）。
+        syncRearTrack();
+        if(needsClock())main.postDelayed(this,1000);
+    }}};
+    /** Media3 事实 → {@link io.github.huleixin.tingyu.RearNativeTrack}（背屏唯一的时钟权威）。 */
+    private void syncRearTrack(){
+        try{
+            io.github.huleixin.tingyu.RearNativeTrack.onPlayback(player.isPlaying(),Math.max(0L,player.getCurrentPosition()));
+            io.github.huleixin.tingyu.RearNativeTrack.onDuration(player.getDuration());
+        }catch(Throwable ignored){
+            // 背屏时钟同步失败绝不能影响播放。
+        }
+    }
     private NativeAudioEngine(Context context){
         this.context=context;
         PlaybackTestDiagnostics.note("engine-create-start",new JSObject());
@@ -344,6 +360,10 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 noteNativeContinuationProgress(p,drained);
                 // Decide before the state is published: a drained window with playlist left is a
                 // gap to bridge, not a finished session, and the session layer reports it as such.
+                // 换歌瞬间 Media3 常常还没解析出容器时长（TIME_UNSET），RearNativeTrack 只能
+                // 记到 0；READY 之后真实时长到达时必须补一次，否则背屏整首的进度条与
+                // 「位置不超过时长」的钳制都基于一个错误的 0。
+                if(p.getPlaybackState()==Player.STATE_READY)syncRearTrack();
                 if(drained||p.getPlaybackState()==Player.STATE_READY)superviseQueue(drained?"drained":"events");
                 if(!p.getPlayWhenReady()||p.getPlaybackState()==Player.STATE_ENDED)applyOutputPolicy(true);
                 emit("state",false);main.removeCallbacks(heartbeat);if(needsClock())main.postDelayed(heartbeat,1000);
@@ -384,7 +404,15 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 if(handleUnplayableError(error))return;
                 failure=error;emit("error",false);
             }
-            @Override public void onPositionDiscontinuity(Player.PositionInfo old,Player.PositionInfo next,int reason){if(reason==Player.DISCONTINUITY_REASON_SEEK)emit("seeked",false);}
+            @Override public void onPositionDiscontinuity(Player.PositionInfo old,Player.PositionInfo next,int reason){
+                if(reason!=Player.DISCONTINUITY_REASON_SEEK){syncRearTrack();return;}
+                // 背屏的时间轴锚点以前只有「换歌 / 播放状态变化 / 按钮 seek」三个入口：
+                // 通知栏、蓝牙、车载端发起的 seek 走的是 MediaSession.onSeekTo → player.seekTo，
+                // 只触发这一个回调。当时没有同步 RearNativeTrack，于是背屏继续按旧锚点外推，
+                // 歌词行停留在错误的位置直到下一次换歌。
+                syncRearTrack();
+                emit("seeked",false);
+            }
         });
         PlaybackTestDiagnostics.note("engine-create-ready",new JSObject());
     }

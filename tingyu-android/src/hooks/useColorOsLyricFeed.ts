@@ -3,6 +3,7 @@ import {
     clearColorOsLyricInfo,
     getColorOsLyricsSupport,
     publishColorOsLyricInfo,
+    setLyricOffset,
     setLyricVariantRule,
 } from '../platform/foliaColorOsLyrics';
 import { isCapacitorAndroid } from '../platform/runtime';
@@ -110,6 +111,10 @@ export const useColorOsLyricFeed = ({
 
     React.useEffect(() => {
         if (!active) return;
+        // 偏移同步（正 = 延后）：偏移的权威值在 JS，原生镜像持久化后在交付点
+        // （metadata attach / 背屏行构建）应用恰好一次。effect 的依赖里有 songKey
+        // 与 timelineOffsetMs，换歌与用户调整都会重新同步。
+        void setLyricOffset(songKey, timelineOffsetMs);
         // 没有在播的歌：整条通道作废（停止播放）。
         if (!songKey) {
             publishedKeyRef.current = null;
@@ -125,6 +130,8 @@ export const useColorOsLyricFeed = ({
             void clearColorOsLyricInfo(songKey);
             return;
         }
+        // 发布**原始**时间轴（不带用户偏移）：偏移由原生在交付点应用一次。
+        // 烘焙进缓存会让「改偏移」对已缓存版本（尤其 userChoice 层级）永远不生效。
         const built = buildColorOsLyricInfo({
             title: song?.name ?? '',
             artist: song ? getSongArtistLabel(song) : '',
@@ -134,7 +141,6 @@ export const useColorOsLyricFeed = ({
             lines: lyrics!.lines,
             isWordByWord: lyrics!.isWordByWord === true,
             sessionGeneration: generationFor(songKey),
-            timelineOffsetMs,
         });
         if (!built) {
             publishedKeyRef.current = null;
@@ -166,7 +172,6 @@ export const useColorOsLyricFeed = ({
             lines: lyrics!.lines,
             isWordByWord: lyrics!.isWordByWord === true,
             sessionGeneration: generationFor(songKey),
-            timelineOffsetMs,
         }) : null);
         const republish = () => {
             if (document.visibilityState !== 'visible') return;

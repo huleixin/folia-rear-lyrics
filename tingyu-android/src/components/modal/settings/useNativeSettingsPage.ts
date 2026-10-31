@@ -51,6 +51,21 @@ export function useNativeSettingsPage(root:RefObject<HTMLElement|null>,guide:boo
         if(group.id==='system')items.push({id:'about',title:t('mobileSettings.about'),subtitle:t('mobileSettings.aboutDescription'),action:'help'});
         sections.push({id:group.id,title:group.label,layout:'rows',items});
     }
+    // 「支持与交流」independent group. The sheet copy travels inside section.text (the rows
+    // layout never renders it) so the native Compose sheets share the same i18n source.
+    const supportCopy={coffeeTitle:t('mobileSettings.supportCoffeeSheetTitle'),coffeeDescription:t('mobileSettings.supportCoffeeSheetDescription'),
+        channelWechat:t('mobileSettings.supportChannelWechat'),channelAlipay:t('mobileSettings.supportChannelAlipay'),
+        qrMissing:t('mobileSettings.supportQrMissing'),saveQr:t('mobileSettings.supportSaveQr'),
+        qrSaved:t('mobileSettings.supportQrSaved'),qrSavedAppDir:t('mobileSettings.supportQrSavedAppDir'),
+        qrSaveFailed:t('mobileSettings.supportQrSaveFailed'),voluntary:t('mobileSettings.supportVoluntary'),
+        communityTitle:t('mobileSettings.supportCommunitySheetTitle'),communityDescription:t('mobileSettings.supportCommunitySheetDescription'),
+        groupLabel:t('mobileSettings.supportGroupLabel'),groupMissing:t('mobileSettings.supportGroupMissing'),
+        joinGroup:t('mobileSettings.supportJoinGroup'),copyGroup:t('mobileSettings.supportCopyGroup'),
+        groupCopied:t('mobileSettings.supportGroupCopied'),joinFallback:t('mobileSettings.supportJoinFallback')};
+    sections.push({id:'support',title:t('mobileSettings.supportGroup'),layout:'rows',text:JSON.stringify(supportCopy),items:[
+        {id:'coffee',title:t('mobileSettings.supportCoffee'),subtitle:t('mobileSettings.supportCoffeeDescription'),action:'support:coffee'},
+        {id:'community',title:t('mobileSettings.supportCommunity'),subtitle:t('mobileSettings.supportCommunityDescription'),action:'support:group'},
+    ]});
     const model:NativePageModel={key:'settings:index',title:t('ui.options'),leading:'close',bottomClearance:24,sections};
     return useNativePage(root,'settings',!guide,model,actions);
 }

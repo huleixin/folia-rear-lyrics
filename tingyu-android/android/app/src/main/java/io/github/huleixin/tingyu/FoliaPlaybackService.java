@@ -102,6 +102,28 @@ public class FoliaPlaybackService extends Service {
     private volatile long lastServiceStartRecordAt = 0L;
     private volatile boolean lastServiceStartPlaying = false;
     private volatile String lastServiceStartSongKey = "";
+    /**
+     * 上一次写 {@code MediaSession.setPlaybackState} 的时刻（elapsedRealtime）。
+     *
+     * <p>后台连续播放期间，换歌/暂停/seek 之外**没有任何东西**会再刷 PlaybackState，
+     * 而消费端（灵动岛 / SystemUI / 蓝牙车载）读的就是「会话里最后一个 PlaybackState」，
+     * 用 {@code position + speed × (now − updateTime)} 外推。时间戳停在几分钟前时，
+     * 任何重新订阅的消费端都会外推出一个远超时长的位置 —— 歌词不再推进、甚至整片消失，
+     * 只能等下一次换歌才恢复。所以播放中必须周期性刷新（判定见 {@link SessionClockHeartbeat}）。
+     */
+    private volatile long lastPlaybackStateAtElapsed = 0L;
+    /** 只刷 PlaybackState：不重建 metadata、不动通知、不写诊断、不碰封面、不取词。 */
+    private final Runnable sessionClockRunnable = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                refreshSessionClock();
+            } catch (Throwable ignored) {
+                // 时钟刷新失败绝不能影响播放。
+            }
+            mainHandler.postDelayed(this, SessionClockHeartbeat.INTERVAL_MS);
+        }
+    };
     private final Runnable serviceHeartbeatRunnable = new Runnable() {
         @Override
         public void run() {
@@ -119,6 +141,8 @@ public class FoliaPlaybackService extends Service {
     public void onCreate() {
         super.onCreate();
         running = true;
+        // 恢复 JS 同步过的歌词偏移（进程重建后、WebView 启动前，原生兜底取词就要用）。
+        io.github.huleixin.tingyu.playback.LyricOffsetPersistence.loadOnce(this);
         createNotificationChannel();
         mediaSession = new MediaSession(this, "FoliaPlayback");
         mediaSession.setPlaybackToLocal(new AudioAttributes.Builder()
@@ -137,6 +161,7 @@ public class FoliaPlaybackService extends Service {
                 cachedPositionUpdatedAt = SystemClock.elapsedRealtime();
                 lastSystemSeekAt = System.currentTimeMillis();
                 FoliaNativePlugin.emitMediaSeek(cachedPositionMs);
+                lastPlaybackStateAtElapsed = SystemClock.elapsedRealtime();
                 mediaSession.setPlaybackState(buildPlaybackState(cachedPlaying, cachedPositionMs, cachedSongKey));
             }
         });
@@ -162,6 +187,35 @@ public class FoliaPlaybackService extends Service {
             new com.getcapacitor.JSObject().put("pid", android.os.Process.myPid()));
         activeService = this;
         mainHandler.post(serviceHeartbeatRunnable);
+        mainHandler.post(sessionClockRunnable);
+    }
+
+    /** 播放中周期性刷新 PlaybackState：消费端靠它的时间戳外推播放位置。 */
+    private void refreshSessionClock() {
+        if (mediaSession == null || !running) return;
+        // 门控用 Media3 的真实时钟：后台没有 WebView 推状态，cachedPlaying 可能停在
+        // 几分钟前的结论上；而发布内容由 buildPlaybackState 自己取真实时钟，这里只判断
+        // 「要不要发」。
+        long[] clock = io.github.huleixin.tingyu.playback.NativeAudioEngine.mediaClock(cachedSongKey);
+        boolean playing = clock != null ? clock[1] == 1 : cachedPlaying;
+        long now = SystemClock.elapsedRealtime();
+        if (!SessionClockHeartbeat.shouldPublish(mediaSession.isActive(), playing,
+                now, lastPlaybackStateAtElapsed)) {
+            return;
+        }
+        lastPlaybackStateAtElapsed = now;
+        if (clock != null) {
+            cachedPositionMs = clock[0];
+            cachedPositionUpdatedAt = now;
+            cachedPlaying = playing;
+        }
+        PlaybackState state = buildPlaybackState(cachedPlaying, cachedPositionMs, cachedSongKey);
+        mediaSession.setPlaybackState(state);
+        // 端到端账本只记「会话时钟还活着」，且只在会话真的刷新时更新一次时间戳。
+        io.github.huleixin.tingyu.playback.LyricSyncLedger.get().session(
+            true, cachedPlaying,
+            state == null ? cachedPositionMs : state.getPosition(),
+            cachedDurationMs, System.currentTimeMillis());
     }
 
     /** ColorOS lyric bridge uses this to decide whether a metadata refresh intent is worth sending. */
@@ -249,6 +303,7 @@ public class FoliaPlaybackService extends Service {
         boolean changed = cachedPlaying != state.playing;
         cachedPlaying = state.playing; cachedPositionMs = state.position;
         cachedPositionUpdatedAt = now; lastPlaying = cachedPlaying;
+        lastPlaybackStateAtElapsed = SystemClock.elapsedRealtime();
         mediaSession.setPlaybackState(buildPlaybackState(cachedPlaying, cachedPositionMs, cachedSongKey));
         ensureLyricPublished("native-state");
             if (changed) {
@@ -511,6 +566,9 @@ public class FoliaPlaybackService extends Service {
             // 换代次：所有按时间排队的歌词补发都属于上一首，必须作废。
             lyricGeneration++;
             lyricGuard.onTrack(songKey, lyricGeneration);
+            // 端到端账本：换歌即换代，三端的版本必须重新对齐到这首歌。
+            io.github.huleixin.tingyu.playback.LyricSyncLedger.get()
+                .track(songKey, io.github.huleixin.tingyu.RearNativeTrack.epoch());
         }
         cachedPlaying = playing;
         // In-flight JS publications sampled before a system seek cannot undo that seek.
@@ -524,6 +582,7 @@ public class FoliaPlaybackService extends Service {
         if (progressOnly) {
             // Android extrapolates position from PlaybackState's timestamp. A clock refresh must
             // not restart foreground publication or rebuild artwork/queue/notification metadata.
+            lastPlaybackStateAtElapsed = SystemClock.elapsedRealtime();
             mediaSession.setPlaybackState(buildPlaybackState(cachedPlaying, cachedPositionMs, cachedSongKey));
             refreshArtwork();
             noteSessionSample("publish");
@@ -697,6 +756,15 @@ public class FoliaPlaybackService extends Service {
         if ("timeline".equals(kind)) {
             io.github.huleixin.tingyu.playback.SongInfoLoader.ledger()
                 .sessionPublished(songKey, written == null ? 0 : written.length());
+            // 端到端账本：这一版真的进了 MediaSession。只记哈希与长度，不记正文。
+            // 哈希取桥里的**原始**时间轴（仓库/背屏/舞台比的是同一个值）；metadata 里
+            // 是交付点烘焙后的内容，直接对它算哈希会和权威哈希永远差一个偏移。
+            String rawForLedger = ColorOsLyricBridge.lyricInfoFor(songKey);
+            io.github.huleixin.tingyu.playback.LyricSyncLedger.get()
+                .islandPublished(songKey,
+                    io.github.huleixin.tingyu.playback.LyricTimelineAuthority.hashOf(
+                        rawForLedger == null || rawForLedger.isEmpty() ? written : rawForLedger),
+                    System.currentTimeMillis());
         }
         if (identity.equals(lastLyricState)) return;
         lastLyricState = identity;
@@ -717,6 +785,7 @@ public class FoliaPlaybackService extends Service {
         if (mediaSession == null) return;
         Bitmap retained = appliedArtworkBitmap;
         publishMetadata(retained);
+        lastPlaybackStateAtElapsed = SystemClock.elapsedRealtime();
         mediaSession.setPlaybackState(buildPlaybackState(cachedPlaying, cachedPositionMs, cachedSongKey));
         if (notify) {
             NotificationManager manager = getSystemService(NotificationManager.class);
@@ -1056,6 +1125,10 @@ public class FoliaPlaybackService extends Service {
                     // （song-missing）、「取词失败」（fetch-failed）、「调度停了」（chain-broken /
                     // prefetch-stalled），还是「有词没交付」（ready-not-delivered / -published）。
                     .put("lyricLedger", io.github.huleixin.tingyu.playback.SongInfoLoader.ledger().describe())
+                    // 端到端同步账本：三端各拿着哪一版 + 唯一归因（没取到 / 没发布 / 没交付 /
+                    // 时钟不对 / 渲染停了 / 系统未消费）。一次采样就能定位，不必翻几十条日志。
+                    .put("lyricSync", io.github.huleixin.tingyu.playback.LyricSyncLedger.get()
+                        .describe(System.currentTimeMillis()))
                     // 灵动岛歌词「亮屏有、锁屏无」类问题需要这一位来分组归因。
                     .put("locked", ((android.app.KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE))
                         .isKeyguardLocked())
@@ -1267,6 +1340,7 @@ public class FoliaPlaybackService extends Service {
         io.github.huleixin.tingyu.playback.NativeAudioEngine.releaseIfPresent();
         recordServiceLifecycle("service-destroy", "Foreground playback service destroyed");
         mainHandler.removeCallbacks(serviceHeartbeatRunnable);
+        mainHandler.removeCallbacks(sessionClockRunnable);
         updatePlaybackLocks(false);
         RearLyricsCoordinator.get(this).stopped();
         currentArtworkUrl = "";

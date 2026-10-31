@@ -26,8 +26,9 @@ import coil.compose.AsyncImage
 // Mirrors mobileSettings.css: 32px heading, muted 13px group labels, single grouped cards.
 private val SettingIcons=mapOf("appearance" to "sparkles","general" to "languages","playback" to "play-circle",
     "interaction" to "keyboard","integration" to "server","storage" to "database","graphics" to "gauge",
-    "lab" to "flask-conical","developer" to "terminal","about" to "circle-help","adaptation" to "smartphone","state" to "activity","guide" to "info")
-private val GroupIcons=mapOf("rear" to "captions","appearance" to "sparkles","controls" to "play-circle","connections" to "database","system" to "settings2")
+    "lab" to "flask-conical","developer" to "terminal","about" to "circle-help","adaptation" to "smartphone","state" to "activity","guide" to "info",
+    "coffee" to "coffee","community" to "messages-square")
+private val GroupIcons=mapOf("rear" to "captions","appearance" to "sparkles","controls" to "play-circle","connections" to "database","system" to "settings2","support" to "heart")
 @Composable internal fun NativeSettingsPage(page:NativePage,modifier:Modifier,action:PageAction){
     BoxWithConstraints(modifier){
         val inset=if(maxWidth<374.dp)18.dp else 22.dp

@@ -264,10 +264,17 @@ public final class ColorOsLyricBridge {
     private static final class Payload {
         final String json;
         final boolean hasTranslation;
+        /** json 是否确认是原始时间轴（交付点据此决定要不要应用用户偏移）。 */
+        final boolean offsetKnown;
 
         Payload(String json, boolean hasTranslation) {
+            this(json, hasTranslation, true);
+        }
+
+        Payload(String json, boolean hasTranslation, boolean offsetKnown) {
             this.json = json;
             this.hasTranslation = hasTranslation;
+            this.offsetKnown = offsetKnown;
         }
     }
 
@@ -320,14 +327,35 @@ public final class ColorOsLyricBridge {
         trimTimelines();
     }
 
+    /**
+     * 三张表一起裁，且**共用同一套保护名单**。
+     *
+     * <p>以前 `timelines` 受 pin/ahead 保护，`revisions` 与 `noLyric` 各用自己的 LRU
+     * （32 条 / 16 条，谁都不认识 pin）。长连播（>16 首）时当前曲的 **revision 会被悄悄
+     * 淘汰回 0**，后果有两层：
+     * <ul>
+     *   <li>{@link #fingerprint} 从 {@code ready@7} 变成 {@code ready@0}，背屏以为歌词内容
+     *       变了，于是不断重读；</li>
+     *   <li>会话侧自检（LyricPublishGuard）看到 `publishedRevision != 0` 判定「版本不一致」，
+     *       每次换歌都白白重发三次，用尽额度后这首歌再也不会被修。</li>
+     * </ul>
+     * 现在三张表的键集合始终一致：一首歌要么三张表里都有，要么都没有。
+     */
     private static synchronized void trimTimelines() {
-        if (timelines.size() <= MAX_CACHED_SONGS) return;
         String pinned = pinnedKey;
         String ahead = aheadKey;
-        java.util.Iterator<String> oldestFirst = timelines.keySet().iterator();
-        while (timelines.size() > MAX_CACHED_SONGS && oldestFirst.hasNext()) {
+        String last = lastRequestedKey;
+        trimTo(timelines, pinned, ahead, last);
+        trimTo(noLyric, pinned, ahead, last);
+        trimTo(revisions, pinned, ahead, last);
+    }
+
+    private static void trimTo(java.util.Map<String, ?> map, String pinned, String ahead, String last) {
+        if (map.size() <= MAX_CACHED_SONGS) return;
+        java.util.Iterator<String> oldestFirst = map.keySet().iterator();
+        while (map.size() > MAX_CACHED_SONGS && oldestFirst.hasNext()) {
             String key = oldestFirst.next();
-            if (key.equals(pinned) || key.equals(ahead)) continue;
+            if (key.equals(pinned) || key.equals(ahead) || key.equals(last)) continue;
             oldestFirst.remove();
         }
     }
@@ -336,7 +364,8 @@ public final class ColorOsLyricBridge {
     private static final java.util.LinkedHashMap<String, Boolean> noLyric =
             new java.util.LinkedHashMap<String, Boolean>(8, 0.75f, true) {
                 @Override protected boolean removeEldestEntry(java.util.Map.Entry<String, Boolean> eldest) {
-                    return size() > MAX_CACHED_SONGS;
+                    // Eviction is done by trimTimelines() so the pinned track cannot be the victim.
+                    return false;
                 }
             };
 
@@ -360,7 +389,8 @@ public final class ColorOsLyricBridge {
     private static final java.util.LinkedHashMap<String, Integer> revisions =
             new java.util.LinkedHashMap<String, Integer>(8, 0.75f, true) {
                 @Override protected boolean removeEldestEntry(java.util.Map.Entry<String, Integer> eldest) {
-                    return size() > MAX_CACHED_SONGS * 2;
+                    // Eviction is done by trimTimelines() so the pinned track cannot be the victim.
+                    return false;
                 }
             };
 
@@ -381,7 +411,7 @@ public final class ColorOsLyricBridge {
         return stateOf(songKey) + "@" + revisionOf(songKey);
     }
 
-    private static void bumpRevision(String key) {
+    private static void bumpRevisionForKey(String key) {
         Integer current = revisions.get(key);
         revisions.put(key, current == null ? 1 : current + 1);
     }
@@ -398,25 +428,50 @@ public final class ColorOsLyricBridge {
      * @return 是否有变化（决定要不要让前台服务重建一次 metadata）
      */
     public static synchronized boolean setPending(String json, boolean hasTranslation, String songKey) {
+        return setPending(json, hasTranslation, songKey, true);
+    }
+
+    /**
+     * 同上；{@code offsetKnown} 标记这份 payload 是否确认是原始时间轴。
+     * 从旧版统一仓库记录搬进桥的内容必须传 false —— 那些内容可能已烘焙过偏移，
+     * 交付点再烘就是二次偏移。
+     */
+    public static synchronized boolean setPending(String json, boolean hasTranslation,
+                                                  String songKey, boolean offsetKnown) {
         if (json != null && json.length() > 200000) throw new IllegalArgumentException("LyricInfo too large");
         String key = slot(songKey);
         lastRequestedKey = key;
         if (json == null || json.isEmpty()) {
             Payload previous = timelines.remove(key);
             Boolean marked = noLyric.put(key, Boolean.TRUE);
-            bumpRevision(key);
+            bumpRevisionForKey(key);
             return previous != null || marked == null;
         }
         noLyric.remove(key);
-        Payload previous = timelines.put(key, new Payload(json, hasTranslation));
+        Payload previous = timelines.put(key, new Payload(json, hasTranslation, offsetKnown));
         trimTimelines();
         if (previous != null && previous.json.equals(json) && previous.hasTranslation == hasTranslation) {
             return false;
         }
-        bumpRevision(key);
+        bumpRevisionForKey(key);
         publishCount++;
         lastPublishAt = System.currentTimeMillis();
         return true;
+    }
+
+    /** 桥上这一份 payload 是否确认原始（诊断/背屏交付点用；桥没有内容时按 true）。 */
+    public static synchronized boolean offsetKnownOf(String songKey) {
+        Payload current = timelines.get(slot(songKey));
+        return current == null || current.offsetKnown;
+    }
+
+    /**
+     * 手动递增一首的版本号：偏移变化等内容不变但交付结果要变的场景。
+     * 自检守卫看到 bridgeRevision 与已发布 revision 不一致就会重建 metadata；
+     * 背屏行的缓存键含 revision，也会自动重建。
+     */
+    public static synchronized void bumpRevision(String songKey) {
+        bumpRevisionForKey(slot(songKey));
     }
 
     /**
@@ -440,8 +495,15 @@ public final class ColorOsLyricBridge {
         }
         timelines.clear();
         noLyric.clear();
+        // 版本号不能整表清掉：留下来的那一首如果 revision 回到 0，自检会把它判成
+        // 「版本不一致」而反复重建 metadata，背屏的指纹也会无端抖动。保留并递增它，
+        // 让「这首歌的内容没变」这件事在清表之后仍然成立。
+        Integer keptRevision = keep.isEmpty() ? null : revisions.get(keep);
         revisions.clear();
-        if (kept != null) timelines.put(keep, kept);
+        if (kept != null) {
+            timelines.put(keep, kept);
+            revisions.put(keep, keptRevision == null ? 1 : keptRevision + 1);
+        }
         if (!last.isEmpty()) noLyric.put(last, Boolean.TRUE);
         return changed;
     }
@@ -461,7 +523,7 @@ public final class ColorOsLyricBridge {
         String key = slot(songKey);
         Payload removed = timelines.remove(key);
         Boolean marked = noLyric.put(key, Boolean.TRUE);
-        bumpRevision(key);
+        bumpRevisionForKey(key);
         return removed != null || marked == null;
     }
 
@@ -514,6 +576,10 @@ public final class ColorOsLyricBridge {
      *
      * 注意这里只 **加** 字段：歌词是 metadata 的附加项，不是替代品，
      * 封面、时长、歌名这些一个都不能被它顶掉（协议第 7 节）。
+     *
+     * <p><b>用户偏移的唯一岛交付点</b>：桥里存的是原始时间轴，写进 metadata 前在这里
+     * 应用一次当前生效的用户偏移 —— 偏移变化只影响这一步，仓库/桥的缓存内容不动，
+     * bumpRevision 后重建 metadata 即生效。旧缓存（可能已烘焙过、用量未知）原样交付。
      */
     public static synchronized void attach(MediaMetadata.Builder builder, String songKey) {
         if (builder == null) {
@@ -521,7 +587,9 @@ public final class ColorOsLyricBridge {
         }
         String json = metadataLyricInfoFor(songKey);
         if (json != null) {
-            builder.putString(METADATA_KEY_LYRIC_INFO, json);
+            boolean known = offsetKnownOf(songKey);
+            builder.putString(METADATA_KEY_LYRIC_INFO,
+                io.github.huleixin.tingyu.playback.LyricTimelineOffset.bakeIfKnown(json, songKey, known));
         }
     }
 

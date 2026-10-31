@@ -60,6 +60,16 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         let activeTrack: RearNativeTrack | null = null;
         let lyricAttempt = 0;
         let lyricLines = 0;
+        /**
+         * 低频「渲染仍在推进」心跳的上次发送时刻。
+         *
+         * lyric-applied 过去只在歌词版本加载完成时发一次 —— 播放中行一直在变，
+         * 却再没有第二条 applied，原生侧 15 秒后就断定「背屏渲染停了」。
+         * 这是系统性误报：一整首歌都在正常滚动也会被标记。
+         * 现在每 10 秒补一条带位置的心跳（detail 带 pos，天然通过去重窗口；
+         * 暂停时 pos 不变被去重拦截，此时原生侧也不判 stalled）。
+         */
+        let lastAppliedBeatAt = 0;
         /** 已经处理过的歌词指纹；变化即「这首歌的歌词内容变了」，必须重读一次。 */
         let lyricFingerprint = '';
         const inactive = () => sleeping || (typeof document !== 'undefined' && document.hidden);
@@ -70,7 +80,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         // what this renderer actually drew. Repeats are dropped so a frozen rear WebView cannot
         // fill the trace with the same line a hundred times a second.
         let traced: string[] = [];
-        const trace = (event: string, detail: string) => {
+        const trace = (event: string, detail: string, song?: string, epoch?: string) => {
             const id = `${event}|${detail}`;
             if (traced.includes(id)) return;
             traced.push(id);
@@ -79,8 +89,12 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
             // nor compete with the poll that decides whether the rear surface has live data.
             try {
                 const beacon = new Image();
+                // song/epoch 一并带过去：原生侧的端到端同步账本要用它判断
+                // 「背屏到底把哪一版画出来了」—— 没有这两个参数就只能知道「背屏活着」。
                 beacon.src = `${REAR_TRACE_PATH}?event=${encodeURIComponent(event)}`
-                    + `&detail=${encodeURIComponent(detail.slice(0, 180))}`;
+                    + `&detail=${encodeURIComponent(detail.slice(0, 180))}`
+                    + (song ? `&song=${encodeURIComponent(song)}` : '')
+                    + (epoch ? `&epoch=${encodeURIComponent(epoch)}` : '');
             } catch { /* A renderer that cannot report still has to render. */ }
         };
         const setConnected = (value: boolean) => { if (!closed && connected !== value) { connected = value; events.connected(value); } };
@@ -152,7 +166,11 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
             });
             lyricLines = lineCount;
             trace('render', `song=${track.songKey ?? ''} epoch=${track.epoch ?? ''} state=${state}`
-                + ` lines=${lineCount}`);
+                + ` lines=${lineCount}`, track.songKey, track.epoch);
+            // 「背屏真的把这一版画出来了」的唯一证据。有了它，端到端诊断才能把
+            // 「背屏渲染停了」和「歌词没取到 / 没发布 / 系统未消费」分开。
+            trace('lyric-applied', `song=${track.songKey ?? ''} epoch=${track.epoch ?? ''}`
+                + ` lines=${lineCount} state=${state}`, track.songKey, track.epoch);
         };
         const accept = async (snapshot: RearStateSnapshot) => {
                 if (closed || inactive()) return;
@@ -237,6 +255,22 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
             catch { setConnected(false); }
             finally { consuming = false; }
         };
+        /**
+         * 低频「渲染仍在推进」心跳。挂在 state 轮询循环上：这个循环只在
+         * 文档可见且事件循环活着时运行，所以它同时是「渲染端没被冻结」的证据。
+         * detail 携带位置 —— 播放中每次都不同（穿过去重窗口），暂停时 pos 不变
+         * 会被去重拦截（此时原生侧也不会判渲染停滞，两边的判定都带 playing）。
+         */
+        const sendAppliedBeat = () => {
+            if (closed || inactive() || !activeTrack) return;
+            const now = Date.now();
+            if (now - lastAppliedBeatAt < 10_000) return;
+            lastAppliedBeatAt = now;
+            trace('lyric-applied',
+                `beat pos=${Math.round(activeTrack.positionMs ?? 0)} lines=${lyricLines}`
+                + ` epoch=${activeTrack.epoch ?? ''}`,
+                activeTrack.songKey, activeTrack.epoch);
+        };
         const poll = async () => {
             if (closed || inactive() || polling) return;
             polling = true;
@@ -256,6 +290,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                 if (key !== lastSnapshotKey) {
                     options.onSnapshot?.(snapshot); await accept(snapshot); lastSnapshotKey = key;
                 }
+                sendAppliedBeat();
                 if (!inactive()) setConnected(true);
             } catch { setConnected(false); }
             finally { polling = false; if (!closed && !inactive()) timer = window.setTimeout(() => void poll(), lastClock?.playerState === PlayerState.PLAYING ? 100 : 250); }
@@ -285,6 +320,8 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         };
         const power = (event: Event) => {
             sleeping = (event as CustomEvent<{ sleeping: boolean }>).detail?.sleeping === true;
+            // 原生归因要用：轮询消失时区分「自己休眠了（正常）」与「突然失联」。
+            trace('surface-power', `sleeping=${sleeping}`);
             refresh();
         };
         window.addEventListener('folia-rear-power', power);

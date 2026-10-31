@@ -26,13 +26,22 @@ interface FoliaColorOsLyricsPlugin {
         userChoice?: boolean;
         /** 来源标识（统一仓库记录用），如 stage / stage-override。 */
         source?: string;
-    }): Promise<{ ok: boolean }>;
+    }): Promise<{ ok: boolean; hash?: string }>;
     clear(options?: { songKey?: string | null }): Promise<void>;
-    status(options?: { songKey?: string | null }): Promise<{ state: string; detail: string }>;
+    status(options?: { songKey?: string | null }): Promise<{
+        state: string;
+        detail: string;
+        /** 端到端同步账本一行：三端各拿着哪一版 + 时间戳。 */
+        sync?: string;
+        /** 唯一归因：not_fetched / not_published / not_delivered / rear_suspended（显示端生命周期暂停，非故障）/ rear_render_stalled / clock_stale / in_sync … */
+        verdict?: string;
+    }>;
     /** 用户手动选定歌词后调用：统一仓库记录升级为 userChoice 层级。 */
     markUserChoice(options: { songKey: string }): Promise<{ ok: boolean }>;
     /** 同步统一简繁规则（off / t2s）给原生，后台取词应用同一条规则。 */
     setVariantRule(options: { rule: string }): Promise<{ ok: boolean; changed: boolean }>;
+    /** 把当前生效的歌词时间轴偏移同步给原生（正 = 延后，毫秒）；songKey 空即设备全局。 */
+    setLyricOffset(options: { songKey?: string | null; offsetMs: number }): Promise<{ ok: boolean }>;
 }
 
 const FoliaColorOsLyrics = registerPlugin<FoliaColorOsLyricsPlugin>('FoliaColorOsLyrics');
@@ -104,6 +113,14 @@ export const setLyricVariantRule = async (rule: 'off' | 't2s'): Promise<void> =>
         await FoliaColorOsLyrics.setVariantRule({ rule });
     } catch {
         // 规则同步失败不影响前台显示；后台短暂沿用旧规则，下次同步纠正。
+    }
+};
+
+export const setLyricOffset = async (songKey: string | null, offsetMs: number): Promise<void> => {
+    try {
+        await FoliaColorOsLyrics.setLyricOffset({ songKey, offsetMs });
+    } catch {
+        // 偏移同步失败只影响原生兜底链的校准，前台照常；下次换歌/调整会再同步。
     }
 };
 

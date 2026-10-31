@@ -42,6 +42,10 @@ final class RearLyricsWebClient extends WebViewClient {
         if ("/__folia_rear/state".equals(path)) {
             int revision = -1;
             try { revision = Integer.parseInt(uri.getQueryParameter("revision")); } catch (Exception ignored) { }
+            // 端到端账本：这次轮询本身就是「背屏渲染端活着」的证据（页面冻结时轮询停）。
+            // 归因靠它区分「显示端生命周期暂停」与「页面活着却不推进」—— 后者才是故障。
+            io.github.huleixin.tingyu.playback.LyricSyncLedger.get()
+                .rearHeartbeat(System.currentTimeMillis());
             return text("application/json", RearLyricsState.snapshot(revision));
         }
         // The current song's lyrics straight from the native cache. The foreground WebView used
@@ -58,6 +62,30 @@ final class RearLyricsWebClient extends WebViewClient {
             if (event != null) {
                 String detail = uri.getQueryParameter("detail");
                 RearLyricsTrace.record(context, "rear/" + event, detail == null ? "" : detail);
+                // 端到端同步账本：渲染端自己上报「这一版真的画出来了」。
+                // 没有这一条，背屏停更只能归因到「没交付」，无法区分是交付断了还是渲染停了。
+                if ("lyric-applied".equals(event) || "render".equals(event)) {
+                    // 心跳上报带 pos=…，可推出渲染推进到哪一行；解析不出就是 -1。
+                    long appliedPos = -1L;
+                    String detailValue = uri.getQueryParameter("detail");
+                    if (detailValue != null) {
+                        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                            .compile("pos=(-?\\d+)").matcher(detailValue);
+                        if (matcher.find()) {
+                            try { appliedPos = Long.parseLong(matcher.group(1)); } catch (Exception ignored) { }
+                        }
+                    }
+                    io.github.huleixin.tingyu.playback.LyricSyncLedger.get()
+                        .rearAppliedAt(uri.getQueryParameter("song"),
+                            uri.getQueryParameter("epoch"), appliedPos, System.currentTimeMillis());
+                }
+                // 背屏自己的电源状态（息屏/唤醒）：归因时区分「挂起（正常）」与「失联」。
+                if ("surface-power".equals(event)) {
+                    String detailValue = uri.getQueryParameter("detail");
+                    io.github.huleixin.tingyu.playback.LyricSyncLedger.get()
+                        .rearSleeping(detailValue != null && detailValue.contains("sleeping=true"),
+                            System.currentTimeMillis());
+                }
             }
             return text("application/json", "{}");
         }

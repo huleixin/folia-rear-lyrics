@@ -48,6 +48,30 @@ const GLOBAL_ANGLE_TIME_REGEX = /<(\d{2}):(\d{2})[.:](\d{2,3})>/g;
 const LRC_LINE_TIME_REGEX = /^\[(\d{2}):(\d{2})[.:](\d{2,3})\]/;
 const LEADING_LRC_TAGS_REGEX = /^((?:\[(?:\d{2}):(?:\d{2})[.:](?:\d{2,3})\])+)(.*)$/;
 const LRC_METADATA_REGEX = /^\[(ti|ar):([^\]]*)\]$/i;
+// LRC 标准的 `[offset:±ms]` 全局标签：加到每一行的时间上（正 = 歌词延后）。
+// 原生侧 LrcParser 一直处理这个标签；舞台解析器过去忽略它，于是同一份带标签的
+// 本地 LRC 在舞台与原生兜底（背屏/灵动岛）之间行时间相差一个标签值 —— 三端不同步。
+// 语义与原生保持逐字一致，见 playback/LrcParser.OFFSET_TAG。
+const LRC_OFFSET_TAG_REGEX = /^\[offset\s*:\s*([+-]?\d+)\]\s*$/i;
+
+/**
+ * 扫出文件里声明的全局偏移（毫秒）。多于一处时取第一处 —— 与原生「读到即用」一致，
+ * 避免两个标签叠加出一个谁也没写过的值。
+ */
+const extractLrcOffsetMs = (content: string): number => {
+    for (const rawLine of content.replace(/^\uFEFF/, '').split(/\r?\n/)) {
+        const match = rawLine.trim().match(LRC_OFFSET_TAG_REGEX);
+        if (match) return parseInt(match[1], 10);
+    }
+    return 0;
+};
+
+/** 常量平移一个条目的时间；undefined 的 endTime 保持 undefined。 */
+const shiftTimedTextEntry = (entry: TimedTextEntry, offsetMs: number): TimedTextEntry => offsetMs === 0 ? entry : ({
+    ...entry,
+    startTime: Math.max(0, entry.startTime + offsetMs / 1000),
+    endTime: entry.endTime === undefined ? undefined : Math.max(0, entry.endTime + offsetMs / 1000),
+});
 // Mirrors LX Music's own `timeExp` (lrc-file-parser): 1..3 colon-separated fields plus a fraction,
 // so `[ss.ms]`, `[mm:ss.ms]` and `[hh:mm:ss.ms]` all parse.
 const AWLRC_LINE_REGEX = /^\[(\d{1,3}(?::\d{1,3}){0,2})\.(\d{1,3})\](.*)$/;
@@ -419,8 +443,13 @@ const parseTimedTextEntries = (content: string): ParsedTimedEntriesResult => {
         entries.push(entry);
     }
 
+    // 文件声明的全局偏移在收集完之后统一平移：常量偏移不改变相对次序，
+    // 排序与单调性判定都用原始值，互不干扰。没有 offset 标签的格式（SRT/TTML/译文）
+    // extractLrcOffsetMs 返回 0，这条路径等于无操作。
+    const offsetMs = extractLrcOffsetMs(content);
+
     return {
-        entries: sortByStartTimeIfNeeded(entries, isSorted),
+        entries: sortByStartTimeIfNeeded(entries, isSorted).map(entry => shiftTimedTextEntry(entry, offsetMs)),
         isSorted
     };
 };
@@ -461,6 +490,11 @@ export const parseLRC = (
         romanizationEntries
     );
 
+    // 主歌词文件声明的 `[offset:±ms]`：加到每一行（正 = 延后），语义与原生 LrcParser 一致。
+    // 必须在译文对齐**之后**再平移 —— 译文文件有自己的（通常不存在的）标签，
+    // 对齐要用双方原始时间，平移放在最后才不会把匹配错开一个标签值。
+    const mainOffsetMs = extractLrcOffsetMs(lrcString);
+
     for (let index = 0; index < sortedRawEntries.length; index += 1) {
         const current = sortedRawEntries[index];
         const next = sortedRawEntries[index + 1];
@@ -472,10 +506,11 @@ export const parseLRC = (
             duration = Math.min(duration, estimatedReadingTime + 2);
         }
 
-        const endTime = current.startTime + duration;
+        const startTime = Math.max(0, current.startTime + mainOffsetMs / 1000);
+        const endTime = startTime + duration;
         lines.push({
-            words: buildTimedWords(current.text, current.startTime, endTime),
-            startTime: current.startTime,
+            words: buildTimedWords(current.text, startTime, endTime),
+            startTime,
             endTime,
             fullText: current.text,
             translation,

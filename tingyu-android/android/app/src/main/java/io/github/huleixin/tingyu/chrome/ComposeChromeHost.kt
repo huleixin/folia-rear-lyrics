@@ -61,6 +61,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private val clocks = mutableStateMapOf<String, ChromeTimeline>()
     private val pages = mutableStateMapOf<String, NativePage>()
     var pageListener: NativePageActionListener? = null
+    // 「支持与交流」sheets: opened from settings page actions (support:coffee / support:group).
+    private var supportSheet by mutableStateOf<String?>(null)
+    private var supportCopyJson by mutableStateOf<String?>(null)
     private val cache=NativeShellCache(web.context)
     private val retained=NativePageRetention()
     private val routeMotion=NativeRouteMotion()
@@ -269,6 +272,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         val placement=Modifier.offset{IntOffset((shown.rect.left*scale).roundToInt(),(shown.rect.top*scale).roundToInt())}
                             .size(with(density){(shown.rect.width*scale).toDp()},with(density){(shown.rect.height*scale).toDp()})
                         NativePageView(shown,placement,scale){action,text,value->
+                            // Support sheets are fully native: intercept before the JS action bus.
+                            if(action.startsWith("support:")){
+                                supportCopyJson=pages[shown.id]?.sections?.firstOrNull{it.id=="support"}?.text
+                                supportSheet=action.removePrefix("support:");return@NativePageView
+                            }
                             val current=pages[shown.id]
                             if(active&&destination==shown.id&&presented?.key==shown.key&&current?.enabled==true&&current.session==shown.session&&current.key==shown.key&&current.revision==shown.revision)
                                 pageListener?.onAction(shown.id,shown.session,shown.key,action,text,value)
@@ -327,6 +335,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             if(graphics.enabled)Text("N · 记闪烁",color=Color(0xFFB8FFE3),fontSize=10.sp,
                 modifier=Modifier.zIndex(20f).offset(12.dp,(safeTop+3).dp).background(Color(0xDD09251C))
                     .clickable{graphicsMarker?.invoke()}.padding(horizontal=5.dp,vertical=3.dp))
+            supportSheet?.let{kind->SupportSheets(kind,supportCopyJson){supportSheet=null}}
             }
         }
     }

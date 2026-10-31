@@ -62,10 +62,23 @@ public final class UnifiedLyricsStore {
         /** 同一首歌内递增，供诊断判断版本更新方向。 */
         public final int revision;
         public final long at;
+        /**
+         * 这份 json 是否确认是<b>原始时间轴</b>（用户偏移尚未烘焙，交付时应用一次）。
+         * 1.3.67 之前落盘的记录可能已经烘焙过偏移且没有记录用量 —— 标 false，
+         * 交付点跳过烘焙（旧偏移定格但绝不叠加）；该版本被正常发布/取词刷新后自动回正。
+         */
+        public final boolean offsetKnown;
 
         Record(String songKey, String status, String json, boolean hasTranslation,
                boolean hasWordByWord, String sourceId, String lyricsHash, String confirmedBy,
                boolean userChoice, String variantRule, int revision, long at) {
+            this(songKey, status, json, hasTranslation, hasWordByWord, sourceId, lyricsHash,
+                    confirmedBy, userChoice, variantRule, revision, at, true);
+        }
+
+        Record(String songKey, String status, String json, boolean hasTranslation,
+               boolean hasWordByWord, String sourceId, String lyricsHash, String confirmedBy,
+               boolean userChoice, String variantRule, int revision, long at, boolean offsetKnown) {
             this.songKey = songKey;
             this.status = status;
             this.json = json;
@@ -78,6 +91,7 @@ public final class UnifiedLyricsStore {
             this.variantRule = variantRule;
             this.revision = revision;
             this.at = at;
+            this.offsetKnown = offsetKnown;
         }
 
         public boolean hasTimeline() {
@@ -183,7 +197,7 @@ public final class UnifiedLyricsStore {
         Record next = new Record(old.songKey, old.status, old.json, old.hasTranslation,
                 old.hasWordByWord, old.sourceId, old.lyricsHash, old.confirmedBy, true,
                 variantRule == null ? old.variantRule : variantRule, old.revision + 1,
-                System.currentTimeMillis());
+                System.currentTimeMillis(), old.offsetKnown);
         synchronized (this) {
             memory.put(songKey, next);
         }
@@ -207,6 +221,9 @@ public final class UnifiedLyricsStore {
             byte[] bytes = readAllBytes(file);
             JSONObject record = new JSONObject(new String(bytes, StandardCharsets.UTF_8));
             if (!songKey.equals(record.optString("songKey"))) return null;
+            // v:1（1.3.67 之前）的记录可能已经烘焙过偏移且没有记录用量：offsetKnown=false，
+            // 交付点跳过烘焙 —— 宁可旧偏移定格，也绝不二次叠加。v:2 起仓库只存原始时间轴。
+            int version = record.optInt("v", 1);
             Record parsed = new Record(
                     songKey,
                     record.optString("status", "ok"),
@@ -219,7 +236,8 @@ public final class UnifiedLyricsStore {
                     record.optBoolean("userChoice", false),
                     record.optString("variantRule", "off"),
                     record.optInt("revision", 0),
-                    record.optLong("at", 0L));
+                    record.optLong("at", 0L),
+                    version >= 2 && record.optBoolean("offsetKnown", false));
             synchronized (this) {
                 memory.put(songKey, parsed);
             }
@@ -232,7 +250,7 @@ public final class UnifiedLyricsStore {
     private void writeDisk(String songKey, Record record) {
         JSONObject recordJson = new JSONObject();
         try {
-            recordJson.put("v", 1);
+            recordJson.put("v", 2);
             recordJson.put("songKey", songKey);
             recordJson.put("status", record.status);
             if (record.json != null) recordJson.put("json", record.json);
@@ -245,6 +263,7 @@ public final class UnifiedLyricsStore {
             recordJson.put("variantRule", record.variantRule);
             recordJson.put("revision", record.revision);
             recordJson.put("at", record.at);
+            recordJson.put("offsetKnown", record.offsetKnown);
         } catch (Exception error) {
             return;
         }

@@ -145,4 +145,59 @@ public class UnifiedLyricsStoreTest {
         assertNotNull(store.get(KEY));
         assertNull(store.get("song-key-2"));
     }
+
+    /**
+     * v:1（1.3.67 之前）记录可能已经烘焙过用户偏移且没有记录用量。迁移契约：
+     * 读回 offsetKnown=false（交付点跳过烘焙，绝不二次叠加）；下一次正常发布
+     * 以 v:2 覆盖后恢复「原始时间轴 + 交付时应用一次」的轨道。
+     */
+    @Test
+    public void legacyV1RecordsAreMarkedOffsetUnknownUntilRefreshed() throws Exception {
+        File dir = tempDir();
+        // 直接写一条 v:1 格式的旧记录（模拟升级前的磁盘状态）。
+        String legacy = new org.json.JSONObject()
+            .put("v", 1)
+            .put("songKey", KEY)
+            .put("status", "ok")
+            .put("json", STAGE_JSON)
+            .put("hasTranslation", false)
+            .put("hasWordByWord", false)
+            .put("sourceId", "stage")
+            .put("lyricsHash", "abcdef0123456789")
+            .put("confirmedBy", "stage")
+            .put("userChoice", false)
+            .put("variantRule", "off")
+            .put("revision", 3)
+            .put("at", 1000L)
+            .toString();
+        Files.write(new File(dir, io.github.huleixin.tingyu.playback.NativeLyricsRepository
+                .sha1(KEY) + ".json").toPath(), legacy.getBytes(StandardCharsets.UTF_8));
+
+        UnifiedLyricsStore store = new UnifiedLyricsStore(dir);
+        UnifiedLyricsStore.Record legacyRecord = store.get(KEY);
+        assertNotNull(legacyRecord);
+        assertTrue(legacyRecord.hasTimeline());
+        assertFalse(legacyRecord.offsetKnown);
+
+        // 正常发布刷新后：v:2，偏移回到「交付时应用一次」的轨道。
+        assertTrue(store.put(KEY, "ok", STAGE_JSON, false, false, "stage", "stage", false, "off"));
+        store.flushForTest();
+        UnifiedLyricsStore.Record refreshed = new UnifiedLyricsStore(dir).get(KEY);
+        assertNotNull(refreshed);
+        assertTrue(refreshed.offsetKnown);
+        assertTrue(refreshed.revision > legacyRecord.revision);
+    }
+
+    @Test
+    public void freshRecordsAreAlwaysOffsetKnown() throws Exception {
+        UnifiedLyricsStore store = new UnifiedLyricsStore(tempDir());
+        assertTrue(store.put(KEY, "ok", STAGE_JSON, false, false, "stage", "stage", false, "off"));
+        assertTrue(store.get(KEY).offsetKnown);
+        // 同层级刷新（stage → stage，内容变化）：仍然是原始时间轴。
+        assertTrue(store.put(KEY, "ok", NATIVE_JSON, false, false, "stage", "stage", false, "off"));
+        assertTrue(store.get(KEY).offsetKnown);
+        // 「ok → none」被层级策略拒绝（负面结论不能抹时间轴），记录保持原样且仍标记原始。
+        assertFalse(store.put(KEY, "none", null, false, false, "stage", "stage", false, "off"));
+        assertTrue(store.get(KEY).offsetKnown);
+    }
 }

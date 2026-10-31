@@ -18,6 +18,8 @@ vi.mock('@/platform/foliaColorOsLyrics',()=>({
     getColorOsLyricsSupport:async()=>({supported:true,colorOsMajor:0,detail:'test'}),
     publishColorOsLyricInfo:bridge.publish,
     clearColorOsLyricInfo:bridge.clear,
+    setLyricVariantRule:vi.fn(async()=>{}),
+    setLyricOffset:vi.fn(async()=>{}),
 }));
 
 // C2：原生后台换歌时来问「这一首的词呢」。回答这条问题需要的三层依赖都在下面，
@@ -53,7 +55,7 @@ it('never claims a track has no lyrics while they are still loading, and clears 
         expect(bridge.publish).not.toHaveBeenCalled();
 
         await act(async()=>{root.render(h(Probe,{lines:lyrics('hello'),current:first,loading:false}));});
-        expect(bridge.publish).toHaveBeenCalledWith(expect.any(String),false,getPlaybackSongKey(first));
+        expect(bridge.publish).toHaveBeenCalledWith(expect.any(String),false,getPlaybackSongKey(first),{hasWordByWord:false,source:'stage'});
 
         // Next track settled with no lyrics: only that track is cleared - never the whole channel,
         // which would also drop the timeline already primed for the track after it.
@@ -81,7 +83,7 @@ it('answers a native lyric request for the track that is current',async()=>{
         await act(async()=>{
             window.dispatchEvent(new CustomEvent('tingyu-native-lyric-request',{detail:{songKey:getPlaybackSongKey(current)}}));
         });
-        expect(bridge.publish).toHaveBeenCalledWith(expect.any(String),false,getPlaybackSongKey(current));
+        expect(bridge.publish).toHaveBeenCalledWith(expect.any(String),false,getPlaybackSongKey(current),{hasWordByWord:false,source:'stage'});
 
         // The UI is still on the previous song: answering with ours would bind the wrong lyric
         // to the track the system panel is showing.

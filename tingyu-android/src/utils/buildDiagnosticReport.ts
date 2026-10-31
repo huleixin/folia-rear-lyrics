@@ -995,6 +995,11 @@ const readBackgroundContinuityLines = async (): Promise<string[]> => {
         const lyrics = plugins.FoliaColorOsLyrics;
         const status = typeof lyrics?.status === 'function' ? await lyrics.status({}) : null;
         lines.push(`  session lyric: state=${status?.state ?? 'unknown'}${status?.detail ? ` ${status.detail}` : ''}`);
+        // 端到端同步账本：三端各拿着哪一版 + 唯一归因。这一行就能判断
+        // 「没取到 / 没发布 / 没交付 / 渲染停了 / 时钟不对 / 系统未消费」，
+        // 不必再翻几十条逐事件的日志。
+        if (status?.verdict) lines.push(`  lyric sync verdict: ${status.verdict}`);
+        if (status?.sync) lines.push(`  lyric sync: ${status.sync}`);
     } catch {
         lines.push('  session lyric: (unavailable)');
     }

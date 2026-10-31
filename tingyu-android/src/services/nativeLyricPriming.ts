@@ -122,8 +122,11 @@ const noteNativeAnswer = (
     });
 };
 
-/** 构建并发布一首歌的时间轴。成功（真的落地了）才记进 primed。 */const publishTimeline = async (song: SongResult, lyrics: LyricData, key: string): Promise<boolean> => {
+/** 构建并发布一首歌的时间轴。成功（真的落地了）才记进 primed。 */
+const publishTimeline = async (song: SongResult, lyrics: LyricData, key: string): Promise<boolean> => {
     const metadata = createProviderSongMetadata(song);
+    // 发布**原始**时间轴：偏移由原生在交付点应用恰好一次（1.3.67 起），
+    // 这里烘焙会让「改偏移」对已缓存版本永远不生效。
     const built = buildColorOsLyricInfo({
         title: song.name ?? '',
         artist: metadata.artists.map(artist => artist.name).filter(Boolean).join(' / '),
