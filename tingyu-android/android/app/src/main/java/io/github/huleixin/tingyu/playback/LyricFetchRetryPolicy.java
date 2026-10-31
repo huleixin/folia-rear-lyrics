@@ -21,10 +21,11 @@ package io.github.huleixin.tingyu.playback;
  */
 public final class LyricFetchRetryPolicy {
 
-    /** 自动重试次数封顶（不含首次）。90s×2 ≈ 一首歌内最多补两枪。 */
-    public static final int MAX_RETRIES = 2;
-    /** 首次重试间隔：比 90s 失败冷却多留 5s 余量，避免到点时提交还被冷却刚好拦掉。 */
-    public static final long RETRY_DELAY_MS = 95_000L;
+/** 自动重试次数封顶（不含首次）。 */
+public static final int MAX_RETRIES = 2;
+/** 重试间隔：20s（监听器/网络抖动恢复）+ 60s（LRCLIB 抖动窗口）。
+ *  调度时会清掉 90s 失败冷却，所以无需为冷却让路；两枪合计 80s，仍在单首播放窗口内。 */
+public static final long[] RETRY_DELAYS_MS = {20_000L, 60_000L};
 
     public static final class Decision {
         public final boolean retry;
@@ -49,11 +50,12 @@ public final class LyricFetchRetryPolicy {
      * @param status  仓库/执行结论：FETCHED、CACHE_HIT、NOT_FOUND、RATE_LIMITED、
      *                NO_IDENTITY、NETWORK，或 EXCEPTION（执行时抛了）
      * @param attempt 已自动重试过的次数（0 = 还没重试过）
+     * @return retry=true 时 {@code delayMs} 取自 {@link #RETRY_DELAYS_MS}[attempt]
      */
     public static Decision decide(String status, int attempt) {
         if ("NETWORK".equals(status) || "EXCEPTION".equals(status)) {
-            if (attempt >= 0 && attempt < MAX_RETRIES) {
-                return new Decision(true, RETRY_DELAY_MS, "transient-retry-" + (attempt + 1));
+            if (attempt >= 0 && attempt < RETRY_DELAYS_MS.length) {
+                return new Decision(true, RETRY_DELAYS_MS[attempt], "transient-retry-" + (attempt + 1));
             }
             return new Decision(false, -1L, "retries-exhausted");
         }

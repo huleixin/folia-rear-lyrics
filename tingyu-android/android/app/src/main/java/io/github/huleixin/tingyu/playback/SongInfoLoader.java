@@ -75,8 +75,8 @@ public final class SongInfoLoader {
     private final AtomicInteger generation = new AtomicInteger(1);
     private volatile String currentKey = "";
     private volatile long lastScheduledAtElapsed = 0L;
-    /** 网络类取词失败的慢速有界重试（见 {@link LyricFetchRetryPolicy}）。 */
-    private final Map<String, Integer> lyricRetryAttempts = new ConcurrentHashMap<>();
+    /** 网络类取词失败的慢速有界重试（行为契约见 {@link LyricRetryCoordinator}）。 */
+    private final LyricRetryCoordinator lyricRetries;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     private SongInfoLoader(Context context) {
@@ -94,6 +94,10 @@ public final class SongInfoLoader {
             thread.setDaemon(true);
             return thread;
         });
+        this.lyricRetries = new LyricRetryCoordinator(LyricFetchRetryPolicy.RETRY_DELAYS_MS,
+            (task, delayMs) -> mainHandler.postDelayed(task, delayMs),
+            songKey -> songKey.equals(currentKey)
+                && "pending".equals(ColorOsLyricBridge.stateOf(songKey)));
     }
 
     public int generation() {
@@ -121,8 +125,8 @@ public final class SongInfoLoader {
     private void runTrackChanged(SongInfo current, List<SongInfo> upcoming) {
         boolean changed = !current.songKey.equals(currentKey);
         if (changed) {
-            // 换歌即作废旧曲的重试预算：计数清掉，到点的回调用闸门自行放弃。
-            lyricRetryAttempts.remove(currentKey);
+            // 换歌即作废旧曲的补问：挂起重试与计数一并清掉。
+            lyricRetries.cancel(currentKey);
             currentKey = current.songKey;
             generation.incrementAndGet();
         }
@@ -232,34 +236,27 @@ public final class SongInfoLoader {
     }
 
     /**
-     * 网络类取词失败后的慢速有界重试。四道闸在触发时逐一核对：
-     * 仍是当前曲、Bridge 仍是 pending（没被 WebView/上一轮答案接走）、代次没换、
-     * 次数没超封顶。任何一道不过就放弃 —— 绝不变成对 LRCLIB 的轮询。
+     * 网络类取词失败后的慢速有界重试。调度/取消/合并/过期收敛在 {@link LyricRetryCoordinator}；
+     * 这里的门是「仍是当前曲 && Bridge 仍 pending」，代次与 cooldown 在任务里核对。
+     * 限流结论（RATE_LIMITED / NO_IDENTITY）与明确无词（NOT_FOUND）不进这条链。
      */
     private void scheduleLyricFetchRetry(SongInfo info, String status) {
-        int attempt = lyricRetryAttempts.getOrDefault(info.songKey, 0);
-        LyricFetchRetryPolicy.Decision decision = LyricFetchRetryPolicy.decide(status, attempt);
-        if (!decision.retry) {
-            if (attempt > 0) lyricRetryAttempts.remove(info.songKey);
-            return;
-        }
-        lyricRetryAttempts.put(info.songKey, attempt + 1);
-        mainHandler.postDelayed(() -> {
+        LyricFetchRetryPolicy.Decision decision = LyricFetchRetryPolicy.decide(status,
+                lyricRetries.attemptsOf(info.songKey));
+        if (!decision.retry) return;
+        // 清掉刚记的 90s 冷却，让 20s/60s 的补问能真正提交（冷却本来就是这次失败记上的）。
+        lyricsCooldown.remove(info.songKey);
+        lyricRetries.onFailure(info.songKey, () -> {
             try {
-                if (!info.songKey.equals(currentKey)) return;              // 换歌了：作废
-                if (info.generation != generation.get()) return;           // 代次换了：作废
-                String state = ColorOsLyricBridge.stateOf(info.songKey);
-                if (!"pending".equals(state)) {                            // 有人补上了/确认无词
-                    lyricRetryAttempts.remove(info.songKey);
-                    return;
-                }
+                if (info.generation != generation.get()) return;   // 代次换了：作废
                 PlaybackDiagnostics.note("lyrics-retry", describe("native", info, true)
-                        .put("attempt", attempt + 1).put("delayMs", decision.delayMs));
+                        .put("attempt", lyricRetries.attemptsOf(info.songKey))
+                        .put("delayMs", decision.delayMs));
                 submitLyrics(info.withGeneration(generation.get()));
             } catch (Throwable error) {
                 crash("lyrics-retry", error);
             }
-        }, decision.delayMs);
+        });
     }
 
     private void runLyrics(SongInfo info) {
@@ -306,6 +303,7 @@ public final class SongInfoLoader {
         }
 
         if (result.hasTimeline()) {
+            lyricRetries.cancel(info.songKey);   // 拿到词了：撤销一切挂起补问
             // 前台 WebView 若在这几秒里先答上了（它的词更全：可能带逐字/翻译），不要用我们这份
             // 逐行 LRC 盖掉它。原生只负责「没人答的时候也有词」。
             if ("ready".equals(ColorOsLyricBridge.stateOf(info.songKey))) {
@@ -341,6 +339,7 @@ public final class SongInfoLoader {
         // 没时间轴：区分「服务端明确没有」与「这次没取到」。
         switch (result.status) {
             case NOT_FOUND:
+                lyricRetries.cancel(info.songKey);   // 明确无词：再问也是同一个答案
                 // 纯音乐/没有同步歌词：明确清空这一首，避免继续显示上一首的词。
                 ColorOsLyricBridge.setPending(null, false, info.songKey);
                 PlaybackDiagnostics.note("lyrics-failure", detail.put("reason", "none"));

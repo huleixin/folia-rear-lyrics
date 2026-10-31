@@ -24,8 +24,7 @@ public class LyricFetchRetryPolicyTest {
         LyricFetchRetryPolicy.Decision first =
             LyricFetchRetryPolicy.decide("NETWORK", 0);
         assertTrue(first.retry);
-        // 90s 失败冷却 + 5s 余量：到点提交时绝不会再被 lyricsCooldown 拦掉。
-        assertEquals(95_000L, first.delayMs);
+        assertEquals(20_000L, first.delayMs);
         assertTrue(LyricFetchRetryPolicy.decide("NETWORK", 1).retry);
     }
 
@@ -53,13 +52,14 @@ public class LyricFetchRetryPolicyTest {
         assertFalse(LyricFetchRetryPolicy.decide("CACHE_HIT", 0).retry);
     }
 
-    @Test public void retryDelaysStayAboveTheFailureCooldown() {
-        // 每次重试都必须落在 90s 冷却之外，否则提交会被 lyricsCooldown 白白拦掉。
-        for (int attempt = 0; attempt < 2; attempt++) {
+    @Test public void retryDelaysStayWithinOneTypicalTrack() {
+        // 间隔本身与 90s 失败冷却解耦：调度补问时会清掉本次失败记下的冷却。
+        long[] delays = LyricFetchRetryPolicy.RETRY_DELAYS_MS;
+        for (int attempt = 0; attempt < delays.length; attempt++) {
             LyricFetchRetryPolicy.Decision decision =
                 LyricFetchRetryPolicy.decide("NETWORK", attempt);
             assertTrue(decision.retry);
-            assertTrue(String.valueOf(decision.delayMs), decision.delayMs > 90_000L);
+            assertEquals(delays[attempt], decision.delayMs);
         }
     }
 }

@@ -1004,12 +1004,29 @@ public class FoliaPlaybackService extends Service {
                     .put("lyricState", ColorOsLyricBridge.stateOf(cachedSongKey))
                     .put("lyricCached", ColorOsLyricBridge.cachedCount())
                     .put("lyricPublishAgeMs", ColorOsLyricBridge.lastPublishAgeMs())
+                    // 第四层证据之外的会话侧读数：直接从已发布的 MediaMetadata 读回 lyricInfo。
+                    // 「Bridge ready 但灵动岛不显示」时，这一位区分是会话侧丢了（len=-1）
+                    // 还是会话侧完好、问题在系统消费端。
+                    .put("sessionLyricLen", readSessionLyricLen())
                     // 灵动岛歌词「亮屏有、锁屏无」类问题需要这一位来分组归因。
                     .put("locked", ((android.app.KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE))
                         .isKeyguardLocked())
                     .put("takeover", takeover));
         } catch (Throwable ignored) {
             // 诊断永远不能影响播放。
+        }
+    }
+
+    /** 会话侧 lyricInfo 读数：-2 = 读不到会话，-1 = metadata 里没有该字段，≥0 = 内容长度。 */
+    private int readSessionLyricLen() {
+        try {
+            MediaController controller = mediaSession == null ? null : mediaSession.getController();
+            MediaMetadata published = controller == null ? null : controller.getMetadata();
+            if (published == null) return -2;
+            String info = published.getString(ColorOsLyricBridge.METADATA_KEY_LYRIC_INFO);
+            return info == null ? -1 : info.length();
+        } catch (Throwable error) {
+            return -2;
         }
     }
 
