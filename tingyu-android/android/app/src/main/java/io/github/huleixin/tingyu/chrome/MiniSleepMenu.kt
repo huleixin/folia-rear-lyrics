@@ -40,12 +40,17 @@ import com.kyant.backdrop.Backdrop
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/MiniSleepMenu.kt
 internal class SleepMenuColors(light:Boolean) {
-    val ink=if(light)LightInterfaceColors.Ink else Color(0xFFF0F8F1)
-    val muted=if(light)LightInterfaceColors.Muted else Color(0xFFAAC5B7)
-    val accent=if(light)LightInterfaceColors.Accent else Color(0xFF8BE5C0)
-    val tint=if(light)Color(0xB8EEF5EB)else Color(0xB310382D)
-    val action=if(light)LightInterfaceColors.Accent else Color(0xFF75DDB7)
-    val onAction=if(light)Color.White else Color(0xFF09291F)
+    private val palette=InterfacePalette(light)
+    val ink=palette.ink
+    val muted=palette.muted
+    val accent=palette.accent
+    // The same neutral glass tint as chromeGlass, with a modest readability veil for a larger panel.
+    val tint=if(light)Color(0x33F1F4ED)else Color(0x4D303B36)
+    val arrowTint=if(light)Color(0xB8F1F4ED)else Color(0xA1303B36)
+    val line=if(light)LightInterfaceColors.Border else Color.White.copy(alpha=.23f)
+    val control=ink.copy(alpha=.045f)
+    val selected=accent.copy(alpha=.14f)
+
 }
 @Composable internal fun SleepMoon(color:Color,modifier:Modifier=Modifier,active:Boolean=false) {
     Canvas(modifier.size(22.dp)) {
@@ -96,9 +101,9 @@ internal class SleepMenuColors(light:Boolean) {
             interactionSource=remember{MutableInteractionSource()},indication=null,onClick=onDismiss))
         val scale=LocalDensity.current.density
         Layout(modifier=Modifier.fillMaxSize(),content={
-            Column(Modifier.animateContentSize(tween(if(reduced)0 else 180)).chromeGlass(backdrop,light,24.dp)
-                .background(colors.tint,RoundedCornerShape(24.dp)).border(.8.dp,colors.accent.copy(alpha=.24f),RoundedCornerShape(24.dp))
-                .clip(RoundedCornerShape(24.dp)).pointerInput(Unit){detectTapGestures{}}
+            Column(Modifier.animateContentSize(tween(if(reduced)0 else 180)).chromeGlass(backdrop,light,28.dp)
+                .background(colors.tint,RoundedCornerShape(28.dp))
+                .clip(RoundedCornerShape(28.dp)).pointerInput(Unit){detectTapGestures{}}
                 .semantics{paneTitle="定时关闭"}.verticalScroll(scroll).padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                 Row(Modifier.fillMaxWidth().heightIn(min=40.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                     if(advanced)ChromeButton("返回快捷定时",size=32.dp,onClick={advanced=false;ui.clearError()}){PageIcon("chevron-left",colors.ink,Modifier.size(20.dp))}
@@ -127,14 +132,14 @@ internal class SleepMenuColors(light:Boolean) {
                     }
                 } else {
                     Text("停止方式",color=colors.muted,fontSize=12.sp)
-                    Column(Modifier.fillMaxWidth().background(colors.accent.copy(alpha=.035f),RoundedCornerShape(15.dp))) {
+                    Column(Modifier.fillMaxWidth().background(colors.control,RoundedCornerShape(20.dp))) {
                         listOf("deadline" to "时间结束立即暂停","track" to "当前歌曲播放完暂停","deadline_track" to "时间结束后播完当前歌曲再暂停").forEach{(id,label)->
                             val selected=mode==id
-                            Row(Modifier.fillMaxWidth().heightIn(min=44.dp).background(if(selected)colors.accent.copy(alpha=.13f)else Color.Transparent,RoundedCornerShape(12.dp))
-                                .border(if(selected)1.dp else 0.dp,if(selected)colors.accent.copy(alpha=.45f)else Color.Transparent,RoundedCornerShape(12.dp))
+                            Row(Modifier.fillMaxWidth().heightIn(min=44.dp).background(if(selected)colors.selected else Color.Transparent,RoundedCornerShape(20.dp))
+                                .border(if(selected)1.dp else 0.dp,if(selected)colors.accent.copy(alpha=.45f)else Color.Transparent,RoundedCornerShape(20.dp))
                                 .selectable(selected=selected,role=Role.RadioButton,onClick={mode=id;ui.clearError()}).padding(horizontal=12.dp,vertical=8.dp),
                                 verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                                Canvas(Modifier.size(16.dp)){drawCircle(colors.accent.copy(alpha=if(selected)1f else .32f),style=Stroke(1.5.dp.toPx()));if(selected)drawCircle(colors.accent,4.dp.toPx())}
+                                Canvas(Modifier.size(16.dp)){drawCircle(if(selected)colors.accent else colors.muted.copy(alpha=.7f),style=Stroke(1.5.dp.toPx()));if(selected)drawCircle(colors.accent,4.dp.toPx())}
                                 Text(label,color=colors.ink,fontSize=12.sp,lineHeight=18.sp)
                             }
                         }
@@ -153,7 +158,7 @@ internal class SleepMenuColors(light:Boolean) {
             }
             Canvas(Modifier.size(16.dp,10.dp)) {
                 val path=Path().apply{moveTo(0f,0f);lineTo(size.width/2,size.height);lineTo(size.width,0f)}
-                drawPath(path,colors.tint);drawPath(path,colors.accent.copy(alpha=.35f),style=Stroke(.8.dp.toPx()))
+                drawPath(path,colors.arrowTint);drawPath(path,colors.line,style=Stroke(.8.dp.toPx()))
             }
         }){measurables,constraints->
             val top=(safeTop*scale).toInt()
@@ -167,15 +172,15 @@ internal class SleepMenuColors(light:Boolean) {
 }
 @Composable private fun SleepMenuAction(label:String,colors:SleepMenuColors,modifier:Modifier=Modifier,selected:Boolean=false,primary:Boolean=false,
     enabled:Boolean=true,small:Boolean=false,onClick:()->Unit) {
-    Box(modifier.heightIn(min=44.dp).background(if(primary)colors.action else colors.accent.copy(alpha=if(selected).16f else .055f),RoundedCornerShape(999.dp))
-        .border(if(selected)1.dp else .7.dp,colors.accent.copy(alpha=if(selected).55f else .08f),RoundedCornerShape(999.dp))
+    Box(modifier.heightIn(min=44.dp).background(if(primary||selected)colors.selected else colors.control,RoundedCornerShape(999.dp))
+        .border(if(selected||primary)1.dp else .7.dp,if(selected||primary)colors.accent.copy(alpha=.4f)else colors.line.copy(alpha=.14f),RoundedCornerShape(999.dp))
         .clickable(enabled=enabled,role=Role.Button,onClick=onClick).padding(horizontal=if(small)10.dp else 6.dp,vertical=8.dp),contentAlignment=Alignment.Center) {
-        Text(label,color=(if(primary)colors.onAction else if(selected)colors.accent else colors.ink).copy(alpha=if(enabled)1f else .40f),
+        Text(label,color=(if(primary||selected)colors.accent else colors.ink).copy(alpha=if(enabled)1f else .40f),
             fontSize=if(small)11.sp else 13.sp,lineHeight=18.sp,fontWeight=if(selected||primary)FontWeight.SemiBold else FontWeight.Medium)
     }
 }
 @Composable private fun SleepDurationPart(unit:String,value:Int,min:Int,max:Int,colors:SleepMenuColors,modifier:Modifier,onValue:(Int)->Unit) {
-    Row(modifier.heightIn(min=44.dp).background(colors.accent.copy(alpha=.055f),RoundedCornerShape(16.dp)).padding(horizontal=3.dp),
+    Row(modifier.heightIn(min=44.dp).background(colors.control,RoundedCornerShape(999.dp)).padding(horizontal=3.dp),
         verticalAlignment=Alignment.CenterVertically) {
         Box(Modifier.width(32.dp).height(44.dp).semantics{contentDescription="减少$unit"}.clickable(enabled=value>min,role=Role.Button){onValue(value-1)},contentAlignment=Alignment.Center){Text("−",color=colors.muted.copy(alpha=if(value>min)1f else .35f),fontSize=18.sp)}
         Text("%02d $unit".format(value),color=colors.ink,fontSize=12.sp,maxLines=1,modifier=Modifier.weight(1f),textAlign=androidx.compose.ui.text.style.TextAlign.Center)
