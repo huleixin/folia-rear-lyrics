@@ -208,7 +208,12 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                 // (possibly frozen) foreground WebView last said.
                 const config = snapshot.config ?? lastConfig;
                 // External/stage sources retain their own clock; a retained Media3 item cannot own them.
-                const track = config?.activePlaybackContext === 'stage' ? undefined : snapshot.track;
+                const externalStage = config?.activePlaybackContext === 'stage';
+                const track = externalStage ? undefined : snapshot.track;
+                if (externalStage && (activeTrack || appliedEpoch)) {
+                    activeTrack = null; appliedEpoch = ''; nativeAppliedEpoch = ''; lyricFingerprint = '';
+                    lyricRequest++; clearTimeout(lyricRetry); lyricRetry = 0;
+                }
                 const sentAt = snapshot.clock?.sentAtMs ?? 0;
                 const matchingSong = !track?.epoch || (config?.playbackSongKey ?? String(config?.song?.id ?? '')) === track.songKey;
                 const jsFresh = matchingSong && sentAt > 0 && Date.now() - sentAt >= 0 && Date.now() - sentAt <= NATIVE_STALE_MS;

@@ -203,3 +203,16 @@ it('cancels pending lyric retry timers when the consumer is disposed',async()=>{
     const stop=createRearLyricsTransport(()=>{},()=>{},false).subscribe({config:vi.fn(),clock:vi.fn(),audio:vi.fn(),connected:vi.fn()});
     await vi.advanceTimersByTimeAsync(0);stop();expect(vi.getTimerCount()).toBe(0);
 });
+
+it('cannot resync an old native timeline over an external stage after ownership changes',async()=>{
+ vi.useFakeTimers();install({}, {state:'ready',lines:[{fullText:'NATIVE',startTime:0,endTime:10}]});
+ let receive!:(value:any)=>void;const config=vi.fn();
+ const stop=createRearLyricsTransport(()=>{},()=>{},false,{receiveSnapshots:callback=>{receive=callback;return()=>{}}})
+  .subscribe({config,clock:vi.fn(),audio:vi.fn(),connected:vi.fn()});
+ const track={songKey:'k1',epoch:'k1#1',title:'A',positionMs:1000,playing:true};
+ receive({revision:1,config:baseConfig,track});await vi.advanceTimersByTimeAsync(0);
+ const external={...baseConfig,activePlaybackContext:'stage',song:{id:'external',name:'EXTERNAL'},lyrics:{lines:[{fullText:'EXTERNAL'}]}};
+ receive({revision:2,config:external,track,clock:{currentTime:3,duration:20,sentAtMs:Date.now(),playbackRate:1,playerState:'PLAYING'}});
+ await vi.advanceTimersByTimeAsync(0);window.dispatchEvent(new Event('folia-rear-power'));await vi.advanceTimersByTimeAsync(0);
+ expect(config.mock.lastCall?.[0].lyrics.lines[0].fullText).toBe('EXTERNAL');stop();
+});
