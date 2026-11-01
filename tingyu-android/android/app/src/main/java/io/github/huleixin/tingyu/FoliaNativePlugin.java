@@ -26,6 +26,7 @@ import android.webkit.WebView;
 import android.view.WindowManager;
 import android.net.Uri;
 import android.util.Base64;
+import android.webkit.MimeTypeMap;
 
 import androidx.activity.result.ActivityResult;
 import androidx.core.content.ContextCompat;
@@ -55,7 +56,11 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.io.RandomAccessFile;
 
 import okhttp3.Headers;
 import okhttp3.MediaType;
@@ -98,6 +103,8 @@ public class FoliaNativePlugin extends Plugin {
     private LocalAudioServer localAudioServer;
     private boolean isAudioPickerOpen = false;
     private boolean isSourcePickerOpen = false;
+    private boolean isSettingsFilePickerOpen = false;
+    private final Map<String, File> pendingSettingsFiles = new ConcurrentHashMap<>();
     private static final int SHIZUKU_REQUEST_CODE = 0xF017;
 
     @Override
@@ -556,6 +563,119 @@ public class FoliaNativePlugin extends Plugin {
                 }
             } catch (Exception error) { call.reject(error.getMessage(), error); }
         }, "tingyu-source-import").start();
+    }
+
+    /** Native settings render React controls on Compose; route their file inputs through SAF. */
+    @PluginMethod
+    public void pickSettingsFiles(PluginCall call) {
+        if (isSettingsFilePickerOpen) { call.reject("文件选择器已打开"); return; }
+        String accept = call.getString("accept", "*/*");
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+            .setType("*/*").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        String[] mimeTypes = acceptedMimeTypes(accept);
+        if (mimeTypes.length > 0) intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, Boolean.TRUE.equals(call.getBoolean("multiple", false)));
+        isSettingsFilePickerOpen = true;
+        try { startActivityForResult(call, intent, "handlePickedSettingsFiles"); }
+        catch (Exception error) { isSettingsFilePickerOpen = false; call.reject("无法打开系统文件选择器", error); }
+    }
+
+    private static String[] acceptedMimeTypes(String accept) {
+        if (accept == null || accept.trim().isEmpty() || accept.contains("*/*")) return new String[0];
+        java.util.LinkedHashSet<String> types = new java.util.LinkedHashSet<>();
+        for (String raw : accept.split(",")) {
+            String value = raw.trim().toLowerCase(Locale.ROOT);
+            if (value.isEmpty()) continue;
+            if (value.startsWith(".") && value.length() > 1) {
+                String extension = value.substring(1);
+                String mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
+                if (mime == null) {
+                    if (extension.equals("woff")) mime = "font/woff";
+                    else if (extension.equals("woff2")) mime = "font/woff2";
+                    else if (extension.equals("ttf")) mime = "font/ttf";
+                    else if (extension.equals("otf")) mime = "font/otf";
+                    else if (extension.equals("svg")) mime = "image/svg+xml";
+                }
+                if (mime != null) types.add(mime);
+            } else if (value.contains("/")) types.add(value);
+        }
+        return types.toArray(new String[0]);
+    }
+
+    @ActivityCallback
+    private void handlePickedSettingsFiles(PluginCall call, ActivityResult result) {
+        isSettingsFilePickerOpen = false;
+        if (call == null) return;
+        Intent data = result.getData();
+        ArrayList<Uri> uris = new ArrayList<>();
+        if (result.getResultCode() == Activity.RESULT_OK && data != null) {
+            if (data.getClipData() != null) {
+                for (int index = 0; index < data.getClipData().getItemCount(); index++) {
+                    Uri uri = data.getClipData().getItemAt(index).getUri(); if (uri != null) uris.add(uri);
+                }
+            }
+            if (uris.isEmpty() && data.getData() != null) uris.add(data.getData());
+        }
+        if (uris.isEmpty()) { call.resolve(new JSObject().put("cancelled", true).put("files", new JSArray())); return; }
+        new Thread(() -> {
+            ArrayList<String> created = new ArrayList<>();
+            try {
+                File directory = new File(getContext().getCacheDir(), "settings-picker");
+                if (!directory.exists() && !directory.mkdirs()) throw new IOException("无法准备文件缓存目录");
+                File[] oldFiles = directory.listFiles();
+                if (oldFiles != null) for (File old : oldFiles) if (System.currentTimeMillis() - old.lastModified() > TimeUnit.DAYS.toMillis(1)) old.delete();
+                JSArray files = new JSArray();
+                ContentResolver resolver = getContext().getContentResolver();
+                for (Uri uri : uris) {
+                    String token = UUID.randomUUID().toString();
+                    File target = new File(directory, token + ".picked");
+                    try (InputStream input = resolver.openInputStream(uri); OutputStream output = new FileOutputStream(target)) {
+                        if (input == null) throw new IOException("无法读取所选文件");
+                        byte[] buffer = new byte[64 * 1024];
+                        for (int count; (count = input.read(buffer)) != -1;) output.write(buffer, 0, count);
+                    }
+                    String name = queryDisplayName(resolver, uri);
+                    if (name == null || name.trim().isEmpty()) name = "selected-file";
+                    String mime = resolver.getType(uri);
+                    if (mime == null) mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(
+                        MimeTypeMap.getFileExtensionFromUrl(name).toLowerCase(Locale.ROOT));
+                    if (mime == null) mime = "application/octet-stream";
+                    pendingSettingsFiles.put(token, target); created.add(token);
+                    files.put(new JSObject().put("id", token).put("name", name).put("mimeType", mime).put("size", target.length()));
+                }
+                call.resolve(new JSObject().put("cancelled", false).put("files", files));
+            } catch (Exception error) {
+                for (String token : created) { File file = pendingSettingsFiles.remove(token); if (file != null) file.delete(); }
+                call.reject(error.getMessage() == null ? "读取所选文件失败" : error.getMessage(), error);
+            }
+        }, "tingyu-settings-file-picker").start();
+    }
+
+    /** Bounded chunk reads avoid allocating a second full base64 copy for large user files. */
+    @PluginMethod
+    public void readSettingsFileChunk(PluginCall call) {
+        String token = call.getString("id", "");
+        File file = pendingSettingsFiles.get(token);
+        long offset = call.getLong("offset", -1L);
+        int requested = call.getInt("length", 0);
+        if (file == null || !file.isFile() || offset < 0 || requested <= 0 || requested > 512 * 1024) {
+            call.reject("文件读取请求无效"); return;
+        }
+        try (RandomAccessFile input = new RandomAccessFile(file, "r")) {
+            if (offset > input.length()) { call.reject("文件读取位置无效"); return; }
+            int count = (int)Math.min(requested, input.length() - offset);
+            byte[] bytes = new byte[count]; input.seek(offset); input.readFully(bytes);
+            call.resolve(new JSObject().put("base64", Base64.encodeToString(bytes, Base64.NO_WRAP)).put("length", count));
+        } catch (Exception error) { call.reject("读取所选文件失败", error); }
+    }
+
+    @PluginMethod
+    public void releaseSettingsFiles(PluginCall call) {
+        org.json.JSONArray ids = call.getData().optJSONArray("ids");
+        if (ids != null) for (int index = 0; index < ids.length(); index++) {
+            String token = ids.optString(index, ""); File file = pendingSettingsFiles.remove(token); if (file != null) file.delete();
+        }
+        call.resolve();
     }
 
     /** 选择整个文件夹；原生侧递归扫描其中的音频，用户可以一次导入整张专辑/目录。 */
