@@ -91,6 +91,15 @@ it('surfaces native decoder failures instead of leaving a pending Play without a
     expect(await play).toContain('ERROR_CODE_DECODING_FAILED');expect(f.element.error?.code).toBe(3);expect(errors).toHaveBeenCalledOnce();
     await f.adapter.dispose();
 });
+it('claims a decoder offer natively before exposing an error, even if Play was already queued',async()=>{
+    const f=await fixture(),errors=vi.fn();f.element.addEventListener('error',errors);
+    const preparing=f.commands[0],play=f.element.play().catch(()=>{});await f.flush();
+    f.state({type:'decoder-offer',sequence:preparing.sequence,decoderOffer:21,errorCode:4005,songKey:'original-platform:song-1'});await f.flush();
+    expect(f.commands.at(-1)).toMatchObject({action:'claim-compatibility',offer:21,songKey:'original-platform:song-1'});expect(errors).not.toHaveBeenCalled();
+    f.state({type:'error',errorCode:4005,compatibilityClaimed:true});await play;
+    expect(errors).toHaveBeenCalledOnce();expect(f.adapter.snapshot().requestedPlaying).toBe(true);
+    f.element.pause();expect(f.adapter.snapshot().requestedPlaying).toBe(false);await f.adapter.dispose();
+});
 
 it('emits terminal ended/error once, even if native events are coalesced or repeated',async()=>{
     const f=await fixture(),ended=vi.fn(),errors=vi.fn();f.element.addEventListener('ended',ended);f.element.addEventListener('error',errors);

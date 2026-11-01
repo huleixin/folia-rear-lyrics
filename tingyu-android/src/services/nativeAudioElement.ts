@@ -1,4 +1,5 @@
 import { notePlaybackTest,playbackTestUriInfo } from './playbackTestLog';
+import { prepareNativeAudioSource, type NativeAudioSource } from './nativeAudioCache';
 import type { NativeAudioOptions, NativeAudioPort, NativeAudioState, NativeQueueTrack, NativeQueueWindow } from '../types/nativeAudio';
 
 // src/services/nativeAudioElement.ts
@@ -17,8 +18,9 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     const original=new Map<string,PropertyDescriptor|undefined>();
     const originalAttribute=element.getAttribute.bind(element);
     const bands={spectrum:new Uint8Array(1024)};
-    let source='',track='',id='',sequence=0,lastIntent=0,position=0,duration=0,buffered=0,anchor=performance.now();
+    let source='',track='',id='',sequence=0,lastIntent=0,position=0,duration=0,buffered=0,anchor=performance.now(),sourceAttempt:unknown;
     let paused=true,playing=false,ended=false,ready=0,volume=element.volume,muted=element.muted,disposed=false,metadata=false;
+    let requestedPlaying=false;
     let lastEventRevision=-1,engineSession='';
     const retiredSessions:string[]=[];
     let rate=1;
@@ -29,7 +31,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     const time=()=>Math.max(0,Math.min(duration||Infinity,position+(playing&&!paused?(performance.now()-anchor)/1000*rate:0)));
     const rejectPending=(reason:unknown)=>{if(pending){clearTimeout(pending.timer);pending.reject(reason);pending=null;}};
     const onState=(value:NativeAudioState)=>{
-        if(blocked||disposed||value.id!==id||(!value.external&&value.sequence<lastIntent))return;
+        if(blocked||disposed||value.id!==id||(!value.external&&value.type!=='decoder-offer'&&value.sequence<lastIntent))return;
         if(value.engineSessionId && value.engineSessionId!==engineSession){
             if(retiredSessions.includes(value.engineSessionId))return;
             if(engineSession)retiredSessions.push(engineSession);
@@ -39,6 +41,11 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         if(value.eventRevision!==undefined){
             if(value.eventRevision<=lastEventRevision)return;
             lastEventRevision=value.eventRevision;
+        }
+        if(value.type==='decoder-offer'){
+            // Only native can confirm that a queued fault still belongs to the audible track.
+            if(value.decoderOffer!==undefined)void send('claim-compatibility',{songKey:value.songKey,offer:value.decoderOffer}).catch(()=>{});
+            return;
         }
         // Native queue supervision runs on Media3's own callbacks, so these signals arrive even
         // when the UI is showing a stale track (the very case that used to starve the queue).
@@ -85,13 +92,15 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
             const firstError=!error;
             error={code:value.errorCode>=2000&&value.errorCode<3000?2:3,message:`原生播放失败：${value.message??value.errorCode}`} as MediaError;
             error.nativeCode=value.errorCode;
+            Object.assign(error,{nativeCompatibilityClaimed:value.compatibilityClaimed});
             paused=true;playing=false;ready=0;rejectPending(Error(error.message));if(firstError)event('error');return;
         }
         if(value.status===3){ready=4;if(!metadata){metadata=true;event('loadedmetadata');event('loadeddata');event('canplay');}}
         if(value.type==='seeked'){event('seeked');event('timeupdate');}
-        if(value.endedBySleep){const wasPaused=paused;paused=true;playing=false;ended=false;if(!wasPaused)event('pause');event('timeupdate');return;}
+        if(value.endedBySleep){requestedPlaying=false;const wasPaused=paused;paused=true;playing=false;ended=false;if(!wasPaused)event('pause');event('timeupdate');return;}
         if(value.status===4){const finished=!ended;ended=true;paused=true;playing=false;if(finished)event('ended');return;}
         if(value.sequence>=lastIntent||value.external){
+            if(value.external)requestedPlaying=!value.paused;
             const previous=paused;paused=value.paused;
             if(previous&&!paused)event('play');else if(!previous&&paused)event('pause');
         }
@@ -100,11 +109,27 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         if(value.type==='clock')event('timeupdate');
     };
     let listener:{remove():Promise<void>}|undefined;
+    const cacheLeases=new Set<NativeAudioSource>();
     let work=port.addListener('state',onState).then(value=>{listener=value;if(disposed)void value.remove();});
     const send=(action:string,data:Record<string,unknown>={})=>{
         const token=id,revision=++sequence;const started=performance.now();
         if(action!=='volume')notePlaybackTest('native-command',{action,sequence:revision,...(action==='prepare'?playbackTestUriInfo(String(data.uri??'')):{})});
-        work=work.catch(()=>{}).then(async()=>{if(blocked||(action!=='detach'&&(disposed||token!==id)))throw abort();const result=await port.command({action,id:token,sequence:revision,...data});if(action!=='volume')notePlaybackTest('native-command-result',{action,accepted:result.accepted,elapsedMs:Math.round(performance.now()-started)});if(!result.accepted)throw abort();if('state' in result&&result.state)onState(result.state as NativeAudioState);});
+        work=work.catch(()=>{}).then(async()=>{
+            if(blocked||(action!=='detach'&&(disposed||token!==id)))throw abort();
+            if(action==='play'&&paused)throw abort(); // A sleep pause/user pause can supersede a queued Play.
+            let staged:NativeAudioSource|undefined;
+            if(action==='prepare'){
+                try { staged=await prepareNativeAudioSource(String(data.uri??''),()=>!disposed&&token===id); }
+                catch(error){if(!disposed&&token===id&&String(data.uri).startsWith('blob:'))throw Object.assign(new Error('Native cache bridge unavailable'),{nativeCacheFailure:true,cause:error});throw error;}
+                if(disposed||token!==id){await staged.release();throw abort();}
+                cacheLeases.add(staged);
+            }
+            const result=await port.command({action,id:token,sequence:revision,...data,...(staged?{uri:staged.uri}:{})});
+            if(action!=='volume')notePlaybackTest('native-command-result',{action,accepted:result.accepted,elapsedMs:Math.round(performance.now()-started)});
+            if(!result.accepted)throw abort();
+            if(action==='detach'||action==='prepare')for(const lease of [...cacheLeases])if(lease!==staged){cacheLeases.delete(lease);await lease.release().catch(()=>{});}
+            if('state' in result&&result.state)onState(result.state as NativeAudioState);
+        });
         void work.catch(error=>notePlaybackTest('native-command-failed',{action,error,elapsedMs:Math.round(performance.now()-started)}));
         return work;
     };
@@ -142,10 +167,12 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     set('muted',{get:()=>muted,set:(value:boolean)=>{if(muted===value)return;muted=value;updateVolume();}});
     set('load',{value:()=>{}}); // setSource commits once; the audio bridge must not prepare it twice.
     set('pause',{value:()=>{
+        requestedPlaying=false;
         const wasPaused=paused;position=time();anchor=performance.now();paused=true;playing=false;rejectPending(abort());
         lastIntent=sequence+1;if(id)void send('pause').catch(()=>{});if(!wasPaused)event('pause');
     }});
     set('play',{value:()=>{
+        requestedPlaying=true;
         if(!source)return Promise.reject(new DOMException('No playback source','NotSupportedError'));
         if(playing&&!paused)return Promise.resolve();
         rejectPending(abort());error=null;paused=false;ended=false;lastIntent=sequence+1;event('play');
@@ -155,23 +182,28 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
             position=time();anchor=performance.now();paused=true;playing=false;
             rejectPending(reason);lastIntent=sequence+1;void send('pause').catch(()=>{});event('pause');
         };
-        const result=new Promise<void>((resolve,reject)=>{pending={resolve,reject,timer:setTimeout(()=>{notePlaybackTest('native-play-timeout');failPlay(Error('原生播放器等待音频超时'))},15000)};});
-        void send('play').catch(failPlay);return result;
+        const timeout=()=>{notePlaybackTest('native-play-timeout');failPlay(Error('原生播放器等待音频超时'));};
+        // Staging a large offline Blob precedes Play; the decoder's 15s budget starts on command ACK.
+        const result=new Promise<void>((resolve,reject)=>{pending={resolve,reject,timer:setTimeout(timeout,60000)};});
+        void send('play').then(()=>{if(pending&&id===playId&&lastIntent===playIntent){clearTimeout(pending.timer);pending.timer=setTimeout(timeout,15000);}}).catch(failPlay);return result;
     }});
     return {
         setSource(uri:string,key:string,sourceMetadata:Record<string,unknown>={}){
-            if(uri===source&&key===track)return;
+            if(uri===source&&key===track&&sourceAttempt===sourceMetadata.playbackAttempt)return;
+            sourceAttempt=sourceMetadata.playbackAttempt;
             if(!uri&&id)void send('detach').catch(()=>{});
             rejectPending(abort());source=uri;track=key;id=uri?crypto.randomUUID():'';sequence=0;lastIntent=0;lastEventRevision=-1;
+            requestedPlaying=false;
             position=0;duration=0;buffered=0;lastSample=-Infinity;seekTarget=null;anchor=performance.now();paused=true;playing=false;ended=false;error=null;ready=1;metadata=false;bands.spectrum.fill(0);
             event('loadstart');if(!uri)return;
             const preparing=id;
-            void send('prepare',{...sourceMetadata,uri,songKey:key,adopt:adoptions.delete(key),volume:muted?0:volume,...options}).catch(reason=>{
-                if(disposed||preparing!==id)return;error={code:4,message:String(reason)} as MediaError;rejectPending(reason);event('error');
+            const {playbackAttempt:_attempt,...nativeMetadata}=sourceMetadata;
+            void send('prepare',{...nativeMetadata,uri,songKey:key,adopt:adoptions.delete(key),volume:muted?0:volume,...options}).catch(reason=>{
+                if(disposed||preparing!==id)return;error=Object.assign({code:4,message:String(reason)} as MediaError,{nativeCacheFailure:(reason as {nativeCacheFailure?:boolean})?.nativeCacheFailure});rejectPending(reason);event('error');
             });
         },
         configure(next:NativeAudioOptions){options=next;if(id)void send('configure',next).catch(()=>{});},
-        snapshot:()=>({position:time(),paused,source,track,volume,muted}),
+        snapshot:()=>({position:time(),paused,source,track,volume,muted,requestedPlaying}),
         dispose(){
             if(disposed)return Promise.resolve();disposed=true;rejectPending(abort());elements.delete(element);document.removeEventListener('visibilitychange',refresh);
             for(const [name,descriptor] of original){if(descriptor)Object.defineProperty(element,name,descriptor);else delete (element as unknown as Record<string,unknown>)[name];}

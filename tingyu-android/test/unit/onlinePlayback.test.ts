@@ -98,11 +98,12 @@ describe('online audio ReplayGain plumbing', () => {
     it('honours the selected LX source instead of replaying a legacy platform preview blob',async()=>{
         const saved=useLxSourceStore.getState();
         useLxSourceStore.setState({activeId:'source',scripts:[{id:'source',name:'test',code:'',version:'1',description:'',author:'',homepage:'',capabilities:{}}]});
-        cachedAudioMock.mockResolvedValue(new Blob(['legacy platform preview']));
+        // The scoped reader reports a miss: legacy/platform keys are tested below its boundary.
+        cachedAudioMock.mockResolvedValue(null);
         sourceMock.mockResolvedValue({url:'https://audio.test/full.mp3',quality:'high',fetchedAt:1});
         try {
             expect(await loadOnlineSongAudioSource(song,'high',null)).toMatchObject({kind:'ok',audioSrc:'https://audio.test/full.mp3'});
-            expect(cachedAudioMock).not.toHaveBeenCalled();expect(sourceMock).toHaveBeenCalledWith(song,'high');
+            expect(cachedAudioMock).toHaveBeenCalledWith(song,'high');expect(sourceMock).toHaveBeenCalledWith(song,'high');
         } finally {useLxSourceStore.setState(saved)}
     });
 

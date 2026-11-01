@@ -7,6 +7,25 @@ import java.util.function.Consumer;
 // android/app/src/main/java/io/github/huleixin/tingyu/playback/TingyuPlaybackPlugin.java
 @CapacitorPlugin(name="TingyuPlayback")
 public final class TingyuPlaybackPlugin extends Plugin {
+    private static final java.util.concurrent.ExecutorService AUDIO_CACHE_IO=java.util.concurrent.Executors.newSingleThreadExecutor(r->new Thread(r,"tingyu-audio-cache"));
+    private static AudioCacheStaging audioStaging;
+    private AudioCacheStaging audioStaging()throws java.io.IOException{
+        if(audioStaging==null)audioStaging=new AudioCacheStaging(new java.io.File(getContext().getCacheDir(),"audio-bridge-v1"));return audioStaging;
+    }
+    @PluginMethod public void audioCacheBegin(PluginCall call){AUDIO_CACHE_IO.execute(()->{try{
+        call.resolve(new JSObject().put("token",audioStaging().begin(call.getData().optLong("size"))));
+    }catch(Exception error){call.reject("Audio cache staging unavailable");}});}
+    @PluginMethod public void audioCacheAppend(PluginCall call){
+        String encoded=call.getString("data","");
+        if(encoded.length()>87384){call.reject("Audio chunk too large");return;}
+        AUDIO_CACHE_IO.execute(()->{try{
+            audioStaging().append(call.getString("token",""),call.getData().optLong("offset"),android.util.Base64.decode(encoded,android.util.Base64.NO_WRAP));call.resolve();
+        }catch(Exception error){call.reject("Audio cache chunk rejected");}});
+    }
+    @PluginMethod public void audioCacheFinish(PluginCall call){AUDIO_CACHE_IO.execute(()->{try{
+        call.resolve(new JSObject().put("uri",android.net.Uri.fromFile(audioStaging().finish(call.getString("token",""))).toString()));
+    }catch(Exception error){call.reject("Audio cache incomplete");}});}
+    @PluginMethod public void audioCacheRelease(PluginCall call){AUDIO_CACHE_IO.execute(()->{try{audioStaging().release(call.getString("token",""));call.resolve();}catch(Exception error){call.reject("Audio cache release failed");}});}
     // Native audio passed device validation in the 1.3.24 test builds; the empty-buffer fix in
     // PlaybackSpectrumProcessor is what made it playable. The flag stays overridable so a build
     // can still ship WebView-only audio.

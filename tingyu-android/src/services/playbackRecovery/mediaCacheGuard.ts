@@ -12,12 +12,16 @@ const NON_AUDIO_CONTENT_TYPE = /^(text\/|application\/(json|xml|xhtml))|html/i;
 
 /** 下载结果是否像一段可以缓存的音频：HTTP 成功、不是文本 / JSON / HTML、且不小于 16 KiB。 */
 export const isCacheableAudioResponse = (
-    response: { ok: boolean; headers?: { get(name: string): string | null } },
+    response: { ok: boolean; status?:number; headers?: { get(name: string): string | null } },
     blob: { size: number; type?: string },
 ): boolean => {
     if (!response.ok) return false;
     const contentType = response.headers?.get('content-type') || blob.type || '';
     if (NON_AUDIO_CONTENT_TYPE.test(contentType)) return false;
+    const expected=Number(response.headers?.get('content-length'));
+    // A 206 body is a range, never a complete offline song. Encoded lengths describe wire bytes.
+    if(('status' in response && response.status===206)||
+        (expected>0&&!response.headers?.get('content-encoding')&&expected!==blob.size))return false;
     return blob.size >= MIN_CACHEABLE_AUDIO_BYTES;
 };
 

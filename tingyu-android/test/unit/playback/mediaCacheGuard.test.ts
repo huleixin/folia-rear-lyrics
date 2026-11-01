@@ -28,6 +28,12 @@ const song = (providerId: string, mediaId: string): SongResult => ({
 }) as SongResult;
 
 describe('isCacheableAudioResponse', () => {
+    it('rejects partial HTTP bodies and mismatched unencoded Content-Length',()=>{
+        expect(isCacheableAudioResponse({ok:true,status:206,headers:{get:()=>null}},blob(40000))).toBe(false);
+        expect(isCacheableAudioResponse({ok:true,headers:{get:name=>name==='content-length'?'80000':null}},blob(40000))).toBe(false);
+        expect(isCacheableAudioResponse({ok:true,headers:{get:name=>name==='content-length'?'40000':null}},blob(40000))).toBe(true);
+        expect(isCacheableAudioResponse({ok:true,headers:{get:name=>name==='content-length'?'1000':name==='content-encoding'?'gzip':null}},blob(40000))).toBe(true);
+    });
     it('rejects a failed response', () => {
         expect(isCacheableAudioResponse(response(403, 'audio/mpeg'), blob(MIN_CACHEABLE_AUDIO_BYTES))).toBe(false);
     });

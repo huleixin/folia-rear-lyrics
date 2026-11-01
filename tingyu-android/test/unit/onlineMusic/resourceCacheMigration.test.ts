@@ -3,6 +3,7 @@ import { getFromCache, saveToCache } from '@/services/db';
 import { getCachedAudioBlob, hasCachedAudio, saveAudioBlob } from '@/services/audioCache';
 import { getCachedSongAudioBlob, getSongCacheWithLegacyMigration, hasCachedSongAudio } from '@/services/onlineMusic/resourceCache';
 import type { SongResult } from '@/types';
+import { useLxSourceStore } from '@/stores/useLxSourceStore';
 
 // test/unit/onlineMusic/resourceCacheMigration.test.ts
 
@@ -33,6 +34,17 @@ const legacyNeteaseSong: SongResult = {
 
 describe('provider-aware resource cache migration', () => {
     beforeEach(() => vi.clearAllMocks());
+    it('reads only the selected LX script and requested quality, never legacy/platform/sibling source bytes',async()=>{
+        const saved=useLxSourceStore.getState();useLxSourceStore.setState({activeId:'script-a'});
+        vi.mocked(getCachedAudioBlob).mockImplementation(async key=>key==='audio_42'||key==='audio_online:netease:42'?new Blob(['wrong']):null);
+        try{
+            expect(await getCachedSongAudioBlob(legacyNeteaseSong,'lossless')).toBeNull();
+            expect(getCachedAudioBlob).toHaveBeenCalledExactlyOnceWith('audio_lx_script-a_lossless_online:netease:42');
+            vi.mocked(getCachedAudioBlob).mockClear();const correct=new Blob(['selected offline audio']);
+            vi.mocked(getCachedAudioBlob).mockImplementation(async key=>key==='audio_lx_script-a_lossless_online:netease:42'?correct:null);
+            expect(await getCachedSongAudioBlob(legacyNeteaseSong,'lossless')).toBe(correct);
+        }finally{useLxSourceStore.setState(saved);}
+    });
 
     it('reads an old lyric key and writes the provider-aware key', async () => {
         const lyric = { lines: [{ fullText: 'legacy' }] };

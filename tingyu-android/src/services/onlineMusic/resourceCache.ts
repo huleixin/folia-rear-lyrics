@@ -1,6 +1,7 @@
 import { readSharedLyrics, cacheSharedLyrics } from '../sharedSongResources';
 import type { ReplayGainInfo, SongResult } from '../../types';
 import type { MigrationResult } from '../../utils/lyrics/renderHints';
+import type { AudioQualityPreference } from '../../types/onlineMusic';
 import { getCachedAudioBlob, hasCachedAudio, saveAudioBlob } from '../audioCache';
 import { getCachedCoverUrl, hasCachedCover, saveCoverBlob } from '../coverCache';
 import { getFromCache, saveToCache } from '../db';
@@ -40,12 +41,13 @@ export const getSongCacheWithLegacyMigration = async <T>(
     return null;
 };
 
-export const getCachedSongAudioBlob = async (song: SongResult): Promise<Blob | null> => {
-    const cacheKey = getSongResourceCacheKey('audio', song);
+export const getCachedSongAudioBlob = async (song: SongResult, quality?: AudioQualityPreference): Promise<Blob | null> => {
+    const cacheKey = getSongResourceCacheKey('audio', song, quality);
+    const legacyKeys = getLegacySongResourceCacheKeys('audio', song);
     const current = await getCachedAudioBlob(cacheKey);
     if (current) return current;
 
-    for (const legacyKey of getLegacySongResourceCacheKeys('audio', song)) {
+    for (const legacyKey of legacyKeys) {
         const legacy = await getCachedAudioBlob(legacyKey);
         if (!legacy) continue;
         await saveAudioBlob(cacheKey, legacy);
