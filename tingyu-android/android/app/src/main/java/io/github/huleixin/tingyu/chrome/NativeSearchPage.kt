@@ -51,7 +51,6 @@ import androidx.compose.ui.unit.sp
                         if(hot)PageIcon("flame",PageMuted,Modifier.padding(end=8.dp).size(19.dp))
                         Text(section.title,color=PageInk,fontSize=16.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
                         if(history)ChromeButton("清空历史",size=40.dp,onClick={action(section.more,"",0.0)}){PageIcon("trash2",PageMuted,Modifier.size(17.dp))}
-                        else if(!hot&&section.more.isNotBlank())Text(section.moreLabel,color=PageMuted,fontSize=12.sp,modifier=Modifier.clickable{action(section.more,"",0.0)}.padding(8.dp))
                     }
                 }
                 when {
@@ -87,8 +86,17 @@ import androidx.compose.ui.unit.sp
                     }}}
                     section.text.isNotBlank() -> item(key=section.id){Text(section.text,color=PageMuted,fontSize=13.sp,modifier=Modifier.padding(vertical=12.dp))}
                 }
-                if(section.busy)item(key="${section.id}:busy"){CircularProgressIndicator(Modifier.padding(12.dp).size(20.dp),color=PageAccent,strokeWidth=2.dp)}
-                if(section.more.isNotBlank()&&section.title.isBlank())item(key="${section.id}:more"){PagePill(section.moreLabel,{action(section.more,"",0.0)})}
+                // Keep pagination after all logical rows, including rows fetched through the 100-item window.
+                if(section.busy)item(key="${section.id}:busy"){
+                    Box(Modifier.fillMaxWidth().heightIn(min=48.dp),contentAlignment=Alignment.Center){
+                        CircularProgressIndicator(Modifier.size(20.dp),color=PageAccent,strokeWidth=2.dp)
+                    }
+                }
+                if(!hot&&!history&&section.more.isNotBlank()&&!section.busy)item(key="${section.id}:more"){
+                    Box(Modifier.fillMaxWidth().padding(top=12.dp,bottom=8.dp),contentAlignment=Alignment.Center){
+                        PagePill(section.moreLabel,{action(section.more,"",0.0)},height=48.dp,font=14,trailing="chevron-down")
+                    }
+                }
             }
         }
     }

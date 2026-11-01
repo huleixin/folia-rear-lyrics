@@ -1,5 +1,6 @@
 import StartupDiagnosticsControl from './StartupDiagnosticsControl';
 import React, { useState } from 'react';
+import { isAndroidNativeRuntime } from '../../utils/platform';
 import { Activity, Check, ClipboardCopy, Eraser, FileDown, Lightbulb, Loader2, Sparkles, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -123,22 +124,29 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
     const TrailIcon = trailState === 'working' ? Loader2 : trailState === 'cleared' ? Check : Eraser;
     const FaultIcon = faultState === 'working' ? Loader2 : faultState === 'shared' ? Check : Activity;
 
+    const releaseNotes = (
+        <button
+            type="button"
+            data-testid="help-release-notes"
+            onClick={onOpenReleaseNotes}
+            className="flex w-full items-center gap-3 rounded-2xl bg-white/5 p-4 text-left transition-colors hover:bg-white/10"
+            style={{ color: 'var(--text-primary)' }}
+        >
+            <Sparkles size={19} className="shrink-0 opacity-75" aria-hidden="true" />
+            <span>
+                <span className="block text-sm font-semibold">{t('help.releaseNotes')}</span>
+                <span className="mt-0.5 block text-xs opacity-55">{t('help.releaseNotesDescription')}</span>
+            </span>
+        </button>
+    );
+
+    // Android exposes only the release action; diagnostic services remain available internally.
+    if (isAndroidNativeRuntime()) return <div>{releaseNotes}</div>;
+
     return (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <StartupDiagnosticsControl/>
-            <button
-                type="button"
-                data-testid="help-release-notes"
-                onClick={onOpenReleaseNotes}
-                className="flex items-center gap-3 rounded-2xl bg-white/5 p-4 text-left transition-colors hover:bg-white/10"
-                style={{ color: 'var(--text-primary)' }}
-            >
-                <Sparkles size={19} className="shrink-0 opacity-75" aria-hidden="true" />
-                <span>
-                    <span className="block text-sm font-semibold">{t('help.releaseNotes')}</span>
-                    <span className="mt-0.5 block text-xs opacity-55">{t('help.releaseNotesDescription')}</span>
-                </span>
-            </button>
+            {releaseNotes}
             <button
                 type="button"
                 data-testid="help-copy-diagnostics"

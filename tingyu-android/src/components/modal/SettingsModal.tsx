@@ -1585,8 +1585,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                     </ul>
                                 </div>}
 
-                                {/* User Guide Button */}
-                                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                                {/* Desktop help and community links. Android keeps this page focused on usage and version info. */}
+                                {!isAndroidNativeRuntime() && <div className="mt-6 flex flex-wrap justify-center gap-3">
                                     <button
                                         type="button"
                                         onClick={() => setShowAiHelpPrompt(true)}
@@ -1597,7 +1597,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                         {t('aiHelp.openButton', 'Need help?')}
                                     </button>
                                     <JoinCommunityButton />
-                                </div>
+                                </div>}
 
                                 {/* Author Info (Moved from Footer) */}
                                 <div className="mt-6 text-center text-xs opacity-75" data-tingyu-attribution="true">
