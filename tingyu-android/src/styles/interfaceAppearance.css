@@ -25,12 +25,13 @@ html[data-interface-appearance='light'] [data-folia-settings-overlay] {
  --ty-settings-line:#315d4338!important;--ty-settings-muted:#536d61!important;--ty-settings-mint:#246e55!important;
  color:#213e34!important;color-scheme:light;
 }
-html[data-interface-appearance='light'] [data-folia-settings-overlay] :is(.text-white,.text-zinc-50,.text-zinc-100,.text-zinc-200,.text-zinc-300,.text-gray-50,.text-gray-100,.text-gray-200,.text-gray-300,[class*="text-white/"]) {color:#213e34!important}
-html[data-interface-appearance='light'] [data-folia-settings-overlay] :is(.text-zinc-400,.text-zinc-500,.text-zinc-600,.text-gray-400,.text-gray-500,.text-gray-600) {color:#536d61!important}
-html[data-interface-appearance='light'] [data-folia-settings-overlay] :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-40"],
-html[data-interface-appearance='light'] [data-folia-settings-overlay] :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-45"],
-html[data-interface-appearance='light'] [data-folia-settings-overlay] :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-50"],
-html[data-interface-appearance='light'] [data-folia-settings-overlay] :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-60"] {opacity:.82!important}
+html[data-interface-appearance='light'] [data-folia-settings-overlay] :not([data-folia-stage-preview] *) :is(.text-white,.text-zinc-50,.text-zinc-100,.text-zinc-200,.text-zinc-300,.text-gray-50,.text-gray-100,.text-gray-200,.text-gray-300,[class*="text-white/"]) {color:#213e34!important}
+html[data-interface-appearance='light'] [data-folia-settings-overlay] :not([data-folia-stage-preview] *) :is(.text-zinc-400,.text-zinc-500,.text-zinc-600,.text-gray-400,.text-gray-500,.text-gray-600) {color:#536d61!important}
+html[data-interface-appearance='light'] [data-folia-settings-overlay] :not([data-folia-stage-preview] *) :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-40"],
+html[data-interface-appearance='light'] [data-folia-settings-overlay] :not([data-folia-stage-preview] *) :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-45"],
+html[data-interface-appearance='light'] [data-folia-settings-overlay] :not([data-folia-stage-preview] *) :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-50"],
+html[data-interface-appearance='light'] [data-folia-settings-overlay] :not([data-folia-stage-preview] *) :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-60"] {opacity:.82!important}
+html[data-interface-appearance='light'] [data-folia-settings-overlay] :not([data-folia-stage-preview] *) :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-70"] {opacity:.94!important}
 html[data-interface-appearance='light'] [data-folia-app-shell][data-folia-android='true']:not([data-folia-player-view]){background:#f4f5ee!important}
 html[data-interface-appearance='light'] .mobile-library:is(.ml-home,.ml-playlist-detail),
 html[data-interface-appearance='light'] [data-mobile-settings='true'] > [data-folia-settings-panel]{background:linear-gradient(180deg,#e3ede2,#f0f3ea 50%,#f4f5ee)}

@@ -652,7 +652,16 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
     }), [t]);
     const glassBg = isDaylight ? 'bg-white/70' : 'bg-zinc-950/88';
     const borderColor = isDaylight ? 'border-black/5' : 'border-white/10';
-    const controlCardBg = colorWithAlpha(previewTheme.backgroundColor, isDaylight ? 0.42 : 0.52);
+    // The lyric preview keeps its own stage theme. Settings controls use the app
+    // appearance so a dark stage preset cannot make the light settings unreadable.
+    const settingsChromeTheme = useMemo<Theme>(() => isDaylight ? ({
+        ...previewTheme,
+        backgroundColor: '#F1F4ED',
+        primaryColor: '#213E34',
+        secondaryColor: '#536D61',
+        accentColor: '#246E55',
+    }) : previewTheme, [isDaylight, previewTheme]);
+    const controlCardBg = isDaylight ? 'rgba(255,255,255,0.78)' : colorWithAlpha(previewTheme.backgroundColor, 0.52);
     const overlayBackground = isDaylight ? 'rgba(255,255,255,0.72)' : 'rgba(0,0,0,0.65)';
     const rangeInputClass = [
         'w-full h-1.5 rounded-full appearance-none cursor-pointer',
@@ -1166,18 +1175,18 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                 data-ponder="vis-playground"
                 className={`mx-auto flex h-full max-w-[1600px] flex-col overflow-hidden rounded-[32px] border ${borderColor} ${glassBg} shadow-[0_24px_80px_rgba(0,0,0,0.28)]`}
             >
-                <div className="flex items-center justify-between border-b border-white/10 px-4 py-4 sm:px-6">
+                <div className={`flex items-center justify-between border-b px-4 py-4 sm:px-6 ${isDaylight ? 'border-black/10' : 'border-white/10'}`}>
                     <div className="flex items-center gap-3 min-w-0">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="h-10 w-10 rounded-full border border-white/10 bg-white/5 flex items-center justify-center transition-colors hover:bg-white/10"
-                            style={{ color: 'var(--text-primary)' }}
+                            className={`h-10 w-10 rounded-full border flex items-center justify-center transition-colors ${isDaylight ? 'border-black/10 bg-black/[0.035] hover:bg-black/[0.07]' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
+                            style={{ color: isDaylight ? '#213E34' : 'var(--text-primary)' }}
                         >
                             <ChevronLeft size={18} />
                         </button>
                         <div className="min-w-0">
-                            <div className="text-lg sm:text-xl font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                            <div className="text-lg sm:text-xl font-semibold truncate" style={{ color: isDaylight ? '#213E34' : 'var(--text-primary)' }}>
                                 {t('options.lyricsStyleSettings')}
                             </div>
                         </div>
@@ -1185,7 +1194,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                 </div>
 
                 <div className="grid min-h-0 flex-1 gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,1.25fr)_360px]">
-                    <div data-native-live={NATIVE_FIRST?'true':undefined} className="relative min-h-[320px] overflow-hidden rounded-[28px] border border-white/10 bg-black/20">
+                    <div data-folia-stage-preview="true" className="relative min-h-[320px] overflow-hidden rounded-[28px] border border-white/10 bg-black/20">
                         <div className="absolute left-4 top-4 z-20 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/25 px-3 py-1.5 text-xs uppercase tracking-[0.22em] backdrop-blur-md" style={{ color: 'rgba(255,255,255,0.78)' }}>
                             <Sparkles size={13} />
                             <span>{t('ui.livePreview')}</span>
@@ -1194,7 +1203,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                             {modeLabel}
                         </div>
 
-                        <div className="absolute inset-0">
+                        <div data-native-live={NATIVE_FIRST?'true':undefined} className="absolute inset-0">
                             {previewReady&&<VisualizerRenderer
                                 mode={visualizerMode}
                                 currentTime={currentTime}
@@ -1255,7 +1264,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                         onSectionChange={setActiveEditSection}
                         t={t}
                         isDaylight={isDaylight}
-                        theme={previewTheme}
+                        theme={settingsChromeTheme}
                         visualizerMode={visualizerMode}
                         visualizerEntry={visualizerEntry}
                         onVisualizerModeChange={onVisualizerModeChange}

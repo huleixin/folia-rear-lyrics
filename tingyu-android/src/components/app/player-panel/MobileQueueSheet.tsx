@@ -6,11 +6,13 @@ import type { PlayerPanelViewModel } from './buildPlayerPanelModel';
 import { colorWithAlpha } from '../../visualizer/colorMix';
 import './mobileQueueSheet.css';
 import { canSaveQueueAsLocalPlaylist } from '../../../utils/queueReorder';
+import { useInterfaceLight } from '../../../hooks/useInterfaceAppearance';
 
 // src/components/app/player-panel/MobileQueueSheet.tsx
 export default function MobileQueueSheet({ model }: { model: PlayerPanelViewModel }) {
     const { t } = useTranslation();
     const { playback, queue, account } = model.panelProps;
+    const interfaceLight = useInterfaceLight(account.isDaylight);
     const surface = useRef<HTMLElement>(null);
     useEffect(() => {
         const before = document.activeElement as HTMLElement | null;
@@ -26,14 +28,14 @@ export default function MobileQueueSheet({ model }: { model: PlayerPanelViewMode
         window.addEventListener('keydown', key, true);
         return () => { window.removeEventListener('keydown', key, true); before?.isConnected && before.focus(); };
     }, [playback.onToggle]);
-    return <div className="mobile-queue-scrim" data-folia-keyboard-window="true" onClick={playback.onToggle}>
+    return <div className="mobile-queue-scrim" data-folia-keyboard-window="true" data-interface-light={interfaceLight} onClick={playback.onToggle}>
         <section ref={surface} role="dialog" aria-modal="true" aria-label={t('queue.title')} className="mobile-queue-sheet"
-            style={{ color: playback.theme.primaryColor, background: colorWithAlpha(playback.theme.backgroundColor, .94) }}
+            style={interfaceLight ? undefined : { color: playback.theme.primaryColor, background: colorWithAlpha(playback.theme.backgroundColor, .94) }}
             onClick={event => event.stopPropagation()}>
             <span className="mobile-sheet-handle" />
             <header><Music2 size={22} /><strong>{playback.currentSong?.name || t('queue.title')}</strong>
                 <button onClick={playback.onToggle} aria-label={t('ui.close')} autoFocus><X size={22} /></button></header>
-            <QueueTab {...queue} currentSong={playback.currentSong} shouldScrollToCurrent isDaylight={account.isDaylight}
+            <QueueTab {...queue} currentSong={playback.currentSong} shouldScrollToCurrent isDaylight={interfaceLight}
                 canSaveLocalPlaylist={canSaveQueueAsLocalPlaylist(playback.currentSong, queue.playQueue)} />
         </section>
     </div>;
