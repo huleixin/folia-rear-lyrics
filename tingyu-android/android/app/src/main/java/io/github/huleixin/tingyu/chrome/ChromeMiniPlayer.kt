@@ -34,7 +34,7 @@ import kotlin.math.abs
     timer:MiniSleepUi?=null,onSleepAnchor:(Rect)->Unit={},action: (String,Double)->Unit) {
     val ink=chromeColor(s.ink);val accent=chromeColor(s.accent)
     val cover=pageImage(s.cover)
-    BoxWithConstraints(modifier.chromeGlass(backdrop,s.light,28.dp)) {
+    BoxWithConstraints(modifier.chromeGlass(backdrop,s.light,28.dp,lightSurfaceAlpha=.64f,legacyLightSurfaceAlpha=.84f)) {
     val compact=maxWidth<340.dp
     val spacing=miniPlayerSpacing(maxWidth.value)
     Row(Modifier.fillMaxSize().padding(horizontal=6.dp,vertical=3.dp),verticalAlignment=Alignment.CenterVertically) {
@@ -57,22 +57,22 @@ import kotlin.math.abs
             }
         }
         Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(18.dp)).then(drag)) {
-            if(abs(offset.value)>8f)Text(s.label(if(offset.value<0)"next" else "previous",if(offset.value<0)"下一首" else "上一首"),color=ink.copy(alpha=.7f),fontSize=12.sp,maxLines=1,
+            if(abs(offset.value)>8f)Text(s.label(if(offset.value<0)"next" else "previous",if(offset.value<0)"下一首" else "上一首"),color=if(s.light)ink else ink.copy(alpha=.7f),fontSize=12.sp,maxLines=1,
                 modifier=Modifier.align(Alignment.Center).graphicsLayer{translationX=offset.value+(if(offset.value<0)width else -width)})
             Row(Modifier.fillMaxSize().graphicsLayer{translationX=offset.value}.clickable(role=Role.Button){action("openStage",0.0)},verticalAlignment=Alignment.CenterVertically) {
                 Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(accent.copy(alpha=.2f)),contentAlignment=Alignment.Center) {
-                    ChromeGlyph("music",ink.copy(alpha=.7f))
+                    ChromeGlyph("music",if(s.light)ink else ink.copy(alpha=.7f))
                     if(s.cover.isNotBlank())AsyncImage(model=cover,contentDescription=null,modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
                 }
                 Spacer(Modifier.width(spacing.gap.dp))
                 Column(Modifier.weight(1f)) {
                     Text(s.title,color=ink,fontSize=13.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
-                    Text(s.artist,color=ink.copy(alpha=.65f),fontSize=10.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+                    Text(s.artist,color=if(s.light)LightInterfaceColors.Muted else ink.copy(alpha=.65f),fontSize=10.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
                 }
             }
         }
         ChromeButton(s.label("quality","音质"),size=spacing.quality.dp,reduced=s.reducedMotion,onClick={action("quality",0.0)}) {
-            Text(s.label("qualityValue","高品质"),color=ink.copy(alpha=.75f),fontSize=if(compact)8.sp else 9.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+            Text(s.label("qualityValue","高品质"),color=if(s.light)LightInterfaceColors.Muted else ink.copy(alpha=.75f),fontSize=if(compact)8.sp else 9.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
         }
         if(timer!=null)MiniSleepButton(timer,s.light,spacing.moon,s.reducedMotion,action={action("sleep",0.0)},
             modifier=Modifier.onGloballyPositioned{onSleepAnchor(it.boundsInRoot())})

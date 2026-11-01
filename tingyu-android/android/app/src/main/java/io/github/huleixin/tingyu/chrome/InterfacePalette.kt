@@ -8,7 +8,7 @@ import androidx.compose.ui.graphics.Color
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/InterfacePalette.kt
 internal object LightInterfaceColors {
     val Ink=Color(0xFF213E34)
-    val Muted=Color(0xFF536D61)
+    val Muted=Color(0xFF496357)
     val Accent=Color(0xFF246E55)
     val Icon=Color(0xFF486153)
     val Surface=Color(0xFFE3EBE2)

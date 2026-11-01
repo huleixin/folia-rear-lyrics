@@ -8,30 +8,36 @@
 .ty-interface-choices button:focus-visible{outline:2px solid var(--text-accent);outline-offset:2px;}
 @media(max-width:350px){.ty-interface-choices button{flex-direction:column;}}
 html[data-interface-appearance='light'] :is(.mobile-library,[data-folia-settings-overlay],[data-folia-search-workspace],[data-folia-keyboard-window],.sleep-scrim,.ty-sheet,.ml-sheet,[data-folia-status-toast],.ty-interface-setting) {
- --bg-color:var(--ui-bg,#f4f5ee)!important;--text-primary:var(--ui-ink,#213e34)!important;--text-secondary:var(--ui-muted,#536d61)!important;
+ --bg-color:var(--ui-bg,#f4f5ee)!important;--text-primary:var(--ui-ink,#213e34)!important;--text-secondary:var(--ui-muted,#496357)!important;
  --text-accent:var(--ui-accent,#246e55)!important;--text-on-accent:#fff!important;--accent-color:#246e55!important;
- --ml-bg:#f4f5ee;--ml-ink:#213e34;--ml-muted:#536d61;--ml-jade:#246e55;--ml-line:#315d4326;--ml-surface:#e5ede4;--ml-home-base:#f4f5ee;--ml-home-muted:#536d61;
- --ty-bg:#f1f4ed;--ty-card:#ffffff80;--ty-border:#315d4326;--ty-text:#213e34;--ty-muted:#536d61;--ty-accent:#246e55;
- --ty-settings-line:#315d4326;--ty-settings-muted:#536d61;--ty-settings-mint:#246e55;
+ --ml-bg:#f4f5ee;--ml-ink:#213e34;--ml-muted:#496357;--ml-jade:#246e55;--ml-line:#315d4326;--ml-surface:#e5ede4;--ml-home-base:#f4f5ee;--ml-home-muted:#496357;
+ --ty-bg:#f1f4ed;--ty-card:#ffffff80;--ty-border:#315d4326;--ty-text:#213e34;--ty-muted:#496357;--ty-accent:#246e55;
+ --ty-settings-line:#315d4326;--ty-settings-muted:#496357;--ty-settings-mint:#246e55;
  --mps-glass:#f1f4ed;--mps-border:#315d4326;color:#213e34;color-scheme:light;
 }
 /* Mobile settings keep legacy dark tokens inline for the dark UI. Resolve the same
    values from the active interface theme here so native-captured forms inherit ink. */
 html[data-interface-appearance='light'] [data-folia-settings-overlay] {
- --bg-color:#f4f5ee!important;--text-primary:#213e34!important;--text-secondary:#536d61!important;
+ --bg-color:#f4f5ee!important;--text-primary:#213e34!important;--text-secondary:#496357!important;
  --text-accent:#246e55!important;--text-on-accent:#fff!important;--accent-color:#246e55!important;
  --ty-bg:#f1f4ed!important;--ty-card:#ffffffb8!important;--ty-border:#315d4338!important;
- --ty-text:#213e34!important;--ty-muted:#536d61!important;--ty-accent:#246e55!important;
- --ty-settings-line:#315d4338!important;--ty-settings-muted:#536d61!important;--ty-settings-mint:#246e55!important;
+ --ty-text:#213e34!important;--ty-muted:#496357!important;--ty-accent:#246e55!important;
+ --ty-settings-line:#315d4338!important;--ty-settings-muted:#496357!important;--ty-settings-mint:#246e55!important;
  color:#213e34!important;color-scheme:light;
 }
-html[data-interface-appearance='light'] [data-folia-settings-overlay] :not([data-folia-stage-preview] *) :is(.text-white,.text-zinc-50,.text-zinc-100,.text-zinc-200,.text-zinc-300,.text-gray-50,.text-gray-100,.text-gray-200,.text-gray-300,[class*="text-white/"]) {color:#213e34!important}
-html[data-interface-appearance='light'] [data-folia-settings-overlay] :not([data-folia-stage-preview] *) :is(.text-zinc-400,.text-zinc-500,.text-zinc-600,.text-gray-400,.text-gray-500,.text-gray-600) {color:#536d61!important}
-html[data-interface-appearance='light'] [data-folia-settings-overlay] :not([data-folia-stage-preview] *) :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-40"],
-html[data-interface-appearance='light'] [data-folia-settings-overlay] :not([data-folia-stage-preview] *) :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-45"],
-html[data-interface-appearance='light'] [data-folia-settings-overlay] :not([data-folia-stage-preview] *) :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-50"],
-html[data-interface-appearance='light'] [data-folia-settings-overlay] :not([data-folia-stage-preview] *) :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-60"] {opacity:.82!important}
-html[data-interface-appearance='light'] [data-folia-settings-overlay] :not([data-folia-stage-preview] *) :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-70"] {opacity:.94!important}
+/* Light settings text is styled by role, not by blanket overrides of every
+   Tailwind color/opacity utility. Stage previews and colored action surfaces keep
+   their own foreground colors. */
+html[data-interface-appearance='light'] [data-folia-settings-overlay] :is(.ty-settings-group-title,.ty-settings-description,.ty-settings-row-copy small) {color:var(--ui-muted,#496357)!important;opacity:1!important}
+html[data-interface-appearance='light'] [data-folia-settings-overlay] [data-folia-settings-content] :not([data-folia-stage-preview] *) :is(p,small,label,span,div,h1,h2,h3,h4,h5,h6,button,a)[style*="--text-secondary"] {color:var(--ui-muted,#496357)!important;opacity:1!important}
+html[data-interface-appearance='light'] [data-folia-settings-overlay] [data-folia-settings-content] :not([data-folia-stage-preview] *) :is(p,small,label)[class~="text-zinc-400"],
+html[data-interface-appearance='light'] [data-folia-settings-overlay] [data-folia-settings-content] :not([data-folia-stage-preview] *) :is(p,small,label)[class~="text-zinc-500"],
+html[data-interface-appearance='light'] [data-folia-settings-overlay] [data-folia-settings-content] :not([data-folia-stage-preview] *) :is(p,small,label)[class~="text-gray-400"],
+html[data-interface-appearance='light'] [data-folia-settings-overlay] [data-folia-settings-content] :not([data-folia-stage-preview] *) :is(p,small,label)[class~="text-gray-500"] {color:var(--ui-muted,#496357)!important;opacity:1!important}
+html[data-interface-appearance='light'] [data-folia-settings-overlay] [data-folia-settings-content] :not([data-folia-stage-preview] *) :not(button *) :not(a *) :is(p,small,label,h1,h2,h3)[class~="text-white"],
+html[data-interface-appearance='light'] [data-folia-settings-overlay] [data-folia-settings-content] :not([data-folia-stage-preview] *) :not(button *) :not(a *) :is(p,small,label,h1,h2,h3)[class~="text-zinc-100"],
+html[data-interface-appearance='light'] [data-folia-settings-overlay] [data-folia-settings-content] :not([data-folia-stage-preview] *) :not(button *) :not(a *) :is(p,small,label,h1,h2,h3)[class~="text-zinc-200"] {color:var(--ui-ink,#213e34)!important}
+html[data-interface-appearance='light'] [data-folia-settings-overlay] [data-folia-settings-tabs] button[class~="opacity-40"] {color:var(--ui-muted,#496357)!important;opacity:1!important}
 /* Native-first routes are painted by Compose underneath the WebView. Keep the
    WebView shell transparent so light-mode sheets can reveal that live page. */
 html[data-interface-appearance='light']:not([data-native-first='true']) [data-folia-app-shell][data-folia-android='true']:not([data-folia-player-view]){background:#f4f5ee!important}
@@ -51,7 +57,7 @@ html[data-interface-appearance='light'] .ml-home-subtitle,
 html[data-interface-appearance='light'] .ml-card-row small,
 html[data-interface-appearance='light'] .ml-card-row > svg,
 html[data-interface-appearance='light'] .ml-directory-sort,
-html[data-interface-appearance='light'] .ml-section-more{color:#536d61!important}
+html[data-interface-appearance='light'] .ml-section-more{color:#496357!important}
 html[data-interface-appearance='light'] .ty-settings-switch:not([aria-checked='true']){background:#82958b}
 html[data-interface-appearance='light'] .ty-settings-switch[aria-checked='true']{background:#327856}
 html[data-interface-appearance='light'] .ty-rear-toggle{background:linear-gradient(120deg,#d2e6d7,#cce2d3);color:#246e55;border-color:#315d4326}
@@ -79,12 +85,10 @@ html[data-interface-appearance='light'] .ty-sheet-scrim,
 html[data-interface-appearance='light'] .sleep-scrim,
 html[data-interface-appearance='light'] .ml-sheet-scrim{background:#20382b55}
 html[data-interface-appearance='light'] .ml-footer .tingyu-nav-icon{filter:none}
-html[data-interface-appearance='light'] :is(.mobile-library,[data-folia-settings-overlay],[data-folia-search-workspace],[data-folia-keyboard-window],.sleep-scrim,.ty-sheet,.ml-sheet,[data-folia-status-toast],.ty-interface-setting) :is(.text-zinc-100,.text-zinc-200,.text-white){color:var(--text-primary)!important;}
-
-html[data-interface-appearance='light'] .ty-search {--ty-bg:#f4f5ee;--ty-panel:#315d4308;--ty-panel-strong:#315d4310;--ty-border:#315d4326;--ty-text:#213e34;--ty-muted:#536d61;--ty-accent:#246e55;--ty-accent-soft:#3278561c;}
+html[data-interface-appearance='light'] .ty-search {--ty-bg:#f4f5ee;--ty-panel:#315d4308;--ty-panel-strong:#315d4310;--ty-border:#315d4326;--ty-text:#213e34;--ty-muted:#496357;--ty-accent:#246e55;--ty-accent-soft:#3278561c;}
 html[data-interface-appearance='light'] [data-mobile-settings='true']{color:#213e34;}
 html[data-interface-appearance='light'] .ml-mini-controls .ml-mini-toggle{color:#213e34;}
-html[data-interface-appearance='light'] .ml-home[data-page='home']{--ml-home-muted:#536d61;}
+html[data-interface-appearance='light'] .ml-home[data-page='home']{--ml-home-muted:#496357;}
 
 /* Ordinary dark UI keeps the pre-existing Midnight tokens; AI/daylight stage tokens stay local to the stage. */
 html[data-interface-appearance='dark'] :is([data-folia-settings-overlay],[data-folia-search-workspace],[data-folia-keyboard-window],.sleep-scrim,.ty-sheet,[data-folia-status-toast],.ty-interface-setting){
@@ -95,17 +99,17 @@ html[data-interface-appearance='dark'] :is([data-folia-settings-overlay],[data-f
 html[data-interface-appearance='light'] .mobile-library .ml-home-playlist-card{background:linear-gradient(125deg,#ffffff70,#dce8dd70);border-color:#315d4326;}
 html[data-interface-appearance='light'] .ml-home[data-page='home'] .ml-home-heading p,
 html[data-interface-appearance='light'] .mobile-library .ml-home-all,
-html[data-interface-appearance='light'] .mobile-library .ml-home-more{color:#536d61;border-color:#315d4326;}
+html[data-interface-appearance='light'] .mobile-library .ml-home-more{color:#496357;border-color:#315d4326;}
 html[data-interface-appearance='light'] .ml-feature-dots span{background:#315d4330;}
-html[data-interface-appearance='light'] .ml-feature-dots span[data-active='true']{background:#536d61;}
+html[data-interface-appearance='light'] .ml-feature-dots span[data-active='true']{background:#496357;}
 html[data-interface-appearance='light'] .ml-playlist-detail .ml-playlist-action{color:#213e34;background:#315d4310;}
 html[data-interface-appearance='light'] .ml-playlist-detail .ml-playlist-play{background:#9bd9bc;}
 html[data-interface-appearance='light'] .resource-progress progress{accent-color:#246e55;}
 /* Inline legacy search tokens must not override the explicit interface preference. */
-html[data-interface-appearance='light'] .ty-search{--ty-bg:#f4f5ee!important;--ty-text:#213e34!important;--ty-muted:#536d61!important;--ty-accent:#246e55!important;--ty-accent-soft:#3278561c!important;}
+html[data-interface-appearance='light'] .ty-search{--ty-bg:#f4f5ee!important;--ty-text:#213e34!important;--ty-muted:#496357!important;--ty-accent:#246e55!important;--ty-accent-soft:#3278561c!important;}
 
 /* Let the page show through the outer scrim, while keeping the dialog itself
    nearly opaque so content beneath controls never bleeds through. */
 html[data-interface-appearance='light'] [data-folia-themed-dialog]{background:rgba(241,244,237,.97)!important;border-color:#315d4345!important;color:#213e34;backdrop-filter:blur(20px) saturate(1.08);-webkit-backdrop-filter:blur(20px) saturate(1.08);}
 html[data-interface-appearance='light'] [data-folia-themed-overlay]{background:rgba(14,35,25,.10)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;}
-html[data-interface-appearance='light'] .ty-lx-manager{--lx-ink:#213e34;--lx-muted:#536d61;--lx-accent:#246e55;--lx-card:#ffffff80;--lx-border:#315d4326;}
+html[data-interface-appearance='light'] .ty-lx-manager{--lx-ink:#213e34;--lx-muted:#496357;--lx-accent:#246e55;--lx-card:#ffffff80;--lx-border:#315d4326;}

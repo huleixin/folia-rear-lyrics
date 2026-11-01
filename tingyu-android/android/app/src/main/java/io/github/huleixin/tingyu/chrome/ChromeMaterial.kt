@@ -51,17 +51,23 @@ fun Modifier.chromeInteraction(action: (String,Double)->Unit): Modifier = pointe
     }
 }
 fun chromeColor(value: String, fallback: Color = Color.White): Color = try { Color(value.toColorInt()) } catch (_: Exception) { fallback }
-@Composable fun Modifier.chromeGlass(backdrop: Backdrop, light: Boolean, radius: Dp = 28.dp): Modifier {
+@Composable fun Modifier.chromeGlass(
+    backdrop: Backdrop,
+    light: Boolean,
+    radius: Dp = 28.dp,
+    lightSurfaceAlpha: Float = 166f / 255f,
+    legacyLightSurfaceAlpha: Float = 230f / 255f,
+): Modifier {
     val density = LocalDensity.current
     val shape = RoundedCornerShape(radius)
-    if(Build.VERSION.SDK_INT<31)return background(if(light)Color(0xE6F1F4ED)else Color(0xE6203029),shape)
+    if(Build.VERSION.SDK_INT<31)return background(if(light)Color(0xFFF1F4ED).copy(alpha=legacyLightSurfaceAlpha)else Color(0xE6203029),shape)
         .border(0.8.dp,Color.White.copy(alpha=.23f),shape)
     val blurRadius = with(density) { 4.dp.toPx() }
     val lensHeight = with(density) { 12.dp.toPx() }
     return drawBackdrop(backdrop = backdrop, shape = { shape }, effects = {
         vibrancy(); blur(blurRadius)
         if (Build.VERSION.SDK_INT >= 33) lens(lensHeight, lensHeight * 1.35f)
-    }, onDrawSurface = { drawRect(if (light) Color(0xA6F1F4ED) else Color(0x78303B36)) })
+    }, onDrawSurface = { drawRect(if (light)Color(0xFFF1F4ED).copy(alpha=lightSurfaceAlpha)else Color(0x78303B36)) })
         .border(0.8.dp,if(light)Color(0x99315D43)else Color.White.copy(alpha=0.23f),shape)
 }
 @Composable fun ChromeButton(label: String, modifier: Modifier = Modifier, enabled: Boolean = true, size: Dp = 44.dp, reduced: Boolean = false,

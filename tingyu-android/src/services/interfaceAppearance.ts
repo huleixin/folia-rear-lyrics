@@ -14,6 +14,6 @@ export function migrateInterfaceAppearance(stored: unknown, native: boolean, leg
 }
 export const lightInterfaceTokens = {
     '--ui-bg': '#f4f5ee', '--ui-surface': '#e5ede4', '--ui-sheet': '#f1f4ed',
-    '--ui-line': '#315d4326', '--ui-ink': '#213e34', '--ui-muted': '#536d61',
+    '--ui-line': '#315d4326', '--ui-ink': '#213e34', '--ui-muted': '#496357',
     '--ui-accent': '#246e55', '--ui-selected': '#3278561c',
 } as const;

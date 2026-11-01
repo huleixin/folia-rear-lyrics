@@ -36,7 +36,7 @@ import kotlin.math.roundToInt
     val ink=chromeColor(s.ink);val accent=chromeColor(s.accent)
     var drag by remember { mutableStateOf<Float?>(null) }
     val selection by animateFloatAsState(s.selected.coerceAtLeast(0).toFloat(),animationSpec=if(s.reducedMotion)snap()else spring(dampingRatio=NativeMotionPolicy.Damping,stiffness=NativeMotionPolicy.Stiffness),label="selected-tab")
-    BoxWithConstraints(modifier.chromeGlass(backdrop,s.light,if(s.vertical)28.dp else 32.dp).padding(4.dp)) {
+    BoxWithConstraints(modifier.chromeGlass(backdrop,s.light,if(s.vertical)28.dp else 32.dp,lightSurfaceAlpha=.52f,legacyLightSurfaceAlpha=.78f).padding(4.dp)) {
         val extent=with(LocalDensity.current){(if(s.vertical)maxHeight else maxWidth).toPx()}/4
         val position=drag ?: selection
         val touch=Modifier.pointerInput(s.vertical,extent,s.selected) {
@@ -46,7 +46,7 @@ import kotlin.math.roundToInt
         }
         val highlight=Modifier.then(if(s.vertical) Modifier.fillMaxWidth().height(maxHeight/4) else Modifier.fillMaxHeight().width(maxWidth/4))
             .graphicsLayer { if(s.vertical)translationY=position*extent else translationX=position*extent }
-            .chromeGlass(backdrop,s.light,24.dp).background(accent.copy(alpha=.14f),RoundedCornerShape(24.dp))
+            .chromeGlass(backdrop,s.light,24.dp,lightSurfaceAlpha=.36f,legacyLightSurfaceAlpha=.68f).background(accent.copy(alpha=.14f),RoundedCornerShape(24.dp))
         if(s.selected>=0 || drag!=null) Box(highlight)
         val items=@Composable {
             repeat(4){index->
@@ -57,7 +57,7 @@ import kotlin.math.roundToInt
                 Column(Modifier.then(if(s.vertical)Modifier.fillMaxWidth().height(maxHeight/4) else Modifier.width(maxWidth/4).fillMaxHeight())
                     .semantics {selected=active}.clickable(enabled=!s.disabled,role=Role.Tab){action("navigate",index.toDouble())},horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
                     Image(bitmap,contentDescription=null,modifier=Modifier.size(23.dp),colorFilter=null);Spacer(Modifier.height(2.dp))
-                    Text(s.label("nav$index",listOf("推荐","资料库","搜索","设置")[index]),color=if(active)accent else ink.copy(alpha=.82f),fontSize=10.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+                    Text(s.label("nav$index",listOf("推荐","资料库","搜索","设置")[index]),color=if(active)accent else if(s.light)LightInterfaceColors.Muted else ink.copy(alpha=.82f),fontSize=10.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
                 }
             }
         }
