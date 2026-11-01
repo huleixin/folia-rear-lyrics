@@ -30,4 +30,4 @@ export type NativePageFrame = {
     safeTop: number; safeBottom: number; model: NativePageModel;
     navigation?: string;
 };
-export type NativePageEvent = { nativeDispatchedAt?:number; id: NativePageId; session: string; key: string; action: string; text?: string; value?: number };
+export type NativePageEvent = { nativeDispatchedAt?:number;nativeGestureId?:number; id: NativePageId; session: string; key: string; action: string; text?: string; value?: number };

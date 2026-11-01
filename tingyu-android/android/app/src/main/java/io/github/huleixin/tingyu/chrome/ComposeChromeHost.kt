@@ -328,7 +328,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     val seed=remember(id,width,height,selectedTab,safeBottom,safeTop){cache.chrome(id,width,height,safeBottom,safeTop).let{if(id=="nav")it.copy(selected=selectedTab)else it}}
                     val placement=Modifier.offset{IntOffset(with(density){seed.rect.left.dp.roundToPx()},with(density){seed.rect.top.dp.roundToPx()})}
                         .size(seed.rect.width.dp,seed.rect.height.dp)
-                    if(id=="nav")ChromeNavigation(seed.interfacePaint(interfaceLight).copy(disabled=false,selected=startupSelected?:selectedTab),backdrop,placement){action,value->
+                    if(id=="nav")ChromeNavigation(seed.interfacePaint(interfaceLight).copy(disabled=false,selected=startupSelected?:selectedTab),backdrop,placement.chromeInteraction{action,_->
+                        if(action=="interactionStart")NavigationTiming.markGesture("startup-nav-press",-1.0)
+                        else if(action=="interactionEnd")NavigationTiming.markGesture("startup-nav-release",-1.0)
+                    }){action,value->
                         if(active&&action=="navigate"&&startupNavigation.request(value.toInt())){
                             navigationActionSerial++;startupSelected=value.toInt();NavigationTiming.mark("startup-navigation-requested")
                             startupToast?.cancel();startupToast=android.widget.Toast.makeText(web.context,"正在准备${listOf("推荐","资料库","搜索","设置")[value.toInt()]}，就绪后自动打开",android.widget.Toast.LENGTH_SHORT).also{it.show()}

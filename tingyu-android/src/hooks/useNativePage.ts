@@ -82,8 +82,8 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
                 if (disposed || !current.active || event.id !== id || event.session !== session || event.key !== current.model.key
                     || node.dataset.nativePage !== 'true') return;
                 noteUiInteraction();
-                navigationMark('page-event-js',event.nativeDispatchedAt);
-                navigationMark('page-business-start');
+                navigationMark('page-event-js',event.nativeDispatchedAt,event.nativeGestureId);
+                navigationMark('page-business-start',undefined,event.nativeGestureId);
                 current.actions[event.action]?.({ text: event.text, value: event.value });
             });
             navigationMark('page-listener-ready');

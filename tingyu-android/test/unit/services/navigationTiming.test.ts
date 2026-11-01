@@ -32,3 +32,17 @@ it('preserves startup evidence with a bounded recent tail and merges native time
     expect(report).toContain('native touch-received');expect(report).toContain('alignmentUncertaintyMs');expect(report).not.toContain('private.example');
     await recorder.setNavigationDiagnostics(false);
 });
+
+it('does not attribute a later gesture callback to an earlier unhandled touch',async()=>{
+    const recorder=await import('@/services/navigationTiming');await recorder.setNavigationDiagnostics(true);
+    recorder.navigationMark('chrome-business-start',undefined,2);
+    (window as any).Capacitor={getPlatform:()=> 'android'};
+    const at=performance.timeOrigin+performance.now();
+    native.navigationDiagnostics.mockResolvedValue({enabled:true,nativeNow:at,startedAt:at-1000,samples:[
+        {phase:'touch-received',at:at-200,gestureId:1},{phase:'touch-received',at:at-100,gestureId:2}
+    ]});
+    const report=(await recorder.navigationDiagnosticLines()).join('\n');
+    expect(report).toContain('first touch received -> same-gesture business callback: not observed');
+    expect(report).toContain('chrome-business-start gesture=2');
+    await recorder.setNavigationDiagnostics(false);
+});

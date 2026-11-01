@@ -16,6 +16,7 @@ import java.util.ArrayList;
 // One opt-in startup timeline. No credentials, routes, labels, URLs or view text.
 public final class NavigationTiming {
     private static volatile boolean enabled;
+    private static long gesture;
     private static final long originElapsed=SystemClock.elapsedRealtime(), originEpoch=System.currentTimeMillis();
     private static final ArrayList<JSONObject> samples=new ArrayList<>();
     private static final Handler main=new Handler(Looper.getMainLooper());
@@ -59,10 +60,15 @@ public final class NavigationTiming {
         mark("diagnostics-enabled-next-cold-start");
     }
     public static void mark(String phase){mark(phase,-1);}
-    public static synchronized void mark(String phase,double duration){
+    public static synchronized long gestureId(){return gesture;}
+    public static synchronized void beginTouch(double queueLag){if(enabled){gesture++;record("touch-received",queueLag,gesture);}}
+    public static synchronized void markGesture(String phase,double duration){record(phase,duration,gesture);}
+    public static synchronized void mark(String phase,double duration){record(phase,duration,0);}
+    private static void record(String phase,double duration,long gestureId){
         if(!enabled)return;
         try {JSONObject entry=new JSONObject().put("phase",phase).put("at",epochNow());
             if(duration>=0)entry.put("elapsedMs",duration);
+            if(gestureId>0)entry.put("gestureId",gestureId);
             // Preserve the beginning of startup while retaining recent clicks at the tail.
             if(samples.size()>=256)samples.remove(128);samples.add(entry);
         }catch(Exception ignored){}

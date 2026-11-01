@@ -40,9 +40,9 @@ public class MainActivity extends BridgeActivity {
     @Override public boolean dispatchTouchEvent(android.view.MotionEvent event) {
         boolean trace=io.github.huleixin.tingyu.chrome.NavigationTiming.enabled()&&event.getActionMasked()==android.view.MotionEvent.ACTION_DOWN;
         long started=trace?android.os.SystemClock.uptimeMillis():0;
-        if(trace)io.github.huleixin.tingyu.chrome.NavigationTiming.mark("touch-received",started-event.getEventTime());
+        if(trace)io.github.huleixin.tingyu.chrome.NavigationTiming.beginTouch(started-event.getEventTime());
         try{return super.dispatchTouchEvent(event);}
-        finally{if(trace)io.github.huleixin.tingyu.chrome.NavigationTiming.mark("touch-dispatch-return",android.os.SystemClock.uptimeMillis()-started);}
+        finally{if(trace)io.github.huleixin.tingyu.chrome.NavigationTiming.markGesture("touch-dispatch-return",android.os.SystemClock.uptimeMillis()-started);}
     }
 
     @Override

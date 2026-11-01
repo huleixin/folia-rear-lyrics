@@ -13,11 +13,11 @@ export type ChromeData = {
     sleepPreferredMinutes?: number;
     light?: boolean; reducedMotion?: boolean; accent?: string; ink?: string; labels?: Record<string,string>; vertical?: boolean;
 };
-export type ChromeAction = {nativeDispatchedAt?:number;id: ChromeSurfaceId; session: string; action: string; value: number};
+export type ChromeAction = {nativeDispatchedAt?:number;nativeGestureId?:number;id: ChromeSurfaceId; session: string; action: string; value: number};
 export type ChromeFrame = {id: ChromeSurfaceId; session: string; generation: number; revision: number; enabled: boolean;
     left: number; top: number; width: number; height: number; alpha: number; viewportWidth: number; safeBottom?:number; data: ChromeData & {position?: number}};
 export const chromeNative = registerPlugin<{
-    navigationDiagnostics(value:{enabled?:boolean}):Promise<{enabled:boolean;nativeNow:number;startedAt:number;samples:{phase:string;at:number;elapsedMs?:number}[]}>;
+    navigationDiagnostics(value:{enabled?:boolean}):Promise<{enabled:boolean;nativeNow:number;startedAt:number;samples:{phase:string;at:number;elapsedMs?:number;gestureId?:number}[]}>;
     appearance(value:{mode?:string}):Promise<{mode:'system'|'light'|'dark';systemLight:boolean;light:boolean}>;
     addListener(name:'appearanceChanged',callback:(value:{systemLight:boolean})=>void):Promise<{remove:()=>Promise<void>}>;
     probe(): Promise<{supported:boolean;engine:string;pages?:boolean}>;

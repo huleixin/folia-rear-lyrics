@@ -92,11 +92,11 @@ export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfac
             listener=await chromeNative.addListener('action',event=>{
                 if(disposed||failed||event.id!==id||event.session!==session)return;
                 noteUiInteraction();
-                navigationMark('chrome-event-js',event.nativeDispatchedAt);
+                navigationMark('chrome-event-js',event.nativeDispatchedAt,event.nativeGestureId);
                 if(event.action==='interactionEnd'){held=false;chromeWindowInteraction('end');return;}
                 if(!latest.current.active||node.dataset.composeNative!=='true'||hasBlockingChromeWindow())return;
                 if(event.action==='interactionStart'){held=true;chromeWindowInteraction('start');return;}
-                navigationMark('chrome-business-start');chromeWindowInteraction('start');try{dispatchChromeAction(latest.current.actions,event.action,event.value);}finally{chromeWindowInteraction('end');}
+                navigationMark('chrome-business-start',undefined,event.nativeGestureId);chromeWindowInteraction('start');try{dispatchChromeAction(latest.current.actions,event.action,event.value);}finally{chromeWindowInteraction('end');}
             });
             if(disposed||failed){void listener.remove();return;}
             navigationMark('chrome-listener-ready');

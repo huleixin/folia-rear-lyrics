@@ -3,7 +3,7 @@ import { isAndroidNativeRuntime } from '../utils/platform';
 
 // src/services/navigationTiming.ts
 // Same opt-in recorder for startup, input and export. No user text or resource URLs.
-export type NavigationSample = { phase: string; at: number; elapsedMs?: number };
+export type NavigationSample = { phase: string; at: number; elapsedMs?: number; gestureId?: number };
 let enabled = false;
 try { enabled = localStorage.getItem('tingyu_navigation_diagnostics') === '1'; } catch { /* Storage unavailable. */ }
 const samples: NavigationSample[] = [];
@@ -14,9 +14,9 @@ function add(sample: NavigationSample) {
     if (samples.length >= 256) samples.splice(128, 1);
     samples.push(sample);
 }
-export function navigationMark(phase: string, startedAt?: number) {
+export function navigationMark(phase: string, startedAt?: number, gestureId?: number) {
     if (!enabled) return;
-    add({ phase, at: now(), elapsedMs: startedAt === undefined ? undefined : Math.max(0, now() - startedAt) });
+    add({ phase, at: now(), gestureId, elapsedMs: startedAt === undefined ? undefined : Math.max(0, now() - startedAt) });
 }
 export function navigationTimingSnapshot() { return samples.slice(); }
 export function navigationDiagnosticsEnabled() { return enabled; }
@@ -52,17 +52,17 @@ export async function navigationDiagnosticLines(): Promise<string[]> {
     const liveNav=combined.find(s=>s.phase==='nav-live-surface-accepted');
     const livePage=combined.find(s=>s.phase==='page-native-commit:home');
     const touch=combined.find(s=>s.phase==='touch-received');
-    const business=touch?combined.find(s=>s.at>=touch.at&&s.phase.endsWith('business-start')):undefined;
+    const business=touch?.gestureId?combined.find(s=>s.gestureId===touch.gestureId&&s.at>=touch.at&&s.phase.endsWith('business-start')):undefined;
     const gap=(from:typeof cached,to:typeof cached)=>from&&to?`${Math.max(0,to.at-from.at).toFixed(1)}ms`:'not observed';
     return ['cold-start navigation (opt-in):',
         `  cached frame boundary -> live nav accepted: ${gap(cached,liveNav)}`,
         `  cached frame boundary -> home commit: ${gap(cached,livePage)}`,
-        `  first touch received -> business callback: ${gap(touch,business)}`,
+        `  first touch received -> same-gesture business callback: ${gap(touch,business)}`,
  `  enabled: js=${enabled} native=${native?.enabled ?? 'unavailable'}`,
         `  originEpochMs=${origin.toFixed(1)} nativeMinusJsMs=${offset.toFixed(1)} alignmentUncertaintyMs<=${((after-before)/2).toFixed(1)}`,
         '  sampling: first 10 seconds only; first 128 + recent 128 events retained per runtime',
         '  FrameMetrics/Compose frame boundaries are app-frame evidence, not physical screen presentation',
-        ...combined.map(s=>`  +${(s.at-origin).toFixed(1)}ms ${s.source} ${s.phase}${s.elapsedMs===undefined?'':` durationOrLagMs=${s.elapsedMs.toFixed(1)}`}`)];
+        ...combined.map(s=>`  +${(s.at-origin).toFixed(1)}ms ${s.source} ${s.phase}${s.gestureId?` gesture=${s.gestureId}`:''}${s.elapsedMs===undefined?'':` durationOrLagMs=${s.elapsedMs.toFixed(1)}`}`)];
 }
 sampling();
 navigationMark('js-module-graph-ready');

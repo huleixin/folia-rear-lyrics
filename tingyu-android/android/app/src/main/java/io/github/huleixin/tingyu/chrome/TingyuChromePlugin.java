@@ -12,8 +12,10 @@ public class TingyuChromePlugin extends Plugin {
     private static void traceDispatch(JSObject event) {
         if(NavigationTiming.enabled()||android.util.Log.isLoggable("TingyuNavigation",android.util.Log.DEBUG)) {
             event.put("nativeDispatchedAt",NavigationTiming.epochNow());
-            NavigationTiming.mark("interactionStart".equals(event.optString("action"))?"compose-press":"compose-click");
-            NavigationTiming.mark("native-action-dispatch");
+            event.put("nativeGestureId",NavigationTiming.gestureId());
+            String phase="interactionStart".equals(event.optString("action"))?"compose-press":"interactionEnd".equals(event.optString("action"))?"compose-release":"compose-click";
+            NavigationTiming.markGesture(phase,-1);
+            NavigationTiming.markGesture("native-action-dispatch",-1);
             android.util.Log.d("TingyuNavigation","native-dispatch at="+System.currentTimeMillis());
         }
     }

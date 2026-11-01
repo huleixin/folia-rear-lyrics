@@ -90,6 +90,8 @@ import rikka.shizuku.Shizuku;
 )
 public class FoliaNativePlugin extends Plugin {
     private static volatile FoliaNativePlugin instance;
+    private static final NativeHttpDispatcher HTTP_WORK=new NativeHttpDispatcher(2,64);
+    private static final java.util.concurrent.atomic.AtomicLong HTTP_IDS=new java.util.concurrent.atomic.AtomicLong();
     private static volatile String playbackArtworkCover = "";
     private static volatile String playbackArtworkStatus = "none";
     private static volatile String playbackArtworkDetail = "";
@@ -345,6 +347,21 @@ public class FoliaNativePlugin extends Plugin {
 
     @PluginMethod
     public void httpRequest(PluginCall call) {
+        final long id=HTTP_IDS.incrementAndGet(),submitted=android.os.SystemClock.elapsedRealtime();
+        io.github.huleixin.tingyu.chrome.NavigationTiming.mark("native-http-queued:"+id);
+        try { HTTP_WORK.execute(()->{
+            final long started=android.os.SystemClock.elapsedRealtime();
+            io.github.huleixin.tingyu.chrome.NavigationTiming.mark("native-http-start:"+id,started-submitted);
+            try { performHttpRequest(call); }
+            catch(RuntimeException error){call.reject("原生网络请求失败",error);}
+            finally{io.github.huleixin.tingyu.chrome.NavigationTiming.mark("native-http-end:"+id,android.os.SystemClock.elapsedRealtime()-started);}
+        }); } catch(java.util.concurrent.RejectedExecutionException busy){
+            io.github.huleixin.tingyu.chrome.NavigationTiming.mark("native-http-rejected:"+id);
+            call.reject("网络请求队列繁忙，请稍后重试");
+        }
+    }
+
+    private void performHttpRequest(PluginCall call) {
         String url = call.getString("url", "");
         String method = call.getString("method", "GET");
         String bodyText = call.getString("bodyText", "");
