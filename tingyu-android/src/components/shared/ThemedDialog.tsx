@@ -66,7 +66,7 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
                     exit={{ opacity: 0 }}
                     data-folia-keyboard-window="true"
                     data-folia-themed-overlay="true"
-                    className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
+                    className={`fixed inset-0 z-[200] flex items-center justify-center p-4 ${isDaylight ? 'bg-transparent' : 'bg-black/60 backdrop-blur-md'}`}
                     onMouseDown={handleOverlayMouseDown}
                     onClick={handleBackdropClick}
                 >

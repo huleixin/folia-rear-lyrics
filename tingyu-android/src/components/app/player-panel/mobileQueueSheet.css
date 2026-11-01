@@ -13,10 +13,10 @@
 .mobile-queue-sheet .group button { min-width:32px; min-height:36px; }
 /* Keep the existing Home route visible under the queue; the sheet follows the app
    appearance, independently of the lyric-stage palette. */
-html[data-interface-appearance='light'] .mobile-queue-scrim[data-interface-light='true'] { background:rgba(25,45,35,.18); }
+html[data-interface-appearance='light'] .mobile-queue-scrim[data-interface-light='true'] { background:rgba(14,35,25,.08); backdrop-filter:none; -webkit-backdrop-filter:none; }
 html[data-interface-appearance='light'] .mobile-queue-scrim[data-interface-light='true'] .mobile-queue-sheet {
-    color:#213e34!important; background:rgba(244,247,241,.96)!important;
-    border-color:#315d4338; box-shadow:0 -12px 40px rgba(24,54,39,.12);
+    color:#213e34!important; background:rgba(244,247,241,.78)!important;
+    border-color:#315d4345; box-shadow:0 -12px 40px rgba(24,54,39,.12);
 }
 html[data-interface-appearance='light'] .mobile-queue-scrim[data-interface-light='true'] .mobile-sheet-handle { background:#536d61; opacity:.42; }
 html[data-interface-appearance='light'] .mobile-queue-scrim[data-interface-light='true'] > section > header > button { background:#315d4310; }
