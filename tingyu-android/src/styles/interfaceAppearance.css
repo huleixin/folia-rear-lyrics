@@ -104,6 +104,8 @@ html[data-interface-appearance='light'] .resource-progress progress{accent-color
 /* Inline legacy search tokens must not override the explicit interface preference. */
 html[data-interface-appearance='light'] .ty-search{--ty-bg:#f4f5ee!important;--ty-text:#213e34!important;--ty-muted:#536d61!important;--ty-accent:#246e55!important;--ty-accent-soft:#3278561c!important;}
 
-html[data-interface-appearance='light'] [data-folia-themed-dialog]{background:rgba(241,244,237,.78)!important;border-color:#315d4345!important;color:#213e34;backdrop-filter:blur(18px) saturate(1.12);-webkit-backdrop-filter:blur(18px) saturate(1.12);}
+/* Let the page show through the outer scrim, while keeping the dialog itself
+   nearly opaque so content beneath controls never bleeds through. */
+html[data-interface-appearance='light'] [data-folia-themed-dialog]{background:rgba(241,244,237,.97)!important;border-color:#315d4345!important;color:#213e34;backdrop-filter:blur(20px) saturate(1.08);-webkit-backdrop-filter:blur(20px) saturate(1.08);}
 html[data-interface-appearance='light'] [data-folia-themed-overlay]{background:rgba(14,35,25,.10)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;}
 html[data-interface-appearance='light'] .ty-lx-manager{--lx-ink:#213e34;--lx-muted:#536d61;--lx-accent:#246e55;--lx-card:#ffffff80;--lx-border:#315d4326;}

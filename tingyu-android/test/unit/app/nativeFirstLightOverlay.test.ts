@@ -13,4 +13,11 @@ describe('light appearance over native-first Compose pages', () => {
             /html\[data-interface-appearance='light'\]\[data-native-first='true'\]:is\(\[data-native-route='home'\],\[data-native-route='collection'\],\[data-native-route='search'\],\[data-native-route='settings'\]\)\s+\[data-folia-app-shell\]\[data-folia-android='true'\]:not\(\[data-folia-player-view\]\)\s*\{background:transparent!important\}/,
         );
     });
+
+    it('keeps the outer scrim light but queue and dialog surfaces nearly opaque', () => {
+        const queueCss = fs.readFileSync(path.join(process.cwd(), 'src/components/app/player-panel/mobileQueueSheet.css'), 'utf8');
+        expect(queueCss).toMatch(/\.mobile-queue-scrim\[data-interface-light='true'\] .mobile-queue-sheet\s*\{\s*color:#213e34!important; background:rgba\(244,247,241,\.97\)!important;/);
+        expect(appearanceCss).toMatch(/\[data-folia-themed-dialog\]\{background:rgba\(241,244,237,\.97\)!important/);
+        expect(appearanceCss).toMatch(/\[data-folia-themed-overlay\]\{background:rgba\(14,35,25,\.10\)!important/);
+    });
 });
