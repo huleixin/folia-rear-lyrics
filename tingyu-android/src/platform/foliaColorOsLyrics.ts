@@ -17,6 +17,7 @@ interface FoliaColorOsLyricsPlugin {
     isSupported(): Promise<ColorOsLyricsSupport>;
     publish(options: {
         lyricInfo: string;
+        renderModel?: string;
         hasTranslation: boolean;
         /** 与通知栏同一个歌曲身份；对不上时原生会拒绝这段歌词。 */
         songKey?: string | null;
@@ -73,6 +74,7 @@ export const getColorOsLyricsSupport = async (): Promise<ColorOsLyricsSupport> =
 };
 
 export interface ColorOsLyricPublishOptions {
+    renderModel?: string;
     hasWordByWord?: boolean;
     userChoice?: boolean;
     source?: string;

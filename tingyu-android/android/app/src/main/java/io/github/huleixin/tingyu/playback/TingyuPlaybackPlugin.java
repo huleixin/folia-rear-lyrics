@@ -15,6 +15,91 @@ public final class TingyuPlaybackPlugin extends Plugin {
     private JSObject prepared,lastState;
     private final Consumer<JSObject> events=value->{if(!"spectrum".equals(value.optString("type")))lastState=value;notifyListeners("state",value,value.optInt("status")==4&&!"spectrum".equals(value.optString("type")));};
     @Override public void load(){if(ENABLED)PlaybackTestDiagnostics.initialize(getContext());}
+    @PluginMethod public void resourceSnapshot(PluginCall call) {
+        PlaylistResourceCache cache = PlaylistResourceCache.get(getContext());
+        cache.io.execute(() -> {
+            try {
+                String token = call.getString("playlistId", "");
+                if (token.isEmpty() || token.length() > 100) throw new IllegalArgumentException("snapshot identity");
+                if (Boolean.TRUE.equals(call.getBoolean("begin"))) cache.begin(token);
+                org.json.JSONArray page = call.getArray("tracks");
+                if (page != null) cache.append(token, page, call.getInt("offset", 0), Boolean.TRUE.equals(call.getBoolean("finish")));
+                cache.expected(token, call.getInt("total", 0));
+                cache.descriptor(token, call.getObject("descriptor"));
+                if(call.getBoolean("catalogComplete")!=null)cache.catalogComplete(token,Boolean.TRUE.equals(call.getBoolean("catalogComplete")));
+                if (Boolean.TRUE.equals(call.getBoolean("finish"))) cache.prioritizeKey(call.getString("currentKey", ""));
+                call.resolve();
+            } catch (Exception error) { call.reject("Resource snapshot rejected: " + error.getClass().getSimpleName()); }
+        });
+    }
+    @PluginMethod public void resourceCache(PluginCall call) {
+        PlaylistResourceCache cache = PlaylistResourceCache.get(getContext());
+        cache.io.execute(() -> {
+            try {
+                if ("configure".equals(call.getString("action"))) cache.configure(Boolean.TRUE.equals(call.getBoolean("enabled")), Boolean.TRUE.equals(call.getBoolean("wifiOnly")));
+                if ("clear".equals(call.getString("action"))) cache.clearDownloadable();
+                call.resolve(cache.status().put("containsCurrent",cache.metadata(call.getString("currentKey", ""))!=null));
+            } catch (Exception error) { call.reject("Resource cache unavailable"); }
+        });
+    }
+    @PluginMethod public void cacheSongLyrics(PluginCall call) {
+        PlaylistResourceCache.get(getContext()).io.execute(() -> {
+            try {
+            String json = call.getString("lyricInfo", "");
+            if (json.isEmpty() || json.length() > 200000) { call.reject("Invalid timeline"); return; }
+            UnifiedLyricsStore store = UnifiedLyricsStore.get(getContext());
+            String key = call.getString("songKey", "");
+            UnifiedLyricsStore.Record old = store.get(key);
+            if (old != null && old.hasTimeline() && (old.userChoice || "stage".equals(old.confirmedBy))) {
+                if (!old.userChoice && old.renderModel == null && equivalentTimeline(old.json, json))
+                    store.attachRenderModel(key, old.json, call.getString("renderModel"));
+                call.resolve(); return;
+            }
+            store.put(key, "ok", json,
+                Boolean.TRUE.equals(call.getBoolean("hasTranslation")), Boolean.TRUE.equals(call.getBoolean("hasWordByWord")),
+                call.getString("source", "platform-cache"), "stage", false,
+                LyricVariantConverter.currentRule(getContext()).id);
+            store.attachRenderModel(key, json, call.getString("renderModel"));
+            UnifiedLyricsStore.Record selected = store.get(key);
+            SongInfoLoader loader = SongInfoLoader.get();
+            if (selected != null && selected.hasTimeline() && loader != null && loader.isCurrent(key)) {
+                io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.setPending(selected.json, selected.hasTranslation, key, selected.offsetKnown);
+                io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.requestRefresh(getContext());
+            }
+            notifyListeners("resourceReady", new JSObject().put("songKey", key));
+            call.resolve();
+            } catch(Exception error) { call.reject("Resource timeline cache unavailable"); }
+        });
+    }
+    private static boolean equivalentTimeline(String a, String b) {
+        try {
+            org.json.JSONObject left=new org.json.JSONObject(a), right=new org.json.JSONObject(b);
+            for(String lane:new String[]{"lyric","rawLyric","translationLyric"})
+                if(!left.optString(lane).equals(right.optString(lane)))return false;
+            return true;
+        }catch(Exception error){return false;}
+    }
+    @PluginMethod public void resourceCandidates(PluginCall call) {
+        PlaylistResourceCache cache=PlaylistResourceCache.get(getContext());
+        cache.io.execute(() -> { try { call.resolve(cache.platformCandidates()); } catch(Exception error) {call.reject("Resource candidates unavailable");} });
+    }
+    @PluginMethod public void resourcePlatformResult(PluginCall call) {
+        PlaylistResourceCache cache=PlaylistResourceCache.get(getContext());
+        cache.io.execute(() -> { try { cache.platformResult(call.getString("songKey", ""), Boolean.TRUE.equals(call.getBoolean("success"))); call.resolve(); } catch(Exception error) { call.reject("Resource result unavailable"); } });
+    }
+    @PluginMethod public void readSongResources(PluginCall call) {
+        PlaylistResourceCache.get(getContext()).io.execute(() -> {
+            String key = call.getString("songKey", "");
+            UnifiedLyricsStore.Record r = UnifiedLyricsStore.get(getContext()).get(key);
+            JSObject out = new JSObject().put("songKey", key);
+            if (r != null && r.hasTimeline() && r.offsetKnown) out.put("lyricInfo", r.json)
+                .put("hasWordByWord",r.hasWordByWord).put("renderModel", r.renderModel).put("confirmedBy",r.confirmedBy).put("version", r.lyricsHash+"@"+r.revision).put("source",r.sourceId).put("userChoice",r.userChoice);
+            PlaybackDiagnostics.note("resource-read", new JSObject().put("song", PlaybackDiagnostics.anonKey(key))
+                .put("consumer", "front").put("hit",out.has("lyricInfo")).put("version",r==null?"":r.lyricsHash+"@"+r.revision));
+            out.put("metadata",PlaylistResourceCache.get(getContext()).metadata(key));
+            call.resolve(out);
+        });
+    }
     @PluginMethod public void diagnostics(PluginCall call){
         if(!ENABLED){call.reject("Not a playback test build");return;}
         getActivity().runOnUiThread(()->{
@@ -48,7 +133,8 @@ public final class TingyuPlaybackPlugin extends Plugin {
                 .put("routine",PlaybackDiagnostics.snapshotRoutine())
                 .put("lifecycle",PlaybackLifecycle.snapshot())
                 .put("lxSource",io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.snapshot())
-                .put("epoch",PlaybackDiagnostics.epoch()));
+                .put("epoch",PlaybackDiagnostics.epoch())
+                .put("resourceCache",PlaylistResourceCache.get(getContext()).status()));
         }
         catch(Exception error){call.reject("读取播放诊断失败："+error.getClass().getSimpleName());}
     }

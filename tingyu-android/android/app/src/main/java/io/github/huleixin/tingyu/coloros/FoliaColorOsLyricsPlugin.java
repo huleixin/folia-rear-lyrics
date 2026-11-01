@@ -53,12 +53,17 @@ public class FoliaColorOsLyricsPlugin extends Plugin {
         // 以前这里直接把 incoming 写进桥，于是「原生兜底版」能在仓库里明明存着舞台版的时候
         // 顶到灵动岛上 —— 岛上是逐行 LRC、背屏与舞台是另一版，三端就此分家。
         io.github.huleixin.tingyu.playback.LyricTimelineAuthority.Selection selection =
-                io.github.huleixin.tingyu.playback.LyricTimelineAuthority.commitStage(
+                "native-cache-display".equals(sourceId)
+                ? io.github.huleixin.tingyu.playback.LyricTimelineAuthority.commitNative(store, songKey, lyricInfo,
+                    hasTranslation != null && hasTranslation, sourceId,
+                    io.github.huleixin.tingyu.playback.LyricVariantConverter.currentRule(getContext()).id)
+                : io.github.huleixin.tingyu.playback.LyricTimelineAuthority.commitStage(
                         store, songKey, lyricInfo,
                         hasTranslation != null && hasTranslation,
                         hasWordByWord != null && hasWordByWord,
                         sourceId, userChoice != null && userChoice,
                         io.github.huleixin.tingyu.playback.LyricVariantConverter.currentRule(getContext()).id);
+        store.attachRenderModel(songKey, lyricInfo, call.getString("renderModel"));
         boolean changed = selection.ready()
                 ? ColorOsLyricBridge.setPending(selection.json, selection.hasTranslation, songKey,
                         selection.offsetKnown)

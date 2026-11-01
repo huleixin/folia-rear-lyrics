@@ -1,3 +1,4 @@
+import { readSharedLyrics, cacheSharedLyrics } from '../sharedSongResources';
 import type { ReplayGainInfo, SongResult } from '../../types';
 import type { MigrationResult } from '../../utils/lyrics/renderHints';
 import { getCachedAudioBlob, hasCachedAudio, saveAudioBlob } from '../audioCache';
@@ -14,12 +15,18 @@ export const getSongCacheWithLegacyMigration = async <T>(
     kind: SongResourceKind,
     song: SongResult,
     migrate: (value: T) => MigrationResult<T> = identityMigration,
+    options: { skipShared?: boolean } = {},
 ): Promise<T | null> => {
+    if (kind === 'lyric' && !options.skipShared) {
+        const shared = await readSharedLyrics(song);
+        if (shared) return shared as T;
+    }
     const cacheKey = getSongResourceCacheKey(kind, song);
     const current = await getFromCache<T>(cacheKey);
     if (current != null) {
         const migrated = migrate(current);
         if (migrated.changed) void saveToCache(cacheKey, migrated.value);
+        if (kind === 'lyric') void cacheSharedLyrics(song, migrated.value as import('../../types').LyricData);
         return migrated.value;
     }
 

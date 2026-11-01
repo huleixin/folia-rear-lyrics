@@ -23,7 +23,7 @@ import io.github.huleixin.tingyu.coloros.ColorOsLyricBridge;
 
 // android/app/src/main/java/io/github/huleixin/tingyu/playback/SongInfoLoader.java
 /**
- * 后台歌曲信息调度器：当前曲 + 后面 2 首的歌词与封面，全部由原生服务自己取。
+ * 后台歌曲信息调度器：当前曲 + 后面 10 首的歌词与封面，全部由原生服务自己取。
  *
  * <p>它替代的是「等 WebView 醒来补词」这条路径。之前那条路在真机上的实际行为是：
  * 第一首正常（前台已经把词/封面推进来了）→ Activity 停止 → Media3 自己切第二首 →
@@ -44,8 +44,8 @@ import io.github.huleixin.tingyu.coloros.ColorOsLyricBridge;
  */
 public final class SongInfoLoader {
 
-    /** 当前曲之后提前准备的曲目数（含当前曲共 3 首）。 */
-    private static final int AHEAD_COUNT = 2;
+    /** 当前曲之后提前准备的曲目数（含当前曲共 11 首）。 */
+    private static final int AHEAD_COUNT = 10;
     /** 同一首歌的失败结论在本进程内的冷却时间：避免每次心跳都重试同一张坏图。 */
     private static final long RETRY_COOLDOWN_MS = 90_000L;
 
@@ -86,6 +86,7 @@ public final class SongInfoLoader {
      */
     private final ExecutorService aheadLyricsExecutor;
     private final ExecutorService artworkExecutor;
+    private final ExecutorService currentArtworkExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "tingyu-artwork-current"));
     /** 这一轮真正需要的 songKey（当前曲 + 后面两首），任务执行前会再核一次。 */
     private final Set<String> wanted = Collections.synchronizedSet(new LinkedHashSet<String>());
     private final Set<String> lyricsInFlight = ConcurrentHashMap.newKeySet();
@@ -116,7 +117,7 @@ public final class SongInfoLoader {
             return thread;
         });
         // 封面两条线程：换歌瞬间既要当前曲也要下一首，串行会让锁屏出现「先旧图再新图」。
-        this.artworkExecutor = Executors.newFixedThreadPool(2, runnable -> {
+        this.artworkExecutor = Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, "tingyu-artwork");
             thread.setDaemon(true);
             return thread;
@@ -126,6 +127,8 @@ public final class SongInfoLoader {
             songKey -> songKey.equals(currentKey)
                 && "pending".equals(ColorOsLyricBridge.stateOf(songKey)));
     }
+
+    public String currentSongKey() { return currentKey; }
 
     public int generation() {
         return generation.get();
@@ -157,6 +160,7 @@ public final class SongInfoLoader {
             currentKey = current.songKey;
             generation.incrementAndGet();
         }
+        PlaylistResourceCache.get(context).reprioritize(current);
         int gen = generation.get();
         List<SongInfo> targets = new ArrayList<>();
         targets.add(current.withGeneration(gen));
@@ -166,10 +170,19 @@ public final class SongInfoLoader {
                 if (info != null && !info.songKey.isEmpty()) targets.add(info.withGeneration(gen));
             }
         }
+        for (int i = 1; i <= AHEAD_COUNT; i++) {
+            SongInfo next = SongInfo.fromTrack(NativePlaylist.get().lookahead(current.songKey, i), gen);
+            if (next == null || next.songKey.equals(current.songKey)) break;
+            boolean duplicate = false;
+            for (SongInfo t : targets) if (t.songKey.equals(next.songKey)) { duplicate = true; break; }
+            if (!duplicate) targets.add(next);
+        }
         synchronized (wanted) {
             wanted.clear();
             for (SongInfo info : targets) wanted.add(info.songKey);
         }
+        lyricsCooldown.keySet().removeIf(key -> !wanted.contains(key));
+        artworkCooldown.keySet().removeIf(key -> !wanted.contains(key));
         lastScheduledAtElapsed = SystemClock.elapsedRealtime();
         boolean foreground = activityAlive();
         PlaybackDiagnostics.note("songinfo-schedule", new JSObject()
@@ -193,6 +206,7 @@ public final class SongInfoLoader {
         if (current == null) return;
         try {
             if (currentKey.isEmpty()) currentKey = current.songKey;
+            PlaylistResourceCache.get(context).reprioritize(current);
             int gen = generation.get();
             submitLyrics(current.withGeneration(gen));
             submitArtwork(current.withGeneration(gen));
@@ -317,6 +331,7 @@ public final class SongInfoLoader {
         LyricFetchBudget budget = LyricFetchBudget.start(startedAt);
         NativeLyricsRepository.Result result;
         try {
+            if (!isCurrent(info.songKey) && !PlaylistResourceCache.get(context).networkAllowed()) return;
             result = lyrics.load(info, info.generation, budget,
                     () -> isWanted(info.songKey) && info.generation == generation.get());
         } catch (Throwable error) {
@@ -477,6 +492,7 @@ public final class SongInfoLoader {
 
     private void submitArtwork(SongInfo info) {
         if (info == null || info.songKey.isEmpty()) return;
+        if (!info.artworkUrl.isEmpty()) artwork.bind(info.songKey, info.artworkUrl);
         Bitmap ready = NativeArtworkRepository.get(context).peek(info.songKey);
         if (ready != null) {
             PlaybackDiagnostics.note("artwork-cache-hit", describe("memory", info, isCurrent(info.songKey))
@@ -494,7 +510,7 @@ public final class SongInfoLoader {
         Long until = artworkCooldown.get(info.songKey);
         if (until != null && SystemClock.elapsedRealtime() < until) return;
         if (!artworkInFlight.add(info.songKey)) return;
-        artworkExecutor.execute(() -> {
+        (isCurrent(info.songKey) ? currentArtworkExecutor : artworkExecutor).execute(() -> {
             try {
                 runArtwork(info);
             } catch (Throwable error) {
@@ -510,8 +526,10 @@ public final class SongInfoLoader {
         long startedAt = SystemClock.elapsedRealtime();
         PlaybackDiagnostics.note("artwork-uri", describe("queue", info, isCurrent(info.songKey))
                 .put("state", "has-uri"));
+        if (!isCurrent(info.songKey) && artwork.cachedFile(info.artworkUrl) == null
+            && !PlaylistResourceCache.get(context).networkAllowed()) return;
         NativeArtworkRepository.Result result = NativeArtworkRepository.get(context)
-                .load(info.songKey, info.artworkUrl);
+                .load(info.songKey, info.artworkUrl, isCurrent(info.songKey));
         long elapsed = SystemClock.elapsedRealtime() - startedAt;
         JSObject detail = describe("native", info, isCurrent(info.songKey))
                 .put("status", result.status.name())
@@ -533,7 +551,7 @@ public final class SongInfoLoader {
             }
             return;
         }
-        publishArtwork(info, result.bitmap);
+        if (artwork.matches(info.songKey, info.artworkUrl)) publishArtwork(info, result.bitmap);
     }
 
     // ---- 发布 ----

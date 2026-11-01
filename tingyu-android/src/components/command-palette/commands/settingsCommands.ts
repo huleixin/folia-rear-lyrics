@@ -42,6 +42,7 @@ export const settingsCommands: CommandPaletteCommand[] = [
         isAvailable: canUseRearLyrics,
         execute: () => toggleRearLyrics(),
     }),
+    createSettingsCommand('settings-resource-cache', 'Smart resource precache', 'Manage playlist lyrics and artwork cache', ['cache', '预缓存', '歌词缓存', '封面缓存'], 'options', 'storage'),
     createSettingsCommand('settings-help', 'Open Help', 'Open help and shortcuts', ['help', '帮助'], 'help', null, { executeShortcut: 'h' }),
     {
         id: 'ponder-current-page',

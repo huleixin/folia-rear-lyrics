@@ -49,7 +49,7 @@ public final class NativeLyricsRepository {
     private static final String USER_AGENT = "Tingyu/1.3.50 (+https://github.com/huleixin/tingyu)";
     private static final String HOST = "https://lrclib.net";
     private static final long NEGATIVE_TTL_MS = 3L * 24L * 60L * 60L * 1000L;
-    private static final int MAX_CACHE_FILES = 240;
+    private final java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.FutureTask<Result>> flights = new java.util.concurrent.ConcurrentHashMap<>();
 
     public enum Status {
         /** 磁盘缓存命中（有时间轴）。 */
@@ -106,6 +106,11 @@ public final class NativeLyricsRepository {
         }
     }
 
+    private volatile long retryNotBefore;
+    public long retryNotBefore() { return retryNotBefore; }
+    private final java.util.concurrent.Semaphore backgroundRequests = new java.util.concurrent.Semaphore(1, true);
+    private final java.util.concurrent.Semaphore requests = new java.util.concurrent.Semaphore(2, true);
+    private final java.util.concurrent.atomic.AtomicInteger writesSincePrune = new java.util.concurrent.atomic.AtomicInteger();
     private final File dir;
     private final OkHttpClient client;
 
@@ -166,8 +171,30 @@ public final class NativeLyricsRepository {
     public Result load(SongInfo info, int generation, LyricFetchBudget budget,
                        java.util.function.BooleanSupplier stillWanted) {
         if (info == null || info.songKey.isEmpty()) return new Result(Status.NO_IDENTITY, null, false, "", 0, "none", 0, 0, -1);
+        java.util.concurrent.FutureTask<Result> task = new java.util.concurrent.FutureTask<>(() -> {
+            SongInfoLoader loader = SongInfoLoader.get();
+            boolean urgent = loader != null && loader.isCurrent(info.songKey);
+            if (!urgent) backgroundRequests.acquire();
+            try {
+                requests.acquire();
+                try { return loadSingle(info, generation, budget, stillWanted); }
+                finally { requests.release(); }
+            } finally { if (!urgent) backgroundRequests.release(); }
+        });
+        java.util.concurrent.FutureTask<Result> old = flights.putIfAbsent(info.songKey, task);
+        try {
+            if (old != null) return old.get();
+            task.run(); return task.get();
+        } catch (Exception error) { return networkStatus(Status.NETWORK, -1, "single-flight"); }
+        finally { if (old == null) flights.remove(info.songKey, task); }
+    }
+
+    private Result loadSingle(SongInfo info, int generation, LyricFetchBudget budget,
+                              java.util.function.BooleanSupplier stillWanted) {
+        if (!mayContinue(budget, stillWanted, "start")) return aborted("start", null);
         Result cached = readCache(info.songKey);
         if (cached != null) return cached;
+        if (System.currentTimeMillis() < retryNotBefore) return networkStatus(Status.RATE_LIMITED, 429, "cooldown");
         if (info.title == null || info.title.trim().isEmpty()) {
             return new Result(Status.NO_IDENTITY, null, false, "", 0, "none", 0, 0, -1);
         }
@@ -471,7 +498,9 @@ public final class NativeLyricsRepository {
                 .header("User-Agent", USER_AGENT)
                 .header("Accept", "application/json")
                 .build();
-        return client.newCall(request).execute();
+        Response response = client.newCall(request).execute();
+        if (response.code() == 429) retryNotBefore = ResourceCachePolicy.retryNotBefore(response.header("Retry-After"), System.currentTimeMillis());
+        return response;
     }
 
     private static String body(Response response) throws IOException {
@@ -486,7 +515,7 @@ public final class NativeLyricsRepository {
     private Result persist(SongInfo info, Result result) {
         writeRecord(info.songKey, "ok", result.json, result.hasTranslation, result.source,
                 result.score, result.durationDeltaMs);
-        prune();
+        if (writesSincePrune.incrementAndGet() % 8 == 0) prune();
         return result;
     }
 
@@ -556,16 +585,12 @@ public final class NativeLyricsRepository {
     }
 
     /** 有界：超过条数按修改时间从旧到新删。歌词是整首时间轴，几十 KB 一首，240 条足够覆盖长连播。 */
-    private void prune() {
-        File[] files = dir.listFiles();
-        if (files == null || files.length <= MAX_CACHE_FILES) return;
-        Arrays.sort(files, Comparator.comparingLong(File::lastModified));
-        int excess = files.length - MAX_CACHE_FILES;
-        for (int i = 0; i < excess && i < files.length; i++) {
-            //noinspection ResultOfMethodCallIgnored
-            files[i].delete();
-        }
+    public long diskBytes() { return ResourceDiskBudget.bytes(dir); }
+    public void clearDownloadable() {
+        File[] files = dir.listFiles((d,n) -> n.endsWith(".json"));
+        if(files != null) for(File f:files) f.delete();
     }
+    private void prune() { ResourceDiskBudget.prune(dir, 16L*1024*1024, f -> false); }
 
     static String sha1(String value) {
         try {

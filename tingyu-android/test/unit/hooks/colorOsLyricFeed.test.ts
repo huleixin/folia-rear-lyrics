@@ -55,7 +55,7 @@ it('never claims a track has no lyrics while they are still loading, and clears 
         expect(bridge.publish).not.toHaveBeenCalled();
 
         await act(async()=>{root.render(h(Probe,{lines:lyrics('hello'),current:first,loading:false}));});
-        expect(bridge.publish).toHaveBeenCalledWith(expect.any(String),false,getPlaybackSongKey(first),{hasWordByWord:false,source:'stage'});
+        expect(bridge.publish).toHaveBeenCalledWith(expect.any(String),false,getPlaybackSongKey(first),{hasWordByWord:false,source:'stage',renderModel:JSON.stringify(lyrics('hello'))});
 
         // Next track settled with no lyrics: only that track is cleared - never the whole channel,
         // which would also drop the timeline already primed for the track after it.
@@ -83,7 +83,7 @@ it('answers a native lyric request for the track that is current',async()=>{
         await act(async()=>{
             window.dispatchEvent(new CustomEvent('tingyu-native-lyric-request',{detail:{songKey:getPlaybackSongKey(current)}}));
         });
-        expect(bridge.publish).toHaveBeenCalledWith(expect.any(String),false,getPlaybackSongKey(current),{hasWordByWord:false,source:'stage'});
+        expect(bridge.publish).toHaveBeenCalledWith(expect.any(String),false,getPlaybackSongKey(current),{hasWordByWord:false,source:'stage',renderModel:JSON.stringify(lyrics('hello'))});
 
         // The UI is still on the previous song: answering with ours would bind the wrong lyric
         // to the track the system panel is showing.

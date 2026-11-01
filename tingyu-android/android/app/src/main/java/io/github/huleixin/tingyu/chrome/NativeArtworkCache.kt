@@ -20,7 +20,7 @@ internal object NativeArtworkCache {
             // 会被仓库按 mtime 的 prune 当成普通图片删掉，两套键（URL vs sha1(songKey)）互不
             // 命中，纯粹互相污染。2026-10-31 起分目录。
             .diskCache { DiskCache.Builder().directory(app.cacheDir.resolve("coil-artwork"))
-                .maxSizeBytes(64L * 1024 * 1024).build() }
+                .maxSizeBytes(16L * 1024 * 1024).build() }
             .respectCacheHeaders(false).crossfade(false).build())
     }
 }

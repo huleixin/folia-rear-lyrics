@@ -1,3 +1,5 @@
+import { getTingyuPlayback } from '../platform/tingyuPlayback';
+import { readSharedLyrics } from '../services/sharedSongResources';
 import React from 'react';
 import {
     clearColorOsLyricInfo,
@@ -37,6 +39,7 @@ type UseColorOsLyricFeedOptions = {
     timelineOffsetMs?: number;
     /** 当前这首歌的歌词是否仍在加载。加载中不得宣告「无词」。 */
     lyricsLoading?: boolean;
+    onResourceLyrics?: (lyrics: LyricData | null) => void;
 };
 
 export const useColorOsLyricFeed = ({
@@ -45,9 +48,28 @@ export const useColorOsLyricFeed = ({
     duration,
     timelineOffsetMs = 0,
     lyricsLoading = false,
+    onResourceLyrics,
 }: UseColorOsLyricFeedOptions): void => {
     const enabled = isCapacitorAndroid();
     const [supported, setSupported] = React.useState(false);
+
+    React.useEffect(() => {
+        if (!enabled) return;
+        let cancelled = false;
+        let handle: { remove(): Promise<void> } | undefined;
+        const native = getTingyuPlayback<{ addListener(event: string, cb: (value: { songKey: string }) => void): Promise<{ remove(): Promise<void> }> }>();
+        if (typeof native.addListener !== 'function') return;
+        void native.addListener('resourceReady', value => {
+            const current = usePlaybackStore.getState().currentSong;
+            if (!current || getPlaybackSongKey(current) !== value.songKey) return;
+            void readSharedLyrics(current).then(data => {
+                const live = usePlaybackStore.getState();
+                if (!cancelled && data && live.currentSong && getPlaybackSongKey(live.currentSong) === value.songKey)
+                    onResourceLyrics?.(data);
+            });
+        }).then(value => { if (cancelled) void value.remove(); else handle = value; }).catch(() => {});
+        return () => { cancelled = true; void handle?.remove(); };
+    }, [enabled, onResourceLyrics]);
 
     // 判定每进程只做一次：原生那边要读 ROM 属性（必要时还要跑一次 getprop），
     // 结果在 platform 层缓存，这里只取回来决定要不要启动整条通道。
@@ -153,7 +175,8 @@ export const useColorOsLyricFeed = ({
         // hasWordByWord 一并交给统一仓库记录，供诊断判断逐字 lane 的来源层级。
         void publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, songKey, {
             hasWordByWord: lyrics!.isWordByWord === true,
-            source: 'stage',
+            renderModel: JSON.stringify(lyrics),
+            source: lyrics?.resourceCacheTier === 'native' ? 'native-cache-display' : 'stage',
         });
     }, [active, songKey, song, lyrics, hasLines, lyricsLoading, duration, timelineOffsetMs]);
 
@@ -183,7 +206,8 @@ export const useColorOsLyricFeed = ({
                 // 这是「打开主界面歌词换版本」问题的收敛点。
                 void publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, songKey, {
                     hasWordByWord: lyrics!.isWordByWord === true,
-                    source: 'stage',
+            renderModel: JSON.stringify(lyrics),
+                    source: lyrics?.resourceCacheTier === 'native' ? 'native-cache-display' : 'stage',
                 });
             }
         };
@@ -207,7 +231,8 @@ export const useColorOsLyricFeed = ({
                 publishedKeyRef.current = songKey;
                 void publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, songKey, {
                     hasWordByWord: lyrics!.isWordByWord === true,
-                    source: 'stage',
+            renderModel: JSON.stringify(lyrics),
+                    source: lyrics?.resourceCacheTier === 'native' ? 'native-cache-display' : 'stage',
                 });
                 return;
             }

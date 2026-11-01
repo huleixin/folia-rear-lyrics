@@ -348,6 +348,23 @@ public class FoliaNativePlugin extends Plugin {
             return;
         }
 
+        if ("GET".equalsIgnoreCase(method) && (bodyText == null || bodyText.isEmpty())
+            && (bodyBase64 == null || bodyBase64.isEmpty())
+            && (io.github.huleixin.tingyu.playback.ResourceCachePolicy.sharedArtworkUrl(url)
+                || (io.github.huleixin.tingyu.playback.SharedArtworkAccess.imageRequestUrl(url)
+                    && call.getObject("headers")!=null && "1".equals(call.getObject("headers").optString("X-Tingyu-Artwork"))))) {
+            try {
+                File file = io.github.huleixin.tingyu.playback.NativeArtworkRepository.get(getContext()).ensureFile(url);
+                java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+                try (java.io.FileInputStream in = new java.io.FileInputStream(file)) {
+                    byte[] buffer = new byte[8192]; int count;
+                    while ((count = in.read(buffer)) != -1) bytes.write(buffer, 0, count);
+                }
+                call.resolve(new JSObject().put("status", 200).put("headers", new JSObject().put("content-type", "image/jpeg"))
+                    .put("bodyBase64", Base64.encodeToString(bytes.toByteArray(), Base64.NO_WRAP)));
+            } catch (Exception error) { call.reject("Shared artwork unavailable"); }
+            return;
+        }
         try {
             Request.Builder builder = new Request.Builder().url(url);
             JSObject headers = call.getObject("headers");

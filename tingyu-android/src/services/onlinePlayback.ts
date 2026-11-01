@@ -1,3 +1,4 @@
+import { readSharedLyricRecord } from './sharedSongResources';
 import { useAudioToolsStore } from '../stores/useAudioToolsStore';
 import { selectedLxScript } from './lxSource/selection';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
@@ -198,11 +199,27 @@ export async function loadOnlineSongLyrics(
     if (!isCurrent()) return;
     onStateChange?.(onlineLyricsState);
 
-    const cachedLyrics = await getSongCacheWithLegacyMigration<LyricData>('lyric', song, migrateLyricDataRenderHints);
+    const sharedRecord = await readSharedLyricRecord(song);
+    const cachedLyrics = sharedRecord?.lyrics ?? await getSongCacheWithLegacyMigration<LyricData>('lyric', song, migrateLyricDataRenderHints, { skipShared: true });
     if (!isCurrent()) return;
     const preferredCachedLyrics = resolveOnlineLyrics(onlineLyricsState, cachedLyrics);
     const hasAuthoritativeLyricsSelection = onlineLyricsState?.lyricsSource === 'imported'
         || Boolean(onlineLyricsState?.hasOnlineOverride);
+    const sharedLyrics = sharedRecord?.lyrics;
+    if (!isCurrent()) return;
+    if (sharedLyrics && !hasAuthoritativeLyricsSelection && (!initialSettingsLyricSettings.autoUseBestLyric || sharedRecord?.userChoice)) {
+        noteLyricsDiagnostic('cache-hit', song, { source: 'unified-native' });
+        onPureMusicChange?.(false);
+        onLyrics(sharedLyrics);
+        onDone();
+        if (sharedRecord?.confirmedBy === 'native' && !sharedRecord.userChoice) {
+            // Show offline fallback immediately; preserve the existing platform's word-level upgrade.
+            void omni.getLyrics(song, { userId, refreshResourceCache: true }).then(result => {
+                if (isCurrent() && result.lyrics?.lines.length) onLyrics(result.lyrics);
+            }).catch(() => {});
+        }
+        return;
+    }
     if (preferredCachedLyrics && (hasAuthoritativeLyricsSelection || !initialSettingsLyricSettings.autoUseBestLyric)) {
         const cachedText = preferredCachedLyrics.lines.map(line => line.fullText).join('\n');
         noteLyricsDiagnostic('cache-hit', song, describeLyricsShape(preferredCachedLyrics));

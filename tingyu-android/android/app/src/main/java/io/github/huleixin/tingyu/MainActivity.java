@@ -63,6 +63,22 @@ public class MainActivity extends BridgeActivity {
             "onCreate"
         );
         installWebViewRendererGuard();
+        getBridge().setWebViewClient(new com.getcapacitor.BridgeWebViewClient(getBridge()) {
+            @Override public android.webkit.WebResourceResponse shouldInterceptRequest(WebView view, android.webkit.WebResourceRequest request) {
+                android.webkit.WebResourceResponse shared = "GET".equals(request.getMethod())
+                    ? io.github.huleixin.tingyu.playback.SharedArtworkAccess.intercept(getApplicationContext(), request.getUrl().toString()) : null;
+                return shared != null ? shared : super.shouldInterceptRequest(view, request);
+            }
+        });
+        try {
+            android.webkit.ServiceWorkerController.getInstance().setServiceWorkerClient(new android.webkit.ServiceWorkerClient() {
+                @Override public android.webkit.WebResourceResponse shouldInterceptRequest(android.webkit.WebResourceRequest request) {
+                    android.webkit.WebResourceResponse shared = "GET".equals(request.getMethod())
+                        ? io.github.huleixin.tingyu.playback.SharedArtworkAccess.intercept(getApplicationContext(), request.getUrl().toString()) : null;
+                    return shared != null ? shared : getBridge().getLocalServer().shouldInterceptRequest(request);
+                }
+            });
+        } catch (Throwable unavailable) { /* Keep Capacitor's existing client on unsupported vendor WebViews. */ }
         WebView webView = getBridge().getWebView();
         if (BuildConfig.COMPOSE_CHROME) {
             // Attach packaged Compose UI before the Activity can present its first application frame.

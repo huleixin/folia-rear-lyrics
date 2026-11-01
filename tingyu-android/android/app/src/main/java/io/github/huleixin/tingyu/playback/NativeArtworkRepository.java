@@ -32,7 +32,7 @@ import okhttp3.ResponseBody;
  * <ul>
  *   <li>单张上限 6 MB，超了放弃（封面 URL 指向整张原图的情况很常见）；</li>
  *   <li>解码按目标边长 768 二次采样，落盘存的是**已降采样**的 JPEG，磁盘不会被子图撑爆；</li>
- *   <li>磁盘最多 60 张，按修改时间淘汰；内存 LRU 12 MB；</li>
+ *   <li>磁盘按 192 MiB 预算淘汰，保护当前和近期封面；内存 LRU 12 MB；</li>
  *   <li>只接受非空 Bitmap：0×0 的「解码成功」发布出去就是一块空白，比占位图更糟。</li>
  * </ul>
  */
@@ -41,7 +41,6 @@ public final class NativeArtworkRepository {
     private static final String USER_AGENT = "Tingyu/1.3.50 (+https://github.com/huleixin/tingyu)";
     private static final int MAX_BYTES = 6 * 1024 * 1024;
     private static final int TARGET_EDGE_PX = 768;
-    private static final int MAX_CACHE_FILES = 60;
     private static final int MEMORY_BYTES = 12 * 1024 * 1024;
 
     public enum Status {
@@ -88,7 +87,17 @@ public final class NativeArtworkRepository {
         }
     }
 
+    private volatile long retryNotBefore;
+    public long retryNotBefore() { return retryNotBefore; }
+    private final java.util.concurrent.atomic.AtomicInteger writesSincePrune = new java.util.concurrent.atomic.AtomicInteger();
     private final File dir;
+    private final java.util.Map<String,String> aliases = java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<String,String>(16,0.75f,true) {
+        @Override protected boolean removeEldestEntry(java.util.Map.Entry<String,String> e) { return size()>256; }
+    });
+    private final java.util.Map<String, java.util.concurrent.FutureTask<File>> flights = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.concurrent.Semaphore backgroundDownloads = new java.util.concurrent.Semaphore(1, true);
+    private final java.util.concurrent.Semaphore downloads = new java.util.concurrent.Semaphore(2, true);
+    private volatile java.util.Set<String> protectedNames = java.util.Collections.emptySet();
     private final OkHttpClient client;
     private final LruCache<String, Bitmap> memory = new LruCache<String, Bitmap>(MEMORY_BYTES) {
         @Override protected int sizeOf(String key, Bitmap value) {
@@ -111,7 +120,7 @@ public final class NativeArtworkRepository {
     /** 只查本地缓存（内存 → 磁盘），不联网。 */
     public Result readCache(String songKey) {
         if (songKey == null || songKey.isEmpty()) return null;
-        Bitmap cached = memory.get(songKey);
+        Bitmap cached = memory.get(memoryKey(songKey));
         if (cached != null && !cached.isRecycled()) {
             return new Result(Status.CACHE_HIT, cached, 0, 0, cached.getWidth(), cached.getHeight());
         }
@@ -123,53 +132,101 @@ public final class NativeArtworkRepository {
             file.delete();
             return null;
         }
-        memory.put(songKey, decoded);
+        memory.put(memoryKey(songKey), decoded);
         return new Result(Status.CACHE_HIT, decoded, 0, (int) file.length(), decoded.getWidth(), decoded.getHeight());
     }
 
     /** 阻塞调用，必须在后台线程执行。 */
-    public Result load(String songKey, String url) {
-        if (url == null || url.trim().isEmpty()) {
-            return new Result(Status.MISSING_URI, null, 0, 0, 0, 0);
-        }
+    public Result load(String songKey, String url) { return load(songKey, url, true); }
+    public Result load(String songKey, String url, boolean urgent) {
+        if (url == null || url.trim().isEmpty()) return new Result(Status.MISSING_URI, null, 0, 0, 0, 0);
+        bind(songKey, url);
         Result cached = readCache(songKey);
         if (cached != null) return cached;
-
-        Request request;
         try {
-            request = new Request.Builder()
-                    .url(url.trim())
-                    .header("User-Agent", USER_AGENT)
-                    .header("Accept", "image/*")
-                    .build();
-        } catch (IllegalArgumentException error) {
-            return new Result(Status.MISSING_URI, null, 0, 0, 0, 0);
-        }
-        try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                return new Result(Status.HTTP_ERROR, null, response.code(), 0, 0, 0);
-            }
-            ResponseBody body = response.body();
-            if (body == null) return new Result(Status.HTTP_ERROR, null, response.code(), 0, 0, 0);
-            byte[] bytes = readLimited(body, MAX_BYTES);
-            if (bytes == null) return new Result(Status.TOO_LARGE, null, response.code(), MAX_BYTES, 0, 0);
-            Bitmap bitmap = decode(bytes);
-            if (bitmap == null) {
-                return new Result(Status.DECODE_FAILED, null, response.code(), bytes.length, 0, 0);
-            }
-            memory.put(songKey, bitmap);
-            writeDisk(songKey, bitmap);
-            prune();
-            return new Result(Status.FETCHED, bitmap, response.code(), bytes.length,
-                    bitmap.getWidth(), bitmap.getHeight());
-        } catch (IOException error) {
+            File file = ensureFile(url, urgent);
+            Bitmap bitmap = memory.get(ResourceCachePolicy.artworkIdentity(url));
+            if (bitmap == null) bitmap = decode(Files.readAll(file));
+            if (bitmap == null) return new Result(Status.DECODE_FAILED, null, 0, 0, 0, 0);
+            memory.put(ResourceCachePolicy.artworkIdentity(url), bitmap);
+            return new Result(Status.FETCHED, bitmap, 200, (int)file.length(), bitmap.getWidth(), bitmap.getHeight());
+        } catch (Exception error) {
             return new Result(Status.NETWORK, null, -1, 0, 0, 0);
         }
     }
 
+    public void bind(String songKey, String url) {
+        String previous = aliases.getOrDefault(songKey, "");
+        if (!url.equals(previous)) {
+            aliases.put(songKey, url);
+        }
+    }
+    private String memoryKey(String songKey) {
+        String url = aliases.getOrDefault(songKey, "");
+        return url.isEmpty() ? songKey : ResourceCachePolicy.artworkIdentity(url);
+    }
+    public boolean matches(String songKey, String url) {
+        return url.equals(aliases.getOrDefault(songKey, ""));
+    }
+    public File cachedFile(String url) {
+        File f = new File(dir, NativeLyricsRepository.sha1(ResourceCachePolicy.artworkIdentity(url)) + ".img");
+        return f.isFile() && f.length() > 0 ? f : null;
+    }
+
+    /** Single flight by resource identity; bulk callers never retain decoded bitmaps. */
+    public File ensureFile(String url) throws Exception { return ensureFile(url, true); }
+    public File ensureFile(String url, boolean urgent) throws Exception {
+        if (url == null || url.isEmpty()) throw new IOException("missing-uri");
+        File cached = cachedFile(url);
+        if (cached != null) { cached.setLastModified(System.currentTimeMillis()); return cached; }
+        String id = ResourceCachePolicy.artworkIdentity(url);
+        java.util.concurrent.FutureTask<File> task = new java.util.concurrent.FutureTask<>(() -> {
+            if (!urgent) backgroundDownloads.acquire();
+            boolean acquired = false;
+            try {
+                downloads.acquire(); acquired = true;
+                File again = cachedFile(url);
+                if (again != null) return again;
+                if (System.currentTimeMillis() < retryNotBefore) throw new IOException("rate-limited");
+                Request request = new Request.Builder().url(ResourceCachePolicy.artworkDownloadUrl(url)).header("User-Agent", USER_AGENT).header("Accept", "image/*").build();
+                try (Response response = client.newCall(request).execute()) {
+                    if (response.code() == 429) retryNotBefore = ResourceCachePolicy.retryNotBefore(response.header("Retry-After"), System.currentTimeMillis());
+                    if (!response.isSuccessful()) throw new IOException("http-" + response.code());
+                    if (response.body() == null) throw new IOException("empty-body");
+                    byte[] bytes = readLimited(response.body(), MAX_BYTES);
+                    Bitmap bitmap = decode(bytes);
+                    if (bitmap == null) throw new IOException("decode-or-size");
+                    File target = new File(dir, NativeLyricsRepository.sha1(id) + ".img");
+                    try { writeImage(target, bitmap); }
+                    finally { if (urgent) memory.put(id, bitmap); else bitmap.recycle(); }
+                    if (!target.isFile()) throw new IOException("disk-write");
+                    if (writesSincePrune.incrementAndGet() % 8 == 0) prune();
+                    if (!target.isFile()) throw new IOException("disk-budget");
+                    return target;
+                }
+            } finally { if (acquired) downloads.release(); if (!urgent) backgroundDownloads.release(); }
+        });
+        java.util.concurrent.FutureTask<File> running = flights.putIfAbsent(id, task);
+        if (running != null) return running.get();
+        try { task.run(); return task.get(); } finally { flights.remove(id, task); }
+    }
+
+    public void protect(java.util.List<SongInfo> songs) {
+        java.util.Set<String> next = new java.util.HashSet<>();
+        for (SongInfo info : songs) if (!info.artworkUrl.isEmpty())
+            next.add(NativeLyricsRepository.sha1(ResourceCachePolicy.artworkIdentity(info.artworkUrl)) + ".img");
+        protectedNames = next;
+    }
+    public long diskBytes() { return ResourceDiskBudget.bytes(dir); }
+    public void clearDownloadable() {
+        memory.evictAll();
+        File[] files = dir.listFiles();
+        if (files != null) for (File f : files) if (!protectedNames.contains(f.getName()) && !f.getName().endsWith(".tmp")) f.delete();
+    }
+
     /** 供服务直接取内存里的那一张（换歌瞬间避免重复解码）。 */
     public Bitmap peek(String songKey) {
-        Bitmap cached = memory.get(songKey);
+        Bitmap cached = memory.get(memoryKey(songKey));
         return cached != null && !cached.isRecycled() ? cached : null;
     }
 
@@ -195,7 +252,7 @@ public final class NativeArtworkRepository {
     static int sampleSize(int width, int height) {
         int sample = 1;
         int longest = Math.max(width, height);
-        while (longest / sample > TARGET_EDGE_PX && sample < 16) sample *= 2;
+        while (longest / sample > TARGET_EDGE_PX && sample < 4096) sample *= 2;
         return sample;
     }
 
@@ -213,8 +270,7 @@ public final class NativeArtworkRepository {
         return out.toByteArray();
     }
 
-    private void writeDisk(String songKey, Bitmap bitmap) {
-        File target = fileFor(songKey);
+    private void writeImage(File target, Bitmap bitmap) {
         File temp = new File(target.getParentFile(), target.getName() + ".tmp");
         try (FileOutputStream stream = new FileOutputStream(temp)) {
             // 落盘存降采样后的 JPEG：解码后的原始 PNG/JPEG 往往有几 MB，而锁屏/通知只需要 768px。
@@ -232,18 +288,12 @@ public final class NativeArtworkRepository {
     }
 
     private void prune() {
-        File[] files = dir.listFiles();
-        if (files == null || files.length <= MAX_CACHE_FILES) return;
-        Arrays.sort(files, Comparator.comparingLong(File::lastModified));
-        int excess = files.length - MAX_CACHE_FILES;
-        for (int i = 0; i < excess && i < files.length; i++) {
-            //noinspection ResultOfMethodCallIgnored
-            files[i].delete();
-        }
+        ResourceDiskBudget.prune(dir, ResourceCachePolicy.ARTWORK_BYTES, f -> protectedNames.contains(f.getName()));
     }
 
     private File fileFor(String songKey) {
-        return new File(dir, NativeLyricsRepository.sha1(songKey) + ".img");
+        String url = aliases.getOrDefault(songKey, "");
+        return new File(dir, NativeLyricsRepository.sha1(url.isEmpty() ? songKey : ResourceCachePolicy.artworkIdentity(url)) + ".img");
     }
 
     /**

@@ -22,6 +22,9 @@ final class RearLyricsWebClient extends WebViewClient {
     RearLyricsWebClient(Context context, Events events) { this.context = context; this.events = events; }
 
     @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+        android.webkit.WebResourceResponse artwork = "GET".equals(request.getMethod())
+            ? io.github.huleixin.tingyu.playback.SharedArtworkAccess.intercept(context, request.getUrl().toString()) : null;
+        if (artwork != null) return artwork;
         Uri uri = request.getUrl();
         if (!"https".equals(uri.getScheme()) || !"rear.folia.local".equals(uri.getHost())) return null;
         String path = uri.getPath();

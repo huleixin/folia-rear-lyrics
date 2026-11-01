@@ -1,3 +1,4 @@
+import { syncPlaylistResources } from './playlistResourceSnapshot';
 import { getPlaybackSongKey, getPlaybackSourceRef } from '../utils/appPlaybackGuards';
 import { getSongAlbumCoverUrl } from '../utils/songMetadata';
 import { shufflePlayback } from './shufflePlayback';
@@ -104,7 +105,7 @@ const selectedSourceId = (providerId: string): string => {
     return platform ? `lx:${platform}` : `${providerId}-original`;
 };
 
-const toPayload = (song: SongResult): NativePlaylistTrackPayload | null => {
+export const toNativeResourcePayload = (song: SongResult): NativePlaylistTrackPayload | null => {
     const songKey = getPlaybackSongKey(song);
     if (!songKey) return null;
     const ref = getPlaybackSourceRef(song);
@@ -169,10 +170,10 @@ export const syncNativePlaylist = async (options: {
     const ordered = orderedAfter(queue, currentKey, shuffle);
     // 当前曲目本身也要在列表里，原生才能用它做锚点找到位置。
     const tracks: NativePlaylistTrackPayload[] = [];
-    const head = toPayload(song);
+    const head = toNativeResourcePayload(song);
     if (head) tracks.push(head);
     for (const next of ordered) {
-        const payload = toPayload(next);
+        const payload = toNativeResourcePayload(next);
         if (payload && !tracks.some(item => item.songKey === payload.songKey)) tracks.push(payload);
     }
     const mode = resolveMode(loop, shuffle);
@@ -189,6 +190,7 @@ export const syncNativePlaylist = async (options: {
         void syncBodianResolverCredentials();
         void syncQishuiResolverCredentials();
         await native.setNativePlaylist({ mode, loopAll: loop === 'all', quality, tracks });
+        void syncPlaylistResources(queue.length ? queue : [song], toNativeResourcePayload, currentKey);
         // 这份 `ordered` 就是原生真正会走的顺序：按它预置歌词，锁屏连播才有词可用。
         // 与窗口预置（只有 5 首）不同，这里能看到更远的 10 首；只读本地缓存，最多
         // LYRIC_PRIME_AHEAD 首，不发网络请求，失败静默。

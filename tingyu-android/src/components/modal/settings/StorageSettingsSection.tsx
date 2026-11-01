@@ -1,3 +1,4 @@
+import SmartResourceCacheSettings from './SmartResourceCacheSettings';
 import React from 'react';
 import { AudioWaveform, Check, Cloud, Command, Database, Disc3, Download, FolderOpen, HardDrive, Layers, Loader2, Pencil, PlayCircle, RefreshCw, Trash2, Upload, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -246,6 +247,7 @@ const StorageSettingsSection: React.FC<StorageSettingsSectionProps> = ({
 
     return (
         <>
+            <SmartResourceCacheSettings />
             <SettingsAnchor anchorId="cacheDetails" label={t('options.cacheDetails') || 'Cache Details'}>
                 <h3 className="text-sm font-bold uppercase tracking-wider opacity-50 mb-4 flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
                     <Database size={14} /> {t('options.cacheDetails') || 'Cache Storage'}

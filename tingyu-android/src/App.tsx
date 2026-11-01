@@ -1504,6 +1504,7 @@ export default function App() {
     // `lyricsLoading` is what separates "this track has no lyrics" from "they are still coming":
     // declaring the former while the WebView is asleep is what emptied the island for good.
     useColorOsLyricFeed({
+        onResourceLyrics: setLyricsStable,
         lyrics,
         song: displaySong,
         duration,

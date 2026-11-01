@@ -124,14 +124,15 @@ public final class RearNativeLyricLines {
     private static String cacheKey(Context context, String songKey) {
         int bridgeRevision = io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.revisionOf(songKey);
         int unifiedRevision = -1;
+        int renderRevision = 0;
         try {
             io.github.huleixin.tingyu.playback.UnifiedLyricsStore.Record record =
                 io.github.huleixin.tingyu.playback.UnifiedLyricsStore.get(context).get(songKey);
-            if (record != null) unifiedRevision = record.revision;
+            if (record != null) { unifiedRevision = record.revision; renderRevision = record.renderModel == null ? 0 : record.renderModel.hashCode(); }
         } catch (Throwable ignored) {
             // 版本读不到就退化成「只按桥的版本」，不影响正确性（最坏多构建一次）。
         }
-        return songKey + "|" + bridgeRevision + "|" + unifiedRevision;
+        return songKey + "|" + bridgeRevision + "|" + unifiedRevision + "|" + renderRevision;
     }
 
     /**
@@ -168,6 +169,11 @@ public final class RearNativeLyricLines {
         // 背屏行的偏移交付点：权威版本是原始时间轴时在这里应用用户偏移（恰一次）。
         // 旧缓存（offsetKnown=false，可能已烘焙、用量未知）原样交付，绝不叠加。
         if (selection.ready()) {
+            if (record != null && record.renderModel != null && record.offsetKnown) {
+                String modelRows = rowsFromRenderModel(record.renderModel, songKey,
+                    io.github.huleixin.tingyu.playback.LyricTimelineOffset.forSong(songKey));
+                if (modelRows != null) return modelRows;
+            }
             String rows = rowsFromLyricInfo(io.github.huleixin.tingyu.playback.LyricTimelineOffset
                 .bakeIfKnown(selection.json, songKey, selection.offsetKnown), songKey);
             if (rows != null && !rows.isEmpty()) return rows;
@@ -200,6 +206,25 @@ public final class RearNativeLyricLines {
             return rows("", "", songKey);
         }
         return null;
+    }
+
+    /** Same raw display model as the front stage; apply user offset only at this delivery boundary. */
+    public static String rowsFromRenderModel(String model, String key, long offsetMs) {
+        try {
+            JSONArray lines = new JSONObject(model).optJSONArray("lines");
+            if (lines == null || lines.length() == 0) return null;
+            double delta = offsetMs / 1000.0;
+            for (int i=0;i<lines.length();i++) {
+                JSONObject line=lines.optJSONObject(i); if(line==null)continue;
+                for(String field:new String[]{"startTime","endTime"}) if(line.has(field))line.put(field,Math.max(0,line.optDouble(field)+delta));
+                JSONArray words=line.optJSONArray("words");
+                if(words!=null)for(int j=0;j<words.length();j++) {
+                    JSONObject word=words.optJSONObject(j); if(word==null)continue;
+                    for(String field:new String[]{"startTime","endTime"}) if(word.has(field))word.put(field,Math.max(0,word.optDouble(field)+delta));
+                }
+            }
+            return new JSONObject().put("songKey",key).put("state","ready").put("lines",lines).toString();
+        } catch(Exception invalid) { return null; }
     }
 
     private static String rowsFromNative(String json, String songKey) {

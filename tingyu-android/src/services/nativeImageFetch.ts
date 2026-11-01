@@ -78,7 +78,7 @@ export const fetchNativeImageBlob = async (url: string): Promise<Blob | null> =>
         const result = await plugin.httpRequest({
             url,
             method: 'GET',
-            headers: {},
+            headers: { 'X-Tingyu-Artwork': '1' },
             bodyText: '',
             bodyBase64: '',
             redirect: 'follow',

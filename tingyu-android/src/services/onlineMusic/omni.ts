@@ -1,3 +1,5 @@
+import { getPlaybackSongKey as resourceSongKey } from '../../utils/appPlaybackGuards';
+import { readSharedLyrics, cacheSharedLyrics } from '../sharedSongResources';
 import { captureAudioSourceBinding } from './audioSourceBinding';
 import { useLxSourceStore } from '../../stores/useLxSourceStore';
 import type { SongResult, UnifiedSong } from '../../types';
@@ -145,6 +147,8 @@ const withActiveProvider = async <T>(run: (provider: OnlineMusicProvider) => Pro
     }
     return result;
 };
+
+const resourceLyricFlights = new Map<string, Promise<OmniLyricsResult>>();
 
 export const omni = {
     activateLxSource(scriptId: string | null): void {
@@ -668,7 +672,13 @@ export const omni = {
         await provider.playbackReports.reportPlayback(song, report);
     },
 
-    async getLyrics(song: SongResult, context?: { userId?: MediaId | null }): Promise<OmniLyricsResult> {
+    async getLyrics(song: SongResult, context?: { userId?: MediaId | null; refreshResourceCache?: boolean }): Promise<OmniLyricsResult> {
+        const shared = context?.refreshResourceCache ? null : await readSharedLyrics(song);
+        if (shared) return { lyrics: shared, isPureMusic: false };
+        const key = resourceSongKey(song);
+        const existing = resourceLyricFlights.get(key);
+        if (existing) return existing;
+        const task = (async () => {
         const provider = providerForSong(song);
         if (!provider.lyrics) return unsupported(provider.id, 'lyrics');
         const providerUserId = useOnlineProviderAccountStore.getState().accounts[provider.id]?.user?.id ?? context?.userId;
@@ -678,7 +688,12 @@ export const omni = {
             songId: song.id,
         })).result;
         // Extension layers (Folium omni hooks) may rewrite the lyrics after the provider answered.
-        return applyOmniLyricsHook(song, resolved);
+        const result = await applyOmniLyricsHook(song, resolved);
+        if (result.lyrics) await cacheSharedLyrics(song, result.lyrics);
+        return result;
+        })();
+        resourceLyricFlights.set(key, task);
+        try { return await task; } finally { if (resourceLyricFlights.get(key) === task) resourceLyricFlights.delete(key); }
     },
 
     async getChorusRanges(song: SongResult): Promise<OmniChorusRange[]> {

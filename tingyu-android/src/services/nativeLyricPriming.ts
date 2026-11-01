@@ -1,3 +1,4 @@
+import { readSharedLyricRecord } from './sharedSongResources';
 import { getPlaybackSongKey, isLocalPlaybackSong, isNavidromePlaybackSong } from '../utils/appPlaybackGuards';
 import { getPrefetchedData } from './prefetchService';
 import { getSongCacheWithLegacyMigration } from './onlineMusic/resourceCache';
@@ -142,7 +143,7 @@ const publishTimeline = async (song: SongResult, lyrics: LyricData, key: string)
     // (renderer busy, service restarting) permanently retired that song: it was never primed
     // again in this session, so a background auto-advance into it published no timeline at
     // all even though the lyrics were sitting in the cache.
-    const published = await publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, key);
+    const published = await publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, key, { renderModel: JSON.stringify(lyrics) });
     if (published) markPrimed(key);
     return published;
 };
@@ -167,6 +168,7 @@ export const ensureNativeLyric = (
 
     const task = (async (): Promise<boolean> => {
         const startedAt = Date.now();
+        if (await readSharedLyricRecord(song)) return true;
         const cached = await readCachedLyrics(song, quality);
         if (cached) {
             const published = await publishTimeline(song, cached.lyrics, key);

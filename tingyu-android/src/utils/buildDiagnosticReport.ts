@@ -644,6 +644,7 @@ type NativeTrailEvent = {
 };
 
 type NativeTrailBundle = {
+    resourceCache?: Record<string, unknown>;
     critical: NativeTrailEvent[];
     routine: NativeTrailEvent[];
     lifecycle: Record<string, unknown> | null;
@@ -681,6 +682,7 @@ const readNativeTrailBundle = async (): Promise<NativeTrailBundle> => {
                 : []
         );
         return {
+            resourceCache: result?.resourceCache && typeof result.resourceCache === 'object' ? result.resourceCache : undefined,
             critical: read(result?.critical),
             routine: read(result?.routine),
             lifecycle: result?.lifecycle && typeof result.lifecycle === 'object' ? result.lifecycle : null,
@@ -1077,6 +1079,10 @@ export const buildDiagnosticReport = async (): Promise<string> => {
         // 原生封面链：只在服务进程内发生，因此每一层都必须是可读的痕迹。
         'native artwork pipeline (uri / fetch / cache / decode / publish):',
         ...readNativeArtworkLines(nativeTrail),
+        '',
+        'shared song resource cache (availability, separate from delivery/rendering):',
+        ...['playlistId','total','discovered','metadataComplete','completed','failed','cachedSongs','lyricsBytes','artworkBytes','enabled','wifiOnly','networkAllowed','currentSong','currentHasTimeline','currentLyricState','currentVersion','currentArtworkLocal','currentArtworkState']
+            .map(key => '  ' + key + ': ' + String(nativeTrail.resourceCache?.[key] ?? 'unavailable')),
         '',
         // C1/C2：切歌 / 锁屏连播 / 回前台三个时点的会话采样。
         'lock-screen session samples (position / duration / lyric):',

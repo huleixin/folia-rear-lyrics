@@ -40,7 +40,16 @@ internal val PageAccent = Color(0xFF9FE0C4)
         val uri = runCatching { Uri.parse(url) }.getOrNull()
         if (uri?.host in setOf("localhost", "rear.folia.local") && uri?.path?.startsWith("/assets/") == true)
             "file:///android_asset/public${uri.path}"
-        else if(uri?.host in setOf("localhost","rear.folia.local")&&uri?.path=="/api/lyric-proxy")uri.getQueryParameter("url")?:url
+        else if(uri?.host in setOf("localhost","rear.folia.local")&&uri?.path=="/api/lyric-proxy") {
+            val remote=uri.getQueryParameter("url")?:url
+            if(io.github.huleixin.tingyu.playback.SharedArtworkAccess.imageRequestUrl(remote))
+                ImageRequest.Builder(context).data(io.github.huleixin.tingyu.playback.SharedArtworkAccess.contentUri(context,remote))
+                    .diskCachePolicy(coil.request.CachePolicy.DISABLED).crossfade(false).build()
+            else remote
+        }
+        else if(io.github.huleixin.tingyu.playback.SharedArtworkAccess.imageRequestUrl(url))
+            ImageRequest.Builder(context).data(io.github.huleixin.tingyu.playback.SharedArtworkAccess.contentUri(context,url))
+                .diskCachePolicy(coil.request.CachePolicy.DISABLED).crossfade(false).build()
         else url
     }
     .let { data ->

@@ -27,8 +27,7 @@ import java.util.concurrent.Executors;
  *       后台播放用的版本，打开主界面不再切换；</li>
  *   <li><b>持久</b>：整首 lyricInfo JSON 落盘（filesDir/unified-lyrics），
  *       MainActivity 与 WebView 不在时照常可读；</li>
- *   <li><b>有界</b>：LRU 上限 {@value #MAX_RECORDS} 首，淘汰时用户选定与舞台确认版
- *       比原生取词版更晚被淘汰；</li>
+ *   <li><b>有界</b>：内存 LRU 上限 {@value #MAX_RECORDS} 首，磁盘按 32 MiB 管理，用户选定记录不淘汰；</li>
  *   <li><b>失败保护</b>：仓库只存「拿到了时间轴」或「确认无词」两种结论；
  *       网络失败/限流永远不会在这里留下会顶掉有效歌词的东西。</li>
  * </ul>
@@ -68,6 +67,8 @@ public final class UnifiedLyricsStore {
          * 交付点跳过烘焙（旧偏移定格但绝不叠加）；该版本被正常发布/取词刷新后自动回正。
          */
         public final boolean offsetKnown;
+        /** Optional lossless UI model, attached only to this exact authoritative payload hash. */
+        public volatile String renderModel;
 
         Record(String songKey, String status, String json, boolean hasTranslation,
                boolean hasWordByWord, String sourceId, String lyricsHash, String confirmedBy,
@@ -113,7 +114,9 @@ public final class UnifiedLyricsStore {
         }
     }
 
+    private int writesSincePrune;
     private final File dir;
+    private volatile java.util.Set<String> protectedNames = java.util.Collections.emptySet();
     /** 写入串行化：单线程执行器保证同首歌的两次写不交叉。 */
     private final ExecutorService writer = Executors.newSingleThreadExecutor(runnable -> {
         Thread thread = new Thread(runnable, "unified-lyrics");
@@ -138,7 +141,7 @@ public final class UnifiedLyricsStore {
     public synchronized Record get(String songKey) {
         if (songKey == null || songKey.isEmpty()) return null;
         Record cached = memory.get(songKey);
-        if (cached != null) return cached;
+        if (cached != null && !("none".equals(cached.status) && System.currentTimeMillis() - cached.at > 3L*86400000L)) return cached;
         return readDisk(songKey);
     }
 
@@ -146,7 +149,7 @@ public final class UnifiedLyricsStore {
      * 提交一个新版本，交给 {@link UnifiedLyricPolicy} 裁决。异步入盘，返回是否被接受。
      * 调用方可以在任何线程；拒绝时不产生任何副作用。
      */
-    public boolean put(String songKey, String status, String json, boolean hasTranslation,
+    public synchronized boolean put(String songKey, String status, String json, boolean hasTranslation,
                        boolean hasWordByWord, String sourceId, String confirmedBy,
                        boolean userChoice, String variantRule) {
         if (songKey == null || songKey.isEmpty()) return false;
@@ -183,7 +186,7 @@ public final class UnifiedLyricsStore {
      * 用户在软件内手动选定歌词（匹配/导入）后调用：把这首歌的现有记录升级为
      * userChoice 层级；没有记录时留空 —— 下一次舞台发布自会带完整内容落库。
      */
-    public boolean markUserChoice(String songKey, String variantRule) {
+    public synchronized boolean markUserChoice(String songKey, String variantRule) {
         if (songKey == null || songKey.isEmpty()) return false;
         Record old = get(songKey);
         if (old == null) {
@@ -198,6 +201,7 @@ public final class UnifiedLyricsStore {
                 old.hasWordByWord, old.sourceId, old.lyricsHash, old.confirmedBy, true,
                 variantRule == null ? old.variantRule : variantRule, old.revision + 1,
                 System.currentTimeMillis(), old.offsetKnown);
+        next.renderModel = old.renderModel;
         synchronized (this) {
             memory.put(songKey, next);
         }
@@ -238,6 +242,8 @@ public final class UnifiedLyricsStore {
                     record.optInt("revision", 0),
                     record.optLong("at", 0L),
                     version >= 2 && record.optBoolean("offsetKnown", false));
+            if ("none".equals(parsed.status) && System.currentTimeMillis() - parsed.at > 3L*86400000L) return null;
+            parsed.renderModel = record.optString("renderModel", null);
             synchronized (this) {
                 memory.put(songKey, parsed);
             }
@@ -264,6 +270,7 @@ public final class UnifiedLyricsStore {
             recordJson.put("revision", record.revision);
             recordJson.put("at", record.at);
             recordJson.put("offsetKnown", record.offsetKnown);
+            if (record.renderModel != null) recordJson.put("renderModel", record.renderModel);
         } catch (Exception error) {
             return;
         }
@@ -283,6 +290,8 @@ public final class UnifiedLyricsStore {
             try {
                 java.nio.file.Files.move(temp.toPath(), target.toPath(),
                         java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                if (++writesSincePrune % 8 == 0) ResourceDiskBudget.prune(dir, ResourceCachePolicy.LYRICS_BYTES,
+                    f -> protectedNames.contains(f.getName()) || manualFile(f));
                 return;
             } catch (java.nio.file.NoSuchFileException gone) {
                 return;   // 进程被杀 / 目录被清：缓存缺一条不致命。
@@ -297,6 +306,34 @@ public final class UnifiedLyricsStore {
         }
         //noinspection ResultOfMethodCallIgnored
         temp.delete();
+    }
+
+    public synchronized void attachRenderModel(String songKey, String payload, String model) {
+        if (model == null || model.length() > 2_000_000) return;
+        Record record = get(songKey);
+        if (record == null || !record.offsetKnown || !record.hasTimeline() || !record.json.equals(payload)) return;
+        record.renderModel = model;
+        writer.execute(() -> writeDisk(songKey, record));
+    }
+    public void protect(java.util.List<SongInfo> songs) {
+        java.util.Set<String> next = new java.util.HashSet<>();
+        for (SongInfo song : songs) next.add(fileFor(song.songKey).getName());
+        protectedNames = next;
+    }
+    public int diskRecordCount() { String[] files=dir.list((d,n)->n.endsWith(".json")); return files==null?0:files.length; }
+    public long diskBytes() { return ResourceDiskBudget.bytes(dir); }
+    public void clearDownloadable() {
+        writer.execute(() -> {
+            synchronized (this) {
+                memory.entrySet().removeIf(e -> !e.getValue().userChoice && !protectedNames.contains(fileFor(e.getKey()).getName()));
+                File[] files = dir.listFiles((d, n) -> n.endsWith(".json"));
+                if (files != null) for (File f : files) if (!protectedNames.contains(f.getName()) && !manualFile(f)) f.delete();
+            }
+        });
+    }
+    private boolean manualFile(File f) {
+        try { return new JSONObject(new String(readAllBytes(f), StandardCharsets.UTF_8)).optBoolean("userChoice", false); }
+        catch (Exception error) { return true; }
     }
 
     private File fileFor(String songKey) {

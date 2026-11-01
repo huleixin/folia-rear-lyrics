@@ -1,3 +1,4 @@
+import { precacheCollectionResources } from '../../../services/collectionResourcePrecache';
 import { useMemo, useCallback } from 'react';
 import { useLibraryTrackPlayback } from '../../../hooks/useLibraryTrackPlayback';
 import type { LibraryCollectionSurfaceProps } from '../../core/contracts/suite';
@@ -34,17 +35,30 @@ export function useMobileCollection(props: LibraryCollectionSurfaceProps) {
         [supportsSort, songsById, field, direction]
     );
     const view = useCollectionView({ tracks: snapshot?.tracks ?? NO_TRACKS, committedQuery, localSort });
-    const actions = useCollectionActions({
+    const baseActions = useCollectionActions({
         resource: props.resource,
         snapshot,
         view,
         port: props.playback,
         collectionType: props.collection.type,
     });
+    const startResourceCache = useCallback((track: import('../../../types').SongResult) => {
+        void precacheCollectionResources(props.collection, snapshot?.tracks ?? [], track);
+    }, [props.collection, snapshot?.tracks]);
+    const actions = useMemo(() => ({ ...baseActions,
+        playScope: () => {
+            const first = view.contextTracks[0];
+            if (first) startResourceCache(first);
+            baseActions.playScope();
+        },
+    }), [baseActions, view.contextTracks, startResourceCache]);
     const selectTrack = useLibraryTrackPlayback(props.playback.playTrack, props.playback.togglePlayback);
     const playTrack = useCallback(
-        (track: Parameters<typeof selectTrack>[0]) => selectTrack(track, view.contextTracks),
-        [selectTrack, view.contextTracks]
+        (track: Parameters<typeof selectTrack>[0]) => {
+            startResourceCache(track);
+            selectTrack(track, view.contextTracks);
+        },
+        [selectTrack, view.contextTracks, startResourceCache]
     );
     const surface = buildCoreSurfaceParams({
         declaredActions: props.declaredActions,

@@ -1,3 +1,4 @@
+import { isCapacitorAndroid } from '../platform/runtime';
 import { fetchNativeImageBlob } from './nativeImageFetch';
 import { getFromCache, removeFromCache, saveToCache } from './db';
 import { createSafeObjectUrl, isBlob } from '../utils/blobGuards';
@@ -113,6 +114,12 @@ export async function getCachedCoverUrl(cacheKey: string): Promise<string | null
 export async function loadCachedOrFetchCover(cacheKey: string, coverUrl?: string | null): Promise<string | null> {
     if (!coverUrl) return null;
     try {
+        if (isCapacitorAndroid() && /^https?:/i.test(coverUrl)) {
+            // Native HTTP uses the shared disk repository. Keep only this UI blob acceleration layer.
+            const sharedKey = cacheKey + ":native:" + coverUrl;
+            const blob = await (blobReads.get(sharedKey) ?? rememberCover(sharedKey, fetchCoverBlob(coverUrl)));
+            return createSafeObjectUrl(blob) || coverUrl;
+        }
         const cached = await getCachedCoverUrl(cacheKey);
         if (cached) return cached;
         let job = downloads.get(cacheKey);

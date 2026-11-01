@@ -29,6 +29,8 @@
         <meta-data
             android:name="io.github.andrealtb.lockscreenlyrics.OPLUS_MEDIA_HISTORY"
             android:value="true" />
+        <provider android:name=".playback.SharedArtworkProvider" android:authorities="${applicationId}.artwork" android:exported="false" />
+        <service android:name=".playback.ResourceCacheJobService" android:permission="android.permission.BIND_JOB_SERVICE" android:exported="true" />
         <service
             android:name=".FoliaPlaybackService"
             android:exported="false"
@@ -83,6 +85,8 @@
     <uses-permission android:name="${applicationId}.permission.LSP_CONNECT" />
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <!-- 仅 Android 9 及以下保存赞赏码到相册时按需申请；Android 10+ 走 MediaStore 无需权限。 -->
