@@ -36,3 +36,7 @@ internal class NativeRouteMotion {
         return back
     }
 }
+
+// Data revisions do not retire controls; session and destination identity do.
+internal fun pageInteractionIsCurrent(current:NativePage,shown:NativePage):Boolean =
+    current.enabled && current.session==shown.session && current.key==shown.key

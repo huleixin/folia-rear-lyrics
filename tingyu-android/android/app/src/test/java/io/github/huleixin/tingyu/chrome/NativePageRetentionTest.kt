@@ -10,6 +10,13 @@ class NativePageRetentionTest {
         "id":"$id","session":"$session","enabled":$enabled,"viewportWidth":393,"width":393,"height":852,
         "model":{"key":"$key","sections":[],"document":${if(key.startsWith("settings:document:"))"{\"paints\":[],\"controls\":[]}"else"null"}}
     }"""))
+    @Test fun liveDataRevisionsDoNotDropClicksButRetiredSessionsDo(){
+        val shown=page("settings:index")
+        assertTrue(pageInteractionIsCurrent(shown.copy(revision=shown.revision+1),shown))
+        assertFalse(pageInteractionIsCurrent(shown.copy(session="new-session"),shown))
+        assertFalse(pageInteractionIsCurrent(shown.copy(enabled=false),shown))
+        assertFalse(pageInteractionIsCurrent(page("settings:other"),shown))
+    }
     @Test fun disabledAndRemovedAdaptersDoNotEraseTheReturnPresentation(){
         val frames=NativePageRetention();val home=page("home:qq");frames.update(home)
         frames.update(home.copy(enabled=false))

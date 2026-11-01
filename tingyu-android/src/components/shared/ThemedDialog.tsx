@@ -1,3 +1,4 @@
+import { useMotionSettingsStore, resolveReducedMotion } from '../../stores/useMotionSettingsStore';
 import {useInterfaceLight} from '../../hooks/useInterfaceAppearance';
 import React, { useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -39,6 +40,7 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
     closeDisabled = false,
     closeDisabledTitle,
 }) => {
+    const reduced = useMotionSettingsStore(state => resolveReducedMotion(state, 'uiMicroMotion'));
     const isDaylight=useInterfaceLight(stageDaylight);
     const bgClass = isDaylight ? 'bg-white/90 border-white/30' : 'bg-zinc-900/95 border-white/10';
     const textPrimary = isDaylight ? 'text-zinc-900' : 'text-white';
@@ -64,6 +66,7 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
+                    transition={{duration:reduced?0:.18}}
                     data-folia-keyboard-window="true"
                     data-folia-themed-overlay="true"
                     className={`fixed inset-0 z-[200] flex items-center justify-center p-4 ${isDaylight ? 'bg-transparent' : 'bg-black/60 backdrop-blur-md'}`}
@@ -71,10 +74,10 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
                     onClick={handleBackdropClick}
                 >
                     <motion.div
-                        initial={{ scale: 0.94, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.94, opacity: 0 }}
-                        transition={{ type: 'spring', stiffness: 280, damping: 24 }}
+                        initial={{ scale: reduced?1:0.99, y:reduced?0:10, opacity: 0 }}
+                        animate={{ scale: 1, y:0, opacity: 1 }}
+                        exit={{ scale: reduced?1:0.99, y:reduced?0:10, opacity: 0 }}
+                        transition={{ duration:reduced?0:.18, ease:[.16,1,.3,1] }}
                         onClick={(event) => event.stopPropagation()}
                         data-folia-themed-dialog="true"
                         data-folia-themed-dialog-kind={panelKind}

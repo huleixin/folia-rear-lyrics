@@ -1,3 +1,4 @@
+import { scheduleUiWarmup } from '../../../services/uiWarmup';
 import { createElement, lazy, type ComponentType } from 'react';
 import type { LibraryCollectionSurfaceProps } from '../../core/contracts/suite';
 
@@ -32,6 +33,7 @@ export const mobileCollectionLoader = createMobileCollectionLoader(() => import(
 // detail page, fetch playlists, or keep timers running while the app is in the background.
 export function scheduleMobileCollectionPreload(preload: () => Promise<unknown>) {
     let stopped = false;
+    let cancelWarmup: (() => void) | undefined;
     let frame: number | undefined;
     let idle: number | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -47,7 +49,7 @@ export function scheduleMobileCollectionPreload(preload: () => Promise<unknown>)
         if (stopped || document.hidden) return;
         stopped = true;
         document.removeEventListener('visibilitychange', visibility);
-        void preload().catch(() => { /* Retry on touch or actual navigation. */ });
+        cancelWarmup = scheduleUiWarmup(preload);
     };
     const schedule = () => {
         if (stopped || document.hidden || frame !== undefined) return;
@@ -63,6 +65,7 @@ export function scheduleMobileCollectionPreload(preload: () => Promise<unknown>)
     schedule();
     return () => {
         stopped = true;
+        cancelWarmup?.();
         clear();
         document.removeEventListener('visibilitychange', visibility);
     };

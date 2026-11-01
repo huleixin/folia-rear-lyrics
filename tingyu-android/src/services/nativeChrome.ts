@@ -13,7 +13,7 @@ export type ChromeData = {
     sleepPreferredMinutes?: number;
     light?: boolean; reducedMotion?: boolean; accent?: string; ink?: string; labels?: Record<string,string>; vertical?: boolean;
 };
-export type ChromeAction = {id: ChromeSurfaceId; session: string; action: string; value: number};
+export type ChromeAction = {nativeDispatchedAt?:number;id: ChromeSurfaceId; session: string; action: string; value: number};
 export type ChromeFrame = {id: ChromeSurfaceId; session: string; generation: number; revision: number; enabled: boolean;
     left: number; top: number; width: number; height: number; alpha: number; viewportWidth: number; safeBottom?:number; data: ChromeData & {position?: number}};
 export const chromeNative = registerPlugin<{
@@ -30,12 +30,15 @@ export const chromeNative = registerPlugin<{
     addListener(name:'action',callback:(value:ChromeAction)=>void):Promise<{remove:()=>Promise<void>}>;
     addListener(name:'pageAction',callback:(value:NativePageEvent)=>void):Promise<{remove:()=>Promise<void>}>;
 }>('TingyuChrome');
-let probe:Promise<boolean>|undefined;
+let probe:Promise<{supported:boolean;pages?:boolean}>|undefined;
 let generation=0;
 export function newChromeGeneration():number { return generation=Math.max(Date.now()*1000,generation+1); }
+export function composeChromeCapabilities():Promise<{supported:boolean;pages?:boolean}> {
+    if (!COMPOSE_CHROME || !isAndroidNativeRuntime()) return Promise.resolve({supported:false});
+    return probe ??= chromeNative.probe().catch(()=>({supported:false}));
+}
 export function canUseComposeChrome():Promise<boolean> {
-    if (!COMPOSE_CHROME || !isAndroidNativeRuntime()) return Promise.resolve(false);
-    return probe ??= chromeNative.probe().then(value=>value.supported).catch(()=>false);
+    return composeChromeCapabilities().then(value=>value.supported);
 }
 export function hasBlockingChromeWindow():boolean {
     // The stage's small top menu does not overlap the transport; sheets and dialogs do.

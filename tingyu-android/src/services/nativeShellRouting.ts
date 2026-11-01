@@ -1,3 +1,4 @@
+import { navigationMark } from './navigationTiming';
 import { NATIVE_FIRST, nativePages } from './nativePages';
 import { newChromeGeneration } from './nativeChrome';
 import { useAppViewStore } from '../stores/useAppViewStore';
@@ -39,6 +40,7 @@ export function installNativeShellRouting() {
         if(routeKey!==lastRoute){lastRoute=routeKey;document.documentElement.dataset.nativeNavigation=`${generation}:${++navigationRevision}`;}
         const navigation=document.documentElement.dataset.nativeNavigation??'';
         const key=JSON.stringify({route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,playlistDetail});if(key===last)return;last=key;
+        navigationMark('route-publish');
         const sent=++revision;
         const leavingStage=document.documentElement.dataset.nativeRoute==='stage'&&route!=='stage';
         if(!leavingStage)document.documentElement.dataset.nativeRoute=route;

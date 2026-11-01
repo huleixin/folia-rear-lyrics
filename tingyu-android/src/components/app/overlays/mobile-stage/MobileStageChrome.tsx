@@ -28,7 +28,7 @@ import { useComposeChrome } from '../../../../hooks/useComposeChrome';
 import { useReducedMotionFor } from '../../../../hooks/useReducedMotionFor';
 import { getPlaybackSongKey } from '../../../../utils/appPlaybackGuards';
 import { usePlaybackStore } from '../../../../stores/usePlaybackStore';
-import { warmSettingsModule } from '../../dialogs/settingsModule';
+import { warmSettingsModule, scheduleSettingsWarmup } from '../../dialogs/settingsModule';
 import '../../../../styles/composeChrome.css';
 import './mobileStageChrome.css';
 import '../../../../styles/mobileGlass.css';
@@ -49,10 +49,7 @@ export default function MobileStageChrome({
     const stageRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<HTMLElement>(null);
     const hidden = panelOpen || (chrome.hidden && !menuOpen);
-    useEffect(()=>{
-        if('requestIdleCallback' in window){const id=window.requestIdleCallback(warmSettingsModule,{timeout:2200});return()=>window.cancelIdleCallback(id)}
-        const id=setTimeout(warmSettingsModule,900);return()=>clearTimeout(id);
-    },[]);
+    useEffect(scheduleSettingsWarmup,[]);
 
     useMobileStageSubtitleClearance(stageRef, !hidden && !!controls && !controls.hideControlBar);
     const openQueue = () => {

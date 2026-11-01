@@ -9,20 +9,26 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/TingyuChromePlugin.java
 @CapacitorPlugin(name = "TingyuChrome")
 public class TingyuChromePlugin extends Plugin {
+    private static void traceDispatch(JSObject event) {
+        if(android.util.Log.isLoggable("TingyuNavigation",android.util.Log.DEBUG)) {
+            event.put("nativeDispatchedAt",System.currentTimeMillis());
+            android.util.Log.d("TingyuNavigation","native-dispatch at="+System.currentTimeMillis());
+        }
+    }
     private ComposeChromeHost host;
     private ComposeChromeHost host() {
         if(host==null&&getActivity() instanceof io.github.huleixin.tingyu.MainActivity)
             host=((io.github.huleixin.tingyu.MainActivity)getActivity()).getNativeShell();
         if (host == null) host = new ComposeChromeHost(getBridge().getWebView(), (id,session,action,value) -> {
             JSObject event = new JSObject(); event.put("id",id); event.put("session",session); event.put("action",action); event.put("value",value);
-            notifyListeners("action",event);
+            traceDispatch(event);notifyListeners("action",event);
         });
         host.setListener((id,session,action,value) -> {
-            JSObject event=new JSObject();event.put("id",id);event.put("session",session);event.put("action",action);event.put("value",value);notifyListeners("action",event);
+            JSObject event=new JSObject();event.put("id",id);event.put("session",session);event.put("action",action);event.put("value",value);traceDispatch(event);notifyListeners("action",event);
         });
         host.setPageListener((id,session,key,action,text,value) -> {
             JSObject event=new JSObject();event.put("id",id);event.put("session",session);event.put("key",key);
-            event.put("action",action);event.put("text",text);event.put("value",value);notifyListeners("pageAction",event);
+            event.put("action",action);event.put("text",text);event.put("value",value);traceDispatch(event);notifyListeners("pageAction",event);
         });
         if(io.github.huleixin.tingyu.BuildConfig.GRAPHICS_DIAGNOSTICS)host.setGraphicsMarkerListener(()->{
             try{notifyListeners("graphicsMark",JSObject.fromJSONObject(host.graphicsSnapshot()).put("at",System.currentTimeMillis()));}

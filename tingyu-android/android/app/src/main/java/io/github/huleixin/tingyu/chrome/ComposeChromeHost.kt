@@ -130,6 +130,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         } else commitShell(value)
     }
     private fun commitShell(value:JSONObject) {
+        navigationTrace("route-native-commit")
         pendingStageEntry=false;stageEntryRequest++
         val next=value.optString("route","home")
         if(next!="stage")stageExit.clear()
@@ -168,6 +169,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // retired (e.g. the home DOM acquiring the stage's safe-area coordinates).
         val ownsPresentation=retained.updateForRoute(next,destination,selectedTab,pageTarget,value.navigation,navigation)
         if(ownsPresentation){
+            navigationTrace("page-native-commit")
             recordMotion(next.key)
             presented=next
         }
@@ -264,15 +266,19 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         val from=initialState?.key?:if(firstHomeFrame)""else"stage"
                         val to=targetState?.key?:"stage"
                         val ease=CubicBezierEasing(.16f,1f,.3f,1f)
-                        val position=spring<IntOffset>(dampingRatio=NativeMotionPolicy.Damping,stiffness=NativeMotionPolicy.Stiffness,visibilityThreshold=IntOffset(1,1))
+                        val travel=with(density){28.dp.roundToPx()}
+                        val tabTravel=with(density){8.dp.roundToPx()}
+                        val position=tween<IntOffset>(240,easing=ease)
                         when(NativeMotionPolicy.kind(from,to,backwards,!focused||!active||reducedMotion||stageExit.suppressReturnMotion&&from=="stage")){
                             NativeMotionKind.NONE->EnterTransition.None togetherWith ExitTransition.None
-                            NativeMotionKind.TAB,NativeMotionKind.STAGE->fadeIn(tween(140,easing=ease)) togetherWith fadeOut(tween(100,easing=ease))
-                            NativeMotionKind.PUSH->slideInHorizontally(position){it} togetherWith slideOutHorizontally(position){(-it*.22f).roundToInt()}
-                            NativeMotionKind.POP->(slideInHorizontally(position){(-it*.22f).roundToInt()} togetherWith slideOutHorizontally(position){it}).apply{targetContentZIndex=-1f}
+                            NativeMotionKind.STAGE->fadeIn(tween(140,easing=ease)) togetherWith fadeOut(tween(100,easing=ease))
+                            NativeMotionKind.TAB->(slideInHorizontally(tween(200,easing=ease)){tabTravel}+fadeIn(tween(200,easing=ease))) togetherWith (slideOutHorizontally(tween(180,easing=ease)){-tabTravel}+fadeOut(tween(180,easing=ease)))
+                            NativeMotionKind.PUSH->(slideInHorizontally(position){travel}+fadeIn(tween(240,easing=ease))) togetherWith (slideOutHorizontally(position){-travel/3}+fadeOut(tween(200,easing=ease)))
+                            NativeMotionKind.POP->((slideInHorizontally(tween(220,easing=ease)){-travel/3}+fadeIn(tween(220,easing=ease))) togetherWith (slideOutHorizontally(tween(220,easing=ease)){travel}+fadeOut(tween(200,easing=ease)))).apply{targetContentZIndex=-1f}
                         }
                     },label="native-route") { shown ->
                 if(shown!=null) {
+                    LaunchedEffect(shown.key){withFrameNanos{navigationTrace("compose-frame-boundary")}}
                     DisposableEffect(shown.key){
                         savedPageKeys.remove(shown.key);savedPageKeys.add(shown.key)
                         while(savedPageKeys.size>12){val oldest=savedPageKeys.first();savedPageKeys.remove(oldest);savedPages.removeState(oldest)}
@@ -289,7 +295,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                                 supportSheet=action.removePrefix("support:");return@NativePageView
                             }
                             val current=pages[shown.id]
-                            if(active&&destination==shown.id&&presented?.key==shown.key&&current?.enabled==true&&current.session==shown.session&&current.key==shown.key&&current.revision==shown.revision)
+                            if(active&&destination==shown.id&&presented?.key==shown.key&&current?.enabled==true&&pageInteractionIsCurrent(current,shown))
                                 pageListener?.onAction(shown.id,shown.session,shown.key,action,text,value)
                         }
                     }
@@ -370,3 +376,5 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         host = null; parent = null
     }
 }
+
+private fun navigationTrace(phase:String){if(android.util.Log.isLoggable("TingyuNavigation",android.util.Log.DEBUG))android.util.Log.d("TingyuNavigation","$phase at=${System.currentTimeMillis()}")}

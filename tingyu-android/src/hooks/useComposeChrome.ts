@@ -1,3 +1,5 @@
+import { noteUiInteraction } from '../services/uiWarmup';
+import { navigationMark } from '../services/navigationTiming';
 import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import type { MotionValue } from 'framer-motion';
 import { COMPOSE_CHROME_FAILURE_EVENT, PREHIDE_COMPOSE_CHROME, canUseComposeChrome, newChromeGeneration, chromeNative, chromeClockNeedsAnchor, chromeWindowInteraction, hasBlockingChromeWindow, type ChromeSurfaceId, type ChromeData } from '../services/nativeChrome';
@@ -86,12 +88,15 @@ export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfac
             if(!supported){mark(false);return;}
             listener=await chromeNative.addListener('action',event=>{
                 if(disposed||failed||event.id!==id||event.session!==session)return;
+                noteUiInteraction();
+                navigationMark('chrome-event-js',event.nativeDispatchedAt);
                 if(event.action==='interactionEnd'){held=false;chromeWindowInteraction('end');return;}
                 if(!latest.current.active||node.dataset.composeNative!=='true'||hasBlockingChromeWindow())return;
                 if(event.action==='interactionStart'){held=true;chromeWindowInteraction('start');return;}
                 chromeWindowInteraction('start');try{dispatchChromeAction(latest.current.actions,event.action,event.value);}finally{chromeWindowInteraction('end');}
             });
             if(disposed||failed){void listener.remove();return;}
+            navigationMark('chrome-listener-ready');
             started=true;resize=new ResizeObserver(schedule);resize.observe(node);
             mutations=new MutationObserver(records=>{if(records.some(relevant))syncVisibility();});
             mutations.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['inert','aria-hidden','data-folia-keyboard-window']});

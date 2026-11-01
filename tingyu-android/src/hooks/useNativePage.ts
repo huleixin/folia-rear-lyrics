@@ -1,3 +1,5 @@
+import { noteUiInteraction } from '../services/uiWarmup';
+import { navigationMark } from '../services/navigationTiming';
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { NATIVE_FIRST, canUseNativePages, nativePages } from '../services/nativePages';
 import { newChromeGeneration } from '../services/nativeChrome';
@@ -59,6 +61,7 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
             if (sameNativeEnvelope(last, packet)) return; last = packet;
             const sent = ++revision; if (!enabled) mark(false);
             void nativePages.pageUpdate({ ...packet, revision: sent }).then(result => {
+                navigationMark('page-ack');
                 if (disposed) { void remove(); return; }
                 if (sent === revision) mark(enabled && result.accepted && result.session === session);
             }).catch(error => {
@@ -75,8 +78,11 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
                 const current = latest.current;
                 if (disposed || !current.active || event.id !== id || event.session !== session || event.key !== current.model.key
                     || node.dataset.nativePage !== 'true') return;
+                noteUiInteraction();
+                navigationMark('page-event-js',event.nativeDispatchedAt);
                 current.actions[event.action]?.({ text: event.text, value: event.value });
             });
+            navigationMark('page-listener-ready');
             if (disposed) { void listener.remove(); return; }
             started = true; resize = new ResizeObserver(schedule); resize.observe(node);
             mutation = new MutationObserver(records => {

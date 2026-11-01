@@ -1,4 +1,4 @@
-import { COMPOSE_CHROME, PREHIDE_COMPOSE_CHROME, canUseComposeChrome, chromeNative } from './nativeChrome';
+import { COMPOSE_CHROME, PREHIDE_COMPOSE_CHROME, composeChromeCapabilities, chromeNative } from './nativeChrome';
 
 // src/services/nativePages.ts
 export const nativePages = chromeNative;
@@ -7,7 +7,7 @@ if(NATIVE_FIRST)document.documentElement.dataset.nativeFirst='true';
 let capability: Promise<boolean> | undefined;
 export function canUseNativePages(): Promise<boolean> {
     if (!COMPOSE_CHROME) return Promise.resolve(false);
-    return capability ??= canUseComposeChrome().then(async supported => supported && (await nativePages.probe()).pages === true).catch(() => false);
+    return capability ??= composeChromeCapabilities().then(value => value.supported && value.pages === true).catch(() => false);
 }
 export function absolutePageImage(url: string | null | undefined): string {
     if (!url) return '';

@@ -1,3 +1,4 @@
+import { navigationMark } from './navigationTiming';
 import type { NativeSettingsDocument,SettingsRect,SettingsPaint,SettingsControl,SettingsScrollArea } from '../types/nativeSettingsDocument';
 import type { PageActions } from '../types/nativePages';
 import { absolutePageImage } from './nativePages';
@@ -13,11 +14,14 @@ const idFor=(node:Element)=>{let id=ids.get(node);if(!id){id=`setting:${++next}`
 const n=(value:string)=>parseFloat(value)||0;
 const painted=(color:string)=>color&&color!=='transparent'&&!/^rgba\([^)]*,\s*0\s*\)$/.test(color);
 export function captureSettingsDocument(root:HTMLElement){
+    const startedAt=Date.now();
+    const styles=new WeakMap<Element,CSSStyleDeclaration>();
+    const computedStyle=(node:Element)=>{let style=styles.get(node);if(!style){style=getComputedStyle(node);styles.set(node,style)}return style};
     const base=root.getBoundingClientRect(),paints:SettingsPaint[]=[],controls:SettingsControl[]=[],areas:SettingsScrollArea[]=[],live:SettingsRect[]=[],actions:PageActions={};
     const rect=(box:DOMRect,area?:SettingsScrollArea):SettingsRect=>({x:box.left-base.left,y:box.top-base.top+(area?.offset??0),w:box.width,h:box.height});
     const visit=(element:Element,area?:SettingsScrollArea,opacity=1,clip?:SettingsRect)=>{
         if(!(element instanceof HTMLElement||element instanceof SVGElement)||element.matches('script,style,[hidden],input[type="hidden"]'))return;
-        const style=getComputedStyle(element);if(style.display==='none')return;
+        const style=computedStyle(element);if(style.display==='none')return;
         const box=rect(element.getBoundingClientRect(),area);if(!box.w||!box.h)return;
         // Visibility is deliberately hidden in the layout source, not in native output.
         const alpha=opacity*(element===root?1:Number(style.opacity));if(alpha<=0)return;
@@ -39,7 +43,7 @@ export function captureSettingsDocument(root:HTMLElement){
             const copy=element.cloneNode(true) as SVGSVGElement;
             const targets=[copy,...copy.querySelectorAll('*')];
             [element,...element.querySelectorAll('*')].forEach((source,index)=>{
-                const target=targets[index],computed=getComputedStyle(source);
+                const target=targets[index],computed=computedStyle(source);
                 for(const name of ['fill','stroke','stroke-width','stroke-linecap','stroke-linejoin','fill-opacity','stroke-opacity','fill-rule']){
                     const value=computed.getPropertyValue(name);target.setAttribute(name,value==='currentcolor'?computed.color:value);
                 }
@@ -80,7 +84,7 @@ export function captureSettingsDocument(root:HTMLElement){
         const summary=element instanceof HTMLDetailsElement&&!element.open?element.querySelector(':scope > summary'):null;
         const children=element instanceof HTMLDetailsElement&&!element.open?(summary?[summary]:[]):[...element.childNodes];
         // Positioned menus paint after normal siblings, like the original browser stacking order.
-        children.sort((a,b)=>{const z=(node:Node)=>node instanceof Element?Number(getComputedStyle(node).zIndex)||0:0;return z(a)-z(b)});
+        children.sort((a,b)=>{const z=(node:Node)=>node instanceof Element?Number(computedStyle(node).zIndex)||0:0;return z(a)-z(b)});
         for(const child of children){
             if(child instanceof Text){
                 const window=childArea&&childArea.contentHeight>4000?{top:childArea.y+childArea.offset-childArea.h*2,bottom:childArea.y+childArea.offset+childArea.h*3}:undefined;
@@ -92,14 +96,14 @@ export function captureSettingsDocument(root:HTMLElement){
     // A third-level full-screen editor replaces the section underneath. Do not leave
     // its text fields interactive above the new editor or run two sets of form controls.
     const editors=[...root.querySelectorAll<HTMLElement>('.fixed,[role="dialog"]')].filter(node=>{
-        const style=getComputedStyle(node),box=node.getBoundingClientRect();
+        const style=computedStyle(node),box=node.getBoundingClientRect();
         return style.display!=='none'&&style.position==='fixed'&&box.width>=base.width*.7&&box.height>=base.height*.5;
-    }).sort((a,b)=>(Number(getComputedStyle(a).zIndex)||0)-(Number(getComputedStyle(b).zIndex)||0));
+    }).sort((a,b)=>(Number(computedStyle(a).zIndex)||0)-(Number(computedStyle(b).zIndex)||0));
     const portalSelector='[data-folia-keyboard-window="true"],[role="listbox"],[role="dialog"]';
     const portals=[...document.querySelectorAll<HTMLElement>(portalSelector)]
         .filter(node=>node!==root&&!root.contains(node)&&!node.closest('[data-native-document-root]')&&!node.parentElement?.closest(portalSelector));
-    const modal=[...editors,...portals].filter(node=>node.matches('[aria-modal="true"],[role="dialog"]') && getComputedStyle(node).display!=='none')
-        .sort((a,b)=>(Number(getComputedStyle(a).zIndex)||0)-(Number(getComputedStyle(b).zIndex)||0)).at(-1);
+    const modal=[...editors,...portals].filter(node=>node.matches('[aria-modal="true"],[role="dialog"]') && computedStyle(node).display!=='none')
+        .sort((a,b)=>(Number(computedStyle(a).zIndex)||0)-(Number(computedStyle(b).zIndex)||0)).at(-1);
     // Native editors paint above Canvas. Exclude background editors and scroll panes
     // rather than relying on a modal's background colour to occlude native controls.
     visit(modal??editors.at(-1)??root);
@@ -111,5 +115,6 @@ export function captureSettingsDocument(root:HTMLElement){
     actions.liveTap=event=>{try{const {x,y}=JSON.parse(event.text??'{}');const target=document.elementFromPoint(x+base.left,y+base.top);
         const button=target?.closest<HTMLElement>('button,a,[role="button"]');
         if(button&&button.closest('[data-native-live]'))button.click();}catch{/* Ignore stale/invalid pointer coordinates. */}};
+    navigationMark('settings-capture',startedAt);
     return {document:normalizeSettingsColors({paints,controls,areas,live} satisfies NativeSettingsDocument),actions};
 }

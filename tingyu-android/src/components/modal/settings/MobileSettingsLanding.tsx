@@ -7,7 +7,7 @@ import { buildSettingsNavGroups, type SettingsSectionId } from './navigation/set
 import { writeLastSettingsSection } from './navigation/settingsLastSection';
 import { useSettingsModalStore } from '../../../stores/useSettingsModalStore';
 import { useNativeSettingsPage } from './useNativeSettingsPage';
-import { warmSettingsModule } from '../../app/dialogs/settingsModule';
+import { scheduleSettingsWarmup } from '../../app/dialogs/settingsModule';
 import { useNativeSettingsDocument } from '../../../hooks/useNativeSettingsDocument';
 import { useInterfaceLight } from '../../../hooks/useInterfaceAppearance';
 import './mobileSettings.css';
@@ -16,7 +16,7 @@ import './mobileSettings.css';
 // The phone index does not load every graphics/editor settings module on its first tap.
 const RearLyricsGuide = lazy(() => import('./RearLyricsGuide'));
 export default function MobileSettingsLanding({ onClose }: { onClose: () => void }) {
-    useEffect(()=>{const id=setTimeout(warmSettingsModule,400);return()=>clearTimeout(id)},[]);
+    useEffect(scheduleSettingsWarmup,[]);
     const { t } = useTranslation();
     const lightInterface=useInterfaceLight();
     const [guide, setGuide] = useState(false);

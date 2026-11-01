@@ -1,3 +1,5 @@
+import { motion } from 'framer-motion';
+import { useMotionSettingsStore, resolveReducedMotion } from '../../../stores/useMotionSettingsStore';
 import React, { useEffect, useRef } from 'react';
 import { X, Music2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +12,7 @@ import { useInterfaceLight } from '../../../hooks/useInterfaceAppearance';
 
 // src/components/app/player-panel/MobileQueueSheet.tsx
 export default function MobileQueueSheet({ model }: { model: PlayerPanelViewModel }) {
+    const reduced = useMotionSettingsStore(state => resolveReducedMotion(state, 'uiMicroMotion'));
     const { t } = useTranslation();
     const { playback, queue, account } = model.panelProps;
     const interfaceLight = useInterfaceLight(account.isDaylight);
@@ -28,8 +31,8 @@ export default function MobileQueueSheet({ model }: { model: PlayerPanelViewMode
         window.addEventListener('keydown', key, true);
         return () => { window.removeEventListener('keydown', key, true); before?.isConnected && before.focus(); };
     }, [playback.onToggle]);
-    return <div className="mobile-queue-scrim" data-folia-keyboard-window="true" data-interface-light={interfaceLight} onClick={playback.onToggle}>
-        <section ref={surface} role="dialog" aria-modal="true" aria-label={t('queue.title')} className="mobile-queue-sheet"
+    return <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:reduced?0:.18}} className="mobile-queue-scrim" data-folia-keyboard-window="true" data-interface-light={interfaceLight} onClick={playback.onToggle}>
+        <motion.section initial={{y:reduced?0:10}} animate={{y:0}} exit={{y:reduced?0:10}} transition={{duration:reduced?0:.18,ease:[.16,1,.3,1]}} ref={surface} role="dialog" aria-modal="true" aria-label={t('queue.title')} className="mobile-queue-sheet"
             style={interfaceLight ? undefined : { color: playback.theme.primaryColor, background: colorWithAlpha(playback.theme.backgroundColor, .94) }}
             onClick={event => event.stopPropagation()}>
             <span className="mobile-sheet-handle" />
@@ -37,6 +40,6 @@ export default function MobileQueueSheet({ model }: { model: PlayerPanelViewMode
                 <button onClick={playback.onToggle} aria-label={t('ui.close')} autoFocus><X size={22} /></button></header>
             <QueueTab {...queue} currentSong={playback.currentSong} shouldScrollToCurrent isDaylight={interfaceLight}
                 canSaveLocalPlaylist={canSaveQueueAsLocalPlaylist(playback.currentSong, queue.playQueue)} />
-        </section>
-    </div>;
+        </motion.section>
+    </motion.div>;
 }
