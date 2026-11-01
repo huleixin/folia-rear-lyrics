@@ -42,6 +42,7 @@ Android 原生 SharedPreferences 只保存同一偏好的启动镜像，由现�
 - 主题/睡眠等直接相关前端单元测试：102 项通过。
 - 扩展前端回归：435 项中 433 项通过，2 项失败。在独立的原版 bd6bebf 工作树复现相同失败：storeContract 的旧 localStorage 快照缺少已有洛雪键；playbackTestDeckIsolation 仍要求已变更的旧兼容通道命令。未修改稳定播放逻辑来迎合旧测试。
 - Android Release JVM：825 项通过，0 失败。
+- 补充命令面板/主题单测：352 项中 345 项通过；7 项旧失败在原版对应 83 项测试中逐项复现，涉及旧命令顺序快照、既有缺失文案和均衡器入口的旧前提。未修改命令注册和播放行为来掩盖这些失败。
 - Android 仪器测试源码编译通过；新增 InterfaceAppearanceDeviceTest，可在设备上检查切换时 Activity/WebView/shell 身份及重建后的镜像恢复。当前没有连接 Android 设备，未执行仪器测试。
 - Playwright：外观专项 6 项通过；连同睡眠/缓存卡片布局共 12 项通过。覆盖 320/393/588 宽度、24px 根字体、跟随系统变化、强制模式、组件重新挂载、普通弹层、输入和焦点保留、真实移动首页/资料库/歌单/搜索组件。
 - Browser plugin 不可用，使用项目 Playwright。浏览器结果不等于 Android WebView + Compose + 真机 GPU 验证。
@@ -54,6 +55,8 @@ Android 原生 SharedPreferences 只保存同一偏好的启动镜像，由现�
 本地 QA 目录：`tingyu-compose-phase1-qa`（工作区外层）。其中保存 light-home、light-library、light-playlist、light-search、light-settings-320/393/588、light-sleep 等 PNG，以及原版/当前深色对照、测试日志。
 
 Release 使用原包名 `io.github.huleixin.tingyu`、versionName 1.3.73、versionCode 96；已核对与原发布证书一致：`a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d`。不会重置应用数据。
+
+最终 Release 已完成 Vite Capacitor 资源构建、Capacitor 同步、Release JVM、仪器源码编译、lintVitalRelease 与 assembleRelease。最终 APK 重新核对包名、版本与签名，通过签名校验；包内包含新外观偏好键及功能源码提交 `7252ac7` 的构建标识。APK SHA-256 随安装包一起交付。
 
 ## 仍需真机验收
 
