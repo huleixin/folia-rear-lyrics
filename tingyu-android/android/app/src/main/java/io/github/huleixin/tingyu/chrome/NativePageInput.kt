@@ -29,8 +29,8 @@ import androidx.compose.ui.unit.sp
     val focus=LocalFocusManager.current
     LaunchedEffect(section.value,focused){if(!focused&&draft.text!=section.value)draft=TextFieldValue(section.value)}
     val shape=RoundedCornerShape(if(search)999.dp else 14.dp)
-    Row(Modifier.fillMaxWidth().height((if(search)NativePageDesign.SearchField else NativePageDesign.LibraryFilter).dp).background(Color(0x08FFFFFF),shape)
-        .border(1.dp,if(focused)Color(0x7791DBBD)else Color(0x14C6E6D6),shape).padding(start=12.dp,end=4.dp),
+    Row(Modifier.fillMaxWidth().height((if(search)NativePageDesign.SearchField else NativePageDesign.LibraryFilter).dp).background(interfaceColor(Color(0x08FFFFFF),LightInterfaceColors.Subtle),shape)
+        .border(1.dp,if(focused)interfaceColor(Color(0x7791DBBD),LightInterfaceColors.Focus)else interfaceColor(Color(0x14C6E6D6),LightInterfaceColors.Border),shape).padding(start=12.dp,end=4.dp),
         verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
         PageIcon("search",PageMuted,Modifier.size(17.dp))
         BasicTextField(draft,{draft=it;action(section.action,it.text,if(it.composition!=null)1.0 else 0.0)},

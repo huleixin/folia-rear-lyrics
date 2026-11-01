@@ -3,6 +3,8 @@ package io.github.huleixin.tingyu.chrome
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
@@ -23,6 +25,7 @@ internal typealias PageAction = (String, String, Double) -> Unit
         onAction(id, text, value)
     }
     val colors = when {
+        LocalInterfacePalette.current.light -> LocalInterfacePalette.current.backgrounds
         page.id == "settings" -> listOf(Color(0xFF061D16), Color(0xFF02120E), Color(0xFF041A13))
         page.id == "search" -> listOf(Color(0xFF05170F), Color(0xFF03110C))
         page.home -> listOf(Color(0xFF102D25), Color(0xFF010E0D), Color(0xFF010D0C))
@@ -30,6 +33,10 @@ internal typealias PageAction = (String, String, Double) -> Unit
     }
     Box(if(page.document!=null)modifier else modifier.background(Brush.verticalGradient(colors))) {
         // Match CSS viewport pixels, independent of Android system text magnification.
+        val scheme=if(LocalInterfacePalette.current.light)lightColorScheme(
+            primary=LightInterfaceColors.Accent,surface=LightInterfaceColors.Sheet,onSurface=LightInterfaceColors.Ink,
+            onSurfaceVariant=LightInterfaceColors.Muted,surfaceContainer=LightInterfaceColors.Surface)else MaterialTheme.colorScheme
+        MaterialTheme(colorScheme=scheme) {
         CompositionLocalProvider(LocalDensity provides Density(cssScale ?: density.density, 1f)) {
             when {
                 page.document!=null -> NativeSettingsDocumentView(page.document,Modifier.fillMaxSize(),action)
@@ -39,6 +46,7 @@ internal typealias PageAction = (String, String, Double) -> Unit
                 page.sections.any{it.id=="playlistIntro"} -> NativePlaylistPage(page,Modifier.fillMaxSize(),action)
                 else -> NativeDirectoryPage(page, Modifier.fillMaxSize(), action)
             }
+        }
         }
     }
 }

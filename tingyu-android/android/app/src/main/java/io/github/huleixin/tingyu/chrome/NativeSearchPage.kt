@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.sp
         else Column(Modifier.padding(start=14.dp,end=14.dp,top=10.dp)){
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
                 page.sections.firstOrNull{it.id=="query"}?.let{section->Box(Modifier.weight(1f)){NativePageInput(section,action,search=true)}}
-                Box(Modifier.size(44.dp).clip(RoundedCornerShape(999.dp)).background(Color(0x08FFFFFF)).clickable{action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("x",PageInk,Modifier.size(20.dp))}
+                Box(Modifier.size(44.dp).clip(RoundedCornerShape(999.dp)).background(interfaceColor(Color(0x08FFFFFF),LightInterfaceColors.Subtle)).clickable{action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("x",PageInk,Modifier.size(20.dp))}
             }
             page.sections.firstOrNull{it.id=="sources"}?.let{NativeSourceTabs(it,Modifier.padding(top=10.dp,bottom=2.dp),search=true,action=action)}
             page.sections.firstOrNull{it.id=="tabs"}?.let{section->
@@ -71,13 +71,13 @@ import androidx.compose.ui.unit.sp
                     history||section.layout=="chips"&&section.id=="discovery" -> item(key=section.id){
                         FlowRow(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
                             section.items.forEach{item->
-                                Row(Modifier.height(38.dp).clip(RoundedCornerShape(999.dp)).background(Color(0x08FFFFFF)).border(1.dp,Color(0x12FFFFFF),RoundedCornerShape(999.dp)),verticalAlignment=Alignment.CenterVertically){
+                                Row(Modifier.height(38.dp).clip(RoundedCornerShape(999.dp)).background(interfaceColor(Color(0x08FFFFFF),LightInterfaceColors.Subtle)).border(1.dp,interfaceColor(Color(0x12FFFFFF),LightInterfaceColors.Border),RoundedCornerShape(999.dp)),verticalAlignment=Alignment.CenterVertically){
                                     Text(item.title,color=PageInk,fontSize=13.sp,modifier=Modifier.clickable{action(item.action,"",0.0)}.padding(horizontal=12.dp))
                                     if(item.secondary.isNotBlank())Box(Modifier.width(30.dp).fillMaxHeight().clickable{action(item.secondary,"",0.0)},contentAlignment=Alignment.Center){PageIcon("x",PageMuted,Modifier.size(13.dp))}
                                 }
                             }
                         }
-                        Spacer(Modifier.height(20.dp));Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x12FFFFFF)));Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(20.dp));Box(Modifier.fillMaxWidth().height(1.dp).background(interfaceColor(Color(0x12FFFFFF),LightInterfaceColors.Border)));Spacer(Modifier.height(12.dp))
                     }
                     section.layout=="rows" -> pagedNativeRows(page,section,caches.getValue(section.id),56,action)
                     section.layout=="chips" -> item(key=section.id){Column{section.items.forEach{item->

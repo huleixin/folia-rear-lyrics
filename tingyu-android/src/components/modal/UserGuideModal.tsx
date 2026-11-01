@@ -1,3 +1,4 @@
+import {useInterfaceLight} from '../../hooks/useInterfaceAppearance';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Lightbulb } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -13,7 +14,7 @@ import type { Theme } from '../../types';
 export const UserGuideModal: React.FC<{ theme?: Theme | null }> = ({ theme }) => {
     const { t } = useTranslation();
     const isOpen = useSettingsModalStore(state => state.isUserGuideModalOpen);
-    const isDaylight = useThemeSettingsStore(state => state.isDaylight);
+    const isDaylight = useInterfaceLight();
     const supportsFinePointer = useSupportsFinePointer();
     const accent = theme?.accentColor || (isDaylight ? '#18181b' : '#f4f4f5');
 

@@ -52,6 +52,8 @@ public class MainActivity extends BridgeActivity {
             registerPlugin(io.github.huleixin.tingyu.glass.TingyuGlassPlugin.class);
         }
         registerPlugin(io.github.huleixin.tingyu.coloros.FoliaColorOsLyricsPlugin.class);
+        getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(
+            io.github.huleixin.tingyu.chrome.InterfaceAppearance.light(this) ? 0xFFF4F5EE : 0xFF09090B));
         super.onCreate(savedInstanceState);
         if (BuildConfig.DEBUG && (BuildConfig.GLASS_LAB || BuildConfig.COMPOSE_CHROME)) WebView.setWebContentsDebuggingEnabled(true);
         CrashDiagnostics.recordText(

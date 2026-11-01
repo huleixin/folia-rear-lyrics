@@ -64,18 +64,18 @@ import java.io.File
 
 // Mirrors NativeSettingsPage.kt: settings gradient #061D16→#02120E→#041A13, card #23493B33.
 private object SupportPalette {
-    val Surface = Color(0xFF0B231B)
-    val Ink = Color(0xFFE8F4ED)
-    val Muted = Color(0xFF9EB3AA)
-    val Accent = Color(0xFF74D9BA)
-    val Card = Color(0x3323493B)
-    val CardBorder = Color(0x1FA5CDB9)
-    val Chip = Color(0x0CA6D7BF)
-    val ChipInk = Color(0xFFD2E3DA)
-    val Button = Color(0xFF2D684F)
-    val ButtonBorder = Color(0x1A7FC2A5)
-    val ButtonInk = Color(0xFFE0F8ED)
-    val Ghost = Color(0x1A000000)
+    val Surface:Color @Composable get()=interfaceColor(Color(0xFF0B231B),LightInterfaceColors.Sheet)
+    val Ink:Color @Composable get()=interfaceColor(Color(0xFFE8F4ED),LightInterfaceColors.Ink)
+    val Muted:Color @Composable get()=interfaceColor(Color(0xFF9EB3AA),LightInterfaceColors.Muted)
+    val Accent:Color @Composable get()=interfaceColor(Color(0xFF74D9BA),LightInterfaceColors.Accent)
+    val Card:Color @Composable get()=interfaceColor(Color(0x3323493B),LightInterfaceColors.Card)
+    val CardBorder:Color @Composable get()=interfaceColor(Color(0x1FA5CDB9),LightInterfaceColors.Border)
+    val Chip:Color @Composable get()=interfaceColor(Color(0x0CA6D7BF),LightInterfaceColors.Subtle)
+    val ChipInk:Color @Composable get()=interfaceColor(Color(0xFFD2E3DA),LightInterfaceColors.Icon)
+    val Button:Color @Composable get()=interfaceColor(Color(0xFF2D684F),LightInterfaceColors.SoftButton)
+    val ButtonBorder:Color @Composable get()=interfaceColor(Color(0x1A7FC2A5),LightInterfaceColors.Border)
+    val ButtonInk:Color @Composable get()=interfaceColor(Color(0xFFE0F8ED),LightInterfaceColors.Accent)
+    val Ghost:Color @Composable get()=interfaceColor(Color(0x1A000000),LightInterfaceColors.Subtle)
 }
 
 internal data class SupportCopy(

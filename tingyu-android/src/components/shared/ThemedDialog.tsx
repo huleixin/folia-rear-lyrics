@@ -1,3 +1,4 @@
+import {useInterfaceLight} from '../../hooks/useInterfaceAppearance';
 import React, { useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
@@ -27,7 +28,7 @@ interface ThemedDialogProps {
 const ThemedDialog: React.FC<ThemedDialogProps> = ({
     isOpen,
     onClose,
-    isDaylight = false,
+    isDaylight: stageDaylight = false,
     title,
     description,
     headerActions,
@@ -38,6 +39,7 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
     closeDisabled = false,
     closeDisabledTitle,
 }) => {
+    const isDaylight=useInterfaceLight(stageDaylight);
     const bgClass = isDaylight ? 'bg-white/90 border-white/30' : 'bg-zinc-900/95 border-white/10';
     const textPrimary = isDaylight ? 'text-zinc-900' : 'text-white';
     const textSecondary = isDaylight ? 'text-zinc-500' : 'text-zinc-400';

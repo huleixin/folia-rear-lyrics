@@ -7,6 +7,8 @@
 // Changing how it is consumed is a separate, one-shot migration.
 
 import { create } from 'zustand';
+import {isAndroidNativeRuntime} from '../utils/platform';
+import {INTERFACE_APPEARANCE_KEY,migrateInterfaceAppearance,validInterfaceAppearance,type InterfaceAppearance} from '../services/interfaceAppearance';
 import i18n from '../i18n/config';
 
 import { getStoredBoolean, setStoredBoolean } from './storagePrimitives';
@@ -48,6 +50,10 @@ const readStoredDisableHomeDynamicBackground = (): boolean => {
 };
 
 export type ThemeSettingsState = {
+    interfaceAppearance: InterfaceAppearance;
+    interfaceSystemLight: boolean;
+    setInterfaceAppearance: (mode: InterfaceAppearance) => void;
+    setInterfaceSystemLight: (light: boolean) => void;
     useCoverColorBg: boolean;
     staticMode: boolean;
     disableHomeDynamicBackground: boolean;
@@ -62,6 +68,14 @@ export type ThemeSettingsState = {
 };
 
 export const useThemeSettingsStore = create<ThemeSettingsState>((set, get) => ({
+    interfaceAppearance: migrateInterfaceAppearance(typeof localStorage === 'undefined' ? null : localStorage.getItem(INTERFACE_APPEARANCE_KEY), isAndroidNativeRuntime(), initialDaylight),
+    interfaceSystemLight: readSystemThemeIsDaylight() ?? false,
+    setInterfaceAppearance: (mode) => {
+        if(!validInterfaceAppearance(mode))return;
+        localStorage.setItem(INTERFACE_APPEARANCE_KEY, mode);
+        set({interfaceAppearance: mode});
+    },
+    setInterfaceSystemLight: (light) => set({interfaceSystemLight: light}),
     useCoverColorBg: getStoredBoolean('use_cover_color_bg', false),
     staticMode: getStoredBoolean('static_mode', false),
     disableHomeDynamicBackground: readStoredDisableHomeDynamicBackground(),

@@ -30,21 +30,23 @@ internal fun playlistBarHeight(phase: Float, bar: Int): Float =
     .24f + .64f * ((sin((phase * 6.283185f + bar * 2.1f).toDouble()) + 1) / 2).toFloat()
 
 @Composable internal fun PlaylistLocateButton(label: String, onClick: () -> Unit) {
+    val accent=interfaceColor(PlaylistAccent,LightInterfaceColors.Accent)
     ChromeButton(label, size=40.dp, onClick=onClick, modifier=Modifier
-        .shadow(3.dp,CircleShape).background(Color(0xF0183029),CircleShape)
-        .border(.8.dp,PlaylistAccent.copy(alpha=.34f),CircleShape)) {
+        .shadow(3.dp,CircleShape).background(interfaceColor(Color(0xF0183029),LightInterfaceColors.Floating),CircleShape)
+        .border(.8.dp,accent.copy(alpha=.34f),CircleShape)) {
         Canvas(Modifier.size(21.dp)) {
             val stroke=Stroke(1.65.dp.toPx(),cap=StrokeCap.Round)
             val inset=size.width*.17f
-            repeat(4) { drawArc(PlaylistAccent,it*90f+16f,58f,false,
+            repeat(4) { drawArc(accent,it*90f+16f,58f,false,
                 Offset(inset,inset),Size(size.width-inset*2,size.height-inset*2),style=stroke) }
-            drawCircle(PlaylistAccent,size.width*.14f,center)
+            drawCircle(accent,size.width*.14f,center)
         }
     }
 }
 
 /** Only this visible draw node ticks. No audio analysis, bridge traffic or list recomposition. */
 @Composable internal fun PlaylistPlaybackIndicator(playing: Boolean) {
+    val accent=interfaceColor(PlaylistAccent,LightInterfaceColors.Accent)
     val phase=remember { mutableFloatStateOf(0f) }
     val rendering=LocalChromeRendering.current
     LaunchedEffect(playing,rendering) {
@@ -57,10 +59,10 @@ internal fun playlistBarHeight(phase: Float, bar: Int): Float =
         if(playing) repeat(3) { bar ->
             val height=playlistBarHeight(phase.floatValue,bar)
             val x=size.width*(bar+.5f)/3
-            drawLine(PlaylistAccent,Offset(x,size.height),Offset(x,size.height*(1-height)),2.dp.toPx(),StrokeCap.Round)
+            drawLine(accent,Offset(x,size.height),Offset(x,size.height*(1-height)),2.dp.toPx(),StrokeCap.Round)
         } else repeat(2) { bar ->
             val x=size.width*(if(bar==0).3f else .7f)
-            drawLine(PlaylistAccent,Offset(x,size.height*.2f),Offset(x,size.height*.8f),2.dp.toPx(),StrokeCap.Round)
+            drawLine(accent,Offset(x,size.height*.2f),Offset(x,size.height*.8f),2.dp.toPx(),StrokeCap.Round)
         }
     }
 }

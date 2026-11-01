@@ -109,11 +109,11 @@ import kotlinx.coroutines.launch
     }
     Row(Modifier.fillMaxWidth().padding(top=4.dp,bottom=6.dp).height(15.dp),horizontalArrangement=Arrangement.spacedBy(7.dp,Alignment.CenterHorizontally),verticalAlignment=Alignment.CenterVertically){
         section.items.forEachIndexed { index,_ -> Box(Modifier.size(14.dp,3.dp).clip(RoundedCornerShape(4.dp))
-            .background(if(state.firstVisibleItemIndex==index)Color(0xFFF1F5F2)else Color(0x38FFFFFF)).clickable{scope.launch{state.animateScrollToItem(index)}}) }
+            .background(if(state.firstVisibleItemIndex==index)interfaceColor(Color(0xFFF1F5F2),LightInterfaceColors.Muted)else interfaceColor(Color(0x38FFFFFF),LightInterfaceColors.SelectedBorder)).clickable{scope.launch{state.animateScrollToItem(index)}}) }
     }
 }
 @Composable private fun NativeHomePlaylist(item:NativePageItem,modifier:Modifier,action:PageAction){
-    Row(modifier.heightIn(min=58.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xDB14241F)).border(1.dp,Color(0x10FFFFFF),RoundedCornerShape(8.dp)),verticalAlignment=Alignment.CenterVertically){
+    Row(modifier.heightIn(min=58.dp).clip(RoundedCornerShape(8.dp)).background(interfaceColor(Color(0xDB14241F),LightInterfaceColors.Card)).border(1.dp,interfaceColor(Color(0x10FFFFFF),LightInterfaceColors.Border),RoundedCornerShape(8.dp)),verticalAlignment=Alignment.CenterVertically){
         Row(Modifier.weight(1f).clickable{action(item.action,"",0.0)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
             PageArtwork(item.image,Modifier.size(56.dp),10.dp)
             Column(Modifier.weight(1f)){

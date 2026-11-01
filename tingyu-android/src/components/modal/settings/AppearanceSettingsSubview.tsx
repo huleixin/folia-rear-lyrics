@@ -1,3 +1,4 @@
+import InterfaceAppearanceSetting from './InterfaceAppearanceSetting';
 import MobileRandomVisualizerSettings from './MobileRandomVisualizerSettings';
 import { isAndroidNativeRuntime } from '../../../utils/platform';
 import React, { useState } from 'react';
@@ -635,6 +636,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
 
     return (
         <div className="space-y-6">
+            <InterfaceAppearanceSetting />
             <AndroidImmersiveSetting isDaylight={isDaylight} settingsCardClass={settingsCardClass} theme={theme} compact />
             <MobilePlayerDisplaySetting isDaylight={isDaylight} settingsCardClass={settingsCardClass} theme={theme} />
             <MobileRandomVisualizerSettings />
@@ -843,7 +845,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                     <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${settingsCardClass}`}>
                         <div className="space-y-1">
                             <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                                {t('options.followSystemTheme')}
+                                {isAndroidNativeRuntime() ? t('options.stageFollowSystemTheme') : t('options.followSystemTheme')}
                             </div>
                             <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
                                 {t('options.followSystemThemeDesc')}

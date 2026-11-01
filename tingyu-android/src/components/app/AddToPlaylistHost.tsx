@@ -1,3 +1,4 @@
+import {useInterfaceLight} from '../../hooks/useInterfaceAppearance';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
@@ -34,7 +35,7 @@ type AddToPlaylistHostProps = {
 type PlaylistEntry = { id: string; name: string; description?: string };
 
 export const AddToPlaylistHost: React.FC<AddToPlaylistHostProps> = ({
-    isDaylight,
+    isDaylight: stageDaylight,
     localPlaylists,
     onlinePlaylists,
     onAddCurrentSongToLocalPlaylist,
@@ -43,6 +44,7 @@ export const AddToPlaylistHost: React.FC<AddToPlaylistHostProps> = ({
     onAddCurrentSongToNavidromePlaylist,
     onCreateCurrentNavidromePlaylist,
 }) => {
+    const isDaylight=useInterfaceLight(stageDaylight);
     const { t } = useTranslation();
     // The song as the listener sees it, so a blend shows the track that is on screen.
     const currentSong = usePlaybackStore(selectDisplaySong);

@@ -26,9 +26,9 @@ import coil.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageWidgets.kt
-internal val PageInk = Color(0xFFF4F7F5)
-internal val PageMuted = Color(0xFFA2B6AC)
-internal val PageAccent = Color(0xFF9FE0C4)
+internal val PageInk:Color @Composable get()=LocalInterfacePalette.current.ink
+internal val PageMuted:Color @Composable get()=LocalInterfacePalette.current.muted
+internal val PageAccent:Color @Composable get()=LocalInterfacePalette.current.accent
 @Composable internal fun pageImage(url: String): Any? {
     val context=LocalContext.current
     return remember(url,context) {
@@ -60,7 +60,7 @@ internal val PageAccent = Color(0xFF9FE0C4)
 }
 }
 @Composable internal fun PageArtwork(url: String, modifier: Modifier, radius: Dp = 9.dp) {
-    Box(modifier.clip(RoundedCornerShape(radius)).background(Color(0xFF14211E)), contentAlignment = Alignment.Center) {
+    Box(modifier.clip(RoundedCornerShape(radius)).background(interfaceColor(Color(0xFF14211E),LightInterfaceColors.Surface)), contentAlignment = Alignment.Center) {
         if (url.isBlank()) PageIcon("music2", PageMuted, Modifier.size(21.dp))
         else AsyncImage(pageImage(url), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
     }
@@ -69,8 +69,8 @@ internal val PageAccent = Color(0xFF9FE0C4)
     height: Dp = 30.dp, font: Int = 11, trailing: String = "", border: Boolean = true) {
     val shape = RoundedCornerShape(999.dp)
     Row(Modifier.heightIn(min=height).clip(shape)
-        .background(if (selected) Color(0x2E9FE0C4) else Color(0x08FFFFFF))
-        .then(if(border) Modifier.border(1.dp, if(selected) Color(0x709FE0C4) else Color(0x18FFFFFF), shape) else Modifier)
+        .background(if (selected) interfaceColor(Color(0x2E9FE0C4),LightInterfaceColors.Selected) else interfaceColor(Color(0x08FFFFFF),LightInterfaceColors.Subtle))
+        .then(if(border) Modifier.border(1.dp, if(selected) interfaceColor(Color(0x709FE0C4),LightInterfaceColors.SelectedBorder) else interfaceColor(Color(0x18FFFFFF),LightInterfaceColors.Border), shape) else Modifier)
         .clickable(enabled=enabled,onClick=onClick).padding(horizontal=10.dp), verticalAlignment=Alignment.CenterVertically,
         horizontalArrangement=Arrangement.spacedBy(3.dp)) {
         Text(text, color=if(selected)PageAccent else PageInk.copy(alpha=if(enabled).85f else .45f),fontSize=font.sp,maxLines=1)
@@ -82,7 +82,7 @@ internal val PageAccent = Color(0xFF9FE0C4)
         if(page.leading.isNotBlank())ChromeButton("返回",size=40.dp,onClick={action(page.leading,"",0.0)}){PageIcon("chevron-left",PageInk,Modifier.size(24.dp))}
         Column(Modifier.weight(1f).padding(top=6.dp)) {
             Text(page.title,color=PageInk,fontSize=(if(large)32 else 27).sp,lineHeight=34.sp,fontWeight=FontWeight.Bold,letterSpacing=(-1).sp)
-            if(page.subtitle.isNotBlank())Text(page.subtitle,color=Color(0xFFB5C3BD),fontSize=14.sp,lineHeight=19.sp,modifier=Modifier.padding(top=5.dp))
+            if(page.subtitle.isNotBlank())Text(page.subtitle,color=interfaceColor(Color(0xFFB5C3BD),LightInterfaceColors.Muted),fontSize=14.sp,lineHeight=19.sp,modifier=Modifier.padding(top=5.dp))
         }
         if(page.trailing.isNotBlank())Box(Modifier.padding(top=9.dp)){
             PagePill(page.trailingLabel,{action(page.trailing,"",0.0)},height=34.dp,trailing=if(page.id=="home")"chevron-down"else"",font=11)
@@ -99,7 +99,7 @@ internal val PageAccent = Color(0xFF9FE0C4)
     var expanded by remember { mutableStateOf(false) }
     Box {
         Row(Modifier.heightIn(min=34.dp).clickable{expanded=true},verticalAlignment=Alignment.CenterVertically) {
-            Text(section.items.firstOrNull{it.selected}?.title?:"",color=Color(0xFFB4C9BF),fontSize=12.sp)
+            Text(section.items.firstOrNull{it.selected}?.title?:"",color=interfaceColor(Color(0xFFB4C9BF),LightInterfaceColors.Muted),fontSize=12.sp)
             PageIcon("chevron-down",PageMuted,Modifier.padding(start=3.dp).size(14.dp))
         }
         DropdownMenu(expanded,{expanded=false}) { section.items.forEach { item ->
@@ -120,5 +120,5 @@ internal val PageAccent = Color(0xFF9FE0C4)
         if(item.secondary.isNotBlank())ChromeButton("更多",size=36.dp,onClick={action(item.secondary)}){PageIcon("ellipsis-vertical",PageMuted,Modifier.size(18.dp))}
         else if(chevron)PageIcon("chevron-right",PageMuted,Modifier.size(16.dp))
     }
-    if(divider)Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x0EFFFFFF)))
+    if(divider)Box(Modifier.fillMaxWidth().height(1.dp).background(interfaceColor(Color(0x0EFFFFFF),LightInterfaceColors.Divider)))
 }

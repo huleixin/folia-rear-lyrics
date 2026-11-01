@@ -8,11 +8,11 @@ internal const val PlaylistAmbientFadeStart = .28f
 internal const val PlaylistAmbientFadeEnd = .90f
 
 /** Same sRGB stops and viewport coordinates as the page's underlying background. */
-internal fun playlistBackgroundColor(position:Float):Color {
+internal fun playlistBackgroundColor(position:Float,colors:List<Color> = PlaylistBackgroundColors):Color {
     val progress=position.coerceIn(0f,1f)*2
     val index=if(progress<1)0 else 1
     val fraction=(progress-index).coerceIn(0f,1f)
-    val start=PlaylistBackgroundColors[index];val end=PlaylistBackgroundColors[index+1]
+    val start=colors[index];val end=colors[index+1]
     return Color(start.red+(end.red-start.red)*fraction,start.green+(end.green-start.green)*fraction,
         start.blue+(end.blue-start.blue)*fraction)
 }
@@ -24,10 +24,10 @@ internal fun playlistAmbientVisibility(position:Float):Float {
 }
 
 /** A small cached SrcOver gradient covers the blurred image with the exact page background. */
-internal fun playlistAmbientCoverStops(viewportHeight:Float,ambientHeight:Float):Array<Pair<Float,Color>> {
+internal fun playlistAmbientCoverStops(viewportHeight:Float,ambientHeight:Float,colors:List<Color> = PlaylistBackgroundColors):Array<Pair<Float,Color>> {
     require(viewportHeight.isFinite()&&viewportHeight>0&&ambientHeight.isFinite()&&ambientHeight>0)
     val positions=( (0..32).map{it/32f} + listOf(PlaylistAmbientFadeStart,PlaylistAmbientFadeEnd)
         + listOf((viewportHeight*.5f/ambientHeight).coerceIn(0f,1f)) ).distinct().sorted()
-    return positions.map { position -> position to playlistBackgroundColor(position*ambientHeight/viewportHeight)
+    return positions.map { position -> position to playlistBackgroundColor(position*ambientHeight/viewportHeight,colors)
         .copy(alpha=1-playlistAmbientVisibility(position)) }.toTypedArray()
 }

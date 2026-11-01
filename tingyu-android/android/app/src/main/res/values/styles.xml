@@ -25,4 +25,16 @@
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
     </style>
+    <style name="AppTheme.NoActionBarLaunch.Light" parent="AppTheme.NoActionBarLaunch">
+        <item name="android:windowBackground">#F4F5EE</item>
+        <item name="android:windowSplashScreenBackground">#F4F5EE</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+    <style name="AppTheme.NoActionBarLaunch.System" parent="AppTheme.NoActionBarLaunch">
+        <item name="android:windowBackground">@color/interfaceLaunchBackground</item>
+        <item name="android:windowSplashScreenBackground">@color/interfaceLaunchBackground</item>
+        <item name="android:windowLightStatusBar">@bool/interfaceLaunchLight</item>
+        <item name="android:windowLightNavigationBar">@bool/interfaceLaunchLight</item>
+    </style>
 </resources>

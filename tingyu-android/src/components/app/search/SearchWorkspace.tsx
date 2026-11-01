@@ -1,3 +1,5 @@
+import {useInterfaceLight} from '../../../hooks/useInterfaceAppearance';
+import {isAndroidNativeRuntime} from '../../../utils/platform';
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertCircle, Loader2, Search, X } from 'lucide-react';
@@ -64,7 +66,7 @@ const EMPTY_TERMS: string[] = [];
 
 const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     theme: _theme,
-    isDaylight,
+    isDaylight: stageDaylight,
     onClose,
     onSubmitSearch,
     onLoadMore,
@@ -76,6 +78,8 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     onOpenSearchCollection,
     localPlaylists,
 }) => {
+    const interfaceLight=useInterfaceLight();
+    const isDaylight=isAndroidNativeRuntime()?interfaceLight:stageDaylight;
     const { t } = useTranslation();
     const {
         searchQuery, searchSourceTab, searchResults, isSearchOpen, isSearching,

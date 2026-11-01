@@ -51,6 +51,8 @@ import kotlin.math.roundToInt
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ComposeChromeHost.kt
 // Stable WebView identity; native pages and the live stage use separate GPU backdrop sources.
 class ComposeChromeHost(private val web: WebView, var listener: ChromeActionListener) {
+    private var appearanceMode by mutableStateOf(InterfaceAppearance.mode(web.context))
+    fun setAppearance(mode:String){InterfaceAppearance.save(web.context,mode);appearanceMode=mode}
     private val graphics=GraphicsProbe(web)
     private val webSamplingLayer=WebSamplingLayer(web)
     private var graphicsMarker:(()->Unit)?=null
@@ -208,6 +210,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         compose.setContent { Scene() }
     }
     @Composable private fun Scene() {
+        val configuration=androidx.compose.ui.platform.LocalConfiguration.current
+        val interfaceLight=InterfaceAppearance.resolve(appearanceMode,(configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK)==android.content.res.Configuration.UI_MODE_NIGHT_NO)
+        val palette=remember(interfaceLight){InterfacePalette(interfaceLight)}
+        val activity=web.context as? android.app.Activity
+        DisposableEffect(interfaceLight,destination,surfaces["stage"]?.light) {activity?.let{InterfaceAppearance.route(it,destination=="stage",surfaces["stage"]?.light?:false)};onDispose{}}
         val backdrop = rememberLayerBackdrop()
         val stageBackdrop = rememberLayerBackdrop()
         val exitProgress=rememberStageExitProgress(stageExit,reducedMotion)
@@ -223,7 +230,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         SideEffect{if(!legacySampling)webSamplingLayer.update(Build.VERSION.SDK_INT>=31&&sampleWeb)}
         val savedPages=rememberSaveableStateHolder()
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            CompositionLocalProvider(LocalChromeRendering provides (active&&focused)) {
+            CompositionLocalProvider(LocalChromeRendering provides (active&&focused),LocalInterfacePalette provides palette) {
             val density=LocalDensity.current;val width=maxWidth.value;val height=maxHeight.value
             val safeTop=if(nativeTop>=0)nativeTop else WindowInsets.statusBars.getTop(density)/density.density
             val safeBottom=if(nativeBottom>=0)nativeBottom else WindowInsets.navigationBars.getBottom(density)/density.density
@@ -291,10 +298,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     val seed=remember(id,width,height,selectedTab,safeBottom,safeTop){cache.chrome(id,width,height,safeBottom,safeTop).let{if(id=="nav")it.copy(selected=selectedTab)else it}}
                     val placement=Modifier.offset{IntOffset(with(density){seed.rect.left.dp.roundToPx()},with(density){seed.rect.top.dp.roundToPx()})}
                         .size(seed.rect.width.dp,seed.rect.height.dp)
-                    if(id=="nav")ChromeNavigation(seed,backdrop,placement){_,_->}else ChromeMiniPlayer(seed,null,backdrop,placement){_,_->}
+                    if(id=="nav")ChromeNavigation(seed.interfacePaint(interfaceLight),backdrop,placement){_,_->}else ChromeMiniPlayer(seed.interfacePaint(interfaceLight),null,backdrop,placement){_,_->}
                 }
             }
-            visible.forEach { surface -> key(surface.id,surface.session) {
+            visible.forEach { original -> key(original.id,original.session) {
+                val surface=remember(original,interfaceLight){original.interfacePaint(interfaceLight)}
                 val scale = web.width / surface.viewportWidth
                 if (scale.isFinite() && scale > 0) {
                     val rect=NativeFooterLayout.rect(surface.id,

@@ -1,3 +1,4 @@
+import {useInterfaceLight} from '../../hooks/useInterfaceAppearance';
 import SettingsPresence from './settings/SettingsPresence';
 import { isAndroidNativeRuntime } from '../../utils/platform';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -255,7 +256,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         useCoverColorBg,
         staticMode,
         disableHomeDynamicBackground,
-        isDaylight,
+        isDaylight: stageDaylight,
         followSystemTheme,
         setDaylightPreference: onSetDaylightPreference,
         setFollowSystemTheme: onSetFollowSystemTheme,
@@ -1073,6 +1074,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         || 'Unknown server';
 
     // const isDaylight = theme?.name === 'Daylight Default'; // Deprecated, passed as prop
+    const isDaylight = useInterfaceLight();
     const glassBg = isDaylight ? 'bg-white' : 'bg-[#18181b]';
     const subviewPanelBg = isDaylight ? 'bg-zinc-50' : 'bg-[#18181b]';
     const borderColor = isDaylight ? 'border-black/5' : 'border-white/10';
@@ -2257,7 +2259,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 {showThemePark && (
                     <ThemePark
                         initialTheme={themeParkInitialTheme}
-                        isDaylight={isDaylight}
+                        isDaylight={stageDaylight}
                         visualizerMode={visualizerMode}
                         visualizerTunings={{
                             classic: classicTuning,

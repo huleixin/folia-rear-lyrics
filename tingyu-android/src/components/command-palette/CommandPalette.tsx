@@ -1,3 +1,4 @@
+import {useInterfaceLight} from '../../hooks/useInterfaceAppearance';
 import { isAndroidNativeRuntime } from '../../utils/platform';
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -91,7 +92,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     activeCommand,
     availableCommands,
     context,
-    isDaylight,
+    isDaylight: stageDaylight,
     isComposing,
     isExecuting,
     isOpen,
@@ -110,6 +111,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     onQueryChange,
     onQueryCommit,
 }) => {
+    const isDaylight=useInterfaceLight(stageDaylight);
     const { t, i18n } = useTranslation();
     const inputRef = useRef<HTMLInputElement | null>(null);
     const [idlePlaceholderIndex, setIdlePlaceholderIndex] = useState(() => Math.floor(Math.random() * IDLE_PLACEHOLDER_COUNT));

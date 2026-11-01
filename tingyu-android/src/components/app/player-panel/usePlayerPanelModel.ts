@@ -1,3 +1,4 @@
+import {useInterfaceLight} from '../../../hooks/useInterfaceAppearance';
 import { useMemo } from 'react';
 import { resolvePlayerChromeHidden, useAndroidMobilePlayerStage } from '../../../hooks/useAndroidMobilePlayerStage';
 import { useTranslation } from 'react-i18next';
@@ -69,7 +70,7 @@ export const usePlayerPanelModel = ({
     const immersivePlayerChromeHidden = immersiveModeEnabled && currentView === 'player' && immersiveChromeHidden;
     const isPanelGuideHotspotActive = useAppChromeStore(state => state.isPlayerPanelGuideHotspotActive);
     const starredNavidromeSongIds = useLibraryStore(state => state.starredNavidromeSongIds);
-    const isDaylight = useThemeSettingsStore(state => state.isDaylight);
+    const isDaylight = useInterfaceLight();
     const useCoverColorBg = useThemeSettingsStore(state => state.useCoverColorBg);
     const volume = useAudioSettingsStore(state => state.volume);
     const isMuted = useAudioSettingsStore(state => state.isMuted);

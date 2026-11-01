@@ -1,3 +1,4 @@
+import {useInterfaceLight} from '../../../hooks/useInterfaceAppearance';
 import { isAndroidNativeRuntime } from '../../../utils/platform';
 import React, { useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -57,7 +58,7 @@ const LabSettingsModal: React.FC<LabSettingsModalProps> = ({
         preventDisplaySleepDuringPlayback: state.preventDisplaySleepDuringPlayback,
         onTogglePreventDisplaySleepDuringPlayback: state.handleTogglePreventDisplaySleepDuringPlayback,
     })));
-    const isDaylight = useThemeSettingsStore(state => state.isDaylight);
+    const isDaylight = useInterfaceLight();
     const {
         hidePlayerProgressBar,
         hidePlayerRightPanelButton,

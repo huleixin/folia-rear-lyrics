@@ -19,9 +19,10 @@ import coil.compose.AsyncImage
 /** Fade only the cover into the existing page colors, without an isolated DstIn mask. */
 @Composable internal fun NativePlaylistBackdrop(image:String,viewportHeight:Dp) {
     if(image.isBlank()||viewportHeight<=0.dp)return
+    val colors=LocalInterfacePalette.current.backgrounds
     val ambientHeight=minOf(560.dp,viewportHeight*.7f)
     Box(Modifier.fillMaxWidth().height(ambientHeight).clipToBounds().drawWithCache {
-        val fade=Brush.verticalGradient(*playlistAmbientCoverStops(viewportHeight.toPx(),size.height))
+        val fade=Brush.verticalGradient(*playlistAmbientCoverStops(viewportHeight.toPx(),size.height,colors))
         onDrawWithContent { drawContent();drawRect(fade) }
     }) {
         AsyncImage(pageImage(image),null,Modifier.align(Alignment.TopEnd).offset(y=(-30).dp)

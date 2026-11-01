@@ -1,0 +1,89 @@
+/* Ordinary phone UI only. No selector targets the Folia visualizer or rear display. */
+.ty-interface-setting{padding:16px;color:var(--text-primary);}
+.ty-interface-setting h3{font-size:15px;font-weight:650;line-height:1.5;}
+.ty-interface-setting p{font-size:12px;line-height:1.65;color:var(--text-secondary);margin:5px 0 14px;}
+.ty-interface-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:4px;border:1px solid color-mix(in srgb,currentColor 12%,transparent);border-radius:16px;}
+.ty-interface-choices button{display:flex;min-width:0;min-height:52px;padding:9px 3px;gap:6px;align-items:center;justify-content:center;border:1px solid transparent;border-radius:12px;font-size:13px;line-height:1.4;}
+.ty-interface-choices [aria-checked=true]{color:var(--text-accent);border-color:color-mix(in srgb,var(--text-accent) 30%,transparent);background:color-mix(in srgb,var(--text-accent) 12%,transparent);}
+.ty-interface-choices button:focus-visible{outline:2px solid var(--text-accent);outline-offset:2px;}
+@media(max-width:350px){.ty-interface-choices button{flex-direction:column;}}
+html[data-interface-appearance='light'] :is(.mobile-library,[data-folia-settings-overlay],[data-folia-search-workspace],[data-folia-keyboard-window],.sleep-scrim,.ty-sheet,.ml-sheet,[data-folia-status-toast],.ty-interface-setting) {
+ --bg-color:var(--ui-bg,#f4f5ee)!important;--text-primary:var(--ui-ink,#213e34)!important;--text-secondary:var(--ui-muted,#536d61)!important;
+ --text-accent:var(--ui-accent,#246e55)!important;--text-on-accent:#fff!important;--accent-color:#246e55!important;
+ --ml-bg:#f4f5ee;--ml-ink:#213e34;--ml-muted:#536d61;--ml-jade:#246e55;--ml-line:#315d4326;--ml-surface:#e5ede4;--ml-home-base:#f4f5ee;--ml-home-muted:#536d61;
+ --ty-bg:#f1f4ed;--ty-card:#ffffff80;--ty-border:#315d4326;--ty-text:#213e34;--ty-muted:#536d61;--ty-accent:#246e55;
+ --ty-settings-line:#315d4326;--ty-settings-muted:#536d61;--ty-settings-mint:#246e55;
+ --mps-glass:#f1f4ed;--mps-border:#315d4326;color:#213e34;color-scheme:light;
+}
+html[data-interface-appearance='light'] [data-folia-app-shell][data-folia-android='true']:not([data-folia-player-view]){background:#f4f5ee!important}
+html[data-interface-appearance='light'] .mobile-library:is(.ml-home,.ml-playlist-detail),
+html[data-interface-appearance='light'] [data-mobile-settings='true'] > [data-folia-settings-panel]{background:linear-gradient(180deg,#e3ede2,#f0f3ea 50%,#f4f5ee)}
+html[data-interface-appearance='light'] [data-folia-settings-overlay][data-mobile-settings='true']{background:#f4f5ee}
+html[data-interface-appearance='light'] .ty-settings-header > button,
+html[data-interface-appearance='light'] .ty-settings-row > svg,
+html[data-interface-appearance='light'] .ty-setting-symbol{color:#486153!important}
+html[data-interface-appearance='light'] .ty-settings-card,
+html[data-interface-appearance='light'] .ml-home-playlist{background:linear-gradient(125deg,#ffffff70,#dce8dd70);border-color:#315d4326}
+html[data-interface-appearance='light'] .ty-settings-group-title,
+html[data-interface-appearance='light'] .ty-settings-description,
+html[data-interface-appearance='light'] .ty-settings-row-copy small,
+html[data-interface-appearance='light'] .ml-home-subtitle,
+html[data-interface-appearance='light'] .ml-card-row small,
+html[data-interface-appearance='light'] .ml-card-row > svg,
+html[data-interface-appearance='light'] .ml-directory-sort,
+html[data-interface-appearance='light'] .ml-section-more{color:#536d61!important}
+html[data-interface-appearance='light'] .ty-settings-switch:not([aria-checked='true']){background:#82958b}
+html[data-interface-appearance='light'] .ty-settings-switch[aria-checked='true']{background:#327856}
+html[data-interface-appearance='light'] .ty-rear-toggle{background:linear-gradient(120deg,#d2e6d7,#cce2d3);color:#246e55;border-color:#315d4326}
+html[data-interface-appearance='light'] .ml-filter,
+html[data-interface-appearance='light'] .ml-search-input,
+html[data-interface-appearance='light'] .ml-history-chip{background:#315d4308;border-color:#315d4326;color:#213e34}
+html[data-interface-appearance='light'] .ml-tabs button[aria-pressed='true'],
+html[data-interface-appearance='light'] .ml-home[data-page='library'] .ml-tabs button[aria-pressed='true']{background:#3278561c;color:#246e55}
+html[data-interface-appearance='light'] .ml-directory-sort option{color:#213e34;background:#f1f4ed}
+html[data-interface-appearance='light'] .ml-play-all{background:#9bd9bc;color:#04231b}
+html[data-interface-appearance='light'] .ml-mini-controls .ml-icon,
+html[data-interface-appearance='light'] .ml-footer nav button{color:#213e34!important}
+html[data-interface-appearance='light'] .ml-footer nav button[aria-current='page']{color:#246e55!important;background:#32785615!important;border-color:#315d4326!important}
+html[data-interface-appearance='light'] .mobile-library.ml-footer > .ml-mini,
+html[data-interface-appearance='light'] .mobile-library.ml-footer > nav:not([data-native-glass]),
+html[data-interface-appearance='light'] .mobile-library.ml-footer > [data-soft-glass]{background:linear-gradient(155deg,#ffffff70,transparent 55%,#ffffff20),#f1f4ed88;border-color:#315d4326;box-shadow:0 5px 16px #315d4314,inset 0 1px 0 #ffffff80}
+html[data-interface-appearance='light'] .ml-mini-progress-track{stroke:#315d4326}
+html[data-interface-appearance='light'] .ml-sheet,
+html[data-interface-appearance='light'] .sleep-sheet,
+html[data-interface-appearance='light'] .ty-sheet{background:#f1f4ed;border-color:#315d4326;color:#213e34}
+html[data-interface-appearance='light'] .sleep-start{background:#246e55;color:#fff}
+html[data-interface-appearance='light'] [data-folia-status-toast]{background:#f1f4ede8;color:#213e34;border-color:#315d4326}
+html[data-interface-appearance='light'] [data-folia-search-workspace]{background:linear-gradient(180deg,#e3ede2,#f4f5ee)!important;color:#213e34}
+html[data-interface-appearance='light'] .ty-sheet-scrim,
+html[data-interface-appearance='light'] .sleep-scrim,
+html[data-interface-appearance='light'] .ml-sheet-scrim{background:#20382b55}
+html[data-interface-appearance='light'] .ml-footer .tingyu-nav-icon{filter:brightness(.43) saturate(.8)}
+html[data-interface-appearance='light'] :is(.mobile-library,[data-folia-settings-overlay],[data-folia-search-workspace],[data-folia-keyboard-window],.sleep-scrim,.ty-sheet,.ml-sheet,[data-folia-status-toast],.ty-interface-setting) :is(.text-zinc-100,.text-zinc-200,.text-white){color:var(--text-primary)!important;}
+
+html[data-interface-appearance='light'] .ty-search {--ty-bg:#f4f5ee;--ty-panel:#315d4308;--ty-panel-strong:#315d4310;--ty-border:#315d4326;--ty-text:#213e34;--ty-muted:#536d61;--ty-accent:#246e55;--ty-accent-soft:#3278561c;}
+html[data-interface-appearance='light'] [data-mobile-settings='true']{color:#213e34;}
+html[data-interface-appearance='light'] .ml-mini-controls .ml-mini-toggle{color:#213e34;}
+html[data-interface-appearance='light'] .ml-home[data-page='home']{--ml-home-muted:#536d61;}
+
+/* Ordinary dark UI keeps the pre-existing Midnight tokens; AI/daylight stage tokens stay local to the stage. */
+html[data-interface-appearance='dark'] :is([data-folia-settings-overlay],[data-folia-search-workspace],[data-folia-keyboard-window],.sleep-scrim,.ty-sheet,[data-folia-status-toast],.ty-interface-setting){
+ --bg-color:#09090b;--text-primary:#f4f4f5;--text-secondary:#71717a;--text-accent:#f4f4f5;--text-on-accent:#18181b;
+}
+
+/* Artwork hero labels stay white; ordinary cards and small actions use semantic ink. */
+html[data-interface-appearance='light'] .mobile-library .ml-home-playlist-card{background:linear-gradient(125deg,#ffffff70,#dce8dd70);border-color:#315d4326;}
+html[data-interface-appearance='light'] .ml-home[data-page='home'] .ml-home-heading p,
+html[data-interface-appearance='light'] .mobile-library .ml-home-all,
+html[data-interface-appearance='light'] .mobile-library .ml-home-more{color:#536d61;border-color:#315d4326;}
+html[data-interface-appearance='light'] .ml-feature-dots span{background:#315d4330;}
+html[data-interface-appearance='light'] .ml-feature-dots span[data-active='true']{background:#536d61;}
+html[data-interface-appearance='light'] .ml-playlist-detail .ml-playlist-action{color:#213e34;background:#315d4310;}
+html[data-interface-appearance='light'] .ml-playlist-detail .ml-playlist-play{background:#9bd9bc;}
+html[data-interface-appearance='light'] .resource-progress progress{accent-color:#246e55;}
+/* Inline legacy search tokens must not override the explicit interface preference. */
+html[data-interface-appearance='light'] .ty-search{--ty-bg:#f4f5ee!important;--ty-text:#213e34!important;--ty-muted:#536d61!important;--ty-accent:#246e55!important;--ty-accent-soft:#3278561c!important;}
+
+html[data-interface-appearance='light'] [data-folia-themed-dialog]{background:#f1f4edf5!important;border-color:#315d4326!important;color:#213e34;}
+html[data-interface-appearance='light'] [data-folia-themed-overlay]{background:#20382b55;}
+html[data-interface-appearance='light'] .ty-lx-manager{--lx-ink:#213e34;--lx-muted:#536d61;--lx-accent:#246e55;--lx-card:#ffffff80;--lx-border:#315d4326;}

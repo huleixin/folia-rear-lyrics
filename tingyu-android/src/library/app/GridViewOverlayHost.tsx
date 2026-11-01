@@ -1,3 +1,4 @@
+import {useInterfaceLight} from '../../hooks/useInterfaceAppearance';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -182,7 +183,7 @@ const GridViewOverlayHost: React.FC<GridViewOverlayHostProps> = ({
     countRender('GridViewOverlayHost');
     const { t } = useTranslation();
     const collectionSnapshot = useCollectionNavigationStore(state => state.snapshot);
-    const isDaylight = useThemeSettingsStore(state => state.isDaylight);
+    const isDaylight = useInterfaceLight();
     const localLibraryCatalog = surfaceProps.localLibraryCatalog;
     const selectedCollection = getActiveGridViewCollection(collectionSnapshot);
     const suiteId = useLibrarySuiteStore(state => state.suite);

@@ -32,12 +32,14 @@ export function useNativeSettingsDocument(root:RefObject<HTMLElement|null>,enabl
         const resize=new ResizeObserver(schedule);resize.observe(element);
         element.addEventListener('input',schedule);element.addEventListener('change',schedule);
         window.document.addEventListener('tingyu-native-form-scroll',schedule);
+        window.document.addEventListener('tingyu-interface-appearance',schedule);
         const loaded=(event:Event)=>{const target=event.target;if(target instanceof Element&&!target.closest('[data-native-live]')&&(element.contains(target)||target.closest('[data-native-settings-portal]')))schedule()};
         window.addEventListener('resize',schedule);window.document.addEventListener('load',loaded,true);
         window.document.fonts.ready.then(()=>{if(!disposed)schedule()});capture();
         return()=>{disposed=true;clearTimeout(timer);mutation.disconnect();resize.disconnect();
             element.removeEventListener('input',schedule);element.removeEventListener('change',schedule);
             window.document.removeEventListener('tingyu-native-form-scroll',schedule);
+            window.document.removeEventListener('tingyu-interface-appearance',schedule);
             window.removeEventListener('resize',schedule);window.document.removeEventListener('load',loaded,true);
             delete window.document.documentElement.dataset.nativeSettingsDocument;
             delete element.dataset.nativeDocumentRoot;

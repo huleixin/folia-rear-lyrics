@@ -97,8 +97,8 @@ internal fun LazyListScope.pagedNativeRows(page:NativePage,section:NativePageSec
     Row(modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(if(search)8.dp else 6.dp)){
         section.items.forEach { item ->
             val shape=RoundedCornerShape(999.dp)
-            Box(Modifier.height(36.dp).clip(shape).background(if(item.selected)Color(0x2C6BC8A7)else if(search)Color(0x08FFFFFF)else Color.Transparent)
-                .then(if(search)Modifier.border(1.dp,if(item.selected)Color(0x709FE0C4)else Color.Transparent,shape)else Modifier)
+            Box(Modifier.height(36.dp).clip(shape).background(if(item.selected)interfaceColor(Color(0x2C6BC8A7),LightInterfaceColors.Selected)else if(search)interfaceColor(Color(0x08FFFFFF),LightInterfaceColors.Subtle)else Color.Transparent)
+                .then(if(search)Modifier.border(1.dp,if(item.selected)interfaceColor(Color(0x709FE0C4),LightInterfaceColors.SelectedBorder)else Color.Transparent,shape)else Modifier)
                 .clickable(enabled=!item.disabled){action(item.action,"",0.0)}.padding(horizontal=if(search)14.dp else 18.dp),contentAlignment=Alignment.Center){
                 Text(item.title,color=if(item.selected)PageAccent else PageMuted,fontSize=(if(search)13 else 14).sp)
             }

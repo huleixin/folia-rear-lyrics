@@ -1,7 +1,7 @@
+import {useInterfaceLight} from '../../../hooks/useInterfaceAppearance';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useStatusMessage } from '../../../stores/useStatusMessageStore';
-import { useThemeSettingsStore } from '../../../stores/useThemeSettingsStore';
 import { usePlaybackStore } from '../../../stores/usePlaybackStore';
 import { useDesktopSettingsStore } from '../../../stores/useDesktopSettingsStore';
 import { buildAppDialogsModel, type AppDialogsDeps } from './buildAppDialogsModel';
@@ -16,7 +16,7 @@ import { buildAppDialogsModel, type AppDialogsDeps } from './buildAppDialogsMode
  */
 export const useAppDialogsModel = (deps: AppDialogsDeps) => {
     const statusMsg = useStatusMessage();
-    const isDaylight = useThemeSettingsStore(state => state.isDaylight);
+    const isDaylight = useInterfaceLight();
     const currentSong = usePlaybackStore(state => state.currentSong);
     const wallpaperEntryConfirmDialog = useWallpaperEntryConfirmDialog(isDaylight);
 

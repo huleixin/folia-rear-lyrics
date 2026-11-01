@@ -83,9 +83,7 @@ final class MainSystemBars {
         // Capacitor's SystemBars automatic decor padding is disabled in capacitor.config.json.
         // Clear a previous layout pass before the single content listener reserves keyboard space.
         decor.setPadding(0, 0, 0, 0);
-        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, decor);
-        controller.setAppearanceLightStatusBars(false);
-        controller.setAppearanceLightNavigationBars(false);
+        io.github.huleixin.tingyu.chrome.InterfaceAppearance.applyBars(activity);
         applyVisibility(activity);
         View content = activity.findViewById(android.R.id.content);
         if (content != null) {

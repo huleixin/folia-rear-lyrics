@@ -1,3 +1,4 @@
+import {useInterfaceLight} from '../../hooks/useInterfaceAppearance';
 import React, { useEffect } from 'react';
 import type { Theme } from '../../types';
 import type { LibraryAccountController } from '../core/contracts/account';
@@ -25,7 +26,7 @@ type LibraryAccountHostProps = {
 const LibraryAccountHost: React.FC<LibraryAccountHostProps> = ({ account, layer, theme, isInteractive }) => {
     // 只在切换 suite 时变；同一个回退结果是同一个组件，在两个都回退到网格的 suite 之间切换不会让弹窗重新挂载。
     const suiteId = useLibrarySuiteStore(state => state.suite);
-    const isDaylight = useThemeSettingsStore(state => state.isDaylight);
+    const isDaylight = useInterfaceLight();
 
     // 宿主卸载：停掉扫码会话（keyed 取消）、待确认切换按取消结算。controller 本身属于 App，不在这里 dispose。
     useEffect(() => () => {
