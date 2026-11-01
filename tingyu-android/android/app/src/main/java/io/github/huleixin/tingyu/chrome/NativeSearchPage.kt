@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -92,9 +93,17 @@ import androidx.compose.ui.unit.sp
                         CircularProgressIndicator(Modifier.size(20.dp),color=PageAccent,strokeWidth=2.dp)
                     }
                 }
-                if(!hot&&!history&&section.more.isNotBlank()&&!section.busy)item(key="${section.id}:more"){
-                    Box(Modifier.fillMaxWidth().padding(top=12.dp,bottom=8.dp),contentAlignment=Alignment.Center){
-                        PagePill(section.moreLabel,{action(section.more,"",0.0)},height=48.dp,font=14,trailing="chevron-down")
+                if(!hot&&!history&&!section.busy&&(section.more.isNotBlank()||section.layout=="rows"&&section.text.isNotBlank()))item(key="${section.id}:more"){
+                    Row(Modifier.fillMaxWidth().heightIn(min=48.dp)
+                        .then(if(section.more.isNotBlank())Modifier.clickable(role=Role.Button){action(section.more,"",0.0)}else Modifier)
+                        .padding(horizontal=8.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)){
+                        if(section.layout=="rows"&&section.text.isNotBlank())Text(section.text,color=PageMuted,fontSize=12.sp,modifier=Modifier.weight(1f))
+                        else Spacer(Modifier.weight(1f))
+                        if(section.more.isNotBlank()){
+                            Text(section.moreLabel,color=PageAccent,fontSize=13.sp,fontWeight=FontWeight.Medium)
+                            if(section.text.isBlank())PageIcon(if(section.more=="allSongs"||section.more.startsWith("all:"))"chevron-right"else"chevron-down",PageAccent,Modifier.size(15.dp))
+                        }
+                        if(section.text.isBlank())Spacer(Modifier.weight(1f))
                     }
                 }
             }

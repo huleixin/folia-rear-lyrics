@@ -30,3 +30,31 @@ it('keeps the editable native screen mounted across first character, composition
         actions!.submit({text:'我们的歌'});expect(submit).toHaveBeenCalledWith('我们的歌');
     } finally {await act(()=>root.unmount())}
 });
+
+it.each(['artist','album','playlist'] as const)('retries only the failed %s category from overview, then opens its full result tab',async kind=>{
+    (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
+    const root=createRoot(document.createElement('div'));
+    const loadExplore=vi.fn(),selectTab=vi.fn();
+    const empty={items:[],status:'ready',hasMore:false,offset:0,error:null};
+    const props:any={root:{current:null},active:true,query:'茶汤',source:'qq',mode:'results',tab:'overview',
+        tabs:['overview','song','artist','album','playlist'],sources:['qq'],results:[],searching:false,loadingMore:false,error:null,hasMore:false,needsSetup:false,
+        artists:empty,albums:empty,playlists:empty,suggestions:{items:[],status:'idle'},historyMatches:[],
+        close:vi.fn(),change:vi.fn(),submit:vi.fn(),selectTab,switchSource:vi.fn(),sourceLabel:(source:string)=>source,
+        loadMore:vi.fn(),loadExplore,openHit:vi.fn(),play:vi.fn(),enqueue:vi.fn(),openArtist:vi.fn(),openAlbum:vi.fn()};
+    const field=kind==='artist'?'artists':kind==='album'?'albums':'playlists';
+    function Probe({value}:{value:any}){useNativeSearchPage(value);return null}
+    try{
+        await act(()=>root.render(React.createElement(Probe,{value:{...props,[field]:{...empty,status:'error',error:'QQ musicu error: 2001'}}})));
+        const failed=captured.sections.find(section=>section.id===kind)!;
+        expect(failed.text).toBe('search.categoryFailed');expect(failed.moreLabel).toBe('search.retry');
+        actions[failed.more!]({});expect(loadExplore).toHaveBeenCalledExactlyOnceWith(kind);expect(selectTab).not.toHaveBeenCalled();
+        const ready={...empty,items:[{id:'real-result',name:'真实结果',providerId:'qq'}],hasMore:true};
+        await act(()=>root.render(React.createElement(Probe,{value:{...props,[field]:ready}})));
+        const summary=captured.sections.find(section=>section.id===kind)!;
+        expect(summary.text).toBeUndefined();expect(summary.moreLabel).toBe('search.seeAll');
+        actions[summary.more!]({});expect(selectTab).toHaveBeenCalledExactlyOnceWith(kind);expect(loadExplore).toHaveBeenCalledTimes(1);
+        await act(()=>root.render(React.createElement(Probe,{value:{...props,tab:kind,[field]:ready}})));
+        const full=captured.sections.find(section=>section.id===kind)!;
+        expect(full.moreLabel).toBe('home.loadMore');actions[full.more!]({});expect(loadExplore).toHaveBeenLastCalledWith(kind);
+    }finally{await act(()=>root.unmount())}
+});

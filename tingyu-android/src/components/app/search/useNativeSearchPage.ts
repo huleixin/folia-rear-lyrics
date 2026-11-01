@@ -29,7 +29,7 @@ type Props = {
     suggestions: { items: SearchSuggestion[]; status: string }; historyMatches: string[];
     close():void; change(text:string,composing:boolean):void; submit(text?:string):void; selectTab(tab:Tab):void;
     switchSource(source:SearchSource):void; sourceLabel(source:SearchSource):string; loadMore():void;
-    loadExplore():void; openHit(kind:ExploreKind,hit:Hit):void;
+    loadExplore(kind:ExploreKind):void; openHit(kind:ExploreKind,hit:Hit):void;
     play(song:UnifiedSong):void; enqueue(song:UnifiedSong):void;
     openArtist(song:UnifiedSong,name:string,id?:MediaId,entityId?:string):void;
     openAlbum(song:UnifiedSong,name:string,id?:MediaId,entityId?:string):void;
@@ -59,7 +59,7 @@ export function useNativeSearchPage(p: Props) {
     },[menu,p.active]);
     const actions:PageActions={close:p.close,change:event=>p.change(event.text??'',event.value===1),submit:event=>p.submit(event.text),
         range:event=>setOffset(Math.max(0,Math.floor((event.value??0)/100)*100)),
-        retry:()=>p.submit(),more:p.loadMore,explore:p.loadExplore,
+        retry:()=>p.submit(),more:p.loadMore,
         clearHistory:()=>useSearchHistoryStore.getState().clear(p.source),discoveryRetry:()=>setRetry(v=>v+1),back:()=>setMenu(null),hotExpand:()=>setHotExpanded(value=>!value)};
     const sections:PageSection[]=[{id:'query',layout:'input',value:p.query,placeholder:t('search.placeholder'),action:'change',submit:'submit'},
         {id:'sources',layout:'chips',items:p.sources.map(source=>{
@@ -107,8 +107,8 @@ export function useNativeSearchPage(p: Props) {
                 const start=p.tab==='overview'?0:offset;
                 actions.allSongs=()=>p.selectTab('song');
                 sections.push({id:'songs',title:t('search.tabSong'),layout:'rows',total:songs.length,offset:start,request:'range',
-                    busy:p.searching||p.loadingMore,more:p.error?'retry':p.tab==='overview'&&p.results.length>3?'allSongs':p.hasMore?'more':undefined,
-                    moreLabel:t(p.error?'search.retry':p.tab==='overview'?'mobileLibrary.all':'home.loadMore'),
+                    busy:p.searching||p.loadingMore,more:p.error?'retry':p.tab==='overview'?(p.results.length>3||p.hasMore?'allSongs':undefined):p.hasMore?'more':undefined,
+                    moreLabel:t(p.error?'search.retry':p.tab==='overview'?'search.seeAll':'home.loadMore'),
                     items:songs.slice(start,start+100).map((song,index)=>{
                         const key=getPlaybackSongKey(song),meta=getProviderSongMetadata(song);
                         return{id:key,title:song.name,subtitle:[meta.artists.map(a=>a.name).join(', '),...meta.aliases.slice(0,1)].filter(Boolean).join(' · '),image:absolutePageImage(meta.coverUrl),
@@ -121,9 +121,12 @@ export function useNativeSearchPage(p: Props) {
                 const category=kind==='artist'?p.artists:kind==='album'?p.albums:p.playlists;
                 const all=category.items as Hit[],items=p.tab==='overview'?all.slice(0,3):all,start=p.tab==='overview'?0:offset;
                 actions[`all:${kind}`]=()=>p.selectTab(kind);
+                actions[`explore:${kind}`]=()=>p.loadExplore(kind);
                 sections.push({id:kind,title:t(`search.tab${kind[0].toUpperCase()}${kind.slice(1)}`),layout:'rows',total:items.length,offset:start,request:'range',
-                    busy:category.status==='loading',more:p.tab==='overview'&&all.length>3?`all:${kind}`:category.hasMore||category.error?'explore':undefined,
-                    moreLabel:t(category.error?'search.retry':p.tab==='overview'?'mobileLibrary.all':'home.loadMore'),
+                    busy:category.status==='loading',
+                    text:category.error?t('search.categoryFailed',{defaultValue:'这一类暂时加载失败。'}):category.status==='ready'&&!all.length?t('home.noResults'):undefined,
+                    more:category.error?`explore:${kind}`:p.tab==='overview'?(all.length>3||category.hasMore?`all:${kind}`:undefined):category.hasMore?`explore:${kind}`:undefined,
+                    moreLabel:t(category.error?'search.retry':p.tab==='overview'?'search.seeAll':'home.loadMore'),
                     items:items.slice(start,start+100).map((hit,index):PageItem=>({id:String(hit.id),title:hit.name,image:absolutePageImage(hit.coverUrl),
                         subtitle:'artistName'in hit?hit.artistName:'creatorName'in hit?hit.creatorName:'description'in hit?hit.description:undefined,
                         action:`hit:${kind}:${start+index}:${hit.id}`}))});

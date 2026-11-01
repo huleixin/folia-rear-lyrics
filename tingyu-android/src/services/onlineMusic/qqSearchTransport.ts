@@ -28,16 +28,25 @@ const configuredBase = () => (typeof import.meta !== 'undefined'
     ? String((import.meta as any).env?.VITE_QQ_API_BASE || '')
     : '');
 
+// HTTP success and the outer code do not imply a successful category request.
+// QQ can return {code:0,request:{code:2001,...}}; retain the failing business code.
+const musicuData = (body: any): any => {
+    if (body?.__foliaBridgeError) throw new Error(String(body.message || body.__foliaBridgeError));
+    for (const code of [body?.code, body?.request?.code, body?.request?.data?.code]) {
+        if (code !== undefined && Number(code) !== 0) throw new Error(`QQ musicu error: ${code}`);
+    }
+    if (Number(body?.code) !== 0 || Number(body?.request?.code) !== 0 || !body?.request?.data) {
+        throw new Error('QQ typed search returned an invalid result model');
+    }
+    return body.request.data;
+};
+
 /** 与单曲搜索一致的通道：网页/安卓桥走 qq_raw musicu，Electron 走直连。 */
 const requestMusicu = async (payload: unknown): Promise<any> => {
     const base = configuredBase();
     if (!isElectron && (isFoliaExtensionBridgeConfigured(base) || !base) && await isFoliaExtensionBridgeAvailable()) {
         const body = await requestFoliaExtension<any>({ provider: 'qq_raw', operation: 'musicu', method: 'POST', body: payload });
-        if (body?.__foliaBridgeError) throw new Error(String(body.message || body.__foliaBridgeError));
-        if (Number(body?.code) !== 0 || Number(body?.request?.code) !== 0) {
-            throw new Error(`QQ musicu error: ${body?.code ?? body?.request?.code}`);
-        }
-        return body.request?.data ?? {};
+        return musicuData(body);
     }
     const target = `${MUSICU_URL}?format=json`;
     const url = isElectron ? target : `/api/lyric-proxy?url=${encodeURIComponent(target)}`;
@@ -50,10 +59,7 @@ const requestMusicu = async (payload: unknown): Promise<any> => {
     });
     if (!response.ok) throw new Error(`QQ musicu request failed: ${response.status}`);
     const body = await response.json();
-    if (Number(body?.code) !== 0 || Number(body?.request?.code) !== 0) {
-        throw new Error(`QQ musicu error: ${body?.code ?? body?.request?.code}`);
-    }
-    return body.request?.data ?? {};
+    return musicuData(body);
 };
 
 export interface QqTypedPage {

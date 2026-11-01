@@ -218,7 +218,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
         mode,tab,tabs:visibleTabs,sources,results,searching:isSearching,loadingMore:isLoadingMore,error:searchError,
         hasMore,needsSetup:sourceNeedsSetup,artists,albums,playlists,suggestions:suggestionState,historyMatches,
         close:onClose,change:(text,composing)=>{setComposing(composing);useSearchExploreStore.getState().reset();setSearchQuery(text);setMode(text.trim()?'suggest':'landing')},
-        submit,selectTab:setTab,switchSource,sourceLabel:getSourceLabel,loadMore:onLoadMore,loadExplore:loadMoreExplore,
+        submit,selectTab:setTab,switchSource,sourceLabel:getSourceLabel,loadMore:onLoadMore,loadExplore:kind=>{void useSearchExploreStore.getState().loadMore(kind,deps)},
         openHit,play:onPlayTrack,enqueue:onAddTrackToQueue,openArtist:onOpenArtist,openAlbum:onOpenAlbum});
 
     return (
