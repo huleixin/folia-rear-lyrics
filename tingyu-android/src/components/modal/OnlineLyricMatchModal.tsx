@@ -18,7 +18,7 @@ import { LyricPreviewPanel } from './LyricPreviewPanel';
 import { getProviderSongMetadata } from '../../services/onlineMusic/songMetadata';
 import { getSizedCoverUrl } from '../../utils/coverUrl';
 import { hasRenderableLyrics } from '../../utils/lyrics/validity';
-import { markLyricUserChoice } from '../../platform/foliaColorOsLyrics';
+import { commitUserLyricChoice } from '../../platform/foliaColorOsLyrics';
 import { getPlaybackSongKey } from '../../utils/appPlaybackGuards';
 
 // src/components/modal/OnlineLyricMatchModal.tsx
@@ -157,7 +157,7 @@ const OnlineLyricMatchModal: React.FC<OnlineLyricMatchModalProps> = ({ song, onC
                 await saveOnlineLyricsState(song, nextState);
                 // 用户手动选定：统一歌词仓库升级为 userChoice 层级，任何自动链路不得再覆盖。
                 // 歌词随后由取词链经 setLyrics 走舞台发布，三端同步为这一版。
-                void markLyricUserChoice(getPlaybackSongKey(song));
+                await commitUserLyricChoice(song, processed.lyrics);
                 onMatch();
             }
         } catch (error) {

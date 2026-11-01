@@ -1,3 +1,5 @@
+import { buildColorOsLyricInfo } from '../utils/lyrics/colorOsLyricInfo';
+import type { SongResult, LyricData } from '../types';
 import { registerPlugin } from '@capacitor/core';
 
 // src/platform/foliaColorOsLyrics.ts
@@ -148,4 +150,12 @@ export const readColorOsLyricState = async (songKey?: string | null): Promise<st
     } catch {
         return 'unavailable';
     }
+};
+
+export const commitUserLyricChoice=async(song:SongResult,lyrics:LyricData|null):Promise<boolean>=>{
+    if(!lyrics)return false;
+    const built=buildColorOsLyricInfo({songId:String(song.id),title:song.name,durationMs:song.durationMs,lines:lyrics.lines,isWordByWord:lyrics.isWordByWord});
+    if(!built)return false;
+    const {getPlaybackSongKey}=await import('../utils/appPlaybackGuards');
+    return publishColorOsLyricInfo(built.lyricInfo,built.hasTranslation,getPlaybackSongKey(song),{userChoice:true,hasWordByWord:lyrics.isWordByWord,source:'stage-override',renderModel:JSON.stringify(lyrics)});
 };

@@ -29,7 +29,7 @@ package io.github.huleixin.tingyu.playback;
  */
 public final class UnifiedLyricPolicy {
 
-    public static final int TIER_NATIVE = 1;
+    public static final int TIER_NATIVE = 0;
     public static final int TIER_STAGE = 2;
     public static final int TIER_USER = 3;
 
@@ -39,7 +39,7 @@ public final class UnifiedLyricPolicy {
     /** 层级判定：userChoice 优先，其次看确认来源（stage / native / 其他一律按 native）。 */
     public static int tierOf(boolean userChoice, String confirmedBy) {
         if (userChoice) return TIER_USER;
-        return "stage".equals(confirmedBy) ? TIER_STAGE : TIER_NATIVE;
+        return "stage".equals(confirmedBy) ? TIER_STAGE : "platform".equals(confirmedBy)? 1 : TIER_NATIVE;
     }
 
     public static final class Decision {
@@ -93,6 +93,7 @@ public final class UnifiedLyricPolicy {
         if (oldUserChoice == null) {
             return new Decision(true, "first-record");
         }
+        if(Boolean.TRUE.equals(oldUserChoice)&&!newUserChoice)return new Decision(false,"user-choice-protected");
         boolean oldPositive = !"none".equals(oldStatus);
         boolean newPositive = !"none".equals(newStatus);
         if (!oldPositive && newPositive) {

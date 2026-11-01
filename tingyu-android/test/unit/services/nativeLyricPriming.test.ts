@@ -66,7 +66,7 @@ const bodyFor = (id: number) => {
 describe('native lyric priming', () => {
     beforeEach(async () => {
         vi.resetModules();
-        bridge.publish.mockClear();
+        bridge.publish.mockClear();bridge.clear.mockClear();
         prefetched.clear();
         persisted.clear();
         saved.length = 0;
@@ -147,7 +147,7 @@ describe('native lyric priming', () => {
 
     it('reports a confirmed miss instead of publishing an empty timeline', async () => {
         const priming = await import('@/services/nativeLyricPriming');
-        omni.getLyrics.mockResolvedValue({ lyrics: null });
+        omni.getLyrics.mockResolvedValue({ lyrics: null, isPureMusic:true });
 
         const published = await priming.ensureNativeLyric(song(6), 'hires', { fetch: true });
 
@@ -160,5 +160,11 @@ describe('native lyric priming', () => {
         // 同一个答案不再问第二遍。
         await priming.ensureNativeLyric(song(6), 'hires', { fetch: true });
         expect(omni.getLyrics).toHaveBeenCalledTimes(1);
+    });
+    it('does not turn an unresolved empty response into a no-lyrics conclusion',async()=>{
+        const priming=await import('@/services/nativeLyricPriming');omni.getLyrics.mockResolvedValue({lyrics:null,isPureMusic:false});
+        await priming.ensureNativeLyric(song(7),'hires',{fetch:true});
+        expect(bridge.clear).not.toHaveBeenCalled();
+        await priming.ensureNativeLyric(song(7),'hires',{fetch:true});expect(omni.getLyrics).toHaveBeenCalledTimes(2);
     });
 });

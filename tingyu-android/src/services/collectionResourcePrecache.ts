@@ -50,7 +50,7 @@ export const precacheCollectionResources = async (
             if ((own !== generation || !isResourceCollectionOwner(token))) return;
             const items = page.items;
             if (!items.length) {
-                await native.resourceSnapshot({playlistId:token,tracks:[],offset,finish:true,currentKey,catalogComplete:true});
+                await native.resourceSnapshot({playlistId:token,tracks:[],offset,finish:true,currentKey,catalogComplete:!page.hasMore});
                 break;
             }
             items.forEach(song => keys.add(getPlaybackSongKey(song)));
@@ -89,7 +89,7 @@ export const resumeIncompleteCollectionResources = async (currentKey: string): P
             if(!policy.networkAllowed)break;
             const page=await omni.getCollectionTracks(saved.descriptor,{limit:50,offset});
             if(own!==generation)break;
-            if(!page.items.length){await native.resourceSnapshot({playlistId:token,tracks:[],offset,finish:true,currentKey,catalogComplete:true});break;}
+            if(!page.items.length){await native.resourceSnapshot({playlistId:token,tracks:[],offset,finish:true,currentKey,catalogComplete:!page.hasMore});break;}
             page.items.forEach(song=>keys.add(getPlaybackSongKey(song)));
             await native.resourceSnapshot({playlistId:token,offset,tracks:page.items.map(toNativeResourcePayload).filter(Boolean),finish:true,currentKey,total:page.total??saved.descriptor.trackCount,catalogComplete:!page.hasMore});
             const next=page.nextOffset??offset+page.items.length;

@@ -207,7 +207,7 @@ export async function loadOnlineSongLyrics(
         || Boolean(onlineLyricsState?.hasOnlineOverride);
     const sharedLyrics = sharedRecord?.lyrics;
     if (!isCurrent()) return;
-    if (sharedLyrics && !hasAuthoritativeLyricsSelection && (!initialSettingsLyricSettings.autoUseBestLyric || sharedRecord?.userChoice)) {
+    if (sharedLyrics && !hasAuthoritativeLyricsSelection && (!initialSettingsLyricSettings.autoUseBestLyric || sharedRecord?.userChoice || sharedRecord?.confirmedBy==='stage')) {
         noteLyricsDiagnostic('cache-hit', song, { source: 'unified-native' });
         onPureMusicChange?.(false);
         onLyrics(sharedLyrics);
@@ -243,7 +243,7 @@ export async function loadOnlineSongLyrics(
         const effectiveLyrics = preferredPrefetchedLyrics ?? prefetched.lyrics;
 
   const settingsLyricSettings = useLyricSettingsStore.getState();
-        const shouldAutoMatch = settingsLyricSettings.autoUseBestLyric && !onlineLyricsState?.hasOnlineOverride;
+        const shouldAutoMatch = settingsLyricSettings.autoUseBestLyric && effectiveLyrics?.resourceCacheTier!=='stage' && !onlineLyricsState?.hasOnlineOverride;
 
         if (!shouldAutoMatch) {
             const effectiveText = effectiveLyrics?.lines.map(line => line.fullText).join('\n') ?? '';
@@ -297,7 +297,7 @@ export async function loadOnlineSongLyrics(
     let finalState = onlineLyricsState;
 
   const settingsLyricSettings = useLyricSettingsStore.getState();
-    const shouldAutoMatch = settingsLyricSettings.autoUseBestLyric && !onlineLyricsState?.hasOnlineOverride;
+    const shouldAutoMatch = settingsLyricSettings.autoUseBestLyric && parsedLyrics?.resourceCacheTier!=='stage' && !onlineLyricsState?.hasOnlineOverride;
 
     if (shouldAutoMatch) {
         // The lyrics in hand are already displayable, so hand them over and report done BEFORE the

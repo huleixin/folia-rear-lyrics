@@ -15,7 +15,7 @@ public class PlaylistResourceCacheDeviceTest {
     @Test public void completeManifestsArePersistedInPagesWithoutTheAudioQueueWindow() throws Exception {
         PlaylistResourceCache cache=PlaylistResourceCache.get(InstrumentationRegistry.getInstrumentation().getTargetContext());
         cache.configure(false,false);
-        for(int count:new int[]{30,100,200,1001}) {
+        for(int count:new int[]{30,100,396,500,1001}) {
             String token="test-"+count;
             cache.begin(token);
             for(int offset=0;offset<count;offset+=50) {
@@ -91,5 +91,21 @@ public class PlaylistResourceCacheDeviceTest {
             assertTrue(c.moveToNext());assertEquals(1,c.getInt(0));assertEquals(10,c.getInt(1));
             assertTrue(c.moveToNext());assertEquals(2,c.getInt(0));assertEquals(19,c.getInt(1));
         }
+    }
+    @Test public void seventyTwoRowsDoNotLoseRemainingAndMissingFilesAreRequeued() throws Exception {
+        PlaylistResourceCache cache=PlaylistResourceCache.get(InstrumentationRegistry.getInstrumentation().getTargetContext());
+        cache.configure(false,false);cache.begin("resume-396");
+        for(int offset=0;offset<396;offset+=50){JSONArray page=new JSONArray();
+            for(int i=offset;i<Math.min(396,offset+50);i++)page.put(new JSONObject().put("songKey","resume:"+i).put("title","T"+i));
+            cache.append("resume-396",page,offset,true);
+        }
+        cache.catalogComplete("resume-396",true);
+        cache.getWritableDatabase().execSQL("UPDATE tasks SET state=1 WHERE ordinal<72");
+        // A new reader sees the persisted remainder; marks alone aren't proof of actual files.
+        try(android.database.Cursor c=cache.getReadableDatabase().rawQuery("SELECT count(*) FROM tasks WHERE state=0",null)){
+            assertTrue(c.moveToFirst());assertEquals(324,c.getInt(0));
+        }
+        cache.resume(false);assertEquals(396,cache.status().getInt("discovered"));
+        assertEquals(0,cache.status().getInt("completed")); // absent files compensated, not fake 72
     }
 }

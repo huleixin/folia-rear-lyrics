@@ -168,10 +168,10 @@ public final class UnifiedLyricsStore {
                 .put("sourceId", sourceId == null ? "" : sourceId)
                 .put("tier", UnifiedLyricPolicy.tierOf(userChoice, confirmedBy))
                 .put("hash", hash));
-        if (!decision.accept) return false;
+        if (!decision.accept && !(old!=null&&!old.offsetKnown&&"identical-hash".equals(decision.reason))) return false;
         final Record next = new Record(songKey, status, json, hasTranslation, hasWordByWord,
                 sourceId == null ? "" : sourceId, hash,
-                confirmedBy == null ? "native" : confirmedBy, userChoice,
+                ("platform-cache".equals(sourceId)&&!userChoice)?"platform":confirmedBy == null ? "native" : confirmedBy, userChoice,
                 variantRule == null ? "off" : variantRule,
                 (old == null ? 0 : old.revision) + 1, System.currentTimeMillis());
         synchronized (this) {
@@ -235,8 +235,8 @@ public final class UnifiedLyricsStore {
                     record.optBoolean("hasTranslation", false),
                     record.optBoolean("hasWordByWord", false),
                     record.optString("sourceId", ""),
-                    record.optString("lyricsHash", ""),
-                    record.optString("confirmedBy", "native"),
+                    record.has("json")?shortHash(record.optString("json")):"",
+                    ("platform-cache".equals(record.optString("sourceId"))&&!record.optBoolean("userChoice"))?"platform":record.optString("confirmedBy", "native"),
                     record.optBoolean("userChoice", false),
                     record.optString("variantRule", "off"),
                     record.optInt("revision", 0),
@@ -278,7 +278,7 @@ public final class UnifiedLyricsStore {
         File temp = new File(target.getParentFile(), target.getName() + ".tmp");
         try (FileOutputStream stream = new FileOutputStream(temp)) {
             stream.write(recordJson.toString().getBytes(StandardCharsets.UTF_8));
-            stream.flush();
+            stream.flush();stream.getFD().sync();
         } catch (Exception error) {
             //noinspection ResultOfMethodCallIgnored
             temp.delete();
@@ -311,7 +311,7 @@ public final class UnifiedLyricsStore {
     public synchronized void attachRenderModel(String songKey, String payload, String model) {
         if (model == null || model.length() > 2_000_000) return;
         Record record = get(songKey);
-        if (record == null || !record.offsetKnown || !record.hasTimeline() || !record.json.equals(payload)) return;
+        if (record == null || !record.offsetKnown || !record.hasTimeline() || !shortHash(record.json).equals(shortHash(payload))) return;
         record.renderModel = model;
         writer.execute(() -> writeDisk(songKey, record));
     }
@@ -320,6 +320,7 @@ public final class UnifiedLyricsStore {
         for (SongInfo song : songs) next.add(fileFor(song.songKey).getName());
         protectedNames = next;
     }
+    public synchronized boolean hasDiskRecord(String key){return fileFor(key).isFile();}
     public int diskRecordCount() { String[] files=dir.list((d,n)->n.endsWith(".json")); return files==null?0:files.length; }
     public long diskBytes() { return ResourceDiskBudget.bytes(dir); }
     public void clearDownloadable() {
@@ -341,7 +342,12 @@ public final class UnifiedLyricsStore {
     }
 
     static String shortHash(String json) {
-        return NativeLyricsRepository.sha1(json).substring(0, 16);
+        try{
+            org.json.JSONObject raw=new org.json.JSONObject(json),stable=new org.json.JSONObject();
+            java.util.List<String> keys=new java.util.ArrayList<>();raw.keys().forEachRemaining(keys::add);java.util.Collections.sort(keys);
+            for(String key:keys)if(!key.equals("sessionGeneration")&&!key.equals("capturedAtMs"))stable.put(key,raw.get(key));
+            return NativeLyricsRepository.sha1(stable.toString()).substring(0,16);
+        }catch(Exception error){return NativeLyricsRepository.sha1(json).substring(0,16);}
     }
 
     private static byte[] readAllBytes(File file) throws java.io.IOException {

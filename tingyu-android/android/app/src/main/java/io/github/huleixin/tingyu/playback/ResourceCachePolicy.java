@@ -10,6 +10,9 @@ public final class ResourceCachePolicy {
     public static final long LYRICS_BYTES = 32L * 1024 * 1024;
     public static final int PAGE_SIZE = 50;
     public static final int AHEAD = 10;
+    public static final int BATCH_SIZE=24;
+    /** Successful batches use ordinary scheduling; due controls the next eligible time. */
+    public static long continuationDelay(long due,long now){return Math.max(1000,due-now);}
     private ResourceCachePolicy() { }
     public static String artworkIdentity(String url) {
         try {

@@ -283,7 +283,7 @@ const prefetchSong = async (
         try {
             // Check IndexedDB cache first
             const cachedLyrics = await getSongCacheWithLegacyMigration<LyricData>('lyric', song, migrateLyricDataRenderHints);
-            if (cachedLyrics) {
+            if (cachedLyrics && (cachedLyrics.resourceCacheTier==='stage'||!currentSettingsLyricSettings.autoUseBestLyric)) {
                 console.log(`[Prefetch] Lyrics in IndexedDB for: ${song.name}`);
                 data.lyrics = cachedLyrics;
                 // The same stamp the fetched path leaves below. Without it a track whose lyrics came
@@ -320,7 +320,7 @@ const prefetchSong = async (
   const settingsLyricSettings = useLyricSettingsStore.getState();
                 const autoUseBest = settingsLyricSettings.autoUseBestLyric;
                 const preferredSource = settingsLyricSettings.preferredAlternativeLyricSource;
-                const shouldAutoMatch = autoUseBest && !onlineLyricsState?.hasOnlineOverride;
+                const shouldAutoMatch = autoUseBest && parsedLyrics?.resourceCacheTier!=='stage' && !onlineLyricsState?.hasOnlineOverride;
 
                 if (shouldAutoMatch) {
                     try {

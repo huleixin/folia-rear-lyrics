@@ -1,5 +1,5 @@
 import { getPlaybackSongKey as resourceSongKey } from '../../utils/appPlaybackGuards';
-import { readSharedLyrics, cacheSharedLyrics } from '../sharedSongResources';
+import { readSharedLyricRecord } from '../sharedSongResources';
 import { captureAudioSourceBinding } from './audioSourceBinding';
 import { useLxSourceStore } from '../../stores/useLxSourceStore';
 import type { SongResult, UnifiedSong } from '../../types';
@@ -673,8 +673,8 @@ export const omni = {
     },
 
     async getLyrics(song: SongResult, context?: { userId?: MediaId | null; refreshResourceCache?: boolean }): Promise<OmniLyricsResult> {
-        const shared = context?.refreshResourceCache ? null : await readSharedLyrics(song);
-        if (shared) return { lyrics: shared, isPureMusic: false };
+        const record=context?.refreshResourceCache?null:await readSharedLyricRecord(song);
+        if(record&&(record.userChoice||record.confirmedBy==='stage'))return {lyrics:record.lyrics,isPureMusic:false};
         const key = resourceSongKey(song);
         const existing = resourceLyricFlights.get(key);
         if (existing) return existing;
@@ -689,7 +689,10 @@ export const omni = {
         })).result;
         // Extension layers (Folium omni hooks) may rewrite the lyrics after the provider answered.
         const result = await applyOmniLyricsHook(song, resolved);
-        if (result.lyrics) await cacheSharedLyrics(song, result.lyrics);
+        {
+            const { resolveAccurateLyrics }=await import('../resolveAccurateLyrics');
+            result.lyrics=await resolveAccurateLyrics(song,result);
+        }
         return result;
         })();
         resourceLyricFlights.set(key, task);

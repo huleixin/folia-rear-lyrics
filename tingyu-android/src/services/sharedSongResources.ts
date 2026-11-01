@@ -8,7 +8,7 @@ import type { LyricData, SongResult } from '../types';
 // src/services/sharedSongResources.ts
 interface NativeResources {
     readSongResources(o: { songKey: string }): Promise<{ songKey: string; lyricInfo?: string; version?: string; renderModel?: string; hasWordByWord?: boolean; confirmedBy?: string; userChoice?: boolean }>;
-    cacheSongLyrics(o: { songKey: string; lyricInfo: string; hasTranslation: boolean; hasWordByWord: boolean; source: string; renderModel: string }): Promise<void>;
+    cacheSongLyrics(o: { songKey: string; lyricInfo: string; hasTranslation: boolean; hasWordByWord: boolean; source: string; userChoice?:boolean; renderModel: string }): Promise<void>;
 }
 /** Decode the existing authoritative raw lanes; runtime positions and user offsets are never cached. */
 export const decodeSharedLyricInfo = (json: string): LyricData | null => {
@@ -29,19 +29,20 @@ export const readSharedLyricRecord = async (song: SongResult): Promise<{ lyrics:
         const result = await getTingyuPlayback<NativeResources>().readSongResources({ songKey: key });
         if (result.songKey !== key || !result.lyricInfo) return null;
         if (result.renderModel) {
-            const model = JSON.parse(result.renderModel) as LyricData;
-            if (Array.isArray(model.lines) && model.lines.length) return { lyrics: { ...model, resourceCacheTier: result.confirmedBy === 'native' && !result.userChoice ? 'native' : 'stage' }, confirmedBy: result.confirmedBy, userChoice: result.userChoice };
+            let model:LyricData|null=null;try{model=JSON.parse(result.renderModel) as LyricData;}catch{}
+            if(model)
+            if (Array.isArray(model.lines) && model.lines.length) return { lyrics: { ...model, resourceCacheTier: result.confirmedBy === 'platform' ? 'platform' : result.confirmedBy === 'native' && !result.userChoice ? 'native' : 'stage' }, confirmedBy: result.confirmedBy, userChoice: result.userChoice };
         }
         // Older stage records did not retain their lossless display model. Let the existing UI
         // cache/provider migrate it, rather than degrading TTML/partial-word styling through LRC.
-        if (result.confirmedBy === 'stage') return null;
+        if (result.confirmedBy === 'stage' && result.hasWordByWord && !JSON.parse(result.lyricInfo).rawLyric) return null;
         if (result.hasWordByWord && !JSON.parse(result.lyricInfo).rawLyric) return null;
         const lyrics = decodeSharedLyricInfo(result.lyricInfo);
-        return lyrics ? { lyrics: { ...lyrics, resourceCacheTier: result.confirmedBy === 'native' && !result.userChoice ? 'native' : 'stage' }, confirmedBy: result.confirmedBy, userChoice: result.userChoice } : null;
+        return lyrics ? { lyrics: { ...lyrics, resourceCacheTier: result.confirmedBy === 'platform' ? 'platform' : result.confirmedBy === 'native' && !result.userChoice ? 'native' : 'stage' }, confirmedBy: result.confirmedBy, userChoice: result.userChoice } : null;
     } catch { return null; }
 };
 export const readSharedLyrics = async (song: SongResult): Promise<LyricData | null> => (await readSharedLyricRecord(song))?.lyrics ?? null;
-export const cacheSharedLyrics = async (song: SongResult, lyrics: LyricData): Promise<void> => {
+export const cacheSharedLyrics = async (song: SongResult, lyrics: LyricData, source = 'platform-cache', userChoice=false): Promise<void> => {
     if (!isCapacitorAndroid() || !lyrics.lines.length || lyrics.resourceCacheTier === 'native') return;
     const songKey = getPlaybackSongKey(song);
     if (!songKey) return;
@@ -53,7 +54,7 @@ export const cacheSharedLyrics = async (song: SongResult, lyrics: LyricData): Pr
     try {
         await getTingyuPlayback<NativeResources>().cacheSongLyrics({
             songKey, lyricInfo: built.lyricInfo, hasTranslation: built.hasTranslation,
-            hasWordByWord: lyrics.isWordByWord === true, source: 'platform-cache', renderModel: JSON.stringify(lyrics),
+            hasWordByWord: lyrics.isWordByWord === true, source, userChoice, renderModel: JSON.stringify(lyrics),
         });
     } catch { /* Disk/cache failure cannot interrupt playback. */ }
 };

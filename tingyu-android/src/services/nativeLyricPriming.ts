@@ -60,6 +60,7 @@ const wanted: string[] = [];
 const knownEmpty: string[] = [];
 const inFlight = new Map<string, Promise<boolean>>();
 let activeFetches = 0;
+let lyricEpoch=0;
 
 const markPrimed = (key: string): void => {
     if (primed.includes(key)) return;
@@ -77,11 +78,12 @@ const markWanted = (key: string): void => {
 
 /** Playback ended / another session took over: allow rebuilding later. */
 export const resetNativeLyricPriming = (): void => {
+    lyricEpoch++;
     primed.length = 0;
     wanted.length = 0;
     knownEmpty.length = 0;
     inFlight.clear();
-    activeFetches = 0;
+    // Existing requests still own their concurrency slots until finally.
 };
 
 /** 只读本地：预取内存（最快、也是预取唯一落点）→ IndexedDB（真正被播放过的那一首）。 */
@@ -143,7 +145,7 @@ const publishTimeline = async (song: SongResult, lyrics: LyricData, key: string)
     // (renderer busy, service restarting) permanently retired that song: it was never primed
     // again in this session, so a background auto-advance into it published no timeline at
     // all even though the lyrics were sitting in the cache.
-    const published = await publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, key, { renderModel: JSON.stringify(lyrics) });
+    const published = await publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, key, { renderModel: JSON.stringify(lyrics), source:lyrics.resourceCacheTier==='stage'?'stage':lyrics.resourceCacheTier==='native'?'native-cache-display':'platform-cache-display' });
     if (published) markPrimed(key);
     return published;
 };
@@ -167,9 +169,11 @@ export const ensureNativeLyric = (
     if (running) return running;
 
     const task = (async (): Promise<boolean> => {
-        const startedAt = Date.now();
-        if (await readSharedLyricRecord(song)) return true;
+        const startedAt = Date.now(),epoch=lyricEpoch;
+        const shared=await readSharedLyricRecord(song);
+        if(shared&&(shared.userChoice||shared.confirmedBy==='stage'||!options.fetch))return true;
         const cached = await readCachedLyrics(song, quality);
+        if(epoch!==lyricEpoch)return false;
         if (cached) {
             const published = await publishTimeline(song, cached.lyrics, key);
             noteNativeAnswer(song, cached.source, published, cached.lyrics.lines.length, Date.now() - startedAt);
@@ -186,8 +190,10 @@ export const ensureNativeLyric = (
         activeFetches++;
         try {
             const result = await omni.getLyrics(song);
+            if(epoch!==lyricEpoch)return false;
             const fetched = result?.lyrics;
             if (!fetched?.lines?.length) {
+                if(!result.isPureMusic){noteNativeAnswer(song,'unresolved-empty',false,0,Date.now()-startedAt);return false;}
                 // 服务端明确回答「没有词」：宣告给原生，让它的重问到此为止，也让消费端知道
                 // 这不是「还没到」。异常路径不走这里 —— 断网不等于没词。
                 knownEmpty.push(key);
@@ -211,7 +217,7 @@ export const ensureNativeLyric = (
     });
 
     inFlight.set(key, task);
-    void task.finally(() => { inFlight.delete(key); });
+    void task.finally(() => { if(inFlight.get(key)===task)inFlight.delete(key); });
     return task;
 };
 

@@ -146,7 +146,7 @@ export const useColorOsLyricFeed = ({
         if (!hasLines) {
             // 还在加载：什么都不声明。原生按 songKey 查自己的缓存，查不到就不写 lyricInfo，
             // 消费端看到的是「等待补充」而不是「没有歌词」。
-            if (lyricsLoading || !usePlaybackStore.getState().audioSrc) return;
+            if (lyricsLoading || !usePlaybackStore.getState().audioSrc || !song?.isPureMusic) return;
             // 加载完成且确实没词：只撤掉这一首。
             publishedKeyRef.current = null;
             void clearColorOsLyricInfo(songKey);
@@ -176,7 +176,7 @@ export const useColorOsLyricFeed = ({
         void publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, songKey, {
             hasWordByWord: lyrics!.isWordByWord === true,
             renderModel: JSON.stringify(lyrics),
-            source: lyrics?.resourceCacheTier === 'native' ? 'native-cache-display' : 'stage',
+            source: lyrics?.resourceCacheTier === 'platform' ? 'platform-cache-display' : lyrics?.resourceCacheTier === 'native' ? 'native-cache-display' : 'stage',
         });
     }, [active, songKey, song, lyrics, hasLines, lyricsLoading, duration, timelineOffsetMs]);
 
@@ -207,7 +207,7 @@ export const useColorOsLyricFeed = ({
                 void publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, songKey, {
                     hasWordByWord: lyrics!.isWordByWord === true,
             renderModel: JSON.stringify(lyrics),
-                    source: lyrics?.resourceCacheTier === 'native' ? 'native-cache-display' : 'stage',
+                    source: lyrics?.resourceCacheTier === 'platform' ? 'platform-cache-display' : lyrics?.resourceCacheTier === 'native' ? 'native-cache-display' : 'stage',
                 });
             }
         };
@@ -232,7 +232,7 @@ export const useColorOsLyricFeed = ({
                 void publishColorOsLyricInfo(built.lyricInfo, built.hasTranslation, songKey, {
                     hasWordByWord: lyrics!.isWordByWord === true,
             renderModel: JSON.stringify(lyrics),
-                    source: lyrics?.resourceCacheTier === 'native' ? 'native-cache-display' : 'stage',
+                    source: lyrics?.resourceCacheTier === 'platform' ? 'platform-cache-display' : lyrics?.resourceCacheTier === 'native' ? 'native-cache-display' : 'stage',
                 });
                 return;
             }

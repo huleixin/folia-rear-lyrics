@@ -59,7 +59,7 @@ it('never claims a track has no lyrics while they are still loading, and clears 
 
         // Next track settled with no lyrics: only that track is cleared - never the whole channel,
         // which would also drop the timeline already primed for the track after it.
-        await act(async()=>{root.render(h(Probe,{lines:null,current:second,loading:false}));});
+        await act(async()=>{root.render(h(Probe,{lines:null,current:{...second,isPureMusic:true},loading:false}));});
         expect(bridge.clear).toHaveBeenCalledWith(getPlaybackSongKey(second));
         expect(bridge.clear).not.toHaveBeenCalledWith();
     }finally{await act(()=>root.unmount());usePlaybackStore.setState(old);}

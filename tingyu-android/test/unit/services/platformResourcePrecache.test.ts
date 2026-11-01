@@ -24,7 +24,7 @@ import { runPlatformResourcePrecache } from '../../../src/services/platformResou
 
 // test/unit/services/platformResourcePrecache.test.ts
 beforeEach(() => { state.tracks=[]; state.records.clear(); state.active=0; state.peak=0; state.calls=0; });
-it.each([30,100,200])('enriches the full %i-song manifest serially, without fetching audio', async count => {
+it.each([30,100,396,500])('enriches the full %i-song manifest serially, without fetching audio', async count => {
     state.tracks=Array.from({length:count},(_,i)=>({
         songKey:'online:qq:'+i,providerId:'qq',mediaId:String(i),title:'song',artist:'artist',
         album:'album',artwork:'',durationMs:100000,providerData:{songId:i},

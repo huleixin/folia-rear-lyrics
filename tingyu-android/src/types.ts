@@ -82,7 +82,8 @@ export interface Line {
 
 export interface LyricData {
   /** Resource provenance, preserved through display transforms; never a playback clock or offset. */
-  resourceCacheTier?: 'native' | 'stage';
+  resourceSelection?:{source:string;mediaId:string};
+  resourceCacheTier?: 'native' | 'stage' | 'platform';
   lines: Line[];
   title?: string;
   artist?: string;

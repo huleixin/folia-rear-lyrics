@@ -12,17 +12,19 @@ interface ResourceTrack {
     artist: string; album: string; artwork: string; durationMs: number; providerData?: Record<string, unknown>;
 }
 interface Bridge {
-    resourceCandidates(): Promise<{ allowed: boolean; tracks: ResourceTrack[] }>;
-    resourcePlatformResult(o: { songKey: string; success: boolean }): Promise<void>;
+    resourceCandidates(): Promise<{ allowed: boolean; playlistId?:string; tracks: ResourceTrack[] }>;
+    resourcePlatformResult(o: { songKey: string; success: boolean; playlistId?:string }): Promise<void>;
 }
 let running = false;
 let installed = false;
+let retryTimer:ReturnType<typeof setTimeout>|undefined;
 /** Serial higher-fidelity platform enrichment. Native jobs continue independently when JS is suspended. */
 export const runPlatformResourcePrecache = async (): Promise<void> => {
     if (!isCapacitorAndroid() || running) return;
     if (!installed && typeof document !== 'undefined') {
         installed = true;
         document.addEventListener('visibilitychange', () => {
+            clearTimeout(retryTimer);
             if (document.visibilityState === 'visible') {
                 void runPlatformResourcePrecache();
                 const song=usePlaybackStore.getState().currentSong;
@@ -53,9 +55,14 @@ export const runPlatformResourcePrecache = async (): Promise<void> => {
                         success = committed?.confirmedBy === 'stage' || committed?.userChoice === true;
                     }
                 } catch { /* Bounded attempts live in the persistent manifest. */ }
-                await native.resourcePlatformResult({ songKey: track.songKey, success });
+                await native.resourcePlatformResult({ songKey: track.songKey, success,playlistId:batch.playlistId });
             }
         }
     } catch { /* Native fallback and completed records stay available. */ }
-    finally { running = false; }
+    finally {
+        running = false;
+        if(typeof document!=='undefined'&&document.visibilityState==='visible'){
+            clearTimeout(retryTimer);retryTimer=setTimeout(()=>void runPlatformResourcePrecache(),300000);
+        }
+    }
 };

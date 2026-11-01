@@ -32,7 +32,7 @@ public class UnifiedLyricPolicyTest {
         UnifiedLyricPolicy.Decision d = UnifiedLyricPolicy.decide(
                 false, "native", "hash-native", false, "stage", "hash-stage");
         assertTrue(d.accept);
-        assertTrue(d.reason.startsWith("upgrade-tier-1-to-2"));
+        assertTrue(d.reason.startsWith("upgrade-tier-0-to-2"));
     }
 
     @Test
@@ -49,7 +49,7 @@ public class UnifiedLyricPolicyTest {
         UnifiedLyricPolicy.Decision d = UnifiedLyricPolicy.decide(
                 false, "stage", "hash-stage", false, "native", "hash-native");
         assertFalse(d.accept);
-        assertTrue(d.reason.startsWith("downgrade-tier-1-below-2"));
+        assertTrue(d.reason.startsWith("downgrade-tier-0-below-2"));
     }
 
     @Test

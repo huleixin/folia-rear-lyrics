@@ -14,7 +14,7 @@ public final class TingyuPlaybackPlugin extends Plugin {
     private NativeAudioEngine engine;
     private JSObject prepared,lastState;
     private final Consumer<JSObject> events=value->{if(!"spectrum".equals(value.optString("type")))lastState=value;notifyListeners("state",value,value.optInt("status")==4&&!"spectrum".equals(value.optString("type")));};
-    @Override public void load(){if(ENABLED)PlaybackTestDiagnostics.initialize(getContext());}
+    @Override public void load(){if(ENABLED)PlaybackTestDiagnostics.initialize(getContext());PlaylistResourceCache cache=PlaylistResourceCache.get(getContext());cache.io.execute(cache::scheduleNext);}
     @PluginMethod public void readPlaybackRecovery(PluginCall call) {
         getActivity().runOnUiThread(() -> {
             JSObject live=NativeAudioEngine.peekRecoveryState();
@@ -86,6 +86,7 @@ public final class TingyuPlaybackPlugin extends Plugin {
         cache.io.execute(() -> {
             try {
                 if ("configure".equals(call.getString("action"))) cache.configure(Boolean.TRUE.equals(call.getBoolean("enabled")), Boolean.TRUE.equals(call.getBoolean("wifiOnly")));
+                if("resume".equals(call.getString("action"))||"retry".equals(call.getString("action")))cache.resume("retry".equals(call.getString("action")));
                 if ("clear".equals(call.getString("action"))) cache.clearDownloadable();
                 call.resolve(cache.status().put("containsCurrent",cache.metadata(call.getString("currentKey", ""))!=null));
             } catch (Exception error) { call.reject("Resource cache unavailable"); }
@@ -99,14 +100,14 @@ public final class TingyuPlaybackPlugin extends Plugin {
             UnifiedLyricsStore store = UnifiedLyricsStore.get(getContext());
             String key = call.getString("songKey", "");
             UnifiedLyricsStore.Record old = store.get(key);
-            if (old != null && old.hasTimeline() && (old.userChoice || "stage".equals(old.confirmedBy))) {
+            if (!Boolean.TRUE.equals(call.getBoolean("userChoice")) && old != null && old.hasTimeline() && (old.userChoice || ("stage".equals(old.confirmedBy)&&!"confirmed-match".equals(call.getString("source"))))) {
                 if (!old.userChoice && old.renderModel == null && equivalentTimeline(old.json, json))
                     store.attachRenderModel(key, old.json, call.getString("renderModel"));
                 call.resolve(); return;
             }
             store.put(key, "ok", json,
                 Boolean.TRUE.equals(call.getBoolean("hasTranslation")), Boolean.TRUE.equals(call.getBoolean("hasWordByWord")),
-                call.getString("source", "platform-cache"), "stage", false,
+                call.getString("source", "platform-cache"), "confirmed-match".equals(call.getString("source"))?"stage":"platform", Boolean.TRUE.equals(call.getBoolean("userChoice")),
                 LyricVariantConverter.currentRule(getContext()).id);
             store.attachRenderModel(key, json, call.getString("renderModel"));
             UnifiedLyricsStore.Record selected = store.get(key);
@@ -134,7 +135,7 @@ public final class TingyuPlaybackPlugin extends Plugin {
     }
     @PluginMethod public void resourcePlatformResult(PluginCall call) {
         PlaylistResourceCache cache=PlaylistResourceCache.get(getContext());
-        cache.io.execute(() -> { try { cache.platformResult(call.getString("songKey", ""), Boolean.TRUE.equals(call.getBoolean("success"))); call.resolve(); } catch(Exception error) { call.reject("Resource result unavailable"); } });
+        cache.io.execute(() -> { try { if(!call.getString("playlistId",cache.playlistId()).equals(cache.playlistId())){call.resolve();return;} cache.platformResult(call.getString("songKey", ""), Boolean.TRUE.equals(call.getBoolean("success"))); call.resolve(); } catch(Exception error) { call.reject("Resource result unavailable"); } });
     }
     @PluginMethod public void readSongResources(PluginCall call) {
         PlaylistResourceCache.get(getContext()).io.execute(() -> {

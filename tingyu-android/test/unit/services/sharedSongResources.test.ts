@@ -10,7 +10,7 @@ import { buildColorOsLyricInfo } from '../../../src/utils/lyrics/colorOsLyricInf
 
 // test/unit/services/sharedSongResources.test.ts
 describe('whole playlist resource snapshot', () => {
-    it.each([30,100,200,1001])('sends all %i songs in bounded serial pages', async count => {
+    it.each([30,100,396,500,1001])('sends all %i songs in bounded serial pages', async count => {
         calls.length = 0;
         const songs = Array.from({ length: count }, (_, i) => ({
             songKey: 'qq:'+i, providerId:'qq',mediaId:String(i),title:'song',artist:'artist',
