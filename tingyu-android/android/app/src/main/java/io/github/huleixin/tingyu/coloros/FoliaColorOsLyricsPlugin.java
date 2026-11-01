@@ -75,11 +75,9 @@ public class FoliaColorOsLyricsPlugin extends Plugin {
                     // JS 侧（1.3.67 起）发布的都是原始时间轴，偏移在交付点应用。
                     : ColorOsLyricBridge.setPending(lyricInfo, hasTranslation != null && hasTranslation, songKey);
         if (songKey != null && !songKey.isEmpty()) {
-            io.github.huleixin.tingyu.playback.LyricSyncLedger.get()
-                .track(songKey, io.github.huleixin.tingyu.RearNativeTrack.epoch());
             io.github.huleixin.tingyu.playback.LyricSyncLedger.get().unified(songKey, selection);
             io.github.huleixin.tingyu.playback.LyricSyncLedger.get()
-                .stagePublished(songKey, selection.hash, System.currentTimeMillis());
+                .stagePublished(songKey, selection.hash, android.os.SystemClock.elapsedRealtime());
         }
         if (changed) ColorOsLyricBridge.requestRefresh(getContext());
         JSObject result = new JSObject();
@@ -122,8 +120,6 @@ public class FoliaColorOsLyricsPlugin extends Plugin {
         } else {
             changed = ColorOsLyricBridge.clearSong(songKey);
         }
-        io.github.huleixin.tingyu.playback.LyricSyncLedger.get()
-            .track(songKey, io.github.huleixin.tingyu.RearNativeTrack.epoch());
         io.github.huleixin.tingyu.playback.LyricSyncLedger.get().unified(songKey, selection);
         if (changed) ColorOsLyricBridge.requestRefresh(getContext());
         call.resolve();

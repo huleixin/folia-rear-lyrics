@@ -89,8 +89,8 @@ final class QueueSupervision {
     /**
      * Whether the logical playlist has more tracks after the window JS handed over.
      *
-     * A stale generation is ignored for the "true" direction (an old window cannot declare new
-     * music) but always honoured for "false": ending the list is a safe, terminal statement.
+     * A stale generation cannot change either direction: an old terminal answer must not end
+     * a newer playlist episode. Explicit user stop uses the current generation.
      * {@link Continuation#UNKNOWN} changes nothing - it is not a statement about the queue.
      */
     void continuation(boolean continues, long generation) {
@@ -98,6 +98,7 @@ final class QueueSupervision {
     }
 
     void continuation(Continuation verdict, long generation) {
+        if (generation < this.generation) return;
         if (generation >= this.generation) {
             this.generation = generation;
             if (verdict == Continuation.CONTINUES) this.continues = true;

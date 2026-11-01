@@ -164,8 +164,9 @@ public final class TingyuPlaybackPlugin extends Plugin {
         getActivity().runOnUiThread(()->{
             JSObject value=new JSObject().put("testBuild",true).put("packageName",getContext().getPackageName())
                 .put("sdk",android.os.Build.VERSION.SDK_INT).put("manufacturer",android.os.Build.MANUFACTURER).put("model",android.os.Build.MODEL)
-                .put("appVersion",io.github.huleixin.tingyu.BuildConfig.VERSION_NAME).put("engineVersion","media3-1.11.1").put("events",PlaybackTestDiagnostics.snapshot());
-            try{if(engine!=null)value.put("player",engine.snapshot("diagnostics",false));}
+                .put("appVersion",io.github.huleixin.tingyu.BuildConfig.VERSION_NAME).put("engineVersion","media3-1.11.1").put("events",PlaybackTestDiagnostics.snapshot())
+                .put("lyricSync",LyricSyncLedger.get().describe(android.os.SystemClock.elapsedRealtime()));
+            try{JSObject live=NativeAudioEngine.diagnosticSnapshot();if(live!=null)value.put("player",live);}
             catch(Exception error){PlaybackTestDiagnostics.error("diagnostics-error",error);value.put("snapshotError",PlaybackTestDiagnostics.redact(error.toString()));}
             call.resolve(value);
         });
@@ -191,6 +192,7 @@ public final class TingyuPlaybackPlugin extends Plugin {
                 .put("critical",PlaybackDiagnostics.snapshotCritical())
                 .put("routine",PlaybackDiagnostics.snapshotRoutine())
                 .put("lifecycle",PlaybackLifecycle.snapshot())
+                .put("lyricSync",LyricSyncLedger.get().describe(android.os.SystemClock.elapsedRealtime()))
                 .put("lxSource",io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.snapshot())
                 .put("epoch",PlaybackDiagnostics.epoch())
                 .put("resourceCache",PlaylistResourceCache.get(getContext()).status()));

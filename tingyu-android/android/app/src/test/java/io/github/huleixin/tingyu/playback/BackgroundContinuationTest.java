@@ -37,6 +37,8 @@ public class BackgroundContinuationTest {
         long msSinceJsWindow = -1L;
         final List<String> adopted = new ArrayList<>();
         final List<String> played = new ArrayList<>();
+        boolean deferMain;
+        final List<Runnable> pendingMain = new ArrayList<>();
         int rearms;
         long lastRearmDelay;
 
@@ -62,7 +64,7 @@ public class BackgroundContinuationTest {
             }
         }
         @Override public void rearmSupervision(long delayMs) { rearms++; lastRearmDelay = delayMs; }
-        @Override public void runOnMain(Runnable action) { action.run(); }
+        @Override public void runOnMain(Runnable action) { if(deferMain)pendingMain.add(action);else action.run(); }
 
         /**
          * 当前这首播完：Media3 能自动推进就推进（新的当前项、未结束），
@@ -405,5 +407,30 @@ public class BackgroundContinuationTest {
         continuation.consider(engine, "drained");
         assertTrue(continuation.takeoversForTest() > before.get());
         assertTrue(continuation.snapshot().has("lastDecision"));
+    }
+
+    @Test public void cancellingAfterResolutionBeforeMainDeliveryCannotAdopt() {
+        startBackgroundSession(6, 1);engine.deferMain=true;engine.drain();
+        continuation.consider(engine,"drained");
+        assertFalse(engine.pendingMain.isEmpty());
+        continuation.cancel();
+        for(Runnable action:engine.pendingMain)action.run();
+        assertTrue(engine.adopted.isEmpty());
+    }
+    @Test public void changingAnchorBeforeMainDeliveryCannotAppendAnOldSuccessor() {
+        startBackgroundSession(6, 1);engine.deferMain=true;engine.drain();
+        continuation.consider(engine,"drained");
+        engine.queue.set(0,"song-4");
+        for(Runnable action:engine.pendingMain)action.run();
+        assertTrue(engine.adopted.isEmpty());
+    }
+    @Test public void tenThirtyAndFiftyTracksContinueWithNoJsCallbacks() throws Exception {
+        for(int total:new int[]{10,30,50}) {
+            setUp();startBackgroundSession(total,1);
+            for(int i=0;i<total-1;i++){engine.drain();continuation.consider(engine,"drained");assertFalse(engine.ended());}
+            assertEquals(total-1,engine.adopted.size());
+            assertEquals("song-"+(total-1),engine.currentSongKey());
+            tearDown();
+        }
     }
 }

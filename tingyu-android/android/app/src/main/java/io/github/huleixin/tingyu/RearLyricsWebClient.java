@@ -48,7 +48,7 @@ final class RearLyricsWebClient extends WebViewClient {
             // 端到端账本：这次轮询本身就是「背屏渲染端活着」的证据（页面冻结时轮询停）。
             // 归因靠它区分「显示端生命周期暂停」与「页面活着却不推进」—— 后者才是故障。
             io.github.huleixin.tingyu.playback.LyricSyncLedger.get()
-                .rearHeartbeat(System.currentTimeMillis());
+                .rearHeartbeat(android.os.SystemClock.elapsedRealtime());
             return text("application/json", RearLyricsState.snapshot(revision));
         }
         // The current song's lyrics straight from the native cache. The foreground WebView used
@@ -80,14 +80,14 @@ final class RearLyricsWebClient extends WebViewClient {
                     }
                     io.github.huleixin.tingyu.playback.LyricSyncLedger.get()
                         .rearAppliedAt(uri.getQueryParameter("song"),
-                            uri.getQueryParameter("epoch"), appliedPos, System.currentTimeMillis());
+                            uri.getQueryParameter("epoch"), appliedPos, android.os.SystemClock.elapsedRealtime());
                 }
                 // 背屏自己的电源状态（息屏/唤醒）：归因时区分「挂起（正常）」与「失联」。
                 if ("surface-power".equals(event)) {
                     String detailValue = uri.getQueryParameter("detail");
                     io.github.huleixin.tingyu.playback.LyricSyncLedger.get()
                         .rearSleeping(detailValue != null && detailValue.contains("sleeping=true"),
-                            System.currentTimeMillis());
+                            android.os.SystemClock.elapsedRealtime());
                 }
             }
             return text("application/json", "{}");

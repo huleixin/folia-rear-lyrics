@@ -26,4 +26,11 @@ public class PlaybackPositionClockTest {
         assertEquals(200, PlaybackPositionClock.at(true, 10000, 0, 1000, 200));
         assertEquals(11000, PlaybackPositionClock.at(true, 10000, 0, 1000, 200000));
     }
+
+    @org.junit.Test public void speedPauseSeekAndLongElapsedTimeShareOneProjection() {
+        org.junit.Assert.assertEquals(16000, PlaybackPositionClock.at(true,1000,1000,11000,20000,1.5f));
+        org.junit.Assert.assertEquals(1000, PlaybackPositionClock.at(false,1000,1000,11000,20000,1.5f));
+        org.junit.Assert.assertEquals(4000, PlaybackPositionClock.at(true,3000,10000,11000,20000,1f));
+        org.junit.Assert.assertEquals(20000, PlaybackPositionClock.at(true,1000,0,7200000,20000,2f));
+    }
 }

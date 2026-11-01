@@ -27,6 +27,9 @@ public final class LyricSyncLedger {
     public enum Verdict {
         /** 没有在播的歌：不该出词，也没什么可归因。 */
         IDLE,
+        PAUSED,
+        REAR_DISABLED,
+        REAR_CAMERA_OWNED,
         /** 这首歌确认没有同步歌词：显示无词是正确行为。 */
         NONE_CONFIRMED,
         /** 歌词没取到。 */
@@ -75,6 +78,7 @@ public final class LyricSyncLedger {
         return INSTANCE;
     }
 
+    private long staleEvents;
     private String songKey = "";
     private String epoch = "";
     private String unifiedState = "pending";
@@ -96,6 +100,7 @@ public final class LyricSyncLedger {
     private int rearDeliveries = 0;
     /** 背屏自己报告的休眠状态（surface-power 事件）；从未报告过为 false。 */
     private boolean rearSleeping = false;
+    private boolean rearContextKnown, rearExpected = true, rearCameraOwned;
     private boolean rearSleepReported = false;
 
     private String stageHash = "";
@@ -118,7 +123,7 @@ public final class LyricSyncLedger {
     /** Media3 换曲（背屏的 epoch 与歌曲身份同源）。 */
     public synchronized void track(String songKey, String epoch) {
         String next = songKey == null ? "" : songKey;
-        if (!next.equals(this.songKey)) {
+        if (!next.equals(this.songKey) || !(epoch == null ? "" : epoch).equals(this.epoch)) {
             this.songKey = next;
             unifiedState = "pending";
             unifiedHash = "";
@@ -131,6 +136,8 @@ public final class LyricSyncLedger {
             rearDeliveries = 0;
             rearEpoch = "";
             stageHash = "";
+            islandPublishedAtMs = rearDeliveredAtMs = rearAppliedAtMs = stagePublishedAtMs = 0L;
+            rearAppliedPosMs = -1L;
         }
         this.epoch = epoch == null ? "" : epoch;
     }
@@ -138,7 +145,8 @@ public final class LyricSyncLedger {
     /** 统一仓库这一首的最终版本（无论谁写的）。 */
     public synchronized void unified(String songKey, LyricTimelineAuthority.Selection selection) {
         if (selection == null) return;
-        if (songKey != null && !songKey.isEmpty() && !songKey.equals(this.songKey)) track(songKey, epoch);
+        if (!accept(songKey, null)) return;
+        if (selection.revision >= 0 && selection.revision < unifiedRevision) { staleEvents++; return; }
         unifiedState = selection.state.name().toLowerCase(java.util.Locale.US);
         unifiedHash = selection.hash;
         unifiedRevision = selection.revision;
@@ -147,15 +155,15 @@ public final class LyricSyncLedger {
 
     /** 歌词舞台（WebView）发布了一版。 */
     public synchronized void stagePublished(String songKey, String hash, long nowMs) {
-        if (songKey == null || songKey.isEmpty()) return;
+        if (!accept(songKey, null)) return;
         stageHash = hash == null ? "" : hash;
         stagePublishedAtMs = nowMs;
     }
 
     /** 灵动岛：metadata 里真的带上了这一版时间轴。 */
     public synchronized void islandPublished(String songKey, String hash, long nowMs) {
-        if (songKey == null || songKey.isEmpty()) return;
-        if (!hash.equals(islandHash)) islandPublishes = 0;
+        if (!accept(songKey, null)) return;
+        if (hash == null || !hash.equals(islandHash)) islandPublishes = 0;
         islandHash = hash == null ? "" : hash;
         islandPublishedAtMs = nowMs;
         islandPublishes++;
@@ -163,7 +171,7 @@ public final class LyricSyncLedger {
 
     /** 背屏：原生端点把这一版交出去了。 */
     public synchronized void rearDelivered(String songKey, String epoch, String hash, int lines, long nowMs) {
-        if (songKey == null || songKey.isEmpty()) return;
+        if (!accept(songKey, epoch)) return;
         rearEpoch = epoch == null ? "" : epoch;
         if (!rearHash.equals(hash)) {
             rearHash = hash == null ? "" : hash;
@@ -176,7 +184,7 @@ public final class LyricSyncLedger {
 
     /** 背屏渲染器上报：这一版真的画出来了（或 10s 一次的推进心跳）。 */
     public synchronized void rearApplied(String songKey, String epoch, long nowMs) {
-        if (songKey == null || songKey.isEmpty()) return;
+        if (!accept(songKey, epoch)) return;
         rearAppliedAtMs = nowMs;
         rearHeartbeatAtMs = Math.max(rearHeartbeatAtMs, nowMs);
         if (epoch != null && !epoch.isEmpty()) rearEpoch = epoch;
@@ -184,6 +192,7 @@ public final class LyricSyncLedger {
 
     /** 背屏渲染端带位置的上报：还能推出「渲染推进到哪一行」。 */
     public synchronized void rearAppliedAt(String songKey, String epoch, long positionMs, long nowMs) {
+        if (!accept(songKey, epoch)) return;
         rearApplied(songKey, epoch, nowMs);
         rearAppliedPosMs = Math.max(0L, positionMs);
     }
@@ -228,12 +237,28 @@ public final class LyricSyncLedger {
      *
      * @param nowMs 当前时刻（{@code System.currentTimeMillis()}）
      */
+    /** Observes the existing coordinator only; never launches a window or changes power ownership. */
+    public synchronized void rearContext(boolean expected, boolean cameraOwned, boolean sleeping) {
+        rearContextKnown = true; rearExpected = expected; rearCameraOwned = cameraOwned; rearSleeping = sleeping;
+    }
+
+    private boolean accept(String key, String observedEpoch) {
+        boolean matches = key != null && !key.isEmpty() && key.equals(songKey)
+            && (observedEpoch == null || epoch.equals(observedEpoch));
+        if (!matches) staleEvents++;
+        return matches;
+    }
+
     public synchronized Verdict verdict(long nowMs) {
         if (songKey.isEmpty()) return Verdict.IDLE;
         if (!sessionActive) return Verdict.SESSION_INACTIVE;
         if ("none".equals(unifiedState)) return Verdict.NONE_CONFIRMED;
+        if (!playing) return Verdict.PAUSED;
         if (!"ready".equals(unifiedState)) return Verdict.NOT_FETCHED;
         if (!unifiedHash.equals(islandHash)) return Verdict.NOT_PUBLISHED;
+        if (rearContextKnown && !rearExpected) return Verdict.REAR_DISABLED;
+        if (rearContextKnown && rearCameraOwned) return Verdict.REAR_CAMERA_OWNED;
+        if (rearContextKnown && rearSleeping) return Verdict.REAR_SUSPENDED;
         if (!unifiedHash.equals(rearHash)) return Verdict.NOT_DELIVERED;
         // 显示端生命周期与渲染推进分开归因：
         //   轮询在、版本旧、播放中不推进 → 渲染停滞（真故障）；
@@ -244,8 +269,9 @@ public final class LyricSyncLedger {
                 ? Verdict.REAR_SUSPENDED
                 : Verdict.REAR_UNRESPONSIVE;
         }
-        if (playing && !rearSleeping && rearAppliedAtMs > 0L
-                && nowMs - rearAppliedAtMs > REAR_RENDER_STALL_MS) {
+        long expectedApplyAt = rearAppliedAtMs > 0L ? rearAppliedAtMs : rearDeliveredAtMs;
+        if (playing && !rearSleeping && expectedApplyAt > 0L
+                && nowMs - expectedApplyAt > REAR_RENDER_STALL_MS) {
             return Verdict.REAR_RENDER_STALLED;
         }
         if (playing && sessionStateAtMs > 0L && nowMs - sessionStateAtMs > CLOCK_STALE_MS) {
@@ -279,6 +305,8 @@ public final class LyricSyncLedger {
             + " playing=" + playing
             + ", clockAge=" + age(nowMs, sessionStateAtMs) + "ms"
             + ", pos=" + positionMs + "/" + durationMs
+            + ", islandConsumerAck=unavailable"
+            + ", staleEvents=" + staleEvents
             + ", verdict=" + verdict(nowMs).name().toLowerCase(java.util.Locale.US);
     }
 
@@ -309,12 +337,14 @@ public final class LyricSyncLedger {
 
     /** 测试用：清空全部状态。 */
     public synchronized void resetForTest() {
+        staleEvents = 0;
         songKey = ""; epoch = "";
         unifiedState = "pending"; unifiedHash = ""; unifiedRevision = -1; unifiedSource = "";
         islandHash = ""; islandPublishedAtMs = 0L; islandPublishes = 0;
         rearEpoch = ""; rearHash = ""; rearLines = 0; rearDeliveredAtMs = 0L;
         rearAppliedAtMs = 0L; rearHeartbeatAtMs = 0L; rearAppliedPosMs = -1L; rearDeliveries = 0;
         rearSleeping = false; rearSleepReported = false;
+        rearContextKnown = false; rearExpected = true; rearCameraOwned = false;
         stageHash = ""; stagePublishedAtMs = 0L;
         offsetMs = 0L;
         sessionActive = false; sessionStateAtMs = 0L; positionMs = 0L; durationMs = 0L; playing = false;

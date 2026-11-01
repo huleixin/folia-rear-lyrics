@@ -536,6 +536,7 @@ final class RearLyricsCoordinator {
     }
 
     String diagnostics() {
+        io.github.huleixin.tingyu.playback.LyricSyncLedger.get().rearContext(wanted() && !dismissed, cameraOwned(), sleeping);
         long now = SystemClock.elapsedRealtime();
         return "enabled=" + enabled + ", playing=" + playing + ", manual=" + manual
             + ", pending=" + pending + ", failures=" + failures + ", rearWakeTried=" + wakeTried
@@ -822,6 +823,7 @@ final class RearLyricsCoordinator {
         scheduled = true; main.postDelayed(check, delay);
     }
     private void checkWindow() {
+        io.github.huleixin.tingyu.playback.LyricSyncLedger.get().rearContext(wanted() && !dismissed, cameraOwned(), sleeping);
         if (!wanted()) return;
         long now = SystemClock.elapsedRealtime();
         // 锁屏跳变 → 0/5/60 秒三次快照。放在这里是因为它对两种后端都成立，且不依赖 Activity。

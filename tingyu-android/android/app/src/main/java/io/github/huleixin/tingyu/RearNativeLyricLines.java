@@ -90,7 +90,7 @@ public final class RearNativeLyricLines {
                 // 三端一致性的比对键就是这个哈希 —— 与岛、舞台比的是同一个值。
                 io.github.huleixin.tingyu.playback.LyricSyncLedger.get()
                     .rearDelivered(key, epoch, authoritativeHash(context, key),
-                        lines, System.currentTimeMillis());
+                        lines, android.os.SystemClock.elapsedRealtime());
             }
             return value.toString();
         } catch (Exception error) {

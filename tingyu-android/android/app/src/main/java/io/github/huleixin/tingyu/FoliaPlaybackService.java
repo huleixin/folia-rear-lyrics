@@ -215,7 +215,7 @@ public class FoliaPlaybackService extends Service {
         io.github.huleixin.tingyu.playback.LyricSyncLedger.get().session(
             true, cachedPlaying,
             state == null ? cachedPositionMs : state.getPosition(),
-            cachedDurationMs, System.currentTimeMillis());
+            cachedDurationMs, android.os.SystemClock.elapsedRealtime());
     }
 
     /** ColorOS lyric bridge uses this to decide whether a metadata refresh intent is worth sending. */
@@ -764,7 +764,7 @@ public class FoliaPlaybackService extends Service {
                 .islandPublished(songKey,
                     io.github.huleixin.tingyu.playback.LyricTimelineAuthority.hashOf(
                         rawForLedger == null || rawForLedger.isEmpty() ? written : rawForLedger),
-                    System.currentTimeMillis());
+                    android.os.SystemClock.elapsedRealtime());
         }
         if (identity.equals(lastLyricState)) return;
         lastLyricState = identity;
@@ -887,7 +887,7 @@ public class FoliaPlaybackService extends Service {
                     | PlaybackState.ACTION_SKIP_TO_PREVIOUS
                     | PlaybackState.ACTION_SEEK_TO
             )
-            .setState(state, position, playing ? 1f : 0f);
+            .setState(state, position, playing ? io.github.huleixin.tingyu.playback.NativeAudioEngine.mediaSpeed(songKey) : 0f);
         if (ColorOsLyricBridge.isSupported() && ColorOsLyricBridge.hasTranslationFor(songKey)) {
             builder.addCustomAction(new PlaybackState.CustomAction.Builder(
                 ColorOsLyricBridge.ACTION_TOGGLE_TRANSLATION,
@@ -1128,7 +1128,7 @@ public class FoliaPlaybackService extends Service {
                     // 端到端同步账本：三端各拿着哪一版 + 唯一归因（没取到 / 没发布 / 没交付 /
                     // 时钟不对 / 渲染停了 / 系统未消费）。一次采样就能定位，不必翻几十条日志。
                     .put("lyricSync", io.github.huleixin.tingyu.playback.LyricSyncLedger.get()
-                        .describe(System.currentTimeMillis()))
+                        .describe(android.os.SystemClock.elapsedRealtime()))
                     // 灵动岛歌词「亮屏有、锁屏无」类问题需要这一位来分组归因。
                     .put("locked", ((android.app.KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE))
                         .isKeyguardLocked())

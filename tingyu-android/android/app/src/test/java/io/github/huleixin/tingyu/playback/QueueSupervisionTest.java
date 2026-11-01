@@ -223,4 +223,13 @@ public class QueueSupervisionTest {
         supervision.satisfied();
         assertEquals(0, supervision.livenessRearms());
     }
+
+    @Test public void oldFinishedVerdictCannotStopANewerQueueEpisode() {
+        QueueSupervision supervision = running(10);
+        supervision.evaluate("song-b", 0, true, false, 1000);
+        supervision.continuation(QueueSupervision.Continuation.FINISHED, 9);
+        assertTrue(supervision.continues());
+        assertTrue(supervision.waiting());
+        assertEquals(10, supervision.generation());
+    }
 }

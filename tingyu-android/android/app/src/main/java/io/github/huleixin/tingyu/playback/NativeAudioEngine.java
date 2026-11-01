@@ -97,6 +97,11 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         if(!isActive()||Looper.myLooper()!=Looper.getMainLooper()||!engine.songKey.equals(songKey))return null;
         return new long[]{Math.max(0,engine.player.getCurrentPosition()),engine.player.isPlaying()?1:0};
     }
+    public static float mediaSpeed(String key){
+        NativeAudioEngine engine=instance;
+        return isActive()&&Looper.myLooper()==Looper.getMainLooper()&&engine.songKey.equals(key)
+            ?engine.player.getPlaybackParameters().speed:1f;
+    }
     public static boolean mediaAction(String action){
         if(!isActive())return false;
         if(action.equals("next")&&Looper.myLooper()==Looper.getMainLooper()&&instance.player.hasNextMediaItem()){
@@ -109,6 +114,10 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             engine.transport(NativeTransportIntent.resolve(action,engine.desiredPaused,engine.player.getPlayWhenReady()),true);
         };
         if(Looper.myLooper()==Looper.getMainLooper())transport.run();else engine.main.post(transport);return true;
+    }
+    /** Read-only diagnostics also work after the Activity/plugin instance was recreated. */
+    public static JSObject diagnosticSnapshot(){
+        return isActive()&&Looper.myLooper()==Looper.getMainLooper()?instance.snapshot("diagnostics",false):null;
     }
     /** Read-only recovery view. Never calls get(), prepares a source, or changes transport. */
     public static JSObject peekRecoveryState() {
@@ -128,7 +137,8 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     private String songKey="";
     private final PowerManager.WakeLock handoffWake;
     private boolean endedHandoff;
-    private long sequence,fadeGeneration;
+    private long sequence,fadeGeneration,eventRevision;
+    private final String engineSessionId=java.util.UUID.randomUUID().toString();
     private float volume=1;
     private boolean fade=true;
     private boolean desiredPaused=true;
@@ -208,7 +218,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     /** Media3 事实 → {@link io.github.huleixin.tingyu.RearNativeTrack}（背屏唯一的时钟权威）。 */
     private void syncRearTrack(){
         try{
-            io.github.huleixin.tingyu.RearNativeTrack.onPlayback(player.isPlaying(),Math.max(0L,player.getCurrentPosition()));
+            io.github.huleixin.tingyu.RearNativeTrack.onPlayback(player.isPlaying(),Math.max(0L,player.getCurrentPosition()),player.getPlaybackParameters().speed);
             io.github.huleixin.tingyu.RearNativeTrack.onDuration(player.getDuration());
         }catch(Throwable ignored){
             // 背屏时钟同步失败绝不能影响播放。
@@ -253,6 +263,10 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             .setHandleAudioBecomingNoisy(true).setWakeMode(C.WAKE_MODE_LOCAL).build();
         SleepTimerController.get(context).attach(player,()->{sleepStopped=true;boolean original=fade;fade=false;try{transport("pause",true);}finally{fade=original;}});
         player.addListener(new Player.Listener(){
+            @Override public void onPlaybackParametersChanged(androidx.media3.common.PlaybackParameters parameters){
+                syncRearTrack(); emit("clock",false);
+                io.github.huleixin.tingyu.FoliaPlaybackService.nativePlaybackChanged(true);
+            }
             @Override public void onMediaItemTransition(MediaItem item,int reason){
                 if(sourceId.isEmpty()||item==null||item.localConfiguration==null||!(item.localConfiguration.tag instanceof JSObject))return;
                 JSObject queued=(JSObject)item.localConfiguration.tag;
@@ -327,7 +341,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 if(isPlaying)consecutiveSkips=0;
                 // Backscreen clock authority: the WebView that used to feed it is frozen in the
                 // background, so playing state and position must also be readable natively.
-                io.github.huleixin.tingyu.RearNativeTrack.onPlayback(isPlaying,player.getCurrentPosition());
+                syncRearTrack();
             }
             @Override public void onPlayWhenReadyChanged(boolean playWhenReady,int reason){
                 if(!playWhenReady&&reason==Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM)SleepTimerController.get(context).boundary();
@@ -496,7 +510,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             sequence=seq;
             switch(action){
                 case "play":case "pause":case "stop":transport(action,false);if("play".equals(action))noteLiveness("play");break;
-                case "detach":SleepTimerController.get(context).cancel("session-detached");cancelFade();PlaybackDiagnostics.note("engine-detach",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
+                case "detach":io.github.huleixin.tingyu.RearNativeTrack.clear();SleepTimerController.get(context).cancel("session-detached");cancelFade();PlaybackDiagnostics.note("engine-detach",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
                         .put("positionMs",Math.max(0,player.getCurrentPosition())));player.stop();player.clearMediaItems();sourceId="";main.removeCallbacks(heartbeat);supervision.continuation(false,supervision.generation());supervision.satisfied();main.removeCallbacks(superviseTick);break;
                 case "seek":player.seekTo(Math.max(0,value.optLong("position")));break;
                 case "volume":volume=(float)Math.max(0,Math.min(1,value.optDouble("volume",1)));cancelFade();player.setVolume(volume);break;
@@ -532,6 +546,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     void adoptContinuation(io.github.huleixin.tingyu.playback.NativePlaylist.Track track, String uri,
                            long requestId, long generation){
         if(track==null||uri==null||uri.isEmpty())return;
+        if(!BackgroundContinuation.get().isCurrentRequest(requestId,track.songKey))return;
         if(desiredPaused||sourceId.isEmpty()){
             PlaybackDiagnostics.note("continuation-rejected",new JSObject()
                 .put("song",PlaybackDiagnostics.anonKey(track.songKey)).put("reason","paused-or-detached"));
@@ -1002,6 +1017,12 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         QueueSupervision.Continuation verdict=QueueSupervision.Continuation.parse(
             value.has("verdict")?value.optString("verdict"):null,value.optBoolean("continues",true));
         long generation=value.optLong("generation",-1L);
+        if(generation>=0&&generation<supervision.generation()){
+            queueStale++;queueRejected++;
+            PlaybackDiagnostics.note("queue-stale-generation",new JSObject().put("generation",generation)
+                .put("generationNow",supervision.generation()).put("song",PlaybackDiagnostics.anonKey(songKey)));
+            return new JSObject().put("accepted",false).put("reason","stale-generation");
+        }
         java.util.ArrayList<MediaItem> items=new java.util.ArrayList<>();
         java.util.ArrayList<String> ids=new java.util.ArrayList<>();
         int rejected=0;
@@ -1304,6 +1325,9 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         // JS receives this asynchronously. Anchor interpolation to sampling, not delivery,
         // so delayed heartbeats cannot rewind lyric/word animations at a boundary.
         value.put("capturedAtMs",System.currentTimeMillis());
+        value.put("capturedAtElapsedMs",SystemClock.elapsedRealtime()).put("eventRevision",++eventRevision)
+            .put("engineSessionId",engineSessionId).put("trackGeneration",io.github.huleixin.tingyu.RearNativeTrack.generation())
+            .put("playbackRate",player.getPlaybackParameters().speed);
         value.put("position",Math.max(0,player.getCurrentPosition())/1000.0);value.put("duration",Math.max(0,player.getDuration())/1000.0);
         value.put("buffered",Math.max(0,player.getBufferedPosition())/1000.0);value.put("playing",player.isPlaying());value.put("paused",desiredPaused||!player.getPlayWhenReady());
         value.put("status",player.getPlaybackState());
@@ -1428,7 +1452,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         JSObject value=snapshot("spectrum",false);JSArray array=new JSArray();for(int bin:bins)array.put(bin);
         value.put("spectrum",array);listener.accept(value);
     });}
-    private void release(){SleepTimerController.get(context).detach();PlaybackDiagnostics.note("engine-release",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
+    private void release(){io.github.huleixin.tingyu.RearNativeTrack.clear();SleepTimerController.get(context).detach();PlaybackDiagnostics.note("engine-release",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
             .put("positionMs",Math.max(0,player.getCurrentPosition())));releaseHandoff();cancelFade();main.removeCallbacksAndMessages(null);sourceId="";listener=null;PlaybackLifecycle.noteBridge(false);player.release();spectrum.close();
             io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.release();}
 }

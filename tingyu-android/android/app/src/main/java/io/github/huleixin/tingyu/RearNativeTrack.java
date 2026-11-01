@@ -25,6 +25,10 @@ import org.json.JSONObject;
  */
 public final class RearNativeTrack {
 
+    static java.util.function.LongSupplier elapsedClock = SystemClock::elapsedRealtime;
+    private static final String sessionId = java.util.UUID.randomUUID().toString();
+    private static long eventRevision;
+    private static float playbackRate = 1f;
     private static volatile String songKey = "";
     private static volatile String title = "";
     private static volatile String artist = "";
@@ -47,10 +51,12 @@ public final class RearNativeTrack {
             return;
         }
         songKey = next;
-        generation += 1;
+        title = ""; artist = ""; playbackRate = 1f;
+        generation += 1; eventRevision++;
+        io.github.huleixin.tingyu.playback.LyricSyncLedger.get().track(next, next + "#" + generation);
         epoch = next + "#" + generation;
         positionMs = 0L;
-        anchorAt = SystemClock.elapsedRealtime();
+        anchorAt = elapsedClock.getAsLong();
         durationMs = 0L;
         playing = false;
         updatedAt = System.currentTimeMillis();
@@ -68,10 +74,15 @@ public final class RearNativeTrack {
 
     /** Play/pause 与位置同步；由引擎在应用线程上调用。 */
     public static synchronized void onPlayback(boolean isPlaying, long positionMsNow) {
+        onPlayback(isPlaying, positionMsNow, playbackRate);
+    }
+    public static synchronized void onPlayback(boolean isPlaying, long positionMsNow, float speed) {
         if (songKey.isEmpty()) return;
+        playbackRate = Float.isFinite(speed) && speed > 0f ? speed : 1f;
+        eventRevision++;
         if (positionMsNow >= 0L) {
             positionMs = positionMsNow;
-            anchorAt = SystemClock.elapsedRealtime();
+            anchorAt = elapsedClock.getAsLong();
         }
         playing = isPlaying;
         updatedAt = System.currentTimeMillis();
@@ -88,19 +99,20 @@ public final class RearNativeTrack {
     public static boolean hasTrack() { return !songKey.isEmpty(); }
 
     /** 锚点外推；暂停时就是暂停那一刻的位置。 */
-    public static long positionNow() {
-        if (!playing) return positionMs;
-        long delta = SystemClock.elapsedRealtime() - anchorAt;
-        return positionMs + Math.max(0L, delta);
+    public static synchronized long positionNow() {
+        return PlaybackPositionClock.at(playing, positionMs, anchorAt, elapsedClock.getAsLong(), durationMs, playbackRate);
     }
 
     /** 幂等快照；字段名与背屏页面的字段一一对应，缺失时给 0 或空串而不是 null。 */
-    public static JSONObject snapshot() {
+    public static synchronized JSONObject snapshot() {
         JSONObject value = new JSONObject();
         try {
             long position = positionNow();
             if (durationMs > 0L && position > durationMs) position = durationMs;
             value.put("songKey", songKey);
+            value.put("sessionId", sessionId).put("eventRevision", eventRevision);
+            value.put("anchorPositionMs", positionMs).put("anchorElapsedMs", anchorAt)
+                .put("capturedAtElapsedMs", elapsedClock.getAsLong()).put("playbackRate", playbackRate);
             value.put("epoch", epoch);
             value.put("generation", generation);
             value.put("title", title);
@@ -116,7 +128,9 @@ public final class RearNativeTrack {
         return value;
     }
 
+    public static synchronized void clear() { reset(); }
     static synchronized void reset() {
+        eventRevision++;
         songKey = ""; title = ""; artist = ""; epoch = "";
         durationMs = 0L; positionMs = 0L; anchorAt = 0L; playing = false; updatedAt = 0L;
     }

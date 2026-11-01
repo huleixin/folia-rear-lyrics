@@ -164,4 +164,14 @@ public class ThreeEndLyricSyncTest {
         }
         assertTrue(ColorOsLyricBridge.cachedCount() <= 16);
     }
+
+    @Test public void fiftyTracksUseTheSameVersionWithLatePreviousTrackResults() {
+        for(int index=0;index<50;index++){
+            ColorOsLyricBridge.pin(key(index));ColorOsLyricBridge.protectAhead(key(index+1));
+            LyricTimelineAuthority.Selection selected=stagePublishes(index);
+            if(index>0)nativeArrives(index-1);
+            assertEquals(selected.hash,store.get(key(index)).lyricsHash);
+            assertEquals(selected.json,ColorOsLyricBridge.lyricInfoFor(key(index)));
+        }
+    }
 }

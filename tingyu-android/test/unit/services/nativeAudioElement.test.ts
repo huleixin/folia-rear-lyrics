@@ -203,3 +203,28 @@ it('does not emit ended and trigger a JS next-track when a sleep timer pauses at
  f.state({status:4,position:200,endedBySleep:true,paused:true,playing:false});
  expect(ended).not.toHaveBeenCalled();expect(f.element.paused).toBe(true);await f.adapter.dispose();
 });
+
+it('drops duplicate and out-of-order native states even when the delayed event is seeked',async()=>{
+ const f=await fixture();
+ f.state({eventRevision:11,type:'seeked',position:40} as any);
+ f.state({eventRevision:10,type:'seeked',position:10} as any);expect(f.element.currentTime).toBe(40);
+ f.state({eventRevision:11,type:'state',position:2} as any);expect(f.element.currentTime).toBe(40);
+ f.state({eventRevision:12,type:'seeked',position:5} as any);expect(f.element.currentTime).toBe(5);
+ await f.adapter.dispose();
+});
+
+it('accepts a replacement engine session and rejects packets from its retired session',async()=>{
+ const f=await fixture();
+ f.state({engineSessionId:'first',eventRevision:100,position:10} as any);
+ f.state({engineSessionId:'second',eventRevision:1,position:20} as any);expect(f.element.currentTime).toBe(20);
+ f.state({engineSessionId:'first',eventRevision:101,position:5} as any);expect(f.element.currentTime).toBe(20);
+ await f.adapter.dispose();
+});
+it('projects native speed on a monotonic local clock and freezes exactly on pause',async()=>{
+ vi.useFakeTimers({now:100000,toFake:['Date','performance','setTimeout','clearTimeout']});const f=await fixture();
+ const play=f.element.play();await f.flush();
+ f.state({playing:true,paused:false,position:10,playbackRate:2,eventRevision:1} as any);await play;
+ vi.advanceTimersByTime(1000);expect(f.element.currentTime).toBeCloseTo(12);
+ f.state({playing:false,paused:true,position:12,playbackRate:2,eventRevision:2} as any);
+ vi.advanceTimersByTime(1000);expect(f.element.currentTime).toBe(12);await f.adapter.dispose();
+});

@@ -310,7 +310,7 @@ public final class BackgroundContinuation {
         boolean stale = requestId != activeRequestId
             || !track.songKey.equals(activeSongKey)
             || !NativePlaylist.get().contains(track.songKey);
-        resolving = false;
+        if (requestId == activeRequestId) resolving = false;
         if (stale) {
             PlaybackDiagnostics.note("continuation-stale", new com.getcapacitor.JSObject()
                 .put("song", PlaybackDiagnostics.anonKey(track.songKey))
@@ -344,7 +344,8 @@ public final class BackgroundContinuation {
                 return;
             }
             final long delay = backoff;
-            host.runOnMain(() -> host.rearmSupervision(delay));
+            host.runOnMain(() -> { if(isCurrentRequest(requestId,track.songKey) && !host.desiredPaused()
+                && anchor.equals(host.currentSongKey()))host.rearmSupervision(delay); });
             return;
         }
         String uri;
@@ -361,18 +362,28 @@ public final class BackgroundContinuation {
             long backoff = noteFailure(budgetKey, SourceResolution.Status.FAILURE, "register");
             if (backoff < 0) return;
             final long delay = backoff;
-            host.runOnMain(() -> host.rearmSupervision(delay));
+            host.runOnMain(() -> { if(isCurrentRequest(requestId,track.songKey) && !host.desiredPaused()
+                && anchor.equals(host.currentSongKey()))host.rearmSupervision(delay); });
             return;
         }
         clearBudget(budgetKey);
-        takeovers++;
         PlaybackDiagnostics.note("continuation-resolved", new com.getcapacitor.JSObject()
             .put("song", PlaybackDiagnostics.anonKey(track.songKey))
             .put("provider", track.providerId)
             .put("quality", resolution.quality)
             .put("requestId", requestId)
             .put("generation", generation));
-        host.runOnMain(() -> host.adopt(track, uri, requestId, generation));
+        host.runOnMain(() -> {
+            // Main-loop delivery is another async boundary: Pause/Next may have cancelled us meanwhile.
+            if (!isCurrentRequest(requestId, track.songKey) || host.desiredPaused()
+                    || !anchor.equals(host.currentSongKey()) || !NativePlaylist.get().contains(track.songKey)) {
+                PlaybackDiagnostics.note("continuation-stale-delivery", new com.getcapacitor.JSObject()
+                    .put("requestId", requestId).put("song", PlaybackDiagnostics.anonKey(track.songKey)));
+                return;
+            }
+            takeovers++;
+            host.adopt(track, uri, requestId, generation);
+        });
     }
 
     // ------------------------------------------------------------------ budget internals
@@ -463,6 +474,9 @@ public final class BackgroundContinuation {
 
     /** 是否正在解析某一首。诊断里用来区分"等原生解析"与"后面真的没歌了"。 */
     public boolean isResolving() { return resolving; }
+    public boolean isCurrentRequest(long requestId, String songKey) {
+        return requestId == activeRequestId && songKey != null && songKey.equals(activeSongKey);
+    }
 
     public org.json.JSONObject snapshot() {
         int blockedCount = 0;

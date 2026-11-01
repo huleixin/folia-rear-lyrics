@@ -192,7 +192,7 @@ public class LyricSyncLedgerTest {
         // 暂停时位置不该自己走，时钟不刷新是正确的；背屏的状态轮询与播放无关，
         // 页面可见时照常到达 —— 活着的证据要补上，才能走到时钟判定。
         ledger.rearHeartbeat(later);
-        assertEquals(LyricSyncLedger.Verdict.IN_SYNC, ledger.verdict(later));
+        assertEquals(LyricSyncLedger.Verdict.PAUSED, ledger.verdict(later));
     }
 
     @Test
@@ -216,5 +216,47 @@ public class LyricSyncLedgerTest {
         assertTrue(line.contains("offset=-320ms"));
         ledger.offset(500L);
         assertTrue(ledger.describe(now).contains("offset=+500ms"));
+    }
+
+    @Test public void lateOldSongEventsDoNotRewriteCurrentHealth() {
+        fullySynced(1000);
+        ledger.track("song-b", "song-b#8");
+        ledger.unified("song-b", new LyricTimelineAuthority.Selection(
+            LyricTimelineAuthority.State.READY, "{}", false, "new-hash", 5, "stage"));
+        ledger.unified(SONG, new LyricTimelineAuthority.Selection(
+            LyricTimelineAuthority.State.READY, "{}", false, HASH, 4, "stage"));
+        ledger.islandPublished(SONG, HASH, 2000);
+        ledger.rearDelivered(SONG, EPOCH, HASH, 12, 2000);
+        ledger.rearAppliedAt(SONG, EPOCH, 10000, 2000);
+        assertEquals("new-hash", ledger.unifiedHash());
+        assertEquals("", ledger.islandHash());
+        assertEquals("", ledger.rearHash());
+    }
+
+    @Test public void sameSongNewEpochCannotReuseAnOldConsumerAcknowledgement() {
+        fullySynced(1000);ledger.track(SONG,"song-a#8");
+        ledger.rearAppliedAt(SONG,EPOCH,9000,2000);
+        assertEquals("",ledger.rearHash());assertFalse(ledger.threeEndsAligned());
+    }
+    @Test public void deliveredButNeverAppliedEventuallyReportsConsumerFailure() {
+        long now=100000;ledger.track(SONG,EPOCH);
+        ledger.unified(SONG,new LyricTimelineAuthority.Selection(LyricTimelineAuthority.State.READY,"{}",false,HASH,4,"stage"));
+        ledger.islandPublished(SONG,HASH,now);ledger.rearDelivered(SONG,EPOCH,HASH,12,now);
+        long later=now+LyricSyncLedger.REAR_RENDER_STALL_MS+1;
+        ledger.rearHeartbeat(later);ledger.session(true,true,20000,200000,later);
+        assertEquals(LyricSyncLedger.Verdict.REAR_RENDER_STALLED,ledger.verdict(later));
+    }
+
+    @Test public void cameraOwnershipDisabledAndSleepAreNotConsumerFailures() {
+        fullySynced(1000);
+        ledger.rearContext(true,true,false);assertEquals(LyricSyncLedger.Verdict.REAR_CAMERA_OWNED,ledger.verdict(100000));
+        ledger.rearContext(false,false,false);assertEquals(LyricSyncLedger.Verdict.REAR_DISABLED,ledger.verdict(100000));
+        ledger.rearContext(true,false,true);assertEquals(LyricSyncLedger.Verdict.REAR_SUSPENDED,ledger.verdict(100000));
+    }
+
+    @Test public void anOlderTimelineRevisionCannotDowngradeTheCurrentAuthority() {
+        fullySynced(1000);
+        ledger.unified(SONG,new LyricTimelineAuthority.Selection(LyricTimelineAuthority.State.READY,"{}",false,"old-hash",3,"native"));
+        assertEquals(HASH,ledger.unifiedHash());
     }
 }

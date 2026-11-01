@@ -19,14 +19,27 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     const bands={spectrum:new Uint8Array(1024)};
     let source='',track='',id='',sequence=0,lastIntent=0,position=0,duration=0,buffered=0,anchor=performance.now();
     let paused=true,playing=false,ended=false,ready=0,volume=element.volume,muted=element.muted,disposed=false,metadata=false;
+    let lastEventRevision=-1,engineSession='';
+    const retiredSessions:string[]=[];
+    let rate=1;
     let lastSample=-Infinity,seekTarget:number|null=null,seekUntil=0,announcedTrack='';
     let error:(MediaError & {nativeCode?:number})|null=null,options:NativeAudioOptions={fade:true,analysis:false,loop:false};
     let pending:{resolve:()=>void;reject:(error:unknown)=>void;timer:ReturnType<typeof setTimeout>}|null=null;
     const event=(name:string)=>{if(!disposed)element.dispatchEvent(new Event(name));};
-    const time=()=>Math.max(0,Math.min(duration||Infinity,position+(playing&&!paused?(performance.now()-anchor)/1000:0)));
+    const time=()=>Math.max(0,Math.min(duration||Infinity,position+(playing&&!paused?(performance.now()-anchor)/1000*rate:0)));
     const rejectPending=(reason:unknown)=>{if(pending){clearTimeout(pending.timer);pending.reject(reason);pending=null;}};
     const onState=(value:NativeAudioState)=>{
         if(blocked||disposed||value.id!==id||(!value.external&&value.sequence<lastIntent))return;
+        if(value.engineSessionId && value.engineSessionId!==engineSession){
+            if(retiredSessions.includes(value.engineSessionId))return;
+            if(engineSession)retiredSessions.push(engineSession);
+            if(retiredSessions.length>4)retiredSessions.shift();
+            engineSession=value.engineSessionId;lastEventRevision=-1;lastSample=-Infinity;
+        }
+        if(value.eventRevision!==undefined){
+            if(value.eventRevision<=lastEventRevision)return;
+            lastEventRevision=value.eventRevision;
+        }
         // Native queue supervision runs on Media3's own callbacks, so these signals arrive even
         // when the UI is showing a stale track (the very case that used to starve the queue).
         // They are therefore handled before track reconciliation, and dispatched to a listener
@@ -59,14 +72,15 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         // backgrounding or a wall-clock adjustment, and never advance stopped output.
         const deliveryMs=value.capturedAtMs===undefined?0:Date.now()-value.capturedAtMs;
         const deliverySec=value.playing&&!value.paused&&value.status===3&&deliveryMs>=0&&deliveryMs<=10000?deliveryMs/1000:0;
-        let next=value.position+deliverySec;
+        const nextRate=Number.isFinite(value.playbackRate)&&value.playbackRate!>0?value.playbackRate!:1;
+        let next=value.position+deliverySec*nextRate;
         // Old heartbeats must not undo a user seek or repeatedly recross a word boundary.
         if(seekTarget!==null){
             if(value.type==='seeked' || Math.abs(next-seekTarget)<.2 || performance.now()>seekUntil)seekTarget=null;
             else next=previousTime;
         } else if(wasPlaying&&!paused&&!value.paused&&value.type!=='seeked'
             && previousTime>next&&previousTime-next<.35)next=previousTime;
-        position=next;duration=value.duration;buffered=value.buffered;anchor=performance.now();playing=value.playing;
+        rate=nextRate;position=next;duration=value.duration;buffered=value.buffered;anchor=performance.now();playing=value.playing;
         if(value.errorCode){
             const firstError=!error;
             error={code:value.errorCode>=2000&&value.errorCode<3000?2:3,message:`原生播放失败：${value.message??value.errorCode}`} as MediaError;
@@ -148,7 +162,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         setSource(uri:string,key:string,sourceMetadata:Record<string,unknown>={}){
             if(uri===source&&key===track)return;
             if(!uri&&id)void send('detach').catch(()=>{});
-            rejectPending(abort());source=uri;track=key;id=uri?crypto.randomUUID():'';sequence=0;lastIntent=0;
+            rejectPending(abort());source=uri;track=key;id=uri?crypto.randomUUID():'';sequence=0;lastIntent=0;lastEventRevision=-1;
             position=0;duration=0;buffered=0;lastSample=-Infinity;seekTarget=null;anchor=performance.now();paused=true;playing=false;ended=false;error=null;ready=1;metadata=false;bands.spectrum.fill(0);
             event('loadstart');if(!uri)return;
             const preparing=id;
