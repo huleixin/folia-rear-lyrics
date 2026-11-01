@@ -987,6 +987,7 @@ export default function App() {
         blobUrlRef,
         shouldAutoPlayRef: shouldAutoPlay,
         currentSongRef,
+        playbackGenerationRef,
         currentOnlineAudioUrlFetchedAtRef,
     });
 

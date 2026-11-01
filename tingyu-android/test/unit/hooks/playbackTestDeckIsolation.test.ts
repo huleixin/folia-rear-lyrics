@@ -49,7 +49,8 @@ it('hands the same track back to the WebView pipeline after a native failure', a
     useAutomixSettingsStore.setState({ automixEnabled: false });
     config.engine = 'media3';
     config.probe.mockImplementation(async () => ({ supported: true, engine: 'media3' }));
-    config.addListener.mockImplementation(async () => ({ remove: async () => {} }));
+    let onNativeState!:(value:any)=>void;
+    config.addListener.mockImplementation(async (_name,listener) => {onNativeState=listener;return { remove: async () => {} };});
     config.command.mockImplementation(async () => ({ accepted: true }));
     const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
     function Probe() { const ref = useRef<HTMLAudioElement>(null), deck = useNativeAudioDeck(ref, 'A');
@@ -58,7 +59,8 @@ it('hands the same track back to the WebView pipeline after a native failure', a
         await act(async () => root.render(h(Probe)));
         expect(host.querySelector('audio')?.hasAttribute('src')).toBe(false);
         await act(async () => {
-            host.querySelector('audio')!.dispatchEvent(new Event('error'));
+            const prepare=config.command.mock.calls.filter(([value])=>value.action==='prepare').at(-1)![0];
+            onNativeState({id:prepare.id,sequence:prepare.sequence,type:'state',position:0,duration:200,buffered:0,playing:false,paused:true,status:1,errorCode:4005,message:'ERROR_CODE_DECODING_FAILED'});
             await new Promise(resolve => setTimeout(resolve));
             await new Promise(resolve => setTimeout(resolve));
         });

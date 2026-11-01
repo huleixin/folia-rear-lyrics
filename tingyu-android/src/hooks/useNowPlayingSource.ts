@@ -34,21 +34,29 @@ export function useNowPlayingSource({ enabled, host }: UseNowPlayingSourceOption
   useEffect(() => {
     if (!enabled) return undefined;
     durationSecRef.current = 0;
+    let alive = true, trackIdentity = '';
+    setState(initialWebLyricSourceState);
 
     const provider = new NowPlayingProvider(
       {
-        onConnectionStatusChange: (status) => setState((s) => ({ ...s, connectionStatus: status })),
+        onConnectionStatusChange: (status) => { if (alive) setState((s) => ({ ...s, connectionStatus: status })); },
         onTrack: (track: NowPlayingTrackSnapshot | null) => {
+          if (!alive) return;
+          const identity = JSON.stringify([track?.id,track?.title,track?.artist,track?.album]);
+          const changed = identity !== trackIdentity;
+          if (changed) { trackIdentity = identity; lyricRequestIdRef.current++; durationSecRef.current = 0; }
           const durMs = track?.durationMs ?? 0;
           if (durMs > 0) durationSecRef.current = durMs / 1000;
           setState((s) => ({
             ...s,
+            ...(changed ? { lyrics: null } : {}),
             track: track
               ? { name: track.title, artist: track.artist, coverUrl: track.coverUrl, seed: track.title }
               : null,
           }));
         },
         onLyric: (payload: NowPlayingLyricPayload | null) => {
+          if (!alive) return;
           const requestId = lyricRequestIdRef.current + 1;
           lyricRequestIdRef.current = requestId;
           if (!payload) {
@@ -63,13 +71,14 @@ export function useNowPlayingSource({ enabled, host }: UseNowPlayingSourceOption
           }
           void LyricParserFactory.parse(lyricSource as never)
             .then((parsed: LyricData | null) => {
-              if (lyricRequestIdRef.current === requestId) setState((s) => ({ ...s, lyrics: parsed }));
+              if (alive && lyricRequestIdRef.current === requestId) setState((s) => ({ ...s, lyrics: parsed }));
             })
             .catch(() => {
               // Parse failed: keep the current lyrics.
             });
         },
         onPauseState: (isPaused: boolean) => {
+          if (!alive) return;
           setState((s) => {
             // Re-anchor on pause/resume: freeze at the current extrapolated position /
             // continue from now, avoiding a jump.
@@ -83,6 +92,7 @@ export function useNowPlayingSource({ enabled, host }: UseNowPlayingSourceOption
           });
         },
         onProgress: ({ progressMs }) => {
+          if (!alive) return;
           // Progress event provides the anchor position; playing is the current non-paused
           // state (treated as playing when the first progress arrives before any pause state).
           setState((s) => ({
@@ -100,7 +110,7 @@ export function useNowPlayingSource({ enabled, host }: UseNowPlayingSourceOption
     );
 
     provider.start();
-    return () => provider.stop();
+    return () => { alive = false; lyricRequestIdRef.current++; provider.stop(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, host]);
 

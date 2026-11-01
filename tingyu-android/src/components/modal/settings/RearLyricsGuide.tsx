@@ -8,6 +8,19 @@ export default function RearLyricsGuide() {
     const { t } = useTranslation();
     const [diagnostics, setDiagnostics] = useState('');
     const [busy, setBusy] = useState(false);
+    const [exporting, setExporting] = useState(false), [exportMessage, setExportMessage] = useState('');
+    const exportDiagnostics = async () => {
+        if (exporting) return;
+        setExporting(true); setExportMessage('');
+        try {
+            const [{ buildDiagnosticReport }, { exportDiagnosticReport }, { redactDiagnosticReport }] = await Promise.all([
+                import('../../../utils/buildDiagnosticReport'), import('../../../services/exportDiagnosticReport'),
+                import('../../../utils/diagnosticRedaction'),
+            ]);
+            await exportDiagnosticReport(redactDiagnosticReport(await buildDiagnosticReport()), t('help.exportDiagnostics'));
+        } catch { setExportMessage(t('help.exportDiagnosticsFailed')); }
+        finally { setExporting(false); }
+    };
     const loadDiagnostics = async () => {
         if (busy) return;
         setBusy(true);
@@ -27,6 +40,11 @@ export default function RearLyricsGuide() {
         <details onToggle={event => { if (event.currentTarget.open && !diagnostics) void loadDiagnostics(); }}>
             <summary>{t('options.rearLyricsDiagnostics')}</summary>
             <pre className="ty-settings-diagnostics">{busy ? t('mobileSettings.rearState.detecting') : diagnostics}</pre>
+            <button type="button" disabled={exporting} aria-busy={exporting} onClick={()=>void exportDiagnostics()}
+                className="mt-3 rounded-xl border border-current/15 px-4 py-3 text-sm" style={{color:'var(--text-primary)'}}>
+                {t('help.exportDiagnostics')}{exporting?'…':''}
+            </button>
+            {exportMessage && <p role="status">{exportMessage}</p>}
         </details>
     </article>;
 }

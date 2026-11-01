@@ -822,30 +822,38 @@ export function usePlaybackQueueController({
 
         try {
             noteLyricsDiagnostic('queue:load:start', song);
+            const isCurrentLyrics = () => currentSongRef.current === songKey && playbackGenerationRef.current === landedGeneration;
             await loadOnlineSongLyrics(song, prefetched, userId, {
-                isCurrent: () => currentSongRef.current === songKey,
-                onLyrics: resolvedLyrics => setLyrics(resolvedLyrics),
+                isCurrent: isCurrentLyrics,
+                onLyrics: resolvedLyrics => { if (isCurrentLyrics()) setLyrics(resolvedLyrics); },
                 onPureMusicChange: isPureMusic => {
+                    if (!isCurrentLyrics()) return;
                     setCurrentSong(prev => {
                         if (!prev || !isSamePlaybackSong(prev, song)) return prev;
                         return { ...prev, isPureMusic };
                     });
                 },
                 onStateChange: state => {
+                    if (!isCurrentLyrics()) return;
                     setCurrentSong(prev => {
                         if (!prev || !isSamePlaybackSong(prev, song)) return prev;
                         return { ...prev, onlineLyricsState: state ?? undefined };
                     });
                 },
                 onAutoMatchStart: () => {
+                    if (!isCurrentLyrics()) return;
                     setStatusMsg({ type: 'info', text: t('status.matchingBestLyrics') });
                 },
                 onDone: () => {
+                    if (!isCurrentLyrics()) return;
                     noteLyricsDiagnostic('queue:load:done', song);
                     setIsLyricsLoading(false);
                 },
             });
         } catch (error) {
+            if (currentSongRef.current !== songKey || playbackGenerationRef.current !== landedGeneration) {
+                noteLyricsDiagnostic('queue:discard', song, { reason: 'stale-lyric-error' }); return;
+            }
             noteLyricsDiagnostic('queue:load:error', song, {
                 message: error instanceof Error ? error.message : String(error),
             });

@@ -36,6 +36,8 @@ export interface ObsBrowserSourceStatus {
 }
 
 export interface ObsBrowserSourceConfig {
+    /** Provider-aware identity for native rear handoff; raw song.id is not globally unique. */
+    playbackSongKey?: string;
     activePlaybackContext: 'main' | 'stage';
     stageSource: StageSource | null;
     hasTrack: boolean;

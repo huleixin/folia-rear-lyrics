@@ -82,3 +82,20 @@ describe('rear lyric clock continuity', () => {
         expect(position(value, 5000)).toBeCloseTo(9.9);
     });
 });
+
+it('simulates two hours across 40 tracks with pauses, speed changes and backward seeks',()=>{
+ const sync=createRearClockSynchronizer();let now=1000;
+ for(let track=0;track<40;track++){
+  let pos=0,seek=0;
+  for(let second=0;second<180;second++){
+   const playing=second%60>2,rate=second<120?1:1.25;
+   if(second===90){pos=40;seek++}
+   const sample=sync.accept(clock({timelineId:`native:${track}`,discontinuity:`${track}:${seek}`,currentTime:pos,sentAtMs:now,
+    duration:300,playerState:playing?PlayerState.PLAYING:PlayerState.PAUSED,playbackRate:rate}),now);
+   expect(Math.abs(position(sample,now)-pos)).toBeLessThan(.2);
+   if(!playing)expect(position(sample,now+500)).toBeCloseTo(pos);
+   if(playing)pos+=rate;now+=1000;
+  }
+ }
+ expect(now).toBe(7201000);
+});

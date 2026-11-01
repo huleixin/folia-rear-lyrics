@@ -1,3 +1,4 @@
+import { retireBlobUrl } from '@/services/playbackBlobUrls';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { PlayerState, type StatusMessage, type UnifiedSong } from '@/types';
 import { OnlineProviderError } from '@/types/onlineMusic';
@@ -73,7 +74,7 @@ const { useEffect } = await import('react');
 const { usePlaybackQueueController } = await import('@/hooks/usePlaybackQueueController');
 const { usePlaybackStore } = await import('@/stores/usePlaybackStore');
 const { useStatusMessageStore } = await import('@/stores/useStatusMessageStore');
-const { loadOnlineSongAudioSource } = await import('@/services/onlinePlayback');
+const { loadOnlineSongAudioSource, loadOnlineSongLyrics } = await import('@/services/onlinePlayback');
 const { getSongReplacement, isSongUnavailable } = await import('@/services/onlineMusic/songAvailability');
 const { loadOnlineLyricsState } = await import('@/utils/onlineLyricsState');
 const { getCachedSongCoverUrl } = await import('@/services/onlineMusic/resourceCache');
@@ -683,6 +684,9 @@ describe('stale requests', () => {
 
         cover.resolve(null);
         await landing;
+        // Artwork no longer blocks decoder startup: the URL was handed to a deck already.
+        // Once that deck releases it, the existing retirement sweep may revoke it.
+        retireBlobUrl(null);
         expect(revoke).toHaveBeenCalledWith('blob:b');
         expect(usePlaybackStore.getState().audioSrc).toBe(nextSrc);
         expect(queue.blobUrlRef.current).toBeNull();
@@ -1080,4 +1084,15 @@ describe('reporting playback failures', () => {
         expect(notified).toHaveBeenCalledTimes(2);
         expect(notified).not.toHaveBeenCalledWith(expect.objectContaining({ phase: 'play' }));
     });
+});
+
+it('does not apply an old same-song lyric callback after replay creates a new playback generation',async()=>{
+ const gates:any[]=[];vi.mocked(loadOnlineSongLyrics).mockImplementation(async(_song,_prefetch,_user,options)=>{gates.push(options)});
+ loader.mockResolvedValue({kind:'ok',audioSrc:'https://cdn.example/new.mp3'});
+ const queue=controller();await queue.playSong(songs[1],songs);await queue.playSong(songs[1],songs);
+ const old=gates.at(-2),current=gates.at(-1);expect(old.isCurrent()).toBe(false);expect(current.isCurrent()).toBe(true);
+ const before=queue.setLyrics.mock.calls.length;old.onLyrics({lines:[{fullText:'OLD'}]});
+ expect(queue.setLyrics.mock.calls.length).toBe(before);
+ current.onLyrics({lines:[{fullText:'NEW'}]});expect(queue.setLyrics).toHaveBeenLastCalledWith({lines:[{fullText:'NEW'}]});
+ vi.mocked(loadOnlineSongLyrics).mockImplementation(async()=>undefined);
 });

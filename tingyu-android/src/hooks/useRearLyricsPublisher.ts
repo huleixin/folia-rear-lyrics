@@ -81,7 +81,7 @@ export function useRearLyricsPublisher(config: ObsBrowserSourceConfig, clock: ()
                     loadedFont = await resolveRearUploadedFont(fontId);
                     loadedFontId = fontId;
                 }
-                if (closed || sleeping || !enabled) return;
+                if (closed || sleeping || !enabled || value !== latest.current) return;
                 await plugin.publishRearLyricsSnapshot({
                     ...(changed ? { config: value.config, uploadedFont: loadedFont } : {}),
                     clock, audio: value.audio(),

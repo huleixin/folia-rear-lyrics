@@ -1,3 +1,4 @@
+import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MotionValue } from 'framer-motion';
 import type {
@@ -263,6 +264,7 @@ export const useObsBrowserSourcePublisher = ({
             stageSource,
             hasTrack: Boolean(currentSong || lyrics),
             song: currentSong ? { id: currentSong.id, name: currentSong.name } : null,
+            playbackSongKey: currentSong ? getPlaybackSongKey(currentSong) : '',
             songArtist: getSongArtist(currentSong),
             songAlbum: getSongAlbum(currentSong),
             coverUrl: obsCoverUrl,

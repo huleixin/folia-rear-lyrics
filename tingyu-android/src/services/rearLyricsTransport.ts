@@ -31,6 +31,11 @@ export type RearNativeTrack = {
     durationMs?: number;
     positionMs?: number;
     playing?: boolean;
+    playbackRate?: number;
+    generation?: number;
+    eventRevision?: number;
+    sessionId?: string;
+    sentAtMs?: number;
     /**
      * 当前曲的歌词状态指纹 `state@revision`（原生侧 ColorOsLyricBridge.fingerprint）。
      *
@@ -53,7 +58,8 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         // The last configuration this document rendered. A track change patches this object
         // instead of waiting for a new one, so the visual settings never flicker or reset.
         let lastConfig: ObsBrowserSourceConfig | null = null;
-        let appliedEpoch = '';
+        let appliedEpoch = '', nativeAppliedEpoch = '';
+        let lyricRequest = 0, resyncs = 0, lastResyncAt = -Infinity;
         let lyricRetry = 0;
         // 当前生效的原生轨与歌词链路状态：断连/恢复（refresh）时用于判断要不要续上
         // 还没拿到的歌词 —— 只续有界的剩余次数，不重置计数、不轮询。
@@ -112,6 +118,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
             if (!base) return;
             activeTrack = track;
             lyricLines = 0;
+            nativeAppliedEpoch = track.epoch ?? '';
             lyricFingerprint = track.lyric ?? '';
             emitConfig({
                 ...base,
@@ -125,6 +132,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         };
         const loadNativeLyrics = async (track: RearNativeTrack, attempt: number) => {
             if (closed || appliedEpoch !== track.epoch) return;
+            const request = ++lyricRequest;
             lyricAttempt = attempt;
             const positionMs = Math.round(track.positionMs ?? 0);
             trace('lyric-request', `song=${track.songKey ?? ''} epoch=${track.epoch ?? ''}`
@@ -135,7 +143,9 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                     + `&epoch=${encodeURIComponent(track.epoch ?? '')}`, { cache: 'no-store', signal: abort.signal });
                 if (response.ok) result = await response.json();
             } catch { result = null; }
-            if (closed || appliedEpoch !== track.epoch) return;
+            if (closed || appliedEpoch !== track.epoch || request !== lyricRequest) {
+                trace('lyric-discard', 'stale-request-or-epoch'); return;
+            }
             const state = result?.state ?? 'loading';
             const lineCount = state === 'ready' && Array.isArray(result?.lines) ? result!.lines!.length : 0;
             trace('lyric-delivered', `song=${track.songKey ?? ''} epoch=${track.epoch ?? ''}`
@@ -146,7 +156,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                 // of times (fast first, then a slow recovery tier) instead of holding a line from
                 // the previous song on screen — and never forever.
                 if (!lyricRetry) lyricRetry = window.setTimeout(() => {
-                    lyricRetry = 0; void loadNativeLyrics(track, attempt + 1);
+                    lyricRetry = 0; if(request===lyricRequest)void loadNativeLyrics(track, attempt + 1);
                 }, attempt < NATIVE_LYRIC_RETRIES ? NATIVE_LYRIC_RETRY_MS : NATIVE_LYRIC_SLOW_RETRY_MS);
                 return;
             }
@@ -174,7 +184,9 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         };
         const accept = async (snapshot: RearStateSnapshot) => {
                 if (closed || inactive()) return;
-                if (snapshot.config && snapshot.revision !== revision) {
+                const configChanged = Boolean(snapshot.config && snapshot.revision !== revision);
+                if (configChanged && snapshot.config) {
+                    lyricRequest++;
                     const font = snapshot.uploadedFont;
                     if (loadFont && font?.id && font.id !== fontId) {
                         try {
@@ -194,28 +206,29 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                 // The native side is the identity authority: Media3's current MediaItem id and a
                 // per-track epoch. A different epoch means the song really changed, whatever the
                 // (possibly frozen) foreground WebView last said.
-                const track = snapshot.track;
+                const config = snapshot.config ?? lastConfig;
+                // External/stage sources retain their own clock; a retained Media3 item cannot own them.
+                const track = config?.activePlaybackContext === 'stage' ? undefined : snapshot.track;
                 const sentAt = snapshot.clock?.sentAtMs ?? 0;
-                const jsFresh = sentAt > 0 && Date.now() - sentAt <= NATIVE_STALE_MS;
-                if (track?.epoch && track.epoch !== appliedEpoch) {
-                    const previous = appliedEpoch;
-                    appliedEpoch = track.epoch;
-                    clearTimeout(lyricRetry); lyricRetry = 0;
-                    trace('switch', `${previous || '(none)'} -> ${track.epoch} song=${track.songKey ?? ''}`
-                        + ` pos=${Math.round(track.positionMs ?? 0)} playing=${track.playing === true}`
-                        + ` source=${jsFresh ? 'webview' : 'native'}`);
-                    // While the foreground WebView still publishes, it already knows this song and
-                    // its lyrics are richer (word-by-word, translations); only take over when it
-                    // has gone quiet. No downgrade, no flicker in the normal case.
-                    if (!jsFresh) applyNativeTrack(track);
-                } else if (track?.epoch && (track.lyric ?? '') !== lyricFingerprint) {
-                    // 同一首歌，但原生侧的歌词内容变了（pending → ready，或换了版本）。
-                    // 这是交付端的重同步：不等定时器、不等用户开 App，立刻重读一次。
-                    // 重读把重试计数清零 —— 内容变了就是一次新的尝试，不受之前的预算限制。
-                    lyricFingerprint = track.lyric ?? '';
-                    clearTimeout(lyricRetry); lyricRetry = 0;
-                    trace('lyric-revision', `epoch=${track.epoch} lyric=${lyricFingerprint}`);
-                    void loadNativeLyrics(track, 0);
+                const matchingSong = !track?.epoch || (config?.playbackSongKey ?? String(config?.song?.id ?? '')) === track.songKey;
+                const jsFresh = matchingSong && sentAt > 0 && Date.now() - sentAt >= 0 && Date.now() - sentAt <= NATIVE_STALE_MS;
+                if (track?.epoch) {
+                    activeTrack = track;
+                    const changed = track.epoch !== appliedEpoch;
+                    const lyricChanged = (track.lyric ?? '') !== lyricFingerprint;
+                    if (changed) {
+                        const previous = appliedEpoch; appliedEpoch = track.epoch;
+                        nativeAppliedEpoch = ''; lyricRequest++; resyncs = 0;
+                        clearTimeout(lyricRetry); lyricRetry = 0;
+                        trace('switch', `${previous || '(none)'} -> ${track.epoch} source=${jsFresh?'webview':'native'}`);
+                    }
+                    if (!jsFresh && (changed || nativeAppliedEpoch !== track.epoch || configChanged)) applyNativeTrack(track);
+                    else if (!jsFresh && lyricChanged) {
+                        lyricFingerprint = track.lyric ?? '';
+                        clearTimeout(lyricRetry); lyricRetry = 0;
+                        trace('lyric-revision', `epoch=${track.epoch} lyric=${lyricFingerprint}`);
+                        void loadNativeLyrics(track, 0);
+                    }
                 }
                 if (snapshot.clock && (jsFresh || !track?.epoch)) {
                     // Without a native track there is nothing better than the published clock, so
@@ -233,7 +246,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                         duration: (track.durationMs ?? 0) / 1000,
                         playerState: track.playing ? PlayerState.PLAYING : PlayerState.PAUSED,
                         sentAtMs: Date.now(),
-                        playbackRate: 1,
+                        playbackRate: track.playbackRate ?? 1,
                         lyricOffsetMs: lastClock?.lyricOffsetMs ?? 0,
                         timelineId: `native:${track.songKey ?? ''}`,
                         discontinuity: `native:${track.epoch}`,
@@ -287,7 +300,8 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                     snapshot.track?.epoch, snapshot.track?.positionMs, snapshot.track?.playing,
                     // 歌词指纹是「有词了」的唯一事件源：不进比较键就收不到重同步。
                     snapshot.track?.lyric]);
-                if (key !== lastSnapshotKey) {
+                const clockExpired = Boolean(snapshot.track?.epoch && snapshot.clock && Date.now() - snapshot.clock.sentAtMs > NATIVE_STALE_MS && nativeAppliedEpoch !== snapshot.track.epoch);
+                if (key !== lastSnapshotKey || clockExpired) {
                     options.onSnapshot?.(snapshot); await accept(snapshot); lastSnapshotKey = key;
                 }
                 sendAppliedBeat();
@@ -302,8 +316,17 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         };
         const refresh = () => {
             clearTimeout(timer);
+            lastSnapshotKey = '';
             receiveCleanup?.(); receiveCleanup = undefined; pending = null;
             if (!inactive()) {
+                // Restore a ready timeline once per visibility recovery, without rebuilding a window.
+                // A bounded per-track budget and cooldown prevent focus flapping from becoming retries.
+                const now = performance.now();
+                if (activeTrack && lyricLines > 0 && resyncs < 3 && now - lastResyncAt >= 5000) {
+                    resyncs++; lastResyncAt = now;
+                    trace('resync', `reason=visibility attempt=${resyncs}`, activeTrack.songKey, activeTrack.epoch);
+                    void loadNativeLyrics(activeTrack, 0);
+                }
                 // 恢复（visibilitychange / power / 重连）时，如果这首歌的歌词一次都没到过
                 // 且重试预算还有剩，就从慢速档续上 —— 真机 2026-10-31：锁屏切歌后歌词
                 // 12 秒才补到，旧链路此时早已放弃，只能靠点亮主屏救回。
@@ -327,6 +350,6 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         window.addEventListener('folia-rear-power', power);
         if (typeof document !== 'undefined') document.addEventListener('visibilitychange', refresh);
         start();
-        return () => { closed = true; receiveCleanup?.(); abort.abort(); clearTimeout(timer); window.removeEventListener('folia-rear-power', power); if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', refresh); if (ownedFont) document.fonts.delete(ownedFont); };
+        return () => { closed = true; lyricRequest++; receiveCleanup?.(); abort.abort(); clearTimeout(timer); clearTimeout(lyricRetry); window.removeEventListener('folia-rear-power', power); if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', refresh); if (ownedFont) document.fonts.delete(ownedFont); };
     } };
 }

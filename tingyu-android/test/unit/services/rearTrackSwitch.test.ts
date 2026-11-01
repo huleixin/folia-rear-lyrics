@@ -169,3 +169,35 @@ it('a never-arriving lyric gives up bounded and never polls forever', async () =
     expect(lyricCalls).toBe(after);
     stop();
 });
+
+it('rejects a late lyric version within the same song epoch',async()=>{
+    vi.useFakeTimers();install({},{});
+    let receive!:(value:any)=>void,resolveOld!:(value:any)=>void;
+    const fetcher=vi.fn().mockImplementationOnce(()=>new Promise(done=>{resolveOld=done}))
+        .mockResolvedValue({ok:true,json:async()=>({state:'ready',lines:[{fullText:'NEW',startTime:0,endTime:2}]})});
+    vi.stubGlobal('fetch',fetcher);const config=vi.fn();
+    const stop=createRearLyricsTransport(()=>{},()=>{},false,{receiveSnapshots:callback=>{receive=callback;return()=>{}}})
+        .subscribe({config,clock:vi.fn(),audio:vi.fn(),connected:vi.fn()});
+    const track={songKey:'k2',epoch:'k2#2',title:'B',playing:true,positionMs:5000};
+    receive({revision:1,config:baseConfig,track:{...track,lyric:'ready@1'}});await vi.advanceTimersByTimeAsync(0);
+    receive({revision:1,track:{...track,lyric:'ready@2'}});await vi.advanceTimersByTimeAsync(0);
+    expect(config.mock.lastCall?.[0].lyrics.lines[0].fullText).toBe('NEW');
+    resolveOld({ok:true,json:async()=>({state:'ready',lines:[{fullText:'OLD',startTime:0,endTime:2}]})});
+    await vi.advanceTimersByTimeAsync(0);
+    expect(config.mock.lastCall?.[0].lyrics.lines[0].fullText).toBe('NEW');stop();
+});
+it('does not trust a freshly delivered foreground snapshot for another native song',async()=>{
+    vi.useFakeTimers();install({revision:1,config:baseConfig,clock:{currentTime:120,duration:200,playerState:'PLAYING',playbackRate:1,sentAtMs:Date.now()},
+        track:{songKey:'k2',epoch:'k2#2',title:'B',positionMs:3000,playing:true}},
+        {state:'ready',lines:[{fullText:'B1',startTime:0,endTime:5}]});
+    const config=vi.fn(),clock=vi.fn();
+    const stop=createRearLyricsTransport(()=>{},()=>{},false).subscribe({config,clock,audio:vi.fn(),connected:vi.fn()});
+    await vi.advanceTimersByTimeAsync(200);
+    expect(config.mock.lastCall?.[0].song.id).toBe('k2');expect(clock.mock.lastCall?.[0].timelineId).toBe('native:k2');
+    stop();
+});
+it('cancels pending lyric retry timers when the consumer is disposed',async()=>{
+    vi.useFakeTimers();install({revision:1,config:baseConfig,track:{songKey:'k2',epoch:'k2#2',title:'B'}},{state:'loading'});
+    const stop=createRearLyricsTransport(()=>{},()=>{},false).subscribe({config:vi.fn(),clock:vi.fn(),audio:vi.fn(),connected:vi.fn()});
+    await vi.advanceTimersByTimeAsync(0);stop();expect(vi.getTimerCount()).toBe(0);
+});

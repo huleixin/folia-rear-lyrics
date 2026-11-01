@@ -904,10 +904,15 @@ const readBackgroundContinuityLines = async (): Promise<string[]> => {
         const playback = plugins.TingyuPlayback;
         const diagnostics = typeof playback?.diagnostics === 'function' ? await playback.diagnostics() : null;
         const player = diagnostics?.player;
+        if (diagnostics?.lyricSync) lines.push(`  lyric sync: ${diagnostics.lyricSync}`);
         if (!player) {
             lines.push('  native queue: (unavailable)');
         } else {
             nativeSongKey = String(player.songKey ?? '');
+            lines.push(`  playback session: id=${player.engineSessionId ?? 'unknown'} event=${player.eventRevision ?? 'unknown'}`
+                + ` trackGeneration=${player.trackGeneration ?? 'unknown'} speed=${player.playbackRate ?? 1}`
+                + ` sampledElapsedMs=${player.capturedAtElapsedMs ?? 'unknown'}`);
+            lines.push('  consumer evidence: rear=JS apply/heartbeat; island=MediaSession publication only, display ACK unavailable');
             lines.push(
                 `  native queue: items=${player.queueItems} index=${player.queueIndex} remaining=${player.queueRemaining}`
                 + ` continues=${player.queueContinues} waiting=${player.queueWaiting} heldOpen=${player.queueHeldOpen}`
