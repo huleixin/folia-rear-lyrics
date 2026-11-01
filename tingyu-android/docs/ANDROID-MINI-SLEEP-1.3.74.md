@@ -52,7 +52,7 @@
 - src/library/suites/mobile/MobileMiniPlayer.tsx（传递已有时长偏好）
 - src/services/nativeChrome.ts（偏好字段）
 - src/services/nativeSleepTimer.ts（现有偏好同步及旧事件保护）
-- src/stores/useSleepTimerStore.ts（原子更新既有时长偏好、Android 草稿不取消原生任务）
+- src/stores/useSleepTimerStore.ts（一次更新既有时长偏好、Android 草稿不取消原生任务）
 
 测试、构建和说明：
 - android/app/build.gradle（仅 androidTest 的 Compose UI 测试依赖）
@@ -82,7 +82,10 @@
 
 ## 构建、签名与回滚
 
-Release APK将按既有签名配置构建，保持包名 io.github.huleixin.tingyu 与原发布证书；构建及签名核验记录见下方最终结果。没有提交或上传私钥、密码或用户资源。
+Release 构建成功（前端 build:capacitor、Capacitor sync、Android assembleRelease）。功能源码提交为 `02b774b`；后续提交仅补充此验证记录。构建保留既有包名 io.github.huleixin.tingyu，版本1.3.74 / code97。
+
+apksigner 验证成功，原证书 SHA-256：`a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d`。
+
+APK SHA-256：`7dce287bf8c1ad8af578b82e158a7ff2b4c577a3679ac2d5509ec0931cbe6ef5`。APK DEX 核对包含生产 MiniSleepMenu，排除 debug 预览 Activity 和仪器测试类。没有提交或上传私钥、密码或用户资源。
 
 回滚源码：revert本次功能提交，保留1.3.73全部修复；发布回滚应使用更高 versionCode 并沿用原签名，避免卸载/清数据。纯回装旧APK可能被Android降级限制，不建议卸载来回滚。
-
