@@ -122,8 +122,8 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
             lyricFingerprint = track.lyric ?? '';
             emitConfig({
                 ...base,
-                song: { id: track.songKey ?? '', name: track.title || base.song?.name || '' },
-                songArtist: track.artist ?? base.songArtist,
+                song: { id: track.songKey ?? '', name: track.title ?? '' },
+                songArtist: track.artist ?? null,
                 hasTrack: true,
                 lyrics: { lines: [], title: track.title, artist: track.artist },
                 updatedAt: Date.now(),

@@ -49,7 +49,7 @@ it('clears the lyric timeline before the new song s lyrics exist', async () => {
     install({
         revision: 4, config: baseConfig,
         clock: { currentTime: 200, duration: 200, playerState: 'PLAYING', playbackRate: 1, sentAtMs: Date.now() - 60_000 },
-        track: { songKey: 'k2', epoch: 'k2#9', title: 'B', positionMs: 0, durationMs: 100_000, playing: true },
+        track: { songKey: 'k2', epoch: 'k2#9', positionMs: 0, durationMs: 100_000, playing: true },
     }, { state: 'loading' });
     const config = vi.fn();
     const stop = createRearLyricsTransport(() => undefined, () => undefined, false)
@@ -58,6 +58,8 @@ it('clears the lyric timeline before the new song s lyrics exist', async () => {
     const cleared = config.mock.calls.find(call => call[0].song.id === 'k2');
     expect(cleared).toBeTruthy();
     expect(cleared?.[0].lyrics.lines).toEqual([]);
+    expect(cleared?.[0].song.name).not.toBe('A');
+    expect(cleared?.[0].songArtist).not.toBe('a');
     stop();
 });
 
