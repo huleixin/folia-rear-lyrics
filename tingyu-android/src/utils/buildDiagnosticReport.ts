@@ -1,3 +1,4 @@
+import { navigationDiagnosticLines } from '../services/navigationTiming';
 import { sampleFrameTimingWindow } from './frameTimingDemand';
 import { getLibraryTraceLines } from '../nativeBridge/api/libraryTrace.js';
 import { getQrLoginTraceLines } from '../nativeBridge/api/qrLoginTrace.js';
@@ -1022,6 +1023,7 @@ export const buildDiagnosticReport = async (): Promise<string> => {
     const capacitor = (window as unknown as { Capacitor?: { getPlatform?: () => string; isNativePlatform?: () => boolean } }).Capacitor;
     const lines: string[] = [
         '### Folia diagnostics',
+        ...(await navigationDiagnosticLines()),
         '',
         '```text',
         `generated: ${new Date().toISOString()}`,

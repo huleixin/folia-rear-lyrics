@@ -7,4 +7,4 @@ const importSettings=()=>{const at=Date.now();navigationMark('settings-import-st
 export function loadSettingsModule(){return pending??=importSettings().catch(error=>{pending=undefined;throw error})}
 export function warmSettingsModule(){void loadSettingsModule().catch(()=>{})}
 
-export function scheduleSettingsWarmup(){return scheduleUiWarmup(loadSettingsModule)}
+export function scheduleSettingsWarmup(){return scheduleUiWarmup(loadSettingsModule,'settings')}

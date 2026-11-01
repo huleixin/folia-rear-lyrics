@@ -49,7 +49,7 @@ export function scheduleMobileCollectionPreload(preload: () => Promise<unknown>)
         if (stopped || document.hidden) return;
         stopped = true;
         document.removeEventListener('visibilitychange', visibility);
-        cancelWarmup = scheduleUiWarmup(preload);
+        cancelWarmup = scheduleUiWarmup(preload,'collection');
     };
     const schedule = () => {
         if (stopped || document.hidden || frame !== undefined) return;

@@ -1,3 +1,4 @@
+import { navigationMark } from './navigationTiming';
 import { isLocalCoverWebRuntimeSupported } from './localCoverBinaryStore';
 import { migrateLegacyLocalCoverAssetsInBackground } from './localCoverAssetService';
 import { isLocalCoverAssetUrl } from './localCoverAssetUrl';
@@ -28,5 +29,6 @@ export const initializeLocalCoverRuntime = (): void => {
   }
 
   // Retry only covers that failed before their legacy payload reached external storage.
-  void migrateLegacyLocalCoverAssetsInBackground().then(retryBrokenLocalCoverImages);
+  navigationMark('local-cover-migration-start');
+  void migrateLegacyLocalCoverAssetsInBackground().then(()=>{navigationMark('local-cover-migration-end');retryBrokenLocalCoverImages()});
 };

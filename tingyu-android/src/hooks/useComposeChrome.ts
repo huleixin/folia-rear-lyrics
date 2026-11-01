@@ -1,4 +1,4 @@
-import { noteUiInteraction } from '../services/uiWarmup';
+import { noteUiInteraction, markStartupReady } from '../services/uiWarmup';
 import { navigationMark } from '../services/navigationTiming';
 import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import type { MotionValue } from 'framer-motion';
@@ -62,7 +62,10 @@ export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfac
                     if(disposed||!started){void remove();return;}
                     if(sentRevision!==revision)return;
                     const accepted=result.accepted&&result.session===session;
+                    if(result.pendingNavigation)noteUiInteraction();
                     mark(enabled&&accepted,!enabled&&accepted);
+                    if(enabled&&accepted&&(id==='nav'||id==='stage')){markStartupReady('chrome');if(id==='stage')markStartupReady('page')}
+                    navigationMark('chrome-surface-ack');
                     lastAt=performance.now();lastPosition=position();
                 }catch(error){if(sentRevision===revision){console.warn('[ComposeChrome] Native control update failed',error);window.dispatchEvent(new Event(COMPOSE_CHROME_FAILURE_EVENT));}}
             }
@@ -93,7 +96,7 @@ export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfac
                 if(event.action==='interactionEnd'){held=false;chromeWindowInteraction('end');return;}
                 if(!latest.current.active||node.dataset.composeNative!=='true'||hasBlockingChromeWindow())return;
                 if(event.action==='interactionStart'){held=true;chromeWindowInteraction('start');return;}
-                chromeWindowInteraction('start');try{dispatchChromeAction(latest.current.actions,event.action,event.value);}finally{chromeWindowInteraction('end');}
+                navigationMark('chrome-business-start');chromeWindowInteraction('start');try{dispatchChromeAction(latest.current.actions,event.action,event.value);}finally{chromeWindowInteraction('end');}
             });
             if(disposed||failed){void listener.remove();return;}
             navigationMark('chrome-listener-ready');

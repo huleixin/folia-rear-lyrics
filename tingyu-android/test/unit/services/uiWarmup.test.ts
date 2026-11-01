@@ -21,10 +21,32 @@ it('serializes speculative imports, honors cancellation, and pauses when hidden'
     await Promise.resolve();
     expect(first).toHaveBeenCalledOnce(); expect(second).not.toHaveBeenCalled();
     hidden = true; finish();
+    await new Promise(resolve=>setTimeout(resolve,0));
     await vi.waitFor(() => expect(idle).toHaveLength(0));
-    hidden = false; document.dispatchEvent(new Event('visibilitychange'));
+    clock.mockReturnValue(1800); hidden = false; document.dispatchEvent(new Event('visibilitychange'));
     await vi.waitFor(() => expect(idle).toHaveLength(1));
     idle.shift()!(budget); await Promise.resolve();
     expect(second).toHaveBeenCalledOnce(); expect(cancelled).not.toHaveBeenCalled();
     stopFirst(); stopSecond(); vi.restoreAllMocks(); vi.unstubAllGlobals();
+});
+
+
+it('waits for native page and chrome handoff, deduplicates owners and completed modules', async()=>{
+    vi.resetModules();
+    const scheduler=await import('@/services/uiWarmup');
+    (window as any).Capacitor={getPlatform:()=> 'android'};
+    const idle:IdleRequestCallback[]=[];
+    vi.stubGlobal('requestIdleCallback',(fn:IdleRequestCallback)=>{idle.push(fn);return idle.length});
+    vi.spyOn(document,'hidden','get').mockReturnValue(false);
+    vi.spyOn(performance,'now').mockReturnValue(1000);
+    const load=vi.fn(async()=>undefined);
+    const cancel=scheduler.scheduleUiWarmup(load);scheduler.scheduleUiWarmup(load);cancel();
+    expect(idle).toHaveLength(0);
+    scheduler.markStartupReady('chrome');expect(idle).toHaveLength(0);
+    scheduler.markStartupReady('page');expect(idle).toHaveLength(1);
+    idle.shift()!({didTimeout:false,timeRemaining:()=>20});
+    await new Promise(resolve=>setTimeout(resolve,0));
+    expect(load).toHaveBeenCalledOnce();
+    scheduler.scheduleUiWarmup(load);expect(idle).toHaveLength(0);
+    delete (window as any).Capacitor;vi.restoreAllMocks();vi.unstubAllGlobals();
 });

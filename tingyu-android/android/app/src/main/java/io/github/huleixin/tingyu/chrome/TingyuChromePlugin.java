@@ -10,8 +10,10 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 @CapacitorPlugin(name = "TingyuChrome")
 public class TingyuChromePlugin extends Plugin {
     private static void traceDispatch(JSObject event) {
-        if(android.util.Log.isLoggable("TingyuNavigation",android.util.Log.DEBUG)) {
-            event.put("nativeDispatchedAt",System.currentTimeMillis());
+        if(NavigationTiming.enabled()||android.util.Log.isLoggable("TingyuNavigation",android.util.Log.DEBUG)) {
+            event.put("nativeDispatchedAt",NavigationTiming.epochNow());
+            NavigationTiming.mark("interactionStart".equals(event.optString("action"))?"compose-press":"compose-click");
+            NavigationTiming.mark("native-action-dispatch");
             android.util.Log.d("TingyuNavigation","native-dispatch at="+System.currentTimeMillis());
         }
     }
@@ -37,6 +39,10 @@ public class TingyuChromePlugin extends Plugin {
         });
         return host;
     }
+    @PluginMethod public void navigationDiagnostics(PluginCall call){getActivity().runOnUiThread(()->{
+        if(call.getData().has("enabled"))NavigationTiming.configure(getContext(),call.getBoolean("enabled",false));
+        try{call.resolve(JSObject.fromJSONObject(NavigationTiming.snapshot()));}catch(Exception e){call.reject("启动诊断读取失败",e);}
+    });}
     @PluginMethod public void appearance(PluginCall call) { getActivity().runOnUiThread(() -> {
         try {
             String mode=call.getString("mode");
@@ -81,10 +87,12 @@ public class TingyuChromePlugin extends Plugin {
     }); }
     @PluginMethod public void clock(PluginCall call) { getActivity().runOnUiThread(() -> { if (host != null) host.clock(call.getData()); call.resolve(); }); }
     @PluginMethod public void pageUpdate(PluginCall call) {
+        final long parseAt=android.os.SystemClock.elapsedRealtime();
         final PreparedNativePage packet;
-        try { packet=PreparedNativePage.parse(call.getData()); }
+        try { packet=PreparedNativePage.parse(call.getData());NavigationTiming.mark("page-packet-parse",android.os.SystemClock.elapsedRealtime()-parseAt); }
         catch(Exception error){call.reject(error.getMessage(),error);return;}
         getActivity().runOnUiThread(() -> {
+        NavigationTiming.mark("page-ui-dispatch",android.os.SystemClock.elapsedRealtime()-parseAt);
         try { host().pageUpdate(packet, result -> {
             try { call.resolve(JSObject.fromJSONObject(result)); } catch(Exception error) { call.reject(error.getMessage(),error); }
             return kotlin.Unit.INSTANCE;

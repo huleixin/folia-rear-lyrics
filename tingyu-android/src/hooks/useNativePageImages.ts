@@ -1,3 +1,4 @@
+import { navigationMark } from '../services/navigationTiming';
 import { useEffect, useMemo, useState } from 'react';
 import type { NativePageModel } from '../types/nativePages';
 import { useStableNativeData } from './useStableNativeData';
@@ -17,13 +18,14 @@ export function useNativePageImages(model:NativePageModel,active:boolean):Native
     useEffect(()=>{
         if(!NATIVE_FIRST||!active)return;
         const list=urls;if(!list.length)return;
+        navigationMark('native-thumbnail-batch-start');const started=performance.timeOrigin+performance.now();
         let alive=true,index=0,timer=0;const resolved:Record<string,string>={};
         const publish=()=>{timer=0;if(alive)setImages({...resolved})};
         const worker=async()=>{while(alive&&index<list.length){const url=list[index++];resolved[url]=await nativeCoverThumbnail(url);
             // Coalesce arrivals without making a fast cover wait for every slow cover in the page.
             if(alive&&!timer)timer=window.setTimeout(publish,48);
         }};
-        void Promise.all(Array.from({length:Math.min(4,list.length)},worker)).then(()=>{clearTimeout(timer);publish()});
+        void Promise.all(Array.from({length:Math.min(4,list.length)},worker)).then(()=>{navigationMark('native-thumbnail-batch-end',started);clearTimeout(timer);publish()});
         return()=>{alive=false;clearTimeout(timer)};
     },[urls,active]);
     return useMemo(()=>{if(!urls.length)return model;

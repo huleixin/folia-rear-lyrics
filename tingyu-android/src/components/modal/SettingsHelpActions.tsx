@@ -1,3 +1,4 @@
+import StartupDiagnosticsControl from './StartupDiagnosticsControl';
 import React, { useState } from 'react';
 import { Activity, Check, ClipboardCopy, Eraser, FileDown, Lightbulb, Loader2, Sparkles, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -124,6 +125,7 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
 
     return (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <StartupDiagnosticsControl/>
             <button
                 type="button"
                 data-testid="help-release-notes"

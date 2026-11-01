@@ -37,8 +37,17 @@ public class MainActivity extends BridgeActivity {
     private io.github.huleixin.tingyu.chrome.ComposeChromeHost nativeShell;
     public io.github.huleixin.tingyu.chrome.ComposeChromeHost getNativeShell() { return nativeShell; }
 
+    @Override public boolean dispatchTouchEvent(android.view.MotionEvent event) {
+        boolean trace=io.github.huleixin.tingyu.chrome.NavigationTiming.enabled()&&event.getActionMasked()==android.view.MotionEvent.ACTION_DOWN;
+        long started=trace?android.os.SystemClock.uptimeMillis():0;
+        if(trace)io.github.huleixin.tingyu.chrome.NavigationTiming.mark("touch-received",started-event.getEventTime());
+        try{return super.dispatchTouchEvent(event);}
+        finally{if(trace)io.github.huleixin.tingyu.chrome.NavigationTiming.mark("touch-dispatch-return",android.os.SystemClock.uptimeMillis()-started);}
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        io.github.huleixin.tingyu.chrome.NavigationTiming.initialize(this);
         CrashDiagnostics.install(getApplicationContext());
         // The playback trail must exist before anything else can fail, and must be reloaded from
         // disk on every process start so a trail recorded before a kill is still exportable.
@@ -55,6 +64,7 @@ public class MainActivity extends BridgeActivity {
         getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(
             io.github.huleixin.tingyu.chrome.InterfaceAppearance.light(this) ? 0xFFF4F5EE : 0xFF09090B));
         super.onCreate(savedInstanceState);
+        io.github.huleixin.tingyu.chrome.NavigationTiming.mark("activity-create-capacitor-ready");
         if (BuildConfig.DEBUG && (BuildConfig.GLASS_LAB || BuildConfig.COMPOSE_CHROME)) WebView.setWebContentsDebuggingEnabled(true);
         CrashDiagnostics.recordText(
             getApplicationContext(),
@@ -82,10 +92,12 @@ public class MainActivity extends BridgeActivity {
             });
         } catch (Throwable unavailable) { /* Keep Capacitor's existing client on unsupported vendor WebViews. */ }
         WebView webView = getBridge().getWebView();
+        io.github.huleixin.tingyu.chrome.NavigationTiming.mark("webview-available");
         if (BuildConfig.COMPOSE_CHROME) {
             // Attach packaged Compose UI before the Activity can present its first application frame.
             nativeShell = new io.github.huleixin.tingyu.chrome.ComposeChromeHost(webView, (id,session,action,value) -> {});
             nativeShell.bootstrap();
+            io.github.huleixin.tingyu.chrome.NavigationTiming.mark("cached-shell-attached");
         }
         WebSettings settings = webView.getSettings();
         settings.setMediaPlaybackRequiresUserGesture(false);
@@ -314,6 +326,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onDestroy() {
+        io.github.huleixin.tingyu.chrome.NavigationTiming.destroy();
         // The Activity owns the Capacitor bridge, and the bridge is the only path JS has into the
         // engine. Its destruction is therefore a playback event, not only a lifecycle one.
         io.github.huleixin.tingyu.playback.PlaybackDiagnostics.initialize(getApplicationContext());

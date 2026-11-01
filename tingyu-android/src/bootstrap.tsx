@@ -1,3 +1,4 @@
+import { navigationMark } from './services/navigationTiming';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './i18n/config';
@@ -48,7 +49,7 @@ const root = ReactDOM.createRoot(rootElement);
 // also has the Electron bridge, but mod state pushes only reach the main
 // window, so a client activated there would never be torn down.
 const isMainApp = isMainAppSurface;
-const renderApp = () => root.render(
+const renderApp = () => {navigationMark('react-render-request');return root.render(
     <React.StrictMode>
       <ChunkLoadBoundary>
         <AppSplashGate>
@@ -56,7 +57,7 @@ const renderApp = () => root.render(
         </AppSplashGate>
       </ChunkLoadBoundary>
     </React.StrictMode>
-  );
+  );};
 
 // Library suites declare their chrome actions in their manifests; the palette cannot import the
 // registry, so the commands are put into its list here, before anything renders (main window only,
@@ -94,6 +95,7 @@ void Promise.allSettled([bootFolium(), bootNavidrome()])
         // worker is a background resource route, not a render prerequisite: waiting for its
         // registration used to hold this callback forever when register() never settled, leaving
         // the HTML splash animation on screen with no app behind it.
+        navigationMark('js-bootstrap-ready');
         renderApp();
         void initializeLocalCoverRuntime();
     });

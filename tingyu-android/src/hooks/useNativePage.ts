@@ -1,4 +1,4 @@
-import { noteUiInteraction } from '../services/uiWarmup';
+import { noteUiInteraction, markStartupReady } from '../services/uiWarmup';
 import { navigationMark } from '../services/navigationTiming';
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { NATIVE_FIRST, canUseNativePages, nativePages } from '../services/nativePages';
@@ -44,6 +44,7 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
         };
         const remove = () => nativePages.pageRemove({ id, session }).catch(() => {});
         const measure = () => {
+            const measuredAt=performance.timeOrigin+performance.now();
             frame = 0; if (disposed || !started) return;
             if(!isMainStageActive())return;
             flushNativeShellRoute();
@@ -60,10 +61,12 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
                 navigation:document.documentElement.dataset.nativeNavigation??'' };
             if (sameNativeEnvelope(last, packet)) return; last = packet;
             const sent = ++revision; if (!enabled) mark(false);
+            navigationMark('page-layout-capture',measuredAt);
+            navigationMark('page-send');
             void nativePages.pageUpdate({ ...packet, revision: sent }).then(result => {
                 navigationMark('page-ack');
                 if (disposed) { void remove(); return; }
-                if (sent === revision) mark(enabled && result.accepted && result.session === session);
+                if (sent === revision) {const accepted=enabled && result.accepted && result.session === session;mark(accepted);if(accepted)markStartupReady('page');}
             }).catch(error => {
                 if (sent !== revision || disposed) return;
                 console.warn('[NativePages] Native page update failed', error);
@@ -80,6 +83,7 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
                     || node.dataset.nativePage !== 'true') return;
                 noteUiInteraction();
                 navigationMark('page-event-js',event.nativeDispatchedAt);
+                navigationMark('page-business-start');
                 current.actions[event.action]?.({ text: event.text, value: event.value });
             });
             navigationMark('page-listener-ready');

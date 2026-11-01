@@ -1,3 +1,4 @@
+import { navigationMark } from '../services/navigationTiming';
 // src/utils/coverPrewarm.ts
 //
 // 换歌时先把要显示的封面解码掉。
@@ -28,7 +29,8 @@ export const prewarmCoverImage = (url: string | null | undefined): void => {
         (image as HTMLImageElement & { fetchPriority?: string }).fetchPriority = 'low';
         image.src = url;
         // decode() 在部分实现里不存在；有就等它把解码真正做完（结果进浏览器缓存）。
-        void image.decode?.().catch(() => undefined);
+        navigationMark('cover-decode-start');
+        void image.decode?.().then(()=>navigationMark('cover-decode-ready'),()=>navigationMark('cover-decode-failed'));
     } catch {
         // 预热失败不影响正常显示。
     }

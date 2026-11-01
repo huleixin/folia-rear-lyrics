@@ -71,6 +71,12 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private val cache=NativeShellCache(web.context)
     private val retained=NativePageRetention()
     private val routeMotion=NativeRouteMotion()
+    private val startupNavigation=PendingStartupNavigation()
+    private var startupSelected by mutableStateOf<Int?>(null)
+    private var startupToast:android.widget.Toast?=null
+    private var navigationActionSerial=0L
+    private fun clearStartupNavigation(){startupNavigation.clear();startupSelected=null;startupToast?.cancel();startupToast=null}
+
     private val stageExit=NativeStageExit()
     fun collapseStage(reply:()->Unit){if(destination!="stage"||webOverlay){reply();return};stageExit.begin(retained.lastBrowsing(),reply)}
     private var presented by mutableStateOf<NativePage?>(null)
@@ -169,7 +175,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // retired (e.g. the home DOM acquiring the stage's safe-area coordinates).
         val ownsPresentation=retained.updateForRoute(next,destination,selectedTab,pageTarget,value.navigation,navigation)
         if(ownsPresentation){
-            navigationTrace("page-native-commit")
+            navigationTrace("page-native-commit:${next.id}")
             recordMotion(next.key)
             presented=next
         }
@@ -189,7 +195,20 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         clocks[next.id] = ChromeTimeline(next.position,next.duration,next.playing,SystemClock.elapsedRealtime())
         updates++
         cache.commit(value.cache)
-        reply(status().put("session",next.session).put("accepted",true))
+        reply(status().put("session",next.session).put("accepted",true).put("pendingNavigation",startupNavigation.selected!=null))
+        if(next.enabled&&next.id=="nav"&&!next.disabled){
+            NavigationTiming.mark("nav-live-surface-accepted")
+            val pending=startupNavigation.take()
+            if(pending!=null){val serial=navigationActionSerial
+                web.post{
+                    if(serial==navigationActionSerial&&active&&surfaces["nav"]?.session==next.session&&surfaces["nav"]?.enabled==true){
+                        NavigationTiming.mark("startup-navigation-replayed")
+                        listener.onAction("nav",next.session,"navigate",pending.toDouble())
+                    }
+                    clearStartupNavigation()
+                }
+            }
+        }
     }
     fun clock(value: JSONObject) {
         val current = surfaces[value.optString("id")] ?: return
@@ -201,7 +220,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         frameOrder.retire(id,session)
         if (surfaces[id]?.session == session) { surfaces.remove(id); clocks.remove(id) }
     }
-    fun suspend() { active = false;sleepMenuOpen=false;stageExit.clear() }
+    fun suspend() { navigationActionSerial++;clearStartupNavigation();active = false;sleepMenuOpen=false;stageExit.clear() }
     fun resume() { active = true }
     private fun attach() {
         val original = web.parent as? ViewGroup ?: error("WebView has no parent")
@@ -304,11 +323,17 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 }
             }
             if(firstHomeFrame&&destination=="home"&&!webOverlay) {
+                LaunchedEffect(Unit){withFrameNanos{NavigationTiming.mark("cached-shell-frame-boundary")}}
                 for(id in listOf("nav","mini"))if(!surfaces.containsKey(id)){
                     val seed=remember(id,width,height,selectedTab,safeBottom,safeTop){cache.chrome(id,width,height,safeBottom,safeTop).let{if(id=="nav")it.copy(selected=selectedTab)else it}}
                     val placement=Modifier.offset{IntOffset(with(density){seed.rect.left.dp.roundToPx()},with(density){seed.rect.top.dp.roundToPx()})}
                         .size(seed.rect.width.dp,seed.rect.height.dp)
-                    if(id=="nav")ChromeNavigation(seed.interfacePaint(interfaceLight),backdrop,placement){_,_->}else ChromeMiniPlayer(seed.interfacePaint(interfaceLight),null,backdrop,placement,sleepUi,{sleepAnchor=it}){name,_->if(name=="sleep")sleepMenuOpen=!sleepMenuOpen}
+                    if(id=="nav")ChromeNavigation(seed.interfacePaint(interfaceLight).copy(disabled=false,selected=startupSelected?:selectedTab),backdrop,placement){action,value->
+                        if(active&&action=="navigate"&&startupNavigation.request(value.toInt())){
+                            navigationActionSerial++;startupSelected=value.toInt();NavigationTiming.mark("startup-navigation-requested")
+                            startupToast?.cancel();startupToast=android.widget.Toast.makeText(web.context,"正在准备${listOf("推荐","资料库","搜索","设置")[value.toInt()]}，就绪后自动打开",android.widget.Toast.LENGTH_SHORT).also{it.show()}
+                        }
+                    }else ChromeMiniPlayer(seed.interfacePaint(interfaceLight),null,backdrop,placement,sleepUi,{sleepAnchor=it}){name,_->if(name=="sleep")sleepMenuOpen=!sleepMenuOpen}
                 }
             }
             visible.forEach { original -> key(original.id,original.session) {
@@ -335,6 +360,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                                 web.postDelayed({if(request==stageEntryRequest&&destination!="stage")pendingStageEntry=false},900)
                             }
                             if(surface.id=="nav"&&action=="navigate"){
+                                navigationActionSerial++;clearStartupNavigation()
                                 destination=when(value.toInt()){2->"search";3->"settings";else->"home"}
                                 syncWebBackground()
                                 if(value.toInt() in 0..1)selectedTab=value.toInt()
@@ -368,7 +394,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         webSamplingLayer.close()
         graphics.close()
         val compose = host ?: return
-        active = false;stageExit.clear(); surfaces.clear(); clocks.clear();pages.clear();retained.clear();presented=null
+        active = false;navigationActionSerial++;clearStartupNavigation();stageExit.clear(); surfaces.clear(); clocks.clear();pages.clear();retained.clear();presented=null
         compose.disposeComposition()
         (web.parent as? ViewGroup)?.removeView(web)
         (compose.parent as? ViewGroup)?.removeView(compose)
@@ -377,4 +403,4 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     }
 }
 
-private fun navigationTrace(phase:String){if(android.util.Log.isLoggable("TingyuNavigation",android.util.Log.DEBUG))android.util.Log.d("TingyuNavigation","$phase at=${System.currentTimeMillis()}")}
+private fun navigationTrace(phase:String){NavigationTiming.mark(phase);if(android.util.Log.isLoggable("TingyuNavigation",android.util.Log.DEBUG))android.util.Log.d("TingyuNavigation","$phase at=${System.currentTimeMillis()}")}

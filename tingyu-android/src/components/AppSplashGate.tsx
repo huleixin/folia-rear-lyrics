@@ -1,3 +1,4 @@
+import { navigationMark } from '../services/navigationTiming';
 import React from 'react';
 import { hideAppSplash } from '../utils/appSplash';
 
@@ -7,6 +8,7 @@ import { hideAppSplash } from '../utils/appSplash';
 
 const AppSplashGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     React.useEffect(() => {
+        navigationMark('react-first-commit');
         hideAppSplash();
     }, []);
 

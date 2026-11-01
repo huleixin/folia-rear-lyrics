@@ -44,9 +44,9 @@ describe('first collection entry module', () => {
 
 describe('idle scheduling lifecycle', () => {
     let hidden = false;
-    const preload = vi.fn(async () => module);
+    let preload = vi.fn(async () => module);
     beforeEach(() => {
-        hidden = false; preload.mockClear(); vi.useFakeTimers();
+        hidden = false; preload = vi.fn(async () => module); vi.useFakeTimers();
         vi.spyOn(document, 'hidden', 'get').mockImplementation(() => hidden);
         vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => setTimeout(() => callback(0), 16));
         vi.stubGlobal('cancelAnimationFrame', clearTimeout);
