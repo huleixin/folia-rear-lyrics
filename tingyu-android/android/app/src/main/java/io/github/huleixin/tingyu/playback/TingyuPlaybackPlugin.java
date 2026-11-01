@@ -35,6 +35,10 @@ public final class TingyuPlaybackPlugin extends Plugin {
     private final Consumer<JSObject> events=value->{if(!"spectrum".equals(value.optString("type")))lastState=value;notifyListeners("state",value,value.optInt("status")==4&&!"spectrum".equals(value.optString("type")));};
     @Override public void load(){if(ENABLED)PlaybackTestDiagnostics.initialize(getContext());PlaylistResourceCache cache=PlaylistResourceCache.get(getContext());cache.io.execute(cache::scheduleNext);}
     private final Consumer<JSObject> sleepEvents=value->notifyListeners("sleepTimerStateChanged",value);
+    @PluginMethod public void compatiblePlayback(PluginCall call){getActivity().runOnUiThread(()->{try{
+        SleepTimerController timer=SleepTimerController.get(getContext());timer.observe(sleepEvents);
+        call.resolve(timer.compatibility(getBridge().getWebView(),call.getData()));
+    }catch(Exception error){call.reject("Compatible playback ownership rejected: "+error.getMessage());}});}
     @PluginMethod public void startSleepTimer(PluginCall call){getActivity().runOnUiThread(()->{try{
         SleepTimerController timer=SleepTimerController.get(getContext());timer.observe(sleepEvents);
         call.resolve(timer.start(call.getString("mode","deadline"),call.getData().optLong("durationMs")));
@@ -444,5 +448,5 @@ public final class TingyuPlaybackPlugin extends Plugin {
         }
         catch(Exception|LinkageError error){PlaybackTestDiagnostics.error("command-error",error);call.reject("原生播放命令失败："+error.getClass().getSimpleName());}
     });}
-    @Override protected void handleOnDestroy(){SleepTimerController.get(getContext()).unobserve(sleepEvents);if(engine!=null)engine.unlisten(events);super.handleOnDestroy();}
+    @Override protected void handleOnDestroy(){SleepTimerController timer=SleepTimerController.get(getContext());timer.unobserve(sleepEvents);timer.compatibilityDestroyed(getBridge().getWebView());if(engine!=null)engine.unlisten(events);super.handleOnDestroy();}
 }

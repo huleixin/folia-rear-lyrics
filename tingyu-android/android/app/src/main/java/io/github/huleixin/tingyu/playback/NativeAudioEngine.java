@@ -155,6 +155,10 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     private boolean skipPending;
     private String lastSkipReason="",lastSkipTarget="";
     private long retryGeneration;
+    private final DecoderFallbackOffer decoderFallback=new DecoderFallbackOffer();
+    private PlaybackException offeredDecoderFailure;
+    private long decoderTicket;
+    private boolean decoderClaimed;
     private long queueGeneration=-1;
     private int queueAccepted,queueRejected,queueStale,staleNudges;
     /**
@@ -261,7 +265,6 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                     .setDefaultRequestProperties(java.util.Collections.singletonMap("Referer","https://y.qq.com/")))))
             .setAudioAttributes(new AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),true)
             .setHandleAudioBecomingNoisy(true).setWakeMode(C.WAKE_MODE_LOCAL).build();
-        SleepTimerController.get(context).attach(player,()->{sleepStopped=true;boolean original=fade;fade=false;try{transport("pause",true);}finally{fade=original;}});
         player.addListener(new Player.Listener(){
             @Override public void onPlaybackParametersChanged(androidx.media3.common.PlaybackParameters parameters){
                 syncRearTrack(); emit("clock",false);
@@ -423,6 +426,19 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 // playlist of broken sources still surfaces an error instead of spinning-
                 // 规则集中在 PlaybackSkipPolicy（纯逻辑、已单测）：用户主动暂停不算故障、
                 // 429 与鉴权失效全局暂停、单曲循环不替用户跳、连续跳过有上限。
+                if(listener!=null&&!desiredPaused&&DecoderFallbackOffer.decoderError(error.errorCode)){
+                    final String output=sourceId,key=songKey;final long ticket=++retryGeneration;
+                    offeredDecoderFailure=error;decoderClaimed=false;decoderTicket=ticket;decoderFallback.begin(output,key,ticket);
+                    emit("decoder-offer",false);
+                    // A frozen renderer cannot hold native continuation hostage.
+                    main.postDelayed(()->{
+                        if(!decoderFallback.current(sourceId,songKey,ticket,retryGeneration,desiredPaused)||!output.equals(sourceId)||!key.equals(songKey))return;
+                        decoderFallback.clear();offeredDecoderFailure=null;
+                        PlaybackDiagnostics.note("decoder-offer-timeout",new JSObject().put("code",error.errorCode));
+                        if(!handleUnplayableError(error)){failure=error;emit("error",false);}
+                    },1500);
+                    return;
+                }
                 if(handleUnplayableError(error))return;
                 failure=error;emit("error",false);
             }
@@ -439,11 +455,21 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         PlaybackTestDiagnostics.note("engine-create-ready",new JSObject());
     }
     public void listen(Consumer<JSObject> listener){this.listener=listener;PlaybackLifecycle.noteBridge(true);}
+    private void attachSleepTimer(){SleepTimerController.get(context).attach(player,()->{sleepStopped=true;boolean original=fade;fade=false;try{transport("pause",true);}finally{fade=original;}});}
     public void unlisten(Consumer<JSObject> listener){if(this.listener==listener){this.listener=null;PlaybackLifecycle.noteBridge(false);}}
     public JSObject command(JSObject value){
         String action=value.optString("action");if(action.equals("prepare"))sleepStopped=false;String id=value.optString("id");long seq=value.optLong("sequence");
         lastJsCommandAt=SystemClock.elapsedRealtime();jsCommands++;PlaybackLifecycle.noteJsCommand();
+        if("claim-compatibility".equals(action)){
+            String key=value.optString("songKey");long ticket=value.optLong("offer",-1);
+            if(offeredDecoderFailure==null||!sourceId.equals(id)||seq<sequence||!songKey.equals(key)||!currentKey().equals(key)||!decoderFallback.current(id,key,ticket,retryGeneration,desiredPaused))return new JSObject().put("accepted",false);
+            sequence=seq;retryGeneration++;decoderFallback.clear();decoderClaimed=true;failure=offeredDecoderFailure;offeredDecoderFailure=null;
+            BackgroundContinuation.get().cancel();desiredPaused=true;cancelFade();player.pause();
+            PlaybackDiagnostics.note("decoder-offer-claimed",new JSObject().put("code",failure.errorCode).put("song",PlaybackDiagnostics.anonKey(key)));
+            emit("error",true);return new JSObject().put("accepted",true);
+        }
         if(action.equals("prepare")){
+            decoderClaimed=false;decoderFallback.clear();offeredDecoderFailure=null;
             if(id.isEmpty())throw new IllegalArgumentException("Missing source identity");
             String url=value.optString("uri");Uri uri=Uri.parse(url);
             if(!java.util.Arrays.asList("http","https","content","file").contains(uri.getScheme()))throw new IllegalArgumentException("Unsupported native audio URI");
@@ -497,7 +523,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             // re-declares it. The generation is never invented here - JS owns that counter.
             supervision.continuation(false,supervision.generation());supervision.satisfied();errorSkips=0;
             main.removeCallbacks(superviseTick);
-            configure(value);player.setMediaItem(new MediaItem.Builder().setUri(uri).setMediaId(songKey).setTag(copy(value)).build(),Math.max(0,value.optLong("position")));sourceId=id;player.prepare();
+            configure(value);player.setMediaItem(new MediaItem.Builder().setUri(uri).setMediaId(songKey).setTag(copy(value)).build(),Math.max(0,value.optLong("position")));sourceId=id;player.prepare();attachSleepTimer();
             io.github.huleixin.tingyu.FoliaPlaybackService.publishQueuedTrack(context,value,false);
             scheduleSongInfo(player.getCurrentMediaItem());emit("load",false);
         }else{
@@ -510,8 +536,8 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             sequence=seq;
             switch(action){
                 case "play":case "pause":case "stop":transport(action,false);if("play".equals(action))noteLiveness("play");break;
-                case "detach":io.github.huleixin.tingyu.RearNativeTrack.clear();SleepTimerController.get(context).cancel("session-detached");cancelFade();PlaybackDiagnostics.note("engine-detach",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
-                        .put("positionMs",Math.max(0,player.getCurrentPosition())));player.stop();player.clearMediaItems();sourceId="";main.removeCallbacks(heartbeat);supervision.continuation(false,supervision.generation());supervision.satisfied();main.removeCallbacks(superviseTick);break;
+                case "detach":io.github.huleixin.tingyu.RearNativeTrack.clear();BackgroundContinuation.get().cancel();desiredPaused=true;retryGeneration++;cancelFade();PlaybackDiagnostics.note("engine-detach",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
+                        .put("positionMs",Math.max(0,player.getCurrentPosition())));player.stop();player.clearMediaItems();sourceId="";SleepTimerController.get(context).nativeDetached();main.removeCallbacks(heartbeat);supervision.continuation(false,supervision.generation());supervision.satisfied();main.removeCallbacks(superviseTick);break;
                 case "seek":player.seekTo(Math.max(0,value.optLong("position")));break;
                 case "volume":volume=(float)Math.max(0,Math.min(1,value.optDouble("volume",1)));cancelFade();player.setVolume(volume);break;
                 case "configure":configure(value);break;
@@ -1184,6 +1210,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
      * keeps the session open and retries on a sparse schedule.
      */
     private void superviseQueue(String reason){
+        if(offeredDecoderFailure!=null&&decoderFallback.current(sourceId,songKey,decoderTicket,retryGeneration,desiredPaused))return;
         if(sourceId.isEmpty())return;
         int remaining=Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1);
         boolean ended=player.getPlaybackState()==Player.STATE_ENDED;
@@ -1331,7 +1358,8 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         value.put("position",Math.max(0,player.getCurrentPosition())/1000.0);value.put("duration",Math.max(0,player.getDuration())/1000.0);
         value.put("buffered",Math.max(0,player.getBufferedPosition())/1000.0);value.put("playing",player.isPlaying());value.put("paused",desiredPaused||!player.getPlayWhenReady());
         value.put("status",player.getPlaybackState());
-        if(failure!=null){value.put("errorCode",failure.errorCode);value.put("message",failure.getErrorCodeName());}
+        if(failure!=null){value.put("errorCode",failure.errorCode);value.put("message",failure.getErrorCodeName());if(DecoderFallbackOffer.decoderError(failure.errorCode))value.put("compatibilityClaimed",decoderClaimed);}
+        if("decoder-offer".equals(type)&&offeredDecoderFailure!=null)value.put("decoderOffer",decoderTicket).put("errorCode",offeredDecoderFailure.errorCode).put("message",offeredDecoderFailure.getErrorCodeName());
         if(type.equals("diagnostics")){
             value.put("nativeQueueItems",player.getMediaItemCount()).put("nativeQueueIndex",player.getCurrentMediaItemIndex())
                 .put("analysis",spectrum.enabled).put("offloadPreference",outputPolicy.applied()).put("interactive",interactive).put("handoffWakeHeld",handoffWake!=null&&handoffWake.isHeld());

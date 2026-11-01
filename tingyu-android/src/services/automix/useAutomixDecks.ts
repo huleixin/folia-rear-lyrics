@@ -24,6 +24,7 @@ import { useAudioSettingsStore } from '../../stores/useAudioSettingsStore';
 import { playbackFade } from '../playbackFade';
 import { getPlaybackRepresentation } from '../playbackRecovery/representationRegistry';
 import { buildNavidromeSourceRevision } from '../playbackRecovery/sourceRevision';
+import { useSleepTimerStore } from '../../stores/useSleepTimerStore';
 
 export type { TransitionDisplay };
 
@@ -563,6 +564,12 @@ export function useAutomixDecks({
      * seconds of a track.
      */
     const checkTransitionPoint = useCallback((time: number) => {
+        const sleep=useSleepTimerStore.getState();
+        if(sleep.sleepTimerEnabled&&sleep.sleepTimerWaiting){
+            // A natural end belongs to the native timer, not to an early crossfade.
+            if(session.getPhase()==='armed')session.abort(true);
+            return;
+        }
         if (!currentSong || !audioSrc) return;
         // Never silent: a blend is scheduled backwards from the end of the track, so without a
         // duration this function can only do nothing - and doing nothing is indistinguishable from
