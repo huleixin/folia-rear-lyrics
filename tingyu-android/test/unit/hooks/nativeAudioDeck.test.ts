@@ -8,7 +8,10 @@ import { useAudioSettingsStore } from '@/stores/useAudioSettingsStore';
 import { useAutomixSettingsStore } from '@/stores/useAutomixSettingsStore';
 import { useAppViewStore } from '@/stores/useAppViewStore';
 import { useRearRuntimeStore } from '@/stores/useRearRuntimeStore';
-import { PlayerState } from '@/types';
+import { PlayerState, type SongResult } from '@/types';
+import { armRecoveryPosition, armRecoveryPresentation } from '@/services/androidSessionRecovery';
+import { markNativeQueueAdoption } from '@/services/nativeAudioElement';
+import { getPlaybackSongKey } from '@/utils/appPlaybackGuards';
 
 // test/unit/hooks/nativeAudioDeck.test.ts
 const { port } = vi.hoisted(() => ({ port: {
@@ -49,4 +52,24 @@ it('gives native playback exclusive ownership and enables analysis only for an a
     } finally {
         await act(async()=>root.unmount());host.remove();vi.restoreAllMocks();usePlaybackStore.setState(playback);useAudioSettingsStore.setState(audio);useAutomixSettingsStore.setState(mix);useAppViewStore.setState(view);useRearRuntimeStore.setState(rear);
     }
+});
+
+it.each(['cold','live'])('%s recovery sends a single prepare with the existing safe ownership contract',async(kind)=>{
+    (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;port.command.mockClear();
+    const old=usePlaybackStore.getState(),settings=useAudioSettingsStore.getState(),mix=useAutomixSettingsStore.getState();
+    const song:SongResult={id:38,name:'Recovered',artists:[],album:{id:1,name:'A'},durationMs:300000,sourceRef:{kind:'online',providerId:'qq',mediaId:'38'}};
+    const key=getPlaybackSongKey(song),consumed=vi.fn();
+    if(kind==='cold')armRecoveryPosition(key,123456,consumed);else{armRecoveryPresentation(key);markNativeQueueAdoption(key);}
+    const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+    vi.spyOn(HTMLMediaElement.prototype,'load').mockImplementation(()=>{});
+    function Probe(){const ref=useRef<HTMLAudioElement>(null);useNativeAudioDeck(ref,'A');return h('audio',{ref});}
+    usePlaybackStore.setState({audioSrc:'https://fresh.test/38',currentSong:song,replayGainMode:'off',playerState:kind==='cold'?PlayerState.PAUSED:PlayerState.PLAYING});
+    useAudioSettingsStore.setState({audioEqualizerSettings:{...settings.audioEqualizerSettings,enabled:false}});useAutomixSettingsStore.setState({automixEnabled:false});
+    try{
+        await act(async()=>root.render(h(Probe)));
+        const prepares=port.command.mock.calls.filter(([c])=>c.action==='prepare');expect(prepares).toHaveLength(1);
+        expect(prepares[0][0]).toMatchObject({songKey:key,position:kind==='cold'?123456:0,adopt:kind==='live'});
+        expect(port.command.mock.calls.filter(([c])=>['play','seek','pause','detach'].includes(String(c.action)))).toHaveLength(0);
+        expect(consumed).toHaveBeenCalledTimes(kind==='cold'?1:0);
+    }finally{await act(async()=>root.unmount());host.remove();vi.restoreAllMocks();usePlaybackStore.setState(old);useAudioSettingsStore.setState(settings);useAutomixSettingsStore.setState(mix);}
 });

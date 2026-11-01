@@ -1,3 +1,12 @@
+import { isCapacitorAndroid } from '../platform/runtime';
+import { readPlaybackRecovery, finishRecovery, holdLiveQueue } from '../services/playbackRecoverySnapshot';
+import { chooseRecoveryPlan, armRecoveryPosition, armRecoveryPresentation } from '../services/androidSessionRecovery';
+import { markNativeQueueAdoption } from '../services/nativeAudioElement';
+import { shufflePlayback } from '../services/shufflePlayback';
+import { currentTime } from '../stores/motionSignals';
+import { usePlaybackStore } from '../stores/usePlaybackStore';
+import { readSharedLyrics } from '../services/sharedSongResources';
+import { PlayerState } from '../types';
 import { useEffect, useRef } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { getFromCache, getLocalSongs } from '../services/db';
@@ -6,7 +15,7 @@ import { buildLocalQueue } from '../services/playbackAdapters';
 import { prefetchNearbySongs } from '../services/prefetchService';
 import type { ThemeCacheSongKey } from '../services/themeCache';
 import { useOnlineProviderAccountStore } from '../stores/useOnlineProviderAccountStore';
-import { restorePlaybackSourceForSong } from '../components/app/playback/restorePlaybackSource';
+import { restorePlaybackSourceForSong, rememberPlaybackSourceForSong } from '../components/app/playback/restorePlaybackSource';
 import { getPlaybackSongKey, isStagePlaybackSong, normalizePlaybackSongSource } from '../utils/appPlaybackGuards';
 import type { LyricData, SongResult, StatusMessage } from '../types';
 import type { AudioQualityPreference, MediaId } from '../types/onlineMusic';
@@ -21,6 +30,7 @@ type SetState<T> = Dispatch<SetStateAction<T>>;
 
 type UseSessionRestoreControllerParams = {
     userId?: MediaId;
+    pendingResumeTimeRef?: MutableRefObject<number | null>;
     blobUrlRef: MutableRefObject<string | null>;
     currentOnlineAudioUrlFetchedAtRef: MutableRefObject<number | null>;
     setLyrics: (nextLyrics: LyricData | null) => void;
@@ -47,6 +57,7 @@ type UseSessionRestoreControllerParams = {
 // Restores the main playback session without pushing more boot logic into App.tsx.
 export function useSessionRestoreController({
     userId,
+    pendingResumeTimeRef,
     blobUrlRef,
     currentOnlineAudioUrlFetchedAtRef,
     setLyrics,
@@ -87,6 +98,51 @@ export function useSessionRestoreController({
 
         const restoreSession = async () => {
             try {
+                if (isCapacitorAndroid()) {
+                    const reply = await readPlaybackRecovery();
+                    if (!reply) return;
+                    const legacy = reply.status === 'empty'
+                        ? { song:await getFromCache<SongResult>('last_song'),queue:await getFromCache<SongResult[]>('last_queue')??[] }
+                        : undefined;
+                    const plan = chooseRecoveryPlan(reply,legacy);
+                    if (!plan || usePlaybackStore.getState().currentSong) { finishRecovery(reply); return; }
+                    shouldAutoPlayRef.current=false;
+                    const settings=useAudioSettingsStore.getState();
+                    const loop=plan.mode==='shuffle'?(plan.loopMode??settings.loopMode):plan.mode;
+                    useAudioSettingsStore.setState({loopMode:loop,shuffleEnabled:plan.mode==='shuffle'});
+                    localStorage.setItem('player_loop_mode',loop);
+                    localStorage.setItem('player_shuffle_enabled',String(plan.mode==='shuffle'));
+                    shufflePlayback.setEnabled(plan.mode==='shuffle');
+                    shufflePlayback.restorePlan(plan.queue,plan.song,plan.order);
+                    // Commit both atomically: the ordinary setters each observe shuffle; a temporary
+                    // null current song would append a duplicate entry to restored shuffle history.
+                    usePlaybackStore.setState({playQueue:plan.queue,currentSong:plan.song});
+                    const key=getPlaybackSongKey(plan.song);
+                    currentSongRef.current=key;playbackGenerationRef.current++;
+                    const store=usePlaybackStore.getState();
+                    store.setDuration(plan.live?.duration || (plan.song.durationMs??0)/1000);
+                    currentTime.set(plan.positionMs/1000);
+                    if (plan.live?.uri) {
+                        holdLiveQueue(plan.queue,key,plan.mode);
+                        armRecoveryPresentation(key);
+                        if(pendingResumeTimeRef)pendingResumeTimeRef.current=null;
+                        markNativeQueueAdoption(key);
+                        store.setPlayerState(plan.live.paused?PlayerState.PAUSED:PlayerState.PLAYING);
+                        store.setAudioSrc(plan.live.uri);
+                    } else {
+                        store.setPlayerState(PlayerState.PAUSED);
+                        if(pendingResumeTimeRef)pendingResumeTimeRef.current=plan.positionMs/1000;
+                        armRecoveryPosition(key,plan.positionMs,()=>{if(pendingResumeTimeRef)pendingResumeTimeRef.current=null;});
+                        rememberPlaybackSourceForSong(plan.song,{
+                            audioQuality,userId,blobUrlRef,currentOnlineAudioUrlFetchedAtRef,setLyrics,
+                            restoreCachedThemeForSong,persistLastPlaybackCache,queue:plan.queue,
+                        });
+                    }
+                    finishRecovery(reply);
+                    void readSharedLyrics(plan.song).then(data=>{if(data&&currentSongRef.current===key)setLyrics(data);});
+                    void restoreCachedThemeForSong(plan.song,{preserveCurrentOnMiss:true});
+                    return;
+                }
                 let lastSong = await getFromCache<SongResult>('last_song');
                 let lastQueue = await getFromCache<SongResult[]>('last_queue');
 
@@ -194,6 +250,7 @@ export function useSessionRestoreController({
                 // Every other entry into playback prefetches; this one was simply never wired to.
                 void prefetchNearbySongs(lastSong, lastQueue || [lastSong], audioQuality, userId);
             } catch (error) {
+                if(isCapacitorAndroid())finishRecovery({status:'error',revision:0});
                 console.error('Session restore failed', error);
             }
         };

@@ -1,3 +1,5 @@
+import { recoveryReady, keepLiveQueue } from './playbackRecoverySnapshot';
+import { usePlaybackStore } from '../stores/usePlaybackStore';
 import { syncPlaylistResources } from './playlistResourceSnapshot';
 import { getPlaybackSongKey, getPlaybackSourceRef } from '../utils/appPlaybackGuards';
 import { getSongAlbumCoverUrl } from '../utils/songMetadata';
@@ -164,6 +166,8 @@ export const syncNativePlaylist = async (options: {
     quality: AudioQualityPreference;
 }): Promise<void> => {
     const { song, queue, loop, shuffle, quality } = options;
+    if(!recoveryReady())return;
+    if(song&&keepLiveQueue(queue,getPlaybackSongKey(song),resolveMode(loop,shuffle)))return;
     if (!song) return;
     const currentKey = getPlaybackSongKey(song);
     if (!currentKey) return;
@@ -202,6 +206,8 @@ export const syncNativePlaylist = async (options: {
 
 /** 只改模式（用户在界面/通知栏切循环或随机）。 */
 export const syncNativePlaylistMode = async (loop: 'off' | 'all' | 'one', shuffle: boolean): Promise<void> => {
+    const state=usePlaybackStore.getState();
+    if(!recoveryReady() || (state.currentSong&&keepLiveQueue(state.playQueue,getPlaybackSongKey(state.currentSong),resolveMode(loop,shuffle))))return;
     try {
         const native = getTingyuPlayback<TingyuPlaybackNative>();
         await native.setNativePlaylistMode({ mode: resolveMode(loop, shuffle), loopAll: loop === 'all' });

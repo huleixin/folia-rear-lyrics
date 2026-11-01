@@ -15,6 +15,55 @@ public final class TingyuPlaybackPlugin extends Plugin {
     private JSObject prepared,lastState;
     private final Consumer<JSObject> events=value->{if(!"spectrum".equals(value.optString("type")))lastState=value;notifyListeners("state",value,value.optInt("status")==4&&!"spectrum".equals(value.optString("type")));};
     @Override public void load(){if(ENABLED)PlaybackTestDiagnostics.initialize(getContext());}
+    @PluginMethod public void readPlaybackRecovery(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            JSObject live=NativeAudioEngine.peekRecoveryState();
+            JSObject tag=live==null?null:NativeAudioEngine.currentTrackTag();
+            if(tag!=null){
+                NativePlaylist.Track track=NativePlaylist.get().trackFor(live.optString("songKey"));
+                if(track!=null){tag.put("providerId",track.providerId).put("mediaId",track.mediaId);
+                    try{if(!track.providerData.isEmpty())tag.put("providerData",new org.json.JSONObject(track.providerData));}catch(Exception ignored){}
+                }
+            }
+            PlaybackSessionPersistence p=PlaybackSessionPersistence.get(getContext());
+            p.io.execute(() -> { try {
+                JSObject out=JSObject.fromJSONObject(p.store.read());
+                if(live!=null)out.put("live",live).put("liveTrack",tag).put("liveLoopAll",NativePlaylist.get().loopAll()).put("liveMode",
+                    NativePlaylist.get().mode()==NativePlaylist.Mode.SHUFFLE?"shuffle":NativePlaylist.get().mode()==NativePlaylist.Mode.REPEAT_ONE?"one":(NativePlaylist.get().mode()==NativePlaylist.Mode.LOOP_ALL||NativePlaylist.get().loopAll())?"all":"off");
+                PlaybackSessionPersistence.note(live!=null?"live-reused":out.optString("status"),live==null?"":live.optString("songKey"));
+                if(live==null&&"restored".equals(out.optString("status")))
+                    PlaybackSessionPersistence.note("cold-paused-await-user-resolver",out.optJSONObject("snapshot").optString("currentKey"));
+                call.resolve(out);
+            } catch(Exception error){call.reject("Session snapshot unavailable");} });
+        });
+    }
+    @PluginMethod public void savePlaybackRecovery(PluginCall call) {
+        PlaybackSessionPersistence p=PlaybackSessionPersistence.get(getContext());
+        org.json.JSONObject snapshot=call.getObject("snapshot");
+        getActivity().runOnUiThread(() -> {
+            JSObject live=NativeAudioEngine.peekRecoveryState();
+            if(snapshot!=null&&live!=null&&live.optString("songKey").equals(snapshot.optString("currentKey"))) {
+                try{snapshot.put("positionMs",Math.round(live.optDouble("position")*1000)).put("capturedAt",System.currentTimeMillis());
+                    NativePlaylist.Mode mode=NativePlaylist.get().mode();
+                    snapshot.put("mode",mode==NativePlaylist.Mode.SHUFFLE?"shuffle":mode==NativePlaylist.Mode.REPEAT_ONE?"one":mode==NativePlaylist.Mode.LOOP_ALL?"all":"off");
+                    snapshot.put("loopMode",mode==NativePlaylist.Mode.SHUFFLE?(NativePlaylist.get().loopAll()?"all":"off"):snapshot.optString("mode"));}catch(Exception ignored){}
+            }
+            p.io.execute(() -> { try {
+                String liveKey=NativeAudioEngine.currentKey();
+                long revision=p.store.save(snapshot,call.getData().optLong("revision"),liveKey);
+                PlaybackSessionPersistence.note("queue-saved",snapshot.optString("currentKey"));
+                call.resolve(new JSObject().put("revision",revision));
+            }catch(Exception error){PlaybackSessionPersistence.note("save-rejected-"+error.getMessage(),"");call.reject("Session snapshot rejected");} });
+        });
+    }
+    @PluginMethod public void checkpointPlaybackRecovery(PluginCall call) {
+        if(NativeAudioEngine.isActive()){call.resolve();return;}
+        PlaybackSessionPersistence p=PlaybackSessionPersistence.get(getContext());
+        p.io.execute(() -> {try {
+            if(!NativeAudioEngine.isActive())p.store.checkpoint(call.getString("songKey",""),call.getData().optLong("positionMs"),true,call.getString("mode","off"),false);
+            call.resolve();
+        }catch(Exception error){PlaybackSessionPersistence.note("save-failed","");call.reject("Session checkpoint failed");} });
+    }
     @PluginMethod public void resourceSnapshot(PluginCall call) {
         PlaylistResourceCache cache = PlaylistResourceCache.get(getContext());
         cache.io.execute(() -> {
@@ -184,6 +233,11 @@ public final class TingyuPlaybackPlugin extends Plugin {
                 .put("lxTracks",count(tracks,SourceRouting.Kind.LX))
                 .put("originalTracks",count(tracks,SourceRouting.Kind.ORIGINAL))
                 .put("unmarkedTracks",count(tracks,SourceRouting.Kind.UNKNOWN)));
+            PlaybackSessionPersistence recovery=PlaybackSessionPersistence.get(getContext());
+            org.json.JSONArray savedOrder=new org.json.JSONArray();
+            for(NativePlaylist.Track t:tracks)savedOrder.put(t.songKey);
+            String savedMode=call.getString("mode","off");
+            recovery.io.execute(() -> {try{recovery.store.nativeOrder(savedOrder,savedMode,call.getData().optBoolean("loopAll"));}catch(Exception error){PlaybackSessionPersistence.note("save-failed","");}});
             call.resolve(new JSObject().put("generation",generation).put("size",tracks.size()));
             prefetchAfterPlaylistSync(tracks);
         }
@@ -240,6 +294,13 @@ public final class TingyuPlaybackPlugin extends Plugin {
         try{
             long generation=NativePlaylist.get().setMode(parseMode(call.getString("mode")),
                 Boolean.parseBoolean(String.valueOf(call.getData().opt("loopAll"))));
+            PlaybackSessionPersistence persistence=PlaybackSessionPersistence.get(getContext());
+            String savedMode=call.getString("mode","off");
+            persistence.io.execute(() -> {try{persistence.store.mode(savedMode,call.getData().optBoolean("loopAll"));}catch(Exception error){PlaybackSessionPersistence.note("save-failed","");}});
+            getActivity().runOnUiThread(() -> {
+                JSObject state=NativeAudioEngine.peekRecoveryState();
+                if(state!=null)persistence.observe(state.optString("songKey"),Math.round(state.optDouble("position")*1000),state.optBoolean("paused"),"mode");
+            });
             call.resolve(new JSObject().put("generation",generation));
         }
         catch(Exception error){call.reject("设置播放模式失败："+error.getClass().getSimpleName());}

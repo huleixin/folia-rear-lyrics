@@ -5,7 +5,7 @@ import { getTingyuPlayback } from '../platform/tingyuPlayback';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
 import { omni } from './onlineMusic/omni';
 import { toNativeResourcePayload } from './nativePlaylistSync';
-import { claimResourceCollection, releaseResourceCollection, isResourceCollectionOwner, resourceSnapshotIdentity } from './playlistResourceSnapshot';
+import { rememberResourceCollectionOrigin, claimResourceCollection, releaseResourceCollection, isResourceCollectionOwner, resourceSnapshotIdentity } from './playlistResourceSnapshot';
 
 // src/services/collectionResourcePrecache.ts
 let generation = 0;
@@ -15,7 +15,8 @@ let catalogRunning = false;
 export const precacheCollectionResources = async (
     collection: LibraryCollectionDescriptor, known: readonly SongResult[], current: SongResult,
 ): Promise<void> => {
-    if (!isCapacitorAndroid() || collection.source !== 'online') return;
+    if (!isCapacitorAndroid()) return;
+    if(collection.source!=='online'){rememberResourceCollectionOrigin(new Set(known.map(getPlaybackSongKey)),collection);return;}
     const token = 'collection-' + collection.providerId + '-' + collection.type + '-' + collection.id;
     const signature = token + ':' + resourceSnapshotIdentity(known.map(song => getPlaybackSongKey(song) + '|' + (song.album?.coverUrl ?? '')));
     if (activeToken === signature && isResourceCollectionOwner(token)) return;
@@ -28,7 +29,7 @@ export const precacheCollectionResources = async (
     }>();
     const keys = new Set(known.map(getPlaybackSongKey));
     const currentKey = getPlaybackSongKey(current);
-    claimResourceCollection(token, keys);
+    claimResourceCollection(token, keys, collection);
     try {
         const policy = await native.resourceCache({});
         if (!policy.enabled || (own !== generation || !isResourceCollectionOwner(token))) { releaseResourceCollection(token); return; }
@@ -81,7 +82,7 @@ export const resumeIncompleteCollectionResources = async (currentKey: string): P
         const own=++generation;
         const token=saved.playlistId;
         const keys=new Set([currentKey]);
-        claimResourceCollection(token,keys);
+        claimResourceCollection(token,keys,saved.descriptor);
         let offset=saved.catalogOffset;
         while(own===generation && isResourceCollectionOwner(token)) {
             const policy=await native.resourceCache({currentKey});

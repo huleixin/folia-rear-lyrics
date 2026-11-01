@@ -7,8 +7,14 @@ interface SnapshotBridge {
     resourceCache?(o: { currentKey: string }): Promise<{ containsCurrent?: boolean; descriptor?: unknown; playlistId?: string }>;
     resourceSnapshot(o: { playlistId: string; begin?: boolean; finish?: boolean; offset: number; tracks: NativePlaylistTrackPayload[]; currentKey?: string; catalogComplete?: boolean }): Promise<void>;
 }
-let collectionOwner: { token: string; keys: Set<string> } | null = null;
-export const claimResourceCollection = (token: string, keys: Set<string>) => { collectionOwner = { token, keys }; revision++; };
+let playbackOrigin:{keys:Set<string>;origin:unknown}|null=null;
+export const rememberResourceCollectionOrigin=(keys:Set<string>,origin:unknown)=>{
+    playbackOrigin={keys,origin};
+    if(typeof window!=='undefined')window.dispatchEvent(new Event('tingyu-playback-origin'));
+};
+let collectionOwner: { token: string; keys: Set<string>; origin?: unknown } | null = null;
+export const claimResourceCollection = (token: string, keys: Set<string>, origin?: unknown) => { collectionOwner = { token, keys, origin }; revision++;if(origin)rememberResourceCollectionOrigin(keys,origin); };
+export const resourceCollectionOrigin = (key:string):unknown => playbackOrigin?.keys.has(key)?playbackOrigin.origin:collectionOwner?.keys.has(key)?collectionOwner.origin??{playlistId:collectionOwner.token}:null;
 export const isResourceCollectionOwner = (token: string) => collectionOwner?.token === token;
 export const releaseResourceCollection = (token: string) => { if (collectionOwner?.token === token) collectionOwner = null; };
 let revision = 0;

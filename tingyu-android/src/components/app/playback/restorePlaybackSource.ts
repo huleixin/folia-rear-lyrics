@@ -101,6 +101,11 @@ export const restorePlaybackSourceForSong = (song: SongResult, params: RestorePl
 };
 let lastRestore: { song: SongResult; params: RestorePlaybackSourceParams; pending: Promise<RestorePlaybackSourceOutcome> | null } | null = null;
 
+/** Cold recovery remembers a resolver, without opening a source until an explicit Play press. */
+export const rememberPlaybackSourceForSong = (song:SongResult,params:RestorePlaybackSourceParams):void => {
+    lastRestore={song,params,pending:null};
+};
+
 /** Retry the remembered source using its original local/online credentials, never a different song. */
 export const retryRememberedPlaybackSource = (): Promise<RestorePlaybackSourceOutcome> | null => {
     const current = usePlaybackStore.getState().currentSong;

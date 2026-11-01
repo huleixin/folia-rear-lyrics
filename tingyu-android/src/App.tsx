@@ -1,3 +1,5 @@
+import { consumeRecoveryPresentation } from './services/androidSessionRecovery';
+import { usePlaybackSessionPersistence } from './hooks/usePlaybackSessionPersistence';
 import { usePlaybackDeck } from './hooks/usePlaybackDeck';
 import { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useMobileListeningHistory } from './hooks/useMobileListeningHistory';
@@ -988,7 +990,9 @@ export default function App() {
         currentOnlineAudioUrlFetchedAtRef,
     });
 
+    usePlaybackSessionPersistence(audioRef);
     useSessionRestoreController({
+        pendingResumeTimeRef,
         userId: user?.id,
         blobUrlRef,
         currentOnlineAudioUrlFetchedAtRef,
@@ -2677,6 +2681,7 @@ export default function App() {
                 // transition planner needs it; only the visible clock is left alone.
                 if (isShowingTail) return;
 
+                const recoveredPresentation = consumeRecoveryPresentation(currentSongRef.current ? String(currentSongRef.current) : '');
                 const pendingResumeTime = pendingResumeTimeRef.current;
                 if (pendingResumeTime !== null) {
                     const safeDuration = Number.isFinite(audioElement.duration) && audioElement.duration > 0
@@ -2689,6 +2694,7 @@ export default function App() {
                     return;
                 }
 
+                if (recoveredPresentation) { currentTime.set(audioElement.currentTime); return; }
                 currentTime.set(0); // Ensure currentTime is reset when new audio loads
             }}
             // Did any source ever finish loading? Without this a stuck "正在获取歌曲链接..." cannot be

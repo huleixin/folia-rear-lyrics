@@ -7,6 +7,8 @@ export function createShufflePlayback(random: () => number = Math.random) {
     let enabled = false, suspended = false;
     let queueRef: SongResult[] | null = null;
     let keys: string[] = [], remaining: string[] = [], history: string[] = [];
+    // Persistence retains the whole determined cycle even when UI Previous history is capped.
+    let recoveryPlan:string[]=[];
     let current = '', cursor = -1, pendingCursor: number | null = null;
     const shuffle = (values: string[]) => {
         for (let i = values.length - 1; i > 0; i--) {
@@ -15,9 +17,14 @@ export function createShufflePlayback(random: () => number = Math.random) {
         }
         return values;
     };
-    const reset = () => { queueRef = null; keys = []; remaining = []; history = []; current = ''; cursor = -1; pendingCursor = null; };
+    const reset = () => { queueRef = null; keys = []; remaining = []; history = []; recoveryPlan=[]; current = ''; cursor = -1; pendingCursor = null; };
     const active = () => enabled && !suspended;
+    const captureRecoveryPlan=()=>{
+        const tail=[...new Set([...history.slice(cursor+1),...remaining])],future=new Set(tail),allowed=new Set(keys);
+        recoveryPlan=[...recoveryPlan.filter(value=>allowed.has(value)&&value!==current&&!future.has(value)),current,...tail];
+    };
     const observe = (queue: SongResult[], song: SongResult | null) => {
+        let reshaped=false;
         if (!active()) return;
         const key = song ? getPlaybackSongKey(song) : '';
         if (queue !== queueRef) {
@@ -27,11 +34,11 @@ export function createShufflePlayback(random: () => number = Math.random) {
                 remaining = shuffle(nextKeys.filter(value => value !== key));
                 history = history.slice(0, cursor + 1).filter(value => allowed.has(value));
                 cursor = history.length - 1; pendingCursor = null;
-                keys = nextKeys;
+                keys = nextKeys;reshaped=true;
             }
             queueRef = queue;
         }
-        if (key === current && history[cursor] === key) return;
+        if (key === current && history[cursor] === key) {if(reshaped)captureRecoveryPlan();return;}
         current = key;
         if (!key || !keys.includes(key)) return;
         remaining = remaining.filter(value => value !== key);
@@ -42,6 +49,7 @@ export function createShufflePlayback(random: () => number = Math.random) {
             cursor = history.length - 1;
         }
         pendingCursor = null;
+        captureRecoveryPlan();
     };
     return {
         active,
@@ -58,7 +66,7 @@ export function createShufflePlayback(random: () => number = Math.random) {
                 return queue.find(item => getPlaybackSongKey(item) === history[past + 1]) ?? null;
             observe(queue, song);
             const forward = history[cursor + 1];
-            if (!forward && !remaining.length) remaining = shuffle(keys.filter(key => key !== current));
+            if (!forward && !remaining.length) { remaining = shuffle(keys.filter(key => key !== current));recoveryPlan=[current,...remaining]; }
             const key = forward ?? remaining[0] ?? current;
             return queue.find(item => getPlaybackSongKey(item) === key) ?? null;
         },
@@ -73,6 +81,16 @@ export function createShufflePlayback(random: () => number = Math.random) {
             const forward = history.slice(cursor + 1);
             const seen = new Set(forward);
             return forward.concat(remaining.filter(key => !seen.has(key)));
+        },
+        recoveryOrder(): string[] { return [...new Set([...recoveryPlan,...keys])]; },
+        restorePlan(queue:SongResult[],song:SongResult,order:string[]) {
+            if(!enabled)return;
+            keys=[...new Set(queue.map(getPlaybackSongKey))];
+            const allowed=new Set(keys);
+            const plan=[...new Set([...order,...keys])].filter(key=>allowed.has(key));
+            recoveryPlan=plan;current=getPlaybackSongKey(song); const index=plan.indexOf(current);
+            history=index<0?[current]:plan.slice(0,index+1);cursor=history.length-1;
+            remaining=plan.slice(index+1).filter(key=>key!==current);queueRef=queue;pendingCursor=null;
         },
         previous(queue: SongResult[], song: SongResult, select = false): SongResult | null {
             if (!active()) return null;

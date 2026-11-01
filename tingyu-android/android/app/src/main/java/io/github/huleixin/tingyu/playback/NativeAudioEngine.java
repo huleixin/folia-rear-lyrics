@@ -110,6 +110,10 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         };
         if(Looper.myLooper()==Looper.getMainLooper())transport.run();else engine.main.post(transport);return true;
     }
+    /** Read-only recovery view. Never calls get(), prepares a source, or changes transport. */
+    public static JSObject peekRecoveryState() {
+        return isActive() && Looper.myLooper()==Looper.getMainLooper() ? instance.snapshot("session-reuse",true) : null;
+    }
     public static void releaseIfPresent(){if(instance!=null){instance.release();instance=null;}}
     private final Handler main=new Handler(Looper.getMainLooper());
     private final ExoPlayer player;
@@ -1269,7 +1273,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             // 用户主动暂停/停止：作废在飞的原生解析，迟到的结果不许再往队列里塞。
             BackgroundContinuation.get().cancel();
         }
-        if(action.equals("stop")){player.pause();player.seekTo(0);emit("state",external);main.removeCallbacks(heartbeat);
+        if(action.equals("stop")){PlaybackSessionPersistence.get(context).observe(songKey,0,true,"stop");player.pause();player.seekTo(0);emit("state",external);main.removeCallbacks(heartbeat);
             // 用户主动停止：洛雪脚本引擎没有理由继续占着内存，脚本本身留着（下次播放再起）。
             io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.release();return;}
         if(action.equals("play")){if(player.getPlaybackState()==Player.STATE_IDLE&&player.getCurrentMediaItem()!=null){failure=null;networkRetries=0;player.prepare();}
@@ -1389,6 +1393,8 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         }catch(Exception ignored){}
     }
     private void emit(String type,boolean external){
+        if(!sourceId.isEmpty() && !"spectrum".equals(type) && !"diagnostics".equals(type))
+            PlaybackSessionPersistence.get(context).observe(songKey,Math.max(0,player.getCurrentPosition()),desiredPaused||!player.getPlayWhenReady(),type);
         // The system session must follow Media3 even with no plugin listener or a sleeping WebView.
         // Deduplicated native events only; clock/spectrum frames never rebuild the notification.
         if(!sourceId.isEmpty()&&!type.equals("clock")&&!type.equals("spectrum")&&!type.equals("diagnostics")

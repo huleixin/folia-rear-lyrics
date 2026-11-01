@@ -1,3 +1,5 @@
+import { recoveryReady } from './playbackRecoverySnapshot';
+import { hasPendingColdRecovery } from './androidSessionRecovery';
 import { PlayerState } from '../types';
 import { currentTime } from '../stores/motionSignals';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
@@ -133,7 +135,10 @@ export const installNativePlaybackBridge = async (
   })();
 
   const publish = createNativePlaybackPublisher(plugin);
-  const pushState = (force = false) => publish(readPayload(), { force });
+  const pushState = (force = false) => {
+    if (!recoveryReady() || (hasPendingColdRecovery() && !usePlaybackStore.getState().audioSrc)) return;
+    publish(readPayload(), { force });
+  };
   usePlaybackStore.subscribe(() => pushState());
   window.setInterval(() => {
     const state = usePlaybackStore.getState();
