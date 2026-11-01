@@ -31,7 +31,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     const time=()=>Math.max(0,Math.min(duration||Infinity,position+(playing&&!paused?(performance.now()-anchor)/1000*rate:0)));
     const rejectPending=(reason:unknown)=>{if(pending){clearTimeout(pending.timer);pending.reject(reason);pending=null;}};
     const onState=(value:NativeAudioState)=>{
-        if(blocked||disposed||value.id!==id||(!value.external&&value.type!=='decoder-offer'&&value.sequence<lastIntent))return;
+        if(blocked||disposed||value.id!==id||(!value.external&&!value.endedBySleep&&value.type!=='decoder-offer'&&value.sequence<lastIntent))return;
         if(value.engineSessionId && value.engineSessionId!==engineSession){
             if(retiredSessions.includes(value.engineSessionId))return;
             if(engineSession)retiredSessions.push(engineSession);
@@ -42,7 +42,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
             if(value.eventRevision<=lastEventRevision)return;
             lastEventRevision=value.eventRevision;
         }
-        if(value.type==='decoder-offer'){
+        if(value.type==='decoder-offer'&&!value.endedBySleep){
             // Only native can confirm that a queued fault still belongs to the audible track.
             if(value.decoderOffer!==undefined)void send('claim-compatibility',{songKey:value.songKey,offer:value.decoderOffer}).catch(()=>{});
             return;
@@ -88,6 +88,11 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         } else if(wasPlaying&&!paused&&!value.paused&&value.type!=='seeked'
             && previousTime>next&&previousTime-next<.35)next=previousTime;
         rate=nextRate;position=next;duration=value.duration;buffered=value.buffered;anchor=performance.now();playing=value.playing;
+        if(value.endedBySleep){
+            const hadIntent=requestedPlaying||!paused;requestedPlaying=false;error=null;
+            paused=true;playing=false;ended=false;rejectPending(new DOMException('Sleep timer stopped playback','SleepTimerExpiredError'));
+            if(hadIntent)event('pause');event('timeupdate');return;
+        }
         if(value.errorCode){
             const firstError=!error;
             error={code:value.errorCode>=2000&&value.errorCode<3000?2:3,message:`原生播放失败：${value.message??value.errorCode}`} as MediaError;
@@ -97,7 +102,6 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         }
         if(value.status===3){ready=4;if(!metadata){metadata=true;event('loadedmetadata');event('loadeddata');event('canplay');}}
         if(value.type==='seeked'){event('seeked');event('timeupdate');}
-        if(value.endedBySleep){requestedPlaying=false;const wasPaused=paused;paused=true;playing=false;ended=false;if(!wasPaused)event('pause');event('timeupdate');return;}
         if(value.status===4){const finished=!ended;ended=true;paused=true;playing=false;if(finished)event('ended');return;}
         if(value.sequence>=lastIntent||value.external){
             if(value.external)requestedPlaying=!value.paused;

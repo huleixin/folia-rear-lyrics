@@ -91,6 +91,13 @@ it('surfaces native decoder failures instead of leaving a pending Play without a
     expect(await play).toContain('ERROR_CODE_DECODING_FAILED');expect(f.element.error?.code).toBe(3);expect(errors).toHaveBeenCalledOnce();
     await f.adapter.dispose();
 });
+it('a native sleep stop wins over a simultaneous decoder error and clears the autoplay intent',async()=>{
+    const f=await fixture(),errors=vi.fn(),pauses=vi.fn();f.element.addEventListener('error',errors);f.element.addEventListener('pause',pauses);
+    const play=f.element.play().catch(error=>error.name);await f.flush();
+    f.state({type:'error',endedBySleep:true,errorCode:4005,compatibilityClaimed:true,paused:true,playing:false,status:1});
+    expect(errors).not.toHaveBeenCalled();expect(pauses).toHaveBeenCalledOnce();expect(f.adapter.snapshot().requestedPlaying).toBe(false);
+    expect(await play).toBe('SleepTimerExpiredError');await f.adapter.dispose();
+});
 it('claims a decoder offer natively before exposing an error, even if Play was already queued',async()=>{
     const f=await fixture(),errors=vi.fn();f.element.addEventListener('error',errors);
     const preparing=f.commands[0],play=f.element.play().catch(()=>{});await f.flush();
