@@ -4,6 +4,7 @@ import { getLibraryTraceLines } from '../nativeBridge/api/libraryTrace.js';
 import { getQrLoginTraceLines } from '../nativeBridge/api/qrLoginTrace.js';
 import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
+import { usePlaybackEngineTestStore } from '../stores/usePlaybackEngineTestStore';
 import { readCrashDiagnostics, readDiagnosticsHeartbeats, readNativePlaybackFailureTrace } from './crashDiagnostics';
 import { readPlaybackContinuitySnapshot } from './mediaDiagnostics';
 import { readFrameTimingSnapshot, runCpuProbe } from './frameTimingDiagnostics';
@@ -1033,6 +1034,7 @@ export const buildDiagnosticReport = async (): Promise<string> => {
         '```text',
         `generated: ${new Date().toISOString()}`,
         `app: ${appVersion}`,
+        `playback engine: selected=${usePlaybackEngineTestStore.getState().selected} actual=${usePlaybackEngineTestStore.getState().actual} reason=${usePlaybackEngineTestStore.getState().reason}`,
         `platform: ${capacitor?.getPlatform?.() ?? 'web'}${capacitor?.isNativePlatform?.() ? ' (native)' : ''}`,
         `user agent: ${typeof navigator === 'undefined' ? '' : navigator.userAgent}`,
         `viewport: ${typeof window === 'undefined' ? '' : `${window.innerWidth}x${window.innerHeight} dpr=${window.devicePixelRatio}`}`,

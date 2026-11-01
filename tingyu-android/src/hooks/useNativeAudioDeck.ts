@@ -2,7 +2,7 @@ import { consumeRecoveryPosition } from '../services/androidSessionRecovery';
 import { shouldUseCompatibleDecoder } from '../utils/nativePlaybackFailure';
 import { PLAYBACK_TEST_SESSION_ENGINE } from '../utils/playbackEngineTestBuild';
 import { setPlaybackTestActual } from '../stores/usePlaybackEngineTestStore';
-import { installPlaybackTestMediaLog,notePlaybackTest } from '../services/playbackTestLog';
+import { installPlaybackTestMediaLog, notePlaybackTest } from '../services/playbackTestLog';
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { getTingyuPlayback } from '../platform/tingyuPlayback';
 import { attachNativeAudioElement } from '../services/nativeAudioElement';
@@ -18,71 +18,160 @@ import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
 import { setStatusMessage } from '../stores/useStatusMessageStore';
 import { PlayerState } from '../types';
 import { buildNativePlaybackPayload } from '../services/nativePlaybackBridge';
+import { ensureCompatibleSleepOutput, hasCompatibleSleepOutput, releaseCompatibleSleepOutput } from '../services/compatibleSleepOutput';
 
 // src/hooks/useNativeAudioDeck.ts
-const native=getTingyuPlayback<NativeAudioPort>();
-export const nativeAudioUri=(source:string|null)=>!source||/^(https?:|content:|file:)/.test(source);
-export function useNativeAudioDeck(audioRef:RefObject<HTMLAudioElement|null>,activeDeck:string){
-    const android=isAndroidNativeRuntime(),[supported,setSupported]=useState<boolean|null>(android?null:false);
-    const adapter=useRef<ReturnType<typeof attachNativeAudioElement>|null>(null);
-    const source=usePlaybackStore(state=>state.audioSrc),song=usePlaybackStore(state=>state.currentSong);
-    const gain=usePlaybackStore(state=>state.replayGainMode),playing=usePlaybackStore(state=>state.playerState===PlayerState.PLAYING);
-    const effects=useAudioSettingsStore(state=>state.audioEqualizerSettings.enabled),fade=useAudioSettingsStore(state=>state.playbackFadeEnabled);
-    const loop=useAudioSettingsStore(state=>state.loopMode),mixing=useAutomixSettingsStore(state=>state.automixEnabled);
-    const main=useMainStageActive(),view=useAppViewStore(state=>state.view),rear=useRearRuntimeStore(state=>state.enabled&&!state.sleeping);
-    // MediaElementAudioSource cannot be attached a second time. Once advanced DSP is requested,
-    // keep its existing compatible pipeline for this session rather than repeatedly swapping it.
-    const compatibility=useRef(!nativeAudioUri(source)||effects||mixing||gain!=='off');
-    if(!nativeAudioUri(source)||effects||mixing||gain!=='off')compatibility.current=true;
-    const requested=PLAYBACK_TEST_SESSION_ENGINE!=='web',nativeFailed=useRef(false);
-    const own=requested&&android&&supported!==false&&!compatibility.current;
-    const songKey=song?getPlaybackSongKey(song):'';
-    const analysis=playing&&((main&&view==='player')||rear);
-    useEffect(()=>{installPlaybackTestMediaLog();if(!android||!requested)return;let disposed=false;const timer=setTimeout(()=>{if(!disposed){disposed=true;notePlaybackTest('native-probe-timeout');setSupported(false)}},4000);
+const native = getTingyuPlayback<NativeAudioPort>();
+export const nativeAudioUri = (source: string | null) => !source || /^(https?:|content:|file:|blob:)/.test(source);
+export function useNativeAudioDeck(audioRef: RefObject<HTMLAudioElement | null>, activeDeck: string, playbackGeneration?: RefObject<number>, quietCompatibleGraph?:(reason:'timer'|'handoff')=>Promise<boolean>, autoplayIntent?:RefObject<boolean>) {
+    const android = isAndroidNativeRuntime(), requested = PLAYBACK_TEST_SESSION_ENGINE !== 'web';
+    const [supported, setSupported] = useState<boolean | null>(android ? null : false);
+    const [failedAttempt, setFailedAttempt] = useState<{ token: string; reason: string } | null>(null);
+    const [ready, setReady] = useState(false);
+    const [webReady, setWebReady] = useState(false);
+    const adapter = useRef<ReturnType<typeof attachNativeAudioElement> | null>(null);
+    const source = usePlaybackStore(s => s.audioSrc), song = usePlaybackStore(s => s.currentSong);
+    const gain = usePlaybackStore(s => s.replayGainMode), playing = usePlaybackStore(s => s.playerState === PlayerState.PLAYING);
+    const effects = useAudioSettingsStore(s => s.audioEqualizerSettings.enabled), fade = useAudioSettingsStore(s => s.playbackFadeEnabled);
+    const loop = useAudioSettingsStore(s => s.loopMode), mixing = useAutomixSettingsStore(s => s.automixEnabled);
+    const main = useMainStageActive(), view = useAppViewStore(s => s.view), rear = useRearRuntimeStore(s => s.enabled && !s.sleeping);
+    const songKey = song ? getPlaybackSongKey(song) : '';
+    const generation = playbackGeneration?.current ?? 0;
+    const attempt = JSON.stringify([songKey, playbackGeneration ? generation : source]);
+    const restriction = effects ? 'effects' : mixing ? 'automix' : gain !== 'off' ? 'replaygain' : !nativeAudioUri(source) ? 'unsupported-uri' : '';
+    const failure = failedAttempt?.token === attempt ? failedAttempt.reason : '';
+    const own = android && requested && supported !== false && !restriction && !failure;
+    const analysis = playing && ((main && view === 'player') || rear);
+    const options=useRef({fade,analysis,loop:loop==='one',interactive:main||rear});
+    options.current={fade,analysis,loop:loop==='one',interactive:main||rear};
+    const latest = useRef({ source, songKey, song, playing, attempt });
+    latest.current = { source, songKey, song, playing, attempt };
+    const quietGraph=useRef(quietCompatibleGraph);quietGraph.current=quietCompatibleGraph;
+    const transfer = useRef<Promise<void> | null>(null);
+    const retainedElement = useRef<HTMLAudioElement | null>(null);
+    const handoff = useRef<{ source: string; track: string; position: number; requestedPlaying?:boolean } | null>(null);
+    useEffect(() => {
+        installPlaybackTestMediaLog();
+        if (!android || !requested || supported === true) return;
+        let disposed = false;
+        const timer = setTimeout(() => { if (!disposed) { disposed = true; notePlaybackTest('native-probe-timeout'); setSupported(false); } }, 4000);
         notePlaybackTest('native-probe-start');
-        void native.probe().then(value=>{if(!disposed){clearTimeout(timer);notePlaybackTest('native-probe-result',{supported:value.supported,engine:value.engine});setSupported(value.supported===true)}}).catch(error=>{if(!disposed){clearTimeout(timer);notePlaybackTest('native-probe-failed',{error});setSupported(false)}});
-        return()=>{disposed=true;clearTimeout(timer)};
-    },[android,requested]);
-    const reason=!requested?'selected-stable':compatibility.current?(!nativeAudioUri(source)?'blob-or-unsupported-uri':effects?'effects':mixing?'automix':gain!=='off'?'replaygain':'compatibility-latched'):supported===null?'probing':supported===false?(nativeFailed.current?'native-error-fallback':'native-unavailable'):'native-selected';
-    useEffect(()=>{const actual=own?(supported===true?'media3':'pending'):'web';setPlaybackTestActual(actual,reason);notePlaybackTest('actual-engine',{actual,reason});},[own,supported,reason]);
-    // A native failure latches this session onto the WebView pipeline, so the listener's next Play
-    // press succeeds instead of repeating the same failure. The layout effect cleanup performs the
-    // handoff: it waits for native to stop, restores the element source and resumes if needed.
-    useEffect(()=>{
-        const element=audioRef.current;
-        if(!own||supported!==true||!element)return;
-        const fallback=()=>{if(!shouldUseCompatibleDecoder(element.error))return;notePlaybackTest('native-error-fallback',{code:(element.error as MediaError & {nativeCode?:number})?.nativeCode});setStatusMessage({type:'info',text:'当前音频解码失败，已切换兼容通道'});nativeFailed.current=true;setSupported(false);};
-        element.addEventListener('error',fallback);
-        return()=>element.removeEventListener('error',fallback);
-    },[own,supported,audioRef]);
-    useLayoutEffect(()=>{
-        if(!own||supported!==true)return;
-        const element=audioRef.current;if(!element)return;
-        const value=attachNativeAudioElement(element,native);adapter.current=value;
-        return()=>{
-            const snapshot=value.snapshot();adapter.current=null;
-            // Hold transport ownership until native output has stopped; do not sound both engines.
-            if(audioRef.current===element)audioRef.current=null;
-            void value.dispose().then(()=>{
-                if(!element.isConnected)return;
-                audioRef.current=element;
-                const state=usePlaybackStore.getState(),same=snapshot.source===state.audioSrc;
-                if(state.audioSrc){
-                    element.src=state.audioSrc;
-                    const handoffSource=state.audioSrc;
-                    element.addEventListener('loadedmetadata',()=>{
-                        const current=usePlaybackStore.getState();
-                        if(current.audioSrc!==handoffSource||audioRef.current!==element)return;
-                        if(same&&snapshot.position>0)element.currentTime=snapshot.position;
-                        if(current.playerState===PlayerState.PLAYING)void element.play().catch(()=>{});
-                    },{once:true});element.load();
-                }
-            }).catch(()=>{if(element.isConnected)setStatusMessage({type:'error',text:'播放引擎切换未完成，请重新打开听屿后重试'});});
+        void native.probe().then(value => { if (!disposed) { clearTimeout(timer); setSupported(value.supported === true); } })
+            .catch(() => { if (!disposed) { clearTimeout(timer); setSupported(false); } });
+        return () => { disposed = true; clearTimeout(timer); };
+        // A transient probe failure is retryable for a new attempt, never a decoder verdict.
+    }, [android, requested, attempt]);
+    const reason = !requested ? 'selected-compatible' : restriction || failure || (supported === null ? 'probing' : supported === false ? 'native-unavailable' : 'native-selected');
+    useEffect(() => {
+        const actual = own ? (ready ? 'media3' : 'pending') : android&&requested&&!webReady?'pending':'web';
+        setPlaybackTestActual(actual, reason); notePlaybackTest('actual-engine', { actual, reason });
+    }, [own, ready, webReady, android, requested, reason]);
+    useEffect(() => {
+        const element = audioRef.current;
+        if (!own || !ready || !element) return;
+        const captured = attempt;
+        const fallback = (event:Event) => {
+            const state=usePlaybackStore.getState();
+            if (latest.current.attempt !== captured || state.audioSrc!==source || (state.currentSong?getPlaybackSongKey(state.currentSong):'')!==songKey || (playbackGeneration?.current??0)!==generation) return;
+            const error = element.error as (MediaError & { nativeCacheFailure?: boolean;nativeCompatibilityClaimed?:boolean }) | null;
+            if(error?.nativeCompatibilityClaimed===false)return;
+            const cause = error?.nativeCacheFailure ? 'cache-bridge-unavailable' : shouldUseCompatibleDecoder(error) ? 'track-decoder-fallback' : '';
+            if (!cause) return;
+            event.stopImmediatePropagation(); // Exactly one owner handles this error, not URL recovery too.
+            setFailedAttempt({ token: captured, reason: cause });
+            setStatusMessage({ type: 'info', text: cause === 'track-decoder-fallback' ? '当前音频解码失败，本曲使用兼容通道；下一首重试原生' : '当前缓存无法交给原生读取，本曲使用兼容通道' });
         };
-    },[own,supported,activeDeck,audioRef]);
-    // Route changes may enable FFT, but browsing and the stage use the same output mode.
-    // A background-only session can still use DSP offload at safe track/pause boundaries.
-    useLayoutEffect(()=>{adapter.current?.configure({fade,analysis,loop:loop==='one',interactive:main||rear});},[fade,analysis,loop,main,rear,own,supported]);
-    useLayoutEffect(()=>{adapter.current?.setSource(source??'',songKey,song?buildNativePlaybackPayload(song,playing,source?(consumeRecoveryPosition(songKey)??0)/1000:0,(song.durationMs??0)/1000):{});},[source,songKey,own,supported]);
-    return { suppressBrowserSource:own, nativeReady:own&&supported===true };
+        element.addEventListener('error', fallback,true);
+        return () => element.removeEventListener('error', fallback,true);
+    }, [own, ready, attempt, audioRef]);
+    const commitSource = () => {
+        const current = latest.current, value = adapter.current;
+        if (!value) return;
+        const restored = handoff.current;
+        const position = restored?.source === current.source && restored.track === current.songKey ? restored.position : (consumeRecoveryPosition(current.songKey) ?? 0) / 1000;
+        value.setSource(current.source ?? '', current.songKey, {...(current.song ? buildNativePlaybackPayload(current.song, current.playing, position, (current.song.durationMs ?? 0) / 1000) : {}),playbackAttempt:current.attempt});
+    };
+    useLayoutEffect(() => {
+        if (!android) return;
+        let cancelled = false, owned: ReturnType<typeof attachNativeAudioElement> | null = null;
+        const element = audioRef.current ?? retainedElement.current;
+        if (!element) return;
+        retainedElement.current = element;
+        const installNative = () => {
+            if (cancelled || !element.isConnected) return;
+            audioRef.current = element;
+            if (own && supported === true) {
+                const wasCompatible = !!element.getAttribute('src') || handoff.current?.source === latest.current.source;
+                if (wasCompatible) {
+                    if(element.getAttribute('src'))handoff.current = { source: element.getAttribute('src') ?? '', track: latest.current.songKey, position: element.currentTime || 0 };
+                    element.pause(); element.removeAttribute('src'); element.load();
+                }
+                owned = attachNativeAudioElement(element, native); adapter.current = owned;
+                owned.configure(options.current);
+                commitSource(); setReady(true);
+                if (latest.current.source && ((wasCompatible && latest.current.playing)||autoplayIntent?.current) && !owned.snapshot().requestedPlaying) {
+                    if(autoplayIntent)autoplayIntent.current=false;
+                    const token=latest.current.attempt;
+                    void element.play().catch(error=>{if(autoplayIntent&&latest.current.attempt===token&&error?.name==='AbortError')autoplayIntent.current=true;});
+                }
+            }
+        };
+        const installCompatible = () => {
+            if(cancelled||!element.isConnected)return;
+            audioRef.current=element;
+            if (!own) {
+                const current = latest.current, previous = handoff.current;
+                if (requested && current.source) {
+                    element.src = current.source;
+                    element.addEventListener('loadedmetadata', () => {
+                        if (cancelled || latest.current.attempt !== current.attempt || adapter.current) return;
+                        if (previous?.source === current.source && previous.track === current.songKey && previous.position > 0) element.currentTime = previous.position;
+                        const intent=usePlaybackStore.getState().playerState;
+                        if (intent === PlayerState.PLAYING || (intent!==PlayerState.PAUSED&&previous?.requestedPlaying) || autoplayIntent?.current) {
+                            if(autoplayIntent)autoplayIntent.current=false;
+                            void element.play().catch(()=>{});
+                        }
+                    }, { once: true });
+                    element.load();
+                }
+                setWebReady(true);
+            }
+        };
+        const install = () => {
+            if(cancelled)return;
+            if(own&&supported===true){
+                if(hasCompatibleSleepOutput())void releaseCompatibleSleepOutput().then(installNative).catch(()=>setStatusMessage({type:'error',text:'兼容通道未确认停止，已阻止启动原生内核'}));
+                else installNative();
+            }else if(!own){
+                void ensureCompatibleSleepOutput(()=>latest.current.attempt,reason=>quietGraph.current?.(reason)??Promise.resolve(true)).then(installCompatible).catch(()=>setStatusMessage({type:'error',text:'兼容播放控制未就绪，请重试；定时暂停暂不可用'}));
+            }
+        };
+        if (transfer.current) void transfer.current.then(install).catch(() => {}); else install();
+        return () => {
+            cancelled = true; setReady(false);setWebReady(false);
+            if (!owned) return;
+            handoff.current = owned.snapshot(); adapter.current = null;
+            if (audioRef.current === element) audioRef.current = null;
+            const stopping = owned.dispose(); transfer.current = stopping;
+            void stopping.then(() => { if (transfer.current === stopping) transfer.current = null; })
+                .catch(() => setStatusMessage({ type: 'error', text: '旧播放内核未确认停止，已阻止切换以避免双重播放' }));
+        };
+    }, [own, supported, activeDeck, audioRef, android, requested]);
+    useEffect(()=>()=>{if(android)void releaseCompatibleSleepOutput().catch(()=>{});},[android]);
+    useEffect(()=>{
+        if(!webReady)return;
+        const element=audioRef.current;if(!element)return;
+        const remember=()=>{handoff.current={source:element.currentSrc||element.getAttribute('src')||'',track:latest.current.songKey,position:element.currentTime||0};};
+        element.addEventListener('timeupdate',remember);element.addEventListener('pause',remember);
+        return()=>{element.removeEventListener('timeupdate',remember);element.removeEventListener('pause',remember);};
+    },[webReady,activeDeck,audioRef]);
+    useLayoutEffect(() => { adapter.current?.configure({ fade, analysis, loop: loop === 'one', interactive: main || rear }); }, [fade, analysis, loop, main, rear, ready]);
+    useLayoutEffect(commitSource, [source, songKey, generation, ready]);
+    // React never assigns a browser src during an Android handoff. Detach is acknowledged first.
+    useLayoutEffect(() => {
+        if (!android || !requested || own || !webReady || transfer.current || adapter.current) return;
+        const element = audioRef.current;
+        if (element && source && element.getAttribute('src') !== source) { element.src = source; element.load(); }
+    }, [source, own, webReady, android, requested, audioRef]);
+    return { suppressBrowserSource: android && requested && (own || !webReady), nativeReady: own && ready };
 }

@@ -1392,7 +1392,13 @@ export default function App() {
         }
     }, [audioSrc, audioRef, setDuration]);
 
-    const playbackDeck=usePlaybackDeck(audioRef,automix.activeDeck);
+    const playbackDeck=usePlaybackDeck(audioRef,automix.activeDeck,playbackGenerationRef,async(reason)=>{
+        if(reason==='timer')shouldAutoPlay.current=false;
+        automix.abortTransition();
+        const context=audioContextRef.current;
+        if(context?.state==='running')await context.suspend();
+        return !context||context.state==='suspended'||context.state==='closed';
+    },shouldAutoPlay);
     useNativeQueuedPlayback(audioRef,playbackDeck.nativeReady,localSongs,playSong);
     const { setupAudioAnalyzer, cacheSongAssets, cacheSongAssetsFor, adoptActiveDeckSource } = usePlaybackAudioBridge({
         audioRef,
