@@ -17,9 +17,13 @@ import java.io.InputStream;
 // Reuse Tingyu's existing SVG assets; rasterize each icon once at its actual physical size.
 public final class GlassNavIcons {
     public static Drawable load(Context context, String name, boolean active, int size) {
+        return load(context, name, active, false, size);
+    }
+    public static Drawable load(Context context, String name, boolean active, boolean light, int size) {
         Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap); canvas.scale(size / 24f, size / 24f);
-        try (InputStream stream = context.getAssets().open("public/assets/tingyu-nav/" + name + (active ? "-active.svg" : "-inactive.svg"))) {
+        String themePath = light ? "light/" : "";
+        try (InputStream stream = context.getAssets().open("public/assets/tingyu-nav/" + themePath + name + (active ? "-active.svg" : "-inactive.svg"))) {
             XmlPullParser xml = Xml.newPullParser(); xml.setInput(stream, "UTF-8");
             while (xml.next() != XmlPullParser.END_DOCUMENT) {
                 if (xml.getEventType() != XmlPullParser.START_TAG) continue;

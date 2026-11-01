@@ -9,6 +9,7 @@ import { useSettingsModalStore } from '../../../stores/useSettingsModalStore';
 import { useNativeSettingsPage } from './useNativeSettingsPage';
 import { warmSettingsModule } from '../../app/dialogs/settingsModule';
 import { useNativeSettingsDocument } from '../../../hooks/useNativeSettingsDocument';
+import { useInterfaceLight } from '../../../hooks/useInterfaceAppearance';
 import './mobileSettings.css';
 
 // src/components/modal/settings/MobileSettingsLanding.tsx
@@ -17,6 +18,7 @@ const RearLyricsGuide = lazy(() => import('./RearLyricsGuide'));
 export default function MobileSettingsLanding({ onClose }: { onClose: () => void }) {
     useEffect(()=>{const id=setTimeout(warmSettingsModule,400);return()=>clearTimeout(id)},[]);
     const { t } = useTranslation();
+    const lightInterface=useInterfaceLight();
     const [guide, setGuide] = useState(false);
     const groups = useMemo(() => buildSettingsNavGroups(t, { isElectron: false }), [t]);
     useEffect(() => {
@@ -40,7 +42,7 @@ export default function MobileSettingsLanding({ onClose }: { onClose: () => void
     return createPortal(<div ref={root} data-folia-settings-overlay="true" data-mobile-settings="true"
         data-folia-keyboard-window="true" data-testid="mobile-settings-landing" className="fixed inset-0" style={{ zIndex: 136 }}>
         {(!native||guide)&&<div data-folia-settings-panel="true" role="dialog" aria-modal="true" aria-label={t('ui.options')}
-            className="flex flex-col overflow-hidden h-full" style={{ color: '#e8f4ed' }}>
+            className="flex flex-col overflow-hidden h-full" style={{ color: lightInterface ? '#213e34' : '#e8f4ed' }}>
             <MobileSettingsHeader primary={!guide} title={t(guide ? 'mobileSettings.startupGuide' : 'ui.options')}
                 onBack={() => setGuide(false)} onClose={onClose} />
             {guide ? <div className="flex-1 overflow-y-auto px-5"><Suspense fallback={null}><RearLyricsGuide /></Suspense></div>

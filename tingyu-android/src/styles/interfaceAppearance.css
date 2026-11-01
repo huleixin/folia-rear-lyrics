@@ -15,6 +15,22 @@ html[data-interface-appearance='light'] :is(.mobile-library,[data-folia-settings
  --ty-settings-line:#315d4326;--ty-settings-muted:#536d61;--ty-settings-mint:#246e55;
  --mps-glass:#f1f4ed;--mps-border:#315d4326;color:#213e34;color-scheme:light;
 }
+/* Mobile settings keep legacy dark tokens inline for the dark UI. Resolve the same
+   values from the active interface theme here so native-captured forms inherit ink. */
+html[data-interface-appearance='light'] [data-folia-settings-overlay] {
+ --bg-color:#f4f5ee!important;--text-primary:#213e34!important;--text-secondary:#536d61!important;
+ --text-accent:#246e55!important;--text-on-accent:#fff!important;--accent-color:#246e55!important;
+ --ty-bg:#f1f4ed!important;--ty-card:#ffffffb8!important;--ty-border:#315d4338!important;
+ --ty-text:#213e34!important;--ty-muted:#536d61!important;--ty-accent:#246e55!important;
+ --ty-settings-line:#315d4338!important;--ty-settings-muted:#536d61!important;--ty-settings-mint:#246e55!important;
+ color:#213e34!important;color-scheme:light;
+}
+html[data-interface-appearance='light'] [data-folia-settings-overlay] :is(.text-white,.text-zinc-50,.text-zinc-100,.text-zinc-200,.text-zinc-300,.text-gray-50,.text-gray-100,.text-gray-200,.text-gray-300,[class*="text-white/"]) {color:#213e34!important}
+html[data-interface-appearance='light'] [data-folia-settings-overlay] :is(.text-zinc-400,.text-zinc-500,.text-zinc-600,.text-gray-400,.text-gray-500,.text-gray-600) {color:#536d61!important}
+html[data-interface-appearance='light'] [data-folia-settings-overlay] :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-40"],
+html[data-interface-appearance='light'] [data-folia-settings-overlay] :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-45"],
+html[data-interface-appearance='light'] [data-folia-settings-overlay] :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-50"],
+html[data-interface-appearance='light'] [data-folia-settings-overlay] :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-60"] {opacity:.82!important}
 html[data-interface-appearance='light'] [data-folia-app-shell][data-folia-android='true']:not([data-folia-player-view]){background:#f4f5ee!important}
 html[data-interface-appearance='light'] .mobile-library:is(.ml-home,.ml-playlist-detail),
 html[data-interface-appearance='light'] [data-mobile-settings='true'] > [data-folia-settings-panel]{background:linear-gradient(180deg,#e3ede2,#f0f3ea 50%,#f4f5ee)}
@@ -58,7 +74,7 @@ html[data-interface-appearance='light'] [data-folia-search-workspace]{background
 html[data-interface-appearance='light'] .ty-sheet-scrim,
 html[data-interface-appearance='light'] .sleep-scrim,
 html[data-interface-appearance='light'] .ml-sheet-scrim{background:#20382b55}
-html[data-interface-appearance='light'] .ml-footer .tingyu-nav-icon{filter:brightness(.43) saturate(.8)}
+html[data-interface-appearance='light'] .ml-footer .tingyu-nav-icon{filter:none}
 html[data-interface-appearance='light'] :is(.mobile-library,[data-folia-settings-overlay],[data-folia-search-workspace],[data-folia-keyboard-window],.sleep-scrim,.ty-sheet,.ml-sheet,[data-folia-status-toast],.ty-interface-setting) :is(.text-zinc-100,.text-zinc-200,.text-white){color:var(--text-primary)!important;}
 
 html[data-interface-appearance='light'] .ty-search {--ty-bg:#f4f5ee;--ty-panel:#315d4308;--ty-panel-strong:#315d4310;--ty-border:#315d4326;--ty-text:#213e34;--ty-muted:#536d61;--ty-accent:#246e55;--ty-accent-soft:#3278561c;}

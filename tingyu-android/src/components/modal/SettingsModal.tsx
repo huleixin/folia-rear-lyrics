@@ -1419,10 +1419,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             data-ponder-page-scope={activeTab === 'help' ? 'help-page' : 'settings-page'}
             className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-8 sm:px-5 sm:py-12"
             style={{ backgroundColor: overlayBackground, ...(isMobileSettings ? {
-                '--bg-color': '#031510',
-                '--text-primary': '#edf5f1',
-                '--text-secondary': '#a2b8af',
-                color: '#edf5f1',
+                '--bg-color': isDaylight ? '#f4f5ee' : '#031510',
+                '--text-primary': isDaylight ? '#213e34' : '#edf5f1',
+                '--text-secondary': isDaylight ? '#536d61' : '#a2b8af',
+                color: isDaylight ? '#213e34' : '#edf5f1',
             } : {}) } as React.CSSProperties}
             onMouseDown={handleOverlayMouseDown}
             onClick={(event) => handleBackdropClose(event, onClose)}

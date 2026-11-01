@@ -61,8 +61,8 @@ fun chromeColor(value: String, fallback: Color = Color.White): Color = try { Col
     return drawBackdrop(backdrop = backdrop, shape = { shape }, effects = {
         vibrancy(); blur(blurRadius)
         if (Build.VERSION.SDK_INT >= 33) lens(lensHeight, lensHeight * 1.35f)
-    }, onDrawSurface = { drawRect(if (light) Color(0x88F1F4ED) else Color(0x78303B36)) })
-        .border(0.8.dp,Color.White.copy(alpha = if(light) 0.45f else 0.23f),shape)
+    }, onDrawSurface = { drawRect(if (light) Color(0xA6F1F4ED) else Color(0x78303B36)) })
+        .border(0.8.dp,if(light)Color(0x99315D43)else Color.White.copy(alpha=0.23f),shape)
 }
 @Composable fun ChromeButton(label: String, modifier: Modifier = Modifier, enabled: Boolean = true, size: Dp = 44.dp, reduced: Boolean = false,
     onClick: () -> Unit, content: @Composable () -> Unit) {
