@@ -1,3 +1,4 @@
+import {useSleepTimerStore} from '../../../stores/useSleepTimerStore';
 import React, { useRef } from 'react';
 import { Pause, Play, ListMusic } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -39,6 +40,7 @@ export default function MobileMiniPlayer({
     nextTrackLabel,
     previousTrackLabel,
 }: Pick<LibrarySuiteStageProps, 'onBackToPlayer' | 'onTogglePlayback' | 'onNextTrack' | 'canNextTrack' | 'onPreviousTrack' | 'canPreviousTrack' | 'nextTrackLabel' | 'previousTrackLabel'>) {
+    const sleepPreferredMinutes=useSleepTimerStore(s=>s.sleepTimerHours*60+s.sleepTimerMinutes||30);
     const { t } = useTranslation();
     const song = usePlaybackStore(selectDisplaySong);
     const cover = usePlaybackStore(selectDisplayCoverUrl);
@@ -59,6 +61,7 @@ export default function MobileMiniPlayer({
     const compose = useComposeChrome(glassRef,'mini',active&&!searchOpen&&!settingsOpen,{
         title:song?.name||t('mobileLibrary.nothingPlaying'),artist:song?getSongArtistLabel(song):t('mobileLibrary.chooseMusic'),cover:nativeCover,
         trackKey:song?getPlaybackSongKey(song):'',playing:state===PlayerState.PLAYING,disabled:!song||!onTogglePlayback,
+        sleepPreferredMinutes,
         duration,canNext:!!song&&!!canNextTrack,canPrevious:!!song&&!!canPreviousTrack,reducedMotion,ink:'#eef5ef',accent:'#86d8b8',
         labels:{next:nextTrackLabel||t('ui.nextTrack'),previous:previousTrackLabel||t('ui.previousTrack'),play:t('mobileLibrary.play'),pause:t('mobileLibrary.pause'),queue:t('mobileLibrary.queue'),quality:'音质切换',qualityValue:QUALITY_LABELS[quality]},
     },{openStage:onBackToPlayer,toggle:onTogglePlayback,next:onNextTrack,previous:onPreviousTrack,queue:openQueue,quality:()=>useAudioToolsStore.getState().show()},currentTime);

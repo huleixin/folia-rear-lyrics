@@ -51,3 +51,10 @@ test('unified chrome binds playback, previous/next, repeat and seek without a se
     await expect(page.locator('.mobile-player-stage')).toHaveCSS('color', 'rgb(255, 253, 246)');
     expect(errors).toEqual([]);
 });
+
+test('stage more menu no longer owns a separate sleep timer entry',async({page})=>{
+ await page.goto('/dev-probe.html?probe=mobileStageChrome');
+ await page.getByRole('button',{name:/More|更多/,exact:true}).click();
+ await expect(page.getByRole('menu')).toBeVisible();
+ await expect(page.getByRole('menuitem',{name:/定时关闭|Sleep timer/i})).toHaveCount(0);
+});

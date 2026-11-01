@@ -10,6 +10,7 @@ export type ChromeSurfaceId = 'nav' | 'mini' | 'stage';
 export type ChromeData = {
     title?: string; artist?: string; cover?: string; trackKey?: string; playing?: boolean; disabled?: boolean;
     canNext?: boolean; canPrevious?: boolean; duration?: number; selected?: number; loop?: string;
+    sleepPreferredMinutes?: number;
     light?: boolean; reducedMotion?: boolean; accent?: string; ink?: string; labels?: Record<string,string>; vertical?: boolean;
 };
 export type ChromeAction = {id: ChromeSurfaceId; session: string; action: string; value: number};

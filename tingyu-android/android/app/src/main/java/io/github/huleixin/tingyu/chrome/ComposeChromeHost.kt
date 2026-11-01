@@ -64,6 +64,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private val pages = mutableStateMapOf<String, NativePage>()
     var pageListener: NativePageActionListener? = null
     // 「支持与交流」sheets: opened from settings page actions (support:coffee / support:group).
+    private var sleepMenuOpen by mutableStateOf(false)
+    private var sleepAnchor by mutableStateOf(androidx.compose.ui.geometry.Rect.Zero)
     private var supportSheet by mutableStateOf<String?>(null)
     private var supportCopyJson by mutableStateOf<String?>(null)
     private val cache=NativeShellCache(web.context)
@@ -139,13 +141,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         pageTarget=value.optString("pageTarget");entryKey=value.optString("entryKey");reducedMotion=value.optBoolean("reducedMotion")
         navigation=value.optString("navigation")
         playlistDetail=value.optBoolean("playlistDetail")
+        if(routeChanged||webOverlay)sleepMenuOpen=false
         if(routeChanged||presented==null)resolvePage()
         if(next!="home")firstHomeFrame=false
     }
     private val frameOrder = ChromeFrameOrder()
     private var active by mutableStateOf(true)
     private var focused by mutableStateOf(true)
-    fun windowFocusChanged(value:Boolean){focused=value;host?.invalidate()}
+    fun windowFocusChanged(value:Boolean){focused=value;if(!value)sleepMenuOpen=false;host?.invalidate()}
     fun requiresWebBack():Boolean=pendingStageEntry||destination!="home"||selectedTab!=0||webOverlay||stageExit.active
     private var host: ComposeView? = null
     private var parent: ViewGroup? = null
@@ -196,7 +199,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         frameOrder.retire(id,session)
         if (surfaces[id]?.session == session) { surfaces.remove(id); clocks.remove(id) }
     }
-    fun suspend() { active = false;stageExit.clear() }
+    fun suspend() { active = false;sleepMenuOpen=false;stageExit.clear() }
     fun resume() { active = true }
     private fun attach() {
         val original = web.parent as? ViewGroup ?: error("WebView has no parent")
@@ -215,6 +218,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val palette=remember(interfaceLight){InterfacePalette(interfaceLight)}
         val activity=web.context as? android.app.Activity
         DisposableEffect(interfaceLight,destination,surfaces["stage"]?.light) {activity?.let{InterfaceAppearance.route(it,destination=="stage",surfaces["stage"]?.light?:false)};onDispose{}}
+        val sleepUi=rememberMiniSleepUi(active&&focused)
         val backdrop = rememberLayerBackdrop()
         val stageBackdrop = rememberLayerBackdrop()
         val exitProgress=rememberStageExitProgress(stageExit,reducedMotion)
@@ -298,7 +302,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     val seed=remember(id,width,height,selectedTab,safeBottom,safeTop){cache.chrome(id,width,height,safeBottom,safeTop).let{if(id=="nav")it.copy(selected=selectedTab)else it}}
                     val placement=Modifier.offset{IntOffset(with(density){seed.rect.left.dp.roundToPx()},with(density){seed.rect.top.dp.roundToPx()})}
                         .size(seed.rect.width.dp,seed.rect.height.dp)
-                    if(id=="nav")ChromeNavigation(seed.interfacePaint(interfaceLight),backdrop,placement){_,_->}else ChromeMiniPlayer(seed.interfacePaint(interfaceLight),null,backdrop,placement){_,_->}
+                    if(id=="nav")ChromeNavigation(seed.interfacePaint(interfaceLight),backdrop,placement){_,_->}else ChromeMiniPlayer(seed.interfacePaint(interfaceLight),null,backdrop,placement,sleepUi,{sleepAnchor=it}){name,_->if(name=="sleep")sleepMenuOpen=!sleepMenuOpen}
                 }
             }
             visible.forEach { original -> key(original.id,original.session) {
@@ -312,8 +316,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     val placement = Modifier.offset { IntOffset((rect.left*scale).roundToInt(),(animatedY*scale).roundToInt()) }
                         .size(with(density){(rect.width*scale).toDp()},with(density){(rect.height*scale).toDp()})
                         .graphicsLayer { alpha = rect.alpha }
-                    val actions: (String,Double)->Unit = { action,value ->
+                    val actions: (String,Double)->Unit = actions@ { action,value ->
                         if (active && surfaces[surface.id]?.enabled==true && surfaces[surface.id]?.session == surface.session && (action !in setOf("next","previous","toggle","seek") || surfaces[surface.id]?.trackKey == surface.trackKey)) {
+                            if(surface.id=="mini"&&action=="sleep"){sleepMenuOpen=!sleepMenuOpen;return@actions}
+                            if(action=="navigate"||action=="openStage"||action=="queue"||action=="quality")sleepMenuOpen=false
                             // Dismiss home chrome on the UI thread before the JS route transition starts.
                             if (surface.id=="mini" && action=="openStage") {
                                 pendingStageEntry=true
@@ -334,7 +340,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     val interactivePlacement = placement.chromeInteraction(actions)
                     when(surface.id) {
                         "nav" -> ChromeNavigation(surface,backdrop,interactivePlacement,actions)
-                        "mini" -> ChromeMiniPlayer(surface,clocks[surface.id],backdrop,interactivePlacement,actions)
+                        "mini" -> ChromeMiniPlayer(surface,clocks[surface.id],backdrop,interactivePlacement,sleepUi,{sleepAnchor=it},actions)
                         "stage" -> Box(Modifier.fillMaxSize().stageExitTransform(stageExit,exitProgress)){ChromeStagePlayer(surface,clocks[surface.id],if(legacySampling)backdrop else stageBackdrop,interactivePlacement,actions)}
                     }
                 }
@@ -343,6 +349,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             if(graphics.enabled)Text("N · 记闪烁",color=Color(0xFFB8FFE3),fontSize=10.sp,
                 modifier=Modifier.zIndex(20f).offset(12.dp,(safeTop+3).dp).background(Color(0xDD09251C))
                     .clickable{graphicsMarker?.invoke()}.padding(horizontal=5.dp,vertical=3.dp))
+            if(sleepMenuOpen&&!webOverlay&&active&&destination in setOf("home","collection"))Box(Modifier.fillMaxSize().zIndex(6f)) {
+                MiniSleepMenu(sleepUi,sleepAnchor,safeTop,interfaceLight,backdrop,
+                    preferredMinutes=surfaces["mini"]?.sleepPreferredMinutes?:30,reduced=reducedMotion){sleepMenuOpen=false}
+            }
             supportSheet?.let{kind->SupportSheets(kind,supportCopyJson){supportSheet=null}}
             }
         }

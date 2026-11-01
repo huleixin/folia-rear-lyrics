@@ -40,6 +40,7 @@ export type SleepTimerState = {
     sleepTimerDeadlineMs: number | null;
     sleepTimerActivationId: number;
     handleToggleSleepTimer: (enable: boolean) => void;
+    handleSetSleepTimerDurationMinutes: (minutes: number) => void;
     handleSetSleepTimerHours: (hours: number) => void;
     handleSetSleepTimerMinutes: (minutes: number) => void;
 };
@@ -75,6 +76,16 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
             text: i18n.t('notifications.' + (enable ? 'sleepTimerOn' : 'sleepTimerOff')),
         });
     },
+    // Store the existing preference keys together; never change an armed native task.
+    handleSetSleepTimerDurationMinutes: (duration) => {
+        const total=Math.min(1440,Math.max(0,Math.floor(duration)||0));
+        const hours=Math.floor(total/60),minutes=total%60;
+        if(typeof window!=='undefined'){
+            localStorage.setItem(SLEEP_TIMER_HOURS_STORAGE_KEY,String(hours));
+            localStorage.setItem(SLEEP_TIMER_MINUTES_STORAGE_KEY,String(minutes));
+        }
+        set({sleepTimerHours:hours,sleepTimerMinutes:minutes});
+    },
     handleSetSleepTimerHours: (hours) => {
         const clamped = Math.min(999, Math.max(0, Math.floor(hours) || 0));
         if (typeof window !== 'undefined') {
@@ -82,7 +93,7 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
         }
         set(state => ({
             sleepTimerHours: clamped,
-            sleepTimerEnabled: clamped === 0 && state.sleepTimerMinutes === 0
+            sleepTimerEnabled: !isCapacitorAndroid() && clamped === 0 && state.sleepTimerMinutes === 0
                 ? false
                 : state.sleepTimerEnabled,
         }));
@@ -94,7 +105,7 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
         }
         set(state => ({
             sleepTimerMinutes: clamped,
-            sleepTimerEnabled: state.sleepTimerHours === 0 && clamped === 0
+            sleepTimerEnabled: !isCapacitorAndroid() && state.sleepTimerHours === 0 && clamped === 0
                 ? false
                 : state.sleepTimerEnabled,
         }));

@@ -22,7 +22,7 @@ public final class SleepTimerController {
     private final Context context;
     private ExoPlayer player;
     private Runnable pause;
-    private Consumer<JSObject> observer;
+    private final java.util.Set<Consumer<JSObject>> observers=new java.util.LinkedHashSet<>();
     private String reason="idle";
     private long sample;
     private SleepTimerController(Context context){
@@ -32,8 +32,8 @@ public final class SleepTimerController {
         // A new process has no old playback session. Retire it, never rearm or wake audio.
         if(prefs.getBoolean("active",false)){state.cancel();reason="interrupted-process";persist();}
     }
-    public void observe(Consumer<JSObject> observer){this.observer=observer;}
-    public void unobserve(Consumer<JSObject> observer){if(this.observer==observer)this.observer=null;}
+    public void observe(Consumer<JSObject> observer){observers.add(observer);}
+    public void unobserve(Consumer<JSObject> observer){observers.remove(observer);}
     public void attach(ExoPlayer player,Runnable pause){this.player=player;this.pause=pause;applyBarrier();}
     public void detach(){cancel("session-ended");player=null;pause=null;}
     public JSObject start(String mode,long duration){
@@ -77,5 +77,12 @@ public final class SleepTimerController {
     private void persist(){prefs.edit().putLong("generation",state.generation).putBoolean("active",state.active)
         .putString("mode",state.mode.name()).putBoolean("waiting",state.waiting).putLong("deadlineElapsed",state.deadline)
         .putLong("deadlineWall",System.currentTimeMillis()+state.remaining(SystemClock.elapsedRealtime())).putLong("duration",state.duration).apply();}
-    private void publish(){PlaybackDiagnostics.note("sleep-timer",new JSObject().put("generation",state.generation).put("state",reason).put("mode",state.mode.name()));if(observer!=null)observer.accept(snapshot());}
+    private void publish(){
+        PlaybackDiagnostics.note("sleep-timer",new JSObject().put("generation",state.generation).put("state",reason).put("mode",state.mode.name()));
+        JSObject value=snapshot();
+        for(Consumer<JSObject> observer:new java.util.ArrayList<>(observers)){
+            try {observer.accept(value);}
+            catch(RuntimeException failure){PlaybackDiagnostics.note("sleep-observer-error",new JSObject().put("type",failure.getClass().getSimpleName()));}
+        }
+    }
 }

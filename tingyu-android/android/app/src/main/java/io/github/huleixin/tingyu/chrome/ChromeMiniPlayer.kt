@@ -1,6 +1,5 @@
 package io.github.huleixin.tingyu.chrome
 
-import android.util.Base64
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -17,6 +16,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -28,10 +30,14 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ChromeMiniPlayer.kt
-@Composable fun ChromeMiniPlayer(s: ChromeSurface, timeline: ChromeTimeline?, backdrop: Backdrop, modifier: Modifier, action: (String,Double)->Unit) {
+@Composable internal fun ChromeMiniPlayer(s: ChromeSurface, timeline: ChromeTimeline?, backdrop: Backdrop, modifier: Modifier,
+    timer:MiniSleepUi?=null,onSleepAnchor:(Rect)->Unit={},action: (String,Double)->Unit) {
     val ink=chromeColor(s.ink);val accent=chromeColor(s.accent)
     val cover=pageImage(s.cover)
-    Row(modifier.chromeGlass(backdrop,s.light,28.dp).padding(horizontal=6.dp,vertical=3.dp),verticalAlignment=Alignment.CenterVertically) {
+    BoxWithConstraints(modifier.chromeGlass(backdrop,s.light,28.dp)) {
+    val compact=maxWidth<340.dp
+    val spacing=miniPlayerSpacing(maxWidth.value)
+    Row(Modifier.fillMaxSize().padding(horizontal=6.dp,vertical=3.dp),verticalAlignment=Alignment.CenterVertically) {
         val scope=rememberCoroutineScope();val offset=remember{Animatable(0f)}
         var dx by remember{mutableFloatStateOf(0f)};var width by remember{mutableFloatStateOf(1f)}
         val drag=Modifier.pointerInput(s.canNext,s.canPrevious,s.disabled,s.trackKey) {
@@ -58,19 +64,22 @@ import kotlin.math.abs
                     ChromeGlyph("music",ink.copy(alpha=.7f))
                     if(s.cover.isNotBlank())AsyncImage(model=cover,contentDescription=null,modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
                 }
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(spacing.gap.dp))
                 Column(Modifier.weight(1f)) {
                     Text(s.title,color=ink,fontSize=13.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
                     Text(s.artist,color=ink.copy(alpha=.65f),fontSize=10.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
                 }
             }
         }
-        ChromeButton(s.label("quality","音质"),size=38.dp,reduced=s.reducedMotion,onClick={action("quality",0.0)}) {
-            Text(s.label("qualityValue","高品质"),color=ink.copy(alpha=.75f),fontSize=9.sp,maxLines=1)
+        ChromeButton(s.label("quality","音质"),size=spacing.quality.dp,reduced=s.reducedMotion,onClick={action("quality",0.0)}) {
+            Text(s.label("qualityValue","高品质"),color=ink.copy(alpha=.75f),fontSize=if(compact)8.sp else 9.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
         }
+        if(timer!=null)MiniSleepButton(timer,s.light,spacing.moon,s.reducedMotion,action={action("sleep",0.0)},
+            modifier=Modifier.onGloballyPositioned{onSleepAnchor(it.boundsInRoot())})
         ChromeButton(s.label(if(s.playing)"pause" else "play",if(s.playing)"暂停" else "播放"),enabled=!s.disabled,size=42.dp,reduced=s.reducedMotion,onClick={action("toggle",0.0)}) {
             ChromeProgressRing(timeline,Modifier.size(34.dp),ink);ChromeGlyph(if(s.playing)"pause" else "play",ink,Modifier.size(19.dp))
         }
-        ChromeButton(s.label("queue","播放队列"),size=42.dp,reduced=s.reducedMotion,onClick={action("queue",0.0)}) {ChromeGlyph("queue",ink)}
+        ChromeButton(s.label("queue","播放队列"),size=spacing.queue.dp,reduced=s.reducedMotion,onClick={action("queue",0.0)}) {ChromeGlyph("queue",ink)}
+    }
     }
 }

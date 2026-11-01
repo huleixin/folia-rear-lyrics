@@ -10,7 +10,10 @@ interface Bridge {startSleepTimer(o:{mode:SleepMode;durationMs:number}):Promise<
 let serial:Promise<unknown>=Promise.resolve(),generation=-1,request=0,completedGeneration=-1,lastSample=-1;
 export function applySleepState(s:State){
     if(s.generation<generation||(s.generation===generation&&s.sample!==undefined&&s.sample<lastSample))return;
-    if(s.generation>generation)lastSample=-1;generation=s.generation;lastSample=s.sample??lastSample;
+    const changedTask=s.generation>generation;
+    if(changedTask)lastSample=-1;generation=s.generation;lastSample=s.sample??lastSample;
+    if(changedTask&&s.active&&!s.waiting&&s.reason==='started'&&s.durationMs>0)
+        useSleepTimerStore.getState().handleSetSleepTimerDurationMinutes(Math.round(s.durationMs/60000));
     useSleepTimerStore.setState({sleepTimerEnabled:s.active,sleepTimerMode:s.mode,sleepTimerWaiting:s.waiting,
         sleepTimerDeadlineMs:s.active&&!s.waiting?Date.now()+s.remainingMs:null,sleepTimerRemainingMs:s.remainingMs,sleepTimerDurationMs:s.durationMs,
         sleepTimerAnchor:performance.now()});
