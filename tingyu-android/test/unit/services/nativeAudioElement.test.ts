@@ -197,3 +197,9 @@ it('re-announces the real native track once the page is visible again',async()=>
   expect(heard).toEqual(['qq:2','qq:2']);
  }finally{window.removeEventListener('tingyu-native-queue-track',listener);await f.adapter.dispose();}
 });
+
+it('does not emit ended and trigger a JS next-track when a sleep timer pauses at EOF',async()=>{
+ const f=await fixture(),ended=vi.fn();f.element.addEventListener('ended',ended);
+ f.state({status:4,position:200,endedBySleep:true,paused:true,playing:false});
+ expect(ended).not.toHaveBeenCalled();expect(f.element.paused).toBe(true);await f.adapter.dispose();
+});

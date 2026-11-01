@@ -1,3 +1,5 @@
+import {isCapacitorAndroid} from '../../platform/runtime';
+import {useSleepTimerStore} from '../../stores/useSleepTimerStore';
 import React, { useEffect, useState } from 'react';
 import { Timer } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -81,10 +83,13 @@ const SleepTimerControl: React.FC<SleepTimerControlProps> = ({
     onMinutesChange,
 }) => {
     const { t } = useTranslation();
-    const [nowMs, setNowMs] = useState(() => Date.now());
+    const waiting=useSleepTimerStore(s=>s.sleepTimerWaiting);
+    const nativeRemaining=useSleepTimerStore(s=>s.sleepTimerRemainingMs);
+    const anchor=useSleepTimerStore(s=>s.sleepTimerAnchor);
+        const [nowMs, setNowMs] = useState(() => Date.now());
 
     useEffect(() => {
-        if (!enabled || deadlineMs === null) {
+        if (!enabled || (deadlineMs === null && !isCapacitorAndroid())) {
             return;
         }
         setNowMs(Date.now());
@@ -92,7 +97,7 @@ const SleepTimerControl: React.FC<SleepTimerControlProps> = ({
         return () => window.clearInterval(timer);
     }, [deadlineMs, enabled]);
 
-    const remainingMs = enabled && deadlineMs !== null ? Math.max(0, deadlineMs - nowMs) : null;
+    const remainingMs = isCapacitorAndroid()?Math.max(0,nativeRemaining-(performance.now()-anchor)):enabled && deadlineMs !== null ? Math.max(0, deadlineMs - nowMs) : null;
     const timerHint = !enabled
         ? t('commandPalette.sleepTimerDisabledHint', 'Turn it on to start the timer')
         : hours === 0 && minutes === 0
@@ -104,7 +109,7 @@ const SleepTimerControl: React.FC<SleepTimerControlProps> = ({
                 window.electron?.quitApp ? 'Closing in {{time}}' : 'Pausing playback in {{time}}',
             )
                 .replace('{{time}}', formatRemaining(remainingMs ?? (hours * 3600 + minutes * 60) * 1000));
-    const hint = queryFeedback?.text ?? timerHint;
+    const hint = queryFeedback?.text ?? (isCapacitorAndroid()&&enabled&&waiting?'等待当前歌曲结束后暂停':timerHint);
 
     return (
         <div className="flex h-full items-center justify-center px-4 py-10">

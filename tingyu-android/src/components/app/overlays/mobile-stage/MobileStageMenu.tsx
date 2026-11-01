@@ -1,5 +1,6 @@
+import {useSleepTimerStore} from '../../../../stores/useSleepTimerStore';
 import React, { useEffect, useRef } from 'react';
-import { AudioLines, Captions, Settings2, SlidersHorizontal } from 'lucide-react';
+import { Timer, AudioLines, Captions, Settings2, SlidersHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppViewStore } from '../../../../stores/useAppViewStore';
 import { openSettings } from '../../../../stores/useSettingsModalStore';
@@ -80,6 +81,7 @@ export default function MobileStageMenu({
                 <Captions size={18} />
                 {t('localMusic.lyrics')}
             </button>
+            <button role="menuitem" onClick={()=>run(()=>useSleepTimerStore.setState({sleepTimerSheetOpen:true}))}><Timer size={18}/>定时关闭</button>
             <button role="menuitem" onClick={() => run(() => openSettings('options', 'playback'))}>
                 <Settings2 size={18} />
                 {t('mobileStage.playbackSettings')}

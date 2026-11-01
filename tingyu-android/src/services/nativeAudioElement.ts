@@ -75,6 +75,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         }
         if(value.status===3){ready=4;if(!metadata){metadata=true;event('loadedmetadata');event('loadeddata');event('canplay');}}
         if(value.type==='seeked'){event('seeked');event('timeupdate');}
+        if(value.endedBySleep){const wasPaused=paused;paused=true;playing=false;ended=false;if(!wasPaused)event('pause');event('timeupdate');return;}
         if(value.status===4){const finished=!ended;ended=true;paused=true;playing=false;if(finished)event('ended');return;}
         if(value.sequence>=lastIntent||value.external){
             const previous=paused;paused=value.paused;

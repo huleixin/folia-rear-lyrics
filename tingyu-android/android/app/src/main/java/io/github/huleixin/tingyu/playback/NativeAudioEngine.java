@@ -123,6 +123,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     private final QueueSupervision supervision=new QueueSupervision();
     private boolean interactive=true;
     private Consumer<JSObject> listener;
+    private boolean sleepStopped;
     private volatile String sourceId="";
     private String songKey="";
     private final PowerManager.WakeLock handoffWake;
@@ -250,6 +251,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                     .setDefaultRequestProperties(java.util.Collections.singletonMap("Referer","https://y.qq.com/")))))
             .setAudioAttributes(new AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),true)
             .setHandleAudioBecomingNoisy(true).setWakeMode(C.WAKE_MODE_LOCAL).build();
+        SleepTimerController.get(context).attach(player,()->{sleepStopped=true;boolean original=fade;fade=false;try{transport("pause",true);}finally{fade=original;}});
         player.addListener(new Player.Listener(){
             @Override public void onMediaItemTransition(MediaItem item,int reason){
                 if(sourceId.isEmpty()||item==null||item.localConfiguration==null||!(item.localConfiguration.tag instanceof JSObject))return;
@@ -328,6 +330,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 io.github.huleixin.tingyu.RearNativeTrack.onPlayback(isPlaying,player.getCurrentPosition());
             }
             @Override public void onPlayWhenReadyChanged(boolean playWhenReady,int reason){
+                if(!playWhenReady&&reason==Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM)SleepTimerController.get(context).boundary();
                 // The reason field distinguishes user pause from focus loss / noisy output /
                 // remote commands; this is the difference between "user stopped it" and
                 // "the system stopped it" in a post-mortem.
@@ -345,6 +348,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 if(!events.containsAny(Player.EVENT_PLAYBACK_STATE_CHANGED,Player.EVENT_IS_PLAYING_CHANGED,Player.EVENT_PLAY_WHEN_READY_CHANGED,Player.EVENT_PLAYER_ERROR,Player.EVENT_TIMELINE_CHANGED,Player.EVENT_POSITION_DISCONTINUITY))return;
                 // Media3 releases its normal wake lock at EOF. Protect only the bounded async
                 // queue/source handoff; hidden WebView animations remain stopped.
+                if(p.getPlaybackState()==Player.STATE_ENDED&&SleepTimerController.get(context).waiting())SleepTimerController.get(context).boundary();
                 if(p.getPlaybackState()==Player.STATE_ENDED&&!desiredPaused&&!sourceId.isEmpty()&&!endedHandoff){
                     endedHandoff=true;if(handoffWake!=null)handoffWake.acquire(20_000L);
                 }
@@ -423,7 +427,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     public void listen(Consumer<JSObject> listener){this.listener=listener;PlaybackLifecycle.noteBridge(true);}
     public void unlisten(Consumer<JSObject> listener){if(this.listener==listener){this.listener=null;PlaybackLifecycle.noteBridge(false);}}
     public JSObject command(JSObject value){
-        String action=value.optString("action"),id=value.optString("id");long seq=value.optLong("sequence");
+        String action=value.optString("action");if(action.equals("prepare"))sleepStopped=false;String id=value.optString("id");long seq=value.optLong("sequence");
         lastJsCommandAt=SystemClock.elapsedRealtime();jsCommands++;PlaybackLifecycle.noteJsCommand();
         if(action.equals("prepare")){
             if(id.isEmpty())throw new IllegalArgumentException("Missing source identity");
@@ -492,7 +496,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             sequence=seq;
             switch(action){
                 case "play":case "pause":case "stop":transport(action,false);if("play".equals(action))noteLiveness("play");break;
-                case "detach":cancelFade();PlaybackDiagnostics.note("engine-detach",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
+                case "detach":SleepTimerController.get(context).cancel("session-detached");cancelFade();PlaybackDiagnostics.note("engine-detach",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
                         .put("positionMs",Math.max(0,player.getCurrentPosition())));player.stop();player.clearMediaItems();sourceId="";main.removeCallbacks(heartbeat);supervision.continuation(false,supervision.generation());supervision.satisfied();main.removeCallbacks(superviseTick);break;
                 case "seek":player.seekTo(Math.max(0,value.optLong("position")));break;
                 case "volume":volume=(float)Math.max(0,Math.min(1,value.optDouble("volume",1)));cancelFade();player.setVolume(volume);break;
@@ -1273,10 +1277,10 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             // 用户主动暂停/停止：作废在飞的原生解析，迟到的结果不许再往队列里塞。
             BackgroundContinuation.get().cancel();
         }
-        if(action.equals("stop")){PlaybackSessionPersistence.get(context).observe(songKey,0,true,"stop");player.pause();player.seekTo(0);emit("state",external);main.removeCallbacks(heartbeat);
+        if(action.equals("stop")){SleepTimerController.get(context).cancel("stopped");PlaybackSessionPersistence.get(context).observe(songKey,0,true,"stop");player.pause();player.seekTo(0);emit("state",external);main.removeCallbacks(heartbeat);
             // 用户主动停止：洛雪脚本引擎没有理由继续占着内存，脚本本身留着（下次播放再起）。
             io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.release();return;}
-        if(action.equals("play")){if(player.getPlaybackState()==Player.STATE_IDLE&&player.getCurrentMediaItem()!=null){failure=null;networkRetries=0;player.prepare();}
+        if(action.equals("play")){sleepStopped=false;if(player.getPlaybackState()==Player.STATE_IDLE&&player.getCurrentMediaItem()!=null){failure=null;networkRetries=0;player.prepare();}
             boolean fadeIn=fade&&!player.isPlaying();player.setVolume(fadeIn?0:volume);player.play();emit("state",external);
             // Pressing play on a drained window is an explicit "I still want music": re-arm the
             // refill schedule instead of leaving the session parked.
@@ -1294,7 +1298,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     }
     public JSObject snapshot(String type,boolean external){
         JSObject value=new JSObject();value.put("id",sourceId);value.put("sequence",sequence);value.put("type",type);value.put("external",external);
-        value.put("songKey",songKey);
+        value.put("songKey",songKey);value.put("endedBySleep",sleepStopped);
         MediaItem item=player.getCurrentMediaItem();
         if(!type.equals("diagnostics")&&item!=null&&item.localConfiguration!=null&&item.localConfiguration.tag instanceof JSObject)value.put("uri",item.localConfiguration.uri.toString());
         // JS receives this asynchronously. Anchor interpolation to sampling, not delivery,
@@ -1393,6 +1397,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         }catch(Exception ignored){}
     }
     private void emit(String type,boolean external){
+        SleepTimerController.get(context).check();
         if(!sourceId.isEmpty() && !"spectrum".equals(type) && !"diagnostics".equals(type))
             PlaybackSessionPersistence.get(context).observe(songKey,Math.max(0,player.getCurrentPosition()),desiredPaused||!player.getPlayWhenReady(),type);
         // The system session must follow Media3 even with no plugin listener or a sleeping WebView.
@@ -1423,7 +1428,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         JSObject value=snapshot("spectrum",false);JSArray array=new JSArray();for(int bin:bins)array.put(bin);
         value.put("spectrum",array);listener.accept(value);
     });}
-    private void release(){PlaybackDiagnostics.note("engine-release",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
+    private void release(){SleepTimerController.get(context).detach();PlaybackDiagnostics.note("engine-release",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
             .put("positionMs",Math.max(0,player.getCurrentPosition())));releaseHandoff();cancelFade();main.removeCallbacksAndMessages(null);sourceId="";listener=null;PlaybackLifecycle.noteBridge(false);player.release();spectrum.close();
             io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.release();}
 }

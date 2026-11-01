@@ -1,4 +1,6 @@
+import {useSleepTimerStore} from '../../../stores/useSleepTimerStore';
 import React, { lazy, Suspense } from 'react';
+const SleepTimerSheet=lazy(()=>import('../../modal/SleepTimerSheet'));
 import { createPortal } from 'react-dom';
 import { AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -19,10 +21,12 @@ type AppDialogsProps = {
 
 const AppDialogs: React.FC<AppDialogsProps> = ({ model }) => {
     countRender('AppDialogs');
+    const sleepOpen=useSleepTimerStore(state=>state.sleepTimerSheetOpen);
     const { statusToast, lyricMatchDialog, naviLyricMatchDialog, onlineLyricMatchDialog, unavailableReplacementDialog, settingsDialog, wallpaperEntryConfirmDialog } = model;
 
     return (
         <>
+            {sleepOpen&&<Suspense fallback={null}><SleepTimerSheet/></Suspense>}
             {createPortal(
                 <AnimatePresence>
                     {statusToast && (

@@ -1,3 +1,5 @@
+import { isCapacitorAndroid } from '../platform/runtime';
+import { installNativeSleepTimer } from '../services/nativeSleepTimer';
 import { useEffect, useRef } from 'react';
 import { runSleepTimerExpiryAction } from './sleepTimerExpiry';
 import { useSleepTimerStore } from '../stores/useSleepTimerStore';
@@ -21,7 +23,13 @@ export const useSleepTimer = ({ enabled, hours, minutes, onExpireFallback }: Use
         onExpireFallbackRef.current = onExpireFallback;
     }, [onExpireFallback]);
 
+    useEffect(()=>{
+        if(!isCapacitorAndroid())return;let disposed=false,cleanup:(()=>void)|undefined;
+        void installNativeSleepTimer().then(stop=>{if(disposed)stop();else cleanup=stop;}).catch(()=>{});
+        return()=>{disposed=true;cleanup?.();};
+    },[]);
     useEffect(() => {
+        if(isCapacitorAndroid())return;
         if (!enabled || (hours === 0 && minutes === 0)) {
             useSleepTimerStore.setState({ sleepTimerDeadlineMs: null });
             return;

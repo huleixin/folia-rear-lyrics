@@ -1,3 +1,5 @@
+import { isCapacitorAndroid } from '../platform/runtime';
+import type { SleepMode } from '../services/nativeSleepTimer';
 // src/stores/useSleepTimerStore.ts
 // The sleep timer: the configured duration plus the armed deadline.
 //
@@ -26,6 +28,12 @@ const readStoredSleepTimerHours = () => readStoredSleepTimerPart(SLEEP_TIMER_HOU
 const readStoredSleepTimerMinutes = () => readStoredSleepTimerPart(SLEEP_TIMER_MINUTES_STORAGE_KEY, 59);
 
 export type SleepTimerState = {
+    sleepTimerMode:SleepMode;
+    sleepTimerWaiting:boolean;
+    sleepTimerDurationMs:number;
+    sleepTimerRemainingMs:number;
+    sleepTimerAnchor:number;
+    sleepTimerSheetOpen:boolean;
     sleepTimerEnabled: boolean;
     sleepTimerHours: number;
     sleepTimerMinutes: number;
@@ -38,12 +46,16 @@ export type SleepTimerState = {
 
 export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
     // A sleep timer is a one-shot action. Persist its preferred duration, never an armed state.
+    sleepTimerMode:'deadline',sleepTimerWaiting:false,sleepTimerDurationMs:0,sleepTimerRemainingMs:0,sleepTimerAnchor:0,sleepTimerSheetOpen:false,
     sleepTimerEnabled: false,
     sleepTimerHours: readStoredSleepTimerHours(),
     sleepTimerMinutes: readStoredSleepTimerMinutes(),
     sleepTimerDeadlineMs: null,
     sleepTimerActivationId: 0,
     handleToggleSleepTimer: (enable) => {
+        if(isCapacitorAndroid()){
+            void import('../services/nativeSleepTimer').then(m=>m.nativeSleepAction(enable));return;
+        }
         if (enable && get().sleepTimerHours === 0 && get().sleepTimerMinutes === 0) {
             setStatusMessage({
                 type: 'error',
