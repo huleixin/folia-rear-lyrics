@@ -32,7 +32,10 @@ html[data-interface-appearance='light'] [data-folia-settings-overlay] :not([data
 html[data-interface-appearance='light'] [data-folia-settings-overlay] :not([data-folia-stage-preview] *) :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-50"],
 html[data-interface-appearance='light'] [data-folia-settings-overlay] :not([data-folia-stage-preview] *) :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-60"] {opacity:.82!important}
 html[data-interface-appearance='light'] [data-folia-settings-overlay] :not([data-folia-stage-preview] *) :is(p,small,label,h1,h2,h3,span,div)[class~="opacity-70"] {opacity:.94!important}
-html[data-interface-appearance='light'] [data-folia-app-shell][data-folia-android='true']:not([data-folia-player-view]){background:#f4f5ee!important}
+/* Native-first routes are painted by Compose underneath the WebView. Keep the
+   WebView shell transparent so light-mode sheets can reveal that live page. */
+html[data-interface-appearance='light']:not([data-native-first='true']) [data-folia-app-shell][data-folia-android='true']:not([data-folia-player-view]){background:#f4f5ee!important}
+html[data-interface-appearance='light'][data-native-first='true']:is([data-native-route='home'],[data-native-route='collection'],[data-native-route='search'],[data-native-route='settings']) [data-folia-app-shell][data-folia-android='true']:not([data-folia-player-view]){background:transparent!important}
 html[data-interface-appearance='light'] .mobile-library:is(.ml-home,.ml-playlist-detail),
 html[data-interface-appearance='light'] [data-mobile-settings='true'] > [data-folia-settings-panel]{background:linear-gradient(180deg,#e3ede2,#f0f3ea 50%,#f4f5ee)}
 html[data-interface-appearance='light'] [data-folia-settings-overlay][data-mobile-settings='true']{background:#f4f5ee}
