@@ -143,8 +143,9 @@ Controller 创建后立即 `publish("controller-created")`，CONNECT 广播只�
 
 - `:app:testDebugUnitTest`：**880 项、0 失败、0 错误**（`RearHostPolicyTest` 11 项）；
 - 宿主子树 `javac`（android.jar + xposed api 82）通过；
-- Release APK 用官方密钥（证书 SHA-256 `a36ef2a5…`）签名，versionCode 120；DEX 中可检索到
-  `BUILD_ID` 字符串与 `RearHostView`。
+- Release APK 用官方密钥（证书 SHA-256 `a36ef2a5…`）签名，versionName 1.3.97 / versionCode 120，
+  `BuildConfig.BUILD_ID` 在 DEX 中可检索（本次构建为 `1.3.97@c8f7a4c3`），诊断与 register
+  上报同一个值。
 
 未验证（必须真机）：
 
