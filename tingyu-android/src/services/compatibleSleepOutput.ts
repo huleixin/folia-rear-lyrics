@@ -51,7 +51,10 @@ export function ensureCompatibleSleepOutput(attempt: () => string, quietGraph: (
     const send = (action: string, extra: Record<string, unknown> = {}) => {
         const state = usePlaybackStore.getState();
         const displaySong=selectDisplaySong(state);
-        const data = { action, lease, playbackAttempt:attempt(), revision: ++revision, songKey: displaySong && (state.audioSrc||browserAudio().some(audio=>!!audio.currentSrc||!!audio.getAttribute("src"))) ? getPlaybackSongKey(displaySong) : '',
+        const outgoing=displaySong&&state.currentSong&&getPlaybackSongKey(displaySong)!==getPlaybackSongKey(state.currentSong);
+        const bound=!!state.audioSrc&&browserAudio().some(audio=>audio.currentSrc===state.audioSrc||audio.getAttribute('src')===state.audioSrc);
+        const mixed=outgoing&&browserAudio().some(audio=>!audio.paused&&!audio.ended);
+        const data = { action, lease, playbackAttempt:attempt(), revision: ++revision, songKey: displaySong && (bound||mixed) ? getPlaybackSongKey(displaySong) : '',
             playing: browserAudio().some(element => !element.paused && !element.ended), ...extra };
         const response = serial.catch(() => {}).then(() => native.compatiblePlayback(data));
         serial = response; return response;

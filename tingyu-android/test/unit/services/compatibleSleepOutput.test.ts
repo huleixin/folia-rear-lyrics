@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ensureCompatibleSleepOutput, releaseCompatibleSleepOutput } from '@/services/compatibleSleepOutput';
 import { usePlaybackStore } from '@/stores/usePlaybackStore';
 import { PlayerState } from '@/types';
+import {getPlaybackSongKey} from '@/utils/appPlaybackGuards';
 
 // test/unit/services/compatibleSleepOutput.test.ts
 const port=vi.hoisted(()=>({compatiblePlayback:vi.fn()}));
@@ -18,6 +19,14 @@ beforeEach(()=>{
 afterEach(async()=>{await releaseCompatibleSleepOutput();element.remove();usePlaybackStore.setState(saved);});
 const flush=()=>new Promise(resolve=>setTimeout(resolve,0));
 const lease=()=>port.compatiblePlayback.mock.calls.find(([o])=>o.action==='claim')![0].lease;
+it('manual selection does not label an outgoing browser source as the newly selected song',async()=>{
+    element.setAttribute('src','blob:old');await ensureCompatibleSleepOutput(()=>attempt);await flush();
+    expect(port.compatiblePlayback.mock.lastCall?.[0].songKey).toBe('');
+    element.setAttribute('src','blob:audio');element.dispatchEvent(new Event('play',{bubbles:true}));await flush();
+    expect(port.compatiblePlayback.mock.lastCall?.[0].songKey).toBe(getPlaybackSongKey(usePlaybackStore.getState().currentSong!));
+    usePlaybackStore.setState({currentSong:{id:2,name:'B',durationMs:200000,artists:[],album:{id:0,name:''}},audioSrc:null});await flush();
+    expect(port.compatiblePlayback.mock.lastCall?.[0].songKey).toBe('');expect(element.pause).not.toHaveBeenCalled();
+});
 it('uses one leased endpoint without a JS countdown; pauses and acknowledges all browser decks',async()=>{
     const other=document.createElement('audio');let otherPaused=false;Object.defineProperty(other,'paused',{get:()=>otherPaused});other.pause=vi.fn(()=>{otherPaused=true;});document.body.append(other);
     try{
