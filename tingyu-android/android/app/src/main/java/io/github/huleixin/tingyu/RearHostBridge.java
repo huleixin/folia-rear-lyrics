@@ -110,7 +110,12 @@ final class RearHostBridge {
             int priority,String stage,String error,String build,String process)throws Exception{
         if(protocol!=RearHostContract.VERSION || binder==null || !RearHostContract.DESCRIPTOR.equals(binder.getInterfaceDescriptor()))throw new SecurityException("Host protocol mismatch");
         handshakeSeen=true;
-        if(service==binder)return;
+        if(service==binder){
+            servicePriority=priority;hostStage=stage;hostError=error;hostBuild=build;hostProcess=process;
+            detail=profile;
+            RearLyricsTrace.record(context,"host/register-refresh","priority="+priority+", "+profile);
+            return;
+        }
         if(!RearHostPolicy.acceptRegistration(servicePriority,service!=null&&service.isBinderAlive(),hasSession(),priority)){
             RearLyricsTrace.record(context,"host/register-ignored","priority="+priority+", current="+servicePriority
                 +", session="+session+", process="+process+", stage="+stage);

@@ -226,6 +226,7 @@ final class RearHostView {
         if (shown) {if(ready&&!readyReported&&renderer!=null)renderer.postInvalidateOnAnimation();return;}
         shown = true;
         if (ready) {
+            stage.setAlpha(1f);
             dispatch("folia-rear-resync", "{\"reason\":\"host-visible\"}");
             if (renderer != null) renderer.invalidate();
             // 首帧事件对应用侧同时是「宿主正在显示」。相机/AOD 让位后重新可见时必须再报一次，
