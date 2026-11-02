@@ -54,6 +54,7 @@ public final class RearHostProvider extends ContentProvider {
                 RearLyricsTrace.record(getContext(),"host-register-failed","uid="+Binder.getCallingUid()+", "+error2);
                 throw new SecurityException("Host connection rejected",error2);
             }
+            RearLyricsTrace.record(getContext(),"host-register-accepted","process="+process+", protocol="+extras.getInt("protocol")+", connected="+RearHostBridge.connected()+", "+extras.getString("profile",""));
             out.putBinder("lifeline",lifeline);out.putInt("appUid",getContext().getApplicationInfo().uid);return out;
         }
         String session=extras.getString("session","");enforceSession(session);

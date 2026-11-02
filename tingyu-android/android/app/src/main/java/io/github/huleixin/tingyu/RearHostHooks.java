@@ -154,15 +154,15 @@ public final class RearHostHooks {
     }
 
     /** attach / onCreate 共用：先挂一个最小的 ping 应答器，再创建唯一 Controller。 */
-    private static void ensureController(Object target) {
+    private static synchronized void ensureController(Object target) {
         if (!(target instanceof Application)) return;
         Application application = (Application) target;
         ensurePing(application);
-        if (controller != null) return;
+        if (controller != null) { controller.initialize("application-lifecycle"); return; }
         try {
             controller = new Controller(application, process);
             log("controller created process=" + process);
-            controller.publish("controller-created");
+            controller.initialize("controller-created");
         } catch (Throwable error) {
             stage = "controller-failed";
             stageError = describe(error);
@@ -177,16 +177,19 @@ public final class RearHostHooks {
      * 即使 Controller 创建失败、Provider 不可见、UID 校验拒绝，只要模块进程里这段代码
      * 跑到过，听屿就能拿到 build/process/stage；拿不到则说明模块没在该进程运行。
      */
-    private static void ensurePing(Application application) {
+    private static synchronized void ensurePing(Application application) {
         if (pingReceiver != null) return;
         try {
-            pingReceiver = new BroadcastReceiver() {
+            BroadcastReceiver candidate = new BroadcastReceiver() {
                 @Override public void onReceive(Context context, Intent intent) {
                     if (!RearHostContract.PING.equals(intent.getAction())) return;
                     String data = "build=" + BuildConfig.BUILD_ID
                         + ";process=" + process
                         + ";stage=" + stage
                         + ";controller=" + (controller != null ? "yes" : "no")
+                        + ";context=" + (controller == null ? "not-created" : controller.context.getClass().getName())
+                        + ";receiver=" + (controller != null && controller.receiverReady ? "ready" : "not-ready")
+                        + ";receiverError=" + (controller == null ? "-" : controller.receiverError)
                         + ";register=" + (registerError.isEmpty() ? "-" : registerError)
                         + ";error=" + (stageError.isEmpty() ? "-" : stageError);
                     try {
@@ -199,10 +202,11 @@ public final class RearHostHooks {
             IntentFilter filter = new IntentFilter(RearHostContract.PING);
             Handler handler = new Handler(Looper.getMainLooper());
             if (Build.VERSION.SDK_INT >= 33) {
-                application.registerReceiver(pingReceiver, filter, null, handler, Context.RECEIVER_EXPORTED);
+                application.registerReceiver(candidate, filter, null, handler, Context.RECEIVER_EXPORTED);
             } else {
-                application.registerReceiver(pingReceiver, filter, null, handler);
+                application.registerReceiver(candidate, filter, null, handler);
             }
+            pingReceiver = candidate;
             log("ping receiver registered");
         } catch (Throwable error) {
             if (stageError.isEmpty()) stageError = "ping: " + describe(error);
@@ -309,12 +313,21 @@ public final class RearHostHooks {
         private long nextLaunchAt, pausedAt;
         private int publishFailures;
         private String lastFailure = "背屏中心 launcher 尚未出现";
+        private volatile boolean receiverReady;
+        private volatile String receiverError = "";
+        private final java.util.concurrent.atomic.AtomicBoolean publishing = new java.util.concurrent.atomic.AtomicBoolean();
 
         Controller(Application application, String processName) {
-            this.context = application.getApplicationContext();
+            this.context = RearHostContext.resolve(application);
+            log("context ready type=" + context.getClass().getName());
             this.process = processName;
             attachInterface(null, RearHostContract.DESCRIPTOR);
+        }
+
+        // Reuse this Controller on onCreate/CONNECT; do not allocate another Binder or executor.
+        void initialize(String why) {
             registerReceiver();
+            publish(why);
         }
 
         /**
@@ -322,7 +335,8 @@ public final class RearHostHooks {
          * {@link RearHostProvider} 的 UID 校验。签名权限在部分 ROM/系统应用上注册会抛异常，
          * 这种情况下退回不带权限的导出接收器，宁可让广播送达，也不能让握手整条消失。
          */
-        private void registerReceiver() {
+        private synchronized void registerReceiver() {
+            if (receiverReady) return;
             BroadcastReceiver receiver = new BroadcastReceiver() {
                 @Override public void onReceive(Context c, Intent intent) {
                     if (RearHostContract.REQUEST.equals(intent.getAction())) {
@@ -339,6 +353,7 @@ public final class RearHostHooks {
                 } else {
                     context.registerReceiver(receiver, filter, permission, main);
                 }
+                receiverReady=true; receiverError="";
                 log("receiver registered with signature permission");
             } catch (Throwable error) {
                 log("receiver with permission failed: " + describe(error) + "; retrying without it");
@@ -348,10 +363,11 @@ public final class RearHostHooks {
                     } else {
                         context.registerReceiver(receiver, filter, null, main);
                     }
+                    receiverReady=true; receiverError="";
                     log("receiver registered without permission; provider UID check remains the gate");
                 } catch (Throwable second) {
                     log("receiver registration failed: " + describe(second));
-                    stageError = "receiver: " + describe(second);
+                    receiverError = describe(second);
                 }
             }
         }
@@ -375,11 +391,15 @@ public final class RearHostHooks {
                 + " · stage=" + stage
                 + " · priority=" + priority()
                 + " · retry=" + retryHint()
+                + " · context=" + context.getClass().getName()
+                + " · receiver=" + receiverReady
+                + (receiverError.isEmpty() ? "" : " · receiverError=" + receiverError)
                 + (stageError.isEmpty() ? "" : " · " + stageError);
         }
 
         /** 主动把 Binder 交给听屿；不依赖听屿先发广播，冷启动/丢广播都能连上。 */
         void publish(String why) {
+            if (!publishing.compareAndSet(false,true)) return;
             io.execute(() -> {
                 try {
                     Bundle bundle = new Bundle();
@@ -391,15 +411,19 @@ public final class RearHostHooks {
                     bundle.putString("process", process);
                     bundle.putString("build", BuildConfig.BUILD_ID);
                     bundle.putString("profile", profile());
+                    log("provider register begin (" + why + "), receiver=" + receiverReady);
                     Bundle result = context.getContentResolver().call(
                         Uri.parse("content://" + RearHostContract.AUTHORITY), "register", null, bundle);
                     IBinder next = result == null ? null : result.getBinder("lifeline");
-                    if (result != null) appUid = result.getInt("appUid", -1);
+                    int acceptedUid = result == null ? -1 : result.getInt("appUid", -1);
+                    if (next == null || !next.isBinderAlive() || acceptedUid < 0)
+                        throw new IllegalStateException("Provider register returned no live lifeline/appUid");
+                    appUid = acceptedUid;
                     if (next != null && next != lifeline) {
-                        lifeline = next;
                         next.linkToDeath(() -> main.post(() -> {
                             if (lifeline == next) { release(); lifeline = null; }
                         }), 0);
+                        lifeline = next;
                     }
                     log("registered with app (" + why + "), lifeline=" + (next != null) + ", appUid=" + appUid);
                     registerError = "";
@@ -409,8 +433,8 @@ public final class RearHostHooks {
                     log("register failed (" + why + ", stage=" + stage + "): " + registerError);
                     // 只重试一次：覆盖「听屿进程正在启动、Provider 尚未就绪」的瞬时失败，
                     // 不做无限重试，也不把失败藏起来。
-                    if (publishFailures++ == 0) main.postDelayed(() -> publish("retry-once"), 1_500);
-                }
+                    if (publishFailures++ == 0) main.postDelayed(() -> initialize("retry-once"), 1_500);
+                } finally { publishing.set(false); }
             });
         }
 

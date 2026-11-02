@@ -10,7 +10,7 @@ import android.os.Looper;
 final class RearHostUpdates {
     private static volatile Runnable signal;
     static void bind(Context context){
-        Context app=context.getApplicationContext();Handler main=new Handler(Looper.getMainLooper());
+        Context app=RearHostContext.resolve(context);Handler main=new Handler(Looper.getMainLooper());
         Runnable notify=()->{if(RearHostBridge.hasSession())app.getContentResolver().notifyChange(Uri.parse("content://"+RearHostContract.AUTHORITY+"/state"),null);};
         signal=()->{if(RearHostBridge.hasSession()){main.removeCallbacks(notify);main.postDelayed(notify,50);}};
     }
