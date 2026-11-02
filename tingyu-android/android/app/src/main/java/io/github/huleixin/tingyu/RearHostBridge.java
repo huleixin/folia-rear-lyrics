@@ -40,7 +40,7 @@ final class RearHostBridge {
     private static Completion pending;
     private static Runnable timeout;
     private static long lastProbe;
-    private static String lastProgress="none";
+    private static RearHostProgress progress=new RearHostProgress();
     static boolean connected(){return service!=null && service.isBinderAlive();}
     static boolean hasSession(){return !session.isEmpty();}
     static boolean active(){return active && !suspended && !releasing;}
@@ -155,14 +155,14 @@ final class RearHostBridge {
                 callback.done(false,-1,detail);
                 return;
             }
-            lastProgress="SHOW dispatched";session=UUID.randomUUID().toString();active=false;suspended=false;releasing=false;pending=callback;display=rear;lastProbe=0;
+            progress=new RearHostProgress();session=UUID.randomUUID().toString();active=false;suspended=false;releasing=false;pending=callback;display=rear;lastProbe=0;
             final String expected=session;
             transact(RearHostContract.SHOW,expected,false,rear,(ok,id,message)->{
                 if(token!=generation || !matches(expected))return;
                 detail=message;
                 if(!ok)failStart(context,expected,message);
             });
-            timeout=()->{if(token==generation && matches(expected) && pending!=null)failStart(context,expected,"宿主首帧未确认；最后阶段="+lastProgress+"；释放后回退独立窗口");};
+            timeout=()->{if(token==generation && matches(expected) && pending!=null)failStart(context,expected,"宿主首帧未确认；最后阶段="+progress.describe()+"；释放后回退独立窗口");};
             MAIN.postDelayed(timeout,4500);
         },connected()?0:900);
     }
@@ -174,7 +174,7 @@ final class RearHostBridge {
     static void report(Context context,String expected,String event,int id,String reason){
         MAIN.post(()->{
             if(!matches(expected) || releasing)return;
-            lastProgress=event+": "+reason;
+            if("web-stage".equals(event)){int split=reason.indexOf(":");progress.update(split<0?reason:reason.substring(0,split),split<0?"":reason.substring(split+1));}else progress.update(event,reason);
             RearLyricsTrace.record(context,"host/"+event,"session="+expected+", display="+id+", "+reason);
             if("ready".equals(event)){
                 if(!RearLyricsCoordinator.get(context).canPresent())return;
@@ -190,7 +190,7 @@ final class RearHostBridge {
                 detail=reason;
                 if(pending!=null){
                     if(timeout!=null)MAIN.removeCallbacks(timeout);
-                    timeout=()->{if(matches(expected)&&pending!=null)failStart(context,expected,"宿主首帧未确认；最后阶段="+lastProgress+"；释放后回退独立窗口");};
+                    timeout=()->{if(matches(expected)&&pending!=null)failStart(context,expected,"宿主首帧未确认；最后阶段="+progress.describe()+"；释放后回退独立窗口");};
                     MAIN.postDelayed(timeout,4500);
                 }
             }else if("launch".equals(event)){

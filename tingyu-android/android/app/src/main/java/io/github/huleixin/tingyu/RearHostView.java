@@ -51,6 +51,12 @@ final class RearHostView {
     private DisplayManager displays;
     private boolean ready, readyReported, shown, renderPaused, resumed = true, suspended, closed;
     private String failure = "not attached";
+    private final java.util.Set<String> bootEvents=new java.util.HashSet<>();
+    private void boot(String event,String detail){
+        if(closed||bootEvents.size()>=48||!bootEvents.add(event))return;
+        events.report(session,"web-stage",displayId(),event+":"+detail);
+    }
+    private void viewState(){if(renderer!=null&&stage!=null)boot("view-state","shown="+shown+", attached="+renderer.isAttachedToWindow()+", visible="+renderer.isShown()+", alpha="+stage.getAlpha()+", size="+renderer.getWidth()+"x"+renderer.getHeight());}
 
     private final DisplayManager.DisplayListener displayListener = new DisplayManager.DisplayListener() {
         @Override public void onDisplayAdded(int id) {}
@@ -89,7 +95,7 @@ final class RearHostView {
                 @Override public void exit() { userExit(); }
             });
             stage.setTag(TAG);
-            stage.setAlpha(0f);
+            stage.setAlpha(1f);
             stage.setBackgroundColor(Color.TRANSPARENT);
             stage.setClickable(true);
             stage.setFocusable(false);
@@ -98,6 +104,7 @@ final class RearHostView {
             renderer = new WebView(activity) {
                 @Override protected void onDraw(Canvas canvas) {
                     super.onDraw(canvas);
+                    boot("first-draw","ready="+ready+", shown="+shown);
                     if (!closed && ready && shown && !readyReported && isShown() && getWidth() > 0 && getHeight() > 0) {
                         readyReported = true;
                         if (stage != null) stage.setAlpha(1f);
@@ -123,6 +130,7 @@ final class RearHostView {
             renderer.setOnTouchListener((view, event) -> !ready || closed);
 
             client = new RearHostWebClient(activity.getApplicationContext(), session, new RearHostWebClient.Events() {
+                @Override public void diagnostic(String event,String detail){main.post(()->boot(event,detail));}
                 @Override public void ready() {
                     if (closed || !events.current(session)) return;
                     ready = true;
@@ -137,6 +145,14 @@ final class RearHostView {
                 }
             });
             renderer.setWebViewClient(client);
+            renderer.setWebChromeClient(new android.webkit.WebChromeClient(){
+                @Override public boolean onConsoleMessage(android.webkit.ConsoleMessage message){
+                    if(message.messageLevel()==android.webkit.ConsoleMessage.MessageLevel.ERROR)
+                        boot("web-error","console line="+message.lineNumber()+"; see boot stage, content omitted for privacy");
+                    return true;
+                }
+            });
+            boot("webview-created","javascript="+renderer.getSettings().getJavaScriptEnabled());
             stage.addView(renderer, new FrameLayout.LayoutParams(-1, -1));
             group.addView(stage, new FrameLayout.LayoutParams(-1, -1));
             stage.addOnLayoutChangeListener((view, l, t, r, b, ol, ot, or, ob) -> {
@@ -163,7 +179,9 @@ final class RearHostView {
             activity.getContentResolver().registerContentObserver(
                 Uri.parse("content://" + RearHostContract.AUTHORITY + "/state"), false, updates);
 
+            boot("load-url","rear-lyrics.html");
             renderer.loadUrl(URL);
+            main.postDelayed(()->{if(!closed)viewState();},1200);
             reconcile();
             failure = "attached";
             return true;

@@ -1,3 +1,4 @@
+import {rearBootTrace} from '../../services/rearBootTrace';
 import { useRearStageActive } from '../../hooks/useStageActivity';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ObsBrowserSourceApp from '../obs/ObsBrowserSourceApp';
@@ -34,7 +35,7 @@ export default function RearLyricsPanel() {
         });
         return { subscribe: (events: Parameters<typeof source.subscribe>[0]) => source.subscribe({ ...events,
             // The outer document draws the selected background once across the whole rear panel.
-            config: config => events.config({ ...config, background: { ...config.background, transparent: true } }),
+            config: config => {rearBootTrace('config-received');events.config({ ...config, background: { ...config.background, transparent: true } });},
         }) };
     }, []);
     const control = async (action: 'previous' | 'play' | 'pause' | 'next') => {
@@ -51,9 +52,11 @@ export default function RearLyricsPanel() {
         hideTimer.current = window.setTimeout(() => setProgressVisible(false), 2500);
     }, []);
     const configured = useCallback(() => {
+        rearBootTrace('configured');
         void fetch('/__folia_rear/ready', { cache: 'no-store' }).catch(() => undefined);
     }, []);
     useEffect(() => {
+        rearBootTrace('iframe-mounted');
         document.title = 'Folia Rear Lyrics';
         document.documentElement.dataset.foliaSurface = 'rear-lyrics-panel';
         window.addEventListener('folia-rear-reveal', reveal);

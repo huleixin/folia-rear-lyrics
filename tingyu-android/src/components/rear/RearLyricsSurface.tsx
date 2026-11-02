@@ -1,3 +1,4 @@
+import {rearBootTrace} from '../../services/rearBootTrace';
 import { useRearStageActive } from '../../hooks/useStageActivity';
 import { setGlobalVisualizerFrameRate } from '../../utils/frameRateLimiter';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -29,12 +30,13 @@ export default function RearLyricsSurface() {
         panel.current?.contentWindow?.dispatchEvent(new Event('folia-rear-reveal'));
     }, []);
     useEffect(() => {
+        rearBootTrace('react-mounted');
         document.title = 'Folia Rear Lyrics';
         document.documentElement.dataset.foliaSurface = 'rear-lyrics';
         const relay = createRearStateRelay(() => panel.current?.contentWindow);
         const transport = createRearLyricsTransport(() => undefined, () => undefined, false, { onSnapshot: relay.publish });
         const unsubscribe = transport.subscribe({
-            config: value => { setConfig(value); setGlobalVisualizerFrameRate(value.visualizerFrameRate ?? 60); },
+            config: value => { rearBootTrace('state-config');setConfig(value); setGlobalVisualizerFrameRate(value.visualizerFrameRate ?? 60); },
             clock: value => setPaused(value.playerState !== PlayerState.PLAYING),
             connected: relay.setConnected,
             audio: value => {

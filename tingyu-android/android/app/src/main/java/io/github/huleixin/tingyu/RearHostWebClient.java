@@ -14,12 +14,21 @@ import java.util.Collections;
 // android/app/src/main/java/io/github/huleixin/tingyu/RearHostWebClient.java
 /** Same packaged rear-lyrics.html and iframe renderer; only the process boundary differs. */
 final class RearHostWebClient extends WebViewClient {
-    interface Events { void ready(); void failed(String reason); }
+    interface Events { void ready(); void failed(String reason); default void diagnostic(String stage,String detail){} }
     private final Context context;
     private final String session;
     private final Events events;
     private final RearHostSnapshotCache cache;
     void invalidate(){cache.invalidate();}
+    private final java.util.Set<String> reported=java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private void diagnostic(String event,String detail){if(reported.size()<40&&reported.add(event))events.diagnostic(event,detail);}
+    private static String localPath(String url){try{return Uri.parse(url).getPath();}catch(Exception e){return "invalid";}}
+    @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap icon){diagnostic("page-start",localPath(url));}
+    @Override public void onPageCommitVisible(WebView view,String url){diagnostic("page-commit",localPath(url));}
+    @Override public void onPageFinished(WebView view,String url){
+        diagnostic("page-finished",localPath(url));
+        view.evaluateJavascript("JSON.stringify({state:document.readyState,hidden:document.hidden,children:document.getElementById('root')?.childElementCount,frames:document.querySelectorAll('iframe').length})",value->diagnostic("js-probe",value));
+    }
     private String readState(int revision)throws Exception{
         Uri read=Uri.parse("https://rear.folia.local/__folia_rear/state").buildUpon().appendQueryParameter("revision",String.valueOf(revision)).build();
         try(java.io.InputStream input=resource(read);java.io.ByteArrayOutputStream bytes=new java.io.ByteArrayOutputStream()){
@@ -43,8 +52,19 @@ final class RearHostWebClient extends WebViewClient {
             if(!io.github.huleixin.tingyu.playback.SharedArtworkAccess.imageRequestUrl(url.toString()))return null;
         }
         try{
-            if("/__folia_rear/state".equals(path))return text(state(url));
-            if("/__folia_rear/ready".equals(path)){view.post(events::ready);return text("{}");}
+            if("/__folia_rear/boot".equals(path)){
+                String step=url.getQueryParameter("stage");
+                if(java.util.Arrays.asList("html-script","js-error","js-rejection","js-entry","react-mounted","state-config","iframe-mounted","config-received","configured").contains(step))diagnostic(step,"frontend executed");
+                if("js-error".equals(step)||"js-rejection".equals(step))diagnostic("web-error",step+"; exception content omitted");
+                return text("{}");
+            }
+            if("/__folia_rear/state".equals(path)){
+                String value=state(url);org.json.JSONObject packet=new org.json.JSONObject(value);
+                diagnostic("state-read","config="+packet.has("config")+", revision="+packet.optInt("revision",-1));
+                if(packet.has("config"))diagnostic("state-config","configuration available via pipe");
+                return text(value);
+            }
+            if("/__folia_rear/ready".equals(path)){diagnostic("ready-request","renderer onConfigured callback");view.post(events::ready);return text("{}");}
             if("/__folia_rear/viewport".equals(path))return text(RearLyricsViewportMetrics.snapshot());
             if("/__folia_rear/viewport-report".equals(path)){RearLyricsViewportMetrics.reportBrowser(url);return text("{}");}
             if("/__folia_rear/control".equals(path)){
@@ -54,15 +74,21 @@ final class RearHostWebClient extends WebViewClient {
             if("/__folia_rear/trace".equals(path)){
                 Bundle b=new Bundle();b.putString("session",session);b.putString("url",url.toString());call("trace",b);return text("{}");
             }
-            return new WebResourceResponse(mime(path),"UTF-8",200,"OK",java.util.Map.of("Cache-Control","no-store","Access-Control-Allow-Origin","*"),resource(url));
+            java.io.InputStream stream=resource(url);
+            if(path!=null&&path.endsWith(".html"))diagnostic("html-ok",path);
+            if(path!=null&&path.endsWith(".js"))diagnostic("script-ok",path);
+            if(path!=null&&path.endsWith(".css"))diagnostic("css-ok",path);
+            return new WebResourceResponse(mime(path),"UTF-8",200,"OK",java.util.Map.of("Cache-Control","no-store","Access-Control-Allow-Origin","*"),stream);
         }catch(Exception error){
+            diagnostic("web-error","path="+path+", cause="+error.getClass().getSimpleName());
             if(path!=null&&(path.endsWith(".js")||path.endsWith(".html")||path.equals("/__folia_rear/state")))
-                view.post(()->events.failed("Resource unavailable path="+path+", cause="+error.getClass().getSimpleName()+": "+error.getMessage()));
+                view.post(()->events.failed("Resource unavailable path="+path+", cause="+error.getClass().getSimpleName()));
             return new WebResourceResponse("text/plain","UTF-8",404,"Not Found",Collections.emptyMap(),new ByteArrayInputStream(new byte[0]));}
     }
     private void call(String method,Bundle b){context.getContentResolver().call(Uri.parse("content://"+RearHostContract.AUTHORITY),method,null,b);}
     @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){return request.isForMainFrame();}
-    @Override public void onReceivedError(WebView view,WebResourceRequest request,android.webkit.WebResourceError error){if(request.isForMainFrame())events.failed("Main document unavailable");}
+    @Override public void onReceivedError(WebView view,WebResourceRequest request,android.webkit.WebResourceError error){if(request.isForMainFrame())events.failed("Main document unavailable code="+error.getErrorCode());}
+    @Override public void onReceivedHttpError(WebView view,WebResourceRequest request,WebResourceResponse response){diagnostic("web-error","HTTP="+response.getStatusCode()+", path="+request.getUrl().getPath());}
     @Override public boolean onRenderProcessGone(WebView view,android.webkit.RenderProcessGoneDetail error){events.failed("Render process gone");return true;}
     private static WebResourceResponse text(String value){return new WebResourceResponse("application/json","UTF-8",new ByteArrayInputStream(value.getBytes(StandardCharsets.UTF_8)));}
     private static String mime(String path){

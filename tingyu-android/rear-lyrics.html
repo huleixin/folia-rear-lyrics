@@ -7,5 +7,8 @@
   <title>Folia Rear Lyrics</title>
   <style>html,body,#root{margin:0;width:100%;height:100%;overflow:hidden;background:#09090b;text-size-adjust:none;-webkit-text-size-adjust:none}</style>
 </head>
-<body><div id="root"></div><script type="module" src="/src/rearLyrics.tsx"></script></body>
+<body><div id="root"></div><script>
+// Fixed startup markers run before module evaluation; never include error text or user data.
+(()=>{const seen=new Set();const mark=s=>{if(seen.has(s)||seen.size>=3)return;seen.add(s);fetch('/__folia_rear/boot?stage='+s,{cache:'no-store'}).catch(()=>{});};mark('html-script');window.addEventListener('error',()=>mark('js-error'));window.addEventListener('unhandledrejection',()=>mark('js-rejection'));})();
+</script><script type="module" src="/src/rearLyrics.tsx"></script></body>
 </html>
