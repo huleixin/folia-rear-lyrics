@@ -1,6 +1,7 @@
 
 
 export default {
+  rearControl: {"routeBrief": "Auto 优先复用，否则迁移；Reuse 仅复用；Migrate 迁移到背屏。锁屏仍受系统限制。","title": "背屏歌词","diagnostics": "诊断与日志","camera": "相机使用中 · 已让位","active": "背屏已活跃", "waitingDisplay": "已启用 · 等待显示确认", "sleeping": "已息屏", "stopBeforeSwitch": "请先关闭背屏歌词，等待背屏恢复后再切换。", "module": "LSPosed 模块", "connected": "已连接", "disconnected": "未连接", "unknown": "检测中", "service": "Shizuku 服务", "serviceStarted": "已启动", "serviceStopped": "未启动", "permission": "听屿授权", "authorized": "已授权", "unauthorized": "未授权", "status": "连接与运行", "preference": "歌词开关", "enabled": "已启用", "disabled": "未启用", "display": "背屏显示", "refresh": "刷新状态", "moduleGuide": "模块配置与使用说明", "authorizationGuide": "授权说明与故障帮助", "guideBrief": "安装、配置与常见问题", "advanced": "高级设置", "advancedBrief": "控制引擎、息屏与兼容性", "diagnosticsBrief": "查看状态与导出完整日志", "engine": "背屏控制引擎", "engineBrief": "默认使用 Plan A；遇到兼容问题可切回 Legacy。切换前需停止背屏。", "lockedRoute": "锁屏启动路线", "lockedBrief": "仅适用于 Shizuku。受系统锁屏启动限制，切换路线不保证能够突破系统限制。", "power": "息屏管理", "sleepBrief": "遮盖或朝下静置时尝试独立息屏，拿起后恢复。", "sleepUnsupported": "当前系统不支持独立息屏", "sensorUnavailable": "未检测到可用背屏传感器", "compatibility": "当前配置", "currentMode": "控制模式", "lastRoute": "最近启动路线", "serviceStep": "启动 Shizuku 服务，并确保服务保持可用。", "permissionStep": "回到听屿开启背屏歌词，按系统提示授予 Shizuku 权限。", "startStep": "检查授权和实际背屏状态；已授权不代表背屏窗口已经显示。"},
   resourceCache: {"title": "智能资源预缓存", "description": "自动逐步缓存整个正在播放的歌单的歌词和压缩封面，不下载音频。允许移动数据，遵守系统省流量限制；保留手动歌词及当前曲资源。", "enabled": "自动预缓存整个歌单", "wifiOnly": "仅 Wi-Fi 整单缓存", "usage": "歌词 {{lyrics}} · 封面 {{covers}} · 缓存 {{songs}} 首 · 本歌单完成 {{completed}} / {{total}} · 失败 {{failed}} 首", "refresh": "刷新缓存状态", "clear": "清理可重新下载的资源"},
   catalogAudioSpecs: { high: 'HQ', lossless: '无损', hires: 'Hi-Res', dolby: '杜比', dts: 'DTS', description: '平台标注规格：{{specs}}，不代表当前播放音质' },
   playbackEngine: {"title": "播放引擎", "description": "默认优先使用系统原生播放，缓存音频也会尝试原生。均衡器、自动混音或 ReplayGain 开启时使用兼容通道。", "native": "系统原生", "compatible": "兼容通道", "pending": "正在检测", "actual": "当前使用：{{engine}}", "apply": "停止播放并应用", "note": "手动切换会先停止播放。明确解码不兼容时仅本曲使用兼容通道，下一次播放重新尝试原生；手动选择兼容时保持该选择。", "failed": "切换未完成，原来的引擎仍在生效。", "reason": {"probing": "正在检测", "native-selected": "系统原生", "selected-stable": "已选择兼容通道", "native-unavailable": "原生通道未响应或不可用", "native-error-fallback": "原生播放失败，已切回兼容通道", "blob-or-unsupported-uri": "缓存或该音频地址需要使用兼容通道", "effects": "音效需要使用兼容通道", "automix": "混音需要使用兼容通道", "replaygain": "增益需要使用兼容通道", "compatibility-latched": "本次已使用兼容通道，可再应用一次重试", "selected-compatible": "已手动选择兼容通道", "track-decoder-fallback": "本曲解码不兼容，下一次播放重试原生", "cache-bridge-unavailable": "本曲缓存暂时无法由原生读取", "unsupported-uri": "该地址类型需要兼容通道"}},
@@ -834,6 +835,8 @@ export default {
       "playback-test-export": {"title": "导出播放日志", "description": "分享本机播放内核测试诊断"},
 
       "playback-shuffle-mode": { "title": "随机播放", "description": "开启随机播放，保留原歌单顺序" },
+      "settings-resource-cache": {"title": "智能资源预缓存", "description": "打开资源缓存设置"},
+      "settings-rear": {"title": "背屏歌词设置", "description": "打开背屏控制中心"},
       "rear-cover-sleep-toggle": { "title": "背屏遮盖息屏", "description": "切换背屏遮挡与朝下静置的省电息屏" },
       "rear-backend-lsp": {"title": "使用 LSP 背屏模式", "description": "关闭背屏后切换到框架控制"},
       "rear-backend-shizuku": {"title": "使用 Shizuku 背屏模式", "description": "关闭背屏后切换到 Shizuku 控制"},

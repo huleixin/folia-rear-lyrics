@@ -1,0 +1,25 @@
+/* src/components/modal/settings/rearControl.css — page-scoped existing settings palette. */
+.ty-rear-center[data-rear-page] {color:var(--text-primary,#e8f4ed);padding-bottom:24px;}
+.ty-rear-page-scroll {flex:1;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;padding:0 22px calc(24px + var(--folia-main-inset-bottom,0px));}
+.ty-rear-entry {min-height:68px!important;}
+.ty-rear-entry small {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal!important;}
+.ty-rear-center[data-rear-page] .ty-settings-card>.ty-settings-row+.ty-settings-row {border-top:1px solid var(--ty-settings-line,#a5cdb91f);}
+.ty-rear-center[data-rear-page] .ty-settings-row {min-height:52px;}
+.ty-rear-center[data-rear-page] .ty-settings-row:disabled {opacity:.65;}
+.ty-rear-center[data-rear-page] .ty-settings-row-copy {min-width:0;}
+.ty-rear-center[data-rear-page] .ty-settings-row-copy strong {font-size:.875rem;}
+.ty-rear-center[data-rear-page] .ty-settings-row-copy small,.ty-rear-center[data-rear-page] .ty-rear-footnote,.ty-rear-notice {font-size:.75rem;}
+.ty-rear-center[data-rear-page] .ty-settings-group-title {font-size:.8125rem;height:auto;line-height:1.5;}
+.ty-rear-center[data-rear-page] .ty-settings-row-copy small,.ty-rear-footnote,.ty-rear-notice {color:var(--ty-settings-muted,#9eb3aa);opacity:1;}
+.ty-rear-choices {display:flex;gap:4px;padding:4px;border-radius:14px;background:var(--ui-subtle,#99bba50b);border:1px solid var(--ty-settings-line,#a5cdb91f);}
+.ty-rear-choices button {flex:1;min-width:0;min-height:42px;padding:8px 6px;border:1px solid transparent;border-radius:10px;color:inherit;background:transparent;font-size:.8125rem;line-height:1.4;overflow-wrap:anywhere;}
+.ty-rear-choices button[aria-pressed='true'] {background:var(--ui-selected,#74d9ba1a);border-color:var(--ui-selected-border,#74d9ba40);color:var(--ty-settings-mint,#74d9ba);font-weight:600;}
+.ty-rear-choices button:disabled {opacity:.65;}
+.ty-rear-center[data-rear-page] .ty-rear-footnote {margin:8px 2px 0;font-size:.75rem;}
+.ty-rear-notice {font-size:.75rem;line-height:1.6;margin:0 2px;overflow-wrap:anywhere;}
+.ty-rear-fact {color:var(--ty-settings-muted,#9eb3aa);text-align:right;font-size:.8125rem;line-height:1.5;max-width:55%;overflow-wrap:anywhere;}
+.ty-rear-center[data-rear-page] .ty-settings-switch {flex:none;min-width:44px;width:44px;}
+.ty-rear-center[data-rear-page] :focus-visible,.ty-rear-entry:focus-visible {outline:2px solid var(--ty-settings-mint,#74d9ba);outline-offset:3px;}
+html[data-interface-appearance='light'] .ty-rear-choices {background:#315d4310;}
+html[data-interface-appearance='light'] .ty-rear-choices button[aria-pressed='true'] {background:#32785620;border-color:#32785666;color:var(--ui-ink,#213e34);}
+@media(max-width:340px){.ty-rear-center[data-rear-page] .ty-settings-row{padding-inline:12px;gap:8px;}}
