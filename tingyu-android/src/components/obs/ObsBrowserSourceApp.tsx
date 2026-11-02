@@ -1,3 +1,5 @@
+import {buildRearAodTimeline} from '../../utils/rearAodTimeline';
+import {getVisualizerLowPowerStats,setVisualizerLowPowerDemand,invalidateVisualizerLowPower} from '../../utils/visualizerFrameChannel';
 import {useRearAod,isRearAod} from '../../services/rearAodRuntime';
 import {MotionConfig} from 'framer-motion';
 import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../utils/visualizerFrameChannel';
@@ -41,6 +43,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
     const [obsScale, setObsScale] = useState(1);
     const [obsDimensions, setObsDimensions] = useState({ width: '100vw', height: '100vh' });
     const currentLineIndexRef = useRef(-1);
+    const monotonicClock=useRef({time:0,at:0,speed:1,playing:false});
     const clockRef = useRef<ObsBrowserSourceClock | null>(null);
     const refreshPausedClock = useRef<(() => void) | null>(null);
     const configRef = useRef<ObsBrowserSourceConfig | null>(null);
@@ -136,6 +139,12 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
                 },
                 clock: nextClock => {
                     clockRef.current = nextClock;
+                    const oldAnchor=monotonicClock.current,now=performance.now();
+                    const incoming=resolveObsBrowserSourceClockTime(nextClock);
+                    const predicted=oldAnchor.time+(oldAnchor.playing?Math.max(0,now-oldAnchor.at)/1000*oldAnchor.speed:0);
+                    const visualChange=Math.abs(incoming-predicted)>.15||oldAnchor.playing!==(nextClock.playerState===PlayerState.PLAYING)||oldAnchor.speed!==nextClock.playbackRate;
+                    monotonicClock.current={time:resolveObsBrowserSourceClockTime(nextClock),at:performance.now(),speed:nextClock.playbackRate||1,playing:nextClock.playerState===PlayerState.PLAYING};
+                    if(isRearAod()&&visualChange){invalidateVisualizerLowPower();if(window.parent!==window)window.parent.dispatchEvent(new Event('folia-rear-visual-change'));}
                     refreshPausedClock.current?.();
                     setPlaybackState(previous => previous === nextClock.playerState ? previous : nextClock.playerState);
                 },
@@ -196,16 +205,33 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
         return () => cancelAnimationFrame(frame);
     }, [config, onConfigured, surfaceActive]);
 
+    const aodTimeline=useMemo(()=>buildRearAodTimeline(config?.lyrics?.lines??[]),[config?.lyrics]);
+    useEffect(()=>{
+        if(!aod||!surfaceActive)return;
+        const demand=()=>{const clock=monotonicClock.current;return aodTimeline(clock.time+(clock.playing?Math.max(0,performance.now()-clock.at)/1000*clock.speed:0),clock.speed,clock.playing).delay;};
+        updateStats.current={count:0,at:performance.now()};
+        const report=(trigger:string)=>{
+            const stats=getVisualizerLowPowerStats(),anchor=monotonicClock.current;
+            const time=anchor.time+(anchor.playing?Math.max(0,performance.now()-anchor.at)/1000*anchor.speed:0);
+            const params=new URLSearchParams({mode:'AOD',style:configRef.current?.visualizerMode??'unknown',updates:String(updateStats.current.count),interval:'0',trigger,target:String(aodTimeline(time,anchor.speed,anchor.playing).fps),requests:String(stats.requests),late:String(stats.late),work:String(Math.round(stats.workMs)),idle:String(stats.cancelled)});
+            void fetch('/__folia_rear/aod-report?'+params,{cache:'no-store'}).catch(()=>undefined);
+        };
+        setVisualizerLowPowerDemand(demand);report('state-change');
+        const parent=window.parent;
+        if(parent!==window)parent.dispatchEvent(new CustomEvent('folia-rear-demand',{detail:demand}));
+        return()=>{setVisualizerLowPowerDemand(null);report('cancelled');if(parent!==window)parent.dispatchEvent(new CustomEvent('folia-rear-demand',{detail:null}));};
+    },[aod,surfaceActive,aodTimeline]);
     useEffect(() => {
         if (!surfaceActive) return;
         let frameId = 0;
         const tick = () => {
-            const lyricTime = resolveObsBrowserSourceClockTime(clockRef.current);
+            const anchor=monotonicClock.current;
+            const lyricTime = aod?anchor.time+(anchor.playing?Math.max(0,performance.now()-anchor.at)/1000*anchor.speed:0):resolveObsBrowserSourceClockTime(clockRef.current);
             
             currentTime.set(lyricTime);
             if(aod){const now=performance.now(),stats=updateStats.current;stats.count++;
                 if(now-stats.at>=30_000){
-                    const params=new URLSearchParams({mode:'AOD',style:configRef.current?.visualizerMode??'unknown',updates:String(stats.count),interval:String(Math.round((now-stats.at)/Math.max(1,stats.count))),trigger:'clock-sample'});
+                    const params=new URLSearchParams({mode:'AOD',style:configRef.current?.visualizerMode??'unknown',updates:String(stats.count),interval:String(Math.round((now-stats.at)/Math.max(1,stats.count))),trigger:'timeline',target:String(aodTimeline(lyricTime,anchor.speed,anchor.playing).fps),requests:String(getVisualizerLowPowerStats().requests),late:String(getVisualizerLowPowerStats().late),work:String(Math.round(getVisualizerLowPowerStats().workMs)),idle:String(getVisualizerLowPowerStats().cancelled)});
                     void fetch('/__folia_rear/aod-report?'+params,{cache:'no-store'}).catch(()=>undefined);stats.at=now;stats.count=0;
                 }
             }
@@ -222,6 +248,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
 
         refreshPausedClock.current = playbackState === PlayerState.PLAYING ? null : tick;
         tick();
+        if(aod)invalidateVisualizerLowPower();
         return () => { refreshPausedClock.current = null; cancelVisualizerAnimationFrame(frameId); };
     }, [currentTime, playbackState, surfaceActive, config,aod]);
 

@@ -8,8 +8,8 @@
     "email": "chthollyphile@users.noreply.github.com"
   },
   "private": true,
-  "version": "1.3.114",
-  "androidVersionCode": 137,
+  "version": "1.3.115",
+  "androidVersionCode": 138,
   "playbackTestRevision": 2,
   "license": "AGPL-3.0",
   "type": "module",

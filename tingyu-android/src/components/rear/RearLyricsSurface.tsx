@@ -1,3 +1,4 @@
+import {setVisualizerLowPowerDemand,invalidateVisualizerLowPower} from '../../utils/visualizerFrameChannel';
 import {useRearAod,isRearAod} from '../../services/rearAodRuntime';
 import {rearBootTrace} from '../../services/rearBootTrace';
 import { useRearStageActive } from '../../hooks/useStageActivity';
@@ -58,11 +59,14 @@ export default function RearLyricsSurface() {
             if (frame) frame.dispatchEvent(new CustomEvent('folia-rear-power', { detail }));
         };
         const mode=(event:Event)=>{panel.current?.contentWindow?.dispatchEvent(new CustomEvent('folia-rear-mode',{detail:(event as CustomEvent).detail}));};
+        const demand=(event:Event)=>setVisualizerLowPowerDemand((event as CustomEvent<(()=>number|null)|null>).detail);
+        window.addEventListener('folia-rear-demand',demand);
+        window.addEventListener('folia-rear-visual-change',invalidateVisualizerLowPower);
         window.addEventListener('folia-rear-mode',mode);
         const resync=()=>relay.reset();
         window.addEventListener('folia-rear-resync',resync);
         window.addEventListener('folia-rear-power', power);
-        return () => { relay.dispose(); unsubscribe();window.removeEventListener('folia-rear-mode',mode); window.removeEventListener('folia-rear-reveal', reveal); window.removeEventListener('folia-rear-power', power); window.removeEventListener('folia-rear-resync',resync); };
+        return () => { relay.dispose(); unsubscribe();window.removeEventListener('folia-rear-mode',mode);window.removeEventListener('folia-rear-demand',demand);window.removeEventListener('folia-rear-visual-change',invalidateVisualizerLowPower);setVisualizerLowPowerDemand(null); window.removeEventListener('folia-rear-reveal', reveal); window.removeEventListener('folia-rear-power', power); window.removeEventListener('folia-rear-resync',resync); };
     }, [audioPower, audioBands, bass, lowMid, mid, vocal, treble, spectrum, reveal]);
     useEffect(()=>{if(!aod)return;audioPower.set(0);bass.set(0);lowMid.set(0);mid.set(0);vocal.set(0);treble.set(0);spectrum.set(new Uint8Array(0));},[aod,audioPower,bass,lowMid,mid,vocal,treble,spectrum]);
     return <main data-testid="rear-lyrics-surface" onPointerDownCapture={reveal}

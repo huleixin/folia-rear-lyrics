@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { installGlobalVisualizerFrameRateLimiter, setGlobalVisualizerFrameRate } from '@/utils/frameRateLimiter';
-import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame, requestVisualizerBackgroundFrame, cancelVisualizerBackgroundFrame,setVisualizerLowPower,setVisualizerRenderingSuspended,bindVisualizerTickerRate } from '@/utils/visualizerFrameChannel';
+import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame, requestVisualizerBackgroundFrame, cancelVisualizerBackgroundFrame,setVisualizerLowPower,setVisualizerRenderingSuspended,bindVisualizerTickerRate,setVisualizerLowPowerDemand,invalidateVisualizerLowPower } from '@/utils/visualizerFrameChannel';
 
 // test/unit/utils/visualizerFrameChannel.test.ts
 // A 60Hz UI must remain independent of the graphics cap, including live cap changes and cancellation.
@@ -31,23 +31,34 @@ it('keeps native UI frames while foreground follows 60FPS and wallpaper 30FPS an
     expect(bgCancelled).not.toHaveBeenCalled();
 });
 
-it('AOD samples pending graphics at 2Hz without requesting native RAF and resumes the same queue',()=>{
+it('AOD samples pending graphics only under explicit demand without requesting native RAF and resumes the same queue',()=>{
     vi.useFakeTimers();const raf=vi.fn(()=>1),cancel=vi.fn();
     vi.stubGlobal('window',{requestAnimationFrame:raf,cancelAnimationFrame:cancel,Capacitor:{getPlatform:()=> 'android'},localStorage:{getItem:()=>null}});
     installGlobalVisualizerFrameRateLimiter();let count=0,handle=0;
     const tick=()=>{count++;handle=requestVisualizerAnimationFrame(tick);};
-    requestVisualizerAnimationFrame(tick);setVisualizerLowPower(true);raf.mockClear();
-    vi.advanceTimersByTime(2000);expect(count).toBe(4);expect(raf).not.toHaveBeenCalled();
-    setVisualizerRenderingSuspended(true);vi.advanceTimersByTime(5000);expect(count).toBe(4);
-    setVisualizerRenderingSuspended(false);vi.advanceTimersByTime(500);expect(count).toBe(5);
-    cancelVisualizerAnimationFrame(handle);setVisualizerLowPower(false);vi.clearAllTimers();vi.useRealTimers();
+    requestVisualizerAnimationFrame(tick);setVisualizerLowPowerDemand(()=>500);setVisualizerLowPower(true);raf.mockClear();
+    vi.advanceTimersByTime(2000);expect(count).toBe(5);expect(raf).not.toHaveBeenCalled();
+    setVisualizerRenderingSuspended(true);vi.advanceTimersByTime(5000);expect(count).toBe(5);
+    setVisualizerRenderingSuspended(false);vi.advanceTimersByTime(500);expect(count).toBe(6);
+    cancelVisualizerAnimationFrame(handle);setVisualizerLowPowerDemand(null);setVisualizerLowPower(false);vi.clearAllTimers();vi.useRealTimers();
 });
 it('AOD stops the independent Pixi ticker and drives only bounded manual updates',()=>{
     vi.useFakeTimers();const ticker={maxFPS:60,started:true,stop:vi.fn(),start:vi.fn(),update:vi.fn()};
-    const cleanup=bindVisualizerTickerRate(ticker);setVisualizerLowPower(true);
-    expect(ticker.stop).toHaveBeenCalled();expect(ticker.maxFPS).toBe(2);
-    vi.advanceTimersByTime(1000);expect(ticker.update).toHaveBeenCalledTimes(2);
-    setVisualizerRenderingSuspended(true);vi.advanceTimersByTime(2000);expect(ticker.update).toHaveBeenCalledTimes(2);
+    const cleanup=bindVisualizerTickerRate(ticker);setVisualizerLowPowerDemand(()=>100);setVisualizerLowPower(true);
+    expect(ticker.stop).toHaveBeenCalled();expect(ticker.maxFPS).toBe(0);
+    vi.advanceTimersByTime(1000);expect(ticker.update).toHaveBeenCalledTimes(11);
+    setVisualizerRenderingSuspended(true);vi.advanceTimersByTime(2000);expect(ticker.update).toHaveBeenCalledTimes(11);
     setVisualizerRenderingSuspended(false);setVisualizerLowPower(false);expect(ticker.start).toHaveBeenCalled();
-    cleanup();vi.clearAllTimers();vi.useRealTimers();
+    cleanup();setVisualizerLowPowerDemand(null);vi.clearAllTimers();vi.useRealTimers();
+});
+
+it('idle and paused AOD do not draw until a visual event, then cancel on hidden',()=>{
+    vi.useFakeTimers();const raf=vi.fn(()=>1);vi.stubGlobal('window',{requestAnimationFrame:raf,cancelAnimationFrame:vi.fn(),Capacitor:{getPlatform:()=> 'android'},localStorage:{getItem:()=>null}});installGlobalVisualizerFrameRateLimiter();
+    let count=0,handle=0;const draw=()=>{count++;handle=requestVisualizerAnimationFrame(draw);};
+    setVisualizerLowPowerDemand(()=>null);setVisualizerLowPower(true);requestVisualizerAnimationFrame(draw);
+    vi.advanceTimersByTime(10_000);expect(count).toBe(1);
+    invalidateVisualizerLowPower();vi.advanceTimersByTime(0);expect(count).toBe(2);
+    vi.advanceTimersByTime(60_000);expect(count).toBe(2);
+    setVisualizerRenderingSuspended(true);invalidateVisualizerLowPower();vi.advanceTimersByTime(5000);expect(count).toBe(2);
+    cancelVisualizerAnimationFrame(handle);setVisualizerLowPowerDemand(null);setVisualizerLowPower(false);setVisualizerRenderingSuspended(false);vi.clearAllTimers();vi.useRealTimers();
 });

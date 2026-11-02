@@ -22,17 +22,30 @@ let lowPower=false,nextLowHandle=1;
 const lowCallbacks=new Map<number,FrameRequestCallback>();
 let lowTimer:ReturnType<typeof setTimeout>|null=null;
 const lowPulses=new Set<(now:number)=>void>();
+let lowDemand:(()=>number|null)|null=null;
+let lowEvent=false;
+let adaptiveFloor=0,lateRuns=0;
+const lowStats={requests:0,late:0,workMs:0,lastDelay:0,cancelled:false};
+export const getVisualizerLowPowerStats=()=>({...lowStats,targetFps:lowStats.lastDelay>0?Math.round(1000/lowStats.lastDelay):0,suspended:renderingSuspended,pending:lowTimer!==null,adaptiveFloor});
+export function setVisualizerLowPowerDemand(value:(()=>number|null)|null){lowDemand=value;adaptiveFloor=0;lateRuns=0;if(value)invalidateVisualizerLowPower();else{lowEvent=false;if(lowTimer!==null){clearTimeout(lowTimer);lowTimer=null;}lowStats.cancelled=true;}}
+export function invalidateVisualizerLowPower(){lowEvent=true;if(lowTimer!==null){clearTimeout(lowTimer);lowTimer=null;}scheduleLow();}
 const lowListeners=new Set<(value:boolean)=>void>();
 function scheduleLow(){if(!lowPower||renderingSuspended||lowTimer!==null||!lowCallbacks.size&&!queue?.hasPending?.()&&!backgroundQueue?.hasPending?.()&&!lowPulses.size)return;
-    lowTimer=setTimeout(()=>{lowTimer=null;const batch=[...lowCallbacks];lowCallbacks.clear();
-        const now=performance.now();queue?.flushPending?.(now);backgroundQueue?.flushPending?.(now);
-        for(const [,callback] of batch)callback(now);for(const pulse of lowPulses)pulse(now);scheduleLow();},500);
+    const delay=lowEvent?0:lowDemand?.()??null;
+    if(delay===null){lowStats.cancelled=true;return;}
+    const wait=delay===0?0:Math.max(delay,adaptiveFloor);
+    lowStats.lastDelay=wait;lowStats.cancelled=false;const expected=performance.now()+wait;
+    lowTimer=setTimeout(()=>{lowTimer=null;lowEvent=false;const batch=[...lowCallbacks];lowCallbacks.clear();
+        const now=performance.now();lowStats.requests++;
+        if(now-expected>Math.max(100,wait)){lowStats.late++;if(++lateRuns>=3)adaptiveFloor=500;}else lateRuns=0;
+        queue?.flushPending?.(now);backgroundQueue?.flushPending?.(now);
+        for(const [,callback] of batch)callback(now);for(const pulse of lowPulses)pulse(now);lowStats.workMs+=Math.max(0,performance.now()-now);scheduleLow();},Math.max(0,wait));
 }
 export function setVisualizerLowPower(value:boolean){
     if(lowPower===value)return;lowPower=value;
     queue?.setSuspended?.(value||renderingSuspended);backgroundQueue?.setSuspended?.(value||renderingSuspended);
     if(lowTimer!==null){clearTimeout(lowTimer);lowTimer=null;}
-    if(value)scheduleLow();else if(lowCallbacks.size){window.requestAnimationFrame(now=>{if(lowPower||renderingSuspended)return;const pending=[...lowCallbacks];for(const [id]of pending){const cb=lowCallbacks.get(id);if(cb){lowCallbacks.delete(id);cb(now);}}});}
+    if(value){lowEvent=true;scheduleLow();}else if(lowCallbacks.size){window.requestAnimationFrame(now=>{if(lowPower||renderingSuspended)return;const pending=[...lowCallbacks];for(const [id]of pending){const cb=lowCallbacks.get(id);if(cb){lowCallbacks.delete(id);cb(now);}}});}
     for(const listener of lowListeners)listener(value);
 }
 const backgroundRate = (rate: VisualizerFrameRate): VisualizerFrameRate => rate === 'off' ? 'off' : Math.min(30, rate) as VisualizerFrameRate;
@@ -51,7 +64,7 @@ export function configureVisualizerFrameChannel(rate: VisualizerFrameRate,
 }
 /** Pixi owns its RAF; cap that ticker without touching browser/UI animation scheduling. */
 export function bindVisualizerTickerRate(ticker: { maxFPS: number; started?: boolean; stop?: () => void; start?: () => void; update?: (now:number)=>void }): () => void {
-    const update = (rate: VisualizerFrameRate) => { ticker.maxFPS = lowPower ? 2 : rate === 'off' ? 0 : rate; };
+    const update = (rate: VisualizerFrameRate) => { ticker.maxFPS = lowPower ? 0 : rate === 'off' ? 0 : rate; };
     let lowResume=false;
     const pulse=(now:number)=>ticker.update?.(now);
     const lowUpdate=()=>{

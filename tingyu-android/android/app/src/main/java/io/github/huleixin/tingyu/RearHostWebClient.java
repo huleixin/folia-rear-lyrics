@@ -80,7 +80,8 @@ final class RearHostWebClient extends WebViewClient {
                 String mode=url.getQueryParameter("mode"),style=url.getQueryParameter("style");
                 if(style==null||!style.matches("[a-zA-Z0-9_-]{1,64}"))style="unknown";
                 b.putString("reason","renderer=WEB_STAGE_AOD, mode="+("AOD".equals(mode)?"AOD":"NORMAL")+", style="+style
-                    +", updates="+safeCount(url,"updates")+", intervalMs="+safeCount(url,"interval")+", audio=muted-in-aod, trigger="+"clock-sample");
+                    +", updates="+safeCount(url,"updates")+", intervalMs="+safeCount(url,"interval")+", audio=muted-in-aod, trigger="+(java.util.Arrays.asList("timeline","state-change","cancelled").contains(url.getQueryParameter("trigger"))?url.getQueryParameter("trigger"):"unknown"));
+                b.putString("reason",b.getString("reason","")+", targetFps="+safeCount(url,"target")+", requests="+safeCount(url,"requests")+", late="+safeCount(url,"late")+", callbackWorkMs="+safeCount(url,"work")+", calibrationHz=1, presentedFps=unmeasured, idle="+"true".equals(url.getQueryParameter("idle"))+", cancelled="+"cancelled".equals(url.getQueryParameter("trigger"))+"");
                 call("report",b);return text("{}");
             }
             if("/__folia_rear/ready".equals(path)){diagnostic("ready-request","renderer onConfigured callback");view.post(events::ready);return text("{}");}
