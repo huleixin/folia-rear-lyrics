@@ -24,6 +24,7 @@ MAML 的 mMusicController.getMediaController() 为空，只能证明系统卡片
 1. RearMusicAdmission：依据 Janus 已公开准入入口独立编写、按真实签名验证的适配。p2.a.c(String)->boolean 只对听屿包保留/变更为允许；b()->Set 复制原集合且只补听屿；MusicController.addMusicPackageList(List) 同样复制并只补听屿。保留所有已有条目，不合入任意 App。入口缺失/签名不符记录确切异常类型，不猜改字段。安装、实际 ownChecks/ownLists 调用数和系统活跃听屿数量与 MAML selected 状态分别报告。
 2. RearMamlProbe.ownCard：要求真实附着可见的背屏 MamlView、mRoot.findElement("music_control") 的正确元素类型、恢复 API 齐全、MAML 自己返回的 MediaController 包为听屿，才提供卡片实例。
 3. Controller.attach：不再无条件 FAILED。等待系统选择；身份通过后构造 RearNativeCardOwner 与现有 RearHostView。已删除旧全屏挂载方法。created 日志标记 native-maml、selectedPackage、卡片大小和真实父类。
+   原生媒体变更可触发未完成接管的重新校验，使用单个待执行任务合并事件，补上SHOW早于系统选择但没有再次resume的时序；每次仍核验当前卡片身份，不使用事件携带的旧会话作为接管授权。
 4. RearHostView：必须传入真实卡片 owner，ViewGroup 为 card.container，不再有 DecorView 或无 card 构造路径。继续使用完整 rear-lyrics.html、原舞台、原状态/歌词与静态 FD。Media3、歌词时钟、独立外观均不改。
 5. RearNativeCardOwner：配置 ready 后且再次验证 MAML 身份才获取绘制所有权，暂停 root/selfPause、detachFromVsync，保存并隐藏除歌词层以外的原子 View。按精确 root 实例门禁拦截绘制/update/重新订阅，非接管期间放行。失败先恢复，不留双窗口。
 6. 释放先清除 owned，恢复原可见性；检查 root 未换、未结束，恢复 VSync、自身 resume、当前媒体 metadata/state、requestUpdate。关键恢复未确认保留原 lease，阻止并行独立回退。

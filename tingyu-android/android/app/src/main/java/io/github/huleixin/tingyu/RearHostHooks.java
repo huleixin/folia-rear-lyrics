@@ -171,7 +171,7 @@ public final class RearHostHooks {
             });
             Class<?> music=XposedHelpers.findClass("com.miui.maml.elements.MusicControlScreenElement",loader);
             for(String event:new String[]{"handleStateUpdate","onClientChange","resetMusicPlayer"})XposedBridge.hookAllMethods(music,event,new XC_MethodHook(){
-                @Override protected void afterHookedMethod(MethodHookParam p){Controller c=controller;if(c!=null&&c.card!=null&&c.host!=null&&p.thisObject==c.card.music)c.host.refresh();}
+                @Override protected void afterHookedMethod(MethodHookParam p){Controller c=controller;if(c!=null&&!p.hasThrowable())c.mediaChanged(p.thisObject);}
             });
             nativeOwnershipHooks=true;
         }catch(Throwable error){nativeOwnershipHooks=false;log("native ownership hooks unavailable: "+describe(error));}
@@ -346,6 +346,18 @@ public final class RearHostHooks {
         private boolean launcherSeen;
         private int display = -1, rebinds, launches;
         private long nextLaunchAt, pausedAt;
+        private final java.util.concurrent.atomic.AtomicBoolean mediaRecheckPending=new java.util.concurrent.atomic.AtomicBoolean();
+
+        /** Selection may arrive after SHOW without another launcher/MAML resume. Coalesce events. */
+        void mediaChanged(Object music){
+            if(!mediaRecheckPending.compareAndSet(false,true))return;
+            main.post(()->{
+                mediaRecheckPending.set(false);
+                if(lease.isEmpty())return;
+                if(card!=null&&host!=null){if(music==card.music)host.refresh();}
+                else attach("native-media-changed");
+            });
+        }
         private int publishFailures;
         private String lastFailure = "背屏中心 launcher 尚未出现";
         private volatile boolean receiverReady;
