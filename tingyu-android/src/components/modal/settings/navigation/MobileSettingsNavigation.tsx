@@ -6,8 +6,8 @@ import AndroidRearLyricsSetting from '../AndroidRearLyricsSetting';
 import '../mobileSettings.css';
 
 // src/components/modal/settings/navigation/MobileSettingsNavigation.tsx
-export default function MobileSettingsNavigation({ groups, index, onSelect, onGuide, onHelp }: {
-    groups: SettingsNavGroup[]; index: boolean; onSelect: (id: SettingsSectionId) => void; onGuide: () => void; onHelp: () => void;
+export default function MobileSettingsNavigation({ groups, index, onSelect, onGuide, onHelp, rearEntry }: {
+    groups: SettingsNavGroup[]; index: boolean; onSelect: (id: SettingsSectionId) => void; onGuide: () => void; onHelp: () => void;rearEntry?:React.ReactNode;
 }) {
     const { t } = useTranslation();
     const scroller = useRef<HTMLDivElement>(null);
@@ -21,7 +21,7 @@ export default function MobileSettingsNavigation({ groups, index, onSelect, onGu
     if (!index) return null;
     const symbols = { appearance: Sparkles, controls: PlayCircle, connections: Database, system: Settings2 };
     return <div className="ty-settings-home" data-mobile-settings-home="true" ref={scroller}>
-        <AndroidRearLyricsSetting isDaylight={false} settingsCardClass="ty-settings-card" compact onOpenGuide={onGuide} />
+        {rearEntry??<AndroidRearLyricsSetting isDaylight={false} settingsCardClass="ty-settings-card" compact onOpenGuide={onGuide} />}
         <nav className="ty-settings-navigation" aria-label={t('ui.options')}>
             {groups.map(group => {
                 const Icon = symbols[group.id as keyof typeof symbols] ?? Settings2;

@@ -12,26 +12,32 @@ export function useRearLyricsSettings(poll = true) {
     const mounted = useRef(false);
     const revision = useRef(0);
     const locked = useRef(false);
-    const polling = useRef(false);
+    const polling = useRef<Promise<void>|null>(null);
     const current = useRef(snapshot);
     const commit = useCallback((result: RearLyricsStatus) => {
         current.current = result;
         setSnapshot(previous => previous && rearSettingsFingerprint(previous) === rearSettingsFingerprint(result) ? previous : result);
         setFailed(false);
     }, []);
-    const refresh = useCallback(async () => {
+    const refresh = useCallback(async (afterChange=false) => {
+        // A preference write must supersede any status read that began before it.
+        // Wait for that single read, then query once; do not add another poller.
+        if(afterChange){revision.current++;await polling.current;}
         if (polling.current || locked.current || document.hidden) return;
         const plugin = rearLyricsPlugin();
         if (!plugin) return;
-        polling.current = true;
         const requestedAt = revision.current;
+        const request=(async()=>{
         try {
             const result = await plugin.getRearLyricsStatus();
             if (mounted.current && requestedAt === revision.current) commit(result);
         } catch (error) {
             console.error('[settings/rear-lyrics] status unavailable', error);
             if (mounted.current && requestedAt === revision.current) setFailed(true);
-        } finally { polling.current = false; }
+        }
+        })();
+        polling.current=request;
+        try{await request;}finally{if(polling.current===request)polling.current=null;}
     }, [commit]);
     useEffect(() => {
         mounted.current = true;

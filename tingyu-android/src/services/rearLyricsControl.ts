@@ -20,6 +20,7 @@ export type RearLyricsStatus = {
     shizukuAvailable?: boolean; authorized?: boolean; rearDisplayId?: number; active?: boolean;
     enabled?: boolean; starting?: boolean; message?: string; diagnostics?: string; build?: number;
     coverSleepEnabled?: boolean; sleeping?: boolean; sleepUnsupported?: boolean; sensorAvailable?: boolean; sleepDiagnostics?: string;
+    cameraSuspended?:boolean;yieldingToCamera?:boolean;
 };
 export type RearLyricsPlugin = {
     setRearLyricsBackend: (options: { mode: 'shizuku' | 'lsp' }) => Promise<void>;

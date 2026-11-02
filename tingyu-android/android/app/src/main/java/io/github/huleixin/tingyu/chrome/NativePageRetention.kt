@@ -25,7 +25,8 @@ internal fun pageBelongsToRoute(page:NativePage,route:String,selected:Int,target
         (route!="home"||page.key.startsWith(if(selected==1)"library:"else"home:"))&&
         (route!="collection"||target.isEmpty()||page.key==target)&&
         (route!="settings"||target!="settings:index"||page.key in setOf("settings:index","settings:document:rear-guide"))&&
-        (route!="settings"||!target.startsWith("settings:document:")||page.key.startsWith(target))
+        (route!="settings"||!target.startsWith("settings:document:")||page.key.startsWith(target))&&
+        (route!="settings"||!target.startsWith("settings:rear:")||page.key==target)
 internal class NativeRouteMotion {
     private val trail=mutableListOf<String>()
     fun visit(key:String):Boolean {

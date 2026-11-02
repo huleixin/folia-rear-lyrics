@@ -34,5 +34,6 @@ export function rearSettingsFingerprint(snapshot: RearLyricsStatus): string {
     return JSON.stringify([snapshot.enabled, snapshot.active, snapshot.starting, snapshot.rearDisplayId,
         snapshot.shizukuAvailable, snapshot.authorized, snapshot.build, snapshot.sleeping,
         snapshot.backendMode, snapshot.lspConnected, snapshot.lspDetail, snapshot.returnedToSystem,
-        snapshot.controlEngine]);
+        snapshot.controlEngine,snapshot.lockedRoute,snapshot.lastLaunchRoute,snapshot.coverSleepEnabled,
+        snapshot.sleepUnsupported,snapshot.sensorAvailable,snapshot.message,snapshot.cameraSuspended,snapshot.yieldingToCamera]);
 }

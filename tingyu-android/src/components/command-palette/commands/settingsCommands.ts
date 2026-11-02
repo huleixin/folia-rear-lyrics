@@ -20,6 +20,9 @@ import { canUseRearLyrics, toggleRearLyrics, toggleRearCoverSleep, setRearLyrics
 // Commands in the `settings` group: settings subviews, app toggles, theme, sync, and desktop-only switches.
 
 export const settingsCommands: CommandPaletteCommand[] = [
+    defineCommand({id:'settings-rear',group:'settings',title:'Rear lyrics settings',description:'Open the rear lyrics control center',
+        keywords:['rear control','背屏设置','背屏控制中心'],isAvailable:canUseRearLyrics,
+        execute:async()=>{const {useSettingsModalStore}=await import('../../../stores/useSettingsModalStore');useSettingsModalStore.getState().openRearSettings();return true;}}),
     ...(['lsp', 'shizuku'] as const).map(mode => defineCommand({
         id: `rear-backend-${mode}`, group: 'settings' as const,
         title: mode === 'lsp' ? 'Use LSP rear mode' : 'Use Shizuku rear mode',

@@ -12,6 +12,7 @@ import { normalizePinnedCommandIds, readPinnedCommandIds, writePinnedCommandIds,
 import { applyAppLanguagePreference, readStoredAppLanguagePreference, type AppLanguagePreference } from '../i18n/config';
 import { setStatusMessage } from './useStatusMessageStore';
 import type { SettingsAnchorId } from '../components/modal/settings/navigation/settingsAnchorModel';
+import type { RearSettingsPage } from '../components/modal/settings/rearControlModel';
 
 export type SettingsModalInitialTab = 'help' | 'options';
 
@@ -33,6 +34,7 @@ export type SettingsModalState = {
      */
     initialAnchor?: { id: SettingsAnchorId; seq: number } | null;
     returnToIndex?: boolean;
+    rearPage?:RearSettingsPage;
 };
 
 // Separate from the retired guide key so people who saw the old carousel still receive the Ponder lesson.
@@ -57,6 +59,7 @@ export type SettingsModalUiState = {
     closeSettings: () => void;
     openSettingsFromIndex: (section: SettingsSubviewId|'help') => void;
     returnSettingsToIndex: () => void;
+    openRearSettings:(page?:RearSettingsPage)=>void;
     handleSetAppLanguagePreference: (preference: AppLanguagePreference) => Promise<void>;
     setPinnedCommandId: (slotIndex: number, commandId: string | null) => void;
 };
@@ -102,6 +105,7 @@ export const useSettingsModalStore = create<SettingsModalUiState>((set, get) => 
     openSettingsFromIndex: (section) => set({settingsModalState:{isOpen:true,initialTab:section==='help'?'help':'options',initialSubview:section==='help'?null:section,
         initialVisualizerSection:null,initialAnchor:null,returnToIndex:true}}),
     returnSettingsToIndex: () => {get().openSettings('options');},
+    openRearSettings:(rearPage='control')=>set({settingsModalState:{isOpen:true,initialTab:'options',initialSubview:null,initialAnchor:null,initialVisualizerSection:null,returnToIndex:true,rearPage}}),
     handleSetAppLanguagePreference: async (preference) => {
         await applyAppLanguagePreference(preference);
         set({ appLanguagePreference: preference });

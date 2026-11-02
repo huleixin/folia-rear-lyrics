@@ -6,21 +6,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeSettingsPage.kt
 // Mirrors mobileSettings.css: 32px heading, muted 13px group labels, single grouped cards.
@@ -74,56 +69,15 @@ private val GroupIcons=mapOf("rear" to "captions","appearance" to "sparkles","co
     }
 }
 @Composable private fun NativeRearSettings(section:NativePageSection,action:PageAction){
-    val toggle=section.items.firstOrNull{it.id=="toggle"}
+    val item=section.items.firstOrNull()?:return
     SettingsCard{
-        Column(Modifier.padding(start=14.dp,end=14.dp,top=14.dp)){
-            if(toggle!=null)Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))){
-                if(section.image.isNotBlank())AsyncImage(pageImage(section.image),null,
-                    Modifier.align(Alignment.BottomEnd).offset(x=14.dp,y=12.dp).width(170.dp).graphicsLayer{alpha=.75f},contentScale=ContentScale.FillWidth)
-                Row(Modifier.fillMaxWidth().padding(start=3.dp,end=3.dp,bottom=10.dp),verticalAlignment=Alignment.Top,horizontalArrangement=Arrangement.spacedBy(12.dp)){
-                    Column(Modifier.weight(1f)){
-                        Text(toggle.title,color=PageInk,fontSize=15.sp,lineHeight=22.5.sp,fontWeight=FontWeight.SemiBold)
-                        Text(toggle.subtitle,color=interfaceColor(Color(0xFF9EB3AA),LightInterfaceColors.Muted),fontSize=12.sp,lineHeight=19.8.sp,modifier=Modifier.padding(top=4.dp))
-                    }
-                    Row(Modifier.clip(RoundedCornerShape(12.dp)).background(interfaceColor(Color(0xFF2D684F),LightInterfaceColors.SoftButton)).border(1.dp,interfaceColor(Color(0x1A7FC2A5),LightInterfaceColors.Border),RoundedCornerShape(12.dp))
-                        .clickable(enabled=!toggle.disabled){action(toggle.action,"",0.0)}.padding(horizontal=9.dp,vertical=7.dp),verticalAlignment=Alignment.CenterVertically){
-                        Text(toggle.secondaryLabel,color=interfaceColor(Color(0xFFE0F8ED),LightInterfaceColors.Accent),fontSize=12.sp,fontWeight=FontWeight.Medium)
-                        PageIcon("chevron-right",PageInk,Modifier.size(16.dp))
-                    }
-                }
+        Row(Modifier.fillMaxWidth().heightIn(min=68.dp).clickable(enabled=!item.disabled){action(item.action,"",0.0)}.padding(horizontal=14.dp,vertical=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
+            Box(Modifier.size(34.dp).clip(RoundedCornerShape(999.dp)).background(interfaceColor(Color(0x0CA6D7BF),LightInterfaceColors.Subtle)),contentAlignment=Alignment.Center){PageIcon("captions",interfaceColor(Color(0xFFD2E3DA),LightInterfaceColors.Icon),Modifier.size(21.dp))}
+            Column(Modifier.weight(1f)){
+                Text(item.title,color=PageInk,fontSize=14.sp,lineHeight=20.sp,fontWeight=FontWeight.Medium)
+                Text(item.subtitle,color=PageMuted,fontSize=12.sp,lineHeight=18.sp,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             }
-            section.items.filter{it.id in setOf("adaptation","state")}.forEach{item->
-                if(item.id=="adaptation")Box(Modifier.fillMaxWidth().height(1.dp).background(interfaceColor(Color(0x1FA5CDB9),LightInterfaceColors.Border)))
-                NativeSettingsRow(item,inset=2.dp,action=action)
-            }
-            if(section.text.isNotBlank())Text(section.text,color=PageMuted,fontSize=11.sp,lineHeight=17.6.sp,modifier=Modifier.padding(top=4.dp,bottom=10.dp))
-            section.items.firstOrNull{it.id=="mode"}?.let{item->
-                var expanded by remember { mutableStateOf(false) }
-                Row(Modifier.fillMaxWidth().padding(top=16.dp),verticalAlignment=Alignment.CenterVertically){
-                    Text(item.title,color=PageInk,fontSize=14.sp,modifier=Modifier.weight(1f))
-                    Box{
-                        Row(Modifier.clip(RoundedCornerShape(8.dp)).background(interfaceColor(Color(0x1A000000),LightInterfaceColors.Subtle)).clickable(enabled=!item.disabled){expanded=true}.padding(8.dp),verticalAlignment=Alignment.CenterVertically){
-                            Text(item.subtitle,color=PageInk.copy(alpha=if(item.disabled).45f else 1f),fontSize=13.sp)
-                            PageIcon("chevron-down",PageMuted,Modifier.padding(start=5.dp).size(14.dp))
-                        }
-                        DropdownMenu(expanded,{expanded=false}){listOf("shizuku" to "Shizuku","lsp" to "LSP / LSPosed").forEach{(id,label)->
-                            DropdownMenuItem(text={Text(label,fontSize=13.sp)},onClick={expanded=false;action("backend:$id","",0.0)})
-                        }}
-                    }
-                }
-            }
-            section.items.firstOrNull{it.id=="switchHint"}?.let{Text(it.subtitle,color=PageMuted,fontSize=12.sp,lineHeight=19.2.sp,modifier=Modifier.padding(top=8.dp))}
-            section.items.firstOrNull{it.id=="backendHelp"}?.let{item->
-                var open by remember{mutableStateOf(false)}
-                Row(Modifier.fillMaxWidth().heightIn(min=40.dp).clickable{open=!open},verticalAlignment=Alignment.CenterVertically){
-                    Text(item.title,color=PageMuted,fontSize=12.sp,modifier=Modifier.weight(1f));PageIcon("chevron-down",PageMuted,Modifier.size(14.dp))
-                }
-                if(open)Text(item.subtitle,color=PageMuted,fontSize=12.sp,lineHeight=19.2.sp,modifier=Modifier.padding(bottom=12.dp))
-            }
-            section.items.firstOrNull{it.id=="guide"}?.let{item->
-                Box(Modifier.fillMaxWidth().height(1.dp).background(interfaceColor(Color(0x1FA5CDB9),LightInterfaceColors.Border)))
-                NativeSettingsRow(item,inset=2.dp,action=action)
-            }
+            PageIcon("chevron-right",PageMuted,Modifier.size(18.dp))
         }
     }
 }

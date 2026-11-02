@@ -40,6 +40,7 @@ internal typealias PageAction = (String, String, Double) -> Unit
         CompositionLocalProvider(LocalDensity provides Density(cssScale ?: density.density, 1f)) {
             when {
                 page.document!=null -> NativeSettingsDocumentView(page.document,Modifier.fillMaxSize(),action)
+                page.id=="settings"&&page.key.startsWith("settings:rear:")->NativeRearControlPage(page,Modifier.fillMaxSize(),density.fontScale,action)
                 page.id == "settings" -> NativeSettingsPage(page, Modifier.fillMaxSize(), action)
                 page.id == "search" -> NativeSearchPage(page, Modifier.fillMaxSize(), action)
                 page.id == "home" && !page.key.startsWith("library:") -> NativeHomePage(page, Modifier.fillMaxSize(), action)

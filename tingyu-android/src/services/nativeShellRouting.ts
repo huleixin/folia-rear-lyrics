@@ -12,6 +12,7 @@ import { collectionKey } from '../library/core/model/collectionIdentity';
 import { useMotionSettingsStore, readReducedMotion } from '../stores/useMotionSettingsStore';
 import {setNativeShellPublisher,scheduleNativeShellRoute} from './nativeShellCommit';
 import {canPublishNativeStage} from '../utils/nativeStageCommit';
+import { rearPageKey } from '../components/modal/settings/rearControlModel';
 
 // src/services/nativeShellRouting.ts
 // The native shell owns its UI from process start; JS only supplies destinations and data.
@@ -31,7 +32,7 @@ export function installNativeShellRouting() {
         // Settings portals are captured into the same native document.
         const webOverlay=settings.isOpen?false:
             nativeShellHasWebOverlay(document.querySelectorAll<HTMLElement>('[data-folia-keyboard-window="true"]'));
-        const pageTarget=route==='settings'?(index?'settings:index':`settings:document:${settings.initialTab}:${resolveInitialSettingsSection({initialSubview:settings.initialSubview,hasInitialAnchor:!!settings.initialAnchor,isElectron:false})}:`):
+        const pageTarget=route==='settings'?(index?rearPageKey(settings.rearPage??'index'):`settings:document:${settings.initialTab}:${resolveInitialSettingsSection({initialSubview:settings.initialSubview,hasInitialAnchor:!!settings.initialAnchor,isElectron:false})}:`):
             route==='collection'?`collection:${stack?.at(-1)?.type==='artist'?'artist:':''}${collectionKey(stack?.at(-1))}`:'';
         const entryKey=route==='settings'&&!index?`${pageTarget}${['visualizer','themePark','lyricFilter','globalLyricOffset','aiHelp','releaseNotes'].map(id=>settings.initialSubview===id).join(':')}`:pageTarget;
         const reducedMotion=readReducedMotion('uiMicroMotion');

@@ -1787,7 +1787,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                 ) : isMobileSettings ? (
                                     <MobileSettingsNavigation groups={settingsNavGroups} index={mobileSettingsIndex}
                                         onSelect={handleSelectSettingsSection} onHelp={() => setActiveTab('help')}
-                                        onGuide={() => { setMobileRearGuide(true); setMobileSettingsIndex(false); }} />
+                                        onGuide={() => useSettingsModalStore.getState().openRearSettings()} />
                                 ) : (
                                     <SettingsSidebarChips
                                         groups={settingsNavGroups}
