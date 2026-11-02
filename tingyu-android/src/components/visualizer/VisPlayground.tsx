@@ -4,6 +4,7 @@ import { ChevronLeft, Loader2, Pause, Play, Search, Sparkles, Upload, X } from '
 import { useTranslation } from 'react-i18next';
 import { List, useListRef } from 'react-window';
 import VisualizerRenderer from './VisualizerRenderer';
+import {useInterfaceLight} from '../../hooks/useInterfaceAppearance';
 import {
     DEFAULT_CADENZA_TUNING,
     DEFAULT_CAPPELLA_TUNING,
@@ -64,6 +65,7 @@ import { NATIVE_FIRST } from '../../services/nativePages';
 
 interface VisPlaygroundProps {
     rearScope?:boolean;
+    presentation?:'modal'|'page';
     theme?: Theme;
     isDaylight: boolean;
     visualizerMode: VisualizerMode;
@@ -297,6 +299,7 @@ const dedupeLocalFonts = (fonts: LocalFontDataLike[]) => {
 
 const VisPlayground: React.FC<VisPlaygroundProps> = ({
     rearScope=false,
+    presentation='modal',
     theme,
     isDaylight,
     visualizerMode,
@@ -652,18 +655,20 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
         visualizer: t('options.previewVisualizerHotspot'),
         subtitle: t('options.previewSubtitleHotspot'),
     }), [t]);
+    const appLight=useInterfaceLight();
+    const chromeDaylight=presentation==='page'?appLight:isDaylight;
     const glassBg = isDaylight ? 'bg-white/70' : 'bg-zinc-950/88';
     const borderColor = isDaylight ? 'border-black/5' : 'border-white/10';
     // The lyric preview keeps its own stage theme. Settings controls use the app
     // appearance so a dark stage preset cannot make the light settings unreadable.
-    const settingsChromeTheme = useMemo<Theme>(() => isDaylight ? ({
+    const settingsChromeTheme = useMemo<Theme>(() => chromeDaylight ? ({
         ...previewTheme,
         backgroundColor: '#F1F4ED',
         primaryColor: '#213E34',
         secondaryColor: '#536D61',
         accentColor: '#246E55',
-    }) : previewTheme, [isDaylight, previewTheme]);
-    const controlCardBg = isDaylight ? 'rgba(255,255,255,0.78)' : colorWithAlpha(previewTheme.backgroundColor, 0.52);
+    }) : presentation==='page'?({...previewTheme,backgroundColor:'#0b261e',primaryColor:'#e8f4ed',secondaryColor:'#9eb3aa',accentColor:'#74d9ba'}):previewTheme, [chromeDaylight,presentation,previewTheme]);
+    const controlCardBg = chromeDaylight ? 'rgba(255,255,255,0.78)' : colorWithAlpha(settingsChromeTheme.backgroundColor, 0.52);
     const overlayBackground = isDaylight ? 'rgba(255,255,255,0.72)' : 'rgba(0,0,0,0.65)';
     const rangeInputClass = [
         'w-full h-1.5 rounded-full appearance-none cursor-pointer',
@@ -1160,16 +1165,17 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
 
     return (
         <motion.div
-            initial={NATIVE_FIRST?false:{ opacity: 0 }}
+            initial={NATIVE_FIRST||presentation==='page'?false:{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="fixed inset-0 z-[140] backdrop-blur-xl p-3 sm:p-5"
-            style={{ backgroundColor: overlayBackground }}
+            data-stage-presentation={presentation}
+            className={presentation==='page'?"ty-rear-stage-editor":"fixed inset-0 z-[140] backdrop-blur-xl p-3 sm:p-5"}
+            style={presentation==='page'?undefined:{ backgroundColor: overlayBackground }}
             onClick={onClose}
         >
             <motion.div
-                initial={NATIVE_FIRST?false:{ opacity: 0, y: 18, scale: 0.98 }}
+                initial={NATIVE_FIRST||presentation==='page'?false:{ opacity: 0, y: 18, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 18, scale: 0.98 }}
                 transition={{ duration: 0.2, ease: 'easeOut' }}
@@ -1177,7 +1183,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                 data-ponder="vis-playground"
                 className={`mx-auto flex h-full max-w-[1600px] flex-col overflow-hidden rounded-[32px] border ${borderColor} ${glassBg} shadow-[0_24px_80px_rgba(0,0,0,0.28)]`}
             >
-                <div className={`flex items-center justify-between border-b px-4 py-4 sm:px-6 ${isDaylight ? 'border-black/10' : 'border-white/10'}`}>
+                {presentation!=='page'&&<div className={`flex items-center justify-between border-b px-4 py-4 sm:px-6 ${isDaylight ? 'border-black/10' : 'border-white/10'}`}>
                     <div className="flex items-center gap-3 min-w-0">
                         <button
                             type="button"
@@ -1193,9 +1199,9 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                             </div>
                         </div>
                     </div>
-                </div>
+                </div>}
 
-                <div className="grid min-h-0 flex-1 gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,1.25fr)_360px]">
+                <div className="ty-stage-editor-content grid min-h-0 flex-1 gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,1.25fr)_360px]">
                     <div data-folia-stage-preview="true" className="relative min-h-[320px] overflow-hidden rounded-[28px] border border-white/10 bg-black/20">
                         <div className="absolute left-4 top-4 z-20 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/25 px-3 py-1.5 text-xs uppercase tracking-[0.22em] backdrop-blur-md" style={{ color: 'rgba(255,255,255,0.78)' }}>
                             <Sparkles size={13} />
@@ -1266,7 +1272,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                         activeSection={activeEditSection}
                         onSectionChange={setActiveEditSection}
                         t={t}
-                        isDaylight={isDaylight}
+                        isDaylight={chromeDaylight}
                         theme={settingsChromeTheme}
                         visualizerMode={visualizerMode}
                         visualizerEntry={visualizerEntry}

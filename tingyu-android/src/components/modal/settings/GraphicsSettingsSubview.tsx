@@ -4,7 +4,7 @@ import { Gauge, MonitorCog } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import type { Theme, VisualizerFrameRate } from '../../../types';
-import { VISUALIZER_FRAME_RATE_OPTIONS } from '../../../utils/frameRateLimiter';
+import SettingsFrameRateSlider from './SettingsFrameRateSlider';
 import ThemedDialog from '../../shared/ThemedDialog';
 import { SettingsAnchor } from './navigation/SettingsAnchorContext';
 import SettingsSectionHeading from './navigation/SettingsSectionHeading';
@@ -30,7 +30,6 @@ const openDocsLinkExternally = (event: React.MouseEvent<HTMLAnchorElement>) => {
     void window.electron.openExternalUrl(event.currentTarget.href);
 };
 
-const getFrameRateLabel = (frameRate: VisualizerFrameRate) => `${frameRate} FPS`;
 
 type GraphicsSettingsSubviewProps = {
     isDaylight: boolean;
@@ -73,7 +72,6 @@ const GraphicsSettingsSubview: React.FC<GraphicsSettingsSubviewProps> = ({
     const isLinux = typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('linux');
     const isVisualizerFrameRateLimiterEnabled = visualizerFrameRate !== 'off';
     const selectedVisualizerFrameRate = isVisualizerFrameRateLimiterEnabled ? visualizerFrameRate : 120;
-    const selectedVisualizerFrameRateIndex = VISUALIZER_FRAME_RATE_OPTIONS.indexOf(selectedVisualizerFrameRate);
 
     const renderToggle = (checked: boolean, onChange: () => void) => (
         <SettingsToggle checked={checked} onChange={onChange} offClass={toggleOffBackgroundClass} onColor={theme?.secondaryColor} />
@@ -91,11 +89,6 @@ const GraphicsSettingsSubview: React.FC<GraphicsSettingsSubviewProps> = ({
     const confirmNativeBlur = () => {
         onTogglePlayerPageNativeBlur(true);
         setIsNativeBlurNoticeOpen(false);
-    };
-
-    const handleFrameRateSliderChange = (value: string) => {
-        const nextIndex = Math.min(VISUALIZER_FRAME_RATE_OPTIONS.length - 1, Math.max(0, Number(value)));
-        onVisualizerFrameRateChange(VISUALIZER_FRAME_RATE_OPTIONS[nextIndex]);
     };
 
     return (
@@ -134,30 +127,8 @@ const GraphicsSettingsSubview: React.FC<GraphicsSettingsSubviewProps> = ({
                         )}
                         dividerClass={dividerClass}
                     >
-                        <div className={`space-y-3 transition-opacity ${isVisualizerFrameRateLimiterEnabled ? 'opacity-100' : 'opacity-45 pointer-events-none'}`}>
-                            <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
-                                <span className="opacity-60">{t('options.visualizerFrameRateValue')}</span>
-                                <span className="font-mono opacity-70">{getFrameRateLabel(selectedVisualizerFrameRate)}</span>
-                            </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max={VISUALIZER_FRAME_RATE_OPTIONS.length - 1}
-                                step="1"
-                                value={Math.max(0, selectedVisualizerFrameRateIndex)}
-                                onChange={(event) => handleFrameRateSliderChange(event.target.value)}
-                                className={rangeInputClass}
-                                aria-label={t('options.visualizerFrameRateValue')}
-                                disabled={!isVisualizerFrameRateLimiterEnabled}
-                            />
-                            <div className="grid grid-cols-3 text-[11px] font-mono opacity-50" style={{ color: 'var(--text-secondary)' }}>
-                                {VISUALIZER_FRAME_RATE_OPTIONS.map((frameRate, index) => (
-                                    <span key={frameRate} className={index === 1 ? 'text-center' : index === 2 ? 'text-right' : ''}>
-                                        {frameRate}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
+                        <SettingsFrameRateSlider value={selectedVisualizerFrameRate} disabled={!isVisualizerFrameRateLimiterEnabled}
+                            onChange={onVisualizerFrameRateChange} className={rangeInputClass}/>
                     </SettingsRow>
                     {!isAndroidNativeRuntime() && <SettingsRow
                         title={t('options.glowBlurQuantize')}

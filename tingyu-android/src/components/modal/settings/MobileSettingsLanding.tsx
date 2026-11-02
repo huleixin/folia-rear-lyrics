@@ -31,6 +31,8 @@ export default function MobileSettingsLanding({ onClose }: { onClose: () => void
     const openPage=(next:RearSettingsPage)=>useSettingsModalStore.getState().openRearSettings(next);
     const back=()=>{if(page==='index')onClose();else if(rearPageBack(page)==='index')useSettingsModalStore.getState().returnSettingsToIndex();else openPage(rearPageBack(page) as RearSettingsPage);};
     const appearance=page.startsWith('appearance');
+    const editor=page==='appearance-editor'||page==='appearance-theme';
+    const appearanceTitle=page==='appearance-backup'?'rearAppearance.backup':page==='appearance-editor'?'rearAppearance.edit':page==='appearance-theme'?'rearAppearance.theme':'rearAppearance.title';
     const guide=page==='guide'||page==='diagnostics'||appearance;
     const groups = useMemo(() => buildSettingsNavGroups(t, { isElectron: false }), [t]);
     useEffect(() => {
@@ -50,16 +52,16 @@ export default function MobileSettingsLanding({ onClose }: { onClose: () => void
     const root=useRef<HTMLDivElement>(null);
     const help=()=>useSettingsModalStore.getState().openSettingsFromIndex('help');
     const native=useNativeSettingsPage(root,page,onClose,openPage,groups,select,help,rear,back);
-    useNativeSettingsDocument(root,guide,`rear-${page}`,t(appearance?'rearAppearance.title':page==='diagnostics'?'rearControl.diagnostics':'mobileSettings.startupGuide'));
+    useNativeSettingsDocument(root,guide,`rear-${page}`,t(appearance?appearanceTitle:page==='diagnostics'?'rearControl.diagnostics':'mobileSettings.startupGuide'));
     const model=buildRearControlPage(page==='advanced'?'advanced':'control',rear,t);
     const actions=rearControlActions(rear,openPage,back);
     return createPortal(<div ref={root} data-folia-settings-overlay="true" data-mobile-settings="true"
         data-folia-keyboard-window="true" data-testid="mobile-settings-landing" className="fixed inset-0" style={{ zIndex: 136 }}>
         {(!native||guide)&&<div data-folia-settings-panel="true" role="dialog" aria-modal="true" aria-label={t('ui.options')}
             className="flex flex-col overflow-hidden h-full" style={{ color: lightInterface ? '#213e34' : '#e8f4ed' }}>
-            {page!=='appearance-editor'&&page!=='appearance-theme'&&<MobileSettingsHeader primary={page==='index'} title={t(appearance?'rearAppearance.title':page==='index'?'ui.options':page==='guide'?'mobileSettings.startupGuide':page==='diagnostics'?'rearControl.diagnostics':page==='advanced'?'rearControl.advanced':'rearControl.title')}
-                onBack={back} onClose={onClose} />}
-            {guide ? <div className="ty-rear-page-scroll"><Suspense fallback={null}>{appearance?<RearAppearance page={page as RearSettingsPage} open={openPage}/>:<RearLyricsGuide backend={rear.snapshot?.backendMode} diagnosticsOnly={page==='diagnostics'} />}</Suspense></div>
+            <MobileSettingsHeader primary={page==='index'} title={t(appearance?appearanceTitle:page==='index'?'ui.options':page==='guide'?'mobileSettings.startupGuide':page==='diagnostics'?'rearControl.diagnostics':page==='advanced'?'rearControl.advanced':'rearControl.title')}
+                onBack={back} onClose={onClose} />
+            {guide ? <div className={editor?"ty-rear-editor-host":"ty-rear-page-scroll"}><Suspense fallback={null}>{appearance?<RearAppearance page={page as RearSettingsPage} open={openPage}/>:<RearLyricsGuide backend={rear.snapshot?.backendMode} diagnosticsOnly={page==='diagnostics'} />}</Suspense></div>
                 : page!=='index'?<div className="ty-rear-page-scroll">{page==='advanced'?<RearBridgeSettings rear={rear} actions={actions}/>:<RearControlView model={model} actions={actions}/>}</div>
                 : <MobileSettingsNavigation groups={groups} index onSelect={select} onHelp={help}
                     onGuide={() => openPage('control')} rearEntry={<RearLyricsEntry state={rear} onOpen={()=>openPage('control')}/>} />}

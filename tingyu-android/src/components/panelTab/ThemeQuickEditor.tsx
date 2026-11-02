@@ -33,6 +33,7 @@ const COLOR_FIELDS: ColorField[] = [
 ];
 
 type ThemeQuickEditorProps = {
+    presentation?: 'modal'|'page';
     kind: ThemeQuickEditorKind;
     initialTheme: DualTheme;
     coverUrl: string | null;
@@ -45,6 +46,7 @@ type ThemeQuickEditorProps = {
 };
 
 const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
+    presentation='modal',
     kind,
     initialTheme,
     coverUrl,
@@ -132,26 +134,29 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
     );
 
     const throttleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const latestColorRef = useRef<string>(activeColor);
+    const pendingColorRef = useRef<{mode:EditableMode;key:EditableColorKey;color:string}|null>(null);
+    useEffect(()=>()=>{if(throttleTimeoutRef.current)clearTimeout(throttleTimeoutRef.current);},[]);
 
     const updateColorThrottled = (color: string) => {
-        latestColorRef.current = color;
+        pendingColorRef.current = {mode,key:activeKey,color};
         if (!throttleTimeoutRef.current) {
             throttleTimeoutRef.current = setTimeout(() => {
                 throttleTimeoutRef.current = null;
-                setDraftTheme(previous => ({
-                    ...previous,
-                    [mode]: {
-                        ...previous[mode],
-                        [activeKey]: latestColorRef.current,
-                    },
-                }));
+                const pending=pendingColorRef.current;pendingColorRef.current=null;
+                if(pending)setDraftTheme(previous=>({...previous,[pending.mode]:{...previous[pending.mode],[pending.key]:pending.color}}));
             }, 33); // ~30fps 刷新率
         }
     };
 
     // 当用户直接点击推荐颜色等需要立即响应时，清除节流并直接更新
+    const flushPendingColor=()=>{
+        if(throttleTimeoutRef.current)clearTimeout(throttleTimeoutRef.current);
+        throttleTimeoutRef.current=null;
+        const pending=pendingColorRef.current;pendingColorRef.current=null;
+        if(pending)setDraftTheme(previous=>({...previous,[pending.mode]:{...previous[pending.mode],[pending.key]:pending.color}}));
+    };
     const updateColorInstant = (color: string) => {
+        flushPendingColor();
         if (throttleTimeoutRef.current) {
             clearTimeout(throttleTimeoutRef.current);
             throttleTimeoutRef.current = null;
@@ -178,10 +183,8 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
         if (throttleTimeoutRef.current) {
             clearTimeout(throttleTimeoutRef.current);
             throttleTimeoutRef.current = null;
-            updatedDraft[mode] = {
-                ...updatedDraft[mode],
-                [activeKey]: latestColorRef.current,
-            };
+            const pending=pendingColorRef.current;pendingColorRef.current=null;
+            if(pending)updatedDraft[pending.mode]={...updatedDraft[pending.mode],[pending.key]:pending.color};
         }
 
         return sanitizeDualTheme(updatedDraft, normalizedInitialTheme);
@@ -263,19 +266,20 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
     const isNameValid = isThemeNameValid(themeNames.light) && isThemeNameValid(themeNames.dark);
 
     // Use activeTheme for real-time preview of the edited dual theme
-    const panelBg = activeTheme.backgroundColor;
-    const textColor = activeTheme.primaryColor;
-    const mutedTextColor = activeTheme.secondaryColor;
-    const accentColor = activeTheme.accentColor;
+    const panelBg = presentation==='page'?'var(--ui-surface, #0b261e)':activeTheme.backgroundColor;
+    const textColor = presentation==='page'?'var(--text-primary)':activeTheme.primaryColor;
+    const mutedTextColor = presentation==='page'?'var(--ty-settings-muted)':activeTheme.secondaryColor;
+    const accentColor = presentation==='page'?'var(--ty-settings-mint)':activeTheme.accentColor;
 
     // Use hex alpha for backgrounds and borders based on primary text color for contrast
-    const softBg = `${textColor}12`; // ~7% opacity
-    const hoverBg = `${textColor}1a`; // ~10% opacity
-    const borderColor = `${textColor}26`; // ~15% opacity
+    const softBg = presentation==='page'?'var(--ui-subtle, #99bba50b)':`${textColor}12`; // ~7% opacity
+    const hoverBg = presentation==='page'?'var(--ui-selected, #74d9ba1a)':`${textColor}1a`; // ~10% opacity
+    const borderColor = presentation==='page'?'var(--ty-settings-line)':`${textColor}26`; // ~15% opacity
     const overlayBg = mode === 'light' ? 'rgba(24,24,27,0.35)' : 'rgba(0,0,0,0.65)';
 
-    const themeTransitionClass = isDragging ? '' : 'transition-colors duration-500';
-    const allTransitionClass = isDragging ? '' : 'transition-all duration-300';
+    const pagePresentation=presentation==='page';
+    const themeTransitionClass = pagePresentation||isDragging ? '' : 'transition-colors duration-500';
+    const allTransitionClass = pagePresentation||isDragging ? '' : 'transition-all duration-300';
     const title = kind === 'custom'
         ? (t('options.customThemeQuickEditTitle') || 'Quick Edit Custom Theme')
         : (t('options.aiThemeQuickEditTitle') || 'Quick Edit AI Theme');
@@ -288,39 +292,40 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
 
     return (
         <motion.div
-            initial={{ opacity: 0 }}
+            initial={pagePresentation?false:{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             // 添加 transform-gpu 强制硬件加速隔离模糊计算
-            className={`fixed inset-0 z-[142] flex items-center justify-center p-4 backdrop-blur-sm transform-gpu ${themeTransitionClass}`}
-            style={{ backgroundColor: overlayBg, willChange: 'opacity' }}
+            data-theme-presentation={presentation}
+            className={pagePresentation?"ty-rear-theme-editor":`fixed inset-0 z-[142] flex items-center justify-center p-4 backdrop-blur-sm transform-gpu ${themeTransitionClass}`}
+            style={pagePresentation?undefined:{ backgroundColor: overlayBg, willChange: 'opacity' }}
             onMouseDown={handleOverlayMouseDown}
             onClick={handleOverlayClick}
         >
             <motion.div
-                initial={{ opacity: 0, y: 16, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
+                initial={pagePresentation?false:{ opacity: 0, y: 16, scale: 0.98 }}
+                animate={pagePresentation?undefined:{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 12, scale: 0.985 }}
                 transition={{ duration: 0.2, ease: 'easeOut' }}
                 // 添加 transform-gpu 隔离阴影重绘
-                className={`relative w-full max-w-[36rem] overflow-hidden rounded-[1.5rem] border shadow-[0_24px_80px_rgba(0,0,0,0.4)] transform-gpu ${themeTransitionClass}`}
-                style={{ backgroundColor: panelBg, borderColor, color: textColor, willChange: 'transform' }}
+                className={pagePresentation?"ty-rear-theme-panel":`relative w-full max-w-[36rem] overflow-hidden rounded-[1.5rem] border shadow-[0_24px_80px_rgba(0,0,0,0.4)] transform-gpu ${themeTransitionClass}`}
+                style={pagePresentation?undefined:{ backgroundColor: panelBg, borderColor, color: textColor, willChange: 'transform' }}
                 onClick={(event) => event.stopPropagation()}
             >
                 {/* Background glow effects for real-time preview */}
-                <div
+                {!pagePresentation&&<div
                     className={`absolute -top-32 -right-32 h-64 w-64 rounded-full blur-[90px] opacity-40 pointer-events-none transform-gpu ${themeTransitionClass}`}
                     style={{ backgroundColor: accentColor, willChange: 'background-color' }}
-                />
-                <div
+                />}
+                {!pagePresentation&&<div
                     className={`absolute -bottom-32 -left-32 h-64 w-64 rounded-full blur-[90px] opacity-30 pointer-events-none transform-gpu ${themeTransitionClass}`}
                     style={{ backgroundColor: mutedTextColor, willChange: 'background-color' }}
-                />
+                />}
 
-                <div className="relative z-10 transform-gpu">
+                <div className={pagePresentation?"ty-rear-theme-scroll":"relative z-10 transform-gpu"}>
                     <div className={`flex items-center justify-between gap-3 border-b px-5 py-4 ${themeTransitionClass}`} style={{ borderColor }}>
-                        <div className="flex min-w-0 items-center gap-4">
+                        {!pagePresentation&&<div className="flex min-w-0 items-center gap-4">
                             <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${themeTransitionClass}`} style={{ backgroundColor: softBg, color: accentColor }}>
                                 <Palette size={18} />
                             </div>
@@ -332,7 +337,7 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                     {description}
                                 </div>
                             </div>
-                        </div>
+                        </div>}
                         <div className="flex shrink-0 items-center gap-1.5">
                             <button
                                 type="button"
@@ -346,7 +351,7 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                 <RotateCcw size={14} />
                                 <span className="hidden sm:inline">{t('ui.resetToDefaultTheme') || 'Reset'}</span>
                             </button>
-                            <button
+                            {!pagePresentation&&<button
                                 type="button"
                                 onClick={onClose}
                                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors duration-300"
@@ -356,10 +361,11 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                 aria-label={t('ui.close') || 'Close'}
                             >
                                 <X size={17} />
-                            </button>
+                            </button>}
                         </div>
                     </div>
 
+                    {pagePresentation&&<p className="ty-rear-theme-hint">{t('rearAppearance.paletteHint', {mode:t(isDaylight?'options.lightTheme':'options.darkTheme')})}</p>}
                     {isImportPanelOpen ? (
                         <div className="flex flex-col gap-6 p-6">
                             <div className="space-y-4">
@@ -442,16 +448,16 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                             <button
                                                 key={nextMode}
                                                 type="button"
-                                                onClick={() => setMode(nextMode)}
+                                                onClick={() => {flushPendingColor();setMode(nextMode);}}
                                                 className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold ${allTransitionClass}`}
                                                 style={{
                                                     backgroundColor: selected ? accentColor : 'transparent',
                                                     color: selected ? panelBg : textColor,
-                                                    boxShadow: selected ? `0 4px 12px ${accentColor}40` : 'none',
+                                                    boxShadow: selected ? (pagePresentation?'none':`0 4px 12px ${accentColor}40`) : 'none',
                                                 }}
                                             >
                                                 {nextMode === 'light' ? <Sun size={15} /> : <Moon size={15} />}
-                                                <span>{nextMode === 'light' ? (t('options.lightTheme') || 'Light Theme') : (t('options.darkTheme') || 'Dark Theme')}</span>
+                                                <span>{pagePresentation?t(nextMode==='light'?'rearAppearance.editLight':'rearAppearance.editDark'):nextMode === 'light' ? (t('options.lightTheme') || 'Light Theme') : (t('options.darkTheme') || 'Dark Theme')}</span>
                                             </button>
                                         );
                                     })}
@@ -466,16 +472,16 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                             <button
                                                 key={field.key}
                                                 type="button"
-                                                onClick={() => setActiveKey(field.key)}
+                                                onClick={() => {flushPendingColor();setActiveKey(field.key);}}
                                                 className={`min-w-0 rounded-2xl border p-3.5 text-left ${allTransitionClass}`}
                                                 style={{
                                                     borderColor: selected ? accentColor : borderColor,
-                                                    backgroundColor: selected ? `${accentColor}1a` : softBg,
+                                                    backgroundColor: selected ? (pagePresentation?hoverBg:`${accentColor}1a`) : softBg,
                                                     boxShadow: selected ? `0 0 0 1px ${accentColor}` : 'none',
                                                 }}
                                             >
                                                 <div className="flex items-center gap-2.5">
-                                                    <span className={`h-6 w-6 shrink-0 rounded-full border shadow-inner ${themeTransitionClass}`} style={{ backgroundColor: color, borderColor: `${textColor}26` }} />
+                                                    <span className={`h-6 w-6 shrink-0 rounded-full border shadow-inner ${themeTransitionClass}`} style={{ backgroundColor: color, borderColor: borderColor }} />
                                                     <span className="min-w-0 truncate text-xs font-bold">
                                                         {t(field.labelKey) || field.fallbackLabel}
                                                     </span>
@@ -514,7 +520,7 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                                 type="button"
                                                 onClick={() => updateColorInstant(color)}
                                                 className="aspect-square rounded-xl border shadow-sm transition-transform hover:scale-110 active:scale-95"
-                                                style={{ backgroundColor: color, borderColor: `${textColor}26` }}
+                                                style={{ backgroundColor: color, borderColor: borderColor }}
                                                 title={color.toUpperCase()}
                                                 aria-label={color.toUpperCase()}
                                             />
