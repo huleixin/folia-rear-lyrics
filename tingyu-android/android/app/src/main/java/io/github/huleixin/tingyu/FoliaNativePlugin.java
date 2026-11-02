@@ -1037,6 +1037,7 @@ public class FoliaNativePlugin extends Plugin {
         result.put("hostStage", RearHostBridge.hostStage());
         result.put("hostProcess", RearHostBridge.hostProcess());
         result.put("hostBuild", RearHostBridge.hostBuild());
+        result.put("hostPing", RearHostBridge.pingData());
         result.put("displayMode",RearHostBridge.hasSession()?"system-card":"independent");
         result.put("pauseReturnSeconds", RearPlaybackHandoff.PAUSE_DELAY_MS / 1000);
         result.put("coverSleepEnabled", coordinator.coverSleepEnabled());

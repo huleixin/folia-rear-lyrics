@@ -1,5 +1,7 @@
 package io.github.huleixin.tingyu;
 
+import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
@@ -27,6 +29,10 @@ final class RearHostBridge {
     private static volatile boolean handshakeSeen;
     private static volatile int servicePriority=-1;
     private static volatile String hostStage="",hostError="",hostBuild="",hostProcess="";
+    /** 有序广播探针的原始回答；空表示背屏中心进程里没有任何模块应答。 */
+    private static volatile String pingData="";
+    private static volatile boolean pingAnswered;
+    private static int pingGeneration;
     private static volatile String session="",detail=disconnectedReason();
     private static volatile boolean active,suspended,releasing;
     private static volatile int display=-1;
@@ -47,10 +53,12 @@ final class RearHostBridge {
     static String hostError(){return hostError;}
     static String hostBuild(){return hostBuild;}
     static String hostProcess(){return hostProcess;}
+    static String pingData(){return pingData;}
     static String hostStatus(){
         return "handshakeSeen="+handshakeSeen()+", priority="+servicePriority
             +", process="+hostProcess()+", stage="+hostStage()
-            +", build="+hostBuild()+", error="+hostError();
+            +", build="+hostBuild()+", error="+hostError()
+            +", ping="+(pingData.isEmpty()?"<none>":pingData);
     }
     static boolean matches(String value){return RearHostPolicy.validSession(value) && value.equals(session);}
     static void cancelConnecting(){if(!hasSession())generation++;}
@@ -62,7 +70,39 @@ final class RearHostBridge {
     static String disconnectedReason(){
         String build=BuildConfig.BUILD_ID;
         if(handshakeSeen) return "背屏中心宿主连接已断开（build "+build+"），等待重新 register";
-        return "未收到背屏中心宿主 register（build "+build+"）：背屏中心进程未运行、模块未加载到该进程或 Provider 不可达";
+        if(!pingData.isEmpty()) return "背屏中心模块已加载（"+pingData+"），但 register 未到达（build "+build+"）";
+        return "无 ping 应答：模块未在背屏中心进程运行（build "+build+"）；覆盖安装后需重启背屏中心或手机";
+    }
+
+    /**
+     * 有序广播探针：不经过 ContentProvider、不依赖 Binder，只回答「模块有没有跑在这个进程」。
+     * 结果写入 trace 与 {@link #disconnectedReason()}，用来把「没装作用域」和「装了但注册失败」
+     * 分开。
+     */
+    static void probeModule(Context context){
+        final int token=++pingGeneration;
+        pingData="";
+        pingAnswered=false;
+        MAIN.postDelayed(() -> {
+            if (token != pingGeneration || pingAnswered) return;
+            RearLyricsTrace.record(context,"host/ping-timeout","no ordered-broadcast result within 1500ms, build="+BuildConfig.BUILD_ID);
+        }, 1_500);
+        try{
+            context.sendOrderedBroadcast(new Intent(RearHostContract.PING)
+                    .setPackage(RearHostContract.TARGET)
+                    .addFlags(Intent.FLAG_RECEIVER_FOREGROUND),null,
+                new BroadcastReceiver(){
+                    @Override public void onReceive(Context c,Intent intent){
+                        if(token!=pingGeneration)return;
+                        pingAnswered=true;
+                        pingData=getResultData()==null?"":getResultData();
+                        RearLyricsTrace.record(context,"host/ping","result="+getResultCode()
+                            +", data="+(pingData.isEmpty()?"<none>":pingData)+", build="+BuildConfig.BUILD_ID);
+                    }
+                },MAIN,Activity.RESULT_CANCELED,null,null);
+        }catch(Throwable error){
+            RearLyricsTrace.record(context,"host/ping-failed",error.getClass().getSimpleName()+": "+error.getMessage());
+        }
     }
 
     static synchronized void connect(Context context,IBinder binder,int protocol,String profile,
@@ -93,7 +133,10 @@ final class RearHostBridge {
         final int token=++generation;
         RearLyricsTrace.record(context,"host/connect-request","build="+BuildConfig.BUILD_ID
             +", display="+rear+", connected="+connected()+", handshakeSeen="+handshakeSeen+", "+hostStatus());
-        context.sendBroadcast(new Intent(RearHostContract.REQUEST).setPackage(RearHostContract.TARGET));
+        probeModule(context);
+        context.sendBroadcast(new Intent(RearHostContract.REQUEST)
+            .setPackage(RearHostContract.TARGET)
+            .addFlags(Intent.FLAG_RECEIVER_FOREGROUND));
         MAIN.postDelayed(()->{
             if(!RearHostPolicy.mayStart(token,generation,RearLyricsCoordinator.get(context).canPresent())){
                 if(token==generation)callback.done(false,-1,"显示意图已取消或暂不可用");

@@ -14,6 +14,12 @@ public final class RearHostContract {
     public static final String APP = BuildConfig.APPLICATION_ID;
     public static final String AUTHORITY = APP + ".rearhost";
     public static final String REQUEST = APP + ".rearhost.CONNECT";
+    /**
+     * 有序广播探针：背屏中心进程里的模块用 {@code setResultData} 回答
+     * {@code build/process/stage/error}。它不经过 ContentProvider，不受包可见性影响，
+     * 是「模块到底有没有跑在这个进程里」的独立证据。
+     */
+    public static final String PING = APP + ".rearhost.PING";
     public static final String DESCRIPTOR = APP + ".rearhost.v2";
     public static final int VERSION = 2, SHOW = 1, HIDE = 2, SUSPEND = 3, PROBE = 4;
     /** 宿主允许上报的事件；ready 是唯一会把应用侧会话标记为「已接管」的事件。 */

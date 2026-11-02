@@ -61,6 +61,8 @@ public final class RearHostHooks {
     private static volatile String stageError = "";
     private static volatile int priority;
     private static volatile String capability = "not installed";
+    /** 最近一次 register 失败的原因；由 ping 应答带回听屿，Provider 不可达时也能读到最后错误。 */
+    private static volatile String registerError = "";
 
     /**
      * 在 {@code com.xiaomi.subscreencenter} 的<b>任意进程</b>调用。
@@ -151,17 +153,60 @@ public final class RearHostHooks {
         }
     }
 
-    /** attach / onCreate 共用：Application 已经存在，创建唯一 Controller 并主动 register。 */
+    /** attach / onCreate 共用：先挂一个最小的 ping 应答器，再创建唯一 Controller。 */
     private static void ensureController(Object target) {
-        if (!(target instanceof Application) || controller != null) return;
+        if (!(target instanceof Application)) return;
+        Application application = (Application) target;
+        ensurePing(application);
+        if (controller != null) return;
         try {
-            controller = new Controller((Application) target, process);
+            controller = new Controller(application, process);
             log("controller created process=" + process);
             controller.publish("controller-created");
         } catch (Throwable error) {
             stage = "controller-failed";
             stageError = describe(error);
             log("controller create failed: " + stageError);
+        }
+    }
+
+    private static BroadcastReceiver pingReceiver;
+
+    /**
+     * 独立于 Provider/Binder 的存活证明：听屿发有序广播，模块用 setResultData 回答。
+     * 即使 Controller 创建失败、Provider 不可见、UID 校验拒绝，只要模块进程里这段代码
+     * 跑到过，听屿就能拿到 build/process/stage；拿不到则说明模块没在该进程运行。
+     */
+    private static void ensurePing(Application application) {
+        if (pingReceiver != null) return;
+        try {
+            pingReceiver = new BroadcastReceiver() {
+                @Override public void onReceive(Context context, Intent intent) {
+                    if (!RearHostContract.PING.equals(intent.getAction())) return;
+                    String data = "build=" + BuildConfig.BUILD_ID
+                        + ";process=" + process
+                        + ";stage=" + stage
+                        + ";controller=" + (controller != null ? "yes" : "no")
+                        + ";register=" + (registerError.isEmpty() ? "-" : registerError)
+                        + ";error=" + (stageError.isEmpty() ? "-" : stageError);
+                    try {
+                        setResultCode(1);
+                        setResultData(data);
+                    } catch (Throwable ignored) {}
+                    log("ping answered: " + data);
+                }
+            };
+            IntentFilter filter = new IntentFilter(RearHostContract.PING);
+            Handler handler = new Handler(Looper.getMainLooper());
+            if (Build.VERSION.SDK_INT >= 33) {
+                application.registerReceiver(pingReceiver, filter, null, handler, Context.RECEIVER_EXPORTED);
+            } else {
+                application.registerReceiver(pingReceiver, filter, null, handler);
+            }
+            log("ping receiver registered");
+        } catch (Throwable error) {
+            if (stageError.isEmpty()) stageError = "ping: " + describe(error);
+            log("ping receiver failed: " + describe(error));
         }
     }
 
@@ -238,7 +283,9 @@ public final class RearHostHooks {
             && (name.equals(launcherClass) || name.endsWith("SubScreenLauncher"));
     }
 
+    /** 同时写 logcat（tag TingyuRearHost）与 LSPosed 日志，真机取证不再依赖某一端。 */
     private static void log(String message) {
+        try { android.util.Log.i(TAG, message); } catch (Throwable ignored) {}
         XposedBridge.log(TAG + ": " + message);
     }
 
@@ -260,6 +307,7 @@ public final class RearHostHooks {
         private boolean launcherSeen;
         private int display = -1, rebinds, launches;
         private long nextLaunchAt, pausedAt;
+        private int publishFailures;
         private String lastFailure = "背屏中心 launcher 尚未出现";
 
         Controller(Application application, String processName) {
@@ -354,9 +402,14 @@ public final class RearHostHooks {
                         }), 0);
                     }
                     log("registered with app (" + why + "), lifeline=" + (next != null) + ", appUid=" + appUid);
+                    registerError = "";
                 } catch (Throwable error) {
                     // 这里失败通常是 Provider 不可见/权限/进程问题；Logcat 保留阶段与堆栈。
-                    log("register failed (" + why + ", stage=" + stage + "): " + describe(error));
+                    registerError = describe(error);
+                    log("register failed (" + why + ", stage=" + stage + "): " + registerError);
+                    // 只重试一次：覆盖「听屿进程正在启动、Provider 尚未就绪」的瞬时失败，
+                    // 不做无限重试，也不把失败藏起来。
+                    if (publishFailures++ == 0) main.postDelayed(() -> publish("retry-once"), 1_500);
                 }
             });
         }

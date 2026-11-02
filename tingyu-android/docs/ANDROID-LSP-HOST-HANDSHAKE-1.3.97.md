@@ -1,5 +1,9 @@
 # 听屿 1.3.97：宿主握手修复（hostConnected=false）
 
+> 1.3.98 追加了不经过 Provider 的有序广播 ping，用来证明模块是否真的运行在背屏中心进程，
+> 并记录 `handleLoadPackage` 的最早入口。见
+> [`ANDROID-LSP-HOST-PING-1.3.98.md`](ANDROID-LSP-HOST-PING-1.3.98.md)。
+
 基线：1.3.96 / versionCode 119。本版为 1.3.97 / 120。
 
 1.3.96 把宿主从系统音乐卡片搬到了背屏中心 launcher 窗口，架构不变；本版只修**通信链**。

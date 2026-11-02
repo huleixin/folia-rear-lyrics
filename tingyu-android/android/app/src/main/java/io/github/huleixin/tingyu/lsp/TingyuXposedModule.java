@@ -20,6 +20,12 @@ public final class TingyuXposedModule implements IXposedHookLoadPackage {
     private static boolean installed;
     private static final RearDisplayPower power = new RearDisplayPower();
     @Override public void handleLoadPackage(XC_LoadPackage.LoadPackageParam param) {
+        // 最早入口：先记录实际包名/进程名/构建标识。没有这一行，就无法区分
+        // 「模块没被注入」「注入了别的进程」「注入了旧版本」。
+        String entry = "handleLoadPackage pkg=" + param.packageName + " process=" + param.processName
+            + " build=" + io.github.huleixin.tingyu.BuildConfig.BUILD_ID;
+        android.util.Log.i("TingyuRearHost", entry);
+        XposedBridge.log("TingyuRearHost: " + entry);
         // 背屏中心可能在主进程之外运行 launcher（:subscreen 等）。1.3.96 只认主进程，
         // 进程名一变就整条宿主链路静默消失。通信初始化的代价很低，按包名在所有进程安装，
         // 由 Controller 上报真实进程名与 priority 供应用侧选择。
