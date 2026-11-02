@@ -54,7 +54,7 @@ final class RearLyricsCoordinator {
     private final RearCommandGate gate = new RearCommandGate();
     private volatile RearLyricsTaskList.Evidence evidence;
     private long lastReadableAt, planAttemptGeneration, nextPlanWakeAt;
-    private boolean planRestoring, reuseBroken, hostTried, hostConnecting;
+    private boolean planRestoring, reuseBroken, hostTried, hostConnecting, hostOwned;
     private volatile boolean dismissed, rendererFailed;
     private int hardYieldTries;
     /**
@@ -545,6 +545,9 @@ final class RearLyricsCoordinator {
         coveredRecovery.reset(); pendingVerify = null; coveredBusy = false; migrateOnce = false;
         if (reason == CloseReason.CAMERA) { if (!planA()) rear.releaseFinished(true, now); }
         else rear.markSystemOwned("window-closed");
+        // 这一次显示会话确实是背屏中心宿主承载的：会话结束后重新允许宿主尝试，
+        // 否则暂停回退关闭一次，之后每次播放都会被 hostTried 永久挡在独立窗口里。
+        if (hostOwned) { hostOwned = false; hostTried = false; }
         if (planA()) planRestoring = false;
         if (wanted()) nudge();
     }
@@ -867,9 +870,14 @@ final class RearLyricsCoordinator {
         });
     }
     void hostDisconnected(String oldSession) {
-        main.post(()->{hostTried=true;hostConnecting=false;pending=false;
+        main.post(()->{hostTried=true;hostConnecting=false;pending=false;hostOwned=false;
             RearLyricsTrace.record(context,"host-disconnected","session="+oldSession+", "+RearHostBridge.detail());nudge();});
     }
+    /**
+     * 背屏中心宿主的首帧已经画出来。记下「本次显示会话由宿主承载」：这样暂停回退关闭之后，
+     * 下一次播放仍会先尝试宿主，而不是因为 hostTried 残留而永久退回独立窗口。
+     */
+    void hostReady() { hostOwned=true; }
     String displaySession(){return RearHostBridge.hasSession()?RearHostBridge.session():RearLyricsActivity.currentSession();}
     void windowChanged() { main.post(this::nudge); }
     private void nudge() {
@@ -971,7 +979,8 @@ final class RearLyricsCoordinator {
             if (LspRearBridge.selected(context) && !hostTried) {
                 if(RearLyricsActivity.isEnabled() || RearLyricsActivity.hasWindow()){closeWindow(CloseReason.SWITCH);return;}
                 hostTried=true;hostConnecting=true;pending=true;final int token=++attemptToken;
-                RearHostBridge.show(context,(ok,display,message)->{
+                final int rear=rearDisplayForShell();
+                RearHostBridge.show(context,rear,(ok,display,message)->{
                     if(token!=attemptToken)return;
                     hostConnecting=false;pending=false;
                     if(ok){complete(true,display,message,null);schedule(2000);}

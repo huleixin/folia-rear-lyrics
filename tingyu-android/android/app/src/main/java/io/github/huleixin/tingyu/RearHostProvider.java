@@ -44,7 +44,7 @@ public final class RearHostProvider extends ContentProvider {
         String session=extras.getString("session","");enforceSession(session);
         if("report".equals(method)){
             String event=extras.getString("event","");
-            if(!java.util.Arrays.asList("ready","paused","failed","user-exit").contains(event))throw new IllegalArgumentException("Invalid host event");
+            if(!RearHostContract.knownEvent(event))throw new IllegalArgumentException("Invalid host event");
             RearHostBridge.report(getContext(),session,event,extras.getInt("display",-1),extras.getString("reason",""));
         }else if("action".equals(method)){
             String action=extras.getString("action","");
