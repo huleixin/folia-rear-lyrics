@@ -1,3 +1,4 @@
+import {isRearAod} from './rearAodRuntime';
 import {rearPlaybackAuthority} from './rearPlaybackAuthority';
 import type { LyricsSurfaceTransport } from '../types/lyricsSurfaceTransport';
 import { PlayerState, type LyricData } from '../types';
@@ -302,7 +303,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                     recovering=false;
                     if(track && lyricLines===0 && !lyricLoading && !lyricRetry && lyricAttempt<NATIVE_LYRIC_MAX_ATTEMPTS)void loadNativeLyrics(track,lyricAttempt);
                 }
-                if (snapshot.audio && (snapshot.audio.sentAtMs === undefined || snapshot.audio.sentAtMs !== lastAudioAt)) {
+                if (!isRearAod() && snapshot.audio && (snapshot.audio.sentAtMs === undefined || snapshot.audio.sentAtMs !== lastAudioAt)) {
                     lastAudioAt = snapshot.audio.sentAtMs; events.audio(snapshot.audio);
                 }
         };
@@ -356,7 +357,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                 sendAppliedBeat();
                 if (!inactive()) setConnected(true);
             } catch { setConnected(false); }
-            finally { polling = false; if (!closed && !inactive()) timer = window.setTimeout(() => void poll(), turn!==pollGeneration?0:lastClock?.playerState === PlayerState.PLAYING ? 100 : 250); }
+            finally { polling = false; if (!closed && !inactive()) timer = window.setTimeout(() => void poll(), turn!==pollGeneration?0:isRearAod()?1000:lastClock?.playerState === PlayerState.PLAYING ? 100 : 250); }
         };
         const start = () => {
             if (closed || inactive()) return;
@@ -373,6 +374,8 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         };
         const resync=()=>{revision=-1;refresh();};
         window.addEventListener('folia-rear-resync',resync);
+        const semanticRefresh=()=>{clearTimeout(timer);if(!options.receiveSnapshots&&!polling&&!inactive())void poll();};
+        window.addEventListener('folia-rear-refresh',semanticRefresh);
         const power = (event: Event) => {
             sleeping = (event as CustomEvent<{ sleeping: boolean }>).detail?.sleeping === true;
             // 原生归因要用：轮询消失时区分「自己休眠了（正常）」与「突然失联」。
@@ -382,6 +385,6 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         window.addEventListener('folia-rear-power', power);
         if (typeof document !== 'undefined') document.addEventListener('visibilitychange', refresh);
         start();
-        return () => { closed = true; lyricAbort?.abort();lyricRequest++; receiveCleanup?.(); abort.abort(); clearTimeout(timer); clearTimeout(lyricRetry); window.removeEventListener('folia-rear-power', power); window.removeEventListener('folia-rear-resync',resync); if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', refresh); if (ownedFont) document.fonts.delete(ownedFont); };
+        return () => { closed = true; lyricAbort?.abort();lyricRequest++; receiveCleanup?.(); abort.abort(); clearTimeout(timer); clearTimeout(lyricRetry); window.removeEventListener('folia-rear-refresh',semanticRefresh);window.removeEventListener('folia-rear-power', power); window.removeEventListener('folia-rear-resync',resync); if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', refresh); if (ownedFont) document.fonts.delete(ownedFont); };
     } };
 }

@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { installGlobalVisualizerFrameRateLimiter, setGlobalVisualizerFrameRate } from '@/utils/frameRateLimiter';
-import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame, requestVisualizerBackgroundFrame, cancelVisualizerBackgroundFrame } from '@/utils/visualizerFrameChannel';
+import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame, requestVisualizerBackgroundFrame, cancelVisualizerBackgroundFrame,setVisualizerLowPower,setVisualizerRenderingSuspended,bindVisualizerTickerRate } from '@/utils/visualizerFrameChannel';
 
 // test/unit/utils/visualizerFrameChannel.test.ts
 // A 60Hz UI must remain independent of the graphics cap, including live cap changes and cancellation.
@@ -29,4 +29,25 @@ it('keeps native UI frames while foreground follows 60FPS and wallpaper 30FPS an
     expect(graphics-a).toBeGreaterThanOrEqual(29);expect(graphics-a).toBeLessThanOrEqual(32);
     expect(background-b).toBeGreaterThanOrEqual(29);expect(background-b).toBeLessThanOrEqual(32);
     expect(bgCancelled).not.toHaveBeenCalled();
+});
+
+it('AOD samples pending graphics at 2Hz without requesting native RAF and resumes the same queue',()=>{
+    vi.useFakeTimers();const raf=vi.fn(()=>1),cancel=vi.fn();
+    vi.stubGlobal('window',{requestAnimationFrame:raf,cancelAnimationFrame:cancel,Capacitor:{getPlatform:()=> 'android'},localStorage:{getItem:()=>null}});
+    installGlobalVisualizerFrameRateLimiter();let count=0,handle=0;
+    const tick=()=>{count++;handle=requestVisualizerAnimationFrame(tick);};
+    requestVisualizerAnimationFrame(tick);setVisualizerLowPower(true);raf.mockClear();
+    vi.advanceTimersByTime(2000);expect(count).toBe(4);expect(raf).not.toHaveBeenCalled();
+    setVisualizerRenderingSuspended(true);vi.advanceTimersByTime(5000);expect(count).toBe(4);
+    setVisualizerRenderingSuspended(false);vi.advanceTimersByTime(500);expect(count).toBe(5);
+    cancelVisualizerAnimationFrame(handle);setVisualizerLowPower(false);vi.clearAllTimers();vi.useRealTimers();
+});
+it('AOD stops the independent Pixi ticker and drives only bounded manual updates',()=>{
+    vi.useFakeTimers();const ticker={maxFPS:60,started:true,stop:vi.fn(),start:vi.fn(),update:vi.fn()};
+    const cleanup=bindVisualizerTickerRate(ticker);setVisualizerLowPower(true);
+    expect(ticker.stop).toHaveBeenCalled();expect(ticker.maxFPS).toBe(2);
+    vi.advanceTimersByTime(1000);expect(ticker.update).toHaveBeenCalledTimes(2);
+    setVisualizerRenderingSuspended(true);vi.advanceTimersByTime(2000);expect(ticker.update).toHaveBeenCalledTimes(2);
+    setVisualizerRenderingSuspended(false);setVisualizerLowPower(false);expect(ticker.start).toHaveBeenCalled();
+    cleanup();vi.clearAllTimers();vi.useRealTimers();
 });

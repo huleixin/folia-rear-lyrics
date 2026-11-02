@@ -1,3 +1,4 @@
+import {useRearAod,isRearAod} from '../../services/rearAodRuntime';
 import {rearBootTrace} from '../../services/rearBootTrace';
 import { useRearStageActive } from '../../hooks/useStageActivity';
 import { setGlobalVisualizerFrameRate } from '../../utils/frameRateLimiter';
@@ -15,6 +16,7 @@ import { createRearStateRelay } from '../../services/rearStateRelay';
 // src/components/rear/RearLyricsSurface.tsx
 // Full-panel wallpaper and a separate, transparent lyric viewport share the published Folia settings.
 export default function RearLyricsSurface() {
+    const aod=useRearAod();
     const panel = useRef<HTMLIFrameElement>(null);
     const active = useRearStageActive();
     const viewport = useRearViewport();
@@ -40,6 +42,7 @@ export default function RearLyricsSurface() {
             clock: value => setPaused(value.playerState !== PlayerState.PLAYING),
             connected: relay.setConnected,
             audio: value => {
+                if(isRearAod())return;
                 audioPower.set(value.audioPower);
                 bass.set(value.bands.bass); lowMid.set(value.bands.lowMid); mid.set(value.bands.mid);
                 vocal.set(value.bands.vocal); treble.set(value.bands.treble);
@@ -54,18 +57,21 @@ export default function RearLyricsSurface() {
             const frame = panel.current?.contentWindow;
             if (frame) frame.dispatchEvent(new CustomEvent('folia-rear-power', { detail }));
         };
+        const mode=(event:Event)=>{panel.current?.contentWindow?.dispatchEvent(new CustomEvent('folia-rear-mode',{detail:(event as CustomEvent).detail}));};
+        window.addEventListener('folia-rear-mode',mode);
         const resync=()=>relay.reset();
         window.addEventListener('folia-rear-resync',resync);
         window.addEventListener('folia-rear-power', power);
-        return () => { relay.dispose(); unsubscribe(); window.removeEventListener('folia-rear-reveal', reveal); window.removeEventListener('folia-rear-power', power); window.removeEventListener('folia-rear-resync',resync); };
+        return () => { relay.dispose(); unsubscribe();window.removeEventListener('folia-rear-mode',mode); window.removeEventListener('folia-rear-reveal', reveal); window.removeEventListener('folia-rear-power', power); window.removeEventListener('folia-rear-resync',resync); };
     }, [audioPower, audioBands, bass, lowMid, mid, vocal, treble, spectrum, reveal]);
+    useEffect(()=>{if(!aod)return;audioPower.set(0);bass.set(0);lowMid.set(0);mid.set(0);vocal.set(0);treble.set(0);spectrum.set(new Uint8Array(0));},[aod,audioPower,bass,lowMid,mid,vocal,treble,spectrum]);
     return <main data-testid="rear-lyrics-surface" onPointerDownCapture={reveal}
-        style={{ position: 'fixed', inset: 0, overflow: 'hidden', touchAction: 'none', userSelect: 'none', background: config?.theme.backgroundColor ?? '#09090b' }}>
+        style={{ filter:aod?'brightness(.38) saturate(.6)':undefined, position: 'fixed', inset: 0, overflow: 'hidden', touchAction: 'none', userSelect: 'none', background: config?.theme.backgroundColor ?? '#09090b' }}>
         <div data-testid="rear-wallpaper" style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', opacity: config?.visualizerOpacity ?? 1 }}>
             {config && active && <VisualizerBackgroundRenderer config={config.background} theme={config.theme}
                 isDaylight={config.isDaylight} coverUrl={getSizedCoverUrl(config.coverUrl, 1024)}
-                audioPower={audioPower} audioBands={audioBands} seed={config.seed} staticMode={config.staticMode} paused={paused || sleeping} />}
+                audioPower={audioPower} audioBands={audioBands} seed={config.seed} staticMode={config.staticMode||aod} paused={paused || sleeping||aod} />}
         </div>
-        <RearLyricsViewport ref={panel} viewport={viewport} />
+        <RearLyricsViewport onLoad={()=>panel.current?.contentWindow?.dispatchEvent(new CustomEvent('folia-rear-mode',{detail:{mode:isRearAod()?'AOD':'NORMAL'}}))} ref={panel} viewport={viewport} />
     </main>;
 }

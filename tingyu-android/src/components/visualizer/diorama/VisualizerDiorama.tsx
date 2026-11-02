@@ -1,7 +1,8 @@
 import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../../utils/visualizerFrameChannel';
 import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas,useThree } from '@react-three/fiber';
+import {useRearAod} from '../../../services/rearAodRuntime';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { DEFAULT_DIORAMA_TUNING, type Line } from '../../../types';
@@ -48,6 +49,12 @@ type VisualizerDioramaProps = VisualizerSharedProps;
 // The mounted window reaches this far behind the current line (mirrors DioramaScene's LINES_BEHIND with
 // margin): segments whose lines are all further behind than this are safe to prune - but never while a
 // transition still needs the outgoing segment mounted.
+function RearAodDemandFrame(){
+    const aod=useRearAod(),invalidate=useThree(state=>state.invalidate);
+    useEffect(()=>{if(!aod)return;let handle=0;const draw=()=>{invalidate();handle=requestVisualizerAnimationFrame(draw)};draw();return()=>cancelVisualizerAnimationFrame(handle);},[aod,invalidate]);
+    return null;
+}
+
 const PRUNE_MARGIN_BEHIND = 4;
 // A single-loop restart / return-to-top lands the line index at (or within one of) the very first line
 // after the song had progressed past it. Ordinary forward play never moves the index backward, and a
@@ -102,6 +109,7 @@ const INSTRUMENTAL_COMMIT_SECONDS = 2;
 const READY_GRACE_MS = 8000;
 
 const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
+    const rearAod=useRearAod();
     const {
         currentTime,
         currentLineIndex,
@@ -410,7 +418,7 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
                     camera={{ position: [0, 0.6, 9], fov: 55 }}
                     dpr={[1, resolveStageRenderRatio(2)]}
                     // 暂停时切 demand：画面静止就不再每帧重画 3D 场景，恢复播放由 R3F 自动续帧。
-                    frameloop={props.paused ? 'demand' : 'always'}
+                    frameloop={props.paused||rearAod ? 'demand' : 'always'}
                     gl={{
                         alpha: true,
                         // 安卓 WebView 上全屏 MSAA 多重采样的填充率开销极大；移动端关闭，
@@ -419,6 +427,7 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
                     }}
                     style={{ background: 'transparent' }}
                 >
+                    <RearAodDemandFrame />
                     <CameraRig
                         currentTime={currentTime}
                         sequencer={seq}

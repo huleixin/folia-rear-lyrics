@@ -1,3 +1,4 @@
+import {useRearAod} from '../../services/rearAodRuntime';
 import {rearBootTrace} from '../../services/rearBootTrace';
 import { useRearStageActive } from '../../hooks/useStageActivity';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -12,6 +13,7 @@ import { subscribeRearStateRelay } from '../../services/rearStateRelay';
 // src/components/rear/RearLyricsPanel.tsx
 // The renderer lays out on the right, but its transitions paint across the full rear iframe.
 export default function RearLyricsPanel() {
+    const aod=useRearAod();
     const { t } = useTranslation();
     const active = useRearStageActive();
     const [playing, setPlaying] = useState(false);
@@ -64,7 +66,7 @@ export default function RearLyricsPanel() {
         return () => { clearTimeout(hideTimer.current); window.removeEventListener('folia-rear-reveal', reveal); };
     }, [reveal]);
     useEffect(() => {
-        if (!progressVisible || !active) return;
+        if (aod || !progressVisible || !active) return;
         let frame = 0;
         const format = (time: number) => `${Math.floor(time / 60).toString().padStart(2, '0')}:${Math.floor(time % 60).toString().padStart(2, '0')}`;
         const update = () => {
@@ -81,13 +83,13 @@ export default function RearLyricsPanel() {
         refreshPausedProgress.current = playing ? null : update;
         update();
         return () => { refreshPausedProgress.current = null; cancelAnimationFrame(frame); };
-    }, [progressVisible, active, playing]);
+    }, [progressVisible, active, playing,aod]);
     return <main data-testid="rear-lyrics-panel" onPointerDownCapture={reveal}
         style={{ position: 'fixed', inset: 0, overflow: 'hidden', touchAction: 'none', userSelect: 'none', background: 'transparent' }}>
         <div style={{ width: '100%', height: '100%', pointerEvents: 'none' }}>
             <ObsBrowserSourceApp transport={transport} onConfigured={configured} />
         </div>
-        <div data-testid="rear-progress" aria-hidden={!progressVisible}
+        <div hidden={aod} data-testid="rear-progress" aria-hidden={!progressVisible}
             style={{ position: 'absolute', left: '40.6%', right: '6.6%', bottom: 'max(18px, 8%)', opacity: progressVisible ? 1 : 0,
                 transition: 'opacity 180ms', pointerEvents: progressVisible ? 'auto' : 'none', color: theme?.primaryColor ?? '#eee' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 18, marginBottom: 7 }}>

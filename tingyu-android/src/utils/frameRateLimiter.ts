@@ -15,6 +15,8 @@ export type FrameRateLimitedRaf = {
     setFrameRate: (frameRate: VisualizerFrameRate) => void;
     getFrameRate: () => VisualizerFrameRate;
     dispose: () => void;
+    flushPending?: (timestamp:number)=>void;
+    hasPending?: ()=>boolean;
     setSuspended?: (suspended: boolean) => void;
 };
 
@@ -120,6 +122,13 @@ export const createFrameRateLimitedRaf = (
     };
 
     return {
+        hasPending:()=>callbacks.size>0,
+        flushPending:(timestamp)=>{
+            for(const handle of [...callbacks.keys()]){
+                const cb=callbacks.get(handle);if(!cb)continue;callbacks.delete(handle);
+                try{cb(timestamp)}catch(error){reportAnimationFrameCallbackError(error)}
+            }
+        },
         setSuspended: (value) => {
             suspended = value;
             if (value && nativeFrameHandle !== null) { nativeCancelAnimationFrame(nativeFrameHandle); nativeFrameHandle = null; }

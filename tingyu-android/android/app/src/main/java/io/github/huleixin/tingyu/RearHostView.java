@@ -42,8 +42,6 @@ final class RearHostView {
     private final Events events;
     private final Handler main = new Handler(Looper.getMainLooper());
     private FrameLayout stage;
-    private android.widget.TextView aodLabel;
-    private RearCardAod aodRenderer;
     private boolean followAod=true;
     private RearCardRenderPolicy.Mode mode=RearCardRenderPolicy.Mode.HIDDEN;
     private WebView renderer;
@@ -153,6 +151,7 @@ final class RearHostView {
                     if (closed || !events.current(session)) return;
                     ready = true;
                     followAod=client.followAod();
+                    dispatch("folia-rear-mode","{\"mode\":\""+mode+"\"}");
                     events.report(session,"page-ready",displayId(),"rear document ready; shown="+shown);
                     // An alpha-zero parent may be culled before the child ever reaches onDraw.
                     try{if(shown && stage!=null){if(card!=null)card.acquire(stage);stage.setAlpha(1f);}}catch(Throwable error){fail("Native card acquire failed: "+error.getClass().getSimpleName());return;}
@@ -163,11 +162,6 @@ final class RearHostView {
                     else main.post(() -> fail(reason));
                 }
             });
-            aodLabel=new android.widget.TextView(context);
-            aodLabel.setTextColor(0xff999999);aodLabel.setBackgroundColor(Color.BLACK);
-            aodLabel.setGravity(android.view.Gravity.CENTER);aodLabel.setTextSize(18);
-            aodLabel.setPadding(40,24,24,24);aodLabel.setVisibility(View.GONE);
-            aodRenderer=new RearCardAod(client,aodLabel);
             renderer.setWebViewClient(client);
             renderer.setWebChromeClient(new android.webkit.WebChromeClient(){
                 @Override public boolean onConsoleMessage(android.webkit.ConsoleMessage message){
@@ -178,15 +172,12 @@ final class RearHostView {
             });
             boot("webview-created","javascript="+renderer.getSettings().getJavaScriptEnabled());
             stage.addView(renderer, new FrameLayout.LayoutParams(-1, -1));
-            stage.addView(aodLabel,new FrameLayout.LayoutParams(-1,-1));
             group.addView(stage, new FrameLayout.LayoutParams(-1, -1));
             stage.addOnLayoutChangeListener((view, l, t, r, b, ol, ot, or, ob) -> {
                 if (renderer != null) {
                     RearLyricsViewportMetrics.fit(stage, renderer);
                     RearLyricsViewportMetrics.capture(renderer);
-                    FrameLayout.LayoutParams fit=(FrameLayout.LayoutParams)renderer.getLayoutParams();
-                    FrameLayout.LayoutParams aodFit=new FrameLayout.LayoutParams(fit.width,fit.height);
-                    aodFit.leftMargin=fit.leftMargin;aodFit.topMargin=fit.topMargin;aodLabel.setLayoutParams(aodFit);
+
                 }
             });
             stage.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
@@ -202,7 +193,7 @@ final class RearHostView {
             displays = (DisplayManager) context.getSystemService(android.content.Context.DISPLAY_SERVICE);
             if (displays != null) displays.registerDisplayListener(displayListener, main);
             updates = new ContentObserver(main) {
-                @Override public void onChange(boolean self) { if (client != null) client.invalidate(); if(aodRenderer!=null){followAod=client.followAod();reconcile();aodRenderer.refresh();} }
+                @Override public void onChange(boolean self) { if (client != null) client.invalidate(); if(client!=null){followAod=client.followAod();reconcile();dispatch("folia-rear-refresh","{}");} }
             };
             context.getContentResolver().registerContentObserver(
                 Uri.parse("content://" + RearHostContract.AUTHORITY + "/state"), false, updates);
@@ -256,17 +247,14 @@ final class RearHostView {
             card.binding.current()&&card.container.isShown()&&stage.isAttachedToWindow(),suspended,followAod,aod,panelState());
         if(next!=mode){
             mode=next;
-            events.report(session,"render-mode",displayId(),"implementation=NATIVE_CARD, mode="+mode+", power="+panelState()+", aodCommand="+aod+", own="+card.ownMedia());
-            if(aodRenderer!=null)aodRenderer.active(mode==RearCardRenderPolicy.Mode.AOD);
+            events.report(session,"render-mode",displayId(),"implementation=NATIVE_CARD, renderer=WEB_STAGE_AOD, mode="+mode+", power="+panelState()+", aodCommand="+aod+", own="+card.ownMedia());
+            dispatch("folia-rear-mode","{\"mode\":\""+mode+"\"}");
         }
-        if(mode==RearCardRenderPolicy.Mode.AOD){
-            pauseRenderer();renderer.setVisibility(View.INVISIBLE);
-            if(ready){try{card.acquire(stage);}catch(Throwable error){fail("AOD ownership failed");return;}}
-            stage.setVisibility(View.VISIBLE);aodLabel.setVisibility(View.VISIBLE);
-            shown=false;readyReported=false;
-        }else{
-            aodLabel.setVisibility(View.GONE);renderer.setVisibility(View.VISIBLE);
-            if(mode==RearCardRenderPolicy.Mode.NORMAL&&resumed)show();else hide(hiddenReason());
+        if(mode==RearCardRenderPolicy.Mode.HIDDEN){hide(hiddenReason());}
+        else {
+            renderer.setVisibility(View.VISIBLE);
+            dispatch("folia-rear-mode","{\"mode\":\""+mode+"\"}");
+            show();
         }
     }
 
@@ -344,7 +332,6 @@ final class RearHostView {
         if (Looper.myLooper() != main.getLooper()) { main.post(this::close); return; }
         if (closed) return;
         closed = true;
-        if(aodRenderer!=null)aodRenderer.close();
         if(card!=null){card.restore();try{card.unwatch();}catch(Throwable error){boot("web-error","media callback cleanup "+error.getClass().getSimpleName());}}
         if (displays != null) { try { displays.unregisterDisplayListener(displayListener); } catch (Throwable ignored) {} displays = null; }
         if (updates != null) { try { context.getContentResolver().unregisterContentObserver(updates); } catch (Throwable ignored) {} updates = null; }

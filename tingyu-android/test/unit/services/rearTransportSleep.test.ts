@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
+import {setRearAod} from '@/services/rearAodRuntime';
 import { createRearLyricsTransport } from '@/services/rearLyricsTransport';
 
 // test/unit/services/rearTransportSleep.test.ts
@@ -81,4 +82,16 @@ it('resync of the same epoch retains cached lyrics and independent visual settin
     expect(fetcher.mock.calls.filter(c=>c[0].includes('/lyrics'))).toHaveLength(reads);
     expect(config.mock.lastCall?.[0].theme.name).toBe('Rear independent');expect(config.mock.lastCall?.[0].lyrics.lines[0].fullText).toBe('current lyric');
     stop();expect(vi.getTimerCount()).toBe(0);
+});
+
+it('AOD keeps config and seek clock, skips audio and calibrates at one second',async()=>{
+    vi.useFakeTimers();const target=new EventTarget();vi.stubGlobal('window',Object.assign(target,{setTimeout,clearTimeout}));
+    vi.stubGlobal('document',{hidden:false,documentElement:{dataset:{}},addEventListener:vi.fn(),removeEventListener:vi.fn()});
+    let pos=4;const config={song:{id:'same'},theme:{},visualizerMode:'fume',lyrics:{lines:[]}};
+    const fetcher=vi.fn(async()=>({ok:true,json:async()=>({revision:1,config,clock:{currentTime:pos,duration:100,playerState:'PLAYING',playbackRate:1,sentAtMs:Date.now()},audio:{audioPower:1,bands:{},spectrum:[255],sentAtMs:Date.now()}})}));
+    vi.stubGlobal('fetch',fetcher);setRearAod(true);const clock=vi.fn(),audio=vi.fn(),configured=vi.fn();
+    const stop=createRearLyricsTransport(()=>{},()=>{},false).subscribe({config:configured,clock,audio,connected:vi.fn()});
+    await vi.advanceTimersByTimeAsync(2100);expect(fetcher).toHaveBeenCalledTimes(3);expect(audio).not.toHaveBeenCalled();expect(configured).toHaveBeenCalledTimes(1);
+    pos=65;target.dispatchEvent(new Event('folia-rear-refresh'));await vi.advanceTimersByTimeAsync(0);expect(clock.mock.calls.at(-1)?.[0].currentTime).toBe(65);
+    stop();setRearAod(false);vi.clearAllTimers();
 });

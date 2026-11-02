@@ -1,3 +1,5 @@
+import {useRearAod,isRearAod} from '../../services/rearAodRuntime';
+import {MotionConfig} from 'framer-motion';
 import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../utils/visualizerFrameChannel';
 import { useRearStageActive } from '../../hooks/useStageActivity';
 import { setGlobalVisualizerFrameRate } from '../../utils/frameRateLimiter';
@@ -29,6 +31,7 @@ const buildEventSourceUrl = () => {
 };
 
 const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConfigured?: () => void }> = ({ transport, onConfigured }) => {
+    const aod=useRearAod();
     const { t } = useTranslation();
     const surfaceActive = useRearStageActive();
     const [config, setConfig] = useState<ObsBrowserSourceConfig | null>(null);
@@ -44,6 +47,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
     const configSignatureRef = useRef<string | null>(null);
     const surfaceRef = useRef<HTMLDivElement>(null);
     const currentTime = useMotionValue(0);
+    const updateStats=useRef({count:0,at:0});
     const audioPower = useMotionValue(0);
     const bass = useMotionValue(0);
     const lowMid = useMotionValue(0);
@@ -60,6 +64,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
         spectrum,
     }), [bass, lowMid, mid, spectrum, treble, vocal]);
 
+    useEffect(()=>{if(!aod)return;audioPower.set(0);bass.set(0);lowMid.set(0);mid.set(0);vocal.set(0);treble.set(0);spectrum.set(EMPTY_SPECTRUM);},[aod,audioPower,bass,lowMid,mid,vocal,treble,spectrum]);
     useEffect(() => {
         document.body.style.backgroundColor = 'transparent';
         document.documentElement.style.backgroundColor = 'transparent';
@@ -135,6 +140,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
                     setPlaybackState(previous => previous === nextClock.playerState ? previous : nextClock.playerState);
                 },
                 audio: nextAudio => {
+                    if(isRearAod())return;
                     audioPower.set(nextAudio.audioPower);
                     bass.set(nextAudio.bands.bass); lowMid.set(nextAudio.bands.lowMid);
                     mid.set(nextAudio.bands.mid); vocal.set(nextAudio.bands.vocal); treble.set(nextAudio.bands.treble);
@@ -197,6 +203,12 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
             const lyricTime = resolveObsBrowserSourceClockTime(clockRef.current);
             
             currentTime.set(lyricTime);
+            if(aod){const now=performance.now(),stats=updateStats.current;stats.count++;
+                if(now-stats.at>=30_000){
+                    const params=new URLSearchParams({mode:'AOD',style:configRef.current?.visualizerMode??'unknown',updates:String(stats.count),interval:String(Math.round((now-stats.at)/Math.max(1,stats.count))),trigger:'clock-sample'});
+                    void fetch('/__folia_rear/aod-report?'+params,{cache:'no-store'}).catch(()=>undefined);stats.at=now;stats.count=0;
+                }
+            }
 
             const lines = configRef.current?.lyrics?.lines ?? [];
             const nextLineIndex = lines.length > 0 ? findLatestActiveLineIndex(lines, lyricTime) : -1;
@@ -211,7 +223,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
         refreshPausedClock.current = playbackState === PlayerState.PLAYING ? null : tick;
         tick();
         return () => { refreshPausedClock.current = null; cancelVisualizerAnimationFrame(frameId); };
-    }, [currentTime, playbackState, surfaceActive, config]);
+    }, [currentTime, playbackState, surfaceActive, config,aod]);
 
     if (!config) {
         return (
@@ -238,7 +250,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
                 color: config.theme.primaryColor,
             }}
         >
-            {surfaceActive && <VisualizerRenderer
+            <MotionConfig reducedMotion={aod?"always":"user"}>{surfaceActive && <VisualizerRenderer
                 mode={config.visualizerMode}
                 visualizerTunings={config.visualizerTunings}
                 currentTime={currentTime}
@@ -255,7 +267,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
                 coverUrl={config.coverUrl}
                 showText={true}
                 seed={config.seed}
-                staticMode={config.staticMode}
+                staticMode={config.staticMode||aod}
                 paused={playbackState !== PlayerState.PLAYING}
                 visualizerOpacity={config.visualizerOpacity}
                 background={config.background}
@@ -274,7 +286,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
                 cappellaCustomAvatarImages={config.cappellaCustomAvatarImages}
                 monetPortraitImage={config.monetPortraitImage}
                 temperaLayerImageAssets={config.temperaLayerImageAssets}
-            />}
+            />}</MotionConfig>
         </div>
     );
 };

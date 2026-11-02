@@ -36,11 +36,6 @@ final class RearHostWebClient extends WebViewClient {
             return bytes.toString(StandardCharsets.UTF_8.name());
         }
     }
-    String aodState()throws Exception{return readState(Integer.MAX_VALUE);}
-    String aodLyrics(String key,String epoch)throws Exception{
-        Uri url=Uri.parse("https://rear.folia.local/__folia_rear/lyrics").buildUpon().appendQueryParameter("key",key).appendQueryParameter("epoch",epoch).build();
-        try(java.io.InputStream input=resource(url)){return new String(input.readAllBytes(),StandardCharsets.UTF_8);}
-    }
     boolean followAod(){try{Bundle b=new Bundle();b.putString("session",session);Bundle result=context.getContentResolver().call(Uri.parse("content://"+RearHostContract.AUTHORITY),"aod",null,b);return result!=null&&result.getBoolean("enabled",true);}catch(Exception e){return false;}}
     private String state(Uri url)throws Exception{
         int requested=-1;try{requested=Integer.parseInt(url.getQueryParameter("revision"));}catch(Exception ignored){}
@@ -80,6 +75,14 @@ final class RearHostWebClient extends WebViewClient {
                 if(packet.has("config"))diagnostic("state-config","configuration available via pipe");
                 return text(value);
             }
+            if("/__folia_rear/aod-report".equals(path)){
+                Bundle b=new Bundle();b.putString("session",session);b.putString("event","aod-stage");
+                String mode=url.getQueryParameter("mode"),style=url.getQueryParameter("style");
+                if(style==null||!style.matches("[a-zA-Z0-9_-]{1,64}"))style="unknown";
+                b.putString("reason","renderer=WEB_STAGE_AOD, mode="+("AOD".equals(mode)?"AOD":"NORMAL")+", style="+style
+                    +", updates="+safeCount(url,"updates")+", intervalMs="+safeCount(url,"interval")+", audio=muted-in-aod, trigger="+"clock-sample");
+                call("report",b);return text("{}");
+            }
             if("/__folia_rear/ready".equals(path)){diagnostic("ready-request","renderer onConfigured callback");view.post(events::ready);return text("{}");}
             if("/__folia_rear/viewport".equals(path))return text(RearLyricsViewportMetrics.snapshot());
             if("/__folia_rear/viewport-report".equals(path)){RearLyricsViewportMetrics.reportBrowser(url);return text("{}");}
@@ -101,6 +104,7 @@ final class RearHostWebClient extends WebViewClient {
                 view.post(()->events.failed("Resource unavailable path="+path+", cause="+error.getClass().getSimpleName()));
             return new WebResourceResponse("text/plain","UTF-8",404,"Not Found",Collections.emptyMap(),new ByteArrayInputStream(new byte[0]));}
     }
+    private static long safeCount(Uri url,String key){try{return Math.max(0,Math.min(1_000_000,Long.parseLong(url.getQueryParameter(key))));}catch(Exception error){return 0;}}
     private void call(String method,Bundle b){context.getContentResolver().call(Uri.parse("content://"+RearHostContract.AUTHORITY),method,null,b);}
     @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){return request.isForMainFrame();}
     @Override public void onReceivedError(WebView view,WebResourceRequest request,android.webkit.WebResourceError error){if(request.isForMainFrame())events.failed("Main document unavailable code="+error.getErrorCode());}
