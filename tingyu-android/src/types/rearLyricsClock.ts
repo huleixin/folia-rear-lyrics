@@ -9,6 +9,7 @@ export type RearPlaybackClockSample = {
 };
 export type RearPlaybackClockReader = () => RearPlaybackClockSample | null;
 export interface RearLyricsClock extends ObsBrowserSourceClock {
+    playbackSessionId?:string;playbackSongKey?:string;playbackEpoch?:string;requestId?:string;
     timelineId?: string;
     /** Changes on real media seeks/reloads, including tiny backwards seeks. */
     discontinuity?: string;

@@ -25,6 +25,7 @@ const NATIVE_LYRIC_SLOW_RETRY_MS = 5000;
 const NATIVE_LYRIC_MAX_ATTEMPTS = NATIVE_LYRIC_RETRIES + NATIVE_LYRIC_SLOW_RETRIES;
 
 export type RearNativeTrack = {
+    requestId?:string;
     engine?: string;
     outputSessionId?: string;
     songKey?: string;
@@ -63,6 +64,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         let lastConfig: ObsBrowserSourceConfig | null = null;
         let appliedEpoch = '', nativeAppliedEpoch = '';
         let ownerRevision=-1,ownerProcess='';const retiredOwners:string[]=[];
+        let lyricAbort:AbortController|null=null;
         let lyricRequest = 0, resyncs = 0, lastResyncAt = -Infinity;
         let lyricRetry = 0;
         // 当前生效的原生轨与歌词链路状态：断连/恢复（refresh）时用于判断要不要续上
@@ -126,8 +128,10 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
             lyricFingerprint = track.lyric ?? '';
             emitConfig({
                 ...base,
+                playbackSongKey:track.songKey,playbackSessionId:track.outputSessionId,playbackEpoch:track.epoch,
                 song: { id: track.songKey ?? '', name: track.title ?? '' },
                 songArtist: track.artist ?? null,
+                coverUrl:base.playbackSongKey===track.songKey?base.coverUrl:null,songAlbum:base.playbackSongKey===track.songKey?base.songAlbum:null,
                 hasTrack: true,
                 lyrics: { lines: [], title: track.title, artist: track.artist },
                 updatedAt: Date.now(),
@@ -136,6 +140,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         };
         const loadNativeLyrics = async (track: RearNativeTrack, attempt: number) => {
             if (closed || appliedEpoch !== track.epoch) return;
+            lyricAbort?.abort();lyricAbort=new AbortController();
             const request = ++lyricRequest;
             lyricAttempt = attempt;
             const positionMs = Math.round(track.positionMs ?? 0);
@@ -144,7 +149,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
             let result: NativeLyricResult | null = null;
             try {
                 const response = await fetch(`${REAR_LYRICS_PATH}?key=${encodeURIComponent(track.songKey ?? '')}`
-                    + `&epoch=${encodeURIComponent(track.epoch ?? '')}`, { cache: 'no-store', signal: abort.signal });
+                    + `&epoch=${encodeURIComponent(track.epoch ?? '')}`, { cache: 'no-store', signal: lyricAbort.signal });
                 if (response.ok) result = await response.json();
             } catch { result = null; }
             if (closed || appliedEpoch !== track.epoch || request !== lyricRequest) {
@@ -199,12 +204,11 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                 const authority=rearPlaybackAuthority(snapshot,candidate);
                 // A retired output can still have a pending lyric response or a cached native item.
                 if(snapshot.owner&&(!authority.track||activeTrack?.outputSessionId!==authority.track.outputSessionId)){
-                    lyricRequest++;clearTimeout(lyricRetry);lyricRetry=0;activeTrack=null;appliedEpoch='';nativeAppliedEpoch='';lyricFingerprint='';
+                    lyricAbort?.abort();lyricRequest++;clearTimeout(lyricRetry);lyricRetry=0;activeTrack=null;appliedEpoch='';nativeAppliedEpoch='';lyricFingerprint='';
                 }
                 renderedOwner=authority.blocked?null:snapshot.owner??null;
                 const configChanged = Boolean(snapshot.config && snapshot.revision !== revision);
                 if (configChanged && snapshot.config) {
-                    lyricRequest++;
                     const font = snapshot.uploadedFont;
                     if (loadFont && font?.id && font.id !== fontId) {
                         try {
@@ -217,7 +221,10 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                         document.fonts.delete(ownedFont); ownedFont = null; fontId = '';
                     }
                     if (closed || inactive()) return;
-                    const safe=snapshot.owner&&(authority.blocked||authority.track&&!authority.webAllowed)?{...snapshot.config,hasTrack:false,song:null,lyrics:{lines:[]}}:snapshot.config;
+                    let safe=snapshot.owner&&(authority.blocked||authority.track&&!authority.webAllowed)?{...snapshot.config,hasTrack:false,song:null,lyrics:{lines:[]}}:snapshot.config;
+                    if(authority.track&&!authority.webAllowed&&nativeAppliedEpoch===authority.track.epoch&&lastConfig){
+                        safe={...snapshot.config,song:lastConfig.song,songArtist:lastConfig.songArtist,hasTrack:lastConfig.hasTrack,lyrics:lastConfig.lyrics};
+                    }
                     events.config(safe); onConfig(safe);
                     lastConfig = safe;
                     revision = snapshot.revision;
@@ -232,7 +239,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                 const track = authority.track;
                 if (externalStage && (activeTrack || appliedEpoch)) {
                     activeTrack = null; appliedEpoch = ''; nativeAppliedEpoch = ''; lyricFingerprint = '';
-                    lyricRequest++; clearTimeout(lyricRetry); lyricRetry = 0;
+                    lyricAbort?.abort();lyricRequest++; clearTimeout(lyricRetry); lyricRetry = 0;
                 }
                 const sentAt = snapshot.clock?.sentAtMs ?? 0;
                 const matchingSong = !track?.epoch || (config?.playbackSongKey ?? String(config?.song?.id ?? '')) === track.songKey;
@@ -243,11 +250,11 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                     const lyricChanged = (track.lyric ?? '') !== lyricFingerprint;
                     if (changed) {
                         const previous = appliedEpoch; appliedEpoch = track.epoch;
-                        nativeAppliedEpoch = ''; lyricRequest++; resyncs = 0;
+                        nativeAppliedEpoch = ''; lyricAbort?.abort();lyricRequest++; resyncs = 0;
                         clearTimeout(lyricRetry); lyricRetry = 0;
                         trace('switch', `${previous || '(none)'} -> ${track.epoch} source=${jsFresh?'webview':'native'}`);
                     }
-                    if (!jsFresh && (changed || nativeAppliedEpoch !== track.epoch || configChanged)) applyNativeTrack(track);
+                    if (!jsFresh && (changed || nativeAppliedEpoch !== track.epoch)) applyNativeTrack(track);
                     else if (!jsFresh && lyricChanged) {
                         lyricFingerprint = track.lyric ?? '';
                         clearTimeout(lyricRetry); lyricRetry = 0;
@@ -311,7 +318,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
             if (now - lastAppliedBeatAt < 10_000) return;
             lastAppliedBeatAt = now;
             trace('lyric-applied',
-                `beat pos=${Math.round(rendered.positionMs ?? 0)} lines=${lyricLines}`
+                `beat pos=${Math.round(rendered.engine==='compatible'&&lastClock?(lastClock.currentTime+(lastClock.playerState===PlayerState.PLAYING?Math.max(0,Date.now()-lastClock.sentAtMs)/1000*lastClock.playbackRate:0))*1000:rendered.positionMs??0)} lines=${lyricLines}`
                 + ` epoch=${rendered.epoch ?? ''}`,
                 rendered.songKey, rendered.epoch);
         };
@@ -330,7 +337,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                 const key = JSON.stringify([snapshot.revision, snapshot.clock, snapshot.audio?.sentAtMs,
                     snapshot.track?.epoch, snapshot.track?.positionMs, snapshot.track?.playing,
                     // 歌词指纹是「有词了」的唯一事件源：不进比较键就收不到重同步。
-                    snapshot.track?.lyric,snapshot.owner]);
+                    snapshot.track?.lyric,snapshot.owner?.engine,snapshot.owner?.outputSessionId,snapshot.owner?.epoch,snapshot.owner?.eventRevision]);
                 const clockExpired = Boolean(snapshot.track?.epoch && snapshot.clock && Date.now() - snapshot.clock.sentAtMs > NATIVE_STALE_MS && nativeAppliedEpoch !== snapshot.track.epoch);
                 if (key !== lastSnapshotKey || clockExpired) {
                     options.onSnapshot?.(snapshot); await accept(snapshot); lastSnapshotKey = key;
@@ -381,6 +388,6 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         window.addEventListener('folia-rear-power', power);
         if (typeof document !== 'undefined') document.addEventListener('visibilitychange', refresh);
         start();
-        return () => { closed = true; lyricRequest++; receiveCleanup?.(); abort.abort(); clearTimeout(timer); clearTimeout(lyricRetry); window.removeEventListener('folia-rear-power', power); if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', refresh); if (ownedFont) document.fonts.delete(ownedFont); };
+        return () => { closed = true; lyricAbort?.abort();lyricRequest++; receiveCleanup?.(); abort.abort(); clearTimeout(timer); clearTimeout(lyricRetry); window.removeEventListener('folia-rear-power', power); if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', refresh); if (ownedFont) document.fonts.delete(ownedFont); };
     } };
 }

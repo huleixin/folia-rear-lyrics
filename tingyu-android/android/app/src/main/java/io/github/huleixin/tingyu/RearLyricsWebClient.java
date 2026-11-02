@@ -67,6 +67,7 @@ final class RearLyricsWebClient extends WebViewClient {
                 RearLyricsTrace.record(context, "rear/" + event, detail == null ? "" : detail);
                 // 端到端同步账本：渲染端自己上报「这一版真的画出来了」。
                 // 没有这一条，背屏停更只能归因到「没交付」，无法区分是交付断了还是渲染停了。
+                if("clock".equals(event))io.github.huleixin.tingyu.playback.LyricSyncLedger.get().clockSource(detail!=null&&detail.contains("source=native")?"media3":"webview");
                 if ("lyric-applied".equals(event) || "render".equals(event)) {
                     // 心跳上报带 pos=…，可推出渲染推进到哪一行；解析不出就是 -1。
                     long appliedPos = -1L;

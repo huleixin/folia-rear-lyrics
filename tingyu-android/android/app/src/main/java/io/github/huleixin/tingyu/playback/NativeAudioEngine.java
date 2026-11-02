@@ -298,7 +298,10 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 io.github.huleixin.tingyu.FoliaPlaybackService.publishQueuedTrack(context,queued,player.getPlayWhenReady());
                 // 背屏的「当前歌曲」权威来源与上面同源：真实的 MediaItem id + 队列 tag。
                 // 换曲即递增 epoch，背屏据此丢弃上一首的时间轴，不再外推旧歌。
-                if(!sourceId.isEmpty()&&!decoderClaimed)io.github.huleixin.tingyu.RearNativeTrack.bindNative(sourceId,songKey,queued);
+                if(!sourceId.isEmpty()&&!decoderClaimed){
+                    if(reason==Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT||reason==Player.MEDIA_ITEM_TRANSITION_REASON_AUTO&&songKey.equals(io.github.huleixin.tingyu.RearNativeTrack.songKey()))io.github.huleixin.tingyu.RearNativeTrack.repeatNative(sourceId,songKey,queued);
+                    else io.github.huleixin.tingyu.RearNativeTrack.bindNative(sourceId,songKey,queued);
+                }
                 io.github.huleixin.tingyu.RearNativeTrack.onDuration(durationMsFor(songKey));
                 io.github.huleixin.tingyu.RearNativeTrack.onPlayback(player.getPlayWhenReady()&&player.isPlaying(),
                     Math.max(0L,player.getCurrentPosition()));

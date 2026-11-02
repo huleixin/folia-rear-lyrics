@@ -1,7 +1,7 @@
 import {setCompatibleOutputSession} from './playbackOutputIdentity';
 import { getTingyuPlayback } from '../platform/tingyuPlayback';
 import { isNativeAudioElement } from './nativeAudioElement';
-import { usePlaybackStore } from '../stores/usePlaybackStore';
+import { usePlaybackStore,selectDisplaySong } from '../stores/usePlaybackStore';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
 import { PlayerState } from '../types';
 import { setStatusMessage } from '../stores/useStatusMessageStore';
@@ -50,7 +50,8 @@ export function ensureCompatibleSleepOutput(attempt: () => string, quietGraph: (
     window.__tingyuSleepOutput = endpoint;
     const send = (action: string, extra: Record<string, unknown> = {}) => {
         const state = usePlaybackStore.getState();
-        const data = { action, lease, playbackAttempt:attempt(), revision: ++revision, songKey: state.currentSong && state.audioSrc ? getPlaybackSongKey(state.currentSong) : '',
+        const displaySong=selectDisplaySong(state);
+        const data = { action, lease, playbackAttempt:attempt(), revision: ++revision, songKey: displaySong && (state.audioSrc||browserAudio().some(audio=>!!audio.currentSrc||!!audio.getAttribute("src"))) ? getPlaybackSongKey(displaySong) : '',
             playing: browserAudio().some(element => !element.paused && !element.ended), ...extra };
         const response = serial.catch(() => {}).then(() => native.compatiblePlayback(data));
         serial = response; return response;
@@ -69,7 +70,7 @@ export function ensureCompatibleSleepOutput(attempt: () => string, quietGraph: (
     let lastIdentity = '';
     const update = () => {
         const state = usePlaybackStore.getState();
-        const identity = JSON.stringify([state.currentSong && getPlaybackSongKey(state.currentSong), state.audioSrc, state.playerState]);
+        const identity = JSON.stringify([selectDisplaySong(state) && getPlaybackSongKey(selectDisplaySong(state)!), state.audioSrc, state.playerState]);
         if (identity === lastIdentity) return;
         lastIdentity = identity;
         void send('state').catch(() => {}); applyBarrier();
@@ -80,7 +81,7 @@ export function ensureCompatibleSleepOutput(attempt: () => string, quietGraph: (
     document.addEventListener('play', media, true); document.addEventListener('pause', media, true);
     document.addEventListener('visibilitychange', visible);
     const unsubscribe = usePlaybackStore.subscribe(update);
-    const ready = send('claim').then(value => { if (!value.accepted) throw new Error('Compatible ownership rejected');setCompatibleOutputSession(lease); update(); });
+    const ready = send('claim').then(value => { if (!value.accepted) throw new Error('Compatible ownership rejected');setCompatibleOutputSession(lease,attempt); update(); });
     const binding = { lease, ready, release: async () => {
         await ready;
         if (!pauseCompatibleAudio(true,true)) throw new Error('Browser output did not pause');

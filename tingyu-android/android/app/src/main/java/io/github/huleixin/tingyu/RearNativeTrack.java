@@ -58,6 +58,10 @@ public final class RearNativeTrack {
         onTrack(key,null);
     }
     public static synchronized void releaseCompatible(String lease){if("compatible".equals(engine)&&outputSession.equals(lease))reset();}
+    public static synchronized void repeatNative(String lease,String key,JSObject metadata){
+        if(!"media3".equals(engine)||!outputSession.equals(lease))return;
+        songKey="";onTrack(key,metadata);
+    }
 
     /** 真实换曲（Media3 onMediaItemTransition）。seq 由引擎给，保证同一个 MediaItem 不会被重复计为新曲。 */
     public static synchronized void onTrack(String key, JSObject queued) {
@@ -128,7 +132,7 @@ public final class RearNativeTrack {
             if (durationMs > 0L && position > durationMs) position = durationMs;
             value.put("songKey", songKey);
             io.github.huleixin.tingyu.playback.LyricSyncLedger.get().ownership(engine,outputSession);
-            value.put("engine",engine).put("outputSessionId",outputSession);
+            value.put("engine",engine).put("outputSessionId",outputSession).put("requestId",attempt);
             value.put("sessionId", sessionId).put("eventRevision", eventRevision);
             value.put("anchorPositionMs", positionMs).put("anchorElapsedMs", anchorAt)
                 .put("capturedAtElapsedMs", elapsedClock.getAsLong()).put("playbackRate", playbackRate);

@@ -1,4 +1,4 @@
-import {nativeAudioIdentity,compatibleOutputSession} from '../services/playbackOutputIdentity';
+import {nativeAudioIdentity,compatibleOutputSession,compatibleOutputRequest} from '../services/playbackOutputIdentity';
 import { useEffect, useRef } from 'react';
 import type { ObsBrowserSourceAudio, ObsBrowserSourceClock, ObsBrowserSourceConfig } from '../types/obsBrowserSource';
 import { useTypographySettingsStore } from '../stores/useTypographySettingsStore';
@@ -73,10 +73,10 @@ export function useRearLyricsPublisher(config: ObsBrowserSourceConfig, clock: ()
             const binding=session+":"+(identity?.epoch??"");
             const changed = publishedConfig !== value.config || publishedFont !== fontId||publishedSession!==binding;
             try {
-                const clock = publisher.sample(value.clock(), JSON.stringify([
+                const clock = {...publisher.sample(value.clock(), JSON.stringify([
                     value.config.activePlaybackContext, value.config.stageSource,
                     value.config.song?.id, value.config.song?.name, value.config.songArtist,
-                ]), live);
+                ]), live),playbackSessionId:session,playbackSongKey:value.config.playbackSongKey,playbackEpoch:identity?.epoch,requestId:compatibleOutputRequest()};
                 advancing = clock.playerState === PlayerState.PLAYING && !sleeping;
                 const clockKey = JSON.stringify([clock.timelineId, clock.discontinuity, clock.currentTime,
                     clock.duration, clock.playerState, clock.playbackRate, clock.lyricOffsetMs]);

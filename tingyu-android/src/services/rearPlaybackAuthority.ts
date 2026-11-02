@@ -12,5 +12,7 @@ export function rearPlaybackAuthority(snapshot:RearStateSnapshot,config:ObsBrows
     if(external)return {track:undefined,blocked:false,webAllowed:true};
     const validNative=owner.engine==='media3'&&!!track?.epoch&&track.songKey===owner.songKey&&track.outputSessionId===owner.outputSessionId;
     const matching=key===owner.songKey&&!!owner.songKey&&config?.playbackSessionId===owner.outputSessionId&&(owner.engine==='compatible'||config?.playbackEpoch===owner.epoch);
-    return {track:validNative?track:undefined,blocked:!validNative&&!matching,webAllowed:matching&&(owner.engine==='compatible'||validNative)};
+    const clock=snapshot.clock;
+    const clockMatches=clock?.playbackSongKey===owner.songKey&&clock?.playbackSessionId===owner.outputSessionId&&(owner.engine==='compatible'?clock?.requestId===owner.requestId:clock?.playbackEpoch===owner.epoch);
+    return {track:validNative?track:undefined,blocked:!validNative&&(!matching||!clockMatches),webAllowed:matching&&clockMatches&&(owner.engine==='compatible'||validNative)};
 }

@@ -78,6 +78,8 @@ public final class LyricSyncLedger {
         return INSTANCE;
     }
 
+    private String renderedSong="",renderedEpoch="",clockSource="unknown";
+    public synchronized void clockSource(String source){clockSource=source;}
     private String outputEngine="none",outputLease="";private long ownershipChanges;
     public synchronized void ownership(String engine,String lease){if(!outputEngine.equals(engine)||!outputLease.equals(lease)){outputEngine=engine;outputLease=lease;ownershipChanges++;}}
     private long staleEvents;
@@ -186,6 +188,7 @@ public final class LyricSyncLedger {
 
     /** 背屏渲染器上报：这一版真的画出来了（或 10s 一次的推进心跳）。 */
     public synchronized void rearApplied(String songKey, String epoch, long nowMs) {
+        renderedSong=songKey==null?"":songKey;renderedEpoch=epoch==null?"":epoch;
         if (!accept(songKey, epoch)) return;
         rearAppliedAtMs = nowMs;
         rearHeartbeatAtMs = Math.max(rearHeartbeatAtMs, nowMs);
@@ -294,6 +297,7 @@ public final class LyricSyncLedger {
             + (unifiedSource.isEmpty() ? "" : "/" + unifiedSource)
             + ", island=" + (islandHash.isEmpty() ? "none" : islandHash)
             + " (age=" + age(nowMs, islandPublishedAtMs) + "ms, x" + islandPublishes + ")"
+            + ", renderedSong="+anon(renderedSong)+", renderedEpoch="+renderedEpoch+", clockSource="+clockSource
             + ", rear=" + (rearHash.isEmpty() ? "none" : rearHash)
             + " (age=" + age(nowMs, rearDeliveredAtMs) + "ms, lines=" + rearLines
             + ", applied=" + age(nowMs, rearAppliedAtMs) + "ms"

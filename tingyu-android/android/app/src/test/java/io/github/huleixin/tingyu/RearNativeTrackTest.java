@@ -16,6 +16,13 @@ public class RearNativeTrackTest {
   RearNativeTrack.releaseCompatible("web");RearNativeTrack.bindNative("c","qq:a",null);
   assertNotEquals(first,RearNativeTrack.epoch());
   String repeated=RearNativeTrack.epoch();RearNativeTrack.bindNative("d","qq:a",null);assertNotEquals(repeated,RearNativeTrack.epoch());
+  repeated=RearNativeTrack.epoch();RearNativeTrack.repeatNative("d","qq:a",null);assertNotEquals(repeated,RearNativeTrack.epoch());
+ }
+ @Test public void twoHourMonotonicClockPauseAndSeekUseTheSameOutputAnchor(){
+  long[] now={1000};RearNativeTrack.elapsedClock=()->now[0];RearNativeTrack.bindNative("clock","qq:clock",null);
+  RearNativeTrack.onPlayback(true,1000,1.25f);now[0]+=7200000;assertEquals(9001000,RearNativeTrack.positionNow());
+  RearNativeTrack.onPlayback(false,9001000);now[0]+=60000;assertEquals(9001000,RearNativeTrack.positionNow());
+  RearNativeTrack.onPlayback(true,10000,1f);now[0]+=1000;assertEquals(11000,RearNativeTrack.positionNow());
  }
  @org.junit.Before public void before(){RearNativeTrack.elapsedClock=()->1000L;RearNativeTrack.clear();RearNativeTrack.bindNative("test","",null);}
  @org.junit.After public void after(){RearNativeTrack.clear();RearNativeTrack.elapsedClock=android.os.SystemClock::elapsedRealtime;}
