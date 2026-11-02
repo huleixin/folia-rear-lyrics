@@ -194,7 +194,8 @@ final class RearHostedCard {
             try{if(XposedHelpers.getBooleanField(root,"mFinished")){restorationOk=true;return;}}catch(Throwable ignored){}
             // Each restoration step is independent: one vendor method failure cannot skip the rest.
             boolean restored=callQuiet(root,"attachToVsync");
-            if(view!=null&&view.isAttachedToWindow()&&!paused){
+            int power=view==null||view.getDisplay()==null?Display.STATE_UNKNOWN:view.getDisplay().getState();
+            if(view!=null&&view.isAttachedToWindow()&&RearDisplayPolicy.render(true,!paused,suspended,aod,power)){
                 restored=callQuiet(root,"selfResume")&&restored;
                 try{
                     MediaController controller=media();Object listener=XposedHelpers.getObjectField(music,"mMusicListener");

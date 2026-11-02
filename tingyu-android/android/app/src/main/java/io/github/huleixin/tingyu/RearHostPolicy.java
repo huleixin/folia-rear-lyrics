@@ -7,6 +7,7 @@ final class RearHostPolicy {
         return RearHostContract.APP.equals(mediaPackage) && requested && !camera && attached && display>0;
     }
     static boolean validSession(String value) { return value!=null && value.matches("[a-zA-Z0-9-]{16,80}"); }
+    static boolean mayStart(int requested,int current,boolean canPresent){return requested==current && canPresent;}
     static boolean userExit(boolean wasOwned,boolean paused,boolean aod,long gestureAt,long now) {
         return wasOwned && paused && !aod && gestureAt>=0 && now>=gestureAt && now-gestureAt<=1500;
     }

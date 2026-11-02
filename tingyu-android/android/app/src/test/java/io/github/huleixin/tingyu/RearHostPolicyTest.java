@@ -44,4 +44,10 @@ public class RearHostPolicyTest {
         assertTrue(RearHostPolicy.validSession(java.util.UUID.randomUUID().toString()));
         assertFalse(RearHostPolicy.validSession(""));assertFalse(RearHostPolicy.validSession("../token"));assertFalse(RearHostPolicy.validSession("x".repeat(81)));
     }
+    @Test public void delayedHandshakeCannotStartAfterCancelOrTemporaryLossOfIntent(){
+        assertTrue(RearHostPolicy.mayStart(7,7,true));
+        assertFalse(RearHostPolicy.mayStart(7,8,true));
+        assertFalse(RearHostPolicy.mayStart(7,7,false));
+        assertFalse(RearHostPolicy.mayStart(7,8,false));
+    }
 }

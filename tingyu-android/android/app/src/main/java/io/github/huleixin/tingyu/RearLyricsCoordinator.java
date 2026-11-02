@@ -456,6 +456,7 @@ final class RearLyricsCoordinator {
     // ---------------------------------------------------------------- teardown
 
     private void closeWindow(CloseReason reason) {
+        RearHostBridge.cancelConnecting();hostConnecting=false;
         if (closing) { if(reason!=CloseReason.CAMERA)closeReason=reason; return; }
         closing = true; closeReason = reason; closeRetries = 0;
         // Whatever the reason, the lock lease must end now: the panel goes back to the system

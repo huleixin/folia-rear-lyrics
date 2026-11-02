@@ -34,6 +34,7 @@ final class RearHostBridge {
     static int display(){return display;}
     static String detail(){return detail;}
     static boolean matches(String value){return RearHostPolicy.validSession(value) && value.equals(session);}
+    static void cancelConnecting(){if(!hasSession())generation++;}
     static synchronized void connect(Context context,IBinder binder,int protocol,String profile)throws Exception{
         if(protocol!=RearHostContract.VERSION || binder==null || !RearHostContract.DESCRIPTOR.equals(binder.getInterfaceDescriptor()))throw new SecurityException("Host protocol mismatch");
         if(service==binder)return;
@@ -50,7 +51,10 @@ final class RearHostBridge {
         final int token=++generation;
         context.sendBroadcast(new Intent(RearHostContract.REQUEST).setPackage(RearHostContract.TARGET));
         MAIN.postDelayed(()->{
-            if(token!=generation)return;
+            if(!RearHostPolicy.mayStart(token,generation,RearLyricsCoordinator.get(context).canPresent())){
+                if(token==generation)callback.done(false,-1,"显示意图已取消或暂不可用");
+                return;
+            }
             if(!connected()){callback.done(false,-1,detail);return;}
             session=UUID.randomUUID().toString();active=false;suspended=false;releasing=false;pending=callback;
             final String expected=session;
