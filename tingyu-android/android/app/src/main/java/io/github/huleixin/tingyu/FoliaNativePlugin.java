@@ -973,6 +973,8 @@ public class FoliaNativePlugin extends Plugin {
         result.put("starting", coordinator.isStarting());
         result.put("sleeping", coordinator.isSleeping());
         result.put("returnedToSystem", coordinator.returnedToSystem());
+        result.put("userDismissed",coordinator.userDismissed());result.put("rendererFailed",coordinator.rendererFailed());
+        result.put("hostConnected",RearHostBridge.connected());result.put("hostActive",RearHostBridge.active());result.put("hostDetail",RearHostBridge.detail());
         call.resolve(result);
     }
 
@@ -1005,14 +1007,14 @@ public class FoliaNativePlugin extends Plugin {
         if (LspRearBridge.selected(getContext())) LspRearBridge.request(getContext());
         result.put("backendMode", LspRearBridge.selected(getContext()) ? "lsp" : "shizuku");
         result.put("controlEngine", RearPlanA.engine(getContext()));
-        result.put("lspConnected", LspRearBridge.get() != null);
-        result.put("lspDetail", LspRearBridge.detail());
+        result.put("lspConnected", LspRearBridge.get() != null || RearHostBridge.connected());
+        result.put("lspDetail", RearHostBridge.detail()+"；"+LspRearBridge.detail());
         result.put("shizukuAvailable", Shizuku.pingBinder());
         result.put("authorized", Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED);
         RearLyricsCoordinator coordinator = RearLyricsCoordinator.get(getContext());
         // A camera can power the panel off, which removes it from DisplayManager; the last known
         // id keeps the settings page usable and lets recovery wake it again.
-        int rear = RearLyricsCoordinator.rearDisplayForShell(getContext());
+        int rear = RearHostBridge.display()>0?RearHostBridge.display():RearLyricsCoordinator.rearDisplayForShell(getContext());
         result.put("rearDisplayId", rear);
         result.put("yieldingToCamera", RearLyricsActivity.isYieldingToCamera());
         // 「背屏故障诊断」：锁屏前后 0/5/60 秒的状态快照（JSON lines），以及最近一次背屏唤醒
@@ -1020,13 +1022,16 @@ public class FoliaNativePlugin extends Plugin {
         result.put("faultLog", RearFaultDiagnostics.read(getContext()));
         result.put("faultCount", RearFaultDiagnostics.count(getContext()));
         result.put("lastWake", RearLyricsLauncher.lastWake());
-        boolean active = rear >= 0 && RearLyricsActivity.isShowingOnDisplay(rear)
+        boolean active = rear >= 0 && (RearHostBridge.active() || RearLyricsActivity.isShowingOnDisplay(rear))
             && RearLyricsLauncher.displayState(getContext(), rear) == Display.STATE_ON;
         boolean starting = coordinator.isStarting();
         result.put("active", active);
         result.put("starting", starting);
         result.put("enabled", coordinator.isEnabled());
         result.put("returnedToSystem", coordinator.returnedToSystem());
+        result.put("userDismissed",coordinator.userDismissed());result.put("rendererFailed",coordinator.rendererFailed());
+        result.put("hostConnected",RearHostBridge.connected());result.put("hostActive",RearHostBridge.active());result.put("hostDetail",RearHostBridge.detail());
+        result.put("displayMode",RearHostBridge.hasSession()?"system-card":"independent");
         result.put("pauseReturnSeconds", RearPlaybackHandoff.PAUSE_DELAY_MS / 1000);
         result.put("coverSleepEnabled", coordinator.coverSleepEnabled());
         result.put("sleeping", coordinator.isSleeping());
@@ -1037,6 +1042,8 @@ public class FoliaNativePlugin extends Plugin {
         String message = RearLyricsLauncher.message(getContext());
         if (!active && !starting && coordinator.isEnabled() && (message.isEmpty() || message.startsWith("已确认背屏")))
             message = "背屏歌词已启用，播放音乐时自动显示；锁屏后按需恢复";
+        if (coordinator.userDismissed())message="已退出本次背屏显示；开关已保留，可点击重新显示";
+        if (coordinator.rendererFailed())message="背屏渲染恢复失败，已让回系统；可点击重新显示";
         if (coordinator.isEnabled() && coordinator.cameraSuspended()) message = "等待相机空闲／状态稳定，随后自动恢复背屏歌词";
         result.put("message", message);
         RearLyricsActivity.WindowState window = RearLyricsActivity.windowState();

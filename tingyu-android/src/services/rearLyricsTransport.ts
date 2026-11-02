@@ -58,14 +58,15 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         let closed = false, sleeping = false, polling = false, timer = 0, revision = -1, fontId = '', connected = false;
         let ownedFont: FontFace | null = null;
         let lastClock: ObsBrowserSourceClock | null = null, lastAudioAt: number | undefined;
-        let lastSnapshotKey = '';
+        let lastSnapshotKey = '',pollGeneration=0;
+        let recovering=false,lyricLoading=false;
         // The last configuration this document rendered. A track change patches this object
         // instead of waiting for a new one, so the visual settings never flicker or reset.
         let lastConfig: ObsBrowserSourceConfig | null = null,lastPublishedConfig:ObsBrowserSourceConfig|null=null;
         let appliedEpoch = '', nativeAppliedEpoch = '';
         let ownerRevision=-1,ownerProcess='';const retiredOwners:string[]=[];
         let lyricAbort:AbortController|null=null;
-        let lyricRequest = 0, resyncs = 0, lastResyncAt = -Infinity;
+        let lyricRequest = 0;
         let lyricRetry = 0;
         // 当前生效的原生轨与歌词链路状态：断连/恢复（refresh）时用于判断要不要续上
         // 还没拿到的歌词 —— 只续有界的剩余次数，不重置计数、不轮询。
@@ -139,7 +140,8 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
             void loadNativeLyrics(track, 0);
         };
         const loadNativeLyrics = async (track: RearNativeTrack, attempt: number) => {
-            if (closed || appliedEpoch !== track.epoch) return;
+            if (closed || inactive() || appliedEpoch !== track.epoch) return;
+            lyricLoading=true;
             lyricAbort?.abort();lyricAbort=new AbortController();
             const request = ++lyricRequest;
             lyricAttempt = attempt;
@@ -155,6 +157,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
             if (closed || appliedEpoch !== track.epoch || request !== lyricRequest) {
                 trace('lyric-discard', 'stale-request-or-epoch'); return;
             }
+            lyricLoading=false;
             const state = result?.state ?? 'loading';
             const lineCount = state === 'ready' && Array.isArray(result?.lines) ? result!.lines!.length : 0;
             trace('lyric-delivered', `song=${track.songKey ?? ''} epoch=${track.epoch ?? ''}`
@@ -192,7 +195,8 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                 + ` lines=${lineCount} state=${state}`, track.songKey, track.epoch);
         };
         const accept = async (snapshot: RearStateSnapshot) => {
-                if (closed || inactive()) return;
+                const acceptedGeneration=pollGeneration;
+                if (closed || inactive() || acceptedGeneration!==pollGeneration) return;
                 if(snapshot.owner?.sessionId){
                     const o=snapshot.owner;
                     if(retiredOwners.includes(o.sessionId!))return;
@@ -213,14 +217,14 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                     if (loadFont && font?.id && font.id !== fontId) {
                         try {
                             const next = await new FontFace(font.family, `url("${font.url}")`).load();
-                            if (closed || inactive()) return;
+                            if (closed || inactive() || acceptedGeneration!==pollGeneration) return;
                             if (ownedFont) document.fonts.delete(ownedFont);
                             document.fonts.add(next); ownedFont = next; fontId = font.id;
                         } catch { /* Keep the configured fallback font if a font file cannot be loaded. */ }
                     } else if (!font && ownedFont) {
                         document.fonts.delete(ownedFont); ownedFont = null; fontId = '';
                     }
-                    if (closed || inactive()) return;
+                    if (closed || inactive() || acceptedGeneration!==pollGeneration) return;
                     let safe=snapshot.owner&&(authority.blocked||authority.track&&!authority.webAllowed)?{...snapshot.config,hasTrack:false,song:null,lyrics:{lines:[]}}:snapshot.config;
                     if(authority.track&&!authority.webAllowed&&nativeAppliedEpoch===authority.track.epoch&&lastConfig){
                         safe={...snapshot.config,song:lastConfig.song,songArtist:lastConfig.songArtist,hasTrack:lastConfig.hasTrack,lyrics:lastConfig.lyrics};
@@ -250,7 +254,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                     const lyricChanged = (track.lyric ?? '') !== lyricFingerprint;
                     if (changed) {
                         const previous = appliedEpoch; appliedEpoch = track.epoch;
-                        nativeAppliedEpoch = ''; lyricAbort?.abort();lyricRequest++; resyncs = 0;
+                        nativeAppliedEpoch = ''; lyricAbort?.abort();lyricRequest++;
                         clearTimeout(lyricRetry); lyricRetry = 0;
                         trace('switch', `${previous || '(none)'} -> ${track.epoch} source=${jsFresh?'webview':'native'}`);
                     }
@@ -294,6 +298,10 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                     if (nativeClock !== lastClock) { lastClock = nativeClock; events.clock(nativeClock); onClock(nativeClock); }
                     trace('clock', `source=native epoch=${track.epoch}`);
                 }
+                if(recovering){
+                    recovering=false;
+                    if(track && lyricLines===0 && !lyricLoading && !lyricRetry && lyricAttempt<NATIVE_LYRIC_MAX_ATTEMPTS)void loadNativeLyrics(track,lyricAttempt);
+                }
                 if (snapshot.audio && (snapshot.audio.sentAtMs === undefined || snapshot.audio.sentAtMs !== lastAudioAt)) {
                     lastAudioAt = snapshot.audio.sentAtMs; events.audio(snapshot.audio);
                 }
@@ -327,12 +335,12 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         };
         const poll = async () => {
             if (closed || inactive() || polling) return;
-            polling = true;
+            polling = true;const turn=pollGeneration;
             try {
                 const response = await fetch(`${REAR_STATE_PATH}?revision=${revision}`, { cache: 'no-store', signal: abort.signal });
                 if (!response.ok) throw new Error(`Rear state ${response.status}`);
                 const snapshot: RearStateSnapshot = await response.json();
-                if (closed || inactive()) return;
+                if (closed || inactive() || turn!==pollGeneration) return;
                 // The native endpoint can return the same packet many times while paused. Do not
                 // copy it into the iframe, allocate spectra or notify React again without a change.
                 // The native track is part of the key: it is the one field that still moves while
@@ -348,7 +356,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                 sendAppliedBeat();
                 if (!inactive()) setConnected(true);
             } catch { setConnected(false); }
-            finally { polling = false; if (!closed && !inactive()) timer = window.setTimeout(() => void poll(), lastClock?.playerState === PlayerState.PLAYING ? 100 : 250); }
+            finally { polling = false; if (!closed && !inactive()) timer = window.setTimeout(() => void poll(), turn!==pollGeneration?0:lastClock?.playerState === PlayerState.PLAYING ? 100 : 250); }
         };
         const start = () => {
             if (closed || inactive()) return;
@@ -356,32 +364,15 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
             else void poll();
         };
         const refresh = () => {
-            clearTimeout(timer);
-            lastSnapshotKey = '';
-            receiveCleanup?.(); receiveCleanup = undefined; pending = null;
-            if (!inactive()) {
-                // Restore a ready timeline once per visibility recovery, without rebuilding a window.
-                // A bounded per-track budget and cooldown prevent focus flapping from becoming retries.
-                const now = performance.now();
-                if (activeTrack && lyricLines > 0 && resyncs < 3 && now - lastResyncAt >= 5000) {
-                    resyncs++; lastResyncAt = now;
-                    trace('resync', `reason=visibility attempt=${resyncs}`, activeTrack.songKey, activeTrack.epoch);
-                    void loadNativeLyrics(activeTrack, 0);
-                }
-                // 恢复（visibilitychange / power / 重连）时，如果这首歌的歌词一次都没到过
-                // 且重试预算还有剩，就从慢速档续上 —— 真机 2026-10-31：锁屏切歌后歌词
-                // 12 秒才补到，旧链路此时早已放弃，只能靠点亮主屏救回。
-                if (activeTrack && appliedEpoch === activeTrack.epoch && !lyricRetry
-                    && lyricLines === 0 && lyricAttempt < NATIVE_LYRIC_MAX_ATTEMPTS) {
-                    lyricRetry = window.setTimeout(() => {
-                        lyricRetry = 0;
-                        const track = activeTrack;
-                        if (track) void loadNativeLyrics(track, lyricAttempt + 1);
-                    }, NATIVE_LYRIC_SLOW_RETRY_MS);
-                }
-                start();
-            }
+            pollGeneration++;recovering=true;
+            clearTimeout(timer);lastSnapshotKey='';
+            // Validate a fresh owner before restarting any interrupted lyric read.
+            lyricAbort?.abort();lyricRequest++;lyricLoading=false;clearTimeout(lyricRetry);lyricRetry=0;
+            receiveCleanup?.();receiveCleanup=undefined;pending=null;
+            if(!inactive())start();
         };
+        const resync=()=>{revision=-1;refresh();};
+        window.addEventListener('folia-rear-resync',resync);
         const power = (event: Event) => {
             sleeping = (event as CustomEvent<{ sleeping: boolean }>).detail?.sleeping === true;
             // 原生归因要用：轮询消失时区分「自己休眠了（正常）」与「突然失联」。
@@ -391,6 +382,6 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         window.addEventListener('folia-rear-power', power);
         if (typeof document !== 'undefined') document.addEventListener('visibilitychange', refresh);
         start();
-        return () => { closed = true; lyricAbort?.abort();lyricRequest++; receiveCleanup?.(); abort.abort(); clearTimeout(timer); clearTimeout(lyricRetry); window.removeEventListener('folia-rear-power', power); if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', refresh); if (ownedFont) document.fonts.delete(ownedFont); };
+        return () => { closed = true; lyricAbort?.abort();lyricRequest++; receiveCleanup?.(); abort.abort(); clearTimeout(timer); clearTimeout(lyricRetry); window.removeEventListener('folia-rear-power', power); window.removeEventListener('folia-rear-resync',resync); if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', refresh); if (ownedFont) document.fonts.delete(ownedFont); };
     } };
 }

@@ -16,6 +16,7 @@ export type RearLockedRoute = 'auto' | 'reuse' | 'migrate';
 export type RearLyricsStatus = {
     backendMode?: 'shizuku' | 'lsp'; lspConnected?: boolean; lspDetail?: string;
     controlEngine?: RearControlEngine; lockedRoute?: RearLockedRoute; lastLaunchRoute?: string;
+    userDismissed?:boolean;rendererFailed?:boolean;hostConnected?:boolean;hostActive?:boolean;hostDetail?:string;displayMode?:'system-card'|'independent';
     returnedToSystem?: boolean; pauseReturnSeconds?: number;
     shizukuAvailable?: boolean; authorized?: boolean; rearDisplayId?: number; active?: boolean;
     enabled?: boolean; starting?: boolean; message?: string; diagnostics?: string; build?: number;

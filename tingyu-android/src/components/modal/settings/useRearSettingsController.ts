@@ -23,6 +23,6 @@ export function useRearSettingsController(){
         }catch{setError(t('rearBridge.failed'));}
         finally{await rear.refresh(true);lock.current=false;setChanging(false);}
     };
-    return {...rear,busy:rear.busy||changing,error,change,toggle:async()=>{if(lock.current)return;lock.current=true;setError('');try{await rear.toggle();}finally{lock.current=false;}}};
+    return {...rear,busy:rear.busy||changing,error,change,show:async()=>{if(lock.current)return;lock.current=true;setError('');try{await rear.toggle(true);}finally{lock.current=false;}},toggle:async()=>{if(lock.current)return;lock.current=true;setError('');try{await rear.toggle();}finally{lock.current=false;}}};
 }
 export type RearSettingsController=ReturnType<typeof useRearSettingsController>;

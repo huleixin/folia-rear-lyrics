@@ -75,6 +75,7 @@ public final class RearNativeTrack {
         title = ""; artist = ""; playbackRate = 1f;
         generation += 1; eventRevision++;
         io.github.huleixin.tingyu.playback.LyricSyncLedger.get().track(next, next + "#" + generation);
+        RearHostUpdates.changed();
         epoch = next + "#" + generation;
         positionMs = 0L;
         anchorAt = elapsedClock.getAsLong();
@@ -99,6 +100,7 @@ public final class RearNativeTrack {
     }
     public static synchronized void onPlayback(boolean isPlaying, long positionMsNow, float speed) {
         if (songKey.isEmpty()||!"media3".equals(engine)) return;
+        boolean changed=isPlaying!=playing || Math.abs(speed-playbackRate)>.001f || (positionMsNow>=0 && Math.abs(positionMsNow-positionNow())>300);
         playbackRate = Float.isFinite(speed) && speed > 0f ? speed : 1f;
         eventRevision++;
         if (positionMsNow >= 0L) {
@@ -107,6 +109,7 @@ public final class RearNativeTrack {
         }
         playing = isPlaying;
         updatedAt = System.currentTimeMillis();
+        if(changed)RearHostUpdates.changed();
     }
 
     /** 时长补齐（Media3 的 duration 在换曲瞬间常常还是 TIME_UNSET）。 */
@@ -153,6 +156,7 @@ public final class RearNativeTrack {
 
     public static synchronized void clear() { reset(); }
     static synchronized void reset() {
+        RearHostUpdates.changed();
         eventRevision++;
         engine="none";outputSession="";attempt="";
         io.github.huleixin.tingyu.playback.LyricSyncLedger.get().track("","");

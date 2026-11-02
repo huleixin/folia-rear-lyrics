@@ -53,14 +53,14 @@ export function useRearLyricsSettings(poll = true) {
             document.removeEventListener('visibilitychange', onVisibility);
         };
     }, [available, poll, refresh]);
-    const toggle = useCallback(async () => {
+    const toggle = useCallback(async (showOnly=false) => {
         const plugin = rearLyricsPlugin();
         if (!plugin || locked.current || !rearSettingsCanToggle(current.current, false)) return;
         locked.current = true;
         revision.current++; // Invalidate a status read that started before the user's action.
         setBusy(true); setActionFailed(false);
         try {
-            if (current.current?.enabled) await plugin.returnFromRearLyrics();
+            if (!showOnly && current.current?.enabled) await plugin.returnFromRearLyrics();
             else if (!(await plugin.startRearLyrics())?.verified) throw new Error('Rear display did not confirm startup');
         } catch (error) {
             console.error('[settings/rear-lyrics] action failed', error);

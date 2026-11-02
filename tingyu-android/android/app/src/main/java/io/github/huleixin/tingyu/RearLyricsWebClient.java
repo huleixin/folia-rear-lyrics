@@ -60,7 +60,32 @@ final class RearLyricsWebClient extends WebViewClient {
         }
         // The rear renderer reporting what it actually drew. Same file as the native events, so a
         // stuck lyric can be read as one timeline instead of two stories that disagree.
-        if ("/__folia_rear/trace".equals(path)) {
+        if ("/__folia_rear/trace".equals(path)) { recordTrace(context,uri);return text("application/json","{}"); }
+        if ("/__folia_rear/ready".equals(path)) { view.post(events::ready); return text("application/json", "{}"); }
+        if ("/__folia_rear/viewport".equals(path)) return text("application/json", RearLyricsViewportMetrics.snapshot());
+        if ("/__folia_rear/viewport-report".equals(path)) {
+            RearLyricsViewportMetrics.reportBrowser(uri); return text("application/json", "{}");
+        }
+        if (path == null || path.contains("..") || path.contains("\\")) return missing();
+        try {
+            String assetPath = "/".equals(path) ? "/rear-lyrics.html" : path;
+            InputStream stream = context.getAssets().open("public" + assetPath);
+            return response(mime(assetPath), stream);
+        } catch (Exception error) { return missing(); }
+    }
+    @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+        // A tap on the lyrics must never navigate the dedicated window away from its renderer.
+        return request.isForMainFrame();
+    }
+    @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+        if (request.isForMainFrame()) events.error("WebView: " + error.getDescription());
+    }
+    @Override public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+        events.error("Rear renderer ended; crashed=" + detail.didCrash());
+        view.post(events::rendererGone);
+        return true;
+    }
+    static void recordTrace(Context context,Uri uri) {
             String event = uri.getQueryParameter("event");
             if (event != null) {
                 String detail = uri.getQueryParameter("detail");
@@ -91,31 +116,6 @@ final class RearLyricsWebClient extends WebViewClient {
                             android.os.SystemClock.elapsedRealtime());
                 }
             }
-            return text("application/json", "{}");
-        }
-        if ("/__folia_rear/ready".equals(path)) { view.post(events::ready); return text("application/json", "{}"); }
-        if ("/__folia_rear/viewport".equals(path)) return text("application/json", RearLyricsViewportMetrics.snapshot());
-        if ("/__folia_rear/viewport-report".equals(path)) {
-            RearLyricsViewportMetrics.reportBrowser(uri); return text("application/json", "{}");
-        }
-        if (path == null || path.contains("..") || path.contains("\\")) return missing();
-        try {
-            String assetPath = "/".equals(path) ? "/rear-lyrics.html" : path;
-            InputStream stream = context.getAssets().open("public" + assetPath);
-            return response(mime(assetPath), stream);
-        } catch (Exception error) { return missing(); }
-    }
-    @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-        // A tap on the lyrics must never navigate the dedicated window away from its renderer.
-        return request.isForMainFrame();
-    }
-    @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-        if (request.isForMainFrame()) events.error("WebView: " + error.getDescription());
-    }
-    @Override public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
-        events.error("Rear renderer ended; crashed=" + detail.didCrash());
-        view.post(events::rendererGone);
-        return true;
     }
     private static WebResourceResponse response(String mime, InputStream stream) {
         return new WebResourceResponse(mime, "UTF-8", 200, "OK", Collections.singletonMap("Cache-Control", "no-store"), stream);

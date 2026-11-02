@@ -9,6 +9,7 @@
         android:smallScreens="true"
         android:xlargeScreens="true" />
 
+    <queries><package android:name="com.xiaomi.subscreencenter" /></queries>
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -23,6 +24,8 @@
         <meta-data android:name="xposedscope" android:resource="@array/xposed_scope" />
         <provider android:name=".LspRearProvider" android:authorities="${applicationId}.lsp"
             android:exported="true" android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+        <provider android:name=".RearHostProvider" android:authorities="${applicationId}.rearhost"
+            android:exported="true" android:grantUriPermissions="false" />
         <!-- HyperOS opt-in for activities launched on the Xiaomi rear display. -->
         <meta-data android:name="miui.rear.policy" android:value="1" />
         <!-- ColorOS 原生锁屏歌词：声明本应用愿意进 OPlus 的媒体历史 / 媒体管线。 -->

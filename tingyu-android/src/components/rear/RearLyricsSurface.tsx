@@ -48,11 +48,14 @@ export default function RearLyricsSurface() {
         const power = (event: Event) => {
             const detail = (event as CustomEvent<{ sleeping: boolean }>).detail;
             setSleeping(detail?.sleeping === true);
+            if(detail?.sleeping!==true)relay.reset();
             const frame = panel.current?.contentWindow;
             if (frame) frame.dispatchEvent(new CustomEvent('folia-rear-power', { detail }));
         };
+        const resync=()=>relay.reset();
+        window.addEventListener('folia-rear-resync',resync);
         window.addEventListener('folia-rear-power', power);
-        return () => { relay.dispose(); unsubscribe(); window.removeEventListener('folia-rear-reveal', reveal); window.removeEventListener('folia-rear-power', power); };
+        return () => { relay.dispose(); unsubscribe(); window.removeEventListener('folia-rear-reveal', reveal); window.removeEventListener('folia-rear-power', power); window.removeEventListener('folia-rear-resync',resync); };
     }, [audioPower, audioBands, bass, lowMid, mid, vocal, treble, spectrum, reveal]);
     return <main data-testid="rear-lyrics-surface" onPointerDownCapture={reveal}
         style={{ position: 'fixed', inset: 0, overflow: 'hidden', touchAction: 'none', userSelect: 'none', background: config?.theme.backgroundColor ?? '#09090b' }}>

@@ -33,7 +33,7 @@ final class RearLyricsCoordinator {
     /** Wake attempts for a rear display that vanished from DisplayManager after a camera used it. */
     private static final int MAX_MISSING_REAR_WAKES = 8;
 
-    private enum CloseReason { USER, CAMERA }
+    private enum CloseReason { USER, CAMERA, GESTURE, RENDERER, SWITCH }
 
     private final Context context;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -54,7 +54,8 @@ final class RearLyricsCoordinator {
     private final RearCommandGate gate = new RearCommandGate();
     private volatile RearLyricsTaskList.Evidence evidence;
     private long lastReadableAt, planAttemptGeneration, nextPlanWakeAt;
-    private boolean planRestoring, reuseBroken, dismissed;
+    private boolean planRestoring, reuseBroken, hostTried, hostConnecting;
+    private volatile boolean dismissed, rendererFailed;
     private int hardYieldTries;
     /**
      * Shizuku backend only. Under LSP the module keeps the rear panel awake through its own
@@ -133,7 +134,8 @@ final class RearLyricsCoordinator {
     private long nextAttempt;
     private volatile boolean closing;
     private CloseReason closeReason = CloseReason.USER;
-    private int closeRetries;
+    private int closeRetries, closeAttemptToken;
+    private Runnable closeTimeout;
     private boolean lspPowerBusy, lspHolding, lastHoldDesired;
     private long nextHoldRefresh;
     private String leaseSession = "", lspPowerDetail = "not requested";
@@ -171,24 +173,26 @@ final class RearLyricsCoordinator {
             if (coverSleepEnabled && wanted()) changeSleep(value);
         });
         cameraMonitor = new RearCameraMonitor(context, main, this::cameraChanged);
-        main.post(() -> { watchDisplays(); if (enabled) cameraMonitor.start(); });
+        main.post(() -> { watchDisplays(); if (enabled && !dismissed) cameraMonitor.start(); });
     }
     boolean isEnabled() { return enabled; }
-    boolean canChangeBackend() { return !wanted() && !isStarting() && !sleeping && !powerBusy && !closing; }
+    boolean canChangeBackend() { return !wanted() && !isStarting() && !sleeping && !powerBusy && !closing && !RearHostBridge.hasSession(); }
     void backendChanged() { main.post(() -> { shell = null; playback.reset(); nextAttempt = 0; nudge(); }); }
     void lspConnected() { main.post(() -> { if (LspRearBridge.selected(context)) { shell = LspRearBridge.get(); nextAttempt = 0; nextHoldRefresh = 0; nudge(); } }); }
-    boolean isStarting() { return closing || pending || RearLyricsLauncher.isStarting(); }
-    boolean wanted() { return playback.wanted(enabled, playing, manual, LspRearBridge.selected(context)); }
+    boolean isStarting() { return closing || pending || hostConnecting || RearHostBridge.pending() || RearLyricsLauncher.isStarting(); }
+    boolean wanted() { return RearDisplayPolicy.wanted(playback.wanted(enabled, playing, manual, LspRearBridge.selected(context)),dismissed,rendererFailed); }
+    boolean userDismissed() { return dismissed; }
+    boolean rendererFailed() { return rendererFailed; }
 
     /** The active engine decides; callers never ask one machine about the other one's state. */
     private boolean planA() { return RearPlanA.enabled(context); }
     /** True while an external app (a camera) legitimately owns the rear panel. */
-    boolean cameraOwned() { return planA() ? occupancy.externalOwned() : rear.blocksPresentation(); }
+    boolean cameraOwned() { if(RearHostBridge.hasSession() && LspRearBridge.selected(context))return cameraMonitor.blocked();return planA() ? occupancy.externalOwned() : rear.blocksPresentation(); }
     /** Presentation (launch / move / wake) is allowed unless a camera owns the panel. */
     boolean canPresent() { return wanted() && !dismissed && !cameraOwned(); }
     boolean cameraSuspended() { return cameraOwned(); }
     static boolean presentationAllowed() { RearLyricsCoordinator value = instance; return value != null && value.canPresent(); }
-    boolean returnedToSystem() { return LspRearBridge.selected(context) && playback.returned()
+    boolean returnedToSystem() { return (dismissed || rendererFailed || (LspRearBridge.selected(context) && playback.returned()))
         && !closing && !RearLyricsActivity.isEnabled(); }
     boolean isSleeping() { return sleeping; }
     boolean preserveSleepSession() { return preservedSleepSession; }
@@ -199,6 +203,7 @@ final class RearLyricsCoordinator {
     void setCoverSleep(boolean value) {
         main.post(() -> {
             coverSleepEnabled = value; sleepUnsupported = false;
+            if(value && RearHostBridge.hasSession()){hostTried=true;closeWindow(CloseReason.SWITCH);}
             context.getSharedPreferences("rear_lyrics", 0).edit().putBoolean("cover_sleep", value).apply();
             if (!value && sleeping) changeSleep(false);
             syncCoverMonitor();
@@ -216,6 +221,7 @@ final class RearLyricsCoordinator {
      * handle (or never reported one) left the coordinator permanently parked.
      */
     private void cameraChanged(boolean blocked) {
+        if(RearHostBridge.hasSession() && LspRearBridge.selected(context)){RearHostBridge.suspend(blocked);nudge();return;}
         if (!enabled) { evaluateRear(SystemClock.elapsedRealtime()); return; }
         RearLyricsTrace.record(context, "camera-availability", "blocked=" + blocked + ", " + cameraMonitor.status());
         evaluateRear(SystemClock.elapsedRealtime());
@@ -370,7 +376,29 @@ final class RearLyricsCoordinator {
         RearPlanA.markDismissed(context);
         occupancy.setDismissed(true);
         planRestoring = false; reuseBroken = false;
-        RearLyricsTrace.record(context, "camera-dismiss", why + "; " + occupancy.describe(SystemClock.elapsedRealtime()));
+        RearLyricsTrace.record(context, "user-dismiss", why + "; " + occupancy.describe(SystemClock.elapsedRealtime()));
+    }
+
+    /** Ends only this display session. Playback and the auto_enabled preference are untouched. */
+    void dismissDisplaySession(String session) { endDisplaySession(session,true); }
+    void rendererUnavailable(String session) { endDisplaySession(session,false); }
+    private void endDisplaySession(String session, boolean user) {
+        if (Looper.myLooper()!=main.getLooper()) { main.post(()->endDisplaySession(session,user)); return; }
+        if (!RearDisplayPolicy.matching(session,displaySession()) || dismissed || closing) return;
+        if (user) dismiss("swipe-up"); else rendererFailed=true;
+        manual=false; attemptToken++; pending=false;hostConnecting=false;
+        panelLease.end(); takeover.reset(); coveredRecovery.reset(); pendingVerify=null; coveredBusy=false;
+        planRestoring=false; reuseBroken=false;
+        main.removeCallbacks(check); main.removeCallbacks(bindTimeout); main.removeCallbacks(pauseTimeout); scheduled=false;
+        cameraMonitor.stop(); coverMonitor.stop(); physicalCover=false;
+        rear.markSystemOwned(user?"user-swipe":"renderer-unavailable");
+        io.github.huleixin.tingyu.playback.LyricSyncLedger.get().rearContext(false,false,false);
+        RearLyricsActivity.pauseForExit(session);
+        String message=user?"已退出本次背屏显示；背屏开关保留，可重新显示":"背屏渲染恢复失败，已释放窗口；可手动重新显示";
+        context.getSharedPreferences("rear_lyrics",0).edit().putString("launch_message",message).apply();
+        RearLyricsTrace.record(context,user?"display-dismissed":"renderer-unavailable",message+", session="+session);
+        complete(false,-1,message,null);
+        closeWindow(user?CloseReason.GESTURE:CloseReason.RENDERER);
     }
 
     /** Called when the engine preference changes; hands the command channel over atomically. */
@@ -428,7 +456,7 @@ final class RearLyricsCoordinator {
     // ---------------------------------------------------------------- teardown
 
     private void closeWindow(CloseReason reason) {
-        if (closing) return;
+        if (closing) { if(reason!=CloseReason.CAMERA)closeReason=reason; return; }
         closing = true; closeReason = reason; closeRetries = 0;
         // Whatever the reason, the lock lease must end now: the panel goes back to the system
         // the moment the window is going away (user close, pause expiry or camera handoff).
@@ -437,6 +465,16 @@ final class RearLyricsCoordinator {
         releaseLeaseThenClose();
     }
     private void releaseLeaseThenClose() {
+        final int token=++closeAttemptToken;
+        if(closeTimeout!=null)main.removeCallbacks(closeTimeout);
+        closeTimeout=()->{if(RearDisplayPolicy.closeCallback(token,closeAttemptToken,closing))retryClose("release-timeout");};
+        main.postDelayed(closeTimeout,6500);
+        if(RearHostBridge.hasSession()){
+            RearHostBridge.release((ok,id,detail)->{
+                if(!RearDisplayPolicy.closeCallback(token,closeAttemptToken,closing))return;
+                if(ok)restorePowerThenClose(token);else retryClose("host-release-unconfirmed");
+            });return;
+        }
         String current = RearLyricsActivity.currentSession();
         String session = current.isEmpty() ? leaseSession : current;
         int display = rearDisplayForShell();
@@ -448,18 +486,22 @@ final class RearLyricsCoordinator {
         }
         if (LspRearBridge.selected(context) && !session.isEmpty()) {
             RearLspPowerControl.apply(main, shell, display, session, false, (success, detail) -> {
-                lspPowerDetail = detail; lspHolding = false;
-                if (!success) RearLyricsTrace.record(context, "lsp-release", "success=false, " + detail);
-                restorePowerThenClose();
+                if(!RearDisplayPolicy.closeCallback(token,closeAttemptToken,closing))return;
+                lspPowerDetail = detail;
+                if (!success) { RearLyricsTrace.record(context, "lsp-release", "success=false, " + detail);retryClose("lsp-release-failed");return; }
+                lspHolding = false;
+                restorePowerThenClose(token);
             });
-        } else restorePowerThenClose();
+        } else restorePowerThenClose(token);
     }
     /** Finish only after cover power restoration, and block resume launches until this cleanup completes. */
-    private void restorePowerThenClose() {
+    private void restorePowerThenClose(int token) {
+        if(!RearDisplayPolicy.closeCallback(token,closeAttemptToken,closing))return;
         if (!sleeping && !powerBusy) { finishClosing(); return; }
         int display = rearDisplayForShell();
         if (shell != null && shell.isBinderAlive() && display > 0) {
             RearLyricsLauncher.restoreRearPowerPolicy(shell, display, (success, detail) -> main.post(() -> {
+                if(!RearDisplayPolicy.closeCallback(token,closeAttemptToken,closing))return;
                 powerDetail = detail;
                 if (success) { sleeping = false; powerBusy = false; RearLyricsActivity.setPowerSleeping(false); finishClosing(); }
                 else retryClose("power-restore-failed");
@@ -472,7 +514,8 @@ final class RearLyricsCoordinator {
      * LSP binder was unavailable, which is one of the ways the lyrics never came back.
      */
     private void retryClose(String why) {
-        closing = false;
+        if(closeTimeout!=null)main.removeCallbacks(closeTimeout);
+        final int token=++closeAttemptToken;
         closeRetries++;
         if (closeRetries >= MAX_CLOSE_RETRIES) {
             sleeping = false; powerBusy = false;
@@ -486,16 +529,18 @@ final class RearLyricsCoordinator {
         main.postDelayed(() -> {
             // Even after the user turned the feature off the teardown must finish: a half
             // released panel is what leaves the rear screen dark or stuck later.
-            if (closing) return;
-            closing = true; releaseLeaseThenClose();
+            if(!RearDisplayPolicy.closeCallback(token,closeAttemptToken,closing))return;
+            releaseLeaseThenClose();
         }, 1_200);
     }
     private void finishClosing() {
         long now = SystemClock.elapsedRealtime();
         CloseReason reason = closeReason;
-        RearLyricsLauncher.close(context, reason == CloseReason.CAMERA);
+        closeAttemptToken++; if(closeTimeout!=null)main.removeCallbacks(closeTimeout);
+        RearLyricsLauncher.close(context, reason == CloseReason.CAMERA || reason == CloseReason.SWITCH);
         closing = false; closeReason = CloseReason.USER; closeRetries = 0;
         lockRecovery = false; covered = false; nextAttempt = 0;
+        if(reason==CloseReason.SWITCH)sleepUnsupported=false;
         coveredRecovery.reset(); pendingVerify = null; coveredBusy = false; migrateOnce = false;
         if (reason == CloseReason.CAMERA) { if (!planA()) rear.releaseFinished(true, now); }
         else rear.markSystemOwned("window-closed");
@@ -504,6 +549,11 @@ final class RearLyricsCoordinator {
     }
 
     private void changeSleep(boolean value) {
+        if(RearHostBridge.hasSession()){
+            // The system host owns panel power. Never issue an independent-task power override for its card.
+            sleepUnsupported=true;powerDetail="系统卡片宿主由系统管理息屏；朝下息屏偏好保留，独立窗口继续支持";
+            RearLyricsTrace.record(context,"host-power-policy",powerDetail);return;
+        }
         // Only a real camera hold (or its exit tail) blocks power work.
         if (cameraOwned()) return;
         if (!value && !closing && enabled && !playing && LspRearBridge.selected(context)
@@ -536,16 +586,17 @@ final class RearLyricsCoordinator {
     }
 
     String diagnostics() {
-        io.github.huleixin.tingyu.playback.LyricSyncLedger.get().rearContext(wanted() && !dismissed, cameraOwned(), sleeping);
+        io.github.huleixin.tingyu.playback.LyricSyncLedger.get().rearContext(wanted() && !dismissed, cameraOwned(), sleeping || RearHostBridge.renderSuspended());
         long now = SystemClock.elapsedRealtime();
         return "enabled=" + enabled + ", playing=" + playing + ", manual=" + manual
+            + ", hostConnected="+RearHostBridge.connected()+", hostActive="+RearHostBridge.active()+", hostSession="+RearHostBridge.session()+", hostDetail="+RearHostBridge.detail()
             + ", pending=" + pending + ", failures=" + failures + ", rearWakeTried=" + wakeTried
             + ", covered=" + covered + ", lockRecovery=" + lockRecovery + ", frontTask=" + frontTask
             + ", ownership=" + RearOwnershipState.describe(lastOwnership)
             + ", engine=" + RearPlanA.engine(context) + ", " + gate.describe(now)
             + ", occupied=" + occupancy.describe(now)
             + ", planRestoring=" + planRestoring + ", reuseBroken=" + reuseBroken
-            + ", hardYieldTries=" + hardYieldTries + ", dismissed=" + dismissed
+            + ", hardYieldTries=" + hardYieldTries + ", dismissed=" + dismissed + ", rendererFailed=" + rendererFailed
             + ", look={" + planLook.describe() + "}"
             + ", " + rear.describe(now)
             + ", live=" + observation.describe()
@@ -570,7 +621,7 @@ final class RearLyricsCoordinator {
 
     private void schedulePauseReturn() {
         main.removeCallbacks(pauseTimeout);
-        if (enabled && !playing && LspRearBridge.selected(context) && !playback.returned())
+        if (wanted() && !playing && LspRearBridge.selected(context) && !playback.returned())
             main.postDelayed(pauseTimeout, playback.remaining(SystemClock.elapsedRealtime()));
     }
     private void returnAfterPause() {
@@ -731,8 +782,9 @@ final class RearLyricsCoordinator {
         if (!desired && !lspHolding && !lastHoldDesired) return;
         lspPowerBusy = true; lastHoldDesired = desired; leaseSession = session;
         RearLspPowerControl.apply(main, shell, rearDisplayForShell(), session, desired, (success, detail) -> {
-            boolean wasHolding = lspHolding;
-            lspPowerBusy = false; lspHolding = success && desired; lspPowerDetail = detail;
+            lspPowerBusy = false;
+            if(!RearLyricsActivity.isCurrentSession(session)) { nudge(); return; }
+            boolean wasHolding = lspHolding; lspHolding = success && desired; lspPowerDetail = detail;
             if (wasHolding != lspHolding || !success) RearLyricsTrace.record(context, "lsp-lease", "requested=" + desired + ", success=" + success + ", " + detail);
             nextHoldRefresh = SystemClock.elapsedRealtime() + (success ? 20_000 : 10_000);
             if (!closing && RearLyricsActivity.isCurrentSession(session)) syncLspPower();
@@ -741,7 +793,7 @@ final class RearLyricsCoordinator {
 
     void enable(RearLyricsLauncher.Callback callback) {
         main.post(() -> {
-            enabled = true; manual = true; failures = 0; nextAttempt = 0;
+            enabled = true; manual = true; failures = 0; nextAttempt = 0; rendererFailed=false; hostTried=false;
             takeover.reset(); takeoverReported = false;
             coveredRecovery.reset(); pendingVerify = null; coveredBusy = false; migrateOnce = false;
             // Asking for the window again is the only thing that clears a dismissal.
@@ -813,6 +865,11 @@ final class RearLyricsCoordinator {
             closeWindow(CloseReason.USER);
         });
     }
+    void hostDisconnected(String oldSession) {
+        main.post(()->{hostTried=true;hostConnecting=false;pending=false;
+            RearLyricsTrace.record(context,"host-disconnected","session="+oldSession+", "+RearHostBridge.detail());nudge();});
+    }
+    String displaySession(){return RearHostBridge.hasSession()?RearHostBridge.session():RearLyricsActivity.currentSession();}
     void windowChanged() { main.post(this::nudge); }
     private void nudge() {
         // Lock/power transitions should not wait behind an ordinary two-second heartbeat.
@@ -823,9 +880,13 @@ final class RearLyricsCoordinator {
         scheduled = true; main.postDelayed(check, delay);
     }
     private void checkWindow() {
-        io.github.huleixin.tingyu.playback.LyricSyncLedger.get().rearContext(wanted() && !dismissed, cameraOwned(), sleeping);
+        io.github.huleixin.tingyu.playback.LyricSyncLedger.get().rearContext(wanted() && !dismissed, cameraOwned(), sleeping || RearHostBridge.renderSuspended());
         if (!wanted()) return;
         long now = SystemClock.elapsedRealtime();
+        if(LspRearBridge.selected(context) && RearHostBridge.hasSession()){
+            RearHostBridge.suspend(cameraMonitor.blocked());RearHostBridge.pulse(context,now);
+            schedule(2000);return;
+        }
         // 锁屏跳变 → 0/5/60 秒三次快照。放在这里是因为它对两种后端都成立，且不依赖 Activity。
         RearFaultDiagnostics.onLockChanged(context, main, lockedNow());
         evaluateRear(now);
@@ -901,9 +962,22 @@ final class RearLyricsCoordinator {
         RearLyricsLauncher.wakeMissing(context, shell, known, () -> main.post(() -> { waking = false; nudge(); }));
     }
     private void begin() {
-        if (!canPresent()) return;
+        if (!canPresent() || hostConnecting) return;
+        if(RearHostBridge.hasSession()){schedule(1000);return;}
         if (closing) { schedule(500); return; }
         try {
+            if(LspRearBridge.selected(context) && !hostTried && coverSleepEnabled){hostTried=true;RearLyricsTrace.record(context,"host-fallback","朝下息屏已启用，使用支持原生面板电源控制的独立窗口");}
+            if (LspRearBridge.selected(context) && !hostTried) {
+                if(RearLyricsActivity.isEnabled() || RearLyricsActivity.hasWindow()){closeWindow(CloseReason.SWITCH);return;}
+                hostTried=true;hostConnecting=true;pending=true;final int token=++attemptToken;
+                RearHostBridge.show(context,(ok,display,message)->{
+                    if(token!=attemptToken)return;
+                    hostConnecting=false;pending=false;
+                    if(ok){complete(true,display,message,null);schedule(2000);}
+                    else if(RearHostBridge.hasSession())finishFailure(message,null);
+                    else{RearLyricsTrace.record(context,"host-fallback",message);if(canPresent())begin();}
+                });return;
+            }
             if (LspRearBridge.selected(context)) {
                 LspRearBridge.request(context);
                 shell = LspRearBridge.get();
@@ -1324,6 +1398,7 @@ final class RearLyricsCoordinator {
         }
     }
     private boolean active(int display) {
+        if(RearHostBridge.hasSession())return RearHostBridge.active();
         return display >= 0 && !covered && RearLyricsActivity.isShowingOnDisplay(display)
             && RearLyricsLauncher.displayState(context, display) == Display.STATE_ON;
     }

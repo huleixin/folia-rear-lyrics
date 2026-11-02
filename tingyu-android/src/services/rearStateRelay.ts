@@ -30,6 +30,7 @@ export function createRearStateRelay(frame: () => Window | null | undefined, hos
             if (disposed) return;
             latest = { ...latest, ...snapshot }; connected = true; send(snapshot);
         },
+        reset() { latest=null;connected=false;send(); },
         setConnected(value: boolean) { if (connected !== value) { connected = value; send(); } },
         dispose() { disposed = true; host.removeEventListener('message', message); latest = null; session = ''; },
     };

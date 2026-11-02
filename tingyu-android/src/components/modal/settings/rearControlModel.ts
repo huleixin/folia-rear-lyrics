@@ -12,6 +12,8 @@ export const rearModeLocked=(s:RearLyricsStatus|null,busy:boolean)=>!s||busy||!!
 export function rearRunLabel(s:RearLyricsStatus|null,failed:boolean,t:Translate):string {
     if(failed)return t('mobileSettings.rearState.failed');
     if(!s)return t('mobileSettings.rearState.detecting');
+    if(s.userDismissed)return t('rearHost.dismissed');
+    if(s.rendererFailed)return t('rearHost.rendererFailed');
     if(s.starting)return t('mobileSettings.rearState.starting');
     if(s.sleeping)return t('rearControl.sleeping');
     if(s.cameraSuspended||s.yieldingToCamera)return t('rearControl.camera');
@@ -32,6 +34,7 @@ export function buildRearControlPage(page:'control'|'advanced',state:RearPresent
     if(page==='control'){
         sections.push({id:'rear-summary',layout:'rows',items:[{id:'toggle',title:t('rearControl.title'),subtitle:rearEntrySubtitle(s,state.failed,t),action:'rear:toggle',selected:!!s?.enabled,
             secondaryLabel:t(s?.enabled?'options.rearLyricsReturn':'mobileSettings.rearEnable'),disabled:(state.failed&&!s?.enabled)||!rearSettingsCanToggle(s,state.busy)}]});
+        if(s?.enabled&&s.returnedToSystem&&!s.starting)sections.push({id:'rear-show',layout:'rows',items:[{id:'show',title:t('rearHost.show'),action:'rear:show',disabled:state.busy}]});
         sections.push({...chips('backend',t('rearBridge.mode'),[['lsp','LSP'],['shizuku','Shizuku']],s?backend:'',locked),text:locked&&s?t('rearControl.stopBeforeSwitch'):''});
         const hint=rearSettingsHint(s);
         const failure=state.error||(state.actionFailed?(s?.message||t('mobileSettings.rearActionFailed')):'')||(state.failed?t('mobileSettings.rearState.failed'):'');
@@ -39,6 +42,7 @@ export function buildRearControlPage(page:'control'|'advanced',state:RearPresent
         const rows=backend==='lsp'?[{id:'module',title:t('rearControl.module'),subtitle:t(s?.lspConnected==null?'rearControl.unknown':s.lspConnected?'rearControl.connected':'rearControl.disconnected')}]:[
             {id:'service',title:t('rearControl.service'),subtitle:t(s?.shizukuAvailable==null?'rearControl.unknown':s.shizukuAvailable?'rearControl.serviceStarted':'rearControl.serviceStopped')},
             {id:'permission',title:t('rearControl.permission'),subtitle:t(s?.shizukuAvailable==null?'rearControl.unknown':!s.shizukuAvailable?'rearControl.serviceStopped':s.authorized==null?'rearControl.unknown':s.authorized?'rearControl.authorized':'rearControl.unauthorized')}];
+        if(backend==='lsp')rows.push({id:'host',title:t('rearHost.display'),subtitle:s?.hostActive?t('rearHost.active'):s?.displayMode==='independent'?t('rearHost.fallback'):s?.hostConnected?t('rearHost.waiting'):t('rearHost.disconnected')});
         sections.push({id:'rear-status',title:t('rearControl.status'),layout:'rows',items:[...rows,
             {id:'preference',title:t('rearControl.preference'),subtitle:t(!s?'rearControl.unknown':s.enabled?'rearControl.enabled':'rearControl.disabled')},
             {id:'display',title:t('rearControl.display'),subtitle:rearRunLabel(s,state.failed,t)},

@@ -12,7 +12,7 @@ final class RearLyricsState {
     static synchronized void update(JSONObject value) {
         JSONObject nextConfig = value.optJSONObject("config");
         if (nextConfig != null) {
-            config = nextConfig; revision++;
+            config = nextConfig; revision++; RearHostUpdates.changed();
         }
         if (value.has("uploadedFont")) uploadedFont = value.optJSONObject("uploadedFont");
         if (value.optJSONObject("clock") != null) clock = value.optJSONObject("clock");

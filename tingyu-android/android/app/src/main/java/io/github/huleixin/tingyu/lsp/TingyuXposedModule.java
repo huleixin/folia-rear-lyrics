@@ -15,11 +15,14 @@ import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 // android/app/src/main/java/io/github/huleixin/tingyu/lsp/TingyuXposedModule.java
-/** Framework scope only. Never inject Chromium, rendering loops or music into SystemUI. */
+/** Framework power bridge plus opt-in rear-centre card host; never inject SystemUI. */
 public final class TingyuXposedModule implements IXposedHookLoadPackage {
     private static boolean installed;
     private static final RearDisplayPower power = new RearDisplayPower();
     @Override public void handleLoadPackage(XC_LoadPackage.LoadPackageParam param) {
+        if (io.github.huleixin.tingyu.RearHostContract.TARGET.equals(param.packageName) && io.github.huleixin.tingyu.RearHostContract.TARGET.equals(param.processName)) {
+            io.github.huleixin.tingyu.RearHostHooks.install(param.classLoader);return;
+        }
         if (!"android".equals(param.packageName) || !"android".equals(param.processName)) return;
         power.install(param.classLoader);
         try {
