@@ -257,6 +257,7 @@ public final class RearHostHooks {
         private IBinder lifeline;
         private boolean suspended;
         private boolean resumed;
+        private boolean launcherSeen;
         private int display = -1, rebinds, launches;
         private long nextLaunchAt, pausedAt;
         private String lastFailure = "背屏中心 launcher 尚未出现";
@@ -307,12 +308,17 @@ public final class RearHostHooks {
             }
         }
 
+        /** 见过真实 launcher 实例的进程比「只装上了 Hook」的进程更可信，优先级再高一档。 */
+        private int priority() {
+            return uiHooksReady ? (launcherSeen ? 3 : 2) : 1;
+        }
+
         private String profile() {
             return "背屏中心宿主 v" + RearHostContract.VERSION
                 + " · build=" + BuildConfig.BUILD_ID
                 + " · " + process
                 + " · stage=" + stage
-                + " · priority=" + priority
+                + " · priority=" + priority()
                 + (stageError.isEmpty() ? "" : " · " + stageError);
         }
 
@@ -323,7 +329,7 @@ public final class RearHostHooks {
                     Bundle bundle = new Bundle();
                     bundle.putBinder("service", this);
                     bundle.putInt("protocol", RearHostContract.VERSION);
-                    bundle.putInt("priority", priority);
+                    bundle.putInt("priority", priority());
                     bundle.putString("stage", stage);
                     bundle.putString("error", stageError);
                     bundle.putString("process", process);
@@ -358,6 +364,12 @@ public final class RearHostHooks {
             resumed = true;
             display = id;
             pausedAt = 0;
+            if (!launcherSeen) {
+                // 第一次看到真正的 launcher：把优先级升到 3 并重新注册，让听屿优先选这个进程。
+                launcherSeen = true;
+                log("launcher seen process=" + process + "; re-registering with priority " + priority());
+                publish("launcher-seen");
+            }
             if (!same && host != null && host.activity() != activity) {
                 // 旧窗口的宿主视图随旧窗口一起销毁；新窗口必须拿一个新的。
                 host.close();

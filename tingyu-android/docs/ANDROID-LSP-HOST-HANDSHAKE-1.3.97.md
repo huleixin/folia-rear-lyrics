@@ -76,12 +76,15 @@ if (RearHostContract.TARGET.equals(param.packageName)) {
 每个进程都会创建一个 Controller 并主动 register，注册包携带：
 
 ```
-priority  UI Hook 可用=2，仅通信=1
+priority  UI Hook 可用=2，仅通信=1；进程内真正见到 SubScreenLauncher 后升到 3 并重新注册
 process   真实进程名
 stage     communication / ready / ui-hooks-failed / …
 error     该阶段的异常 + 调用点
 build     版本@commit[-dirty]
 ```
+
+「见过 launcher」优先于「只是装上了 Hook」：多进程同时加载模块时，听屿要选的是真正在跑
+背屏桌面的那个进程，而不是碰巧也装了 Hook 的进程。
 
 应用侧 `RearHostPolicy.acceptRegistration()` 的规则：
 
