@@ -84,6 +84,7 @@ public final class RearHostHooks {
         installing = true;
         process = processName == null || processName.isEmpty() ? "?" : processName;
         log("install begin process=" + process + " build=" + BuildConfig.BUILD_ID);
+        RearMamlProbe.install(loader);
         try {
             stage = "communication";
             XC_MethodHook create = new XC_MethodHook() {
@@ -186,6 +187,7 @@ public final class RearHostHooks {
                     String data = "build=" + BuildConfig.BUILD_ID
                         + ";process=" + process
                         + ";stage=" + stage
+                        + ";nativeCard=" + RearMamlProbe.inspectLatest()
                         + ";controller=" + (controller != null ? "yes" : "no")
                         + ";context=" + (controller == null ? "not-created" : controller.context.getClass().getName())
                         + ";receiver=" + (controller != null && controller.receiverReady ? "ready" : "not-ready")
@@ -401,6 +403,7 @@ public final class RearHostHooks {
                 + " · priority=" + priority()
                 + " · retry=" + retryHint()
                 + " · context=" + context.getClass().getName()
+                + " · nativeCard="+RearMamlProbe.inspectLatest()
                 + " · receiver=" + receiverReady
                 + (receiverError.isEmpty() ? "" : " · receiverError=" + receiverError)
                 + (stageError.isEmpty() ? "" : " · " + stageError);
@@ -453,6 +456,7 @@ public final class RearHostHooks {
             if (Looper.myLooper() != main.getLooper()) { main.post(() -> resumed(activity)); return; }
             int id = displayOf(activity);
             log("launcher discovered resumed display="+id+", lease="+!lease.isEmpty());
+            log("native card evidence: "+RearMamlProbe.inspect(activity.getWindow().getDecorView()));
             if (id <= 0) { log("ignored launcher on display " + id); return; }
             boolean same = launcher.get() == activity;
             launcher = new WeakReference<>(activity);
@@ -498,6 +502,16 @@ public final class RearHostHooks {
         // ------------------------------------------------------------ attach / launch
 
         private int attach(String why) {
+            // Native-card verification gate: never mount a substitute view on launcher decor.
+            Activity candidate=launcher.get();
+            String evidence=RearMamlProbe.inspect(candidate==null?null:candidate.getWindow().getDecorView());
+            report(lease,"native-card-probe",display,evidence);
+            lastFailure="原生音乐卡片验证阶段："+evidence+"；本版不挂载全屏替代层，使用独立窗口回退";
+            return FAILED;
+        }
+
+        /** Retained for history, deliberately unreachable while the native-card gate is active. */
+        private int attachLegacyFullscreenDisabled(String why) {
             report(lease,"attaching",display,"attach="+why+", launcher="+(launcher.get()!=null)+", resumed="+resumed+", suspended="+suspended+", power="+state(display));
             if (!uiHooksReady) {
                 lastFailure = "背屏中心 UI Hook 不可用（stage=" + stage + (stageError.isEmpty() ? "" : ", " + stageError) + "）";
