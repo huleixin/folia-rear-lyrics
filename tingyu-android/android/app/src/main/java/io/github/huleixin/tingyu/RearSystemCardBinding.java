@@ -15,6 +15,7 @@ import java.util.List;
 final class RearSystemCardBinding {
     static final String PANEL="com.xiaomi.subscreencenter.SmartAssistantPanel";
     static volatile String evidence="system slot not inspected";
+    static boolean unsupportedVersion;
     static Runnable changed;
     private final View panel;
     private final Object holder,widget;
@@ -42,8 +43,10 @@ final class RearSystemCardBinding {
     /** Require the real panel -> holder -> widget -> content identity chain; never infer from size. */
     static RearSystemCardBinding resolve(FrameLayout content){
         try{
-            long version=content.getContext().getPackageManager().getPackageInfo(RearHostContract.TARGET,0).getLongVersionCode();
-            if(version!=26010521L){evidence="unsupported system slot profile versionCode="+version;return null;}
+            android.content.pm.PackageInfo info=content.getContext().getPackageManager().getPackageInfo(RearHostContract.TARGET,0);
+            long version=info.getLongVersionCode();
+            unsupportedVersion=version!=26010521L;
+            if(unsupportedVersion){evidence="unsupported system slot profile versionCode="+version+", versionName="+info.versionName+", supportedVersionCode=26010521; require currently installed host APK, not factory APK";return null;}
             ViewParent parent=content.getParent();View panel=null;
             for(int depth=0;parent instanceof View&&depth<16;depth++,parent=parent.getParent()){
                 if(PANEL.equals(parent.getClass().getName())){panel=(View)parent;break;}

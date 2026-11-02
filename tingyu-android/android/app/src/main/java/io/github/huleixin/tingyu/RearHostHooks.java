@@ -561,7 +561,12 @@ public final class RearHostHooks {
             if(!nativeOwnershipHooks){lastFailure="Native card restoration hooks unavailable";return FAILED;}
             if(card!=null&&!card.restore()){lastFailure="Native restoration unconfirmed; no parallel fallback";return PENDING;}
             RearNativeCardOwner candidate=RearMamlProbe.ownCard(display);
-            if(candidate==null){lastFailure="等待系统音乐卡槽绑定听屿；"+RearSystemCardBinding.evidence+"；"+evidence;return PENDING;}
+            if(candidate==null){
+                lastFailure="系统音乐卡槽未挂载；"+RearSystemCardBinding.evidence+"；"+evidence;
+                // Unsupported host structure is not a renderer timeout. Keep the real blocker.
+                report(lease,RearSystemCardBinding.unsupportedVersion?"blocked":"attaching",display,lastFailure);
+                return RearSystemCardBinding.unsupportedVersion?FAILED:PENDING;
+            }
             if(activity==null||activity.isFinishing()){lastFailure="Native card found without live launcher owner";return PENDING;}
             if(!RearHostPolicy.mayRebind(rebinds)){lastFailure="Native card rebuild budget exhausted";return FAILED;}
             card=candidate;rebinds++;
