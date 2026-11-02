@@ -33,7 +33,7 @@ it.each([[false,false,'未启动'],[true,false,'未授权'],[true,true,'已授�
 it('keeps rollback in advanced and restricts locked routes to Shizuku',()=>{
     const lsp=buildRearControlPage('advanced',state,t);expect(lsp.sections.find(s=>s.id==='engine')!.items!.find(r=>r.id==='legacy')!.selected).toBe(true);expect(lsp.sections.some(s=>s.id==='route')).toBe(false);
     const shizuku=buildRearControlPage('advanced',{...state,snapshot:{...state.snapshot,backendMode:'shizuku',lockedRoute:'reuse'}},t);
-    expect(shizuku.sections.find(s=>s.id==='route')!.items!.map(r=>r.id)).toEqual(['auto','reuse','migrate']);expect(shizuku.sections.find(s=>s.id==='route')!.text).toContain('系统锁屏启动限制');
+    expect(shizuku.sections.find(s=>s.id==='route')!.items!.map(r=>r.id)).toEqual(['auto','reuse','migrate']);expect(shizuku.sections.find(s=>s.id==='route')!.text).toMatch(/锁屏.*系统.*限制/);
 });
 it.each(['enabled','starting','sleeping','active'] as const)('locks backend and engine while %s without firing an action',key=>{
     const snapshot={enabled:false,starting:false,sleeping:false,active:false,[key]:true};expect(rearModeLocked(snapshot,false)).toBe(true);

@@ -51,5 +51,7 @@ for(const width of [320,360])test(`small screen and 150% text ${width}`,async({p
     await page.getByRole('button',{name:/高级设置/}).click();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.getByRole('button',{name:/Legacy/}).click();await expect(page.getByRole('button',{name:/Legacy/})).toHaveAttribute('aria-pressed','true');
+    await page.locator('.ty-rear-page-scroll').evaluate(element=>element.scrollTop=0);
+    await expect(page.getByRole('heading',{name:'高级设置',exact:true})).toBeInViewport();
     await page.locator('[data-folia-settings-panel]').screenshot({path:path.join(evidence,`rear-${width}-large-light-web.png`)});
 });
