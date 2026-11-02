@@ -1,3 +1,4 @@
+import {setCompatibleOutputSession} from './playbackOutputIdentity';
 import { getTingyuPlayback } from '../platform/tingyuPlayback';
 import { isNativeAudioElement } from './nativeAudioElement';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
@@ -13,6 +14,7 @@ type Endpoint = (lease: string, action: string, ticket: number, enabled: boolean
 declare global { interface Window { __tingyuSleepOutput?: Endpoint } }
 let owner: { lease: string; ready: Promise<void>; release(): Promise<void> } | null = null;
 export const hasCompatibleSleepOutput = () => owner !== null;
+export const compatibleOutputSession = () => owner?.lease ?? "";
 const browserAudio = () => [...document.querySelectorAll('audio')].filter(element => !isNativeAudioElement(element));
 export function pauseCompatibleAudio(allowEmpty = false, preserveIntent = false): boolean {
     const elements = browserAudio();
@@ -48,7 +50,7 @@ export function ensureCompatibleSleepOutput(attempt: () => string, quietGraph: (
     window.__tingyuSleepOutput = endpoint;
     const send = (action: string, extra: Record<string, unknown> = {}) => {
         const state = usePlaybackStore.getState();
-        const data = { action, lease, revision: ++revision, songKey: state.currentSong && state.audioSrc ? getPlaybackSongKey(state.currentSong) : '',
+        const data = { action, lease, playbackAttempt:attempt(), revision: ++revision, songKey: state.currentSong && state.audioSrc ? getPlaybackSongKey(state.currentSong) : '',
             playing: browserAudio().some(element => !element.paused && !element.ended), ...extra };
         const response = serial.catch(() => {}).then(() => native.compatiblePlayback(data));
         serial = response; return response;
@@ -78,14 +80,14 @@ export function ensureCompatibleSleepOutput(attempt: () => string, quietGraph: (
     document.addEventListener('play', media, true); document.addEventListener('pause', media, true);
     document.addEventListener('visibilitychange', visible);
     const unsubscribe = usePlaybackStore.subscribe(update);
-    const ready = send('claim').then(value => { if (!value.accepted) throw new Error('Compatible ownership rejected'); update(); });
+    const ready = send('claim').then(value => { if (!value.accepted) throw new Error('Compatible ownership rejected');setCompatibleOutputSession(lease); update(); });
     const binding = { lease, ready, release: async () => {
         await ready;
         if (!pauseCompatibleAudio(true,true)) throw new Error('Browser output did not pause');
         if(!await quietGraph('handoff'))throw new Error('Browser DSP output did not suspend');
         const response = await send('release', { paused: true });
         if (!response.accepted) throw new Error('Compatible release was not acknowledged');
-        live = false; barrier = false; applyBarrier(); unsubscribe();
+        setCompatibleOutputSession('');live = false; barrier = false; applyBarrier(); unsubscribe();
         document.removeEventListener('ended', ended, true); document.removeEventListener('play', media, true); document.removeEventListener('pause', media, true);
         document.removeEventListener('visibilitychange', visible);
         if (window.__tingyuSleepOutput === endpoint) delete window.__tingyuSleepOutput;

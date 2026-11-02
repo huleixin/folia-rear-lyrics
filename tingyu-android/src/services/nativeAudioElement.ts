@@ -1,3 +1,4 @@
+import {bindOutputIdentity} from './playbackOutputIdentity';
 import { notePlaybackTest,playbackTestUriInfo } from './playbackTestLog';
 import { prepareNativeAudioSource, type NativeAudioSource } from './nativeAudioCache';
 import type { NativeAudioOptions, NativeAudioPort, NativeAudioState, NativeQueueTrack, NativeQueueWindow } from '../types/nativeAudio';
@@ -7,8 +8,9 @@ import type { NativeAudioOptions, NativeAudioPort, NativeAudioState, NativeQueue
 let blocked=false;
 /** Latches out stale queued commands while the transport changes hands; only an explicit switch calls this. */
 export function setNativeAudioCommandsBlocked(value:boolean){blocked=value;}
-const elements=new WeakMap<HTMLMediaElement,{spectrum:Uint8Array;queue:(tracks:NativeQueueTrack[],window?:NativeQueueWindow)=>Promise<unknown>}>();
+const elements=new WeakMap<HTMLMediaElement,{spectrum:Uint8Array;identity:()=>{sessionId:string;songKey:string;epoch:string};queue:(tracks:NativeQueueTrack[],window?:NativeQueueWindow)=>Promise<unknown>}>();
 export const setNativeAudioQueue=(element:HTMLMediaElement,tracks:NativeQueueTrack[],window?:NativeQueueWindow)=>elements.get(element)?.queue(tracks,window);
+export const nativeAudioIdentity=(element:HTMLMediaElement|null)=>element?elements.get(element)?.identity():undefined;
 export const isNativeAudioElement=(element:HTMLMediaElement|null)=>!!element&&elements.has(element);
 export const nativeAudioSpectrum=(element:HTMLMediaElement|null)=>element?elements.get(element)?.spectrum:null;
 const abort=()=>new DOMException('Playback intent replaced','AbortError');
@@ -21,7 +23,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     let source='',track='',id='',sequence=0,lastIntent=0,position=0,duration=0,buffered=0,anchor=performance.now(),sourceAttempt:unknown;
     let paused=true,playing=false,ended=false,ready=0,volume=element.volume,muted=element.muted,disposed=false,metadata=false;
     let requestedPlaying=false;
-    let lastEventRevision=-1,engineSession='';
+    let lastEventRevision=-1,engineSession='',trackGeneration=-1;
     const retiredSessions:string[]=[];
     let rate=1;
     let lastSample=-Infinity,seekTarget:number|null=null,seekUntil=0,announcedTrack='';
@@ -42,6 +44,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
             if(value.eventRevision<=lastEventRevision)return;
             lastEventRevision=value.eventRevision;
         }
+        if(value.songKey===track&&value.trackGeneration!==undefined)trackGeneration=value.trackGeneration;
         if(value.type==='decoder-offer'&&!value.endedBySleep){
             // Only native can confirm that a queued fault still belongs to the audible track.
             if(value.decoderOffer!==undefined)void send('claim-compatibility',{songKey:value.songKey,offer:value.decoderOffer}).catch(()=>{});
@@ -137,7 +140,8 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         void work.catch(error=>notePlaybackTest('native-command-failed',{action,error,elapsedMs:Math.round(performance.now()-started)}));
         return work;
     };
-    elements.set(element,{...bands,queue:(tracks,queueWindow)=>send('queue',{
+    bindOutputIdentity(element,()=>({sessionId:id,songKey:track,epoch:trackGeneration<0?"":`${track}#${trackGeneration}`}));
+    elements.set(element,{...bands,identity:()=>({sessionId:id,songKey:track,epoch:trackGeneration<0?"":`${track}#${trackGeneration}`}),queue:(tracks,queueWindow)=>send('queue',{
         // The anchor names whose successors these are; without window metadata the element's own
         // track is the anchor, which is what a foreground call means.
         songKey:queueWindow?.anchor??track,tracks,
@@ -209,7 +213,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         configure(next:NativeAudioOptions){options=next;if(id)void send('configure',next).catch(()=>{});},
         snapshot:()=>({position:time(),paused,source,track,volume,muted,requestedPlaying}),
         dispose(){
-            if(disposed)return Promise.resolve();disposed=true;rejectPending(abort());elements.delete(element);document.removeEventListener('visibilitychange',refresh);
+            if(disposed)return Promise.resolve();disposed=true;rejectPending(abort());elements.delete(element);bindOutputIdentity(element);document.removeEventListener('visibilitychange',refresh);
             for(const [name,descriptor] of original){if(descriptor)Object.defineProperty(element,name,descriptor);else delete (element as unknown as Record<string,unknown>)[name];}
             element.volume=volume;element.muted=muted;
             const stop=id?send('detach'):Promise.resolve();

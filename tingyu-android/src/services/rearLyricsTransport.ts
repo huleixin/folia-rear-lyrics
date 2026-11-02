@@ -1,3 +1,4 @@
+import {rearPlaybackAuthority} from './rearPlaybackAuthority';
 import type { LyricsSurfaceTransport } from '../types/lyricsSurfaceTransport';
 import { PlayerState, type LyricData } from '../types';
 import type { ObsBrowserSourceClock, ObsBrowserSourceConfig } from '../types/obsBrowserSource';
@@ -24,6 +25,8 @@ const NATIVE_LYRIC_SLOW_RETRY_MS = 5000;
 const NATIVE_LYRIC_MAX_ATTEMPTS = NATIVE_LYRIC_RETRIES + NATIVE_LYRIC_SLOW_RETRIES;
 
 export type RearNativeTrack = {
+    engine?: string;
+    outputSessionId?: string;
     songKey?: string;
     epoch?: string;
     title?: string;
@@ -59,11 +62,12 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         // instead of waiting for a new one, so the visual settings never flicker or reset.
         let lastConfig: ObsBrowserSourceConfig | null = null;
         let appliedEpoch = '', nativeAppliedEpoch = '';
+        let ownerRevision=-1,ownerProcess='';const retiredOwners:string[]=[];
         let lyricRequest = 0, resyncs = 0, lastResyncAt = -Infinity;
         let lyricRetry = 0;
         // 当前生效的原生轨与歌词链路状态：断连/恢复（refresh）时用于判断要不要续上
         // 还没拿到的歌词 —— 只续有界的剩余次数，不重置计数、不轮询。
-        let activeTrack: RearNativeTrack | null = null;
+        let activeTrack: RearNativeTrack | null = null,renderedOwner:RearNativeTrack|null=null;
         let lyricAttempt = 0;
         let lyricLines = 0;
         /**
@@ -184,6 +188,20 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         };
         const accept = async (snapshot: RearStateSnapshot) => {
                 if (closed || inactive()) return;
+                if(snapshot.owner?.sessionId){
+                    const o=snapshot.owner;
+                    if(retiredOwners.includes(o.sessionId!))return;
+                    if(ownerProcess===o.sessionId&&(o.eventRevision??0)<ownerRevision)return;
+                    if(ownerProcess!==o.sessionId){if(ownerProcess)retiredOwners.push(ownerProcess);if(retiredOwners.length>4)retiredOwners.shift();ownerProcess=o.sessionId!;ownerRevision=-1;}
+                    ownerRevision=o.eventRevision??0;
+                }
+                const candidate=snapshot.config??lastConfig;
+                const authority=rearPlaybackAuthority(snapshot,candidate);
+                // A retired output can still have a pending lyric response or a cached native item.
+                if(snapshot.owner&&(!authority.track||activeTrack?.outputSessionId!==authority.track.outputSessionId)){
+                    lyricRequest++;clearTimeout(lyricRetry);lyricRetry=0;activeTrack=null;appliedEpoch='';nativeAppliedEpoch='';lyricFingerprint='';
+                }
+                renderedOwner=authority.blocked?null:snapshot.owner??null;
                 const configChanged = Boolean(snapshot.config && snapshot.revision !== revision);
                 if (configChanged && snapshot.config) {
                     lyricRequest++;
@@ -199,9 +217,11 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                         document.fonts.delete(ownedFont); ownedFont = null; fontId = '';
                     }
                     if (closed || inactive()) return;
-                    events.config(snapshot.config); onConfig(snapshot.config);
-                    lastConfig = snapshot.config;
+                    const safe=snapshot.owner&&(authority.blocked||authority.track&&!authority.webAllowed)?{...snapshot.config,hasTrack:false,song:null,lyrics:{lines:[]}}:snapshot.config;
+                    events.config(safe); onConfig(safe);
+                    lastConfig = safe;
                     revision = snapshot.revision;
+                    if(snapshot.owner?.engine==='compatible'&&authority.webAllowed){lyricLines=safe.lyrics?.lines.length??0;trace('lyric-applied',`source=compatible lines=${lyricLines}`,snapshot.owner.songKey,snapshot.owner.epoch);}
                 }
                 // The native side is the identity authority: Media3's current MediaItem id and a
                 // per-track epoch. A different epoch means the song really changed, whatever the
@@ -209,14 +229,14 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                 const config = snapshot.config ?? lastConfig;
                 // External/stage sources retain their own clock; a retained Media3 item cannot own them.
                 const externalStage = config?.activePlaybackContext === 'stage';
-                const track = externalStage ? undefined : snapshot.track;
+                const track = authority.track;
                 if (externalStage && (activeTrack || appliedEpoch)) {
                     activeTrack = null; appliedEpoch = ''; nativeAppliedEpoch = ''; lyricFingerprint = '';
                     lyricRequest++; clearTimeout(lyricRetry); lyricRetry = 0;
                 }
                 const sentAt = snapshot.clock?.sentAtMs ?? 0;
                 const matchingSong = !track?.epoch || (config?.playbackSongKey ?? String(config?.song?.id ?? '')) === track.songKey;
-                const jsFresh = matchingSong && sentAt > 0 && Date.now() - sentAt >= 0 && Date.now() - sentAt <= NATIVE_STALE_MS;
+                const jsFresh = authority.webAllowed && matchingSong && sentAt > 0 && Date.now() - sentAt >= 0 && Date.now() - sentAt <= NATIVE_STALE_MS;
                 if (track?.epoch) {
                     activeTrack = track;
                     const changed = track.epoch !== appliedEpoch;
@@ -234,6 +254,11 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                         trace('lyric-revision', `epoch=${track.epoch} lyric=${lyricFingerprint}`);
                         void loadNativeLyrics(track, 0);
                     }
+                }
+                if(authority.blocked){
+                    if(lastConfig?.hasTrack||lastConfig?.lyrics?.lines?.length)emitConfig({...lastConfig,hasTrack:false,song:null,lyrics:{lines:[]}});
+                    const paused={currentTime:0,duration:0,playerState:PlayerState.PAUSED,sentAtMs:Date.now(),playbackRate:1};
+                    lastClock=paused;events.clock(paused);onClock(paused);trace('ownership-wait','retired-or-missing-session');return;
                 }
                 if (snapshot.clock && (jsFresh || !track?.epoch)) {
                     // Without a native track there is nothing better than the published clock, so
@@ -280,14 +305,15 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
          * 会被去重拦截（此时原生侧也不会判渲染停滞，两边的判定都带 playing）。
          */
         const sendAppliedBeat = () => {
-            if (closed || inactive() || !activeTrack) return;
+            const rendered=activeTrack??renderedOwner;
+            if (closed || inactive() || !rendered) return;
             const now = Date.now();
             if (now - lastAppliedBeatAt < 10_000) return;
             lastAppliedBeatAt = now;
             trace('lyric-applied',
-                `beat pos=${Math.round(activeTrack.positionMs ?? 0)} lines=${lyricLines}`
-                + ` epoch=${activeTrack.epoch ?? ''}`,
-                activeTrack.songKey, activeTrack.epoch);
+                `beat pos=${Math.round(rendered.positionMs ?? 0)} lines=${lyricLines}`
+                + ` epoch=${rendered.epoch ?? ''}`,
+                rendered.songKey, rendered.epoch);
         };
         const poll = async () => {
             if (closed || inactive() || polling) return;
@@ -304,7 +330,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                 const key = JSON.stringify([snapshot.revision, snapshot.clock, snapshot.audio?.sentAtMs,
                     snapshot.track?.epoch, snapshot.track?.positionMs, snapshot.track?.playing,
                     // 歌词指纹是「有词了」的唯一事件源：不进比较键就收不到重同步。
-                    snapshot.track?.lyric]);
+                    snapshot.track?.lyric,snapshot.owner]);
                 const clockExpired = Boolean(snapshot.track?.epoch && snapshot.clock && Date.now() - snapshot.clock.sentAtMs > NATIVE_STALE_MS && nativeAppliedEpoch !== snapshot.track.epoch);
                 if (key !== lastSnapshotKey || clockExpired) {
                     options.onSnapshot?.(snapshot); await accept(snapshot); lastSnapshotKey = key;

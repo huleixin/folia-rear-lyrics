@@ -222,6 +222,10 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     /** Media3 事实 → {@link io.github.huleixin.tingyu.RearNativeTrack}（背屏唯一的时钟权威）。 */
     private void syncRearTrack(){
         try{
+            if(sourceId.isEmpty()||decoderClaimed)return;
+            MediaItem rearItem=player.getCurrentMediaItem();
+            if(rearItem==null)return;
+            io.github.huleixin.tingyu.RearNativeTrack.bindNative(sourceId,rearItem.mediaId,rearItem.localConfiguration!=null&&rearItem.localConfiguration.tag instanceof JSObject?(JSObject)rearItem.localConfiguration.tag:null);
             io.github.huleixin.tingyu.RearNativeTrack.onPlayback(player.isPlaying(),Math.max(0L,player.getCurrentPosition()),player.getPlaybackParameters().speed);
             io.github.huleixin.tingyu.RearNativeTrack.onDuration(player.getDuration());
         }catch(Throwable ignored){
@@ -271,6 +275,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 io.github.huleixin.tingyu.FoliaPlaybackService.nativePlaybackChanged(true);
             }
             @Override public void onMediaItemTransition(MediaItem item,int reason){
+                if(decoderClaimed)return;
                 if(sourceId.isEmpty()||item==null||item.localConfiguration==null||!(item.localConfiguration.tag instanceof JSObject))return;
                 JSObject queued=(JSObject)item.localConfiguration.tag;
                 songKey=item.mediaId;endedHandoff=false;staleNudges=0;
@@ -293,7 +298,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 io.github.huleixin.tingyu.FoliaPlaybackService.publishQueuedTrack(context,queued,player.getPlayWhenReady());
                 // 背屏的「当前歌曲」权威来源与上面同源：真实的 MediaItem id + 队列 tag。
                 // 换曲即递增 epoch，背屏据此丢弃上一首的时间轴，不再外推旧歌。
-                io.github.huleixin.tingyu.RearNativeTrack.onTrack(songKey,queued);
+                if(!sourceId.isEmpty()&&!decoderClaimed)io.github.huleixin.tingyu.RearNativeTrack.bindNative(sourceId,songKey,queued);
                 io.github.huleixin.tingyu.RearNativeTrack.onDuration(durationMsFor(songKey));
                 io.github.huleixin.tingyu.RearNativeTrack.onPlayback(player.getPlayWhenReady()&&player.isPlaying(),
                     Math.max(0L,player.getCurrentPosition()));
@@ -464,7 +469,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             String key=value.optString("songKey");long ticket=value.optLong("offer",-1);
             if(offeredDecoderFailure==null||!sourceId.equals(id)||seq<sequence||!songKey.equals(key)||!currentKey().equals(key)||!decoderFallback.current(id,key,ticket,retryGeneration,desiredPaused))return new JSObject().put("accepted",false);
             sequence=seq;retryGeneration++;decoderFallback.clear();decoderClaimed=true;failure=offeredDecoderFailure;offeredDecoderFailure=null;
-            BackgroundContinuation.get().cancel();desiredPaused=true;cancelFade();player.pause();
+            BackgroundContinuation.get().cancel();desiredPaused=true;cancelFade();io.github.huleixin.tingyu.RearNativeTrack.handoff(sourceId);player.pause();
             PlaybackDiagnostics.note("decoder-offer-claimed",new JSObject().put("code",failure.errorCode).put("song",PlaybackDiagnostics.anonKey(key)));
             emit("error",true);return new JSObject().put("accepted",true);
         }
@@ -475,7 +480,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             if(!java.util.Arrays.asList("http","https","content","file").contains(uri.getScheme()))throw new IllegalArgumentException("Unsupported native audio URI");
             MediaItem active=player.getCurrentMediaItem();
             if(value.optBoolean("adopt")){
-                sourceId=id;sequence=seq;
+                sourceId=id;sequence=seq;syncRearTrack();
                 if(active!=null&&active.localConfiguration!=null&&active.mediaId.equals(value.optString("songKey"))&&active.localConfiguration.uri.equals(uri)){
                     emit("load",false);return new JSObject().put("accepted",true);
                 }
@@ -497,7 +502,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 // 同曲同址的重复 prepare：Media3 的 setMediaItem 会清空整个播放列表，
                 // 这里绝不能跟着走。窗口、位置、continuation-adopt 的下一首全部保留，
                 // 只把这次 JS 会话重新挂回引擎。
-                sourceId=id;sequence=seq;failure=null;errorSkips=0;desiredPaused=false;
+                sourceId=id;sequence=seq;failure=null;errorSkips=0;desiredPaused=false;syncRearTrack();
                 emit("load",false);
                 PlaybackDiagnostics.note("prepare-kept-window",new JSObject()
                     .put("items",player.getMediaItemCount())
@@ -523,7 +528,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             // re-declares it. The generation is never invented here - JS owns that counter.
             supervision.continuation(false,supervision.generation());supervision.satisfied();errorSkips=0;
             main.removeCallbacks(superviseTick);
-            configure(value);player.setMediaItem(new MediaItem.Builder().setUri(uri).setMediaId(songKey).setTag(copy(value)).build(),Math.max(0,value.optLong("position")));sourceId=id;player.prepare();attachSleepTimer();
+            configure(value);player.setMediaItem(new MediaItem.Builder().setUri(uri).setMediaId(songKey).setTag(copy(value)).build(),Math.max(0,value.optLong("position")));sourceId=id;player.prepare();syncRearTrack();attachSleepTimer();
             io.github.huleixin.tingyu.FoliaPlaybackService.publishQueuedTrack(context,value,false);
             scheduleSongInfo(player.getCurrentMediaItem());emit("load",false);
         }else{
@@ -537,7 +542,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             switch(action){
                 case "play":case "pause":case "stop":transport(action,false);if("play".equals(action))noteLiveness("play");break;
                 case "detach":io.github.huleixin.tingyu.RearNativeTrack.clear();BackgroundContinuation.get().cancel();desiredPaused=true;retryGeneration++;cancelFade();PlaybackDiagnostics.note("engine-detach",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
-                        .put("positionMs",Math.max(0,player.getCurrentPosition())));player.stop();player.clearMediaItems();sourceId="";SleepTimerController.get(context).nativeDetached();main.removeCallbacks(heartbeat);supervision.continuation(false,supervision.generation());supervision.satisfied();main.removeCallbacks(superviseTick);break;
+                        .put("positionMs",Math.max(0,player.getCurrentPosition())));sourceId="";player.stop();player.clearMediaItems();io.github.huleixin.tingyu.RearNativeTrack.clear();SleepTimerController.get(context).nativeDetached();main.removeCallbacks(heartbeat);supervision.continuation(false,supervision.generation());supervision.satisfied();main.removeCallbacks(superviseTick);break;
                 case "seek":player.seekTo(Math.max(0,value.optLong("position")));break;
                 case "volume":volume=(float)Math.max(0,Math.min(1,value.optDouble("volume",1)));cancelFade();player.setVolume(volume);break;
                 case "configure":configure(value);break;

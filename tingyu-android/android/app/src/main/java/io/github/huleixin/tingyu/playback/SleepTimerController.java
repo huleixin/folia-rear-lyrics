@@ -57,7 +57,7 @@ public final class SleepTimerController {
     /** Bridge destruction retires its output lease, not the process-owned sleep deadline. */
     public void compatibilityDestroyed(android.webkit.WebView web){
         if(compatible==null||!compatible.owns(web))return;
-        output.detach(compatible);compatible=null;
+        io.github.huleixin.tingyu.RearNativeTrack.releaseCompatible(compatible.lease);output.detach(compatible);compatible=null;
         if(state.active||pausePending){reason="output-disconnected";persist();publish();}
     }
     public JSObject compatibility(android.webkit.WebView web,JSObject message){
@@ -76,11 +76,12 @@ public final class SleepTimerController {
         }
         if("release".equals(action)){
             if(!message.optBoolean("paused"))throw new IllegalStateException("Compatible output not paused");
-            compatible.barrier(false);output.detach(compatible);compatible=null;return new JSObject().put("accepted",true);
+            io.github.huleixin.tingyu.RearNativeTrack.releaseCompatible(lease);compatible.barrier(false);output.detach(compatible);compatible=null;return new JSObject().put("accepted",true);
         }
         long revision=message.optLong("revision");
         if(revision<compatible.revision)return new JSObject().put("accepted",false);
         compatible.revision=revision;compatible.songKey=message.optString("songKey");compatible.playing=message.optBoolean("playing");
+        io.github.huleixin.tingyu.RearNativeTrack.compatible(lease,compatible.songKey,message.optString("playbackAttempt"));
         if("resume".equals(action))pauseAttempts=0;
         check();applyBarrier();
         boolean blocked=pausePending;

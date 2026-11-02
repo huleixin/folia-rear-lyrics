@@ -28,6 +28,7 @@ public final class RearNativeTrack {
     static java.util.function.LongSupplier elapsedClock = SystemClock::elapsedRealtime;
     private static final String sessionId = java.util.UUID.randomUUID().toString();
     private static long eventRevision;
+    private static String engine="none", outputSession="", attempt="";
     private static float playbackRate = 1f;
     private static volatile String songKey = "";
     private static volatile String title = "";
@@ -41,6 +42,22 @@ public final class RearNativeTrack {
     private static volatile long updatedAt = 0L;
 
     private RearNativeTrack() {}
+
+    /** Bind only after the output controller has accepted this source lease. */
+    public static synchronized void bindNative(String lease,String key,JSObject metadata){
+        if(!"media3".equals(engine)||!outputSession.equals(lease)){reset();engine="media3";outputSession=lease;}
+        onTrack(key,metadata);
+    }
+    public static synchronized void handoff(String lease){
+        if(!outputSession.equals(lease))return;
+        reset();engine="handoff";outputSession=lease;
+    }
+    public static synchronized void compatible(String lease,String key,String request){
+        if(!"compatible".equals(engine)||!outputSession.equals(lease)||!attempt.equals(request)){reset();engine="compatible";outputSession=lease;attempt=request;}
+        // Reuse the same identity generation and ledger, not a second playback clock.
+        onTrack(key,null);
+    }
+    public static synchronized void releaseCompatible(String lease){if("compatible".equals(engine)&&outputSession.equals(lease))reset();}
 
     /** 真实换曲（Media3 onMediaItemTransition）。seq 由引擎给，保证同一个 MediaItem 不会被重复计为新曲。 */
     public static synchronized void onTrack(String key, JSObject queued) {
@@ -77,7 +94,7 @@ public final class RearNativeTrack {
         onPlayback(isPlaying, positionMsNow, playbackRate);
     }
     public static synchronized void onPlayback(boolean isPlaying, long positionMsNow, float speed) {
-        if (songKey.isEmpty()) return;
+        if (songKey.isEmpty()||!"media3".equals(engine)) return;
         playbackRate = Float.isFinite(speed) && speed > 0f ? speed : 1f;
         eventRevision++;
         if (positionMsNow >= 0L) {
@@ -110,6 +127,8 @@ public final class RearNativeTrack {
             long position = positionNow();
             if (durationMs > 0L && position > durationMs) position = durationMs;
             value.put("songKey", songKey);
+            io.github.huleixin.tingyu.playback.LyricSyncLedger.get().ownership(engine,outputSession);
+            value.put("engine",engine).put("outputSessionId",outputSession);
             value.put("sessionId", sessionId).put("eventRevision", eventRevision);
             value.put("anchorPositionMs", positionMs).put("anchorElapsedMs", anchorAt)
                 .put("capturedAtElapsedMs", elapsedClock.getAsLong()).put("playbackRate", playbackRate);
@@ -131,6 +150,8 @@ public final class RearNativeTrack {
     public static synchronized void clear() { reset(); }
     static synchronized void reset() {
         eventRevision++;
+        engine="none";outputSession="";attempt="";
+        io.github.huleixin.tingyu.playback.LyricSyncLedger.get().track("","");
         songKey = ""; title = ""; artist = ""; epoch = "";
         durationMs = 0L; positionMs = 0L; anchorAt = 0L; playing = false; updatedAt = 0L;
     }

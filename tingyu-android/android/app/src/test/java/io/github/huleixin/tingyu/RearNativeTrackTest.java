@@ -5,7 +5,19 @@ import org.json.JSONObject;
 import static org.junit.Assert.*;
 // android/app/src/test/java/io/github/huleixin/tingyu/RearNativeTrackTest.java
 public class RearNativeTrackTest {
- @org.junit.Before public void before(){RearNativeTrack.elapsedClock=()->1000L;RearNativeTrack.clear();}
+ @Test public void leasesRetireClocksAndReplayGetsANewEpoch() throws Exception {
+  RearNativeTrack.bindNative("a","qq:a",null);RearNativeTrack.onPlayback(true,5000);
+  String first=RearNativeTrack.epoch();
+  RearNativeTrack.handoff("a");RearNativeTrack.onPlayback(true,9000);
+  assertFalse(RearNativeTrack.hasTrack());assertEquals("handoff",RearNativeTrack.snapshot().getString("engine"));
+  RearNativeTrack.compatible("web","qq:b","request2");
+  assertEquals("compatible",RearNativeTrack.snapshot().getString("engine"));
+  RearNativeTrack.releaseCompatible("wrong");assertEquals("qq:b",RearNativeTrack.songKey());
+  RearNativeTrack.releaseCompatible("web");RearNativeTrack.bindNative("c","qq:a",null);
+  assertNotEquals(first,RearNativeTrack.epoch());
+  String repeated=RearNativeTrack.epoch();RearNativeTrack.bindNative("d","qq:a",null);assertNotEquals(repeated,RearNativeTrack.epoch());
+ }
+ @org.junit.Before public void before(){RearNativeTrack.elapsedClock=()->1000L;RearNativeTrack.clear();RearNativeTrack.bindNative("test","",null);}
  @org.junit.After public void after(){RearNativeTrack.clear();RearNativeTrack.elapsedClock=android.os.SystemClock::elapsedRealtime;}
  @Test public void switchingWithoutMetadataCannotKeepTheOldTitleOrNativeAuthority() throws Exception {
   RearNativeTrack.onTrack("qq:a",new JSObject().put("title","A").put("artist","Artist").put("durationMs",10000));

@@ -78,6 +78,8 @@ public final class LyricSyncLedger {
         return INSTANCE;
     }
 
+    private String outputEngine="none",outputLease="";private long ownershipChanges;
+    public synchronized void ownership(String engine,String lease){if(!outputEngine.equals(engine)||!outputLease.equals(lease)){outputEngine=engine;outputLease=lease;ownershipChanges++;}}
     private long staleEvents;
     private String songKey = "";
     private String epoch = "";
@@ -285,7 +287,7 @@ public final class LyricSyncLedger {
 
     /** 诊断用一行摘要；只出现哈希后的身份与版本哈希，不含歌词正文。 */
     public synchronized String describe(long nowMs) {
-        return "song=" + anon(songKey)
+        return "output="+outputEngine+"/"+anon(outputLease)+", handoffs="+ownershipChanges+", song=" + anon(songKey)
             + ", epoch=" + (epoch.isEmpty() ? "-" : epoch)
             + ", unified=" + unifiedState
             + (unifiedHash.isEmpty() ? "" : "/" + unifiedHash + "@" + unifiedRevision)

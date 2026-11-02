@@ -1,3 +1,4 @@
+import {nativeAudioIdentity,compatibleOutputSession} from '../services/playbackOutputIdentity';
 import { useEffect, useRef } from 'react';
 import type { ObsBrowserSourceAudio, ObsBrowserSourceClock, ObsBrowserSourceConfig } from '../types/obsBrowserSource';
 import { useTypographySettingsStore } from '../stores/useTypographySettingsStore';
@@ -31,7 +32,7 @@ export function useRearLyricsPublisher(config: ObsBrowserSourceConfig, clock: ()
         let closed = false, enabled = false, sleeping = false, polling = false, publishing = false;
         let statusTimer = 0, publishTimer = 0, fastStatus = Boolean(plugin.getRearLyricsRuntimeState);
         let lastClockKey = '', lastPublish = 0;
-        let publishedConfig: ObsBrowserSourceConfig | null = null;
+        let publishedConfig: ObsBrowserSourceConfig | null = null;let publishedSession='';
         let publishedFont = '';
         let loadedFontId: string | null = null;
         let loadedFont: RearUploadedFont | null = null;
@@ -66,12 +67,16 @@ export function useRearLyricsPublisher(config: ObsBrowserSourceConfig, clock: ()
             const value = latest.current;
             let advancing = false;
             const fontId = value.font?.source === 'uploaded' ? value.font.fontId ?? '' : '';
-            const changed = publishedConfig !== value.config || publishedFont !== fontId;
+            const live=value.readPlaybackClock();
+            const identity=nativeAudioIdentity(live?.media??null);
+            const session=identity?.sessionId ?? compatibleOutputSession();
+            const binding=session+":"+(identity?.epoch??"");
+            const changed = publishedConfig !== value.config || publishedFont !== fontId||publishedSession!==binding;
             try {
                 const clock = publisher.sample(value.clock(), JSON.stringify([
                     value.config.activePlaybackContext, value.config.stageSource,
                     value.config.song?.id, value.config.song?.name, value.config.songArtist,
-                ]), value.readPlaybackClock());
+                ]), live);
                 advancing = clock.playerState === PlayerState.PLAYING && !sleeping;
                 const clockKey = JSON.stringify([clock.timelineId, clock.discontinuity, clock.currentTime,
                     clock.duration, clock.playerState, clock.playbackRate, clock.lyricOffsetMs]);
@@ -83,10 +88,10 @@ export function useRearLyricsPublisher(config: ObsBrowserSourceConfig, clock: ()
                 }
                 if (closed || sleeping || !enabled || value !== latest.current) return;
                 await plugin.publishRearLyricsSnapshot({
-                    ...(changed ? { config: value.config, uploadedFont: loadedFont } : {}),
+                    ...(changed ? { config: {...value.config,playbackSessionId:session,playbackEpoch:identity?.epoch}, uploadedFont: loadedFont } : {}),
                     clock, audio: value.audio(),
                 });
-                publishedConfig = value.config; publishedFont = fontId;
+                publishedConfig = value.config; publishedFont = fontId;publishedSession=binding;
                 lastClockKey = clockKey; lastPublish = Date.now();
             } catch { /* Retry a dropped update on the next tick. */ }
             finally { publishing = false; if (!closed && enabled && !sleeping) schedulePublish(advancing ? 100 : 1000); }

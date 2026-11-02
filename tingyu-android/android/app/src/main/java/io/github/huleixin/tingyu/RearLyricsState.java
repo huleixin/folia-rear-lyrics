@@ -33,7 +33,8 @@ final class RearLyricsState {
                 // 固定次数的重试预算（那正是「等到重试耗尽就永久空白」的成因）。
                 track.put("lyric", io.github.huleixin.tingyu.coloros.ColorOsLyricBridge
                     .fingerprint(track.optString("songKey", "")));
-                value.put("track", track);
+                value.put("owner", track);
+                value.put("track", "media3".equals(track.optString("engine"))?track:JSONObject.NULL);
             }
             return value.toString();
         } catch (Exception error) { return "{}"; }
