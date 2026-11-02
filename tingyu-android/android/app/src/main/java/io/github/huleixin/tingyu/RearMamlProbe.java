@@ -11,12 +11,14 @@ import java.util.ArrayList;
 import java.util.WeakHashMap;
 
 // android/app/src/main/java/io/github/huleixin/tingyu/RearMamlProbe.java
-/** Original read-only capability probe. No native visibility, rendering, gesture or media mutation. */
+/** Discovers real music_control instances; ownership and mutations live in RearNativeCardOwner. */
 final class RearMamlProbe {
     private static final String MAML="com.miui.maml.component.MamlView";
     private static final WeakHashMap<View,Boolean> candidates=new WeakHashMap<>();
     private static String status="MAML probe not installed";
     private static Class<?> maml;
+    static java.util.function.Consumer<View> changed;
+    static java.util.function.BiConsumer<View,Boolean> paused;
     private static int observed, scans;
     private static volatile String snapshot="MAML runtime not inspected";
     private RearMamlProbe(){}
@@ -30,10 +32,13 @@ final class RearMamlProbe {
             for(String name:new String[]{"initMamlview","onAttachedToWindow","onResume"}){
                 count+=XposedBridge.hookAllMethods(maml,name,new XC_MethodHook(){
                     @Override protected void afterHookedMethod(MethodHookParam p){
-                        if(!p.hasThrowable()&&p.thisObject instanceof View)observe((View)p.thisObject);
+                        if(!p.hasThrowable()&&p.thisObject instanceof View){View v=(View)p.thisObject;observe(v);if(changed!=null)changed.accept(v);}
                     }
                 }).size();
             }
+            for(String event:new String[]{"onPause","onResume","onDetachedFromWindow"})XposedBridge.hookAllMethods(maml,event,new XC_MethodHook(){
+                @Override protected void afterHookedMethod(MethodHookParam p){if(p.thisObject instanceof View&&paused!=null)paused.accept((View)p.thisObject,!"onResume".equals(event));}
+            });
             status="MAML classes loaded; lifecycleHooks="+count+"; runtime music instance not verified";
         }catch(Throwable error){status="MAML capability unavailable: "+error.getClass().getSimpleName();}
         XposedBridge.log("Tingyu MAML probe: "+status);
@@ -76,6 +81,18 @@ final class RearMamlProbe {
         }
         snapshot=status+"; observed="+observed+", attached="+attached+", music="+musicCount+", own="+own+", other="+other+", unknown="+unknown+"; "+reason;
         return snapshot;
+    }
+    static RearNativeCardOwner ownCard(int expectedDisplay){
+        for(View v:new ArrayList<>(candidates.keySet()))try{
+            if(!(v instanceof android.widget.FrameLayout)||!v.isAttachedToWindow()||!v.isShown()||v.getDisplay()==null||v.getDisplay().getDisplayId()<=0)continue;
+            Object root=XposedHelpers.getObjectField(v,"mRoot");
+            Object music=root==null?null:XposedHelpers.callMethod(root,"findElement","music_control");
+            if(music==null||!music.getClass().getName().equals("com.miui.maml.elements.MusicControlScreenElement")||!missingRestore(root).isEmpty())continue;
+            RearNativeCardOwner candidate=new RearNativeCardOwner((android.widget.FrameLayout)v,root,music);
+            MediaController selected=candidate.selected();
+            if(selected!=null&&RearNativeCardPolicy.mayMount(selected.getPackageName(),v.isAttachedToWindow(),v.isShown(),v.getDisplay().getDisplayId(),expectedDisplay,v.getWidth(),v.getHeight()))return candidate;
+        }catch(Throwable ignored){}
+        return null;
     }
     static String inspectLatest(){return status+"; "+snapshot;}
     private static String missingRestore(Object root){

@@ -15,6 +15,18 @@ public class RearNativeCardPolicyTest {
         assertTrue(RearNativeCardPolicy.blocker(true,null,true).contains("no selected"));
         assertTrue(RearNativeCardPolicy.blocker(true,"com.other.player",true).contains("prohibited"));
         assertTrue(RearNativeCardPolicy.blocker(true,RearHostContract.APP,false).contains("incomplete"));
-        assertTrue(RearNativeCardPolicy.blocker(true,RearHostContract.APP,true).contains("not enabled"));
+        assertTrue(RearNativeCardPolicy.blocker(true,RearHostContract.APP,true).contains("lifecycle checks"));
+    }
+    @Test public void mountRequiresTheRealVisibleOwnCardOnTheRequestedRearDisplay(){
+        String own=RearHostContract.APP;
+        assertTrue(RearNativeCardPolicy.mayMount(own,true,true,1,1,904,572));
+        assertFalse(RearNativeCardPolicy.mayMount(null,true,true,1,1,904,572));
+        assertFalse(RearNativeCardPolicy.mayMount("com.other.player",true,true,1,1,904,572));
+        assertFalse(RearNativeCardPolicy.mayMount(own,false,true,1,1,904,572));
+        assertFalse(RearNativeCardPolicy.mayMount(own,true,false,1,1,904,572));
+        assertFalse(RearNativeCardPolicy.mayMount(own,true,true,0,0,904,572));
+        assertFalse(RearNativeCardPolicy.mayMount(own,true,true,2,1,904,572));
+        assertFalse(RearNativeCardPolicy.mayMount(own,true,true,1,1,0,572));
+        assertFalse(RearNativeCardPolicy.mayMount(own,true,true,1,1,904,0));
     }
 }

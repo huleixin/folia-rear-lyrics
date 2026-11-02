@@ -84,7 +84,9 @@ public final class RearHostHooks {
         installing = true;
         process = processName == null || processName.isEmpty() ? "?" : processName;
         log("install begin process=" + process + " build=" + BuildConfig.BUILD_ID);
+        RearMusicAdmission.install(loader);
         RearMamlProbe.install(loader);
+        installNativeOwnershipHooks(loader);
         try {
             stage = "communication";
             XC_MethodHook create = new XC_MethodHook() {
@@ -143,6 +145,36 @@ public final class RearHostHooks {
         installing = false;
         log("install done priority=" + priority + " " + capability
             + (stageError.isEmpty() ? "" : " error=" + stageError));
+    }
+
+    private static volatile boolean nativeOwnershipHooks;
+    private static void installNativeOwnershipHooks(ClassLoader loader){
+        try{
+            Class<?> root=XposedHelpers.findClass("com.miui.maml.ScreenElementRoot",loader);
+            XC_MethodHook guard=new XC_MethodHook(){@Override protected void beforeHookedMethod(MethodHookParam p){
+                Controller c=controller;RearNativeCardOwner owner=c==null?null:c.card;
+                if(owner==null||!owner.owned()||p.thisObject!=owner.root)return;
+                if(!owner.ownMedia()){if(c.host!=null)c.host.refresh();return;}
+                Class<?> type=((java.lang.reflect.Method)p.method).getReturnType();
+                if(type==boolean.class)p.setResult(false);else if(type==long.class)p.setResult(Long.MAX_VALUE);else p.setResult(null);
+            }};
+            for(String method:new String[]{"doRender","update","updateIfNeeded","attachToVsync","selfResume","requestUpdate","onTouch"}){
+                if(XposedBridge.hookAllMethods(root,method,guard).isEmpty())throw new IllegalStateException("Missing native restore guard "+method);
+            }
+            Class<?> maml=XposedHelpers.findClass("com.miui.maml.component.MamlView",loader);
+            XposedBridge.hookAllMethods(maml,"sendCommand",new XC_MethodHook(){
+                @Override protected void afterHookedMethod(MethodHookParam p){
+                    Controller c=controller;if(c==null||c.card==null||c.host==null||p.thisObject!=c.card.container||p.args.length==0)return;
+                    if("enterAod".equals(p.args[0]))c.host.aod(true);
+                    else if("exitAod".equals(p.args[0]))c.host.aod(false);
+                }
+            });
+            Class<?> music=XposedHelpers.findClass("com.miui.maml.elements.MusicControlScreenElement",loader);
+            for(String event:new String[]{"handleStateUpdate","onClientChange","resetMusicPlayer"})XposedBridge.hookAllMethods(music,event,new XC_MethodHook(){
+                @Override protected void afterHookedMethod(MethodHookParam p){Controller c=controller;if(c!=null&&c.card!=null&&c.host!=null&&p.thisObject==c.card.music)c.host.refresh();}
+            });
+            nativeOwnershipHooks=true;
+        }catch(Throwable error){nativeOwnershipHooks=false;log("native ownership hooks unavailable: "+describe(error));}
     }
 
     private static int safeHookAll(Class<?> type, String method, XC_MethodHook hook) {
@@ -307,6 +339,7 @@ public final class RearHostHooks {
         private volatile int appUid = -1;
         private WeakReference<Activity> launcher = new WeakReference<>(null);
         private RearHostView host;
+        private RearNativeCardOwner card;
         private IBinder lifeline;
         private boolean suspended;
         private boolean resumed;
@@ -323,6 +356,8 @@ public final class RearHostHooks {
             this.context = RearHostContext.resolve(application);
             log("context ready type=" + context.getClass().getName());
             this.process = processName;
+            RearMamlProbe.changed=v->{if(!lease.isEmpty())main.post(()->{if(!lease.isEmpty())attach("maml-event");});};
+            RearMamlProbe.paused=(v,value)->{if(card!=null&&card.container==v&&host!=null)host.resumed(!value);};
             attachInterface(null, RearHostContract.DESCRIPTOR);
             application.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
                 public void onActivityCreated(Activity a, Bundle state) {}
@@ -476,7 +511,7 @@ public final class RearHostHooks {
                 host = null;
             }
             // 同一个窗口重新前台：先把宿主的 resumed 复位，否则它会在 render() 里永远判为不可见。
-            if (host != null && host.activity() == activity) host.resumed(true);
+            if (host != null && host.activity() == activity && card==null) host.resumed(true);
             if (!lease.isEmpty()) attach("launcher-resumed");
         }
 
@@ -485,7 +520,7 @@ public final class RearHostHooks {
             if (activity != launcher.get()) return;
             resumed = false;
             pausedAt = SystemClock.uptimeMillis();
-            if (host != null) host.resumed(false);
+            if (host != null && card==null) host.resumed(false);
         }
 
         void destroyed(Activity activity) {
@@ -502,61 +537,25 @@ public final class RearHostHooks {
         // ------------------------------------------------------------ attach / launch
 
         private int attach(String why) {
-            // Native-card verification gate: never mount a substitute view on launcher decor.
-            Activity candidate=launcher.get();
-            String evidence=RearMamlProbe.inspect(candidate==null?null:candidate.getWindow().getDecorView());
-            report(lease,"native-card-probe",display,evidence);
-            lastFailure="原生音乐卡片验证阶段："+evidence+"；本版不挂载全屏替代层，使用独立窗口回退";
-            return FAILED;
-        }
-
-        /** Retained for history, deliberately unreachable while the native-card gate is active. */
-        private int attachLegacyFullscreenDisabled(String why) {
-            report(lease,"attaching",display,"attach="+why+", launcher="+(launcher.get()!=null)+", resumed="+resumed+", suspended="+suspended+", power="+state(display));
-            if (!uiHooksReady) {
-                lastFailure = "背屏中心 UI Hook 不可用（stage=" + stage + (stageError.isEmpty() ? "" : ", " + stageError) + "）";
-                return FAILED;
-            }
-            if (lease.isEmpty()) return FAILED;
-            if (suspended) { lastFailure = "宿主正在让位（相机或应用侧挂起）"; return PENDING; }
-            Activity activity = launcher.get();
-            if (activity == null || activity.isFinishing() || !resumed) {
-                lastFailure = "背屏中心 launcher 不在前台";
-                report(lease,"waiting-launcher",display,lastFailure+", resumed="+resumed+", power="+state(display));
-                requestLauncher(why);
-                return PENDING;
-            }
-            int id = displayOf(activity);
-            if (id <= 0) { lastFailure = "背屏中心 launcher 不在背屏上"; return FAILED; }
-            display = id;
-            // Existing view follows display/AOD events; a read-only probe must not turn normal
-            // suspension into failure and destroy a successfully created renderer.
-            if (!RearHostPolicy.requiresNewView(host!=null,host!=null&&host.closed(),host!=null&&host.activity()==activity)) { host.refresh(); return ATTACHED; }
-            int power = state(id);
-            if (power != RearHostPolicy.STATE_ON) {
-                // 背屏没点亮时不在背屏中心里建视图：点屏是应用侧独立窗口的职责，宿主不抢电源。
-                lastFailure = "背屏当前未点亮（state=" + power + "）";
-                return FAILED;
-            }
-
-            if (host != null) { host.close(); host = null; }
-            if (!RearHostPolicy.mayRebind(rebinds)) {
-                lastFailure = "宿主重建次数已达上限（" + rebinds + "）；本次会话不再重建";
-                return FAILED;
-            }
-            rebinds++;
-            RearHostView next = new RearHostView(activity, lease, this);
-            if (!next.attach()) {
-                lastFailure = next.failure();
-                next.close();
-                log("view create failed: " + lastFailure + " (" + why + ")");
-                return FAILED;
-            }
-            host = next;
-            lastFailure = "";
-            report(lease, "created", display, "rear-centre host attached: display=" + display
-                + ", " + RearHostPolicy.describe(rebinds, launches) + ", " + why);
-            log("view created display=" + display + " " + why + " " + RearHostPolicy.describe(rebinds, launches));
+            if(lease.isEmpty())return FAILED;
+            Activity activity=launcher.get();
+            String evidence=RearMamlProbe.inspect(activity==null?null:activity.getWindow().getDecorView());
+            report(lease,"native-card-probe",display,evidence+"; admission="+RearMusicAdmission.status
+                +"; ownChecks="+RearMusicAdmission.ownChecks+", ownLists="+RearMusicAdmission.ownLists+"; "+RearMusicAdmission.sessionEvidence(context));
+            if(suspended)return PENDING;
+            if(host!=null&&!host.closed()&&card!=null){host.refresh();return ATTACHED;}
+            if(!nativeOwnershipHooks){lastFailure="Native card restoration hooks unavailable";return FAILED;}
+            if(card!=null&&!card.restore()){lastFailure="Native restoration unconfirmed; no parallel fallback";return PENDING;}
+            RearNativeCardOwner candidate=RearMamlProbe.ownCard(display);
+            if(candidate==null){lastFailure="等待原生音乐卡片选中听屿 MediaController；"+evidence;return PENDING;}
+            if(activity==null||activity.isFinishing()){lastFailure="Native card found without live launcher owner";return PENDING;}
+            if(!RearHostPolicy.mayRebind(rebinds)){lastFailure="Native card rebuild budget exhausted";return FAILED;}
+            card=candidate;rebinds++;
+            RearHostView next=new RearHostView(activity,lease,this,card);host=next;
+            if(!next.attach()){lastFailure=next.failure();next.close();host=null;return FAILED;}
+            display=candidate.container.getDisplay().getDisplayId();
+            report(lease,"created",display,"native-maml music_control; selectedPackage="+RearHostContract.APP
+                +", cardSize="+candidate.container.getWidth()+"x"+candidate.container.getHeight()+", parent="+(candidate.container.getParent()==null?"none":candidate.container.getParent().getClass().getName())+", "+why);
             return ATTACHED;
         }
 
@@ -604,6 +603,8 @@ public final class RearHostHooks {
 
         private boolean release() {
             if (host != null) { host.close(); host = null; }
+            if(card!=null&&!card.restore())return false;
+            card=null;
             String old = lease;
             lease = "";
             if (!old.isEmpty()) lastReleased = old;
@@ -628,6 +629,8 @@ public final class RearHostHooks {
             log(event + " display=" + id + " " + reason);
             if ("user-exit".equals(event) || "failed".equals(event)) {
                 if (host != null) { host.close(); host = null; }
+                if(card!=null&&!card.restore()){log("native restoration pending; retain lease");return;}
+                card=null;
                 if (!lease.isEmpty()) lastReleased = lease;
                 lease = "";
                 suspended = false;
