@@ -30,6 +30,10 @@ final class RearHostPolicy {
 
     private RearHostPolicy() {}
 
+    static boolean requiresNewView(boolean exists,boolean closed,boolean sameActivity){
+        return !exists || closed || !sameActivity;
+    }
+
     static boolean mayWake(boolean current, boolean sleeping, boolean busy, boolean covered, boolean camera) {
         return current && !sleeping && !busy && !covered && !camera;
     }

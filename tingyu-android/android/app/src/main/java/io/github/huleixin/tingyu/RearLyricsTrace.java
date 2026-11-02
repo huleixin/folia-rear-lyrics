@@ -27,7 +27,13 @@ public final class RearLyricsTrace {
         StringBuilder bounded = new StringBuilder();
         for (int index = Math.max(0, lines.length - 40); index < lines.length; index++) bounded.append(lines[index]).append('\n');
         prefs.edit().putString("lock_trace", bounded.toString()).apply();
+        if(event.startsWith("host/")||event.startsWith("host-")||"host-disconnected".equals(event)) {
+            prefs.edit().putString("host_evidence",RearHostEvidence.append(prefs.getString("host_evidence",""),event,entry)).apply();
+        }
         } catch (Exception ignored) { /* Diagnostics must not interrupt a window/power transition. */ }
     }
-    static String read(Context context) { return context.getSharedPreferences("rear_lyrics", 0).getString("lock_trace", ""); }
+    static String read(Context context) {
+        android.content.SharedPreferences prefs=context.getSharedPreferences("rear_lyrics",0);
+        return prefs.getString("lock_trace","")+"\nDedicated host startup evidence:\n"+prefs.getString("host_evidence","");
+    }
 }

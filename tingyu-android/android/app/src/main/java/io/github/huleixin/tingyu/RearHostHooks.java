@@ -515,13 +515,16 @@ public final class RearHostHooks {
             int id = displayOf(activity);
             if (id <= 0) { lastFailure = "背屏中心 launcher 不在背屏上"; return FAILED; }
             display = id;
+            // Existing view follows display/AOD events; a read-only probe must not turn normal
+            // suspension into failure and destroy a successfully created renderer.
+            if (!RearHostPolicy.requiresNewView(host!=null,host!=null&&host.closed(),host!=null&&host.activity()==activity)) { host.refresh(); return ATTACHED; }
             int power = state(id);
             if (power != RearHostPolicy.STATE_ON) {
                 // 背屏没点亮时不在背屏中心里建视图：点屏是应用侧独立窗口的职责，宿主不抢电源。
                 lastFailure = "背屏当前未点亮（state=" + power + "）";
                 return FAILED;
             }
-            if (host != null && !host.closed() && host.activity() == activity) { host.refresh(); return ATTACHED; }
+
             if (host != null) { host.close(); host = null; }
             if (!RearHostPolicy.mayRebind(rebinds)) {
                 lastFailure = "宿主重建次数已达上限（" + rebinds + "）；本次会话不再重建";

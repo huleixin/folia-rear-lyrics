@@ -59,7 +59,7 @@ final class RearHostBridge {
         return "handshakeSeen="+handshakeSeen()+", priority="+servicePriority
             +", process="+hostProcess()+", stage="+hostStage()
             +", build="+hostBuild()+", error="+hostError()
-            +", ping="+(pingData.isEmpty()?"<none>":pingData);
+            +", progress={"+progress.describe()+"}, ping="+(pingData.isEmpty()?"<none>":pingData);
     }
     static boolean matches(String value){return RearHostPolicy.validSession(value) && value.equals(session);}
     static void cancelConnecting(){if(!hasSession())generation++;}
@@ -168,6 +168,7 @@ final class RearHostBridge {
     }
     private static void failStart(Context context,String expected,String message){
         if(!matches(expected))return;
+        RearLyricsTrace.record(context,"host/start-failed",message+", "+progress.describe());
         Completion callback=pending;pending=null;
         release((ok,id,why)->{detail=message+(ok?"":"；释放未确认，禁止并行回退");if(callback!=null)callback.done(false,-1,detail);});
     }
@@ -216,7 +217,7 @@ final class RearHostBridge {
     static void pulse(Context context,long now){
         if(!hasSession()||releasing||now-lastProbe<10000)return;lastProbe=now;
         final String expected=session;
-        transact(RearHostContract.PROBE,expected,false,display,(ok,id,why)->{if(matches(expected)&&!ok)release((released,d,reason)->{if(released)RearLyricsCoordinator.get(context).hostDisconnected(expected);});});
+        transact(RearHostContract.PROBE,expected,false,display,(ok,id,why)->{if(matches(expected)&&!ok){RearLyricsTrace.record(context,"host/probe-failed","reason="+why+", "+progress.describe());detail="宿主探测失败："+why+"；"+progress.describe();release((released,d,reason)->{if(released)RearLyricsCoordinator.get(context).hostDisconnected(expected);});}});
     }
     static void release(Completion callback){
         if(!hasSession()){callback.done(true,-1,"No host lease");return;}

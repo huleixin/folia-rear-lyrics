@@ -13,6 +13,15 @@ import static org.junit.Assert.*;
  * 成回归测试，而不是只靠删代码。
  */
 public class RearHostPolicyTest {
+    @Test public void existingRendererIsReusableRegardlessOfPanelPower(){
+        for(int state:new int[]{0,1,2,3,4}){
+            assertFalse(RearHostPolicy.requiresNewView(true,false,true));
+            assertEquals(state==2,RearHostPolicy.render(true,false,true,true,1,state));
+        }
+        assertTrue(RearHostPolicy.requiresNewView(false,false,false));
+        assertTrue(RearHostPolicy.requiresNewView(true,true,true));
+        assertTrue(RearHostPolicy.requiresNewView(true,false,false));
+    }
     @Test public void aRearCentreHostNeedsNoSystemMusicCard(){
         // 会话、未挂起、launcher resumed、视图已挂上、背屏、面板点亮 —— 没有媒体卡片这一项。
         assertTrue(RearHostPolicy.render(true,false,true,true,1,RearHostPolicy.STATE_ON));
