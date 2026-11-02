@@ -36,7 +36,7 @@ final class RearHostView {
     static final String TAG = "tingyu.rear.centre.host";
     private static final String URL = "https://rear.folia.local/rear-lyrics.html";
 
-    private final Activity activity;
+    private final android.content.Context context;
     private final RearNativeCardOwner card;
     private final String session;
     private final Events events;
@@ -65,23 +65,23 @@ final class RearHostView {
         @Override public void onDisplayChanged(int id) { if (id == displayId()) reconcile(); }
     };
 
-    RearHostView(Activity activity,String session,Events events,RearNativeCardOwner card){
+    RearHostView(String session,Events events,RearNativeCardOwner card){
         this.card=java.util.Objects.requireNonNull(card,"Native MAML music card required");
-        this.activity = activity;
+        this.context = card.container.getContext();
         this.session = session;
         this.events = events;
     }
 
     String session() { return session; }
-    Activity activity() { return activity; }
+    Activity activity() { return RearCardContext.activity(context); }
     String failure() { return failure; }
     boolean closed() { return closed; }
 
     /** 在已选中听屿会话的 MAML 卡片内创建舞台，保留失败阶段。 */
     boolean attach() {
         if (closed) { failure = "host already closed"; return false; }
-        if (activity.isFinishing()) { failure = "launcher finishing"; return false; }
-        if (activity.isDestroyed()) { failure = "launcher destroyed"; return false; }
+        if (!RearCardContext.usable(context)) { failure = "card context missing or owning Activity destroyed"; return false; }
+        if(!card.binding.current()||!card.ownMedia()||!card.container.isAttachedToWindow()){failure="card identity or attachment changed";return false;}
         View decor = card.container;
         Display display = decor.getDisplay();
         if (display == null || display.getDisplayId() <= 0) {
@@ -92,7 +92,7 @@ final class RearHostView {
         ViewGroup group = (ViewGroup) decor;
         if (group.findViewWithTag(TAG) != null) { failure = "another Tingyu host view already exists in this window"; return false; }
         try {
-            stage=new FrameLayout(activity){
+            stage=new FrameLayout(context){
                 @Override public void onVisibilityAggregated(boolean visible){super.onVisibilityAggregated(visible);main.post(()->{if(!closed)reconcile();});}
                 private android.view.MotionEvent down;private boolean moved;
                 @Override protected void onDetachedFromWindow(){if(down!=null){down.recycle();down=null;}super.onDetachedFromWindow();}
@@ -100,7 +100,7 @@ final class RearHostView {
                 @Override public boolean dispatchTouchEvent(android.view.MotionEvent e){
                     if(mode!=RearCardRenderPolicy.Mode.NORMAL||!ready||!shown||closed)return false;
                     if(e.getActionMasked()==0){if(down!=null)down.recycle();down=android.view.MotionEvent.obtain(e);moved=false;}
-                    else if(e.getActionMasked()==2&&down!=null){float dx=e.getX()-down.getX(),dy=e.getY()-down.getY();int slop=android.view.ViewConfiguration.get(activity).getScaledTouchSlop();if(dx*dx+dy*dy>slop*slop)moved=true;}
+                    else if(e.getActionMasked()==2&&down!=null){float dx=e.getX()-down.getX(),dy=e.getY()-down.getY();int slop=android.view.ViewConfiguration.get(context).getScaledTouchSlop();if(dx*dx+dy*dy>slop*slop)moved=true;}
                     else if(e.getActionMasked()==1&&down!=null){if(!moved&&renderer!=null){renderer.dispatchTouchEvent(down);renderer.dispatchTouchEvent(e);}down.recycle();down=null;}
                     if(e.getPointerCount()>1||e.getActionMasked()==3){moved=true;if(down!=null){down.recycle();down=null;}}
                     return true;
@@ -119,7 +119,7 @@ final class RearHostView {
             stage.setFocusable(false);
             stage.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
 
-            renderer = new WebView(activity) {
+            renderer = new WebView(context) {
                 @Override protected void onDraw(Canvas canvas) {
                     super.onDraw(canvas);
                     boot("first-draw","ready="+ready+", shown="+shown);
@@ -147,7 +147,7 @@ final class RearHostView {
             // 配置到达前不接受舞台点击；不采用 alpha=0 等待绘制的循环依赖。
             renderer.setOnTouchListener((view, event) -> !ready || closed);
 
-            client = new RearHostWebClient(activity.getApplicationContext(), session, new RearHostWebClient.Events() {
+            client = new RearHostWebClient(RearHostContext.resolve(context), session, new RearHostWebClient.Events() {
                 @Override public void diagnostic(String event,String detail){main.post(()->boot(event,detail));}
                 @Override public void ready() {
                     if (closed || !events.current(session)) return;
@@ -163,7 +163,7 @@ final class RearHostView {
                     else main.post(() -> fail(reason));
                 }
             });
-            aodLabel=new android.widget.TextView(activity);
+            aodLabel=new android.widget.TextView(context);
             aodLabel.setTextColor(0xff999999);aodLabel.setBackgroundColor(Color.BLACK);
             aodLabel.setGravity(android.view.Gravity.CENTER);aodLabel.setTextSize(18);
             aodLabel.setPadding(40,24,24,24);aodLabel.setVisibility(View.GONE);
@@ -199,12 +199,12 @@ final class RearHostView {
                 }
             });
 
-            displays = (DisplayManager) activity.getSystemService(Activity.DISPLAY_SERVICE);
+            displays = (DisplayManager) context.getSystemService(android.content.Context.DISPLAY_SERVICE);
             if (displays != null) displays.registerDisplayListener(displayListener, main);
             updates = new ContentObserver(main) {
                 @Override public void onChange(boolean self) { if (client != null) client.invalidate(); if(aodRenderer!=null){followAod=client.followAod();reconcile();aodRenderer.refresh();} }
             };
-            activity.getContentResolver().registerContentObserver(
+            context.getContentResolver().registerContentObserver(
                 Uri.parse("content://" + RearHostContract.AUTHORITY + "/state"), false, updates);
 
             boot("load-url","rear-lyrics.html");
@@ -347,7 +347,7 @@ final class RearHostView {
         if(aodRenderer!=null)aodRenderer.close();
         if(card!=null){card.restore();try{card.unwatch();}catch(Throwable error){boot("web-error","media callback cleanup "+error.getClass().getSimpleName());}}
         if (displays != null) { try { displays.unregisterDisplayListener(displayListener); } catch (Throwable ignored) {} displays = null; }
-        if (updates != null) { try { activity.getContentResolver().unregisterContentObserver(updates); } catch (Throwable ignored) {} updates = null; }
+        if (updates != null) { try { context.getContentResolver().unregisterContentObserver(updates); } catch (Throwable ignored) {} updates = null; }
         client = null;
         WebView old = renderer;
         renderer = null;

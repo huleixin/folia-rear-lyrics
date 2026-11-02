@@ -532,7 +532,7 @@ public final class RearHostHooks {
                 publish("launcher-seen");
             }
             if (!lease.isEmpty()) report(lease,"launcher",id,"Launcher resumed via lifecycle observation");
-            if (!same && host != null && host.activity() != activity) {
+            if (!same && host != null && host.activity() != null && host.activity() != activity) {
                 // 旧窗口的宿主视图随旧窗口一起销毁；新窗口必须拿一个新的。
                 host.close();
                 host = null;
@@ -581,11 +581,16 @@ public final class RearHostHooks {
                 report(lease,RearSystemCardBinding.unsupportedVersion?"blocked":"attaching",display,lastFailure);
                 return RearSystemCardBinding.unsupportedVersion?FAILED:PENDING;
             }
-            if(activity==null||activity.isFinishing()){lastFailure="Native card found without live launcher owner";return PENDING;}
+            if(!RearCardContext.usable(candidate.container.getContext())){
+                lastFailure="Verified card has no usable Context or its Activity is finishing/destroyed";
+                report(lease,"attaching",display,lastFailure);return PENDING;
+            }
+            report(lease,"card-context",display,"source=verified-card, type="+candidate.container.getContext().getClass().getName()
+                +", activity="+(RearCardContext.activity(candidate.container.getContext())!=null)+", launcherObserved="+(activity!=null));
             if(!RearHostPolicy.mayRebind(rebinds)){lastFailure="Native card rebuild budget exhausted";return FAILED;}
             card=candidate;rebinds++;
-            RearHostView next=new RearHostView(activity,lease,this,card);host=next;
-            if(!next.attach()){lastFailure=next.failure();next.close();host=null;return FAILED;}
+            RearHostView next=new RearHostView(lease,this,card);host=next;
+            if(!next.attach()){lastFailure=next.failure();report(lease,"blocked",display,lastFailure);next.close();host=null;return FAILED;}
             display=candidate.container.getDisplay().getDisplayId();
             report(lease,"created",display,"system-music-slot content; "+RearSystemCardBinding.evidence+"; selectedPackage="+RearHostContract.APP
                 +", cardSize="+candidate.container.getWidth()+"x"+candidate.container.getHeight()+", parent="+(candidate.container.getParent()==null?"none":candidate.container.getParent().getClass().getName())+", "+why);

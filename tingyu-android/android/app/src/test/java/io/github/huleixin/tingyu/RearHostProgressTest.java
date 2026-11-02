@@ -5,6 +5,15 @@ import static org.junit.Assert.*;
 
 // android/app/src/test/java/io/github/huleixin/tingyu/RearHostProgressTest.java
 public class RearHostProgressTest {
+    @Test public void contextResolutionIsRecordedBeforeWebViewCreation(){
+        RearHostProgress p=new RearHostProgress();p.update("card-available","");
+        p.update("card-context","source=verified-card, launcherObserved=false");
+        p.update("attaching","card recycled");
+        assertTrue(p.describe().contains("milestone=card-context"));
+        assertTrue(p.describe().contains("waiting=card recycled"));
+        assertTrue(RearHostContract.knownEvent("card-context"));
+        p.update("created","");assertTrue(p.describe().contains("milestone=created"));
+    }
     @Test public void unsupportedHostBeforeCreationRetainsItsBlocker(){
         RearHostProgress p=new RearHostProgress();
         p.update("show-received","");
