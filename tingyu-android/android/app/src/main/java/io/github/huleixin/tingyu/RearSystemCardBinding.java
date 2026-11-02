@@ -29,20 +29,21 @@ final class RearSystemCardBinding {
 
     static void install(ClassLoader loader){
         try{
-            Class<?> type=XposedHelpers.findClass(PANEL,loader);
             int installed=0;
-            for(String method:new String[]{"n","y"}){
-            java.lang.reflect.Method bind;
-            try{bind=type.getDeclaredMethod(method,int.class,int.class,int.class,int.class,Runnable.class);}
-            catch(NoSuchMethodException absent){continue;}
-            if(bind.getReturnType()!=void.class)continue;
-            XposedBridge.hookMethod(bind,new XC_MethodHook(){
-                @Override protected void afterHookedMethod(MethodHookParam p){
-                    // Both profiles assign holder.b only AFTER z() attaches the MamlView.
-                    if(!p.hasThrowable()&&changed!=null)changed.run();
-                }
-            });
-            installed++;
+            for(RearSystemCardProfile profile:new RearSystemCardProfile[]{
+                RearSystemCardProfile.JANUARY,RearSystemCardProfile.SEPTEMBER,
+                RearSystemCardProfile.JANUARY_MAIN,RearSystemCardProfile.SEPTEMBER_MAIN}){
+                try{
+                    Class<?> type=XposedHelpers.findClass(profile.panelClass,loader);
+                    java.lang.reflect.Method bind=type.getDeclaredMethod(profile.bindMethod,profile.parameters());
+                    if(bind.getReturnType()!=void.class)continue;
+                    XposedBridge.hookMethod(bind,new XC_MethodHook(){
+                        @Override protected void afterHookedMethod(MethodHookParam p){
+                            if(!p.hasThrowable()&&changed!=null)changed.run();
+                        }
+                    });
+                    installed++;
+                }catch(NoSuchMethodException absent){ /* Other verified ROM profile. */ }
             }
             evidence="system slot binding observers="+installed+"; runtime profile and association pending";
         }catch(Throwable error){evidence="system slot observer unavailable: "+error.getClass().getSimpleName();}
@@ -58,23 +59,24 @@ final class RearSystemCardBinding {
             if(unsupportedVersion){evidence="unsupported system slot profile versionCode="+version+", versionName="+info.versionName+", supportedVersionCodes=26010521/426091419; require installed host APK";return null;}
             ViewParent parent=content.getParent();View panel=null;
             for(int depth=0;parent instanceof View&&depth<16;depth++,parent=parent.getParent()){
-                if(PANEL.equals(parent.getClass().getName())){panel=(View)parent;break;}
+                if(RearSystemCardProfile.forPanel(version,parent.getClass().getName())!=null){panel=(View)parent;break;}
             }
-            if(panel==null){evidence="MAML has no SmartAssistantPanel ancestor";return null;}
-            java.lang.reflect.Method bind=panel.getClass().getDeclaredMethod(profile.bindMethod,int.class,int.class,int.class,int.class,Runnable.class);
+            if(panel==null){evidence="MAML has no verified native panel ancestor; "+parents(content);return null;}
+            profile=RearSystemCardProfile.forPanel(version,panel.getClass().getName());
+            java.lang.reflect.Method bind=panel.getClass().getDeclaredMethod(profile.bindMethod,profile.parameters());
             if(bind.getReturnType()!=void.class)throw new IllegalStateException("profile binding signature mismatch");
-            Object value=XposedHelpers.getObjectField(panel,"i");
+            Object value=XposedHelpers.getObjectField(panel,profile.holdersField);
             if(!(value instanceof List)||((List<?>)value).size()!=3){evidence="system holder profile mismatch";return null;}
             List<?> holders=(List<?>)value;
             for(int i=0;i<3;i++){
-                Object holder=holders.get(i),widget=XposedHelpers.getObjectField(holder,"b");
+                Object holder=holders.get(i),widget=XposedHelpers.getObjectField(holder,profile.holderWidgetField);
                 if(widget==null||XposedHelpers.getObjectField(widget,"n")!=content)continue;
                 if(!profile.matchesTypes(holder.getClass(),widget.getClass())){evidence="system holder/widget types do not match profile="+profile.version;return null;}
-                Object slot=XposedHelpers.getObjectField(holder,"a");
+                Object slot=XposedHelpers.getObjectField(holder,profile.holderSlotField);
                 if(!(slot instanceof FrameLayout)||content.getParent()!=slot||XposedHelpers.getObjectField(widget,"p")!=slot){evidence="system slot/content parent mismatch";return null;}
                 RearSystemCardBinding result=new RearSystemCardBinding(panel,holder,widget,(FrameLayout)slot,content,profile);
                 if(result.current()){
-                    evidence="system music entry verified; profile="+profile.version+"; bind="+profile.bindMethod+"; centerSlot=1; creator=Tingyu; native parent and outline retained; "+parents(content);
+                    evidence="system music entry verified; profile="+profile.version+"; panel="+profile.panelClass+"; bind="+profile.bindMethod+"; centerSlot=1; creator=Tingyu; native parent and outline retained; "+parents(content);
                     return result;
                 }
                 return null;
@@ -86,15 +88,15 @@ final class RearSystemCardBinding {
 
     boolean current(){
         try{
-            List<?> holders=(List<?>)XposedHelpers.getObjectField(panel,"i");
+            List<?> holders=(List<?>)XposedHelpers.getObjectField(panel,profile.holdersField);
             boolean center=holders.size()==3&&holders.get(1)==holder&&profile.matchesTypes(holder.getClass(),widget.getClass());
             Bundle data=(Bundle)XposedHelpers.getObjectField(widget,"i");
             boolean valid=RearSystemCardPolicy.eligible(data==null?null:data.getString("package_name"),
                 data==null?null:data.getString("business"),data==null?null:data.getString("creator_package"),
-                center,XposedHelpers.getBooleanField(panel,"x"),
-                content.getParent()==slot&&XposedHelpers.getObjectField(holder,"b")==widget
+                center,XposedHelpers.getBooleanField(panel,profile.activeField),
+                content.getParent()==slot&&XposedHelpers.getObjectField(holder,profile.holderWidgetField)==widget
                     &&XposedHelpers.getObjectField(widget,"n")==content&&XposedHelpers.getObjectField(widget,"p")==slot);
-            if(!valid)evidence="system slot not eligible: center="+center+", panelActive="+XposedHelpers.getBooleanField(panel,"x")+"; require own unified.music/music entry with unchanged content";
+            if(!valid)evidence="system slot not eligible: center="+center+", panelActive="+XposedHelpers.getBooleanField(panel,profile.activeField)+"; require own unified.music/music entry with unchanged content";
             return valid;
         }catch(Throwable error){evidence="system slot revalidation failed: "+error.getClass().getSimpleName();return false;}
     }
