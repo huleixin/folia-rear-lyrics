@@ -1,3 +1,4 @@
+import {exportRearAppearance} from '../../stores/useRearStageAppearanceStore';
 import { collectVisualizerTunings } from '../../components/visualizer/tuningRegistry';
 import { readStoredThemeAutoGenerateEnabled, readStoredThemeAutoSwitchEnabled, readStoredThemeGenerationSource } from '../themePreferences';
 import type { CappellaAvatarImage, CappellaEmojiImage, CappellaTuning, MonetBackgroundImage, MonetBackgroundTuning, MonetPortraitImage, MonetTuning, NomandBackgroundTuning } from '../../types';
@@ -25,6 +26,7 @@ export function buildVisualSettingsConfig(): Record<string, unknown> {
   const songThemeAutoSwitchEnabled = readStoredThemeAutoSwitchEnabled();
   const songThemeAutoGenerateEnabled = songThemeAutoSwitchEnabled && readStoredThemeAutoGenerateEnabled();
   return {
+    rearStageAppearance:exportRearAppearance(),
     songThemeAutoSwitchEnabled,
     songThemeAutoGenerateEnabled,
     themeGenerationSource: readStoredThemeGenerationSource(),

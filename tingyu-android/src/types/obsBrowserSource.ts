@@ -37,6 +37,7 @@ export interface ObsBrowserSourceStatus {
 
 export interface ObsBrowserSourceConfig {
     /** Provider-aware identity for native rear handoff; raw song.id is not globally unique. */
+    visualAssetsReady?:boolean;
     playbackSongKey?: string;
     playbackSessionId?: string;
     playbackEpoch?: string;

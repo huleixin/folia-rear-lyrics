@@ -1,3 +1,4 @@
+import {useRearStageAppearanceStore} from '../../../stores/useRearStageAppearanceStore';
 import InterfaceAppearanceSetting from './InterfaceAppearanceSetting';
 import MobileRandomVisualizerSettings from './MobileRandomVisualizerSettings';
 import { isAndroidNativeRuntime } from '../../../utils/platform';
@@ -401,6 +402,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
     // sides. Anything not picked is left exactly as it is.
     const applyImportedConfig = (config: any, keys: string[]) => {
         const has = (key: string) => keys.includes(key);
+        if(has("rearStageAppearance"))void useRearStageAppearanceStore.getState().restore(config.rearStageAppearance).catch(error=>setStatusMessage({type:"error",text:String(error)}));
         try {
             // 1. Restore Theme, per side: taking someone's night colours must not drag their day
             // ones along, so the side that was not picked keeps whatever is saved now.

@@ -63,6 +63,7 @@ import { useVisPlaygroundPreviewPlayback } from './useVisPlaygroundPreviewPlayba
 import { NATIVE_FIRST } from '../../services/nativePages';
 
 interface VisPlaygroundProps {
+    rearScope?:boolean;
     theme?: Theme;
     isDaylight: boolean;
     visualizerMode: VisualizerMode;
@@ -295,6 +296,7 @@ const dedupeLocalFonts = (fonts: LocalFontDataLike[]) => {
 };
 
 const VisPlayground: React.FC<VisPlaygroundProps> = ({
+    rearScope=false,
     theme,
     isDaylight,
     visualizerMode,
@@ -1260,6 +1262,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                     </div>
 
                     <VisPlaygroundSettingsPanel
+                        readOnlyExternalTunings={rearScope}
                         activeSection={activeEditSection}
                         onSectionChange={setActiveEditSection}
                         t={t}

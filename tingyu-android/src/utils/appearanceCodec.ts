@@ -497,6 +497,7 @@ const decompressLumiere = (o: any) => normalizeLumiereTuning(Object.fromEntries(
 
 export const compressConfig = (config: any): string => {
     const minified: any = {};
+    if(config.rearStageAppearance)minified.rsa=config.rearStageAppearance;
     if (config.theme) {
         minified.t = {
             l: compressTheme(config.theme.light),
@@ -598,6 +599,7 @@ export const decompressConfig = (str: string): any => {
 
     const isMinified = isCompressedShortcode
         || parsed.t !== undefined
+        || parsed.rsa !== undefined
         || parsed.vm !== undefined
         || parsed.rvms !== undefined
         || parsed.ccb !== undefined
@@ -636,6 +638,7 @@ export const decompressConfig = (str: string): any => {
         || parsed.lwbb !== undefined;
     if (isMinified) {
         const decompressed: any = {};
+        if(parsed.rsa)decompressed.rearStageAppearance=parsed.rsa;
         if (parsed.t) {
             decompressed.theme = {
                 light: decompressTheme(parsed.t.l),
@@ -709,7 +712,7 @@ export const decompressConfig = (str: string): any => {
         return decompressed;
     } else {
         const validKeys = [
-            'theme', 'visualizerMode', 'randomVisualizerModePerSong', 'randomVisualizerModes', 'visualizerBackgroundMode', 'backgroundOpacity',
+            'rearStageAppearance', 'theme', 'visualizerMode', 'randomVisualizerModePerSong', 'randomVisualizerModes', 'visualizerBackgroundMode', 'backgroundOpacity',
             'useCoverColorBg', 'disableVisualizerGeometricBackground', 'disableVisualizerVignette', 'staticMode',
             'visualizerOpacity', 'hidePlayerTranslationSubtitle', 'showSubtitleTranslation', 'subtitleContentMode',
             'subtitleOverlayBackground', 'subtitleUpcomingLyricsBlur', 'subtitleOverlayOpacity',

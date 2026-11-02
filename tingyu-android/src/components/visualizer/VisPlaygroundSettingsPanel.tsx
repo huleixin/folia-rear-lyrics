@@ -66,6 +66,7 @@ interface ToggleRowProps {
 }
 
 interface VisPlaygroundSettingsPanelProps {
+    readOnlyExternalTunings?:boolean;
     activeSection: VisPlaygroundEditSection;
     onSectionChange: (section: VisPlaygroundEditSection) => void;
     t: (key: string) => string;
@@ -324,6 +325,7 @@ const SectionTabs: React.FC<Pick<VisPlaygroundSettingsPanelProps, 'activeSection
 
 const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (props) => {
     const {
+        readOnlyExternalTunings=false,
         activeSection,
         onSectionChange,
         t,
@@ -773,14 +775,14 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                         })}
 
                         {/* Folium tunings other mods registered for this mode (registries.tunings). */}
-                        <FoliumTuningCards
+                        {!readOnlyExternalTunings&&<FoliumTuningCards
                             mode={visualizerMode}
                             theme={theme}
                             isDaylight={isDaylight}
                             controlCardBg={controlCardBg}
                             rangeInputClass={rangeInputClass}
                             description={t('options.foliumTuningDesc')}
-                        />
+                        />}
                     </>
                 )}
 

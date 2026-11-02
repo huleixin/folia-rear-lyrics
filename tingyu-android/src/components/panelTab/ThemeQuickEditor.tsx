@@ -659,4 +659,5 @@ const ThemeQuickEditorHost: React.FC<ThemeQuickEditorHostProps> = ({ onSaveAiThe
     );
 };
 
+export {ThemeQuickEditor};
 export default ThemeQuickEditorHost;

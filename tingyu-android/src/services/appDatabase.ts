@@ -24,6 +24,7 @@ export interface ThemeRegistryRecord {
 }
 
 export class AppDatabase extends Dexie {
+  appearance_profiles!: Table<{id:string;data:unknown},string>;
   session!: Table<unknown, string>;
   api_cache!: Table<StoredCacheEntry, string>;
   user_cache!: Table<StoredCacheEntry, string>;
@@ -96,6 +97,8 @@ export class AppDatabase extends Dexie {
       local_library_assignments: 'songId, *artistEntityIds, albumEntityId, artistOrigin, albumOrigin',
       local_cover_assets: 'id',
     });
+
+    this.version(1).stores({appearance_profiles:'id'});
 
     this.on('versionchange', event => {
       this.close();

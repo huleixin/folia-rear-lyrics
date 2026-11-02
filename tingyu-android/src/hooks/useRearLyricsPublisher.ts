@@ -1,5 +1,7 @@
+import {useRearStageAppearanceStore} from '../stores/useRearStageAppearanceStore';
+import {resolveRearStageConfig} from '../services/rearStageAppearance';
 import {nativeAudioIdentity,compatibleOutputSession,compatibleOutputRequest} from '../services/playbackOutputIdentity';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ObsBrowserSourceAudio, ObsBrowserSourceClock, ObsBrowserSourceConfig } from '../types/obsBrowserSource';
 import { useTypographySettingsStore } from '../stores/useTypographySettingsStore';
 import { resolveRearUploadedFont, type RearUploadedFont } from '../services/rearLyricsFont';
@@ -8,7 +10,8 @@ import type { RearPlaybackClockReader } from '../types/rearLyricsClock';
 import { Capacitor } from '@capacitor/core';
 import { getFoliaNative } from '../platform/foliaNative';
 import { PlayerState } from '../types';
-import { setRearRuntime } from '../stores/useRearRuntimeStore';
+import { setRearRuntime,useRearRuntimeStore } from '../stores/useRearRuntimeStore';
+import {useSettingsModalStore} from '../stores/useSettingsModalStore';
 
 type Plugin = {
     getRearLyricsStatus: () => Promise<{ enabled?: boolean; starting?: boolean; sleeping?: boolean; returnedToSystem?: boolean }>;
@@ -17,12 +20,20 @@ type Plugin = {
 };
 
 /** Relays Folia's actual style, full timed lyrics and audio instead of a separate text approximation. */
-export function useRearLyricsPublisher(config: ObsBrowserSourceConfig, clock: () => ObsBrowserSourceClock,
+export function useRearLyricsPublisher(frontConfig: ObsBrowserSourceConfig, clock: () => ObsBrowserSourceClock,
     audio: () => ObsBrowserSourceAudio, readPlaybackClock: RearPlaybackClockReader) {
     const font = useTypographySettingsStore(state => state.lyricsCustomFont);
-    const latest = useRef({ config, clock, audio, font, readPlaybackClock });
+    const mode=useRearStageAppearanceStore(s=>s.mode),profile=useRearStageAppearanceStore(s=>s.profile),appearanceReady=useRearStageAppearanceStore(s=>s.ready);
+    const config=useMemo(()=>resolveRearStageConfig(frontConfig,{version:1,mode,profile}),[frontConfig,mode,profile]);
+    const rearEnabled=useRearRuntimeStore(s=>s.enabled),appearanceOpen=useSettingsModalStore(s=>!!s.settingsModalState.rearPage?.startsWith('appearance'));
+    const [frontUploaded,setFrontUploaded]=useState<RearUploadedFont|null>(null);
+
+    useEffect(()=>{let cancelled=false;if(Capacitor.getPlatform()!=='android'||!rearEnabled&&!appearanceOpen)return;void resolveRearUploadedFont(font?.source==='uploaded'?font.fontId??'':'').then(value=>{if(!cancelled)setFrontUploaded(value);});return()=>{cancelled=true;};},[font?.source,font?.fontId,rearEnabled,appearanceOpen]);
+    useEffect(()=>{if(Capacitor.getPlatform()==='android')useRearStageAppearanceStore.getState().observeFront({...frontConfig,visualAssetsReady:frontConfig.visualAssetsReady!==false&&(font?.source!=='uploaded'||frontUploaded?.id===font.fontId)},frontUploaded);},[frontConfig,font,frontUploaded]);
+    const rearFont=mode==='independent'?profile?.font??null:null;
+    const latest = useRef({ config, clock, audio, font, readPlaybackClock,rearFont,mode,appearanceReady });
     const wake = useRef<() => void>(() => undefined);
-    latest.current = { config, clock, audio, font, readPlaybackClock };
+    latest.current = { config, clock, audio, font, readPlaybackClock,rearFont,mode,appearanceReady };
     useEffect(() => {
         const capacitor = (window as any).Capacitor;
         if (Capacitor.getPlatform() !== 'android') return;
@@ -65,8 +76,9 @@ export function useRearLyricsPublisher(config: ObsBrowserSourceConfig, clock: ()
             if (closed || !enabled || sleeping || publishing) return;
             publishing = true;
             const value = latest.current;
+            if(!value.appearanceReady){void useRearStageAppearanceStore.getState().initialize();publishing=false;schedulePublish(1000);return;}
             let advancing = false;
-            const fontId = value.font?.source === 'uploaded' ? value.font.fontId ?? '' : '';
+            const fontId = value.mode==='independent'?value.rearFont?.id??'':value.font?.source === 'uploaded' ? value.font.fontId ?? '' : '';
             const live=value.readPlaybackClock();
             const identity=nativeAudioIdentity(live?.media??null);
             const session=identity?.sessionId ?? compatibleOutputSession();
@@ -83,7 +95,7 @@ export function useRearLyricsPublisher(config: ObsBrowserSourceConfig, clock: ()
                 // Keep a sparse heartbeat for reconnecting surfaces; seek/config/state changes publish immediately on this tick.
                 if (!changed && !advancing && clockKey === lastClockKey && Date.now() - lastPublish < 5000) return;
                 if (loadedFontId !== fontId) {
-                    loadedFont = await resolveRearUploadedFont(fontId);
+                    loadedFont = value.mode==='independent'?value.rearFont:await resolveRearUploadedFont(fontId);
                     loadedFontId = fontId;
                 }
                 if (closed || sleeping || !enabled || value !== latest.current) return;
@@ -113,5 +125,5 @@ export function useRearLyricsPublisher(config: ObsBrowserSourceConfig, clock: ()
             wake.current = () => undefined;
         };
     }, []);
-    useEffect(() => { wake.current(); }, [config, clock, font]);
+    useEffect(() => { wake.current(); }, [config, clock, font,appearanceReady]);
 }

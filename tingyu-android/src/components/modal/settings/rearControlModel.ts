@@ -3,11 +3,11 @@ import type { NativePageModel, PageSection } from '../../../types/nativePages';
 import { rearSettingsCanToggle, rearSettingsHint } from './rearLyricsSettingsModel';
 
 // src/components/modal/settings/rearControlModel.ts
-export type RearSettingsPage = 'control'|'advanced'|'guide'|'diagnostics';
+export type RearSettingsPage = 'control'|'advanced'|'guide'|'diagnostics'|'appearance'|'appearance-editor'|'appearance-theme';
 export type RearPresentation = { available:boolean;snapshot:RearLyricsStatus|null;busy:boolean;failed:boolean;actionFailed:boolean;error?:string };
 type Translate=(key:string,options?:Record<string,unknown>)=>string;
-export const rearPageKey=(page:RearSettingsPage|'index')=>page==='index'?'settings:index':page==='guide'||page==='diagnostics'?`settings:document:rear-${page}`:`settings:rear:${page}`;
-export const rearPageBack=(page:RearSettingsPage)=>page==='control'?'index':'control';
+export const rearPageKey=(page:RearSettingsPage|'index')=>page==='index'?'settings:index':page==='guide'||page==='diagnostics'||page.startsWith('appearance')?`settings:document:rear-${page}`:`settings:rear:${page}`;
+export const rearPageBack=(page:RearSettingsPage)=>page==='control'?'index':page==='appearance-editor'||page==='appearance-theme'?'appearance':'control';
 export const rearModeLocked=(s:RearLyricsStatus|null,busy:boolean)=>!s||busy||!!(s.enabled||s.active||s.starting||s.sleeping);
 export function rearRunLabel(s:RearLyricsStatus|null,failed:boolean,t:Translate):string {
     if(failed)return t('mobileSettings.rearState.failed');
@@ -45,6 +45,7 @@ export function buildRearControlPage(page:'control'|'advanced',state:RearPresent
             {id:'refresh',title:t('rearControl.refresh'),action:'rear:refresh',disabled:state.busy}]});
         sections.push({id:'rear-links',layout:'rows',items:[
             {id:'guide',title:t(backend==='lsp'?'rearControl.moduleGuide':'rearControl.authorizationGuide'),subtitle:t('rearControl.guideBrief'),action:'rear:guide'},
+            {id:'appearance',title:t('rearAppearance.title'),subtitle:t('rearAppearance.entryHint'),action:'rear:appearance'},
             {id:'advanced',title:t('rearControl.advanced'),subtitle:t('rearControl.advancedBrief'),action:'rear:advanced'},
             {id:'diagnostics',title:t('rearControl.diagnostics'),subtitle:t('rearControl.diagnosticsBrief'),action:'rear:diagnostics'}]});
     }else{

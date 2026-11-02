@@ -167,6 +167,7 @@ export const useObsBrowserSourcePublisher = ({
     const temperaLayerImages = visualizerTunings?.tempera?.layerImages;
     const [status, setStatus] = useState<ObsBrowserSourceStatus>(() => emptyObsStatus());
     const [obsCoverUrl, setObsCoverUrl] = useState<string | null>(coverUrl);
+    const [obsAssetsReady,setObsAssetsReady]=useState(false);
     const [obsCustomImages, setObsCustomImages] = useState<{
         cappellaEmoji: CappellaEmojiImage[];
         cappellaAvatar: CappellaAvatarImage[];
@@ -227,6 +228,7 @@ export const useObsBrowserSourcePublisher = ({
     useEffect(() => {
         let cancelled = false;
 
+        setObsAssetsReady(false);
         void Promise.all([
             resolveObsBrowserSourceImageAssets(cappellaCustomEmojiImages),
             resolveObsBrowserSourceImageAssets(cappellaCustomAvatarImages),
@@ -237,7 +239,7 @@ export const useObsBrowserSourcePublisher = ({
             resolveTemperaLayerAssets(temperaLayerImages),
         ]).then(([cappellaEmoji, cappellaAvatar, monetBackground, monetPortrait, temperaLayer]) => {
             if (!cancelled) {
-                setObsCustomImages({ cappellaEmoji, cappellaAvatar, monetBackground, monetPortrait, temperaLayer });
+                setObsCustomImages({ cappellaEmoji, cappellaAvatar, monetBackground, monetPortrait, temperaLayer });setObsAssetsReady(true);
             }
         }).catch(error => {
             console.warn('[OBS] Failed to resolve custom images for browser source', error);
@@ -275,6 +277,7 @@ export const useObsBrowserSourcePublisher = ({
             visualizerMode,
             visualizerFrameRate,
             visualizerTunings,
+            visualAssetsReady: obsAssetsReady&&(!background?.customImage || !!obsCustomImages.monetBackground)&&(!temperaLayerImages?.length||obsCustomImages.temperaLayer.length===temperaLayerImages.length),
             background: resolvedBackground,
             ...buildLegacyObsBrowserSourceBackgroundConfig(resolvedBackground),
             lyricsFontScale,
@@ -307,7 +310,7 @@ export const useObsBrowserSourcePublisher = ({
         lyrics,
         lyricsFontScale,
         subtitleFontScale,
-        obsCustomImages,
+        obsCustomImages,obsAssetsReady,
         obsCoverUrl,
         seed,
         stageSource,
