@@ -876,7 +876,7 @@ final class RearLyricsCoordinator {
             RearLyricsTrace.record(context,"host-disconnected","session="+oldSession+", "+RearHostBridge.detail());nudge();});
     }
     /**
-     * 背屏中心宿主的首帧已经画出来。记下「本次显示会话由宿主承载」：这样暂停回退关闭之后，
+     * 系统卡片已真实登记或首帧已画出。这里只记「本次会话由系统卡片承载」，不代表可见：这样暂停关闭之后，
      * 下一次播放仍会先尝试宿主，而不是因为 hostTried 残留而永久退回独立窗口。
      */
     void hostReady() { hostOwned=true; }

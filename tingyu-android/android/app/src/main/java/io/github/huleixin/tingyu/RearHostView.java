@@ -102,7 +102,12 @@ final class RearHostView {
                     return true;
                 }
             };
-            if(card!=null)card.watch(()->{if(!closed){if(!card.ownMedia())fail("Native card lost own selected MediaController");else reconcile();}});
+            if(card!=null)card.watch(()->{if(!closed){
+                if(!card.ownMedia()){
+                    int id=displayId();close();
+                    events.report(session,"paused",id,"selected session changed; native card restored, waiting for own music business");
+                }else reconcile();
+            }});
             stage.setTag(TAG);
             stage.setAlpha(1f);
             stage.setBackgroundColor(Color.TRANSPARENT);
@@ -228,6 +233,11 @@ final class RearHostView {
     private void reconcile() {
         if (closed || stage == null) return;
         if (Looper.myLooper() != main.getLooper()) { main.post(this::reconcile); return; }
+        if(!card.binding.associated()){
+            int id=displayId();close();
+            events.report(session,"paused",id,"system recycled business holder; native content restored");
+            return;
+        }
         boolean visible = card.binding.current() && card.ownMedia()&&card.container.isShown() && RearHostPolicy.render(events.current(session), suspended||aod, resumed,
             stage.isAttachedToWindow(), displayId(), panelState());
         if (visible) show();
@@ -258,6 +268,7 @@ final class RearHostView {
         }
         if (shown) {if(ready&&!readyReported&&renderer!=null)renderer.postInvalidateOnAnimation();return;}
         shown = true;
+        events.report(session,"rendering",displayId(),"own SmartAssistant music card visible; awaiting real stage draw");
         if (ready) {
             if(card!=null)try{card.acquire(stage);}catch(Throwable error){fail("Native reacquire failed: "+error.getClass().getSimpleName());return;}
             stage.setAlpha(1f);
@@ -273,7 +284,7 @@ final class RearHostView {
     private void hide(String reason) {
         if (closed || stage == null) return;
         // Preserve the last frame while the system animates its card offscreen.
-        boolean retain=RearHostPolicy.retainCardOnNavigation(events.current(session),card.ownMedia(),
+        boolean retain=RearHostPolicy.retainCardOnNavigation(events.current(session),card.ownMedia()&&card.binding.associated(),
             stage.isAttachedToWindow(),suspended,aod||panelState()!=Display.STATE_ON);
         if(!retain)card.restore();
         boolean was = shown;

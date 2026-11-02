@@ -41,6 +41,7 @@ final class RearHostBridge {
     private static Runnable timeout;
     private static long lastProbe;
     private static RearHostProgress progress=new RearHostProgress();
+    private static final RearHostFrameWait frameWait=new RearHostFrameWait();
     static boolean connected(){return service!=null && service.isBinderAlive();}
     static boolean hasSession(){return !session.isEmpty();}
     static boolean active(){return active && !suspended && !releasing;}
@@ -155,7 +156,7 @@ final class RearHostBridge {
                 callback.done(false,-1,detail);
                 return;
             }
-            progress=new RearHostProgress();session=UUID.randomUUID().toString();active=false;suspended=false;releasing=false;pending=callback;display=rear;lastProbe=0;
+            progress=new RearHostProgress();frameWait.stop();session=UUID.randomUUID().toString();active=false;suspended=false;releasing=false;pending=callback;display=rear;lastProbe=0;
             final String expected=session;
             transact(RearHostContract.SHOW,expected,false,rear,(ok,id,message)->{
                 if(token!=generation || !matches(expected))return;
@@ -170,30 +171,45 @@ final class RearHostBridge {
         if(!matches(expected))return;
         RearLyricsTrace.record(context,"host/start-failed",message+", "+progress.describe());
         Completion callback=pending;pending=null;
-        release((ok,id,why)->{detail=message+(ok?"":"；释放未确认，禁止并行回退");if(callback!=null)callback.done(false,-1,detail);});
+        release((ok,id,why)->{
+            detail=message+(ok?"":"；释放未确认，禁止并行回退");
+            if(callback!=null)callback.done(false,-1,detail);
+            else if(ok)RearLyricsCoordinator.get(context).hostDisconnected(expected);
+        });
+    }
+    private static void awaitVisibleFrame(Context context,String expected){
+        if(timeout!=null)MAIN.removeCallbacks(timeout);
+        long delay=frameWait.start(android.os.SystemClock.uptimeMillis());
+        timeout=()->{if(matches(expected)&&!active&&frameWait.expired(android.os.SystemClock.uptimeMillis()))failStart(context,expected,"可见系统卡片的歌词首帧未确认；"+progress.describe());};
+        MAIN.postDelayed(timeout,delay);
     }
     static void report(Context context,String expected,String event,int id,String reason){
         MAIN.post(()->{
             if(!matches(expected) || releasing)return;
             if("web-stage".equals(event)){int split=reason.indexOf(":");progress.update(split<0?reason:reason.substring(0,split),split<0?"":reason.substring(split+1));}else progress.update(event,reason);
             RearLyricsTrace.record(context,"host/"+event,"session="+expected+", display="+id+", "+reason);
-            if("ready".equals(event)){
+            if("card-available".equals(event)){
+                // An actual system business exists, possibly collapsed. Retain the lease and entry;
+                // do not replace native navigation with an Activity or mark unseen content active.
+                detail="已加入系统动态音乐卡片；"+reason;
+                if(id>0)display=id;
+                Completion callback=pending;pending=null;
+                if(callback!=null&&timeout!=null)MAIN.removeCallbacks(timeout);
+                RearLyricsCoordinator.get(context).hostReady();
+                if(callback!=null)callback.done(true,display,detail);
+            }else if("ready".equals(event)){
                 if(!RearLyricsCoordinator.get(context).canPresent())return;
                 active=true;display=id;detail="背屏中心宿主已接管歌词舞台";
+                frameWait.stop();
                 if(timeout!=null)MAIN.removeCallbacks(timeout);
                 Completion callback=pending;pending=null;
                 RearLyricsCoordinator.get(context).hostReady();
                 if(callback!=null)callback.done(true,id,detail);
-            }else if("created".equals(event)){
-                // 宿主视图已经建好，首帧还在渲染：给一次有界的延长，而不是让 4.5s 的握手窗口
-                // 在「视图已存在」的情况下误判失败。
+            }else if("created".equals(event)||"rendering".equals(event)||"card-selected".equals(event)){
+                // The first selection starts one budget. Later creation/probes cannot extend it.
                 if(id>0)display=id;
                 detail=reason;
-                if(pending!=null){
-                    if(timeout!=null)MAIN.removeCallbacks(timeout);
-                    timeout=()->{if(matches(expected)&&pending!=null)failStart(context,expected,"宿主首帧未确认；最后阶段="+progress.describe()+"；释放后回退独立窗口");};
-                    MAIN.postDelayed(timeout,4500);
-                }
+                if(!active)awaitVisibleFrame(context,expected);
             }else if("launch".equals(event)){
                 if(id>0)display=id;
                 detail=reason;
@@ -205,7 +221,11 @@ final class RearHostBridge {
                 active=false;
                 if(pending!=null)failStart(context,expected,reason);
                 else release((ok,d,message)->{if(ok)RearLyricsCoordinator.get(context).hostDisconnected(expected);});
-            }else if("paused".equals(event)){active=false;detail="宿主暂不可见："+reason;}
+            }else if("paused".equals(event)||"card-collapsed".equals(event)){
+                active=false;detail="宿主暂不可见："+reason;
+                frameWait.stop();
+                if(timeout!=null)MAIN.removeCallbacks(timeout);
+            }
             RearLyricsCoordinator.get(context).windowChanged();
         });
     }
@@ -231,6 +251,7 @@ final class RearHostBridge {
     }
     private static void clear(){
         generation++;session="";active=false;suspended=false;releasing=false;display=-1;
+        frameWait.stop();
         if(timeout!=null)MAIN.removeCallbacks(timeout);
         Completion callback=pending;pending=null;if(callback!=null)callback.done(false,-1,"宿主会话已结束");
     }

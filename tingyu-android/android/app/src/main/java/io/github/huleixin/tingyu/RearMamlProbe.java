@@ -45,7 +45,13 @@ final class RearMamlProbe {
     }
     private static void observe(View view){
         if(view.getDisplay()==null||view.getDisplay().getDisplayId()<=0)return;
-        if(!candidates.containsKey(view))observed++;
+        if(!candidates.containsKey(view)){
+            observed++;
+            // Binding/resume can precede layout. Do not wait ten seconds for the next probe.
+            view.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
+                if(r>l&&b>t&&(or<=ol||ob<=ot)&&changed!=null)changed.accept(v);
+            });
+        }
         candidates.put(view,Boolean.TRUE);
     }
     /** Bounded traversal catches MAML instances already attached before module callbacks. */

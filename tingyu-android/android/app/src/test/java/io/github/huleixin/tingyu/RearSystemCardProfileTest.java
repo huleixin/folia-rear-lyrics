@@ -5,15 +5,9 @@ import static org.junit.Assert.*;
 
 // android/app/src/test/java/io/github/huleixin/tingyu/RearSystemCardProfileTest.java
 public class RearSystemCardProfileTest {
-    @Test public void mainAndAssistantPanelsUseSeparateHolderAndMethodContracts(){
-        RearSystemCardProfile p=RearSystemCardProfile.forPanel(426091419L,"com.xiaomi.subscreencenter.MainPanel");
-        assertNotNull(p);assertEquals("t",p.bindMethod);assertEquals("k2.y",p.holderClass);
-        assertEquals("k",p.holdersField);assertEquals("q",p.activeField);
-        assertEquals("e",p.holderWidgetField);assertEquals("b",p.holderSlotField);
-        assertEquals(boolean.class,p.parameters()[2]);
-        RearSystemCardProfile old=RearSystemCardProfile.forPanel(26010521L,"com.xiaomi.subscreencenter.MainPanel");
-        assertEquals("q",old.bindMethod);assertEquals("Z1.x",old.holderClass);assertEquals("j",old.holdersField);
-        assertEquals("p",old.activeField);
+    @Test public void onlyAssistantPanelCanAuthorizeLyricEmbedding(){
+        assertNull(RearSystemCardProfile.forPanel(426091419L,"com.xiaomi.subscreencenter.MainPanel"));
+        assertNull(RearSystemCardProfile.forPanel(26010521L,"com.xiaomi.subscreencenter.MainPanel"));
         assertSame(RearSystemCardProfile.SEPTEMBER,RearSystemCardProfile.forPanel(426091419L,"com.xiaomi.subscreencenter.SmartAssistantPanel"));
         assertEquals(int.class,RearSystemCardProfile.SEPTEMBER.parameters()[2]);
         assertNull(RearSystemCardProfile.forPanel(426091419L,"android.widget.FrameLayout"));
@@ -25,6 +19,8 @@ public class RearSystemCardProfileTest {
         assertNotNull(old);assertNotNull(current);
         assertEquals("n",old.bindMethod);assertEquals("Z1.s0",old.holderClass);assertEquals("r2.r",old.widgetClass);
         assertEquals("y",current.bindMethod);assertEquals("k2.o0",current.holderClass);assertEquals("E2.w",current.widgetClass);
+        assertEquals("n2.a",old.musicGate);assertEquals("Z1.V",old.managerClass);assertEquals("k",old.entryDataField);
+        assertEquals("A2.a",current.musicGate);assertEquals("k2.V",current.managerClass);assertEquals("l",current.entryDataField);
         assertFalse(current.matchesTypes(Object.class,Object.class));
     }
     @Test public void unknownVersionsNeverInheritAdjacentMappings(){

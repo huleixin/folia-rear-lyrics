@@ -31,8 +31,7 @@ final class RearSystemCardBinding {
         try{
             int installed=0;
             for(RearSystemCardProfile profile:new RearSystemCardProfile[]{
-                RearSystemCardProfile.JANUARY,RearSystemCardProfile.SEPTEMBER,
-                RearSystemCardProfile.JANUARY_MAIN,RearSystemCardProfile.SEPTEMBER_MAIN}){
+                RearSystemCardProfile.JANUARY,RearSystemCardProfile.SEPTEMBER}){
                 try{
                     Class<?> type=XposedHelpers.findClass(profile.panelClass,loader);
                     java.lang.reflect.Method bind=type.getDeclaredMethod(profile.bindMethod,profile.parameters());
@@ -86,21 +85,24 @@ final class RearSystemCardBinding {
         return null;
     }
 
-    boolean current(){
+    boolean current(){return associated(true);}
+    /** Collapsing changes navigation, not the underlying business/holder identity. */
+    boolean associated(){return associated(false);}
+    private boolean associated(boolean requireVisible){
         try{
             List<?> holders=(List<?>)XposedHelpers.getObjectField(panel,profile.holdersField);
             boolean center=holders.size()==3&&holders.get(1)==holder&&profile.matchesTypes(holder.getClass(),widget.getClass());
             Bundle data=(Bundle)XposedHelpers.getObjectField(widget,"i");
+            Bundle media=data==null?null:data.getBundle("media_data");
+            String mediaPackage=media==null?null:media.getString("packageName");
             String pkg=data==null?null:data.getString("package_name"),business=data==null?null:data.getString("business"),creator=data==null?null:data.getString("creator_package");
             boolean active=XposedHelpers.getBooleanField(panel,profile.activeField);
             boolean bound=content.getParent()==slot&&XposedHelpers.getObjectField(holder,profile.holderWidgetField)==widget
                     &&XposedHelpers.getObjectField(widget,"n")==content&&XposedHelpers.getObjectField(widget,"p")==slot;
-            int type=XposedHelpers.getIntField(widget,"a");
-            String selected=selectedPackage();
-            boolean valid=RearSystemCardPolicy.eligible(pkg,business,creator,center,active,bound)
-                ||profile.mainPanel&&RearSystemCardPolicy.themeMusic(pkg,business,creator,type,selected,center,active,bound);
-            if(!valid)evidence="system slot not eligible: panel="+profile.panelClass+", center="+center+", active="+active+", bound="+bound+", widgetType="+type
-                +", notificationPackage="+label(pkg,"unified.music")+", business="+label(business,"music")+", creator="+label(creator,RearHostContract.APP)+", selected="+label(selected,RearHostContract.APP);
+            boolean valid=RearSystemCardPolicy.eligible(pkg,business,creator,mediaPackage,!requireVisible||center,!requireVisible||active,bound);
+            if(!valid)evidence="system slot not eligible: panel="+profile.panelClass+", center="+center+", active="+active+", bound="+bound
+                +", notificationPackage="+label(pkg,"unified.music")+", business="+label(business,"music")+", creator="+label(creator,RearHostContract.APP)
+                +", mediaPackage="+label(mediaPackage,RearHostContract.APP);
             return valid;
         }catch(Throwable error){evidence="system slot revalidation failed: "+error.getClass().getSimpleName();return false;}
     }

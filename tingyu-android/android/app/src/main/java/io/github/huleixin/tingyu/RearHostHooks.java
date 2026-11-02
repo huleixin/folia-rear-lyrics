@@ -85,6 +85,7 @@ public final class RearHostHooks {
         process = processName == null || processName.isEmpty() ? "?" : processName;
         log("install begin process=" + process + " build=" + BuildConfig.BUILD_ID);
         RearMusicAdmission.install(loader);
+        RearAssistantMusic.install(loader);
         RearMamlProbe.install(loader);
         RearSystemCardBinding.install(loader);
         installNativeOwnershipHooks(loader);
@@ -347,6 +348,7 @@ public final class RearHostHooks {
         private WeakReference<Activity> launcher = new WeakReference<>(null);
         private RearHostView host;
         private RearNativeCardOwner card;
+        private String assistantEvidence="";
         private IBinder lifeline;
         private boolean suspended;
         private boolean resumed;
@@ -361,7 +363,11 @@ public final class RearHostHooks {
             main.post(()->{
                 mediaRecheckPending.set(false);
                 if(lease.isEmpty())return;
-                if(card!=null&&host!=null){if(music==null||music==card.music)host.refresh();}
+                if(card!=null&&host!=null&&!host.closed()){
+                    if(music==null||music==card.music)host.refresh();
+                    observeAssistant();
+                    if(host.closed())attach("native-business-rebound");
+                }
                 else attach("native-media-changed");
             });
         }
@@ -378,6 +384,7 @@ public final class RearHostHooks {
             RearMamlProbe.changed=v->{if(!lease.isEmpty())main.post(()->{if(!lease.isEmpty())attach("maml-event");});};
             RearMamlProbe.paused=(v,value)->{if(card!=null&&card.container==v&&host!=null)host.resumed(!value);};
             RearSystemCardBinding.changed=()->mediaChanged(null);
+            RearAssistantMusic.changed=()->mediaChanged(null);
             attachInterface(null, RearHostContract.DESCRIPTOR);
             application.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
                 public void onActivityCreated(Activity a, Bundle state) {}
@@ -558,6 +565,7 @@ public final class RearHostHooks {
 
         private int attach(String why) {
             if(lease.isEmpty())return FAILED;
+            observeAssistant();
             Activity activity=launcher.get();
             String evidence=RearMamlProbe.inspect(activity==null?null:activity.getWindow().getDecorView());
             report(lease,"native-card-probe",display,evidence+"; admission="+RearMusicAdmission.status
@@ -582,6 +590,15 @@ public final class RearHostHooks {
             report(lease,"created",display,"system-music-slot content; "+RearSystemCardBinding.evidence+"; selectedPackage="+RearHostContract.APP
                 +", cardSize="+candidate.container.getWidth()+"x"+candidate.container.getHeight()+", parent="+(candidate.container.getParent()==null?"none":candidate.container.getParent().getClass().getName())+", "+why);
             return ATTACHED;
+        }
+
+        /** Registration survives native collapse. It neither opens the panel nor claims a frame. */
+        private void observeAssistant(){
+            RearAssistantMusic.State state=RearAssistantMusic.inspect(context);
+            if(state.detail.equals(assistantEvidence))return;
+            assistantEvidence=state.detail;
+            report(lease,state.registered?"card-available":"card-state",display,state.detail);
+            if(state.registered)report(lease,state.selected?"card-selected":"card-collapsed",display,state.detail);
         }
 
         /**
@@ -632,6 +649,7 @@ public final class RearHostHooks {
             card=null;
             String old = lease;
             lease = "";
+            assistantEvidence="";
             if (!old.isEmpty()) lastReleased = old;
             suspended = false;
             rebinds = 0;
@@ -651,6 +669,7 @@ public final class RearHostHooks {
 
         @Override public void report(String session, String event, int id, String reason) {
             if (!lease.equals(session) && !lastReleased.equals(session)) return;
+            if("ready".equals(event))rebinds=0; // Successful native navigation isn't a failed recovery.
             log(event + " display=" + id + " " + reason);
             if ("user-exit".equals(event) || "failed".equals(event)) {
                 if (host != null) { host.close(); host = null; }
@@ -699,6 +718,7 @@ public final class RearHostHooks {
                         if (code == RearHostContract.SHOW) {
                             if (!lease.isEmpty() && !lease.equals(requested)) { reason[0] = "Another host lease exists"; return; }
                             lease = requested;
+                            assistantEvidence="";
                             suspended = false;
                             rebinds = 0;
                             launches = 0;
