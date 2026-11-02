@@ -44,6 +44,13 @@ it('50 mixed native/compatible transitions keep current identities and discard l
         expect(h.config.mock.lastCall?.[0].song.id).toBe(key);
     }h.stop();
 });
+it('a compatible lease recovers its complete config when the correct clock arrives without another config revision',async()=>{
+    const h=harness(),owner={...track('B','web','B#2',2),engine:'compatible',requestId:'new'};
+    await h.send({revision:1,owner,track:null,config:cfg('B','web'),clock:{...webClock(),requestId:'old'}});
+    expect(h.config.mock.lastCall?.[0].hasTrack).toBe(false);
+    await h.send({revision:1,owner,track:null,clock:{...webClock(),requestId:'new'}});
+    expect(h.config.mock.lastCall?.[0].song.id).toBe('B');expect(h.config.mock.lastCall?.[0].lyrics.lines[0].fullText).toBe('B');h.stop();
+});
 it('rapid A B C D, old events and same-song replay never restore an earlier epoch',async()=>{
     const h=harness();for(const [i,key]of ['A','B','C','D','D'].entries())await h.send({revision:i+1,owner:track(key,'n'+i,key+'#'+i,i+1),track:track(key,'n'+i,key+'#'+i,i+1),config:cfg('A','old'),clock:webClock()});
     await h.send({revision:99,owner:track('A','n0','A#0',1),track:track('A','n0','A#0',1),config:cfg('A','n0'),clock:webClock()});

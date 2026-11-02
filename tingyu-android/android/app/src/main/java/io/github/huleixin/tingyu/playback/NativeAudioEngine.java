@@ -1488,7 +1488,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         JSObject value=snapshot("spectrum",false);JSArray array=new JSArray();for(int bin:bins)array.put(bin);
         value.put("spectrum",array);listener.accept(value);
     });}
-    private void release(){io.github.huleixin.tingyu.RearNativeTrack.clear();SleepTimerController.get(context).detach();PlaybackDiagnostics.note("engine-release",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
+    private void release(){sourceId="";io.github.huleixin.tingyu.RearNativeTrack.clear();SleepTimerController.get(context).detach();PlaybackDiagnostics.note("engine-release",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
             .put("positionMs",Math.max(0,player.getCurrentPosition())));releaseHandoff();cancelFade();main.removeCallbacksAndMessages(null);sourceId="";listener=null;PlaybackLifecycle.noteBridge(false);player.release();spectrum.close();
             io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.release();}
 }

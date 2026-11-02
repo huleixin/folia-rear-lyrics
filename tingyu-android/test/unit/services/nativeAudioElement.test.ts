@@ -2,9 +2,24 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { attachNativeAudioElement, isNativeAudioElement, nativeAudioSpectrum, setNativeAudioQueue, markNativeQueueAdoption } from '@/services/nativeAudioElement';
 import type { NativeAudioState } from '@/types/nativeAudio';
+import * as cacheSource from '@/services/nativeAudioCache';
+import {setNativeAudioCommandsBlocked} from '@/services/nativeAudioElement';
 
 // test/unit/services/nativeAudioElement.test.ts
 afterEach(()=>vi.useRealTimers());
+it('a failed cache prepare retires the last acknowledged native lease rather than an unaccepted new id',async()=>{
+    const f=await fixture(),accepted=f.commands.find(c=>c.action==='prepare')!.id;
+    const spy=vi.spyOn(cacheSource,'prepareNativeAudioSource').mockRejectedValueOnce(Error('cache unavailable'));
+    try{f.adapter.setSource('blob:missing','qq:B',{playbackAttempt:2});await f.flush();await f.adapter.dispose();expect(f.commands.at(-1)).toMatchObject({action:'detach',id:accepted});}finally{spy.mockRestore();}
+});
+it('a cache source never accepted by native does not invent a failing detach lease',async()=>{
+    const f=await fixture();f.adapter.setSource('','');await f.flush();const count=f.commands.length;
+    const spy=vi.spyOn(cacheSource,'prepareNativeAudioSource').mockRejectedValueOnce(Error('cache unavailable'));
+    try{f.adapter.setSource('blob:missing','qq:B',{playbackAttempt:2});await f.flush();await f.adapter.dispose();expect(f.commands).toHaveLength(count);}finally{spy.mockRestore();}
+});
+it('blocking new commands never blocks acknowledged retirement of the old output',async()=>{
+    const f=await fixture();setNativeAudioCommandsBlocked(true);try{await f.adapter.dispose();expect(f.commands.at(-1)?.action).toBe('detach');}finally{setNativeAudioCommandsBlocked(false);}
+});
 it('reconciles a native auto-transition once without ending, seeking or restarting the old track',async()=>{
     const f=await fixture(),transition=vi.fn(),ended=vi.fn();
     window.addEventListener('tingyu-native-queue-track',transition);f.element.addEventListener('ended',ended);

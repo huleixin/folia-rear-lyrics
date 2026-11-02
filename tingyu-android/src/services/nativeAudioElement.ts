@@ -22,7 +22,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
     const bands={spectrum:new Uint8Array(1024)};
     let source='',track='',id='',sequence=0,lastIntent=0,position=0,duration=0,buffered=0,anchor=performance.now(),sourceAttempt:unknown;
     let paused=true,playing=false,ended=false,ready=0,volume=element.volume,muted=element.muted,disposed=false,metadata=false;
-    let requestedPlaying=false;
+    let requestedPlaying=false,ownedId='',uncertainId='',ownedSequence=0,uncertainSequence=0;
     let lastEventRevision=-1,engineSession='',trackGeneration=-1;
     const retiredSessions:string[]=[];
     let rate=1;
@@ -122,7 +122,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         const token=id,revision=++sequence;const started=performance.now();
         if(action!=='volume')notePlaybackTest('native-command',{action,sequence:revision,...(action==='prepare'?playbackTestUriInfo(String(data.uri??'')):{})});
         work=work.catch(()=>{}).then(async()=>{
-            if(blocked||(action!=='detach'&&(disposed||token!==id)))throw abort();
+            if(action!=='detach'&&(blocked||disposed||token!==id))throw abort();
             if(action==='play'&&paused)throw abort(); // A sleep pause/user pause can supersede a queued Play.
             let staged:NativeAudioSource|undefined;
             if(action==='prepare'){
@@ -131,9 +131,21 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
                 if(disposed||token!==id){await staged.release();throw abort();}
                 cacheLeases.add(staged);
             }
+            if(action==='detach'){
+                const targets=[...new Set([uncertainId,ownedId].filter(Boolean))];let accepted=targets.length===0;
+                for(const retiring of targets){
+                    const ack=await port.command({action,id:retiring,sequence:Math.max(revision,(retiring===uncertainId?uncertainSequence:ownedSequence)+1)});
+                    if(ack.accepted){accepted=true;break;}
+                }
+                if(!accepted)throw abort();ownedId='';uncertainId='';
+                for(const lease of [...cacheLeases]){cacheLeases.delete(lease);await lease.release().catch(()=>{});}return;
+            }
+            if(action==='prepare'){uncertainId=token;uncertainSequence=revision;}
             const result=await port.command({action,id:token,sequence:revision,...data,...(staged?{uri:staged.uri}:{})});
             if(action!=='volume')notePlaybackTest('native-command-result',{action,accepted:result.accepted,elapsedMs:Math.round(performance.now()-started)});
+            if(action==='prepare'){uncertainId='';if(result.accepted){ownedId=token;ownedSequence=revision;}}
             if(!result.accepted)throw abort();
+            if(token===ownedId)ownedSequence=Math.max(ownedSequence,revision);
             if(action==='detach'||action==='prepare')for(const lease of [...cacheLeases])if(lease!==staged){cacheLeases.delete(lease);await lease.release().catch(()=>{});}
             if('state' in result&&result.state)onState(result.state as NativeAudioState);
         });
@@ -216,7 +228,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
             if(disposed)return Promise.resolve();disposed=true;rejectPending(abort());elements.delete(element);bindOutputIdentity(element);document.removeEventListener('visibilitychange',refresh);
             for(const [name,descriptor] of original){if(descriptor)Object.defineProperty(element,name,descriptor);else delete (element as unknown as Record<string,unknown>)[name];}
             element.volume=volume;element.muted=muted;
-            const stop=id?send('detach'):Promise.resolve();
+            const stop=(id||ownedId||uncertainId)?send('detach'):work.catch(()=>{});
             return stop.finally(()=>listener?.remove().catch(()=>{}));
         },
     };

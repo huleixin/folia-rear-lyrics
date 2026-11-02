@@ -197,6 +197,7 @@ public final class LyricSyncLedger {
 
     /** 背屏渲染端带位置的上报：还能推出「渲染推进到哪一行」。 */
     public synchronized void rearAppliedAt(String songKey, String epoch, long positionMs, long nowMs) {
+        renderedSong=songKey==null?"":songKey;renderedEpoch=epoch==null?"":epoch;
         if (!accept(songKey, epoch)) return;
         rearApplied(songKey, epoch, nowMs);
         rearAppliedPosMs = Math.max(0L, positionMs);

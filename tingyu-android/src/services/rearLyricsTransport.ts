@@ -61,7 +61,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         let lastSnapshotKey = '';
         // The last configuration this document rendered. A track change patches this object
         // instead of waiting for a new one, so the visual settings never flicker or reset.
-        let lastConfig: ObsBrowserSourceConfig | null = null;
+        let lastConfig: ObsBrowserSourceConfig | null = null,lastPublishedConfig:ObsBrowserSourceConfig|null=null;
         let appliedEpoch = '', nativeAppliedEpoch = '';
         let ownerRevision=-1,ownerProcess='';const retiredOwners:string[]=[];
         let lyricAbort:AbortController|null=null;
@@ -200,7 +200,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                     if(ownerProcess!==o.sessionId){if(ownerProcess)retiredOwners.push(ownerProcess);if(retiredOwners.length>4)retiredOwners.shift();ownerProcess=o.sessionId!;ownerRevision=-1;}
                     ownerRevision=o.eventRevision??0;
                 }
-                const candidate=snapshot.config??lastConfig;
+                const candidate=snapshot.config??lastPublishedConfig??lastConfig;
                 const authority=rearPlaybackAuthority(snapshot,candidate);
                 // A retired output can still have a pending lyric response or a cached native item.
                 if(snapshot.owner&&(!authority.track||activeTrack?.outputSessionId!==authority.track.outputSessionId)){
@@ -227,7 +227,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                     }
                     events.config(safe); onConfig(safe);
                     lastConfig = safe;
-                    revision = snapshot.revision;
+                    lastPublishedConfig=snapshot.config;revision = snapshot.revision;
                     if(snapshot.owner?.engine==='compatible'&&authority.webAllowed){lyricLines=safe.lyrics?.lines.length??0;trace('lyric-applied',`source=compatible lines=${lyricLines}`,snapshot.owner.songKey,snapshot.owner.epoch);}
                 }
                 // The native side is the identity authority: Media3's current MediaItem id and a
@@ -261,6 +261,9 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                         trace('lyric-revision', `epoch=${track.epoch} lyric=${lyricFingerprint}`);
                         void loadNativeLyrics(track, 0);
                     }
+                }
+                if(snapshot.owner&&authority.webAllowed&&candidate?.hasTrack===true&&lastConfig?.hasTrack===false){
+                    emitConfig(candidate);trace('resync','reason=output-lease-rebound',snapshot.owner?.songKey,snapshot.owner?.epoch);
                 }
                 if(authority.blocked){
                     if(lastConfig?.hasTrack||lastConfig?.lyrics?.lines?.length)emitConfig({...lastConfig,hasTrack:false,song:null,lyrics:{lines:[]}});
