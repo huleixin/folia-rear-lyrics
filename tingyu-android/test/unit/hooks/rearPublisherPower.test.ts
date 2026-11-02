@@ -5,11 +5,13 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useRearLyricsPublisher } from '@/hooks/useRearLyricsPublisher';
 import { PlayerState } from '@/types';
 import type { ObsBrowserSourceConfig, ObsBrowserSourceClock, ObsBrowserSourceAudio } from '@/types/obsBrowserSource';
+import {useRearStageAppearanceStore} from '@/stores/useRearStageAppearanceStore';
 import { useRearRuntimeStore } from '@/stores/useRearRuntimeStore';
 
 // test/unit/hooks/rearPublisherPower.test.ts
 // Count actual bridge calls and verify pause/re-enable/cleanup without altering rear clock semantics.
 const native=vi.hoisted(()=>({ getRearLyricsStatus:vi.fn(), getRearLyricsRuntimeState:vi.fn(), publishRearLyricsSnapshot:vi.fn() }));
+vi.mock('@/services/appDatabase',()=>({appDatabase:{appearance_profiles:{get:async()=>undefined}}}));
 vi.mock('@capacitor/core',()=>({Capacitor:{getPlatform:()=> 'android'}}));
 vi.mock('@/platform/foliaNative',()=>({getFoliaNative:()=>native}));
 vi.mock('@/services/rearLyricsFont',()=>({resolveRearUploadedFont:vi.fn().mockResolvedValue(null)}));
@@ -23,6 +25,7 @@ const clock=()=>({currentTime:time,duration:100,playerState:state,playbackRate:1
 const read=()=>({currentTime:time,playbackRate:1,advancing:state===PlayerState.PLAYING});
 function Harness({revision=0}:{revision?:number}) { useRearLyricsPublisher(revision?{...config}:config,clock,audio,read);return null; }
 beforeEach(()=>{
+    useRearStageAppearanceStore.setState({ready:true,mode:'follow',profile:null});
     vi.useFakeTimers();vi.clearAllMocks();enabled=false;sleeping=false;returnedToSystem=false;state=PlayerState.PLAYING;time=10;
     native.getRearLyricsRuntimeState.mockImplementation(async()=>({enabled,sleeping,returnedToSystem}));native.getRearLyricsStatus.mockResolvedValue({enabled:false});
     native.publishRearLyricsSnapshot.mockResolvedValue(undefined);

@@ -1,3 +1,4 @@
+import {useRearStageAppearanceStore,exportRearAppearance} from '../../src/stores/useRearStageAppearanceStore';
 import React from 'react';
 import MobileSettingsLanding from '../../src/components/modal/settings/MobileSettingsLanding';
 import {useSettingsModalStore} from '../../src/stores/useSettingsModalStore';
@@ -12,8 +13,9 @@ import type {ProbeDefinition} from './definition';
 const Component=()=>{
     const [ready,setReady]=React.useState(false);
     React.useLayoutEffect(()=>{
-        const surface=window as any,previous=surface.Capacitor;
+        const surface=window as any,previous=surface.Capacitor;surface.__rearAppearance=exportRearAppearance;
         let status:RearLyricsStatus={backendMode:'lsp',lspConnected:true,enabled:false,active:false,starting:false,shizukuAvailable:true,authorized:true,rearDisplayId:1,build:250,controlEngine:'plan-a',lockedRoute:'auto',sensorAvailable:true,coverSleepEnabled:false,diagnostics:'fixture: native status boundary',sleepDiagnostics:'fixture: sensor available'};
+        useRearStageAppearanceStore.getState().observeFront({activePlaybackContext:'main',hasTrack:true,song:{id:'current',name:'Current'},lyrics:{lines:[]},theme:{name:'Front',backgroundColor:'#08251d',primaryColor:'#e8f4ed',secondaryColor:'#91b5a4',accentColor:'#74d9ba',fontStyle:'sans',animationIntensity:'normal'},isDaylight:false,visualizerMode:'claddagh',lyricsFontScale:1,subtitleFontScale:1,visualizerOpacity:1,subtitleOverlayOpacity:1,staticMode:false,hideTranslationSubtitle:false,seed:1,updatedAt:Date.now(),stageSource:null,songArtist:null,songAlbum:null,coverUrl:null},null);
         const calls:string[]=[];surface.__rearCalls=calls;surface.__rearExports=[];
         const native={getRearLyricsStatus:async()=>({...status}),startRearLyrics:async()=>{calls.push('start');status={...status,enabled:true,active:true};return{verified:true};},
             returnFromRearLyrics:async()=>{calls.push('stop');status={...status,enabled:false,active:false};},

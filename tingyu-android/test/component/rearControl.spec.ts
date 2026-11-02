@@ -6,6 +6,25 @@ import type {Page} from '@playwright/test';
 // test/component/rearControl.spec.ts
 // Browser plugin not available: use the repository Playwright gallery; screenshots are Web previews.
 const evidence=process.env.TINGYU_QA_DIR||'test-results';
+test('rear appearance modes reuse the existing stage editor and restore the saved profile',async({page,mount})=>{
+    const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+    await page.setViewportSize({width:393,height:852});await mount('rearControl');
+    await page.locator('.ty-rear-entry').click();await page.getByRole('button',{name:/歌词舞台外观/}).click();
+    await expect(page.getByRole('heading',{name:'歌词舞台外观',exact:true}).first()).toBeVisible();
+    await page.getByRole('button',{name:'独立设置',exact:true}).click();await expect(page.getByRole('button',{name:'独立设置',exact:true})).toHaveAttribute('aria-pressed','true');
+    await page.getByRole('switch',{name:/舞台浅色外观/}).click();
+    await page.getByRole('button',{name:'跟随正面',exact:true}).click();await page.getByRole('button',{name:'独立设置',exact:true}).click();
+    await expect(page.getByRole('switch',{name:/舞台浅色外观/})).toHaveAttribute('aria-checked','true');
+    await page.locator('[data-folia-settings-panel]').screenshot({path:path.join(evidence,'rear-appearance-independent-web.png')});
+    await page.getByRole('button',{name:/舞台样式与字体/}).click();await expect(page.getByRole('button',{name:'背景',exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'背景',exact:true}).click();
+    await page.getByRole('button',{name:'莫奈',exact:true}).click();
+    await page.locator('input[type="file"][accept*="image"]').first().setInputFiles({name:'rear.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64')});
+    await expect.poll(()=>page.evaluate(()=>(window as any).__rearAppearance().profile?.visual.background?.customImage?.name)).toBe('rear.png');
+    expect(await page.evaluate(()=>(window as any).__rearCalls)).toEqual([]);
+    await page.locator('[data-folia-settings-panel]').screenshot({path:path.join(evidence,'rear-appearance-editor-web.png')});
+    expect(errors).toEqual([]);
+});
 async function capture(page:Page,name:string){
     fs.mkdirSync(evidence,{recursive:true});
     await page.locator('[data-folia-settings-panel]').screenshot({path:path.join(evidence,name+'.png')});
