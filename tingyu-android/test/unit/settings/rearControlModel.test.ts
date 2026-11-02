@@ -57,3 +57,9 @@ it('routes have separate identities with an explicit shallow return path',()=>{
     expect(rearPageKey('control')).toBe('settings:rear:control');expect(rearPageKey('advanced')).toBe('settings:rear:advanced');expect(rearPageKey('diagnostics')).toBe('settings:document:rear-diagnostics');
     expect(rearPageBack('control')).toBe('index');for(const page of ['advanced','guide','diagnostics'] as const)expect(rearPageBack(page)).toBe('control');
 });
+
+it('shows actual host ownership separately from module connection and keeps re-entry reachable',()=>{
+    const page=buildRearControlPage('control',{...state,snapshot:{...state.snapshot,enabled:true,active:false,hostConnected:true,hostActive:false,userDismissed:true,returnedToSystem:true,displayMode:'system-card'}},t);
+    expect(page.sections.find(s=>s.id==='rear-show')?.items?.[0].action).toBe('rear:show');
+    expect(page.sections.find(s=>s.id==='rear-status')?.items?.find(i=>i.id==='host')?.subtitle).not.toContain('已接管');
+});

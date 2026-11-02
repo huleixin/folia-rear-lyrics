@@ -69,3 +69,12 @@ it('retains newer config while an uploaded font is loading instead of dropping i
     expect(fonts.add).toHaveBeenCalledTimes(1);stop();expect(fonts.delete).toHaveBeenCalledTimes(1);
     delete (document as unknown as {fonts?:unknown}).fonts;
 });
+
+it('reset prevents a recovering iframe from replaying the previous visible song',()=>{
+    const {host,child}=windows(),relay=createRearStateRelay(()=>child,host);
+    relay.publish({revision:1,config:{song:{id:'A'}}} as RearStateSnapshot);relay.reset();
+    const received=vi.fn(),connected=vi.fn();const stop=subscribeRearStateRelay(received,connected,child);
+    expect(received).not.toHaveBeenCalled();expect(connected).toHaveBeenLastCalledWith(false);
+    relay.publish({revision:2,config:{song:{id:'B'}}} as RearStateSnapshot);
+    expect(received).toHaveBeenCalledTimes(1);expect(received.mock.lastCall?.[0].config.song.id).toBe('B');stop();relay.dispose();
+});

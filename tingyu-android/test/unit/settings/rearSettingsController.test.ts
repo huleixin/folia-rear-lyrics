@@ -69,3 +69,10 @@ it('does not let a pre-write status poll overwrite a saved preference',async()=>
     await act(async()=>{const write=current.change('engine','legacy');release(stale);await write;});
     expect(current.snapshot?.controlEngine).toBe('legacy');
 });
+
+it('explicit show after swipe reuses the saved enabled preference without toggling it off',async()=>{
+    status={...status,enabled:true,active:false,userDismissed:true,returnedToSystem:true};
+    await act(async()=>root.render(createElement(Probe)));
+    await act(async()=>{await current.show();});
+    expect(mock.start).toHaveBeenCalledTimes(1);expect(mock.stop).not.toHaveBeenCalled();
+});
