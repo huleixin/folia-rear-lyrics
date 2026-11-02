@@ -76,7 +76,7 @@ final class RearSystemCardBinding {
                 if(!(slot instanceof FrameLayout)||content.getParent()!=slot||XposedHelpers.getObjectField(widget,"p")!=slot){evidence="system slot/content parent mismatch";return null;}
                 RearSystemCardBinding result=new RearSystemCardBinding(panel,holder,widget,(FrameLayout)slot,content,profile);
                 if(result.current()){
-                    evidence="system music entry verified; profile="+profile.version+"; panel="+profile.panelClass+"; bind="+profile.bindMethod+"; centerSlot=1; creator=Tingyu; native parent and outline retained; "+parents(content);
+                    evidence="system music entry verified; profile="+profile.version+"; panel="+profile.panelClass+"; bind="+profile.bindMethod+"; centerSlot=1; selected=Tingyu; native parent and outline retained; "+parents(content);
                     return result;
                 }
                 return null;
@@ -91,15 +91,29 @@ final class RearSystemCardBinding {
             List<?> holders=(List<?>)XposedHelpers.getObjectField(panel,profile.holdersField);
             boolean center=holders.size()==3&&holders.get(1)==holder&&profile.matchesTypes(holder.getClass(),widget.getClass());
             Bundle data=(Bundle)XposedHelpers.getObjectField(widget,"i");
-            boolean valid=RearSystemCardPolicy.eligible(data==null?null:data.getString("package_name"),
-                data==null?null:data.getString("business"),data==null?null:data.getString("creator_package"),
-                center,XposedHelpers.getBooleanField(panel,profile.activeField),
-                content.getParent()==slot&&XposedHelpers.getObjectField(holder,profile.holderWidgetField)==widget
-                    &&XposedHelpers.getObjectField(widget,"n")==content&&XposedHelpers.getObjectField(widget,"p")==slot);
-            if(!valid)evidence="system slot not eligible: center="+center+", panelActive="+XposedHelpers.getBooleanField(panel,profile.activeField)+"; require own unified.music/music entry with unchanged content";
+            String pkg=data==null?null:data.getString("package_name"),business=data==null?null:data.getString("business"),creator=data==null?null:data.getString("creator_package");
+            boolean active=XposedHelpers.getBooleanField(panel,profile.activeField);
+            boolean bound=content.getParent()==slot&&XposedHelpers.getObjectField(holder,profile.holderWidgetField)==widget
+                    &&XposedHelpers.getObjectField(widget,"n")==content&&XposedHelpers.getObjectField(widget,"p")==slot;
+            int type=XposedHelpers.getIntField(widget,"a");
+            String selected=selectedPackage();
+            boolean valid=RearSystemCardPolicy.eligible(pkg,business,creator,center,active,bound)
+                ||profile.mainPanel&&RearSystemCardPolicy.themeMusic(pkg,business,creator,type,selected,center,active,bound);
+            if(!valid)evidence="system slot not eligible: panel="+profile.panelClass+", center="+center+", active="+active+", bound="+bound+", widgetType="+type
+                +", notificationPackage="+label(pkg,"unified.music")+", business="+label(business,"music")+", creator="+label(creator,RearHostContract.APP)+", selected="+label(selected,RearHostContract.APP);
             return valid;
         }catch(Throwable error){evidence="system slot revalidation failed: "+error.getClass().getSimpleName();return false;}
     }
+
+    private String selectedPackage(){
+        Object root=XposedHelpers.getObjectField(content,"mRoot");
+        Object music=root==null?null:XposedHelpers.callMethod(root,"findElement","music_control");
+        if(music==null||!"com.miui.maml.elements.MusicControlScreenElement".equals(music.getClass().getName()))return null;
+        Object bridge=XposedHelpers.getObjectField(music,"mMusicController");
+        Object controller=bridge==null?null:XposedHelpers.callMethod(bridge,"getMediaController");
+        return controller instanceof android.media.session.MediaController?((android.media.session.MediaController)controller).getPackageName():null;
+    }
+    private static String label(String value,String expected){return value==null?"absent":expected.equals(value)?"expected":"other";}
 
     /** Bounded structural evidence, excluding text, notification payloads and other players. */
     private static String parents(View view){
