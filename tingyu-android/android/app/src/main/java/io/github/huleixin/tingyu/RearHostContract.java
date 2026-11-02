@@ -20,8 +20,9 @@ public final class RearHostContract {
      * 是「模块到底有没有跑在这个进程里」的独立证据。
      */
     public static final String PING = APP + ".rearhost.PING";
-    public static final String DESCRIPTOR = APP + ".rearhost.v2";
-    public static final int VERSION = 2, SHOW = 1, HIDE = 2, SUSPEND = 3, PROBE = 4;
+    // v3 forbids launcher overlays: a still-resident v2 module must not receive SHOW after upgrade.
+    public static final String DESCRIPTOR = APP + ".rearhost.v3";
+    public static final int VERSION = 3, SHOW = 1, HIDE = 2, SUSPEND = 3, PROBE = 4;
     /** 宿主允许上报的事件；ready 是唯一会把应用侧会话标记为「已接管」的事件。 */
     private static final String[] EVENTS = {"native-card-probe", "web-stage", "show-received", "attaching", "blocked", "waiting-launcher", "launcher", "page-ready", "drawn", "created", "launch", "ready", "paused", "failed", "user-exit", "released"};
 
