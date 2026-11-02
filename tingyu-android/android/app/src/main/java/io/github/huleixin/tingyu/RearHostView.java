@@ -101,6 +101,7 @@ final class RearHostView {
                     if (!closed && ready && shown && !readyReported && isShown() && getWidth() > 0 && getHeight() > 0) {
                         readyReported = true;
                         if (stage != null) stage.setAlpha(1f);
+                        events.report(session,"drawn",displayId(),"visible WebView onDraw boundary; not hardware presentation proof");
                         events.report(session, "ready", displayId(), "rear-centre host first frame on display " + displayId());
                     }
                 }
@@ -125,7 +126,10 @@ final class RearHostView {
                 @Override public void ready() {
                     if (closed || !events.current(session)) return;
                     ready = true;
-                    if (shown) main.post(RearHostView.this::reconcile);
+                    events.report(session,"page-ready",displayId(),"rear document ready; shown="+shown);
+                    // An alpha-zero parent may be culled before the child ever reaches onDraw.
+                    if(shown && stage!=null)stage.setAlpha(1f);
+                    main.post(()->{if(!closed&&renderer!=null){reconcile();renderer.postInvalidateOnAnimation();}});
                 }
                 @Override public void failed(String reason) {
                     if (main.getLooper() == Looper.myLooper()) fail(reason);
@@ -219,14 +223,15 @@ final class RearHostView {
                 dispatch("folia-rear-power", "{\"sleeping\":false}");
             }
         }
-        if (shown) return;
+        if (shown) {if(ready&&!readyReported&&renderer!=null)renderer.postInvalidateOnAnimation();return;}
         shown = true;
         if (ready) {
             dispatch("folia-rear-resync", "{\"reason\":\"host-visible\"}");
             if (renderer != null) renderer.invalidate();
             // 首帧事件对应用侧同时是「宿主正在显示」。相机/AOD 让位后重新可见时必须再报一次，
             // 否则 hostActive 会永久停在 false。
-            if (readyReported) events.report(session, "ready", displayId(), "rear-centre host visible again");
+            readyReported=false;
+            if(renderer!=null)renderer.postInvalidateOnAnimation();
         }
     }
 

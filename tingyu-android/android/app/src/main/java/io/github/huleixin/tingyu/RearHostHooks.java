@@ -118,7 +118,7 @@ public final class RearHostHooks {
                 hooks += hookDeclared(launcher, "onPause", false);
                 hooks += hookDeclared(launcher, "onDestroy", false);
             }
-            if (hooks < 2) {
+            {
                 // 第三层兜底：Instrumentation 的 callActivityOnXxx 对每个 Activity 都会调用，
                 // 不依赖 Activity 子类是否 super.onResume()，也不依赖 performXxx 的隐藏签名。
                 hooks += hookInstrumentation("callActivityOnResume", true);
@@ -322,6 +322,15 @@ public final class RearHostHooks {
             log("context ready type=" + context.getClass().getName());
             this.process = processName;
             attachInterface(null, RearHostContract.DESCRIPTOR);
+            application.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
+                public void onActivityCreated(Activity a, Bundle state) {}
+                public void onActivityStarted(Activity a) {}
+                public void onActivityResumed(Activity a) { if(isLauncher(a)){log("launcher lifecycle callback resumed display="+displayOf(a));resumed(a);} }
+                public void onActivityPaused(Activity a) { if(isLauncher(a))paused(a); }
+                public void onActivityStopped(Activity a) {}
+                public void onActivitySaveInstanceState(Activity a, Bundle state) {}
+                public void onActivityDestroyed(Activity a) { if(isLauncher(a))destroyed(a); }
+            });
         }
 
         // Reuse this Controller on onCreate/CONNECT; do not allocate another Binder or executor.
@@ -443,6 +452,7 @@ public final class RearHostHooks {
         void resumed(Activity activity) {
             if (Looper.myLooper() != main.getLooper()) { main.post(() -> resumed(activity)); return; }
             int id = displayOf(activity);
+            log("launcher discovered resumed display="+id+", lease="+!lease.isEmpty());
             if (id <= 0) { log("ignored launcher on display " + id); return; }
             boolean same = launcher.get() == activity;
             launcher = new WeakReference<>(activity);
@@ -455,6 +465,7 @@ public final class RearHostHooks {
                 log("launcher seen process=" + process + "; re-registering with priority " + priority());
                 publish("launcher-seen");
             }
+            if (!lease.isEmpty()) report(lease,"launcher",id,"Launcher resumed via lifecycle observation");
             if (!same && host != null && host.activity() != activity) {
                 // 旧窗口的宿主视图随旧窗口一起销毁；新窗口必须拿一个新的。
                 host.close();
@@ -487,6 +498,7 @@ public final class RearHostHooks {
         // ------------------------------------------------------------ attach / launch
 
         private int attach(String why) {
+            report(lease,"attaching",display,"attach="+why+", launcher="+(launcher.get()!=null)+", resumed="+resumed+", suspended="+suspended+", power="+state(display));
             if (!uiHooksReady) {
                 lastFailure = "背屏中心 UI Hook 不可用（stage=" + stage + (stageError.isEmpty() ? "" : ", " + stageError) + "）";
                 return FAILED;
@@ -496,6 +508,7 @@ public final class RearHostHooks {
             Activity activity = launcher.get();
             if (activity == null || activity.isFinishing() || !resumed) {
                 lastFailure = "背屏中心 launcher 不在前台";
+                report(lease,"waiting-launcher",display,lastFailure+", resumed="+resumed+", power="+state(display));
                 requestLauncher(why);
                 return PENDING;
             }
@@ -615,7 +628,7 @@ public final class RearHostHooks {
                     bundle.putInt("display", id);
                     bundle.putString("reason", reason);
                     context.getContentResolver().call(Uri.parse("content://" + RearHostContract.AUTHORITY), "report", null, bundle);
-                } catch (Throwable ignored) {}
+                } catch (Throwable error) { log("host report failed event="+event+": "+describe(error)); }
             });
         }
 
@@ -647,12 +660,13 @@ public final class RearHostHooks {
                             nextLaunchAt = 0;
                             if (requestedDisplay > 0) display = requestedDisplay;
                             if (display <= 0) { Activity activity = launcher.get(); display = activity == null ? -1 : displayOf(activity); }
+                            report(lease,"show-received",display,"SHOW accepted; power="+state(display));
                             int result = attach("show");
                             ok[0] = result != FAILED;
                             reason[0] = result == ATTACHED
                                 ? "已在背屏中心创建听屿宿主视图，等待首帧"
                                 : result == PENDING ? lastFailure + "；等待背屏中心回到背屏" : lastFailure;
-                            if (result == FAILED) release();
+                            if (result == FAILED) {report(lease,"blocked",display,lastFailure);release();}
                         } else if (code == RearHostContract.HIDE) {
                             if (lease.equals(requested)) ok[0] = release();
                             else ok[0] = lastReleased.equals(requested);

@@ -36,6 +36,11 @@ public class RearTaskMetadataTest {
         Root root=new Root(); root.baseActivity=new Component(RearBridgeContract.PACKAGE,"MainActivity");
         RearTaskMetadata.ownedRoot(Arrays.asList(root),88,0);
     }
+    @Test public void readOnlyProbeFindsOwnTaskAndKeepsOtherProfilesAbsent() throws Exception {
+        assertTrue(RearTaskMetadata.probe(Arrays.asList(new Root()),1,88,0).contains("status=OK"));
+        assertTrue(RearTaskMetadata.probe(Arrays.asList(new Root()),1,99,0).contains("status=TASK_ABSENT"));
+        assertTrue(RearTaskMetadata.probe(Arrays.asList(new Root()),1,88,10).contains("status=TASK_ABSENT"));
+    }
     @Test public void ignoresHiddenRoots() throws Exception {
         Root root=new Root(); root.visible=false;
         assertEquals("-1 unknown",RearTaskMetadata.front(Arrays.asList(root)));

@@ -299,6 +299,14 @@ final class RearLyricsLauncher {
         });
     }
 
+    // Host preparation has no RearLyricsActivity session. Existing presentation gate still applies.
+    static void wakeHost(Context context, IBinder shell, int rear, java.util.function.BooleanSupplier valid, Runnable completed) {
+        WORKER.execute(()->{try {
+            if(valid.getAsBoolean()&&RearLyricsCoordinator.presentationAllowed()&&!RearLyricsCoordinator.get(context).isSleeping())wakeNumber(context,shell,rear,NO_SESSION,"Host rear wake",new StringBuilder(),false);
+        } catch(Exception error){RearLyricsTrace.record(context,"host/wake-failed",String.valueOf(error));}
+        finally{completed.run();}});
+    }
+
     /**
      * The camera can power the rear panel off, after which the logical display is gone and every
      * scan reports "no rear screen". Nothing else would ever wake it again, so the remembered id
@@ -512,7 +520,7 @@ final class RearLyricsLauncher {
         try {
             data.writeInterfaceToken(ShellUserService.DESCRIPTOR);
             data.writeInt(display); data.writeString(session == null ? "" : session); data.writeInt(task);
-            if (!shell.transact(transaction, data, reply, 0)) throw new IllegalStateException("Shizuku 服务版本不匹配，请重启 Shizuku 后重试");
+            if (!shell.transact(transaction, data, reply, 0)) throw new IllegalStateException("背屏控制协议不支持事务 "+transaction+"，请重启当前 LSP/Shizuku 后端后重试");
             reply.readException();
             RearLyricsCommandResult result = new RearLyricsCommandResult(reply.readInt(), reply.readString());
             trace.append(label).append(": ").append(result.describe()).append('\n');

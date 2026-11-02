@@ -23,7 +23,7 @@ public final class RearHostContract {
     public static final String DESCRIPTOR = APP + ".rearhost.v2";
     public static final int VERSION = 2, SHOW = 1, HIDE = 2, SUSPEND = 3, PROBE = 4;
     /** 宿主允许上报的事件；ready 是唯一会把应用侧会话标记为「已接管」的事件。 */
-    private static final String[] EVENTS = {"created", "launch", "ready", "paused", "failed", "user-exit", "released"};
+    private static final String[] EVENTS = {"show-received", "attaching", "blocked", "waiting-launcher", "launcher", "page-ready", "drawn", "created", "launch", "ready", "paused", "failed", "user-exit", "released"};
 
     public static boolean knownEvent(String value) {
         if (value == null) return false;

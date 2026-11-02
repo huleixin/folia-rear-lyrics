@@ -25,6 +25,19 @@ final class RearTaskMetadata {
         }
         throw new SecurityException("Rear task is missing or shares a root with another task");
     }
+    /** Read only: return FOUND solely for this user's own rear task, never invent visibility. */
+    static String probe(List<?> roots,int display,int task,int user) throws ReflectiveOperationException {
+        String front=front(roots), row="";
+        for(Object root:roots){
+            if(((Number)field(root,"userId")).intValue()!=user||!ownComponent(field(root,"baseActivity")))continue;
+            int rootId=((Number)field(root,"taskId")).intValue();
+            int[] children=(int[])field(root,"childTaskIds");
+            boolean found=rootId==task;
+            if(children!=null)for(int child:children)if(child==task)found=true;
+            if(found){row="root="+rootId+",display="+display+",task="+task+",component="+RearBridgeContract.PACKAGE+"/"+RearBridgeContract.ACTIVITY;break;}
+        }
+        return "status="+(row.isEmpty()?"TASK_ABSENT":"OK")+"\nfront="+front+"\ntask-row="+row+"\nrows="+roots.size()+"\nwhy=lsp-read-only-root-metadata";
+    }
     static String front(List<?> roots) throws ReflectiveOperationException {
         for (Object root : roots) {
             if (!Boolean.TRUE.equals(field(root, "visible"))) continue;

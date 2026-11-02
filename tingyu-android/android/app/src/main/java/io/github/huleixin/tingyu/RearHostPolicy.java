@@ -30,6 +30,10 @@ final class RearHostPolicy {
 
     private RearHostPolicy() {}
 
+    static boolean mayWake(boolean current, boolean sleeping, boolean busy, boolean covered, boolean camera) {
+        return current && !sleeping && !busy && !covered && !camera;
+    }
+
     /** 显示会话 token 只允许 UUID 形态；空白、路径片段、超长串都不能成为宿主所有权。 */
     static boolean validSession(String value) {
         return value != null && value.matches("[a-zA-Z0-9-]{16,80}");

@@ -99,4 +99,12 @@ public class RearHostPolicyTest {
         assertFalse(RearHostPolicy.mayStart(7,7,false));
         assertFalse(RearHostPolicy.mayStart(7,8,false));
     }
+    @Test public void hostWakeNeverOverridesCancellationCameraOrSleepPolicy(){
+        assertTrue(RearHostPolicy.mayWake(true,false,false,false,false));
+        assertFalse(RearHostPolicy.mayWake(false,false,false,false,false));
+        assertFalse(RearHostPolicy.mayWake(true,true,false,false,false));
+        assertFalse(RearHostPolicy.mayWake(true,false,true,false,false));
+        assertFalse(RearHostPolicy.mayWake(true,false,false,true,false));
+        assertFalse(RearHostPolicy.mayWake(true,false,false,false,true));
+    }
 }

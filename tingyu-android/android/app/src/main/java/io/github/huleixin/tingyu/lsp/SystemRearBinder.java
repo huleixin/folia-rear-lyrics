@@ -51,7 +51,7 @@ final class SystemRearBinder extends Binder {
             + " · " + power.status() + " · ROM behavior requires device verification";
     }
     @Override protected boolean onTransact(int code, Parcel data, Parcel reply, int flags) throws RemoteException {
-        if (code < FIRST_CALL_TRANSACTION || code > RearBridgeContract.LOG_SNAPSHOT)
+        if (code < FIRST_CALL_TRANSACTION || code > RearBridgeContract.FRONT_PROBE)
             return super.onTransact(code, data, reply, flags);
         data.enforceInterface(RearBridgeContract.DESCRIPTOR);
         int uid = Binder.getCallingUid();
@@ -85,6 +85,12 @@ final class SystemRearBinder extends Binder {
         if (!RearBridgeContract.isRearSize(size.x, size.y)) throw new SecurityException("Unrecognized rear display geometry");
     }
     private String execute(int operation, int display, String session, int task, int user) throws Exception {
+        if (operation == 9) {
+            Object atm = Class.forName("android.app.ActivityTaskManager").getMethod("getService").invoke(null);
+            List<?> roots = (List<?>) Class.forName("android.app.IActivityTaskManager")
+                .getMethod("getAllRootTaskInfosOnDisplay",int.class).invoke(atm,display);
+            return RearTaskMetadata.probe(roots,display,task,user);
+        }
         if (operation == 8) {
             // Deliberately unsupported: forking logcat from system_server is not worth the risk.
             return "unavailable: LSP mode does not collect system logs";

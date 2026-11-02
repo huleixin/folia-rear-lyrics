@@ -55,7 +55,10 @@ final class RearHostWebClient extends WebViewClient {
                 Bundle b=new Bundle();b.putString("session",session);b.putString("url",url.toString());call("trace",b);return text("{}");
             }
             return new WebResourceResponse(mime(path),"UTF-8",200,"OK",java.util.Map.of("Cache-Control","no-store","Access-Control-Allow-Origin","*"),resource(url));
-        }catch(Exception error){return new WebResourceResponse("text/plain","UTF-8",404,"Not Found",Collections.emptyMap(),new ByteArrayInputStream(new byte[0]));}
+        }catch(Exception error){
+            if(path!=null&&(path.endsWith(".js")||path.endsWith(".html")||path.equals("/__folia_rear/state")))
+                view.post(()->events.failed("Resource unavailable path="+path+", cause="+error.getClass().getSimpleName()+": "+error.getMessage()));
+            return new WebResourceResponse("text/plain","UTF-8",404,"Not Found",Collections.emptyMap(),new ByteArrayInputStream(new byte[0]));}
     }
     private void call(String method,Bundle b){context.getContentResolver().call(Uri.parse("content://"+RearHostContract.AUTHORITY),method,null,b);}
     @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){return request.isForMainFrame();}

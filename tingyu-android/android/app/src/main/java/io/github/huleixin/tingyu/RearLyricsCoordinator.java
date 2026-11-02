@@ -982,13 +982,23 @@ final class RearLyricsCoordinator {
                 if(RearLyricsActivity.isEnabled() || RearLyricsActivity.hasWindow()){closeWindow(CloseReason.SWITCH);return;}
                 hostTried=true;hostConnecting=true;pending=true;final int token=++attemptToken;
                 final int rear=rearDisplayForShell();
+                Runnable showHost=()->{if(token!=attemptToken||closing||!canPresent()) {hostConnecting=false;pending=false;return;}
+                if(RearLyricsLauncher.displayState(context,rear)!=Display.STATE_ON){hostConnecting=false;pending=false;RearLyricsTrace.record(context,"host/wake-blocked","rear not ON after bounded wake; use existing fallback");begin();return;}
                 RearHostBridge.show(context,rear,(ok,display,message)->{
                     if(token!=attemptToken)return;
                     hostConnecting=false;pending=false;
                     if(ok){complete(true,display,message,null);schedule(2000);}
                     else if(RearHostBridge.hasSession())finishFailure(message,null);
                     else{RearLyricsTrace.record(context,"host-fallback",message);if(canPresent())begin();}
-                });return;
+                });};
+                if(RearLyricsLauncher.displayState(context,rear)==Display.STATE_ON)showHost.run();
+                else if(RearHostPolicy.mayWake(canPresent(),sleeping,powerBusy,physicalCover,cameraMonitor.blocked())){
+                    LspRearBridge.request(context);shell=LspRearBridge.get();
+                    if(shell==null){hostConnecting=false;pending=false;begin();return;}
+                    RearLyricsTrace.record(context,"host/wake-begin","rear="+rear);
+                    RearLyricsLauncher.wakeHost(context,shell,rear,()->RearHostPolicy.mayWake(token==attemptToken&&!closing&&canPresent(),sleeping,powerBusy,physicalCover,cameraMonitor.blocked()),()->main.postDelayed(showHost,250));
+                }else{hostConnecting=false;pending=false;RearLyricsTrace.record(context,"host/wake-blocked","sleep/power/cover/camera gate");}
+                return;
             }
             if (LspRearBridge.selected(context)) {
                 LspRearBridge.request(context);
