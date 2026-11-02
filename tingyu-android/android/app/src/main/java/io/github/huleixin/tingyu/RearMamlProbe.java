@@ -79,7 +79,7 @@ final class RearMamlProbe {
                 if(own>0)break;
             }catch(Throwable error){reason="MAML inspection failed: "+error.getClass().getSimpleName();}
         }
-        snapshot=status+"; observed="+observed+", attached="+attached+", music="+musicCount+", own="+own+", other="+other+", unknown="+unknown+"; "+reason;
+        snapshot=status+"; observed="+observed+", attached="+attached+", music="+musicCount+", own="+own+", other="+other+", unknown="+unknown+"; "+reason+"; systemSlot="+RearSystemCardBinding.evidence;
         return snapshot;
     }
     static RearNativeCardOwner ownCard(int expectedDisplay){
@@ -88,7 +88,9 @@ final class RearMamlProbe {
             Object root=XposedHelpers.getObjectField(v,"mRoot");
             Object music=root==null?null:XposedHelpers.callMethod(root,"findElement","music_control");
             if(music==null||!music.getClass().getName().equals("com.miui.maml.elements.MusicControlScreenElement")||!missingRestore(root).isEmpty())continue;
-            RearNativeCardOwner candidate=new RearNativeCardOwner((android.widget.FrameLayout)v,root,music);
+            RearSystemCardBinding binding=RearSystemCardBinding.resolve((android.widget.FrameLayout)v);
+            if(binding==null)continue;
+            RearNativeCardOwner candidate=new RearNativeCardOwner((android.widget.FrameLayout)v,root,music,binding);
             MediaController selected=candidate.selected();
             if(selected!=null&&RearNativeCardPolicy.mayMount(selected.getPackageName(),v.isAttachedToWindow(),v.isShown(),v.getDisplay().getDisplayId(),expectedDisplay,v.getWidth(),v.getHeight()))return candidate;
         }catch(Throwable ignored){}

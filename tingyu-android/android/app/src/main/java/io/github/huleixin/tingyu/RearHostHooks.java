@@ -86,6 +86,7 @@ public final class RearHostHooks {
         log("install begin process=" + process + " build=" + BuildConfig.BUILD_ID);
         RearMusicAdmission.install(loader);
         RearMamlProbe.install(loader);
+        RearSystemCardBinding.install(loader);
         installNativeOwnershipHooks(loader);
         try {
             stage = "communication";
@@ -354,7 +355,7 @@ public final class RearHostHooks {
             main.post(()->{
                 mediaRecheckPending.set(false);
                 if(lease.isEmpty())return;
-                if(card!=null&&host!=null){if(music==card.music)host.refresh();}
+                if(card!=null&&host!=null){if(music==null||music==card.music)host.refresh();}
                 else attach("native-media-changed");
             });
         }
@@ -370,6 +371,7 @@ public final class RearHostHooks {
             this.process = processName;
             RearMamlProbe.changed=v->{if(!lease.isEmpty())main.post(()->{if(!lease.isEmpty())attach("maml-event");});};
             RearMamlProbe.paused=(v,value)->{if(card!=null&&card.container==v&&host!=null)host.resumed(!value);};
+            RearSystemCardBinding.changed=()->mediaChanged(null);
             attachInterface(null, RearHostContract.DESCRIPTOR);
             application.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
                 public void onActivityCreated(Activity a, Bundle state) {}
@@ -559,14 +561,14 @@ public final class RearHostHooks {
             if(!nativeOwnershipHooks){lastFailure="Native card restoration hooks unavailable";return FAILED;}
             if(card!=null&&!card.restore()){lastFailure="Native restoration unconfirmed; no parallel fallback";return PENDING;}
             RearNativeCardOwner candidate=RearMamlProbe.ownCard(display);
-            if(candidate==null){lastFailure="等待原生音乐卡片选中听屿 MediaController；"+evidence;return PENDING;}
+            if(candidate==null){lastFailure="等待系统音乐卡槽绑定听屿；"+RearSystemCardBinding.evidence+"；"+evidence;return PENDING;}
             if(activity==null||activity.isFinishing()){lastFailure="Native card found without live launcher owner";return PENDING;}
             if(!RearHostPolicy.mayRebind(rebinds)){lastFailure="Native card rebuild budget exhausted";return FAILED;}
             card=candidate;rebinds++;
             RearHostView next=new RearHostView(activity,lease,this,card);host=next;
             if(!next.attach()){lastFailure=next.failure();next.close();host=null;return FAILED;}
             display=candidate.container.getDisplay().getDisplayId();
-            report(lease,"created",display,"native-maml music_control; selectedPackage="+RearHostContract.APP
+            report(lease,"created",display,"system-music-slot content; "+RearSystemCardBinding.evidence+"; selectedPackage="+RearHostContract.APP
                 +", cardSize="+candidate.container.getWidth()+"x"+candidate.container.getHeight()+", parent="+(candidate.container.getParent()==null?"none":candidate.container.getParent().getClass().getName())+", "+why);
             return ATTACHED;
         }

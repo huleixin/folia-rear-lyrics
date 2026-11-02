@@ -11,9 +11,10 @@ import java.util.IdentityHashMap;
 final class RearNativeCardOwner {
     final FrameLayout container;
     final Object root,music;
+    final RearSystemCardBinding binding;
     private final IdentityHashMap<View,Integer> visibility=new IdentityHashMap<>();
     private boolean owned,restored=true;
-    RearNativeCardOwner(FrameLayout view,Object root,Object music){this.container=view;this.root=root;this.music=music;}
+    RearNativeCardOwner(FrameLayout view,Object root,Object music,RearSystemCardBinding binding){this.container=view;this.root=root;this.music=music;this.binding=binding;}
     MediaController selected(){
         Object bridge=XposedHelpers.getObjectField(music,"mMusicController");
         Object value=bridge==null?null:XposedHelpers.callMethod(bridge,"getMediaController");
@@ -37,7 +38,7 @@ final class RearNativeCardOwner {
     boolean applies(Object object){return object==root||object==music||object==container;}
     void acquire(View stage){
         if(owned)return;
-        if(!ownMedia()||!container.isAttachedToWindow()||XposedHelpers.getObjectField(container,"mRoot")!=root)throw new IllegalStateException("Native music session changed");
+        if(!ownMedia()||!binding.current()||!container.isAttachedToWindow()||XposedHelpers.getObjectField(container,"mRoot")!=root)throw new IllegalStateException("Native music session or system slot changed");
         restored=false;owned=true;
         try{
             XposedHelpers.callMethod(root,"selfPause");XposedHelpers.callMethod(root,"detachFromVsync");

@@ -115,7 +115,7 @@ final class RearHostView {
                 @Override protected void onDraw(Canvas canvas) {
                     super.onDraw(canvas);
                     boot("first-draw","ready="+ready+", shown="+shown);
-                    if (!closed && ready && shown && (card==null||card.owned()&&card.ownMedia()) && !readyReported && isShown() && getWidth() > 0 && getHeight() > 0) {
+                    if (!closed && ready && shown && card.owned()&&card.ownMedia()&&card.binding.current() && !readyReported && isShown() && getWidth() > 0 && getHeight() > 0) {
                         readyReported = true;
                         if (stage != null) stage.setAlpha(1f);
                         events.report(session,"drawn",displayId(),"visible WebView onDraw boundary; not hardware presentation proof");
@@ -232,7 +232,7 @@ final class RearHostView {
         if (closed || stage == null) return;
         if (Looper.myLooper() != main.getLooper()) { main.post(this::reconcile); return; }
         if(!card.container.isShown()&&RearHostPolicy.userExit(shown,suspended,aod||panelState()!=Display.STATE_ON,nativeGesture,android.os.SystemClock.uptimeMillis())){userExit();return;}
-        boolean visible = (card==null||card.ownMedia()&&card.container.isShown()) && RearHostPolicy.render(events.current(session), suspended||aod, resumed,
+        boolean visible = card.binding.current() && card.ownMedia()&&card.container.isShown() && RearHostPolicy.render(events.current(session), suspended||aod, resumed,
             stage.isAttachedToWindow(), displayId(), panelState());
         if (visible) show();
         else hide(hiddenReason());
