@@ -313,12 +313,20 @@ public final class RearHostHooks {
             return uiHooksReady ? (launcherSeen ? 3 : 2) : 1;
         }
 
+        /** 失败后能否安全重试：通信/控制器失败可再调 install；UI Hook 失败要重启目标进程。 */
+        private String retryHint() {
+            if (stage.startsWith("communication") || stage.startsWith("controller")) return "safe";
+            if (stage.startsWith("ui-hooks")) return "restart-process";
+            return "n/a";
+        }
+
         private String profile() {
             return "背屏中心宿主 v" + RearHostContract.VERSION
                 + " · build=" + BuildConfig.BUILD_ID
                 + " · " + process
                 + " · stage=" + stage
                 + " · priority=" + priority()
+                + " · retry=" + retryHint()
                 + (stageError.isEmpty() ? "" : " · " + stageError);
         }
 
