@@ -593,7 +593,9 @@ final class RearLyricsCoordinator {
         io.github.huleixin.tingyu.playback.LyricSyncLedger.get().rearContext(wanted() && !dismissed, cameraOwned(), sleeping || RearHostBridge.renderSuspended());
         long now = SystemClock.elapsedRealtime();
         return "enabled=" + enabled + ", playing=" + playing + ", manual=" + manual
+            + ", build=" + BuildConfig.BUILD_ID
             + ", hostConnected="+RearHostBridge.connected()+", hostActive="+RearHostBridge.active()+", hostSession="+RearHostBridge.session()+", hostDetail="+RearHostBridge.detail()
+            + ", host={" + RearHostBridge.hostStatus() + "}"
             + ", pending=" + pending + ", failures=" + failures + ", rearWakeTried=" + wakeTried
             + ", covered=" + covered + ", lockRecovery=" + lockRecovery + ", frontTask=" + frontTask
             + ", ownership=" + RearOwnershipState.describe(lastOwnership)

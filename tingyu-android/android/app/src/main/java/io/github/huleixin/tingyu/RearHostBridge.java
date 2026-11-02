@@ -23,7 +23,11 @@ final class RearHostBridge {
     private static final Handler MAIN=new Handler(Looper.getMainLooper());
     private static final ExecutorService IO=Executors.newSingleThreadExecutor();
     private static volatile IBinder service;
-    private static volatile String session="",detail="宿主未连接；需在 LSPosed 启用小米背屏中心作用域";
+    /** 是否真的收到过背屏中心的 register；用来区分「从没连上」和「连过又断了」。 */
+    private static volatile boolean handshakeSeen;
+    private static volatile int servicePriority=-1;
+    private static volatile String hostStage="",hostError="",hostBuild="",hostProcess="";
+    private static volatile String session="",detail=disconnectedReason();
     private static volatile boolean active,suspended,releasing;
     private static volatile int display=-1;
     private static int generation;
@@ -38,18 +42,48 @@ final class RearHostBridge {
     static String session(){return session;}
     static int display(){return display;}
     static String detail(){return detail;}
+    static boolean handshakeSeen(){return handshakeSeen;}
+    static String hostStage(){return hostStage;}
+    static String hostError(){return hostError;}
+    static String hostBuild(){return hostBuild;}
+    static String hostProcess(){return hostProcess;}
+    static String hostStatus(){
+        return "handshakeSeen="+handshakeSeen()+", priority="+servicePriority
+            +", process="+hostProcess()+", stage="+hostStage()
+            +", build="+hostBuild()+", error="+hostError();
+    }
     static boolean matches(String value){return RearHostPolicy.validSession(value) && value.equals(session);}
     static void cancelConnecting(){if(!hasSession())generation++;}
-    static synchronized void connect(Context context,IBinder binder,int protocol,String profile)throws Exception{
+
+    /**
+     * 没有可用 Binder 时的原因必须来自证据：收到过 register → 是断线；从没收到 → 是模块/
+     * 进程/Provider 链路问题，并带上构建标识，避免「旧包/新包」混淆。
+     */
+    static String disconnectedReason(){
+        String build=BuildConfig.BUILD_ID;
+        if(handshakeSeen) return "背屏中心宿主连接已断开（build "+build+"），等待重新 register";
+        return "未收到背屏中心宿主 register（build "+build+"）：背屏中心进程未运行、模块未加载到该进程或 Provider 不可达";
+    }
+
+    static synchronized void connect(Context context,IBinder binder,int protocol,String profile,
+            int priority,String stage,String error,String build,String process)throws Exception{
         if(protocol!=RearHostContract.VERSION || binder==null || !RearHostContract.DESCRIPTOR.equals(binder.getInterfaceDescriptor()))throw new SecurityException("Host protocol mismatch");
+        handshakeSeen=true;
         if(service==binder)return;
+        if(!RearHostPolicy.acceptRegistration(servicePriority,service!=null&&service.isBinderAlive(),hasSession(),priority)){
+            RearLyricsTrace.record(context,"host/register-ignored","priority="+priority+", current="+servicePriority
+                +", session="+session+", process="+process+", stage="+stage);
+            return;
+        }
         binder.linkToDeath(()->MAIN.post(()->{
             if(service!=binder)return;
-            service=null;detail="背屏中心连接断开；旧宿主视图随进程释放";
+            service=null;servicePriority=-1;detail=disconnectedReason();
             String old=session;clear();
             RearLyricsCoordinator.get(context).hostDisconnected(old);
         }),0);
-        service=binder;detail=profile;
+        service=binder;servicePriority=priority;hostStage=stage;hostError=error;hostBuild=build;hostProcess=process;
+        detail=profile+(error==null||error.isEmpty()?"":"；"+error);
+        RearLyricsTrace.record(context,"host/register","priority="+priority+", "+profile);
     }
     /**
      * @param rear 目标背屏显示 id；宿主需要它来把 launcher 请求到正确的显示上。
@@ -57,13 +91,21 @@ final class RearHostBridge {
     static void show(Context context,int rear,Completion callback){
         if(hasSession()){callback.done(false,display,"上一宿主会话仍在释放，禁止并行显示");return;}
         final int token=++generation;
+        RearLyricsTrace.record(context,"host/connect-request","build="+BuildConfig.BUILD_ID
+            +", display="+rear+", connected="+connected()+", handshakeSeen="+handshakeSeen+", "+hostStatus());
         context.sendBroadcast(new Intent(RearHostContract.REQUEST).setPackage(RearHostContract.TARGET));
         MAIN.postDelayed(()->{
             if(!RearHostPolicy.mayStart(token,generation,RearLyricsCoordinator.get(context).canPresent())){
                 if(token==generation)callback.done(false,-1,"显示意图已取消或暂不可用");
                 return;
             }
-            if(!connected()){callback.done(false,-1,detail);return;}
+            if(!connected()){
+                detail=disconnectedReason();
+                RearLyricsTrace.record(context,"host/connect-miss","build="+BuildConfig.BUILD_ID
+                    +", handshakeSeen="+handshakeSeen+", "+hostStatus());
+                callback.done(false,-1,detail);
+                return;
+            }
             session=UUID.randomUUID().toString();active=false;suspended=false;releasing=false;pending=callback;display=rear;lastProbe=0;
             final String expected=session;
             transact(RearHostContract.SHOW,expected,false,rear,(ok,id,message)->{

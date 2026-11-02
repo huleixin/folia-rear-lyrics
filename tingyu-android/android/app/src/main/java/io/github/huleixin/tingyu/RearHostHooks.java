@@ -47,23 +47,63 @@ public final class RearHostHooks {
     /** HyperOS 3 / 小米 17 Pro 的背屏桌面入口；找不到时退回 Activity 生命周期 + 类名判定。 */
     private static final String LAUNCHER = "com.xiaomi.subscreencenter.SubScreenLauncher";
     private static String launcherClass = LAUNCHER;
+    private static String process = "?";
     private static Controller controller;
-    private static boolean installed;
-    private static volatile boolean capabilityReady;
+    /**
+     * 通信初始化是否完成。只有它为真才算「装上了」：Controller 能创建、CONNECT 能收到、
+     * Provider 能握手。它<b>不</b>依赖任何 MAML / 音乐卡片类，也不依赖 UI Hook 是否兼容。
+     */
+    private static boolean communicationReady;
+    private static boolean installing;
+    private static volatile boolean uiHooksReady;
+    /** 安装阶段 / 该阶段的异常；随 register 一起送到听屿诊断，不允许只报「请启用作用域」。 */
+    private static volatile String stage = "not-installed";
+    private static volatile String stageError = "";
+    private static volatile int priority;
     private static volatile String capability = "not installed";
 
-    public static synchronized void install(ClassLoader loader) {
-        if (installed) return;
-        installed = true;
+    /**
+     * 在 {@code com.xiaomi.subscreencenter} 的<b>任意进程</b>调用。
+     *
+     * <p>1.3.95 在这里先加载 {@code MamlView / MusicControlScreenElement} 再挂
+     * {@code Application.attach}，并把 {@code installed=true} 提前写死：任何一个私有类不兼容，
+     * 连「Controller 创建 + Binder 握手」都被跳过，应用侧只会看到 hostConnected=false。
+     *
+     * <p>现在分成两个互不阻断的阶段：
+     * <ol>
+     *   <li><b>通信</b>：挂 {@code Application.attach} 与公开的 {@code Application.onCreate}
+     *       （attach 是隐藏 API，签名可能随 ROM 变化；onCreate 必然存在），只依赖 Android
+     *       框架类。失败时记录阶段与堆栈并允许下一次调用重试。</li>
+     *   <li><b>UI Hook</b>：launcher 生命周期。失败只降低 priority，不影响通信与诊断上报。</li>
+     * </ol>
+     */
+    public static synchronized void install(ClassLoader loader, String processName) {
+        if (communicationReady || installing) return;
+        installing = true;
+        process = processName == null || processName.isEmpty() ? "?" : processName;
+        log("install begin process=" + process + " build=" + BuildConfig.BUILD_ID);
         try {
-            XposedHelpers.findAndHookMethod(Application.class, "attach", Context.class, new XC_MethodHook() {
+            stage = "communication";
+            XC_MethodHook create = new XC_MethodHook() {
                 @Override protected void afterHookedMethod(MethodHookParam param) {
-                    if (controller == null && param.args.length > 0 && param.args[0] instanceof Context) {
-                        controller = new Controller((Context) param.args[0]);
-                        log("controller attached to " + ((Context) param.args[0]).getPackageName());
-                    }
+                    ensureController(param.thisObject);
                 }
-            });
+            };
+            int attachHooks = safeHookAll(Application.class, "attach", create);
+            int createHooks = safeHookAll(Application.class, "onCreate", create);
+            if (attachHooks + createHooks == 0) throw new IllegalStateException("Application 生命周期方法不可用");
+            communicationReady = true;
+            log("communication ready attachHooks=" + attachHooks + " onCreateHooks=" + createHooks);
+        } catch (Throwable error) {
+            communicationReady = false;
+            stage = "communication-failed";
+            stageError = describe(error);
+            log("communication failed: " + stageError);
+            installing = false;
+            return;
+        }
+        try {
+            stage = "ui-hooks";
             Class<?> launcher = XposedHelpers.findClassIfExists(LAUNCHER, loader);
             if (launcher != null) launcherClass = launcher.getName();
             int hooks = 0;
@@ -76,14 +116,62 @@ public final class RearHostHooks {
                 hooks += hookDeclared(launcher, "onPause", false);
                 hooks += hookDeclared(launcher, "onDestroy", false);
             }
-            capabilityReady = hooks >= 2;
-            capability = (launcher == null ? "launcher-class-missing" : "launcher=" + launcherClass)
-                + ", lifecycleHooks=" + hooks;
+            if (hooks < 2) {
+                // 第三层兜底：Instrumentation 的 callActivityOnXxx 对每个 Activity 都会调用，
+                // 不依赖 Activity 子类是否 super.onResume()，也不依赖 performXxx 的隐藏签名。
+                hooks += hookInstrumentation("callActivityOnResume", true);
+                hooks += hookInstrumentation("callActivityOnPause", false);
+                hooks += hookInstrumentation("callActivityOnDestroy", false);
+            }
+            uiHooksReady = hooks >= 2;
+            stage = uiHooksReady ? "ready" : "ui-hooks-incomplete";
+            if (!uiHooksReady) stageError = "lifecycle hooks=" + hooks + ", launcherClass=" + (launcher != null);
         } catch (Throwable error) {
-            capabilityReady = false;
-            capability = "hook install failed: " + error.getClass().getSimpleName();
+            uiHooksReady = false;
+            stage = "ui-hooks-failed";
+            stageError = describe(error);
         }
-        log("install capability=" + capability + " ready=" + capabilityReady);
+        // 通信可用就先注册：UI Hook 失败时应用侧仍能看到 hostConnected=true 与确切失败阶段，
+        // 而不是被一句「请启用作用域」盖住。
+        priority = uiHooksReady ? 2 : 1;
+        capability = "process=" + process + ", launcher=" + launcherClass
+            + ", uiHooks=" + (uiHooksReady ? "ok" : "no") + ", stage=" + stage
+            + ", build=" + BuildConfig.BUILD_ID;
+        installing = false;
+        log("install done priority=" + priority + " " + capability
+            + (stageError.isEmpty() ? "" : " error=" + stageError));
+    }
+
+    private static int safeHookAll(Class<?> type, String method, XC_MethodHook hook) {
+        try {
+            return XposedBridge.hookAllMethods(type, method, hook).isEmpty() ? 0 : 1;
+        } catch (Throwable error) {
+            log("hook " + type.getSimpleName() + "." + method + " failed: " + describe(error));
+            return 0;
+        }
+    }
+
+    /** attach / onCreate 共用：Application 已经存在，创建唯一 Controller 并主动 register。 */
+    private static void ensureController(Object target) {
+        if (!(target instanceof Application) || controller != null) return;
+        try {
+            controller = new Controller((Application) target, process);
+            log("controller created process=" + process);
+            controller.publish("controller-created");
+        } catch (Throwable error) {
+            stage = "controller-failed";
+            stageError = describe(error);
+            log("controller create failed: " + stageError);
+        }
+    }
+
+    /** 失败原因里带异常类型、消息和第一帧调用点，方便从日志一眼定位阶段。 */
+    static String describe(Throwable error) {
+        if (error == null) return "unknown";
+        String message = error.getMessage();
+        StackTraceElement[] frames = error.getStackTrace();
+        return error.getClass().getSimpleName() + (message == null ? "" : ": " + message)
+            + (frames.length == 0 ? "" : " @ " + frames[0]);
     }
 
     private static int hookLifecycle(String method, final boolean resume) {
@@ -126,6 +214,23 @@ public final class RearHostHooks {
         }
     }
 
+    /** Instrumentation 兜底：参数第一个就是 Activity，与子类实现无关。 */
+    private static int hookInstrumentation(String method, final boolean resume) {
+        XC_MethodHook hook = new XC_MethodHook() {
+            @Override protected void afterHookedMethod(MethodHookParam param) {
+                if (param.hasThrowable() || param.args.length == 0 || !(param.args[0] instanceof Activity)) return;
+                Activity activity = (Activity) param.args[0];
+                if (!isLauncher(activity)) return;
+                Controller target = controller;
+                if (target == null) return;
+                if (resume) target.resumed(activity);
+                else if ("callActivityOnDestroy".equals(method)) target.destroyed(activity);
+                else target.paused(activity);
+            }
+        };
+        return safeHookAll(android.app.Instrumentation.class, method, hook);
+    }
+
     /** 只认背屏中心自己的桌面窗口：别的 Activity（哪怕是同进程）一律不参与宿主判定。 */
     private static boolean isLauncher(Activity activity) {
         String name = activity.getClass().getName();
@@ -141,6 +246,7 @@ public final class RearHostHooks {
         private static final int ATTACHED = 1, PENDING = 0, FAILED = -1;
 
         private final Context context;
+        private final String process;
         private final Handler main = new Handler(Looper.getMainLooper());
         private final ExecutorService io = Executors.newSingleThreadExecutor();
         private final AtomicInteger commands = new AtomicInteger();
@@ -155,29 +261,76 @@ public final class RearHostHooks {
         private long nextLaunchAt, pausedAt;
         private String lastFailure = "背屏中心 launcher 尚未出现";
 
-        Controller(Context context) {
-            this.context = context.getApplicationContext();
+        Controller(Application application, String processName) {
+            this.context = application.getApplicationContext();
+            this.process = processName;
             attachInterface(null, RearHostContract.DESCRIPTOR);
+            registerReceiver();
+        }
+
+        /**
+         * CONNECT 广播只是「请现在 register 一次」的提示，不携带任何数据；安全边界在
+         * {@link RearHostProvider} 的 UID 校验。签名权限在部分 ROM/系统应用上注册会抛异常，
+         * 这种情况下退回不带权限的导出接收器，宁可让广播送达，也不能让握手整条消失。
+         */
+        private void registerReceiver() {
             BroadcastReceiver receiver = new BroadcastReceiver() {
                 @Override public void onReceive(Context c, Intent intent) {
-                    if (RearHostContract.REQUEST.equals(intent.getAction())) register();
+                    if (RearHostContract.REQUEST.equals(intent.getAction())) {
+                        log("CONNECT broadcast received");
+                        publish("connect-broadcast");
+                    }
                 }
             };
             IntentFilter filter = new IntentFilter(RearHostContract.REQUEST);
-            if (Build.VERSION.SDK_INT >= 33) {
-                this.context.registerReceiver(receiver, filter, RearHostContract.APP + ".permission.LSP_CONNECT", main, Context.RECEIVER_EXPORTED);
-            } else {
-                this.context.registerReceiver(receiver, filter, RearHostContract.APP + ".permission.LSP_CONNECT", main);
+            String permission = RearHostContract.APP + ".permission.LSP_CONNECT";
+            try {
+                if (Build.VERSION.SDK_INT >= 33) {
+                    context.registerReceiver(receiver, filter, permission, main, Context.RECEIVER_EXPORTED);
+                } else {
+                    context.registerReceiver(receiver, filter, permission, main);
+                }
+                log("receiver registered with signature permission");
+            } catch (Throwable error) {
+                log("receiver with permission failed: " + describe(error) + "; retrying without it");
+                try {
+                    if (Build.VERSION.SDK_INT >= 33) {
+                        context.registerReceiver(receiver, filter, null, main, Context.RECEIVER_EXPORTED);
+                    } else {
+                        context.registerReceiver(receiver, filter, null, main);
+                    }
+                    log("receiver registered without permission; provider UID check remains the gate");
+                } catch (Throwable second) {
+                    log("receiver registration failed: " + describe(second));
+                    stageError = "receiver: " + describe(second);
+                }
             }
         }
 
-        private void register() {            io.execute(() -> {
+        private String profile() {
+            return "背屏中心宿主 v" + RearHostContract.VERSION
+                + " · build=" + BuildConfig.BUILD_ID
+                + " · " + process
+                + " · stage=" + stage
+                + " · priority=" + priority
+                + (stageError.isEmpty() ? "" : " · " + stageError);
+        }
+
+        /** 主动把 Binder 交给听屿；不依赖听屿先发广播，冷启动/丢广播都能连上。 */
+        void publish(String why) {
+            io.execute(() -> {
                 try {
                     Bundle bundle = new Bundle();
                     bundle.putBinder("service", this);
                     bundle.putInt("protocol", RearHostContract.VERSION);
-                    bundle.putString("profile", "背屏中心宿主 v" + RearHostContract.VERSION + " · " + capability);
-                    Bundle result = context.getContentResolver().call(Uri.parse("content://" + RearHostContract.AUTHORITY), "register", null, bundle);
+                    bundle.putInt("priority", priority);
+                    bundle.putString("stage", stage);
+                    bundle.putString("error", stageError);
+                    bundle.putString("process", process);
+                    bundle.putString("build", BuildConfig.BUILD_ID);
+                    bundle.putString("profile", profile());
+                    Bundle result = context.getContentResolver().call(
+                        Uri.parse("content://" + RearHostContract.AUTHORITY), "register", null, bundle);
                     IBinder next = result == null ? null : result.getBinder("lifeline");
                     if (result != null) appUid = result.getInt("appUid", -1);
                     if (next != null && next != lifeline) {
@@ -186,8 +339,10 @@ public final class RearHostHooks {
                             if (lifeline == next) { release(); lifeline = null; }
                         }), 0);
                     }
+                    log("registered with app (" + why + "), lifeline=" + (next != null) + ", appUid=" + appUid);
                 } catch (Throwable error) {
-                    log("handshake failed: " + error.getClass().getSimpleName());
+                    // 这里失败通常是 Provider 不可见/权限/进程问题；Logcat 保留阶段与堆栈。
+                    log("register failed (" + why + ", stage=" + stage + "): " + describe(error));
                 }
             });
         }
@@ -235,7 +390,10 @@ public final class RearHostHooks {
         // ------------------------------------------------------------ attach / launch
 
         private int attach(String why) {
-            if (!capabilityReady) { lastFailure = "背屏中心宿主 hook 未加载（" + capability + "）"; return FAILED; }
+            if (!uiHooksReady) {
+                lastFailure = "背屏中心 UI Hook 不可用（stage=" + stage + (stageError.isEmpty() ? "" : ", " + stageError) + "）";
+                return FAILED;
+            }
             if (lease.isEmpty()) return FAILED;
             if (suspended) { lastFailure = "宿主正在让位（相机或应用侧挂起）"; return PENDING; }
             Activity activity = launcher.get();

@@ -1,5 +1,10 @@
 # 听屿 1.3.96：背屏中心宿主（脱离系统音乐卡片）
 
+> 1.3.97 修复了本版的宿主握手链（进程门禁、Application.attach 单点、接收器权限、Provider
+> 可见性、缺少主动注册），并加入构建标识与分阶段诊断。见
+> [`ANDROID-LSP-HOST-HANDSHAKE-1.3.97.md`](ANDROID-LSP-HOST-HANDSHAKE-1.3.97.md)。
+> 本文的注入与生命周期设计不变。
+
 基线：`tingyu-layout-1.3.95-preview`（1.3.95 / versionCode 118）。本版为 1.3.96 / 119。
 
 本版回答一个具体问题：**听屿正常播放时，小米不一定会创建背屏音乐卡片**，而 1.3.95 的宿主

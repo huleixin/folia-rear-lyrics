@@ -55,6 +55,18 @@ public class RearHostPolicyTest {
         assertFalse(RearHostPolicy.mayRebind(RearHostPolicy.MAX_REBINDS));
         assertFalse(RearHostPolicy.mayRebind(RearHostPolicy.MAX_REBINDS+3));
     }
+    @Test public void aDeadBinderIsAlwaysReplacedButALiveSessionIsNeverStolen(){
+        // 没有 Binder：任何注册都接受。
+        assertTrue(RearHostPolicy.acceptRegistration(-1,false,false,1));
+        // 当前 Binder 已死：即使新注册者 priority 更低也接受（先恢复通信）。
+        assertTrue(RearHostPolicy.acceptRegistration(2,false,false,1));
+        // 有会话：不换 Binder，避免已挂载的宿主视图失去所有者。
+        assertFalse(RearHostPolicy.acceptRegistration(1,true,true,2));
+        // 无会话：只接受不低于当前 priority 的注册（UI Hook 进程优先于仅通信进程）。
+        assertTrue(RearHostPolicy.acceptRegistration(1,true,false,2));
+        assertTrue(RearHostPolicy.acceptRegistration(2,true,false,2));
+        assertFalse(RearHostPolicy.acceptRegistration(2,true,false,1));
+    }
     @Test public void aDismissalSurvivesPlaybackCameraAndBackendChangesUntilExplicitEnable(){
         for(int songs=0;songs<50;songs++){
             assertFalse(RearDisplayPolicy.wanted(true,true,false));

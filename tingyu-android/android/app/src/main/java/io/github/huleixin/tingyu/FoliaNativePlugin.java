@@ -1031,6 +1031,12 @@ public class FoliaNativePlugin extends Plugin {
         result.put("returnedToSystem", coordinator.returnedToSystem());
         result.put("userDismissed",coordinator.userDismissed());result.put("rendererFailed",coordinator.rendererFailed());
         result.put("hostConnected",RearHostBridge.connected());result.put("hostActive",RearHostBridge.active());result.put("hostDetail",RearHostBridge.detail());
+        // 宿主握手证据：没有这几项时，「hostConnected=false」只能靠猜。
+        result.put("build", BuildConfig.BUILD_ID);
+        result.put("handshakeSeen", RearHostBridge.handshakeSeen());
+        result.put("hostStage", RearHostBridge.hostStage());
+        result.put("hostProcess", RearHostBridge.hostProcess());
+        result.put("hostBuild", RearHostBridge.hostBuild());
         result.put("displayMode",RearHostBridge.hasSession()?"system-card":"independent");
         result.put("pauseReturnSeconds", RearPlaybackHandoff.PAUSE_DELAY_MS / 1000);
         result.put("coverSleepEnabled", coordinator.coverSleepEnabled());

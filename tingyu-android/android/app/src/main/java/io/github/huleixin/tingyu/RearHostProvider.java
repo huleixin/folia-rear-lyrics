@@ -33,12 +33,27 @@ public final class RearHostProvider extends ContentProvider {
         if(!LspRearBridge.selected(getContext()) || !RearHostBridge.matches(session))throw new SecurityException("Retired host lease");
     }
     @Override public Bundle call(String method,String arg,Bundle extras){
-        enforceHost();
+        try{enforceHost();}
+        catch(SecurityException error){
+            // 记录被拒绝的调用方 UID：没有这一条，「hostConnected=false」无法区分
+            // 「模块没加载」「Provider 不可见」和「UID 校验失败」。
+            RearLyricsTrace.record(getContext(),"host-call-rejected","uid="+Binder.getCallingUid()+", method="+method);
+            throw error;
+        }
         if(extras==null)throw new IllegalArgumentException("No host packet");
         Bundle out=new Bundle();
         if("register".equals(method)){
-            try{RearHostBridge.connect(getContext(),extras.getBinder("service"),extras.getInt("protocol"),extras.getString("profile","背屏中心宿主已连接"));}
-            catch(Exception error){throw new SecurityException("Host connection rejected",error);}
+            int priority=extras.getInt("priority",1);
+            String stage=extras.getString("stage",""),error=extras.getString("error","");
+            String build=extras.getString("build",""),process=extras.getString("process","");
+            RearLyricsTrace.record(getContext(),"host-register-attempt","uid="+Binder.getCallingUid()
+                +", priority="+priority+", process="+process+", stage="+stage+", build="+build);
+            try{RearHostBridge.connect(getContext(),extras.getBinder("service"),extras.getInt("protocol"),
+                extras.getString("profile","背屏中心宿主已连接"),priority,stage,error,build,process);}
+            catch(Exception error2){
+                RearLyricsTrace.record(getContext(),"host-register-failed","uid="+Binder.getCallingUid()+", "+error2);
+                throw new SecurityException("Host connection rejected",error2);
+            }
             out.putBinder("lifeline",lifeline);out.putInt("appUid",getContext().getApplicationInfo().uid);return out;
         }
         String session=extras.getString("session","");enforceSession(session);

@@ -90,6 +90,25 @@ final class RearHostPolicy {
         return rebinds < MAX_REBINDS;
     }
 
+    /**
+     * 多进程注册的选择规则。
+     *
+     * <p>背屏中心可能同时在主进程和 {@code :subscreen} 等进程加载模块；每个进程都会主动
+     * register。规则只有三条：当前 Binder 已死 → 接受；有显示会话 → 不换（换 Binder 会让
+     * 已挂载的宿主视图失去所有者）；否则只接受不低于当前 priority 的注册。UI Hook 成功的
+     * 进程 priority=2，仅通信可用的进程 priority=1，后者只在没有更好候选时承担诊断。
+     *
+     * @param currentPriority 当前 Binder 的优先级；-1 表示没有可用 Binder
+     * @param alive           当前 Binder 是否仍活着
+     * @param sessionActive   是否已经有一个显示会话绑在这个 Binder 上
+     * @param incoming        新注册者的优先级
+     */
+    static boolean acceptRegistration(int currentPriority, boolean alive, boolean sessionActive, int incoming) {
+        if (!alive) return true;
+        if (sessionActive) return false;
+        return incoming >= currentPriority;
+    }
+
     /** 一行诊断：重建/请求预算用了多少（不参与显示判定）。 */
     static String describe(int rebinds, int launches) {
         return "rebinds=" + rebinds + "/" + MAX_REBINDS + ", launches=" + launches + "/" + MAX_LAUNCH_REQUESTS;

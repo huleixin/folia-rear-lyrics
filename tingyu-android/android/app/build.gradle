@@ -12,6 +12,17 @@ def graphicsTestBuild = (project.findProperty('tingyuGraphicsDiagnostics') == 't
 def packageJson = new JsonSlurper().parseText(file('../../package.json').text)
 def playbackTestRevision = (packageJson.playbackTestRevision ?: 1) as int
 
+// 构建标识：commit + 是否有未提交改动。写进 BuildConfig 并随宿主 register 上报，
+// 用来区分「装的是不是刚构建的包」，避免旧包/新包混在一起判断。
+def gitBuildId = "unknown"
+try {
+    def revision = ['git', 'rev-parse', '--short=8', 'HEAD'].execute(null, rootProject.projectDir).text.trim()
+    def dirty = ['git', 'status', '--porcelain'].execute(null, rootProject.projectDir).text.trim()
+    if (revision) gitBuildId = revision + (dirty.isEmpty() ? '' : '-dirty')
+} catch (Exception ignored) {
+    gitBuildId = 'unknown'
+}
+
 def keystorePropertiesFile = rootProject.file('keystore.properties')
 def keystoreProperties = new Properties()
 def hasReleaseKeystore = keystorePropertiesFile.exists()
@@ -33,6 +44,7 @@ android {
         buildConfigField 'boolean', 'NATIVE_PLAYBACK', (System.getenv('TINGYU_NATIVE_PLAYBACK') == 'false' ? 'false' : 'true')
         buildConfigField 'boolean', 'PLAYBACK_ENGINE_TEST', (playbackTestBuild || graphicsTestBuild).toString()
         buildConfigField 'boolean', 'GRAPHICS_DIAGNOSTICS', graphicsTestBuild.toString()
+        buildConfigField 'String', 'BUILD_ID', "\"${packageJson.version}@${gitBuildId}\""
         applicationId (playbackTestBuild ? "io.github.huleixin.tingyu.playbacktest" : "io.github.huleixin.tingyu")
         manifestPlaceholders['tingyuAppLabel'] = playbackTestBuild ? '听屿播放测试' : '听屿'
         minSdkVersion rootProject.ext.minSdkVersion
