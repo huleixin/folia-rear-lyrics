@@ -5,6 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import zh from '@/i18n/locales/zh-CN';
 import { rearSettingsCanToggle, rearSettingsHint, rearSettingsState } from '@/components/modal/settings/rearLyricsSettingsModel';
 import AndroidRearLyricsSetting from '@/components/modal/settings/AndroidRearLyricsSetting';
+import {useRearLyricsSettings} from '@/components/modal/settings/useRearLyricsSettings';
+import {buildRearControlPage} from '@/components/modal/settings/rearControlModel';
+import RearControlView from '@/components/modal/settings/RearControlView';
 import AndroidImmersiveSetting from '@/components/modal/settings/AndroidImmersiveSetting';
 import MobileSettingsHeader from '@/components/modal/settings/MobileSettingsHeader';
 import MobileSettingsNavigation from '@/components/modal/settings/navigation/MobileSettingsNavigation';
@@ -43,7 +46,8 @@ beforeEach(() => {
     useAndroidLayoutSettingsStore.setState({ immersiveModeEnabled: false });
 });
 afterEach(() => { act(() => root.unmount()); host.remove(); vi.useRealTimers(); vi.unstubAllGlobals(); });
-const rear = () => h(AndroidRearLyricsSetting, { isDaylight: false, settingsCardClass: '', compact: true, onOpenGuide: vi.fn() });
+function RearProbe(){const r=useRearLyricsSettings();return h(RearControlView,{model:buildRearControlPage('control',r,translate),actions:{'rear:toggle':()=>{void r.toggle()},'rear:refresh':()=>{void r.refresh()}}});}
+const rear = () => h(RearProbe);
 const rearToggle = () => host.querySelector<HTMLButtonElement>('[role="switch"]')!;
 
 describe('truthful rear-display settings', () => {
@@ -64,12 +68,12 @@ describe('truthful rear-display settings', () => {
     });
     it('reads real display ID/build and toggles the existing persisted native preference', async () => {
         await act(async () => root.render(rear()));
-        expect(host.textContent).toContain('r250 · 已检测到背屏 ID 1');
-        expect(rearToggle().textContent).toContain('开启背屏歌词');
+        expect(host.textContent).toContain('连接与运行');
+        expect(rearToggle().getAttribute('aria-checked')).toBe('false');
         await act(async () => rearToggle().click());
         expect(bridge.startRearLyrics).toHaveBeenCalledTimes(1);
         expect(rearToggle().getAttribute('aria-checked')).toBe('true');
-        expect(host.textContent).toContain('已开启');
+        expect(host.textContent).toContain('已启用');
         await act(async () => rearToggle().click());
         expect(bridge.returnFromRearLyrics).toHaveBeenCalledTimes(1);
         expect(rearToggle().getAttribute('aria-checked')).toBe('false');
@@ -91,8 +95,8 @@ describe('truthful rear-display settings', () => {
         bridge.startRearLyrics.mockImplementation(async () => { status.enabled = true; throw new Error('internal shell / binder failure'); });
         await act(async () => root.render(rear()));
         await act(async () => rearToggle().click());
-        expect(rearToggle().textContent).toContain('关闭背屏歌词');
-        expect(host.textContent).toContain('已开启'); expect(host.textContent).not.toContain('internal shell');
+        expect(rearToggle().getAttribute('aria-checked')).toBe('true');
+        expect(host.textContent).toContain('已启用'); expect(host.textContent).not.toContain('internal shell');
         expect(host.textContent).toContain('操作未完成'); logging.mockRestore();
     });
     it('allows a real detection retry after failure', async () => {
@@ -100,8 +104,8 @@ describe('truthful rear-display settings', () => {
         bridge.getRearLyricsStatus.mockRejectedValueOnce(new Error('device unreachable'));
         await act(async () => root.render(rear()));
         expect(host.textContent).toContain('检测失败'); expect(rearToggle().disabled).toBe(true);
-        await act(async () => Array.from(host.querySelectorAll('button')).find(button => button.textContent === '重新检测')!.click());
-        expect(host.textContent).toContain('已检测到背屏 ID 1'); expect(rearToggle().disabled).toBe(false); logging.mockRestore();
+        await act(async () => Array.from(host.querySelectorAll('button')).find(button => button.textContent === '刷新状态')!.click());
+        expect(host.textContent).toContain('连接与运行'); expect(rearToggle().disabled).toBe(false); logging.mockRestore();
     });
     it('pauses polling while hidden and releases timers on exit', async () => {
         await act(async () => root.render(rear()));
@@ -151,7 +155,7 @@ describe('mobile options navigation and existing controls', () => {
         const scroller = host.querySelector<HTMLElement>('.ty-settings-home')!; scroller.scrollTop = 460;
         act(() => rows[0].dispatchEvent(new MouseEvent('click', { bubbles: true })));
         expect(onSelect).toHaveBeenCalledWith('appearance');
-        act(() => host.querySelector<HTMLButtonElement>('.ty-rear-guide-link')!.click()); expect(onGuide).toHaveBeenCalledOnce();
+        act(() => host.querySelector<HTMLButtonElement>('.ty-rear-entry')!.click()); expect(onGuide).toHaveBeenCalledOnce();
         act(() => (rows[rows.length - 1] as HTMLButtonElement).click()); expect(onHelp).toHaveBeenCalledOnce();
         act(() => render(false)); expect(host.textContent).toBe('');
         await act(async () => render(true)); expect(host.querySelector<HTMLElement>('.ty-settings-home')!.scrollTop).toBe(460);

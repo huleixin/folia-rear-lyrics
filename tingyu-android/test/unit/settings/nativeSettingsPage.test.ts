@@ -6,6 +6,7 @@ import { Sparkles } from 'lucide-react';
 import { useNativeSettingsPage } from '@/components/modal/settings/useNativeSettingsPage';
 import type { SettingsNavGroup } from '@/components/modal/settings/navigation/settingsNavModel';
 import zh from '@/i18n/locales/zh-CN';
+import {useRearSettingsController} from '@/components/modal/settings/useRearSettingsController';
 
 // test/unit/settings/nativeSettingsPage.test.ts
 const state=vi.hoisted(()=>({model:null as any,actions:null as any,snapshot:null as any,change:vi.fn(),refresh:vi.fn()}));
@@ -25,7 +26,7 @@ vi.mock('react-i18next',async()=>{
 let host:HTMLDivElement,root:Root;
 const groups:SettingsNavGroup[]=[{id:'appearance',label:'外观',items:[{id:'appearance',label:'视觉设置',description:'视觉设置说明',icon:Sparkles,anchors:[]}]},
     {id:'system',label:'系统',items:[]}];
-function Probe(){const ref=useRef<HTMLDivElement>(null);useNativeSettingsPage(ref,false,()=>{},()=>{},groups,()=>{},()=>{});return h('div',{ref})}
+function Probe({page='index'}:{page?:'index'|'control'|'advanced'}){const ref=useRef<HTMLDivElement>(null),rear=useRearSettingsController();useNativeSettingsPage(ref,page,()=>{},()=>{},groups,()=>{},()=>{},rear,()=>{});return h('div',{ref})}
 beforeEach(()=>{vi.clearAllMocks();state.change.mockResolvedValue(true);state.refresh.mockResolvedValue(undefined);
     state.snapshot={enabled:true,returnedToSystem:true,rearDisplayId:1,backendMode:'lsp',lspConnected:true,build:12};
     host=document.createElement('div');document.body.append(host);root=createRoot(host)});
@@ -33,18 +34,18 @@ afterEach(()=>{act(()=>root.unmount());host.remove()});
 it('uses translated system status and keeps the original rear controls in one group',async()=>{
     await act(async()=>root.render(h(Probe)));
     const rear=state.model.sections.find((section:any)=>section.id==='rear');
-    expect(rear.items.find((item:any)=>item.id==='state').subtitle).toBe(zh.rearBridge.system);
-    expect(rear.items.map((item:any)=>item.id)).toEqual(['toggle','adaptation','state','mode','switchHint','backendHelp','guide']);
-    expect(rear.image).toContain('xiaomi-backscreen-decoration');
+    expect(rear.items[0].subtitle).toContain(zh.rearBridge.system);
+    expect(rear.items.map((item:any)=>item.id)).toEqual(['rear-entry']);
+    expect(rear.image).toBeUndefined();
     expect(JSON.stringify(state.model)).not.toContain('mobileSettings.rearState.system');
     expect(state.model.sections.find((section:any)=>section.id==='system').items[0].id).toBe('about');
     expect(state.model.sections.some((section:any)=>section.id==='about')).toBe(false);
 });
 it('retains backend selection and refuses a switch while rear lyrics are enabled',async()=>{
-    await act(async()=>root.render(h(Probe)));
+    await act(async()=>root.render(h(Probe,{page:'control'})));
     await act(async()=>state.actions['backend:shizuku']({}));expect(state.change).not.toHaveBeenCalled();
     state.snapshot={...state.snapshot,enabled:false,returnedToSystem:false};
-    await act(async()=>root.render(h(Probe)));
+    await act(async()=>root.render(h(Probe,{page:'control'})));
     await act(async()=>state.actions['backend:shizuku']({}));
     expect(state.change).toHaveBeenCalledWith('shizuku');expect(state.refresh).toHaveBeenCalled();
 });

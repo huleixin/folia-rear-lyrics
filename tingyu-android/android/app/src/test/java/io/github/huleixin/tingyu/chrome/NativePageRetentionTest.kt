@@ -6,6 +6,14 @@ import org.junit.Test
 
 // android/app/src/test/java/io/github/huleixin/tingyu/chrome/NativePageRetentionTest.kt
 class NativePageRetentionTest {
+    @Test fun rearSubpagesRejectLateIndexAndKeepTheirOwnReturnPresentation(){
+        val control=page("settings:rear:control");val advanced=page("settings:rear:advanced");val frames=NativePageRetention()
+        assertTrue(frames.updateForRoute(control,"settings",0,control.key,"rear:1","rear:1"))
+        assertFalse(frames.updateForRoute(page("settings:index"),"settings",0,control.key,"rear:1","rear:1"))
+        assertFalse(frames.updateForRoute(control,"settings",0,advanced.key,"rear:1","rear:2"))
+        frames.update(advanced);assertEquals(control,frames.find("settings",0,control.key));assertEquals(advanced,frames.find("settings",0,advanced.key))
+        assertTrue(pageBelongsToRoute(page("settings:document:rear-diagnostics"),"settings",0,"settings:document:rear-diagnostics","rear:3","rear:3"))
+    }
     private fun page(key:String,id:String=key.substringBefore(":"),enabled:Boolean=true,session:String="old")=NativePage.parse(JSONObject("""{
         "id":"$id","session":"$session","enabled":$enabled,"viewportWidth":393,"width":393,"height":852,
         "model":{"key":"$key","sections":[],"document":${if(key.startsWith("settings:document:"))"{\"paints\":[],\"controls\":[]}"else"null"}}
