@@ -23,8 +23,8 @@ import android.widget.FrameLayout;
  * 同一个 {@link RearHostWebClient} 资源桥、同一个 {@link RearLyricsViewportMetrics} 视口
  * 计算、同一组 {@code folia-rear-power} / {@code folia-rear-resync} 事件。视觉与动效不改。
  *
- * <p>短点击送到 WebView；拖动不送到网页，不禁止父容器拦截。仅观察上滑和原生容器
- * 的 pause/detach/隐藏，不合成系统导航。具体 OEM 宿主手势仍须真机验证。
+ * <p>短点击送到 WebView；拖动不送到网页，不禁止父容器拦截。系统导航只暂停/恢复
+ * 内容，不根据滑动方向推断永久退出。释放由显式停止、身份失效或真实容器销毁负责。
  */
 final class RearHostView {
     interface Events {
@@ -48,7 +48,6 @@ final class RearHostView {
     private DisplayManager displays;
     private boolean ready, readyReported, shown, renderPaused, resumed = true, suspended, aod, closed;
     private String failure = "not attached";
-    private long nativeGesture=-1;
     private final java.util.Set<String> bootEvents=new java.util.HashSet<>();
     private void boot(String event,String detail){
         if(closed||bootEvents.size()>=48||!bootEvents.add(event))return;
@@ -97,7 +96,7 @@ final class RearHostView {
                 @Override public boolean dispatchTouchEvent(android.view.MotionEvent e){
                     if(!ready||!shown||closed)return false;
                     if(e.getActionMasked()==0){if(down!=null)down.recycle();down=android.view.MotionEvent.obtain(e);moved=false;}
-                    else if(e.getActionMasked()==2&&down!=null){float dx=e.getX()-down.getX(),dy=e.getY()-down.getY();int slop=android.view.ViewConfiguration.get(activity).getScaledTouchSlop();if(dx*dx+dy*dy>slop*slop)moved=true;if(dy < -slop*2&&-dy>Math.abs(dx)*1.5f)nativeGesture=e.getEventTime();}
+                    else if(e.getActionMasked()==2&&down!=null){float dx=e.getX()-down.getX(),dy=e.getY()-down.getY();int slop=android.view.ViewConfiguration.get(activity).getScaledTouchSlop();if(dx*dx+dy*dy>slop*slop)moved=true;}
                     else if(e.getActionMasked()==1&&down!=null){if(!moved&&renderer!=null){renderer.dispatchTouchEvent(down);renderer.dispatchTouchEvent(e);}down.recycle();down=null;}
                     if(e.getPointerCount()>1||e.getActionMasked()==3){moved=true;if(down!=null){down.recycle();down=null;}}
                     return true;
@@ -175,7 +174,6 @@ final class RearHostView {
                 @Override public void onViewAttachedToWindow(View view) {}
                 @Override public void onViewDetachedFromWindow(View view) {
                     if (closed) return;
-                    if(RearHostPolicy.userExit(shown,suspended,aod||panelState()!=Display.STATE_ON,nativeGesture,android.os.SystemClock.uptimeMillis())){userExit();return;}
                     int id = displayId();
                     close();
                     events.report(session, "paused", id, "host view detached from the launcher window");
@@ -204,7 +202,6 @@ final class RearHostView {
     }
 
     void resumed(boolean value) { if (!closed) {
-        if(!value&&RearHostPolicy.userExit(shown,suspended,aod||panelState()!=Display.STATE_ON,nativeGesture,android.os.SystemClock.uptimeMillis())){userExit();return;}
         resumed = value; reconcile();
     } }
 
@@ -231,7 +228,6 @@ final class RearHostView {
     private void reconcile() {
         if (closed || stage == null) return;
         if (Looper.myLooper() != main.getLooper()) { main.post(this::reconcile); return; }
-        if(!card.container.isShown()&&RearHostPolicy.userExit(shown,suspended,aod||panelState()!=Display.STATE_ON,nativeGesture,android.os.SystemClock.uptimeMillis())){userExit();return;}
         boolean visible = card.binding.current() && card.ownMedia()&&card.container.isShown() && RearHostPolicy.render(events.current(session), suspended||aod, resumed,
             stage.isAttachedToWindow(), displayId(), panelState());
         if (visible) show();
@@ -246,6 +242,7 @@ final class RearHostView {
         if (state != Display.STATE_ON) return state == Display.STATE_DOZE || state == Display.STATE_DOZE_SUSPEND ? "aod" : "display-off";
         if (!resumed) return "launcher-paused";
         if (!stage.isAttachedToWindow()) return "detached";
+        if (!card.binding.current()) return "system-card-navigation";
         return "host-hidden";
     }
 
@@ -275,12 +272,15 @@ final class RearHostView {
 
     private void hide(String reason) {
         if (closed || stage == null) return;
-        if(card!=null)card.restore();
+        // Preserve the last frame while the system animates its card offscreen.
+        boolean retain=RearHostPolicy.retainCardOnNavigation(events.current(session),card.ownMedia(),
+            stage.isAttachedToWindow(),suspended,aod||panelState()!=Display.STATE_ON);
+        if(!retain)card.restore();
         boolean was = shown;
         shown = false;
-        if (stage.getVisibility() != View.INVISIBLE) stage.setVisibility(View.INVISIBLE);
+        if (!retain && stage.getVisibility() != View.INVISIBLE) stage.setVisibility(View.INVISIBLE);
         pauseRenderer();
-        if (was) events.report(session, "paused", displayId(), reason);
+        if (was) events.report(session, "paused", displayId(), reason+"; nativeNavigationRetained="+retain+"; display session unchanged");
     }
 
     private void pauseRenderer() {
@@ -293,16 +293,6 @@ final class RearHostView {
     private void dispatch(String event, String detail) {
         if (renderer == null || !ready) return;
         renderer.evaluateJavascript("window.dispatchEvent(new CustomEvent('" + event + "',{detail:" + detail + "}))", null);
-    }
-
-    /** 原生容器在上滑后已退出：释放所有权，不再自动抢回本次显示会话。 */
-    private void userExit() {
-        if (closed) return;
-        long now = android.os.SystemClock.uptimeMillis();
-        if (!RearHostPolicy.userExit(shown, suspended, renderPaused, now, now)) return;
-        int id = displayId();
-        close();
-        events.report(session, "user-exit", id, "upward swipe on the rear-centre host; native launcher untouched");
     }
 
     private void fail(String reason) {

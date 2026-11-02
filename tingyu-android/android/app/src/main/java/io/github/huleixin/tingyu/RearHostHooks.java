@@ -163,6 +163,12 @@ public final class RearHostHooks {
                 if(XposedBridge.hookAllMethods(root,method,guard).isEmpty())throw new IllegalStateException("Missing native restore guard "+method);
             }
             Class<?> maml=XposedHelpers.findClass("com.miui.maml.component.MamlView",loader);
+            XposedBridge.hookAllMethods(root,"needDisallowInterceptTouchEvent",new XC_MethodHook(){
+                @Override protected void beforeHookedMethod(MethodHookParam p){
+                    Controller c=controller;
+                    if(c!=null&&c.card!=null&&c.card.owned()&&p.thisObject==c.card.root&&c.card.ownMedia())p.setResult(false);
+                }
+            });
             XposedBridge.hookAllMethods(maml,"sendCommand",new XC_MethodHook(){
                 @Override protected void afterHookedMethod(MethodHookParam p){
                     Controller c=controller;if(c==null||c.card==null||c.host==null||p.thisObject!=c.card.container||p.args.length==0)return;

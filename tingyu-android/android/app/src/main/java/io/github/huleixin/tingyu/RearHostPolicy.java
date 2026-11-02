@@ -61,6 +61,10 @@ final class RearHostPolicy {
             int display, int state) {
         return requested && !suspended && resumed && attached && display > 0 && state == STATE_ON;
     }
+    /** A native card leaving the current page retains its frame and lease, not an Activity takeover. */
+    static boolean retainCardOnNavigation(boolean requested,boolean ownMedia,boolean attached,boolean suspended,boolean sleeping){
+        return requested&&ownMedia&&attached&&!suspended&&!sleeping;
+    }
 
     /**
      * 直接拦截到的上滑，只有在「宿主当时确实可交互」时才归因为用户退出：可见、未被相机/

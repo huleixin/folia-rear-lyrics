@@ -13,6 +13,18 @@ import static org.junit.Assert.*;
  * 成回归测试，而不是只靠删代码。
  */
 public class RearHostPolicyTest {
+    @Test public void nativeNavigationKeepsTheSameLyricFrameAndReturnsWithoutAnotherEnable(){
+        for(int trips=0;trips<50;trips++){
+            assertTrue(RearHostPolicy.retainCardOnNavigation(true,true,true,false,false));
+            assertFalse(RearHostPolicy.render(true,false,false,true,1,2));
+            assertTrue(RearHostPolicy.render(true,false,true,true,1,2));
+        }
+        assertFalse(RearHostPolicy.retainCardOnNavigation(false,true,true,false,false));
+        assertFalse(RearHostPolicy.retainCardOnNavigation(true,false,true,false,false));
+        assertFalse(RearHostPolicy.retainCardOnNavigation(true,true,false,false,false));
+        assertFalse(RearHostPolicy.retainCardOnNavigation(true,true,true,true,false));
+        assertFalse(RearHostPolicy.retainCardOnNavigation(true,true,true,false,true));
+    }
     @Test public void existingRendererIsReusableRegardlessOfPanelPower(){
         for(int state:new int[]{0,1,2,3,4}){
             assertFalse(RearHostPolicy.requiresNewView(true,false,true));
