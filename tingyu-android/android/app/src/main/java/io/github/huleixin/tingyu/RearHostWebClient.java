@@ -36,6 +36,12 @@ final class RearHostWebClient extends WebViewClient {
             return bytes.toString(StandardCharsets.UTF_8.name());
         }
     }
+    String aodState()throws Exception{return readState(Integer.MAX_VALUE);}
+    String aodLyrics(String key,String epoch)throws Exception{
+        Uri url=Uri.parse("https://rear.folia.local/__folia_rear/lyrics").buildUpon().appendQueryParameter("key",key).appendQueryParameter("epoch",epoch).build();
+        try(java.io.InputStream input=resource(url)){return new String(input.readAllBytes(),StandardCharsets.UTF_8);}
+    }
+    boolean followAod(){try{Bundle b=new Bundle();b.putString("session",session);Bundle result=context.getContentResolver().call(Uri.parse("content://"+RearHostContract.AUTHORITY),"aod",null,b);return result!=null&&result.getBoolean("enabled",true);}catch(Exception e){return false;}}
     private String state(Uri url)throws Exception{
         int requested=-1;try{requested=Integer.parseInt(url.getQueryParameter("revision"));}catch(Exception ignored){}
         return cache.get(requested,android.os.SystemClock.elapsedRealtime());

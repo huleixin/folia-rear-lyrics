@@ -470,7 +470,7 @@ final class RearLyricsCoordinator {
         if(closeTimeout!=null)main.removeCallbacks(closeTimeout);
         closeTimeout=()->{if(RearDisplayPolicy.closeCallback(token,closeAttemptToken,closing))retryClose("release-timeout");};
         main.postDelayed(closeTimeout,6500);
-        if(RearHostBridge.hasSession()){
+        if(RearHostBridge.hasSession() && !(closeReason==CloseReason.SWITCH && RearLyricsActivity.hasWindow())){
             RearHostBridge.release((ok,id,detail)->{
                 if(!RearDisplayPolicy.closeCallback(token,closeAttemptToken,closing))return;
                 if(ok)restorePowerThenClose(token);else retryClose("host-release-unconfirmed");
@@ -553,6 +553,7 @@ final class RearLyricsCoordinator {
     }
 
     private void changeSleep(boolean value) {
+        if(LspRearBridge.selected(context)){sleepUnsupported=true;return;}
         if(RearHostBridge.hasSession()){
             // The system host owns panel power. Never issue an independent-task power override for its card.
             sleepUnsupported=true;powerDetail="系统卡片宿主由系统管理息屏；朝下息屏偏好保留，独立窗口继续支持";
@@ -777,6 +778,7 @@ final class RearLyricsCoordinator {
 
     /** Renew every 20 seconds; ordinary two-second window checks do not make another IPC call. */
     private void syncLspPower() {
+        if(LspRearBridge.selected(context))return; // Native card never renews a legacy bright lease.
 
         if (!LspRearBridge.selected(context) || closing || powerBusy || lspPowerBusy) return;
         String session = RearLyricsActivity.currentSession();
@@ -894,8 +896,10 @@ final class RearLyricsCoordinator {
         io.github.huleixin.tingyu.playback.LyricSyncLedger.get().rearContext(wanted() && !dismissed, cameraOwned(), sleeping || RearHostBridge.renderSuspended());
         if (!wanted()) return;
         long now = SystemClock.elapsedRealtime();
-        if(LspRearBridge.selected(context) && RearHostBridge.hasSession()){
-            RearHostBridge.suspend(cameraMonitor.blocked());RearHostBridge.pulse(context,now);
+        if(LspRearBridge.selected(context)){
+            if(RearLyricsActivity.hasWindow() || RearLyricsActivity.isEnabled()){closeWindow(CloseReason.SWITCH);schedule(2000);return;}
+            if(RearHostBridge.hasSession()){RearHostBridge.suspend(cameraMonitor.blocked());RearHostBridge.pulse(context,now);}
+            else if(!closing && !cameraMonitor.blocked())begin();
             schedule(2000);return;
         }
         // 锁屏跳变 → 0/5/60 秒三次快照。放在这里是因为它对两种后端都成立，且不依赖 Activity。
@@ -977,35 +981,18 @@ final class RearLyricsCoordinator {
         if(RearHostBridge.hasSession()){schedule(1000);return;}
         if (closing) { schedule(500); return; }
         try {
-            if(LspRearBridge.selected(context) && !hostTried && coverSleepEnabled){hostTried=true;RearLyricsTrace.record(context,"host-fallback","朝下息屏已启用，使用支持原生面板电源控制的独立窗口");}
-            if (LspRearBridge.selected(context) && !hostTried) {
+            if (LspRearBridge.selected(context)) {
                 if(RearLyricsActivity.isEnabled() || RearLyricsActivity.hasWindow()){closeWindow(CloseReason.SWITCH);return;}
-                hostTried=true;hostConnecting=true;pending=true;final int token=++attemptToken;
-                final int rear=rearDisplayForShell();
-                Runnable showHost=()->{if(token!=attemptToken||closing||!canPresent()) {hostConnecting=false;pending=false;return;}
-                if(RearLyricsLauncher.displayState(context,rear)!=Display.STATE_ON){hostConnecting=false;pending=false;RearLyricsTrace.record(context,"host/wake-blocked","rear not ON after bounded wake; use existing fallback");begin();return;}
-                RearHostBridge.show(context,rear,(ok,display,message)->{
+                if(SystemClock.elapsedRealtime()<nextAttempt){schedule(2000);return;}
+                hostConnecting=true;pending=true;final int token=++attemptToken;
+                RearHostBridge.show(context,rearDisplayForShell(),(ok,display,message)->{
                     if(token!=attemptToken)return;
                     hostConnecting=false;pending=false;
                     if(ok){complete(true,display,message,null);schedule(2000);}
-                    else if(RearHostBridge.hasSession())finishFailure(message,null);
-                    else{RearLyricsTrace.record(context,"host-fallback",message);if(canPresent())begin();}
-                });};
-                if(RearLyricsLauncher.displayState(context,rear)==Display.STATE_ON)showHost.run();
-                else if(RearHostPolicy.mayWake(canPresent(),sleeping,powerBusy,physicalCover,cameraMonitor.blocked())){
-                    LspRearBridge.request(context);shell=LspRearBridge.get();
-                    if(shell==null){hostConnecting=false;pending=false;begin();return;}
-                    RearLyricsTrace.record(context,"host/wake-begin","rear="+rear);
-                    RearLyricsLauncher.wakeHost(context,shell,rear,()->RearHostPolicy.mayWake(token==attemptToken&&!closing&&canPresent(),sleeping,powerBusy,physicalCover,cameraMonitor.blocked()),()->main.postDelayed(showHost,250));
-                }else{hostConnecting=false;pending=false;RearLyricsTrace.record(context,"host/wake-blocked","sleep/power/cover/camera gate");}
-                return;
-            }
-            if (LspRearBridge.selected(context)) {
-                LspRearBridge.request(context);
-                shell = LspRearBridge.get();
-                if (shell == null) { finishFailure(LspRearBridge.detail(), null); return; }
-                if (rearDisplayForShell() < 0) { finishFailure("未检测到适配的背屏", null); return; }
-                pending = true; launch(); return;
+                    else{nextAttempt=SystemClock.elapsedRealtime()+15_000;
+                        RearLyricsTrace.record(context,"native-card-failed",message);
+                        complete(false,-1,message,null);schedule(2000);}
+                });return;
             }
             if (!Shizuku.pingBinder() || Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
                 finishFailure("等待 Shizuku 运行并授权听屿；自动启动开关已保留", null); return;
@@ -1302,6 +1289,7 @@ final class RearLyricsCoordinator {
         }));
     }
     private void launch() {
+        if(LspRearBridge.selected(context)){pending=false;RearLyricsTrace.record(context,"legacy-lsp-blocked","NATIVE_CARD exclusively owns LSP display");return;}
         // 一次性标记必须在这里就取走：下面的 early-return 一旦跳过启动，标记若留在字段里，
         // 下一次**普通**启动就会被强制迁移 —— 那不是 A/B，是串味。
         final boolean migrate = migrateOnce;
@@ -1457,6 +1445,7 @@ final class RearLyricsCoordinator {
         filter.addAction(Intent.ACTION_SCREEN_ON); filter.addAction(Intent.ACTION_USER_PRESENT);
         BroadcastReceiver receiver = new BroadcastReceiver() {
             @Override public void onReceive(Context context, Intent intent) {
+                if(LspRearBridge.selected(context)){nudge();return;}
                 if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction()) && wanted() && !sleeping && !powerBusy) {
                     lockRecovery = true; nextAttempt = 0; wakeTried = false; nextHoldRefresh = 0;
                     takeover.reset(); takeoverReported = false;

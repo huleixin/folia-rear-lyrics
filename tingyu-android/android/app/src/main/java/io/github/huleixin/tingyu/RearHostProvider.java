@@ -58,7 +58,8 @@ public final class RearHostProvider extends ContentProvider {
             out.putBinder("lifeline",lifeline);out.putInt("appUid",getContext().getApplicationInfo().uid);return out;
         }
         String session=extras.getString("session","");enforceSession(session);
-        if("report".equals(method)){
+        if("aod".equals(method)){out.putBoolean("enabled",getContext().getSharedPreferences("rear-card",0).getBoolean("aod",true));
+        }else if("report".equals(method)){
             String event=extras.getString("event","");
             if(!RearHostContract.knownEvent(event))throw new IllegalArgumentException("Invalid host event");
             RearHostBridge.report(getContext(),session,event,extras.getInt("display",-1),extras.getString("reason",""));

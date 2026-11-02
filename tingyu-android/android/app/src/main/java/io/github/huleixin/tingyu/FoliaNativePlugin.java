@@ -1002,10 +1002,18 @@ public class FoliaNativePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void setRearCardAod(PluginCall call){
+        getContext().getSharedPreferences("rear-card",0).edit().putBoolean("aod",Boolean.TRUE.equals(call.getBoolean("enabled",true))).apply();
+        RearHostUpdates.changed();call.resolve();
+    }
+
+    @PluginMethod
     public void getRearLyricsStatus(PluginCall call) {
         JSObject result = new JSObject();
         if (LspRearBridge.selected(getContext())) LspRearBridge.request(getContext());
         result.put("backendMode", LspRearBridge.selected(getContext()) ? "lsp" : "shizuku");
+        result.put("nativeCardAod",getContext().getSharedPreferences("rear-card",0).getBoolean("aod",true));
+        result.put("displayImplementation",LspRearBridge.selected(getContext())?"NATIVE_CARD":"SHIZUKU_WINDOW");
         result.put("controlEngine", RearPlanA.engine(getContext()));
         result.put("lspConnected", LspRearBridge.get() != null || RearHostBridge.connected());
         result.put("lspDetail", RearHostBridge.detail()+"；"+LspRearBridge.detail());

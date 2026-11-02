@@ -14,7 +14,7 @@ export type RearControlEngine = 'plan-a' | 'legacy';
  */
 export type RearLockedRoute = 'auto' | 'reuse' | 'migrate';
 export type RearLyricsStatus = {
-    backendMode?: 'shizuku' | 'lsp'; lspConnected?: boolean; lspDetail?: string;
+    nativeCardAod?:boolean; displayImplementation?:string; backendMode?: 'shizuku' | 'lsp'; lspConnected?: boolean; lspDetail?: string;
     controlEngine?: RearControlEngine; lockedRoute?: RearLockedRoute; lastLaunchRoute?: string;
     userDismissed?:boolean;rendererFailed?:boolean;hostConnected?:boolean;hostActive?:boolean;hostDetail?:string;displayMode?:'system-card'|'independent';
     returnedToSystem?: boolean; pauseReturnSeconds?: number;
@@ -24,6 +24,7 @@ export type RearLyricsStatus = {
     cameraSuspended?:boolean;yieldingToCamera?:boolean;
 };
 export type RearLyricsPlugin = {
+    setRearCardAod: (options:{enabled:boolean})=>Promise<void>;
     setRearLyricsBackend: (options: { mode: 'shizuku' | 'lsp' }) => Promise<void>;
     setRearControlEngine: (options: { engine: RearControlEngine }) => Promise<{ engine?: RearControlEngine }>;
     setRearLockedRoute: (options: { mode: RearLockedRoute }) => Promise<{ lockedRoute?: RearLockedRoute }>;
@@ -73,3 +74,5 @@ export async function toggleRearLyrics() {
     if (status.enabled) await plugin.returnFromRearLyrics(); else await plugin.startRearLyrics();
     return true;
 }
+
+export async function toggleRearCardAod(){const p=rearLyricsPlugin();if(!p)return false;const s=await p.getRearLyricsStatus();await p.setRearCardAod({enabled:s.nativeCardAod===false});return true;}

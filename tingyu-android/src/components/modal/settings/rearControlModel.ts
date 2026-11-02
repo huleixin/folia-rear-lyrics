@@ -53,9 +53,10 @@ export function buildRearControlPage(page:'control'|'advanced',state:RearPresent
             {id:'advanced',title:t('rearControl.advanced'),subtitle:t('rearControl.advancedBrief'),action:'rear:advanced'},
             {id:'diagnostics',title:t('rearControl.diagnostics'),subtitle:t('rearControl.diagnosticsBrief'),action:'rear:diagnostics'}]});
     }else{
-        sections.push({...chips('engine',t('rearControl.engine'),[['plan-a','Plan A'],['legacy','Legacy']],s?.controlEngine??'plan-a',locked),text:t('rearControl.engineBrief')});
+        if(backend==='shizuku')sections.push({...chips('engine',t('rearControl.engine'),[['plan-a','Plan A'],['legacy','Legacy']],s?.controlEngine??'plan-a',locked),text:t('rearControl.engineBrief')});
         if(backend==='shizuku')sections.push({...chips('route',t('rearControl.lockedRoute'),[['auto','Auto'],['reuse','Reuse'],['migrate','Migrate']],s?.lockedRoute??'auto',!s||state.busy),text:t('rearControl.routeBrief')});
-        sections.push({id:'rear-sleep',title:t('rearControl.power'),layout:'rows',items:[{id:'cover-sleep',title:t('mobileEnhancements.rearCoverSleep'),
+        if(backend==='lsp')sections.push({id:'rear-aod',title:'原生卡片 AOD',layout:'rows',items:[{id:'aod',title:'跟随系统背屏 AOD 设置',subtitle:'系统允许时以黑底静态歌词显示；关闭系统 AOD 后不强制亮屏',action:'rear:aod',selected:s?.nativeCardAod!==false,secondaryLabel:s?.nativeCardAod===false?'未启用':'已启用',disabled:!s||state.busy}]});
+        if(backend==='shizuku')sections.push({id:'rear-sleep',title:t('rearControl.power'),layout:'rows',items:[{id:'cover-sleep',title:t('mobileEnhancements.rearCoverSleep'),
             subtitle:t(s?.sleepUnsupported?'rearControl.sleepUnsupported':s?.sensorAvailable?'rearControl.sleepBrief':'rearControl.sensorUnavailable'),
             action:'rear:cover',secondaryLabel:t(s?.coverSleepEnabled?'rearControl.enabled':'rearControl.disabled'),selected:!!s?.coverSleepEnabled,
             disabled:!s||state.busy||(!s.coverSleepEnabled&&(s.sensorAvailable!==true||s.sleepUnsupported===true))}]});

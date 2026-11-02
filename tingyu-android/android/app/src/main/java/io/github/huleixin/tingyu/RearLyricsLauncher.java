@@ -87,6 +87,7 @@ final class RearLyricsLauncher {
         starting = true;
         boolean locked = isLocked(context);
         boolean lsp = LspRearBridge.selected(context);
+        if(lsp){starting=false;RearLyricsTrace.record(context,"legacy-lsp-blocked","launcher rejected independent LSP window");callback.failure("LSP 仅支持原生音乐卡片",null);return;}
         boolean attached = RearLyricsActivity.attachedWindowOnDisplay(rearDisplayId) != null;
         boolean shown = RearLyricsActivity.isShowingOnDisplay(rearDisplayId);
         boolean planA = RearPlanA.enabled(context);
@@ -128,6 +129,7 @@ final class RearLyricsLauncher {
     /** No UI thread waits on Binder or am; only a drawn, visible window on the target screen succeeds. */
     private static void launch(Context context, Callback callback, IBinder shell, int rear, String session,
                                boolean reuse, boolean migrate) {
+        if(LspRearBridge.selected(context)){new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{starting=false;callback.failure("LSP 仅支持原生音乐卡片",null);});return;}
         StringBuilder trace = new StringBuilder("Folia rear " + REVISION + "\nTarget display=" + rear + "\n");
         try {
             trace.append("Backend: ").append(LspRearBridge.selected(context) ? LspRearBridge.detail() : "Shizuku").append('\n');

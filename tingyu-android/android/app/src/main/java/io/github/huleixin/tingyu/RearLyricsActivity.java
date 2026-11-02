@@ -51,6 +51,7 @@ public final class RearLyricsActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        if(LspRearBridge.selected(this)){RearLyricsTrace.record(this,"legacy-lsp-blocked","stale Activity closed");finish();return;}
         session = getIntent().getStringExtra(EXTRA_SESSION);
         if (!isCurrentSession(session)) { finish(); return; }
         shownActivity = this;

@@ -35,6 +35,7 @@ final class RearHostBridge {
     private static int pingGeneration;
     private static volatile String session="",detail=disconnectedReason();
     private static volatile boolean active,suspended,releasing;
+    private static volatile String renderMode="HIDDEN";
     private static volatile int display=-1;
     private static int generation;
     private static Completion pending;
@@ -178,6 +179,7 @@ final class RearHostBridge {
         });
     }
     private static void awaitVisibleFrame(Context context,String expected){
+        if("AOD".equals(renderMode))return;
         if(timeout!=null)MAIN.removeCallbacks(timeout);
         long delay=frameWait.start(android.os.SystemClock.uptimeMillis());
         timeout=()->{if(matches(expected)&&!active&&frameWait.expired(android.os.SystemClock.uptimeMillis()))failStart(context,expected,"可见系统卡片的歌词首帧未确认；"+progress.describe());};
@@ -188,7 +190,10 @@ final class RearHostBridge {
             if(!matches(expected) || releasing)return;
             if("web-stage".equals(event)){int split=reason.indexOf(":");progress.update(split<0?reason:reason.substring(0,split),split<0?"":reason.substring(split+1));}else progress.update(event,reason);
             RearLyricsTrace.record(context,"host/"+event,"session="+expected+", display="+id+", "+reason);
-            if("card-available".equals(event)){
+            if("render-mode".equals(event)){
+                renderMode=reason.contains("mode=AOD")?"AOD":reason.contains("mode=NORMAL")?"NORMAL":"HIDDEN";
+                detail=reason;active=false;frameWait.stop();if(timeout!=null)MAIN.removeCallbacks(timeout);
+            }else if("card-available".equals(event)){
                 // An actual system business exists, possibly collapsed. Retain the lease and entry;
                 // do not replace native navigation with an Activity or mark unseen content active.
                 detail="已加入系统动态音乐卡片；"+reason;
@@ -251,7 +256,7 @@ final class RearHostBridge {
     }
     private static void clear(){
         generation++;session="";active=false;suspended=false;releasing=false;display=-1;
-        frameWait.stop();
+        frameWait.stop();renderMode="HIDDEN";
         if(timeout!=null)MAIN.removeCallbacks(timeout);
         Completion callback=pending;pending=null;if(callback!=null)callback.done(false,-1,"宿主会话已结束");
     }

@@ -31,7 +31,7 @@ it.each([[false,false,'未启动'],[true,false,'未授权'],[true,true,'已授�
     expect(rows.find(r=>r.id==='permission')!.subtitle).toBe(label);expect(rows.find(r=>r.id==='display')!.subtitle).toBe('未开启');expect(rows.some(r=>r.id==='module')).toBe(false);
 });
 it('keeps rollback in advanced and restricts locked routes to Shizuku',()=>{
-    const lsp=buildRearControlPage('advanced',state,t);expect(lsp.sections.find(s=>s.id==='engine')!.items!.find(r=>r.id==='legacy')!.selected).toBe(true);expect(lsp.sections.some(s=>s.id==='route')).toBe(false);
+    const lsp=buildRearControlPage('advanced',state,t);expect(lsp.sections.some(s=>s.id==='engine'||s.id==='rear-sleep')).toBe(false);expect(lsp.sections.find(s=>s.id==='rear-aod')!.items![0].selected).toBe(true);expect(lsp.sections.some(s=>s.id==='route')).toBe(false);
     const shizuku=buildRearControlPage('advanced',{...state,snapshot:{...state.snapshot,backendMode:'shizuku',lockedRoute:'reuse'}},t);
     expect(shizuku.sections.find(s=>s.id==='route')!.items!.map(r=>r.id)).toEqual(['auto','reuse','migrate']);expect(shizuku.sections.find(s=>s.id==='route')!.text).toMatch(/锁屏.*系统.*限制/);
 });
