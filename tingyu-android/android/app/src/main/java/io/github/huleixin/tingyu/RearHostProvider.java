@@ -78,6 +78,24 @@ public final class RearHostProvider extends ContentProvider {
         String engine=owner.optString("engine");
         return ("media3".equals(engine)||"compatible".equals(engine)) && !owner.optString("songKey").isEmpty();
     }
+    /** Static resources never enter the bounded dynamic pipe pool: Chromium controls read order. */
+    @Override public android.content.res.AssetFileDescriptor openAssetFile(Uri request,String mode)throws FileNotFoundException {
+        enforceSession(request.getQueryParameter("session"));
+        if(!"r".equals(mode))throw new SecurityException("Read only");
+        Uri url=Uri.parse(request.getQueryParameter("url")==null?"":request.getQueryParameter("url"));
+        String path=url.getPath();
+        if("https".equals(url.getScheme())&&"rear.folia.local".equals(url.getHost())
+                &&path!=null&&!path.startsWith("/__folia_rear/")&&!"/registerSW.js".equals(path)) {
+            if(path.contains("..")||path.contains("\\"))throw new SecurityException("Invalid resource");
+            try{return getContext().getAssets().openFd("public"+("/".equals(path)?"/rear-lyrics.html":path));}
+            catch(java.io.IOException error){
+                // Non-boot assets may still be compressed by aapt. Keep their existing stream path.
+                if(!(path.endsWith(".html")||path.endsWith(".js")||path.endsWith(".css")))return super.openAssetFile(request,mode);
+                throw new FileNotFoundException("Packaged resource FD unavailable: "+path+" ("+error.getClass().getSimpleName()+")");
+            }
+        }
+        return super.openAssetFile(request,mode);
+    }
     @Override public ParcelFileDescriptor openFile(Uri request,String mode)throws FileNotFoundException{
         enforceSession(request.getQueryParameter("session"));
         if(!"r".equals(mode))throw new SecurityException("Read only");

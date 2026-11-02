@@ -43,7 +43,17 @@ final class RearHostWebClient extends WebViewClient {
     private java.io.InputStream resource(Uri url)throws Exception{
         Uri pipe=new Uri.Builder().scheme("content").authority(RearHostContract.AUTHORITY).path("resource")
             .appendQueryParameter("session",session).appendQueryParameter("url",url.toString()).build();
-        java.io.InputStream input=context.getContentResolver().openInputStream(pipe);if(input==null)throw new java.io.FileNotFoundException();return input;
+        // ContentResolver.openInputStream preserves APK asset offset/length through openAssetFile.
+        java.io.InputStream input=context.getContentResolver().openInputStream(pipe);if(input==null)throw new java.io.FileNotFoundException();
+        String path=url.getPath();
+        String kind=path!=null&&path.endsWith(".html")?"html":path!=null&&path.endsWith(".js")?"script":path!=null&&path.endsWith(".css")?"css":null;
+        if(kind==null)return input;
+        return new java.io.FilterInputStream(input){
+            long bytes;boolean completed;
+            private void readResult(int n){if(n>0)bytes+=n;else if(n<0&&!completed){completed=true;diagnostic(kind+"-complete",path+", bytes="+bytes);}}
+            @Override public int read()throws java.io.IOException{int v=in.read();readResult(v<0?-1:1);return v;}
+            @Override public int read(byte[] b,int off,int len)throws java.io.IOException{int n=in.read(b,off,len);readResult(n);return n;}
+        };
     }
     RearHostWebClient(Context context,String session,Events events){this.context=context;this.session=session;this.events=events;cache=new RearHostSnapshotCache(this::readState);}
     @Override public WebResourceResponse shouldInterceptRequest(WebView view,WebResourceRequest request){
