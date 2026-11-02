@@ -11,9 +11,9 @@ test('rear appearance modes reuse the existing stage editor and restore the save
     await page.setViewportSize({width:393,height:852});await mount('rearControl');
     await page.locator('.ty-rear-entry').click();await page.getByRole('button',{name:/歌词舞台外观/}).click();
     await expect(page.getByRole('heading',{name:'歌词舞台外观',exact:true}).first()).toBeVisible();
-    await page.getByRole('button',{name:'独立设置',exact:true}).click();await expect(page.getByRole('button',{name:'独立设置',exact:true})).toHaveAttribute('aria-pressed','true');
+    await page.getByRole('switch',{name:'独立配置背屏歌词舞台',exact:true}).click();await expect(page.getByRole('switch',{name:'独立配置背屏歌词舞台',exact:true})).toHaveAttribute('aria-checked','true');
     await page.getByRole('switch',{name:/舞台浅色外观/}).click();
-    await page.getByRole('button',{name:'跟随正面',exact:true}).click();await page.getByRole('button',{name:'独立设置',exact:true}).click();
+    await page.getByRole('switch',{name:'独立配置背屏歌词舞台',exact:true}).click();await page.getByRole('switch',{name:'独立配置背屏歌词舞台',exact:true}).click();
     await expect(page.getByRole('switch',{name:/舞台浅色外观/})).toHaveAttribute('aria-checked','true');
     await page.locator('[data-folia-settings-panel]').screenshot({path:path.join(evidence,'rear-appearance-independent-web.png')});
     await page.getByRole('button',{name:/舞台样式与字体/}).click();await expect(page.getByRole('button',{name:'背景',exact:true})).toBeVisible();
