@@ -26,11 +26,6 @@ export default function MinimalAmbience({
 }) {
     // Colors change only with cover/theme; only layer transforms animate.
     const vars = {
-        '--min-base': palette.base,
-        '--min-field-1': palette.fieldPrimary,
-        '--min-field-2': palette.fieldSecondary,
-        '--min-bloom': palette.bloom,
-        '--min-accent': palette.accent,
         '--aurora-a': minimalAuroraGlow(palette.fieldPrimary),
         '--aurora-b': minimalAuroraGlow(palette.fieldSecondary),
         '--aurora-c': minimalAuroraGlow(palette.bloom),

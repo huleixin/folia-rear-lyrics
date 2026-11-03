@@ -16,6 +16,10 @@
 @property --min-field-2 { syntax: '<color>'; inherits: true; initial-value: #10231f; }
 @property --min-bloom { syntax: '<color>'; inherits: true; initial-value: #6a4a2c; }
 @property --min-accent { syntax: '<color>'; inherits: true; initial-value: #6fe6c3; }
+@property --min-lyric-accent { syntax: '<color>'; inherits: true; initial-value: #f3d8c8; }
+@property --aurora-a { syntax: '<color>'; inherits: true; initial-value: #5da99a; }
+@property --aurora-b { syntax: '<color>'; inherits: true; initial-value: #4c8587; }
+@property --aurora-c { syntax: '<color>'; inherits: true; initial-value: #986b52; }
 
 .min {
     position: absolute;
@@ -26,6 +30,8 @@
     overflow: hidden;
     background: var(--min-base);
     color: var(--min-ink);
+    transition: --min-base 760ms ease, --min-field-1 760ms ease, --min-field-2 760ms ease,
+        --min-bloom 760ms ease, --min-accent 760ms ease, --min-lyric-accent 560ms ease;
     font-family: system-ui, -apple-system, 'PingFang SC', 'MiSans', 'Microsoft YaHei', sans-serif;
     -webkit-tap-highlight-color: transparent;
     /* The activity is edge to edge: this box starts under the status bar and ends under the gesture
@@ -103,6 +109,8 @@
     --min-shade: 12 32 26;
     --min-shadow: 0 24px 52px -24px rgb(24 56 46 / 34%), 0 3px 12px rgb(24 56 46 / 12%);
 }
+
+.min[data-still] { transition: none; }
 
 .min[data-chrome-hidden] .min-top,
 .min[data-chrome-hidden] .min-transport,
@@ -241,10 +249,13 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    justify-content: space-evenly;
+    /* Keep the artwork and all caption rows together at the bottom of the available column.
+       Spare height becomes breathing room above the sleeve, instead of being split into large,
+       unrelated gaps between metadata, lyric and progress. */
+    justify-content: flex-end;
     min-height: 0;
     overflow: hidden;
-    padding: clamp(10px, 2vh, 20px) 26px clamp(18px, 3vh, 34px);
+    padding: clamp(12px, 2.4vh, 22px) 26px 2px;
     gap: 0;
 }
 
@@ -260,7 +271,7 @@
     /* Left, not centred: when the height cap shrinks the sleeve on a short screen, a centred square
        would drift off the column that the title and the progress bar still share. */
     align-self: flex-start;
-    margin-bottom: clamp(20px, 3vh, 24px);
+    margin-bottom: clamp(15px, 2vh, 19px);
     will-change: transform;
 }
 
@@ -285,6 +296,21 @@
     aspect-ratio: 1 / 1;
     flex: none;
     animation: min-float 19s ease-in-out infinite alternate;
+}
+
+.min-cover__art-layer[data-layer='outgoing'],
+.min-cover__art-layer--outgoing { z-index: 1; pointer-events: none; }
+.min-cover__art-layer--current { z-index: 2; }
+.min-cover__art-layer--incoming { animation: min-cover-in 400ms cubic-bezier(.22,.68,.2,1) both; }
+.min-cover__art-layer--outgoing { animation: min-cover-out 400ms ease both; }
+
+@keyframes min-cover-in {
+    from { opacity: 0; transform: scale(.995); }
+    to { opacity: 1; transform: scale(1); }
+}
+@keyframes min-cover-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
 }
 
 /* Life, not motion: ±2.5px over 19s. It reads as the page breathing, and it is paused whenever the
@@ -349,13 +375,38 @@
 }
 
 .min-cover__meta {
+    grid-area: 1 / 1;
+    position: relative;
+    z-index: 2;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: clamp(6px, 1vh, 9px);
+    gap: clamp(4px, .7vh, 7px);
     width: 100%;
     min-width: 0;
     text-align: left;
+}
+
+.min-cover__meta-stack {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+}
+
+.min-cover__meta--outgoing {
+    z-index: 1;
+    pointer-events: none;
+    animation: min-meta-out 240ms ease both;
+}
+.min-cover__meta--incoming { animation: min-meta-in 260ms cubic-bezier(.22,.68,.2,1) both; }
+
+@keyframes min-meta-in {
+    from { opacity: 0; transform: translate3d(0, 5px, 0); }
+    to { opacity: 1; transform: none; }
+}
+@keyframes min-meta-out {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translate3d(0, -5px, 0); }
 }
 
 .min-cover__title {
@@ -403,15 +454,15 @@
     gap: 12px;
     width: 100%;
     min-height: 24px;
-    margin-top: clamp(10px, 1.6vh, 16px);
+    margin-top: clamp(8px, 1.1vh, 10px);
 }
 
 .min-live-lyric {
     flex: none;
     width: 100%;
     min-width: 0;
-    min-height: 58px;
-    margin-top: clamp(24px, 3.8vh, 38px);
+    min-height: 54px;
+    margin-top: clamp(16px, 2.2vh, 20px);
     display: grid;
     place-items: center;
 }
@@ -419,7 +470,7 @@
 .min-live-lyric__text {
     display: -webkit-box;
     width: 100%;
-    min-height: 54px;
+    min-height: 50px;
     max-height: 2.9em;
     padding: 0;
     overflow: hidden;
@@ -710,7 +761,7 @@
 }
 
 .min-line[data-active] .min-line__text [data-sung] {
-    color: var(--min-accent);
+    color: var(--min-lyric-accent, var(--min-accent));
 }
 
 /* Production credits — 歌名-歌手, 词：, 作曲：, 编曲：, 制作人 — printed at the weight of a caption
@@ -731,7 +782,7 @@
 }
 
 .min-line[data-credit] .min-line__text [data-sung] {
-    color: color-mix(in srgb, var(--min-accent) 66%, var(--min-muted));
+    color: color-mix(in srgb, var(--min-lyric-accent, var(--min-accent)) 66%, var(--min-muted));
 }
 
 .min-line[data-credit][data-active] .min-line__text {
@@ -1079,13 +1130,20 @@
 
 /* ---------------------------------------------------------------- responsive */
 
+@media (max-height: 760px) and (min-height: 701px) {
+    /* The toolbar, two-line caption, lyric and transport need room before the 700px compact
+       preset takes over. Shrink the sleeve slightly here so it stays fully visible and the extra
+       space is distributed above the composition rather than between its lower rows. */
+    .min-cover__stage { width: min(100%, 35vh); }
+}
+
 @media (max-height: 700px) {
-    .min-cover { padding-top: 6px; padding-bottom: 14px; }
-    .min-cover__stage { width: min(100%, 33vh); margin-bottom: 16px; }
+    .min-cover { padding-top: 4px; padding-bottom: 2px; }
+    .min-cover__stage { width: min(100%, 31vh); margin-bottom: 12px; }
     .min-cover__title { font-size: 20px; }
-    .min-cover__foot { margin-top: 8px; min-height: 22px; }
-    .min-live-lyric { min-height: 52px; margin-top: 20px; }
-    .min-live-lyric__text { min-height: 48px; font-size: 17px; }
+    .min-cover__foot { margin-top: 6px; min-height: 22px; }
+    .min-live-lyric { min-height: 48px; margin-top: 14px; }
+    .min-live-lyric__text { min-height: 46px; font-size: 17px; }
     .min-lyrics__thumb { width: 38px; height: 38px; }
     .min-line { min-height: calc(40px * var(--min-lyric-scale, 1)); margin-bottom: calc(2px * var(--min-lyric-scale, 1)); }
     .min-line__text { font-size: calc(15.5px * var(--min-lyric-scale, 1)); }
@@ -1095,7 +1153,7 @@
 @media (min-height: 900px) {
     .min-cover__stage { width: min(100%, 42vh); }
     .min-cover__title { font-size: 29px; }
-    .min-live-lyric { margin-top: clamp(30px, 4vh, 42px); }
+    .min-live-lyric { margin-top: clamp(20px, 2.6vh, 24px); }
     .min-line { min-height: calc(56px * var(--min-lyric-scale, 1)); }
     .min-line__text { font-size: calc(21px * var(--min-lyric-scale, 1)); }
     .min-line[data-active] .min-line__text { font-size: calc(31px * var(--min-lyric-scale, 1)); }
@@ -1112,7 +1170,7 @@
         padding: 4px 30px;
     }
     .min-cover__stage { grid-column: 1; grid-row: 1 / 3; width: 100%; margin: 0; }
-    .min-cover__meta { grid-column: 2; grid-row: 1; width: 100%; max-width: none; align-items: flex-start; }
+    .min-cover__meta-stack { grid-column: 2; grid-row: 1; width: 100%; max-width: none; }
     .min-live-lyric { grid-column: 2; grid-row: 2; margin-top: 14px; }
     .min-cover__foot { width: 100%; min-width: 210px; }
     .min-lyrics__column { padding-top: 12px; }
@@ -1132,11 +1190,18 @@
 
 /* Definite geometry: percentage height on an auto-sized artwork could collapse in WebView. */
 .min-cover__art > .min-art { position: absolute; inset: 0; width: 100%; height: 100%; }
+.min[data-still] .min-cover__art-layer,
+.min[data-still] .min-cover__meta { animation-duration: 1ms; }
+.min[data-still] .min-amb { transition: none; }
 .min-art__empty { z-index: 0; }
 .min-art__img { z-index: 1; animation: min-art-reveal 180ms ease both; }
 @keyframes min-art-reveal { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .min-art__img { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .min-live-lyric__text { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+    .min { transition: none; }
+    .min-cover__art-layer, .min-cover__meta { animation-duration: 1ms !important; }
+}
 
 .min-btn--play[aria-busy='true'] { opacity: .85; }
 .min-play-loading { position: absolute; inset: 0; margin: auto; }

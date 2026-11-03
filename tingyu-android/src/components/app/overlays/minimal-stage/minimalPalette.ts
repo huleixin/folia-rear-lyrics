@@ -60,6 +60,19 @@ export const hslToRgb = ({ h, s, l }: Hsl): Rgb => {
 
 export const rgbCss = ({ r, g, b }: Rgb) => `rgb(${round(r)} ${round(g)} ${round(b)})`;
 
+const linearChannel = (value: number) => {
+    const channel = clamp(value / 255, 0, 1);
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+};
+
+export const relativeLuminance = ({ r, g, b }: Rgb) =>
+    0.2126 * linearChannel(r) + 0.7152 * linearChannel(g) + 0.0722 * linearChannel(b);
+
+export const contrastRatio = (foreground: Rgb, background: Rgb) => {
+    const values = [relativeLuminance(foreground), relativeLuminance(background)].sort((a, b) => b - a);
+    return (values[0] + 0.05) / (values[1] + 0.05);
+};
+
 /** Shortest-way round on the hue circle; without it a teal going to green would swing through red. */
 export const blendHue = (from: number, to: number, amount: number): number => {
     const delta = ((to - from + 540) % 360) - 180;
@@ -197,8 +210,10 @@ export type MinimalPalette = {
     fieldSecondary: string;
     /** The bloom immediately behind the cover; warm in most sunset/low-light artwork. */
     bloom: string;
-    /** Lyric highlight and dot accent. */
+    /** Shared focus, transport and page indicator accent. */
     accent: string;
+    /** Cover-derived, contrast-checked accent used only for sung lyric graphemes. */
+    lyricAccent: string;
     /** Whether the cover could be read at all. */
     derived: boolean;
 };
@@ -215,6 +230,51 @@ const DARK_LIGHT = {
     bloom: { s: [0.42, 0.62], l: [0.22, 0.32] },
     accent: { s: [0.34, 0.58], l: [0.63, 0.75] },
 } as const;
+
+/**
+ * Pick a soft highlight from the representative cover hue, then constrain it against a
+ * conservative envelope for the animated wash. The dynamic background can show a luminous
+ * gradient patch, so a simple contrast check against the dark page floor is not sufficient.
+ */
+export const buildLyricAccent = (
+    primary: Hsl,
+    accentSource: Hsl,
+    mode: 'dark' | 'light',
+    derived = true,
+    average?: Hsl,
+): Hsl => {
+    const coverHasUsableHue = derived && primary.s >= 0.14 && (average?.s ?? primary.s) >= 0.1;
+    const sampledButNeutral = derived && !coverHasUsableHue;
+    const hue = coverHasUsableHue
+        ? blendHue(primary.h, accentSource.h, 0.12)
+        : sampledButNeutral ? 36 : accentSource.h;
+    // Keep enough chroma to read as the sleeve's colour on a dark, softly mixed background. The
+    // contrast guard below adjusts lightness independently, so warm hues do not have to be washed
+    // almost white just to stay legible.
+    const saturation = coverHasUsableHue
+        ? clamp(primary.s * 0.68 + accentSource.s * 0.08, 0.3, 0.62)
+        : sampledButNeutral
+            ? (mode === 'dark' ? 0.16 : 0.2)
+            : clamp(accentSource.s * 0.52, 0.18, 0.38);
+    const target = sampledButNeutral ? (mode === 'dark' ? 0.9 : 0.32) : mode === 'dark' ? 0.88 : 0.34;
+    const step = mode === 'dark' ? 0.01 : -0.01;
+    const minimumContrast = mode === 'dark' ? 3 : 4.5;
+    const backgroundEnvelope = mode === 'dark'
+        // A mid-grey is brighter than the ink/aurora blend expected on this page and keeps large
+        // lyric text legible even where two soft colour fields overlap.
+        ? [{ r: 112, g: 112, b: 112 }, { r: 128, g: 128, b: 128 }]
+        // The paper theme's light fields can approach white; use both a high and mid-light sample.
+        : [{ r: 230, g: 230, b: 230 }, { r: 246, g: 246, b: 246 }];
+
+    let lightness = target;
+    let candidate = hslToRgb({ h: hue, s: saturation, l: lightness });
+    while (lightness > 0.22 && lightness < 0.96
+        && Math.min(...backgroundEnvelope.map(background => contrastRatio(candidate, background))) < minimumContrast) {
+        lightness += step;
+        candidate = hslToRgb({ h: hue, s: saturation, l: lightness });
+    }
+    return { h: hue, s: saturation, l: lightness };
+};
 
 const LIGHT_LIGHT = {
     base: { s: [0.12, 0.26], l: [0.95, 0.972] },
@@ -297,14 +357,15 @@ export const buildMinimalPalette = (
         { ...bloomSource, h: emberShift(bloomSource.h) },
         { hue: TINGYU_INK_HUE, huePull: 0.02, s: scale.bloom.s, l: scale.bloom.l },
     );
-    // The sung-lyric colour is the one thing that must not follow the sleeve all the way: lime on a
-    // sunset cover, neon pink on a pop sleeve. It is pulled hard toward mint and kept light.
+    // Shared app chrome keeps its established ink-family accent; lyric highlighting has a separate
+    // cover-derived colour below so page dots and controls retain their existing visual meaning.
     const accent = constrain(accentSource, {
         hue: TINGYU_INK_HUE,
         huePull: 0.88,
         s: scale.accent.s,
         l: scale.accent.l,
     });
+    const lyricAccent = buildLyricAccent(primary, accentSource, mode, derived, colors.average);
 
     return {
         base: rgbCss(hslToRgb(base)),
@@ -312,6 +373,7 @@ export const buildMinimalPalette = (
         fieldSecondary: rgbCss(hslToRgb(fieldSecondary)),
         bloom: rgbCss(hslToRgb(bloom)),
         accent: rgbCss(hslToRgb(accent)),
+        lyricAccent: rgbCss(hslToRgb(lyricAccent)),
         derived,
     };
 };

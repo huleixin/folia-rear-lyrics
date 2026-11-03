@@ -4,6 +4,7 @@ import {
     buildMinimalPalette,
     blendHue,
     constrain,
+    contrastRatio,
     emberShift,
     hslToRgb,
     pickCoverColors,
@@ -143,13 +144,56 @@ describe('minimal palette', () => {
         average: { h: hue, s: saturation * 0.8, l: lightness },
     });
 
-    it('keeps the sung-lyric highlight in the ink family whatever the cover is', () => {
-        // The accent is what a sung character turns into. Picking it straight off a sunset sleeve
-        // gives lime; pulling it 90% of the way to the ink hue gives the mint the design asks for.
+    it('keeps the shared app chrome accent in the ink family whatever the cover is', () => {
+        // Page dots and controls keep their established brand tint; lyrics have a separate accent.
         for (const hue of [25, 100, 200, 330]) {
             const palette = buildMinimalPalette(cover(hue), 'dark');
             expect(ringDistance(hueOf(palette.accent), TINGYU_INK_HUE)).toBeLessThan(24);
         }
+    });
+
+    it('derives lyric highlights from warm, cool and violet cover hues rather than mint', () => {
+        for (const hue of [8, 30, 52, 215, 275, 130]) {
+            const palette = buildMinimalPalette(cover(hue), 'dark');
+            const lyricHue = hueOf(palette.lyricAccent);
+            expect(ringDistance(lyricHue, hue)).toBeLessThan(35);
+            const match = /rgb\((\d+) (\d+) (\d+)\)/.exec(palette.lyricAccent)!;
+            const color = { r: Number(match[1]), g: Number(match[2]), b: Number(match[3]) };
+            expect(rgbToHsl(color).s).toBeGreaterThanOrEqual(0.3);
+            if (hue < 60 || hue > 320) {
+                expect(ringDistance(lyricHue, TINGYU_INK_HUE)).toBeGreaterThan(70);
+            }
+            expect(contrastRatio(color, { r: 128, g: 128, b: 128 })).toBeGreaterThanOrEqual(3);
+        }
+    });
+
+    it('keeps light-theme highlights dark enough against a paper background', () => {
+        for (const hue of [12, 45, 210, 285, 145]) {
+            const palette = buildMinimalPalette(cover(hue), 'light');
+            const match = /rgb\((\d+) (\d+) (\d+)\)/.exec(palette.lyricAccent)!;
+            const color = { r: Number(match[1]), g: Number(match[2]), b: Number(match[3]) };
+            expect(contrastRatio(color, { r: 246, g: 246, b: 246 })).toBeGreaterThanOrEqual(4.5);
+        }
+    });
+
+    it('uses the theme accent as a safe fallback when cover sampling has no usable hue', () => {
+        const theme = cover(TINGYU_INK_HUE, 0.48, 0.58);
+        const palette = buildMinimalPalette(theme, 'dark', false);
+        expect(palette.derived).toBe(false);
+        expect(ringDistance(hueOf(palette.lyricAccent), TINGYU_INK_HUE)).toBeLessThan(8);
+    });
+
+    it('uses a quiet warm neutral for a sampled cover whose overall colour is nearly monochrome', () => {
+        const nearNeutral = {
+            primary: { h: 143, s: 0.11, l: 0.84 },
+            secondary: { h: 213, s: 0.17, l: 0.17 },
+            accent: { h: 136, s: 0.27, l: 0.93 },
+            average: { h: 137, s: 0.07, l: 0.79 },
+        };
+        const palette = buildMinimalPalette(nearNeutral, 'dark');
+        expect(ringDistance(hueOf(palette.lyricAccent), 36)).toBeLessThan(5);
+        const match = /rgb\((\d+) (\d+) (\d+)\)/.exec(palette.lyricAccent)!;
+        expect(rgbToHsl({ r: Number(match[1]), g: Number(match[2]), b: Number(match[3]) }).s).toBeLessThan(0.2);
     });
 
     it('does not invent a hue for a colourless cover', () => {

@@ -1,6 +1,14 @@
 /* src/components/app/overlays/minimal-stage/minimalAmbience.css */
 /* Cover-colored Aurora: rasterize gradients once, animate only the three layer transforms. */
-.min-amb { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; contain: paint; }
+.min-amb {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+    contain: paint;
+    transition: --aurora-a 760ms ease, --aurora-b 760ms ease, --aurora-c 760ms ease;
+}
 .min-amb > span { position: absolute; inset: 0; display: block; }
 .min-amb__wash { background: linear-gradient(155deg, var(--min-field-1), var(--min-base) 58%, var(--min-field-2)); }
 /* Overscan exceeds every translation excursion: no moving rectangle edge can enter the viewport. */
@@ -17,7 +25,9 @@
 @keyframes aurora-c { from { transform: translate3d(-13%,6%,0) scale(1.02); } to { transform: translate3d(13%,-12%,0) scale(1.08); } }
 .min-amb[data-paused] .min-amb__blob { animation-play-state: paused; }
 .min-amb[data-still] .min-amb__blob { animation: none; }
+.min-amb[data-still] { transition: none; }
 @media (prefers-reduced-motion: reduce) {
     .min-amb__blob, .min-cover__art, .min-wave i, .min[data-phase] { animation: none; }
     .min-line, .min-line__text { transition: none; }
+    .min-amb { transition: none; }
 }

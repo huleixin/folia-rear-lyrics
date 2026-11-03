@@ -353,6 +353,7 @@ export default function MinimalStage({
         '--min-field-2': palette.fieldSecondary,
         '--min-bloom': palette.bloom,
         '--min-accent': palette.accent,
+        '--min-lyric-accent': palette.lyricAccent,
         // The shared stage menu paints with these; defined here so it needs no second skin.
         '--mps-glass': light ? 'rgb(247 251 248 / 92%)' : 'rgb(11 26 22 / 88%)',
         '--mps-border': light ? 'rgb(16 35 29 / 12%)' : 'rgb(255 255 255 / 14%)',
@@ -377,6 +378,7 @@ export default function MinimalStage({
             data-phase={phase === 'idle' ? undefined : phase}
             data-testid="minimal-stage"
             data-chrome-hidden={chrome.hidden || undefined}
+            data-still={still || undefined}
         >
             <MinimalAmbience palette={palette} paused={paused} still={still} />
 
@@ -464,6 +466,8 @@ export default function MinimalStage({
                                     lyrics={lyrics}
                                     lyricActive={page === 'cover' && !hidden && !underStage}
                                     onOpenLyrics={() => goToPage('lyrics')}
+                                    animateSongChanges={page === 'cover' && !hidden && !underStage && !covered}
+                                    reducedMotion={still}
                                     sleeveRef={sleeveRef}
                                     metaRef={coverMetaRef}
                                 />

@@ -87,7 +87,6 @@ export function useCoverColors(url: string | null): CoverColors | null {
             return;
         }
         let alive = true;
-        setColors(null);
         void sampleCover(url, () => alive).then(value => {
             if (!alive) {
                 return;

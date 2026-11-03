@@ -16,11 +16,13 @@ export default function MinimalLiveLyric({
     lyrics,
     songKey,
     active,
+    reserveSpace = false,
     onOpen,
 }: {
     lyrics: LyricData | null;
     songKey: string;
     active: boolean;
+    reserveSpace?: boolean;
     onOpen: () => void;
 }) {
     const { t } = useTranslation();
@@ -49,6 +51,7 @@ export default function MinimalLiveLyric({
     const line = index >= 0 ? lines[index] : null;
     const text = line?.fullText?.trim();
     if (!active || !songKey || !text) {
+        if (reserveSpace) return <div className="min-live-lyric" aria-hidden="true" />;
         return null;
     }
 
