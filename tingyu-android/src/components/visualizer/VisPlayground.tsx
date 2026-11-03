@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useMotionValue, useMotionValueEvent } from 'framer-motion';
-import { ChevronLeft, Loader2, Pause, Play, Search, Sparkles, Upload, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Palette, Loader2, Pause, Play, Search, Sparkles, Upload, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { List, useListRef } from 'react-window';
 import VisualizerRenderer from './VisualizerRenderer';
@@ -66,6 +66,7 @@ import { NATIVE_FIRST } from '../../services/nativePages';
 interface VisPlaygroundProps {
     rearScope?:boolean;
     presentation?:'modal'|'page';
+    onOpenTheme?:()=>void;
     theme?: Theme;
     isDaylight: boolean;
     visualizerMode: VisualizerMode;
@@ -300,6 +301,7 @@ const dedupeLocalFonts = (fonts: LocalFontDataLike[]) => {
 const VisPlayground: React.FC<VisPlaygroundProps> = ({
     rearScope=false,
     presentation='modal',
+    onOpenTheme,
     theme,
     isDaylight,
     visualizerMode,
@@ -1267,6 +1269,9 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                         </button>
                     </div>
 
+                    {onOpenTheme&&<button type="button" className="ty-stage-theme-entry ty-settings-card ty-settings-row" onClick={onOpenTheme}>
+                        <Palette size={20}/><span className="ty-settings-row-copy"><strong>{t('rearAppearance.theme')}</strong></span><ChevronRight size={20}/>
+                    </button>}
                     <VisPlaygroundSettingsPanel
                         readOnlyExternalTunings={rearScope}
                         activeSection={activeEditSection}

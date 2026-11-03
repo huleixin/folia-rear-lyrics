@@ -12,6 +12,7 @@ import { getNavidromeConfig, saveNavidromeConfig, clearNavidromeConfig, hashPass
 import { fetchNavidromeServerPreset, markNavidromeConfigAsPresetIfMatching, restoreNavidromeServerPreset } from '../../services/navidromeServerPreset';
 import { NavidromeConfig, NavidromeServerProfile } from '../../types/navidrome';
 import VisPlayground from '../visualizer/VisPlayground';
+import FrontStageAppearancePage from './settings/FrontStageAppearancePage';
 import { VISUALIZER_REGISTRY, getVisualizerModeLabel } from '../visualizer/registry';
 import ThemePark from './ThemePark';
 import LyricFilterSettingsModal from './LyricFilterSettingsModal';
@@ -454,6 +455,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     const settingsAnchors = useSettingsAnchorList(settingsAnchorStore);
 
     const [showVisPlayground, setShowVisPlayground] = useState(initialSubview === 'visualizer');
+    const [showStageTheme, setShowStageTheme] = useState(false);
     const [showThemePark, setShowThemePark] = useState(initialSubview === 'themePark');
     const [showLyricFilterSettings, setShowLyricFilterSettings] = useState(initialSubview === 'lyricFilter');
     const [showGlobalLyricOffset, setShowGlobalLyricOffset] = useState(initialSubview === 'globalLyricOffset');
@@ -471,6 +473,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         setActiveTab(initialTab);
         if (initialSubview !== null || initialAnchor !== null) setMobileSettingsIndex(false);
         setShowVisPlayground(initialSubview === 'visualizer');
+        setShowStageTheme(false);
         setShowThemePark(initialSubview === 'themePark');
         setShowLyricFilterSettings(initialSubview === 'lyricFilter');
         setShowGlobalLyricOffset(initialSubview === 'globalLyricOffset');
@@ -1185,6 +1188,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 event.preventDefault();
                 event.stopPropagation();
                 if (isAnySubviewOpen) {
+                    if(showStageTheme){setShowStageTheme(false);return;}
                     closeAllSubviews();
                 } else if (NATIVE_FIRST) {
                     if(activeTab==='help'&&initialTab!=='help')setActiveTab('options');else returnFromMobileSection();
@@ -1203,7 +1207,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isAnySubviewOpen, shouldCloseModalOnSubviewBack, onClose, isMobileSettings, activeTab, mobileSettingsIndex]);
+    }, [isAnySubviewOpen, showStageTheme, shouldCloseModalOnSubviewBack, onClose, isMobileSettings, activeTab, mobileSettingsIndex]);
 
     useEffect(() => {
         setIsSubSettingsViewOpen(isAnySubviewOpen);
@@ -1402,8 +1406,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
     const nativeDocumentRef=useRef<HTMLDivElement>(null);
     useNativeSettingsDocument(nativeDocumentRef,NATIVE_FIRST,
-        `${activeTab}:${activeSettingsSection}:${showVisPlayground}:${showThemePark}:${showLyricFilterSettings}:${showGlobalLyricOffset}:${showAiHelpPrompt}:${showReleaseNotes}`,
-        showVisPlayground?t('options.lyricsStyleSettings'):activeSettingsNavItem?.label??t('ui.options'));
+        `${activeTab}:${activeSettingsSection}:${showVisPlayground}:${showStageTheme}:${showThemePark}:${showLyricFilterSettings}:${showGlobalLyricOffset}:${showAiHelpPrompt}:${showReleaseNotes}`,
+        showVisPlayground?t(showStageTheme?'rearAppearance.theme':'rearAppearance.edit'):activeSettingsNavItem?.label??t('ui.options'));
 
 
     return (
@@ -2098,7 +2102,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             </motion.div>
             <SettingsPresence>
                 {showVisPlayground && (
+                    <FrontStageAppearancePage page={isMobileSettings} editingTheme={showStageTheme}
+                        initialTheme={themeParkInitialTheme} isDaylight={stageDaylight}
+                        onBack={()=>showStageTheme?setShowStageTheme(false):closeSubviewOrModal(()=>setShowVisPlayground(false))}
+                        onSaveTheme={dual=>{onSaveCustomTheme(dual);setShowStageTheme(false);}}>
                     <VisPlayground
+                        presentation={isMobileSettings?'page':'modal'}
+                        onOpenTheme={isMobileSettings?()=>setShowStageTheme(true):undefined}
                         theme={theme}
                         isDaylight={isDaylight}
                         visualizerMode={visualizerMode}
@@ -2253,6 +2263,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         isLoadingCappellaCustomAvatarPack={isLoadingCappellaCustomAvatarPack}
                         onClose={() => closeSubviewOrModal(() => setShowVisPlayground(false))}
                     />
+                    </FrontStageAppearancePage>
                 )}
             </SettingsPresence>
             <SettingsPresence>

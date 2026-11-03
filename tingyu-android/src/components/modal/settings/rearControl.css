@@ -34,6 +34,7 @@ html[data-interface-appearance='light'] .ty-rear-choices button[aria-pressed='tr
     padding:0 max(18px,var(--folia-main-inset-right,0px)) calc(24px + var(--folia-main-inset-bottom,0px)) max(18px,var(--folia-main-inset-left,0px));
 }
 .ty-rear-stage-editor .ty-stage-editor-content {display:flex;flex-direction:column;}
+.ty-stage-theme-entry {flex:none;display:flex;align-items:center;gap:12px;min-height:52px;padding:12px 16px;color:var(--text-primary,#e8f4ed);text-align:left;}
 .ty-rear-stage-editor [data-folia-stage-preview] {flex:none;min-height:0;height:clamp(180px,32vh,300px);}
 .ty-rear-stage-editor .ty-stage-editor-content>div:last-child {flex:none;min-height:initial;}
 .ty-rear-stage-editor .ty-stage-editor-content>div:last-child>div:last-child {flex:none;overflow:visible;}
