@@ -4,6 +4,7 @@ import {
     buildMinimalPalette,
     blendHue,
     constrain,
+    emberShift,
     hslToRgb,
     pickCoverColors,
     quantizeSamples,
@@ -163,6 +164,36 @@ describe('minimal palette', () => {
         const cool = buildMinimalPalette(cover(210), 'dark');
         expect(ringDistance(hueOf(warm.fieldPrimary), hueOf(cool.fieldPrimary))).toBeGreaterThan(15);
         expect(warm.fieldPrimary).not.toBe(cool.fieldPrimary);
+    });
+
+    it('takes its colour from the subject, not from the largest flat area', () => {
+        // A sunset sleeve is mostly grey-blue sky. Taking the biggest bucket gave every such cover
+        // the same teal page; the chromatic part of the sleeve is what actually describes it.
+        const samples = [
+            ...Array.from({ length: 400 }, () => ({ r: 110, g: 130, b: 150 })),
+            ...Array.from({ length: 60 }, () => ({ r: 220, g: 110, b: 40 })),
+        ];
+        const colors = pickCoverColors(quantizeSamples(samples))!;
+        expect(colors).not.toBeNull();
+        expect(ringDistance(colors.primary.h, 30)).toBeLessThan(40);
+    });
+
+    it('keeps the page floor on the ink side whatever the sleeve is', () => {
+        // The floor is the brand colour; only the mist follows the artwork. Rotating a warm hue most
+        // of the way to the ink passes through yellow-green and lands on olive.
+        for (const hue of [10, 40, 90, 140, 210, 280, 330]) {
+            const palette = buildMinimalPalette(cover(hue), 'dark');
+            expect(ringDistance(hueOf(palette.base), TINGYU_INK_HUE)).toBeLessThan(30);
+        }
+    });
+
+    it('moves amber to ember, and leaves cool hues alone', () => {
+        // 40° is gold; gold over an ink floor averages to olive. Ember does not.
+        expect(emberShift(40)).toBeLessThan(26);
+        expect(emberShift(40)).toBeGreaterThan(15);
+        expect(emberShift(210)).toBe(210);
+        expect(emberShift(300)).toBe(300);
+        expect(emberShift(10)).toBe(10);
     });
 });
 

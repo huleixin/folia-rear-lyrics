@@ -23,6 +23,10 @@ const CASES = [
     { name: 'lyrics-cool', q: 'page=lyrics&theme=dark&song=cool&stationary=1', w: 393, h: 852 },
     { name: 'lyrics-large-font', q: 'page=lyrics&theme=dark&scale=1.3&stationary=1', w: 393, h: 852 },
     { name: 'cover-small-screen', q: 'page=cover&theme=dark&stationary=1', w: 320, h: 640 },
+    // A line that has been sung halfway: this is the state the per-character highlight exists for,
+    // and it is the one a still taken at a line boundary never shows.
+    { name: 'lyrics-singing', q: 'page=lyrics&theme=dark&stationary=1', w: 393, h: 852, seek: 34.6 },
+    { name: 'lyrics-singing-light', q: 'page=lyrics&theme=light&stationary=1', w: 393, h: 852, seek: 34.6 },
 ];
 
 const browser = await chromium.launch();
@@ -40,7 +44,13 @@ for (const item of CASES) {
         if (message.type() === 'error') console.log(`[${item.name}] console:`, message.text());
     });
     await page.goto(`${BASE}?${item.q}`, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(1400);
+    await page.waitForTimeout(700);
+    if (typeof item.seek === 'number') {
+        await page.evaluate(time => window.__minimalPreview.seek(time), item.seek);
+        // Let the follow tween and the glyph transitions settle before the still.
+        await page.waitForTimeout(800);
+    }
+    await page.waitForTimeout(700);
     await page.screenshot({ path: `${OUT}/${item.name}.png` });
     await context.close();
     console.log('shot', item.name);

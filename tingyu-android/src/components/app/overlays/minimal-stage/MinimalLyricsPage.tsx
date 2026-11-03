@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { AudioLines, ChevronRight } from 'lucide-react';
 import type { LyricData } from '../../../../types';
 import type { AppOverlaysModel } from '../buildAppOverlaysModel';
 import { lyricCurrentTime } from '../../../../stores/motionSignals';
 import { useTypographySettingsStore } from '../../../../stores/useTypographySettingsStore';
+import MinimalArtwork from './MinimalArtwork';
 import {
     buildLineStarts,
     countSungGraphemes,
@@ -67,12 +69,14 @@ const paintSung = (element: HTMLElement, from: number, to: number) => {
 export default function MinimalLyricsPage({
     song,
     lyrics,
+    coverUrl,
     controls,
     active,
     still,
 }: {
     song: { title: string; artist: string } | null;
     lyrics: LyricData | null;
+    coverUrl: string | null;
     controls: Controls;
     /** Whether this is the page on screen; a hidden page must not drive its own repaints. */
     active: boolean;
@@ -235,8 +239,21 @@ export default function MinimalLyricsPage({
             style={{ '--min-lyric-scale': Math.min(1.3, Math.max(0.85, fontScale || 1)) } as React.CSSProperties}
         >
             <header className="min-lyrics__head">
-                <h2 className="min-lyrics__title" title={title}>{title}</h2>
-                {artist && <p className="min-lyrics__artist" title={artist}>{artist}</p>}
+                <div className="min-lyrics__id">
+                    <div className="min-lyrics__thumb">
+                        {/* Decorative: the title it would describe is right beside it. */}
+                        <MinimalArtwork url={coverUrl} alt="" className="min-art--thumb" />
+                    </div>
+                    <div className="min-lyrics__titles">
+                        <h2 className="min-lyrics__title" title={title}>{title}</h2>
+                        {artist && (
+                            <p className="min-lyrics__artist" title={artist}>
+                                <span>{artist}</span>
+                                <ChevronRight size={12} strokeWidth={2} aria-hidden="true" />
+                            </p>
+                        )}
+                    </div>
+                </div>
                 <span className="min-lyrics__rule" aria-hidden="true" />
             </header>
             {hasLyrics ? (
@@ -283,6 +300,7 @@ export default function MinimalLyricsPage({
                 </div>
             ) : (
                 <div className="min-lyrics__empty" data-testid="minimal-lyrics-empty">
+                    <AudioLines size={22} strokeWidth={1.4} aria-hidden="true" />
                     <p>{t('minimalStage.noLyrics')}</p>
                 </div>
             )}

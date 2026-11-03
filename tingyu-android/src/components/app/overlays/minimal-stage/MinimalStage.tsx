@@ -104,6 +104,7 @@ export default function MinimalStage({
     const hidden = usePageHidden();
     const pagerRef = useRef<HTMLDivElement>(null);
     const trackRef = useRef<HTMLDivElement>(null);
+    const shellRef = useRef<HTMLDivElement>(null);
     /** Page position in page units; 0 = cover, 1 = lyrics. May sit outside the range mid-drag. */
     const posRef = useRef(0);
     const frameRef = useRef(0);
@@ -134,6 +135,9 @@ export default function MinimalStage({
             // 50% of a 200%-wide track is exactly one page.
             track.style.transform = `translate3d(${-pos * 50}%, 0, 0)`;
         }
+        // Published for the layers that should not move with the strip: the sleeve's parallax and
+        // the page dots. One variable per gesture frame, read by CSS — no React state, no layout.
+        shellRef.current?.style.setProperty('--min-pos', String(pos));
     }, []);
 
     const stopFrame = useCallback(() => {
@@ -330,8 +334,10 @@ export default function MinimalStage({
     return (
         <div
             className="min"
+            ref={shellRef}
             style={style}
             data-theme={light ? 'light' : 'dark'}
+            data-page={page}
             data-phase={phase === 'idle' ? undefined : phase}
             data-testid="minimal-stage"
             data-chrome-hidden={chrome.hidden || undefined}
@@ -414,11 +420,16 @@ export default function MinimalStage({
                             inert={page === id ? undefined : true}
                         >
                             {id === 'cover' ? (
-                                <MinimalCoverPage song={song} controls={controls ?? EMPTY_CONTROLS} />
+                                <MinimalCoverPage
+                                    song={song}
+                                    controls={controls ?? EMPTY_CONTROLS}
+                                    playing={!!playing}
+                                />
                             ) : (
                                 <MinimalLyricsPage
                                     song={song}
                                     lyrics={lyrics}
+                                    coverUrl={coverUrl}
                                     controls={controls ?? EMPTY_CONTROLS}
                                     active={page === 'lyrics' && !hidden}
                                     still={still}

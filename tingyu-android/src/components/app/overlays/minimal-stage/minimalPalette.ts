@@ -8,8 +8,15 @@
 export type Rgb = { r: number; g: number; b: number };
 export type Hsl = { h: number; s: number; l: number };
 
-/** The hue the reader should always recognise as 听屿's deep ink green. */
-export const TINGYU_INK_HUE = 168;
+/**
+ * The hue the reader should always recognise as 听屿's deep ink.
+ *
+ * 168° is a green teal, and a green floor is exactly what turns a warm sleeve's amber mist into
+ * olive when the two are mixed at the low lightness this page uses. The reference's floor measures
+ * 207°: a blue teal. Keeping the ink on the blue side of teal holds the brand colour *and* lets a
+ * sunset sleeve read as ember rather than swamp.
+ */
+export const TINGYU_INK_HUE = 188;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const round = (value: number) => Math.round(clamp(value, 0, 255));
@@ -119,8 +126,14 @@ export type CoverColors = {
 };
 
 /**
- * Picks three useful colours out of a histogram: the dominant one, one that is visibly different
- * from it, and a brighter accent for the bloom.
+ * Picks the colours the page is painted with.
+ *
+ * Not "the most frequent colour": a sunset sleeve is mostly grey-blue sky, and taking the largest
+ * bucket gives every such cover the same teal page no matter what the artwork actually looks like.
+ * The ambient colour of a sleeve is its *chromatic* part, so the buckets are filtered to those
+ * within reach of the most saturated one and averaged, weighted by how much colour they carry.
+ * A near-monochrome cover falls back to the plain mean, which is what a black-and-white print
+ * should look like.
  *
  * Returns null when the cover had too little colour to describe — the caller then keeps the theme
  * palette instead of inventing a hue from noise.
@@ -133,21 +146,47 @@ export const pickCoverColors = (buckets: readonly Bucket[]): CoverColors | null 
     if (total < 12) {
         return null;
     }
-    const primary = rgbToHsl(buckets[0]);
-    const distinct = buckets.find(bucket => {
+    const mean = (list: readonly Bucket[], weight: (bucket: Bucket) => number): Rgb => {
+        let sum = 0;
+        let r = 0;
+        let g = 0;
+        let b = 0;
+        for (const bucket of list) {
+            const w = weight(bucket);
+            sum += w;
+            r += bucket.r * w;
+            g += bucket.g * w;
+            b += bucket.b * w;
+        }
+        return sum > 0 ? { r: r / sum, g: g / sum, b: b / sum } : { r: 0, g: 0, b: 0 };
+    };
+
+    const saturationOf = (bucket: Bucket) => rgbToHsl(bucket).s;
+    const maxSaturation = buckets.reduce((max, bucket) => Math.max(max, saturationOf(bucket)), 0);
+    // 55% of the peak keeps two or three neighbouring hues of the same subject and drops the grey
+    // weather around it. 0.12 is the floor below which "colour" is just noise.
+    const threshold = Math.max(0.12, maxSaturation * 0.55);
+    const vivid = buckets.filter(bucket => saturationOf(bucket) >= threshold);
+    // Weight by count * saturation: a large area of mild colour should beat a few pixels of neon.
+    const colourWeight = (bucket: Bucket) => bucket.count * saturationOf(bucket);
+    const chromatic = rgbToHsl(mean(vivid.length ? vivid : buckets, colourWeight));
+    const average = rgbToHsl(mean(buckets, bucket => bucket.count));
+
+    // A second hue only helps when the sleeve actually has one; otherwise rotate the first, which
+    // keeps the two fields from stacking into a single flat wash.
+    const distinct = vivid.find(bucket => {
         const candidate = rgbToHsl(bucket);
-        return hueDistance(candidate.h, primary.h) > 24 || Math.abs(candidate.l - primary.l) > 0.22;
+        return hueDistance(candidate.h, chromatic.h) > 24;
     });
-    const secondary = distinct ? rgbToHsl(distinct) : { ...primary, h: (primary.h + 28) % 360, l: primary.l * 0.86 };
-    const accentSource = buckets
+    const secondary = distinct
+        ? rgbToHsl(distinct)
+        : { ...chromatic, h: (chromatic.h + 26) % 360, l: chromatic.l * 0.9 };
+    const accentSource = (vivid.length ? vivid : buckets)
         .map(rgbToHsl)
-        .sort((left, right) => (right.s * 0.6 + right.l * 0.4) - (left.s * 0.6 + left.l * 0.4))[0] ?? primary;
-    const average = rgbToHsl({
-        r: buckets.reduce((sum, bucket) => sum + bucket.r * bucket.count, 0) / total,
-        g: buckets.reduce((sum, bucket) => sum + bucket.g * bucket.count, 0) / total,
-        b: buckets.reduce((sum, bucket) => sum + bucket.b * bucket.count, 0) / total,
-    });
-    return { primary, secondary, accent: accentSource, average };
+        .sort((left, right) => (right.s * 0.6 + right.l * 0.4) - (left.s * 0.6 + left.l * 0.4))[0]
+        ?? chromatic;
+
+    return { primary: chromatic, secondary, accent: accentSource, average };
 };
 
 export type MinimalPalette = {
@@ -165,25 +204,43 @@ export type MinimalPalette = {
 };
 
 const DARK_LIGHT = {
-    /* Calibrated against the reference: the page floor is a dark teal (~rgb 20,38,34) rather than
-       black, and the artwork's own colours carry the middle band at roughly 45% lightness.
-       The ranges are wide on purpose. Narrower bounds (the first cut used 0.18–0.42 / 0.19–0.29)
-       flattened every sleeve into the same teal; a wide sleeve and a blue one have to land on
-       visibly different pages. */
-    base: { s: [0.34, 0.5], l: [0.075, 0.105] },
-    primary: { s: [0.3, 0.52], l: [0.115, 0.175] },
-    secondary: { s: [0.26, 0.46], l: [0.1, 0.16] },
-    bloom: { s: [0.36, 0.68], l: [0.4, 0.55] },
-    accent: { s: [0.34, 0.6], l: [0.6, 0.75] },
+    /* Measured against the reference artwork at equal height. Its page floor is rgb(16,32,47) —
+       hue 207°, not the 168° ink green — because the floor is the sleeve seen through the ink, not
+       the ink alone. That is the whole calibration: a violet sleeve must leave a violet-blue page.
+       Lightness stays low and saturation moderate, which is what keeps a strong sleeve from
+       becoming a bright poster wash. */
+    base: { s: [0.3, 0.44], l: [0.09, 0.12] },
+    primary: { s: [0.36, 0.56], l: [0.15, 0.235] },
+    secondary: { s: [0.34, 0.52], l: [0.13, 0.2] },
+    bloom: { s: [0.42, 0.62], l: [0.22, 0.32] },
+    accent: { s: [0.34, 0.58], l: [0.63, 0.75] },
 } as const;
 
 const LIGHT_LIGHT = {
-    base: { s: [0.1, 0.24], l: [0.955, 0.975] },
-    primary: { s: [0.18, 0.4], l: [0.84, 0.905] },
-    secondary: { s: [0.14, 0.34], l: [0.88, 0.94] },
-    bloom: { s: [0.24, 0.5], l: [0.72, 0.84] },
+    base: { s: [0.12, 0.26], l: [0.95, 0.972] },
+    primary: { s: [0.2, 0.42], l: [0.82, 0.89] },
+    secondary: { s: [0.16, 0.36], l: [0.86, 0.93] },
+    bloom: { s: [0.24, 0.5], l: [0.7, 0.82] },
     accent: { s: [0.4, 0.62], l: [0.33, 0.44] },
 } as const;
+
+/**
+ * Amber is the one hue band that cannot be used as-is.
+ *
+ * A gold or yellow-green mist at 20% lightness over an ink-teal floor averages to olive — not a
+ * muddy *sleeve*, a muddy *page*, and it is the single most common way this layout looks cheap.
+ * Hues in the amber band are rotated toward ember (red-orange) by most of their distance from 18°.
+ * A sunset sleeve then lights the page warm rust; a yellow one, deep ochre. Green, cyan, blue and
+ * violet are untouched — they mix with the floor cleanly.
+ */
+export const emberShift = (hue: number): number => {
+    const from = 18;
+    const to = 100;
+    if (hue <= from || hue >= to) {
+        return hue;
+    }
+    return hue - (hue - from) * 0.9;
+};
 
 /**
  * The five colours the minimal page paints with.
@@ -204,22 +261,31 @@ export const buildMinimalPalette = (
     const secondary = colors.secondary;
     const accentSource = colors.accent;
 
+    // The floor is the ink, with a touch of the sleeve. Not the other way round: rotating an orange
+    // hue 55% toward 168° travels through yellow-green and lands on olive, which is how a sunset
+    // cover produced a swamp-green page. A fixed floor keeps 听屿 recognisable; the sleeve tints it.
     const base = constrain(
-        { h: blendHue(primary.h, TINGYU_INK_HUE, 0.9), s: primary.s, l: primary.l },
+        { h: blendHue(TINGYU_INK_HUE, primary.h, 0.05), s: primary.s * 0.5 + 0.16, l: primary.l },
         { s: scale.base.s, l: scale.base.l },
     );
-    const fieldPrimary = constrain(primary, {
-        hue: TINGYU_INK_HUE,
-        huePull: 0.78,
-        s: scale.primary.s,
-        l: scale.primary.l,
-    });
-    const fieldSecondary = constrain(secondary, {
-        hue: TINGYU_INK_HUE,
-        huePull: 0.86,
-        s: scale.secondary.s,
-        l: scale.secondary.l,
-    });
+    const fieldPrimary = constrain(
+        { ...primary, h: emberShift(primary.h) },
+        {
+            hue: TINGYU_INK_HUE,
+            huePull: 0.02,
+            s: scale.primary.s,
+            l: scale.primary.l,
+        },
+    );
+    const fieldSecondary = constrain(
+        { ...secondary, h: emberShift(secondary.h) },
+        {
+            hue: TINGYU_INK_HUE,
+            huePull: 0.02,
+            s: scale.secondary.s,
+            l: scale.secondary.l,
+        },
+    );
     // A near-grey average has hue 0 in HSL, and clamping its saturation up would paint a red glow
     // behind a black-and-white sleeve. Keep the artwork's lightness, take the hue from the cover's
     // most usable colour instead.
@@ -227,10 +293,15 @@ export const buildMinimalPalette = (
     const bloomSource = averageHasHue
         ? colors.average
         : { h: TINGYU_INK_HUE, s: colors.average.s, l: colors.average.l };
-    const bloom = constrain(bloomSource, { s: scale.bloom.s, l: scale.bloom.l });
+    const bloom = constrain(
+        { ...bloomSource, h: emberShift(bloomSource.h) },
+        { hue: TINGYU_INK_HUE, huePull: 0.02, s: scale.bloom.s, l: scale.bloom.l },
+    );
+    // The sung-lyric colour is the one thing that must not follow the sleeve all the way: lime on a
+    // sunset cover, neon pink on a pop sleeve. It is pulled hard toward mint and kept light.
     const accent = constrain(accentSource, {
         hue: TINGYU_INK_HUE,
-        huePull: 0.9,
+        huePull: 0.88,
         s: scale.accent.s,
         l: scale.accent.l,
     });

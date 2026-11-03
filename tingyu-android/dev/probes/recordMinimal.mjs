@@ -1,6 +1,6 @@
 // dev/probes/recordMinimal.mjs
 // Records the transitions the phone cannot be filmed on: the page rising in, a drag that follows
-// the finger, and the page falling away. Runs the real component in Chromium at a phone viewport.
+// the finger, the lyric column crossing a line and seeking, and the page falling away. Runs the real component in Chromium at a phone viewport.
 //
 // This is harness footage, not a device recording: no Media3, no rear screen, no real frame pacing.
 // It is here so the motion can be reviewed at all, and the audit document says exactly that.
@@ -46,7 +46,22 @@ await sleep(160);
 await touch('touchEnd', 0, 0);
 await sleep(900);
 
-// 3. Back to the cover page, then collapse: the page falls away.
+// 3. The lyric page running: the clock crosses a line boundary, so the follow tween and the
+//    per-character highlight are both in the clip.
+await page.evaluate(() => window.__minimalPreview.seek(24.4));
+await sleep(3600);
+
+// 4. Tapping a line: the list eases to it and the transport seeks.
+const line = await page.evaluate(() => {
+    const box = document.querySelectorAll('.min-line')[7].getBoundingClientRect();
+    return { x: box.left + 60, y: box.top + box.height / 2 };
+});
+await touch('touchStart', line.x, line.y);
+await sleep(60);
+await touch('touchEnd', 0, 0);
+await sleep(1600);
+
+// 5. Back to the cover page, then collapse: the page falls away.
 await touch('touchStart', 50, 420);
 for (let step = 1; step <= 12; step += 1) {
     await touch('touchMove', 50 + step * 24, 420);

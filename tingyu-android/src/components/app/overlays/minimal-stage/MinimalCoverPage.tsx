@@ -1,12 +1,17 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ChevronRight } from 'lucide-react';
 import type { AppOverlaysModel } from '../buildAppOverlaysModel';
 import MinimalArtwork from './MinimalArtwork';
 import { resolveQualityBadges } from './minimalQuality';
 import { usePlaybackStore } from '../../../../stores/usePlaybackStore';
 
 // src/components/app/overlays/minimal-stage/MinimalCoverPage.tsx
-// Left phone of the reference: artwork as the centre of the page, then the song, then the chips.
+// Left phone of the reference: the sleeve, then the song, then the caption row.
+//
+// Everything is left-aligned on one column — the same left edge as the artwork, the title and the
+// progress bar. That single alignment is most of the difference between "a player screen" and "a
+// record sleeve"; the earlier centred block had nothing to line up with.
 //
 // The page owns no state. Title, artist, artwork and the audio source all come from the same
 // playback model the rest of the app reads, so a provider change (online, local, cached) only
@@ -14,12 +19,41 @@ import { usePlaybackStore } from '../../../../stores/usePlaybackStore';
 
 type Controls = NonNullable<AppOverlaysModel['floatingControls']>;
 
+/** Bar heights as a fraction of the indicator; four bars read as a meter, five as a graphic. */
+const WAVE_BARS = [0.44, 0.8, 1, 0.56];
+
+/**
+ * The playing indicator beside the caption.
+ *
+ * It is decorated, not a control: `aria-hidden`, no tap target. It stops dead when the transport
+ * is not playing — a moving bar chart on a paused song is a lie, and it is also four compositor
+ * animations nobody asked for.
+ */
+function PlayingMeter({ playing }: { playing: boolean }) {
+    return (
+        <span className="min-wave" data-paused={playing ? undefined : ''} aria-hidden="true">
+            {WAVE_BARS.map((height, index) => (
+                <i
+                    key={index}
+                    style={{
+                        '--h': `${Math.round(height * 100)}%`,
+                        animationDelay: `${index * -0.46}s`,
+                        animationDuration: `${2.1 + index * 0.19}s`,
+                    } as React.CSSProperties}
+                />
+            ))}
+        </span>
+    );
+}
+
 export default function MinimalCoverPage({
     song,
     controls,
+    playing,
 }: {
     song: { title: string; artist: string; coverUrl: string | null } | null;
     controls: Controls;
+    playing: boolean;
 }) {
     const { t } = useTranslation();
     // The chip row asks the playback store for the catalog specs rather than the control model:
@@ -32,31 +66,38 @@ export default function MinimalCoverPage({
     );
     const title = song?.title || t('mobileLibrary.nothingPlaying');
     const artist = song?.artist || '';
+    // One caption, not two badges: "FLAC · 无损" is a description of the recording, and the
+    // reference sets it as a single line of small type.
+    const quality = badges.length
+        ? badges
+            .map(badge => (badge.id === 'spec' ? t(`catalogAudioSpecs.${badge.value}`) : badge.value))
+            .join(' · ')
+        : null;
+    const tone = badges.some(badge => badge.tone === 'gold') ? 'gold' : 'plain';
 
     return (
         <div className="min-cover" data-testid="minimal-cover-page">
-            <div className="min-cover__art">
-                <MinimalArtwork url={song?.coverUrl ?? null} alt={title} />
+            <div className="min-cover__stage">
+                {/* The second print behind the sleeve. */}
+                <span className="min-cover__ghost" aria-hidden="true" />
+                <div className="min-cover__art">
+                    <MinimalArtwork url={song?.coverUrl ?? null} alt={title} />
+                </div>
             </div>
             <div className="min-cover__meta">
                 <h2 className="min-cover__title" title={title}>{title}</h2>
-                {artist && <p className="min-cover__artist" title={artist}>{artist}</p>}
-                {badges.length > 0 && (
-                    <ul className="min-chips" aria-label={t('mobileStage.audioQuality')}>
-                        {badges.map(badge => (
-                            <li
-                                key={badge.id}
-                                className="min-chip"
-                                data-tone={badge.tone}
-                                title={badge.id === 'spec'
-                                    ? t('catalogAudioSpecs.description', { specs: t(`catalogAudioSpecs.${badge.value}`) })
-                                    : undefined}
-                            >
-                                {badge.id === 'spec' ? t(`catalogAudioSpecs.${badge.value}`) : badge.value}
-                            </li>
-                        ))}
-                    </ul>
+                {artist && (
+                    <p className="min-cover__artist" title={artist}>
+                        <span>{artist}</span>
+                        <ChevronRight size={13} strokeWidth={2} aria-hidden="true" />
+                    </p>
                 )}
+                <div className="min-cover__foot">
+                    {quality && (
+                        <span className="min-chip" data-tone={tone}>{quality}</span>
+                    )}
+                    <PlayingMeter playing={playing} />
+                </div>
             </div>
         </div>
     );

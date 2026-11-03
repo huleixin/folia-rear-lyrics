@@ -56,6 +56,13 @@
     animation: min-content-in 360ms cubic-bezier(0.22, 0.68, 0.2, 1) 70ms both;
 }
 
+/* The controls come in last and only fade: they are already where the listener expects them, so
+   sliding them would read as the whole page being a card. */
+.min[data-phase='enter'] .min-transport,
+.min[data-phase='enter'] .min-dots {
+    animation: min-chrome-in 280ms ease 150ms both;
+}
+
 .min[data-phase='exit'] {
     animation: min-fall 300ms cubic-bezier(0.42, 0, 0.74, 0.3) both;
     pointer-events: none;
@@ -86,6 +93,11 @@
     to { opacity: 0; }
 }
 
+@keyframes min-chrome-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
 .min[data-theme='dark'] {
     --min-ink: #f3faf6;
     --min-ink-bright: #ffffff;
@@ -94,17 +106,19 @@
     --min-fill: rgb(246 252 249 / 92%);
     --min-line: rgb(255 255 255 / 13%);
     --min-veil: 0 0 0;
+    --min-shade: 0 0 0;
     --min-shadow: 0 28px 60px -22px rgb(0 0 0 / 62%), 0 4px 16px rgb(0 0 0 / 26%);
 }
 
 .min[data-theme='light'] {
     --min-ink: #10231d;
     --min-ink-bright: #061310;
-    --min-muted: rgb(16 35 29 / 46%);
-    --min-track: rgb(16 35 29 / 16%);
+    --min-muted: rgb(16 35 29 / 58%);
+    --min-track: rgb(16 35 29 / 18%);
     --min-fill: rgb(16 35 29 / 78%);
     --min-line: rgb(16 35 29 / 14%);
     --min-veil: 255 255 255;
+    --min-shade: 12 32 26;
     --min-shadow: 0 24px 52px -24px rgb(24 56 46 / 34%), 0 3px 12px rgb(24 56 46 / 12%);
 }
 
@@ -134,46 +148,79 @@
 }
 
 .min-amb__wash {
-    /* The reference is not "a gradient behind a cover": it is a warm field that reaches the side
-       edges at the artwork's height, sitting inside a dark teal that owns the top and bottom bands.
-       Two bloom radii do that — a wide one that carries colour to the edges and a tighter one that
-       gives the artwork something to sit in.
-       Sampled against the design at equal height: edges (16,42,40) teal, artwork band (129,109,84). */
+    /* Not "a glow behind the artwork" — a room lit by the sleeve. Three masses: a cool one high on
+       the right, a warmer one on the left at artwork height, and a floor that darkens downward.
+       The overlap is what gives the page depth; a single centred bloom reads as a spotlight. */
+    /* The sleeve is opaque and covers the middle 45% of the page, so a mass centred behind it is
+       invisible — which is what kept the page green. The colour lives in the two bands the artwork
+       does not cover: a broad one above it and a softer one below, offset from each other so the
+       page is lit from one side rather than symmetrically. */
     background:
-        radial-gradient(116% 30% at 50% 45%, color-mix(in srgb, var(--min-bloom) 48%, transparent) 0%, transparent 86%),
-        radial-gradient(70% 24% at 50% 43%, color-mix(in srgb, var(--min-bloom) 58%, transparent) 0%, transparent 80%),
-        linear-gradient(177deg, var(--min-base) 0%, color-mix(in srgb, var(--min-base) 82%, black) 100%);
+        radial-gradient(132% 82% at 56% 42%, color-mix(in srgb, var(--min-field-1) 26%, transparent) 0%, transparent 76%),
+        radial-gradient(120% 56% at 78% 8%, color-mix(in srgb, var(--min-field-2) 30%, transparent) 0%, transparent 72%),
+        linear-gradient(178deg, var(--min-base) 0%, color-mix(in srgb, var(--min-base) 76%, black) 100%);
 }
 
 /* Three soft colour masses. They are the page's only moving parts, they never touch colour, and
    each one drifts on its own period so the field never repeats as a single breathing picture. */
 .min-amb__blob--a {
-    background: radial-gradient(74% 52% at 8% -4%, color-mix(in srgb, var(--min-field-1) 88%, transparent) 0%, transparent 72%);
+    background: radial-gradient(84% 46% at 10% 28%, color-mix(in srgb, var(--min-field-1) 30%, transparent) 0%, transparent 74%);
     animation: min-drift-a 41s ease-in-out infinite alternate;
 }
 
 .min-amb__blob--b {
-    background: radial-gradient(70% 50% at 96% -2%, color-mix(in srgb, var(--min-field-2) 84%, transparent) 0%, transparent 74%);
+    background: radial-gradient(80% 44% at 92% 24%, color-mix(in srgb, var(--min-field-2) 28%, transparent) 0%, transparent 72%);
     animation: min-drift-b 53s ease-in-out infinite alternate;
 }
 
 .min-amb__blob--c {
-    background: radial-gradient(86% 46% at 62% 104%, color-mix(in srgb, var(--min-field-1) 78%, transparent) 0%, transparent 80%);
+    background: radial-gradient(94% 42% at 42% 94%, color-mix(in srgb, var(--min-field-1) 26%, transparent) 0%, transparent 78%);
     animation: min-drift-c 47s ease-in-out infinite alternate;
 }
 
-/* The only warm element: the glow the artwork sits in. Constrained to a low alpha so it reads as
-   light through a scrim rather than as a beam. */
+/* The bloom the artwork sits in. Kept to a low alpha: the sleeve should look lit, not pasted on a
+   lit background. Its hue is almost the cover's own. */
 .min-amb__bloom {
-    background: radial-gradient(64% 40% at 50% 40%, color-mix(in srgb, var(--min-bloom) 70%, transparent) 0%, transparent 74%);
-    opacity: 0.5;
+    /* The sleeve's own light, and the main way the cover colour reaches the page: an ellipse taller
+       than the artwork, so its fringes are visible in the bands above and below it. This is what
+       makes a sunset page read as ember rather than olive — the colour sits *around* the sleeve,
+       where it can be seen, instead of behind it where it cannot. */
+    background: radial-gradient(72% 56% at 50% 40%, color-mix(in srgb, var(--min-bloom) 70%, transparent) 0%, transparent 76%);
+    opacity: 0.55;
     animation: min-breathe 26s ease-in-out infinite alternate;
 }
 
 .min-amb__veil {
+    /* The corners return to the ink floor, but only just: a narrow band at the top and the bottom
+       third. Anything more and the colour fields are painted over — which is exactly what happened
+       when this was 30%/46%, leaving a green page behind an amber sleeve. */
     background:
-        linear-gradient(180deg, rgb(var(--min-veil) / 0.26) 0%, transparent 26%),
-        linear-gradient(0deg, rgb(var(--min-veil) / 0.4) 0%, transparent 44%);
+        linear-gradient(180deg, color-mix(in srgb, var(--min-base) 88%, transparent) 0%, transparent 13%),
+        linear-gradient(0deg, color-mix(in srgb, var(--min-base) 92%, transparent) 0%, transparent 32%);
+}
+
+/* Printed-page edges. Without it the composition floats; with it the corners sit down. */
+.min-amb__vignette {
+    background: radial-gradient(116% 88% at 50% 38%, transparent 42%, rgb(var(--min-shade) / 0.5) 100%);
+}
+
+.min[data-theme='light'] .min-amb__vignette {
+    background: radial-gradient(122% 94% at 50% 38%, transparent 44%, rgb(var(--min-shade) / 0.13) 100%);
+}
+
+/* A 120px noise tile, painted once and tiled. This is the "paper" in the page — it is static, so it
+   costs one texture and nothing per frame, unlike a live grain shader. */
+.min-amb__grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+    background-size: 120px 120px;
+    background-repeat: repeat;
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+}
+
+.min[data-theme='light'] .min-amb__grain {
+    opacity: 0.032;
+    mix-blend-mode: multiply;
 }
 
 .min-amb__blob,
@@ -216,10 +263,18 @@
 @media (prefers-reduced-motion: reduce) {
     .min-amb__blob,
     .min-amb__bloom,
-    .min[data-phase] {
+    .min-cover__art,
+    .min-wave i,
+    .min[data-phase],
+    .min[data-phase] .min-cover,
+    .min[data-phase] .min-lyrics,
+    .min[data-phase] .min-transport,
+    .min[data-phase] .min-dots {
         animation: none;
     }
-    .min {
+    .min,
+    .min-line,
+    .min-line__text {
         transition: none;
     }
 }
@@ -326,39 +381,90 @@
     min-height: 0;
 }
 
+/* Secondary elements dissolve slightly as their page leaves, so a swipe reads as two surfaces
+   trading places rather than one sheet sliding. Driven by the same --min-pos as the parallax. */
+.min-page[data-page-id='cover'] .min-cover__meta {
+    opacity: calc(1 - 0.5 * clamp(0, var(--min-pos, 0), 1));
+}
+
+.min-page[data-page-id='lyrics'] .min-lyrics__id {
+    opacity: calc(0.5 + 0.5 * clamp(0, var(--min-pos, 0), 1));
+}
+
 /* ---------------------------------------------------------------- cover page */
 
+/* One column, like a record sleeve: artwork, title, artist and quality all start on the same left
+   edge as the progress bar below them. The earlier centred block was why the page read as a
+   template — nothing shared an alignment, so nothing composed. */
 .min-cover {
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
     min-height: 0;
     overflow: hidden;
-    padding: 4px 0 10px;
-    gap: clamp(16px, 3vh, 28px);
+    padding: 4px 26px 10px;
+    gap: clamp(16px, 2.8vh, 26px);
+}
+
+/* Parallax: while the strip is dragged, the sleeve drifts slightly against the page. Written from
+   the gesture frame as --min-pos, so at rest it is a constant and costs nothing. */
+.min-cover__stage {
+    position: relative;
+    flex: none;
+    /* The stage owns the width so the ghost behind the sleeve is always the sleeve's size — when
+       only the artwork was capped by height, the hairline stayed at the column width and floated
+       off to one side on a short screen. */
+    width: min(100%, 43vh);
+    /* Left, not centred: when the height cap shrinks the sleeve on a short screen, a centred square
+       would drift off the column that the title and the progress bar still share. */
+    align-self: flex-start;
+    transform: translate3d(calc(var(--min-pos, 0) * 11%), 0, 0);
+}
+
+/* The second print behind the sleeve: a hairline offset up and right, the depth of a stack of paper
+   rather than a shadow or a glow. */
+.min-cover__ghost {
+    position: absolute;
+    inset: 0;
+    border: 1px solid color-mix(in srgb, var(--min-ink) 12%, transparent);
+    border-radius: clamp(18px, 7%, 30px);
+    transform: translate3d(9px, -9px, 0) scale(0.994);
+    pointer-events: none;
 }
 
 .min-cover__art {
     position: relative;
-    /* 75% of the page width, matching the reference — but capped by the height as well, so a short
-       screen (or a large font scale, which eats the text block) shrinks the artwork instead of
-       pushing the transport out of the page. */
-    width: min(75%, 322px, 40vh);
+    /* The sleeve is the column: its left and right edges are the title's and the progress bar's.
+       The height cap lives on .min-cover__stage, so a short screen shrinks the whole group rather
+       than leaving the artwork floating inside a wider frame. */
+    width: 100%;
     aspect-ratio: 1 / 1;
     flex: none;
+    animation: min-float 19s ease-in-out infinite alternate;
 }
 
-/* The artwork's own glow. A wide, very soft radial behind the frame, so the cover sits in light
+/* Life, not motion: ±2.5px over 19s. It reads as the page breathing, and it is paused whenever the
+   lyric page is the visible one. */
+@keyframes min-float {
+    from { transform: translate3d(0, -2.5px, 0); }
+    to { transform: translate3d(0, 2.5px, 0); }
+}
+
+.min[data-page='lyrics'] .min-cover__art {
+    animation-play-state: paused;
+}
+
+/* The artwork's own light. A wide, very soft radial behind the frame, so the cover sits in light
    instead of carrying a stroke. No blur filter — the gradient is already soft. */
 .min-cover__art::before {
     content: '';
     position: absolute;
-    inset: -22%;
+    inset: -18%;
     border-radius: 50%;
-    background: radial-gradient(closest-side, color-mix(in srgb, var(--min-bloom) 42%, transparent) 0%, transparent 78%);
-    opacity: 0.5;
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--min-bloom) 46%, transparent) 0%, transparent 76%);
+    opacity: 0.55;
     pointer-events: none;
 }
 
@@ -369,7 +475,7 @@
     border-radius: clamp(18px, 7%, 30px);
     overflow: hidden;
     background: color-mix(in srgb, var(--min-base) 74%, var(--min-ink) 8%);
-    box-shadow: var(--min-shadow);
+    box-shadow: var(--min-shadow), inset 0 1px 0 color-mix(in srgb, var(--min-ink) 16%, transparent);
     /* Keeps the round corner from revealing the glow behind it on some WebView builds. */
     transform: translateZ(0);
 }
@@ -403,74 +509,129 @@
 .min-cover__meta {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 6px;
+    align-items: flex-start;
+    gap: 5px;
     width: 100%;
     min-width: 0;
-    padding: 0 24px;
-    text-align: center;
+    text-align: left;
 }
 
 .min-cover__title {
     margin: 0;
     max-width: 100%;
-    font-size: 26px;
+    font-size: clamp(23px, 7.4vw, 30px);
     font-weight: 600;
-    letter-spacing: 0.01em;
-    line-height: 1.3;
+    letter-spacing: -0.014em;
+    line-height: 1.26;
     color: var(--min-ink);
     overflow: hidden;
     display: -webkit-box;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 1;
+    -webkit-line-clamp: 2;
     word-break: break-word;
 }
 
 .min-cover__artist {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
     margin: 0;
     max-width: 100%;
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 400;
+    letter-spacing: 0.01em;
     color: var(--min-muted);
+}
+
+.min-cover__artist span {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
 
+/* The chevron is typography, not a control: it is part of the artist line in the reference. */
+.min-cover__artist svg {
+    flex: none;
+    opacity: 0.55;
+}
+
+.min-cover__foot {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 24px;
+    margin-top: 7px;
+}
+
 .min-chips {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
+    align-items: center;
     gap: 6px;
-    margin: 4px 0 0;
+    margin: 0;
     padding: 0;
     list-style: none;
+    min-width: 0;
 }
 
 .min-chip {
     display: inline-flex;
     align-items: center;
-    height: 22px;
-    padding: 0 9px;
-    border: 1px solid color-mix(in srgb, var(--min-ink) 22%, transparent);
+    height: 24px;
+    padding: 0 11px;
+    border: 1px solid color-mix(in srgb, var(--min-ink) 20%, transparent);
     border-radius: 999px;
-    font-size: 10.5px;
+    font-size: 11px;
     font-weight: 500;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.055em;
     line-height: 1;
     color: color-mix(in srgb, var(--min-ink) 72%, transparent);
     white-space: nowrap;
 }
 
+/* One pill, holding both facts: "FLAC · 无损". Two pills read as badges, one reads as a caption. */
 .min-chip[data-tone='gold'] {
-    border-color: color-mix(in srgb, #e2c48c 58%, transparent);
-    color: color-mix(in srgb, #e2c48c 92%, var(--min-ink) 8%);
+    border-color: color-mix(in srgb, #e2c48c 54%, transparent);
+    color: color-mix(in srgb, #e2c48c 88%, var(--min-ink) 12%);
 }
 
 /* #e2c48c on paper is invisible; the gold chip needs a darker ink to stay a chip. */
 .min[data-theme='light'] .min-chip[data-tone='gold'] {
     border-color: color-mix(in srgb, #a07c33 42%, transparent);
     color: color-mix(in srgb, #8a6a26 88%, var(--min-ink) 12%);
+}
+
+/* The playing indicator from the reference, at the right end of the caption row. Four bars, one
+   short keyframe each — it stops dead when the transport is not playing. */
+.min-wave {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 2.5px;
+    height: 15px;
+    margin-left: auto;
+    color: color-mix(in srgb, var(--min-ink) 62%, transparent);
+}
+
+.min-wave i {
+    display: block;
+    width: 2px;
+    height: var(--h, 100%);
+    border-radius: 1px;
+    background: currentColor;
+    transform: scaleY(0.32);
+    transform-origin: bottom;
+    animation: min-wave 2.1s ease-in-out infinite;
+}
+
+.min-wave[data-paused] i {
+    animation: none;
+    transform: scaleY(0.42);
+    opacity: 0.72;
+}
+
+@keyframes min-wave {
+    0%, 100% { transform: scaleY(0.32); }
+    50% { transform: scaleY(1); }
 }
 
 /* ---------------------------------------------------------------- lyrics page */
@@ -488,11 +649,44 @@
     padding: 2px 26px 6px;
 }
 
+/* The sleeve, in miniature, next to the title — the "inner page" credit block of the reference.
+   It also gives the eye a fixed anchor when the lyric column is moving. */
+.min-lyrics__id {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.min-lyrics__thumb {
+    flex: none;
+    width: 46px;
+    height: 46px;
+}
+
+.min-art--thumb {
+    border-radius: 11px;
+    box-shadow: 0 10px 22px -14px rgb(0 0 0 / 70%);
+}
+
+.min-art--thumb .min-art__empty svg {
+    width: 19px;
+    height: 19px;
+}
+
+.min-lyrics__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
 .min-lyrics__title {
     margin: 0;
-    font-size: 20px;
+    font-size: 19px;
     font-weight: 600;
-    line-height: 1.35;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
     color: var(--min-ink);
     overflow: hidden;
     display: -webkit-box;
@@ -502,9 +696,24 @@
 }
 
 .min-lyrics__artist {
-    margin: 4px 0 0;
-    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin: 0;
+    font-size: 12.5px;
+    letter-spacing: 0.01em;
     color: var(--min-muted);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.min-lyrics__artist svg {
+    flex: none;
+    opacity: 0.5;
+}
+
+.min-lyrics__artist > span {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -512,11 +721,11 @@
 
 .min-lyrics__rule {
     display: block;
-    width: 15px;
+    width: 22px;
     height: 1.5px;
-    margin-top: 12px;
+    margin-top: 11px;
     border-radius: 1px;
-    background: color-mix(in srgb, var(--min-ink) 42%, transparent);
+    background: color-mix(in srgb, var(--min-ink) 36%, transparent);
 }
 
 .min-lyrics__scroll {
@@ -542,25 +751,35 @@
 
 .min-lyrics__column {
     position: relative;
-    padding: clamp(20px, 6vh, 56px) 0 46vh;
+    padding: clamp(14px, 3.6vh, 36px) 0 46vh;
     /* Remounted (keyed) whenever the lyric set changes, so this plays once per song: the new lyrics
        arrive instead of replacing the old ones between two frames. */
-    animation: min-lyric-swap 300ms cubic-bezier(0.22, 0.68, 0.2, 1) both;
+    animation: min-lyric-swap 320ms cubic-bezier(0.22, 0.68, 0.2, 1) both;
 }
 
 @keyframes min-lyric-swap {
-    from { opacity: 0; transform: translate3d(0, 12px, 0); }
+    from { opacity: 0; transform: translate3d(0, 10px, 0); }
     to { opacity: 1; transform: none; }
 }
 
 .min-line {
-    /* The active line grows without changing its box: the pitch is fixed, only the glyphs scale up,
-       so changing lines never makes the column jump under the reader's thumb.
-       `content-visibility: auto` used to be set here and is deliberately gone: it made off-screen
-       lines report an estimated height until they were painted, so scrolling to a line two screens
-       away landed in the wrong place, the correction shifted the column again — the "jump, then
-       settle somewhere else" the tap used to produce. */
-    margin: 0 0 22px;
+    /* A fixed pitch. The active line grows *inside* this box rather than growing the box, so a line
+       change never moves the column under the reader's thumb — and the pitch stays tight, like a
+       printed lyric sheet, instead of a stack of cards.
+       `content-visibility: auto` used to be set here and is deliberately gone: off-screen lines then
+       reported an estimated height, so scrolling to a distant line landed in the wrong place and the
+       correction shifted the column again. */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: calc(52px * var(--min-lyric-scale, 1));
+    margin: 0 0 calc(8px * var(--min-lyric-scale, 1));
+    transition: opacity 280ms ease;
+}
+
+/* Lines already sung sit back a little; the eye belongs on the current one. */
+.min-line[data-past] {
+    opacity: 0.62;
 }
 
 .min-line__text {
@@ -571,27 +790,31 @@
     background: none;
     text-align: left;
     font-family: inherit;
-    font-size: calc(19px * var(--min-lyric-scale, 1));
+    font-size: calc(20px * var(--min-lyric-scale, 1));
     font-weight: 500;
-    line-height: calc(40px * var(--min-lyric-scale, 1));
-    letter-spacing: 0.012em;
+    line-height: 1.34;
+    letter-spacing: 0.008em;
     color: var(--min-muted);
     cursor: pointer;
     transform-origin: left center;
     /* Colour is the slow part (a sung line cools into place); the press is the fast part. */
-    transition: color 260ms ease, font-size 200ms ease, transform 130ms ease, opacity 130ms ease;
+    transition: color 300ms ease, font-size 280ms cubic-bezier(0.2, 0.7, 0.2, 1),
+        transform 130ms ease, opacity 130ms ease;
 }
 
 .min-line__text:active:not(:disabled) {
-    transform: scale(0.992);
+    transform: scale(0.993);
     opacity: 0.82;
 }
 
 .min-line[data-active] .min-line__text {
-    font-size: calc(27px * var(--min-lyric-scale, 1));
-    font-weight: 700;
-    line-height: calc(40px * var(--min-lyric-scale, 1));
-    color: var(--min-ink-bright);
+    font-size: calc(30px * var(--min-lyric-scale, 1));
+    font-weight: 600;
+    line-height: 1.22;
+    letter-spacing: -0.008em;
+    /* Near-white, but tinted a little toward the sleeve: that tint is what makes the current line
+       feel printed on this page rather than pasted on it. */
+    color: color-mix(in srgb, var(--min-ink-bright) 84%, var(--min-bloom));
     cursor: default;
 }
 
@@ -631,11 +854,21 @@
     padding: 0 32px 60px;
 }
 
+.min-lyrics__empty {
+    flex-direction: column;
+    gap: 10px;
+    color: var(--min-muted);
+}
+
+.min-lyrics__empty svg {
+    opacity: 0.42;
+}
+
 .min-lyrics__empty p {
     margin: 0;
-    font-size: 14px;
+    font-size: 13.5px;
     color: var(--min-muted);
-    letter-spacing: 0.02em;
+    letter-spacing: 0.04em;
 }
 
 /* ---------------------------------------------------------------- transport */
@@ -769,17 +1002,23 @@
 
 .min-btn--play {
     position: relative;
-    width: 54px;
-    height: 54px;
+    width: 56px;
+    height: 56px;
     justify-self: center;
     color: var(--min-ink-bright);
 }
 
+/* A glass disc, not an outline: a faint fill that catches the top edge, plus one soft drop shadow.
+   The reference's play button is the only element on the page that sits above the surface. */
 .min-play-ring {
     position: absolute;
     inset: 0;
-    border: 1.5px solid color-mix(in srgb, var(--min-ink) 52%, transparent);
+    border: 1.5px solid color-mix(in srgb, var(--min-ink) 44%, transparent);
     border-radius: 50%;
+    background:
+        radial-gradient(80% 80% at 50% 18%, color-mix(in srgb, var(--min-ink) 13%, transparent) 0%, transparent 64%),
+        color-mix(in srgb, var(--min-ink) 5%, transparent);
+    box-shadow: 0 12px 28px -16px rgb(0 0 0 / 62%);
     transition: border-color 200ms ease, transform 130ms ease;
 }
 
@@ -855,45 +1094,48 @@
 /* The dots used to be the last row inside the WebView, so their bottom edge landed on the gesture
    pill. .min now reserves the navigation inset; this row just needs its own breathing room. */
 
+/* Each dot follows the strip's position rather than a boolean: while the finger moves, the dot
+   nearest the centre grows and the other recedes, and a tap-to-page animates through the same
+   values. --min-pos is written once per gesture frame, so this costs no extra layout. */
 .min-dot {
-    width: 5px;
-    height: 5px;
-    /* A 5px dot is an unhittable target. Padding grows the touch box to 17px; the negative margin
-       and content-box clipping keep the painted dot 5px and in the same place. */
+    --near: 0;
     box-sizing: content-box;
+    width: calc(4px + 4px * var(--near));
+    height: 4px;
+    /* A 4px dot is an unhittable target. Padding grows the touch box to 16px; the negative margin
+       and content-box clipping keep the painted dot 4px and in the same place. */
     padding: 6px;
     margin: -6px;
     border: 0;
-    border-radius: 50%;
-    background: color-mix(in srgb, var(--min-ink) 30%, transparent);
-    background-clip: content-box;
-    cursor: pointer;
-    transition: width 220ms ease, height 220ms ease, background-color 220ms ease;
-}
-
-.min-dot[data-active] {
-    width: 6px;
-    height: 6px;
+    border-radius: 999px;
     background: color-mix(in srgb, var(--min-ink) 88%, transparent);
     background-clip: content-box;
+    opacity: calc(0.32 + 0.68 * var(--near));
+    cursor: pointer;
 }
+
+.min-dot:nth-child(1) { --near: clamp(0, 1 - var(--min-pos, 0), 1); }
+.min-dot:nth-child(2) { --near: clamp(0, var(--min-pos, 0), 1); }
 
 /* ---------------------------------------------------------------- responsive */
 
 @media (max-height: 700px) {
-    .min-cover { gap: 14px; }
-    .min-cover__art { width: min(64%, 250px); }
-    .min-cover__title { font-size: 19px; }
-    .min-line__text { font-size: 15.5px; line-height: 30px; }
-    .min-line[data-active] .min-line__text { font-size: 19.5px; line-height: 30px; }
-    .min-line { margin-bottom: 14px; }
+    .min-cover { gap: 13px; padding-bottom: 6px; }
+    .min-cover__stage { width: min(100%, 36vh); }
+    .min-cover__title { font-size: 20px; }
+    .min-cover__foot { margin-top: 4px; min-height: 22px; }
+    .min-lyrics__thumb { width: 38px; height: 38px; }
+    .min-line { min-height: calc(40px * var(--min-lyric-scale, 1)); margin-bottom: calc(2px * var(--min-lyric-scale, 1)); }
+    .min-line__text { font-size: calc(15.5px * var(--min-lyric-scale, 1)); }
+    .min-line[data-active] .min-line__text { font-size: calc(23px * var(--min-lyric-scale, 1)); }
 }
 
 @media (min-height: 900px) {
-    .min-cover__art { width: min(78%, 344px); }
-    .min-cover__title { font-size: 24px; }
-    .min-line__text { font-size: 17px; }
-    .min-line[data-active] .min-line__text { font-size: 22.5px; }
+    .min-cover__stage { width: min(100%, 46vh); }
+    .min-cover__title { font-size: 29px; }
+    .min-line { min-height: calc(56px * var(--min-lyric-scale, 1)); }
+    .min-line__text { font-size: calc(21px * var(--min-lyric-scale, 1)); }
+    .min-line[data-active] .min-line__text { font-size: calc(31px * var(--min-lyric-scale, 1)); }
 }
 
 @media (orientation: landscape) {
@@ -901,11 +1143,12 @@
         flex-direction: row;
         align-items: center;
         justify-content: center;
-        gap: 28px;
-        padding: 4px 32px;
+        gap: 30px;
+        padding: 4px 30px;
     }
-    .min-cover__art { width: auto; height: min(78%, 320px); }
-    .min-cover__meta { width: auto; max-width: 46%; align-items: flex-start; text-align: left; }
-    .min-chips { justify-content: flex-start; }
-    .min-lyrics__column { padding-top: 18px; }
+    .min-cover__stage { width: min(38%, 60vh); }
+    .min-cover__meta { width: auto; max-width: 46%; align-items: flex-start; }
+    .min-cover__foot { width: 100%; min-width: 210px; }
+    .min-lyrics__column { padding-top: 12px; }
+    .min-lyrics__head { padding-bottom: 2px; }
 }

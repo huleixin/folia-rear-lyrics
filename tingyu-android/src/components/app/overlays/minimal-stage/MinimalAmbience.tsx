@@ -2,7 +2,7 @@ import React from 'react';
 import type { MinimalPalette } from './minimalPalette';
 
 // src/components/app/overlays/minimal-stage/MinimalAmbience.tsx
-// Four flat layers, no shader, no blur filter, no canvas.
+// Seven flat layers, no shader, no blur filter, no canvas.
 //
 // Why gradients instead of the usual "blur huge circles" recipe: a `filter: blur(80px)`, a backdrop
 // filter, or a Shader each cost a full-screen pass on every frame they are composited. Large soft
@@ -37,6 +37,10 @@ export default function MinimalAmbience({
             <span className="min-amb__blob min-amb__blob--c" />
             <span className="min-amb__bloom" />
             <span className="min-amb__veil" />
+            <span className="min-amb__vignette" />
+            {/* A single 120px noise tile, painted once. It is the difference between a gradient and
+                a printed surface; it never repaints, so it costs one texture and nothing per frame. */}
+            <span className="min-amb__grain" />
         </div>
     );
 }

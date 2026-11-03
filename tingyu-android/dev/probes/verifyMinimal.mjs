@@ -99,6 +99,19 @@ const dragTo = async (session, fromX, toX, y, { steps = 10, hold = 14 } = {}) =>
     await dragTo(session, 330, 60, 400);
     const mid = await session.state();
     check('拖动过程页面跟随手指', mid.pos > 0.5 && mid.pos < 1.05, `pos=${mid.pos.toFixed(2)}`);
+    // Both secondary animations are driven by the same --min-pos the strip uses, so they can be read
+    // mid-gesture while the finger is still down.
+    const during = await session.page.evaluate(() => {
+        const stage = document.querySelector('.min-cover__stage');
+        const matrix = /matrix\(([^)]+)\)/.exec(getComputedStyle(stage).transform);
+        return {
+            parallaxX: matrix ? Number(matrix[1].split(',')[4]) : 0,
+            dots: [...document.querySelectorAll('.min-dot')].map(dot => Number(getComputedStyle(dot).opacity)),
+        };
+    });
+    check('滑动时封面产生轻微视差', during.parallaxX > 4 && during.parallaxX < 60, `translateX=${during.parallaxX.toFixed(1)}px`);
+    check('页码圆点跟随滑动进度', during.dots.every(value => value > 0.4 && value < 0.95),
+        `opacity=${JSON.stringify(during.dots.map(value => Number(value.toFixed(2))))}`);
     await session.touch('touchEnd', 0, 0);
     await sleep(520);
     const done = await session.state();
@@ -200,12 +213,18 @@ const dragTo = async (session, fromX, toX, y, { steps = 10, hold = 14 } = {}) =>
     const playState = await paused.page.evaluate(() =>
         getComputedStyle(document.querySelector('.min-amb__blob--a')).animationPlayState);
     check('暂停时背景动画停止', playState === 'paused', `animation-play-state=${playState}`);
+    const meterPaused = await paused.page.evaluate(() =>
+        getComputedStyle(document.querySelector('.min-wave i')).animationName);
+    check('暂停时播律动指示停止', meterPaused === 'none', `animation-name=${meterPaused}`);
     await paused.context.close();
 
     const playing = await open({ query: 'page=cover&theme=dark&stationary=1' });
     const running = await playing.page.evaluate(() =>
         getComputedStyle(document.querySelector('.min-amb__blob--a')).animationPlayState);
     check('播放时背景动画运行', running === 'running', `animation-play-state=${running}`);
+    const meterRunning = await playing.page.evaluate(() =>
+        getComputedStyle(document.querySelector('.min-wave i')).animationName);
+    check('播放时律动指示运行', meterRunning !== 'none', `animation-name=${meterRunning}`);
     await playing.context.close();
 }
 
