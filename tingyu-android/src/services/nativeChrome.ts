@@ -7,6 +7,11 @@ export const COMPOSE_CHROME = import.meta.env.VITE_TINGYU_COMPOSE_CHROME === 'tr
 export const PREHIDE_COMPOSE_CHROME = COMPOSE_CHROME && isAndroidNativeRuntime();
 export const COMPOSE_CHROME_FAILURE_EVENT = 'tingyu-compose-chrome-failed';
 export type ChromeSurfaceId = 'nav' | 'mini' | 'stage';
+/**
+ * Surfaces that emit actions. The Compose minimal player is a fourth emitter with no frame of its
+ * own (native reads its data directly), so it is an action id but never a surface id.
+ */
+export type ChromeActionId = ChromeSurfaceId | 'minimal';
 export type ChromeData = {
     playerTransition?: 'idle' | 'to-stage' | 'to-minimal';
     title?: string; artist?: string; cover?: string; trackKey?: string; playing?: boolean; disabled?: boolean;
@@ -14,15 +19,22 @@ export type ChromeData = {
     sleepPreferredMinutes?: number;
     light?: boolean; reducedMotion?: boolean; accent?: string; ink?: string; labels?: Record<string,string>; vertical?: boolean;
 };
-export type ChromeAction = {nativeDispatchedAt?:number;nativeGestureId?:number;id: ChromeSurfaceId; session: string; action: string; value: number};
+export type ChromeAction = {nativeDispatchedAt?:number;nativeGestureId?:number;id: ChromeActionId; session: string; action: string; value: number};
 export type ChromeFrame = {id: ChromeSurfaceId; session: string; generation: number; revision: number; enabled: boolean;
     left: number; top: number; width: number; height: number; alpha: number; viewportWidth: number; safeBottom?:number; data: ChromeData & {position?: number}};
 export const chromeNative = registerPlugin<{
     navigationDiagnostics(value:{enabled?:boolean}):Promise<{enabled:boolean;nativeNow:number;startedAt:number;samples:{phase:string;at:number;elapsedMs?:number;gestureId?:number}[]}>;
     appearance(value:{mode?:string}):Promise<{mode:'system'|'light'|'dark';systemLight:boolean;light:boolean}>;
     addListener(name:'appearanceChanged',callback:(value:{systemLight:boolean})=>void):Promise<{remove:()=>Promise<void>}>;
-    probe(): Promise<{supported:boolean;engine:string;pages?:boolean}>;
+    probe(): Promise<{supported:boolean;engine:string;pages?:boolean;minimalPlayer?:boolean}>;
     update(frame: ChromeFrame): Promise<{accepted:boolean;session:string;pendingNavigation?:boolean}>;
+    /**
+     * Compose minimal player bridge. Carries only what native cannot know for itself: play mode,
+     * neighbour availability, and the browser-audio position anchor. One small frame per second.
+     */
+    minimalPlayerFrame(frame: import('./nativeMinimalPlayer').MinimalPlayerFrame): Promise<{accepted:boolean}>;
+    /** Hand the minimal player surface back to the WebView (session-scoped). */
+    minimalPlayerRelease(value:{session:string}): Promise<void>;
     clock(value:{id:ChromeSurfaceId;session:string;trackKey:string;position:number}):Promise<void>;
     remove(value:{id:ChromeSurfaceId;session:string}):Promise<void>;
     pageUpdate(frame:NativePageFrame):Promise<{accepted:boolean;session:string}>;
@@ -32,10 +44,10 @@ export const chromeNative = registerPlugin<{
     addListener(name:'action',callback:(value:ChromeAction)=>void):Promise<{remove:()=>Promise<void>}>;
     addListener(name:'pageAction',callback:(value:NativePageEvent)=>void):Promise<{remove:()=>Promise<void>}>;
 }>('TingyuChrome');
-let probe:Promise<{supported:boolean;pages?:boolean}>|undefined;
+let probe:Promise<{supported:boolean;pages?:boolean;minimalPlayer?:boolean}>|undefined;
 let generation=0;
 export function newChromeGeneration():number { return generation=Math.max(Date.now()*1000,generation+1); }
-export function composeChromeCapabilities():Promise<{supported:boolean;pages?:boolean}> {
+export function composeChromeCapabilities():Promise<{supported:boolean;pages?:boolean;minimalPlayer?:boolean}> {
     if (!COMPOSE_CHROME || !isAndroidNativeRuntime()) return Promise.resolve({supported:false});
     return probe ??= chromeNative.probe().catch(()=>({supported:false}));
 }

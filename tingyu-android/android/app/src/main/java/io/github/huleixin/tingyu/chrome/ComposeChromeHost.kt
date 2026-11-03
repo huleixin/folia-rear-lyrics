@@ -52,6 +52,41 @@ import kotlin.math.roundToInt
 // Stable WebView identity; native pages and the live stage use separate GPU backdrop sources.
 class ComposeChromeHost(private val web: WebView, var listener: ChromeActionListener) {
     private var appearanceMode by mutableStateOf(InterfaceAppearance.mode(web.context))
+    // 极简播放页第一阶段：数据全部来自既有播放器与统一歌词交付点，命令走同一条动作总线。
+    private val minimal = io.github.huleixin.tingyu.minimal.MinimalPlayerRuntime.get(web.context)
+    private val minimalCommands = io.github.huleixin.tingyu.minimal.BridgeMinimalCommands(
+        { action, value ->
+            val session = minimal.session()
+            if (session.isEmpty()) return@BridgeMinimalCommands false
+            listener.onAction("minimal", session, action, value)
+            true
+        },
+        { minimal.bridgeLive() },
+    )
+    init { minimal.start() }
+    /** JS 侧只在 probe 说 true 时才让出极简页；这里是唯一的判定点。 */
+    private fun minimalPlayerEnabled(): Boolean =
+        io.github.huleixin.tingyu.BuildConfig.COMPOSE_MINIMAL_PLAYER && Build.VERSION.SDK_INT >= 24
+
+    /**
+     * 桥帧：只带 Compose 页没法从原生拿到的部分（模式、可用性、浏览器音频通道的位置）。
+     *
+     * <p>返回"我现在能不能真的画这一页"。JS 只在这个回答为 true 之后才卸掉 WebView 极简页 ——
+     * 于是"原生拿不出页面"永远不会变成一块空白，最多是晚一秒让出。
+     */
+    fun minimalFrame(value: JSONObject): Boolean {
+        minimal.onBridgeFrame(value)
+        return minimalPlayerEnabled() && destination == "stage" && playerPresentation == "minimal" && !webOverlay
+    }
+
+    fun minimalDiagnostics(): JSONObject = minimal.diagnostics()
+        .put("enabled", minimalPlayerEnabled())
+        .put("bound", minimal.bridgeLive())
+
+    /** 交还极简页：JS 侧还有必须由 WebView 画的面板（如队列）时调用，原生立刻停画。 */
+    fun minimalRelease(session: String) {
+        minimal.releaseSession(session)
+    }
     fun setAppearance(mode:String){InterfaceAppearance.save(web.context,mode);appearanceMode=mode}
     private val graphics=GraphicsProbe(web)
     private val webSamplingLayer=WebSamplingLayer(web)
@@ -167,6 +202,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private val savedPageKeys=LinkedHashSet<String>()
     fun status() = JSONObject().put("supported", Build.VERSION.SDK_INT >= 24).put("engine", "compose-backdrop-1.0.6")
         .put("mounted",host != null).put("active",active).put("surfaces",surfaces.values.count { it.enabled && active }).put("updates",updates).put("pages",Build.VERSION.SDK_INT >= 24)
+        // 极简页的能力位：JS 侧只有拿到 true 才让出 WebView 极简页。回滚只需它变 false。
+        .put("minimalPlayer", minimalPlayerEnabled()).put("minimal", minimalDiagnostics())
     fun pageUpdate(value: PreparedNativePage, reply: (JSONObject) -> Unit) {
         check(Build.VERSION.SDK_INT >= 24)
         val next=value.page;val id="page:${next.id}"
@@ -223,7 +260,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         if (surfaces[id]?.session == session) { surfaces.remove(id); clocks.remove(id) }
     }
     fun suspend() { navigationActionSerial++;clearStartupNavigation();active = false;sleepMenuOpen=false;stageExit.clear() }
-    fun resume() { active = true }
+    // 回到前台重读一次权威：后台期间到达的歌词、以及引擎在后台走掉的位置都必须立刻反映出来。
+    fun resume() { active = true; minimal.refreshNow() }
     private fun attach() {
         val original = web.parent as? ViewGroup ?: error("WebView has no parent")
         parent = original; params = web.layoutParams; index = original.indexOfChild(web)
@@ -245,10 +283,19 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val backdrop = rememberLayerBackdrop()
         val stageBackdrop = rememberLayerBackdrop()
         val exitProgress=rememberStageExitProgress(stageExit,reducedMotion)
+        // 极简页归 Compose 所有时，WebView 那条 stage 控制条必须退场：两个传输并排出现
+        // 就是两套「播放/暂停」在同一个屏幕上，和 1.3.119 里「极简页 vs 舞台」的规则一致。
+        // 条件里的 bound 是握手：只有 JS 正在推帧（也就意味着它已经把 WebView 极简页让出来）
+        // 才由原生画。桥不在时这里什么都不画，屏幕上是原来的 WebView 极简页 —— 不会两个都在。
+        // 只订阅这条低频流，整个场景不跟着每秒的状态帧重建。
+        val minimalBound by minimal.bound.collectAsState()
+        val minimalOwns = minimalPlayerEnabled() && destination=="stage" && playerPresentation=="minimal" &&
+            !webOverlay && !stageExit.active && minimalBound
         val visible = if (!webOverlay&&!pendingStageEntry) surfaces.values.filter {
             it.enabled && NativeFooterLayout.visible(it.id,destination,playlistDetail,it.viewportWidth,
                 pageTarget.startsWith("collection:artist:")) &&
-                (it.id!="stage"||it.rect.width>0&&it.rect.height>0)
+                (it.id!="stage"||it.rect.width>0&&it.rect.height>0) &&
+                !(minimalOwns&&it.id=="stage")
         } else emptyList()
         // Reuse the route's one retained composition beneath the collapsing stage.
         // Creating a second underlay would duplicate saveable keys during a quick Back.
@@ -384,6 +431,18 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     }
                 }
             } }
+            // 极简播放页：整页原生绘制，压在 WebView 之上。数据来自 MinimalPlayerRuntime，
+            // 命令回到同一条动作总线；它不持有播放器、队列或计时器。
+            if (minimalOwns) Box(Modifier.fillMaxSize().zIndex(3f)) {
+                MinimalPlayerSurface(
+                    runtime = minimal,
+                    commands = minimalCommands,
+                    modifier = Modifier.fillMaxSize(),
+                    safeTop = safeTop,
+                    safeBottom = safeBottom,
+                    onCollapse = { minimalCommands.collapse() },
+                )
+            }
             if(stageExit.active)Box(Modifier.fillMaxSize().zIndex(4f).pointerInput(Unit){awaitPointerEventScope{while(true)awaitPointerEvent().changes.forEach{it.consume()}}})
             if(graphics.enabled)Text("N · 记闪烁",color=Color(0xFFB8FFE3),fontSize=10.sp,
                 modifier=Modifier.zIndex(20f).offset(12.dp,(safeTop+3).dp).background(Color(0xDD09251C))

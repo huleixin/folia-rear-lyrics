@@ -88,6 +88,30 @@ public class TingyuChromePlugin extends Plugin {
         catch (Exception error) { call.reject(error.getMessage(),error); }
     }); }
     @PluginMethod public void clock(PluginCall call) { getActivity().runOnUiThread(() -> { if (host != null) host.clock(call.getData()); call.resolve(); }); }
+    /**
+     * 极简播放页的桥帧。
+     *
+     * <p>只接收 Compose 页**拿不到**的那几项（播放模式、上一首/下一首可用性、浏览器音频通道的位置）。
+     * 歌名、时长、歌词和 Media3 位置都不走这里 —— 原生自己有权威来源，多一份副本只会多一个
+     * 可能对不上的答案。帧里带 session，宿主据此丢弃换歌前的旧帧。
+     */
+    @PluginMethod public void minimalPlayerFrame(PluginCall call) {
+        final org.json.JSONObject frame = call.getData();
+        getActivity().runOnUiThread(() -> {
+            try {
+                boolean accepted = host != null && host.minimalFrame(frame);
+                call.resolve(new JSObject().put("accepted", accepted));
+            } catch (Exception error) { call.reject(error.getMessage(), error); }
+        });
+    }
+    /** 交还极简页（JS 侧要显示自己的面板时）。session 不匹配则忽略，晚到的 release 拆不掉新会话。 */
+    @PluginMethod public void minimalPlayerRelease(PluginCall call) {
+        final String session = call.getString("session", "");
+        getActivity().runOnUiThread(() -> {
+            try { if (host != null) host.minimalRelease(session); call.resolve(); }
+            catch (Exception error) { call.reject(error.getMessage(), error); }
+        });
+    }
     @PluginMethod public void pageUpdate(PluginCall call) {
         final long parseAt=android.os.SystemClock.elapsedRealtime();
         final PreparedNativePage packet;

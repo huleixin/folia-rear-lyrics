@@ -1,0 +1,165 @@
+import { chromeNative } from './nativeChrome';
+
+// src/services/nativeMinimalPlayer.ts
+// The Compose minimal player's half of the bridge.
+//
+// What crosses this bridge is deliberately small: play mode, neighbour availability, and a
+// position anchor for the browser-audio channel. Song identity, duration, lyrics and the Media3
+// clock are read natively — sending them here as well would create a second answer to
+// "which line is this song on", which is exactly the class of bug this migration must not add.
+//
+// One session per mounted bridge. Native echoes it back on every action, so a command queued
+// against a page that has since changed songs can be dropped instead of seeking the wrong track.
+
+export type MinimalPlayerFrame = {
+    session: string;
+    trackKey: string;
+    title: string;
+    artist: string;
+    album: string;
+    cover: string;
+    playing: boolean;
+    position: number;
+    duration: number;
+    canPrevious: boolean;
+    canNext: boolean;
+    disabled: boolean;
+    preparing: boolean;
+    mode: 'off' | 'all' | 'one' | 'shuffle';
+};
+
+export type MinimalPlayerAction = {
+    id: string;
+    session: string;
+    action: string;
+    value: number;
+};
+
+/** The surface id the Compose page uses on the shared action bus. */
+export const MINIMAL_PLAYER_ACTION_ID = 'minimal';
+
+let session = '';
+
+export const minimalPlayerSession = (): string => session;
+
+/**
+ * Start a new bridge session. Called once per mount; the previous session immediately stops being
+ * accepted by native (`session` no longer matches), so late frames cannot revive a dead page.
+ */
+export const beginMinimalPlayerSession = (): string => {
+    session = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `minimal-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    return session;
+};
+
+/**
+ * Publish one frame. Resolves to whether the host accepted it — the caller uses that as the
+ * hand-off signal: the WebView minimal page is only unmounted after native confirms it has a frame.
+ */
+export const publishMinimalPlayerFrame = async (frame: MinimalPlayerFrame): Promise<boolean> => {
+    if (!session || frame.session !== session) {
+        return false;
+    }
+    try {
+        const result = await chromeNative.minimalPlayerFrame(frame) as { accepted?: boolean } | undefined;
+        return result?.accepted !== false && result !== undefined;
+    } catch {
+        return false;
+    }
+};
+
+/**
+ * Subscribe to actions from the Compose page. Every other surface filters by its own id, so a
+ * listener here can never receive a tap meant for the stage bar or the mini player.
+ */
+export const addMinimalPlayerActionListener = (
+    sessionAtMount: string,
+    listener: (action: string, value: number) => void,
+): Promise<{ remove: () => Promise<void> } | undefined> => {
+    return chromeNative.addListener('action', event => {
+        if (event.id !== MINIMAL_PLAYER_ACTION_ID) return;
+        if (event.session !== sessionAtMount) return;
+        listener(event.action, typeof event.value === 'number' ? event.value : 0);
+    });
+};
+
+/**
+ * Hand the surface back. Called when the WebView has to paint something the native page would
+ * cover (the queue sheet still lives in React in phase 1). Native stops drawing immediately and the
+ * WebView minimal page takes over again.
+ *
+ * Session-scoped: a release that arrives late cannot tear down a newer session's page.
+ */
+export const releaseMinimalPlayerSurface = async (sessionAtMount: string): Promise<void> => {
+    if (!sessionAtMount) return;
+    try {
+        await chromeNative.minimalPlayerRelease({ session: sessionAtMount });
+    } catch {
+        // The next page's frames re-establish the surface anyway.
+    }
+};
+
+/** Everything a Compose action can reach. Built fresh per action so it reads current state. */
+export type MinimalActionHandlers = {
+    /** The song the Compose page is currently showing. */
+    displayedTrackKey: string;
+    /** The song the last acknowledged frame described. */
+    publishedTrackKey: string;
+    playing: boolean;
+    togglePlay: () => void;
+    previous: () => void;
+    next: () => void;
+    seek: (seconds: number) => void;
+    toggleLoop: () => void;
+    openQueue: () => void;
+    collapse: () => void;
+};
+
+/**
+ * One place that turns a Compose action into an existing app command.
+ *
+ * Two rules are worth stating, because they are the difference between "works" and "seeks the
+ * previous song":
+ *  · `play`/`pause` never toggle blindly — the page may be a second stale and the transport must not
+ *    invert the opposite of what the listener sees;
+ *  · `seek` is dropped when the page's song and the frame's song disagree. A position is only
+ *    meaningful for the track it was measured in.
+ *
+ * Returns whether the action was accepted, so the caller can log or ignore it.
+ */
+export function dispatchMinimalAction(action: string, value: number, handlers: MinimalActionHandlers): boolean {
+    switch (action) {
+        case 'toggle':
+            handlers.togglePlay();
+            return true;
+        case 'play':
+            if (!handlers.playing) handlers.togglePlay();
+            return true;
+        case 'pause':
+            if (handlers.playing) handlers.togglePlay();
+            return true;
+        case 'previous':
+            handlers.previous();
+            return true;
+        case 'next':
+            handlers.next();
+            return true;
+        case 'seek':
+            if (handlers.displayedTrackKey !== handlers.publishedTrackKey) return false;
+            if (!Number.isFinite(value)) return false;
+            handlers.seek(Math.max(0, value));
+            return true;
+        case 'loop':
+            handlers.toggleLoop();
+            return true;
+        case 'queue':
+            handlers.openQueue();
+            return true;
+        case 'collapse':
+            handlers.collapse();
+            return true;
+        default:
+            return false;
+    }
+}

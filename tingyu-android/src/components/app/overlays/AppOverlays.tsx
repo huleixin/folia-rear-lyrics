@@ -14,6 +14,7 @@ import { useAppViewStore } from '../../../stores/useAppViewStore';
 import { usePlayerViewModeStore } from '../../../stores/usePlayerViewModeStore';
 import { useSearchNavigationStore } from '../../../stores/useSearchNavigationStore';
 import { scheduleUiWarmup } from '../../../services/uiWarmup';
+import { useNativeMinimalPlayer } from '../../../hooks/useNativeMinimalPlayer';
 
 // Centralized app-level overlay renderer so App.tsx does not mount leaf overlays directly.
 type AppOverlaysProps = {
@@ -64,6 +65,19 @@ const AppOverlays: React.FC<AppOverlaysProps> = ({ model }) => {
         floatingControls,
         nowPlayingToast,
     } = model;
+    // The minimal player's Compose migration (phase 1). Native takes the surface over only after it
+    // acks a frame, so a host that cannot render it leaves today's WebView page in place.
+    //
+    // While a JS sheet is open (the queue panel) the surface is handed back: the native page is a
+    // full-window layer and would cover a panel that still lives in the WebView. Phase 2 replaces
+    // that panel natively; until then a hand-off is better than an invisible queue.
+    const panelOpen = useAppViewStore(state => state.isPanelOpen);
+    const nativeMinimal = useNativeMinimalPlayer({
+        enabled: ownsMinimalStage && !panelOpen,
+        chrome: model.mobileStage,
+        controls: floatingControls,
+    });
+    const ownsWebMinimalStage = ownsMinimalStage && !nativeMinimal.owns;
 
     return (
         <>
@@ -73,7 +87,7 @@ const AppOverlays: React.FC<AppOverlaysProps> = ({ model }) => {
 
             {memoryMonitor && <Suspense fallback={null}><MemoryMonitorWindow {...memoryMonitor} /></Suspense>}
 
-            {ownsMinimalStage && <Suspense fallback={null}><MinimalStage chrome={model.mobileStage!} controls={floatingControls ?? null} /></Suspense>}
+            {ownsWebMinimalStage && <Suspense fallback={null}><MinimalStage chrome={model.mobileStage!} controls={floatingControls ?? null} /></Suspense>}
 
             {ownsStageChrome && <Suspense fallback={null}><MobileStageChrome chrome={model.mobileStage!} controls={floatingControls ?? null} /></Suspense>}
 

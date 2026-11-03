@@ -116,6 +116,19 @@ public final class UnifiedLyricsStore {
 
     private int writesSincePrune;
     private final File dir;
+    /** 进程内读者（Compose 极简播放页）的变更通知：只在**接受**了一次写入后触发。 */
+    public interface Observer { void onLyricsRecordChanged(String songKey); }
+    private final java.util.concurrent.CopyOnWriteArrayList<Observer> observers =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+    public void observe(Observer observer) {
+        if (observer != null && !observers.contains(observer)) observers.add(observer);
+    }
+    public void unobserve(Observer observer) { observers.remove(observer); }
+    private void notifyRecordChanged(String songKey) {
+        for (Observer observer : observers) {
+            try { observer.onLyricsRecordChanged(songKey); } catch (Throwable ignored) { /* 读者异常不影响仓库 */ }
+        }
+    }
     private volatile java.util.Set<String> protectedNames = java.util.Collections.emptySet();
     /** 写入串行化：单线程执行器保证同首歌的两次写不交叉。 */
     private final ExecutorService writer = Executors.newSingleThreadExecutor(runnable -> {
@@ -179,6 +192,7 @@ public final class UnifiedLyricsStore {
         }
         final String key = songKey;
         writer.execute(() -> writeDisk(key, next));
+        notifyRecordChanged(songKey);
         return true;
     }
 
@@ -206,6 +220,7 @@ public final class UnifiedLyricsStore {
             memory.put(songKey, next);
         }
         writer.execute(() -> writeDisk(songKey, next));
+        notifyRecordChanged(songKey);
         return true;
     }
 

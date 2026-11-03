@@ -258,6 +258,24 @@ public final class RearNativeLyricLines {
         return rows(lyric, payload.optString("translationLyric", ""), songKey);
     }
 
+    /**
+     * Compose 极简播放页要的行结构：与背屏**同一份** rows、同一份版本仲裁、同一处偏移烘焙。
+     *
+     * <p>刻意不新开一条取词/选版链：只要多一条链，就有第二种「这首歌唱哪版词」的答案。
+     * 返回值语义与 {@link #json} 一致：{@code null} = 还在等（不是无词），
+     * {@code state:none} = 确认无词，{@code state:ready} = 可渲染。
+     */
+    public static String rowsJson(Context context, String songKey) {
+        if (songKey == null || songKey.isEmpty()) return null;
+        return build(context, songKey);
+    }
+
+    /** rows 的版本指纹（桥版本 + 仓库 revision + renderModel 哈希），只用于判断"换没换版本"。 */
+    public static String versionOf(Context context, String songKey) {
+        if (songKey == null || songKey.isEmpty()) return "";
+        return cacheKey(context, songKey);
+    }
+
     /** 纯函数：两段 LRC → 背屏行结构。单测直接调用它，不碰磁盘与网络。 */
     public static String rows(String lrc, String translation, String songKey) {
         List<LrcParser.Line> lines = LrcParser.parse(lrc == null ? "" : lrc);

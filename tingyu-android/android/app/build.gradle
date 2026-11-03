@@ -40,6 +40,10 @@ android {
     }
     defaultConfig {
         buildConfigField 'boolean', 'COMPOSE_CHROME', (System.getenv('TINGYU_COMPOSE_CHROME') == 'false' ? 'false' : 'true')
+        // 极简播放页 Compose 原生化的总开关。**默认关闭**：第一阶段没有真机验证，界面观感、交接、
+        // 兼容通道下的进度都还没在设备上跑过。打开方式：TINGYU_COMPOSE_MINIMAL=true。
+        // 关闭时 probe().minimalPlayer=false，JS 侧继续挂 WebView 极简页 —— 这就是回滚。
+        buildConfigField 'boolean', 'COMPOSE_MINIMAL_PLAYER', (System.getenv('TINGYU_COMPOSE_MINIMAL') == 'true' ? 'true' : 'false')
         buildConfigField 'boolean', 'GLASS_LAB', (System.getenv('TINGYU_GLASS_LAB') == 'true' ? 'true' : 'false')
         buildConfigField 'boolean', 'NATIVE_PLAYBACK', (System.getenv('TINGYU_NATIVE_PLAYBACK') == 'false' ? 'false' : 'true')
         buildConfigField 'boolean', 'PLAYBACK_ENGINE_TEST', (playbackTestBuild || graphicsTestBuild).toString()
