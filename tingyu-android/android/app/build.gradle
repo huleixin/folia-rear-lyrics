@@ -67,6 +67,12 @@ android {
     }
     buildFeatures { buildConfig true; compose true }
     kotlinOptions { jvmTarget = '21' }
+    testOptions {
+        unitTests {
+            // Robolectric 需要真实的合并清单与资源，才能渲染真实的 Compose 组合。
+            includeAndroidResources = true
+        }
+    }
     signingConfigs {
         if (hasReleaseKeystore) {
             release {
@@ -125,6 +131,11 @@ dependencies {
     testImplementation "junit:junit:$junitVersion"
     // Use the real JSON implementation for presentation-contract JVM tests.
     testImplementation 'org.json:json:20250517'
+    // 真机不可用时的等价验证：Robolectric 的 NATIVE 图形栈把真实的 Compose 组合渲染成位图，
+    // 极简页的截图与动效帧因此能在 JVM 上跑出来（不是模拟出来的贴图）。
+    testImplementation 'org.robolectric:robolectric:4.17'
+    testImplementation 'androidx.compose.ui:ui-test-junit4:1.10.3'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest:1.10.3'
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4:1.10.3'
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

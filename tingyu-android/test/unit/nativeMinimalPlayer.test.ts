@@ -17,6 +17,8 @@ const handlers = (overrides: Partial<MinimalActionHandlers> = {}): MinimalAction
         toggleLoop: () => calls.push('loop'),
         openQueue: () => calls.push('queue'),
         collapse: () => calls.push('collapse'),
+        like: () => calls.push('like'),
+        openStage: () => calls.push('stage'),
         ...overrides,
     };
 };
@@ -65,6 +67,13 @@ describe('compose minimal player actions', () => {
         expect(dispatchMinimalAction('seek', Number.POSITIVE_INFINITY, h)).toBe(false);
         dispatchMinimalAction('seek', -9, h);
         expect(h.calls).toEqual(['seek:0']);
+    });
+
+    it('routes the header actions without touching the transport', () => {
+        const h = handlers();
+        expect(dispatchMinimalAction('like', 0, h)).toBe(true);
+        expect(dispatchMinimalAction('openStage', 0, h)).toBe(true);
+        expect(h.calls).toEqual(['like', 'stage']);
     });
 
     it('ignores actions it does not know', () => {

@@ -42,6 +42,18 @@ data class MinimalControls(
     val mode: String = "off",
     /** 桥帧是否还在有效期内。为 false 时命令不可发。 */
     val bound: Boolean = false,
+    /** 音质标签（容器 + 平台规格），JS 侧已经拼好，原生只负责画。 */
+    val quality: String = "",
+    val qualityGold: Boolean = false,
+    val liked: Boolean = false,
+    val likeDisabled: Boolean = true,
+    /**
+     * 正在「顺访」完整歌词舞台。
+     *
+     * 舞台仍然是 WebView，而原生页是整窗图层：不把这个状态带过来，原生页会盖在舞台上面。
+     * 它不改变播放与歌词，只决定这一页现在该不该出现。
+     */
+    val detour: Boolean = false,
 )
 
 data class MinimalPlayerState(
@@ -49,6 +61,21 @@ data class MinimalPlayerState(
     val lyrics: MinimalLyrics = MinimalLyrics(),
     val controls: MinimalControls = MinimalControls(),
     val revision: Long = 0L,
+)
+
+/**
+ * 封面与它的取色。
+ *
+ * [settled] 表示"这张图已经有结论了"（解码成功或确定失败）。封面页用它做交叉淡化的门：
+ * 新封面没解码完之前保持旧封面，而不是先切到空白再补图。取色只算一次，与主题无关 ——
+ * 深浅色各自从同一份 [CoverColors] 派生，切主题不需要重新采样。
+ */
+data class MinimalArtwork(
+    val songKey: String = "",
+    val url: String = "",
+    val bitmap: android.graphics.Bitmap? = null,
+    val colors: CoverColors? = null,
+    val settled: Boolean = false,
 )
 
 /**
@@ -72,6 +99,11 @@ data class MinimalBridgeFrame(
     val disabled: Boolean = false,
     val preparing: Boolean = false,
     val mode: String = "off",
+    val quality: String = "",
+    val qualityGold: Boolean = false,
+    val liked: Boolean = false,
+    val likeDisabled: Boolean = true,
+    val detour: Boolean = false,
     val receivedAtElapsed: Long = 0L,
 ) {
     companion object {
@@ -93,6 +125,11 @@ data class MinimalBridgeFrame(
                 disabled = value.optBoolean("disabled", false),
                 preparing = value.optBoolean("preparing", false),
                 mode = value.optString("mode", "off").takeIf { it in MODES } ?: "off",
+                quality = value.optString("quality", "").take(40),
+                qualityGold = value.optBoolean("qualityGold", false),
+                liked = value.optBoolean("liked", false),
+                likeDisabled = value.optBoolean("likeDisabled", true),
+                detour = value.optBoolean("detour", false),
                 receivedAtElapsed = nowElapsed,
             )
         }
@@ -137,6 +174,9 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
     private val lyricsIo = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "minimal-player-lyrics").apply { isDaemon = true }
     }
+    private val artworkIo = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "minimal-player-artwork").apply { isDaemon = true }
+    }
     private val store = UnifiedLyricsStore.get(appContext)
     private val revisionCounter = AtomicInteger(0)
 
@@ -150,6 +190,9 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
     private val _bound = MutableStateFlow(false)
     val bound: StateFlow<Boolean> = _bound.asStateFlow()
 
+    private val _artwork = MutableStateFlow(MinimalArtwork())
+    val artwork: StateFlow<MinimalArtwork> = _artwork.asStateFlow()
+
     @Volatile
     private var frame: MinimalBridgeFrame? = null
 
@@ -162,6 +205,10 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
     /** 已经在飞的歌词读取（同一首只留最后一次）。 */
     @Volatile
     private var lyricRequestToken = 0
+
+    /** 封面读取代次。 */
+    @Volatile
+    private var artworkRequestToken = 0
 
     private var lyricRetryAttempts = 0
     private var lyricRetrySong = ""
@@ -355,6 +402,11 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
             // 「已经交接过」是长期事实：原生据此决定画不画这一页。命令能不能发用 {@link #bridgeLive()}，
             // 那是严格的新鲜度判断 —— 两者混用会出现「页面在、按钮全灰」或者「页面没了、按钮还亮」。
             bound = bridge != null && bridge.session.isNotEmpty(),
+            quality = bridge?.quality ?: "",
+            qualityGold = bridge?.qualityGold == true,
+            liked = bridge?.liked == true,
+            likeDisabled = bridge?.likeDisabled ?: true,
+            detour = bridge?.detour == true,
         )
         return MinimalPlayerState(
             playback = playback,
@@ -374,6 +426,11 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
             requestLyrics(next.playback.track.key, next.playback.epoch, force = true)
         } else if (next.lyrics.status == MinimalLyricsStatus.LOADING && previous.lyrics.status != MinimalLyricsStatus.LOADING) {
             scheduleLyricRetry(next.playback.track.key, next.playback.epoch)
+        }
+        if (previous.playback.track.key != next.playback.track.key ||
+            previous.playback.track.artwork != next.playback.track.artwork
+        ) {
+            requestArtwork(next.playback.track.key, next.playback.track.artwork)
         }
     }
 
@@ -435,6 +492,65 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
     fun refreshNow() {
         requestLyrics(_state.value.playback.track.key, _state.value.playback.epoch, force = true)
         scheduleRefresh()
+    }
+
+    // ---- 封面 ----
+
+    /**
+     * 取封面并按一次色。只在换歌/换封面时触发；结果带 (songKey, url) 校验，旧歌的结果丢弃。
+     *
+     * 阻塞读放在后台线程（仓库内部是内存 LRU + 磁盘 + 受控下载），解码完再回主线程发布 ——
+     * 封面页的交叉淡化要的正是"图已经在了"这个时刻。
+     */
+    fun requestArtwork(songKey: String, url: String) {
+        val token = ++artworkRequestToken
+        if (songKey.isEmpty()) {
+            _artwork.value = MinimalArtwork(settled = true)
+            return
+        }
+        val previous = _artwork.value
+        // 同一首歌、同一张图：已经有结论就不重复读（列表滚动或状态刷新会反复经过这里）。
+        if (previous.songKey == songKey && previous.url == url && previous.settled) return
+        artworkIo.execute {
+            val bitmap = try {
+                loadArtworkBitmap(songKey, url)
+            } catch (_: Throwable) {
+                null
+            }
+            val colors = coverColorsOf(bitmap)
+            main.post {
+                if (token != artworkRequestToken) return@post
+                if (_state.value.playback.track.key != songKey) return@post
+                _artwork.value = MinimalArtwork(
+                    songKey = songKey,
+                    url = url,
+                    bitmap = bitmap,
+                    colors = colors,
+                    settled = true,
+                )
+            }
+        }
+    }
+
+    private fun loadArtworkBitmap(songKey: String, url: String): android.graphics.Bitmap? {
+        if (url.isBlank()) return null
+        val lower = url.lowercase(java.util.Locale.US)
+        if (lower.startsWith("http://") || lower.startsWith("https://")) {
+            return io.github.huleixin.tingyu.playback.NativeArtworkRepository.get(appContext)
+                .load(songKey, url)?.bitmap
+        }
+        // 本地曲库的封面是 content:// 或 file://；仓库只走网络，这里直接解码。
+        // blob: 是 WebView 内部的临时 URL，原生读不到 —— 那种封面会显示占位图。
+        if (lower.startsWith("content://") || lower.startsWith("file://")) {
+            return try {
+                appContext.contentResolver.openInputStream(android.net.Uri.parse(url))?.use { stream ->
+                    android.graphics.BitmapFactory.decodeStream(stream)
+                }
+            } catch (_: Throwable) {
+                null
+            }
+        }
+        return null
     }
 
     /** 诊断：一眼看清这一页现在读到了什么，不返回歌词正文。 */

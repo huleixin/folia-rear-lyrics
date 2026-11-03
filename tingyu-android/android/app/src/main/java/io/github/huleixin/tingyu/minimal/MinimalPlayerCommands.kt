@@ -28,6 +28,8 @@ object MinimalActions {
     const val LOOP = "loop"
     const val QUEUE = "queue"
     const val COLLAPSE = "collapse"
+    const val LIKE = "like"
+    const val OPEN_STAGE = "openStage"
 }
 
 interface MinimalPlayerCommands {
@@ -50,6 +52,12 @@ interface MinimalPlayerCommands {
 
     /** 收起播放页（回到资料库）。 */
     fun collapse(): Boolean
+
+    /** 喜欢 / 取消喜欢当前曲。 */
+    fun like(): Boolean
+
+    /** 顺访完整歌词舞台（仍由 WebView 渲染）。 */
+    fun openStage(): Boolean
 }
 
 /**
@@ -80,6 +88,8 @@ class BridgeMinimalCommands(
     override fun cycleMode(): Boolean = send(MinimalActions.LOOP, 0.0)
     override fun openQueue(): Boolean = send(MinimalActions.QUEUE, 0.0)
     override fun collapse(): Boolean = send(MinimalActions.COLLAPSE, 0.0)
+    override fun like(): Boolean = send(MinimalActions.LIKE, 0.0)
+    override fun openStage(): Boolean = send(MinimalActions.OPEN_STAGE, 0.0)
 
     private fun send(action: String, value: Double): Boolean {
         if (!available) return false

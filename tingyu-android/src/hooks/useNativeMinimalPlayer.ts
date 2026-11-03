@@ -4,6 +4,9 @@ import { PlayerState } from '../types';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
 import { resolvePlaybackMode } from '../utils/playbackMode';
 import { useAppViewStore } from '../stores/useAppViewStore';
+import { usePlayerViewModeStore } from '../stores/usePlayerViewModeStore';
+import i18n from '../i18n/config';
+import { resolveQualityBadges } from '../components/app/overlays/minimal-stage/minimalQuality';
 import { canUseComposeChrome } from '../services/nativeChrome';
 import {
     addMinimalPlayerActionListener,
@@ -67,6 +70,11 @@ export function useNativeMinimalPlayer({
             ? getPlaybackSongKey(song.track)
             : currentControls.trackNavigation?.currentTrackKey ?? '';
         const position = currentControls.currentTime?.get?.() ?? 0;
+        const badges = resolveQualityBadges(song?.track?.catalogAudioSpecs, currentControls.audioSrc);
+        const quality = badges
+            .map(badge => (badge.id === 'spec' ? i18n.t(`catalogAudioSpecs.${badge.value}`) : badge.value))
+            .join(' · ');
+        const likeContext = currentControls.slotContext;
         return {
             session,
             trackKey,
@@ -86,6 +94,11 @@ export function useNativeMinimalPlayer({
             // `resolvePlaybackMode` says 'order' for plain sequential play; native's vocabulary for
             // the same state is 'off'. One mapping, in one direction.
             mode: toNativeMode(resolvePlaybackMode(currentControls.shuffleEnabled, currentControls.loopMode)),
+            quality,
+            qualityGold: badges.some(badge => badge.tone === 'gold'),
+            liked: !!likeContext?.isLiked,
+            likeDisabled: !likeContext || !!likeContext.likeDisabled,
+            detour: usePlayerViewModeStore.getState().detour,
         };
     }, []);
 
@@ -144,6 +157,9 @@ export function useNativeMinimalPlayer({
                     view.setIsPanelOpen(true);
                 },
                 collapse: () => currentChrome?.onBack(),
+                like: () => latest.current.controls?.slotContext?.onLike?.(),
+                // 顺访舞台：交给 store 的既有语义（detour），退出由舞台自己 closeStage。
+                openStage: () => usePlayerViewModeStore.getState().openStage(),
             });
             // A seek or a transport tap changes the position the next frame describes. On the
             // browser-audio channel this frame is native's only clock, so send it now instead of
@@ -189,6 +205,9 @@ export function useNativeMinimalPlayer({
         current.controls?.shuffleEnabled ? 's' : '',
         current.controls?.trackNavigation?.canPrev ? 'p' : '',
         current.controls?.trackNavigation?.canNext ? 'n' : '',
+        current.controls?.slotContext?.isLiked ? 'l' : '',
+        usePlayerViewModeStore.getState().detour ? 'd' : '',
+        current.controls?.audioSrc ? 'a' : '',
     ].join('|');
     useEffect(() => {
         if (!enabled || !identity) return;

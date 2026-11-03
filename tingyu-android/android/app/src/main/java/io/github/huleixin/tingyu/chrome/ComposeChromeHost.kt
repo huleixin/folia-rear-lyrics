@@ -21,10 +21,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
@@ -431,16 +434,29 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     }
                 }
             } }
-            // 极简播放页：整页原生绘制，压在 WebView 之上。数据来自 MinimalPlayerRuntime，
-            // 命令回到同一条动作总线；它不持有播放器、队列或计时器。
-            if (minimalOwns) Box(Modifier.fillMaxSize().zIndex(3f)) {
+            // 极简播放页：整页原生绘制，压在 WebView 之上。
+            // 进场是从迷你播放器位置升起来（420ms），退场是落下去（300ms）—— 与原页面同一组曲线。
+            AnimatedVisibility(
+                visible = minimalOwns,
+                enter = slideInVertically(
+                    animationSpec = tween(420, easing = CubicBezierEasing(.2f, .72f, .16f, 1f)),
+                    initialOffsetY = { it },
+                ) + fadeIn(tween(220)),
+                exit = slideOutVertically(
+                    animationSpec = tween(300, easing = CubicBezierEasing(.42f, 0f, .74f, .3f)),
+                    targetOffsetY = { it },
+                ) + fadeOut(tween(200)),
+                modifier = Modifier.fillMaxSize().zIndex(3f),
+            ) {
                 MinimalPlayerSurface(
                     runtime = minimal,
                     commands = minimalCommands,
-                    modifier = Modifier.fillMaxSize(),
+                    light = interfaceLight,
                     safeTop = safeTop,
                     safeBottom = safeBottom,
                     onCollapse = { minimalCommands.collapse() },
+                    onOpenStage = { minimalCommands.openStage() },
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
             if(stageExit.active)Box(Modifier.fillMaxSize().zIndex(4f).pointerInput(Unit){awaitPointerEventScope{while(true)awaitPointerEvent().changes.forEach{it.consume()}}})

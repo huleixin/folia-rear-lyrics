@@ -26,6 +26,17 @@ export type MinimalPlayerFrame = {
     disabled: boolean;
     preparing: boolean;
     mode: 'off' | 'all' | 'one' | 'shuffle';
+    /** Ready-to-render quality caption ("FLAC · 无损"), already translated on this side. */
+    quality: string;
+    /** The chip's gold tone, decided by `resolveQualityBadges`, not by the caption text. */
+    qualityGold: boolean;
+    liked: boolean;
+    likeDisabled: boolean;
+    /**
+     * True while the listener is looking at the full lyric stage. The native page is a full-window
+     * layer, so it must step aside instead of covering a stage that still lives in the WebView.
+     */
+    detour: boolean;
 };
 
 export type MinimalPlayerAction = {
@@ -114,6 +125,9 @@ export type MinimalActionHandlers = {
     toggleLoop: () => void;
     openQueue: () => void;
     collapse: () => void;
+    like: () => void;
+    /** 顺访完整歌词舞台。舞台仍是 WebView，原生页交还界面。 */
+    openStage: () => void;
 };
 
 /**
@@ -158,6 +172,12 @@ export function dispatchMinimalAction(action: string, value: number, handlers: M
             return true;
         case 'collapse':
             handlers.collapse();
+            return true;
+        case 'like':
+            handlers.like();
+            return true;
+        case 'openStage':
+            handlers.openStage();
             return true;
         default:
             return false;
