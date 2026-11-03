@@ -57,7 +57,7 @@ assets/public/assets/MinimalStage-Blzja3s7.css    (12563 B)
 | 文件 | 大小 | 签名 | versionCode | versionName |
 | --- | --- | --- | --- | --- |
 | `debug/app-debug.apk` | 60,804,566 B | Android Debug（`CN=Android Debug`） | 142 | 1.3.119 |
-| `release/app-release-unsigned.apk` | 56,175,497 B | **未签名** | 142 | 1.3.119 |
+| `release/app-release.apk` | 56,453,448 B | **官方发布密钥**（`CN=Tingyu, OU=Android, O=huleixin, C=CN`） | 142 | 1.3.119 |
 
 包名：`io.github.huleixin.tingyu`（未改）。
 
@@ -65,35 +65,46 @@ assets/public/assets/MinimalStage-Blzja3s7.css    (12563 B)
 
 ```text
 1744b29f7dd707a8f41ff84b2899da785c6fddb988a5951289657aa3237783f5  app-debug.apk
-597a2fa8c0bd5f8092b538559be5717ff69320cb5ac1c4416af753726df776a7  app-release-unsigned.apk
+67594fdde82b4021fa20849f8c234e3d4845aa7981ff87285c559b9d5c927dec  app-release.apk
 ```
 
 ### 签名状态（重要）
 
-`apksigner verify`：
+本机找到了官方发布密钥 `tingyu-release.p12`（明文口令在其同目录
+`signing-password.txt`），已按 BUILD.md 记录的机制接入：`android/keystore.properties`
+（被 `.gitignore:56` 忽略，未进版本库，`git status` 中无任何 `p12/jks/keystore`）。
+
+`node dev/build/verifyApkSignature.mjs` 的输出：
 
 ```
-debug/app-debug.apk            → 通过，证书 CN=Android Debug
-                                  SHA-256 8c1740d699242f6c540ec8b4e54d45fa127858b900db632e8d2224bebced13ae
-release/app-release-unsigned.apk → DOES NOT VERIFY / Missing META-INF/MANIFEST.MF
+✓ app-release.apk 由官方发布密钥签名
+  证书: CN=Tingyu, OU=Android, O=huleixin, C=CN
+  SHA-256: a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d
 ```
 
-本机**没有**原发布密钥（`tingyu-release.p12`，证书 `CN=Tingyu, OU=Android, O=huleixin, C=CN`）。
-因此：
+该指纹与仓库文档记录的历史发布证书完全一致（`docs/android-1.3.69-resource-cache.md`、
+`docs/android-1.3.71-lyrics-cache-audit.md`、`audits/lx-native-background-playback-v1.3.48.md`
+均记录 `a36ef2a5…02249d` / SHA-1 `9D:F0:3C:FB:…`），因此：
 
-- 这两个包**都不能覆盖安装**已安装的官方 1.3.118（签名不同）；
-- 它们是可安装、可测试的构建产物，不是可直接分发的更新包。
+- `release/app-release.apk` **可以直接覆盖安装**官方 1.3.118，不需要卸载，不丢数据；
+- 前提是设备上装的确实是官方包，且该包的 `versionCode` ≤ 142。
 
-要得到可覆盖安装的包，请用官方密钥对 `app-release-unsigned.apk` 重签（与 BUILD.md 记录的流程一致）：
+签名方案（`apksigner verify --verbose`）：v2 = true，v3 = true，v1 = false
+（minSdk 24，与官方历史包一致）。
+
+### 复现方式
 
 ```bash
-apksigner sign --ks tingyu-release.p12 --ks-key-alias tingyu-release \
-  --ks-pass pass:<口令> --key-pass pass:<口令> \
-  --v1-signing-enabled false --v2-signing-enabled true --v3-signing-enabled true \
-  --out Tingyu-Android-v1.3.119.apk app-release-unsigned.apk
+# android/keystore.properties（不入库）
+#   storeFile=<绝对路径>/tingyu-release.p12
+#   storePassword=<口令>   keyAlias=tingyu-release   keyPassword=<口令>
+cd tingyu-android/android
+JAVA_HOME=<jdk21> ./gradlew assembleRelease --no-daemon
+cd .. && node dev/build/verifyApkSignature.mjs android/app/build/outputs/apk/release/app-release.apk
 ```
 
-我没有生成任何新密钥，也没有把 debug 包描述成可覆盖安装的更新。
+`app/build.gradle` 检测到 `keystore.properties` 存在才启用 `signingConfigs.release`，
+文件不存在时回退为未签名构建——没有密钥的人克隆仓库不会构建失败。
 
 ## 4. 未执行
 

@@ -230,6 +230,12 @@ package.json / package-lock.json     1.3.119 / versionCode 142
 
 见 `BUILD-1.3.119.md`（构建命令、产物、SHA-256、签名状态）。
 
+`release/app-release.apk` 由官方发布密钥签名，证书 SHA-256
+`a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d`，与 1.3.59 以来的历史发布包
+一致（`dev/build/verifyApkSignature.mjs` 判定通过），versionCode 142 > 1.3.118 的 141，
+**可直接覆盖安装、保留用户数据**。密钥材料位于仓库之外的
+`Documents/Codex/2026-10-22/.../tingyu-private/`，仅通过被忽略的 `android/keystore.properties` 引用。
+
 ## 九、提交
 
 已推送到 `main`：
