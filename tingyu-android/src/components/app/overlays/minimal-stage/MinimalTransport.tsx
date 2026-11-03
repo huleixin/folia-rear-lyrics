@@ -72,9 +72,24 @@ export default function MinimalTransport({ controls }: { controls: Controls }) {
                     onClick={controls.onTogglePlay}
                 >
                     <span className="min-play-ring" aria-hidden="true" />
-                    {playing
-                        ? <Pause size={26} strokeWidth={0} fill="currentColor" />
-                        : <Play size={26} strokeWidth={0} fill="currentColor" className="min-play-glyph" />}
+                    <span className="min-play-glyph" aria-hidden="true">
+                        <Pause
+                            className="min-play-icon"
+                            data-slot="pause"
+                            data-on={playing ? '' : undefined}
+                            size={26}
+                            strokeWidth={0}
+                            fill="currentColor"
+                        />
+                        <Play
+                            className="min-play-icon"
+                            data-slot="play"
+                            data-on={playing ? undefined : ''}
+                            size={26}
+                            strokeWidth={0}
+                            fill="currentColor"
+                        />
+                    </span>
                 </button>
                 <button
                     type="button"

@@ -166,12 +166,15 @@ export type MinimalPalette = {
 
 const DARK_LIGHT = {
     /* Calibrated against the reference: the page floor is a dark teal (~rgb 20,38,34) rather than
-       black, and the artwork's own colours carry the middle band at roughly 45% lightness. */
-    base: { s: [0.2, 0.38], l: [0.1, 0.135] },
-    primary: { s: [0.18, 0.42], l: [0.19, 0.29] },
-    secondary: { s: [0.14, 0.34], l: [0.16, 0.25] },
-    bloom: { s: [0.42, 0.7], l: [0.42, 0.56] },
-    accent: { s: [0.4, 0.72], l: [0.58, 0.72] },
+       black, and the artwork's own colours carry the middle band at roughly 45% lightness.
+       The ranges are wide on purpose. Narrower bounds (the first cut used 0.18–0.42 / 0.19–0.29)
+       flattened every sleeve into the same teal; a wide sleeve and a blue one have to land on
+       visibly different pages. */
+    base: { s: [0.34, 0.5], l: [0.075, 0.105] },
+    primary: { s: [0.3, 0.52], l: [0.115, 0.175] },
+    secondary: { s: [0.26, 0.46], l: [0.1, 0.16] },
+    bloom: { s: [0.36, 0.68], l: [0.4, 0.55] },
+    accent: { s: [0.34, 0.6], l: [0.6, 0.75] },
 } as const;
 
 const LIGHT_LIGHT = {
@@ -179,7 +182,7 @@ const LIGHT_LIGHT = {
     primary: { s: [0.18, 0.4], l: [0.84, 0.905] },
     secondary: { s: [0.14, 0.34], l: [0.88, 0.94] },
     bloom: { s: [0.24, 0.5], l: [0.72, 0.84] },
-    accent: { s: [0.45, 0.72], l: [0.34, 0.46] },
+    accent: { s: [0.4, 0.62], l: [0.33, 0.44] },
 } as const;
 
 /**
@@ -202,25 +205,32 @@ export const buildMinimalPalette = (
     const accentSource = colors.accent;
 
     const base = constrain(
-        { h: blendHue(primary.h, TINGYU_INK_HUE, 0.72), s: primary.s, l: primary.l },
+        { h: blendHue(primary.h, TINGYU_INK_HUE, 0.9), s: primary.s, l: primary.l },
         { s: scale.base.s, l: scale.base.l },
     );
     const fieldPrimary = constrain(primary, {
         hue: TINGYU_INK_HUE,
-        huePull: 0.42,
+        huePull: 0.78,
         s: scale.primary.s,
         l: scale.primary.l,
     });
     const fieldSecondary = constrain(secondary, {
         hue: TINGYU_INK_HUE,
-        huePull: 0.5,
+        huePull: 0.86,
         s: scale.secondary.s,
         l: scale.secondary.l,
     });
-    const bloom = constrain(colors.average, { s: scale.bloom.s, l: scale.bloom.l });
+    // A near-grey average has hue 0 in HSL, and clamping its saturation up would paint a red glow
+    // behind a black-and-white sleeve. Keep the artwork's lightness, take the hue from the cover's
+    // most usable colour instead.
+    const averageHasHue = colors.average.s > 0.07;
+    const bloomSource = averageHasHue
+        ? colors.average
+        : { h: TINGYU_INK_HUE, s: colors.average.s, l: colors.average.l };
+    const bloom = constrain(bloomSource, { s: scale.bloom.s, l: scale.bloom.l });
     const accent = constrain(accentSource, {
         hue: TINGYU_INK_HUE,
-        huePull: 0.55,
+        huePull: 0.9,
         s: scale.accent.s,
         l: scale.accent.l,
     });

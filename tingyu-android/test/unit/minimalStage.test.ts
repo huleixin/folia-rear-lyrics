@@ -129,6 +129,41 @@ describe('minimal palette', () => {
         };
         expect(buildMinimalPalette(themeColors, 'dark', false).derived).toBe(false);
     });
+
+    const hueOf = (css: string) => {
+        const match = /rgb\((\d+) (\d+) (\d+)\)/.exec(css)!;
+        return rgbToHsl({ r: Number(match[1]), g: Number(match[2]), b: Number(match[3]) }).h;
+    };
+    const ringDistance = (left: number, right: number) => Math.abs(((left - right + 540) % 360) - 180);
+    const cover = (hue: number, saturation = 0.8, lightness = 0.5) => ({
+        primary: { h: hue, s: saturation, l: lightness },
+        secondary: { h: (hue + 40) % 360, s: saturation * 0.9, l: lightness * 0.9 },
+        accent: { h: hue, s: saturation, l: 0.7 },
+        average: { h: hue, s: saturation * 0.8, l: lightness },
+    });
+
+    it('keeps the sung-lyric highlight in the ink family whatever the cover is', () => {
+        // The accent is what a sung character turns into. Picking it straight off a sunset sleeve
+        // gives lime; pulling it 90% of the way to the ink hue gives the mint the design asks for.
+        for (const hue of [25, 100, 200, 330]) {
+            const palette = buildMinimalPalette(cover(hue), 'dark');
+            expect(ringDistance(hueOf(palette.accent), TINGYU_INK_HUE)).toBeLessThan(24);
+        }
+    });
+
+    it('does not invent a hue for a colourless cover', () => {
+        // A near-grey average has hue 0 in HSL. Clamping its saturation up would paint a red glow
+        // behind a black-and-white sleeve.
+        const palette = buildMinimalPalette(cover(0, 0.02, 0.5), 'dark');
+        expect(ringDistance(hueOf(palette.bloom), TINGYU_INK_HUE)).toBeLessThan(30);
+    });
+
+    it('moves the page when the cover moves', () => {
+        const warm = buildMinimalPalette(cover(25), 'dark');
+        const cool = buildMinimalPalette(cover(210), 'dark');
+        expect(ringDistance(hueOf(warm.fieldPrimary), hueOf(cool.fieldPrimary))).toBeGreaterThan(15);
+        expect(warm.fieldPrimary).not.toBe(cool.fieldPrimary);
+    });
 });
 
 describe('minimal lyric timing', () => {

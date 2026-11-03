@@ -25,10 +25,65 @@
     color: var(--min-ink);
     font-family: system-ui, -apple-system, 'PingFang SC', 'MiSans', 'Microsoft YaHei', sans-serif;
     -webkit-tap-highlight-color: transparent;
+    /* The activity is edge to edge: this box starts under the status bar and ends under the gesture
+       pill. --folia-main-inset-* is the rectangle the native side measures for the WebView (see
+       services/androidMainInsets.ts); it is the only safe-area source that is correct inside this
+       app, because the SystemBars plugin's automatic padding is switched off and env() therefore
+       reports zero. Reserving it here — on the shell, not on each control — keeps the background
+       full bleed (a background paints the padding box too) while every control stays clear of the
+       bars, and it cannot double count against anything: nothing else pads this layer.
+       env() remains the fallback for a plain browser, where the variables do not exist. */
+    padding: var(--folia-main-inset-top, env(safe-area-inset-top, 0px))
+        var(--folia-main-inset-right, env(safe-area-inset-right, 0px))
+        var(--folia-main-inset-bottom, env(safe-area-inset-bottom, 0px))
+        var(--folia-main-inset-left, env(safe-area-inset-left, 0px));
     /* A track change repaints the gradient once, over ~0.7s. That is the only time the background
        is repainted at all; the drift below never touches colour. */
     transition: --min-base 700ms ease, --min-field-1 700ms ease, --min-field-2 700ms ease,
         --min-bloom 700ms ease, --min-accent 700ms ease;
+}
+
+/* Arriving and leaving. The player page is mounted by a view change, so the transition has to live
+   on the mount: the whole shell rises from the bottom edge over the mini player it came from, and
+   the page content fades up a beat later so the two movements do not read as one slide of a flat
+   picture. Compositor-only properties; nothing here re-lays out. */
+.min[data-phase='enter'] {
+    animation: min-rise 420ms cubic-bezier(0.2, 0.72, 0.16, 1) both;
+}
+
+.min[data-phase='enter'] .min-cover,
+.min[data-phase='enter'] .min-lyrics {
+    animation: min-content-in 360ms cubic-bezier(0.22, 0.68, 0.2, 1) 70ms both;
+}
+
+.min[data-phase='exit'] {
+    animation: min-fall 300ms cubic-bezier(0.42, 0, 0.74, 0.3) both;
+    pointer-events: none;
+}
+
+.min[data-phase='exit'] .min-cover,
+.min[data-phase='exit'] .min-lyrics {
+    animation: min-content-out 200ms ease both;
+}
+
+@keyframes min-rise {
+    from { transform: translate3d(0, 100%, 0); }
+    to { transform: none; }
+}
+
+@keyframes min-fall {
+    from { transform: none; }
+    to { transform: translate3d(0, 100%, 0); }
+}
+
+@keyframes min-content-in {
+    from { opacity: 0; transform: translate3d(0, 16px, 0); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes min-content-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
 }
 
 .min[data-theme='dark'] {
@@ -79,60 +134,79 @@
 }
 
 .min-amb__wash {
+    /* The reference is not "a gradient behind a cover": it is a warm field that reaches the side
+       edges at the artwork's height, sitting inside a dark teal that owns the top and bottom bands.
+       Two bloom radii do that — a wide one that carries colour to the edges and a tighter one that
+       gives the artwork something to sit in.
+       Sampled against the design at equal height: edges (16,42,40) teal, artwork band (129,109,84). */
     background:
-        radial-gradient(120% 70% at 50% 30%, color-mix(in srgb, var(--min-bloom) 20%, transparent) 0%, transparent 68%),
-        radial-gradient(118% 74% at 50% 108%, color-mix(in srgb, var(--min-field-1) 84%, transparent) 0%, transparent 66%),
-        linear-gradient(177deg, var(--min-base) 0%, color-mix(in srgb, var(--min-base) 88%, black) 100%);
+        radial-gradient(116% 30% at 50% 45%, color-mix(in srgb, var(--min-bloom) 48%, transparent) 0%, transparent 86%),
+        radial-gradient(70% 24% at 50% 43%, color-mix(in srgb, var(--min-bloom) 58%, transparent) 0%, transparent 80%),
+        linear-gradient(177deg, var(--min-base) 0%, color-mix(in srgb, var(--min-base) 82%, black) 100%);
 }
 
-.min-amb__field--a {
-    background: radial-gradient(66% 50% at 18% 10%, color-mix(in srgb, var(--min-field-1) 92%, transparent) 0%, transparent 74%);
-    animation: min-drift-a 54s ease-in-out infinite alternate;
-    will-change: transform;
+/* Three soft colour masses. They are the page's only moving parts, they never touch colour, and
+   each one drifts on its own period so the field never repeats as a single breathing picture. */
+.min-amb__blob--a {
+    background: radial-gradient(74% 52% at 8% -4%, color-mix(in srgb, var(--min-field-1) 88%, transparent) 0%, transparent 72%);
+    animation: min-drift-a 41s ease-in-out infinite alternate;
 }
 
-.min-amb__field--b {
-    background: radial-gradient(60% 46% at 90% 4%, color-mix(in srgb, var(--min-field-2) 88%, transparent) 0%, transparent 76%);
-    animation: min-drift-b 63s ease-in-out infinite alternate;
-    will-change: transform;
+.min-amb__blob--b {
+    background: radial-gradient(70% 50% at 96% -2%, color-mix(in srgb, var(--min-field-2) 84%, transparent) 0%, transparent 74%);
+    animation: min-drift-b 53s ease-in-out infinite alternate;
+}
+
+.min-amb__blob--c {
+    background: radial-gradient(86% 46% at 62% 104%, color-mix(in srgb, var(--min-field-1) 78%, transparent) 0%, transparent 80%);
+    animation: min-drift-c 47s ease-in-out infinite alternate;
 }
 
 /* The only warm element: the glow the artwork sits in. Constrained to a low alpha so it reads as
    light through a scrim rather than as a beam. */
 .min-amb__bloom {
-    background: radial-gradient(58% 40% at 50% 35%, color-mix(in srgb, var(--min-bloom) 82%, transparent) 0%, transparent 76%);
-    opacity: 0.74;
-    animation: min-breathe 37s ease-in-out infinite alternate;
-    will-change: transform, opacity;
+    background: radial-gradient(64% 40% at 50% 40%, color-mix(in srgb, var(--min-bloom) 70%, transparent) 0%, transparent 74%);
+    opacity: 0.5;
+    animation: min-breathe 26s ease-in-out infinite alternate;
 }
 
 .min-amb__veil {
     background:
-        linear-gradient(180deg, rgb(var(--min-veil) / 0.2) 0%, transparent 22%),
-        linear-gradient(0deg, rgb(var(--min-veil) / 0.34) 0%, transparent 40%);
+        linear-gradient(180deg, rgb(var(--min-veil) / 0.26) 0%, transparent 26%),
+        linear-gradient(0deg, rgb(var(--min-veil) / 0.4) 0%, transparent 44%);
+}
+
+.min-amb__blob,
+.min-amb__bloom {
+    will-change: transform, opacity;
 }
 
 @keyframes min-drift-a {
-    from { transform: translate3d(-2.5%, -1.5%, 0) scale(1); }
-    to { transform: translate3d(3%, 2.5%, 0) scale(1.08); }
+    from { transform: translate3d(-3%, -2%, 0) scale(1); }
+    to { transform: translate3d(7%, 5%, 0) scale(1.14); }
 }
 
 @keyframes min-drift-b {
-    from { transform: translate3d(2%, 1%, 0) scale(1.06); }
-    to { transform: translate3d(-3%, -2%, 0) scale(1); }
+    from { transform: translate3d(2%, 1%, 0) scale(1.08); }
+    to { transform: translate3d(-6%, -4%, 0) scale(1); }
+}
+
+@keyframes min-drift-c {
+    from { transform: translate3d(4%, 3%, 0) scale(1.04); }
+    to { transform: translate3d(-5%, -6%, 0) scale(1.12); }
 }
 
 @keyframes min-breathe {
-    from { transform: scale(0.96); opacity: 0.42; }
-    to { transform: scale(1.06); opacity: 0.62; }
+    from { transform: scale(0.97); opacity: 0.44; }
+    to { transform: scale(1.08); opacity: 0.68; }
 }
 
-.min-amb[data-paused] .min-amb__field,
+.min-amb[data-paused] .min-amb__blob,
 .min-amb[data-paused] .min-amb__bloom {
     animation-play-state: paused;
 }
 
-.min-amb[data-still] .min-amb__field,
+.min-amb[data-still] .min-amb__blob,
 .min-amb[data-still] .min-amb__bloom {
     animation: none;
 }
@@ -140,8 +214,9 @@
 /* System preference is honoured directly here: the app's own motion switches are opt-in, and a
    listener who asked the OS for less motion did not ask for a drifting background. */
 @media (prefers-reduced-motion: reduce) {
-    .min-amb__field,
-    .min-amb__bloom {
+    .min-amb__blob,
+    .min-amb__bloom,
+    .min[data-phase] {
         animation: none;
     }
     .min {
@@ -159,7 +234,9 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: max(6px, env(safe-area-inset-top, 0px)) 10px 4px;
+    /* The status bar is already reserved by .min's padding — repeating it here is how this row
+       ended up drawn on top of the clock. What remains is the gap between the bar and the icons. */
+    padding: 6px 10px 2px;
 }
 
 .min-top__actions {
@@ -216,30 +293,34 @@
 
 /* ---------------------------------------------------------------- pager */
 
+/* The strip is moved by transform, not by native scrolling.
+   The reason is the release: with scroll snap the commit animation belongs to the platform, and on
+   this WebView a half-page drag snaps in about 90ms — that is the "sudden" feel. Owning the offset
+   gives a 1:1 follow while the finger is down, a spring back below the threshold, a bounded
+   ease-out on commit, and keeps the vertical lyric scroll on the browser (touch-action: pan-y). */
 .min-pager {
     position: relative;
     z-index: 2;
     flex: 1 1 auto;
-    display: flex;
     min-height: 0;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scroll-snap-type: x mandatory;
-    scroll-behavior: smooth;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
+    overflow: hidden;
+    touch-action: pan-y;
 }
 
-.min-pager::-webkit-scrollbar {
-    display: none;
+.min-track {
+    display: flex;
+    width: 200%;
+    height: 100%;
+    will-change: transform;
+    /* Overwritten every frame while a drag or a commit animation is running; the value here only
+       covers the first paint, before the stage has measured anything. */
+    transform: translate3d(calc(var(--min-pos, 0) * -50%), 0, 0);
 }
 
 .min-page {
-    flex: 0 0 100%;
-    width: 100%;
+    flex: 0 0 50%;
+    width: 50%;
     min-width: 0;
-    scroll-snap-align: center;
-    scroll-snap-stop: always;
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -254,14 +335,17 @@
     align-items: center;
     justify-content: center;
     min-height: 0;
-    padding: 4px 0 8px;
-    gap: clamp(18px, 3.4vh, 30px);
+    overflow: hidden;
+    padding: 4px 0 10px;
+    gap: clamp(16px, 3vh, 28px);
 }
 
 .min-cover__art {
     position: relative;
-    /* 75% of the page width, matching the reference: the artwork, not the text, is the page. */
-    width: min(75%, 322px);
+    /* 75% of the page width, matching the reference — but capped by the height as well, so a short
+       screen (or a large font scale, which eats the text block) shrinks the artwork instead of
+       pushing the transport out of the page. */
+    width: min(75%, 322px, 40vh);
     aspect-ratio: 1 / 1;
     flex: none;
 }
@@ -383,6 +467,12 @@
     color: color-mix(in srgb, #e2c48c 92%, var(--min-ink) 8%);
 }
 
+/* #e2c48c on paper is invisible; the gold chip needs a darker ink to stay a chip. */
+.min[data-theme='light'] .min-chip[data-tone='gold'] {
+    border-color: color-mix(in srgb, #a07c33 42%, transparent);
+    color: color-mix(in srgb, #8a6a26 88%, var(--min-ink) 12%);
+}
+
 /* ---------------------------------------------------------------- lyrics page */
 
 .min-lyrics {
@@ -436,10 +526,11 @@
     overflow-x: hidden;
     scrollbar-width: none;
     overscroll-behavior-y: contain;
-    /* Both axes stay available so a horizontal swipe that starts on a lyric line still reaches the
-       pager: `pan-y` here would swallow it and the page would look stuck on the lyrics. The browser's
-       own axis lock, plus scroll-snap-stop on each page, is what keeps a vertical scroll vertical. */
-    touch-action: pan-x pan-y;
+    /* Vertical only: the browser keeps the list, and horizontal moves are left to the pager, which
+       sees them as pointer events and tracks the finger. `pan-x pan-y` let the two compete for the
+       same gesture, which is why a swipe that started on a lyric line used to do nothing at all. */
+    touch-action: pan-y;
+    scroll-behavior: auto;
     padding: 0 26px;
     -webkit-mask-image: linear-gradient(180deg, transparent 0, black 34px, black 82%, transparent 100%);
     mask-image: linear-gradient(180deg, transparent 0, black 34px, black 82%, transparent 100%);
@@ -452,14 +543,24 @@
 .min-lyrics__column {
     position: relative;
     padding: clamp(20px, 6vh, 56px) 0 46vh;
+    /* Remounted (keyed) whenever the lyric set changes, so this plays once per song: the new lyrics
+       arrive instead of replacing the old ones between two frames. */
+    animation: min-lyric-swap 300ms cubic-bezier(0.22, 0.68, 0.2, 1) both;
+}
+
+@keyframes min-lyric-swap {
+    from { opacity: 0; transform: translate3d(0, 12px, 0); }
+    to { opacity: 1; transform: none; }
 }
 
 .min-line {
     /* The active line grows without changing its box: the pitch is fixed, only the glyphs scale up,
-       so changing lines never makes the column jump under the reader's thumb. */
+       so changing lines never makes the column jump under the reader's thumb.
+       `content-visibility: auto` used to be set here and is deliberately gone: it made off-screen
+       lines report an estimated height until they were painted, so scrolling to a line two screens
+       away landed in the wrong place, the correction shifted the column again — the "jump, then
+       settle somewhere else" the tap used to produce. */
     margin: 0 0 22px;
-    content-visibility: auto;
-    contain-intrinsic-size: auto 40px;
 }
 
 .min-line__text {
@@ -470,19 +571,26 @@
     background: none;
     text-align: left;
     font-family: inherit;
-    font-size: 19px;
+    font-size: calc(19px * var(--min-lyric-scale, 1));
     font-weight: 500;
-    line-height: 40px;
+    line-height: calc(40px * var(--min-lyric-scale, 1));
     letter-spacing: 0.012em;
     color: var(--min-muted);
     cursor: pointer;
-    transition: color 260ms ease;
+    transform-origin: left center;
+    /* Colour is the slow part (a sung line cools into place); the press is the fast part. */
+    transition: color 260ms ease, font-size 200ms ease, transform 130ms ease, opacity 130ms ease;
+}
+
+.min-line__text:active:not(:disabled) {
+    transform: scale(0.992);
+    opacity: 0.82;
 }
 
 .min-line[data-active] .min-line__text {
-    font-size: 27px;
+    font-size: calc(27px * var(--min-lyric-scale, 1));
     font-weight: 700;
-    line-height: 40px;
+    line-height: calc(40px * var(--min-lyric-scale, 1));
     color: var(--min-ink-bright);
     cursor: default;
 }
@@ -672,16 +780,55 @@
     inset: 0;
     border: 1.5px solid color-mix(in srgb, var(--min-ink) 52%, transparent);
     border-radius: 50%;
-    transition: border-color 200ms ease;
+    transition: border-color 200ms ease, transform 130ms ease;
 }
 
 .min-btn--play[aria-pressed='true'] .min-play-ring {
     border-color: color-mix(in srgb, var(--min-ink) 66%, transparent);
 }
 
-/* The play triangle is optically light on the right; nudge it so it reads as centred. */
+/* Play and pause are both in the DOM, stacked. Swapping the element meant the glyph blinked from one
+   shape to the other in a single frame; cross-fading two 26px icons costs nothing and reads as the
+   transport acknowledging the press. */
 .min-play-glyph {
-    transform: translateX(1.5px);
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+}
+
+.min-play-icon {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    opacity: 0;
+    transform: scale(0.72);
+    transition: opacity 170ms ease, transform 200ms cubic-bezier(0.3, 0.7, 0.3, 1);
+}
+
+.min-play-icon[data-on] {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* The play triangle is optically light on the right; nudge it so it reads as centred. */
+.min-play-icon[data-slot='play'] {
+    transform: translateX(1.5px) scale(0.72);
+}
+
+.min-play-icon[data-slot='play'][data-on] {
+    transform: translateX(1.5px) scale(1);
+}
+
+/* Press feedback on the transport: a settled scale, no bounce. */
+.min-btn--play:active:not(:disabled) {
+    transform: scale(0.94);
+}
+
+.min-btn--play:active:not(:disabled) .min-play-ring {
+    transform: scale(0.97);
 }
 
 .min-btn:focus-visible,
@@ -701,17 +848,25 @@
     align-items: center;
     justify-content: center;
     gap: 7px;
-    height: 26px;
-    padding-bottom: max(2px, env(safe-area-inset-bottom, 0px));
+    height: 24px;
+    margin-top: 2px;
 }
+
+/* The dots used to be the last row inside the WebView, so their bottom edge landed on the gesture
+   pill. .min now reserves the navigation inset; this row just needs its own breathing room. */
 
 .min-dot {
     width: 5px;
     height: 5px;
-    padding: 0;
+    /* A 5px dot is an unhittable target. Padding grows the touch box to 17px; the negative margin
+       and content-box clipping keep the painted dot 5px and in the same place. */
+    box-sizing: content-box;
+    padding: 6px;
+    margin: -6px;
     border: 0;
     border-radius: 50%;
     background: color-mix(in srgb, var(--min-ink) 30%, transparent);
+    background-clip: content-box;
     cursor: pointer;
     transition: width 220ms ease, height 220ms ease, background-color 220ms ease;
 }
@@ -720,6 +875,7 @@
     width: 6px;
     height: 6px;
     background: color-mix(in srgb, var(--min-ink) 88%, transparent);
+    background-clip: content-box;
 }
 
 /* ---------------------------------------------------------------- responsive */

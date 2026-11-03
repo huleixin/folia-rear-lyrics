@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LyricData } from '../../../../types';
 import type { AppOverlaysModel } from '../buildAppOverlaysModel';
@@ -25,12 +25,22 @@ import {
 //     is written straight onto the characters that changed;
 //   · no scrolling while the listener is scrolling — auto-follow yields for a few seconds after a
 //     manual gesture, and resumes on the next line boundary.
+//
+// Following is driven by a short rAF tween rather than `scrollTo({behavior:'smooth'})`: the
+// platform's smooth scroll has no duration to set, runs at a speed that reads as a jump on a long
+// lyric, and cannot be bounded — a tap on the last line would scroll for over a second. The tween
+// below never takes longer than ~460ms no matter how far it goes.
 
 type Controls = NonNullable<AppOverlaysModel['floatingControls']>;
 
 /** Roughly a third down the column: the current line stays put and the page reads forward. */
 const ACTIVE_LINE_ANCHOR = 0.32;
 const MANUAL_SCROLL_HOLD_MS = 4000;
+/** Long jumps stop getting slower here; past this a scroll is a cut, not a journey. */
+const SCROLL_MAX_MS = 460;
+const SCROLL_BASE_MS = 240;
+
+const easeOutCubic = (value: number) => 1 - (1 - value) ** 3;
 
 const clearSung = (element: HTMLElement) => {
     element.querySelectorAll<HTMLElement>('[data-ch]').forEach(span => span.removeAttribute('data-sung'));
@@ -70,6 +80,9 @@ export default function MinimalLyricsPage({
 }) {
     const { t } = useTranslation();
     const subtitleMode = useTypographySettingsStore(state => state.subtitleContentMode);
+    // The same scale the stage uses. Bounded here: this page is a reading column, so a 1.6x setting
+    // would cost two lyric lines per screen and push the transport around.
+    const fontScale = useTypographySettingsStore(state => state.lyricsFontScale);
     const lines = useMemo(() => lyrics?.lines ?? [], [lyrics]);
     const starts = useMemo(() => buildLineStarts(lines), [lines]);
     const hasLyrics = hasLyricLines(lyrics);
@@ -78,8 +91,49 @@ export default function MinimalLyricsPage({
     const activeIndexRef = useRef(-1);
     const sungRef = useRef(0);
     const manualUntil = useRef(0);
+    const frame = useRef(0);
+    /** A new lyric set must land on its first line, not glide there from the previous song. */
+    const snapNext = useRef(true);
     const [activeIndex, setActiveIndex] = useState(-1);
     const disabled = !!controls.controlsDisabled;
+
+    // Identity of the lyric set, not of the song: a re-resolved lyric for the same song is a new set
+    // too, and must not blend into the old one on screen.
+    const lyricToken = useMemo(
+        () => `${lines.length}|${lines[0]?.startTime ?? -1}|${song?.title ?? ''}`,
+        [lines, song?.title],
+    );
+
+    const stopFrame = useCallback(() => {
+        if (frame.current) {
+            window.cancelAnimationFrame(frame.current);
+            frame.current = 0;
+        }
+    }, []);
+
+    const animateScroll = useCallback((box: HTMLDivElement, top: number, instant: boolean) => {
+        stopFrame();
+        const max = Math.max(0, box.scrollHeight - box.clientHeight);
+        const target = Math.min(max, Math.max(0, top));
+        const from = box.scrollTop;
+        const distance = Math.abs(target - from);
+        if (instant || still || distance < 1) {
+            box.scrollTop = target;
+            return;
+        }
+        const duration = Math.min(SCROLL_MAX_MS, SCROLL_BASE_MS + distance * 0.34);
+        const started = performance.now();
+        const step = (now: number) => {
+            const progress = Math.min(1, (now - started) / duration);
+            box.scrollTop = from + (target - from) * easeOutCubic(progress);
+            if (progress < 1) {
+                frame.current = window.requestAnimationFrame(step);
+            } else {
+                frame.current = 0;
+            }
+        };
+        frame.current = window.requestAnimationFrame(step);
+    }, [still, stopFrame]);
 
     const paintLine = useCallback((index: number, time: number) => {
         if (index < 0) {
@@ -96,6 +150,16 @@ export default function MinimalLyricsPage({
         paintSung(element, sungRef.current, sung);
         sungRef.current = sung;
     }, [lines]);
+
+    // A new lyric set starts at the top of its own column.
+    useLayoutEffect(() => {
+        const box = scroller.current;
+        if (box) {
+            stopFrame();
+            box.scrollTop = 0;
+        }
+        snapNext.current = true;
+    }, [lyricToken, stopFrame]);
 
     // One subscription, and only while the page is on screen. A new lyric set re-anchors it.
     useEffect(() => {
@@ -138,14 +202,19 @@ export default function MinimalLyricsPage({
         if (Date.now() < manualUntil.current) {
             return;
         }
-        const target = element.offsetTop - box.clientHeight * ACTIVE_LINE_ANCHOR
-            + element.offsetHeight / 2 - box.clientHeight / 6;
-        box.scrollTo({ top: Math.max(0, target), behavior: still ? 'auto' : 'smooth' });
-    }, [activeIndex, active, still]);
+        const anchor = box.clientHeight * ACTIVE_LINE_ANCHOR;
+        const snap = snapNext.current;
+        snapNext.current = false;
+        animateScroll(box, element.offsetTop + element.offsetHeight / 2 - anchor, snap);
+    }, [activeIndex, active, still, animateScroll]);
+
+    useEffect(() => () => stopFrame(), [stopFrame]);
 
     const markManual = useCallback(() => {
         manualUntil.current = Date.now() + MANUAL_SCROLL_HOLD_MS;
-    }, []);
+        // A hand on the list wins over the follow tween, immediately and unconditionally.
+        stopFrame();
+    }, [stopFrame]);
 
     const seekToLine = useCallback((time: number) => {
         if (disabled) {
@@ -160,7 +229,11 @@ export default function MinimalLyricsPage({
     const artist = song?.artist || '';
 
     return (
-        <div className="min-lyrics" data-testid="minimal-lyrics-page">
+        <div
+            className="min-lyrics"
+            data-testid="minimal-lyrics-page"
+            style={{ '--min-lyric-scale': Math.min(1.3, Math.max(0.85, fontScale || 1)) } as React.CSSProperties}
+        >
             <header className="min-lyrics__head">
                 <h2 className="min-lyrics__title" title={title}>{title}</h2>
                 {artist && <p className="min-lyrics__artist" title={artist}>{artist}</p>}
@@ -172,10 +245,9 @@ export default function MinimalLyricsPage({
                     className="min-lyrics__scroll"
                     onPointerDown={markManual}
                     onWheel={markManual}
-                    onTouchMove={markManual}
                     data-testid="minimal-lyrics-scroll"
                 >
-                    <div className="min-lyrics__column">
+                    <div className="min-lyrics__column" key={lyricToken}>
                         {lines.map((line, index) => {
                             const secondary = resolveSecondaryText(line, subtitleMode);
                             return (

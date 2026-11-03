@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, AudioLines, Heart, MoreHorizontal } from 'lucide-react';
 import type { AppOverlaysModel } from '../buildAppOverlaysModel';
@@ -14,6 +14,7 @@ import { usePlayerViewModeStore, type MinimalPlayerPage } from '../../../../stor
 import { useReducedMotionFor } from '../../../../hooks/useReducedMotionFor';
 import { usePlaybackStore } from '../../../../stores/usePlaybackStore';
 import { PlayerState } from '../../../../types';
+import { registerMinimalStageExit, runMinimalStageExit } from './minimalStageTransition';
 import './minimalStage.css';
 
 // src/components/app/overlays/minimal-stage/MinimalStage.tsx
@@ -23,13 +24,29 @@ import './minimalStage.css';
 // visualizer renderer, so entering or leaving it never rebuilds the audio pipeline, the lyric
 // parser or the MediaSession — the same `currentSong`, the same `lyricCurrentTime`, the same queue.
 //
-// Paging is a scroll-snap strip rather than a gesture handler: the browser then owns the axis lock,
-// which is what keeps a vertical lyric scroll from stealing a horizontal page swipe (and a seek on
-// the progress bar from doing either). No per-frame JS runs while a page is being dragged.
+// Paging is a transformed track, tracked from pointer events, rather than a native snap scroller.
+// Two reasons: the platform's snap animation is roughly 90ms and cannot be slowed, which is what
+// made the switch feel abrupt; and a transform can follow the finger with a rubber band at the ends
+// while the vertical lyric list keeps native scrolling (touch-action: pan-y on the shell).
 
 type Controls = NonNullable<AppOverlaysModel['floatingControls']>;
 
 const PAGES: MinimalPlayerPage[] = ['cover', 'lyrics'];
+
+/** Commit animation length. The reference asks for 300–450ms; distance shortens it a little. */
+const PAGE_MIN_MS = 260;
+const PAGE_SPAN_MS = 130;
+/** Enter/exit of the whole page over the shell — matched to .min[data-phase] in the stylesheet. */
+const ENTER_MS = 460;
+const EXIT_MS = 300;
+/** Distance before a gesture commits, as a fraction of the page. */
+const COMMIT_RATIO = 0.28;
+/** Pointer speed (px/ms) that overrides the distance rule. */
+const FLING_SPEED = 0.35;
+/** The system back gesture owns the first pixels of the left edge; do not fight it for a swipe. */
+const EDGE_GUARD_PX = 22;
+
+const easeOutCubic = (value: number) => 1 - (1 - value) ** 3;
 
 /** Theme colours, used until the artwork has been sampled. */
 const themeFallback = (theme: Controls['theme'] | undefined, light: boolean): CoverColors => {
@@ -55,6 +72,18 @@ const usePageHidden = (): boolean => {
     return hidden;
 };
 
+type Drag = {
+    id: number;
+    axis: 'none' | 'x' | 'y';
+    startX: number;
+    startY: number;
+    startPos: number;
+    lastX: number;
+    lastTime: number;
+    /** px per ms, positive to the right. */
+    speed: number;
+};
+
 export default function MinimalStage({
     chrome,
     controls,
@@ -74,8 +103,16 @@ export default function MinimalStage({
     const still = useReducedMotionFor('monetBackground');
     const hidden = usePageHidden();
     const pagerRef = useRef<HTMLDivElement>(null);
-    const scrollFrame = useRef(0);
+    const trackRef = useRef<HTMLDivElement>(null);
+    /** Page position in page units; 0 = cover, 1 = lyrics. May sit outside the range mid-drag. */
+    const posRef = useRef(0);
+    const frameRef = useRef(0);
+    const dragRef = useRef<Drag | null>(null);
+    /** Set when this component starts an animation, so the index effect does not restart it. */
+    const ownMoveRef = useRef(false);
+    const closingRef = useRef(false);
     const [menuOpen, setMenuOpen] = useState(false);
+    const [phase, setPhase] = useState<'enter' | 'idle' | 'exit'>(still ? 'idle' : 'enter');
     const closeMenu = useCallback(() => setMenuOpen(false), []);
     const playing = controls?.playerState === PlayerState.PLAYING;
 
@@ -90,58 +127,188 @@ export default function MinimalStage({
 
     const index = page === 'lyrics' ? 1 : 0;
 
-    // Restore the remembered page without an animation on the first frame.
-    useEffect(() => {
-        const pager = pagerRef.current;
-        if (!pager) {
+    const applyPos = useCallback((pos: number) => {
+        posRef.current = pos;
+        const track = trackRef.current;
+        if (track) {
+            // 50% of a 200%-wide track is exactly one page.
+            track.style.transform = `translate3d(${-pos * 50}%, 0, 0)`;
+        }
+    }, []);
+
+    const stopFrame = useCallback(() => {
+        if (frameRef.current) {
+            window.cancelAnimationFrame(frameRef.current);
+            frameRef.current = 0;
+        }
+    }, []);
+
+    const animateTo = useCallback((target: number, instant: boolean) => {
+        stopFrame();
+        const from = posRef.current;
+        if (instant || Math.abs(target - from) < 0.002) {
+            applyPos(target);
             return;
         }
-        pager.scrollLeft = index * pager.clientWidth;
-        // Intentionally mount-only: afterwards the strip itself owns the position.
+        const distance = Math.abs(target - from);
+        const duration = PAGE_MIN_MS + PAGE_SPAN_MS * Math.min(1, distance);
+        const started = performance.now();
+        const step = (now: number) => {
+            const progress = Math.min(1, (now - started) / duration);
+            applyPos(from + (target - from) * easeOutCubic(progress));
+            if (progress < 1) {
+                frameRef.current = window.requestAnimationFrame(step);
+            } else {
+                frameRef.current = 0;
+                applyPos(target);
+            }
+        };
+        frameRef.current = window.requestAnimationFrame(step);
+    }, [applyPos, stopFrame]);
+
+    // First paint: land on the remembered page with no movement at all.
+    useLayoutEffect(() => {
+        applyPos(index);
+        // Mount-only: afterwards the track position is driven by the gesture and the effects below.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Someone else moved the page (settings, a test, a rotation while on page 2).
+    // Someone else moved the page: a dot, a restored preference, a rotation. Our own commits set
+    // ownMoveRef so this does not restart an animation that is already on its way.
     useEffect(() => {
-        const pager = pagerRef.current;
-        if (!pager) {
+        if (ownMoveRef.current) {
+            ownMoveRef.current = false;
             return;
         }
-        const target = index * pager.clientWidth;
-        if (Math.abs(pager.scrollLeft - target) > 2) {
-            pager.scrollTo({ left: target, behavior: still ? 'auto' : 'smooth' });
-        }
-    }, [index, still]);
-
-    const onScroll = useCallback(() => {
-        if (scrollFrame.current) {
-            return;
-        }
-        scrollFrame.current = window.requestAnimationFrame(() => {
-            scrollFrame.current = 0;
-            const pager = pagerRef.current;
-            if (!pager) {
-                return;
-            }
-            // Half a page is the commit point: a small overscroll must not flip the dots.
-            const next: MinimalPlayerPage = pager.scrollLeft > pager.clientWidth * 0.5 ? 'lyrics' : 'cover';
-            if (usePlayerViewModeStore.getState().page !== next) {
-                setPage(next);
-            }
-        });
-    }, [setPage]);
+        animateTo(index, still);
+    }, [index, still, animateTo]);
 
     useEffect(() => () => {
-        if (scrollFrame.current) {
-            window.cancelAnimationFrame(scrollFrame.current);
+        stopFrame();
+    }, [stopFrame]);
+
+    // Enter: clear the attribute once the rise is over, so no layer stays promoted forever.
+    useEffect(() => {
+        if (phase !== 'enter') {
+            return;
         }
-    }, []);
+        const timer = window.setTimeout(() => setPhase('idle'), ENTER_MS);
+        return () => window.clearTimeout(timer);
+    }, [phase]);
+
+    // Leaving is animated, but the callers (the chevron, the Back gesture) are synchronous. A second
+    // request while the page is already falling is dropped: that is what keeps a double tap from
+    // navigating twice and mounting a second player page behind this one.
+    const runExit = useCallback((done: () => void) => {
+        if (still) {
+            done();
+            return;
+        }
+        if (closingRef.current) {
+            return;
+        }
+        closingRef.current = true;
+        setPhase('exit');
+        window.setTimeout(() => {
+            closingRef.current = false;
+            done();
+        }, EXIT_MS);
+    }, [still]);
+
+    useEffect(() => registerMinimalStageExit(runExit), [runExit]);
+
+    const commit = useCallback((targetIndex: number) => {
+        const next: MinimalPlayerPage = targetIndex === 1 ? 'lyrics' : 'cover';
+        if (usePlayerViewModeStore.getState().page !== next) {
+            ownMoveRef.current = true;
+            setPage(next);
+        }
+        animateTo(targetIndex, still);
+    }, [animateTo, setPage, still]);
+
+    const onPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+        if (event.pointerType === 'mouse' && event.button !== 0) {
+            return;
+        }
+        if (event.clientX < EDGE_GUARD_PX) {
+            return;
+        }
+        stopFrame();
+        dragRef.current = {
+            id: event.pointerId,
+            axis: 'none',
+            startX: event.clientX,
+            startY: event.clientY,
+            startPos: posRef.current,
+            lastX: event.clientX,
+            lastTime: event.timeStamp,
+            speed: 0,
+        };
+    }, [stopFrame]);
+
+    const onPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+        const drag = dragRef.current;
+        if (!drag || drag.id !== event.pointerId) {
+            return;
+        }
+        const dx = event.clientX - drag.startX;
+        const dy = event.clientY - drag.startY;
+        if (drag.axis === 'none') {
+            // Wait for a real gesture before locking an axis, so a tap on a lyric line stays a tap.
+            if (Math.abs(dx) < 6 && Math.abs(dy) < 6) {
+                return;
+            }
+            drag.axis = Math.abs(dx) > Math.abs(dy) * 1.15 ? 'x' : 'y';
+            if (drag.axis === 'x') {
+                event.currentTarget.setPointerCapture?.(event.pointerId);
+            }
+        }
+        if (drag.axis !== 'x') {
+            return;
+        }
+        const width = pagerRef.current?.clientWidth || 1;
+        let next = drag.startPos - dx / width;
+        // Rubber band past the first and last page: the strip gives, but never runs away.
+        if (next < 0) {
+            next *= 0.32;
+        } else if (next > 1) {
+            next = 1 + (next - 1) * 0.32;
+        }
+        const elapsed = event.timeStamp - drag.lastTime;
+        if (elapsed > 0) {
+            drag.speed = (event.clientX - drag.lastX) / elapsed;
+            drag.lastX = event.clientX;
+            drag.lastTime = event.timeStamp;
+        }
+        applyPos(next);
+    }, [applyPos]);
+
+    const endDrag = useCallback((event: React.PointerEvent<HTMLDivElement>, cancelled = false) => {
+        const drag = dragRef.current;
+        if (!drag || drag.id !== event.pointerId) {
+            return;
+        }
+        dragRef.current = null;
+        if (drag.axis !== 'x') {
+            return;
+        }
+        if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+        const base = Math.round(drag.startPos);
+        const pos = posRef.current;
+        let target = base;
+        if (!cancelled && Math.abs(drag.speed) > FLING_SPEED) {
+            target = drag.speed < 0 ? base + 1 : base - 1;
+        } else if (Math.abs(pos - base) > COMMIT_RATIO) {
+            target = pos > base ? base + 1 : base - 1;
+        }
+        commit(Math.min(PAGES.length - 1, Math.max(0, target)));
+    }, [commit]);
 
     const goToPage = useCallback((next: MinimalPlayerPage) => {
-        const pager = pagerRef.current;
-        setPage(next);
-        pager?.scrollTo({ left: (next === 'lyrics' ? 1 : 0) * pager.clientWidth, behavior: still ? 'auto' : 'smooth' });
-    }, [setPage, still]);
+        commit(next === 'lyrics' ? 1 : 0);
+    }, [commit]);
 
     const style = {
         '--min-base': palette.base,
@@ -165,6 +332,7 @@ export default function MinimalStage({
             className="min"
             style={style}
             data-theme={light ? 'light' : 'dark'}
+            data-phase={phase === 'idle' ? undefined : phase}
             data-testid="minimal-stage"
             data-chrome-hidden={chrome.hidden || undefined}
         >
@@ -175,7 +343,7 @@ export default function MinimalStage({
                     type="button"
                     className="min-icon"
                     aria-label={t('mobileStage.back')}
-                    onClick={chrome.onBack}
+                    onClick={() => runMinimalStageExit(() => chrome.onBack())}
                     data-testid="minimal-collapse"
                 >
                     <ChevronDown size={23} strokeWidth={1.8} />
@@ -226,33 +394,39 @@ export default function MinimalStage({
             <div
                 className="min-pager"
                 ref={pagerRef}
-                onScroll={onScroll}
                 data-page={page}
                 aria-label={t('minimalStage.pages')}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={endDrag}
+                onPointerCancel={event => endDrag(event, true)}
             >
-                {PAGES.map(id => (
-                    <section
-                        key={id}
-                        className="min-page"
-                        data-page-id={id}
-                        aria-hidden={page === id ? undefined : true}
-                        // The off-screen page is inert: its lyric lines are buttons, and tabbing into
-                        // a page the listener cannot see is how focus gets lost behind the fold.
-                        inert={page === id ? undefined : true}
-                    >
-                        {id === 'cover' ? (
-                            <MinimalCoverPage song={song} controls={controls ?? EMPTY_CONTROLS} />
-                        ) : (
-                            <MinimalLyricsPage
-                                song={song}
-                                lyrics={lyrics}
-                                controls={controls ?? EMPTY_CONTROLS}
-                                active={page === 'lyrics' && !hidden}
-                                still={still}
-                            />
-                        )}
-                    </section>
-                ))}
+                <div className="min-track" ref={trackRef}>
+                    {PAGES.map(id => (
+                        <section
+                            key={id}
+                            className="min-page"
+                            data-page-id={id}
+                            aria-hidden={page === id ? undefined : true}
+                            // The off-screen page is inert: its lyric lines are buttons, and tabbing
+                            // into a page the listener cannot see is how focus gets lost behind the
+                            // fold.
+                            inert={page === id ? undefined : true}
+                        >
+                            {id === 'cover' ? (
+                                <MinimalCoverPage song={song} controls={controls ?? EMPTY_CONTROLS} />
+                            ) : (
+                                <MinimalLyricsPage
+                                    song={song}
+                                    lyrics={lyrics}
+                                    controls={controls ?? EMPTY_CONTROLS}
+                                    active={page === 'lyrics' && !hidden}
+                                    still={still}
+                                />
+                            )}
+                        </section>
+                    ))}
+                </div>
             </div>
 
             {controls && <MinimalTransport controls={controls} />}

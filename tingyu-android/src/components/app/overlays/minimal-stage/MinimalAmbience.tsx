@@ -32,8 +32,9 @@ export default function MinimalAmbience({
             data-derived={palette.derived || undefined}
         >
             <span className="min-amb__wash" />
-            <span className="min-amb__field min-amb__field--a" />
-            <span className="min-amb__field min-amb__field--b" />
+            <span className="min-amb__blob min-amb__blob--a" />
+            <span className="min-amb__blob min-amb__blob--b" />
+            <span className="min-amb__blob min-amb__blob--c" />
             <span className="min-amb__bloom" />
             <span className="min-amb__veil" />
         </div>

@@ -23,6 +23,7 @@ import {
 } from './navigationHistoryJournal';
 import { useAppViewStore } from '../stores/useAppViewStore';
 import { usePlayerViewModeStore } from '../stores/usePlayerViewModeStore';
+import { runMinimalStageExit } from '../components/app/overlays/minimal-stage/minimalStageTransition';
 import type { AppView } from '../stores/useAppViewStore';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
 import {returnFromNativeStage} from '../services/nativeStageReturn';
@@ -639,7 +640,10 @@ export function useAppNavigation() {
             if (viewMode.detour) {
                 viewMode.closeStage();
             } else {
-                navigateBackFromPlayer();
+                // The minimal page falls away before the view changes. When it is not mounted (the
+                // classic stage, a desktop suite) the runner is absent and this calls straight
+                // through, so only the animated case is delayed.
+                runMinimalStageExit(navigateBackFromPlayer);
             }
         } else if (useAppViewStore.getState().view === 'lattice') {
             navigateBackFromLattice();
