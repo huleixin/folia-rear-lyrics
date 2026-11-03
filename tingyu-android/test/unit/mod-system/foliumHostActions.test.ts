@@ -149,7 +149,7 @@ describe('folium volume, mute and repeat mode', () => {
         expect(playback.getVolume().volume).toBe(1);
     });
 
-    it('sets the repeat mode with the repeat button toast, and does nothing for the mode in effect', () => {
+    it('sets the repeat mode without a toast, and does nothing for the mode in effect', () => {
         render(appActions());
         const playback = createFoliumPlaybackService(mod, 'main');
         expect(playback.getLoopMode()).toBe('off');
@@ -157,15 +157,19 @@ describe('folium volume, mute and repeat mode', () => {
         playback.setLoopMode('all');
         expect(playback.getLoopMode()).toBe('all');
         expect(localStorage.getItem('player_loop_mode')).toBe('all');
-        const fromMod = useStatusMessageStore.getState().message;
+        // The mode is drawn by the control that changed it - the stage prints its name under the
+        // button, the minimal page shows it beside the transport - so the store no longer raises a
+        // global pill for it, which is what landed on top of a lyric line.
+        expect(useStatusMessageStore.getState().message).toBeNull();
 
-        // The host's repeat button, from the same starting point, toasts the same message.
+        // The host's repeat button and the store's toggle are the same four-step cycle from the same
+        // starting point, and neither of them draws anything.
         useAudioSettingsStore.setState({ loopMode: 'off' });
         useStatusMessageStore.setState({ message: null });
         useAudioSettingsStore.getState().handleToggleLoopMode();
-        const fromButton = useStatusMessageStore.getState().message;
-        expect(fromMod).toMatchObject({ type: 'success', nonce: expect.any(Number) });
-        expect({ type: fromMod?.type, text: fromMod?.text }).toEqual({ type: fromButton?.type, text: fromButton?.text });
+        expect(useAudioSettingsStore.getState().loopMode).toBe('all');
+        expect(useStatusMessageStore.getState().message).toBeNull();
+        expect(localStorage.getItem('player_loop_mode')).toBe('all');
 
         useStatusMessageStore.setState({ message: null });
         localStorage.removeItem('player_loop_mode');
