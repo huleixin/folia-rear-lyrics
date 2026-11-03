@@ -34,7 +34,12 @@ export const chromeNative = registerPlugin<{
      */
     minimalPlayerFrame(frame: import('./nativeMinimalPlayer').MinimalPlayerFrame): Promise<{accepted:boolean}>;
     /** 队列抽屉要的数据。只在打开时或版本变化时推，不是每帧。 */
-    minimalQueue(snapshot: import('./nativeMinimalQueue').NativeQueueSnapshot): Promise<void>;
+    minimalQueue(snapshot: import('./nativeMinimalQueue').NativeQueueSnapshot): Promise<{ accepted: boolean }>;
+    /**
+     * 让原生打开它自己的队列抽屉。任何页面（首页、舞台、极简页）都走这一个入口，
+     * Android 上不再有第二个队列界面。
+     */
+    openMinimalQueue(): Promise<void>;
     /** Hand the minimal player surface back to the WebView (session-scoped). */
     minimalPlayerRelease(value:{session:string}): Promise<void>;
     clock(value:{id:ChromeSurfaceId;session:string;trackKey:string;position:number}):Promise<void>;

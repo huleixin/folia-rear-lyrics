@@ -5,6 +5,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import io.github.huleixin.tingyu.minimal.MinimalPlayerCommands
+import io.github.huleixin.tingyu.minimal.MinimalQueue
 import io.github.huleixin.tingyu.minimal.MinimalPlayerRuntime
 import io.github.huleixin.tingyu.minimal.ui.MinimalPlayerScreen
 
@@ -18,6 +19,9 @@ import io.github.huleixin.tingyu.minimal.ui.MinimalPlayerScreen
 fun MinimalPlayerSurface(
     runtime: MinimalPlayerRuntime,
     commands: MinimalPlayerCommands,
+    /** 队列投影由宿主收集后传进来：抽屉归宿主，页面只负责画按钮。 */
+    queue: MinimalQueue,
+    onOpenQueue: () -> Unit,
     light: Boolean,
     safeTop: Float,
     safeBottom: Float,
@@ -31,6 +35,8 @@ fun MinimalPlayerSurface(
         state = state,
         artwork = artwork,
         commands = commands,
+        queue = queue,
+        onOpenQueue = onOpenQueue,
         light = light,
         safeTop = safeTop,
         safeBottom = safeBottom,

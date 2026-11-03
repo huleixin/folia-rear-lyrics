@@ -13,6 +13,7 @@ import { PlayerState } from '../../../types';
 import { getSongArtistLabel } from '../../../services/onlineMusic/songMetadata';
 import MobileArtwork from './MobileArtwork';
 import { useMobileGlass } from '../../../hooks/useMobileGlass';
+import { openNativeQueueSheet } from '../../../services/nativeMinimalQueue';
 import { useAppViewStore } from '../../../stores/useAppViewStore';
 import { useMiniPlayerSwipe } from './useMiniPlayerSwipe';
 import MiniPlayerProgress from './MiniPlayerProgress';
@@ -49,7 +50,10 @@ export default function MobileMiniPlayer({
 
     useMiniPlayerSwipe(glassRef, onNextTrack, onPreviousTrack, !!song && !!canNextTrack, !!song && !!canPreviousTrack);
     const openQueue = () => {
-        const view = useAppViewStore.getState(); view.setPanelTab('queue'); view.setIsPanelOpen(true);
+        void openNativeQueueSheet().then(handled => {
+            if (handled) return;
+            const view = useAppViewStore.getState(); view.setPanelTab('queue'); view.setIsPanelOpen(true);
+        });
     };
     const active = useAppViewStore(s=>s.view==='home'&&!s.isPanelOpen);
     const searchOpen = useSearchNavigationStore(s=>s.isSearchOpen);

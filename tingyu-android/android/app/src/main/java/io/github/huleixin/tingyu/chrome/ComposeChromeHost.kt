@@ -77,9 +77,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
      * <p>返回"我现在能不能真的画这一页"。JS 只在这个回答为 true 之后才卸掉 WebView 极简页 ——
      * 于是"原生拿不出页面"永远不会变成一块空白，最多是晚一秒让出。
      */
-    fun minimalQueue(value: JSONObject) {
-        minimal.onQueueSnapshot(value)
-    }
+    fun minimalQueue(value: JSONObject): Boolean = minimal.onQueueSnapshot(value)
 
     fun minimalFrame(value: JSONObject): Boolean {
         minimal.onBridgeFrame(value)
@@ -120,6 +118,15 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private fun clearStartupNavigation(){startupNavigation.clear();startupSelected=null;startupToast?.cancel();startupToast=null}
 
     private val stageExit=NativeStageExit()
+    /** 原生队列抽屉的开合。它是**宿主**的状态：任何页面都能打开同一张表。 */
+    private var queueOpen by mutableStateOf(false)
+    /** JS 说抽屉关了（返回键、点击遮罩），宿主跟着收。 */
+    fun closeNativeQueue(){queueOpen=false}
+    fun openNativeQueue(){
+        queueOpen=true
+        // 打开时立刻要一份新快照；JS 那边注册过处理器才有数据。
+        minimalCommands.requestQueue()
+    }
     fun collapseStage(reply:()->Unit){if(destination!="stage"||webOverlay){reply();return};stageExit.begin(retained.lastBrowsing(),reply)}
     private var presented by mutableStateOf<NativePage?>(null)
     private var pageTarget=""
@@ -296,8 +303,12 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // 才由原生画。桥不在时这里什么都不画，屏幕上是原来的 WebView 极简页 —— 不会两个都在。
         // 只订阅这条低频流，整个场景不跟着每秒的状态帧重建。
         val minimalBound by minimal.bound.collectAsState()
+        val minimalState by minimal.state.collectAsState()
+        val queueState by minimal.queue.collectAsState()
+        // `!detour` 不能少：顺访舞台时极简页自己 `return` 不画了，但 presentation 还是 minimal。
+        // 少了这一条，舞台 surface 会被这里过滤掉，底栏就再也没人画 —— 截图里舞台没有控制栏正是这个。
         val minimalOwns = minimalPlayerEnabled() && destination=="stage" && playerPresentation=="minimal" &&
-            !webOverlay && !stageExit.active && minimalBound
+            !webOverlay && !stageExit.active && minimalBound && !minimalState.controls.detour
         val visible = if (!webOverlay&&!pendingStageEntry) surfaces.values.filter {
             it.enabled && NativeFooterLayout.visible(it.id,destination,playlistDetail,it.viewportWidth,
                 pageTarget.startsWith("collection:artist:")) &&
@@ -455,12 +466,26 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 MinimalPlayerSurface(
                     runtime = minimal,
                     commands = minimalCommands,
+                    queue = queueState,
+                    onOpenQueue = { openNativeQueue() },
                     light = interfaceLight,
                     safeTop = safeTop,
                     safeBottom = safeBottom,
                     onCollapse = { minimalCommands.collapse() },
                     onOpenStage = { minimalCommands.openStage() },
                     modifier = Modifier.fillMaxSize(),
+                )
+            }
+            // 队列抽屉：宿主级，和哪一页在显示无关 —— 极简页、舞台、首页都开这一张。
+            if(queueOpen)Box(Modifier.fillMaxSize().zIndex(6f)){
+                io.github.huleixin.tingyu.minimal.ui.MinimalQueueSheet(
+                    queue=queueState,
+                    light=interfaceLight,
+                    onClose={queueOpen=false;minimalCommands.closeQueue()},
+                    onPlay={minimalCommands.queuePlay(it)},
+                    onRemove={minimalCommands.queueRemove(it)},
+                    onMoveNext={minimalCommands.queueMoveNext(it)},
+                    onMoveEnd={minimalCommands.queueMoveEnd(it)},
                 )
             }
             if(stageExit.active)Box(Modifier.fillMaxSize().zIndex(4f).pointerInput(Unit){awaitPointerEventScope{while(true)awaitPointerEvent().changes.forEach{it.consume()}}})

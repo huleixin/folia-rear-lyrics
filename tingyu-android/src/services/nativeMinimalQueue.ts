@@ -1,5 +1,6 @@
 import type { SongResult } from '../types';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
+import { chromeNative } from './nativeChrome';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
 import { getSongArtistLabel } from './onlineMusic/songMetadata';
 
@@ -60,6 +61,34 @@ export function hasNativeQueue(): boolean {
 /**
  * 只读快照。队列没变就返回同一个 `v`，调用方据此跳过推送 —— 396 条不该每秒过桥。
  */
+/** 当前曲的身份。队列高亮与"从哪一首开始"都靠它。 */
+export function currentQueueKey(): string {
+    const song = usePlaybackStore.getState().currentSong;
+    return song ? getPlaybackSongKey(song) : '';
+}
+
+/**
+ * 打开原生队列抽屉。**所有页面的唯一入口。**
+ *
+ * 先推快照再开门：门开了但数据还在路上，用户看到的是"加载中"而不是"队列为空"。
+ * 返回 false 才让调用方退回 WebView 面板（非 Android 环境）。
+ */
+export async function openNativeQueueSheet(): Promise<boolean> {
+    if (!handlers) return false;
+    const snapshot = readNativeQueue(currentQueueKey());
+    if (!snapshot) return false;
+    // 诊断锚点：logcat 里应能看到配对的 TingyuQueue "snapshot v=… n=…"。
+    console.info('[minimal-queue] open v=' + snapshot.v + ' n=' + snapshot.n + ' i=' + snapshot.i);
+    try {
+        const ack = await chromeNative.minimalQueue(snapshot);
+        await chromeNative.openMinimalQueue();
+        return ack?.accepted !== false;
+    } catch (error) {
+        console.warn('[minimal-queue] open failed', error);
+        return false;
+    }
+}
+
 export function readNativeQueue(currentKey: string): NativeQueueSnapshot | null {
     if (!handlers) return null;
     const queue = liveQueue();

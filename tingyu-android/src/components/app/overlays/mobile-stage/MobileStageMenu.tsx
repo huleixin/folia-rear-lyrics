@@ -3,6 +3,7 @@ import { AudioLines, Captions, ListMusic, Settings2, SlidersHorizontal } from 'l
 import { useTranslation } from 'react-i18next';
 import './mobileStageMenu.css';
 import { useAppViewStore } from '../../../../stores/useAppViewStore';
+import { openNativeQueueSheet } from '../../../../services/nativeMinimalQueue';
 import { openSettings } from '../../../../stores/useSettingsModalStore';
 import { useAudioSettingsStore } from '../../../../stores/useAudioSettingsStore';
 import { useAudioToolsStore, QUALITY_LABELS } from '../../../../stores/useAudioToolsStore';
@@ -82,7 +83,7 @@ export default function MobileStageMenu({
                 {t('localMusic.lyrics')}
             </button>
             {/* Both player views open the existing shared queue panel. */}
-            <button role="menuitem" onClick={() => run(() => { const state=useAppViewStore.getState();state.setPanelTab('queue');state.setIsPanelOpen(true); })}>
+            <button role="menuitem" onClick={() => run(() => { void openNativeQueueSheet().then(handled => { if (handled) return; const state=useAppViewStore.getState();state.setPanelTab('queue');state.setIsPanelOpen(true); }); })}>
                 <ListMusic size={18} />
                 {t('mobileStage.queue')}
             </button>

@@ -250,10 +250,20 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
     /**
      * JS 推来的队列投影。版本号倒退的包直接丢 —— 动作是异步的，乱序到达会让列表闪回。
      */
-    fun onQueueSnapshot(value: JSONObject) {
-        val next = MinimalQueue.parse(value) ?: return
-        if (next.version < _queue.value.version) return
+    fun onQueueSnapshot(value: JSONObject): Boolean {
+        val next = MinimalQueue.parse(value)
+        if (next == null) {
+            android.util.Log.w("TingyuQueue", "snapshot rejected: unparseable")
+            return false
+        }
+        if (next.version < _queue.value.version) {
+            // 版本倒退：动作是异步的，乱序包会让列表闪回。接受但不采用。
+            android.util.Log.d("TingyuQueue", "snapshot stale v=${next.version} < ${_queue.value.version}")
+            return true
+        }
         _queue.value = next
+        android.util.Log.d("TingyuQueue", "snapshot v=${next.version} n=${next.total} current=${next.currentIndex}")
+        return true
     }
 
     fun clearQueue() {

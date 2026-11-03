@@ -72,6 +72,8 @@ fun MinimalPlayerScreen(
     commands: MinimalPlayerCommands,
     /** 队列投影。JS 推来的，抽屉只读。 */
     queue: io.github.huleixin.tingyu.minimal.MinimalQueue = io.github.huleixin.tingyu.minimal.MinimalQueue(),
+    /** 打开宿主的队列抽屉。极简页自己不再持有抽屉状态。 */
+    onOpenQueue: () -> Unit = {},
     light: Boolean,
     safeTop: Float,
     safeBottom: Float,
@@ -98,13 +100,13 @@ fun MinimalPlayerScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     val still = remember(context) { reducedMotion(context) }
 
-    // 抽屉的开关是这一页的本地状态；它不改变播放，只是把队列画出来。
-    val queueVisible = remember { mutableStateOf(false) }
-    val sheetCommands = remember(commands) {
+    // 抽屉归宿主所有；这里只把"列表按钮"接到它的开门动作上。
+    // 之前这里裸用 `commands`，于是底部的列表按钮走的是另一条路 —— 同一个页面两套行为。
+    val sheetCommands = remember(commands, onOpenQueue) {
         object : MinimalPlayerCommands by commands {
             override fun openQueue(): Boolean {
-                queueVisible.value = true
-                return commands.requestQueue()
+                onOpenQueue()
+                return true
             }
         }
     }
@@ -133,6 +135,7 @@ fun MinimalPlayerScreen(
                 likeDisabled = state.controls.likeDisabled,
                 onLyricsPage = page == 1,
                 commands = commands,
+                onOpenQueue = onOpenQueue,
                 onCollapse = onCollapse,
                 onOpenStage = onOpenStage,
             )
@@ -191,22 +194,6 @@ fun MinimalPlayerScreen(
             )
         }
 
-        // 抽屉盖在整页之上（包括安全区之外）：它自己带 scrim，视觉上是从底边长出来的。
-        if (queueVisible.value) {
-            MinimalQueueSheet(
-                queue = queue,
-                // 注意这里是宿主给的界面主题，不是这一页的 dark：队列属于外壳。
-                light = light,
-                onClose = {
-                    queueVisible.value = false
-                    commands.closeQueue()
-                },
-                onPlay = { commands.queuePlay(it) },
-                onRemove = { commands.queueRemove(it) },
-                onMoveNext = { commands.queueMoveNext(it) },
-                onMoveEnd = { commands.queueMoveEnd(it) },
-            )
-        }
     }
 }
 
@@ -234,6 +221,7 @@ private fun rememberMinimalClock(playback: MinimalPlayback): State<Long> {
 private fun TopBar(
     ink: MinimalInk,
     base: Color,
+    onOpenQueue: () -> Unit,
     liked: Boolean,
     qualityMode: String,
     effectsOn: Boolean,
@@ -301,7 +289,7 @@ private fun TopBar(
                                     0 -> commands.openAudioQuality()
                                     1 -> commands.openAudioEffects()
                                     2 -> commands.openLyricsPanel()
-                                    3 -> commands.openQueue()
+                                    3 -> onOpenQueue()
                                     else -> commands.openPlaybackSettings()
                                 }
                             },

@@ -4,6 +4,7 @@ import { LoaderCircle, ListMusic, Pause, Play, Repeat, Repeat1, Shuffle, SkipBac
 import ProgressBar from '../../../ProgressBar';
 import type { AppOverlaysModel } from '../buildAppOverlaysModel';
 import { PlayerState } from '../../../../types';
+import { openNativeQueueSheet } from '../../../../services/nativeMinimalQueue';
 import { useAppViewStore } from '../../../../stores/useAppViewStore';
 import './minimalProgressGlow.css';
 import { playbackModeLabelKey, resolvePlaybackMode } from '../../../../utils/playbackMode';
@@ -62,8 +63,7 @@ export default function MinimalTransport({ controls, active = true }: { controls
 
     const openQueue = useCallback(() => {
         const state = useAppViewStore.getState();
-        state.setPanelTab('queue');
-        state.setIsPanelOpen(true);
+        void openNativeQueueSheet().then(handled => { if (!handled) { state.setPanelTab('queue'); state.setIsPanelOpen(true); } });
     }, []);
 
     const ModeIcon = mode === 'shuffle' ? Shuffle : mode === 'one' ? Repeat1 : Repeat;

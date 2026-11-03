@@ -15,6 +15,7 @@ import {
     Shuffle,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { openNativeQueueSheet } from '../../../../services/nativeMinimalQueue';
 import { useAppViewStore } from '../../../../stores/useAppViewStore';
 import { usePlayerViewModeStore } from '../../../../stores/usePlayerViewModeStore';
 import { openSettings } from '../../../../stores/useSettingsModalStore';
@@ -57,9 +58,13 @@ export default function MobileStageChrome({
 
     useMobileStageSubtitleClearance(stageRef, !hidden && !!controls && !controls.hideControlBar);
     const openQueue = () => {
-        const state = useAppViewStore.getState();
-        state.setPanelTab('queue');
-        state.setIsPanelOpen(true);
+        // Android 上队列只有 Compose 这一份；打不开（非原生环境）才退回旧面板。
+        void openNativeQueueSheet().then(handled => {
+            if (handled) return;
+            const state = useAppViewStore.getState();
+            state.setPanelTab('queue');
+            state.setIsPanelOpen(true);
+        });
     };
     const bg = controls?.theme?.backgroundColor || (controls?.isDaylight ? '#f1f3ef' : '#071312');
     const ink = '#fffdf6';

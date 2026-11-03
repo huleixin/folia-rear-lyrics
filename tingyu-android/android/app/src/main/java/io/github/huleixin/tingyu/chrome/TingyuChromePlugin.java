@@ -95,10 +95,17 @@ public class TingyuChromePlugin extends Plugin {
      * 歌名、时长、歌词和 Media3 位置都不走这里 —— 原生自己有权威来源，多一份副本只会多一个
      * 可能对不上的答案。帧里带 session，宿主据此丢弃换歌前的旧帧。
      */
+    @PluginMethod public void openMinimalQueue(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            try { if (host != null) host.openNativeQueue(); call.resolve(); }
+            catch (Exception error) { call.reject(error.getMessage(), error); }
+        });
+    }
+
     @PluginMethod public void minimalQueue(PluginCall call) {
         final org.json.JSONObject snapshot = call.getData();
         getActivity().runOnUiThread(() -> {
-            try { if (host != null) host.minimalQueue(snapshot); call.resolve(); }
+            try { boolean ok = host != null && host.minimalQueue(snapshot); call.resolve(new JSObject().put("accepted", ok)); }
             catch (Exception error) { call.reject(error.getMessage(), error); }
         });
     }

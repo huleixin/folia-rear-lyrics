@@ -84,11 +84,14 @@ describe('Android settings cleanup boundaries', () => {
         expect(useAppViewStore.getState().panelTab).toBe('onlineLyrics');
         expect(useAppViewStore.getState().isPanelOpen).toBe(true); expect(close).toHaveBeenCalledOnce();
     });
-    it('offers the queue from the stage menu for the minimal player page', () => {
+    it('offers the queue from the stage menu for the minimal player page', async () => {
         const close = vi.fn();
         useAppViewStore.getState().setIsPanelOpen(false);
         act(() => root.render(h(MobileStageMenu, { onClose: close })));
         act(() => host.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')[3].click());
+        // 入口先问原生队列（openNativeQueueSheet 是异步的），没有原生环境才落回面板。
+        // 微任务清空后断言回退路径：面板开在 queue 页。
+        await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
         expect(useAppViewStore.getState().panelTab).toBe('queue');
         expect(useAppViewStore.getState().isPanelOpen).toBe(true);
         expect(close).toHaveBeenCalledOnce();
