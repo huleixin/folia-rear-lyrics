@@ -49,6 +49,9 @@ final class RearHostView {
     private ContentObserver updates;
     private DisplayManager displays;
     private boolean ready, readyReported, shown, renderPaused, resumed = true, suspended, aod, closed;
+    private long loadStartedAt;
+    private final Runnable preparationTimeout=this::freezePreparation;
+    private void freezePreparation(){if(!closed&&!ready&&!shown){pauseRenderer();events.report(session,"prepared-idle",displayId(),"hidden stage preparation budget reached; paused until system selects this own card, no ownership acquired");}}
     private String failure = "not attached";
     private final java.util.Set<String> bootEvents=new java.util.HashSet<>();
     private void boot(String event,String detail){
@@ -79,7 +82,7 @@ final class RearHostView {
     boolean attach() {
         if (closed) { failure = "host already closed"; return false; }
         if (!RearCardContext.usable(context)) { failure = "card context missing or owning Activity destroyed"; return false; }
-        if(!card.binding.current()||!card.ownMedia()||!card.container.isAttachedToWindow()){failure="card identity or attachment changed";return false;}
+        if(!card.binding.associated()||!card.ownMedia()||!card.container.isAttachedToWindow()){failure="card identity or attachment changed";return false;}
         View decor = card.container;
         Display display = decor.getDisplay();
         if (display == null || display.getDisplayId() <= 0) {
@@ -119,9 +122,15 @@ final class RearHostView {
 
             renderer = new WebView(context) {
                 @Override protected void onDraw(Canvas canvas) {
+                    if(!closed&&ready&&shown&&!card.owned()&&card.binding.current()&&card.ownMedia()){
+                        try{
+                            boolean first=!card.owned();card.acquire(stage);
+                            if(first)events.report(session,"handoff-acquired",displayId(),"ready stage draw; preparationMs="+(android.os.SystemClock.uptimeMillis()-loadStartedAt));
+                        }catch(Throwable error){fail("Native draw handoff failed: "+error.getClass().getSimpleName());return;}
+                    }
                     super.onDraw(canvas);
                     boot("first-draw","ready="+ready+", shown="+shown);
-                    if (!closed && ready && shown && card.owned()&&card.ownMedia()&&card.binding.current() && !readyReported && isShown() && getWidth() > 0 && getHeight() > 0) {
+                    if (!readyReported && !closed && ready && shown && card.owned()&&card.ownMedia()&&card.binding.current() && isShown() && getWidth() > 0 && getHeight() > 0) {
                         readyReported = true;
                         if (stage != null) stage.setAlpha(1f);
                         events.report(session,"drawn",displayId(),"visible WebView onDraw boundary; not hardware presentation proof");
@@ -150,11 +159,12 @@ final class RearHostView {
                 @Override public void ready() {
                     if (closed || !events.current(session)) return;
                     ready = true;
+                    main.removeCallbacks(preparationTimeout);
                     followAod=client.followAod();
                     dispatch("folia-rear-mode","{\"mode\":\""+mode+"\"}");
-                    events.report(session,"page-ready",displayId(),"rear document ready; shown="+shown);
+                    events.report(session,"page-ready",displayId(),"rear document ready; shown="+shown+", preparationMs="+(android.os.SystemClock.uptimeMillis()-loadStartedAt));
                     // An alpha-zero parent may be culled before the child ever reaches onDraw.
-                    try{if(shown && stage!=null){if(card!=null)card.acquire(stage);stage.setAlpha(1f);}}catch(Throwable error){fail("Native card acquire failed: "+error.getClass().getSimpleName());return;}
+                    if(shown&&stage!=null)stage.setAlpha(1f);
                     main.post(()->{if(!closed&&renderer!=null){reconcile();renderer.postInvalidateOnAnimation();}});
                 }
                 @Override public void failed(String reason) {
@@ -199,7 +209,10 @@ final class RearHostView {
                 Uri.parse("content://" + RearHostContract.AUTHORITY + "/state"), false, updates);
 
             boot("load-url","rear-lyrics.html");
+            loadStartedAt=android.os.SystemClock.uptimeMillis();
             renderer.loadUrl(URL);
+            main.postDelayed(preparationTimeout,4500);
+            if(!card.binding.current())events.report(session,"preparing",displayId(),"verified hidden own music card; no drawing ownership until ready and selected");
             main.postDelayed(()->{if(!closed)viewState();},1200);
             reconcile();
             failure = "attached";
@@ -280,11 +293,11 @@ final class RearHostView {
                 dispatch("folia-rear-power", "{\"sleeping\":false}");
             }
         }
+        if(ready&&card.owned())try{card.acquire(stage);}catch(Throwable error){fail("Native visibility refresh failed: "+error.getClass().getSimpleName());return;}
         if (shown) {if(ready&&!readyReported&&renderer!=null)renderer.postInvalidateOnAnimation();return;}
         shown = true;
         events.report(session,"rendering",displayId(),"own SmartAssistant music card visible; awaiting real stage draw");
         if (ready) {
-            if(card!=null)try{card.acquire(stage);}catch(Throwable error){fail("Native reacquire failed: "+error.getClass().getSimpleName());return;}
             stage.setAlpha(1f);
             dispatch("folia-rear-resync", "{\"reason\":\"host-visible\"}");
             if (renderer != null) renderer.invalidate();
@@ -297,15 +310,19 @@ final class RearHostView {
 
     private void hide(String reason) {
         if (closed || stage == null) return;
-        // Preserve the last frame while the system animates its card offscreen.
-        boolean retain=RearHostPolicy.retainCardOnNavigation(events.current(session),card.ownMedia()&&card.binding.associated(),
-            stage.isAttachedToWindow(),suspended,aod||panelState()!=Display.STATE_ON);
+        // Keep valid ownership across power transitions, but never paint while OFF or AOD is disabled.
+        int power=panelState();
+        boolean systemAod=!followAod&&(aod||power==Display.STATE_DOZE||power==Display.STATE_DOZE_SUSPEND);
+        boolean retain=RearHostPolicy.retainCardOwnership(events.current(session),card.ownMedia()&&card.binding.associated(),
+            stage.isAttachedToWindow(),suspended,systemAod);
+        boolean retainFrame=retain&&power==Display.STATE_ON&&!aod;
         if(!retain)card.restore();
         boolean was = shown;
         shown = false;
-        if (!retain && stage.getVisibility() != View.INVISIBLE) stage.setVisibility(View.INVISIBLE);
-        pauseRenderer();
-        if (was) events.report(session, "paused", displayId(), reason+"; nativeNavigationRetained="+retain+"; display session unchanged");
+        if (!retainFrame && stage.getVisibility() != View.INVISIBLE) stage.setVisibility(View.INVISIBLE);
+        // Hidden preparation is bounded, and only permitted while the physical panel is already ON.
+        if(ready||power!=Display.STATE_ON||suspended||!events.current(session))pauseRenderer();
+        if (was) events.report(session, "paused", displayId(), reason+"; ownershipRetained="+retain+", frozenFrame="+retainFrame+", power="+power+"; display session unchanged");
     }
 
     private void pauseRenderer() {
@@ -332,6 +349,7 @@ final class RearHostView {
         if (Looper.myLooper() != main.getLooper()) { main.post(this::close); return; }
         if (closed) return;
         closed = true;
+        main.removeCallbacks(preparationTimeout);
         if(card!=null){card.restore();try{card.unwatch();}catch(Throwable error){boot("web-error","media callback cleanup "+error.getClass().getSimpleName());}}
         if (displays != null) { try { displays.unregisterDisplayListener(displayListener); } catch (Throwable ignored) {} displays = null; }
         if (updates != null) { try { context.getContentResolver().unregisterContentObserver(updates); } catch (Throwable ignored) {} updates = null; }

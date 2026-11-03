@@ -571,10 +571,20 @@ public final class RearHostHooks {
             report(lease,"native-card-probe",display,evidence+"; admission="+RearMusicAdmission.status
                 +"; ownChecks="+RearMusicAdmission.ownChecks+", ownLists="+RearMusicAdmission.ownLists+"; "+RearMusicAdmission.sessionEvidence(context));
             if(suspended)return PENDING;
-            if(host!=null&&!host.closed()&&card!=null){host.refresh();return ATTACHED;}
+            RearNativeCardOwner preferred=null;
+            if(host!=null&&!host.closed()&&card!=null){
+                host.refresh();
+                if(!host.closed()){
+                    if(card.binding.current())return ATTACHED;
+                    preferred=RearMamlProbe.ownCard(display);
+                    if(preferred==null||preferred.container==card.container)return ATTACHED;
+                }
+                host.close();host=null;
+            }
             if(!nativeOwnershipHooks){lastFailure="Native card restoration hooks unavailable";return FAILED;}
             if(card!=null&&!card.restore()){lastFailure="Native restoration unconfirmed; no parallel fallback";return PENDING;}
-            RearNativeCardOwner candidate=RearMamlProbe.ownCard(display);
+            RearNativeCardOwner candidate=preferred!=null?preferred:RearMamlProbe.ownCard(display);
+            if(candidate==null)candidate=RearMamlProbe.ownCard(display,false);
             if(candidate==null){
                 lastFailure="系统音乐卡槽未挂载；"+RearSystemCardBinding.evidence+"；"+evidence;
                 // Unsupported host structure is not a renderer timeout. Keep the real blocker.

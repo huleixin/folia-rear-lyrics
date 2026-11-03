@@ -89,16 +89,19 @@ final class RearMamlProbe {
         return snapshot;
     }
     static RearNativeCardOwner ownCard(int expectedDisplay){
+        return ownCard(expectedDisplay,true);
+    }
+    static RearNativeCardOwner ownCard(int expectedDisplay,boolean requireVisible){
         for(View v:new ArrayList<>(candidates.keySet()))try{
-            if(!(v instanceof android.widget.FrameLayout)||!v.isAttachedToWindow()||!v.isShown()||v.getDisplay()==null||v.getDisplay().getDisplayId()<=0)continue;
+            if(!(v instanceof android.widget.FrameLayout)||!v.isAttachedToWindow()||(requireVisible&&!v.isShown())||v.getDisplay()==null||v.getDisplay().getDisplayId()<=0)continue;
             Object root=XposedHelpers.getObjectField(v,"mRoot");
             Object music=root==null?null:XposedHelpers.callMethod(root,"findElement","music_control");
             if(music==null||!music.getClass().getName().equals("com.miui.maml.elements.MusicControlScreenElement")||!missingRestore(root).isEmpty())continue;
-            RearSystemCardBinding binding=RearSystemCardBinding.resolve((android.widget.FrameLayout)v);
+            RearSystemCardBinding binding=RearSystemCardBinding.resolve((android.widget.FrameLayout)v,requireVisible);
             if(binding==null)continue;
             RearNativeCardOwner candidate=new RearNativeCardOwner((android.widget.FrameLayout)v,root,music,binding);
             MediaController selected=candidate.selected();
-            if(selected!=null&&RearNativeCardPolicy.mayMount(selected.getPackageName(),v.isAttachedToWindow(),v.isShown(),v.getDisplay().getDisplayId(),expectedDisplay,v.getWidth(),v.getHeight()))return candidate;
+            if(selected!=null&&(requireVisible?RearNativeCardPolicy.mayMount(selected.getPackageName(),v.isAttachedToWindow(),v.isShown(),v.getDisplay().getDisplayId(),expectedDisplay,v.getWidth(),v.getHeight()):RearNativeCardPolicy.mayPrepare(selected.getPackageName(),v.isAttachedToWindow(),v.getDisplay().getDisplayId(),expectedDisplay,v.getWidth(),v.getHeight())))return candidate;
         }catch(Throwable ignored){}
         return null;
     }

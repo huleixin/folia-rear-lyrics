@@ -61,9 +61,9 @@ final class RearHostPolicy {
             int display, int state) {
         return requested && !suspended && resumed && attached && display > 0 && state == STATE_ON;
     }
-    /** A native card leaving the current page retains its frame and lease, not an Activity takeover. */
-    static boolean retainCardOnNavigation(boolean requested,boolean ownMedia,boolean attached,boolean suspended,boolean sleeping){
-        return requested&&ownMedia&&attached&&!suspended&&!sleeping;
+    /** Display power pauses pixels, not card ownership. Explicit system-AOD preference/camera still release. */
+    static boolean retainCardOwnership(boolean requested,boolean ownMedia,boolean attached,boolean suspended,boolean restoreSystemAod){
+        return requested&&ownMedia&&attached&&!suspended&&!restoreSystemAod;
     }
 
     /**

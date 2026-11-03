@@ -37,13 +37,22 @@ final class RearNativeCardOwner {
     boolean owned(){return owned;}
     boolean applies(Object object){return object==root||object==music||object==container;}
     void acquire(View stage){
-        if(owned)return;
         if(!ownMedia()||!binding.current()||!container.isAttachedToWindow()||XposedHelpers.getObjectField(container,"mRoot")!=root)throw new IllegalStateException("Native music session or system slot changed");
+        if(owned){maskChildren(stage);return;}
         restored=false;owned=true;
         try{
             XposedHelpers.callMethod(root,"selfPause");XposedHelpers.callMethod(root,"detachFromVsync");
-            for(int i=0;i<container.getChildCount();i++){View child=container.getChildAt(i);if(child!=stage){visibility.put(child,child.getVisibility());child.setVisibility(View.INVISIBLE);}}
+            maskChildren(stage);
         }catch(Throwable error){restore();throw error;}
+    }
+    /** A power/theme update can add or reveal a native child without replacing the card root. */
+    private void maskChildren(View stage){
+        visibility.entrySet().removeIf(entry->entry.getKey().getParent()!=container);
+        for(int i=0;i<container.getChildCount();i++){
+            View child=container.getChildAt(i);if(child==stage)continue;
+            if(!visibility.containsKey(child))visibility.put(child,child.getVisibility());
+            if(child.getVisibility()!=View.INVISIBLE)child.setVisibility(View.INVISIBLE);
+        }
     }
     boolean restore(){
         if(!owned&&restored)return true;

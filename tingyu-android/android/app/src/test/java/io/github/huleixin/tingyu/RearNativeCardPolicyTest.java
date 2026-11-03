@@ -29,4 +29,14 @@ public class RearNativeCardPolicyTest {
         assertFalse(RearNativeCardPolicy.mayMount(own,true,true,1,1,0,572));
         assertFalse(RearNativeCardPolicy.mayMount(own,true,true,1,1,904,0));
     }
+    @Test public void hiddenPreparationNeverGrantsVisibleMountOrBypassesMediaAndDisplayIdentity(){
+        String own=RearHostContract.APP;
+        assertTrue(RearNativeCardPolicy.mayPrepare(own,true,1,1,904,572));
+        assertFalse(RearNativeCardPolicy.mayMount(own,true,false,1,1,904,572));
+        assertFalse(RearNativeCardPolicy.mayPrepare("other",true,1,1,904,572));
+        assertFalse(RearNativeCardPolicy.mayPrepare(own,false,1,1,904,572));
+        assertFalse(RearNativeCardPolicy.mayPrepare(own,true,0,0,904,572));
+        assertFalse(RearNativeCardPolicy.mayPrepare(own,true,2,1,904,572));
+        assertFalse(RearNativeCardPolicy.mayPrepare(own,true,1,1,0,572));
+    }
 }

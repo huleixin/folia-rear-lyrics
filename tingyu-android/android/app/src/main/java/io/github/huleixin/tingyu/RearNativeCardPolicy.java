@@ -5,7 +5,10 @@ package io.github.huleixin.tingyu;
 final class RearNativeCardPolicy {
     static boolean ownMedia(String pkg){return RearHostContract.APP.equals(pkg);}
     static boolean mayMount(String pkg,boolean attached,boolean shown,int display,int expectedDisplay,int width,int height){
-        return ownMedia(pkg)&&attached&&shown&&display>0&&(expectedDisplay<=0||expectedDisplay==display)&&width>0&&height>0;
+        return shown&&mayPrepare(pkg,attached,display,expectedDisplay,width,height);
+    }
+    static boolean mayPrepare(String pkg,boolean attached,int display,int expectedDisplay,int width,int height){
+        return ownMedia(pkg)&&attached&&display>0&&(expectedDisplay<=0||expectedDisplay==display)&&width>0&&height>0;
     }
     static String blocker(boolean music,String pkg,boolean restore){
         if(!music)return "native music card unavailable";
