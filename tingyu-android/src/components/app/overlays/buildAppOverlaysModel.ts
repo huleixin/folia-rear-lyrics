@@ -6,7 +6,7 @@ import type DevDebugOverlay from '../../DevDebugOverlay';
 import type MemoryMonitorWindow from '../../debug/MemoryMonitorWindow';
 import type NowPlayingToast from './NowPlayingToast';
 import { PlayerState } from '../../../types';
-import type { SongResult, UnifiedSong, LyricData } from '../../../types';
+import type { SongResult, UnifiedSong, LyricData, Artist } from '../../../types';
 import { resolvePlaybackNeighbors } from '../../../utils/playbackNeighbors';
 import { getPlaybackSongKey } from '../../../utils/appPlaybackGuards';
 import { getSongArtistLabel } from '../../../services/onlineMusic/songMetadata';
@@ -25,7 +25,7 @@ type MemoryMonitorProps = React.ComponentProps<typeof MemoryMonitorWindow>;
 type NowPlayingToastProps = React.ComponentProps<typeof NowPlayingToast>;
 
 export type AppOverlaysModel = {
-    mobileStage?: { song: { title: string; artist: string; coverUrl: string | null } | null; onBack: () => void; hidden: boolean };
+    mobileStage?: { song: { title: string; artist: string; coverUrl: string | null } | null; onBack: () => void; onOpenArtist?: (artist: Artist) => void; hidden: boolean };
     searchOverlay?: SearchOverlayProps | null;
     debugOverlay?: DebugOverlayProps | null;
     memoryMonitor?: MemoryMonitorProps | null;
@@ -83,6 +83,7 @@ type AppOverlaysAmbient = {
 // What only the caller can supply: controller callbacks and values App.tsx computes.
 export type AppOverlaysDeps = {
     onBackFromPlayer?: () => void;
+    onOpenPlayerArtist?: (song: SongResult, artist: Artist) => void;
     theme: any;
     closeSearchView: () => void;
     handleSearchOverlaySubmit: SearchOverlayProps['onSubmitSearch'];
@@ -135,6 +136,7 @@ type BuildAppOverlaysModelParams = AppOverlaysAmbient & AppOverlaysDeps;
 // Builds the full overlay model, including detail overlays and floating playback controls.
 export const buildAppOverlaysModel = ({
     onBackFromPlayer,
+    onOpenPlayerArtist,
     currentView,
     isSearchOpen,
     theme,
@@ -203,6 +205,7 @@ export const buildAppOverlaysModel = ({
     mobileStage: onBackFromPlayer ? {
         song: currentSong ? { title: currentSong.name || '', artist: getSongArtistLabel(currentSong), coverUrl } : null,
         onBack: onBackFromPlayer,
+        onOpenArtist: currentSong && onOpenPlayerArtist ? artist => onOpenPlayerArtist(currentSong, artist) : undefined,
         hidden: isPlayerChromeHidden || immersivePlayerChromeHidden,
     } : undefined,
     // Gated on stageTrackPillOnScreen (computed in App: display mode plus which page allows the

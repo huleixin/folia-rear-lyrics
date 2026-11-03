@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { AudioLines, Captions, ListMusic, Settings2, SlidersHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import './mobileStageMenu.css';
 import { useAppViewStore } from '../../../../stores/useAppViewStore';
 import { openSettings } from '../../../../stores/useSettingsModalStore';
 import { useAudioSettingsStore } from '../../../../stores/useAudioSettingsStore';
@@ -20,7 +21,7 @@ export default function MobileStageMenu({
         const previous = document.activeElement as HTMLElement | null;
         ref.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
         const outside = (event: PointerEvent) => {
-            if ((event.target as Element)?.closest?.('[data-mps-more]')) return;
+            if ((event.target as Element)?.closest?.('[data-mps-more], [data-min-more]')) return;
             if (!ref.current?.contains(event.target as Node)) onClose();
         };
         const key = (event: KeyboardEvent) => {
@@ -80,8 +81,7 @@ export default function MobileStageMenu({
                 <Captions size={18} />
                 {t('localMusic.lyrics')}
             </button>
-            {/* The minimal stage has no queue button of its own (the reference has five transport
-                icons and no sixth), so the queue it must still offer lives here. */}
+            {/* Both player views open the existing shared queue panel. */}
             <button role="menuitem" onClick={() => run(() => { const state=useAppViewStore.getState();state.setPanelTab('queue');state.setIsPanelOpen(true); })}>
                 <ListMusic size={18} />
                 {t('mobileStage.queue')}

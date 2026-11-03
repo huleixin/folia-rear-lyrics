@@ -451,6 +451,10 @@ export function useAppNavigation() {
     }, [pushNavigationState, resetLocalNavigationContext]);
 
     const navigateBackFromPlayer = useCallback(() => {
+        // Escape is dispatched before the native Back fallback: every caller must consume a visit.
+        const player = usePlayerViewModeStore.getState();
+        if (player.detour) { player.closeStage(); return; }
+        if (player.stageTransition === 'to-minimal') return;
         returnFromNativeStage(()=>{
         const historyState = window.history.state as NavigationHistoryState | null;
         if (shouldNavigatePlayerBackThroughHistory(historyState) && historyJournal.get(getAppHistoryIndex(historyState)-1)) {

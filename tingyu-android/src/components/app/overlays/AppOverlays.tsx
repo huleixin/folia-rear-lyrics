@@ -21,6 +21,7 @@ type AppOverlaysProps = {
 };
 const MobileStageChrome = lazy(() => import('./mobile-stage/MobileStageChrome'));
 const MinimalStage = lazy(() => import('./minimal-stage/MinimalStage'));
+import './mobile-stage/playerStageTransition.css';
 /** Module-scope so the warm-up queue can tell one request from another and only run it once. */
 const warmMinimalStage = () => import('./minimal-stage/MinimalStage');
 
@@ -31,8 +32,7 @@ const AppOverlays: React.FC<AppOverlaysProps> = ({ model }) => {
     const view = useAppViewStore(state => state.view);
     const playerViewMode = usePlayerViewModeStore(state => state.mode);
     const playerViewDetour = usePlayerViewModeStore(state => state.detour);
-    // The paired fade between the minimal page and the stage. While it runs, both surfaces stay
-    // mounted: the outgoing one so the incoming one has something to dissolve over.
+    // Retain the minimal page underneath a temporary stage sheet.
     const stageTransition = usePlayerViewModeStore(state => state.stageTransition);
     const searchOpen = useSearchNavigationStore(state => state.isSearchOpen);
     const [searchLoaded, setSearchLoaded] = useState(searchOpen);
@@ -54,12 +54,9 @@ const AppOverlays: React.FC<AppOverlaysProps> = ({ model }) => {
     const ownsLibraryChrome = suite === 'mobile' && view === 'home';
     // The minimal stage is a player surface, and it owns its own top bar and transport; the classic
     // stage chrome must not mount underneath it, or Android would draw a second control bar over it.
-    // Except during the paired fade, where it must: the page dissolving into the stage needs the
-    // stage painted underneath, and the stage dissolving back needs the page to appear over it.
     const ownsStageChrome = suite === 'mobile' && view === 'player' && !!model.mobileStage
         && (playerViewMode === 'stage' || playerViewDetour || stageTransition === 'to-minimal');
-    const ownsMinimalStage = suite === 'mobile' && view === 'player' && playerViewMode === 'minimal'
-        && (!playerViewDetour || stageTransition === 'to-stage');
+    const ownsMinimalStage = suite === 'mobile' && view === 'player' && playerViewMode === 'minimal';
     const {
         searchOverlay,
         debugOverlay,

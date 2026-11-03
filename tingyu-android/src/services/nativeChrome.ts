@@ -8,6 +8,7 @@ export const PREHIDE_COMPOSE_CHROME = COMPOSE_CHROME && isAndroidNativeRuntime()
 export const COMPOSE_CHROME_FAILURE_EVENT = 'tingyu-compose-chrome-failed';
 export type ChromeSurfaceId = 'nav' | 'mini' | 'stage';
 export type ChromeData = {
+    playerTransition?: 'idle' | 'to-stage' | 'to-minimal';
     title?: string; artist?: string; cover?: string; trackKey?: string; playing?: boolean; disabled?: boolean;
     canNext?: boolean; canPrevious?: boolean; duration?: number; selected?: number; loop?: string;
     sleepPreferredMinutes?: number;
@@ -26,7 +27,7 @@ export const chromeNative = registerPlugin<{
     remove(value:{id:ChromeSurfaceId;session:string}):Promise<void>;
     pageUpdate(frame:NativePageFrame):Promise<{accepted:boolean;session:string}>;
     pageRemove(value:{id:NativePageId;session:string}):Promise<void>;
-    shell(value:{generation:number;revision:number;route:string;webOverlay:boolean;selectedTab:number;pageTarget?:string;entryKey?:string;reducedMotion?:boolean;navigation?:string;playlistDetail?:boolean}):Promise<void>;
+    shell(value:{generation:number;revision:number;route:string;webOverlay:boolean;selectedTab:number;pageTarget?:string;entryKey?:string;reducedMotion?:boolean;navigation?:string;playlistDetail?:boolean;playerPresentation?:'minimal'|'stage'}):Promise<void>;
     collapseStage():Promise<void>;
     addListener(name:'action',callback:(value:ChromeAction)=>void):Promise<{remove:()=>Promise<void>}>;
     addListener(name:'pageAction',callback:(value:NativePageEvent)=>void):Promise<{remove:()=>Promise<void>}>;

@@ -1,0 +1,35 @@
+/* src/components/app/overlays/mobile-stage/mobileStageMenu.css — loaded by the menu itself. */
+.mps-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 210px;
+    padding: 7px;
+    background: var(--mps-glass);
+    backdrop-filter: blur(24px);
+    border: 1px solid var(--mps-border);
+    border-radius: 17px;
+    box-shadow: 0 12px 32px #0004;
+}
+.mps-menu button {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    text-align: left;
+    width: 100%;
+    min-height: 47px;
+    padding: 10px 12px;
+    font-size: 14px;
+    border-radius: 11px;
+}
+.mps-menu button:hover {
+    background: var(--mps-track);
+}
+.mps-menu-label { flex: 1; min-width: 0; }
+.mps-menu-value { font-size: 12px; opacity: 0.65; white-space: nowrap; }
+.mps-menu button > svg { flex: none; }
+
+.mps-menu { max-width: calc(100vw - 32px); max-height: calc(100dvh - 140px); overflow-y: auto; color: var(--mps-ink); pointer-events: auto; z-index: 10; }
+.mps-menu button { color: inherit; background: transparent; border: 0; cursor: pointer; }
+.mps-menu button:focus-visible { outline: 2px solid var(--mps-accent); outline-offset: -2px; }
+.mps-menu button:hover { background: var(--mps-track); }

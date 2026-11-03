@@ -1,0 +1,22 @@
+/* src/components/app/overlays/minimal-stage/minimalAmbience.css */
+/* Cover-colored Aurora: rasterize gradients once, animate only the three layer transforms. */
+.min-amb { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; contain: paint; }
+.min-amb > span { position: absolute; inset: 0; display: block; }
+.min-amb__wash { background: linear-gradient(155deg, var(--min-field-1), var(--min-base) 58%, var(--min-field-2)); }
+.min-amb__blob { opacity: .32; }
+.min-amb__blob--a { background: radial-gradient(ellipse 95% 65% at 24% 25%, var(--aurora-a), transparent 80%); animation: aurora-a 18s ease-in-out infinite alternate; }
+.min-amb__blob--b { background: radial-gradient(ellipse 100% 67% at 80% 52%, var(--aurora-b), transparent 82%); animation: aurora-b 23s ease-in-out infinite alternate; }
+.min-amb__blob--c { background: radial-gradient(ellipse 105% 72% at 45% 90%, var(--aurora-c), transparent 84%); animation: aurora-c 27s ease-in-out infinite alternate; }
+.min-amb__veil { background: linear-gradient(180deg, rgb(var(--min-shade) / .18), transparent 35%, rgb(var(--min-shade) / .3)); }
+.min-amb__vignette { background: radial-gradient(ellipse at 50% 42%, transparent 30%, rgb(var(--min-shade) / .3) 100%); }
+.min[data-theme='light'] .min-amb__blob { opacity: .16; }
+.min[data-theme='light'] .min-amb__veil, .min[data-theme='light'] .min-amb__vignette { opacity: .3; }
+@keyframes aurora-a { from { transform: translate3d(-8%,-5%,0); } to { transform: translate3d(17%,12%,0); } }
+@keyframes aurora-b { from { transform: translate3d(7%,9%,0); } to { transform: translate3d(-15%,-12%,0); } }
+@keyframes aurora-c { from { transform: translate3d(-12%,3%,0); } to { transform: translate3d(14%,-11%,0); } }
+.min-amb[data-paused] .min-amb__blob { animation-play-state: paused; }
+.min-amb[data-still] .min-amb__blob { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+    .min-amb__blob, .min-cover__art, .min-wave i, .min[data-phase] { animation: none; }
+    .min-line, .min-line__text { transition: none; }
+}

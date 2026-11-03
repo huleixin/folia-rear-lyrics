@@ -21,6 +21,7 @@ type AppShellProps = {
     useCustomWindowRadius: boolean;
     showTransparentWindowBorder: boolean;
     isPlayerView: boolean;
+    playerPresentation?: 'minimal' | 'stage';
     isTitlebarRevealed: boolean;
     alwaysShowMainWindowTitlebar: boolean;
     isMainWindowClickThroughEnabled: boolean;
@@ -39,6 +40,7 @@ const AppShell: React.FC<AppShellProps> = ({
     useCustomWindowRadius,
     showTransparentWindowBorder,
     isPlayerView,
+    playerPresentation = 'stage',
     isTitlebarRevealed,
     alwaysShowMainWindowTitlebar,
     isMainWindowClickThroughEnabled,
@@ -53,7 +55,7 @@ const AppShell: React.FC<AppShellProps> = ({
     const mobileSuite = useActiveLibrarySuiteId() === 'mobile';
     const mobileLibrary = mobileSuite && !isPlayerView;
     const android = Capacitor.getPlatform() === 'android';
-    useLayoutEffect(()=>{if(android)flushNativeShellRoute()},[android,isPlayerView]);
+    useLayoutEffect(()=>{if(android)flushNativeShellRoute()},[android,isPlayerView,playerPresentation]);
     useMobileScrollbars(android || mobileLibrary);
     const [isWindowMaximized, setIsWindowMaximized] = useState(false);
     const hasFullscreenTitlebarButton = isElectronWindow && !hideFullscreenButton;
@@ -106,6 +108,7 @@ const AppShell: React.FC<AppShellProps> = ({
             data-folia-app-shell="true"
             data-folia-android={Capacitor.getPlatform() === 'android' || undefined}
             data-folia-player-view={isPlayerView || undefined}
+            data-folia-player-presentation={playerPresentation}
             data-folia-mobile-stage={mobileSuite && isPlayerView || undefined}
             data-folia-mobile-library={mobileLibrary || undefined}
             className="fixed inset-0 w-full h-full flex flex-col overflow-hidden font-sans transition-colors duration-500"

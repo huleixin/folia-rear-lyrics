@@ -10,24 +10,13 @@ import { create } from 'zustand';
 export type PlayerViewMode = 'minimal' | 'stage';
 export type MinimalPlayerPage = 'cover' | 'lyrics';
 
-/**
- * The paired fade between the minimal page and the classic stage.
- *
- * These two surfaces are full screens that trade places, so neither may pop in or slide: while the
- * value is not `idle`, *both* stay mounted — the outgoing one so the incoming one has something to
- * dissolve over, the incoming one so it is painted before the outgoing starts to lift. Whoever is
- * holding the stage reads this; nothing else should.
- */
+/** Direction of the temporary stage sheet; both surfaces stay mounted until it settles. */
 export type StageTransition = 'idle' | 'to-stage' | 'to-minimal';
 
 export const PLAYER_VIEW_MODE_KEY = 'tingyu_player_view_mode';
 export const MINIMAL_PLAYER_PAGE_KEY = 'tingyu_minimal_player_page';
 
-/**
- * How long a paired fade runs, and a little longer. The CSS animation is 300ms and starts two frames
- * after the hold begins (the outgoing page waits for the incoming stage to have painted); the hold is
- * 400ms so the outgoing surface is never unmounted while it is still visible at all.
- */
+/** Retain both surfaces beyond the 360ms sheet motion, including bridge delivery time. */
 export const STAGE_TRANSITION_MS = 400;
 
 const isPage = (value: unknown): value is MinimalPlayerPage => value === 'cover' || value === 'lyrics';
@@ -68,7 +57,7 @@ type PlayerViewModeState = {
      * as the visit lasts, so back returns to the minimal page instead of leaving the player.
      */
     detour: boolean;
-    /** The paired fade currently running, if any. */
+    /** The temporary stage sheet currently moving, if any. */
     stageTransition: StageTransition;
     setMode: (mode: PlayerViewMode) => void;
     setPage: (page: MinimalPlayerPage) => void;
@@ -109,7 +98,7 @@ export const usePlayerViewModeStore = create<PlayerViewModeState>((set, get) => 
     stageTransition: 'idle',
     setMode: (mode) => {
         write(PLAYER_VIEW_MODE_KEY, mode);
-        // A mode change is a decision, not a transition: drop any fade that is still running so a
+        // A mode change is a decision, not a transition: drop any sheet transition that is still running so a
         // half-finished hold cannot leave a stale surface mounted.
         cancelHold();
         set({ mode, detour: false, stageTransition: 'idle' });
@@ -123,8 +112,8 @@ export const usePlayerViewModeStore = create<PlayerViewModeState>((set, get) => 
         if (state.detour) {
             return;
         }
-        // Re-entering while the return fade is still running is a reversal, not a second
-        // navigation: the same pair of surfaces is already mounted, so this only turns the fade
+        // Re-entering while the return sheet transition is still running is a reversal, not a second
+        // navigation: the same pair of surfaces is already mounted, so this only turns the sheet transition
         // around instead of stacking a second one.
         startHold(() => get().endStageTransition());
         set({ detour: true, stageTransition: 'to-stage' });

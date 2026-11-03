@@ -33,6 +33,7 @@ import { usePlaybackStore } from '../../../../stores/usePlaybackStore';
 import { warmSettingsModule, scheduleSettingsWarmup } from '../../dialogs/settingsModule';
 import '../../../../styles/composeChrome.css';
 import './mobileStageChrome.css';
+import './playerStageTransition.css';
 import '../../../../styles/mobileGlass.css';
 
 // src/components/app/overlays/mobile-stage/MobileStageChrome.tsx
@@ -76,17 +77,14 @@ export default function MobileStageChrome({
     const disabled = !controls || !!controls.controlsDisabled;
     const song = usePlaybackStore(s=>s.currentSong);
     const reducedMotion = useReducedMotionFor('uiMicroMotion');
-    // The paired fade with the minimal page. The WebView layers dissolve; the native control bar
-    // cannot (its alpha is owned by the native host, not by CSS), so it changes at the boundary
-    // where the screen has already settled instead of in the middle of the fade: it arrives once the
-    // stage is on screen, and it leaves when the stage is unmounted.
-    const arriving = stageTransition === 'to-stage';
+    // Native controls receive the same discrete direction as the WebView stage.
+    const moving = stageTransition !== 'idle';
     // The same resolver the minimal page's single mode button uses — one name for the pair of
     // booleans, so the two views cannot show different modes for the same state.
     const mode = resolvePlaybackMode(controls?.shuffleEnabled, controls?.loopMode);
     const loop = playbackModeLegacyToken(mode);
-    const compose = useComposeChrome(playerRef,'stage',!hidden&&!!controls&&!controls.hideControlBar&&!arriving,{
-        playing:controls?.playerState===PlayerState.PLAYING,disabled,duration:controls?.duration||0,
+    const compose = useComposeChrome(playerRef,'stage',!hidden&&!!controls&&!controls.hideControlBar,{
+        playerTransition:stageTransition,playing:controls?.playerState===PlayerState.PLAYING,disabled:disabled||moving,duration:controls?.duration||0,
         trackKey:song?getPlaybackSongKey(song):'',canNext:!!controls?.trackNavigation?.canNext,canPrevious:!!controls?.trackNavigation?.canPrev,
         loop,accent,ink,reducedMotion,labels:{play:t('mobileLibrary.play'),pause:t('mobileLibrary.pause'),queue:t('mobileStage.queue'),seek:t('mobileStage.seek'),loop:t('mobileStage.loop'),loopValue:t(playbackModeLabelKey(mode)),
         previous:controls?.trackNavigation?.prevLabel||t('ui.previousTrack'),next:controls?.trackNavigation?.nextLabel||t('ui.nextTrack')},
@@ -99,7 +97,8 @@ export default function MobileStageChrome({
             style={style}
             data-testid="mobile-stage-chrome"
             data-hidden={hidden || undefined}
-            data-arriving={arriving || undefined}
+            data-stage-motion={stageTransition === 'idle' ? undefined : stageTransition}
+            inert={moving || undefined}
         >
             <header className="mps-header">
                 {/* Collapse, on its own, where the minimal page keeps it. It used to be a chevron

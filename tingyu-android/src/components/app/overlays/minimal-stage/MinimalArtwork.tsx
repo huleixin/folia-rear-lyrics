@@ -18,6 +18,13 @@ import { Music2 } from 'lucide-react';
 
 const FADE_MS = 320;
 const MAX_STACK = 2;
+// Retain only URL readiness, never a bitmap or unbounded song history, across player visits.
+const decodedCovers = new Set<string>();
+const rememberDecoded = (url: string) => {
+    decodedCovers.delete(url);
+    decodedCovers.add(url);
+    if (decodedCovers.size > 16) decodedCovers.delete(decodedCovers.values().next().value!);
+};
 
 export default function MinimalArtwork({
     url,
@@ -29,9 +36,9 @@ export default function MinimalArtwork({
     className?: string;
 }) {
     /** Urls currently in the DOM, oldest first. The last one is on top. */
-    const [stack, setStack] = useState<string[]>([]);
+    const [stack, setStack] = useState<string[]>(() => url && decodedCovers.has(url) ? [url] : []);
     /** The url the top layer is allowed to be opaque. Set one frame after it is inserted. */
-    const [lit, setLit] = useState<string | null>(null);
+    const [lit, setLit] = useState<string | null>(() => url && decodedCovers.has(url) ? url : null);
     const urlRef = useRef(url);
     const timer = useRef(0);
     const frame = useRef(0);
@@ -49,6 +56,7 @@ export default function MinimalArtwork({
             if (!alive || urlRef.current !== url) {
                 return;
             }
+            rememberDecoded(url);
             setStack(previous => (previous[previous.length - 1] === url ? previous : [...previous, url].slice(-MAX_STACK)));
             // One frame at zero opacity first. Flipping it in the same commit as the insert would
             // paint the new sleeve at full opacity immediately, and a crossfade that starts at the
@@ -65,12 +73,17 @@ export default function MinimalArtwork({
                 setStack(previous => (previous.length > 1 ? previous.slice(-1) : previous));
             }, FADE_MS);
         };
-        image.onload = commit;
+        const decoded = () => {
+            // onload alone does not guarantee the bitmap is ready for Chromium composition.
+            if (typeof image.decode === 'function') void image.decode().then(commit, () => { if (image.naturalWidth > 0) commit(); });
+            else commit();
+        };
+        image.onload = decoded;
         // A broken cover must not replace a working one; with an empty stack the plate shows.
         image.onerror = () => { /* keep whatever is painted */ };
         image.src = url;
         if (image.complete && image.naturalWidth > 0) {
-            commit();
+            decoded();
         }
         return () => {
             alive = false;

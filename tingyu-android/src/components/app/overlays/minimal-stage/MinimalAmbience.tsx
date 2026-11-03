@@ -1,16 +1,17 @@
 import React from 'react';
-import type { MinimalPalette } from './minimalPalette';
+import { hslToRgb, rgbToHsl, rgbCss, type MinimalPalette } from './minimalPalette';
+import { parseColorChannels } from '../../../visualizer/colorMix';
+import './minimalAmbience.css';
 
 // src/components/app/overlays/minimal-stage/MinimalAmbience.tsx
-// Seven flat layers, no shader, no blur filter, no canvas.
-//
-// Why gradients instead of the usual "blur huge circles" recipe: a `filter: blur(80px)`, a backdrop
-// filter, or a Shader each cost a full-screen pass on every frame they are composited. Large soft
-// radial gradients are already smooth, so the whole background is one paint that the compositor can
-// then move with `transform` alone — which is exactly what the slow drift does below.
-//
-// The drift is deliberately slow (40–60s) and gated three ways: by the player state, by the page's
-// visibility, and by the listener's motion preference. Nothing here runs at frame rate in JS.
+// Adapt the supplied AuroraBgView's three cover-derived radial glows to cached CSS layers.
+// No native animator, Canvas repaint loop, FFT or per-frame React updates are needed.
+const glow = (color: string) => {
+    const rgb = parseColorChannels(color);
+    if (!rgb) return color;
+    const hsl = rgbToHsl(rgb);
+    return rgbCss(hslToRgb({ ...hsl, s: Math.min(.58, Math.max(.3, hsl.s)), l: .58 }));
+};
 
 export default function MinimalAmbience({
     palette,
@@ -23,16 +24,16 @@ export default function MinimalAmbience({
     /** Reduced motion: keep the colours, drop the movement. */
     still: boolean;
 }) {
-    // The palette is published here as well as on the shell, and it is this copy that the 700ms
-    // crossfade runs on (see the transition on .min-amb). A custom property set on the shell is
-    // inherited by the whole page, so animating it there re-resolved every lyric span on every
-    // frame of the fade; on this box the same fade touches the eight spans that paint it.
+    // Colors change only with cover/theme; only layer transforms animate.
     const vars = {
         '--min-base': palette.base,
         '--min-field-1': palette.fieldPrimary,
         '--min-field-2': palette.fieldSecondary,
         '--min-bloom': palette.bloom,
         '--min-accent': palette.accent,
+        '--aurora-a': glow(palette.fieldPrimary),
+        '--aurora-b': glow(palette.fieldSecondary),
+        '--aurora-c': glow(palette.bloom),
     } as React.CSSProperties;
     return (
         <div
@@ -47,12 +48,8 @@ export default function MinimalAmbience({
             <span className="min-amb__blob min-amb__blob--a" />
             <span className="min-amb__blob min-amb__blob--b" />
             <span className="min-amb__blob min-amb__blob--c" />
-            <span className="min-amb__bloom" />
             <span className="min-amb__veil" />
             <span className="min-amb__vignette" />
-            {/* A single 120px noise tile, painted once. It is the difference between a gradient and
-                a printed surface; it never repaints, so it costs one texture and nothing per frame. */}
-            <span className="min-amb__grain" />
         </div>
     );
 }

@@ -50,26 +50,9 @@
     animation: min-rise 420ms cubic-bezier(0.2, 0.72, 0.16, 1) both;
 }
 
-.min[data-phase='enter'] .min-cover,
-.min[data-phase='enter'] .min-lyrics {
-    animation: min-content-in 360ms cubic-bezier(0.22, 0.68, 0.2, 1) 70ms both;
-}
-
-/* The controls come in last and only fade: they are already where the listener expects them, so
-   sliding them would read as the whole page being a card. */
-.min[data-phase='enter'] .min-transport,
-.min[data-phase='enter'] .min-dots {
-    animation: min-chrome-in 280ms ease 150ms both;
-}
-
 .min[data-phase='exit'] {
     animation: min-fall 300ms cubic-bezier(0.42, 0, 0.74, 0.3) both;
     pointer-events: none;
-}
-
-.min[data-phase='exit'] .min-cover,
-.min[data-phase='exit'] .min-lyrics {
-    animation: min-content-out 200ms ease both;
 }
 
 @keyframes min-rise {
@@ -80,32 +63,6 @@
 @keyframes min-fall {
     from { transform: none; }
     to { transform: translate3d(0, 100%, 0); }
-}
-
-/* Arriving from the classic stage. This is the other full-screen player, not a surface below this
-   one, so the page does not climb out of the bottom edge here — it dissolves in over the stage,
-   which the store keeps mounted for exactly this long. A 0.6% scale on the way in is the whole of
-   the "极轻微缩放": enough that the two layers do not read as one flat picture, not enough to move
-   a lyric line under a thumb. */
-.min[data-phase='fade'] {
-    animation: min-stage-in 300ms cubic-bezier(0.3, 0.6, 0.2, 1) both;
-}
-
-@keyframes min-stage-in {
-    from { opacity: 0; transform: scale(0.994); }
-    to { opacity: 1; transform: none; }
-}
-
-/* Leaving for the classic stage: the stage is already painted underneath (the store holds this page
-   until the fade is over), so dissolving out is a reveal, not a dip to black. */
-.min[data-dissolving] {
-    animation: min-stage-out 300ms cubic-bezier(0.3, 0.6, 0.2, 1) both;
-    pointer-events: none;
-}
-
-@keyframes min-stage-out {
-    from { opacity: 1; transform: none; }
-    to { opacity: 0; transform: scale(0.994); }
 }
 
 @keyframes min-content-in {
@@ -156,168 +113,6 @@
 }
 
 /* ---------------------------------------------------------------- ambience */
-
-.min-amb {
-    position: absolute;
-    inset: -14%;
-    z-index: 0;
-    overflow: hidden;
-    pointer-events: none;
-    contain: strict;
-    /* The palette fades here, on the eight spans that actually paint it, rather than on the shell.
-       Those five variables are inherited: animating them on `.min` re-resolved the style of every
-       element on the page — several thousand lyric spans on a real song — sixty times a second for
-       the whole 700ms, and each of those frames repainted all four full-screen gradients. On the
-       ambience the same fade touches eight elements and no other layer of the page. The sleeve glow
-       and the sung-character tint read the shell's copy, which changes once: they do not need to
-       travel, and nothing outside this box is visible mid-fade. */
-    transition: --min-base 700ms ease, --min-field-1 700ms ease, --min-field-2 700ms ease,
-        --min-bloom 700ms ease, --min-accent 700ms ease;
-}
-
-.min-amb > * {
-    position: absolute;
-    inset: 0;
-    display: block;
-}
-
-.min-amb__wash {
-    /* Not "a glow behind the artwork" — a room lit by the sleeve. Three masses: a cool one high on
-       the right, a warmer one on the left at artwork height, and a floor that darkens downward.
-       The overlap is what gives the page depth; a single centred bloom reads as a spotlight. */
-    /* The sleeve is opaque and covers the middle 45% of the page, so a mass centred behind it is
-       invisible — which is what kept the page green. The colour lives in the two bands the artwork
-       does not cover: a broad one above it and a softer one below, offset from each other so the
-       page is lit from one side rather than symmetrically. */
-    background:
-        radial-gradient(132% 82% at 56% 42%, color-mix(in srgb, var(--min-field-1) 26%, transparent) 0%, transparent 76%),
-        radial-gradient(120% 56% at 78% 8%, color-mix(in srgb, var(--min-field-2) 30%, transparent) 0%, transparent 72%),
-        linear-gradient(178deg, var(--min-base) 0%, color-mix(in srgb, var(--min-base) 76%, black) 100%);
-}
-
-/* Three soft colour masses. They are the page's only moving parts, they never touch colour, and
-   each one drifts on its own period so the field never repeats as a single breathing picture. */
-.min-amb__blob--a {
-    background: radial-gradient(84% 46% at 10% 28%, color-mix(in srgb, var(--min-field-1) 30%, transparent) 0%, transparent 74%);
-    animation: min-drift-a 41s ease-in-out infinite alternate;
-}
-
-.min-amb__blob--b {
-    background: radial-gradient(80% 44% at 92% 24%, color-mix(in srgb, var(--min-field-2) 28%, transparent) 0%, transparent 72%);
-    animation: min-drift-b 53s ease-in-out infinite alternate;
-}
-
-.min-amb__blob--c {
-    background: radial-gradient(94% 42% at 42% 94%, color-mix(in srgb, var(--min-field-1) 26%, transparent) 0%, transparent 78%);
-    animation: min-drift-c 47s ease-in-out infinite alternate;
-}
-
-/* The bloom the artwork sits in. Kept to a low alpha: the sleeve should look lit, not pasted on a
-   lit background. Its hue is almost the cover's own. */
-.min-amb__bloom {
-    /* The sleeve's own light, and the main way the cover colour reaches the page: an ellipse taller
-       than the artwork, so its fringes are visible in the bands above and below it. This is what
-       makes a sunset page read as ember rather than olive — the colour sits *around* the sleeve,
-       where it can be seen, instead of behind it where it cannot. */
-    background: radial-gradient(72% 56% at 50% 40%, color-mix(in srgb, var(--min-bloom) 70%, transparent) 0%, transparent 76%);
-    opacity: 0.55;
-    animation: min-breathe 26s ease-in-out infinite alternate;
-}
-
-.min-amb__veil {
-    /* The corners return to the ink floor, but only just: a narrow band at the top and the bottom
-       third. Anything more and the colour fields are painted over — which is exactly what happened
-       when this was 30%/46%, leaving a green page behind an amber sleeve. */
-    background:
-        linear-gradient(180deg, color-mix(in srgb, var(--min-base) 88%, transparent) 0%, transparent 13%),
-        linear-gradient(0deg, color-mix(in srgb, var(--min-base) 92%, transparent) 0%, transparent 32%);
-}
-
-/* Printed-page edges. Without it the composition floats; with it the corners sit down. */
-.min-amb__vignette {
-    background: radial-gradient(116% 88% at 50% 38%, transparent 42%, rgb(var(--min-shade) / 0.5) 100%);
-}
-
-.min[data-theme='light'] .min-amb__vignette {
-    background: radial-gradient(122% 94% at 50% 38%, transparent 44%, rgb(var(--min-shade) / 0.13) 100%);
-}
-
-/* A 120px noise tile, painted once and tiled. This is the "paper" in the page — it is static, so it
-   costs one texture and nothing per frame, unlike a live grain shader.
-   It is painted with plain alpha on purpose. `mix-blend-mode: overlay` (and `multiply` on paper)
-   gave the same look, but a blend mode turns this eight-layer stack into a blending group: the
-   compositor has to own an off-screen surface for the whole ambience and re-blend it whenever
-   anything underneath or above repaints. The strip repaints on every frame of a swipe, so that is a
-   full-screen blend per frame — which is what made the page flash while paging and on the way in.
-   One flat texture at 4.6% is visually the same and costs a texture fetch. */
-.min-amb__grain {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
-    background-size: 120px 120px;
-    background-repeat: repeat;
-    opacity: 0.046;
-}
-
-.min[data-theme='light'] .min-amb__grain {
-    opacity: 0.03;
-}
-
-.min-amb__blob,
-.min-amb__bloom {
-    will-change: transform, opacity;
-}
-
-@keyframes min-drift-a {
-    from { transform: translate3d(-3%, -2%, 0) scale(1); }
-    to { transform: translate3d(7%, 5%, 0) scale(1.14); }
-}
-
-@keyframes min-drift-b {
-    from { transform: translate3d(2%, 1%, 0) scale(1.08); }
-    to { transform: translate3d(-6%, -4%, 0) scale(1); }
-}
-
-@keyframes min-drift-c {
-    from { transform: translate3d(4%, 3%, 0) scale(1.04); }
-    to { transform: translate3d(-5%, -6%, 0) scale(1.12); }
-}
-
-@keyframes min-breathe {
-    from { transform: scale(0.97); opacity: 0.44; }
-    to { transform: scale(1.08); opacity: 0.68; }
-}
-
-.min-amb[data-paused] .min-amb__blob,
-.min-amb[data-paused] .min-amb__bloom {
-    animation-play-state: paused;
-}
-
-.min-amb[data-still] .min-amb__blob,
-.min-amb[data-still] .min-amb__bloom {
-    animation: none;
-}
-
-/* System preference is honoured directly here: the app's own motion switches are opt-in, and a
-   listener who asked the OS for less motion did not ask for a drifting background. */
-@media (prefers-reduced-motion: reduce) {
-    .min-amb__blob,
-    .min-amb__bloom,
-    .min-cover__art,
-    .min-wave i,
-    .min[data-phase],
-    .min[data-dissolving],
-    .min[data-phase] .min-cover,
-    .min[data-phase] .min-lyrics,
-    .min[data-phase] .min-transport,
-    .min[data-phase] .min-dots {
-        animation: none;
-    }
-    .min,
-    .min-amb,
-    .min-line,
-    .min-line__text {
-        transition: none;
-    }
-}
 
 /* ---------------------------------------------------------------- top bar */
 
@@ -376,12 +171,17 @@
 
 .min-menu {
     position: absolute;
-    top: 0;
-    right: 6px;
+    top: calc(100% + 4px);
+    right: 0;
     z-index: 5;
+    width: 232px;
 }
 
 .min-menu .mps-menu {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 100%;
     color: var(--mps-ink);
     font-size: 13px;
 }
@@ -456,7 +256,7 @@
     /* The stage owns the width so the ghost behind the sleeve is always the sleeve's size — when
        only the artwork was capped by height, the hairline stayed at the column width and floated
        off to one side on a short screen. */
-    width: min(100%, 43vh);
+    width: min(90%, 39vh);
     /* Left, not centred: when the height cap shrinks the sleeve on a short screen, a centred square
        would drift off the column that the title and the progress bar still share. */
     align-self: flex-start;
@@ -470,7 +270,8 @@
     inset: 0;
     border: 1px solid color-mix(in srgb, var(--min-ink) 12%, transparent);
     border-radius: clamp(18px, 7%, 30px);
-    transform: translate3d(9px, -9px, 0) scale(0.994);
+    background: linear-gradient(145deg, color-mix(in srgb, var(--min-ink) 10%, transparent), color-mix(in srgb, var(--min-bloom) 16%, transparent));
+    transform: translate3d(-3px, 1px, 0) rotate(-5deg) scale(0.99);
     pointer-events: none;
 }
 
@@ -1267,3 +1068,14 @@
     .min-lyrics__column { padding-top: 12px; }
     .min-lyrics__head { padding-bottom: 2px; }
 }
+
+/* Keep the minimal page and its scroll position below a temporary stage visit. */
+.min[data-covered] { visibility: hidden; pointer-events: none; }
+.min[data-under-stage] { z-index: 62; }
+.min-cover__artist, .min-lyrics__artist { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 8px; }
+.min-artist-link { display: inline-flex; align-items: center; gap: 3px; max-width: 100%; min-height: 32px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.min-artist-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.min-artist-link svg { flex: none; }
+.min-artist-link:focus-visible { outline: 2px solid var(--min-accent); outline-offset: 3px; border-radius: 5px; }
+
+.min[data-under-stage] .min-cover__art, .min[data-under-stage] .min-wave i { animation-play-state: paused; }

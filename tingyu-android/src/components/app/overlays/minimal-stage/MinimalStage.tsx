@@ -15,6 +15,8 @@ import { useReducedMotionFor } from '../../../../hooks/useReducedMotionFor';
 import { usePlaybackStore } from '../../../../stores/usePlaybackStore';
 import { PlayerState } from '../../../../types';
 import { registerMinimalStageExit, runMinimalStageExit } from './minimalStageTransition';
+import { PREHIDE_COMPOSE_CHROME } from '../../../../services/nativeChrome';
+import { flushNativeShellRoute } from '../../../../services/nativeShellCommit';
 import './minimalStage.css';
 
 // src/components/app/overlays/minimal-stage/MinimalStage.tsx
@@ -38,8 +40,6 @@ const PAGE_MIN_MS = 260;
 const PAGE_SPAN_MS = 130;
 /** Enter/exit of the whole page over the shell — matched to .min[data-phase] in the stylesheet. */
 const ENTER_MS = 460;
-/** The paired fade to and from the classic stage; the store holds both surfaces a beat longer. */
-const STAGE_FADE_MS = 300;
 const EXIT_MS = 300;
 /** Distance before a gesture commits, as a fraction of the page. */
 const COMMIT_RATIO = 0.28;
@@ -98,6 +98,9 @@ export default function MinimalStage({
     const setPage = usePlayerViewModeStore(state => state.setPage);
     const openStage = usePlayerViewModeStore(state => state.openStage);
     const stageTransition = usePlayerViewModeStore(state => state.stageTransition);
+    const detour = usePlayerViewModeStore(state => state.detour);
+    const underStage = detour || stageTransition === 'to-minimal';
+    const covered = detour && stageTransition === 'idle';
     const light = !!controls?.isDaylight;
     const song = chrome.song;
     const coverUrl = song?.coverUrl ?? null;
@@ -120,18 +123,11 @@ export default function MinimalStage({
     const ownMoveRef = useRef(false);
     const closingRef = useRef(false);
     const [menuOpen, setMenuOpen] = useState(false);
-    /**
-     * How this page arrived, and how it is leaving.
-     *
-     * `enter` is the rise from the bottom edge, for the hand-off from the mini player — the one
-     * surface the listener is leaving *is* below this one, so the page arriving from there is the
-     * truthful direction. Arriving from the classic stage is a different pair: two full-screen
-     * players trading places, which reads as a dissolve, and a page climbing out of the bottom edge
-     * for that is the "rush up from below" this view was reported as doing.
-     */
-    const [phase, setPhase] = useState<'enter' | 'fade' | 'idle' | 'exit'>(
-        still ? 'idle' : stageTransition === 'to-minimal' ? 'fade' : 'enter',
+    // Android moves the retained WebView as a unit; do not run another CSS entrance inside it.
+    const [phase, setPhase] = useState<'enter' | 'idle' | 'exit'>(
+        still || PREHIDE_COMPOSE_CHROME ? 'idle' : 'enter',
     );
+    useLayoutEffect(() => { flushNativeShellRoute(); }, []);
     const closeMenu = useCallback(() => setMenuOpen(false), []);
     const playing = controls?.playerState === PlayerState.PLAYING;
 
@@ -228,43 +224,20 @@ export default function MinimalStage({
         stopFrame();
     }, [stopFrame]);
 
-    // Enter: clear the attribute once the rise (or the fade up from the stage) is over, so no layer
-    // stays promoted forever.
+    // Clear the browser entrance once the shell rise is over.
     useEffect(() => {
-        if (phase !== 'enter' && phase !== 'fade') {
+        if (phase !== 'enter') {
             return;
         }
-        const timer = window.setTimeout(() => setPhase('idle'), phase === 'fade' ? STAGE_FADE_MS : ENTER_MS);
+        const timer = window.setTimeout(() => setPhase('idle'), ENTER_MS);
         return () => window.clearTimeout(timer);
     }, [phase]);
-
-    // Leaving for the classic stage. The fade may only start once the stage underneath has had a
-    // commit and a frame to paint, otherwise the page would dissolve onto whatever the WebView had
-    // before the canvas drew — which on a cold entry is the app background, and reads as a blink.
-    // Two animation frames is that observation, not a guessed delay: the hold is ended by the store
-    // either way, so a slow canvas costs a dissolved page, never a stuck one.
-    const leaving = stageTransition === 'to-stage';
-    const [dissolving, setDissolving] = useState(false);
-    useEffect(() => {
-        if (!leaving || still) {
-            setDissolving(false);
-            return;
-        }
-        let second = 0;
-        const first = window.requestAnimationFrame(() => {
-            second = window.requestAnimationFrame(() => setDissolving(true));
-        });
-        return () => {
-            window.cancelAnimationFrame(first);
-            window.cancelAnimationFrame(second);
-        };
-    }, [leaving, still]);
 
     // Leaving is animated, but the callers (the chevron, the Back gesture) are synchronous. A second
     // request while the page is already falling is dropped: that is what keeps a double tap from
     // navigating twice and mounting a second player page behind this one.
     const runExit = useCallback((done: () => void) => {
-        if (still) {
+        if (still || PREHIDE_COMPOSE_CHROME) {
             done();
             return;
         }
@@ -279,7 +252,7 @@ export default function MinimalStage({
         }, EXIT_MS);
     }, [still]);
 
-    useEffect(() => registerMinimalStageExit(runExit), [runExit]);
+    useEffect(() => underStage ? undefined : registerMinimalStageExit(runExit), [runExit, underStage]);
 
     const commit = useCallback((targetIndex: number) => {
         const next: MinimalPlayerPage = targetIndex === 1 ? 'lyrics' : 'cover';
@@ -388,17 +361,20 @@ export default function MinimalStage({
         '--mps-accent': palette.accent,
     } as React.CSSProperties;
 
-    const paused = !playing || hidden;
+    const paused = !playing || hidden || underStage;
     const likeContext = controls?.slotContext;
 
     return (
         <div
             className="min"
+            data-player-surface-ready="true"
+            data-under-stage={underStage || undefined}
+            data-covered={covered || undefined}
+            inert={underStage || undefined}
             style={style}
             data-theme={light ? 'light' : 'dark'}
             data-page={page}
             data-phase={phase === 'idle' ? undefined : phase}
-            data-dissolving={dissolving || undefined}
             data-testid="minimal-stage"
             data-chrome-hidden={chrome.hidden || undefined}
         >
@@ -483,7 +459,8 @@ export default function MinimalStage({
                                 <MinimalCoverPage
                                     song={song}
                                     controls={controls ?? EMPTY_CONTROLS}
-                                    playing={!!playing}
+                                    playing={!!playing && !underStage}
+                                    onOpenArtist={chrome.onOpenArtist}
                                     sleeveRef={sleeveRef}
                                     metaRef={coverMetaRef}
                                 />
@@ -493,7 +470,8 @@ export default function MinimalStage({
                                     lyrics={lyrics}
                                     coverUrl={coverUrl}
                                     controls={controls ?? EMPTY_CONTROLS}
-                                    active={page === 'lyrics' && !hidden}
+                                    onOpenArtist={chrome.onOpenArtist}
+                                    active={page === 'lyrics' && !hidden && !underStage}
                                     still={still}
                                     identityRef={lyricsIdRef}
                                 />

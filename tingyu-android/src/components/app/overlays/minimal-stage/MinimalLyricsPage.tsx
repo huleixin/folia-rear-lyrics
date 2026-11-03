@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AudioLines, ChevronRight } from 'lucide-react';
+import { AudioLines } from 'lucide-react';
 import type { LyricData } from '../../../../types';
 import type { AppOverlaysModel } from '../buildAppOverlaysModel';
 import { lyricCurrentTime } from '../../../../stores/motionSignals';
 import { useTypographySettingsStore } from '../../../../stores/useTypographySettingsStore';
 import MinimalArtwork from './MinimalArtwork';
+import MinimalArtistLink from './MinimalArtistLink';
 import {
     buildLineStarts,
     countSungGraphemes,
@@ -72,6 +73,7 @@ export default function MinimalLyricsPage({
     lyrics,
     coverUrl,
     controls,
+    onOpenArtist,
     active,
     still,
     identityRef,
@@ -80,6 +82,7 @@ export default function MinimalLyricsPage({
     lyrics: LyricData | null;
     coverUrl: string | null;
     controls: Controls;
+    onOpenArtist?: NonNullable<AppOverlaysModel['mobileStage']>['onOpenArtist'];
     /** Whether this is the page on screen; a hidden page must not drive its own repaints. */
     active: boolean;
     still: boolean;
@@ -261,12 +264,7 @@ export default function MinimalLyricsPage({
                     </div>
                     <div className="min-lyrics__titles">
                         <h2 className="min-lyrics__title" title={title}>{title}</h2>
-                        {artist && (
-                            <p className="min-lyrics__artist" title={artist}>
-                                <span>{artist}</span>
-                                <ChevronRight size={12} strokeWidth={2} aria-hidden="true" />
-                            </p>
-                        )}
+                <MinimalArtistLink label={artist} className="min-lyrics__artist" onOpen={onOpenArtist} />
                     </div>
                 </div>
                 <span className="min-lyrics__rule" aria-hidden="true" />

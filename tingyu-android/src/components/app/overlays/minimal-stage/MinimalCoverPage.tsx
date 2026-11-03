@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight } from 'lucide-react';
 import type { AppOverlaysModel } from '../buildAppOverlaysModel';
 import MinimalArtwork from './MinimalArtwork';
+import MinimalArtistLink from './MinimalArtistLink';
 import { resolveQualityBadges } from './minimalQuality';
 import { usePlaybackStore } from '../../../../stores/usePlaybackStore';
 
@@ -49,12 +49,14 @@ function PlayingMeter({ playing }: { playing: boolean }) {
 export default function MinimalCoverPage({
     song,
     controls,
+    onOpenArtist,
     playing,
     sleeveRef,
     metaRef,
 }: {
     song: { title: string; artist: string; coverUrl: string | null } | null;
     controls: Controls;
+    onOpenArtist?: NonNullable<AppOverlaysModel['mobileStage']>['onOpenArtist'];
     playing: boolean;
     /** The sleeve wrapper; the gesture frame writes its parallax offset here. */
     sleeveRef?: React.Ref<HTMLDivElement>;
@@ -92,12 +94,7 @@ export default function MinimalCoverPage({
             </div>
             <div className="min-cover__meta" ref={metaRef}>
                 <h2 className="min-cover__title" title={title}>{title}</h2>
-                {artist && (
-                    <p className="min-cover__artist" title={artist}>
-                        <span>{artist}</span>
-                        <ChevronRight size={13} strokeWidth={2} aria-hidden="true" />
-                    </p>
-                )}
+                <MinimalArtistLink label={artist} className="min-cover__artist" onOpen={onOpenArtist} />
                 <div className="min-cover__foot">
                     {quality && (
                         <span className="min-chip" data-tone={tone}>{quality}</span>

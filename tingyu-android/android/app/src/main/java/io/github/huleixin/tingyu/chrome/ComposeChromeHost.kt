@@ -106,6 +106,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var selectedTab by mutableIntStateOf(0)
     private var playlistDetail by mutableStateOf(false)
     private val routeFence=NativeRouteFence()
+    private var playerPresentation by mutableStateOf("stage")
     private var pendingStageEntry by mutableStateOf(false)
     private var stageEntryRequest=0L
     private var firstHomeFrame by mutableStateOf(true)
@@ -143,6 +144,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         else if(destination!="stage")stageExit.suppressReturnMotion=false
         require(next in setOf("home","collection","search","settings","stage","web"))
         val routeChanged=next!=destination||value.optString("pageTarget")!=pageTarget||value.optString("entryKey")!=entryKey||value.optInt("selectedTab").coerceIn(0,1)!=selectedTab
+        playerPresentation=if(value.optString("playerPresentation")=="minimal")"minimal"else"stage"
         destination=next;webOverlay=value.optBoolean("webOverlay");selectedTab=value.optInt("selectedTab").coerceIn(0,1)
         syncWebBackground()
         pageTarget=value.optString("pageTarget");entryKey=value.optString("entryKey");reducedMotion=value.optBoolean("reducedMotion")
@@ -274,7 +276,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     .then(if(!legacySampling&&Build.VERSION.SDK_INT>=31&&sampleWeb)Modifier.layerBackdrop(stageBackdrop)else Modifier)) {
                 AndroidView(factory = { web }, modifier = Modifier.fillMaxSize()
                     .then(if(legacySampling&&graphics.mode!=GraphicsProbeMode.C31)Modifier.graphicsLayer { alpha = if(Build.VERSION.SDK_INT>=31).999f else 1f }else Modifier)
-                    .stageExitTransform(stageExit,exitProgress,webOwnsRoutePixels(destination,webOverlay,stageExit.active)))
+                    .stageExitTransform(stageExit,exitProgress,webOwnsRoutePixels(destination,webOverlay,stageExit.active))
+                    .playerEntryTransform(destination=="stage"&&playerPresentation=="minimal",reducedMotion,height*density.density))
                 }
                 Box(Modifier.fillMaxSize().zIndex(1f).then(if(!legacySampling&&Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop)else Modifier)) {
                 if(page==null&&firstHomeFrame&&destination=="home")NativePageView(bootPage,Modifier.fillMaxSize().zIndex(1f)){_,_,_->}
@@ -290,7 +293,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         val position=tween<IntOffset>(240,easing=ease)
                         when(NativeMotionPolicy.kind(from,to,backwards,!focused||!active||reducedMotion||stageExit.suppressReturnMotion&&from=="stage")){
                             NativeMotionKind.NONE->EnterTransition.None togetherWith ExitTransition.None
-                            NativeMotionKind.STAGE->fadeIn(tween(140,easing=ease)) togetherWith fadeOut(tween(100,easing=ease))
+                            NativeMotionKind.STAGE->fadeIn(tween(140,easing=ease)) togetherWith fadeOut(tween(if(to=="stage"&&playerPresentation=="minimal")1 else 100,delayMillis=if(to=="stage"&&playerPresentation=="minimal")420 else 0,easing=ease))
                             NativeMotionKind.TAB->(slideInHorizontally(tween(200,easing=ease)){tabTravel}+fadeIn(tween(200,easing=ease))) togetherWith (slideOutHorizontally(tween(180,easing=ease)){-tabTravel}+fadeOut(tween(180,easing=ease)))
                             NativeMotionKind.PUSH->(slideInHorizontally(position){travel}+fadeIn(tween(240,easing=ease))) togetherWith (slideOutHorizontally(position){-travel/3}+fadeOut(tween(200,easing=ease)))
                             NativeMotionKind.POP->((slideInHorizontally(tween(220,easing=ease)){-travel/3}+fadeIn(tween(220,easing=ease))) togetherWith (slideOutHorizontally(tween(220,easing=ease)){travel}+fadeOut(tween(200,easing=ease)))).apply{targetContentZIndex=-1f}
@@ -376,7 +379,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     when(surface.id) {
                         "nav" -> ChromeNavigation(surface,backdrop,interactivePlacement,actions)
                         "mini" -> ChromeMiniPlayer(surface,clocks[surface.id],backdrop,interactivePlacement,sleepUi,{sleepAnchor=it},actions)
-                        "stage" -> Box(Modifier.fillMaxSize().stageExitTransform(stageExit,exitProgress)){ChromeStagePlayer(surface,clocks[surface.id],if(legacySampling)backdrop else stageBackdrop,interactivePlacement,actions)}
+                        "stage" -> Box(Modifier.fillMaxSize().stageExitTransform(stageExit,exitProgress).playerDetourTransform(surface.playerTransition,reducedMotion||surface.reducedMotion,height*density.density)){ChromeStagePlayer(surface,clocks[surface.id],if(legacySampling)backdrop else stageBackdrop,interactivePlacement,actions)}
                     }
                 }
             } }

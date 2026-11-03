@@ -1,0 +1,8 @@
+/* src/components/app/overlays/mobile-stage/playerStageTransition.css */
+/* One displacement for the real renderer and chrome; the minimal page stays underneath. */
+[data-testid='player-visual-surface'][data-stage-detour='true'] { z-index: 64; }
+[data-stage-motion='to-stage'] { animation: player-stage-rise 360ms cubic-bezier(.2,.72,.16,1) both; }
+[data-stage-motion='to-minimal'] { animation: player-stage-fall 360ms cubic-bezier(.4,0,.7,.3) both; pointer-events: none; }
+@keyframes player-stage-rise { from { transform: translate3d(0,100vh,0); } to { transform: none; } }
+@keyframes player-stage-fall { from { transform: none; } to { transform: translate3d(0,100vh,0); } }
+@media (prefers-reduced-motion: reduce) { [data-stage-motion] { animation-duration: 1ms; } }
