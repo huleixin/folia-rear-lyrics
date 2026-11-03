@@ -195,9 +195,8 @@ fun MinimalPlayerScreen(
         if (queueVisible.value) {
             MinimalQueueSheet(
                 queue = queue,
-                ink = ink,
-                base = Color(palette.base),
-                accent = Color(palette.accent),
+                // 注意这里是宿主给的界面主题，不是这一页的 dark：队列属于外壳。
+                light = light,
                 onClose = {
                     queueVisible.value = false
                     commands.closeQueue()

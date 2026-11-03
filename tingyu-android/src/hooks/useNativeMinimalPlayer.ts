@@ -55,6 +55,20 @@ const toHex = (css: string): string => {
     return `#${[r, g, b].map(value => Math.max(0, Math.min(255, value)).toString(16).padStart(2, '0')).join('')}`;
 };
 
+/**
+ * 有没有一块 WebView 弹层正占着屏幕。
+ *
+ * 音质音效 / 音效 / 歌词 / 播放设置这些面板仍然由 WebView 画，而极简页是整窗原生图层：
+ * 不让位的话，JS 状态已经打开、页面却被原生盖住，看起来就是"点了没反应"。
+ * 判据和外壳路由用的是同一条（`data-folia-keyboard-window`），再加上面板 store。
+ */
+const webOverlayOpen = (): boolean => {
+    if (typeof document === 'undefined') return false;
+    if (useAppViewStore.getState().isPanelOpen) return true;
+    if (document.querySelector('[data-folia-keyboard-window="true"]')) return true;
+    return false;
+};
+
 /** `order` is the player's name for "no mode at all"; native calls the same state `off`. */
 const toNativeMode = (mode: ReturnType<typeof resolvePlaybackMode>): MinimalPlayerFrame['mode'] =>
     mode === 'order' ? 'off' : mode;
@@ -106,6 +120,14 @@ export function useNativeMinimalPlayer({
         queueDirty.current = false;
         void chromeNative.minimalQueue(snapshot).catch(() => undefined);
     }, []);
+    // 抽屉开着的时候，每秒把快照对一次版本号：第一次动作丢了也能自愈，且不产生多余流量。
+    useEffect(() => {
+        const timer = window.setInterval(() => {
+            if (queueOpen.current) pushQueue();
+        }, PUBLISH_INTERVAL_MS);
+        return () => window.clearInterval(timer);
+    }, [pushQueue]);
+
     /** The session this mount owns; a republish must never mint a new one. */
     const sessionRef = useRef('');
     const publishedTrackKey = useRef('');
@@ -151,7 +173,7 @@ export function useNativeMinimalPlayer({
             light,
             liked: !!likeContext?.isLiked,
             likeDisabled: !likeContext || !!likeContext.likeDisabled,
-            detour: usePlayerViewModeStore.getState().detour,
+            detour: usePlayerViewModeStore.getState().detour || webOverlayOpen(),
             palette: paletteRef.current,
         };
     }, []);

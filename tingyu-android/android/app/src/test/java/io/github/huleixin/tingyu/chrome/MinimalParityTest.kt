@@ -211,7 +211,12 @@ class MinimalParityTest {
     }
 
     @Test
-    fun queueSheet() {
+    fun queueSheet() = renderQueue("queue-sheet", light = false)
+
+    @Test
+    fun queueSheetLight() = renderQueue("queue-sheet-light", light = true)
+
+    private fun renderQueue(name: String, light: Boolean) {
         val rows = listOf(
             Triple("tx:1", "九万字", "黄诗扶"),
             Triple("tx:2", "剥去利刃", "黄诗扶"),
@@ -233,9 +238,7 @@ class MinimalParityTest {
             ) {
                 io.github.huleixin.tingyu.minimal.ui.MinimalQueueSheet(
                     queue = queue,
-                    ink = io.github.huleixin.tingyu.minimal.ui.minimalInk(false),
-                    base = androidx.compose.ui.graphics.Color(0xFF152528),
-                    accent = androidx.compose.ui.graphics.Color(0xFFAAC1D5),
+                    light = light,
                     onClose = {},
                     onPlay = {},
                     onRemove = {},
@@ -250,8 +253,8 @@ class MinimalParityTest {
         val shot = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
         view.draw(android.graphics.Canvas(shot))
         outDir.mkdirs()
-        FileOutputStream(File(outDir, "queue-sheet.png")).use { shot.compress(Bitmap.CompressFormat.PNG, 100, it) }
-        println("PARITY_SHOT=queue-sheet ${shot.width}x${shot.height}")
+        FileOutputStream(File(outDir, "$name.png")).use { shot.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        println("PARITY_SHOT=$name ${shot.width}x${shot.height}")
     }
 
     @Test

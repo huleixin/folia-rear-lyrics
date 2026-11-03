@@ -56,15 +56,20 @@ import io.github.huleixin.tingyu.minimal.MinimalQueue
 @Composable
 fun MinimalQueueSheet(
     queue: MinimalQueue,
-    ink: MinimalInk,
-    base: Color,
-    accent: Color,
+    /**
+     * **应用界面**的深浅，不是这一页的主题，也不是封面取色。
+     *
+     * 队列属于应用外壳（首页、舞台、极简页共用的那张表），它该跟界面走：
+     * 浅色界面弹出一张深绿的队列，正是因为它之前拿的是封面调色板。
+     */
+    light: Boolean,
     onClose: () -> Unit,
     onPlay: (Int) -> Unit,
     onRemove: (Int) -> Unit,
     onMoveNext: (Int) -> Unit,
     onMoveEnd: (Int) -> Unit,
 ) {
+    val theme = queueTheme(light)
     var drag by remember { mutableFloatStateOf(0f) }
     val listState = rememberLazyListState()
 
@@ -81,7 +86,7 @@ fun MinimalQueueSheet(
         Box(
             Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.44f))
+                .background(Color.Black.copy(alpha = theme.scrim))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -94,7 +99,7 @@ fun MinimalQueueSheet(
                 .heightIn(max = 640.dp)
                 .graphicsLayer { translationY = drag }
                 .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
-                .background(base)
+                .background(theme.surface)
                 .align(Alignment.BottomCenter)
                 .pointerInput(Unit) {
                     detectVerticalDragGestures(
@@ -124,16 +129,16 @@ fun MinimalQueueSheet(
                     Modifier
                         .width(38.dp)
                         .height(4.dp)
-                        .background(ink.inkAlpha(28), RoundedCornerShape(999.dp))
+                        .background(theme.muted.copy(alpha = 0.35f), RoundedCornerShape(999.dp))
                 )
             }
             Row(
                 Modifier.fillMaxWidth().padding(start = 22.dp, end = 12.dp, top = 2.dp, bottom = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("播放队列", color = ink.ink, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                Text("播放队列", color = theme.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.width(8.dp))
-                Text("${queue.total} 首", color = ink.muted, fontSize = 12.sp)
+                Text("${queue.total} 首", color = theme.muted, fontSize = 12.sp)
                 Spacer(Modifier.weight(1f))
                 Box(
                     Modifier
@@ -149,14 +154,14 @@ fun MinimalQueueSheet(
                     Canvas(Modifier.size(17.dp)) {
                         val u = size.minDimension / 17f
                         val w = 1.8f * u
-                        drawLine(ink.ink, Offset(3f * u, 3f * u), Offset(14f * u, 14f * u), w, StrokeCap.Round)
-                        drawLine(ink.ink, Offset(14f * u, 3f * u), Offset(3f * u, 14f * u), w, StrokeCap.Round)
+                        drawLine(theme.text, Offset(3f * u, 3f * u), Offset(14f * u, 14f * u), w, StrokeCap.Round)
+                        drawLine(theme.text, Offset(14f * u, 3f * u), Offset(3f * u, 14f * u), w, StrokeCap.Round)
                     }
                 }
             }
             if (queue.isEmpty) {
                 Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
-                    Text("队列是空的", color = ink.muted, fontSize = 13.sp)
+                    Text("队列是空的", color = theme.muted, fontSize = 13.sp)
                 }
             } else {
                 LazyColumn(state = listState, modifier = Modifier.fillMaxWidth()) {
@@ -165,8 +170,7 @@ fun MinimalQueueSheet(
                             item = item,
                             position = index + 1,
                             current = index == queue.currentIndex,
-                            ink = ink,
-                            accent = accent,
+                            theme = theme,
                             onPlay = { onPlay(index) },
                             onRemove = { onRemove(index) },
                             onMoveNext = { onMoveNext(index) },
@@ -180,13 +184,45 @@ fun MinimalQueueSheet(
     }
 }
 
+/**
+ * 队列的表面色。跟应用界面走，带一点听屿的墨绿：
+ * 浅色是柔和的纸白 + 深绿字，深色是墨绿底 + 浅字，和旧版队列（图 3/图 4）一致。
+ */
+private data class QueueTheme(
+    val surface: Color,
+    val text: Color,
+    val muted: Color,
+    val accent: Color,
+    val highlight: Color,
+    val scrim: Float,
+)
+
+private fun queueTheme(light: Boolean): QueueTheme = if (light) {
+    QueueTheme(
+        surface = Color(0xFFF7FAF8),
+        text = Color(0xFF10231D),
+        muted = Color(0xFF5C7268),
+        accent = Color(0xFF0F6B4F),
+        highlight = Color(0xFF10231D).copy(alpha = 0.07f),
+        scrim = 0.28f,
+    )
+} else {
+    QueueTheme(
+        surface = Color(0xFF0E1A17),
+        text = Color(0xFFECF3EF),
+        muted = Color(0xFF8FA69C),
+        accent = Color(0xFF7FE3C0),
+        highlight = Color(0xFFFFFFFF).copy(alpha = 0.08f),
+        scrim = 0.55f,
+    )
+}
+
 @Composable
 private fun QueueRow(
     item: io.github.huleixin.tingyu.minimal.MinimalQueueItem,
     position: Int,
     current: Boolean,
-    ink: MinimalInk,
-    accent: Color,
+    theme: QueueTheme,
     onPlay: () -> Unit,
     onRemove: () -> Unit,
     onMoveNext: () -> Unit,
@@ -195,7 +231,7 @@ private fun QueueRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .background(if (current) accent.copy(alpha = 0.10f) else Color.Transparent)
+            .background(if (current) theme.highlight else Color.Transparent)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -206,14 +242,14 @@ private fun QueueRow(
     ) {
         Text(
             text = position.toString().padStart(2, '0'),
-            color = ink.muted.copy(alpha = 0.55f),
+            color = theme.muted.copy(alpha = 0.6f),
             fontSize = 11.sp,
             modifier = Modifier.width(24.dp),
         )
         Column(Modifier.weight(1f)) {
             Text(
                 text = item.title.ifBlank { "未知曲目" },
-                color = if (current) accent else ink.ink,
+                color = if (current) theme.accent else theme.text,
                 fontSize = 14.5.sp,
                 fontWeight = if (current) FontWeight.Medium else FontWeight.Normal,
                 maxLines = 1,
@@ -223,7 +259,7 @@ private fun QueueRow(
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = item.artist,
-                    color = ink.muted,
+                    color = theme.muted,
                     fontSize = 11.5.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -231,14 +267,14 @@ private fun QueueRow(
             }
         }
         // 每行的三个动作绑在本行的下标上（闭包已捕获 index）。
-        RowAction("下一首播放", ink, onMoveNext) { QueueGlyph(ink, "next") }
-        RowAction("移到末尾", ink, onMoveEnd) { QueueGlyph(ink, "end") }
-        RowAction("从队列移除", ink, onRemove) { QueueGlyph(ink, "remove") }
+        RowAction("下一首播放", theme, onMoveNext) { QueueGlyph(theme, "next") }
+        RowAction("移到末尾", theme, onMoveEnd) { QueueGlyph(theme, "end") }
+        RowAction("从队列移除", theme, onRemove) { QueueGlyph(theme, "remove") }
     }
 }
 
 @Composable
-private fun RowAction(label: String, ink: MinimalInk, onClick: () -> Unit, content: @Composable () -> Unit) {
+private fun RowAction(label: String, theme: QueueTheme, onClick: () -> Unit, content: @Composable () -> Unit) {
     Box(
         Modifier
             .size(34.dp)
@@ -253,26 +289,26 @@ private fun RowAction(label: String, ink: MinimalInk, onClick: () -> Unit, conte
 }
 
 @Composable
-private fun QueueGlyph(ink: MinimalInk, kind: String) {
+private fun QueueGlyph(theme: QueueTheme, kind: String) {
     Canvas(Modifier.size(16.dp)) {
         val u = size.minDimension / 16f
         val w = 1.5f * u
         when (kind) {
             "next" -> {
-                drawLine(ink.muted, Offset(4f * u, 4f * u), Offset(4f * u, 12f * u), w, StrokeCap.Round)
-                drawLine(ink.muted, Offset(4f * u, 8f * u), Offset(12f * u, 8f * u), w, StrokeCap.Round)
-                drawLine(ink.muted, Offset(9f * u, 5f * u), Offset(12f * u, 8f * u), w, StrokeCap.Round)
-                drawLine(ink.muted, Offset(9f * u, 11f * u), Offset(12f * u, 8f * u), w, StrokeCap.Round)
+                drawLine(theme.muted, Offset(4f * u, 4f * u), Offset(4f * u, 12f * u), w, StrokeCap.Round)
+                drawLine(theme.muted, Offset(4f * u, 8f * u), Offset(12f * u, 8f * u), w, StrokeCap.Round)
+                drawLine(theme.muted, Offset(9f * u, 5f * u), Offset(12f * u, 8f * u), w, StrokeCap.Round)
+                drawLine(theme.muted, Offset(9f * u, 11f * u), Offset(12f * u, 8f * u), w, StrokeCap.Round)
             }
             "end" -> {
-                drawLine(ink.muted, Offset(4f * u, 4f * u), Offset(4f * u, 12f * u), w, StrokeCap.Round)
-                drawLine(ink.muted, Offset(11.5f * u, 4f * u), Offset(11.5f * u, 12f * u), w, StrokeCap.Round)
-                drawLine(ink.muted, Offset(4f * u, 8f * u), Offset(9f * u, 8f * u), w, StrokeCap.Round)
+                drawLine(theme.muted, Offset(4f * u, 4f * u), Offset(4f * u, 12f * u), w, StrokeCap.Round)
+                drawLine(theme.muted, Offset(11.5f * u, 4f * u), Offset(11.5f * u, 12f * u), w, StrokeCap.Round)
+                drawLine(theme.muted, Offset(4f * u, 8f * u), Offset(9f * u, 8f * u), w, StrokeCap.Round)
             }
             else -> {
-                drawLine(ink.muted, Offset(4f * u, 5f * u), Offset(12f * u, 5f * u), w, StrokeCap.Round)
-                drawLine(ink.muted, Offset(4f * u, 11f * u), Offset(12f * u, 11f * u), w, StrokeCap.Round)
-                drawLine(ink.muted, Offset(6.5f * u, 3f * u), Offset(6.5f * u, 13f * u), w, StrokeCap.Round)
+                drawLine(theme.muted, Offset(4f * u, 5f * u), Offset(12f * u, 5f * u), w, StrokeCap.Round)
+                drawLine(theme.muted, Offset(4f * u, 11f * u), Offset(12f * u, 11f * u), w, StrokeCap.Round)
+                drawLine(theme.muted, Offset(6.5f * u, 3f * u), Offset(6.5f * u, 13f * u), w, StrokeCap.Round)
             }
         }
     }

@@ -1,4 +1,5 @@
 import type { SongResult } from '../types';
+import { usePlaybackStore } from '../stores/usePlaybackStore';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
 import { getSongArtistLabel } from './onlineMusic/songMetadata';
 
@@ -36,6 +37,15 @@ let handlers: NativeQueueHandlers | null = null;
 let version = 0;
 let lastQueue: SongResult[] | null = null;
 
+/**
+ * **总是**从 store 读当前队列。
+ *
+ * 之前这里读的是 `handlers.playQueue` —— 也就是注册那一刻的数组引用。
+ * 播放队列是换新数组的（immutable），所以 `App` 一加载完队列，注册表里握着的还是最早那个空数组，
+ * 原生于是永远收到 0 首。处理器本身是稳定的，队列不是：处理器注册一次，队列每次现读。
+ */
+const liveQueue = (): SongResult[] => usePlaybackStore.getState().playQueue ?? [];
+
 export function registerNativeQueue(next: NativeQueueHandlers | null): void {
     handlers = next;
     if (!next) {
@@ -52,7 +62,7 @@ export function hasNativeQueue(): boolean {
  */
 export function readNativeQueue(currentKey: string): NativeQueueSnapshot | null {
     if (!handlers) return null;
-    const queue = handlers.playQueue ?? [];
+    const queue = liveQueue();
     if (queue !== lastQueue) {
         lastQueue = queue;
         version += 1;
@@ -69,7 +79,7 @@ export function readNativeQueue(currentKey: string): NativeQueueSnapshot | null 
 /** 原生发来的行内动作。索引越界一律丢弃：队列可能比原生手里的快照新。 */
 export function runNativeQueueAction(action: string, index: number): boolean {
     if (!handlers) return false;
-    const queue = handlers.playQueue ?? [];
+    const queue = liveQueue();
     if (!Number.isInteger(index) || index < 0 || index >= queue.length) return false;
     switch (action) {
         case 'play':

@@ -2389,6 +2389,13 @@ export default function App() {
     const playerViewDetour = usePlayerViewModeStore(state => state.detour);
     const playerStageTransition = usePlayerViewModeStore(state => state.stageTransition);
     const minimalStageActive = playerViewMode === 'minimal' && !playerViewDetour;
+
+    // 进入舞台先让控制栏可见：原版规则是"出现 → 3 秒自动隐藏 → 点空白唤出"。
+    // 旧面板/极简页可能把它留在隐藏态，导致一进舞台底栏就是空的。这里只复位一次，
+    // 自动隐藏本身不动（不靠关闭自动隐藏来掩盖问题）。
+    useEffect(() => {
+        if (playerViewMode === 'stage') setIsPlayerChromeHidden(false);
+    }, [playerViewMode, setIsPlayerChromeHidden]);
     const leavePlayer = useCallback(() => {
         const view = usePlayerViewModeStore.getState();
         if (view.detour) {
