@@ -62,6 +62,7 @@ export function bindSettingsControl(element:HTMLElement,control:SettingsControl,
                 const options={bubbles:true,buttons:event.value===2?0:1,clientX:rect.left+Math.max(0,Math.min(1,point.x))*rect.width,clientY:rect.top+Math.max(0,Math.min(1,point.y))*rect.height};
                 if(event.value===1){element.dispatchEvent(new PointerEvent('pointerdown',options));element.dispatchEvent(new MouseEvent('mousedown',options));}
                 else document.dispatchEvent(new MouseEvent(event.value===2?'mouseup':'mousemove',options));
+                if(event.value===2)element.dispatchEvent(new PointerEvent('pointerup',options));
             }catch{/* Ignore a stale pointer packet. */}return;
         }
         if(control.kind==='ruler'){element.dispatchEvent(new CustomEvent('tingyu-native-value',{detail:Number(event.text)}));return;}

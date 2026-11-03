@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { generateThemeFromLyrics, isMissingAiApiKeyError } from '../services/gemini';
 import { saveToCache } from '../services/db';
 import { DualTheme, LyricData, SongResult, StatusMessage, Theme, ThemeMode } from '../types';
@@ -360,7 +360,7 @@ export function useThemeController({
         }
     };
 
-    const getThemeParkSeedTheme = (): DualTheme => {
+    const getThemeParkSeedTheme = useCallback((): DualTheme => {
         if (bgMode === 'custom' && customTheme) {
             return customTheme;
         }
@@ -398,7 +398,7 @@ export function useThemeController({
         }
 
         return baseDualTheme;
-    };
+    }, [bgMode,customTheme,aiTheme,daylightTheme,defaultTheme,legacyTheme,isDaylight,theme]);
 
     const saveCustomDualTheme = (dualTheme: DualTheme) => {
         const sanitized = applyStoredAnimationIntensityToDualTheme(sanitizeCustomDualTheme(dualTheme));
@@ -724,7 +724,6 @@ export function useThemeController({
         applyThemeFallback,
         restoreCachedThemeForSong,
         generateAITheme,
-        getThemeParkSeedTheme,
         saveCustomDualTheme,
         saveEditedAiDualTheme,
         applyCustomTheme,
@@ -735,6 +734,9 @@ export function useThemeController({
     });
 
     return {
+        // App reads this during render and memoizes its result by identity. It is
+        // derived theme data, unlike the stable event handlers below.
+        getThemeParkSeedTheme,
         theme,
         aiTheme,
         customTheme,

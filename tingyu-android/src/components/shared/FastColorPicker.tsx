@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { HexColorPicker } from 'react-colorful';
+import React, { useEffect, useRef, useState } from 'react';
+import { HslColorPicker, type HslColor } from 'react-colorful';
+import {hexToHsl, hslToHex} from '../../utils/themeColorMath';
 
 // src/components/shared/FastColorPicker.tsx
 // Wraps react-colorful so its 60fps drag re-renders stay inside this component instead of
@@ -10,24 +11,37 @@ type FastColorPickerProps = {
     height?: number;
     onChange: (color: string) => void;
     onPointerDown?: () => void;
+    visibleHueSelection?:boolean;
 };
 
-const FastColorPicker: React.FC<FastColorPickerProps> = ({ color, height = 236, onChange, onPointerDown }) => {
-    const [localColor, setLocalColor] = useState(color);
+const toPickerColor=(color:string):HslColor=>{
+    const hsl=hexToHsl(color)??{h:0,s:0,l:0};
+    return {h:hsl.h,s:hsl.s*100,l:hsl.l*100};
+};
+const FastColorPicker: React.FC<FastColorPickerProps> = ({ color, height = 236, onChange, onPointerDown, visibleHueSelection=false }) => {
+    const [localColor, setLocalColor] = useState(()=>toPickerColor(color));
+    const emitted=useRef<string | undefined>(undefined);
 
     // Sync back when the parent switches mode or color field.
     useEffect(() => {
-        setLocalColor(color);
+        // Parent throttling/hex rounding must not reset the hue during a drag.
+        if(color.toLowerCase()!==emitted.current)setLocalColor(toPickerColor(color));
     }, [color]);
 
-    const handleChange = (nextColor: string) => {
-        setLocalColor(nextColor);
-        onChange(nextColor);
+    const handleChange = (nextColor: HslColor) => {
+        const hueOnly=nextColor.h!==localColor.h&&nextColor.s===localColor.s&&nextColor.l===localColor.l;
+        // Hue alone cannot tint white/grey/black. Only a deliberate hue edit adds chroma;
+        // the saturation pad and swatches can still select exact neutral colours.
+        const next=visibleHueSelection&&hueOnly&&(nextColor.s<8||nextColor.l>95||nextColor.l<5)
+            ?{...nextColor,s:Math.max(65,nextColor.s),l:Math.max(25,Math.min(75,nextColor.l))}:nextColor;
+        setLocalColor(next);
+        emitted.current=hslToHex({h:next.h,s:next.s/100,l:next.l/100});
+        onChange(emitted.current);
     };
 
     return (
         <div onPointerDown={onPointerDown} className="w-full h-full">
-            <HexColorPicker color={localColor} onChange={handleChange} style={{ width: '100%', height }} />
+            <HslColorPicker color={localColor} onChange={handleChange} style={{ width: '100%', height }} />
         </div>
     );
 };

@@ -24,6 +24,14 @@ it('commits slider drags through the existing pointer-up listener',()=>{
     actions.field({text:'25',value:1});actions.field({text:'75',value:2});window.removeEventListener('pointerup',end);
     expect(input.value).toBe('75');expect(phases[0]).toBe('start');expect(phases.at(-1)).toBe('commit');
 });
+it('ends native color-pad gestures through both the picker and editor pointer listeners',()=>{
+    const pad=document.createElement('div');document.body.append(pad);
+    const end=vi.fn(),mouseEnd=vi.fn();window.addEventListener('pointerup',end);window.addEventListener('mouseup',mouseEnd);
+    const actions:PageActions={};bindSettingsControl(pad,control('pad'),actions);
+    actions.field({value:1,text:'{"x":0.2,"y":0.5}'});actions.field({value:2,text:'{"x":0.8,"y":0.5}'});
+    window.removeEventListener('pointerup',end);window.removeEventListener('mouseup',mouseEnd);
+    expect(end).toHaveBeenCalledTimes(1);expect(mouseEnd).toHaveBeenCalledTimes(1);
+});
 it('does not activate disabled controls',()=>{
     const button=document.createElement('button');button.disabled=true;document.body.append(button);const click=vi.fn();button.onclick=click;
     const actions:PageActions={};bindSettingsControl(button,control('click'),actions);actions.field({});expect(click).not.toHaveBeenCalled();

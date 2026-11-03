@@ -34,6 +34,7 @@ const COLOR_FIELDS: ColorField[] = [
 
 type ThemeQuickEditorProps = {
     presentation?: 'modal'|'page';
+    paletteHint?:string;
     kind: ThemeQuickEditorKind;
     initialTheme: DualTheme;
     coverUrl: string | null;
@@ -47,6 +48,7 @@ type ThemeQuickEditorProps = {
 
 const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
     presentation='modal',
+    paletteHint,
     kind,
     initialTheme,
     coverUrl,
@@ -365,7 +367,7 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                         </div>
                     </div>
 
-                    {pagePresentation&&<p className="ty-rear-theme-hint">{t('rearAppearance.paletteHint', {mode:t(isDaylight?'options.lightTheme':'options.darkTheme')})}</p>}
+                    {pagePresentation&&<p className="ty-rear-theme-hint">{paletteHint??t('rearAppearance.paletteHint', {mode:t(isDaylight?'options.lightTheme':'options.darkTheme')})}</p>}
                     {isImportPanelOpen ? (
                         <div className="flex flex-col gap-6 p-6">
                             <div className="space-y-4">
@@ -500,6 +502,8 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                     style={{ borderColor, backgroundColor: softBg }}
                                 >
                                     <FastColorPicker
+                                        key={`${mode}:${activeKey}`}
+                                        visibleHueSelection
                                         color={activeColor}
                                         onChange={updateColorThrottled}
                                         onPointerDown={() => setIsDragging(true)}
