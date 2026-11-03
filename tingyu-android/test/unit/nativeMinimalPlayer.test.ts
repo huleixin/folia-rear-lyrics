@@ -19,6 +19,10 @@ const handlers = (overrides: Partial<MinimalActionHandlers> = {}): MinimalAction
         collapse: () => calls.push('collapse'),
         like: () => calls.push('like'),
         openStage: () => calls.push('stage'),
+        openAudioQuality: () => calls.push('quality'),
+        openAudioEffects: () => calls.push('effects'),
+        openLyricsPanel: () => calls.push('lyricsPanel'),
+        openPlaybackSettings: () => calls.push('settings'),
         ...overrides,
     };
 };

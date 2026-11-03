@@ -12,6 +12,7 @@ import io.github.huleixin.tingyu.playback.UnifiedLyricsStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -44,6 +45,9 @@ data class MinimalControls(
     val bound: Boolean = false,
     /** 音质标签（容器 + 平台规格），JS 侧已经拼好，原生只负责画。 */
     val quality: String = "",
+    /** 播放偏好里的音质档位，只出现在「更多」菜单的第二列。 */
+    val qualityMode: String = "",
+    val effectsOn: Boolean = false,
     val qualityGold: Boolean = false,
     val liked: Boolean = false,
     val likeDisabled: Boolean = true,
@@ -60,6 +64,11 @@ data class MinimalPlayerState(
     val playback: MinimalPlayback = MinimalPlayback(),
     val lyrics: MinimalLyrics = MinimalLyrics(),
     val controls: MinimalControls = MinimalControls(),
+    /**
+     * JS 算好的六个颜色（`buildMinimalPalette` 的原样输出）。为 null 时才退回原生那份移植 ——
+     * 两条路径画出来的页面必须一样，但只有一份是"定稿"，另一份只是兜底。
+     */
+    val palette: MinimalPalette? = null,
     val revision: Long = 0L,
 )
 
@@ -101,9 +110,12 @@ data class MinimalBridgeFrame(
     val mode: String = "off",
     val quality: String = "",
     val qualityGold: Boolean = false,
+    val qualityMode: String = "",
+    val effectsOn: Boolean = false,
     val liked: Boolean = false,
     val likeDisabled: Boolean = true,
     val detour: Boolean = false,
+    val palette: MinimalPalette? = null,
     val receivedAtElapsed: Long = 0L,
 ) {
     companion object {
@@ -125,12 +137,38 @@ data class MinimalBridgeFrame(
                 disabled = value.optBoolean("disabled", false),
                 preparing = value.optBoolean("preparing", false),
                 mode = value.optString("mode", "off").takeIf { it in MODES } ?: "off",
+                palette = parsePalette(value.optJSONArray("palette")),
                 quality = value.optString("quality", "").take(40),
                 qualityGold = value.optBoolean("qualityGold", false),
+                qualityMode = value.optString("qualityMode", "").take(40),
+                effectsOn = value.optBoolean("effectsOn", false),
                 liked = value.optBoolean("liked", false),
                 likeDisabled = value.optBoolean("likeDisabled", true),
                 detour = value.optBoolean("detour", false),
                 receivedAtElapsed = nowElapsed,
+            )
+        }
+
+        /** `["#RRGGBB" x6]` → Palette。任一格读不出来就整组放弃，不让半套配色混进页面。 */
+        private fun parsePalette(array: JSONArray?): MinimalPalette? {
+            if (array == null || array.length() < 6) return null
+            val colors = IntArray(6)
+            for (index in 0 until 6) {
+                val raw = array.optString(index, "")
+                colors[index] = try {
+                    android.graphics.Color.parseColor(raw)
+                } catch (error: IllegalArgumentException) {
+                    return null
+                }
+            }
+            return MinimalPalette(
+                base = colors[0],
+                fieldPrimary = colors[1],
+                fieldSecondary = colors[2],
+                bloom = colors[3],
+                accent = colors[4],
+                lyricAccent = colors[5],
+                derived = true,
             )
         }
 
@@ -404,6 +442,8 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
             bound = bridge != null && bridge.session.isNotEmpty(),
             quality = bridge?.quality ?: "",
             qualityGold = bridge?.qualityGold == true,
+            qualityMode = bridge?.qualityMode ?: "",
+            effectsOn = bridge?.effectsOn == true,
             liked = bridge?.liked == true,
             likeDisabled = bridge?.likeDisabled ?: true,
             detour = bridge?.detour == true,
@@ -412,6 +452,8 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
             playback = playback,
             lyrics = lyricsFor(playback.track.key, playback.epoch),
             controls = controls,
+            // 桥断了也不能把背景闪回默认色：那是"页面还在、颜色先变了"，比旧色更突兀。
+            palette = bridge?.palette ?: _state.value.palette,
             revision = revisionCounter.incrementAndGet().toLong(),
         )
     }

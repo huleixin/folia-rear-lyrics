@@ -30,6 +30,10 @@ object MinimalActions {
     const val COLLAPSE = "collapse"
     const val LIKE = "like"
     const val OPEN_STAGE = "openStage"
+    const val AUDIO_QUALITY = "audioQuality"
+    const val AUDIO_EFFECTS = "audioEffects"
+    const val LYRICS_PANEL = "lyricsPanel"
+    const val PLAYBACK_SETTINGS = "playbackSettings"
 }
 
 interface MinimalPlayerCommands {
@@ -58,6 +62,12 @@ interface MinimalPlayerCommands {
 
     /** 顺访完整歌词舞台（仍由 WebView 渲染）。 */
     fun openStage(): Boolean
+
+    // 「更多」菜单：五项分别打开原版音质、音效、歌词、队列与播放设置。
+    fun openAudioQuality(): Boolean
+    fun openAudioEffects(): Boolean
+    fun openLyricsPanel(): Boolean
+    fun openPlaybackSettings(): Boolean
 }
 
 /**
@@ -90,6 +100,10 @@ class BridgeMinimalCommands(
     override fun collapse(): Boolean = send(MinimalActions.COLLAPSE, 0.0)
     override fun like(): Boolean = send(MinimalActions.LIKE, 0.0)
     override fun openStage(): Boolean = send(MinimalActions.OPEN_STAGE, 0.0)
+    override fun openAudioQuality(): Boolean = send(MinimalActions.AUDIO_QUALITY, 0.0)
+    override fun openAudioEffects(): Boolean = send(MinimalActions.AUDIO_EFFECTS, 0.0)
+    override fun openLyricsPanel(): Boolean = send(MinimalActions.LYRICS_PANEL, 0.0)
+    override fun openPlaybackSettings(): Boolean = send(MinimalActions.PLAYBACK_SETTINGS, 0.0)
 
     private fun send(action: String, value: Double): Boolean {
         if (!available) return false

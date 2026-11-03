@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -208,6 +209,9 @@ private fun SeekRow(
                 drawCircle(ink.fill, 4.5.dp.toPx(), Offset(thumbX, y))
             }
         }
+        // CSS：track 26 + gap 2 + time 14 —— 中心距 25dp。少了这个间距，时间会贴着轨道，
+        // 整个传输条比参考矮一截，上方内容就会跟着往下沉。
+        Spacer(Modifier.height(5.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
                 text = timeText(elapsedSeconds),
@@ -247,7 +251,7 @@ private fun TransportButtons(
         }
     }
 
-    Box(Modifier.fillMaxWidth().padding(top = 12.dp)) {
+    Box(Modifier.fillMaxWidth().padding(top = 14.dp)) {
         Row(
             Modifier.fillMaxWidth().height(56.dp),
             verticalAlignment = Alignment.CenterVertically,

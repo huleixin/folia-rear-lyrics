@@ -180,6 +180,10 @@ class MinimalScreenshotTest {
         override fun collapse(): Boolean = true
         override fun like(): Boolean = true
         override fun openStage(): Boolean = true
+        override fun openAudioQuality(): Boolean = true
+        override fun openAudioEffects(): Boolean = true
+        override fun openLyricsPanel(): Boolean = true
+        override fun openPlaybackSettings(): Boolean = true
     }
 
     private data class Shot(val state: MinimalPlayerState, val artwork: MinimalArtwork)

@@ -17,11 +17,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.drawBehind
-import kotlinx.coroutines.delay
+import io.github.huleixin.tingyu.minimal.Rgb
+import io.github.huleixin.tingyu.minimal.argb
+import io.github.huleixin.tingyu.minimal.hslToRgb
+import io.github.huleixin.tingyu.minimal.rgbToHsl
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 // android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/MinimalAmbience.kt
@@ -88,16 +93,22 @@ fun MinimalAmbience(
             }
         )
         // 2. 三片光斑（overscan -20%，位移永远露不出边）
+        // 半径按 CSS 的 `ellipse 62% 52% at 32% 28%` 给，且是**椭圆**：整屏一个圆
+        // 会把洗色全盖住，页面就退化成一块单色 —— 上一版偏紫就是这么来的。
+        // 几何从 CSS 直接换算：光斑元素是 `inset: -20%`（1.4 屏），`ellipse rx% ry% at cx% cy%`
+        // 的百分比是相对这个 1.4 屏的盒子；换算到视口就是下面的半径与圆心。
+        // 之前用"整屏大小的圆"，三个光斑互相盖住，洗色被吃掉，整页退成一块单色。
         AuroraBlob(from, to, progress, phase, light, animate, period = 20f, offset = 0f, colorIndex = 1,
-            centerX = 0.32f, centerY = 0.28f, scaleX = 1.24f, scaleY = 1.04f, modifier = Modifier)
+            centerX = 0.248f, centerY = 0.192f, radiusX = 0.868f, radiusY = 0.728f, modifier = Modifier)
         AuroraBlob(from, to, progress, phase, light, animate, period = 24f, offset = 0.33f, colorIndex = 2,
-            centerX = 0.73f, centerY = 0.48f, scaleX = 1.30f, scaleY = 1.08f, modifier = Modifier)
+            centerX = 0.822f, centerY = 0.472f, radiusX = 0.910f, radiusY = 0.756f, modifier = Modifier)
         AuroraBlob(from, to, progress, phase, light, animate, period = 28f, offset = 0.66f, colorIndex = 3,
-            centerX = 0.44f, centerY = 0.78f, scaleX = 1.40f, scaleY = 1.08f, modifier = Modifier)
+            centerX = 0.416f, centerY = 0.892f, radiusX = 0.980f, radiusY = 0.756f, modifier = Modifier)
         // 3. 上下压暗（veil）
         Box(
             Modifier.fillMaxSize().drawBehind {
-                val shade = (if (light) Color(0xFF0C201A) else Color.Black)
+                // `--min-shade`：深色是纯黑（0 0 0），浅色是 12 32 26 —— 照抄，不按封面调。
+                val shade = if (light) Color(0xFF0C201A) else Color.Black
                 drawRect(
                     Brush.verticalGradient(
                         0f to shade.copy(alpha = 0.18f * (if (light) 0.3f else 1f)),
@@ -110,7 +121,8 @@ fun MinimalAmbience(
         // 4. 暗角（vignette）
         Box(
             Modifier.fillMaxSize().drawBehind {
-                val shade = (if (light) Color(0xFF0C201A) else Color.Black)
+                // `--min-shade`：深色是纯黑（0 0 0），浅色是 12 32 26 —— 照抄，不按封面调。
+                val shade = if (light) Color(0xFF0C201A) else Color.Black
                 val strength = if (light) 0.3f else 1f
                 drawRect(
                     Brush.radialGradient(
@@ -122,6 +134,27 @@ fun MinimalAmbience(
             }
         )
     }
+}
+
+/**
+ * `minimalAuroraGlow`：把封面派生色提亮到 `l = .62`、饱和度夹在 `.42..72` 再画光斑。
+ *
+ * 少了这一步，深色主题下光斑用的是 field 原色（l ≈ .2），叠在同样是 .1 的底色上等于没画 ——
+ * 整页就成了一块平色。第一版截图之所以"灰"，一半原因在这里。
+ */
+private fun auroraGlow(color: Color): Color {
+    val channels = rgbToHsl(
+        Rgb(
+            (color.red * 255f).roundToInt().coerceIn(0, 255),
+            (color.green * 255f).roundToInt().coerceIn(0, 255),
+            (color.blue * 255f).roundToInt().coerceIn(0, 255),
+        )
+    )
+    val glow = channels.copy(
+        s = (channels.s * 1.2f).coerceIn(0.42f, 0.72f),
+        l = 0.62f,
+    )
+    return Color(argb(hslToRgb(glow)))
 }
 
 @Composable
@@ -137,8 +170,8 @@ private fun AuroraBlob(
     colorIndex: Int,
     centerX: Float,
     centerY: Float,
-    scaleX: Float,
-    scaleY: Float,
+    radiusX: Float,
+    radiusY: Float,
     modifier: Modifier,
 ) {
     val alpha = if (light) 0.26f else 0.52f
@@ -151,20 +184,28 @@ private fun AuroraBlob(
                 val theta = 2f * PI.toFloat() * (t / period + offset)
                 translationX = size.width * 0.13f * sin(theta)
                 translationY = size.height * 0.10f * cos(theta)
-                val s = 1f + 0.04f * sin(theta * 0.5f)
-                this.scaleX = scaleX * s
-                this.scaleY = scaleY * s
+                val breathe = 1f + 0.04f * sin(theta * 0.5f)
+                this.scaleX = breathe
+                this.scaleY = breathe
                 this.alpha = alpha
             }
             .drawBehind {
-                val c = lerpPalette(from, to, progress.value)[colorIndex]
-                drawRect(
-                    Brush.radialGradient(
-                        colors = listOf(c, Color.Transparent),
-                        center = Offset(size.width * centerX, size.height * centerY),
-                        radius = size.maxDimension * 0.66f,
+                val c = auroraGlow(lerpPalette(from, to, progress.value)[colorIndex])
+                val center = Offset(size.width * centerX, size.height * centerY)
+                val rx = size.width * radiusX
+                val ry = size.height * radiusY
+                // 椭圆：把圆按 ry/rx 压一下再画。纯渐变 + 一次变换，仍然不碰 shader/blur。
+                withTransform({ scale(1f, ry / rx, center) }) {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colorStops = arrayOf(0f to c, 0.76f to Color.Transparent),
+                            center = center,
+                            radius = rx,
+                        ),
+                        radius = rx,
+                        center = center,
                     )
-                )
+                }
             }
     )
 }

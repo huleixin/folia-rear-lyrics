@@ -16,6 +16,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.Text
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.border
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
@@ -75,10 +83,12 @@ fun MinimalPlayerScreen(
 
     val playback = state.playback
     val ink = remember(light) { minimalInk(light) }
-    // 取色与主题无关：深浅色各自从同一份 CoverColors 派生，切主题不需要重新采样。
-    val palette = remember(artwork.colors, artwork.songKey, light) {
+    // 配色优先用 JS 送来的那一份（`buildMinimalPalette` 的输出，和 WebView 页面逐字节一致）；
+    // 只有桥上还没有配色时，才用原生这份移植兜底。
+    val local = remember(artwork.colors, artwork.songKey, light) {
         buildMinimalPalette(artwork.colors, light)
     }
+    val palette = state.palette ?: local
     val clock = rememberMinimalClock(playback)
     // 系统关闭动画时不跑背景漂移与封面浮动；页面仍然完整可读（与 prefers-reduced-motion 对齐）。
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -101,7 +111,10 @@ fun MinimalPlayerScreen(
         Column(Modifier.fillMaxSize().padding(top = safeTop.dp, bottom = safeBottom.dp)) {
             TopBar(
                 ink = ink,
+                base = Color(palette.base),
                 liked = state.controls.liked,
+                qualityMode = state.controls.qualityMode,
+                effectsOn = state.controls.effectsOn,
                 likeDisabled = state.controls.likeDisabled,
                 onLyricsPage = page == 1,
                 commands = commands,
@@ -126,6 +139,7 @@ fun MinimalPlayerScreen(
                         active = page == 0,
                         still = still,
                         onOpenLyrics = { scope.launch { pagerState.animateScrollToPage(1) } },
+                        onAudioTools = { commands.openAudioQuality() },
                         // 拖动时封面向反方向漂一点点（CSS 的 parallax），只动图层不重画。
                         parallax = {
                             if (pagerState.currentPage == 0) -pagerState.currentPageOffsetFraction * 22f else 0f
@@ -158,7 +172,7 @@ fun MinimalPlayerScreen(
                 pageCount = PAGE_COUNT,
                 ink = ink,
                 onSelect = { target -> scope.launch { pagerState.animateScrollToPage(target) } },
-                modifier = Modifier.padding(top = 2.dp),
+                modifier = Modifier.padding(top = 6.dp),
             )
         }
     }
@@ -187,13 +201,17 @@ private fun rememberMinimalClock(playback: MinimalPlayback): State<Long> {
 @Composable
 private fun TopBar(
     ink: MinimalInk,
+    base: Color,
     liked: Boolean,
+    qualityMode: String,
+    effectsOn: Boolean,
     likeDisabled: Boolean,
     onLyricsPage: Boolean,
     commands: MinimalPlayerCommands,
     onCollapse: () -> Unit,
     onOpenStage: () -> Unit,
 ) {
+    var menuOpen by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -227,12 +245,92 @@ private fun TopBar(
                     }
                 }
             } else {
-                TopIcon("更多", onClick = { commands.openQueue() }) {
-                    Canvas(Modifier.size(22.dp)) {
-                        val u = size.minDimension / 22f
-                        listOf(5f, 11f, 17f).forEach { dot ->
-                            drawCircle(ink.ink, 1.7f * u, Offset(dot * u, 11f * u))
+                // 更多在原始页面里是一个真菜单（音质音效 / 音效 / 歌词 / 队列 / 播放设置），
+                // 不是队列按钮。上一版把它接到了 openQueue，点更多直接弹队列就是这么来的。
+                Box {
+                    TopIcon("更多", onClick = { menuOpen = !menuOpen }) {
+                        Canvas(Modifier.size(22.dp)) {
+                            val u = size.minDimension / 22f
+                            listOf(5f, 11f, 17f).forEach { dot ->
+                                drawCircle(ink.ink, 1.7f * u, Offset(dot * u, 11f * u))
+                            }
                         }
+                    }
+                    if (menuOpen) {
+                        MoreMenu(
+                            ink = ink,
+                            base = base,
+                            qualityMode = qualityMode,
+                            effectsOn = effectsOn,
+                            onDismiss = { menuOpen = false },
+                            onPick = { pick ->
+                                menuOpen = false
+                                when (pick) {
+                                    0 -> commands.openAudioQuality()
+                                    1 -> commands.openAudioEffects()
+                                    2 -> commands.openLyricsPanel()
+                                    3 -> commands.openQueue()
+                                    else -> commands.openPlaybackSettings()
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 更多菜单：条目与 `MobileStageMenu` 完全一致，动作也调同一批 store 方法。
+ *
+ * 不套 MaterialTheme：这一页整套颜色来自封面取色，Material 的默认表面色（浅色）会在这里
+ * 变成一块白板。用 Popup 自己画，底色跟着页面走。
+ */
+@Composable
+private fun MoreMenu(
+    ink: MinimalInk,
+    base: Color,
+    qualityMode: String,
+    effectsOn: Boolean,
+    onDismiss: () -> Unit,
+    onPick: (Int) -> Unit,
+) {
+    val radius = RoundedCornerShape(16.dp)
+    androidx.compose.ui.window.Popup(
+        alignment = Alignment.TopEnd,
+        offset = androidx.compose.ui.unit.IntOffset(0, 96),
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.PopupProperties(focusable = true),
+    ) {
+        Column(
+            Modifier
+                .padding(end = 10.dp)
+                .width(208.dp)
+                .clip(radius)
+                .background(base.copy(alpha = 0.94f))
+                .border(1.dp, ink.inkAlpha(14), radius)
+                .padding(vertical = 6.dp),
+        ) {
+            val entries = listOf(
+                "音质音效" to qualityMode,
+                "音效" to (if (effectsOn) "已开启" else "已关闭"),
+                "歌词" to "",
+                "播放队列" to "",
+                "播放设置" to "",
+            )
+            entries.forEachIndexed { index, entry ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { onPick(index) }
+                        .padding(horizontal = 14.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(entry.first, color = ink.ink, fontSize = 14.sp)
+                    if (entry.second.isNotBlank()) {
+                        Spacer(Modifier.weight(1f))
+                        Text(entry.second, color = ink.muted, fontSize = 12.sp, maxLines = 1)
                     }
                 }
             }

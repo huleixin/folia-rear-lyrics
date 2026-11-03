@@ -1,12 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppOverlaysModel } from '../components/app/overlays/buildAppOverlaysModel';
 import { PlayerState } from '../types';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
 import { resolvePlaybackMode } from '../utils/playbackMode';
 import { useAppViewStore } from '../stores/useAppViewStore';
 import { usePlayerViewModeStore } from '../stores/usePlayerViewModeStore';
+import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
+import { useAudioToolsStore, QUALITY_LABELS } from '../stores/useAudioToolsStore';
+import { openSettings } from '../stores/useSettingsModalStore';
 import i18n from '../i18n/config';
 import { resolveQualityBadges } from '../components/app/overlays/minimal-stage/minimalQuality';
+import { buildMinimalPalette } from '../components/app/overlays/minimal-stage/minimalPalette';
+import { useCoverColors } from '../components/app/overlays/minimal-stage/useCoverPalette';
 import { canUseComposeChrome } from '../services/nativeChrome';
 import {
     addMinimalPlayerActionListener,
@@ -41,6 +46,14 @@ export type NativeMinimalPlayer = {
     owns: boolean;
 };
 
+/** `rgb(12 34 56)` → `#0C2238`；桥上一个字段一种写法，原生只管解析。 */
+const toHex = (css: string): string => {
+    const channels = /rgba?\(([^)]+)\)/.exec(css)?.[1]?.split(/[\s,/]+/).filter(Boolean) ?? [];
+    const [r, g, b] = channels.slice(0, 3).map(value => Math.round(Number(value)));
+    if (![r, g, b].every(Number.isFinite)) return '#000000';
+    return `#${[r, g, b].map(value => Math.max(0, Math.min(255, value)).toString(16).padStart(2, '0')).join('')}`;
+};
+
 /** `order` is the player's name for "no mode at all"; native calls the same state `off`. */
 const toNativeMode = (mode: ReturnType<typeof resolvePlaybackMode>): MinimalPlayerFrame['mode'] =>
     mode === 'order' ? 'off' : mode;
@@ -57,6 +70,25 @@ export function useNativeMinimalPlayer({
     const [owns, setOwns] = useState(false);
     const latest = useRef({ chrome, controls });
     latest.current = { chrome, controls };
+
+    // 配色不重算：这里调用的是 WebView 页面用的**同一个** `buildMinimalPalette`，
+    // 原生只负责画。移植一份到 Kotlin 迟早会在某个封面上差一个色相 —— 上一版就是。
+    const coverColors = useCoverColors(chrome?.song?.coverUrl ?? null);
+    const light = !!controls?.isDaylight;
+    const palette = useMemo(() => {
+        if (!coverColors) return null;
+        const built = buildMinimalPalette(coverColors, light ? 'light' : 'dark');
+        return [
+            built.base,
+            built.fieldPrimary,
+            built.fieldSecondary,
+            built.bloom,
+            built.accent,
+            built.lyricAccent,
+        ].map(toHex) as [string, string, string, string, string, string];
+    }, [coverColors, light]);
+    const paletteRef = useRef(palette);
+    paletteRef.current = palette;
     /** The session this mount owns; a republish must never mint a new one. */
     const sessionRef = useRef('');
     const publishedTrackKey = useRef('');
@@ -96,9 +128,12 @@ export function useNativeMinimalPlayer({
             mode: toNativeMode(resolvePlaybackMode(currentControls.shuffleEnabled, currentControls.loopMode)),
             quality,
             qualityGold: badges.some(badge => badge.tone === 'gold'),
+            qualityMode: QUALITY_LABELS[useAudioSettingsStore.getState().audioQuality],
+            effectsOn: useAudioSettingsStore.getState().audioEqualizerSettings.enabled,
             liked: !!likeContext?.isLiked,
             likeDisabled: !likeContext || !!likeContext.likeDisabled,
             detour: usePlayerViewModeStore.getState().detour,
+            palette: paletteRef.current,
         };
     }, []);
 
@@ -158,6 +193,15 @@ export function useNativeMinimalPlayer({
                 },
                 collapse: () => currentChrome?.onBack(),
                 like: () => latest.current.controls?.slotContext?.onLike?.(),
+                // 五项全部复用 `MobileStageMenu` 里的**同一个** store 方法，不新建面板。
+                openAudioQuality: () => useAudioToolsStore.getState().show(),
+                openAudioEffects: () => useAudioSettingsStore.getState().openAudioEqualizer(),
+                openLyricsPanel: () => {
+                    const view = useAppViewStore.getState();
+                    view.setPanelTab('onlineLyrics');
+                    view.setIsPanelOpen(true);
+                },
+                openPlaybackSettings: () => openSettings('options', 'playback'),
                 // 顺访舞台：交给 store 的既有语义（detour），退出由舞台自己 closeStage。
                 openStage: () => usePlayerViewModeStore.getState().openStage(),
             });
@@ -208,6 +252,8 @@ export function useNativeMinimalPlayer({
         current.controls?.slotContext?.isLiked ? 'l' : '',
         usePlayerViewModeStore.getState().detour ? 'd' : '',
         current.controls?.audioSrc ? 'a' : '',
+        useAudioSettingsStore.getState().audioQuality,
+        useAudioSettingsStore.getState().audioEqualizerSettings.enabled ? 'e' : '',
     ].join('|');
     useEffect(() => {
         if (!enabled || !identity) return;

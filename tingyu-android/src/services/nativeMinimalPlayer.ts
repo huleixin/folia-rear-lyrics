@@ -30,6 +30,10 @@ export type MinimalPlayerFrame = {
     quality: string;
     /** The chip's gold tone, decided by `resolveQualityBadges`, not by the caption text. */
     qualityGold: boolean;
+    /** 播放偏好里的音质档位（"无损"/"高品质"…），只给"更多"菜单用，和上面的容器角标不是一回事。 */
+    qualityMode: string;
+    /** 音效开关状态，同样是菜单里的第二行值。 */
+    effectsOn: boolean;
     liked: boolean;
     likeDisabled: boolean;
     /**
@@ -37,6 +41,12 @@ export type MinimalPlayerFrame = {
      * layer, so it must step aside instead of covering a stage that still lives in the WebView.
      */
     detour: boolean;
+    /**
+     * The six colours the minimal page paints with, straight from `buildMinimalPalette` — the same
+     * call the WebView page makes. Native does not re-derive them: a ported palette drifts from the
+     * original by a hue or two, and "close enough" is exactly what this pass is fixing.
+     */
+    palette: [string, string, string, string, string, string] | null;
 };
 
 export type MinimalPlayerAction = {
@@ -125,6 +135,11 @@ export type MinimalActionHandlers = {
     toggleLoop: () => void;
     openQueue: () => void;
     collapse: () => void;
+    /** 顶栏"更多"菜单的五项，和 `MobileStageMenu` 一一对应。 */
+    openAudioQuality: () => void;
+    openAudioEffects: () => void;
+    openLyricsPanel: () => void;
+    openPlaybackSettings: () => void;
     like: () => void;
     /** 顺访完整歌词舞台。舞台仍是 WebView，原生页交还界面。 */
     openStage: () => void;
@@ -172,6 +187,18 @@ export function dispatchMinimalAction(action: string, value: number, handlers: M
             return true;
         case 'collapse':
             handlers.collapse();
+            return true;
+        case 'audioQuality':
+            handlers.openAudioQuality();
+            return true;
+        case 'audioEffects':
+            handlers.openAudioEffects();
+            return true;
+        case 'lyricsPanel':
+            handlers.openLyricsPanel();
+            return true;
+        case 'playbackSettings':
+            handlers.openPlaybackSettings();
             return true;
         case 'like':
             handlers.like();

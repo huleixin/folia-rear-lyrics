@@ -30,11 +30,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,6 +59,27 @@ import kotlin.math.sin
 // 下面的标题、歌手、角标、歌词与（页外的）进度条共用同一条左边缘。上一版把这几行居中，
 // 才让整页看起来像模板 —— 没有一条对齐关系，也就没有构图。
 
+/** `.min-cover` 的左内边距：标题、歌手、角标、歌词都对齐到这条线。 */
+private val HORIZONTAL_PADDING = 26.dp
+
+/**
+ * 宽度的百分比项。`@media (min-height: 900px)` 时是 `min(100%, 42vh)`；其余档位都是 90%。
+ */
+private fun stageWidthFraction(screenHeight: androidx.compose.ui.unit.Dp): Float =
+    if (screenHeight >= 900.dp) 1f else 0.90f
+
+/**
+ * 高度上限（vh 档位），对应 CSS 的四段媒体查询：
+ * ≥900 → 42vh，761..899 → 39vh，701..760 → 35vh，≤700 → 31vh。
+ * 短屏上整组一起缩，而不是图片缩在框里。
+ */
+private fun stageCap(screenHeight: androidx.compose.ui.unit.Dp): Float = when {
+    screenHeight >= 900.dp -> 0.42f
+    screenHeight <= 700.dp -> 0.31f
+    screenHeight <= 760.dp -> 0.35f
+    else -> 0.39f
+}
+
 /** 波形的四根柱子，高度是相对高度的比例。 */
 private val WAVE_BARS = floatArrayOf(0.44f, 0.8f, 1f, 0.56f)
 
@@ -70,6 +94,8 @@ fun MinimalCoverPage(
     active: Boolean,
     still: Boolean,
     onOpenLyrics: () -> Unit,
+    /** 波形（音质音效入口）：打开原版音质 / 音效面板。 */
+    onAudioTools: () -> Unit = {},
     /** 封面的横向漂移（px）：由 pager 的拖动位置给出，0 表示静止。 */
     parallax: () -> Float = { 0f },
     modifier: Modifier = Modifier,
@@ -77,16 +103,20 @@ fun MinimalCoverPage(
     val playback = state.playback
     BoxWithConstraints(modifier.fillMaxSize()) {
         val pageWidth = maxWidth
-        val pageHeight = maxHeight
-        val titleSize = clampSp(23f, pageWidth.value * 0.074f, 30f)
+        // 这一页在 pager 里，`maxHeight` 是分页容器的高度（顶栏、传输条、分页点都已经扣掉），
+        // 而 CSS 的 `vh` 指的是**视口**高度。第一版拿 maxHeight 算 39vh，封面因此小了近三成 ——
+        // 屏幕越矮差得越多。所有 vh 一律用屏幕高度。
+        val vh = LocalConfiguration.current.screenHeightDp.dp
+        val contentWidth = pageWidth - HORIZONTAL_PADDING * 2
+        val titleSize = clampSp(23f, pageWidth.value * 0.074f, if (vh >= 900.dp) 29f else 30f)
         val lyricSize = clampSp(17f, pageWidth.value * 0.046f, 19f)
-        // 封面宽度：min(90%, 39vh)。高度受限时才缩 —— 短屏上整组一起缩，而不是图片缩在框里。
-        val stageWidth = minOf(pageWidth * 0.90f, pageHeight * 0.39f)
+        // `.min-cover__stage { width: min(90%, 39vh) }`，并按媒体查询换档（见 stageCap）。
+        val stageWidth = minOf(contentWidth * stageWidthFraction(vh), vh * stageCap(vh))
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = 26.dp, end = 26.dp, top = clampDp(12f, pageHeight.value * 0.024f, 22f), bottom = 2.dp),
+                .padding(start = HORIZONTAL_PADDING, end = HORIZONTAL_PADDING, top = clampDp(12f, vh.value * 0.024f, 22f), bottom = 2.dp),
             verticalArrangement = Arrangement.Bottom,
         ) {
             MinimalArtworkView(
@@ -99,7 +129,7 @@ fun MinimalCoverPage(
                     .size(stageWidth)
                     .graphicsLayer { translationX = parallax() },
             )
-            Spacer(Modifier.height(clampDp(15f, pageHeight.value * 0.020f, 19f)))
+            Spacer(Modifier.height(clampDp(15f, vh.value * 0.020f, 19f)))
 
             // 标题与歌手跟着 playback.track 一起切换：两者是同一个身份，不能各自淡入。
             Crossfade(
@@ -120,13 +150,13 @@ fun MinimalCoverPage(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     if (track.artist.isNotBlank()) {
-                        Spacer(Modifier.height(4.dp))
+                        Spacer(Modifier.height(clampDp(4f, vh.value * 0.006f, 6f)))
                         ArtistLine(track.artist, ink)
                     }
                 }
             }
 
-            Spacer(Modifier.height(clampDp(6f, pageHeight.value * 0.009f, 8f)))
+            Spacer(Modifier.height(clampDp(6f, vh.value * 0.009f, 8f)))
             Row(Modifier.fillMaxWidth().height(24.dp), verticalAlignment = Alignment.CenterVertically) {
                 val quality = state.controls.quality
                 if (quality.isNotBlank()) {
@@ -134,10 +164,24 @@ fun MinimalCoverPage(
                 }
                 Spacer(Modifier.width(12.dp))
                 Box(Modifier.weight(1f))
-                PlayingWave(playing = playback.playing && active, still = still, ink = ink)
+                // 波形是音质音效的入口。视觉与原页面完全一致，只是补了 44dp 命中区 ——
+                // 参考图里它不可点，但需求明确要求这个入口能打开音质/音效。
+                Box(
+                    Modifier
+                        .size(44.dp)
+                        .semantics { contentDescription = "音质音效" }
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onAudioTools,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    PlayingWave(playing = playback.playing && active, still = still, ink = ink)
+                }
             }
 
-            Spacer(Modifier.height(clampDp(16f, pageHeight.value * 0.022f, 20f)))
+            Spacer(Modifier.height(clampDp(16f, vh.value * 0.022f, 20f)))
             LiveLyric(
                 playback = playback,
                 state = state,
