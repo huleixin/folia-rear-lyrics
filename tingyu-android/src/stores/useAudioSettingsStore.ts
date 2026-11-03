@@ -15,6 +15,12 @@ import { getStoredBoolean, setStoredBoolean } from './storagePrimitives';
 import { setStatusMessage } from './useStatusMessageStore';
 import i18n from '../i18n/config';
 import { shufflePlayback } from '../services/shufflePlayback';
+import {
+    nextPlaybackMode,
+    resolvePlaybackMode,
+    resolvePlaybackModeState,
+    type PlaybackMode,
+} from '../utils/playbackMode';
 
 export const CACHE_SIZE_KEY = 'folia_cache_size';
 
@@ -161,6 +167,7 @@ export type AudioSettingsState = {
     loopMode: 'off' | 'all' | 'one';
     shuffleEnabled: boolean;
     handleSetShuffleEnabled: (enabled: boolean) => void;
+    handleSetPlaybackMode: (mode: PlaybackMode) => void;
     handleTogglePlaybackMode: () => void;
     setAudioQuality: (quality: AudioQuality) => void;
     handleToggleMediaCache: (enable: boolean) => void;
@@ -180,7 +187,7 @@ export type AudioSettingsState = {
     /** Sets the mute switch; the same value is a no-op. */
     handleSetMuted: (muted: boolean) => void;
     handleToggleMute: () => void;
-    /** Sets the repeat mode and toasts it like the repeat button; the mode already in effect is a no-op. */
+    /** Sets the repeat mode; the mode already in effect is a no-op. */
     handleSetLoopMode: (mode: 'off' | 'all' | 'one') => void;
     handleToggleLoopMode: () => void;
 };
@@ -320,45 +327,44 @@ export const useAudioSettingsStore = create<AudioSettingsState>((set, get) => ({
         get().handleSetMuted(!get().isMuted);
     },
     handleSetLoopMode: (mode) => {
-        if (mode === get().loopMode && !get().shuffleEnabled) {
-            return;
-        }
-        if (typeof window !== 'undefined') {
-            localStorage.setItem('player_loop_mode', mode);
-        }
-        setStoredBoolean('player_shuffle_enabled', false);
-        shufflePlayback.setEnabled(false);
-        set({ loopMode: mode, shuffleEnabled: false });
-        const loopModeKey = mode === 'off' ? 'loopOff' : mode === 'one' ? 'loopOne' : 'loopAll';
-        setStatusMessage({
-            type: 'success',
-            text: i18n.t(`player.${loopModeKey}`),
-            nonce: Date.now(),
-        });
+        // "repeat one" without shuffle is the same thing as the `one` mode; `off` and `all` keep
+        // their own meanings and both clear shuffle, exactly as this setter always did.
+        get().handleSetPlaybackMode(mode === 'one' ? 'one' : mode === 'all' ? 'all' : 'order');
     },
     handleSetShuffleEnabled: enabled => {
-        if (enabled === get().shuffleEnabled) return;
-        if (!enabled) { get().handleSetLoopMode('off'); return; }
-        setStoredBoolean('player_shuffle_enabled', true);
-        if (typeof window !== 'undefined') localStorage.setItem('player_loop_mode', 'all');
-        shufflePlayback.setEnabled(true);
-        set({ shuffleEnabled: true, loopMode: 'all' });
-        setStatusMessage({ type: 'success', text: i18n.t('mobileStage.loop_shuffle'), nonce: Date.now() });
+        // Disabling shuffle used to mean "back to playing the queue in order"; keep that, so the
+        // button's four-step cycle lands on `order` and not on whatever loop mode was left behind.
+        get().handleSetPlaybackMode(enabled ? 'shuffle' : 'order');
+    },
+    handleSetPlaybackMode: (mode) => {
+        const state = get();
+        if (resolvePlaybackMode(state.shuffleEnabled, state.loopMode) === mode) {
+            return;
+        }
+        const next = resolvePlaybackModeState(mode);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('player_loop_mode', next.loopMode);
+        }
+        setStoredBoolean('player_shuffle_enabled', next.shuffleEnabled);
+        shufflePlayback.setEnabled(next.shuffleEnabled);
+        set({ loopMode: next.loopMode, shuffleEnabled: next.shuffleEnabled });
+        // No toast. The mode is drawn by the control that was pressed — the stage prints its name
+        // under the button, the minimal page shows it next to the transport for a moment — and a
+        // full-width pill at the top of the screen would be a second, louder copy of it over the
+        // lyrics.
     },
     handleTogglePlaybackMode: () => {
         const state = get();
-        if (state.shuffleEnabled) state.handleSetLoopMode('off');
-        else if (state.loopMode === 'one') state.handleSetShuffleEnabled(true);
-        else state.handleSetLoopMode(state.loopMode === 'off' ? 'all' : 'one');
+        state.handleSetPlaybackMode(nextPlaybackMode(resolvePlaybackMode(state.shuffleEnabled, state.loopMode)));
     },
+    /**
+     * The old name for the same button. Kept because the remote/headset cycle and the desktop
+     * floating bar call it by this name; there is no separate three-step loop any more, because a
+     * control that skips 随机 while the other view offers it is exactly the inconsistency this
+     * unified.
+     */
     handleToggleLoopMode: () => {
-        const prev = get().loopMode;
-        const next = prev === 'off'
-            ? 'all'
-            : prev === 'all'
-                ? 'one'
-                : 'off';
-        get().handleSetLoopMode(next);
+        get().handleTogglePlaybackMode();
     },
 }));
 

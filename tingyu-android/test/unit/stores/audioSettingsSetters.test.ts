@@ -21,6 +21,7 @@ const storage = vi.hoisted(() => {
 import i18n from '@/i18n/config';
 import { useAudioSettingsStore } from '@/stores/useAudioSettingsStore';
 import { useStatusMessageStore } from '@/stores/useStatusMessageStore';
+import { resolvePlaybackMode } from '@/utils/playbackMode';
 
 // test/unit/stores/audioSettingsSetters.test.ts
 // The set-to-a-value forms of mute and repeat mode (Folium's playback.setMuted /
@@ -62,37 +63,79 @@ describe('handleSetMuted', () => {
 });
 
 describe('handleSetLoopMode', () => {
-    it('sets, persists and toasts the new mode', () => {
+    it('sets and persists the new mode, without drawing a toast', () => {
         useAudioSettingsStore.setState({ loopMode: 'off' });
         useAudioSettingsStore.getState().handleSetLoopMode('one');
-        expect(useAudioSettingsStore.getState().loopMode).toBe('one');
+        expect(useAudioSettingsStore.getState()).toMatchObject({ loopMode: 'one', shuffleEnabled: false });
         expect(storage.get('player_loop_mode')).toBe('one');
-        expect(useStatusMessageStore.getState().message).toMatchObject({
-            type: 'success',
-            text: i18n.t('player.loopOne'),
-            nonce: expect.any(Number),
-        });
+        // The mode is drawn by the button that was pressed (the stage prints its name, the minimal
+        // page shows it beside the transport); the global pill used to land on top of a lyric line.
+        expect(useStatusMessageStore.getState().message).toBeNull();
     });
 
-    it('writes and toasts nothing for the mode already in effect', () => {
-        useAudioSettingsStore.setState({ loopMode: 'all' });
+    it('writes nothing for the mode already in effect', () => {
+        useAudioSettingsStore.setState({ loopMode: 'all', shuffleEnabled: false });
         useAudioSettingsStore.getState().handleSetLoopMode('all');
         expect(storage.has('player_loop_mode')).toBe(false);
         expect(useStatusMessageStore.getState().message).toBeNull();
     });
 
-    it('backs the toggle, which still cycles off, all, one and toasts each step', () => {
-        useAudioSettingsStore.setState({ loopMode: 'off' });
-        const seen: [string, string | undefined][] = [];
-        for (let press = 0; press < 3; press += 1) {
-            useAudioSettingsStore.getState().handleToggleLoopMode();
-            seen.push([useAudioSettingsStore.getState().loopMode, useStatusMessageStore.getState().message?.text]);
+    it('clears shuffle, because "repeat one" and "shuffle" cannot both be true', () => {
+        useAudioSettingsStore.setState({ loopMode: 'all', shuffleEnabled: true });
+        useAudioSettingsStore.getState().handleSetLoopMode('one');
+        expect(useAudioSettingsStore.getState()).toMatchObject({ loopMode: 'one', shuffleEnabled: false });
+    });
+});
+
+describe('the single playback-mode button', () => {
+    const mode = () => resolvePlaybackMode(
+        useAudioSettingsStore.getState().shuffleEnabled,
+        useAudioSettingsStore.getState().loopMode,
+    );
+
+    it('steps 顺序 → 列表循环 → 单曲循环 → 随机 → 顺序, with no toast at any step', () => {
+        useAudioSettingsStore.setState({ loopMode: 'off', shuffleEnabled: false });
+        const seen: string[] = [mode()];
+        for (let press = 0; press < 4; press += 1) {
+            useAudioSettingsStore.getState().handleTogglePlaybackMode();
+            seen.push(mode());
+            expect(useStatusMessageStore.getState().message).toBeNull();
         }
-        expect(seen).toEqual([
-            ['all', i18n.t('player.loopAll')],
-            ['one', i18n.t('player.loopOne')],
-            ['off', i18n.t('player.loopOff')],
-        ]);
+        expect(seen).toEqual(['order', 'all', 'one', 'shuffle', 'order']);
+    });
+
+    it('never leaves shuffle and single-repeat enabled together', () => {
+        useAudioSettingsStore.setState({ loopMode: 'off', shuffleEnabled: false });
+        for (let press = 0; press < 8; press += 1) {
+            useAudioSettingsStore.getState().handleTogglePlaybackMode();
+            const state = useAudioSettingsStore.getState();
+            expect(state.shuffleEnabled && state.loopMode === 'one').toBe(false);
+            // Shuffle always carries a looping queue, or the last track of a pass would stop it.
+            if (state.shuffleEnabled) {
+                expect(state.loopMode).toBe('all');
+            }
+        }
+    });
+
+    it('persists both halves, so the mode survives a restart', () => {
+        useAudioSettingsStore.setState({ loopMode: 'off', shuffleEnabled: false });
+        useAudioSettingsStore.getState().handleSetPlaybackMode('shuffle');
+        expect(storage.get('player_loop_mode')).toBe('all');
+        expect(storage.get('player_shuffle_enabled')).toBe('true');
+        useAudioSettingsStore.getState().handleSetPlaybackMode('order');
         expect(storage.get('player_loop_mode')).toBe('off');
+        expect(storage.get('player_shuffle_enabled')).toBe('false');
+    });
+
+    it('keeps the legacy loop toggle on the same four-step cycle', () => {
+        useAudioSettingsStore.setState({ loopMode: 'one', shuffleEnabled: false });
+        useAudioSettingsStore.getState().handleToggleLoopMode();
+        expect(mode()).toBe('shuffle');
+    });
+
+    it('treats a mode press that changes nothing as a no-op', () => {
+        useAudioSettingsStore.setState({ loopMode: 'all', shuffleEnabled: false });
+        useAudioSettingsStore.getState().handleSetPlaybackMode('all');
+        expect(storage.has('player_loop_mode')).toBe(false);
     });
 });
