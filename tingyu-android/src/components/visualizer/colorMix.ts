@@ -48,7 +48,12 @@ const readColor = (normalizedColor: string): ParsedColor => {
 
     const rgbMatch = normalizedColor.match(/^rgba?\(([^)]+)\)$/);
     if (rgbMatch) {
-        const [r, g, b] = rgbMatch[1].split(',').slice(0, 3).map(part => Number.parseFloat(part.trim()));
+        // Palette helpers emit CSS Color 4 space syntax; alpha after '/' is not an RGB channel.
+        const channels = rgbMatch[1].split('/')[0].trim().split(/[,\s]+/);
+        const [r, g, b] = channels.slice(0, 3).map(part => {
+            const value = Number.parseFloat(part);
+            return part.endsWith('%') ? value * 255 / 100 : value;
+        });
         if ([r, g, b].every(isFiniteChannel)) {
             return { r, g, b };
         }

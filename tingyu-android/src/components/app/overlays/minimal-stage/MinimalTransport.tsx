@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ListMusic, Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward } from 'lucide-react';
+import { LoaderCircle, ListMusic, Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward } from 'lucide-react';
 import ProgressBar from '../../../ProgressBar';
 import type { AppOverlaysModel } from '../buildAppOverlaysModel';
 import { PlayerState } from '../../../../types';
 import { useAppViewStore } from '../../../../stores/useAppViewStore';
+import './minimalProgressGlow.css';
 import { playbackModeLabelKey, resolvePlaybackMode } from '../../../../utils/playbackMode';
 
 // src/components/app/overlays/minimal-stage/MinimalTransport.tsx
@@ -30,11 +31,14 @@ type Controls = NonNullable<AppOverlaysModel['floatingControls']>;
 /** How long the mode name stays next to the transport after a switch. */
 const MODE_HINT_MS = 1500;
 
-export default function MinimalTransport({ controls }: { controls: Controls }) {
+export default function MinimalTransport({ controls, active = true }: { controls: Controls; active?: boolean }) {
     const { t } = useTranslation();
     const disabled = !!controls.controlsDisabled;
     const playing = controls.playerState === PlayerState.PLAYING;
+    const preparing = !!controls.preparing;
     const canPlay = !disabled && controls.canTogglePlay;
+    const [seeking, setSeeking] = useState(false);
+    useEffect(() => { if (!active || disabled) setSeeking(false); }, [active, disabled]);
     const navigation = controls.trackNavigation;
     const mode = resolvePlaybackMode(controls.shuffleEnabled, controls.loopMode);
     const [hint, setHint] = useState<{ key: number; text: string } | null>(null);
@@ -66,9 +70,12 @@ export default function MinimalTransport({ controls }: { controls: Controls }) {
     const modeName = t(playbackModeLabelKey(mode));
 
     return (
-        <section className="min-transport" aria-label={t('mobileStage.playback')} data-disabled={disabled || undefined}>
+        <section className="min-transport" aria-label={t('mobileStage.playback')} data-disabled={disabled || undefined} data-render-active={active || undefined} data-live={playing && active && !disabled || undefined} data-seeking={seeking || undefined}>
             <div className="min-seek">
                 <ProgressBar
+                    renderActive={active}
+                    onSeekStart={() => setSeeking(true)}
+                    onSeekEnd={() => setSeeking(false)}
                     currentTime={controls.currentTime}
                     duration={controls.duration}
                     onSeek={controls.onSeek}
@@ -106,13 +113,15 @@ export default function MinimalTransport({ controls }: { controls: Controls }) {
                 <button
                     type="button"
                     className="min-btn min-btn--play"
-                    aria-label={t(playing ? 'mobileLibrary.pause' : 'mobileLibrary.play')}
+                    aria-label={t(preparing && !canPlay ? 'mobileLibrary.loading' : playing ? 'mobileLibrary.pause' : 'mobileLibrary.play')}
                     aria-pressed={playing}
                     disabled={!canPlay}
+                    aria-busy={preparing || undefined}
                     onClick={controls.onTogglePlay}
                 >
                     <span className="min-play-ring" aria-hidden="true" />
-                    <span className="min-play-glyph" aria-hidden="true">
+                    {preparing && !canPlay && <LoaderCircle className="min-play-loading" size={24} aria-hidden="true" />}
+                    <span className="min-play-glyph" aria-hidden="true" style={{visibility:preparing && !canPlay ? 'hidden' : undefined}}>
                         <Pause
                             className="min-play-icon"
                             data-slot="pause"

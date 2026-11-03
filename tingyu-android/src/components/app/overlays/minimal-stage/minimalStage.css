@@ -1079,3 +1079,16 @@
 .min-artist-link:focus-visible { outline: 2px solid var(--min-accent); outline-offset: 3px; border-radius: 5px; }
 
 .min[data-under-stage] .min-cover__art, .min[data-under-stage] .min-wave i { animation-play-state: paused; }
+
+/* Definite geometry: percentage height on an auto-sized artwork could collapse in WebView. */
+.min-cover__art > .min-art { position: absolute; inset: 0; width: 100%; height: 100%; }
+.min-art__empty { z-index: 0; }
+.min-art__img { z-index: 1; animation: min-art-reveal 180ms ease both; }
+@keyframes min-art-reveal { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .min-art__img { animation: none; } }
+
+.min-btn--play[aria-busy='true'] { opacity: .85; }
+.min-play-loading { position: absolute; inset: 0; margin: auto; }
+.min-transport[data-render-active] .min-play-loading { animation: min-loading-turn 900ms linear infinite; }
+@keyframes min-loading-turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .min-transport[data-render-active] .min-play-loading { animation: none; } }

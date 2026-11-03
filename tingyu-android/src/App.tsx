@@ -1699,7 +1699,8 @@ export default function App() {
         shouldHidePlayerTranslationSubtitle,
         shouldHidePlayerRightPanelButton,
         canToggleCurrentPlayback,
-    } = useMemo(() => buildPlayerViewFlags({
+        playbackPreparing,
+    } = buildPlayerViewFlags({
         currentView,
         disableHomeDynamicBackground,
         hidePlayerProgressBar,
@@ -1710,18 +1711,9 @@ export default function App() {
         stageActiveEntryKind,
         audioSrc,
         duration,
-    }), [
-        activePlaybackContext,
-        audioSrc,
-        currentView,
-        disableHomeDynamicBackground,
-        duration,
-        hidePlayerProgressBar,
-        hidePlayerRightPanelButton,
-        hidePlayerTranslationSubtitle,
-        isNowPlayingControlDisabled,
-        stageActiveEntryKind,
-    ]);
+        activeAudio: audioRef.current,
+        songKey: currentSong ? getPlaybackSongKey(currentSong) : undefined,
+    });
     // 播放页空闲时连指针一起隐藏。复用控制栏的自动隐藏时钟（3 秒无鼠标移动），不新开计时器：
     // 只有「自动隐藏」模式下才成立，`always-hidden` 是常驻隐藏、没有唤回时机，不参与。
     // 点击穿透（桌面宠物）也排除：那种状态下控制栏被钉成隐藏、鼠标移动不再唤回，跟着它走会把
@@ -2416,6 +2408,7 @@ export default function App() {
         devDebugSnapshot,
         effectiveLoopMode,
         canToggleCurrentPlayback,
+        playbackPreparing,
         isNowPlayingControlDisabled,
         stageActiveEntryKind,
         syncStageLyricsClock,

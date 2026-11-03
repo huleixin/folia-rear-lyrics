@@ -80,6 +80,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
             // translateX (percent of its own width = the track), so this stays compositor-only.
             if (thumbRef.current) {
                 thumbRef.current.style.transform = `translateX(${(progress * 100).toFixed(4)}%)`;
+                thumbRef.current.style.setProperty('--folium-progress-fraction', progress.toFixed(5));
             }
         }
 

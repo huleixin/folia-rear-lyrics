@@ -1,0 +1,21 @@
+/* src/components/app/overlays/minimal-stage/minimalProgressGlow.css */
+/* Reuse the shared thumb's existing memory-clock position; no second frame subscription. */
+.min-seek div:has(> [data-folium-part='progress.thumb'])::before {
+    content: ''; position: absolute; pointer-events: none; top: 50%; right: 100%;
+    width: min(76px, calc(100% * var(--folium-progress-fraction, 0))); height: 4px;
+    transform: translateY(-50%); border-radius: 999px;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--min-accent) 58%, transparent) 48%, var(--min-accent) 86%, var(--min-fill));
+    box-shadow: 2px 0 9px color-mix(in srgb, var(--min-accent) 30%, transparent);
+    opacity: .35;
+}
+.min-transport[data-live] .min-seek div:has(> [data-folium-part='progress.thumb'])::before {
+    animation: min-progress-shine 2.4s ease-in-out infinite alternate;
+}
+.min-transport[data-seeking] .min-seek div:has(> [data-folium-part='progress.thumb'])::before { opacity: 1; animation: none; height: 5px; }
+.min-transport[data-live] [data-folium-part='progress.thumb'], .min-transport[data-seeking] [data-folium-part='progress.thumb'] {
+    background: var(--min-fill); box-shadow: 0 0 0 3px color-mix(in srgb, var(--min-accent) 20%, transparent), 0 0 12px color-mix(in srgb, var(--min-accent) 55%, transparent);
+}
+@keyframes min-progress-shine { from { opacity: .55; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+    .min-transport[data-live] .min-seek div:has(> [data-folium-part='progress.thumb'])::before { animation: none; opacity: .7; }
+}

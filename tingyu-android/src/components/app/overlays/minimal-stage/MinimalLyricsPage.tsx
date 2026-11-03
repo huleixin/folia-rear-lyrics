@@ -78,7 +78,7 @@ export default function MinimalLyricsPage({
     still,
     identityRef,
 }: {
-    song: { title: string; artist: string } | null;
+    song: NonNullable<AppOverlaysModel['mobileStage']>['song'];
     lyrics: LyricData | null;
     coverUrl: string | null;
     controls: Controls;
@@ -260,7 +260,7 @@ export default function MinimalLyricsPage({
                 <div className="min-lyrics__id" ref={identityRef}>
                     <div className="min-lyrics__thumb">
                         {/* Decorative: the title it would describe is right beside it. */}
-                        <MinimalArtwork url={coverUrl} alt="" className="min-art--thumb" />
+                        <MinimalArtwork track={song?.track} url={coverUrl} alt="" className="min-art--thumb" />
                     </div>
                     <div className="min-lyrics__titles">
                         <h2 className="min-lyrics__title" title={title}>{title}</h2>

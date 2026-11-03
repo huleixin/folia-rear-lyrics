@@ -25,7 +25,7 @@ type MemoryMonitorProps = React.ComponentProps<typeof MemoryMonitorWindow>;
 type NowPlayingToastProps = React.ComponentProps<typeof NowPlayingToast>;
 
 export type AppOverlaysModel = {
-    mobileStage?: { song: { title: string; artist: string; coverUrl: string | null } | null; onBack: () => void; onOpenArtist?: (artist: Artist) => void; hidden: boolean };
+    mobileStage?: { song: { title: string; artist: string; coverUrl: string | null; track?: SongResult } | null; onBack: () => void; onOpenArtist?: (artist: Artist) => void; hidden: boolean };
     searchOverlay?: SearchOverlayProps | null;
     debugOverlay?: DebugOverlayProps | null;
     memoryMonitor?: MemoryMonitorProps | null;
@@ -102,6 +102,7 @@ export type AppOverlaysDeps = {
     effectiveLoopMode: 'off' | 'all' | 'one';
     shuffleEnabled?: boolean;
     canToggleCurrentPlayback: boolean;
+    playbackPreparing?: boolean;
     isNowPlayingControlDisabled: boolean;
     stageActiveEntryKind: string | null;
     syncStageLyricsClock: (timeSec: number, endTimeSec: number, nextPlayerState: PlayerState, startTimeSec?: number) => void;
@@ -164,6 +165,7 @@ export const buildAppOverlaysModel = ({
     shuffleEnabled,
     audioSrc,
     canToggleCurrentPlayback,
+    playbackPreparing,
     isNowPlayingControlDisabled,
     lyrics,
     activePlaybackContext,
@@ -203,7 +205,7 @@ export const buildAppOverlaysModel = ({
     onCommitPlayerBottomBarOffset,
 }: BuildAppOverlaysModelParams): AppOverlaysModel => ({
     mobileStage: onBackFromPlayer ? {
-        song: currentSong ? { title: currentSong.name || '', artist: getSongArtistLabel(currentSong), coverUrl } : null,
+        song: currentSong ? { title: currentSong.name || '', artist: getSongArtistLabel(currentSong), coverUrl, track: currentSong } : null,
         onBack: onBackFromPlayer,
         onOpenArtist: currentSong && onOpenPlayerArtist ? artist => onOpenPlayerArtist(currentSong, artist) : undefined,
         hidden: isPlayerChromeHidden || immersivePlayerChromeHidden,
@@ -288,6 +290,7 @@ export const buildAppOverlaysModel = ({
             currentView,
             audioSrc,
             canTogglePlay: canToggleCurrentPlayback,
+            preparing: playbackPreparing,
             controlsDisabled: isNowPlayingControlDisabled,
             lyrics,
             onSeek: (time) => {

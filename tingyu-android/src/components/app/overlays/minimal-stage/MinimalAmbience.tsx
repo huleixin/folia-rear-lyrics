@@ -6,11 +6,11 @@ import './minimalAmbience.css';
 // src/components/app/overlays/minimal-stage/MinimalAmbience.tsx
 // Adapt the supplied AuroraBgView's three cover-derived radial glows to cached CSS layers.
 // No native animator, Canvas repaint loop, FFT or per-frame React updates are needed.
-const glow = (color: string) => {
+export const minimalAuroraGlow = (color: string) => {
     const rgb = parseColorChannels(color);
     if (!rgb) return color;
     const hsl = rgbToHsl(rgb);
-    return rgbCss(hslToRgb({ ...hsl, s: Math.min(.58, Math.max(.3, hsl.s)), l: .58 }));
+    return rgbCss(hslToRgb({ ...hsl, s: Math.min(.72, Math.max(.42, hsl.s * 1.2)), l: .62 }));
 };
 
 export default function MinimalAmbience({
@@ -31,9 +31,9 @@ export default function MinimalAmbience({
         '--min-field-2': palette.fieldSecondary,
         '--min-bloom': palette.bloom,
         '--min-accent': palette.accent,
-        '--aurora-a': glow(palette.fieldPrimary),
-        '--aurora-b': glow(palette.fieldSecondary),
-        '--aurora-c': glow(palette.bloom),
+        '--aurora-a': minimalAuroraGlow(palette.fieldPrimary),
+        '--aurora-b': minimalAuroraGlow(palette.fieldSecondary),
+        '--aurora-c': minimalAuroraGlow(palette.bloom),
     } as React.CSSProperties;
     return (
         <div

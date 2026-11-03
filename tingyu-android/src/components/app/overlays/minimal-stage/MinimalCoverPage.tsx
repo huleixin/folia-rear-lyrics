@@ -54,7 +54,7 @@ export default function MinimalCoverPage({
     sleeveRef,
     metaRef,
 }: {
-    song: { title: string; artist: string; coverUrl: string | null } | null;
+    song: NonNullable<AppOverlaysModel['mobileStage']>['song'];
     controls: Controls;
     onOpenArtist?: NonNullable<AppOverlaysModel['mobileStage']>['onOpenArtist'];
     playing: boolean;
@@ -89,7 +89,7 @@ export default function MinimalCoverPage({
                 {/* The second print behind the sleeve. */}
                 <span className="min-cover__ghost" aria-hidden="true" />
                 <div className="min-cover__art">
-                    <MinimalArtwork url={song?.coverUrl ?? null} alt={title} />
+                    <MinimalArtwork track={song?.track} url={song?.coverUrl ?? null} alt={title} />
                 </div>
             </div>
             <div className="min-cover__meta" ref={metaRef}>

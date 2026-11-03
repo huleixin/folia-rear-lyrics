@@ -481,7 +481,7 @@ export default function MinimalStage({
                 </div>
             </div>
 
-            {controls && <MinimalTransport controls={controls} />}
+            {controls && <MinimalTransport controls={controls} active={!hidden && !underStage} />}
 
             <div className="min-dots" role="tablist" aria-label={t('minimalStage.pages')}>
                 {PAGES.map((id, index) => (

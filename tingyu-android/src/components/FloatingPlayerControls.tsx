@@ -66,6 +66,7 @@ interface FloatingPlayerControlsProps {
     currentView: 'home' | 'player' | 'lattice';
     audioSrc: string | null;
     canTogglePlay?: boolean;
+    preparing?: boolean;
     lyrics: LyricData | null;
     onSeek: (time: number) => void;
     onTogglePlay: () => void;
