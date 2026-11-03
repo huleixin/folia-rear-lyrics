@@ -1,16 +1,16 @@
-import React, { useMemo } from 'react';
+import React, { useLayoutEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AppOverlaysModel } from '../buildAppOverlaysModel';
 import MinimalArtistLink from './MinimalArtistLink';
 import MinimalLiveLyric from './MinimalLiveLyric';
 import { MinimalArtworkFrame } from './MinimalArtwork';
 import { resolveQualityBadges } from './minimalQuality';
-import { usePlaybackStore } from '../../../../stores/usePlaybackStore';
 import type { LyricData } from '../../../../types';
 import type { CatalogAudioSpec } from '../../../../types/catalogAudioSpecs';
 import { getPlaybackSongKey } from '../../../../utils/appPlaybackGuards';
 import { useMinimalArtwork } from './useMinimalArtwork';
 import { useMinimalCoverTransition, type MinimalCoverSnapshot } from './useMinimalCoverTransition';
+import { navigationMark } from '../../../../services/navigationTiming';
 
 // src/components/app/overlays/minimal-stage/MinimalCoverPage.tsx
 // A stable sleeve, with artwork and caption snapshots switched as one playback identity.
@@ -43,6 +43,7 @@ interface CoverSnapshot extends MinimalCoverSnapshot {
     audioSrc: string | null;
     specs: readonly CatalogAudioSpec[] | null | undefined;
     artworkFailed: boolean;
+    artworkImage: HTMLImageElement | null;
 }
 
 function CoverMetadata({
@@ -75,7 +76,7 @@ function CoverMetadata({
     return (
         <div className={className} ref={metaRef}>
             <h2 className="min-cover__title" title={title}>{title}</h2>
-            <MinimalArtistLink label={artist} className="min-cover__artist" onOpen={onOpenArtist} />
+            <MinimalArtistLink label={artist} track={snapshot.song?.track ?? null} className="min-cover__artist" onOpen={onOpenArtist} />
             <div className="min-cover__foot">
                 {quality && <span className="min-chip" data-tone={tone}>{quality}</span>}
                 <PlayingMeter playing={playing} />
@@ -94,6 +95,7 @@ export default function MinimalCoverPage({
     playing,
     animateSongChanges = true,
     reducedMotion = false,
+    onPresentedCover,
     sleeveRef,
     metaRef,
 }: {
@@ -106,13 +108,14 @@ export default function MinimalCoverPage({
     playing: boolean;
     animateSongChanges?: boolean;
     reducedMotion?: boolean;
+    onPresentedCover?: (source: string | null) => void;
     /** The sleeve wrapper; the gesture frame writes its parallax offset here. */
     sleeveRef?: React.Ref<HTMLDivElement>;
     /** The title block; the gesture frame fades it as the page leaves. */
     metaRef?: React.Ref<HTMLDivElement>;
 }) {
     const { t } = useTranslation();
-    const specs = usePlaybackStore(state => state.currentSong?.catalogAudioSpecs);
+    const specs = song?.track?.catalogAudioSpecs;
     const coverUrl = song?.coverUrl ?? null;
     const artwork = useMinimalArtwork(coverUrl, song?.track);
     const songKey = song?.track ? getPlaybackSongKey(song.track) : song?.title ?? '';
@@ -122,19 +125,26 @@ export default function MinimalCoverPage({
         song,
         coverSource: artwork.source,
         artworkFailed: artwork.failed,
+        artworkImage: artwork.image,
         audioSrc: controls.audioSrc ?? null,
         specs,
-    }), [songKey, coverUrl, song, artwork.source, artwork.failed, controls.audioSrc, specs]);
-    const artworkReady = !coverUrl || artwork.source !== null || artwork.failed;
+    }), [songKey, coverUrl, song, artwork.source, artwork.image, artwork.failed, controls.audioSrc, specs]);
+    const artworkReady = artwork.source !== null || artwork.failed;
     const { current, previous } = useMinimalCoverTransition(
         latest,
         artworkReady,
         animateSongChanges && !reducedMotion,
     );
+    useLayoutEffect(() => {
+        if (current.key === songKey && artworkReady) {
+            navigationMark('minimal-cover-presentation-commit');
+            onPresentedCover?.(current.coverSource);
+        }
+    }, [current.key, current.coverSource, songKey, artworkReady, onPresentedCover]);
 
     const titleFor = (snapshot: CoverSnapshot) => snapshot.song?.title || t('mobileLibrary.nothingPlaying');
     const showPreviousArt = !!previous && !!previous.coverSource && (
-        previous.artKey !== current.artKey || previous.coverSource !== current.coverSource
+        previous.coverSource !== current.coverSource
     );
     const showPreviousMeta = !!previous && previous.key !== current.key;
     const handleCurrentArtworkError = () => {
@@ -149,8 +159,9 @@ export default function MinimalCoverPage({
                 <div className="min-cover__art" data-testid="minimal-cover-art">
                     {showPreviousArt && previous && (
                         <MinimalArtworkFrame
-                            key={`image:${previous.artKey}:${previous.coverSource}`}
+                            key={`image:${previous.coverSource}`}
                             source={previous.coverSource}
+                            image={previous.artworkImage}
                             failed={previous.artworkFailed}
                             alt={titleFor(previous)}
                             className="min-cover__art-layer min-cover__art-layer--outgoing"
@@ -159,8 +170,9 @@ export default function MinimalCoverPage({
                     <MinimalArtworkFrame
                         // The outgoing layer keeps this same key and decoded image node. It must
                         // not re-request a previous song's blob URL after its owner revokes it.
-                        key={`image:${current.artKey}:${current.coverSource}`}
+                        key={`image:${current.coverSource}`}
                         source={current.coverSource}
+                        image={current.artworkImage}
                         failed={current.artworkFailed}
                         alt={titleFor(current)}
                         className={`min-cover__art-layer min-cover__art-layer--current${showPreviousArt ? ' min-cover__art-layer--incoming' : ''}`}
@@ -173,7 +185,7 @@ export default function MinimalCoverPage({
                 <CoverMetadata
                     snapshot={current}
                     playing={playing}
-                    onOpenArtist={onOpenArtist}
+                    onOpenArtist={current.key === songKey ? onOpenArtist : undefined}
                     className={`min-cover__meta${showPreviousMeta ? ' min-cover__meta--incoming' : ''}`}
                 />
             </div>

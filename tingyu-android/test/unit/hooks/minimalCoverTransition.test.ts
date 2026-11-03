@@ -39,16 +39,16 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
-it('waits briefly for the decoded cover, then crossfades a matched cover and caption', async () => {
+it('does not commit an empty cover just because 680ms elapsed', async () => {
     render(snapshot('A'));
     render(snapshot('B', null), false);
     expect(state.current.key).toBe('A');
 
     // Unrelated metadata updates for B must not restart its bounded image wait.
     render(snapshot('B', null, 'B updated'), false);
-    await flush(679);
+    await flush(1600);
     expect(state.current.key).toBe('A');
-    await flush(1);
+    render(snapshot('B', 'decoded:B', 'B updated'));
     expect(state.current.key).toBe('B');
     expect(state.current.title).toBe('B updated');
     expect(state.previous?.key).toBe('A');
@@ -72,15 +72,16 @@ it('lets the latest rapid skip replace pending and outgoing snapshots', async ()
     expect(state.previous).toBeNull();
 });
 
-it('reveals a late cover for the current song without replaying the song transition', async () => {
+it('commits a late cover and its caption together', async () => {
     render(snapshot('A'));
     render(snapshot('B', null), false);
     await flush(680);
-    expect(state.current.key).toBe('B');
-    expect(state.previous?.key).toBe('A');
+    expect(state.current.key).toBe('A');
+    expect(state.previous).toBeNull();
 
     render(snapshot('B', 'decoded:B'), true);
     expect(state.current.coverSource).toBe('decoded:B');
+    expect(state.current.key).toBe('B');
     expect(state.previous?.key).toBe('A');
 });
 
@@ -99,6 +100,21 @@ it('re-arms pending transitions correctly under React StrictMode', async () => {
         React.createElement(Harness, { value: snapshot('B', null), ready: false }),
     )));
     await flush(680);
+    expect(state.current.key).toBe('A');
+    act(() => root.render(React.createElement(React.StrictMode, null,
+        React.createElement(Harness, { value: snapshot('B'), ready: true }),
+    )));
     expect(state.current.key).toBe('B');
     expect(state.previous?.key).toBe('A');
+});
+it('does not expose blank art in reduced motion and accepts a terminal failure fallback', async () => {
+    render(snapshot('A'));
+    render(snapshot('B',null),false,false);await flush(1600);
+    expect(state.current.key).toBe('A');
+    render(snapshot('B',null),true,false);
+    expect(state.current.key).toBe('B');expect(state.previous).toBeNull();
+});
+it('keeps a decoded cover during recovery of the same song',async()=>{
+    render(snapshot('A'));render(snapshot('A',null),false);await flush(2000);
+    expect(state.current.coverSource).toBe('decoded:A');
 });

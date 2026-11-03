@@ -113,3 +113,30 @@ test('touch swipes page horizontally while vertical lyric scrolling remains nati
         expect(await page.evaluate(()=>Math.abs((window as any).__minimalPreview.state().pos))).toBe(0);
     }finally{await context.close();}
 });
+test('a slow cover with a temporarily missing cache URL cannot split the cover, caption and backdrop',async({page})=>{
+    await page.route('**/dev/assets/minimal-preview-cover-cool.jpg',async route=>{await new Promise(r=>setTimeout(r,1500));await route.continue();});
+    await page.goto('/minimal-stage-preview.html?page=cover&stationary=1');await page.locator('.min-cover__art img').waitFor();await page.waitForTimeout(900);
+    const before=await page.locator('.min').evaluate(e=>getComputedStyle(e).getPropertyValue('--min-field-1'));
+    await page.evaluate(()=>(window as any).__minimalPreview.switchSong('cool',null));
+    await page.waitForTimeout(850);
+    await expect(page.locator('.min-cover__title')).toHaveText('并肩前行');
+    await expect(page.locator('.min-cover__artist')).toHaveText('周杰伦');
+    expect(await page.locator('.min').evaluate(e=>getComputedStyle(e).getPropertyValue('--min-field-1'))).toBe(before);
+    await expect(page.locator('.min-cover__title')).toHaveText('深海');
+    await expect(page.locator('.min-cover__artist')).toHaveText('夜色合唱团');
+    expect(await page.locator('.min-cover__art-layer--current img').evaluate((e:HTMLImageElement)=>e.complete&&e.naturalWidth>0)).toBe(true);
+});
+test('identical white covers never darken during the real composited crossfade',async({page})=>{
+    await page.route('**/dev/assets/minimal-preview-cover*.jpg',r=>r.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="128" height="128" fill="white"/></svg>'}));
+    await page.goto('/minimal-stage-preview.html?page=cover&stationary=1');await page.locator('.min-cover__art img').waitFor();await page.waitForTimeout(750);
+    const rect=(await page.locator('.min-cover__art').boundingBox())!;
+    const cdp=await page.context().newCDPSession(page);
+    await page.evaluate(()=>(window as any).__minimalPreview.switchSong('cool'));
+    const samples:string[]=[];
+    for(let i=0;i<12;i++){samples.push((await cdp.send('Page.captureScreenshot',{format:'png',clip:{x:Math.round(rect.x+rect.width/2),y:Math.round(rect.y+rect.height/2),width:1,height:1,scale:1}})).data);await page.waitForTimeout(8);}
+    const minimum=await page.evaluate(async frames=>{
+        const canvas=document.createElement('canvas');canvas.width=canvas.height=1;const ctx=canvas.getContext('2d')!;let min=255;
+        for(const frame of frames){const image=new Image();image.src='data:image/png;base64,'+frame;await image.decode();ctx.drawImage(image,0,0);min=Math.min(min,...ctx.getImageData(0,0,1,1).data.slice(0,3));}return min;
+    },samples);
+    expect(minimum).toBeGreaterThanOrEqual(250);
+});

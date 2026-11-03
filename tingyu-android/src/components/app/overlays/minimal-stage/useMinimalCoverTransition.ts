@@ -15,7 +15,6 @@ interface TransitionState<T> {
     previous: T | null;
 }
 
-const IMAGE_WAIT_MS = 680;
 const CROSSFADE_MS = 420;
 const sameIdentity = (left: MinimalCoverSnapshot, right: MinimalCoverSnapshot) =>
     left.key === right.key && left.artKey === right.artKey;
@@ -26,25 +25,17 @@ export function useMinimalCoverTransition<T extends MinimalCoverSnapshot>(
     animationEnabled: boolean,
 ): TransitionState<T> {
     const [state, setState] = useState<TransitionState<T>>(() => ({ current: latest, previous: null }));
-    const latestRef = useRef(latest);
     const stateRef = useRef(state);
-    const pendingRef = useRef<{ identity: string; timer: number } | null>(null);
     const clearPreviousRef = useRef<number | null>(null);
-    latestRef.current = latest;
     stateRef.current = state;
 
     useEffect(() => {
-        const clearPending = () => {
-            if (pendingRef.current) window.clearTimeout(pendingRef.current.timer);
-            pendingRef.current = null;
-        };
         const clearPrevious = () => {
             if (clearPreviousRef.current !== null) window.clearTimeout(clearPreviousRef.current);
             clearPreviousRef.current = null;
         };
         const commit = (snapshot: T, animate: boolean) => {
             clearPrevious();
-            clearPending();
             setState(current => {
                 if (sameIdentity(current.current, snapshot)) {
                     return { ...current, current: snapshot, ...(!animate ? { previous: null } : {}) };
@@ -63,7 +54,11 @@ export function useMinimalCoverTransition<T extends MinimalCoverSnapshot>(
 
         const visible = stateRef.current.current;
         if (sameIdentity(visible, latest)) {
-            if (pendingRef.current) clearPending();
+            if (!artworkReady && visible.coverSource) return;
+            if (artworkReady && visible.coverSource && latest.coverSource !== visible.coverSource) {
+                commit(latest, animationEnabled);
+                return;
+            }
             if (!animationEnabled && stateRef.current.previous) clearPrevious();
             setState(current => {
                 if (current.current === latest && (animationEnabled || !current.previous)) return current;
@@ -72,29 +67,15 @@ export function useMinimalCoverTransition<T extends MinimalCoverSnapshot>(
             return;
         }
 
-        if (!animationEnabled) {
-            commit(latest, false);
-            return;
-        }
         if (artworkReady) {
-            commit(latest, true);
+            commit(latest, animationEnabled);
             return;
         }
-
-        const identity = `${latest.key}\n${latest.artKey}`;
-        if (pendingRef.current?.identity === identity) return;
-        clearPending();
-        const timer = window.setTimeout(() => {
-            pendingRef.current = null;
-            const candidate = latestRef.current;
-            if (sameIdentity(candidate, latest)) commit(candidate, true);
-        }, IMAGE_WAIT_MS);
-        pendingRef.current = { identity, timer };
+        // Readiness is a decoded picture or a terminal loader failure, never a UI timeout.
+        // Keep the matched old sleeve/caption until the next presentation can be committed.
     }, [latest, artworkReady, animationEnabled]);
 
     useEffect(() => () => {
-        if (pendingRef.current) window.clearTimeout(pendingRef.current.timer);
-        pendingRef.current = null;
         if (clearPreviousRef.current !== null) window.clearTimeout(clearPreviousRef.current);
         clearPreviousRef.current = null;
     }, []);

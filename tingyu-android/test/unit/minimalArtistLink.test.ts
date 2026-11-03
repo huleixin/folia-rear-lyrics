@@ -30,3 +30,10 @@ it('does not advertise a link for display-only artist metadata',()=>{
     try {expect(view.node.querySelector('button')).toBeNull();expect(view.node.querySelector('svg')).toBeNull();}
     finally {view.close();}
 });
+it('keeps the presented artist while the live player has already switched songs',()=>{
+    const view=mount([{id:'new',name:'New artist'}]);
+    try {
+        act(()=>view.root.render(React.createElement(MinimalArtistLink,{label:'Old artist',className:'artist',track:{id:'old-song',name:'Old',artists:[{id:'old',name:'Old artist'}]} as SongResult})));
+        expect(view.node.textContent).toBe('Old artist');expect(view.node.querySelector('button')).toBeNull();
+    }finally{view.close();}
+});

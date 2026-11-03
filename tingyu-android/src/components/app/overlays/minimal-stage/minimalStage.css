@@ -345,6 +345,8 @@
     transform: translateZ(0);
 }
 
+.min-art__image-slot { position: absolute; inset: 0; }
+
 .min-art__img {
     position: absolute;
     inset: 0;
@@ -353,8 +355,7 @@
     /* Never stretch: the artwork keeps its own ratio and is cropped, not squashed. */
     object-fit: cover;
     object-position: center;
-    opacity: 0;
-    transition: opacity 320ms ease;
+    opacity: 1;
 }
 
 .min-art__img[data-top] {
@@ -1192,8 +1193,7 @@
 .min[data-still] .min-cover__art-layer,
 .min[data-still] .min-cover__meta { animation-duration: 1ms; }
 .min-art__empty { z-index: 0; }
-.min-art__img { z-index: 1; animation: min-art-reveal 180ms ease both; }
-@keyframes min-art-reveal { from { opacity: 0; } to { opacity: 1; } }
+.min-art__img { z-index: 1; }
 @media (prefers-reduced-motion: reduce) { .min-art__img { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .min-live-lyric__text { animation: none; } }
 @media (prefers-reduced-motion: reduce) {

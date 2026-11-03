@@ -105,7 +105,8 @@ export default function MinimalStage({
     const song = chrome.song;
     const coverUrl = song?.coverUrl ?? null;
     const lyrics = usePlaybackStore(state => state.lyrics);
-    const coverColors = useCoverColors(coverUrl);
+    const [presentedCover, setPresentedCover] = useState<string | null>(null);
+    const coverColors = useCoverColors(presentedCover);
     const still = useReducedMotionFor('monetBackground');
     const hidden = usePageHidden();
     const pagerRef = useRef<HTMLDivElement>(null);
@@ -483,6 +484,7 @@ export default function MinimalStage({
                                     onOpenLyrics={() => goToPage('lyrics')}
                                     animateSongChanges={page === 'cover' && !hidden && !underStage && !covered}
                                     reducedMotion={still}
+                                    onPresentedCover={setPresentedCover}
                                     sleeveRef={sleeveRef}
                                     metaRef={coverMetaRef}
                                 />

@@ -61,3 +61,15 @@ it('survives StrictMode setup-cleanup without committing the cancelled loader',a
     expect(images.length).toBe(2);expect(images[0].onload).toBeNull();
     await success(1);expect(state.source).toBe('strict-image');
 });
+it('starts a known remote image immediately while its cached URL is temporarily absent',async()=>{
+    cache.mockReturnValue(new Promise(()=>{}));render(null,song('remote-first','remote-cover'));
+    expect(images[0].src).toBe('remote-cover');expect(cache).not.toHaveBeenCalled();
+    await success(0);expect(state.source).toBe('remote-cover');
+});
+it('never inherits a previous song failure flag',async()=>{
+    render('bad',song('old'));await fail(0);await vi.waitFor(()=>expect(images.length).toBe(2));await fail(1);expect(state.failed).toBe(true);
+    render('new',song('new'));expect(state.failed).toBe(false);expect(state.source).toBeNull();await success(2);expect(state.source).toBe('new');
+});
+it('returns the exact image object that finished decoding for DOM reuse',async()=>{
+    render('reuse-node',song('reuse'));await success(0);expect(state.image).toBe(images[0]);
+});
