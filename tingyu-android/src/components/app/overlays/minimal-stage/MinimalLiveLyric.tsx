@@ -70,7 +70,7 @@ export default function MinimalLiveLyric({
                     exit={{ opacity: 0, y: -6 }}
                     transition={{ duration: 0.28, ease: [0.22, 0.68, 0.2, 1] }}
                 >
-                    {text}
+                    <span className="min-live-lyric__copy">{text}</span>
                 </motion.button>
             </AnimatePresence>
         </div>

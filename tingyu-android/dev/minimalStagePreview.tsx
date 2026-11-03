@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { motionValue } from 'framer-motion';
 import './../src/index.css';
@@ -199,6 +199,12 @@ const SAFE_TOP = 40;
 const SAFE_BOTTOM = 24;
 
 function Preview() {
+    const [, refresh] = useState(0);
+    useEffect(() => {
+        const update = () => refresh(value => value + 1);
+        window.addEventListener('minimal-preview-song', update);
+        return () => window.removeEventListener('minimal-preview-song', update);
+    }, []);
     useEffect(() => { tick(); }, []);
     useEffect(() => {
         const root = document.documentElement.style;
@@ -220,6 +226,7 @@ createRoot(document.getElementById('root')!).render(<Preview />);
 type Box = { x: number; y: number; w: number; h: number };
 type PreviewState = {
     seek: (time: number) => void;
+    switchSong: (key: string) => void;
     closeStage: () => void;
     state: () => {
         page: string;
@@ -245,6 +252,16 @@ const boxOf = (selector: string): Box => {
     return { x: rect.x, y: rect.y, w: rect.width, h: rect.height };
 };
 (window as unknown as { __minimalPreview: PreviewState }).__minimalPreview = {
+    switchSong: key => {
+        const next = SONG_CASES[key];
+        if (!next) throw new Error(`Unknown preview song: ${key}`);
+        const track = { ...usePlaybackStore.getState().currentSong!, id: `preview-${key}`,
+            name: next.name, artists: [{ id: 'preview-artist', name: next.artist }],
+            album: { id: 'preview-album', name: '示例专辑', coverUrl: next.cover ?? undefined } };
+        usePlaybackStore.setState({ currentSong: track });
+        chrome.song = { title: next.name, artist: next.artist, coverUrl: next.cover, track };
+        window.dispatchEvent(new Event('minimal-preview-song'));
+    },
     seek: time => {
         currentTime.set(time);
         lyricCurrentTime.set(time);

@@ -256,13 +256,13 @@ export const buildLyricAccent = (
         : sampledButNeutral
             ? (mode === 'dark' ? 0.16 : 0.2)
             : clamp(accentSource.s * 0.52, 0.18, 0.38);
-    const target = sampledButNeutral ? (mode === 'dark' ? 0.9 : 0.32) : mode === 'dark' ? 0.88 : 0.34;
+    const target = sampledButNeutral ? (mode === 'dark' ? 0.79 : 0.32) : mode === 'dark' ? 0.74 : 0.34;
     const step = mode === 'dark' ? 0.01 : -0.01;
     const minimumContrast = mode === 'dark' ? 3 : 4.5;
     const backgroundEnvelope = mode === 'dark'
-        // A mid-grey is brighter than the ink/aurora blend expected on this page and keeps large
-        // lyric text legible even where two soft colour fields overlap.
-        ? [{ r: 112, g: 112, b: 112 }, { r: 128, g: 128, b: 128 }]
+        // Cover glows sit behind the dark veil. A conservative bright grey envelope keeps the
+        // large lyric readable without washing every sung colour back into unsung near-white.
+        ? [{ r: 96, g: 96, b: 96 }, { r: 112, g: 112, b: 112 }]
         // The paper theme's light fields can approach white; use both a high and mid-light sample.
         : [{ r: 230, g: 230, b: 230 }, { r: 246, g: 246, b: 246 }];
 

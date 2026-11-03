@@ -163,7 +163,9 @@ describe('minimal palette', () => {
             if (hue < 60 || hue > 320) {
                 expect(ringDistance(lyricHue, TINGYU_INK_HUE)).toBeGreaterThan(70);
             }
-            expect(contrastRatio(color, { r: 128, g: 128, b: 128 })).toBeGreaterThanOrEqual(3);
+            expect(contrastRatio(color, { r: 112, g: 112, b: 112 })).toBeGreaterThanOrEqual(3);
+            // Sung colour must remain visibly tinted rather than merging into near-white text.
+            expect(rgbToHsl(color).l).toBeLessThan(0.85);
         }
     });
 

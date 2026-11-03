@@ -110,7 +110,7 @@
     --min-shadow: 0 24px 52px -24px rgb(24 56 46 / 34%), 0 3px 12px rgb(24 56 46 / 12%);
 }
 
-.min[data-still] { transition: none; }
+/* Static ambience stops movement, while sleeve colours can still blend on a song change. */
 
 .min[data-chrome-hidden] .min-top,
 .min[data-chrome-hidden] .min-transport,
@@ -381,7 +381,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: clamp(4px, .7vh, 7px);
+    gap: clamp(4px, .6vh, 6px);
     width: 100%;
     min-width: 0;
     text-align: left;
@@ -454,41 +454,53 @@
     gap: 12px;
     width: 100%;
     min-height: 24px;
-    margin-top: clamp(8px, 1.1vh, 10px);
+    margin-top: clamp(6px, .9vh, 8px);
 }
 
 .min-live-lyric {
+    position: relative;
+    contain: layout paint;
     flex: none;
     width: 100%;
     min-width: 0;
-    min-height: 54px;
+    font-size: clamp(17px, 4.6vw, 19px);
+    height: max(54px, 3em);
     margin-top: clamp(16px, 2.2vh, 20px);
     display: grid;
     place-items: center;
 }
 
 .min-live-lyric__text {
-    display: -webkit-box;
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
     width: 100%;
-    min-height: 50px;
-    max-height: 2.9em;
+    height: 100%;
+    min-height: 0;
     padding: 0;
     overflow: hidden;
     border: 0;
     background: none;
     color: color-mix(in srgb, var(--min-ink) 83%, transparent);
     font: inherit;
-    font-size: clamp(17px, 4.6vw, 19px);
+    font-size: inherit;
     font-weight: 450;
     line-height: 1.42;
     letter-spacing: 0.005em;
     text-align: center;
-    text-overflow: ellipsis;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
     word-break: break-word;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+}
+
+.min-live-lyric__copy {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    text-overflow: ellipsis;
+    width: 100%;
 }
 
 .min-live-lyric__text:active {
@@ -1142,8 +1154,7 @@
     .min-cover__stage { width: min(100%, 31vh); margin-bottom: 12px; }
     .min-cover__title { font-size: 20px; }
     .min-cover__foot { margin-top: 6px; min-height: 22px; }
-    .min-live-lyric { min-height: 48px; margin-top: 14px; }
-    .min-live-lyric__text { min-height: 46px; font-size: 17px; }
+    .min-live-lyric { height: max(48px, 3em); font-size: 17px; margin-top: 14px; }
     .min-lyrics__thumb { width: 38px; height: 38px; }
     .min-line { min-height: calc(40px * var(--min-lyric-scale, 1)); margin-bottom: calc(2px * var(--min-lyric-scale, 1)); }
     .min-line__text { font-size: calc(15.5px * var(--min-lyric-scale, 1)); }
@@ -1192,7 +1203,6 @@
 .min-cover__art > .min-art { position: absolute; inset: 0; width: 100%; height: 100%; }
 .min[data-still] .min-cover__art-layer,
 .min[data-still] .min-cover__meta { animation-duration: 1ms; }
-.min[data-still] .min-amb { transition: none; }
 .min-art__empty { z-index: 0; }
 .min-art__img { z-index: 1; animation: min-art-reveal 180ms ease both; }
 @keyframes min-art-reveal { from { opacity: 0; } to { opacity: 1; } }

@@ -25,7 +25,6 @@
 @keyframes aurora-c { from { transform: translate3d(-13%,6%,0) scale(1.02); } to { transform: translate3d(13%,-12%,0) scale(1.08); } }
 .min-amb[data-paused] .min-amb__blob { animation-play-state: paused; }
 .min-amb[data-still] .min-amb__blob { animation: none; }
-.min-amb[data-still] { transition: none; }
 @media (prefers-reduced-motion: reduce) {
     .min-amb__blob, .min-cover__art, .min-wave i, .min[data-phase] { animation: none; }
     .min-line, .min-line__text { transition: none; }

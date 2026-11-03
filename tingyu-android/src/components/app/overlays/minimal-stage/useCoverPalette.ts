@@ -77,9 +77,12 @@ export function useCoverColors(url: string | null): CoverColors | null {
     const [colors, setColors] = useState<CoverColors | null>(() => (url ? cache.get(url) ?? null : null));
 
     useEffect(() => {
-        if (!url || typeof document === 'undefined') {
-            setColors(null);
-            return;
+        if (typeof document === 'undefined') return;
+        if (!url) {
+            // Song metadata can briefly clear its artwork during handoff. Retain the visible
+            // palette through that gap; genuinely coverless songs still reach the safe fallback.
+            const timer = window.setTimeout(() => setColors(null), 400);
+            return () => window.clearTimeout(timer);
         }
         const cached = cache.get(url);
         if (cached !== undefined) {
