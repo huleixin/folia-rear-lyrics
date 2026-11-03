@@ -11,6 +11,7 @@ import {
     countSungGraphemes,
     findActiveLineIndex,
     isEmptyLine,
+    isProductionCreditLine,
     lineGraphemeTimings,
     lineGraphemes,
     hasLyricLines,
@@ -93,6 +94,17 @@ export default function MinimalLyricsPage({
     const lines = useMemo(() => lyrics?.lines ?? [], [lyrics]);
     const starts = useMemo(() => buildLineStarts(lines), [lines]);
     const hasLyrics = hasLyricLines(lyrics);
+    // Which lines are production credits, decided once per lyric set. They stay in the column at
+    // their own timestamps — only the weight they are drawn at changes.
+    const credits = useMemo(() => {
+        const found = new Set<number>();
+        lines.forEach((line, index) => {
+            if (isProductionCreditLine(line, index)) {
+                found.add(index);
+            }
+        });
+        return found;
+    }, [lines]);
     const scroller = useRef<HTMLDivElement>(null);
     const lineEls = useRef<Array<HTMLDivElement | null>>([]);
     const activeIndexRef = useRef(-1);
@@ -277,6 +289,7 @@ export default function MinimalLyricsPage({
                                     className="min-line"
                                     data-active={index === activeIndex || undefined}
                                     data-past={index < activeIndex || undefined}
+                                    data-credit={credits.has(index) || undefined}
                                 >
                                     <button
                                         type="button"

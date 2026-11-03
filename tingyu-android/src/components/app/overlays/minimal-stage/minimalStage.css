@@ -868,6 +868,33 @@
     color: var(--min-accent);
 }
 
+/* Production credits — 歌名-歌手, 词：, 作曲：, 编曲：, 制作人 — printed at the weight of a caption
+   rather than a line of the song. They keep their timestamps, their place in the column and their
+   seek behaviour; what changes is the size they are drawn at, and that the active one does not grow
+   to the singing size (a credit growing to 30px is the thing this exists to stop). The recognition
+   itself is narrow and lives in minimalLyrics.ts; anything uncertain stays a lyric. */
+.min-line[data-credit] {
+    min-height: calc(24px * var(--min-lyric-scale, 1));
+    margin-bottom: calc(2px * var(--min-lyric-scale, 1));
+}
+
+.min-line[data-credit] .min-line__text {
+    font-size: calc(12.5px * var(--min-lyric-scale, 1));
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: color-mix(in srgb, var(--min-muted) 78%, transparent);
+}
+
+.min-line[data-credit] .min-line__text [data-sung] {
+    color: color-mix(in srgb, var(--min-accent) 66%, var(--min-muted));
+}
+
+.min-line[data-credit][data-active] .min-line__text {
+    font-size: calc(14px * var(--min-lyric-scale, 1));
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+
 .min-line__text:focus-visible {
     outline: 2px solid var(--min-accent);
     outline-offset: 3px;
