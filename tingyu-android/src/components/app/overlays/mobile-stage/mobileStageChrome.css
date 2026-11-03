@@ -19,7 +19,7 @@
     content: '';
     position: absolute;
     inset: 0 0 auto;
-    height: calc(135px + env(safe-area-inset-top, 0px));
+    height: calc(135px + var(--folia-main-inset-top, env(safe-area-inset-top, 0px)));
     background: linear-gradient(180deg, #00000024, transparent);
     pointer-events: none;
 }
@@ -46,8 +46,16 @@
 }
 .mps-header {
     position: absolute;
-    top: max(10px, env(safe-area-inset-top, 0px));
-    left: 20px;
+    /* The same safe-area source the minimal page uses. env() reports zero in this app — the
+       SystemBars plugin's automatic padding is switched off — so the header used to sit at a flat
+       10px and rely on the platform drawing the status bar over an already-inset WebView. On a long
+       Xiaomi screen with the clock at 40px that put the sleeve and the collapse arrow inside the
+       status bar. --folia-main-inset-top is measured natively (MainSystemBars). */
+    top: max(10px, var(--folia-main-inset-top, env(safe-area-inset-top, 0px)));
+    /* The arrow's own 44px box supplies the left gutter: with 8px here its glyph lands at ~19px,
+       which is where the minimal page's chevron sits. It used to be 20px because the arrow had no
+       box of its own — it was drawn inside the artwork. */
+    left: 8px;
     right: 12px;
     display: flex;
     gap: 3px;
@@ -70,6 +78,14 @@
     min-height: 48px;
     padding: 0;
     border-radius: 50%;
+}
+/* The collapse control, on its own. 44dp wide is the minimum a thumb target should be and the same
+   box the minimal page's top-left chevron uses; the height stays 48 so it matches the row. */
+.mps-collapse {
+    width: 44px;
+    min-width: 44px;
+    height: 48px;
+    min-height: 48px;
 }
 .mps-like[aria-pressed='true'] {
     color: #ff7182;
@@ -293,21 +309,8 @@
     }
 }
 
-/* The artwork remains the collapse target, with a quiet chevron instead of an extra chrome row. */
-.mobile-player-stage .mps-back {
-    position: relative;
-    margin-right: 8px;
-    border-radius: 10px;
-}
-.mps-back-chevron {
-    position: absolute;
-    left: 0;
-    bottom: 0;
-    padding: 1px;
-    border-radius: 5px;
-    background: #0007;
-    color: white;
-}
+/* The sleeve is information now, not a control: no chevron on top of it, no press state, and no
+   8px margin reserved for a button that no longer wraps it. */
 /* Stage chrome intentionally does not share the home optical lens treatment. */
 .mps-header > .mps-icon svg { stroke-width: 1.8; filter: drop-shadow(0 1px 3px #0005); }
 

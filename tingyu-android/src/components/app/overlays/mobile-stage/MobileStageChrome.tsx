@@ -27,6 +27,7 @@ import { useMobileStageSubtitleClearance } from './useMobileStageSubtitleClearan
 import { useComposeChrome } from '../../../../hooks/useComposeChrome';
 import { useReducedMotionFor } from '../../../../hooks/useReducedMotionFor';
 import { getPlaybackSongKey } from '../../../../utils/appPlaybackGuards';
+import { playbackModeLabelKey, playbackModeLegacyToken, resolvePlaybackMode } from '../../../../utils/playbackMode';
 import { usePlaybackStore } from '../../../../stores/usePlaybackStore';
 import { warmSettingsModule, scheduleSettingsWarmup } from '../../dialogs/settingsModule';
 import '../../../../styles/composeChrome.css';
@@ -73,11 +74,14 @@ export default function MobileStageChrome({
     const disabled = !controls || !!controls.controlsDisabled;
     const song = usePlaybackStore(s=>s.currentSong);
     const reducedMotion = useReducedMotionFor('uiMicroMotion');
-    const loop = controls?.shuffleEnabled?'shuffle':controls?.loopMode||'off';
+    // The same resolver the minimal page's single mode button uses — one name for the pair of
+    // booleans, so the two views cannot show different modes for the same state.
+    const mode = resolvePlaybackMode(controls?.shuffleEnabled, controls?.loopMode);
+    const loop = playbackModeLegacyToken(mode);
     const compose = useComposeChrome(playerRef,'stage',!hidden&&!!controls&&!controls.hideControlBar,{
         playing:controls?.playerState===PlayerState.PLAYING,disabled,duration:controls?.duration||0,
         trackKey:song?getPlaybackSongKey(song):'',canNext:!!controls?.trackNavigation?.canNext,canPrevious:!!controls?.trackNavigation?.canPrev,
-        loop,accent,ink,reducedMotion,labels:{play:t('mobileLibrary.play'),pause:t('mobileLibrary.pause'),queue:t('mobileStage.queue'),seek:t('mobileStage.seek'),loop:t('mobileStage.loop'),loopValue:t(`mobileStage.loop_${loop}`),
+        loop,accent,ink,reducedMotion,labels:{play:t('mobileLibrary.play'),pause:t('mobileLibrary.pause'),queue:t('mobileStage.queue'),seek:t('mobileStage.seek'),loop:t('mobileStage.loop'),loopValue:t(playbackModeLabelKey(mode)),
         previous:controls?.trackNavigation?.prevLabel||t('ui.previousTrack'),next:controls?.trackNavigation?.nextLabel||t('ui.nextTrack')},
     },{toggle:controls?.onTogglePlay,previous:controls?.trackNavigation?.onPrev,next:controls?.trackNavigation?.onNext,loop:controls?.onToggleLoop,queue:openQueue,seek:controls?.onSeek},controls?.currentTime);
     useMobileGlass(playerRef,!compose&&!hidden&&!!controls&&!controls.hideControlBar);
@@ -90,7 +94,20 @@ export default function MobileStageChrome({
             data-hidden={hidden || undefined}
         >
             <header className="mps-header">
-                <button className="mps-icon mps-back" aria-label={t('mobileStage.back')} onClick={chrome.onBack}>
+                {/* Collapse, on its own, where the minimal page keeps it. It used to be a chevron
+                    laid over the artwork: the same pixels answered "go back" and "that is the
+                    sleeve", the cover could not be shown whole, and the gesture the listener had
+                    just learned on the minimal page was not there. Three separate things now —
+                    arrow, sleeve, titles — on the same 44dp target the minimal bar uses. */}
+                <button
+                    type="button"
+                    className="mps-icon mps-collapse"
+                    aria-label={t('mobileStage.back')}
+                    onClick={chrome.onBack}
+                    data-testid="stage-collapse"
+                >
+                    <ChevronDown size={23} strokeWidth={1.8} />
+                </button>
                 <span className="mps-art" aria-hidden="true">
                     <Music2 size={23} />
                     {chrome.song?.coverUrl && (
@@ -104,8 +121,6 @@ export default function MobileStageChrome({
                         />
                     )}
                 </span>
-                <ChevronDown className="mps-back-chevron" size={15} aria-hidden="true" />
-                </button>
                 <div className="mps-song">
                     <strong>{chrome.song?.title || t('mobileLibrary.nothingPlaying')}</strong>
                     <span>{chrome.song?.artist || t('mobileLibrary.chooseMusic')}</span>
@@ -146,12 +161,13 @@ export default function MobileStageChrome({
                         <button
                             className="mps-secondary"
                             aria-label={t('mobileStage.loop')}
-                            aria-pressed={controls.shuffleEnabled || controls.loopMode !== 'off'}
+                            aria-pressed={mode !== 'order'}
+                            data-mode={mode}
                             disabled={disabled}
                             onClick={controls.onToggleLoop}
                         >
-                            {controls.shuffleEnabled ? <Shuffle size={21} /> : controls.loopMode === 'one' ? <Repeat1 size={21} /> : <Repeat size={21} />}
-                            <span>{t(`mobileStage.loop_${controls.shuffleEnabled ? 'shuffle' : controls.loopMode}`)}</span>
+                            {mode === 'shuffle' ? <Shuffle size={21} /> : mode === 'one' ? <Repeat1 size={21} /> : <Repeat size={21} />}
+                            <span>{t(playbackModeLabelKey(mode))}</span>
                         </button>
                         <div className="mps-main-transport">
                             <button
