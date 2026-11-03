@@ -221,6 +221,8 @@ package.json / package-lock.json     1.3.119 / versionCode 142
 3. **顺访状态不持久**：从极简进入舞台属于临时访问，进程被杀后回到用户选择的视图，这是有意为之。
 4. **`minimalStage.css` 使用了 `@property`**：Chromium 85+ 支持，缺失时颜色直接跳变（无过渡），不影响布局。
 5. **状态栏区域**：`.min` 依赖 `env(safe-area-inset-top)`；系统栏图标颜色由既有 `InterfaceAppearance` 控制，本版未改动。
+6. **默认值改了**：未设置过的用户默认进入极简播放页（`readStoredPlayerViewMode` 只有明确存过 `stage` 才回舞台）。这是一次产品决策——本次交付的主体就是这套界面；但它确实改变了老用户打开播放页时看到的东西。想改回「默认舞台、极简可选」，把 `usePlayerViewModeStore.ts` 里两处 `'minimal'` 默认值换成 `'stage'` 即可，其余逻辑不用动。
+7. **作用域是「手机版资料库（mobile suite）」而不是「Android 平台」**：极简页挂在 `suite==='mobile' && view==='player'`，桌面端若切到手机版资料库同样会看到它。设置开关本身只在 Android 出现。若希望严格限定 Android，需要给 `minimalStageActive` 再加一层 `isAndroidNativeRuntime()`，代价是浏览器预览壳失效。
 
 ---
 
