@@ -120,6 +120,7 @@ const backLog: number[] = [];
 const chrome: NonNullable<AppOverlaysModel['mobileStage']> = {
     song: { title: song.name, artist: song.artist, coverUrl: song.cover },
     onBack: () => { backLog.push(performance.now()); },
+    onOpenArtist: artist => { document.documentElement.dataset.openedArtist = artist.name; },
     hidden: false,
 };
 

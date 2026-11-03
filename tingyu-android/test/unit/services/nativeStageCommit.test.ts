@@ -13,3 +13,17 @@ it('does not reveal a stage while the DOM still belongs to home or startup',()=>
     expect(canPublishNativeStage('stage',root)).toBe(false);
     for(const route of ['home','collection','search','settings'])expect(canPublishNativeStage(route,root)).toBe(true);
 });
+
+it('waits for the actual lazy minimal player, not only the app-shell route flag', () => {
+    const root = document.createElement('div');
+    root.setAttribute('data-folia-player-view', 'true');
+    root.setAttribute('data-folia-player-presentation', 'minimal');
+    expect(canPublishNativeStage('stage', root)).toBe(false);
+    const surface = document.createElement('div');
+    surface.setAttribute('data-player-surface-ready', 'true');
+    root.append(surface);
+    expect(canPublishNativeStage('stage', root)).toBe(true);
+    surface.remove();
+    expect(canPublishNativeStage('stage', root)).toBe(false);
+    expect(canPublishNativeStage('home', root)).toBe(true);
+});

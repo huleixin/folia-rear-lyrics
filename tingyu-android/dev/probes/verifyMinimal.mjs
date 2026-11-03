@@ -144,7 +144,7 @@ const dragTo = async (session, fromX, toX, y, { steps = 10, hold = 14 } = {}) =>
     const session = await open({ query: 'page=cover&theme=dark&stationary=1' });
     const resting = await session.page.evaluate(() => {
         const shell = document.querySelector('.min');
-        const grain = document.querySelector('.min-amb__grain');
+        const grain = document.querySelector('.min-amb__blob--a');
         const ambience = document.querySelector('.min-amb');
         const dot = document.querySelector('.min-dot');
         return {
@@ -156,8 +156,8 @@ const dragTo = async (session, fromX, toX, y, { steps = 10, hold = 14 } = {}) =>
         };
     });
     check('滑动位置不再作为自定义属性广播到外壳', resting.published === '', resting.published || '(未设置)');
-    check('背景颗粒不使用混合模式', resting.blend === 'normal', resting.blend);
-    check('调色板淡入在环境层上', /--min-base/.test(resting.ambienceTransition), resting.ambienceTransition.slice(0, 48));
+    check('柔光背景不使用混合模式', resting.blend === 'normal', resting.blend);
+    check('柔光背景不逐帧插值颜色', !/--min-base/.test(resting.ambienceTransition), resting.ambienceTransition.slice(0, 48));
     check('外壳不再承担调色板淡入', !/--min-base/.test(resting.shellTransition), resting.shellTransition.slice(0, 48));
 
     // Mid-gesture: the dot must grow by transform, so its layout box cannot change.

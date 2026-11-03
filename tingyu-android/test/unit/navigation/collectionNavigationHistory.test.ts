@@ -25,6 +25,7 @@ import {
     subscribeCollectionPop,
     useCollectionNavigationStore,
 } from '@/stores/useCollectionNavigationStore';
+import { usePlayerViewModeStore } from '@/stores/usePlayerViewModeStore';
 import { useAppViewStore } from '@/stores/useAppViewStore';
 import { useNativeBackButton } from '@/hooks/useNativeBackButton';
 import { useSearchNavigationStore } from '@/stores/useSearchNavigationStore';
@@ -88,6 +89,7 @@ beforeEach(() => {
         } },
     } });
     background.mockClear(); exitApp.mockClear();
+    usePlayerViewModeStore.getState().setMode('minimal');
     useSearchNavigationStore.getState().hideSearchOverlay();
     localStorage.clear();
     useCollectionNavigationStore.setState({ snapshot: null });
@@ -334,5 +336,41 @@ describe('popCollectionTo', () => {
         expect(stackIds()).toEqual(['root']);
         expect(window.history.length).toBe(lengthBefore + 1);
         expect(ids(historyState().collection)).toEqual(['root']);
+    });
+});
+
+describe('minimal player stage return', () => {
+    it('consumes the Escape-first native path without leaving the minimal lyric page', async () => {
+        run(() => navigation.navigateToPlayer());
+        run(() => usePlayerViewModeStore.getState().setPage('lyrics'));
+        run(() => usePlayerViewModeStore.getState().openStage());
+        const historyIndex = window.history.state.appHistoryIndex;
+        // This is the playback interaction listener that runs before navigateBackInApp.
+        const escape = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault(); event.stopImmediatePropagation(); navigation.navigateBackFromPlayer();
+        };
+        window.addEventListener('keydown', escape);
+        try {
+            run(nativeBack); run(nativeBack); await settle();
+            expect(useAppViewStore.getState().view).toBe('player');
+            expect(usePlayerViewModeStore.getState()).toMatchObject({mode:'minimal', page:'lyrics', detour:false, stageTransition:'to-minimal'});
+            expect(window.history.state.appHistoryIndex).toBe(historyIndex);
+            expect(background).not.toHaveBeenCalled();
+        } finally { window.removeEventListener('keydown', escape); usePlayerViewModeStore.getState().endStageTransition(); }
+    });
+    it('returns directly opened classic stage to home instead of manufacturing a minimal visit', async () => {
+        run(() => usePlayerViewModeStore.getState().setMode('stage'));
+        run(() => navigation.navigateToPlayer());
+        run(nativeBack); await settle();
+        expect(useAppViewStore.getState().view).toBe('home');
+        expect(usePlayerViewModeStore.getState().detour).toBe(false);
+    });
+    it('returns from an artist opened in the player to that player', async () => {
+        run(() => navigation.navigateToPlayer());
+        run(() => navigation.navigateToCollection(polaris, 'player'));
+        run(nativeBack); await settle();
+        expect(useAppViewStore.getState().view).toBe('player');
+        expect(usePlayerViewModeStore.getState().mode).toBe('minimal');
     });
 });

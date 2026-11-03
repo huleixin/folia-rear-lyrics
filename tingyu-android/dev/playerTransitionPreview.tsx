@@ -149,6 +149,7 @@ const chrome: NonNullable<AppOverlaysModel['mobileStage']> = {
             view.closeStage();
         }
     },
+    onOpenArtist: artist => { backLog.push(`artist:${artist.name}`); },
     hidden: false,
 };
 
@@ -193,10 +194,11 @@ function Preview() {
         root.setProperty('--folia-main-inset-right', '0px');
     }, []);
     const stageOn = mode === 'stage' || detour || stageTransition === 'to-minimal';
-    const minimalOn = mode === 'minimal' && (!detour || stageTransition === 'to-stage');
+    const minimalOn = mode === 'minimal';
     return (
         <>
-            {stageOn && <StageSurface />}
+            {stageOn && <div data-testid="player-visual-surface" data-stage-detour={detour || stageTransition === 'to-minimal' || undefined}
+                data-stage-motion={stageTransition === 'idle' ? undefined : stageTransition} style={{position:'absolute',inset:0}}><StageSurface /></div>}
             {stageOn && <MobileStageChrome chrome={chrome} controls={controls} />}
             {minimalOn && <MinimalStage chrome={chrome} controls={controls} />}
         </>
