@@ -227,3 +227,15 @@ package.json / package-lock.json     1.3.119 / versionCode 142
 ## 八、构建与签名
 
 见 `BUILD-1.3.119.md`（构建命令、产物、SHA-256、签名状态）。
+
+## 九、提交
+
+已推送到 `main`：
+
+| 提交 | 内容 | 链接 |
+| --- | --- | --- |
+| `4c8c8b9` | 视图偏好 store + 取色/歌词/音质纯函数 + 21 项单测 | https://github.com/huleixin/folia-rear-lyrics/commit/4c8c8b9 |
+| `ed0f41a` | 极简封面页/歌词页、氛围背景、共享传输、舞台入口、设置项、接线 | https://github.com/huleixin/folia-rear-lyrics/commit/ed0f41a |
+| `62be122` | 版本 1.3.119 / versionCode 142、预览与验证工具、本审计文档 | https://github.com/huleixin/folia-rear-lyrics/commit/62be122 |
+
+基线为 `83b6c4b`（`v1.3.118`），本次未改写任何既有提交。
