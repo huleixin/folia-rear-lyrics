@@ -75,6 +75,13 @@ export default {
     "filterPlaceholder": "Saring halaman ini",
     "kind": {"track": "Lagu", "playlist": "Playlist", "album": "Album", "artist": "Artis", "folder": "Folder", "feed": "Radio"}
   },
+  "minimalStage": {
+    "pages": "Halaman pemutar", "coverPage": "Sampul minimal", "lyricsPage": "Lirik minimal",
+    "openStage": "Buka panggung lirik", "noLyrics": "Belum ada lirik",
+    "view": "Gaya halaman pemutar", "viewMinimal": "Minimal", "viewStage": "Panggung lirik",
+    "viewDescription": "Mode minimal hanya mengubah tampilan halaman pemutar. Lirik, pemutaran, dan layar belakang tidak berubah.",
+    "viewNote": "Halaman terakhir yang Anda buka akan diingat."
+  },
   "wallTools": {
     "shuffle": "Acak antrean",
     "shuffleUnavailable": "Perlu dua lagu atau lebih di antrean (tidak di FM Pribadi)",

@@ -140,6 +140,18 @@ export default {
     "like": "Like track", "unlike": "Unlike track", "lyricSettings": "Lyrics style", "audioSettings": "Playback settings", "playback": "Playback controls",
     "loop": "Change repeat mode", "loop_off": "Repeat off", "loop_all": "Repeat all", "loop_one": "Repeat one", "queue": "Queue", "seek": "Playback position"
   },
+  "minimalStage": {
+    "pages": "Player pages",
+    "coverPage": "Minimal cover",
+    "lyricsPage": "Minimal lyrics",
+    "openStage": "Open lyric stage",
+    "noLyrics": "No lyrics",
+    "view": "Player page style",
+    "viewMinimal": "Minimal",
+    "viewStage": "Lyric stage",
+    "viewDescription": "Minimal changes only how the player page looks. Lyrics, playback and the rear screen are untouched.",
+    "viewNote": "The last page you were on is remembered."
+  },
   "mobileLibrary": {
     "directorySort": "Playlist order", "sourceOrder": "Source order", "recentlyUpdated": "Recently updated", "nameOrder": "Name", "directoryEmpty": "Nothing here yet", "expandHot": "More trending searches", "collapseHot": "Show fewer",
     "playlistSongs": "Songs", "playlistDescription": "Playlist description, expand or collapse",

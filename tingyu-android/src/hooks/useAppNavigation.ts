@@ -22,6 +22,7 @@ import {
     type NavigationHistoryState,
 } from './navigationHistoryJournal';
 import { useAppViewStore } from '../stores/useAppViewStore';
+import { usePlayerViewModeStore } from '../stores/usePlayerViewModeStore';
 import type { AppView } from '../stores/useAppViewStore';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
 import {returnFromNativeStage} from '../services/nativeStageReturn';
@@ -632,7 +633,14 @@ export function useAppNavigation() {
     const navigateBackInApp = useCallback(() => {
         if (pendingTraversalRef.current !== null) return true;
         if (useAppViewStore.getState().view === 'player') {
-            navigateBackFromPlayer();
+            // A visit to the classic stage from the minimal lyric page returns to that page; the
+            // listener never asked to leave the player, so Back must not take them home.
+            const viewMode = usePlayerViewModeStore.getState();
+            if (viewMode.detour) {
+                viewMode.closeStage();
+            } else {
+                navigateBackFromPlayer();
+            }
         } else if (useAppViewStore.getState().view === 'lattice') {
             navigateBackFromLattice();
         } else if (useCollectionNavigationStore.getState().snapshot) {

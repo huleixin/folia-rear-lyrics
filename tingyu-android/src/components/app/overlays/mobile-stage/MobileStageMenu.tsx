@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { AudioLines, Captions, Settings2, SlidersHorizontal } from 'lucide-react';
+import { AudioLines, Captions, ListMusic, Settings2, SlidersHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppViewStore } from '../../../../stores/useAppViewStore';
 import { openSettings } from '../../../../stores/useSettingsModalStore';
@@ -79,6 +79,12 @@ export default function MobileStageMenu({
             <button role="menuitem" onClick={() => run(() => { const state=useAppViewStore.getState();state.setPanelTab('onlineLyrics');state.setIsPanelOpen(true); })}>
                 <Captions size={18} />
                 {t('localMusic.lyrics')}
+            </button>
+            {/* The minimal stage has no queue button of its own (the reference has five transport
+                icons and no sixth), so the queue it must still offer lives here. */}
+            <button role="menuitem" onClick={() => run(() => { const state=useAppViewStore.getState();state.setPanelTab('queue');state.setIsPanelOpen(true); })}>
+                <ListMusic size={18} />
+                {t('mobileStage.queue')}
             </button>
             <button role="menuitem" onClick={() => run(() => openSettings('options', 'playback'))}>
                 <Settings2 size={18} />

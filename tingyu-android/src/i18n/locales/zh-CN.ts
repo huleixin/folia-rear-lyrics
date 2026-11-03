@@ -140,6 +140,18 @@ export default {
     "like": "喜欢歌曲", "unlike": "取消喜欢", "lyricSettings": "歌词样式", "audioSettings": "播放设置", "playback": "播放控制",
     "loop": "切换循环模式", "loop_off": "顺序播放", "loop_all": "列表循环", "loop_one": "单曲循环", "queue": "队列", "seek": "播放进度"
   },
+  "minimalStage": {
+    "pages": "播放页页面",
+    "coverPage": "极简封面页",
+    "lyricsPage": "极简歌词页",
+    "openStage": "打开歌词舞台",
+    "noLyrics": "暂无歌词",
+    "view": "播放页样式",
+    "viewMinimal": "极简",
+    "viewStage": "歌词舞台",
+    "viewDescription": "极简模式只改变播放页的呈现方式，歌词解析、播放和背屏不受影响。",
+    "viewNote": "会记住上次停留在封面页还是歌词页。"
+  },
   "mobileLibrary": {
     "directorySort": "歌单排序", "sourceOrder": "音源默认顺序", "recentlyUpdated": "按最近更新", "nameOrder": "按名称", "directoryEmpty": "暂无内容", "expandHot": "展开更多热搜", "collapseHot": "收起热搜",
     "playlistSongs": "歌曲", "playlistDescription": "歌单简介，点击展开或收起",

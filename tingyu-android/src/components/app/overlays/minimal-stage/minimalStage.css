@@ -1,0 +1,755 @@
+/* src/components/app/overlays/minimal-stage/minimalStage.css
+   Minimal front stage: two pages, one transport, one ambient background.
+
+   Cost model, because this mode exists to be cheap:
+   · the background is five flat layers of gradients — no canvas, no shader, no backdrop-filter, and
+     no `filter: blur()` anywhere, so there is no full-screen pass per frame;
+   · only `transform` and `opacity` are animated, both compositor-only, both on very long periods;
+   · paging is native scroll snap, so a swipe costs the browser nothing in JS;
+   · nothing in this file animates a property that triggers layout. */
+
+@property --min-base { syntax: '<color>'; inherits: true; initial-value: #08130f; }
+@property --min-field-1 { syntax: '<color>'; inherits: true; initial-value: #0d2a22; }
+@property --min-field-2 { syntax: '<color>'; inherits: true; initial-value: #10231f; }
+@property --min-bloom { syntax: '<color>'; inherits: true; initial-value: #6a4a2c; }
+@property --min-accent { syntax: '<color>'; inherits: true; initial-value: #6fe6c3; }
+
+.min {
+    position: absolute;
+    inset: 0;
+    z-index: 65;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--min-base);
+    color: var(--min-ink);
+    font-family: system-ui, -apple-system, 'PingFang SC', 'MiSans', 'Microsoft YaHei', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    /* A track change repaints the gradient once, over ~0.7s. That is the only time the background
+       is repainted at all; the drift below never touches colour. */
+    transition: --min-base 700ms ease, --min-field-1 700ms ease, --min-field-2 700ms ease,
+        --min-bloom 700ms ease, --min-accent 700ms ease;
+}
+
+.min[data-theme='dark'] {
+    --min-ink: #f3faf6;
+    --min-ink-bright: #ffffff;
+    --min-muted: rgb(240 248 244 / 44%);
+    --min-track: rgb(255 255 255 / 22%);
+    --min-fill: rgb(246 252 249 / 92%);
+    --min-line: rgb(255 255 255 / 13%);
+    --min-veil: 0 0 0;
+    --min-shadow: 0 28px 60px -22px rgb(0 0 0 / 62%), 0 4px 16px rgb(0 0 0 / 26%);
+}
+
+.min[data-theme='light'] {
+    --min-ink: #10231d;
+    --min-ink-bright: #061310;
+    --min-muted: rgb(16 35 29 / 46%);
+    --min-track: rgb(16 35 29 / 16%);
+    --min-fill: rgb(16 35 29 / 78%);
+    --min-line: rgb(16 35 29 / 14%);
+    --min-veil: 255 255 255;
+    --min-shadow: 0 24px 52px -24px rgb(24 56 46 / 34%), 0 3px 12px rgb(24 56 46 / 12%);
+}
+
+.min[data-chrome-hidden] .min-top,
+.min[data-chrome-hidden] .min-transport,
+.min[data-chrome-hidden] .min-dots {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 220ms ease;
+}
+
+/* ---------------------------------------------------------------- ambience */
+
+.min-amb {
+    position: absolute;
+    inset: -14%;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    contain: strict;
+}
+
+.min-amb > * {
+    position: absolute;
+    inset: 0;
+    display: block;
+}
+
+.min-amb__wash {
+    background:
+        radial-gradient(120% 70% at 50% 30%, color-mix(in srgb, var(--min-bloom) 20%, transparent) 0%, transparent 68%),
+        radial-gradient(118% 74% at 50% 108%, color-mix(in srgb, var(--min-field-1) 84%, transparent) 0%, transparent 66%),
+        linear-gradient(177deg, var(--min-base) 0%, color-mix(in srgb, var(--min-base) 88%, black) 100%);
+}
+
+.min-amb__field--a {
+    background: radial-gradient(66% 50% at 18% 10%, color-mix(in srgb, var(--min-field-1) 92%, transparent) 0%, transparent 74%);
+    animation: min-drift-a 54s ease-in-out infinite alternate;
+    will-change: transform;
+}
+
+.min-amb__field--b {
+    background: radial-gradient(60% 46% at 90% 4%, color-mix(in srgb, var(--min-field-2) 88%, transparent) 0%, transparent 76%);
+    animation: min-drift-b 63s ease-in-out infinite alternate;
+    will-change: transform;
+}
+
+/* The only warm element: the glow the artwork sits in. Constrained to a low alpha so it reads as
+   light through a scrim rather than as a beam. */
+.min-amb__bloom {
+    background: radial-gradient(58% 40% at 50% 35%, color-mix(in srgb, var(--min-bloom) 82%, transparent) 0%, transparent 76%);
+    opacity: 0.74;
+    animation: min-breathe 37s ease-in-out infinite alternate;
+    will-change: transform, opacity;
+}
+
+.min-amb__veil {
+    background:
+        linear-gradient(180deg, rgb(var(--min-veil) / 0.2) 0%, transparent 22%),
+        linear-gradient(0deg, rgb(var(--min-veil) / 0.34) 0%, transparent 40%);
+}
+
+@keyframes min-drift-a {
+    from { transform: translate3d(-2.5%, -1.5%, 0) scale(1); }
+    to { transform: translate3d(3%, 2.5%, 0) scale(1.08); }
+}
+
+@keyframes min-drift-b {
+    from { transform: translate3d(2%, 1%, 0) scale(1.06); }
+    to { transform: translate3d(-3%, -2%, 0) scale(1); }
+}
+
+@keyframes min-breathe {
+    from { transform: scale(0.96); opacity: 0.42; }
+    to { transform: scale(1.06); opacity: 0.62; }
+}
+
+.min-amb[data-paused] .min-amb__field,
+.min-amb[data-paused] .min-amb__bloom {
+    animation-play-state: paused;
+}
+
+.min-amb[data-still] .min-amb__field,
+.min-amb[data-still] .min-amb__bloom {
+    animation: none;
+}
+
+/* System preference is honoured directly here: the app's own motion switches are opt-in, and a
+   listener who asked the OS for less motion did not ask for a drifting background. */
+@media (prefers-reduced-motion: reduce) {
+    .min-amb__field,
+    .min-amb__bloom {
+        animation: none;
+    }
+    .min {
+        transition: none;
+    }
+}
+
+/* ---------------------------------------------------------------- top bar */
+
+.min-top {
+    position: relative;
+    z-index: 3;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: max(6px, env(safe-area-inset-top, 0px)) 10px 4px;
+}
+
+.min-top__actions {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.min-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    color: var(--min-ink);
+    cursor: pointer;
+    transition: transform 160ms ease, opacity 160ms ease, background-color 160ms ease;
+}
+
+.min-icon:active:not(:disabled) {
+    transform: scale(0.9);
+}
+
+.min-icon:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.min-icon--like[aria-pressed='true'] {
+    color: #ff7b88;
+}
+
+.min-icon--stage {
+    color: var(--min-ink);
+    opacity: 0.92;
+}
+
+.min-menu {
+    position: absolute;
+    top: 0;
+    right: 6px;
+    z-index: 5;
+}
+
+.min-menu .mps-menu {
+    color: var(--mps-ink);
+    font-size: 13px;
+}
+
+/* ---------------------------------------------------------------- pager */
+
+.min-pager {
+    position: relative;
+    z-index: 2;
+    flex: 1 1 auto;
+    display: flex;
+    min-height: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+}
+
+.min-pager::-webkit-scrollbar {
+    display: none;
+}
+
+.min-page {
+    flex: 0 0 100%;
+    width: 100%;
+    min-width: 0;
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* ---------------------------------------------------------------- cover page */
+
+.min-cover {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    padding: 4px 0 8px;
+    gap: clamp(18px, 3.4vh, 30px);
+}
+
+.min-cover__art {
+    position: relative;
+    /* 75% of the page width, matching the reference: the artwork, not the text, is the page. */
+    width: min(75%, 322px);
+    aspect-ratio: 1 / 1;
+    flex: none;
+}
+
+/* The artwork's own glow. A wide, very soft radial behind the frame, so the cover sits in light
+   instead of carrying a stroke. No blur filter — the gradient is already soft. */
+.min-cover__art::before {
+    content: '';
+    position: absolute;
+    inset: -22%;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--min-bloom) 42%, transparent) 0%, transparent 78%);
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.min-art {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: clamp(18px, 7%, 30px);
+    overflow: hidden;
+    background: color-mix(in srgb, var(--min-base) 74%, var(--min-ink) 8%);
+    box-shadow: var(--min-shadow);
+    /* Keeps the round corner from revealing the glow behind it on some WebView builds. */
+    transform: translateZ(0);
+}
+
+.min-art__img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    /* Never stretch: the artwork keeps its own ratio and is cropped, not squashed. */
+    object-fit: cover;
+    object-position: center;
+    opacity: 0;
+    transition: opacity 320ms ease;
+}
+
+.min-art__img[data-top] {
+    opacity: 1;
+}
+
+.min-art__empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--min-muted);
+    background: linear-gradient(160deg, color-mix(in srgb, var(--min-field-1) 66%, transparent), transparent 73%);
+}
+
+.min-cover__meta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+    padding: 0 24px;
+    text-align: center;
+}
+
+.min-cover__title {
+    margin: 0;
+    max-width: 100%;
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.3;
+    color: var(--min-ink);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    word-break: break-word;
+}
+
+.min-cover__artist {
+    margin: 0;
+    max-width: 100%;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--min-muted);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.min-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin: 4px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.min-chip {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 9px;
+    border: 1px solid color-mix(in srgb, var(--min-ink) 22%, transparent);
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    line-height: 1;
+    color: color-mix(in srgb, var(--min-ink) 72%, transparent);
+    white-space: nowrap;
+}
+
+.min-chip[data-tone='gold'] {
+    border-color: color-mix(in srgb, #e2c48c 58%, transparent);
+    color: color-mix(in srgb, #e2c48c 92%, var(--min-ink) 8%);
+}
+
+/* ---------------------------------------------------------------- lyrics page */
+
+.min-lyrics {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.min-lyrics__head {
+    flex: none;
+    padding: 2px 26px 6px;
+}
+
+.min-lyrics__title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--min-ink);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    word-break: break-word;
+}
+
+.min-lyrics__artist {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--min-muted);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.min-lyrics__rule {
+    display: block;
+    width: 15px;
+    height: 1.5px;
+    margin-top: 12px;
+    border-radius: 1px;
+    background: color-mix(in srgb, var(--min-ink) 42%, transparent);
+}
+
+.min-lyrics__scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+    overscroll-behavior-y: contain;
+    /* Both axes stay available so a horizontal swipe that starts on a lyric line still reaches the
+       pager: `pan-y` here would swallow it and the page would look stuck on the lyrics. The browser's
+       own axis lock, plus scroll-snap-stop on each page, is what keeps a vertical scroll vertical. */
+    touch-action: pan-x pan-y;
+    padding: 0 26px;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, black 34px, black 82%, transparent 100%);
+    mask-image: linear-gradient(180deg, transparent 0, black 34px, black 82%, transparent 100%);
+}
+
+.min-lyrics__scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.min-lyrics__column {
+    position: relative;
+    padding: clamp(20px, 6vh, 56px) 0 46vh;
+}
+
+.min-line {
+    /* The active line grows without changing its box: the pitch is fixed, only the glyphs scale up,
+       so changing lines never makes the column jump under the reader's thumb. */
+    margin: 0 0 22px;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 40px;
+}
+
+.min-line__text {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    text-align: left;
+    font-family: inherit;
+    font-size: 19px;
+    font-weight: 500;
+    line-height: 40px;
+    letter-spacing: 0.012em;
+    color: var(--min-muted);
+    cursor: pointer;
+    transition: color 260ms ease;
+}
+
+.min-line[data-active] .min-line__text {
+    font-size: 27px;
+    font-weight: 700;
+    line-height: 40px;
+    color: var(--min-ink-bright);
+    cursor: default;
+}
+
+.min-line__text [data-ch] {
+    transition: color 150ms linear;
+}
+
+.min-line[data-active] .min-line__text [data-sung] {
+    color: var(--min-accent);
+}
+
+.min-line__text:focus-visible {
+    outline: 2px solid var(--min-accent);
+    outline-offset: 3px;
+    border-radius: 6px;
+}
+
+.min-line__beat {
+    color: var(--min-muted);
+    opacity: 0.5;
+}
+
+.min-line__secondary {
+    margin: 2px 0 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--min-muted);
+    opacity: 0.72;
+    word-break: break-word;
+}
+
+.min-lyrics__empty {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 32px 60px;
+}
+
+.min-lyrics__empty p {
+    margin: 0;
+    font-size: 14px;
+    color: var(--min-muted);
+    letter-spacing: 0.02em;
+}
+
+/* ---------------------------------------------------------------- transport */
+
+.min-transport {
+    position: relative;
+    z-index: 3;
+    flex: none;
+    padding: 2px 26px 0;
+}
+
+.min-seek {
+    width: 100%;
+}
+
+/* Reuse the shared ProgressBar but lay it out like the reference: the track owns a full row and the
+   two times sit under its ends. Only the parts the widget publishes are touched, so its clock,
+   drag ownership and accessibility stay exactly as they are everywhere else. */
+.min-seek [data-folium-part='progress.root'] {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+        'track track'
+        'time duration';
+    align-items: center;
+    gap: 2px 12px;
+    width: 100%;
+}
+
+.min-seek [data-folium-part='progress.track'] {
+    grid-area: track;
+    position: relative;
+    height: 26px;
+    border-radius: 999px;
+    background: transparent;
+}
+
+.min-seek [data-folium-part='progress.track']::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 3px;
+    transform: translateY(-50%);
+    border-radius: 999px;
+    background: var(--min-track);
+}
+
+.min-seek [data-folium-part='progress.fill'] {
+    top: 50%;
+    height: 3px;
+    transform: translateY(-50%);
+    border-radius: 999px;
+    background: var(--min-fill);
+}
+
+.min-seek [data-folium-part='progress.thumb'] {
+    width: 9px;
+    height: 9px;
+    opacity: 1;
+    background: var(--min-fill);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--min-fill) 16%, transparent);
+}
+
+.min-seek [data-folium-part='progress.time'],
+.min-seek [data-folium-part='progress.duration'] {
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    width: auto;
+    opacity: 1;
+    color: var(--min-muted);
+}
+
+.min-seek [data-folium-part='progress.time'] {
+    grid-area: time;
+    text-align: left;
+}
+
+.min-seek [data-folium-part='progress.duration'] {
+    grid-area: duration;
+    text-align: right;
+}
+
+.min-seek [data-folium-part='progress.root'] > :first-child:empty,
+.min-seek [data-folium-part='progress.root'] > :last-child:empty {
+    display: none;
+}
+
+.min-buttons {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: center;
+    justify-items: center;
+    margin-top: 12px;
+}
+
+.min-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 50px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    color: var(--min-ink);
+    cursor: pointer;
+    transition: transform 150ms ease, opacity 150ms ease, color 150ms ease;
+}
+
+.min-btn:active:not(:disabled) {
+    transform: scale(0.9);
+}
+
+.min-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.min-btn--aux {
+    color: color-mix(in srgb, var(--min-ink) 74%, transparent);
+}
+
+.min-btn--aux[data-active] {
+    color: var(--min-accent);
+}
+
+.min-btn--play {
+    position: relative;
+    width: 54px;
+    height: 54px;
+    justify-self: center;
+    color: var(--min-ink-bright);
+}
+
+.min-play-ring {
+    position: absolute;
+    inset: 0;
+    border: 1.5px solid color-mix(in srgb, var(--min-ink) 52%, transparent);
+    border-radius: 50%;
+    transition: border-color 200ms ease;
+}
+
+.min-btn--play[aria-pressed='true'] .min-play-ring {
+    border-color: color-mix(in srgb, var(--min-ink) 66%, transparent);
+}
+
+/* The play triangle is optically light on the right; nudge it so it reads as centred. */
+.min-play-glyph {
+    transform: translateX(1.5px);
+}
+
+.min-btn:focus-visible,
+.min-icon:focus-visible,
+.min-dot:focus-visible {
+    outline: 2px solid var(--min-accent);
+    outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- page dots */
+
+.min-dots {
+    position: relative;
+    z-index: 3;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    height: 26px;
+    padding-bottom: max(2px, env(safe-area-inset-bottom, 0px));
+}
+
+.min-dot {
+    width: 5px;
+    height: 5px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--min-ink) 30%, transparent);
+    cursor: pointer;
+    transition: width 220ms ease, height 220ms ease, background-color 220ms ease;
+}
+
+.min-dot[data-active] {
+    width: 6px;
+    height: 6px;
+    background: color-mix(in srgb, var(--min-ink) 88%, transparent);
+}
+
+/* ---------------------------------------------------------------- responsive */
+
+@media (max-height: 700px) {
+    .min-cover { gap: 14px; }
+    .min-cover__art { width: min(64%, 250px); }
+    .min-cover__title { font-size: 19px; }
+    .min-line__text { font-size: 15.5px; line-height: 30px; }
+    .min-line[data-active] .min-line__text { font-size: 19.5px; line-height: 30px; }
+    .min-line { margin-bottom: 14px; }
+}
+
+@media (min-height: 900px) {
+    .min-cover__art { width: min(78%, 344px); }
+    .min-cover__title { font-size: 24px; }
+    .min-line__text { font-size: 17px; }
+    .min-line[data-active] .min-line__text { font-size: 22.5px; }
+}
+
+@media (orientation: landscape) {
+    .min-cover {
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 28px;
+        padding: 4px 32px;
+    }
+    .min-cover__art { width: auto; height: min(78%, 320px); }
+    .min-cover__meta { width: auto; max-width: 46%; align-items: flex-start; text-align: left; }
+    .min-chips { justify-content: flex-start; }
+    .min-lyrics__column { padding-top: 18px; }
+}

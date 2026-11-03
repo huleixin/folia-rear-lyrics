@@ -159,6 +159,7 @@ import { useNativeStagePresentation } from './hooks/useNativeStagePresentation';
 import { audioBands, audioPower, bass, currentTime, lowMid, lyricCurrentTime, mid, spectrum, treble, vocal } from './stores/motionSignals';
 import { useAppChromeStore } from './stores/useAppChromeStore';
 import { useAppViewStore } from './stores/useAppViewStore';
+import { usePlayerViewModeStore } from './stores/usePlayerViewModeStore';
 import { selectDisplayCoverUrl, selectDisplayDuration, selectDisplayLyrics, selectDisplayPlayerState, selectDisplaySong, selectIsShowingTail, usePlaybackStore } from './stores/usePlaybackStore';
 import { useLibraryStore } from './stores/useLibraryStore';
 import { selectLibraryOccludesPlayer, selectLibraryPlayerBackdrop, useLibraryPlayerOcclusionStore } from './stores/useLibraryPlayerOcclusionStore';
@@ -2380,8 +2381,23 @@ export default function App() {
         localLibraryCatalog,
         navigateToCollection,
     });
+    // Which front-stage presentation is on screen. `detour` is a visit to the classic stage from the
+    // minimal lyric page: it renders the stage without rewriting the listener's saved preference, and
+    // leaving it returns to the minimal page instead of quitting the player.
+    const playerViewMode = usePlayerViewModeStore(state => state.mode);
+    const playerViewDetour = usePlayerViewModeStore(state => state.detour);
+    const minimalStageActive = playerViewMode === 'minimal' && !playerViewDetour;
+    const leavePlayer = useCallback(() => {
+        const view = usePlayerViewModeStore.getState();
+        if (view.detour) {
+            view.closeStage();
+            return;
+        }
+        navigateBackFromPlayer();
+    }, [navigateBackFromPlayer]);
+
     const appOverlaysModel = useAppOverlaysModel({
-        onBackFromPlayer: navigateBackFromPlayer,
+        onBackFromPlayer: leavePlayer,
         theme,
         closeSearchView,
         handleSearchOverlaySubmit,
@@ -2502,7 +2518,10 @@ export default function App() {
     const hasLibraryOcclusionSettled = useLibraryOcclusionSettled(shouldRevealHomeSurface && libraryOccludesPlayer);
     const mainStageActive = useMainStageActive();
     const nativeStagePresentation = useNativeStagePresentation(currentView === 'player', mainStageActive, visualizerRendererModel);
-    const shouldMountVisualizer = mainStageActive && (PREHIDE_COMPOSE_CHROME ? nativeStagePresentation.mounted : shouldMountPlayerVisualizer({
+    // The minimal stage replaces the visualizer on the player surface: leaving the renderer unmounted
+    // is what keeps the mode cheap — its GPU scenes and shaders are not merely hidden, they are gone.
+    // Everything else about the pipeline (deck, clock, lyrics, MediaSession) is untouched.
+    const shouldMountVisualizer = mainStageActive && !minimalStageActive && (PREHIDE_COMPOSE_CHROME ? nativeStagePresentation.mounted : shouldMountPlayerVisualizer({
         currentView,
         hasLatticeExited,
         shouldRevealHomeSurface,

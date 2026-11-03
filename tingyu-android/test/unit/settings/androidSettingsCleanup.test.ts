@@ -76,10 +76,21 @@ describe('Android settings cleanup boundaries', () => {
     });
     it('removes the stage command entry and preserves real lyrics/audio actions', () => {
         const close = vi.fn(); act(() => root.render(h(MobileStageMenu, { onClose: close })));
-        expect(host.querySelectorAll('[role="menuitem"]')).toHaveLength(4);
+        // Four original destinations plus the queue, which the minimal player page has no room for
+        // in its own transport row.
+        expect(host.querySelectorAll('[role="menuitem"]')).toHaveLength(5);
         expect(host.textContent).not.toContain('mobileStage.commands');
         act(() => host.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')[2].click());
         expect(useAppViewStore.getState().panelTab).toBe('onlineLyrics');
         expect(useAppViewStore.getState().isPanelOpen).toBe(true); expect(close).toHaveBeenCalledOnce();
+    });
+    it('offers the queue from the stage menu for the minimal player page', () => {
+        const close = vi.fn();
+        useAppViewStore.getState().setIsPanelOpen(false);
+        act(() => root.render(h(MobileStageMenu, { onClose: close })));
+        act(() => host.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')[3].click());
+        expect(useAppViewStore.getState().panelTab).toBe('queue');
+        expect(useAppViewStore.getState().isPanelOpen).toBe(true);
+        expect(close).toHaveBeenCalledOnce();
     });
 });
