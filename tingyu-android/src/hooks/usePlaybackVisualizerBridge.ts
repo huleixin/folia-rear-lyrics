@@ -221,6 +221,16 @@ export function usePlaybackVisualizerBridge({
             const hasReachedEnd = playerState === PlayerState.PLAYING && nextTime >= clock.endTimeSec;
 
             currentTime.set(nextTime);
+            /*
+             * 这条分支是「只有歌词、没有音频」的舞台会话，它自己步行时间轴。以前只写了
+             * `currentTime`，没写 `lyricCurrentTime` —— 于是这条路径上两个本应相同的时钟就分叉了：
+             * 舞台的歌词索引（这一行自己算）在走，而所有读 `lyricCurrentTime` 的地方
+             * （极简歌词页、封面上的实时歌词）停在上一次的值上不动。
+             *
+             * 这个会话的时间轴本身就是歌词坐标（`nextTime` 直接拿去和 `lyrics.lines` 比），
+             * 所以这里不需要再减偏移 —— 与下面索引用的同一个值。
+             */
+            lyricCurrentTime.set(nextTime);
 
             const foundIndex = findLatestActiveLineIndex(lyrics.lines, nextTime);
             if (foundIndex !== currentLineIndexRef.current) {
@@ -232,6 +242,7 @@ export function usePlaybackVisualizerBridge({
                 if (effectiveLoopMode === 'one' || effectiveLoopMode === 'all') {
                     syncStageLyricsClock(clock.startTimeSec, clock.endTimeSec, PlayerState.PLAYING, clock.startTimeSec);
                     currentTime.set(clock.startTimeSec);
+                    lyricCurrentTime.set(clock.startTimeSec);
                     const restartedLineIndex = findLatestActiveLineIndex(lyrics.lines, clock.startTimeSec);
                     if (restartedLineIndex !== currentLineIndexRef.current) {
                         currentLineIndexRef.current = restartedLineIndex;
