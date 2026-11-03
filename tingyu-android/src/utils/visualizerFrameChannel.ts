@@ -1,5 +1,6 @@
 import type { VisualizerFrameRate } from '../types';
 import type { FrameRateLimitedRaf } from './frameRateLimiter';
+import {createRearAodCadence,type RearAodCadenceChange} from './rearAodCadence';
 
 // src/utils/visualizerFrameChannel.ts
 // Graphics-only RAF queue. Browser/Framer UI scheduling is never replaced by this channel.
@@ -24,25 +25,46 @@ let lowTimer:ReturnType<typeof setTimeout>|null=null;
 const lowPulses=new Set<(now:number)=>void>();
 let lowDemand:(()=>number|null)|null=null;
 let lowEvent=false;
-let adaptiveFloor=0,lateRuns=0;
+const cadence=createRearAodCadence();
+const cadenceListeners=new Set<(change:RearAodCadenceChange)=>void>();
+export const subscribeVisualizerLowPowerCadence=(listener:(change:RearAodCadenceChange)=>void)=>{cadenceListeners.add(listener);return()=>{cadenceListeners.delete(listener)};};
+let lowFlushing=false,lowStartedAt=0,lastLowRun:number|null=null;
 const lowStats={requests:0,late:0,workMs:0,lastDelay:0,cancelled:false};
-export const getVisualizerLowPowerStats=()=>({...lowStats,targetFps:lowStats.lastDelay>0?Math.round(1000/lowStats.lastDelay):0,suspended:renderingSuspended,pending:lowTimer!==null,adaptiveFloor});
-export function setVisualizerLowPowerDemand(value:(()=>number|null)|null){lowDemand=value;adaptiveFloor=0;lateRuns=0;if(value)invalidateVisualizerLowPower();else{lowEvent=false;if(lowTimer!==null){clearTimeout(lowTimer);lowTimer=null;}lowStats.cancelled=true;}}
+export const getVisualizerLowPowerStats=()=>{
+    const measuredMs=Math.max(0,performance.now()-lowStartedAt);
+    return {...lowStats,...cadence.snapshot(),targetFps:lowPower&&!renderingSuspended&&!lowStats.cancelled&&lowStats.lastDelay>0?Math.min(30,Math.round(1000/lowStats.lastDelay)):0,
+        callbackHz:measuredMs>0?lowStats.requests*1000/measuredMs:0,measuredMs,suspended:renderingSuspended,pending:lowTimer!==null};
+};
+export function setVisualizerLowPowerDemand(value:(()=>number|null)|null){
+    lowDemand=value;
+    if(value){cadence.reset();lastLowRun=null;lowStartedAt=performance.now();lowStats.requests=0;lowStats.late=0;lowStats.workMs=0;lowStats.lastDelay=0;}
+    if(value)invalidateVisualizerLowPower();else{lowEvent=false;if(lowTimer!==null){clearTimeout(lowTimer);lowTimer=null;}lowStats.cancelled=true;}
+}
 export function invalidateVisualizerLowPower(){lowEvent=true;if(lowTimer!==null){clearTimeout(lowTimer);lowTimer=null;}scheduleLow();}
 const lowListeners=new Set<(value:boolean)=>void>();
-function scheduleLow(){if(!lowPower||renderingSuspended||lowTimer!==null||!lowCallbacks.size&&!queue?.hasPending?.()&&!backgroundQueue?.hasPending?.()&&!lowPulses.size)return;
+function scheduleLow(){if(!lowPower||renderingSuspended||lowFlushing||lowTimer!==null||!lowCallbacks.size&&!queue?.hasPending?.()&&!backgroundQueue?.hasPending?.()&&!lowPulses.size)return;
     const delay=lowEvent?0:lowDemand?.()??null;
     if(delay===null){lowStats.cancelled=true;return;}
-    const wait=delay===0?0:Math.max(delay,adaptiveFloor);
+    const policy=cadence.snapshot(),gap=1000/policy.cadenceFps;
+    const wait=delay===0?0:Math.max(delay,policy.adaptiveFloor,lastLowRun===null?0:gap-(performance.now()-lastLowRun));
     lowStats.lastDelay=wait;lowStats.cancelled=false;const expected=performance.now()+wait;
     lowTimer=setTimeout(()=>{lowTimer=null;lowEvent=false;const batch=[...lowCallbacks];lowCallbacks.clear();
         const now=performance.now();lowStats.requests++;
-        if(now-expected>Math.max(100,wait)){lowStats.late++;if(++lateRuns>=3)adaptiveFloor=500;}else lateRuns=0;
-        queue?.flushPending?.(now);backgroundQueue?.flushPending?.(now);
-        for(const [,callback] of batch)callback(now);for(const pulse of lowPulses)pulse(now);lowStats.workMs+=Math.max(0,performance.now()-now);scheduleLow();},Math.max(0,wait));
+        const late=Math.max(0,now-expected);lastLowRun=now;lowFlushing=true;
+        try {
+            queue?.flushPending?.(now);backgroundQueue?.flushPending?.(now);
+            for(const [,callback] of batch)callback(now);for(const pulse of lowPulses)pulse(now);
+        } finally {
+            lowFlushing=false;const work=Math.max(0,performance.now()-now);lowStats.workMs+=work;
+            if(late>Math.max(12,gap*.75))lowStats.late++;
+            const change=cadence.sample(now,late,work,lowPower&&delay>0&&delay<=1000/30+1);
+            scheduleLow();
+            if(change)for(const listener of cadenceListeners)listener(change);
+        }},Math.max(0,wait));
 }
 export function setVisualizerLowPower(value:boolean){
     if(lowPower===value)return;lowPower=value;
+    cadence.reset();lastLowRun=null;
     queue?.setSuspended?.(value||renderingSuspended);backgroundQueue?.setSuspended?.(value||renderingSuspended);
     if(lowTimer!==null){clearTimeout(lowTimer);lowTimer=null;}
     if(value){lowEvent=true;scheduleLow();}else if(lowCallbacks.size){window.requestAnimationFrame(now=>{if(lowPower||renderingSuspended)return;const pending=[...lowCallbacks];for(const [id]of pending){const cb=lowCallbacks.get(id);if(cb){lowCallbacks.delete(id);cb(now);}}});}

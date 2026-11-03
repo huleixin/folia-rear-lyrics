@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { installGlobalVisualizerFrameRateLimiter, setGlobalVisualizerFrameRate } from '@/utils/frameRateLimiter';
-import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame, requestVisualizerBackgroundFrame, cancelVisualizerBackgroundFrame,setVisualizerLowPower,setVisualizerRenderingSuspended,bindVisualizerTickerRate,setVisualizerLowPowerDemand,invalidateVisualizerLowPower } from '@/utils/visualizerFrameChannel';
+import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame, requestVisualizerBackgroundFrame, cancelVisualizerBackgroundFrame,setVisualizerLowPower,setVisualizerRenderingSuspended,bindVisualizerTickerRate,setVisualizerLowPowerDemand,invalidateVisualizerLowPower,getVisualizerLowPowerStats,subscribeVisualizerLowPowerCadence } from '@/utils/visualizerFrameChannel';
 
 // test/unit/utils/visualizerFrameChannel.test.ts
 // A 60Hz UI must remain independent of the graphics cap, including live cap changes and cancellation.
@@ -61,4 +61,29 @@ it('idle and paused AOD do not draw until a visual event, then cancel on hidden'
     vi.advanceTimersByTime(60_000);expect(count).toBe(2);
     setVisualizerRenderingSuspended(true);invalidateVisualizerLowPower();vi.advanceTimersByTime(5000);expect(count).toBe(2);
     cancelVisualizerAnimationFrame(handle);setVisualizerLowPowerDemand(null);setVisualizerLowPower(false);setVisualizerRenderingSuspended(false);vi.clearAllTimers();vi.useRealTimers();
+});
+it('bounds tiny/overlapping timeline wakeups at 30 FPS; pause, hidden and AOD exit cancel continuous timers',()=>{
+    vi.useFakeTimers();vi.setSystemTime(0);const now=vi.spyOn(performance,'now').mockImplementation(()=>Date.now());
+    const raf=vi.fn(()=>1);vi.stubGlobal('window',{requestAnimationFrame:raf,cancelAnimationFrame:vi.fn(),Capacitor:{getPlatform:()=> 'android'},localStorage:{getItem:()=>null}});installGlobalVisualizerFrameRateLimiter();
+    let count=0,handle=0,playing=true;const tick=()=>{count++;handle=requestVisualizerAnimationFrame(tick);};
+    setVisualizerLowPowerDemand(()=>playing?1:null);setVisualizerLowPower(true);requestVisualizerAnimationFrame(tick);raf.mockClear();
+    vi.advanceTimersByTime(1000);expect(count).toBeGreaterThanOrEqual(30);expect(count).toBeLessThanOrEqual(32);expect(raf).not.toHaveBeenCalled();
+    playing=false;invalidateVisualizerLowPower();vi.advanceTimersByTime(0);const paused=count;
+    vi.advanceTimersByTime(60000);expect(count).toBe(paused);expect(getVisualizerLowPowerStats().cancelled).toBe(true);
+    setVisualizerRenderingSuspended(true);playing=true;invalidateVisualizerLowPower();vi.advanceTimersByTime(2000);expect(count).toBe(paused);expect(getVisualizerLowPowerStats().pending).toBe(false);
+    setVisualizerRenderingSuspended(false);vi.advanceTimersByTime(0);expect(count).toBe(paused+1);
+    cancelVisualizerAnimationFrame(handle);setVisualizerLowPowerDemand(null);setVisualizerLowPower(false);vi.clearAllTimers();now.mockRestore();vi.useRealTimers();
+});
+it('real channel samples degrade stepwise and recover during healthy frames instead of latching to 500ms',()=>{
+    vi.useFakeTimers();vi.setSystemTime(0);let lag=0;const now=vi.spyOn(performance,'now').mockImplementation(()=>Date.now()+lag);
+    vi.stubGlobal('window',{requestAnimationFrame:vi.fn(()=>1),cancelAnimationFrame:vi.fn(),Capacitor:{getPlatform:()=> 'android'},localStorage:{getItem:()=>null}});installGlobalVisualizerFrameRateLimiter();
+    let handle=0;const tick=()=>{handle=requestVisualizerAnimationFrame(tick);};const changes:number[]=[];
+    const stop=subscribeVisualizerLowPowerCadence(change=>changes.push(change.to));
+    setVisualizerLowPowerDemand(()=>1000/30);setVisualizerLowPower(true);requestVisualizerAnimationFrame(tick);vi.advanceTimersByTime(0);
+    for(let i=0;i<9;i++){lag+=1000;vi.advanceTimersToNextTimer();}
+    expect(getVisualizerLowPowerStats()).toMatchObject({cadenceFps:6,downgrades:3});
+    for(let i=0;i<240;i++)vi.advanceTimersToNextTimer();
+    expect(getVisualizerLowPowerStats()).toMatchObject({cadenceFps:30,recoveries:3});
+    expect(changes).toEqual([20,12,6,12,20,30]);expect(getVisualizerLowPowerStats().callbackHz).toBeGreaterThan(0);
+    stop();cancelVisualizerAnimationFrame(handle);setVisualizerLowPowerDemand(null);setVisualizerLowPower(false);vi.clearAllTimers();now.mockRestore();vi.useRealTimers();
 });

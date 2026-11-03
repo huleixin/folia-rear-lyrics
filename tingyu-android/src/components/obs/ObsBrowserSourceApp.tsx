@@ -1,5 +1,7 @@
 import {buildRearAodTimeline} from '../../utils/rearAodTimeline';
-import {getVisualizerLowPowerStats,setVisualizerLowPowerDemand,invalidateVisualizerLowPower} from '../../utils/visualizerFrameChannel';
+import {subscribeVisualizerLowPowerCadence,setVisualizerLowPowerDemand,invalidateVisualizerLowPower} from '../../utils/visualizerFrameChannel';
+import {reportRearAodFrames} from '../../services/rearAodDiagnostics';
+import type {RearAodCadenceChange} from '../../utils/rearAodCadence';
 import {useRearAod,isRearAod} from '../../services/rearAodRuntime';
 import {MotionConfig} from 'framer-motion';
 import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../utils/visualizerFrameChannel';
@@ -205,21 +207,21 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
         return () => cancelAnimationFrame(frame);
     }, [config, onConfigured, surfaceActive]);
 
-    const aodTimeline=useMemo(()=>buildRearAodTimeline(config?.lyrics?.lines??[]),[config?.lyrics]);
+    const aodTimeline=useMemo(()=>buildRearAodTimeline(config?.lyrics?.lines??[],config?.lyrics?.isWordByWord===true),[config?.lyrics]);
     useEffect(()=>{
         if(!aod||!surfaceActive)return;
         const demand=()=>{const clock=monotonicClock.current;return aodTimeline(clock.time+(clock.playing?Math.max(0,performance.now()-clock.at)/1000*clock.speed:0),clock.speed,clock.playing).delay;};
         updateStats.current={count:0,at:performance.now()};
-        const report=(trigger:string)=>{
-            const stats=getVisualizerLowPowerStats(),anchor=monotonicClock.current;
+        const report=(trigger:Parameters<typeof reportRearAodFrames>[0],change?:RearAodCadenceChange)=>{
+            const anchor=monotonicClock.current;
             const time=anchor.time+(anchor.playing?Math.max(0,performance.now()-anchor.at)/1000*anchor.speed:0);
-            const params=new URLSearchParams({mode:'AOD',style:configRef.current?.visualizerMode??'unknown',updates:String(updateStats.current.count),interval:'0',trigger,target:String(aodTimeline(time,anchor.speed,anchor.playing).fps),requests:String(stats.requests),late:String(stats.late),work:String(Math.round(stats.workMs)),idle:String(stats.cancelled)});
-            void fetch('/__folia_rear/aod-report?'+params,{cache:'no-store'}).catch(()=>undefined);
+            reportRearAodFrames(trigger,configRef.current?.visualizerMode??'unknown',aodTimeline(time,anchor.speed,anchor.playing).fps,updateStats.current.count,0,change);
         };
         setVisualizerLowPowerDemand(demand);report('state-change');
+        const stopCadence=subscribeVisualizerLowPowerCadence(change=>report(change.reason==='recovered'?'cadence-up':'cadence-down',change));
         const parent=window.parent;
         if(parent!==window)parent.dispatchEvent(new CustomEvent('folia-rear-demand',{detail:demand}));
-        return()=>{setVisualizerLowPowerDemand(null);report('cancelled');if(parent!==window)parent.dispatchEvent(new CustomEvent('folia-rear-demand',{detail:null}));};
+        return()=>{stopCadence();setVisualizerLowPowerDemand(null);report('cancelled');if(parent!==window)parent.dispatchEvent(new CustomEvent('folia-rear-demand',{detail:null}));};
     },[aod,surfaceActive,aodTimeline]);
     useEffect(() => {
         if (!surfaceActive) return;
@@ -231,8 +233,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
             currentTime.set(lyricTime);
             if(aod){const now=performance.now(),stats=updateStats.current;stats.count++;
                 if(now-stats.at>=30_000){
-                    const params=new URLSearchParams({mode:'AOD',style:configRef.current?.visualizerMode??'unknown',updates:String(stats.count),interval:String(Math.round((now-stats.at)/Math.max(1,stats.count))),trigger:'timeline',target:String(aodTimeline(lyricTime,anchor.speed,anchor.playing).fps),requests:String(getVisualizerLowPowerStats().requests),late:String(getVisualizerLowPowerStats().late),work:String(Math.round(getVisualizerLowPowerStats().workMs)),idle:String(getVisualizerLowPowerStats().cancelled)});
-                    void fetch('/__folia_rear/aod-report?'+params,{cache:'no-store'}).catch(()=>undefined);stats.at=now;stats.count=0;
+                    reportRearAodFrames('timeline',configRef.current?.visualizerMode??'unknown',aodTimeline(lyricTime,anchor.speed,anchor.playing).fps,stats.count,(now-stats.at)/Math.max(1,stats.count));stats.at=now;stats.count=0;
                 }
             }
 

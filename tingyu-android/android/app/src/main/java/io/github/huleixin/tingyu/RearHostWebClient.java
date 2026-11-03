@@ -80,8 +80,13 @@ final class RearHostWebClient extends WebViewClient {
                 String mode=url.getQueryParameter("mode"),style=url.getQueryParameter("style");
                 if(style==null||!style.matches("[a-zA-Z0-9_-]{1,64}"))style="unknown";
                 b.putString("reason","renderer=WEB_STAGE_AOD, mode="+("AOD".equals(mode)?"AOD":"NORMAL")+", style="+style
-                    +", updates="+safeCount(url,"updates")+", intervalMs="+safeCount(url,"interval")+", audio=muted-in-aod, trigger="+(java.util.Arrays.asList("timeline","state-change","cancelled").contains(url.getQueryParameter("trigger"))?url.getQueryParameter("trigger"):"unknown"));
+                    +", clockUpdates="+safeCount(url,"updates")+", intervalMs="+safeCount(url,"interval")+", audio=muted-in-aod, trigger="+(java.util.Arrays.asList("timeline","state-change","cancelled","cadence-down","cadence-up").contains(url.getQueryParameter("trigger"))?url.getQueryParameter("trigger"):"unknown"));
                 b.putString("reason",b.getString("reason","")+", targetFps="+safeCount(url,"target")+", requests="+safeCount(url,"requests")+", late="+safeCount(url,"late")+", callbackWorkMs="+safeCount(url,"work")+", calibrationHz=1, presentedFps=unmeasured, idle="+"true".equals(url.getQueryParameter("idle"))+", cancelled="+"cancelled".equals(url.getQueryParameter("trigger"))+"");
+                String cadenceReason=url.getQueryParameter("reason");
+                if(!java.util.Arrays.asList("session-reset","timer-late","callback-work","recovered").contains(cadenceReason))cadenceReason="unknown";
+                b.putString("reason",b.getString("reason","")+", callbackHz="+(safeCount(url,"callbackHzMilli")/1000.0)+", measuredMs="+safeCount(url,"windowMs")
+                    +", cadenceFps="+safeCount(url,"budget")+", downgrades="+safeCount(url,"downs")+", recoveries="+safeCount(url,"ups")
+                    +", cadenceReason="+cadenceReason+", fromFps="+safeCount(url,"from")+", toFps="+safeCount(url,"to")+", pending="+"true".equals(url.getQueryParameter("pending")));
                 call("report",b);return text("{}");
             }
             if("/__folia_rear/ready".equals(path)){diagnostic("ready-request","renderer onConfigured callback");view.post(events::ready);return text("{}");}
