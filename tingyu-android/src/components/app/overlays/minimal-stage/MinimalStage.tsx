@@ -461,6 +461,9 @@ export default function MinimalStage({
                                     controls={controls ?? EMPTY_CONTROLS}
                                     playing={!!playing && !underStage}
                                     onOpenArtist={chrome.onOpenArtist}
+                                    lyrics={lyrics}
+                                    lyricActive={page === 'cover' && !hidden && !underStage}
+                                    onOpenLyrics={() => goToPage('lyrics')}
                                     sleeveRef={sleeveRef}
                                     metaRef={coverMetaRef}
                                 />

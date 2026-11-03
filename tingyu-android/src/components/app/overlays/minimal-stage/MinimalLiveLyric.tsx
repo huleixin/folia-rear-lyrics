@@ -1,0 +1,68 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { LyricData } from '../../../../types';
+import { lyricCurrentTime } from '../../../../stores/motionSignals';
+import { buildLineStarts, findActiveLineIndex } from './minimalLyrics';
+
+// src/components/app/overlays/minimal-stage/MinimalLiveLyric.tsx
+// A compact cover-page lyric readout; it shares the resolved lyric timeline and clock with the stage.
+
+const EMPTY_LINES: NonNullable<LyricData['lines']> = [];
+
+type Selection = { songKey: string; lines: LyricData['lines']; index: number };
+
+export default function MinimalLiveLyric({
+    lyrics,
+    songKey,
+    active,
+    onOpen,
+}: {
+    lyrics: LyricData | null;
+    songKey: string;
+    active: boolean;
+    onOpen: () => void;
+}) {
+    const { t } = useTranslation();
+    const lines = lyrics?.lines ?? EMPTY_LINES;
+    const starts = useMemo(() => buildLineStarts(lines), [lines]);
+    const [selection, setSelection] = useState<Selection>({ songKey: '', lines: EMPTY_LINES, index: -1 });
+
+    useEffect(() => {
+        if (!active || !lines.length) {
+            return;
+        }
+        let lastIndex = -2;
+        const update = (time: number) => {
+            const index = findActiveLineIndex(starts, time);
+            if (index === lastIndex) {
+                return;
+            }
+            lastIndex = index;
+            setSelection({ songKey, lines, index });
+        };
+        update(lyricCurrentTime.get());
+        return lyricCurrentTime.on('change', update);
+    }, [active, lines, songKey, starts]);
+
+    const index = selection.songKey === songKey && selection.lines === lines ? selection.index : -1;
+    const line = index >= 0 ? lines[index] : null;
+    const text = line?.fullText?.trim();
+    if (!active || !songKey || !text) {
+        return null;
+    }
+
+    return (
+        <div className="min-live-lyric" data-testid="minimal-live-lyric">
+            <button
+                key={`${songKey}:${index}`}
+                type="button"
+                className="min-live-lyric__text"
+                title={text}
+                aria-label={`${t('minimalStage.openLyrics')}: ${text}`}
+                onClick={onOpen}
+            >
+                {text}
+            </button>
+        </div>
+    );
+}

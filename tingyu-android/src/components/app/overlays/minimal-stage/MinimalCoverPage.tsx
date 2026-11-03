@@ -3,8 +3,11 @@ import { useTranslation } from 'react-i18next';
 import type { AppOverlaysModel } from '../buildAppOverlaysModel';
 import MinimalArtwork from './MinimalArtwork';
 import MinimalArtistLink from './MinimalArtistLink';
+import MinimalLiveLyric from './MinimalLiveLyric';
 import { resolveQualityBadges } from './minimalQuality';
 import { usePlaybackStore } from '../../../../stores/usePlaybackStore';
+import type { LyricData } from '../../../../types';
+import { getPlaybackSongKey } from '../../../../utils/appPlaybackGuards';
 
 // src/components/app/overlays/minimal-stage/MinimalCoverPage.tsx
 // Left phone of the reference: the sleeve, then the song, then the caption row.
@@ -50,6 +53,9 @@ export default function MinimalCoverPage({
     song,
     controls,
     onOpenArtist,
+    lyrics,
+    lyricActive,
+    onOpenLyrics,
     playing,
     sleeveRef,
     metaRef,
@@ -57,6 +63,9 @@ export default function MinimalCoverPage({
     song: NonNullable<AppOverlaysModel['mobileStage']>['song'];
     controls: Controls;
     onOpenArtist?: NonNullable<AppOverlaysModel['mobileStage']>['onOpenArtist'];
+    lyrics: LyricData | null;
+    lyricActive: boolean;
+    onOpenLyrics: () => void;
     playing: boolean;
     /** The sleeve wrapper; the gesture frame writes its parallax offset here. */
     sleeveRef?: React.Ref<HTMLDivElement>;
@@ -102,6 +111,12 @@ export default function MinimalCoverPage({
                     <PlayingMeter playing={playing} />
                 </div>
             </div>
+            <MinimalLiveLyric
+                lyrics={lyrics}
+                songKey={song?.track ? getPlaybackSongKey(song.track) : song?.title ?? ''}
+                active={lyricActive}
+                onOpen={onOpenLyrics}
+            />
         </div>
     );
 }

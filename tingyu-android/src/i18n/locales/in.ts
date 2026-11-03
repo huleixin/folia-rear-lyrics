@@ -77,7 +77,7 @@ export default {
   },
   "minimalStage": {
     "pages": "Halaman pemutar", "coverPage": "Sampul minimal", "lyricsPage": "Lirik minimal",
-    "openStage": "Buka panggung lirik", "noLyrics": "Belum ada lirik",
+    "openStage": "Buka panggung lirik", "openLyrics": "Buka lirik lengkap", "noLyrics": "Belum ada lirik",
     "view": "Gaya halaman pemutar", "viewMinimal": "Minimal", "viewStage": "Panggung lirik",
     "viewDescription": "Mode minimal hanya mengubah tampilan halaman pemutar. Lirik, pemutaran, dan layar belakang tidak berubah.",
     "viewNote": "Halaman terakhir yang Anda buka akan diingat."

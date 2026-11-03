@@ -145,6 +145,7 @@ export default {
     "coverPage": "Minimal cover",
     "lyricsPage": "Minimal lyrics",
     "openStage": "Open lyric stage",
+    "openLyrics": "Open full lyrics",
     "noLyrics": "No lyrics",
     "view": "Player page style",
     "viewMinimal": "Minimal",

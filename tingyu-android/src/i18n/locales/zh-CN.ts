@@ -145,6 +145,7 @@ export default {
     "coverPage": "极简封面页",
     "lyricsPage": "极简歌词页",
     "openStage": "打开歌词舞台",
+    "openLyrics": "打开完整歌词",
     "noLyrics": "暂无歌词",
     "view": "播放页样式",
     "viewMinimal": "极简",
