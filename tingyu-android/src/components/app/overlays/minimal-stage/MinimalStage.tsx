@@ -117,6 +117,7 @@ export default function MinimalStage({
     const dotRefs = useRef<Array<HTMLButtonElement | null>>([]);
     /** Page position in page units; 0 = cover, 1 = lyrics. May sit outside the range mid-drag. */
     const posRef = useRef(0);
+    const suppressPagerClick = useRef(false);
     const frameRef = useRef(0);
     const dragRef = useRef<Drag | null>(null);
     /** Set when this component starts an animation, so the index effect does not restart it. */
@@ -270,7 +271,9 @@ export default function MinimalStage({
         if (event.clientX < EDGE_GUARD_PX) {
             return;
         }
-        stopFrame();
+        // A tap while paging must not stop its animation halfway. Take over only after a
+        // horizontal drag is confirmed; small vertical finger drift is not an axis decision.
+        suppressPagerClick.current = false;
         dragRef.current = {
             id: event.pointerId,
             axis: 'none',
@@ -281,7 +284,7 @@ export default function MinimalStage({
             lastTime: event.timeStamp,
             speed: 0,
         };
-    }, [stopFrame]);
+    }, []);
 
     const onPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
         const drag = dragRef.current;
@@ -292,17 +295,24 @@ export default function MinimalStage({
         const dy = event.clientY - drag.startY;
         if (drag.axis === 'none') {
             // Wait for a real gesture before locking an axis, so a tap on a lyric line stays a tap.
-            if (Math.abs(dx) < 6 && Math.abs(dy) < 6) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) < 12) {
                 return;
             }
-            drag.axis = Math.abs(dx) > Math.abs(dy) * 1.15 ? 'x' : 'y';
+            if (Math.abs(dx) > Math.abs(dy) * 1.2) drag.axis = 'x';
+            else if (Math.abs(dy) > Math.abs(dx) * 1.2) drag.axis = 'y';
+            else if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+            else drag.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
             if (drag.axis === 'x') {
+                stopFrame();
+                drag.startPos = posRef.current;
+                suppressPagerClick.current = true;
                 event.currentTarget.setPointerCapture?.(event.pointerId);
             }
         }
         if (drag.axis !== 'x') {
             return;
         }
+        event.preventDefault();
         const width = pagerRef.current?.clientWidth || 1;
         let next = drag.startPos - dx / width;
         // Rubber band past the first and last page: the strip gives, but never runs away.
@@ -318,7 +328,7 @@ export default function MinimalStage({
             drag.lastTime = event.timeStamp;
         }
         applyPos(next);
-    }, [applyPos]);
+    }, [applyPos, stopFrame]);
 
     const endDrag = useCallback((event: React.PointerEvent<HTMLDivElement>, cancelled = false) => {
         const drag = dragRef.current;
@@ -337,7 +347,7 @@ export default function MinimalStage({
         let target = base;
         if (!cancelled && Math.abs(drag.speed) > FLING_SPEED) {
             target = drag.speed < 0 ? base + 1 : base - 1;
-        } else if (Math.abs(pos - base) > COMMIT_RATIO) {
+        } else if (!cancelled && Math.abs(pos - base) > COMMIT_RATIO) {
             target = pos > base ? base + 1 : base - 1;
         }
         commit(Math.min(PAGES.length - 1, Math.max(0, target)));
@@ -444,6 +454,11 @@ export default function MinimalStage({
                 onPointerMove={onPointerMove}
                 onPointerUp={endDrag}
                 onPointerCancel={event => endDrag(event, true)}
+                onClickCapture={event => {
+                    if (suppressPagerClick.current) {
+                        event.preventDefault(); event.stopPropagation(); suppressPagerClick.current = false;
+                    }
+                }}
             >
                 <div className="min-track" ref={trackRef}>
                     {PAGES.map(id => (

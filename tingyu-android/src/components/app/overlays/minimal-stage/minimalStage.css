@@ -302,15 +302,12 @@
 .min-cover__art-layer--outgoing { z-index: 1; pointer-events: none; }
 .min-cover__art-layer--current { z-index: 2; }
 .min-cover__art-layer--incoming { animation: min-cover-in 400ms cubic-bezier(.22,.68,.2,1) both; }
-.min-cover__art-layer--outgoing { animation: min-cover-out 400ms ease both; }
+/* Keep full coverage beneath the incoming image: fading both layers dips through the backdrop. */
+.min-cover__art-layer--outgoing { opacity: 1; }
 
 @keyframes min-cover-in {
     from { opacity: 0; transform: scale(.995); }
     to { opacity: 1; transform: scale(1); }
-}
-@keyframes min-cover-out {
-    from { opacity: 1; }
-    to { opacity: 0; }
 }
 
 /* Life, not motion: ±2.5px over 19s. It reads as the page breathing, and it is paused whenever the
@@ -393,20 +390,11 @@
     min-width: 0;
 }
 
-.min-cover__meta--outgoing {
-    z-index: 1;
-    pointer-events: none;
-    animation: min-meta-out 240ms ease both;
-}
 .min-cover__meta--incoming { animation: min-meta-in 260ms cubic-bezier(.22,.68,.2,1) both; }
 
 @keyframes min-meta-in {
-    from { opacity: 0; transform: translate3d(0, 5px, 0); }
+    from { opacity: .72; transform: translate3d(0, 3px, 0); }
     to { opacity: 1; transform: none; }
-}
-@keyframes min-meta-out {
-    from { opacity: 1; transform: none; }
-    to { opacity: 0; transform: translate3d(0, -5px, 0); }
 }
 
 .min-cover__title {

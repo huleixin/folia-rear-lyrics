@@ -149,7 +149,7 @@ export default function MinimalCoverPage({
                 <div className="min-cover__art" data-testid="minimal-cover-art">
                     {showPreviousArt && previous && (
                         <MinimalArtworkFrame
-                            key={`out:${previous.key}:${previous.artKey}`}
+                            key={`image:${previous.artKey}:${previous.coverSource}`}
                             source={previous.coverSource}
                             failed={previous.artworkFailed}
                             alt={titleFor(previous)}
@@ -157,8 +157,9 @@ export default function MinimalCoverPage({
                         />
                     )}
                     <MinimalArtworkFrame
-                        // Keep the image node mounted for different songs that share one sleeve.
-                        key={`current:${current.artKey}`}
+                        // The outgoing layer keeps this same key and decoded image node. It must
+                        // not re-request a previous song's blob URL after its owner revokes it.
+                        key={`image:${current.artKey}:${current.coverSource}`}
                         source={current.coverSource}
                         failed={current.artworkFailed}
                         alt={titleFor(current)}
@@ -169,17 +170,7 @@ export default function MinimalCoverPage({
             </div>
 
             <div className="min-cover__meta-stack" ref={metaRef}>
-                {showPreviousMeta && previous && (
-                    <CoverMetadata
-                        key={`out:${previous.key}`}
-                        snapshot={previous}
-                        playing={playing}
-                        onOpenArtist={onOpenArtist}
-                        className="min-cover__meta min-cover__meta--outgoing"
-                    />
-                )}
                 <CoverMetadata
-                    key={`current:${current.key}`}
                     snapshot={current}
                     playing={playing}
                     onOpenArtist={onOpenArtist}

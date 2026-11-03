@@ -85,20 +85,31 @@ export function useCoverColors(url: string | null): CoverColors | null {
             return () => window.clearTimeout(timer);
         }
         const cached = cache.get(url);
-        if (cached !== undefined) {
+        if (cached) {
             setColors(cached);
             return;
         }
         let alive = true;
-        void sampleCover(url, () => alive).then(value => {
-            if (!alive) {
-                return;
-            }
-            remember(url, value);
-            setColors(value);
-        });
+        let fallbackTimer: number | undefined;
+        const accept = (value: CoverColors | null) => {
+            if (!alive) return;
+            if (value) setColors(value);
+            // A revoked intermediate blob must not flash the default palette while the final
+            // artwork is arriving. A real failure still reaches fallback after a bounded wait.
+            else fallbackTimer = window.setTimeout(() => { if (alive) setColors(null); }, 600);
+        };
+        if (cached === null) {
+            accept(null);
+        } else {
+            void sampleCover(url, () => alive).then(value => {
+                if (!alive) return;
+                remember(url, value);
+                accept(value);
+            });
+        }
         return () => {
             alive = false;
+            window.clearTimeout(fallbackTimer);
         };
     }, [url]);
 

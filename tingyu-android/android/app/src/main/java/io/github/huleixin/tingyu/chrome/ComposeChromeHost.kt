@@ -246,7 +246,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val stageBackdrop = rememberLayerBackdrop()
         val exitProgress=rememberStageExitProgress(stageExit,reducedMotion)
         val visible = if (!webOverlay&&!pendingStageEntry) surfaces.values.filter {
-            it.enabled && NativeFooterLayout.visible(it.id,destination,playlistDetail,it.viewportWidth) &&
+            it.enabled && NativeFooterLayout.visible(it.id,destination,playlistDetail,it.viewportWidth,
+                pageTarget.startsWith("collection:artist:")) &&
                 (it.id!="stage"||it.rect.width>0&&it.rect.height>0)
         } else emptyList()
         // Reuse the route's one retained composition beneath the collapsing stage.

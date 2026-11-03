@@ -59,3 +59,57 @@ test('static ambience blends interrupted song colours without remounting its mov
         return {samples:colors.size,same:blob===document.querySelector('.min-amb__blob'),duration:getComputedStyle(amb).transitionDuration};
     });expect(result.samples).toBeGreaterThan(5);expect(result.same).toBe(true);expect(result.duration).not.toBe('0s');
 });
+test('metadata is present before artwork decode and remains mounted through song crossfade',async({page})=>{
+    await page.route('**/dev/assets/minimal-preview-cover.jpg',async route=>{await new Promise(r=>setTimeout(r,900));await route.continue();});
+    await page.goto('/minimal-stage-preview.html?page=cover&stationary=1');
+    await expect(page.locator('.min-cover__title')).toHaveText('并肩前行');
+    expect(await page.locator('.min-cover__meta').evaluate(e=>Number(getComputedStyle(e).opacity))).toBeGreaterThanOrEqual(.72);
+    await page.locator('.min-cover__art img').waitFor();await page.waitForTimeout(400);
+    const result=await page.evaluate(async()=>{
+        const caption=document.querySelector('.min-cover__meta');
+        const decodedImage=document.querySelector('.min-cover__art img');
+        (window as any).__minimalPreview.switchSong('cool');
+        const started=performance.now();let fading=false,stable=true,minOld=1,minCaption=1;
+        await new Promise<void>(resolve=>{const tick=()=>{
+            const old=document.querySelector('.min-cover__art-layer--outgoing');const incoming=document.querySelector('.min-cover__art-layer--incoming');
+            if(old&&incoming){fading=true;minOld=Math.min(minOld,Number(getComputedStyle(old).opacity));stable&&=old.querySelector('img')===decodedImage;}
+            stable&&=caption===document.querySelector('.min-cover__meta');
+            minCaption=Math.min(minCaption,Number(getComputedStyle(document.querySelector('.min-cover__meta')!).opacity));
+            if(performance.now()-started<1100)requestAnimationFrame(tick);else resolve();};requestAnimationFrame(tick);});
+        return {fading,stable,minOld,minCaption};
+    });expect(result.fading).toBe(true);expect(result.stable).toBe(true);expect(result.minOld).toBe(1);expect(result.minCaption).toBeGreaterThanOrEqual(.71);
+    await expect(page.locator('.min-cover__title')).toHaveText('深海');
+});
+test('a tap during paging cannot freeze it and diagonal-start lyric swipes still page',async({page})=>{
+    await page.goto('/minimal-stage-preview.html?page=cover&stationary=1');await page.waitForTimeout(650);
+    await page.locator('.min-dot').nth(1).click();await page.waitForTimeout(80);
+    await page.mouse.click(180,400);
+    await expect.poll(()=>page.evaluate(()=>(window as any).__minimalPreview.state().pos)).toBe(1);
+    const before=await page.evaluate(()=>(window as any).__minimalPreview.state().seeks.length);
+    await page.mouse.move(85,420);await page.mouse.down();
+    await page.mouse.move(88,427);await page.mouse.move(95,429);
+    await page.mouse.move(290,432,{steps:12});await page.mouse.up();
+    await expect.poll(()=>page.evaluate(()=>Math.abs((window as any).__minimalPreview.state().pos))).toBe(0);
+    expect(await page.evaluate(()=>(window as any).__minimalPreview.state().seeks.length)).toBe(before);
+});
+
+test('touch swipes page horizontally while vertical lyric scrolling remains native',async({browser,baseURL})=>{
+    const context=await browser.newContext({baseURL,viewport:{width:393,height:873},isMobile:true,hasTouch:true,serviceWorkers:'block'});
+    try {
+        const page=await context.newPage();await page.goto('/minimal-stage-preview.html?page=cover&stationary=1&lines=80');await page.waitForTimeout(700);
+        const cdp=await context.newCDPSession(page);
+        const swipe=async(x:number,y:number,dx:number,dy:number)=>{
+            await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});
+            for(let i=1;i<=12;i++){await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x+dx*i/12,y:y+dy*i/12}]});await page.waitForTimeout(18);}
+            await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await page.waitForTimeout(450);
+        };
+        await swipe(310,400,-250,8);
+        expect(await page.evaluate(()=>(window as any).__minimalPreview.state().pos)).toBe(1);
+        const initial=await page.locator('.min-lyrics__scroll').evaluate(e=>e.scrollTop);
+        await swipe(190,580,2,-180);
+        expect(await page.locator('.min-lyrics__scroll').evaluate(e=>e.scrollTop)).toBeGreaterThan(initial+30);
+        expect(await page.evaluate(()=>(window as any).__minimalPreview.state().pos)).toBe(1);
+        await swipe(70,420,250,6);
+        expect(await page.evaluate(()=>Math.abs((window as any).__minimalPreview.state().pos))).toBe(0);
+    }finally{await context.close();}
+});

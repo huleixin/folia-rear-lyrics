@@ -3,10 +3,13 @@ package io.github.huleixin.tingyu.chrome
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeFooterLayout.kt
 // Footer placement is route state, never a measured pose of an invisible HTML animation.
 internal object NativeFooterLayout {
-    fun visible(id:String,route:String,playlist:Boolean,width:Float):Boolean = when(id){
+    fun visible(id:String,route:String,playlist:Boolean,width:Float,artist:Boolean=false):Boolean = when {
+        route=="collection"&&artist -> false
+        else -> when(id){
         "stage"->route=="stage"
         "nav"->route in setOf("home","collection")&&(!playlist||width>=840f)
         else->route in setOf("home","collection")
+        }
     }
     fun rect(id:String,width:Float,height:Float,top:Float,bottom:Float,playlist:Boolean):ChromeRect {
         val wide=width>=840f;val short=wide&&height<=600f

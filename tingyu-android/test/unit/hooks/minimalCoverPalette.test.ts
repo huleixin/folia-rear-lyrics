@@ -26,3 +26,11 @@ it('bridges a temporary empty artwork URL without a fallback flash and ignores o
     await succeed(0);expect(color).toBe(blue);
     render(null);await act(async()=>{await vi.advanceTimersByTimeAsync(400)});expect(color).toBeNull();
 });
+it('holds the last good palette through a failed intermediate artwork then settles a real failure',async()=>{
+    render('red');await succeed(0);const red=color;
+    render('revoked-blob');await act(async()=>{images[1].onerror?.();await Promise.resolve()});
+    await act(async()=>{await vi.advanceTimersByTimeAsync(300)});expect(color).toBe(red);
+    render('blue');await succeed(2);const blue=color;
+    await act(async()=>{await vi.advanceTimersByTimeAsync(700)});expect(color).toBe(blue);
+    render('revoked-blob');await act(async()=>{await vi.advanceTimersByTimeAsync(600)});expect(color).toBeNull();
+});

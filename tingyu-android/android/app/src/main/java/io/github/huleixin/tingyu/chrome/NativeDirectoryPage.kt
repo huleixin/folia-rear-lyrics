@@ -84,6 +84,12 @@ import androidx.compose.ui.unit.sp
                             }
                         }
                         section.layout=="rows" -> pagedNativeRows(page,section,caches.getValue(section.id),if(library)NativePageDesign.DirectoryRow else 62,action,chevron=library)
+                        !library&&section.id=="play"&&page.key.contains("artist:") -> item(key=section.id){
+                            Row(Modifier.fillMaxWidth().padding(bottom=16.dp)){
+                                section.items.firstOrNull()?.let{item->PagePill(item.title,{action(item.action,"",0.0)},
+                                    selected=true,enabled=!item.disabled,height=36.dp,font=14,trailing="play")}
+                            }
+                        }
                         !library&&section.layout=="chips" -> item(key=section.id){NativeSourceTabs(section,Modifier.padding(bottom=12.dp),action=action)}
                         !library&&section.layout=="input" -> item(key=section.id){Box(Modifier.padding(bottom=10.dp)){NativePageInput(section,action)}}
                         section.layout=="message"&&section.text.isNotBlank() -> item(key=section.id){Text(section.text,color=PageMuted,fontSize=13.sp,modifier=Modifier.padding(vertical=20.dp,horizontal=8.dp))}

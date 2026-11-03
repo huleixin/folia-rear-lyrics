@@ -5,6 +5,13 @@ import org.junit.Test
 
 // android/app/src/test/java/io/github/huleixin/tingyu/chrome/NativeFooterLayoutTest.kt
 class NativeFooterLayoutTest {
+    @Test fun artistDetailHidesBothNativeFootersAndHomeRestoresThem(){
+        for(width in listOf(393f,1000f))for(id in listOf("mini","nav")){
+            assertFalse(NativeFooterLayout.visible(id,"collection",false,width,artist=true))
+            assertTrue(NativeFooterLayout.visible(id,"home",false,width,artist=true))
+        }
+        assertTrue(NativeFooterLayout.visible("mini","collection",false,393f))
+    }
     @Test fun stageGeometryIsIndependentOfHiddenHtmlAnimationPoses(){
         val stage=NativeFooterLayout.rect("stage",393f,852f,30f,22f,false)
         assertEquals(136f,stage.height,0f);assertEquals(32f,852f-stage.top-stage.height,0f)
