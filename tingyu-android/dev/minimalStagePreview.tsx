@@ -97,7 +97,7 @@ usePlaybackStore.setState({
         id: 'preview',
         name: song.name,
         artists: [{ id: 'preview-artist', name: song.artist }],
-        album: { id: 'preview-album', name: '示例专辑' },
+        album: { id: 'preview-album', name: '示例专辑', coverUrl: song.cover ?? undefined },
         durationMs: duration * 1000,
         catalogAudioSpecs: ['hires', 'lossless'],
     } as never,
@@ -118,7 +118,7 @@ if (Number.isFinite(scale) && scale > 0) {
 const backLog: number[] = [];
 
 const chrome: NonNullable<AppOverlaysModel['mobileStage']> = {
-    song: { title: song.name, artist: song.artist, coverUrl: song.cover },
+    song: { title: song.name, artist: song.artist, coverUrl: params.get('broken') === '1' ? '/dev/assets/missing-preview.jpg' : song.cover, track: usePlaybackStore.getState().currentSong! },
     onBack: () => { backLog.push(performance.now()); },
     onOpenArtist: artist => { document.documentElement.dataset.openedArtist = artist.name; },
     hidden: false,
@@ -141,7 +141,8 @@ const seekLog: number[] = [];
 
 const controls = {
     controlsDisabled: false,
-    canTogglePlay: true,
+    canTogglePlay: params.get('preparing') !== '1',
+    preparing: params.get('preparing') === '1',
     currentTime,
     lyricCurrentTime,
     duration,
