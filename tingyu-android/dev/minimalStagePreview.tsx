@@ -7,6 +7,7 @@ import MinimalStage from '../src/components/app/overlays/minimal-stage/MinimalSt
 import type { AppOverlaysModel } from '../src/components/app/overlays/buildAppOverlaysModel';
 import { lyricCurrentTime, currentTime } from '../src/stores/motionSignals';
 import { usePlaybackStore } from '../src/stores/usePlaybackStore';
+import { useTypographySettingsStore } from '../src/stores/useTypographySettingsStore';
 import { usePlayerViewModeStore, type MinimalPlayerPage } from '../src/stores/usePlayerViewModeStore';
 import { FALLBACK_AI_DUAL_THEME } from '../src/services/themeSanitizer';
 import { PlayerState, type Line } from '../src/types';
@@ -36,6 +37,10 @@ const SONG_CASES: Record<string, { name: string; artist: string; cover: string |
     },
     nolyrics: { name: '无声的长夜', artist: '佚名', cover: '/dev/assets/minimal-preview-cover.jpg' },
     nocover: { name: '封面缺失的样本', artist: '本地文件', cover: null },
+    // Two derived sleeves (hue-shifted copies of the reference artwork) so the palette can be
+    // checked against a cool and a rose cover, not only the sunset the design shipped with.
+    cool: { name: '深海', artist: '夜色合唱团', cover: '/dev/assets/minimal-preview-cover-cool.jpg' },
+    rose: { name: '蔷薇', artist: '午后', cover: '/dev/assets/minimal-preview-cover-rose.jpg' },
 };
 
 const song = SONG_CASES[songCase] ?? SONG_CASES.normal!;
@@ -100,9 +105,17 @@ usePlaybackStore.setState({
 
 usePlayerViewModeStore.setState({ page, detour: false, mode: 'minimal' });
 
+// ?scale=1.3 exercises the app's own lyric font scale, which this page honours.
+const scale = Number(params.get('scale') ?? '1');
+if (Number.isFinite(scale) && scale > 0) {
+    useTypographySettingsStore.setState({ lyricsFontScale: scale });
+}
+
+const backLog: number[] = [];
+
 const chrome: NonNullable<AppOverlaysModel['mobileStage']> = {
     song: { title: song.name, artist: song.artist, coverUrl: song.cover },
-    onBack: () => { },
+    onBack: () => { backLog.push(performance.now()); },
     hidden: false,
 };
 
@@ -168,17 +181,28 @@ document.documentElement.dataset.foliaSurface = 'rear-lyrics';
 document.documentElement.style.background = light ? '#eef3ef' : '#071312';
 
 /**
- * The WebView is laid out inside the system bars, so the real page never starts at y=0. A browser
- * has no insets of its own, so the harness stands in for them with the same values a 393×852 phone
- * reports — otherwise every screenshot would misrepresent the top bar's distance from the edge.
+ * The WebView is full bleed, so the real page starts at y=0 and underlaps the status bar. A browser
+ * has no insets of its own and the app's own bridge is absent, so the harness publishes the same
+ * CSS variables the native side writes (--folia-main-inset-*), with the values measured off a
+ * 1080×2351 device: a ~40px status bar and a ~24px gesture area at 2.75x.
+ *
+ * These are set as variables rather than as wrapper padding on purpose — the page must consume the
+ * real mechanism, otherwise the preview cannot show whether the fix works.
  */
-const SAFE_TOP = 50;
+const SAFE_TOP = 40;
 const SAFE_BOTTOM = 24;
 
 function Preview() {
     useEffect(() => { tick(); }, []);
+    useEffect(() => {
+        const root = document.documentElement.style;
+        root.setProperty('--folia-main-inset-top', `${SAFE_TOP}px`);
+        root.setProperty('--folia-main-inset-bottom', `${SAFE_BOTTOM}px`);
+        root.setProperty('--folia-main-inset-left', '0px');
+        root.setProperty('--folia-main-inset-right', '0px');
+    }, []);
     return (
-        <div style={{ position: 'fixed', inset: `${SAFE_TOP}px 0 ${SAFE_BOTTOM}px`, overflow: 'hidden' }}>
+        <div style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>
             <MinimalStage chrome={chrome} controls={controls} />
         </div>
     );
@@ -187,10 +211,32 @@ function Preview() {
 createRoot(document.getElementById('root')!).render(<Preview />);
 
 // Test seams: drive the clock, and read back what the page actually did.
+type Box = { x: number; y: number; w: number; h: number };
 type PreviewState = {
     seek: (time: number) => void;
     closeStage: () => void;
-    state: () => { page: string; detour: boolean; mode: string; seeks: number[]; scrollLeft: number; pageWidth: number };
+    state: () => {
+        page: string;
+        detour: boolean;
+        mode: string;
+        seeks: number[];
+        backs: number[];
+        /** Page position read back from the rendered transform, in page units. */
+        pos: number;
+        phase: string;
+        viewport: { w: number; h: number };
+        insetTop: number;
+        insetBottom: number;
+        boxes: { top: Box; dots: Box; transport: Box; cover: Box | null; scroll: Box | null; scrollTop: number; scrollHeight: number };
+    };
+};
+const boxOf = (selector: string): Box => {
+    const element = document.querySelector<HTMLElement>(selector);
+    if (!element) {
+        return { x: 0, y: 0, w: 0, h: 0 };
+    }
+    const rect = element.getBoundingClientRect();
+    return { x: rect.x, y: rect.y, w: rect.width, h: rect.height };
 };
 (window as unknown as { __minimalPreview: PreviewState }).__minimalPreview = {
     seek: time => {
@@ -199,15 +245,34 @@ type PreviewState = {
     },
     closeStage: () => usePlayerViewModeStore.getState().closeStage(),
     state: () => {
-        const pager = document.querySelector<HTMLElement>('.min-pager');
+        const track = document.querySelector<HTMLElement>('.min-track');
+        const shell = document.querySelector<HTMLElement>('.min');
+        const scroller = document.querySelector<HTMLElement>('.min-lyrics__scroll');
         const store = usePlayerViewModeStore.getState();
+        const match = /translate3d\((-?[\d.]+)%/.exec(track?.style.transform ?? '');
+        const readInset = (name: string) => parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue(name),
+        ) || 0;
         return {
             page: store.page,
             detour: store.detour,
             mode: store.mode,
             seeks: [...seekLog],
-            scrollLeft: pager?.scrollLeft ?? 0,
-            pageWidth: pager?.clientWidth ?? 0,
+            backs: [...backLog],
+            pos: match ? -parseFloat(match[1]) / 50 : 0,
+            phase: shell?.dataset.phase ?? 'idle',
+            viewport: { w: window.innerWidth, h: window.innerHeight },
+            insetTop: readInset('--folia-main-inset-top'),
+            insetBottom: readInset('--folia-main-inset-bottom'),
+            boxes: {
+                top: boxOf('.min-top'),
+                dots: boxOf('.min-dots'),
+                transport: boxOf('.min-transport'),
+                cover: document.querySelector('.min-cover__art') ? boxOf('.min-cover__art') : null,
+                scroll: scroller ? boxOf('.min-lyrics__scroll') : null,
+                scrollTop: scroller?.scrollTop ?? 0,
+                scrollHeight: scroller?.scrollHeight ?? 0,
+            },
         };
     },
 };

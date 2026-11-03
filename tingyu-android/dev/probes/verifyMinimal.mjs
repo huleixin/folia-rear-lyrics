@@ -1,11 +1,15 @@
 // dev/probes/verifyMinimal.mjs
 // Browser-level behaviour checks for the minimal stage. Dev-only.
 //
-// These run against the real component in Chromium at a phone viewport with touch enabled, so the
+// These run against the real component in Chromium at a phone viewport with touch enabled, so a
 // swipe is a trusted CDP touch sequence rather than a synthetic event — a page that only "works"
 // with dispatched events would pass the latter and fail on a phone.
 //
-// They are NOT a device test: no Media3, no rear screen, no real insets.
+// What this can prove: layout against the insets the page actually consumes, follow-the-finger
+// paging, spring-back, the vertical lyric scroll staying vertical, tap-to-seek, the tweened lyric
+// follow, the stage detour, and the enter/exit phases.
+// What it cannot: Media3 playback, the rear screen, Compose layering, real frame pacing. Those are
+// listed as unverified in the audit document — this file must not be read as device evidence.
 import { chromium } from 'playwright';
 
 const BASE = process.env.PREVIEW_BASE ?? 'http://127.0.0.1:4399/minimal-stage-preview.html';
@@ -14,143 +18,248 @@ const check = (name, ok, detail = '') => {
     results.push({ name, ok, detail });
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`);
 };
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 const browser = await chromium.launch();
-const context = await browser.newContext({
-    viewport: { width: 393, height: 852 },
-    deviceScaleFactor: 2,
-    isMobile: true,
-    hasTouch: true,
-});
-const page = await context.newPage();
-const errors = [];
-page.on('pageerror', error => errors.push(error.message));
-await page.goto(`${BASE}?page=cover&theme=dark&stationary=1`, { waitUntil: 'networkidle' });
-await page.waitForTimeout(900);
 
-const state = () => page.evaluate(() => window.__minimalPreview.state());
-
-// 1. The cover page is what a fresh visit shows.
-let current = await state();
-check('cover page is restored on a fresh visit', current.page === 'cover' && current.scrollLeft === 0, `page=${current.page}`);
-
-// 2. A trusted horizontal swipe moves the strip to the lyric page.
-const client = await context.newCDPSession(page);
-const swipe = async (fromX, toX, y) => {
-    await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: fromX, y }] });
-    const steps = 12;
-    for (let step = 1; step <= steps; step += 1) {
-        await client.send('Input.dispatchTouchEvent', {
-            type: 'touchMove',
-            touchPoints: [{ x: fromX + ((toX - fromX) * step) / steps, y }],
-        });
-        await page.waitForTimeout(12);
-    }
-    await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    await page.waitForTimeout(700);
-};
-await swipe(340, 40, 420);
-current = await state();
-check('swiping right on the cover page opens the lyric page', current.page === 'lyrics', `page=${current.page} left=${Math.round(current.scrollLeft)}`);
-
-// 3. Tapping a lyric line seeks the playback the app already owns. Done while the lyric page is
-//    the visible one: the off-screen page is inert, so a tap there is correctly ignored.
-const lineBox = await page.evaluate(() => {
-    const scroller = document.querySelector('.min-lyrics__scroll').getBoundingClientRect();
-    const lines = [...document.querySelectorAll('.min-line')];
-    const target = lines.find(node => {
-        const box = node.getBoundingClientRect();
-        return box.top > scroller.top + 40 && box.bottom < scroller.bottom - 40;
-    }) ?? lines[lines.length - 1];
-    const box = target.getBoundingClientRect();
-    return { x: box.left + 40, y: box.top + box.height / 2, text: target.textContent.slice(0, 4) };
-});
-await page.touchscreen.tap(lineBox.x, lineBox.y);
-await page.waitForTimeout(300);
-current = await state();
-check('tapping a lyric line seeks to its start time', current.seeks.length > 0 && Number.isFinite(current.seeks.at(-1)), `line="${lineBox.text}" seeks=${JSON.stringify(current.seeks)}`);
-
-// 4. The lyric page keeps the vertical list scrollable without flipping the page.
-const lyricsScrollBefore = await page.evaluate(() => document.querySelector('.min-lyrics__scroll').scrollTop);
-await (async () => {
-    await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 200, y: 480 }] });
-    for (let step = 1; step <= 10; step += 1) {
-        await client.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 200, y: 480 - step * 22 }] });
-        await page.waitForTimeout(12);
-    }
-    await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    await page.waitForTimeout(700);
-})();
-const afterVertical = await state();
-const lyricsScrollAfter = await page.evaluate(() => document.querySelector('.min-lyrics__scroll').scrollTop);
-check('a vertical lyric scroll does not switch pages', afterVertical.page === 'lyrics', `page=${afterVertical.page}`);
-check('a vertical lyric scroll moves the lyric list', lyricsScrollAfter > lyricsScrollBefore, `${lyricsScrollBefore} -> ${lyricsScrollAfter}`);
-
-// 5. Swiping left returns to the cover page, also when the gesture starts on a lyric line.
-await swipe(50, 350, 420);
-current = await state();
-check('swiping left on the lyric page returns to the cover page', current.page === 'cover', `page=${current.page} left=${Math.round(current.scrollLeft)}`);
-
-// 6. The stage entry is a visit, not a preference change. It only exists on the lyric page, so
-//    get back there with the gesture the listener would use.
-await page.locator('.min-dot').nth(1).click();
-await page.waitForTimeout(900);
-await swipe(340, 40, 420);
-await page.click('[data-testid="minimal-open-stage"]');
-await page.waitForTimeout(200);
-current = await state();
-check('the stage entry opens the classic stage as a visit', current.detour === true && current.mode === 'minimal', `detour=${current.detour} mode=${current.mode}`);
-
-// 7. Leaving the visit returns to the minimal page and leaves the preference alone.
-await page.evaluate(() => window.__minimalPreview.closeStage());
-await page.waitForTimeout(200);
-current = await state();
-check('leaving the stage returns to the minimal page', current.detour === false && current.page === 'lyrics' && current.mode === 'minimal', JSON.stringify({ detour: current.detour, page: current.page }));
-
-// 8. The pause state stops the ambient animation.
-await page.goto(`${BASE}?page=cover&theme=dark&paused=1&stationary=1`, { waitUntil: 'networkidle' });
-await page.waitForTimeout(600);
-const paused = await page.evaluate(() => {
-    const amb = document.querySelector('.min-amb');
-    const field = document.querySelector('.min-amb__field--a');
-    const style = getComputedStyle(field);
-    return { flag: amb?.hasAttribute('data-paused') ?? false, playState: style.animationPlayState, name: style.animationName };
-});
-check('paused playback pauses the ambient drift', paused.flag && paused.playState === 'paused', JSON.stringify(paused));
-
-const playing = await (async () => {
-    await page.goto(`${BASE}?page=cover&theme=dark&stationary=1`, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(600);
-    return page.evaluate(() => {
-        const field = document.querySelector('.min-amb__field--a');
-        const style = getComputedStyle(field);
-        return { playState: style.animationPlayState, name: style.animationName, duration: style.animationDuration };
+const open = async ({ query = '', still = false } = {}) => {
+    const context = await browser.newContext({
+        viewport: { width: 393, height: 852 },
+        deviceScaleFactor: 2,
+        isMobile: true,
+        hasTouch: true,
     });
-})();
-check('playing playback runs the drift on a long, low-frequency loop', playing.playState === 'running' && playing.name === 'min-drift-a', JSON.stringify(playing));
+    if (still) {
+        // The app's own switch, not the OS one: this is what the settings screen writes.
+        await context.addInitScript(() => localStorage.setItem('reduce_motion_monetBackground', 'true'));
+    }
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto(`${BASE}?${query}`, { waitUntil: 'networkidle' });
+    await sleep(700);
+    const cdp = await context.newCDPSession(page);
+    const state = () => page.evaluate(() => window.__minimalPreview.state());
+    const touch = async (type, x, y) => {
+        await cdp.send('Input.dispatchTouchEvent', {
+            type,
+            touchPoints: type === 'touchEnd' ? [] : [{ x, y }],
+        });
+    };
+    return { page, context, cdp, state, touch, errors };
+};
 
-// 9. The layout survives a narrow phone and a light theme.
-const narrowErrors = [];
-for (const [width, height, theme] of [[360, 780, 'dark'], [393, 852, 'light']]) {
-    const view = await context.newPage();
-    view.on('pageerror', error => narrowErrors.push(`${width}/${theme}: ${error.message}`));
-    await view.setViewportSize({ width, height });
-    await view.goto(`${BASE}?page=cover&theme=${theme}&stationary=1`, { waitUntil: 'networkidle' });
-    await view.waitForTimeout(700);
-    const overflow = await view.evaluate(() => ({
-        horizontal: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-        coverRatio: (() => {
-            const art = document.querySelector('.min-art')?.getBoundingClientRect();
-            return art ? art.width / art.height : 0;
-        })(),
-    }));
-    check(`${width}px / ${theme}: no horizontal overflow, artwork stays 1:1`, overflow.horizontal <= 0 && Math.abs(overflow.coverRatio - 1) < 0.01, JSON.stringify(overflow));
-    await view.close();
+const dragTo = async (session, fromX, toX, y, { steps = 10, hold = 14 } = {}) => {
+    await session.touch('touchStart', fromX, y);
+    for (let step = 1; step <= steps; step += 1) {
+        await session.touch('touchMove', fromX + (toX - fromX) * (step / steps), y);
+        await sleep(hold);
+    }
+};
+
+// ---------------------------------------------------------------- layout
+{
+    const session = await open({ query: 'page=cover&theme=dark&stationary=1' });
+    const s = await session.state();
+    const topBottom = s.boxes.top.y + s.boxes.top.h;
+    check('页面顶部避开状态栏', topBottom >= s.insetTop - 0.5,
+        `顶栏底 ${topBottom.toFixed(1)} / 安全区 ${s.insetTop}`);
+    const dotsBottom = s.boxes.dots.y + s.boxes.dots.h;
+    check('分页圆点避开手势导航区', dotsBottom <= s.viewport.h - s.insetBottom + 0.5,
+        `圆点底 ${dotsBottom.toFixed(1)} / 可用底 ${s.viewport.h - s.insetBottom}`);
+    check('控制栏在圆点上方且不重叠', s.boxes.transport.y + s.boxes.transport.h <= s.boxes.dots.y + 0.5,
+        `transport底 ${(s.boxes.transport.y + s.boxes.transport.h).toFixed(1)} dots顶 ${s.boxes.dots.y.toFixed(1)}`);
+    if (s.boxes.cover) {
+        const ratio = s.boxes.cover.w / s.boxes.cover.h;
+        check('封面保持 1:1', Math.abs(ratio - 1) < 0.01, `${s.boxes.cover.w.toFixed(1)}×${s.boxes.cover.h.toFixed(1)}`);
+        check('封面不越界', s.boxes.cover.y >= topBottom && s.boxes.cover.y + s.boxes.cover.h <= s.boxes.transport.y,
+            `封面 ${s.boxes.cover.y.toFixed(0)}..${(s.boxes.cover.y + s.boxes.cover.h).toFixed(0)}`);
+    }
+    check('封面页无脚本错误', session.errors.length === 0, session.errors.join(' | '));
+    await session.context.close();
 }
 
-check('no uncaught page errors', errors.length === 0 && narrowErrors.length === 0, [...errors, ...narrowErrors].join(' | '));
+// Both pages must put the transport in the same place.
+{
+    const cover = await open({ query: 'page=cover&theme=dark&stationary=1' });
+    const lyrics = await open({ query: 'page=lyrics&theme=dark&stationary=1' });
+    const a = await cover.state();
+    const b = await lyrics.state();
+    check('两页控制栏位置一致', Math.abs(a.boxes.transport.y - b.boxes.transport.y) < 1,
+        `${a.boxes.transport.y.toFixed(1)} vs ${b.boxes.transport.y.toFixed(1)}`);
+    check('两页圆点位置一致', Math.abs(a.boxes.dots.y - b.boxes.dots.y) < 1,
+        `${a.boxes.dots.y.toFixed(1)} vs ${b.boxes.dots.y.toFixed(1)}`);
+    await cover.context.close();
+    await lyrics.context.close();
+}
+
+// ---------------------------------------------------------------- paging
+{
+    const session = await open({ query: 'page=cover&theme=dark&stationary=1' });
+    await dragTo(session, 330, 60, 400);
+    const mid = await session.state();
+    check('拖动过程页面跟随手指', mid.pos > 0.5 && mid.pos < 1.05, `pos=${mid.pos.toFixed(2)}`);
+    await session.touch('touchEnd', 0, 0);
+    await sleep(520);
+    const done = await session.state();
+    check('松手后完成翻页', done.page === 'lyrics' && Math.abs(done.pos - 1) < 0.03, `page=${done.page} pos=${done.pos.toFixed(2)}`);
+
+    await dragTo(session, 60, 330, 400);
+    await session.touch('touchEnd', 0, 0);
+    await sleep(520);
+    const back = await session.state();
+    check('左滑回到封面页', back.page === 'cover' && Math.abs(back.pos) < 0.03, `page=${back.page}`);
+
+    // Short, slow drag: must spring back rather than commit.
+    await dragTo(session, 330, 250, 400, { steps: 8, hold: 26 });
+    await session.touch('touchEnd', 0, 0);
+    await sleep(460);
+    const spring = await session.state();
+    check('距离不足时回弹', spring.page === 'cover' && Math.abs(spring.pos) < 0.03, `pos=${spring.pos.toFixed(2)}`);
+    await session.context.close();
+}
+
+// ---------------------------------------------------------------- lyric tap + scroll
+{
+    const session = await open({ query: 'page=lyrics&theme=dark&stationary=1' });
+    // Tap first, on a list that is not moving: a flick still carrying momentum swallows the next
+    // touch as "stop scrolling", which would make this check measure the wrong thing.
+    const target = await session.page.evaluate(() => {
+        const scroller = document.querySelector('.min-lyrics__scroll').getBoundingClientRect();
+        const line = [...document.querySelectorAll('.min-line')].find(node => {
+            const box = node.getBoundingClientRect();
+            return box.top > scroller.top + 60 && box.bottom < scroller.bottom - 60;
+        });
+        const box = line.getBoundingClientRect();
+        const x = box.left + 40;
+        const y = box.top + box.height / 2;
+        const hit = document.elementFromPoint(x, y);
+        return {
+            x,
+            y,
+            text: line.textContent.slice(0, 6),
+            hit: hit ? `${hit.tagName}.${hit.className}` : 'none',
+            isButton: !!hit?.closest('.min-line__text'),
+        };
+    });
+    await session.touch('touchStart', target.x, target.y);
+    await sleep(40);
+    await session.touch('touchEnd', 0, 0);
+    await sleep(260);
+    const tapped = await session.state();
+    check('点击歌词执行 Seek', tapped.seeks.length > 0 && target.isButton,
+        `line="${target.text}" hit=${target.hit} seeks=${JSON.stringify(tapped.seeks)}`);
+    // Now the vertical gesture, on the same page: it must scroll the list and leave the page alone.
+    const before = await session.state();
+    await session.touch('touchStart', 200, 520);
+    for (let step = 1; step <= 10; step += 1) {
+        await session.touch('touchMove', 200, 520 - step * 20);
+        await sleep(12);
+    }
+    await session.touch('touchEnd', 0, 0);
+    await sleep(900);
+    const after = await session.state();
+    check('竖直滑动只滚歌词，不翻页', after.page === 'lyrics' && after.boxes.scrollTop > before.boxes.scrollTop,
+        `page=${after.page} scrollTop ${before.boxes.scrollTop.toFixed(0)}→${after.boxes.scrollTop.toFixed(0)}`);
+    await session.context.close();
+}
+
+// ---------------------------------------------------------------- lyric follow tween
+{
+    const session = await open({ query: 'page=lyrics&theme=dark&stationary=1' });
+    const start = await session.state();
+    await session.page.evaluate(() => window.__minimalPreview.seek(9 * 5 + 1));
+    await sleep(70);
+    const early = await session.state();
+    await sleep(700);
+    const settled = await session.state();
+    const moved = settled.boxes.scrollTop - start.boxes.scrollTop;
+    check('换句时平滑滚动而非瞬跳',
+        moved > 40 && early.boxes.scrollTop > start.boxes.scrollTop && early.boxes.scrollTop < settled.boxes.scrollTop,
+        `scrollTop ${start.boxes.scrollTop.toFixed(0)} → ${early.boxes.scrollTop.toFixed(0)} → ${settled.boxes.scrollTop.toFixed(0)}`);
+    await session.context.close();
+}
+
+// ---------------------------------------------------------------- stage detour
+{
+    const session = await open({ query: 'page=lyrics&theme=dark&stationary=1' });
+    await session.page.click('[data-testid="minimal-open-stage"]');
+    await sleep(200);
+    const detour = await session.state();
+    check('进入原歌词舞台是顺访', detour.detour === true, `detour=${detour.detour}`);
+    await session.page.evaluate(() => window.__minimalPreview.closeStage());
+    await sleep(200);
+    const returned = await session.state();
+    check('退出舞台回到原极简页', returned.detour === false && returned.page === 'lyrics', `page=${returned.page}`);
+    await session.context.close();
+}
+
+// ---------------------------------------------------------------- ambience gating
+{
+    const paused = await open({ query: 'page=cover&theme=dark&stationary=1&paused=1' });
+    const playState = await paused.page.evaluate(() =>
+        getComputedStyle(document.querySelector('.min-amb__blob--a')).animationPlayState);
+    check('暂停时背景动画停止', playState === 'paused', `animation-play-state=${playState}`);
+    await paused.context.close();
+
+    const playing = await open({ query: 'page=cover&theme=dark&stationary=1' });
+    const running = await playing.page.evaluate(() =>
+        getComputedStyle(document.querySelector('.min-amb__blob--a')).animationPlayState);
+    check('播放时背景动画运行', running === 'running', `animation-play-state=${running}`);
+    await playing.context.close();
+}
+
+// ---------------------------------------------------------------- enter / exit
+{
+    const session = await open({ query: 'page=cover&theme=dark&stationary=1' });
+    const declared = await session.page.evaluate(() => {
+        const rules = [...document.styleSheets].flatMap(list => {
+            try {
+                return [...list.cssRules];
+            } catch {
+                return [];
+            }
+        });
+        return rules.some(rule => rule.cssText && rule.cssText.includes('min-rise'));
+    });
+    check('进入播放页声明了上滑展开动画', declared, `keyframes=${declared}`);
+
+    await session.page.click('[data-testid="minimal-collapse"]');
+    await sleep(90);
+    const closing = await session.state();
+    check('收起时先播放退场动画', closing.phase === 'exit' && closing.backs.length === 0,
+        `phase=${closing.phase} backs=${closing.backs.length}`);
+    await sleep(320);
+    const closed = await session.state();
+    check('退场结束后才真正返回', closed.backs.length === 1, `backs=${closed.backs.length}`);
+
+    // Two more taps while the page is already gone must not queue navigations.
+    await session.page.click('[data-testid="minimal-collapse"]', { force: true }).catch(() => { });
+    await sleep(120);
+    await session.page.click('[data-testid="minimal-collapse"]', { force: true }).catch(() => { });
+    const repeat = await session.state();
+    check('收起后返回只发生一次', repeat.backs.length === 1, `backs=${repeat.backs.length}`);
+    await session.context.close();
+}
+
+// ---------------------------------------------------------------- reduced motion
+{
+    const session = await open({ query: 'page=cover&theme=dark&stationary=1', still: true });
+    const s = await session.state();
+    check('减少动态效果时不做展开动画', s.phase === 'idle', `phase=${s.phase}`);
+    await session.page.click('[data-testid="minimal-collapse"]');
+    await sleep(80);
+    const closed = await session.state();
+    check('减少动态效果时立即收起', closed.backs.length === 1, `backs=${closed.backs.length}`);
+    await session.context.close();
+}
 
 await browser.close();
-const failed = results.filter(item => !item.ok);
-console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
-process.exit(failed.length ? 1 : 0);
+
+const failed = results.filter(entry => !entry.ok);
+console.log(`\n${results.length - failed.length}/${results.length} passed`);
+if (failed.length) {
+    console.log('failed:');
+    failed.forEach(entry => console.log(`  · ${entry.name}`));
+    process.exitCode = 1;
+}

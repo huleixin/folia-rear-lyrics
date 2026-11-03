@@ -18,6 +18,11 @@ const CASES = [
     { name: 'lyrics-empty', q: 'page=lyrics&theme=dark&song=nolyrics&stationary=1', w: 393, h: 852 },
     { name: 'cover-no-cover', q: 'page=cover&theme=dark&song=nocover&stationary=1', w: 393, h: 852 },
     { name: 'cover-paused', q: 'page=cover&theme=dark&paused=1', w: 393, h: 852 },
+    { name: 'cover-cool', q: 'page=cover&theme=dark&song=cool&stationary=1', w: 393, h: 852 },
+    { name: 'cover-rose', q: 'page=cover&theme=dark&song=rose&stationary=1', w: 393, h: 852 },
+    { name: 'lyrics-cool', q: 'page=lyrics&theme=dark&song=cool&stationary=1', w: 393, h: 852 },
+    { name: 'lyrics-large-font', q: 'page=lyrics&theme=dark&scale=1.3&stationary=1', w: 393, h: 852 },
+    { name: 'cover-small-screen', q: 'page=cover&theme=dark&stationary=1', w: 320, h: 640 },
 ];
 
 const browser = await chromium.launch();
