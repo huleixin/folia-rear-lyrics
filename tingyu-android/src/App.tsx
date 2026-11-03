@@ -2386,6 +2386,7 @@ export default function App() {
     // leaving it returns to the minimal page instead of quitting the player.
     const playerViewMode = usePlayerViewModeStore(state => state.mode);
     const playerViewDetour = usePlayerViewModeStore(state => state.detour);
+    const playerStageTransition = usePlayerViewModeStore(state => state.stageTransition);
     const minimalStageActive = playerViewMode === 'minimal' && !playerViewDetour;
     const leavePlayer = useCallback(() => {
         const view = usePlayerViewModeStore.getState();
@@ -2521,7 +2522,11 @@ export default function App() {
     // The minimal stage replaces the visualizer on the player surface: leaving the renderer unmounted
     // is what keeps the mode cheap — its GPU scenes and shaders are not merely hidden, they are gone.
     // Everything else about the pipeline (deck, clock, lyrics, MediaSession) is untouched.
-    const shouldMountVisualizer = mainStageActive && !minimalStageActive && (PREHIDE_COMPOSE_CHROME ? nativeStagePresentation.mounted : shouldMountPlayerVisualizer({
+    // Except while the page is dissolving back in from the classic stage: the minimal page starts
+    // transparent, so the stage has to stay painted underneath it for the length of the fade, or the
+    // listener would be looking at the app background instead of the stage for 300ms.
+    const stageHeldForFade = playerStageTransition === 'to-minimal';
+    const shouldMountVisualizer = mainStageActive && (!minimalStageActive || stageHeldForFade) && (PREHIDE_COMPOSE_CHROME ? nativeStagePresentation.mounted : shouldMountPlayerVisualizer({
         currentView,
         hasLatticeExited,
         shouldRevealHomeSurface,

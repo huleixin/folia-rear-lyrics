@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppViewStore } from '../../../../stores/useAppViewStore';
+import { usePlayerViewModeStore } from '../../../../stores/usePlayerViewModeStore';
 import { openSettings } from '../../../../stores/useSettingsModalStore';
 import { PlayerState } from '../../../../types';
 import { colorWithAlpha, mixColors, parseColorChannels } from '../../../visualizer/colorMix';
@@ -46,6 +47,7 @@ export default function MobileStageChrome({
     const { t } = useTranslation();
     const [menuOpen, setMenuOpen] = useState(false);
     const closeMenu = useCallback(() => setMenuOpen(false), []);
+    const stageTransition = usePlayerViewModeStore(state => state.stageTransition);
     const panelOpen = useAppViewStore((state) => state.isPanelOpen);
     const stageRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<HTMLElement>(null);
@@ -74,11 +76,16 @@ export default function MobileStageChrome({
     const disabled = !controls || !!controls.controlsDisabled;
     const song = usePlaybackStore(s=>s.currentSong);
     const reducedMotion = useReducedMotionFor('uiMicroMotion');
+    // The paired fade with the minimal page. The WebView layers dissolve; the native control bar
+    // cannot (its alpha is owned by the native host, not by CSS), so it changes at the boundary
+    // where the screen has already settled instead of in the middle of the fade: it arrives once the
+    // stage is on screen, and it leaves when the stage is unmounted.
+    const arriving = stageTransition === 'to-stage';
     // The same resolver the minimal page's single mode button uses — one name for the pair of
     // booleans, so the two views cannot show different modes for the same state.
     const mode = resolvePlaybackMode(controls?.shuffleEnabled, controls?.loopMode);
     const loop = playbackModeLegacyToken(mode);
-    const compose = useComposeChrome(playerRef,'stage',!hidden&&!!controls&&!controls.hideControlBar,{
+    const compose = useComposeChrome(playerRef,'stage',!hidden&&!!controls&&!controls.hideControlBar&&!arriving,{
         playing:controls?.playerState===PlayerState.PLAYING,disabled,duration:controls?.duration||0,
         trackKey:song?getPlaybackSongKey(song):'',canNext:!!controls?.trackNavigation?.canNext,canPrevious:!!controls?.trackNavigation?.canPrev,
         loop,accent,ink,reducedMotion,labels:{play:t('mobileLibrary.play'),pause:t('mobileLibrary.pause'),queue:t('mobileStage.queue'),seek:t('mobileStage.seek'),loop:t('mobileStage.loop'),loopValue:t(playbackModeLabelKey(mode)),
@@ -92,6 +99,7 @@ export default function MobileStageChrome({
             style={style}
             data-testid="mobile-stage-chrome"
             data-hidden={hidden || undefined}
+            data-arriving={arriving || undefined}
         >
             <header className="mps-header">
                 {/* Collapse, on its own, where the minimal page keeps it. It used to be a chevron

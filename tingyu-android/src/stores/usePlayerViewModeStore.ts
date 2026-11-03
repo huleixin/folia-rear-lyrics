@@ -10,8 +10,25 @@ import { create } from 'zustand';
 export type PlayerViewMode = 'minimal' | 'stage';
 export type MinimalPlayerPage = 'cover' | 'lyrics';
 
+/**
+ * The paired fade between the minimal page and the classic stage.
+ *
+ * These two surfaces are full screens that trade places, so neither may pop in or slide: while the
+ * value is not `idle`, *both* stay mounted — the outgoing one so the incoming one has something to
+ * dissolve over, the incoming one so it is painted before the outgoing starts to lift. Whoever is
+ * holding the stage reads this; nothing else should.
+ */
+export type StageTransition = 'idle' | 'to-stage' | 'to-minimal';
+
 export const PLAYER_VIEW_MODE_KEY = 'tingyu_player_view_mode';
 export const MINIMAL_PLAYER_PAGE_KEY = 'tingyu_minimal_player_page';
+
+/**
+ * How long a paired fade runs, and a little longer. The CSS animation is 300ms and starts two frames
+ * after the hold begins (the outgoing page waits for the incoming stage to have painted); the hold is
+ * 400ms so the outgoing surface is never unmounted while it is still visible at all.
+ */
+export const STAGE_TRANSITION_MS = 400;
 
 const isPage = (value: unknown): value is MinimalPlayerPage => value === 'cover' || value === 'lyrics';
 
@@ -51,10 +68,14 @@ type PlayerViewModeState = {
      * as the visit lasts, so back returns to the minimal page instead of leaving the player.
      */
     detour: boolean;
+    /** The paired fade currently running, if any. */
+    stageTransition: StageTransition;
     setMode: (mode: PlayerViewMode) => void;
     setPage: (page: MinimalPlayerPage) => void;
     openStage: () => void;
     closeStage: () => void;
+    /** Only the layer that owns the hold should end it; exported for that component. */
+    endStageTransition: () => void;
 };
 
 const write = (key: string, value: string) => {
@@ -65,20 +86,63 @@ const write = (key: string, value: string) => {
     }
 };
 
-export const usePlayerViewModeStore = create<PlayerViewModeState>(set => ({
+/** One hold at a time, wherever it was started from. */
+let holdTimer = 0;
+const cancelHold = () => {
+    if (holdTimer) {
+        window.clearTimeout(holdTimer);
+        holdTimer = 0;
+    }
+};
+const startHold = (end: () => void) => {
+    cancelHold();
+    holdTimer = window.setTimeout(() => {
+        holdTimer = 0;
+        end();
+    }, STAGE_TRANSITION_MS);
+};
+
+export const usePlayerViewModeStore = create<PlayerViewModeState>((set, get) => ({
     mode: readStoredPlayerViewMode(),
     page: readStoredMinimalPage(),
     detour: false,
+    stageTransition: 'idle',
     setMode: (mode) => {
         write(PLAYER_VIEW_MODE_KEY, mode);
-        set({ mode, detour: false });
+        // A mode change is a decision, not a transition: drop any fade that is still running so a
+        // half-finished hold cannot leave a stale surface mounted.
+        cancelHold();
+        set({ mode, detour: false, stageTransition: 'idle' });
     },
     setPage: (page) => {
         write(MINIMAL_PLAYER_PAGE_KEY, page);
         set({ page });
     },
-    openStage: () => set({ detour: true }),
-    closeStage: () => set({ detour: false }),
+    openStage: () => {
+        const state = get();
+        if (state.detour) {
+            return;
+        }
+        // Re-entering while the return fade is still running is a reversal, not a second
+        // navigation: the same pair of surfaces is already mounted, so this only turns the fade
+        // around instead of stacking a second one.
+        startHold(() => get().endStageTransition());
+        set({ detour: true, stageTransition: 'to-stage' });
+    },
+    closeStage: () => {
+        const state = get();
+        if (!state.detour) {
+            return;
+        }
+        startHold(() => get().endStageTransition());
+        set({ detour: false, stageTransition: 'to-minimal' });
+    },
+    endStageTransition: () => {
+        cancelHold();
+        if (get().stageTransition !== 'idle') {
+            set({ stageTransition: 'idle' });
+        }
+    },
 }));
 
 /** Minimal is a front-stage view; the classic stage is a preference or a temporary visit. */

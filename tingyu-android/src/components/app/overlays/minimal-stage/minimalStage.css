@@ -82,6 +82,32 @@
     to { transform: translate3d(0, 100%, 0); }
 }
 
+/* Arriving from the classic stage. This is the other full-screen player, not a surface below this
+   one, so the page does not climb out of the bottom edge here — it dissolves in over the stage,
+   which the store keeps mounted for exactly this long. A 0.6% scale on the way in is the whole of
+   the "极轻微缩放": enough that the two layers do not read as one flat picture, not enough to move
+   a lyric line under a thumb. */
+.min[data-phase='fade'] {
+    animation: min-stage-in 300ms cubic-bezier(0.3, 0.6, 0.2, 1) both;
+}
+
+@keyframes min-stage-in {
+    from { opacity: 0; transform: scale(0.994); }
+    to { opacity: 1; transform: none; }
+}
+
+/* Leaving for the classic stage: the stage is already painted underneath (the store holds this page
+   until the fade is over), so dissolving out is a reveal, not a dip to black. */
+.min[data-dissolving] {
+    animation: min-stage-out 300ms cubic-bezier(0.3, 0.6, 0.2, 1) both;
+    pointer-events: none;
+}
+
+@keyframes min-stage-out {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: scale(0.994); }
+}
+
 @keyframes min-content-in {
     from { opacity: 0; transform: translate3d(0, 16px, 0); }
     to { opacity: 1; transform: none; }
@@ -278,6 +304,7 @@
     .min-cover__art,
     .min-wave i,
     .min[data-phase],
+    .min[data-dissolving],
     .min[data-phase] .min-cover,
     .min[data-phase] .min-lyrics,
     .min[data-phase] .min-transport,

@@ -38,6 +38,8 @@ const PAGE_MIN_MS = 260;
 const PAGE_SPAN_MS = 130;
 /** Enter/exit of the whole page over the shell — matched to .min[data-phase] in the stylesheet. */
 const ENTER_MS = 460;
+/** The paired fade to and from the classic stage; the store holds both surfaces a beat longer. */
+const STAGE_FADE_MS = 300;
 const EXIT_MS = 300;
 /** Distance before a gesture commits, as a fraction of the page. */
 const COMMIT_RATIO = 0.28;
@@ -95,6 +97,7 @@ export default function MinimalStage({
     const page = usePlayerViewModeStore(state => state.page);
     const setPage = usePlayerViewModeStore(state => state.setPage);
     const openStage = usePlayerViewModeStore(state => state.openStage);
+    const stageTransition = usePlayerViewModeStore(state => state.stageTransition);
     const light = !!controls?.isDaylight;
     const song = chrome.song;
     const coverUrl = song?.coverUrl ?? null;
@@ -117,7 +120,18 @@ export default function MinimalStage({
     const ownMoveRef = useRef(false);
     const closingRef = useRef(false);
     const [menuOpen, setMenuOpen] = useState(false);
-    const [phase, setPhase] = useState<'enter' | 'idle' | 'exit'>(still ? 'idle' : 'enter');
+    /**
+     * How this page arrived, and how it is leaving.
+     *
+     * `enter` is the rise from the bottom edge, for the hand-off from the mini player — the one
+     * surface the listener is leaving *is* below this one, so the page arriving from there is the
+     * truthful direction. Arriving from the classic stage is a different pair: two full-screen
+     * players trading places, which reads as a dissolve, and a page climbing out of the bottom edge
+     * for that is the "rush up from below" this view was reported as doing.
+     */
+    const [phase, setPhase] = useState<'enter' | 'fade' | 'idle' | 'exit'>(
+        still ? 'idle' : stageTransition === 'to-minimal' ? 'fade' : 'enter',
+    );
     const closeMenu = useCallback(() => setMenuOpen(false), []);
     const playing = controls?.playerState === PlayerState.PLAYING;
 
@@ -214,14 +228,37 @@ export default function MinimalStage({
         stopFrame();
     }, [stopFrame]);
 
-    // Enter: clear the attribute once the rise is over, so no layer stays promoted forever.
+    // Enter: clear the attribute once the rise (or the fade up from the stage) is over, so no layer
+    // stays promoted forever.
     useEffect(() => {
-        if (phase !== 'enter') {
+        if (phase !== 'enter' && phase !== 'fade') {
             return;
         }
-        const timer = window.setTimeout(() => setPhase('idle'), ENTER_MS);
+        const timer = window.setTimeout(() => setPhase('idle'), phase === 'fade' ? STAGE_FADE_MS : ENTER_MS);
         return () => window.clearTimeout(timer);
     }, [phase]);
+
+    // Leaving for the classic stage. The fade may only start once the stage underneath has had a
+    // commit and a frame to paint, otherwise the page would dissolve onto whatever the WebView had
+    // before the canvas drew — which on a cold entry is the app background, and reads as a blink.
+    // Two animation frames is that observation, not a guessed delay: the hold is ended by the store
+    // either way, so a slow canvas costs a dissolved page, never a stuck one.
+    const leaving = stageTransition === 'to-stage';
+    const [dissolving, setDissolving] = useState(false);
+    useEffect(() => {
+        if (!leaving || still) {
+            setDissolving(false);
+            return;
+        }
+        let second = 0;
+        const first = window.requestAnimationFrame(() => {
+            second = window.requestAnimationFrame(() => setDissolving(true));
+        });
+        return () => {
+            window.cancelAnimationFrame(first);
+            window.cancelAnimationFrame(second);
+        };
+    }, [leaving, still]);
 
     // Leaving is animated, but the callers (the chevron, the Back gesture) are synchronous. A second
     // request while the page is already falling is dropped: that is what keeps a double tap from
@@ -361,6 +398,7 @@ export default function MinimalStage({
             data-theme={light ? 'light' : 'dark'}
             data-page={page}
             data-phase={phase === 'idle' ? undefined : phase}
+            data-dissolving={dissolving || undefined}
             data-testid="minimal-stage"
             data-chrome-hidden={chrome.hidden || undefined}
         >
