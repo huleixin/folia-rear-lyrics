@@ -140,13 +140,28 @@ CSS px 在 WebView 里就是 dp，所以这里是 1:1。
 生成方式：`./gradlew :app:testDebugUnitTest --tests "*MinimalScreenshotTest"`，
 输出在 `app/build/screenshots/minimal/`，GIF 由 `Pillow` 合成（12fps / 11fps）。
 
-测试 APK：`tingyu-android/out/tingyu-1.3.131-compose-minimal-debug.apk`
-（56.1 MB，debug 签名，含真实 web 产物；`BuildConfig.COMPOSE_MINIMAL_PLAYER = true` 已核对，
-sha256 前缀 `77965d25f51b2c13`）。
+### 安装包
 
-> 构建注意：`buildConfigField` 在**配置期**求值，改环境变量后必须 `--rerun-tasks`
-> （或先清理 `generateDebugBuildConfig`），否则 Gradle 会把上次的常量当成最新 —— 第一次
-> 打出的 APK 里开关是 `false`，就是这么来的。
+| 包 | 路径 | 签名 | 用途 |
+| --- | --- | --- | --- |
+| **release（推荐）** | `tingyu-android/out/tingyu-1.3.131-compose-minimal-release.apk` | 原签名 `CN=Tingyu`，v2+v3 | 直接覆盖已装的正式版升级验证 |
+| debug | `tingyu-android/out/tingyu-1.3.131-compose-minimal-debug.apk` | debug key | 与正式版共存安装（不同签名不能覆盖） |
+
+release 包：51.7 MB（51 704 888 B），`versionCode 154` / `versionName 1.3.131`，
+`BuildConfig.COMPOSE_MINIMAL_PLAYER = true`，sha256
+`94b90ec2f4536ae2f7e109030d7cdffa4473d6dddfa2f5ef0ae77be4e073efa3`。
+
+签名核验（`apksigner verify --print-certs`）：`CN=Tingyu, OU=Android, O=huleixin, C=CN`，
+SHA-256 `A3:6E:F2:A5:32:4B:55:D1:B8:46:9B:D8:3B:08:1F:43:EC:9C:9C:E5:63:F0:E6:CF:67:56:7F:8E:CE:02:24:9D`
+—— 与已发布 1.3.110 / 1.3.123 的同名证书逐字节相同，因此可原地升级、无需卸载。
+签名方案也与历史包一致（v2 + v3，v1 关闭；`minSdk 24` 下不影响任何目标设备）。
+
+> 签名材料不在仓库（`*.p12`、`keystore.properties` 均在 `.gitignore` 内）。构建机上的
+> `android/keystore.properties` 指向 `tingyu-private/tingyu-release.p12`，别名 `tingyu-release`。
+
+> 构建注意：`buildConfigField` 在**配置期**求值，改环境变量后必须让 `generateDebugBuildConfig` /
+> `generateReleaseBuildConfig` 重跑（`--rerun-tasks` 或删掉 `app/build/generated/source/buildConfig`），
+> 否则 Gradle 会把上次的常量当成最新 —— 第一次打出的 APK 里开关是 `false`，就是这么来的。
 
 ---
 
