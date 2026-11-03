@@ -159,6 +159,20 @@ const session = async (query = 'page=lyrics') => {
     await s.context.close();
 }
 
+// ---------------------------------------------------------------- the queue entry
+{
+    const s = await session();
+    // The transport's fifth slot is the queue, wired to the same panel the stage's queue button
+    // opens — not a second queue UI.
+    await s.page.evaluate(() => document.querySelector('[data-testid="minimal-queue"]').click());
+    await sleep(200);
+    const panel = await s.state();
+    check('队列入口打开既有队列面板', panel.panel.open === true && panel.panel.tab === 'queue',
+        `open=${panel.panel.open} tab=${panel.panel.tab}`);
+    check('队列入口无脚本错误', s.errors.length === 0, s.errors.join(' | '));
+    await s.context.close();
+}
+
 // ---------------------------------------------------------------- stage header
 {
     const s = await session();

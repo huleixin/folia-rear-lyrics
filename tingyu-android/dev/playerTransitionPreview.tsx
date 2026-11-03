@@ -8,6 +8,7 @@ import MobileStageChrome from '../src/components/app/overlays/mobile-stage/Mobil
 import type { AppOverlaysModel } from '../src/components/app/overlays/buildAppOverlaysModel';
 import { lyricCurrentTime, currentTime } from '../src/stores/motionSignals';
 import { usePlaybackStore } from '../src/stores/usePlaybackStore';
+import { useAppViewStore } from '../src/stores/useAppViewStore';
 import { useTypographySettingsStore } from '../src/stores/useTypographySettingsStore';
 import { usePlayerViewModeStore, type MinimalPlayerPage } from '../src/stores/usePlayerViewModeStore';
 import { FALLBACK_AI_DUAL_THEME } from '../src/services/themeSanitizer';
@@ -74,7 +75,7 @@ usePlaybackStore.setState({
     playerState: paused ? PlayerState.PAUSED : PlayerState.PLAYING,
     lyrics,
 });
-useTypographySettingsStore.setState({ lyricsFontScale: 1, subtitleContentMode: 'off' });
+useTypographySettingsStore.setState({ lyricsFontScale: 1 });
 usePlayerViewModeStore.setState({ mode: 'minimal', page, detour: false, stageTransition: 'idle' });
 
 const seekLog: number[] = [];
@@ -218,6 +219,7 @@ type PreviewState = {
         phase: string;
         backs: string[];
         counts: { minimal: number; stage: number };
+        panel: { open: boolean; tab: string };
         transform: string;
         viewport: { w: number; h: number };
     };
@@ -241,6 +243,10 @@ type PreviewState = {
             pos: Number(/translate3d\((-?[\d.]+)%/.exec(track?.style.transform ?? '')?.[1] ?? 0) / -50,
             phase: shell?.dataset.phase ?? 'idle',
             backs: [...backLog],
+            panel: {
+                open: useAppViewStore.getState().isPanelOpen,
+                tab: useAppViewStore.getState().panelTab,
+            },
             counts: {
                 minimal: document.querySelectorAll('.min').length,
                 stage: document.querySelectorAll('[data-testid="mobile-stage-chrome"]').length,
