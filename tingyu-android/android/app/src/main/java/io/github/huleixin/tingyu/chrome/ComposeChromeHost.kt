@@ -77,6 +77,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
      * <p>返回"我现在能不能真的画这一页"。JS 只在这个回答为 true 之后才卸掉 WebView 极简页 ——
      * 于是"原生拿不出页面"永远不会变成一块空白，最多是晚一秒让出。
      */
+    fun minimalQueue(value: JSONObject) {
+        minimal.onQueueSnapshot(value)
+    }
+
     fun minimalFrame(value: JSONObject): Boolean {
         minimal.onBridgeFrame(value)
         return minimalPlayerEnabled() && destination == "stage" && playerPresentation == "minimal" && !webOverlay

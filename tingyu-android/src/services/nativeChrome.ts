@@ -33,6 +33,8 @@ export const chromeNative = registerPlugin<{
      * neighbour availability, and the browser-audio position anchor. One small frame per second.
      */
     minimalPlayerFrame(frame: import('./nativeMinimalPlayer').MinimalPlayerFrame): Promise<{accepted:boolean}>;
+    /** 队列抽屉要的数据。只在打开时或版本变化时推，不是每帧。 */
+    minimalQueue(snapshot: import('./nativeMinimalQueue').NativeQueueSnapshot): Promise<void>;
     /** Hand the minimal player surface back to the WebView (session-scoped). */
     minimalPlayerRelease(value:{session:string}): Promise<void>;
     clock(value:{id:ChromeSurfaceId;session:string;trackKey:string;position:number}):Promise<void>;

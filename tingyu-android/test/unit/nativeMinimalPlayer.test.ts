@@ -23,6 +23,9 @@ const handlers = (overrides: Partial<MinimalActionHandlers> = {}): MinimalAction
         openAudioEffects: () => calls.push('effects'),
         openLyricsPanel: () => calls.push('lyricsPanel'),
         openPlaybackSettings: () => calls.push('settings'),
+        openQueueSnapshot: () => calls.push('queueOpen'),
+        closeQueueSnapshot: () => calls.push('queueClose'),
+        queueAction: (action, index) => calls.push(`${action}:${index}`),
         ...overrides,
     };
 };

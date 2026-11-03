@@ -34,6 +34,12 @@ object MinimalActions {
     const val AUDIO_EFFECTS = "audioEffects"
     const val LYRICS_PANEL = "lyricsPanel"
     const val PLAYBACK_SETTINGS = "playbackSettings"
+    const val QUEUE_OPEN = "queueOpen"
+    const val QUEUE_CLOSE = "queueClose"
+    const val QUEUE_PLAY = "queuePlay"
+    const val QUEUE_REMOVE = "queueRemove"
+    const val QUEUE_NEXT = "queueNext"
+    const val QUEUE_END = "queueEnd"
 }
 
 interface MinimalPlayerCommands {
@@ -68,6 +74,14 @@ interface MinimalPlayerCommands {
     fun openAudioEffects(): Boolean
     fun openLyricsPanel(): Boolean
     fun openPlaybackSettings(): Boolean
+
+    // 队列抽屉：打开/关闭只影响数据推送，行内动作带行下标。
+    fun requestQueue(): Boolean
+    fun closeQueue(): Boolean
+    fun queuePlay(index: Int): Boolean
+    fun queueRemove(index: Int): Boolean
+    fun queueMoveNext(index: Int): Boolean
+    fun queueMoveEnd(index: Int): Boolean
 }
 
 /**
@@ -104,6 +118,12 @@ class BridgeMinimalCommands(
     override fun openAudioEffects(): Boolean = send(MinimalActions.AUDIO_EFFECTS, 0.0)
     override fun openLyricsPanel(): Boolean = send(MinimalActions.LYRICS_PANEL, 0.0)
     override fun openPlaybackSettings(): Boolean = send(MinimalActions.PLAYBACK_SETTINGS, 0.0)
+    override fun requestQueue(): Boolean = send(MinimalActions.QUEUE_OPEN, 0.0)
+    override fun closeQueue(): Boolean = send(MinimalActions.QUEUE_CLOSE, 0.0)
+    override fun queuePlay(index: Int): Boolean = send(MinimalActions.QUEUE_PLAY, index.toDouble())
+    override fun queueRemove(index: Int): Boolean = send(MinimalActions.QUEUE_REMOVE, index.toDouble())
+    override fun queueMoveNext(index: Int): Boolean = send(MinimalActions.QUEUE_NEXT, index.toDouble())
+    override fun queueMoveEnd(index: Int): Boolean = send(MinimalActions.QUEUE_END, index.toDouble())
 
     private fun send(action: String, value: Double): Boolean {
         if (!available) return false

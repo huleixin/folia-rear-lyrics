@@ -34,6 +34,13 @@ export type MinimalPlayerFrame = {
     qualityMode: string;
     /** 音效开关状态，同样是菜单里的第二行值。 */
     effectsOn: boolean;
+    /**
+     * 这一页现在的主题（`isDaylight`）—— **和 palette 同一个来源**。
+     *
+     * 原生的 `InterfaceAppearance` 是"应用界面"的深浅色，和播放器主题不是一回事：
+     * 两者不一致时，页面会拿到深色配色 + 浅色墨色，也就是深蓝底上的深绿字。
+     */
+    light: boolean;
     liked: boolean;
     likeDisabled: boolean;
     /**
@@ -140,6 +147,11 @@ export type MinimalActionHandlers = {
     openAudioEffects: () => void;
     openLyricsPanel: () => void;
     openPlaybackSettings: () => void;
+    /** 原生抽屉打开/关闭：打开时推一次快照，关闭后不再推。 */
+    openQueueSnapshot: () => void;
+    closeQueueSnapshot: () => void;
+    /** 行内动作，`value` 是行下标。 */
+    queueAction: (action: string, index: number) => void;
     like: () => void;
     /** 顺访完整歌词舞台。舞台仍是 WebView，原生页交还界面。 */
     openStage: () => void;
@@ -184,6 +196,24 @@ export function dispatchMinimalAction(action: string, value: number, handlers: M
             return true;
         case 'queue':
             handlers.openQueue();
+            return true;
+        case 'queueOpen':
+            handlers.openQueueSnapshot();
+            return true;
+        case 'queueClose':
+            handlers.closeQueueSnapshot();
+            return true;
+        case 'queuePlay':
+            handlers.queueAction('play', value);
+            return true;
+        case 'queueRemove':
+            handlers.queueAction('remove', value);
+            return true;
+        case 'queueNext':
+            handlers.queueAction('next', value);
+            return true;
+        case 'queueEnd':
+            handlers.queueAction('end', value);
             return true;
         case 'collapse':
             handlers.collapse();

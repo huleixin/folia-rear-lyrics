@@ -184,6 +184,12 @@ class MinimalScreenshotTest {
         override fun openAudioEffects(): Boolean = true
         override fun openLyricsPanel(): Boolean = true
         override fun openPlaybackSettings(): Boolean = true
+        override fun requestQueue(): Boolean = true
+        override fun closeQueue(): Boolean = true
+        override fun queuePlay(index: Int): Boolean = true
+        override fun queueRemove(index: Int): Boolean = true
+        override fun queueMoveNext(index: Int): Boolean = true
+        override fun queueMoveEnd(index: Int): Boolean = true
     }
 
     private data class Shot(val state: MinimalPlayerState, val artwork: MinimalArtwork)

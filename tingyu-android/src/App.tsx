@@ -64,6 +64,7 @@ import {
 } from './components/app/search/searchCollectionAdapters';
 import { usePlayerPanelModel } from './components/app/player-panel/usePlayerPanelModel';
 import { createQueueMutations } from './components/app/player-panel/createQueueMutations';
+import { registerNativeQueue } from './services/nativeMinimalQueue';
 import { Album, Artist, LyricData, Theme, PlayerState, SongResult, ReplayGainMode, StatusMessage, PlaybackContext, StageLoopMode, UnifiedSong } from './types';
 import type { LocalSong } from './types';
 import { getLocalSongArrayBuffer } from './services/localMusicService';
@@ -2374,6 +2375,13 @@ export default function App() {
         localLibraryCatalog,
         navigateToCollection,
     });
+
+    // 原生队列抽屉复用这一份处理器：同一份 playQueue、同一个 onPlaySong / onRemoveSong /
+    // onMoveSongToNext / onMoveSongToEnd。原生侧不复制任何队列逻辑。
+    useEffect(() => {
+        registerNativeQueue(playerPanelModel.panelProps.queue);
+        return () => registerNativeQueue(null);
+    }, [playerPanelModel]);
     // Which front-stage presentation is on screen. `detour` is a visit to the classic stage from the
     // minimal lyric page: it renders the stage without rewriting the listener's saved preference, and
     // leaving it returns to the minimal page instead of quitting the player.

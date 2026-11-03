@@ -45,9 +45,18 @@ data class MinimalControls(
     val bound: Boolean = false,
     /** 音质标签（容器 + 平台规格），JS 侧已经拼好，原生只负责画。 */
     val quality: String = "",
+    /** 队列抽屉正在打开：`true` 时 JS 会持续把快照推过来。 */
+    val queueOpen: Boolean = false,
     /** 播放偏好里的音质档位，只出现在「更多」菜单的第二列。 */
     val qualityMode: String = "",
     val effectsOn: Boolean = false,
+    /**
+     * 页面主题。`null` 表示桥上还没有结论 —— 此时才退回宿主给的界面主题。
+     *
+     * 这两个值不是同一件事：界面可以是浅色，而这一页跟随歌曲主题是深色。
+     * 上一版直接用界面主题决定墨色，于是深色背景上画了一整套浅色主题的深绿字。
+     */
+    val light: Boolean? = null,
     val qualityGold: Boolean = false,
     val liked: Boolean = false,
     val likeDisabled: Boolean = true,
@@ -112,6 +121,8 @@ data class MinimalBridgeFrame(
     val qualityGold: Boolean = false,
     val qualityMode: String = "",
     val effectsOn: Boolean = false,
+    /** 这一页的主题，与 [MinimalBridgeFrame.palette] 同源。 */
+    val light: Boolean = false,
     val liked: Boolean = false,
     val likeDisabled: Boolean = true,
     val detour: Boolean = false,
@@ -142,6 +153,7 @@ data class MinimalBridgeFrame(
                 qualityGold = value.optBoolean("qualityGold", false),
                 qualityMode = value.optString("qualityMode", "").take(40),
                 effectsOn = value.optBoolean("effectsOn", false),
+                light = value.optBoolean("light", false),
                 liked = value.optBoolean("liked", false),
                 likeDisabled = value.optBoolean("likeDisabled", true),
                 detour = value.optBoolean("detour", false),
@@ -230,6 +242,23 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
 
     private val _artwork = MutableStateFlow(MinimalArtwork())
     val artwork: StateFlow<MinimalArtwork> = _artwork.asStateFlow()
+
+    /** 队列快照。独立一条流：一次打开只变一两次，不该让整页跟着重组。 */
+    private val _queue = MutableStateFlow(MinimalQueue())
+    val queue: StateFlow<MinimalQueue> = _queue.asStateFlow()
+
+    /**
+     * JS 推来的队列投影。版本号倒退的包直接丢 —— 动作是异步的，乱序到达会让列表闪回。
+     */
+    fun onQueueSnapshot(value: JSONObject) {
+        val next = MinimalQueue.parse(value) ?: return
+        if (next.version < _queue.value.version) return
+        _queue.value = next
+    }
+
+    fun clearQueue() {
+        _queue.value = MinimalQueue()
+    }
 
     @Volatile
     private var frame: MinimalBridgeFrame? = null
@@ -444,6 +473,7 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
             qualityGold = bridge?.qualityGold == true,
             qualityMode = bridge?.qualityMode ?: "",
             effectsOn = bridge?.effectsOn == true,
+            light = bridge?.light ?: false,
             liked = bridge?.liked == true,
             likeDisabled = bridge?.likeDisabled ?: true,
             detour = bridge?.detour == true,

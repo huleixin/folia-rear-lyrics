@@ -70,6 +70,8 @@ fun MinimalPlayerScreen(
     state: MinimalPlayerState,
     artwork: MinimalArtwork,
     commands: MinimalPlayerCommands,
+    /** 队列投影。JS 推来的，抽屉只读。 */
+    queue: io.github.huleixin.tingyu.minimal.MinimalQueue = io.github.huleixin.tingyu.minimal.MinimalQueue(),
     light: Boolean,
     safeTop: Float,
     safeBottom: Float,
@@ -82,17 +84,30 @@ fun MinimalPlayerScreen(
     if (detour) return
 
     val playback = state.playback
-    val ink = remember(light) { minimalInk(light) }
+    // 主题只有一个来源：桥上说的（和 palette 同源）。桥还没说话时才用宿主给的界面主题。
+    val dark = !(state.controls.light ?: light)
+    val ink = remember(dark) { minimalInk(!dark) }
     // 配色优先用 JS 送来的那一份（`buildMinimalPalette` 的输出，和 WebView 页面逐字节一致）；
     // 只有桥上还没有配色时，才用原生这份移植兜底。
-    val local = remember(artwork.colors, artwork.songKey, light) {
-        buildMinimalPalette(artwork.colors, light)
+    val local = remember(artwork.colors, artwork.songKey, dark) {
+        buildMinimalPalette(artwork.colors, !dark)
     }
     val palette = state.palette ?: local
     val clock = rememberMinimalClock(playback)
     // 系统关闭动画时不跑背景漂移与封面浮动；页面仍然完整可读（与 prefers-reduced-motion 对齐）。
     val context = androidx.compose.ui.platform.LocalContext.current
     val still = remember(context) { reducedMotion(context) }
+
+    // 抽屉的开关是这一页的本地状态；它不改变播放，只是把队列画出来。
+    val queueVisible = remember { mutableStateOf(false) }
+    val sheetCommands = remember(commands) {
+        object : MinimalPlayerCommands by commands {
+            override fun openQueue(): Boolean {
+                queueVisible.value = true
+                return commands.requestQueue()
+            }
+        }
+    }
 
     val savedPage = rememberSaveable { mutableIntStateOf(0) }
     val pagerState = rememberPagerState(initialPage = savedPage.value) { PAGE_COUNT }
@@ -102,7 +117,7 @@ fun MinimalPlayerScreen(
     Box(modifier.fillMaxSize().background(Color(palette.base))) {
         MinimalAmbience(
             colors = paletteColors(palette),
-            light = light,
+            light = !dark,
             paused = !playback.playing,
             still = still,
             modifier = Modifier.fillMaxSize(),
@@ -134,7 +149,7 @@ fun MinimalPlayerScreen(
                         artwork = artwork,
                         palette = palette,
                         ink = ink,
-                        light = light,
+                        light = !dark,
                         clock = clock,
                         active = page == 0,
                         still = still,
@@ -164,7 +179,7 @@ fun MinimalPlayerScreen(
                 clock = clock,
                 ink = ink,
                 accent = Color(palette.accent),
-                commands = commands,
+                commands = sheetCommands,
                 modifier = Modifier.padding(top = 2.dp),
             )
             PageDots(
@@ -173,6 +188,24 @@ fun MinimalPlayerScreen(
                 ink = ink,
                 onSelect = { target -> scope.launch { pagerState.animateScrollToPage(target) } },
                 modifier = Modifier.padding(top = 6.dp),
+            )
+        }
+
+        // 抽屉盖在整页之上（包括安全区之外）：它自己带 scrim，视觉上是从底边长出来的。
+        if (queueVisible.value) {
+            MinimalQueueSheet(
+                queue = queue,
+                ink = ink,
+                base = Color(palette.base),
+                accent = Color(palette.accent),
+                onClose = {
+                    queueVisible.value = false
+                    commands.closeQueue()
+                },
+                onPlay = { commands.queuePlay(it) },
+                onRemove = { commands.queueRemove(it) },
+                onMoveNext = { commands.queueMoveNext(it) },
+                onMoveEnd = { commands.queueMoveEnd(it) },
             )
         }
     }

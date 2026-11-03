@@ -3,6 +3,8 @@ package io.github.huleixin.tingyu.chrome
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.SystemClock
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -155,6 +157,12 @@ class MinimalParityTest {
         override fun openAudioEffects(): Boolean = true
         override fun openLyricsPanel(): Boolean = true
         override fun openPlaybackSettings(): Boolean = true
+        override fun requestQueue(): Boolean = true
+        override fun closeQueue(): Boolean = true
+        override fun queuePlay(index: Int): Boolean = true
+        override fun queueRemove(index: Int): Boolean = true
+        override fun queueMoveNext(index: Int): Boolean = true
+        override fun queueMoveEnd(index: Int): Boolean = true
     }
 
     private fun render(name: String, light: Boolean, safeTop: Float, safeBottom: Float) {
@@ -200,6 +208,50 @@ class MinimalParityTest {
         val out = File(outDir, "$name.png")
         FileOutputStream(out).use { shot.compress(Bitmap.CompressFormat.PNG, 100, it) }
         println("PARITY_SHOT=$name ${shot.width}x${shot.height} -> ${out.absolutePath}")
+    }
+
+    @Test
+    fun queueSheet() {
+        val rows = listOf(
+            Triple("tx:1", "九万字", "黄诗扶"),
+            Triple("tx:2", "剥去利刃", "黄诗扶"),
+            Triple("tx:3", "沦为人臣", "黄诗扶"),
+            Triple("tx:4", "落笔无言", "黄诗扶"),
+            Triple("tx:5", "灯下数着过往", "黄诗扶"),
+        )
+        val queue = io.github.huleixin.tingyu.minimal.MinimalQueue(
+            version = 1,
+            currentIndex = 1,
+            total = rows.size,
+            items = rows.map { io.github.huleixin.tingyu.minimal.MinimalQueueItem(it.first, it.second, it.third) },
+        )
+        compose.setContent {
+            androidx.compose.foundation.layout.Box(
+                androidx.compose.ui.Modifier
+                    .fillMaxSize()
+                    .background(androidx.compose.ui.graphics.Color(0xFF152528))
+            ) {
+                io.github.huleixin.tingyu.minimal.ui.MinimalQueueSheet(
+                    queue = queue,
+                    ink = io.github.huleixin.tingyu.minimal.ui.minimalInk(false),
+                    base = androidx.compose.ui.graphics.Color(0xFF152528),
+                    accent = androidx.compose.ui.graphics.Color(0xFFAAC1D5),
+                    onClose = {},
+                    onPlay = {},
+                    onRemove = {},
+                    onMoveNext = {},
+                    onMoveEnd = {},
+                )
+            }
+        }
+        compose.mainClock.advanceTimeByFrame()
+        compose.mainClock.advanceTimeByFrame()
+        val view = compose.activity.window.decorView
+        val shot = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+        view.draw(android.graphics.Canvas(shot))
+        outDir.mkdirs()
+        FileOutputStream(File(outDir, "queue-sheet.png")).use { shot.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        println("PARITY_SHOT=queue-sheet ${shot.width}x${shot.height}")
     }
 
     @Test

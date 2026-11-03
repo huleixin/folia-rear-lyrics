@@ -12,7 +12,8 @@ import i18n from '../i18n/config';
 import { resolveQualityBadges } from '../components/app/overlays/minimal-stage/minimalQuality';
 import { buildMinimalPalette } from '../components/app/overlays/minimal-stage/minimalPalette';
 import { useCoverColors } from '../components/app/overlays/minimal-stage/useCoverPalette';
-import { canUseComposeChrome } from '../services/nativeChrome';
+import { canUseComposeChrome, chromeNative } from '../services/nativeChrome';
+import { readNativeQueue, runNativeQueueAction } from '../services/nativeMinimalQueue';
 import {
     addMinimalPlayerActionListener,
     beginMinimalPlayerSession,
@@ -89,6 +90,22 @@ export function useNativeMinimalPlayer({
     }, [coverColors, light]);
     const paletteRef = useRef(palette);
     paletteRef.current = palette;
+
+    // 队列推送：只在抽屉打开后、且版本变了才发。396 条曲目一秒一包是不可接受的。
+    const queueOpen = useRef(false);
+    const queueDirty = useRef(false);
+    const queueVersionSent = useRef(-1);
+    const pushQueue = useCallback(() => {
+        const currentKey = latest.current.chrome?.song?.track
+            ? getPlaybackSongKey(latest.current.chrome.song.track)
+            : '';
+        const snapshot = readNativeQueue(currentKey);
+        if (!snapshot) return;
+        if (!queueDirty.current && snapshot.v === queueVersionSent.current) return;
+        queueVersionSent.current = snapshot.v;
+        queueDirty.current = false;
+        void chromeNative.minimalQueue(snapshot).catch(() => undefined);
+    }, []);
     /** The session this mount owns; a republish must never mint a new one. */
     const sessionRef = useRef('');
     const publishedTrackKey = useRef('');
@@ -130,6 +147,8 @@ export function useNativeMinimalPlayer({
             qualityGold: badges.some(badge => badge.tone === 'gold'),
             qualityMode: QUALITY_LABELS[useAudioSettingsStore.getState().audioQuality],
             effectsOn: useAudioSettingsStore.getState().audioEqualizerSettings.enabled,
+            // 和 palette 用同一个 light：页面主题只有一个来源。
+            light,
             liked: !!likeContext?.isLiked,
             likeDisabled: !likeContext || !!likeContext.likeDisabled,
             detour: usePlayerViewModeStore.getState().detour,
@@ -187,9 +206,10 @@ export function useNativeMinimalPlayer({
                 seek: seconds => currentControls.onSeek(seconds),
                 toggleLoop: currentControls.onToggleLoop,
                 openQueue: () => {
-                    const view = useAppViewStore.getState();
-                    view.setPanelTab('queue');
-                    view.setIsPanelOpen(true);
+                    // 原生抽屉自己画，不再打开 WebView 面板；只把数据推过去。
+                    queueOpen.current = true;
+                    queueDirty.current = true;
+                    pushQueue();
                 },
                 collapse: () => currentChrome?.onBack(),
                 like: () => latest.current.controls?.slotContext?.onLike?.(),
@@ -202,6 +222,18 @@ export function useNativeMinimalPlayer({
                     view.setIsPanelOpen(true);
                 },
                 openPlaybackSettings: () => openSettings('options', 'playback'),
+                // 队列：原生抽屉打开时把快照推过去；行内动作原样交给原版处理器。
+                openQueueSnapshot: () => {
+                    queueDirty.current = true;
+                    pushQueue();
+                },
+                closeQueueSnapshot: () => {
+                    queueOpen.current = false;
+                },
+                queueAction: (action, index) => {
+                    if (runNativeQueueAction(action, index)) queueDirty.current = true;
+                    pushQueue();
+                },
                 // 顺访舞台：交给 store 的既有语义（detour），退出由舞台自己 closeStage。
                 openStage: () => usePlayerViewModeStore.getState().openStage(),
             });
