@@ -52,6 +52,31 @@ export type GenerateAIThemeResult =
 
 const CUSTOM_DUAL_THEME_KEY = 'custom_dual_theme';
 
+/**
+ * Theme feedback, split by who asked.
+ *
+ * An automatic generation runs on its own timer while the listener is reading lyrics, so anything it
+ * draws lands on top of a line they were in the middle of. Those three toasts — "正在生成", "已应用主题"
+ * and the cover-derived fallback note — are therefore suppressed for `source: 'auto'`; the work itself
+ * is unchanged, and every attempt still lands in `aiThemeDiagnostics` (provider, trigger, stage,
+ * status, duration) for the diagnostics export. A manual click keeps its answer, because there the
+ * listener is waiting, and a real failure still surfaces — a failure the listener did not cause is
+ * logged instead, since silently swallowing it would leave nothing to report later.
+ */
+const notifyTheme = (
+    quiet: boolean,
+    message: { type: StatusMessage['type']; text: string },
+    detail?: string,
+): void => {
+    if (quiet) {
+        if (detail) {
+            console.info(`[theme] ${detail}`);
+        }
+        return;
+    }
+    setStatusMsg({ ...message, nonce: Date.now() });
+};
+
 // Keeps local theme operations successful when the optional sync server is unavailable.
 const saveSyncedThemeWithoutBlocking = (...args: Parameters<typeof saveSyncedThemeForSong>) => {
     void saveSyncedThemeForSong(...args).catch((error) => {
@@ -572,6 +597,7 @@ export function useThemeController({
         currentSong: SongResult | null,
         shouldApply: () => boolean,
         origin: 'chosen' | 'fallback',
+        quiet = false,
     ): Promise<GenerateAIThemeResult> => {
         const coverColors = coverUrl ? await extractColors(coverUrl, 5) : [];
         const coverTheme = applyStoredAnimationIntensityToDualTheme(buildBuiltinDualTheme({ coverColors }));
@@ -588,21 +614,25 @@ export function useThemeController({
         if (currentSong) setCurrentSongHasLocalAiTheme(true);
         applyDualTheme(coverTheme);
         const customPreferred = bgMode === 'custom' && customTheme;
-        setStatusMsg(origin === 'fallback'
-            ? {
-                type: 'info',
-                text: customPreferred
-                    ? t('notifications.aiThemeGeneratedCustomPreferred')
-                    : t('status.aiFallbackThemeUsed'),
-            }
-            : {
-                type: 'success',
-                text: customPreferred
-                    ? t('notifications.aiThemeUpdatedCustomPreferred')
-                    : t('status.coverThemeApplied', {
-                        themeName: getSelectedDualTheme(coverTheme, isDaylight).name,
-                    }),
-            });
+        notifyTheme(
+            quiet,
+            origin === 'fallback'
+                ? {
+                    type: 'info',
+                    text: customPreferred
+                        ? t('notifications.aiThemeGeneratedCustomPreferred')
+                        : t('status.aiFallbackThemeUsed'),
+                }
+                : {
+                    type: 'success',
+                    text: customPreferred
+                        ? t('notifications.aiThemeUpdatedCustomPreferred')
+                        : t('status.coverThemeApplied', {
+                            themeName: getSelectedDualTheme(coverTheme, isDaylight).name,
+                        }),
+                },
+            origin === 'fallback' ? 'cover-derived theme applied (AI unavailable)' : 'cover theme applied',
+        );
 
         return { status: 'generated', applied: true };
     };
@@ -613,6 +643,8 @@ export function useThemeController({
         options: GenerateAIThemeOptions = {},
     ): Promise<GenerateAIThemeResult> => {
         const source = options.source ?? 'manual';
+        // Automatic work keeps quiet on screen and loud in the diagnostics ring (see notifyTheme).
+        const quiet = source !== 'manual';
         const songKey = currentSong ? getPlaybackSongKey(currentSong) : '__no_song__';
         const shouldApply = () => {
             const latestSong = usePlaybackStore.getState().currentSong;
@@ -626,7 +658,9 @@ export function useThemeController({
 
         themeGenerationSongKeysRef.current.add(songKey);
         beginThemeGeneration();
-        setStatusMsg({ type: 'info', text: t('status.generatingTheme') });
+        // "少女祈祷中…" is an answer to a click. Nobody clicked when a song change started this, so
+        // the pause between two lyric lines must not be interrupted by it.
+        notifyTheme(quiet, { type: 'info', text: t('status.generatingTheme') });
         try {
             // The cover source never touches the model, so it also never needs a lyric prompt:
             // an instrumental with no title still gets a theme from its artwork.
@@ -637,6 +671,7 @@ export function useThemeController({
                     currentSong,
                     shouldApply,
                     'chosen',
+                    quiet,
                 );
             }
 
@@ -672,12 +707,16 @@ export function useThemeController({
             applyDualTheme(normalizedDualTheme);
 
             const selectedTheme = getSelectedDualTheme(normalizedDualTheme, isDaylight);
-            setStatusMsg({
-                type: 'success',
-                text: bgMode === 'custom' && customTheme
-                    ? t('notifications.aiThemeUpdatedCustomPreferred')
-                    : t('status.themeApplied', { themeName: selectedTheme.name }),
-            });
+            notifyTheme(
+                quiet,
+                {
+                    type: 'success',
+                    text: bgMode === 'custom' && customTheme
+                        ? t('notifications.aiThemeUpdatedCustomPreferred')
+                        : t('status.themeApplied', { themeName: selectedTheme.name }),
+                },
+                `applied "${selectedTheme.name}" (${source})`,
+            );
 
             return { status: 'generated', applied: true };
         } catch (error: unknown) {
@@ -687,11 +726,20 @@ export function useThemeController({
                     currentSong,
                     shouldApply,
                     'fallback',
+                    quiet,
                 );
             }
 
             if (shouldApply()) {
-                setStatusMsg({ type: 'error', text: t('status.themeGenerationFailed') });
+                // A manual generation that fails gets an error, because the listener is waiting for
+                // a result and there is nothing else to look at. An automatic one gets a log line:
+                // it was not asked for, it did not cost the listener anything, and an error card
+                // over the lyrics is a worse outcome than a background theme that stayed as it was.
+                notifyTheme(
+                    quiet,
+                    { type: 'error', text: t('status.themeGenerationFailed') },
+                    `generation failed (${source}); the previous theme is unchanged`,
+                );
             }
             return { status: 'failed' };
         } finally {
