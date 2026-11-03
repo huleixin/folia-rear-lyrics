@@ -51,7 +51,7 @@ export type RearNativeTrack = {
     lyric?: string;
 };
 
-type NativeLyricResult = { state?: string; lines?: LyricData['lines'] };
+type NativeLyricResult = { state?: string; lines?: LyricData['lines']; isWordByWord?:boolean };
 
 export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock) => void, onConfig: (config: ObsBrowserSourceConfig) => void, loadFont = true,
     options: { onSnapshot?: (snapshot: RearStateSnapshot) => void; receiveSnapshots?: RearSnapshotReceiver } = {}): LyricsSurfaceTransport {
@@ -183,6 +183,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                 ...base,
                 lyrics: {
                     lines: lineCount > 0 ? result!.lines! : [],
+                    isWordByWord:result?.isWordByWord===true,
                     title: track.title, artist: track.artist,
                 },
                 updatedAt: Date.now(),

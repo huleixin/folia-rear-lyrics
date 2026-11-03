@@ -27,7 +27,7 @@ it('a frozen foreground WebView hands the timeline to the native track and never
         revision: 7, config: baseConfig,
         clock: { currentTime: 240, duration: 240, playerState: 'PLAYING', playbackRate: 1, sentAtMs: Date.now() - 60_000 },
         track: { songKey: 'k2', epoch: 'k2#2', title: 'B', artist: 'b', positionMs: 5_000, durationMs: 200_000, playing: true },
-    }, { state: 'ready', lines: [{ fullText: 'B1', startTime: 4, endTime: 9, words: [] }] });
+    }, { state: 'ready', isWordByWord:true, lines: [{ fullText: 'B1', startTime: 4, endTime: 9, words: [] }] });
     const config = vi.fn(), clock = vi.fn();
     const stop = createRearLyricsTransport(() => undefined, () => undefined, false)
         .subscribe({ config, clock, audio: vi.fn(), connected: vi.fn() });
@@ -38,6 +38,7 @@ it('a frozen foreground WebView hands the timeline to the native track and never
     expect(config.mock.lastCall?.[0].song.id).toBe('k2');
     expect(config.mock.lastCall?.[0].lyrics.lines).toHaveLength(1);
     expect(config.mock.lastCall?.[0].lyrics.lines[0].fullText).toBe('B1');
+    expect(config.mock.lastCall?.[0].lyrics.isWordByWord).toBe(true);
     // Visual settings are preserved: this is a patch, not a new configuration.
     expect(config.mock.lastCall?.[0].lyricsFontScale).toBe(baseConfig.hasOwnProperty('lyricsFontScale')
         ? (baseConfig as Record<string, unknown>).lyricsFontScale : undefined);

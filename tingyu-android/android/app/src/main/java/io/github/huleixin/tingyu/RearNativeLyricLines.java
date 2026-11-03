@@ -78,6 +78,7 @@ public final class RearNativeLyricLines {
             value.put("state", state);
             value.put("title", RearNativeTrack.snapshot().optString("title", ""));
             if (lyric.has("lines")) {
+                value.put("isWordByWord",lyric.optBoolean("isWordByWord",false));
                 value.put("lines", lyric.getJSONArray("lines"));
                 int lines = lyric.getJSONArray("lines").length();
                 RearLyricsTrace.record(context, "rear/lyric-delivered",
@@ -211,7 +212,8 @@ public final class RearNativeLyricLines {
     /** Same raw display model as the front stage; apply user offset only at this delivery boundary. */
     public static String rowsFromRenderModel(String model, String key, long offsetMs) {
         try {
-            JSONArray lines = new JSONObject(model).optJSONArray("lines");
+            JSONObject renderModel=new JSONObject(model);
+            JSONArray lines = renderModel.optJSONArray("lines");
             if (lines == null || lines.length() == 0) return null;
             double delta = offsetMs / 1000.0;
             for (int i=0;i<lines.length();i++) {
@@ -223,7 +225,8 @@ public final class RearNativeLyricLines {
                     for(String field:new String[]{"startTime","endTime"}) if(word.has(field))word.put(field,Math.max(0,word.optDouble(field)+delta));
                 }
             }
-            return new JSONObject().put("songKey",key).put("state","ready").put("lines",lines).toString();
+            return new JSONObject().put("songKey",key).put("state","ready").put("lines",lines)
+                .put("isWordByWord",renderModel.optBoolean("isWordByWord",false)).toString();
         } catch(Exception invalid) { return null; }
     }
 
@@ -289,6 +292,7 @@ public final class RearNativeLyricLines {
         try {
             result.put("songKey", songKey == null ? "" : songKey)
                 .put("state", out.length() == 0 ? "none" : "ready")
+                .put("isWordByWord",false)
                 .put("lines", out);
         } catch (Exception ignored) { }
         return result.toString();

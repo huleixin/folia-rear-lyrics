@@ -14,6 +14,14 @@ import org.junit.Test;
  * 翻译只在真的存在时出现；并且空/无词永远回 state=none 而不是返回上一首。
  */
 public class RearNativeLyricLinesTest {
+    @Test public void preservesDeclaredWordTimingWithoutGuessingFromPlaceholderWords() throws Exception {
+        JSONObject line=new JSONObject().put("startTime",1).put("endTime",2).put("fullText","test").put("words",new JSONArray());
+        JSONObject model=new JSONObject().put("isWordByWord",true).put("lines",new JSONArray().put(line));
+        assertTrue(new JSONObject(RearNativeLyricLines.rowsFromRenderModel(model.toString(),"test",0)).getBoolean("isWordByWord"));
+        model.remove("isWordByWord");
+        assertTrue(!new JSONObject(RearNativeLyricLines.rowsFromRenderModel(model.toString(),"test",0)).getBoolean("isWordByWord"));
+        assertTrue(!new JSONObject(RearNativeLyricLines.rows("[00:01.00]test",null,"test")).getBoolean("isWordByWord"));
+    }
 
     @Test public void convertsLrcIntoRearLinesWithSecondTimestamps() throws Exception {
         JSONObject result = new JSONObject(RearNativeLyricLines.rows(
