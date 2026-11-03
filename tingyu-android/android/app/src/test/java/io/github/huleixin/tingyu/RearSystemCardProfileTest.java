@@ -26,4 +26,21 @@ public class RearSystemCardProfileTest {
     @Test public void unknownVersionsNeverInheritAdjacentMappings(){
         for(long version:new long[]{0,-1,26010520,26010522,426091418,426091420,Long.MAX_VALUE})assertNull(RearSystemCardProfile.forVersion(version));
     }
+    @Test public void september23HasItsOwnCompleteMapping(){
+        RearSystemCardProfile p=RearSystemCardProfile.forVersion(426092316L);
+        assertSame(RearSystemCardProfile.SEPTEMBER_23,p);
+        assertEquals("U1.O0",p.holderClass);assertEquals("q2.v",p.widgetClass);
+        assertEquals("U1.r0",p.managerClass);assertEquals("m2.a",p.musicGate);
+        assertEquals("g",p.updateMethod);assertEquals("k",p.collapseMethod);assertEquals("j",p.expandMethod);assertEquals("h",p.removeMethod);
+        assertEquals("r",p.switchesField);assertEquals("T1.c",p.serviceClass);assertEquals("b",p.serviceMethod);
+    }
+    @Test public void unlistedOlderAndNewerVersionsNeedOneVerifiedFingerprint(){
+        for(long version:new long[]{1,26010520,26010522,426091420,426092315,426092317,Long.MAX_VALUE}){
+            for(RearSystemCardProfile p:RearSystemCardProfile.all())assertSame(p,RearSystemCardProfile.choose(version,java.util.Collections.singletonList(p)));
+            assertNull(RearSystemCardProfile.choose(version,java.util.Collections.emptyList()));
+            assertNull(RearSystemCardProfile.choose(version,java.util.Arrays.asList(RearSystemCardProfile.JANUARY,RearSystemCardProfile.SEPTEMBER)));
+        }
+        assertNull(RearSystemCardProfile.forPanel(426092316L,"com.xiaomi.subscreencenter.MainPanel"));
+        assertSame(RearSystemCardProfile.SEPTEMBER,RearSystemCardProfile.choose(426091419L,java.util.Arrays.asList(RearSystemCardProfile.JANUARY,RearSystemCardProfile.SEPTEMBER)));
+    }
 }

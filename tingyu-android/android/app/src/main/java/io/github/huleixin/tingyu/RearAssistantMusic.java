@@ -27,13 +27,13 @@ final class RearAssistantMusic {
     }
     static void install(ClassLoader loader){
         StringBuilder result=new StringBuilder();
-        for(RearSystemCardProfile profile:new RearSystemCardProfile[]{RearSystemCardProfile.JANUARY,RearSystemCardProfile.SEPTEMBER})try{
+        for(RearSystemCardProfile profile:RearSystemCardCapabilities.verified(loader))try{
             Class<?> type=XposedHelpers.findClass(profile.managerClass,loader);
             // Validate all signatures before observing this ROM. No optional mutation methods.
-            Method update=type.getDeclaredMethod("f",String.class,Bundle.class);
-            Method collapse=type.getDeclaredMethod("j",boolean.class);
-            Method expand=type.getDeclaredMethod("i");
-            Method remove=type.getDeclaredMethod("g");
+            Method update=type.getDeclaredMethod(profile.updateMethod,String.class,Bundle.class);
+            Method collapse=type.getDeclaredMethod(profile.collapseMethod,boolean.class);
+            Method expand=type.getDeclaredMethod(profile.expandMethod);
+            Method remove=type.getDeclaredMethod(profile.removeMethod);
             if(update.getReturnType()!=void.class||collapse.getReturnType()!=void.class||expand.getReturnType()!=void.class||remove.getReturnType()!=void.class)
                 throw new IllegalStateException("manager signature mismatch");
             XC_MethodHook observe=new XC_MethodHook(){
@@ -47,8 +47,8 @@ final class RearAssistantMusic {
             for(Method method:new Method[]{update,collapse,expand,remove})XposedBridge.hookMethod(method,observe);
             // The service calls this diagnostic method with the unmodified SystemUI media bundle.
             // Read only booleans/own-package classification, never payload strings or artwork.
-            Class<?> service=XposedHelpers.findClass(profile.version==26010521L?"Y1.b":"F2.g",loader);
-            Method incoming=service.getDeclaredMethod("a",String.class,Bundle.class);
+            Class<?> service=XposedHelpers.findClass(profile.serviceClass,loader);
+            Method incoming=service.getDeclaredMethod(profile.serviceMethod,String.class,Bundle.class);
             XposedBridge.hookMethod(incoming,new XC_MethodHook(){
                 @Override protected void beforeHookedMethod(MethodHookParam p){
                     if(!"mediaData".equals(p.args[0]))return;
@@ -69,8 +69,8 @@ final class RearAssistantMusic {
         try{
             if(hostVersion<0)hostVersion=context.getPackageManager().getPackageInfo(RearHostContract.TARGET,0).getLongVersionCode();
             long version=hostVersion;
-            if(RearSystemCardProfile.forVersion(version)!=profile)return new State(false,false,"assistant ROM profile mismatch="+version);
-            Map<?,?> switches=(Map<?,?>)XposedHelpers.getObjectField(current,"q");
+            if(RearSystemCardProfile.choose(version,RearSystemCardCapabilities.verified(current.getClass().getClassLoader()))!=profile)return new State(false,false,"assistant ROM capabilities ambiguous or changed="+version);
+            Map<?,?> switches=(Map<?,?>)XposedHelpers.getObjectField(current,profile.switchesField);
             boolean enabled=Boolean.TRUE.equals(switches.get("com.music.service"));
             List<?> entries=(List<?>)XposedHelpers.getObjectField(current,"a");
             Bundle data=null;int count,entryIndex=-1;

@@ -10,7 +10,7 @@ import de.robv.android.xposed.XposedHelpers;
 import java.util.List;
 
 // android/app/src/main/java/io/github/huleixin/tingyu/RearSystemCardBinding.java
-/** Read-only adapter for the two supplied system APK profiles, not a card creator.
+/** Read-only adapter for structurally verified system APK profiles, not a card creator.
  * Field names are raw DEX names, not JADX's generated aliases. Unknown ROMs fail closed. */
 final class RearSystemCardBinding {
     static final String PANEL="com.xiaomi.subscreencenter.SmartAssistantPanel";
@@ -30,12 +30,13 @@ final class RearSystemCardBinding {
     static void install(ClassLoader loader){
         try{
             int installed=0;
-            for(RearSystemCardProfile profile:new RearSystemCardProfile[]{
-                RearSystemCardProfile.JANUARY,RearSystemCardProfile.SEPTEMBER}){
+            java.util.Set<java.lang.reflect.Method> observed=new java.util.HashSet<>();
+            for(RearSystemCardProfile profile:RearSystemCardCapabilities.verified(loader)){
                 try{
                     Class<?> type=XposedHelpers.findClass(profile.panelClass,loader);
                     java.lang.reflect.Method bind=type.getDeclaredMethod(profile.bindMethod,profile.parameters());
                     if(bind.getReturnType()!=void.class)continue;
+                    if(!observed.add(bind))continue;
                     XposedBridge.hookMethod(bind,new XC_MethodHook(){
                         @Override protected void afterHookedMethod(MethodHookParam p){
                             if(!p.hasThrowable()&&changed!=null)changed.run();
@@ -50,18 +51,20 @@ final class RearSystemCardBinding {
 
     /** Require the real panel -> holder -> widget -> content identity chain; never infer from size. */
     static RearSystemCardBinding resolve(FrameLayout content){
+        return resolve(content,true);
+    }
+    static RearSystemCardBinding resolve(FrameLayout content,boolean requireVisible){
         try{
             android.content.pm.PackageInfo info=content.getContext().getPackageManager().getPackageInfo(RearHostContract.TARGET,0);
             long version=info.getLongVersionCode();
-            RearSystemCardProfile profile=RearSystemCardProfile.forVersion(version);
+            RearSystemCardProfile profile=RearSystemCardProfile.choose(version,RearSystemCardCapabilities.verified(content.getClass().getClassLoader()));
             unsupportedVersion=profile==null;
-            if(unsupportedVersion){evidence="unsupported system slot profile versionCode="+version+", versionName="+info.versionName+", supportedVersionCodes=26010521/426091419; require installed host APK";return null;}
+            if(unsupportedVersion){evidence="unsupported or ambiguous system slot capabilities versionCode="+version+", versionName="+info.versionName+"; "+RearSystemCardCapabilities.evidence;return null;}
             ViewParent parent=content.getParent();View panel=null;
             for(int depth=0;parent instanceof View&&depth<16;depth++,parent=parent.getParent()){
-                if(RearSystemCardProfile.forPanel(version,parent.getClass().getName())!=null){panel=(View)parent;break;}
+                if(profile.panelClass.equals(parent.getClass().getName())){panel=(View)parent;break;}
             }
             if(panel==null){evidence="MAML has no verified native panel ancestor; "+parents(content);return null;}
-            profile=RearSystemCardProfile.forPanel(version,panel.getClass().getName());
             java.lang.reflect.Method bind=panel.getClass().getDeclaredMethod(profile.bindMethod,profile.parameters());
             if(bind.getReturnType()!=void.class)throw new IllegalStateException("profile binding signature mismatch");
             Object value=XposedHelpers.getObjectField(panel,profile.holdersField);
@@ -74,8 +77,8 @@ final class RearSystemCardBinding {
                 Object slot=XposedHelpers.getObjectField(holder,profile.holderSlotField);
                 if(!(slot instanceof FrameLayout)||content.getParent()!=slot||XposedHelpers.getObjectField(widget,"p")!=slot){evidence="system slot/content parent mismatch";return null;}
                 RearSystemCardBinding result=new RearSystemCardBinding(panel,holder,widget,(FrameLayout)slot,content,profile);
-                if(result.current()){
-                    evidence="system music entry verified; profile="+profile.version+"; panel="+profile.panelClass+"; bind="+profile.bindMethod+"; centerSlot=1; selected=Tingyu; native parent and outline retained; "+parents(content);
+                if(requireVisible?result.current():result.associated()){
+                    evidence="system music entry verified; version="+version+"; profile="+profile.version+"; match="+(version==profile.version?"exact-and-structural":"structural")+"; panel="+profile.panelClass+"; bind="+profile.bindMethod+"; visibleRequired="+requireVisible+"; centerSlot="+(requireVisible?"1":"prepared-only")+"; selected=Tingyu; native parent and outline retained; "+parents(content);
                     return result;
                 }
                 return null;

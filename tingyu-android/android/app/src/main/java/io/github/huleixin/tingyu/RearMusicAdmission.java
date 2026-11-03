@@ -19,15 +19,16 @@ final class RearMusicAdmission {
     static volatile int ownChecks,ownLists;
     static void install(ClassLoader loader){
         ArrayList<String> result=new ArrayList<>();
-        // Both gates are verified from the supplied APKs. p2.a is a gesture base on September ROMs.
-        for(String gate:new String[]{RearSystemCardProfile.JANUARY.musicGate,RearSystemCardProfile.SEPTEMBER.musicGate})try{
+        java.util.Set<String> gates=new java.util.HashSet<>();
+        for(RearSystemCardProfile profile:RearSystemCardCapabilities.verified(loader))try{
+            String gate=profile.musicGate;if(!gates.add(gate))continue;
             Class<?> c=XposedHelpers.findClass(gate,loader);
             Method check=c.getDeclaredMethod("c",String.class);
             if(check.getReturnType()!=boolean.class)throw new IllegalStateException("c(String) signature mismatch");
             Method list=c.getDeclaredMethod("b");
             if(!Set.class.isAssignableFrom(list.getReturnType()))throw new IllegalStateException("b() signature mismatch");
             Object packages=list.invoke(null);
-            if(!(packages instanceof Set)||!((Set<?>)packages).contains("com.tencent.qqmusic"))throw new IllegalStateException("not a verified music gate");
+            if(!(packages instanceof Set)||(!((Set<?>)packages).contains("com.tencent.qqmusic")&&!Boolean.TRUE.equals(check.invoke(null,"unified.music"))))throw new IllegalStateException("not a verified music gate");
             XposedBridge.hookMethod(check,new XC_MethodHook(){
                 @Override protected void afterHookedMethod(MethodHookParam p){
                     if(!p.hasThrowable()&&RearNativeCardPolicy.ownMedia((String)p.args[0])){ownChecks++;p.setResult(true);}
@@ -45,7 +46,7 @@ final class RearMusicAdmission {
                     if(!p.hasThrowable()&&RearNativeCardPolicy.ownMedia((String)p.args[0]))p.setResult("music");
                 }
             });
-        }catch(Throwable error){result.add(gate+" unavailable="+error.getClass().getSimpleName());}
+        }catch(Throwable error){result.add(profile.musicGate+" unavailable="+error.getClass().getSimpleName());}
         try{
             Class<?> c=XposedHelpers.findClass("com.miui.maml.elements.MusicController",loader);
             Method list=c.getDeclaredMethod("addMusicPackageList",List.class);
