@@ -241,11 +241,11 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    justify-content: center;
+    justify-content: space-evenly;
     min-height: 0;
     overflow: hidden;
-    padding: 4px 26px 10px;
-    gap: clamp(16px, 2.8vh, 26px);
+    padding: clamp(10px, 2vh, 20px) 26px clamp(18px, 3vh, 34px);
+    gap: 0;
 }
 
 /* Parallax: while the strip is dragged, the sleeve drifts slightly against the page. The offset is
@@ -260,6 +260,7 @@
     /* Left, not centred: when the height cap shrinks the sleeve on a short screen, a centred square
        would drift off the column that the title and the progress bar still share. */
     align-self: flex-start;
+    margin-bottom: clamp(20px, 3vh, 24px);
     will-change: transform;
 }
 
@@ -351,7 +352,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 5px;
+    gap: clamp(6px, 1vh, 9px);
     width: 100%;
     min-width: 0;
     text-align: left;
@@ -402,50 +403,50 @@
     gap: 12px;
     width: 100%;
     min-height: 24px;
-    margin-top: 7px;
+    margin-top: clamp(10px, 1.6vh, 16px);
 }
 
 .min-live-lyric {
     flex: none;
     width: 100%;
     min-width: 0;
-    min-height: 46px;
-    margin-top: 2px;
-    padding-left: 11px;
-    border-left: 2px solid color-mix(in srgb, var(--min-accent) 64%, transparent);
-    background: linear-gradient(90deg, color-mix(in srgb, var(--min-accent) 8%, transparent), transparent 78%);
+    min-height: 58px;
+    margin-top: clamp(24px, 3.8vh, 38px);
+    display: grid;
+    place-items: center;
 }
 
 .min-live-lyric__text {
     display: -webkit-box;
     width: 100%;
-    min-height: 42px;
-    padding: 2px 0;
+    min-height: 54px;
+    max-height: 2.9em;
+    padding: 0;
     overflow: hidden;
     border: 0;
     background: none;
-    color: color-mix(in srgb, var(--min-ink) 86%, var(--min-accent) 14%);
+    color: color-mix(in srgb, var(--min-ink) 83%, transparent);
     font: inherit;
-    font-size: clamp(14px, 4vw, 17px);
-    font-weight: 500;
-    line-height: 1.45;
-    letter-spacing: 0.015em;
-    text-align: left;
+    font-size: clamp(17px, 4.6vw, 19px);
+    font-weight: 450;
+    line-height: 1.42;
+    letter-spacing: 0.005em;
+    text-align: center;
     text-overflow: ellipsis;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     word-break: break-word;
     cursor: pointer;
-    animation: min-live-lyric-in 220ms ease both;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .min-live-lyric__text:active {
-    color: var(--min-ink-bright);
+    color: var(--min-ink);
 }
-
-@keyframes min-live-lyric-in {
-    from { opacity: 0.35; transform: translate3d(0, 3px, 0); }
-    to { opacity: 1; transform: none; }
+.min-live-lyric__text:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--min-ink) 44%, transparent);
+    outline-offset: 4px;
+    border-radius: 2px;
 }
 
 .min-chips {
@@ -1079,10 +1080,12 @@
 /* ---------------------------------------------------------------- responsive */
 
 @media (max-height: 700px) {
-    .min-cover { gap: 13px; padding-bottom: 6px; }
-    .min-cover__stage { width: min(100%, 36vh); }
+    .min-cover { padding-top: 6px; padding-bottom: 14px; }
+    .min-cover__stage { width: min(100%, 33vh); margin-bottom: 16px; }
     .min-cover__title { font-size: 20px; }
-    .min-cover__foot { margin-top: 4px; min-height: 22px; }
+    .min-cover__foot { margin-top: 8px; min-height: 22px; }
+    .min-live-lyric { min-height: 52px; margin-top: 20px; }
+    .min-live-lyric__text { min-height: 48px; font-size: 17px; }
     .min-lyrics__thumb { width: 38px; height: 38px; }
     .min-line { min-height: calc(40px * var(--min-lyric-scale, 1)); margin-bottom: calc(2px * var(--min-lyric-scale, 1)); }
     .min-line__text { font-size: calc(15.5px * var(--min-lyric-scale, 1)); }
@@ -1090,8 +1093,9 @@
 }
 
 @media (min-height: 900px) {
-    .min-cover__stage { width: min(100%, 46vh); }
+    .min-cover__stage { width: min(100%, 42vh); }
     .min-cover__title { font-size: 29px; }
+    .min-live-lyric { margin-top: clamp(30px, 4vh, 42px); }
     .min-line { min-height: calc(56px * var(--min-lyric-scale, 1)); }
     .min-line__text { font-size: calc(21px * var(--min-lyric-scale, 1)); }
     .min-line[data-active] .min-line__text { font-size: calc(31px * var(--min-lyric-scale, 1)); }
@@ -1099,14 +1103,17 @@
 
 @media (orientation: landscape) {
     .min-cover {
-        flex-direction: row;
+        display: grid;
+        grid-template-columns: min(38%, 60vh) minmax(0, 1fr);
+        grid-template-rows: auto auto;
+        align-content: center;
         align-items: center;
-        justify-content: center;
-        gap: 30px;
+        column-gap: 30px;
         padding: 4px 30px;
     }
-    .min-cover__stage { width: min(38%, 60vh); }
-    .min-cover__meta { width: auto; max-width: 46%; align-items: flex-start; }
+    .min-cover__stage { grid-column: 1; grid-row: 1 / 3; width: 100%; margin: 0; }
+    .min-cover__meta { grid-column: 2; grid-row: 1; width: 100%; max-width: none; align-items: flex-start; }
+    .min-live-lyric { grid-column: 2; grid-row: 2; margin-top: 14px; }
     .min-cover__foot { width: 100%; min-width: 210px; }
     .min-lyrics__column { padding-top: 12px; }
     .min-lyrics__head { padding-bottom: 2px; }

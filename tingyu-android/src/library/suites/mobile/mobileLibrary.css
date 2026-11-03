@@ -883,16 +883,28 @@
     width: 118px;
     height: 118px;
 }
+.ml-artist-description {
+    min-width: 0;
+    flex: 1;
+}
 .ml-collection-intro p {
     font-size: 13px;
     line-height: 1.8;
     color: var(--ml-muted);
     display: -webkit-box;
-    -webkit-line-clamp: 4;
+    -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
     overflow-wrap: anywhere;
     min-width: 0;
+}
+.ml-collection-intro p.is-expanded {
+    -webkit-line-clamp: unset;
+}
+.ml-artist-description > button {
+    margin-top: 5px;
+    color: var(--ml-jade);
+    font-size: 12px;
 }
 .ml-collection-actions {
     display: flex;

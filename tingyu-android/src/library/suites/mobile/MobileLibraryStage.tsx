@@ -28,6 +28,7 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
     const settingsOpen = useSettingsModalStore((state) => state.settingsModalState.isOpen);
     const homeActive = !searchOpen && !settingsOpen && page === 'home';
     const libraryActive = !searchOpen && !settingsOpen && page === 'library';
+    const artistDetail = props.navigation.depth > 0 && props.navigation.activeType === 'artist';
     const wide = useMediaQuery('(min-width:840px)');
     const playlistDetail = props.navigation.depth > 0 && props.navigation.activeType === 'playlist';
     // 两个玻璃节点持续挂载；切页只改变位置和透明度，不重建透镜或播放器。
@@ -42,7 +43,7 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
     const nativeGlass = useNativeGlassNav(navRef, !COMPOSE_CHROME && props.isInteractive && !settingsOpen && !searchOpen, `${playlistDetail}:${page}`, nativeNavigate);
     const reducedMotion = useReducedMotionFor('uiMicroMotion');
     const homeView = useAppViewStore(state=>state.view==='home'&&!state.isPanelOpen);
-    const compose = useComposeChrome(navRef,'nav',homeView && (PREHIDE_COMPOSE_CHROME||props.isInteractive) && !settingsOpen && !searchOpen,{
+    const compose = useComposeChrome(navRef,'nav',homeView && !artistDetail && (PREHIDE_COMPOSE_CHROME||props.isInteractive) && !settingsOpen && !searchOpen,{
         selected:homeActive?0:libraryActive?1:searchOpen?2:settingsOpen?3:-1,vertical:wide,reducedMotion,
         accent:'#86d8b8',ink:'#eef5ef',labels:{nav0:t('mobileLibrary.recommend'),nav1:t('mobileLibrary.libraryNav'),nav2:t('mobileLibrary.search'),nav3:t('mobileLibrary.settingsNav')},
     },{navigate:nativeNavigate});
@@ -57,7 +58,7 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
         props.onLibraryHome?.();
     };
     return (
-        <footer ref={footerRef} className="mobile-library ml-footer" data-footer-motion="true" data-playlist-detail={playlistDetail ? 'true' : undefined} inert={!props.isInteractive&&!PREHIDE_COMPOSE_CHROME}>
+        <footer ref={footerRef} className="mobile-library ml-footer" data-footer-motion="true" data-playlist-detail={playlistDetail ? 'true' : undefined} data-artist-detail={artistDetail ? 'true' : undefined} inert={artistDetail||!props.isInteractive&&!PREHIDE_COMPOSE_CHROME}>
             <MobileMiniPlayer
                 onBackToPlayer={props.onBackToPlayer}
                 onTogglePlayback={props.onTogglePlayback}

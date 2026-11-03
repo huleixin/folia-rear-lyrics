@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import type { LyricData } from '../../../../types';
 import { lyricCurrentTime } from '../../../../stores/motionSignals';
@@ -53,16 +54,22 @@ export default function MinimalLiveLyric({
 
     return (
         <div className="min-live-lyric" data-testid="minimal-live-lyric">
-            <button
-                key={`${songKey}:${index}`}
-                type="button"
-                className="min-live-lyric__text"
-                title={text}
-                aria-label={`${t('minimalStage.openLyrics')}: ${text}`}
-                onClick={onOpen}
-            >
-                {text}
-            </button>
+            <AnimatePresence mode="wait" initial={false}>
+                <motion.button
+                    key={`${songKey}:${index}`}
+                    type="button"
+                    className="min-live-lyric__text"
+                    title={text}
+                    aria-label={`${t('minimalStage.openLyrics')}: ${text}`}
+                    onClick={onOpen}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.28, ease: [0.22, 0.68, 0.2, 1] }}
+                >
+                    {text}
+                </motion.button>
+            </AnimatePresence>
         </div>
     );
 }

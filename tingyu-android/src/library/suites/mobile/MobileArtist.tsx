@@ -33,10 +33,12 @@ function MobileArtist(props: LibraryArtistSurfaceProps) {
     });
     const reducedMotion = useReducedMotion();
     const [tab, setTab] = useState<'songs' | 'albums'>('songs');
+    const [descriptionExpanded, setDescriptionExpanded] = useState(false);
     const [menu, setMenu] = useState<SongResult | 'artist' | null>(null);
     const closeMenu = useCallback(() => setMenu(null), []);
     const songMenu = useCallback((song: SongResult) => setMenu(song), []);
     const tracks = useCollectionView({ tracks: model.topSongs, committedQuery: useCommittedQuery(model.query) });
+    const description = snapshot?.detail?.description || props.collection.description || '';
     const selectTrack = useLibraryTrackPlayback(props.playback.playTrack, props.playback.togglePlayback);
     const playSong = useCallback(
         (song: SongResult) => selectTrack(song, model.playableTopSongs),
@@ -74,7 +76,14 @@ function MobileArtist(props: LibraryArtistSurfaceProps) {
                 <h1>{snapshot?.detail?.name || props.collection.name}</h1>
                 <div className="ml-collection-intro">
                     <MobileArtwork src={snapshot?.detail?.coverUrl || props.collection.coverUrl} priority />
-                    <p>{snapshot?.detail?.description || props.collection.description}</p>
+                    <div className="ml-artist-description">
+                        <p className={descriptionExpanded ? 'is-expanded' : undefined}>{description}</p>
+                        {(description.length > 120 || description.includes('\n')) && <button type="button"
+                            aria-expanded={descriptionExpanded}
+                            onClick={() => setDescriptionExpanded(value => !value)}>
+                            {descriptionExpanded ? '收起简介' : '展开简介'}
+                        </button>}
+                    </div>
                 </div>
                 <div className="ml-collection-actions">
                     <button

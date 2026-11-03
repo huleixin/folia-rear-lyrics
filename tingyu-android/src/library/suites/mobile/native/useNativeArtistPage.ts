@@ -41,7 +41,7 @@ export function useNativeArtistPage(root:RefObject<HTMLElement|null>,props:Libra
     if(snapshot?.status==='error')sections.push({id:'error',layout:'message',text:t('mobileLibrary.loadFailed'),more:'reload',moreLabel:t('mobileLibrary.retry')});
     if(snapshot?.albumSync.state==='interrupted')sections.push({id:'resume',layout:'message',more:'resume',moreLabel:t('mobileLibrary.resumeSync')});
     const page:NativePageModel={key:`collection:artist:${model.sessionKey}`,title:snapshot?.detail?.name||props.collection.name,
-        leading:'back',trailing:'menu',trailingLabel:'⋯',sections,bottomClearance:100};
+        leading:'back',trailing:'menu',trailingLabel:'⋯',sections,bottomClearance:24};
     return useNativePage(root,'collection',props.isInteractive,page,pageRowActions(actions,id=>{
         const album=/^album:(\d+):(.+)$/.exec(id);
         if(album){const item=model.shownAlbums[Number(album[1])];if(item&&String(item.id)===album[2])return()=>model.actions.openAlbum(item);return;}
