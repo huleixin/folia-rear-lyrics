@@ -50,10 +50,16 @@ export default function MinimalCoverPage({
     song,
     controls,
     playing,
+    sleeveRef,
+    metaRef,
 }: {
     song: { title: string; artist: string; coverUrl: string | null } | null;
     controls: Controls;
     playing: boolean;
+    /** The sleeve wrapper; the gesture frame writes its parallax offset here. */
+    sleeveRef?: React.Ref<HTMLDivElement>;
+    /** The title block; the gesture frame fades it as the page leaves. */
+    metaRef?: React.Ref<HTMLDivElement>;
 }) {
     const { t } = useTranslation();
     // The chip row asks the playback store for the catalog specs rather than the control model:
@@ -77,14 +83,14 @@ export default function MinimalCoverPage({
 
     return (
         <div className="min-cover" data-testid="minimal-cover-page">
-            <div className="min-cover__stage">
+            <div className="min-cover__stage" ref={sleeveRef}>
                 {/* The second print behind the sleeve. */}
                 <span className="min-cover__ghost" aria-hidden="true" />
                 <div className="min-cover__art">
                     <MinimalArtwork url={song?.coverUrl ?? null} alt={title} />
                 </div>
             </div>
-            <div className="min-cover__meta">
+            <div className="min-cover__meta" ref={metaRef}>
                 <h2 className="min-cover__title" title={title}>{title}</h2>
                 {artist && (
                     <p className="min-cover__artist" title={artist}>

@@ -99,14 +99,15 @@ const dragTo = async (session, fromX, toX, y, { steps = 10, hold = 14 } = {}) =>
     await dragTo(session, 330, 60, 400);
     const mid = await session.state();
     check('拖动过程页面跟随手指', mid.pos > 0.5 && mid.pos < 1.05, `pos=${mid.pos.toFixed(2)}`);
-    // Both secondary animations are driven by the same --min-pos the strip uses, so they can be read
-    // mid-gesture while the finger is still down.
+    // Both secondary animations follow the strip position, so they can be read mid-gesture while the
+    // finger is still down. Both are written as inline styles on the elements that use them (the
+    // dots paint through ::before), rather than through a shared custom property on the shell.
     const during = await session.page.evaluate(() => {
         const stage = document.querySelector('.min-cover__stage');
         const matrix = /matrix\(([^)]+)\)/.exec(getComputedStyle(stage).transform);
         return {
             parallaxX: matrix ? Number(matrix[1].split(',')[4]) : 0,
-            dots: [...document.querySelectorAll('.min-dot')].map(dot => Number(getComputedStyle(dot).opacity)),
+            dots: [...document.querySelectorAll('.min-dot')].map(dot => Number(getComputedStyle(dot, '::before').opacity)),
         };
     });
     check('滑动时封面产生轻微视差', during.parallaxX > 4 && during.parallaxX < 60, `translateX=${during.parallaxX.toFixed(1)}px`);
@@ -129,6 +130,50 @@ const dragTo = async (session, fromX, toX, y, { steps = 10, hold = 14 } = {}) =>
     await sleep(460);
     const spring = await session.state();
     check('距离不足时回弹', spring.page === 'cover' && Math.abs(spring.pos) < 0.03, `pos=${spring.pos.toFixed(2)}`);
+    await session.context.close();
+}
+
+// ---------------------------------------------------------------- no per-frame full-screen work
+// The reported symptom was a flash while paging and on the way in. Both came from work that ran for
+// the whole page rather than for the element that changed, so these four checks guard the shape of
+// the fix rather than a pixel: a blend mode over the ambience (which makes the compositor re-blend a
+// full-screen group whenever anything repaints), a strip position broadcast as an inherited custom
+// property (which restyles every lyric span on every gesture frame), and a dot that grows by changing
+// its width (which re-runs layout per frame).
+{
+    const session = await open({ query: 'page=cover&theme=dark&stationary=1' });
+    const resting = await session.page.evaluate(() => {
+        const shell = document.querySelector('.min');
+        const grain = document.querySelector('.min-amb__grain');
+        const ambience = document.querySelector('.min-amb');
+        const dot = document.querySelector('.min-dot');
+        return {
+            published: (shell.style.getPropertyValue('--min-pos') || '').trim(),
+            blend: getComputedStyle(grain).mixBlendMode,
+            ambienceTransition: getComputedStyle(ambience).transitionProperty,
+            shellTransition: getComputedStyle(shell).transitionProperty,
+            dotWidth: getComputedStyle(dot).width,
+        };
+    });
+    check('滑动位置不再作为自定义属性广播到外壳', resting.published === '', resting.published || '(未设置)');
+    check('背景颗粒不使用混合模式', resting.blend === 'normal', resting.blend);
+    check('调色板淡入在环境层上', /--min-base/.test(resting.ambienceTransition), resting.ambienceTransition.slice(0, 48));
+    check('外壳不再承担调色板淡入', !/--min-base/.test(resting.shellTransition), resting.shellTransition.slice(0, 48));
+
+    // Mid-gesture: the dot must grow by transform, so its layout box cannot change.
+    await dragTo(session, 330, 180, 400, { steps: 6, hold: 18 });
+    const moving = await session.page.evaluate(() => {
+        const dot = document.querySelectorAll('.min-dot')[1];
+        return {
+            dotWidth: getComputedStyle(dot).width,
+            dotPaint: getComputedStyle(dot, '::before').transform,
+        };
+    });
+    await session.touch('touchEnd', 0, 0);
+    check('圆点靠合成属性变化，不改变布局宽度', moving.dotWidth === resting.dotWidth,
+        `${resting.dotWidth} → ${moving.dotWidth}`);
+    check('圆点的放大已生效', moving.dotPaint !== 'none' && moving.dotPaint !== 'matrix(0.5, 0, 0, 1, 0, 0)',
+        moving.dotPaint);
     await session.context.close();
 }
 

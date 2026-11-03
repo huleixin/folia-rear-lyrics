@@ -23,9 +23,21 @@ export default function MinimalAmbience({
     /** Reduced motion: keep the colours, drop the movement. */
     still: boolean;
 }) {
+    // The palette is published here as well as on the shell, and it is this copy that the 700ms
+    // crossfade runs on (see the transition on .min-amb). A custom property set on the shell is
+    // inherited by the whole page, so animating it there re-resolved every lyric span on every
+    // frame of the fade; on this box the same fade touches the eight spans that paint it.
+    const vars = {
+        '--min-base': palette.base,
+        '--min-field-1': palette.fieldPrimary,
+        '--min-field-2': palette.fieldSecondary,
+        '--min-bloom': palette.bloom,
+        '--min-accent': palette.accent,
+    } as React.CSSProperties;
     return (
         <div
             className="min-amb"
+            style={vars}
             aria-hidden="true"
             data-paused={paused || undefined}
             data-still={still || undefined}

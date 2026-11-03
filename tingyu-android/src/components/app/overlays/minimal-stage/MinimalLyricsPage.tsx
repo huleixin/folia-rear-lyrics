@@ -73,6 +73,7 @@ export default function MinimalLyricsPage({
     controls,
     active,
     still,
+    identityRef,
 }: {
     song: { title: string; artist: string } | null;
     lyrics: LyricData | null;
@@ -81,6 +82,8 @@ export default function MinimalLyricsPage({
     /** Whether this is the page on screen; a hidden page must not drive its own repaints. */
     active: boolean;
     still: boolean;
+    /** The thumbnail-and-titles row; the gesture frame fades it in as the page arrives. */
+    identityRef?: React.Ref<HTMLDivElement>;
 }) {
     const { t } = useTranslation();
     const subtitleMode = useTypographySettingsStore(state => state.subtitleContentMode);
@@ -239,7 +242,7 @@ export default function MinimalLyricsPage({
             style={{ '--min-lyric-scale': Math.min(1.3, Math.max(0.85, fontScale || 1)) } as React.CSSProperties}
         >
             <header className="min-lyrics__head">
-                <div className="min-lyrics__id">
+                <div className="min-lyrics__id" ref={identityRef}>
                     <div className="min-lyrics__thumb">
                         {/* Decorative: the title it would describe is right beside it. */}
                         <MinimalArtwork url={coverUrl} alt="" className="min-art--thumb" />

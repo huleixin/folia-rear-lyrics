@@ -13,6 +13,7 @@ import { useActiveLibrarySuiteId } from '../../../library/app/librarySuiteChoice
 import { useAppViewStore } from '../../../stores/useAppViewStore';
 import { usePlayerViewModeStore } from '../../../stores/usePlayerViewModeStore';
 import { useSearchNavigationStore } from '../../../stores/useSearchNavigationStore';
+import { scheduleUiWarmup } from '../../../services/uiWarmup';
 
 // Centralized app-level overlay renderer so App.tsx does not mount leaf overlays directly.
 type AppOverlaysProps = {
@@ -20,6 +21,8 @@ type AppOverlaysProps = {
 };
 const MobileStageChrome = lazy(() => import('./mobile-stage/MobileStageChrome'));
 const MinimalStage = lazy(() => import('./minimal-stage/MinimalStage'));
+/** Module-scope so the warm-up queue can tell one request from another and only run it once. */
+const warmMinimalStage = () => import('./minimal-stage/MinimalStage');
 
 const AppOverlays: React.FC<AppOverlaysProps> = ({ model }) => {
     countRender('AppOverlays');
@@ -32,6 +35,18 @@ const AppOverlays: React.FC<AppOverlaysProps> = ({ model }) => {
     const [searchLoaded, setSearchLoaded] = useState(searchOpen);
     // After first use retain the workspace so its existing close/reset effects and exit animation run.
     useEffect(() => { if (searchOpen) setSearchLoaded(true); }, [searchOpen]);
+    // The stage below is a lazy chunk, and in the default view mode almost every open of the player
+    // needs it. Without a warm-up the first open renders `fallback={null}` for as long as the module
+    // takes to fetch and parse — and the player surface is empty in that window (the visualizer is
+    // unmounted by the same flag, and the library underneath it has already faded out), which reads
+    // as a flash of the app background before the page rises. One speculative import through the
+    // app's own idle queue, which already holds back until startup is interactive, is the whole fix.
+    useEffect(() => {
+        if (playerViewMode !== 'minimal') {
+            return;
+        }
+        return scheduleUiWarmup(warmMinimalStage, 'module');
+    }, [playerViewMode]);
     // The mobile library owns its mini-player and navigation. Stage controls remain unchanged.
     const ownsLibraryChrome = suite === 'mobile' && view === 'home';
     // The minimal stage is a player surface, and it owns its own top bar and transport; the classic

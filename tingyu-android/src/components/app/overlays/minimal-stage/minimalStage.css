@@ -5,8 +5,11 @@
    · the background is five flat layers of gradients — no canvas, no shader, no backdrop-filter, and
      no `filter: blur()` anywhere, so there is no full-screen pass per frame;
    · only `transform` and `opacity` are animated, both compositor-only, both on very long periods;
-   · paging is native scroll snap, so a swipe costs the browser nothing in JS;
-   · nothing in this file animates a property that triggers layout. */
+   · paging is a transformed strip driven from the gesture frame, not a scroll or a state change;
+   · nothing in this file animates a property that triggers layout, and nothing in it repaints more
+     than one element per frame. The two rules that used to break that — a blend-mode texture over
+     the whole screen and a strip position published as an inherited custom property — are gone;
+     see the notes on `.min-amb__grain` and `.min-pos` for what they cost and why they went. */
 
 @property --min-base { syntax: '<color>'; inherits: true; initial-value: #08130f; }
 @property --min-field-1 { syntax: '<color>'; inherits: true; initial-value: #0d2a22; }
@@ -37,10 +40,6 @@
         var(--folia-main-inset-right, env(safe-area-inset-right, 0px))
         var(--folia-main-inset-bottom, env(safe-area-inset-bottom, 0px))
         var(--folia-main-inset-left, env(safe-area-inset-left, 0px));
-    /* A track change repaints the gradient once, over ~0.7s. That is the only time the background
-       is repainted at all; the drift below never touches colour. */
-    transition: --min-base 700ms ease, --min-field-1 700ms ease, --min-field-2 700ms ease,
-        --min-bloom 700ms ease, --min-accent 700ms ease;
 }
 
 /* Arriving and leaving. The player page is mounted by a view change, so the transition has to live
@@ -139,6 +138,15 @@
     overflow: hidden;
     pointer-events: none;
     contain: strict;
+    /* The palette fades here, on the eight spans that actually paint it, rather than on the shell.
+       Those five variables are inherited: animating them on `.min` re-resolved the style of every
+       element on the page — several thousand lyric spans on a real song — sixty times a second for
+       the whole 700ms, and each of those frames repainted all four full-screen gradients. On the
+       ambience the same fade touches eight elements and no other layer of the page. The sleeve glow
+       and the sung-character tint read the shell's copy, which changes once: they do not need to
+       travel, and nothing outside this box is visible mid-fade. */
+    transition: --min-base 700ms ease, --min-field-1 700ms ease, --min-field-2 700ms ease,
+        --min-bloom 700ms ease, --min-accent 700ms ease;
 }
 
 .min-amb > * {
@@ -209,18 +217,22 @@
 }
 
 /* A 120px noise tile, painted once and tiled. This is the "paper" in the page — it is static, so it
-   costs one texture and nothing per frame, unlike a live grain shader. */
+   costs one texture and nothing per frame, unlike a live grain shader.
+   It is painted with plain alpha on purpose. `mix-blend-mode: overlay` (and `multiply` on paper)
+   gave the same look, but a blend mode turns this eight-layer stack into a blending group: the
+   compositor has to own an off-screen surface for the whole ambience and re-blend it whenever
+   anything underneath or above repaints. The strip repaints on every frame of a swipe, so that is a
+   full-screen blend per frame — which is what made the page flash while paging and on the way in.
+   One flat texture at 4.6% is visually the same and costs a texture fetch. */
 .min-amb__grain {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
     background-size: 120px 120px;
     background-repeat: repeat;
-    opacity: 0.05;
-    mix-blend-mode: overlay;
+    opacity: 0.046;
 }
 
 .min[data-theme='light'] .min-amb__grain {
-    opacity: 0.032;
-    mix-blend-mode: multiply;
+    opacity: 0.03;
 }
 
 .min-amb__blob,
@@ -273,6 +285,7 @@
         animation: none;
     }
     .min,
+    .min-amb,
     .min-line,
     .min-line__text {
         transition: none;
@@ -369,7 +382,7 @@
     will-change: transform;
     /* Overwritten every frame while a drag or a commit animation is running; the value here only
        covers the first paint, before the stage has measured anything. */
-    transform: translate3d(calc(var(--min-pos, 0) * -50%), 0, 0);
+    transform: translate3d(0, 0, 0);
 }
 
 .min-page {
@@ -382,14 +395,14 @@
 }
 
 /* Secondary elements dissolve slightly as their page leaves, so a swipe reads as two surfaces
-   trading places rather than one sheet sliding. Driven by the same --min-pos as the parallax. */
-.min-page[data-page-id='cover'] .min-cover__meta {
-    opacity: calc(1 - 0.5 * clamp(0, var(--min-pos, 0), 1));
-}
-
-.min-page[data-page-id='lyrics'] .min-lyrics__id {
-    opacity: calc(0.5 + 0.5 * clamp(0, var(--min-pos, 0), 1));
-}
+   trading places rather than one sheet sliding.
+   These two opacities, the sleeve's parallax and the dots all follow the same strip position, but
+   they are written as inline styles on the four elements that use them (see applyPos in
+   MinimalStage) rather than read back from a `--min-pos` custom property on the shell. A custom
+   property that is not registered through @property is an opaque token stream, so every change to
+   it invalidates style for every element that inherits it — the whole lyric column included. On a
+   real song that was 60 style recalculations and ~100ms of the main thread for a single swipe on
+   this desktop, and a skipped frame or three on a phone, which is what the flash was made of. */
 
 /* ---------------------------------------------------------------- cover page */
 
@@ -408,8 +421,8 @@
     gap: clamp(16px, 2.8vh, 26px);
 }
 
-/* Parallax: while the strip is dragged, the sleeve drifts slightly against the page. Written from
-   the gesture frame as --min-pos, so at rest it is a constant and costs nothing. */
+/* Parallax: while the strip is dragged, the sleeve drifts slightly against the page. The offset is
+   written straight onto this element from the gesture frame, so at rest it is a constant. */
 .min-cover__stage {
     position: relative;
     flex: none;
@@ -420,7 +433,7 @@
     /* Left, not centred: when the height cap shrinks the sleeve on a short screen, a centred square
        would drift off the column that the title and the progress bar still share. */
     align-self: flex-start;
-    transform: translate3d(calc(var(--min-pos, 0) * 11%), 0, 0);
+    will-change: transform;
 }
 
 /* The second print behind the sleeve: a hairline offset up and right, the depth of a stack of paper
@@ -656,6 +669,8 @@
     align-items: center;
     gap: 12px;
     min-width: 0;
+    /* Resting value for the cover-side position; the gesture frame overwrites it inline. */
+    opacity: 0.5;
 }
 
 .min-lyrics__thumb {
@@ -1096,26 +1111,40 @@
 
 /* Each dot follows the strip's position rather than a boolean: while the finger moves, the dot
    nearest the centre grows and the other recedes, and a tap-to-page animates through the same
-   values. --min-pos is written once per gesture frame, so this costs no extra layout. */
+   values. `--near` is written on the button itself once per gesture frame — two elements, not the
+   page — and the paint is a pseudo-element, so growing the dot costs a transform rather than a
+   layout pass on the row. */
 .min-dot {
     --near: 0;
-    box-sizing: content-box;
-    width: calc(4px + 4px * var(--near));
-    height: 4px;
-    /* A 4px dot is an unhittable target. Padding grows the touch box to 16px; the negative margin
-       and content-box clipping keep the painted dot 4px and in the same place. */
-    padding: 6px;
+    position: relative;
+    box-sizing: border-box;
+    /* A 4px dot is an unhittable target. The button is a 16px square and the painted dot sits inside
+       it; the negative margin keeps the row's own layout at 4px, exactly as when the button *was*
+       the dot. */
+    width: 16px;
+    height: 16px;
+    padding: 0;
     margin: -6px;
     border: 0;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--min-ink) 88%, transparent);
-    background-clip: content-box;
-    opacity: calc(0.32 + 0.68 * var(--near));
+    background: none;
     cursor: pointer;
 }
 
-.min-dot:nth-child(1) { --near: clamp(0, 1 - var(--min-pos, 0), 1); }
-.min-dot:nth-child(2) { --near: clamp(0, var(--min-pos, 0), 1); }
+.min-dot::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 8px;
+    height: 4px;
+    margin: -2px 0 0 -4px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--min-ink) 88%, transparent);
+    /* Half to full width as the dot's page arrives (0 = leaving, 1 = arriving) — the same geometry
+       the old `width: calc(4px + 4px * --near)` produced, without re-running layout every frame. */
+    transform: scaleX(calc(0.5 + 0.5 * var(--near)));
+    opacity: calc(0.32 + 0.68 * var(--near));
+}
 
 /* ---------------------------------------------------------------- responsive */
 

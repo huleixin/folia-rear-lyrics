@@ -61,7 +61,8 @@ const LINES = [
 const LINE_SECONDS = 9;
 
 /** Even word timings per line — enough for the per-character highlight to advance naturally. */
-const buildLines = (): Line[] => LINES.map((text, index) => {
+const buildLines = (count = LINES.length): Line[] => Array.from({ length: count }, (_, index) => {
+    const text = LINES[index % LINES.length]!;
     const start = index * LINE_SECONDS;
     const chars = Array.from(text);
     const step = (LINE_SECONDS - 1.2) / chars.length;
@@ -69,7 +70,7 @@ const buildLines = (): Line[] => LINES.map((text, index) => {
         fullText: text,
         startTime: start,
         endTime: start + LINE_SECONDS - 1,
-        translation: index === 3 ? 'We will keep walking shoulder to shoulder' : undefined,
+        translation: index % 4 === 3 ? 'We will keep walking shoulder to shoulder' : undefined,
         words: chars.map((char, charIndex) => ({
             text: char,
             startTime: start + charIndex * step,
@@ -78,7 +79,10 @@ const buildLines = (): Line[] => LINES.map((text, index) => {
     } as Line;
 });
 
-const lyrics = { lines: buildLines(), isWordByWord: true };
+// ?lines=N synthesises a realistic long lyric set. Ten lines is a demo; a real song is 60–200, and
+// the cost of anything that touches style for the whole page scales with it.
+const lyricCount = Math.max(1, Number(params.get('lines') ?? String(LINES.length)) || LINES.length);
+const lyrics = { lines: buildLines(lyricCount), isWordByWord: true };
 
 // Mid-way through the fourth line, so a screenshot lands with part of it already sung — the state
 // the reference image shows.
@@ -121,7 +125,7 @@ const chrome: NonNullable<AppOverlaysModel['mobileStage']> = {
 
 const tick = () => {
     const elapsed = (performance.now() - startedAt) / 1000;
-    const at = stationary ? DEMO_TIME : (DEMO_TIME + elapsed) % (LINE_SECONDS * LINES.length);
+    const at = stationary ? DEMO_TIME : (DEMO_TIME + elapsed) % (LINE_SECONDS * lyricCount);
     currentTime.set(at);
     lyricCurrentTime.set(at);
     if (!stationary) {

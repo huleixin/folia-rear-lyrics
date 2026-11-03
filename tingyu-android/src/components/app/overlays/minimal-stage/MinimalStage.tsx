@@ -104,7 +104,11 @@ export default function MinimalStage({
     const hidden = usePageHidden();
     const pagerRef = useRef<HTMLDivElement>(null);
     const trackRef = useRef<HTMLDivElement>(null);
-    const shellRef = useRef<HTMLDivElement>(null);
+    /** The four layers that follow the strip without travelling with it. */
+    const sleeveRef = useRef<HTMLDivElement>(null);
+    const coverMetaRef = useRef<HTMLDivElement>(null);
+    const lyricsIdRef = useRef<HTMLDivElement>(null);
+    const dotRefs = useRef<Array<HTMLButtonElement | null>>([]);
     /** Page position in page units; 0 = cover, 1 = lyrics. May sit outside the range mid-drag. */
     const posRef = useRef(0);
     const frameRef = useRef(0);
@@ -135,9 +139,28 @@ export default function MinimalStage({
             // 50% of a 200%-wide track is exactly one page.
             track.style.transform = `translate3d(${-pos * 50}%, 0, 0)`;
         }
-        // Published for the layers that should not move with the strip: the sleeve's parallax and
-        // the page dots. One variable per gesture frame, read by CSS — no React state, no layout.
-        shellRef.current?.style.setProperty('--min-pos', String(pos));
+        // The layers that should not travel with the strip: the sleeve's parallax, the two
+        // secondary fades, and the dots. These used to read a `--min-pos` custom property published
+        // on the shell, which is the one way to do this that costs the most: an unregistered custom
+        // property is an opaque token stream, so each frame's change invalidated style for every
+        // element that inherits it — the entire lyric column with it. Writing the four computed
+        // values onto the four elements that use them keeps the frame O(1) instead of O(page).
+        const sleeve = sleeveRef.current;
+        if (sleeve) {
+            sleeve.style.transform = `translate3d(${pos * 11}%, 0, 0)`;
+        }
+        const clamped = pos < 0 ? 0 : pos > 1 ? 1 : pos;
+        const meta = coverMetaRef.current;
+        if (meta) {
+            meta.style.opacity = String(1 - 0.5 * clamped);
+        }
+        const identity = lyricsIdRef.current;
+        if (identity) {
+            identity.style.opacity = String(0.5 + 0.5 * clamped);
+        }
+        for (let index = 0; index < dotRefs.current.length; index += 1) {
+            dotRefs.current[index]?.style.setProperty('--near', String(index === 0 ? 1 - clamped : clamped));
+        }
     }, []);
 
     const stopFrame = useCallback(() => {
@@ -334,7 +357,6 @@ export default function MinimalStage({
     return (
         <div
             className="min"
-            ref={shellRef}
             style={style}
             data-theme={light ? 'light' : 'dark'}
             data-page={page}
@@ -424,6 +446,8 @@ export default function MinimalStage({
                                     song={song}
                                     controls={controls ?? EMPTY_CONTROLS}
                                     playing={!!playing}
+                                    sleeveRef={sleeveRef}
+                                    metaRef={coverMetaRef}
                                 />
                             ) : (
                                 <MinimalLyricsPage
@@ -433,6 +457,7 @@ export default function MinimalStage({
                                     controls={controls ?? EMPTY_CONTROLS}
                                     active={page === 'lyrics' && !hidden}
                                     still={still}
+                                    identityRef={lyricsIdRef}
                                 />
                             )}
                         </section>
@@ -443,9 +468,10 @@ export default function MinimalStage({
             {controls && <MinimalTransport controls={controls} />}
 
             <div className="min-dots" role="tablist" aria-label={t('minimalStage.pages')}>
-                {PAGES.map(id => (
+                {PAGES.map((id, index) => (
                     <button
                         key={id}
+                        ref={element => { dotRefs.current[index] = element; }}
                         type="button"
                         role="tab"
                         className="min-dot"
