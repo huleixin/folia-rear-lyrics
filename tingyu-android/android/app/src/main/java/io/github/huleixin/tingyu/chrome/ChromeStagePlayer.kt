@@ -20,6 +20,8 @@ import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.Backdrop
+import io.github.huleixin.tingyu.minimal.ui.mintActive
+import io.github.huleixin.tingyu.minimal.ui.modeIsActive
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ChromeStagePlayer.kt
 @Composable fun ChromeStagePlayer(s: ChromeSurface, timeline: ChromeTimeline?, backdrop: Backdrop, modifier: Modifier, action: (String,Double)->Unit) {
@@ -27,7 +29,7 @@ import com.kyant.backdrop.Backdrop
     Column(modifier.chromeGlass(backdrop,s.light,30.dp).padding(horizontal=18.dp,vertical=10.dp),verticalArrangement=Arrangement.SpaceBetween) {
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
             Column(horizontalAlignment=Alignment.CenterHorizontally) {
-                ChromeButton(s.label("loop","播放模式"),enabled=!s.disabled,size=48.dp,reduced=s.reducedMotion,onClick={action("loop",0.0)}) {ChromeGlyph(if(s.loop=="shuffle")"shuffle" else if(s.loop=="one")"one" else "repeat",ink,Modifier.size(21.dp))}
+                ChromeButton(s.label("loop","播放模式"),enabled=!s.disabled,size=48.dp,reduced=s.reducedMotion,onClick={action("loop",0.0)}) {ChromeGlyph(s.loop,if(modeIsActive(s.loop))mintActive(s.light)else ink,Modifier.size(21.dp))}
                 Text(s.label("loopValue","顺序播放"),color=ink.copy(alpha=.8f),fontSize=10.sp)
             }
             Row(verticalAlignment=Alignment.CenterVertically) {

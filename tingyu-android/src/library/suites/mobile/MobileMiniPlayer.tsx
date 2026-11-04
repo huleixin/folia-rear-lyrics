@@ -1,6 +1,6 @@
 import {useSleepTimerStore} from '../../../stores/useSleepTimerStore';
 import React, { useRef } from 'react';
-import { Pause, Play, ListMusic } from 'lucide-react';
+import PlayerControlIcon from '../../../components/app/icons/PlayerControlIcon';
 import { useTranslation } from 'react-i18next';
 import type { LibrarySuiteStageProps } from '../../core/contracts/suite';
 import {
@@ -96,9 +96,9 @@ export default function MobileMiniPlayer({
                 >
                     <MiniPlayerProgress renderActive={!compose} />
                     {state === PlayerState.PLAYING ? (
-                        <Pause size={22} fill="currentColor" />
+                        <PlayerControlIcon kind="pause" size={22} />
                     ) : (
-                        <Play size={22} fill="currentColor" />
+                        <PlayerControlIcon kind="play" size={22} />
                     )}
                 </button>
                 <button
@@ -106,7 +106,7 @@ export default function MobileMiniPlayer({
                     onClick={openQueue}
                     aria-label={t('mobileLibrary.queue')}
                 >
-                    <ListMusic size={24} />
+                    <PlayerControlIcon kind="queue" size={24} />
                 </button>
             </div>
             </>}

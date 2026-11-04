@@ -732,7 +732,7 @@ fun MinimalLyricsToolsSheet(
                 if (tab == "lyrics") {
                     LyricsTab(theme, lyrics, actions)
                 } else {
-                    SongTab(theme, lyrics, transport, mode, playing)
+                    SongTab(theme, lyrics, transport, mode, playing, light)
                 }
             }
         }
@@ -871,6 +871,7 @@ private fun SongTab(
     transport: MinimalPlayerCommands,
     mode: String,
     playing: Boolean,
+    light: Boolean,
 ) {
     ToolsCard(theme) {
         Text(lyrics.title.ifBlank { "未知曲目" }, color = theme.text, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold)
@@ -887,10 +888,10 @@ private fun SongTab(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // 图标与主播放器同一套标准矢量（第 19 轮）：模式随当前状态显示，
-            // 播放/暂停随实际播放态切换 —— 不再是占位圈。
+            // 图标与主播放器同一套听屿图标包几何（第 20 轮）：模式随当前状态显示，
+            // 激活态薄荷绿；播放/暂停随实际播放态切换 —— 不再是占位圈。
             ToolIconButton(theme, "循环模式", { transport.cycleMode() }) {
-                PlaybackModeIcon(mode, theme.text, Modifier.size(21.dp))
+                PlaybackModeIcon(mode, if (modeIsActive(mode)) mintActive(light) else theme.text, Modifier.size(21.dp))
             }
             ToolIconButton(theme, "上一首", { transport.previous() }) {
                 PlayerControlIcon("skipBack", theme.text, Modifier.size(21.dp))

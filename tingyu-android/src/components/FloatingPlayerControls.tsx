@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Play, Pause } from 'lucide-react';
+import PlayerControlIcon from './app/icons/PlayerControlIcon';
 import { MotionValue } from 'framer-motion';
 import ProgressBar from './ProgressBar';
 import AudioToolButtons from './audio-tools/AudioToolButtons';
@@ -571,9 +571,9 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({
                 style={{ backgroundColor: primaryColor, color: 'var(--bg-color)' }}
             >
                 {playerState === PlayerState.PLAYING ? (
-                    <Pause size={20} fill="currentColor" />
+                    <PlayerControlIcon kind="pause" size={20} />
                 ) : (
-                    <Play size={20} fill="currentColor" className="ml-1" />
+                    <PlayerControlIcon kind="play" size={20} className="ml-1" />
                 )}
             </button>
 

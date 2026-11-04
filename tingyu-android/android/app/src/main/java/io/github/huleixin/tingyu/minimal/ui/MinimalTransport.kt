@@ -78,6 +78,7 @@ fun MinimalTransport(
     ink: MinimalInk,
     accent: Color,
     commands: MinimalPlayerCommands,
+    light: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val live = commands.available && !controls.disabled
@@ -97,6 +98,7 @@ fun MinimalTransport(
             live = live,
             ink = ink,
             accent = accent,
+            light = light,
             commands = commands,
         )
     }
@@ -237,6 +239,7 @@ private fun TransportButtons(
     live: Boolean,
     ink: MinimalInk,
     accent: Color,
+    light: Boolean,
     commands: MinimalPlayerCommands,
 ) {
     var hint by remember { mutableStateOf<String?>(null) }
@@ -258,11 +261,12 @@ private fun TransportButtons(
         ) {
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 TransportButton("播放模式：${modeLabel(controls.mode)}", live, ink, 50.dp, { commands.cycleMode() }) {
-                    // 播放模式图标：全局唯一来源 PlayerIcons（第 19 轮标准矢量几何）——
-                    // 与队列抽屉、歌曲工具页、WebView 回退侧同一套，四个入口一张脸。
+                    // 播放模式图标：全局唯一来源 PlayerIcons（第 20 轮听屿图标包几何）——
+                    // 与歌词舞台、队列抽屉、歌曲工具页、WebView 回退侧同一套，六个入口一张脸。
+                    // 激活态（非顺序）用薄荷绿，顺序播放随主题淡色。
                     PlaybackModeIcon(
                         controls.mode,
-                        if (controls.mode == "off") ink.inkAlpha(74) else accent,
+                        if (modeIsActive(controls.mode)) mintActive(light) else ink.inkAlpha(74),
                         Modifier.size(22.dp),
                     )
                 }

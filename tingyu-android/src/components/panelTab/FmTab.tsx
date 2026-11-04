@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Play, Pause, SkipBack, SkipForward, Heart, Trash2, Radio } from 'lucide-react';
+import { Heart, Trash2, Radio } from 'lucide-react';
+import PlayerControlIcon from '../app/icons/PlayerControlIcon';
 import { useTranslation } from 'react-i18next';
 import { PlayerState } from '../../types';
 
@@ -66,7 +67,7 @@ const FmTab: React.FC<FmTabProps> = ({
                     className={`p-3 rounded-full transition-colors opacity-50 hover:opacity-100 ${btnBg}`}
                     title={t('ui.previousTrack')}
                 >
-                    <SkipBack size={24} />
+                    <PlayerControlIcon kind="previous" size={24} />
                 </button>
 
                 {/* Play/Pause Main Button */}
@@ -77,9 +78,9 @@ const FmTab: React.FC<FmTabProps> = ({
                     title={playerState === PlayerState.PLAYING ? t('player.pause') : t('player.play')}
                 >
                     {playerState === PlayerState.PLAYING ? (
-                        <Pause size={28} fill="currentColor" />
+                        <PlayerControlIcon kind="pause" size={28} />
                     ) : (
-                        <Play size={28} fill="currentColor" className="ml-1" />
+                        <PlayerControlIcon kind="play" size={28} className="ml-1" />
                     )}
                 </button>
 
@@ -89,7 +90,7 @@ const FmTab: React.FC<FmTabProps> = ({
                     className={`p-3 rounded-full transition-colors opacity-50 hover:opacity-100 ${btnBg}`}
                     title={t('ui.nextTrack')}
                 >
-                    <SkipForward size={24} />
+                    <PlayerControlIcon kind="next" size={24} />
                 </button>
             </div>
 

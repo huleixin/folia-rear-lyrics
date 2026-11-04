@@ -318,14 +318,9 @@ private fun QualityChip(text: String, gold: Boolean, light: Boolean, ink: Minima
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         if (gold) {
-            // 香槟金小图标：三根拾升的细条（与 WebView 回退侧 GoldBarsIcon 同一几何）。
-            Canvas(Modifier.size(14.dp)) {
-                val w = 1.5f * size.minDimension / 14f
-                val baseline = 10.4f * size.minDimension / 14f
-                listOf(3.6f to 7.2f, 7f to 4.8f, 10.4f to 2.4f).forEach { (x, top) ->
-                    drawLine(iconColor, Offset(x * size.minDimension / 14f, baseline), Offset(x * size.minDimension / 14f, top * size.minDimension / 14f), w, StrokeCap.Round)
-                }
-            }
+            // 香槟金小图标：图标包 control_audio_bars（五根音频柱），第 20 轮起
+            // 与播放控制同一来源（PlayerIcons）；金色来自 iconColor，几何不再手绘。
+            PlayerControlIcon("audioBars", iconColor, Modifier.size(14.dp))
         }
         Text(
             text = text,

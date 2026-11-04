@@ -1009,7 +1009,12 @@
 }
 
 .min-btn--aux[data-active] {
-    color: var(--min-accent);
+    /* 激活态薄荷绿（第 20 轮）：图标包 control_play 示例色。 */
+    color: var(--min-mint, #6dbdad);
+}
+
+.min[data-theme='light'] .min-btn--aux[data-active] {
+    color: #3e9c88;
 }
 
 .min-btn--play {

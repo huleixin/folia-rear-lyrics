@@ -1,5 +1,7 @@
 import React from 'react';
-import { Heart, SkipBack, SkipForward, Play, Pause, Repeat, Repeat1, Disc3, UserRound, Palette, Settings2, Copy } from 'lucide-react';
+import { Heart, Disc3, UserRound, Palette, Settings2, Copy } from 'lucide-react';
+import PlaybackModeIcon from '../app/icons/PlaybackModeIcon';
+import PlayerControlIcon from '../app/icons/PlayerControlIcon';
 import type { UnifiedPanelProps } from '../UnifiedPanel';
 import { PlayerState, type UnifiedSong } from '../../types';
 import { getSongArtistLabel } from '../../services/onlineMusic/songMetadata';
@@ -20,10 +22,10 @@ export default function MobileSongTools({playback:p,library:lib,account}:Unified
     return <div className="ty-song-tools">
         <div className="ty-song-meta">{song.album?.coverUrl && <img src={song.album.coverUrl} alt=""/>}<div><strong>{song.name}</strong><span>{getSongArtistLabel(song)}</span><small>{song.album?.name}</small></div></div>
         <section className="ty-card"><div className="ty-transport">
-            <button className="ty-icon" aria-label={text.loop} aria-pressed={p.loopMode!=='off'} disabled={p.isFmMode||p.playbackControlsDisabled} onClick={p.onToggleLoop}>{p.loopMode==='one'?<Repeat1/>:<Repeat/>}</button>
-            <button className="ty-icon" aria-label={text.previous} disabled={p.playbackControlsDisabled} onClick={p.onPrevTrack}><SkipBack/></button>
-            <button className="ty-icon ty-play" aria-label={text.play} disabled={p.playbackControlsDisabled} onClick={p.onTogglePlay}>{p.playerState===PlayerState.PLAYING?<Pause/>:<Play/>}</button>
-            <button className="ty-icon" aria-label={text.next} disabled={p.playbackControlsDisabled} onClick={p.onNextTrack}><SkipForward/></button>
+            <button className="ty-icon" aria-label={text.loop} aria-pressed={p.loopMode!=='off'} disabled={p.isFmMode||p.playbackControlsDisabled} onClick={p.onToggleLoop} data-mint={p.loopMode!=='off'||undefined}><PlaybackModeIcon mode={p.loopMode==='one'?'one':p.loopMode==='all'?'all':'order'}/></button>
+            <button className="ty-icon" aria-label={text.previous} disabled={p.playbackControlsDisabled} onClick={p.onPrevTrack}><PlayerControlIcon kind="previous"/></button>
+            <button className="ty-icon ty-play" aria-label={text.play} disabled={p.playbackControlsDisabled} onClick={p.onTogglePlay}><PlayerControlIcon kind={p.playerState===PlayerState.PLAYING?'pause':'play'}/></button>
+            <button className="ty-icon" aria-label={text.next} disabled={p.playbackControlsDisabled} onClick={p.onNextTrack}><PlayerControlIcon kind="next"/></button>
             <button className="ty-icon" aria-label={text.like} aria-pressed={p.isLiked} disabled={like.disabled} onClick={p.onLike}><Heart fill={p.isLiked?'currentColor':'none'}/></button>
         </div><label className="ty-volume">{text.volume}<input aria-label={text.volume} type="range" min="0" max="1" step="0.01" value={p.volume} onChange={e=>p.onVolumeChange(Number(e.target.value))}/></label>
         <label className="ty-select">{text.gain}<select value={p.replayGainMode} onChange={e=>p.onChangeReplayGainMode(e.target.value as typeof p.replayGainMode)}><option value="off">{text.off}</option><option value="track">{text.track}</option><option value="album">{text.albumGain}</option></select></label></section>

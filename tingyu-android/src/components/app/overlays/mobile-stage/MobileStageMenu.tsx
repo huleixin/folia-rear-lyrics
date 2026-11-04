@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { AudioLines, Captions, ListMusic, Settings2, SlidersHorizontal } from 'lucide-react';
+import { AudioLines, Captions, Settings2, SlidersHorizontal } from 'lucide-react';
+import PlayerControlIcon from '../../icons/PlayerControlIcon';
 import { useTranslation } from 'react-i18next';
 import './mobileStageMenu.css';
 import { useAppViewStore } from '../../../../stores/useAppViewStore';
@@ -101,7 +102,7 @@ export default function MobileStageMenu({
             </button>
             {/* Both player views open the existing shared queue panel. */}
             <button role="menuitem" onClick={() => run(() => { void openNativeQueueSheet().then(handled => { if (handled) return; const state=useAppViewStore.getState();state.setPanelTab('queue');state.setIsPanelOpen(true); }); })}>
-                <ListMusic size={18} />
+                <PlayerControlIcon kind="queue" size={18} />
                 {t('mobileStage.queueMenu')}
             </button>
             <button role="menuitem" onClick={() => run(() => openSettings('options', 'playback'))}>

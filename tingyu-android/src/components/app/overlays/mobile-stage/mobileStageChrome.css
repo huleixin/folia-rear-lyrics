@@ -190,7 +190,8 @@
     opacity: 0.8;
 }
 .mps-secondary[aria-pressed='true'] {
-    color: var(--mps-accent);
+    /* 激活态薄荷绿（第 20 轮）：图标包 control_play 示例色，浅背景自动加深。 */
+    color: var(--mps-mint, #6dbdad);
 }
 .mps-progress {
     margin-top: 9px;

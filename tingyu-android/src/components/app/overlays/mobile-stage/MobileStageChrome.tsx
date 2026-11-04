@@ -2,16 +2,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ChevronDown,
     Heart,
-    ListMusic,
     MoreHorizontal,
     Music2,
     Palette,
-    Pause,
-    Play,
-    SkipBack,
-    SkipForward,
 } from 'lucide-react';
 import PlaybackModeIcon from '../../icons/PlaybackModeIcon';
+import PlayerControlIcon from '../../icons/PlayerControlIcon';
 import { useTranslation } from 'react-i18next';
 import { openNativeQueueSheet } from '../../../../services/nativeMinimalQueue';
 import { useAppViewStore } from '../../../../stores/useAppViewStore';
@@ -81,6 +77,8 @@ export default function MobileStageChrome({
         '--mps-border': colorWithAlpha(ink, 0.15),
         '--mps-track': colorWithAlpha(ink, 0.18),
         '--mps-accent': accent,
+        // 模式按钮激活态的薄荷绿（听屿图标包示例色）；浅背景用加深一档。
+        '--mps-mint': lightBackground ? '#3e9c88' : '#6dbdad',
     } as React.CSSProperties;
     const disabled = !controls || !!controls.controlsDisabled;
     const song = usePlaybackStore(s=>s.currentSong);
@@ -187,7 +185,7 @@ export default function MobileStageChrome({
                             disabled={disabled}
                             onClick={controls.onToggleLoop}
                         >
-                            <PlaybackModeIcon mode={mode} size={21} strokeWidth={1.9} />
+                            <PlaybackModeIcon mode={mode} size={21} />
                             <span>{t(playbackModeLabelKey(mode))}</span>
                         </button>
                         <div className="mps-main-transport">
@@ -197,7 +195,7 @@ export default function MobileStageChrome({
                                 disabled={disabled || !controls.trackNavigation?.canPrev}
                                 onClick={controls.trackNavigation?.onPrev}
                             >
-                                <SkipBack fill="currentColor" size={25} />
+                                <PlayerControlIcon kind="previous" size={25} />
                             </button>
                             <button
                                 className="mps-toggle"
@@ -210,9 +208,9 @@ export default function MobileStageChrome({
                                 onClick={controls.onTogglePlay}
                             >
                                 {controls.playerState === PlayerState.PLAYING ? (
-                                    <Pause fill="currentColor" size={28} />
+                                    <PlayerControlIcon kind="pause" size={28} />
                                 ) : (
-                                    <Play fill="currentColor" size={28} />
+                                    <PlayerControlIcon kind="play" size={28} />
                                 )}
                             </button>
                             <button
@@ -221,7 +219,7 @@ export default function MobileStageChrome({
                                 disabled={disabled || !controls.trackNavigation?.canNext}
                                 onClick={controls.trackNavigation?.onNext}
                             >
-                                <SkipForward fill="currentColor" size={25} />
+                                <PlayerControlIcon kind="next" size={25} />
                             </button>
                         </div>
                         <button
@@ -229,7 +227,7 @@ export default function MobileStageChrome({
                             aria-label={t('mobileLibrary.queue')}
                             onClick={openQueue}
                         >
-                            <ListMusic size={22} />
+                            <PlayerControlIcon kind="queue" size={22} />
                             <span>{t('mobileStage.queue')}</span>
                         </button>
                     </div>

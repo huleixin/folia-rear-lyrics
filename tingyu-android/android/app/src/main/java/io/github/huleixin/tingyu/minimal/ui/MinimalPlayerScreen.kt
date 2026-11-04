@@ -250,6 +250,7 @@ fun MinimalPlayerScreen(
                 ink = ink,
                 accent = Color(palette.accent),
                 commands = sheetCommands,
+                light = !dark,
                 modifier = Modifier.padding(top = 2.dp),
             )
             PageDots(

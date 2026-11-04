@@ -1,4 +1,4 @@
-import { ChartBar, Heart, ListMusic, PanelsTopLeft, Repeat, Repeat1, RepeatOff, Shuffle, SkipBack, SkipForward, Timer, Volume2 } from 'lucide-react';
+import { ChartBar, Heart, PanelsTopLeft, Timer, Volume2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { PlayerControlSlotActionId } from '../../types/playerControlSlots';
 import { noteLoopButtonPress } from '../../services/ponder/loopShuffleHint';
@@ -42,7 +42,10 @@ export type PlayerControlSlotContext = {
 
 /** 单个槽位算出来的渲染结果。 */
 export type ResolvedPlayerControlSlot = {
-    icon: LucideIcon;
+    /** 听屿图标包的 kind（第 20 轮）：播放控制类槽位用图标包几何。 */
+    pack?: string;
+    /** 非播放控制类的 lucide 图标（喜爱/音量/计时器等不在图标包语义内）。 */
+    icon: LucideIcon | null;
     /** 图标是否填充（目前只有「喜爱」用得上）。 */
     filled: boolean;
     /** 是否处于「已开启」的高亮态（循环非 off、已喜爱）。 */
@@ -53,24 +56,24 @@ export type ResolvedPlayerControlSlot = {
 };
 
 /** 设置下拉里的静态展示项：图标固定取一个代表态，不需要运行时状态。 */
-export const PLAYER_CONTROL_SLOT_OPTIONS: readonly { id: PlayerControlSlotActionId; icon: LucideIcon; labelKey: string; }[] = [
-    { id: 'loop', icon: Repeat, labelKey: 'options.playerControlSlotAction_loop' },
-    { id: 'prev', icon: SkipBack, labelKey: 'options.playerControlSlotAction_prev' },
-    { id: 'next', icon: SkipForward, labelKey: 'options.playerControlSlotAction_next' },
-    { id: 'shuffle', icon: Shuffle, labelKey: 'options.playerControlSlotAction_shuffle' },
-    { id: 'like', icon: Heart, labelKey: 'options.playerControlSlotAction_like' },
-    { id: 'lyrics-timeline', icon: ChartBar, labelKey: 'options.playerControlSlotAction_lyricsTimeline' },
-    { id: 'volume', icon: Volume2, labelKey: 'options.playerControlSlotAction_volume' },
-    { id: 'queue', icon: ListMusic, labelKey: 'options.playerControlSlotAction_queue' },
-    { id: 'song-wall', icon: PanelsTopLeft, labelKey: 'options.playerControlSlotAction_songWall' },
-    { id: 'sleep-timer', icon: Timer, labelKey: 'options.playerControlSlotAction_sleepTimer' },
+export const PLAYER_CONTROL_SLOT_OPTIONS: readonly { id: PlayerControlSlotActionId; pack?: string; labelKey: string; }[] = [
+    { id: 'loop', pack: 'all', labelKey: 'options.playerControlSlotAction_loop' },
+    { id: 'prev', pack: 'previous', labelKey: 'options.playerControlSlotAction_prev' },
+    { id: 'next', pack: 'next', labelKey: 'options.playerControlSlotAction_next' },
+    { id: 'shuffle', pack: 'shuffle', labelKey: 'options.playerControlSlotAction_shuffle' },
+    { id: 'like', labelKey: 'options.playerControlSlotAction_like' },
+    { id: 'lyrics-timeline', labelKey: 'options.playerControlSlotAction_lyricsTimeline' },
+    { id: 'volume', labelKey: 'options.playerControlSlotAction_volume' },
+    { id: 'queue', pack: 'queue', labelKey: 'options.playerControlSlotAction_queue' },
+    { id: 'song-wall', labelKey: 'options.playerControlSlotAction_songWall' },
+    { id: 'sleep-timer', labelKey: 'options.playerControlSlotAction_sleepTimer' },
 ];
 
-/** 循环按钮的图标反映当前模式，是这批动作里唯一的三态图标。 */
-const resolveLoopIcon = (loopMode: PlayerControlSlotContext['loopMode']): LucideIcon => {
-    if (loopMode === 'off') return RepeatOff;
-    if (loopMode === 'one') return Repeat1;
-    return Repeat;
+/** 循环按钮的图标反映当前模式，是这批动作里唯一的三态图标（off 即顺序播放）。 */
+const resolveLoopPack = (loopMode: PlayerControlSlotContext['loopMode']): string => {
+    if (loopMode === 'off') return 'order';
+    if (loopMode === 'one') return 'one';
+    return 'all';
 };
 
 /** 循环按钮的提示文本反映当前模式。 */
@@ -91,7 +94,8 @@ export const resolvePlayerControlSlot = (
     switch (id) {
         case 'loop':
             return {
-                icon: resolveLoopIcon(context.loopMode),
+                pack: resolveLoopPack(context.loopMode),
+                icon: null,
                 filled: false,
                 active: context.loopMode !== 'off',
                 disabled: false,
@@ -104,7 +108,8 @@ export const resolvePlayerControlSlot = (
             };
         case 'prev':
             return {
-                icon: SkipBack,
+                pack: 'previous',
+                icon: null,
                 filled: false,
                 active: false,
                 disabled: !context.canPrev,
@@ -113,7 +118,8 @@ export const resolvePlayerControlSlot = (
             };
         case 'next':
             return {
-                icon: SkipForward,
+                pack: 'next',
+                icon: null,
                 filled: false,
                 active: false,
                 disabled: !context.canNext,
@@ -122,7 +128,8 @@ export const resolvePlayerControlSlot = (
             };
         case 'shuffle':
             return {
-                icon: Shuffle,
+                pack: 'shuffle',
+                icon: null,
                 filled: false,
                 active: false,
                 disabled: !context.canShuffle,
@@ -149,7 +156,8 @@ export const resolvePlayerControlSlot = (
             };
         case 'queue':
             return {
-                icon: ListMusic,
+                pack: 'queue',
+                icon: null,
                 filled: false,
                 active: false,
                 disabled: !context.canInvokeCommandById('queue'),

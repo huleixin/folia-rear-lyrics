@@ -238,7 +238,7 @@ fun MinimalQueueSheet(
                     Spacer(Modifier.width(8.dp))
                     Text("${queue.total} 首", color = theme.muted, fontSize = 12.sp)
                     Spacer(Modifier.weight(1f))
-                    QueueModeButton(theme = theme, mode = mode, onClick = onToggleMode)
+                    QueueModeButton(theme = theme, mode = mode, light = light, onClick = onToggleMode)
                     Spacer(Modifier.width(6.dp))
                     Box(
                         Modifier
@@ -367,7 +367,7 @@ private fun dropTargetIndex(listState: LazyListState, dragUid: String?, center: 
 }
 
 @Composable
-private fun QueueModeButton(theme: QueueTheme, mode: String, onClick: () -> Unit) {
+private fun QueueModeButton(theme: QueueTheme, mode: String, light: Boolean, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     Row(
@@ -380,8 +380,9 @@ private fun QueueModeButton(theme: QueueTheme, mode: String, onClick: () -> Unit
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        // 模式图标：全局唯一来源 PlayerIcons（第 19 轮标准矢量几何），与传输条/歌曲工具同一套。
-        PlaybackModeIcon(mode, theme.text, Modifier.size(15.dp))
+        // 模式图标：全局唯一来源 PlayerIcons（第 20 轮听屿图标包几何），与传输条/歌曲工具同一套。
+        // 激活态（非顺序）用薄荷绿，顺序播放随主题。
+        PlaybackModeIcon(mode, if (modeIsActive(mode)) mintActive(light) else theme.text, Modifier.size(15.dp))
         Text(
             text = when (mode) {
                 "one" -> "单曲循环"

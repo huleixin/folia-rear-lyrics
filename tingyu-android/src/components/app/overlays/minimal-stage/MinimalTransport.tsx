@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LoaderCircle, ListMusic, Pause, Play, SkipBack, SkipForward } from 'lucide-react';
+import { LoaderCircle } from 'lucide-react';
 import PlaybackModeIcon from '../../icons/PlaybackModeIcon';
+import PlayerControlIcon from '../../icons/PlayerControlIcon';
 import ProgressBar from '../../../ProgressBar';
 import type { AppOverlaysModel } from '../buildAppOverlaysModel';
 import { PlayerState } from '../../../../types';
@@ -99,7 +100,7 @@ export default function MinimalTransport({ controls, active = true }: { controls
                     onClick={() => controls.onToggleLoop()}
                     data-testid="minimal-playback-mode"
                 >
-                    <PlaybackModeIcon mode={mode} size={20} strokeWidth={1.9} />
+                    <PlaybackModeIcon mode={mode} size={20} />
                 </button>
                 <button
                     type="button"
@@ -108,7 +109,7 @@ export default function MinimalTransport({ controls, active = true }: { controls
                     disabled={disabled || !navigation?.canPrev}
                     onClick={navigation?.onPrev}
                 >
-                    <SkipBack size={24} strokeWidth={1.9} />
+                    <PlayerControlIcon kind="previous" size={24} />
                 </button>
                 <button
                     type="button"
@@ -122,21 +123,19 @@ export default function MinimalTransport({ controls, active = true }: { controls
                     <span className="min-play-ring" aria-hidden="true" />
                     {preparing && !canPlay && <LoaderCircle className="min-play-loading" size={24} aria-hidden="true" />}
                     <span className="min-play-glyph" aria-hidden="true" style={{visibility:preparing && !canPlay ? 'hidden' : undefined}}>
-                        <Pause
+                        <PlayerControlIcon
+                            kind="pause"
                             className="min-play-icon"
                             data-slot="pause"
                             data-on={playing ? '' : undefined}
                             size={26}
-                            strokeWidth={0}
-                            fill="currentColor"
                         />
-                        <Play
+                        <PlayerControlIcon
+                            kind="play"
                             className="min-play-icon"
                             data-slot="play"
                             data-on={playing ? undefined : ''}
                             size={26}
-                            strokeWidth={0}
-                            fill="currentColor"
                         />
                     </span>
                 </button>
@@ -147,7 +146,7 @@ export default function MinimalTransport({ controls, active = true }: { controls
                     disabled={disabled || !navigation?.canNext}
                     onClick={navigation?.onNext}
                 >
-                    <SkipForward size={24} strokeWidth={1.9} />
+                    <PlayerControlIcon kind="next" size={24} />
                 </button>
                 <button
                     type="button"
@@ -156,7 +155,7 @@ export default function MinimalTransport({ controls, active = true }: { controls
                     onClick={openQueue}
                     data-testid="minimal-queue"
                 >
-                    <ListMusic size={21} strokeWidth={1.9} />
+                    <PlayerControlIcon kind="queue" size={21} />
                 </button>
                 {/* Small, local, and gone in a second and a half: the mode name belongs next to the
                     button that changed it, not in a pill at the top of the screen over a lyric. */}
