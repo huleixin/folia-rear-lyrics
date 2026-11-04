@@ -48,6 +48,11 @@ export default function MobileStageChrome({
 }) {
     const { t } = useTranslation();
     const [menuOpen, setMenuOpen] = useState(false);
+    // 关闭动画哨兵：menuOpen 翻 false 后菜单还挂着播 120ms 退场，播完才摘除。
+    const [menuRendered, setMenuRendered] = useState(false);
+    useEffect(() => {
+        if (menuOpen) setMenuRendered(true);
+    }, [menuOpen]);
     const closeMenu = useCallback(() => setMenuOpen(false), []);
     const stageTransition = usePlayerViewModeStore(state => state.stageTransition);
     const panelOpen = useAppViewStore((state) => state.isPanelOpen);
@@ -164,7 +169,13 @@ export default function MobileStageChrome({
                 >
                     <MoreHorizontal size={23} />
                 </button>
-                {menuOpen && <MobileStageMenu onClose={closeMenu} />}
+                {menuRendered && (
+                    <MobileStageMenu
+                        closing={!menuOpen}
+                        onClosed={() => setMenuRendered(false)}
+                        onClose={closeMenu}
+                    />
+                )}
             </header>
             {controls && !controls.hideControlBar && (
                 <section ref={playerRef} className="mps-player" style={compose?{height:136,boxSizing:"border-box"}:undefined} aria-label={t('mobileStage.playback')}>

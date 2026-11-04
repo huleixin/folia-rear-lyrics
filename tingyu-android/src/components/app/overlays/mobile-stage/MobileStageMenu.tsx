@@ -12,8 +12,13 @@ import { useAudioToolsStore, QUALITY_LABELS } from '../../../../stores/useAudioT
 // src/components/app/overlays/mobile-stage/MobileStageMenu.tsx
 export default function MobileStageMenu({
     onClose,
+    /** true = 正在播 120ms 退场动画；播完回调 onClosed，由宿主摘除。 */
+    closing = false,
+    onClosed,
 }: {
     onClose: () => void;
+    closing?: boolean;
+    onClosed?: () => void;
 }) {
     const { t } = useTranslation();
     const quality = useAudioSettingsStore(state => state.audioQuality);
@@ -60,6 +65,8 @@ export default function MobileStageMenu({
         onClose();
         action();
     };
+    // 退场动画结束后通知宿主摘除：onAnimationEnd 对入场动画也会触发，
+    // 只在 closing 时响应，且只认菜单根元素自己的动画结束事件。
     // Android + Compose 桥可用时，这四个工具都开**原生页**（第 11 轮）；否则回退原 WebView 弹窗。
     // 原生页不占 WebView，也不触发极简页让位 —— 弹窗被遮挡/双开那类问题从根上消失。
     const runNative = (page: 'quality' | 'effects' | 'lyrics', fallback: () => void) => {
@@ -73,7 +80,10 @@ export default function MobileStageMenu({
             aria-label={t('mobileStage.more')}
             data-folia-keyboard-window="true"
             data-native-chrome-overlay="nonblocking"
-            className="mps-menu"
+            className={`mps-menu${closing ? ' mps-menu--closing' : ''}`}
+            onAnimationEnd={(event) => {
+                if (closing && event.target === event.currentTarget) onClosed?.();
+            }}
         >
             <button role="menuitem" onClick={() => runNative('quality', () => useAudioToolsStore.getState().show())}>
                 <AudioLines size={18} />

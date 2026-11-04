@@ -48,6 +48,10 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.input.pointer.pointerInput
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import io.github.huleixin.tingyu.minimal.ui.MinimalQueueSheet
+import io.github.huleixin.tingyu.minimal.ui.MinimalSheetScrim
+import io.github.huleixin.tingyu.minimal.ui.minimalSheetEnter
+import io.github.huleixin.tingyu.minimal.ui.minimalSheetExit
 import org.json.JSONObject
 import kotlin.math.roundToInt
 
@@ -560,10 +564,12 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             // 之前这里固定重放 420ms 的升入，看起来就像播放器被重新打开了一次。
             AnimatedVisibility(
                 visible = minimalOwns,
+                // 入场只滑不淡：这一页不透明，淡入会强制一整屏离屏图层，
+                // 与 WebView 入场变换叠在同一批帧里 —— 多层动画重叠的来源之一。
                 enter = if (minimalResumePending) EnterTransition.None else slideInVertically(
                     animationSpec = tween(420, easing = CubicBezierEasing(.2f, .72f, .16f, 1f)),
                     initialOffsetY = { it },
-                ) + fadeIn(tween(220)),
+                ),
                 exit = if(destination=="settings")ExitTransition.None else slideOutVertically(
                     animationSpec = tween(300, easing = CubicBezierEasing(.42f, 0f, .74f, .3f)),
                     targetOffsetY = { it },
@@ -589,23 +595,48 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             // Consume only this resume. A later visit to the full stage keeps its usual motion.
             LaunchedEffect(minimalOwns,minimalResumePending){if(minimalOwns&&minimalResumePending){withFrameNanos{};minimalResumePending=false}}
             // 队列抽屉：宿主级，和哪一页在显示无关 —— 极简页、舞台、首页都开这一张。
-            if(queueOpen)Box(Modifier.fillMaxSize().zIndex(6f)){
-                io.github.huleixin.tingyu.minimal.ui.MinimalQueueSheet(
-                    queue=queueState,
-                    light=interfaceLight,
-                    mode=queueState.mode.ifEmpty { minimalState.controls.mode },
-                    onClose={queueOpen=false;minimalCommands.closeQueue()},
-                    onPlay={minimalCommands.queuePlay(it)},
-                    onRemove={minimalCommands.queueRemove(it)},
-                    onReorder={from,to -> minimalCommands.queueReorder(from,to,queueState.version)},
-                    onToggleMode={minimalCommands.togglePlaybackMode()},
+            // 开合动画（第 15 轮）：遮罩渐显渐隐，面板底部上滑 260ms / 下滑 200ms，
+            // 与工具页共用 MinimalSheetMotion 一份节奏；拖拽排序与两档高度不受影响。
+            MinimalSheetScrim(
+                visible = queueOpen,
+                light = interfaceLight,
+                onClose = { queueOpen = false; minimalCommands.closeQueue() },
+            )
+            AnimatedVisibility(
+                visible = queueOpen,
+                enter = minimalSheetEnter(),
+                exit = minimalSheetExit(),
+                modifier = Modifier.fillMaxSize().zIndex(6f),
+            ) {
+                MinimalQueueSheet(
+                    queue = queueState,
+                    light = interfaceLight,
+                    mode = queueState.mode.ifEmpty { minimalState.controls.mode },
+                    onClose = { queueOpen = false; minimalCommands.closeQueue() },
+                    onPlay = { minimalCommands.queuePlay(it) },
+                    onRemove = { minimalCommands.queueRemove(it) },
+                    onReorder = { from, to -> minimalCommands.queueReorder(from, to, queueState.version) },
+                    onToggleMode = { minimalCommands.togglePlaybackMode() },
                 )
             }
             // 工具页（音质/效果器/歌词工具/洛雪）：宿主级，叠在队列之下不冲突 ——
             // 打开前已互斥收起，歌词工具的“队列”标签也会先收自己再开队列。
-            if(toolsPage.isNotEmpty())Box(Modifier.fillMaxSize().zIndex(6f)){
+            // 关闭时内容要留在组合里播 200ms 退场，所以用 lastToolsPage 记住最后一张页。
+            var lastToolsPage by remember { mutableStateOf("") }
+            LaunchedEffect(toolsPage) { if (toolsPage.isNotEmpty()) lastToolsPage = toolsPage }
+            MinimalSheetScrim(
+                visible = toolsPage.isNotEmpty(),
+                light = interfaceLight,
+                onClose = { closeNativeTools() },
+            )
+            AnimatedVisibility(
+                visible = toolsPage.isNotEmpty(),
+                enter = minimalSheetEnter(),
+                exit = minimalSheetExit(),
+                modifier = Modifier.fillMaxSize().zIndex(6f),
+            ) {
                 val toolsState by minimal.tools.collectAsState()
-                when(toolsPage){
+                when(lastToolsPage){
                     "quality"->io.github.huleixin.tingyu.minimal.ui.MinimalQualitySheet(
                         tools=toolsState,light=interfaceLight,actions=toolActions,
                         onClose={closeNativeTools()},

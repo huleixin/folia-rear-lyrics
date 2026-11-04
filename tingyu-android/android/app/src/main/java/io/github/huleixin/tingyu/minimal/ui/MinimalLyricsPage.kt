@@ -91,6 +91,8 @@ fun MinimalLyricsPage(
     ink: MinimalInk,
     clock: State<Long>,
     active: Boolean,
+    /** pager 正在跟手/吸附：切页动画未落定，自动滚动等落定后再启动，不与切页抢帧。 */
+    pagerBusy: Boolean,
     onSeek: (Double) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -109,6 +111,7 @@ fun MinimalLyricsPage(
                     ink = ink,
                     lyricAccent = Color(palette.lyricAccent),
                     active = active,
+                    pagerBusy = pagerBusy,
                     onSeek = onSeek,
                 )
             }
@@ -188,6 +191,7 @@ private fun LyricColumn(
     ink: MinimalInk,
     lyricAccent: Color,
     active: Boolean,
+    pagerBusy: Boolean,
     onSeek: (Double) -> Unit,
 ) {
     val scroll = rememberScrollState()
@@ -228,8 +232,10 @@ private fun LyricColumn(
         }
     }
 
-    LaunchedEffect(index, lyrics, active) {
-        if (!active || viewport <= 0f) return@LaunchedEffect
+    // 切到歌词页时的自动滚动。pagerBusy 挂在键上：跟手/吸附期间直接跳过，
+    // 落定后这一键变化会重新触发 —— 滚动不会丢，只是不再和切页动画抢同一批帧。
+    LaunchedEffect(index, lyrics, active, pagerBusy) {
+        if (!active || pagerBusy || viewport <= 0f) return@LaunchedEffect
         val target = index
         if (target < 0 || target >= lyrics.size) return@LaunchedEffect
         val lineTop = offsets[target]

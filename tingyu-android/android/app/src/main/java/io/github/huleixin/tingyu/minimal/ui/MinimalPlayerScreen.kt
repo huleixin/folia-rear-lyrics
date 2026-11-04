@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,8 +16,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
@@ -152,6 +157,21 @@ fun MinimalPlayerScreen(
                     .background(Color(0xDD09251C), RoundedCornerShape(999.dp))
                     .padding(horizontal = 8.dp, vertical = 2.dp),
             )
+            // 帧耗时探针：真机验收用。长按分页点打开 diag 后，这里实时给出
+// 最近约 3 秒的帧均值/卡顿帧占比/最差帧，不接 adb 也能读数。
+            val frameProbe = rememberFrameProbeText()
+            if (frameProbe.isNotEmpty()) {
+                Text(
+                    frameProbe,
+                    color = Color(0xFFB8FFE3),
+                    fontSize = 10.sp,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(start = 10.dp, top = (safeTop + 34f).dp)
+                        .background(Color(0xDD09251C), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                )
+            }
         }
         MinimalAmbience(
             colors = paletteColors(palette),
@@ -181,6 +201,12 @@ fun MinimalPlayerScreen(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 beyondViewportPageCount = 1,
                 key = { it },
+                // 固定一版 280ms 的吸附曲线（不再是平台默认弹黄）：拖动跟手不变，
+                // 松手后的归位节奏稳定在 260~300ms —— 掉帧的"快慢不一"从根上消掉。
+                flingBehavior = PagerDefaults.flingBehavior(
+                    pagerState,
+                    snapAnimationSpec = tween(280, easing = CubicBezierEasing(0.2f, 0.72f, 0.16f, 1f)),
+                ),
             ) { index ->
                 if (index == 0) {
                     MinimalCoverPage(
@@ -207,6 +233,9 @@ fun MinimalPlayerScreen(
                         ink = ink,
                         clock = clock,
                         active = page == 1,
+                        // 跟手/吸附期间不抢滚动：歌词页的自动平滑滚动等 pager 落定后再启动，
+                        // 不和切页动画抢同一根帧预算线（这就是切到歌词页那一下卡顿的主因之一）。
+                        pagerBusy = pagerState.isScrollInProgress,
                         onSeek = { seconds -> commands.seekTo(seconds) },
                     )
                 }
@@ -269,6 +298,9 @@ private fun TopBar(
     onOpenStage: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    // 关闭动画的哨兵：menuOpen 翻 false 后弹窗还留在组合里播 120ms 退场，播完才摘除。
+    // 没有它，关闭就是一帧内直接消失，和 WebView 舞台菜单对不上。
+    var menuClosing by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -313,10 +345,12 @@ private fun TopBar(
                             }
                         }
                     }
-                    if (menuOpen) {
+                    if (menuOpen || menuClosing) {
                         MoreMenu(
                             qualityMode = qualityMode,
                             effectsOn = effectsOn,
+                            shown = menuOpen,
+                            onExited = { menuClosing = false },
                             onDismiss = { menuOpen = false },
                             onPick = { pick ->
                                 menuOpen = false
@@ -347,14 +381,29 @@ private fun TopBar(
  *
  * 不套 MaterialTheme。配色与 WebView 舞台菜单同一套：奶油底卡 + 深墨字 + 淡灰值，
  * 舞台菜单本身就是这一套固定表面（深色舞台上也是奶油卡），这里逐像素对齐。
+ *
+ * 开合动画（第 15 轮，与 WebView 菜单同一节奏）：打开 160ms 轻微下移 + 淡入 +
+ * 0.97→1；关闭 120ms 反向淡出。`shown=false` 时弹窗还挂着，播完退场才由
+ * `onExited` 摘除。
  */
 @Composable
 private fun MoreMenu(
     qualityMode: String,
     effectsOn: Boolean,
+    shown: Boolean,
+    onExited: () -> Unit,
     onDismiss: () -> Unit,
     onPick: (Int) -> Unit,
 ) {
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(shown) {
+        if (shown) {
+            progress.animateTo(1f, tween(160, easing = CubicBezierEasing(0.2f, 0.7f, 0.2f, 1f)))
+        } else {
+            progress.animateTo(0f, tween(120, easing = CubicBezierEasing(0.42f, 0f, 0.74f, 0.3f)))
+            onExited()
+        }
+    }
     androidx.compose.ui.window.Popup(
         alignment = Alignment.TopEnd,
         offset = androidx.compose.ui.unit.IntOffset(0, 96),
@@ -362,7 +411,21 @@ private fun MoreMenu(
         properties = androidx.compose.ui.window.PopupProperties(focusable = true),
     ) {
         // 菜单本体拆成独立面板：测试里可以不经 Popup（独立窗口拍不到 decorView）直接渲染对照。
-        MoreMenuPanel(qualityMode, effectsOn, onPick)
+        // 运动只动这一层 graphicsLayer：位移/缩放/透明度都是渲染线程的图层属性，
+        // 不触发面板重绘，更不触发面板重新排版。
+        Box(
+            Modifier.graphicsLayer {
+                val p = progress.value
+                alpha = p
+                translationY = -8.dp.toPx() * (1f - p)
+                val scale = 0.97f + 0.03f * p
+                scaleX = scale
+                scaleY = scale
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0f)
+            }
+        ) {
+            MoreMenuPanel(qualityMode, effectsOn, onPick)
+        }
     }
 }
 
@@ -394,11 +457,22 @@ internal fun MoreMenuPanel(
             Triple("播放队列", "", MenuGlyph.Queue),
             Triple("播放设置", "", MenuGlyph.Tune),
         ).forEachIndexed { index, (label, value, glyph) ->
+            // 按压反馈（第 15 轮，与 WebView 菜单的 :active 同一语言）：淡墨底 + 微缩 + 微降透明度。
+            val interaction = remember { MutableInteractionSource() }
+            val pressed by interaction.collectIsPressedAsState()
             Row(
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = 47.dp)
-                    .clickable { onPick(index) }
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(if (pressed) MenuInkColor.copy(alpha = 0.07f) else Color.Transparent)
+                    .clickable(interactionSource = interaction, indication = null) { onPick(index) }
+                    .graphicsLayer {
+                        val scale = if (pressed) 0.98f else 1f
+                        scaleX = scale
+                        scaleY = scale
+                        alpha = if (pressed) 0.86f else 1f
+                    }
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),

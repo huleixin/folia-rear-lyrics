@@ -191,25 +191,15 @@ fun MinimalQueueSheet(
         // 预览顺序与真身顺序不同（拖拽中），行下标要按预览列表算；提交时也用预览下标。
         val displayItems = previewItems
 
-        Box(Modifier.fillMaxSize()) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = theme.scrim))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onClose,
-                    )
-            )
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .height(animatedHeight)
-                    .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
-                    .background(theme.surface)
-                    .align(Alignment.BottomCenter),
-            ) {
+        // 遮罩已上收到宿主（MinimalSheetScrim，只渐显不滑移）；这里只画底部面板本体。
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .height(animatedHeight)
+                .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
+                .background(theme.surface)
+                .align(Alignment.BottomCenter),
+        ) {
                 // 把手：上下拖在两档高度间切换；半档再往下拖即关闭。
                 // 只让把手/标题栏吃手势，LazyColumn 的滚动不受影响。
                 Box(
@@ -357,7 +347,6 @@ fun MinimalQueueSheet(
                     }
                 }
             }
-        }
     }
 }
 

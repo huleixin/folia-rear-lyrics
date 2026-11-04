@@ -124,18 +124,9 @@ internal fun ToolsSheetScaffold(
 ) {
     val theme = toolsTheme(light)
     BackHandler(enabled = true) { onClose() }
+    // 遮罩已上收到宿主（MinimalSheetScrim，只渐显不滑移）；这里只画底部面板本体。
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
         val maxSheetHeight = maxHeight * heightFraction
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = theme.scrim))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClose,
-                )
-        )
         Column(
             Modifier
                 .fillMaxWidth()
