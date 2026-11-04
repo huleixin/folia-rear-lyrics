@@ -1,0 +1,401 @@
+/* src/dev/coverStack/coverStack.css
+   相册堆叠切歌 Demo 的样式。只服务这一页：沿用听屿播放页的深色底、薄荷强调色和
+   正方形圆角封面，但不引用全局 index.css，避免把整站主题拖进独立 Demo。 */
+
+.cs-page {
+    --cs-bg: #08120f;
+    --cs-ink: #eef5ef;
+    --cs-muted: #8fa79d;
+    --cs-faint: #5f776e;
+    --cs-accent: #91ddc0;
+    --cs-line: #ffffff14;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    padding: max(14px, env(safe-area-inset-top, 0px)) 20px calc(14px + env(safe-area-inset-bottom, 0px));
+    background:
+        radial-gradient(125% 70% at 18% -8%, #14352c 0%, #0a1512 56%, #06100d 100%);
+    color: var(--cs-ink);
+    font: 13px/1.5 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.cs-header {
+    flex: none;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+.cs-header h1 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+.cs-header p {
+    margin: 3px 0 0;
+    font-size: 11.5px;
+    color: var(--cs-muted);
+}
+.cs-tag {
+    flex: none;
+    padding: 3px 8px;
+    border: 1px solid var(--cs-line);
+    border-radius: 999px;
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    color: var(--cs-faint);
+}
+
+.cs-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+}
+
+/* 后两层是旋转错位的，上方和两侧都要留出旋转后的外扩空间 */
+.cs-stage {
+    position: relative;
+    padding: 26px 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 手势面比封面略大一圈，抓取更宽容；横向归手势，纵向仍可滚动页面 */
+.cs-drag-surface {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 16px 14px;
+    touch-action: pan-y;
+}
+
+.cs-stack {
+    position: relative;
+    width: min(72vw, 40vh, 320px);
+    aspect-ratio: 1 / 1;
+    /* 横向手势归我们，纵向交还页面滚动 */
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.cs-card {
+    position: absolute;
+    inset: 0;
+    border-radius: clamp(16px, 7%, 26px);
+    background: #16241f;
+    /* 静止时不占 GPU 层，只在手势/动画期间提升 */
+    will-change: auto;
+    contain: layout style;
+}
+.cs-stack[data-busy="true"] .cs-card {
+    will-change: transform;
+}
+.cs-card[data-depth="0"] {
+    /* 第一项是紧贴边缘的一圈暗影，落在第二张封面上；第二项是向下的投影 */
+    box-shadow: 0 0 14px 2px #00000059, 0 16px 32px -14px #000000d9;
+}
+.cs-card[data-depth="1"] {
+    box-shadow: 0 0 10px 1px #0000004d, 0 12px 24px -16px #000000a6;
+}
+.cs-card[data-depth="2"],
+.cs-card[data-depth="3"] {
+    box-shadow: 0 8px 20px -14px #00000099;
+}
+/* 后面的纸张压暗一层：真实堆放里越靠后越吃不到光，
+   也避免一张亮色封面在后层抢走视觉重心 */
+.cs-card[data-depth="1"]::before,
+.cs-card[data-depth="2"]::before,
+.cs-card[data-depth="3"]::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: #000000;
+    opacity: 0.15;
+    pointer-events: none;
+    z-index: 1;
+}
+.cs-card[data-depth="2"]::before,
+.cs-card[data-depth="3"]::before {
+    opacity: 0.28;
+}
+
+/* 极细的亮边，让封面像一张真实印刷品，而不是一块色块 */
+.cs-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow:/n        inset 0 1px 0 #ffffff2e,
+        inset 0 -1px 0 #ffffff1f,
+        inset 0 0 0 1px #ffffff12;
+    pointer-events: none;
+}
+
+.cs-card__img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    border-radius: inherit;
+    /* 关闭系统的图片拖拽/长按预览，避免打断手势 */
+    -webkit-user-drag: none;
+    user-select: none;
+}
+
+/* 运动拖影：同一张图的两份低透明度偏移副本，只改 transform 和 opacity，不做 filter blur */
+.cs-card__ghost {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+    opacity: 0;
+    pointer-events: none;
+    will-change: transform, opacity;
+    -webkit-user-drag: none;
+}
+
+.cs-card__empty {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #4f6a60;
+    background: linear-gradient(150deg, #1b2c26, #101c18 70%);
+    border: 1px dashed #ffffff1a;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+}
+
+.cs-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-height: 52px;
+    text-align: center;
+}
+.cs-meta strong {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    animation: cs-title-in 220ms ease-out both;
+}
+.cs-meta span {
+    font-size: 12px;
+    color: var(--cs-muted);
+}
+.cs-meta small {
+    font-size: 11px;
+    color: var(--cs-faint);
+    font-variant-numeric: tabular-nums;
+}
+@keyframes cs-title-in {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.cs-transport {
+    display: flex;
+    align-items: center;
+    gap: 26px;
+}
+.cs-btn {
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--cs-line);
+    border-radius: 50%;
+    background: #ffffff0a;
+    color: var(--cs-ink);
+    cursor: pointer;
+    transition: background 160ms ease, transform 120ms ease, opacity 160ms ease;
+}
+.cs-btn:active {
+    transform: scale(0.94);
+    background: #ffffff14;
+}
+.cs-btn[disabled] {
+    opacity: 0.32;
+    cursor: default;
+    transform: none;
+}
+.cs-btn--nav {
+    width: 52px;
+    height: 52px;
+}
+.cs-btn--play {
+    width: 62px;
+    height: 62px;
+    background: var(--cs-accent);
+    border-color: transparent;
+    color: #08120f;
+}
+.cs-btn--play:active {
+    background: #a6e8ce;
+}
+
+.cs-modes {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.cs-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 11px;
+    border-radius: 999px;
+    border: 1px solid var(--cs-line);
+    background: transparent;
+    color: var(--cs-muted);
+    font-size: 11.5px;
+    cursor: pointer;
+}
+.cs-chip[data-on="true"] {
+    color: var(--cs-accent);
+    border-color: #91ddc059;
+    background: #91ddc014;
+}
+
+.cs-debug {
+    flex: none;
+    margin-top: 12px;
+    border-top: 1px solid var(--cs-line);
+    padding-top: 8px;
+}
+.cs-debug__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    background: transparent;
+    color: var(--cs-faint);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    padding: 4px 0;
+    cursor: pointer;
+}
+.cs-debug__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px 14px;
+    margin-top: 6px;
+    font: 11px/1.7 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color: var(--cs-faint);
+}
+.cs-debug__grid b {
+    color: #a9c3b8;
+    font-weight: 500;
+}
+.cs-debug__row {
+    grid-column: 1 / -1;
+    border-top: 1px dashed #ffffff0d;
+    margin-top: 4px;
+    padding-top: 4px;
+    color: var(--cs-muted);
+}
+.cs-debug__row em {
+    color: var(--cs-accent);
+    font-style: normal;
+}
+
+/* ---- 参数调试面板 ---- */
+.cs-params {
+    flex: none;
+    margin-top: 6px;
+    border-top: 1px solid var(--cs-line);
+    padding-top: 6px;
+}
+.cs-params__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.cs-params__reset {
+    border: 1px solid var(--cs-line);
+    background: transparent;
+    color: var(--cs-faint);
+    font-size: 11px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    cursor: pointer;
+}
+.cs-params__body {
+    margin-top: 4px;
+    padding-bottom: 6px;
+}
+.cs-params__group {
+    margin-top: 6px;
+}
+.cs-params__group h4 {
+    margin: 0 0 2px;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--cs-faint);
+    text-transform: uppercase;
+}
+.cs-params__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 11.5px;
+    color: var(--cs-muted);
+    padding: 3px 0;
+}
+.cs-params__chips {
+    display: flex;
+    gap: 6px;
+}
+.cs-chip--mini {
+    padding: 4px 9px;
+    font-size: 11px;
+}
+.cs-param {
+    display: grid;
+    grid-template-columns: 78px minmax(0, 1fr) 62px;
+    align-items: center;
+    gap: 10px;
+    padding: 2px 0;
+    font-size: 11px;
+    color: var(--cs-muted);
+}
+.cs-param span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cs-param b {
+    text-align: right;
+    font: 11px/1.6 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color: #a9c3b8;
+    font-weight: 500;
+}
+.cs-param input[type="range"] {
+    width: 100%;
+    height: 22px;
+    accent-color: var(--cs-accent);
+    background: transparent;
+}

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+  <defs>
+    <linearGradient id="p-bg" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#f4efe3"/>
+      <stop offset="0.62" stop-color="#ebe4d4"/>
+      <stop offset="1" stop-color="#ddd4c1"/>
+    </linearGradient>
+    <linearGradient id="p-brush" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#173f63"/>
+      <stop offset="0.6" stop-color="#2b6f96"/>
+      <stop offset="1" stop-color="#4e9cb8" stop-opacity="0.55"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="600" fill="url(#p-bg)"/>
+  <g stroke="#c9bda4" stroke-opacity="0.5" stroke-width="1">
+    <line x1="0" y1="120" x2="600" y2="120"/>
+    <line x1="0" y1="470" x2="600" y2="470"/>
+  </g>
+  <path d="M74 424 C168 300 236 210 340 236 C424 258 470 342 526 300" fill="none" stroke="url(#p-brush)" stroke-width="34" stroke-linecap="round" stroke-opacity="0.92"/>
+  <path d="M96 452 C186 356 256 292 356 312 C428 328 468 386 508 356" fill="none" stroke="#2b6f96" stroke-width="9" stroke-linecap="round" stroke-opacity="0.35"/>
+  <circle cx="150" cy="176" r="6" fill="#2b6f96" fill-opacity="0.5"/>
+  <rect x="470" y="486" width="40" height="40" fill="none" stroke="#b5432f" stroke-width="3"/>
+  <text x="478" y="512" fill="#b5432f" font-family="'Songti SC', 'Noto Serif SC', Georgia, serif" font-size="20">洛</text>
+  <text x="60" y="112" fill="#3a3a35" font-family="'Songti SC', 'Noto Serif SC', Georgia, serif" font-size="46" letter-spacing="8">纸上的海</text>
+  <text x="62" y="146" fill="#7d7666" font-family="Georgia, serif" font-size="13" letter-spacing="5">A SEA ON PAPER</text>
+</svg>

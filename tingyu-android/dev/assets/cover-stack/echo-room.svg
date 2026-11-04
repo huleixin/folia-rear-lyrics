@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+  <defs>
+    <linearGradient id="e-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1113"/>
+      <stop offset="0.55" stop-color="#141b1c"/>
+      <stop offset="1" stop-color="#080a0b"/>
+    </linearGradient>
+    <linearGradient id="e-cell" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#7fe6c4" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#7fe6c4" stop-opacity="0.5"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="600" fill="url(#e-bg)"/>
+  <g fill="url(#e-cell)">
+    <rect x="76" y="76" width="52" height="52" rx="6" opacity="0.75"/>
+    <rect x="144" y="76" width="52" height="52" rx="6" opacity="0.55"/>
+    <rect x="212" y="76" width="52" height="52" rx="6" opacity="0.4"/>
+    <rect x="280" y="76" width="52" height="52" rx="6" opacity="0.28"/>
+    <rect x="348" y="76" width="52" height="52" rx="6" opacity="0.2"/>
+    <rect x="416" y="76" width="52" height="52" rx="6" opacity="0.14"/>
+    <rect x="484" y="76" width="52" height="52" rx="6" opacity="0.1"/>
+    <rect x="76" y="144" width="52" height="52" rx="6" opacity="0.62"/>
+    <rect x="144" y="144" width="52" height="52" rx="6" opacity="0.6"/>
+    <rect x="212" y="144" width="52" height="52" rx="6" opacity="0.46"/>
+    <rect x="280" y="144" width="52" height="52" rx="6" opacity="0.3"/>
+    <rect x="348" y="144" width="52" height="52" rx="6" opacity="0.22"/>
+    <rect x="416" y="144" width="52" height="52" rx="6" opacity="0.15"/>
+    <rect x="76" y="212" width="52" height="52" rx="6" opacity="0.5"/>
+    <rect x="144" y="212" width="52" height="52" rx="6" opacity="0.66"/>
+    <rect x="212" y="212" width="52" height="52" rx="6" opacity="0.5"/>
+    <rect x="280" y="212" width="52" height="52" rx="6" opacity="0.34"/>
+    <rect x="348" y="212" width="52" height="52" rx="6" opacity="0.24"/>
+  </g>
+  <rect x="416" y="212" width="52" height="52" rx="6" fill="#7fe6c4"/>
+  <text x="76" y="374" fill="#e6f7f1" font-family="'Songti SC', 'Noto Serif SC', Georgia, serif" font-size="50" letter-spacing="4">回声房间</text>
+  <text x="78" y="406" fill="#8fb3a8" font-family="Georgia, serif" font-size="14" letter-spacing="6">THE ECHO ROOM</text>
+  <g stroke="#7fe6c4" stroke-opacity="0.22" stroke-width="1">
+    <line x1="76" y1="440" x2="536" y2="440"/>
+  </g>
+  <text x="78" y="470" fill="#6f8b83" font-family="Georgia, serif" font-size="12" letter-spacing="3">EMPTY ISLAND / NO ARTWORK</text>
+</svg>

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+  <defs>
+    <linearGradient id="r-bg" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#161320"/>
+      <stop offset="0.55" stop-color="#221b30"/>
+      <stop offset="1" stop-color="#0c0a14"/>
+    </linearGradient>
+    <radialGradient id="r-moon" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffd8a0"/>
+      <stop offset="0.72" stop-color="#f0a952"/>
+      <stop offset="1" stop-color="#d3833a"/>
+    </radialGradient>
+    <radialGradient id="r-halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0.55" stop-color="#ffbe73" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#ffbe73" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="600" height="600" fill="url(#r-bg)"/>
+  <circle cx="424" cy="196" r="210" fill="url(#r-halo)"/>
+  <circle cx="424" cy="196" r="104" fill="url(#r-moon)"/>
+  <g stroke="#f4c98c" stroke-opacity="0.24" stroke-width="1.2">
+    <line x1="0" y1="360" x2="600" y2="360"/>
+    <line x1="0" y1="392" x2="470" y2="392"/>
+    <line x1="0" y1="424" x2="600" y2="424"/>
+    <line x1="0" y1="456" x2="356" y2="456"/>
+    <line x1="0" y1="488" x2="600" y2="488"/>
+    <line x1="0" y1="520" x2="520" y2="520"/>
+  </g>
+  <g fill="#f4c98c" fill-opacity="0.5">
+    <rect x="470" y="352" width="4" height="16"/>
+    <rect x="356" y="448" width="4" height="16"/>
+    <rect x="520" y="512" width="4" height="16"/>
+  </g>
+  <text x="52" y="452" fill="#f6e6cf" font-family="'Songti SC', 'Noto Serif SC', Georgia, serif" font-size="54" letter-spacing="6">午夜电台</text>
+  <text x="54" y="486" fill="#b79f86" font-family="Georgia, serif" font-size="15" letter-spacing="6">MIDNIGHT RADIO · 88.7</text>
+  <text x="54" y="94" fill="#8d7d6b" font-family="Georgia, serif" font-size="13" letter-spacing="4">LIN CHE</text>
+</svg>

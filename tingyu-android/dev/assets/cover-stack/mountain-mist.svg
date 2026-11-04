@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+  <defs>
+    <linearGradient id="m-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d9d5c6"/>
+      <stop offset="0.46" stop-color="#c2bfae"/>
+      <stop offset="1" stop-color="#8a8c7d"/>
+    </linearGradient>
+    <linearGradient id="m-far" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7d8478" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#6b7367" stop-opacity="0.8"/>
+    </linearGradient>
+    <linearGradient id="m-mid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4e574c"/>
+      <stop offset="1" stop-color="#3b433a"/>
+    </linearGradient>
+    <linearGradient id="m-near" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a312a"/>
+      <stop offset="1" stop-color="#1c211c"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="600" fill="url(#m-sky)"/>
+  <circle cx="404" cy="152" r="46" fill="#f3efe0" fill-opacity="0.9"/>
+  <path d="M0 318 L96 246 L168 300 L262 208 L352 306 L432 250 L520 312 L600 262 V600 H0 Z" fill="url(#m-far)"/>
+  <path d="M0 392 L88 330 L162 378 L246 296 L330 372 L420 316 L512 386 L600 340 V600 H0 Z" fill="url(#m-mid)"/>
+  <path d="M0 470 L104 412 L196 462 L292 398 L392 462 L486 414 L600 470 V600 H0 Z" fill="url(#m-near)"/>
+  <text x="52" y="536" fill="#f2eee2" font-family="'Songti SC', 'Noto Serif SC', Georgia, serif" font-size="56" letter-spacing="12">山雾</text>
+  <text x="54" y="572" fill="#cdc7b7" font-family="Georgia, serif" font-size="14" letter-spacing="5">MOUNTAIN MIST / YUANSHAN</text>
+</svg>
