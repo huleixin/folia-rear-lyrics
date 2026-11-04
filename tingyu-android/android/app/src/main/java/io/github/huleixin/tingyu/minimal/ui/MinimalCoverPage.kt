@@ -160,7 +160,7 @@ fun MinimalCoverPage(
             }
 
             Spacer(Modifier.height(clampDp(6f, vh.value * 0.009f, 8f)))
-            Row(Modifier.fillMaxWidth().height(24.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().height(28.dp), verticalAlignment = Alignment.CenterVertically) {
                 val quality = state.controls.quality
                 if (quality.isNotBlank()) {
                     QualityChip(quality, state.controls.qualityGold, light, ink)
@@ -228,45 +228,43 @@ private fun ChevronRight(color: Color, modifier: Modifier) {
     }
 }
 
-/** 音质角标：一个胶囊装两个事实（"FLAC · 无损"）。金色时带一枚香槟金小图标。 */
+/**
+ * 音质角标：一个胶囊装两个事实（"FLAC · 无损"）。
+ *
+ * 金色规格（第 18 轮，用户给定）：14dp 香槟金三柱图标 #D8B777 + 文字 #E5C995 +
+ * 描边 #B8955C 1dp + 极淡暖金底，高 27dp，图标文字间隔 6dp；浅色模式用更深的
+ * 香槟金（#A07C33 / #8A6A26）保证对比度。有损格式不进金色分支。
+ */
 @Composable
 private fun QualityChip(text: String, gold: Boolean, light: Boolean, ink: MinimalInk) {
-    val border = if (gold) {
-        if (light) Color(0xFFA07C33).copy(alpha = 0.42f) else Color(0xFFE2C48C).copy(alpha = 0.54f)
-    } else ink.inkAlpha(20)
-    val content = if (gold) {
-        if (light) Color(0xFF8A6A26) else Color(0xFFE2C48C)
-    } else ink.inkAlpha(72)
+    val iconColor = if (light) Color(0xFFA07C33) else Color(0xFFD8B777)
+    val textColor = if (light) Color(0xFF8A6A26) else Color(0xFFE5C995)
+    val borderColor = if (light) Color(0xFFA07C33).copy(alpha = 0.55f) else Color(0xFFB8955C)
+    val background = if (light) Color(0xFFA07C33).copy(alpha = 0.08f) else Color(0xFFB8955C).copy(alpha = 0.10f)
+    val plainBorder = ink.inkAlpha(20)
+    val plainText = ink.inkAlpha(72)
     Row(
         Modifier
-            .height(24.dp)
-            .background(Color.Transparent, RoundedCornerShape(999.dp))
-            .border(1.dp, border, RoundedCornerShape(999.dp))
+            .height(27.dp)
+            .background(if (gold) background else Color.Transparent, RoundedCornerShape(999.dp))
+            .border(1.dp, if (gold) borderColor else plainBorder, RoundedCornerShape(999.dp))
             .padding(horizontal = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         if (gold) {
-            // 香槟金小图标（参考效果图）：三根拾升的细条，低调不内卷。
-            Canvas(Modifier.size(width = 9.dp, height = 10.dp)) {
-                val u = size.minDimension / 10f
-                val w = 1.4f * u
-                val baseline = 9.4f * u
-                listOf(3.4f, 6.2f, 9f).forEachIndexed { index, x ->
-                    val barHeight = listOf(3.2f, 5.6f, 8f)[index] * u
-                    drawLine(
-                        content,
-                        Offset(x * u, baseline),
-                        Offset(x * u, baseline - barHeight),
-                        w,
-                        StrokeCap.Round,
-                    )
+            // 香槟金小图标：三根拾升的细条（与 WebView 回退侧 GoldBarsIcon 同一几何）。
+            Canvas(Modifier.size(14.dp)) {
+                val w = 1.5f * size.minDimension / 14f
+                val baseline = 10.4f * size.minDimension / 14f
+                listOf(3.6f to 7.2f, 7f to 4.8f, 10.4f to 2.4f).forEach { (x, top) ->
+                    drawLine(iconColor, Offset(x * size.minDimension / 14f, baseline), Offset(x * size.minDimension / 14f, top * size.minDimension / 14f), w, StrokeCap.Round)
                 }
             }
-            Spacer(Modifier.width(5.dp))
         }
         Text(
             text = text,
-            color = content,
+            color = if (gold) textColor else plainText,
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
             letterSpacing = 0.605.sp,

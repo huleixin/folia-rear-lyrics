@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LoaderCircle, ListMusic, Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward } from 'lucide-react';
+import { LoaderCircle, ListMusic, Pause, Play, SkipBack, SkipForward } from 'lucide-react';
+import PlaybackModeIcon from '../../icons/PlaybackModeIcon';
 import ProgressBar from '../../../ProgressBar';
 import type { AppOverlaysModel } from '../buildAppOverlaysModel';
 import { PlayerState } from '../../../../types';
@@ -66,7 +67,6 @@ export default function MinimalTransport({ controls, active = true }: { controls
         void openNativeQueueSheet().then(handled => { if (!handled) { state.setPanelTab('queue'); state.setIsPanelOpen(true); } });
     }, []);
 
-    const ModeIcon = mode === 'shuffle' ? Shuffle : mode === 'one' ? Repeat1 : Repeat;
     const modeName = t(playbackModeLabelKey(mode));
 
     return (
@@ -99,7 +99,7 @@ export default function MinimalTransport({ controls, active = true }: { controls
                     onClick={() => controls.onToggleLoop()}
                     data-testid="minimal-playback-mode"
                 >
-                    <ModeIcon size={20} strokeWidth={1.9} />
+                    <PlaybackModeIcon mode={mode} size={20} strokeWidth={1.9} />
                 </button>
                 <button
                     type="button"

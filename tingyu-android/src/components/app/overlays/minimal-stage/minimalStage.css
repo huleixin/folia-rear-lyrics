@@ -526,16 +526,30 @@
     white-space: nowrap;
 }
 
-/* One pill, holding both facts: "FLAC · 无损". Two pills read as badges, one reads as a caption. */
+/* One pill, holding both facts: "FLAC · 无损". Two pills read as badges, one reads as a caption.
+   Gold spec (第 18 轮)：icon #D8B777 / text #E5C995 / border #B8955C 1px，极淡暖金底，27px 高。 */
 .min-chip[data-tone='gold'] {
-    border-color: color-mix(in srgb, #e2c48c 54%, transparent);
-    color: color-mix(in srgb, #e2c48c 88%, var(--min-ink) 12%);
+    height: 27px;
+    gap: 6px;
+    border-color: #b8955c;
+    color: #e5c995;
+    background: rgba(184, 149, 92, 0.10);
+}
+
+.min-chip__gold-icon {
+    flex: none;
+    color: #d8b777;
 }
 
 /* #e2c48c on paper is invisible; the gold chip needs a darker ink to stay a chip. */
 .min[data-theme='light'] .min-chip[data-tone='gold'] {
-    border-color: color-mix(in srgb, #a07c33 42%, transparent);
-    color: color-mix(in srgb, #8a6a26 88%, var(--min-ink) 12%);
+    border-color: #a07c33;
+    color: #8a6a26;
+    background: rgba(160, 124, 51, 0.08);
+}
+
+.min[data-theme='light'] .min-chip__gold-icon {
+    color: #a07c33;
 }
 
 /* The playing indicator from the reference, at the right end of the caption row. Four bars, one

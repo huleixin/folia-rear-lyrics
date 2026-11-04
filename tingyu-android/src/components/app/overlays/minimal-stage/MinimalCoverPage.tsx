@@ -78,10 +78,36 @@ function CoverMetadata({
             <h2 className="min-cover__title" title={title}>{title}</h2>
             <MinimalArtistLink label={artist} track={snapshot.song?.track ?? null} className="min-cover__artist" onOpen={onOpenArtist} />
             <div className="min-cover__foot">
-                {quality && <span className="min-chip" data-tone={tone}>{quality}</span>}
+                {quality && (
+                    <span className="min-chip" data-tone={tone}>
+                        {tone === 'gold' && <GoldBarsIcon />}
+                        {quality}
+                    </span>
+                )}
                 <PlayingMeter playing={playing} />
             </div>
         </div>
+    );
+}
+
+/** 香槟金音质徽章的小图标：三根拾升的细条（与 Compose 侧同一几何）。 */
+function GoldBarsIcon() {
+    return (
+        <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            aria-hidden="true"
+            className="min-chip__gold-icon"
+        >
+            <line x1="3.6" y1="10.4" x2="3.6" y2="7.2" />
+            <line x1="7" y1="10.4" x2="7" y2="4.8" />
+            <line x1="10.4" y1="10.4" x2="10.4" y2="2.4" />
+        </svg>
     );
 }
 

@@ -380,31 +380,9 @@ private fun QueueModeButton(theme: QueueTheme, mode: String, onClick: () -> Unit
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
+        // 模式图标：全局唯一来源 PlayModeGlyph（第 18 轮），与传输条/WebView 回退同一套几何。
         Canvas(Modifier.size(14.dp)) {
-            val u = size.minDimension / 14f
-            val w = 1.6f * u
-            when (mode) {
-                "one" -> { // 单曲循环：环 + 1
-                    drawCircle(theme.text, 5f * u, style = Stroke(w))
-                    drawLine(theme.text, Offset(7f * u, 4.4f * u), Offset(7f * u, 9.6f * u), w, StrokeCap.Round)
-                }
-                "shuffle" -> { // 随机：两条交叉带箭头
-                    drawLine(theme.text, Offset(2.5f * u, 4f * u), Offset(11.5f * u, 10f * u), w, StrokeCap.Round)
-                    drawLine(theme.text, Offset(2.5f * u, 10f * u), Offset(11.5f * u, 4f * u), w, StrokeCap.Round)
-                    drawLine(theme.text, Offset(9.6f * u, 2.6f * u), Offset(11.5f * u, 4f * u), w, StrokeCap.Round)
-                    drawLine(theme.text, Offset(9.6f * u, 11.4f * u), Offset(11.5f * u, 10f * u), w, StrokeCap.Round)
-                }
-                "all" -> { // 列表循环：环 + 箭头缺口
-                    drawArc(theme.text, -60f, 300f, false, style = Stroke(w))
-                    drawLine(theme.text, Offset(11f * u, 2.6f * u), Offset(11f * u, 6.4f * u), w, StrokeCap.Round)
-                }
-                else -> { // 顺序：向右两横带箭头
-                    drawLine(theme.text, Offset(2.5f * u, 4.2f * u), Offset(8.5f * u, 4.2f * u), w, StrokeCap.Round)
-                    drawLine(theme.text, Offset(2.5f * u, 9.8f * u), Offset(11.5f * u, 9.8f * u), w, StrokeCap.Round)
-                    drawLine(theme.text, Offset(6.6f * u, 2.4f * u), Offset(8.5f * u, 4.2f * u), w, StrokeCap.Round)
-                    drawLine(theme.text, Offset(6.6f * u, 6f * u), Offset(8.5f * u, 4.2f * u), w, StrokeCap.Round)
-                }
-            }
+            drawPlayModeGlyph(mode, theme.text)
         }
         Text(
             text = when (mode) {

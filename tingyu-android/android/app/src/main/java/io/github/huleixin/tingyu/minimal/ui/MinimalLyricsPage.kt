@@ -28,6 +28,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -86,6 +87,9 @@ private const val MANUAL_HOLD_MS = 4000L
 private const val SCROLL_BASE_MS = 240
 private const val SCROLL_MAX_MS = 460
 
+/** 锚点抖动吸收窗（秒）：小于它的倒退按抖动忽略，大于它按真实 seek 处理。 */
+private const val SEEK_RESET_SEC = 0.35
+
 @Composable
 fun MinimalLyricsPage(
     state: MinimalPlayerState,
@@ -112,7 +116,6 @@ fun MinimalLyricsPage(
                     playback = playback,
                     clock = clock,
                     ink = ink,
-                    lyricAccent = Color(palette.lyricAccent),
                     active = active,
                     pagerBusy = pagerBusy,
                     onSeek = onSeek,
@@ -192,7 +195,6 @@ private fun LyricColumn(
     playback: MinimalPlayback,
     clock: State<Long>,
     ink: MinimalInk,
-    lyricAccent: Color,
     active: Boolean,
     pagerBusy: Boolean,
     onSeek: (Double) -> Unit,
@@ -200,14 +202,29 @@ private fun LyricColumn(
     val scroll = rememberScrollState()
     val offsets = remember(lyrics) { FloatArray(lyrics.size) }
     val heights = remember(lyrics) { FloatArray(lyrics.size) }
+    // 每行**测量时**的字号：行高 ≈ 行数×字号×系数 + 固定内衬，据此把动画中的
+    // 测量值换算成落定值 —— 滚动目标在切换瞬间就能算准，不需要事后修正。
+    val measuredSizes = remember(lyrics) { FloatArray(lyrics.size) }
     var viewport by remember { mutableFloatStateOf(0f) }
     var manualUntil by remember { mutableLongStateOf(0L) }
     var autoScrolling by remember { mutableStateOf(false) }
+    val autoScrollTarget = remember(lyrics) { intArrayOf(Int.MIN_VALUE) }
+    val lastActiveRef = remember(lyrics) { intArrayOf(-1) }
 
     val latestPlayback by rememberUpdatedState(playback)
-    val indexState = remember(lyrics) {
+    val indexState = remember(lyrics, playback.epoch) {
+        var highWater = Double.NEGATIVE_INFINITY
         derivedStateOf {
-            val time = latestPlayback.lyricSecAt(clock.value)
+            val raw = latestPlayback.lyricSecAt(clock.value)
+            // 抗抖动高水位：桥帧的到达延迟让位置可能瞬间倒退几十毫秒，行边界
+            // 恰好在抖动窗里时索引先翻下去又翻回来（滚动也就先下后上）。
+            // 小幅倒退钳在高位不动；大幅倒退是真实 seek/上一首，照实放行。
+            highWater = when {
+                raw >= highWater -> raw
+                highWater - raw > SEEK_RESET_SEC -> raw
+                else -> highWater
+            }
+            val time = highWater
             if (lyrics.isEmpty() || time < lyrics[0].startSec) {
                 -1
             } else {
@@ -236,22 +253,45 @@ private fun LyricColumn(
         }
     }
 
-    // 切到歌词页时的自动滚动。pagerBusy 挂在键上：跟手/吸附期间直接跳过，
-    // 落定后这一键变化会重新触发 —— 滚动不会丢，只是不再和切页动画抢同一批帧。
+    // 切行自动滚动。目标位置按**落定布局**预测：切换瞬间旧活动行还占着放大后的
+    // 高度、新活动行还没长起来，直接用测量值会系统性偏移几十像素（长行更甚）；
+    // 这里按测量字号比例把两行的落定高度换算出来，一次滚到位，动画结束后不再修正。
     LaunchedEffect(index, lyrics, active, pagerBusy) {
+        val previousActive = lastActiveRef[0]
+        lastActiveRef[0] = index
         if (!active || pagerBusy || viewport <= 0f) return@LaunchedEffect
         val target = index
         if (target < 0 || target >= lyrics.size) return@LaunchedEffect
-        val lineTop = offsets[target]
-        val lineHeight = heights[target]
-        if (lineTop <= 0f || lineHeight <= 0f) return@LaunchedEffect
+        // 同一目标的滚动已在途（pagerBusy 抖动重进）：不重启，避免中途变向。
+        if (autoScrolling && autoScrollTarget[0] == target) return@LaunchedEffect
         if (System.currentTimeMillis() < manualUntil) return@LaunchedEffect
-        val destination = (lineTop + lineHeight / 2f - viewport * ACTIVE_LINE_ANCHOR)
+        if (offsets[target] <= 0f || heights[target] <= 0f) return@LaunchedEffect
+
+        // 行高换算模型：height(字号 s) ≈ height(测量值) × s / 测量字号。
+        fun settledHeight(row: Int, targetSize: Float): Float {
+            val measured = heights[row]
+            val at = measuredSizes[row]
+            return if (measured > 0f && at > 1f) measured * (targetSize / at) else measured
+        }
+
+        // 目标上方的旧活动行正在缩小：目标行会**上移**，提前把这段算进目标。
+        var shift = 0f
+        if (previousActive in 0 until target) {
+            val wasCredit = isProductionCreditLine(lyrics[previousActive], previousActive)
+            val shrinkTo = if (wasCredit) 12.5f else 20f
+            shift += settledHeight(previousActive, shrinkTo) - heights[previousActive]
+        }
+        // 目标行自己的落定高度（活动字号），行中心锚点用它。
+        val targetCredit = isProductionCreditLine(lyrics[target], target)
+        val targetSettledHeight = settledHeight(target, if (targetCredit) 14f else 30f)
+
+        val destination = (offsets[target] + shift + targetSettledHeight / 2f - viewport * ACTIVE_LINE_ANCHOR)
             .coerceIn(0f, scroll.maxValue.toFloat())
         val distance = abs(destination - scroll.value)
         if (distance < 2f) return@LaunchedEffect
         val duration = min(SCROLL_MAX_MS, SCROLL_BASE_MS + (distance / 1000f * 130f).toInt())
         autoScrolling = true
+        autoScrollTarget[0] = target
         try {
             scroll.animateScrollTo(
                 destination.toInt(),
@@ -302,12 +342,12 @@ private fun LyricColumn(
                     playback = playback,
                     clock = clock,
                     ink = ink,
-                    lyricAccent = lyricAccent,
                     onSeek = onSeek,
-                    onMeasured = { top, height ->
+                    onMeasured = { top, height, atSize ->
                         if (lineIndex in offsets.indices) {
                             offsets[lineIndex] = top
                             heights[lineIndex] = height
+                            measuredSizes[lineIndex] = atSize
                         }
                     },
                 )
@@ -326,27 +366,27 @@ private fun LyricLineRow(
     playback: MinimalPlayback,
     clock: State<Long>,
     ink: MinimalInk,
-    lyricAccent: Color,
     onSeek: (Double) -> Unit,
-    onMeasured: (Float, Float) -> Unit,
+    onMeasured: (Float, Float, Float) -> Unit,
 ) {
     val baseSize = if (credit) 12.5f else 20f
     val activeSize = if (credit) 14f else 30f
-    // 当前行放大 / 上一行缩小：字号动画就是过渡本身（320/260ms 缓出）。
+    // 当前行放大 / 上一行缩小：字号动画就是过渡本身（380/340ms 缓出，350-450ms
+    // 目标带内）。纯 tween 无弹簧，不会过冲回弹。
     val sizeState by animateFloatAsState(
         targetValue = if (active) activeSize else baseSize,
         animationSpec = tween(
-            durationMillis = if (active) 320 else 260,
+            durationMillis = if (active) 380 else 340,
             easing = CubicBezierEasing(0.2f, 0.7f, 0.2f, 1f),
         ),
         label = "minimal-line-size",
     )
     val baseColor = if (credit) ink.mutedAlpha(78) else ink.muted
-    // 当前行不是纯白：被封面色染一点点，这一行才像印在这张纸上而不是贴上去的。
+    // 当前行不是纯白：被提亮到近白（第 18 轮明确：高亮用白，不用金色）。
     val currentColor = if (credit) ink.mutedAlpha(88) else ink.brightAlpha(84)
     val colorState by animateColorAsState(
         targetValue = if (active) currentColor else baseColor,
-        animationSpec = tween(320),
+        animationSpec = tween(380),
         label = "minimal-line-color",
     )
 
@@ -358,11 +398,12 @@ private fun LyricLineRow(
                 onMeasured(
                     coordinates.positionInParent().y,
                     coordinates.size.height.toFloat(),
+                    sizeState,
                 )
             }
-            // 景深（第 17 轮，参考效果图）：当前行最清晰，相邻稍弱，远处继续淡化。
+            // 景深：当前行最清晰，相邻稍弱，远处继续淡化。
             // 距离在**图层属性块**里读 indexState —— 换行时只更新每行的透明度属性，
-            // 不触发任何一行的重组，也不触发布局；长歌词逐行下移时这里是 O(可见行) 的属性写。
+            // 不触发任何一行的重组，也不触发布局。
             .graphicsLayer {
                 val distance = abs(lineIndex - indexState.value)
                 alpha = when {
@@ -385,7 +426,7 @@ private fun LyricLineRow(
                 playback = playback,
                 clock = clock,
                 color = colorState,
-                accent = lyricAccent,
+                sungColor = ink.inkBright,
                 fontSize = sizeState.sp,
             )
         } else {
@@ -412,12 +453,16 @@ private fun LyricLineRow(
 }
 
 /**
- * 连续卡拉OK行（第 17 轮）：两层同样的文本叠放，顶层是已唱色，
- * 用**逐行裁剪路径**按连续进度推进 —— 一字之内也平滑渐入，不再一字一跳。
+ * 连续卡拉OK行：两层同样的文本叠放，顶层是已唱亮色，用**逐行裁剪路径**按连续
+ * 进度推进 —— 字内也按浮点进度插值（第 18 轮修掉了 toInt() 丢小数的断跳）。
  *
- * 进度在 draw 阶段读时钟：跨字不再重建 AnnotatedString、不再重组，只有活动行
- * 每帧一次重绘；暂停时时钟停摆，重绘自然停止。逐行裁剪用 TextLayoutResult 的
- * 行几何，换行后的第二行也按阅读顺序推进，不会出现"第二行先亮"的错序。
+ * 填充边界：完全唱完的字形簇之外，正在唱的那个簇按它在 TextLayoutResult 里的
+ * 起止光标位置做浮点插值 —— 同一个字唱到 25%/50%/75% 填充宽度不同。簇起止都是
+ * 合法光标位置（簇边界或文本末尾），代理对/组合符不会落进簇中间。双向文本里
+ * 簇的光标可能右→左，按方向插值，不会反向跳。
+ *
+ * 进度在 draw 阶段读时钟：跨字不再重建字符串、不再重组，只有活动行每帧一次
+ * 重绘；暂停时时钟停摆，填充自然冻结。
  */
 @Composable
 private fun KaraokeLine(
@@ -425,11 +470,12 @@ private fun KaraokeLine(
     playback: MinimalPlayback,
     clock: State<Long>,
     color: Color,
-    accent: Color,
+    sungColor: Color,
     fontSize: androidx.compose.ui.unit.TextUnit,
 ) {
     val latestPlayback by rememberUpdatedState(playback)
     var layout by remember(line) { mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null) }
+    val fillPath = remember(line) { Path() }
     Box {
         Text(
             text = line.text,
@@ -441,7 +487,7 @@ private fun KaraokeLine(
         )
         Text(
             text = line.text,
-            color = accent,
+            color = sungColor,
             fontSize = fontSize,
             fontWeight = FontWeight.SemiBold,
             lineHeight = fontSize * 1.22f,
@@ -452,37 +498,60 @@ private fun KaraokeLine(
                 val timeline = line.graphemeTimeline
                 val position = timeline.sungPosition(latestPlayback.lyricSecAt(clock.value))
                 if (position <= 0f) return@drawWithContent
-                // 浮点字形位置 → 浮点字符偏移（字形串就是行文本按序拼接）。
+                val textLength = textLayout.layoutInput.text.length
+
+                // 定位正在唱的字形簇：整簇唱完的字符数 + 当前簇的字内进度。
+                var sungChars = 0
+                var clusterStart = -1
+                var clusterEnd = -1
+                var clusterProgress = 0f
                 var remaining = position
-                var charOffset = 0f
                 for (grapheme in timeline.graphemes) {
                     val length = grapheme.text.length
                     if (remaining >= 1f) {
-                        charOffset += length
+                        sungChars += length
                         remaining -= 1f
                     } else {
-                        charOffset += remaining * length
+                        clusterStart = sungChars
+                        clusterEnd = sungChars + length
+                        clusterProgress = remaining.coerceIn(0f, 1f)
                         break
                     }
                 }
-                val textLength = textLayout.layoutInput.text.length
-                val sungLine = textLayout.getLineForOffset(charOffset.toInt().coerceAtMost(textLength))
-                val fill = androidx.compose.ui.graphics.Path()
+                val allSung = clusterStart < 0 || sungChars >= textLength
+                val sungLine = textLayout.getLineForOffset(
+                    (if (allSung) textLength else clusterStart).coerceIn(0, textLength),
+                )
+
+                fillPath.rewind()
                 for (lineIdx in 0 until textLayout.lineCount) {
                     val top = textLayout.getLineTop(lineIdx)
                     val bottom = textLayout.getLineBottom(lineIdx)
                     when {
-                        lineIdx < sungLine -> fill.addRect(Rect(0f, top, size.width, bottom))
+                        lineIdx < sungLine -> fillPath.addRect(Rect(0f, top, size.width, bottom))
                         lineIdx == sungLine -> {
-                            val boundary = charOffset.toInt().coerceIn(0, textLength)
-                            val x = if (charOffset >= textLength) size.width
-                            else textLayout.getHorizontalPosition(boundary, usePrimaryDirection = true)
-                                .coerceIn(0f, size.width)
-                            fill.addRect(Rect(0f, top, x, bottom))
+                            val x = if (allSung) {
+                                size.width
+                            } else {
+                                val lineLeft = textLayout.getLineLeft(sungLine)
+                                val lineRight = textLayout.getLineRight(sungLine)
+                                val from = textLayout.getHorizontalPosition(
+                                    clusterStart.coerceIn(0, textLength), usePrimaryDirection = true,
+                                )
+                                val to = textLayout.getHorizontalPosition(
+                                    clusterEnd.coerceIn(0, textLength), usePrimaryDirection = true,
+                                )
+                                val a = from.coerceIn(lineLeft, lineRight)
+                                val b = to.coerceIn(lineLeft, lineRight)
+                                // 双向文本：b < a 说明这一簇从右往左排，反向插值。
+                                (if (b >= a) a + (b - a) * clusterProgress else a - (a - b) * clusterProgress)
+                                    .coerceIn(0f, size.width)
+                            }
+                            fillPath.addRect(Rect(0f, top, x, bottom))
                         }
                     }
                 }
-                clipPath(fill) { this@drawWithContent.drawContent() }
+                clipPath(fillPath) { this@drawWithContent.drawContent() }
             },
         )
     }

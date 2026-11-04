@@ -18,11 +18,13 @@ export type QualityBadge = {
 };
 
 const CONTAINERS: Record<string, { label: string; tone: QualityBadge['tone'] }> = {
-    flac: { label: 'FLAC', tone: 'plain' },
-    ape: { label: 'APE', tone: 'plain' },
-    wav: { label: 'WAV', tone: 'plain' },
-    dsf: { label: 'DSD', tone: 'plain' },
-    dff: { label: 'DSD', tone: 'plain' },
+    // 无损容器本身就是金色事实：字节在手就是无损，不依赖目录标注（第 18 轮）。
+    // MP3/AAC/OGG 等有损容器永远 plain，不能被误标成无损。
+    flac: { label: 'FLAC', tone: 'gold' },
+    ape: { label: 'APE', tone: 'gold' },
+    wav: { label: 'WAV', tone: 'gold' },
+    dsf: { label: 'DSD', tone: 'gold' },
+    dff: { label: 'DSD', tone: 'gold' },
     mp3: { label: 'MP3', tone: 'plain' },
     m4a: { label: 'AAC', tone: 'plain' },
     aac: { label: 'AAC', tone: 'plain' },
@@ -65,6 +67,9 @@ const SPEC_PRIORITY: readonly CatalogAudioSpec[] = ['hires', 'lossless', 'dolby'
  *
  * `hires` is only claimed when the catalog says so *and* the stream is a lossless container —
  * otherwise the chip would be describing the provider's menu while the listener hears 128 kbps.
+ *
+ * A lossless container that the catalog never labels still earns its `无损` claim: the bytes in
+ * hand ARE lossless (第 18 轮 —— 普通 FLAC 不再只给一个灰白 "FLAC"，而是金色 "FLAC · 无损"）.
  */
 export const resolveQualityBadges = (
     catalogAudioSpecs: readonly CatalogAudioSpec[] | null | undefined,
@@ -81,7 +86,9 @@ export const resolveQualityBadges = (
         && (candidate !== 'hires' || lossless)
         && (candidate !== 'lossless' || lossless));
     if (spec) {
-        badges.push({ id: 'spec', value: spec, tone: spec === 'hires' ? 'gold' : 'plain' });
+        badges.push({ id: 'spec', value: spec, tone: spec === 'hires' || spec === 'lossless' ? 'gold' : 'plain' });
+    } else if (lossless) {
+        badges.push({ id: 'spec', value: 'lossless', tone: 'gold' });
     }
     return badges.slice(0, 2);
 };

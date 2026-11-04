@@ -8,12 +8,10 @@ import {
     Palette,
     Pause,
     Play,
-    Repeat,
-    Repeat1,
     SkipBack,
     SkipForward,
-    Shuffle,
 } from 'lucide-react';
+import PlaybackModeIcon from '../../icons/PlaybackModeIcon';
 import { useTranslation } from 'react-i18next';
 import { openNativeQueueSheet } from '../../../../services/nativeMinimalQueue';
 import { useAppViewStore } from '../../../../stores/useAppViewStore';
@@ -189,7 +187,7 @@ export default function MobileStageChrome({
                             disabled={disabled}
                             onClick={controls.onToggleLoop}
                         >
-                            {mode === 'shuffle' ? <Shuffle size={21} /> : mode === 'one' ? <Repeat1 size={21} /> : <Repeat size={21} />}
+                            <PlaybackModeIcon mode={mode} size={21} strokeWidth={1.9} />
                             <span>{t(playbackModeLabelKey(mode))}</span>
                         </button>
                         <div className="mps-main-transport">

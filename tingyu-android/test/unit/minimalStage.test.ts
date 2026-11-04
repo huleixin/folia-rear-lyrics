@@ -302,7 +302,8 @@ describe('minimal lyric timing', () => {
 
 describe('minimal quality chips', () => {
     it('reads the container off the stream actually being played', () => {
-        expect(resolveContainerBadge('https://x/y.flac')).toEqual({ id: 'container', value: 'FLAC', tone: 'plain' });
+        // 无损容器本身就是金色事实（第 18 轮）：FLAC 字节在手即无损，不依赖目录标注。
+        expect(resolveContainerBadge('https://x/y.flac')).toEqual({ id: 'container', value: 'FLAC', tone: 'gold' });
         expect(resolveContainerBadge('/music/a.MP3?token=1')?.value).toBe('MP3');
         expect(resolveContainerBadge('https://x/y')).toBeNull();
         expect(resolveContainerBadge(null)).toBeNull();
@@ -313,8 +314,28 @@ describe('minimal quality chips', () => {
             { id: 'container', value: 'MP3', tone: 'plain' },
         ]);
         expect(resolveQualityBadges(['hires'], 'https://x/y.flac')).toEqual([
-            { id: 'container', value: 'FLAC', tone: 'plain' },
+            { id: 'container', value: 'FLAC', tone: 'gold' },
             { id: 'spec', value: 'hires', tone: 'gold' },
+        ]);
+    });
+
+    it('marks plain lossless containers gold with the 无损 claim (R18)', () => {
+        // 普通 FLAC：目录没标注也金，且补上 "无损" —— "FLAC · 无损"。
+        expect(resolveQualityBadges(undefined, 'https://x/y.flac')).toEqual([
+            { id: 'container', value: 'FLAC', tone: 'gold' },
+            { id: 'spec', value: 'lossless', tone: 'gold' },
+        ]);
+        // 目录已标 lossless 时不再重复补。
+        expect(resolveQualityBadges(['lossless'], 'https://x/y.flac')).toEqual([
+            { id: 'container', value: 'FLAC', tone: 'gold' },
+            { id: 'spec', value: 'lossless', tone: 'gold' },
+        ]);
+        // 有损容器永远不金、不补无损。
+        expect(resolveQualityBadges(undefined, 'https://x/y.mp3')).toEqual([
+            { id: 'container', value: 'MP3', tone: 'plain' },
+        ]);
+        expect(resolveQualityBadges(undefined, 'https://x/y.m4a')).toEqual([
+            { id: 'container', value: 'AAC', tone: 'plain' },
         ]);
     });
 

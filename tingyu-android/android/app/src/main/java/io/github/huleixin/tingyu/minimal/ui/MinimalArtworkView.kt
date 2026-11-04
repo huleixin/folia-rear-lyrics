@@ -33,22 +33,28 @@ import androidx.compose.ui.unit.dp
 import io.github.huleixin.tingyu.minimal.MinimalArtwork
 import kotlin.math.PI
 import kotlin.math.sin
+import kotlin.math.cos
 
 // android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/MinimalArtworkView.kt
 //
-// 封面：唱片层叠 + 背后的光 + 交叉淡化 + 呼吸浮动。
+// 封面：唱片层叠 + 背后的光 + 交叉淡化 + 多层独立呼吸。
 //
-// 第 17 轮（视觉升级，参考效果图）：
-//   · 封面后面加一块**半透明描边装饰板**：比封面大一圈、轻转 4°、右上偏移，
-//     只留一道细边 —— 效果图里"安静的高级感"主要就是它给的；
-//   · 呼吸感：浮动（±2.5dp / 19s）之上加极轻的缩放（±0.6%）与阴影起伏，
-//     三个量共用同一个 19 秒相位，读起来是页面在呼吸而不是图片在动。
+// 第 18 轮重做呼吸：旧版缩放/浮动/阴影共用同一个 19s 正弦 —— 三个量锁死在一个
+// 相位里，读起来仍然是"图片在放大缩小"。现在每一层有自己的周期与相位：
+//   · 封面缩放 1.000~1.012，周期 10s；
+//   · 封面垂直浮动 ±3dp，周期 13s（与缩放相位错开 1.1rad）；
+//   · 阴影跟随浮动轻微起伏（错 0.35π，封面升高时影子略收）；
+//   · 背后描边装饰板：±1.5dp 独立视差 + ±0.3° 角度摆动，周期 17s —— 与封面
+//     不同步，板像悬浮在更远的一层；
+//   · 周围柔光：23s 的更慢周期轻微明暗（不改封面图像亮度，只动背景光）。
 //
-// 层叠不是阴影也不是发光 —— 是**后面多印了一张**：向上右各偏 3/1px、逆转 5°、缩小 1%，
-// 只留一道 1px 的边。这台页面上"纸的厚度"就来自这一层。
+// 时钟是**累计秒**：暂停/切页冻结相位，恢复从原相位继续（旧实现用绝对时间取模，
+// 恢复瞬间会跳相位）。所有动效都写在 graphicsLayer/drawBehind 块里 —— 纯合成层
+// 属性与绘制失效，零重组零重排版；60ms 节流足够（最慢层一帧位移 ~0.01px）。
+// 层叠"纸的厚度"那一道 1px 边保持不变。
 
-private const val FLOAT_PERIOD_NS = 19_000_000_000L
-private const val FLOAT_AMPLITUDE_DP = 2.5f
+/** 呼吸更新节流：最慢层（23s 柔光）一帧位移 ~0.01px，60ms 一拍足够顺滑。 */
+private const val BREATH_STEP_NS = 60_000_000L
 
 @Composable
 fun MinimalArtworkView(
@@ -59,18 +65,21 @@ fun MinimalArtworkView(
     still: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    var phase by remember { mutableFloatStateOf(0f) }
+    var breath by remember { mutableFloatStateOf(0f) }
     val animate = floating && !still
     LaunchedEffect(animate) {
         if (!animate) return@LaunchedEffect
         var last = 0L
         while (true) {
             withFrameNanos { now ->
-                if (last == 0L) last = now
-                // 60ms 更新一次就够：19 秒走 5px，一帧的位移约 0.004px。
-                if (now - last >= 60_000_000L) {
+                if (last == 0L) {
                     last = now
-                    phase = (now % FLOAT_PERIOD_NS).toFloat() / FLOAT_PERIOD_NS
+                    return@withFrameNanos
+                }
+                val elapsed = now - last
+                if (elapsed >= BREATH_STEP_NS) {
+                    breath += elapsed / 1_000_000_000f
+                    last = now
                 }
             }
         }
@@ -79,14 +88,16 @@ fun MinimalArtworkView(
     BoxWithConstraints(modifier) {
         val side = minOf(maxWidth, maxHeight)
         val corner = (side.value * 0.07f).coerceIn(18f, 30f).dp
+        val twoPi = 2f * PI.toFloat()
 
-        // 1. 封面自己的光：框外 -18% 的一大团柔光。没有 blur 滤镜 —— 渐变本身就是柔的。
+        // 1. 封面自己的光：框外 -18% 的一大团柔光，23s 缓慢明暗（不动封面亮度）。
         Box(
             Modifier.matchParentSize().drawBehind {
+                val glowWave = sin(twoPi * breath / 23f + 0.5f)
                 val inset = size.minDimension * 0.18f
                 drawRect(
                     Brush.radialGradient(
-                        colors = listOf(bloom.copy(alpha = 0.25f), Color.Transparent),
+                        colors = listOf(bloom.copy(alpha = 0.25f + 0.05f * glowWave), Color.Transparent),
                         center = center,
                         radius = size.minDimension * 0.68f,
                     ),
@@ -117,34 +128,40 @@ fun MinimalArtworkView(
                 .border(1.dp, ink.inkAlpha(12), RoundedCornerShape(corner))
         )
 
-        // 2b. 描边装饰板（第 17 轮）：比封面大一圈、顺转 4°、右上偏移，只有一道细边。
-        //     它在封面后面，不参与任何呼吸位移：装饰是静的，动的只有封面。
+        // 2b. 描边装饰板（第 17 轮引入，第 18 轮加独立微动）：比封面大一圈、基础
+        //     顺转 4°、右上偏移，只有一道细边。17s 周期的独立视差（±1.5dp）与
+        //     角度摆动（±0.3°）—— 和封面 10s/13s 的呼吸不同步，像更远的一层纸。
         Box(
             Modifier
                 .size(side * 1.07f)
                 .align(Alignment.TopStart)
                 .graphicsLayer {
-                    rotationZ = 4f
-                    translationX = 7.dp.toPx()
-                    translationY = -5.dp.toPx()
+                    val plate = twoPi * breath / 17f + 2.0f
+                    rotationZ = 4f + 0.3f * sin(plate)
+                    translationX = (7f + 1.5f * sin(plate + 0.7f)).dp.toPx()
+                    translationY = (-5f + 1.5f * cos(plate)).dp.toPx()
                 }
                 .border(1.dp, ink.inkAlpha(30), RoundedCornerShape(corner * 1.06f))
         )
 
-        // 3. 封面本体：交叉淡化 + 呼吸（浮动/极轻缩放/阴影起伏同相位）。
+        // 3. 封面本体：交叉淡化 + 双频呼吸。缩放（10s）与浮动（13s）各走各的相位，
+        //    叠加后不再有"同一个正弦"的机械感；阴影跟浮动错 0.35π 轻微起伏。
+        //    暂停时不回弹到中性值：所有量都只由 breath 驱动，breath 冻结即整体冻结
+        //    在当前姿态（旧实现暂停把缩放拍回 1f，会看到一下snap）。
         //    新图没解码好之前 runtime 不会发布新封面，所以这里不会闪白。
         Box(
             Modifier.matchParentSize()
                 .graphicsLayer {
-                    val wave = sin(2f * PI.toFloat() * phase)
-                    translationY = FLOAT_AMPLITUDE_DP.dp.toPx() * wave
-                    val breathe = if (animate) 1f + 0.006f * wave else 1f
+                    val scaleWave = sin(twoPi * breath / 10f)
+                    val floatWave = sin(twoPi * breath / 13f + 1.1f)
+                    translationY = 3.dp.toPx() * floatWave
+                    val breathe = 1.006f + 0.006f * scaleWave
                     scaleX = breathe
                     scaleY = breathe
                     shape = RoundedCornerShape(corner)
                     clip = false
-                    // 阴影跟着呼吸起伏（±4px），静止时落在中间值 —— 小到只能被"感觉到"。
-                    shadowElevation = if (animate) 22f + 8f * wave else 22f
+                    // 阴影跟浮动：封面升高影子略收（错 0.35π，不同步到锁死）。
+                    shadowElevation = 22f + 6f * sin(twoPi * breath / 13f + 1.1f + 0.35f * PI.toFloat())
                 }
                 .clip(RoundedCornerShape(corner))
                 .background(ink.ink.copy(alpha = 0.05f))
