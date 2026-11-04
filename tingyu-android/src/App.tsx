@@ -2379,10 +2379,27 @@ export default function App() {
 
     // 原生队列抽屉复用这一份处理器：同一份 playQueue、同一个 onPlaySong / onRemoveSong /
     // onMoveSongToNext / onMoveSongToEnd。原生侧不复制任何队列逻辑。
+    //
+    // **只注册一次**，对象用 ref 转发到最新那份模型处理器。之前这里依赖 [playerPanelModel]：
+    // 模型在播放状态每次变化时都会重建（useMemo 的依赖里有 currentSong/playerState 等），
+    // 于是整个会话里反复 register(null)→register(next)；而模块里的动作监听器是 async 注册的，
+    // 卸载读到的还是 null、旧监听器拆不掉，新监听器照常挂 —— 泄漏的每一条都让原生动作
+    // **多执行一次**：播放模式一点走两步（四态看起来就在「顺序↔单曲循环」之间跳），
+    // 删除一点可能删两首。稳定注册是这份监听器唯一安全的用法。
+    const nativeQueueHandlersRef = useRef(playerPanelModel.panelProps.queue);
+    nativeQueueHandlersRef.current = playerPanelModel.panelProps.queue;
+    const stableNativeQueueHandlers = useMemo<Parameters<typeof registerNativeQueue>[0]>(() => ({
+        get playQueue() { return nativeQueueHandlersRef.current.playQueue; },
+        onPlaySong: (song, queue) => nativeQueueHandlersRef.current.onPlaySong(song, queue),
+        onRemoveSong: index => nativeQueueHandlersRef.current.onRemoveSong(index),
+        onMoveSongToNext: index => nativeQueueHandlersRef.current.onMoveSongToNext(index),
+        onMoveSongToEnd: index => nativeQueueHandlersRef.current.onMoveSongToEnd(index),
+        onMoveSong: (from, to) => nativeQueueHandlersRef.current.onMoveSong?.(from, to),
+    }), []);
     useEffect(() => {
-        registerNativeQueue(playerPanelModel.panelProps.queue);
+        registerNativeQueue(stableNativeQueueHandlers);
         return () => registerNativeQueue(null);
-    }, [playerPanelModel]);
+    }, [stableNativeQueueHandlers]);
     // Which front-stage presentation is on screen. `detour` is a visit to the classic stage from the
     // minimal lyric page: it renders the stage without rewriting the listener's saved preference, and
     // leaving it returns to the minimal page instead of quitting the player.

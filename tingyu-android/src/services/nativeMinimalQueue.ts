@@ -118,35 +118,52 @@ export function registerNativeQueue(next: NativeQueueHandlers | null): void {
  * 抽屉是宿主级的：首页迷你条、舞台打开它时，极简页的钩子根本没挂载，
  * 动作只能由这里接。动作集与极简页传输监听者**互不重叠**（那边只管 transport / 菜单），
  * 同一个动作永远不会被两处各执行一次。
+ *
+ * 注册是 async 的，而 registerNativeQueue 可能被频繁调用 —— 竞态下两次 attach 都能通过
+ * `if (queueActionListener) return` 守卫（await 之前它还是 null），旧的那份就再也没人 remove，
+ * **每条动作执行两次**：播放模式一点走两步（四态显示成两态），删除一点可能删两首。
+ * 所以 attach 带代次：await 回来发现代次已过期就立刻自拆，任何时序下都只剩一份在听。
  */
 let queueActionListener: { remove: () => Promise<void> } | null = null;
+let listenerGeneration = 0;
+
+function onQueueActionEvent(event: { id: string; action: string; value: unknown }): void {
+    if (event.id !== 'minimal') return;
+    const value = typeof event.value === 'number' ? event.value : 0;
+    switch (event.action) {
+        case 'queuePlay': runNativeQueueAction('play', value); break;
+        case 'queueRemove': runNativeQueueAction('remove', value); break;
+        case 'queueNext': runNativeQueueAction('next', value); break;
+        case 'queueEnd': runNativeQueueAction('end', value); break;
+        case 'queueReorder': runNativeQueueAction('reorder', value); break;
+        case 'playbackMode': runNativeQueueAction('playbackMode', value); break;
+        case 'diagBadge': {
+            const next = !minimalSourceBadgeEnabled();
+            setMinimalSourceBadge(next);
+            break;
+        }
+        case 'queueOpen': markQueueDirty(); syncNativeQueue(); break;
+        default: break; // transport 与菜单动作归极简页钩子，这里不碰。
+    }
+}
+
 async function attachQueueActionListener(): Promise<void> {
     if (queueActionListener) return;
+    const generation = ++listenerGeneration;
     try {
-        queueActionListener = await chromeNative.addListener('action', event => {
-            if (event.id !== 'minimal') return;
-            const value = typeof event.value === 'number' ? event.value : 0;
-            switch (event.action) {
-                case 'queuePlay': runNativeQueueAction('play', value); break;
-                case 'queueRemove': runNativeQueueAction('remove', value); break;
-                case 'queueNext': runNativeQueueAction('next', value); break;
-                case 'queueEnd': runNativeQueueAction('end', value); break;
-                case 'queueReorder': runNativeQueueAction('reorder', value); break;
-                case 'playbackMode': runNativeQueueAction('playbackMode', value); break;
-                case 'diagBadge': {
-                    const next = !minimalSourceBadgeEnabled();
-                    setMinimalSourceBadge(next);
-                    break;
-                }
-                case 'queueOpen': markQueueDirty(); syncNativeQueue(); break;
-                default: break; // transport 与菜单动作归极简页钩子，这里不碰。
-            }
-        });
+        const listener = await chromeNative.addListener('action', onQueueActionEvent);
+        if (generation !== listenerGeneration) {
+            // 注册期间发生过 register(null)→register(next)：这一份已经过期，立刻拆掉，不留双份。
+            try { await listener.remove(); } catch { /* 桥已不在。 */ }
+            return;
+        }
+        queueActionListener = listener;
     } catch {
-        queueActionListener = null; // 桥不在（非 Android 环境）就没有动作可接。
+        // 桥不在（非 Android 环境）就没有动作可接。
     }
 }
 async function detachQueueActionListener(): Promise<void> {
+    listenerGeneration += 1; // 让任何在飞的 attach 过期。
     const listener = queueActionListener;
     queueActionListener = null;
     try { await listener?.remove(); } catch { /* 已断开就算了。 */ }

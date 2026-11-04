@@ -4,7 +4,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -38,7 +37,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,6 +72,13 @@ import kotlinx.coroutines.delay
 //    松手一次提交（带快照版本），队列变了会被 JS 拒绝并弹回真身；
 //  · 高亮认 currentKey（歌曲身份），不认下标；点歌有按压反馈 + 待确认态；
 //  · 顶栏在关闭按钮左边有四态播放模式按钮（图标 + 中文名）。
+//
+// 第 10 轮（拖拽失效根治）：
+//  · 长按"闪一下就拖不动"的根因是 `pointerInput(enabled)`：enabled 随 dragUid 翻转，
+//    拖起的那次重组把正在手势中的协程重启，onDrag 从此没人收。现在检测器一律
+//    `pointerInput(Unit)` + `rememberUpdatedState`，enabled 只在回调里判断；
+//  · 歌曲行本体也支持长按拖动（标题/歌手区域），单击仍然是播放；
+//  · 落点判定跳过被拖行自己、按视觉中心算，两端贴边 —— 不再粘在自己槽位上。
 
 /** 两档高度占可用高度的比例。 */
 private const val HEIGHT_HALF = 0.575f
@@ -127,12 +133,16 @@ fun MinimalQueueSheet(
         }
 
         // ---- 拖拽排序状态（本地预览，松手才提交）----
+        // **手势生命周期红线**：启动拖拽会改下面这些状态，行与手柄因此重组。凡是把手势
+        // 检测器的 key 挂在这些状态上（比如 `pointerInput(enabled)`），拖起的那一次重组
+        // 就会把手势协程重启 —— 长按刚生效就被取消，表现正是"闪一下就拖不动"。
+        // 检测器一律用稳定 key，状态判断放进 rememberUpdatedState 的回调里。
         var dragUid by remember { mutableStateOf<String?>(null) }
         var dragFrom by remember { mutableIntStateOf(-1) }
         var dragTo by remember { mutableIntStateOf(-1) }
         // dragOffset 是手指累计位移；dragBase 是拖起瞬间该行在视口里的位置。
         // 行的布局位置会随预览让位而移动，`跟随手指的平移 = dragOffset + dragBase - 当前布局位`，
-        // 中心点（判定落点用）= dragBase + 半行高 + dragOffset，与让位无关。
+        // 视觉中心（判定落点用）= dragBase + dragOffset + 半行高，与让位无关。
         var dragOffset by remember { mutableFloatStateOf(0f) }
         var dragBase by remember { mutableFloatStateOf(0f) }
         var pointerY by remember { mutableFloatStateOf(-1f) }
@@ -268,6 +278,40 @@ fun MinimalQueueSheet(
                         itemsIndexed(displayItems, key = { _, item -> item.uid }) { index, item ->
                             val dragged = item.uid == dragUid
                             val isCurrent = !dragged && queue.currentKey.isNotEmpty() && item.songKey == queue.currentKey
+                            // 拖拽进行中锁行内动作：此刻的 index 是预览下标，不是真身下标，
+                            // 点歌/删除会命中错的那首。拖完再点。
+                            val rowLocked = dragUid != null && !dragged
+                            // 拖拽回调，手柄与行长按共用同一份。
+                            val startDrag: () -> Unit = {
+                                dragUid = item.uid
+                                dragFrom = index
+                                dragTo = index
+                                dragOffset = 0f
+                                val info = listState.layoutInfo.visibleItemsInfo
+                                    .firstOrNull { it.key == item.uid }
+                                dragBase = info?.offset?.toFloat() ?: 0f
+                                pointerY = dragBase + (info?.size ?: 0) / 2f
+                            }
+                            val moveDrag: (Float) -> Unit = { amount ->
+                                dragOffset += amount
+                                val info = listState.layoutInfo.visibleItemsInfo
+                                    .firstOrNull { it.key == item.uid }
+                                // 跟随手指的行的视觉中心（视口坐标）：自动滚动与落点判定都用它。
+                                // info.offset 在预览让位时会变，但 dragBase+dragOffset 不随它变。
+                                pointerY = dragBase + dragOffset + (info?.size ?: 0) / 2f
+                                dragTo = dropTargetIndex(listState, item.uid, pointerY) ?: dragTo
+                            }
+                            val endDrag: () -> Unit = {
+                                val from = dragFrom
+                                val to = dragTo
+                                dragUid = null
+                                dragFrom = -1
+                                dragTo = -1
+                                dragOffset = 0f
+                                dragBase = 0f
+                                pointerY = -1f
+                                if (from >= 0 && to >= 0 && from != to) onReorder(from, to)
+                            }
                             QueueRow(
                                 // 被拖的行自己跟手指，不让 animateItem 抢；其余行让位时自然滑过去。
                                 modifier = if (dragged) Modifier else Modifier.animateItem(),
@@ -277,56 +321,34 @@ fun MinimalQueueSheet(
                                 pending = pendingKey != null && item.songKey == pendingKey && !isCurrent,
                                 removing = item.uid in removing,
                                 lifted = dragged,
+                                locked = rowLocked,
                                 rowTranslationY = if (dragged) {
                                     val info = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == item.uid }
                                     if (info != null) dragOffset + dragBase - info.offset else 0f
                                 } else 0f,
                                 theme = theme,
                                 onPlay = {
-                                    pendingKey = item.songKey
-                                    onPlay(index)
+                                    if (!rowLocked) {
+                                        pendingKey = item.songKey
+                                        onPlay(index)
+                                    }
                                 },
                                 onRemove = {
-                                    if (item.uid !in removing) {
+                                    if (!rowLocked && item.uid !in removing) {
                                         removing = removing + item.uid
                                         onRemove(index)
                                     }
                                 },
+                                onRowDragStart = startDrag,
+                                onRowDrag = moveDrag,
+                                onRowDragEnd = endDrag,
                                 dragHandle = {
                                     QueueDragHandle(
                                         theme = theme,
-                                        enabled = dragUid == null,
-                                        onStart = {
-                                            dragUid = item.uid
-                                            dragFrom = index
-                                            dragTo = index
-                                            dragOffset = 0f
-                                            dragBase = listState.layoutInfo.visibleItemsInfo
-                                                .firstOrNull { it.key == item.uid }?.offset?.toFloat() ?: 0f
-                                            pointerY = dragBase + 20f
-                                        },
-                                        onDrag = { amount ->
-                                            dragOffset += amount
-                                            val info = listState.layoutInfo.visibleItemsInfo
-                                                .firstOrNull { it.key == item.uid }
-                                            if (info != null) {
-                                                // 跟随手指后的行中心（视口坐标），自动滚动与落点判定都用它。
-                                                pointerY = info.offset + info.size / 2f +
-                                                    (dragOffset + dragBase - info.offset)
-                                            }
-                                            dragTo = dropTargetIndex(listState, dragBase, dragOffset) ?: dragTo
-                                        },
-                                        onEnd = {
-                                            val from = dragFrom
-                                            val to = dragTo
-                                            dragUid = null
-                                            dragFrom = -1
-                                            dragTo = -1
-                                            dragOffset = 0f
-                                            dragBase = 0f
-                                            pointerY = -1f
-                                            if (from >= 0 && to >= 0 && from != to) onReorder(from, to)
-                                        },
+                                        enabled = dragUid == null || dragged,
+                                        onStart = startDrag,
+                                        onDrag = moveDrag,
+                                        onEnd = endDrag,
                                     )
                                 },
                             )
@@ -339,11 +361,20 @@ fun MinimalQueueSheet(
     }
 }
 
-/** 拖拽中心点落在哪一项上，就排到哪一项的位置。中心点与让位无关（见 dragBase 注释）。 */
-private fun dropTargetIndex(listState: LazyListState, dragBase: Float, dragOffset: Float): Int? {
-    val info = listState.layoutInfo
-    val dragged = info.visibleItemsInfo.firstOrNull { it.offset <= dragBase + dragOffset && dragBase + dragOffset < it.offset + it.size }
-    return dragged?.index
+/**
+ * 拖拽的落点：中心点压在**别的**行上，就插到那一行的位置；越过两端则贴边。
+ * 跳过被拖的那行自己 —— 否则预览让位会把自己的槽位挪到手指下面，目标就粘在自己身上不动了。
+ */
+private fun dropTargetIndex(listState: LazyListState, dragUid: String?, center: Float): Int? {
+    val visible = listState.layoutInfo.visibleItemsInfo
+    val others = visible.filter { it.key != dragUid }
+    if (others.isEmpty()) return null
+    others.forEach { other ->
+        if (other.offset <= center && center < other.offset + other.size) return other.index
+    }
+    return if (center < others.first().offset) others.first().index
+    else if (center >= others.last().offset + others.last().size) others.last().index
+    else null // 中心点落在被拖行自己的槽位里：保持上一个目标。
 }
 
 @Composable
@@ -408,20 +439,27 @@ private fun QueueDragHandle(
     onDrag: (Float) -> Unit,
     onEnd: () -> Unit,
 ) {
+    // 回调经 rememberUpdatedState 转发：拖拽期间行会随预览重组（index 变化），
+    // 而 pointerInput(Unit) 不重启 —— 这里保证检测器每次触发拿到的都是最新回调。
+    // enabled 只在回调里判断，绝不做 pointerInput 的 key（那会在拖起瞬间重启手势协程，
+    // 长按刚生效就被取消 —— 这就是"闪一下就拖不动"的根因）。
+    val currentStart by rememberUpdatedState(onStart)
+    val currentDrag by rememberUpdatedState(onDrag)
+    val currentEnd by rememberUpdatedState(onEnd)
+    val currentEnabled by rememberUpdatedState(enabled)
     Box(
         Modifier
-            .size(40.dp)
+            .size(44.dp)
             .semantics { contentDescription = "长按拖动排序" }
-            .pointerInput(enabled) {
-                if (!enabled) return@pointerInput
+            .pointerInput(Unit) {
                 detectDragGesturesAfterLongPress(
-                    onDragStart = { onStart() },
+                    onDragStart = { if (currentEnabled) currentStart() },
                     onDrag = { change, amount ->
                         change.consume()
-                        onDrag(amount.y)
+                        if (currentEnabled) currentDrag(amount.y)
                     },
-                    onDragEnd = { onEnd() },
-                    onDragCancel = { onEnd() },
+                    onDragEnd = { if (currentEnabled) currentEnd() },
+                    onDragCancel = { if (currentEnabled) currentEnd() },
                 )
             },
         contentAlignment = Alignment.Center,
@@ -479,10 +517,16 @@ private fun QueueRow(
     pending: Boolean,
     removing: Boolean,
     lifted: Boolean,
+    /** 别的行正在被拖：行内动作全部锁住（预览下标 ≠ 真身下标，点了会命中错的那首）。 */
+    locked: Boolean,
     rowTranslationY: Float,
     theme: QueueTheme,
     onPlay: () -> Unit,
     onRemove: () -> Unit,
+    /** 长按行本体（标题/歌手区域）也能拖，与 ≡ 手柄同一套回调；单击仍是播放。 */
+    onRowDragStart: () -> Unit,
+    onRowDrag: (Float) -> Unit,
+    onRowDragEnd: () -> Unit,
     dragHandle: @Composable () -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -492,6 +536,11 @@ private fun QueueRow(
         animationSpec = spring(stiffness = 600f),
         label = "row-scale",
     )
+    // 行本体的长按拖动回调同样走 rememberUpdatedState：检测器 key 恒定，状态在回调里读。
+    val rowStart by rememberUpdatedState(onRowDragStart)
+    val rowDrag by rememberUpdatedState(onRowDrag)
+    val rowEnd by rememberUpdatedState(onRowDragEnd)
+    val rowEnabled by rememberUpdatedState(!locked)
     Row(
         modifier
             .fillMaxWidth()
@@ -513,7 +562,7 @@ private fun QueueRow(
             .clickable(
                 interactionSource = interaction,
                 indication = null,
-                enabled = !removing && !lifted,
+                enabled = !removing && !lifted && !locked,
                 onClick = onPlay,
             )
             .padding(start = 22.dp, end = 10.dp, top = 9.dp, bottom = 9.dp),
@@ -525,7 +574,23 @@ private fun QueueRow(
             fontSize = 11.sp,
             modifier = Modifier.width(24.dp),
         )
-        Column(Modifier.weight(1f)) {
+        Column(
+            Modifier
+                .weight(1f)
+                // 长按标题/歌手区域进入拖动：手柄之外的第二入口。× 和 ≡ 是兄弟节点，
+                // 各自消费自己的触摸，不会误触发。
+                .pointerInput(Unit) {
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = { if (rowEnabled) rowStart() },
+                        onDrag = { change, amount ->
+                            change.consume()
+                            if (rowEnabled) rowDrag(amount.y)
+                        },
+                        onDragEnd = { if (rowEnabled) rowEnd() },
+                        onDragCancel = { if (rowEnabled) rowEnd() },
+                    )
+                },
+        ) {
             Text(
                 text = item.title.ifBlank { "未知曲目" },
                 color = if (current || pending) theme.accent else theme.text,
@@ -553,7 +618,7 @@ private fun QueueRow(
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    enabled = !removing && !lifted,
+                    enabled = !removing && !lifted && !locked,
                     onClick = onRemove,
                 ),
             contentAlignment = Alignment.Center,
