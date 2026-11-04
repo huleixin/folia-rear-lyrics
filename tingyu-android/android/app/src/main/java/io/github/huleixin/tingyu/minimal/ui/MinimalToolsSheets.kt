@@ -672,6 +672,8 @@ fun MinimalLyricsToolsSheet(
     light: Boolean,
     actions: MinimalToolActions,
     transport: MinimalPlayerCommands,
+    mode: String,
+    playing: Boolean,
     onClose: () -> Unit,
     onOpenQueue: () -> Unit,
 ) {
@@ -730,7 +732,7 @@ fun MinimalLyricsToolsSheet(
                 if (tab == "lyrics") {
                     LyricsTab(theme, lyrics, actions)
                 } else {
-                    SongTab(theme, lyrics, transport)
+                    SongTab(theme, lyrics, transport, mode, playing)
                 }
             }
         }
@@ -863,7 +865,13 @@ private fun OffsetField(theme: ToolsTheme, offsetMs: Int, onCommit: (Int) -> Uni
 }
 
 @Composable
-private fun SongTab(theme: ToolsTheme, lyrics: io.github.huleixin.tingyu.minimal.MinimalLyricsState, transport: MinimalPlayerCommands) {
+private fun SongTab(
+    theme: ToolsTheme,
+    lyrics: io.github.huleixin.tingyu.minimal.MinimalLyricsState,
+    transport: MinimalPlayerCommands,
+    mode: String,
+    playing: Boolean,
+) {
     ToolsCard(theme) {
         Text(lyrics.title.ifBlank { "未知曲目" }, color = theme.text, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold)
         if (lyrics.artist.isNotBlank()) {
@@ -879,37 +887,19 @@ private fun SongTab(theme: ToolsTheme, lyrics: io.github.huleixin.tingyu.minimal
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // 图标与主播放器同一套标准矢量（第 19 轮）：模式随当前状态显示，
+            // 播放/暂停随实际播放态切换 —— 不再是占位圈。
             ToolIconButton(theme, "循环模式", { transport.cycleMode() }) {
-                Canvas(Modifier.size(20.dp)) {
-                    val u = size.minDimension / 20f
-                    val w = 1.7f * u
-                    drawArc(theme.text, -60f, 300f, false, style = Stroke(w, cap = StrokeCap.Round))
-                    drawLine(theme.text, Offset(15.5f * u, 3.5f * u), Offset(15.5f * u, 8f * u), w, StrokeCap.Round)
-                }
+                PlaybackModeIcon(mode, theme.text, Modifier.size(21.dp))
             }
             ToolIconButton(theme, "上一首", { transport.previous() }) {
-                Canvas(Modifier.size(20.dp)) {
-                    val u = size.minDimension / 20f
-                    val w = 1.9f * u
-                    drawLine(theme.text, Offset(6f * u, 4f * u), Offset(6f * u, 16f * u), w, StrokeCap.Round)
-                    drawLine(theme.text, Offset(15.5f * u, 4.5f * u), Offset(7.5f * u, 10f * u), w, StrokeCap.Round)
-                    drawLine(theme.text, Offset(7.5f * u, 10f * u), Offset(15.5f * u, 15.5f * u), w, StrokeCap.Round)
-                }
+                PlayerControlIcon("skipBack", theme.text, Modifier.size(21.dp))
             }
-            ToolIconButton(theme, "播放 / 暂停", { transport.toggle() }) {
-                Canvas(Modifier.size(26.dp)) {
-                    val u = size.minDimension / 26f
-                    drawCircle(theme.text, 11.5f * u, style = Stroke(1.7f * u))
-                }
+            ToolIconButton(theme, if (playing) "暂停" else "播放", { transport.toggle() }) {
+                PlayerControlIcon(if (playing) "pause" else "play", theme.text, Modifier.size(24.dp))
             }
             ToolIconButton(theme, "下一首", { transport.next() }) {
-                Canvas(Modifier.size(20.dp)) {
-                    val u = size.minDimension / 20f
-                    val w = 1.9f * u
-                    drawLine(theme.text, Offset(14f * u, 4f * u), Offset(14f * u, 16f * u), w, StrokeCap.Round)
-                    drawLine(theme.text, Offset(4.5f * u, 4.5f * u), Offset(12.5f * u, 10f * u), w, StrokeCap.Round)
-                    drawLine(theme.text, Offset(12.5f * u, 10f * u), Offset(4.5f * u, 15.5f * u), w, StrokeCap.Round)
-                }
+                PlayerControlIcon("skipForward", theme.text, Modifier.size(21.dp))
             }
         }
     }

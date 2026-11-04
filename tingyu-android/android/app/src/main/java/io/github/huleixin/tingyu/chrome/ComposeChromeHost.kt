@@ -669,6 +669,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     )
                     "lyrics"->io.github.huleixin.tingyu.minimal.ui.MinimalLyricsToolsSheet(
                         tools=toolsState,light=interfaceLight,actions=toolActions,transport=minimalCommands,
+                        mode=minimalState.controls.mode,playing=minimalState.playback.playing,
                         onClose={closeNativeTools()},
                         onOpenQueue={closeNativeTools();openNativeQueue()},
                     )

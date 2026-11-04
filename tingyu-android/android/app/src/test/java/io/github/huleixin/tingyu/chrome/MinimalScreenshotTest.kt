@@ -198,6 +198,7 @@ class MinimalScreenshotTest {
         override fun queueReorder(from: Int, to: Int, version: Long): Boolean = true
         override fun togglePlaybackMode(): Boolean = true
         override fun toggleDiagBadge(): Boolean = true
+        override fun openArtist(index: Int): Boolean = true
         override fun notifyToolsOpened(page: Int): Boolean = true
         override fun notifyToolsClosed(): Boolean = true
     }

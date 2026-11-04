@@ -54,7 +54,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.huleixin.tingyu.chrome.ChromeGlyph
 import io.github.huleixin.tingyu.minimal.MinimalControls
 import io.github.huleixin.tingyu.minimal.MinimalPlayback
 import io.github.huleixin.tingyu.minimal.MinimalPlayerCommands
@@ -259,16 +258,18 @@ private fun TransportButtons(
         ) {
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 TransportButton("播放模式：${modeLabel(controls.mode)}", live, ink, 50.dp, { commands.cycleMode() }) {
-                    // 播放模式图标：全局唯一来源 PlayModeGlyph（第 18 轮）——
-                    // 与队列抽屉、WebView 回退侧同一套几何，四个入口一张脸。
-                    androidx.compose.foundation.Canvas(Modifier.size(20.dp)) {
-                        drawPlayModeGlyph(controls.mode, if (controls.mode == "off") ink.inkAlpha(74) else accent)
-                    }
+                    // 播放模式图标：全局唯一来源 PlayerIcons（第 19 轮标准矢量几何）——
+                    // 与队列抽屉、歌曲工具页、WebView 回退侧同一套，四个入口一张脸。
+                    PlaybackModeIcon(
+                        controls.mode,
+                        if (controls.mode == "off") ink.inkAlpha(74) else accent,
+                        Modifier.size(22.dp),
+                    )
                 }
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 TransportButton("上一首", live && controls.canPrevious, ink, 50.dp, { commands.previous() }) {
-                    ChromeGlyph("previous", ink.ink, Modifier.size(24.dp))
+                    PlayerControlIcon("skipBack", ink.ink, Modifier.size(24.dp))
                 }
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
@@ -276,12 +277,12 @@ private fun TransportButtons(
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 TransportButton("下一首", live && controls.canNext, ink, 50.dp, { commands.next() }) {
-                    ChromeGlyph("next", ink.ink, Modifier.size(24.dp))
+                    PlayerControlIcon("skipForward", ink.ink, Modifier.size(24.dp))
                 }
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 TransportButton("播放队列", live, ink, 50.dp, { commands.openQueue() }) {
-                    ChromeGlyph("queue", ink.ink, Modifier.size(21.dp))
+                    PlayerControlIcon("queue", ink.ink, Modifier.size(22.dp))
                 }
             }
         }
@@ -401,10 +402,10 @@ private fun PlayPauseGlyph(playing: Boolean, color: Color, modifier: Modifier) {
     )
     Box(modifier) {
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = playAlpha }) {
-            ChromeGlyph("play", color, Modifier.fillMaxSize())
+            PlayerControlIcon("play", color, Modifier.fillMaxSize())
         }
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = pauseAlpha }) {
-            ChromeGlyph("pause", color, Modifier.fillMaxSize())
+            PlayerControlIcon("pause", color, Modifier.fillMaxSize())
         }
     }
 }

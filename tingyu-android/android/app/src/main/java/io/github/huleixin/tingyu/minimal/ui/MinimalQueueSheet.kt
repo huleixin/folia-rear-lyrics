@@ -380,10 +380,8 @@ private fun QueueModeButton(theme: QueueTheme, mode: String, onClick: () -> Unit
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        // 模式图标：全局唯一来源 PlayModeGlyph（第 18 轮），与传输条/WebView 回退同一套几何。
-        Canvas(Modifier.size(14.dp)) {
-            drawPlayModeGlyph(mode, theme.text)
-        }
+        // 模式图标：全局唯一来源 PlayerIcons（第 19 轮标准矢量几何），与传输条/歌曲工具同一套。
+        PlaybackModeIcon(mode, theme.text, Modifier.size(15.dp))
         Text(
             text = when (mode) {
                 "one" -> "单曲循环"

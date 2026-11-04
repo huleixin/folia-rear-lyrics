@@ -220,6 +220,8 @@ fun MinimalPlayerScreen(
                         still = still,
                         onOpenLyrics = { scope.launch { pagerState.animateScrollToPage(1) } },
                         onAudioTools = { onOpenTools("quality") },
+                        // 歌手名点击 → 动作总线 artistOpen（value = 歌手串里的序号），由 JS 开歌手页。
+                        onOpenArtist = { index -> commands.openArtist(index) },
                         // 拖动时封面向反方向漂一点点（CSS 的 parallax），只动图层不重画。
                         parallax = {
                             if (pagerState.currentPage == 0) -pagerState.currentPageOffsetFraction * 22f else 0f

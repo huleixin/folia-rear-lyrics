@@ -1,12 +1,14 @@
 package io.github.huleixin.tingyu.minimal.ui
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -86,6 +88,12 @@ private fun stageCap(screenHeight: androidx.compose.ui.unit.Dp): Float = when {
 /** 波形的四根柱子，高度是相对高度的比例。 */
 private val WAVE_BARS = floatArrayOf(0.44f, 0.8f, 1f, 0.56f)
 
+/**
+ * 歌手串的分隔符：多歌手拼接的常见写法。切出来的每段各自可点（第 19 轮），
+ * 序号与 JS 侧映射一致 —— JS 按同名序号取目录身份，取不到就按名字搜。
+ */
+private val ARTIST_SEPARATORS = Regex("\\s*[/、，,;；&]\\s*")
+
 @Composable
 fun MinimalCoverPage(
     state: MinimalPlayerState,
@@ -99,6 +107,8 @@ fun MinimalCoverPage(
     onOpenLyrics: () -> Unit,
     /** 波形（音质音效入口）：打开原版音质 / 音效面板。 */
     onAudioTools: () -> Unit = {},
+    /** 歌手名点击：参数是歌手串里的第几个名字（0 起）。 */
+    onOpenArtist: (Int) -> Unit = {},
     /** 封面的横向漂移（px）：由 pager 的拖动位置给出，0 表示静止。 */
     parallax: () -> Float = { 0f },
     modifier: Modifier = Modifier,
@@ -154,7 +164,7 @@ fun MinimalCoverPage(
                     )
                     if (track.artist.isNotBlank()) {
                         Spacer(Modifier.height(clampDp(4f, vh.value * 0.006f, 6f)))
-                        ArtistLine(track.artist, ink)
+                        ArtistLine(track.artist, ink, onOpenArtist)
                     }
                 }
             }
@@ -200,22 +210,77 @@ fun MinimalCoverPage(
     }
 }
 
-/** 歌手行：文案 + 一个装饰性 chevron（与原页面一致；它属于"内页署名"，不是控件）。 */
+/**
+ * 歌手行（第 19 轮可点）：文案 + 装饰性 chevron 的视觉结构不变，但每个歌手名
+ * 各自可点 —— 点击发 artistOpen（序号），由 JS 打开歌手页。
+ *
+ * 反馈：按压缩放 0.97 + 透明度 0.72（与传输按钮同一套按压语言），无 ripple
+ * （这页的控件都不用 ripple， indication=null + 缩放是既定语言）。
+ * 歌手串为空时整行不可点；多歌手按分隔符切段、每段一个点击区。
+ */
 @Composable
-private fun ArtistLine(artist: String, ink: MinimalInk) {
+private fun ArtistLine(artist: String, ink: MinimalInk, onOpenArtist: (Int) -> Unit) {
+    val segments = remember(artist) {
+        ARTIST_SEPARATORS.split(artist).map { it.trim() }.filter { it.isNotEmpty() }
+    }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = artist,
-            color = ink.muted,
-            fontSize = 13.5.sp,
-            letterSpacing = 0.135.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false),
-        )
+        if (segments.isEmpty()) {
+            Text(
+                text = artist,
+                color = ink.muted,
+                fontSize = 13.5.sp,
+                letterSpacing = 0.135.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+        } else {
+            // 名字之间补回分隔样式（视觉与原串一致），每段一个独立的点击区。
+            segments.forEachIndexed { index, name ->
+                if (index > 0) {
+                    Text(
+                        text = " / ",
+                        color = ink.muted.copy(alpha = 0.55f),
+                        fontSize = 13.5.sp,
+                    )
+                }
+                ArtistNameButton(name, ink) { onOpenArtist(index) }
+            }
+        }
         Spacer(Modifier.width(2.dp))
         ChevronRight(ink.muted.copy(alpha = 0.55f), Modifier.size(13.dp))
     }
+}
+
+/** 单个可点歌手名：按压缩放 + 变淡，布局权重与原文本一致。 */
+@Composable
+private fun ArtistNameButton(name: String, ink: MinimalInk, onClick: () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.97f else 1f,
+        animationSpec = tween(140),
+        label = "minimal-artist-press",
+    )
+    Text(
+        text = name,
+        color = ink.muted,
+        fontSize = 13.5.sp,
+        letterSpacing = 0.135.sp,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                alpha = if (pressed) 0.72f else 1f
+            }
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                onClick = onClick,
+            ),
+    )
 }
 
 @Composable

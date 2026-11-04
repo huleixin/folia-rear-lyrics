@@ -49,6 +49,9 @@ object MinimalActions {
     /** 工具页开/关通知（host → JS）。value: 1音质 2效果器 3歌词 4洛雪；关页发 TOOLS_CLOSE。 */
     const val TOOLS_OPEN = "toolsOpen"
     const val TOOLS_CLOSE = "toolsClose"
+    /** 封面页歌手名点击（host → JS）。value = 歌手串里的第几个名字（0 起），-1 = 整串/第一个。
+     *  JS 侧自己持有当前歌的歌手串与目录身份，按同名序号映射到歌手页；开不到就静默降级。 */
+    const val ARTIST_OPEN = "artistOpen"
     /** 工具页动作（native → JS）。与现有动作集互不重叠。 */
     const val QUALITY_PICK = "qualityPick"
     const val EFFECTS_TOGGLE = "effectsToggle"
@@ -121,6 +124,9 @@ interface MinimalPlayerCommands {
     /** 告诉 JS 工具页都关了，停止推送。 */
     fun notifyToolsClosed(): Boolean
 
+    /** 封面页歌手名点击：[index] 是歌手串里的第几个名字（0 起），-1 表示整串/第一个。 */
+    fun openArtist(index: Int): Boolean
+
     /** 翻转渲染来源诊断角标（走桥交给 JS 开关，下一帧带回 diag 状态）。 */
     fun toggleDiagBadge(): Boolean
 }
@@ -169,6 +175,7 @@ class BridgeMinimalCommands(
     override fun togglePlaybackMode(): Boolean = send(MinimalActions.PLAYBACK_MODE, 0.0)
     override fun notifyToolsOpened(page: Int): Boolean = send(MinimalActions.TOOLS_OPEN, page.toDouble())
     override fun notifyToolsClosed(): Boolean = send(MinimalActions.TOOLS_CLOSE, 0.0)
+    override fun openArtist(index: Int): Boolean = send(MinimalActions.ARTIST_OPEN, index.toDouble())
 
     override fun queueReorder(from: Int, to: Int, version: Long): Boolean {
         if (from < 0 || to < 0) return false

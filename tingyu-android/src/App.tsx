@@ -65,6 +65,7 @@ import {
 import { usePlayerPanelModel } from './components/app/player-panel/usePlayerPanelModel';
 import { createQueueMutations } from './components/app/player-panel/createQueueMutations';
 import { registerNativeQueue } from './services/nativeMinimalQueue';
+import { registerNativeArtistOpener } from './services/nativeMinimalArtist';
 import { registerNativeTools, type NativeToolsHandlers } from './services/nativeMinimalTools';
 import { useAudioToolsStore } from './stores/useAudioToolsStore';
 import { Album, Artist, LyricData, Theme, PlayerState, SongResult, ReplayGainMode, StatusMessage, PlaybackContext, StageLoopMode, UnifiedSong } from './types';
@@ -2402,6 +2403,13 @@ export default function App() {
         registerNativeQueue(stableNativeQueueHandlers);
         return () => registerNativeQueue(null);
     }, [stableNativeQueueHandlers]);
+
+    // 封面页歌手名点击（Compose → JS）：与歌手集合导航同一条链路，只是没有
+    // view==='player' 守卫 —— Compose 接管播放页时 JS 视图是 home。
+    useEffect(() => {
+        registerNativeArtistOpener(collection => navigateToCollection(collection, 'player'));
+        return () => registerNativeArtistOpener(null);
+    }, [navigateToCollection]);
 
     // 原生工具页（音质/效果器/歌词工具/洛雪音源）的处理器：与队列同架构 —— **只注册一次**，
     // ref 转发最新面板模型；歌词动作与 WebView 歌词工具走同一批函数，不复制业务。
