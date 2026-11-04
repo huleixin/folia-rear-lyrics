@@ -83,7 +83,7 @@ fun chromeColor(value: String, fallback: Color = Color.White): Color = try { Col
  * 图标包（minimal.ui 的 PlayerIcons，即 android_vector 的原始路径），歌词舞台
  * 与极简播放器不再各画一套。"music" 等非播放控制的占位图形保留原兜底。
  */
-@Composable fun ChromeGlyph(name: String, color: Color, modifier: Modifier = Modifier) {
+@Composable fun ChromeGlyph(name: String, color: Color, modifier: Modifier = Modifier.size(24.dp)) {
     when(name) {
         "play","pause","next","previous","queue" -> PlayerControlIcon(
             when(name) { "next" -> "skipForward"; "previous" -> "skipBack"; else -> name },

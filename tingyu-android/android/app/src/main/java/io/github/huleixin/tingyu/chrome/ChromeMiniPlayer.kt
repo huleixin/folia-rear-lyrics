@@ -79,7 +79,7 @@ import kotlin.math.abs
         ChromeButton(s.label(if(s.playing)"pause" else "play",if(s.playing)"暂停" else "播放"),enabled=!s.disabled,size=42.dp,reduced=s.reducedMotion,onClick={action("toggle",0.0)}) {
             ChromeProgressRing(timeline,Modifier.size(34.dp),ink);ChromeGlyph(if(s.playing)"pause" else "play",ink,Modifier.size(19.dp))
         }
-        ChromeButton(s.label("queue","播放队列"),size=spacing.queue.dp,reduced=s.reducedMotion,onClick={action("queue",0.0)}) {ChromeGlyph("queue",ink)}
+        ChromeButton(s.label("queue","播放队列"),size=spacing.queue.dp,reduced=s.reducedMotion,onClick={action("queue",0.0)}) {ChromeGlyph("queue",ink,Modifier.size(24.dp))}
     }
     }
 }
