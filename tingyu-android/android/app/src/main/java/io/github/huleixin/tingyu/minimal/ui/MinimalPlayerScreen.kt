@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
@@ -27,12 +28,11 @@ import androidx.compose.foundation.border
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,6 +76,10 @@ fun MinimalPlayerScreen(
     onOpenQueue: () -> Unit = {},
     /** 打开宿主的工具页："quality" | "effects" | "lyrics"。不再发 JS 开 WebView 弹窗。 */
     onOpenTools: (String) -> Unit = {},
+    /** 页面重建时恢复的 pager 页。宿主持有这个值，进出设置、后台回来都不丢。 */
+    initialPage: Int = 0,
+    /** pager 停留页变化时上报宿主。 */
+    onPageChanged: (Int) -> Unit = {},
     light: Boolean,
     safeTop: Float,
     safeBottom: Float,
@@ -127,8 +131,11 @@ fun MinimalPlayerScreen(
         }
     }
 
-    val savedPage = rememberSaveable { mutableIntStateOf(0) }
-    val pagerState = rememberPagerState(initialPage = savedPage.value) { PAGE_COUNT }
+    // 停留页由宿主持有（进出设置不丢）；这里只在重建时读一次初值，之后随滑动上报。
+    val pagerState = rememberPagerState(initialPage = initialPage.coerceIn(0, PAGE_COUNT - 1)) { PAGE_COUNT }
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }.collect { page -> onPageChanged(page) }
+    }
     val scope = rememberCoroutineScope()
     val page = pagerState.currentPage
 
@@ -157,7 +164,6 @@ fun MinimalPlayerScreen(
         Column(Modifier.fillMaxSize().padding(top = safeTop.dp, bottom = safeBottom.dp)) {
             TopBar(
                 ink = ink,
-                base = Color(palette.base),
                 liked = state.controls.liked,
                 qualityMode = state.controls.qualityMode,
                 effectsOn = state.controls.effectsOn,
@@ -251,7 +257,6 @@ private fun rememberMinimalClock(playback: MinimalPlayback): State<Long> {
 @Composable
 private fun TopBar(
     ink: MinimalInk,
-    base: Color,
     onOpenQueue: () -> Unit,
     onOpenTools: (String) -> Unit,
     liked: Boolean,
@@ -297,7 +302,7 @@ private fun TopBar(
                     }
                 }
             } else {
-                // 更多在原始页面里是一个真菜单（音质音效 / 音效 / 歌词 / 队列 / 播放设置），
+                // 更多在原始页面里是一个真菜单（音质选择 / 均衡器与音效 / 歌词工具 / 播放队列 / 播放设置），
                 // 不是队列按钮。上一版把它接到了 openQueue，点更多直接弹队列就是这么来的。
                 Box {
                     TopIcon("更多", onClick = { menuOpen = !menuOpen }) {
@@ -310,8 +315,6 @@ private fun TopBar(
                     }
                     if (menuOpen) {
                         MoreMenu(
-                            ink = ink,
-                            base = base,
                             qualityMode = qualityMode,
                             effectsOn = effectsOn,
                             onDismiss = { menuOpen = false },
@@ -336,57 +339,133 @@ private fun TopBar(
 }
 
 /**
- * 更多菜单：条目与 `MobileStageMenu` 完全一致，动作也调同一批 store 方法。
+ * 更多菜单：条目、名称、图标与动作和 `MobileStageMenu` 完全一致（第 12 轮统一）。
  *
- * 不套 MaterialTheme：这一页整套颜色来自封面取色，Material 的默认表面色（浅色）会在这里
- * 变成一块白板。用 Popup 自己画，底色跟着页面走。
+ * 五项名称固定为：音质选择 / 均衡器与音效 / 歌词工具 / 播放队列 / 播放设置，
+ * 与 WebView 舞台菜单同一组 i18n 词。几何也照抄 `mobileStageMenu.css`：
+ * 210dp 玻璃卡、17dp 圆角、7dp 内衬、47dp 行高、18dp 图标 + 标签 + 右侧淡色值。
+ *
+ * 不套 MaterialTheme。配色与 WebView 舞台菜单同一套：奶油底卡 + 深墨字 + 淡灰值，
+ * 舞台菜单本身就是这一套固定表面（深色舞台上也是奶油卡），这里逐像素对齐。
  */
 @Composable
 private fun MoreMenu(
-    ink: MinimalInk,
-    base: Color,
     qualityMode: String,
     effectsOn: Boolean,
     onDismiss: () -> Unit,
     onPick: (Int) -> Unit,
 ) {
-    val radius = RoundedCornerShape(16.dp)
     androidx.compose.ui.window.Popup(
         alignment = Alignment.TopEnd,
         offset = androidx.compose.ui.unit.IntOffset(0, 96),
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.PopupProperties(focusable = true),
     ) {
-        Column(
-            Modifier
-                .padding(end = 10.dp)
-                .width(208.dp)
-                .clip(radius)
-                .background(base.copy(alpha = 0.94f))
-                .border(1.dp, ink.inkAlpha(14), radius)
-                .padding(vertical = 6.dp),
-        ) {
-            val entries = listOf(
-                "音质音效" to qualityMode,
-                "音效" to (if (effectsOn) "已开启" else "已关闭"),
-                "歌词" to "",
-                "播放队列" to "",
-                "播放设置" to "",
-            )
-            entries.forEachIndexed { index, entry ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable { onPick(index) }
-                        .padding(horizontal = 14.dp, vertical = 11.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(entry.first, color = ink.ink, fontSize = 14.sp)
-                    if (entry.second.isNotBlank()) {
-                        Spacer(Modifier.weight(1f))
-                        Text(entry.second, color = ink.muted, fontSize = 12.sp, maxLines = 1)
-                    }
+        // 菜单本体拆成独立面板：测试里可以不经 Popup（独立窗口拍不到 decorView）直接渲染对照。
+        MoreMenuPanel(qualityMode, effectsOn, onPick)
+    }
+}
+
+/** 菜单自己的墨色（与 WebView 舞台菜单同一套：奶油底 + 深墨字 + 淡灰值），不随页面取色。 */
+private val MenuSurface = Color(0xFFF7F5EC)
+private val MenuInkColor = Color(0xFF22322A)
+private val MenuMutedColor = Color(0xFF8A9389)
+
+/** 更多菜单的可视面板（不含 Popup 外壳）：奶油卡 + 五个带图标条目。 */
+@Composable
+internal fun MoreMenuPanel(
+    qualityMode: String,
+    effectsOn: Boolean,
+    onPick: (Int) -> Unit,
+) {
+    val radius = RoundedCornerShape(17.dp)
+    Column(
+        Modifier
+            .width(210.dp)
+            .clip(radius)
+            .background(MenuSurface.copy(alpha = 0.97f))
+            .border(1.dp, MenuInkColor.copy(alpha = 0.10f), radius)
+            .padding(7.dp),
+    ) {
+        listOf(
+            Triple("音质选择", qualityMode, MenuGlyph.AudioLines),
+            Triple("均衡器与音效", if (effectsOn) "已开启" else "已关闭", MenuGlyph.Sliders),
+            Triple("歌词工具", "", MenuGlyph.Captions),
+            Triple("播放队列", "", MenuGlyph.Queue),
+            Triple("播放设置", "", MenuGlyph.Tune),
+        ).forEachIndexed { index, (label, value, glyph) ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 47.dp)
+                    .clickable { onPick(index) }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                MenuGlyphIcon(glyph, MenuInkColor, Modifier.size(18.dp))
+                Text(label, color = MenuInkColor, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                if (value.isNotBlank()) {
+                    Text(value, color = MenuMutedColor, fontSize = 12.sp, maxLines = 1)
                 }
+            }
+        }
+    }
+}
+
+/** 与 `MobileStageMenu` 同一套 lucide 图标的最小手绘等价。 */
+private enum class MenuGlyph { AudioLines, Sliders, Captions, Queue, Tune }
+
+@Composable
+private fun MenuGlyphIcon(glyph: MenuGlyph, color: Color, modifier: Modifier) {
+    Canvas(modifier) {
+        val u = size.minDimension / 18f
+        val w = 1.7f * u
+        when (glyph) {
+            // AudioLines：五根高低起伏的竖条。
+            MenuGlyph.AudioLines -> {
+                val bars = listOf(6f to 12f, 3f to 9f, 8f to 15f, 4f to 10f, 7f to 13f)
+                bars.forEachIndexed { index, (top, bottom) ->
+                    val x = (2.2f + index * 3.4f) * u
+                    drawLine(color, Offset(x, top * u), Offset(x, bottom * u), w, StrokeCap.Round)
+                }
+            }
+            // SlidersHorizontal：三条横轨 + 错位旋钮。
+            MenuGlyph.Sliders -> {
+                listOf(4.5f, 9f, 13.5f).forEachIndexed { index, y ->
+                    drawLine(color, Offset(2f * u, y * u), Offset(16f * u, y * u), w, StrokeCap.Round)
+                    val knob = listOf(11.5f, 5.5f, 9f)[index]
+                    drawCircle(color, 1.9f * u, Offset(knob * u, y * u), style = Stroke(w))
+                }
+            }
+            // Captions：圆角对话框 + 两短横。
+            MenuGlyph.Captions -> {
+                drawRoundRect(
+                    color,
+                    topLeft = Offset(2f * u, 4f * u),
+                    size = androidx.compose.ui.geometry.Size(14f * u, 10f * u),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f * u),
+                    style = Stroke(w, cap = StrokeCap.Round),
+                )
+                drawLine(color, Offset(5f * u, 9f * u), Offset(9f * u, 9f * u), w, StrokeCap.Round)
+                drawLine(color, Offset(11f * u, 9f * u), Offset(13f * u, 9f * u), w, StrokeCap.Round)
+            }
+            // ListMusic：三行列表 + 音符。
+            MenuGlyph.Queue -> {
+                drawLine(color, Offset(3f * u, 5f * u), Offset(10f * u, 5f * u), w, StrokeCap.Round)
+                drawLine(color, Offset(3f * u, 9f * u), Offset(10f * u, 9f * u), w, StrokeCap.Round)
+                drawLine(color, Offset(3f * u, 13f * u), Offset(7f * u, 13f * u), w, StrokeCap.Round)
+                drawCircle(color, 1.8f * u, Offset(13.2f * u, 13.5f * u))
+                drawLine(color, Offset(15f * u, 13.5f * u), Offset(15f * u, 5.5f * u), w, StrokeCap.Round)
+                drawLine(color, Offset(15f * u, 5.5f * u), Offset(17f * u, 7f * u), w, StrokeCap.Round)
+            }
+            // Settings2：齿轮 = 外齿 + 内圆。
+            // Tune（Settings2 的 lucide 造型）：两根横轨 + 错位旋钮，与舞台菜单"播放设置"同款。
+            MenuGlyph.Tune -> {
+                drawLine(color, Offset(2f * u, 6f * u), Offset(16f * u, 6f * u), w, StrokeCap.Round)
+                drawLine(color, Offset(2f * u, 12f * u), Offset(16f * u, 12f * u), w, StrokeCap.Round)
+                drawCircle(color, 1.9f * u, Offset(11.5f * u, 6f * u))
+                drawCircle(color, 1.9f * u, Offset(5.5f * u, 12f * u))
             }
         }
     }

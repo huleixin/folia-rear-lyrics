@@ -76,6 +76,41 @@ let session = '';
 export const minimalPlayerSession = (): string => session;
 
 /**
+ * Compose 是否正持有极简播放页的显示权（最近一次握手结果）。
+ *
+ * 第 12 轮：路由发布要用它。以前 `canPublishNativeStage` 只认 WebView 上的
+ * `[data-player-surface-ready]` —— 一旦 Compose 接管、WebView 极简页卸载，这个属性就没了，
+ * 之后所有发往 `stage` 的路由更新都会被这道门静默丢弃：从设置页返回时外壳永远停在设置页。
+ * 模块级镜像让路由层不必订阅 React 状态也能读到同一个事实。
+ */
+let composeOwnsSurface = false;
+
+export const setComposeMinimalOwnership = (owns: boolean): void => {
+    composeOwnsSurface = owns;
+};
+
+export const composeMinimalOwnsSurface = (): boolean => composeOwnsSurface;
+
+/**
+ * 桥帧被拒之后怎么处置显示权。纯函数，单测直接覆盖（第 12 轮）。
+ *
+ * - `hold`：拒绝是预期（顺访舞台 / 设置页原生接管），所有权保持，等待回来；
+ * - `handback`：WebView 弹层要显示，立即交回；
+ * - `fail`：真异常，计入三次回退预算。
+ */
+export type MinimalRejectionOutcome = 'hold' | 'handback' | 'fail';
+
+export const resolveMinimalRejection = (
+    stageDetour: boolean,
+    settingsOpen: boolean,
+    webOverlayOpen: boolean,
+): MinimalRejectionOutcome => {
+    if (stageDetour || settingsOpen) return 'hold';
+    if (webOverlayOpen) return 'handback';
+    return 'fail';
+};
+
+/**
  * Start a new bridge session. Called once per mount; the previous session immediately stops being
  * accepted by native (`session` no longer matches), so late frames cannot revive a dead page.
  */

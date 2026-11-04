@@ -130,8 +130,10 @@ export default {
   },
   "mobileStage": {
     "playbackSettings": "播放设置",
-    "audioQuality": "音质",
-    "audioEffects": "音效调节",
+    "audioQuality": "音质选择",
+    "audioEffects": "均衡器与音效",
+    "lyricsTools": "歌词工具",
+    "queueMenu": "播放队列",
     "effectsOn": "已开启",
     "effectsOff": "已关闭",
 

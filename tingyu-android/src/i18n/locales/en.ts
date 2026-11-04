@@ -131,7 +131,9 @@ export default {
   "mobileStage": {
     "playbackSettings": "Playback settings",
     "audioQuality": "Audio quality",
-    "audioEffects": "Audio effects",
+    "audioEffects": "Equalizer & effects",
+    "lyricsTools": "Lyric tools",
+    "queueMenu": "Play queue",
     "effectsOn": "On",
     "effectsOff": "Off",
 

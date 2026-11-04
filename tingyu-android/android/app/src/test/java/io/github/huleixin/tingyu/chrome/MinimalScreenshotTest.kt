@@ -8,11 +8,16 @@ import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.os.SystemClock
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.unit.dp
 import io.github.huleixin.tingyu.minimal.MinimalArtwork
 import io.github.huleixin.tingyu.minimal.MinimalClockSource
 import io.github.huleixin.tingyu.minimal.MinimalControls
@@ -259,6 +264,46 @@ class MinimalScreenshotTest {
     fun coverDark() {
         start(0, light = false)
         shoot("01-cover-dark")
+    }
+
+    /** 第 12 轮：统一后的更多菜单（音质选择/均衡器与音效/歌词工具/播放队列/播放设置，带图标）。 */
+    @Test
+    fun moreMenuDark() {
+        shootMenu("05-more-menu-dark", light = false)
+    }
+
+    @Test
+    fun moreMenuLight() {
+        shootMenu("06-more-menu-light", light = true)
+    }
+
+    /**
+     * 菜单渲染对照。Popup 是独立窗口，decorView 截图拍不到；Compose 规则也不允许二次 setContent，
+     * 所以这里单独组合菜单面板本体（与真实菜单共用同一个 `MoreMenuPanel`），
+     * 铺在深色页面底色上对照（菜单是与页面无关的固定奶油表面）。
+     */
+    private fun shootMenu(name: String, light: Boolean) {
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            androidx.compose.foundation.layout.Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(androidx.compose.ui.graphics.Color(0xFF152528))
+            ) {
+                androidx.compose.foundation.layout.Box(
+                    Modifier.padding(top = 60.dp, start = 160.dp)
+                ) {
+                    io.github.huleixin.tingyu.minimal.ui.MoreMenuPanel(
+                        qualityMode = "无损",
+                        effectsOn = true,
+                        onPick = {},
+                    )
+                }
+            }
+        }
+        compose.mainClock.advanceTimeByFrame()
+        compose.mainClock.advanceTimeByFrame()
+        shoot(name)
     }
 
     @Test

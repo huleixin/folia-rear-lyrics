@@ -14,6 +14,7 @@ import {setNativeShellPublisher,scheduleNativeShellRoute} from './nativeShellCom
 import {canPublishNativeStage} from '../utils/nativeStageCommit';
 import { usePlayerViewModeStore } from '../stores/usePlayerViewModeStore';
 import { rearPageKey } from '../components/modal/settings/rearControlModel';
+import { composeMinimalOwnsSurface } from './nativeMinimalPlayer';
 
 // src/services/nativeShellRouting.ts
 // The native shell owns its UI from process start; JS only supplies destinations and data.
@@ -28,11 +29,14 @@ export function installNativeShellRouting() {
         const index=settings.initialTab==='options'&&!settings.initialSubview&&!settings.initialAnchor&&!settings.initialVisualizerSection;
         const {route,selectedTab}=nativeShellRoute({settingsOpen:settings.isOpen,settingsIndex:index,searchOpen:search,
             collectionOpen:collection,view:view.view,libraryPage:useMobileLibraryStore.getState().page});
-        if(!canPublishNativeStage(route,document.querySelector('[data-folia-app-shell]')))return;
+        if(!canPublishNativeStage(route,document.querySelector('[data-folia-app-shell]'),composeMinimalOwnsSurface()))return;
         // Ownership follows the route, not a document flag removed during React cleanup.
         // Settings portals are captured into the same native document.
+        // 设置弹窗本体不计入（第 12 轮）：关闭后退场动画还会把标记留在 DOM 上一两百毫秒，
+        // 不排除的话路由会先发一帧 webOverlay=true 的 stage，极简页/舞台要多黑一拍才回来。
         const webOverlay=settings.isOpen?false:
-            nativeShellHasWebOverlay(document.querySelectorAll<HTMLElement>('[data-folia-keyboard-window="true"]'));
+            nativeShellHasWebOverlay([...document.querySelectorAll<HTMLElement>('[data-folia-keyboard-window="true"]')]
+                .filter(node=>!node.closest('[data-folia-settings-overlay]')));
         const pageTarget=route==='settings'?(index?rearPageKey(settings.rearPage??'index'):`settings:document:${settings.initialTab}:${resolveInitialSettingsSection({initialSubview:settings.initialSubview,hasInitialAnchor:!!settings.initialAnchor,isElectron:false})}:`):
             route==='collection'?`collection:${stack?.at(-1)?.type==='artist'?'artist:':''}${collectionKey(stack?.at(-1))}`:'';
         const entryKey=route==='settings'&&!index?`${pageTarget}${['visualizer','themePark','lyricFilter','globalLyricOffset','aiHelp','releaseNotes'].map(id=>settings.initialSubview===id).join(':')}`:pageTarget;

@@ -24,6 +24,10 @@ fun MinimalPlayerSurface(
     onOpenQueue: () -> Unit,
     /** 打开宿主的工具页（quality / effects / lyrics）。音质/效果器/歌词不再走 WebView 弹窗。 */
     onOpenTools: (String) -> Unit = {},
+    /** 页面重建时恢复的 pager 页（0 封面 / 1 歌词）。宿主持有，进出设置不丢。 */
+    initialPage: Int = 0,
+    /** pager 停留页变化时上报宿主。 */
+    onPageChanged: (Int) -> Unit = {},
     light: Boolean,
     safeTop: Float,
     safeBottom: Float,
@@ -40,6 +44,8 @@ fun MinimalPlayerSurface(
         queue = queue,
         onOpenQueue = onOpenQueue,
         onOpenTools = onOpenTools,
+        initialPage = initialPage,
+        onPageChanged = onPageChanged,
         light = light,
         safeTop = safeTop,
         safeBottom = safeBottom,

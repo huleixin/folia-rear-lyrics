@@ -15,10 +15,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -112,14 +112,20 @@ internal fun ToolsSheetScaffold(
     title: String,
     subtitle: String,
     light: Boolean,
-    full: Boolean,
+    /**
+     * 弹窗最大高度占屏比。第 12 轮起按页面类型给：音质 0.45（内容自适应，通常 35–45%），
+     * 歌词工具 0.85，长列表页（效果器 / 洛雪）0.92。内容不足时弹窗收短，超出才滚动 ——
+     * 小屏、大字体、手势导航都走同一条约束，不再裁切内容。
+     */
+    heightFraction: Float,
     onClose: () -> Unit,
     headerExtra: @Composable () -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     val theme = toolsTheme(light)
     BackHandler(enabled = true) { onClose() }
-    Box(Modifier.fillMaxSize()) {
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+        val maxSheetHeight = maxHeight * heightFraction
         Box(
             Modifier
                 .fillMaxSize()
@@ -133,7 +139,7 @@ internal fun ToolsSheetScaffold(
         Column(
             Modifier
                 .fillMaxWidth()
-                .then(if (full) Modifier.fillMaxHeight(0.92f) else Modifier.fillMaxHeight(0.72f))
+                .heightIn(max = maxSheetHeight)
                 .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
                 .background(theme.surface)
                 .align(Alignment.BottomCenter),
@@ -262,7 +268,9 @@ fun MinimalQualitySheet(
         title = "音质",
         subtitle = "切换后保留播放位置；可用音质由音源和账号决定",
         light = light,
-        full = false,
+        // 音质页就五档选择 + 两张入口卡：内容自适应，实测约 40–46% 屏高（参考要求 35–45%），
+        // 不再拖一大块空白。超小屏 / 大字体超过上限时仍可滚动，不裁切内容。
+        heightFraction = 0.46f,
         onClose = onClose,
     ) {
         Column(
@@ -270,7 +278,7 @@ fun MinimalQualitySheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             val currentLabel = currentLabelOf(quality.current)
             listOf(0 to 1, 2 to 3).forEach { (left, right) ->
@@ -328,7 +336,7 @@ fun MinimalQualitySheet(
             ToolsCard(theme) {
                 ToolsEntryRow(theme, "洛雪自定义音源", "导入 .js 脚本，替换在线音源", onClick = onOpenLx)
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(4.dp))
         }
     }
 }
@@ -385,7 +393,7 @@ fun MinimalEffectsSheet(
         title = "音频效果器",
         subtitle = "频段均衡与音频效果",
         light = light,
-        full = true,
+        heightFraction = 0.92f,
         onClose = onClose,
     ) {
         Column(
@@ -684,7 +692,7 @@ fun MinimalLyricsToolsSheet(
         title = "歌曲工具",
         subtitle = listOf(lyrics.title, lyrics.artist).filter { it.isNotBlank() }.joinToString(" · "),
         light = light,
-        full = true,
+        heightFraction = 0.85f,
         onClose = onClose,
     ) {
         Column(Modifier.fillMaxWidth()) {
@@ -950,7 +958,7 @@ fun MinimalLxSheet(
         title = "洛雪自定义音源",
         subtitle = "导入自定义脚本，为搜索和已登录平台的歌单选择播放音源。",
         light = light,
-        full = true,
+        heightFraction = 0.92f,
         onClose = onClose,
     ) {
         Column(

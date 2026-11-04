@@ -87,12 +87,12 @@ export default function MobileStageMenu({
             </button>
             <button role="menuitem" onClick={() => runNative('lyrics', () => { const state=useAppViewStore.getState();state.setPanelTab('onlineLyrics');state.setIsPanelOpen(true); })}>
                 <Captions size={18} />
-                {t('localMusic.lyrics')}
+                {t('mobileStage.lyricsTools')}
             </button>
             {/* Both player views open the existing shared queue panel. */}
             <button role="menuitem" onClick={() => run(() => { void openNativeQueueSheet().then(handled => { if (handled) return; const state=useAppViewStore.getState();state.setPanelTab('queue');state.setIsPanelOpen(true); }); })}>
                 <ListMusic size={18} />
-                {t('mobileStage.queue')}
+                {t('mobileStage.queueMenu')}
             </button>
             <button role="menuitem" onClick={() => run(() => openSettings('options', 'playback'))}>
                 <Settings2 size={18} />

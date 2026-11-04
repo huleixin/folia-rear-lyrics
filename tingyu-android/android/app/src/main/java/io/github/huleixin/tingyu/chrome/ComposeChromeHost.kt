@@ -172,6 +172,12 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var toolsPage by mutableStateOf("")
     /** 工具页打开时的路由；路由变了就收（从歌曲工具进播放设置的场景）。 */
     private var toolsRoute by mutableStateOf("stage")
+    /**
+     * 极简页当前停留的 pager 页（0 封面 / 1 歌词）。挂在宿主而不是页面组合里：
+     * 进设置时页面会离开组合，回来时 pager 用这个值重建 ——
+     * 不再重置到封面，也不再丢失用户停留的位置。
+     */
+    private var minimalLastPage by mutableIntStateOf(0)
     private val toolActions = io.github.huleixin.tingyu.minimal.BridgeToolActions(
         sender = { action, value ->
             val session = minimal.session()
@@ -521,9 +527,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             } }
             // 极简播放页：整页原生绘制，压在 WebView 之上。
             // 进场是从迷你播放器位置升起来（420ms），退场是落下去（300ms）—— 与原页面同一组曲线。
+            // 例外：从设置页回到极简页不重放入场动画 —— 用户没有离开播放器，只是去设了个开关。
+            // 之前这里固定重放 420ms 的升入，看起来就像播放器被重新打开了一次。
+            var minimalPrevDestination by remember { mutableStateOf(destination) }
+            val minimalReturnFromSettings = minimalPrevDestination == "settings" && destination == "stage"
             AnimatedVisibility(
                 visible = minimalOwns,
-                enter = slideInVertically(
+                enter = if (minimalReturnFromSettings) EnterTransition.None else slideInVertically(
                     animationSpec = tween(420, easing = CubicBezierEasing(.2f, .72f, .16f, 1f)),
                     initialOffsetY = { it },
                 ) + fadeIn(tween(220)),
@@ -539,6 +549,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     queue = queueState,
                     onOpenQueue = { openNativeQueue() },
                     onOpenTools = { page -> openNativeTools(page) },
+                    initialPage = minimalLastPage,
+                    onPageChanged = { minimalLastPage = it },
                     light = interfaceLight,
                     safeTop = safeTop,
                     safeBottom = safeBottom,
@@ -547,6 +559,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     modifier = Modifier.fillMaxSize(),
                 )
             }
+            SideEffect { minimalPrevDestination = destination }
             // 队列抽屉：宿主级，和哪一页在显示无关 —— 极简页、舞台、首页都开这一张。
             if(queueOpen)Box(Modifier.fillMaxSize().zIndex(6f)){
                 io.github.huleixin.tingyu.minimal.ui.MinimalQueueSheet(
