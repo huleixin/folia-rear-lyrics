@@ -256,7 +256,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val next=value.optString("route","home")
         require(next in setOf("home","collection","search","settings","stage","web"))
         val nativeMinimalReady=minimalPlayerEnabled()&&value.optString("playerPresentation")=="minimal"&&minimal.bridgeLive()&&!minimal.state.value.controls.detour
-        if(next=="stage"&&destination!="stage"&&!nativeMinimalReady) {
+        // 第 16 轮：极简入场不再等 Chromium 的 visualStateCallback。进来的页面是一整块
+        // 不透明的原生图层，Chromium 那边画什么都被盖住；这一等就是真机上点击后
+        // 100~200ms 的死等（录屏 f17→f21）。WebView 回退和经典舞台入场仍照旧等待。
+        val minimalComposeEntry=minimalPlayerEnabled()&&value.optString("playerPresentation")=="minimal"
+        if(next=="stage"&&destination!="stage"&&!nativeMinimalReady&&!minimalComposeEntry) {
             pendingStageEntry=true
             // The JS DOM commit precedes this request. Keep the outgoing native page in
             // place until Chromium can draw that commit, instead of exposing its old frame.
@@ -402,11 +406,24 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // 少了这一条，舞台 surface 会被这里过滤掉，底栏就再也没人画 —— 截图里舞台没有控制栏正是这个。
         val minimalOwns = minimalPlayerEnabled() && destination=="stage" && playerPresentation=="minimal" &&
             !webOverlay && !stageExit.active && minimalBound && !minimalState.controls.detour
-        val visible = if (!webOverlay&&!pendingStageEntry) surfaces.values.filter {
-            it.enabled && NativeFooterLayout.visible(it.id,destination,playlistDetail,it.viewportWidth,
+        // 第 16 轮：Compose 将接管极简页（能力开关在、路由到 stage、presentation=minimal、无顺访/弹层）。
+        // 这是入口动画唯一的拥有者判定：
+        //   · WebView 不再升层也不再整屏上滑 —— 它这时是首页底下的备用层，动它是纯浪费，
+        //     升到首页上面还会露出一帧无底栏的 WebView 首页副本（图层错位的来源）；
+        //   · 底栏（迷你条+导航）在进场期间保持可见 —— 反正马上会被不透明的极简页盖住，
+        //     提前抽掉它们就是真机上看到的「首页跳位」。
+        val composeOwnsMinimalEntry = minimalPlayerEnabled() && destination=="stage" &&
+            playerPresentation=="minimal" && !minimalState.controls.detour && !webOverlay && !stageExit.active
+        // pendingStageEntry 不再抽走底栏：极简入场时它们会被页面自然覆盖；
+        // 经典 WebView 舞台入场仍在 commit 时按路由规则收起。
+        val visible = if (!webOverlay&&(!pendingStageEntry||minimalPlayerEnabled())) surfaces.values.filter {
+            it.enabled && NativeFooterLayout.visible(
+                it.id,
+                if(composeOwnsMinimalEntry&&it.id!="stage")"home" else destination,
+                playlistDetail,it.viewportWidth,
                 pageTarget.startsWith("collection:artist:")) &&
                 (it.id!="stage"||it.rect.width>0&&it.rect.height>0) &&
-                !(minimalOwns&&it.id=="stage")
+                !(composeOwnsMinimalEntry&&it.id=="stage")
         } else emptyList()
         // Reuse the route's one retained composition beneath the collapsing stage.
         // Creating a second underlay would duplicate saveable keys during a quick Back.
@@ -431,12 +448,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 if(graphics.enabled&&graphics.mode!=GraphicsProbeMode.C31)DisposableEffect(Unit){graphics.layerMounts++;onDispose{graphics.layerDisposals++}}
                 // This wrapper/AndroidView keeps the same identity across routes and auto-hide.
                 // A live reader uses the tested C2 texture only for the reader's lifetime.
-                Box(Modifier.fillMaxSize().zIndex(if(destination=="stage"||webOverlay||stageExit.active)2f else 0f)
+                // 第 16 轮：Compose 接管极简入场时 WebView 退回 zIndex 0（首页底下），
+                // 升层+上滑都只属于 WebView 回退模式和经典舞台。
+                Box(Modifier.fillMaxSize().zIndex(if((destination=="stage"&&!composeOwnsMinimalEntry)||webOverlay||stageExit.active)2f else 0f)
                     .then(if(!legacySampling&&Build.VERSION.SDK_INT>=31&&sampleWeb)Modifier.layerBackdrop(stageBackdrop)else Modifier)) {
                 AndroidView(factory = { web }, modifier = Modifier.fillMaxSize()
                     .then(if(legacySampling&&graphics.mode!=GraphicsProbeMode.C31)Modifier.graphicsLayer { alpha = if(Build.VERSION.SDK_INT>=31).999f else 1f }else Modifier)
                     .stageExitTransform(stageExit,exitProgress,webOwnsRoutePixels(destination,webOverlay,stageExit.active))
-                    .playerEntryTransform(destination=="stage"&&playerPresentation=="minimal"&&!returningFromSettings,reducedMotion,height*density.density))
+                    .playerEntryTransform(destination=="stage"&&playerPresentation=="minimal"&&!returningFromSettings&&!composeOwnsMinimalEntry,reducedMotion,height*density.density))
                 }
                 Box(Modifier.fillMaxSize().zIndex(1f).then(if(!legacySampling&&Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop)else Modifier)) {
                 if(page==null&&firstHomeFrame&&destination=="home")NativePageView(bootPage,Modifier.fillMaxSize().zIndex(1f)){_,_,_->}
@@ -452,7 +471,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         val position=tween<IntOffset>(240,easing=ease)
                         when(NativeMotionPolicy.kind(from,to,backwards,!focused||!active||reducedMotion||returningFromSettings||stageExit.suppressReturnMotion&&from=="stage")){
                             NativeMotionKind.NONE->EnterTransition.None togetherWith ExitTransition.None
-                            NativeMotionKind.STAGE->fadeIn(tween(140,easing=ease)) togetherWith fadeOut(tween(if(to=="stage"&&playerPresentation=="minimal")1 else 100,delayMillis=if(to=="stage"&&playerPresentation=="minimal")420 else 0,easing=ease))
+                            NativeMotionKind.STAGE->fadeIn(tween(140,easing=ease)) togetherWith fadeOut(tween(if(to=="stage"&&playerPresentation=="minimal")1 else 100,delayMillis=if(to=="stage"&&playerPresentation=="minimal")520 else 0,easing=ease))
                             NativeMotionKind.TAB->(slideInHorizontally(tween(200,easing=ease)){tabTravel}+fadeIn(tween(200,easing=ease))) togetherWith (slideOutHorizontally(tween(180,easing=ease)){-tabTravel}+fadeOut(tween(180,easing=ease)))
                             NativeMotionKind.PUSH->(slideInHorizontally(position){travel}+fadeIn(tween(240,easing=ease))) togetherWith (slideOutHorizontally(position){-travel/3}+fadeOut(tween(200,easing=ease)))
                             NativeMotionKind.POP->((slideInHorizontally(tween(220,easing=ease)){-travel/3}+fadeIn(tween(220,easing=ease))) togetherWith (slideOutHorizontally(tween(220,easing=ease)){travel}+fadeOut(tween(200,easing=ease)))).apply{targetContentZIndex=-1f}
@@ -564,10 +583,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             // 之前这里固定重放 420ms 的升入，看起来就像播放器被重新打开了一次。
             AnimatedVisibility(
                 visible = minimalOwns,
-                // 入场只滑不淡：这一页不透明，淡入会强制一整屏离屏图层，
-                // 与 WebView 入场变换叠在同一批帧里 —— 多层动画重叠的来源之一。
+                // 入场只滑不淡：这一页不透明，淡入会强制一整屏离屏图层。
+                // 360ms（320~380ms 目标带），入场是页面唯一的一套上滑 ——
+                // WebView 侧的同名位移已在 composeOwnsMinimalEntry 里关掉。
                 enter = if (minimalResumePending) EnterTransition.None else slideInVertically(
-                    animationSpec = tween(420, easing = CubicBezierEasing(.2f, .72f, .16f, 1f)),
+                    animationSpec = tween(360, easing = CubicBezierEasing(.2f, .72f, .16f, 1f)),
                     initialOffsetY = { it },
                 ),
                 exit = if(destination=="settings")ExitTransition.None else slideOutVertically(
