@@ -79,6 +79,12 @@ fun MinimalTransport(
     accent: Color,
     commands: MinimalPlayerCommands,
     light: Boolean = false,
+    /**
+     * 上一首 / 下一首的封面动画入口。给定时由封面堆叠控制器接管（先跑动画再确认），
+     * 没给就仍然直连动作总线 —— 两种情况下发的都是同一条命令，只是有没有过渡。
+     */
+    onPrevious: (() -> Boolean)? = null,
+    onNext: (() -> Boolean)? = null,
     modifier: Modifier = Modifier,
 ) {
     val live = commands.available && !controls.disabled
@@ -100,6 +106,8 @@ fun MinimalTransport(
             accent = accent,
             light = light,
             commands = commands,
+            onPrevious = onPrevious,
+            onNext = onNext,
         )
     }
 }
@@ -241,6 +249,8 @@ private fun TransportButtons(
     accent: Color,
     light: Boolean,
     commands: MinimalPlayerCommands,
+    onPrevious: (() -> Boolean)?,
+    onNext: (() -> Boolean)?,
 ) {
     var hint by remember { mutableStateOf<String?>(null) }
     var lastMode by remember { mutableStateOf(controls.mode) }
@@ -272,7 +282,13 @@ private fun TransportButtons(
                 }
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                TransportButton("上一首", live && controls.canPrevious, ink, 50.dp, { commands.previous() }) {
+                TransportButton(
+                    label = "上一首",
+                    enabled = live && controls.canPrevious,
+                    ink = ink,
+                    size = 50.dp,
+                    onClick = { if (onPrevious?.invoke() != true) commands.previous() },
+                ) {
                     PlayerControlIcon("skipBack", ink.ink, Modifier.size(24.dp))
                 }
             }
@@ -280,7 +296,13 @@ private fun TransportButtons(
                 PlayButton(playing, live, ink) { commands.toggle() }
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                TransportButton("下一首", live && controls.canNext, ink, 50.dp, { commands.next() }) {
+                TransportButton(
+                    label = "下一首",
+                    enabled = live && controls.canNext,
+                    ink = ink,
+                    size = 50.dp,
+                    onClick = { if (onNext?.invoke() != true) commands.next() },
+                ) {
                     PlayerControlIcon("skipForward", ink.ink, Modifier.size(24.dp))
                 }
             }

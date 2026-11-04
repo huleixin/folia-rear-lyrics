@@ -53,6 +53,8 @@ import io.github.huleixin.tingyu.minimal.MinimalLyricLine
 import io.github.huleixin.tingyu.minimal.MinimalPalette
 import io.github.huleixin.tingyu.minimal.MinimalPlayback
 import io.github.huleixin.tingyu.minimal.MinimalPlayerState
+import io.github.huleixin.tingyu.minimal.cover.CoverStackArtwork
+import io.github.huleixin.tingyu.minimal.cover.CoverStackState
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -104,6 +106,10 @@ fun MinimalCoverPage(
     clock: State<Long>,
     active: Boolean,
     still: Boolean,
+    /** 三层封面堆叠（动画器 + 卡片表）。 */
+    stack: CoverStackState,
+    /** 封面位图缓存（与当前曲的 `MinimalArtwork` 共用同一套加载与缓存）。 */
+    covers: CoverStackArtwork,
     onOpenLyrics: () -> Unit,
     /** 波形（音质音效入口）：打开原版音质 / 音效面板。 */
     onAudioTools: () -> Unit = {},
@@ -111,6 +117,8 @@ fun MinimalCoverPage(
     onOpenArtist: (Int) -> Unit = {},
     /** 封面的横向漂移（px）：由 pager 的拖动位置给出，0 表示静止。 */
     parallax: () -> Float = { 0f },
+    /** 封面区域的拖动手势。**只**挂在这块封面上，页面其余区域不经过它。 */
+    coverGesture: Modifier = Modifier,
     modifier: Modifier = Modifier,
 ) {
     val playback = state.playback
@@ -138,8 +146,14 @@ fun MinimalCoverPage(
                 ink = ink,
                 floating = active,
                 still = still,
+                stack = stack,
+                covers = covers,
+                gesture = coverGesture,
                 modifier = Modifier
                     .size(stageWidth)
+                    // 无障碍：整摞封面是一个整体（内部各层图片不带描述），读屏会把这一块读成"专辑封面"。
+                    // 顺带也是手势区域的边界 —— 只有在这里按下的滑动才归封面。
+                    .semantics { contentDescription = "专辑封面" }
                     .graphicsLayer { translationX = parallax() },
             )
             Spacer(Modifier.height(clampDp(15f, vh.value * 0.020f, 19f)))

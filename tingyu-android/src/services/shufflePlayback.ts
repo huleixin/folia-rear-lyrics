@@ -83,6 +83,14 @@ export function createShufflePlayback(random: () => number = Math.random) {
             return forward.concat(remaining.filter(key => !seen.has(key)));
         },
         recoveryOrder(): string[] { return [...new Set([...recoveryPlan,...keys])]; },
+        /**
+         * 只读：播放历史里的上一个 key。**不推进历史、不 observe**。
+         *
+         * 原生封面堆叠要预取"上一首的封面"以及判断右滑能不能切歌，而随机模式的上一首
+         * 只有这条历史知道（播放顺序是洗好的牌，不是列表前一条）。用它而不是 `previous(...)`：
+         * 后者会顺带观察/重塑历史，渲染期间调用会产生隐式副作用。
+         */
+        peekPrevious(): string { return cursor > 0 ? history[cursor - 1] ?? '' : ''; },
         restorePlan(queue:SongResult[],song:SongResult,order:string[]) {
             if(!enabled)return;
             keys=[...new Set(queue.map(getPlaybackSongKey))];

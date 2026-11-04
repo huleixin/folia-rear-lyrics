@@ -19,6 +19,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
@@ -36,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
@@ -56,6 +58,11 @@ import io.github.huleixin.tingyu.minimal.MinimalPlayback
 import io.github.huleixin.tingyu.minimal.MinimalPlayerCommands
 import io.github.huleixin.tingyu.minimal.MinimalPlayerState
 import io.github.huleixin.tingyu.minimal.buildMinimalPalette
+import io.github.huleixin.tingyu.minimal.cover.CoverStackArtwork
+import io.github.huleixin.tingyu.minimal.cover.CoverStackController
+import io.github.huleixin.tingyu.minimal.cover.CoverStackState
+import io.github.huleixin.tingyu.minimal.cover.DragDirection
+import io.github.huleixin.tingyu.minimal.cover.StackPhase
 import kotlinx.coroutines.launch
 
 // android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/MinimalPlayerScreen.kt
@@ -70,6 +77,14 @@ import kotlinx.coroutines.launch
 
 private const val PAGE_COUNT = 2
 
+/**
+ * 封面动画跑完、命令也发了，但播放状态还没换歌的宽限期。
+ *
+ * 在线源要现取地址，几百毫秒到两秒都正常；超过这个时限就认为这次切歌失败，
+ * 封面必须退回真实正在播的那一首 —— 绝不能停在错误的歌曲上。
+ */
+private const val COMMIT_CONFIRM_TIMEOUT_MS = 2_500L
+
 @Composable
 fun MinimalPlayerScreen(
     state: MinimalPlayerState,
@@ -83,6 +98,11 @@ fun MinimalPlayerScreen(
     onOpenTools: (String) -> Unit = {},
     /** 页面重建时恢复的 pager 页。宿主持有这个值，进出设置、后台回来都不丢。 */
     initialPage: Int = 0,
+    /**
+     * 封面堆叠的动画器。默认在这一页里 remember；宿主（或诊断页）需要观察/保留同一份动画状态时
+     * 可以传进来 —— 动画进度、卡片层位、当前速度都在里面。
+     */
+    coverStack: CoverStackState? = null,
     /** pager 停留页变化时上报宿主。 */
     onPageChanged: (Int) -> Unit = {},
     light: Boolean,
@@ -143,6 +163,52 @@ fun MinimalPlayerScreen(
     }
     val scope = rememberCoroutineScope()
     val page = pagerState.currentPage
+
+    // ---- 封面堆叠：动画器 + 位图缓存 + 唯一的过渡控制器 ----
+    //
+    // 这一层只做装配。四个切歌入口（左滑 / 右滑 / 上一首 / 下一首）与"播放器自己切歌"
+    // 全部走同一个 controller，所以不会出现两套手感，也不会一次切歌发两条命令。
+    val coverCaches = remember(context) { CoverStackArtwork(context) }
+    DisposableEffect(coverCaches) { onDispose { coverCaches.release() } }
+    val coverStackState = remember(coverStack) { coverStack ?: CoverStackState() }
+    // 控制器**必须**跨重组保持同一个实例：它持有"这次切歌等的是哪一首"这类动画状态，
+    // 一旦被重建就会忘掉，动画跑到终点时找不到该推进哪张卡片。
+    // 命令出口用 rememberUpdatedState 转发，所以 commands 换了对象也不用重建控制器。
+    val latestCommands = rememberUpdatedState(commands)
+    val coverController = remember(coverStackState, coverCaches) {
+        CoverStackController(
+            state = coverStackState,
+            artwork = coverCaches,
+            sendNext = { latestCommands.value.next() },
+            sendPrevious = { latestCommands.value.previous() },
+        )
+    }
+    // 动画逐帧推进。相位变了才起循环；一帧一次 graphicsLayer 写入，不进重组。
+    LaunchedEffect(coverStackState, coverStackState.phase) {
+        if (coverStackState.phase == StackPhase.IDLE) return@LaunchedEffect
+        var last = 0L
+        while (true) {
+            val now = withFrameNanos { it }
+            val elapsed = if (last == 0L) 16.7f else (now - last) / 1_000_000f
+            last = now
+            if (!coverStackState.step(elapsed)) break
+        }
+    }
+    // 系统关闭动画时：拖动仍然 1:1 跟手，松手后直接落到终态（不补间、不回弹、无残影）。
+    LaunchedEffect(coverStackState, still) { coverStackState.motionEnabled = !still }
+    // 三层预览与真实播放队列对齐：换歌、队列编辑、随机计划推进都会经过这里。
+    LaunchedEffect(coverController, playback.track.key, state.revision) {
+        coverController.sync(playback.track, queue)
+    }
+    // 命令发出去了但播放状态没跟上（解析失败、桥断开）：宽限期后如实退回当前曲。
+    val topCoverKey = coverStackState.cards.firstOrNull()?.songKey.orEmpty()
+    LaunchedEffect(coverController, topCoverKey, playback.track.key) {
+        if (topCoverKey.isEmpty() || playback.track.key.isEmpty() || topCoverKey == playback.track.key) {
+            return@LaunchedEffect
+        }
+        kotlinx.coroutines.delay(COMMIT_CONFIRM_TIMEOUT_MS)
+        coverController.sync(playback.track, queue, force = true)
+    }
 
     Box(modifier.fillMaxSize().background(Color(palette.base))) {
         // 渲染来源角标（临时诊断，验收后删）：看到 "Compose" 就说明这一屏是原生画的。
@@ -218,6 +284,8 @@ fun MinimalPlayerScreen(
                         clock = clock,
                         active = page == 0,
                         still = still,
+                        stack = coverStackState,
+                        covers = coverCaches,
                         onOpenLyrics = { scope.launch { pagerState.animateScrollToPage(1) } },
                         onAudioTools = { onOpenTools("quality") },
                         // 歌手名点击 → 动作总线 artistOpen（value = 歌手串里的序号），由 JS 开歌手页。
@@ -226,6 +294,8 @@ fun MinimalPlayerScreen(
                         parallax = {
                             if (pagerState.currentPage == 0) -pagerState.currentPageOffsetFraction * 22f else 0f
                         },
+                        // 只有这块封面在手势里：从别处开始的滑动仍归 pager。
+                        coverGesture = Modifier.coverStackDrag(coverStackState, coverController),
                     )
                 } else {
                     MinimalLyricsPage(
@@ -251,6 +321,9 @@ fun MinimalPlayerScreen(
                 accent = Color(palette.accent),
                 commands = sheetCommands,
                 light = !dark,
+                // 与手势共用同一个过渡控制器：先跑封面动画，动画里的那一次命令由它发。
+                onPrevious = { coverController.skip(DragDirection.PREV) },
+                onNext = { coverController.skip(DragDirection.NEXT) },
                 modifier = Modifier.padding(top = 2.dp),
             )
             PageDots(

@@ -119,6 +119,17 @@ public final class NativePlaylist {
 
     private final Object lock = new Object();
     private List<Track> tracks = Collections.emptyList();
+    /**
+     * 真实播放历史里的"上一首"（JS 侧 {@code shufflePlayback} 的历史游标）。
+     *
+     * <p>为什么必须由 JS 给：随机模式的播放历史不是"列表里前一个"。{@link #tracks} 存的是
+     * 从当前曲**往后**的播放顺序，上一首不在里面，Kotlin 也无法在不知道历史的情况下算出来。
+     * 单曲循环、列表循环的边界同样只有 JS 那份游标知道。
+     *
+     * <p>为 null 表示"没有上一首"（队列开头 / 顺序模式 / 老版本 JS 没推）——
+     * 调用方必须据此判定不可用，而不是猜一个。
+     */
+    private Track previous;
     private Mode mode = Mode.SEQUENCE;
     private boolean loopAll;
     private long generation;
@@ -135,6 +146,7 @@ public final class NativePlaylist {
     public static void resetForTest() {
         synchronized (INSTANCE.lock) {
             INSTANCE.tracks = Collections.emptyList();
+            INSTANCE.previous = null;
             INSTANCE.mode = Mode.SEQUENCE;
             INSTANCE.loopAll = false;
             INSTANCE.generation = 0;
@@ -150,10 +162,21 @@ public final class NativePlaylist {
      * @param mode    播放模式
      */
     public long replace(List<Track> ordered, Mode mode, boolean loopAll, long syncedAt, String origin) {
+        return replace(ordered, mode, loopAll, syncedAt, origin, null);
+    }
+
+    /**
+     * 同上，额外带上真实播放历史里的上一首。
+     *
+     * @param previous 上一首；null 表示没有（顺序模式的第一首、或历史为空）
+     */
+    public long replace(List<Track> ordered, Mode mode, boolean loopAll, long syncedAt, String origin,
+                        Track previous) {
         synchronized (lock) {
             this.tracks = ordered == null
                 ? Collections.<Track>emptyList()
                 : Collections.unmodifiableList(new ArrayList<>(ordered));
+            this.previous = previous;
             this.mode = mode == null ? Mode.SEQUENCE : mode;
             this.loopAll = loopAll;
             this.syncedAt = syncedAt;
@@ -161,6 +184,15 @@ public final class NativePlaylist {
             this.generation += 1;
             return this.generation;
         }
+    }
+
+    /**
+     * 真实播放历史里的上一首；没有就 null。
+     *
+     * <p>只读快照，不推进任何游标 —— 调用方拿到的是"如果现在按上一首，会播哪首"。
+     */
+    public Track previous() {
+        synchronized (lock) { return previous; }
     }
 
     /** 只改模式（用户在通知栏/界面切了循环），同样换代次。 */

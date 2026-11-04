@@ -13,48 +13,53 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import io.github.huleixin.tingyu.minimal.MinimalArtwork
+import io.github.huleixin.tingyu.minimal.cover.CoverCard
+import io.github.huleixin.tingyu.minimal.cover.CoverStackArtwork
+import io.github.huleixin.tingyu.minimal.cover.CoverStackState
+import io.github.huleixin.tingyu.minimal.cover.StackPhase
+import io.github.huleixin.tingyu.minimal.cover.dimAt
 import kotlin.math.PI
-import kotlin.math.sin
 import kotlin.math.cos
+import kotlin.math.sin
 
 // android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/MinimalArtworkView.kt
 //
-// 封面：唱片层叠 + 背后的光 + 交叉淡化 + 多层独立呼吸。
+// 封面：三层相册堆叠 + 背后的光 + 多层独立呼吸 + 二维跟手拖拽。
 //
-// 第 18 轮重做呼吸：旧版缩放/浮动/阴影共用同一个 19s 正弦 —— 三个量锁死在一个
-// 相位里，读起来仍然是"图片在放大缩小"。现在每一层有自己的周期与相位：
-//   · 封面缩放 1.000~1.012，周期 10s；
-//   · 封面垂直浮动 ±3dp，周期 13s（与缩放相位错开 1.1rad）；
-//   · 阴影跟随浮动轻微起伏（错 0.35π，封面升高时影子略收）；
-//   · 背后描边装饰板：±1.5dp 独立视差 + ±0.3° 角度摆动，周期 17s —— 与封面
-//     不同步，板像悬浮在更远的一层；
-//   · 周围柔光：23s 的更慢周期轻微明暗（不改封面图像亮度，只动背景光）。
+// 层叠姿态来自已验收的 Demo（`src/dev/coverStack/`），一块几何都没重新设计：
+//   当前 x0 y0 0° 100% / 下一首 -13dp -5dp -4° 98.5% / 下下首 +11dp -7dp +4° 96%，
+//   后两层压暗 15% / 28%，第四张藏在第二张后面待补入。
+//   只有 rotateZ，没有透视、没有绕 X/Y 轴翻转 —— 拖动时封面是被"移动"，不是被"翻动"。
 //
-// 时钟是**累计秒**：暂停/切页冻结相位，恢复从原相位继续（旧实现用绝对时间取模，
-// 恢复瞬间会跳相位）。所有动效都写在 graphicsLayer/drawBehind 块里 —— 纯合成层
-// 属性与绘制失效，零重组零重排版；60ms 节流足够（最慢层一帧位移 ~0.01px）。
-// 层叠"纸的厚度"那一道 1px 边保持不变。
+// 呼吸（保留原有的独立周期）：缩放 10s、浮动 13s、装饰板 17s、柔光 23s。
+// **手势与切歌动画期间呼吸冻结**（不是归零）：冻结在当前相位，所以不会和拖动叠加出抖动，
+// 也不会在手指按下的那一刻"跳"一下 —— 拖动位移是相对的，父层停住不动，1:1 跟手就仍然成立。
+//
+// 逐帧只写 graphicsLayer 的 translate/rotate/scale/alpha：不重排版、不重新解码、不进重组。
 
 /** 呼吸更新节流：最慢层（23s 柔光）一帧位移 ~0.01px，60ms 一拍足够顺滑。 */
 private const val BREATH_STEP_NS = 60_000_000L
+
+/** 残影副本数量。三份够读出方向，又不会把 GPU 填满。 */
+private const val GHOST_COUNT = 3
 
 @Composable
 fun MinimalArtworkView(
@@ -63,10 +68,14 @@ fun MinimalArtworkView(
     ink: MinimalInk,
     floating: Boolean,
     still: Boolean,
+    stack: CoverStackState,
+    covers: CoverStackArtwork,
+    gesture: Modifier = Modifier,
     modifier: Modifier = Modifier,
 ) {
     var breath by remember { mutableFloatStateOf(0f) }
-    val animate = floating && !still
+    // 手势 / 切歌动画期间冻结呼吸：不更新相位，姿态停在当前值
+    val animate = floating && !still && stack.phase == StackPhase.IDLE
     LaunchedEffect(animate) {
         if (!animate) return@LaunchedEffect
         var last = 0L
@@ -85,9 +94,18 @@ fun MinimalArtworkView(
         }
     }
 
+    // 当前曲的封面 runtime 已经解码过了：先塞进堆叠的缓存，起播那一帧就不会空
+    LaunchedEffect(artwork.songKey, artwork.bitmap) {
+        covers.seed(artwork.songKey, artwork.bitmap)
+    }
+
+    val cards = stack.cards
     BoxWithConstraints(modifier) {
         val side = minOf(maxWidth, maxHeight)
         val corner = (side.value * 0.07f).coerceIn(18f, 30f).dp
+        val density = LocalDensity.current
+        val sidePx = with(density) { side.toPx() }
+        LaunchedEffect(sidePx, density.density) { stack.setSize(sidePx, density.density) }
         val twoPi = 2f * PI.toFloat()
 
         // 1. 封面自己的光：框外 -18% 的一大团柔光，23s 缓慢明暗（不动封面亮度）。
@@ -107,99 +125,189 @@ fun MinimalArtworkView(
             }
         )
 
-        // 2a. 后面那一张（层叠）：实底，只露 1px 边。
-        Box(
-            Modifier.matchParentSize()
-                .graphicsLayer {
-                    rotationZ = -5f
-                    translationX = -3.dp.toPx()
-                    translationY = 1.dp.toPx()
-                    scaleX = 0.99f
-                    scaleY = 0.99f
-                }
-                .background(
-                    Brush.linearGradient(
-                        listOf(ink.inkAlpha(10), bloom.copy(alpha = 0.16f)),
-                        start = Offset(0f, 0f),
-                        end = Offset(1f, 1f),
-                    ),
-                    RoundedCornerShape(corner),
-                )
-                .border(1.dp, ink.inkAlpha(12), RoundedCornerShape(corner))
-        )
-
-        // 2b. 描边装饰板（第 17 轮引入，第 18 轮加独立微动）：比封面大一圈、基础
-        //     顺转 4°、右上偏移，只有一道细边。17s 周期的独立视差（±1.5dp）与
-        //     角度摆动（±0.3°）—— 和封面 10s/13s 的呼吸不同步，像更远的一层纸。
-        Box(
-            Modifier
-                .size(side * 1.07f)
-                .align(Alignment.TopStart)
-                .graphicsLayer {
-                    val plate = twoPi * breath / 17f + 2.0f
-                    rotationZ = 4f + 0.3f * sin(plate)
-                    translationX = (7f + 1.5f * sin(plate + 0.7f)).dp.toPx()
-                    translationY = (-5f + 1.5f * cos(plate)).dp.toPx()
-                }
-                .border(1.dp, ink.inkAlpha(30), RoundedCornerShape(corner * 1.06f))
-        )
-
-        // 3. 封面本体：交叉淡化 + 双频呼吸。缩放（10s）与浮动（13s）各走各的相位，
-        //    叠加后不再有"同一个正弦"的机械感；阴影跟浮动错 0.35π 轻微起伏。
-        //    暂停时不回弹到中性值：所有量都只由 breath 驱动，breath 冻结即整体冻结
-        //    在当前姿态（旧实现暂停把缩放拍回 1f，会看到一下snap）。
-        //    新图没解码好之前 runtime 不会发布新封面，所以这里不会闪白。
-        Box(
-            Modifier.matchParentSize()
-                .graphicsLayer {
+        // 2. 堆叠本体：整摞一起呼吸（缩放 10s、浮动 13s），像一叠真实叠在一起的纸。
+        Box(Modifier.fillMaxSize().then(gesture)) {
+            Box(
+                Modifier.fillMaxSize().graphicsLayer {
                     val scaleWave = sin(twoPi * breath / 10f)
                     val floatWave = sin(twoPi * breath / 13f + 1.1f)
                     translationY = 3.dp.toPx() * floatWave
                     val breathe = 1.006f + 0.006f * scaleWave
                     scaleX = breathe
                     scaleY = breathe
-                    shape = RoundedCornerShape(corner)
-                    clip = false
-                    // 阴影跟浮动：封面升高影子略收（错 0.35π，不同步到锁死）。
-                    shadowElevation = 22f + 6f * sin(twoPi * breath / 13f + 1.1f + 0.35f * PI.toFloat())
                 }
-                .clip(RoundedCornerShape(corner))
-                .background(ink.ink.copy(alpha = 0.05f))
-        ) {
-            Crossfade(
-                targetState = artwork,
-                animationSpec = tween(420),
-                label = "minimal-artwork",
-            ) { shown ->
-                val bitmap = shown.bitmap
-                if (bitmap != null && !bitmap.isRecycled) {
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
+            ) {
+                // 2a. 装饰板（原有的一层"更远的纸"）：比封面略小的大圆角细边，17s 独立微动。
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .graphicsLayer {
+                            val plate = twoPi * breath / 17f + 2.0f
+                            rotationZ = 4f + 0.3f * sin(plate)
+                            translationX = (7f + 1.5f * sin(plate + 0.7f)).dp.toPx()
+                            translationY = (-5f + 1.5f * cos(plate)).dp.toPx()
+                        }
+                        .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(corner))
+                )
+
+                // 2b. 三层封面。列表顺序 = 从上到下：先画后面的，最后画最上面那一张。
+                val movingIndex = cards.indexOfFirst { it.moving }
+                cards.forEachIndexed { index, card ->
+                    if (index == movingIndex) return@forEachIndexed
+                    CoverLayer(
+                        card = card,
+                        stack = stack,
+                        covers = covers,
+                        corner = corner,
+                        ink = ink,
+                        z = 10f + (cards.size - index),
                     )
-                } else {
-                    Box(
-                        Modifier.fillMaxSize().background(
-                            Brush.linearGradient(
-                                listOf(ink.ink.copy(alpha = 0.08f), Color.Transparent),
-                                start = Offset(0f, 0f),
-                                end = Offset(0f, 600f),
-                            )
-                        ),
-                        contentAlignment = Alignment.Center,
-                    ) { MusicGlyph(ink.muted.copy(alpha = 0.55f)) }
+                }
+                if (movingIndex >= 0) {
+                    val card = cards[movingIndex]
+                    // 残影：同一张图的三份偏移副本，沿速度反方向铺开（没有 blur 滤镜）
+                    repeat(GHOST_COUNT) { ghost ->
+                        GhostLayer(
+                            card = card,
+                            ghost = ghost,
+                            stack = stack,
+                            covers = covers,
+                            corner = corner,
+                            z = 30f + ghost,
+                        )
+                    }
+                    CoverLayer(
+                        card = card,
+                        stack = stack,
+                        covers = covers,
+                        corner = corner,
+                        ink = ink,
+                        z = 40f,
+                    )
                 }
             }
         }
     }
 }
 
-/** 占位音符：两笔树干加两个符头，和旧页面 `Music2` 图标的视觉重量一致。 */
+/** 一层封面：图片 + 压暗 + 纸边。所有逐帧量都在 graphicsLayer 里读，不触发重组。 */
 @Composable
-private fun MusicGlyph(color: Color) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+private fun CoverLayer(
+    card: CoverCard,
+    stack: CoverStackState,
+    covers: CoverStackArtwork,
+    corner: androidx.compose.ui.unit.Dp,
+    ink: MinimalInk,
+    z: Float,
+) {
+    val shape = remember(corner) { RoundedCornerShape(corner) }
+    Box(
+        Modifier
+            .fillMaxSize()
+            .zIndex(z)
+            .graphicsLayer {
+                val frame = stack.frameFor(card)
+                translationX = frame[0]
+                translationY = frame[1]
+                scaleX = frame[2]
+                scaleY = frame[2]
+                rotationZ = frame[3]
+                this.shape = shape
+                clip = true
+                // 越靠前影子越大：叠放的层次感一半来自影子、一半来自压暗
+                shadowElevation = 24f - 6f * stack.slotFor(card).coerceIn(0f, 3f)
+            }
+            .background(ink.ink.copy(alpha = 0.05f))
+    ) {
+        CoverImage(card, covers)
+        // 后层压暗：跟着层位连续变化，第二张升起时一起退掉，不会在动画末尾突然变亮
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = dimAt(stack.slotFor(card)) }
+                .background(Color.Black)
+        )
+        Box(Modifier.matchParentSize().border(1.dp, Color.White.copy(alpha = 0.12f), shape))
+    }
+}
+
+/** 残影副本：只画图，不加阴影、不加压暗，alpha 由速度决定。 */
+@Composable
+private fun GhostLayer(
+    card: CoverCard,
+    ghost: Int,
+    stack: CoverStackState,
+    covers: CoverStackArtwork,
+    corner: androidx.compose.ui.unit.Dp,
+    z: Float,
+) {
+    val shape = remember(corner) { RoundedCornerShape(corner) }
+    Box(
+        Modifier
+            .fillMaxSize()
+            .zIndex(z)
+            .graphicsLayer {
+                val frame = stack.frameFor(card)
+                val offset = stack.ghostAt(ghost, GHOST_COUNT)
+                translationX = frame[0] + offset[0]
+                translationY = frame[1] + offset[1]
+                scaleX = frame[2]
+                scaleY = frame[2]
+                rotationZ = frame[3]
+                alpha = offset[2]
+                this.shape = shape
+                clip = true
+            }
+    ) {
+        CoverImage(card, covers)
+    }
+}
+
+/** 封面图：位图到了才画，没到就是占位（新图淡入，不会先白一下再补图）。 */
+@Composable
+private fun CoverImage(card: CoverCard, covers: CoverStackArtwork) {
+    val bitmap = covers.of(card.songKey)
+    Crossfade(
+        targetState = bitmap,
+        animationSpec = tween(220),
+        label = "minimal-cover-${card.key}",
+    ) { shown ->
+        if (shown != null) {
+            Image(
+                bitmap = shown,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            PlaceholderSurface()
+        }
+    }
+}
+
+/** 没有封面时的占位：一道斜向渐变 + 音符，和旧页面同一套视觉重量。 */
+@Composable
+private fun PlaceholderSurface() {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(
+                Brush.linearGradient(
+                    listOf(Color(0xFF2A3330), Color(0xFF161C1A)),
+                    start = Offset(0f, 0f),
+                    end = Offset(600f, 600f),
+                )
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        MusicGlyph(Color(0x66FFFFFF), Modifier.size(46.dp))
+    }
+}
+
+/** 占位音符：两笔树干加两个符头。 */
+@Composable
+internal fun MusicGlyph(color: Color, modifier: Modifier = Modifier) {
+    Box(modifier, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val u = size.minDimension / 40f
             val cx = size.width / 2f
@@ -213,3 +321,4 @@ private fun MusicGlyph(color: Color) {
         }
     }
 }
+

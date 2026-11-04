@@ -57,6 +57,12 @@ interface TingyuPlaybackNative {
         loopAll: boolean;
         quality: AudioQualityPreference;
         tracks: NativePlaylistTrackPayload[];
+        /**
+         * 真实播放历史里的上一首。原生用它预取右滑要放入的那张封面，
+         * 以及判断"这一下右滑到底能不能切"。没有就不传 —— 不传等于"没有上一首"，
+         * 绝不能拿列表里的前一条冒充（随机模式下那条根本不是上一首）。
+         */
+        previous?: NativePlaylistTrackPayload;
     }): Promise<{ generation: number; size: number }>;
     setNativePlaylistMode(options: { mode: NativePlaylistMode; loopAll: boolean }): Promise<{ generation: number }>;
     setResolverCredentials(options: { providerId: string; values: Record<string, string> }): Promise<{ configured: boolean }>;
@@ -151,6 +157,31 @@ const orderedAfter = (queue: SongResult[], currentKey: string, shuffle: boolean)
     return ordered.length > 0 ? ordered : queue.slice(index + 1);
 };
 
+/**
+ * 真实播放历史里的上一首。
+ *
+ * 随机模式取 `shufflePlayback` 的历史游标（只读，不推进）；其余模式是队列里的前一条，
+ * 列表循环时从末尾回绕。取不到就返回 null —— 宁可让原生判定"没有上一首"，
+ * 也不能给出一张与实际播放不符的封面。
+ */
+const previousSong = (
+    queue: SongResult[],
+    currentKey: string,
+    shuffle: boolean,
+    loop: 'off' | 'all' | 'one',
+): SongResult | null => {
+    if (queue.length === 0) return null;
+    if (shuffle) {
+        const key = shufflePlayback.peekPrevious();
+        if (!key) return null;
+        return queue.find(song => getPlaybackSongKey(song) === key) ?? null;
+    }
+    const index = queue.findIndex(song => getPlaybackSongKey(song) === currentKey);
+    if (index > 0) return queue[index - 1] ?? null;
+    if (index === 0 && loop === 'all') return queue[queue.length - 1] ?? null;
+    return null;
+};
+
 let lastSignature = '';
 
 /**
@@ -181,7 +212,19 @@ export const syncNativePlaylist = async (options: {
         if (payload && !tracks.some(item => item.songKey === payload.songKey)) tracks.push(payload);
     }
     const mode = resolveMode(loop, shuffle);
-    const signature = [mode, String(shuffle), quality, currentKey, tracks.map(item => item.songKey).join('>')].join('|');
+    // 上一首：封面堆叠右滑要放入的那张，以及"能不能往右滑"的判定。
+    const previousPayload = (() => {
+        const previous = previousSong(queue, currentKey, shuffle, loop);
+        return previous ? toNativeResourcePayload(previous) : null;
+    })();
+    const signature = [
+        mode,
+        String(shuffle),
+        quality,
+        currentKey,
+        tracks.map(item => item.songKey).join('>'),
+        previousPayload?.songKey ?? '',
+    ].join('|');
     if (signature === lastSignature) return;
     lastSignature = signature;
     try {
@@ -193,7 +236,13 @@ export const syncNativePlaylist = async (options: {
         void syncKugouResolverCredentials();
         void syncBodianResolverCredentials();
         void syncQishuiResolverCredentials();
-        await native.setNativePlaylist({ mode, loopAll: loop === 'all', quality, tracks });
+        await native.setNativePlaylist({
+            mode,
+            loopAll: loop === 'all',
+            quality,
+            tracks,
+            ...(previousPayload ? { previous: previousPayload } : {}),
+        });
         void syncPlaylistResources(queue.length ? queue : [song], toNativeResourcePayload, currentKey);
         // 这份 `ordered` 就是原生真正会走的顺序：按它预置歌词，锁屏连播才有词可用。
         // 与窗口预置（只有 5 首）不同，这里能看到更远的 10 首；只读本地缓存，最多

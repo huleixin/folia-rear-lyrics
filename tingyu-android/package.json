@@ -8,8 +8,8 @@
     "email": "chthollyphile@users.noreply.github.com"
   },
   "private": true,
-  "version": "1.3.146",
-  "androidVersionCode": 169,
+  "version": "1.3.147",
+  "androidVersionCode": 170,
   "playbackTestRevision": 2,
   "license": "AGPL-3.0",
   "type": "module",
@@ -50,7 +50,8 @@
     "manual:bravais-perf": "node test/manual/bravais-perf-probe.mjs",
     "stage:client": "vite --open /stage-client.html",
     "contributors:add": "npx all-contributors-cli add",
-    "contributors:generate": "npx all-contributors-cli generate"
+    "contributors:generate": "npx all-contributors-cli generate",
+    "dev:cover-stack": "vite --open /cover-stack-preview.html"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

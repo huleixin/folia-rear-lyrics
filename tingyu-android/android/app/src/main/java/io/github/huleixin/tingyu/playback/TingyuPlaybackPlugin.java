@@ -242,25 +242,15 @@ public final class TingyuPlaybackPlugin extends Plugin {
             org.json.JSONArray incoming=call.getArray("tracks");
             java.util.List<NativePlaylist.Track> tracks=new java.util.ArrayList<>();
             if(incoming!=null)for(int i=0;i<incoming.length();i++){
-                org.json.JSONObject raw=incoming.optJSONObject(i);
-                if(raw==null)continue;
-                String songKey=raw.optString("songKey","");
-                if(songKey.isEmpty())continue;
-                String providerId=raw.optString("providerId","");
-                // 用户选的播放音源（`lx:tx` / `qq-original`）。没有它，原生只能按平台猜，
-                // 也就是 1.3.50 把 QQ 原版判给洛雪解析器的原因。
-                String sourceId=raw.optString("sourceId","");
-                tracks.add(new NativePlaylist.Track(songKey,providerId,raw.optString("mediaId",""),
-                    raw.optString("title",""),raw.optString("artist",""),raw.optString("album",""),
-                    // 毫秒契约（旧秒值自动迁移），见 PlaylistDuration。
-                    PlaylistDuration.read(raw),raw.optString("artwork",""),
-                    raw.opt("providerData") instanceof org.json.JSONObject
-                        ?raw.optJSONObject("providerData").toString():raw.optString("providerData",""),
-                    sourceId));
+                NativePlaylist.Track track=trackOf(incoming.optJSONObject(i));
+                if(track!=null)tracks.add(track);
             }
+            // 真实播放历史里的上一首（随机模式只有 JS 那份游标知道）。没有就 null，
+            // 原生据此判定"没有上一首"，而不是拿列表里的前一条冒充。
+            NativePlaylist.Track previous=trackOf(call.getData().optJSONObject("previous"));
             if(!quality.isEmpty())QualityPreference.set(quality);
             long generation=NativePlaylist.get().replace(tracks,mode,loopAll,
-                android.os.SystemClock.elapsedRealtime(),"webview");
+                android.os.SystemClock.elapsedRealtime(),"webview",previous);
             PlaybackDiagnostics.note("playlist-sync",new JSObject().put("size",tracks.size())
                 .put("mode",mode.name().toLowerCase(java.util.Locale.US)).put("loopAll",loopAll)
                 .put("generation",generation)
@@ -277,6 +267,29 @@ public final class TingyuPlaybackPlugin extends Plugin {
             prefetchAfterPlaylistSync(tracks);
         }
         catch(Exception error){call.reject("同步逻辑歌单失败："+error.getClass().getSimpleName());}
+    }
+
+    /**
+     * 一条歌单载荷 → {@link NativePlaylist.Track}。缺 songKey 的整条丢弃（没有身份就没有意义）。
+     *
+     * <p>抽出来是因为"当前之后的顺序"与"上一首"必须按同一套字段解析 —— 两条路径各写一遍
+     * 就是这个工程里已经踩过的坑（毫秒/秒、artwork 字段读错都发生在重复的解析里）。
+     */
+    private static NativePlaylist.Track trackOf(org.json.JSONObject raw){
+        if(raw==null)return null;
+        String songKey=raw.optString("songKey","");
+        if(songKey.isEmpty())return null;
+        String providerId=raw.optString("providerId","");
+        // 用户选的播放音源（`lx:tx` / `qq-original`）。没有它，原生只能按平台猜，
+        // 也就是 1.3.50 把 QQ 原版判给洛雪解析器的原因。
+        String sourceId=raw.optString("sourceId","");
+        return new NativePlaylist.Track(songKey,providerId,raw.optString("mediaId",""),
+            raw.optString("title",""),raw.optString("artist",""),raw.optString("album",""),
+            // 毫秒契约（旧秒值自动迁移），见 PlaylistDuration。
+            PlaylistDuration.read(raw),raw.optString("artwork",""),
+            raw.opt("providerData") instanceof org.json.JSONObject
+                ?raw.optJSONObject("providerData").toString():raw.optString("providerData",""),
+            sourceId);
     }
 
     /**
