@@ -190,6 +190,11 @@ class MinimalScreenshotTest {
         override fun queueRemove(index: Int): Boolean = true
         override fun queueMoveNext(index: Int): Boolean = true
         override fun queueMoveEnd(index: Int): Boolean = true
+        override fun queueReorder(from: Int, to: Int, version: Long): Boolean = true
+        override fun togglePlaybackMode(): Boolean = true
+        override fun toggleDiagBadge(): Boolean = true
+        override fun notifyToolsOpened(page: Int): Boolean = true
+        override fun notifyToolsClosed(): Boolean = true
     }
 
     private data class Shot(val state: MinimalPlayerState, val artwork: MinimalArtwork)

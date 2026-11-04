@@ -22,6 +22,8 @@ fun MinimalPlayerSurface(
     /** 队列投影由宿主收集后传进来：抽屉归宿主，页面只负责画按钮。 */
     queue: MinimalQueue,
     onOpenQueue: () -> Unit,
+    /** 打开宿主的工具页（quality / effects / lyrics）。音质/效果器/歌词不再走 WebView 弹窗。 */
+    onOpenTools: (String) -> Unit = {},
     light: Boolean,
     safeTop: Float,
     safeBottom: Float,
@@ -37,6 +39,7 @@ fun MinimalPlayerSurface(
         commands = commands,
         queue = queue,
         onOpenQueue = onOpenQueue,
+        onOpenTools = onOpenTools,
         light = light,
         safeTop = safeTop,
         safeBottom = safeBottom,

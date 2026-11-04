@@ -279,8 +279,7 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
      * 轻量当前曲/播放模式通道：切歌不改队列数组，整包（几百首）不该每切一首都过桥。
      * JS 在「版本没变但当前曲或模式变了」时只推这一小包。
      */
-    fun onQueueCurrent(value: JSONObject) {
-        val current = _queue.value
+    fun onQueueCurrent(value: JSONObject) {        val current = _queue.value
         if (current.items.isEmpty()) return
         val version = value.optLong("v", current.version)
         if (version < current.version) return // 过期包：队列已经更新过，丢弃。
@@ -297,6 +296,32 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
             currentKey = key,
             mode = mode ?: current.mode,
         )
+    }
+
+    /**
+     * 工具页（音质/效果器/歌词工具/洛雪音源）的状态流。只有页面打开期间 JS 才会推。
+     * 版本倒退的包丢弃 —— 与队列同一套乱序保护。
+     */
+    private val _tools = MutableStateFlow(MinimalTools())
+    val tools: StateFlow<MinimalTools> = _tools.asStateFlow()
+
+    fun onToolsSnapshot(value: JSONObject): Boolean {
+        val next = MinimalTools.parse(value)
+        if (next == null) {
+            android.util.Log.w("TingyuTools", "tools snapshot rejected: unparseable")
+            return false
+        }
+        val current = _tools.value
+        if (next.version < current.version) {
+            android.util.Log.d("TingyuTools", "tools stale v=${next.version} < ${current.version}")
+            return true
+        }
+        _tools.value = next
+        return true
+    }
+
+    fun clearTools() {
+        _tools.value = MinimalTools()
     }
 
     @Volatile

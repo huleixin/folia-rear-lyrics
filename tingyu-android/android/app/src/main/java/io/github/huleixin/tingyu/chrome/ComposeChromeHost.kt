@@ -86,6 +86,19 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         minimal.onQueueCurrent(value)
     }
 
+    /** 工具页快照。版本倒退丢弃，与队列同一套乱序保护。 */
+    fun minimalTools(value: JSONObject): Boolean = minimal.onToolsSnapshot(value)
+
+    /** WebView 侧入口要的工具页编号 → 宿主页面名。 */
+    fun openNativeTools(page: Int) {
+        when (page) {
+            1 -> openNativeTools("quality")
+            2 -> openNativeTools("effects")
+            3 -> openNativeTools("lyrics")
+            4 -> openNativeTools("lx")
+        }
+    }
+
     /** 上一次桥帧接受状态的日志去重：只在状态或原因变化时打一条。 */
     private var lastFrameAccept: Boolean? = null
 
@@ -149,6 +162,36 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         queueOpen=true
         // 打开时立刻要一份新快照；JS 那边注册过处理器才有数据。
         minimalCommands.requestQueue()
+    }
+
+    /**
+     * 原生工具页（音质/效果器/歌词工具/洛雪音源）的开合。第 11 轮。
+     * 与队列同模式：宿主级状态，任何页面都能打开同一张页；这些页**不走 WebView**，
+     * 所以极简页不再因为打开它们而让位/回退 —— 打开前先把上一个工具页收起来。
+     */
+    private var toolsPage by mutableStateOf("")
+    /** 工具页打开时的路由；路由变了就收（从歌曲工具进播放设置的场景）。 */
+    private var toolsRoute by mutableStateOf("stage")
+    private val toolActions = io.github.huleixin.tingyu.minimal.BridgeToolActions(
+        sender = { action, value ->
+            val session = minimal.session()
+            if (session.isEmpty()) false
+            else { listener.onAction("minimal", session, action, value); true }
+        },
+        availability = { minimal.bridgeLive() },
+    )
+    fun openNativeTools(page: String) {
+        if (toolsPage == page) return
+        // 一次只叠一个工具页；从音质进效果器/洛雪是替换，不是叠加。
+        toolsPage = page
+        toolsRoute = destination
+        val index = when (page) { "quality" -> 1; "effects" -> 2; "lyrics" -> 3; "lx" -> 4; else -> 0 }
+        if (index > 0) minimalCommands.notifyToolsOpened(index)
+    }
+    fun closeNativeTools() {
+        if (toolsPage.isEmpty()) return
+        toolsPage = ""
+        minimalCommands.notifyToolsClosed()
     }
     fun collapseStage(reply:()->Unit){if(destination!="stage"||webOverlay){reply();return};stageExit.begin(retained.lastBrowsing(),reply)}
     private var presented by mutableStateOf<NativePage?>(null)
@@ -218,6 +261,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val routeChanged=next!=destination||value.optString("pageTarget")!=pageTarget||value.optString("entryKey")!=entryKey||value.optInt("selectedTab").coerceIn(0,1)!=selectedTab
         playerPresentation=if(value.optString("playerPresentation")=="minimal")"minimal"else"stage"
         destination=next;webOverlay=value.optBoolean("webOverlay");selectedTab=value.optInt("selectedTab").coerceIn(0,1)
+        // 工具页跟着打开它的路由走：路由一变（比如从歌曲工具进"播放设置"）就收起来，
+        // 返回时再由用户重新打开 —— 工具页绝不叠在别的原生页上面。
+        if(toolsPage.isNotEmpty()&&next!="stage"&&toolsRoute=="stage")closeNativeTools()
+        if(toolsPage.isNotEmpty())toolsRoute=next
         syncWebBackground()
         pageTarget=value.optString("pageTarget");entryKey=value.optString("entryKey");reducedMotion=value.optBoolean("reducedMotion")
         navigation=value.optString("navigation")
@@ -491,6 +538,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     commands = minimalCommands,
                     queue = queueState,
                     onOpenQueue = { openNativeQueue() },
+                    onOpenTools = { page -> openNativeTools(page) },
                     light = interfaceLight,
                     safeTop = safeTop,
                     safeBottom = safeBottom,
@@ -511,6 +559,32 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     onReorder={from,to -> minimalCommands.queueReorder(from,to,queueState.version)},
                     onToggleMode={minimalCommands.togglePlaybackMode()},
                 )
+            }
+            // 工具页（音质/效果器/歌词工具/洛雪）：宿主级，叠在队列之下不冲突 ——
+            // 打开前已互斥收起，歌词工具的“队列”标签也会先收自己再开队列。
+            if(toolsPage.isNotEmpty())Box(Modifier.fillMaxSize().zIndex(6f)){
+                val toolsState by minimal.tools.collectAsState()
+                when(toolsPage){
+                    "quality"->io.github.huleixin.tingyu.minimal.ui.MinimalQualitySheet(
+                        tools=toolsState,light=interfaceLight,actions=toolActions,
+                        onClose={closeNativeTools()},
+                        onOpenEffects={openNativeTools("effects")},
+                        onOpenLx={openNativeTools("lx")},
+                    )
+                    "effects"->io.github.huleixin.tingyu.minimal.ui.MinimalEffectsSheet(
+                        tools=toolsState,light=interfaceLight,actions=toolActions,
+                        onClose={closeNativeTools()},
+                    )
+                    "lyrics"->io.github.huleixin.tingyu.minimal.ui.MinimalLyricsToolsSheet(
+                        tools=toolsState,light=interfaceLight,actions=toolActions,transport=minimalCommands,
+                        onClose={closeNativeTools()},
+                        onOpenQueue={closeNativeTools();openNativeQueue()},
+                    )
+                    "lx"->io.github.huleixin.tingyu.minimal.ui.MinimalLxSheet(
+                        tools=toolsState,light=interfaceLight,actions=toolActions,
+                        onClose={closeNativeTools()},
+                    )
+                }
             }
             if(stageExit.active)Box(Modifier.fillMaxSize().zIndex(4f).pointerInput(Unit){awaitPointerEventScope{while(true)awaitPointerEvent().changes.forEach{it.consume()}}})
             if(graphics.enabled)Text("N · 记闪烁",color=Color(0xFFB8FFE3),fontSize=10.sp,

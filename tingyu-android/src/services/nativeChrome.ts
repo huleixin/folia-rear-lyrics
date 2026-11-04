@@ -44,6 +44,17 @@ export const chromeNative = registerPlugin<{
      * Android 上不再有第二个队列界面。
      */
     openMinimalQueue(): Promise<void>;
+    /**
+     * 原生工具页（音质/效果器/歌词工具/洛雪音源）的状态快照。
+     * 只在某个工具页打开期间推；对账没变化就零字节。第 11 轮起替代 WebView 弹窗。
+     */
+    minimalTools(snapshot: import('./nativeMinimalTools').NativeToolsSnapshot): Promise<{ accepted: boolean }>;
+    /**
+     * 让原生打开某个工具页。WebView 侧的入口（舞台菜单、迷你播放器）在 Compose 桥可用时
+     * 都走这里 —— 不再打开 WebView 弹窗，也就不再触发极简页的让位与回退。
+     * page: 1=音质 2=效果器 3=歌词工具 4=洛雪音源。
+     */
+    openMinimalTools(value: { page: number }): Promise<void>;
     /** Hand the minimal player surface back to the WebView (session-scoped). */
     minimalPlayerRelease(value:{session:string}): Promise<void>;
     clock(value:{id:ChromeSurfaceId;session:string;trackKey:string;position:number}):Promise<void>;

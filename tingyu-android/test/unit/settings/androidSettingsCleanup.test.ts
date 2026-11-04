@@ -74,13 +74,15 @@ describe('Android settings cleanup boundaries', () => {
         debug.available = true; act(() => root.render(h(DeveloperSettingsSubview, props)));
         expect(host.textContent).toContain('options.debugLogsToFile'); expect(host.textContent).toContain('options.memoryMonitor');
     });
-    it('removes the stage command entry and preserves real lyrics/audio actions', () => {
+    it('removes the stage command entry and preserves real lyrics/audio actions', async () => {
         const close = vi.fn(); act(() => root.render(h(MobileStageMenu, { onClose: close })));
         // Four original destinations plus the queue, which the minimal player page has no room for
         // in its own transport row.
         expect(host.querySelectorAll('[role="menuitem"]')).toHaveLength(5);
         expect(host.textContent).not.toContain('mobileStage.commands');
+        // 第 11 轮：歌词入口先问原生工具页（openNativeToolPage 异步），无原生环境时回退面板。
         act(() => host.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')[2].click());
+        await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
         expect(useAppViewStore.getState().panelTab).toBe('onlineLyrics');
         expect(useAppViewStore.getState().isPanelOpen).toBe(true); expect(close).toHaveBeenCalledOnce();
     });

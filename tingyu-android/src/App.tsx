@@ -65,6 +65,8 @@ import {
 import { usePlayerPanelModel } from './components/app/player-panel/usePlayerPanelModel';
 import { createQueueMutations } from './components/app/player-panel/createQueueMutations';
 import { registerNativeQueue } from './services/nativeMinimalQueue';
+import { registerNativeTools, type NativeToolsHandlers } from './services/nativeMinimalTools';
+import { useAudioToolsStore } from './stores/useAudioToolsStore';
 import { Album, Artist, LyricData, Theme, PlayerState, SongResult, ReplayGainMode, StatusMessage, PlaybackContext, StageLoopMode, UnifiedSong } from './types';
 import type { LocalSong } from './types';
 import { getLocalSongArrayBuffer } from './services/localMusicService';
@@ -2400,6 +2402,38 @@ export default function App() {
         registerNativeQueue(stableNativeQueueHandlers);
         return () => registerNativeQueue(null);
     }, [stableNativeQueueHandlers]);
+
+    // 原生工具页（音质/效果器/歌词工具/洛雪音源）的处理器：与队列同架构 —— **只注册一次**，
+    // ref 转发最新面板模型；歌词动作与 WebView 歌词工具走同一批函数，不复制业务。
+    const nativeToolsRef = useRef(playerPanelModel.panelProps);
+    nativeToolsRef.current = playerPanelModel.panelProps;
+    const stableNativeToolsHandlers = useMemo<NativeToolsHandlers>(() => ({
+        switchQuality: (quality: 'standard' | 'high' | 'lossless' | 'hires') => {
+            useAudioToolsStore.getState().switchQuality(quality);
+        },
+        lyrics: {
+            get currentSong() { return usePlaybackStore.getState().currentSong; },
+            get onlineLyricsState() { return nativeToolsRef.current.playback.onlineLyricsState; },
+            get lyricTimelineOffsetMs() { return nativeToolsRef.current.playback.lyricTimelineOffsetMs; },
+            onChangeLyricsSource: (source: 'local' | 'embedded' | 'online') =>
+                nativeToolsRef.current.playback.onChangeLyricsSource(source),
+            onChangeOnlineLyricsSource: (source: 'online' | 'imported') =>
+                nativeToolsRef.current.playback.onChangeOnlineLyricsSource(source),
+            onMatchOnline: () => nativeToolsRef.current.playback.onMatchOnline(),
+            onMatchOnlineLyrics: () => nativeToolsRef.current.playback.onMatchOnlineLyrics(),
+            onUpdateLocalLyrics: (content: string, translation: boolean, name: string) =>
+                nativeToolsRef.current.playback.onUpdateLocalLyrics(content, translation, name),
+            onImportOnlineLyrics: (content: string, name: string) =>
+                nativeToolsRef.current.playback.onImportOnlineLyrics(content, name),
+            onClearOnlineLyricsState: () => nativeToolsRef.current.playback.onClearOnlineLyricsState(),
+            onLyricTimelineOffsetChange: (offsetMs: number) =>
+                nativeToolsRef.current.playback.onLyricTimelineOffsetChange(offsetMs),
+        } as NativeToolsHandlers['lyrics'],
+    }), []);
+    useEffect(() => {
+        registerNativeTools(stableNativeToolsHandlers);
+        return () => registerNativeTools(null);
+    }, [stableNativeToolsHandlers]);
     // Which front-stage presentation is on screen. `detour` is a visit to the classic stage from the
     // minimal lyric page: it renders the stage without rewriting the listener's saved preference, and
     // leaving it returns to the minimal page instead of quitting the player.

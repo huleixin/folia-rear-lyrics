@@ -6,6 +6,7 @@ import android.os.SystemClock
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import io.github.huleixin.tingyu.minimal.MinimalArtwork
@@ -166,6 +167,8 @@ class MinimalParityTest {
         override fun queueReorder(from: Int, to: Int, version: Long): Boolean = true
         override fun togglePlaybackMode(): Boolean = true
         override fun toggleDiagBadge(): Boolean = true
+        override fun notifyToolsOpened(page: Int): Boolean = true
+        override fun notifyToolsClosed(): Boolean = true
     }
 
     private fun render(name: String, light: Boolean, safeTop: Float, safeBottom: Float) {
@@ -275,4 +278,96 @@ class MinimalParityTest {
 
     @Test
     fun coverLight() = render("cover-light", light = true, safeTop = 52f, safeBottom = 24f)
+
+    // ---- 第 11 轮：工具页（音质 / 效果器 / 歌词工具 / 洛雪音源）----
+
+    private val stubToolActions = object : io.github.huleixin.tingyu.minimal.MinimalToolActions {
+        override val available: Boolean = true
+        override fun send(action: String, value: Double): Boolean = true
+    }
+
+    private fun sampleTools(page: String) = io.github.huleixin.tingyu.minimal.MinimalTools(
+        version = 3,
+        page = page,
+        quality = io.github.huleixin.tingyu.minimal.MinimalQualityState(
+            current = "lossless", currentLabel = "无损", actual = "无损", switching = false, error = "", local = false,
+        ),
+        effects = io.github.huleixin.tingyu.minimal.MinimalEffectsState(
+            enabled = true, preset = "custom1",
+            gains = listOf(0, 0, -1, 0, 0, 0, 2, 3, 1, 0),
+            effectValues = listOf(20f, 20000f, 0f, 0f, 0f, 0f, 1f, 0f, 0f),
+        ),
+        lyrics = io.github.huleixin.tingyu.minimal.MinimalLyricsState(
+            title = "戒网", artist = "村西 · 玉馨悦",
+            sources = listOf("online" to "平台歌词", "imported" to "导入歌词"),
+            selected = "online", offsetMs = 250, message = "",
+        ),
+        lx = io.github.huleixin.tingyu.minimal.MinimalLxState(
+            activeName = "示例音源",
+            scripts = listOf(
+                io.github.huleixin.tingyu.minimal.MinimalLxScript(
+                    id = "s1", name = "示例音源.js", meta = "v1.2 · demo", active = true,
+                    caps = listOf("网易" to "标准 / 无损", "咪咕" to "标准 / 高品质"),
+                ),
+            ),
+            message = "", failed = false,
+        ),
+    )
+
+    private fun renderTool(name: String, block: @Composable () -> Unit) {
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            androidx.compose.foundation.layout.Box(
+                androidx.compose.ui.Modifier
+                    .fillMaxSize()
+                    .background(androidx.compose.ui.graphics.Color(0xFF152528))
+            ) { block() }
+        }
+        compose.mainClock.advanceTimeByFrame()
+        compose.mainClock.advanceTimeByFrame()
+        val view = compose.activity.window.decorView
+        val shot = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+        view.draw(android.graphics.Canvas(shot))
+        outDir.mkdirs()
+        FileOutputStream(File(outDir, "$name.png")).use { shot.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        println("PARITY_SHOT=$name ${shot.width}x${shot.height}")
+    }
+
+    @Test
+    fun qualitySheet() = renderTool("tools-quality") {
+        io.github.huleixin.tingyu.minimal.ui.MinimalQualitySheet(
+            tools = sampleTools("quality"), light = false, actions = stubToolActions,
+            onClose = {}, onOpenEffects = {}, onOpenLx = {},
+        )
+    }
+
+    @Test
+    fun qualitySheetLight() = renderTool("tools-quality-light") {
+        io.github.huleixin.tingyu.minimal.ui.MinimalQualitySheet(
+            tools = sampleTools("quality"), light = true, actions = stubToolActions,
+            onClose = {}, onOpenEffects = {}, onOpenLx = {},
+        )
+    }
+
+    @Test
+    fun effectsSheet() = renderTool("tools-effects") {
+        io.github.huleixin.tingyu.minimal.ui.MinimalEffectsSheet(
+            tools = sampleTools("effects"), light = false, actions = stubToolActions, onClose = {},
+        )
+    }
+
+    @Test
+    fun lyricsToolsSheet() = renderTool("tools-lyrics") {
+        io.github.huleixin.tingyu.minimal.ui.MinimalLyricsToolsSheet(
+            tools = sampleTools("lyrics"), light = false, actions = stubToolActions,
+            transport = commands, onClose = {}, onOpenQueue = {},
+        )
+    }
+
+    @Test
+    fun lxSheet() = renderTool("tools-lx") {
+        io.github.huleixin.tingyu.minimal.ui.MinimalLxSheet(
+            tools = sampleTools("lx"), light = false, actions = stubToolActions, onClose = {},
+        )
+    }
 }

@@ -46,6 +46,26 @@ object MinimalActions {
     const val PLAYBACK_MODE = "playbackMode"
     /** 拖拽排序：value 编码 from:to，第二段在 session 里带不上，改用 action 参数。 */
     const val QUEUE_REORDER = "queueReorder"
+    /** 工具页开/关通知（host → JS）。value: 1音质 2效果器 3歌词 4洛雪；关页发 TOOLS_CLOSE。 */
+    const val TOOLS_OPEN = "toolsOpen"
+    const val TOOLS_CLOSE = "toolsClose"
+    /** 工具页动作（native → JS）。与现有动作集互不重叠。 */
+    const val QUALITY_PICK = "qualityPick"
+    const val EFFECTS_TOGGLE = "effectsToggle"
+    const val EFFECTS_PRESET = "effectsPreset"
+    const val EFFECTS_RESET_CUSTOM = "effectsResetCustom"
+    const val EFFECTS_BAND = "effectsBand"
+    const val EFFECTS_PARAM = "effectsParam"
+    const val LYRICS_SOURCE = "lyricsSource"
+    const val LYRICS_MATCH = "lyricsMatch"
+    const val LYRICS_IMPORT = "lyricsImport"
+    const val LYRICS_OFFSET = "lyricsOffset"
+    const val LYRICS_CLEAR_ONLINE = "lyricsClearOnline"
+    const val LX_IMPORT = "lxImport"
+    const val LX_TEST = "lxTest"
+    const val LX_ACTIVATE = "lxActivate"
+    const val LX_RESTORE = "lxRestore"
+    const val LX_REMOVE = "lxRemove"
 }
 
 interface MinimalPlayerCommands {
@@ -95,6 +115,12 @@ interface MinimalPlayerCommands {
     /** 四态播放模式循环：顺序 → 列表循环 → 单曲循环 → 随机。复用现有 store 动作。 */
     fun togglePlaybackMode(): Boolean
 
+    /** 告诉 JS 某个工具页打开了（page: 1音质 2效果器 3歌词 4洛雪），让它推快照。 */
+    fun notifyToolsOpened(page: Int): Boolean
+
+    /** 告诉 JS 工具页都关了，停止推送。 */
+    fun notifyToolsClosed(): Boolean
+
     /** 翻转渲染来源诊断角标（走桥交给 JS 开关，下一帧带回 diag 状态）。 */
     fun toggleDiagBadge(): Boolean
 }
@@ -141,6 +167,8 @@ class BridgeMinimalCommands(
     override fun queueMoveEnd(index: Int): Boolean = send(MinimalActions.QUEUE_END, index.toDouble())
     override fun toggleDiagBadge(): Boolean = send(MinimalActions.DIAG_BADGE, 0.0)
     override fun togglePlaybackMode(): Boolean = send(MinimalActions.PLAYBACK_MODE, 0.0)
+    override fun notifyToolsOpened(page: Int): Boolean = send(MinimalActions.TOOLS_OPEN, page.toDouble())
+    override fun notifyToolsClosed(): Boolean = send(MinimalActions.TOOLS_CLOSE, 0.0)
 
     override fun queueReorder(from: Int, to: Int, version: Long): Boolean {
         if (from < 0 || to < 0) return false
@@ -149,6 +177,33 @@ class BridgeMinimalCommands(
     }
 
     private fun send(action: String, value: Double): Boolean {
+        if (!available) return false
+        return try {
+            sender.send(action, value)
+        } catch (_: Throwable) {
+            false
+        }
+    }
+}
+
+/**
+ * 工具页（音质/效果器/歌词/洛雪）的动作出口。与极简页的 [MinimalPlayerCommands] 走同一条
+ * `minimal` 动作总线，但动作集互不重叠 —— 工具页是宿主级的，从任何页面打开都存在。
+ */
+interface MinimalToolActions {
+    val available: Boolean
+
+    /** value 编码见 JS `runNativeToolsAction` 的注释。 */
+    fun send(action: String, value: Double): Boolean
+}
+
+class BridgeToolActions(
+    private val sender: MinimalCommandSender,
+    private val availability: () -> Boolean,
+) : MinimalToolActions {
+    override val available: Boolean get() = availability()
+
+    override fun send(action: String, value: Double): Boolean {
         if (!available) return false
         return try {
             sender.send(action, value)

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import './mobileStageMenu.css';
 import { useAppViewStore } from '../../../../stores/useAppViewStore';
 import { openNativeQueueSheet } from '../../../../services/nativeMinimalQueue';
+import { openNativeToolPage } from '../../../../services/nativeMinimalTools';
 import { openSettings } from '../../../../stores/useSettingsModalStore';
 import { useAudioSettingsStore } from '../../../../stores/useAudioSettingsStore';
 import { useAudioToolsStore, QUALITY_LABELS } from '../../../../stores/useAudioToolsStore';
@@ -59,6 +60,12 @@ export default function MobileStageMenu({
         onClose();
         action();
     };
+    // Android + Compose 桥可用时，这四个工具都开**原生页**（第 11 轮）；否则回退原 WebView 弹窗。
+    // 原生页不占 WebView，也不触发极简页让位 —— 弹窗被遮挡/双开那类问题从根上消失。
+    const runNative = (page: 'quality' | 'effects' | 'lyrics', fallback: () => void) => {
+        onClose();
+        void openNativeToolPage(page).then(handled => { if (!handled) fallback(); });
+    };
     return (
         <div
             ref={ref}
@@ -68,17 +75,17 @@ export default function MobileStageMenu({
             data-native-chrome-overlay="nonblocking"
             className="mps-menu"
         >
-            <button role="menuitem" onClick={() => run(() => useAudioToolsStore.getState().show())}>
+            <button role="menuitem" onClick={() => runNative('quality', () => useAudioToolsStore.getState().show())}>
                 <AudioLines size={18} />
                 <span className="mps-menu-label">{t('mobileStage.audioQuality')}</span>
                 <span className="mps-menu-value">{QUALITY_LABELS[quality]}</span>
             </button>
-            <button role="menuitem" onClick={() => run(() => useAudioSettingsStore.getState().openAudioEqualizer())}>
+            <button role="menuitem" onClick={() => runNative('effects', () => useAudioSettingsStore.getState().openAudioEqualizer())}>
                 <SlidersHorizontal size={18} />
                 <span className="mps-menu-label">{t('mobileStage.audioEffects')}</span>
                 <span className="mps-menu-value">{t(effectsEnabled ? 'mobileStage.effectsOn' : 'mobileStage.effectsOff')}</span>
             </button>
-            <button role="menuitem" onClick={() => run(() => { const state=useAppViewStore.getState();state.setPanelTab('onlineLyrics');state.setIsPanelOpen(true); })}>
+            <button role="menuitem" onClick={() => runNative('lyrics', () => { const state=useAppViewStore.getState();state.setPanelTab('onlineLyrics');state.setIsPanelOpen(true); })}>
                 <Captions size={18} />
                 {t('localMusic.lyrics')}
             </button>

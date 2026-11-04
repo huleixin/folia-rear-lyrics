@@ -119,6 +119,24 @@ public class TingyuChromePlugin extends Plugin {
         });
     }
 
+    /** 工具页（音质/效果器/歌词工具/洛雪音源）的状态快照。只在页面打开期间推。 */
+    @PluginMethod public void minimalTools(PluginCall call) {
+        final org.json.JSONObject snapshot = call.getData();
+        getActivity().runOnUiThread(() -> {
+            try { boolean ok = host != null && host.minimalTools(snapshot); call.resolve(new JSObject().put("accepted", ok)); }
+            catch (Exception error) { call.reject(error.getMessage(), error); }
+        });
+    }
+
+    /** WebView 侧入口（舞台菜单/迷你播放器）：让宿主打开原生工具页，替代 WebView 弹窗。 */
+    @PluginMethod public void openMinimalTools(PluginCall call) {
+        final int page = call.getInt("page", 1);
+        getActivity().runOnUiThread(() -> {
+            try { if (host != null) host.openNativeTools(page); call.resolve(); }
+            catch (Exception error) { call.reject(error.getMessage(), error); }
+        });
+    }
+
     @PluginMethod public void minimalPlayerFrame(PluginCall call) {
         final org.json.JSONObject frame = call.getData();
         getActivity().runOnUiThread(() -> {

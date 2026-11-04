@@ -74,6 +74,8 @@ fun MinimalPlayerScreen(
     queue: io.github.huleixin.tingyu.minimal.MinimalQueue = io.github.huleixin.tingyu.minimal.MinimalQueue(),
     /** 打开宿主的队列抽屉。极简页自己不再持有抽屉状态。 */
     onOpenQueue: () -> Unit = {},
+    /** 打开宿主的工具页："quality" | "effects" | "lyrics"。不再发 JS 开 WebView 弹窗。 */
+    onOpenTools: (String) -> Unit = {},
     light: Boolean,
     safeTop: Float,
     safeBottom: Float,
@@ -100,12 +102,26 @@ fun MinimalPlayerScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     val still = remember(context) { reducedMotion(context) }
 
-    // 抽屉归宿主所有；这里只把"列表按钮"接到它的开门动作上。
+    // 抽屉与工具页归宿主所有；这里只把入口按钮接到它们的开门动作上。
     // 之前这里裸用 `commands`，于是底部的列表按钮走的是另一条路 —— 同一个页面两套行为。
+    // 第 11 轮：菜单的音质/效果器/歌词也改开原生工具页 —— 走 JS 开 WebView 弹窗会把
+    // 原生页埋掉，还要触发一次让位/回退的抖动。
     val sheetCommands = remember(commands, onOpenQueue) {
         object : MinimalPlayerCommands by commands {
             override fun openQueue(): Boolean {
                 onOpenQueue()
+                return true
+            }
+            override fun openAudioQuality(): Boolean {
+                onOpenTools("quality")
+                return true
+            }
+            override fun openAudioEffects(): Boolean {
+                onOpenTools("effects")
+                return true
+            }
+            override fun openLyricsPanel(): Boolean {
+                onOpenTools("lyrics")
                 return true
             }
         }
@@ -149,6 +165,7 @@ fun MinimalPlayerScreen(
                 onLyricsPage = page == 1,
                 commands = commands,
                 onOpenQueue = onOpenQueue,
+                onOpenTools = onOpenTools,
                 onCollapse = onCollapse,
                 onOpenStage = onOpenStage,
             )
@@ -170,7 +187,7 @@ fun MinimalPlayerScreen(
                         active = page == 0,
                         still = still,
                         onOpenLyrics = { scope.launch { pagerState.animateScrollToPage(1) } },
-                        onAudioTools = { commands.openAudioQuality() },
+                        onAudioTools = { onOpenTools("quality") },
                         // 拖动时封面向反方向漂一点点（CSS 的 parallax），只动图层不重画。
                         parallax = {
                             if (pagerState.currentPage == 0) -pagerState.currentPageOffsetFraction * 22f else 0f
@@ -236,6 +253,7 @@ private fun TopBar(
     ink: MinimalInk,
     base: Color,
     onOpenQueue: () -> Unit,
+    onOpenTools: (String) -> Unit,
     liked: Boolean,
     qualityMode: String,
     effectsOn: Boolean,
@@ -300,10 +318,12 @@ private fun TopBar(
                             onPick = { pick ->
                                 menuOpen = false
                                 when (pick) {
-                                    0 -> commands.openAudioQuality()
-                                    1 -> commands.openAudioEffects()
-                                    2 -> commands.openLyricsPanel()
+                                    0 -> onOpenTools("quality")
+                                    1 -> onOpenTools("effects")
+                                    2 -> onOpenTools("lyrics")
                                     3 -> onOpenQueue()
+                                    // 播放设置走既有设置文档路由：设置弹窗本身已被
+                                    // NativeSettingsDocumentView 原生复刻渲染，不重复开发。
                                     else -> commands.openPlaybackSettings()
                                 }
                             },
