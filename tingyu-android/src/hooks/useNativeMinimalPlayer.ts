@@ -13,6 +13,7 @@ import { resolveQualityBadges } from '../components/app/overlays/minimal-stage/m
 import { buildMinimalPalette } from '../components/app/overlays/minimal-stage/minimalPalette';
 import { useCoverColors } from '../components/app/overlays/minimal-stage/useCoverPalette';
 import { canUseComposeChrome, chromeNative } from '../services/nativeChrome';
+import { minimalSourceBadgeEnabled, setMinimalSourceBadge } from '../services/minimalSourceDiagnostics';
 import { readNativeQueue, runNativeQueueAction } from '../services/nativeMinimalQueue';
 import {
     addMinimalPlayerActionListener,
@@ -41,6 +42,18 @@ type StageChrome = NonNullable<AppOverlaysModel['mobileStage']>;
 /** A frame per second keeps native's fallback clock honest without touching the frame rate. */
 const PUBLISH_INTERVAL_MS = 1000;
 const MAX_CONSECUTIVE_FAILURES = 3;
+
+/**
+ * 所有权日志。真机上要回答「这一屏是谁画的、为什么换的手」，
+ * 全链路只有这几个事件点，每条都带时间戳和原因 —— 不靠外观猜。
+ * logcat 过滤 `minimal-ownership`；原生侧配对的是 `TingyuMinimal`。
+ */
+const ownershipLog = (event: string, detail: string): void => {
+    const at = typeof performance !== 'undefined' && performance.timeOrigin
+        ? new Date(performance.timeOrigin + performance.now()).toISOString().slice(11, 23)
+        : new Date().toISOString().slice(11, 23);
+    console.info(`[minimal-ownership] ${at} ${event} ${detail}`);
+};
 
 export type NativeMinimalPlayer = {
     /** True once native has acknowledged a frame: the WebView minimal page may unmount. */
@@ -83,6 +96,8 @@ export function useNativeMinimalPlayer({
     controls?: Controls | null;
 }): NativeMinimalPlayer {
     const [owns, setOwns] = useState(false);
+    /** 与 `owns` 同步的镜像：publish 回调里要读上一次的值，state 会读到过期快照。 */
+    const ownsRef = useRef(false);
     const latest = useRef({ chrome, controls });
     latest.current = { chrome, controls };
 
@@ -174,12 +189,16 @@ export function useNativeMinimalPlayer({
             liked: !!likeContext?.isLiked,
             likeDisabled: !likeContext || !!likeContext.likeDisabled,
             detour: usePlayerViewModeStore.getState().detour || webOverlayOpen(),
+            // 渲染来源诊断角标：开关在控制台 `__tingyuMinimalSource()`。真机验收后随模块一起删。
+            diag: minimalSourceBadgeEnabled(),
             palette: paletteRef.current,
         };
     }, []);
 
     useEffect(() => {
         if (!enabled) {
+            if (ownsRef.current) ownershipLog('release', 'enabled=false（WebView 面板打开或已离开极简页）→ 原生停画，交回 WebView');
+            ownsRef.current = false;
             setOwns(false);
             publishedTrackKey.current = '';
             sessionRef.current = '';
@@ -192,23 +211,55 @@ export function useNativeMinimalPlayer({
         let failures = 0;
         const session = beginMinimalPlayerSession();
         sessionRef.current = session;
+        ownershipLog('session', `新会话 ${session.slice(0, 8)}（尝试握手 Compose）`);
 
         const publish = async () => {
             if (disposed || !sessionRef.current) return;
             const frame = buildFrame(sessionRef.current);
-            if (!frame) return;
+            if (!frame) {
+                // 控制还没就绪（进场竞速）时发不了帧；不计数，不算失败。
+                return;
+            }
             // Nothing is on screen while the app is backgrounded; keep the last frame instead of
             // spending a bridge call per second on a page nobody can see.
             if (typeof document !== 'undefined' && document.hidden && !frame.playing) return;
             const accepted = await publishMinimalPlayerFrame(frame);
             if (disposed) return;
             if (accepted) {
+                if (!ownsRef.current) {
+                    ownsRef.current = true;
+                    ownershipLog('own', `Compose 接管（桥帧被接受，track=${frame.trackKey.slice(0, 40)}）`);
+                }
                 failures = 0;
                 publishedTrackKey.current = frame.trackKey;
                 setOwns(true);
             } else {
-                failures += 1;
-                if (failures >= MAX_CONSECUTIVE_FAILURES) setOwns(false);
+                // 拒绝不是一种原因。三种情况三种处理，都不能误伤"正常听歌始终 Compose"：
+                const stageDetour = usePlayerViewModeStore.getState().detour;
+                if (stageDetour) {
+                    // 顺访完整歌词舞台：原生本来就不画极简页（舞台是 WebView），拒绝是预期。
+                    // 所有权保持，回来时无需重新握手 —— 这正是"退出舞台底栏消失"那类 bug 的反面。
+                    failures = 0;
+                } else if (webOverlayOpen()) {
+                    // WebView 弹层（音效对话框 / 面板 / 键盘窗）要显示：立即交回，不等三次失败。
+                    // 弹层关掉后下一帧被接受，Compose 自动接管（会有 own 日志）。
+                    if (ownsRef.current) {
+                        ownsRef.current = false;
+                        ownershipLog('handback', 'WebView 弹层打开 → 立即交回 WebView 画极简页当背景');
+                        setOwns(false);
+                    }
+                    failures = 0;
+                } else {
+                    failures += 1;
+                    ownershipLog('reject', `桥帧被拒 ${failures}/${MAX_CONSECUTIVE_FAILURES}（无弹层、无顺访，属异常）`);
+                    if (failures >= MAX_CONSECUTIVE_FAILURES) {
+                        if (ownsRef.current) {
+                            ownsRef.current = false;
+                            ownershipLog('fallback', '连续拒绝 → 回退 WebView 极简页（桥每秒仍在重试，恢复时会有 own 日志）');
+                        }
+                        setOwns(false);
+                    }
+                }
             }
         };
         publishRef.current = () => { void publish(); };
@@ -258,6 +309,12 @@ export function useNativeMinimalPlayer({
                 },
                 // 顺访舞台：交给 store 的既有语义（detour），退出由舞台自己 closeStage。
                 openStage: () => usePlayerViewModeStore.getState().openStage(),
+                // 长按页面指示点：翻转渲染来源角标。下一帧把 diag 带回原生，角标 ≤1s 出现。
+                toggleDiagBadge: () => {
+                    const next = !minimalSourceBadgeEnabled();
+                    setMinimalSourceBadge(next);
+                    ownershipLog('diag', `渲染来源角标 ${next ? '开启' : '关闭'}（长按指示点）`);
+                },
             });
             // A seek or a transport tap changes the position the next frame describes. On the
             // browser-audio channel this frame is native's only clock, so send it now instead of
@@ -266,7 +323,10 @@ export function useNativeMinimalPlayer({
         };
 
         void canUseComposeChrome().then(async supported => {
-            if (disposed || !supported) return;
+            if (disposed || !supported) {
+                if (!disposed) ownershipLog('unavailable', 'Compose 桥不可用（宿主未开 / probe 失败）→ 一直停在 WebView 极简页');
+                return;
+            }
             listener = await addMinimalPlayerActionListener(session, onAction);
             if (disposed) {
                 void listener?.remove();
@@ -275,7 +335,7 @@ export function useNativeMinimalPlayer({
             }
             void publish();
             timer = window.setInterval(() => { void publish(); }, PUBLISH_INTERVAL_MS);
-        }).catch(() => { /* The WebView minimal page stays mounted; nothing else to do. */ });
+        }).catch(() => { ownershipLog('unavailable', 'probe 抛错 → 停在 WebView 极简页'); });
 
         const onVisibility = () => { if (typeof document !== 'undefined' && !document.hidden) void publish(); };
         document.addEventListener('visibilitychange', onVisibility);
@@ -290,6 +350,8 @@ export function useNativeMinimalPlayer({
             void releaseMinimalPlayerSurface(sessionRef.current);
             sessionRef.current = '';
             publishRef.current = () => undefined;
+            if (ownsRef.current) ownershipLog('release', '卸载极简页 → 交回 WebView');
+            ownsRef.current = false;
             setOwns(false);
         };
     }, [enabled, buildFrame]);

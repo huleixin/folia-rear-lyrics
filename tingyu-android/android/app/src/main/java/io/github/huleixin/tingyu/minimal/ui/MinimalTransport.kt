@@ -413,17 +413,23 @@ private fun PlayPauseGlyph(playing: Boolean, color: Color, modifier: Modifier) {
     }
 }
 
-/** 分页点：跟随 pager 的位置，靠近的那个变长变亮。绘制阶段读位置，不触发重组。 */
+/** 分页点：跟随 pager 的位置，靠近的那个变长变亮。绘制阶段读位置，不触发重组。
+ *
+ * 长按任意一点：翻转渲染来源诊断角标（临时，验收后删）。角标状态由 JS 的 localStorage 持有，
+ * 经动作桥翻转后随下一帧回来 —— 两端（Compose / WebView）看同一个开关。
+ */
 @Composable
 fun PageDots(
     pageOffset: () -> Float,
     pageCount: Int,
     ink: MinimalInk,
     onSelect: (Int) -> Unit,
+    onLongPress: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier.fillMaxWidth().height(24.dp),
+        modifier.fillMaxWidth().height(24.dp)
+            .pointerInput(onLongPress) { detectTapGestures(onLongPress = { onLongPress() }) },
         horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {

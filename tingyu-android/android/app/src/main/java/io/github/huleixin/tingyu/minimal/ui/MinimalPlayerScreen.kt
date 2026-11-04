@@ -117,6 +117,19 @@ fun MinimalPlayerScreen(
     val page = pagerState.currentPage
 
     Box(modifier.fillMaxSize().background(Color(palette.base))) {
+        // 渲染来源角标（临时诊断，验收后删）：看到 "Compose" 就说明这一屏是原生画的。
+        if (state.controls.diag) {
+            Text(
+                "Compose",
+                color = Color(0xFFB8FFE3),
+                fontSize = 11.sp,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 10.dp, top = (safeTop + 6f).dp)
+                    .background(Color(0xDD09251C), RoundedCornerShape(999.dp))
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+            )
+        }
         MinimalAmbience(
             colors = paletteColors(palette),
             light = !dark,
@@ -190,6 +203,7 @@ fun MinimalPlayerScreen(
                 pageCount = PAGE_COUNT,
                 ink = ink,
                 onSelect = { target -> scope.launch { pagerState.animateScrollToPage(target) } },
+                onLongPress = { commands.toggleDiagBadge() },
                 modifier = Modifier.padding(top = 6.dp),
             )
         }

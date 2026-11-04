@@ -40,6 +40,8 @@ object MinimalActions {
     const val QUEUE_REMOVE = "queueRemove"
     const val QUEUE_NEXT = "queueNext"
     const val QUEUE_END = "queueEnd"
+    /** 渲染来源诊断角标（临时，验收后删）。长按页面指示点触发。 */
+    const val DIAG_BADGE = "diagBadge"
 }
 
 interface MinimalPlayerCommands {
@@ -82,6 +84,9 @@ interface MinimalPlayerCommands {
     fun queueRemove(index: Int): Boolean
     fun queueMoveNext(index: Int): Boolean
     fun queueMoveEnd(index: Int): Boolean
+
+    /** 翻转渲染来源诊断角标（走桥交给 JS 开关，下一帧带回 diag 状态）。 */
+    fun toggleDiagBadge(): Boolean
 }
 
 /**
@@ -124,6 +129,7 @@ class BridgeMinimalCommands(
     override fun queueRemove(index: Int): Boolean = send(MinimalActions.QUEUE_REMOVE, index.toDouble())
     override fun queueMoveNext(index: Int): Boolean = send(MinimalActions.QUEUE_NEXT, index.toDouble())
     override fun queueMoveEnd(index: Int): Boolean = send(MinimalActions.QUEUE_END, index.toDouble())
+    override fun toggleDiagBadge(): Boolean = send(MinimalActions.DIAG_BADGE, 0.0)
 
     private fun send(action: String, value: Double): Boolean {
         if (!available) return false

@@ -17,6 +17,7 @@ import { PlayerState } from '../../../../types';
 import { registerMinimalStageExit, runMinimalStageExit } from './minimalStageTransition';
 import { PREHIDE_COMPOSE_CHROME } from '../../../../services/nativeChrome';
 import { flushNativeShellRoute } from '../../../../services/nativeShellCommit';
+import { minimalSourceBadgeEnabled, setMinimalSourceBadge, subscribeMinimalSourceBadge } from '../../../../services/minimalSourceDiagnostics';
 import './minimalStage.css';
 
 // src/components/app/overlays/minimal-stage/MinimalStage.tsx
@@ -49,6 +50,28 @@ const FLING_SPEED = 0.35;
 const EDGE_GUARD_PX = 22;
 
 const easeOutCubic = (value: number) => 1 - (1 - value) ** 3;
+
+/**
+ * 渲染来源角标（临时诊断，真机验收后随 minimalSourceDiagnostics 一起删）。
+ * 这份是 WebView 极简页自己画的 —— 看到它就说明这一屏**不是** Compose。
+ */
+function MinimalSourceBadge() {
+    const [on, setOn] = useState(minimalSourceBadgeEnabled);
+    useEffect(() => subscribeMinimalSourceBadge(() => setOn(minimalSourceBadgeEnabled())), []);
+    if (!on) return null;
+    return (
+        <span
+            data-testid="minimal-source-badge"
+            style={{
+                position: 'fixed', left: 10, top: 'calc(env(safe-area-inset-top) + 6px)', zIndex: 60,
+                padding: '2px 8px', borderRadius: 999, fontSize: 11, lineHeight: '16px',
+                background: 'rgba(9,37,28,.78)', color: '#B8FFE3', pointerEvents: 'none',
+            }}
+        >
+            WebView
+        </span>
+    );
+}
 
 /** Theme colours, used until the artwork has been sampled. */
 const themeFallback = (theme: Controls['theme'] | undefined, light: boolean): CoverColors => {
@@ -391,6 +414,7 @@ export default function MinimalStage({
             data-chrome-hidden={chrome.hidden || undefined}
             data-still={still || undefined}
         >
+            <MinimalSourceBadge />
             <MinimalAmbience palette={palette} paused={paused} still={still} />
 
             <header className="min-top">
@@ -507,7 +531,29 @@ export default function MinimalStage({
 
             {controls && <MinimalTransport controls={controls} active={!hidden && !underStage} />}
 
-            <div className="min-dots" role="tablist" aria-label={t('minimalStage.pages')}>
+            {/* 长按任意分页点：翻转渲染来源角标（临时诊断，与 Compose 页同一手势同一开关）。 */}
+            <div
+                className="min-dots"
+                role="tablist"
+                aria-label={t('minimalStage.pages')}
+                style={{ touchAction: 'pan-y' }}
+                onPointerDown={event => {
+                    if (!event.isPrimary) return;
+                    const timer = window.setTimeout(() => {
+                        const next = !minimalSourceBadgeEnabled();
+                        setMinimalSourceBadge(next);
+                        // eslint-disable-next-line no-console
+                        console.info(`[minimal-ownership] ${new Date().toISOString().slice(11, 23)} diag 渲染来源角标 ${next ? '开启' : '关闭'}（长按指示点）`);
+                    }, 550);
+                    const cancel = () => {
+                        window.clearTimeout(timer);
+                        window.removeEventListener('pointerup', cancel);
+                        window.removeEventListener('pointercancel', cancel);
+                    };
+                    window.addEventListener('pointerup', cancel);
+                    window.addEventListener('pointercancel', cancel);
+                }}
+            >
                 {PAGES.map((id, index) => (
                     <button
                         key={id}

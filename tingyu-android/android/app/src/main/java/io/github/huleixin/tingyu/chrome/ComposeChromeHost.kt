@@ -66,7 +66,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         },
         { minimal.bridgeLive() },
     )
-    init { minimal.start() }
+    init { minimal.start()
+        if (!minimalPlayerEnabled()) android.util.Log.w("TingyuMinimal",
+            "COMPOSE_MINIMAL_PLAYER=false — 极简页停在 WebView（回滚开关 TINGYU_COMPOSE_MINIMAL）")
+    }
     /** JS 侧只在 probe 说 true 时才让出极简页；这里是唯一的判定点。 */
     private fun minimalPlayerEnabled(): Boolean =
         io.github.huleixin.tingyu.BuildConfig.COMPOSE_MINIMAL_PLAYER && Build.VERSION.SDK_INT >= 24
@@ -79,9 +82,25 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
      */
     fun minimalQueue(value: JSONObject): Boolean = minimal.onQueueSnapshot(value)
 
+    /** 上一次桥帧接受状态的日志去重：只在状态或原因变化时打一条。 */
+    private var lastFrameAccept: Boolean? = null
+
     fun minimalFrame(value: JSONObject): Boolean {
         minimal.onBridgeFrame(value)
-        return minimalPlayerEnabled() && destination == "stage" && playerPresentation == "minimal" && !webOverlay
+        val flagOn = minimalPlayerEnabled()
+        val routeMatch = destination == "stage" && playerPresentation == "minimal"
+        val accept = flagOn && routeMatch && !webOverlay
+        if (accept != lastFrameAccept) {
+            lastFrameAccept = accept
+            val reason = when {
+                accept -> "accept: Compose 绘制极简页"
+                !flagOn -> "reject: COMPOSE_MINIMAL_PLAYER=false → WebView 极简页"
+                !routeMatch -> "reject: 路由不在极简页（destination=$destination presentation=$playerPresentation）"
+                else -> "reject: WebView 弹层打开 → 暂时让位"
+            }
+            android.util.Log.i("TingyuMinimal", "$reason at=${System.currentTimeMillis()}")
+        }
+        return accept
     }
 
     fun minimalDiagnostics(): JSONObject = minimal.diagnostics()

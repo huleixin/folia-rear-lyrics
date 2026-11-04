@@ -1,4 +1,5 @@
 import { chromeNative } from './nativeChrome';
+import { minimalSourceBadgeEnabled, setMinimalSourceBadge } from './minimalSourceDiagnostics';
 
 // src/services/nativeMinimalPlayer.ts
 // The Compose minimal player's half of the bridge.
@@ -48,6 +49,11 @@ export type MinimalPlayerFrame = {
      * layer, so it must step aside instead of covering a stage that still lives in the WebView.
      */
     detour: boolean;
+    /**
+     * 渲染来源诊断角标（临时，真机验收后删）。true 时原生在极简页上画一个 "Compose" 角标，
+     * WebView 极简页画 "WebView" —— 来源是显式声明，不靠外观判断。
+     */
+    diag: boolean;
     /**
      * The six colours the minimal page paints with, straight from `buildMinimalPalette` — the same
      * call the WebView page makes. Native does not re-derive them: a ported palette drifts from the
@@ -155,6 +161,8 @@ export type MinimalActionHandlers = {
     like: () => void;
     /** 顺访完整歌词舞台。舞台仍是 WebView，原生页交还界面。 */
     openStage: () => void;
+    /** 翻转渲染来源诊断角标（临时，验收后删）。 */
+    toggleDiagBadge: () => void;
 };
 
 /**
@@ -235,6 +243,9 @@ export function dispatchMinimalAction(action: string, value: number, handlers: M
             return true;
         case 'openStage':
             handlers.openStage();
+            return true;
+        case 'diagBadge':
+            handlers.toggleDiagBadge();
             return true;
         default:
             return false;

@@ -67,6 +67,8 @@ data class MinimalControls(
      * 它不改变播放与歌词，只决定这一页现在该不该出现。
      */
     val detour: Boolean = false,
+    /** 渲染来源诊断角标（临时）。 */
+    val diag: Boolean = false,
 )
 
 data class MinimalPlayerState(
@@ -126,6 +128,8 @@ data class MinimalBridgeFrame(
     val liked: Boolean = false,
     val likeDisabled: Boolean = true,
     val detour: Boolean = false,
+    /** 渲染来源诊断角标（临时）。JS 控制台 `__tingyuMinimalSource()` 开关，验收后删。 */
+    val diag: Boolean = false,
     val palette: MinimalPalette? = null,
     val receivedAtElapsed: Long = 0L,
 ) {
@@ -157,6 +161,7 @@ data class MinimalBridgeFrame(
                 liked = value.optBoolean("liked", false),
                 likeDisabled = value.optBoolean("likeDisabled", true),
                 detour = value.optBoolean("detour", false),
+                diag = value.optBoolean("diag", false),
                 receivedAtElapsed = nowElapsed,
             )
         }
@@ -334,6 +339,9 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
         val next = MinimalBridgeFrame.parse(value, now)
         if (next.session.isEmpty()) return
         val previous = frame
+        if (previous?.session != next.session) {
+            android.util.Log.i("TingyuMinimal", "bridge session bound ${next.session.take(8)} at=${System.currentTimeMillis()}")
+        }
         if (previous != null && previous.session == next.session && next.trackKey != lastFrameTrackKey) {
             // 同一会话换歌：代次 +1，旧歌的异步结果就此作废。
             frameGeneration++
@@ -344,6 +352,9 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
     }
 
     fun clearBridge() {
+        if (frame != null) {
+            android.util.Log.i("TingyuMinimal", "bridge cleared (bound=false) at=${System.currentTimeMillis()}")
+        }
         frame = null
         _bound.value = false
         _state.value = _state.value.copy(
@@ -362,6 +373,7 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
     fun releaseSession(session: String) {
         if (session.isEmpty()) return
         if (frame?.session != session) return
+        android.util.Log.i("TingyuMinimal", "release session=${session.take(8)} (JS handback) at=${System.currentTimeMillis()}")
         clearBridge()
     }
 
@@ -487,6 +499,7 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
             liked = bridge?.liked == true,
             likeDisabled = bridge?.likeDisabled ?: true,
             detour = bridge?.detour == true,
+            diag = bridge?.diag == true,
         )
         return MinimalPlayerState(
             playback = playback,

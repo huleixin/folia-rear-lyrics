@@ -26,6 +26,7 @@ const handlers = (overrides: Partial<MinimalActionHandlers> = {}): MinimalAction
         openQueueSnapshot: () => calls.push('queueOpen'),
         closeQueueSnapshot: () => calls.push('queueClose'),
         queueAction: (action, index) => calls.push(`${action}:${index}`),
+        toggleDiagBadge: () => calls.push('diagBadge'),
         ...overrides,
     };
 };
@@ -87,5 +88,11 @@ describe('compose minimal player actions', () => {
         const h = handlers();
         expect(dispatchMinimalAction('self-destruct', 0, h)).toBe(false);
         expect(h.calls).toEqual([]);
+    });
+
+    it('routes the diagnostics badge toggle (temporary, removed after device sign-off)', () => {
+        const h = handlers();
+        expect(dispatchMinimalAction('diagBadge', 0, h)).toBe(true);
+        expect(h.calls).toEqual(['diagBadge']);
     });
 });
