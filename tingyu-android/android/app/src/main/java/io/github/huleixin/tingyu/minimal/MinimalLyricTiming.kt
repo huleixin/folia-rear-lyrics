@@ -44,6 +44,25 @@ class MinimalGraphemeTimeline(val graphemes: List<MinimalGrapheme>) {
         return ((atSec - first) / (last - first)).toFloat().coerceIn(0f, 1f)
     }
 
+    /**
+     * 连续卡拉OK进度（第 17 轮）：已唱到的**字形位置**，浮点字数。
+     * 一字之内按该字自身的 start/end 线性推进 —— 高亮从"一字一跳"变成连续渐入。
+     * 时间基准与 [sungCount] 完全同源，不引入任何新的对时逻辑。
+     */
+    fun sungPosition(atSec: Double): Float {
+        if (!atSec.isFinite() || graphemes.isEmpty()) return 0f
+        for ((index, grapheme) in graphemes.withIndex()) {
+            when {
+                atSec < grapheme.startSec -> return index.toFloat()
+                atSec < grapheme.endSec -> {
+                    val span = (grapheme.endSec - grapheme.startSec).coerceAtLeast(1e-6)
+                    return index + ((atSec - grapheme.startSec) / span).toFloat().coerceIn(0f, 1f)
+                }
+            }
+        }
+        return graphemes.size.toFloat()
+    }
+
     companion object {
         val EMPTY = MinimalGraphemeTimeline(emptyList())
     }

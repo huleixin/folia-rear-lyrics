@@ -259,15 +259,9 @@ private fun TransportButtons(
         ) {
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 TransportButton("播放模式：${modeLabel(controls.mode)}", live, ink, 50.dp, { commands.cycleMode() }) {
-                    ChromeGlyph(
-                    when (controls.mode) {
-                        "shuffle" -> "shuffle"
-                        "one" -> "one"
-                        else -> "repeat"
-                    },
-                        if (controls.mode == "off") ink.inkAlpha(74) else accent,
-                        Modifier.size(20.dp),
-                    )
+                    // 播放模式图标：与队列抽屉同一套 QQ 经典几何（顺序双箭头 / 列表环 / 单曲环+1 / 交叉箭头），
+                    // 第 17 轮从 ChromeGlyph 换成手绘 —— 两处（队列/播放页）从此同一张脸。
+                    QQModeGlyph(controls.mode, if (controls.mode == "off") ink.inkAlpha(74) else accent, Modifier.size(20.dp))
                 }
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
@@ -458,6 +452,40 @@ fun PageDots(
 private fun timeText(seconds: Int): String {
     val value = max(0, seconds)
     return "%02d:%02d".format(value / 60, value % 60)
+}
+
+/**
+ * QQ 音乐经典风格的播放模式图标，与 MinimalQueueSheet 的 QueueModeButton 同一套几何：
+ * 顺序 = 向右双横带箭头；列表循环 = 环 + 箭头缺口；单曲 = 环 + 1；随机 = 交叉带箭头。
+ */
+@Composable
+private fun QQModeGlyph(mode: String, color: Color, modifier: Modifier) {
+    Canvas(modifier) {
+        val u = size.minDimension / 14f
+        val w = 1.6f * u
+        when (mode) {
+            "one" -> { // 单曲循环：环 + 1
+                drawCircle(color, 5f * u, style = Stroke(w))
+                drawLine(color, Offset(7f * u, 4.4f * u), Offset(7f * u, 9.6f * u), w, StrokeCap.Round)
+            }
+            "shuffle" -> { // 随机：两条交叉带箭头
+                drawLine(color, Offset(2.5f * u, 4f * u), Offset(11.5f * u, 10f * u), w, StrokeCap.Round)
+                drawLine(color, Offset(2.5f * u, 10f * u), Offset(11.5f * u, 4f * u), w, StrokeCap.Round)
+                drawLine(color, Offset(9.6f * u, 2.6f * u), Offset(11.5f * u, 4f * u), w, StrokeCap.Round)
+                drawLine(color, Offset(9.6f * u, 11.4f * u), Offset(11.5f * u, 10f * u), w, StrokeCap.Round)
+            }
+            "all" -> { // 列表循环：环 + 箭头缺口
+                drawArc(color, -60f, 300f, false, style = Stroke(w))
+                drawLine(color, Offset(11f * u, 2.6f * u), Offset(11f * u, 6.4f * u), w, StrokeCap.Round)
+            }
+            else -> { // 顺序：向右两横带箭头
+                drawLine(color, Offset(2.5f * u, 4.2f * u), Offset(8.5f * u, 4.2f * u), w, StrokeCap.Round)
+                drawLine(color, Offset(2.5f * u, 9.8f * u), Offset(11.5f * u, 9.8f * u), w, StrokeCap.Round)
+                drawLine(color, Offset(6.6f * u, 2.4f * u), Offset(8.5f * u, 4.2f * u), w, StrokeCap.Round)
+                drawLine(color, Offset(6.6f * u, 6f * u), Offset(8.5f * u, 4.2f * u), w, StrokeCap.Round)
+            }
+        }
+    }
 }
 
 private fun modeLabel(mode: String): String = when (mode) {

@@ -40,6 +40,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -48,12 +51,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.huleixin.tingyu.minimal.MinimalArtwork
@@ -71,12 +71,15 @@ import kotlin.math.min
 //
 // 极简歌词页：左对齐、逐字高亮、翻译行、点击跳转、自动平滑滚动。
 //
-// 三条与旧实现对齐的关键行为：
-//   · **只在换行时重组**：行索引由 derivedStateOf 收敛；逐字进度再收敛成"已唱字数"这个整数，
-//     所以每帧的位置变化不会重建整列，只有一个 Text 换一次字符串。
-//   · **自动滚动是 240–460ms 的缓动**，不是平台平滑滚动（旧页面换掉它的理由：平台速度不可设，
-//     远距离跳转会滑一秒多）。手动滚动后 4 秒内不抢位置。
+// 三条与旧实现对齐的关键行为（第 17 轮起）：
+//   · **只在换行时重组**：行索引由 derivedStateOf 收敛；逐字进度改为**连续值**，
+//     在 draw 阶段读时钟 —— 跨字不再重建字符串、不再重组，只有活动行每帧一次重绘。
+//   · **高亮是连续渐入的**：双层文本 + 逐行裁剪路径按 sungPosition 推进，
+//     一字之内也平滑填入（卡拉OK感），时间基准与行高亮完全同源。
+//   · **景深**：距当前行越远越淡，距离在图层属性块里读状态 ——
+//     换行时只写透明度属性，不重组任何一行。
 //   · **字体大小真的在变**（20 → 30sp），和 CSS 一致；只有当前行一个 Text 重新排版。
+//   · **自动滚动是 240–460ms 的缓动**；手动滚动后 4 秒内不抢位置。
 
 private const val ACTIVE_LINE_ANCHOR = 0.32f
 private const val MANUAL_HOLD_MS = 4000L
@@ -202,7 +205,7 @@ private fun LyricColumn(
     var autoScrolling by remember { mutableStateOf(false) }
 
     val latestPlayback by rememberUpdatedState(playback)
-    val index by remember(lyrics) {
+    val indexState = remember(lyrics) {
         derivedStateOf {
             val time = latestPlayback.lyricSecAt(clock.value)
             if (lyrics.isEmpty() || time < lyrics[0].startSec) {
@@ -224,6 +227,7 @@ private fun LyricColumn(
             }
         }
     }
+    val index by indexState
 
     // 手动滚动后 4 秒内不抢位置；自动滚动自己不算"手动"。
     LaunchedEffect(scroll) {
@@ -291,8 +295,9 @@ private fun LyricColumn(
                 val credit = remember(line, lineIndex) { isProductionCreditLine(line, lineIndex) }
                 LyricLineRow(
                     line = line,
+                    lineIndex = lineIndex,
+                    indexState = indexState,
                     active = lineIndex == index,
-                    past = lineIndex < index,
                     credit = credit,
                     playback = playback,
                     clock = clock,
@@ -314,8 +319,9 @@ private fun LyricColumn(
 @Composable
 private fun LyricLineRow(
     line: MinimalLyricLine,
+    lineIndex: Int,
+    indexState: State<Int>,
     active: Boolean,
-    past: Boolean,
     credit: Boolean,
     playback: MinimalPlayback,
     clock: State<Long>,
@@ -326,34 +332,23 @@ private fun LyricLineRow(
 ) {
     val baseSize = if (credit) 12.5f else 20f
     val activeSize = if (credit) 14f else 30f
+    // 当前行放大 / 上一行缩小：字号动画就是过渡本身（320/260ms 缓出）。
     val sizeState by animateFloatAsState(
         targetValue = if (active) activeSize else baseSize,
         animationSpec = tween(
-            durationMillis = if (active) 280 else 240,
+            durationMillis = if (active) 320 else 260,
             easing = CubicBezierEasing(0.2f, 0.7f, 0.2f, 1f),
         ),
         label = "minimal-line-size",
     )
-    // 已唱过去的行退后一点（CSS 的 [data-past] opacity .62）。用文字透明度而不是图层透明度：
-    // 每行一个离屏图层在长歌词里就是几十个图层，而颜色本身是免费的。
-    val fade = if (past && !active) 0.62f else 1f
-    val baseColor = (if (credit) ink.mutedAlpha(78) else ink.muted).let { it.copy(alpha = it.alpha * fade) }
+    val baseColor = if (credit) ink.mutedAlpha(78) else ink.muted
     // 当前行不是纯白：被封面色染一点点，这一行才像印在这张纸上而不是贴上去的。
-    val currentColor = (if (credit) ink.mutedAlpha(88) else ink.brightAlpha(84)).let { it.copy(alpha = it.alpha * fade) }
+    val currentColor = if (credit) ink.mutedAlpha(88) else ink.brightAlpha(84)
     val colorState by animateColorAsState(
         targetValue = if (active) currentColor else baseColor,
-        animationSpec = tween(300),
+        animationSpec = tween(320),
         label = "minimal-line-color",
     )
-
-    // 只有当前行读时钟。derivedStateOf 把逐字进度收敛成整数，重组只发生在跨字时。
-    val latestPlayback by rememberUpdatedState(playback)
-    val sung by remember(line) {
-        derivedStateOf { line.graphemeTimeline.sungCount(latestPlayback.lyricSecAt(clock.value)) }
-    }
-    val annotated: AnnotatedString? = if (active) {
-        remember(line, sung, lyricAccent) { line.sungAnnotated(sung, lyricAccent) }
-    } else null
 
     val interaction = remember { MutableInteractionSource() }
     Column(
@@ -365,6 +360,18 @@ private fun LyricLineRow(
                     coordinates.size.height.toFloat(),
                 )
             }
+            // 景深（第 17 轮，参考效果图）：当前行最清晰，相邻稍弱，远处继续淡化。
+            // 距离在**图层属性块**里读 indexState —— 换行时只更新每行的透明度属性，
+            // 不触发任何一行的重组，也不触发布局；长歌词逐行下移时这里是 O(可见行) 的属性写。
+            .graphicsLayer {
+                val distance = abs(lineIndex - indexState.value)
+                alpha = when {
+                    distance <= 0 -> 1f
+                    distance == 1 -> 0.78f
+                    distance == 2 -> 0.6f
+                    else -> 0.44f
+                }
+            }
             .clickable(
                 interactionSource = interaction,
                 indication = null,
@@ -372,14 +379,14 @@ private fun LyricLineRow(
             )
             .padding(top = if (credit) 2.dp else 5.dp, bottom = if (credit) 2.dp else 5.dp),
     ) {
-        if (annotated != null) {
-            Text(
-                text = annotated,
+        if (active && !credit) {
+            KaraokeLine(
+                line = line,
+                playback = playback,
+                clock = clock,
                 color = colorState,
+                accent = lyricAccent,
                 fontSize = sizeState.sp,
-                fontWeight = FontWeight.SemiBold,
-                lineHeight = sizeState.sp * 1.22f,
-                letterSpacing = (sizeState * -0.008f).sp,
             )
         } else {
             Text(
@@ -396,7 +403,7 @@ private fun LyricLineRow(
             Spacer(Modifier.height(2.dp))
             Text(
                 text = translation,
-                color = ink.mutedAlpha(72).copy(alpha = ink.mutedAlpha(72).alpha * fade),
+                color = ink.mutedAlpha(72),
                 fontSize = 12.sp,
                 lineHeight = 18.sp,
             )
@@ -404,16 +411,79 @@ private fun LyricLineRow(
     }
 }
 
-/** 已唱部分染上封面高亮色，其余保持行色。只在"已唱字数"变化时重建。 */
-private fun MinimalLyricLine.sungAnnotated(sung: Int, accent: Color): AnnotatedString {
-    val timeline = graphemeTimeline
-    return buildAnnotatedString {
-        timeline.graphemes.forEachIndexed { index, grapheme ->
-            if (index < sung) {
-                withStyle(SpanStyle(color = accent)) { append(grapheme.text) }
-            } else {
-                append(grapheme.text)
-            }
-        }
+/**
+ * 连续卡拉OK行（第 17 轮）：两层同样的文本叠放，顶层是已唱色，
+ * 用**逐行裁剪路径**按连续进度推进 —— 一字之内也平滑渐入，不再一字一跳。
+ *
+ * 进度在 draw 阶段读时钟：跨字不再重建 AnnotatedString、不再重组，只有活动行
+ * 每帧一次重绘；暂停时时钟停摆，重绘自然停止。逐行裁剪用 TextLayoutResult 的
+ * 行几何，换行后的第二行也按阅读顺序推进，不会出现"第二行先亮"的错序。
+ */
+@Composable
+private fun KaraokeLine(
+    line: MinimalLyricLine,
+    playback: MinimalPlayback,
+    clock: State<Long>,
+    color: Color,
+    accent: Color,
+    fontSize: androidx.compose.ui.unit.TextUnit,
+) {
+    val latestPlayback by rememberUpdatedState(playback)
+    var layout by remember(line) { mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null) }
+    Box {
+        Text(
+            text = line.text,
+            color = color,
+            fontSize = fontSize,
+            fontWeight = FontWeight.SemiBold,
+            lineHeight = fontSize * 1.22f,
+            letterSpacing = (fontSize.value * -0.008f).sp,
+        )
+        Text(
+            text = line.text,
+            color = accent,
+            fontSize = fontSize,
+            fontWeight = FontWeight.SemiBold,
+            lineHeight = fontSize * 1.22f,
+            letterSpacing = (fontSize.value * -0.008f).sp,
+            onTextLayout = { layout = it },
+            modifier = Modifier.drawWithContent {
+                val textLayout = layout ?: return@drawWithContent
+                val timeline = line.graphemeTimeline
+                val position = timeline.sungPosition(latestPlayback.lyricSecAt(clock.value))
+                if (position <= 0f) return@drawWithContent
+                // 浮点字形位置 → 浮点字符偏移（字形串就是行文本按序拼接）。
+                var remaining = position
+                var charOffset = 0f
+                for (grapheme in timeline.graphemes) {
+                    val length = grapheme.text.length
+                    if (remaining >= 1f) {
+                        charOffset += length
+                        remaining -= 1f
+                    } else {
+                        charOffset += remaining * length
+                        break
+                    }
+                }
+                val textLength = textLayout.layoutInput.text.length
+                val sungLine = textLayout.getLineForOffset(charOffset.toInt().coerceAtMost(textLength))
+                val fill = androidx.compose.ui.graphics.Path()
+                for (lineIdx in 0 until textLayout.lineCount) {
+                    val top = textLayout.getLineTop(lineIdx)
+                    val bottom = textLayout.getLineBottom(lineIdx)
+                    when {
+                        lineIdx < sungLine -> fill.addRect(Rect(0f, top, size.width, bottom))
+                        lineIdx == sungLine -> {
+                            val boundary = charOffset.toInt().coerceIn(0, textLength)
+                            val x = if (charOffset >= textLength) size.width
+                            else textLayout.getHorizontalPosition(boundary, usePrimaryDirection = true)
+                                .coerceIn(0f, size.width)
+                            fill.addRect(Rect(0f, top, x, bottom))
+                        }
+                    }
+                }
+                clipPath(fill) { this@drawWithContent.drawContent() }
+            },
+        )
     }
 }

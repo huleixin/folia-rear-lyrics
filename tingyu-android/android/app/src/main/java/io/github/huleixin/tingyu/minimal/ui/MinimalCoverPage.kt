@@ -2,6 +2,7 @@ package io.github.huleixin.tingyu.minimal.ui
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
@@ -225,7 +228,7 @@ private fun ChevronRight(color: Color, modifier: Modifier) {
     }
 }
 
-/** 音质角标：一个胶囊装两个事实（"FLAC · 无损"）。 */
+/** 音质角标：一个胶囊装两个事实（"FLAC · 无损"）。金色时带一枚香槟金小图标。 */
 @Composable
 private fun QualityChip(text: String, gold: Boolean, light: Boolean, ink: MinimalInk) {
     val border = if (gold) {
@@ -234,14 +237,33 @@ private fun QualityChip(text: String, gold: Boolean, light: Boolean, ink: Minima
     val content = if (gold) {
         if (light) Color(0xFF8A6A26) else Color(0xFFE2C48C)
     } else ink.inkAlpha(72)
-    Box(
+    Row(
         Modifier
             .height(24.dp)
             .background(Color.Transparent, RoundedCornerShape(999.dp))
             .border(1.dp, border, RoundedCornerShape(999.dp))
             .padding(horizontal = 11.dp),
-        contentAlignment = Alignment.Center,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (gold) {
+            // 香槟金小图标（参考效果图）：三根拾升的细条，低调不内卷。
+            Canvas(Modifier.size(width = 9.dp, height = 10.dp)) {
+                val u = size.minDimension / 10f
+                val w = 1.4f * u
+                val baseline = 9.4f * u
+                listOf(3.4f, 6.2f, 9f).forEachIndexed { index, x ->
+                    val barHeight = listOf(3.2f, 5.6f, 8f)[index] * u
+                    drawLine(
+                        content,
+                        Offset(x * u, baseline),
+                        Offset(x * u, baseline - barHeight),
+                        w,
+                        StrokeCap.Round,
+                    )
+                }
+            }
+            Spacer(Modifier.width(5.dp))
+        }
         Text(
             text = text,
             color = content,

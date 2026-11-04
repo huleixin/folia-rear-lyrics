@@ -9,6 +9,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,12 +36,16 @@ import kotlin.math.sin
 
 // android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/MinimalArtworkView.kt
 //
-// 封面：唱片层叠 + 背后的光 + 交叉淡化 + 19 秒的呼吸浮动。
+// 封面：唱片层叠 + 背后的光 + 交叉淡化 + 呼吸浮动。
+//
+// 第 17 轮（视觉升级，参考效果图）：
+//   · 封面后面加一块**半透明描边装饰板**：比封面大一圈、轻转 4°、右上偏移，
+//     只留一道细边 —— 效果图里"安静的高级感"主要就是它给的；
+//   · 呼吸感：浮动（±2.5dp / 19s）之上加极轻的缩放（±0.6%）与阴影起伏，
+//     三个量共用同一个 19 秒相位，读起来是页面在呼吸而不是图片在动。
 //
 // 层叠不是阴影也不是发光 —— 是**后面多印了一张**：向上右各偏 3/1px、逆转 5°、缩小 1%，
 // 只留一道 1px 的边。这台页面上"纸的厚度"就来自这一层。
-//
-// 浮动只有 ±2.5px / 19 秒，读起来是页面在呼吸而不是图片在动；歌词页可见时暂停。
 
 private const val FLOAT_PERIOD_NS = 19_000_000_000L
 private const val FLOAT_AMPLITUDE_DP = 2.5f
@@ -91,7 +96,7 @@ fun MinimalArtworkView(
             }
         )
 
-        // 2. 后面那一张（层叠）
+        // 2a. 后面那一张（层叠）：实底，只露 1px 边。
         Box(
             Modifier.matchParentSize()
                 .graphicsLayer {
@@ -112,11 +117,34 @@ fun MinimalArtworkView(
                 .border(1.dp, ink.inkAlpha(12), RoundedCornerShape(corner))
         )
 
-        // 3. 封面本体：交叉淡化。新图没解码好之前 runtime 不会发布新封面，所以这里不会闪白。
+        // 2b. 描边装饰板（第 17 轮）：比封面大一圈、顺转 4°、右上偏移，只有一道细边。
+        //     它在封面后面，不参与任何呼吸位移：装饰是静的，动的只有封面。
+        Box(
+            Modifier
+                .size(side * 1.07f)
+                .align(Alignment.TopStart)
+                .graphicsLayer {
+                    rotationZ = 4f
+                    translationX = 7.dp.toPx()
+                    translationY = -5.dp.toPx()
+                }
+                .border(1.dp, ink.inkAlpha(30), RoundedCornerShape(corner * 1.06f))
+        )
+
+        // 3. 封面本体：交叉淡化 + 呼吸（浮动/极轻缩放/阴影起伏同相位）。
+        //    新图没解码好之前 runtime 不会发布新封面，所以这里不会闪白。
         Box(
             Modifier.matchParentSize()
                 .graphicsLayer {
-                    translationY = FLOAT_AMPLITUDE_DP.dp.toPx() * sin(2f * PI.toFloat() * phase)
+                    val wave = sin(2f * PI.toFloat() * phase)
+                    translationY = FLOAT_AMPLITUDE_DP.dp.toPx() * wave
+                    val breathe = if (animate) 1f + 0.006f * wave else 1f
+                    scaleX = breathe
+                    scaleY = breathe
+                    shape = RoundedCornerShape(corner)
+                    clip = false
+                    // 阴影跟着呼吸起伏（±4px），静止时落在中间值 —— 小到只能被"感觉到"。
+                    shadowElevation = if (animate) 22f + 8f * wave else 22f
                 }
                 .clip(RoundedCornerShape(corner))
                 .background(ink.ink.copy(alpha = 0.05f))
