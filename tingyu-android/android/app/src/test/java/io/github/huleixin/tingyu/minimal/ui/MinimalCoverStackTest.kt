@@ -484,6 +484,150 @@ class MinimalCoverStackTest {
         assertEquals(emptyList<String>(), calls)
     }
 
+    // ---- 取消拖动：逐帧核对"顶上看的是哪一首" ----
+    //
+    // 这一组是为了一个具体的线上问题补的：未达阈值松手回弹时，下一首封面会短暂蓋住当前封面
+    // 并交叉淡化 220ms。根因是卡片按位置复用 —— 回弹收尾把卡片表从 4 张缩回 3 张，第 0 个
+    // 组合位置换成了另一首歌，CoverImage 的 Crossfade 就把它当成"同一张封面换了图"。
+    //
+    // 所以这里不看状态字段（状态一直是对的），直接**取渲染出来的像素**：
+    // 当前曲 tx:1 是纯红，下一首 tx:2 是纯蓝。任何一帧顶层出现蓝色都算失败。
+
+    private val artCurrent = 0xFFE24B4B.toInt()  // tx:1 红
+    private val artNext = 0xFF3D6B8F.toInt()     // tx:2 蓝
+    private val artPrevious = 0xFFE0C25A.toInt() // tx:0 黄（上一首）
+
+    /**
+     * 抓一帧，返回顶层封面里 4 个采样点的颜色。
+     *
+     * 采样点跟着 `edgeX/edgeY` 走 —— 被拖动的封面本身在动，固定采屏幕中心会采到它露出的下一层。
+     * 纯色素材 + 偏离中心 22% 的位置，避开了正中的白点，正常帧应当就是素材原色。
+     */
+    private fun sampleTopCover(): List<Int> {
+        val view = compose.activity.window.decorView
+        val frame = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+        view.draw(AndroidCanvas(frame))
+        val bounds = cover().fetchSemanticsNode().boundsInRoot
+        val cx = bounds.center.x + stack.edgeX
+        val cy = bounds.center.y + stack.edgeY
+        val dx = bounds.width * 0.22f
+        val dy = bounds.height * 0.22f
+        return listOf(cx to cy - dy, cx to cy + dy, cx - dx to cy, cx + dx to cy).map { (x, y) ->
+            frame.getPixel(
+                x.toInt().coerceIn(0, view.width - 1),
+                y.toInt().coerceIn(0, view.height - 1),
+            )
+        }
+    }
+
+    private fun hex(color: Int) = String.format("#%06X", color and 0xFFFFFF)
+
+    /** 顶层必须**正好**是这张图：色差超过 3 就说明上面混进了别的封面（交叉淡化会留下中间色）。 */
+    private fun assertTopCoverIs(expected: Int, where: String) {
+        sampleTopCover().forEachIndexed { index, color ->
+            val delta = (0..2).maxOf { shift ->
+                val a = (color shr (shift * 8)) and 0xFF
+                val b = (expected shr (shift * 8)) and 0xFF
+                kotlin.math.abs(a - b)
+            }
+            assertTrue(
+                "$where：采样点 $index 是 ${hex(color)}，不是当前封面的 ${hex(expected)}" +
+                    "（顶层混进了别的封面）",
+                delta <= 3,
+            )
+        }
+    }
+
+    @Test
+    fun cancellingAShortDragNeverShowsTheNextCoverNotEvenForOneFrame() {
+        start()
+        assertTopCoverIs(artCurrent, "静止")
+
+        // 慢慢拖 60px：远低于 25% 宽度，速度也远低于甩动阈值 —— 松手只会回弹
+        cover().performTouchInput {
+            down(center)
+            moveTo(center + Offset(-20f, 0f), delayMillis = 200)
+            moveTo(center + Offset(-60f, 0f), delayMillis = 200)
+        }
+        compose.mainClock.advanceTimeByFrame()
+        assertEquals(StackPhase.DRAG, stack.phase)
+        assertTopCoverIs(artCurrent, "拖动中")
+
+        cover().performTouchInput { up() }
+        // 回弹全程 + 静止后 300ms：90 帧 ≈ 1.44s，弹簧本身约 0.33s 就落定
+        var sawSpring = false
+        var sawIdleAfterSpring = 0
+        repeat(90) { frameIndex ->
+            compose.mainClock.advanceTimeByFrame()
+            if (stack.phase == StackPhase.SPRING) sawSpring = true
+            if (sawSpring && stack.phase == StackPhase.IDLE) sawIdleAfterSpring += 1
+            assertEquals("第 $frameIndex 帧顶层换成了别的歌", "tx:1", stack.cards.first().songKey)
+            // 上面这一条永远是过的（状态从来没错），真正拦人的是下面这条像素断言
+            assertTopCoverIs(artCurrent, "第 $frameIndex 帧（${stack.phase}）")
+        }
+        assertTrue("回弹没有发生？", sawSpring)
+        assertTrue("静止后观察不足 300ms", sawIdleAfterSpring * 16 >= 300)
+
+        assertEquals("回弹不该切歌", emptyList<String>(), calls)
+        assertEquals(StackPhase.IDLE, stack.phase)
+        assertEquals(listOf("tx:1", "tx:2", "tx:3"), stack.cards.map { it.songKey })
+    }
+
+    @Test
+    fun repeatedCancelsNeverLeakAnotherCover() {
+        start()
+        repeat(5) { round ->
+            cover().performTouchInput {
+                down(center)
+                moveTo(center + Offset(-40f, 0f), delayMillis = 200)
+            }
+            compose.mainClock.advanceTimeByFrame()
+            cover().performTouchInput { up() }
+            // 每一轮都把回弹走完，并在落定后再看 300ms
+            repeat(60) { frameIndex ->
+                compose.mainClock.advanceTimeByFrame()
+                assertTopCoverIs(artCurrent, "第 $round 轮第 $frameIndex 帧")
+            }
+            assertEquals("第 $round 轮不该切歌", emptyList<String>(), calls)
+            assertEquals("第 $round 轮顶层身份", "tx:1", stack.cards.first().songKey)
+        }
+    }
+
+    @Test
+    fun committingASwipeShowsTheNextCoverAsTheNewTop() {
+        start()
+        cover().performTouchInput { swipeLeft() }
+        compose.mainClock.advanceTimeBy(1200)
+        assertEquals(listOf("next"), calls)
+        assertEquals("tx:2", stack.cards.first().songKey)
+        // 落定后顶层必须是新那一首的图，不能还留着上一首
+        assertTopCoverIs(artNext, "切歌落定")
+    }
+
+    @Test
+    fun previousInsertLandsWithItsOwnArtwork() {
+        start()
+        cover().performTouchInput { swipeRight() }
+        compose.mainClock.advanceTimeBy(1200)
+        assertEquals(listOf("previous"), calls)
+        assertEquals("tx:0", stack.cards.first().songKey)
+        assertTopCoverIs(artPrevious, "上一首落定")
+    }
+
+    @Test
+    fun transportButtonsShowTheirOwnArtwork() {
+        start()
+        compose.onNodeWithContentDescription("下一首").performTouchInput { click() }
+        compose.mainClock.advanceTimeBy(1200)
+        assertEquals("tx:2", stack.cards.first().songKey)
+        assertTopCoverIs(artNext, "下一首按钮落定")
+
+        compose.onNodeWithContentDescription("上一首").performTouchInput { click() }
+        compose.mainClock.advanceTimeBy(1200)
+        assertEquals("上一首按钮切回 tx:1", "tx:1", stack.cards.first().songKey)
+        assertTopCoverIs(artCurrent, "上一首按钮落定")
+    }
+
     @Test
     fun pointerCancelSpringsBackWithoutSkipping() {
         start()

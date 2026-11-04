@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -60,6 +61,14 @@ private const val BREATH_STEP_NS = 60_000_000L
 
 /** 残影副本数量。三份够读出方向，又不会把 GPU 填满。 */
 private const val GHOST_COUNT = 3
+
+// 前后关系全部由 zIndex 决定，不再靠"画在循环里还是循环外"决定层次。
+/** 静止三层的基准 z：第 0 层最高，往后依次递减。 */
+private const val BASE_Z = 10f
+/** 残影副本的 z：压在普通层之上、移动层之下。 */
+private const val GHOST_Z = 30f
+/** 正在被抽走 / 放入的那一张：永远在最上面。 */
+private const val MOVING_Z = 40f
 
 @Composable
 fun MinimalArtworkView(
@@ -150,40 +159,45 @@ fun MinimalArtworkView(
                         .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(corner))
                 )
 
-                // 2b. 三层封面。列表顺序 = 从上到下：先画后面的，最后画最上面那一张。
-                val movingIndex = cards.indexOfFirst { it.moving }
+                // 2b. 所有封面走同一个循环，每张用 `key(card.key)` 固定身份，前后关系交给 zIndex。
+                //
+                // 这里曾经把"被拖动的那张"单独画在循环之外（循环跳过它、末尾再补一层 z=40）。
+                // Composable 是按位置复用的，于是取消拖动、卡片表从
+                // [当前(移动中), 下一首, 下下首, 第四张] 缩回 [当前, 下一首, 下下首] 的那一帧，
+                // 第 0 个位置换成了另一首歌 —— CoverImage 里的 Crossfade 把它当成"同一张封面换了图"，
+                // 于是把**下一首**淡入到最前面、再花 220ms 淡回当前曲，也就是用户看到的那一闪。
+                // 统一到一个带稳定 key 的循环后，位置变化不再改变组合身份：
+                // 同一张封面永远落在同一个节点上，bitmap 没变就绝不会走 Crossfade。
                 cards.forEachIndexed { index, card ->
-                    if (index == movingIndex) return@forEachIndexed
-                    CoverLayer(
-                        card = card,
-                        stack = stack,
-                        covers = covers,
-                        corner = corner,
-                        ink = ink,
-                        z = 10f + (cards.size - index),
-                    )
-                }
-                if (movingIndex >= 0) {
-                    val card = cards[movingIndex]
-                    // 残影：同一张图的三份偏移副本，沿速度反方向铺开（没有 blur 滤镜）
-                    repeat(GHOST_COUNT) { ghost ->
-                        GhostLayer(
+                    // 正在移动的那张永远在最上面；其余按列表顺序，越靠前 z 越高。
+                    val z = if (card.moving) MOVING_Z else BASE_Z + (cards.size - index)
+                    key(card.key) {
+                        CoverLayer(
                             card = card,
-                            ghost = ghost,
                             stack = stack,
                             covers = covers,
                             corner = corner,
-                            z = 30f + ghost,
+                            ink = ink,
+                            z = z,
                         )
                     }
-                    CoverLayer(
-                        card = card,
-                        stack = stack,
-                        covers = covers,
-                        corner = corner,
-                        ink = ink,
-                        z = 40f,
-                    )
+                }
+                // 残影：只属于正在移动的那一张，三份同图偏移副本沿速度反方向铺开（没有 blur 滤镜）。
+                // 它不是"一层封面"（没有自己的身份和层位），所以不放进上面的循环：
+                // 循环里一个 key 对应一张真实封面，残影作为覆盖层单独挂在最上面。
+                cards.firstOrNull { it.moving }?.let { card ->
+                    repeat(GHOST_COUNT) { ghost ->
+                        key("ghost-$ghost") {
+                            GhostLayer(
+                                card = card,
+                                ghost = ghost,
+                                stack = stack,
+                                covers = covers,
+                                corner = corner,
+                                z = GHOST_Z + ghost,
+                            )
+                        }
+                    }
                 }
             }
         }
