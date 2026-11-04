@@ -275,6 +275,30 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
         _queue.value = MinimalQueue()
     }
 
+    /**
+     * 轻量当前曲/播放模式通道：切歌不改队列数组，整包（几百首）不该每切一首都过桥。
+     * JS 在「版本没变但当前曲或模式变了」时只推这一小包。
+     */
+    fun onQueueCurrent(value: JSONObject) {
+        val current = _queue.value
+        if (current.items.isEmpty()) return
+        val version = value.optLong("v", current.version)
+        if (version < current.version) return // 过期包：队列已经更新过，丢弃。
+        val key = value.optString("k", "")
+        val index = value.optInt("i", -1)
+        val mode = value.optString("mode", "").takeIf { it in setOf("off", "all", "one", "shuffle") }
+        val resolvedIndex = when {
+            index in current.items.indices && current.items[index].songKey == key -> index
+            key.isNotEmpty() -> current.items.indexOfFirst { it.songKey == key }.takeIf { it >= 0 } ?: -1
+            else -> -1
+        }
+        _queue.value = current.copy(
+            currentIndex = resolvedIndex,
+            currentKey = key,
+            mode = mode ?: current.mode,
+        )
+    }
+
     @Volatile
     private var frame: MinimalBridgeFrame? = null
 

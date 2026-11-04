@@ -1,5 +1,4 @@
 import { chromeNative } from './nativeChrome';
-import { minimalSourceBadgeEnabled, setMinimalSourceBadge } from './minimalSourceDiagnostics';
 
 // src/services/nativeMinimalPlayer.ts
 // The Compose minimal player's half of the bridge.
@@ -146,27 +145,23 @@ export type MinimalActionHandlers = {
     next: () => void;
     seek: (seconds: number) => void;
     toggleLoop: () => void;
-    openQueue: () => void;
     collapse: () => void;
     /** 顶栏"更多"菜单的五项，和 `MobileStageMenu` 一一对应。 */
     openAudioQuality: () => void;
     openAudioEffects: () => void;
     openLyricsPanel: () => void;
     openPlaybackSettings: () => void;
-    /** 原生抽屉打开/关闭：打开时推一次快照，关闭后不再推。 */
-    openQueueSnapshot: () => void;
-    closeQueueSnapshot: () => void;
-    /** 行内动作，`value` 是行下标。 */
-    queueAction: (action: string, index: number) => void;
     like: () => void;
     /** 顺访完整歌词舞台。舞台仍是 WebView，原生页交还界面。 */
     openStage: () => void;
-    /** 翻转渲染来源诊断角标（临时，验收后删）。 */
-    toggleDiagBadge: () => void;
 };
 
 /**
  * One place that turns a Compose action into an existing app command.
+ *
+ * 范围说明（第 9 轮）：这里只管**传输与菜单**。队列动作（queuePlay/queueRemove/queueReorder/
+ * playbackMode 等）由 `nativeMinimalQueue.ts` 的模块级监听者处理 —— 抽屉在首页/舞台打开时
+ * 极简页钩子不在场，队列动作必须不依赖它；两边动作集互不重叠，不会双重执行。
  *
  * Two rules are worth stating, because they are the difference between "works" and "seeks the
  * previous song":
@@ -202,27 +197,6 @@ export function dispatchMinimalAction(action: string, value: number, handlers: M
         case 'loop':
             handlers.toggleLoop();
             return true;
-        case 'queue':
-            handlers.openQueue();
-            return true;
-        case 'queueOpen':
-            handlers.openQueueSnapshot();
-            return true;
-        case 'queueClose':
-            handlers.closeQueueSnapshot();
-            return true;
-        case 'queuePlay':
-            handlers.queueAction('play', value);
-            return true;
-        case 'queueRemove':
-            handlers.queueAction('remove', value);
-            return true;
-        case 'queueNext':
-            handlers.queueAction('next', value);
-            return true;
-        case 'queueEnd':
-            handlers.queueAction('end', value);
-            return true;
         case 'collapse':
             handlers.collapse();
             return true;
@@ -243,9 +217,6 @@ export function dispatchMinimalAction(action: string, value: number, handlers: M
             return true;
         case 'openStage':
             handlers.openStage();
-            return true;
-        case 'diagBadge':
-            handlers.toggleDiagBadge();
             return true;
         default:
             return false;

@@ -82,6 +82,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
      */
     fun minimalQueue(value: JSONObject): Boolean = minimal.onQueueSnapshot(value)
 
+    fun minimalQueueCurrent(value: JSONObject) {
+        minimal.onQueueCurrent(value)
+    }
+
     /** 上一次桥帧接受状态的日志去重：只在状态或原因变化时打一条。 */
     private var lastFrameAccept: Boolean? = null
 
@@ -500,11 +504,12 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 io.github.huleixin.tingyu.minimal.ui.MinimalQueueSheet(
                     queue=queueState,
                     light=interfaceLight,
+                    mode=queueState.mode.ifEmpty { minimalState.controls.mode },
                     onClose={queueOpen=false;minimalCommands.closeQueue()},
                     onPlay={minimalCommands.queuePlay(it)},
                     onRemove={minimalCommands.queueRemove(it)},
-                    onMoveNext={minimalCommands.queueMoveNext(it)},
-                    onMoveEnd={minimalCommands.queueMoveEnd(it)},
+                    onReorder={from,to -> minimalCommands.queueReorder(from,to,queueState.version)},
+                    onToggleMode={minimalCommands.togglePlaybackMode()},
                 )
             }
             if(stageExit.active)Box(Modifier.fillMaxSize().zIndex(4f).pointerInput(Unit){awaitPointerEventScope{while(true)awaitPointerEvent().changes.forEach{it.consume()}}})

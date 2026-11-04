@@ -2359,6 +2359,7 @@ export default function App() {
         removeQueueSong,
         moveQueueSongToEnd,
         moveQueueSongToNext,
+        moveQueueSong,
         saveCurrentQueueAsLocalPlaylist,
         user,
         accountController,

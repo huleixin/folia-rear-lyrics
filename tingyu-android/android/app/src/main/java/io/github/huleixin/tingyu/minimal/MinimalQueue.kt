@@ -8,10 +8,20 @@ import org.json.JSONObject
 //
 // 队列的真身在 JS（`usePlaybackStore.playQueue`），行内动作也走原来的处理器；
 // 这里解析的只是一份带版本号的投影，原生据此渲染。
+//
+// 两个版本概念分开（第 9 轮）：
+//   · [version]     —— 队列内容/顺序。变了才需要整包重推。
+//   · [currentKey]  —— 正在播放哪首。切歌不改队列数组，单独走轻量通道
+//                      （{@link MinimalPlayerRuntime#onQueueCurrent}），几百首不必每切一首都过桥。
 
 data class MinimalQueueItem(
-    /** 歌曲身份。高亮、切歌校验都用它，而不是下标 —— 下标会随删除移动。 */
-    val key: String,
+    /**
+     * 条目的**独立稳定身份**：`songKey#出现序号`。队列里同一首歌可能出现多次，
+     * LazyColumn 的 key 和拖拽校验都要能区分它们，不能只靠歌曲 key。
+     */
+    val uid: String,
+    /** 歌曲身份。高亮以它为准 —— 下标会随删除/排序漂移。 */
+    val songKey: String,
     val title: String,
     val artist: String,
 )
@@ -19,8 +29,12 @@ data class MinimalQueueItem(
 data class MinimalQueue(
     /** 队列版本：内容或顺序一变就变，用来丢弃乱序到达的旧快照。 */
     val version: Long = -1L,
-    /** 当前曲下标，-1 表示不在队列里。 */
+    /** 当前曲下标，-1 表示不在队列里。用于把列表滚到当前曲。 */
     val currentIndex: Int = -1,
+    /** 当前曲身份。高亮只认它，不认下标。 */
+    val currentKey: String = "",
+    /** 播放模式（off | all | one | shuffle）。空表示桥上还没有结论。 */
+    val mode: String = "",
     val total: Int = 0,
     val items: List<MinimalQueueItem> = emptyList(),
 ) {
@@ -37,10 +51,12 @@ data class MinimalQueue(
             val items = ArrayList<MinimalQueueItem>(array.length())
             for (index in 0 until array.length()) {
                 val row = array.optJSONObject(index) ?: return null
-                val key = row.optString("k", "")
-                if (key.isEmpty()) return null
+                val songKey = row.optString("k", "")
+                if (songKey.isEmpty()) return null
+                val uid = row.optString("u", "").ifEmpty { "$songKey#$index" }
                 items += MinimalQueueItem(
-                    key = key,
+                    uid = uid,
+                    songKey = songKey,
                     title = row.optString("t", ""),
                     artist = row.optString("a", ""),
                 )
@@ -49,9 +65,13 @@ data class MinimalQueue(
             return MinimalQueue(
                 version = version,
                 currentIndex = if (current in items.indices) current else -1,
+                currentKey = value.optString("ck", ""),
+                mode = value.optString("mode", "").takeIf { it in MODES } ?: "",
                 total = total,
                 items = items,
             )
         }
+
+        private val MODES = setOf("off", "all", "one", "shuffle")
     }
 }

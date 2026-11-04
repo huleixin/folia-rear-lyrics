@@ -13,8 +13,7 @@ import { resolveQualityBadges } from '../components/app/overlays/minimal-stage/m
 import { buildMinimalPalette } from '../components/app/overlays/minimal-stage/minimalPalette';
 import { useCoverColors } from '../components/app/overlays/minimal-stage/useCoverPalette';
 import { canUseComposeChrome, chromeNative } from '../services/nativeChrome';
-import { minimalSourceBadgeEnabled, setMinimalSourceBadge } from '../services/minimalSourceDiagnostics';
-import { readNativeQueue, runNativeQueueAction } from '../services/nativeMinimalQueue';
+import { minimalSourceBadgeEnabled } from '../services/minimalSourceDiagnostics';
 import {
     addMinimalPlayerActionListener,
     beginMinimalPlayerSession,
@@ -120,28 +119,8 @@ export function useNativeMinimalPlayer({
     const paletteRef = useRef(palette);
     paletteRef.current = palette;
 
-    // 队列推送：只在抽屉打开后、且版本变了才发。396 条曲目一秒一包是不可接受的。
-    const queueOpen = useRef(false);
-    const queueDirty = useRef(false);
-    const queueVersionSent = useRef(-1);
-    const pushQueue = useCallback(() => {
-        const currentKey = latest.current.chrome?.song?.track
-            ? getPlaybackSongKey(latest.current.chrome.song.track)
-            : '';
-        const snapshot = readNativeQueue(currentKey);
-        if (!snapshot) return;
-        if (!queueDirty.current && snapshot.v === queueVersionSent.current) return;
-        queueVersionSent.current = snapshot.v;
-        queueDirty.current = false;
-        void chromeNative.minimalQueue(snapshot).catch(() => undefined);
-    }, []);
-    // 抽屉开着的时候，每秒把快照对一次版本号：第一次动作丢了也能自愈，且不产生多余流量。
-    useEffect(() => {
-        const timer = window.setInterval(() => {
-            if (queueOpen.current) pushQueue();
-        }, PUBLISH_INTERVAL_MS);
-        return () => window.clearInterval(timer);
-    }, [pushQueue]);
+    // 队列推送/动作已迁到 `nativeMinimalQueue.ts` 的模块级对账与监听者（第 9 轮）：
+    // 抽屉是宿主级的，首页/舞台打开时这个钩子不在场，队列不能依赖它。
 
     /** The session this mount owns; a republish must never mint a new one. */
     const sessionRef = useRef('');
@@ -278,12 +257,6 @@ export function useNativeMinimalPlayer({
                 next: () => currentControls.trackNavigation?.onNext(),
                 seek: seconds => currentControls.onSeek(seconds),
                 toggleLoop: currentControls.onToggleLoop,
-                openQueue: () => {
-                    // 原生抽屉自己画，不再打开 WebView 面板；只把数据推过去。
-                    queueOpen.current = true;
-                    queueDirty.current = true;
-                    pushQueue();
-                },
                 collapse: () => currentChrome?.onBack(),
                 like: () => latest.current.controls?.slotContext?.onLike?.(),
                 // 五项全部复用 `MobileStageMenu` 里的**同一个** store 方法，不新建面板。
@@ -295,26 +268,8 @@ export function useNativeMinimalPlayer({
                     view.setIsPanelOpen(true);
                 },
                 openPlaybackSettings: () => openSettings('options', 'playback'),
-                // 队列：原生抽屉打开时把快照推过去；行内动作原样交给原版处理器。
-                openQueueSnapshot: () => {
-                    queueDirty.current = true;
-                    pushQueue();
-                },
-                closeQueueSnapshot: () => {
-                    queueOpen.current = false;
-                },
-                queueAction: (action, index) => {
-                    if (runNativeQueueAction(action, index)) queueDirty.current = true;
-                    pushQueue();
-                },
                 // 顺访舞台：交给 store 的既有语义（detour），退出由舞台自己 closeStage。
                 openStage: () => usePlayerViewModeStore.getState().openStage(),
-                // 长按页面指示点：翻转渲染来源角标。下一帧把 diag 带回原生，角标 ≤1s 出现。
-                toggleDiagBadge: () => {
-                    const next = !minimalSourceBadgeEnabled();
-                    setMinimalSourceBadge(next);
-                    ownershipLog('diag', `渲染来源角标 ${next ? '开启' : '关闭'}（长按指示点）`);
-                },
             });
             // A seek or a transport tap changes the position the next frame describes. On the
             // browser-audio channel this frame is native's only clock, so send it now instead of

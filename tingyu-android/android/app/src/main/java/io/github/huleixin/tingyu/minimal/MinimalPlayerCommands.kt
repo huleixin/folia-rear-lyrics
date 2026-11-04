@@ -42,6 +42,10 @@ object MinimalActions {
     const val QUEUE_END = "queueEnd"
     /** 渲染来源诊断角标（临时，验收后删）。长按页面指示点触发。 */
     const val DIAG_BADGE = "diagBadge"
+    /** 队列顶栏的四态播放模式循环切换。 */
+    const val PLAYBACK_MODE = "playbackMode"
+    /** 拖拽排序：value 编码 from:to，第二段在 session 里带不上，改用 action 参数。 */
+    const val QUEUE_REORDER = "queueReorder"
 }
 
 interface MinimalPlayerCommands {
@@ -84,6 +88,12 @@ interface MinimalPlayerCommands {
     fun queueRemove(index: Int): Boolean
     fun queueMoveNext(index: Int): Boolean
     fun queueMoveEnd(index: Int): Boolean
+
+    /** 拖拽排序：把 from 移到 to。value 编码 version/from/to 供 JS 校验（队列变了就拒绝）。 */
+    fun queueReorder(from: Int, to: Int, version: Long): Boolean
+
+    /** 四态播放模式循环：顺序 → 列表循环 → 单曲循环 → 随机。复用现有 store 动作。 */
+    fun togglePlaybackMode(): Boolean
 
     /** 翻转渲染来源诊断角标（走桥交给 JS 开关，下一帧带回 diag 状态）。 */
     fun toggleDiagBadge(): Boolean
@@ -130,6 +140,13 @@ class BridgeMinimalCommands(
     override fun queueMoveNext(index: Int): Boolean = send(MinimalActions.QUEUE_NEXT, index.toDouble())
     override fun queueMoveEnd(index: Int): Boolean = send(MinimalActions.QUEUE_END, index.toDouble())
     override fun toggleDiagBadge(): Boolean = send(MinimalActions.DIAG_BADGE, 0.0)
+    override fun togglePlaybackMode(): Boolean = send(MinimalActions.PLAYBACK_MODE, 0.0)
+
+    override fun queueReorder(from: Int, to: Int, version: Long): Boolean {
+        if (from < 0 || to < 0) return false
+        // 一个 double 编码三个数：version*1e8 + from*1e4 + to（都在 2^53 精度内）。
+        return send(MinimalActions.QUEUE_REORDER, version * 1e8 + from * 10000.0 + to)
+    }
 
     private fun send(action: String, value: Double): Boolean {
         if (!available) return false

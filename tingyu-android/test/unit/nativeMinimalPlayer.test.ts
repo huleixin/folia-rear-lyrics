@@ -3,6 +3,11 @@ import { dispatchMinimalAction, type MinimalActionHandlers } from '../../src/ser
 
 // test/unit/nativeMinimalPlayer.test.ts
 // The Compose minimal player's command half: which taps reach which existing command.
+//
+// 第 9 轮：队列动作（queuePlay/queueReorder/playbackMode 等）改由 `nativeMinimalQueue.ts`
+// 的模块级监听者处理（抽屉在首页/舞台打开时这个钩子不在场），这里只测传输与菜单，
+// 并保证队列动作**不会**在这里被二次执行。
+
 const handlers = (overrides: Partial<MinimalActionHandlers> = {}): MinimalActionHandlers & { calls: string[] } => {
     const calls: string[] = [];
     return {
@@ -15,7 +20,6 @@ const handlers = (overrides: Partial<MinimalActionHandlers> = {}): MinimalAction
         next: () => calls.push('next'),
         seek: seconds => calls.push(`seek:${seconds}`),
         toggleLoop: () => calls.push('loop'),
-        openQueue: () => calls.push('queue'),
         collapse: () => calls.push('collapse'),
         like: () => calls.push('like'),
         openStage: () => calls.push('stage'),
@@ -23,10 +27,6 @@ const handlers = (overrides: Partial<MinimalActionHandlers> = {}): MinimalAction
         openAudioEffects: () => calls.push('effects'),
         openLyricsPanel: () => calls.push('lyricsPanel'),
         openPlaybackSettings: () => calls.push('settings'),
-        openQueueSnapshot: () => calls.push('queueOpen'),
-        closeQueueSnapshot: () => calls.push('queueClose'),
-        queueAction: (action, index) => calls.push(`${action}:${index}`),
-        toggleDiagBadge: () => calls.push('diagBadge'),
         ...overrides,
     };
 };
@@ -38,9 +38,8 @@ describe('compose minimal player actions', () => {
         expect(dispatchMinimalAction('previous', 0, h)).toBe(true);
         expect(dispatchMinimalAction('next', 0, h)).toBe(true);
         expect(dispatchMinimalAction('loop', 0, h)).toBe(true);
-        expect(dispatchMinimalAction('queue', 0, h)).toBe(true);
         expect(dispatchMinimalAction('collapse', 0, h)).toBe(true);
-        expect(h.calls).toEqual(['toggle', 'previous', 'next', 'loop', 'queue', 'collapse']);
+        expect(h.calls).toEqual(['toggle', 'previous', 'next', 'loop', 'collapse']);
     });
 
     it('never inverts a state the listener can already see', () => {
@@ -84,15 +83,17 @@ describe('compose minimal player actions', () => {
         expect(h.calls).toEqual(['like', 'stage']);
     });
 
+    it('leaves queue and mode actions to the module listener (no double execution)', () => {
+        const h = handlers();
+        expect(dispatchMinimalAction('queuePlay', 1, h)).toBe(false);
+        expect(dispatchMinimalAction('queueReorder', 0, h)).toBe(false);
+        expect(dispatchMinimalAction('playbackMode', 0, h)).toBe(false);
+        expect(h.calls).toEqual([]);
+    });
+
     it('ignores actions it does not know', () => {
         const h = handlers();
         expect(dispatchMinimalAction('self-destruct', 0, h)).toBe(false);
         expect(h.calls).toEqual([]);
-    });
-
-    it('routes the diagnostics badge toggle (temporary, removed after device sign-off)', () => {
-        const h = handlers();
-        expect(dispatchMinimalAction('diagBadge', 0, h)).toBe(true);
-        expect(h.calls).toEqual(['diagBadge']);
     });
 });

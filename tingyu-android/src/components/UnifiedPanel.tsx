@@ -86,6 +86,8 @@ type UnifiedPanelQueueProps = {
     onRemoveSong: (index: number) => void;
     onMoveSongToEnd: (index: number) => void;
     onMoveSongToNext: (index: number) => void;
+    /** 任意位置排序（原生抽屉拖拽用）。缺省时原生抽屉的排序动作会被丢弃。 */
+    onMoveSong?: (from: number, to: number) => void;
     onOpenLattice?: () => void;
 };
 

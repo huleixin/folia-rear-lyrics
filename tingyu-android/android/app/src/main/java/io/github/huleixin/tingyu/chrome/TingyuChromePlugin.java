@@ -110,6 +110,15 @@ public class TingyuChromePlugin extends Plugin {
         });
     }
 
+    /** 轻量当前包：切歌/换播放模式。队列数组没变，几百首不必重过桥。 */
+    @PluginMethod public void minimalQueueCurrent(PluginCall call) {
+        final org.json.JSONObject packet = call.getData();
+        getActivity().runOnUiThread(() -> {
+            try { if (host != null) host.minimalQueueCurrent(packet); call.resolve(); }
+            catch (Exception error) { call.reject(error.getMessage(), error); }
+        });
+    }
+
     @PluginMethod public void minimalPlayerFrame(PluginCall call) {
         final org.json.JSONObject frame = call.getData();
         getActivity().runOnUiThread(() -> {

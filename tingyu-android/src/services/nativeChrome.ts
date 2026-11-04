@@ -36,6 +36,10 @@ export const chromeNative = registerPlugin<{
     /** 队列抽屉要的数据。只在打开时或版本变化时推，不是每帧。 */
     minimalQueue(snapshot: import('./nativeMinimalQueue').NativeQueueSnapshot): Promise<{ accepted: boolean }>;
     /**
+     * 轻量当前包：切歌/换播放模式时推，几十字节。队列内容没变就不发整包。
+     */
+    minimalQueueCurrent(value: { v: number; i: number; k: string; mode: string }): Promise<void>;
+    /**
      * 让原生打开它自己的队列抽屉。任何页面（首页、舞台、极简页）都走这一个入口，
      * Android 上不再有第二个队列界面。
      */

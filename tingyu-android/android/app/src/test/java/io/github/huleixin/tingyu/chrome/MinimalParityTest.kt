@@ -163,6 +163,9 @@ class MinimalParityTest {
         override fun queueRemove(index: Int): Boolean = true
         override fun queueMoveNext(index: Int): Boolean = true
         override fun queueMoveEnd(index: Int): Boolean = true
+        override fun queueReorder(from: Int, to: Int, version: Long): Boolean = true
+        override fun togglePlaybackMode(): Boolean = true
+        override fun toggleDiagBadge(): Boolean = true
     }
 
     private fun render(name: String, light: Boolean, safeTop: Float, safeBottom: Float) {
@@ -227,8 +230,17 @@ class MinimalParityTest {
         val queue = io.github.huleixin.tingyu.minimal.MinimalQueue(
             version = 1,
             currentIndex = 1,
+            currentKey = "tx:2",
+            mode = "all",
             total = rows.size,
-            items = rows.map { io.github.huleixin.tingyu.minimal.MinimalQueueItem(it.first, it.second, it.third) },
+            items = rows.mapIndexed { index, row ->
+                io.github.huleixin.tingyu.minimal.MinimalQueueItem(
+                    uid = "${row.first}#$index",
+                    songKey = row.first,
+                    title = row.second,
+                    artist = row.third,
+                )
+            },
         )
         compose.setContent {
             androidx.compose.foundation.layout.Box(
@@ -239,11 +251,12 @@ class MinimalParityTest {
                 io.github.huleixin.tingyu.minimal.ui.MinimalQueueSheet(
                     queue = queue,
                     light = light,
+                    mode = "all",
                     onClose = {},
                     onPlay = {},
                     onRemove = {},
-                    onMoveNext = {},
-                    onMoveEnd = {},
+                    onReorder = { _, _ -> },
+                    onToggleMode = {},
                 )
             }
         }
