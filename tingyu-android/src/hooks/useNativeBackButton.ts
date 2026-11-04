@@ -4,7 +4,7 @@ import { installNativeBackPolicy, hasNativeBackOverlay } from '../utils/nativeBa
 type NativeBackPlugin = {
     addListener: (
         eventName: string,
-        listener: () => void,
+        listener: (event?: { eventId?: number }) => void,
     ) => Promise<{ remove: () => Promise<void> }> | { remove: () => Promise<void> };
     exitApp: () => Promise<unknown>;
     setBackHandlerState?: (state: { handledInWeb: boolean; revision: number }) => Promise<unknown>;
@@ -99,9 +99,11 @@ export const useNativeBackButton = (navigateBack?: () => boolean, canNavigateBac
         const removePolicy = canNavigateRef.current
             ? installNativeBackPolicy(plugin, () => canNavigateRef.current?.() ?? true) : () => {};
         let disposed = false;
+        let lastEventId=0;
         let listenerHandle: { remove: () => Promise<void> } | { remove: () => void } | null = null;
-        const registered = plugin.addListener('backButton', () => {
+        const registered = plugin.addListener('backButton', event => {
             if (disposed) return;
+            if(event?.eventId){if(event.eventId<=lastEventId)return;lastEventId=event.eventId;}
             const handled = dispatchNativeBack(() => navigateRef.current?.() ?? false);
             applyNativeBackPress(plugin, handled);
         });

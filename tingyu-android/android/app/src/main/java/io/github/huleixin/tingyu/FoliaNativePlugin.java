@@ -164,6 +164,7 @@ public class FoliaNativePlugin extends Plugin {
 
     /** True when the WebView handled Back; otherwise the activity backgrounds without killing playback. */
     private final MainBackPolicy mainBackPolicy = new MainBackPolicy();
+    private static final java.util.concurrent.atomic.AtomicLong backEventSerial = new java.util.concurrent.atomic.AtomicLong();
 
     @PluginMethod public void setBackHandlerState(PluginCall call) {
         mainBackPolicy.update(call.getBoolean("handledInWeb", true), call.getData().optLong("revision", 0));
@@ -200,6 +201,7 @@ public class FoliaNativePlugin extends Plugin {
             "FoliaNativePlugin.emitBackPressed"
         );
         JSObject payload = new JSObject();
+        payload.put("eventId", backEventSerial.incrementAndGet());
         activity.runOnUiThread(() -> plugin.notifyListeners("backButton", payload));
         return true;
     }

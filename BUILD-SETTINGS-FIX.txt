@@ -1,0 +1,34 @@
+听屿 设置导航/触摸/预览修复：源码构建说明
+
+源码提交：c9b7546c189b37760aa4d3fb7acd85f27e3ffef3
+基线：24f082f37d2a3b020695b8fc602458b64f80402c
+分支：fix/settings-stage-ownership
+
+本包 folia-rear-lyrics/ 为该提交的全部 Git 跟踪文件，包含 LICENSE、前端源码、Android 源码、测试与审计说明。
+源码之外的 delivery/ 包含补丁、测试日志及 APK 验签/清单结果。
+不包含 node_modules、dist、Android 构建目录、SDK/JDK、签名私钥或本机 local.properties。
+
+要求：Node >=24、JDK 21、Android SDK 36/36.1 与相应构建工具，Gradle wrapper 8.14.3。
+
+进入 folia-rear-lyrics/tingyu-android：
+1. npm install --ignore-scripts --package-lock=false --no-audit --no-fund
+   原始 package-lock.json 有三项传递依赖版本不匹配，npm ci 会失败；本次保留原锁文件，并使用上述安装方式。
+2. npx cross-env FOLIA_OFFLINE_BUILD=true npm run cap:sync:android
+   此标志关闭构建时的提交名称外站查询；不更改播放器功能。
+3. 配置 JAVA_HOME、ANDROID_HOME，或在 android/local.properties 中配置本机 sdk.dir。
+4. cd android
+5. Linux/macOS: bash gradlew :app:assembleDebug
+   Windows: gradlew.bat :app:assembleDebug
+
+产物：android/app/build/outputs/apk/debug/app-debug.apk。
+提供的 APK 为 debug 签名，包名 io.github.huleixin.tingyu，版本 1.3.137 / versionCode 160。
+Build ID：1.3.137@c9b7546c。该包不能覆盖不同证书的正式包。
+APK SHA-256：2c5165a9c035eb88f238a633318ce2ff7805b35b3e622a6d9f6af82ee669f8f6
+
+已完成：TypeScript 检查；113 项 JS 单测；13 项 Android 单测（含 Robolectric 真实触摸注入）；Capacitor 构建；APK 组装、签名验证。
+浏览器用例未完成：Chrome 在环境中创建本地 socket 被禁止，启动崩溃。
+真机未连接：未完成实际系统返回键/手势、WebView GPU 重影、完整舞台底部控件的真机回归；没有修复后真机操作录屏。
+
+诊断：开启“导航与设置诊断（60 秒）”，立即复现并导出日志。源码说明：audits/settings-stage-ownership.md。
+GitHub 推送失败：当前环境缺少 GitHub 登录凭据。源码已本地提交，未推送。
+已有仓库可在基线之上执行 git am delivery/Tingyu-settings-fix.patch。

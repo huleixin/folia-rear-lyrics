@@ -40,4 +40,10 @@ internal class NativeRouteMotion {
 
 // Data revisions do not retire controls; session and destination identity do.
 internal fun pageInteractionIsCurrent(current:NativePage,shown:NativePage):Boolean =
-    current.enabled && current.session==shown.session && current.key==shown.key
+    pageInteractionRejection(current,shown).isEmpty()
+internal fun pageInteractionRejection(current:NativePage,shown:NativePage):String=when {
+    !current.enabled->"disabled-page"
+    current.session!=shown.session->"session-mismatch"
+    current.key!=shown.key->"key-mismatch"
+    else->""
+}

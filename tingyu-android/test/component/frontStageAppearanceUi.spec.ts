@@ -5,6 +5,8 @@ import {APP_VERSION,GUIDE_VERSION_STORAGE_KEY} from '../helpers/appState';
 // Browser plugin not available. Exercise the actual SettingsModal and Compose document actions.
 const base=process.env.TINGYU_QA_URL??'http://127.0.0.1:4173';
 test.use({serviceWorkers:'block'});
+// Keep regression fixtures local; application startup must not contact configured services.
+test.beforeEach(async({page})=>{await page.route('**/*',route=>{const url=new URL(route.request().url());return url.hostname==='127.0.0.1'||url.hostname==='localhost'?route.continue():route.abort();});});
 async function openFront(page:Page,light:boolean){
     await page.addInitScript(({light,version,key})=>{
         localStorage.clear();localStorage.setItem('i18nextLng','zh-CN');localStorage.setItem('library_suite','mobile');

@@ -1184,9 +1184,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
+            if (event.key === 'Escape' && !event.defaultPrevented) {
                 event.preventDefault();
-                event.stopPropagation();
+                event.stopImmediatePropagation();
                 if (isAnySubviewOpen) {
                     if(showStageTheme){setShowStageTheme(false);return;}
                     closeAllSubviews();
@@ -1324,6 +1324,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         </SettingsPresence>
     );
     const closeSubviewOrModal = (closeSubview: () => void) => {
+        if(showStageTheme){setShowStageTheme(false);return;}
         if (shouldCloseModalOnSubviewBack) {
             onClose();
             return;

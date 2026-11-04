@@ -23,7 +23,7 @@ export type ChromeAction = {nativeDispatchedAt?:number;nativeGestureId?:number;i
 export type ChromeFrame = {id: ChromeSurfaceId; session: string; generation: number; revision: number; enabled: boolean;
     left: number; top: number; width: number; height: number; alpha: number; viewportWidth: number; safeBottom?:number; data: ChromeData & {position?: number}};
 export const chromeNative = registerPlugin<{
-    navigationDiagnostics(value:{enabled?:boolean}):Promise<{enabled:boolean;nativeNow:number;startedAt:number;samples:{phase:string;at:number;elapsedMs?:number;gestureId?:number}[]}>;
+    navigationDiagnostics(value:{enabled?:boolean}):Promise<{enabled:boolean;nativeNow:number;startedAt:number;samples:{phase:string;at:number;elapsedMs?:number;gestureId?:number;detail?:Record<string,unknown>}[]}>;
     appearance(value:{mode?:string}):Promise<{mode:'system'|'light'|'dark';systemLight:boolean;light:boolean}>;
     addListener(name:'appearanceChanged',callback:(value:{systemLight:boolean})=>void):Promise<{remove:()=>Promise<void>}>;
     probe(): Promise<{supported:boolean;engine:string;pages?:boolean;minimalPlayer?:boolean}>;
@@ -59,9 +59,9 @@ export const chromeNative = registerPlugin<{
     minimalPlayerRelease(value:{session:string}): Promise<void>;
     clock(value:{id:ChromeSurfaceId;session:string;trackKey:string;position:number}):Promise<void>;
     remove(value:{id:ChromeSurfaceId;session:string}):Promise<void>;
-    pageUpdate(frame:NativePageFrame):Promise<{accepted:boolean;session:string}>;
+    pageUpdate(frame:NativePageFrame):Promise<{accepted:boolean;session:string;reason?:string}>;
     pageRemove(value:{id:NativePageId;session:string}):Promise<void>;
-    shell(value:{generation:number;revision:number;route:string;webOverlay:boolean;selectedTab:number;pageTarget?:string;entryKey?:string;reducedMotion?:boolean;navigation?:string;playlistDetail?:boolean;playerPresentation?:'minimal'|'stage'}):Promise<void>;
+    shell(value:{generation:number;revision:number;route:string;webOverlay:boolean;selectedTab:number;pageTarget?:string;entryKey?:string;reducedMotion?:boolean;navigation?:string;playlistDetail?:boolean;playerPresentation?:'minimal'|'stage';minimalPage?:'cover'|'lyrics'}):Promise<void>;
     collapseStage():Promise<void>;
     addListener(name:'action',callback:(value:ChromeAction)=>void):Promise<{remove:()=>Promise<void>}>;
     addListener(name:'pageAction',callback:(value:NativePageEvent)=>void):Promise<{remove:()=>Promise<void>}>;

@@ -24,6 +24,9 @@ class NativePageRetentionTest {
         assertFalse(pageInteractionIsCurrent(shown.copy(session="new-session"),shown))
         assertFalse(pageInteractionIsCurrent(shown.copy(enabled=false),shown))
         assertFalse(pageInteractionIsCurrent(page("settings:other"),shown))
+        assertEquals("session-mismatch",pageInteractionRejection(shown.copy(session="new-session"),shown))
+        assertEquals("disabled-page",pageInteractionRejection(shown.copy(enabled=false),shown))
+        assertEquals("key-mismatch",pageInteractionRejection(page("settings:other"),shown))
     }
     @Test fun disabledAndRemovedAdaptersDoNotEraseTheReturnPresentation(){
         val frames=NativePageRetention();val home=page("home:qq");frames.update(home)

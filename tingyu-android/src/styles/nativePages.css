@@ -39,7 +39,19 @@ html[data-native-first='true']:is([data-native-route='home'],[data-native-route=
 }
 /* Route ownership is published before React retires the retained stage. Do not let
    that outgoing canvas paint through a native page during the intervening commit. */
-html[data-native-first='true']:is([data-native-route='home'],[data-native-route='collection'],[data-native-route='search']) [data-testid='player-visual-surface'] {
+html[data-native-first='true']:is([data-native-route='home'],[data-native-route='collection'],[data-native-route='search'],[data-native-route='settings']) :is([data-testid='player-visual-surface'],[data-testid='mobile-stage-chrome'],[data-testid='minimal-stage']) {
     visibility: hidden !important;
     pointer-events: none !important;
+}
+html[data-native-first='true'][data-native-route='settings'] :is([data-testid='player-visual-surface'],[data-testid='mobile-stage-chrome'],[data-testid='minimal-stage']) * {
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* A preview is the only WebView paint island inside the native settings route. */
+html[data-native-settings-document='true'] [data-native-live='true'] {
+    contain: layout paint !important;
+    isolation: isolate;
+    overflow: hidden !important;
+    clip-path: inset(0 round 28px);
 }

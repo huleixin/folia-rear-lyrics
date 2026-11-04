@@ -1204,7 +1204,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                 </div>}
 
                 <div className="ty-stage-editor-content grid min-h-0 flex-1 gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,1.25fr)_360px]">
-                    <div data-folia-stage-preview="true" className="relative min-h-[320px] overflow-hidden rounded-[28px] border border-white/10 bg-black/20">
+                    <div data-folia-stage-preview="true" data-native-live={NATIVE_FIRST?'true':undefined} style={{contain:'layout paint',isolation:'isolate'}} className="relative min-h-[320px] overflow-hidden rounded-[28px] border border-white/10 bg-black/20">
                         <div className="absolute left-4 top-4 z-20 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/25 px-3 py-1.5 text-xs uppercase tracking-[0.22em] backdrop-blur-md" style={{ color: 'rgba(255,255,255,0.78)' }}>
                             <Sparkles size={13} />
                             <span>{t('ui.livePreview')}</span>
@@ -1213,8 +1213,8 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                             {modeLabel}
                         </div>
 
-                        <div data-native-live={NATIVE_FIRST?'true':undefined} className="absolute inset-0">
-                            {previewReady&&<VisualizerRenderer
+                        <div className="absolute inset-0">
+                            {previewReady&&<VisualizerRenderer key={visualizerMode}
                                 mode={visualizerMode}
                                 currentTime={currentTime}
                                 currentLineIndex={currentLineIndex}

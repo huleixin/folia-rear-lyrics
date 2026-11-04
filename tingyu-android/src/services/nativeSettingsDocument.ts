@@ -5,6 +5,7 @@ import { absolutePageImage } from './nativePages';
 import { settingsTextRuns } from './nativeSettingsText';
 import { bindSettingsControl } from './nativeSettingsActions';
 import { normalizeSettingsColors } from './nativeSettingsColor';
+import { settingsDiagnostic } from './settingsDiagnostics';
 
 // src/services/nativeSettingsDocument.ts
 // A measured display list preserves the existing settings design; Compose owns painting,
@@ -14,7 +15,7 @@ const idFor=(node:Element)=>{let id=ids.get(node);if(!id){id=`setting:${++next}`
 const n=(value:string)=>parseFloat(value)||0;
 const painted=(color:string)=>color&&color!=='transparent'&&!/^rgba\([^)]*,\s*0\s*\)$/.test(color);
 export function captureSettingsDocument(root:HTMLElement){
-    const startedAt=Date.now();
+    const startedAt=performance.timeOrigin+performance.now();
     const styles=new WeakMap<Element,CSSStyleDeclaration>();
     const computedStyle=(node:Element)=>{let style=styles.get(node);if(!style){style=getComputedStyle(node);styles.set(node,style)}return style};
     const base=root.getBoundingClientRect(),paints:SettingsPaint[]=[],controls:SettingsControl[]=[],areas:SettingsScrollArea[]=[],live:SettingsRect[]=[],actions:PageActions={};
@@ -55,7 +56,8 @@ export function captureSettingsDocument(root:HTMLElement){
             paints.push({...common,kind:'image',image:absolutePageImage(element.currentSrc||element.src),radius:n(style.borderTopLeftRadius)});return;
         }
         const input=element instanceof HTMLInputElement||element instanceof HTMLTextAreaElement||element instanceof HTMLSelectElement;
-        const clickable=element.matches('button,a[href],summary,[role="button"],[role="tab"],[role="option"],[role="switch"],[role="checkbox"]');
+        const clickable=element.matches('button,a[href],summary,[role="button"],[role="tab"],[role="option"],[role="switch"],[role="checkbox"]')
+            ||element instanceof HTMLLabelElement&&element.control?.matches('input[type="file"],input[type="checkbox"],input[type="radio"]');
         const ruler=element.matches('[data-native-ruler]');
         const pad=element.matches('.react-colorful__interactive');
         if(input||clickable||ruler||pad){
@@ -115,6 +117,8 @@ export function captureSettingsDocument(root:HTMLElement){
     actions.liveTap=event=>{try{const {x,y}=JSON.parse(event.text??'{}');const target=document.elementFromPoint(x+base.left,y+base.top);
         const button=target?.closest<HTMLElement>('button,a,[role="button"]');
         if(button&&button.closest('[data-native-live]'))button.click();}catch{/* Ignore stale/invalid pointer coordinates. */}};
+    const documentModel=normalizeSettingsColors({paints,controls,areas,live} satisfies NativeSettingsDocument);
     navigationMark('settings-capture',startedAt);
-    return {document:normalizeSettingsColors({paints,controls,areas,live} satisfies NativeSettingsDocument),actions};
+    settingsDiagnostic('capture',{durationMs:performance.timeOrigin+performance.now()-startedAt,paints:paints.length,controls:controls.length,areas:areas.length,live:live.length});
+    return {document:documentModel,actions};
 }

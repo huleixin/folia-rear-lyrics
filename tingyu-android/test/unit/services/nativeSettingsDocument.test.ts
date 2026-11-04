@@ -30,6 +30,10 @@ it('draws expanded content and removes it again after collapse',()=>{
     details.open=false;
     expect(captureSettingsDocument(root).document.paints.some(p=>p.kind==='text'&&p.text==='不应绘制的折叠正文')).toBe(false);
 });
+it('captures upload labels even when their associated file input is hidden',()=>{
+ const root=fixture();root.innerHTML='<label for="file">Upload</label><input id="file" type="file" style="display:none">';
+ expect(captureSettingsDocument(root).document.controls).toMatchObject([{kind:'click',label:'Upload'}]);
+});
 
 it('isolates native input controls and scroll areas beneath a modal portal',()=>{
  const root=fixture();root.innerHTML='<input placeholder="例如: http://localhost:4533"><button>背景操作</button>';

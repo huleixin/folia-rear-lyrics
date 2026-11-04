@@ -31,7 +31,12 @@ public final class NavigationTiming {
         enabled=activity.getSharedPreferences("navigation_timing",Context.MODE_PRIVATE).getBoolean("enabled",false);
         mark("activity-create-start");
         if(!enabled)return;
-        final long end=originElapsed+10000;
+        startSampling(activity);
+    }
+    public static void startSampling(Activity activity){
+        stopSampling();
+        if(!enabled)return;
+        final long end=SystemClock.elapsedRealtime()+60000;
         pulse=new Runnable(){long due=SystemClock.uptimeMillis()+100;
             public void run(){if(!enabled||SystemClock.elapsedRealtime()>end)return;
                 long lag=SystemClock.uptimeMillis()-due;if(lag>32)mark("main-looper-lag",lag);
@@ -64,6 +69,11 @@ public final class NavigationTiming {
     public static synchronized void beginTouch(double queueLag){if(enabled){gesture++;record("touch-received",queueLag,gesture);}}
     public static synchronized void markGesture(String phase,double duration){record(phase,duration,gesture);}
     public static synchronized void mark(String phase,double duration){record(phase,duration,0);}
+    public static synchronized void detail(String phase,JSONObject detail){
+        if(!enabled)return;
+        record(phase,-1,gesture);
+        try{samples.get(samples.size()-1).put("detail",detail);}catch(Exception ignored){}
+    }
     private static void record(String phase,double duration,long gestureId){
         if(!enabled)return;
         try {JSONObject entry=new JSONObject().put("phase",phase).put("at",epochNow());
@@ -75,7 +85,7 @@ public final class NavigationTiming {
     }
     public static synchronized JSONObject snapshot(){
         JSONObject result=new JSONObject();try{return result.put("enabled",enabled).put("startedAt",originEpoch)
-            .put("nativeNow",epochNow()).put("samples",new JSONArray(samples)).put("samplingWindowMs",10000)
+            .put("nativeNow",epochNow()).put("samples",new JSONArray(samples)).put("samplingWindowMs",60000)
             .put("frameEvidence","FrameMetrics describes completed app frames, not physical display presentation");
         }catch(Exception ignored){return result;}
     }

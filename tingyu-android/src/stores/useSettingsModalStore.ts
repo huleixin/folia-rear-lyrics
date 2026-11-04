@@ -6,6 +6,9 @@
 
 import { create } from 'zustand';
 import i18n from '../i18n/config';
+import { useAppViewStore, type AppView } from './useAppViewStore';
+import { usePlayerViewModeStore, type PlayerViewMode, type MinimalPlayerPage } from './usePlayerViewModeStore';
+import { flushNativeShellRoute } from '../services/nativeShellCommit';
 
 
 import { normalizePinnedCommandIds, readPinnedCommandIds, writePinnedCommandIds, type PinnedCommandIds } from '../components/command-palette/pinnedCommandPreferences';
@@ -35,10 +38,15 @@ export type SettingsModalState = {
     initialAnchor?: { id: SettingsAnchorId; seq: number } | null;
     returnToIndex?: boolean;
     rearPage?:RearSettingsPage;
+    origin?: { view: AppView; mode: PlayerViewMode; modeRevision:number; page: MinimalPlayerPage; detour: boolean };
 };
 
 // Separate from the retired guide key so people who saw the old carousel still receive the Ponder lesson.
 const LAST_SEEN_GUIDE_VERSION_STORAGE_KEY = 'folia_last_seen_ponder_onboarding_version';
+const settingsOrigin = () => {
+    const {mode,modeRevision,page,detour}=usePlayerViewModeStore.getState();
+    return {view:useAppViewStore.getState().view,mode,modeRevision,page,detour};
+};
 
 export type SettingsModalUiState = {
     appLanguagePreference: AppLanguagePreference;
@@ -91,19 +99,22 @@ export const useSettingsModalStore = create<SettingsModalUiState>((set, get) => 
             initialTab,
             initialSubview,
             initialVisualizerSection,
+            origin:get().settingsModalState.isOpen?get().settingsModalState.origin:settingsOrigin(),
             initialAnchor: initialAnchorId
                 ? { id: initialAnchorId, seq: (get().settingsModalState.initialAnchor?.seq ?? 0) + 1 }
                 : null,
         },
     }),
-    closeSettings: () => set(state => ({
-        settingsModalState: {
-            ...state.settingsModalState,
-            isOpen: false,
-        },
-    })),
+    closeSettings: () => {
+        const state=get().settingsModalState;
+        if(!state.isOpen)return;
+        if(state.origin?.view==='player'&&useAppViewStore.getState().view==='player')
+            usePlayerViewModeStore.getState().restoreSettingsPresentation(state.origin);
+        set({settingsModalState:{...state,isOpen:false},isSubSettingsViewOpen:false});
+        flushNativeShellRoute();
+    },
     openSettingsFromIndex: (section) => set({settingsModalState:{isOpen:true,initialTab:section==='help'?'help':'options',initialSubview:section==='help'?null:section,
-        initialVisualizerSection:null,initialAnchor:null,returnToIndex:true}}),
+        initialVisualizerSection:null,initialAnchor:null,returnToIndex:true,origin:get().settingsModalState.isOpen?get().settingsModalState.origin:settingsOrigin()}}),
     returnSettingsToIndex: () => {get().openSettings('options');},
     openRearSettings:(rearPage='control')=>set({settingsModalState:{isOpen:true,initialTab:'options',initialSubview:null,initialAnchor:null,initialVisualizerSection:null,returnToIndex:true,rearPage}}),
     handleSetAppLanguagePreference: async (preference) => {

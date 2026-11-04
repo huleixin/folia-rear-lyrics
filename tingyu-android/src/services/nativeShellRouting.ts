@@ -39,19 +39,22 @@ export function installNativeShellRouting() {
                 .filter(node=>!node.closest('[data-folia-settings-overlay]')));
         const pageTarget=route==='settings'?(index?rearPageKey(settings.rearPage??'index'):`settings:document:${settings.initialTab}:${resolveInitialSettingsSection({initialSubview:settings.initialSubview,hasInitialAnchor:!!settings.initialAnchor,isElectron:false})}:`):
             route==='collection'?`collection:${stack?.at(-1)?.type==='artist'?'artist:':''}${collectionKey(stack?.at(-1))}`:'';
-        const entryKey=route==='settings'&&!index?`${pageTarget}${['visualizer','themePark','lyricFilter','globalLyricOffset','aiHelp','releaseNotes'].map(id=>settings.initialSubview===id).join(':')}`:pageTarget;
+        // The mounted document owns nested editor identity. Do not reconstruct its flags here.
+        const documentKey=document.querySelector<HTMLElement>('[data-native-document-root]')?.dataset.nativeSettingsKey;
+        const entryKey=route==='settings'&&!index&&documentKey?.startsWith(pageTarget)?documentKey:pageTarget;
         const reducedMotion=readReducedMotion('uiMicroMotion');
         const playerPresentation=usePlayerViewModeStore.getState().mode;
         const playlistDetail=route==='collection'&&stack?.at(-1)?.type==='playlist';
         const routeKey=JSON.stringify({route,selectedTab,pageTarget,entryKey});
-        if(routeKey!==lastRoute){lastRoute=routeKey;document.documentElement.dataset.nativeNavigation=`${generation}:${++navigationRevision}`;}
+        if(routeKey!==lastRoute){lastRoute=routeKey;document.documentElement.dataset.nativeNavigation=`${generation}:${++navigationRevision}`;document.dispatchEvent(new Event('tingyu-native-navigation'));}
         const navigation=document.documentElement.dataset.nativeNavigation??'';
-        const key=JSON.stringify({route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,playlistDetail,playerPresentation});if(key===last)return;last=key;
+        const minimalPage=usePlayerViewModeStore.getState().page;
+        const key=JSON.stringify({route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,playlistDetail,playerPresentation,minimalPage});if(key===last)return;last=key;
         navigationMark('route-publish');
         const sent=++revision;
         const leavingStage=document.documentElement.dataset.nativeRoute==='stage'&&route!=='stage';
         if(!leavingStage)document.documentElement.dataset.nativeRoute=route;
-        void nativePages.shell({generation,revision:sent,route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,navigation,playlistDetail,playerPresentation}).then(()=>{
+        void nativePages.shell({generation,revision:sent,route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,navigation,playlistDetail,playerPresentation,minimalPage}).then(()=>{
             if(sent===revision)document.documentElement.dataset.nativeRoute=route;
         }).catch(error=>console.warn('[NativeShell] Route update failed',error));
     };
@@ -59,6 +62,6 @@ export function installNativeShellRouting() {
     [useAppViewStore,useSettingsModalStore,useSearchNavigationStore,useCollectionNavigationStore,useMobileLibraryStore,useMotionSettingsStore,usePlayerViewModeStore].forEach(store=>store.subscribe(scheduleNativeShellRoute));
     const observer=new MutationObserver(records=>{if(records.some(record=>record.type==='attributes'||[...record.addedNodes,...record.removedNodes].some(node=>node instanceof Element&&
         (node.matches('[data-folia-keyboard-window]')||node.querySelector('[data-folia-keyboard-window]')))))scheduleNativeShellRoute()});
-    observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['data-folia-keyboard-window','data-native-page']});
+    observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['data-folia-keyboard-window','data-native-page','data-native-settings-key']});
     publish();
 }

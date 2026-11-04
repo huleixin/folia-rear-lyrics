@@ -9,6 +9,7 @@ import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
 import { useAudioToolsStore, QUALITY_LABELS } from '../stores/useAudioToolsStore';
 import { openSettings, useSettingsModalStore } from '../stores/useSettingsModalStore';
 import i18n from '../i18n/config';
+import { flushNativeShellRoute } from '../services/nativeShellCommit';
 import { resolveQualityBadges } from '../components/app/overlays/minimal-stage/minimalQuality';
 import { buildMinimalPalette } from '../components/app/overlays/minimal-stage/minimalPalette';
 import { useCoverColors } from '../components/app/overlays/minimal-stage/useCoverPalette';
@@ -268,6 +269,9 @@ export function useNativeMinimalPlayer({
         publishRef.current = () => { void publish(); };
 
         const onAction = (action: string, value: number) => {
+            if(action==='pageChanged'){
+                usePlayerViewModeStore.getState().setPage(value===1?'lyrics':'cover');return;
+            }
             const currentControls = latest.current.controls;
             const currentChrome = latest.current.chrome;
             if (!currentControls) return;
@@ -344,6 +348,7 @@ export function useNativeMinimalPlayer({
             const open = settingsOpen();
             if (open !== lastOpen) {
                 lastOpen = open;
+                flushNativeShellRoute();
                 publishRef.current();
             }
         });

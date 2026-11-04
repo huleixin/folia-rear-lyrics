@@ -10,6 +10,7 @@ import { useNativePageImages } from './useNativePageImages';
 import { useStableNativeData } from './useStableNativeData';
 import { sameNativeEnvelope } from '../utils/nativePacketData';
 import {flushNativeShellRoute} from '../services/nativeShellCommit';
+import { refreshNativeSettingsDocument, settingsDiagnostic } from '../services/settingsDiagnostics';
 
 export function useNativePagesAvailable() {
     const [available,setAvailable]=useState(NATIVE_FIRST);
@@ -66,7 +67,8 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
             void nativePages.pageUpdate({ ...packet, revision: sent }).then(result => {
                 navigationMark('page-ack');
                 if (disposed) { void remove(); return; }
-                if (sent === revision) {const accepted=enabled && result.accepted && result.session === session;mark(accepted);if(accepted)markStartupReady('page');}
+                if (sent === revision) {const accepted=enabled && result.accepted && result.session === session;mark(accepted);if(accepted)markStartupReady('page');
+                    if(enabled&&!accepted){last=undefined;settingsDiagnostic('page-rejected',{id,session,key:current.model.key,navigation:packet.navigation,reason:result.reason??'native-rejected'});}}
             }).catch(error => {
                 if (sent !== revision || disposed) return;
                 console.warn('[NativePages] Native page update failed', error);
@@ -79,8 +81,13 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
             if (!supported || disposed) return;
             listener = await nativePages.addListener('pageAction', event => {
                 const current = latest.current;
-                if (disposed || !current.active || event.id !== id || event.session !== session || event.key !== current.model.key
-                    || node.dataset.nativePage !== 'true') return;
+                if(disposed||!current.active||event.id!==id)return;
+                if(event.action==='__refresh'){
+                    last=undefined;refreshNativeSettingsDocument(event.text??'native-stale-presentation');schedule();return;
+                }
+                const reason=event.session!==session?'session-mismatch':event.key!==current.model.key?'key-mismatch':node.dataset.nativePage!=='true'?'ownership-mismatch':!current.actions[event.action]?'unknown-control':'';
+                settingsDiagnostic(reason?'action-rejected':'action-accepted',{id,session,key:current.model.key,eventSession:event.session,eventKey:event.key,control:event.action,route:document.documentElement.dataset.nativeRoute,navigation:document.documentElement.dataset.nativeNavigation,reason});
+                if(reason){last=undefined;refreshNativeSettingsDocument(reason);schedule();return;}
                 noteUiInteraction();
                 navigationMark('page-event-js',event.nativeDispatchedAt,event.nativeGestureId);
                 navigationMark('page-business-start',undefined,event.nativeGestureId);
@@ -98,11 +105,13 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
             mutation.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['inert', 'data-folia-keyboard-window'] });
             unsubscribe = subscribeMainStageActivity(measure);
             window.addEventListener('resize', schedule); window.visualViewport?.addEventListener('resize', schedule);
+            document.addEventListener('tingyu-native-navigation',schedule);
             measure();
         }).catch(() => mark(false));
         return () => {
             disposed = true; cancelAnimationFrame(frame); resize?.disconnect(); mutation?.disconnect(); unsubscribe?.();
             window.removeEventListener('resize', schedule); window.visualViewport?.removeEventListener('resize', schedule);
+            document.removeEventListener('tingyu-native-navigation',schedule);
             if(!NATIVE_FIRST)delete node.dataset.nativePage;
             setReady(NATIVE_FIRST); latest.current.onReady?.(NATIVE_FIRST);
             void listener?.remove(); if (started) void remove(); sync.current = () => {};

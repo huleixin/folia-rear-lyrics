@@ -78,7 +78,7 @@ export default defineConfig({
     // 不钉的话 dev server 一律被判成非官方，扫码失败的诊断入口换成「See diagnostics」、不给反馈按钮，
     // 而账户用例断言的是官方构建的入口。仓库 CI 不跑 Playwright，这些用例只在本机跑。
     // 只在 Playwright 自己拉起服务时生效：4173 上已有别的 dev server 会被复用（reuseExistingServer），先停掉它。
-    command: 'cross-env VITE_LIBRARY_TUI=true VITE_LIBRARY_INITIAL_SUITE=grid VITE_NETEASE_API_BASE=http://127.0.0.1:4173/__mock_netease__ FOLIA_DEV_BUILD_KIND=official npm run dev -- --host 127.0.0.1 --port 4173 --strictPort',
+    command: 'cross-env FOLIA_OFFLINE_BUILD=true VITE_LIBRARY_TUI=true VITE_LIBRARY_INITIAL_SUITE=grid VITE_NETEASE_API_BASE=http://127.0.0.1:4173/__mock_netease__ FOLIA_DEV_BUILD_KIND=official npm run dev -- --host 127.0.0.1 --port 4173 --strictPort',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: true,
     timeout: 120_000,

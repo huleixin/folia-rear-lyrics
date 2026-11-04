@@ -42,7 +42,7 @@ public class TingyuChromePlugin extends Plugin {
         return host;
     }
     @PluginMethod public void navigationDiagnostics(PluginCall call){getActivity().runOnUiThread(()->{
-        if(call.getData().has("enabled"))NavigationTiming.configure(getContext(),call.getBoolean("enabled",false));
+        if(call.getData().has("enabled")){NavigationTiming.configure(getContext(),call.getBoolean("enabled",false));NavigationTiming.startSampling(getActivity());}
         try{call.resolve(JSObject.fromJSONObject(NavigationTiming.snapshot()));}catch(Exception e){call.reject("启动诊断读取失败",e);}
     });}
     @PluginMethod public void appearance(PluginCall call) { getActivity().runOnUiThread(() -> {

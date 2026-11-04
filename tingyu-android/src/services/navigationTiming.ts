@@ -3,7 +3,7 @@ import { isAndroidNativeRuntime } from '../utils/platform';
 
 // src/services/navigationTiming.ts
 // Same opt-in recorder for startup, input and export. No user text or resource URLs.
-export type NavigationSample = { phase: string; at: number; elapsedMs?: number; gestureId?: number };
+export type NavigationSample = { phase: string; at: number; elapsedMs?: number; gestureId?: number; detail?: Record<string,unknown> };
 let enabled = false;
 try { enabled = localStorage.getItem('tingyu_navigation_diagnostics') === '1'; } catch { /* Storage unavailable. */ }
 const samples: NavigationSample[] = [];
@@ -19,14 +19,15 @@ export function navigationMark(phase: string, startedAt?: number, gestureId?: nu
     add({ phase, at: now(), gestureId, elapsedMs: startedAt === undefined ? undefined : Math.max(0, now() - startedAt) });
 }
 export function navigationTimingSnapshot() { return samples.slice(); }
+export function navigationDetail(phase:string,detail:Record<string,unknown>){add({phase,at:now(),detail});}
 export function navigationDiagnosticsEnabled() { return enabled; }
 function sampling() {
     observer?.disconnect(); observer = undefined; clearTimeout(stopTimer);
-    const remaining = 10000 - performance.now();
+    const remaining = 60000, startedAt=performance.now();
     if (!enabled || remaining <= 0 || typeof PerformanceObserver === 'undefined') return;
     try {
         observer = new PerformanceObserver(list => {
-            for (const entry of list.getEntries()) if (entry.startTime < 10000)
+            for (const entry of list.getEntries()) if (entry.startTime >= startedAt)
                 add({ phase: 'js-long-task', at: performance.timeOrigin + entry.startTime, elapsedMs: entry.duration });
         });
         observer.observe({ type: 'longtask', buffered: true });
@@ -60,9 +61,9 @@ export async function navigationDiagnosticLines(): Promise<string[]> {
         `  first touch received -> same-gesture business callback: ${gap(touch,business)}`,
  `  enabled: js=${enabled} native=${native?.enabled ?? 'unavailable'}`,
         `  originEpochMs=${origin.toFixed(1)} nativeMinusJsMs=${offset.toFixed(1)} alignmentUncertaintyMs<=${((after-before)/2).toFixed(1)}`,
-        '  sampling: first 10 seconds only; first 128 + recent 128 events retained per runtime',
+        '  sampling: 60 seconds after startup/enabling; first 128 + recent 128 events retained per runtime',
         '  FrameMetrics/Compose frame boundaries are app-frame evidence, not physical screen presentation',
-        ...combined.map(s=>`  +${(s.at-origin).toFixed(1)}ms ${s.source} ${s.phase}${s.gestureId?` gesture=${s.gestureId}`:''}${s.elapsedMs===undefined?'':` durationOrLagMs=${s.elapsedMs.toFixed(1)}`}`)];
+        ...combined.map(s=>`  +${(s.at-origin).toFixed(1)}ms ${s.source} ${s.phase}${s.gestureId?` gesture=${s.gestureId}`:''}${s.elapsedMs===undefined?'':` durationOrLagMs=${s.elapsedMs.toFixed(1)}`}${s.detail?` detail=${JSON.stringify(s.detail)}`:''}`)];
 }
 sampling();
 navigationMark('js-module-graph-ready');

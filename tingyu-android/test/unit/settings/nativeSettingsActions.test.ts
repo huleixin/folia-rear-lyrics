@@ -36,6 +36,15 @@ it('does not activate disabled controls',()=>{
     const button=document.createElement('button');button.disabled=true;document.body.append(button);const click=vi.fn();button.onclick=click;
     const actions:PageActions={};bindSettingsControl(button,control('click'),actions);actions.field({});expect(click).not.toHaveBeenCalled();
 });
+it('delivers one complete pointer sequence before click and requests a refresh for a retired target',()=>{
+ const button=document.createElement('button');document.body.append(button);const order:string[]=[];
+ for(const type of ['pointerdown','mousedown','pointerup','mouseup','click'])button.addEventListener(type,()=>order.push(type));
+ const actions:PageActions={};bindSettingsControl(button,control('click'),actions);actions.field({});
+ expect(order).toEqual(['pointerdown','mousedown','pointerup','mouseup','click']);
+ const refresh=vi.fn();document.addEventListener('tingyu-native-settings-refresh',refresh);
+ button.remove();actions.field({});expect(refresh).toHaveBeenCalledTimes(1);
+ document.removeEventListener('tingyu-native-settings-refresh',refresh);
+});
 it('preserves blur and Enter commit handlers',()=>{
     const input=document.createElement('input');document.body.append(input);const blur=vi.fn(),enter=vi.fn();
     input.addEventListener('focusout',blur);input.addEventListener('keydown',enter);

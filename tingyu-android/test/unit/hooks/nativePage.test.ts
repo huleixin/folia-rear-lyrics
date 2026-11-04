@@ -86,3 +86,21 @@ it('does not remeasure or resend unchanged models across repeated parent renders
     for(let i=0;i<30;i++)await act(async()=>root.render(h(Probe)));
     expect(measure.mock.calls.length).toBe(count);expect(bridge.update.mock.calls.length).toBe(packets);expect(stringify).not.toHaveBeenCalled();
 });
+it('republishes the same document when the native route token changes',async()=>{
+    await act(async()=>root.render(h(Probe)));const before=bridge.update.mock.calls.length;
+    document.documentElement.dataset.nativeNavigation='route:new';
+    document.dispatchEvent(new Event('tingyu-native-navigation'));
+    await act(async()=>{await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()))});
+    expect(bridge.update.mock.calls.length).toBe(before+1);
+    expect(bridge.update.mock.calls.at(-1)![0].navigation).toBe('route:new');
+    delete document.documentElement.dataset.nativeNavigation;
+});
+it('recovers a retained snapshot from a retired session without executing its action',async()=>{
+    await act(async()=>root.render(h(Probe)));const refresh=vi.fn();
+    document.addEventListener('tingyu-native-settings-refresh',refresh);
+    act(()=>bridge.callback?.({id:'home',session:'retired',key:'old',action:'__refresh',text:'retired-session'}));
+    await act(async()=>{await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()))});
+    expect(refresh).toHaveBeenCalledTimes(1);expect(click).not.toHaveBeenCalled();
+    expect(bridge.update).toHaveBeenCalledTimes(2);
+    document.removeEventListener('tingyu-native-settings-refresh',refresh);
+});

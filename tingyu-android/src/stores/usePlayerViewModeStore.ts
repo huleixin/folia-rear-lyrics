@@ -47,6 +47,7 @@ export const readStoredMinimalPage = (): MinimalPlayerPage => {
 
 type PlayerViewModeState = {
     mode: PlayerViewMode;
+    modeRevision: number;
     /** The last minimal page the listener was on; restored on the next visit. */
     page: MinimalPlayerPage;
     /**
@@ -65,6 +66,7 @@ type PlayerViewModeState = {
     closeStage: () => void;
     /** Only the layer that owns the hold should end it; exported for that component. */
     endStageTransition: () => void;
+    restoreSettingsPresentation: (origin: Pick<PlayerViewModeState,'mode'|'modeRevision'|'page'|'detour'>) => void;
 };
 
 const write = (key: string, value: string) => {
@@ -93,6 +95,7 @@ const startHold = (end: () => void) => {
 
 export const usePlayerViewModeStore = create<PlayerViewModeState>((set, get) => ({
     mode: readStoredPlayerViewMode(),
+    modeRevision: 0,
     page: readStoredMinimalPage(),
     detour: false,
     stageTransition: 'idle',
@@ -101,7 +104,7 @@ export const usePlayerViewModeStore = create<PlayerViewModeState>((set, get) => 
         // A mode change is a decision, not a transition: drop any sheet transition that is still running so a
         // half-finished hold cannot leave a stale surface mounted.
         cancelHold();
-        set({ mode, detour: false, stageTransition: 'idle' });
+        set({ mode, modeRevision:get().modeRevision+1, detour: false, stageTransition: 'idle' });
     },
     setPage: (page) => {
         write(MINIMAL_PLAYER_PAGE_KEY, page);
@@ -131,6 +134,11 @@ export const usePlayerViewModeStore = create<PlayerViewModeState>((set, get) => 
         if (get().stageTransition !== 'idle') {
             set({ stageTransition: 'idle' });
         }
+    },
+    restoreSettingsPresentation: ({mode,modeRevision,page,detour}) => {
+        cancelHold();
+        // An explicit display preference edited inside settings wins over the entry snapshot.
+        set(get().modeRevision===modeRevision?{mode,page,detour,stageTransition:'idle'}:{page,stageTransition:'idle'});
     },
 }));
 

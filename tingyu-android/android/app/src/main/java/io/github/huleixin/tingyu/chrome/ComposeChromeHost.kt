@@ -138,6 +138,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private val surfaces = mutableStateMapOf<String, ChromeSurface>()
     private val clocks = mutableStateMapOf<String, ChromeTimeline>()
     private val pages = mutableStateMapOf<String, NativePage>()
+    private val pageNavigations=mutableMapOf<String,String>()
     var pageListener: NativePageActionListener? = null
     // 「支持与交流」sheets: opened from settings page actions (support:coffee / support:group).
     private var sleepMenuOpen by mutableStateOf(false)
@@ -228,6 +229,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var playlistDetail by mutableStateOf(false)
     private val routeFence=NativeRouteFence()
     private var playerPresentation by mutableStateOf("stage")
+    private var returningFromSettings by mutableStateOf(false)
+    private var minimalResumePending by mutableStateOf(false)
     private var pendingStageEntry by mutableStateOf(false)
     private var stageEntryRequest=0L
     private var firstHomeFrame by mutableStateOf(true)
@@ -248,7 +251,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         stageEntryRequest++
         val next=value.optString("route","home")
         require(next in setOf("home","collection","search","settings","stage","web"))
-        if(next=="stage"&&destination!="stage") {
+        val nativeMinimalReady=minimalPlayerEnabled()&&value.optString("playerPresentation")=="minimal"&&minimal.bridgeLive()&&!minimal.state.value.controls.detour
+        if(next=="stage"&&destination!="stage"&&!nativeMinimalReady) {
             pendingStageEntry=true
             // The JS DOM commit precedes this request. Keep the outgoing native page in
             // place until Chromium can draw that commit, instead of exposing its old frame.
@@ -261,11 +265,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         navigationTrace("route-native-commit")
         pendingStageEntry=false;stageEntryRequest++
         val next=value.optString("route","home")
+        if(next!=destination){returningFromSettings=destination=="settings"&&next=="stage";minimalResumePending=returningFromSettings}
         if(next!="stage")stageExit.clear()
         else if(destination!="stage")stageExit.suppressReturnMotion=false
         require(next in setOf("home","collection","search","settings","stage","web"))
         val routeChanged=next!=destination||value.optString("pageTarget")!=pageTarget||value.optString("entryKey")!=entryKey||value.optInt("selectedTab").coerceIn(0,1)!=selectedTab
         playerPresentation=if(value.optString("playerPresentation")=="minimal")"minimal"else"stage"
+        if(next=="stage"&&destination!="stage"&&value.has("minimalPage"))minimalLastPage=if(value.optString("minimalPage")=="lyrics")1 else 0
         destination=next;webOverlay=value.optBoolean("webOverlay");selectedTab=value.optInt("selectedTab").coerceIn(0,1)
         // 工具页跟着打开它的路由走：路由一变（比如从歌曲工具进"播放设置"）就收起来，
         // 返回时再由用户重新打开 —— 工具页绝不叠在别的原生页上面。
@@ -277,6 +283,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         playlistDetail=value.optBoolean("playlistDetail")
         if(routeChanged||webOverlay)sleepMenuOpen=false
         if(routeChanged||presented==null)resolvePage()
+        settingsTrace("route-commit","route" to destination,"navigation" to navigation,"key" to presented?.key,"session" to presented?.session)
+        if(destination=="settings"&&presented?.let{pageNavigations[it.id]!=navigation||pages[it.id]?.session!=it.session}!=false)
+            pageListener?.onAction("settings",presented?.session?:"",presented?.key?:"","__refresh","route-commit",0.0)
         if(next!="home")firstHomeFrame=false
     }
     private val frameOrder = ChromeFrameOrder()
@@ -295,25 +304,29 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // 极简页的能力位：JS 侧只有拿到 true 才让出 WebView 极简页。回滚只需它变 false。
         .put("minimalPlayer", minimalPlayerEnabled()).put("minimal", minimalDiagnostics())
     fun pageUpdate(value: PreparedNativePage, reply: (JSONObject) -> Unit) {
+        val started=SystemClock.elapsedRealtime()
         check(Build.VERSION.SDK_INT >= 24)
         val next=value.page;val id="page:${next.id}"
-        if(!frameOrder.accept(id,next.session,next.generation,next.revision)){reply(status().put("accepted",false));return}
+        if(!frameOrder.accept(id,next.session,next.generation,next.revision)){reply(status().put("accepted",false).put("reason","frame-order"));return}
         if(next.enabled&&host==null)attach()
-        pages[next.id]=next
         // Do not poison retained geometry with an enabled packet from a route being
         // retired (e.g. the home DOM acquiring the stage's safe-area coordinates).
         val ownsPresentation=retained.updateForRoute(next,destination,selectedTab,pageTarget,value.navigation,navigation)
         if(ownsPresentation){
+            pages[next.id]=next;pageNavigations[next.id]=value.navigation
             navigationTrace("page-native-commit:${next.id}")
             recordMotion(next.key)
             presented=next
         }
         if(ownsPresentation)cache.commit(value.cache)
-        reply(status().put("accepted",true).put("session",next.session))
+        val reason=if(ownsPresentation)""else if(value.navigation!=navigation)"navigation-mismatch"else if(!next.enabled)"disabled-packet"else "route-target-mismatch"
+        settingsTrace("page-update","route" to destination,"session" to next.session,"key" to next.key,"navigation" to value.navigation,"reason" to reason)
+        NavigationTiming.mark("page-ui-commit",(SystemClock.elapsedRealtime()-started).toDouble())
+        reply(status().put("accepted",ownsPresentation).put("session",next.session).put("reason",reason))
     }
     fun pageRemove(id: String, session: String) {
         frameOrder.retire("page:$id",session)
-        if(pages[id]?.session==session)pages.remove(id)
+        if(pages[id]?.session==session){pages.remove(id);pageNavigations.remove(id)}
     }
     fun update(value: PreparedChromeSurface, reply: (JSONObject) -> Unit) {
         check(Build.VERSION.SDK_INT >= 24)
@@ -419,7 +432,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 AndroidView(factory = { web }, modifier = Modifier.fillMaxSize()
                     .then(if(legacySampling&&graphics.mode!=GraphicsProbeMode.C31)Modifier.graphicsLayer { alpha = if(Build.VERSION.SDK_INT>=31).999f else 1f }else Modifier)
                     .stageExitTransform(stageExit,exitProgress,webOwnsRoutePixels(destination,webOverlay,stageExit.active))
-                    .playerEntryTransform(destination=="stage"&&playerPresentation=="minimal",reducedMotion,height*density.density))
+                    .playerEntryTransform(destination=="stage"&&playerPresentation=="minimal"&&!returningFromSettings,reducedMotion,height*density.density))
                 }
                 Box(Modifier.fillMaxSize().zIndex(1f).then(if(!legacySampling&&Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop)else Modifier)) {
                 if(page==null&&firstHomeFrame&&destination=="home")NativePageView(bootPage,Modifier.fillMaxSize().zIndex(1f)){_,_,_->}
@@ -433,7 +446,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         val travel=with(density){28.dp.roundToPx()}
                         val tabTravel=with(density){8.dp.roundToPx()}
                         val position=tween<IntOffset>(240,easing=ease)
-                        when(NativeMotionPolicy.kind(from,to,backwards,!focused||!active||reducedMotion||stageExit.suppressReturnMotion&&from=="stage")){
+                        when(NativeMotionPolicy.kind(from,to,backwards,!focused||!active||reducedMotion||returningFromSettings||stageExit.suppressReturnMotion&&from=="stage")){
                             NativeMotionKind.NONE->EnterTransition.None togetherWith ExitTransition.None
                             NativeMotionKind.STAGE->fadeIn(tween(140,easing=ease)) togetherWith fadeOut(tween(if(to=="stage"&&playerPresentation=="minimal")1 else 100,delayMillis=if(to=="stage"&&playerPresentation=="minimal")420 else 0,easing=ease))
                             NativeMotionKind.TAB->(slideInHorizontally(tween(200,easing=ease)){tabTravel}+fadeIn(tween(200,easing=ease))) togetherWith (slideOutHorizontally(tween(180,easing=ease)){-tabTravel}+fadeOut(tween(180,easing=ease)))
@@ -452,15 +465,31 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     if(scale.isFinite()&&scale>0) savedPages.SaveableStateProvider(shown.key) {
                         val placement=Modifier.offset{IntOffset((shown.rect.left*scale).roundToInt(),(shown.rect.top*scale).roundToInt())}
                             .size(with(density){(shown.rect.width*scale).toDp()},with(density){(shown.rect.height*scale).toDp()})
+                        CompositionLocalProvider(LocalSettingsTraceIdentity provides SettingsTraceIdentity(destination,shown.session,shown.key,navigation,!pendingStageEntry&&destination=="settings")) {
                         NativePageView(shown,placement,scale){action,text,value->
+                            val current=pages[shown.id]
+                            val reason=when {
+                                !active->"host-inactive"
+                                pendingStageEntry->"stage-entry-pending"
+                                destination!=shown.id->"route-mismatch"
+                                presented?.key!=shown.key->"presentation-mismatch"
+                                current==null->"retired-session"
+                                !pageInteractionIsCurrent(current,shown)->pageInteractionRejection(current,shown)
+                                pageNavigations[shown.id]!=navigation->"navigation-mismatch"
+                                else->""
+                            }
+                            settingsTrace("page-action","route" to destination,"control" to action,"key" to shown.key,"session" to shown.session,"currentKey" to current?.key,"currentSession" to current?.session,"navigation" to navigation,"reason" to reason)
+                            if(reason.isNotEmpty()){
+                                if(destination==shown.id)pageListener?.onAction(shown.id,shown.session,shown.key,"__refresh",reason,0.0)
+                                return@NativePageView
+                            }
                             // Support sheets are fully native: intercept before the JS action bus.
                             if(action.startsWith("support:")){
                                 supportCopyJson=pages[shown.id]?.sections?.firstOrNull{it.id=="support"}?.text
                                 supportSheet=action.removePrefix("support:");return@NativePageView
                             }
-                            val current=pages[shown.id]
-                            if(active&&destination==shown.id&&presented?.key==shown.key&&current?.enabled==true&&pageInteractionIsCurrent(current,shown))
-                                pageListener?.onAction(shown.id,shown.session,shown.key,action,text,value)
+                            pageListener?.onAction(shown.id,shown.session,shown.key,action,text,value)
+                        }
                         }
                     }
                 }
@@ -529,15 +558,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             // 进场是从迷你播放器位置升起来（420ms），退场是落下去（300ms）—— 与原页面同一组曲线。
             // 例外：从设置页回到极简页不重放入场动画 —— 用户没有离开播放器，只是去设了个开关。
             // 之前这里固定重放 420ms 的升入，看起来就像播放器被重新打开了一次。
-            var minimalPrevDestination by remember { mutableStateOf(destination) }
-            val minimalReturnFromSettings = minimalPrevDestination == "settings" && destination == "stage"
             AnimatedVisibility(
                 visible = minimalOwns,
-                enter = if (minimalReturnFromSettings) EnterTransition.None else slideInVertically(
+                enter = if (minimalResumePending) EnterTransition.None else slideInVertically(
                     animationSpec = tween(420, easing = CubicBezierEasing(.2f, .72f, .16f, 1f)),
                     initialOffsetY = { it },
                 ) + fadeIn(tween(220)),
-                exit = slideOutVertically(
+                exit = if(destination=="settings")ExitTransition.None else slideOutVertically(
                     animationSpec = tween(300, easing = CubicBezierEasing(.42f, 0f, .74f, .3f)),
                     targetOffsetY = { it },
                 ) + fadeOut(tween(200)),
@@ -550,7 +577,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     onOpenQueue = { openNativeQueue() },
                     onOpenTools = { page -> openNativeTools(page) },
                     initialPage = minimalLastPage,
-                    onPageChanged = { minimalLastPage = it },
+                    onPageChanged = { page -> if(minimalLastPage!=page){minimalLastPage=page;listener.onAction("minimal",minimal.session(),"pageChanged",page.toDouble())} },
                     light = interfaceLight,
                     safeTop = safeTop,
                     safeBottom = safeBottom,
@@ -559,7 +586,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     modifier = Modifier.fillMaxSize(),
                 )
             }
-            SideEffect { minimalPrevDestination = destination }
+            // Consume only this resume. A later visit to the full stage keeps its usual motion.
+            LaunchedEffect(minimalOwns,minimalResumePending){if(minimalOwns&&minimalResumePending){withFrameNanos{};minimalResumePending=false}}
             // 队列抽屉：宿主级，和哪一页在显示无关 —— 极简页、舞台、首页都开这一张。
             if(queueOpen)Box(Modifier.fillMaxSize().zIndex(6f)){
                 io.github.huleixin.tingyu.minimal.ui.MinimalQueueSheet(

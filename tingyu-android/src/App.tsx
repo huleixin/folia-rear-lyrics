@@ -2581,7 +2581,7 @@ export default function App() {
     const libraryOccludesPlayer = useLibraryPlayerOcclusionStore(selectLibraryOccludesPlayer);
     const hasLibraryOcclusionSettled = useLibraryOcclusionSettled(shouldRevealHomeSurface && libraryOccludesPlayer);
     const mainStageActive = useMainStageActive();
-    const nativeStagePresentation = useNativeStagePresentation(currentView === 'player', mainStageActive, visualizerRendererModel);
+    const nativeStagePresentation = useNativeStagePresentation(currentView === 'player' && (!PREHIDE_COMPOSE_CHROME || !isSettingsModalOpen), mainStageActive, visualizerRendererModel);
     // The minimal stage replaces the visualizer on the player surface: leaving the renderer unmounted
     // is what keeps the mode cheap — its GPU scenes and shaders are not merely hidden, they are gone.
     // Everything else about the pipeline (deck, clock, lyrics, MediaSession) is untouched.

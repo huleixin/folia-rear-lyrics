@@ -3,6 +3,7 @@ import type { SettingsControl } from '../types/nativeSettingsDocument';
 import { isAndroidNativeRuntime } from '../utils/platform';
 import { setStatusMessage } from '../stores/useStatusMessageStore';
 import { pickNativeSettingsFiles } from './nativeSettingsFilePicker';
+import { refreshNativeSettingsDocument, settingsDiagnostic } from './settingsDiagnostics';
 
 function activateSettingsClick(element: HTMLElement) {
     if (!isAndroidNativeRuntime() || document.documentElement.dataset.nativeSettingsDocument !== 'true') {
@@ -53,7 +54,8 @@ function deliverNativeFiles(target: HTMLInputElement) {
 // Feed native edits through React's existing input handlers and validation/store actions.
 export function bindSettingsControl(element:HTMLElement,control:SettingsControl,actions:PageActions){
     actions[control.id]=event=>{
-        if(!element.isConnected||element.matches(':disabled,[aria-disabled="true"]'))return;
+        const reason=!element.isConnected?'disconnected-control':element.closest('[inert]')?'inert-control':element.matches(':disabled,[aria-disabled="true"]')?'disabled-control':'';
+        if(reason){settingsDiagnostic('control-rejected',{control:control.id,reason});if(reason!=='disabled-control')refreshNativeSettingsDocument(reason);return;}
         const input=element as HTMLInputElement;
         if(event.value===3||event.value===4){element.dispatchEvent(new FocusEvent(event.value===3?'focusin':'focusout',{bubbles:true}));return;}
         if(event.value===5){element.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));element.dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',bubbles:true}));return;}
@@ -70,7 +72,7 @@ export function bindSettingsControl(element:HTMLElement,control:SettingsControl,
             // Custom-select outside/keyboard handlers must observe a real pointer sequence too.
             element.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));
             element.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));
-            activateSettingsClick(element);element.dispatchEvent(new PointerEvent('pointerup',{bubbles:true}));return;
+            element.dispatchEvent(new PointerEvent('pointerup',{bubbles:true}));element.dispatchEvent(new MouseEvent('mouseup',{bubbles:true}));activateSettingsClick(element);return;
         }
         if(event.value===1)element.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));
         const prototype=element instanceof HTMLTextAreaElement?HTMLTextAreaElement.prototype:element instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype;
