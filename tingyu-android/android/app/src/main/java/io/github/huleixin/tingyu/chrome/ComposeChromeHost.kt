@@ -293,6 +293,12 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         playerPresentation=if(value.optString("playerPresentation")=="minimal")"minimal"else"stage"
         if(next=="stage"&&destination!="stage"&&value.has("minimalPage"))minimalLastPage=if(value.optString("minimalPage")=="lyrics")1 else 0
         destination=next;webOverlay=value.optBoolean("webOverlay");selectedTab=value.optInt("selectedTab").coerceIn(0,1)
+        if(next=="stage"&&playerPresentation=="minimal"){
+            val stagePhase=surfaces["stage"]?.playerTransition?:"idle"
+            val shownKey=presented?.key?:"-"
+            android.util.Log.i("TingyuEntry",
+                "commit stage/minimal from=$from webOverlay=$webOverlay stagePhase=$stagePhase presentedKey=$shownKey")
+        }
         // 去集合页时不要自己淡出/滑走：路由一离开 stage，WebView 那份极简页就可能又挂回来，
         // 播放页一透明就会把它透出来（3~4 层叠影的来源）。改为原地保持不透明，让页面压上来盖住。
         if(MinimalPlayerExitPolicy.holdForCover(from,next,playerPresentation,minimalPlayerEnabled(),minimalCollapseCommitted)){minimalCoverHold=true
@@ -342,6 +348,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             navigationTrace("page-native-commit:${next.id}")
             recordMotion(next.key)
             presented=next
+            // 入场错位排查埋点：首页几何包一旦带异常 viewport（与 WebView 实宽不符），
+            // 原生页会按 web.width/viewport 整体放大 —— 录屏 68537 中 8% 放大副本的候补来源。
+            if(next.id=="home"){
+                val scale=if(next.viewport>0)web.width.toFloat()/next.viewport else 0f
+                android.util.Log.i("TingyuEntry",
+                    "home-packet key=${next.key} viewport=${next.viewport} rect=${next.rect} webW=${web.width} cssScale=$scale nav=${value.navigation}")
+            }
         }
         if(ownsPresentation)cache.commit(value.cache)
         val reason=if(ownsPresentation)""else if(value.navigation!=navigation)"navigation-mismatch"else if(!next.enabled)"disabled-packet"else "route-target-mismatch"
@@ -383,11 +396,31 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val position = value.optDouble("position",0.0)
         if (position.isFinite()) clocks[current.id] = ChromeTimeline(position.coerceAtLeast(0.0), current.duration,current.playing,SystemClock.elapsedRealtime())
     }
+    /** 底栏延迟摘除的代际令牌：新一次 remove/挂起都会作废尚未执行的延迟任务。 */
+    private var chromeRemovalSerial = 0L
     fun remove(id: String, session: String) {
         frameOrder.retire(id,session)
-        if (surfaces[id]?.session == session) { surfaces.remove(id); clocks.remove(id) }
+        if (surfaces[id]?.session == session) {
+            // 第 17 轮（入场错位修复）：极简入场是「底栏原地不动、极简页作为唯一前景层
+            // 从底部上滑盖住首页」。但 JS 侧 nav/mini 的 active=view==='home' 在路由切换
+            // 的同一帧就失效，cleanup 会立刻 chromeNative.remove —— 录屏 68537 的
+            // 0.53~0.70s 里，底栏和迷你条在被盖住前 200~300ms 就消失了。真正的摘除
+            // 推迟到入场窗口之后：极简页不透明，盖住后底栏走不走都看不见；若期间
+            // 路由又回到 home，JS 重挂载会用新会话 update 覆盖同一 id，这次延迟任务
+            // 因会话不匹配自动失效，不会闪掉底栏。
+            val entryPending = minimalPlayerEnabled() && (id == "nav" || id == "mini") && !webOverlay &&
+                (pendingStageEntry || (destination == "stage" && playerPresentation == "minimal"))
+            if (entryPending) {
+                val token = ++chromeRemovalSerial
+                web.postDelayed({
+                    if (token == chromeRemovalSerial && surfaces[id]?.session == session) {
+                        surfaces.remove(id); clocks.remove(id)
+                    }
+                }, CHROME_ENTRY_GRACE_MS)
+            } else { surfaces.remove(id); clocks.remove(id) }
+        }
     }
-    fun suspend() { navigationActionSerial++;clearStartupNavigation();active = false;sleepMenuOpen=false;stageExit.clear() }
+    fun suspend() { navigationActionSerial++;chromeRemovalSerial++;clearStartupNavigation();active = false;sleepMenuOpen=false;stageExit.clear() }
     // 回到前台重读一次权威：后台期间到达的歌词、以及引擎在后台走掉的位置都必须立刻反映出来。
     fun resume() { active = true; minimal.refreshNow() }
     private fun attach() {
@@ -738,6 +771,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         routeFence.close()
         webSamplingLayer.close()
         graphics.close()
+        chromeRemovalSerial++
         val compose = host ?: return
         active = false;navigationActionSerial++;clearStartupNavigation();stageExit.clear(); surfaces.clear(); clocks.clear();pages.clear();retained.clear();presented=null
         compose.disposeComposition()
@@ -749,3 +783,6 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
 }
 
 private fun navigationTrace(phase:String){NavigationTiming.mark(phase);if(android.util.Log.isLoggable("TingyuNavigation",android.util.Log.DEBUG))android.util.Log.d("TingyuNavigation","$phase at=${System.currentTimeMillis()}")}
+
+/** 极简入场期间底栏的延迟摘除窗口：commit 延迟（真机 100~300ms）+ 360ms 上滑 + 余量。 */
+private const val CHROME_ENTRY_GRACE_MS = 900L

@@ -49,6 +49,22 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
             frame = 0; if (disposed || !started) return;
             if(!isMainStageActive())return;
             flushNativeShellRoute();
+            // 极简入场窗口（路由已指向 stage、呈现为 minimal）：首页此刻正被原生页整块举着，
+            // 等极简页 360ms 上滑盖住。这里任何 ownership 翻转都会把 WebView 回退副本挂回来
+            // —— 录屏 68537 的 0.53~0.70s「推荐标题/卡片重复、放大错位、右侧碎片」的来源。
+            // 入场期间冻结首页的发布与摘除；窗口随路由离开 stage 或组件卸载自然结束。
+            const presentation = document.querySelector('[data-folia-player-presentation]')?.getAttribute('data-folia-player-presentation') ?? '';
+            const minimalEntryFreeze = NATIVE_FIRST && id === 'home' && presentation === 'minimal'
+                && document.documentElement.dataset.nativeRoute === 'stage';
+            if (minimalEntryFreeze) {
+                // 排查埋点：innerWidth 含滚动条、clientWidth 不含 —— 两者差值就是
+                // 「viewport 记错了 8%」类几何包问题的直接证据。
+                console.info('[entry-debug] home frozen during minimal entry',
+                    JSON.stringify({ route: document.documentElement.dataset.nativeRoute, presentation,
+                        innerWidth: window.innerWidth, clientWidth: document.documentElement.clientWidth,
+                        rect: node.getBoundingClientRect().toJSON() }));
+                return;
+            }
             const current = latest.current, rect = node.getBoundingClientRect(), style = getComputedStyle(node);
             // A document capture and its key are one model. Never publish a header-only
             // settings/index substitute between the two layout-effect passes.
