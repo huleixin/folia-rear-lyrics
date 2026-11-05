@@ -23,17 +23,29 @@ private data class Pending(val direction: DragDirection, val expected: String)
 class CoverStackController(
     val state: CoverStackState,
     private val artwork: CoverStackArtwork,
-    /** 发"下一首"命令；返回 false 表示这一条没有接收方（桥断了）。 */
-    private val sendNext: () -> Boolean,
+    /** 发"下一首"命令；返回 false 表示这一条没有接收方（桥断了）。requestId 随命令过桥供日志对齐。 */
+    private val sendNext: (requestId: Long) -> Boolean,
     /** 发"上一首"命令。 */
-    private val sendPrevious: () -> Boolean,
+    private val sendPrevious: (requestId: Long) -> Boolean,
 ) {
     /** 三层封面当前对应的真实曲目（来自播放状态 + 逻辑歌单）。 */
     var window by mutableStateOf(CoverWindow())
         private set
 
+    /**
+     * 当前（或最近一次）切歌事务。Compose 状态：封面页读它来决定"正式显示的歌曲信息"，
+     * 保证文字与顶层封面在同一帧落在同一首歌上（见 MinimalCoverPage）。
+     */
+    var transaction by mutableStateOf(SkipTransaction())
+        private set
+
     private var pending: Pending? = null
     private var committedDirection: DragDirection? = null
+    private var requestCounter = 0L
+
+    /** 最近一次 sync 见到的播放状态：动画收尾时重放对齐用（动画中到达的状态不再被丢掉）。 */
+    private var lastTrack: MinimalTrack? = null
+    private var lastQueue: MinimalQueue = MinimalQueue()
 
     /** 拖动开始前的静止三层：回弹结束后精确恢复它，不从窗口重算。 */
     private var restBeforeDrag: List<CoverCard>? = null
@@ -54,7 +66,16 @@ class CoverStackController(
      * @param force 忽略宽限期（宽限到点后的兜底检查）
      */
     fun sync(track: MinimalTrack, queue: MinimalQueue, force: Boolean = false) {
+        lastTrack = track
+        lastQueue = queue
         val resolved = resolveCoverWindow(track, queue = queue)
+        // UI 侧观察到的播放身份切换（自动续播/通知栏/队列点播/命令生效）。记进时间线，
+        // 与封面动画完成时刻相减即得"封面领先真实身份多少毫秒"。
+        val previousLive = window.current?.songKey.orEmpty()
+        val newLive = resolved.current?.songKey.orEmpty()
+        if (previousLive.isNotEmpty() && newLive.isNotEmpty() && previousLive != newLive) {
+            SkipTxLog.externalTrackChange(previousLive, newLive)
+        }
         window = resolved
         artwork.prime(listOf(resolved.current, resolved.next, resolved.next2, resolved.next3, resolved.previous))
         if (state.phase != StackPhase.IDLE) return
@@ -66,7 +87,7 @@ class CoverStackController(
         if (topKey == liveKey) {
             val rest = restCards(resolved)
             if (rest.map { it.key } != state.cards.map { it.key }) state.rest(rest)
-            if (pending?.expected == liveKey) pending = null
+            confirmPending(liveKey)
             return
         }
 
@@ -79,6 +100,10 @@ class CoverStackController(
         // 真的没歌了：一层都不画
         if (liveKey.isEmpty()) {
             state.rest(emptyList())
+            if (transaction.active) {
+                SkipTxLog.skipFailed(transaction.requestId, transaction.expectedSongKey, liveKey)
+                transaction = transaction.copy(stage = SkipStage.FAILED)
+            }
             pending = null
             return
         }
@@ -91,6 +116,10 @@ class CoverStackController(
 
         // 外部跳转（队列点播、通知栏上一首）：不硬凑动画，直接换静止三层
         state.rest(restCards(resolved))
+        if (transaction.active) {
+            SkipTxLog.skipFailed(transaction.requestId, transaction.expectedSongKey, liveKey)
+            transaction = transaction.copy(stage = SkipStage.FAILED)
+        }
         pending = null
     }
 
@@ -107,12 +136,22 @@ class CoverStackController(
         if (!canGo(direction)) return false
         val list = transitionCards(direction, window)
         if (list.size < 2) return false
-        val sent = if (direction == DragDirection.NEXT) sendNext() else sendPrevious()
+        val requestId = ++requestCounter
+        val sent = if (direction == DragDirection.NEXT) sendNext(requestId) else sendPrevious(requestId)
         if (!sent) return false
+        SkipTxLog.skipRequest(requestId, direction, window.current?.songKey ?: "", expectedKey(direction))
         restBeforeDrag = state.cards
         state.applyCards(list)
         pending = Pending(direction, expectedKey(direction))
         committedDirection = direction
+        transaction = SkipTransaction(
+            requestId = requestId,
+            direction = direction,
+            fromSongKey = window.current?.songKey ?: "",
+            expectedSongKey = expectedKey(direction),
+            stage = SkipStage.REQUESTED,
+            startedAtUptime = SystemClock.uptimeMillis(),
+        )
         state.beginCommit(
             direction = direction,
             fromProgress = 0f,
@@ -160,10 +199,21 @@ class CoverStackController(
         velocityY: Float,
     ): Boolean {
         if (state.phase == StackPhase.COMMIT) return false
-        val sent = if (direction == DragDirection.NEXT) sendNext() else sendPrevious()
+        val requestId = ++requestCounter
+        SkipTxLog.gestureRelease(requestId, direction, window.current?.songKey ?: "")
+        val sent = if (direction == DragDirection.NEXT) sendNext(requestId) else sendPrevious(requestId)
         if (!sent) return false
+        SkipTxLog.skipRequest(requestId, direction, window.current?.songKey ?: "", expectedKey(direction))
         pending = Pending(direction, expectedKey(direction))
         committedDirection = direction
+        transaction = SkipTransaction(
+            requestId = requestId,
+            direction = direction,
+            fromSongKey = window.current?.songKey ?: "",
+            expectedSongKey = expectedKey(direction),
+            stage = SkipStage.REQUESTED,
+            startedAtUptime = SystemClock.uptimeMillis(),
+        )
         state.beginCommit(
             direction = direction,
             fromProgress = state.progress,
@@ -208,9 +258,58 @@ class CoverStackController(
         }
         state.rest(rest)
         graceUntil = SystemClock.uptimeMillis() + GRACE_MS
+
+        // 动画完成 ≠ 切歌完成。这里把事务推进到 ANIMATION_DONE：从现在起到播放状态确认之前，
+        // 顶层封面只是视觉预览（MinimalCoverPage 据此同步文字、并按未确认状态呈现）。
+        val tx = transaction
+        if (tx.stage == SkipStage.REQUESTED) {
+            transaction = tx.copy(stage = SkipStage.ANIMATION_DONE)
+            SkipTxLog.coverAnimationDone(tx.requestId, tx.expectedSongKey, confirmed = false)
+        }
+
+        // 修复（1.3.151）：sync() 在动画期间因 phase != IDLE 提前返回，动画中到达的真实播放状态
+        // 从此被丢，只能等下一次桥帧或 2.5s 兜底 —— 连续切歌时三层与真实身份长时间错位。
+        // 动画收尾时用最近一次 sync 见到的播放状态立即重放一次对齐（只放行"播放确实动过"的
+        // 情形；播放还没动时保持预期封面 + 宽限期，等确认或超时回退）。
+        val live = lastTrack
+        val liveTx = transaction
+        if (live != null && live.key.isNotEmpty() && live.key != liveTx.fromSongKey) {
+            sync(live, lastQueue, force = true)
+        }
+
         artwork.prime(
             listOf(window.current, window.next, window.next2, window.next3, window.previous),
         )
+    }
+
+    /**
+     * 播放状态与顶层封面身份一致时调用：确认（或作废）在途的切歌事务。
+     *
+     * @param liveKey 真实播放状态里的歌曲 key
+     */
+    private fun confirmPending(liveKey: String) {
+        val wait = pending
+        if (liveKey.isEmpty()) return
+        if (wait != null && wait.expected == liveKey) {
+            pending = null
+            val tx = transaction
+            if (tx.active && tx.expectedSongKey == liveKey) {
+                transaction = tx.copy(stage = SkipStage.CONFIRMED)
+                SkipTxLog.uiTrackConfirmed(
+                    tx.requestId,
+                    liveKey,
+                    SystemClock.uptimeMillis() - tx.startedAtUptime,
+                )
+            }
+            return
+        }
+        if (wait != null && transaction.active && transaction.expectedSongKey == wait.expected) {
+            // 播放状态落在了别的歌上（自动续播抢跑 / 上游命令被覆盖）：作废这次事务，
+            // 封面已经由 sync() 的对齐分支换到真实身份。
+            pending = null
+            SkipTxLog.skipFailed(transaction.requestId, transaction.expectedSongKey, liveKey)
+            transaction = transaction.copy(stage = SkipStage.FAILED)
+        }
     }
 
     private fun onSpringDone() {
@@ -222,6 +321,10 @@ class CoverStackController(
             card.copy(from = index.toFloat(), to = index.toFloat(), moving = false, lag = 0f)
         } ?: restCards(window)
         state.rest(rest)
+        // 保险：回弹意味着这次手势没有产生切歌，绝不能留一个在途事务让文字去预览另一首。
+        if (transaction.stage == SkipStage.REQUESTED) {
+            transaction = transaction.copy(stage = SkipStage.FAILED)
+        }
     }
 
     /**
@@ -243,6 +346,13 @@ class CoverStackController(
         val list = buildCards(entries, slotsFor(DragDirection.NEXT))
         restBeforeDrag = state.cards
         state.applyCards(list)
+        // 播放器自己换的歌（自动续播/通知栏/队列点播）。若还有我们发起的在途事务，
+        // 播放身份已经越过它 —— 事务就此作废，绝不能让旧事务再确认一次。
+        if (transaction.active) {
+            SkipTxLog.skipFailed(transaction.requestId, transaction.expectedSongKey, second.songKey)
+            transaction = transaction.copy(stage = SkipStage.FAILED)
+        }
+        pending = null
         committedDirection = DragDirection.NEXT
         state.beginCommit(DragDirection.NEXT, 0f, 0f, 0f, 0f, 0f)
     }

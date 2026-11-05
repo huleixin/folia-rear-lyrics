@@ -179,8 +179,8 @@ fun MinimalPlayerScreen(
         CoverStackController(
             state = coverStackState,
             artwork = coverCaches,
-            sendNext = { latestCommands.value.next() },
-            sendPrevious = { latestCommands.value.previous() },
+            sendNext = { requestId -> latestCommands.value.next(requestId) },
+            sendPrevious = { requestId -> latestCommands.value.previous(requestId) },
         )
     }
     // 动画逐帧推进。相位变了才起循环；一帧一次 graphicsLayer 写入，不进重组。
@@ -196,6 +196,9 @@ fun MinimalPlayerScreen(
     }
     // 系统关闭动画时：拖动仍然 1:1 跟手，松手后直接落到终态（不补间、不回弹、无残影）。
     LaunchedEffect(coverStackState, still) { coverStackState.motionEnabled = !still }
+    // 切歌事务：封面动画完成到播放状态确认之间，歌曲信息以哪一首为准由它裁定。
+    // 读一次就完成订阅（mutableStateOf），事务推进时这一页自动重组。
+    val skipTransaction = coverController.transaction
     // 三层预览与真实播放队列对齐：换歌、队列编辑、随机计划推进都会经过这里。
     LaunchedEffect(coverController, playback.track.key, state.revision) {
         coverController.sync(playback.track, queue)
@@ -286,6 +289,7 @@ fun MinimalPlayerScreen(
                         still = still,
                         stack = coverStackState,
                         covers = coverCaches,
+                        skipTransaction = skipTransaction,
                         onOpenLyrics = { scope.launch { pagerState.animateScrollToPage(1) } },
                         onAudioTools = { onOpenTools("quality") },
                         // 歌手名点击 → 动作总线 artistOpen（value = 歌手串里的序号），由 JS 开歌手页。

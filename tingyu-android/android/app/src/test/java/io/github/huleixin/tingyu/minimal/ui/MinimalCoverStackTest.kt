@@ -164,8 +164,8 @@ class MinimalCoverStackTest {
         override fun toggle(): Boolean = true
         override fun play(): Boolean = true
         override fun pause(): Boolean = true
-        override fun previous(): Boolean = step(-1)
-        override fun next(): Boolean = step(1)
+        override fun previous(requestId: Long): Boolean = step(-1)
+        override fun next(requestId: Long): Boolean = step(1)
         private fun step(delta: Int): Boolean {
             calls += if (delta > 0) "next" else "previous"
             val currentIndex = keys.indexOf(holder.value.playback.track.key)

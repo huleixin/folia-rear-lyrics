@@ -487,24 +487,7 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
         } catch (_: Throwable) {
             null
         }
-
-        val durationMs = when {
-            native.optLong("durationMs", 0L) > 0L -> native.optLong("durationMs", 0L)
-            (bridge?.durationSec ?: 0.0) > 0.0 -> ((bridge?.durationSec ?: 0.0) * 1000.0).toLong()
-            catalogTrack != null -> catalogTrack.durationMs
-            else -> 0L
-        }
-
-        val track = MinimalTrack(
-            key = key,
-            title = native.optString("title", "").ifEmpty { bridge?.title ?: "" }
-                .ifEmpty { catalogTrack?.title ?: "" },
-            artist = native.optString("artist", "").ifEmpty { bridge?.artist ?: "" }
-                .ifEmpty { catalogTrack?.artist ?: "" },
-            album = bridge?.album?.takeIf { it.isNotBlank() } ?: catalogTrack?.album ?: "",
-            artwork = (catalogTrack?.artwork ?: "").ifEmpty { bridge?.cover ?: "" },
-            durationMs = durationMs,
-        )
+        val track = identitySafeTrack(key, engine, nativeKey, native, bridge, catalogTrack)
 
         val playback = when {
             engine == "media3" && key.isNotEmpty() -> MinimalPlayback(
@@ -515,6 +498,7 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
                 playbackRate = native.optDouble("playbackRate", 1.0).toFloat().takeIf { it.isFinite() && it > 0f } ?: 1f,
                 source = MinimalClockSource.ENGINE,
                 epoch = native.optString("epoch", ""),
+                buffering = native.optBoolean("buffering", false),
             )
 
             bridge != null && bridgeKey.isNotEmpty() -> MinimalPlayback(
@@ -526,6 +510,7 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
                 source = MinimalClockSource.BRIDGE,
                 epoch = "$bridgeKey#bridge$frameGeneration",
                 maxExtrapolationMs = BRIDGE_EXTRAPOLATION_CAP_MS,
+                buffering = bridge.preparing,
             )
 
             else -> MinimalPlayback(track = track, source = MinimalClockSource.NONE)
@@ -560,8 +545,7 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
         )
     }
 
-    private fun publish(next: MinimalPlayerState) {
-        val previous = _state.value
+    private fun publish(next: MinimalPlayerState) {        val previous = _state.value
         _state.value = next
         _bound.value = next.controls.bound
         if (previous.playback.track.key != next.playback.track.key || previous.playback.epoch != next.playback.epoch) {
@@ -721,4 +705,60 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
         put("canPrevious", state.controls.canPrevious)
         put("revision", state.revision)
     }
+}
+
+/**
+ * 身份校验补齐（1.3.151）：每一条歌曲相关字段只信"描述的就是这一首"的来源。
+ *
+ * 之前的回退链会在 Media3 已换歌但元数据未到时拿**旧桥帧**（上一首的）来补 ——
+ * 新 key 配旧歌名/旧时长/旧封面，正是"信息没跟着切"的错配来源。
+ * 现在桥帧只在它描述同一首歌时可用；身份不符就退回同 key 的 NativePlaylist 元数据，
+ * 再没有就如实留空，绝不混用两首歌的信息。纯函数，单测直接覆盖。
+ */
+internal fun identitySafeTrack(
+    key: String,
+    engine: String,
+    nativeKey: String,
+    native: JSONObject,
+    bridge: MinimalBridgeFrame?,
+    catalogTrack: NativePlaylist.Track?,
+): MinimalTrack {
+    val nativeMatchesKey = engine == "media3" && nativeKey == key && key.isNotEmpty()
+    val bridgeMatchesKey = bridge != null && bridge.trackKey == key && key.isNotEmpty()
+
+    val title = (if (nativeMatchesKey) native.optString("title", "").takeIf { it.isNotEmpty() } else null)
+        ?: (if (bridgeMatchesKey) bridge?.title?.takeIf { it.isNotBlank() } else null)
+        ?: catalogTrack?.title?.takeIf { it.isNotBlank() }
+        ?: ""
+
+    val artist = (if (nativeMatchesKey) native.optString("artist", "").takeIf { it.isNotEmpty() } else null)
+        ?: (if (bridgeMatchesKey) bridge?.artist?.takeIf { it.isNotBlank() } else null)
+        ?: catalogTrack?.artist?.takeIf { it.isNotBlank() }
+        ?: ""
+
+    val album = (if (bridgeMatchesKey) bridge?.album?.takeIf { it.isNotBlank() } else null)
+        ?: catalogTrack?.album?.takeIf { it.isNotBlank() }
+        ?: ""
+
+    val artwork = catalogTrack?.artwork?.takeIf { it.isNotBlank() }
+        ?: (if (bridgeMatchesKey) bridge?.cover?.takeIf { it.isNotBlank() } else null)
+        ?: ""
+
+    val nativeDuration = native.optLong("durationMs", 0L)
+    val bridgeDuration = if (bridgeMatchesKey && (bridge?.durationSec ?: 0.0) > 0.0) {
+        ((bridge?.durationSec ?: 0.0) * 1000.0).toLong()
+    } else 0L
+    val durationMs = (if (nativeMatchesKey && nativeDuration > 0L) nativeDuration else null)
+        ?: bridgeDuration.takeIf { it > 0L }
+        ?: catalogTrack?.durationMs?.takeIf { it > 0L }
+        ?: 0L
+
+    return MinimalTrack(
+        key = key,
+        title = title,
+        artist = artist,
+        album = album,
+        artwork = artwork,
+        durationMs = durationMs,
+    )
 }

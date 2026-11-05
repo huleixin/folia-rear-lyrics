@@ -166,6 +166,7 @@ import { useAppChromeStore } from './stores/useAppChromeStore';
 import { useAppViewStore } from './stores/useAppViewStore';
 import { usePlayerViewModeStore } from './stores/usePlayerViewModeStore';
 import { selectDisplayCoverUrl, selectDisplayDuration, selectDisplayLyrics, selectDisplayPlayerState, selectDisplaySong, selectIsShowingTail, usePlaybackStore } from './stores/usePlaybackStore';
+import { logSkipTx } from './services/skipTxLog';
 import { useLibraryStore } from './stores/useLibraryStore';
 import { selectLibraryOccludesPlayer, selectLibraryPlayerBackdrop, useLibraryPlayerOcclusionStore } from './stores/useLibraryPlayerOcclusionStore';
 import { resolveVisualizerBackdropBlur, visualizerBackdropStyle } from './components/app/presentation/playerVisualizerBackdrop';
@@ -2655,6 +2656,12 @@ export default function App() {
             onPlaying={(e) => {
                 if (!automix.isActiveDeck(e.currentTarget)) return;
                 noteAudioElementEvent('playing', e.currentTarget, deck);
+                // 切歌时间线：浏览器音频通道真正出声的一刻。与 AUDIO_SOURCE_READY 相减
+                // 即得"歌名已换 → 声音已切"在兼容通道上的毫秒数（Media3 通道由
+                // RearNativeTrack 的 isPlaying 翻转记 AUDIO_PLAYING）。
+                logSkipTx('AUDIO_PLAYING', usePlaybackStore.getState().currentSong
+                    ? getPlaybackSongKey(usePlaybackStore.getState().currentSong!)
+                    : '', { channel: 'html-audio', deck });
                 shouldAutoPlay.current = false;
                 if (!isShowingTail) currentTime.set(e.currentTarget.currentTime);
                 setupAudioAnalyzer();

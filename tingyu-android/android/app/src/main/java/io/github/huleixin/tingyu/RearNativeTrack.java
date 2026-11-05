@@ -39,6 +39,7 @@ public final class RearNativeTrack {
     private static volatile long positionMs = 0L;
     private static volatile long anchorAt = 0L;
     private static volatile boolean playing = false;
+    private static volatile boolean buffering = false;
     private static volatile long updatedAt = 0L;
 
     private RearNativeTrack() {}
@@ -71,6 +72,7 @@ public final class RearNativeTrack {
             if (queued != null) applyMeta(queued);
             return;
         }
+        String from = songKey;
         songKey = next;
         title = ""; artist = ""; playbackRate = 1f;
         generation += 1; eventRevision++;
@@ -81,8 +83,12 @@ public final class RearNativeTrack {
         anchorAt = elapsedClock.getAsLong();
         durationMs = 0L;
         playing = false;
+        buffering = false;
         updatedAt = System.currentTimeMillis();
         if (queued != null) applyMeta(queued);
+        // 切歌时间线：引擎真实换曲（自动续播 / 命令生效 / 兼容通道喂新曲）。
+        // 与封面动画完成（TingyuSkipTx COVER_ANIMATION_DONE）相减即得封面领先毫秒数。
+        io.github.huleixin.tingyu.minimal.cover.SkipTxLog.engineTrackChangedInternal(from, next);
     }
 
     private static void applyMeta(JSObject queued) {
@@ -110,7 +116,30 @@ public final class RearNativeTrack {
         playing = isPlaying;
         updatedAt = System.currentTimeMillis();
         if(changed)RearHostUpdates.changed();
+        // 切歌时间线：真正开始出声的那一刻（isPlaying false→true）。
+        // 与 SKIP_REQUEST / AUDIO_SOURCE_READY 相减即得"歌名已换 → 声音已切"的毫秒数。
+        if (isPlaying && !buffering && !wasPlayingForLog) {
+            io.github.huleixin.tingyu.minimal.cover.SkipTxLog.engineAudioPlaying(songKey);
+        }
+        wasPlayingForLog = isPlaying;
     }
+
+    /** 引擎日志用的上一帧 isPlaying（与 playing 字段分离，避免影响既有状态机）。 */
+    private static boolean wasPlayingForLog = false;
+
+    /**
+     * 引擎缓冲状态（Media3 STATE_BUFFERING ⇄ STATE_READY）。只记事实与时间线，不参与播放控制。
+     * 由 {@code NativeAudioEngine} 的 onEvents 喂；换曲时自动清零（见 onTrack）。
+     */
+    public static synchronized void onBuffering(boolean value) {
+        if (buffering == value) return;
+        buffering = value;
+        eventRevision++;
+        RearHostUpdates.changed();
+        io.github.huleixin.tingyu.minimal.cover.SkipTxLog.engineBuffering(songKey, value);
+    }
+
+    public static boolean isBuffering() { return buffering; }
 
     /** 时长补齐（Media3 的 duration 在换曲瞬间常常还是 TIME_UNSET）。 */
     public static synchronized void onDuration(long valueMs) {
@@ -146,6 +175,7 @@ public final class RearNativeTrack {
             value.put("durationMs", Math.max(0L, durationMs));
             value.put("positionMs", Math.max(0L, position));
             value.put("playing", playing);
+            value.put("buffering", buffering);
             value.put("sentAtMs", System.currentTimeMillis());
             value.put("updatedAtMs", updatedAt);
         } catch (Exception ignored) {
@@ -161,6 +191,6 @@ public final class RearNativeTrack {
         engine="none";outputSession="";attempt="";
         io.github.huleixin.tingyu.playback.LyricSyncLedger.get().track("","");
         songKey = ""; title = ""; artist = ""; epoch = "";
-        durationMs = 0L; positionMs = 0L; anchorAt = 0L; playing = false; updatedAt = 0L;
+        durationMs = 0L; positionMs = 0L; anchorAt = 0L; playing = false; buffering = false; updatedAt = 0L;
     }
 }

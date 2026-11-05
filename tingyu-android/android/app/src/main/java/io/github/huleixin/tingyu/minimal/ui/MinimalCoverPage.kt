@@ -1,6 +1,8 @@
 package io.github.huleixin.tingyu.minimal.ui
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -29,7 +31,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -53,8 +57,11 @@ import io.github.huleixin.tingyu.minimal.MinimalLyricLine
 import io.github.huleixin.tingyu.minimal.MinimalPalette
 import io.github.huleixin.tingyu.minimal.MinimalPlayback
 import io.github.huleixin.tingyu.minimal.MinimalPlayerState
+import io.github.huleixin.tingyu.minimal.cover.CoverCard
 import io.github.huleixin.tingyu.minimal.cover.CoverStackArtwork
 import io.github.huleixin.tingyu.minimal.cover.CoverStackState
+import io.github.huleixin.tingyu.minimal.cover.SkipStage
+import io.github.huleixin.tingyu.minimal.cover.SkipTransaction
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -110,6 +117,11 @@ fun MinimalCoverPage(
     stack: CoverStackState,
     /** 封面位图缓存（与当前曲的 `MinimalArtwork` 共用同一套加载与缓存）。 */
     covers: CoverStackArtwork,
+    /**
+     * 切歌事务。封面动画完成（ANIMATION_DONE）到播放状态确认之间，歌曲信息以事务的
+     * 预期歌曲为准 —— 与顶层封面同源（stack 卡片），文字与封面不会各切各的。
+     */
+    skipTransaction: SkipTransaction = SkipTransaction(),
     onOpenLyrics: () -> Unit,
     /** 波形（音质音效入口）：打开原版音质 / 音效面板。 */
     onAudioTools: () -> Unit = {},
@@ -158,36 +170,38 @@ fun MinimalCoverPage(
             )
             Spacer(Modifier.height(clampDp(15f, vh.value * 0.020f, 19f)))
 
-            // 标题与歌手跟着 playback.track 一起切换：两者是同一个身份，不能各自淡入。
-            Crossfade(
-                targetState = playback.track,
-                animationSpec = tween(260),
-                label = "minimal-cover-meta",
-            ) { track ->
-                Column(Modifier.fillMaxWidth()) {
-                    Text(
-                        text = track.title.ifBlank { "未在播放" },
-                        color = ink.ink,
-                        fontSize = titleSize,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = (titleSize.value * -0.014f).sp,
-                        lineHeight = titleSize * 1.26f,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    if (track.artist.isNotBlank()) {
-                        Spacer(Modifier.height(clampDp(4f, vh.value * 0.006f, 6f)))
-                        ArtistLine(track.artist, ink, onOpenArtist)
-                    }
-                }
-            }
+            // ---- 歌曲信息：与顶层封面同源的统一显示身份 ----
+            //
+            // 封面动画完成后、播放状态确认前，顶层封面是预期下一首的视觉预览（事务
+            // ANIMATION_DONE）。这段时间标题/歌手跟着**同一张顶层卡片**走 —— 封面与文字
+            // 在同一帧落在同一首歌，不再出现"封面已换、歌名还是上一首"的错位。
+            // 播放状态确认（或事务失败回退）后，来源自然回到 playback.track。
+            //
+            // 音频还没真正开始出声（未确认/缓冲中）时补一枚"正在准备"角标：
+            // 界面如实反映准备状态，不把没出声的歌画成正在播。
+            val topCard = stack.cards.firstOrNull()
+            val previewing = skipTransaction.stage == SkipStage.ANIMATION_DONE &&
+                topCard != null &&
+                topCard.songKey == skipTransaction.expectedSongKey &&
+                topCard.songKey != playback.track.key
+            val displayMeta = SongMeta(
+                key = if (previewing && topCard != null) topCard.key else playback.track.key,
+                title = if (previewing && topCard != null) topCard.title else playback.track.title,
+                artist = if (previewing && topCard != null) topCard.artist else playback.track.artist,
+            )
+            val showPreparing = previewing || (playback.buffering && !playback.playing)
+
+            SongMetaSwap(displayMeta, vh, ink, titleSize, onOpenArtist)
 
             Spacer(Modifier.height(clampDp(6f, vh.value * 0.009f, 8f)))
             Row(Modifier.fillMaxWidth().height(28.dp), verticalAlignment = Alignment.CenterVertically) {
                 val quality = state.controls.quality
                 if (quality.isNotBlank()) {
                     QualityChip(quality, state.controls.qualityGold, light, ink)
+                }
+                if (showPreparing) {
+                    Spacer(Modifier.width(8.dp))
+                    PreparingChip(ink)
                 }
                 Spacer(Modifier.width(12.dp))
                 Box(Modifier.weight(1f))
@@ -218,9 +232,98 @@ fun MinimalCoverPage(
                 fontSize = lyricSize,
                 height = (lyricSize.value * 3f).coerceAtLeast(54f).dp,
                 active = active,
+                // 未确认的切歌期间不显示歌词预览：它是旧歌的行，和新标题放在一起
+                // 就是"歌名、歌词各说各话"。确认后新歌词到位，预览自然回来。
+                suppressed = previewing,
                 onOpenLyrics = onOpenLyrics,
             )
         }
+    }
+}
+
+/** 一屏显示的歌曲信息（身份 + 文案）。key 变化触发淡切；同 key 的文案修正直接落。 */
+private data class SongMeta(val key: String, val title: String, val artist: String)
+
+/**
+ * 歌曲信息的单槽淡切。
+ *
+ * 之前这里是 `Crossfade(targetState = playback.track)`：退出/进入两层同时在场，
+ * 新旧标题在淡出的两百多毫秒里肉眼可见地叠在一起；而且它只认 playback.track，
+ * 封面已确认换歌时文字还在等旧状态。
+ *
+ * 现在单一内容槽 + alpha 先降后升（110ms 出 / 150ms 入，与原 260ms 同节奏）：
+ * 同一帧永远只有一份文案，永远不会交叠；切歌瞬间与封面事务协同（见调用处）。
+ * 同一首歌内的文案修正（元数据补齐）不触发淡切，直接落。
+ */
+@Composable
+private fun SongMetaSwap(
+    meta: SongMeta,
+    vh: androidx.compose.ui.unit.Dp,
+    ink: MinimalInk,
+    titleSize: androidx.compose.ui.unit.TextUnit,
+    onOpenArtist: (Int) -> Unit,
+) {
+    var shown by remember { mutableStateOf(meta) }
+    val alpha = remember { Animatable(1f) }
+    LaunchedEffect(meta) {
+        if (meta == shown) return@LaunchedEffect
+        if (meta.key == shown.key) {
+            // 同一首歌：只是文案被补齐/修正，直接换，不闪。
+            shown = meta
+            return@LaunchedEffect
+        }
+        if (alpha.value < 1f) {
+            // 上一次淡切还没完又来一次（快速连切）：直接落到最新身份，不排队。
+            shown = meta
+            alpha.snapTo(1f)
+            return@LaunchedEffect
+        }
+        alpha.animateTo(0f, tween(110, easing = LinearEasing))
+        shown = meta
+        alpha.animateTo(1f, tween(150, easing = LinearEasing))
+    }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .graphicsLayer { this.alpha = alpha.value },
+    ) {
+        Text(
+            text = shown.title.ifBlank { "未在播放" },
+            color = ink.ink,
+            fontSize = titleSize,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = (titleSize.value * -0.014f).sp,
+            lineHeight = titleSize * 1.26f,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (shown.artist.isNotBlank()) {
+            Spacer(Modifier.height(clampDp(4f, vh.value * 0.006f, 6f)))
+            ArtistLine(shown.artist, ink, onOpenArtist)
+        }
+    }
+}
+
+/** "正在准备"角标：音频未就绪（未确认的切歌 / 缓冲中）时如实呈现，不假装正在播。 */
+@Composable
+private fun PreparingChip(ink: MinimalInk) {
+    Row(
+        Modifier
+            .height(27.dp)
+            .background(ink.ink.copy(alpha = 0.06f), RoundedCornerShape(999.dp))
+            .border(1.dp, ink.ink.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
+            .padding(horizontal = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "正在准备",
+            color = ink.muted,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = 0.605.sp,
+            maxLines = 1,
+        )
     }
 }
 
@@ -403,6 +506,8 @@ private fun LiveLyric(
     fontSize: androidx.compose.ui.unit.TextUnit,
     height: androidx.compose.ui.unit.Dp,
     active: Boolean,
+    /** 切歌未确认期间抑制显示：这一行的行属于旧歌，与新标题放在一起互相矛盾。 */
+    suppressed: Boolean,
     onOpenLyrics: () -> Unit,
 ) {
     val lyrics = state.lyrics
@@ -410,7 +515,7 @@ private fun LiveLyric(
         derivedStateOf { lyrics.activeIndex(playback.lyricSecAt(clock.value)) }
     }
     val line: MinimalLyricLine? = if (index >= 0) lyrics.lines.getOrNull(index) else null
-    val text = line?.text?.trim().orEmpty()
+    val text = if (suppressed) "" else line?.text?.trim().orEmpty()
     val interaction = remember { MutableInteractionSource() }
 
     Box(

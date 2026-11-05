@@ -49,6 +49,7 @@ import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
 import { useSearchNavigationStore } from '../stores/useSearchNavigationStore';
 import { showLatticeFmNotice, usePlaybackEntryViewStore } from '../stores/usePlaybackEntryViewStore';
 import { useStableActionSurface } from './useStableCallbacks';
+import { logSkipTx } from '../services/skipTxLog';
 import { hasBeforePlayHook, notifyPlaybackFailed, runBeforePlayHook } from '../services/hostExtensionHooks';
 import { classifyPlaybackError, isTransientPlaybackFailure } from '../services/playbackRecovery/onlinePlaybackFailure';
 import { PLAYBACK_RETRYING_MESSAGE_KEY, isAutoSkipFailure } from '../services/playbackRecovery/playbackFailurePolicy';
@@ -499,6 +500,9 @@ export function usePlaybackQueueController({
         interruptStagePlaybackForMainTransition();
 
         console.log('[App] playSong initiated:', song.name, song.id, 'isFm:', isFmCall);
+        // 切歌时间线：JS 侧真正开始推进这次切歌（队内导航/队列点播/FM 都汇到这里）。
+        // 与原生 SKIP_REQUEST 相减即得命令桥与 JS 调度的开销。
+        logSkipTx('SKIP_REQUEST', getPlaybackSongKey(song), { channel: 'playSong' });
         // 新请求取代上一首的替代版本弹窗。
         setPendingUnavailableReplacement(null);
         clearPendingUnavailableSkip();
@@ -534,6 +538,7 @@ export function usePlaybackQueueController({
         const newQueue = getPlayableOnlineQueue(queueContext);
         if(options.nativeHandoff){
             const handoff=options.nativeHandoff,key=getPlaybackSongKey(song),generation=++playbackGenerationRef.current;
+            logSkipTx('AUDIO_SOURCE_READY', key, { channel: 'native-handoff' });
             currentSongRef.current=key;shouldAutoPlayRef.current=false;pendingResumeTimeRef.current=null;
             lastAudioRecoverySourceRef.current=null;currentOnlineAudioUrlFetchedAtRef.current=Date.now();
             fmModeBeforePendingPlayRef.current=null;markNativeQueueAdoption(key);
@@ -710,6 +715,7 @@ export function usePlaybackQueueController({
         }
 
         try {
+            logSkipTx('AUDIO_RESOLVE_START', getPlaybackSongKey(song), { channel: 'online' });
             preloadedOnlineAudioResult = await loadOnlineSongAudioSource(song, audioQuality, prefetched, {
                 retry: {
                     isCurrent: isLatestPlaybackRequest,
@@ -725,13 +731,20 @@ export function usePlaybackQueueController({
                 return;
             }
 
-            // 只有 taken-down 走替代版本与倒计时；其余原因按策略表停播并给出重试 / 跳过，保留队列。
-            // 「无法播放时自动跳过」打开时受限类与原因不明的失败也倒计时（不找替代版本），由 presenter 按策略决定。
+        // 只有 taken-down 走替代版本与倒计时；其余原因按策略表停播并给出重试 / 跳过，保留队列。
+        // 「无法播放时自动跳过」打开时受限类与原因不明的失败也倒计时（不找替代版本），由 presenter 按策略决定。
             if (preloadedOnlineAudioResult.kind === 'failed') {
+                logSkipTx('SKIP_FAILED', getPlaybackSongKey(song), {
+                    reason: preloadedOnlineAudioResult.failure.reason ?? 'unknown',
+                });
                 if (preloadedOnlineAudioResult.failure.reason === 'taken-down') await presentTakenDown(preloadedOnlineAudioResult.failure);
                 else presentOnlineFailure(preloadedOnlineAudioResult.failure);
                 return;
             }
+            logSkipTx('AUDIO_SOURCE_READY', getPlaybackSongKey(song), {
+                channel: 'online',
+                kind: preloadedOnlineAudioResult.blobUrl ? 'blob' : 'url',
+            });
         } catch (error) {
             if (!isLatestPlaybackRequest()) return;
             console.error('[App] Failed to fetch song URL:', error);

@@ -25,6 +25,7 @@ import {
     setComposeMinimalOwnership,
     type MinimalPlayerFrame,
 } from '../services/nativeMinimalPlayer';
+import { logSkipTx, noteNativeRequestId } from '../services/skipTxLog';
 
 // src/hooks/useNativeMinimalPlayer.ts
 // Hands the minimal player surface to Compose, but only after native proves it can render it.
@@ -271,6 +272,13 @@ export function useNativeMinimalPlayer({
         const onAction = (action: string, value: number) => {
             if(action==='pageChanged'){
                 usePlayerViewModeStore.getState().setPage(value===1?'lyrics':'cover');return;
+            }
+            // 切歌命令带着原生事务的 requestId 过桥（value > 0 时）：记进 JS 时间线，
+            // 后面 playSong 的 SKIP_REQUEST / AUDIO_* 事件都用它对齐。
+            if (action === 'next' || action === 'previous') {
+                noteNativeRequestId(value);
+                const frame = buildFrame(sessionRef.current);
+                logSkipTx('JS_ACTION_RECEIVED', frame?.trackKey ?? '', { action });
             }
             const currentControls = latest.current.controls;
             const currentChrome = latest.current.chrome;

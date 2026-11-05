@@ -78,8 +78,13 @@ interface MinimalPlayerCommands {
     fun toggle(): Boolean
     fun play(): Boolean
     fun pause(): Boolean
-    fun previous(): Boolean
-    fun next(): Boolean
+
+    /**
+     * 上一首。[requestId] 是切歌事务的单调编号：>0 时随命令 value 过桥，JS 侧的切歌
+     * 时间线日志用它与原生侧对齐；老调用点不传（0）时行为与之前完全一致。
+     */
+    fun previous(requestId: Long = 0): Boolean
+    fun next(requestId: Long = 0): Boolean
 
     /** @param seconds 目标位置（秒），会被夹到 [0, 时长] */
     fun seekTo(seconds: Double): Boolean
@@ -148,8 +153,8 @@ class BridgeMinimalCommands(
     override fun toggle(): Boolean = send(MinimalActions.TOGGLE, 0.0)
     override fun play(): Boolean = send(MinimalActions.PLAY, 0.0)
     override fun pause(): Boolean = send(MinimalActions.PAUSE, 0.0)
-    override fun previous(): Boolean = send(MinimalActions.PREVIOUS, 0.0)
-    override fun next(): Boolean = send(MinimalActions.NEXT, 0.0)
+    override fun previous(requestId: Long): Boolean = send(MinimalActions.PREVIOUS, requestId.toDouble())
+    override fun next(requestId: Long): Boolean = send(MinimalActions.NEXT, requestId.toDouble())
 
     override fun seekTo(seconds: Double): Boolean {
         if (!seconds.isFinite()) return false

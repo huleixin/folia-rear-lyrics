@@ -146,8 +146,8 @@ class MinimalParityTest {
         override fun toggle(): Boolean = true
         override fun play(): Boolean = true
         override fun pause(): Boolean = true
-        override fun previous(): Boolean = true
-        override fun next(): Boolean = true
+        override fun previous(requestId: Long): Boolean = true
+        override fun next(requestId: Long): Boolean = true
         override fun seekTo(seconds: Double): Boolean = true
         override fun cycleMode(): Boolean = true
         override fun openQueue(): Boolean = true

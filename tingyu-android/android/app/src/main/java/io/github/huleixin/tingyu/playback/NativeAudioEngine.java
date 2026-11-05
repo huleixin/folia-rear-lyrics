@@ -397,6 +397,9 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 // 记到 0；READY 之后真实时长到达时必须补一次，否则背屏整首的进度条与
                 // 「位置不超过时长」的钳制都基于一个错误的 0。
                 if(p.getPlaybackState()==Player.STATE_READY)syncRearTrack();
+                // 缓冲事实喂给身份登记处：极简页据此区分「歌名已换、声音未响」与「正常播放」，
+                // 不再把 STATE_BUFFERING 里的新歌当成已经出声。
+                io.github.huleixin.tingyu.RearNativeTrack.onBuffering(p.getPlaybackState()==Player.STATE_BUFFERING);
                 if(drained||p.getPlaybackState()==Player.STATE_READY)superviseQueue(drained?"drained":"events");
                 if(!p.getPlayWhenReady()||p.getPlaybackState()==Player.STATE_ENDED)applyOutputPolicy(true);
                 emit("state",false);main.removeCallbacks(heartbeat);if(needsClock())main.postDelayed(heartbeat,1000);

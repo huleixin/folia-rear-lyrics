@@ -55,6 +55,11 @@ data class MinimalPlayback(
     val source: MinimalClockSource = MinimalClockSource.NONE,
     val epoch: String = "",
     val maxExtrapolationMs: Long = Long.MAX_VALUE,
+    /**
+     * 引擎正在缓冲（Media3 STATE_BUFFERING，或浏览器音频通道 waiting）。换歌后最常见的
+     * "歌名已换、声音还没响"就是它：界面据此显示准备状态，而不是把未出声的歌当正在播。
+     */
+    val buffering: Boolean = false,
 ) {
     /** 在 [nowElapsedMs] 这一刻的位置（毫秒）。暂停时就是暂停的位置，未播放通道时为 0。 */
     fun positionMsAt(nowElapsedMs: Long): Long {
