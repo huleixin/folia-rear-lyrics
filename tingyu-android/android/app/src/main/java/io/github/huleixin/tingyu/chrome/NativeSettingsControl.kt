@@ -14,9 +14,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -27,7 +26,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.*
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.unit.sp
 import kotlin.math.round
 
@@ -100,10 +102,44 @@ import kotlin.math.round
             }
         }
         "select"->{
-            var expanded by remember{mutableStateOf(false)}
-            Box(modifier.clickable(enabled=!control.disabled){expanded=true}){
-                Text(control.options.firstOrNull{it.first==control.value}?.second?:control.value,color=ink,fontSize=control.font.sp)
-                DropdownMenu(expanded,{expanded=false}){control.options.forEach{(value,label)->DropdownMenuItem(text={Text(label,fontSize=control.font.sp)},onClick={expanded=false;latestAction(control.id,value,0.0)})}}
+            // 语言等下拉菜单（68597）：原来直接用 Material3 的 DropdownMenu/DropdownMenuItem，
+            // 容器与文字色都取自 MaterialTheme —— 设置文档页没有自己的 MaterialTheme，
+            // 浅色模式下拿到的是"浅底 + 浅字"，几乎不可读；M3 菜单自带的弹出动画在文档页
+            // （整页是 Canvas + 控件层）上也会明显掉帧。
+            // 这里改为自绘 Popup：颜色全部显式取自调色板，动效只有一次淡入，不重建整页。
+            var expanded by remember(control.id){mutableStateOf(false)}
+            val light=LocalInterfacePalette.current.light
+            val panel=if(light)Color(0xFFF4F9F5)else Color(0xFF16221E)
+            val edge=if(light)Color(0x1F0C2A20)else Color(0x33FFFFFF)
+            val label=if(light)Color(0xFF122019)else Color(0xFFE9F2EC)
+            val density=LocalDensity.current
+            val current=control.options.firstOrNull{it.first==control.value}?.second?:control.value
+            Box{
+                Row(modifier.clickable(enabled=!control.disabled){expanded=true},verticalAlignment=Alignment.CenterVertically){
+                    Text(current,color=ink,fontSize=control.font.sp)
+                    Box(Modifier.padding(start=6.dp).size(14.dp)){PageIcon("chevron-down",ink.copy(alpha=.55f),Modifier.fillMaxSize())}
+                }
+                if(expanded)Popup(
+                    onDismissRequest={expanded=false},
+                    properties=PopupProperties(focusable=true),
+                    offset=IntOffset(0,with(density){44.dp.roundToPx()}),
+                ){
+                    Column(Modifier.widthIn(min=190.dp,max=300.dp)
+                        .background(panel,RoundedCornerShape(14.dp))
+                        .border(1.dp,edge,RoundedCornerShape(14.dp))
+                        .padding(vertical=6.dp)){
+                        control.options.forEach{(value,text)->
+                            val selected=value==control.value
+                            Row(Modifier.fillMaxWidth()
+                                .clickable{expanded=false;latestAction(control.id,value,0.0)}
+                                .background(if(selected)accent.copy(alpha=if(light).14f else .20f)else Color.Transparent)
+                                .padding(horizontal=14.dp,vertical=11.dp),verticalAlignment=Alignment.CenterVertically){
+                                Text(text,color=if(selected)accent else label,fontSize=control.font.sp,modifier=Modifier.weight(1f))
+                                if(selected)Box(Modifier.padding(start=8.dp).size(16.dp)){PageIcon("check",accent,Modifier.fillMaxSize())}
+                            }
+                        }
+                    }
+                }
             }
         }
     }

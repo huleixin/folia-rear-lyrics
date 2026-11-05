@@ -1,8 +1,9 @@
 import { useMotionSettingsStore, resolveReducedMotion } from '../../stores/useMotionSettingsStore';
 import {useInterfaceLight} from '../../hooks/useInterfaceAppearance';
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
+import { registerModalBack } from '../../services/modalBackStack';
 
 interface ThemedDialogProps {
     isOpen: boolean;
@@ -47,6 +48,13 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
     const textSecondary = isDaylight ? 'text-zinc-500' : 'text-zinc-400';
     const closeBtnHover = isDaylight ? 'hover:bg-zinc-200/60' : 'hover:bg-white/10';
     const isMouseDownOnOverlayRef = useRef(false);
+
+    // 返回键优先级（68600）：本弹窗在最上层时，第一次返回只关它。
+    // closeDisabled（导入/验证进行中）时消费返回但不关，保持原有操作锁定。
+    useEffect(() => {
+        if (!isOpen) return;
+        return registerModalBack(() => { if (!closeDisabled) onClose(); });
+    }, [isOpen, closeDisabled, onClose]);
 
     const handleOverlayMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
         isMouseDownOnOverlayRef.current = event.target === event.currentTarget;

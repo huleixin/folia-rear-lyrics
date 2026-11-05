@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { installNativeBackPolicy, hasNativeBackOverlay } from '../utils/nativeBackPolicy';
+import { runTopModalBack } from '../services/modalBackStack';
 
 type NativeBackPlugin = {
     addListener: (
@@ -79,6 +80,9 @@ export const applyNativeBackPress = (
  * event the app moves to the background instead of exiting, so playback keeps running.
  */
 export const dispatchNativeBack = (navigateBack?: () => boolean): boolean => {
+    // 最上层的模态弹窗优先消费返回：它自己就是"这一层页面的返回目标"。
+    // 不先问它的话，合成的 Escape 会被底层设置页的 keydown 处理器抢走（68599/68600）。
+    if (runTopModalBack()) return true;
     const blocking = hasNativeBackOverlay();
     const event = new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true });
     // Dispatch from the DOM so document-capture dialogs also receive the event.

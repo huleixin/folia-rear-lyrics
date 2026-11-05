@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Check, FileCode2, Upload } from 'lucide-react';
 import ThemedDialog from '../shared/ThemedDialog';
 import { useLxSourceStore } from '../../stores/useLxSourceStore';
@@ -6,6 +6,7 @@ import { type LxScript } from '../../services/lxSource/contract';
 import { omni } from '../../services/onlineMusic/omni';
 import { LxRuntime } from '../../services/lxSource/client';
 import { pickLxScript } from '../../services/lxSource/importFile';
+import { useSettingsModalStore } from '../../stores/useSettingsModalStore';
 
 // src/components/audio-tools/LxSourceDialog.tsx
 export default function LxSourceDialog({ isDaylight }: { isDaylight: boolean }) {
@@ -13,6 +14,23 @@ export default function LxSourceDialog({ isDaylight }: { isDaylight: boolean }) 
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState('');
     const [failed, setFailed] = useState(false);
+    // 设置路由被其它方式关闭时，这里打开的弹窗不能留下来挂在首页上（68600）。
+    // 导入/验证进行中（busy）保持不动：那是弹窗自己的操作面，等它跑完再收。
+    const settingsOpen = useSettingsModalStore(store => store.settingsModalState.isOpen);
+    const ownedBySettings = useRef(false);
+    const orphanPending = useRef(false);
+    useEffect(() => {
+        if (settingsOpen) { ownedBySettings.current = true; orphanPending.current = false; return; }
+        if (!ownedBySettings.current) return;
+        ownedBySettings.current = false;
+        if (busy) { orphanPending.current = true; return; }
+        state.close();
+    }, [settingsOpen, busy, state.close]);
+    useEffect(() => {
+        if (!orphanPending.current || busy) return;
+        orphanPending.current = false;
+        state.close();
+    }, [busy, state.close]);
     const active = state.scripts.find(script => script.id === state.activeId);
     useEffect(() => { const back = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); if (!busy) state.close(); } }; window.addEventListener('keydown', back); return () => window.removeEventListener('keydown', back); }, [busy, state.close]);
     const test = async (script: Omit<LxScript, 'capabilities'>, save: boolean) => {
