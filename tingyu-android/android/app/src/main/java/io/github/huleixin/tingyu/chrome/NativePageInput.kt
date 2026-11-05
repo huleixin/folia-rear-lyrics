@@ -60,6 +60,9 @@ import androidx.compose.ui.unit.sp
                 .then(if(focusRequester!=null)Modifier.focusRequester(focusRequester)else Modifier)
                 .onFocusChanged{focused=it.isFocused;onFocusChanged?.invoke(it.isFocused)},
             textStyle=TextStyle(color=PageInk,fontSize=14.sp,lineHeight=20.sp),cursorBrush=SolidColor(PageAccent),singleLine=true,
+            // 被动模式必须真的不可聚焦：否则点内联框时它自己先吃下 tap、弹起输入法，
+            // 外层的"展开固定层"就永远不触发（68603 的现象）。
+            enabled=!passive,
             keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),
             keyboardActions=KeyboardActions(onSearch={action(section.submit.ifBlank{section.action},draft.text,0.0);focus.clearFocus()}),
             decorationBox={inner->if(draft.text.isBlank())Text(section.placeholder,color=PageMuted,fontSize=14.sp,lineHeight=20.sp,maxLines=1);inner()})

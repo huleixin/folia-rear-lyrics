@@ -85,7 +85,7 @@ import androidx.compose.ui.unit.sp
                 if(page.trailing.isNotBlank())ChromeButton("更多",size=42.dp,onClick={action(page.trailing,"",0.0)}){PageIcon("ellipsis-vertical",PageInk,Modifier.size(23.dp))}
             }
             val listTop by animateDpAsState(if(searchExpanded)NativeSearchBarHeight+16.dp else 0.dp,tween(240),label="dir-list-top")
-            LazyColumn(Modifier.fillMaxSize().imePadding(),state=list,contentPadding=PaddingValues(start=start,end=end,top=listTop,
+            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=start,end=end,top=listTop,
                 bottom=(page.bottomClearance+page.safeBottom).dp)){
                 page.sections.forEach { section ->
                     when {

@@ -39,6 +39,13 @@
       "mustContain": "queueCommands.queuePlay(it)",
       "mustNotContain": "minimalCommands.queuePlay",
       "why": "原生播放队列必须走宿主级命令通道，不能依赖极简页桥帧是否新鲜（bridgeLive）"
+    },
+    {
+      "id": "search-overlay-autofocus",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeSearchOverlay.kt",
+      "mustContain": "autoFocus = visible",
+      "mustNotContain": "autoFocus = true",
+      "why": "搜索固定层常驻组合：无条件 autoFocus 会让进入页面就弹出输入法（68602 回归）"
     }
   ],
   "webviewAllowlist": [

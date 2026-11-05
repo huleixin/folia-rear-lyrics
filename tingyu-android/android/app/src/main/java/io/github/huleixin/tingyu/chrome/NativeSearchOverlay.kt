@@ -134,7 +134,7 @@ internal fun NativeSearchOverlay(
                 alpha = ((p - 0.35f) / 0.65f).coerceIn(0f, 1f)
             }) {
             androidx.compose.foundation.layout.Row(Modifier.fillMaxSize(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                Box(Modifier.weight(1f)) { SearchBarSurface(section, action, focus) }
+                Box(Modifier.weight(1f)) { SearchBarSurface(section, action, focus, autoFocus = visible) }
                 androidx.compose.foundation.layout.Spacer(Modifier.width(10.dp))
                 androidx.compose.material3.Text(
                     dismissLabel,
@@ -150,7 +150,7 @@ internal fun NativeSearchOverlay(
 private fun lerp(from: Float, to: Float, t: Float) = from + (to - from) * t
 
 @Composable
-private fun SearchBarSurface(section: NativePageSection, action: PageAction, focus: FocusRequester) {
+private fun SearchBarSurface(section: NativePageSection, action: PageAction, focus: FocusRequester, autoFocus: Boolean) {
     Box(Modifier.fillMaxSize()
         .background(interfaceColor(Color(0x1AFFFFFF), LightInterfaceColors.Subtle), RoundedCornerShape(999.dp))
         .border(1.dp, interfaceColor(Color(0x3391DBBD), LightInterfaceColors.Focus), RoundedCornerShape(999.dp))) {
@@ -159,7 +159,9 @@ private fun SearchBarSurface(section: NativePageSection, action: PageAction, foc
             action = action,
             search = true,
             focusRequester = focus,
-            autoFocus = true,
+            // 只有真正展开时才自动聚焦：这个层在页面一进来就存在（section 一直在模型里），
+            // 无条件 autoFocus 会让"进入资料库"直接弹出输入法（68602）。
+            autoFocus = autoFocus,
             bare = true,
         )
     }
