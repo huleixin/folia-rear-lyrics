@@ -1,5 +1,11 @@
 package io.github.huleixin.tingyu.chrome
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +23,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -25,7 +33,15 @@ import androidx.compose.ui.unit.sp
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeDirectoryPage.kt
 // The existing library has a fixed header/filter and contiguous 68px rows, not spaced cards.
 @Composable internal fun NativeDirectoryPage(page:NativePage,modifier:Modifier,action:PageAction) {
-    BoxWithConstraints(modifier){
+    // 资料库搜索（68591）：搜索框平时是页面里的一块普通区域，点一下就升到状态栏下方成为
+    // 固定层；列表在它下面继续滚动。用 pageOrigin 采集根布局坐标，供展开动画从原位起飞。
+    var pageOrigin by remember{mutableStateOf(Offset.Zero)}
+    var searchExpanded by remember(page.key){mutableStateOf(false)}
+    var fieldRect by remember{mutableStateOf<Rect?>(null)}
+    val searchSection=page.sections.firstOrNull{it.layout=="input"}
+    // 返回键：搜索展开时先收搜索，不直接退出页面。
+    BackHandler(enabled=searchExpanded){searchExpanded=false}
+    BoxWithConstraints(modifier.pageOrigin{pageOrigin=it}){
         val width=maxWidth;val wide=width>=840.dp;val library=page.key.startsWith("library:")
         val start=if(wide)if(maxHeight<=600.dp)108.dp else 116.dp else if(library&&width>=374.dp)18.dp else 16.dp
         val end=if(wide)32.dp else if(library&&width>=374.dp)18.dp else 16.dp
@@ -36,29 +52,40 @@ import androidx.compose.ui.unit.sp
         LaunchedEffect(identity){if(previous!=identity){list.scrollToItem(0);previous=identity}}
         Column(Modifier.fillMaxSize().padding(top=(page.safeTop+if(library)36 else 8).dp)){
             if(library){
-                PageHeading(page,Modifier.padding(start=start+4.dp,end=end+4.dp,bottom=16.dp).heightIn(min=44.dp),large=true,action=action)
+                // 搜索展开时整块头部收起（240ms 同步收缩），把屏幕让给"固定搜索层 + 列表"。
+                AnimatedVisibility(visible=!searchExpanded,
+                    enter=expandVertically(tween(240)),exit=shrinkVertically(tween(240))){
+                    Column{
+                        PageHeading(page,Modifier.padding(start=start+4.dp,end=end+4.dp,bottom=16.dp).heightIn(min=44.dp),large=true,action=action)
+                        page.sections.filter{it.layout=="chips"&&it.id!="sort"}.forEach { section ->
+                            NativeSourceTabs(section,Modifier.padding(start=start,end=end,bottom=12.dp),action=action)
+                        }
+                        page.sections.filter{it.layout=="message"&&it.more.isNotBlank()&&it.text.isBlank()}.forEach{section->
+                            Box(Modifier.padding(start=start,end=end,bottom=8.dp)){PagePill(section.moreLabel,{action(section.more,"",0.0)})}
+                        }
+                        page.sections.firstOrNull{it.layout=="input"}?.let{section->
+                            // 被动模式：文本框自己不拿焦点，点击由外层接管 —— 直接展开固定层，
+                            // 避免"内联先弹键盘 → 层展开再收键盘"的两次输入法动画。
+                            Box(Modifier.padding(start=start,end=end,bottom=14.dp)
+                                .pageAnchor(pageOrigin){fieldRect=it}
+                                .clickable{searchExpanded=true}){
+                                NativePageInput(section,action,passive=true)
+                            }
+                        }
+                        val sort=page.sections.firstOrNull{it.id=="sort"}
+                        if(sort!=null)Row(Modifier.fillMaxWidth().padding(start=start,end=end,bottom=8.dp).heightIn(min=34.dp),verticalAlignment=Alignment.CenterVertically){
+                            Text(sort.title,color=PageInk,fontSize=17.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
+                            if(sort.items.isNotEmpty())PageSort(sort,action)
+                        }
+                    }
+                }
             } else Row(Modifier.fillMaxWidth().padding(start=start-8.dp,end=end-8.dp).height(44.dp),verticalAlignment=Alignment.CenterVertically){
                 ChromeButton("返回",size=42.dp,onClick={action(page.leading,"",0.0)}){PageIcon("chevron-left",PageInk,Modifier.size(23.dp))}
                 Spacer(Modifier.weight(1f))
                 if(page.trailing.isNotBlank())ChromeButton("更多",size=42.dp,onClick={action(page.trailing,"",0.0)}){PageIcon("ellipsis-vertical",PageInk,Modifier.size(23.dp))}
             }
-            if(library) {
-                page.sections.filter{it.layout=="chips"&&it.id!="sort"}.forEach { section ->
-                    NativeSourceTabs(section,Modifier.padding(start=start,end=end,bottom=12.dp),action=action)
-                }
-                page.sections.filter{it.layout=="message"&&it.more.isNotBlank()&&it.text.isBlank()}.forEach{section->
-                    Box(Modifier.padding(start=start,end=end,bottom=8.dp)){PagePill(section.moreLabel,{action(section.more,"",0.0)})}
-                }
-                page.sections.firstOrNull{it.layout=="input"}?.let{section->
-                    Box(Modifier.padding(start=start,end=end,bottom=14.dp)){NativePageInput(section,action)}
-                }
-                val sort=page.sections.firstOrNull{it.id=="sort"}
-                if(sort!=null)Row(Modifier.fillMaxWidth().padding(start=start,end=end,bottom=8.dp).heightIn(min=34.dp),verticalAlignment=Alignment.CenterVertically){
-                    Text(sort.title,color=PageInk,fontSize=17.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
-                    if(sort.items.isNotEmpty())PageSort(sort,action)
-                }
-            }
-            LazyColumn(Modifier.fillMaxSize().imePadding(),state=list,contentPadding=PaddingValues(start=start,end=end,
+            val listTop by animateDpAsState(if(searchExpanded)NativeSearchBarHeight+16.dp else 0.dp,tween(240),label="dir-list-top")
+            LazyColumn(Modifier.fillMaxSize().imePadding(),state=list,contentPadding=PaddingValues(start=start,end=end,top=listTop,
                 bottom=(page.bottomClearance+page.safeBottom).dp)){
                 page.sections.forEach { section ->
                     when {
@@ -99,6 +126,16 @@ import androidx.compose.ui.unit.sp
                 }
             }
         }
+        // 固定搜索层：在列表之上、页面根之下；不参与 LazyColumn 布局，因此不随列表滚动。
+        if(library&&searchSection!=null)NativeSearchOverlay(
+            visible=searchExpanded,
+            section=searchSection,
+            action=action,
+            safeTop=page.safeTop,
+            origin=fieldRect,
+            onRequestClose={searchExpanded=false},
+            // 内联输入框一直在模型里，收起后原布局自动恢复，不需要额外交互。
+        )
     }
 }
 internal fun LazyListScope.pagedNativeRows(page:NativePage,section:NativePageSection,cache:NativeRowsCache,height:Int,action:PageAction,chevron:Boolean=false){

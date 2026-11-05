@@ -1,5 +1,8 @@
 package io.github.huleixin.tingyu.chrome
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
@@ -15,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -38,22 +42,33 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
     val cache=rememberNativeRows(page.key,tracks)
     val list=rememberLazyListState()
     LaunchedEffect(tracks.dataKey){list.scrollToItem(0)}
-    val headerItems=1+page.sections.count{it.layout=="input"}
+    // 歌单内搜索（68593）：输入框不再作为 LazyColumn 的 item（那样会跟着歌曲滚、点开时
+    // "凭空出现在列表中间"）。它由页面级的固定层承载，从右上角放大镜的位置展开。
+    val filterSection=page.sections.firstOrNull{it.layout=="input"}
+    var pageOrigin by remember{mutableStateOf(Offset.Zero)}
+    var searchExpanded by remember(page.key){mutableStateOf(false)}
+    var filterIcon by remember{mutableStateOf<Rect?>(null)}
+    LaunchedEffect(filterSection!=null){if(filterSection!=null)searchExpanded=true}
+    BackHandler(enabled=searchExpanded){searchExpanded=false}
+    val headerItems=1
     val currentVisible by remember(tracks.activeIndex,headerItems){derivedStateOf{list.layoutInfo.visibleItemsInfo.any{it.index==tracks.activeIndex+headerItems}}}
     LaunchedEffect(tracks.locateRevision){if(tracks.locateRevision>0&&tracks.activeIndex>=0){
         list.animateScrollToItem(tracks.activeIndex+headerItems,-100)
     }}
-    BoxWithConstraints(modifier){
+    BoxWithConstraints(modifier.pageOrigin{pageOrigin=it}){
         val short=maxHeight<500.dp;val width=maxWidth.value
         NativePlaylistBackdrop(cover.image,maxHeight)
         Column(Modifier.fillMaxSize().padding(top=(page.safeTop+8).dp)){
             Row(Modifier.fillMaxWidth().padding(horizontal=10.dp).height(44.dp),verticalAlignment=Alignment.CenterVertically){
                 ChromeButton(label("back"),size=44.dp,onClick={action(page.leading,"",0.0)}){PageIcon("arrow-left",PageInk,Modifier.size(23.dp))}
                 Spacer(Modifier.weight(1f))
-                ChromeButton(label("filterToggle"),size=44.dp,onClick={action("filterToggle","",0.0)}){PageIcon("search",PageInk,Modifier.size(21.dp))}
+                Box(Modifier.pageAnchor(pageOrigin){filterIcon=it}){
+                    ChromeButton(label("filterToggle"),size=44.dp,onClick={action("filterToggle","",0.0)}){PageIcon("search",PageInk,Modifier.size(21.dp))}
+                }
                 ChromeButton(label("menu"),size=44.dp,onClick={action(page.trailing,"",0.0)}){PageIcon("ellipsis-vertical",PageInk,Modifier.size(23.dp))}
             }
-            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(top=if(short)8.dp else 18.dp,bottom=(page.bottomClearance+page.safeBottom).dp)){
+            val listTop by animateDpAsState((if(short)8.dp else 18.dp)+if(searchExpanded)NativeSearchBarHeight+14.dp else 0.dp,tween(240),label="pl-list-top")
+            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(top=listTop,bottom=(page.bottomClearance+page.safeBottom).dp)){
                 item("header"){
                     Column(Modifier.padding(horizontal=18.dp)){
                         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(if(width<=370)12.dp else 16.dp)){
@@ -99,7 +114,6 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
                         }}
                     }
                 }
-                page.sections.filter{it.layout=="input"}.forEach{section->item(section.id){Box(Modifier.padding(horizontal=18.dp,vertical=8.dp)){NativePageInput(section,action)}}}
                 items(tracks.total,key={index->"${tracks.dataKey}:$index"}){index->
                     val item=cache.get(tracks,index)
                     if(item!=null)NativePlaylistTrack(item.copy(selected=item.id.substringAfter(':')==tracks.activeKey),tracks.playing,maxOf(tracks.total.toString().length,item.number.length),action)
@@ -114,6 +128,16 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
         if(toolbar.any{it.id=="locateCurrent"}&&(!currentVisible||tracks.activeIndex<0))Box(Modifier.align(Alignment.BottomEnd).padding(end=18.dp,bottom=(page.safeBottom+74).dp)){
             PlaylistLocateButton(label("locateCurrent")){action("locateCurrent","",0.0)}
         }
+        if(filterSection!=null)NativeSearchOverlay(
+            visible=searchExpanded,
+            section=filterSection,
+            action=action,
+            safeTop=page.safeTop,
+            origin=filterIcon,
+            onRequestClose={searchExpanded=false},
+            // 收起动画播完才让 JS 撤掉筛选区：否则输入框会在动画中途消失（"闪一下"）。
+            onClosed={action("filterToggle","",0.0)},
+        )
     }
 }
 @Composable private fun NativePlaylistTrack(item:NativePageItem,playing:Boolean,numberDigits:Int,action:PageAction){

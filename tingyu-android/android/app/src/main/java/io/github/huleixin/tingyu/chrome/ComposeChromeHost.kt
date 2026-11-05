@@ -13,6 +13,7 @@ import android.webkit.WebView
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.fillMaxSize
@@ -658,12 +659,22 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     }else ChromeMiniPlayer(seed.interfacePaint(interfaceLight),null,backdrop,placement,sleepUi,{sleepAnchor=it}){name,_->if(name=="sleep")sleepMenuOpen=!sleepMenuOpen}
                 }
             }
+            // 输入法弹出时窗口会 resize（adjustResize），Compose 根高度随之变小 —— 底栏如果
+            // 还按"根高度 - 底栏高"定位，就会被顶到键盘上方（68591/68593 黄框）。这里把
+            // 键盘高度补回"虚拟屏高"，让迷你条/导航栏继续以**物理屏幕底边**为基准：
+            // 键盘升起时它们跟着下沉、被键盘盖住（需求允许"自然覆盖"），收起后原位回来。
+            // 只作用于 nav/mini，不碰舞台控制条，也不改全局播放器位置规则。
+            val imeInsetPx = WindowInsets.ime.getBottom(density)
+            val rootPx = height * density.density
+            val screenPx = web.resources.displayMetrics.heightPixels.toFloat()
+            val keyboardPx = maxOf(imeInsetPx.toFloat(), (screenPx - rootPx).coerceAtLeast(0f))
             visible.forEach { original -> key(original.id,original.session) {
                 val surface=remember(original,interfaceLight){original.interfacePaint(interfaceLight)}
                 val scale = web.width / surface.viewportWidth
                 if (scale.isFinite() && scale > 0) {
+                    val footerBottomBoost = if(surface.id=="nav"||surface.id=="mini") keyboardPx else 0f
                     val rect=NativeFooterLayout.rect(surface.id,
-                        width*density.density/scale,height*density.density/scale,safeTop*density.density/scale,safeBottom*density.density/scale,playlistDetail)
+                        width*density.density/scale,(height*density.density+footerBottomBoost)/scale,safeTop*density.density/scale,safeBottom*density.density/scale,playlistDetail)
                     val y=rect.top
                     val animatedY by animateFloatAsState(y,if(surface.id=="stage"||!focused||!active||surface.reducedMotion||reducedMotion)snap()else spring(dampingRatio=NativeMotionPolicy.Damping,stiffness=NativeMotionPolicy.Stiffness),label="native-chrome-y")
                     val placement = Modifier.zIndex(2f).offset { IntOffset((rect.left*scale).roundToInt(),(animatedY*scale).roundToInt()) }
