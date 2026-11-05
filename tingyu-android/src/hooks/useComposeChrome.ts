@@ -9,6 +9,19 @@ import { sameNativeEnvelope } from '../utils/nativePacketData';
 import {flushNativeShellRoute} from '../services/nativeShellCommit';
 import { dispatchChromeAction, type ChromeActionHandlers } from '../services/nativeChromeActions';
 
+/**
+ * 跨挂载单调 revision（2026-11-05 入场错位专项，与 useNativePage 同理）：
+ * nav/mini 在路由切换时被 remove（墓碑 retire），若 revision 每次挂载从 1 重计，
+ * 同 generation 下重新挂载的表面会被原生 ChromeFrameOrder 永久拒收——
+ * 表现就是导航栏/迷你条整个会话回退 WebView 或直接消失。
+ */
+const chromeRevisions = new Map<string, number>();
+const nextChromeRevision = (id: string): number => {
+    const next = (chromeRevisions.get(id) ?? 0) + 1;
+    chromeRevisions.set(id, next);
+    return next;
+};
+
 // src/hooks/useComposeChrome.ts
 // Event-driven metadata/layout; a live clock is anchored every 2s and on discontinuous seeks.
 export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfaceId,active:boolean,data:ChromeData,
@@ -55,7 +68,7 @@ export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfac
             const safeBottom=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--folia-main-inset-bottom'))||0;
             const packet={id,session,generation,enabled,left:rect.left,top:rect.top,width:rect.width,height:rect.height,alpha:Number(style.opacity),viewportWidth:innerWidth,safeBottom,data:current.data};
             if(!sameNativeEnvelope(last,packet)){
-                last=packet;const sentRevision=++revision;
+                last=packet;const sentRevision=revision=nextChromeRevision(id);
                 // Never queue a hide behind a pending first-draw acknowledgement.
                 if(!enabled)mark(false,true);
                 try{const result=await chromeNative.update({...packet,revision:sentRevision,data:{...packet.data,position:position()}});

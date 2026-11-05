@@ -227,10 +227,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         if(destination in setOf("stage","web")){
             recordMotion(destination);presented=null;return
         }
-        retained.find(destination,selectedTab,entryKey.ifEmpty{pageTarget})?.let{next->
-            recordMotion(next.key)
-            presented=next
-        }
+        val found=retained.find(destination,selectedTab,entryKey.ifEmpty{pageTarget})
+        if(found!=null){recordMotion(found.key);presented=found;return}
+        // 兜底（2026-11-05 68567）：retained.find 是按 key 前缀/选中 tab 的启发式查找，
+        // 与本次会话刚受理的包不一致时会返回 null —— presented 一旦留下空值，屏幕就只剩
+        // WebView 副本，用户看到的就是「原生页没上屏、整页还是 WebView」。pages[destination]
+        // 是当前路由刚被受理的权威包，直接用它，绝不让当前路由的页面缺席。
+        val live=pages[destination]
+        if(live!=null&&live.enabled){recordMotion(live.key);presented=live}
         // A first visit keeps its outgoing native composition until the incoming
         // model arrives; never replay a boot/index screen during ordinary navigation.
     }
@@ -246,6 +250,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var minimalCoverHold by mutableStateOf(false)
     private var minimalCollapseCommitted by mutableStateOf(false)
     private var pendingStageEntry by mutableStateOf(false)
+    /** 入场诊断：最近一次首页包被拒的原因（正常会话应为空串）。 */
+    var lastHomeReject by mutableStateOf("")
     private var stageEntryRequest=0L
     private var firstHomeFrame by mutableStateOf(true)
     private var webStageBackground: Boolean? = null
@@ -355,6 +361,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 android.util.Log.i("TingyuEntry",
                     "home-packet key=${next.key} viewport=${next.viewport} rect=${next.rect} webW=${web.width} cssScale=$scale nav=${value.navigation}")
             }
+        } else if(next.id=="home"){
+            lastHomeReject=if(value.navigation!=navigation)"nav-mm(${value.navigation}≠$navigation)"else if(!next.enabled)"disabled"else "route-mm(dest=$destination)"
+            android.util.Log.i("TingyuEntry","home-reject $lastHomeReject key=${next.key} vp=${next.viewport}")
         }
         if(ownsPresentation)cache.commit(value.cache)
         val reason=if(ownsPresentation)""else if(value.navigation!=navigation)"navigation-mismatch"else if(!next.enabled)"disabled-packet"else "route-target-mismatch"
@@ -515,6 +524,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 if(page==null&&firstHomeFrame&&destination=="home")NativePageView(bootPage,Modifier.fillMaxSize().zIndex(1f)){_,_,_->}
                 // One route-level animation, with no HTML exit animation or full-screen blur.
                 // Data/clock revisions keep the same content key and do not restart it.
+                // 尺寸动画必须关掉（2026-11-05 拖影修复）：togetherWith 默认带 SizeTransform，
+                // 容器尺寸变化时会把整页做缩放+裁剪动画。首页退场是「延迟 520ms 再瞬间淡出」
+                // （等极简页盖住），这 520ms 里默认 SizeTransform 正把整页缩成一张小卡片 ——
+                // 真机录屏里极简页上方那张缩小、上移、带裁剪的首页残影（拖影）就是它。
+                // 这些页面全是整屏，结构上绝不该缩放；sizeAnimationSpec 返回 null 即无尺寸动画。
                 AnimatedContent(if(destination=="stage"&&!stageExit.active)null else page,modifier=Modifier.fillMaxSize().zIndex(1f),contentKey={it?.key?:"stage"},
                     transitionSpec={
                         val from=initialState?.key?:if(firstHomeFrame)""else"stage"
@@ -523,14 +537,17 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         val travel=with(density){28.dp.roundToPx()}
                         val tabTravel=with(density){8.dp.roundToPx()}
                         val position=tween<IntOffset>(240,easing=ease)
-                        when(NativeMotionPolicy.kind(from,to,backwards,!focused||!active||reducedMotion||returningFromSettings||stageExit.suppressReturnMotion&&from=="stage")){
+                        (when(NativeMotionPolicy.kind(from,to,backwards,!focused||!active||reducedMotion||returningFromSettings||stageExit.suppressReturnMotion&&from=="stage")){
                             NativeMotionKind.NONE->EnterTransition.None togetherWith ExitTransition.None
                             NativeMotionKind.STAGE->fadeIn(tween(140,easing=ease)) togetherWith fadeOut(tween(if(to=="stage"&&playerPresentation=="minimal")1 else 100,delayMillis=if(to=="stage"&&playerPresentation=="minimal")520 else 0,easing=ease))
                             NativeMotionKind.TAB->(slideInHorizontally(tween(200,easing=ease)){tabTravel}+fadeIn(tween(200,easing=ease))) togetherWith (slideOutHorizontally(tween(180,easing=ease)){-tabTravel}+fadeOut(tween(180,easing=ease)))
                             NativeMotionKind.PUSH->(slideInHorizontally(position){travel}+fadeIn(tween(240,easing=ease))) togetherWith (slideOutHorizontally(position){-travel/3}+fadeOut(tween(200,easing=ease)))
                             NativeMotionKind.POP->((slideInHorizontally(tween(220,easing=ease)){-travel/3}+fadeIn(tween(220,easing=ease))) togetherWith (slideOutHorizontally(tween(220,easing=ease)){travel}+fadeOut(tween(200,easing=ease)))).apply{targetContentZIndex=-1f}
-                        }
+                        })
                     },label="native-route") { shown ->
+                // 空态也占满整屏（透明）：two states same size —— AnimatedContent 的
+                // SizeTransform 没有尺寸差可动画，首页退场就不会被缩成小卡片（拖影）。
+                if(shown==null){Box(Modifier.fillMaxSize())}
                 if(shown!=null) {
                     LaunchedEffect(shown.key){withFrameNanos{navigationTrace("compose-frame-boundary")}}
                     DisposableEffect(shown.key){
@@ -759,6 +776,29 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             if(graphics.enabled)Text("N · 记闪烁",color=Color(0xFFB8FFE3),fontSize=10.sp,
                 modifier=Modifier.zIndex(20f).offset(12.dp,(safeTop+3).dp).background(Color(0xDD09251C))
                     .clickable{graphicsMarker?.invoke()}.padding(horizontal=5.dp,vertical=3.dp))
+            // 页面接管失败的可视状态（2026-11-05 第二轮）：Android 上旧 DOM 已不再渲染，
+            // 一旦没有任何可呈递的页面（probe 失败 / 持续拒收 / 首页包未到达），不能让用户
+            // 盯着 WebView 下面的空白。这里在超时后画一块原生错误页并提供重试，走的是
+            // __refresh 动作（JS 侧 last=undefined + 重新 measure 重发），不复用旧 WebView UI。
+            var pageFallback by remember{mutableStateOf(false)}
+            LaunchedEffect(destination,presented?.key,webOverlay){
+                val routeAtStart=destination
+                val pageRoute=routeAtStart in setOf("home","collection","search","settings")
+                pageFallback=false
+                if(pageRoute&&presented==null&&!webOverlay){
+                    kotlinx.coroutines.delay(1500)
+                    if(presented==null&&destination==routeAtStart&&!webOverlay)pageFallback=true
+                }
+            }
+            if(pageFallback)NativePageFallbackPanel(
+                route=destination,
+                light=LocalInterfacePalette.current.light,
+                modifier=Modifier.fillMaxSize().zIndex(1.5f),
+                onRetry={
+                    pageFallback=false
+                    pageListener?.onAction(destination,"","","__refresh","manual-retry",0.0)
+                },
+            )
             if(sleepMenuOpen&&!webOverlay&&active&&destination in setOf("home","collection"))Box(Modifier.fillMaxSize().zIndex(6f)) {
                 MiniSleepMenu(sleepUi,sleepAnchor,safeTop,interfaceLight,backdrop,
                     preferredMinutes=surfaces["mini"]?.sleepPreferredMinutes?:30,reduced=reducedMotion){sleepMenuOpen=false}

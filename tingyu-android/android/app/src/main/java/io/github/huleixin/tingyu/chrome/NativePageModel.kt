@@ -23,10 +23,16 @@ data class NativePage(val id: String, val session: String, val generation: Long,
             fun number(key: String, fallback: Double=0.0): Float = value.optDouble(key,fallback).let { if(it.isFinite())it.toFloat() else fallback.toFloat() }
             val viewport=number("viewportWidth",1.0);require(viewport in 1f..10000f)
             val model=value.getJSONObject("model");val blocks=model.optJSONArray("sections")
-            require((blocks?.length()?:0)<=60)
-            val sections=(0 until (blocks?.length()?:0)).map { index ->
-                val block=blocks!!.getJSONObject(index);val rows=block.optJSONArray("items");require((rows?.length()?:0)<=3000)
-                val items=(0 until (rows?.length()?:0)).map { row ->
+            // 容错降级（2026-11-05 入场错位专项）：超量/未知布局不再抛异常——抛一次就是整个页面
+            // 永久回退 WebView（桥调用 reject → JS mark(false) → DOM 副本接管），用户看到的就是
+            // 「好几个页面都变成 WebView」。超量截断、未知布局整段跳过，宁可少一块也不白屏。
+            val sectionCount=minOf(blocks?.length()?:0,60)
+            val sections=(0 until sectionCount).mapNotNull { index ->
+                val block=blocks!!.getJSONObject(index);val rows=block.optJSONArray("items")
+                val layout=block.optString("layout")
+                if(layout !in setOf("rows","cards","hero","chips","input","message"))return@mapNotNull null
+                val rowCount=minOf(rows?.length()?:0,3000)
+                val items=(0 until rowCount).map { row ->
                     val item=rows!!.getJSONObject(row)
                     NativePageItem(item.optString("id").take(600),item.optString("title").take(500),item.optString("subtitle").take(1000),
                         item.optString("image").take(200000),item.optString("action").take(800),item.optString("secondary").take(800),
@@ -34,7 +40,6 @@ data class NativePage(val id: String, val session: String, val generation: Long,
                         item.optJSONArray("audioSpecs").let { specs -> (0 until minOf(specs?.length()?:0,2)).mapNotNull { (specs?.opt(it) as? String)?.take(16)?.takeIf { text -> text.isNotBlank() } } },
                         item.optString("audioSpecsLabel").take(240))
                 }
-                val layout=block.optString("layout");require(layout in setOf("rows","cards","hero","chips","input","message"))
                 NativePageSection(block.optString("id"),block.optString("title"),layout,items,block.optString("text"),block.optString("value"),
                     block.optString("placeholder"),block.optString("action"),block.optString("submit"),block.optString("more"),
                     block.optString("moreLabel","加载更多"),block.optBoolean("busy"),block.optInt("total",items.size).coerceIn(0,1000000),

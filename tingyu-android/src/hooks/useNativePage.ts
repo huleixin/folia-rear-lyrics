@@ -12,6 +12,20 @@ import { sameNativeEnvelope } from '../utils/nativePacketData';
 import {flushNativeShellRoute} from '../services/nativeShellCommit';
 import { refreshNativeSettingsDocument, settingsDiagnostic } from '../services/settingsDiagnostics';
 
+/**
+ * 跨挂载单调 revision（2026-11-05 入场错位专项）：原生 ChromeFrameOrder 的墓碑按
+ * (generation, session) 记账，而会话内 generation 恒定——若 revision 每次挂载都从 1
+ * 重新计数，任何被 pageRemove retire 过的页面（即每次进播放器后的首页）重新挂载时
+ * 都会被永久拒收，整个会话回退 WebView。改为每页单调递增后：新挂载必然更大，
+ * 旧会话的迟到包必然更小，墓碑语义不变而不再误伤。
+ */
+const pageRevisions = new Map<string, number>();
+const nextPageRevision = (id: string): number => {
+    const next = (pageRevisions.get(id) ?? 0) + 1;
+    pageRevisions.set(id, next);
+    return next;
+};
+
 export function useNativePagesAvailable() {
     const [available,setAvailable]=useState(NATIVE_FIRST);
     useEffect(()=>{let alive=true;void canUseNativePages().then(value=>{if(alive)setAvailable(NATIVE_FIRST||value)});return()=>{alive=false}},[]);
@@ -37,11 +51,18 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
         let last: object | undefined;
         let listener: { remove(): Promise<void> } | undefined;
         let resize: ResizeObserver | undefined, mutation: MutationObserver | undefined, unsubscribe: (() => void) | undefined;
+        /** 被拒后的重试定时器：路由提交滞后是常态，拒一次不等于页面该死。 */
+        let retryTimer = 0;
+        /** 连续拒收次数，用于退避；受理成功即清零。 */
+        let rejectStreak = 0;
         const mark = (value: boolean) => {
             if (disposed) return;
-            const owned=NATIVE_FIRST||value;
-            if (owned) node.dataset.nativePage = 'true'; else delete node.dataset.nativePage;
-            setReady(owned); latest.current.onReady?.(owned);
+            // CSS 归属按 NATIVE_FIRST（Android 上捕获容器必须保持隐藏，否则旧 DOM 会从原生
+            // 页下面露出来）；但 ready 只上报真实结果 —— 不允许"强制 ready=true 假装接管成功"。
+            // Android 上旧 DOM 分支已改为编译期剔除，ready=false 不会复活旧页面，
+            // 失败面由原生 NativePageFallbackPanel 承担（错误状态 + 重试）。
+            if (NATIVE_FIRST||value) node.dataset.nativePage = 'true'; else delete node.dataset.nativePage;
+            setReady(value); latest.current.onReady?.(value);
         };
         const remove = () => nativePages.pageRemove({ id, session }).catch(() => {});
         const measure = () => {
@@ -77,16 +98,26 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
                 height: rect.height, viewportWidth: innerWidth, safeTop, safeBottom, model: current.model,
                 navigation:document.documentElement.dataset.nativeNavigation??'' };
             if (sameNativeEnvelope(last, packet)) return; last = packet;
-            const sent = ++revision; if (!enabled) mark(false);
+            const sent = revision = nextPageRevision(id); if (!enabled) mark(false);
             navigationMark('page-layout-capture',measuredAt);
             navigationMark('page-send');
             void nativePages.pageUpdate({ ...packet, revision: sent }).then(result => {
                 navigationMark('page-ack');
                 if (disposed) { void remove(); return; }
-                if (sent === revision) {const accepted=enabled && result.accepted && result.session === session;mark(accepted);if(accepted)markStartupReady('page');
-                    if(enabled&&!accepted){last=undefined;settingsDiagnostic('page-rejected',{id,session,key:current.model.key,navigation:packet.navigation,reason:result.reason??'native-rejected'});}}
+                if (sent === revision) {const accepted=enabled && result.accepted && result.session === session;mark(accepted);if(accepted){rejectStreak=0;markStartupReady('page');}
+                    if(enabled&&!accepted){
+                        last=undefined;
+                        // 拒收回执=路由/导航戳还没跟上（回到首页时 shell 提交滞后于页面挂载）。
+                        // 没有新的 DOM 变化就不会再触发 measure —— 不主动重试，这一页就永远缺席。
+                        // 退避：80/200/500/1000/2000ms 封顶，受理成功即清零；避免持续拒收时空转。
+                        rejectStreak+=1;
+                        const wait=Math.min(2000,80*Math.pow(2.5,Math.min(rejectStreak-1,4)));
+                        if(!retryTimer)retryTimer=window.setTimeout(()=>{retryTimer=0;schedule();},wait);
+                        settingsDiagnostic('page-rejected',{id,session,key:current.model.key,navigation:packet.navigation,reason:result.reason??'native-rejected'});}
+                }
             }).catch(error => {
                 if (sent !== revision || disposed) return;
+                // 桥调用失败 = 该页永久回退 WebView。原因进 logcat（Chromium console），不再黑箱。
                 console.warn('[NativePages] Native page update failed', error);
                 last = undefined; mark(false);
             });
@@ -125,7 +156,7 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
             measure();
         }).catch(() => mark(false));
         return () => {
-            disposed = true; cancelAnimationFrame(frame); resize?.disconnect(); mutation?.disconnect(); unsubscribe?.();
+            disposed = true; window.clearTimeout(retryTimer); cancelAnimationFrame(frame); resize?.disconnect(); mutation?.disconnect(); unsubscribe?.();
             window.removeEventListener('resize', schedule); window.visualViewport?.removeEventListener('resize', schedule);
             document.removeEventListener('tingyu-native-navigation',schedule);
             if(!NATIVE_FIRST)delete node.dataset.nativePage;
