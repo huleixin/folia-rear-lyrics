@@ -9,6 +9,13 @@
       "why": "PREHIDE 必须是 Android 运行时派生，否则旧 chrome DOM 会复活"
     },
     {
+      "id": "home-compile-time-gate",
+      "file": "src/library/suites/mobile/MobileHome.tsx",
+      "mustContain": "{!NATIVE_FIRST&&<>",
+      "mustNotContain": "!nativeReady&&",
+      "why": "首页旧 DOM 在 Android 上必须编译期剔除（唯一 UI = NativeHomePage）"
+    },
+    {
       "id": "native-first-derived",
       "file": "src/services/nativePages.ts",
       "mustContain": "export const NATIVE_FIRST=PREHIDE_COMPOSE_CHROME;",

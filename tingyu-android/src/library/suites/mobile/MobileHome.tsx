@@ -55,14 +55,21 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
     const [showSources, setShowSources] = useState(false);
     const rootRef=React.useRef<HTMLElement>(null);
     const nativeAvailable=useNativePagesAvailable();
-    const [nativeReady,setNativeReady]=useState(NATIVE_FIRST);
+    // 首页 DOM 已改为编译期剔除（NATIVE_FIRST 恒真），ready 回调不再驱动任何渲染分支，
+    // 仅为适配器签名保留 setter。
+    const [,setNativeReady]=useState(NATIVE_FIRST);
     const closeSources = useCallback(() => setShowSources(false), []);
     return (
         <main ref={rootRef} className="mobile-library ml-page ml-home" data-page={page} inert={!props.isInteractive} data-testid="mobile-home"
             onPointerDownCapture={preloadCollection} onFocusCapture={preloadCollection}>
             {nativeAvailable&&<NativeHomePage key={`${page}:${sources.tab}:${sources.online.providerId}`} root={rootRef} page={page} props={props} sources={sources}
                 onReady={setNativeReady} onSources={()=>setShowSources(true)}/>}
-            {!nativeReady&&<>
+            {/* 模块常量门控（docs/ANDROID-PAGE-OWNERSHIP.md §2）：NATIVE_FIRST 在 Android
+                启动时即为 true、且本会话内不再变化，因此这段旧 DOM 在 Android 上不可达；
+                网页端 NATIVE_FIRST=false，仍由它渲染。接管失败时由原生
+                NativePageFallbackPanel 显示错误与重试，不允许把本段改回运行时可变量
+                （`!nativeReady` 之类）——那会让旧页面重新出现在 Android 上。 */}
+            {!NATIVE_FIRST&&<>
             <header className="ml-home-header">
                 <div className="ml-home-heading">
                     <h1 className="ml-brand">
