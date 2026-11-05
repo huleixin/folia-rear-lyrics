@@ -202,13 +202,11 @@ fun MinimalCoverPage(
 
             Spacer(Modifier.height(clampDp(6f, vh.value * 0.009f, 8f)))
             Row(Modifier.fillMaxWidth().height(28.dp), verticalAlignment = Alignment.CenterVertically) {
-                val quality = state.controls.quality
-                // 全局音质标签：桥带可靠层级（真实播放音质，只看正在出声的容器）时用新组件；
-                // 没有层级信息时回退旧 plain/gold chip（老版本 JS 或信息不足的歌）。
-                val badgeLevel = QualityLevel.fromWire(state.controls.qualityLevel)
-                when {
-                    badgeLevel != null -> MinimalQualityBadge(badgeLevel, QualityBadgeSize.FULL)
-                    quality.isNotBlank() -> QualityChip(quality, state.controls.qualityGold, light, ink)
+                // 全局音质标签：只按**真实播放音质**显示（Media3 所选音轨的源 Format 优先，
+                // 兼容通道按 URL 容器兜底）。没有可靠信息就整个隐藏 —— 正式播放页绝不
+                // 回退到旧版半透明金色 QualityChip：那套外观可能把未知音质渲染成金色，造成误导。
+                QualityLevel.fromWire(state.controls.qualityLevel)?.let { level ->
+                    MinimalQualityBadge(level, QualityBadgeSize.FULL, labelOverride = state.controls.qualityLabelOverride.ifBlank { null })
                 }
                 if (showPreparing) {
                     Spacer(Modifier.width(8.dp))

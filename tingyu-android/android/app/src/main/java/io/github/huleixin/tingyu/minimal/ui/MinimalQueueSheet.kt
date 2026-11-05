@@ -95,9 +95,13 @@ fun MinimalQueueSheet(
     onRemove: (Int) -> Unit,
     onReorder: (from: Int, to: Int) -> Unit,
     onToggleMode: () -> Unit,
+    /**
+     * 列表状态由**宿主**持有并传入：抽屉关开（去极简页再回来）不换实例，
+     * 浏览位置原样保留 —— 否则每次重开都滚回当前曲，用户看到列表"跳一下"。
+     */
+    listState: LazyListState = rememberLazyListState(),
 ) {
     val theme = queueTheme(light)
-    val listState = rememberLazyListState()
     val density = LocalDensity.current
 
     // ---- 高度：两档 + 平滑动画 + 把手拖拽 ----
@@ -575,11 +579,6 @@ private fun QueueRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-        }
-        // 目录支持的音质层级（紧凑版标签）：目录没说就不画，绝不猜。
-        QualityLevel.fromWire(item.qualityLevel)?.let { level ->
-            Spacer(Modifier.width(6.dp))
-            MinimalQualityBadge(level, QualityBadgeSize.COMPACT)
         }
         // 每行只有 × 删除和 ≡ 拖拽手柄（参考截图的操作方式）。
         Box(

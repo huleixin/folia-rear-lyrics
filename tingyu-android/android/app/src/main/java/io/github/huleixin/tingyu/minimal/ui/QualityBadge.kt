@@ -14,7 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -30,13 +29,17 @@ import androidx.compose.ui.unit.sp
 // 逐字段一致（同一张《听屿音质标签视觉规范图》逐像素采样）：六枚标签、三种尺寸、无发光无渐变无玻璃。
 // 规范图右侧的"石墨灰、雾蓝银"等是颜色说明，不是标签内容。
 //
-// 图标全部 Canvas 手绘（音频柱 / 四角星 / 圆环内芯 / 同心弧），不引图标包。
+// 音柱图形**复用**现有 `PlayerControlIcon("audioBars")`（AUDIO_BARS 五柱描边），
+// 不另画一套四柱；Hi-Res / 臻品母带 / 空间音频的图标无现成对应，Canvas 手绘。
+//
+// 几何从规范图按比例校正（pill 高 35px：文字 em≈14px、图标 14px、横向内边距≈7px、图标-文字间距≈6px），
+// FULL 以 27/35 缩放落在播放页 28dp 槽位内。
 
 /** 六枚标签的层级，与 TS 侧 `QualityLevel` 一一对应。 */
 enum class QualityLevel { STANDARD, HQ, FLAC, HIRES, MASTER, SPATIAL;
 
     companion object {
-        /** 桥上的字符串 → 层级。未知值返回 null（调用方回退旧 chip）。 */
+        /** 桥上的字符串 → 层级。未知值返回 null（调用方隐藏标签，绝不回退旧 chip）。 */
         fun fromWire(value: String?): QualityLevel? = when (value) {
             "standard" -> STANDARD
             "hq" -> HQ
@@ -44,6 +47,20 @@ enum class QualityLevel { STANDARD, HQ, FLAC, HIRES, MASTER, SPATIAL;
             "hires" -> HIRES
             "master" -> MASTER
             "spatial" -> SPATIAL
+            else -> null
+        }
+
+        /**
+         * 目录 spec 名（high/lossless/hires/master/dolby）→ 层级 —— 与
+         * `resolveCatalogQualityLevel` 同一张映射表：high 是 HQ 档不是标准档。
+         * dts 等不属于六枚的档位返回 null（不显示）。
+         */
+        fun fromCatalogSpec(spec: String?): QualityLevel? = when (spec) {
+            "master" -> MASTER
+            "hires" -> HIRES
+            "lossless" -> FLAC
+            "dolby" -> SPATIAL
+            "high" -> HQ
             else -> null
         }
     }
@@ -58,7 +75,7 @@ enum class QualityBadgeSize(
     val gap: Int,
     val useIcon: Boolean,
 ) {
-    FULL(27, 12, 13, 10, 5, true),
+    FULL(27, 10, 10, 6, 5, true),
     COMPACT(21, 10, 10, 7, 4, true),
     MICRO(17, 9, 0, 6, 0, false),
 }
@@ -116,21 +133,26 @@ private fun visualOf(level: QualityLevel): QualityBadgeVisual = when (level) {
  *
  * @param level 六档层级（来自桥的 `qualityLevel`，或队列条目的 `q`）
  * @param size  FULL 播放页 / COMPACT 歌单与搜索行 / MICRO 小卡片
+ * @param labelOverride 真实格式文案（Media3 确认了 APE/WAV/DSD/ALAC 等非 FLAC 无损时），
+ *                      只在无损层级生效 —— 不把所有无损都冒充 FLAC
  */
 @Composable
 fun MinimalQualityBadge(
     level: QualityLevel,
     size: QualityBadgeSize = QualityBadgeSize.FULL,
     modifier: Modifier = Modifier,
+    labelOverride: String? = null,
 ) {
     val visual = visualOf(level)
     // 胶囊：RoundedCornerShape 的 Int 重载是"百分比"（0..100），999 会直接崩 —— 用 50%。
     val shape = remember(size) { RoundedCornerShape(50) }
-    val label = when (size) {
+    val specLabel = when (size) {
         QualityBadgeSize.FULL -> visual.fullLabel
         QualityBadgeSize.COMPACT -> visual.compactLabel
         QualityBadgeSize.MICRO -> visual.microLabel
     }
+    // 文案覆盖只用于无损层级（真实格式替换 "FLAC · 无损"），其余层级一律用规范文案。
+    val label = if (level == QualityLevel.FLAC && !labelOverride.isNullOrBlank()) labelOverride else specLabel
     Row(
         modifier
             .height(size.heightDp.dp)
@@ -140,7 +162,13 @@ fun MinimalQualityBadge(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (size.useIcon && size.iconDp > 0 && visual.glyph != QualityGlyph.NONE) {
-            QualityBadgeGlyph(visual.glyph, visual.iconColor, Modifier.size(size.iconDp.dp))
+            if (visual.glyph == QualityGlyph.BARS) {
+                // 音柱：沿用 AUDIO_BARS 的对称五柱节奏，但**垂直居中**（参考图是居中小音浪，
+                // PlayerControlIcon 的 24dp 网格是底对齐的，直接缩放会偏大偏沉）。
+                QualityBadgeGlyph(QualityGlyph.BARS, visual.iconColor, Modifier.size(size.iconDp.dp))
+            } else {
+                QualityBadgeGlyph(visual.glyph, visual.iconColor, Modifier.size(size.iconDp.dp))
+            }
             Spacer(Modifier.width(size.gap.dp))
         }
         Text(
@@ -159,20 +187,25 @@ private fun QualityBadgeGlyph(glyph: QualityGlyph, color: Color, modifier: Modif
     androidx.compose.foundation.Canvas(modifier) {
         val u = size.minDimension / 16f
         when (glyph) {
-            // 音频柱（HQ / FLAC）：四根高低起伏的圆头柱，底边对齐
+            // 音柱（HQ / FLAC）：AUDIO_BARS 的对称五柱节奏（3.2/8/14.2/8/3.2），
+            // 垂直居中绘制 —— 参考图是居中小音浪，不是底对齐的高柱。
             QualityGlyph.BARS -> {
-                val bars = listOf(2.6f to 6.0f, 6.2f to 12.4f, 9.8f to 9.2f, 13.4f to 4.8f)
-                bars.forEach { (cx, height) ->
+                // AUDIO_BARS 的对称五柱节奏（3.2/8/14.2/8/3.2，x=3.7..20.3），垂直居中；
+                // 柱群整体向内收 20%（不满铺图标框），右侧留出与文字的呼吸空隙。
+                val heights = listOf(3.2f, 8f, 14.2f, 8f, 3.2f)
+                val columns = listOf(3.7f, 7.85f, 12.0f, 16.15f, 20.3f)
+                columns.forEachIndexed { index, cx ->
+                    val x = 12f * u + (cx - 12f) * u * 0.8f
+                    val half = heights[index] / 2f * u
                     drawLine(
                         color,
-                        Offset(cx * u, 14f * u),
-                        Offset(cx * u, (14f - height) * u),
-                        2.0f * u,
+                        Offset(x, 8f * u - half),
+                        Offset(x, 8f * u + half),
+                        1.9f * u,
                         StrokeCap.Round,
                     )
                 }
             }
-            // 四角星（Hi-Res）
             QualityGlyph.SPARKLE -> {
                 val path = Path().apply {
                     moveTo(8f * u, 1.4f * u)
@@ -195,7 +228,7 @@ private fun QualityBadgeGlyph(glyph: QualityGlyph, color: Color, modifier: Modif
                 drawCircle(color.copy(alpha = 0.55f), 3.1f * u, style = Stroke(1.4f * u))
                 drawCircle(color, 1.15f * u)
             }
-            QualityGlyph.NONE -> Unit
+            QualityGlyph.NONE, QualityGlyph.BARS -> Unit // BARS 走 PlayerControlIcon("audioBars")
         }
     }
 }

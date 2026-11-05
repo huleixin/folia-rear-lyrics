@@ -6,6 +6,7 @@ import type { SongResult } from '../../../../types';
 import type { NativePageModel, PageActions, PageSection } from '../../../../types/nativePages';
 import { useNativePage } from '../../../../hooks/useNativePage';
 import { absolutePageImage } from '../../../../services/nativePages';
+import { normalizeCatalogAudioSpecs } from '../../../../types/catalogAudioSpecs';
 import { getSongArtistLabel, getSongCoverUrl, getSongDurationMs } from '../../../../services/onlineMusic/songMetadata';
 import { formatTime } from '../../../../utils/appPlaybackHelpers';
 import { omni } from '../../../../services/onlineMusic/omni';
@@ -44,9 +45,12 @@ export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:L
         filterToggle:()=>setFilterOpen(value=>!value),filter:e=>{model.setQuery(e.text??'');setOffset(0)},range:e=>setOffset(Math.max(0,Math.floor((e.value??0)/100)*100))};
     const items=useMemo(()=>Array.from({length:Math.max(0,Math.min(100,total-offset))},(_,local)=>{
         const index=indexes?.[offset+local]??offset+local,song=model.view.displayTracks[index],key=getPlaybackSongKey(song);
-        const audioSpecs=getCatalogAudioLabels(song,t);
+        // 原生音质标签：推**原始 spec 名**（normalizeCatalogAudioSpecs 已按档位优先排序），
+        // 原生 QualityLevel.fromCatalogSpec 映射成统一标签 —— 旧实现推的是翻译文案，映射不了。
+        // 只取最高一档：标签设计是每行一枚。
+        const audioSpecs=(normalizeCatalogAudioSpecs(song.catalogAudioSpecs)||[]).slice(0,1);
         return{id:`${index}:${key}`,title:props.collection.type==='playlist'?song.name:`${index+1}. ${song.name}`,number:String(index+1).padStart(2,'0'),duration:formatTime(getSongDurationMs(song)/1000),subtitle:getSongArtistLabel(song),image:absolutePageImage(getSongCoverUrl(song)),
-            ...(audioSpecs.length?{audioSpecs,audioSpecsLabel:t('catalogAudioSpecs.description',{specs:audioSpecs.join(' / ')})}:{}),
+            ...(audioSpecs.length?{audioSpecs,audioSpecsLabel:t('catalogAudioSpecs.description',{specs:audioSpecs.map(spec=>t(`catalogAudioSpecs.${spec}`)).join(' / ')})}:{}),
             action:`play:${index}:${key}`,secondary:`menu:${index}:${key}`,secondaryLabel:t('mobileLibrary.trackActions',{name:song.name}),disabled:isSongUnavailable(song),selected:key===activeKey};
     }),[model.view.displayTracks,indexes,total,offset,activeKey,props.collection.type,t]);
     const controls=[{id:'play',title:t('mobileLibrary.playAll'),action:'playAll',disabled:!model.actions.capabilities.scope.enabled}];

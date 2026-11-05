@@ -1,10 +1,19 @@
 import {bindOutputIdentity} from './playbackOutputIdentity';
 import { notePlaybackTest,playbackTestUriInfo } from './playbackTestLog';
 import { prepareNativeAudioSource, type NativeAudioSource } from './nativeAudioCache';
-import type { NativeAudioOptions, NativeAudioPort, NativeAudioState, NativeQueueTrack, NativeQueueWindow } from '../types/nativeAudio';
+import type { NativeAudioOptions, NativeAudioPort, NativeAudioState, NativeAudioSpec, NativeQueueTrack, NativeQueueWindow } from '../types/nativeAudio';
 
 // src/services/nativeAudioElement.ts
 // Preserve the existing DOM media-event contract while Media3 owns fetching/decoding/output.
+
+/**
+ * 当前播放音轨的最新规格快照（Media3 所选音轨的源 Format）。
+ *
+ * 模块级单例：`useNativeMinimalPlayer` 的 buildFrame 每秒发布一帧，读这个存储即可，
+ * 音质标签在规格变化后 ≤1 个发布节拍内更新。`null` = 兼容播放通道或规格不可得——
+ * 兼容通道无法读取完整规格，调用方必须如实回退到 URL 容器判断，不许套用 Media3 数据。
+ */
+export const nativeAudioSpecStore:{value:NativeAudioSpec|null}={value:null};
 let blocked=false;
 /** Latches out stale queued commands while the transport changes hands; only an explicit switch calls this. */
 export function setNativeAudioCommandsBlocked(value:boolean){blocked=value;}
@@ -45,6 +54,13 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
             lastEventRevision=value.eventRevision;
         }
         if(value.songKey===track&&value.trackGeneration!==undefined)trackGeneration=value.trackGeneration;
+        // 音轨规格快照：只接受**当前这首**的（换歌瞬间旧规格必须作废，不允许残留）。
+        if(value.audioSpec){
+            nativeAudioSpecStore.value=value.songKey===track?value.audioSpec:null;
+        } else if(value.songKey&&value.songKey!==track){
+            // 换到了另一首歌且这条帧没有新规格：上一首的规格立即作废。
+            nativeAudioSpecStore.value=null;
+        }
         if(value.type==='decoder-offer'&&!value.endedBySleep){
             // Only native can confirm that a queued fault still belongs to the audible track.
             if(value.decoderOffer!==undefined)void send('claim-compatibility',{songKey:value.songKey,offer:value.decoderOffer}).catch(()=>{});
@@ -72,6 +88,8 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
             return;
         }        if(value.type!=='clock'&&!value.spectrum)notePlaybackTest('native-state',{type:value.type,status:value.status,playing:value.playing,paused:value.paused,position:value.position,error:value.message??''});
         if(value.spectrum){bands.spectrum.set(value.spectrum.length<=1024?value.spectrum:value.spectrum.slice(0,1024));return;}
+        // 纯规格帧（onTracksChanged 触发）：规格已在上面入库，不再走媒体元素状态机。
+        if(value.type==='audio-spec')return;
         const sampleAge=value.capturedAtMs===undefined?Infinity:Date.now()-value.capturedAtMs;
         const freshSample=sampleAge>=0&&sampleAge<=10000;
         if(freshSample&&value.capturedAtMs! < lastSample&&value.type!=='seeked')return;

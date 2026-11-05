@@ -15,30 +15,37 @@ const GEOMETRY: Record<QualityBadgeSize, {
     height: number; fontSize: number; icon: number; padH: number; gap: number;
     showIcon: boolean; labelKey: 'label' | 'compactLabel' | 'microLabel';
 }> = {
-    full: { height: 27, fontSize: 12, icon: 13, padH: 10, gap: 5, showIcon: true, labelKey: 'label' },
+    // 几何按规范图比例（pill 高 35px：文字 em≈13px、图标 12px、内边距≈5px、图标-文字间距≈3px），
+    // FULL 以 27/35 缩放落在播放页 28dp 槽位内。
+    full: { height: 27, fontSize: 10, icon: 10, padH: 6, gap: 5, showIcon: true, labelKey: 'label' },
     compact: { height: 21, fontSize: 10, icon: 10, padH: 7, gap: 4, showIcon: true, labelKey: 'compactLabel' },
     micro: { height: 17, fontSize: 9, icon: 0, padH: 6, gap: 0, showIcon: false, labelKey: 'microLabel' },
 };
 
 function BadgeIcon({ kind, color, size }: { kind: string; color: string; size: number }) {
     if (kind === 'none' || size <= 0) return null;
-    // 音频柱（HQ / FLAC）
+    // 音频柱（HQ / FLAC）：AUDIO_BARS 的对称五柱节奏，**垂直居中** —— 参考图是居中小音浪。
     if (kind === 'bars') {
-        const bars = [[0.20, 0.55], [0.42, 1.00], [0.64, 0.75], [0.86, 0.42]];
-        const width = size * 0.14;
+        const heights = [3.2, 8, 14.2, 8, 3.2];
+        const columns = [3.7, 7.85, 12.0, 16.15, 20.3];
         return (
             <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden="true">
-                {bars.map(([cx, h], index) => (
-                    <rect
-                        key={index}
-                        x={cx * 16 - width / 2}
-                        y={(1 - h) * 13 + 1.5}
-                        width={width}
-                        height={h * 13}
-                        rx={width / 2}
-                        fill={color}
-                    />
-                ))}
+                {columns.map((cx, index) => {
+                    const x = 12 + (cx - 12) * 0.8; // 柱群向内收 20%，右侧留呼吸空隙
+                    const half = heights[index] / 2;
+                    return (
+                        <line
+                            key={index}
+                            x1={x}
+                            y1={8 - half}
+                            x2={x}
+                            y2={8 + half}
+                            stroke={color}
+                            strokeWidth={1.9}
+                            strokeLinecap="round"
+                        />
+                    );
+                })}
             </svg>
         );
     }
@@ -79,14 +86,17 @@ export function QualityBadge({
     level,
     size = 'full',
     className,
+    labelOverride,
 }: {
     level: QualityLevel;
     size?: QualityBadgeSize;
     className?: string;
+    /** 真实格式文案（Media3 确认了 APE/WAV/DSD/ALAC 等非 FLAC 无损时），只在无损层级生效。 */
+    labelOverride?: string;
 }) {
     const visual = QUALITY_BADGE_PARAMS[level];
     const geometry = GEOMETRY[size];
-    const label = visual[geometry.labelKey];
+    const label = level === 'flac' && labelOverride ? labelOverride : visual[geometry.labelKey];
     return (
         <span
             className={className}

@@ -1,6 +1,16 @@
 // src/types/nativeAudio.ts
 export type NativeAudioState={decoderOffer?:number;eventRevision?:number;engineSessionId?:string;capturedAtElapsedMs?:number;trackGeneration?:number;playbackRate?:number;endedBySleep?:boolean;id:string;sequence:number;type:string;external?:boolean;position:number;capturedAtMs?:number;duration:number;buffered:number;songKey?:string;uri?:string;
-    playing:boolean;paused:boolean;status:number;errorCode?:number;message?:string;spectrum?:number[];compatibilityClaimed?:boolean};
+    playing:boolean;paused:boolean;status:number;errorCode?:number;message?:string;spectrum?:number[];compatibilityClaimed?:boolean;
+    /** 只读的当前音轨规格快照（Media3 所选音轨的源 Format，不是解码后的 PCM 参数）。 */
+    audioSpec?:NativeAudioSpec};
+/**
+ * 当前播放音轨的真实规格（Media3 Format）。
+ *
+ * `bitsPerSample` 只在源 Format 真的携带时出现（FLAC/WAV 等）——解码后的
+ * `pcmEncoding` 是 PCM 位深，**永远不能**当成原始文件的位深。
+ * `confirmed` 表示这些值来自 Media3 所选音轨的 Format（数据来源与确认状态）。
+ */
+export type NativeAudioSpec={songKey:string;sourceId:string;mime:string;codecs:string;sampleRate:number;channels:number;bitrate?:number;bitsPerSample?:number;capturedAtMs:number;confirmed:boolean};
 export type NativeAudioOptions={fade:boolean;analysis:boolean;loop:boolean;interactive?:boolean};
 export type NativeQueueTrack={songKey:string;uri:string;title:string;artist:string;album:string;coverUrl:string;duration:number};
 /**

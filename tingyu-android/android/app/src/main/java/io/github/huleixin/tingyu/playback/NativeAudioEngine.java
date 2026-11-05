@@ -270,6 +270,12 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             .setAudioAttributes(new AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),true)
             .setHandleAudioBecomingNoisy(true).setWakeMode(C.WAKE_MODE_LOCAL).build();
         player.addListener(new Player.Listener(){
+            @Override public void onTracksChanged(androidx.media3.common.Tracks tracks){
+                // 音轨规格变化（换歌 / 换质 / 解码器切换）立刻把最新快照递给 JS：
+                // 上一首歌的规格不允许残留到下一首的标签上。
+                if(decoderClaimed||sourceId.isEmpty())return;
+                emit("audio-spec",false);
+            }
             @Override public void onPlaybackParametersChanged(androidx.media3.common.PlaybackParameters parameters){
                 syncRearTrack(); emit("clock",false);
                 io.github.huleixin.tingyu.FoliaPlaybackService.nativePlaybackChanged(true);
@@ -1358,6 +1364,11 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     public JSObject snapshot(String type,boolean external){
         JSObject value=new JSObject();value.put("id",sourceId);value.put("sequence",sequence);value.put("type",type);value.put("external",external);
         value.put("songKey",songKey);value.put("endedBySleep",sleepStopped);
+        // 只读的当前音轨规格快照：随 state 帧走（状态变化即携带），换轨/换质不残留。
+        if(type.equals("state")||type.equals("audio-spec")){
+            JSObject spec=audioSpecSnapshot();
+            if(spec!=null)value.put("audioSpec",spec);
+        }
         MediaItem item=player.getCurrentMediaItem();
         if(!type.equals("diagnostics")&&item!=null&&item.localConfiguration!=null&&item.localConfiguration.tag instanceof JSObject)value.put("uri",item.localConfiguration.uri.toString());
         // JS receives this asynchronously. Anchor interpolation to sampling, not delivery,
@@ -1382,8 +1393,43 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         if(type.startsWith("queue-"))putQueueSupervision(value);
         return value;
     }
-    private void putQueueSupervision(JSObject value){
-        value.put("queueItems",player.getMediaItemCount()).put("queueIndex",player.getCurrentMediaItemIndex())
+    /**
+     * 只读的当前音轨规格快照：取 Media3 **所选音轨的源 Format**（sampleMimeType/codecs/bitrate/
+     * bitsPerSample/sampleRate/channels），不是 `player.getAudioFormat()` 的解码后 PCM 参数 ——
+     * pcmEncoding 是解码位深，永远不能当成原始文件的位深。
+     * 不重新下载、不二次解码、在主线程读内存字段，不阻塞播放。
+     * 数据来源与确认状态用 `confirmed` 明示：只有真的读到了所选音轨的 Format 才是 true。
+     */
+    private JSObject audioSpecSnapshot(){
+        try{
+            androidx.media3.common.Tracks tracks=player.getCurrentTracks();
+            if(tracks==null)return null;
+            androidx.media3.common.Format selected=null;
+            for(androidx.media3.common.Tracks.Group group:tracks.getGroups()){
+                if(group.getType()!=C.TRACK_TYPE_AUDIO)continue;
+                for(int i=0;i<group.length;i++){
+                    if(group.isTrackSelected(i)){selected=group.getTrackFormat(i);break;}
+                }
+                if(selected!=null)break;
+            }
+            if(selected==null||selected.sampleMimeType==null)return null;
+            JSObject spec=new JSObject();
+            spec.put("songKey",songKey).put("sourceId",sourceId).put("confirmed",true);
+            spec.put("mime",selected.sampleMimeType);
+            spec.put("codecs",selected.codecs==null?"":selected.codecs);
+            spec.put("sampleRate",selected.sampleRate).put("channels",selected.channelCount);
+            if(selected.bitrate!=androidx.media3.common.Format.NO_VALUE&&selected.bitrate>0)spec.put("bitrate",selected.bitrate);
+            // 原始位深：Media3 的 Format 不暴露 bitsPerSample（pcmEncoding 是解码后 PCM，不能混用），
+            // 所以快照里没有位深字段 —— 无法可靠获得的信息一律不给，JS 侧判定只用电量充分的证据。
+            spec.put("capturedAtMs",System.currentTimeMillis());
+            android.util.Log.i("TingyuQuality","audio-spec mime="+selected.sampleMimeType
+                +" codecs="+selected.codecs+" sr="+selected.sampleRate+" ch="+selected.channelCount
+                +" bitrate="+(selected.bitrate==androidx.media3.common.Format.NO_VALUE?-1:selected.bitrate)
+                +" song="+PlaybackDiagnostics.anonKey(songKey));
+            return spec;
+        }catch(Exception ignored){return null;}
+    }
+    private void putQueueSupervision(JSObject value){        value.put("queueItems",player.getMediaItemCount()).put("queueIndex",player.getCurrentMediaItemIndex())
             .put("queueRemaining",Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1))
             .put("queueContinues",supervision.continues()).put("queueWaiting",supervision.waiting())
             .put("queueGeneration",supervision.generation()).put("queueRetries",supervision.retries())

@@ -6,7 +6,6 @@ import { getSongArtistLabel } from './onlineMusic/songMetadata';
 import { resolvePlaybackMode } from '../utils/playbackMode';
 import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
 import { minimalSourceBadgeEnabled, setMinimalSourceBadge } from './minimalSourceDiagnostics';
-import { resolveCatalogQualityLevel } from '../components/app/overlays/minimal-stage/qualityBadgeSpecs';
 
 // src/services/nativeMinimalQueue.ts
 //
@@ -185,8 +184,8 @@ export function readNativeQueue(currentKey: string): NativeQueueSnapshot | null 
     }
     const items = queue.map((song, index) => {
         const k = getPlaybackSongKey(song);
-        const q = resolveCatalogQualityLevel(song.catalogAudioSpecs) ?? undefined;
-        return { u: uidFor(queue, index, k), k, t: song.name ?? '', a: getSongArtistLabel(song), q };
+        // 播放队列抽屉**不显示音质标签**（用户明确要求）；标签只在歌单/搜索/播放页。
+        return { u: uidFor(queue, index, k), k, t: song.name ?? '', a: getSongArtistLabel(song) };
     });
     const index = items.findIndex(item => item.k === currentKey);
     return { v: version, i: index, ck: currentKey, mode: currentQueueMode(), n: items.length, items };

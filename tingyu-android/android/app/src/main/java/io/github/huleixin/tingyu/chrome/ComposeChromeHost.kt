@@ -162,6 +162,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private val stageExit=NativeStageExit()
     /** 原生队列抽屉的开合。它是**宿主**的状态：任何页面都能打开同一张表。 */
     private var queueOpen by mutableStateOf(false)
+    /** 队列列表滚动状态：宿主持有，抽屉关开（去极简页再回来）不换实例、浏览位置不跳。 */
+    private val queueListState = androidx.compose.foundation.lazy.LazyListState()
     /** JS 说抽屉关了（返回键、点击遮罩），宿主跟着收。 */
     fun closeNativeQueue(){queueOpen=false}
     fun openNativeQueue(){
@@ -656,6 +658,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     queue = queueState,
                     light = interfaceLight,
                     mode = queueState.mode.ifEmpty { minimalState.controls.mode },
+                    // 列表状态宿主持有：去极简页再回来，队列浏览位置不跳。
+                    listState = queueListState,
                     onClose = { queueOpen = false; minimalCommands.closeQueue() },
                     onPlay = { minimalCommands.queuePlay(it) },
                     onRemove = { minimalCommands.queueRemove(it) },

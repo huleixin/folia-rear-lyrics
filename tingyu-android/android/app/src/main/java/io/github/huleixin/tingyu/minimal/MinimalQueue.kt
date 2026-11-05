@@ -24,8 +24,6 @@ data class MinimalQueueItem(
     val songKey: String,
     val title: String,
     val artist: String,
-    /** 目录支持的音质层级（standard/hq/flac/hires/master/spatial）。空 = 目录没说，行内不画标签。 */
-    val qualityLevel: String = "",
 )
 
 data class MinimalQueue(
@@ -61,7 +59,6 @@ data class MinimalQueue(
                     songKey = songKey,
                     title = row.optString("t", ""),
                     artist = row.optString("a", ""),
-                    qualityLevel = row.optString("q", "").take(16),
                 )
             }
             val current = value.optInt("i", -1)

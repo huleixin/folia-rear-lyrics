@@ -7,6 +7,7 @@ import { MinimalArtworkFrame } from './MinimalArtwork';
 import { resolveQualityBadges } from './minimalQuality';
 import { resolvePlayingQualityLevel } from './qualityBadgeSpecs';
 import { QualityBadge } from './QualityBadge';
+import { nativeAudioSpecStore } from '../../../../services/nativeAudioElement';
 import PlayerControlIcon from '../../icons/PlayerControlIcon';
 import type { LyricData } from '../../../../types';
 import type { CatalogAudioSpec } from '../../../../types/catalogAudioSpecs';
@@ -63,36 +64,21 @@ function CoverMetadata({
     metaRef?: React.Ref<HTMLDivElement>;
 }) {
     const { t } = useTranslation();
-    const badges = useMemo(
-        () => resolveQualityBadges(snapshot.specs, snapshot.audioSrc),
+    // 全局音质标签：只按真实播放音质显示（Media3 规格 / 兼容通道 URL 容器）。
+    // 没有可靠信息就整个隐藏 —— 不再回退旧版半透明金色 chip，避免误导。
+    const playingQuality = useMemo(
+        () => resolvePlayingQualityLevel(snapshot.specs, snapshot.audioSrc, nativeAudioSpecStore.value),
         [snapshot.specs, snapshot.audioSrc],
     );
     const title = snapshot.song?.title || t('mobileLibrary.nothingPlaying');
     const artist = snapshot.song?.artist || '';
-    const quality = badges.length
-        ? badges
-            .map(badge => (badge.id === 'spec' ? t(`catalogAudioSpecs.${badge.value}`) : badge.value))
-            .join(' · ')
-        : null;
-    const tone = badges.some(badge => badge.tone === 'gold') ? 'gold' : 'plain';
-    // 全局音质标签：只描述正在出声的这份字节（容器说了算，目录声明不升级播放页）。
-    const playingLevel = useMemo(
-        () => resolvePlayingQualityLevel(snapshot.specs, snapshot.audioSrc),
-        [snapshot.specs, snapshot.audioSrc],
-    );
 
     return (
         <div className={className} ref={metaRef}>
             <h2 className="min-cover__title" title={title}>{title}</h2>
             <MinimalArtistLink label={artist} track={snapshot.song?.track ?? null} className="min-cover__artist" onOpen={onOpenArtist} />
             <div className="min-cover__foot">
-                {playingLevel && <QualityBadge level={playingLevel} size="full" />}
-                {!playingLevel && quality && (
-                    <span className="min-chip" data-tone={tone}>
-                        {tone === 'gold' && <PlayerControlIcon kind="audioBars" size={14} className="min-chip__gold-icon" />}
-                        {quality}
-                    </span>
-                )}
+                {playingQuality && <QualityBadge level={playingQuality.level} size="full" labelOverride={playingQuality.labelOverride} />}
                 <PlayingMeter playing={playing} />
             </div>
         </div>

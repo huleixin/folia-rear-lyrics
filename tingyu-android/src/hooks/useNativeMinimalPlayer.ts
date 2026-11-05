@@ -12,6 +12,7 @@ import i18n from '../i18n/config';
 import { flushNativeShellRoute } from '../services/nativeShellCommit';
 import { resolveQualityBadges } from '../components/app/overlays/minimal-stage/minimalQuality';
 import { resolvePlayingQualityLevel } from '../components/app/overlays/minimal-stage/qualityBadgeSpecs';
+import { nativeAudioSpecStore } from '../services/nativeAudioElement';
 import { buildMinimalPalette } from '../components/app/overlays/minimal-stage/minimalPalette';
 import { useCoverColors } from '../components/app/overlays/minimal-stage/useCoverPalette';
 import { canUseComposeChrome, chromeNative } from '../services/nativeChrome';
@@ -156,7 +157,14 @@ export function useNativeMinimalPlayer({
         const quality = badges
             .map(badge => (badge.id === 'spec' ? i18n.t(`catalogAudioSpecs.${badge.value}`) : badge.value))
             .join(' · ');
-        const qualityLevel = resolvePlayingQualityLevel(song?.track?.catalogAudioSpecs, currentControls.audioSrc) ?? '';
+        // 音质等级：Media3 所选音轨的源 Format 优先（真实编码/采样率/位深/码率），
+        // URL 扩展名只是兼容通道兜底；目录声明永远不升级播放页。
+        const playingQuality = resolvePlayingQualityLevel(
+            song?.track?.catalogAudioSpecs,
+            currentControls.audioSrc,
+            nativeAudioSpecStore.value,
+        );
+        const qualityLevel = playingQuality?.level ?? '';
         const likeContext = currentControls.slotContext;
         return {
             session,
@@ -180,6 +188,7 @@ export function useNativeMinimalPlayer({
             quality,
             qualityGold: badges.some(badge => badge.tone === 'gold'),
             qualityLevel,
+            qualityLabelOverride: playingQuality?.labelOverride ?? '',
             qualityMode: QUALITY_LABELS[useAudioSettingsStore.getState().audioQuality],
             effectsOn: useAudioSettingsStore.getState().audioEqualizerSettings.enabled,
             // 和 palette 用同一个 light：页面主题只有一个来源。
