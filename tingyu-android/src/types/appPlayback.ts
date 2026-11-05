@@ -14,6 +14,8 @@ import type { MediaId } from './onlineMusic';
 
 // Shared playback-specific types extracted from App.tsx.
 export type PlaybackNavigationOptions = {
+    /** Explicit selections cut old output now; automatic advances retain their handover. */
+    transition?: 'manual' | 'automatic';
     /** Reconcile an item already started by the native queue, without loading it again. */
     nativeHandoff?: { uri:string;position:number;playing:boolean };
     shouldNavigateToPlayer?: boolean;

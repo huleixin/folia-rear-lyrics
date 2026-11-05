@@ -22,7 +22,7 @@ internal object MinimalPlayerExitPolicy {
 
     /** 播放页自己的退场方式。 */
     enum class Exit {
-        /** 不做动画：立刻从组合里摘掉（此刻它已经被不透明的页面盖住）。 */
+        /** 不再做第二次动画：已被目标页盖住，或整页下滑已经完成。 */
         NONE,
 
         /** 原来的下滑 + 淡出。只留给"底下露出来就是目标页"的路由。 */
@@ -40,7 +40,8 @@ internal object MinimalPlayerExitPolicy {
         to: String,
         presentation: String,
         minimalEnabled: Boolean,
-    ): Boolean = minimalEnabled && presentation == "minimal" && from == "stage" && to == "collection"
+        collapsed: Boolean = false,
+    ): Boolean = !collapsed && minimalEnabled && presentation == "minimal" && from == "stage" && to == "collection"
 
     /**
      * 播放页收场方式。
@@ -48,8 +49,10 @@ internal object MinimalPlayerExitPolicy {
      * @param destination 当前路由
      * @param covered 目标页是否已经进了组合（`presented != null`）。没盖住就还得退场，
      *                否则会露出下面还没换掉的内容 —— 那正是原来的问题。
+     * @param collapsed 宿主已完成整页不透明下滑；提交路由时直接卸载，不再挂回或重复退场。
      */
-    fun exit(destination: String, covered: Boolean): Exit = when {
+    fun exit(destination: String, covered: Boolean, collapsed: Boolean = false): Exit = when {
+        collapsed -> Exit.NONE
         // 设置页：原生页早就 presented，直接摘，不留动画（原有行为）。
         destination == "settings" -> Exit.NONE
         // 集合页且已经被盖住：不再演一遍退场，直接在页面底下消失。

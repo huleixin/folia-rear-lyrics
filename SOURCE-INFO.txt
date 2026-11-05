@@ -1,0 +1,7 @@
+Full source snapshot
+Repository: https://github.com/huleixin/folia-rear-lyrics
+Base: 64c3159d7c54e2f3e300a4bc9c2ce7f57b691590
+Fix commit: 35398ea3703957d302b7747bda7f32993bff8275
+Branch: fix/player-exit-and-manual-switch
+No APK build / no device recording.
+See tingyu-android/audits/player-exit-manual-selection-fix-20261105.txt.

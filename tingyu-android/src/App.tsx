@@ -2775,7 +2775,7 @@ export default function App() {
                 // If single loop is active, native loop handles it.
                 // If not, we handle queue logic.
                 if (effectiveLoopMode !== 'one') {
-                    void handleNextTrack({ allowStopOnMissing: true, shouldNavigateToPlayer: false });
+                    void handleNextTrack({ allowStopOnMissing: true, shouldNavigateToPlayer: false, transition: 'automatic' });
                 }
             }}
             onLoadedMetadata={(e) => {
@@ -2856,7 +2856,7 @@ export default function App() {
                         return;
                     }
 
-                    void handleNextTrack({ allowStopOnMissing: true, shouldNavigateToPlayer: false });
+                    void handleNextTrack({ allowStopOnMissing: true, shouldNavigateToPlayer: false, transition: 'automatic' });
                     return;
                 }
 

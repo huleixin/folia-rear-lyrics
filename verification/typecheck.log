@@ -1,0 +1,5 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> tingyu-android@1.3.152 typecheck
+> tsc --noEmit
+

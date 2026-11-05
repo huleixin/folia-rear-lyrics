@@ -207,7 +207,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         toolsPage = ""
         minimalCommands.notifyToolsClosed()
     }
-    fun collapseStage(reply:()->Unit){if(destination!="stage"||webOverlay){reply();return};stageExit.begin(retained.lastBrowsing(),reply)}
+    fun collapseStage(reply:()->Unit){
+        if(destination!="stage"||webOverlay){reply();return}
+        val nativeMinimal=minimalPlayerEnabled()&&playerPresentation=="minimal"&&minimal.bridgeLive()&&!minimal.state.value.controls.detour
+        stageExit.begin(retained.lastBrowsing(),nativeMinimal,reply)
+    }
     private var presented by mutableStateOf<NativePage?>(null)
     private var pageTarget=""
     private var entryKey=""
@@ -240,14 +244,15 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var minimalResumePending by mutableStateOf(false)
     /** 离开播放页去集合页时"举着"播放页：原地保持不透明，等新页面盖上来再摘。见 MinimalPlayerExitPolicy。 */
     private var minimalCoverHold by mutableStateOf(false)
+    private var minimalCollapseCommitted by mutableStateOf(false)
     private var pendingStageEntry by mutableStateOf(false)
     private var stageEntryRequest=0L
     private var firstHomeFrame by mutableStateOf(true)
     private var webStageBackground: Boolean? = null
-    // A stage is a full-window destination, not a transparent preview island. Clearing its
-    // WebView backing prevents native outgoing pages surviving behind canvas damage regions.
+    // Classic stage keeps its opaque backing. A stage sheet over the native minimal player
+    // needs a transparent WebView behind the moving visual surface to reveal that underlay.
     private fun syncWebBackground() {
-        val stage = destination == "stage"
+        val stage = destination == "stage" && !(minimalPlayerEnabled() && playerPresentation == "minimal")
         if (webStageBackground == stage) return
         webStageBackground = stage
         web.setBackgroundColor(if (stage) android.graphics.Color.rgb(3,10,9) else android.graphics.Color.TRANSPARENT)
@@ -279,6 +284,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         pendingStageEntry=false;stageEntryRequest++
         val from=destination
         val next=value.optString("route","home")
+        if(next!=destination)minimalCollapseCommitted=stageExit.active&&stageExit.minimal&&stageExit.completed&&next!="stage"
         if(next!=destination){returningFromSettings=destination=="settings"&&next=="stage";minimalResumePending=returningFromSettings}
         if(next!="stage")stageExit.clear()
         else if(destination!="stage")stageExit.suppressReturnMotion=false
@@ -289,9 +295,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         destination=next;webOverlay=value.optBoolean("webOverlay");selectedTab=value.optInt("selectedTab").coerceIn(0,1)
         // 去集合页时不要自己淡出/滑走：路由一离开 stage，WebView 那份极简页就可能又挂回来，
         // 播放页一透明就会把它透出来（3~4 层叠影的来源）。改为原地保持不透明，让页面压上来盖住。
-        if(MinimalPlayerExitPolicy.holdForCover(from,next,playerPresentation,minimalPlayerEnabled())){minimalCoverHold=true
+        if(MinimalPlayerExitPolicy.holdForCover(from,next,playerPresentation,minimalPlayerEnabled(),minimalCollapseCommitted)){minimalCoverHold=true
             android.util.Log.i("TingyuNavigation","cover-hold on: $from → $next（播放页原地保持，等页面盖住）")}
-        else if(next=="stage"){minimalCoverHold=false}
+        else if(next=="stage"||minimalCollapseCommitted){minimalCoverHold=false}
         // 工具页跟着打开它的路由走：路由一变（比如从歌曲工具进"播放设置"）就收起来，
         // 返回时再由用户重新打开 —— 工具页绝不叠在别的原生页上面。
         if(toolsPage.isNotEmpty()&&next!="stage"&&toolsRoute=="stage")closeNativeTools()
@@ -413,13 +419,15 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val minimalBound by minimal.bound.collectAsState()
         val minimalState by minimal.state.collectAsState()
         val queueState by minimal.queue.collectAsState()
-        // `!detour` 不能少：顺访舞台时极简页自己 `return` 不画了，但 presentation 还是 minimal。
-        // 少了这一条，舞台 surface 会被这里过滤掉，底栏就再也没人画 —— 截图里舞台没有控制栏正是这个。
+        // 顺访期间保留原生 pager，但让 WebView 舞台及其底栏占上层；返回过渡结束才交还触摸。
         // 不含退场判定的那一份：退场那 280ms 里 destination 仍是 stage、presentation 仍是 minimal，
         // 差别只在 stageExit.active。播放页必须靠这一份继续留在组合里 —— 见 playerShown。
-        val minimalBase = minimalPlayerEnabled() && destination=="stage" && playerPresentation=="minimal" &&
-            !webOverlay && minimalBound && !minimalState.controls.detour
-        val minimalOwns = minimalBase && !stageExit.active
+        val stagePhase=surfaces["stage"]?.playerTransition?:"idle"
+        val stageAboveMinimal=minimalState.controls.detour||stagePhase in setOf("to-stage","to-minimal")
+        val minimalBase = minimalPlayerEnabled() && destination=="stage" && playerPresentation=="minimal" && !webOverlay && minimalBound
+        val minimalOwns = minimalBase && !stageAboveMinimal && !stageExit.active
+        val nativeMinimalCollapse=stageExit.active&&stageExit.minimal
+        val page=presented?:if(stageExit.active)stageExit.returning else null
         // 第 16 轮：Compose 将接管极简页（能力开关在、路由到 stage、presentation=minimal、无顺访/弹层）。
         // 这是入口动画唯一的拥有者判定：
         //   · WebView 不再升层也不再整屏上滑 —— 它这时是首页底下的备用层，动它是纯浪费，
@@ -427,13 +435,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         //   · 底栏（迷你条+导航）在进场期间保持可见 —— 反正马上会被不透明的极简页盖住，
         //     提前抽掉它们就是真机上看到的「首页跳位」。
         val composeOwnsMinimalEntry = minimalPlayerEnabled() && destination=="stage" &&
-            playerPresentation=="minimal" && !minimalState.controls.detour && !webOverlay && !stageExit.active
+            playerPresentation=="minimal" && !stageAboveMinimal && !webOverlay
         // pendingStageEntry 不再抽走底栏：极简入场时它们会被页面自然覆盖；
         // 经典 WebView 舞台入场仍在 commit 时按路由规则收起。
         val visible = if (!webOverlay&&(!pendingStageEntry||minimalPlayerEnabled())) surfaces.values.filter {
             it.enabled && NativeFooterLayout.visible(
                 it.id,
-                if(composeOwnsMinimalEntry&&it.id!="stage")"home" else destination,
+                if(composeOwnsMinimalEntry&&it.id!="stage")(page?.id?:"home") else destination,
                 playlistDetail,it.viewportWidth,
                 pageTarget.startsWith("collection:artist:")) &&
                 (it.id!="stage"||it.rect.width>0&&it.rect.height>0) &&
@@ -441,7 +449,6 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         } else emptyList()
         // Reuse the route's one retained composition beneath the collapsing stage.
         // Creating a second underlay would duplicate saveable keys during a quick Back.
-        val page=presented?:if(stageExit.active)stageExit.returning else null
         val legacySampling=graphics.enabled
         val sampleWeb=ChromeSamplingPolicy.webReader(destination,stageExit.active,webOverlay,active,focused,visible.size)
         SideEffect{if(!legacySampling)webSamplingLayer.update(Build.VERSION.SDK_INT>=31&&sampleWeb)}
@@ -455,7 +462,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             val bootPage=remember(bootId,width,height,safeTop,safeBottom){cache.page(bootId,width,height,safeTop).copy(safeBottom=safeBottom)}
             // Historical diagnostic groups retain the original whole-scene sampling path.
             // Normal builds exclude WebView from native-page sampling and gate stage recording.
-            Box(Modifier.fillMaxSize().then(if(legacySampling&&Build.VERSION.SDK_INT>=31&&graphics.sampleStage(destination))Modifier.layerBackdrop(backdrop)else Modifier)) {
+            Box(Modifier.fillMaxSize().zIndex(if(destination!="stage"||stageAboveMinimal)1f else 0f).then(if(legacySampling&&Build.VERSION.SDK_INT>=31&&graphics.sampleStage(destination))Modifier.layerBackdrop(backdrop)else Modifier)) {
                 // A reproduces the unverified 1.3.32 isolation hypothesis; a TextureView
                 // workaround is not evidence that this fixes WebView. C31 removes only
                 // this modifier. Neither path changes lyric effects or global frame rate.
@@ -464,12 +471,12 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 // A live reader uses the tested C2 texture only for the reader's lifetime.
                 // 第 16 轮：Compose 接管极简入场时 WebView 退回 zIndex 0（首页底下），
                 // 升层+上滑都只属于 WebView 回退模式和经典舞台。
-                Box(Modifier.fillMaxSize().zIndex(if((destination=="stage"&&!composeOwnsMinimalEntry)||webOverlay||stageExit.active)2f else 0f)
+                Box(Modifier.fillMaxSize().zIndex(if((destination=="stage"&&!composeOwnsMinimalEntry)||webOverlay||stageExit.active&&!nativeMinimalCollapse)2f else 0f)
                     .then(if(!legacySampling&&Build.VERSION.SDK_INT>=31&&sampleWeb)Modifier.layerBackdrop(stageBackdrop)else Modifier)) {
                 AndroidView(factory = { web }, modifier = Modifier.fillMaxSize()
                     .then(if(legacySampling&&graphics.mode!=GraphicsProbeMode.C31)Modifier.graphicsLayer { alpha = if(Build.VERSION.SDK_INT>=31).999f else 1f }else Modifier)
-                    .stageExitTransform(stageExit,exitProgress,webOwnsRoutePixels(destination,webOverlay,stageExit.active))
-                    .playerEntryTransform(destination=="stage"&&playerPresentation=="minimal"&&!returningFromSettings&&!composeOwnsMinimalEntry,reducedMotion,height*density.density))
+                    .stageExitTransform(stageExit,exitProgress,webOwnsRoutePixels(destination,webOverlay,stageExit.active)&&!nativeMinimalCollapse)
+                    .playerEntryTransform(destination=="stage"&&playerPresentation=="minimal"&&!returningFromSettings&&!minimalPlayerEnabled(),reducedMotion,height*density.density))
                 }
                 Box(Modifier.fillMaxSize().zIndex(1f).then(if(!legacySampling&&Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop)else Modifier)) {
                 if(page==null&&firstHomeFrame&&destination=="home")NativePageView(bootPage,Modifier.fillMaxSize().zIndex(1f)){_,_,_->}
@@ -558,7 +565,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         width*density.density/scale,height*density.density/scale,safeTop*density.density/scale,safeBottom*density.density/scale,playlistDetail)
                     val y=rect.top
                     val animatedY by animateFloatAsState(y,if(surface.id=="stage"||!focused||!active||surface.reducedMotion||reducedMotion)snap()else spring(dampingRatio=NativeMotionPolicy.Damping,stiffness=NativeMotionPolicy.Stiffness),label="native-chrome-y")
-                    val placement = Modifier.offset { IntOffset((rect.left*scale).roundToInt(),(animatedY*scale).roundToInt()) }
+                    val placement = Modifier.zIndex(2f).offset { IntOffset((rect.left*scale).roundToInt(),(animatedY*scale).roundToInt()) }
                         .size(with(density){(rect.width*scale).toDp()},with(density){(rect.height*scale).toDp()})
                         .graphicsLayer { alpha = rect.alpha }
                     val actions: (String,Double)->Unit = actions@ { action,value ->
@@ -587,7 +594,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     when(surface.id) {
                         "nav" -> ChromeNavigation(surface,backdrop,interactivePlacement,actions)
                         "mini" -> ChromeMiniPlayer(surface,clocks[surface.id],backdrop,interactivePlacement,sleepUi,{sleepAnchor=it},actions)
-                        "stage" -> Box(Modifier.fillMaxSize().stageExitTransform(stageExit,exitProgress).playerDetourTransform(surface.playerTransition,reducedMotion||surface.reducedMotion,height*density.density)){ChromeStagePlayer(surface,clocks[surface.id],if(legacySampling)backdrop else stageBackdrop,interactivePlacement,actions)}
+                        "stage" -> Box(Modifier.fillMaxSize().zIndex(2f).stageExitTransform(stageExit,exitProgress).playerDetourTransform(surface.playerTransition,reducedMotion||surface.reducedMotion,height*density.density)){ChromeStagePlayer(surface,clocks[surface.id],if(legacySampling)backdrop else stageBackdrop,interactivePlacement,actions)}
                     }
                 }
             } }
@@ -604,7 +611,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             // 用不含退场判定的 minimalBase 继续举着它（此时 zIndex 在页面之下，被页面整块盖住），
             // 就没有第二次入场；桥没握上手时 minimalBase 也是 false，不会凭空冒出一个空播放页。
             val playerShown = minimalBase || minimalCoverHold
-            val playerZ = if (minimalOwns) 3f else 0.5f
+            val playerZ = if (minimalBase&&!stageAboveMinimal) 3f else 0.5f
             AnimatedVisibility(
                 visible = playerShown,
                 // 入场只滑不淡：这一页不透明，淡入会强制一整屏离屏图层。
@@ -614,14 +621,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     animationSpec = tween(360, easing = CubicBezierEasing(.2f, .72f, .16f, 1f)),
                     initialOffsetY = { it },
                 ),
-                exit = when (MinimalPlayerExitPolicy.exit(destination, page != null)) {
+                exit = when (MinimalPlayerExitPolicy.exit(destination, page != null,minimalCollapseCommitted)) {
                     MinimalPlayerExitPolicy.Exit.NONE -> ExitTransition.None
                     MinimalPlayerExitPolicy.Exit.SLIDE_AND_FADE -> slideOutVertically(
                         animationSpec = tween(300, easing = CubicBezierEasing(.42f, 0f, .74f, .3f)),
                         targetOffsetY = { it },
                     ) + fadeOut(tween(200))
                 },
-                modifier = Modifier.fillMaxSize().zIndex(playerZ),
+                modifier = Modifier.fillMaxSize().zIndex(playerZ).stageExitTransform(stageExit,exitProgress,slide=true),
             ) {
                 MinimalPlayerSurface(
                     runtime = minimal,

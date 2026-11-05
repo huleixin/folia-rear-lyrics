@@ -1,0 +1,58 @@
+听屿：播放器退场、舞台图层与主动切歌修复
+
+源码基线
+仓库：https://github.com/huleixin/folia-rear-lyrics
+远端基线：64c3159d7c54e2f3e300a4bc9c2ce7f57b691590（1.3.152 / versionCode 175）
+本包是完整仓库源码，不是补丁；不包含 node_modules、SDK、构建缓存、APK 或签名材料。
+本轮按用户最后要求仅交付源码。没有生成本轮测试 APK，也没有真机操作录屏。
+
+1. 极简页退出动画
+根因：stageExit 开始时 minimalOwns 变 false，极简播放器 zIndex 从 3 降到 0.5，被原生歌单遮住；而 stageExit 的位移只施加给 WebView/经典底栏，没有施加给极简页。
+修改：原生极简页在整个退出期间保持前景、不透明，按自身完整高度向下位移。完成后才回复 collapse 请求并提交返回路由。记录已完成的 collapse，提交路由时直接卸载，不再触发第二次 AnimatedVisibility 退场或 collection cover-hold。
+正常向歌手/专辑页前进的 cover-hold 逻辑保留；原有播放器上滑入场保留；经典舞台自身原有收起逻辑保留。
+文件：ComposeChromeHost.kt、NativeStageExit.kt、MinimalPlayerExitPolicy.kt。
+
+2. 舞台返回极简页
+根因：controls.detour 让 minimalBase 变 false，MinimalPlayerScreen 也提前 return，顺访时整份 pager/封面控制器卸载；返回时重新入场，造成极简页反过来上滑覆盖舞台。并且只提高 WebView 子层 zIndex 无法越过外层 native minimal 兄弟层。
+修改：顺访舞台时保留同一个极简 pager、滚动状态、封面控制器，让舞台所在的 WebView 根层及原生底栏在其上方。舞台真实视觉面使用已有 CSS 单次下滑，极简底页不位移、不重新入场。WebView backing 和 app shell 只在 minimal presentation 下透明，露出下方原生极简页；经典正式舞台保留不透明 backing。动画中途反向时 NativePlayerEntry 复用同一个 Animatable，从当前位置继续，不再按 phase 重建动画值。
+文件：ComposeChromeHost.kt、MinimalPlayerScreen.kt、NativePlayerEntry.kt、nativePages.css。
+
+3. 主动切歌立即静音等待，防止旧请求抢播
+根因：playSong 原先解析完新 URL 才替换音源，期间没有在入口暂停旧输出。requestId 在异步 beforePlay hook 后才递增，新的 hook 还在等待时，旧 URL 请求仍有机会提交。本地与 Navidrome 的 isCurrent 也只检查失败分支，没有完整保护成功提交。
+修改：明确的手动点歌在首个 await 前中止已被取代的混音、处理待执行 fade、禁止旧源自动播放、清除恢复进度、递增播放代次、暂停当前 audioRef 并清空 source。audioRef 是现有 Media3 adapter 与兼容通道的共同入口，没有改写引擎。请求编号在 hook 前更新。新源、封面和歌词只有仍为最新请求时才提交；本地/服务器成功路径、延迟匹配和封面回调增加同样校验。
+自然结束的 next 明确标记 automatic；Automix advance 和已由 Media3 开播的 nativeHandoff 不做强制静音，保留既有交接。
+文件：usePlaybackQueueController.ts、useLibraryPlaybackController.ts、usePlaybackRuntimeRefs.ts、appPlayback.ts、App.tsx。
+
+4. 进出极简歌词的卡顿
+源码中可确认的开销：verticalScroll Column 会对整首歌词创建并排版所有行；活动字号动画还会推动整份布局。舞台顺访的卸载/重建进一步放大成本。
+修改：改为 LazyColumn 只组合可见区域和预取行，保留原行组件、逐字高亮、点击 seek、4 秒手动滚动保护、当前行锚点和原字号效果。歌词页在 pager 外侧时预定位当前行，滑动期间不争抢自动滚动；舞台顺访期间保留 pager，并暂停隐藏极简页的帧时钟和背景漂移。没有更改封面跟手切歌控制器与进入动画。
+文件：MinimalLyricsPage.kt、MinimalPlayerScreen.kt。
+此处是源码开销修复；没有连接 Android 真机，不能声称已实测达到 60/120fps 或完全消除机型 GPU 卡顿。
+
+已执行验证
+- Vitest：5 个文件、134 个用例通过（其中 9 个新增用例覆盖手动切歌等待/旧请求抢播/自动交接/库内成功请求过期等）。
+- TypeScript：npm run typecheck 通过。
+- git diff --check 通过。
+- Web/Capacitor 静态产物曾在中间检查时生成并通过 assets 指纹检查；之后用户要求不构建，已停止 Android 打包。该中间产物不作为最终修改验证，不包含在源码包。
+
+新增、但未执行的 Android 回归
+- MinimalPlayerExitPolicyTest：完成原生 collapse 后不重复退场、不重新等待目标集合页覆盖。
+- PlayerSurfaceMotionTest：整页下滑一个完整屏幕高度后才确认返回；舞台动画反向不跳回起点。
+- MinimalLyricsViewportTest：600 行歌词只组合可见区域，点击仍 seek；舞台往返 10 次后保留歌词页，仍可横向手势切回封面。
+按用户“不用构建”的最后要求，没有继续 Android Kotlin 编译、Robolectric 或 APK 构建。这些测试尚未执行；不能当作真机验收证据。
+
+待真机验收
+- 极简封面/歌词分别从歌单进入后返回：整页下滑，歌单原位露出。
+- 极简歌词 → 完整舞台 → 返回：极简页原位，舞台向下离开；连续 10 次和快速返回无双入场。
+- 600 行以上长歌词左右来回拖动，录制帧时间；检查点击跳转、翻译、多行歌词、逐字高亮。
+- 本地与在线歌曲在 Media3 / 兼容通道各进行慢加载、快速连续点选；旧音立即停止，只有最后有效请求开播。
+- 自然续播、Automix、原封面跟手切歌及歌词同步。
+
+没有修改 LSP/Shizuku 背屏，没有新增产品功能，没有重写播放引擎。
+
+复核 / 开发命令（进入 tingyu-android）
+npm install --ignore-scripts --package-lock=false
+npm run typecheck
+npm run test:unit -- --maxWorkers=2 test/unit/playback/onlinePlaybackStop.test.ts test/unit/playback/libraryPlaybackFailureNotice.test.ts test/unit/hooks/nativeQueuedPlayback.test.ts test/unit/nativeMinimalPlayer.test.ts test/unit/minimalStage.test.ts
+Android 回归需要本机 JDK 21、Android SDK 与 Gradle 环境，再执行相应 :app:testDebugUnitTest。
+当前上游 package-lock 的部分版本与 npm ci 校验不一致，本轮使用上方安装命令且没有修改依赖锁文件。

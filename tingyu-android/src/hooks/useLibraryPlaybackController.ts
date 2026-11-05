@@ -603,9 +603,11 @@ export function useLibraryPlaybackController({
 
     const onPlayLocalSong = useCallback(async (localSong: LocalSong, queue: LocalSong[] = [], options: LibraryPlayOptions = {}) => {
         const requestId = ++libraryPlayRequestIdRef.current;
+        const isCurrent = () => libraryPlayRequestIdRef.current === requestId && options.isCurrent?.() !== false;
         interruptStagePlaybackForMainTransition();
 
         const blobUrl = await getAudioFromLocalSong(localSong);
+        if (!isCurrent()) { if (blobUrl) retireBlobUrl(blobUrl); return; }
         if (!blobUrl) {
             // 读文件期间用户换了歌：这次失败已不是用户眼前的事，不提示也不报告（见 LibraryPlayOptions.isCurrent）。
             if (libraryPlayRequestIdRef.current !== requestId || options.isCurrent?.() === false) return;
@@ -622,6 +624,8 @@ export function useLibraryPlaybackController({
             buildLocalSourceRevision(preparedLocalSong),
         );
         const playbackUrl = recoveredRepresentation?.url ?? blobUrl;
+        // File/cover/metadata IO may finish after an online or another local selection.
+        if (!isCurrent()) { retireBlobUrl(blobUrl); return; }
 
         // Handed over, not revoked here: a blend is still playing the song this replaces on the
         // other deck, and a revoked URL is a deck that can no longer be seeked. See `retireBlobUrl`.
@@ -643,7 +647,7 @@ export function useLibraryPlaybackController({
 
         if (initialMeta.coverUrl) {
             loadCachedOrFetchCover(`cover_local_${preparedLocalSong.id}`, initialMeta.coverUrl).then((resolvedCoverUrl) => {
-                if (currentSongRef.current === initialSongKey) {
+                if (isCurrent() && currentSongRef.current === initialSongKey) {
                     setManagedCachedCoverUrl(resolvedCoverUrl);
                 }
             });
@@ -684,9 +688,10 @@ export function useLibraryPlaybackController({
             try {
                 const { updatedLocalSong, matchedSongResult } = await handleLocalSongMatch(preparedLocalSong);
                 prewarmBaseSong = updatedLocalSong;
-                if (currentSongRef.current !== initialSongKey) return;
+                if (!isCurrent() || currentSongRef.current !== initialSongKey) return;
 
                 const updatedMeta = await resolveLocalMetadataUI(updatedLocalSong, matchedSongResult);
+                if (!isCurrent() || currentSongRef.current !== initialSongKey) return;
                 setCurrentSong(updatedMeta.unifiedSong);
                 setLyrics(updatedMeta.lyrics);
                 setActiveLocalLyricsSource(updatedMeta.lyricsSource);
@@ -694,7 +699,7 @@ export function useLibraryPlaybackController({
 
                 if (updatedMeta.coverUrl && updatedMeta.coverUrl !== initialMeta.coverUrl) {
                     loadCachedOrFetchCover(`cover_local_${updatedLocalSong.id}`, updatedMeta.coverUrl).then((resolvedCoverUrl) => {
-                        if (currentSongRef.current === initialSongKey) {
+                        if (isCurrent() && currentSongRef.current === initialSongKey) {
                             setManagedCachedCoverUrl(resolvedCoverUrl);
                         }
                     });
@@ -707,11 +712,11 @@ export function useLibraryPlaybackController({
                 });
             } catch (error) {
                 console.warn('Local song match pipeline failed:', error);
-                if (currentSongRef.current === initialSongKey) {
+                if (isCurrent() && currentSongRef.current === initialSongKey) {
                     setIsLyricsLoading(false);
                 }
             } finally {
-                if (currentSongRef.current === initialSongKey) {
+                if (isCurrent() && currentSongRef.current === initialSongKey) {
                     prewarmNearbyLocalSongs(prewarmBaseSong, queue);
                 }
             }
@@ -745,6 +750,7 @@ export function useLibraryPlaybackController({
         options: LibraryPlayOptions = {},
     ) => {
         const requestId = ++libraryPlayRequestIdRef.current;
+        const isCurrent = () => libraryPlayRequestIdRef.current === requestId && options.isCurrent?.() !== false;
         interruptStagePlaybackForMainTransition();
 
         const shouldNavigateToPlayer = options.shouldNavigateToPlayer ?? true;
@@ -765,6 +771,7 @@ export function useLibraryPlaybackController({
                 `navidrome_match_${navidromeId}`,
                 migrateMatchedLyricsCarrierRenderHints,
             );
+            if (!isCurrent()) return;
 
             let nextLyrics: LyricData | null = null;
             let coverUrl: string | undefined;
@@ -925,6 +932,7 @@ export function useLibraryPlaybackController({
                 buildNavidromeSourceRevision(unifiedSong, streamUrl),
             );
 
+            if (!isCurrent()) return;
             shouldAutoPlayRef.current = true;
             currentSongRef.current = unifiedSongKey;
             setLyrics(nextLyrics);
@@ -953,9 +961,9 @@ export function useLibraryPlaybackController({
             });
         } catch (error) {
             console.error('[App] Failed to play Navidrome song:', error);
-            setIsLyricsLoading(false);
             // 前面有好几次网络等待（匹配缓存、歌词、歌曲详情）：期间用户换了歌，这次失败就不提示也不报告（见 LibraryPlayOptions.isCurrent）。
             if (libraryPlayRequestIdRef.current !== requestId || options.isCurrent?.() === false) return;
+            setIsLyricsLoading(false);
             setStatusMsg({ type: 'error', text: t('status.playbackFailed')});
             // 报告的是 Navidrome 载体本身（它就是 playSong 认得的 SongResult）：在这里重新构造统一歌曲可能因同一份残缺记录再抛错。
             notifyPlaybackFailed({ song: navidromeSong, reason: null, phase: 'play', willAutoSkip: false });

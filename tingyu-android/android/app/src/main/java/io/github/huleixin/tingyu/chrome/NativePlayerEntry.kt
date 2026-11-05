@@ -15,9 +15,15 @@ import androidx.compose.ui.graphics.graphicsLayer
     return graphicsLayer{translationY=height*offset.value}
 }
 @Composable internal fun Modifier.playerDetourTransform(phase:String,reduced:Boolean,height:Float):Modifier {
-    val offset=remember(phase){Animatable(if(phase=="to-stage"&&!reduced)1f else 0f)}
+    // One physical stage surface: reversing a transition must keep its current position.
+    // Recreating Animatable for each phase snapped the controls back to the screen edge.
+    val offset=remember{Animatable(if(phase=="to-stage"&&!reduced)1f else 0f)}
+    var previous by remember{mutableStateOf(phase)}
     LaunchedEffect(phase,reduced){
-        offset.animateTo(if(phase=="to-minimal"&&!reduced)1f else 0f,
+        val was=previous;previous=phase
+        if(reduced||phase=="idle"){offset.snapTo(0f);return@LaunchedEffect}
+        if(phase=="to-stage"&&was=="idle")offset.snapTo(1f)
+        offset.animateTo(if(phase=="to-minimal")1f else 0f,
             tween(if(reduced)0 else 360,easing=if(phase=="to-minimal")CubicBezierEasing(.4f,0f,.7f,.3f)else CubicBezierEasing(.2f,.72f,.16f,1f)))
     }
     return graphicsLayer{translationY=height*offset.value}

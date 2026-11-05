@@ -11,6 +11,11 @@ html[data-native-first='true'],
 html[data-native-first='true'] body,
 html[data-native-first='true'] #root { background: transparent !important; }
 html[data-native-first='true'] #app-splash { display: none !important; }
+/* A stage detour moves its visual surface, revealing the stationary Compose player.
+   The shell and WebView backing must not leave an opaque rectangle over that underlay. */
+html[data-native-first='true'][data-native-route='stage'] [data-folia-app-shell][data-folia-player-presentation='minimal'] {
+    background: transparent !important;
+}
 /* Preserve original layout measurement, but Compose alone paints the form. The
    existing live lyric/theme engine is an explicit island, not a second settings UI. */
 html[data-native-settings-document='true'] [data-native-document-root],

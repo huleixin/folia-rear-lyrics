@@ -14,6 +14,14 @@ import org.junit.Test
 class MinimalPlayerExitPolicyTest {
 
     @Test
+    fun finishedCollapseDoesNotReenterOrWaitForThePlaylistToCoverIt() {
+        for (to in listOf("collection", "home", "search")) {
+            assertFalse(MinimalPlayerExitPolicy.holdForCover("stage", to, "minimal", true, collapsed = true))
+            assertEquals(MinimalPlayerExitPolicy.Exit.NONE, MinimalPlayerExitPolicy.exit(to, false, collapsed = true))
+        }
+    }
+
+    @Test
     fun leavingThePlayerForACollectionPageHandsTheScreenToThePage() {
         assertTrue(
             "去歌手/专辑页时播放页必须原地保持，等页面压上来盖住",

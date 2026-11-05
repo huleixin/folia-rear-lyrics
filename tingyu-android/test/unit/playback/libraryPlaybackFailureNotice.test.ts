@@ -66,6 +66,7 @@ import { useLibraryPlaybackController } from '@/hooks/useLibraryPlaybackControll
 import { installPlaybackFailedListener } from '@/services/hostExtensionHooks';
 import { getAudioFromLocalSong } from '@/services/localMusicService';
 import { useStatusMessageStore } from '@/stores/useStatusMessageStore';
+import { usePlaybackStore } from '@/stores/usePlaybackStore';
 import type { LocalSong } from '@/types';
 import type { LibraryPlayOptions } from '@/types/appPlayback';
 import type { NavidromeSong } from '@/types/navidrome';
@@ -223,5 +224,35 @@ describe('library playback failures of a replaced pick', () => {
         expect(useStatusMessageStore.getState().message).toEqual(
             reports ? expect.objectContaining({ type: 'error' }) : null,
         );
+    });
+});
+
+// A superseded successful load must not take audio ownership back from an online selection.
+describe('successful library loads cannot steal a newer selection', () => {
+    it('drops a local URL that becomes ready after another pick', async () => {
+        const read = deferred<string | null>();
+        vi.mocked(getAudioFromLocalSong).mockReturnValueOnce(read.promise);
+        let current = true;
+        let playing!: Promise<void>;
+        act(() => { playing = controller.onPlayLocalSong(localSong, [], { isCurrent: () => current }); });
+        current = false;
+        usePlaybackStore.setState({ audioSrc: 'https://new.example/audio' });
+        await act(async () => { read.resolve('blob:stale-local'); await playing; });
+        expect(usePlaybackStore.getState().audioSrc).toBe('https://new.example/audio');
+        expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('drops a successful Navidrome lookup after another pick', async () => {
+        env.navidromeConfig = naviConfig;
+        const lookup = deferred<unknown>();
+        env.matchLookup = () => lookup.promise;
+        let current = true;
+        let playing!: Promise<void>;
+        act(() => { playing = controller.onPlayNavidromeSong(navidromeSong, [], { isCurrent: () => current }); });
+        current = false;
+        usePlaybackStore.setState({ audioSrc: 'https://new.example/audio' });
+        await act(async () => { lookup.resolve({ noAutoMatch: true, matchedIsPureMusic: true }); await playing; });
+        expect(usePlaybackStore.getState().audioSrc).toBe('https://new.example/audio');
+        expect(listener).not.toHaveBeenCalled();
     });
 });

@@ -47,7 +47,7 @@ vi.mock('@/stores/useAudioSettingsStore', () => ({
 vi.mock('@/stores/useSearchNavigationStore', () => ({
     useSearchNavigationStore: (selector: (state: unknown) => unknown) => selector({}),
 }));
-vi.mock('@/services/hostExtensionHooks', () => ({ hasBeforePlayHook: () => false, notifyPlaybackFailed: vi.fn() }));
+vi.mock('@/services/hostExtensionHooks', () => ({ hasBeforePlayHook: vi.fn(()=>false), runBeforePlayHook:vi.fn(async(song:unknown)=>song), notifyPlaybackFailed: vi.fn() }));
 vi.mock('@/services/onlineMusic/omni', () => ({ omni: { canPlaySong: () => true } }));
 vi.mock('@/services/onlineMusic/songAvailability', () => ({
     isSongUnavailable: vi.fn(() => false),
@@ -79,7 +79,7 @@ const { getSongReplacement, isSongUnavailable } = await import('@/services/onlin
 const { loadOnlineLyricsState } = await import('@/utils/onlineLyricsState');
 const { getCachedSongCoverUrl } = await import('@/services/onlineMusic/resourceCache');
 const { getPlaybackSongKey } = await import('@/utils/appPlaybackGuards');
-const { notifyPlaybackFailed } = await import('@/services/hostExtensionHooks');
+const { notifyPlaybackFailed,hasBeforePlayHook,runBeforePlayHook } = await import('@/services/hostExtensionHooks');
 const notified = vi.mocked(notifyPlaybackFailed);
 
 const makeSong = (id: string): UnifiedSong => ({
@@ -109,6 +109,7 @@ const deferred = <T,>() => {
 
 beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(hasBeforePlayHook).mockReturnValue(false);
     stateSetters.length = 0;
     hookRefs.list.length = 0;
     hookStates.list.length = 0;
@@ -130,7 +131,9 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-function controller({ mainPlaybackSnapshotRef = { current: null }, onPlayNavidromeSong }: {
+// Historical failure-policy cases exercise automatic advances. Manual-cut timing is tested below.
+function controller({ mainPlaybackSnapshotRef = { current: null }, onPlayNavidromeSong, transition='automatic' }: {
+    transition?:'manual'|'automatic';
     mainPlaybackSnapshotRef?: { current: unknown };
     onPlayNavidromeSong?: (...args: unknown[]) => Promise<void>;
 } = {}) {
@@ -157,7 +160,7 @@ function controller({ mainPlaybackSnapshotRef = { current: null }, onPlayNavidro
     } as never);
     const setPendingUnavailableReplacement = stateSetters.at(-1)!;
     return {
-        ...result, pause, shouldAutoPlayRef, currentSongRef, playbackAutoSkipCountRef, blobUrlRef,
+        ...result, playSong:(song:Parameters<typeof result.playSong>[0],queue:Parameters<typeof result.playSong>[1]=[],fm=false,options:Parameters<typeof result.playSong>[3]={})=>result.playSong(song,queue,fm,{transition,...options}), pause, shouldAutoPlayRef, currentSongRef, playbackAutoSkipCountRef, blobUrlRef,
         persistLastPlaybackCache, setLyrics, setPendingUnavailableReplacement, navigateToPlaybackView,
     };
 }
@@ -1095,4 +1098,52 @@ it('does not apply an old same-song lyric callback after replay creates a new pl
  expect(queue.setLyrics.mock.calls.length).toBe(before);
  current.onLyrics({lines:[{fullText:'NEW'}]});expect(queue.setLyrics).toHaveBeenLastCalledWith({lines:[{fullText:'NEW'}]});
  vi.mocked(loadOnlineSongLyrics).mockImplementation(async()=>undefined);
+});
+
+
+describe('explicit track selection cuts old output before async work',()=>{
+ it('pauses and clears the old source synchronously while the next URL waits',async()=>{
+  const loading=deferred<OnlineAudioSourceResult>();loader.mockReturnValueOnce(loading.promise);
+  const queue=controller({transition:'manual'});const pending=queue.playSong(songs[1],songs);
+  expect(queue.pause).toHaveBeenCalledOnce();expect(queue.shouldAutoPlayRef.current).toBe(false);
+  expect(usePlaybackStore.getState().audioSrc).toBeNull();
+  loading.resolve({kind:'ok',audioSrc:'https://cdn.example/2.mp3'});await pending;
+  expect(queue.shouldAutoPlayRef.current).toBe(true);expect(usePlaybackStore.getState()).toMatchObject({currentSong:{id:'2'},audioSrc:'https://cdn.example/2.mp3'});
+ });
+ it('invalidates an older URL immediately, even while the latest beforePlay hook is waiting',async()=>{
+  const old=deferred<OnlineAudioSourceResult>(),hook=deferred<UnifiedSong>();
+  loader.mockReturnValueOnce(old.promise).mockResolvedValueOnce({kind:'ok',audioSrc:'https://cdn.example/3.mp3'});
+  const queue=controller({transition:'manual'});const first=queue.playSong(songs[1],songs);
+  await vi.waitFor(()=>expect(loader).toHaveBeenCalledOnce());
+  vi.mocked(hasBeforePlayHook).mockReturnValue(true);vi.mocked(runBeforePlayHook).mockReturnValueOnce(hook.promise);
+  const latest=queue.playSong(songs[2],songs);expect(queue.pause).toHaveBeenCalledTimes(2);
+  old.resolve({kind:'ok',audioSrc:'https://cdn.example/2.mp3'});await first;
+  expect(usePlaybackStore.getState().audioSrc).toBeNull();expect(usePlaybackStore.getState().currentSong?.id).toBe('1');
+  hook.resolve(songs[2]);await latest;expect(usePlaybackStore.getState().currentSong?.id).toBe('3');
+  expect(usePlaybackStore.getState().audioSrc).toBe('https://cdn.example/3.mp3');
+ });
+ it.each([{transition:'automatic' as const},{isAutomixAdvance:true}])('preserves the automatic/Automix handover: %j',async options=>{
+  const loading=deferred<OnlineAudioSourceResult>();loader.mockReturnValueOnce(loading.promise);
+  const queue=controller({transition:'manual'});const pending=queue.playSong(songs[1],songs,false,options);
+  expect(queue.pause).not.toHaveBeenCalled();expect(usePlaybackStore.getState().audioSrc).toBe('https://cdn.example/1.mp3');
+  loading.resolve({kind:'ok',audioSrc:'https://cdn.example/2.mp3'});await pending;
+ });
+ it('propagates automatic intent through next-track navigation',async()=>{
+  const loading=deferred<OnlineAudioSourceResult>();loader.mockReturnValueOnce(loading.promise);
+  const queue=controller();await queue.handleNextTrack({transition:'automatic',shouldNavigateToPlayer:false});
+  await vi.waitFor(()=>expect(loader).toHaveBeenCalledOnce());expect(queue.pause).not.toHaveBeenCalled();
+  loading.resolve({kind:'ok',audioSrc:'https://cdn.example/2.mp3'});await vi.waitFor(()=>expect(usePlaybackStore.getState().currentSong?.id).toBe('2'));
+ });
+ it('pauses before delegating a Navidrome selection',async()=>{
+  const delegate=deferred<void>();const onPlayNavidromeSong=vi.fn(()=>delegate.promise);
+  const navi={...makeSong('n1'),sourceRef:undefined,isNavidrome:true,navidromeData:{id:'n1'}} as unknown as UnifiedSong;
+  const queue=controller({transition:'manual',onPlayNavidromeSong});const pending=queue.playSong(navi,[navi]);
+  expect(queue.pause).toHaveBeenCalledOnce();expect(usePlaybackStore.getState().audioSrc).toBeNull();
+  delegate.resolve();await pending;
+ });
+ it('adopts a native queue advance without pausing the item Media3 already started',async()=>{
+  const queue=controller({transition:'manual'});
+  await queue.playSong(songs[1],songs,false,{nativeHandoff:{uri:'https://cdn.example/2.mp3',position:12,playing:true}});
+  expect(queue.pause).not.toHaveBeenCalled();expect(usePlaybackStore.getState().audioSrc).toBe('https://cdn.example/2.mp3');
+ });
 });

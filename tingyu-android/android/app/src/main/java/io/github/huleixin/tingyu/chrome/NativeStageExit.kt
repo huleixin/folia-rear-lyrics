@@ -15,24 +15,26 @@ internal class NativeStageExit {
     var completed by mutableStateOf(false);private set
     var returning:NativePage?=null;private set
     var suppressReturnMotion=false
+    var minimal=false;private set
     private val replies=mutableListOf<()->Unit>()
-    fun begin(page:NativePage?,reply:()->Unit){
+    fun begin(page:NativePage?,minimal:Boolean=false,reply:()->Unit){
         if(completed){reply();return};replies.add(reply)
         if(active)return
-        returning=page;completed=false;active=true;suppressReturnMotion=true
+        returning=page;this.minimal=minimal;completed=false;active=true;suppressReturnMotion=true
     }
     fun finish(){completed=true;val callbacks=replies.toList();replies.clear();callbacks.forEach{it()}}
-    fun clear(){if(replies.isNotEmpty())finish();active=false;completed=false;returning=null}
+    fun clear(){if(replies.isNotEmpty())finish();active=false;completed=false;returning=null;minimal=false}
 }
 @Composable internal fun rememberStageExitProgress(exit:NativeStageExit,reduced:Boolean):State<Float>{
     val progress=remember{Animatable(0f)}
     LaunchedEffect(exit.active){
-        if(exit.active){progress.snapTo(0f);progress.animateTo(1f,tween(if(reduced)0 else 280,easing=CubicBezierEasing(.16f,1f,.3f,1f)));exit.finish()}
+        if(exit.active){progress.snapTo(0f);progress.animateTo(1f,tween(if(reduced)0 else if(exit.minimal)360 else 280,easing=if(exit.minimal)CubicBezierEasing(.4f,0f,.7f,.3f)else CubicBezierEasing(.16f,1f,.3f,1f)));exit.finish()}
         else progress.snapTo(0f)
     }
     return progress.asState()
 }
-internal fun Modifier.stageExitTransform(exit:NativeStageExit,progress:State<Float>,visible:Boolean=true)=graphicsLayer{
+internal fun Modifier.stageExitTransform(exit:NativeStageExit,progress:State<Float>,visible:Boolean=true,slide:Boolean=false)=graphicsLayer{
     val p=if(exit.active)progress.value else 0f
-    translationY=size.height*.14f*p;scaleX=1f-.035f*p;scaleY=scaleX;alpha=if(visible)1f-p else 0f
+    translationY=size.height*(if(slide)1f else .14f)*p
+    scaleX=if(slide)1f else 1f-.035f*p;scaleY=scaleX;alpha=if(visible){if(slide)1f else 1f-p}else 0f
 }

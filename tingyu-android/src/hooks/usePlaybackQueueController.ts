@@ -478,6 +478,21 @@ export function usePlaybackQueueController({
         // out instead of replacing the song the user picked last.
         // An automix advance skips the hook (see `isAutomixAdvance`).
         const playSongCallId = ++playSongCallIdRef.current;
+        // Invalidate older URL/file/hook work before the first await, even if this hook is slow.
+        const playbackRequestId = ++playbackRequestIdRef.current;
+        const isLatestPlaybackRequest = () => playbackRequestIdRef.current === playbackRequestId
+            && playSongCallIdRef.current === playSongCallId;
+        const manual = options.transition !== 'automatic' && !options.isAutomixAdvance && !options.nativeHandoff;
+        if (manual) {
+            endHeldTransition?.();
+            playbackFade.flush();
+            shouldAutoPlayRef.current = false;
+            pendingResumeTimeRef.current = null;
+            ++playbackGenerationRef.current;
+            audioRef.current?.pause();
+            setAudioSrc(null);
+            setPlayerState(PlayerState.IDLE);
+        }
         // 没传队列，或传的就是 store 里的当前队列（下一首 / 上一首 / 模组 playQueueItem / FM 续歌）：失败按钮按点击时的最新队列走。
         // 只有还没写进 store 的显式队列（如从歌单点歌）才用快照。在 beforePlay 的 await 之前取，比较的是调用方看到的队列。
         // 队列面板传的是 App 套过本地库展示信息的副本（playerDisplayQueue，每次都是新数组），不是 store 数组，所以也走快照。
@@ -494,7 +509,7 @@ export function usePlaybackQueueController({
         // dropping it would leave the old song at full volume under a PAUSED player. The fade node
         // is back at unity afterwards, so the new song does not start silent. The automix advance is
         // left alone: that is the blend's own handover, and a pause pressed during it is still meant.
-        if (!options.isAutomixAdvance) {
+        if (!options.isAutomixAdvance && !manual) {
             playbackFade.flush();
         }
         interruptStagePlaybackForMainTransition();
@@ -521,8 +536,6 @@ export function usePlaybackQueueController({
             }
         }
 
-        const playbackRequestId = ++playbackRequestIdRef.current;
-        const isLatestPlaybackRequest = () => playbackRequestIdRef.current === playbackRequestId;
         // 点歌没有落地：FM 状态退回本次请求之前的值，否则会和仍在播的上一首、旧队列对不上，handleNextTrack 会按错的模式选歌。
         // 重试 / 跳过 / 替代版本都带着 isFmCall 重新调用 playSong，会再设一次；更新的请求已经写了自己的值，不能覆盖。
         const restoreFmModeIfNotLanded = () => {
@@ -893,6 +906,7 @@ export function usePlaybackQueueController({
         currentOnlineAudioUrlFetchedAtRef,
         currentSongRef,
         currentTime,
+        endHeldTransition,
         getNextPlayableQueueSong,
         getPlayableOnlineQueue,
         interruptStagePlaybackForMainTransition,
@@ -1093,6 +1107,7 @@ export function usePlaybackQueueController({
             if (next) void playSong(next, playQueue, false, {
                 shouldNavigateToPlayer, unavailableSkipCount: options?.unavailableSkipCount,
                 isAutomixAdvance: options?.isAutomixAdvance,
+                transition: options?.transition,
             });
             else if (options?.allowStopOnMissing) stopAtQueueEnd();
             return;
@@ -1109,6 +1124,7 @@ export function usePlaybackQueueController({
                         shouldNavigateToPlayer,
                         unavailableSkipCount: options?.unavailableSkipCount,
                         isAutomixAdvance: options?.isAutomixAdvance,
+                        transition: options?.transition,
                     });
                     return;
                 }
@@ -1132,6 +1148,7 @@ export function usePlaybackQueueController({
                 shouldNavigateToPlayer,
                 unavailableSkipCount: options?.unavailableSkipCount,
                 isAutomixAdvance: options?.isAutomixAdvance,
+                transition: options?.transition,
             });
         } else if (options?.allowStopOnMissing) {
             stopAtQueueEnd();

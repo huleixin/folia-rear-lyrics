@@ -114,8 +114,7 @@ fun MinimalPlayerScreen(
     onOpenStage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // 舞台顺访时这一页不画：舞台仍是 WebView，而原生页是整窗图层，盖上去就看不见舞台了。
-    if (detour) return
+    // 顺访舞台时保留同一份 pager/封面控制器，由宿主把它放在 WebView 舞台下面。
 
     val playback = state.playback
     // 主题只有一个来源：桥上说的（和 palette 同源）。桥还没说话时才用宿主给的界面主题。
@@ -127,7 +126,7 @@ fun MinimalPlayerScreen(
         buildMinimalPalette(artwork.colors, !dark)
     }
     val palette = state.palette ?: local
-    val clock = rememberMinimalClock(playback)
+    val clock = rememberMinimalClock(playback,!detour)
     // 系统关闭动画时不跑背景漂移与封面浮动；页面仍然完整可读（与 prefers-reduced-motion 对齐）。
     val context = androidx.compose.ui.platform.LocalContext.current
     val still = remember(context) { reducedMotion(context) }
@@ -246,7 +245,7 @@ fun MinimalPlayerScreen(
         MinimalAmbience(
             colors = paletteColors(palette),
             light = !dark,
-            paused = !playback.playing,
+            paused = !playback.playing || detour,
             still = still,
             modifier = Modifier.fillMaxSize(),
         )
@@ -292,7 +291,7 @@ fun MinimalPlayerScreen(
                         ink = ink,
                         light = !dark,
                         clock = clock,
-                        active = page == 0,
+                        active = page == 0 && !detour,
                         still = still,
                         stack = coverStackState,
                         covers = coverCaches,
@@ -315,7 +314,7 @@ fun MinimalPlayerScreen(
                         palette = palette,
                         ink = ink,
                         clock = clock,
-                        active = page == 1,
+                        active = page == 1 && !detour,
                         // 跟手/吸附期间不抢滚动：歌词页的自动平滑滚动等 pager 落定后再启动，
                         // 不和切页动画抢同一根帧预算线（这就是切到歌词页那一下卡顿的主因之一）。
                         pagerBusy = pagerState.isScrollInProgress,
@@ -357,11 +356,11 @@ fun MinimalPlayerScreen(
  * 暂停/后台时 `withFrameNanos` 不再被调度，页面自然静止。
  */
 @Composable
-private fun rememberMinimalClock(playback: MinimalPlayback): State<Long> {
+private fun rememberMinimalClock(playback: MinimalPlayback,active:Boolean): State<Long> {
     val now = remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
-    LaunchedEffect(playback.source, playback.playing, playback.anchorElapsedMs) {
+    LaunchedEffect(playback.source, playback.playing, playback.anchorElapsedMs,active) {
         now.longValue = SystemClock.elapsedRealtime()
-        if (playback.playing && playback.source != MinimalClockSource.NONE) {
+        if (active && playback.playing && playback.source != MinimalClockSource.NONE) {
             while (true) {
                 withFrameNanos { now.longValue = SystemClock.elapsedRealtime() }
             }

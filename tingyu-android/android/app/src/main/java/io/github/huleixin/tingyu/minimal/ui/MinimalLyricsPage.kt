@@ -18,9 +18,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -224,12 +226,11 @@ private fun LyricColumn(
     pagerBusy: Boolean,
     onSeek: (Double) -> Unit,
 ) {
-    val scroll = rememberScrollState()
-    val offsets = remember(lyrics) { FloatArray(lyrics.size) }
     val heights = remember(lyrics) { FloatArray(lyrics.size) }
     // 每行**测量时**的字号：行高 ≈ 行数×字号×系数 + 固定内衬，据此把动画中的
     // 测量值换算成落定值 —— 滚动目标在切换瞬间就能算准，不需要事后修正。
     val measuredSizes = remember(lyrics) { FloatArray(lyrics.size) }
+    val androidDensity=androidx.compose.ui.platform.LocalDensity.current.density
     var viewport by remember { mutableFloatStateOf(0f) }
     var manualUntil by remember { mutableLongStateOf(0L) }
     var autoScrolling by remember { mutableStateOf(false) }
@@ -270,6 +271,7 @@ private fun LyricColumn(
         }
     }
     val index by indexState
+    val scroll = rememberLazyListState(initialFirstVisibleItemIndex=index.coerceAtLeast(0))
 
     // 手动滚动后 4 秒内不抢位置；自动滚动自己不算"手动"。
     LaunchedEffect(scroll) {
@@ -281,16 +283,16 @@ private fun LyricColumn(
     // 切行自动滚动。目标位置按**落定布局**预测：切换瞬间旧活动行还占着放大后的
     // 高度、新活动行还没长起来，直接用测量值会系统性偏移几十像素（长行更甚）；
     // 这里按测量字号比例把两行的落定高度换算出来，一次滚到位，动画结束后不再修正。
-    LaunchedEffect(index, lyrics, active, pagerBusy) {
+    LaunchedEffect(index, lyrics, active, pagerBusy,viewport) {
         val previousActive = lastActiveRef[0]
         lastActiveRef[0] = index
-        if (!active || pagerBusy || viewport <= 0f) return@LaunchedEffect
+        if (pagerBusy || viewport <= 0f) return@LaunchedEffect
         val target = index
         if (target < 0 || target >= lyrics.size) return@LaunchedEffect
         // 同一目标的滚动已在途（pagerBusy 抖动重进）：不重启，避免中途变向。
         if (autoScrolling && autoScrollTarget[0] == target) return@LaunchedEffect
         if (System.currentTimeMillis() < manualUntil) return@LaunchedEffect
-        if (offsets[target] <= 0f || heights[target] <= 0f) return@LaunchedEffect
+        val targetItem=scroll.layoutInfo.visibleItemsInfo.firstOrNull{it.index==target}
 
         // 行高换算模型：height(字号 s) ≈ height(测量值) × s / 测量字号。
         fun settledHeight(row: Int, targetSize: Float): Float {
@@ -310,18 +312,18 @@ private fun LyricColumn(
         val targetCredit = isProductionCreditLine(lyrics[target], target)
         val targetSettledHeight = settledHeight(target, if (targetCredit) 14f else 30f)
 
-        val destination = (offsets[target] + shift + targetSettledHeight / 2f - viewport * ACTIVE_LINE_ANCHOR)
-            .coerceIn(0f, scroll.maxValue.toFloat())
-        val distance = abs(destination - scroll.value)
-        if (distance < 2f) return@LaunchedEffect
-        val duration = min(SCROLL_MAX_MS, SCROLL_BASE_MS + (distance / 1000f * 130f).toInt())
+        val targetHeight=if(targetSettledHeight>0f)targetSettledHeight else targetItem?.size?.toFloat()?:56f*androidDensity
+        val anchorOffset=(targetHeight/2f-viewport*ACTIVE_LINE_ANCHOR).toInt()
+        val distance=targetItem?.let{it.offset+shift+targetHeight/2f-viewport*ACTIVE_LINE_ANCHOR}
+        if(distance!=null&&abs(distance)<2f)return@LaunchedEffect
+        val duration = min(SCROLL_MAX_MS, SCROLL_BASE_MS + ((abs(distance?:viewport)) / 1000f * 130f).toInt())
         autoScrolling = true
         autoScrollTarget[0] = target
         try {
-            scroll.animateScrollTo(
-                destination.toInt(),
-                tween(duration, easing = CubicBezierEasing(0.2f, 0.7f, 0.2f, 1f)),
-            )
+            if(!active)scroll.scrollToItem(target,anchorOffset)
+            else if(distance!=null)scroll.animateScrollBy(distance,tween(duration,easing=CubicBezierEasing(0.2f,0.7f,0.2f,1f)))
+            else scroll.animateScrollToItem(target,anchorOffset)
+
         } finally {
             autoScrolling = false
         }
@@ -349,14 +351,12 @@ private fun LyricColumn(
                 )
             }
     ) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(scroll)
-                .padding(start = 26.dp, end = 26.dp)
-                .padding(top = 20.dp, bottom = 240.dp),
+        LazyColumn(
+            state=scroll,
+            modifier=Modifier.fillMaxSize(),
+            contentPadding=androidx.compose.foundation.layout.PaddingValues(start=26.dp,end=26.dp,top=20.dp,bottom=240.dp),
         ) {
-            lyrics.forEachIndexed { lineIndex, line ->
+            itemsIndexed(lyrics,key={index,_->index}) { lineIndex, line ->
                 val credit = remember(line, lineIndex) { isProductionCreditLine(line, lineIndex) }
                 LyricLineRow(
                     line = line,
@@ -368,9 +368,8 @@ private fun LyricColumn(
                     clock = clock,
                     ink = ink,
                     onSeek = onSeek,
-                    onMeasured = { top, height, atSize ->
-                        if (lineIndex in offsets.indices) {
-                            offsets[lineIndex] = top
+                    onMeasured = { _, height, atSize ->
+                        if (lineIndex in heights.indices) {
                             heights[lineIndex] = height
                             measuredSizes[lineIndex] = atSize
                         }
