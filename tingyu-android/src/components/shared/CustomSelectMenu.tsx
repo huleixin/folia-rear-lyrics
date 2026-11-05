@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { NATIVE_FIRST } from '../../services/nativePages';
 import { Check } from 'lucide-react';
 import { List, useListRef, type RowComponentProps } from 'react-window';
 
@@ -255,7 +256,9 @@ export const CustomSelectMenu: React.FC<CustomSelectMenuProps> = ({
                 y: position.placement === 'top' ? 8 : -8,
                 scale: 0.96,
             }}
-            transition={{ duration: 0.15, ease: 'easeOut' }}
+            // 设置文档页会把这层当 portal 拍成静态画：动画期间捕获会得到半透明快照。
+            // 原生模式下直接呈现终态，第一次捕获就是最终样子（也少一次重绘）。
+            transition={NATIVE_FIRST ? { duration: 0 } : { duration: 0.15, ease: 'easeOut' }}
             className={`fixed z-[200] rounded-xl border shadow-xl overscroll-contain backdrop-blur-md custom-scrollbar${isVirtualized ? '' : ' overflow-y-auto'}`}
             data-wheel-scroll-region
             id={listboxId}

@@ -68,6 +68,12 @@ export function bindSettingsControl(element:HTMLElement,control:SettingsControl,
             }catch{/* Ignore a stale pointer packet. */}return;
         }
         if(control.kind==='ruler'){element.dispatchEvent(new CustomEvent('tingyu-native-value',{detail:Number(event.text)}));return;}
+        // 自定义下拉（CustomSelect + data-native-select）：原生菜单选中后把值回传，
+        // 由组件自己的 onChange 落地 —— 和用户点菜单项走同一条数据链路。
+        if(control.kind==='select'&&!(element instanceof HTMLSelectElement)){
+            element.dispatchEvent(new CustomEvent('tingyu-native-value',{detail:event.text??''}));
+            return;
+        }
         if(control.kind==='click'){
             // Custom-select outside/keyboard handlers must observe a real pointer sequence too.
             element.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));

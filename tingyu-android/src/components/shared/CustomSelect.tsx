@@ -1,4 +1,4 @@
-import React, { useState, useRef, useLayoutEffect, useCallback, useId } from 'react';
+import React, { useState, useRef, useLayoutEffect, useCallback, useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
@@ -11,6 +11,7 @@ import {
     type CustomSelectOption,
 } from './CustomSelectMenu';
 import { useCustomSelectNavigation } from './useCustomSelectNavigation';
+import { NATIVE_FIRST } from '../../services/nativePages';
 
 // CustomSelect.tsx
 // A custom dropdown select component designed to replace the browser's default select element.
@@ -65,6 +66,16 @@ interface CustomSelectProps {
     triggerClassName?: string;
     /** Inline trigger style, merged over the text colour (see `triggerClassName`). */
     triggerStyle?: React.CSSProperties;
+    /**
+     * Android 原生设置页专用：把这一项标记成"原生 select"。
+     *
+     * 设置文档页是"DOM 当排版模板、原生 Compose 负责绘制"：DOM 里弹出来的菜单不会自己显示，
+     * 而是被 captureSettingsDocument 当成 portal 拍成静态画，拍在淡入动画中途就变成
+     * "浅底浅字、半透明"的样子；每次开合还要重建整份设置文档 —— 又卡又不可读（68597）。
+     * 标记之后：点击不再打开 DOM 菜单，绘制改为原生 Popup（颜色显式取自调色板），
+     * 选择结果通过 tingyu-native-value 事件回传，数据链路仍然走同一个 onChange。
+     */
+    nativeSelect?: boolean;
 }
 
 const DROPDOWN_GAP = 4;
@@ -93,6 +104,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
     size = 'default',
     triggerClassName,
     triggerStyle,
+    nativeSelect = false,
 }) => {
     const { t } = useTranslation();
     const [dropdownPosition, setDropdownPosition] = useState<CustomSelectMenuPosition | null>(null);
@@ -194,13 +206,27 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
             boxShadow: openRing,
         };
 
+    // 原生设置页：这个 select 由 Compose 绘制菜单，DOM 这边只做"排版模板 + 数据回传"。
+    const nativeOwned = nativeSelect && NATIVE_FIRST;
+    useEffect(() => {
+        if (!nativeOwned) return;
+        const node = triggerRef.current;
+        if (!node) return;
+        const apply = (event: Event) => onChange(String((event as CustomEvent).detail ?? ''));
+        node.addEventListener('tingyu-native-value', apply as EventListener);
+        return () => node.removeEventListener('tingyu-native-value', apply as EventListener);
+    }, [nativeOwned, onChange]);
+
     return (
         <div ref={containerRef} className="relative w-full">
             <button
                 ref={triggerRef}
                 type="button"
                 role="combobox"
-                onClick={handleTriggerClick}
+                onClick={nativeOwned ? (event) => { event.preventDefault(); } : handleTriggerClick}
+                data-native-select={nativeOwned ? '' : undefined}
+                data-native-value={nativeOwned ? value : undefined}
+                data-native-options={nativeOwned ? JSON.stringify(options.map(option => ({ value: option.value, label: option.label }))) : undefined}
                 onKeyDown={handleTriggerKeyDown}
                 disabled={disabled}
                 aria-label={ariaLabelledBy ? undefined : ariaLabel}
@@ -222,7 +248,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                 />
             </button>
 
-            {typeof document !== 'undefined' && createPortal(
+            {!nativeOwned && typeof document !== 'undefined' && createPortal(
                 <AnimatePresence>
                     {isOpen && dropdownPosition && (
                         <CustomSelectMenu

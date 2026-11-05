@@ -62,13 +62,21 @@ export function captureSettingsDocument(root:HTMLElement){
         const pad=element.matches('.react-colorful__interactive');
         if(input||clickable||ruler||pad){
             const node=element as HTMLInputElement;const type=node.type;
-            const kind:SettingsControl['kind']=pad?'pad':ruler?'ruler':!input||type==='checkbox'||type==='radio'||type==='file'||type==='color'?'click':element instanceof HTMLSelectElement?'select':type==='range'?'range':'text';
+            // 原生 select（68597）：CustomSelect 这类自定义下拉会在 DOM 里弹 portal 菜单，
+            // 文档页把它当 portal 拍成静态画 —— 拍在淡入中途就是"浅底浅字 + 半透明"。
+            // 标记过 data-native-select 的触发按钮改报成 select 控件，由 Compose 画菜单。
+            const nativeSelectEl=!input?element.closest<HTMLElement>('[data-native-select]'):null;
+            const nativeOptions=(()=>{
+                const raw=nativeSelectEl?.getAttribute('data-native-options');if(!raw)return undefined;
+                try{const parsed=JSON.parse(raw);return Array.isArray(parsed)?parsed.map(item=>({value:String(item.value),label:String(item.label)})):undefined}catch{return undefined}
+            })();
+            const kind:SettingsControl['kind']=nativeSelectEl?'select':pad?'pad':ruler?'ruler':!input||type==='checkbox'||type==='radio'||type==='file'||type==='color'?'click':element instanceof HTMLSelectElement?'select':type==='range'?'range':'text';
             const control:SettingsControl={...box,id:idFor(element),kind,area:area?.id,disabled:element.matches(':disabled,[aria-disabled="true"]'),
-                label:element.getAttribute('aria-label')||element.textContent?.trim()||element.getAttribute('placeholder')||'',value:ruler?element.getAttribute('aria-valuenow')??'0':type==='checkbox'||type==='radio'?(node.checked?'1':''):input?node.value:undefined,
+                label:element.getAttribute('aria-label')||element.textContent?.trim()||element.getAttribute('placeholder')||'',value:nativeSelectEl?(nativeSelectEl.getAttribute('data-native-value')??''):ruler?element.getAttribute('aria-valuenow')??'0':type==='checkbox'||type==='radio'?(node.checked?'1':''):input?node.value:undefined,
                 min:ruler?n(element.getAttribute('aria-valuemin')??'0'):n(node.min),max:ruler?n(element.getAttribute('aria-valuemax')??'100'):node.max?n(node.max):100,step:node.step==='any'?0:node.step?n(node.step):1,inputType:type,font:n(style.fontSize),color:style.color,
                 multiline:element instanceof HTMLTextAreaElement,placeholder:element.getAttribute('placeholder')??'',accent:style.accentColor,rangeFill:style.appearance!=='none',
                 padding:[n(style.paddingLeft),n(style.paddingTop),n(style.paddingRight),n(style.paddingBottom)],
-                options:element instanceof HTMLSelectElement?[...element.options].map(option=>({value:option.value,label:option.text})):undefined};
+                options:nativeOptions??(element instanceof HTMLSelectElement?[...element.options].map(option=>({value:option.value,label:option.text})):undefined)};
             controls.push(control);bindSettingsControl(element as HTMLElement,control,actions);
             if(kind==='text'||kind==='range'||kind==='select')return;
         }

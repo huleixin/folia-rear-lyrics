@@ -119,6 +119,7 @@ const GeneralSettingsSubview: React.FC<GeneralSettingsSubviewProps> = ({
                         ariaLabel={t('options.appLanguage')}
                         isDaylight={isDaylight}
                         theme={theme}
+                        nativeSelect
                     />
                     {languageHint && (
                         <div className="text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }}>

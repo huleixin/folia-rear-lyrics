@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { registerModalBack } from '../../services/modalBackStack';
+import { NATIVE_FIRST } from '../../services/nativePages';
 
 interface ThemedDialogProps {
     isOpen: boolean;
@@ -74,10 +75,11 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{duration:reduced?0:.18}}
+                    // 原生设置文档页：这层会被拍成静态画，动画期间捕获=半透明快照（68600 的"发灰"）。
+                    transition={{duration:reduced||NATIVE_FIRST?0:.18}}
                     data-folia-keyboard-window="true"
                     data-folia-themed-overlay="true"
-                    className={`fixed inset-0 z-[200] flex items-center justify-center p-4 ${isDaylight ? 'bg-transparent' : 'bg-black/60 backdrop-blur-md'}`}
+                    className={`fixed inset-0 z-[200] flex items-center justify-center p-4 ${isDaylight ? 'bg-transparent' : NATIVE_FIRST ? 'bg-black/60' : 'bg-black/60 backdrop-blur-md'}`}
                     onMouseDown={handleOverlayMouseDown}
                     onClick={handleBackdropClick}
                 >
@@ -85,7 +87,7 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
                         initial={{ scale: reduced?1:0.99, y:reduced?0:10, opacity: 0 }}
                         animate={{ scale: 1, y:0, opacity: 1 }}
                         exit={{ scale: reduced?1:0.99, y:reduced?0:10, opacity: 0 }}
-                        transition={{ duration:reduced?0:.18, ease:[.16,1,.3,1] }}
+                        transition={{ duration:reduced||NATIVE_FIRST?0:.18, ease:[.16,1,.3,1] }}
                         onClick={(event) => event.stopPropagation()}
                         data-folia-themed-dialog="true"
                         data-folia-themed-dialog-kind={panelKind}
