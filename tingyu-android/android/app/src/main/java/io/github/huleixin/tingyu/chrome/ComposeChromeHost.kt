@@ -208,6 +208,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
      * 不再重置到封面，也不再丢失用户停留的位置。
      */
     private var minimalLastPage by mutableIntStateOf(0)
+    /** 极简页**当前**停留页（0 封面 / 1 歌词）。与 minimalLastPage 分开：
+     *  lastPage 只用于「进设置再回来」的恢复，currentPage 用于「歌词页常亮」这类即时状态。 */
+    private var minimalCurrentPage by mutableIntStateOf(0)
+    /** 新会话令牌：每次从浏览页进入播放器 +1。pager 状态按它重建 → 每次打开都从封面开始。 */
+    private var minimalSessionToken by mutableIntStateOf(0)
+    /** 「极简歌词页常亮」开关（JS 设置随 shell 包下发，默认关）。 */
+    private var minimalLyricsKeepOnEnabled by mutableStateOf(false)
     private val toolActions = io.github.huleixin.tingyu.minimal.BridgeToolActions(
         sender = { action, value ->
             val session = minimal.session()
@@ -319,7 +326,18 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         require(next in setOf("home","collection","search","settings","stage","web"))
         val routeChanged=next!=destination||value.optString("pageTarget")!=pageTarget||value.optString("entryKey")!=entryKey||value.optInt("selectedTab").coerceIn(0,1)!=selectedTab
         playerPresentation=if(value.optString("playerPresentation")=="minimal")"minimal"else"stage"
-        if(next=="stage"&&destination!="stage"&&value.has("minimalPage"))minimalLastPage=if(value.optString("minimalPage")=="lyrics")1 else 0
+        // 从浏览页（home/collection/search/…）进入播放器 = 一次**新会话**：令牌 +1，
+        // pager 状态随之重建，首次组合就落在封面页（需求二）。设置页返回与完整舞台往返
+        // 不算新会话（前者 destination=="settings"，后者 from 已是 stage），页面状态保持。
+        if(next=="stage"&&from!="stage"&&from!="settings"){
+            minimalSessionToken++
+            minimalLastPage=0;minimalCurrentPage=0
+        } else if(next=="stage"&&from=="settings"&&value.has("minimalPage")){
+            // 从设置返回：沿用 JS 记下的页，进出设置不重置。
+            minimalLastPage=if(value.optString("minimalPage")=="lyrics")1 else 0
+            minimalCurrentPage=minimalLastPage
+        }
+        minimalLyricsKeepOnEnabled=value.optBoolean("minimalLyricsKeepOn")
         destination=next;webOverlay=value.optBoolean("webOverlay");selectedTab=value.optInt("selectedTab").coerceIn(0,1)
         if(next=="stage"&&playerPresentation=="minimal"){
             val stagePhase=surfaces["stage"]?.playerTransition?:"idle"
@@ -451,7 +469,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             } else { surfaces.remove(id); clocks.remove(id) }
         }
     }
-    fun suspend() { navigationActionSerial++;chromeRemovalSerial++;clearStartupNavigation();active = false;sleepMenuOpen=false;stageExit.clear() }
+    fun suspend() { navigationActionSerial++;chromeRemovalSerial++;clearStartupNavigation();active = false;sleepMenuOpen=false;stageExit.clear();io.github.huleixin.tingyu.NativeKeepScreenOn.setLyrics(false) }
     // 回到前台重读一次权威：后台期间到达的歌词、以及引擎在后台走掉的位置都必须立刻反映出来。
     fun resume() { active = true; minimal.refreshNow() }
     private fun attach() {
@@ -490,6 +508,17 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val stageAboveMinimal=minimalState.controls.detour||stagePhase in setOf("to-stage","to-minimal")
         val minimalBase = minimalPlayerEnabled() && destination=="stage" && playerPresentation=="minimal" && !webOverlay && minimalBound
         val minimalOwns = minimalBase && !stageAboveMinimal && !stageExit.active
+        // 极简歌词页常亮（需求一）：只有「真正显示 Compose 极简歌词页」时才申请。
+        // 播放/暂停无关（页在就算）；切换封面页、退出播放器、顺访完整舞台、应用退后台
+        // （active=false）都会让这个表达式变 false → 立即释放，交还系统自动息屏规则。
+        // 与全局「屏幕常亮」不冲突：两个来源都交给 NativeKeepScreenOn 统一裁决（or 关系）。
+        val lyricsKeepOn = minimalLyricsKeepOnEnabled && minimalOwns && minimalCurrentPage == 1 &&
+            active && focused && !webOverlay && !stageExit.active
+        SideEffect {
+            val hostActivity = web.context as? android.app.Activity
+            if (hostActivity != null) io.github.huleixin.tingyu.NativeKeepScreenOn.attach(hostActivity)
+            io.github.huleixin.tingyu.NativeKeepScreenOn.setLyrics(lyricsKeepOn)
+        }
         val nativeMinimalCollapse=stageExit.active&&stageExit.minimal
         val page=presented?:if(stageExit.active)stageExit.returning else null
         // 第 16 轮：Compose 将接管极简页（能力开关在、路由到 stage、presentation=minimal、无顺访/弹层）。
@@ -708,8 +737,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     queue = queueState,
                     onOpenQueue = { openNativeQueue() },
                     onOpenTools = { page -> openNativeTools(page) },
-                    initialPage = minimalLastPage,
-                    onPageChanged = { page -> if(minimalLastPage!=page){minimalLastPage=page;listener.onAction("minimal",minimal.session(),"pageChanged",page.toDouble())} },
+                    // 每次新会话都从封面页开始（resetToken 变了 pager 状态会重建）；
+                    // 完整舞台往返 / 设置往返不换令牌，页面状态与进出动画保持原样。
+                    initialPage = 0,
+                    resetToken = minimalSessionToken,
+                    onPageChanged = { page ->
+                        minimalCurrentPage = page
+                        if(minimalLastPage!=page){minimalLastPage=page;listener.onAction("minimal",minimal.session(),"pageChanged",page.toDouble())}
+                    },
                     light = interfaceLight,
                     safeTop = safeTop,
                     safeBottom = safeBottom,
@@ -727,6 +762,15 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             }
             // Consume only this resume. A later visit to the full stage keeps its usual motion.
             LaunchedEffect(minimalOwns,minimalResumePending){if(minimalOwns&&minimalResumePending){withFrameNanos{};minimalResumePending=false}}
+            // 新会话从封面开始后，把 JS 侧的页面记录同步成 0：否则它仍记着上次的歌词页，
+            // 下次「设置 → 返回播放器」时 shell 包会把旧页带回来，和封面不一致。
+            LaunchedEffect(minimalSessionToken){
+                if(minimalSessionToken>0){
+                    minimalLastPage=0
+                    if(minimal.session().isNotEmpty())
+                        listener.onAction("minimal",minimal.session(),"pageChanged",0.0)
+                }
+            }
             // 队列抽屉：宿主级，和哪一页在显示无关 —— 极简页、舞台、首页都开这一张。
             // 开合动画（第 15 轮）：遮罩渐显渐隐，面板底部上滑 260ms / 下滑 200ms，
             // 与工具页共用 MinimalSheetMotion 一份节奏；拖拽排序与两档高度不受影响。
@@ -836,6 +880,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         chromeRemovalSerial++
         val compose = host ?: return
         active = false;navigationActionSerial++;clearStartupNavigation();stageExit.clear(); surfaces.clear(); clocks.clear();pages.clear();retained.clear();presented=null
+        io.github.huleixin.tingyu.NativeKeepScreenOn.reset()
         compose.disposeComposition()
         (web.parent as? ViewGroup)?.removeView(web)
         (compose.parent as? ViewGroup)?.removeView(compose)

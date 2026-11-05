@@ -2130,6 +2130,8 @@ export default {
   "phoneFit": "Phone layout fit",
   "keepScreenOn": "Keep screen on",
   "keepScreenOnDesc": "Stops the screen from sleeping while the app is open, so lyrics stay readable on a stand or while you copy them. Turn it off to restore the system auto-sleep.",
+  "minimalLyricsKeepOn": "Keep screen on for minimal lyrics",
+  "minimalLyricsKeepOnDesc": "Keeps the screen awake only while the minimal player is showing its lyrics page. Switching to the cover, leaving the player or backgrounding the app restores normal auto-sleep. Works independently of the global keep-on switch above.",
   "orientationFit": "Portrait / landscape fit",
   "commandPaletteButtonSection": "Command palette button",
   "commandPaletteButtonAutoHide": "Auto hide",

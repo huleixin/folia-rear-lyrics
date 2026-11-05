@@ -10,6 +10,7 @@ import { nativeShellRoute, nativeShellHasWebOverlay } from '../utils/nativeShell
 import { resolveInitialSettingsSection } from '../components/modal/settings/navigation/settingsLastSection';
 import { collectionKey } from '../library/core/model/collectionIdentity';
 import { useMotionSettingsStore, readReducedMotion } from '../stores/useMotionSettingsStore';
+import { useAndroidLayoutSettingsStore } from '../stores/useAndroidLayoutSettingsStore';
 import {setNativeShellPublisher,scheduleNativeShellRoute} from './nativeShellCommit';
 import {canPublishNativeStage} from '../utils/nativeStageCommit';
 import { usePlayerViewModeStore } from '../stores/usePlayerViewModeStore';
@@ -49,17 +50,19 @@ export function installNativeShellRouting() {
         if(routeKey!==lastRoute){lastRoute=routeKey;document.documentElement.dataset.nativeNavigation=`${generation}:${++navigationRevision}`;document.dispatchEvent(new Event('tingyu-native-navigation'));}
         const navigation=document.documentElement.dataset.nativeNavigation??'';
         const minimalPage=usePlayerViewModeStore.getState().page;
-        const key=JSON.stringify({route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,playlistDetail,playerPresentation,minimalPage});if(key===last)return;last=key;
+        // 「极简歌词页常亮」的开关值随 shell 包下发；页面状态由宿主自己判断。
+        const minimalLyricsKeepOn=useAndroidLayoutSettingsStore.getState().minimalLyricsKeepOnEnabled;
+        const key=JSON.stringify({route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,playlistDetail,playerPresentation,minimalPage,minimalLyricsKeepOn});if(key===last)return;last=key;
         navigationMark('route-publish');
         const sent=++revision;
         const leavingStage=document.documentElement.dataset.nativeRoute==='stage'&&route!=='stage';
         if(!leavingStage)document.documentElement.dataset.nativeRoute=route;
-        void nativePages.shell({generation,revision:sent,route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,navigation,playlistDetail,playerPresentation,minimalPage}).then(()=>{
+        void nativePages.shell({generation,revision:sent,route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,navigation,playlistDetail,playerPresentation,minimalPage,minimalLyricsKeepOn}).then(()=>{
             if(sent===revision)document.documentElement.dataset.nativeRoute=route;
         }).catch(error=>console.warn('[NativeShell] Route update failed',error));
     };
     setNativeShellPublisher(publish);
-    [useAppViewStore,useSettingsModalStore,useSearchNavigationStore,useCollectionNavigationStore,useMobileLibraryStore,useMotionSettingsStore,usePlayerViewModeStore].forEach(store=>store.subscribe(scheduleNativeShellRoute));
+    [useAppViewStore,useSettingsModalStore,useSearchNavigationStore,useCollectionNavigationStore,useMobileLibraryStore,useMotionSettingsStore,usePlayerViewModeStore,useAndroidLayoutSettingsStore].forEach(store=>store.subscribe(scheduleNativeShellRoute));
     const observer=new MutationObserver(records=>{if(records.some(record=>record.type==='attributes'||[...record.addedNodes,...record.removedNodes].some(node=>node instanceof Element&&
         (node.matches('[data-folia-keyboard-window]')||node.querySelector('[data-folia-keyboard-window]')))))scheduleNativeShellRoute()});
     observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['data-folia-keyboard-window','data-native-page','data-native-settings-key']});

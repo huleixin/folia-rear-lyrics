@@ -8,6 +8,33 @@
 
 export const KEEP_SCREEN_ON_STORAGE_KEY = 'folia_android_keep_screen_on';
 
+/**
+ * 「极简歌词页常亮」的独立开关（默认关）。
+ *
+ * 与全局「屏幕常亮」的关系：两者互不覆盖，最终由原生 NativeKeepScreenOn 按 or 裁决。
+ * 这里的布尔值只决定「极简歌词页是否申请常亮」，页面状态（是否真的停在歌词页、
+ * 是否退到后台、是否顺访完整舞台）由宿主 ComposeChromeHost 判断后上报。
+ */
+export const MINIMAL_LYRICS_KEEP_ON_STORAGE_KEY = 'folia_android_minimal_lyrics_keep_on';
+
+export const readStoredMinimalLyricsKeepOn = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    try {
+        return localStorage.getItem(MINIMAL_LYRICS_KEEP_ON_STORAGE_KEY) === 'true';
+    } catch {
+        return false;
+    }
+};
+
+export const writeStoredMinimalLyricsKeepOn = (enabled: boolean): void => {
+    if (typeof window === 'undefined') return;
+    try {
+        localStorage.setItem(MINIMAL_LYRICS_KEEP_ON_STORAGE_KEY, enabled ? 'true' : 'false');
+    } catch {
+        // 存不下来也不能让开关当场失效。
+    }
+};
+
 type WakeLockSentinelLike = {
     released?: boolean;
     release?: () => Promise<void>;

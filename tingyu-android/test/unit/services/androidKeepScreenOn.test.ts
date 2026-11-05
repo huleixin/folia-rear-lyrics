@@ -3,10 +3,14 @@ import {
     applyKeepScreenOn,
     installKeepScreenOnPreference,
     KEEP_SCREEN_ON_STORAGE_KEY,
+    MINIMAL_LYRICS_KEEP_ON_STORAGE_KEY,
     readStoredKeepScreenOn,
+    readStoredMinimalLyricsKeepOn,
     resetKeepScreenOnRuntime,
     writeStoredKeepScreenOn,
+    writeStoredMinimalLyricsKeepOn,
 } from '@/services/androidKeepScreenOn';
+import { useAndroidLayoutSettingsStore } from '@/stores/useAndroidLayoutSettingsStore';
 
 // test/unit/services/androidKeepScreenOn.test.ts
 // 「屏幕常亮」：安卓走原生窗口标志（切页不丢），拿不到插件时退回 Screen Wake Lock。
@@ -32,6 +36,33 @@ afterEach(() => {
     resetKeepScreenOnRuntime();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+});
+
+describe('极简歌词页常亮（独立开关）', () => {
+    it('默认关闭，并独立于全局常亮持久化', () => {
+        expect(readStoredKeepScreenOn()).toBe(false);
+        expect(readStoredMinimalLyricsKeepOn()).toBe(false);
+
+        // 只开极简歌词常亮：全局开关不受影响。
+        writeStoredMinimalLyricsKeepOn(true);
+        expect(readStoredMinimalLyricsKeepOn()).toBe(true);
+        expect(readStoredKeepScreenOn()).toBe(false);
+        expect(storage.get(MINIMAL_LYRICS_KEEP_ON_STORAGE_KEY)).toBe('true');
+
+        // 只开全局：极简开关也不被改写。
+        writeStoredKeepScreenOn(true);
+        expect(readStoredKeepScreenOn()).toBe(true);
+        expect(readStoredMinimalLyricsKeepOn()).toBe(true);
+    });
+
+    it('store 的开关只落库，不直接改窗口标志（是否常亮由原生宿主按页面状态裁决）', async () => {
+        useAndroidLayoutSettingsStore.getState().setMinimalLyricsKeepOnEnabled(true);
+        await Promise.resolve();
+        expect(useAndroidLayoutSettingsStore.getState().minimalLyricsKeepOnEnabled).toBe(true);
+        expect(readStoredMinimalLyricsKeepOn()).toBe(true);
+        // 关键：这个开关不能自己调用 FoliaNative.setKeepScreenOn —— 那会覆盖全局常亮的意图。
+        expect(setKeepScreenOn).not.toHaveBeenCalled();
+    });
 });
 
 describe('keep screen on', () => {

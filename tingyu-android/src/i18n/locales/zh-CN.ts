@@ -2129,6 +2129,8 @@ export default {
    "phoneFit": "手机适配",
    "keepScreenOn": "屏幕常亮",
    "keepScreenOnDesc": "打开后不再自动息屏，看歌词、抄歌词或放在桌上时屏幕保持点亮。关掉就恢复系统的自动息屏。",
+   "minimalLyricsKeepOn": "极简歌词页常亮",
+   "minimalLyricsKeepOnDesc": "只在你停留在极简播放器的歌词页时保持屏幕常亮，切回封面、退出播放器或退到后台立即恢复系统自动息屏。与上面的全局常亮互不覆盖。",
    "orientationFit": "横竖屏兼容",
    "commandPaletteButtonSection": "命令面板按钮",
    "commandPaletteButtonAutoHide": "自动隐藏",

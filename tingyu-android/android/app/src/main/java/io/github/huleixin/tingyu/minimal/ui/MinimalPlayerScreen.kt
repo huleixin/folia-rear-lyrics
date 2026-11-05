@@ -99,6 +99,10 @@ fun MinimalPlayerScreen(
     onOpenTools: (String) -> Unit = {},
     /** 页面重建时恢复的 pager 页。宿主持有这个值，进出设置、后台回来都不丢。 */
     initialPage: Int = 0,
+    /** 新会话令牌：每次从浏览页进入播放器 +1。用 key() 包住 pager 状态，
+     *  新会话**首次组合**就落在 initialPage，不会先闪出上次的歌词页再滑回来
+     *  （只改 initialPage 而不重建状态是无效的：rememberPagerState 只认第一次）。 */
+    resetToken: Int = 0,
     /**
      * 封面堆叠的动画器。默认在这一页里 remember；宿主（或诊断页）需要观察/保留同一份动画状态时
      * 可以传进来 —— 动画进度、卡片层位、当前速度都在里面。
@@ -157,7 +161,9 @@ fun MinimalPlayerScreen(
     }
 
     // 停留页由宿主持有（进出设置不丢）；这里只在重建时读一次初值，之后随滑动上报。
-    val pagerState = rememberPagerState(initialPage = initialPage.coerceIn(0, PAGE_COUNT - 1)) { PAGE_COUNT }
+    val pagerState = androidx.compose.runtime.key(resetToken) {
+        rememberPagerState(initialPage = initialPage.coerceIn(0, PAGE_COUNT - 1)) { PAGE_COUNT }
+    }
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }.collect { page -> onPageChanged(page) }
     }

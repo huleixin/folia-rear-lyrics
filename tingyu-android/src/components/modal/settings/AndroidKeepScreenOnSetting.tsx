@@ -27,6 +27,8 @@ const AndroidKeepScreenOnSetting: React.FC<AndroidKeepScreenOnSettingProps> = ({
     const { t } = useTranslation();
     const enabled = useAndroidLayoutSettingsStore(state => state.keepScreenOnEnabled);
     const setEnabled = useAndroidLayoutSettingsStore(state => state.setKeepScreenOnEnabled);
+    const lyricsKeepOn = useAndroidLayoutSettingsStore(state => state.minimalLyricsKeepOnEnabled);
+    const setLyricsKeepOn = useAndroidLayoutSettingsStore(state => state.setMinimalLyricsKeepOnEnabled);
 
     if (!isAndroidNativeRuntime()) return null;
 
@@ -55,6 +57,32 @@ const AndroidKeepScreenOnSetting: React.FC<AndroidKeepScreenOnSettingProps> = ({
                         style={{ backgroundColor: enabled ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
                     >
                         <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${enabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                    </button>
+                </div>
+            </div>
+            {/* 极简歌词页常亮：独立开关、默认关。是否真的常亮由原生宿主按「当前是否
+                停在极简歌词页」判定（切回封面/退出播放器/顺访完整舞台/退后台立即释放），
+                与上面的全局常亮互不覆盖。 */}
+            <div className={`p-4 rounded-xl border ${settingsCardClass}`}>
+                <div className="flex items-center justify-between gap-4">
+                    <div className="space-y-1 min-w-0">
+                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                            {t('options.minimalLyricsKeepOn')}
+                        </div>
+                        <div className="text-xs opacity-50 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                            {t('options.minimalLyricsKeepOnDesc')}
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        role="switch"
+                        aria-checked={lyricsKeepOn}
+                        aria-label={t('options.minimalLyricsKeepOn')}
+                        onClick={() => setLyricsKeepOn(!lyricsKeepOn)}
+                        className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!lyricsKeepOn ? toggleOffBackgroundClass : ''}`}
+                        style={{ backgroundColor: lyricsKeepOn ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
+                    >
+                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${lyricsKeepOn ? 'translate-x-6' : 'translate-x-0'}`} />
                     </button>
                 </div>
             </div>

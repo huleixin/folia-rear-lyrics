@@ -895,13 +895,10 @@ public class FoliaNativePlugin extends Plugin {
         boolean enabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
         Activity activity = getActivity();
         if (activity != null) {
-            activity.runOnUiThread(() -> {
-                if (enabled) {
-                    activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                } else {
-                    activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                }
-            });
+            // 统一交给 NativeKeepScreenOn 裁决：全局开关与「极简歌词页常亮」共用同一个
+            // FLAG_KEEP_SCREEN_ON，两处各写各的会互相抹掉（详见该类的注释）。
+            NativeKeepScreenOn.INSTANCE.attach(activity);
+            NativeKeepScreenOn.INSTANCE.setGlobal(enabled);
         }
         JSObject result = new JSObject();
         result.put("enabled", enabled);
