@@ -95,6 +95,7 @@ import { useElectronDisplaySleepBlocker } from './hooks/useElectronDisplaySleepB
 import { useSleepTimer } from './hooks/useSleepTimer';
 import { useElectronNeteaseApiStatus } from './hooks/useElectronNeteaseApiStatus';
 import { useLocalLibraryAutoScan } from './hooks/useLocalLibraryAutoScan';
+import { useNativeLocalMetadataBackfill } from './hooks/useNativeLocalMetadataBackfill';
 import { useElectronVideoExportController } from './hooks/useElectronVideoExportController';
 import { useElectronWindowPlaybackHandoff } from './hooks/useElectronWindowPlaybackHandoff';
 import { useMediaSessionBridge } from './hooks/useMediaSessionBridge';
@@ -286,6 +287,8 @@ export default function App() {
     useElectronNeteaseApiStatus(t);
     // Watches the imported local folders and rescans them when their contents change.
     useLocalLibraryAutoScan();
+    // 安卓本地歌的封面/内嵌歌词补全：升级上来的曲库不会再走扫描，只能在这里补一次。
+    useNativeLocalMetadataBackfill();
 
     // Auto-close other player panels when leaving the player view
     // (Effect moved to after useAppNavigation where currentView is defined)

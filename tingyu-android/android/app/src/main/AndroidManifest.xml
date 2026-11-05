@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- 明确声明支持大屏与任意密度，减少厂商兼容模式把 App 塞进固定比例窗口的概率。 -->
     <supports-screens
         android:anyDensity="true"
@@ -96,6 +97,12 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- 可选的「所有文件访问」：只在系统媒体库漏收了本地音频（个别 ROM、恢复出厂后未重建索引）
+         或用户想读同目录 .lrc 外挂歌词时，由用户在系统设置里手动打开。App 不主动索要，
+         也没有它全部核心功能照常可用（媒体库扫描 + 文件夹导入两条路都不依赖它）。 -->
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
     <!-- 仅 Android 9 及以下保存赞赏码到相册时按需申请；Android 10+ 走 MediaStore 无需权限。 -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

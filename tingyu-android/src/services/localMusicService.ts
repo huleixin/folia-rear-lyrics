@@ -39,11 +39,16 @@ import {
     pickAndroidLocalMusic,
     scanAndroidDeviceMusic,
 } from './nativeLocalMusic';
+import { hydrateNativeSongs } from './nativeLocalMetadata';
+import { isNetworkOnline, withTimeout } from '../utils/networkReachability';
 
 
 type EmbeddedMetadata = EmbeddedMetadataResult;
 
 export const EMBEDDED_METADATA_VERSION = 7;
+
+/** 自动匹配歌词/封面的等待上限。断网或后端慢时到点就放弃，不阻塞播放界面。 */
+const LYRIC_MATCH_TIMEOUT_MS = 12_000;
 
 interface ImportPreparationMetrics {
     getFileMs: number;
@@ -1142,7 +1147,15 @@ export async function importFolder(expectedRootName?: string): Promise<LocalSong
      * 选中的音频由原生复制进私有目录，再通过回环地址播放。
      */
     if (isAndroidNativeRuntime()) {
-        return await pickAndroidLocalMusic();
+        const picked = await pickAndroidLocalMusic();
+        // 文件已经在私有目录里了，标签（封面 / 内嵌歌词 / 曲序 / 外挂 .lrc）
+        // 交给统一的补全流程按「读文件头部几 MB」跑，导入这一步不等它。
+        if (picked.length > 0) {
+            void hydrateNativeSongs(picked, { limit: picked.length })
+                .then(() => notifyLocalMusicUpdated())
+                .catch(error => console.warn('[LocalMusic] Native hydration after import failed:', error));
+        }
+        return picked;
     }
 
     // Request access in the user gesture before waiting for other library writes.
@@ -1356,6 +1369,17 @@ export async function matchLyrics(song: LocalSong): Promise<LyricData | null> {
     if (song.markedPureMusic || (song.matchedIsPureMusic && !shouldRefreshLocalSongLyricsFromMetadata(song))) {
         return null;
     }
+    /*
+     * 断网直接放弃。
+     *
+     * 这条分支是「本地模式断网可用」的关键：本地歌（尤其首次播放）每首都会走到这里，
+     * 而下面的检索要联网。以前没有这个判断，断网时点歌会长时间停在
+     * 「正在匹配歌词和封面」—— 明明封面和内嵌歌词都在本地文件里。
+     */
+    if (!isNetworkOnline()) {
+        console.log('[LocalMusic] Offline, skipping online lyric match.');
+        return null;
+    }
     try {
         const catalog = await getLocalLibraryCatalogSnapshot();
         const resolvedMetadata = resolveLocalSongMetadata(song.id, catalog);
@@ -1377,16 +1401,21 @@ export async function matchLyrics(song: LocalSong): Promise<LyricData | null> {
         if (!hasLocalOrEmbeddedLyrics || onlineFirst) {
             const shouldUseBestLyric = settingsLyricSettings.autoUseBestLyric;
             if (shouldUseBestLyric || matchContext.metadataCandidate) {
-                const bestMatch = await autoMatchBestLyric(
-                    matchContext.title,
-                    matchContext.artist,
-                    matchContext.durationMs,
-                    {
-                        album: matchContext.album,
-                        preferredSource: shouldUseBestLyric ? settingsLyricSettings.preferredAlternativeLyricSource : undefined,
-                        metadataCandidate: matchContext.metadataCandidate,
-                        exactMatchOnly: Boolean(matchContext.metadataCandidate && !shouldUseBestLyric),
-                    },
+                // 12 秒还没结果就不再等：自动匹配是「锦上添花」，不值得让用户盯着转圈。
+                const bestMatch = await withTimeout(
+                    autoMatchBestLyric(
+                        matchContext.title,
+                        matchContext.artist,
+                        matchContext.durationMs,
+                        {
+                            album: matchContext.album,
+                            preferredSource: shouldUseBestLyric ? settingsLyricSettings.preferredAlternativeLyricSource : undefined,
+                            metadataCandidate: matchContext.metadataCandidate,
+                            exactMatchOnly: Boolean(matchContext.metadataCandidate && !shouldUseBestLyric),
+                        },
+                    ),
+                    LYRIC_MATCH_TIMEOUT_MS,
+                    null,
                 );
 
                 if (bestMatch && 'isPureMusic' in bestMatch) {
@@ -1444,7 +1473,11 @@ export async function matchLyrics(song: LocalSong): Promise<LyricData | null> {
         }
 
         // Search on Netease
-        const searchPage = await getOnlineMusicProvider('netease')?.search?.searchSongs(searchQuery, 50, 0);
+        const searchPage = await withTimeout(
+            getOnlineMusicProvider('netease')?.search?.searchSongs(searchQuery, 50, 0) ?? Promise.resolve(null),
+            LYRIC_MATCH_TIMEOUT_MS,
+            null,
+        );
 
         if (!searchPage?.items?.length) {
             console.warn(`[LocalMusic] No search results for: "${searchQuery}"`);
@@ -1858,27 +1891,20 @@ async function extractAndPersistSongCover(
 }
 
 /**
- * 安卓上把整首音频取回来当 File。
+ * 安卓上取内嵌封面。
  *
  * 本地歌在安卓走的是原生回环服务（`nativeAudioRef`），**没有 File System Access 句柄** ——
- * 而 ensureLocalSongCoverAsset 之前只认句柄，拿不到就直接放弃。
- * 结果是：安卓本地歌的封面**只有导入那一次**有机会抽出来（导入时解析内嵌元数据），
- * 那一趟一旦失败（比如副本那次 fetch 404），这首歌就永远没有封面 ——
- * 队列磁贴、播放页全是空白。这里让封面抽取也能从原生回环那份字节里拿。
+ * 而 ensureLocalSongCoverAsset 以前只认句柄，拿不到就直接放弃，于是安卓本地歌的封面
+ * 只有导入那一次有机会抽出来，那一趟一旦失败这首歌就永远是空白。
+ *
+ * 这里改成走 nativeLocalMetadata：读文件头部几 MB 交给同一个解析器，
+ * 解析器读不到再让系统解码器抽一次。**不再整首 fetch** —— 以前为了抽 300KB 封面
+ * 要把整首 200MB 的 FLAC 驻留进 WebView 内存。
  */
-async function nativeAudioFile(song: LocalSong): Promise<File | null> {
-    if (!song.nativeAudioRef) return null;
-    const url = await nativeAudioUrlForRef(song.nativeAudioRef);
-    if (!url) return null;
-    try {
-        const response = await fetch(url);
-        if (!response.ok) return null;
-        const blob = await response.blob();
-        if (blob.size <= 0) return null;
-        return new File([blob], song.fileName || 'audio', { type: song.mimeType || 'audio/*' });
-    } catch {
-        return null;
-    }
+async function ensureNativeCoverForSong(song: LocalSong): Promise<LocalSong> {
+    if (!song.nativeAudioRef) return song;
+    const { ensureNativeSongCover } = await import('./nativeLocalMetadata');
+    return ensureNativeSongCover(song);
 }
 
 export async function ensureLocalSongCoverAsset(song: LocalSong): Promise<LocalSong> {
@@ -1889,14 +1915,14 @@ export async function ensureLocalSongCoverAsset(song: LocalSong): Promise<LocalS
         localCoverAssetRequestMap.set(song.id, (async () => {
             const fileHandle = await getAccessibleFileHandle(song);
             if (!fileHandle) {
-                // 安卓没有句柄，但字节还能从原生回环服务取回来 —— 别就这么放弃。
-                const nativeFile = await nativeAudioFile(song);
-                if (!nativeFile) return song;
+                // 安卓没有句柄：按 ref 读文件头部抽封面（见 ensureNativeCoverForSong）。
                 try {
-                    return await extractAndPersistSongCover(song, null, nativeFile);
+                    return await ensureNativeCoverForSong(song);
                 } catch (error) {
                     console.warn(`[LocalMusic] Failed to ensure native embedded cover for ${song.fileName}:`, error);
                     return song;
+                } finally {
+                    localCoverAssetRequestMap.delete(song.id);
                 }
             }
 
@@ -2035,7 +2061,15 @@ function getLocalSongRootFolderName(song: LocalSong): string | null {
 export async function resyncAllFolders(): Promise<LocalSong[] | null> {
     // 安卓：设备音乐库重扫一次就够了。挑文件夹导入的那些文件已经在 App 私有目录里，
     // 不存在「按根重扫」这回事 —— 逐个根去调 importFolder 会连着弹好几次系统选择器。
-    if (isAndroidNativeRuntime()) return await scanAndroidDeviceMusic();
+    if (isAndroidNativeRuntime()) {
+        const scanned = await scanAndroidDeviceMusic();
+        // 媒体库只给标题/歌手/专辑，封面与歌词必须从文件里读 —— 扫描完在后台补，
+        // 不阻塞界面（几千首要跑一会儿，所以是分批落库、边补边刷新的）。
+        void hydrateNativeSongs(scanned, { limit: scanned.length })
+            .then(() => notifyLocalMusicUpdated())
+            .catch(error => console.warn('[LocalMusic] Native hydration after scan failed:', error));
+        return scanned;
+    }
 
     const allSongs = await getLocalSongs();
     const handles = await getDirHandles();

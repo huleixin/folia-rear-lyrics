@@ -46,6 +46,19 @@ export default function NativeHomeOverview({root,props,sources,onReady,onSources
     };
     const actions:PageActions={sources:onSources,all:()=>setAll(!all),library:()=>{sources.setTab('playlist');useMobileLibraryStore.getState().setPage('library')}};
     const sections:PageSection[]=[];
+    /*
+     * 顶部音源切换：在线音乐 / 本地音乐。
+     *
+     * 之前这里只有一个右上角的「音源」入口，点开是一张列着歌单/电台/专辑/本地/Navidrome 的表——
+     * 那是「内容类型」，不是「音源在哪」。本地模式要能一眼切过去，所以单独放一排两段式开关，
+     * 切到本地就是资料库页的本地分区（同一套播放器、播放队列与歌词舞台，不另起一套）。
+     */
+    actions['mode:online']=()=>{};
+    actions['mode:local']=()=>{sources.setTab('local');useMobileLibraryStore.getState().setPage('library')};
+    sections.push({id:'source-mode',layout:'chips',items:[
+        {id:'mode-online',title:t('mobileLibrary.onlineMusic'),selected:true,action:'mode:online'},
+        {id:'mode-local',title:t('mobileLibrary.localMusicMode'),action:'mode:local'},
+    ]});
     if(!all){
         const cards=[online.items.find(isPersonalFmCard),online.items.find(c=>c.type==='daily_recommendations'),
             chart.supported&&chart.collection?{...chart.collection,raw:chart.collection}:undefined];

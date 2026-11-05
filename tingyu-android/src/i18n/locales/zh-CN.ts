@@ -156,6 +156,7 @@ export default {
     "viewNote": "会记住上次停留在封面页还是歌词页。"
   },
   "mobileLibrary": {
+    "onlineMusic": "在线音乐", "localMusicMode": "本地音乐",
     "directorySort": "歌单排序", "sourceOrder": "音源默认顺序", "recentlyUpdated": "按最近更新", "nameOrder": "按名称", "directoryEmpty": "暂无内容", "expandHot": "展开更多热搜", "collapseHot": "收起热搜",
     "playlistSongs": "歌曲", "playlistDescription": "歌单简介，点击展开或收起",
     "newReleasesLoading": "加载中", "newReleasesRetry": "重试",
@@ -3712,6 +3713,7 @@ export default {
     "unknownAlbum": "未知专辑",
   },
   "localMusic": {
+    "songs": "歌曲",
     "foldersAndPlaylists": "文件夹",
     "albums": "专辑",
     "artists": "艺术家",

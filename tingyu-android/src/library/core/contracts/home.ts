@@ -20,7 +20,9 @@ import type { NavidromeSong } from '../../../types/navidrome';
 // 两边一旦不一致，Home.tsx 把首页模型交给 surface 的那一行就会编译失败。
 
 export type LibraryHomeLocalMusicState = {
-    activeRow: 0 | 1 | 2 | 3;
+    // 「歌曲」分区加进本地页之后从 0–3 变成 0–4。这里用宽类型而不是联合字面量，
+    // 分区顺序再调时不必同时改契约、导航 hook 和 suite 三处。
+    activeRow: 0 | 1 | 2 | 3 | 4;
     selectedGroup: LocalLibraryGroup | null;
     detailStack: LocalLibraryGroup[];
     detailOriginView: 'home' | 'player' | null;

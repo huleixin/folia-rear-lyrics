@@ -62,13 +62,14 @@ describe('buildLocalHomeGroups', () => {
 });
 
 describe('local home sections and cards', () => {
-    it('defines four sections in row order and maps any other row to folders', () => {
+    it('defines five sections in row order and maps any other row to songs', () => {
+        // 「歌曲」是本地模式新增的一级分区：不少用户只想直接看到所有歌，不想先进文件夹。
         expect(LOCAL_HOME_SECTIONS.map(section => [section.key, section.row])).toEqual([
-            ['folders', 0], ['albums', 1], ['artists', 2], ['playlists', 3],
+            ['songs', 0], ['folders', 1], ['albums', 2], ['artists', 3], ['playlists', 4],
         ]);
-        expect(localHomeSectionOfRow(2).key).toBe('artists');
-        expect(localHomeSectionOfRow(9).key).toBe('folders');
-        expect(LOCAL_HOME_SECTIONS[3].fallbackLabelKey).toBe('home.playlists');
+        expect(localHomeSectionOfRow(3).key).toBe('artists');
+        expect(localHomeSectionOfRow(9).key).toBe('songs');
+        expect(LOCAL_HOME_SECTIONS[4].fallbackLabelKey).toBe('home.playlists');
     });
 
     it('cards carry the song ids, the virtual flag and the group itself', () => {

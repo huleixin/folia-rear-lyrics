@@ -1,7 +1,6 @@
 import type { LocalSong } from '../types';
 import { saveLocalSongs, getLocalSongs } from './db';
 import { buildImportedMetadataSnapshot } from '../utils/localSongMetadata';
-import { parseEmbeddedMetadataAsync } from '../utils/localMetadataWorkerClient';
 import { noteLibraryStep } from '../nativeBridge/api/libraryTrace.js';
 
 // src/services/nativeLocalMusic.ts
@@ -25,12 +24,20 @@ type NativeAudioTrack = {
     id: string;
     fileName: string;
     folderPath?: string;
+    /** `media` = 系统媒体库，`file` = 文件系统兜底扫描出来的用户原文件。 */
+    source?: 'media' | 'file';
+    /** 目录（低版本是完整路径，29+ 是相对路径），只用于分组展示。 */
+    location?: string;
     title?: string;
     artist?: string;
     album?: string;
     duration?: number;
     fileSize?: number;
     mimeType?: string;
+    trackNumber?: number;
+    discNumber?: number;
+    /** 文件修改时间（毫秒）。扫描不重算内容哈希，靠它判断「文件被换了」。 */
+    dateModified?: number;
     url: string;
 };
 
@@ -49,6 +56,15 @@ type NativeScanResponse = {
     tracks?: NativeAudioTrack[];
     /** 媒体库一首都没有、又没开"所有文件访问"时置位：先去开权限，再扫一遍。 */
     needsAllFilesAccess?: boolean;
+    /** 当前是否已授予「所有文件访问」。 */
+    allFilesAccess?: boolean;
+};
+
+type NativeByteChunk = {
+    /** base64。Capacitor 的桥只能传 JSON，二进制必须自己编码。 */
+    bytes: string;
+    read: number;
+    total: number;
 };
 
 type NativePlugin = {
@@ -73,6 +89,29 @@ type NativePlugin = {
     }) => Promise<{
         copied?: boolean;
         ref?: string;
+        error?: string;
+    }>;
+    /** 只读音频的一段字节：标签解析不再需要把整首歌拉进内存。 */
+    readLocalAudioBytes?: (options: { ref: string; offset?: number; length?: number; }) => Promise<NativeByteChunk>;
+    /** 音频是否还读得到、多大、什么类型。 */
+    localAudioInfo?: (options: { ref: string; fileName?: string; }) => Promise<{
+        exists?: boolean;
+        length?: number;
+        mimeType?: string;
+        allFilesAccess?: boolean;
+    }>;
+    /** 系统解码器抽封面，作为 JS 解析器的兜底。 */
+    readEmbeddedCover?: (options: { ref: string; }) => Promise<{
+        hasCover?: boolean;
+        bytes?: string;
+        duration?: number;
+        error?: string;
+    }>;
+    /** 与音频同名的外挂歌词（导入时一起复制的副本，或磁盘上的兄弟 .lrc）。 */
+    readLocalLyricSidecar?: (options: { ref: string; }) => Promise<{
+        content?: string;
+        fileName?: string;
+        origin?: 'imported' | 'sidecar' | 'translation';
         error?: string;
     }>;
 };
@@ -217,7 +256,19 @@ export const scanAndroidDeviceMusic = async (): Promise<LocalSong[]> => {
             const fileName = track.fileName || `track-${track.id}`;
             const title = track.title || titleFromFileName(fileName);
             const previous = existing.get(`android-media-${track.id}`);
-            if (previous) return { ...previous, folderName: track.folderPath || previous.folderName || ANDROID_MEDIA_FOLDER_NAME, nativeAudioRef: track.id };
+            if (previous) {
+                // 重扫时只刷新能变的字段：标题/封面/歌词这些是解析出来的，
+                // 覆盖成媒体库的值反而会把上一次的解析成果冲掉。
+                return {
+                    ...previous,
+                    fileName,
+                    folderName: track.folderPath || previous.folderName || ANDROID_MEDIA_FOLDER_NAME,
+                    nativeAudioRef: track.id,
+                    duration: Number(track.duration) || previous.duration,
+                    fileSize: Number(track.fileSize) || previous.fileSize,
+                    ...(track.dateModified ? { fileLastModified: track.dateModified } : {}),
+                };
+            }
             return {
                 id: `android-media-${track.id}`,
                 fileName,
@@ -226,7 +277,7 @@ export const scanAndroidDeviceMusic = async (): Promise<LocalSong[]> => {
                 nativeAudioRef: track.id,
                 duration: Number(track.duration) || 0,
                 fileSize: Number(track.fileSize) || 0,
-                fileLastModified: now,
+                fileLastModified: track.dateModified || now,
                 mimeType: track.mimeType || 'audio/*',
                 addedAt: now,
                 title,
@@ -237,6 +288,9 @@ export const scanAndroidDeviceMusic = async (): Promise<LocalSong[]> => {
                     fallbackArtist: track.artist || '',
                     fallbackAlbum: track.album || '',
                 }),
+                // 媒体库已经给出了曲序/碟号，先用着；内嵌标签解析出来再说。
+                ...(track.trackNumber ? { trackNumber: track.trackNumber } : {}),
+                ...(track.discNumber ? { discNumber: track.discNumber } : {}),
                 folderName: track.folderPath || ANDROID_MEDIA_FOLDER_NAME,
                 hasManualLyricSelection: false,
                 noAutoMatch: false,
@@ -310,46 +364,25 @@ export const pickAndroidLocalMusic = async (): Promise<LocalSong[]> => {
     for (const track of response.tracks || []) {
         const fileName = track.fileName || `track-${track.id}`;
         const fallbackTitle = titleFromFileName(fileName);
-        let metadata: Awaited<ReturnType<typeof parseEmbeddedMetadataAsync>> = null;
-        let metadataError: string | undefined;
-        try {
-            // 回环地址是跨源的，LocalAudioServer 那边带 `Access-Control-Allow-Origin: *`。
-            const blob = await (await fetch(track.url)).blob();
-            metadata = await parseEmbeddedMetadataAsync(new File([blob], fileName, {
-                type: track.mimeType || 'audio/*',
-            }), true);
-        } catch (error) {
-            metadataError = error instanceof Error ? error.message : String(error);
-            console.warn('[NativeLocalMusic] Failed to parse embedded metadata', fileName, error);
-        }
-        noteLibraryStep('local', 'pick:track', {
-            fileName,
-            fileSize: track.fileSize,
-            metadata: metadata ? 'ok' : 'none',
-            metadataError,
-        });
-
-        const title = metadata?.title || fallbackTitle;
+        // 这里以前会把整首音频 fetch 回来解析内嵌标签 —— 一首 200MB 的 FLAC 为了抽
+        // 一个封面就要在 WebView 里驻留 200MB，几十首一起导就是 OOM。
+        // 现在只建基础记录，标签由 nativeLocalMetadata 按「读文件头部几 MB」补全。
         songs.push({
             id: `android-imported-${track.id}`,
             fileName,
             filePath: `Android/Imported/${track.id}`,
             nativeAudioRef: track.id,
-            duration: Number(metadata?.duration) || Number(track.duration) || 0,
+            duration: Number(track.duration) || 0,
             fileSize: Number(track.fileSize) || 0,
             fileLastModified: now,
             mimeType: track.mimeType || 'audio/*',
             addedAt: now,
-            title,
+            title: fallbackTitle,
             titleOrigin: 'import',
             importedMetadata: buildImportedMetadataSnapshot({
                 fileName,
-                embeddedTitle: metadata?.title,
                 fallbackTitle,
-                embeddedArtist: metadata?.artist,
-                embeddedArtists: metadata?.artists,
                 fallbackArtist: track.artist || '',
-                embeddedAlbum: metadata?.album,
                 fallbackAlbum: track.album || '',
             }),
             folderName: track.folderPath || ANDROID_IMPORTED_FOLDER_NAME,
@@ -409,5 +442,113 @@ export const deleteAndroidImportedAudio = async (
             message: error instanceof Error ? error.message : String(error),
         });
         return { deleted: [], failed: candidates };
+    }
+};
+
+/**
+ * 把 base64 解回字节。
+ *
+ * Capacitor 的桥只能传 JSON，二进制必须走 base64，因此每次读取都要在这里解一次。
+ * 用 atob + 手写循环而不是 Buffer：WebView 里没有 Node 的 Buffer。
+ */
+const decodeBase64Bytes = (value: string): Uint8Array<ArrayBuffer> => {
+    const binary = atob(value);
+    // 底层 buffer 明确是 ArrayBuffer：TS 5.7 起 Uint8Array<ArrayBufferLike> 不再能当 BlobPart。
+    const bytes = new Uint8Array(new ArrayBuffer(binary.length));
+    for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes;
+};
+
+/**
+ * 只读音频的一段字节。
+ *
+ * 存在的理由：安卓的歌没有 File System Access 句柄，而内嵌标签（封面、歌词、曲序）
+ * 都藏在文件里。以前唯一的取字节办法是 `fetch(整首).blob()`，一首 200MB 的 FLAC
+ * 为了抽 300KB 封面就得把 200MB 驻留进内存。标签都在文件头部，读前几 MB 就够。
+ *
+ * 读不到（文件被删、权限刚被回收、原生不支持）时返回 null，调用方按「没有标签」继续，
+ * 不能让它把播放链路挡住。
+ */
+export const readNativeAudioBytes = async (
+    ref: string,
+    offset = 0,
+    length = 512 * 1024,
+): Promise<{ bytes: Uint8Array<ArrayBuffer>; read: number; total: number; } | null> => {
+    const plugin = getPlugin();
+    if (!ref || !plugin?.readLocalAudioBytes) return null;
+    try {
+        const response = await plugin.readLocalAudioBytes({ ref, offset, length });
+        if (!response || !response.bytes) return null;
+        const bytes = decodeBase64Bytes(response.bytes);
+        return {
+            bytes,
+            read: Number(response.read) || bytes.length,
+            total: Number(response.total) || bytes.length,
+        };
+    } catch (error) {
+        noteLibraryStep('local', 'read:error', {
+            ref,
+            message: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+    }
+};
+
+/** 音频是否还在、多大、什么类型 —— 用来区分「文件被删了」和「权限被回收了」。 */
+export const getNativeAudioInfo = async (
+    ref: string,
+    fileName?: string,
+): Promise<{ exists: boolean; length: number; mimeType: string; allFilesAccess: boolean; } | null> => {
+    const plugin = getPlugin();
+    if (!ref || !plugin?.localAudioInfo) return null;
+    try {
+        const response = await plugin.localAudioInfo({ ref, fileName });
+        return {
+            exists: response?.exists === true,
+            length: Number(response?.length) || 0,
+            mimeType: response?.mimeType || 'audio/*',
+            allFilesAccess: response?.allFilesAccess === true,
+        };
+    } catch {
+        return null;
+    }
+};
+
+/** 系统解码器抽内嵌封面（JS 解析器读不到时的兜底），返回 base64 原图。 */
+export const readNativeEmbeddedCover = async (
+    ref: string,
+): Promise<{ bytes: string; duration?: number; } | null> => {
+    const plugin = getPlugin();
+    if (!ref || !plugin?.readEmbeddedCover) return null;
+    try {
+        const response = await plugin.readEmbeddedCover({ ref });
+        if (!response?.hasCover || !response.bytes) return null;
+        return {
+            bytes: response.bytes,
+            ...(response.duration ? { duration: response.duration } : {}),
+        };
+    } catch {
+        return null;
+    }
+};
+
+/** 同名外挂歌词：优先导入时一起复制的副本，其次用户目录里的兄弟 .lrc。 */
+export const readNativeLyricSidecar = async (
+    ref: string,
+): Promise<{ content: string; fileName?: string; origin: 'imported' | 'sidecar' | 'translation'; } | null> => {
+    const plugin = getPlugin();
+    if (!ref || !plugin?.readLocalLyricSidecar) return null;
+    try {
+        const response = await plugin.readLocalLyricSidecar({ ref });
+        if (!response?.content || response.content.trim().length === 0) return null;
+        return {
+            content: response.content,
+            fileName: response.fileName,
+            origin: response.origin || 'sidecar',
+        };
+    } catch {
+        return null;
     }
 };

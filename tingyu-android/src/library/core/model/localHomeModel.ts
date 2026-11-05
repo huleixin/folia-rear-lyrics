@@ -222,6 +222,9 @@ export const buildLocalHomeGroups = (
     });
 
     return {
+        // 「歌曲」分区直接按歌曲行渲染（NativeLocalLibrary 里处理），不用分组卡片，
+        // 这里占一个空数组只为让 section 的 key 和组合同构。
+        songs: [] as LocalLibraryGroup[],
         folders: folderList,
         albums: albumList,
         artists: artistList,
@@ -231,9 +234,9 @@ export const buildLocalHomeGroups = (
 
 export type LocalHomeGroups = ReturnType<typeof buildLocalHomeGroups>;
 
-/** 本地页签的 section（顺序即 activeRow 0–3）。 */
-export type LocalHomeSectionKey = 'folders' | 'albums' | 'artists' | 'playlists';
-export type LocalHomeRow = 0 | 1 | 2 | 3;
+/** 本地页签的五个 section（顺序即 activeRow 0–4）。 */
+export type LocalHomeSectionKey = 'songs' | 'folders' | 'albums' | 'artists' | 'playlists';
+export type LocalHomeRow = 0 | 1 | 2 | 3 | 4;
 
 export type LocalHomeSectionDefinition = {
     key: LocalHomeSectionKey;
@@ -244,11 +247,17 @@ export type LocalHomeSectionDefinition = {
     emptyKey: string;
 };
 
+/**
+ * 「歌曲」是本地模式唯一一个按歌曲而不是按集合浏览的分区 —— 反馈里最常提到的
+ * 就是「我只想直接看到所有歌，不想先进文件夹」。它排在第一位，和在线模式的
+ * 「歌单 / 电台 / 专辑」并列时读起来也是「歌曲 / 文件夹 / 专辑 / 艺术家 / 歌单」。
+ */
 export const LOCAL_HOME_SECTIONS: readonly LocalHomeSectionDefinition[] = [
-    { key: 'folders', row: 0, labelKey: 'localMusic.foldersAndPlaylists', emptyKey: 'localMusic.noFoldersFound' },
-    { key: 'albums', row: 1, labelKey: 'localMusic.albums', emptyKey: 'localMusic.noAlbumsFound' },
-    { key: 'artists', row: 2, labelKey: 'localMusic.artists', emptyKey: 'localMusic.noArtistsFound' },
-    { key: 'playlists', row: 3, labelKey: 'localMusic.customPlaylists', fallbackLabelKey: 'home.playlists', emptyKey: 'localMusic.noPlaylistsFound' },
+    { key: 'songs', row: 0, labelKey: 'localMusic.songs', fallbackLabelKey: 'localMusic.allSongs', emptyKey: 'localMusic.noLocalMusic' },
+    { key: 'folders', row: 1, labelKey: 'localMusic.foldersAndPlaylists', emptyKey: 'localMusic.noFoldersFound' },
+    { key: 'albums', row: 2, labelKey: 'localMusic.albums', emptyKey: 'localMusic.noAlbumsFound' },
+    { key: 'artists', row: 3, labelKey: 'localMusic.artists', emptyKey: 'localMusic.noArtistsFound' },
+    { key: 'playlists', row: 4, labelKey: 'localMusic.customPlaylists', fallbackLabelKey: 'home.playlists', emptyKey: 'localMusic.noPlaylistsFound' },
 ];
 
 /** activeRow 对应的 section（越界时回到 folders）。 */
@@ -269,7 +278,7 @@ export const buildLocalHomeCards = (groups: readonly LocalLibraryGroup[]): Libra
     raw: group,
 }));
 
-/** 支持批量的本地 section（文件夹、专辑、歌手）；歌单没有批量。 */
+/** 支持批量的本地 section（文件夹、专辑、歌手）；歌单与「歌曲」没有批量。 */
 export const localBatchSelectionType = (section: LocalHomeSectionKey): LibraryDirectorySelectionType | null => (
     section === 'folders' || section === 'albums' || section === 'artists' ? section : null
 );

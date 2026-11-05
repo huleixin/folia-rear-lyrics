@@ -36,7 +36,7 @@ import i18n from '../i18n/config';
 type ViewState = AppView;
 
 type LocalMusicNavigationState = {
-    activeRow: 0 | 1 | 2 | 3;
+    activeRow: 0 | 1 | 2 | 3 | 4;
     selectedGroup: LocalLibraryGroup | null;
     detailStack: LocalLibraryGroup[];
     detailOriginView: 'home' | 'player' | null;
@@ -172,7 +172,7 @@ export function useAppNavigation() {
             const saved = localStorage.getItem(LOCAL_MUSIC_LAST_ROW_KEY);
             if (saved !== null) {
                 const parsed = parseInt(saved, 10);
-                if (!isNaN(parsed) && parsed >= 0 && parsed <= 3) {
+                if (!isNaN(parsed) && parsed >= 0 && parsed <= 4) {
                     savedRow = parsed;
                 }
             }
