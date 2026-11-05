@@ -102,29 +102,35 @@ import kotlin.math.round
             }
         }
         "select"->{
-            // 语言等下拉菜单（68597）：原来直接用 Material3 的 DropdownMenu/DropdownMenuItem，
-            // 容器与文字色都取自 MaterialTheme —— 设置文档页没有自己的 MaterialTheme，
-            // 浅色模式下拿到的是"浅底 + 浅字"，几乎不可读；M3 菜单自带的弹出动画在文档页
-            // （整页是 Canvas + 控件层）上也会明显掉帧。
-            // 这里改为自绘 Popup：颜色全部显式取自调色板，动效只有一次淡入，不重建整页。
+            // 语言等下拉菜单（68597 / 68606）：设置文档页没有自己的 MaterialTheme，
+            // M3 菜单在这里是"浅底浅字 + 弹层卡顿"；改为自绘 Popup，颜色全部显式取自调色板。
+            // 排版按 DOM 的内边距与控件框对齐：文字左对齐、箭头贴右、菜单挂在输入框正下方。
             var expanded by remember(control.id){mutableStateOf(false)}
             val light=LocalInterfacePalette.current.light
-            val panel=if(light)Color(0xFFF4F9F5)else Color(0xFF16221E)
+            val panel=if(light)Color(0xFFF6FAF7)else Color(0xFF16221E)
             val edge=if(light)Color(0x1F0C2A20)else Color(0x33FFFFFF)
             val label=if(light)Color(0xFF122019)else Color(0xFFE9F2EC)
             val density=LocalDensity.current
             val current=control.options.firstOrNull{it.first==control.value}?.second?:control.value
-            Box{
-                Row(modifier.clickable(enabled=!control.disabled){expanded=true},verticalAlignment=Alignment.CenterVertically){
-                    Text(current,color=ink,fontSize=control.font.sp)
-                    Box(Modifier.padding(start=6.dp).size(14.dp)){PageIcon("chevron-down",ink.copy(alpha=.55f),Modifier.fillMaxSize())}
+            val padStart=control.padding.getOrElse(0){12f}
+            val padEnd=control.padding.getOrElse(2){12f}
+            Box(modifier){
+                Row(Modifier.fillMaxSize()
+                    .clickable(enabled=!control.disabled){expanded=true}
+                    .padding(start=padStart.dp,end=padEnd.dp),
+                    verticalAlignment=Alignment.CenterVertically){
+                    Text(current,color=ink,fontSize=control.font.sp,maxLines=1,
+                        overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier=Modifier.weight(1f))
+                    Box(Modifier.padding(start=8.dp).size(16.dp)){PageIcon("chevron-down",ink.copy(alpha=.55f),Modifier.fillMaxSize())}
                 }
                 if(expanded)Popup(
                     onDismissRequest={expanded=false},
                     properties=PopupProperties(focusable=true),
-                    offset=IntOffset(0,with(density){44.dp.roundToPx()}),
+                    // 贴着输入框下沿展开，宽度与控件框一致 —— 不再飘到分组标题上。
+                    offset=IntOffset(0,with(density){(control.rect.h+4f).dp.roundToPx()}),
                 ){
-                    Column(Modifier.widthIn(min=190.dp,max=300.dp)
+                    Column(Modifier.width(with(density){control.rect.w.dp})
                         .background(panel,RoundedCornerShape(14.dp))
                         .border(1.dp,edge,RoundedCornerShape(14.dp))
                         .padding(vertical=6.dp)){
