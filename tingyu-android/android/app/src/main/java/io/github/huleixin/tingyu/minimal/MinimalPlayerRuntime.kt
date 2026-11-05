@@ -45,6 +45,8 @@ data class MinimalControls(
     val bound: Boolean = false,
     /** 音质标签（容器 + 平台规格），JS 侧已经拼好，原生只负责画。 */
     val quality: String = "",
+    /** 全局音质标签层级（standard/hq/flac/hires/master/spatial）。空 = 无可靠信息，回退旧 chip。 */
+    val qualityLevel: String = "",
     /** 队列抽屉正在打开：`true` 时 JS 会持续把快照推过来。 */
     val queueOpen: Boolean = false,
     /** 播放偏好里的音质档位，只出现在「更多」菜单的第二列。 */
@@ -120,6 +122,8 @@ data class MinimalBridgeFrame(
     val preparing: Boolean = false,
     val mode: String = "off",
     val quality: String = "",
+    /** 全局音质标签层级（standard/hq/flac/hires/master/spatial）。空 = 无可靠信息。 */
+    val qualityLevel: String = "",
     val qualityGold: Boolean = false,
     val qualityMode: String = "",
     val effectsOn: Boolean = false,
@@ -154,6 +158,7 @@ data class MinimalBridgeFrame(
                 mode = value.optString("mode", "off").takeIf { it in MODES } ?: "off",
                 palette = parsePalette(value.optJSONArray("palette")),
                 quality = value.optString("quality", "").take(40),
+                qualityLevel = value.optString("qualityLevel", "").take(16),
                 qualityGold = value.optBoolean("qualityGold", false),
                 qualityMode = value.optString("qualityMode", "").take(40),
                 effectsOn = value.optBoolean("effectsOn", false),
@@ -526,6 +531,7 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
             // 那是严格的新鲜度判断 —— 两者混用会出现「页面在、按钮全灰」或者「页面没了、按钮还亮」。
             bound = bridge != null && bridge.session.isNotEmpty(),
             quality = bridge?.quality ?: "",
+            qualityLevel = bridge?.qualityLevel ?: "",
             qualityGold = bridge?.qualityGold == true,
             qualityMode = bridge?.qualityMode ?: "",
             effectsOn = bridge?.effectsOn == true,

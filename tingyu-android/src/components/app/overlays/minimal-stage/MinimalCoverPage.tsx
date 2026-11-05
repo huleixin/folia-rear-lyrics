@@ -5,6 +5,8 @@ import MinimalArtistLink from './MinimalArtistLink';
 import MinimalLiveLyric from './MinimalLiveLyric';
 import { MinimalArtworkFrame } from './MinimalArtwork';
 import { resolveQualityBadges } from './minimalQuality';
+import { resolvePlayingQualityLevel } from './qualityBadgeSpecs';
+import { QualityBadge } from './QualityBadge';
 import PlayerControlIcon from '../../icons/PlayerControlIcon';
 import type { LyricData } from '../../../../types';
 import type { CatalogAudioSpec } from '../../../../types/catalogAudioSpecs';
@@ -73,13 +75,19 @@ function CoverMetadata({
             .join(' · ')
         : null;
     const tone = badges.some(badge => badge.tone === 'gold') ? 'gold' : 'plain';
+    // 全局音质标签：只描述正在出声的这份字节（容器说了算，目录声明不升级播放页）。
+    const playingLevel = useMemo(
+        () => resolvePlayingQualityLevel(snapshot.specs, snapshot.audioSrc),
+        [snapshot.specs, snapshot.audioSrc],
+    );
 
     return (
         <div className={className} ref={metaRef}>
             <h2 className="min-cover__title" title={title}>{title}</h2>
             <MinimalArtistLink label={artist} track={snapshot.song?.track ?? null} className="min-cover__artist" onOpen={onOpenArtist} />
             <div className="min-cover__foot">
-                {quality && (
+                {playingLevel && <QualityBadge level={playingLevel} size="full" />}
+                {!playingLevel && quality && (
                     <span className="min-chip" data-tone={tone}>
                         {tone === 'gold' && <PlayerControlIcon kind="audioBars" size={14} className="min-chip__gold-icon" />}
                         {quality}

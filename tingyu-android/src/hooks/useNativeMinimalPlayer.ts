@@ -11,6 +11,7 @@ import { openSettings, useSettingsModalStore } from '../stores/useSettingsModalS
 import i18n from '../i18n/config';
 import { flushNativeShellRoute } from '../services/nativeShellCommit';
 import { resolveQualityBadges } from '../components/app/overlays/minimal-stage/minimalQuality';
+import { resolvePlayingQualityLevel } from '../components/app/overlays/minimal-stage/qualityBadgeSpecs';
 import { buildMinimalPalette } from '../components/app/overlays/minimal-stage/minimalPalette';
 import { useCoverColors } from '../components/app/overlays/minimal-stage/useCoverPalette';
 import { canUseComposeChrome, chromeNative } from '../services/nativeChrome';
@@ -155,6 +156,7 @@ export function useNativeMinimalPlayer({
         const quality = badges
             .map(badge => (badge.id === 'spec' ? i18n.t(`catalogAudioSpecs.${badge.value}`) : badge.value))
             .join(' · ');
+        const qualityLevel = resolvePlayingQualityLevel(song?.track?.catalogAudioSpecs, currentControls.audioSrc) ?? '';
         const likeContext = currentControls.slotContext;
         return {
             session,
@@ -177,6 +179,7 @@ export function useNativeMinimalPlayer({
             mode: toNativeMode(resolvePlaybackMode(currentControls.shuffleEnabled, currentControls.loopMode)),
             quality,
             qualityGold: badges.some(badge => badge.tone === 'gold'),
+            qualityLevel,
             qualityMode: QUALITY_LABELS[useAudioSettingsStore.getState().audioQuality],
             effectsOn: useAudioSettingsStore.getState().audioEqualizerSettings.enabled,
             // 和 palette 用同一个 light：页面主题只有一个来源。

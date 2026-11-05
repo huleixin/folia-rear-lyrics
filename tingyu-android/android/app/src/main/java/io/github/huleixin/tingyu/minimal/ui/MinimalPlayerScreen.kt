@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import io.github.huleixin.tingyu.minimal.MinimalArtwork
 import io.github.huleixin.tingyu.minimal.MinimalClockSource
 import io.github.huleixin.tingyu.minimal.MinimalPlayback
@@ -267,7 +268,13 @@ fun MinimalPlayerScreen(
 
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.fillMaxWidth().weight(1f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    // 封面拖动 / 切歌动画期间，把 pager 提到传输条与分页点之上 ——
+                    // 正在移动的封面拖进进度条、播放按钮区域时能自然遮挡它们。
+                    // 只影响绘制顺序；pager 内容都在自身边界内，实际越界的只有移动中的封面。
+                    .zIndex(if (coverStackState.phase != StackPhase.IDLE) 1f else 0f),
                 beyondViewportPageCount = 1,
                 key = { it },
                 // 固定一版 280ms 的吸附曲线（不再是平台默认弹黄）：拖动跟手不变，

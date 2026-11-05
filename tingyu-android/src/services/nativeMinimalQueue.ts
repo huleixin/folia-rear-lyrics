@@ -6,6 +6,7 @@ import { getSongArtistLabel } from './onlineMusic/songMetadata';
 import { resolvePlaybackMode } from '../utils/playbackMode';
 import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
 import { minimalSourceBadgeEnabled, setMinimalSourceBadge } from './minimalSourceDiagnostics';
+import { resolveCatalogQualityLevel } from '../components/app/overlays/minimal-stage/qualityBadgeSpecs';
 
 // src/services/nativeMinimalQueue.ts
 //
@@ -31,8 +32,9 @@ export type NativeQueueHandlers = {
     onMoveSong?: (from: number, to: number) => void;
 };
 
-/** 一条曲目。`u` 是条目身份（含出现序号，队列有重复歌曲也各自唯一），`k` 是歌曲身份。 */
-export type NativeQueueItem = { u: string; k: string; t: string; a: string };
+/** 一条曲目。`u` 是条目身份（含出现序号，队列有重复歌曲也各自唯一），`k` 是歌曲身份。
+ *  `q` 是**目录支持**的音质层级（qualityBadgeSpecs 的 QualityLevel，歌单语境——不代表当前流的容器）。 */
+export type NativeQueueItem = { u: string; k: string; t: string; a: string; q?: string };
 
 export type NativeQueueSnapshot = {
     /** 队列版本：内容或顺序一变就 +1，原生据此判断"要不要重画"。 */
@@ -183,7 +185,8 @@ export function readNativeQueue(currentKey: string): NativeQueueSnapshot | null 
     }
     const items = queue.map((song, index) => {
         const k = getPlaybackSongKey(song);
-        return { u: uidFor(queue, index, k), k, t: song.name ?? '', a: getSongArtistLabel(song) };
+        const q = resolveCatalogQualityLevel(song.catalogAudioSpecs) ?? undefined;
+        return { u: uidFor(queue, index, k), k, t: song.name ?? '', a: getSongArtistLabel(song), q };
     });
     const index = items.findIndex(item => item.k === currentKey);
     return { v: version, i: index, ck: currentKey, mode: currentQueueMode(), n: items.length, items };

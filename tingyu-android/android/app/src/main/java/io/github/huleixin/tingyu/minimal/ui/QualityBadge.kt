@@ -1,0 +1,201 @@
+package io.github.huleixin.tingyu.minimal.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+// android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/QualityBadge.kt
+//
+// 全局音质标签（Compose 侧）。视觉参数与 `src/components/app/overlays/minimal-stage/qualityBadgeSpecs.ts`
+// 逐字段一致（同一张《听屿音质标签视觉规范图》逐像素采样）：六枚标签、三种尺寸、无发光无渐变无玻璃。
+// 规范图右侧的"石墨灰、雾蓝银"等是颜色说明，不是标签内容。
+//
+// 图标全部 Canvas 手绘（音频柱 / 四角星 / 圆环内芯 / 同心弧），不引图标包。
+
+/** 六枚标签的层级，与 TS 侧 `QualityLevel` 一一对应。 */
+enum class QualityLevel { STANDARD, HQ, FLAC, HIRES, MASTER, SPATIAL;
+
+    companion object {
+        /** 桥上的字符串 → 层级。未知值返回 null（调用方回退旧 chip）。 */
+        fun fromWire(value: String?): QualityLevel? = when (value) {
+            "standard" -> STANDARD
+            "hq" -> HQ
+            "flac" -> FLAC
+            "hires" -> HIRES
+            "master" -> MASTER
+            "spatial" -> SPATIAL
+            else -> null
+        }
+    }
+}
+
+/** 三种尺寸：播放页完整版 / 歌单与搜索紧凑版 / 最近播放等小卡片微型版。 */
+enum class QualityBadgeSize(
+    val heightDp: Int,
+    val textSize: Int,
+    val iconDp: Int,
+    val padH: Int,
+    val gap: Int,
+    val useIcon: Boolean,
+) {
+    FULL(27, 12, 13, 10, 5, true),
+    COMPACT(21, 10, 10, 7, 4, true),
+    MICRO(17, 9, 0, 6, 0, false),
+}
+
+/** 图标种类，与 TS 的 `icon` 字段同名。 */
+internal enum class QualityGlyph { NONE, BARS, SPARKLE, DISC, SWIRL }
+
+private data class QualityBadgeVisual(
+    val bg: Color,
+    val border: Color,
+    val text: Color,
+    val iconColor: Color,
+    val glyph: QualityGlyph,
+    val fullLabel: String,
+    val compactLabel: String,
+    val microLabel: String,
+)
+
+// 颜色逐字段对齐 qualityBadgeSpecs.ts（规范图逐像素采样值）。
+private fun visualOf(level: QualityLevel): QualityBadgeVisual = when (level) {
+    QualityLevel.STANDARD -> QualityBadgeVisual(
+        bg = Color(0xFF34383D), border = Color(0xFF747B82), text = Color(0xFFE6E8E9),
+        iconColor = Color(0xFFE6E8E9), glyph = QualityGlyph.NONE,
+        fullLabel = "标准音质", compactLabel = "标准", microLabel = "标准",
+    )
+    QualityLevel.HQ -> QualityBadgeVisual(
+        bg = Color(0xFF222E3C), border = Color(0xFF7092B4), text = Color(0xFF98AEC5),
+        iconColor = Color(0xFF98AEC5), glyph = QualityGlyph.BARS,
+        fullLabel = "HQ · 高品质", compactLabel = "HQ", microLabel = "HQ",
+    )
+    QualityLevel.FLAC -> QualityBadgeVisual(
+        bg = Color(0xFF282428), border = Color(0xFFB99A66), text = Color(0xFFE1BE85),
+        iconColor = Color(0xFFE1BE85), glyph = QualityGlyph.BARS,
+        fullLabel = "FLAC · 无损", compactLabel = "FLAC", microLabel = "FLAC",
+    )
+    QualityLevel.HIRES -> QualityBadgeVisual(
+        bg = Color(0xFF27273F), border = Color(0xFF47476D), text = Color(0xFFDBDAF1),
+        iconColor = Color(0xFFBCB9FF), glyph = QualityGlyph.SPARKLE,
+        fullLabel = "Hi-Res", compactLabel = "Hi-Res", microLabel = "Hi-Res",
+    )
+    QualityLevel.MASTER -> QualityBadgeVisual(
+        bg = Color(0xFF38252D), border = Color(0xFFBE8B8E), text = Color(0xFFF7F0F0),
+        iconColor = Color(0xFFD2B0B2), glyph = QualityGlyph.DISC,
+        fullLabel = "臻品母带", compactLabel = "母带", microLabel = "母带",
+    )
+    QualityLevel.SPATIAL -> QualityBadgeVisual(
+        bg = Color(0xFF1C3436), border = Color(0xFF6EA9A7), text = Color(0xFFECF3F3),
+        iconColor = Color(0xFF9AD4CB), glyph = QualityGlyph.SWIRL,
+        fullLabel = "空间音频", compactLabel = "空间", microLabel = "空间",
+    )
+}
+
+/**
+ * 全局音质标签。
+ *
+ * @param level 六档层级（来自桥的 `qualityLevel`，或队列条目的 `q`）
+ * @param size  FULL 播放页 / COMPACT 歌单与搜索行 / MICRO 小卡片
+ */
+@Composable
+fun MinimalQualityBadge(
+    level: QualityLevel,
+    size: QualityBadgeSize = QualityBadgeSize.FULL,
+    modifier: Modifier = Modifier,
+) {
+    val visual = visualOf(level)
+    // 胶囊：RoundedCornerShape 的 Int 重载是"百分比"（0..100），999 会直接崩 —— 用 50%。
+    val shape = remember(size) { RoundedCornerShape(50) }
+    val label = when (size) {
+        QualityBadgeSize.FULL -> visual.fullLabel
+        QualityBadgeSize.COMPACT -> visual.compactLabel
+        QualityBadgeSize.MICRO -> visual.microLabel
+    }
+    Row(
+        modifier
+            .height(size.heightDp.dp)
+            .background(visual.bg, shape)
+            .border(1.dp, visual.border, shape)
+            .padding(horizontal = size.padH.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (size.useIcon && size.iconDp > 0 && visual.glyph != QualityGlyph.NONE) {
+            QualityBadgeGlyph(visual.glyph, visual.iconColor, Modifier.size(size.iconDp.dp))
+            Spacer(Modifier.width(size.gap.dp))
+        }
+        Text(
+            text = label,
+            color = visual.text,
+            fontSize = size.textSize.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun QualityBadgeGlyph(glyph: QualityGlyph, color: Color, modifier: Modifier) {
+    if (glyph == QualityGlyph.NONE) return
+    androidx.compose.foundation.Canvas(modifier) {
+        val u = size.minDimension / 16f
+        when (glyph) {
+            // 音频柱（HQ / FLAC）：四根高低起伏的圆头柱，底边对齐
+            QualityGlyph.BARS -> {
+                val bars = listOf(2.6f to 6.0f, 6.2f to 12.4f, 9.8f to 9.2f, 13.4f to 4.8f)
+                bars.forEach { (cx, height) ->
+                    drawLine(
+                        color,
+                        Offset(cx * u, 14f * u),
+                        Offset(cx * u, (14f - height) * u),
+                        2.0f * u,
+                        StrokeCap.Round,
+                    )
+                }
+            }
+            // 四角星（Hi-Res）
+            QualityGlyph.SPARKLE -> {
+                val path = Path().apply {
+                    moveTo(8f * u, 1.4f * u)
+                    cubicTo(8.8f * u, 4.6f * u, 9.9f * u, 5.8f * u, 14.4f * u, 8f * u)
+                    cubicTo(9.9f * u, 10.2f * u, 8.8f * u, 11.4f * u, 8f * u, 14.6f * u)
+                    cubicTo(7.2f * u, 11.4f * u, 6.1f * u, 10.2f * u, 1.6f * u, 8f * u)
+                    cubicTo(6.1f * u, 5.8f * u, 7.2f * u, 4.6f * u, 8f * u, 1.4f * u)
+                    close()
+                }
+                drawPath(path, color)
+            }
+            // 圆环 + 内芯（臻品母带）
+            QualityGlyph.DISC -> {
+                drawCircle(color, 5.9f * u, style = Stroke(1.5f * u))
+                drawCircle(color, 2.2f * u)
+            }
+            // 同心弧 + 中点（空间音频）
+            QualityGlyph.SWIRL -> {
+                drawCircle(color, 5.9f * u, style = Stroke(1.4f * u))
+                drawCircle(color.copy(alpha = 0.55f), 3.1f * u, style = Stroke(1.4f * u))
+                drawCircle(color, 1.15f * u)
+            }
+            QualityGlyph.NONE -> Unit
+        }
+    }
+}

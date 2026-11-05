@@ -22,6 +22,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -172,6 +173,14 @@ fun MinimalArtworkView(
                     // 正在移动的那张永远在最上面；其余按列表顺序，越靠前 z 越高。
                     val z = if (card.moving) MOVING_Z else BASE_Z + (cards.size - index)
                     key(card.key) {
+                        // 阴影层在本卡图片层之下、被它遮挡的那张之上：
+                        // 接触阴影与环境阴影都落在下一张卡上，遮挡关系才读得出来。
+                        ShadowLayer(
+                            card = card,
+                            stack = stack,
+                            corner = corner,
+                            z = z - 0.5f,
+                        )
                         CoverLayer(
                             card = card,
                             stack = stack,
@@ -204,6 +213,99 @@ fun MinimalArtworkView(
     }
 }
 
+/**
+ * 层位 → 阴影强度系数。主卡最重，向后逐层减轻，三档厚度感一目了然：
+ * 主卡 1.0 / 第二张 0.65 / 第三张 0.40 / 藏在后面的第四张 0.28。
+ * 按**小数层位**分段线性插值：第二张升起接替主卡时，阴影跟着连续过渡，不会跳变。
+ */
+internal fun shadowStrengthAt(slot: Float): Float = when {
+    slot <= 0f -> 1f
+    slot < 1f -> 1f - 0.35f * slot
+    slot < 2f -> 0.65f - 0.25f * (slot - 1f)
+    else -> 0.40f - 0.12f * (slot - 2f).coerceAtMost(1f)
+}
+
+/** 诊断对照开关：true = 关闭自绘阴影（用于同一首歌的"修改前"对照截图），交付版必须为 false。 */
+private const val SHADOWS_DISABLED = false
+
+/**
+ * 独立的阴影图层：只画阴影、不画图、**不裁剪**。
+ *
+ * 为什么不再用 `graphicsLayer.shadowElevation`：RenderNode 的海拔阴影是"贴边光晕"式——
+ * 扩散很窄，而堆叠里后两张几乎全被主卡遮住、只露几条边，阴影恰好落在被遮住的区域，
+ * 露出的边缘上只剩极窄一圈，读不出纵深感。拆成独立图层后可以精确画两种有分工的阴影：
+ *
+ *   · 接触阴影（3 层实心圆角矩形，紧贴边缘外扩 2/5/9px，颜色深、范围小）——
+ *     卡片图片盖住中心后只露出贴边一圈，让前后两张在遮挡边缘明显分离；
+ *   · 环境阴影（7 层由外向内渐深的实心圆角矩形，向外扩 8~38px、向下偏移 2~18px）——
+ *     大范围、浅颜色、向下偏移，构成"轻轻悬浮"的纵深。
+ *
+ * 与卡片图片层读同一份 `frameFor`（同帧、同变换），拖动/回弹时逐帧同步，不可能分离。
+ * 全部是实心 drawRoundRect，没有 blur 滤镜、没有 RenderNode 阴影，帧成本可忽略。
+ */
+@Composable
+private fun ShadowLayer(
+    card: CoverCard,
+    stack: CoverStackState,
+    corner: androidx.compose.ui.unit.Dp,
+    z: Float,
+) {
+    val shape = remember(corner) { RoundedCornerShape(corner) }
+    Box(
+        Modifier
+            .fillMaxSize()
+            .zIndex(z)
+            .graphicsLayer {
+                val frame = stack.frameFor(card)
+                translationX = frame[0]
+                translationY = frame[1]
+                scaleX = frame[2]
+                scaleY = frame[2]
+                rotationZ = frame[3]
+                this.shape = shape
+                // 不裁剪：阴影必须延伸到卡片边界之外
+            }
+            .drawBehind {
+                if (SHADOWS_DISABLED) return@drawBehind
+                val strength = shadowStrengthAt(stack.slotFor(card).coerceIn(0f, 3f))
+                val radius = corner.toPx()
+                // ---- 环境阴影：由外向内逐层加深（先画最外最淡，后画较内较深）----
+                val ambientRings = 7
+                for (i in ambientRings - 1 downTo 0) {
+                    val t = (i + 1f) / ambientRings
+                    val spread = 8f + 30f * t
+                    val drop = 2f + 16f * t
+                    val alpha = (0.014f + 0.05f * (1f - t)) * strength
+                    drawRoundRect(
+                        color = Color.Black.copy(alpha = alpha),
+                        topLeft = Offset(-spread, -spread + drop),
+                        size = Size(size.width + spread * 2f, size.height + spread * 2f),
+                        cornerRadius = CornerRadius(radius + spread),
+                    )
+                }
+                // ---- 接触阴影：紧贴遮挡边缘的小范围深色 ----
+                drawRoundRect(
+                    color = Color.Black.copy(alpha = 0.07f * strength),
+                    topLeft = Offset(-9f, -9f),
+                    size = Size(size.width + 18f, size.height + 18f),
+                    cornerRadius = CornerRadius(radius + 9f),
+                )
+                drawRoundRect(
+                    color = Color.Black.copy(alpha = 0.14f * strength),
+                    topLeft = Offset(-5f, -5f),
+                    size = Size(size.width + 10f, size.height + 10f),
+                    cornerRadius = CornerRadius(radius + 5f),
+                )
+                drawRoundRect(
+                    color = Color.Black.copy(alpha = 0.22f * strength),
+                    topLeft = Offset(-2f, -2f),
+                    size = Size(size.width + 4f, size.height + 4f),
+                    cornerRadius = CornerRadius(radius + 2f),
+                )
+            }
+    )
+}
+
 /** 一层封面：图片 + 压暗 + 纸边。所有逐帧量都在 graphicsLayer 里读，不触发重组。 */
 @Composable
 private fun CoverLayer(
@@ -227,10 +329,13 @@ private fun CoverLayer(
                 scaleY = frame[2]
                 rotationZ = frame[3]
                 this.shape = shape
+                // 只裁剪封面图片本身；阴影由独立的 ShadowLayer 承担，
+                // 不再使用 RenderNode 的 shadowElevation（原因见 ShadowLayer 注释）。
                 clip = true
-                // 越靠前影子越大：叠放的层次感一半来自影子、一半来自压暗
-                shadowElevation = 24f - 6f * stack.slotFor(card).coerceIn(0f, 3f)
             }
+            // 后两层极轻微的透明度落差（主卡 1.0 → 第四张 0.91），悬浮感更真；
+            // 跟层位连续变化，补位动画时一起回到 1，不会突变。
+            .graphicsLayer { alpha = 1f - 0.03f * stack.slotFor(card).coerceIn(0f, 3f) }
             .background(ink.ink.copy(alpha = 0.05f))
     ) {
         CoverImage(card, covers)
@@ -240,6 +345,24 @@ private fun CoverLayer(
                 .fillMaxSize()
                 .graphicsLayer { alpha = dimAt(stack.slotFor(card)) }
                 .background(Color.Black)
+        )
+        // 主卡边缘高光：顶部一道随层位淡入淡出的窄渐变（光从上方来），
+        // 只在接近最前时可见 —— 第二张升起接替时高光自然落到它身上。
+        Box(
+            Modifier
+                .matchParentSize()
+                .graphicsLayer {
+                    alpha = (1f - stack.slotFor(card).coerceIn(0f, 1f)) * 0.55f
+                }
+                .drawBehind {
+                    drawRect(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.White.copy(alpha = 0.30f), Color.Transparent),
+                            startY = 0f,
+                            endY = size.minDimension * 0.20f,
+                        )
+                    )
+                }
         )
         Box(Modifier.matchParentSize().border(1.dp, Color.White.copy(alpha = 0.12f), shape))
     }

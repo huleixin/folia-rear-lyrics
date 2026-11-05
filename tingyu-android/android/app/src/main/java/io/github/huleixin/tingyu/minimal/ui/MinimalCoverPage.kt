@@ -52,6 +52,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import io.github.huleixin.tingyu.minimal.MinimalArtwork
 import io.github.huleixin.tingyu.minimal.MinimalLyricLine
 import io.github.huleixin.tingyu.minimal.MinimalPalette
@@ -62,6 +63,7 @@ import io.github.huleixin.tingyu.minimal.cover.CoverStackArtwork
 import io.github.huleixin.tingyu.minimal.cover.CoverStackState
 import io.github.huleixin.tingyu.minimal.cover.SkipStage
 import io.github.huleixin.tingyu.minimal.cover.SkipTransaction
+import io.github.huleixin.tingyu.minimal.cover.StackPhase
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -163,6 +165,11 @@ fun MinimalCoverPage(
                 gesture = coverGesture,
                 modifier = Modifier
                     .size(stageWidth)
+                    // 拖动 / 切歌动画期间把整摞封面提到本页文字之上：只有正在移动的那一张
+                    // 会越出封面区域（后两层不越界，视觉上就是"拿起最上面这张盖住文字"），
+                    // 松手回弹 / 补位完成（phase 回 IDLE）后立即恢复原层级。zIndex 只改
+                    // 绘制顺序，不重建任何节点 —— 不会闪、不会重新淡入、不会重载位图。
+                    .zIndex(if (stack.phase != StackPhase.IDLE) 1f else 0f)
                     // 无障碍：整摞封面是一个整体（内部各层图片不带描述），读屏会把这一块读成"专辑封面"。
                     // 顺带也是手势区域的边界 —— 只有在这里按下的滑动才归封面。
                     .semantics { contentDescription = "专辑封面" }
@@ -196,8 +203,12 @@ fun MinimalCoverPage(
             Spacer(Modifier.height(clampDp(6f, vh.value * 0.009f, 8f)))
             Row(Modifier.fillMaxWidth().height(28.dp), verticalAlignment = Alignment.CenterVertically) {
                 val quality = state.controls.quality
-                if (quality.isNotBlank()) {
-                    QualityChip(quality, state.controls.qualityGold, light, ink)
+                // 全局音质标签：桥带可靠层级（真实播放音质，只看正在出声的容器）时用新组件；
+                // 没有层级信息时回退旧 plain/gold chip（老版本 JS 或信息不足的歌）。
+                val badgeLevel = QualityLevel.fromWire(state.controls.qualityLevel)
+                when {
+                    badgeLevel != null -> MinimalQualityBadge(badgeLevel, QualityBadgeSize.FULL)
+                    quality.isNotBlank() -> QualityChip(quality, state.controls.qualityGold, light, ink)
                 }
                 if (showPreparing) {
                     Spacer(Modifier.width(8.dp))

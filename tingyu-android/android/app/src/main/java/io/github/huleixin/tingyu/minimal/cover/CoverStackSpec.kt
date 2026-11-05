@@ -34,8 +34,10 @@ data class CoverStackSpec(
     val offsetSecondY: Float = -5f,
     val offsetThirdX: Float = 11f,
     val offsetThirdY: Float = -7f,
-    val scaleSecond: Float = 0.985f,
-    val scaleThird: Float = 0.96f,
+    // 缩放分级比验收版（0.985 / 0.96）再拉开一点：配合分级阴影与透明度落差，
+    // 三张卡读起来是"悬浮叠放"而不是平面贴合。位移与角度全部不动。
+    val scaleSecond: Float = 0.975f,
+    val scaleThird: Float = 0.943f,
     // ---- 运动 ----
     /** 拖到多少封面宽度算切歌。 */
     val commitDistance: Float = 0.25f,

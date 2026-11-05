@@ -576,6 +576,11 @@ private fun QueueRow(
                 )
             }
         }
+        // 目录支持的音质层级（紧凑版标签）：目录没说就不画，绝不猜。
+        QualityLevel.fromWire(item.qualityLevel)?.let { level ->
+            Spacer(Modifier.width(6.dp))
+            MinimalQualityBadge(level, QualityBadgeSize.COMPACT)
+        }
         // 每行只有 × 删除和 ≡ 拖拽手柄（参考截图的操作方式）。
         Box(
             Modifier

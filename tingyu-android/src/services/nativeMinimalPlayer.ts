@@ -30,6 +30,12 @@ export type MinimalPlayerFrame = {
     quality: string;
     /** The chip's gold tone, decided by `resolveQualityBadges`, not by the caption text. */
     qualityGold: boolean;
+    /**
+     * 全局音质标签的层级（standard/hq/flac/hires/master/spatial），来自
+     * `resolvePlayingQualityLevel` —— 只描述**正在出声的这份字节**；空串表示没有可靠信息，
+     * 原生回退旧的 plain/gold chip。
+     */
+    qualityLevel: string;
     /** 播放偏好里的音质档位（"无损"/"高品质"…），只给"更多"菜单用，和上面的容器角标不是一回事。 */
     qualityMode: string;
     /** 音效开关状态，同样是菜单里的第二行值。 */
