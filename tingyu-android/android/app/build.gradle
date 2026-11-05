@@ -88,6 +88,12 @@ android {
         }
     }
     buildTypes {
+        debug {
+            // 真机联调直接覆盖安装 release 包：同一把签名，免去先卸载丢数据。
+            if (hasReleaseKeystore) {
+                signingConfig signingConfigs.release
+            }
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'

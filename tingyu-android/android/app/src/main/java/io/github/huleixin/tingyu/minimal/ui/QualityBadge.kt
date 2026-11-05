@@ -181,6 +181,34 @@ fun MinimalQualityBadge(
     }
 }
 
+/**
+ * 歌单页轻量**文字**标签（用户指定的克制样式）：
+ * 无底色、无边框、无图标；层级色相与页面墨色（muted）做 50% 低饱和混合，
+ * 浅色模式得到深色可读文字、深色模式自动适配；高度=字号行高，不增加行高。
+ */
+@Composable
+fun MinimalQualityBadgeText(level: QualityLevel, modifier: Modifier = Modifier) {
+    val visual = visualOf(level)
+    val muted = io.github.huleixin.tingyu.chrome.LocalInterfacePalette.current.muted
+    Text(
+        text = textLabel(level),
+        color = androidx.compose.ui.graphics.lerp(visual.iconColor, muted, 0.5f),
+        fontSize = 9.sp,
+        fontWeight = FontWeight.SemiBold,
+        maxLines = 1,
+        modifier = modifier,
+    )
+}
+
+private fun textLabel(level: QualityLevel): String = when (level) {
+    QualityLevel.STANDARD -> "标准"
+    QualityLevel.HQ -> "HQ"
+    QualityLevel.FLAC -> "无损"
+    QualityLevel.HIRES -> "Hi-Res"
+    QualityLevel.MASTER -> "母带"
+    QualityLevel.SPATIAL -> "空间"
+}
+
 @Composable
 private fun QualityBadgeGlyph(glyph: QualityGlyph, color: Color, modifier: Modifier) {
     if (glyph == QualityGlyph.NONE) return

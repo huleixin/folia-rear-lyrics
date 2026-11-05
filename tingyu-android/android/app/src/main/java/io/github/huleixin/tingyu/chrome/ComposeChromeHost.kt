@@ -415,8 +415,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val queueState by minimal.queue.collectAsState()
         // `!detour` 不能少：顺访舞台时极简页自己 `return` 不画了，但 presentation 还是 minimal。
         // 少了这一条，舞台 surface 会被这里过滤掉，底栏就再也没人画 —— 截图里舞台没有控制栏正是这个。
-        val minimalOwns = minimalPlayerEnabled() && destination=="stage" && playerPresentation=="minimal" &&
-            !webOverlay && !stageExit.active && minimalBound && !minimalState.controls.detour
+        // 不含退场判定的那一份：退场那 280ms 里 destination 仍是 stage、presentation 仍是 minimal，
+        // 差别只在 stageExit.active。播放页必须靠这一份继续留在组合里 —— 见 playerShown。
+        val minimalBase = minimalPlayerEnabled() && destination=="stage" && playerPresentation=="minimal" &&
+            !webOverlay && minimalBound && !minimalState.controls.detour
+        val minimalOwns = minimalBase && !stageExit.active
         // 第 16 轮：Compose 将接管极简页（能力开关在、路由到 stage、presentation=minimal、无顺访/弹层）。
         // 这是入口动画唯一的拥有者判定：
         //   · WebView 不再升层也不再整屏上滑 —— 它这时是首页底下的备用层，动它是纯浪费，
@@ -595,14 +598,19 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             //     任何"淡出/滑走"都会把 WebView 里还没换掉的另一份播放页透出来（真机 3~4 层叠影）。
             //   · 其余路由：维持原来的下滑 + 淡出，因为底下露出来的就是目标页本身。
             // 例外：从设置页回到极简页不重放入场动画 —— 用户没有离开播放器，只是去设了个开关。
-            val playerShown = minimalOwns || minimalCoverHold
+            // 退场那 280ms（stageExit）里 destination 仍是 stage、minimalOwns 已为 false：
+            // 此刻若把播放页摘掉，等路由提交回集合页 minimalCoverHold 会把它**重新入场**，
+            // 真机上就是"按返回回到歌单 → 又弹回极简歌词页 → 再跳回歌单"。
+            // 用不含退场判定的 minimalBase 继续举着它（此时 zIndex 在页面之下，被页面整块盖住），
+            // 就没有第二次入场；桥没握上手时 minimalBase 也是 false，不会凭空冒出一个空播放页。
+            val playerShown = minimalBase || minimalCoverHold
             val playerZ = if (minimalOwns) 3f else 0.5f
             AnimatedVisibility(
                 visible = playerShown,
                 // 入场只滑不淡：这一页不透明，淡入会强制一整屏离屏图层。
                 // 360ms（320~380ms 目标带），入场是页面唯一的一套上滑 ——
                 // WebView 侧的同名位移已在 composeOwnsMinimalEntry 里关掉。
-                enter = if (minimalResumePending) EnterTransition.None else slideInVertically(
+                enter = if (minimalResumePending || minimalCoverHold) EnterTransition.None else slideInVertically(
                     animationSpec = tween(360, easing = CubicBezierEasing(.2f, .72f, .16f, 1f)),
                     initialOffsetY = { it },
                 ),

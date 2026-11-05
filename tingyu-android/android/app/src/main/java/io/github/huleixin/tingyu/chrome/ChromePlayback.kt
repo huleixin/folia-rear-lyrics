@@ -31,7 +31,10 @@ fun chromeTime(time: Double): String { val n=time.toInt().coerceAtLeast(0);retur
     val now=rememberChromeNow(timeline)
     Canvas(modifier) {
         val inset=2.dp.toPx();val bounds=Size(size.width-inset*2,size.height-inset*2)
-        drawArc(color.copy(alpha=.22f),-90f,360f,false,Offset(inset,inset),bounds,style=Stroke(2.dp.toPx(),cap=StrokeCap.Round))
+        // 轨道圈不能太淡：刚切歌的几秒里 position≈0、时长未到（loadedmetadata 才有），
+        // 进度弧是 0°，整圈就只剩这条轨道 —— 0.22 在亮色玻璃上几乎隐形，
+        // 用户看到的就是"第二首开始进度圈没有了"。0.34 与 WebView 版肉眼一致且亮暗主题都可见。
+        drawArc(color.copy(alpha=.34f),-90f,360f,false,Offset(inset,inset),bounds,style=Stroke(2.dp.toPx(),cap=StrokeCap.Round))
         val position=timeline?.at(now.value)?:0.0;val duration=timeline?.duration?:0.0
         if(duration>0)drawArc(color,-90f,(position/duration*360).toFloat().coerceIn(0f,360f),false,Offset(inset,inset),bounds,style=Stroke(2.dp.toPx(),cap=StrokeCap.Round))
     }

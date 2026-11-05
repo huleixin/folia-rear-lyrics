@@ -1234,3 +1234,23 @@
         display: none;
     }
 }
+
+/* ---- 全局音质标识（歌单页轻量文字版，用户指定样式）----
+   无底/无边/无图标；层级色相与主题墨色低饱和混合，浅色模式深色可读、深色模式自动适配。 */
+.ml-quality-text {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: 6px;
+    font-size: 9px;
+    line-height: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ml-quality-text[data-level="standard"] { color: color-mix(in srgb, var(--ml-muted) 82%, var(--ml-jade) 8%); }
+.ml-quality-text[data-level="hq"]       { color: color-mix(in srgb, #7FA3C4 52%, var(--ml-muted)); }
+.ml-quality-text[data-level="flac"]     { color: color-mix(in srgb, #C9A96E 58%, var(--ml-muted)); }
+.ml-quality-text[data-level="hires"]    { color: color-mix(in srgb, #A5A2E8 52%, var(--ml-muted)); }
+.ml-quality-text[data-level="master"]   { color: color-mix(in srgb, #D2A8A8 52%, var(--ml-muted)); }
+.ml-quality-text[data-level="spatial"]  { color: color-mix(in srgb, #86BDBB 55%, var(--ml-muted)); }
