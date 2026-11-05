@@ -207,7 +207,15 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
         };
 
     // 原生设置页：这个 select 由 Compose 绘制菜单，DOM 这边只做"排版模板 + 数据回传"。
-    const nativeOwned = nativeSelect && NATIVE_FIRST;
+    // 只在"确实处于原生设置文档"时接管 —— 如果这个页面由 WebView 自己渲染（未接管），
+    // 关掉 DOM 菜单会让选项变成死控件，宁可继续用原来的自定义菜单。
+    const [nativeOwned, setNativeOwned] = useState(false);
+    useEffect(() => {
+        if (!nativeSelect || !NATIVE_FIRST) { setNativeOwned(false); return; }
+        const root = document.querySelector('[data-native-document-root]');
+        const trigger = triggerRef.current;
+        setNativeOwned(Boolean(root && trigger && root.contains(trigger)));
+    }, [nativeSelect]);
     useEffect(() => {
         if (!nativeOwned) return;
         const node = triggerRef.current;
