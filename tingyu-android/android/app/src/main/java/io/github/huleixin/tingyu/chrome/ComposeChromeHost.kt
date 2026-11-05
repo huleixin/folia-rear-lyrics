@@ -71,6 +71,27 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         },
         { minimal.bridgeLive() },
     )
+    /**
+     * 队列的**宿主级**命令出口（2026-11-05 队列专项）。
+     *
+     * 队列抽屉可以从推荐首页、歌单、舞台、极简页任意一处打开，它不属于极简播放页；
+     * 因此这里**不能**用 minimal.bridgeLive() 当可用性 —— 那是"桥帧还新鲜"的判定，
+     * 只在极简页正在推帧时才成立。从首页打开队列时极简页没有帧，20 秒后 bridgeLive()
+     * 恒为 false，`BridgeMinimalCommands.send()` 第一行就会 return false，点歌/播放模式/
+     * 删除/排序全部静默丢弃（真机表现：按钮无反应、点歌永远停在"正在切换…"）。
+     *
+     * 队列动作由 JS 的模块级监听者接收（nativeMinimalQueue.onQueueActionEvent，按 id 过滤），
+     * 极简页从未打开时 session 为空也照样送达；这里只要求宿主还在组合里（suspend 期间不再假装能发）。
+     */
+    private val queueCommands = io.github.huleixin.tingyu.minimal.BridgeMinimalCommands(
+        { action, value ->
+            listener.onAction("minimal", minimal.session(), action, value)
+            // 日志证据：bridgeLive 为 false 时旧实现会在这里之前就 return，真机可据此对照。
+            android.util.Log.i("TingyuQueue", "send $action=${value.toInt()} bridgeLive=${minimal.bridgeLive()} session=${minimal.session().take(8)}")
+            true
+        },
+        { active },
+    )
     init { minimal.start()
         if (!minimalPlayerEnabled()) android.util.Log.w("TingyuMinimal",
             "COMPOSE_MINIMAL_PLAYER=false — 极简页停在 WebView（回滚开关 TINGYU_COMPOSE_MINIMAL）")
@@ -168,8 +189,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     fun closeNativeQueue(){queueOpen=false}
     fun openNativeQueue(){
         queueOpen=true
-        // 打开时立刻要一份新快照；JS 那边注册过处理器才有数据。
-        minimalCommands.requestQueue()
+        // 打开时立刻要一份新快照。走宿主级通道：从首页/歌单/舞台打开时极简页的桥帧
+        // 可能早已过期，旧实现在这里同样发不出去，抽屉会拿到过期队列。
+        queueCommands.requestQueue()
     }
 
     /**
@@ -725,11 +747,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     mode = queueState.mode.ifEmpty { minimalState.controls.mode },
                     // 列表状态宿主持有：去极简页再回来，队列浏览位置不跳。
                     listState = queueListState,
-                    onClose = { queueOpen = false; minimalCommands.closeQueue() },
-                    onPlay = { minimalCommands.queuePlay(it) },
-                    onRemove = { minimalCommands.queueRemove(it) },
-                    onReorder = { from, to -> minimalCommands.queueReorder(from, to, queueState.version) },
-                    onToggleMode = { minimalCommands.togglePlaybackMode() },
+                    onClose = { queueOpen = false; queueCommands.closeQueue() },
+                    onPlay = { queueCommands.queuePlay(it) },
+                    onRemove = { queueCommands.queueRemove(it) },
+                    onReorder = { from, to -> queueCommands.queueReorder(from, to, queueState.version) },
+                    onToggleMode = { queueCommands.togglePlaybackMode() },
                 )
             }
             // 工具页（音质/效果器/歌词工具/洛雪）：宿主级，叠在队列之下不冲突 ——

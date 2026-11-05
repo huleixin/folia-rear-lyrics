@@ -6,6 +6,7 @@ import {
     runNativeQueueAction,
 } from '../../src/services/nativeMinimalQueue';
 import { usePlaybackStore } from '../../src/stores/usePlaybackStore';
+import { useAudioSettingsStore } from '../../src/stores/useAudioSettingsStore';
 import { getPlaybackSongKey } from '../../src/utils/appPlaybackGuards';
 
 // test/unit/nativeMinimalQueue.test.ts
@@ -122,6 +123,44 @@ describe('nativeMinimalQueue', () => {
         expect(runNativeQueueAction('play', 9)).toBe(false);
         expect(runNativeQueueAction('play', -1)).toBe(false);
         expect(runNativeQueueAction('explode', 0)).toBe(false);
+    });
+
+    it('dispatches a queue play exactly once with the tapped song and the live queue', () => {
+        const h = handlers();
+        registerNativeQueue(h);
+        const queue = [song('a', 'one'), song('b', 'two')];
+        setQueue(queue);
+
+        expect(runNativeQueueAction('play', 1)).toBe(true);
+        expect(h.onPlaySong).toHaveBeenCalledTimes(1);
+        expect(h.onPlaySong).toHaveBeenCalledWith(queue[1], queue);
+    });
+
+    it('treats an out-of-range play as a stale snapshot: no dispatch, but the truth is pushed back', () => {
+        const h = handlers();
+        registerNativeQueue(h);
+        setQueue([song('a', 'one')]);
+
+        // 原生手里的快照比权威队列旧（点了第 5 首，但队列只剩 1 首）。
+        // 不能静默吞掉：不派发播放，同时把权威快照推回去让抽屉对齐。
+        expect(runNativeQueueAction('play', 4)).toBe(false);
+        expect(h.onPlaySong).not.toHaveBeenCalled();
+        expect(readNativeQueue('')!.n).toBe(1);
+    });
+
+    it('toggles playback mode once per action (no double listener execution)', () => {
+        const h = handlers();
+        registerNativeQueue(h);
+        setQueue([song('a', 'one')]);
+        const snapshot = () => {
+            const s = useAudioSettingsStore.getState();
+            return `${s.shuffleEnabled}:${s.loopMode}`;
+        };
+        const before = snapshot();
+        expect(runNativeQueueAction('playbackMode', 0)).toBe(true);
+        // 一条动作只切一档：如果监听器重复注册，这里会一次跨两档回到原值。
+        expect(snapshot()).not.toBe(before);
+        expect(runNativeQueueAction('playbackMode', 0)).toBe(true);
     });
 
     it('markQueueDirty forces the next read to be a fresh full snapshot', () => {

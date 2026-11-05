@@ -260,7 +260,10 @@ export async function openNativeQueueSheet(): Promise<boolean> {
 
 /** 原生发来的行内动作。索引越界一律丢弃：队列可能比原生手里的快照新。 */
 export function runNativeQueueAction(action: string, value: number): boolean {
-    if (!handlers) return false;
+    if (!handlers) {
+        console.warn('[minimal-queue] action dropped: no handlers registered', { action, value });
+        return false;
+    }
     const queue = liveQueue();
     // 版本号在数组变化时立刻物化（而不是等下一次读快照）：拖拽校验比较的就是它。
     if (queue !== lastQueue) {
@@ -268,30 +271,41 @@ export function runNativeQueueAction(action: string, value: number): boolean {
         version += 1;
     }
     const inRange = (index: number): boolean => Number.isInteger(index) && index >= 0 && index < queue.length;
+    /**
+     * 索引越界不是"算了吧"，是**快照过期**：丢掉操作只会让用户对着没反应的列表点第二次。
+     * 这里统一做三件事：写日志、把权威快照立刻推回去（抽屉下一包自动对齐）、返回 false
+     * 让原生知道这条没执行（队列 UI 不会因为这条进入"正在切换…"）。
+     */
+    const rejectStale = (kind: string, index: number): false => {
+        console.warn('[minimal-queue] stale index dropped', { kind, index, length: queue.length, version });
+        markQueueDirty();
+        syncNativeQueue();
+        return false;
+    };
     switch (action) {
         case 'play': {
-            if (!inRange(value)) return false;
+            if (!inRange(value)) return rejectStale('play', value);
             handlers.onPlaySong(queue[value], queue);
             markQueueDirty();
             syncNativeQueue();
             return true;
         }
         case 'remove': {
-            if (!inRange(value)) return false;
+            if (!inRange(value)) return rejectStale('remove', value);
             handlers.onRemoveSong(value);
             markQueueDirty();
             syncNativeQueue();
             return true;
         }
         case 'next': {
-            if (!inRange(value)) return false;
+            if (!inRange(value)) return rejectStale('next', value);
             handlers.onMoveSongToNext(value);
             markQueueDirty();
             syncNativeQueue();
             return true;
         }
         case 'end': {
-            if (!inRange(value)) return false;
+            if (!inRange(value)) return rejectStale('end', value);
             handlers.onMoveSongToEnd(value);
             markQueueDirty();
             syncNativeQueue();

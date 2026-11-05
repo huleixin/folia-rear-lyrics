@@ -32,6 +32,13 @@
       "file": "src/hooks/useNativePage.ts",
       "mustNotContain": "setReady(NATIVE_FIRST||value)",
       "why": "禁止用 NATIVE_FIRST 把 ready 钉成 true（假装接管成功）"
+    },
+    {
+      "id": "queue-host-channel",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/ComposeChromeHost.kt",
+      "mustContain": "queueCommands.queuePlay(it)",
+      "mustNotContain": "minimalCommands.queuePlay",
+      "why": "原生播放队列必须走宿主级命令通道，不能依赖极简页桥帧是否新鲜（bridgeLive）"
     }
   ],
   "webviewAllowlist": [

@@ -91,10 +91,11 @@ fun MinimalQueueSheet(
     /** 播放模式（off | all | one | shuffle），来自权威 store 的投影。 */
     mode: String,
     onClose: () -> Unit,
-    onPlay: (Int) -> Unit,
-    onRemove: (Int) -> Unit,
-    onReorder: (from: Int, to: Int) -> Unit,
-    onToggleMode: () -> Unit,
+    /** 返回 false = 命令没有接收方（桥不在），UI 不得进入"正在切换"的假状态。 */
+    onPlay: (Int) -> Boolean,
+    onRemove: (Int) -> Boolean,
+    onReorder: (from: Int, to: Int) -> Boolean,
+    onToggleMode: () -> Boolean,
     /**
      * 列表状态由**宿主**持有并传入：抽屉关开（去极简页再回来）不换实例，
      * 浏览位置原样保留 —— 否则每次重开都滚回当前曲，用户看到列表"跳一下"。
@@ -242,7 +243,7 @@ fun MinimalQueueSheet(
                     Spacer(Modifier.width(8.dp))
                     Text("${queue.total} 首", color = theme.muted, fontSize = 12.sp)
                     Spacer(Modifier.weight(1f))
-                    QueueModeButton(theme = theme, mode = mode, light = light, onClick = onToggleMode)
+                    QueueModeButton(theme = theme, mode = mode, light = light, onClick = { onToggleMode() })
                     Spacer(Modifier.width(6.dp))
                     Box(
                         Modifier
@@ -323,14 +324,14 @@ fun MinimalQueueSheet(
                                 theme = theme,
                                 onPlay = {
                                     if (!rowLocked) {
-                                        pendingKey = item.songKey
-                                        onPlay(index)
+                                        // 先交给桥：false 表示没有任何接收方，此时不显示
+                                        // "正在切换…"，否则就是在假装命令已经送达。
+                                        if (onPlay(index)) pendingKey = item.songKey
                                     }
                                 },
                                 onRemove = {
                                     if (!rowLocked && item.uid !in removing) {
-                                        removing = removing + item.uid
-                                        onRemove(index)
+                                        if (onRemove(index)) removing = removing + item.uid
                                     }
                                 },
                                 onRowDragStart = startDrag,
