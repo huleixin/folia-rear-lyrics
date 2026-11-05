@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -55,9 +56,11 @@ import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.huleixin.tingyu.minimal.MinimalArtwork
+import io.github.huleixin.tingyu.minimal.MinimalGraphemeTimeline
 import io.github.huleixin.tingyu.minimal.MinimalLyricLine
 import io.github.huleixin.tingyu.minimal.MinimalLyricsStatus
 import io.github.huleixin.tingyu.minimal.MinimalPalette
@@ -81,6 +84,10 @@ import kotlin.math.min
 //     换行时只写透明度属性，不重组任何一行。
 //   · **字体大小真的在变**（20 → 30sp），和 CSS 一致；只有当前行一个 Text 重新排版。
 //   · **自动滚动是 240–460ms 的缓动**；手动滚动后 4 秒内不抢位置。
+//   · **两级亮度**（第 19 轮）：当前行的未唱是柔和灰白、已唱是满亮度白；浅色页面同理
+//     用深灰与近黑。之前两者都接近纯白，逐字高亮几乎没有对比。
+//   · **填充按显示行独立算**（第 19 轮）：换行后的每一行都用自己的 getLineStart /
+//     getLineEnd / getLineRight 换算，第一行唱完就锁死在满格，不再跟着后面的行重算。
 
 private const val ACTIVE_LINE_ANCHOR = 0.32f
 private const val MANUAL_HOLD_MS = 4000L
@@ -89,6 +96,24 @@ private const val SCROLL_MAX_MS = 460
 
 /** 锚点抖动吸收窗（秒）：小于它的倒退按抖动忽略，大于它按真实 seek 处理。 */
 private const val SEEK_RESET_SEC = 0.35
+
+// 歌词的两级亮度。当前行分成「已唱」与「未唱」两种颜色，两者必须**一眼能分开**：
+// 之前未唱用的是 84% 的白，已唱是纯白 —— 深色页面上两者只差 16% 不透明度，
+// 逐字高亮等于没有。现在未唱压到 58%（白）／72%（墨色），已唱保持满亮度。
+//
+// 只换颜色，不动字号、不做描边、不加阴影：这就是同一套版式里的两个层级。
+private const val UNSUNG_ALPHA_DARK = 0.58f
+private const val UNSUNG_ALPHA_LIGHT = 0.72f
+
+/**
+ * 当前行**未唱**部分的颜色：柔和的灰白（深色页面）／同层级的深灰（浅色页面）。
+ *
+ * 页面是深是浅由 ink 自己的亮度判断，不额外传主题 —— 浅色页面里 ink 是深色，
+ * 用白字会直接糊在背景上。
+ */
+internal fun MinimalInk.lyricUnsung(): Color =
+    if (ink.luminance() > 0.5f) inkBright.copy(alpha = UNSUNG_ALPHA_DARK)
+    else ink.copy(alpha = UNSUNG_ALPHA_LIGHT)
 
 @Composable
 fun MinimalLyricsPage(
@@ -382,8 +407,9 @@ private fun LyricLineRow(
         label = "minimal-line-size",
     )
     val baseColor = if (credit) ink.mutedAlpha(78) else ink.muted
-    // 当前行不是纯白：被提亮到近白（第 18 轮明确：高亮用白，不用金色）。
-    val currentColor = if (credit) ink.mutedAlpha(88) else ink.brightAlpha(84)
+    // 当前行的未唱部分：柔和灰白。已唱部分用满亮度（KaraokeLine 的 sungColor），
+    // 两种颜色之间是逐字推进的分界线（第 19 轮）。
+    val currentColor = if (credit) ink.mutedAlpha(88) else ink.lyricUnsung()
     val colorState by animateColorAsState(
         targetValue = if (active) currentColor else baseColor,
         animationSpec = tween(380),
@@ -453,29 +479,39 @@ private fun LyricLineRow(
 }
 
 /**
- * 连续卡拉OK行：两层同样的文本叠放，顶层是已唱亮色，用**逐行裁剪路径**按连续
- * 进度推进 —— 字内也按浮点进度插值（第 18 轮修掉了 toInt() 丢小数的断跳）。
+ * 连续卡拉OK行：两层同样的文本叠放，顶层是已唱亮色，用**逐行裁剪路径**按连续进度推进。
  *
- * 填充边界：完全唱完的字形簇之外，正在唱的那个簇按它在 TextLayoutResult 里的
- * 起止光标位置做浮点插值 —— 同一个字唱到 25%/50%/75% 填充宽度不同。簇起止都是
- * 合法光标位置（簇边界或文本末尾），代理对/组合符不会落进簇中间。双向文本里
- * 簇的光标可能右→左，按方向插值，不会反向跳。
+ * 换行（第 19 轮）：填充不再是「整句一个 x 摊在某个显示行上」，而是先算出**全文字符游标**
+ * （已唱完的字符数 + 正在唱的那个字形簇内的浮点插值），再逐显示行用 TextLayoutResult 的
+ * getLineStart / getLineEnd / getLineLeft / getLineRight 独立换算本行的填充宽度：
  *
- * 进度在 draw 阶段读时钟：跨字不再重建字符串、不再重组，只有活动行每帧一次
- * 重绘；暂停时时钟停摆，填充自然冻结。
+ *   · 一行唱完（游标越过 getLineEnd）就整行填满，此后不再参与计算 —— 第一行不会因为
+ *     第二行开始唱而被重算、变灰或倒退；
+ *   · 正在唱的那一行只填到自己该到的地方，字内仍是浮点插值，不会整字跳变；
+ *   · 簇恰好跨在换行处（英文长单词被折断）时，本行填到行尾、下一行从行首接上，两边都
+ *     单调。getHorizontalPosition 给的是**行内**坐标：跨行时直接拿两行的位置相减，
+ *     第二行那个从 0 开始的值会让第一行的填充瞬间缩回行首 —— 这正是之前"第一行回退"
+ *     的来源，也是这里必须按行取坐标、按行截断的原因。
+ *
+ * 时间：draw 阶段读统一播放时钟，并保留一个高水位 —— 正常播放期间只前进；只有真实
+ * seek（倒退超过 SEEK_RESET_SEC）或换行/换歌才允许按新位置重算。暂停时时钟停摆，
+ * 填充自然冻结；跨字不重建字符串、不重组，只有活动行每帧一次重绘。
  */
 @Composable
-private fun KaraokeLine(
+internal fun KaraokeLine(
     line: MinimalLyricLine,
     playback: MinimalPlayback,
     clock: State<Long>,
     color: Color,
     sungColor: Color,
-    fontSize: androidx.compose.ui.unit.TextUnit,
+    fontSize: TextUnit,
 ) {
     val latestPlayback by rememberUpdatedState(playback)
-    var layout by remember(line) { mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null) }
+    var layout by remember(line) { mutableStateOf<TextLayoutResult?>(null) }
     val fillPath = remember(line) { Path() }
+    // 高水位只写在 draw 里、从不被组合读取，所以用普通数组而不是快照状态：
+    // 它不该触发任何重组，只用来挡住抖动与时钟回退。
+    val highWaterSec = remember(line) { doubleArrayOf(Double.NEGATIVE_INFINITY) }
     Box {
         Text(
             text = line.text,
@@ -495,64 +531,145 @@ private fun KaraokeLine(
             onTextLayout = { layout = it },
             modifier = Modifier.drawWithContent {
                 val textLayout = layout ?: return@drawWithContent
+                val raw = latestPlayback.lyricSecAt(clock.value)
+                if (!raw.isFinite()) return@drawWithContent
+                val previous = highWaterSec[0]
+                val sec = when {
+                    raw >= previous -> raw
+                    // 真实 seek / 换歌：按新位置重算。
+                    previous - raw > SEEK_RESET_SEC -> raw
+                    // 桥帧迟到、锚点插值回退：留在高位，已唱范围不许倒退。
+                    else -> previous
+                }
+                highWaterSec[0] = sec
                 val timeline = line.graphemeTimeline
-                val position = timeline.sungPosition(latestPlayback.lyricSecAt(clock.value))
-                if (position <= 0f) return@drawWithContent
-                val textLength = textLayout.layoutInput.text.length
-
-                // 定位正在唱的字形簇：整簇唱完的字符数 + 当前簇的字内进度。
-                var sungChars = 0
-                var clusterStart = -1
-                var clusterEnd = -1
-                var clusterProgress = 0f
-                var remaining = position
-                for (grapheme in timeline.graphemes) {
-                    val length = grapheme.text.length
-                    if (remaining >= 1f) {
-                        sungChars += length
-                        remaining -= 1f
-                    } else {
-                        clusterStart = sungChars
-                        clusterEnd = sungChars + length
-                        clusterProgress = remaining.coerceIn(0f, 1f)
-                        break
-                    }
-                }
-                val allSung = clusterStart < 0 || sungChars >= textLength
-                val sungLine = textLayout.getLineForOffset(
-                    (if (allSung) textLength else clusterStart).coerceIn(0, textLength),
-                )
-
-                fillPath.rewind()
-                for (lineIdx in 0 until textLayout.lineCount) {
-                    val top = textLayout.getLineTop(lineIdx)
-                    val bottom = textLayout.getLineBottom(lineIdx)
-                    when {
-                        lineIdx < sungLine -> fillPath.addRect(Rect(0f, top, size.width, bottom))
-                        lineIdx == sungLine -> {
-                            val x = if (allSung) {
-                                size.width
-                            } else {
-                                val lineLeft = textLayout.getLineLeft(sungLine)
-                                val lineRight = textLayout.getLineRight(sungLine)
-                                val from = textLayout.getHorizontalPosition(
-                                    clusterStart.coerceIn(0, textLength), usePrimaryDirection = true,
-                                )
-                                val to = textLayout.getHorizontalPosition(
-                                    clusterEnd.coerceIn(0, textLength), usePrimaryDirection = true,
-                                )
-                                val a = from.coerceIn(lineLeft, lineRight)
-                                val b = to.coerceIn(lineLeft, lineRight)
-                                // 双向文本：b < a 说明这一簇从右往左排，反向插值。
-                                (if (b >= a) a + (b - a) * clusterProgress else a - (a - b) * clusterProgress)
-                                    .coerceIn(0f, size.width)
-                            }
-                            fillPath.addRect(Rect(0f, top, x, bottom))
-                        }
-                    }
-                }
+                val cursor = buildKaraokeFill(fillPath, textLayout, timeline, timeline.sungPosition(sec))
+                if (cursor <= 0f) return@drawWithContent
                 clipPath(fillPath) { this@drawWithContent.drawContent() }
             },
         )
     }
+}
+
+/**
+ * 把「唱到哪儿了」画成裁剪路径：一条路径里每个显示行一个矩形，互不干扰。
+ *
+ * @param position 浮点字形数（[MinimalGraphemeTimeline.sungPosition]），整簇 + 簇内进度。
+ * @return 换算后的**全文字符游标**，调用方据此判断是否有内容要画；测试也用它断言单调性。
+ *
+ * 只依赖 TextLayoutResult 的真实排版结果：中文、英文、标点、Emoji、任意字体缩放都走
+ * 同一条路径 —— 行的边界来自排版器，不来自对字数的猜测。
+ */
+internal fun buildKaraokeFill(
+    path: Path,
+    layout: TextLayoutResult,
+    timeline: MinimalGraphemeTimeline,
+    position: Float,
+): Float {
+    path.rewind()
+    return forEachKaraokeRect(layout, timeline, position) { path.addRect(it) }
+}
+
+/** 同一次计算的只读视图：测试逐行断言用，绘制路径不经过它（不产生每帧分配）。 */
+internal fun karaokeRects(
+    layout: TextLayoutResult,
+    timeline: MinimalGraphemeTimeline,
+    position: Float,
+): List<Rect> {
+    val rects = ArrayList<Rect>(4)
+    forEachKaraokeRect(layout, timeline, position) { rects += it }
+    return rects
+}
+
+private inline fun forEachKaraokeRect(
+    layout: TextLayoutResult,
+    timeline: MinimalGraphemeTimeline,
+    position: Float,
+    emit: (Rect) -> Unit,
+): Float {
+    val length = layout.layoutInput.text.length
+    if (length <= 0 || layout.lineCount <= 0 || position <= 0f) return 0f
+
+    // 浮点字形数 → 「已唱完的字符数」+「正在唱的那个簇的字符区间与簇内进度」。
+    var sungChars = 0
+    var clusterStart = -1
+    var clusterEnd = -1
+    var clusterProgress = 1f
+    var remaining = position
+    for (grapheme in timeline.graphemes) {
+        val chars = grapheme.text.length
+        if (remaining >= 1f) {
+            sungChars += chars
+            remaining -= 1f
+        } else {
+            clusterStart = sungChars
+            clusterEnd = sungChars + chars
+            clusterProgress = remaining.coerceIn(0f, 1f)
+            break
+        }
+    }
+    val cursor = if (clusterStart < 0) {
+        sungChars.toFloat()
+    } else {
+        clusterStart + clusterProgress * (clusterEnd - clusterStart).toFloat()
+    }
+    if (cursor <= 0f) return 0f
+
+    for (lineIndex in 0 until layout.lineCount) {
+        val start = layout.getLineStart(lineIndex)
+        val end = layout.getLineEnd(lineIndex, visibleEnd = true)
+        // 纯换行产生的空行没有文字可填。
+        if (end <= start) continue
+        // 还没唱到这一行（也不会把后面的行提前点亮）。
+        if (cursor <= start) continue
+        val top = layout.getLineTop(lineIndex)
+        val bottom = layout.getLineBottom(lineIndex)
+        if (bottom <= top) continue
+        val left = layout.getLineLeft(lineIndex)
+        val right = layout.getLineRight(lineIndex)
+
+        val x = if (cursor >= end) {
+            // 这一行唱完了：整行填满，且**不再**随后面的行变化。
+            right
+        } else {
+            var segStart = start
+            var segEnd = end
+            var t = ((cursor - start) / (end - start).toFloat()).coerceIn(0f, 1f)
+            if (clusterStart in 0 until length && clusterStart <= end && clusterEnd > start) {
+                // 正在唱的这一簇与本行相交：只在本行的这一段里插值（跨行时截断到行边界）。
+                segStart = maxOf(clusterStart, start)
+                segEnd = minOf(clusterEnd, end)
+                val span = (segEnd - segStart).coerceAtLeast(1).toFloat()
+                t = ((cursor - segStart) / span).coerceIn(0f, 1f)
+            }
+            val a = layout.horizontalInLine(segStart, start, end, left, right, length)
+            val b = layout.horizontalInLine(segEnd, start, end, left, right, length)
+            // 双向文本里 b 可能小于 a：同一个线性插值，方向自然反过来，不会反向跳。
+            (a + (b - a) * t).coerceIn(left, right)
+        }
+        if (x <= left) continue
+        emit(Rect(left, top, x, bottom))
+    }
+    return cursor
+}
+
+/**
+ * 行内横坐标：getHorizontalPosition 返回的是**这一行内**的位置（每行都从 0 开始），
+ * 所以只需要夹进本行的左右边界，绝不能用别的行的坐标去减它。
+ */
+private fun TextLayoutResult.horizontalInLine(
+    offset: Int,
+    start: Int,
+    end: Int,
+    left: Float,
+    right: Float,
+    length: Int,
+): Float = when {
+    // 行首：本行的左边界（左对齐时就是 0）。
+    offset <= start -> left
+    // 行尾：必须用行右边界。getHorizontalPosition 会把"行尾偏移"归到**下一行**，
+    // 在折行处返回 0 —— 拿它当本行终点，填充就会瞬间缩回行首（第一行回退的真身）。
+    offset >= end -> right
+    else -> getHorizontalPosition(offset.coerceIn(0, length), usePrimaryDirection = false)
+        .coerceIn(left, right)
 }

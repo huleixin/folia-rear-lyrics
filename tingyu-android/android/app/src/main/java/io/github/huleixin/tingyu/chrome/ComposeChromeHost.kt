@@ -49,6 +49,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import io.github.huleixin.tingyu.minimal.ui.MinimalQueueSheet
+import kotlinx.coroutines.delay
 import io.github.huleixin.tingyu.minimal.ui.MinimalSheetScrim
 import io.github.huleixin.tingyu.minimal.ui.minimalSheetEnter
 import io.github.huleixin.tingyu.minimal.ui.minimalSheetExit
@@ -235,6 +236,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var playerPresentation by mutableStateOf("stage")
     private var returningFromSettings by mutableStateOf(false)
     private var minimalResumePending by mutableStateOf(false)
+    /** 离开播放页去集合页时"举着"播放页：原地保持不透明，等新页面盖上来再摘。见 MinimalPlayerExitPolicy。 */
+    private var minimalCoverHold by mutableStateOf(false)
     private var pendingStageEntry by mutableStateOf(false)
     private var stageEntryRequest=0L
     private var firstHomeFrame by mutableStateOf(true)
@@ -272,6 +275,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private fun commitShell(value:JSONObject) {
         navigationTrace("route-native-commit")
         pendingStageEntry=false;stageEntryRequest++
+        val from=destination
         val next=value.optString("route","home")
         if(next!=destination){returningFromSettings=destination=="settings"&&next=="stage";minimalResumePending=returningFromSettings}
         if(next!="stage")stageExit.clear()
@@ -281,6 +285,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         playerPresentation=if(value.optString("playerPresentation")=="minimal")"minimal"else"stage"
         if(next=="stage"&&destination!="stage"&&value.has("minimalPage"))minimalLastPage=if(value.optString("minimalPage")=="lyrics")1 else 0
         destination=next;webOverlay=value.optBoolean("webOverlay");selectedTab=value.optInt("selectedTab").coerceIn(0,1)
+        // 去集合页时不要自己淡出/滑走：路由一离开 stage，WebView 那份极简页就可能又挂回来，
+        // 播放页一透明就会把它透出来（3~4 层叠影的来源）。改为原地保持不透明，让页面压上来盖住。
+        if(MinimalPlayerExitPolicy.holdForCover(from,next,playerPresentation,minimalPlayerEnabled())){minimalCoverHold=true
+            android.util.Log.i("TingyuNavigation","cover-hold on: $from → $next（播放页原地保持，等页面盖住）")}
+        else if(next=="stage"){minimalCoverHold=false}
         // 工具页跟着打开它的路由走：路由一变（比如从歌曲工具进"播放设置"）就收起来，
         // 返回时再由用户重新打开 —— 工具页绝不叠在别的原生页上面。
         if(toolsPage.isNotEmpty()&&next!="stage"&&toolsRoute=="stage")closeNativeTools()
@@ -578,11 +587,16 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 }
             } }
             // 极简播放页：整页原生绘制，压在 WebView 之上。
-            // 进场是从迷你播放器位置升起来（420ms），退场是落下去（300ms）—— 与原页面同一组曲线。
+            // 进场是从迷你播放器位置升起来（420ms）—— 与原页面同一组曲线。
+            // 退场分两种（见 MinimalPlayerExitPolicy）：
+            //   · 去集合页：不自演退场，原地保持不透明并退到新页面**下面**，让页面压上来盖住；
+            //     任何"淡出/滑走"都会把 WebView 里还没换掉的另一份播放页透出来（真机 3~4 层叠影）。
+            //   · 其余路由：维持原来的下滑 + 淡出，因为底下露出来的就是目标页本身。
             // 例外：从设置页回到极简页不重放入场动画 —— 用户没有离开播放器，只是去设了个开关。
-            // 之前这里固定重放 420ms 的升入，看起来就像播放器被重新打开了一次。
+            val playerShown = minimalOwns || minimalCoverHold
+            val playerZ = if (minimalOwns) 3f else 0.5f
             AnimatedVisibility(
-                visible = minimalOwns,
+                visible = playerShown,
                 // 入场只滑不淡：这一页不透明，淡入会强制一整屏离屏图层。
                 // 360ms（320~380ms 目标带），入场是页面唯一的一套上滑 ——
                 // WebView 侧的同名位移已在 composeOwnsMinimalEntry 里关掉。
@@ -590,11 +604,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     animationSpec = tween(360, easing = CubicBezierEasing(.2f, .72f, .16f, 1f)),
                     initialOffsetY = { it },
                 ),
-                exit = if(destination=="settings")ExitTransition.None else slideOutVertically(
-                    animationSpec = tween(300, easing = CubicBezierEasing(.42f, 0f, .74f, .3f)),
-                    targetOffsetY = { it },
-                ) + fadeOut(tween(200)),
-                modifier = Modifier.fillMaxSize().zIndex(3f),
+                exit = when (MinimalPlayerExitPolicy.exit(destination, page != null)) {
+                    MinimalPlayerExitPolicy.Exit.NONE -> ExitTransition.None
+                    MinimalPlayerExitPolicy.Exit.SLIDE_AND_FADE -> slideOutVertically(
+                        animationSpec = tween(300, easing = CubicBezierEasing(.42f, 0f, .74f, .3f)),
+                        targetOffsetY = { it },
+                    ) + fadeOut(tween(200))
+                },
+                modifier = Modifier.fillMaxSize().zIndex(playerZ),
             ) {
                 MinimalPlayerSurface(
                     runtime = minimal,
@@ -611,6 +628,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     onOpenStage = { minimalCommands.openStage() },
                     modifier = Modifier.fillMaxSize(),
                 )
+            }
+            // 页面进组合后还要等它压上来（PUSH 240ms）才摘播放页；页面迟迟不来就超时放手，
+            // 让接下来的退场照常走 —— 宁可有一次普通动画，也不要一直把播放页当遮罩举着。
+            LaunchedEffect(minimalCoverHold, page?.key) {
+                if (!minimalCoverHold) return@LaunchedEffect
+                delay(if (page == null) MinimalPlayerExitPolicy.HOLD_TIMEOUT_MS else MinimalPlayerExitPolicy.COVER_SETTLE_MS)
+                minimalCoverHold = false
             }
             // Consume only this resume. A later visit to the full stage keeps its usual motion.
             LaunchedEffect(minimalOwns,minimalResumePending){if(minimalOwns&&minimalResumePending){withFrameNanos{};minimalResumePending=false}}
