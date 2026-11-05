@@ -1,0 +1,41 @@
+{
+  "$comment": "Android 页面归属检查配置。规则说明见 docs/ANDROID-PAGE-OWNERSHIP.md。修改本文件等于修改架构约束，需要同步更新文档。",
+  "version": 1,
+  "invariants": [
+    {
+      "id": "prehide-derived",
+      "file": "src/services/nativeChrome.ts",
+      "mustContain": "export const PREHIDE_COMPOSE_CHROME = COMPOSE_CHROME && isAndroidNativeRuntime();",
+      "why": "PREHIDE 必须是 Android 运行时派生，否则旧 chrome DOM 会复活"
+    },
+    {
+      "id": "native-first-derived",
+      "file": "src/services/nativePages.ts",
+      "mustContain": "export const NATIVE_FIRST=PREHIDE_COMPOSE_CHROME;",
+      "why": "NATIVE_FIRST 必须继续派生自 PREHIDE，不能在运行时被改成 false"
+    },
+    {
+      "id": "settings-document-root-kept",
+      "file": "src/hooks/useNativeSettingsDocument.ts",
+      "mustContain": "element.dataset.nativeDocumentRoot='true'",
+      "why": "设置文档 DOM 是排版真值源，必须保留挂载"
+    },
+    {
+      "id": "no-forced-ready",
+      "file": "src/hooks/useNativePage.ts",
+      "mustNotContain": "setReady(NATIVE_FIRST||value)",
+      "why": "禁止用 NATIVE_FIRST 把 ready 钉成 true（假装接管成功）"
+    }
+  ],
+  "webviewAllowlist": [
+    "src/components/app/overlays/minimal-stage/MinimalStage.tsx",
+    "src/components/app/overlays/mobile-stage/MobileStageChrome.tsx",
+    "src/components/modal/SettingsModal.tsx",
+    "src/components/modal/settings/MobileSettingsLanding.tsx",
+    "src/library/suites/mobile/MobileSheet.tsx",
+    "src/library/suites/mobile/MobileCollectionMenu.tsx",
+    "src/library/suites/mobile/MobileCollectionSourceActions.tsx",
+    "src/library/suites/mobile/MobileHomeSources.tsx",
+    "src/App.tsx"
+  ]
+}

@@ -31,6 +31,10 @@ skill 只负责地图和编译器都推不出来的东西：口头术语到名�
 
 当前项目内 skills：
 
+- `android-page-ownership`
+  路径：`skills/android-page-ownership/SKILL.md`
+  Android 页面渲染归属的唯一事实源在 `docs/ANDROID-PAGE-OWNERSHIP.md`。本 skill 约束：一个页面只有一套正式 UI（Compose 绘制、React 供数据），旧 DOM 分支必须挂在 `NATIVE_FIRST` 编译期门控上，接管失败要显示原生错误状态与重试而不是静默回退 WebView，新增 WebView 绘制面必须进白名单。改动任何页面 UI 前先读它。
+
 - `codebase-navigation`
   路径：`skills/codebase-navigation/SKILL.md`
   用于说明代码定位的三层顺序（先读生成的代码地图，再用 rg，rg 拿不准才升级到 ts-code-map cli），以及定位之后改动要遵守的分层与模块边界；同时标注了几个已经不存在、但仍会被搜到的历史命名。
