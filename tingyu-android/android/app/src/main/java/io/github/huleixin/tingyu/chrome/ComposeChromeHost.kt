@@ -499,7 +499,12 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     }
     @Composable private fun Scene() {
         // 原生首帧时间（录屏 68723 要求记录）：窗口背景从这一帧起被页面取代。
-        LaunchedEffect(Unit){withFrameNanos{NavigationTiming.mark("first-native-frame");android.util.Log.i("TingyuEntry","first-native-frame pages=${pages.size} surfaces=${surfaces.size}")}}
+        // 首帧画出来后把 decor 的启动底色交还透明（录屏 68736）：再等一帧，保证页面那一帧
+        // 已经真正画上屏，不会出现「底色撤了、内容还没画」的空档。
+        LaunchedEffect(Unit){
+            withFrameNanos{NavigationTiming.mark("first-native-frame");android.util.Log.i("TingyuEntry","first-native-frame pages=${pages.size} surfaces=${surfaces.size}")}
+            withFrameNanos{BootSurfaceTint.settle(web.context as? android.app.Activity)}
+        }
         val configuration=androidx.compose.ui.platform.LocalConfiguration.current
         val interfaceLight=InterfaceAppearance.resolve(appearanceMode,(configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK)==android.content.res.Configuration.UI_MODE_NIGHT_NO)
         val palette=remember(interfaceLight){InterfacePalette(interfaceLight)}

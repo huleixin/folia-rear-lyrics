@@ -79,7 +79,9 @@ final class MainSystemBars {
             | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
         // Keep edge-to-edge system areas backed by the same full-bleed WebView surface.
         // A fixed native tint creates visible bands over page gradients and stage backdrops.
-        decor.setBackgroundColor(Color.TRANSPARENT);
+        // 但「首帧之前」decor 透明 = 合成器清成黑色（录屏 68736 的纯黑卡片）：这段时间交给
+        // BootSurfaceTint 用页面底色顶着，Compose 首帧一出来就交还透明。
+        io.github.huleixin.tingyu.chrome.BootSurfaceTint.applyDecor(activity, decor);
         // Capacitor's SystemBars automatic decor padding is disabled in capacitor.config.json.
         // Clear a previous layout pass before the single content listener reserves keyboard space.
         decor.setPadding(0, 0, 0, 0);
