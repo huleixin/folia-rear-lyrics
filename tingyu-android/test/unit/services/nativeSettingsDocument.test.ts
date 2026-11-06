@@ -63,3 +63,25 @@ it('captures contrast-safe light secondary text at full opacity for the native C
  const paint=captureSettingsDocument(root).document.paints.find(p=>p.kind==='text'&&p.text==='次级说明');
  expect(paint).toMatchObject({color:'rgb(73, 99, 87)',opacity:1});
 });
+
+it('装饰层里的元素不会变成原生控件：全屏遮罩否则会吞掉整个面板的点击',()=>{
+ // 反馈面板（68743）在真机上「点哪都返回上一页」就是因为遮罩是个 <button>：
+ // 无 area 的控件在 Compose 里与 Controls(null) 一起最后合成，永远盖在滚动区里的
+ // 分类、输入框、开关之上，任何一次点击都被判成「点了遮罩 → onClose」。
+ const root=document.createElement('main');
+ root.innerHTML='<button>帮助</button>';
+ const dialog=document.createElement('div');
+ dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-label','问题反馈');
+ dialog.innerHTML='<button aria-hidden="true" data-native-decoration="true">关闭面板</button>'
+   +'<div><button>预览诊断信息</button><button role="switch" aria-checked="true">附带诊断日志</button></div>';
+ document.body.append(root,dialog);
+ vi.spyOn(Element.prototype,'getBoundingClientRect').mockReturnValue(new DOMRect(0,0,300,80));
+ const computed=window.getComputedStyle;
+ vi.spyOn(window,'getComputedStyle').mockImplementation(node=>{
+  const style=computed(node);if(!style.opacity)style.opacity='1';return style;
+ });
+ const controls=captureSettingsDocument(root).document.controls.map(c=>c.label);
+ expect(controls).not.toContain('关闭面板');
+ expect(controls).toEqual(['预览诊断信息','附带诊断日志']);
+ dialog.remove();
+});

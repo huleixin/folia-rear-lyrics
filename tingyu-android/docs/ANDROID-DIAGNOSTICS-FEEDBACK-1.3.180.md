@@ -378,3 +378,41 @@ adb exec-out run-as io.github.huleixin.tingyu cat files/diagnostics/events-*.jso
 | 安全模式导出 | 与正常入口同格式 ZIP（metadata/events/errors/performance/feedback/report） |
 
 测试：`StartupFailurePolicyTest` 8 例、`DiagnosticEventStreamTest` 7 例，均通过。
+
+---
+
+## 12. 1.3.181：反馈面板「点哪都返回上一页」
+
+### 12.1 现象与定位
+
+68743 录屏：设置 → 关于/帮助 →「问题反馈」，面板能正常打开，但点分类、输入框、开关都像没反应，
+点完直接退回帮助页。
+
+浏览器里同一套 DOM 完全正常（Playwright 390×844 触屏视口：点分类 → `aria-pressed=true`，
+点开关 → 面板仍在）。所以问题不在 React，而在安卓的**原生设置文档镜像**：
+
+- 设置页在真机上不是直接显示 DOM，而是由 `captureSettingsDocument` 拍成
+  `paints / controls / areas` 的显示列表，Compose 重画并把控件还原成点击热区；
+- 没有滚动区（`area=null`）的控件会在所有 area 之后、与 `Controls(null)` 一起合成，
+  **永远盖在滚动区里的内容控件之上**（`NativeSettingsDocumentView.kt`）；
+- 反馈面板的遮罩当时是 `<button className="absolute inset-0">` —— 全屏、无 area。
+  它被还原成一个覆盖整屏的热区，压在分类 / 输入框 / 开关之上，于是**任何一次点击都命中它**，
+  触发 `onClose`，看起来就是「点什么都回上一页」。
+
+### 12.2 改法
+
+1. `FeedbackPanel`：遮罩从 `<button>` 改成 `<div aria-hidden data-native-decoration="true" onClick={onClose}>`。
+   DOM 侧仍可点空白关闭；原生侧不再是控件。
+2. `captureSettingsDocument`：新增装饰层规则 —— `[data-native-decoration]` 子树里的
+   button / input / ruler / pad **一律不注册为控件**（只参与绘制）。
+3. 契约测试：
+   - `test/unit/services/nativeSettingsDocument.test.ts` 新增一例：全屏装饰按钮不得出现在
+     `document.controls` 里（去掉 guard 会失败）；
+   - `test/unit/architecture/feedbackOverlayContract.test.ts`：遮罩不得是 `<button>`、
+     必须带 `data-native-decoration`、采集端必须尊重该属性。
+
+### 12.3 顺带
+
+- 版本号 `1.3.180 / 203` → `1.3.181 / 204`；
+- 这条规则适用于所有「设置内弹层」：任何全屏遮罩都不能是 `button` 或 `role="button"`，
+  否则在原生镜像里会吞掉整个弹层的点击。

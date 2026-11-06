@@ -115,9 +115,14 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
 
     return createPortal(
         <div className="fixed inset-0 z-[160] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={copy.title}>
-            <button
-                type="button"
-                aria-label={copy.close}
+            {/* 背景遮罩不能是 <button>：原生设置文档会把每个 button 编译成一个覆盖全屏的
+                点击控件，而无 area 的控件在 Compose 里最后合成、永远盖在内容之上 ——
+                于是「点面板里任何位置」都被判成点遮罩，直接 onClose。这里用普通 div：
+                DOM 里照样能点空白关闭，原生侧则不会被采成控件（data-native-decoration
+                再上一道保险）。 */}
+            <div
+                aria-hidden="true"
+                data-native-decoration="true"
                 onClick={onClose}
                 className="absolute inset-0"
                 style={{ backgroundColor: palette.scrim, backdropFilter: 'blur(6px)' }}
