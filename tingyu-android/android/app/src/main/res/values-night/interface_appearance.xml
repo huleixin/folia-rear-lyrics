@@ -1,2 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources><color name="interfaceLaunchBackground">#09090B</color><bool name="interfaceLaunchLight">false</bool></resources>
+<resources>
+    <!-- 启动窗口/启动图底色必须等于原生首页渐变的深色首色（LaunchSurface.Dark=#102D25）。
+         用 #09090B 会让「窗口已起、内容未绘」的空窗变成一块与页面不同色的纯黑卡片。 -->
+    <color name="interfaceLaunchBackground">#102D25</color>
+    <bool name="interfaceLaunchLight">false</bool>
+</resources>

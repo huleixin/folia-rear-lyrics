@@ -61,8 +61,15 @@ public class MainActivity extends BridgeActivity {
             registerPlugin(io.github.huleixin.tingyu.glass.TingyuGlassPlugin.class);
         }
         registerPlugin(io.github.huleixin.tingyu.coloros.FoliaColorOsLyricsPlugin.class);
+        // 窗口底色必须等于原生首页首帧的渐变首色（LaunchSurface）。原先深色用 #09090B，
+        // 与页面真实的深绿底（#102D25 起）不同色，冷启动/重建时「窗口已起、内容未绘」
+        // 的那 0.3~0.5s 就是录屏 68723 里那块纯黑色圆角窗口。
         getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(
-            io.github.huleixin.tingyu.chrome.InterfaceAppearance.light(this) ? 0xFFF4F5EE : 0xFF09090B));
+            io.github.huleixin.tingyu.chrome.LaunchSurface.INSTANCE.color(
+                io.github.huleixin.tingyu.chrome.InterfaceAppearance.light(this))));
+        // 启动路径诊断：restored=true 表示 Activity 重建（进程内），配合 host-attach 与
+        // activity-resume 计数即可区分冷启动 / 暖恢复 / renderer 死亡后的 recreate。
+        android.util.Log.i("TingyuEntry", "activity-create restored=" + (savedInstanceState != null));
         super.onCreate(savedInstanceState);
         io.github.huleixin.tingyu.chrome.NavigationTiming.mark("activity-create-capacitor-ready");
         if (BuildConfig.DEBUG && (BuildConfig.GLASS_LAB || BuildConfig.COMPOSE_CHROME)) WebView.setWebContentsDebuggingEnabled(true);
