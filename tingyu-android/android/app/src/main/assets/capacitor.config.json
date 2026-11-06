@@ -3,7 +3,7 @@
 	"appName": "听屿",
 	"webDir": "dist",
 	"loggingBehavior": "debug",
-	"backgroundColor": "#09090b",
+	"backgroundColor": "#00000000",
 	"android": {
 		"allowMixedContent": true
 	},
@@ -19,7 +19,7 @@
 		"SplashScreen": {
 			"launchAutoHide": true,
 			"launchShowDuration": 0,
-			"backgroundColor": "#09090b",
+			"backgroundColor": "#00000000",
 			"showSpinner": false
 		},
 		"StatusBar": {

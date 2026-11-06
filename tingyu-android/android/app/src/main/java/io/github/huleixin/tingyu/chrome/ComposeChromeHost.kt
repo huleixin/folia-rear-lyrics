@@ -286,6 +286,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     var lastHomeReject by mutableStateOf("")
     private var stageEntryRequest=0L
     private var firstHomeFrame by mutableStateOf(true)
+    /** 启动底色是否已经交还透明（首个页面包落地时置位）。 */
+    private var bootTintSettled=false
     private var webStageBackground: Boolean? = null
     // Classic stage keeps its opaque backing. A stage sheet over the native minimal player
     // needs a transparent WebView behind the moving visual surface to reveal that underlay.
@@ -397,6 +399,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             navigationTrace("page-native-commit:${next.id}")
             recordMotion(next.key)
             presented=next
+            // 启动底色（BootSurfaceTint）必须在「第一个页面包真正落地」时交还透明：
+            // 页面已是不透明整屏渐变，此时撤色安全；按帧数撤会早于页面绘制，
+            // 撤掉之后又是一块黑窗（录屏 68736/68737 的第二次复现）。
+            if(!bootTintSettled){bootTintSettled=true;BootSurfaceTint.settle(web.context as? android.app.Activity)
+                android.util.Log.i("TingyuEntry","boot-tint-settled page=${next.id}")}
             // 入场错位排查埋点：首页几何包一旦带异常 viewport（与 WebView 实宽不符），
             // 原生页会按 web.width/viewport 整体放大 —— 录屏 68537 中 8% 放大副本的候补来源。
             if(next.id=="home"){
@@ -499,12 +506,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     }
     @Composable private fun Scene() {
         // 原生首帧时间（录屏 68723 要求记录）：窗口背景从这一帧起被页面取代。
-        // 首帧画出来后把 decor 的启动底色交还透明（录屏 68736）：再等一帧，保证页面那一帧
-        // 已经真正画上屏，不会出现「底色撤了、内容还没画」的空档。
-        LaunchedEffect(Unit){
-            withFrameNanos{NavigationTiming.mark("first-native-frame");android.util.Log.i("TingyuEntry","first-native-frame pages=${pages.size} surfaces=${surfaces.size}")}
-            withFrameNanos{BootSurfaceTint.settle(web.context as? android.app.Activity)}
-        }
+        LaunchedEffect(Unit){withFrameNanos{NavigationTiming.mark("first-native-frame");android.util.Log.i("TingyuEntry","first-native-frame pages=${pages.size} surfaces=${surfaces.size}")}}
         val configuration=androidx.compose.ui.platform.LocalConfiguration.current
         val interfaceLight=InterfaceAppearance.resolve(appearanceMode,(configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK)==android.content.res.Configuration.UI_MODE_NIGHT_NO)
         val palette=remember(interfaceLight){InterfacePalette(interfaceLight)}
