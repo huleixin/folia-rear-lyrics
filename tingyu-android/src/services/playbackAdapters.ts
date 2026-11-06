@@ -136,6 +136,23 @@ export const getLocalSongId = (localSong: LocalSong): number => {
     return combined === 0 ? -1 : -combined;
 };
 
+/**
+ * 阶段五：本地歌曲的音质信息（目录标注语义，与在线 catalogAudioSpecs 同一渲染通道）。
+ *
+ * 规则保守：容器为无损编码（FLAC/WAV）才标 lossless；有损容器只在估算码率 ≥256kbps 时标 high；
+ * 时长缺失或算不出时不标 —— 没有数据入口的档位一律不显示，禁止从文件名推断。
+ */
+export function deriveLocalAudioSpecs(localSong: LocalSong): import('../types/catalogAudioSpecs').CatalogAudioSpec[] | undefined {
+    const mime = (localSong.mimeType || '').toLowerCase();
+    const isLosslessContainer = mime.includes('flac') || mime.includes('wav') || mime.includes('ape') || mime.includes('alac');
+    if (isLosslessContainer) return ['lossless'];
+    const bitrateKbps = localSong.duration > 0 && localSong.fileSize > 0
+        ? Math.round((localSong.fileSize * 8) / (localSong.duration / 1000) / 1000)
+        : 0;
+    if (bitrateKbps >= 256) return ['high'];
+    return undefined;
+}
+
 export function buildUnifiedLocalSong({
     localSong,
     matchedSong,
@@ -173,6 +190,7 @@ export function buildUnifiedLocalSong({
         localRef: { songId: localSong.id },
         sourceRef: { kind: 'local', mediaId: localSong.id },
         playbackSourceRevision: buildLocalSourceRevision(localSong),
+        catalogAudioSpecs: deriveLocalAudioSpecs(localSong),
     };
 
     if (!matchedSong) {

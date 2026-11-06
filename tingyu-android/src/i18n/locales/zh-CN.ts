@@ -3730,6 +3730,7 @@ export default {
   "localMusic": {
     "songs": "歌曲",
     "songAlreadyInPlaylist": "歌曲已在该歌单（{{name}}）",
+    "audioSpecsLabel": "本地文件：{{specs}}",
     "manualEditSection": "手动编辑信息",
     "manualEditTitle": "歌曲标题",
     "manualEditArtist": "歌手（多个用逗号分隔）",
@@ -3970,6 +3971,7 @@ export default {
     "artists": "艺术家",
     "songs": "歌曲",
     "songAlreadyInPlaylist": "歌曲已在该歌单（{{name}}）",
+    "audioSpecsLabel": "本地文件：{{specs}}",
     "manualEditSection": "手动编辑信息",
     "manualEditTitle": "歌曲标题",
     "manualEditArtist": "歌手（多个用逗号分隔）",

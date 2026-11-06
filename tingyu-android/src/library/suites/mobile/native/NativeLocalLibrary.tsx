@@ -11,6 +11,7 @@ import { MobileLocalTools } from '../MobileHomeSources';
 import { hasBlockingWindow } from '../../../../utils/keyboardTargets';
 import { buildLocalQueue, LIST_ROW_COVER_SIZE } from '../../../../services/playbackAdapters';
 import { getSongArtistLabel, getSongCoverUrl } from '../../../../services/onlineMusic/songMetadata';
+import { normalizeCatalogAudioSpecs } from '../../../../types/catalogAudioSpecs';
 import { absolutePageImage } from '../../../../services/nativePages';
 import { useLibraryTrackPlayback } from '../../../../hooks/useLibraryTrackPlayback';
 import { useLocalTrackSortStore } from '../../../core/state/useLocalTrackSortStore';
@@ -85,7 +86,11 @@ export default function NativeLocalLibrary(args:NativeHomeProps) {
         tailSections.push({id:'local-songs',title,layout:'rows',key:`${path}:${query}:${sortField}:${sortDirection}`,
             total:filtered.length,offset:songOffset,request:'songRange',items:filtered.slice(songOffset,songOffset+100).map(song=>{
                 const artist=getSongArtistLabel(song);
+                // 本地歌的音质标注（无损/HQ，同集合页推导规则）；没有档位就不带字段。
+                const specs=(normalizeCatalogAudioSpecs(song.catalogAudioSpecs)||[]).slice(0,1);
+                const specsField=specs.length?{audioSpecs:specs,audioSpecsLabel:t('localMusic.audioSpecsLabel',{specs:specs.map(spec=>t(`catalogAudioSpecs.${spec}`)).join(' / ')})}:{};
                 return{
+                    ...specsField,
                     id:`local-song:${song.id}`,title:song.name,
                     subtitle:artist,
                     image:absolutePageImage(getSongCoverUrl(song)),action:`local-song:${song.id}`,

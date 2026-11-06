@@ -9,6 +9,7 @@ import { absolutePageImage } from '../../../../services/nativePages';
 import { normalizeCatalogAudioSpecs } from '../../../../types/catalogAudioSpecs';
 import { getSongArtistLabel, getSongCoverUrl, getSongDurationMs } from '../../../../services/onlineMusic/songMetadata';
 import { formatTime } from '../../../../utils/appPlaybackHelpers';
+import { isLocalPlaybackSong } from '../../../../utils/appPlaybackGuards';
 import { omni } from '../../../../services/onlineMusic/omni';
 import { getPlaybackSongKey } from '../../../../utils/appPlaybackGuards';
 import { isSongUnavailable } from '../../../../services/onlineMusic/songAvailability';
@@ -50,7 +51,7 @@ export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:L
         // 只取最高一档：标签设计是每行一枚。
         const audioSpecs=(normalizeCatalogAudioSpecs(song.catalogAudioSpecs)||[]).slice(0,1);
         return{id:`${index}:${key}`,title:props.collection.type==='playlist'?song.name:`${index+1}. ${song.name}`,number:String(index+1).padStart(2,'0'),duration:formatTime(getSongDurationMs(song)/1000),subtitle:getSongArtistLabel(song),image:absolutePageImage(getSongCoverUrl(song)),
-            ...(audioSpecs.length?{audioSpecs,audioSpecsLabel:t('catalogAudioSpecs.description',{specs:audioSpecs.map(spec=>t(`catalogAudioSpecs.${spec}`)).join(' / ')})}:{}),
+            ...(audioSpecs.length?{audioSpecs,audioSpecsLabel:t(isLocalPlaybackSong(song)?'localMusic.audioSpecsLabel':'catalogAudioSpecs.description',{specs:audioSpecs.map(spec=>t(`catalogAudioSpecs.${spec}`)).join(' / ')})}:{}),
             action:`play:${index}:${key}`,secondary:`menu:${index}:${key}`,secondaryLabel:t('mobileLibrary.trackActions',{name:song.name}),disabled:isSongUnavailable(song),selected:key===activeKey};
     }),[model.view.displayTracks,indexes,total,offset,activeKey,props.collection.type,t]);
     const controls=[{id:'play',title:t('mobileLibrary.playAll'),action:'playAll',disabled:!model.actions.capabilities.scope.enabled}];

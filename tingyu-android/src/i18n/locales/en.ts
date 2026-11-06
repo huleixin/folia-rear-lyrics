@@ -3741,6 +3741,7 @@ export default {
   "localMusic": {
     "songs": "Songs",
     "songAlreadyInPlaylist": "Already in {{name}}",
+    "audioSpecsLabel": "Local file: {{specs}}",
     "manualEditSection": "Edit info manually",
     "manualEditTitle": "Song title",
     "manualEditArtist": "Artists (comma separated)",
@@ -3981,6 +3982,7 @@ export default {
     "artists": "Artists",
     "songs": "Songs",
     "songAlreadyInPlaylist": "Already in {{name}}",
+    "audioSpecsLabel": "Local file: {{specs}}",
     "manualEditSection": "Edit info manually",
     "manualEditTitle": "Song title",
     "manualEditArtist": "Artists (comma separated)",
