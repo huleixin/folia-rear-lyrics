@@ -48,6 +48,8 @@ export type DiagnosticEvent = {
 
 type NativeDiagnosticsPlugin = {
     diagnosticEvent?: (options: { lines: string }) => Promise<unknown>;
+    /** 只接受 js-ready / startup-complete 这类真实存在的阶段名。 */
+    startupStage?: (options: { stage: string }) => Promise<unknown>;
     diagnosticSession?: () => Promise<{
         sessionId?: string;
         startedAt?: number;
@@ -257,6 +259,22 @@ export const flushDiagnosticLog = async (): Promise<void> => {
         pending = [...batch, ...pending].slice(-MAX_PENDING);
     }
     if (pending.length > 0) scheduleFlush();
+};
+
+/**
+ * 把前端能确定的启动阶段交给原生（js-ready / startup-complete）。
+ *
+ * 前端只报它真的知道的节点；Application / Activity / WebView 三个阶段由原生自己记，
+ * 免得同一条时间线出现两个互相矛盾的来源。
+ */
+export const reportStartupStage = (stage: string): void => {
+    try {
+        const plugin = nativeDiagnosticsPlugin();
+        if (!plugin?.startupStage) return;
+        void plugin.startupStage({ stage }).catch(() => undefined);
+    } catch {
+        // 诊断不能影响启动。
+    }
 };
 
 /** 读当前内存环（最旧在前）。 */

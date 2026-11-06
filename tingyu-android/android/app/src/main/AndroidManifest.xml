@@ -12,6 +12,7 @@
 
     <queries><package android:name="com.xiaomi.subscreencenter" /></queries>
     <application
+        android:name=".TingyuApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="${tingyuAppLabel}"
@@ -23,6 +24,13 @@
         <meta-data android:name="xposeddescription" android:value="听屿背屏系统协调 / Tingyu rear-display bridge" />
         <meta-data android:name="xposedminversion" android:value="82" />
         <meta-data android:name="xposedscope" android:resource="@array/xposed_scope" />
+        <!-- 极早期诊断：ContentProvider 先于 Application.onCreate 创建，initOrder 取高值确保
+             它排在其他 provider 之前。只装崩溃处理器/事件流/启动记账，不做业务初始化。 -->
+        <provider
+            android:name=".diagnostics.DiagnosticBootstrapProvider"
+            android:authorities="${applicationId}.diagnostics"
+            android:exported="false"
+            android:initOrder="1000" />
         <provider android:name=".LspRearProvider" android:authorities="${applicationId}.lsp"
             android:exported="true" android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
         <!-- 背屏中心是另一个应用（系统应用）：Android 11+ 的包可见性会拦 content provider
@@ -58,6 +66,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- 安全恢复页：不依赖 React / WebView / Media3 / 歌词 / LSP，只在启动守卫判定失败时进入。 -->
+        <activity
+            android:name=".SafeModeActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:label="${tingyuAppLabel}"
+            android:theme="@style/AppTheme.NoActionBar" />
         <activity
             android:name=".RearLyricsActivity"
             android:exported="true"

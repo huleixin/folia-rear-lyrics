@@ -1,6 +1,7 @@
 package io.github.huleixin.tingyu;
 
 import android.content.ComponentCallbacks2;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.SystemClock;
@@ -31,6 +32,8 @@ public class MainActivity extends BridgeActivity {
     private static final String WEBVIEW_UPDATE_PREFS = "folia_webview_update";
     private static final String WEBVIEW_UPDATE_KEY = "last_cleared_update_time";
     private int rendererRecoveries = 0;
+    /** DEBUG 故障注入：webview-init 需要在 super.onCreate 之后抛，先记在字段里。 */
+    private String pendingStartupFault;
     private long lastUserLeaveRecordAt = 0L;
     private long lastTrimMemoryRecordAt = 0L;
     private int lastTrimMemoryLevel = Integer.MIN_VALUE;
@@ -47,6 +50,30 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // 主界面启动确认：到这一步才把「上一会话没走完」计入连续失败（背屏 Activity 不算）。
+        io.github.huleixin.tingyu.diagnostics.StartupGuard.noteEntry(true);
+        io.github.huleixin.tingyu.diagnostics.StartupGuard.confirmMainLaunch();
+        // 安全模式必须在 super.onCreate 之前判定：super 会创建 Capacitor bridge 与 WebView，
+        // 而这两者正是启动崩溃最常见的现场。判定为真时直接换到零依赖的原生恢复页。
+        if (!getIntent().getBooleanExtra(SafeModeActivity.EXTRA_FROM_SAFE_MODE, false)
+            && io.github.huleixin.tingyu.diagnostics.StartupGuard.shouldEnterSafeMode(this)) {
+            try {
+                startActivity(new Intent(this, SafeModeActivity.class));
+                finish();
+                return;
+            } catch (Throwable cannotOpenSafeMode) {
+                // 打不开恢复页时宁可继续正常启动，也不要留一个空白 Activity 给用户。
+                CrashDiagnostics.recordText(
+                    getApplicationContext(), "startup-guard", "main", "safe-mode-open-failed",
+                    String.valueOf(cannotOpenSafeMode), "SafeModeActivity start failed");
+            }
+        }
+        // 诊断安装在这里是第三道保险（前两道在 Application.attachBaseContext 与 BootstrapProvider），
+        // 幂等，重复调用只多一次判断。
+        io.github.huleixin.tingyu.diagnostics.DiagnosticBootstrap.install(
+            getApplicationContext(), io.github.huleixin.tingyu.diagnostics.StartupGuard.STAGE_ACTIVITY_CREATE);
+        // DEBUG 构建的故障注入：只在带 faultStage extra 时生效，release 里整段被 R8 当作死代码前也安全。
+        injectStartupFaultIfRequested(getIntent());
         io.github.huleixin.tingyu.chrome.NavigationTiming.initialize(this);
         CrashDiagnostics.install(getApplicationContext());
         // The playback trail must exist before anything else can fail, and must be reloaded from
@@ -54,9 +81,11 @@ public class MainActivity extends BridgeActivity {
         io.github.huleixin.tingyu.playback.PlaybackDiagnostics.initialize(getApplicationContext());
         io.github.huleixin.tingyu.playback.PlaybackLifecycle.noteActivity("create", true);
         clearWebViewCachesAfterAppUpdate();
+        boolean skipOptional = io.github.huleixin.tingyu.diagnostics.StartupGuard.skipOptional();
         registerPlugin(FoliaNativePlugin.class);
         registerPlugin(io.github.huleixin.tingyu.playback.TingyuPlaybackPlugin.class);
-        if (BuildConfig.COMPOSE_CHROME) registerPlugin(io.github.huleixin.tingyu.chrome.TingyuChromePlugin.class);
+        // 安全模式「跳过非必要模块」：原生 Compose 页面不是启动必需品，少装一份就少一个崩溃面。
+        if (BuildConfig.COMPOSE_CHROME && !skipOptional) registerPlugin(io.github.huleixin.tingyu.chrome.TingyuChromePlugin.class);
         if (BuildConfig.GLASS_LAB) {
             registerPlugin(io.github.huleixin.tingyu.glass.TingyuGlassPlugin.class);
         }
@@ -114,11 +143,19 @@ public class MainActivity extends BridgeActivity {
         } catch (Throwable unavailable) { /* Keep Capacitor's existing client on unsupported vendor WebViews. */ }
         WebView webView = getBridge().getWebView();
         io.github.huleixin.tingyu.chrome.NavigationTiming.mark("webview-available");
-        if (BuildConfig.COMPOSE_CHROME) {
+        io.github.huleixin.tingyu.diagnostics.DiagnosticBootstrap.stage(
+            io.github.huleixin.tingyu.diagnostics.StartupGuard.STAGE_WEBVIEW_INIT);
+        // 注入点放在 WebView 已经创建之后：复现的是「WebView 初始化阶段」而不是参数检查。
+        if ("webview-init".equals(pendingStartupFault)) {
+            throw new IllegalStateException("Injected startup fault at webview-init (debug build)");
+        }
+        if (BuildConfig.COMPOSE_CHROME && !skipOptional) {
             // Attach packaged Compose UI before the Activity can present its first application frame.
             nativeShell = new io.github.huleixin.tingyu.chrome.ComposeChromeHost(webView, (id,session,action,value) -> {});
             nativeShell.bootstrap();
             io.github.huleixin.tingyu.chrome.NavigationTiming.mark("cached-shell-attached");
+            io.github.huleixin.tingyu.diagnostics.DiagnosticBootstrap.stage(
+                io.github.huleixin.tingyu.diagnostics.StartupGuard.STAGE_NATIVE_SHELL);
         }
         WebSettings settings = webView.getSettings();
         settings.setMediaPlaybackRequiresUserGesture(false);
@@ -214,6 +251,38 @@ public class MainActivity extends BridgeActivity {
         // Failure is non-fatal: the JS-side recovery still handles a stale chunk reference.
         //noinspection ResultOfMethodCallIgnored
         file.delete();
+    }
+
+    /**
+     * DEBUG 构建的启动故障注入。release 里第一行就返回，方法体不会被执行。
+     *
+     * <pre>
+     * adb shell am force-stop io.github.huleixin.tingyu
+     * adb shell am start -n io.github.huleixin.tingyu/.MainActivity --es faultStage activity-create
+     * adb shell am start -n io.github.huleixin.tingyu/.MainActivity --es faultStage webview-init
+     * adb shell am start -n io.github.huleixin.tingyu/.MainActivity --es faultStage anr
+     * adb shell am start -n io.github.huleixin.tingyu/.MainActivity --es faultStage safe-mode
+     * </pre>
+     */
+    private void injectStartupFaultIfRequested(Intent intent) {
+        if (!BuildConfig.DEBUG || intent == null) return;
+        String fault = intent.getStringExtra("faultStage");
+        if (fault == null || fault.isEmpty()) return;
+        pendingStartupFault = fault;
+        if ("activity-create".equals(fault)) {
+            throw new IllegalStateException("Injected startup fault at activity-create (debug build)");
+        }
+        if ("anr".equals(fault)) {
+            // 主线程睡 9 秒：复现「启动阶段 ANR」，系统会在 5 秒后开始记 ANR。
+            try {
+                Thread.sleep(9_000L);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        if ("safe-mode".equals(fault)) {
+            io.github.huleixin.tingyu.diagnostics.StartupGuard.forceSafeMode("debug-fault-injection");
+        }
     }
 
     /**
@@ -344,6 +413,10 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onStop() {
+        // 用户主动退出（不是被系统杀）：下一次启动不算「启动失败」。
+        if (isFinishing()) {
+            io.github.huleixin.tingyu.diagnostics.StartupGuard.noteUserExit();
+        }
         io.github.huleixin.tingyu.playback.PlaybackDiagnostics.initialize(getApplicationContext());
         io.github.huleixin.tingyu.playback.PlaybackLifecycle.noteActivity("stop", false);
         io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("activity-stop", new com.getcapacitor.JSObject()

@@ -269,6 +269,8 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                     .setDefaultRequestProperties(java.util.Collections.singletonMap("Referer","https://y.qq.com/")))))
             .setAudioAttributes(new AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),true)
             .setHandleAudioBecomingNoisy(true).setWakeMode(C.WAKE_MODE_LOCAL).build();
+        io.github.huleixin.tingyu.diagnostics.DiagnosticLog.event(
+            "playback", "info", "media3-engine-created", null);
         player.addListener(new Player.Listener(){
             @Override public void onTracksChanged(androidx.media3.common.Tracks tracks){
                 // 音轨规格变化（换歌 / 换质 / 解码器切换）立刻把最新快照递给 JS：

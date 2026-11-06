@@ -56,7 +56,10 @@ public final class CrashDiagnostics {
     public static synchronized void install(Context context) {
         if (installed || context == null) return;
         installed = true;
-        Context appContext = context.getApplicationContext();
+        // attachBaseContext 阶段 getApplicationContext() 还可能返回 null；回退到传入的 base，
+        // 否则第一道崩溃处理器会因为一次 NPE 而根本没装上。
+        Context resolved = context.getApplicationContext();
+        final Context appContext = resolved == null ? context : resolved;
         // Keep the immediately preceding session's last breadcrumb before the new session
         // overwrites it; this is what survives an abrupt process death.
         try {
@@ -259,8 +262,12 @@ public final class CrashDiagnostics {
             ActivityManager activityManager =
                 (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
             if (activityManager == null) return;
-            Method historyMethod = ActivityManager.class.getMethod("getHistoricalProcessExitInfos");
-            Object rawExits = historyMethod.invoke(activityManager);
+            // 真实 API 是 getHistoricalProcessExitReasons(packageName, pid, maxNum)。
+            // 这里保留反射只为兼容 API 30 以下的类加载（方法不存在时会抛并落到 catch）。
+            Method historyMethod = ActivityManager.class.getMethod(
+                "getHistoricalProcessExitReasons", String.class, int.class, int.class);
+            Object rawExits = historyMethod.invoke(
+                activityManager, context.getPackageName(), 0, 16);
             if (!(rawExits instanceof List<?>)) return;
             List<?> exits = (List<?>) rawExits;
             if (exits == null || exits.isEmpty()) return;

@@ -4,4 +4,17 @@
     <string name="title_activity_main">听屿</string>
     <string name="package_name">io.github.huleixin.tingyu</string>
     <string name="custom_url_scheme">io.github.huleixin.tingyu</string>
+    <string name="safe_mode_title">安全恢复模式</string>
+    <string name="safe_mode_subtitle">听屿连续几次没能在启动后进入界面，已停在最小依赖的恢复页。这里不加载 WebView、播放引擎和歌词系统。</string>
+    <string name="safe_mode_view_errors">查看最近异常摘要</string>
+    <string name="safe_mode_view_errors_hint">启动阶段、系统退出原因与最近的崩溃堆栈</string>
+    <string name="safe_mode_export">导出诊断报告</string>
+    <string name="safe_mode_export_hint">生成与正常入口相同格式的 ZIP，通过系统分享发给开发者</string>
+    <string name="safe_mode_export_done">已生成诊断包：%1$s</string>
+    <string name="safe_mode_export_failed">导出失败</string>
+    <string name="safe_mode_skip_optional">跳过非必要模块尝试启动</string>
+    <string name="safe_mode_skip_optional_hint">少装原生界面与可选插件，再试一次；仍然失败会自动回到这里</string>
+    <string name="safe_mode_resume">恢复正常启动</string>
+    <string name="safe_mode_resume_hint">清除本次安全模式标记，按完整流程启动</string>
+    <string name="safe_mode_footer">安全模式不会删除任何音乐、歌单、设置或播放记录。诊断内容只在本机生成，只有你点「导出」后才会离开设备。</string>
 </resources>

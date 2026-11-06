@@ -673,6 +673,8 @@ public class FoliaPlaybackService extends Service {
 
     @Override
     public void onTaskRemoved(Intent rootIntent) {
+        // 从最近任务划掉：属于用户主动退出，不能让下一次启动被误判成「连续启动失败」。
+        io.github.huleixin.tingyu.diagnostics.StartupGuard.noteUserExit();
         CrashDiagnostics.recordText(
             getApplicationContext(),
             "activity-lifecycle",

@@ -896,6 +896,28 @@ public class FoliaNativePlugin extends Plugin {
         call.resolve();
     }
 
+    /**
+     * 前端回报启动阶段（js-ready / startup-complete）。
+     *
+     * <p>为什么不让前端直接写 prefs：阶段必须和原生那条时间线在同一个文件、同一个会话里，
+     * 否则崩溃后无法判断「WebView 起来了但 React 没起来」。
+     */
+    @PluginMethod
+    public void startupStage(PluginCall call) {
+        io.github.huleixin.tingyu.diagnostics.DiagnosticLog.install(getContext());
+        String stage = call.getString("stage", "");
+        if (stage == null || stage.isEmpty()) {
+            call.reject("stage is required");
+            return;
+        }
+        if (io.github.huleixin.tingyu.diagnostics.StartupGuard.STAGE_COMPLETE.equals(stage)) {
+            io.github.huleixin.tingyu.diagnostics.StartupGuard.complete();
+        } else {
+            io.github.huleixin.tingyu.diagnostics.StartupGuard.stage(stage);
+        }
+        call.resolve();
+    }
+
     /** 会话信息：前端拿 sessionId 对齐事件归属，预览页拿计数判断「有没有内容可导」。 */
     @PluginMethod
     public void diagnosticSession(PluginCall call) {

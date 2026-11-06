@@ -176,3 +176,27 @@ tasks.register('verifyPlaybackTestAssets') {
     }
 }
 tasks.named('preBuild').configure { dependsOn 'verifyPlaybackTestAssets' }
+
+/**
+ * Release 的 R8 mapping 归档。
+ *
+ * 当前 release 关闭了 minify（minifyEnabled false），所以不会有 mapping.txt；这个任务在
+ * 开启混淆后才会真正产出文件。保留 suffixed 版本是为了「一个 APK 对应一份 mapping」——
+ * 只留 outputs/mapping/release/mapping.txt 会被下一次构建覆盖，事后无法还原旧包的栈。
+ *
+ * 用法：./gradlew :app:archiveReleaseMapping
+ * 归档位置：app/build/outputs/mapping/release/mapping-<buildId>.txt
+ */
+tasks.register('archiveReleaseMapping') {
+    doLast {
+        def releaseDir = layout.buildDirectory.dir('outputs/mapping/release').get().asFile
+        def mapping = new File(releaseDir, 'mapping.txt')
+        if (!mapping.exists()) {
+            logger.lifecycle("[mapping] ${mapping} 不存在：当前 release 未开启 minifyEnabled，无需归档")
+            return
+        }
+        def target = new File(releaseDir, "mapping-${gitBuildId}.txt")
+        target.bytes = mapping.bytes
+        logger.lifecycle("[mapping] 已归档到 ${target}")
+    }
+}

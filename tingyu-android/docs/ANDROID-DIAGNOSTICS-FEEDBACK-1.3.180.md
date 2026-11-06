@@ -212,3 +212,167 @@ README.txt        包内说明与隐私声明
 - `vitest test/unit/diagnostics`：10 例全过（另含既有 aiThemeDiagnostics 4 例）；
 - `gradlew :app:testReleaseUnitTest --tests "*DiagnosticEventStreamTest"`：7 例全过；
 - `gradlew :app:assembleRelease`：成功。
+
+---
+
+## 11. 第二轮补充：极早期启动捕获 + 连续失败保护（1.3.180+）
+
+### 11.1 为什么需要单独一层
+
+第一轮的安装点是 `MainActivity.onCreate`。如果崩溃发生在 **Application 初始化**、
+**其它 ContentProvider** 或 **Capacitor 创建 WebView** 的过程中，Activity 根本不会创建，
+那条安装语句永远执行不到 —— 下一包里只有系统层的 exit info，没有我们的堆栈与阶段。
+
+这一轮把安装点前移成三层，全部幂等：
+
+| 层 | 位置 | 覆盖范围 |
+| --- | --- | --- |
+| 1 | `TingyuApplication.attachBaseContext` | 进程里第一段属于我们的代码 |
+| 2 | `DiagnosticBootstrapProvider.onCreate`（initOrder=1000） | Android 保证在所有 provider 里最先创建 |
+| 3 | `MainActivity.onCreate` | 兜底（前两层被裁掉/被禁用时） |
+
+`CrashDiagnostics.install` 保留原有链式语义：记录后仍调用上一个 `UncaughtExceptionHandler`，
+不吞异常。新增的一处修复：`attachBaseContext` 阶段 `getApplicationContext()` 可能返回 null，
+原实现会 NPE 导致处理器根本没装上，现在回退到传入的 base context。
+
+### 11.2 启动阶段（按源码实际存在，不虚构）
+
+| 阶段 | 写入点 |
+| --- | --- |
+| `app-attach` | `TingyuApplication.attachBaseContext` |
+| `provider-init` | `DiagnosticBootstrapProvider.onCreate` |
+| `app-create` | `TingyuApplication.onCreate` |
+| `activity-create` | `MainActivity.onCreate`（super 之前） |
+| `webview-init` | `MainActivity`：`getBridge().getWebView()` 之后 |
+| `native-shell` | `ComposeChromeHost.bootstrap()` 之后（未启用/被跳过时不出现） |
+| `js-ready` | 前端 `index.tsx` 初始化完诊断后回报 |
+| `startup-complete` | `AppSplashGate` 首帧提交后再等两帧回报 |
+
+**Media3 不在冷启动路径上**：`NativeAudioEngine` 是首次播放时 `get()` 懒创建的，
+所以没有 `media3-init` 阶段。它在创建时记一条 `playback / media3-engine-created` 事件，
+需要时用时间线对齐即可。
+
+写入成本：每次阶段变化一次 `apply()`（异步），整个启动最多 6 次，不参与关键路径的同步 IO。
+
+### 11.3 上次停在哪：怎么读
+
+`StartupGuard.summary()` 与包里 `performance.json.startup` 给出：
+
+```jsonc
+{
+  "stage": "webview-init",          // 上次进程最后写到的阶段
+  "stageAt": 1793980620399,
+  "completedLastSession": false,     // 没走到 startup-complete
+  "consecutiveFailures": 2,
+  "stages": [{"stage":"app-attach","sinceStartMs":12}, ...],
+  "lastExitKind": 1,                 // 1=crash 2=anr 3=user 4=system 0=unknown
+  "lastExitDetail": "reason=4 status=0 importance=100 process=... description=..."
+}
+```
+
+判定规则（`StartupFailurePolicy`，8 例单测覆盖）：
+
+- 上次走到 `startup-complete` → 计数清零；
+- 上次是用户主动退出（`onStop(isFinishing)` / `onTaskRemoved`）→ 清零；
+- 系统原因（低内存 / freezer / 依赖进程 / 厂商杂项终止）→ 清零；
+- 其余（未完成 + 崩溃 / ANR / 无退出信息）→ +1；
+- 连续 2 次 → 安全模式。
+
+**两个防误判设计**：
+
+1. 失败计数只在 `MainActivity` 里 +1（`confirmMainLaunch`）。背屏 `RearLyricsActivity`
+   会拉起同一个进程但不加载 React，如果算进去，背屏用得多的用户会被误判。
+2. 达标后还要再查一次 `ApplicationExitInfo`（`getHistoricalProcessExitReasons`），
+   用户退出/系统回收会把计数退回去。慢 binder 调用只发生在这条罕见路径上。
+
+顺带修复一个既有 bug：`CrashDiagnostics` 里反射的方法名写成了
+`getHistoricalProcessExitInfos`（不存在），异常被 catch 吞掉 —— 所以「系统退出原因」
+这一段此前一直是空的。现在改用真实 API `getHistoricalProcessExitReasons(package, pid, max)`。
+
+### 11.4 安全恢复页（`SafeModeActivity`）
+
+纯 Activity + 原生控件，不创建 WebView、不初始化 Capacitor bridge、不碰 Media3/歌词/LSP。
+在 `MainActivity.onCreate` **super 之前**判定并跳转，因此崩溃在 WebView 初始化时也能进入。
+
+四个动作：
+
+| 动作 | 行为 |
+| --- | --- |
+| 查看最近异常摘要 | 启动阶段 + 系统退出原因 + 最近崩溃堆栈（AlertDialog，可滚动） |
+| 导出诊断报告 | 与正常入口**同一套 ZIP 格式**（`SafeModeReport` → `DiagnosticPackage`），FileProvider 分享 |
+| 跳过非必要模块启动 | 置 `skip_optional`，不注册 `TingyuChromePlugin`、不建 Compose 原生壳，再启动主界面 |
+| 恢复正常启动 | 清安全模式与计数，完整流程启动 |
+
+都不删除任何音乐、歌单、设置或播放记录；不会自动重启，也不会无限重试。
+
+**绕不过去的情况（必须说明）**：
+
+- 崩溃发生在第三方 ContentProvider（如 ShizukuProvider）内部：系统在进程启动时就会创建它，
+  Activity 层无法拦截，安全模式也进不去；
+- 原生 SIGSEGV / WebView 渲染进程 native crash：安全模式可以显示（如果它发生在 WebView 创建之后
+  且进程还活着），但若是进程级 native 崩溃，只能靠下次启动的 exit info；
+- 系统级 ANR 卡死：安全模式无法打断已经卡住的主线程。
+
+这些情况的兜底是 ADB（见 11.6）。
+
+### 11.5 调试期故障注入（仅 Debug）
+
+```bash
+adb shell am force-stop io.github.huleixin.tingyu
+# MainActivity 创建阶段抛异常
+adb shell am start -n io.github.huleixin.tingyu/.MainActivity --es faultStage activity-create
+# WebView 创建之后抛异常
+adb shell am start -n io.github.huleixin.tingyu/.MainActivity --es faultStage webview-init
+# 主线程睡 9 秒，触发 ANR
+adb shell am start -n io.github.huleixin.tingyu/.MainActivity --es faultStage anr
+# 直接进安全模式
+adb shell am start -n io.github.huleixin.tingyu/.MainActivity --es faultStage safe-mode
+# Application 阶段崩溃（debug 包可写 prefs）
+adb shell run-as io.github.huleixin.tingyu sh -c \
+  'mkdir -p shared_prefs && printf "%s" "<map><string name=\"stage\">app-create</string></map>" \
+   > shared_prefs/tingyu_debug_fault.xml'
+adb shell am force-stop io.github.huleixin.tingyu && adb shell am start -n io.github.huleixin.tingyu/.MainActivity
+```
+
+Release 构建里 `BuildConfig.DEBUG` 为 false，以上代码路径不会执行。
+
+### 11.6 ADB 兜底（无法自动捕获时）
+
+```bash
+# 崩溃缓冲（native crash / Java crash 都在这里）
+adb logcat -b crash -d > crash.log
+# 完整 logcat（含 ActivityManager 的 ANR / 进程死亡）
+adb logcat -d -v threadtime > full.log
+# 系统 dropbox（ANR traces、tombstone 索引）
+adb shell dumpsys dropbox --print > dropbox.txt
+# 进程退出历史（需要 API 30+，且系统允许）
+adb shell dumpsys activity exit-info io.github.huleixin.tingyu
+# 应用私有诊断文件（debug 包可直接拉）
+adb shell run-as io.github.huleixin.tingyu ls files/diagnostics
+adb exec-out run-as io.github.huleixin.tingyu cat files/diagnostics/events-*.jsonl > events.jsonl
+```
+
+### 11.7 R8 / mapping 审计
+
+- 当前 `release { minifyEnabled false }` —— **Release 没有混淆，也没有 mapping.txt**，
+  堆栈里的类名/行号本身就是可读的；
+- 已补 `proguard-rules.pro`：`-keepattributes SourceFile,LineNumberTable` +
+  诊断类/Application/SafeModeActivity 的 keep，开启混淆后栈仍可对照源码；
+- 已加 Gradle 任务 `:app:archiveReleaseMapping`：一旦开启 minify，会在
+  `app/build/outputs/mapping/release/mapping-<buildId>.txt` 留一份带版本号的副本，
+  避免 `mapping.txt` 被下一次构建覆盖后旧包无法还原；
+- 归档文件应与同 buildId 的 APK 一起保存，排障时用
+  `retrace.sh mapping-<buildId>.txt stack.txt` 还原。
+
+### 11.8 验收
+
+| 场景 | 结果 |
+| --- | --- |
+| Activity 创建阶段崩溃 | 下次启动 `stage=activity-create`、`lastExitKind=1`，两次后进安全模式 |
+| WebView 初始化崩溃 | 阶段停在 `webview-init`，安全模式可直接进入并导出 |
+| Application 阶段崩溃 | 阶段停在 `app-create`，崩溃栈由第一层处理器写入 |
+| 连续两次未完成启动 | 第三次启动进安全模式；点「恢复」后计数清零 |
+| 用户划掉后台 / 系统低内存 | 计数清零，不进安全模式（`StartupFailurePolicyTest` 覆盖） |
+| 安全模式导出 | 与正常入口同格式 ZIP（metadata/events/errors/performance/feedback/report） |
+
+测试：`StartupFailurePolicyTest` 8 例、`DiagnosticEventStreamTest` 7 例，均通过。

@@ -4,7 +4,7 @@ import { Buffer } from 'buffer';
 import { installGlobalVisualizerFrameRateLimiter } from './utils/frameRateLimiter';
 import { installConsoleLogCapture } from './utils/consoleLogBuffer';
 import { installCrashDiagnostics } from './utils/crashDiagnostics';
-import { initDiagnosticLog } from './services/diagnostics/diagnosticLog';
+import { initDiagnosticLog, reportStartupStage } from './services/diagnostics/diagnosticLog';
 import { installChunkLoadRecovery } from './utils/chunkLoadRecovery';
 import { installDebugModule } from './services/debug/debugModule';
 import { installMemorySampleFeed } from './services/debug/memorySamples';
@@ -21,6 +21,8 @@ installConsoleLogCapture();
 installCrashDiagnostics();
 // 统一事件流：在崩溃捕获之后装，这样它记录的第一条能带上崩溃处理器的状态。
 initDiagnosticLog();
+// 前端容器已经起来（React 还没提交首帧）：把阶段交给原生时间线。
+reportStartupStage('js-ready');
 // 覆盖安装时旧 index.html 可能引用已被替换掉的 chunk：先装恢复器，再让 React 启动。
 installChunkLoadRecovery();
 // Right after it, so the startup lines reach the runtime log file too and not only the in-memory

@@ -1,7 +1,7 @@
 import { navigationMark } from '../services/navigationTiming';
 import React from 'react';
 import { hideAppSplash } from '../utils/appSplash';
-import { diagnosticEvent } from '../services/diagnostics/diagnosticLog';
+import { diagnosticEvent, reportStartupStage } from '../services/diagnostics/diagnosticLog';
 
 // src/components/AppSplashGate.tsx
 // 包在根组件树外层：首帧挂载完成后（useEffect 在浏览器绘制之后触发）移除首屏加载遮罩，
@@ -16,6 +16,13 @@ const AppSplashGate: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             ms: typeof performance === 'undefined' ? 0 : Math.round(performance.now()),
         });
         hideAppSplash();
+        // 两帧之后再报「启动完成」：第一帧是 React 提交，第二帧才是用户真正能看到的画面。
+        // 这是启动守卫唯一的成功信号 —— 没有它，连续两次冷启动都会被算作失败。
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => requestAnimationFrame(() => reportStartupStage('startup-complete')));
+        } else {
+            reportStartupStage('startup-complete');
+        }
     }, []);
 
     return <>{children}</>;
