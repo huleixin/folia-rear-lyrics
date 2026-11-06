@@ -10,6 +10,8 @@
 //   no-source —— provider 没抛错但没给地址（最容易被归成 invalid-response 的那种）；
 //   error     —— provider 抛错（网络 / 权限 / 地区 / 会员…），带上错误码与分类 kind。
 
+import { diagnosticEvent } from '../services/diagnostics/diagnosticLog';
+
 export type OnlinePlaybackStage = 'resolve' | 'media';
 export type OnlinePlaybackOutcome = 'ok' | 'no-source' | 'error';
 
@@ -84,6 +86,24 @@ export const noteOnlinePlaybackOutcome = (input: {
         elapsedMs: Math.max(0, Math.round(Number(input.elapsedMs) || 0)),
     });
     if (records.length > MAX_RECORDS) records.splice(0, records.length - MAX_RECORDS);
+
+    // 统一事件流：这一条是「播放为什么失败」的主证据（provider + 阶段 + 上游码 + 耗时）。
+    // detail 只保留分类文本，不带请求地址。
+    const failure = input.outcome !== 'ok';
+    diagnosticEvent(
+        input.stage === 'media' ? 'playback' : 'source',
+        failure ? 'warn' : 'info',
+        `online-${input.stage ?? 'resolve'}-${input.outcome}`,
+        {
+            provider: input.providerId,
+            outcome: input.outcome,
+            quality: input.quality ?? '',
+            kind: input.kind ?? '',
+            code: input.code ?? '',
+            ms: Math.max(0, Math.round(Number(input.elapsedMs) || 0)),
+            detail: input.detail ?? '',
+        },
+    );
 };
 
 /** provider 抛错时的一条便捷入口。 */

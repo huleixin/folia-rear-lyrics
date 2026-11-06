@@ -883,6 +883,116 @@ public class FoliaNativePlugin extends Plugin {
         return name;
     }
 
+    // ------------------------------------------------------------------ 统一诊断事件流
+
+    /**
+     * 前端批量上报事件（JSONL）。每行一条已经成型的 JSON，非法行由原生侧丢弃。
+     * 高频调用是设计内的：前端按 1.5 秒 / 20 条一批推，原生只入队不落盘。
+     */
+    @PluginMethod
+    public void diagnosticEvent(PluginCall call) {
+        io.github.huleixin.tingyu.diagnostics.DiagnosticLog.install(getContext());
+        io.github.huleixin.tingyu.diagnostics.DiagnosticLog.ingest(call.getString("lines", ""));
+        call.resolve();
+    }
+
+    /** 会话信息：前端拿 sessionId 对齐事件归属，预览页拿计数判断「有没有内容可导」。 */
+    @PluginMethod
+    public void diagnosticSession(PluginCall call) {
+        io.github.huleixin.tingyu.diagnostics.DiagnosticLog.install(getContext());
+        JSObject result = new JSObject();
+        result.put("sessionId", io.github.huleixin.tingyu.diagnostics.DiagnosticLog.sessionId());
+        result.put("startedAt", io.github.huleixin.tingyu.diagnostics.DiagnosticLog.sessionStartedAt());
+        result.put("epoch", io.github.huleixin.tingyu.diagnostics.DiagnosticLog.epoch());
+        result.put("events", io.github.huleixin.tingyu.diagnostics.DiagnosticLog.ring().size());
+        result.put("bytes", io.github.huleixin.tingyu.diagnostics.DiagnosticLog.sessionFileBytes());
+        result.put("zipBytes", io.github.huleixin.tingyu.diagnostics.DiagnosticPackage.totalBytes(getContext()));
+        // 环境信息放在同一个调用里：前端只需要一次桥往返就能拼 metadata.json。
+        result.put("buildId", BuildConfig.BUILD_ID);
+        result.put("manufacturer", Build.MANUFACTURER == null ? "" : Build.MANUFACTURER);
+        result.put("model", Build.MODEL == null ? "" : Build.MODEL);
+        result.put("release", Build.VERSION.RELEASE == null ? "" : Build.VERSION.RELEASE);
+        result.put("sdk", Build.VERSION.SDK_INT);
+        try {
+            android.content.pm.PackageInfo webViewPackage = android.webkit.WebView.getCurrentWebViewPackage();
+            result.put("webview", webViewPackage == null ? ""
+                : webViewPackage.packageName + "/" + webViewPackage.versionName);
+        } catch (Exception ignored) {
+            result.put("webview", "");
+        }
+        call.resolve(result);
+    }
+
+    /**
+     * 生成诊断包并打开系统分享。所有内容由 WebView 侧组装后传入，这里只负责写 ZIP 与分享。
+     *
+     * <p>参数：metadata(object|string) / events / errors / performance / feedback / report /
+     * screenshots(string[]，dataURL 或裸 base64) / title。
+     */
+    @PluginMethod
+    public void exportDiagnosticPackage(PluginCall call) {
+        Activity activity = getActivity();
+        if (activity == null) {
+            call.reject("Activity is not available");
+            return;
+        }
+        io.github.huleixin.tingyu.diagnostics.DiagnosticLog.install(getContext());
+        try {
+            org.json.JSONObject metadata = call.getObject("metadata");
+            org.json.JSONArray screenshots = call.getArray("screenshots");
+            String title = call.getString("title", "听屿 诊断包");
+            // events 默认由原生拼：上一个会话（崩溃前）+ 本次会话内存环。前端已经通过
+            // diagnosticEvent 把事件同步过来了，所以这里不需要前端再传一遍，避免重复。
+            String events = call.getString("events", "");
+            if (events == null || events.trim().isEmpty()) {
+                String previous = io.github.huleixin.tingyu.diagnostics.DiagnosticLog
+                    .previousSessionJsonl(200_000);
+                String current = io.github.huleixin.tingyu.diagnostics.DiagnosticLog.snapshotJsonl();
+                events = previous.isEmpty() ? current : (previous + "\n" + current);
+            }
+            org.json.JSONObject written = io.github.huleixin.tingyu.diagnostics.DiagnosticPackage.write(
+                getContext(),
+                metadata,
+                events,
+                call.getString("errors", ""),
+                call.getString("performance", "{}"),
+                call.getString("feedback", ""),
+                call.getString("report", ""),
+                screenshots
+            );
+            File file = new File(written.getString("path"));
+            io.github.huleixin.tingyu.diagnostics.DiagnosticPackage.share(activity, file, title);
+            call.resolve(new JSObject(written.toString()));
+        } catch (Exception error) {
+            call.reject("Could not write diagnostic package: " + error.getMessage(), error);
+        }
+    }
+
+    /** 清空事件流与已导出的诊断包（「删除诊断」的完整版）。 */
+    @PluginMethod
+    public void clearDiagnosticData(PluginCall call) {
+        io.github.huleixin.tingyu.diagnostics.DiagnosticLog.install(getContext());
+        io.github.huleixin.tingyu.diagnostics.DiagnosticLog.clearAll();
+        int deleted = io.github.huleixin.tingyu.diagnostics.DiagnosticPackage.deleteAll(getContext());
+        JSObject result = new JSObject();
+        result.put("deleted", deleted);
+        call.resolve(result);
+    }
+
+    /** 记录一条原生侧事件（原生模块发现异常时调用，前端也能借此标注用户操作）。 */
+    @PluginMethod
+    public void recordDiagnosticEvent(PluginCall call) {
+        io.github.huleixin.tingyu.diagnostics.DiagnosticLog.install(getContext());
+        io.github.huleixin.tingyu.diagnostics.DiagnosticLog.event(
+            call.getString("module", "ui"),
+            call.getString("level", "info"),
+            call.getString("event", "annotation"),
+            call.getString("ref", null),
+            call.getObject("fields")
+        );
+        call.resolve();
+    }
+
     @PluginMethod
     public void getPhoneFitLayout(PluginCall call) {
         JSObject result = new JSObject();

@@ -4,6 +4,7 @@ import { Buffer } from 'buffer';
 import { installGlobalVisualizerFrameRateLimiter } from './utils/frameRateLimiter';
 import { installConsoleLogCapture } from './utils/consoleLogBuffer';
 import { installCrashDiagnostics } from './utils/crashDiagnostics';
+import { initDiagnosticLog } from './services/diagnostics/diagnosticLog';
 import { installChunkLoadRecovery } from './utils/chunkLoadRecovery';
 import { installDebugModule } from './services/debug/debugModule';
 import { installMemorySampleFeed } from './services/debug/memorySamples';
@@ -18,6 +19,8 @@ globalThis.Buffer = Buffer;
 // to reach a library or restore a session shows up.
 installConsoleLogCapture();
 installCrashDiagnostics();
+// 统一事件流：在崩溃捕获之后装，这样它记录的第一条能带上崩溃处理器的状态。
+initDiagnosticLog();
 // 覆盖安装时旧 index.html 可能引用已被替换掉的 chunk：先装恢复器，再让 React 启动。
 installChunkLoadRecovery();
 // Right after it, so the startup lines reach the runtime log file too and not only the in-memory

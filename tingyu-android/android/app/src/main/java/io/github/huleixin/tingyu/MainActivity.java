@@ -85,6 +85,16 @@ public class MainActivity extends BridgeActivity {
             "restoredState=" + (savedInstanceState != null),
             "onCreate"
         );
+        io.github.huleixin.tingyu.diagnostics.DiagnosticLog.install(getApplicationContext());
+        try {
+            org.json.JSONObject createFields = new org.json.JSONObject();
+            createFields.put("restored", savedInstanceState != null);
+            createFields.put("sdk", android.os.Build.VERSION.SDK_INT);
+            io.github.huleixin.tingyu.diagnostics.DiagnosticLog.event(
+                "lifecycle", "info", "activity-create", createFields);
+        } catch (Exception ignored) {
+            // 诊断不能影响启动。
+        }
         installWebViewRendererGuard();
         getBridge().setWebViewClient(new com.getcapacitor.BridgeWebViewClient(getBridge()) {
             @Override public android.webkit.WebResourceResponse shouldInterceptRequest(WebView view, android.webkit.WebResourceRequest request) {
@@ -233,6 +243,15 @@ public class MainActivity extends BridgeActivity {
                     "didCrash=" + didCrash + " priorityAtExit=" + priority,
                     "Capacitor WebView renderer process ended"
                 );
+                try {
+                    org.json.JSONObject gone = new org.json.JSONObject();
+                    gone.put("didCrash", didCrash);
+                    gone.put("priority", priority);
+                    io.github.huleixin.tingyu.diagnostics.DiagnosticLog.event(
+                        "webview", "error", "renderer-gone", gone);
+                } catch (Exception ignored) {
+                    // 同上：这是最后一条证据，失败也不能再抛。
+                }
 
                 long now = SystemClock.elapsedRealtime();
                 runOnUiThread(() -> {
@@ -253,6 +272,13 @@ public class MainActivity extends BridgeActivity {
                                 + " windowMs=" + RENDERER_RECOVERY_WINDOW_MS,
                             "finish after repeated renderer deaths"
                         );
+                        try {
+                            org.json.JSONObject giveUp = new org.json.JSONObject();
+                            giveUp.put("recoveries", rendererRecoveries);
+                            io.github.huleixin.tingyu.diagnostics.DiagnosticLog.event(
+                                "webview", "fatal", "renderer-give-up", giveUp);
+                        } catch (Exception ignored) {
+                        }
                         finish();
                         return;
                     }

@@ -1,4 +1,5 @@
 import { noteUiInteraction, markStartupReady } from '../services/uiWarmup';
+import { diagnosticEvent, millisecondsSinceInteraction } from '../services/diagnostics/diagnosticLog';
 import { navigationMark } from '../services/navigationTiming';
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { NATIVE_FIRST, canUseNativePages, nativePages } from '../services/nativePages';
@@ -39,6 +40,14 @@ export function useNativePagesAvailable() {
 export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePageId, active: boolean,
     model: NativePageModel | null, actions: PageActions, onReady?: (ready: boolean) => void) {
     model=useNativePageImages(useStableNativeData(model),active);
+    // 页面进入的统一记账：sinceTapMs 是从最近一次触摸算起，正好回答「首次打开设置/搜索/
+    // 资料库要多久」。只在 active 变化时记一条，不参与渲染。
+    useEffect(() => {
+        if (!active) return;
+        const sinceTapMs = millisecondsSinceInteraction();
+        diagnosticEvent('nav', 'info', `page-enter:${String(id).slice(0, 24)}`,
+            sinceTapMs === undefined ? undefined : { sinceTapMs });
+    }, [id, active]);
     const [ready, setReady] = useState(NATIVE_FIRST);
     const latest = useRef({ active, model, actions, onReady }); latest.current = { active, model, actions, onReady };
     const sync = useRef<() => void>(() => {});

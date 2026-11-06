@@ -1,13 +1,16 @@
 import StartupDiagnosticsControl from './StartupDiagnosticsControl';
 import React, { useState } from 'react';
 import { isAndroidNativeRuntime } from '../../utils/platform';
-import { Activity, Check, ClipboardCopy, Eraser, FileDown, Lightbulb, Loader2, Sparkles, Trash2 } from 'lucide-react';
+import { Activity, Check, ClipboardCopy, Eraser, FileDown, Lightbulb, Loader2, MessageSquarePlus, Sparkles, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
     canDeleteExportedDiagnostics,
     deleteExportedDiagnostics,
     exportDiagnosticReport,
 } from '../../services/exportDiagnosticReport';
+
+// 反馈面板按需加载：设置页首屏不下载它，点开才拉。
+const FeedbackPanel = React.lazy(() => import('./feedback/FeedbackPanel'));
 
 // src/components/modal/SettingsHelpActions.tsx
 
@@ -36,6 +39,7 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
     const [canDeleteDiagnostics] = useState(() => canDeleteExportedDiagnostics());
     const [trailState, setTrailState] = useState<TrailState>('idle');
     const [faultState, setFaultState] = useState<FaultState>('idle');
+    const [feedbackOpen, setFeedbackOpen] = useState(false);
 
     const handleCopyDiagnostics = async () => {
         setCopyState('working');
@@ -124,6 +128,32 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
     const TrailIcon = trailState === 'working' ? Loader2 : trailState === 'cleared' ? Check : Eraser;
     const FaultIcon = faultState === 'working' ? Loader2 : faultState === 'shared' ? Check : Activity;
 
+    const feedbackCard = (
+        <button
+            type="button"
+            data-testid="help-feedback"
+            onClick={() => setFeedbackOpen(true)}
+            className="flex w-full items-center gap-3 rounded-2xl p-4 text-left transition-colors"
+            style={{
+                color: 'var(--text-primary)',
+                border: '1px solid color-mix(in srgb, currentColor 22%, transparent)',
+                background: 'color-mix(in srgb, currentColor 7%, transparent)',
+            }}
+        >
+            <MessageSquarePlus size={19} className="shrink-0 opacity-80" aria-hidden="true" />
+            <span className="min-w-0">
+                <span className="block text-sm font-semibold">{t('help.feedback')}</span>
+                <span className="mt-0.5 block text-xs opacity-55">{t('help.feedbackDescription')}</span>
+            </span>
+        </button>
+    );
+
+    const feedbackLayer = feedbackOpen ? (
+        <React.Suspense fallback={null}>
+            <FeedbackPanel onClose={() => setFeedbackOpen(false)} />
+        </React.Suspense>
+    ) : null;
+
     const releaseNotes = (
         <button
             type="button"
@@ -141,10 +171,12 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
     );
 
     // Android exposes only the release action; diagnostic services remain available internally.
-    if (isAndroidNativeRuntime()) return <div>{releaseNotes}</div>;
+    if (isAndroidNativeRuntime()) return <div className="space-y-3">{feedbackCard}{releaseNotes}{feedbackLayer}</div>;
 
     return (
+        <>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2">{feedbackCard}</div>
             <StartupDiagnosticsControl/>
             {releaseNotes}
             <button
@@ -280,6 +312,8 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
                 </button>
             ) : null}
         </div>
+        {feedbackLayer}
+        </>
     );
 };
 

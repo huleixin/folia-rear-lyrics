@@ -1,3 +1,5 @@
+import { diagnosticEvent } from '../services/diagnostics/diagnosticLog';
+
 // src/utils/crashDiagnostics.ts
 // Last-resort crash trail for the copy-diagnostics flow. Native uncaught exceptions are written
 // by CrashDiagnostics.java; this module mirrors WebView errors and exposes both to the report.
@@ -100,6 +102,15 @@ export const recordCrashDiagnostic = (source: string, value: unknown, extra: Par
     lastFingerprint = fingerprint;
     lastFingerprintAt = now;
     appendLocal(entry);
+
+    // 统一事件流再记一条：崩溃轨迹回答「怎么崩的」，事件流回答「崩之前走到了哪一步」。
+    // 消息里的 URL 一律打码 —— 错误文本偶尔会把带参数的请求地址带出来。
+    diagnosticEvent('js', 'error', entry.source, {
+        type: entry.type,
+        message: entry.message.replace(/https?:\/\/\S+/g, '<url>'),
+        stackTop: (entry.stack || '').split('\n').slice(0, 3).join(' | '),
+        ...(extra as Record<string, string | number | boolean>),
+    });
 
     const plugin = getNativePlugin();
     if (plugin?.recordRuntimeDiagnostic) {

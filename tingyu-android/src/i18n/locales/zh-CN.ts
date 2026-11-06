@@ -1814,6 +1814,8 @@ export default {
     "majorUpdateLabel": "{{codename}} Update · 重大更新",
     "ponder": "思索帮助页",
     "ponderDescription": "了解听屿的基本操作与运行逻辑",
+    "feedback": "问题反馈",
+    "feedbackDescription": "选择问题类型、描述现象，附带诊断日志一起导出",
     "version": "版本"
   },
   "lyricProvider": {

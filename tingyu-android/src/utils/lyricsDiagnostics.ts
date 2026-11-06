@@ -1,4 +1,5 @@
 import type { LyricData, SongResult } from '../types';
+import { diagnosticEvent } from '../services/diagnostics/diagnosticLog';
 
 // src/utils/lyricsDiagnostics.ts
 // Bounded trace for "audio plays but lyrics disappear" reports. Only counts and identities are
@@ -66,6 +67,22 @@ export const noteLyricsDiagnostic = (
         detail,
     });
     if (records.length > MAX_RECORDS) records.splice(0, records.length - MAX_RECORDS);
+
+    // 统一事件流：只带 provider / 来源类型 / 数值型细节。
+    // 歌名与歌词正文永远不进事件流（本地报告可以带，跨设备分享的包不行）。
+    const safeDetail: Record<string, string | number | boolean> = {};
+    for (const [key, value] of Object.entries(detail)) {
+        if (/label|title|text|name|url|path|lyric/i.test(key)) continue;
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            safeDetail[key] = value;
+        }
+    }
+    const failed = /fail|error|stale|missing|empty|mismatch/i.test(event);
+    diagnosticEvent('lyrics', failed ? 'warn' : 'info', event, {
+        provider: providerOf(song),
+        sourceKind: song?.sourceRef?.kind || 'unknown',
+        ...safeDetail,
+    });
 };
 
 export const clearLyricsDiagnostics = (): void => {

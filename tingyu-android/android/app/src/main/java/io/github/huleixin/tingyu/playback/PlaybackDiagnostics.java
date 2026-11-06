@@ -78,6 +78,33 @@ public final class PlaybackDiagnostics {
         } catch (Exception ignored) {
             // Diagnostics must never break playback.
         }
+        // 统一事件流：只镜像非 routine 事件（routine 是节拍，不是信息）。这一层不改变原泳道
+        // 的任何行为，只是把同一条记录再送一份到跨模块时间线上，便于和前端事件混排。
+        if (!routine) {
+            io.github.huleixin.tingyu.diagnostics.DiagnosticLog.event(
+                "playback",
+                levelFor(type),
+                type,
+                null,
+                data
+            );
+        }
+    }
+
+    /**
+     * 失败类事件标 warn，其余 info；只影响统一事件流的级别标签。
+     *
+     * <p>这里刻意不用 error：{@code note()} 在播放线程上被调用，而 error 级别会同步落盘，
+     * 会把这个类的类锁一起占住。失败信息本身已经在 type 里，级别只是筛选标签。
+     */
+    private static String levelFor(String type) {
+        if (type == null) return "info";
+        String lower = type.toLowerCase(java.util.Locale.ROOT);
+        if (lower.contains("error") || lower.contains("fail") || lower.contains("blocked")
+            || lower.contains("give-up") || lower.contains("refused")) {
+            return "warn";
+        }
+        return "info";
     }
 
     /**

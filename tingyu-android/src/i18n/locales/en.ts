@@ -1825,6 +1825,8 @@ export default {
     "majorUpdateLabel": "{{codename}} Update · Major update",
     "ponder": "Ponder Help",
     "ponderDescription": "Learn Folia's basic controls and operating model",
+    "feedback": "Send feedback",
+    "feedbackDescription": "Pick a category, describe the issue, attach diagnostics",
     "version": "version"
   },
   "lyricProvider": {

@@ -1589,6 +1589,8 @@ export default {
     "majorUpdateLabel": "{{codename}} Update · Pembaruan besar",
     "ponder": "Ponder Bantuan",
     "ponderDescription": "Pelajari kontrol dasar dan cara kerja Folia",
+    "feedback": "Kirim masukan",
+    "feedbackDescription": "Pilih kategori, jelaskan masalah, lampirkan diagnostik",
     "version": "versi"
   },
   "lyricProvider": {
