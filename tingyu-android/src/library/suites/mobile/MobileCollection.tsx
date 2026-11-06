@@ -9,6 +9,8 @@ import { useMobileCollectionAutoplay } from './useMobileCollectionAutoplay';
 import MobileArtwork from './MobileArtwork';
 import MobileTrackList from './MobileTrackList';
 import MobileCollectionMenu, { type MobileMenuTarget } from './MobileCollectionMenu';
+import MobileSheet from './MobileSheet';
+import LocalPlaylistManageSheet from './LocalPlaylistManageSheet';
 import MobilePlaylistHeader from './MobilePlaylistHeader';
 import MobilePlaylistBackdrop from './MobilePlaylistBackdrop';
 import { useNativeCollectionPage } from './native/useNativeCollectionPage';
@@ -27,6 +29,7 @@ function MobileCollection(props: LibraryCollectionSurfaceProps) {
         model.actions.playScope
     );
     const [target, setTarget] = useState<MobileMenuTarget | null>(null);
+    const [manageOpen, setManageOpen] = useState(false);
     const [filterOpen, setFilterOpen] = useState(!!model.query);
     const [notice, setNotice] = useState('');
     const closeMenu = useCallback(() => setTarget(null), []);
@@ -192,7 +195,20 @@ function MobileCollection(props: LibraryCollectionSurfaceProps) {
                 }
             />
             </>}
-            {target && <MobileCollectionMenu props={props} model={model} target={target} onClose={closeMenu} />}
+            {target && <MobileCollectionMenu props={props} model={model} target={target} onClose={closeMenu} onOpenManage={() => { closeMenu(); setManageOpen(true); }} />}
+            {manageOpen && (props.collection as { playlistId?: string }).playlistId && (
+                <MobileSheet
+                    title={model.mutations.renamedTo ?? props.collection.name}
+                    onClose={() => setManageOpen(false)}
+                >
+                    <LocalPlaylistManageSheet
+                        playlistId={(props.collection as { playlistId?: string }).playlistId!}
+                        localSongs={props.localSongs}
+                        onClose={() => setManageOpen(false)}
+                        onReload={() => { model.actions.reload(); }}
+                    />
+                </MobileSheet>
+            )}
         </motion.section>
     );
 }

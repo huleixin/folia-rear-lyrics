@@ -19,6 +19,10 @@ interface PlaylistSelectionDialogProps {
     onSelect: (playlistId: string | number) => Promise<void> | void;
     onCreate?: () => void;
     createLabel?: string;
+    /** 阶段二（本地）：目标歌曲的 songId。已在某歌单里的，行尾显示「已在歌单」而不是加号。 */
+    existingSongId?: string;
+    /** 与 existingSongId 配合：各歌单当前的 songId 集合。 */
+    playlistSongIds?: Readonly<Record<string, readonly string[]>>;
 }
 
 const PlaylistSelectionDialog: React.FC<PlaylistSelectionDialogProps> = ({
@@ -31,7 +35,13 @@ const PlaylistSelectionDialog: React.FC<PlaylistSelectionDialogProps> = ({
     onSelect,
     onCreate,
     createLabel,
+    existingSongId,
+    playlistSongIds,
 }) => {
+    const containsSong = (playlistId: string | number): boolean => {
+        if (!existingSongId || !playlistSongIds) return false;
+        return (playlistSongIds[String(playlistId)] ?? []).includes(existingSongId);
+    };
     const { t } = useTranslation();
     const [submittingId, setSubmittingId] = React.useState<string | number | null>(null);
     const panelClass = isDaylight ? 'bg-black/[0.04] border-black/5 hover:bg-black/[0.06]' : 'bg-white/[0.05] border-white/10 hover:bg-white/[0.08]';
@@ -89,7 +99,9 @@ const PlaylistSelectionDialog: React.FC<PlaylistSelectionDialogProps> = ({
                                     <div className="truncate text-xs opacity-50">{playlist.description}</div>
                                 )}
                             </div>
-                            <Plus size={16} className="opacity-35" />
+                            {containsSong(playlist.id)
+                                ? <span className="shrink-0 text-xs opacity-50">{t('localMusic.songAlreadyInPlaylistShort') || t('localMusic.songAlreadyInPlaylist')}</span>
+                                : <Plus size={16} className="opacity-35" />}
                         </button>
                     ))}
                     </div>

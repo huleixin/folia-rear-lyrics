@@ -7,6 +7,7 @@ import { useNativePage } from '../../../../hooks/useNativePage';
 import { absolutePageImage } from '../../../../services/nativePages';
 import { directoryRows, canSortDirectoryByUpdate, type DirectorySort } from '../mobileDirectoryModel';
 import { pageRowActions } from '../../../../utils/nativePageActions';
+import { useHomeSourceStore } from '../../../../stores/useHomeSourceStore';
 
 // src/library/suites/mobile/native/NativeDirectoryPage.tsx
 export default function NativeDirectoryPage({root,props,sources,onReady,onSources,cards,onOpen,sections=[],tailSections=[],onFilter,extraActions={},emptyMessage,route,heading,enableSort=false}:NativeHomeProps&{
@@ -17,7 +18,10 @@ export default function NativeDirectoryPage({root,props,sources,onReady,onSource
     const rows=useMemo(()=>directoryRows(cards,query,sort),[cards,query,sort]);
     const actions:PageActions={...extraActions,sources:onSources,filter:e=>{setQuery(e.text??'');onFilter?.(e.text??'');setOffset(0)},range:e=>setOffset(Math.max(0,Math.floor((e.value??0)/100)*100))};
     const tabs:PageSection={id:'sources',layout:'chips',items:sources.tabs.map(tab=>{
-        const key=`source:${tab.key}`;actions[key]=()=>sources.setTab(tab.key);
+        const key=`source:${tab.key}`;
+        // 资料库页签与推荐页音源是同一个概念的两面：切到本地页签 = 选本地音源，
+        // 切回在线页签 = 选在线音源（推荐页随之恢复在线首页）。播放不受影响。
+        actions[key]=()=>{sources.setTab(tab.key);useHomeSourceStore.getState().setSource(tab.key==='local'?'local':'online')};
         return{id:key,title:tab.label,action:key,selected:sources.tab===tab.key,disabled:!!tab.disabledReason};
     })};
     for(const extra of props.extraTabs??[]){actions[`extra:${extra.id}`]=extra.select;tabs.items!.push({id:extra.id,title:extra.label,action:`extra:${extra.id}`})}

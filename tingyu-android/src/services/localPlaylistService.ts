@@ -359,6 +359,30 @@ const addSongIdsToLocalPlaylist = async (playlistId: string, songIds: string[]):
     }))
 );
 
+/**
+ * 按 songId 把歌曲加进本地歌单（阶段二）。
+ *
+ * 与 addSongsToLocalPlaylist 的差别只在入参形状：调用方（歌单选择器、批量管理面板）
+ * 手里往往只有 UnifiedSong 的 localRef.songId，不必再回查 LocalSong 整条记录。
+ * 去重由 dedupeSongIds 保证 —— 已在歌单里的歌重复添加不会产生第二条引用。
+ */
+export const addLocalSongIdsToPlaylist = addSongIdsToLocalPlaylist;
+
+/** 建一个本地歌单并直接放入若干首歌（按 songId）。空歌单允许（songIds 为空数组）。 */
+export const createLocalPlaylistWithSongIds = async (name: string, songIds: string[]): Promise<LocalPlaylist> => {
+    const playlists = await getLocalPlaylists();
+    const now = Date.now();
+    const playlist: LocalPlaylist = {
+        id: createPlaylistId(),
+        name: name.trim(),
+        songIds: dedupeSongIds(songIds),
+        createdAt: now,
+        updatedAt: now,
+    };
+    await persistPlaylists([...playlists, playlist]);
+    return playlist;
+};
+
 export const addSongsToLocalPlaylist = async (playlistId: string, songs: LocalSong[]): Promise<LocalPlaylist | null> => (
     addSongIdsToLocalPlaylist(playlistId, songs.map(song => song.id))
 );
@@ -397,6 +421,24 @@ export const getFavoriteLocalPlaylist = async (): Promise<LocalPlaylist> => {
 export const setLocalSongFavorite = async (song: LocalSong, shouldFavorite: boolean): Promise<LocalPlaylist | null> => {
     const favoritePlaylist = await getFavoriteLocalPlaylist();
     const canonicalSongId = resolveCanonicalLocalSongId(song.id, await getLocalSongs());
+
+    if (shouldFavorite) {
+        return addSongIdsToLocalPlaylist(favoritePlaylist.id, [canonicalSongId]);
+    }
+
+    return removeSongsFromLocalPlaylist(favoritePlaylist.id, [canonicalSongId]);
+};
+
+/**
+ * 按 songId 收藏 / 取消收藏（阶段二：歌曲菜单里的收藏入口只有 id 可用）。
+ *
+ * 与 setLocalSongFavorite 完全同一套「我喜欢」数据 —— 只有一个收藏事实源，
+ * 不建第二套收藏存储。返回结果可用于提示（null = 歌单不存在，实际不会发生：
+ * getFavoriteLocalPlaylist 会自建）。
+ */
+export const setLocalSongIdFavorite = async (songId: string, shouldFavorite: boolean): Promise<LocalPlaylist | null> => {
+    const favoritePlaylist = await getFavoriteLocalPlaylist();
+    const canonicalSongId = resolveCanonicalLocalSongId(songId, await getLocalSongs());
 
     if (shouldFavorite) {
         return addSongIdsToLocalPlaylist(favoritePlaylist.id, [canonicalSongId]);

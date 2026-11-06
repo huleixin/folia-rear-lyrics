@@ -23,6 +23,14 @@ export interface ThemeRegistryRecord {
   [key: string]: unknown;
 }
 
+/** 本地歌播放记录（local_play_history）。只存 id 与统计，名称/封面播放时从曲库现读。 */
+export interface LocalPlayHistoryRecord {
+  songId: string;
+  playCount: number;
+  lastPlayedAt: number;
+  firstPlayedAt: number;
+}
+
 export class AppDatabase extends Dexie {
   appearance_profiles!: Table<{id:string;data:unknown},string>;
   session!: Table<unknown, string>;
@@ -35,6 +43,8 @@ export class AppDatabase extends Dexie {
   local_library_entities!: Table<LocalLibraryEntity, string>;
   local_library_assignments!: Table<LocalLibraryAssignment, string>;
   local_cover_assets!: Table<LocalCoverAsset, string>;
+  /** 本地歌的播放记录（只存 songId + 次数 + 最近时间；展示用的元数据现场从曲库 join）。 */
+  local_play_history!: Table<LocalPlayHistoryRecord, string>;
 
   constructor(name = APP_DATABASE_NAME) {
     super(name);
@@ -99,6 +109,23 @@ export class AppDatabase extends Dexie {
     });
 
     this.version(1).stores({appearance_profiles:'id'});
+
+    // v2：本地歌播放历史。本地推荐首页的「常听精选 / 最近播放 / 常听专辑 / 久未播放」都靠它；
+    // 在线歌的历史仍在 localStorage（useMobileLibraryStore），两边互不混写。
+    this.version(2).stores({
+      session: '',
+      api_cache: 'key',
+      user_cache: 'key',
+      media_cache: 'key',
+      metadata_cache: 'key',
+      local_music: 'id, localCoverAssetId',
+      theme_registry: 'fingerprint',
+      local_library_entities: 'id, kind, *normalizedAliases, mergedInto, needsReview, createdAt',
+      local_library_assignments: 'songId, *artistEntityIds, albumEntityId, artistOrigin, albumOrigin',
+      local_cover_assets: 'id',
+      appearance_profiles: 'id',
+      local_play_history: 'songId, lastPlayedAt',
+    });
 
     this.on('versionchange', event => {
       this.close();

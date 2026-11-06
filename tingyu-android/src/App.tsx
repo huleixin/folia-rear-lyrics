@@ -3025,8 +3025,6 @@ export default function App() {
                 isDaylight={isDaylight}
                 localPlaylists={localPlaylists}
                 onlinePlaylists={onlinePlaylists}
-                onAddCurrentSongToLocalPlaylist={addCurrentSongToLocalPlaylist}
-                onCreateCurrentLocalPlaylist={createCurrentLocalPlaylist}
                 onAddCurrentSongToOnlinePlaylist={addCurrentSongToOnlinePlaylist}
                 onAddCurrentSongToNavidromePlaylist={addCurrentSongToNavidromePlaylist}
                 onCreateCurrentNavidromePlaylist={createCurrentNavidromePlaylist}

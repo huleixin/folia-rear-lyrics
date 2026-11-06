@@ -10,6 +10,8 @@ import { useCollectionView } from '../../core/bindings/useCollectionView';
 import { useCollectionActions } from '../../core/bindings/useCollectionActions';
 import { useCollectionMutationSnapshot } from '../../core/bindings/useCollectionMutations';
 import { useLocalTrackSortStore } from '../../core/state/useLocalTrackSortStore';
+import { useLocalPlaylistSortStore } from '../../core/state/useLocalPlaylistSortStore';
+import { playlistSongIdOf, sortPlaylistTracks } from '../../../utils/localPlaylistView';
 import {
     buildCoreSurfaceParams,
     buildGridSurfaceState,
@@ -34,7 +36,25 @@ export function useMobileCollection(props: LibraryCollectionSurfaceProps) {
         () => (supportsSort ? { songsById, field, direction } : null),
         [supportsSort, songsById, field, direction]
     );
-    const view = useCollectionView({ tracks: snapshot?.tracks ?? NO_TRACKS, committedQuery, localSort });
+    // 本地歌单的视图排序（阶段二）：只影响详情页展示顺序，存储顺序（songIds）不动，
+    // 所以不能用 folder 那套全局 store —— 字段集不同，语义也不同（default=手动顺序）。
+    const isLocalPlaylistCollection = props.collection.source === 'local'
+        && props.collection.type === 'playlist'
+        && Boolean((props.collection as { playlistId?: string }).playlistId)
+        && !(props.collection as { isVirtual?: boolean }).isVirtual;
+    const playlistSortField = useLocalPlaylistSortStore((state) => state.field);
+    const playlistSortDirection = useLocalPlaylistSortStore((state) => state.direction);
+    const playlistSortActions = useLocalPlaylistSortStore.getState();
+    const addedAtById = useMemo(
+        () => Object.fromEntries((props.localSongs ?? []).map(song => [song.id, song.addedAt || 0])),
+        [props.localSongs]
+    );
+    const orderedTracks = useMemo(() => (
+        isLocalPlaylistCollection
+            ? sortPlaylistTracks(snapshot?.tracks ?? NO_TRACKS, playlistSortField, playlistSortDirection, addedAtById)
+            : snapshot?.tracks ?? NO_TRACKS
+    ), [addedAtById, isLocalPlaylistCollection, playlistSortDirection, playlistSortField, snapshot?.tracks]);
+    const view = useCollectionView({ tracks: orderedTracks, committedQuery, localSort });
     const baseActions = useCollectionActions({
         resource: props.resource,
         snapshot,
@@ -94,5 +114,12 @@ export function useMobileCollection(props: LibraryCollectionSurfaceProps) {
         field,
         direction,
         sortActions,
+        // 歌单详情用：排序选择器与「上移/下移」是否可用的判定（仅默认顺序下可手动调序）。
+        playlistSort: {
+            supported: isLocalPlaylistCollection,
+            field: playlistSortField,
+            direction: playlistSortDirection,
+            actions: playlistSortActions,
+        },
     };
 }

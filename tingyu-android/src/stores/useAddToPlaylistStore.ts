@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { SongResult } from '../types';
 
 // src/stores/useAddToPlaylistStore.ts
 // The "add the current song to a playlist" dialog: whether it is up, and whether it could do
@@ -27,7 +28,14 @@ const UNAVAILABLE: AddToPlaylistAvailability = { isApplicable: false, canAdd: fa
 type AddToPlaylistState = {
     isOpen: boolean;
     availability: AddToPlaylistAvailability;
-    open: () => void;
+    /**
+     * 阶段二：歌单选择器服务的目标歌曲。
+     *
+     * null = 沿用旧行为，操作「当前正在播放的歌」；从歌曲列表的更多菜单进入时
+     * 携带被点的那首歌 —— 用户加进歌单的必须是列表里点的那首，不是碰巧在播的。
+     */
+    targetSong: SongResult | null;
+    open: (target?: SongResult) => void;
     close: () => void;
     setAvailability: (availability: AddToPlaylistAvailability) => void;
 };
@@ -35,9 +43,13 @@ type AddToPlaylistState = {
 export const useAddToPlaylistStore = create<AddToPlaylistState>((set) => ({
     isOpen: false,
     availability: UNAVAILABLE,
-    open: () => set({ isOpen: true }),
-    close: () => set({ isOpen: false }),
+    targetSong: null,
+    open: (target) => set({ isOpen: true, targetSong: target ?? null }),
+    close: () => set({ isOpen: false, targetSong: null }),
     setAvailability: (availability) => set({ availability }),
 }));
 
 export const openAddToPlaylist = () => useAddToPlaylistStore.getState().open();
+
+/** 歌曲菜单入口：把「这一首」交给歌单选择器。 */
+export const openAddToPlaylistForSong = (song: SongResult) => useAddToPlaylistStore.getState().open(song);

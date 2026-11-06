@@ -6,6 +6,8 @@ import { resolveNavidromeCollectionType } from '../../../core/model/navidromeHom
 import NativeHomeOverview, { type NativeHomeProps } from './NativeHomeOverview';
 import NativeDirectoryPage from './NativeDirectoryPage';
 import NativeLocalLibrary from './NativeLocalLibrary';
+import NativeLocalHomeOverview from './NativeLocalHomeOverview';
+import { useHomeSourceStore } from '../../../../stores/useHomeSourceStore';
 import type { PageActions } from '../../../../types/nativePages';
 
 // src/library/suites/mobile/native/NativeHomePage.tsx
@@ -25,7 +27,10 @@ function NaviLibrary(args:NativeHomeProps) {
         emptyMessage={model.emptyMessage} onOpen={card=>{void props.homeResources.actions.openNavidromeCard(card,resolveNavidromeCollectionType(model.section,card.id),props.onOpenGridView)}}/>;
 }
 export default function NativeHomePage(args:NativeHomeProps&{page:'home'|'library'}) {
-    if(args.page==='home')return <NativeHomeOverview {...args}/>;
+    // 推荐页按「音源」切换内容：本地音乐 → 本地推荐首页，在线 → 原来的推荐首页。
+    // 只换首页数据源；播放器、迷你条与队列不归它管，切来源不打断播放。
+    const homeSource=useHomeSourceStore(state=>state.source);
+    if(args.page==='home')return homeSource==='local'?<NativeLocalHomeOverview {...args}/>:<NativeHomeOverview {...args}/>;
     if(args.sources.tab==='local')return <NativeLocalLibrary {...args}/>;
     if(args.sources.tab==='navidrome')return <NaviLibrary {...args}/>;
     return <OnlineLibrary {...args}/>;

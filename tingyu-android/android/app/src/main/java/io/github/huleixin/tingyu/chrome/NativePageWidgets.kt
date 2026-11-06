@@ -66,13 +66,15 @@ internal val PageAccent:Color @Composable get()=LocalInterfacePalette.current.ac
     }
 }
 @Composable internal fun PagePill(text: String, onClick: () -> Unit, selected: Boolean = false, enabled: Boolean = true,
-    height: Dp = 30.dp, font: Int = 11, trailing: String = "", border: Boolean = true) {
+    height: Dp = 30.dp, font: Int = 11, trailing: String = "", border: Boolean = true, leading: String = "") {
     val shape = RoundedCornerShape(999.dp)
     Row(Modifier.heightIn(min=height).clip(shape)
         .background(if (selected) interfaceColor(Color(0x2E9FE0C4),LightInterfaceColors.Selected) else interfaceColor(Color(0x08FFFFFF),LightInterfaceColors.Subtle))
         .then(if(border) Modifier.border(1.dp, if(selected) interfaceColor(Color(0x709FE0C4),LightInterfaceColors.SelectedBorder) else interfaceColor(Color(0x18FFFFFF),LightInterfaceColors.Border), shape) else Modifier)
         .clickable(enabled=enabled,onClick=onClick).padding(horizontal=10.dp), verticalAlignment=Alignment.CenterVertically,
         horizontalArrangement=Arrangement.spacedBy(3.dp)) {
+        // leading：本地音源选择器要求「设备图标 + 名称 + 下拉箭头」，online 来源不带图标照旧。
+        if(leading.isNotBlank())PageIcon(leading,PageInk.copy(alpha=.9f),Modifier.size(15.dp))
         Text(text, color=if(selected)PageAccent else PageInk.copy(alpha=if(enabled).85f else .45f),fontSize=font.sp,maxLines=1)
         if(trailing.isNotBlank())PageIcon(trailing,PageMuted,Modifier.size(15.dp))
     }
@@ -85,7 +87,8 @@ internal val PageAccent:Color @Composable get()=LocalInterfacePalette.current.ac
             if(page.subtitle.isNotBlank())Text(page.subtitle,color=interfaceColor(Color(0xFFB5C3BD),LightInterfaceColors.Muted),fontSize=14.sp,lineHeight=19.sp,modifier=Modifier.padding(top=5.dp))
         }
         if(page.trailing.isNotBlank())Box(Modifier.padding(top=9.dp)){
-            PagePill(page.trailingLabel,{action(page.trailing,"",0.0)},height=34.dp,trailing=if(page.id=="home")"chevron-down"else"",font=11)
+            PagePill(page.trailingLabel,{action(page.trailing,"",0.0)},height=34.dp,trailing=if(page.id=="home")"chevron-down"else"",font=11,
+                leading=if(page.id=="home")page.trailingIcon else "")
         }
     }
 }

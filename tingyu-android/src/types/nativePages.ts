@@ -11,7 +11,7 @@ export type PageItem = {
     audioSpecs?: string[]; audioSpecsLabel?: string;
 };
 export type PageSection = {
-    id: string; title?: string; layout: 'rows' | 'cards' | 'hero' | 'chips' | 'input' | 'message';
+    id: string; title?: string; layout: 'rows' | 'cards' | 'hero' | 'chips' | 'input' | 'message' | 'quickLinks' | 'discoverCards';
     items?: PageItem[]; text?: string; value?: string; placeholder?: string; action?: string;
     submit?: string; more?: string; moreLabel?: string; busy?: boolean;
     total?: number; offset?: number; request?: string; key?: string; image?: string;
@@ -20,7 +20,8 @@ export type PageSection = {
 };
 export type NativePageModel = {
     key: string; title: string; subtitle?: string; leading?: string; trailing?: string;
-    trailingLabel?: string; background?: 'home' | 'dark'; sections: PageSection[];
+    trailingLabel?: string; /** 顶部右侧胶囊的前置图标（lucide 几何名），本地音源用 smartphone。 */
+    trailingIcon?: string; background?: 'home' | 'dark'; sections: PageSection[];
     bottomClearance?: number; topPadding?: number;
     document?:NativeSettingsDocument;
 };

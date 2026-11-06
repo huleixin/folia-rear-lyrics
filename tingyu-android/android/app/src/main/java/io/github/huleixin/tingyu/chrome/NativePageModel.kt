@@ -13,7 +13,7 @@ data class NativePageSection(val id: String, val title: String, val layout: Stri
 data class NativePage(val id: String, val session: String, val generation: Long, val revision: Long, val enabled: Boolean,
     val rect: ChromeRect, val viewport: Float, val safeTop: Float, val safeBottom: Float,
     val key: String, val title: String, val subtitle: String, val leading: String, val trailing: String,
-    val trailingLabel: String, val home: Boolean, val bottomClearance: Float, val topPadding: Float, val sections: List<NativePageSection>,internal val document:NativeSettingsDocument?=null) {
+    val trailingLabel: String, val trailingIcon: String, val home: Boolean, val bottomClearance: Float, val topPadding: Float, val sections: List<NativePageSection>,internal val document:NativeSettingsDocument?=null) {
     val priority get() = when(id) { "settings" -> 4; "search" -> 3; "collection" -> 2; else -> 1 }
     companion object {
         fun parse(value: JSONObject): NativePage {
@@ -30,7 +30,7 @@ data class NativePage(val id: String, val session: String, val generation: Long,
             val sections=(0 until sectionCount).mapNotNull { index ->
                 val block=blocks!!.getJSONObject(index);val rows=block.optJSONArray("items")
                 val layout=block.optString("layout")
-                if(layout !in setOf("rows","cards","hero","chips","input","message"))return@mapNotNull null
+                if(layout !in setOf("rows","cards","hero","chips","input","message","quickLinks","discoverCards"))return@mapNotNull null
                 val rowCount=minOf(rows?.length()?:0,3000)
                 val items=(0 until rowCount).map { row ->
                     val item=rows!!.getJSONObject(row)
@@ -51,7 +51,7 @@ data class NativePage(val id: String, val session: String, val generation: Long,
                 ChromeRect(number("left"),number("top"),number("width").coerceIn(0f,10000f),number("height").coerceIn(0f,10000f),1f),
                 viewport,number("safeTop").coerceIn(0f,200f),number("safeBottom").coerceIn(0f,200f),model.getString("key"),
                 model.optString("title"),model.optString("subtitle"),model.optString("leading"),model.optString("trailing"),
-                model.optString("trailingLabel"),model.optString("background")=="home",metric("bottomClearance",20.0),metric("topPadding",18.0),sections,
+                model.optString("trailingLabel"),model.optString("trailingIcon"),model.optString("background")=="home",metric("bottomClearance",20.0),metric("topPadding",18.0),sections,
                 model.optJSONObject("document")?.let{NativeSettingsDocument.parse(it)})
         }
     }

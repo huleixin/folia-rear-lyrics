@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -41,7 +42,8 @@ import kotlinx.coroutines.launch
                 page.sections.forEach { section ->
                     when {
                         section.layout=="hero" -> item(key=section.id){NativeHeroRail(section,viewport,start,end,wide,short,action)}
-                        section.id=="recent" && section.layout=="cards" -> item(key=section.id){
+                        // 方形封面横滑 rail：在线首页的「最近播放」与本地首页的「最近播放 / 常听专辑」共用一套。
+                        section.layout=="cards" && section.id in setOf("recent","localAlbums") -> item(key=section.id){
                             Column(Modifier.padding(top=4.dp)) {
                                 PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=4.dp),action)
                                 LazyRow(contentPadding=PaddingValues(start=start,end=end),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
@@ -55,6 +57,46 @@ import kotlinx.coroutines.launch
                                                     Text(item.subtitle,color=PageMuted,fontSize=12.sp,lineHeight=18.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=2.dp))
                                                 }
                                                 if(item.secondary.isNotBlank())Box(Modifier.width(24.dp).height(36.dp).clickable{action(item.secondary,"",0.0)},contentAlignment=Alignment.Center){PageIcon("ellipsis-vertical",PageMuted,Modifier.size(16.dp))}
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // 本地首页的四个快捷入口：玻璃卡 + 圆形图标 + 名称 + 真实数量，一行四个。
+                        section.layout=="quickLinks" -> item(key=section.id){
+                            Row(Modifier.padding(start=start,end=end,top=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                                section.items.forEachIndexed { index, item ->
+                                    if(index>0)Box(Modifier.width(1.dp).height(34.dp).background(interfaceColor(Color(0x12FFFFFF),LightInterfaceColors.Border)))
+                                    Column(Modifier.weight(1f).clickable(enabled=!item.disabled&&item.action.isNotBlank()){action(item.action,"",0.0)},
+                                        horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(5.dp)) {
+                                        Box(Modifier.size(34.dp).clip(RoundedCornerShape(999.dp))
+                                            .background(interfaceColor(Color(0x14FFFFFF),LightInterfaceColors.Subtle))
+                                            .border(1.dp,interfaceColor(Color(0x1CFFFFFF),LightInterfaceColors.Border),RoundedCornerShape(999.dp)),
+                                            contentAlignment=Alignment.Center){PageIcon(if(item.image.isNotBlank())item.image else "music2",PageInk.copy(alpha=.92f),Modifier.size(16.dp))}
+                                        Text(item.title,color=PageInk,fontSize=12.sp,lineHeight=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+                                        Text(item.subtitle,color=PageMuted,fontSize=10.sp,lineHeight=13.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+                                    }
+                                }
+                            }
+                        }
+                        // 本地首页的「为你发现」：两张宽玻璃卡，圆形播放按钮 + 标题 + 说明。
+                        section.layout=="discoverCards" -> item(key=section.id){
+                            Column(Modifier.padding(top=4.dp)) {
+                                PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=6.dp),action)
+                                Row(Modifier.padding(start=start,end=end),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                                    section.items.forEach { item ->
+                                        Row(Modifier.weight(1f).heightIn(min=64.dp).clip(RoundedCornerShape(14.dp))
+                                            .background(interfaceColor(Color(0x1A16302B),LightInterfaceColors.Card))
+                                            .border(1.dp,interfaceColor(Color(0x18FFFFFF),LightInterfaceColors.Border),RoundedCornerShape(14.dp))
+                                            .clickable(enabled=!item.disabled&&item.action.isNotBlank()){action(item.action,"",0.0)}
+                                            .padding(horizontal=12.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                                            Box(Modifier.size(34.dp).clip(RoundedCornerShape(999.dp)).background(interfaceColor(Color(0x2E9FE0C4),LightInterfaceColors.Selected)),contentAlignment=Alignment.Center){
+                                                ChromeGlyph("play",PageInk,Modifier.size(15.dp))
+                                            }
+                                            Column(Modifier.weight(1f)) {
+                                                Text(item.title,color=PageInk,fontSize=13.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+                                                Text(item.subtitle,color=PageMuted,fontSize=11.sp,lineHeight=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=2.dp))
                                             }
                                         }
                                     }
@@ -91,12 +133,19 @@ import kotlinx.coroutines.launch
     LazyRow(state=state,flingBehavior=rememberSnapFlingBehavior(state,snapPosition=SnapPosition.Start),
         contentPadding=PaddingValues(start=start,end=end,bottom=4.dp),horizontalArrangement=Arrangement.spacedBy(11.dp)){
         items(section.items,key={it.id}) { item ->
+            // 眉题：在线首页第一张卡是 TINGYU，本地首页第一张是 TINGYU · LOCAL（对应设计图）。
+            val eyebrow=when(item.id) { "guess-you-like"->"TINGYU"; "local-most-played"->"TINGYU · LOCAL"; else->"" }
+            // 本地三张卡用的成品背景图底部偏亮，白色副标题/按钮对比度不足；
+            // 只对 local-* 加一层非常轻的底部渐变遮罩（≤16% 黑），在线卡的既有设计不动。
+            val localScrim=item.id.startsWith("local-")
             Box(Modifier.width(width).height(height).clip(RoundedCornerShape(15.dp)).background(Color(0xFF172320))) {
                 AsyncImage(pageImage(item.image),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
-                if(item.id=="guess-you-like")Text("TINGYU",color=Color.White.copy(alpha=.92f),fontSize=10.sp,letterSpacing=3.sp,modifier=Modifier.offset(18.dp,18.dp))
+                if(localScrim)Box(Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(0f to Color(0x00000000),0.55f to Color(0x00000000),1f to Color(0x29000000))))
+                if(eyebrow.isNotBlank())Text(eyebrow,color=Color.White.copy(alpha=.92f),fontSize=10.sp,letterSpacing=3.sp,modifier=Modifier.offset(18.dp,18.dp))
                 Text(item.title,color=Color.White,fontSize=title,lineHeight=title*1.14f,fontWeight=FontWeight(780),letterSpacing=(-1.1).sp,
                     modifier=Modifier.padding(start=18.dp,top=if(short)40.dp else 50.dp).width(width*.8f))
-                if(item.id=="guess-you-like")Box(Modifier.offset(18.dp,(50+title.value*2.28f+10).dp).size(16.dp,2.dp).background(Color(0x99FFFFFF),RoundedCornerShape(2.dp)))
+                if(eyebrow.isNotBlank())Box(Modifier.offset(18.dp,(50+title.value*2.28f+10).dp).size(16.dp,2.dp).background(Color(0x99FFFFFF),RoundedCornerShape(2.dp)))
                 Text(item.subtitle,color=Color(0xD9FFFDF2),fontSize=12.sp,lineHeight=18.sp,maxLines=2,modifier=Modifier.align(Alignment.BottomStart).padding(start=18.dp,bottom=52.dp))
                 Row(Modifier.align(Alignment.BottomStart).padding(start=18.dp,bottom=14.dp).height(38.dp)
                     .clip(RoundedCornerShape(24.dp)).background(Color(0x30FFFFFF)).border(1.dp,Color(0x45FFFFFF),RoundedCornerShape(24.dp))

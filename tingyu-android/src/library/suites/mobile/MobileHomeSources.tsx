@@ -1,9 +1,10 @@
 import React, { useCallback, useRef } from 'react';
-import { Check, Settings, LogIn, LogOut, RefreshCw, FolderPlus, Import } from 'lucide-react';
+import { Check, Settings, LogIn, LogOut, RefreshCw, FolderPlus, Import, Smartphone } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { LibraryHomeSurfaceProps } from '../../core/contracts/suite';
 import { useLibraryAccountProviders } from '../../core/bindings/useLibraryAccount';
 import { useLibraryHomeActions } from '../../core/bindings/useLibraryHomeActions';
+import { useHomeSourceStore } from '../../../stores/useHomeSourceStore';
 import MobileSheet from './MobileSheet';
 
 // src/library/suites/mobile/MobileHomeSources.tsx
@@ -11,18 +12,46 @@ export function MobileSourceSheet({
     account,
     onOpenSettings,
     onClose,
-}: Pick<LibraryHomeSurfaceProps, 'account' | 'onOpenSettings'> & { onClose: () => void }) {
+    localSongCount,
+}: Pick<LibraryHomeSurfaceProps, 'account' | 'onOpenSettings'> & {
+    onClose: () => void;
+    /** 本地曲库当前歌曲数； undefined 时整个入口隐藏（例如本地库不可用的环境）。 */
+    localSongCount?: number;
+}) {
     const { t } = useTranslation();
     const { providers, activeProviderId } = useLibraryAccountProviders(account);
+    const homeSource = useHomeSourceStore((state) => state.source);
+    const setHomeSource = useHomeSourceStore((state) => state.setSource);
+    const selectOnlineSource = (providerId: string) => {
+        // 切回在线只换首页数据源与账户，不动播放器：正在播的本地歌继续播。
+        setHomeSource('online');
+        account.selectProvider(providerId);
+    };
     return (
         <MobileSheet title={t('mobileLibrary.sources')} onClose={onClose}>
+            {localSongCount !== undefined && (
+                <button
+                    className="ml-sheet-action"
+                    onClick={() => {
+                        setHomeSource('local');
+                        onClose();
+                    }}
+                >
+                    <Smartphone size={18} />
+                    <span>
+                        <strong>{t('mobileLibrary.localMusicSource')}</strong>
+                        <small>{t('mobileLibrary.localMusicSourceHint', { count: localSongCount })}</small>
+                    </span>
+                    {homeSource === 'local' && <Check size={20} />}
+                </button>
+            )}
             {providers.map((provider) => (
                 <button
                     key={provider.providerId}
                     className="ml-sheet-action"
                     disabled={!provider.availability.configured}
                     onClick={() => {
-                        account.selectProvider(provider.providerId);
+                        selectOnlineSource(provider.providerId);
                         onClose();
                     }}
                 >
@@ -38,12 +67,13 @@ export function MobileSourceSheet({
                                 )}
                         </small>
                     </span>
-                    {provider.providerId === activeProviderId && <Check size={20} />}
+                    {homeSource === 'online' && provider.providerId === activeProviderId && <Check size={20} />}
                 </button>
             ))}
             <button
                 className="ml-sheet-action"
                 onClick={() => {
+                    setHomeSource('online');
                     onClose();
                     void account.startLogin(activeProviderId);
                 }}

@@ -7,6 +7,7 @@ import { useLibraryHomeSources } from '../../core/bindings/useLibraryHomeSources
 import { useLibraryHomeTabsRegistration } from '../../core/bindings/useLibraryHomeSurfaceRegistration';
 import { useMobileLibraryStore } from '../../../stores/useMobileLibraryStore';
 import { useSearchNavigationStore } from '../../../stores/useSearchNavigationStore';
+import { useHomeSourceStore } from '../../../stores/useHomeSourceStore';
 import { hasBlockingWindow } from '../../../utils/keyboardTargets';
 import { LocalDirectory, NavidromeDirectory } from './MobileSourceDirectories';
 import MobileHomeOverview from './MobileHomeOverview';
@@ -53,6 +54,8 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
         },
     });
     const [showSources, setShowSources] = useState(false);
+    const homeSource = useHomeSourceStore((state) => state.source);
+    const setHomeSource = useHomeSourceStore((state) => state.setSource);
     const rootRef=React.useRef<HTMLElement>(null);
     const nativeAvailable=useNativePagesAvailable();
     // 首页 DOM 已改为编译期剔除（NATIVE_FIRST 恒真），ready 回调不再驱动任何渲染分支，
@@ -62,7 +65,8 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
     return (
         <main ref={rootRef} className="mobile-library ml-page ml-home" data-page={page} inert={!props.isInteractive} data-testid="mobile-home"
             onPointerDownCapture={preloadCollection} onFocusCapture={preloadCollection}>
-            {nativeAvailable&&<NativeHomePage key={`${page}:${sources.tab}:${sources.online.providerId}`} root={rootRef} page={page} props={props} sources={sources}
+            {/* homeSource 参与 key：切换音源时整页重挂，Compose 侧拿到的是干净的新模型。 */}
+            {nativeAvailable&&<NativeHomePage key={`${page}:${sources.tab}:${sources.online.providerId}:${homeSource}`} root={rootRef} page={page} props={props} sources={sources}
                 onReady={setNativeReady} onSources={()=>setShowSources(true)}/>}
             {/* 模块常量门控（docs/ANDROID-PAGE-OWNERSHIP.md §2）：NATIVE_FIRST 在 Android
                 启动时即为 true、且本会话内不再变化，因此这段旧 DOM 在 Android 上不可达；
@@ -79,7 +83,7 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
                 </div>
                 <span className="ml-spacer" />
                 <button className="ml-source" onClick={() => setShowSources(true)}>
-                    {sources.online.providerLabel}
+                    {homeSource === 'local' ? t('mobileLibrary.localMusicSource') : sources.online.providerLabel}
                     <ChevronDown size={15} />
                 </button>
             </header>
@@ -92,7 +96,11 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
                                 aria-pressed={sources.tab === tab.key}
                                 disabled={!!tab.disabledReason}
                                 title={tab.disabledReason}
-                                onClick={() => sources.setTab(tab.key)}
+                                onClick={() => {
+                                    sources.setTab(tab.key);
+                                    // 与原生页签同语义：切本地页签=选本地音源，切在线页签=回在线。
+                                    setHomeSource(tab.key === 'local' ? 'local' : 'online');
+                                }}
                             >
                                 {tab.label}
                             </button>
@@ -120,6 +128,7 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
                     account={props.account}
                     onOpenSettings={props.onOpenSettings}
                     onClose={closeSources}
+                    localSongCount={props.localSongs.length}
                 />
             )}
             {props.accountLayerRef &&
