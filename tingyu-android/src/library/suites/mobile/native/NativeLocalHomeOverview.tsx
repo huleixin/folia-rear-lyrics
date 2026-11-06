@@ -63,6 +63,9 @@ export default function NativeLocalHomeOverview({root,props,sources,onReady,onSo
     // 菜单里「收藏/取消收藏」的当前状态：打开菜单时按「我喜欢」歌单现读一次。
     const [menuLiked,setMenuLiked]=useState<boolean|null>(null);
     const [discoverSeed,setDiscoverSeed]=useState(0);
+    // 阶段四：播放记录「内容」变化（重播同一首：次数+1、时间前移）不会改变条数，
+    // 只靠 history.length 组 key 会让常听精选/最近播放的排序停在旧数据 —— 用版本号驱动刷新。
+    const [historyRevision,setHistoryRevision]=useState(0);
     const dailySeed=useMemo(()=>localDailySeed(),[]);
 
     // 播放历史在 IndexedDB：挂载、播放记录变化、曲库变化时重读（记录只存 id+计数，读起来很轻）。
@@ -73,6 +76,7 @@ export default function NativeLocalHomeOverview({root,props,sources,onReady,onSo
             if(!alive)return;
             setHistory(plays);
             setAlbums(aggregateLocalAlbumPlays(plays));
+            setHistoryRevision(value=>value+1);
         };
         void load();
         window.addEventListener(LOCAL_PLAY_HISTORY_UPDATED_EVENT,load);
@@ -282,7 +286,7 @@ export default function NativeLocalHomeOverview({root,props,sources,onReady,onSo
     // key 契约（NativePageRetention.pageBelongsToRoute）：route=home 且非资料库页签时，
     // 页面 key 必须以 "home:" 开头，否则整包会被原生按 route-target-mismatch 拒收，
     // 表现就是「首页没有完成加载」。本地首页同样挂在 home 路由下，所以前缀必须是 home:。
-    const model={key:`home:local:${props.localSongs.length}:${history.length}:${discoverSeed}`,title:t('mobileLibrary.recommend'),
+    const model={key:`home:local:${props.localSongs.length}:${historyRevision}:${discoverSeed}`,title:t('mobileLibrary.recommend'),
         subtitle:t('mobileLibrary.localDiscoverSubtitle'),trailing:'sources',trailingLabel:t('mobileLibrary.localMusicSource'),
         trailingIcon:'smartphone',background:'home' as const,bottomClearance:152,topPadding:32,sections};
     useNativePage(root,'home',props.isInteractive,model,actions,onReady);

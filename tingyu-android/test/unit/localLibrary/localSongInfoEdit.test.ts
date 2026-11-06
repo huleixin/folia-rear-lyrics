@@ -25,7 +25,6 @@ const makeSong = (id: string, patch: Partial<LocalSong> = {}): LocalSong => ({
 (globalThis as unknown as { window: unknown }).window = globalThis;
 
 let service: typeof import('../../../src/services/localLibraryCatalogService');
-const { appDatabase } = (globalThis as unknown as { appDatabaseRef?: { current?: unknown } }).appDatabaseRef ?? {};
 
 beforeEach(async () => {
     vi.resetModules();
