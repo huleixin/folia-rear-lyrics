@@ -671,10 +671,20 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             // 键盘高度补回"虚拟屏高"，让迷你条/导航栏继续以**物理屏幕底边**为基准：
             // 键盘升起时它们跟着下沉、被键盘盖住（需求允许"自然覆盖"），收起后原位回来。
             // 只作用于 nav/mini，不碰舞台控制条，也不改全局播放器位置规则。
+            // 免form小窗/分屏修复（录屏 68720）：窗口不贴物理屏幕底边时，「屏幕-窗口」差值
+            // 是桌面或其它窗口的高度，会被误当键盘把底栏推出窗外裁掉（内容正常、双栏消失）。
+            // 因此只有窗口底边贴着屏幕底边（全屏/底部半屏）才允许这个兜底；真实 IME 高度优先。
             val imeInsetPx = WindowInsets.ime.getBottom(density)
             val rootPx = height * density.density
             val screenPx = web.resources.displayMetrics.heightPixels.toFloat()
-            val keyboardPx = maxOf(imeInsetPx.toFloat(), (screenPx - rootPx).coerceAtLeast(0f))
+            val windowLocation = IntArray(2)
+            web.getLocationOnScreen(windowLocation)
+            val pinnedToScreenBottom = windowLocation[1] + web.height >= screenPx - 24f * density.density
+            val keyboardPx = when {
+                imeInsetPx > 0 -> imeInsetPx.toFloat()
+                pinnedToScreenBottom -> (screenPx - rootPx).coerceAtLeast(0f)
+                else -> 0f
+            }
             visible.forEach { original -> key(original.id,original.session) {
                 val surface=remember(original,interfaceLight){original.interfacePaint(interfaceLight)}
                 val scale = web.width / surface.viewportWidth

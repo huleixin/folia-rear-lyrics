@@ -71,7 +71,9 @@ let generation=0;
 export function newChromeGeneration():number { return generation=Math.max(Date.now()*1000,generation+1); }
 export function composeChromeCapabilities():Promise<{supported:boolean;pages?:boolean;minimalPlayer?:boolean}> {
     if (!COMPOSE_CHROME || !isAndroidNativeRuntime()) return Promise.resolve({supported:false});
-    return probe ??= chromeNative.probe().catch(()=>({supported:false}));
+    // probe 被拒（Activity recreate 后 bridge 未就绪等）是一次性状态（2026-11-06 底栏消失专项）：
+    // 不缓存失败——重置缓存让下一次挂载/重试重新探测，避免整会话永久停摆。
+    return probe ??= chromeNative.probe().catch(error=>{probe=undefined;throw error;});
 }
 export function canUseComposeChrome():Promise<boolean> {
     return composeChromeCapabilities().then(value=>value.supported);

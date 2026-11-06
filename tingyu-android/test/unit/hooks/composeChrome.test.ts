@@ -87,6 +87,20 @@ it('retains native ownership and ignores actions when the bridge fails',async()=
     expect(queue).not.toHaveBeenCalled();
     const count=bridge.update.mock.calls.length;await settle(2000);expect(bridge.update).toHaveBeenCalledTimes(count);
 });
+it('recovers ownership through a bounded retry after a bridge exception',async()=>{
+    // 桥未就绪（recreate 后首个调用被拒）是一次性状态：首次 update 抛错 → 失败事件 +
+    // 有界重试（1.2s）→ 重新接管并发布，不再是「PREHIDE 预隐藏 + Compose 失败 = 双边皆无」。
+    let thrown=0;
+    bridge.update.mockImplementation(f=>{if(thrown===0){thrown+=1;return Promise.reject(new Error('bridge-not-ready'));}return Promise.resolve({accepted:true,session:f.session});});
+    await act(async()=>root.render(h(Probe)));await settle(1200);
+    // 首次 update 抛错 → 失败事件 + 1.2s 后自愈重试（settle 窗口内已恢复接管）。
+    expect(bridge.update.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(host.firstElementChild?.getAttribute('data-compose-native')).toBe('true');
+    expect(host.firstElementChild?.hasAttribute('data-compose-pending')).toBe(false);   // 接管成功
+    // 自愈只跑一次：后续不再产生新的 setup/update 风暴。
+    const stable=bridge.update.mock.calls.length;await settle(6000);
+    expect(bridge.update.mock.calls.length).toBe(stable);
+});
 it('suppresses legacy paint from the first layout even with a delayed reply',async()=>{
     let drawn:(value:any)=>void=()=>{};
     bridge.update.mockImplementation(f=>new Promise(resolve=>{drawn=value=>resolve({session:f.session,...value});}));
