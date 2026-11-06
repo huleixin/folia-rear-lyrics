@@ -113,6 +113,27 @@ export const applyMatchedMetadata = async (
   );
 };
 
+/**
+ * 阶段三：手动文本编辑歌曲信息（标题/歌手/专辑）。
+ *
+ * 复用 applyMatchedMetadata 的单事务写回：不传 source，onlineMetadata（在线匹配结果）
+ * 完全不动，只改本地记录与实体归属（origin 走 'manual-match'，即手动匹配/手动编辑）。
+ * 不写音频文件标签 —— 文件保持原样，编辑只作用于听屿曲库。
+ */
+export const updateLocalSongInfoManually = async (
+  songId: string,
+  info: { title: string; artistNames: string[]; albumName?: string },
+): Promise<LocalSong | undefined> => {
+  const title = info.title.trim();
+  const artists = info.artistNames.map(name => name.trim()).filter(Boolean);
+  if (!title && artists.length === 0 && !info.albumName?.trim()) return undefined;
+  return applyMatchedMetadata(songId, {
+    title: title || undefined,
+    artists: artists.length ? artists.map(name => ({ name })) : undefined,
+    album: info.albumName?.trim() ? { name: info.albumName.trim() } : undefined,
+  }, { assignmentOrigin: 'manual-match' });
+};
+
 export const applyManualMetadata = async (
   songId: string,
   artistNames: string[],

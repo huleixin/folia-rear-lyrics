@@ -5,6 +5,7 @@ import type { LocalSong } from '../../types';
 import type { LocalLibraryAssignment } from '../../types/localLibrary';
 import { getLocalCoverAssetUrl } from '../../services/localCoverAssetUrl';
 import { applyOnlineMetadataCandidate, useImportedSnapshotForLocalSong } from '../../services/localSongMetadataMatchService';
+import { updateLocalSongInfoManually } from '../../services/localLibraryCatalogService';
 import { setLocalSongPureMusicMark } from '../../services/localSongMatchSelectionService';
 import { setStatusMessage } from '../../stores/useStatusMessageStore';
 import {
@@ -38,6 +39,15 @@ export const LocalSongMetadataMatchDialog = ({ song, assignment, isDaylight, onC
     const [applying, setApplying] = useState(false);
     const [restoringLocalInfo, setRestoringLocalInfo] = useState(false);
     const [markingPureMusic, setMarkingPureMusic] = useState(false);
+    // 阶段三：手动文本编辑（不依赖在线搜索）。预填当前值，保存走 updateLocalSongInfoManually。
+    const [manualTitle, setManualTitle] = useState(song.title);
+    const [manualArtist, setManualArtist] = useState(
+        (song.titleOrigin !== 'import' ? song.onlineMetadata?.artists.map(a => a.name).join(', ') : song.importedMetadata.artistNames.join(', ')) || '',
+    );
+    const [manualAlbum, setManualAlbum] = useState(
+        (song.titleOrigin !== 'import' ? song.onlineMetadata?.album?.name : song.importedMetadata.albumName) || '',
+    );
+    const [manualSaving, setManualSaving] = useState(false);
     const [useOnlineMetadata, setUseOnlineMetadata] = useState(song.titleOrigin !== 'import');
     const [useOnlineCover, setUseOnlineCover] = useState(song.useOnlineCover ?? !song.localCoverAssetId);
     const localCoverUrl = getLocalCoverAssetUrl(song.localCoverAssetId, 512);
@@ -127,7 +137,7 @@ export const LocalSongMetadataMatchDialog = ({ song, assignment, isDaylight, onC
             setMarkingPureMusic(false);
         }
     };
-    const busy = applying || restoringLocalInfo || markingPureMusic;
+    const busy = applying || restoringLocalInfo || markingPureMusic || manualSaving;
     const panelTheme = isDaylight ? 'border-black/10 bg-white text-zinc-900' : 'border-white/10 bg-zinc-950 text-white';
 
     return (
@@ -238,6 +248,58 @@ export const LocalSongMetadataMatchDialog = ({ song, assignment, isDaylight, onC
                             </button>
                         </div>
                     )}
+                    {/* 阶段三：手动编辑 —— 不搜索也能直接改标题/歌手/专辑；只更新曲库记录，不写文件标签。 */}
+                    <div className="rounded-xl border border-current/10 bg-current/[0.03] p-3">
+                        <div className="mb-2 text-[11px] font-bold uppercase tracking-wider opacity-45">{t('localMusic.manualEditSection')}</div>
+                        <div className="space-y-2">
+                            <input
+                                aria-label={t('localMusic.manualEditTitle')}
+                                value={manualTitle}
+                                onChange={event => setManualTitle(event.currentTarget.value)}
+                                placeholder={t('localMusic.manualEditTitle')}
+                                className="w-full rounded-xl border border-current/10 bg-transparent px-3 py-2 text-sm outline-none focus:border-blue-500/60"
+                            />
+                            <input
+                                aria-label={t('localMusic.manualEditArtist')}
+                                value={manualArtist}
+                                onChange={event => setManualArtist(event.currentTarget.value)}
+                                placeholder={t('localMusic.manualEditArtist')}
+                                className="w-full rounded-xl border border-current/10 bg-transparent px-3 py-2 text-sm outline-none focus:border-blue-500/60"
+                            />
+                            <input
+                                aria-label={t('localMusic.manualEditAlbum')}
+                                value={manualAlbum}
+                                onChange={event => setManualAlbum(event.currentTarget.value)}
+                                placeholder={t('localMusic.manualEditAlbum')}
+                                className="w-full rounded-xl border border-current/10 bg-transparent px-3 py-2 text-sm outline-none focus:border-blue-500/60"
+                            />
+                            <button
+                                type="button"
+                                disabled={busy || (!manualTitle.trim() && !manualArtist.trim() && !manualAlbum.trim())}
+                                onClick={async () => {
+                                    setManualSaving(true);
+                                    try {
+                                        await updateLocalSongInfoManually(song.id, {
+                                            title: manualTitle,
+                                            artistNames: manualArtist.split(/[,，、]/).map(item => item.trim()).filter(Boolean),
+                                            albumName: manualAlbum,
+                                        });
+                                        await onChanged();
+                                        setStatusMessage({ type: 'success', text: t('localMusic.manualEditSaved') });
+                                    } catch (error) {
+                                        console.warn('[LocalSongMetadataMatchDialog] Manual edit failed:', error);
+                                        setStatusMessage({ type: 'error', text: t('localMusic.manualEditFailed') });
+                                    } finally {
+                                        setManualSaving(false);
+                                    }
+                                }}
+                                className="w-full rounded-xl bg-blue-500 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-35"
+                            >
+                                {manualSaving ? <Loader2 size={15} className="mx-auto animate-spin" /> : t('localMusic.manualEditSave')}
+                            </button>
+                            <p className="text-[11px] opacity-45">{t('localMusic.manualEditHint')}</p>
+                        </div>
+                    </div>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex flex-wrap items-center gap-3">
                             <button type="button" disabled={busy} onClick={() => void useLocalInfo()} className="flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-500 disabled:opacity-35">
