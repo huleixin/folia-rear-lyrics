@@ -20,14 +20,36 @@ export function useNativePageImages(model:NativePageModel|null,active:boolean):N
         if(!NATIVE_FIRST||!active)return;
         const list=urls;if(!list.length)return;
         navigationMark('native-thumbnail-batch-start');const started=performance.timeOrigin+performance.now();
-        let alive=true,index=0,timer=0;const resolved:Record<string,string>={};
+        let alive=true,timer=0;const resolved:Record<string,string>={};
+        const failed=new Set<string>();
         const publish=()=>{timer=0;if(alive)setImages({...resolved})};
-        const worker=async()=>{while(alive&&index<list.length){const url=list[index++];resolved[url]=await nativeCoverThumbnail(url);
-            // Coalesce arrivals without making a fast cover wait for every slow cover in the page.
-            if(alive&&!timer)timer=window.setTimeout(publish,48);
-        }};
-        void Promise.all(Array.from({length:Math.min(4,list.length)},worker)).then(()=>{navigationMark('native-thumbnail-batch-end',started);clearTimeout(timer);publish()});
-        return()=>{alive=false;clearTimeout(timer)};
+        // 单批处理：并发 4，按模型顺序（即可见顺序）推进；失败项记入 failed，不发布空串。
+        const process=(batch:string[]):Promise<void>=>{
+            let index=0;
+            const worker=async()=>{while(alive&&index<batch.length){const url=batch[index++];const value=await nativeCoverThumbnail(url);
+                if(value)resolved[url]=value;else failed.add(url);
+                // Coalesce arrivals without making a fast cover wait for every slow cover in the page.
+                if(alive&&!timer)timer=window.setTimeout(publish,48);
+            }};
+            return Promise.all(Array.from({length:Math.min(4,batch.length)},worker)).then(()=>{});
+        };
+        void process(list).then(()=>{navigationMark('native-thumbnail-batch-end',started);clearTimeout(timer);publish()});
+        // 封面失败自动恢复（2026-11-06 首页封面专项）：冷启动 Service Worker 未认领页面或
+        // 封面资产尚未写入时首批 fetch 会落空。controllerchange 与封面落库事件是有界的真实
+        // 就绪信号 —— 只对失败项补一轮（nativeCoverThumbnail 按 URL 合并请求并缓存，成功后
+        // 自然命中）；成功项绝不重解，无固定延迟轮询，不整页刷新。
+        const retry=()=>{
+            if(!alive||!failed.size)return;
+            const targets=[...failed].filter(url=>!resolved[url]);failed.clear();
+            if(!targets.length)return;
+            navigationMark('native-thumbnail-retry');
+            void process(targets).then(()=>{clearTimeout(timer);publish()});
+        };
+        const container=typeof navigator==='undefined'?undefined:navigator.serviceWorker;
+        container?.addEventListener?.('controllerchange',retry);
+        if(typeof window!=='undefined')window.addEventListener('folia-local-music-updated',retry);
+        return()=>{alive=false;clearTimeout(timer);container?.removeEventListener?.('controllerchange',retry);
+            if(typeof window!=='undefined')window.removeEventListener('folia-local-music-updated',retry);};
     },[urls,active]);
     return useMemo(()=>{if(!model)return model;if(!urls.length)return model;
     const image=(url:string)=>images[url]||peekNativeCoverThumbnail(url)||'';

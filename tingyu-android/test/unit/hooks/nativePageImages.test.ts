@@ -28,3 +28,28 @@ it('publishes a fast cover while another is pending, and reuses it immediately w
         expect(model.sections[0].items[0].image).toBe('data:image/jpeg;base64,fast');
     }finally{await act(()=>root.unmount());vi.useRealTimers()}
 });
+it('封面批次失败后，就绪事件只对失败项补一轮并自动更新（成功项绝不重解）',async()=>{
+    (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;vi.useFakeTimers();
+    let model:any;const root=createRoot(document.createElement('div'));
+    const input={key:'home',title:'推荐',sections:[{id:'recent',layout:'cards' as const,items:[{id:'a',title:'A',image:'blob:good'},{id:'b',title:'B',image:'blob:bad'}]}]};
+    function Probe(){model=useNativePageImages(input,true);return null}
+    try{
+        await act(()=>root.render(h(Probe)));
+        await act(async()=>{cache.resolve['blob:good']('data:image/jpeg;base64,good');await vi.advanceTimersByTimeAsync(49)});
+        // blob:bad 解析失败（空串）：记录失败、发布时不出空串。
+        await act(async()=>{cache.resolve['blob:bad']('');await vi.advanceTimersByTimeAsync(49)});
+        expect(model.sections[0].items[0].image).toBe('data:image/jpeg;base64,good');
+        expect(model.sections[0].items[1].image).toBe('');
+        // 事件驱动重试（SW 认领页面 / 封面资产落库）：只补失败项。
+        await act(async()=>{window.dispatchEvent(new Event('folia-local-music-updated'));await vi.advanceTimersByTimeAsync(49)});
+        expect(model.sections[0].items[1].image).toBe('');       // 重试这轮尚未就绪 → 保持占位
+        cache.resolve['blob:bad']('data:image/jpeg;base64,bad'); // 重试 promise 由同一 resolver 解决
+        await act(async()=>{await vi.advanceTimersByTimeAsync(49)});
+        expect(model.sections[0].items[0].image).toBe('data:image/jpeg;base64,good');  // 成功项不受影响
+        expect(model.sections[0].items[1].image).toBe('data:image/jpeg;base64,bad');   // 失败项自动恢复
+        // 没有周期性轮询：事件不再来就不会有新请求。
+        const pending=Object.keys(cache.resolve).length;
+        await act(async()=>{await vi.advanceTimersByTimeAsync(5000)});
+        expect(Object.keys(cache.resolve).length).toBe(pending);
+    }finally{await act(()=>root.unmount());vi.useRealTimers()}
+});
