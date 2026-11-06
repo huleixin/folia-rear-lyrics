@@ -257,10 +257,12 @@ class MinimalParityTest {
                     light = light,
                     mode = "all",
                     onClose = {},
-                    onPlay = {},
-                    onRemove = {},
-                    onReorder = { _, _ -> },
-                    onToggleMode = {},
+                    // 签名在 1.3.151 之后改为返回 Boolean（false = 桥不在，UI 不得进入假切换态）；
+                    // 本用例只验证版式 parity，命令一律视为已接收。
+                    onPlay = { true },
+                    onRemove = { true },
+                    onReorder = { _, _ -> true },
+                    onToggleMode = { true },
                 )
             }
         }
