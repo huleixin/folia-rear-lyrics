@@ -280,8 +280,10 @@ README.txt        包内说明与隐私声明
 
 **两个防误判设计**：
 
-1. 失败计数只在 `MainActivity` 里 +1（`confirmMainLaunch`）。背屏 `RearLyricsActivity`
-   会拉起同一个进程但不加载 React，如果算进去，背屏用得多的用户会被误判。
+1. 失败计数只在 `MainActivity` 里 +1（`confirmMainLaunch`）。进程入口分三类：
+   `main`（主界面/安全页）、`rear`（背屏 Activity）、`service`（后台播放服务）。
+   后两者会拉起同一个进程但不加载 React，天然到不了 `startup-complete` ——
+   如果算进去，背屏/后台听歌用得多的用户会被误判。
 2. 达标后还要再查一次 `ApplicationExitInfo`（`getHistoricalProcessExitReasons`），
    用户退出/系统回收会把计数退回去。慢 binder 调用只发生在这条罕见路径上。
 

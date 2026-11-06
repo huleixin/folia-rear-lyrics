@@ -140,6 +140,8 @@ public class FoliaPlaybackService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        // 后台播放服务单独特拉起进程时不算「主界面启动」：它不加载 React，不该计入启动失败。
+        io.github.huleixin.tingyu.diagnostics.StartupGuard.noteEntry("service");
         running = true;
         // 恢复 JS 同步过的歌词偏移（进程重建后、WebView 启动前，原生兜底取词就要用）。
         io.github.huleixin.tingyu.playback.LyricOffsetPersistence.loadOnce(this);

@@ -51,7 +51,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         // 主界面启动确认：到这一步才把「上一会话没走完」计入连续失败（背屏 Activity 不算）。
-        io.github.huleixin.tingyu.diagnostics.StartupGuard.noteEntry(true);
+        io.github.huleixin.tingyu.diagnostics.StartupGuard.noteEntry("main");
         io.github.huleixin.tingyu.diagnostics.StartupGuard.confirmMainLaunch();
         // 安全模式必须在 super.onCreate 之前判定：super 会创建 Capacitor bridge 与 WebView，
         // 而这两者正是启动崩溃最常见的现场。判定为真时直接换到零依赖的原生恢复页。

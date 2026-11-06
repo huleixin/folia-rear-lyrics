@@ -48,7 +48,8 @@ public final class TingyuApplication extends Application {
         // 只为了区分「主界面拉起」和「背屏 Activity 拉起」：后者不加载 React，不能算启动失败。
         registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
             @Override public void onActivityCreated(Activity activity, Bundle state) {
-                StartupGuard.noteEntry(activity instanceof MainActivity || activity instanceof SafeModeActivity);
+                StartupGuard.noteEntry(
+                    activity instanceof MainActivity || activity instanceof SafeModeActivity ? "main" : "rear");
             }
             @Override public void onActivityStarted(Activity activity) {}
             @Override public void onActivityResumed(Activity activity) {}

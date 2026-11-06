@@ -112,19 +112,24 @@ public final class StartupGuard {
         SharedPreferences store = prefs;
         if (store == null) return;
         int previous = store.getInt(KEY_CONSECUTIVE, 0);
-        boolean treatAsRearOnly = "rear".equals(previousEntry);
+        boolean nonMainEntry = "rear".equals(previousEntry) || "service".equals(previousEntry);
         StartupFailurePolicy.Decision decision = StartupFailurePolicy.decide(
-            previousCompleted || treatAsRearOnly, previousUserExit, previous);
+            previousCompleted || nonMainEntry, previousUserExit, previous);
         store.edit().putInt(KEY_CONSECUTIVE, decision.consecutive).apply();
     }
 
-    /** 进程被哪个界面拉起：main / rear。只记第一次。 */
-    public static synchronized void noteEntry(boolean main) {
+    /**
+     * 进程被谁拉起：main / rear / service。只记第一次。
+     *
+     * <p>这三者的区别决定「上一会话没走完」要不要计入启动失败：主界面才算，
+     * 背屏 Activity 与后台播放服务都不加载 React，天然到不了 startup-complete。
+     */
+    public static synchronized void noteEntry(String kind) {
         SharedPreferences store = prefs;
         if (store == null) return;
         try {
             if (store.contains(KEY_ENTRY)) return;
-            store.edit().putString(KEY_ENTRY, main ? "main" : "rear").apply();
+            store.edit().putString(KEY_ENTRY, kind == null || kind.isEmpty() ? "unknown" : kind).apply();
         } catch (Exception ignored) {
         }
     }
