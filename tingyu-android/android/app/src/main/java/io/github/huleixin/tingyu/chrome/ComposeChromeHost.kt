@@ -163,6 +163,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     fun graphicsSnapshot()=graphics.snapshot(destination,webOverlay)
     fun graphicsConfigure(mode:String)=graphics.configure(mode)
     private val surfaces = mutableStateMapOf<String, ChromeSurface>()
+    // 冷启动缓存 seed 的存活依据：哪些 surface 已经收到过 enabled 包（见 ChromeBootSeed）。
+    private val liveChrome = mutableStateMapOf<String, Boolean>()
     private val clocks = mutableStateMapOf<String, ChromeTimeline>()
     private val pages = mutableStateMapOf<String, NativePage>()
     private val pageNavigations=mutableMapOf<String,String>()
@@ -422,6 +424,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         if (!frameOrder.accept(next.id,next.session,next.generation,next.revision)) { reply(status().put("accepted",false)); return }
         if (next.enabled && host == null) attach()
         surfaces[next.id] = next
+        if (next.enabled) liveChrome[next.id] = true
         clocks[next.id] = ChromeTimeline(next.position,next.duration,next.playing,SystemClock.elapsedRealtime())
         updates++
         cache.commit(value.cache)
@@ -489,9 +492,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         original.addView(compose,index,params)
         host = compose
         if(graphics.enabled)graphics.compositions++
+        // 启动诊断（录屏 68723）：host 重建 = Activity 重建/进程重建；配合 onResume 的
+        // activity-resume 计数，一次 logcat 即可区分冷启动、暖恢复与 recreate。
+        android.util.Log.i("TingyuEntry","host-attach cold-start pages=${pages.size} surfaces=${surfaces.size}")
         compose.setContent { Scene() }
     }
     @Composable private fun Scene() {
+        // 原生首帧时间（录屏 68723 要求记录）：窗口背景从这一帧起被页面取代。
+        LaunchedEffect(Unit){withFrameNanos{NavigationTiming.mark("first-native-frame");android.util.Log.i("TingyuEntry","first-native-frame pages=${pages.size} surfaces=${surfaces.size}")}}
         val configuration=androidx.compose.ui.platform.LocalConfiguration.current
         val interfaceLight=InterfaceAppearance.resolve(appearanceMode,(configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK)==android.content.res.Configuration.UI_MODE_NIGHT_NO)
         val palette=remember(interfaceLight){InterfacePalette(interfaceLight)}
@@ -651,9 +659,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             }
             if(firstHomeFrame&&destination=="home"&&!webOverlay) {
                 LaunchedEffect(Unit){withFrameNanos{NavigationTiming.mark("cached-shell-frame-boundary")}}
-                for(id in listOf("nav","mini"))if(!surfaces.containsKey(id)){
+                for(id in listOf("nav","mini"))if(ChromeBootSeed.shouldSeed(id,destination,firstHomeFrame,webOverlay,liveChrome)){
                     val seed=remember(id,width,height,selectedTab,safeBottom,safeTop){cache.chrome(id,width,height,safeBottom,safeTop).let{if(id=="nav")it.copy(selected=selectedTab)else it}}
-                    val placement=Modifier.offset{IntOffset(with(density){seed.rect.left.dp.roundToPx()},with(density){seed.rect.top.dp.roundToPx()})}
+                    // zIndex(2f)：live 底栏就是这个层级。缓存 seed 少了它就会被 zIndex=1 的
+                    // 页面容器盖住 —— 那是底栏在首帧「缺席」的直接原因（录屏 68723）。
+                    val placement=Modifier.zIndex(2f).offset{IntOffset(with(density){seed.rect.left.dp.roundToPx()},with(density){seed.rect.top.dp.roundToPx()})}
                         .size(seed.rect.width.dp,seed.rect.height.dp)
                     if(id=="nav")ChromeNavigation(seed.interfacePaint(interfaceLight).copy(disabled=false,selected=startupSelected?:selectedTab),backdrop,placement.chromeInteraction{action,_->
                         if(action=="interactionStart")NavigationTiming.markGesture("startup-nav-press",-1.0)
@@ -907,7 +917,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         graphics.close()
         chromeRemovalSerial++
         val compose = host ?: return
-        active = false;navigationActionSerial++;clearStartupNavigation();stageExit.clear(); surfaces.clear(); clocks.clear();pages.clear();retained.clear();presented=null
+        active = false;navigationActionSerial++;clearStartupNavigation();stageExit.clear(); surfaces.clear();liveChrome.clear(); clocks.clear();pages.clear();retained.clear();presented=null
         io.github.huleixin.tingyu.NativeKeepScreenOn.reset()
         compose.disposeComposition()
         (web.parent as? ViewGroup)?.removeView(web)
