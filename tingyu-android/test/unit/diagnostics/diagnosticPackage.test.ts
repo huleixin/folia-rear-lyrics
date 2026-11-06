@@ -3,6 +3,7 @@ import {
     collectDiagnosticMetadata,
     collectDiagnosticPerformance,
     formatFeedbackText,
+    scrubReportForPackage,
 } from '../../../src/services/diagnostics/diagnosticPackage';
 
 // test/unit/diagnostics/diagnosticPackage.test.ts
@@ -50,5 +51,15 @@ describe('diagnosticPackage', () => {
         });
         expect(text).toContain('(用户没有填写描述)');
         expect(text).toContain('附带诊断日志：否');
+    });
+
+    it('进包前抹掉账号尾号与签名参数', () => {
+        const scrubbed = scrubReportForPackage(
+            'loggedIn=true uinTail=…7053 nickname=present(len=6) https://example.com/a?token=abc&x=1',
+        );
+        expect(scrubbed).not.toContain('7053');
+        expect(scrubbed).toContain('uinTail=redacted');
+        expect(scrubbed).not.toContain('token=abc');
+        expect(scrubbed).toContain('token=redacted');
     });
 });

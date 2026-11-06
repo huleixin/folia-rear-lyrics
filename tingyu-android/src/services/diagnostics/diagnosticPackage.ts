@@ -162,6 +162,16 @@ export const collectDiagnosticMetadata = async (): Promise<Record<string, unknow
     };
 };
 
+/**
+ * 报告已经脱敏过 token/cookie，但仍会带账号尾号等标识（uinTail=…7053、nickname=present）。
+ * 进包之前再抹一遍：包会离开设备，文本报告不会。
+ */
+export const scrubReportForPackage = (report: string): string =>
+    report
+        .replace(/uinTail=…?\d+/g, 'uinTail=redacted')
+        .replace(/nickname=present\(len=\d+\)/g, 'nickname=present')
+        .replace(/([?&](?:token|key|sig|auth)=)[^&\s]+/gi, '$1redacted');
+
 const formatCrashEntry = (entry: CrashDiagnosticEntry, index: number): string => {
     const at = Number.isFinite(entry.at) ? new Date(entry.at).toISOString() : 'unknown-time';
     const lines = [
@@ -284,7 +294,7 @@ export const buildDiagnosticBundle = async (draft: FeedbackDraft): Promise<Diagn
         errors,
         performance: collectDiagnosticPerformance(),
         feedback: formatFeedbackText(draft),
-        report,
+        report: scrubReportForPackage(report),
         screenshots: draft.includeDiagnostics ? draft.screenshots.slice(0, 3) : [],
         eventCount: diagnosticEventCount(),
         errorCount: (errors.match(/^\[\d+\]/gm) || []).length,

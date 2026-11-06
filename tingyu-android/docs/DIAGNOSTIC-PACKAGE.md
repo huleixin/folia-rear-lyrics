@@ -100,7 +100,10 @@ FREEZER…）、JS `window.onerror` 与 `unhandledrejection`。每条带来源�
 - 不含完整歌词、音频内容、音频地址、文件路径；
 - 事件字段只接受标量，对象/数组一律丢弃（防止误传整份响应体）；
 - 错误消息里的 URL 在进入事件流前打码为 `<url>`；
-- 诊断包只在用户点「导出并分享」后通过系统面板离开设备，代码里没有任何上传路径。
+- 诊断包只在用户点「导出并分享」后通过系统面板离开设备，代码里没有任何上传路径；
+- `report.txt` 进包前会二次脱敏：`uinTail=…7053` → `uinTail=redacted`、`nickname=present(len=6)`
+  → `nickname=present`、URL 里的 `token/key/sig/auth` 参数 → `redacted`；
+- 截图由用户自己选择，导出前在浏览器侧压到长边 1280 / JPEG 0.75，不读取相册其它内容。
 
 ---
 
@@ -145,3 +148,5 @@ FREEZER…）、JS `window.onerror` 与 `unhandledrejection`。每条带来源�
 | LSP 模块 / Shizuku 服务端日志 | 第三方进程 | 状态与握手事件、权限拒绝事件 |
 | 音频输出设备切换的底层原因 | AudioManager 不暴露 | `audio` 模块焦点/路由事件（能看出「何时切」） |
 | 用户侧网络环境 | 隐私与权限 | 请求结果、错误码、耗时 |
+| Android 10 及以下的进程退出原因 | 没有 `ApplicationExitInfo`（API 30+） | 未捕获异常处理器 + 10 秒心跳（能判断「死在哪」，不能拿到系统给出的 reason） |
+| 系统级 ANR traces 全文 | 需要 `READ_LOGS`/root；exit info 的 trace 也可能为空 | `reason=ANR` + 事件流最后 30 秒 |
