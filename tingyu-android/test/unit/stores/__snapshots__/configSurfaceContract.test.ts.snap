@@ -33,6 +33,7 @@ exports[`config surface contract > keeps every field of the exportable visual co
   "pendoloTuning",
   "randomVisualizerModePerSong",
   "randomVisualizerModes",
+  "rearStageAppearance",
   "showHarmonySubtitle",
   "showSubtitleTranslation",
   "songThemeAutoGenerateEnabled",
