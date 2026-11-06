@@ -2,6 +2,12 @@ package io.github.huleixin.tingyu.chrome
 
 import android.net.Uri
 import android.util.Base64
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -111,17 +117,35 @@ internal val PageAccent:Color @Composable get()=LocalInterfacePalette.current.ac
     }
 }
 @Composable internal fun NativePageRow(item:NativePageItem, height:Dp=68.dp, art:Dp=56.dp, titleSize:Int=15,
-    subtitleSize:Int=12, divider:Boolean=false, chevron:Boolean=false, action:(String)->Unit) {
+    subtitleSize:Int=12, divider:Boolean=false, chevron:Boolean=false, playing:Boolean=false, alwaysArt:Boolean=false, action:(String)->Unit) {
     Row(Modifier.fillMaxWidth().height(height).clickable(enabled=!item.disabled&&item.action.isNotBlank()){action(item.action)},
-        verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(if(art==56.dp)13.dp else 10.dp)) {
-        if(item.image.isNotBlank()||chevron)PageArtwork(item.image,Modifier.size(art),if(art==56.dp)11.dp else 7.dp)
+        verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(if(art>=50.dp)13.dp else 10.dp)) {
+        // alwaysArt：资料库歌曲行固定占位（无封面歌也保持同一布局）；当前播放行在封面上
+        // 叠加轻量标识：播放中=均衡器动画，暂停=静止暂停符；标题色由 selected 走 PageAccent。
+        if(item.image.isNotBlank()||chevron||alwaysArt)Box(Modifier.size(art)){
+            PageArtwork(item.image,Modifier.size(art),if(art>=50.dp)11.dp else 7.dp)
+            if(item.selected&&item.image.isNotBlank())Box(Modifier.fillMaxSize().background(Color(0x52000000)),contentAlignment=Alignment.Center){NowPlayingBadge(playing)}
+        }
         Column(Modifier.weight(1f)) {
             Text(item.title,color=if(item.selected)PageAccent else PageInk.copy(alpha=if(item.disabled).45f else 1f),fontSize=titleSize.sp,lineHeight=(titleSize*1.4).sp,
                 fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)
             if(item.subtitle.isNotBlank()||item.audioSpecs.isNotEmpty())NativeSongSubtitle(item,size=subtitleSize,lineHeight=(subtitleSize*1.5).sp,modifier=Modifier.padding(top=2.dp))
         }
+        if(item.duration.isNotBlank())Text(item.duration,color=PageMuted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
         if(item.secondary.isNotBlank())ChromeButton("更多",size=36.dp,onClick={action(item.secondary)}){PageIcon("ellipsis-vertical",PageMuted,Modifier.size(18.dp))}
         else if(chevron)PageIcon("chevron-right",PageMuted,Modifier.size(16.dp))
     }
     if(divider)Box(Modifier.fillMaxWidth().height(1.dp).background(interfaceColor(Color(0x0EFFFFFF),LightInterfaceColors.Divider)))
+}
+/** 当前播放封面标识：播放中=三根轻量均衡器条（青绿强调色），暂停=静止暂停符。 */
+@Composable private fun NowPlayingBadge(playing:Boolean){
+    if(!playing){ChromeGlyph("pause",Color.White,Modifier.size(13.dp));return}
+    val transition=rememberInfiniteTransition(label="now-playing-eq")
+    val bars=List(3){index->transition.animateFloat(0f,1f,infiniteRepeatable(tween(420+index*90,easing=LinearEasing),RepeatMode.Reverse),label="eq-$index")}
+    Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){
+        bars.forEachIndexed{index,bar->
+            val value by bar
+            Box(Modifier.size(3.dp,(5f+6f*value).dp).clip(RoundedCornerShape(1.5.dp)).background(Color(0xFF9FE0C4)))
+        }
+    }
 }

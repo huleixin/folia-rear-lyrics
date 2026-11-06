@@ -10,9 +10,11 @@ import { pageRowActions } from '../../../../utils/nativePageActions';
 import { useHomeSourceStore } from '../../../../stores/useHomeSourceStore';
 
 // src/library/suites/mobile/native/NativeDirectoryPage.tsx
-export default function NativeDirectoryPage({root,props,sources,onReady,onSources,cards,onOpen,sections=[],tailSections=[],onFilter,extraActions={},emptyMessage,route,heading,enableSort=false}:NativeHomeProps&{
+export default function NativeDirectoryPage({root,props,sources,onReady,onSources,cards,onOpen,sections=[],tailSections=[],onFilter,extraActions={},emptyMessage,route,heading,enableSort=false,headingTrailing='',headingTrailingLabel=''}:NativeHomeProps&{
     cards:LibraryHomeCard[];onOpen:(card:LibraryHomeCard,index:number)=>void;sections?:PageSection[];extraActions?:PageActions;emptyMessage:string;route:string;heading?:string;enableSort?:boolean;
     tailSections?:PageSection[];onFilter?:(query:string)=>void;
+    /** 本地资料库专用：标题右上角的「更多」入口（导入/刷新收纳在同一个工具面板里）。 */
+    headingTrailing?:string;headingTrailingLabel?:string;
 }) {
     const {t}=useTranslation();const [query,setQuery]=useState(''),[sort,setSort]=useState<DirectorySort>('source'),[offset,setOffset]=useState(0);
     const localMode=useHomeSourceStore(state=>state.source)==='local';
@@ -39,8 +41,12 @@ export default function NativeDirectoryPage({root,props,sources,onReady,onSource
         return{id:key,title:card.name,subtitle:card.trackCount!=null?t('mobileLibrary.trackCount',{count:card.trackCount}):card.description,image:absolutePageImage(card.coverUrl),action:key};
     });
     // 本地模式右上角不显示在线音源选择器（QQ 音乐下拉）；PageHeading 只在 trailing 非空时画胶囊。
-    const model:NativePageModel={key:`library:${route}`,title:t('mobileLibrary.libraryTitle'),trailing:localMode?'':'sources',trailingLabel:localMode?'':sources.online.providerLabel,
-        bottomClearance:152,sections:[...(tabs?[tabs]:[]),...sections,{id:'filter',layout:'input',value:query,placeholder:t('mobileLibrary.filterLibrary'),action:'filter'},...(heading||enableSort?[sorting]:[]),
+    // headingTrailing：本地资料库的「更多」入口（导入/刷新）；bottomClearance 本地页加大留白，
+    // 保证最后一首歌能完整滚动到迷你播放器与底部导航上方。
+    const model:NativePageModel={key:`library:${route}`,title:t('mobileLibrary.libraryTitle'),
+        trailing:headingTrailing||(localMode?'':'sources'),trailingLabel:headingTrailingLabel||(localMode?'':sources.online.providerLabel),
+        trailingIcon:headingTrailing?'ellipsis-vertical':'',
+        bottomClearance:localMode?172:152,sections:[...(tabs?[tabs]:[]),...sections,{id:'filter',layout:'input',value:query,placeholder:t('mobileLibrary.filterLibrary'),action:'filter'},...(heading||enableSort?[sorting]:[]),
             {id:'directory',key:`${query}:${sort}`,layout:'rows',items,total:rows.length,offset,request:'range'},...tailSections,...(!rows.length&&!tailSections.some(s=>s.total||s.items?.length)?[{id:'empty',layout:'message' as const,text:query?t('home.noResults'):emptyMessage}]:[])]};
     const bound=pageRowActions(actions,id=>{
         const match=/^open:(\d+):(.*)$/.exec(id);if(!match)return;

@@ -472,7 +472,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     }
     fun suspend() { navigationActionSerial++;chromeRemovalSerial++;clearStartupNavigation();active = false;sleepMenuOpen=false;stageExit.clear();io.github.huleixin.tingyu.NativeKeepScreenOn.setLyrics(false) }
     // 回到前台重读一次权威：后台期间到达的歌词、以及引擎在后台走掉的位置都必须立刻反映出来。
-    fun resume() { active = true; minimal.refreshNow() }
+    // 诊断（启动专项）：updates/pages 计数能区分暖恢复（计数累积）与 Activity 重建/进程重建
+    // （host 重建后归零，updates 从小数字重新爬升）；配合 CrashDiagnostics 的 renderer-gone
+    // 面包屑，可以在一次 logcat 里直接判断录屏里黑屏/空态属于哪种启动路径。
+    fun resume() {
+        active = true; minimal.refreshNow()
+        android.util.Log.i("TingyuEntry",
+            "activity-resume host=${host != null} pages=${pages.size} surfaces=${surfaces.size} updates=$updates")
+    }
     private fun attach() {
         val original = web.parent as? ViewGroup ?: error("WebView has no parent")
         parent = original; params = web.layoutParams; index = original.indexOfChild(web)

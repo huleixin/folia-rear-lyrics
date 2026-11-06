@@ -55,6 +55,7 @@ import { applyMatchedMetadata } from '../services/localLibraryCatalogService';
 import { setLocalSongPureMusicMark } from '../services/localSongMatchSelectionService';
 import { buildLocalSongLyricMatchContext, shouldRefreshLocalSongLyricsFromMetadata, shouldRunLocalSongAutomaticMatch } from '../utils/lyrics/localSongMatchContext';
 import { getLocalLibraryCatalogSnapshot } from '../services/localLibraryEntityRepository';
+import { markLocalLibraryHydrated } from '../services/localLibraryHydration';
 import { setStatusMessage as setStatusMsg } from '../stores/useStatusMessageStore';
 import { useLyricSettingsStore } from '../stores/useLyricSettingsStore';
 import { setActiveLocalLyricsSource, setAudioSrc, setCachedCoverUrl, setCurrentLineIndex, setCurrentSong, setPlayQueue, setPlayerState } from '../stores/usePlaybackStore';
@@ -219,6 +220,10 @@ export function useLibraryPlaybackController({
             setLocalSongs(songs);
         } catch (error) {
             console.error('Failed to load local songs:', error);
+        } finally {
+            // 首次读取 settle（成功或失败）才算曲库水合完成：失败时也放行发布，
+            // 宁可显示空态页也不把上一会话的缓存首页永久钉在屏上。
+            markLocalLibraryHydrated();
         }
     }, []);
 

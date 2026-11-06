@@ -17,9 +17,10 @@ class NativePageDesignTest {
         }
     }
     @Test fun directoryAndFormsRetainTheCompactOriginalMetrics() {
-        assertEquals(68,NativePageDesign.DirectoryRow)
-        assertEquals(56,NativePageDesign.DirectoryArt)
-        assertEquals(12,NativePageDesign.DirectoryRow-NativePageDesign.DirectoryArt)
+        // 2026-11-06 列表紧凑化：66dp 行高 / 50dp 封面（48-52dp 目标区间），行内留白 16dp。
+        assertEquals(66,NativePageDesign.DirectoryRow)
+        assertEquals(50,NativePageDesign.DirectoryArt)
+        assertEquals(16,NativePageDesign.DirectoryRow-NativePageDesign.DirectoryArt)
         assertEquals(40,NativePageDesign.LibraryFilter)
         assertEquals(46,NativePageDesign.SearchField)
         assertEquals(13,NativePageDesign.SettingsRowTitle)

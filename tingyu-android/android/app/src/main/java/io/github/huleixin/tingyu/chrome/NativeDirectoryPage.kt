@@ -17,6 +17,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -25,10 +27,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeDirectoryPage.kt
 // The existing library has a fixed header/filter and contiguous 68px rows, not spaced cards.
@@ -57,7 +66,7 @@ import androidx.compose.ui.unit.sp
                     enter=expandVertically(tween(240)),exit=shrinkVertically(tween(240))){
                     Column{
                         PageHeading(page,Modifier.padding(start=start+4.dp,end=end+4.dp,bottom=16.dp).heightIn(min=44.dp),large=true,action=action)
-                        page.sections.filter{it.layout=="chips"&&it.id!="sort"}.forEach { section ->
+                        page.sections.filter{it.layout=="chips"&&it.id!="sort"&&it.id!="song-sort"}.forEach { section ->
                             NativeSourceTabs(section,Modifier.padding(start=start,end=end,bottom=12.dp),action=action)
                         }
                         page.sections.filter{it.layout=="message"&&it.more.isNotBlank()&&it.text.isBlank()}.forEach{section->
@@ -65,11 +74,16 @@ import androidx.compose.ui.unit.sp
                         }
                         page.sections.firstOrNull{it.layout=="input"}?.let{section->
                             // 被动模式：文本框自己不拿焦点，点击由外层接管 —— 直接展开固定层，
-                            // 避免"内联先弹键盘 → 层展开再收键盘"的两次输入法动画。
-                            Box(Modifier.padding(start=start,end=end,bottom=14.dp)
-                                .pageAnchor(pageOrigin){fieldRect=it}
-                                .clickable{searchExpanded=true}){
-                                NativePageInput(section,action,passive=true)
+                            // 避免“内联先弹键盘 → 层展开再收键盘”的两次输入法动画。
+                            // 第三行：完整搜索框 + 右侧紧凑排序菜单（排序项收进下拉，不再占一行）。
+                            val sortSection=page.sections.firstOrNull{it.id=="song-sort"}
+                            Row(Modifier.padding(start=start,end=end,bottom=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                                Box(Modifier.weight(1f)
+                                    .pageAnchor(pageOrigin){fieldRect=it}
+                                    .clickable{searchExpanded=true}){
+                                    NativePageInput(section,action,passive=true)
+                                }
+                                if(sortSection!=null&&sortSection.items.isNotEmpty())LibrarySortMenu(sortSection,action)
                             }
                         }
                         val sort=page.sections.firstOrNull{it.id=="sort"}
@@ -110,7 +124,7 @@ import androidx.compose.ui.unit.sp
                                 }
                             }
                         }
-                        section.layout=="rows" -> pagedNativeRows(page,section,caches.getValue(section.id),if(library)NativePageDesign.DirectoryRow else 62,action,chevron=library)
+                        section.layout=="rows" -> pagedNativeRows(page,section,caches.getValue(section.id),if(library)NativePageDesign.DirectoryRow else 62,action,art=if(library)NativePageDesign.DirectoryArt.dp else null)
                         !library&&section.id=="play"&&page.key.contains("artist:") -> item(key=section.id){
                             Row(Modifier.fillMaxWidth().padding(bottom=16.dp)){
                                 section.items.firstOrNull()?.let{item->PagePill(item.title,{action(item.action,"",0.0)},
@@ -138,25 +152,73 @@ import androidx.compose.ui.unit.sp
         )
     }
 }
-internal fun LazyListScope.pagedNativeRows(page:NativePage,section:NativePageSection,cache:NativeRowsCache,height:Int,action:PageAction,chevron:Boolean=false){
+internal fun LazyListScope.pagedNativeRows(page:NativePage,section:NativePageSection,cache:NativeRowsCache,height:Int,action:PageAction,art:Dp?=null){
+    // art!=null：资料库歌曲行（无 chevron，固定封面占位，时长/三点菜单/播放标识由 item 字段驱动）。
+    val plain=art==null
     items(section.total,key={index->"${section.id}:${section.dataKey}:$index"}){index->
         val item=cache.get(section,index)
-        if(item!=null)NativePageRow(item,height.dp,if(chevron)NativePageDesign.DirectoryArt.dp else 40.dp,if(chevron)15 else 14,if(chevron)12 else 11,divider=!chevron,chevron=chevron){action(it,"",0.0)}
+        if(item!=null)NativePageRow(item,height.dp,art?:40.dp,if(plain)14 else 15,if(plain)11 else 12,divider=plain,playing=section.playing,alwaysArt=!plain){action(it,"",0.0)}
         else {
             Spacer(Modifier.height(height.dp))
             if(section.request.isNotBlank())LaunchedEffect(page.key,page.session,section.id,section.dataKey,index/100){if(cache.request(index,page.session))action(section.request,"",(index/100*100).toDouble())}
         }
     }
 }
-@Composable internal fun NativeSourceTabs(section:NativePageSection,modifier:Modifier=Modifier,search:Boolean=false,action:PageAction){
-    Row(modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(if(search)8.dp else 6.dp)){
-        section.items.forEach { item ->
-            val shape=RoundedCornerShape(999.dp)
-            Box(Modifier.height(36.dp).clip(shape).background(if(item.selected)interfaceColor(Color(0x2C6BC8A7),LightInterfaceColors.Selected)else if(search)interfaceColor(Color(0x08FFFFFF),LightInterfaceColors.Subtle)else Color.Transparent)
-                .then(if(search)Modifier.border(1.dp,if(item.selected)interfaceColor(Color(0x709FE0C4),LightInterfaceColors.SelectedBorder)else Color.Transparent,shape)else Modifier)
-                .clickable(enabled=!item.disabled){action(item.action,"",0.0)}.padding(horizontal=if(search)14.dp else 18.dp),contentAlignment=Alignment.Center){
-                Text(item.title,color=if(item.selected)PageAccent else PageMuted,fontSize=(if(search)13 else 14).sp)
+/** 排序收纳菜单：标签显示当前排序，下拉项带选中勾；动作仍走 song-sort:* 事件总线。 */
+@Composable internal fun LibrarySortMenu(section:NativePageSection,action:PageAction){
+    var open by remember{mutableStateOf(false)}
+    val selected=section.items.firstOrNull{it.selected}
+    Box{
+        PagePill(selected?.title?:section.title,{open=true},height=38.dp,font=13,trailing="chevron-down")
+        DropdownMenu(expanded=open,onDismissRequest={open=false}){
+            section.items.forEach{item->
+                DropdownMenuItem(text={Text(item.title,color=if(item.selected)PageAccent else PageInk,fontSize=14.sp)},
+                    onClick={open=false;action(item.action,"",0.0)},
+                    trailingIcon={if(item.selected)PageIcon("check",PageAccent,Modifier.size(16.dp))else null})
             }
         }
+    }
+}
+@Composable internal fun NativeSourceTabs(section:NativePageSection,modifier:Modifier=Modifier,search:Boolean=false,action:PageAction){
+    // 分类栏：选中项自动滚进可视区，右缘常驻轻微渐隐提示还有更多（左缘仅滚动后出现）。
+    // 不改变分类名称、数据与横向滑动手势。
+    val scroll=rememberScrollState()
+    val viewport=remember{mutableStateOf(0f)}
+    val origin=remember{mutableStateOf(Offset.Zero)}
+    val spans=remember{mutableStateMapOf<Int,Pair<Float,Float>>()}
+    val pad=with(LocalDensity.current){6.dp.toPx()}
+    val selected=section.items.indexOfFirst{it.selected}
+    LaunchedEffect(selected,section.items.size){
+        if(selected<0)return@LaunchedEffect
+        withFrameNanos{}
+        val span=spans[selected]?:return@LaunchedEffect
+        val vp=viewport.value
+        if(vp<=0f)return@LaunchedEffect
+        val startInView=span.first-origin.value.x
+        val endInView=span.second-origin.value.x
+        val target=when{
+            startInView<pad -> scroll.value+(startInView-pad)
+            endInView>vp-pad -> scroll.value+(endInView-vp+pad)
+            else -> return@LaunchedEffect
+        }
+        scroll.animateScrollTo(target.roundToInt())
+    }
+    val fade=interfaceColor(Color(0xE6102D25),Color(0xFFF4F5EE))
+    Box(modifier.onGloballyPositioned{origin.value=it.positionInWindow()}){
+        Row(Modifier.fillMaxWidth().horizontalScroll(scroll).onSizeChanged{viewport.value=it.width.toFloat()},
+            horizontalArrangement=Arrangement.spacedBy(if(search)8.dp else 6.dp)){
+            section.items.forEachIndexed { index, item ->
+                val shape=RoundedCornerShape(999.dp)
+                Box(Modifier.height(36.dp)
+                    .onGloballyPositioned{coords->spans[index]=coords.positionInWindow().x to (coords.positionInWindow().x+coords.size.width)}
+                    .clip(shape).background(if(item.selected)interfaceColor(Color(0x2C6BC8A7),LightInterfaceColors.Selected)else if(search)interfaceColor(Color(0x08FFFFFF),LightInterfaceColors.Subtle)else Color.Transparent)
+                    .then(if(search)Modifier.border(1.dp,if(item.selected)interfaceColor(Color(0x709FE0C4),LightInterfaceColors.SelectedBorder)else Color.Transparent,shape)else Modifier)
+                    .clickable(enabled=!item.disabled){action(item.action,"",0.0)}.padding(horizontal=if(search)14.dp else 18.dp),contentAlignment=Alignment.Center){
+                    Text(item.title,color=if(item.selected)PageAccent else PageMuted,fontSize=(if(search)13 else 14).sp)
+                }
+            }
+        }
+        if(scroll.value>1)Box(Modifier.height(36.dp).width(18.dp).align(Alignment.CenterStart).background(Brush.horizontalGradient(listOf(fade,Color.Transparent))))
+        Box(Modifier.height(36.dp).width(18.dp).align(Alignment.CenterEnd).background(Brush.horizontalGradient(listOf(Color.Transparent,fade))))
     }
 }

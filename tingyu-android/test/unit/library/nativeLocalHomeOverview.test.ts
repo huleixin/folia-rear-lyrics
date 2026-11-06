@@ -13,6 +13,15 @@ import type { LocalSong } from '../../../src/types';
 
 const captured: { model: NativePageModel | null; actions: Record<string, unknown>; } = { model: null, actions: {} };
 
+// 启动专项（录屏 68710）：曲库水合信号由测试控制，模拟「重建后 Dexie 读取完成前」与
+// 「完成后」两个阶段，验证空曲库页面包只在水合后才发布。
+const hydration = vi.hoisted(() => ({ settled: false }));
+vi.mock('../../../src/services/localLibraryHydration', () => ({
+    useLocalLibraryHydrated: () => hydration.settled,
+    markLocalLibraryHydrated: () => { hydration.settled = true; },
+    isLocalLibraryHydrated: () => hydration.settled,
+}));
+
 vi.mock('react-i18next', async importOriginal => ({
     ...await importOriginal<typeof import('react-i18next')>(),
     useTranslation: () => ({ t: (key: string, args?: { count?: number }) => args?.count === undefined ? key : `${key}:${args.count}` }),
@@ -21,7 +30,7 @@ vi.mock('../../../src/hooks/useLibraryTrackPlayback', () => ({
     useLibraryTrackPlayback: () => vi.fn(),
 }));
 vi.mock('../../../src/hooks/useNativePage', () => ({
-    useNativePage: (_root: unknown, _id: string, _active: boolean, model: NativePageModel, actions: Record<string, unknown>) => {
+    useNativePage: (_root: unknown, _id: string, _active: boolean, model: NativePageModel | null, actions: Record<string, unknown>) => {
         captured.model = model;
         captured.actions = actions;
     },
@@ -118,6 +127,7 @@ let root: Root;
 beforeEach(() => {
     captured.model = null;
     captured.actions = {};
+    hydration.settled = false;
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
     vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => setTimeout(() => fn(0), 0));
     vi.stubGlobal('cancelAnimationFrame', clearTimeout);
@@ -178,6 +188,8 @@ describe('NativeLocalHomeOverview 渲染与模型', () => {
     });
 
     it('空曲库时给出可点的扫描/导入入口，不产生假推荐', () => {
+        // 空态页只在曲库水合完成后发布（未水合时由启动专项用例覆盖 hold 行为）。
+        hydration.settled = true;
         act(() => {
             root.render(h(NativeLocalHomeOverview, {
                 root: { current: host },
@@ -193,5 +205,45 @@ describe('NativeLocalHomeOverview 渲染与模型', () => {
         expect(actions?.items?.map(item => item.action)).toEqual(['local:scan', 'local:import']);
         expect(captured.actions['local:scan']).toBeTypeOf('function');
         expect(captured.actions['local:import']).toBeTypeOf('function');
+    });
+
+    it('启动专项：曲库未水合时暂不发布空态包，让原生继续显示缓存页；水合完成后恢复发布', () => {
+        // 重建后 Dexie 读取未完成：localSongs=[] 不是真值，不发包顶掉原生缓存首页。
+        act(() => {
+            root.render(h(NativeLocalHomeOverview, {
+                root: { current: host },
+                props: makeProps([]),
+                sources: makeSources(),
+                onReady: vi.fn(),
+                onSources: vi.fn(),
+            }));
+        });
+        expect(captured.model).toBeNull();
+        // 水合完成（成功或失败都算 settle）：真正空曲库的用户照样拿到空态页。
+        hydration.settled = true;
+        act(() => {
+            root.render(h(NativeLocalHomeOverview, {
+                root: { current: host },
+                props: makeProps([]),
+                sources: makeSources(),
+                onReady: vi.fn(),
+                onSources: vi.fn(),
+            }));
+        });
+        expect(captured.model).not.toBeNull();
+        expect(captured.model!.sections.find(section => section.id === 'local-empty-actions')).toBeDefined();
+        // 曲库有数据时无论水合状态都直接发布（暖恢复/常规路径零影响）。
+        hydration.settled = false;
+        act(() => {
+            root.render(h(NativeLocalHomeOverview, {
+                root: { current: host },
+                props: makeProps([song('s1', '专辑A')]),
+                sources: makeSources(),
+                onReady: vi.fn(),
+                onSources: vi.fn(),
+            }));
+        });
+        expect(captured.model).not.toBeNull();
+        expect(captured.model!.key.startsWith('home:')).toBe(true);
     });
 });

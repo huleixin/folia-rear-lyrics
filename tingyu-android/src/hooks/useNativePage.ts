@@ -34,8 +34,10 @@ export function useNativePagesAvailable() {
 
 // src/hooks/useNativePage.ts
 // A page sends discrete models only. Scrolling, IME, image loading and list recycling are native.
+// model 为 null 表示「数据未就绪、暂不发包」（2026-11-06 启动专项）：measure 直接短路，
+// 原生继续呈递上一包 / NativeShellCache 缓存页，直到调用方给出真实模型。
 export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePageId, active: boolean,
-    model: NativePageModel, actions: PageActions, onReady?: (ready: boolean) => void) {
+    model: NativePageModel | null, actions: PageActions, onReady?: (ready: boolean) => void) {
     model=useNativePageImages(useStableNativeData(model),active);
     const [ready, setReady] = useState(NATIVE_FIRST);
     const latest = useRef({ active, model, actions, onReady }); latest.current = { active, model, actions, onReady };
@@ -87,6 +89,8 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
                 return;
             }
             const current = latest.current, rect = node.getBoundingClientRect(), style = getComputedStyle(node);
+            // 页面声明数据未就绪：不发空态包顶掉缓存页，也不翻转 ready —— 原生保持现状。
+            if(!current.model)return;
             // A document capture and its key are one model. Never publish a header-only
             // settings/index substitute between the two layout-effect passes.
             if(current.model.key.startsWith('settings:document:')&&!current.model.document)return;
@@ -113,7 +117,7 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
                         rejectStreak+=1;
                         const wait=Math.min(2000,80*Math.pow(2.5,Math.min(rejectStreak-1,4)));
                         if(!retryTimer)retryTimer=window.setTimeout(()=>{retryTimer=0;schedule();},wait);
-                        settingsDiagnostic('page-rejected',{id,session,key:current.model.key,navigation:packet.navigation,reason:result.reason??'native-rejected'});}
+                        settingsDiagnostic('page-rejected',{id,session,key:current.model?.key??'',navigation:packet.navigation,reason:result.reason??'native-rejected'});}
                 }
             }).catch(error => {
                 if (sent !== revision || disposed) return;
@@ -132,8 +136,8 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
                 if(event.action==='__refresh'){
                     last=undefined;refreshNativeSettingsDocument(event.text??'native-stale-presentation');schedule();return;
                 }
-                const reason=event.session!==session?'session-mismatch':event.key!==current.model.key?'key-mismatch':node.dataset.nativePage!=='true'?'ownership-mismatch':!current.actions[event.action]?'unknown-control':'';
-                settingsDiagnostic(reason?'action-rejected':'action-accepted',{id,session,key:current.model.key,eventSession:event.session,eventKey:event.key,control:event.action,route:document.documentElement.dataset.nativeRoute,navigation:document.documentElement.dataset.nativeNavigation,reason});
+                const reason=event.session!==session?'session-mismatch':event.key!==current.model?.key?'key-mismatch':node.dataset.nativePage!=='true'?'ownership-mismatch':!current.actions[event.action]?'unknown-control':'';
+                settingsDiagnostic(reason?'action-rejected':'action-accepted',{id,session,key:current.model?.key??'',eventSession:event.session,eventKey:event.key,control:event.action,route:document.documentElement.dataset.nativeRoute,navigation:document.documentElement.dataset.nativeNavigation,reason});
                 if(reason){last=undefined;refreshNativeSettingsDocument(reason);schedule();return;}
                 noteUiInteraction();
                 navigationMark('page-event-js',event.nativeDispatchedAt,event.nativeGestureId);

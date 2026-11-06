@@ -24,13 +24,16 @@ const nextChromeRevision = (id: string): number => {
 
 // src/hooks/useComposeChrome.ts
 // Event-driven metadata/layout; a live clock is anchored every 2s and on discontinuous seeks.
+// hold：可选的发布闸门（2026-11-06 启动专项）。重建后恢复未完成时迷你条会发布
+// 「还没有播放音乐」空包，顶掉原生缓存的上一会话迷你条；hold=true 期间 measure
+// 短路不发包，原生保持现状。hold 只是短暂启动窗口（恢复必然终止），不是固定延迟。
 export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfaceId,active:boolean,data:ChromeData,
-    actions:ChromeActionHandlers,clock?:MotionValue<number>) {
+    actions:ChromeActionHandlers,clock?:MotionValue<number>,hold?:boolean) {
     data=useStableNativeData(data);
     const [ready,setReady]=useState(PREHIDE_COMPOSE_CHROME);
-    const latest=useRef({active,data,actions,clock});latest.current={active,data,actions,clock};
+    const latest=useRef({active,data,actions,clock,hold});latest.current={active,data,actions,clock,hold};
     const scheduleRef=useRef<()=>void>(()=>{});
-    useLayoutEffect(()=>{if(PREHIDE_COMPOSE_CHROME&&ref.current)ref.current.dataset.composeNative='true';scheduleRef.current();},[data,active,ref]);
+    useLayoutEffect(()=>{if(PREHIDE_COMPOSE_CHROME&&ref.current)ref.current.dataset.composeNative='true';scheduleRef.current();},[data,active,ref,hold]);
     useLayoutEffect(()=>{
         const node=ref.current;if(!node||!active)return;
         // Android owns these controls from Activity startup; acknowledgements only update data.
@@ -56,6 +59,8 @@ export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfac
             // Track only short layout transitions; a slow draw reply must not stall geometry.
             if(performance.now()<deadline)frame=requestAnimationFrame(()=>void measure());
             const current=latest.current;
+            // 发布闸门：恢复/初始化未完成时不发包，原生继续显示缓存迷你条。
+            if(current.hold)return;
             // The native shell already owns route/overlay interaction. An invisible
             // ancestor's web-entry inert timer must not hold its footer for another 400ms.
             const nativeFooter=PREHIDE_COMPOSE_CHROME;

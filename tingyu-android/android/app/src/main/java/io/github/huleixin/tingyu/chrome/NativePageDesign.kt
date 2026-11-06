@@ -4,8 +4,9 @@ package io.github.huleixin.tingyu.chrome
 // Pinned to the pre-migration mobileRecommendations/mobileLibraryPage/mobileSettings CSS.
 internal object NativePageDesign {
     const val HomeInset=22f
-    const val DirectoryRow=68
-    const val DirectoryArt=56
+    // 资料库紧凑行（2026-11-06 列表优化）：66dp 行高 / 50dp 封面，标题 15sp、副标题 12sp 不变。
+    const val DirectoryRow=66
+    const val DirectoryArt=50
     const val LibraryFilter=40
     const val SearchField=46
     const val SettingsRowTitle=13

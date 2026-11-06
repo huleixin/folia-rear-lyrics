@@ -1,8 +1,11 @@
 package io.github.huleixin.tingyu.chrome
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.layout.*
@@ -16,8 +19,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -63,41 +69,67 @@ import kotlinx.coroutines.launch
                                 }
                             }
                         }
-                        // 本地首页的四个快捷入口：玻璃卡 + 圆形图标 + 名称 + 真实数量，一行四个。
+                        // 本地首页的四个快捷入口：四张独立轻量玻璃卡（深绿半透明、小圆角、
+                        // 圆形图标容器），图标在上 / 名称居中 / 真实数量在下，无竖线分隔；
+                        // 按压沿用 ChromeMaterial 的缩放+透明度反馈。导航与计数逻辑不变。
                         section.layout=="quickLinks" -> item(key=section.id){
                             Row(Modifier.padding(start=start,end=end,top=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                                section.items.forEachIndexed { index, item ->
-                                    if(index>0)Box(Modifier.width(1.dp).height(34.dp).background(interfaceColor(Color(0x12FFFFFF),LightInterfaceColors.Border)))
-                                    Column(Modifier.weight(1f).clickable(enabled=!item.disabled&&item.action.isNotBlank()){action(item.action,"",0.0)},
+                                section.items.forEach { item ->
+                                    val interaction=remember { MutableInteractionSource() }
+                                    val pressed by interaction.collectIsPressedAsState()
+                                    val scale by animateFloatAsState(if(pressed)0.96f else 1f,label="quick-press")
+                                    Column(Modifier.weight(1f)
+                                        .graphicsLayer{scaleX=scale;scaleY=scale;alpha=if(pressed)0.85f else 1f}
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(interfaceColor(Color(0x3A17352A),Color(0x59D7EADC)))
+                                        .border(1.dp,interfaceColor(Color(0x14FFFFFF),Color(0x2E93BBA0)),RoundedCornerShape(12.dp))
+                                        .clickable(interactionSource=interaction,indication=null,enabled=!item.disabled&&item.action.isNotBlank()){action(item.action,"",0.0)}
+                                        .padding(vertical=10.dp),
                                         horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(5.dp)) {
-                                        Box(Modifier.size(34.dp).clip(RoundedCornerShape(999.dp))
-                                            .background(interfaceColor(Color(0x14FFFFFF),LightInterfaceColors.Subtle))
-                                            .border(1.dp,interfaceColor(Color(0x1CFFFFFF),LightInterfaceColors.Border),RoundedCornerShape(999.dp)),
-                                            contentAlignment=Alignment.Center){PageIcon(if(item.image.isNotBlank())item.image else "music2",PageInk.copy(alpha=.92f),Modifier.size(16.dp))}
+                                        Box(Modifier.size(32.dp).clip(RoundedCornerShape(999.dp))
+                                            .background(interfaceColor(Color(0x3D9FE0C4),LightInterfaceColors.Selected)),
+                                            contentAlignment=Alignment.Center){PageIcon(if(item.image.isNotBlank())item.image else "music2",PageInk.copy(alpha=.92f),Modifier.size(15.dp))}
                                         Text(item.title,color=PageInk,fontSize=12.sp,lineHeight=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
                                         Text(item.subtitle,color=PageMuted,fontSize=10.sp,lineHeight=13.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
                                     }
                                 }
                             }
                         }
-                        // 本地首页的「为你发现」：两张宽玻璃卡，圆形播放按钮 + 标题 + 说明。
+                        // 本地首页的「为你发现」：两张深色柔和渐变卡（左：久未播放·深青蓝；
+                        // 右：随机探索·深紫），柔光纹理同语言不同朝向，播放按钮收进右下角
+                        // 小圆钮。底色固定深色 + 白字，深浅色模式都可读（与 hero 卡同一策略）。
                         section.layout=="discoverCards" -> item(key=section.id){
                             Column(Modifier.padding(top=4.dp)) {
                                 PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=6.dp),action)
                                 Row(Modifier.padding(start=start,end=end),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                                    section.items.forEach { item ->
-                                        Row(Modifier.weight(1f).heightIn(min=64.dp).clip(RoundedCornerShape(14.dp))
-                                            .background(interfaceColor(Color(0x1A16302B),LightInterfaceColors.Card))
-                                            .border(1.dp,interfaceColor(Color(0x18FFFFFF),LightInterfaceColors.Border),RoundedCornerShape(14.dp))
-                                            .clickable(enabled=!item.disabled&&item.action.isNotBlank()){action(item.action,"",0.0)}
-                                            .padding(horizontal=12.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                                            Box(Modifier.size(34.dp).clip(RoundedCornerShape(999.dp)).background(interfaceColor(Color(0x2E9FE0C4),LightInterfaceColors.Selected)),contentAlignment=Alignment.Center){
-                                                ChromeGlyph("play",PageInk,Modifier.size(15.dp))
+                                    section.items.forEachIndexed { index, item ->
+                                        val interaction=remember { MutableInteractionSource() }
+                                        val pressed by interaction.collectIsPressedAsState()
+                                        val scale by animateFloatAsState(if(pressed)0.97f else 1f,label="discover-press")
+                                        val deep=if(index==0)Color(0xFF16303C) else Color(0xFF231B33)
+                                        val deepEnd=if(index==0)Color(0xFF0F212B) else Color(0xFF15101F)
+                                        val sheen=if(index==0)Color(0x2E5FA8C0) else Color(0x2E8F72C9)
+                                        Box(Modifier.weight(1f).heightIn(min=86.dp)
+                                            .graphicsLayer{scaleX=scale;scaleY=scale;alpha=if(pressed)0.9f else 1f}
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(Brush.linearGradient(0f to deep,1f to deepEnd))
+                                            .drawBehind {
+                                                // 轻微流光：柔光从左上（左卡）/右上（右卡）淡出；
+                                                // 再叠一层对角微光做抽象纹理，统一但不完全相同。
+                                                drawRect(Brush.radialGradient(colors=listOf(sheen,Color(0x00000000)),
+                                                    center=Offset(if(index==0)0f else size.width,0f),radius=size.width*1.15f))
+                                                drawRect(Brush.linearGradient(colors=listOf(Color(0x0FFFFFFF),Color(0x00000000)),
+                                                    start=Offset(0f,size.height),end=Offset(size.width*.6f,0f)))
                                             }
-                                            Column(Modifier.weight(1f)) {
-                                                Text(item.title,color=PageInk,fontSize=13.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
-                                                Text(item.subtitle,color=PageMuted,fontSize=11.sp,lineHeight=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=2.dp))
+                                            .clickable(interactionSource=interaction,indication=null,enabled=!item.disabled&&item.action.isNotBlank()){action(item.action,"",0.0)}) {
+                                            Column(Modifier.fillMaxWidth().padding(start=14.dp,end=50.dp,top=12.dp,bottom=10.dp)) {
+                                                Text(item.title,color=Color(0xF2FFFFFF),fontSize=14.sp,lineHeight=19.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+                                                Text(item.subtitle,color=Color(0xB8FFFFFF),fontSize=11.sp,lineHeight=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=3.dp))
                                             }
+                                            Box(Modifier.align(Alignment.BottomEnd).padding(end=12.dp,bottom=10.dp).size(28.dp)
+                                                .clip(RoundedCornerShape(999.dp)).background(Color(0x2EFFFFFF)).border(1.dp,Color(0x24FFFFFF),RoundedCornerShape(999.dp))
+                                                .clickable(enabled=!item.disabled&&item.action.isNotBlank()){action(item.action,"",0.0)},
+                                                contentAlignment=Alignment.Center){ChromeGlyph("play",Color.White,Modifier.size(13.dp))}
                                         }
                                     }
                                 }

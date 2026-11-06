@@ -22,6 +22,7 @@ import { getPlaybackSongKey } from '../../../utils/appPlaybackGuards';
 import { selectDisplayDuration } from '../../../stores/usePlaybackStore';
 import { useComposeChrome } from '../../../hooks/useComposeChrome';
 import { useNativeChromeCover } from '../../../hooks/useNativeChromeCover';
+import { recoveryReady } from '../../../services/playbackRecoverySnapshot';
 import { useReducedMotionFor } from '../../../hooks/useReducedMotionFor';
 import { useSearchNavigationStore } from '../../../stores/useSearchNavigationStore';
 import { useSettingsModalStore } from '../../../stores/useSettingsModalStore';
@@ -61,6 +62,12 @@ export default function MobileMiniPlayer({
     const duration = usePlaybackStore(selectDisplayDuration);
     const quality = useAudioSettingsStore(s=>s.audioQuality);
     const reducedMotion = useReducedMotionFor('uiMicroMotion');
+    // 启动专项（录屏 68710）：重建后 session restore 异步完成前 currentSong 为 null，
+    // 此刻发布的迷你包就是「还没有播放音乐」，会顶掉原生缓存的上一会话迷你条。
+    // 恢复未完成且当前无歌时暂不发包：原生继续显示缓存迷你条，恢复完成后若确实
+    // 无歌再发布空态。恢复必然终止（成功/清空/失败都会 finishRecovery），这个
+    // 闸门只是短暂启动窗口，不是固定延迟；暖恢复时 recoveryReady() 恒为 true。
+    const recoveryHold = !recoveryReady() && !song;
     const nativeCover = useNativeChromeCover(cover,active&&!searchOpen&&!settingsOpen);
     const compose = useComposeChrome(glassRef,'mini',active&&!searchOpen&&!settingsOpen,{
         title:song?.name||t('mobileLibrary.nothingPlaying'),artist:song?getSongArtistLabel(song):t('mobileLibrary.chooseMusic'),cover:nativeCover,
@@ -68,7 +75,7 @@ export default function MobileMiniPlayer({
         sleepPreferredMinutes,
         duration,canNext:!!song&&!!canNextTrack,canPrevious:!!song&&!!canPreviousTrack,reducedMotion,ink:'#eef5ef',accent:'#86d8b8',
         labels:{next:nextTrackLabel||t('ui.nextTrack'),previous:previousTrackLabel||t('ui.previousTrack'),play:t('mobileLibrary.play'),pause:t('mobileLibrary.pause'),queue:t('mobileLibrary.queue'),quality:'音质切换',qualityValue:QUALITY_LABELS[quality]},
-    },{openStage:onBackToPlayer,toggle:onTogglePlayback,next:onNextTrack,previous:onPreviousTrack,queue:openQueue,quality:()=>useAudioToolsStore.getState().show()},currentTime);
+    },{openStage:onBackToPlayer,toggle:onTogglePlayback,next:onNextTrack,previous:onPreviousTrack,queue:openQueue,quality:()=>useAudioToolsStore.getState().show()},currentTime,recoveryHold);
     useMobileGlass(glassRef,!compose);
     return (
         <div ref={glassRef} className="ml-mini" data-testid="mobile-mini-player">

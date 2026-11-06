@@ -27,8 +27,9 @@ import {
 } from '../../../../services/localPlayHistory';
 import { openAddToPlaylistForSong } from '../../../../stores/useAddToPlaylistStore';
 import { getFavoriteLocalPlaylist, setLocalSongIdFavorite } from '../../../../services/localPlaylistService';
+import { useLocalLibraryHydrated } from '../../../../services/localLibraryHydration';
 import { setStatusMessage } from '../../../../stores/useStatusMessageStore';
-import MobileSheet from '../MobileSheet';
+import LocalSongActionSheet from './LocalSongActionSheet';
 
 // src/library/suites/mobile/native/NativeLocalHomeOverview.tsx
 /**
@@ -57,27 +58,28 @@ export default function NativeLocalHomeOverview({root,props,sources,onReady,onSo
     const play=useLibraryTrackPlayback(props.onPlaySong,props.onTogglePlayback);
     const {snapshot,importBusy}=useLibraryHomeActions(props.homeResources.actions);
     const local=useLibraryHomeLocal({localSongs:props.localSongs,localPlaylists:props.localPlaylists,catalog:props.localLibraryCatalog,activeRow:props.localMusicState.activeRow});
+    // 启动专项（录屏 68710）：重建后 loadLocalSongs 的 Dexie 读取完成前 localSongs=[]
+    // 不是真值。此时不发首页包，原生继续显示 NativeShellCache 缓存页（上一会话完整
+    // 首页），避免「专辑 0 张 / 还没有本地音乐」空态闪现；真正空曲库的用户在水合
+    // 完成后照样拿到空态页。暖恢复时水合早已完成，这里恒为 true，零影响。
+    const libraryHydrated=useLocalLibraryHydrated();
     const [history,setHistory]=useState<ResolvedLocalPlay[]>([]);
     const [albums,setAlbums]=useState<LocalAlbumPlayStat[]>([]);
     const [menu,setMenu]=useState<{song:SongResult;queue:SongResult[]}|null>(null);
     // 菜单里「收藏/取消收藏」的当前状态：打开菜单时按「我喜欢」歌单现读一次。
     const [menuLiked,setMenuLiked]=useState<boolean|null>(null);
     const [discoverSeed,setDiscoverSeed]=useState(0);
-    // 阶段四：播放记录「内容」变化（重播同一首：次数+1、时间前移）不会改变条数，
-    // 只靠 history.length 组 key 会让常听精选/最近播放的排序停在旧数据 —— 用版本号驱动刷新。
-    const [historyRevision,setHistoryRevision]=useState(0);
     const dailySeed=useMemo(()=>localDailySeed(),[]);
 
     // 播放历史在 IndexedDB：挂载、播放记录变化、曲库变化时重读（记录只存 id+计数，读起来很轻）。
     useEffect(()=>{
         let alive=true;
-        const load=async()=>{
-            const plays=await resolveLocalPlayHistory(props.localSongs);
-            if(!alive)return;
-            setHistory(plays);
-            setAlbums(aggregateLocalAlbumPlays(plays));
-            setHistoryRevision(value=>value+1);
-        };
+    const load=async()=>{
+        const plays=await resolveLocalPlayHistory(props.localSongs);
+        if(!alive)return;
+        setHistory(plays);
+        setAlbums(aggregateLocalAlbumPlays(plays));
+    };
         void load();
         window.addEventListener(LOCAL_PLAY_HISTORY_UPDATED_EVENT,load);
         window.addEventListener(LOCAL_MUSIC_UPDATED_EVENT,load);
@@ -201,6 +203,7 @@ export default function NativeLocalHomeOverview({root,props,sources,onReady,onSo
         });
         // 菜单里的收藏切换：与播放器心形同一套「我喜欢」数据。
         actions['local:recent-like']=()=>{
+            // 保留入口（原生事件总线可能直呼），实际逻辑在菜单组件的 onToggleLike 里。
             const current=menu;
             if(!current)return;
             const songId=(current.song as unknown as {localRef?:{songId?:string}}).localRef?.songId;
@@ -223,8 +226,7 @@ export default function NativeLocalHomeOverview({root,props,sources,onReady,onSo
             if(!current)return;
             setMenu(null);
             openAddToPlaylistForSong(current.song);
-        };
-        actions['local:recent-all']=()=>openGroup({
+        };        actions['local:recent-all']=()=>openGroup({
             id:'local-history-recent',type:'folder',name:t('localHome.recentPlayed'),songs:recentSongs,
             coverUrl:undefined,trackCount:recentSongs.length,description:t('localHome.recentPlayed'),isVirtual:true,
         });
@@ -286,14 +288,32 @@ export default function NativeLocalHomeOverview({root,props,sources,onReady,onSo
     // key 契约（NativePageRetention.pageBelongsToRoute）：route=home 且非资料库页签时，
     // 页面 key 必须以 "home:" 开头，否则整包会被原生按 route-target-mismatch 拒收，
     // 表现就是「首页没有完成加载」。本地首页同样挂在 home 路由下，所以前缀必须是 home:。
-    const model={key:`home:local:${props.localSongs.length}:${historyRevision}:${discoverSeed}`,title:t('mobileLibrary.recommend'),
+    // key 必须只随页面身份变化，不能掺入数据修订号（2026-11-06 换一批专项）：原生
+    // AnimatedContent 以 key 为 contentKey、滚动状态挂在 SaveableStateProvider(key) 下，
+    // key 一变就是整页转场 + 滚动回顶 —— 「换一批」（discoverSeed）和听完一首歌
+    // （historyRevision）都会被误当成换页。数据变化靠 sections 内容差异触发原地更新。
+    const model={key:`home:local:${props.localSongs.length}`,title:t('mobileLibrary.recommend'),
         subtitle:t('mobileLibrary.localDiscoverSubtitle'),trailing:'sources',trailingLabel:t('mobileLibrary.localMusicSource'),
         trailingIcon:'smartphone',background:'home' as const,bottomClearance:152,topPadding:32,sections};
-    useNativePage(root,'home',props.isInteractive,model,actions,onReady);
-    return menu?<MobileSheet title={menu.song.name} onClose={()=>setMenu(null)}>
-        <button className="ml-sheet-action" onClick={()=>{play(menu.song,menu.queue);setMenu(null)}}>{t('mobileLibrary.play')}</button>
-        <button className="ml-sheet-action" onClick={()=>{actions['local:recent-add-to-playlist']?.({})}}>{t('localMusic.addToPlaylist')}</button>
-        {menuLiked!==null&&<button className="ml-sheet-action" onClick={()=>{actions['local:recent-like']?.({})}}>{t(menuLiked?'mobileLibrary.unlikeSong':'mobileLibrary.likeSong')}</button>}
-        <button className="ml-sheet-action" onClick={()=>{setMenu(null);openAlbumOfSong(menu.song)}}>{t('localHome.viewAlbum')}</button>
-    </MobileSheet>:null;
+    useNativePage(root,'home',props.isInteractive,libraryHydrated||props.localSongs.length>0?model:null,actions,onReady);
+    return menu?<LocalSongActionSheet menu={menu} liked={menuLiked}
+        onClose={()=>setMenu(null)}
+        onPlay={()=>{if(!menu)return;play(menu.song,menu.queue);setMenu(null)}}
+        onAddToPlaylist={()=>{if(!menu)return;setMenu(null);openAddToPlaylistForSong(menu.song)}}
+        onToggleLike={()=>{const current=menu;if(!current)return;
+            void (async()=>{
+                const next=!(menuLiked===true);
+                try{
+                    const songId=(current.song as unknown as {localRef?:{songId?:string}}).localRef?.songId;
+                    if(!songId)return;
+                    await setLocalSongIdFavorite(songId,next);
+                    window.dispatchEvent(new Event(LOCAL_MUSIC_UPDATED_EVENT));
+                    setMenuLiked(next);
+                    setStatusMessage({type:'success',text:t(next?'status.liked':'status.unliked')});
+                }catch(error){
+                    console.warn('[NativeLocalHomeOverview] Failed to toggle favorite:',error);
+                    setStatusMessage({type:'error',text:t('status.likeFailed')});
+                }
+            })();}}
+        onViewAlbum={()=>{if(!menu)return;setMenu(null);openAlbumOfSong(menu.song)}}/>:null;
 }
