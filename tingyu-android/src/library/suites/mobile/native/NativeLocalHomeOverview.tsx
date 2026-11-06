@@ -288,11 +288,11 @@ export default function NativeLocalHomeOverview({root,props,sources,onReady,onSo
     // key 契约（NativePageRetention.pageBelongsToRoute）：route=home 且非资料库页签时，
     // 页面 key 必须以 "home:" 开头，否则整包会被原生按 route-target-mismatch 拒收，
     // 表现就是「首页没有完成加载」。本地首页同样挂在 home 路由下，所以前缀必须是 home:。
-    // key 必须只随页面身份变化，不能掺入数据修订号（2026-11-06 换一批专项）：原生
-    // AnimatedContent 以 key 为 contentKey、滚动状态挂在 SaveableStateProvider(key) 下，
-    // key 一变就是整页转场 + 滚动回顶 —— 「换一批」（discoverSeed）和听完一首歌
-    // （historyRevision）都会被误当成换页。数据变化靠 sections 内容差异触发原地更新。
-    const model={key:`home:local:${props.localSongs.length}`,title:t('mobileLibrary.recommend'),
+    // 页面身份必须稳定（2026-11-06 稳定性专项风险三）：key 只随页面身份变化，不能掺入
+    // 任何数据量（歌曲数）或数据修订号 —— 原生 AnimatedContent 以 key 为 contentKey、滚动
+    // 状态挂在 SaveableStateProvider(key) 下，key 一变就是整页转场 + 滚动回顶。导入/删除
+    // 歌曲导致的列表数据变化由 sections 内容差异驱动原地更新，不需要重建页面。
+    const model={key:'home:local',title:t('mobileLibrary.recommend'),
         subtitle:t('mobileLibrary.localDiscoverSubtitle'),trailing:'sources',trailingLabel:t('mobileLibrary.localMusicSource'),
         trailingIcon:'smartphone',background:'home' as const,bottomClearance:152,topPadding:32,sections};
     useNativePage(root,'home',props.isInteractive,libraryHydrated||props.localSongs.length>0?model:null,actions,onReady);

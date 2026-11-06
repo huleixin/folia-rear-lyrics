@@ -207,6 +207,51 @@ describe('NativeLocalHomeOverview 渲染与模型', () => {
         expect(captured.actions['local:import']).toBeTypeOf('function');
     });
 
+    it('稳定性专项：歌曲数量变化不改变页面身份（key 恒为 home:local），数据经模型原地更新', () => {
+        // 页面身份稳定是「换一批/数据刷新不回顶」的前提：导入/删除歌曲只改 sections 内容，
+        // key 必须保持不变，否则原生 AnimatedContent 会把同一页当新路由整页重建。
+        hydration.settled = true;
+        act(() => {
+            root.render(h(NativeLocalHomeOverview, {
+                root: { current: host },
+                props: makeProps([song('s1', '专辑A'), song('s2', '专辑A'), song('s3', '专辑B')]),
+                sources: makeSources(),
+                onReady: vi.fn(),
+                onSources: vi.fn(),
+            }));
+        });
+        const identity = captured.model!.key;
+        expect(identity).toBe('home:local');
+        // 曲库增加两首后再渲染：内容（sections）必须更新，但 key 保持不变。
+        act(() => {
+            root.render(h(NativeLocalHomeOverview, {
+                root: { current: host },
+                props: makeProps([
+                    song('s1', '专辑A'), song('s2', '专辑A'), song('s3', '专辑B'),
+                    song('s4', '专辑C'), song('s5', '专辑C'),
+                ]),
+                sources: makeSources(),
+                onReady: vi.fn(),
+                onSources: vi.fn(),
+            }));
+        });
+        expect(captured.model!.key).toBe(identity);
+        // 内容确实随数据更新：有歌时 hero 推荐区存在，清空后收缩，同一页面身份不变。
+        expect(captured.model!.sections.some(section => section.layout === 'hero')).toBe(true);
+        // 曲库清空后同样保持身份（空态也走同一页）。
+        act(() => {
+            root.render(h(NativeLocalHomeOverview, {
+                root: { current: host },
+                props: makeProps([]),
+                sources: makeSources(),
+                onReady: vi.fn(),
+                onSources: vi.fn(),
+            }));
+        });
+        expect(captured.model!.key).toBe(identity);
+        expect(captured.model!.sections.some(section => section.layout === 'hero')).toBe(false);
+    });
+
     it('启动专项：曲库未水合时暂不发布空态包，让原生继续显示缓存页；水合完成后恢复发布', () => {
         // 重建后 Dexie 读取未完成：localSongs=[] 不是真值，不发包顶掉原生缓存首页。
         act(() => {
