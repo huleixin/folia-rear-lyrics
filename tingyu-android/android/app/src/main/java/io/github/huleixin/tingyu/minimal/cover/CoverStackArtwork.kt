@@ -20,7 +20,7 @@ import java.util.concurrent.Executors
 // 锁屏、封面堆叠之间只下载一次、只解码一次。
 //
 // 线程模型：解码在单线程后台，结果回主线程写进快照状态；合成层读它决定画什么。
-// 一张图最多在飞一次（inflight 去重），避免快速连切时同一张图排十次队。
+// 同一个 (songKey, 地址) 最多在飞一次；地址变化（本地封面 blob: → data:）才允许重排。
 
 class CoverStackArtwork(context: Context) {
 
@@ -33,8 +33,14 @@ class CoverStackArtwork(context: Context) {
     /** songKey → 已解码的位图。读它会让对应的那一层重组一次（图到了才画）。 */
     private val loaded = mutableStateMapOf<String, ImageBitmap>()
 
-    /** 正在飞的 songKey。主线程独占。 */
-    private val inflight = HashSet<String>()
+    /**
+     * songKey → 正在解码的封面地址。主线程独占。
+     *
+     * 记地址而不只是「在飞」：本地封面第一次过桥时仍是 WebView 专用的 blob:/__folia_cover/，
+     * 解析成 data: 后逻辑歌单会重推一次。同一个 songKey 换了地址必须允许重新解码，
+     * 否则旧地址那次失败会把这一首永远钉在占位图上（后面的卡片一直是黑的）。
+     */
+    private val inflight = HashMap<String, String>()
     private var shutdown = false
 
     fun of(songKey: String): ImageBitmap? = if (songKey.isEmpty()) null else loaded[songKey]
@@ -59,10 +65,13 @@ class CoverStackArtwork(context: Context) {
         for (entry in entries) {
             if (entry == null) continue
             val key = entry.songKey
-            if (key.isEmpty() || entry.artwork.isBlank()) continue
-            if (loaded.containsKey(key) || inflight.contains(key)) continue
-            inflight.add(key)
             val url = entry.artwork
+            if (key.isEmpty() || url.isBlank()) continue
+            // 已有位图（含当前曲 seed 进来的那张）就不再解码。
+            if (loaded.containsKey(key)) continue
+            // 同一地址只排一次；地址变了就覆盖登记，旧任务的结果会在回主线程时被丢弃。
+            if (inflight[key] == url) continue
+            inflight[key] = url
             io.execute {
                 val bitmap = try {
                     load(key, url)
@@ -70,6 +79,8 @@ class CoverStackArtwork(context: Context) {
                     null
                 }
                 main.post {
+                    if (inflight[key] != url) return@post
+                    // 失败时清掉登记：下一次 sync（封面解析完成后的重推）可以再试一次。
                     inflight.remove(key)
                     if (bitmap != null && !bitmap.isRecycled && !loaded.containsKey(key)) {
                         loaded[key] = bitmap.asImageBitmap()
@@ -81,13 +92,18 @@ class CoverStackArtwork(context: Context) {
 
     /**
      * 地址 → 位图。和 {@code MinimalPlayerRuntime.loadArtworkBitmap} 同一套判定：
-     * 网络地址走封面仓库（内存 LRU + 磁盘 + 受控下载），本地曲库的 content:// / file://
-     * 直接解码。blob: 是 WebView 内部的临时地址，原生读不到，退回占位图。
+     * 在线地址与本地曲库的 data:image/...;base64 统一交给封面仓库（内存 LRU + 磁盘 +
+     * 受控下载 + 内联 Base64 解码），content:// / file:// 直接解码。
+     *
+     * 本地封面由 WebView 侧统一从 blob:/__folia_cover/ 转成 data: 后过桥，堆叠卡片拿到
+     * 的就是 data:；以前这里只放行 http(s)，data: 直接落到 return null，于是除顶层（被
+     * seed 救过）外每一层都是深色占位图。复用仓库避免再维护第二份解码器。
      */
     private fun load(songKey: String, url: String): Bitmap? {
         if (url.isBlank()) return null
         val lower = url.lowercase(java.util.Locale.US)
-        if (lower.startsWith("http://") || lower.startsWith("https://")) {
+        if (lower.startsWith("http://") || lower.startsWith("https://")
+            || (lower.startsWith("data:image/") && ";base64," in lower)) {
             return NativeArtworkRepository.get(appContext).load(songKey, url, false)?.bitmap
         }
         if (lower.startsWith("content://") || lower.startsWith("file://")) {

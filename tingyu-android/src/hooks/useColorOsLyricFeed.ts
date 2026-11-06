@@ -16,8 +16,8 @@ import { usePlaybackStore } from '../stores/usePlaybackStore';
 import { useLyricSettingsStore } from '../stores/useLyricSettingsStore';
 import type { SongResult } from '../types';
 import type { LyricData } from '../types';
-import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
-import { buildColorOsLyricInfo } from '../utils/lyrics/colorOsLyricInfo';
+import { getPlaybackSongKey, isLocalPlaybackSong } from '../utils/appPlaybackGuards';
+import { buildColorOsLyricInfo, hasUsableLyricTimeline } from '../utils/lyrics/colorOsLyricInfo';
 
 // src/hooks/useColorOsLyricFeed.ts
 // 沿用历史名称，发布标准 LyricInfo 供 ColorOS 或第三方灵动岛模块消费。
@@ -94,6 +94,9 @@ export const useColorOsLyricFeed = ({
     const active = enabled && supported;
     const songKey = song ? getPlaybackSongKey(song) : null;
     const hasLines = Boolean(lyrics?.lines?.length);
+    // 本地歌的纯文本歌词没有时间轴：只在 WebView 歌词页静态展示，不给灵动岛/背屏
+    // 发一条「全部堆在 00:00」的假同步 LRC。在线歌的既有行为完全不变。
+    const publishable = hasLines && (!isLocalPlaybackSong(song) || hasUsableLyricTimeline(lyrics));
     const lyricVariant = useLyricSettingsStore((state) => state.lyricVariant);
 
     // 统一简繁规则同步给原生：后台独立取词应用同一条规则，避免后台突然出现繁体。
@@ -143,7 +146,7 @@ export const useColorOsLyricFeed = ({
             void clearColorOsLyricInfo();
             return;
         }
-        if (!hasLines) {
+        if (!publishable) {
             // 还在加载：什么都不声明。原生按 songKey 查自己的缓存，查不到就不写 lyricInfo，
             // 消费端看到的是「等待补充」而不是「没有歌词」。
             if (lyricsLoading || !usePlaybackStore.getState().audioSrc || !song?.isPureMusic) return;
@@ -178,7 +181,7 @@ export const useColorOsLyricFeed = ({
             renderModel: JSON.stringify(lyrics),
             source: lyrics?.resourceCacheTier === 'platform' ? 'platform-cache-display' : lyrics?.resourceCacheTier === 'native' ? 'native-cache-display' : 'stage',
         });
-    }, [active, songKey, song, lyrics, hasLines, lyricsLoading, duration, timelineOffsetMs]);
+    }, [active, songKey, song, lyrics, hasLines, publishable, lyricsLoading, duration, timelineOffsetMs]);
 
     // 回到前台再推一次：原生进程若被回收过，缓存是空的，而这段 payload 还在 WebView 里。
     React.useEffect(() => {
@@ -186,7 +189,7 @@ export const useColorOsLyricFeed = ({
         // 没有词/正在加载的歌上，而原生问的是另一首 —— 监听器不挂，询问就被整条丢掉，
         // 灵动岛一直空着，直到用户打开 App。挂载条件只保留「通道可用且知道有歌」。
         if (!active || !songKey) return;
-        const build = () => (hasLines ? buildColorOsLyricInfo({
+        const build = () => (publishable ? buildColorOsLyricInfo({
             title: song?.name ?? '',
             artist: song ? getSongArtistLabel(song) : '',
             album: song ? getSongAlbumLabel(song) : '',
@@ -245,5 +248,5 @@ export const useColorOsLyricFeed = ({
             document.removeEventListener('visibilitychange', republish);
             window.removeEventListener('tingyu-native-lyric-request', onNativeRequest);
         };
-    }, [active, songKey, song, lyrics, hasLines, duration, timelineOffsetMs]);
+    }, [active, songKey, song, lyrics, publishable, duration, timelineOffsetMs]);
 };

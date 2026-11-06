@@ -125,6 +125,9 @@ export function useSessionRestoreController({
                     if (plan.live?.uri) {
                         holdLiveQueue(plan.queue,key,plan.mode);
                         armRecoveryPresentation(key);
+                        // 引擎仍在播：同曲同址的 prepare 走 PrepareGuard.KEEP_WINDOW，
+                        // 位置由引擎自己保持。这里不能再 arm 恢复位置，否则会把它倒拨回
+                        // 采样瞬间；冷恢复（引擎已死）才需要下面那条恢复路径。
                         if(pendingResumeTimeRef)pendingResumeTimeRef.current=null;
                         markNativeQueueAdoption(key);
                         store.setPlayerState(plan.live.paused?PlayerState.PAUSED:PlayerState.PLAYING);

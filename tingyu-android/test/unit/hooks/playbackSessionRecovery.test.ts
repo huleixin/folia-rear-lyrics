@@ -67,17 +67,19 @@ it('a stopped or clear snapshot does not fall back to old JS cache or resolve an
     try{await act(async()=>r.render(h(Probe)));expect(usePlaybackStore.getState().currentSong).toBeNull();expect(mocks.legacy).not.toHaveBeenCalled();expect(mocks.resolve).not.toHaveBeenCalled();}
     finally{await act(async()=>r.unmount());}
 });
-it('writes small 20second checkpoints without serializing the entire unchanged queue on every clock event',async()=>{
+it('writes small 4second checkpoints without serializing the entire unchanged queue on every clock event',async()=>{
     vi.useFakeTimers();const r=root(),audio={current:document.createElement('audio')};finishRecovery({status:'empty',revision:0});
     document.body.append(audio.current);
     const Probe=()=>{usePlaybackSessionPersistence(audio);return null;};
     try{
         await act(async()=>r.render(h(Probe)));expect(mocks.save).not.toHaveBeenCalled();
         await act(async()=>usePlaybackStore.setState({currentSong:tracks[37],playQueue:tracks}));expect(mocks.save).toHaveBeenCalledOnce();
-        for(let i=1;i<=19;i++)currentTime.set(i);
-        await act(async()=>vi.advanceTimersByTimeAsync(19000));expect(mocks.checkpoint).not.toHaveBeenCalled();
-        currentTime.set(20);await act(async()=>vi.advanceTimersByTimeAsync(1000));expect(mocks.checkpoint).toHaveBeenCalledOnce();expect(mocks.save).toHaveBeenCalledOnce();
+        for(let i=1;i<=3;i++)currentTime.set(i);
+        await act(async()=>vi.advanceTimersByTimeAsync(3000));expect(mocks.checkpoint).not.toHaveBeenCalled();
+        currentTime.set(4);await act(async()=>vi.advanceTimersByTimeAsync(1000));expect(mocks.checkpoint).toHaveBeenCalledOnce();expect(mocks.save).toHaveBeenCalledOnce();
         audio.current.dispatchEvent(new Event('seeked'));await act(async()=>{});expect(mocks.checkpoint).toHaveBeenCalledTimes(2);expect(mocks.save).toHaveBeenCalledOnce();
+        // 应用退到后台 / 进程被回收前的最后一次落盘机会，不等下一个 4 秒心跳。
+        window.dispatchEvent(new Event('pagehide'));await act(async()=>{});expect(mocks.checkpoint).toHaveBeenCalledTimes(3);expect(mocks.save).toHaveBeenCalledOnce();
         await act(async()=>useAudioSettingsStore.setState({shuffleEnabled:true,loopMode:'all'}));const before=mocks.save.mock.calls.length;
         await act(async()=>useAudioSettingsStore.setState({loopMode:'off'}));expect(mocks.save).toHaveBeenCalledTimes(before+1);
         await act(async()=>usePlaybackStore.setState({playQueue:[]}));expect(mocks.save.mock.calls.at(-1)![0].snapshot.cleared).toBe(true);audio.current.remove();

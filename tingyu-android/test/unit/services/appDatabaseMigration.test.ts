@@ -79,7 +79,8 @@ describe('AppDatabase native v6 migration', () => {
 
         await appDatabase.open();
 
-        expect(appDatabase.verno).toBe(1);
+        // 与 appDatabase.ts 最新 version() 同步：v2 = local_play_history（播放历史）。
+        expect(appDatabase.verno).toBe(2);
         expect(appDatabase.appearance_profiles.schema.primKey.name).toBe('id');
         expect(await getSessionData()).toMatchObject({ fileName: 'song.mp3' });
         expect(await getFromCache('last_song')).toEqual({ id: 42 });
@@ -121,7 +122,8 @@ describe('AppDatabase native v6 migration', () => {
         await appDatabase.open();
 
         const storedSong = await appDatabase.local_music.get('legacy-cover-song');
-        expect(appDatabase.verno).toBe(1);
+        // 与 appDatabase.ts 最新 version() 同步：v2 = local_play_history（播放历史）。
+        expect(appDatabase.verno).toBe(2);
         expect(appDatabase.appearance_profiles.schema.primKey.name).toBe('id');
         expect((storedSong as typeof storedSong & { embeddedCover?: Blob })?.embeddedCover).toBeInstanceOf(Blob);
         expect(appDatabase.local_music.schema.indexes.map(index => index.name)).toContain('localCoverAssetId');

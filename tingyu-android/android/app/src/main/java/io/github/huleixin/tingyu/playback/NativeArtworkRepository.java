@@ -140,6 +140,21 @@ public final class NativeArtworkRepository {
     public Result load(String songKey, String url) { return load(songKey, url, true); }
     public Result load(String songKey, String url, boolean urgent) {
         if (url == null || url.trim().isEmpty()) return new Result(Status.MISSING_URI, null, 0, 0, 0, 0);
+        // 本地曲库封面：WebView 侧已把 blob:/__folia_cover/ 统一解析成 data:image/jpeg;base64。
+        // 它没有可下载的 URL，OkHttp 分支永远失败 —— 直接解码字节，锁屏/通知才有图。
+        // 不 bind：data: 很长，不该进 URL 别名与磁盘缓存键；换歌时由 SongInfoLoader 重新解码一次。
+        if (url.startsWith("data:image/") && url.contains(";base64,")) {
+            try {
+                byte[] bytes = android.util.Base64.decode(
+                        url.substring(url.indexOf(',') + 1), android.util.Base64.DEFAULT);
+                Bitmap inline = decode(bytes);
+                if (inline == null) return new Result(Status.DECODE_FAILED, null, 0, 0, 0, 0);
+                return new Result(Status.FETCHED, inline, 200, bytes.length,
+                        inline.getWidth(), inline.getHeight());
+            } catch (Exception error) {
+                return new Result(Status.DECODE_FAILED, null, 0, 0, 0, 0);
+            }
+        }
         bind(songKey, url);
         Result cached = readCache(songKey);
         if (cached != null) return cached;

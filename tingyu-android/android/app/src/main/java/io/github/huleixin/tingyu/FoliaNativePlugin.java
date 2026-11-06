@@ -220,6 +220,12 @@ public class FoliaNativePlugin extends Plugin {
 
     private static String describePlaybackArtworkUrl(String value) {
         if (value == null || value.isEmpty()) return "";
+        // 本地曲库封面是内联的 data:image/...;base64，只记类型与长度，绝不把整串写进诊断，
+        // 也别再被 new URL() 判成 "invalid" —— 现场报告要能看出系统卡片走的是内联位图通道。
+        if (value.startsWith("data:image/") && value.contains(";base64,")) {
+            int comma = value.indexOf(',');
+            return value.substring(0, comma) + ";base64," + (value.length() - comma - 1) + "chars";
+        }
         try {
             URL url = new URL(value);
             return url.getProtocol() + "://" + url.getHost() + url.getPath();

@@ -88,7 +88,14 @@ export function useNativeAudioDeck(audioRef: RefObject<HTMLAudioElement | null>,
         const current = latest.current, value = adapter.current;
         if (!value) return;
         const restored = handoff.current;
-        const position = restored?.source === current.source && restored.track === current.songKey ? restored.position : (consumeRecoveryPosition(current.songKey) ?? 0) / 1000;
+        // 冷恢复刻意不解析音源（要等用户按 Play），此刻 audioSrc 为空、setSource 会直接
+        // 丢弃位置。恢复位置是一次性的：绝不能在这个空音源阶段消费掉，否则等 URL 重新
+        // 解析完、真正 prepare 时只剩 0，歌记住了、进度却从头开始。只在有音源可装载时
+        // 才消费；空音源时把位置留在恢复容器里，同时 UI 时钟仍显示 plan.positionMs。
+        const hasSource = !!current.source;
+        const position = restored?.source === current.source && restored.track === current.songKey
+            ? restored.position
+            : hasSource ? (consumeRecoveryPosition(current.songKey) ?? 0) / 1000 : 0;
         value.setSource(current.source ?? '', current.songKey, {...(current.song ? buildNativePlaybackPayload(current.song, current.playing, position, (current.song.durationMs ?? 0) / 1000) : {}),playbackAttempt:current.attempt});
     };
     useLayoutEffect(() => {

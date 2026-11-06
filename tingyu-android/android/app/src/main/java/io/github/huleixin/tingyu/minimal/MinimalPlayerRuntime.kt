@@ -679,6 +679,18 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
             return io.github.huleixin.tingyu.playback.NativeArtworkRepository.get(appContext)
                 .load(songKey, url)?.bitmap
         }
+        // 本地曲库封面由 WebView 侧统一解析成 data:image/jpeg;base64 后过桥：
+        // blob: 和 /__folia_cover/ 都只在 WebView 内有效，原生读不到（那种封面过去一律占位图）。
+        if (lower.startsWith("data:image/") && ";base64," in lower) {
+            return try {
+                val bytes = android.util.Base64.decode(
+                    url.substring(url.indexOf(',') + 1), android.util.Base64.DEFAULT
+                )
+                android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            } catch (_: Throwable) {
+                null
+            }
+        }
         // 本地曲库的封面是 content:// 或 file://；仓库只走网络，这里直接解码。
         // blob: 是 WebView 内部的临时 URL，原生读不到 —— 那种封面会显示占位图。
         if (lower.startsWith("content://") || lower.startsWith("file://")) {

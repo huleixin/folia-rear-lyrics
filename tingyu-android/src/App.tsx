@@ -2804,7 +2804,14 @@ export default function App() {
                     return;
                 }
 
-                if (recoveredPresentation) { currentTime.set(audioElement.currentTime); return; }
+                // 冷恢复时原生帧可能先于 seek 落地，audioElement.currentTime 会短暂是 0。
+                // 此时不能用这个临时 0 覆盖会话恢复刚写进 UI 时钟的有效位置，否则
+                // 进度条与歌词时钟会被打回开头。普通切歌不会带 recoveredPresentation。
+                if (recoveredPresentation) {
+                    const live = audioElement.currentTime;
+                    currentTime.set(Number.isFinite(live) && live > 0 ? live : currentTime.get());
+                    return;
+                }
                 currentTime.set(0); // Ensure currentTime is reset when new audio loads
             }}
             // Did any source ever finish loading? Without this a stuck "正在获取歌曲链接..." cannot be

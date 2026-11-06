@@ -37,6 +37,7 @@ const READ_BUDGETS = [512 * 1024, 4 * 1024 * 1024];
 const HYDRATION_BATCH = 400;
 
 const LOG_PREFIX = '[NativeLocalMetadata]';
+const LOCAL_MUSIC_UPDATED_EVENT = 'folia-local-music-updated';
 
 export type NativeSongMetadata = {
     metadata: EmbeddedMetadataResult;
@@ -288,6 +289,11 @@ export const ensureNativeSongCover = async (song: LocalSong): Promise<LocalSong>
     Object.assign(song, updated);
     try {
         await saveLocalSongs([updated]);
+        // 单首懒加载（播放时按需补）也必须通知界面：以前只有批量 flush 会派发，
+        // 于是「点开一首歌才补出来的封面」只有曲库列表刷新得了，播放器快照收不到。
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event(LOCAL_MUSIC_UPDATED_EVENT));
+        }
     } catch (error) {
         console.warn(`${LOG_PREFIX} Failed to persist cover for ${song.fileName}:`, error);
     }
@@ -321,7 +327,7 @@ export const hydrateNativeSongs = async (
         try {
             await saveLocalSongs(batch);
             hydrated += batch.length;
-            window.dispatchEvent(new Event('folia-local-music-updated'));
+            window.dispatchEvent(new Event(LOCAL_MUSIC_UPDATED_EVENT));
         } catch (error) {
             failed += batch.length;
             console.warn(`${LOG_PREFIX} Failed to save a hydration batch:`, error);

@@ -129,12 +129,15 @@ const restoreSource = async (
     }: RestorePlaybackSourceParams,
 ): Promise<RestorePlaybackSourceOutcome> => {
     // Artwork/theme decoding must not delay a user's first Play after startup.
+    // 本地 / Navidrome 分支在下面会算出更权威的封面；这个通用缓存回填只作为兜底，
+    // 否则它可能在音源解析完成后才到，把刚算出的真实封面盖回旧缓存图。
+    let coverResolved = false;
     void restoreCachedThemeForSong?.(song, {
         allowLastUsedFallback: true,
         preserveCurrentOnMiss: false,
     }).catch(error => console.warn('[Restore] Theme unavailable', error));
     void getCachedSongCoverUrl(song).then(cover => {
-        if (isCurrent() && cover) setCachedCoverUrl(cover);
+        if (!coverResolved && isCurrent() && cover) setCachedCoverUrl(cover);
     }).catch(error => console.warn('[Restore] Artwork unavailable', error));
 
     // Every await below can outlive the restore: the listener may pick another song meanwhile, and
@@ -160,6 +163,7 @@ const restoreSource = async (
         setAudioSrc(restoredStreamUrl);
         const restoredCoverUrl = getSongCoverUrl(song) || navidromeSongToRestore.navidromeData.coverArtUrl;
         if (restoredCoverUrl) {
+            coverResolved = true;
             setCachedCoverUrl(restoredCoverUrl);
         }
 
@@ -255,6 +259,7 @@ const restoreSource = async (
         setLyrics(resolvedLyrics.lyrics);
         setActiveLocalLyricsSource(resolvedLyrics.source);
 
+        coverResolved = true;
         const cacheKey = `cover_local_${songToRestore.id}`;
         const cachedCoverUrl = songToRestore.useOnlineCover
             ? await getCachedCoverUrl(cacheKey)

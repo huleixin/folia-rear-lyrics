@@ -1342,7 +1342,9 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             // 用户主动暂停/停止：作废在飞的原生解析，迟到的结果不许再往队列里塞。
             BackgroundContinuation.get().cancel();
         }
-        if(action.equals("stop")){SleepTimerController.get(context).cancel("stopped");PlaybackSessionPersistence.get(context).observe(songKey,0,true,"stop");player.pause();player.seekTo(0);emit("state",external);main.removeCallbacks(heartbeat);
+        // 服务正常停止时保存的是停止前的真实位置，不是 0：seekTo(0) 只作用于播放器，
+        // 不该把刚写进快照的有效进度抹掉。stopped 意图与自动播放策略仍按原逻辑处理。
+        if(action.equals("stop")){SleepTimerController.get(context).cancel("stopped");PlaybackSessionPersistence.get(context).observe(songKey,Math.max(0,player.getCurrentPosition()),true,"stop");player.pause();player.seekTo(0);emit("state",external);main.removeCallbacks(heartbeat);
             // 用户主动停止：洛雪脚本引擎没有理由继续占着内存，脚本本身留着（下次播放再起）。
             io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.release();return;}
         if(action.equals("play")){sleepStopped=false;if(player.getPlaybackState()==Player.STATE_IDLE&&player.getCurrentMediaItem()!=null){failure=null;networkRetries=0;player.prepare();}

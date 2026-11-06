@@ -507,7 +507,13 @@ public final class SongInfoLoader {
                     .put("state", "missing"));
             return;
         }
-        Long until = artworkCooldown.get(info.songKey);
+        // 本地曲库封面是内联 data:image/...;base64，纯本地解码、没有网络失败可冷却。
+        // 首次同步带的是 WebView 专用的 blob:/__folia_cover/，一次下载失败会写下 90 秒冷却；
+        // 随后解析好的 data: 若被这个冷却挡住，「WebView 休眠时原生自动切歌」这一路
+        // 就补不上系统媒体卡片的封面。冷却只约束网络地址，内联位图不受它影响。
+        boolean inlineArtwork = info.artworkUrl.startsWith("data:image/")
+            && info.artworkUrl.contains(";base64,");
+        Long until = inlineArtwork ? null : artworkCooldown.get(info.songKey);
         if (until != null && SystemClock.elapsedRealtime() < until) return;
         if (!artworkInFlight.add(info.songKey)) return;
         (isCurrent(info.songKey) ? currentArtworkExecutor : artworkExecutor).execute(() -> {

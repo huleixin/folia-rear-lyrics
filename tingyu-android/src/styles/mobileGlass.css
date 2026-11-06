@@ -93,7 +93,10 @@
     border-radius: 19px;
     touch-action: pan-y;
 }
-.mobile-library .ml-mini-track { width: 100%; touch-action: pan-y; }
+/* 与原生 Compose 版一致：封面从裁剪容器内缩 10px，避开 19px 圆角，不再被左边缘切掉。
+   .ml-mini 的 8px 左内边距保留在裁剪容器外层，这里只移动封面本身；
+   box-sizing: border-box 保证 width:100% 不会因 padding 溢出。 */
+.mobile-library .ml-mini-track { width: 100%; padding-left: 10px; touch-action: pan-y; }
 .ml-mini[data-dragging] .ml-mini-track { will-change: transform; transition: none !important; }
 .ml-mini-preview {
     position: absolute;

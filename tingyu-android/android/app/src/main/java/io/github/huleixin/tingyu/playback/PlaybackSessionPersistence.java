@@ -21,6 +21,8 @@ public final class PlaybackSessionPersistence {
     private String lastKey="";
     private boolean lastPaused=true,writeScheduled;
     private final AtomicReference<Sample> latest=new AtomicReference<>();
+    /** 播放中位置的落盘间隔：进程被直接终止时最多丢这段时间。 */
+    private static final long CHECKPOINT_INTERVAL_MS=4_000L;
     private static final class Sample {
         String key,mode;long position;boolean paused,stopped;
         Sample(String k,long p,boolean pause,String m,boolean stop){key=k;position=p;paused=pause;mode=m;stopped=stop;}
@@ -30,7 +32,7 @@ public final class PlaybackSessionPersistence {
         if(key==null||key.isEmpty()||"spectrum".equals(event)||"diagnostics".equals(event))return;
         long now=android.os.SystemClock.elapsedRealtime();
         boolean force=!key.equals(lastKey)||paused!=lastPaused||"seeked".equals(event)||"stop".equals(event)||"mode".equals(event);
-        if(!force&&(paused||now-lastAt<20_000))return;
+        if(!force&&(paused||now-lastAt<CHECKPOINT_INTERVAL_MS))return;
         lastAt=now;lastKey=key;lastPaused=paused;
         NativePlaylist.Mode m=NativePlaylist.get().mode();
         String mode=m==NativePlaylist.Mode.SHUFFLE?"shuffle":m==NativePlaylist.Mode.REPEAT_ONE?"one":m==NativePlaylist.Mode.LOOP_ALL?"all":"off";

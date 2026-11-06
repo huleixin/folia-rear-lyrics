@@ -60,7 +60,11 @@ import kotlin.math.abs
             if(abs(offset.value)>8f)Text(s.label(if(offset.value<0)"next" else "previous",if(offset.value<0)"下一首" else "上一首"),color=if(s.light)ink else ink.copy(alpha=.7f),fontSize=12.sp,maxLines=1,
                 modifier=Modifier.align(Alignment.Center).graphicsLayer{translationX=offset.value+(if(offset.value<0)width else -width)})
             Row(Modifier.fillMaxSize().graphicsLayer{translationX=offset.value}.clickable(role=Role.Button){action("openStage",0.0)},verticalAlignment=Alignment.CenterVertically) {
-                Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(accent.copy(alpha=.2f)),contentAlignment=Alignment.Center) {
+                // 左内边距原本加在裁剪容器（18.dp 圆角）之外，封面在这一层里从 x=0 起画，
+                // 左上角正好落进圆角被裁掉 —— 看起来就是「封面偏左、缺一角」。
+                // 只给封面本体让出 10.dp，不动整条的高度/宽度、玻璃效果、按钮与圆角；
+                // padding 放在 size 之前，34.dp 的封面尺寸与 10.dp 圆角保持不变。
+                Box(Modifier.padding(start=10.dp).size(34.dp).clip(RoundedCornerShape(10.dp)).background(accent.copy(alpha=.2f)),contentAlignment=Alignment.Center) {
                     ChromeGlyph("music",if(s.light)ink else ink.copy(alpha=.7f))
                     if(s.cover.isNotBlank())AsyncImage(model=cover,contentDescription=null,modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
                 }

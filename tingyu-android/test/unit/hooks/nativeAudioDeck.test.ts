@@ -9,7 +9,7 @@ import { useAutomixSettingsStore } from '@/stores/useAutomixSettingsStore';
 import { useAppViewStore } from '@/stores/useAppViewStore';
 import { useRearRuntimeStore } from '@/stores/useRearRuntimeStore';
 import { PlayerState, type SongResult } from '@/types';
-import { armRecoveryPosition, armRecoveryPresentation } from '@/services/androidSessionRecovery';
+import { armRecoveryPosition, armRecoveryPresentation, consumeRecoveryPresentation } from '@/services/androidSessionRecovery';
 import { markNativeQueueAdoption } from '@/services/nativeAudioElement';
 import { getPlaybackSongKey } from '@/utils/appPlaybackGuards';
 import { usePlaybackEngineTestStore } from '@/stores/usePlaybackEngineTestStore';
@@ -114,6 +114,31 @@ it.each(['cold','live'])('%s recovery sends a single prepare with the existing s
         expect(port.command.mock.calls.filter(([c])=>['play','seek','pause','detach'].includes(String(c.action)))).toHaveLength(0);
         expect(consumed).toHaveBeenCalledTimes(kind==='cold'?1:0);
     }finally{await act(async()=>root.unmount());host.remove();vi.restoreAllMocks();usePlaybackStore.setState(old);useAudioSettingsStore.setState(settings);useAutomixSettingsStore.setState(mix);}
+});
+it('cold recovery keeps its position until a real audio source is prepared',async()=>{
+    (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;port.command.mockClear();
+    const old=usePlaybackStore.getState(),settings=useAudioSettingsStore.getState(),mix=useAutomixSettingsStore.getState();
+    const song:SongResult={id:38,name:'Recovered',artists:[],album:{id:1,name:'A'},durationMs:300000,sourceRef:{kind:'online',providerId:'qq',mediaId:'38'}};
+    const key=getPlaybackSongKey(song),consumed=vi.fn();
+    armRecoveryPosition(key,155000,consumed); // 02:35
+    const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+    vi.spyOn(HTMLMediaElement.prototype,'load').mockImplementation(()=>{});
+    function Probe(){const ref=useRef<HTMLAudioElement>(null);useNativeAudioDeck(ref,'A');return h('audio',{ref});}
+    // 冷恢复刻意只记住歌曲、不打开音源，等用户按下播放才重新解析 URL。
+    usePlaybackStore.setState({audioSrc:null,currentSong:song,replayGainMode:'off',playerState:PlayerState.PAUSED});
+    useAudioSettingsStore.setState({audioEqualizerSettings:{...settings.audioEqualizerSettings,enabled:false}});useAutomixSettingsStore.setState({automixEnabled:false});
+    try{
+        await act(async()=>root.render(h(Probe)));
+        // 空音源阶段既不能 prepare，也不能把一次性的恢复位置消费掉。
+        expect(port.command.mock.calls.filter(([c])=>c.action==='prepare')).toHaveLength(0);
+        expect(consumed).not.toHaveBeenCalled();
+        // 音源解析完成后，这一次的 prepare 必须带着 02:35 而不是 0。
+        await act(async()=>usePlaybackStore.setState({audioSrc:'https://fresh.test/38'}));
+        const prepares=port.command.mock.calls.filter(([c])=>c.action==='prepare');
+        expect(prepares).toHaveLength(1);
+        expect(prepares[0][0]).toMatchObject({songKey:key,position:155000});
+        expect(consumed).toHaveBeenCalledOnce();
+    }finally{await act(async()=>root.unmount());host.remove();consumeRecoveryPresentation(key);vi.restoreAllMocks();usePlaybackStore.setState(old);useAudioSettingsStore.setState(settings);useAutomixSettingsStore.setState(mix);}
 });
 it('consumes the existing autoplay intent when a cold native probe becomes ready after the source',async()=>{
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;

@@ -13,6 +13,12 @@ import { flushNativeShellRoute } from '../services/nativeShellCommit';
 import { resolveQualityBadges } from '../components/app/overlays/minimal-stage/minimalQuality';
 import { resolvePlayingQualityLevel } from '../components/app/overlays/minimal-stage/qualityBadgeSpecs';
 import { nativeAudioSpecStore } from '../services/nativeAudioElement';
+import {
+    isWebManagedArtworkUrl,
+    prewarmNativePlayerArtwork,
+    resolveNativePlayerArtwork,
+    subscribeNativePlayerArtwork,
+} from '../services/nativeCoverThumbnail';
 import { buildMinimalPalette } from '../components/app/overlays/minimal-stage/minimalPalette';
 import { useCoverColors } from '../components/app/overlays/minimal-stage/useCoverPalette';
 import { canUseComposeChrome, chromeNative } from '../services/nativeChrome';
@@ -145,6 +151,15 @@ export function useNativeMinimalPlayer({
     const publishedTrackKey = useRef('');
     const publishRef = useRef<() => void>(() => undefined);
 
+    // 本地封面是 WebView 专用地址：把它异步转成原生可读的 data:，解析完成后重推一帧，
+    // 让 Compose 播放页不必等下一次定时 publish 才换掉默认音符占位图。
+    const coverUrl = chrome?.song?.coverUrl ?? '';
+    useEffect(() => {
+        if (!isWebManagedArtworkUrl(coverUrl)) return;
+        void prewarmNativePlayerArtwork(coverUrl);
+        return subscribeNativePlayerArtwork(() => { publishRef.current(); });
+    }, [coverUrl]);
+
     const buildFrame = useCallback((session: string): MinimalPlayerFrame | null => {
         const currentControls = latest.current.controls;
         const song = latest.current.chrome?.song;
@@ -173,8 +188,10 @@ export function useNativeMinimalPlayer({
             artist: song?.artist ?? '',
             // Album and artwork are read natively from the synced queue; only the cover URL crosses
             // the bridge because a local file / remote URL is not something native can derive.
+            // 本地歌封面是 WebView 专用的 blob:/__folia_cover/，原生解码不了 —— 统一入口
+            // 换成 data: 后再过桥，完整播放页才会和列表 / 迷你条显示同一张图。
             album: '',
-            cover: song?.coverUrl ?? '',
+            cover: resolveNativePlayerArtwork(song?.coverUrl),
             playing: currentControls.playerState === PlayerState.PLAYING,
             position: Number.isFinite(position) ? Math.max(0, position) : 0,
             duration: Number.isFinite(currentControls.duration) ? Math.max(0, currentControls.duration) : 0,

@@ -9,6 +9,8 @@ import { LX_PLATFORMS } from './onlineMusic/lxProviders';
 import { useLxSourceStore } from '../stores/useLxSourceStore';
 import { getTingyuPlayback } from '../platform/tingyuPlayback';
 import { primeNativeLyricsForSongs, LYRIC_PRIME_AHEAD } from './nativeLyricPriming';
+import { resolveNativePlayerArtwork, subscribeNativePlayerArtwork } from './nativeCoverThumbnail';
+import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
 import type { SongResult } from '../types';
 import type { AudioQualityPreference } from '../types/onlineMusic';
 
@@ -92,11 +94,13 @@ const artworkOf = (song: SongResult): string => {
     // 这里曾经只读顶层 `coverUrl`，于是交给原生的 `artwork` 恒为空串：前台播放看不出问题
     // （系统卡片由 JS 推当前曲时带的是正确地址），但只要 Media3 自己切歌、由原生接管，
     // 那个 MediaItem 的 tag 里就没有封面 —— 锁屏和通知只剩占位图，歌词却正常。
+    // 本地曲库的 /__folia_cover/ 或 blob: 只有 WebView 能读，原生播放页 / 通知 / 背屏
+    // 拿到就是占位图。统一走解析入口换成两端都能读的 data:（在线 CDN 地址原样返回）。
     const albumCover = getSongAlbumCoverUrl(song);
-    if (albumCover) return albumCover;
+    if (albumCover) return resolveNativePlayerArtwork(albumCover);
     const legacy = (song as { coverUrl?: unknown; cover?: unknown }).coverUrl
         ?? (song as { cover?: unknown }).cover;
-    return typeof legacy === 'string' ? legacy : '';
+    return typeof legacy === 'string' ? resolveNativePlayerArtwork(legacy) : '';
 };
 
 /**
@@ -378,3 +382,25 @@ export const syncQishuiResolverCredentials = async (): Promise<void> => {
 export const resetNativePlaylistSyncForTest = (): void => {
     lastSignature = '';
 };
+
+/**
+ * 封面异步解析完成后的补偿重推。
+ *
+ * 首次同步时 data: 还没生成，队列里带的是 WebView 专用地址；解析完成后必须重新下发一次，
+ * 否则后台自动切歌 / 锁屏时原生手里的仍是读不了的旧地址。签名不含 artwork，先作废它。
+ */
+export const resyncNativePlaylistForArtwork = (): void => {
+    const state = usePlaybackStore.getState();
+    if (state.activePlaybackContext !== 'main' || !state.currentSong) return;
+    const settings = useAudioSettingsStore.getState();
+    lastSignature = '';
+    void syncNativePlaylist({
+        song: state.currentSong,
+        queue: state.playQueue ?? [],
+        loop: settings.loopMode,
+        shuffle: settings.shuffleEnabled,
+        quality: settings.audioQuality,
+    });
+};
+
+subscribeNativePlayerArtwork(() => { resyncNativePlaylistForArtwork(); });

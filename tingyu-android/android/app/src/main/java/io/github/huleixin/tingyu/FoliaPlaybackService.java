@@ -956,7 +956,14 @@ public class FoliaPlaybackService extends Service {
     private void loadArtwork(String value, ArtworkCallback callback) {
         if (value == null || value.isEmpty()) return;
         if (value.equals(appliedArtworkUrl)) return;
-        if (!(value.startsWith("http://") || value.startsWith("https://"))) {
+        // 本地曲库的封面（content URI / ID3 APIC / FLAC 内嵌图）由 WebView 侧统一转成
+        // data:image/jpeg;base64 过桥。它没有可下载的 URL，但 NativeArtworkRepository 已经
+        // 内置 Base64 解码：放行即可走同一个位图通道，写进 MediaSession 的 METADATA_KEY_ART
+        // 和通知的 largeIcon。SystemUI 打不开 data: URI，所以 buildMetadata 仍只把 http(s)
+        // 写成 ART_URI（见 isPublishableArtworkUri），本地封面必须走这里的位图路径。
+        // blob: / folia-cover:// 这类 WebView 内部地址原生依旧读不到，保持拒绝。
+        boolean inlineArtwork = value.startsWith("data:image/") && value.contains(";base64,");
+        if (!inlineArtwork && !(value.startsWith("http://") || value.startsWith("https://"))) {
             FoliaNativePlugin.notePlaybackArtwork(value, "error", "unsupported-cover-url");
             return;
         }

@@ -48,6 +48,9 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
         setTab: (tab) => {
             if (!sources.tabs.some((entry) => entry.key === tab && !entry.disabledReason)) return false;
             sources.setTab(tab);
+            // 页签与全局音源是同一件事：命令面板 / 原生页签也要走统一入口，
+            // 否则资料库停在「本地」而推荐页还是在线（或反过来）。
+            useHomeSourceStore.getState().setSource(tab === 'local' ? 'local' : 'online');
             useMobileLibraryStore.getState().setPage('library');
             props.onNativeTabSelected?.();
             return true;
@@ -82,12 +85,15 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
                     {page === 'home' && <p>{t('mobileLibrary.discoverMoreMusic')}</p>}
                 </div>
                 <span className="ml-spacer" />
+                {/* 本地模式不显示在线音源选择器（QQ 音乐下拉）；推荐页右上角仍可切换来源。 */}
+                {homeSource !== 'local' && (
                 <button className="ml-source" onClick={() => setShowSources(true)}>
-                    {homeSource === 'local' ? t('mobileLibrary.localMusicSource') : sources.online.providerLabel}
+                    {sources.online.providerLabel}
                     <ChevronDown size={15} />
                 </button>
+                )}
             </header>
-            {page === 'library' && (
+            {page === 'library' && homeSource !== 'local' && (
                 <>
                     <div className="ml-tabs" role="group" aria-label={t('mobileLibrary.sources')}>
                         {sources.tabs.map((tab) => (
@@ -113,7 +119,7 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
                     </div>
                 </>
             )}
-            {page === 'library' && sources.tab === 'local' ? (
+            {page === 'library' && (homeSource === 'local' || sources.tab === 'local') ? (
                 <LocalDirectory {...props} />
             ) : page === 'library' && sources.tab === 'navidrome' ? (
                 <NavidromeDirectory {...props} />

@@ -31,6 +31,9 @@ export default function NativeHomePage(args:NativeHomeProps&{page:'home'|'librar
     // 只换首页数据源；播放器、迷你条与队列不归它管，切来源不打断播放。
     const homeSource=useHomeSourceStore(state=>state.source);
     if(args.page==='home')return homeSource==='local'?<NativeLocalHomeOverview {...args}/>:<NativeHomeOverview {...args}/>;
+    // 资料库以全局音源为准：选了「本地音乐」就直接进本地曲库，不再让旧的在线页签残留
+    // （homeViewTab 由 useHomeSourceStore.setSource 同步，但旧版本持久化可能不一致）。
+    if(homeSource==='local')return <NativeLocalLibrary {...args}/>;
     if(args.sources.tab==='local')return <NativeLocalLibrary {...args}/>;
     if(args.sources.tab==='navidrome')return <NaviLibrary {...args}/>;
     return <OnlineLibrary {...args}/>;

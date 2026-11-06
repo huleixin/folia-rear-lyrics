@@ -32,7 +32,11 @@ internal class NativeShellCache(context: Context) {
         }
         fun prepareChrome(value:JSONObject):NativeCachedPresentation? {
             val data=value.optJSONObject("data")?:return null;val copy=JSONObject()
-            data.keys().forEach{key->if(key!="position")copy.put(key,data.get(key))}
+            // cover 不能进冷启动快照：它要么是只有 WebView 能解的相对路径（持久化后会
+            // 把「坏封面」跨进程复现），要么是几十 KB 的内联位图（每次切歌都要把整个
+            // SharedPreferences XML 重写一遍）。排除后 boot seed 显示默认占位图，
+            // WebView 推来第一帧带真实封面的 update 时自动替换，不产生视觉回归。
+            data.keys().forEach{key->if(key!="position"&&key!="cover")copy.put(key,data.get(key))}
             return snapshot(value.optString("id"),copy)
         }
     }

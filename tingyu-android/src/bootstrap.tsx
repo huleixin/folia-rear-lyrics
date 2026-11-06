@@ -18,6 +18,7 @@ import { installNativeDragGuard } from './utils/nativeDragGuard';
 import { bootNavidromeServerPreset } from './services/navidromeServerPreset';
 import { isNavidromeEnabled } from './services/navidromeService';
 import { setNavidromeEnabledState } from './stores/useLibraryStore';
+import { reconcileSourceOnStartup } from './stores/useHomeSourceStore';
 import { isMainAppSurface } from './utils/appSurface';
 import { installPlaybackHeartbeat } from './services/playbackHeartbeat';
 // 副作用 import：store 在模块加载时就把 `<html data-reduce-motion>` 写好并保持同步。放在 bootstrap
@@ -96,6 +97,9 @@ void Promise.allSettled([bootFolium(), bootNavidrome()])
         // registration used to hold this callback forever when register() never settled, leaving
         // the HTML splash animation on screen with no app behind it.
         navigationMark('js-bootstrap-ready');
+        // 旧版本只持久化了全局音源、没同步资料库页签；挂载前以全局音源为准对齐一次，
+        // 保证「选了本地音乐 → 重启后资料库仍是本地曲库」。不清空任何用户数据。
+        reconcileSourceOnStartup();
         renderApp();
         void initializeLocalCoverRuntime();
     });

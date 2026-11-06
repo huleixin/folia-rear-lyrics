@@ -112,6 +112,9 @@ describe('store contract', () => {
             useSearchNavigationStore: ['useSearchHistoryStore'],
             // 综合搜索的分类 store 只借 SearchSource 这个类型（import type），没有运行时边。
             useSearchExploreStore: ['useSearchNavigationStore'],
+            // 全局音乐来源（在线/本地）是唯一权威：它驱动资料库页签，避免音源弹窗选了
+            // 本地音乐而资料库仍停在 QQ 音乐。单向边，navigation store 不反向导入它。
+            useHomeSourceStore: ['useSearchNavigationStore'],
         };
         const INFRASTRUCTURE = new Set([
             'storagePrimitives', 'useStatusMessageStore', 'visualizerSettingsPersistence', 'motionSignals',

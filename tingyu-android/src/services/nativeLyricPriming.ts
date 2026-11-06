@@ -6,7 +6,10 @@ import { getSongResourceCacheKey } from './onlineMusic/resourceKeys';
 import { saveToCache } from './db';
 import { omni } from './onlineMusic/omni';
 import { migrateLyricDataRenderHints } from '../utils/lyrics/renderHints';
-import { buildColorOsLyricInfo } from '../utils/lyrics/colorOsLyricInfo';
+import { buildColorOsLyricInfo, hasUsableLyricTimeline } from '../utils/lyrics/colorOsLyricInfo';
+import { resolveLocalSongLyrics } from '../utils/lyrics/localSongLyrics';
+import { getLocalSong } from './db';
+import { useLyricSettingsStore } from '../stores/useLyricSettingsStore';
 import { publishColorOsLyricInfo, clearColorOsLyricInfo } from '../platform/foliaColorOsLyrics';
 import { nextColorOsGeneration } from './lyricSessionGeneration';
 import { createProviderSongMetadata } from '../utils/songMetadata';
@@ -151,6 +154,39 @@ const publishTimeline = async (song: SongResult, lyrics: LyricData, key: string)
 };
 
 /**
+ * 本地歌接入**同一条**统一歌词仓库（ColorOsLyricBridge → RearNativeLyricLines →
+ * 灵动岛 / 背屏 / 原生极简歌词页）。
+ *
+ * 旧实现把 isLocalPlaybackSong 直接挡在 ensureNativeLyric 门外，本地歌词于是只留在
+ * WebView 内存里：前台舞台能显示，但后台补词、队列预置、锁屏自动切歌、进程回收后
+ * 恢复全都没有词。这里不新建歌词数据源，只把播放器页用的同一个
+ * resolveLocalSongLyrics（内嵌同步词 / 内嵌纯文本 / 同名 LRC / 手动关联 / 在线匹配，
+ * 用户手动来源优先）的结果交给现有的 publishTimeline。**绝不联网**：本地歌的歌词
+ * 全在曲库记录里，SAF 导入的曲目同样如此（导入时已读好，不依赖原始文件路径）。
+ */
+const ensureLocalNativeLyric = async (song: SongResult, key: string): Promise<boolean> => {
+    const songId = (song as { localRef?: { songId?: string } }).localRef?.songId;
+    if (!songId) return false;
+    const startedAt = Date.now();
+    const record = await getLocalSong(songId);
+    if (!record) return false;
+    const { lyrics } = await resolveLocalSongLyrics(
+        record,
+        useLyricSettingsStore.getState().localLyricsPriority,
+    );
+    if (!lyrics?.lines?.length || !hasUsableLyricTimeline(lyrics)) {
+        // 真没词，或只有纯文本歌词：都不发布同步时间轴（静态词由 WebView 歌词页展示）。
+        // 明确宣告给原生，停止重问，也不让上一首的词留在灵动岛/背屏上。
+        void clearColorOsLyricInfo(key);
+        noteNativeAnswer(song, 'local-static-or-no-lyrics', false, 0, Date.now() - startedAt);
+        return false;
+    }
+    const published = await publishTimeline(song, lyrics, key);
+    noteNativeAnswer(song, 'local-lyrics', published, lyrics.lines.length, Date.now() - startedAt);
+    return published;
+};
+
+/**
  * 确保某一首的歌词已经在原生缓存里。
  *
  * @param fetch 本地两处都没有时是否允许联网取一次。只给「原生正在播的那一首」开这个口子：
@@ -163,12 +199,15 @@ export const ensureNativeLyric = (
     options: { fetch?: boolean } = {},
 ): Promise<boolean> => {
     const key = getPlaybackSongKey(song);
-    if (!key || isLocalPlaybackSong(song) || isNavidromePlaybackSong(song)) return Promise.resolve(false);
+    // 本地歌不再被排除：走上面的本地分支，复用同一份歌词与同一个发布通道。
+    // Navidrome 的歌词由服务端提供，原有链路不动。
+    if (!key || isNavidromePlaybackSong(song)) return Promise.resolve(false);
     if (knownEmpty.includes(key)) return Promise.resolve(false);
     const running = inFlight.get(key);
     if (running) return running;
 
     const task = (async (): Promise<boolean> => {
+        if (isLocalPlaybackSong(song)) return ensureLocalNativeLyric(song, key);
         const startedAt = Date.now(),epoch=lyricEpoch;
         const shared=await readSharedLyricRecord(song);
         if(shared&&(shared.userChoice||shared.confirmedBy==='stage'||!options.fetch))return true;
@@ -233,7 +272,8 @@ export const primeNativeLyricsForSongs = async (
 ): Promise<void> => {
     for (const song of songs.slice(0, LYRIC_PRIME_AHEAD)) {
         const key = getPlaybackSongKey(song);
-        if (!key || isLocalPlaybackSong(song) || isNavidromePlaybackSong(song)) continue;
+        // 本地歌也要预置：后台自动切到本地曲时，原生缓存里必须已经有它的词。
+        if (!key || isNavidromePlaybackSong(song)) continue;
         if (isPrimed(key)) continue;
         // 先记账再尝试：此刻没有词，不代表以后没有。
         markWanted(key);

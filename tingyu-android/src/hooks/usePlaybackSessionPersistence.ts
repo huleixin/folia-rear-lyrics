@@ -36,14 +36,21 @@ export function usePlaybackSessionPersistence(audio:RefObject<HTMLAudioElement|n
             void checkpointRecovery(getPlaybackSongKey(s.currentSong),currentTime.get()*1000,mode()).catch(()=>{});
         };
         const a=usePlaybackStore.subscribe(save),b=useAudioSettingsStore.subscribe(save);
-        const timer=setInterval(checkpoint,20000);
+        // 4 秒节流：进程被系统直接终止时，最多只丢最后几秒。全量队列快照按内容去重，
+        // 心跳实际只写很小的 cursor，不会每 4 秒重写整份队列。
+        const timer=setInterval(checkpoint,4000);
         const background=()=>{if(document.visibilityState!=='visible')checkpoint();};
+        const leaving=()=>{checkpoint();};
         document.addEventListener('visibilitychange',background);
+        // 不能只靠 onDestroy / visibilitychange：Activity 被回收或进程被杀时，
+        // pagehide / beforeunload 是最后两次有机会把当前位置落盘的事件。
+        window.addEventListener('pagehide',leaving);
+        window.addEventListener('beforeunload',leaving);
         window.addEventListener('tingyu-playback-recovery-ready',save);
         const originChanged=()=>{dirty=true;save();};window.addEventListener('tingyu-playback-origin',originChanged);
         const mediaEvent=(event:Event)=>{if(event.target===audio.current)checkpoint();};
         // Capture also follows the active deck after refs change; media events do not bubble.
         document.addEventListener('pause',mediaEvent,true);document.addEventListener('seeked',mediaEvent,true);
-        return()=>{a();b();clearInterval(timer);document.removeEventListener('visibilitychange',background);window.removeEventListener('tingyu-playback-recovery-ready',save);window.removeEventListener('tingyu-playback-origin',originChanged);document.removeEventListener('pause',mediaEvent,true);document.removeEventListener('seeked',mediaEvent,true);};
+        return()=>{a();b();clearInterval(timer);document.removeEventListener('visibilitychange',background);window.removeEventListener('pagehide',leaving);window.removeEventListener('beforeunload',leaving);window.removeEventListener('tingyu-playback-recovery-ready',save);window.removeEventListener('tingyu-playback-origin',originChanged);document.removeEventListener('pause',mediaEvent,true);document.removeEventListener('seeked',mediaEvent,true);};
     },[audio]);
 }

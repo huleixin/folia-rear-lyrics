@@ -15,16 +15,20 @@ export default function NativeDirectoryPage({root,props,sources,onReady,onSource
     tailSections?:PageSection[];onFilter?:(query:string)=>void;
 }) {
     const {t}=useTranslation();const [query,setQuery]=useState(''),[sort,setSort]=useState<DirectorySort>('source'),[offset,setOffset]=useState(0);
+    const localMode=useHomeSourceStore(state=>state.source)==='local';
     const rows=useMemo(()=>directoryRows(cards,query,sort),[cards,query,sort]);
     const actions:PageActions={...extraActions,sources:onSources,filter:e=>{setQuery(e.text??'');onFilter?.(e.text??'');setOffset(0)},range:e=>setOffset(Math.max(0,Math.floor((e.value??0)/100)*100))};
-    const tabs:PageSection={id:'sources',layout:'chips',items:sources.tabs.map(tab=>{
+    // 「歌单 / 电台 / 专辑 / 本地」是**在线**资料库的分类导航。全局来源是本地音乐时整行
+    // 不生成（不是只藏「本地」按钮，也不留空白占位）；本地资料库自己的分类由 sections 传入，
+    // 照常渲染。切回在线时这里自动恢复，不影响在线资料库。
+    const tabs:PageSection|null=localMode?null:{id:'sources',layout:'chips',items:sources.tabs.map(tab=>{
         const key=`source:${tab.key}`;
         // 资料库页签与推荐页音源是同一个概念的两面：切到本地页签 = 选本地音源，
         // 切回在线页签 = 选在线音源（推荐页随之恢复在线首页）。播放不受影响。
         actions[key]=()=>{sources.setTab(tab.key);useHomeSourceStore.getState().setSource(tab.key==='local'?'local':'online')};
         return{id:key,title:tab.label,action:key,selected:sources.tab===tab.key,disabled:!!tab.disabledReason};
     })};
-    for(const extra of props.extraTabs??[]){actions[`extra:${extra.id}`]=extra.select;tabs.items!.push({id:extra.id,title:extra.label,action:`extra:${extra.id}`})}
+    if(tabs)for(const extra of props.extraTabs??[]){actions[`extra:${extra.id}`]=extra.select;tabs.items!.push({id:extra.id,title:extra.label,action:`extra:${extra.id}`})}
     const orders:DirectorySort[]=canSortDirectoryByUpdate(cards)?['source','name','updated']:['source','name'];
     const sorting:PageSection={id:'sort',title:heading,layout:'chips',items:enableSort?orders.map(order=>{
         actions[`sort:${order}`]=()=>{setSort(order);setOffset(0)};
@@ -34,8 +38,9 @@ export default function NativeDirectoryPage({root,props,sources,onReady,onSource
         const key=`open:${index}:${card.id}`;actions[key]=()=>onOpen(card,index);
         return{id:key,title:card.name,subtitle:card.trackCount!=null?t('mobileLibrary.trackCount',{count:card.trackCount}):card.description,image:absolutePageImage(card.coverUrl),action:key};
     });
-    const model:NativePageModel={key:`library:${route}`,title:t('mobileLibrary.libraryTitle'),trailing:'sources',trailingLabel:sources.online.providerLabel,
-        bottomClearance:152,sections:[tabs,...sections,{id:'filter',layout:'input',value:query,placeholder:t('mobileLibrary.filterLibrary'),action:'filter'},...(heading||enableSort?[sorting]:[]),
+    // 本地模式右上角不显示在线音源选择器（QQ 音乐下拉）；PageHeading 只在 trailing 非空时画胶囊。
+    const model:NativePageModel={key:`library:${route}`,title:t('mobileLibrary.libraryTitle'),trailing:localMode?'':'sources',trailingLabel:localMode?'':sources.online.providerLabel,
+        bottomClearance:152,sections:[...(tabs?[tabs]:[]),...sections,{id:'filter',layout:'input',value:query,placeholder:t('mobileLibrary.filterLibrary'),action:'filter'},...(heading||enableSort?[sorting]:[]),
             {id:'directory',key:`${query}:${sort}`,layout:'rows',items,total:rows.length,offset,request:'range'},...tailSections,...(!rows.length&&!tailSections.some(s=>s.total||s.items?.length)?[{id:'empty',layout:'message' as const,text:query?t('home.noResults'):emptyMessage}]:[])]};
     const bound=pageRowActions(actions,id=>{
         const match=/^open:(\d+):(.*)$/.exec(id);if(!match)return;

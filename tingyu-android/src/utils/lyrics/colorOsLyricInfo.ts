@@ -44,6 +44,19 @@ export interface ColorOsLyricInfoResult {
 }
 
 /**
+ * 这份歌词有没有真实时间轴。
+ *
+ * 只有本地歌需要用它把关：内嵌普通文本 / 无时间轴 LRC 解析出来是一组 startTime=0 的行，
+ * 直接发布就会变成「全部堆在 00:00」的假同步 LRC，灵动岛与背屏会一直停在第一句。
+ * 在线歌的单行歌词等既有行为不受影响（它们照原样发布），所以判断放在调用方，
+ * 不塞进 buildColorOsLyricInfo 的通用规则里。
+ */
+export const hasUsableLyricTimeline = (lyrics: LyricData | null | undefined): boolean => {
+    const lines = lyrics?.lines ?? [];
+    return lines.some(line => Number.isFinite(line?.startTime) && (line.startTime ?? 0) > 0);
+};
+
+/**
  * 时间标签 `mm:ss.mmm`。
  *
  * Bridge 的判定正则是 `[\d{1,3}:[0-9]{2}([.:][0-9]{1,3})?]`，三位毫秒是推荐写法。

@@ -4,6 +4,7 @@ import { PlayerState } from '../types';
 import { currentTime } from '../stores/motionSignals';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
 import { createProviderSongMetadata } from '../utils/songMetadata';
+import { resolveNativePlayerArtwork, subscribeNativePlayerArtwork } from './nativeCoverThumbnail';
 import {
   selectDisplayDuration,
   selectDisplayPlayerState,
@@ -45,7 +46,10 @@ export const buildNativePlaybackPayload = (
     title: song.name || 'Unknown Song',
     artist: metadata.artists.map(artist => artist.name).filter(Boolean).join(' / '),
     album: metadata.album.name,
-    coverUrl: metadata.coverUrl || (song as unknown as { coverUrl?: string }).coverUrl || '',
+    // 锁屏/通知在 WebView 之外：本地歌的 /__folia_cover/ 或 blob: 必须换成两端可读的 data:。
+    coverUrl: resolveNativePlayerArtwork(
+      metadata.coverUrl || (song as unknown as { coverUrl?: string }).coverUrl || '',
+    ),
     songKey: getPlaybackSongKey(song),
     playing,
     position: milliseconds(positionSeconds * 1000),
@@ -140,6 +144,8 @@ export const installNativePlaybackBridge = async (
     publish(readPayload(), { force });
   };
   usePlaybackStore.subscribe(() => pushState());
+  // 封面异步转成 data: 后重推一次锁屏元数据（identity 里含 coverUrl，去重不会挡住它）。
+  subscribeNativePlayerArtwork(() => { pushState(true); });
   window.setInterval(() => {
     const state = usePlaybackStore.getState();
     pushState(selectDisplayPlayerState(state) === PlayerState.PLAYING);

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { isAndroidNativeRuntime } from '../services/nativeLocalMusic';
 import { findNativeSongsNeedingHydration, hydrateNativeSongs } from '../services/nativeLocalMetadata';
+import { usePlaybackStore } from '../stores/usePlaybackStore';
 
 // src/hooks/useNativeLocalMetadataBackfill.ts
 /**
@@ -22,6 +23,17 @@ export const useNativeLocalMetadataBackfill = (): void => {
             try {
                 const pending = await findNativeSongsNeedingHydration();
                 if (cancelled || pending.length === 0) return;
+                // 当前正在播的这一首先单独跑一批：批量模式每 25 首才 flush 一次事件，
+                // 等它轮到当前歌时首屏早就过去了。单独一批会立刻落库并派发
+                // folia-local-music-updated，播放器快照随之补上刚抽出来的封面。
+                const current = usePlaybackStore.getState().currentSong;
+                const currentId = (current as unknown as { localRef?: { songId?: string } } | null)?.localRef?.songId;
+                const currentIndex = currentId ? pending.findIndex(song => song.id === currentId) : -1;
+                if (currentIndex >= 0) {
+                    const [currentSong] = pending.splice(currentIndex, 1);
+                    await hydrateNativeSongs([currentSong], { limit: 1, concurrency: 1 });
+                    if (cancelled) return;
+                }
                 // 一次启动最多补 200 首：几千首一口气跑完会长时间占着 CPU 和 IO，
                 // 分几次启动补完对用户完全无感，而且每补一批界面就会自己刷新。
                 const stats = await hydrateNativeSongs(pending, { limit: 200, concurrency: 2 });
