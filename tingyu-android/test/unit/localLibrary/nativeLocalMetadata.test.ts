@@ -210,6 +210,54 @@ describe('parseNativeSongMetadata 的分档读取', () => {
     });
 });
 
+describe('hydrateNativeSongs 的贯穿式取消', () => {
+    it('isCancelled 翻转后立即停止剩余歌曲，不再读取文件（卸载/重载不再白白占用 IO）', async () => {
+        const { hydrateNativeSongs } = await import('../../../src/services/nativeLocalMetadata');
+        const wav = buildTaggedWav({ title: '批量取消' });
+        readNativeAudioBytes.mockResolvedValue({ bytes: wav, read: wav.length, total: wav.length });
+        const songs = Array.from({ length: 5 }, (_, index) => makeSong({ id: `song-${index}` }));
+        // 第一轮循环检查放行（处理第 1 首），之后一直取消：并发 1 保证断言确定。
+        let checked = 0;
+        const stats = await hydrateNativeSongs(songs, {
+            limit: 5, concurrency: 1,
+            isCancelled: () => { checked += 1; return checked > 1; },
+        });
+
+        expect(stats.hydrated).toBe(1);
+        expect(readNativeAudioBytes).toHaveBeenCalledTimes(1);
+        expect(stats.failed).toBe(0);
+    });
+
+    it('取消时已解析完的部分照常落库，下次启动从 findNativeSongsNeedingHydration 继续', async () => {
+        const { hydrateNativeSongs, findNativeSongsNeedingHydration } = await import('../../../src/services/nativeLocalMetadata');
+        const wav = buildTaggedWav({ title: '进度保留', lyrics: '[00:01.00]已补全' });
+        readNativeAudioBytes.mockResolvedValue({ bytes: wav, read: wav.length, total: wav.length });
+        const songs = Array.from({ length: 4 }, (_, index) => makeSong({ id: `keep-${index}` }));
+
+        const stats = await hydrateNativeSongs(songs, {
+            limit: 4, concurrency: 1,
+            isCancelled: (() => { let calls = 0; return () => { calls += 1; return calls > 1; }; })(),
+        });
+
+        expect(stats.hydrated).toBe(1);
+        // 已落库的那首带上了新版本号：重新查询「待补全」列表时不再包含它。
+        const pending = await findNativeSongsNeedingHydration();
+        expect(pending.some(song => song.id.startsWith('keep-'))).toBe(false);
+    });
+
+    it('正常路径不受取消机制影响：全部处理并分批落库', async () => {
+        const { hydrateNativeSongs } = await import('../../../src/services/nativeLocalMetadata');
+        const wav = buildTaggedWav({ title: '完整批' });
+        readNativeAudioBytes.mockResolvedValue({ bytes: wav, read: wav.length, total: wav.length });
+        const songs = Array.from({ length: 3 }, (_, index) => makeSong({ id: `full-${index}` }));
+
+        const stats = await hydrateNativeSongs(songs, { limit: 3, concurrency: 2, isCancelled: () => false });
+
+        expect(stats.hydrated).toBe(3);
+        expect(readNativeAudioBytes).toHaveBeenCalledTimes(3);
+    });
+});
+
 describe('hydrateNativeSong 的兜底顺序', () => {
     it('内嵌歌词与同名外挂歌词都在时，外挂那份作为「本地歌词」保留（与全局优先级 本地 > 内嵌 > 在线 一致）', async () => {
         const { hydrateNativeSong } = await import('../../../src/services/nativeLocalMetadata');

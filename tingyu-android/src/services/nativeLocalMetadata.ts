@@ -308,10 +308,11 @@ export const ensureNativeSongCover = async (song: LocalSong): Promise<LocalSong>
  */
 export const hydrateNativeSongs = async (
     songs: LocalSong[],
-    options: { limit?: number; concurrency?: number; } = {},
+    options: { limit?: number; concurrency?: number; isCancelled?: () => boolean; } = {},
 ): Promise<{ hydrated: number; failed: number; }> => {
     const limit = options.limit ?? HYDRATION_BATCH;
     const concurrency = Math.max(1, options.concurrency ?? 3);
+    const isCancelled = options.isCancelled;
     const pending = songs.filter(song => song.nativeAudioRef).slice(0, limit);
     if (pending.length === 0) return { hydrated: 0, failed: 0 };
 
@@ -335,12 +336,16 @@ export const hydrateNativeSongs = async (
     };
 
     const worker = async () => {
-        while (true) {
+        // 贯穿式取消（稳定性专项风险一）：调用方（启动补全的 useEffect）可能在批进行中
+        // 被卸载（WebView 重载、路由重建）。每首歌开始前检查取消标记，已解析完的
+        // 部分照常落库，剩余条目立即停止，不再与播放/首屏抢占 IO 与 worker。
+        while (!isCancelled?.()) {
             const index = nextIndex++;
             if (index >= pending.length) return;
             const song = pending[index];
             try {
                 const result = await hydrateNativeSong(song);
+                // 已解析完的成果无条件入缓冲：取消只阻止「取新歌」，不丢已完成的工作。
                 buffer.push(result);
             } catch (error) {
                 failed += 1;
@@ -352,6 +357,7 @@ export const hydrateNativeSongs = async (
 
     try {
         await Promise.all(Array.from({ length: Math.min(concurrency, pending.length) }, () => worker()));
+        // 取消时也把已完成的部分落库：已解析的成果不丢，下次启动从 findNativeSongsNeedingHydration 继续。
         await flush();
         noteLocalLibraryDiagnostic('native-hydrate:done', { hydrated, failed, total: pending.length });
         console.log(`${LOG_PREFIX} Hydrated ${hydrated}/${pending.length} songs (failed ${failed}).`);

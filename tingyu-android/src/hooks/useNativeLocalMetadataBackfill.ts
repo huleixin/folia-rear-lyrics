@@ -15,11 +15,18 @@ import { usePlaybackStore } from '../stores/usePlaybackStore';
  * 只在安卓原生运行时跑：网页/桌面的本地歌有 File System Access 句柄，
  * 走的是另一条导入链路，不需要这里。
  */
+
+// 模块级防并行（稳定性专项风险一）：WebView 重载/组件重挂后 effect 会重新注册，
+// 上一轮批可能还在跑。串行化而不是叠加并发，避免双份 IO/worker/写库负载。
+let backfillInFlight = false;
+
 export const useNativeLocalMetadataBackfill = (): void => {
     useEffect(() => {
         if (!isAndroidNativeRuntime()) return;
         let cancelled = false;
         const run = async () => {
+            if (backfillInFlight) return;
+            backfillInFlight = true;
             try {
                 const pending = await findNativeSongsNeedingHydration();
                 if (cancelled || pending.length === 0) return;
@@ -31,18 +38,22 @@ export const useNativeLocalMetadataBackfill = (): void => {
                 const currentIndex = currentId ? pending.findIndex(song => song.id === currentId) : -1;
                 if (currentIndex >= 0) {
                     const [currentSong] = pending.splice(currentIndex, 1);
-                    await hydrateNativeSongs([currentSong], { limit: 1, concurrency: 1 });
+                    await hydrateNativeSongs([currentSong], { limit: 1, concurrency: 1, isCancelled: () => cancelled });
                     if (cancelled) return;
                 }
                 // 一次启动最多补 200 首：几千首一口气跑完会长时间占着 CPU 和 IO，
                 // 分几次启动补完对用户完全无感，而且每补一批界面就会自己刷新。
-                const stats = await hydrateNativeSongs(pending, { limit: 200, concurrency: 2 });
+                // 贯穿式取消：组件卸载（WebView 重载/路由重建）后立即停止剩余歌曲，
+                // 已解析完的部分照常落库，下次启动从上次进度继续。
+                const stats = await hydrateNativeSongs(pending, { limit: 200, concurrency: 2, isCancelled: () => cancelled });
                 console.log(
                     `[NativeLocalMetadata] Startup backfill: ${stats.hydrated}/${pending.length} songs`
                     + (pending.length > 200 ? ` (${pending.length - 200} left for next launch)` : ''),
                 );
             } catch (error) {
                 console.warn('[NativeLocalMetadata] Startup backfill failed:', error);
+            } finally {
+                backfillInFlight = false;
             }
         };
         // 让启动动画、首屏渲染先跑完再开始，避免和冷启动抢主线程。
