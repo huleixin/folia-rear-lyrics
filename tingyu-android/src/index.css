@@ -34,7 +34,9 @@
 
 /* Custom Global Styles */
 body {
-  background-color: #09090b;
+  /* 首屏底色跟 index.html 的启动底板同源（深 #102D25 / 浅 #F4F5EE）；
+     未定义该变量的入口（背屏、OBS 源等）仍保持原来的纯黑。 */
+  background-color: var(--ty-launch-bg, #09090b);
   color: #e4e4e7;
   font-family: 'Inter', var(--font-cjk-sans), sans-serif;
   overflow: hidden;

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="referrer" content="no-referrer" />
     <meta name="description" content="一个动态歌词播放器，支持 AI 主题生成" />
-    <meta name="theme-color" content="#09090b" />
+    <meta name="theme-color" content="#102D25" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -31,10 +31,38 @@
 </script>
     <!-- 首屏加载遮罩：内联样式，随 HTML 首帧一起绘制，不等 index.css 与 JS bundle。
          由 src/utils/appSplash.ts 在 React 挂载后淡出并移除。 -->
+    <script>
+      // 启动底色定色，必须早于首帧绘制。
+      // 与原生启动窗口同源：LaunchSurface（深 #102D25 / 浅 #F4F5EE），偏好键与
+      // InterfaceAppearance 的 SharedPreferences 同名同值（system|light|dark）。
+      // 这段以前的底色是 #09090b，于是 WebView 一画出 HTML 就在已经上色的启动窗口上
+      // 盖一块纯黑：录屏 68737 里 0.50~0.80s 那段 std≈1.3 的死黑就是它（第 4 层来源）。
+      (function () {
+        try {
+          var mode = localStorage.getItem('tingyu_interface_appearance_v1') || 'dark';
+          var light =
+            mode === 'light' ||
+            (mode === 'system' &&
+              typeof window.matchMedia === 'function' &&
+              window.matchMedia('(prefers-color-scheme: light)').matches);
+          document.documentElement.setAttribute('data-launch-light', light ? 'true' : 'false');
+        } catch (ignored) {
+          document.documentElement.setAttribute('data-launch-light', 'false');
+        }
+      })();
+    </script>
     <style>
+      :root {
+        --ty-launch-bg: #102d25;
+      }
+
+      html[data-launch-light='true'] {
+        --ty-launch-bg: #f4f5ee;
+      }
+
       html,
       body {
-        background-color: #09090b;
+        background-color: var(--ty-launch-bg);
       }
 
       #app-splash {
@@ -44,7 +72,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background-color: #09090b;
+        background-color: var(--ty-launch-bg);
         font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
         transition: opacity 320ms ease;
       }
@@ -52,6 +80,17 @@
       #app-splash.is-hiding {
         opacity: 0;
         pointer-events: none;
+      }
+
+      /* 浅色底板上白字与白色辉光会看不见，改用浅色主题的墨色。 */
+      html[data-launch-light='true'] #app-splash .app-splash-title span {
+        color: #213e34;
+        text-shadow: 0 0 8px rgba(33, 62, 52, 0.28), 0 0 28px rgba(33, 62, 52, 0.16);
+      }
+
+      html[data-launch-light='true'] #app-splash .app-splash-wave span {
+        background-color: rgba(33, 62, 52, var(--alpha, 0.85));
+        box-shadow: 0 0 var(--glow, 14px) rgba(33, 62, 52, 0.24);
       }
 
       #app-splash .app-splash-inner {
