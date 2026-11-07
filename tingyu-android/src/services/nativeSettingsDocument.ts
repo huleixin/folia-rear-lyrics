@@ -58,7 +58,9 @@ export function captureSettingsDocument(root:HTMLElement){
         // 装饰层（全屏遮罩、纯视觉按钮外框）永不注册成原生控件。无 area 的控件在 Compose 里
         // 与 Controls(null) 一起最后合成，永远盖在面板内容之上 —— 一个全屏遮罩按钮会把面板里
         // 的每一次点击都变成「点遮罩」（反馈面板点哪都返回上一页，就是这么来的）。
-        const decoration=element.closest('[data-native-decoration]');
+        // 两条独立的判定：data-native-decoration 覆盖整个子树；aria-hidden 只针对元素自身，
+        // 语义上本就不该成为可交互控件，也给「新弹窗忘了打标记」留一道结构性兜底。
+        const decoration=element.closest('[data-native-decoration]')||element.getAttribute('aria-hidden')==='true';
         const input=!decoration&&(element instanceof HTMLInputElement||element instanceof HTMLTextAreaElement||element instanceof HTMLSelectElement);
         const clickable=!decoration&&(element.matches('button,a[href],summary,[role="button"],[role="tab"],[role="option"],[role="switch"],[role="checkbox"]')
             ||element instanceof HTMLLabelElement&&element.control?.matches('input[type="file"],input[type="checkbox"],input[type="radio"]'));

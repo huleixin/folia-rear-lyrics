@@ -113,22 +113,35 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
 
     const busy = phase === 'working' || phase === 'previewing';
 
+    // 只有「点在遮罩/容器空白处」才关闭。event.target === event.currentTarget 把面板
+    // 内容区完全排除；面板自己再 stopPropagation 兜一道。这样 DOM 侧与原生镜像侧
+    // 用的是同一套语义：内部任何点击都不会冒泡成关闭。
+    const handleScrimClick = (event: React.MouseEvent<HTMLDivElement>) => {
+        if (event.target === event.currentTarget) onClose();
+    };
+
     return createPortal(
-        <div className="fixed inset-0 z-[160] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={copy.title}>
-            {/* 背景遮罩不能是 <button>：原生设置文档会把每个 button 编译成一个覆盖全屏的
-                点击控件，而无 area 的控件在 Compose 里最后合成、永远盖在内容之上 ——
-                于是「点面板里任何位置」都被判成点遮罩，直接 onClose。这里用普通 div：
-                DOM 里照样能点空白关闭，原生侧则不会被采成控件（data-native-decoration
-                再上一道保险）。 */}
+        <div
+            className="fixed inset-0 z-[160] flex items-end justify-center sm:items-center"
+            role="dialog"
+            aria-modal="true"
+            aria-label={copy.title}
+            onClick={handleScrimClick}
+        >
+            {/* 纯装饰层：不能是 <button>，也不能带 onClick。原生设置文档会把每个可点
+                元素编译成控件，而无 area 的控件在 Compose 里最后合成、永远盖在内容之上 ——
+                一个覆盖全屏的遮罩按钮会把面板里每一次点击都变成「点遮罩 → onClose」。
+                pointer-events-none 让空白处的点击落到外层容器（由 handleScrimClick 严格
+                判定），aria-hidden / data-native-decoration 再各上一道采集侧保险。 */}
             <div
                 aria-hidden="true"
                 data-native-decoration="true"
-                onClick={onClose}
-                className="absolute inset-0"
+                className="pointer-events-none absolute inset-0"
                 style={{ backgroundColor: palette.scrim, backdropFilter: 'blur(6px)' }}
             />
             <div
                 data-testid="feedback-panel"
+                onClick={(event) => event.stopPropagation()}
                 className="relative flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border sm:rounded-3xl"
                 style={{
                     backgroundColor: palette.surface,
