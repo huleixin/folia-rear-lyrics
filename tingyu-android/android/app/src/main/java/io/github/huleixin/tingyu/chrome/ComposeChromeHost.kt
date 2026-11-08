@@ -411,6 +411,15 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var updates = 0L
     private val savedPageKeys=LinkedHashSet<String>()
     fun status() = JSONObject().put("supported", Build.VERSION.SDK_INT >= 24).put("engine", "compose-backdrop-1.0.6")
+        // 玻璃专项：把编辑期预设与实际生效参数一起报给 JS，真机上不必拆包就能核对装的是哪一组。
+        .put("glass", ChromeGlassPresets.active().key)
+        .put("glassParams", JSONObject()
+            .put("blur", ChromeGlassPresets.active().blur.value.toDouble())
+            .put("lensHeight", ChromeGlassPresets.active().lensHeight.value.toDouble())
+            .put("lensAmount", ChromeGlassPresets.active().lensAmount.value.toDouble())
+            .put("lightAlpha", ChromeGlassPresets.active().surface(true, ChromeGlassPresets.NavFill).alpha.toDouble())
+            .put("darkAlpha", ChromeGlassPresets.active().surface(false, ChromeGlassPresets.NavFill).alpha.toDouble())
+            .put("miniLightAlpha", ChromeGlassPresets.active().surface(true, ChromeGlassPresets.MiniFill).alpha.toDouble()))
         .put("mounted",host != null).put("active",active).put("surfaces",surfaces.values.count { it.enabled && active }).put("updates",updates).put("pages",Build.VERSION.SDK_INT >= 24)
         // 二级操作面板能力位（原生化专项·第 21 轮）：JS 只有拿到 true 才把 ⋯ 面板交给原生，
         // 否则继续用 WebView 的 .ml-sheet —— 旧包/回滚构建因此不会出现"点了没反应"。

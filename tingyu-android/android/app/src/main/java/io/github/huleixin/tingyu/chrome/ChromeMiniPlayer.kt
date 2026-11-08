@@ -34,7 +34,9 @@ import kotlin.math.abs
     timer:MiniSleepUi?=null,onSleepAnchor:(Rect)->Unit={},action: (String,Double)->Unit) {
     val ink=chromeColor(s.ink);val accent=chromeColor(s.accent)
     val cover=pageImage(s.cover)
-    BoxWithConstraints(modifier.chromeGlass(backdrop,s.light,28.dp,lightSurfaceAlpha=.64f,legacyLightSurfaceAlpha=.84f)) {
+    // 与底栏同一份材质规范（vibrancy → blur → lens + 光学高光/内阴影），只在表面不透明度上
+    // 按内容密度加厚一档（MiniFill）：歌名/歌手/播放键要压住模糊背景，但折射与高光逻辑一致。
+    BoxWithConstraints(modifier.chromeGlass(backdrop,s.light,28.dp,ChromeGlassPresets.active(),ChromeGlassPresets.MiniFill)) {
     val compact=maxWidth<340.dp
     val spacing=miniPlayerSpacing(maxWidth.value)
     Row(Modifier.fillMaxSize().padding(horizontal=6.dp,vertical=3.dp),verticalAlignment=Alignment.CenterVertically) {
