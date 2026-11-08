@@ -15,7 +15,12 @@ data class SettingPaint(val rect:SettingRect,val kind:String,val area:String,val
 data class SettingControl(val id:String,val rect:SettingRect,val kind:String,val area:String,val value:String,val label:String,val disabled:Boolean,
     val min:Float,val max:Float,val step:Float,val inputType:String,val font:Float,val color:String,val multiline:Boolean,val placeholder:String,val padding:List<Float>,val options:List<Pair<String,String>>,val accent:String="",val rangeFill:Boolean=true)
 data class SettingArea(val id:String,val rect:SettingRect,val contentHeight:Float,val offset:Int)
-data class NativeSettingsDocument(val paints:List<SettingPaint>,val controls:List<SettingControl>,val areas:List<SettingArea>,val live:List<SettingRect>){
+data class NativeSettingsDocument(val paints:List<SettingPaint>,val controls:List<SettingControl>,val areas:List<SettingArea>,val live:List<SettingRect>,
+    /**
+     * 语义化设置页（原生化专项·第 21 轮）：非空时由 TySettingsPageView 用 Compose 自己排版，
+     * paints/controls 的矩形**不再被消费**。为空时维持逐元素测量的显示列表，行为与以前一致。
+     */
+    val flow:TySettingsPage?=null){
     companion object{
         fun parse(v:JSONObject):NativeSettingsDocument{
             val paints=v.optJSONArray("paints").objects();require(paints.size<=14000)
@@ -29,7 +34,8 @@ data class NativeSettingsDocument(val paints:List<SettingPaint>,val controls:Lis
                     p.f("min"),p.f("max",100.0),p.f("step",1.0),p.optString("inputType"),p.f("font",14.0),p.optString("color"),p.optBoolean("multiline"),p.optString("placeholder"),
                     (0..3).map{p.optJSONArray("padding")?.optDouble(it,0.0)?.toFloat()?:0f},p.optJSONArray("options").objects().map{it.getString("value") to it.getString("label")},p.optString("accent"),p.optBoolean("rangeFill",true))},
                 areas.map{SettingArea(it.getString("id"),SettingRect.parse(it),it.f("contentHeight").coerceIn(0f,2000000f),it.optInt("offset").coerceAtLeast(0))},
-                v.optJSONArray("live").objects().map{SettingRect.parse(it)})
+                v.optJSONArray("live").objects().map{SettingRect.parse(it)},
+                v.optJSONObject("flow")?.let{runCatching{TySettingsPage.parse(it)}.getOrNull()})
         }
     }
 }

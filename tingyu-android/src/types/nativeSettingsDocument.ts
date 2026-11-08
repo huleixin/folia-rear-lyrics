@@ -8,4 +8,25 @@ export type SettingsControl=SettingsRect&{id:string;kind:'click'|'text'|'range'|
     min?:number;max?:number;step?:number;inputType?:string;options?:{value:string;label:string}[];font?:number;color?:string;multiline?:boolean;
     placeholder?:string;padding?:number[];accent?:string;rangeFill?:boolean};
 export type SettingsScrollArea=SettingsRect&{id:string;contentHeight:number;offset:number};
-export type NativeSettingsDocument={paints:SettingsPaint[];controls:SettingsControl[];areas:SettingsScrollArea[];live:SettingsRect[]};
+export type NativeSettingsDocument={paints:SettingsPaint[];controls:SettingsControl[];areas:SettingsScrollArea[];live:SettingsRect[];
+    /**
+     * 语义化设置页（原生化专项·第 21 轮）。给了它，Compose 就**不再消费** paints/controls 的矩形，
+     * 改用自己的设置控件排版（TySettingsPageView）—— 于是这一页的排版真值源回到 Compose，
+     * DOM 只提供"有哪些项、当前值是什么"。
+     *
+     * 缺省（undefined）= 维持逐元素测量的显示列表，行为与以前逐像素一致。
+     * 两条路径可同时存在于不同分区，逐页迁移互不影响。
+     */
+    flow?:NativeSettingsFlow};
+/** 语义化设置页模型。见 chrome/TySettingsModel.kt 的同名契约。 */
+export type NativeSettingsFlowNode={
+    id:string;
+    kind:'group'|'action'|'switch'|'select'|'slider'|'input'|'note';
+    title:string;hint?:string;value?:string;icon?:string;disabled?:boolean;detail?:string;
+    min?:number;max?:number;step?:number;unit?:string;
+    placeholder?:string;confirmLabel?:string;multiline?:boolean;
+    options?:{value:string;label:string}[];
+    /** 回传动作名；缺省等于 id。 */
+    action?:string;
+};
+export type NativeSettingsFlow={key:string;title:string;subtitle?:string;nodes:NativeSettingsFlowNode[]};

@@ -29,6 +29,14 @@ import kotlinx.coroutines.FlowPreview
 // One retained native display list. Scroll invalidates Canvas drawing, not JS/React layouts.
 @OptIn(FlowPreview::class)
 @Composable internal fun NativeSettingsDocumentView(document:NativeSettingsDocument,modifier:Modifier,action:PageAction){
+    // 语义化路径（原生化专项·第 21 轮）：这一页已经声明了自己的设置项，Compose 自己排版，
+    // 不再消费任何 DOM 矩形。没有 flow 的页面完全走下面的老路径（逐像素显示列表），
+    // 因此迁移是**逐页**的：改一页不影响其它页。
+    document.flow?.let{flow->
+        val light=LocalInterfacePalette.current.light
+        TySettingsPageView(flow,TyPanelTheme.of(light),modifier){action,text,value->action(action,text,value)}
+        return
+    }
     val scale=LocalDensity.current.density
     val scrolls=document.areas.associate{area->area.id to key(area.id){remember{mutableFloatStateOf(area.offset.toFloat())}}}
     val drawingCache=remember{mutableMapOf<SettingPaint,SettingsDrawing>()}
