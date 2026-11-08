@@ -177,6 +177,20 @@ public final class BackgroundContinuation {
         .shared(PlaybackDiagnostics.contextOrNull())
         .registerResolvedAudio(url, false);
 
+    /**
+     * 解析结果 → 播放器实际使用的 URI。
+     *
+     * 默认在本地代理登记（kuwo/网易/波点/洛雪/汽水：前台也是这么走的，请求形态必须
+     * 同构）；解析器声明了直连（SourceResolution.okDirect，QQ 系）就把直链原样交给
+     * Media3 —— 代理的转发请求（兑底 kuwo Referer + 固定 UA）与前台直连不同形态，
+     * 真机 1.3.182 上 QQ CDN 拒收后代理包成 502，正是后台 QQ 连续失败的原因。
+     * 后台与前台必须走**同一条**取流路径。
+     */
+    public String registerForPlayback(SourceResolution resolution) throws Exception {
+        if (resolution == null || !resolution.ok()) throw new IllegalArgumentException("resolution not ok");
+        return resolution.proxy() ? registrar.register(resolution.url) : resolution.url;
+    }
+
     private volatile Registrar registrar = DEFAULT;
 
     /** 测试用：替换地址登记动作，让后台续播可以在 JVM 上整段模拟。 */
@@ -350,7 +364,7 @@ public final class BackgroundContinuation {
         }
         String uri;
         try {
-            uri = registrar.register(resolution.url);
+            uri = registerForPlayback(resolution);
         } catch (Exception error) {
             failures++;
             PlaybackDiagnostics.note("continuation-failed", new com.getcapacitor.JSObject()

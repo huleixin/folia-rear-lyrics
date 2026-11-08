@@ -216,15 +216,25 @@ public final class LocalAudioServer {
         return "http://127.0.0.1:" + localPort + REMOTE_AUDIO_PATH_PREFIX + token;
     }
 
-    /** 有些 CDN 看 Referer 决定给不给资源：不带时回的是一段 HTML 而不是音频。 */
-    private static String remoteAudioReferer(String value) {
+    /**
+     * 有些 CDN 看 Referer 决定给不给资源：不带时回的是一段 HTML 而不是音频。
+     * 返回空串表示**不要带 Referer**：QQ 的 isure CDN 由播放器直连时从不带 Referer 也照常
+     * 给流，而代理原先的兑底值是 kuwo 的 —— 用它去请求 QQ CDN 与前台直连的请求形态
+     * 不一致，是真机 1.3.182 后台 QQ 全线 502 的直接原因之一。与前台同构：QQ 主机不带。
+     */
+    static String remoteAudioReferer(String value) {
         try {
             String host = new URL(value).getHost();
-            if (host != null) for (String suffix : BYTEDANCE_AUDIO_HOST_SUFFIXES) {
-                if (host.equals(suffix) || host.endsWith("." + suffix)) return "https://music.douyin.com/";
-            }
-            if (host != null && (host.equals("music.126.net") || host.endsWith(".music.126.net"))) {
-                return NETEASE_REMOTE_AUDIO_REFERER;
+            if (host != null) {
+                for (String suffix : BYTEDANCE_AUDIO_HOST_SUFFIXES) {
+                    if (host.equals(suffix) || host.endsWith("." + suffix)) return "https://music.douyin.com/";
+                }
+                if (host.equals("music.126.net") || host.endsWith(".music.126.net")) {
+                    return NETEASE_REMOTE_AUDIO_REFERER;
+                }
+                // QQ（isure.stream.qqmusic.qq.com / aqqmusic.tc.qq.com / y.qq.com …）：
+                // 前台 Media3 直连从不带 Referer，代理这里也不带。
+                if (host.equals("qq.com") || host.endsWith(".qq.com")) return "";
             }
         } catch (Exception ignored) {
             return REMOTE_AUDIO_REFERER;
@@ -447,7 +457,9 @@ public final class LocalAudioServer {
         // 有些 CDN 看 UA / Referer 决定给不给资源，不带的话会回一段 HTML 而不是音频
         // —— 那种回包喂进 <audio> 正是「Format error」的经典来源。
         request.header("User-Agent", REMOTE_AUDIO_USER_AGENT);
-        if (!lxSource || isRemoteAudioHostAllowed(new URL(target).getHost())) request.header("Referer", remoteAudioReferer(target));
+        String referer = (!lxSource || isRemoteAudioHostAllowed(new URL(target).getHost()))
+            ? remoteAudioReferer(target) : "";
+        if (!referer.isEmpty()) request.header("Referer", referer);
         // 调用方带来的头（飞牛的 music-token）最后写：同名的以它为准。
         if (extraHeaders != null) {
             for (Map.Entry<String, String> entry : extraHeaders.entrySet()) {
@@ -461,9 +473,19 @@ public final class LocalAudioServer {
         try {
             ResponseBody body = upstream.body();
             if (!upstream.isSuccessful() || body == null) {
-                Log.w(TAG, "remote audio upstream " + upstream.code() + " for " + (lxSource ? new URL(target).getHost() : target));
+                String upstreamHost;
+                try { upstreamHost = new URL(target).getHost(); } catch (Exception ignored) { upstreamHost = ""; }
+                Log.w(TAG, "remote audio upstream " + upstream.code() + " for " + (lxSource ? upstreamHost : target));
+                // 之前这里只进 logcat，诊断包里永远只剩代理自己的 502 —— 上游到底回了
+                // 什么都不知道。现在同步进结构化事件流（只带主机名，不带签名参数）。
+                io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("proxy-upstream-failed",
+                    new com.getcapacitor.JSObject()
+                        .put("upstreamStatus", upstream.code())
+                        .put("upstreamHost", upstreamHost)
+                        .put("lxSource", lxSource)
+                        .put("range", headers.get("range") != null));
                 if (lxSource) writeLxError(output, upstream.code());
-                else writeStatus(output, 502, "Upstream Error");
+                else writeUpstreamError(output, upstream.code());
                 return;
             }
             String contentType = body.contentType() != null ? body.contentType().toString() : "audio/mpeg";
@@ -650,6 +672,18 @@ public final class LocalAudioServer {
      * 带上 ACAO 之后，上层用 fetch 探一次就能读到真实的 404/502，不用再猜。
      */
     private static void writeLxError(OutputStream output, int upstreamStatus) throws IOException {
+        String response = "HTTP/1.1 502 Upstream Error\r\nContent-Length: 0\r\n"
+            + "Access-Control-Allow-Origin: *\r\nAccess-Control-Expose-Headers: X-Tingyu-Upstream-Status\r\n"
+            + "X-Tingyu-Upstream-Status: " + upstreamStatus + "\r\nConnection: close\r\n\r\n";
+        output.write(response.getBytes(StandardCharsets.US_ASCII)); output.flush();
+    }
+
+    /**
+     * 非洛雪源的「上游错误」也带上真实上游状态码：Media3 的
+     * InvalidResponseCodeException 会保留响应头，引擎侧把它读出来写进 player-error，
+     * 诊断包从此能区分「上游 403（地址/鉴权问题）」与「上游 5xx（服务端问题）」。
+     */
+    private static void writeUpstreamError(OutputStream output, int upstreamStatus) throws IOException {
         String response = "HTTP/1.1 502 Upstream Error\r\nContent-Length: 0\r\n"
             + "Access-Control-Allow-Origin: *\r\nAccess-Control-Expose-Headers: X-Tingyu-Upstream-Status\r\n"
             + "X-Tingyu-Upstream-Status: " + upstreamStatus + "\r\nConnection: close\r\n\r\n";

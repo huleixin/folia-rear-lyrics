@@ -421,6 +421,14 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 String phase=httpStatus>0?"url-open":"read-or-unknown";
                 Uri currentUri=player.getCurrentMediaItem()==null||player.getCurrentMediaItem().localConfiguration==null
                     ?null:player.getCurrentMediaItem().localConfiguration.uri;
+                // 代理诊断三件套：是否经本地代理（host=127.0.0.1）、代理标注的真实上游状态码、
+                // 地址从落地到被拒存活了多久（tag.adoptedAt）。有了它们，「后台 502」才能
+                // 区分是代理转发形态被上游拒、还是地址真的过期。
+                Object tagObject=currentUri==null?null:player.getCurrentMediaItem().localConfiguration.tag;
+                com.getcapacitor.JSObject tagMeta=tagObject instanceof com.getcapacitor.JSObject
+                    ?(com.getcapacitor.JSObject)tagObject:null;
+                boolean proxied=currentUri!=null&&"127.0.0.1".equals(String.valueOf(currentUri.getHost()));
+                long adoptedAt=tagMeta==null?0L:(long)tagMeta.optDouble("adoptedAt",0L);
                 PlaybackDiagnostics.note("player-error",new JSObject().put("code",error.errorCode)
                     .put("name",error.getErrorCodeName()).put("song",PlaybackDiagnostics.anonKey(songKey))
                     .put("positionMs",Math.max(0,player.getCurrentPosition()))
@@ -431,7 +439,10 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                     .put("host",currentUri==null?"":String.valueOf(currentUri.getHost()))
                     .put("qualityPrefix",currentUri==null?"":io.github.huleixin.tingyu.resolver.QqResolver.prefixFromFilename(String.valueOf(currentUri.getLastPathSegment())))
                     .put("phase",phase)
-                    .put("redirectSeen",redirectSeen(error)));
+                    .put("redirectSeen",redirectSeen(error))
+                    .put("proxied",proxied)
+                    .put("upstreamStatus",upstreamStatusOf(error))
+                    .put("urlAgeMs",adoptedAt>0?SystemClock.elapsedRealtime()-adoptedAt:-1));
                 if(!desiredPaused&&NativeRetryPolicy.canRetry(error.errorCode,networkRetries)){
                     int attempt=++networkRetries;String token=sourceId;long generation=++retryGeneration;
                     PlaybackTestDiagnostics.note("network-retry",new JSObject().put("attempt",attempt).put("code",error.errorCode));
@@ -634,6 +645,9 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         tag.put("providerId",track.providerId);
         tag.put("mediaId",track.mediaId);
         tag.put("nativeContinuation",true);
+        // 地址落地时刻：后续 url-open 失败时用它算「地址从解析到被拒存活了多久」，
+        // 直接回答「是不是解析完还没播就过期了」。
+        tag.put("adoptedAt",SystemClock.elapsedRealtime());
         boolean wasEnded=player.getPlaybackState()==Player.STATE_ENDED;
         player.addMediaItem(new MediaItem.Builder().setUri(parsed).setMediaId(track.songKey).setTag(tag).build());
         int remaining=Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1);
@@ -698,20 +712,37 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
 
     /** 响应里是否带了 Location 头（OkHttp 自动跟随重定向；仍带此头说明链上发生过跳转）。 */
     static boolean redirectSeen(Throwable error){
+        return !upstreamHeader(error,"location").isEmpty();
+    }
+
+    /**
+     * 从错误链的 InvalidResponseCodeException 里读响应头（大小写不敏感）。
+     * 本地代理把真实上游状态码放在 {@code X-Tingyu-Upstream-Status} 里，诊断与
+     * 恢复决策都靠它区分「上游拒了地址（403 类）」与「上游服务端故障（5xx）」。
+     */
+    static String upstreamHeader(Throwable error,String name){
         Throwable cause=error;
         for(int depth=0;cause!=null&&depth<8;depth++){
             if(cause instanceof androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException){
                 java.util.Map<String,java.util.List<String>> headers=
                     ((androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException)cause).headerFields;
-                if(headers==null)return false;
-                for(String key:headers.keySet()){
-                    if("location".equalsIgnoreCase(key))return true;
+                if(headers==null)return"";
+                for(java.util.Map.Entry<String,java.util.List<String>> entry:headers.entrySet()){
+                    if(entry.getKey()!=null&&name.equalsIgnoreCase(entry.getKey())
+                        &&entry.getValue()!=null&&!entry.getValue().isEmpty())return entry.getValue().get(0);
                 }
-                return false;
+                return"";
             }
             cause=cause.getCause();
         }
-        return false;
+        return"";
+    }
+
+    /** 代理标注的真实上游状态码；非代理路径返回 -1。 */
+    static int upstreamStatusOf(Throwable error){
+        String value=upstreamHeader(error,"X-Tingyu-Upstream-Status");
+        if(value.isEmpty())return -1;
+        try{return Integer.parseInt(value.trim());}catch(NumberFormatException ignored){return -1;}
     }
 
     /** 当前播放项的音质前缀（从 URL 尾段认，如 RS01/F000/M800/M500）。 */
@@ -789,6 +820,12 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                     PlaybackDiagnostics.note("skip-retry",new JSObject()
                         .put("attempt",attempt).put("song",PlaybackDiagnostics.anonKey(target))
                         .put("reason",decision.reason));
+                    // 原生续播补进的条目：先重新解析并登记新地址再重试。旧逻辑只会
+                    // prepare 同一个 URI —— 地址失效（临时直链过期、代理转发被上游拒）时
+                    // 重试必然复现同一错误，这正是真机上 31 次 502 里大部分的重试消耗。
+                    // 刷新失败（网络抖动/解析失败）退回原来的原地重试，有界性由
+                    // PlaybackSkipPolicy 的重试上限保证，行为不变。
+                    if(refreshCurrentItemBeforeRetry(target,generation,token))return;
                     failure=null;player.prepare();player.play();
                 },Math.max(400L,attempt*800L));
                 return true;
@@ -818,9 +855,22 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 }
                 MediaItem current=player.getCurrentMediaItem();
                 if(current==null||current.localConfiguration==null)return false;
+                // 降档重取的地址与后台续播走同一条登记路径（代理/直连同构），
+                // 不能这里直连、正常播放却走代理。
+                String loweredUri;
+                try{loweredUri=BackgroundContinuation.get().registerForPlayback(resolution);}
+                catch(Exception registerError){
+                    PlaybackDiagnostics.note("quality-downgrade-failed",new JSObject()
+                        .put("song",PlaybackDiagnostics.anonKey(songKey)).put("reason","register")
+                        .put("nextPrefix",nextPrefix));
+                    if(hasNext){executeSkip("downgrade-unavailable");return true;}
+                    return false;
+                }
+                JSObject refreshedTag=copy((JSObject)current.localConfiguration.tag);
+                refreshedTag.put("adoptedAt",SystemClock.elapsedRealtime());
                 MediaItem lowered=new MediaItem.Builder()
-                    .setUri(resolution.url).setMediaId(current.mediaId)
-                    .setTag(copy((JSObject)current.localConfiguration.tag)).build();
+                    .setUri(Uri.parse(loweredUri)).setMediaId(current.mediaId)
+                    .setTag(refreshedTag).build();
                 int index=Math.max(0,player.getCurrentMediaItemIndex());
                 player.replaceMediaItem(index,lowered);
                 player.prepare();player.play();
@@ -835,6 +885,65 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 executeSkip(decision.reason);
                 return true;
         }
+    }
+
+    /**
+     * RETRY_SAME 前把当前这首的地址刷新一遍（仅限原生续播补进的条目）。
+     *
+     * 在后台线程重新解析（同一首、同一音质偏好），再按「前台同构」的规则登记
+     * （代理/直连由 {@link SourceResolution#proxy()} 决定），然后原位替换当前条目。
+     * 重新解析或登记失败时返回 false，调用方退回原来的原地重试 —— 有界性不变。
+     * 任何返回 true 的路径都已经完成 prepare/play，调用方不要再动播放器。
+     */
+    private boolean refreshCurrentItemBeforeRetry(String target,long generation,String token){
+        MediaItem current=player.getCurrentMediaItem();
+        Object tag=current==null||current.localConfiguration==null?null:current.localConfiguration.tag;
+        if(!(tag instanceof JSObject)||!((JSObject)tag).optBoolean("nativeContinuation",false))return false;
+        NativePlaylist list=NativePlaylist.get();
+        final NativePlaylist.Track self=list.trackFor(target);
+        if(self==null||!io.github.huleixin.tingyu.resolver.ResolverRegistry.get().canResolveNatively(self))return false;
+        final String quality=QualityPreference.get();
+        Thread worker=new Thread(()->{
+            io.github.huleixin.tingyu.resolver.SourceResolution resolution;
+            try{resolution=io.github.huleixin.tingyu.resolver.ResolverRegistry.get().resolve(self,quality);}
+            catch(Throwable error){resolution=null;}
+            final io.github.huleixin.tingyu.resolver.SourceResolution fresh=resolution;
+            main.post(()->{
+                if(generation!=retryGeneration||!sourceId.equals(token)||desiredPaused)return;
+                MediaItem existing=player.getCurrentMediaItem();
+                if(existing==null||existing.localConfiguration==null)return;
+                if(fresh==null||!fresh.ok()){
+                    PlaybackDiagnostics.note("retry-refresh",new JSObject()
+                        .put("song",PlaybackDiagnostics.anonKey(target)).put("refreshed",false)
+                        .put("reason",fresh==null?"resolve-crashed":fresh.reason));
+                    failure=null;player.prepare();player.play();
+                    return;
+                }
+                String refreshedUri;
+                try{refreshedUri=BackgroundContinuation.get().registerForPlayback(fresh);}
+                catch(Exception error){
+                    PlaybackDiagnostics.note("retry-refresh",new JSObject()
+                        .put("song",PlaybackDiagnostics.anonKey(target)).put("refreshed",false)
+                        .put("reason","register:"+error.getClass().getSimpleName()));
+                    failure=null;player.prepare();player.play();
+                    return;
+                }
+                JSObject refreshedTag=copy((JSObject)existing.localConfiguration.tag);
+                refreshedTag.put("adoptedAt",SystemClock.elapsedRealtime());
+                MediaItem refreshed=new MediaItem.Builder()
+                    .setUri(Uri.parse(refreshedUri)).setMediaId(existing.mediaId)
+                    .setTag(refreshedTag).build();
+                int index=Math.max(0,player.getCurrentMediaItemIndex());
+                player.replaceMediaItem(index,refreshed);
+                PlaybackDiagnostics.note("retry-refresh",new JSObject()
+                    .put("song",PlaybackDiagnostics.anonKey(target)).put("refreshed",true)
+                    .put("quality",fresh.quality).put("proxy",fresh.proxy()));
+                failure=null;player.prepare();player.play();
+            });
+        },"tingyu-retry-refresh");
+        worker.setDaemon(true);
+        worker.start();
+        return true;
     }
 
     /** 跳过这一首：计数、留痕、然后真的往前一首。 */

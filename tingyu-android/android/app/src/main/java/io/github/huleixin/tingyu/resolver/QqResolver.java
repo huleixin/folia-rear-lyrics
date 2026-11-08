@@ -305,7 +305,7 @@ public final class QqResolver implements SourceResolver {
             if (!isPlayable(parsed[0])) {
                 return SourceResolution.failure("authed musicu returned no purl (login may be expired)");
             }
-            return SourceResolution.ok(parsed[0], parsed[1], System.currentTimeMillis());
+            return SourceResolution.okDirect(parsed[0], parsed[1], System.currentTimeMillis());
         } catch (IOException error) {
             return SourceResolution.failure("authed musicu unreachable: " + error.getClass().getSimpleName());
         }
@@ -524,7 +524,7 @@ public final class QqResolver implements SourceResolver {
                 String url = requestMusicu(songmid, prefix);
                 if (isPlayable(url)) {
                     noteMusicuHit();
-                    return SourceResolution.ok(url, resolvedQuality(prefix), System.currentTimeMillis());
+                    return SourceResolution.okDirect(url, resolvedQuality(prefix), System.currentTimeMillis());
                 }
             } catch (IOException error) {
                 lastReason = "musicu unreachable: " + error.getClass().getSimpleName();
@@ -551,7 +551,8 @@ public final class QqResolver implements SourceResolver {
                 String body = response.body() == null ? "" : response.body().string();
                 String playable = parseBackendUrl(body, songmid);
                 return isPlayable(playable)
-                    ? SourceResolution.ok(playable, resolvedQuality(apiQuality), System.currentTimeMillis())
+                    // QQ 直连（与前台一致，见 SourceResolution.proxied）。
+                    ? SourceResolution.okDirect(playable, resolvedQuality(apiQuality), System.currentTimeMillis())
                     : SourceResolution.failure("QQ backend returned no url at " + apiQuality);
             }
         } catch (IOException error) {

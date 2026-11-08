@@ -25,35 +25,58 @@ public final class SourceResolution {
     /** UNSUPPORTED / FAILURE 的可解释原因，会原样进诊断报告。 */
     public final String reason;
     public final long fetchedAt;
+    /**
+     * 这个地址是否应当经本地代理（LocalAudioServer）转交给播放器。
+     *
+     * 判据是**与前台同构**：前台 JS 侧对 kuwo/网易/波点/洛雪/汽水都会先走
+     * {@code proxyNativeRemoteAudioUrl}（那些 CDN 需要代理补的 Referer/UA，或 <audio>
+     * 需要 CORS），后台续播也必须走同一条路；而 QQ 的前台链路把 CDN 直链直接交给
+     * Media3（QQ CDN 不在代理的调用方名单里），后台若把它塞进代理，代理会用 kuwo 的
+     * Referer 去请求 QQ CDN —— 请求形态与前台完全不同，CDN 拒收后代理包一层 502
+     * （真机 1.3.182：后台 QQ 连续 31 次 502 @127.0.0.1，回前台直连立刻恢复）。
+     * 所以解析器必须自己声明：QQ 系地址直连，其余默认代理。
+     */
+    public final boolean proxied;
 
     private SourceResolution(Status status, String url, String quality, Map<String, String> headers,
-                             String reason, long fetchedAt) {
+                             String reason, long fetchedAt, boolean proxied) {
         this.status = status;
         this.url = url == null ? "" : url;
         this.quality = quality == null ? "" : quality;
         this.headers = headers == null ? Collections.emptyMap() : headers;
         this.reason = reason == null ? "" : reason;
         this.fetchedAt = fetchedAt;
+        this.proxied = proxied;
     }
 
     public static SourceResolution ok(String url, String quality, long fetchedAt) {
-        return new SourceResolution(Status.OK, url, quality, Collections.emptyMap(), "", fetchedAt);
+        return new SourceResolution(Status.OK, url, quality, Collections.emptyMap(), "", fetchedAt, true);
     }
 
     public static SourceResolution ok(String url, String quality, Map<String, String> headers, long fetchedAt) {
-        return new SourceResolution(Status.OK, url, quality, headers, "", fetchedAt);
+        return new SourceResolution(Status.OK, url, quality, headers, "", fetchedAt, true);
+    }
+
+    /** 解析成功，且**不走本地代理**：播放器直接连该地址（与前台直连行为同构）。 */
+    public static SourceResolution okDirect(String url, String quality, long fetchedAt) {
+        return new SourceResolution(Status.OK, url, quality, Collections.emptyMap(), "", fetchedAt, false);
     }
 
     public static SourceResolution unsupported(String reason) {
-        return new SourceResolution(Status.UNSUPPORTED, "", "", Collections.emptyMap(), reason, 0L);
+        return new SourceResolution(Status.UNSUPPORTED, "", "", Collections.emptyMap(), reason, 0L, true);
     }
 
     public static SourceResolution failure(String reason) {
-        return new SourceResolution(Status.FAILURE, "", "", Collections.emptyMap(), reason, 0L);
+        return new SourceResolution(Status.FAILURE, "", "", Collections.emptyMap(), reason, 0L, true);
     }
 
     public boolean ok() {
         return status == Status.OK;
+    }
+
+    /** 该地址交给播放器前是否要先在本地代理登记（见 {@link #proxied}）。 */
+    public boolean proxy() {
+        return proxied;
     }
 
     @Override
