@@ -14,31 +14,31 @@
 .mobile-library.ml-footer > nav {
     position: relative;
     background:
-        linear-gradient(155deg, #ffffff0c 0%, transparent 55%, #ffffff04 100%),
-        rgb(11 20 19 / 46%);
-    border-color: #ffffff20;
-    box-shadow: 0 5px 16px #0003;
-    -webkit-backdrop-filter: blur(10px) saturate(1.25);
-    backdrop-filter: blur(10px) saturate(1.25);
-    transition: background-color 180ms ease, border-color 180ms ease, transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+        var(--ty-glass-highlight),
+        var(--ty-glass-tint);
+    border-color: var(--ty-glass-border);
+    box-shadow: var(--ty-glass-shadow);
+    -webkit-backdrop-filter: blur(var(--ty-glass-blur)) saturate(var(--ty-glass-saturate));
+    backdrop-filter: blur(var(--ty-glass-blur)) saturate(var(--ty-glass-saturate));
+    transition: background-color var(--ty-duration-base) ease, border-color var(--ty-duration-base) ease, transform var(--ty-duration-base) var(--ty-ease-standard);
 }
 
 .mobile-library.ml-footer > .ml-mini { isolation: isolate; }
 .mobile-library.ml-footer > nav {
     isolation: isolate;
-    background-color: rgb(11 20 19 / 58%);
+    background-color: var(--ty-glass-tint-nav);
 }
 
 .mobile-library.ml-footer nav svg {
     stroke-width: 1.8;
-    transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 180ms ease;
+    transition: transform var(--ty-duration-base) var(--ty-ease-standard), opacity var(--ty-duration-base) ease;
 }
 
 .mobile-library.ml-footer nav button[aria-current='page']:not([disabled]) {
     background: linear-gradient(155deg, #ffffff20, #ffffff0b 72%);
     border: 1px solid #ffffff18;
     box-shadow: inset 0 1px 0 #ffffff20;
-    transition: transform 240ms cubic-bezier(0.2, 0.85, 0.25, 1), background-color 180ms ease;
+    transition: transform 240ms var(--ty-ease-standard), background-color var(--ty-duration-base) ease;
 }
 
 .mobile-library.ml-footer nav button[aria-current='page'] svg {
@@ -60,8 +60,8 @@
 
 .mobile-library.ml-footer nav button,
 .mobile-library .ml-mini-controls .ml-icon {
-    transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1), color 180ms ease, background-color 180ms ease,
-        opacity 180ms ease;
+    transition: transform var(--ty-duration-base) var(--ty-ease-standard), color var(--ty-duration-base) ease, background-color var(--ty-duration-base) ease,
+        opacity var(--ty-duration-base) ease;
 }
 
 .mobile-library.ml-footer nav button:active:not(:disabled),
@@ -71,11 +71,11 @@
 
 .mobile-library.ml-footer > [data-soft-glass],
 .mobile-player-stage .mps-player[data-soft-glass] {
-    background: linear-gradient(150deg, #ffffff12, #ffffff02 55%), rgb(12 23 21 / 62%);
-    border: 1px solid #ffffff26;
-    box-shadow: inset 0 1px 0 #ffffff22, 0 4px 14px #0003;
-    -webkit-backdrop-filter: blur(10px) saturate(1.15);
-    backdrop-filter: blur(10px) saturate(1.15);
+    background: var(--ty-glass-highlight-strong), var(--ty-glass-tint-strong);
+    border: 1px solid var(--ty-glass-border-strong);
+    box-shadow: inset 0 1px 0 #ffffff22, var(--ty-glass-shadow);
+    -webkit-backdrop-filter: blur(var(--ty-glass-blur)) saturate(var(--ty-glass-saturate-soft));
+    backdrop-filter: blur(var(--ty-glass-blur)) saturate(var(--ty-glass-saturate-soft));
     /* A moving filter/transform transition would compete with the existing footer WAAPI. */
     transition: background-color 160ms ease, border-color 160ms ease;
 }
@@ -129,7 +129,7 @@
 
 /* Non-Blink engines are explicitly marked by the hook and retain a restrained blur fallback. */
 [data-glass-engine='fallback-blur'] {
-    background-color: rgb(16 24 23 / 38%);
+    background-color: var(--ty-glass-tint-fallback);
 }
 
 [data-glass-engine='backdrop-refraction'] {

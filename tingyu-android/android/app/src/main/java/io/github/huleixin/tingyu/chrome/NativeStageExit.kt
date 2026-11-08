@@ -28,7 +28,7 @@ internal class NativeStageExit {
 @Composable internal fun rememberStageExitProgress(exit:NativeStageExit,reduced:Boolean):State<Float>{
     val progress=remember{Animatable(0f)}
     LaunchedEffect(exit.active){
-        if(exit.active){progress.snapTo(0f);progress.animateTo(1f,tween(if(reduced)0 else if(exit.minimal)360 else 280,easing=if(exit.minimal)CubicBezierEasing(.4f,0f,.7f,.3f)else CubicBezierEasing(.16f,1f,.3f,1f)));exit.finish()}
+        if(exit.active){progress.snapTo(0f);progress.animateTo(1f,tween(if(reduced)0 else if(exit.minimal)TingYuMotion.StageCollapseMinimalMs else TingYuMotion.StageCollapseClassicMs,easing=if(exit.minimal)TingYuMotion.Collapse else TingYuMotion.Emphasized));exit.finish()}
         else progress.snapTo(0f)
     }
     return progress.asState()

@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* TingYu 语义化设计令牌（单一事实源，见 docs/ui-system/DESIGN_SYSTEM.md）。
+   必须在 Tailwind 之后、业务样式之前：业务样式通过 var() 消费，与顺序无关，
+   但放前面可以让 DevTools 里令牌定义总是排在最上面。 */
+@import "./styles/tingyuTokens.css";
+
 /* Folium mod stylesheets (registries.styles) live in this layer. Declaring it
    after Tailwind's layers makes mod rules win over host utilities without
    !important, independent of when a mod's <style> is injected. */

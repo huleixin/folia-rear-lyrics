@@ -30,7 +30,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -647,15 +646,15 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         // （歌单还是空态）就在新的一份少画一块时从底下露出来（23:29 录屏实测）。
                         val from=initialState?.let{NativeMotionPolicy.pageRouteKey(it.key)}?:if(firstHomeFrame)""else"stage"
                         val to=targetState?.let{NativeMotionPolicy.pageRouteKey(it.key)}?:"stage"
-                        val ease=CubicBezierEasing(.16f,1f,.3f,1f)
+                        val ease=TingYuMotion.Emphasized
                         val travel=with(density){28.dp.roundToPx()}
                         val tabTravel=with(density){8.dp.roundToPx()}
-                        val position=tween<IntOffset>(240,easing=ease)
+                        val position=tween<IntOffset>(TingYuMotion.PushMs,easing=ease)
                         (when(NativeMotionPolicy.kind(from,to,backwards,!focused||!active||reducedMotion||returningFromSettings||stageExit.suppressReturnMotion&&from=="stage")){
                             NativeMotionKind.NONE->EnterTransition.None togetherWith ExitTransition.None
                             NativeMotionKind.STAGE->fadeIn(tween(140,easing=ease)) togetherWith fadeOut(tween(if(to=="stage"&&playerPresentation=="minimal")1 else 100,delayMillis=if(to=="stage"&&playerPresentation=="minimal")520 else 0,easing=ease))
-                            NativeMotionKind.TAB->(slideInHorizontally(tween(200,easing=ease)){tabTravel}+fadeIn(tween(200,easing=ease))) togetherWith (slideOutHorizontally(tween(180,easing=ease)){-tabTravel}+fadeOut(tween(180,easing=ease)))
-                            NativeMotionKind.PUSH->(slideInHorizontally(position){travel}+fadeIn(tween(240,easing=ease))) togetherWith (slideOutHorizontally(position){-travel/3}+fadeOut(tween(200,easing=ease)))
+                            NativeMotionKind.TAB->(slideInHorizontally(tween(TingYuMotion.TabInMs,easing=ease)){tabTravel}+fadeIn(tween(TingYuMotion.TabInMs,easing=ease))) togetherWith (slideOutHorizontally(tween(TingYuMotion.TabOutMs,easing=ease)){-tabTravel}+fadeOut(tween(TingYuMotion.TabOutMs,easing=ease)))
+                            NativeMotionKind.PUSH->(slideInHorizontally(position){travel}+fadeIn(tween(TingYuMotion.PushMs,easing=ease))) togetherWith (slideOutHorizontally(position){-travel/3}+fadeOut(tween(200,easing=ease)))
                             NativeMotionKind.POP->((slideInHorizontally(tween(220,easing=ease)){-travel/3}+fadeIn(tween(220,easing=ease))) togetherWith (slideOutHorizontally(tween(220,easing=ease)){travel}+fadeOut(tween(200,easing=ease)))).apply{targetContentZIndex=-1f}
                         })
                     },label="native-route") { shown ->
@@ -834,15 +833,15 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 // 360ms（320~380ms 目标带），入场是页面唯一的一套上滑 ——
                 // WebView 侧的同名位移已在 composeOwnsMinimalEntry 里关掉。
                 enter = if (minimalResumePending || minimalCoverHold) EnterTransition.None else slideInVertically(
-                    animationSpec = tween(360, easing = CubicBezierEasing(.2f, .72f, .16f, 1f)),
+                    animationSpec = tween(TingYuMotion.MinimalEnterMs, easing = TingYuMotion.StageEnter),
                     initialOffsetY = { it },
                 ),
                 exit = when (MinimalPlayerExitPolicy.exit(destination, page != null,minimalCollapseCommitted)) {
                     MinimalPlayerExitPolicy.Exit.NONE -> ExitTransition.None
                     MinimalPlayerExitPolicy.Exit.SLIDE_AND_FADE -> slideOutVertically(
-                        animationSpec = tween(300, easing = CubicBezierEasing(.42f, 0f, .74f, .3f)),
+                        animationSpec = tween(TingYuMotion.MinimalExitMs, easing = TingYuMotion.StageExit),
                         targetOffsetY = { it },
-                    ) + fadeOut(tween(200))
+                    ) + fadeOut(tween(TingYuMotion.MinimalFadeMs))
                 },
                 modifier = Modifier.fillMaxSize().zIndex(playerZ).stageExitTransform(stageExit,exitProgress,slide=true),
             ) {

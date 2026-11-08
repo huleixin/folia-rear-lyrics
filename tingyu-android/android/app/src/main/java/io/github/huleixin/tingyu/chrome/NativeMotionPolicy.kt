@@ -4,8 +4,9 @@ package io.github.huleixin.tingyu.chrome
 // Tab replacement has no spatial direction. Only navigation depth moves a page.
 internal enum class NativeMotionKind { NONE, TAB, PUSH, POP, STAGE }
 internal object NativeMotionPolicy {
-    const val Stiffness=520f
-    const val Damping=1f // Critically damped: nonlinear deceleration without overshoot.
+    // Spring 参数收编到 TingYuMotion（UI 统一工程）：这里保留原名做别名，调用点不变。
+    val Stiffness=TingYuMotion.SpringStiffness
+    val Damping=TingYuMotion.SpringDamping // Critically damped: nonlinear deceleration without overshoot.
     private fun root(key:String)=key.startsWith("home:")||key.startsWith("library:")||key.startsWith("search:")||key=="settings:index"
     /**
      * 页面身份：`home:qq:2473297053:false` → `home:qq`。

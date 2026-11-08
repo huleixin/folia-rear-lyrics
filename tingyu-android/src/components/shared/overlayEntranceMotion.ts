@@ -1,4 +1,5 @@
 // src/components/shared/overlayEntranceMotion.ts
+import { TY_DURATION, TY_EASE } from './motionTokens';
 // 全屏覆盖层的进出场：底衬淡入淡出，内容从略低、略小的位置托上来。
 //
 // 抽成一份是因为它决定的是「一层东西盖到应用上」这件事本身该有的节奏，而不是某个弹窗自己的
@@ -9,9 +10,10 @@
 // 拿不到 exit，要把 AnimatePresence 包在那个条件外面。
 
 export const OVERLAY_TRANSITION = {
-    // 和 GlobalLyricOffsetModal 用的是同一组数：这套曲线已经是仓库里覆盖层的既有手感。
-    duration: 0.28,
-    ease: [0.22, 1, 0.36, 1] as const,
+    // 数值收编进 motionTokens（TY_DURATION.slow / TY_EASE.enter）：设置面板、歌词偏移、
+    // Lab 共用这一组；曲线改动必须三处同步（TS / tingyuTokens.css / TingYuMotion.kt）。
+    duration: TY_DURATION.slow,
+    ease: TY_EASE.enter,
 };
 
 /** 关了微动效时留的那一份：只淡入淡出，不做位移和缩放。 */

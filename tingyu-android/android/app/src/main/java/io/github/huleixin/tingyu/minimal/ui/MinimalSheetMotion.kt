@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import io.github.huleixin.tingyu.chrome.TingYuMotion
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -29,11 +30,12 @@ import androidx.compose.ui.graphics.Color
 // 遮罩从各弹窗内部上收到宿主：弹窗本体只滑自己，遮罩只淡自己 —— 上一版没有动画，
 // 弹窗是"啪"一下出现的；再上一版遮罩长在弹窗里，会跟着弹窗一起滑，视觉上像整屏在动。
 
-internal val MinimalSheetEaseIn = CubicBezierEasing(0.2f, 0.7f, 0.2f, 1f)
-internal val MinimalSheetEaseOut = CubicBezierEasing(0.42f, 0f, 0.74f, 0.3f)
+// 曲线与时长收编到 TingYuMotion（UI 统一工程）：这里保留语义别名，调用点不必改。
+internal val MinimalSheetEaseIn = TingYuMotion.SheetIn
+internal val MinimalSheetEaseOut = TingYuMotion.StageExit
 
 internal fun minimalSheetEnter(): EnterTransition = slideInVertically(
-    animationSpec = tween(260, easing = MinimalSheetEaseIn),
+    animationSpec = tween(TingYuMotion.SheetInMs, easing = MinimalSheetEaseIn),
     initialOffsetY = { it },
 ) + fadeIn(tween(200, easing = MinimalSheetEaseIn))
 

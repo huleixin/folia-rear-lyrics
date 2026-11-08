@@ -9,7 +9,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.Density
@@ -26,10 +25,10 @@ internal typealias PageAction = (String, String, Double) -> Unit
     }
     val colors = when {
         LocalInterfacePalette.current.light -> LocalInterfacePalette.current.backgrounds
-        page.id == "settings" -> listOf(Color(0xFF061D16), Color(0xFF02120E), Color(0xFF041A13))
-        page.id == "search" -> listOf(Color(0xFF05170F), Color(0xFF03110C))
-        page.home -> listOf(Color(0xFF102D25), Color(0xFF010E0D), Color(0xFF010D0C))
-        else -> PlaylistBackgroundColors
+        page.id == "settings" -> DarkInterfaceColors.SettingsBackgrounds
+        page.id == "search" -> DarkInterfaceColors.SearchBackgrounds
+        page.home -> DarkInterfaceColors.HomeBackgrounds
+        else -> DarkInterfaceColors.Backgrounds
     }
     Box(if(page.document!=null)modifier else modifier.background(Brush.verticalGradient(colors))) {
         // Match CSS viewport pixels, independent of Android system text magnification.

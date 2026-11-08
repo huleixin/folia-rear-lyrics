@@ -1,0 +1,101 @@
+/* ============================================================================
+ * TingYu Design Tokens — 语义化设计令牌（单一事实源）
+ * ----------------------------------------------------------------------------
+ * 规则（详见 docs/ui-system/DESIGN_SYSTEM.md）：
+ *  1. 新代码一律引用本文件的 var(--ty-*) 语义令牌，禁止再造新颜色/圆角/时长魔数。
+ *  2. 深色值定义在 :root（听屿默认深色），浅色值在 html[data-interface-appearance='light'] 覆盖。
+ *  3. 本文件是既有视觉的「收编」而非「重设计」：每个数值都取自 1.3.182 基线的真实值。
+ *  4. 遗留的按作用域切片变量（--ml-*、--ui-*、--ty-settings-*）逐步迁移到这里，见迁移清单。
+ * ==========================================================================*/
+
+:root {
+    /* ---- 颜色 · 深色（默认） ---- */
+    --ty-color-bg: #030a09;                  /* 页面主背景（ Midnight 基底） */
+    --ty-color-bg-raised: #0d1a17;           /* 次级背景 / 抬升面 */
+    --ty-color-card: #ffffff0c;              /* 深色卡片表面 */
+    --ty-color-accent: #9fe0c4;              /* 品牌强调（InterfacePalette.dark.accent） */
+    --ty-color-accent-strong: #ace6cb;       /* 选中态强调（底栏当前页文字） */
+    --ty-color-on-accent: #04231b;           /* 强调色之上的文字 */
+    --ty-color-text: #f4f7f5;                /* 一级文字 */
+    --ty-color-text-secondary: #a2b6ac;      /* 二级文字 */
+    --ty-color-text-disabled: #5c6f66;       /* 禁用文字 */
+    --ty-color-icon: #a2b6ac;                /* 图标默认 */
+    --ty-color-border: #ffffff20;            /* 常规描边 */
+    --ty-color-selected: #ffffff20;          /* 选中/激活底色 */
+    --ty-color-danger: #ff6b6b;
+    --ty-color-success: #74d9ba;
+    --ty-color-warning: #e8c468;
+
+    /* ---- Liquid Glass · 玻璃材质（收编 mobileGlass.css 的既有参数） ---- */
+    --ty-glass-blur: 10px;
+    --ty-glass-saturate: 1.25;
+    --ty-glass-saturate-soft: 1.15;
+    --ty-glass-tint: rgb(11 20 19 / 46%);        /* 底栏/迷你条材质底色 */
+    --ty-glass-tint-nav: rgb(11 20 19 / 58%);    /* 导航栏比迷你条深一档 */
+    --ty-glass-tint-strong: rgb(12 23 21 / 62%); /* 播放器 soft-glass 底色 */
+    --ty-glass-tint-fallback: rgb(16 24 23 / 38%); /* 非 Blink 引擎降级 */
+    --ty-glass-border: #ffffff20;
+    --ty-glass-border-strong: #ffffff26;
+    --ty-glass-highlight: linear-gradient(155deg, #ffffff0c 0%, transparent 55%, #ffffff04 100%);
+    --ty-glass-highlight-strong: linear-gradient(150deg, #ffffff12, #ffffff02 55%);
+    --ty-glass-shadow: 0 5px 16px #0003;
+
+    /* ---- 圆角等级 ---- */
+    --ty-radius-xs: 8px;
+    --ty-radius-s: 12px;
+    --ty-radius-m: 16px;
+    --ty-radius-l: 19px;   /* 迷你播放条裁剪容器（与 Compose 版对齐） */
+    --ty-radius-xl: 24px;
+    --ty-radius-pill: 999px;
+
+    /* ---- 间距与布局 ---- */
+    --ty-space-1: 4px;
+    --ty-space-2: 8px;
+    --ty-space-3: 12px;
+    --ty-space-4: 16px;
+    --ty-space-5: 22px;    /* 页面左右边距（NativePageDesign.HomeInset） */
+    --ty-space-6: 28px;
+
+    /* ---- 动效 · CSS 侧（与 Compose 侧 TingYuMotion.kt 一一对应） ---- */
+    --ty-duration-fast: 120ms;   /* 微反馈（按压等） */
+    --ty-duration-base: 180ms;   /* 颜色/透明度过渡 */
+    --ty-duration-slow: 280ms;   /* 覆盖层/页面级进出场 */
+    --ty-duration-stage: 360ms;  /* 极简页往返舞台 */
+    --ty-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);   /* 位移类通用 */
+    --ty-ease-enter: cubic-bezier(0.22, 1, 0.36, 1);      /* 进入（减速收尾） */
+    --ty-ease-exit: cubic-bezier(0.42, 0, 0.74, 0.3);     /* 退出（加速离场） */
+
+    /* ---- 排版 ---- */
+    --ty-text-2xs: 10px;
+    --ty-text-xs: 11px;
+    --ty-text-sm: 13px;
+    --ty-text-md: 15px;
+    --ty-text-lg: 17px;
+    --ty-text-xl: 20px;
+    --ty-weight-medium: 500;
+    --ty-weight-semibold: 600;
+}
+
+/* ---- 浅色覆盖（数值与 interfaceAppearance.css 既有浅色一致） ---- */
+html[data-interface-appearance='light'] {
+    --ty-color-bg: #f4f5ee;
+    --ty-color-bg-raised: #e5ede4;
+    --ty-color-card: #ffffff80;
+    --ty-color-accent: #246e55;
+    --ty-color-accent-strong: #246e55;
+    --ty-color-on-accent: #ffffff;
+    --ty-color-text: #213e34;
+    --ty-color-text-secondary: #496357;
+    --ty-color-text-disabled: #82958b;
+    --ty-color-icon: #486153;
+    --ty-color-border: #315d4326;
+    --ty-color-selected: #3278561c;
+    --ty-glass-tint: #f1f4ed88;
+    --ty-glass-tint-nav: #f1f4ed88;
+    --ty-glass-tint-strong: #f1f4ed88;
+    --ty-glass-tint-fallback: #f1f4ed88;
+    --ty-glass-border: #315d4326;
+    --ty-glass-highlight: linear-gradient(155deg, #ffffff70 0%, transparent 55%, #ffffff20 100%);
+    --ty-glass-highlight-strong: linear-gradient(150deg, #ffffff70, #ffffff20 55%);
+    --ty-glass-shadow: 0 5px 16px #315d4314;
+}
