@@ -604,25 +604,21 @@ internal fun TySettingsPageView(
     page: TySettingsPage,
     theme: TyPanelTheme,
     modifier: Modifier = Modifier,
+    /** 顶部固定栏（毛玻璃标题栏）占用的高度：内容从这里往下开始，滚动时从玻璃后方穿出。 */
+    contentTop: androidx.compose.ui.unit.Dp = 0.dp,
+    bottomPadding: androidx.compose.ui.unit.Dp = 28.dp,
     onAction: (String, String, Double) -> Unit,
 ) {
+    // 标题由页面外框（SettingsFlowPage 的固定顶栏）绘制，这里只出内容 ——
+    // 两级都画标题会在滚动时出现两个。
     Column(modifier.fillMaxSize().imePadding()) {
-        if (page.title.isNotBlank()) {
-            Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 8.dp)) {
-                Text(page.title, color = theme.text, fontSize = 19.sp, lineHeight = 25.sp, fontWeight = FontWeight.SemiBold)
-                if (page.subtitle.isNotBlank()) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(page.subtitle, color = theme.muted, fontSize = 12.sp, lineHeight = 17.sp)
-                }
-            }
-        }
         Column(
             Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 28.dp),
+                .padding(start = 16.dp, end = 16.dp, top = contentTop)
+                .padding(bottom = bottomPadding),
         ) {
             // 分组切分：group 节点开一张卡片，其后的普通节点都装进这张卡片，
             // 直到遇到下一个 group。语义化模型的顺序即排版顺序，不需要 rect。

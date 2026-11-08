@@ -44,6 +44,9 @@ internal typealias PageAction = (String, String, Double) -> Unit
         MaterialTheme(colorScheme=scheme) {
         CompositionLocalProvider(LocalDensity provides Density(cssScale ?: density.density, 1f)) {
             when {
+                // 语义化设置页（原生化专项·第 22 轮）：自带底色 + 毛玻璃顶栏 + 原生排版，
+                // 不消费任何 DOM 矩形。没有 flow 的分区继续走下面的测量显示列表。
+                page.document?.flow!=null -> SettingsFlowPage(page.document.flow,page,Modifier.fillMaxSize(),action)
                 page.document!=null -> NativeSettingsDocumentView(page.document,Modifier.fillMaxSize(),action)
                 page.id=="settings"&&page.key.startsWith("settings:rear:")->NativeRearControlPage(page,Modifier.fillMaxSize(),density.fontScale,action)
                 page.id == "settings" -> NativeSettingsPage(page, Modifier.fillMaxSize(), action)
