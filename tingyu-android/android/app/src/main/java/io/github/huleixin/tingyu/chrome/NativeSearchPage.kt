@@ -103,9 +103,9 @@ import androidx.compose.ui.unit.sp
             }
         }
         }
-        TyTopGlassSurface(glass,colors,modifier=Modifier.fillMaxSize())
+        TyTopGlassSurface(glass,colors)
         // 顶栏内容（清晰层）：搜索框/关闭钮/音源标签/分类标签，绘制在玻璃之上。
-        Column(Modifier.fillMaxSize().padding(top=page.safeTop.dp)
+        Column(Modifier.fillMaxWidth().padding(top=page.safeTop.dp)
             .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}){
             if(menu)PageHeading(page,Modifier.padding(14.dp),action=action)
             else Column(Modifier.padding(start=14.dp,end=14.dp,top=10.dp)){

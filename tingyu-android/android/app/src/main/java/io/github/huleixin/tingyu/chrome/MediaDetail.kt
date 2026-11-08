@@ -95,9 +95,9 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
                 }}}
             }
             }
-            TyTopGlassSurface(glass,colors,modifier=Modifier.fillMaxSize())
+            TyTopGlassSurface(glass,colors)
             // 顶部操作区（清晰层）：水平边距与 WebView 对齐：.ml-page 16px + .ml-collection-top 10px = 26px。
-            Column(Modifier.fillMaxSize().padding(top=(page.safeTop+8).dp)
+            Column(Modifier.fillMaxWidth().padding(top=(page.safeTop+8).dp)
                 .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}){
             Row(Modifier.fillMaxWidth().padding(horizontal=26.dp).height(44.dp),verticalAlignment=Alignment.CenterVertically){
                 ChromeButton(label("back"),size=44.dp,onClick={action(page.leading,"",0.0)}){PageIcon("arrow-left",PageInk,Modifier.size(23.dp))}

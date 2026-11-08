@@ -56,7 +56,7 @@ import androidx.compose.ui.unit.sp
                     }}
                 }
                 }
-                TyTopGlassSurface(glass,colors,modifier=Modifier.fillMaxSize())
+                TyTopGlassSurface(glass,colors)
                 // 顶栏内容（清晰层）：返回按钮 + 标题，绘制在玻璃之上。
                 Row(Modifier.fillMaxWidth().padding(start=inset,end=inset,top=(page.safeTop+24).dp,bottom=20.dp)
                     .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){

@@ -104,9 +104,9 @@ import kotlin.math.roundToInt
                 }
             }
             }
-            TyTopGlassSurface(glass,colors,modifier=Modifier.fillMaxSize())
+            TyTopGlassSurface(glass,colors)
             // 顶栏内容：绘制在玻璃之上，始终清晰可操作；测量底边回填玻璃范围。
-            Column(Modifier.fillMaxSize().padding(top=(page.safeTop+if(library)36 else 8).dp)
+            Column(Modifier.fillMaxWidth().padding(top=(page.safeTop+if(library)36 else 8).dp)
                 .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}){
             if(library){
                 // 搜索展开时整块头部收起（240ms 同步收缩），把屏幕让给"固定搜索层 + 列表"。

@@ -161,9 +161,9 @@ import kotlinx.coroutines.launch
                 }
             }
             }
-            TyTopGlassSurface(glass,colors,modifier=Modifier.fillMaxSize())
+            TyTopGlassSurface(glass,colors)
             // 顶栏内容：绘制在玻璃之上，始终清晰可操作。
-            Column(Modifier.fillMaxSize().padding(top=(page.safeTop+if(short)8 else 36).dp)
+            Column(Modifier.fillMaxWidth().padding(top=(page.safeTop+if(short)8 else 36).dp)
                 .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}) {
                 PageHeading(page,Modifier.padding(start=start,end=end).heightIn(min=if(short)60.dp else 72.dp),large=true,action=action)
                 Spacer(Modifier.height(6.dp))

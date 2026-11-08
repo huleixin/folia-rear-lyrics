@@ -122,14 +122,21 @@ internal fun pageGradientColorAt(colors: List<Color>, fraction: Float): Color {
 internal class TyTopGlassState(val backdrop: com.kyant.backdrop.backdrops.LayerBackdrop?, estimateHeaderBottomDp: Float) {
     var headerBottomWindowPx by mutableFloatStateOf(Float.NaN)
     var originTopPx by mutableFloatStateOf(Float.NaN)
+    var pageHeightPx by mutableFloatStateOf(0f)
     var pxPerDp by mutableFloatStateOf(0f)
     var headerBottomEstimateDp by mutableFloatStateOf(estimateHeaderBottomDp)
 
-    /** 顶栏内容底边（页面相对 css-dp）。页面内的 dp 与窗口 px 经 pxPerDp（cssScale）换算。 */
+    /** 顶栏内容底边（页面相对 css-dp）。页面内的 dp 与窗口 px 经 pxPerDp（cssScale）换算。
+     *  上限保护：顶栏底边不得超过页面高度的 60% —— 头部节点若被误设 fillMaxSize，
+     *  测到的会是整页高度，会把列表全部推出屏幕、玻璃撑成整页（1.3.185 真机回归）。 */
     val headerBottomDp: Float
         get() = when {
             headerBottomWindowPx.isNaN() || originTopPx.isNaN() || pxPerDp <= 0f -> headerBottomEstimateDp
-            else -> ((headerBottomWindowPx - originTopPx) / pxPerDp).coerceAtLeast(0f)
+            else -> {
+                val measured = ((headerBottomWindowPx - originTopPx) / pxPerDp).coerceAtLeast(0f)
+                val cap = if (pageHeightPx > 0f) pageHeightPx / pxPerDp * 0.6f else Float.MAX_VALUE
+                if (measured > cap) headerBottomEstimateDp.coerceAtMost(cap) else measured
+            }
         }
 
     /** 头部内容节点回填（窗口物理 px）。 */
@@ -170,7 +177,10 @@ internal fun BoxScope.TyTopGlassContentLayer(
 ) {
     Box(
         modifier
-            .onGloballyPositioned { coords -> state.reportOrigin(coords.positionInWindow().y) }
+            .onGloballyPositioned { coords ->
+                state.reportOrigin(coords.positionInWindow().y)
+                state.pageHeightPx = coords.size.height.toFloat()
+            }
             .then(if (state.backdrop != null) Modifier.layerBackdrop(state.backdrop) else Modifier)
     ) {
         if (state.backdrop != null) {
@@ -194,8 +204,10 @@ internal fun BoxScope.TyTopGlassContentLayer(
 internal fun BoxScope.TyTopGlassSurface(
     state: TyTopGlassState,
     colors: List<Color>,
-    modifier: Modifier = Modifier,
 ) {
+    // 尺寸完全由组件内部决定（fillMaxWidth + 测量顶栏底边 + tail）：调用方无法用
+    // fillMaxSize 之类的布局修饰符把它撑成整页 —— 那会把整页变成模糊玻璃（真机回归 1.3.185）。
+
     val density = LocalDensity.current
     val light = LocalInterfacePalette.current.light
     // 玻璃底色：页面顶部背景色（深海绿/浅色主题色）+ 半透明 → 与页面自然融合。
@@ -204,7 +216,7 @@ internal fun BoxScope.TyTopGlassSurface(
     if (state.backdrop == null) {
         // 降级：无捕获时为同一形状的半透明底色层（无模糊，同样底部衰减，无横带）。
         Box(
-            modifier.fillMaxWidth()
+            Modifier.fillMaxWidth()
                 .height((state.headerBottomDp + TyTopGlass.TailDp).dp)
                 .drawBehind {
                     val bottomPx = state.headerBottomDp * state.pxPerDp
@@ -222,7 +234,7 @@ internal fun BoxScope.TyTopGlassSurface(
         return
     }
     Box(
-        modifier.fillMaxWidth()
+        Modifier.fillMaxWidth()
             .height((state.headerBottomDp + TyTopGlass.TailDp).dp)
             // 蒙版必须包住玻璃绘制：drawWithContent 的 drawContent() 含下方 drawBackdrop 的产出，
             // saveLayer 只覆盖顶栏区域（band 级离屏，尺寸小），DstIn 让强度平滑衰减。

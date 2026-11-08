@@ -54,7 +54,7 @@ private val GroupIcons=mapOf("rear" to "captions","appearance" to "sparkles","co
                 }}
             }
             }
-            TyTopGlassSurface(glass,colors,modifier=Modifier.fillMaxSize())
+            TyTopGlassSurface(glass,colors)
             // 顶栏内容（清晰层）：标题 + 关闭按钮，绘制在玻璃之上。
             Row(Modifier.fillMaxWidth().padding(start=inset,end=inset,top=(page.safeTop+24).dp,bottom=20.dp).heightIn(min=40.dp)
                 .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)},verticalAlignment=Alignment.CenterVertically){

@@ -73,6 +73,20 @@ describe('沉浸式毛玻璃顶栏结构契约', () => {
         }
     });
 
+    it('回归防护（1.3.185）：头部测量层不得被 fillMaxSize 撑成整页', () => {
+        // 头部层若用 fillMaxSize，reportHeader 会把整页高度当顶栏底边 →
+        // 列表被推出屏幕、玻璃撑成整页（真机两条症状）。头部层必须宽度撑满、高度包裹。
+        for (const file of pages) {
+            const source = chrome(file);
+            expect(source, `${file} 头部层不得使用 fillMaxSize().padding(top=...)`).not.toContain('fillMaxSize().padding(top=');
+        }
+        // 玻璃面尺寸完全由组件内部决定（签名不允许调用方传 modifier 撑成整页）。
+        expect(glassKt).not.toContain('internal fun BoxScope.TyTopGlassSurface(\n    state: TyTopGlassState,\n    colors: List<Color>,\n    modifier: Modifier = Modifier,');
+        // 测量状态自带页面高度上限保护（兜底防御）。
+        expect(glassKt).toContain('pageHeightPx');
+        expect(glassKt).toContain('* 0.6f');
+    });
+
     it('玻璃底色来自页面背景色板单一来源（跟随深浅色与页面类型）', () => {
         expect(chrome('NativePageView.kt')).toContain('internal fun NativePage.surfaceColors()');
         expect(glassKt).toContain('colors.first()');
