@@ -17,7 +17,7 @@ internal fun chromeSafeTop(top:Float,nativeBottom:Float,cssBottom:Float):Float =
  *  · `widthDp/heightDp`        Compose 根尺寸（dp）
  *  · `safeTopDp/safeBottomDp`  系统栏安全区（dp，来自 MainSystemBars 的权威 inset）
  *  · `keyboardPx`              键盘补偿（px，只有 nav/mini 吃，按 density 折回 dp）
- *  · `playlist`                歌单详情下迷你条紧贴导航栏
+ *  · `detail`                  集合详情（非歌手）下迷你条紧贴导航栏
  */
 internal fun chromeFooterRect(
     id:String,
@@ -27,8 +27,8 @@ internal fun chromeFooterRect(
     safeBottomDp:Float,
     density:Float,
     keyboardPx:Float=0f,
-    playlist:Boolean=false,
+    detail:Boolean=false,
 ):ChromeRect {
     val boostDp=if(id=="nav"||id=="mini")keyboardPx/density else 0f
-    return NativeFooterLayout.rect(id,widthDp,heightDp+boostDp,safeTopDp,safeBottomDp,playlist)
+    return NativeFooterLayout.rect(id,widthDp,heightDp+boostDp,safeTopDp,safeBottomDp,detail)
 }

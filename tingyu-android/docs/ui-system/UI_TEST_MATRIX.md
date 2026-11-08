@@ -32,8 +32,10 @@
 
 | 项 | 状态 |
 |---|---|
+| 原生集合详情契约（歌单/专辑同构、序号独立字段、songHeading 专属、筛选区按需下发） | ✅ **自动化**（nativeCollectionDetailContract.test.ts，4 断言，阶段 E） |
 | 歌单行（TrackRow）正常/超长/缺封面/不可播 | ⬜ 待真机+快照（存量 mobilePlaylistDetail 快照测试因环境缺陷失败，见 §1.1） |
 | 双端歌单详情截图对比（Compose vs WebView 同数据） | ⬜ **待真机验证**（静态已按 PLAYLIST_DETAIL_PARITY.md 逐值对齐，视觉一致性结论必须以截图为准） |
+| 专辑/每日推荐接入统一模板后的截图对比与底栏隐藏行为 | ⬜ **待真机验证**（阶段 E：数据契约与路由已统一并有单测，视觉与手势待实机） |
 | 迷你播放器/底栏深浅色 | ⬜ 待真机 |
 | ConfirmDialog / ThemedDialog 返回注册 | ✅ 存量单测覆盖 + 本轮 D-1 收敛（MobileSettingsLanding/MobileHome/歌单内搜索均已入栈体系） |
 | motionTokens 数值与 CSS/Kotlin 三端一致 | ✅ **自动化**（designTokenParity.test.ts，6 组断言） |

@@ -6,7 +6,14 @@
 
 - 音源实现位于 `src/services/onlineMusic/`：`neteaseProvider` / `qqProvider` / `kugouProvider` / `bodianProvider` / `qishuiProvider`，动态 LX（`lxProviders.ts`，wy/tx/kg/kw/mg）。注册于 `providerRegistry.ts:83-89`，统一门面 `omni.ts`。
 - 能力接口按可选项拆分（`src/types/onlineMusic.ts:534-554`）：Search / Playback / Lyrics / Auth / Library / Catalog / Recommendation / Mutation。**方法缺失 = 不提供该分类**。
-- 展示层统一：`library/core` 的 `CollectionResource`（`createCollectionResource.ts`：online / navidrome / static 三装配）→ `MobileCollection.tsx`（WebView）与 `useNativeCollectionPage.ts` → `NativePlaylistPage.kt`（Compose）。**已无按音源复制的页面。**
+- 展示层统一：`library/core` 的 `CollectionResource`（`createCollectionResource.ts`：online / navidrome / static 三装配）→ `MobileCollection.tsx`（WebView）与 `useNativeCollectionPage.ts` → `MediaDetailScaffold`（Compose，`chrome/MediaDetail.kt`；原 NativePlaylistPage 已并入）。**已无按音源复制的页面。**
+
+### 1.1 原生集合详情统一模板（阶段 E）
+
+- **路由**：`NativePageView` 按 `page.id=='collection'` 进 `MediaDetailScaffold`；`collection:artist:` 前缀保留歌手独立结构（NativeDirectoryPage artist 分支）。**禁止**按 intro/playlistIntro 分流标记路由。
+- **数据契约**（useNativeCollectionPage，所有非歌手集合一致）：`toolbar`（back/filterToggle/menu/locateCurrent）+ `intro`（封面/标题/trackCount/creator 或来源/简介）+ `controls`（playAll/enqueue/subscribe 按能力）+ `songHeading`（歌单专属）+ `filter`（仅展开或有词时下发）+ `tracks`。
+- **歌曲行契约**：歌名一律原始名；序号为独立 `number` 字段（`String(index+1).padStart(2,'0')`），由 `MediaDetailTrack` 决定展示——**禁止把序号拼进歌名**。
+- **回归测试**：`test/unit/ui/nativeCollectionDetailContract.test.ts`（歌单/专辑同构、序号独立、heading 专属、筛选区按需）。
 
 ## 2. 媒体身份（必须遵守）
 

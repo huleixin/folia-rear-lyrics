@@ -3,8 +3,8 @@ package io.github.huleixin.tingyu.chrome
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,33 +18,36 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalDensity
 import coil.compose.AsyncImage
 
-// android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePlaylistPage.kt
-// Same structure and metrics as MobilePlaylistHeader / mobilePlaylistDetail.css.
+// android/app/src/main/java/io/github/huleixin/tingyu/chrome/MediaDetail.kt
+// 统一原生音乐集合详情模板（阶段 E）：歌单/专辑/每日推荐/收藏/自建/本地文件夹共用，
+// 歌手页保留独立结构（NativeDirectoryPage artist 分支）。结构与度量和 WebView 侧
+// MobilePlaylistHeader / mobilePlaylistDetail.css 逐值对齐（PLAYLIST_DETAIL_PARITY.md）。
 private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2),LightInterfaceColors.Accent)
-@Composable internal fun NativePlaylistPage(page:NativePage,modifier:Modifier,action:PageAction){
-    val intro=page.sections.first{it.id=="playlistIntro"};val cover=intro.items.first()
+
+/** 集合详情统一入口：按 sections 契约（toolbar/intro/controls/songHeading/filter/tracks）渲染。 */
+@Composable internal fun MediaDetailScaffold(page:NativePage,modifier:Modifier,action:PageAction){
+    val intro=page.sections.first{it.id=="intro"};val cover=intro.items.first()
     val controls=page.sections.first{it.id=="controls"};val tracks=page.sections.first{it.id=="tracks"}
     val toolbar=page.sections.firstOrNull{it.id=="toolbar"}?.items.orEmpty()
     fun label(id:String)=toolbar.firstOrNull{it.id==id}?.title?:""
     val cache=rememberNativeRows(page.key,tracks)
     val list=rememberLazyListState()
     LaunchedEffect(tracks.dataKey){list.scrollToItem(0)}
-    // 歌单内搜索（68593）：输入框不再作为 LazyColumn 的 item（那样会跟着歌曲滚、点开时
-    // "凭空出现在列表中间"）。它由页面级的固定层承载，从右上角放大镜的位置展开。
+    // 集合内搜索（68593）：输入框由页面级固定层承载，从右上角放大镜的位置展开。
     val filterSection=page.sections.firstOrNull{it.layout=="input"}
     var pageOrigin by remember{mutableStateOf(Offset.Zero)}
     var searchExpanded by remember(page.key){mutableStateOf(false)}
@@ -69,57 +72,15 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
                 }
                 ChromeButton(label("menu"),size=44.dp,onClick={action(page.trailing,"",0.0)}){PageIcon("ellipsis-vertical",PageInk,Modifier.size(23.dp))}
             }
-            val listTop by animateDpAsState((if(short)8.dp else 18.dp)+if(searchExpanded)NativeSearchBarHeight+14.dp else 0.dp,tween(240),label="pl-list-top")
+            val listTop by animateDpAsState((if(short)8.dp else 18.dp)+if(searchExpanded)NativeSearchBarHeight+14.dp else 0.dp,tween(240),label="media-list-top")
             LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(top=listTop,bottom=(page.bottomClearance+page.safeBottom).dp)){
                 item("header"){
-                    Column(Modifier.padding(horizontal=18.dp)){
-                        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(if(width<=370)12.dp else 16.dp)){
-                            val art=if(short)80.dp else (width*.31f).coerceIn(108f,140f).dp
-                            Box(Modifier.size(art).shadow(8.dp,RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).background(interfaceColor(Color(0xFF14211E),LightInterfaceColors.Surface))){
-                                // 封面阴影与 WebView .ml-playlist-cover（0 8px 24px）对齐。
-                                AsyncImage(pageImage(cover.image),null,Modifier.fillMaxSize(),contentScale=ContentScale.Fit)
-                            }
-                            Column(Modifier.weight(1f)){
-                                val font=if(short)18f else (width*.048f).coerceIn(18f,22f)
-                                Text(page.title,color=PageInk,fontSize=font.sp,lineHeight=(font*1.4f).sp,fontWeight=FontWeight.Bold,maxLines=if(short)2 else 3,overflow=TextOverflow.Ellipsis)
-                                Text(cover.subtitle,color=PageMuted,fontSize=12.sp,modifier=Modifier.padding(top=9.dp,bottom=8.dp))
-                                Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
-                                    if(intro.creatorImage.isNotBlank())PageArtwork(intro.creatorImage,Modifier.size(23.dp),99.dp)
-                                    Text(intro.creator,color=PageInk,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
-                                }
-                            }
-                        }
-                        if(intro.description.isNotBlank()){
-                            var expanded by remember(intro.description){mutableStateOf(false)}
-                            val collapsible=intro.description.length>80||intro.description.contains('\n')
-                            Row(Modifier.fillMaxWidth().padding(top=11.dp).clickable(enabled=collapsible){expanded=!expanded},verticalAlignment=Alignment.CenterVertically){
-                                Text(intro.description,color=PageMuted,fontSize=12.sp,lineHeight=19.8.sp,maxLines=if(expanded||!collapsible)Int.MAX_VALUE else 2,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f))
-                                if(collapsible)PageIcon("chevron-down",PageMuted,Modifier.padding(start=8.dp).size(16.dp))
-                            }
-                        }
-                        Row(Modifier.fillMaxWidth().padding(top=14.dp,bottom=16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
-                            controls.items.firstOrNull()?.let{item->
-                                Row(Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(24.dp)).background(interfaceColor(Color(0xFF7EE0C2),LightInterfaceColors.Button))
-                                    .graphicsLayer{alpha=if(item.disabled).45f else 1f}.clickable(enabled=!item.disabled){action(item.action,"",0.0)},
-                                    horizontalArrangement=Arrangement.spacedBy(8.dp,Alignment.CenterHorizontally),verticalAlignment=Alignment.CenterVertically){
-                                    ChromeGlyph("play",Color(0xFF04231B),Modifier.size(20.dp));Text(item.title,color=Color(0xFF04231B),fontSize=15.sp,fontWeight=FontWeight(650))
-                                }
-                            }
-                            controls.items.drop(1).forEach{item->
-                                Box(Modifier.size(44.dp,42.dp).clip(RoundedCornerShape(99.dp)).background(interfaceColor(Color(0x0AB7E6D3),LightInterfaceColors.Subtle)).clickable(enabled=!item.disabled){action(item.action,"",0.0)},contentAlignment=Alignment.Center){
-                                    PageIcon(if(item.id=="subscribe")"heart"else"plus",if(item.selected)PlaylistJade else PageInk,Modifier.size(24.dp),filled=item.id=="subscribe"&&item.selected)
-                                }
-                            }
-                        }
-                        page.sections.firstOrNull{it.id=="songHeading"}?.let{heading->Row(Modifier.padding(start=4.dp,top=4.dp,bottom=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
-                            Column{Text(heading.title,color=PageInk,fontSize=18.sp,fontWeight=FontWeight(650));Box(Modifier.padding(top=5.dp).width(36.dp).height(2.dp).background(PlaylistJade))}
-                            Text(heading.text,color=PageMuted,fontSize=12.sp)
-                        }}
-                    }
+                    MediaDetailHeader(cover,page.title,intro,controls,
+                        page.sections.firstOrNull{it.id=="songHeading"},short,width,action)
                 }
                 items(tracks.total,key={index->"${tracks.dataKey}:$index"}){index->
                     val item=cache.get(tracks,index)
-                    if(item!=null)NativePlaylistTrack(item.copy(selected=item.id.substringAfter(':')==tracks.activeKey),tracks.playing,maxOf(tracks.total.toString().length,item.number.length),action)
+                    if(item!=null)MediaDetailTrack(item.copy(selected=item.id.substringAfter(':')==tracks.activeKey),tracks.playing,maxOf(tracks.total.toString().length,item.number.length),action)
                     else {Spacer(Modifier.height(52.dp));LaunchedEffect(page.key,page.session,tracks.dataKey,index/100){if(cache.request(index,page.session))action(tracks.request,"",(index/100*100).toDouble())}}
                 }
                 page.sections.filter{it.layout=="message"&&it.id!="songHeading"}.forEach{section->item(section.id){Column(Modifier.padding(18.dp)){
@@ -143,7 +104,65 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
         )
     }
 }
-@Composable private fun NativePlaylistTrack(item:NativePageItem,playing:Boolean,numberDigits:Int,action:PageAction){
+
+/** 封面 + 标题 + 来源/创建者 + 可折叠简介 + 播放操作区 + 可选分组标题。 */
+@Composable internal fun MediaDetailHeader(
+    cover:NativePageItem,title:String,intro:NativePageSection,controls:NativePageSection,
+    songHeading:NativePageSection?,short:Boolean,width:Float,action:PageAction,
+){
+    Column(Modifier.padding(horizontal=18.dp)){
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(if(width<=370)12.dp else 16.dp)){
+            val art=if(short)80.dp else (width*.31f).coerceIn(108f,140f).dp
+            Box(Modifier.size(art).shadow(8.dp,RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).background(interfaceColor(Color(0xFF14211E),LightInterfaceColors.Surface))){
+                // 封面阴影与 WebView .ml-playlist-cover（0 8px 24px）对齐。
+                AsyncImage(pageImage(cover.image),null,Modifier.fillMaxSize(),contentScale=ContentScale.Fit)
+            }
+            Column(Modifier.weight(1f)){
+                val font=if(short)18f else (width*.048f).coerceIn(18f,22f)
+                Text(title,color=PageInk,fontSize=font.sp,lineHeight=(font*1.4f).sp,fontWeight=FontWeight.Bold,maxLines=if(short)2 else 3,overflow=TextOverflow.Ellipsis)
+                Text(cover.subtitle,color=PageMuted,fontSize=12.sp,modifier=Modifier.padding(top=9.dp,bottom=8.dp))
+                Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                    if(intro.creatorImage.isNotBlank())PageArtwork(intro.creatorImage,Modifier.size(23.dp),99.dp)
+                    Text(intro.creator,color=PageInk,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+                }
+            }
+        }
+        if(intro.description.isNotBlank()){
+            var expanded by remember(intro.description){mutableStateOf(false)}
+            val collapsible=intro.description.length>80||intro.description.contains('\n')
+            Row(Modifier.fillMaxWidth().padding(top=11.dp).clickable(enabled=collapsible){expanded=!expanded},verticalAlignment=Alignment.CenterVertically){
+                Text(intro.description,color=PageMuted,fontSize=12.sp,lineHeight=19.8.sp,maxLines=if(expanded||!collapsible)Int.MAX_VALUE else 2,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f))
+                if(collapsible)PageIcon("chevron-down",PageMuted,Modifier.padding(start=8.dp).size(16.dp))
+            }
+        }
+        MediaDetailActionsRow(controls,action)
+        if(songHeading!=null)Row(Modifier.padding(start=4.dp,top=4.dp,bottom=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+            Column{Text(songHeading.title,color=PageInk,fontSize=18.sp,fontWeight=FontWeight(650));Box(Modifier.padding(top=5.dp).width(36.dp).height(2.dp).background(PlaylistJade))}
+            Text(songHeading.text,color=PageMuted,fontSize=12.sp)
+        }
+    }
+}
+
+/** 播放全部主按钮 + 次级图标按钮（入队/收藏），能力由数据侧决定。 */
+@Composable internal fun MediaDetailActionsRow(controls:NativePageSection,action:PageAction){
+    Row(Modifier.fillMaxWidth().padding(top=14.dp,bottom=16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
+        controls.items.firstOrNull()?.let{item->
+            Row(Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(24.dp)).background(interfaceColor(Color(0xFF7EE0C2),LightInterfaceColors.Button))
+                .graphicsLayer{alpha=if(item.disabled).45f else 1f}.clickable(enabled=!item.disabled){action(item.action,"",0.0)},
+                horizontalArrangement=Arrangement.spacedBy(8.dp,Alignment.CenterHorizontally),verticalAlignment=Alignment.CenterVertically){
+                ChromeGlyph("play",Color(0xFF04231B),Modifier.size(20.dp));Text(item.title,color=Color(0xFF04231B),fontSize=15.sp,fontWeight=FontWeight(650))
+            }
+        }
+        controls.items.drop(1).forEach{item->
+            Box(Modifier.size(44.dp,42.dp).clip(RoundedCornerShape(99.dp)).background(interfaceColor(Color(0x0AB7E6D3),LightInterfaceColors.Subtle)).clickable(enabled=!item.disabled){action(item.action,"",0.0)},contentAlignment=Alignment.Center){
+                PageIcon(if(item.id=="subscribe")"heart"else"plus",if(item.selected)PlaylistJade else PageInk,Modifier.size(24.dp),filled=item.id=="subscribe"&&item.selected)
+            }
+        }
+    }
+}
+
+/** 统一歌曲行：序号（独立字段）/封面/标题/副标题/播放指示/时长/菜单 + 玉绿当前行与分隔线。 */
+@Composable internal fun MediaDetailTrack(item:NativePageItem,playing:Boolean,numberDigits:Int,action:PageAction){
     val jade=PlaylistJade
     val numberWidth=playlistNumberWidth(numberDigits,LocalDensity.current.fontScale).dp
     Column(Modifier.fillMaxWidth().background(if(item.selected)interfaceColor(Color(0x247EE0C2),LightInterfaceColors.Selected)else Color.Transparent)

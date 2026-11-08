@@ -106,20 +106,16 @@ import kotlin.math.roundToInt
                         section.id=="intro" -> item(key=section.id){
                             Column(Modifier.padding(top=4.dp,bottom=13.dp)){
                                 Text(page.title,color=PageInk,fontSize=27.sp,lineHeight=34.sp,fontWeight=FontWeight.Bold)
+                                // 歌手页简介（路由保证只有歌手走这里；非歌手集合统一在 MediaDetailScaffold）。
                                 section.items.firstOrNull()?.let{item->
-                                    if(page.key.contains("artist:")) {
-                                        var expanded by remember(item.subtitle){mutableStateOf(false)}
-                                        val collapsible=item.subtitle.length>90||item.subtitle.contains('\n')
-                                        Row(Modifier.fillMaxWidth().padding(top=12.dp),horizontalArrangement=Arrangement.spacedBy(16.dp),verticalAlignment=Alignment.CenterVertically){
-                                            PageArtwork(item.image,Modifier.size(88.dp),12.dp)
-                                            Column(Modifier.weight(1f).then(if(collapsible)Modifier.clickable{expanded=!expanded}else Modifier)){
-                                                Text(item.subtitle,color=PageMuted,fontSize=13.sp,lineHeight=20.sp,maxLines=if(expanded||!collapsible)Int.MAX_VALUE else 3,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                                                if(collapsible)Text(if(expanded)"收起" else "展开简介",color=PageAccent,fontSize=12.sp,modifier=Modifier.padding(top=4.dp))
-                                            }
+                                    var expanded by remember(item.subtitle){mutableStateOf(false)}
+                                    val collapsible=item.subtitle.length>90||item.subtitle.contains('\n')
+                                    Row(Modifier.fillMaxWidth().padding(top=12.dp),horizontalArrangement=Arrangement.spacedBy(16.dp),verticalAlignment=Alignment.CenterVertically){
+                                        PageArtwork(item.image,Modifier.size(88.dp),12.dp)
+                                        Column(Modifier.weight(1f).then(if(collapsible)Modifier.clickable{expanded=!expanded}else Modifier)){
+                                            Text(item.subtitle,color=PageMuted,fontSize=13.sp,lineHeight=20.sp,maxLines=if(expanded||!collapsible)Int.MAX_VALUE else 3,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                            if(collapsible)Text(if(expanded)"收起" else "展开简介",color=PageAccent,fontSize=12.sp,modifier=Modifier.padding(top=4.dp))
                                         }
-                                    } else Row(Modifier.fillMaxWidth().padding(top=12.dp),horizontalArrangement=Arrangement.spacedBy(20.dp),verticalAlignment=Alignment.CenterVertically){
-                                        PageArtwork(item.image,Modifier.size(118.dp),12.dp)
-                                        Text(item.subtitle,color=PageMuted,fontSize=13.sp,lineHeight=23.sp)
                                     }
                                 }
                             }

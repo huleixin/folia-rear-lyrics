@@ -43,7 +43,10 @@ internal typealias PageAction = (String, String, Double) -> Unit
                 page.id == "settings" -> NativeSettingsPage(page, Modifier.fillMaxSize(), action)
                 page.id == "search" -> NativeSearchPage(page, Modifier.fillMaxSize(), action)
                 page.id == "home" && !page.key.startsWith("library:") -> NativeHomePage(page, Modifier.fillMaxSize(), action)
-                page.sections.any{it.id=="playlistIntro"} -> NativePlaylistPage(page,Modifier.fillMaxSize(),action)
+                // 集合详情按页面语义路由，不按 intro/playlistIntro 分流标记（阶段 E）：
+                // 歌手保留独立结构（NativeDirectoryPage artist 分支），其余集合走统一 MediaDetailScaffold。
+                page.id == "collection"&&page.key.startsWith("collection:artist:") -> NativeDirectoryPage(page, Modifier.fillMaxSize(), action)
+                page.id == "collection" -> MediaDetailScaffold(page,Modifier.fillMaxSize(),action)
                 else -> NativeDirectoryPage(page, Modifier.fillMaxSize(), action)
             }
         }

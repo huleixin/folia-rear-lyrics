@@ -30,17 +30,19 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
     const libraryActive = !searchOpen && !settingsOpen && page === 'library';
     const artistDetail = props.navigation.depth > 0 && props.navigation.activeType === 'artist';
     const wide = useMediaQuery('(min-width:840px)');
-    const playlistDetail = props.navigation.depth > 0 && props.navigation.activeType === 'playlist';
+    // 集合详情（非歌手）按页面层级判定，不再按数据类型：歌单/专辑/每日推荐等
+    // 详情页都隐藏一级导航、保留迷你播放器；宽屏保留侧边导航。
+    const collectionDetail = props.navigation.depth > 0 && props.navigation.activeType !== 'artist';
     // 两个玻璃节点持续挂载；切页只改变位置和透明度，不重建透镜或播放器。
     const navRef = useRef<HTMLElement>(null);
     const footerRef = useRef<HTMLElement>(null);
-    useMobileFooterMotion(footerRef, navRef, playlistDetail);
+    useMobileFooterMotion(footerRef, navRef, collectionDetail);
     const nativeNavigate = useCallback((index: number) => {
         if(index===0||index===1){useMobileLibraryStore.getState().setPage(index===0?'home':'library');props.onLibraryHome?.();}
         else if(index===2){const search=useSearchNavigationStore.getState();search.restoreSearch({query:'',sourceTab:search.searchSourceTab,returnView:'home'});}
         else if(index===3)useSettingsModalStore.getState().openSettings('options');
     }, [props.onLibraryHome]);
-    const nativeGlass = useNativeGlassNav(navRef, !COMPOSE_CHROME && props.isInteractive && !settingsOpen && !searchOpen, `${playlistDetail}:${page}`, nativeNavigate);
+    const nativeGlass = useNativeGlassNav(navRef, !COMPOSE_CHROME && props.isInteractive && !settingsOpen && !searchOpen, `${collectionDetail}:${page}`, nativeNavigate);
     const reducedMotion = useReducedMotionFor('uiMicroMotion');
     const homeView = useAppViewStore(state=>state.view==='home'&&!state.isPanelOpen);
     const compose = useComposeChrome(navRef,'nav',homeView && !artistDetail && (PREHIDE_COMPOSE_CHROME||props.isInteractive) && !settingsOpen && !searchOpen,{
@@ -58,7 +60,7 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
         props.onLibraryHome?.();
     };
     return (
-        <footer ref={footerRef} className="mobile-library ml-footer" data-footer-motion="true" data-playlist-detail={playlistDetail ? 'true' : undefined} data-artist-detail={artistDetail ? 'true' : undefined} inert={artistDetail||!props.isInteractive&&!PREHIDE_COMPOSE_CHROME}>
+        <footer ref={footerRef} className="mobile-library ml-footer" data-footer-motion="true" data-collection-detail={collectionDetail ? 'true' : undefined} data-artist-detail={artistDetail ? 'true' : undefined} inert={artistDetail||!props.isInteractive&&!PREHIDE_COMPOSE_CHROME}>
             <MobileMiniPlayer
                 onBackToPlayer={props.onBackToPlayer}
                 onTogglePlayback={props.onTogglePlayback}
@@ -69,7 +71,7 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
                 nextTrackLabel={props.nextTrackLabel}
                 previousTrackLabel={props.previousTrackLabel}
             />
-            <nav ref={navRef} inert={playlistDetail && !wide} aria-hidden={playlistDetail && !wide || undefined} aria-label={t('mobileLibrary.navigation')}>
+            <nav ref={navRef} inert={collectionDetail && !wide} aria-hidden={collectionDetail && !wide || undefined} aria-label={t('mobileLibrary.navigation')}>
                 {!compose && <>
                 <button
                     aria-current={homeActive ? 'page' : undefined}

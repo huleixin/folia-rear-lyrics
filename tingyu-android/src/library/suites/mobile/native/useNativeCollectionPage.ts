@@ -50,25 +50,32 @@ export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:L
         // 原生 QualityLevel.fromCatalogSpec 映射成统一标签 —— 旧实现推的是翻译文案，映射不了。
         // 只取最高一档：标签设计是每行一枚。
         const audioSpecs=(normalizeCatalogAudioSpecs(song.catalogAudioSpecs)||[]).slice(0,1);
-        return{id:`${index}:${key}`,title:props.collection.type==='playlist'?song.name:`${index+1}. ${song.name}`,number:String(index+1).padStart(2,'0'),duration:formatTime(getSongDurationMs(song)/1000),subtitle:getSongArtistLabel(song),image:absolutePageImage(getSongCoverUrl(song)),
+        // 统一详情契约（阶段 E）：所有非歌手集合的歌名都是原始名；序号由独立 number 字段承载，
+        // 由公共行组件决定展示 —— 不再把序号拼进歌名（旧专辑/每日推荐行为）。
+        return{id:`${index}:${key}`,title:song.name,number:String(index+1).padStart(2,'0'),duration:formatTime(getSongDurationMs(song)/1000),subtitle:getSongArtistLabel(song),image:absolutePageImage(getSongCoverUrl(song)),
             ...(audioSpecs.length?{audioSpecs,audioSpecsLabel:t(isLocalPlaybackSong(song)?'localMusic.audioSpecsLabel':'catalogAudioSpecs.description',{specs:audioSpecs.map(spec=>t(`catalogAudioSpecs.${spec}`)).join(' / ')})}:{}),
             action:`play:${index}:${key}`,secondary:`menu:${index}:${key}`,secondaryLabel:t('mobileLibrary.trackActions',{name:song.name}),disabled:isSongUnavailable(song),selected:key===activeKey};
-    }),[model.view.displayTracks,indexes,total,offset,activeKey,props.collection.type,t]);
+    }),[model.view.displayTracks,indexes,total,offset,activeKey,t]);
     const controls=[{id:'play',title:t('mobileLibrary.playAll'),action:'playAll',disabled:!model.actions.capabilities.scope.enabled}];
     if(model.actions.capabilities.scope.supported)controls.push({id:'queue',title:t('mobileLibrary.enqueue'),action:'enqueueAll',disabled:!model.actions.capabilities.scope.enabled});
     if(model.mutations.capabilities.subscribe.supported)controls.push({id:'subscribe',title:t(model.mutations.subscribed?'mobileLibrary.saved':'mobileLibrary.save'),action:'subscribe',disabled:!model.mutations.capabilities.subscribe.enabled});
     const creator=model.snapshot?.detail?.creator??props.collection.creator;
     const source=props.collection.source==='online'?omni.getProviderLabel(props.collection.providerId):t(props.collection.source==='local'?'search.sourceLocal':'search.sourceNavidrome');
-    const sections:PageSection[]=[...(props.collection.type==='playlist'?[{id:'toolbar',layout:'chips' as const,items:[
+    // 统一详情契约：所有非歌手集合（歌单/专辑/每日推荐/本地文件夹…）都发 toolbar + intro +
+    // controls，由 Compose 侧同一 MediaDetailScaffold 渲染（NativePageView 按 page.id 路由，
+    // 不再按 intro/playlistIntro 分流标记）。歌手页走 useNativeArtistPage 独立适配器。
+    const sections:PageSection[]=[{id:'toolbar',layout:'chips' as const,items:[
         {id:'back',title:t('mobileLibrary.back'),action:'back'},{id:'filterToggle',title:t('mobileLibrary.filter'),action:'filterToggle'},
         {id:'menu',title:t('mobileLibrary.playlistActions'),action:'menu'},
-        ...(originalActive>=0?[{id:'locateCurrent',title:t('mobileLibrary.locateCurrent'),action:'locateCurrent'}]:[])]}]:[]),
-        {id:props.collection.type==='playlist'?'playlistIntro':'intro',layout:'rows',description:model.snapshot?.detail?.description||props.collection.description,
+        ...(originalActive>=0?[{id:'locateCurrent',title:t('mobileLibrary.locateCurrent'),action:'locateCurrent'}]:[])]},
+        {id:'intro',layout:'rows' as const,description:model.snapshot?.detail?.description||props.collection.description,
         creator:creator?.nickname||source,creatorImage:absolutePageImage(creator?.avatarUrl),items:[{id:'cover',title:name,subtitle:t('mobileLibrary.trackCount',{count}),
         image:absolutePageImage(model.snapshot?.detail?.coverUrl||props.collection.coverUrl),action:'playAll'}]},
         {id:'controls',layout:'chips',items:controls.map(item=>({...item,selected:item.id==='subscribe'&&!!model.mutations.subscribed}))},
         ...(props.collection.type==='playlist'?[{id:'songHeading',layout:'message' as const,title:t('mobileLibrary.playlistSongs'),text:String(count)}]:[]),
-        ...(props.collection.type!=='playlist'||filterOpen||model.query?[{id:'filter',layout:'input' as const,value:model.query,placeholder:t('mobileLibrary.filter'),action:'filter'}]:[]),
+        // 筛选区只在展开/有词时下发：Compose 侧按 filterSection!=null 触发固定层展开，
+        // 常驻下发会让搜索层在进页时自动弹开（旧行为里专辑页是常驻内联输入框）。
+        ...(filterOpen||model.query?[{id:'filter',layout:'input' as const,value:model.query,placeholder:t('mobileLibrary.filter'),action:'filter'}]:[]),
         {id:'tracks',key:`${model.query}:${model.field}:${model.direction}`,layout:'rows',total,offset,request:'range',items,
             activeKey,playing,activeIndex,locateRevision}];
     if(!total)sections.push({id:'empty',layout:'message',text:t(model.snapshot?.status==='loading'?'mobileLibrary.loading':'mobileLibrary.emptyCollection')});

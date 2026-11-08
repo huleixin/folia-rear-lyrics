@@ -45,19 +45,21 @@ export function installNativeShellRouting() {
         const entryKey=route==='settings'&&!index&&documentKey?.startsWith(pageTarget)?documentKey:pageTarget;
         const reducedMotion=readReducedMotion('uiMicroMotion');
         const playerPresentation=usePlayerViewModeStore.getState().mode;
-        const playlistDetail=route==='collection'&&stack?.at(-1)?.type==='playlist';
+        // 集合详情（非歌手）按页面层级判定：route==='collection' 即栈内有集合页。
+        // 歌手页维持自身产品规则（全隐藏，与 WebView data-artist-detail 一致）。
+        const collectionDetail=route==='collection'&&stack?.at(-1)?.type!=='artist';
         const routeKey=JSON.stringify({route,selectedTab,pageTarget,entryKey});
         if(routeKey!==lastRoute){lastRoute=routeKey;document.documentElement.dataset.nativeNavigation=`${generation}:${++navigationRevision}`;document.dispatchEvent(new Event('tingyu-native-navigation'));}
         const navigation=document.documentElement.dataset.nativeNavigation??'';
         const minimalPage=usePlayerViewModeStore.getState().page;
         // 「极简歌词页常亮」的开关值随 shell 包下发；页面状态由宿主自己判断。
         const minimalLyricsKeepOn=useAndroidLayoutSettingsStore.getState().minimalLyricsKeepOnEnabled;
-        const key=JSON.stringify({route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,playlistDetail,playerPresentation,minimalPage,minimalLyricsKeepOn});if(key===last)return;last=key;
+        const key=JSON.stringify({route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,collectionDetail,playerPresentation,minimalPage,minimalLyricsKeepOn});if(key===last)return;last=key;
         navigationMark('route-publish');
         const sent=++revision;
         const leavingStage=document.documentElement.dataset.nativeRoute==='stage'&&route!=='stage';
         if(!leavingStage)document.documentElement.dataset.nativeRoute=route;
-        void nativePages.shell({generation,revision:sent,route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,navigation,playlistDetail,playerPresentation,minimalPage,minimalLyricsKeepOn}).then(()=>{
+        void nativePages.shell({generation,revision:sent,route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,navigation,collectionDetail,playerPresentation,minimalPage,minimalLyricsKeepOn}).then(()=>{
             if(sent===revision)document.documentElement.dataset.nativeRoute=route;
         }).catch(error=>console.warn('[NativeShell] Route update failed',error));
     };

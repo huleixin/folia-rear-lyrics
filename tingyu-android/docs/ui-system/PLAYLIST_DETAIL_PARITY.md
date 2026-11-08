@@ -45,3 +45,12 @@
 
 - 本矩阵为静态源码比对；「已收敛」项经 CSS/Kotlin 数值逐项对齐 + `designTokenParity.test.ts`（6 断言组）+ `check:android-ui` 门禁验证。
 - **视觉一致性最终结论必须等真机截图比对**（Compose vs WebView 同歌单、深浅色双态），当前标记为待真机验证。
+
+
+## 附：阶段 E 模板统一（2026-11-08）
+
+阶段 C 收敛的是「歌单详情」双端参数。阶段 E 进一步把 Compose 内部的**集合间**差异消除：
+NativePlaylistPage 实现整体迁入 `chrome/MediaDetail.kt`（MediaDetailScaffold 等），NativePageView
+改按 `page.id=='collection'` 路由，专辑/每日推荐/本地文件夹等原走 NativeDirectoryPage 旧目录风格
+的集合全部接入同一模板；序号改为独立字段（旧实现把序号拼进歌名）。歌手页保留独立结构。
+底部导航随之改为按页面层级判定（collectionDetail，见 NAVIGATION_CONTRACT §5.5）。

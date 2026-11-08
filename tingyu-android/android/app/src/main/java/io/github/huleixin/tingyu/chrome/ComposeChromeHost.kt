@@ -279,7 +279,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var destination by mutableStateOf("home")
     private var webOverlay by mutableStateOf(false)
     private var selectedTab by mutableIntStateOf(0)
-    private var playlistDetail by mutableStateOf(false)
+    private var collectionDetail by mutableStateOf(false)
     private val routeFence=NativeRouteFence()
     private var playerPresentation by mutableStateOf("stage")
     private var returningFromSettings by mutableStateOf(false)
@@ -372,7 +372,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         syncWebBackground()
         pageTarget=value.optString("pageTarget");entryKey=value.optString("entryKey");reducedMotion=value.optBoolean("reducedMotion")
         navigation=value.optString("navigation")
-        playlistDetail=value.optBoolean("playlistDetail")
+        collectionDetail=value.optBoolean("collectionDetail")
         if(routeChanged||webOverlay)sleepMenuOpen=false
         if(routeChanged||presented==null)resolvePage()
         settingsTrace("route-commit","route" to destination,"navigation" to navigation,"key" to presented?.key,"session" to presented?.session)
@@ -594,7 +594,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             it.enabled && NativeFooterLayout.visible(
                 it.id,
                 if(composeOwnsMinimalEntry&&it.id!="stage")(page?.id?:"home") else destination,
-                playlistDetail,it.viewportWidth,
+                collectionDetail,it.viewportWidth,
                 pageTarget.startsWith("collection:artist:")) &&
                 (it.id!="stage"||it.rect.width>0&&it.rect.height>0) &&
                 !(composeOwnsMinimalEntry&&it.id=="stage")
@@ -740,10 +740,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             val liveById = visible.associateBy { it.id }
             for(id in listOf("nav","mini","stage")) key(id) {
                 val live = liveById[id]
-                val seeded = remember("seed",id,live,width,height,safeBottom,safeTop,selectedTab,startupSelected,firstHomeFrame,destination,webOverlay,playlistDetail) {
+                val seeded = remember("seed",id,live,width,height,safeBottom,safeTop,selectedTab,startupSelected,firstHomeFrame,destination,webOverlay,collectionDetail) {
                     if(live!=null) null
                     else if(ChromeBootSeed.shouldSeed(id,destination,firstHomeFrame,webOverlay,liveChrome) &&
-                        NativeFooterLayout.visible(id,destination,playlistDetail,width))
+                        NativeFooterLayout.visible(id,destination,collectionDetail,width))
                         cache.chrome(id,width,height,safeBottom,safeTop).let{if(id=="nav")it.copy(selected=startupSelected?:selectedTab)else it}
                     else null
                 }
@@ -755,7 +755,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 // seed 与 live 共用同一个定位入口，而且**只在 dp 空间里算一次**：JS 的 innerWidth
                 // 是整数（375），真实 dp 宽是 375.38，走 CSS px × scale 会让交接时整条底栏
                 // 上台 0.8dp（23:02 报告实测）。现在两路只有 density 一个比例，矩形逐位相同。
-                val rect=chromeFooterRect(id,width,height,safeTop,safeBottom,density.density,keyboardPx,playlistDetail)
+                val rect=chromeFooterRect(id,width,height,safeTop,safeBottom,density.density,keyboardPx,collectionDetail)
                 // 首帧诊断：底栏第一次以 seed / live 身份落地时的几何与可见性。
                 LaunchedEffect(id,live==null,surface.session){StartupTrace.detail(if(live==null)"footer-seed-frame" else "footer-live-frame"){
                     put("id",id);put("session",surface.session);put("top",rect.top);put("height",rect.height)

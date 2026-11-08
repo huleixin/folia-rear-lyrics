@@ -36,7 +36,7 @@ L4  沉浸：极简播放页（Compose 接管，独立所有权握手）、背�
 | 手势 | 归属 | 冲突防护现状 |
 |---|---|---|
 | 系统返回（手势区） | 上表分发链 | NativeRouteFence 防迟到 VisualStateCallback 复活旧路由 |
-| 歌单内搜索展开态返回 | NativePlaylistPage BackHandler | 先收搜索再退页 ✓ |
+| 歌单内搜索展开态返回 | MediaDetailScaffold BackHandler | 先收搜索再退页 ✓ |
 | 极简页「收起」 | MinimalPlayerCommands → collapseStage() | 无下滑关闭手势（有意，避免与歌词滚动冲突） |
 | 队列抽屉下滑关闭 | MinimalQueueSheet | ✓ |
 | 舞台横滑/进度拖动 | WebView stage | 与返回无关，不受影响 |
@@ -46,6 +46,21 @@ L4  沉浸：极简播放页（Compose 接管，独立所有权握手）、背�
 - 集合返回必须恢复：原入口（origin）、滚动位置、筛选/排序、歌单内搜索状态。
 - 顶层 view 经 `restoreHistoryState`（useAppNavigation.ts:214-223）从 history state 恢复；启动经 `resolveStartupView`（受 `open_player_on_launch`、播放落点偏好、FM、队列影响）。
 - 极简页退出必须恢复原播放器呈现且**不重建**（Compose 侧 `minimalBase` 判定 + WebView 侧握手所有权，播放不中断）。
+
+## 5.5 底部导航显示规则（阶段 E，按页面层级而非数据类型）
+
+事实源：TS `nativeShellRouting.ts` → shell 载荷 `collectionDetail`；Kotlin `NativeFooterLayout.visible/rect`。**双端必须同规则**：
+
+| 页面 | mini 播放器 | 一级导航（推荐/资料库/搜索/设置） |
+|---|---|---|
+| 一级页（home / 资料库） | ✅ | ✅ |
+| 集合详情（歌单/专辑/每日推荐/收藏/自建/本地文件夹，`route==='collection'` 且栈顶非歌手） | ✅（上提贴底） | ❌（宽屏 ≥840dp 保留侧边导航） |
+| 歌手详情 | ❌（整条隐藏，与 WebView `data-artist-detail` 一致） | ❌ |
+| 全屏沉浸（stage/极简） | 按舞台规则 | ❌ |
+
+- 判定输入只有**路由层级**（route + collection 栈顶类型是否 artist），禁止再按 `type==='playlist'` 之类数据类型分支。
+- mini 矩形随之切换：`NativeFooterLayout.rect` `detail?54:114`（详情页无导航栏时上提 60px）。
+- 修改本表必须同步：`nativeShellRouting.ts`、`nativeChrome.ts`（shell 接口）、`ComposeChromeHost.kt`（载荷解析）、`NativeFooterLayout.kt`、`MobileLibraryStage.tsx`（WebView 同规则）。
 
 ## 6. 已知收敛点（阶段 D 处理）
 

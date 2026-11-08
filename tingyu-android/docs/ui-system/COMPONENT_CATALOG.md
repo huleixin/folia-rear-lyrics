@@ -32,7 +32,8 @@
 | MobilePlaylistHeader / MobilePlaylistBackdrop | 同目录 | 详情头/氛围背景 |
 | MobileTrackList（TrackRow） | 同目录 | ✔ 统一歌曲行（react-window 虚拟化） |
 | MobileHome / MobileHomeOverview / MobileLibraryOnline / MobileLocalFolders | 同目录 | 一级页内容区 |
-| NativePlaylistPage / NativeDirectoryPage / NativeHomePage / NativeSearchPage / NativeSettingsPage | `android/.../chrome/*.kt` | ✔ 对应的 Compose 原生实现（由 `useNativeCollectionPage.ts` 等 adapter 投影） |
+| MediaDetailScaffold / MediaDetailHeader / MediaDetailActionsRow / MediaDetailTrack（原 NativePlaylistPage 并入，阶段 E） | `android/.../chrome/MediaDetail.kt` | ✔ 所有非歌手集合详情（歌单/专辑/每日推荐/收藏/自建/本地文件夹）统一模板；数据经 `useNativeCollectionPage.ts` 投影 |
+| NativeDirectoryPage / NativeHomePage / NativeSearchPage / NativeSettingsPage | `android/.../chrome/*.kt` | ✔ 对应的 Compose 原生实现（由 `useNativeCollectionPage.ts` / `useNativeArtistPage.ts` 等 adapter 投影；DirectoryPage 现服务资料库首页与歌手页） |
 | MobileArtist | 同目录 | 歌手页 |
 
 ## 4. 浮层/sheet

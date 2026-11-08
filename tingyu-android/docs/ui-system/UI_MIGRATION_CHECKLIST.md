@@ -37,7 +37,19 @@
 - [ ] **待迁移**：Lattice 死代码接线摘除（需先确认零动态引用）
 - [ ] **待迁移**：搜索交互形态统一（Kotlin morph 层 vs WebView 条件渲染，PLAYLIST_DETAIL_PARITY #11）
 
-## 阶段 E：全面组件迁移 ⏳ 待开始
+## 阶段 E：全面组件迁移 ⏳ 首轮完成（2026-11-08，原生集合详情统一）
+
+### E 第一轮：原生集合详情真正统一 ✅（已实现 + 已构建 + 已测试，待真机验证）
+
+- [x] 分流核实：`useNativeCollectionPage.ts` 按 `collection.type==='playlist'` 发 `playlistIntro`/`intro`；NativePageView 据此分流 NativePlaylistPage（新式详情）vs NativeDirectoryPage（旧目录风格 27sp 标题+118dp 封面+62px 行）；专辑/每日推荐/本地文件夹等此前走旧风格，且**序号被拼进歌名**
+- [x] 统一模板：新增 `chrome/MediaDetail.kt`（MediaDetailScaffold + MediaDetailHeader + MediaDetailActionsRow + MediaDetailTrack）；删除 NativePlaylistPage.kt（其实现整体迁入）
+- [x] 路由语义化：NativePageView 改按 `page.id=='collection'` 路由（`collection:artist:` 前缀保留歌手独立结构），不再依赖 intro/playlistIntro 分流标记
+- [x] 数据契约统一：所有非歌手集合（歌单/专辑/每日推荐/收藏/自建/本地文件夹）统一发 toolbar+intro+controls；歌名一律原始名，序号走独立 `number` 字段；筛选区仅展开时下发
+- [x] 底部导航按页面层级：`playlistDetail`（按数据类型）→ `collectionDetail`（route==='collection' 且非歌手，双端同规则）；歌手维持全隐藏（NativeFooterLayout artist 参数既有接线）；宽屏 ≥840dp 保留侧边导航
+- [x] 测试：`test/unit/ui/nativeCollectionDetailContract.test.ts`（4 断言：双类型同构/序号独立/heading 专属/筛选区按需）；tsc 通过；vitest 7341 过/14 存量失败（经 git stash 对照，失败集合与基线一致）；check:android-ui 通过；compileDebugKotlin 通过
+- [ ] **待真机验证**：专辑/每日推荐接入统一模板后的实际视觉、底栏隐藏行为、返回手势、播放不中断
+
+### E 后续待办 ⏳
 
 - [ ] 统一 EmptyState/ErrorState/Loading 组件并替换散写（约 40 文件 100+ 处 spinner）
 - [ ] 匹配弹窗 4 套收敛（结构与返回行为核查后按语义分组）
