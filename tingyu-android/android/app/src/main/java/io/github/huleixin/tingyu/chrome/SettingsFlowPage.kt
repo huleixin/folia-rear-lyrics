@@ -107,12 +107,7 @@ internal fun SettingsFlowPage(
                         .size(44.dp)
                         .clip(RoundedCornerShape(999.dp))
                         .semantics { contentDescription = "返回" }
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            role = Role.Button,
-                            onClick = { action("back", "", 0.0) },
-                        ),
+                        .chromeClickable(role = Role.Button, scaleTo = .94f) { action("back", "", 0.0) },
                     contentAlignment = Alignment.Center,
                 ) {
                     PageIcon("chevron-left", theme.text, Modifier.size(24.dp))

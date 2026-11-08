@@ -12,6 +12,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -164,8 +165,13 @@ import kotlin.math.roundToInt
                 val context=LocalContext.current;val px=with(LocalDensity.current){23.dp.roundToPx()}
                 val names=listOf("recommend","library","search","settings")
                 val bitmap=remember(index,active,s.light,px){(GlassNavIcons.load(context,names[index],active,s.light,px) as BitmapDrawable).bitmap.asImageBitmap()}
+                // 按压反馈走 chromeTapPressed（轻微缩放），indication=null 关掉系统 ripple：
+                // 这一格是「整格矩形、无裁剪」，默认 ripple 一长按就是一块方角灰底（灰矩形专项）。
+                val pressSource=remember(index){MutableInteractionSource()}
                 Column(Modifier.then(if(s.vertical)Modifier.fillMaxWidth().height(maxHeight/4) else Modifier.width(maxWidth/4).fillMaxHeight())
-                    .semantics {selected=active}.clickable(enabled=!s.disabled,role=Role.Tab){action("navigate",index.toDouble())},horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
+                    .chromeTapPressed(pressSource)
+                    .semantics {selected=active}
+                    .clickable(interactionSource=pressSource,indication=null,enabled=!s.disabled,role=Role.Tab){action("navigate",index.toDouble())},horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
                     Image(bitmap,contentDescription=null,modifier=Modifier.size(23.dp),colorFilter=null);Spacer(Modifier.height(2.dp))
                     Text(s.label("nav$index",listOf("推荐","资料库","搜索","设置")[index]),color=if(active)accent else if(s.light)LightInterfaceColors.Muted else ink.copy(alpha=.82f),fontSize=10.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
                 }

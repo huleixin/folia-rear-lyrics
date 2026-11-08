@@ -149,7 +149,7 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
         if(intro.description.isNotBlank()){
             var expanded by remember(intro.description){mutableStateOf(false)}
             val collapsible=intro.description.length>80||intro.description.contains('\n')
-            Row(Modifier.fillMaxWidth().padding(top=11.dp).clickable(enabled=collapsible){expanded=!expanded},verticalAlignment=Alignment.CenterVertically){
+            Row(Modifier.fillMaxWidth().padding(top=11.dp).chromeClickable(enabled=collapsible,corner=10.dp){expanded=!expanded},verticalAlignment=Alignment.CenterVertically){
                 Text(intro.description,color=PageMuted,fontSize=12.sp,lineHeight=19.8.sp,maxLines=if(expanded||!collapsible)Int.MAX_VALUE else 2,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f))
                 if(collapsible)PageIcon("chevron-down",PageMuted,Modifier.padding(start=8.dp).size(16.dp))
             }
@@ -189,8 +189,8 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
         Row(Modifier.fillMaxWidth().height(51.dp).padding(start=18.dp,end=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
             Text(item.number,color=if(item.selected)PlaylistJade else PageMuted,fontSize=11.sp,maxLines=1,softWrap=false,
                 textAlign=TextAlign.End,modifier=Modifier.width(numberWidth))
-            PageArtwork(item.image,Modifier.size(36.dp).clickable(enabled=!item.disabled){action(item.action,"",0.0)},7.dp)
-            Column(Modifier.weight(1f).clickable(enabled=!item.disabled){action(item.action,"",0.0)}){
+            PageArtwork(item.image,Modifier.size(36.dp).chromeClickable(enabled=!item.disabled,corner=7.dp){action(item.action,"",0.0)},7.dp)
+            Column(Modifier.weight(1f).chromeClickable(enabled=!item.disabled,corner=10.dp){action(item.action,"",0.0)}){
                 Text(item.title,color=if(item.selected)PlaylistJade else PageInk.copy(alpha=if(item.disabled).45f else 1f),fontSize=14.sp,fontWeight=FontWeight(if(item.selected)700 else 550),maxLines=1,overflow=TextOverflow.Ellipsis)
                 NativeSongSubtitle(item,modifier=Modifier.padding(top=1.dp))
             }

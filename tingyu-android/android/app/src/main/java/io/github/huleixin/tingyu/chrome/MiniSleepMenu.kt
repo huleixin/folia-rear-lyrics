@@ -174,7 +174,7 @@ internal class SleepMenuColors(light:Boolean) {
     enabled:Boolean=true,small:Boolean=false,onClick:()->Unit) {
     Box(modifier.heightIn(min=44.dp).background(if(primary||selected)colors.selected else colors.control,RoundedCornerShape(999.dp))
         .border(if(selected||primary)1.dp else .7.dp,if(selected||primary)colors.accent.copy(alpha=.4f)else colors.line.copy(alpha=.14f),RoundedCornerShape(999.dp))
-        .clickable(enabled=enabled,role=Role.Button,onClick=onClick).padding(horizontal=if(small)10.dp else 6.dp,vertical=8.dp),contentAlignment=Alignment.Center) {
+        .chromeClickable(enabled=enabled,role=Role.Button,corner=999.dp,onClick=onClick).padding(horizontal=if(small)10.dp else 6.dp,vertical=8.dp),contentAlignment=Alignment.Center) {
         Text(label,color=(if(primary||selected)colors.accent else colors.ink).copy(alpha=if(enabled)1f else .40f),
             fontSize=if(small)11.sp else 13.sp,lineHeight=18.sp,fontWeight=if(selected||primary)FontWeight.SemiBold else FontWeight.Medium)
     }
@@ -182,8 +182,8 @@ internal class SleepMenuColors(light:Boolean) {
 @Composable private fun SleepDurationPart(unit:String,value:Int,min:Int,max:Int,colors:SleepMenuColors,modifier:Modifier,onValue:(Int)->Unit) {
     Row(modifier.heightIn(min=44.dp).background(colors.control,RoundedCornerShape(999.dp)).padding(horizontal=3.dp),
         verticalAlignment=Alignment.CenterVertically) {
-        Box(Modifier.width(32.dp).height(44.dp).semantics{contentDescription="减少$unit"}.clickable(enabled=value>min,role=Role.Button){onValue(value-1)},contentAlignment=Alignment.Center){Text("−",color=colors.muted.copy(alpha=if(value>min)1f else .35f),fontSize=18.sp)}
+        Box(Modifier.width(32.dp).height(44.dp).semantics{contentDescription="减少$unit"}.chromeClickable(enabled=value>min,role=Role.Button,corner=10.dp){onValue(value-1)},contentAlignment=Alignment.Center){Text("−",color=colors.muted.copy(alpha=if(value>min)1f else .35f),fontSize=18.sp)}
         Text("%02d $unit".format(value),color=colors.ink,fontSize=12.sp,maxLines=1,modifier=Modifier.weight(1f),textAlign=androidx.compose.ui.text.style.TextAlign.Center)
-        Box(Modifier.width(32.dp).height(44.dp).semantics{contentDescription="增加$unit"}.clickable(enabled=value<max,role=Role.Button){onValue(value+1)},contentAlignment=Alignment.Center){Text("+",color=colors.muted.copy(alpha=if(value<max)1f else .35f),fontSize=18.sp)}
+        Box(Modifier.width(32.dp).height(44.dp).semantics{contentDescription="增加$unit"}.chromeClickable(enabled=value<max,role=Role.Button,corner=10.dp){onValue(value+1)},contentAlignment=Alignment.Center){Text("+",color=colors.muted.copy(alpha=if(value<max)1f else .35f),fontSize=18.sp)}
     }
 }

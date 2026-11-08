@@ -52,7 +52,7 @@ import androidx.compose.ui.unit.sp
                     hot -> item(key=section.id){
                         Column{
                             section.items.chunked(2).forEachIndexed{row,items->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){
-                                items.forEachIndexed{column,item->Row(Modifier.weight(1f).height(44.dp).clickable{action(item.action,"",0.0)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                                items.forEachIndexed{column,item->Row(Modifier.weight(1f).height(44.dp).chromeClickable(corner=10.dp){action(item.action,"",0.0)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
                                     val rank=row*2+column+1
                                     Text(rank.toString(),color=if(rank<=3)PageAccent else PageMuted,fontSize=12.sp,modifier=Modifier.width(16.dp))
                                     Text(item.title,color=if(rank<=3)PageAccent else PageInk,fontSize=13.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
@@ -89,7 +89,7 @@ import androidx.compose.ui.unit.sp
                 }
                 if(!hot&&!history&&!section.busy&&(section.more.isNotBlank()||section.layout=="rows"&&section.text.isNotBlank()))item(key="${section.id}:more"){
                     Row(Modifier.fillMaxWidth().heightIn(min=48.dp)
-                        .then(if(section.more.isNotBlank())Modifier.clickable(role=Role.Button){action(section.more,"",0.0)}else Modifier)
+                        .then(if(section.more.isNotBlank())Modifier.chromeClickable(role=Role.Button,corner=10.dp){action(section.more,"",0.0)}else Modifier)
                         .padding(horizontal=8.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)){
                         if(section.layout=="rows"&&section.text.isNotBlank())Text(section.text,color=PageMuted,fontSize=12.sp,modifier=Modifier.weight(1f))
                         else Spacer(Modifier.weight(1f))

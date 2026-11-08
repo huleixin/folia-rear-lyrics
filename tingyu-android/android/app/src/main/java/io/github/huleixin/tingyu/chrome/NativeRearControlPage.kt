@@ -84,7 +84,7 @@ import androidx.compose.ui.unit.sp
 }
 @Composable private fun RearControlRow(item:NativePageItem,action:PageAction){
     val toggle=item.id in setOf("toggle","cover-sleep")
-    Row(Modifier.fillMaxWidth().heightIn(min=52.dp).then(if(!toggle&&item.action.isNotBlank())Modifier.clickable(enabled=!item.disabled){action(item.action,"",0.0)}else Modifier)
+    Row(Modifier.fillMaxWidth().heightIn(min=52.dp).then(if(!toggle&&item.action.isNotBlank())Modifier.chromeClickable(enabled=!item.disabled,corner=12.dp){action(item.action,"",0.0)}else Modifier)
         .padding(horizontal=14.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
         Column(Modifier.weight(1f)){
             Text(item.title,color=PageInk,fontSize=14.sp,lineHeight=21.sp,fontWeight=FontWeight.Medium)

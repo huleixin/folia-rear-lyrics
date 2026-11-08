@@ -114,7 +114,7 @@ internal val PageAccent:Color @Composable get()=LocalInterfacePalette.current.ac
 @Composable internal fun PageSort(section:NativePageSection,action:PageAction) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        Row(Modifier.heightIn(min=34.dp).clickable{expanded=true},verticalAlignment=Alignment.CenterVertically) {
+        Row(Modifier.heightIn(min=34.dp).chromeClickable(corner=10.dp){expanded=true},verticalAlignment=Alignment.CenterVertically) {
             Text(section.items.firstOrNull{it.selected}?.title?:"",color=interfaceColor(Color(0xFFB4C9BF),LightInterfaceColors.Muted),fontSize=12.sp)
             PageIcon("chevron-down",PageMuted,Modifier.padding(start=3.dp).size(14.dp))
         }
@@ -125,7 +125,12 @@ internal val PageAccent:Color @Composable get()=LocalInterfacePalette.current.ac
 }
 @Composable internal fun NativePageRow(item:NativePageItem, height:Dp=68.dp, art:Dp=56.dp, titleSize:Int=15,
     subtitleSize:Int=12, divider:Boolean=false, chevron:Boolean=false, playing:Boolean=false, alwaysArt:Boolean=false, action:(String)->Unit) {
-    Row(Modifier.fillMaxWidth().height(height).clickable(enabled=!item.disabled&&item.action.isNotBlank()){action(item.action)},
+    // 歌单/资料库/搜索的歌曲行：以前是整行 clickable + 系统 ripple，长按就在标题副标题上
+    // 压出一块方角灰底。改成自绘圆角 tint（14dp），关掉 ripple。
+    val pressSource=rememberPressSource()
+    Row(Modifier.fillMaxWidth().height(height)
+            .chromeRowPressed(pressSource)
+            .clickable(interactionSource=pressSource,indication=null,enabled=!item.disabled&&item.action.isNotBlank()){action(item.action)},
         verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(if(art>=50.dp)13.dp else 10.dp)) {
         // alwaysArt：资料库歌曲行固定占位（无封面歌也保持同一布局）；当前播放行在封面上
         // 叠加轻量标识：播放中=均衡器动画，暂停=静止暂停符；标题色由 selected 走 PageAccent。

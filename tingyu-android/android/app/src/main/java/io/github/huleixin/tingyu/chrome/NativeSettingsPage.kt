@@ -69,21 +69,21 @@ private val GroupIcons=mapOf("rear" to "captions","appearance" to "sparkles","co
         .border(1.dp,interfaceColor(Color(0x1FA5CDB9),LightInterfaceColors.Border),RoundedCornerShape(14.dp)),content=content)
 }
 @Composable private fun NativeSettingsRow(item:NativePageItem,modifier:Modifier=Modifier,inset:Dp=14.dp,action:PageAction){
-    Row(modifier.fillMaxWidth().heightIn(min=48.dp).clickable(enabled=item.action.isNotBlank()&&!item.disabled){action(item.action,"",0.0)}
+    Row(modifier.fillMaxWidth().heightIn(min=48.dp).chromeClickable(enabled=item.action.isNotBlank()&&!item.disabled,corner=12.dp){action(item.action,"",0.0)}
         .padding(horizontal=inset,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
         Box(Modifier.size(34.dp).clip(RoundedCornerShape(999.dp)).background(interfaceColor(Color(0x0CA6D7BF),LightInterfaceColors.Subtle)),contentAlignment=Alignment.Center){PageIcon(SettingIcons[item.id]?:"settings2",interfaceColor(Color(0xFFD2E3DA),LightInterfaceColors.Icon),Modifier.size(21.dp))}
         Column(Modifier.weight(1f)){
             Text(item.title,color=interfaceColor(Color(0xFFE8F4ED),LightInterfaceColors.Ink),fontSize=NativePageDesign.SettingsRowTitle.sp,lineHeight=19.sp,fontWeight=FontWeight.Medium)
             if(item.subtitle.isNotBlank())Text(item.subtitle,color=if(item.selected)interfaceColor(Color(0xFF74D9BA),LightInterfaceColors.Accent)else interfaceColor(Color(0xFF9EB3AA),LightInterfaceColors.Muted),fontSize=11.sp,lineHeight=16.5.sp,modifier=Modifier.padding(top=2.dp))
         }
-        if(item.secondary.isNotBlank())Text(item.secondaryLabel,color=interfaceColor(Color(0xFF74D9BA),LightInterfaceColors.Accent),fontSize=11.sp,modifier=Modifier.clickable{action(item.secondary,"",0.0)}.padding(vertical=10.dp))
+        if(item.secondary.isNotBlank())Text(item.secondaryLabel,color=interfaceColor(Color(0xFF74D9BA),LightInterfaceColors.Accent),fontSize=11.sp,modifier=Modifier.chromeClickable(corner=8.dp){action(item.secondary,"",0.0)}.padding(vertical=10.dp))
         else if(item.action.isNotBlank())PageIcon("chevron-right",interfaceColor(Color(0xFFC7D7CE),LightInterfaceColors.Muted),Modifier.size(18.dp))
     }
 }
 @Composable private fun NativeRearSettings(section:NativePageSection,action:PageAction){
     val item=section.items.firstOrNull()?:return
     SettingsCard{
-        Row(Modifier.fillMaxWidth().heightIn(min=68.dp).clickable(enabled=!item.disabled){action(item.action,"",0.0)}.padding(horizontal=14.dp,vertical=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
+        Row(Modifier.fillMaxWidth().heightIn(min=68.dp).chromeClickable(enabled=!item.disabled,corner=12.dp){action(item.action,"",0.0)}.padding(horizontal=14.dp,vertical=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
             Box(Modifier.size(34.dp).clip(RoundedCornerShape(999.dp)).background(interfaceColor(Color(0x0CA6D7BF),LightInterfaceColors.Subtle)),contentAlignment=Alignment.Center){PageIcon("captions",interfaceColor(Color(0xFFD2E3DA),LightInterfaceColors.Icon),Modifier.size(21.dp))}
             Column(Modifier.weight(1f)){
                 Text(item.title,color=PageInk,fontSize=14.sp,lineHeight=20.sp,fontWeight=FontWeight.Medium)

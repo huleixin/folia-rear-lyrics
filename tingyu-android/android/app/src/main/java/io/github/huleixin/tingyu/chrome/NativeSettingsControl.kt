@@ -116,7 +116,7 @@ import kotlin.math.round
             val padEnd=control.padding.getOrElse(2){12f}
             Box(modifier){
                 Row(Modifier.fillMaxSize()
-                    .clickable(enabled=!control.disabled){expanded=true}
+                    .chromeClickable(enabled=!control.disabled,corner=10.dp){expanded=true}
                     .padding(start=padStart.dp,end=padEnd.dp),
                     verticalAlignment=Alignment.CenterVertically){
                     Text(current,color=ink,fontSize=control.font.sp,maxLines=1,
@@ -137,7 +137,7 @@ import kotlin.math.round
                         control.options.forEach{(value,text)->
                             val selected=value==control.value
                             Row(Modifier.fillMaxWidth()
-                                .clickable{expanded=false;latestAction(control.id,value,0.0)}
+                                .chromeClickable(corner=8.dp){expanded=false;latestAction(control.id,value,0.0)}
                                 .background(if(selected)accent.copy(alpha=if(light).14f else .20f)else Color.Transparent)
                                 .padding(horizontal=14.dp,vertical=11.dp),verticalAlignment=Alignment.CenterVertically){
                                 Text(text,color=if(selected)accent else label,fontSize=control.font.sp,modifier=Modifier.weight(1f))

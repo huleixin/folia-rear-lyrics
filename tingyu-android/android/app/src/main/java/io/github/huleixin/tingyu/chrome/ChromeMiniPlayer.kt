@@ -61,7 +61,7 @@ import kotlin.math.abs
         Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(18.dp)).then(drag)) {
             if(abs(offset.value)>8f)Text(s.label(if(offset.value<0)"next" else "previous",if(offset.value<0)"下一首" else "上一首"),color=if(s.light)ink else ink.copy(alpha=.7f),fontSize=12.sp,maxLines=1,
                 modifier=Modifier.align(Alignment.Center).graphicsLayer{translationX=offset.value+(if(offset.value<0)width else -width)})
-            Row(Modifier.fillMaxSize().graphicsLayer{translationX=offset.value}.clickable(role=Role.Button){action("openStage",0.0)},verticalAlignment=Alignment.CenterVertically) {
+            Row(Modifier.fillMaxSize().graphicsLayer{translationX=offset.value}.chromeClickable(role=Role.Button,corner=18.dp){action("openStage",0.0)},verticalAlignment=Alignment.CenterVertically) {
                 // 左内边距原本加在裁剪容器（18.dp 圆角）之外，封面在这一层里从 x=0 起画，
                 // 左上角正好落进圆角被裁掉 —— 看起来就是「封面偏左、缺一角」。
                 // 只给封面本体让出 10.dp，不动整条的高度/宽度、玻璃效果、按钮与圆角；

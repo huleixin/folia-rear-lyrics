@@ -94,7 +94,7 @@ import kotlinx.coroutines.FlowPreview
                 val y=control.rect.y-offset(areaId)
                 if(area==null||(y+control.rect.h>area.rect.y&&y<area.rect.y+area.rect.h)){
                     val placement=Modifier.offset((control.rect.x-(area?.rect?.x?:0f)).dp,(y-(area?.rect?.y?:0f)).dp).size(control.rect.w.dp,control.rect.h.dp)
-                    if(control.kind=="click")Box(placement.clickable(enabled=!control.disabled,role=Role.Button){latestAction(control.id,"",0.0)}.semantics{
+                    if(control.kind=="click")Box(placement.chromeClickable(enabled=!control.disabled,role=Role.Button,corner=6.dp){latestAction(control.id,"",0.0)}.semantics{
                         if(control.label.isNotBlank())contentDescription=control.label
                     }){if(control.inputType in setOf("checkbox","radio","color"))NativeSettingsControl(control,Modifier.fillMaxSize(),latestAction)}
                     else NativeSettingsControl(control,placement.semantics{if(control.label.isNotBlank())contentDescription=control.label},latestAction)
