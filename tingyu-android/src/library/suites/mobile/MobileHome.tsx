@@ -9,6 +9,7 @@ import { useMobileLibraryStore } from '../../../stores/useMobileLibraryStore';
 import { useSearchNavigationStore } from '../../../stores/useSearchNavigationStore';
 import { useHomeSourceStore } from '../../../stores/useHomeSourceStore';
 import { hasBlockingWindow } from '../../../utils/keyboardTargets';
+import { hasRegisteredModal } from '../../../services/modalBackStack';
 import { LocalDirectory, NavidromeDirectory } from './MobileSourceDirectories';
 import MobileHomeOverview from './MobileHomeOverview';
 import MobileLibraryOnline from './MobileLibraryOnline';
@@ -33,6 +34,8 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
                 event.defaultPrevented ||
                 !props.isInteractive ||
                 page !== 'library' ||
+                // 有已注册模态在开时，资料库页不参与返回（栈顶优先，modalBackStack 契约）。
+                hasRegisteredModal() ||
                 hasBlockingWindow() ||
                 useSearchNavigationStore.getState().isSearchOpen
             )

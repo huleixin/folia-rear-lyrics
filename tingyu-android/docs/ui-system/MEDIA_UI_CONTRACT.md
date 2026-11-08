@@ -30,7 +30,7 @@
 
 统一歌曲行必须支持的可配置字段：封面、序号（可选）、标题、副标题（歌手·专辑）、时长、音质标签（`catalogAudioSpecs` 最高档，可选）、不可播置灰（`isSongUnavailable`）、正在播放指示、操作菜单（按能力）。
 
-> 当前缺口：WebView 侧行（MobileTrackList.TrackRow）无音质标签，原生侧（useNativeCollectionPage.ts:52-54）有——已列入迁移清单，由统一 SongRow 补齐。
+> 当前更正（2026-11-08 双端逐行核实，见 PLAYLIST_DETAIL_PARITY.md）：WebView 侧歌曲行**有**音质标签（`MobileSongSubtitle` 的 `.ml-quality-text`，9px/600，按档配色），与原生侧 `MinimalQualityBadgeText` 同源；真实差异是配色混合比（CSS 各档 52%~58% vs Kotlin 统一 50%），属低风险微调项而非缺失。歌曲行的其余字段（序号/封面/标题/副标题/时长/菜单/置灰/正在播放）两侧均已具备。
 
 ## 5. 双投影纪律（WebView ↔ Compose）
 

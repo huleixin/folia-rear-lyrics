@@ -7,10 +7,24 @@
 
 | 检查 | 命令 | 结果 |
 |---|---|---|
-| TypeScript 类型检查 | `npx tsc --noEmit` | ✅ 通过（基线与改后均通过） |
-| 单元测试全量 | `npm test`（vitest） | ⚠️ 基线：7331 通过 / **14 失败 / 2 跳过（8 失败文件）**；设计系统改动后失败集合无变化（无新增失败）。失败为存量问题（storeContract、skip-tx 等域），已记录待修复，不阻塞 UI 统一工程 |
-| 页面归属门禁 | `npm run check:android-ui` | ✅ 通过（改动后复跑确认） |
-| Compose 编译 | `:app:compileDebugKotlin` | ✅ 通过（经 ASCII junction + ANDROID_HOME；本仓库路径含中文，构建需绕行，见 PERFORMANCE_REPORT 附录） |
+| TypeScript 类型检查 | `npx tsc --noEmit` | ✅ 通过（基线、阶段B、阶段C+D 三次均通过） |
+| 单元测试全量 | `npm test`（vitest） | ⚠️ **7337 通过 / 14 失败 / 2 跳过**（阶段C+D 后）；失败数与基线一致（14），新增 6 个 Token 一致性断言全过。失败明细见 §1.1 |
+| 页面归属门禁 | `npm run check:android-ui` | ✅ 10/10（阶段C+D 后复跑） |
+| Token 一致性门禁 | `test/unit/ui/designTokenParity.test.ts` | ✅ 6/6（曾抓出浅色 bg-raised 漂移并修正） |
+| Compose 编译 | `:app:compileDebugKotlin` | ✅ 通过（阶段C+D 后复跑；环境绕行见 PERFORMANCE_REPORT 附录） |
+
+### 1.1 存量失败明细（14 项，与基线 1745121 相同集合，经 git stash 对照确认非本次引入）
+
+| 测试文件 | 失败用例 | 原因 | 影响本次迁移？ |
+|---|---|---|---|
+| `library/mobilePlaylistDetail.test.ts` ×6 | hides only playlist navigation… / keeps original mini-player transport… / does not hide navigation… / keeps the same transport node… / uses the system reduced-motion… / virtualizes 2000 tracks… | jsdom 缺 `window.matchMedia`（`useMobileFooterMotion.ts:23` 直接调用）+ 虚拟化断言对 artwork 渲染的漂移 | **否**（环境与断言漂移；已用 stash 在基线复现同样 7 失败） |
+| `command-palette/commandRegistry.test.ts` ×2 | opens the controls panel and ten-band equalizer / the player surface gates the panel commands › withdraws them on home | 命令面板环境依赖 | 否 |
+| `command-palette/customShortcut.test.ts` ×1 | excludes the ones that need particular surroundings | 同上域 | 否 |
+| `library/layerBoundaries.test.ts` ×2 | keeps the artist data in core (grid artist page) / lets nothing outside the suites reach into a suite except the registry | **grid/bravais suite 已删除但测试仍引用**（文档-代码漂移的测试面） | 否；建议后续修（与 CODEMAP 漂移同源） |
+| `services/navigationTiming.test.ts` ×1 | does no continuous sampling when off… | 计时采样断言 | 否 |
+| `services/videoLayerPersistence.test.ts` ×1 | survives the clear-cache button | 持久化清理断言 | 否 |
+| `settings/mobileSettings.test.ts`（文件级） | — | 文件级失败（导入/环境） | 否（本轮改动了 MobileSettingsLanding，失败**早于**改动存在——基线 8 失败文件之一） |
+| `stores/storeContract.test.ts` ×1 | keeps store-to-store coupling to the edges that were argued for | 期望 store 间无耦合边，实际存在 `useSettingsModalStore → useAppViewStore/usePlayerViewModeStore` 两条边（契约漂移） | 否 |
 
 > 说明：仓库所在路径含中文（`C:\Users\东北大妞\WorkBuddy\听屿`），AGP 在 Windows 上默认拒绝该路径，`local.properties` 的中文路径会被 Properties 编码破坏。本机验证方式：`mklink /J C:\tingyu-build <项目>` + 环境变量 `ANDROID_HOME` 指向 SDK。**正式发版构建（npm run build:android:release）此前如何在中文路径下成功，待与维护者确认。**
 
@@ -18,10 +32,11 @@
 
 | 项 | 状态 |
 |---|---|
-| 歌曲行（TrackRow）正常/超长/缺封面/不可播 | ⬜ 待真机+快照 |
+| 歌单行（TrackRow）正常/超长/缺封面/不可播 | ⬜ 待真机+快照（存量 mobilePlaylistDetail 快照测试因环境缺陷失败，见 §1.1） |
+| 双端歌单详情截图对比（Compose vs WebView 同数据） | ⬜ **待真机验证**（静态已按 PLAYLIST_DETAIL_PARITY.md 逐值对齐，视觉一致性结论必须以截图为准） |
 | 迷你播放器/底栏深浅色 | ⬜ 待真机 |
-| ConfirmDialog / ThemedDialog 返回注册 | ✅ 由 storeContract 等存量单测覆盖（部分失败为存量） |
-| motionTokens 数值与 CSS/Kotlin 三端一致 | ✅ 人工比对（建议后续加一致性单测） |
+| ConfirmDialog / ThemedDialog 返回注册 | ✅ 存量单测覆盖 + 本轮 D-1 收敛（MobileSettingsLanding/MobileHome/歌单内搜索均已入栈体系） |
+| motionTokens 数值与 CSS/Kotlin 三端一致 | ✅ **自动化**（designTokenParity.test.ts，6 组断言） |
 
 ## 3. 导航测试
 

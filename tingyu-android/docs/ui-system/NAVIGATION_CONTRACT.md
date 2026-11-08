@@ -24,9 +24,11 @@ L4  沉浸：极简播放页（Compose 接管，独立所有权握手）、背�
 
 ## 3. 浮层返回的一致性要求
 
-- 一切模态浮层必须注册进 `src/services/modalBackStack.ts`（经 `ThemedDialog` 自动注册），**禁止**自建 window capture 级 Escape 拦截。现有两处违例（记录在案，阶段 D 收敛）：
-  - `MobileSettingsLanding.tsx:40-47`（capture + stopImmediatePropagation）
-  - `MobileHome.tsx:23-40`（页面内 Escape，含 hasBlockingWindow 检查）
+- 一切模态浮层必须注册进 `src/services/modalBackStack.ts`（经 `ThemedDialog` 自动注册），**禁止**自建 window capture 级 Escape 拦截。
+- 例外（2026-11-08 收敛后）：页面级窗口监听器**只允许**在先咨询返回栈后使用——
+  - `MobileSettingsLanding.tsx`：capture 级 Escape 现先 `runTopModalBack()`，栈顶模态存在时由它消费（修复 68599 同类问题的键盘 Escape 面）；
+  - `MobileHome.tsx`：资料库页 Escape 现检查 `hasRegisteredModal()`，有已注册模态时页面不参与返回；
+  - 歌单内搜索（WebView 接管时）经 `registerModalBack` 注册，与 Compose 侧 `BackHandler(enabled=searchExpanded)` 同语义。
 - 浮层关闭动画期间必须吞触摸（参照 Compose 侧 `stageExit` 期间全屏吞触摸，ComposeChromeHost.kt:956）。
 
 ## 4. 手势边界（不得互相触发）
@@ -47,6 +49,6 @@ L4  沉浸：极简播放页（Compose 接管，独立所有权握手）、背�
 
 ## 6. 已知收敛点（阶段 D 处理）
 
-1. Escape/返回处理 5 条路径中 2 条绕过 modalBackStack（见 §3）。
-2. Lattice 死代码接线（useAppNavigation.ts:152,382-390,430-437）应摘除，避免返回链多一层无效分支。
-3. `modalBackStack.ts` 栈顶优先与 capture 级拦截的哲学冲突必须以 modalBackStack 为准。
+1. ~~Escape/返回处理 5 条路径中 2 条绕过 modalBackStack~~ **已收敛**（见 §3 例外规则，2026-11-08）。
+2. Lattice 死代码接线（useAppNavigation.ts:152,382-390,430-437）应摘除，避免返回链多一层无效分支（待做：需先确认零动态引用）。
+3. `modalBackStack.ts` 栈顶优先与 capture 级拦截的哲学冲突必须以 modalBackStack 为准——已通过 §3 例外规则落实。

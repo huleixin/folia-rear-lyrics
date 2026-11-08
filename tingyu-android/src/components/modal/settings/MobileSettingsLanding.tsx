@@ -6,6 +6,7 @@ import MobileSettingsHeader from './MobileSettingsHeader';
 import { buildSettingsNavGroups, type SettingsSectionId } from './navigation/settingsNavModel';
 import { writeLastSettingsSection } from './navigation/settingsLastSection';
 import { useSettingsModalStore } from '../../../stores/useSettingsModalStore';
+import { runTopModalBack } from '../../../services/modalBackStack';
 import { useNativeSettingsPage } from './useNativeSettingsPage';
 import { scheduleSettingsWarmup } from '../../app/dialogs/settingsModule';
 import { useNativeSettingsDocument } from '../../../hooks/useNativeSettingsDocument';
@@ -39,6 +40,9 @@ export default function MobileSettingsLanding({ onClose }: { onClose: () => void
         const before = document.activeElement as HTMLElement | null;
         const key = (event: KeyboardEvent) => {
             if (event.key !== 'Escape') return;
+            // 栈顶模态优先（modalBackStack 契约）：设置页之上若开着 ThemedDialog 类弹层，
+            // 返回先关它，而不是把设置页退一层留下孤儿弹层（68599 同类问题的键盘 Escape 面）。
+            if (runTopModalBack()) return;
             event.preventDefault(); event.stopImmediatePropagation();
             back();
         };

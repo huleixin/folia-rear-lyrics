@@ -23,7 +23,7 @@
 | 语义 | 深色 | 浅色 | 说明 |
 |---|---|---|---|
 | bg | `#030a09` | `#f4f5ee` | 主背景 |
-| bg-raised | `#0d1a17` | `#e5ede4` | 次级背景 |
+| bg-raised | `#0d1a17` | `#e3ebe2` | 次级背景（=LightInterfaceColors.Surface） |
 | card | `#ffffff0c` | `#ffffff80` | 卡片表面 |
 | accent | `#9fe0c4` | `#246e55` | 品牌强调（玉绿） |
 | accent-strong | `#ace6cb` | `#246e55` | 选中态强调 |

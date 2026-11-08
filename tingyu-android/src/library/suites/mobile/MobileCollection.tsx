@@ -1,9 +1,10 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowLeft, MoreVertical, Play, Heart, Search, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { LibraryCollectionSurfaceProps } from '../../core/contracts/suite';
 import type { SongResult } from '../../../types';
+import { registerModalBack } from '../../../services/modalBackStack';
 import { useMobileCollection } from './useMobileCollection';
 import { useMobileCollectionAutoplay } from './useMobileCollectionAutoplay';
 import MobileArtwork from './MobileArtwork';
@@ -58,6 +59,14 @@ function MobileCollection(props: LibraryCollectionSurfaceProps) {
     };
     const root=React.useRef<HTMLElement>(null);
     const native=useNativeCollectionPage(root,props,model,name,count,openSongMenu,()=>setTarget('collection'),()=>{void toggleSubscribe()});
+    // 歌单内搜索的返回语义与 Compose 侧对齐（NativePlaylistPage 的
+    // BackHandler(enabled=searchExpanded)）：返回先收搜索再退页。只在 WebView
+    // 实际接管页面时注册，避免与原生 BackHandler 抢同一次返回。
+    const closeFilter = useCallback(() => { model.setQuery(''); setFilterOpen(false); }, [model.setQuery]);
+    useEffect(() => {
+        if (native || !filterOpen) return;
+        return registerModalBack(closeFilter);
+    }, [native, filterOpen, closeFilter]);
     return (
         <motion.section
             ref={root}
@@ -151,16 +160,13 @@ function MobileCollection(props: LibraryCollectionSurfaceProps) {
                                     value={model.query}
                                     onChange={(event) => model.setQuery(event.target.value)}
                                 />
-                                <button
-                                    className="ml-icon"
-                                    aria-label={t('mobileLibrary.close')}
-                                    onClick={() => {
-                                        model.setQuery('');
-                                        setFilterOpen(false);
-                                    }}
-                                >
-                                    <X size={18} />
-                                </button>
+                <button
+                    className="ml-icon"
+                    aria-label={t('mobileLibrary.close')}
+                    onClick={closeFilter}
+                >
+                    <X size={18} />
+                </button>
                             </div>
                         )}
                         {(model.snapshot?.error || notice) && (

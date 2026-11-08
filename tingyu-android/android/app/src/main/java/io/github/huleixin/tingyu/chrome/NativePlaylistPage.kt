@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Rect
@@ -59,7 +60,8 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
         val short=maxHeight<500.dp;val width=maxWidth.value
         NativePlaylistBackdrop(cover.image,maxHeight)
         Column(Modifier.fillMaxSize().padding(top=(page.safeTop+8).dp)){
-            Row(Modifier.fillMaxWidth().padding(horizontal=10.dp).height(44.dp),verticalAlignment=Alignment.CenterVertically){
+            // 顶部操作区水平边距与 WebView 对齐：.ml-page 16px + .ml-collection-top 10px = 26px。
+            Row(Modifier.fillMaxWidth().padding(horizontal=26.dp).height(44.dp),verticalAlignment=Alignment.CenterVertically){
                 ChromeButton(label("back"),size=44.dp,onClick={action(page.leading,"",0.0)}){PageIcon("arrow-left",PageInk,Modifier.size(23.dp))}
                 Spacer(Modifier.weight(1f))
                 Box(Modifier.pageAnchor(pageOrigin){filterIcon=it}){
@@ -73,7 +75,8 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
                     Column(Modifier.padding(horizontal=18.dp)){
                         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(if(width<=370)12.dp else 16.dp)){
                             val art=if(short)80.dp else (width*.31f).coerceIn(108f,140f).dp
-                            Box(Modifier.size(art).clip(RoundedCornerShape(12.dp)).background(interfaceColor(Color(0xFF14211E),LightInterfaceColors.Surface))){
+                            Box(Modifier.size(art).shadow(8.dp,RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).background(interfaceColor(Color(0xFF14211E),LightInterfaceColors.Surface))){
+                                // 封面阴影与 WebView .ml-playlist-cover（0 8px 24px）对齐。
                                 AsyncImage(pageImage(cover.image),null,Modifier.fillMaxSize(),contentScale=ContentScale.Fit)
                             }
                             Column(Modifier.weight(1f)){

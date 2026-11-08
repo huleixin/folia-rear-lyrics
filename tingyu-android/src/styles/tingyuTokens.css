@@ -79,7 +79,7 @@
 /* ---- 浅色覆盖（数值与 interfaceAppearance.css 既有浅色一致） ---- */
 html[data-interface-appearance='light'] {
     --ty-color-bg: #f4f5ee;
-    --ty-color-bg-raised: #e5ede4;
+    --ty-color-bg-raised: #e3ebe2;   /* 对齐 LightInterfaceColors.Surface（原 #e5ede4 为双端漂移值） */
     --ty-color-card: #ffffff80;
     --ty-color-accent: #246e55;
     --ty-color-accent-strong: #246e55;

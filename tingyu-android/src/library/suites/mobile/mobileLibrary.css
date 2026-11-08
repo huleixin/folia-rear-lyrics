@@ -3,7 +3,7 @@
 .mobile-library {
     --ml-bg: #030a09;
     --ml-ink: #f4f7f5;
-    --ml-muted: #a2afaa;
+    --ml-muted: #a2b6ac;   /* 对齐 InterfacePalette dark.muted */
     --ml-jade: #7ee0c2;
     --ml-line: #ffffff10;
     --ml-surface: #14211e;

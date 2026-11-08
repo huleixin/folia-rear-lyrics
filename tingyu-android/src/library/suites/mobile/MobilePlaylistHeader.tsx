@@ -59,7 +59,7 @@ export default function MobilePlaylistHeader({
                     className="ml-playlist-action" disabled={!subscribeEnabled} aria-pressed={subscribed}
                     onClick={onSubscribe} aria-label={t(subscribed ? 'mobileLibrary.saved' : 'mobileLibrary.save')}
                     title={t(subscribed ? 'mobileLibrary.saved' : 'mobileLibrary.save')}
-                ><Heart size={22} fill={subscribed ? 'currentColor' : 'none'} /></button>}
+                ><Heart size={24} fill={subscribed ? 'currentColor' : 'none'} /></button>}
             </div>
         </div>
         <div className="ml-playlist-song-heading">
