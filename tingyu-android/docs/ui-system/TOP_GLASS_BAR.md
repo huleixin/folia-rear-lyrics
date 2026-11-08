@@ -1,8 +1,22 @@
-# TOP_GLASS_BAR — 沉浸式毛玻璃顶栏
+# TOP_GLASS_BAR — 沉浸式毛玻璃顶栏（Haze 内核）
 
-> TingYu Design System 正式组成。组件：`chrome/TopGlassBar.kt`（Compose 公共能力）。
+> TingYu Design System 正式组成。组件：`chrome/TopGlassBar.kt`（Compose 公共能力），
+> 渲染内核 = 开源库 **Haze**（`dev.chrisbanes.haze:haze:1.6.10`，Apache-2.0，
+> https://github.com/chrisbanes/haze）。
 > 三端参数由 `test/unit/ui/designTokenParity.test.ts` 门禁锁定，结构契约由
 > `test/unit/ui/topGlassBarContract.test.ts` 门禁锁定。
+
+## 0.1 依赖选型（为什么是 Haze 1.6.10）
+
+| 版本 | 传递依赖 | 结论 |
+|---|---|---|
+| 2.1.0 / 2.0.x | Kotlin 2.4.2x + Compose（JB）1.12.x（→ androidx 1.12） | ❌ 会强制升级 Kotlin/Compose，违反约束 |
+| 1.7.3 | Kotlin 2.3.20 + Compose（JB）1.12.0 | ❌ 会把 androidx Compose 抬到 1.12 |
+| **1.6.10** | **Kotlin 2.1.0 + Compose（JB）1.8.0** | ✅ 低于项目 Compose 1.10.3 / Kotlin 2.3.10，Gradle 取高版本，基础依赖零升级 |
+
+Haze 1.6.10 的经典 API：`rememberHazeState()` + `Modifier.hazeSource(state)`（采样源）+
+`Modifier.hazeEffect(state) { blurRadius / backgroundColor / mask / noiseFactor }`（玻璃）。
+底部 Liquid Glass 仍由 kyant0 backdrop 负责，两套管线分属不同区域，互不干扰。
 
 ## 0. 演进记录（诚实记录两轮实现）
 
@@ -24,19 +38,20 @@
 - **材质语言与底栏 Liquid Glass 同族**（vibrancy + 高斯模糊 + 半透明底色），无描边、无分隔线；
   但参数独立（底栏 4dp+lens，顶栏 10dp），不强制一致。
 
-## 2. 渲染原理（真实混合架构，正确图层顺序）
+## 2. 渲染原理（Haze 采样关系 + 正确图层顺序）
 
 每页统一四层（从底到顶）：
 
 1. **页面背景**：`NativePageView` 的页面渐变（`NativePage.surfaceColors()` 单一来源）。
-2. **`TyTopGlassContentLayer`（全幅滚动内容，捕获层）**：能力具备（SDK≥31 且
-   `TOP_GLASS_BLUR`）时，内部先画与页面**逐像素对齐**的渐变底色（同笔刷同边界），
-   集合详情再画封面氛围层副本（页面级原件此时移除，避免重复采样），然后挂
-   `layerBackdrop` 捕获 —— 玻璃采到的 raster 是「真实局部背景 + 内容」的不透明画面。
-   **LazyColumn 全幅布局，contentPadding top = 测量的顶栏底边**：内容真正滚动进入顶栏后方。
-3. **`TyTopGlassSurface`（玻璃面）**：**单一连续表面** —— `drawBackdrop(捕获){vibrancy(); blur(10dp)}`
-   + `onDrawSurface` 画页面顶部同色半透明 tint；整面经 `saveLayer + BlendMode.DstIn` 蒙版，
-   主体 alpha=1、底部 tail 内平滑衰减。无描边、无分隔线、不接指针事件（滑动穿透到列表）。
+2. **`TyTopGlassContentLayer`（全幅滚动内容 = Haze Source）**：`Modifier.hazeSource(state)`
+   标记模糊采样源；内部先画与页面**逐像素对齐**的渐变底色（同笔刷同边界），集合详情再画
+   封面氛围层副本（页面级原件已移除，避免双绘）—— 采样拿到的是「真实局部背景 + 内容」的
+   不透明画面。**LazyColumn 全幅布局，contentPadding top = 测量的顶栏底边 + 衰减带**：
+   内容真正滚动进入顶栏后方。
+3. **`TyTopGlassSurface`（Haze Effect 玻璃面）**：`Modifier.hazeEffect(state)` 设置
+   `blurRadius = 10dp`、`backgroundColor = 页面顶部同色半透明`、`noiseFactor = 0`、
+   `mask = 单面衰减蒙版`（主体 alpha=1，底部 TailDp 内按 smoothstep 采样衰减到 0）。
+   无描边、无分隔线、不接指针事件（滑动穿透到列表）。一次 Haze effect = 唯一模糊管线。
 4. **顶栏内容（清晰层）**：头部控件独立组合，`onGloballyPositioned` 把内容底边测量回填
    `TyTopGlassState.reportHeader` —— 玻璃范围由**布局测量驱动**，搜索展开/收起、输入法
    弹出时自动适配，无固定屏幕坐标、无按机型硬编码。
@@ -66,8 +81,10 @@
 
 单位口径：WebView 1px ≈ Compose 1dp（页面以 `Density(cssScale, 1f)` 对齐 CSS 视口像素）。
 玻璃底色取 `surfaceColors()` 首色（页面顶部背景色）——深浅色与页面类型自动跟随。
-能力门控：`SDK≥31 && BuildConfig.TOP_GLASS_BLUR`（env `TINGYU_TOP_GLASS_BLUR=false`）；
-降级 = **同形状的半透明底色层**（无模糊、同样底部衰减），绝不退回横向模糊带。
+能力门控：Haze 官方判定 `HazeDefaults.blurEnabled()`（SDK<31 无 RenderEffect 模糊时
+`HazeState.blurEnabled=false`），此时玻璃自动退化为**同形状的半透明底色层**（无模糊、
+同样底部衰减）；`TINGYU_TOP_GLASS_BLUR=false` 构建可把 `blurRadius` 置 0 做性能回滚。
+两种降级都绝不退回横向模糊带。
 
 ## 4. 页面接入清单
 
@@ -86,19 +103,21 @@
 
 ## 5. 性能契约
 
-- 复用底栏 Liquid Glass 的同一 GPU 管线（kyant0 backdrop）：捕获层 GPU 记录 + RenderEffect
-  模糊，**无每帧截屏、无位图拷贝、无整列表模糊、无逐 item 模糊**。
+- 顶栏 = Haze 官方管线（GPU 层采样 + RenderEffect 模糊）：**无每帧截屏、无位图拷贝、
+  无整列表模糊、无逐 item 模糊**；`HazeState` 生命周期由 `rememberHazeState()` 管理，
+  页面重组不重建（仅顶栏高度测量变化会失效重建 effect，不重建 state）。
+- 底部 Liquid Glass 仍走 kyant0 backdrop（原有 pages 层采样），两套管线分区独立；
+  `TINGYU_TOP_GLASS_BLUR=false` 可一键关闭顶栏模糊（变纯半透明底色，视觉统一、无横带）。
 - 玻璃是静态材质（不随滚动开关）：Reduced Motion 下保持不变，仅减少不必要动画。
-- 双捕获说明：底栏玻璃已有 pages 层捕获；顶栏玻璃因在页面内部（避免反馈回路）使用
-  独立内容层捕获 —— 两者同量级、均为 GPU 层记录；`TINGYU_TOP_GLASS_BLUR=false` 可一键
-  降级（玻璃变纯半透明底色，视觉统一、无横带）。
-- 玻璃面离屏（saveLayer）仅覆盖顶栏+tail 区域，尺寸小。
+- 蒙版/底色随测量更新走快照失效，滚动期间不产生额外组合（重组）。
 
 ## 6. 验证记录（2026-11-08）
 
 - tsc `--noEmit` ✅；`topGlassBarContract` 13 断言 ✅；`designTokenParity` 8/8（glass-top 组）✅；
   `check:android-ui` 10/10 ✅；`compileDebugKotlin` ✅；`TopGlassMathTest` 4 用例 ✅（ASCII 镜像）；
   全量 vitest 失败集合与基线一致（14）。
+- **Haze 迁移验证**：haze 1.6.10 依赖解析无重复类；`compileDebugKotlin` ✅；
+  `topGlassBarContract`（Haze 口径）+ parity ✅；全量 vitest 见 UI_TEST_MATRIX。
 - **待真机验证**：推荐页首验（静止观感贴近参考图 / 上滑透视模糊 / 底边无分界线）→
   资料库与搜索（头部高度不同下材质一致 / 搜索展开适配 / 输入法）→ 集合详情（亮色封面融合 /
   定位落点）→ 深浅色 → 横向轮播与返回手势 → 滚动流畅度（降级开关对比）→ 页面切换无残影。

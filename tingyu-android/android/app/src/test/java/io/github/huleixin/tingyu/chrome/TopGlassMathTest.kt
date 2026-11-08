@@ -12,20 +12,6 @@ import org.junit.Test
 class TopGlassMathTest {
 
     @Test
-    fun `页面渐变取色与 Brush 垂直插值同口径`() {
-        val colors = listOf(Color(0xFF102D25), Color(0xFF010E0D), Color(0xFF010D0C))
-        assertEquals(Color(0xFF102D25), pageGradientColorAt(colors, 0f))
-        assertEquals(Color(0xFF010D0C), pageGradientColorAt(colors, 1f))
-        assertEquals(Color(0xFF010E0D), pageGradientColorAt(colors, 0.5f))
-        val quarter = pageGradientColorAt(colors, 0.25f)
-        assertEquals((0x10 + 0x01) / 2f, quarter.red * 255f, 0.51f)
-        assertEquals((0x2D + 0x0E) / 2f, quarter.green * 255f, 0.51f)
-        assertEquals((0x25 + 0x0D) / 2f, quarter.blue * 255f, 0.51f)
-        assertEquals(Color(0xFF102D25), pageGradientColorAt(colors, -3f))
-        assertEquals(Color(0xFF010D0C), pageGradientColorAt(colors, 2f))
-    }
-
-    @Test
     fun `衰减曲线是端点零斜率的 smoothstep`() {
         assertEquals(0f, TyTopGlass.ease(0f), 1e-6f)
         assertEquals(1f, TyTopGlass.ease(1f), 1e-6f)

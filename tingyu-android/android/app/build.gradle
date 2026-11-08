@@ -121,6 +121,10 @@ dependencies {
     implementation 'androidx.compose.foundation:foundation:1.10.3'
     implementation 'androidx.compose.material3:material3:1.4.0'
     implementation 'io.github.kyant0:backdrop:1.0.6'
+    // 沉浸式毛玻璃顶栏的渲染内核（Apache-2.0）。选 1.6.10：依赖 Compose 1.8.0 / Kotlin 2.1，
+    // 低于本项目 1.10.3 / 2.3.10，Gradle 取高版本、不需要升级基础依赖；2.x 要求 Kotlin 2.4 +
+    // Compose 1.12（会强制升级），故不采用。底部 Liquid Glass 仍由 kyant0 backdrop 负责，互不干扰。
+    implementation 'dev.chrisbanes.haze:haze:1.6.10'
     implementation 'io.coil-kt:coil-compose:2.7.0'
     implementation 'com.github.Dimezis:BlurView:version-4.0.0'
     implementation fileTree(include: ['*.jar'], dir: 'libs')

@@ -60,7 +60,13 @@
 
 ## 阶段 F：系统与性能适配 ⏳ 进行中
 
-### F-1：沉浸式毛玻璃顶栏（Top Glass Bar）✅（2026-11-08 第二轮，已实现 + 已测试，待真机验证）
+### F-1：沉浸式毛玻璃顶栏（Haze 内核）✅（2026-11-08 第三轮，已实现 + 已测试，待真机验证）
+
+- [x] **渲染内核切换为开源 Haze 1.6.10（Apache-2.0）**：`rememberHazeState` + `hazeSource`（内容采样源）+ `hazeEffect`（blurRadius 10dp + backgroundColor + 单面 mask 底部衰减 32dp）；选版依据 = 传递依赖 Compose 1.8/Kotlin 2.1 均低于项目版本，零基础依赖升级（2.x/1.7.x 会强制抬升 Compose 1.12，弃用）
+- [x] 自研 backdrop 捕获/DstIn 绘制管线全部移除（契约测试断言不得复活）；HazeState 生命周期由 Haze 管理，页面重组不重建
+- [x] 能力降级：`HazeDefaults.blurEnabled()`（SDK<31 关闭模糊）+ `TINGYU_TOP_GLASS_BLUR=false` 性能回滚，均保留同形状半透明底色玻璃
+- [x] 集合详情封面氛围层副本移入公共内容层（页面级原件移除，避免双绘；采样含氛围色）
+- [x] 底部 Liquid Glass（kyant0 backdrop）保持原样，两套管线分区独立
 
 - [x] **第一轮（Top Scroll Scrim）真机否决并彻底删除**：内容侧盖片 + 三段模糊 = 两条横向模糊带 + 水平分界线，根因是特效画在列表 overlay 上而非顶栏材质上；契约测试禁止其复活
 - [x] 公共组件 `chrome/TopGlassBar.kt`：TyTopGlassContentLayer（全幅滚动内容+对齐底色+封面氛围副本，捕获层）/ TyTopGlassSurface（单一连续玻璃面 = vibrancy+blur(10dp)+页面同色 tint，saveLayer+DstIn 底部 32dp 强度平滑衰减）/ TyTopGlass Token

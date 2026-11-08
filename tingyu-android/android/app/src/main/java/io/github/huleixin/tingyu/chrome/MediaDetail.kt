@@ -75,7 +75,6 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
         // BoxWithConstraintsScope 带 @LayoutScopeMarker：Column 作用域里不能再隐式读 maxHeight，
         // 需要先在根作用域提升为局部值（玻璃内容层的氛围层视口高度要用）。
         val detailMaxHeight=maxHeight
-        if(!TyTopGlass.glassCapable)NativePlaylistBackdrop(cover.image,detailMaxHeight)
         Box(Modifier.fillMaxSize()){
             TyTopGlassContentLayer(glass,colors,ambientImage=cover.image,ambientViewportHeight=detailMaxHeight,modifier=Modifier.fillMaxSize()){
             val listTop by animateDpAsState((if(short)8.dp else 18.dp)+if(searchExpanded)NativeSearchBarHeight+14.dp else 0.dp,tween(240),label="media-list-top")
