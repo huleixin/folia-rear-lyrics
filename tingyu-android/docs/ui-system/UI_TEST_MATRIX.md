@@ -8,12 +8,12 @@
 | 检查 | 命令 | 结果 |
 |---|---|---|
 | TypeScript 类型检查 | `npx tsc --noEmit` | ✅ 通过（基线、阶段B、阶段C+D、阶段F-1 四次均通过） |
-| 单元测试全量 | `npm test`（vitest） | ⚠️ **7356 通过 / 14 失败 / 2 跳过**（阶段F-1 Top Scroll Scrim 后；失败集合与基线一致（14），新增 `topScrollScrimContract` 13 断言 + `designTokenParity` scrim 2 组全过）。失败明细见 §1.1 |
+| 单元测试全量 | `npm test`（vitest） | ⚠️ **7356 通过 / 14 失败 / 2 跳过**（阶段F-1 毛玻璃顶栏后；失败集合与基线一致（14），新增 `topGlassBarContract` 13 断言 + parity glass-top 组全过）。失败明细见 §1.1 |
 | 页面归属门禁 | `npm run check:android-ui` | ✅ 10/10（阶段F-1 后复跑） |
-| Token 一致性门禁 | `test/unit/ui/designTokenParity.test.ts` | ✅ 8/8（含阶段 F-1 新增「顶部滚动渐隐 token 三端一致」与「WebView 公共能力消费 scrim token」两组） |
-| Scrim 结构契约 | `test/unit/ui/topScrollScrimContract.test.ts` | ✅ 13/13（页面接入/只画不接事件/静止零绘制/Tier2 门控/豁免面锁定） |
+| Token 一致性门禁 | `test/unit/ui/designTokenParity.test.ts` | ✅ 8/8（含「沉浸式毛玻璃顶栏 token 三端一致」组；第一轮 scrim 组已随错误实现移除） |
+| 顶栏玻璃结构契约 | `test/unit/ui/topGlassBarContract.test.ts` | ✅ 13/13（页面接入/单一 drawBackdrop 表面/DstIn 蒙版/无分段/无指针拦截/旧 scrim 禁止复活/豁免面锁定） |
 | Compose 编译 | `:app:compileDebugKotlin` | ✅ 通过（阶段F-1 后复跑；环境绕行见 PERFORMANCE_REPORT 附录） |
-| Kotlin 单元测试 | `:app:testDebugUnitTest --tests TopScrollScrimMathTest` | ✅ 5 用例（融合取色/smoothstep/激活度/色标分布/模糊段半径；经 C:/tb/t182 ASCII 镜像运行——junction 路径下 Gradle 测试 worker 的 argfile 中文类路径会 garble，见工作日志） |
+| Kotlin 单元测试 | `:app:testDebugUnitTest --tests TopGlassMathTest` | ✅ 4 用例（取色/smoothstep/蒙版平台+落零/参数区间；经 C:/tb/t182 ASCII 镜像运行——junction 路径下 Gradle 测试 worker 的 argfile 中文类路径会 garble，见工作日志） |
 
 ### 1.1 存量失败明细（14 项，与基线 1745121 相同集合，经 git stash 对照确认非本次引入）
 

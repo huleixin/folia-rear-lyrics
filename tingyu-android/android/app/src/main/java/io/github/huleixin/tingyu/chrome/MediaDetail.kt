@@ -24,6 +24,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -31,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import kotlin.math.roundToInt
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/MediaDetail.kt
 // 统一原生音乐集合详情模板（阶段 E）：歌单/专辑/每日推荐/收藏/自建/本地文件夹共用，
@@ -47,6 +50,11 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
     val cache=rememberNativeRows(page.key,tracks)
     val list=rememberLazyListState()
     LaunchedEffect(tracks.dataKey){list.scrollToItem(0)}
+    // 沉浸式毛玻璃顶栏（TopGlassBar）：歌曲列表全幅滚动进入固定返回栏的玻璃后方；
+    // 随滚动的封面/信息区不是顶栏，玻璃范围只由返回栏测量决定。玻璃底色含封面氛围层副本
+    // （内容层绘制，页面级原件在能力具备时移除以免重复采样）。
+    val colors=page.surfaceColors()
+    val glass=rememberTyTopGlassState(estimateHeaderBottomDp=page.safeTop+52f)
     // 集合内搜索（68593）：输入框由页面级固定层承载，从右上角放大镜的位置展开。
     val filterSection=page.sections.firstOrNull{it.layout=="input"}
     var pageOrigin by remember{mutableStateOf(Offset.Zero)}
@@ -56,31 +64,22 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
     BackHandler(enabled=searchExpanded){searchExpanded=false}
     val headerItems=1
     val currentVisible by remember(tracks.activeIndex,headerItems){derivedStateOf{list.layoutInfo.visibleItemsInfo.any{it.index==tracks.activeIndex+headerItems}}}
+    val pageDensity=LocalDensity.current
     LaunchedEffect(tracks.locateRevision){if(tracks.locateRevision>0&&tracks.activeIndex>=0){
-        list.animateScrollToItem(tracks.activeIndex+headerItems,-100)
+        // 定位落到玻璃顶栏下方 12dp（视口改为全幅后，原来的 -100 会把当前行留在玻璃后面）。
+        val clearPx=with(pageDensity){(glass.headerBottomDp+12).dp.toPx()}.roundToInt()
+        list.animateScrollToItem(tracks.activeIndex+headerItems,-clearPx)
     }}
     BoxWithConstraints(modifier.pageOrigin{pageOrigin=it}){
         val short=maxHeight<500.dp;val width=maxWidth.value
         // BoxWithConstraintsScope 带 @LayoutScopeMarker：Column 作用域里不能再隐式读 maxHeight，
-        // 需要先在根作用域提升为局部值（Top Scroll Scrim 的氛围层视口高度要用）。
+        // 需要先在根作用域提升为局部值（玻璃内容层的氛围层视口高度要用）。
         val detailMaxHeight=maxHeight
-        NativePlaylistBackdrop(cover.image,maxHeight)
-        Column(Modifier.fillMaxSize().padding(top=(page.safeTop+8).dp)){
-            // 顶部操作区水平边距与 WebView 对齐：.ml-page 16px + .ml-collection-top 10px = 26px。
-            Row(Modifier.fillMaxWidth().padding(horizontal=26.dp).height(44.dp),verticalAlignment=Alignment.CenterVertically){
-                ChromeButton(label("back"),size=44.dp,onClick={action(page.leading,"",0.0)}){PageIcon("arrow-left",PageInk,Modifier.size(23.dp))}
-                Spacer(Modifier.weight(1f))
-                Box(Modifier.pageAnchor(pageOrigin){filterIcon=it}){
-                    ChromeButton(label("filterToggle"),size=44.dp,onClick={action("filterToggle","",0.0)}){PageIcon("search",PageInk,Modifier.size(21.dp))}
-                }
-                ChromeButton(label("menu"),size=44.dp,onClick={action(page.trailing,"",0.0)}){PageIcon("ellipsis-vertical",PageInk,Modifier.size(23.dp))}
-            }
+        if(!TyTopGlass.glassCapable)NativePlaylistBackdrop(cover.image,detailMaxHeight)
+        Box(Modifier.fillMaxSize()){
+            TyTopGlassContentLayer(glass,colors,ambientImage=cover.image,ambientViewportHeight=detailMaxHeight,modifier=Modifier.fillMaxSize()){
             val listTop by animateDpAsState((if(short)8.dp else 18.dp)+if(searchExpanded)NativeSearchBarHeight+14.dp else 0.dp,tween(240),label="media-list-top")
-            // 顶部滚动渐隐（Top Scroll Scrim）：歌曲列表在固定返回栏下方柔和消隐。
-            // 融合色 = 页面渐变 + 封面氛围层副本（Ambient）：盖片跟随专辑封面的实际背景，
-            // 不把随滚动的封面/标题当成固定栏 —— 边界只参考真正的返回栏。
-            TopScrollScrimViewport(state=list,fusion=TopScrimFusion.Ambient(page.surfaceColors(),cover.image,detailMaxHeight),modifier=Modifier.fillMaxSize()) {
-            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(top=listTop,bottom=(page.bottomClearance+page.safeBottom).dp)){
+            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(top=glass.headerBottomDp.dp+listTop,bottom=(page.bottomClearance+page.safeBottom).dp)){
                 item("header"){
                     MediaDetailHeader(cover,page.title,intro,controls,
                         page.sections.firstOrNull{it.id=="songHeading"},short,width,action)
@@ -94,6 +93,19 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
                     if(section.text.isNotBlank())Text(section.text,color=PageMuted,fontSize=12.sp)
                     if(section.more.isNotBlank())PagePill(section.moreLabel,{action(section.more,"",0.0)})
                 }}}
+            }
+            }
+            TyTopGlassSurface(glass,colors,modifier=Modifier.fillMaxSize())
+            // 顶部操作区（清晰层）：水平边距与 WebView 对齐：.ml-page 16px + .ml-collection-top 10px = 26px。
+            Column(Modifier.fillMaxSize().padding(top=(page.safeTop+8).dp)
+                .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}){
+            Row(Modifier.fillMaxWidth().padding(horizontal=26.dp).height(44.dp),verticalAlignment=Alignment.CenterVertically){
+                ChromeButton(label("back"),size=44.dp,onClick={action(page.leading,"",0.0)}){PageIcon("arrow-left",PageInk,Modifier.size(23.dp))}
+                Spacer(Modifier.weight(1f))
+                Box(Modifier.pageAnchor(pageOrigin){filterIcon=it}){
+                    ChromeButton(label("filterToggle"),size=44.dp,onClick={action("filterToggle","",0.0)}){PageIcon("search",PageInk,Modifier.size(21.dp))}
+                }
+                ChromeButton(label("menu"),size=44.dp,onClick={action(page.trailing,"",0.0)}){PageIcon("ellipsis-vertical",PageInk,Modifier.size(23.dp))}
             }
             }
         }

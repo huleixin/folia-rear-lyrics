@@ -60,17 +60,15 @@
 
 ## 阶段 F：系统与性能适配 ⏳ 进行中
 
-### F-1：全局顶部滚动渐隐系统（Top Scroll Scrim）✅（2026-11-08 首轮，已实现 + 已测试，待真机验证）
+### F-1：沉浸式毛玻璃顶栏（Top Glass Bar）✅（2026-11-08 第二轮，已实现 + 已测试，待真机验证）
 
-- [x] 审计全部固定顶栏与滚动容器（Compose 7 路由 + WebView 白名单面），确定真实滚动边界
-- [x] 公共组件：`chrome/TopScrollScrim.kt`（TopScrollScrimViewport + TopScrimFusion + TyScrollScrim Token）
-- [x] 三端参数收编：`--ty-scrim-*`（CSS）/ `TY_SCRIM`（TS）/ `TyScrollScrim`（Kotlin），`designTokenParity` 门禁锁定
-- [x] Tier1 渐变融合盖片（静止零绘制、draw 阶段驱动零重组）+ Tier2 真实局部模糊（SDK≥31 + `TOP_SCRIM_BLUR` 门控，可 `TINGYU_TOP_SCRIM_BLUR=false` 降级）
-- [x] 接入：推荐/资料库（含本地分类）/搜索（含全部分类 tab）/集合详情（Ambient 封面融合）/歌手/最近播放/设置索引/背屏控制
-- [x] 按布局豁免并记录：设置二级文档页（区域级独立滚动窗口无固定顶栏）、经典歌词舞台/极简页/背屏（沉浸全屏）、MobileSheet（header 随内容滚动）
-- [x] WebView 公共能力就绪：`topScrollScrim.ts` + `topScrollScrim.css` + MobileScrollFrame 条件进度注入
-- [x] 测试：`topScrollScrimContract.test.ts`（13 断言）+ `designTokenParity` 新增 2 组 + `TopScrollScrimMathTest`（Kotlin 5 用例）
-- [ ] 真机验证（TOP_SCROLL_SCRIM.md §6 八项：猜你喜欢上滑过渡/搜索展开边界/亮色封面融合/输入法定位/横向轮播/返回手势/滚动流畅度 Tier2 对比/深浅色）
+- [x] **第一轮（Top Scroll Scrim）真机否决并彻底删除**：内容侧盖片 + 三段模糊 = 两条横向模糊带 + 水平分界线，根因是特效画在列表 overlay 上而非顶栏材质上；契约测试禁止其复活
+- [x] 公共组件 `chrome/TopGlassBar.kt`：TyTopGlassContentLayer（全幅滚动内容+对齐底色+封面氛围副本，捕获层）/ TyTopGlassSurface（单一连续玻璃面 = vibrancy+blur(10dp)+页面同色 tint，saveLayer+DstIn 底部 32dp 强度平滑衰减）/ TyTopGlass Token
+- [x] 页面布局重构：LazyColumn 全幅 + contentPadding top=测量顶栏底边（内容真正滚入顶栏后方）；头部内容独立清晰层，测量回填玻璃范围（搜索展开/输入法自动适配）
+- [x] 三端参数：`--ty-glass-top-*` / `TY_GLASS_TOP` / `TyTopGlass`，parity 门禁锁定
+- [x] 接入：推荐/资料库(含本地分类)/搜索(含分类tab)/集合详情(封面氛围副本+定位落点适配)/歌手/设置索引/背屏控制；豁免面记录在案
+- [x] 测试：`topGlassBarContract` 13 断言（单 drawBackdrop 调用点、DstIn 蒙版、无分段、无指针拦截、旧 API 禁止复活）+ parity glass-top 组 + `TopGlassMathTest` 4 用例
+- [ ] 真机验证（TOP_GLASS_BAR.md §6：推荐页首验 → 各页材质一致 → 深浅色 → 手势/轮播 → 流畅度与降级对比 → 页面切换无残影）
 
 ### F 其余待办 ⏳
 

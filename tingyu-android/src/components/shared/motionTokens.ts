@@ -37,20 +37,15 @@ export const TY_SPRING = {
 } as const;
 
 /**
- * Top Scroll Scrim 顶部滚动渐隐 —— 与 CSS --ty-scrim-*、Compose TyScrollScrim 三端对齐。
- * band = 渐隐过渡带高度；ramp = 滚动激活行程；blur = 局部模糊最大半径（Tier2 能力门控，
- * 降级为纯渐隐融合）。stopPositions/stopAlphas 是遮罩在 band 内的缓落采样
- * （Emphasized ease-out 分布，端点零斜率）；blurSegmentRadii 为 band 内分段模糊半径
- * （顶部最强、向下递减，轻量克制）。静止时遮罩完全不绘制。
+ * Top Glass Bar 沉浸式毛玻璃顶栏 —— 与 CSS --ty-glass-top-*、Compose TyTopGlass 三端对齐。
+ * 玻璃是固定顶栏的材质（不是内容侧特效）：blurPx = 顶栏玻璃模糊半径；tailPx = 底部强度
+ * 衰减距离；decayPositions/decayAlphas 是玻璃强度在 tail 内的平滑衰减采样（端点零斜率）。
  */
-export const TY_SCRIM = {
-    bandPx: 44,
-    rampPx: 32,
+export const TY_GLASS_TOP = {
     blurPx: 10,
-    blurSegments: 3,
-    blurSegmentRadii: [10, 6, 3],
-    stopPositions: [0, 0.22, 0.45, 0.72, 1],
-    stopAlphas: [1, 0.66, 0.34, 0.1, 0],
+    tailPx: 32,
+    decayPositions: [0, 0.22, 0.45, 0.72, 1],
+    decayAlphas: [1, 0.66, 0.34, 0.1, 0],
 } as const;
 
 /**

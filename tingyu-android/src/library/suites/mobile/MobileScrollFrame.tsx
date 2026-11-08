@@ -1,6 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import { topScrimProgress } from '../../../components/shared/topScrollScrim';
-import '../../../styles/topScrollScrim.css';
 
 const positions = new Map<string, { top: number; left: number }>();
 
@@ -32,15 +30,10 @@ export default function MobileScrollFrame({
         }
         const horizontal = frame.querySelector<HTMLElement>(':scope > .ml-scroll-cue-x')!;
         const vertical = frame.querySelector<HTMLElement>(':scope > .ml-scroll-cue-y')!;
-        // Top Scroll Scrim：存在 .ty-top-scrim 子元素时才同步滚动进度（零消费方时零开销）。
-        const scrim = frame.querySelector<HTMLElement>(':scope > .ty-top-scrim');
         let raf = 0;
         let idle: ReturnType<typeof setTimeout> | undefined;
         const measure = () => {
             raf = 0;
-            if (scrim) {
-                frame.style.setProperty('--ty-scrim-progress', topScrimProgress(scroll.scrollTop).toFixed(3));
-            }
             for (const [cue, client, total, position, axis] of [
                 [horizontal, scroll.clientWidth, scroll.scrollWidth, scroll.scrollLeft, 'x'],
                 [vertical, scroll.clientHeight, scroll.scrollHeight, scroll.scrollTop, 'y'],
@@ -70,7 +63,6 @@ export default function MobileScrollFrame({
         observer.observe(scroll);
         measure();
         return () => {
-            if (scrim) frame.style.removeProperty('--ty-scrim-progress');
             if (restoreKey) {
                 positions.set(restoreKey, { top: scroll.scrollTop, left: restoreAxis === 'vertical' ? 0 : scroll.scrollLeft });
                 if (positions.size > 32) positions.delete(positions.keys().next().value!);

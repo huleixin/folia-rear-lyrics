@@ -40,12 +40,11 @@
     --ty-glass-highlight-strong: linear-gradient(150deg, #ffffff12, #ffffff02 55%);
     --ty-glass-shadow: 0 5px 16px #0003;
 
-    /* ---- Top Scroll Scrim · 顶部滚动渐隐（三端对齐：motionTokens.ts / TopScrollScrim.kt） ----
-       静止时遮罩完全不绘制（顶部干净通透）；上滚内容在固定栏下方柔和消隐。
-       band/ramp/blur 的 px 与 Compose 的 dp 数值一一对应（WebView 的 1px ≈ Compose 1dp）。 */
-    --ty-scrim-band: 44px;       /* 渐隐过渡带高度（规范初始参考 36–48） */
-    --ty-scrim-ramp: 32px;       /* 滚动激活行程：滚过该距离遮罩完全生效 */
-    --ty-scrim-blur: 10px;       /* Tier2 局部模糊最大半径（能力门控，降级为纯渐隐） */
+    /* ---- Top Glass Bar · 沉浸式毛玻璃顶栏（三端对齐：motionTokens.ts / TopGlassBar.kt） ----
+       玻璃是固定顶栏的材质：滚动内容透过玻璃被高斯模糊观察，不是内容侧特效。
+       底部强度经 tail 平滑衰减到透明（无横带、无分界线）。px 与 Compose dp 一一对应。 */
+    --ty-glass-top-blur: 10px;   /* 顶栏玻璃高斯模糊半径 */
+    --ty-glass-top-tail: 32px;   /* 底部强度衰减距离（规范参考 24–40） */
 
     /* ---- 圆角等级 ---- */
     --ty-radius-xs: 8px;

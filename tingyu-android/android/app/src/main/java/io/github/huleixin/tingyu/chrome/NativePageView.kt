@@ -7,12 +7,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.Density
@@ -21,7 +18,7 @@ import androidx.compose.ui.unit.Density
 // Each surface follows its existing web design; only its renderer changes.
 internal typealias PageAction = (String, String, Double) -> Unit
 
-/** 页面背景渐变色板的单一来源：NativePageView 画背景与 Top Scroll Scrim 融合取色共用。
+/** 页面背景渐变色板的单一来源：NativePageView 画背景与沉浸式毛玻璃顶栏（TopGlassBar）取色共用。
  *  浅色优先于页面类型（与 1.3.182 基线行为一致），数值全部收编在 DarkInterfaceColors。 */
 @Composable internal fun NativePage.surfaceColors(): List<Color> = when {
     LocalInterfacePalette.current.light -> LocalInterfacePalette.current.backgrounds
@@ -39,19 +36,13 @@ internal typealias PageAction = (String, String, Double) -> Unit
         onAction(id, text, value)
     }
     val colors = page.surfaceColors()
-    // 页面根度量（Top Scroll Scrim 用）：band 的窗口位置要映射回页面渐变的取色位置。
-    val surface = remember { PageSurfaceMetrics() }
-    Box(if(page.document!=null)modifier else modifier.background(Brush.verticalGradient(colors))
-        .onGloballyPositioned { coords ->
-            surface.originY = coords.positionInWindow().y
-            surface.heightPx = coords.size.height.toFloat()
-        }) {
+    Box(if(page.document!=null)modifier else modifier.background(Brush.verticalGradient(colors))) {
         // Match CSS viewport pixels, independent of Android system text magnification.
         val scheme=if(LocalInterfacePalette.current.light)lightColorScheme(
             primary=LightInterfaceColors.Accent,surface=LightInterfaceColors.Sheet,onSurface=LightInterfaceColors.Ink,
             onSurfaceVariant=LightInterfaceColors.Muted,surfaceContainer=LightInterfaceColors.Surface)else MaterialTheme.colorScheme
         MaterialTheme(colorScheme=scheme) {
-        CompositionLocalProvider(LocalDensity provides Density(cssScale ?: density.density, 1f), LocalPageSurface provides surface) {
+        CompositionLocalProvider(LocalDensity provides Density(cssScale ?: density.density, 1f)) {
             when {
                 page.document!=null -> NativeSettingsDocumentView(page.document,Modifier.fillMaxSize(),action)
                 page.id=="settings"&&page.key.startsWith("settings:rear:")->NativeRearControlPage(page,Modifier.fillMaxSize(),density.fontScale,action)

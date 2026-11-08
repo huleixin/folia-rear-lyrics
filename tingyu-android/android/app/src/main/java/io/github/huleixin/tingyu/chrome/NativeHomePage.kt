@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import kotlinx.coroutines.launch
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeHomePage.kt
@@ -41,14 +43,14 @@ import kotlinx.coroutines.launch
         val start=if(wide)if(short)108.dp else 116.dp else 22.dp
         val end=if(wide)32.dp else 22.dp
         val viewport=if(wide)maxWidth.value-start.value-end.value else maxWidth.value
-        Column(Modifier.fillMaxSize().padding(top=(page.safeTop+if(short)8 else 36).dp)){
-            PageHeading(page,Modifier.padding(start=start,end=end).heightIn(min=if(short)60.dp else 72.dp),large=true,action=action)
-            Spacer(Modifier.height(6.dp))
-            // 顶部滚动渐隐（Top Scroll Scrim）：猜你喜欢/每日推荐/最近播放/我的歌单上滑时
-            // 在固定标题下方柔和消隐，横向卡片滑动不受影响（遮罩只画不接事件）。
+        // 沉浸式毛玻璃顶栏（TopGlassBar）：列表全幅滚动、真正进入顶栏玻璃后方；
+        // 玻璃是顶栏材质（vibrancy+blur+tint，底部 32dp 强度平滑衰减），标题/音源选择始终清晰。
+        val colors=page.surfaceColors()
+        val glass=rememberTyTopGlassState(estimateHeaderBottomDp=page.safeTop+(if(short)8 else 36)+(if(short)60 else 72)+6)
+        Box(Modifier.fillMaxSize()) {
+            TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()) {
             val list = rememberLazyListState()
-            TopScrollScrimViewport(state=list,fusion=TopScrimFusion.Gradient(page.surfaceColors()),modifier=Modifier.fillMaxSize()) {
-            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(bottom=(page.bottomClearance+page.safeBottom).dp)) {
+            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(top=glass.headerBottomDp.dp,bottom=(page.bottomClearance+page.safeBottom).dp)) {
                 page.sections.forEach { section ->
                     when {
                         section.layout=="hero" -> item(key=section.id){NativeHeroRail(section,viewport,start,end,wide,short,action)}
@@ -158,6 +160,13 @@ import kotlinx.coroutines.launch
                     }
                 }
             }
+            }
+            TyTopGlassSurface(glass,colors,modifier=Modifier.fillMaxSize())
+            // 顶栏内容：绘制在玻璃之上，始终清晰可操作。
+            Column(Modifier.fillMaxSize().padding(top=(page.safeTop+if(short)8 else 36).dp)
+                .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}) {
+                PageHeading(page,Modifier.padding(start=start,end=end).heightIn(min=if(short)60.dp else 72.dp),large=true,action=action)
+                Spacer(Modifier.height(6.dp))
             }
         }
     }

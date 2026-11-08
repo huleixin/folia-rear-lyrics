@@ -13,6 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
@@ -28,15 +30,13 @@ private val GroupIcons=mapOf("rear" to "captions","appearance" to "sparkles","co
 @Composable internal fun NativeSettingsPage(page:NativePage,modifier:Modifier,action:PageAction){
     BoxWithConstraints(modifier){
         val inset=if(maxWidth<374.dp)18.dp else 22.dp
-        Column(Modifier.fillMaxSize()){
-            Row(Modifier.fillMaxWidth().padding(start=inset,end=inset,top=(page.safeTop+24).dp,bottom=20.dp).heightIn(min=40.dp),verticalAlignment=Alignment.CenterVertically){
-                Text(page.title,color=interfaceColor(Color(0xFFE8F4ED),LightInterfaceColors.Ink),fontSize=32.sp,lineHeight=40.sp,fontWeight=FontWeight.Bold,letterSpacing=(-1.28).sp,modifier=Modifier.weight(1f))
-                Box(Modifier.size(40.dp).clip(RoundedCornerShape(999.dp)).background(interfaceColor(Color(0x0B99BBA5),LightInterfaceColors.Subtle)).clickable{action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("x",PageInk,Modifier.size(23.dp))}
-            }
-            // 顶部滚动渐隐（Top Scroll Scrim）：设置分组卡在固定标题栏下方柔和消隐。
+        // 沉浸式毛玻璃顶栏（TopGlassBar）：设置分组卡全幅滚动进入固定标题栏玻璃后方。
+        val colors=page.surfaceColors()
+        val glass=rememberTyTopGlassState(estimateHeaderBottomDp=page.safeTop+84f)
+        Box(Modifier.fillMaxSize()){
+            TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()){
             val list = rememberLazyListState()
-            TopScrollScrimViewport(state=list,fusion=TopScrimFusion.Gradient(page.surfaceColors()),modifier=Modifier.fillMaxSize()) {
-            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=inset,end=inset,bottom=(24+page.safeBottom).dp)){
+            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=inset,end=inset,top=glass.headerBottomDp.dp,bottom=(24+page.safeBottom).dp)){
                 page.sections.forEach{section->item(key=section.id){
                     Column(Modifier.padding(bottom=16.dp)){
                         if(section.title.isNotBlank())Row(Modifier.padding(start=2.dp,end=2.dp,bottom=8.dp).height(20.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
@@ -53,6 +53,13 @@ private val GroupIcons=mapOf("rear" to "captions","appearance" to "sparkles","co
                     }
                 }}
             }
+            }
+            TyTopGlassSurface(glass,colors,modifier=Modifier.fillMaxSize())
+            // 顶栏内容（清晰层）：标题 + 关闭按钮，绘制在玻璃之上。
+            Row(Modifier.fillMaxWidth().padding(start=inset,end=inset,top=(page.safeTop+24).dp,bottom=20.dp).heightIn(min=40.dp)
+                .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)},verticalAlignment=Alignment.CenterVertically){
+                Text(page.title,color=interfaceColor(Color(0xFFE8F4ED),LightInterfaceColors.Ink),fontSize=32.sp,lineHeight=40.sp,fontWeight=FontWeight.Bold,letterSpacing=(-1.28).sp,modifier=Modifier.weight(1f))
+                Box(Modifier.size(40.dp).clip(RoundedCornerShape(999.dp)).background(interfaceColor(Color(0x0B99BBA5),LightInterfaceColors.Subtle)).clickable{action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("x",PageInk,Modifier.size(23.dp))}
             }
         }
     }

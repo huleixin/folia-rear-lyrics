@@ -53,16 +53,16 @@
 
 **性能红线**：父子容器不得同时执行 backdrop-filter（当前由 `[data-native-glass]`/`[data-glass-engine]` 开关链保证）；新增玻璃层前先确认没有嵌套模糊。`useLiquidGlass`（光学折射引擎）目前无引用处于休眠状态——启用属新决策，不属本规范默认。
 
-## 2.1 Top Scroll Scrim（顶部滚动渐隐）
+## 2.1 Top Glass Bar（沉浸式毛玻璃顶栏）
 
-内容上滑经过固定顶栏时**逐渐消隐融入页面背景**、静止时顶部完全干净的公共系统。详见
-[TOP_SCROLL_SCRIM.md](./TOP_SCROLL_SCRIM.md)。要点：
+固定顶栏本身是半透明高斯玻璃：滚动内容全幅进入顶栏后方，透过玻璃被模糊观察；玻璃强度
+在底部 32dp 平滑衰减到透明（无横带、无分界线）。详见 [TOP_GLASS_BAR.md](./TOP_GLASS_BAR.md)。要点：
 
-- 参数：`--ty-scrim-band 44 / --ty-scrim-ramp 32 / --ty-scrim-blur 10`（与 TS `TY_SCRIM`、Kotlin `TyScrollScrim` 三端对齐，门禁锁定）。
-- 手段分层（禁止混淆表述）：Tier1 = 与页面背景逐像素同色的透明度渐隐盖片（始终启用）；
-  Tier2 = band 内真实局部模糊（SDK≥31 + `TOP_SCRIM_BLUR` 门控）；背景玻璃模糊 = 底栏 Liquid Glass 专属，顶部不使用。
-- 颜色：融合色来自页面背景色板单一来源 `NativePage.surfaceColors()`；集合详情含封面氛围层副本（Ambient）。
-- 触控：遮罩只画不接事件（无点击穿透、不拦截滑动）；底部 Liquid Glass 材质不受影响。
+- 参数：`--ty-glass-top-blur 10 / --ty-glass-top-tail 32`（与 TS `TY_GLASS_TOP`、Kotlin `TyTopGlass` 三端对齐，门禁锁定）。
+- 玻璃是**顶栏的材质**，不是内容侧特效；第一轮内容侧 scrim（两条横带根因）已删除并被契约测试禁止复活。
+- 图层：页面背景 → 全幅滚动内容（捕获层，含对齐底色/封面氛围副本）→ 单一玻璃面 → 清晰的顶栏内容。
+- 材质与底栏 Liquid Glass 同族（vibrancy+blur+同色系 tint），参数独立（顶栏 10dp 无 lens）；
+  底栏材质不受影响。降级（SDK<31 或 `TOP_GLASS_BLUR=false`）= 同形状半透明底色层。
 
 ## 3. 排版
 

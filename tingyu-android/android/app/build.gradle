@@ -46,9 +46,9 @@ android {
         // 关闭时 probe().minimalPlayer=false，JS 侧继续挂 WebView 极简页 —— 这就是回滚。
         buildConfigField 'boolean', 'COMPOSE_MINIMAL_PLAYER', (System.getenv('TINGYU_COMPOSE_MINIMAL') == 'false' ? 'false' : 'true')
         buildConfigField 'boolean', 'GLASS_LAB', (System.getenv('TINGYU_GLASS_LAB') == 'true' ? 'true' : 'false')
-        // Top Scroll Scrim 的 Tier2 局部模糊总开关（默认开启）。Tier1 渐变融合盖片不受它控制。
-        // 真机若发现列表捕获影响滚动性能，回滚方式：TINGYU_TOP_SCRIM_BLUR=false。
-        buildConfigField 'boolean', 'TOP_SCRIM_BLUR', (System.getenv('TINGYU_TOP_SCRIM_BLUR') == 'false' ? 'false' : 'true')
+        // 沉浸式毛玻璃顶栏（TopGlassBar）的 RenderEffect 模糊总开关（默认开启）。
+        // 关闭时降级为同一形状的半透明底色玻璃（无模糊、无横带）。回滚方式：TINGYU_TOP_GLASS_BLUR=false。
+        buildConfigField 'boolean', 'TOP_GLASS_BLUR', (System.getenv('TINGYU_TOP_GLASS_BLUR') == 'false' ? 'false' : 'true')
         buildConfigField 'boolean', 'NATIVE_PLAYBACK', (System.getenv('TINGYU_NATIVE_PLAYBACK') == 'false' ? 'false' : 'true')
         buildConfigField 'boolean', 'PLAYBACK_ENGINE_TEST', (playbackTestBuild || graphicsTestBuild).toString()
         buildConfigField 'boolean', 'GRAPHICS_DIAGNOSTICS', graphicsTestBuild.toString()

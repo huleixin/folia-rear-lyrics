@@ -47,4 +47,4 @@
 - **歌单详情不存在跨音源复制粘贴**：本地/在线/每日推荐统一走 `MobileCollection` + `CollectionResource`，原生侧统一走 `MediaDetailScaffold`（chrome/MediaDetail.kt，阶段 E 起覆盖专辑/每日推荐等全部非歌手集合）。差异由能力配置（`collectionCapabilities`、mutations.capabilities）控制——架构已符合跨音源统一目标。
 - **仍需统一的点**：确认弹窗 3 套、匹配弹窗 4 套、播放队列 UI 双渲染器各一套、歌曲行的音质标签只在原生行有（WebView 行缺失）、设置双模板头部。
 - **导航入口一致性**：同一集合从任意入口进入均经 `collectionNavigation` 栈 + 同一 collection surface，返回恢复由 `restoreHistoryState` + collection snapshot 保证。
-- **顶部滚动渐隐（阶段 F-1）**：全部「固定顶栏 + 滚动容器」的 Compose 页面（#2 推荐 / #3 资料库 / #5 集合详情 / #6 歌手 / #8 搜索 / 设置索引 / 背屏控制）统一经 `TopScrollScrimViewport` 接入，页面逐页覆盖矩阵见 [TOP_SCROLL_SCRIM.md](./TOP_SCROLL_SCRIM.md) §4；设置二级文档页、经典舞台、极简页、底部 sheet 为记录在案的豁免面。
+- **沉浸式毛玻璃顶栏（阶段 F-1 第二轮）**：全部「固定顶栏 + 滚动容器」的 Compose 页面（#2 推荐 / #3 资料库 / #5 集合详情 / #6 歌手 / #8 搜索 / 设置索引 / 背屏控制）统一经 `TopGlassBar`（TyTopGlassContentLayer + TyTopGlassSurface）接入——列表全幅滚动进入顶栏玻璃后方，玻璃强度底部平滑衰减；页面逐页覆盖矩阵见 [TOP_GLASS_BAR.md](./TOP_GLASS_BAR.md) §4；设置二级文档页、经典舞台、极简页、底部 sheet 为记录在案的豁免面。第一轮内容侧 scrim 已删除并被契约测试禁止复活。

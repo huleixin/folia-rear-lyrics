@@ -7,6 +7,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -16,6 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -28,28 +31,14 @@ import androidx.compose.ui.unit.sp
 @Composable internal fun NativeSearchPage(page:NativePage,modifier:Modifier,action:PageAction){
     val menu=page.key.startsWith("search:menu:")
     val caches=page.sections.filter{it.layout=="rows"}.associate{it.id to key(it.id){rememberNativeRows(page.key,it)}}
-    Column(modifier.padding(top=page.safeTop.dp)){
-        if(menu)PageHeading(page,Modifier.padding(14.dp),action=action)
-        else Column(Modifier.padding(start=14.dp,end=14.dp,top=10.dp)){
-            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
-                page.sections.firstOrNull{it.id=="query"}?.let{section->Box(Modifier.weight(1f)){NativePageInput(section,action,search=true)}}
-                Box(Modifier.size(44.dp).clip(RoundedCornerShape(999.dp)).background(interfaceColor(Color(0x08FFFFFF),LightInterfaceColors.Subtle)).clickable{action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("x",PageInk,Modifier.size(20.dp))}
-            }
-            page.sections.firstOrNull{it.id=="sources"}?.let{NativeSourceTabs(it,Modifier.padding(top=10.dp,bottom=2.dp),search=true,action=action)}
-            page.sections.firstOrNull{it.id=="tabs"}?.let{section->
-                Row(Modifier.fillMaxWidth().padding(top=8.dp).horizontalScroll(rememberScrollState())){section.items.forEach{item->
-                    Column(Modifier.widthIn(min=64.dp).clickable{action(item.action,"",0.0)},horizontalAlignment=Alignment.CenterHorizontally){
-                        Box(Modifier.height(44.dp).padding(horizontal=8.dp),contentAlignment=Alignment.Center){Text(item.title,color=if(item.selected)PageAccent else PageMuted,fontSize=14.sp,fontWeight=if(item.selected)FontWeight.SemiBold else FontWeight.Normal)}
-                        Box(Modifier.fillMaxWidth().height(2.dp).background(if(item.selected)PageAccent else Color.Transparent))
-                    }
-                }}
-            }
-        }
-        // 顶部滚动渐隐（Top Scroll Scrim）：搜索结果在固定分类标签下方柔和消隐；
-        // 综合/单曲/歌手/歌单/专辑分类共用同一效果。输入法弹出时边界随 imePadding 自动适配。
-        val list = rememberLazyListState()
-        TopScrollScrimViewport(state=list,fusion=TopScrimFusion.Gradient(page.surfaceColors()),modifier=Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize().imePadding(),state=list,contentPadding=PaddingValues(start=14.dp,end=14.dp,top=if(menu)0.dp else 16.dp,bottom=(page.safeBottom+18).dp)){
+    // 沉浸式毛玻璃顶栏（TopGlassBar）：搜索结果全幅滚动进入固定搜索区玻璃后方；
+    // 输入框/关闭钮/音源标签/分类标签是玻璃之上的清晰层，输入法弹出时列表随 imePadding 避让。
+    val colors=page.surfaceColors()
+    val glass=rememberTyTopGlassState(estimateHeaderBottomDp=page.safeTop+if(menu)74f else 166f)
+    Box(modifier){
+        TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()){
+        val list=rememberLazyListState()
+        LazyColumn(Modifier.fillMaxSize().imePadding(),state=list,contentPadding=PaddingValues(start=14.dp,end=14.dp,top=glass.headerBottomDp.dp+if(menu)0.dp else 16.dp,bottom=(page.safeBottom+18).dp)){
             page.sections.filter{it.id !in setOf("query","sources","tabs")}.forEach{section->
                 val history=section.id=="history";val hot=section.id=="hot"
                 if(section.title.isNotBlank())item(key="${section.id}:heading"){
@@ -113,6 +102,27 @@ import androidx.compose.ui.unit.sp
                 }
             }
         }
+        }
+        TyTopGlassSurface(glass,colors,modifier=Modifier.fillMaxSize())
+        // 顶栏内容（清晰层）：搜索框/关闭钮/音源标签/分类标签，绘制在玻璃之上。
+        Column(Modifier.fillMaxSize().padding(top=page.safeTop.dp)
+            .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}){
+            if(menu)PageHeading(page,Modifier.padding(14.dp),action=action)
+            else Column(Modifier.padding(start=14.dp,end=14.dp,top=10.dp)){
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                    page.sections.firstOrNull{it.id=="query"}?.let{section->Box(Modifier.weight(1f)){NativePageInput(section,action,search=true)}}
+                    Box(Modifier.size(44.dp).clip(RoundedCornerShape(999.dp)).background(interfaceColor(Color(0x08FFFFFF),LightInterfaceColors.Subtle)).clickable{action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("x",PageInk,Modifier.size(20.dp))}
+                }
+                page.sections.firstOrNull{it.id=="sources"}?.let{NativeSourceTabs(it,Modifier.padding(top=10.dp,bottom=2.dp),search=true,action=action)}
+                page.sections.firstOrNull{it.id=="tabs"}?.let{section->
+                    Row(Modifier.fillMaxWidth().padding(top=8.dp).horizontalScroll(rememberScrollState())){section.items.forEach{item->
+                        Column(Modifier.widthIn(min=64.dp).clickable{action(item.action,"",0.0)},horizontalAlignment=Alignment.CenterHorizontally){
+                            Box(Modifier.height(44.dp).padding(horizontal=8.dp),contentAlignment=Alignment.Center){Text(item.title,color=if(item.selected)PageAccent else PageMuted,fontSize=14.sp,fontWeight=if(item.selected)FontWeight.SemiBold else FontWeight.Normal)}
+                            Box(Modifier.fillMaxWidth().height(2.dp).background(if(item.selected)PageAccent else Color.Transparent))
+                        }
+                    }}
+                }
+            }
         }
     }
 }

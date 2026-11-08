@@ -15,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
@@ -29,15 +31,13 @@ import androidx.compose.ui.unit.sp
     CompositionLocalProvider(LocalDensity provides Density(density.density,fontScale)){
         BoxWithConstraints(modifier){
             val inset=if(maxWidth<374.dp)18.dp else 22.dp
-            Column(Modifier.fillMaxSize()){
-                Row(Modifier.fillMaxWidth().padding(start=inset,end=inset,top=(page.safeTop+24).dp,bottom=20.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
-                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(999.dp)).semantics{contentDescription=page.trailingLabel}.clickable{action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("chevron-left",PageInk,Modifier.size(24.dp))}
-                    Text(page.title,color=PageInk,fontSize=22.sp,lineHeight=28.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
-                }
-                // 顶部滚动渐隐（Top Scroll Scrim）：背屏控制分组在固定返回栏下方柔和消隐。
+            // 沉浸式毛玻璃顶栏（TopGlassBar）：背屏控制分组全幅滚动进入固定返回栏玻璃后方。
+            val colors=page.surfaceColors()
+            val glass=rememberTyTopGlassState(estimateHeaderBottomDp=page.safeTop+84f)
+            Box(Modifier.fillMaxSize()){
+                TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()){
                 val list = rememberLazyListState()
-                TopScrollScrimViewport(state=list,fusion=TopScrimFusion.Gradient(page.surfaceColors()),modifier=Modifier.fillMaxSize()) {
-                LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=inset,end=inset,bottom=(24+page.safeBottom).dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
+                LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=inset,end=inset,top=glass.headerBottomDp.dp,bottom=(24+page.safeBottom).dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
                     page.sections.forEach{section->item(key=section.id){
                         Column{
                             if(section.title.isNotBlank())Text(section.title,color=PageMuted,fontSize=13.sp,lineHeight=20.sp,modifier=Modifier.padding(start=2.dp,bottom=8.dp))
@@ -55,6 +55,13 @@ import androidx.compose.ui.unit.sp
                         }
                     }}
                 }
+                }
+                TyTopGlassSurface(glass,colors,modifier=Modifier.fillMaxSize())
+                // 顶栏内容（清晰层）：返回按钮 + 标题，绘制在玻璃之上。
+                Row(Modifier.fillMaxWidth().padding(start=inset,end=inset,top=(page.safeTop+24).dp,bottom=20.dp)
+                    .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(999.dp)).semantics{contentDescription=page.trailingLabel}.clickable{action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("chevron-left",PageInk,Modifier.size(24.dp))}
+                    Text(page.title,color=PageInk,fontSize=22.sp,lineHeight=28.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
                 }
             }
         }

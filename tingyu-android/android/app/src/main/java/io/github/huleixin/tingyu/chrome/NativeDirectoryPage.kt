@@ -59,7 +59,55 @@ import kotlin.math.roundToInt
         val list=rememberLazyListState();val identity=rowSections.map{it.id to it.dataKey}.toString()
         var previous by rememberSaveable { mutableStateOf(identity) }
         LaunchedEffect(identity){if(previous!=identity){list.scrollToItem(0);previous=identity}}
-        Column(Modifier.fillMaxSize().padding(top=(page.safeTop+if(library)36 else 8).dp)){
+        // 沉浸式毛玻璃顶栏（TopGlassBar）：列表全幅滚动、真正进入顶栏玻璃后方。
+        // 资料库头部（标题/分类/搜索框/排序）与歌手返回栏是玻璃之上的清晰层；
+        // 搜索展开/收起时玻璃范围随头部布局测量自动适配，无分段无横带。
+        val colors=page.surfaceColors()
+        val glass=rememberTyTopGlassState(estimateHeaderBottomDp=page.safeTop+if(library)240f else 52f)
+        Box(Modifier.fillMaxSize()){
+            TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()){
+            val listTop by animateDpAsState(if(searchExpanded)NativeSearchBarHeight+16.dp else 0.dp,tween(240),label="dir-list-top")
+            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=start,end=end,top=glass.headerBottomDp.dp+listTop,
+                bottom=(page.bottomClearance+page.safeBottom).dp)){
+                page.sections.forEach { section ->
+                    when {
+                        section.id=="intro" -> item(key=section.id){
+                            Column(Modifier.padding(top=4.dp,bottom=13.dp)){
+                                Text(page.title,color=PageInk,fontSize=27.sp,lineHeight=34.sp,fontWeight=FontWeight.Bold)
+                                // 歌手页简介（路由保证只有歌手走这里；非歌手集合统一在 MediaDetailScaffold）。
+                                section.items.firstOrNull()?.let{item->
+                                    var expanded by remember(item.subtitle){mutableStateOf(false)}
+                                    val collapsible=item.subtitle.length>90||item.subtitle.contains('\n')
+                                    Row(Modifier.fillMaxWidth().padding(top=12.dp),horizontalArrangement=Arrangement.spacedBy(16.dp),verticalAlignment=Alignment.CenterVertically){
+                                        PageArtwork(item.image,Modifier.size(88.dp),12.dp)
+                                        Column(Modifier.weight(1f).then(if(collapsible)Modifier.clickable{expanded=!expanded}else Modifier)){
+                                            Text(item.subtitle,color=PageMuted,fontSize=13.sp,lineHeight=20.sp,maxLines=if(expanded||!collapsible)Int.MAX_VALUE else 3,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                            if(collapsible)Text(if(expanded)"收起" else "展开简介",color=PageAccent,fontSize=12.sp,modifier=Modifier.padding(top=4.dp))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        section.layout=="rows" -> pagedNativeRows(page,section,caches.getValue(section.id),if(library)NativePageDesign.DirectoryRow else 62,action,art=if(library)NativePageDesign.DirectoryArt.dp else null)
+                        !library&&section.id=="play"&&page.key.contains("artist:") -> item(key=section.id){
+                            Row(Modifier.fillMaxWidth().padding(bottom=16.dp)){
+                                section.items.firstOrNull()?.let{item->PagePill(item.title,{action(item.action,"",0.0)},
+                                    selected=true,enabled=!item.disabled,height=36.dp,font=14,trailing="play")}
+                            }
+                        }
+                        !library&&section.layout=="chips" -> item(key=section.id){NativeSourceTabs(section,Modifier.padding(bottom=12.dp),action=action)}
+                        !library&&section.layout=="input" -> item(key=section.id){Box(Modifier.padding(bottom=10.dp)){NativePageInput(section,action)}}
+                        section.layout=="message"&&section.text.isNotBlank() -> item(key=section.id){Text(section.text,color=PageMuted,fontSize=13.sp,modifier=Modifier.padding(vertical=20.dp,horizontal=8.dp))}
+                    }
+                    if(section.busy)item(key="${section.id}:busy"){CircularProgressIndicator(Modifier.padding(12.dp).size(20.dp),color=PageAccent,strokeWidth=2.dp)}
+                    if(section.more.isNotBlank()&&section.text.isNotBlank())item(key="${section.id}:retry"){PagePill(section.moreLabel,{action(section.more,"",0.0)})}
+                }
+            }
+            }
+            TyTopGlassSurface(glass,colors,modifier=Modifier.fillMaxSize())
+            // 顶栏内容：绘制在玻璃之上，始终清晰可操作；测量底边回填玻璃范围。
+            Column(Modifier.fillMaxSize().padding(top=(page.safeTop+if(library)36 else 8).dp)
+                .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}){
             if(library){
                 // 搜索展开时整块头部收起（240ms 同步收缩），把屏幕让给"固定搜索层 + 列表"。
                 AnimatedVisibility(visible=!searchExpanded,
@@ -97,46 +145,6 @@ import kotlin.math.roundToInt
                 ChromeButton("返回",size=42.dp,onClick={action(page.leading,"",0.0)}){PageIcon("chevron-left",PageInk,Modifier.size(23.dp))}
                 Spacer(Modifier.weight(1f))
                 if(page.trailing.isNotBlank())ChromeButton("更多",size=42.dp,onClick={action(page.trailing,"",0.0)}){PageIcon("ellipsis-vertical",PageInk,Modifier.size(23.dp))}
-            }
-            val listTop by animateDpAsState(if(searchExpanded)NativeSearchBarHeight+16.dp else 0.dp,tween(240),label="dir-list-top")
-            // 顶部滚动渐隐（Top Scroll Scrim）：资料库（标题/分类/搜索框/排序下方）与歌手页
-            // （返回栏下方）在固定区边界柔和消隐；搜索展开/收起时边界随布局自动适配，不闪不跳。
-            TopScrollScrimViewport(state=list,fusion=TopScrimFusion.Gradient(page.surfaceColors()),modifier=Modifier.fillMaxSize()) {
-            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=start,end=end,top=listTop,
-                bottom=(page.bottomClearance+page.safeBottom).dp)){
-                page.sections.forEach { section ->
-                    when {
-                        section.id=="intro" -> item(key=section.id){
-                            Column(Modifier.padding(top=4.dp,bottom=13.dp)){
-                                Text(page.title,color=PageInk,fontSize=27.sp,lineHeight=34.sp,fontWeight=FontWeight.Bold)
-                                // 歌手页简介（路由保证只有歌手走这里；非歌手集合统一在 MediaDetailScaffold）。
-                                section.items.firstOrNull()?.let{item->
-                                    var expanded by remember(item.subtitle){mutableStateOf(false)}
-                                    val collapsible=item.subtitle.length>90||item.subtitle.contains('\n')
-                                    Row(Modifier.fillMaxWidth().padding(top=12.dp),horizontalArrangement=Arrangement.spacedBy(16.dp),verticalAlignment=Alignment.CenterVertically){
-                                        PageArtwork(item.image,Modifier.size(88.dp),12.dp)
-                                        Column(Modifier.weight(1f).then(if(collapsible)Modifier.clickable{expanded=!expanded}else Modifier)){
-                                            Text(item.subtitle,color=PageMuted,fontSize=13.sp,lineHeight=20.sp,maxLines=if(expanded||!collapsible)Int.MAX_VALUE else 3,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                                            if(collapsible)Text(if(expanded)"收起" else "展开简介",color=PageAccent,fontSize=12.sp,modifier=Modifier.padding(top=4.dp))
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        section.layout=="rows" -> pagedNativeRows(page,section,caches.getValue(section.id),if(library)NativePageDesign.DirectoryRow else 62,action,art=if(library)NativePageDesign.DirectoryArt.dp else null)
-                        !library&&section.id=="play"&&page.key.contains("artist:") -> item(key=section.id){
-                            Row(Modifier.fillMaxWidth().padding(bottom=16.dp)){
-                                section.items.firstOrNull()?.let{item->PagePill(item.title,{action(item.action,"",0.0)},
-                                    selected=true,enabled=!item.disabled,height=36.dp,font=14,trailing="play")}
-                            }
-                        }
-                        !library&&section.layout=="chips" -> item(key=section.id){NativeSourceTabs(section,Modifier.padding(bottom=12.dp),action=action)}
-                        !library&&section.layout=="input" -> item(key=section.id){Box(Modifier.padding(bottom=10.dp)){NativePageInput(section,action)}}
-                        section.layout=="message"&&section.text.isNotBlank() -> item(key=section.id){Text(section.text,color=PageMuted,fontSize=13.sp,modifier=Modifier.padding(vertical=20.dp,horizontal=8.dp))}
-                    }
-                    if(section.busy)item(key="${section.id}:busy"){CircularProgressIndicator(Modifier.padding(12.dp).size(20.dp),color=PageAccent,strokeWidth=2.dp)}
-                    if(section.more.isNotBlank()&&section.text.isNotBlank())item(key="${section.id}:retry"){PagePill(section.moreLabel,{action(section.more,"",0.0)})}
-                }
             }
             }
         }
