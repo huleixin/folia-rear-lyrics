@@ -46,12 +46,12 @@ android {
         // 关闭时 probe().minimalPlayer=false，JS 侧继续挂 WebView 极简页 —— 这就是回滚。
         buildConfigField 'boolean', 'COMPOSE_MINIMAL_PLAYER', (System.getenv('TINGYU_COMPOSE_MINIMAL') == 'false' ? 'false' : 'true')
         buildConfigField 'boolean', 'GLASS_LAB', (System.getenv('TINGYU_GLASS_LAB') == 'true' ? 'true' : 'false')
-        // 液态玻璃参数预设（1.3.189 玻璃专项）。三组见 ChromeGlassPresets：
-        //   official      = Kyant0 1.0.6 官方 LiquidBottomTabs 原值（64dp 底栏基线）
-        //   proportional  = 听屿 54dp 底栏等比缩放（默认）
-        //   crisp         = 低模糊/低折射，可读性与性能优先
-        // 对比方式：TINGYU_GLASS_PRESET=official|proportional|crisp 分别出包。
-        buildConfigField 'String', 'GLASS_PRESET', "\"${System.getenv('TINGYU_GLASS_PRESET') ?: 'proportional'}\""
+        // 液态玻璃参数预设。三组见 ChromeGlassPresets：
+        //   official = Kyant0 1.0.6 官方 LiquidBottomTabs 原值（64dp 底栏基线，折射会被模糊吃掉）
+        //   liquid   = 二次专项默认：band 24dp / 位移 24dp / 模糊 5dp（visibleRim 9.3dp）
+        //   crisp    = 保守：band 16dp / 位移 14dp / 模糊 6dp
+        // 对比方式：TINGYU_GLASS_PRESET=official|liquid|crisp 分别出包。
+        buildConfigField 'String', 'GLASS_PRESET', "\"${System.getenv('TINGYU_GLASS_PRESET') ?: 'liquid'}\""
         // 沉浸式毛玻璃顶栏（TopGlassBar）的 RenderEffect 模糊总开关（默认开启）。
         // 关闭时降级为同一形状的半透明底色玻璃（无模糊、无横带）。回滚方式：TINGYU_TOP_GLASS_BLUR=false。
         buildConfigField 'boolean', 'TOP_GLASS_BLUR', (System.getenv('TINGYU_TOP_GLASS_BLUR') == 'false' ? 'false' : 'true')

@@ -19,6 +19,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -64,6 +67,8 @@ import kotlin.math.roundToInt
     val tabsBackdrop=rememberLayerBackdrop()
     var drag by remember { mutableStateOf<Float?>(null) }
     var pressed by remember { mutableStateOf(false) }
+    // 跟手镜面热点：归一化到整条底栏（0..1）。null = 没按压。
+    var pressPoint by remember { mutableStateOf<Offset?>(null) }
     // 按压进度：折射带/高光/阴影/缩放都由它驱动；damping 0.55 留一点回弹。
     val press by animateFloatAsState(
         targetValue = if(pressed&&!s.disabled)1f else 0f,
@@ -71,7 +76,7 @@ import kotlin.math.roundToInt
         label="nav-press",
     )
     val selection by animateFloatAsState(s.selected.coerceAtLeast(0).toFloat(),animationSpec=if(s.reducedMotion)snap()else spring(dampingRatio=NativeMotionPolicy.Damping,stiffness=NativeMotionPolicy.Stiffness),label="selected-tab")
-    BoxWithConstraints(modifier.chromeGlass(backdrop,s.light,radius,spec,ChromeGlassPresets.NavFill).padding(4.dp)) {
+    BoxWithConstraints(modifier.chromeGlass(backdrop,s.light,radius,spec,ChromeGlassPresets.NavFill,pressPoint={pressPoint}).padding(4.dp)) {
         val extent=with(LocalDensity.current){(if(s.vertical)maxHeight else maxWidth).toPx()}/4
         val position=drag ?: selection
         val touch=Modifier.pointerInput(s.vertical,extent,s.selected) {
@@ -79,21 +84,27 @@ import kotlin.math.roundToInt
             if(s.vertical) detectVerticalDragGestures(onDragStart={drag=s.selected.coerceAtLeast(0).toFloat();action("interactionStart",0.0)},onDragEnd={end()},onDragCancel={drag=null;action("interactionEnd",0.0)}) { change,amount->change.consume();drag=((drag?:selection)+amount/extent).coerceIn(0f,3f) }
             else detectHorizontalDragGestures(onDragStart={drag=s.selected.coerceAtLeast(0).toFloat();action("interactionStart",0.0)},onDragEnd={end()},onDragCancel={drag=null;action("interactionEnd",0.0)}) { change,amount->change.consume();drag=((drag?:selection)+amount/extent).coerceIn(0f,3f) }
         }
-        // 只观测、不消费：任何一次按下都推进按压进度（点击与滑动共用同一套反馈）。
+        // 只观测、不消费：任何一次按下都推进按压进度（点击与滑动共用同一套反馈），
+        // 同时记录归一化按压点喂给玻璃的镜面热点。
         val pressWatch=Modifier.pointerInput(s.disabled) {
             awaitEachGesture {
-                awaitFirstDown(requireUnconsumed=false,pass=PointerEventPass.Initial)
+                val down=awaitFirstDown(requireUnconsumed=false,pass=PointerEventPass.Initial)
                 pressed=true
+                pressPoint=Offset(
+                    (down.position.x/size.width.coerceAtLeast(1)).coerceIn(0f,1f),
+                    (down.position.y/size.height.coerceAtLeast(1)).coerceIn(0f,1f),
+                )
                 try { do { val e=awaitPointerEvent(PointerEventPass.Initial) } while(e.changes.any{it.pressed}) }
-                finally { pressed=false }
+                finally { pressed=false; pressPoint=null }
             }
         }
         // ① 记录层：与底栏完全同参的一块玻璃，alpha=0 只用来喂 ③（不画高光/投影，省两个图层）。
         Box(Modifier.fillMaxSize().alpha(0f).layerBackdrop(tabsBackdrop)
             .chromeGlass(backdrop,s.light,radius,spec,ChromeGlassPresets.NavFill,decorations=false))
         val bounds=Modifier.then(if(s.vertical) Modifier.fillMaxWidth().height(maxHeight/4) else Modifier.fillMaxHeight().width(maxWidth/4))
-        val pillShape=RoundedCornerShape(24.dp)
-        val pillScrim=if(s.light)Color.Black.copy(alpha=.10f) else Color.White.copy(alpha=.10f)
+        val pillScrim=if(s.light)Color.Black.copy(alpha=.075f) else Color.White.copy(alpha=.075f)
+        // 静止也保留折射（0.55 强度），否则胶囊只剩一层灰纱 —— 这正是上一版"灰色磨砂"的成因。
+        val pillLens=.55f+.45f*press
         val pill=bounds
             .graphicsLayer {
                 if(s.vertical)translationY=position*extent else translationX=position*extent
@@ -103,24 +114,48 @@ import kotlin.math.roundToInt
             .then(
                 if(Build.VERSION.SDK_INT>=31) Modifier.drawBackdrop(
                     backdrop=tabsBackdrop,
-                    shape={pillShape},
+                    // 按压时圆角收一点，配合缩放做出"液体被压"的形变。
+                    shape={RoundedCornerShape(24.dp-3.dp*press)},
                     effects={
-                        // 静止时 press=0：完全不挂 RenderEffect，只画一层薄纱（不重复模糊）。
-                        if(Build.VERSION.SDK_INT>=33&&press>.02f) {
-                            val h=10.dp.toPx()*press
-                            val a=14.dp.toPx()*press
+                        if(Build.VERSION.SDK_INT>=33) {
+                            val h=9.dp.toPx()*pillLens
+                            val a=12.dp.toPx()*pillLens
                             padding=a+4.dp.toPx()
                             lens(h,a,chromaticAberration=true)
                         }
                     },
-                    highlight={Highlight(.6.dp,.3.dp,.28f+.5f*press,HighlightStyle.Default)},
-                    shadow={Shadow(radius=12.dp,offset=DpOffset(0.dp,2.dp),color=Color.Black.copy(alpha=.10f),alpha=.28f+.45f*press)},
-                    innerShadow={InnerShadow(radius=8.dp,alpha=.8f*press)},
+                    highlight={Highlight(.7.dp,.35.dp,.22f+.62f*press,HighlightStyle.Default)},
+                    shadow={Shadow(radius=12.dp,offset=DpOffset(0.dp,2.dp),color=Color.Black.copy(alpha=.10f),alpha=.22f+.5f*press)},
+                    innerShadow={InnerShadow(radius=8.dp,alpha=.22f+.55f*press)},
                     onDrawSurface={
                         drawRect(pillScrim)
-                        drawRect(accent.copy(alpha=if(s.light).10f else .14f))
+                        drawRect(accent.copy(alpha=if(s.light).085f else .12f))
+                        // 胶囊自己的环境反射：顶部一道柔光，让它在静止时也是"玻璃"而不是"色块"。
+                        drawRect(
+                            brush=Brush.verticalGradient(
+                                0f to Color.White.copy(alpha=.085f),
+                                .40f to Color.White.copy(alpha=.025f),
+                                1f to Color.Transparent,
+                            ),
+                            blendMode=BlendMode.Plus,
+                        )
+                        // 跟手热点：把底栏归一化点换算到胶囊自身坐标（4 段之一）。
+                        pressPoint?.let{p->
+                            val cx=((p.x*4f-position).coerceIn(-.2f,1.2f))*size.width
+                            val center=Offset(cx,p.y*size.height)
+                            val r=size.height*1.8f
+                            drawCircle(
+                                brush=Brush.radialGradient(
+                                    0f to Color.White.copy(alpha=.12f),
+                                    .5f to Color.White.copy(alpha=.04f),
+                                    1f to Color.Transparent,
+                                    center=center,radius=r,
+                                ),
+                                radius=r,center=center,blendMode=BlendMode.Plus,
+                            )
+                        }
                     },
-                ) else Modifier.background(pillScrim,pillShape)
+                ) else Modifier.background(pillScrim,RoundedCornerShape(24.dp-3.dp*press))
             )
         if(s.selected>=0 || drag!=null) Box(pill)
         val items=@Composable {

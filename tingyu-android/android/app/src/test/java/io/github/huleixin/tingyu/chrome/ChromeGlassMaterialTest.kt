@@ -25,14 +25,16 @@ class ChromeGlassMaterialTest {
     }
 
     @Test fun defaultPresetIsTheGeometricallyScaledOne() {
-        assertEquals("proportional", ChromeGlassPresets.Default.key)
-        assertSame(ChromeGlassPresets.Proportional, ChromeGlassPresets.Default)
+        assertEquals("liquid", ChromeGlassPresets.Default.key)
+        assertSame(ChromeGlassPresets.Liquid, ChromeGlassPresets.Default)
         // 未知 / 缺失的 key 必须回落到默认，不能抛异常（构建参数写错不允许白屏）。
         assertSame(ChromeGlassPresets.Default, ChromeGlassPresets.byKey(null))
         assertSame(ChromeGlassPresets.Default, ChromeGlassPresets.byKey(""))
         assertSame(ChromeGlassPresets.Default, ChromeGlassPresets.byKey("nope"))
         assertSame(ChromeGlassPresets.Official, ChromeGlassPresets.byKey("official"))
         assertSame(ChromeGlassPresets.Crisp, ChromeGlassPresets.byKey("crisp"))
+        // 首次专项用过的 key 作为别名保留，避免旧环境变量静默换参数。
+        assertSame(ChromeGlassPresets.Liquid, ChromeGlassPresets.byKey("proportional"))
     }
 
     @Test fun officialPresetKeepsTheKyantBaseline() {
@@ -94,7 +96,7 @@ class ChromeGlassMaterialTest {
     }
 
     @Test fun surfaceFillOnlyMovesAlphaAndClamps() {
-        val spec = ChromeGlassPresets.Proportional
+        val spec = ChromeGlassPresets.Liquid
         val base = spec.surface(true, 1f)
         assertEquals(spec.lightSurface.red, base.red, 0.0001f)
         assertEquals(0.40f, base.alpha, 0.001f)

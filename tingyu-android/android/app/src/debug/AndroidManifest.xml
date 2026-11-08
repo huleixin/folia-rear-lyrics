@@ -3,5 +3,16 @@
     <application>
         <activity android:name=".chrome.MiniSleepPreviewActivity" android:exported="false" android:theme="@style/AppTheme.NoActionBar" />
         <activity android:name=".chrome.RearSettingsPreviewActivity" android:exported="false" android:theme="@style/AppTheme.NoActionBar" />
+        <!-- 液态玻璃诊断台：装 debug 包后从桌面图标直接进，不需要 adb。 -->
+        <activity
+            android:name=".chrome.GlassLabActivity"
+            android:exported="true"
+            android:label="玻璃诊断台"
+            android:theme="@style/AppTheme.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

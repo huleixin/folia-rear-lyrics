@@ -17,6 +17,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
@@ -48,31 +50,39 @@ import io.github.huleixin.tingyu.minimal.ui.PlayerControlIcon
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ChromeMaterial.kt
 //
-// 液态玻璃材质层（1.3.189 玻璃专项）。
+// 液态玻璃材质层（1.3.188 二次专项）。
 //
-// 参数与结构逐项对齐 Kyant0/AndroidLiquidGlass tag `1.0.6` 的
-// `catalog/src/main/java/com/kyant/backdrop/catalog/components/LiquidBottomTabs.kt`：
-//   · 底色：浅色 #FAFAFA @40%，深色 #121212 @40%（中性灰，不是品牌绿）
-//   · 效果：vibrancy() → blur(8.dp) → lens(24.dp, 24.dp)
-//   · 边缘：Highlight.Default（0.5dp、白色 50%、BlendMode.Plus）而不是 stroke
-//   · 选中项：采样「底栏自身玻璃」的第二级 backdrop，静止时不再二次模糊
+// ── 为什么上一版看起来仍然是「高斯模糊面板」──────────────────────────────────
+// 折射着色器（Shaders.kt: RoundedRectRefractionShaderString）的位移量是：
+//     d(depth) = amount * circleMap(1 - depth / refractionHeight)
+//     circleMap(x) = 1 - sqrt(1 - x²)
+// 这是圆的边缘法线分布，物理上正确：位移在**最外缘**取到 amount，往内迅速衰减。
+// 关键量化（54dp 底栏，2.75x）：
+//     · 首次专项 band=12dp / amount=16.2dp / blur=4dp → 位移 >1 倍模糊半径的环 ≈4.1dp
+//     · 二次专项 band=20dp / amount=20dp / blur=8dp   → 同样的环 ≈4.0dp，而模糊翻倍
+// 也就是：**模糊从 4dp 提到 8dp 之后，本来只有 4dp 宽的折射环被试彻底糊掉了**。
+// 这不是调色问题，是「可见折射环宽度 / 模糊半径」小于 1 的几何问题。
 //
-// 听屿旧实现的三处根因（详见审计报告）：
-//   1. onDrawSurface 用的是 #F1F4ED / #303B36 —— 本身带绿，再叠 52%~64% 就成了绿磨砂；
-//   2. 外层又画了 0.8dp #315D43 硬描边，与库默认高光叠成双重边缘；
-//   3. padding 被 lens 扣成 0，镜头只能采形状内部的像素，边缘无法弯折页面内容。
+// 本版：band 拉到 24dp（≈半个底栏高）、位移 24dp、模糊压到 5dp →
+// visibleRim 9.3dp、rimToBlur 1.86。ChromeGlassOpticsTest 用同一套公式锁住这条不变量。
+//
+// 另外三件事：
+//   1. lens 的位移是**向内**采样（refractionAmount 取负），所以 padding 不影响折射，
+//      只决定模糊在离屏层边缘有没有余量。首次专项注释写的「采到形状外」是错的。
+//   2. 反光拆三层：Highlight（轮廓/镜面）/ 顶部环境反射渐变 / 跟手镜面热点。
+//   3. API<33 没有 AGSL，Highlight 会退化成均匀白描边 → 这两档降低 alpha。
 
 /** 一组玻璃光学参数。三组预设见 [ChromeGlassPresets]。 */
 @Immutable
 data class ChromeGlassSpec(
     val key: String,
-    /** 背景模糊半径。 */
+    /** 背景模糊半径。必须明显小于 [lensHeight]，否则边缘折射会被糊掉。 */
     val blur: Dp,
-    /** 折射带高度（距边缘多深开始弯折）。 */
+    /** 折射带高度（距边缘多深开始弯折），决定"镜片有多厚"。 */
     val lensHeight: Dp,
-    /** 折射位移量。 */
+    /** 折射位移量（最外缘处的背景位移）。 */
     val lensAmount: Dp,
-    /** 凸起式折射（库的 depthEffect），官方底栏未启用。 */
+    /** 凸起式折射（库的 depthEffect）。圆角矩形上收益极小，band≥半高时还有除零风险。 */
     val depthEffect: Boolean,
     /** 浅色表面底色，alpha 已包含在内。 */
     val lightSurface: Color,
@@ -81,9 +91,13 @@ data class ChromeGlassSpec(
     /** 光学高光厚度。库把 strokeWidth 取 ceil(width*2)，所以实际可见内缘≈width×2。 */
     val highlightWidth: Dp,
     val highlightAlpha: Float,
-    /** 内阴影：给边缘做出厚度（玻璃下缘的暗部）。 */
+    /** 内阴影：给边缘做厚度（玻璃下缘的暗部）。 */
     val innerShadowRadius: Dp,
     val innerShadowAlpha: Float,
+    /** 环境反射：玻璃上表面反射天光，顶部最亮、快速衰减（不是白边）。 */
+    val ambientAlpha: Float,
+    /** 镜面热点：跟手按压处的柔和反光。 */
+    val specularAlpha: Float,
     /** API < 31 没有 RenderEffect/AGSL，只能降级成中性半透明底。 */
     val fallbackLightAlpha: Float,
     val fallbackDarkAlpha: Float,
@@ -93,6 +107,33 @@ data class ChromeGlassSpec(
         val base = if (light) lightSurface else darkSurface
         return base.copy(alpha = (base.alpha * fill).coerceIn(0f, 1f))
     }
+
+    /**
+     * 位移场：距边缘 depth(dp) 处的背景位移量(dp)。纯数学，供参数选型与单测使用，
+     * 与 Shaders.kt 的 `circleMap` 完全同构。
+     */
+    fun displacementAt(depth: Float): Float {
+        if (lensHeight.value <= 0f || lensAmount.value <= 0f) return 0f
+        if (depth <= 0f) return lensAmount.value
+        if (depth >= lensHeight.value) return 0f
+        val u = 1f - depth / lensHeight.value
+        return lensAmount.value * (1f - kotlin.math.sqrt(1f - u * u))
+    }
+
+    /**
+     * 「可见折射环」宽度（dp）：位移量不小于一倍模糊半径的深度范围。
+     * 判断"折射会不会被模糊吃掉"的核心指标 —— 它必须大于 [blur]。
+     */
+    val visibleRim: Float
+        get() {
+            if (lensAmount.value <= 0f || lensHeight.value <= 0f) return 0f
+            val ratio = (1f - blur.value / lensAmount.value).coerceIn(0f, 1f)
+            val u = kotlin.math.sqrt((1f - ratio * ratio).coerceAtLeast(0f))
+            return lensHeight.value * (1f - u)
+        }
+
+    /** 折射环宽度 / 模糊半径。小于 1 时肉眼基本只能看到模糊。 */
+    val rimToBlur: Float get() = if (blur.value <= 0f) Float.POSITIVE_INFINITY else visibleRim / blur.value
 }
 
 internal object ChromeGlassPresets {
@@ -105,7 +146,7 @@ internal object ChromeGlassPresets {
 
     /**
      * A 组 · 官方示例原值。来自 1.0.6 的 LiquidBottomTabs，对应 64dp 底栏。
-     * 用于与参考实现做同参数对照。
+     * 保留作参数对照基线，不作为默认（rimToBlur 只有 0.76，折射会被模糊吃掉）。
      */
     val Official = ChromeGlassSpec(
         key = "official",
@@ -113,40 +154,47 @@ internal object ChromeGlassPresets {
         lightSurface = gray(0xFFFAFAFA, .40f), darkSurface = gray(0xFF121212, .40f),
         highlightWidth = .5.dp, highlightAlpha = 1f,
         innerShadowRadius = 8.dp, innerShadowAlpha = .35f,
+        ambientAlpha = .06f, specularAlpha = .10f,
         fallbackLightAlpha = .86f, fallbackDarkAlpha = .90f,
     )
 
     /**
-     * B 组 · 默认。听屿底栏外框 54dp（官方 64dp），按 54/64 把折射带与位移等比缩到 20dp，
-     * 模糊半径属于物理柔化量、不随尺寸缩放，保持 8dp。光学比例与官方一致。
+     * B 组 · 默认（液态）。band 24dp ≈ 半个底栏高、位移 24dp、模糊 5dp：
+     * visibleRim 9.3dp、rimToBlur 1.86 —— 边缘能看见背景被弯折，中心留 3dp 通透区。
      */
-    val Proportional = ChromeGlassSpec(
-        key = "proportional",
-        blur = 8.dp, lensHeight = 20.dp, lensAmount = 20.dp, depthEffect = false,
+    val Liquid = ChromeGlassSpec(
+        key = "liquid",
+        blur = 5.dp, lensHeight = 24.dp, lensAmount = 24.dp, depthEffect = false,
         lightSurface = gray(0xFFFAFAFA, .40f), darkSurface = gray(0xFF121212, .40f),
-        highlightWidth = .6.dp, highlightAlpha = 1f,
-        innerShadowRadius = 8.dp, innerShadowAlpha = .35f,
+        highlightWidth = .7.dp, highlightAlpha = 1f,
+        innerShadowRadius = 9.dp, innerShadowAlpha = .40f,
+        ambientAlpha = .075f, specularAlpha = .11f,
         fallbackLightAlpha = .86f, fallbackDarkAlpha = .90f,
     )
 
     /**
-     * C 组 · 可读性/性能优先。模糊与折射都收一档、表面更厚，供低端机或内容极花的背景对比。
+     * C 组 · 保守。低端机或"折射别太夸张"的场合：band 16dp、位移 14dp、模糊 6dp。
      */
     val Crisp = ChromeGlassSpec(
         key = "crisp",
-        blur = 6.dp, lensHeight = 16.dp, lensAmount = 13.dp, depthEffect = false,
+        blur = 6.dp, lensHeight = 16.dp, lensAmount = 14.dp, depthEffect = false,
         lightSurface = gray(0xFFF7F7F7, .46f), darkSurface = gray(0xFF141414, .46f),
         highlightWidth = .6.dp, highlightAlpha = .9f,
         innerShadowRadius = 6.dp, innerShadowAlpha = .30f,
+        ambientAlpha = .06f, specularAlpha = .09f,
         fallbackLightAlpha = .88f, fallbackDarkAlpha = .92f,
     )
 
-    val all: List<ChromeGlassSpec> = listOf(Official, Proportional, Crisp)
-    val Default: ChromeGlassSpec = Proportional
+    val all: List<ChromeGlassSpec> = listOf(Official, Liquid, Crisp)
+    val Default: ChromeGlassSpec = Liquid
 
-    fun byKey(key: String?): ChromeGlassSpec = all.firstOrNull { it.key == key } ?: Default
+    /** `proportional` 是首次专项用过的 key，保留别名，避免旧环境变量静默变成别的参数。 */
+    fun byKey(key: String?): ChromeGlassSpec = when (key) {
+        "proportional" -> Liquid
+        else -> all.firstOrNull { it.key == key } ?: Default
+    }
 
-    /** 当前构建的生效预设：`TINGYU_GLASS_PRESET=official|crisp`，缺省 proportional。 */
+    /** 当前构建的生效预设：`TINGYU_GLASS_PRESET=official|liquid|crisp`，缺省 liquid。 */
     fun active(): ChromeGlassSpec = byKey(io.github.huleixin.tingyu.BuildConfig.GLASS_PRESET)
 }
 
@@ -158,9 +206,8 @@ private val ShadowDefault: () -> Shadow = { Shadow.Default }
  *
  * @param surfaceFill 表面不透明度系数，只影响底色 alpha，不影响折射/高光。
  * @param lensScale   折射强度系数（选中项按压时放大，静止时应为 1）。
- * @param decorations 是否绘制光学高光/投影/内阴影。给子级录采样源时必须关掉：
- *                    那一层 alpha=0，画高光只是白烧两个图层。
- * @param exportedBackdrop 需要把这块玻璃再导出给子级采样时传入（暂未使用，优先走记录层）。
+ * @param decorations 是否绘制光学高光/投影/内阴影/环境反射。给子级录采样源时必须关掉。
+ * @param pressPoint  归一化按压点（0..1），用于跟手镜面热点；null 表示没有按压。
  */
 @Composable
 fun Modifier.chromeGlass(
@@ -171,6 +218,7 @@ fun Modifier.chromeGlass(
     surfaceFill: Float = 1f,
     lensScale: Float = 1f,
     decorations: Boolean = true,
+    pressPoint: () -> Offset? = { null },
     exportedBackdrop: LayerBackdrop? = null,
 ): Modifier {
     val shape = RoundedCornerShape(radius)
@@ -181,8 +229,10 @@ fun Modifier.chromeGlass(
     val lensHeightPx = with(density) { (spec.lensHeight * lensScale).toPx() }
     val lensAmountPx = with(density) { (spec.lensAmount * lensScale).toPx() }
     val surface = spec.surface(light, surfaceFill)
-    // 内阴影只做「下缘暗部」：光从上方来，玻璃越厚下缘越沉。上缘留给光学高光。
+    // 内阴影只做「下缘暗部」：光从上方来，玻璃越厚下缘越沉。上缘留给高光与环境反射。
     val innerColor = if (light) Color.Black.copy(alpha = .16f) else Color.Black.copy(alpha = .55f)
+    // API<33 的 Highlight 会退化成均匀白描边，压暗一档，避免"毛玻璃外面画白线"。
+    val highlightAlpha = if (Build.VERSION.SDK_INT >= 33) spec.highlightAlpha else spec.highlightAlpha * .62f
     return drawBackdrop(
         backdrop = backdrop,
         shape = { shape },
@@ -190,11 +240,9 @@ fun Modifier.chromeGlass(
             vibrancy()
             blur(blurPx)
             if (Build.VERSION.SDK_INT >= 33 && lensHeightPx > 0f && lensAmountPx > 0f) {
-                // 关键修复：lens 内部会执行 padding = (padding - refractionHeight)。
-                // 旧实现 blur(4) 之后 padding=4，被 lens(12) 一扣就是 0 —— 记录层与形状等大，
-                // 镜头只能 eval 形状内部的像素，边缘永远弯折不出下面的页面内容。
-                // 这里先把 padding 抬到「折射带 + 模糊半径」，扣完仍保留一个模糊半径的余量，
-                // 镜头才真的能采到形状之外的背景（真折射而不是拉伸自身边缘）。
+                // lens() 第一件事就是 padding -= refractionHeight，所以先把 padding 抬到
+                // 「band + 模糊半径」，扣完仍留一个模糊半径的余量：目的是让模糊在离屏层
+                // 边缘不触发 Clamp 拖影（折射是向内采样，不依赖这块余量）。
                 padding = lensHeightPx + blurPx
                 lens(lensHeightPx, lensAmountPx, depthEffect = spec.depthEffect)
             } else {
@@ -206,7 +254,7 @@ fun Modifier.chromeGlass(
                 Highlight(
                     width = spec.highlightWidth,
                     blurRadius = spec.highlightWidth / 2f,
-                    alpha = spec.highlightAlpha,
+                    alpha = highlightAlpha,
                     style = HighlightStyle.Default,
                 )
             }
@@ -223,7 +271,40 @@ fun Modifier.chromeGlass(
             }
         } else null,
         exportedBackdrop = exportedBackdrop,
-        onDrawSurface = { drawRect(surface) },
+        onDrawSurface = {
+            drawRect(surface)
+            if (decorations) {
+                // ② 环境反射：上表面反射天光，顶部最亮、快速衰减，不做整片泛白。
+                if (spec.ambientAlpha > 0f) {
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            0f to Color.White.copy(alpha = spec.ambientAlpha),
+                            .34f to Color.White.copy(alpha = spec.ambientAlpha * .30f),
+                            1f to Color.Transparent,
+                        ),
+                        blendMode = BlendMode.Plus,
+                    )
+                }
+                // ③ 镜面热点：跟手、柔和连续，只在按压时出现。
+                val point = pressPoint()
+                if (point != null && spec.specularAlpha > 0f) {
+                    val center = Offset(point.x * size.width, point.y * size.height)
+                    val r = size.height * 2.2f
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0f to Color.White.copy(alpha = spec.specularAlpha),
+                            .5f to Color.White.copy(alpha = spec.specularAlpha * .32f),
+                            1f to Color.Transparent,
+                            center = center,
+                            radius = r,
+                        ),
+                        radius = r,
+                        center = center,
+                        blendMode = BlendMode.Plus,
+                    )
+                }
+            }
+        },
     )
 }
 
