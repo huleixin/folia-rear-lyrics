@@ -191,6 +191,54 @@ tasks.register('verifyPlaybackTestAssets') {
 tasks.named('preBuild').configure { dependsOn 'verifyPlaybackTestAssets' }
 
 /**
+ * 网页源 → 入包资源的新鲜度硬校验。
+ *
+ * 2026-11-09 事故：改了 src/ 下的 TS/TSX 后只跑 `gradlew assembleRelease`，
+ * APK 里塞的仍是上一次 `cap sync` 的旧 bundle（android/app/src/main/assets/public），
+ * 真机表现就是「代码改了但界面一点没变」，排查了很久才发现是打包链路漏了前半段。
+ *
+ * 正式发布仍走 `npm run build:android:release`（内部先 cap:sync:android），本检查自然通过。
+ * 例外：playback-test 包用另一套 bundle；或显式 `-PtingyuAllowStaleWebAssets=true`。
+ */
+tasks.register('verifyWebAssetsFresh') {
+    doLast {
+        if (playbackTestBuild) return
+        if (project.hasProperty('tingyuAllowStaleWebAssets')) {
+            logger.lifecycle('[web-assets] 已按参数跳过新鲜度校验')
+            return
+        }
+        def index = file('src/main/assets/public/index.html')
+        if (!index.exists()) {
+            throw new GradleException('缺少 src/main/assets/public/index.html —— 先执行 `npm run cap:sync:android`（会先 vite build 再 cap sync）')
+        }
+        def webRoot = rootProject.projectDir.parentFile
+        def newest = null
+        def webSrc = new File(webRoot, 'src')
+        if (webSrc.isDirectory()) {
+            webSrc.eachFileRecurse(groovy.io.FileType.FILES) { f ->
+                def name = f.name
+                def shipped = name ==~ /(?i).*\.(ts|tsx|css)$/
+                def isTest = name.contains('.test.') || name.contains('.spec.')
+                if (shipped && !isTest && (newest == null || f.lastModified() > newest.lastModified())) newest = f
+            }
+        }
+        def html = new File(webRoot, 'index.html')
+        if (html.isFile() && (newest == null || html.lastModified() > newest.lastModified())) newest = html
+        if (newest != null && newest.lastModified() > index.lastModified()) {
+            throw new GradleException(
+                "网页源比入包资源新，APK 会打出旧界面：\n" +
+                "  较新的源文件：${newest} (${new Date(newest.lastModified())})\n" +
+                "  入包 index.html：${index} (${new Date(index.lastModified())})\n" +
+                "先执行 `npm run cap:sync:android` 重新构建并同步网页产物，再打包。\n" +
+                "确实要用当前资源打包（例如只验证原生改动）可加 -PtingyuAllowStaleWebAssets=true。"
+            )
+        }
+        logger.lifecycle("[web-assets] OK: 入包网页产物不旧于 src（最新源：${newest == null ? '无' : newest.name}）")
+    }
+}
+tasks.named('preBuild').configure { dependsOn 'verifyWebAssetsFresh' }
+
+/**
  * Release 的 R8 mapping 归档。
  *
  * 当前 release 关闭了 minify（minifyEnabled false），所以不会有 mapping.txt；这个任务在

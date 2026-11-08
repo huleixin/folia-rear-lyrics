@@ -24,7 +24,6 @@ import { useComposeChrome } from '../../../hooks/useComposeChrome';
 import { useNativeChromeCover } from '../../../hooks/useNativeChromeCover';
 import { recoveryReady } from '../../../services/playbackRecoverySnapshot';
 import { useReducedMotionFor } from '../../../hooks/useReducedMotionFor';
-import { useSearchNavigationStore } from '../../../stores/useSearchNavigationStore';
 import { useSettingsModalStore } from '../../../stores/useSettingsModalStore';
 import { useAudioSettingsStore } from '../../../stores/useAudioSettingsStore';
 import { useAudioToolsStore, QUALITY_LABELS } from '../../../stores/useAudioToolsStore';
@@ -57,7 +56,6 @@ export default function MobileMiniPlayer({
         });
     };
     const active = useAppViewStore(s=>s.view==='home'&&!s.isPanelOpen);
-    const searchOpen = useSearchNavigationStore(s=>s.isSearchOpen);
     const settingsOpen = useSettingsModalStore(s=>s.settingsModalState.isOpen);
     const duration = usePlaybackStore(selectDisplayDuration);
     const quality = useAudioSettingsStore(s=>s.audioQuality);
@@ -68,7 +66,9 @@ export default function MobileMiniPlayer({
     // 无歌再发布空态。恢复必然终止（成功/清空/失败都会 finishRecovery），这个
     // 闸门只是短暂启动窗口，不是固定延迟；暖恢复时 recoveryReady() 恒为 true。
     const recoveryHold = !recoveryReady() && !song;
-    const nativeCover = useNativeChromeCover(cover,active&&!searchOpen&&!settingsOpen);
+    // 搜索页现在也显示迷你条（2026-11-09）：封面解析不能再看 searchOpen，
+    // 否则在搜索页点「下一首」会掉封面。设置页仍不需要。
+    const nativeCover = useNativeChromeCover(cover,active&&!settingsOpen);
     const compose = useComposeChrome(glassRef,'mini',active&&!settingsOpen,{
         title:song?.name||t('mobileLibrary.nothingPlaying'),artist:song?getSongArtistLabel(song):t('mobileLibrary.chooseMusic'),cover:nativeCover,
         trackKey:song?getPlaybackSongKey(song):'',playing:state===PlayerState.PLAYING,disabled:!song||!onTogglePlayback,
