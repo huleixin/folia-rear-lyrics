@@ -16,7 +16,8 @@ import { useLibraryTrackPlayback } from '../../../hooks/useLibraryTrackPlayback'
 import MobileArtwork from './MobileArtwork';
 import MobileDirectory from './MobileDirectory';
 import MobileTrackList from './MobileTrackList';
-import MobileSheet from './MobileSheet';
+import OperationPanel from './native/OperationPanel';
+import type { NativePanelActionRow } from '../../../types/nativePanels';
 import { NATIVE_FIRST } from '../../../services/nativePages';
 import { useNativeArtistPage } from './native/useNativeArtistPage';
 import './mobileLibrary.css';
@@ -154,78 +155,42 @@ function MobileArtist(props: LibraryArtistSurfaceProps) {
                 </p>
             )}
             </>}
-            {menu && (
-                <MobileSheet
-                    title={menu === 'artist' ? t('mobileLibrary.artistActions') : menu.name}
+            {menu && (() => {
+                // 歌手二级操作面板（原生化专项·第 21 轮）：声明式模型交给 OperationPanel。
+                const handlers: Record<string, () => void> = {
+                    enqueue: () => (menu === 'artist' ? model.actions.enqueueScope() : model.actions.enqueueSong(menu)),
+                };
+                const items: NativePanelActionRow[] = [{ id: 'enqueue', label: t('mobileLibrary.enqueue'), icon: 'plus' }];
+                if (menu === 'artist') {
+                    if (model.capabilities.reload.supported) {
+                        handlers.reload = () => model.actions.reload();
+                        items.push({ id: 'reload', label: t('mobileLibrary.refresh'), disabled: !model.capabilities.reload.enabled });
+                    }
+                    if (model.capabilities['edit-entity'].supported) {
+                        handlers.editEntity = () => model.actions.editEntity();
+                        items.push({ id: 'editEntity', label: t('mobileLibrary.editInfo'), icon: 'settings2', disabled: !model.capabilities['edit-entity'].enabled });
+                    }
+                } else {
+                    if (albumLink) {
+                        handlers.openAlbum = () => props.onOpenAlbum(albumLink.targetId, { ...albumLink.album }, menu);
+                        items.push({ id: 'openAlbum', label: t('mobileLibrary.openAlbum'), icon: 'disc-2' });
+                    }
+                    artistLinks.filter(link => link.targetId != null).forEach(link => {
+                        const id = `openArtist:${link.targetId}`;
+                        handlers[id] = () => props.onOpenArtist(link.targetId!, { ...link.artist }, menu);
+                        items.push({ id, label: `${t('mobileLibrary.openArtist')} · ${link.artist.name}`, icon: 'user-round' });
+                    });
+                }
+                return <OperationPanel
+                    panel={{
+                        title: menu === 'artist' ? t('mobileLibrary.artistActions') : menu.name,
+                        blocks: [{ kind: 'actions', id: 'artist-actions', items }],
+                    }}
+                    onAction={id => { const handler = handlers[id]; closeMenu(); handler?.(); }}
                     onClose={closeMenu}
-                >
-                    <button
-                        className="ml-sheet-action"
-                        onClick={() => {
-                            menu === 'artist' ? model.actions.enqueueScope() : model.actions.enqueueSong(menu);
-                            closeMenu();
-                        }}
-                    >
-                        {t('mobileLibrary.enqueue')}
-                    </button>
-                    {menu === 'artist' ? (
-                        <>
-                            {model.capabilities.reload.supported && (
-                                <button
-                                    className="ml-sheet-action"
-                                    disabled={!model.capabilities.reload.enabled}
-                                    onClick={() => {
-                                        model.actions.reload();
-                                        closeMenu();
-                                    }}
-                                >
-                                    {t('mobileLibrary.refresh')}
-                                </button>
-                            )}
-                            {model.capabilities['edit-entity'].supported && (
-                                <button
-                                    className="ml-sheet-action"
-                                    disabled={!model.capabilities['edit-entity'].enabled}
-                                    onClick={() => {
-                                        model.actions.editEntity();
-                                        closeMenu();
-                                    }}
-                                >
-                                    {t('mobileLibrary.editInfo')}
-                                </button>
-                            )}
-                        </>
-                    ) : (
-                        <>
-                            {albumLink && (
-                                <button
-                                    className="ml-sheet-action"
-                                    onClick={() => {
-                                        props.onOpenAlbum(albumLink.targetId, { ...albumLink.album }, menu);
-                                        closeMenu();
-                                    }}
-                                >
-                                    {t('mobileLibrary.openAlbum')}
-                                </button>
-                            )}
-                            {artistLinks
-                                .filter((link) => link.targetId != null)
-                                .map((link) => (
-                                    <button
-                                        className="ml-sheet-action"
-                                        key={link.targetId}
-                                        onClick={() => {
-                                            props.onOpenArtist(link.targetId!, { ...link.artist }, menu);
-                                            closeMenu();
-                                        }}
-                                    >
-                                        {t('mobileLibrary.openArtist')} · {link.artist.name}
-                                    </button>
-                                ))}
-                        </>
-                    )}
-                </MobileSheet>
-            )}
+                    id="artist-menu"
+                />;
+            })()}
         </motion.section>
     );
 }

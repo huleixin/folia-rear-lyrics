@@ -5,9 +5,14 @@ import type { LibraryHomeSurfaceProps } from '../../core/contracts/suite';
 import { useLibraryAccountProviders } from '../../core/bindings/useLibraryAccount';
 import { useLibraryHomeActions } from '../../core/bindings/useLibraryHomeActions';
 import { useHomeSourceStore } from '../../../stores/useHomeSourceStore';
-import MobileSheet from './MobileSheet';
+import OperationPanel from './native/OperationPanel';
+import type { NativePanelActionRow } from '../../../types/nativePanels';
 
 // src/library/suites/mobile/MobileHomeSources.tsx
+//
+// 音源选择面板（原生化专项·第 21 轮）：原有的 provider 列表与切换语义不变，
+// 只把渲染交给 OperationPanel —— Android 上是原生面板，其它平台是同一份声明的 .ml-sheet。
+// 切换音源仍然只动首页数据源与账户，不碰播放器（正在播的本地歌继续播）。
 export function MobileSourceSheet({
     account,
     onOpenSettings,
@@ -27,85 +32,49 @@ export function MobileSourceSheet({
         setHomeSource('online');
         account.selectProvider(providerId);
     };
+    const items: NativePanelActionRow[] = [];
+    const handlers: Record<string, () => void> = {};
+    if (localSongCount !== undefined) {
+        items.push({
+            id: 'source:local', icon: 'smartphone',
+            label: t('mobileLibrary.localMusicSource'),
+            hint: t('mobileLibrary.localMusicSourceHint', { count: localSongCount }),
+            selected: homeSource === 'local',
+        });
+        handlers['source:local'] = () => setHomeSource('local');
+    }
+    providers.forEach(provider => {
+        const id = `source:${provider.providerId}`;
+        items.push({
+            id, label: provider.displayName,
+            hint: provider.user?.nickname || provider.error
+                || t(provider.status === 'authenticated' ? 'mobileLibrary.connected' : 'mobileLibrary.notConnected'),
+            disabled: !provider.availability.configured,
+            selected: homeSource === 'online' && provider.providerId === activeProviderId,
+        });
+        handlers[id] = () => selectOnlineSource(provider.providerId);
+    });
+    const signedIn = providers.some(
+        provider => provider.providerId === activeProviderId && provider.status === 'authenticated'
+    );
+    items.push({ id: 'login', label: t('mobileLibrary.login'), icon: 'user-round' });
+    handlers.login = () => {
+        setHomeSource('online');
+        void account.startLogin(activeProviderId);
+    };
+    if (signedIn) {
+        items.push({ id: 'logout', label: t('mobileLibrary.logout'), icon: 'activity' });
+        handlers.logout = () => void account.logout(activeProviderId);
+    }
+    items.push({ id: 'settings', label: t('mobileLibrary.settings'), icon: 'settings2' });
+    handlers.settings = () => onOpenSettings?.('options');
     return (
-        <MobileSheet title={t('mobileLibrary.sources')} onClose={onClose}>
-            {localSongCount !== undefined && (
-                <button
-                    className="ml-sheet-action"
-                    onClick={() => {
-                        setHomeSource('local');
-                        onClose();
-                    }}
-                >
-                    <Smartphone size={18} />
-                    <span>
-                        <strong>{t('mobileLibrary.localMusicSource')}</strong>
-                        <small>{t('mobileLibrary.localMusicSourceHint', { count: localSongCount })}</small>
-                    </span>
-                    {homeSource === 'local' && <Check size={20} />}
-                </button>
-            )}
-            {providers.map((provider) => (
-                <button
-                    key={provider.providerId}
-                    className="ml-sheet-action"
-                    disabled={!provider.availability.configured}
-                    onClick={() => {
-                        selectOnlineSource(provider.providerId);
-                        onClose();
-                    }}
-                >
-                    <span>
-                        <strong>{provider.displayName}</strong>
-                        <small>
-                            {provider.user?.nickname ||
-                                provider.error ||
-                                t(
-                                    provider.status === 'authenticated'
-                                        ? 'mobileLibrary.connected'
-                                        : 'mobileLibrary.notConnected'
-                                )}
-                        </small>
-                    </span>
-                    {homeSource === 'online' && provider.providerId === activeProviderId && <Check size={20} />}
-                </button>
-            ))}
-            <button
-                className="ml-sheet-action"
-                onClick={() => {
-                    setHomeSource('online');
-                    onClose();
-                    void account.startLogin(activeProviderId);
-                }}
-            >
-                <LogIn size={18} />
-                {t('mobileLibrary.login')}
-            </button>
-            {providers.some(
-                (provider) => provider.providerId === activeProviderId && provider.status === 'authenticated'
-            ) && (
-                <button
-                    className="ml-sheet-action"
-                    onClick={() => {
-                        onClose();
-                        void account.logout(activeProviderId);
-                    }}
-                >
-                    <LogOut size={18} />
-                    {t('mobileLibrary.logout')}
-                </button>
-            )}
-            <button
-                className="ml-sheet-action"
-                onClick={() => {
-                    onClose();
-                    onOpenSettings?.('options');
-                }}
-            >
-                <Settings size={18} />
-                {t('mobileLibrary.settings')}
-            </button>
-        </MobileSheet>
+        <OperationPanel
+            id="home-sources"
+            panel={{ title: t('mobileLibrary.sources'), blocks: [{ kind: 'actions', id: 'sources', items }] }}
+            onAction={id => { const handler = handlers[id]; onClose(); handler?.(); }}
+            onClose={onClose}
+        />
     );
 }
 export function MobileLocalTools({ homeResources }: Pick<LibraryHomeSurfaceProps, 'homeResources'>) {

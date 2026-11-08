@@ -15,7 +15,8 @@ import { getPlaybackSongKey } from '../../../../utils/appPlaybackGuards';
 import { getSongArtistLabel, getSongCoverUrl } from '../../../../services/onlineMusic/songMetadata';
 import { isSongUnavailable } from '../../../../services/onlineMusic/songAvailability';
 import type { NativePageModel, PageActions, PageSection } from '../../../../types/nativePages';
-import MobileSheet from '../MobileSheet';
+import type { NativePanelModel } from '../../../../types/nativePanels';
+import OperationPanel from './OperationPanel';
 import type { SongResult } from '../../../../types';
 
 // src/library/suites/mobile/native/NativeHomeOverview.tsx
@@ -82,13 +83,30 @@ export default function NativeHomeOverview({root,props,sources,onReady,onSources
     // 空态是真实状态，照常发布。本地首页（NativeLocalHomeOverview 的 libraryHydrated
     // 门控）早就是这个模式，这里把在线首页对齐。
     useNativePage(root,'home',props.isInteractive,sources.online.accountView==='resolving'?null:model,actions,onReady);
-    return menu?<MobileSheet title={menu.kind==='track'?menu.song.name:menu.card.name} onClose={()=>setMenu(null)}>
-        {menu.kind==='track'?<>
-            <button className="ml-sheet-action" disabled={isSongUnavailable(menu.song)} onClick={()=>{play(menu.song,recent);setMenu(null)}}>{t('mobileLibrary.play')}</button>
-            {props.onAddSongToQueue&&<button className="ml-sheet-action" disabled={isSongUnavailable(menu.song)} onClick={()=>{props.onAddSongToQueue?.(menu.song);setMenu(null)}}>{t('mobileLibrary.enqueue')}</button>}
-        </>:<>
-            <button className="ml-sheet-action" onClick={()=>{void open(menu.card);setMenu(null)}}>{t('mobileLibrary.openPlaylist',{name:menu.card.name})}</button>
-            <button className="ml-sheet-action" onClick={()=>{void open(menu.card,true);setMenu(null)}}>{t('mobileLibrary.playAll')}</button>
-        </>}
-    </MobileSheet>:null;
+    // 首页二级操作面板（原生化专项·第 21 轮）：同一份声明交给 OperationPanel，
+    // Android 走原生面板，其它平台仍渲染等价的 .ml-sheet。
+    if(!menu)return null;
+    const unavailable=menu.kind==='track'&&isSongUnavailable(menu.song);
+    const panel:NativePanelModel=menu.kind==='track'?{
+        title:menu.song.name,
+        blocks:[{kind:'actions',id:'home-track',items:[
+            {id:'play',label:t('mobileLibrary.play'),icon:'play-circle',disabled:unavailable},
+            ...(props.onAddSongToQueue?[{id:'enqueue',label:t('mobileLibrary.enqueue'),icon:'plus',disabled:unavailable}]:[]),
+        ]}],
+    }:{
+        title:menu.card.name,
+        blocks:[{kind:'actions',id:'home-playlist',items:[
+            {id:'openPlaylist',label:t('mobileLibrary.openPlaylist',{name:menu.card.name}),icon:'music2'},
+            {id:'playAll',label:t('mobileLibrary.playAll'),icon:'play-circle'},
+        ]}],
+    };
+    const handlers:Record<string,()=>void>=menu.kind==='track'?{
+        play:()=>play(menu.song,recent),
+        enqueue:()=>props.onAddSongToQueue?.(menu.song),
+    }:{
+        openPlaylist:()=>void open(menu.card),
+        playAll:()=>void open(menu.card,true),
+    };
+    return <OperationPanel panel={panel} onClose={()=>setMenu(null)} id="home-overview-menu"
+        onAction={id=>{const handler=handlers[id];setMenu(null);handler?.()}}/>;
 }
