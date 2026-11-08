@@ -73,9 +73,15 @@
     },
     {
       "id": "settings-flow-no-measurement",
-      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeSettingsDocumentView.kt",
-      "mustContain": "document.flow?.let{flow->",
-      "why": "语义化设置页（无 DOM 测量）必须是设置文档渲染的第一分支"
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageView.kt",
+      "mustContain": "page.document?.flow!=null -> SettingsFlowPage",
+      "why": "语义化设置页必须是页面路由的第一分支：自带底色/顶栏/排版，不消费任何 DOM 矩形"
+    },
+    {
+      "id": "settings-flow-skips-measurement",
+      "file": "src/hooks/useNativeSettingsDocument.ts",
+      "mustContain": "if(hasFlow){",
+      "why": "有 flow 的分区不得启动 captureSettingsDocument（否则又回到 DOM 测量）"
     }
   ],
   "webviewAllowlist": [

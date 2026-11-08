@@ -24,7 +24,16 @@ vi.mock('@/services/androidPhoneLayout', () => ({
     applyAndroidPhoneFit: vi.fn(), syncAndroidPhoneFitNative: vi.fn(), readStoredAndroidPhoneFit: () => false,
     readStoredAndroidPhoneFitOrientation: () => 'portrait', writeStoredAndroidPhoneFit: vi.fn(), writeStoredAndroidPhoneFitOrientation: vi.fn(),
 }));
-vi.mock('@/services/androidKeepScreenOn', () => ({ applyKeepScreenOn: vi.fn(), readStoredKeepScreenOn: () => false, writeStoredKeepScreenOn: vi.fn() }));
+// 语义化设置页（settings/flow/generalFlow）会经 SettingsModal 把 useAndroidLayoutSettingsStore
+// 带进本测试的模块图，该 store 在模块初始化时就会读这两项存储值 —— mock 必须完整覆盖，
+// 否则整个测试文件在收集阶段直接失败（不是断言失败）。
+vi.mock('@/services/androidKeepScreenOn', () => ({
+    applyKeepScreenOn: vi.fn(),
+    readStoredKeepScreenOn: () => false,
+    writeStoredKeepScreenOn: vi.fn(),
+    readStoredMinimalLyricsKeepOn: () => false,
+    writeStoredMinimalLyricsKeepOn: vi.fn(),
+}));
 const translate = (key: string, values?: Record<string, unknown>): string => {
     const text = key.split('.').reduce<unknown>((current, part) => current && typeof current === 'object' ? (current as Record<string, unknown>)[part] : undefined, zh);
     return String(text ?? key).replace(/\{\{(\w+)\}\}/g, (_, name) => String(values?.[name] ?? ''));
