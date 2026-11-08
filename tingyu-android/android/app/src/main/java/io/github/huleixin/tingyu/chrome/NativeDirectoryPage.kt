@@ -99,6 +99,9 @@ import kotlin.math.roundToInt
                 if(page.trailing.isNotBlank())ChromeButton("更多",size=42.dp,onClick={action(page.trailing,"",0.0)}){PageIcon("ellipsis-vertical",PageInk,Modifier.size(23.dp))}
             }
             val listTop by animateDpAsState(if(searchExpanded)NativeSearchBarHeight+16.dp else 0.dp,tween(240),label="dir-list-top")
+            // 顶部滚动渐隐（Top Scroll Scrim）：资料库（标题/分类/搜索框/排序下方）与歌手页
+            // （返回栏下方）在固定区边界柔和消隐；搜索展开/收起时边界随布局自动适配，不闪不跳。
+            TopScrollScrimViewport(state=list,fusion=TopScrimFusion.Gradient(page.surfaceColors()),modifier=Modifier.fillMaxSize()) {
             LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=start,end=end,top=listTop,
                 bottom=(page.bottomClearance+page.safeBottom).dp)){
                 page.sections.forEach { section ->
@@ -134,6 +137,7 @@ import kotlin.math.roundToInt
                     if(section.busy)item(key="${section.id}:busy"){CircularProgressIndicator(Modifier.padding(12.dp).size(20.dp),color=PageAccent,strokeWidth=2.dp)}
                     if(section.more.isNotBlank()&&section.text.isNotBlank())item(key="${section.id}:retry"){PagePill(section.moreLabel,{action(section.more,"",0.0)})}
                 }
+            }
             }
         }
         // 固定搜索层：在列表之上、页面根之下；不参与 LazyColumn 布局，因此不随列表滚动。

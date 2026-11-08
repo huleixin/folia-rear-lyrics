@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,7 +45,11 @@ import androidx.compose.ui.unit.sp
                 }}
             }
         }
-        LazyColumn(Modifier.fillMaxSize().imePadding(),contentPadding=PaddingValues(start=14.dp,end=14.dp,top=if(menu)0.dp else 16.dp,bottom=(page.safeBottom+18).dp)){
+        // 顶部滚动渐隐（Top Scroll Scrim）：搜索结果在固定分类标签下方柔和消隐；
+        // 综合/单曲/歌手/歌单/专辑分类共用同一效果。输入法弹出时边界随 imePadding 自动适配。
+        val list = rememberLazyListState()
+        TopScrollScrimViewport(state=list,fusion=TopScrimFusion.Gradient(page.surfaceColors()),modifier=Modifier.fillMaxSize()) {
+        LazyColumn(Modifier.fillMaxSize().imePadding(),state=list,contentPadding=PaddingValues(start=14.dp,end=14.dp,top=if(menu)0.dp else 16.dp,bottom=(page.safeBottom+18).dp)){
             page.sections.filter{it.id !in setOf("query","sources","tabs")}.forEach{section->
                 val history=section.id=="history";val hot=section.id=="hot"
                 if(section.title.isNotBlank())item(key="${section.id}:heading"){
@@ -107,6 +112,7 @@ import androidx.compose.ui.unit.sp
                     }
                 }
             }
+        }
         }
     }
 }

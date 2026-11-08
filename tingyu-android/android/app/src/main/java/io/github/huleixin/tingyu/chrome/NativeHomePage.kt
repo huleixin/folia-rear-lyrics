@@ -44,7 +44,11 @@ import kotlinx.coroutines.launch
         Column(Modifier.fillMaxSize().padding(top=(page.safeTop+if(short)8 else 36).dp)){
             PageHeading(page,Modifier.padding(start=start,end=end).heightIn(min=if(short)60.dp else 72.dp),large=true,action=action)
             Spacer(Modifier.height(6.dp))
-            LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(bottom=(page.bottomClearance+page.safeBottom).dp)) {
+            // 顶部滚动渐隐（Top Scroll Scrim）：猜你喜欢/每日推荐/最近播放/我的歌单上滑时
+            // 在固定标题下方柔和消隐，横向卡片滑动不受影响（遮罩只画不接事件）。
+            val list = rememberLazyListState()
+            TopScrollScrimViewport(state=list,fusion=TopScrimFusion.Gradient(page.surfaceColors()),modifier=Modifier.fillMaxSize()) {
+            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(bottom=(page.bottomClearance+page.safeBottom).dp)) {
                 page.sections.forEach { section ->
                     when {
                         section.layout=="hero" -> item(key=section.id){NativeHeroRail(section,viewport,start,end,wide,short,action)}
@@ -153,6 +157,7 @@ import kotlinx.coroutines.launch
                         section.text.isNotBlank() -> item(key=section.id){Text(section.text,color=PageMuted,fontSize=13.sp,modifier=Modifier.padding(start=start,end=end,top=18.dp,bottom=18.dp))}
                     }
                 }
+            }
             }
         }
     }

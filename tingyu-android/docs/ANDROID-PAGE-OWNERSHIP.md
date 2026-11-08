@@ -43,6 +43,13 @@ React 负责数据、路由、业务动作与原生桥接；Compose 负责绘制
 | 设置文档排版源 | `SettingsModal.tsx`、`MobileSettingsLanding.tsx` 的 DOM 树 | 逐元素测量来源，挂载但不绘制 |
 | 极简页回退 | `MinimalStage.tsx` | 握手未完成/弹层打开时的短期承载 |
 
+> **Top Scroll Scrim（顶部滚动渐隐）**：Compose 侧为唯一正式实现（`TopScrollScrim.kt`，
+> 所有固定顶栏页面经 `TopScrollScrimViewport` 接入）。WebView 侧仅有公共**能力**预留
+> （`topScrollScrim.ts` + `topScrollScrim.css` + `MobileScrollFrame` 条件进度注入），
+> 当前白名单内无固定顶栏 + 滚动内容结构的全页面（sheet 的 header 随内容滚动、
+> 极简页歌词自带 mask 渐隐），故无消费方——为白名单新增可滚页面时按
+> `docs/ui-system/TOP_SCROLL_SCRIM.md` §4 接入，不得页面手写遮罩。
+
 ## 4. 白名单变更流程
 
 新增 Android 上的 WebView 绘制面，必须同时：

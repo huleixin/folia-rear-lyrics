@@ -31,6 +31,11 @@ const tingyuMotionKt = read(
 const playlistAffordancesKt = read(
     'android', 'app', 'src', 'main', 'java', 'io', 'github', 'huleixin', 'tingyu', 'chrome', 'PlaylistAffordances.kt'
 );
+const topScrollScrimKt = read(
+    'android', 'app', 'src', 'main', 'java', 'io', 'github', 'huleixin', 'tingyu', 'chrome', 'TopScrollScrim.kt'
+);
+const topScrollScrimCss = read('src', 'styles', 'topScrollScrim.css');
+const scrollFrameTs = read('src', 'library', 'suites', 'mobile', 'MobileScrollFrame.tsx');
 const playlistDetailCss = read('src', 'library', 'suites', 'mobile', 'mobilePlaylistDetail.css');
 
 /** 提取 CSS 某选择器块内自定义属性的值。
@@ -130,5 +135,53 @@ describe('Design Token 双端一致性（WebView CSS ↔ Compose Kotlin）', () 
         expect(mobileGlass).toContain('var(--ty-glass-tint)');
         expect(mobileGlass).toContain('var(--ty-glass-blur)');
         expect(mobileGlass).not.toMatch(/backdrop-filter:\s*blur\(10px\)\s*saturate\(1\.25\)/);
+    });
+
+    it('顶部滚动渐隐 token 三端一致（CSS px ↔ TS px ↔ Kotlin dp）', () => {
+        // 基础尺寸：band（过渡带高度）/ ramp（激活行程）/ blur（Tier2 最大模糊半径）。
+        expect(cssVar(tokensCss, '--ty-scrim-band')).toBe('44px');
+        expect(cssVar(tokensCss, '--ty-scrim-ramp')).toBe('32px');
+        expect(cssVar(tokensCss, '--ty-scrim-blur')).toBe('10px');
+        expect(tokensTs).toMatch(/bandPx:\s*44/);
+        expect(tokensTs).toMatch(/rampPx:\s*32/);
+        expect(tokensTs).toMatch(/blurPx:\s*10/);
+        expect(ktConst(topScrollScrimKt, 'BandDp')).toBe(44);
+        expect(ktConst(topScrollScrimKt, 'RampDp')).toBe(32);
+        expect(ktConst(topScrollScrimKt, 'BlurSegments')).toBe(3);
+
+        // 缓落采样（band 内 alpha 分布）：TS 数组 ↔ Kotlin 数组逐值一致。
+        const parseList = (text: string, label: string): number[] => {
+            const match = text.match(/\[([\d.,\s]+)\]/);
+            expect(match, label).toBeTruthy();
+            return match![1].split(',').map((piece) => Number(piece.trim()));
+        };
+        // Kotlin 侧传入的是 listOf(...) 内部段（外层正则已截取），直接按逗号拆数。
+        const parseKtList = (segment: string, label: string): number[] => {
+            expect(segment.trim().length > 0, label).toBeTruthy();
+            return segment.split(',').map((piece) => Number(piece.trim().replace(/f$/, '')));
+        };
+        const tsStops = tokensTs.match(/stopPositions:\s*(\[[^\]]+\])/)![1];
+        const tsAlphas = tokensTs.match(/stopAlphas:\s*(\[[^\]]+\])/)![1];
+        const ktPositions = topScrollScrimKt.match(/val StopPositions\s*=\s*listOf\(([^)]+)\)/)![1];
+        const ktAlphas = topScrollScrimKt.match(/val StopAlphas\s*=\s*listOf\(([^)]+)\)/)![1];
+        expect(parseList(tsStops, 'TS stopPositions')).toEqual(parseKtList(ktPositions, 'Kotlin StopPositions'));
+        expect(parseList(tsAlphas, 'TS stopAlphas')).toEqual(parseKtList(ktAlphas, 'Kotlin StopAlphas'));
+
+        // Tier2 分段模糊半径（顶部最强、向下递减）。
+        const tsRadii = parseList(tokensTs.match(/blurSegmentRadii:\s*(\[[^\]]+\])/)![1], 'TS blurSegmentRadii');
+        const ktRadii = parseKtList(topScrollScrimKt.match(/val BlurSegmentRadiiDp\s*=\s*listOf\(([^)]+)\)/)![1], 'Kotlin BlurSegmentRadiiDp');
+        expect(tsRadii).toEqual(ktRadii);
+        expect(tsRadii[0]).toBeGreaterThan(tsRadii[tsRadii.length - 1]);
+    });
+
+    it('顶部渐隐 WebView 公共能力消费 scrim token（防回退为魔数）', () => {
+        expect(topScrollScrimCss).toContain('var(--ty-scrim-band)');
+        expect(topScrollScrimCss).toContain('var(--ty-color-bg)');
+        expect(topScrollScrimCss).toContain('pointer-events: none');
+        // 进度由 MobileScrollFrame 写入（条件化：无消费方零开销）。
+        expect(scrollFrameTs).toContain('topScrimProgress(');
+        expect(scrollFrameTs).toContain('--ty-scrim-progress');
+        // 不允许把普通渐变伪装成 backdrop-filter 玻璃模糊（注释提及不算，只查真实用法）。
+        expect(topScrollScrimCss).not.toMatch(/backdrop-filter\s*:/);
     });
 });

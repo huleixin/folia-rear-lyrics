@@ -58,7 +58,21 @@
 - [ ] 遗留 `--ml-*`/`--ty-settings-*`/`--ui-*` 变量迁移至 tingyuTokens
 - [ ] 曲库 hook 评估结论：五套 hook 同构但**缓存/失效/特判逻辑确有音源差异**，不为 UI 任务强改数据层；仅在新增音源时评估共享原语（用户约束：不得强改数据层）
 
-## 阶段 F：系统与性能适配 ⏳ 待开始
+## 阶段 F：系统与性能适配 ⏳ 进行中
+
+### F-1：全局顶部滚动渐隐系统（Top Scroll Scrim）✅（2026-11-08 首轮，已实现 + 已测试，待真机验证）
+
+- [x] 审计全部固定顶栏与滚动容器（Compose 7 路由 + WebView 白名单面），确定真实滚动边界
+- [x] 公共组件：`chrome/TopScrollScrim.kt`（TopScrollScrimViewport + TopScrimFusion + TyScrollScrim Token）
+- [x] 三端参数收编：`--ty-scrim-*`（CSS）/ `TY_SCRIM`（TS）/ `TyScrollScrim`（Kotlin），`designTokenParity` 门禁锁定
+- [x] Tier1 渐变融合盖片（静止零绘制、draw 阶段驱动零重组）+ Tier2 真实局部模糊（SDK≥31 + `TOP_SCRIM_BLUR` 门控，可 `TINGYU_TOP_SCRIM_BLUR=false` 降级）
+- [x] 接入：推荐/资料库（含本地分类）/搜索（含全部分类 tab）/集合详情（Ambient 封面融合）/歌手/最近播放/设置索引/背屏控制
+- [x] 按布局豁免并记录：设置二级文档页（区域级独立滚动窗口无固定顶栏）、经典歌词舞台/极简页/背屏（沉浸全屏）、MobileSheet（header 随内容滚动）
+- [x] WebView 公共能力就绪：`topScrollScrim.ts` + `topScrollScrim.css` + MobileScrollFrame 条件进度注入
+- [x] 测试：`topScrollScrimContract.test.ts`（13 断言）+ `designTokenParity` 新增 2 组 + `TopScrollScrimMathTest`（Kotlin 5 用例）
+- [ ] 真机验证（TOP_SCROLL_SCRIM.md §6 八项：猜你喜欢上滑过渡/搜索展开边界/亮色封面融合/输入法定位/横向轮播/返回手势/滚动流畅度 Tier2 对比/深浅色）
+
+### F 其余待办 ⏳
 
 - [ ] insets 双口径统一（`env(safe-area-inset-*)` 存量 7 文件 → `--folia-main-inset-*`）
 - [ ] 浅色覆盖层（interfaceAppearance.css 按 Tailwind 类名反选的规则）逐步 Token 化

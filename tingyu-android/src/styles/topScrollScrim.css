@@ -1,0 +1,37 @@
+/* ============================================================================
+ * TingYu Top Scroll Scrim — WebView 侧公共样式
+ * ----------------------------------------------------------------------------
+ * 顶部滚动渐隐的统一视觉契约（详见 docs/ui-system/TOP_SCROLL_SCRIM.md）：
+ *  · 静止时 opacity 由 --ty-scrim-progress（0）控制 —— 顶部干净、清晰、通透；
+ *  · 上滚内容在固定头下方柔和消隐；颜色跟随页面实际背景
+ *    （默认 var(--ty-color-bg)，可用 --ty-scrim-fusion 在局部覆写）；
+ *  · pointer-events: none —— 不拦截滑动、不影响横向轮播、无点击穿透；
+ *  · 高度/行程/缓落曲线全部来自 --ty-scrim-* 令牌，禁止手写魔数。
+ *
+ * 注意：这是内容透明度渐隐 + 背景融合，不是 backdrop-filter 玻璃模糊；
+ * 底部 Liquid Glass（mobileGlass.css）不受本文件影响。
+ * ==========================================================================*/
+
+/* 宿主：持有滚动容器与 .ty-top-scrim 的定位基准。 */
+.ty-top-scrim-host {
+    position: relative;
+}
+
+/* 渐隐盖片：放在固定头之下、滚动内容之上（DOM 顺序控制层叠）。 */
+.ty-top-scrim {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--ty-scrim-band);
+    pointer-events: none;
+    opacity: var(--ty-scrim-progress, 0);
+    background: linear-gradient(
+        180deg,
+        var(--ty-scrim-fusion, var(--ty-color-bg)) 0%,
+        color-mix(in srgb, var(--ty-scrim-fusion, var(--ty-color-bg)) 66%, transparent) 22%,
+        color-mix(in srgb, var(--ty-scrim-fusion, var(--ty-color-bg)) 34%, transparent) 45%,
+        color-mix(in srgb, var(--ty-scrim-fusion, var(--ty-color-bg)) 10%, transparent) 72%,
+        transparent 100%
+    );
+}

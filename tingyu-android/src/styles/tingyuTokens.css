@@ -40,6 +40,13 @@
     --ty-glass-highlight-strong: linear-gradient(150deg, #ffffff12, #ffffff02 55%);
     --ty-glass-shadow: 0 5px 16px #0003;
 
+    /* ---- Top Scroll Scrim · 顶部滚动渐隐（三端对齐：motionTokens.ts / TopScrollScrim.kt） ----
+       静止时遮罩完全不绘制（顶部干净通透）；上滚内容在固定栏下方柔和消隐。
+       band/ramp/blur 的 px 与 Compose 的 dp 数值一一对应（WebView 的 1px ≈ Compose 1dp）。 */
+    --ty-scrim-band: 44px;       /* 渐隐过渡带高度（规范初始参考 36–48） */
+    --ty-scrim-ramp: 32px;       /* 滚动激活行程：滚过该距离遮罩完全生效 */
+    --ty-scrim-blur: 10px;       /* Tier2 局部模糊最大半径（能力门控，降级为纯渐隐） */
+
     /* ---- 圆角等级 ---- */
     --ty-radius-xs: 8px;
     --ty-radius-s: 12px;

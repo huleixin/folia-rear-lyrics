@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -33,7 +34,10 @@ import androidx.compose.ui.unit.sp
                     Box(Modifier.size(40.dp).clip(RoundedCornerShape(999.dp)).semantics{contentDescription=page.trailingLabel}.clickable{action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("chevron-left",PageInk,Modifier.size(24.dp))}
                     Text(page.title,color=PageInk,fontSize=22.sp,lineHeight=28.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
                 }
-                LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(start=inset,end=inset,bottom=(24+page.safeBottom).dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
+                // 顶部滚动渐隐（Top Scroll Scrim）：背屏控制分组在固定返回栏下方柔和消隐。
+                val list = rememberLazyListState()
+                TopScrollScrimViewport(state=list,fusion=TopScrimFusion.Gradient(page.surfaceColors()),modifier=Modifier.fillMaxSize()) {
+                LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=inset,end=inset,bottom=(24+page.safeBottom).dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
                     page.sections.forEach{section->item(key=section.id){
                         Column{
                             if(section.title.isNotBlank())Text(section.title,color=PageMuted,fontSize=13.sp,lineHeight=20.sp,modifier=Modifier.padding(start=2.dp,bottom=8.dp))
@@ -50,6 +54,7 @@ import androidx.compose.ui.unit.sp
                             if(section.layout!="message"&&section.text.isNotBlank())Text(section.text,color=PageMuted,fontSize=12.sp,lineHeight=19.sp,modifier=Modifier.padding(start=2.dp,end=2.dp,top=8.dp))
                         }
                     }}
+                }
                 }
             }
         }

@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -32,7 +33,10 @@ private val GroupIcons=mapOf("rear" to "captions","appearance" to "sparkles","co
                 Text(page.title,color=interfaceColor(Color(0xFFE8F4ED),LightInterfaceColors.Ink),fontSize=32.sp,lineHeight=40.sp,fontWeight=FontWeight.Bold,letterSpacing=(-1.28).sp,modifier=Modifier.weight(1f))
                 Box(Modifier.size(40.dp).clip(RoundedCornerShape(999.dp)).background(interfaceColor(Color(0x0B99BBA5),LightInterfaceColors.Subtle)).clickable{action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("x",PageInk,Modifier.size(23.dp))}
             }
-            LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(start=inset,end=inset,bottom=(24+page.safeBottom).dp)){
+            // 顶部滚动渐隐（Top Scroll Scrim）：设置分组卡在固定标题栏下方柔和消隐。
+            val list = rememberLazyListState()
+            TopScrollScrimViewport(state=list,fusion=TopScrimFusion.Gradient(page.surfaceColors()),modifier=Modifier.fillMaxSize()) {
+            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=inset,end=inset,bottom=(24+page.safeBottom).dp)){
                 page.sections.forEach{section->item(key=section.id){
                     Column(Modifier.padding(bottom=16.dp)){
                         if(section.title.isNotBlank())Row(Modifier.padding(start=2.dp,end=2.dp,bottom=8.dp).height(20.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
@@ -48,6 +52,7 @@ private val GroupIcons=mapOf("rear" to "captions","appearance" to "sparkles","co
                         } else Text(section.text,color=PageMuted,fontSize=12.sp)
                     }
                 }}
+            }
             }
         }
     }

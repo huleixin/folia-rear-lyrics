@@ -53,6 +53,17 @@
 
 **性能红线**：父子容器不得同时执行 backdrop-filter（当前由 `[data-native-glass]`/`[data-glass-engine]` 开关链保证）；新增玻璃层前先确认没有嵌套模糊。`useLiquidGlass`（光学折射引擎）目前无引用处于休眠状态——启用属新决策，不属本规范默认。
 
+## 2.1 Top Scroll Scrim（顶部滚动渐隐）
+
+内容上滑经过固定顶栏时**逐渐消隐融入页面背景**、静止时顶部完全干净的公共系统。详见
+[TOP_SCROLL_SCRIM.md](./TOP_SCROLL_SCRIM.md)。要点：
+
+- 参数：`--ty-scrim-band 44 / --ty-scrim-ramp 32 / --ty-scrim-blur 10`（与 TS `TY_SCRIM`、Kotlin `TyScrollScrim` 三端对齐，门禁锁定）。
+- 手段分层（禁止混淆表述）：Tier1 = 与页面背景逐像素同色的透明度渐隐盖片（始终启用）；
+  Tier2 = band 内真实局部模糊（SDK≥31 + `TOP_SCRIM_BLUR` 门控）；背景玻璃模糊 = 底栏 Liquid Glass 专属，顶部不使用。
+- 颜色：融合色来自页面背景色板单一来源 `NativePage.surfaceColors()`；集合详情含封面氛围层副本（Ambient）。
+- 触控：遮罩只画不接事件（无点击穿透、不拦截滑动）；底部 Liquid Glass 材质不受影响。
+
 ## 3. 排版
 
 - 字体栈：`src/utils/fontStacks.ts` 与 `index.css @theme` 保持一致（唯一事实源）。

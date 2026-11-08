@@ -37,6 +37,23 @@ export const TY_SPRING = {
 } as const;
 
 /**
+ * Top Scroll Scrim 顶部滚动渐隐 —— 与 CSS --ty-scrim-*、Compose TyScrollScrim 三端对齐。
+ * band = 渐隐过渡带高度；ramp = 滚动激活行程；blur = 局部模糊最大半径（Tier2 能力门控，
+ * 降级为纯渐隐融合）。stopPositions/stopAlphas 是遮罩在 band 内的缓落采样
+ * （Emphasized ease-out 分布，端点零斜率）；blurSegmentRadii 为 band 内分段模糊半径
+ * （顶部最强、向下递减，轻量克制）。静止时遮罩完全不绘制。
+ */
+export const TY_SCRIM = {
+    bandPx: 44,
+    rampPx: 32,
+    blurPx: 10,
+    blurSegments: 3,
+    blurSegmentRadii: [10, 6, 3],
+    stopPositions: [0, 0.22, 0.45, 0.72, 1],
+    stopAlphas: [1, 0.66, 0.34, 0.1, 0],
+} as const;
+
+/**
  * 语义化动效矩阵：什么层级的东西进出场，用哪一组参数。
  * 新代码按语义取用，不再手写 duration/ease。
  */

@@ -23,6 +23,8 @@
 | motionTokens | `src/components/shared/motionTokens.ts` | ✔ 新增：动效 Token |
 | CustomSelect / SidePanelList / PlaylistSelectionDialog | `src/components/shared/` | ✔ 通用 |
 | MobileArtwork / MobileSongSubtitle / MobilePlayingIndicator | `src/library/suites/mobile/` | ✔ 歌曲行原子件 |
+| TopScrollScrimViewport / TopScrimFusion / TyScrollScrim | `android/.../chrome/TopScrollScrim.kt` | ✔ 顶部滚动渐隐公共组件（Compose 侧，全部固定顶栏页面经此接入；契约见 TOP_SCROLL_SCRIM.md，`topScrollScrimContract.test.ts` 门禁） |
+| topScrimProgress / TY_SCRIM + `.ty-top-scrim` | `src/components/shared/topScrollScrim.ts` + `src/styles/topScrollScrim.css` | ✔ 顶部滚动渐隐 WebView 公共能力（MobileScrollFrame 条件注入进度；当前无固定顶栏 WebView 全页面，能力就绪） |
 
 ## 3. 页面模板（跨音源统一的核心）
 
