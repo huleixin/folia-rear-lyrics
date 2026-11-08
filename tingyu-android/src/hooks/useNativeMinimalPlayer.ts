@@ -209,7 +209,12 @@ export function useNativeMinimalPlayer({
             qualityMode: QUALITY_LABELS[useAudioSettingsStore.getState().audioQuality],
             effectsOn: useAudioSettingsStore.getState().audioEqualizerSettings.enabled,
             // 和 palette 用同一个 light：页面主题只有一个来源。
-            light,
+            // 必须读 `latest`，不能读渲染作用域的 `light` —— 这个回调的依赖是 `[]`，
+            // 闭包里的 `light` 永远是**第一次渲染**时的值（那时 controls 可能还没就绪，
+            // 于是恒为 false）。而 palette 走 `paletteRef.current` 是新的：两半一旦不同源，
+            // 原生会拿「浅色配色 + 深色主题」去画，`softenAmbience` 的明度区间倒过来，
+            // 组合阶段直接抛 IllegalArgumentException 把进程带走（1.3.182 启动闪退）。
+            light: !!currentControls.isDaylight,
             liked: !!likeContext?.isLiked,
             likeDisabled: !likeContext || !!likeContext.likeDisabled,
             detour: usePlayerViewModeStore.getState().detour || webOverlayOpen(),

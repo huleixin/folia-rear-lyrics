@@ -166,22 +166,39 @@ private fun toRgb255(color: Color): Rgb = Rgb(
 )
 
 /**
+ * 场色明度的允许区间：以 base 为锚上下收窄，再整体夹进主题的绝对区间。
+ *
+ * `baseL` 来自桥上的配色（`buildMinimalPalette`：浅色 base 带 0.95~0.972、深色 0.09~0.12），
+ * 主题却来自另一个字段。两者不同源时（浅色配色配深色主题，或桥断线时沿用的旧配色配默认主题），
+ * `baseL ± Δ` 会和主题区间**互斥**。旧实现把这两个端点原样交给 `coerceIn(min, max)`，
+ * Kotlin 在 min > max 时抛 `IllegalArgumentException: Cannot coerce value to an empty range`
+ * —— 而它发生在组合期间，于是整页连带进程一起结束（1.3.182 的启动闪退）。
+ *
+ * 这里先把两个端点**单调**收敛进主题区间，端点顺序天然成立；配色越界时退化为主题上限，
+ * 场色仍然压在背景深处，不会因为配色错位把整页刷白。
+ */
+private fun fieldLightness(lightness: Float, baseL: Float, light: Boolean): Float {
+    val floor = if (light) 0.10f else 0.05f
+    val ceiling = if (light) 0.92f else 0.60f
+    val start = (if (light) baseL - 0.20f else baseL - 0.02f).coerceIn(floor, ceiling)
+    val end = (if (light) baseL + 0.06f else baseL + 0.20f).coerceIn(floor, ceiling)
+    // start <= end：coerceIn 单调，所以这两个端点是排好序的，不会再构成空区间。
+    return lightness.coerceIn(start, end)
+}
+
+/**
  * 柔雾配色整形（第 18 轮）：只整**场色与柔光**，不碰 base —— 页面文字对比度锚在
  * base 上。鲜艳封面：场色饱和度压到 ≤0.55；明度差（浅色主题向下、深色主题向上）
  * 收窄到 ≤0.20 —— 色域再亮也压在背景深处。相近封面：shader 的三团异位色域自然
  * 分层，不强行造色块。
  */
-private fun softenAmbience(colors: List<Color>, light: Boolean): List<Color> {
+internal fun softenAmbience(colors: List<Color>, light: Boolean): List<Color> {
     if (colors.size < 5) return colors
     val baseL = rgbToHsl(toRgb255(colors[0])).l
     fun softenField(color: Color): Color {
         val hsl = rgbToHsl(toRgb255(color))
         val s = hsl.s.coerceAtMost(0.55f)
-        val l = if (light) {
-            hsl.l.coerceIn((baseL - 0.20f).coerceAtLeast(0.10f), (baseL + 0.06f).coerceAtMost(0.92f))
-        } else {
-            hsl.l.coerceIn((baseL - 0.02f).coerceAtLeast(0.05f), (baseL + 0.20f).coerceAtMost(0.60f))
-        }
+        val l = fieldLightness(hsl.l, baseL, light)
         return Color(argb(hslToRgb(hsl.copy(s = s, l = l))))
     }
     val glowHsl = rgbToHsl(toRgb255(colors[4]))
