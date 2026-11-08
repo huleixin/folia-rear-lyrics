@@ -788,7 +788,30 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             //
             // 现在 seed 只是「这一路 live 还没到」时喂给同一个节点的数据：节点、key、几何
             // 全部共用，live 到达只是换数据，没有第二次挂载。
-            val liveById = visible.associateBy { it.id }
+            // 进入设置只让迷你条淡出、导航条原位不动（需求 4.2）。
+            // 做法：mini 消失后保留它上一帧的数据 170ms 只做透明度收尾；位置仍由
+            // chromeFooterRect 算，所以不会上下跳；节点不重建，玻璃图层也不重分配。
+            // 只在 settings 生效 —— 舞台/详情/启动期完全走原来的路径，不碰既有的闪烁修复。
+            val miniNow = visible.firstOrNull { it.id == "mini" }
+            var lastMini by remember { mutableStateOf<ChromeSurface?>(null) }
+            SideEffect { if (miniNow != null) lastMini = miniNow }
+            var miniGhost by remember { mutableStateOf(false) }
+            LaunchedEffect(miniNow, destination, webOverlay) {
+                miniGhost = false
+                if (miniNow == null && destination == "settings" && !webOverlay && lastMini != null) {
+                    miniGhost = true
+                    delay(if (reducedMotion) 0L else 170L)
+                    miniGhost = false
+                }
+            }
+            // 目标只看「是否真的可见」：进设置 1→0，回一级页 0→1（节点重新组合时也接着这个值淡入）。
+            val miniFade by animateFloatAsState(
+                targetValue = if (miniNow != null) 1f else 0f,
+                animationSpec = tween(if (reducedMotion) 0 else 170),
+                label = "mini-fade",
+            )
+            val liveById = visible.associateBy { it.id }.toMutableMap()
+            if (miniGhost) lastMini?.let { liveById["mini"] = it }
             for(id in listOf("nav","mini","stage")) key(id) {
                 val live = liveById[id]
                 val seeded = remember("seed",id,live,width,height,safeBottom,safeTop,selectedTab,startupSelected,firstHomeFrame,destination,webOverlay,collectionDetail) {
@@ -822,7 +845,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 val placement = Modifier.zIndex(2f)
                     .offset { IntOffset(with(density){rect.left.dp.roundToPx()},with(density){animatedY.dp.roundToPx()}) }
                     .size(rect.width.dp,rect.height.dp)
-                    .graphicsLayer { alpha = rect.alpha }
+                    .graphicsLayer { alpha = rect.alpha * if(id=="mini") miniFade else 1f }
                     val actions: (String,Double)->Unit = actions@ { action,value ->
                         // seed 不是 live 控制条：只接受「启动期导航」与「睡眠菜单」这两条安全动作，
                         // 缓存快照绝不触发业务命令（其余一律丢弃）。

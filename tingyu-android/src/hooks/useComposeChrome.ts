@@ -67,7 +67,7 @@ export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfac
             const nativeFooter=PREHIDE_COMPOSE_CHROME;
             // Native footers own their placement. Measuring hidden HTML here can
             // synchronously lay out the whole browsing tree for no visual benefit.
-            const rect=nativeFooter?{left:0,top:0,width:innerWidth,height:id==='nav'?54:id==='stage'?136:46}:node.getBoundingClientRect();
+            const rect=nativeFooter?{left:0,top:0,width:innerWidth,height:id==='nav'?54:id==='stage'?96:46}:node.getBoundingClientRect();
             const style=nativeFooter?{opacity:'1',visibility:'visible',display:'block'}:getComputedStyle(node);
             const enabled=current.active&&isMainStageActive()&&!hasBlockingChromeWindow()&&(nativeFooter||!node.closest('[inert]')&&node.getAttribute('aria-hidden')!=='true'
                 &&style.visibility!=='hidden'&&style.display!=='none'&&Number(style.opacity)>.01&&rect.width>0&&rect.height>0);

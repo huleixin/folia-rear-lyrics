@@ -53,7 +53,7 @@ it('native stage controls do not inherit the hidden HTML entry animation inertne
     host.setAttribute('inert','');
     await act(async()=>root.render(h(Probe,{id:'stage'})));await settle(20);
     expect(bridge.update.mock.calls.at(-1)?.[0].enabled).toBe(true);
-    expect(bridge.update.mock.calls.at(-1)?.[0].height).toBe(136);
+    expect(bridge.update.mock.calls.at(-1)?.[0].height).toBe(96);
 });
 it('never reveals legacy controls if a native probe fails',async()=>{
     bridge.supported=false;

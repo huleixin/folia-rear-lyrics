@@ -69,7 +69,7 @@ export default function MobileMiniPlayer({
     // 闸门只是短暂启动窗口，不是固定延迟；暖恢复时 recoveryReady() 恒为 true。
     const recoveryHold = !recoveryReady() && !song;
     const nativeCover = useNativeChromeCover(cover,active&&!searchOpen&&!settingsOpen);
-    const compose = useComposeChrome(glassRef,'mini',active&&!searchOpen&&!settingsOpen,{
+    const compose = useComposeChrome(glassRef,'mini',active&&!settingsOpen,{
         title:song?.name||t('mobileLibrary.nothingPlaying'),artist:song?getSongArtistLabel(song):t('mobileLibrary.chooseMusic'),cover:nativeCover,
         trackKey:song?getPlaybackSongKey(song):'',playing:state===PlayerState.PLAYING,disabled:!song||!onTogglePlayback,
         sleepPreferredMinutes,

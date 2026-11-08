@@ -4,6 +4,7 @@ import type { LibrarySuiteStageProps } from '../../core/contracts/suite';
 import { useMobileLibraryStore } from '../../../stores/useMobileLibraryStore';
 import { useSearchNavigationStore } from '../../../stores/useSearchNavigationStore';
 import { useSettingsModalStore } from '../../../stores/useSettingsModalStore';
+import { scheduleNativeShellRoute } from '../../../services/nativeShellCommit';
 import MobileMiniPlayer from './MobileMiniPlayer';
 import TingyuNavIcon from './TingyuNavIcon';
 import './mobileLibrary.css';
@@ -26,6 +27,8 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
     const page = useMobileLibraryStore((state) => state.page);
     const searchOpen = useSearchNavigationStore((state) => state.isSearchOpen);
     const settingsOpen = useSettingsModalStore((state) => state.settingsModalState.isOpen);
+    // 设置二/三级页：底部导航也要收起来（只有设置主页保留）。
+    const settingsSubview = useSettingsModalStore((state) => state.isSubSettingsViewOpen);
     const homeActive = !searchOpen && !settingsOpen && page === 'home';
     const libraryActive = !searchOpen && !settingsOpen && page === 'library';
     const artistDetail = props.navigation.depth > 0 && props.navigation.activeType === 'artist';
@@ -38,14 +41,25 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
     const footerRef = useRef<HTMLElement>(null);
     useMobileFooterMotion(footerRef, navRef, collectionDetail);
     const nativeNavigate = useCallback((index: number) => {
-        if(index===0||index===1){useMobileLibraryStore.getState().setPage(index===0?'home':'library');props.onLibraryHome?.();}
-        else if(index===2){const search=useSearchNavigationStore.getState();search.restoreSearch({query:'',sourceTab:search.searchSourceTab,returnView:'home'});}
-        else if(index===3)useSettingsModalStore.getState().openSettings('options');
+        // 底栏现在在搜索/设置页也显示（2026-11-09 统一）。点了必须真能切走：
+        // 先收掉覆盖层，再切页，最后统一让原生路由重新发布一次。
+        const search=useSearchNavigationStore.getState();
+        const settings=useSettingsModalStore.getState();
+        if(index===3){
+            if(search.isSearchOpen)search.hideSearchOverlay();
+            if(!settings.settingsModalState.isOpen)settings.openSettings('options');
+        }else{
+            if(search.isSearchOpen&&index!==2)search.hideSearchOverlay();
+            if(settings.settingsModalState.isOpen)settings.closeSettings();
+            if(index===0||index===1){useMobileLibraryStore.getState().setPage(index===0?'home':'library');props.onLibraryHome?.();}
+            else if(index===2&&!search.isSearchOpen){search.restoreSearch({query:'',sourceTab:search.searchSourceTab,returnView:'home'});}
+        }
+        scheduleNativeShellRoute();
     }, [props.onLibraryHome]);
     const nativeGlass = useNativeGlassNav(navRef, !COMPOSE_CHROME && props.isInteractive && !settingsOpen && !searchOpen, `${collectionDetail}:${page}`, nativeNavigate);
     const reducedMotion = useReducedMotionFor('uiMicroMotion');
     const homeView = useAppViewStore(state=>state.view==='home'&&!state.isPanelOpen);
-    const compose = useComposeChrome(navRef,'nav',homeView && !artistDetail && (PREHIDE_COMPOSE_CHROME||props.isInteractive) && !settingsOpen && !searchOpen,{
+    const compose = useComposeChrome(navRef,'nav',homeView && !artistDetail && (PREHIDE_COMPOSE_CHROME||props.isInteractive) && !(settingsOpen && settingsSubview),{
         selected:homeActive?0:libraryActive?1:searchOpen?2:settingsOpen?3:-1,vertical:wide,reducedMotion,
         accent:'#86d8b8',ink:'#eef5ef',labels:{nav0:t('mobileLibrary.recommend'),nav1:t('mobileLibrary.libraryNav'),nav2:t('mobileLibrary.search'),nav3:t('mobileLibrary.settingsNav')},
     },{navigate:nativeNavigate});

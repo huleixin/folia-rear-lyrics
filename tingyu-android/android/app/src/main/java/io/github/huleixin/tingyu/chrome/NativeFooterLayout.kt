@@ -3,14 +3,28 @@ package io.github.huleixin.tingyu.chrome
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeFooterLayout.kt
 // Footer placement is route state, never a measured pose of an invisible HTML animation.
 // `detail` = 集合详情（非歌手）按页面层级判定：隐藏一级导航、迷你条上提；宽屏（≥840dp）保留侧边导航。
+//
+// 2026-11-09 一级页面底部行为统一（场景见 听屿1.3.188-底部导航与迷你条统一.md）：
+//   推荐 / 资料库 / 搜索 → 导航 + 迷你条都在
+//   设置主页            → 只有导航（迷你条退场，但播放不中断）
+//   歌单详情（非歌手）   → 只有迷你条
+//   设置二/三级、舞台     → 都不显示
+// 这里只回答「这个路由**允许**画哪一条」。设置二级页由 JS 侧 active=false 关掉
+// （isSubSettingsViewOpen），原生不再二次判断层级——层级知识只有 JS 有。
 internal object NativeFooterLayout {
     fun visible(id:String,route:String,detail:Boolean,width:Float,artist:Boolean=false):Boolean = when {
         route=="collection"&&artist -> false
         else -> when(id){
         "stage"->route=="stage"
-        "nav"->route in setOf("home","collection")&&(!detail||width>=840f)
-        else->route in setOf("home","collection")
+        "nav"->when(route){
+            "home"->true
+            "collection"->!detail||width>=840f
+            "search","settings"->true
+            else->false
         }
+        // 设置页不显示迷你条；歌单详情反而保留它。
+        else->route in setOf("home","collection","search")
+    }
     }
     fun rect(id:String,width:Float,height:Float,top:Float,bottom:Float,detail:Boolean):ChromeRect {
         val wide=width>=840f;val short=wide&&height<=600f

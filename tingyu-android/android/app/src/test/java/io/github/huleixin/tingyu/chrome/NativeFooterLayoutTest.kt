@@ -12,6 +12,36 @@ class NativeFooterLayoutTest {
         }
         assertTrue(NativeFooterLayout.visible("mini","collection",false,393f))
     }
+
+    /**
+     * 一级页面底部行为统一（2026-11-09）。
+     *
+     * 推荐 / 资料库 / 搜索 → 导航 + 迷你条；设置主页 → 只有导航；歌单详情 → 只有迷你条；
+     * 舞台 / web / 设置二级页（JS 侧 active=false）→ 都没有。
+     * 这里钉的是**原生允许画哪一条**；设置二级页由 JS 的 isSubSettingsViewOpen 关掉 active。
+     */
+    @Test fun oneLevelPagesFollowTheSameFooterMatrix(){
+        val w=393f
+        for(route in listOf("home","collection","search")){
+            assertTrue("$route nav",NativeFooterLayout.visible("nav",route,false,w))
+            assertTrue("$route mini",NativeFooterLayout.visible("mini",route,false,w))
+        }
+        // 设置主页：导航保留，迷你条退出。
+        assertTrue(NativeFooterLayout.visible("nav","settings",false,w))
+        assertFalse(NativeFooterLayout.visible("mini","settings",false,w))
+        // 歌单详情（手机）：导航收起、迷你条上提保留；宽屏保留侧边导航。
+        assertFalse(NativeFooterLayout.visible("nav","collection",true,393f))
+        assertTrue(NativeFooterLayout.visible("mini","collection",true,393f))
+        assertTrue(NativeFooterLayout.visible("nav","collection",true,1000f))
+        // 舞台 / 网页：一级导航和迷你条都不显示。
+        for(route in listOf("stage","web")){
+            assertFalse("$route nav",NativeFooterLayout.visible("nav",route,false,w))
+            assertFalse("$route mini",NativeFooterLayout.visible("mini",route,false,w))
+        }
+        // 舞台控制条只在舞台。
+        assertTrue(NativeFooterLayout.visible("stage","stage",false,w))
+        assertFalse(NativeFooterLayout.visible("stage","search",false,w))
+    }
     @Test fun stageGeometryIsIndependentOfHiddenHtmlAnimationPoses(){
         val stage=NativeFooterLayout.rect("stage",393f,852f,30f,22f,false)
         // 紧凑一体胶囊：96dp 高（原 136dp），左右 10dp 与迷你播放器同一条安全边距。
