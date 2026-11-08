@@ -31,8 +31,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -62,21 +60,11 @@ import java.io.File
 // 「支持与交流」的两个原生底部弹窗。视觉令牌与 NativeSettingsPage.kt 一一对应，
 // 让弹窗读起来就是设置页的一部分；内容完全静态，不接入任何支付系统。
 
-// Mirrors NativeSettingsPage.kt: settings gradient #061D16→#02120E→#041A13, card #23493B33.
-private object SupportPalette {
-    val Surface:Color @Composable get()=interfaceColor(Color(0xFF0B231B),LightInterfaceColors.Sheet)
-    val Ink:Color @Composable get()=interfaceColor(Color(0xFFE8F4ED),LightInterfaceColors.Ink)
-    val Muted:Color @Composable get()=interfaceColor(Color(0xFF9EB3AA),LightInterfaceColors.Muted)
-    val Accent:Color @Composable get()=interfaceColor(Color(0xFF74D9BA),LightInterfaceColors.Accent)
-    val Card:Color @Composable get()=interfaceColor(Color(0x3323493B),LightInterfaceColors.Card)
-    val CardBorder:Color @Composable get()=interfaceColor(Color(0x1FA5CDB9),LightInterfaceColors.Border)
-    val Chip:Color @Composable get()=interfaceColor(Color(0x0CA6D7BF),LightInterfaceColors.Subtle)
-    val ChipInk:Color @Composable get()=interfaceColor(Color(0xFFD2E3DA),LightInterfaceColors.Icon)
-    val Button:Color @Composable get()=interfaceColor(Color(0xFF2D684F),LightInterfaceColors.SoftButton)
-    val ButtonBorder:Color @Composable get()=interfaceColor(Color(0x1A7FC2A5),LightInterfaceColors.Border)
-    val ButtonInk:Color @Composable get()=interfaceColor(Color(0xFFE0F8ED),LightInterfaceColors.Accent)
-    val Ghost:Color @Composable get()=interfaceColor(Color(0x1A000000),LightInterfaceColors.Subtle)
-}
+// 视觉统一（原生化专项·第 21 轮）：这里不再自带一套调色板与 ModalBottomSheet，
+// 改用 TyPanelTheme + TySheetFrame —— 与队列、工具页、二级操作面板同一份表面色、
+// 同一份圆角、同一份进出场。用户从设置点进"请作者喝杯咖啡"和点开任意 ⋯ 面板，
+// 看到的是同一个弹窗，不再有第三套弹窗方言。
+private val sheetTheme @Composable get() = TyPanelTheme.of(LocalInterfacePalette.current.light)
 
 internal data class SupportCopy(
     val coffeeTitle: String, val coffeeDescription: String, val channelWechat: String, val channelAlipay: String,
@@ -106,7 +94,6 @@ internal fun parseSupportCopy(json: String?): SupportCopy {
     } catch (_: Exception) { fallback }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun SupportSheets(kind: String, copyJson: String?, onDismiss: () -> Unit) {
     val copy = remember(kind, copyJson) { parseSupportCopy(copyJson) }
     when (kind) {
@@ -115,7 +102,6 @@ internal fun parseSupportCopy(json: String?): SupportCopy {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable private fun SupportCoffeeSheet(copy: SupportCopy, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -148,52 +134,50 @@ internal fun parseSupportCopy(json: String?): SupportCopy {
             }
         } else legacySave.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
     }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = SupportPalette.Surface) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.size(44.dp).clip(RoundedCornerShape(999.dp)).background(SupportPalette.Chip), contentAlignment = Alignment.Center) {
-                PageIcon("coffee", SupportPalette.ChipInk, Modifier.size(22.dp))
+    val theme = sheetTheme
+    TySheetFrame(theme, copy.coffeeTitle, "", 0.92f, onDismiss) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.size(44.dp).clip(RoundedCornerShape(999.dp)).background(theme.card), contentAlignment = Alignment.Center) {
+                PageIcon("coffee", theme.text, Modifier.size(22.dp))
             }
-            Spacer(Modifier.height(12.dp))
-            Text(copy.coffeeTitle, color = SupportPalette.Ink, fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(6.dp))
-            Text(copy.coffeeDescription, color = SupportPalette.Muted, fontSize = 12.sp, lineHeight = 19.sp, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(10.dp))
+            Text(copy.coffeeDescription, color = theme.muted, fontSize = 12.sp, lineHeight = 19.sp, textAlign = TextAlign.Center)
             Spacer(Modifier.height(16.dp))
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(SupportPalette.Ghost).padding(3.dp)) {
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(theme.card).padding(3.dp)) {
                 listOf(copy.channelWechat to 0, copy.channelAlipay to 1).forEach { (label, index) ->
                     val selected = channel == index
                     Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
-                        .background(if (selected) SupportPalette.Button else Color.Transparent)
-                        .border(1.dp, if (selected) SupportPalette.ButtonBorder else Color.Transparent, RoundedCornerShape(10.dp))
+                        .background(if (selected) theme.accent.copy(alpha = 0.16f) else Color.Transparent)
+                        .border(1.dp, if (selected) theme.accent.copy(alpha = 0.45f) else Color.Transparent, RoundedCornerShape(10.dp))
                         .clickable { channel = index }.padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
-                        Text(label, color = if (selected) SupportPalette.ButtonInk else SupportPalette.Muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Text(label, color = if (selected) theme.accent else theme.muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }
             Spacer(Modifier.height(14.dp))
             if (qrRes != 0) Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White).padding(14.dp), contentAlignment = Alignment.Center) {
                 Image(painterResource(qrRes), null, Modifier.fillMaxWidth().widthIn(max = 300.dp).heightIn(max = 300.dp), contentScale = ContentScale.Fit)
-            } else Box(Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(16.dp)).background(SupportPalette.Card)
-                .border(1.dp, SupportPalette.CardBorder, RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) {
+            } else Box(Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(16.dp)).background(theme.card)
+                .border(1.dp, theme.line, RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PageIcon("coffee", SupportPalette.Muted, Modifier.size(26.dp))
-                    Text(copy.qrMissing, color = SupportPalette.Muted, fontSize = 12.sp)
+                    PageIcon("coffee", theme.muted, Modifier.size(26.dp))
+                    Text(copy.qrMissing, color = theme.muted, fontSize = 12.sp)
                 }
             }
             Spacer(Modifier.height(16.dp))
             val enabled = qrRes != 0 && !saving
             Box(Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(12.dp))
-                .background(if (enabled) SupportPalette.Button else SupportPalette.Ghost)
-                .border(1.dp, SupportPalette.ButtonBorder, RoundedCornerShape(12.dp))
+                .background(if (enabled) theme.accent.copy(alpha = 0.16f) else theme.card)
+                .border(1.dp, theme.accent.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
                 .clickable(enabled = enabled) { save() }, contentAlignment = Alignment.Center) {
-                Text(copy.saveQr, color = if (enabled) SupportPalette.ButtonInk else SupportPalette.Muted, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text(copy.saveQr, color = if (enabled) theme.accent else theme.muted, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
             Spacer(Modifier.height(10.dp))
-            Text(copy.voluntary, color = SupportPalette.Muted, fontSize = 11.sp, lineHeight = 17.sp, textAlign = TextAlign.Center)
+            Text(copy.voluntary, color = theme.muted, fontSize = 11.sp, lineHeight = 17.sp, textAlign = TextAlign.Center)
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable private fun SupportGroupSheet(copy: SupportCopy, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val groupId = SupportLinks.normalizeGroupId(SupportConfig.qqGroupId)
@@ -203,42 +187,41 @@ internal fun parseSupportCopy(json: String?): SupportCopy {
         manager?.setPrimaryClip(ClipData.newPlainText(copy.groupLabel, groupId))
         toast(context, copy.groupCopied)
     }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = SupportPalette.Surface) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.size(44.dp).clip(RoundedCornerShape(999.dp)).background(SupportPalette.Chip), contentAlignment = Alignment.Center) {
-                PageIcon("messages-square", SupportPalette.ChipInk, Modifier.size(22.dp))
+    val theme = sheetTheme
+    TySheetFrame(theme, copy.communityTitle, "", 0.7f, onDismiss) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.size(44.dp).clip(RoundedCornerShape(999.dp)).background(theme.card), contentAlignment = Alignment.Center) {
+                PageIcon("messages-square", theme.text, Modifier.size(22.dp))
             }
-            Spacer(Modifier.height(12.dp))
-            Text(copy.communityTitle, color = SupportPalette.Ink, fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(6.dp))
-            Text(copy.communityDescription, color = SupportPalette.Muted, fontSize = 12.sp, lineHeight = 19.sp, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(10.dp))
+            Text(copy.communityDescription, color = theme.muted, fontSize = 12.sp, lineHeight = 19.sp, textAlign = TextAlign.Center)
             Spacer(Modifier.height(16.dp))
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(SupportPalette.Card)
-                .border(1.dp, SupportPalette.CardBorder, RoundedCornerShape(14.dp)).padding(14.dp),
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(theme.card)
+                .border(1.dp, theme.line, RoundedCornerShape(14.dp)).padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(Modifier.size(34.dp).clip(RoundedCornerShape(999.dp)).background(SupportPalette.Chip), contentAlignment = Alignment.Center) {
-                    PageIcon("messages-square", SupportPalette.ChipInk, Modifier.size(21.dp))
+                Box(Modifier.size(34.dp).clip(RoundedCornerShape(999.dp)).background(theme.card), contentAlignment = Alignment.Center) {
+                    PageIcon("messages-square", theme.text, Modifier.size(21.dp))
                 }
                 Column(Modifier.weight(1f)) {
-                    Text(copy.groupLabel, color = SupportPalette.Ink, fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.Medium)
-                    Text(if (configured) groupId else copy.groupMissing, color = if (configured) SupportPalette.Accent else SupportPalette.Muted,
+                    Text(copy.groupLabel, color = theme.text, fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.Medium)
+                    Text(if (configured) groupId else copy.groupMissing, color = if (configured) theme.accent else theme.muted,
                         fontSize = 13.sp, lineHeight = 18.sp, fontWeight = if (configured) FontWeight.SemiBold else FontWeight.Normal, modifier = Modifier.padding(top = 2.dp))
                 }
             }
             Spacer(Modifier.height(16.dp))
             Box(Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(12.dp))
-                .background(if (configured) SupportPalette.Button else SupportPalette.Ghost)
-                .border(1.dp, SupportPalette.ButtonBorder, RoundedCornerShape(12.dp))
+                .background(if (configured) theme.accent.copy(alpha = 0.16f) else theme.card)
+                .border(1.dp, theme.accent.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
                 .clickable(enabled = configured) {
                     if (!openQqGroup(context)) { copyGroupNumber(); toast(context, copy.joinFallback) }
                 }, contentAlignment = Alignment.Center) {
-                Text(copy.joinGroup, color = if (configured) SupportPalette.ButtonInk else SupportPalette.Muted, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text(copy.joinGroup, color = if (configured) theme.accent else theme.muted, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
             Spacer(Modifier.height(8.dp))
             Box(Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(12.dp))
-                .background(SupportPalette.Ghost).border(1.dp, SupportPalette.CardBorder, RoundedCornerShape(12.dp))
+                .background(theme.card).border(1.dp, theme.line, RoundedCornerShape(12.dp))
                 .clickable(enabled = configured) { copyGroupNumber() }, contentAlignment = Alignment.Center) {
-                Text(copy.copyGroup, color = if (configured) SupportPalette.Ink else SupportPalette.Muted, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text(copy.copyGroup, color = if (configured) theme.text else theme.muted, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
         }
     }

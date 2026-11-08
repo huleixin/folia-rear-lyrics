@@ -173,6 +173,22 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var sleepAnchor by mutableStateOf(androidx.compose.ui.geometry.Rect.Zero)
     private var supportSheet by mutableStateOf<String?>(null)
     private var supportCopyJson by mutableStateOf<String?>(null)
+    /**
+     * 二级操作面板（原生化专项·第 21 轮）：歌曲 ⋯ / 歌单 ⋯ / 音源选择 / 本地文件操作等
+     * 统一由这里承载。React 只下发声明式模型，Compose 负责绘制与命中 —— 见 TyPanelHost.kt。
+     */
+    private val panelHost = TyPanelHost()
+    /** 面板动作与关闭事件的回传通道（JS 侧监听 panelAction）。 */
+    var panelListener: NativePanelActionListener? = null
+        set(value) {
+            field = value
+            panelHost.onAction = value?.let { sink ->
+                { id, session, key, action, text, v -> sink.onAction(id, session, key, action, text, v) }
+            }
+            panelHost.onDismiss = value?.let { sink ->
+                { id, session, key -> sink.onAction(id, session, key, TyPanelEvent.DISMISS, "", 0.0) }
+            }
+        }
     private val cache=NativeShellCache(web.context)
     private val retained=NativePageRetention()
     private val routeMotion=NativeRouteMotion()
@@ -369,6 +385,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // 返回时再由用户重新打开 —— 工具页绝不叠在别的原生页上面。
         if(toolsPage.isNotEmpty()&&next!="stage"&&toolsRoute=="stage")closeNativeTools()
         if(toolsPage.isNotEmpty())toolsRoute=next
+        // 二级面板跟着它所属的页面走：路由一变就收起。面板里的动作对象（歌曲、集合）
+        // 属于上一页的上下文，继续挂着只会让用户点到一个已经失效的目标。
+        if(routeChanged && panelHost.panel != null) panelHost.dismissFromHost()
         syncWebBackground()
         pageTarget=value.optString("pageTarget");entryKey=value.optString("entryKey");reducedMotion=value.optBoolean("reducedMotion")
         navigation=value.optString("navigation")
@@ -393,6 +412,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private val savedPageKeys=LinkedHashSet<String>()
     fun status() = JSONObject().put("supported", Build.VERSION.SDK_INT >= 24).put("engine", "compose-backdrop-1.0.6")
         .put("mounted",host != null).put("active",active).put("surfaces",surfaces.values.count { it.enabled && active }).put("updates",updates).put("pages",Build.VERSION.SDK_INT >= 24)
+        // 二级操作面板能力位（原生化专项·第 21 轮）：JS 只有拿到 true 才把 ⋯ 面板交给原生，
+        // 否则继续用 WebView 的 .ml-sheet —— 旧包/回滚构建因此不会出现"点了没反应"。
+        .put("panels", true)
         // 极简页的能力位：JS 侧只有拿到 true 才让出 WebView 极简页。回滚只需它变 false。
         .put("minimalPlayer", minimalPlayerEnabled()).put("minimal", minimalDiagnostics())
         // 首帧取证（进程启动后 3 秒内的路由 / 底栏 / 安全区 / 交接点）。诊断包直接读这一段。
@@ -451,6 +473,26 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         frameOrder.retire("page:$id",session)
         if(pages[id]?.session==session){pages.remove(id);pageNavigations.remove(id)}
     }
+    /**
+     * 二级面板包。与页面包同一套防乱序：session 换代 + revision 单调。
+     * `enabled=false` 表示关闭；受理失败时回 accepted=false，JS 侧据此保留 DOM 版本
+     * （绝不允许"原生没画、DOM 也撤了"的空窗）。
+     */
+    fun panelUpdate(value: PreparedTyPanel, reply: (JSONObject) -> Unit) {
+        check(Build.VERSION.SDK_INT >= 24)
+        val next = value.panel
+        if (next.enabled && host == null) attach()
+        val accepted = panelHost.update(next)
+        if (accepted && next.enabled && next.kind == "sheet") {
+            // 二级面板与队列/工具页互斥：它们都在底部，叠在一起会抢同一块底部空间。
+            if (queueOpen) { queueOpen = false; minimalCommands.closeQueue() }
+            if (toolsPage.isNotEmpty()) closeNativeTools()
+        }
+        settingsTrace("panel-update", "panel" to next.id, "session" to next.session,
+            "revision" to next.revision, "enabled" to next.enabled, "accepted" to accepted)
+        reply(status().put("accepted", accepted).put("session", next.session))
+    }
+    fun panelRemove(id: String, session: String) { panelHost.remove(id, session) }
     fun update(value: PreparedChromeSurface, reply: (JSONObject) -> Unit) {
         check(Build.VERSION.SDK_INT >= 24)
         val next = value.surface
@@ -984,6 +1026,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     preferredMinutes=surfaces["mini"]?.sleepPreferredMinutes?:30,reduced=reducedMotion){sleepMenuOpen=false}
             }
             supportSheet?.let{kind->SupportSheets(kind,supportCopyJson){supportSheet=null}}
+            // 二级操作面板：盖在底栏/迷你播放器/极简页之上，任何路由都可呈现。
+            TyPanelLayer(panelHost,interfaceLight,Modifier.fillMaxSize().zIndex(9f))
             }
         }
     }
@@ -994,6 +1038,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         chromeRemovalSerial++
         val compose = host ?: return
         active = false;navigationActionSerial++;clearStartupNavigation();stageExit.clear(); surfaces.clear();liveChrome.clear(); clocks.clear();pages.clear();retained.clear();presented=null
+        panelHost.clear()
         io.github.huleixin.tingyu.NativeKeepScreenOn.reset()
         compose.disposeComposition()
         (web.parent as? ViewGroup)?.removeView(web)

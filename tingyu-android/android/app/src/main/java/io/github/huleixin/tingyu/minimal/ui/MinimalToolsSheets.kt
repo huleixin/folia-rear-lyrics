@@ -73,37 +73,14 @@ import kotlin.math.roundToInt
 
 // ---- 主题（与队列抽屉同一套听屿墨绿表面色）----
 
-internal data class ToolsTheme(
-    val surface: Color,
-    val card: Color,
-    val text: Color,
-    val muted: Color,
-    val accent: Color,
-    val line: Color,
-    val scrim: Float,
-)
+/**
+ * 工具页表面色（第 21 轮收编）：实现已上收到 chrome/TyPanelStyle.kt 的 TyPanelTheme，
+ * 与二级操作面板、支持面板、队列共用同一份数值。这里保留 ToolsTheme 这个名字，
+ * 因为它在极简页里有明确语义（"工具页与队列的表面"），换名只会增加 diff。
+ */
+internal typealias ToolsTheme = io.github.huleixin.tingyu.chrome.TyPanelTheme
 
-internal fun toolsTheme(light: Boolean): ToolsTheme = if (light) {
-    ToolsTheme(
-        surface = Color(0xFFF7FAF8),
-        card = Color(0xFFFFFFFF).copy(alpha = 0.62f),
-        text = Color(0xFF10231D),
-        muted = Color(0xFF5C7268),
-        accent = Color(0xFF0F6B4F),
-        line = Color(0xFF10231D).copy(alpha = 0.10f),
-        scrim = 0.28f,
-    )
-} else {
-    ToolsTheme(
-        surface = Color(0xFF0E1A17),
-        card = Color(0xFFFFFFFF).copy(alpha = 0.055f),
-        text = Color(0xFFECF3EF),
-        muted = Color(0xFF8FA69C),
-        accent = Color(0xFF7FE3C0),
-        line = Color(0xFFFFFFFF).copy(alpha = 0.09f),
-        scrim = 0.55f,
-    )
-}
+internal fun toolsTheme(light: Boolean): ToolsTheme = io.github.huleixin.tingyu.chrome.TyPanelTheme.of(light)
 
 // ---- 脚手架 ----
 
@@ -125,6 +102,10 @@ internal fun ToolsSheetScaffold(
     val theme = toolsTheme(light)
     BackHandler(enabled = true) { onClose() }
     // 遮罩已上收到宿主（MinimalSheetScrim，只渐显不滑移）；这里只画底部面板本体。
+    //
+    // 第 21 轮说明：此处**有意**不复用 chrome/TySheetFrame。工具页的四个页面自带
+    // 横向内边距与密集布局，容器再补 20dp 会把卡片挤窄，破坏 MinimalParityTest 的
+    // 像素基线。共用的是主题（TyPanelTheme）与运动（TyPanelMotion），容器本体保留。
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
         val maxSheetHeight = maxHeight * heightFraction
         Column(

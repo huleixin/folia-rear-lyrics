@@ -34,6 +34,10 @@ public class TingyuChromePlugin extends Plugin {
             JSObject event=new JSObject();event.put("id",id);event.put("session",session);event.put("key",key);
             event.put("action",action);event.put("text",text);event.put("value",value);traceDispatch(event);notifyListeners("pageAction",event);
         });
+        host.setPanelListener((id,session,key,action,text,value) -> {
+            JSObject event=new JSObject();event.put("id",id);event.put("session",session);event.put("key",key);
+            event.put("action",action);event.put("text",text);event.put("value",value);traceDispatch(event);notifyListeners("panelAction",event);
+        });
         if(io.github.huleixin.tingyu.BuildConfig.GRAPHICS_DIAGNOSTICS)host.setGraphicsMarkerListener(()->{
             try{notifyListeners("graphicsMark",JSObject.fromJSONObject(host.graphicsSnapshot()).put("at",System.currentTimeMillis()));}
             catch(Exception ignored){}
@@ -168,6 +172,30 @@ public class TingyuChromePlugin extends Plugin {
     }); }
     @PluginMethod public void pageRemove(PluginCall call) { getActivity().runOnUiThread(() -> {
         if(host!=null)host.pageRemove(call.getString("id",""),call.getString("session",""));call.resolve();
+    }); }
+    /**
+     * 二级操作面板（歌曲 ⋯ / 歌单 ⋯ / 音源选择 / 本地文件操作…）。
+     *
+     * <p>React 出声明式模型，Compose 画。业务规则一行都不在原生侧：面板里有哪些动作、
+     * 是否禁用、当前选中值都是 JS 算好后下发的，点击只回传动作 id（见 TyPanelModel.kt）。
+     *
+     * <p>受理失败（乱序包 / 路由不匹配）必须回 accepted=false —— JS 侧据此保留 WebView
+     * 版本，绝不允许出现"原生没画、DOM 也撤了"的空窗。
+     */
+    @PluginMethod public void panelUpdate(PluginCall call) {
+        final long parseAt=android.os.SystemClock.elapsedRealtime();
+        final PreparedTyPanel packet;
+        try { packet=PreparedTyPanel.parse(call.getData());NavigationTiming.mark("panel-packet-parse",android.os.SystemClock.elapsedRealtime()-parseAt); }
+        catch(Exception error){call.reject(error.getMessage(),error);return;}
+        getActivity().runOnUiThread(() -> {
+            try { host().panelUpdate(packet, result -> {
+                try { call.resolve(JSObject.fromJSONObject(result)); } catch(Exception error) { call.reject(error.getMessage(),error); }
+                return kotlin.Unit.INSTANCE;
+            }); } catch(Exception error) { call.reject(error.getMessage(),error); }
+        });
+    }
+    @PluginMethod public void panelRemove(PluginCall call) { getActivity().runOnUiThread(() -> {
+        if(host!=null)host.panelRemove(call.getString("id",""),call.getString("session",""));call.resolve();
     }); }
     @PluginMethod public void shell(PluginCall call) { getActivity().runOnUiThread(() -> {
         try { host().shell(call.getData());call.resolve(); } catch(Exception error){call.reject(error.getMessage(),error);}

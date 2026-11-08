@@ -27,6 +27,8 @@ export const chromeNative = registerPlugin<{
     appearance(value:{mode?:string}):Promise<{mode:'system'|'light'|'dark';systemLight:boolean;light:boolean}>;
     addListener(name:'appearanceChanged',callback:(value:{systemLight:boolean})=>void):Promise<{remove:()=>Promise<void>}>;
     probe(): Promise<{supported:boolean;engine:string;pages?:boolean;minimalPlayer?:boolean;
+        /** 二级操作面板能力位：只有 true 时 JS 才把 ⋯ 面板交给原生绘制。 */
+        panels?:boolean;
         /** 冷启动首帧取证：进程启动后 3 秒内的路由 / 底栏 / 安全区 / 交接点。 */
         startup?:{windowMs?:number;cap?:number;entries?:{at:number;phase:string;detail?:Record<string,unknown>}[]}}>;
     update(frame: ChromeFrame): Promise<{accepted:boolean;session:string;pendingNavigation?:boolean}>;
@@ -63,15 +65,23 @@ export const chromeNative = registerPlugin<{
     remove(value:{id:ChromeSurfaceId;session:string}):Promise<void>;
     pageUpdate(frame:NativePageFrame):Promise<{accepted:boolean;session:string;reason?:string}>;
     pageRemove(value:{id:NativePageId;session:string}):Promise<void>;
+    /**
+     * 二级操作面板包（原生化专项·第 21 轮）：歌曲 ⋯ / 歌单 ⋯ / 音源选择 / 本地文件操作…
+     * React 出声明式模型，Compose 画；点击只回传动作 id。
+     */
+    panelUpdate(frame:import('../types/nativePanels').NativePanelFrame):Promise<{accepted:boolean;session:string}>;
+    panelRemove(value:{id:string;session:string}):Promise<void>;
     shell(value:{generation:number;revision:number;route:string;webOverlay:boolean;selectedTab:number;pageTarget?:string;entryKey?:string;reducedMotion?:boolean;navigation?:string;collectionDetail?:boolean;playerPresentation?:'minimal'|'stage';minimalPage?:'cover'|'lyrics';minimalLyricsKeepOn?:boolean}):Promise<void>;
     collapseStage():Promise<void>;
     addListener(name:'action',callback:(value:ChromeAction)=>void):Promise<{remove:()=>Promise<void>}>;
     addListener(name:'pageAction',callback:(value:NativePageEvent)=>void):Promise<{remove:()=>Promise<void>}>;
+    addListener(name:'panelAction',callback:(value:import('../types/nativePanels').NativePanelEvent)=>void):Promise<{remove:()=>Promise<void>}>;
 }>('TingyuChrome');
-let probe:Promise<{supported:boolean;pages?:boolean;minimalPlayer?:boolean}>|undefined;
+type ChromeCapabilities={supported:boolean;pages?:boolean;minimalPlayer?:boolean;panels?:boolean};
+let probe:Promise<ChromeCapabilities>|undefined;
 let generation=0;
 export function newChromeGeneration():number { return generation=Math.max(Date.now()*1000,generation+1); }
-export function composeChromeCapabilities():Promise<{supported:boolean;pages?:boolean;minimalPlayer?:boolean}> {
+export function composeChromeCapabilities():Promise<ChromeCapabilities> {
     if (!COMPOSE_CHROME || !isAndroidNativeRuntime()) return Promise.resolve({supported:false});
     // probe 被拒（Activity recreate 后 bridge 未就绪等）是一次性状态（2026-11-06 底栏消失专项）：
     // 不缓存失败——重置缓存让下一次挂载/重试重新探测，避免整会话永久停摆。
