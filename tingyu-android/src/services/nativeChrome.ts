@@ -26,7 +26,9 @@ export const chromeNative = registerPlugin<{
     navigationDiagnostics(value:{enabled?:boolean}):Promise<{enabled:boolean;nativeNow:number;startedAt:number;samples:{phase:string;at:number;elapsedMs?:number;gestureId?:number;detail?:Record<string,unknown>}[]}>;
     appearance(value:{mode?:string}):Promise<{mode:'system'|'light'|'dark';systemLight:boolean;light:boolean}>;
     addListener(name:'appearanceChanged',callback:(value:{systemLight:boolean})=>void):Promise<{remove:()=>Promise<void>}>;
-    probe(): Promise<{supported:boolean;engine:string;pages?:boolean;minimalPlayer?:boolean}>;
+    probe(): Promise<{supported:boolean;engine:string;pages?:boolean;minimalPlayer?:boolean;
+        /** 冷启动首帧取证：进程启动后 3 秒内的路由 / 底栏 / 安全区 / 交接点。 */
+        startup?:{windowMs?:number;cap?:number;entries?:{at:number;phase:string;detail?:Record<string,unknown>}[]}}>;
     update(frame: ChromeFrame): Promise<{accepted:boolean;session:string;pendingNavigation?:boolean}>;
     /**
      * Compose minimal player bridge. Carries only what native cannot know for itself: play mode,

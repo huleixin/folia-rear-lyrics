@@ -74,7 +74,14 @@ export default function NativeHomeOverview({root,props,sources,onReady,onSources
     if(notice)sections.push({id:'notice',layout:'message',text:notice});
     const model:NativePageModel={key:`home:${sources.online.providerId}:${sources.online.user?.id??''}:${all}`,title:t('mobileLibrary.recommend'),
         subtitle:t('mobileLibrary.discoverMoreMusic'),trailing:'sources',trailingLabel:sources.online.providerLabel,background:'home',bottomClearance:152,topPadding:32,sections};
-    useNativePage(root,'home',props.isInteractive,model,actions,onReady);
+    // 账号身份还在解析时绝不发布（录屏 68804 首页单帧闪烁的根因）：resolving 阶段的
+    // 模型是「hero 暂不可用（disabled=true）+ 空歌单 + 空态文案」的过渡态 —— key 里连
+    // user id 都还没有（home:qq::false），解析完成后立刻被真实模型整包顶掉，中间只隔
+    // 36ms（约 4 个设备帧），用户看到的就是底部区块闪一下。model=null 走 useNativePage
+    // 的既定语义：不发包、原生继续呈递缓存页，直到真实模型就绪。guest/accountless 的
+    // 空态是真实状态，照常发布。本地首页（NativeLocalHomeOverview 的 libraryHydrated
+    // 门控）早就是这个模式，这里把在线首页对齐。
+    useNativePage(root,'home',props.isInteractive,sources.online.accountView==='resolving'?null:model,actions,onReady);
     return menu?<MobileSheet title={menu.kind==='track'?menu.song.name:menu.card.name} onClose={()=>setMenu(null)}>
         {menu.kind==='track'?<>
             <button className="ml-sheet-action" disabled={isSongUnavailable(menu.song)} onClick={()=>{play(menu.song,recent);setMenu(null)}}>{t('mobileLibrary.play')}</button>

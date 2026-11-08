@@ -253,7 +253,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var motionKey=""
     private var nativeTop by mutableFloatStateOf(-1f)
     private var nativeBottom by mutableFloatStateOf(-1f)
-    fun setSafeInsets(top:Float,bottom:Float){nativeTop=top.coerceAtLeast(0f);nativeBottom=bottom.coerceAtLeast(0f)}
+    fun setSafeInsets(top:Float,bottom:Float){
+        val nextTop=top.coerceAtLeast(0f);val nextBottom=bottom.coerceAtLeast(0f)
+        // 首帧诊断：安全区是底栏纵向位置的唯一输入，任何一次迟到 / 抖动都要留痕。
+        if(nextTop!=nativeTop||nextBottom!=nativeBottom)StartupTrace.detail("insets"){
+            put("top",nextTop);put("bottom",nextBottom);put("previousBottom",nativeBottom)
+        }
+        nativeTop=nextTop;nativeBottom=nextBottom
+    }
     private fun recordMotion(key:String){if(motionKey!=key){motionKey=key;backwards=routeMotion.visit(key)}}
     private fun resolvePage(){
         if(destination in setOf("stage","web")){
@@ -344,6 +351,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         }
         minimalLyricsKeepOnEnabled=value.optBoolean("minimalLyricsKeepOn")
         destination=next;webOverlay=value.optBoolean("webOverlay");selectedTab=value.optInt("selectedTab").coerceIn(0,1)
+        StartupTrace.detail("route-commit"){
+            put("from",from);put("to",next);put("overlay",webOverlay);put("tab",selectedTab)
+            put("presentation",playerPresentation);put("pendingStageEntry",pendingStageEntry)
+        }
         if(next=="stage"&&playerPresentation=="minimal"){
             val stagePhase=surfaces["stage"]?.playerTransition?:"idle"
             val shownKey=presented?.key?:"-"
@@ -385,6 +396,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         .put("mounted",host != null).put("active",active).put("surfaces",surfaces.values.count { it.enabled && active }).put("updates",updates).put("pages",Build.VERSION.SDK_INT >= 24)
         // 极简页的能力位：JS 侧只有拿到 true 才让出 WebView 极简页。回滚只需它变 false。
         .put("minimalPlayer", minimalPlayerEnabled()).put("minimal", minimalDiagnostics())
+        // 首帧取证（进程启动后 3 秒内的路由 / 底栏 / 安全区 / 交接点）。诊断包直接读这一段。
+        .put("startup", StartupTrace.snapshot())
     fun pageUpdate(value: PreparedNativePage, reply: (JSONObject) -> Unit) {
         val started=SystemClock.elapsedRealtime()
         check(Build.VERSION.SDK_INT >= 24)
@@ -399,10 +412,24 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             navigationTrace("page-native-commit:${next.id}")
             recordMotion(next.key)
             presented=next
+            StartupTrace.detail("page-commit"){
+                put("id",next.id);put("key",next.key);put("session",next.session)
+                put("rect",next.rect.toString());put("viewport",next.viewport)
+                put("boot",bootTintSettled)
+                // 区块级快照：哪一次提交里某个区块的条目数/文案变了，一眼可查 ——
+                // 底部闪烁帧就是「歌单区块在一帧内从有卡片变成空态」才被找到的。
+                val sections=org.json.JSONArray()
+                next.sections.forEach{section->sections.put(org.json.JSONObject()
+                    .put("id",section.id).put("layout",section.layout)
+                    .put("items",section.items.size).put("textChars",section.text.length))}
+                put("sections",sections)
+            }
             // 启动底色（BootSurfaceTint）必须在「第一个页面包真正落地」时交还透明：
             // 页面已是不透明整屏渐变，此时撤色安全；按帧数撤会早于页面绘制，
             // 撤掉之后又是一块黑窗（录屏 68736/68737 的第二次复现）。
             if(!bootTintSettled){bootTintSettled=true;BootSurfaceTint.settle(web.context as? android.app.Activity)
+                // 首帧诊断：启动窗口底色（LaunchSurface）→ 页面底色（第一张原生页）的交接点。
+                StartupTrace.detail("window-tint-settled"){put("page",next.id);put("key",next.key)}
                 android.util.Log.i("TingyuEntry","boot-tint-settled page=${next.id}")}
             // 入场错位排查埋点：首页几何包一旦带异常 viewport（与 WebView 实宽不符），
             // 原生页会按 web.width/viewport 整体放大 —— 录屏 68537 中 8% 放大副本的候补来源。
@@ -430,8 +457,15 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val next = value.surface
         if (!frameOrder.accept(next.id,next.session,next.generation,next.revision)) { reply(status().put("accepted",false)); return }
         if (next.enabled && host == null) attach()
+        val hadLive = liveChrome[next.id] == true
         surfaces[next.id] = next
         if (next.enabled) liveChrome[next.id] = true
+        StartupTrace.detail("chrome-packet"){
+            put("id",next.id);put("session",next.session);put("enabled",next.enabled)
+            put("top",next.rect.top);put("height",next.rect.height);put("alpha",next.rect.alpha)
+            // 这一包把缓存 seed 顶掉的时刻就是底栏交接点（此后 live 接管，seed 不再出现）。
+            put("retiresSeed",next.enabled&&!hadLive)
+        }
         clocks[next.id] = ChromeTimeline(next.position,next.duration,next.playing,SystemClock.elapsedRealtime())
         updates++
         cache.commit(value.cache)
@@ -470,6 +504,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             // 因会话不匹配自动失效，不会闪掉底栏。
             val entryPending = minimalPlayerEnabled() && (id == "nav" || id == "mini") && !webOverlay &&
                 (pendingStageEntry || (destination == "stage" && playerPresentation == "minimal"))
+            StartupTrace.detail("chrome-remove"){put("id",id);put("session",session);put("delayed",entryPending);put("route",destination)}
             if (entryPending) {
                 val token = ++chromeRemovalSerial
                 web.postDelayed({
@@ -502,11 +537,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // 启动诊断（录屏 68723）：host 重建 = Activity 重建/进程重建；配合 onResume 的
         // activity-resume 计数，一次 logcat 即可区分冷启动、暖恢复与 recreate。
         android.util.Log.i("TingyuEntry","host-attach cold-start pages=${pages.size} surfaces=${surfaces.size}")
+        StartupTrace.detail("host-attach"){put("pages",pages.size);put("surfaces",surfaces.size);put("webWidth",web.width);put("webHeight",web.height)}
         compose.setContent { Scene() }
     }
     @Composable private fun Scene() {
         // 原生首帧时间（录屏 68723 要求记录）：窗口背景从这一帧起被页面取代。
-        LaunchedEffect(Unit){withFrameNanos{NavigationTiming.mark("first-native-frame");android.util.Log.i("TingyuEntry","first-native-frame pages=${pages.size} surfaces=${surfaces.size}")}}
+        LaunchedEffect(Unit){withFrameNanos{NavigationTiming.mark("first-native-frame");android.util.Log.i("TingyuEntry","first-native-frame pages=${pages.size} surfaces=${surfaces.size}")
+            StartupTrace.detail("first-native-frame"){put("pages",pages.size);put("surfaces",surfaces.size);put("presented",presented?.key)} }}
         val configuration=androidx.compose.ui.platform.LocalConfiguration.current
         val interfaceLight=InterfaceAppearance.resolve(appearanceMode,(configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK)==android.content.res.Configuration.UI_MODE_NIGHT_NO)
         val palette=remember(interfaceLight){InterfacePalette(interfaceLight)}
@@ -603,10 +640,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 // （等极简页盖住），这 520ms 里默认 SizeTransform 正把整页缩成一张小卡片 ——
                 // 真机录屏里极简页上方那张缩小、上移、带裁剪的首页残影（拖影）就是它。
                 // 这些页面全是整屏，结构上绝不该缩放；sizeAnimationSpec 返回 null 即无尺寸动画。
-                AnimatedContent(if(destination=="stage"&&!stageExit.active)null else page,modifier=Modifier.fillMaxSize().zIndex(1f),contentKey={it?.key?:"stage"},
+                AnimatedContent(if(destination=="stage"&&!stageExit.active)null else page,modifier=Modifier.fillMaxSize().zIndex(1f),contentKey={it?.let{NativeMotionPolicy.pageRouteKey(it.key)}?:"stage"},
                     transitionSpec={
-                        val from=initialState?.key?:if(firstHomeFrame)""else"stage"
-                        val to=targetState?.key?:"stage"
+                        // 转场只认**路由**，不认模型 key：home/library/search 的模型 key 带着会变的
+                        // 数据身份（音源、歌单 id），按它建内容实例会同时存在两份首页，旧的那份
+                        // （歌单还是空态）就在新的一份少画一块时从底下露出来（23:29 录屏实测）。
+                        val from=initialState?.let{NativeMotionPolicy.pageRouteKey(it.key)}?:if(firstHomeFrame)""else"stage"
+                        val to=targetState?.let{NativeMotionPolicy.pageRouteKey(it.key)}?:"stage"
                         val ease=CubicBezierEasing(.16f,1f,.3f,1f)
                         val travel=with(density){28.dp.roundToPx()}
                         val tabTravel=with(density){8.dp.roundToPx()}
@@ -623,14 +663,17 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 // SizeTransform 没有尺寸差可动画，首页退场就不会被缩成小卡片（拖影）。
                 if(shown==null){Box(Modifier.fillMaxSize())}
                 if(shown!=null) {
-                    LaunchedEffect(shown.key){withFrameNanos{navigationTrace("compose-frame-boundary")}}
-                    DisposableEffect(shown.key){
-                        savedPageKeys.remove(shown.key);savedPageKeys.add(shown.key)
+                    // 页面实例与保存态都按**路由**归并：同一路由的模型更新只重组，不换实例、
+                    // 不丢滚动位置；LRU 记账也按路由，避免模型 key 每次变化都把状态挤出去。
+                    val shownRoute=NativeMotionPolicy.pageRouteKey(shown.key)
+                    LaunchedEffect(shownRoute){withFrameNanos{navigationTrace("compose-frame-boundary")}}
+                    DisposableEffect(shownRoute){
+                        savedPageKeys.remove(shownRoute);savedPageKeys.add(shownRoute)
                         while(savedPageKeys.size>12){val oldest=savedPageKeys.first();savedPageKeys.remove(oldest);savedPages.removeState(oldest)}
                         onDispose{}
                     }
                     val density=LocalDensity.current;val scale=web.width/shown.viewport
-                    if(scale.isFinite()&&scale>0) savedPages.SaveableStateProvider(shown.key) {
+                    if(scale.isFinite()&&scale>0) savedPages.SaveableStateProvider(shownRoute) {
                         val placement=Modifier.offset{IntOffset((shown.rect.left*scale).roundToInt(),(shown.rect.top*scale).roundToInt())}
                             .size(with(density){(shown.rect.width*scale).toDp()},with(density){(shown.rect.height*scale).toDp()})
                         CompositionLocalProvider(LocalSettingsTraceIdentity provides SettingsTraceIdentity(destination,shown.session,shown.key,navigation,!pendingStageEntry&&destination=="settings")) {
@@ -666,22 +709,6 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             }
             if(firstHomeFrame&&destination=="home"&&!webOverlay) {
                 LaunchedEffect(Unit){withFrameNanos{NavigationTiming.mark("cached-shell-frame-boundary")}}
-                for(id in listOf("nav","mini"))if(ChromeBootSeed.shouldSeed(id,destination,firstHomeFrame,webOverlay,liveChrome)){
-                    val seed=remember(id,width,height,selectedTab,safeBottom,safeTop){cache.chrome(id,width,height,safeBottom,safeTop).let{if(id=="nav")it.copy(selected=selectedTab)else it}}
-                    // zIndex(2f)：live 底栏就是这个层级。缓存 seed 少了它就会被 zIndex=1 的
-                    // 页面容器盖住 —— 那是底栏在首帧「缺席」的直接原因（录屏 68723）。
-                    val placement=Modifier.zIndex(2f).offset{IntOffset(with(density){seed.rect.left.dp.roundToPx()},with(density){seed.rect.top.dp.roundToPx()})}
-                        .size(seed.rect.width.dp,seed.rect.height.dp)
-                    if(id=="nav")ChromeNavigation(seed.interfacePaint(interfaceLight).copy(disabled=false,selected=startupSelected?:selectedTab),backdrop,placement.chromeInteraction{action,_->
-                        if(action=="interactionStart")NavigationTiming.markGesture("startup-nav-press",-1.0)
-                        else if(action=="interactionEnd")NavigationTiming.markGesture("startup-nav-release",-1.0)
-                    }){action,value->
-                        if(active&&action=="navigate"&&startupNavigation.request(value.toInt())){
-                            navigationActionSerial++;startupSelected=value.toInt();NavigationTiming.mark("startup-navigation-requested")
-                            startupToast?.cancel();startupToast=android.widget.Toast.makeText(web.context,"正在准备${listOf("推荐","资料库","搜索","设置")[value.toInt()]}，就绪后自动打开",android.widget.Toast.LENGTH_SHORT).also{it.show()}
-                        }
-                    }else ChromeMiniPlayer(seed.interfacePaint(interfaceLight),null,backdrop,placement,sleepUi,{sleepAnchor=it}){name,_->if(name=="sleep")sleepMenuOpen=!sleepMenuOpen}
-                }
             }
             // 输入法弹出时窗口会 resize（adjustResize），Compose 根高度随之变小 —— 底栏如果
             // 还按"根高度 - 底栏高"定位，就会被顶到键盘上方（68591/68593 黄框）。这里把
@@ -702,19 +729,62 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 pinnedToScreenBottom -> (screenPx - rootPx).coerceAtLeast(0f)
                 else -> 0f
             }
-            visible.forEach { original -> key(original.id,original.session) {
-                val surface=remember(original,interfaceLight){original.interfacePaint(interfaceLight)}
-                val scale = web.width / surface.viewportWidth
-                if (scale.isFinite() && scale > 0) {
-                    val footerBottomBoost = if(surface.id=="nav"||surface.id=="mini") keyboardPx else 0f
-                    val rect=NativeFooterLayout.rect(surface.id,
-                        width*density.density/scale,(height*density.density+footerBottomBoost)/scale,safeTop*density.density/scale,safeBottom*density.density/scale,playlistDetail)
-                    val y=rect.top
-                    val animatedY by animateFloatAsState(y,if(surface.id=="stage"||!focused||!active||surface.reducedMotion||reducedMotion)snap()else spring(dampingRatio=NativeMotionPolicy.Damping,stiffness=NativeMotionPolicy.Stiffness),label="native-chrome-y")
-                    val placement = Modifier.zIndex(2f).offset { IntOffset((rect.left*scale).roundToInt(),(animatedY*scale).roundToInt()) }
-                        .size(with(density){(rect.width*scale).toDp()},with(density){(rect.height*scale).toDp()})
-                        .graphicsLayer { alpha = rect.alpha }
+            // 一个 id 只画一次（2026-11-07 首页底部闪烁专项）。
+            //
+            // 旧实现是**两处调用点**：缓存 seed 一处、live 包一处，交接时 Compose 拆掉一棵、
+            // 另建一棵 —— 玻璃的 backdrop/lens 图层、文字排版、进度环全部重新分配。真机上
+            // 「页面已经上屏、底栏闪一下 / 重复出现一下」就是这次重建，而 nav 与 mini 又是
+            // 分别交接的（mini 在播放恢复完成前被 hold 住），所以底部会连着闪两次。
+            //
+            // 现在 seed 只是「这一路 live 还没到」时喂给同一个节点的数据：节点、key、几何
+            // 全部共用，live 到达只是换数据，没有第二次挂载。
+            val liveById = visible.associateBy { it.id }
+            for(id in listOf("nav","mini","stage")) key(id) {
+                val live = liveById[id]
+                val seeded = remember("seed",id,live,width,height,safeBottom,safeTop,selectedTab,startupSelected,firstHomeFrame,destination,webOverlay,playlistDetail) {
+                    if(live!=null) null
+                    else if(ChromeBootSeed.shouldSeed(id,destination,firstHomeFrame,webOverlay,liveChrome) &&
+                        NativeFooterLayout.visible(id,destination,playlistDetail,width))
+                        cache.chrome(id,width,height,safeBottom,safeTop).let{if(id=="nav")it.copy(selected=startupSelected?:selectedTab)else it}
+                    else null
+                }
+                // 两路数据里最多只有一个存在：live 优先，缺席时才用 seed；都没有就不画。
+                val original = live ?: seeded
+                if (original != null) {
+                val surface = remember(original,interfaceLight){original.interfacePaint(interfaceLight)}
+                    .let{ if(live==null&&id=="nav") it.copy(disabled=false) else it }
+                // seed 与 live 共用同一个定位入口，而且**只在 dp 空间里算一次**：JS 的 innerWidth
+                // 是整数（375），真实 dp 宽是 375.38，走 CSS px × scale 会让交接时整条底栏
+                // 上台 0.8dp（23:02 报告实测）。现在两路只有 density 一个比例，矩形逐位相同。
+                val rect=chromeFooterRect(id,width,height,safeTop,safeBottom,density.density,keyboardPx,playlistDetail)
+                // 首帧诊断：底栏第一次以 seed / live 身份落地时的几何与可见性。
+                LaunchedEffect(id,live==null,surface.session){StartupTrace.detail(if(live==null)"footer-seed-frame" else "footer-live-frame"){
+                    put("id",id);put("session",surface.session);put("top",rect.top);put("height",rect.height)
+                    put("alpha",rect.alpha);put("safeBottom",safeBottom);put("root",width.toString()+"x"+height)
+                }}
+                val y=rect.top
+                // 初始挂载不做位移动画：首帧还没「落地」时的安全区/尺寸修正如果走 spring，
+                // 屏幕上就是底栏从错误位置滑到正确位置（用户看到的就是底部闪一下/错位）。
+                // 落地后（一帧之后）恢复原来的 spring，正常页面切换的手感不变。
+                var settled by remember(id){mutableStateOf(false)}
+                LaunchedEffect(id){withFrameNanos{};settled=true}
+                val animatedY by animateFloatAsState(y,if(id=="stage"||!focused||!active||surface.reducedMotion||reducedMotion||!settled)snap()else spring(dampingRatio=NativeMotionPolicy.Damping,stiffness=NativeMotionPolicy.Stiffness),label="native-chrome-y")
+                val placement = Modifier.zIndex(2f)
+                    .offset { IntOffset(with(density){rect.left.dp.roundToPx()},with(density){animatedY.dp.roundToPx()}) }
+                    .size(rect.width.dp,rect.height.dp)
+                    .graphicsLayer { alpha = rect.alpha }
                     val actions: (String,Double)->Unit = actions@ { action,value ->
+                        // seed 不是 live 控制条：只接受「启动期导航」与「睡眠菜单」这两条安全动作，
+                        // 缓存快照绝不触发业务命令（其余一律丢弃）。
+                        if (live == null) {
+                            if(action=="interactionStart")NavigationTiming.markGesture("startup-nav-press",-1.0)
+                            else if(action=="interactionEnd")NavigationTiming.markGesture("startup-nav-release",-1.0)
+                            else if(id=="nav"&&action=="navigate"&&active&&startupNavigation.request(value.toInt())){
+                                navigationActionSerial++;startupSelected=value.toInt();NavigationTiming.mark("startup-navigation-requested")
+                                startupToast?.cancel();startupToast=android.widget.Toast.makeText(web.context,"正在准备${listOf("推荐","资料库","搜索","设置")[value.toInt()]}，就绪后自动打开",android.widget.Toast.LENGTH_SHORT).also{it.show()}
+                            }else if(id=="mini"&&action=="sleep")sleepMenuOpen=!sleepMenuOpen
+                            return@actions
+                        }
                         if (active && surfaces[surface.id]?.enabled==true && surfaces[surface.id]?.session == surface.session && (action !in setOf("next","previous","toggle","seek") || surfaces[surface.id]?.trackKey == surface.trackKey)) {
                             if(surface.id=="mini"&&action=="sleep"){sleepMenuOpen=!sleepMenuOpen;return@actions}
                             if(action=="navigate"||action=="openStage"||action=="queue"||action=="quality")sleepMenuOpen=false
@@ -737,13 +807,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         }
                     }
                     val interactivePlacement = placement.chromeInteraction(actions)
-                    when(surface.id) {
+                    when(id) {
                         "nav" -> ChromeNavigation(surface,backdrop,interactivePlacement,actions)
-                        "mini" -> ChromeMiniPlayer(surface,clocks[surface.id],backdrop,interactivePlacement,sleepUi,{sleepAnchor=it},actions)
-                        "stage" -> Box(Modifier.fillMaxSize().zIndex(2f).stageExitTransform(stageExit,exitProgress).playerDetourTransform(surface.playerTransition,reducedMotion||surface.reducedMotion,height*density.density)){ChromeStagePlayer(surface,clocks[surface.id],if(legacySampling)backdrop else stageBackdrop,interactivePlacement,actions)}
+                        "mini" -> ChromeMiniPlayer(surface,if(live==null)null else clocks[id],backdrop,interactivePlacement,sleepUi,{sleepAnchor=it},actions)
+                        "stage" -> Box(Modifier.fillMaxSize().zIndex(2f).stageExitTransform(stageExit,exitProgress).playerDetourTransform(surface.playerTransition,reducedMotion||surface.reducedMotion,height*density.density)){ChromeStagePlayer(surface,clocks[id],if(legacySampling)backdrop else stageBackdrop,interactivePlacement,actions)}
                     }
                 }
-            } }
+            }
             // 极简播放页：整页原生绘制，压在 WebView 之上。
             // 进场是从迷你播放器位置升起来（420ms）—— 与原页面同一组曲线。
             // 退场分两种（见 MinimalPlayerExitPolicy）：

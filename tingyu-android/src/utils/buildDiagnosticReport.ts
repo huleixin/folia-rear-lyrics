@@ -1,4 +1,6 @@
 import { navigationDiagnosticLines } from '../services/navigationTiming';
+import { COMPOSE_CHROME, chromeNative } from '../services/nativeChrome';
+import { isAndroidNativeRuntime } from '../utils/platform';
 import { sampleFrameTimingWindow } from './frameTimingDemand';
 import { getLibraryTraceLines } from '../nativeBridge/api/libraryTrace.js';
 import { getQrLoginTraceLines } from '../nativeBridge/api/qrLoginTrace.js';
@@ -1021,6 +1023,36 @@ const readBackgroundContinuityLines = async (): Promise<string[]> => {
     return lines;
 };
 
+/**
+ * 冷启动首帧取证（原生，进程启动后 3 秒）。
+ *
+ * 底栏的显隐由三条状态共同决定（路由 / live 包 / 缓存 seed），任何一条在启动窗口里抖一下，
+ * 事后只有录屏看得见。这里把原生侧的决策序列原样导出来：谁在什么时候接管了底部、
+ * 安全区变过几次、首页第一次落地是什么时候 —— 用来回答「底部到底闪在哪一帧」。
+ */
+const readStartupFrameTraceLines = async (): Promise<string[]> => {
+    if (!COMPOSE_CHROME || !isAndroidNativeRuntime()) {
+        return ['  (compose chrome disabled — 无原生首帧记录)'];
+    }
+    try {
+        const status = await chromeNative.probe();
+        const entries = status?.startup?.entries ?? [];
+        if (!entries.length) {
+            return [`  (no samples — 已超出 ${status?.startup?.windowMs ?? 3000}ms 启动窗口)`];
+        }
+        return entries.map(entry => {
+            const detail = entry.detail
+                ? ' ' + Object.entries(entry.detail)
+                    .map(([key, value]) => `${key}=${typeof value === 'object' ? JSON.stringify(value) : String(value)}`)
+                    .join(' ')
+                : '';
+            return `  +${String(entry.at).padStart(4)}ms ${entry.phase}${detail}`;
+        });
+    } catch (error) {
+        return [`  unavailable: ${error instanceof Error ? error.message : String(error)}`];
+    }
+};
+
 export const buildDiagnosticReport = async (): Promise<string> => {
     await sampleFrameTimingWindow();
     const appVersion = typeof __APP_VERSION__ === 'undefined' ? 'unknown' : __APP_VERSION__;
@@ -1038,6 +1070,10 @@ export const buildDiagnosticReport = async (): Promise<string> => {
         `platform: ${capacitor?.getPlatform?.() ?? 'web'}${capacitor?.isNativePlatform?.() ? ' (native)' : ''}`,
         `user agent: ${typeof navigator === 'undefined' ? '' : navigator.userAgent}`,
         `viewport: ${typeof window === 'undefined' ? '' : `${window.innerWidth}x${window.innerHeight} dpr=${window.devicePixelRatio}`}`,
+        '',
+        // 冷启动首帧：窗口底色交接、路由提交、底栏 seed/live 交接、安全区变化。
+        'startup frame trace (native, first 3s):',
+        ...(await readStartupFrameTraceLines()),
         '',
         // 挖孔/刘海适配的现场：cutout mode、是否有挖孔、安全区矩形。
         'display cutout:',

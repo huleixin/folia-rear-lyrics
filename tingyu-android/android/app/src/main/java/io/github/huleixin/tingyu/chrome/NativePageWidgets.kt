@@ -66,9 +66,16 @@ internal val PageAccent:Color @Composable get()=LocalInterfacePalette.current.ac
 }
 }
 @Composable internal fun PageArtwork(url: String, modifier: Modifier, radius: Dp = 9.dp) {
+    // 启动期封面模型会翻一次面（Web 管理地址在缩略图就绪前发的是空串，就绪后才是 data:）。
+    // Coil 一换模型就清空重解 —— 深色页面上一帧空图，肉眼看就是「卡片闪一下」
+    // （23:29 录屏逐帧：两张亮色封面只消失一帧）。这里记住最近一个非空地址：
+    // 空串回落到它，封面绝不因模型翻面而消失；真正的换图（不同 URL）照常更新。
+    var lastKnown by remember { mutableStateOf("") }
+    val effective = if (url.isBlank()) lastKnown else url
+    SideEffect { if (url.isNotBlank() && url != lastKnown) lastKnown = url }
     Box(modifier.clip(RoundedCornerShape(radius)).background(interfaceColor(Color(0xFF14211E),LightInterfaceColors.Surface)), contentAlignment = Alignment.Center) {
-        if (url.isBlank()) PageIcon("music2", PageMuted, Modifier.size(21.dp))
-        else AsyncImage(pageImage(url), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        if (effective.isBlank()) PageIcon("music2", PageMuted, Modifier.size(21.dp))
+        else AsyncImage(pageImage(effective), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
     }
 }
 @Composable internal fun PagePill(text: String, onClick: () -> Unit, selected: Boolean = false, enabled: Boolean = true,
