@@ -46,6 +46,36 @@
       "mustContain": "autoFocus = visible",
       "mustNotContain": "autoFocus = true",
       "why": "搜索固定层常驻组合：无条件 autoFocus 会让进入页面就弹出输入法（68602 回归）"
+    },
+    {
+      "id": "panel-channel-host",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/ComposeChromeHost.kt",
+      "mustContain": "TyPanelLayer(panelHost,interfaceLight",
+      "why": "二级操作面板必须由宿主统一挂载（全屏浮层，盖住底栏/迷你条/极简页）"
+    },
+    {
+      "id": "panel-native-first-ownership",
+      "file": "src/library/suites/mobile/native/OperationPanel.tsx",
+      "mustContain": "canUseNativePanels()",
+      "why": "面板渲染必须由能力位决定，禁止写死原生或写死 DOM"
+    },
+    {
+      "id": "collection-menu-no-dom-sheet",
+      "file": "src/library/suites/mobile/MobileCollectionMenu.tsx",
+      "mustNotContain": "MobileSheet",
+      "why": "歌单/歌曲二级操作已原生：模型交给 OperationPanel，不得再自己 portal 一层 .ml-sheet"
+    },
+    {
+      "id": "source-sheet-no-dom-sheet",
+      "file": "src/library/suites/mobile/MobileHomeSources.tsx",
+      "mustNotContain": "MobileSheet",
+      "why": "音源选择已原生：同上"
+    },
+    {
+      "id": "settings-flow-no-measurement",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeSettingsDocumentView.kt",
+      "mustContain": "document.flow?.let{flow->",
+      "why": "语义化设置页（无 DOM 测量）必须是设置文档渲染的第一分支"
     }
   ],
   "webviewAllowlist": [
@@ -54,9 +84,8 @@
     "src/components/modal/SettingsModal.tsx",
     "src/components/modal/settings/MobileSettingsLanding.tsx",
     "src/library/suites/mobile/MobileSheet.tsx",
-    "src/library/suites/mobile/MobileCollectionMenu.tsx",
-    "src/library/suites/mobile/MobileCollectionSourceActions.tsx",
-    "src/library/suites/mobile/MobileHomeSources.tsx",
-    "src/App.tsx"
+    "src/App.tsx",
+    "src/library/suites/mobile/native/OperationPanel.tsx",
+    "src/library/suites/mobile/native/NativeLocalLibrary.tsx"
   ]
 }

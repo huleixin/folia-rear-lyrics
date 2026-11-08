@@ -24,7 +24,9 @@ React 负责数据、路由、业务动作与原生桥接；Compose 负责绘制
 | 歌手 | `chrome/NativeDirectoryPage.kt`（artist 分支） | `native/useNativeArtistPage.ts` | 同上 |
 | 搜索 | `chrome/NativeSearchPage.kt` | `components/app/search/useNativeSearchPage.ts` | `chrome/NativeSearchPage.kt`、`chrome/NativePageInput.kt` |
 | 设置索引 / 背屏控制 | `chrome/NativeSettingsPage.kt` / `NativeRearControlPage.kt` | `components/modal/settings/useNativeSettingsPage.ts` | 对应 kt |
-| 设置二级页（外观/引导/诊断…） | `chrome/NativeSettingsDocumentView.kt`（显示列表复刻） | `services/nativeSettingsDocument.ts`、`hooks/useNativeSettingsDocument.ts` | `chrome/NativeSettingsDocument*.kt`；**DOM 是排版真值源，只改样式不改结构** |
+| 设置二级页（语义化，可选） | `chrome/TySettings.kt`（`TySettingsPageView`，Compose 自己排版） | `hooks/useNativeSettingsDocument.ts` 的 `flow` 参数 | `chrome/TySettings*.kt`；**不消费任何 DOM 矩形** |
+| 设置二级页（外观/引导/诊断…，历史路径） | `chrome/NativeSettingsDocumentView.kt`（显示列表复刻） | `services/nativeSettingsDocument.ts`、`hooks/useNativeSettingsDocument.ts` | `chrome/NativeSettingsDocument*.kt`；**DOM 是排版真值源，只改样式不改结构** |
+| 二级操作面板（歌曲 ⋯ / 歌单 ⋯ / 音源选择…） | `chrome/TyPanel.kt` + `TyPanelHost.kt` | `library/suites/mobile/native/OperationPanel.tsx`（声明式模型） | `chrome/TyPanel*.kt` |
 | 极简播放器 | `minimal/ui/MinimalPlayerScreen.kt` | `hooks/useNativeMinimalPlayer.ts`、`AppOverlays.tsx` | `minimal/ui/`、`minimal/` |
 | 迷你播放器 | `chrome/ChromeMiniPlayer.kt` | `MobileMiniPlayer.tsx`（仅发 chrome 帧） | `chrome/ChromeMiniPlayer.kt` |
 | 底部导航 | `chrome/ChromeNavigation.kt` | `MobileLibraryStage.tsx`（仅发 chrome 帧） | `chrome/ChromeNavigation.kt` |
@@ -38,10 +40,23 @@ React 负责数据、路由、业务动作与原生桥接；Compose 负责绘制
 | Folia 歌词 / 可视化舞台 | `App.tsx`（`player-visual-surface`）、`components/visualizer/*` | 唯一渲染器 |
 | 舞台顶栏 + 更多菜单 | `components/app/overlays/mobile-stage/MobileStageChrome.tsx:109-175` | 无 Compose 等价物 |
 | 背屏歌词 | `rearLyrics.tsx`、`components/rear/*`、`RearLyricsActivity.java` | 独立 Activity 与 bundle |
-| 二级操作 sheet | `MobileSheet.tsx`、`MobileCollectionMenu.tsx`、`MobileCollectionSourceActions.tsx`、`MobileHomeSources.tsx`、`account/*` | 加歌单/建歌单/排序/重命名/重扫/导出/来源切换/登录，Compose 零覆盖 |
+| 二级操作面板的 DOM 兜底 | `library/suites/mobile/native/OperationPanel.tsx` | 面板渲染的唯一入口：原生能力位不可用/包被拒时用 `.ml-sheet` 兜底（桌面与网页版也走它）。**不得**在具体功能里另起一层 `.ml-sheet` |
+| 本地导入工具（`MobileLocalTools`） | `library/suites/mobile/native/NativeLocalLibrary.tsx` | 文件选择依赖 HTML `input[type=file]`，原生 SAF 选择器尚未实现 |
+| 歌单「管理歌曲」、登录二维码、其它确认框 | `LocalPlaylistManageSheet.tsx`、`account/*`、`components/shared/ConfirmDialog` 等 | 列表型 / 二维码 / 富内容面板，本轮不在统一面板的六种块之内 |
 | 设置实时预览岛 | `VisPlayground`、`ThemePark`、`GlobalLyricOffsetPreview` 的 `data-native-live` 节点 | 设置页唯一的真实像素预览 |
-| 设置文档排版源 | `SettingsModal.tsx`、`MobileSettingsLanding.tsx` 的 DOM 树 | 逐元素测量来源，挂载但不绘制 |
+| 设置文档排版源 | `SettingsModal.tsx`、`MobileSettingsLanding.tsx` 的 DOM 树 | 未迁移分区仍是逐元素测量来源，挂载但不绘制 |
 | 极简页回退 | `MinimalStage.tsx` | 握手未完成/弹层打开时的短期承载 |
+
+> **二级操作面板（原生化专项·第 21 轮）**：所有"从 ⋯ 打开的动作列表"统一走
+> `library/suites/mobile/native/OperationPanel.tsx` → `chrome/TyPanel.kt`。React 只拼声明式模型
+> （`types/nativePanels.ts`），Compose 负责 Sheet / Dialog / Menu 三种容器与六种内容块；
+> 点击只回传动作 id，业务规则一行都没有搬进 Kotlin。新增一个动作 = React 加一行数据，
+> 不需要改 Kotlin，也不需要新建弹窗。
+>
+> **设置语义化（同一轮）**：设置文档协议新增可选 `flow` 字段。给了 `flow` 的分区由
+> `chrome/TySettings.kt` 的 `SettingsGroup/Item/Switch/Select/Slider/Input/Dialog/Action`
+> 自己排版，**不再消费任何 DOM 矩形**；没给的分区继续走逐元素测量的显示列表。
+> 两种模式可按分区并存，迁移是逐页的，互不影响。
 
 > **沉浸式毛玻璃顶栏（Top Glass Bar）**：Compose 侧为唯一正式实现（`TopGlassBar.kt`，
 > 所有固定顶栏页面经 `TyTopGlassContentLayer` + `TyTopGlassSurface` 接入，列表全幅滚动
@@ -68,3 +83,38 @@ React 负责数据、路由、业务动作与原生桥接；Compose 负责绘制
 
 - `npm run check:android-ui` —— 归属与门控断言（也可由 `npm test` 内的 `androidPageOwnership` 用例覆盖）。
 - 断言内容：各页面适配器在 `NATIVE_FIRST` 下必须恒真；页面 DOM 分支必须挂在 `!NATIVE_FIRST` 模块常量门控上；`webviewAllowlist` 之外不得新增 WebView 页面壳。
+- 面板契约：`TyPanelTest.kt`（`android/app/src/test/.../chrome/`）锁面板包解析容错、设置页分组切分与动作命名空间。
+
+## 7. 设置二级页：从 DOM 测量迁到语义化（迁移手册）
+
+现状（1.3.188）：`NativeSettingsDocumentView` 仍是默认路径 —— 在 WebView 里逐元素测量，
+拍成 paints/controls/areas 的显示列表，Compose 照单绘制。它保证像素 1:1，但排版真值源在 WebView。
+
+已就绪的替代路径（本轮落地）：
+
+1. `hooks/useNativeSettingsDocument(root, enabled, key, title, flow, onFlowAction)`；
+2. 传了 `flow` → `NativeSettingsDocumentView` 第一分支改走 `TySettingsPageView`，
+   **完全不读 paints/controls 的矩形**，行高/间距/触摸目标/深浅色全由 Compose 决定；
+3. 不传 → 行为与本轮之前逐像素一致。
+
+单页迁移步骤（每步可独立提交、可独立回滚）：
+
+1. 新建 `settingsFlow/<section>.ts`，用现有 store 状态生成 `NativeSettingsFlow`：
+   `group` 开卡片，`switch/select/slider/input/action` 各一条，`note` 放说明；
+2. `onFlowAction(nodeId, event)` 里按 nodeId 写回**原有** store / 业务函数（不新增逻辑）；
+3. 在 `SettingsModal` 里按 `activeSettingsSection` 决定是否传 flow；
+4. 保留该分区的实时预览（`data-native-live` 节点）走原测量路径 —— 预览本身必须由 WebView 画。
+
+不建议迁移的分区：`appearance` 内的实时预览岛、`lab`（VisPlayground / ThemePark）、
+`graphics`（含实时诊断与外部链接特殊交互）。这些页面里"控件"只占少数，"真像素预览"才是主体。
+
+## 8. 本机构建与测试环境（已知限制）
+
+- 仓库路径含中文 → AGP 拒绝；用 ASCII junction `C:\tingyu-build` 构建（`compileDebugKotlin` 可用）。
+- **Gradle 测试 worker 不支持 junction**（argfile 类路径中文乱码 → `ClassNotFoundException`）：
+  单测须在 ASCII 镜像 `C:\tb\t182` 跑，同步方式见 `C:\tb\run-ui-checks.sh sync-mirror`。
+- **Windows 上 Robolectric NATIVE 图形库会崩测试 JVM**（`EXCEPTION_ACCESS_VIOLATION in RenderNodeNatives.nCreate`，
+  与本仓库源码无关，1.3.182 起已知）。完整单测须带绕行：
+  `-I C:/tb/exclude-native-graphics.gradle -I C:/tb/fork-per-class.gradle`；
+  被排除的 4 个渲染类（`MinimalParityTest` / `MinimalScreenshotTest` / `NativeSettingsTouchTest` /
+  `PlayerSurfaceMotionTest`）只能在真机或 CI 上验。

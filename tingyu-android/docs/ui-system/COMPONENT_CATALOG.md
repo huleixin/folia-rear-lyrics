@@ -37,6 +37,22 @@
 | NativeDirectoryPage / NativeHomePage / NativeSearchPage / NativeSettingsPage | `android/.../chrome/*.kt` | ✔ 对应的 Compose 原生实现（由 `useNativeCollectionPage.ts` / `useNativeArtistPage.ts` 等 adapter 投影；DirectoryPage 现服务资料库首页与歌手页） |
 | MobileArtist | 同目录 | 歌手页 |
 
+## 3.5 原生二级操作面板与设置控件（第 21 轮新增）
+
+| 组件 | 路径 | 职责 |
+|---|---|---|
+| OperationPanel | `src/library/suites/mobile/native/OperationPanel.tsx` | 二级操作面板的**唯一渲染入口**：原生可用 → 推给 Compose；否则用 `.ml-sheet` 画同一份 spec |
+| NativePanelModel / NativePanelFrame | `src/types/nativePanels.ts` | 声明式面板契约（6 种内容块：actions / select / toggle / input / confirm / note） |
+| nativePanels | `src/services/nativePanels.ts` | 面板通道与动作命名空间解码（`act:` / `set:` / `toggle:` / `submit:` / `confirm:` / `dismiss`） |
+| TyPanel / TyPanelHost / TyPanelModel | `android/.../chrome/TyPanel*.kt` | Compose 侧 Sheet / Dialog / Menu 三容器 + 六种块渲染与宿主级状态机 |
+| TyPanelStyle | `android/.../chrome/TyPanelStyle.kt` | 面板唯一视觉/运动来源（TyPanelTheme / TyPanelDims / TyPanelMotion / TyPanelScrim） |
+| TySettings | `android/.../chrome/TySettings.kt` | 设置控件：SettingsGroup / Item / Switch / Select / Slider / Input / Dialog / Action + TySettingsPageView |
+| TySettingsModel | `android/.../chrome/TySettingsModel.kt` | 语义化设置页模型（无 rect，Compose 自己排版） |
+
+> 面板与设置共用同一套主题与动效：`MinimalToolsSheets` 的 `ToolsTheme` 已收编为
+> `TyPanelTheme` 的类型别名，`MinimalSheetMotion` 已改为委托 `TyPanelMotion`。
+> 新增弹窗时必须复用这两个源，不得再写第三套圆角/遮罩/曲线。
+
 ## 4. 浮层/sheet
 
 | 组件 | 路径 | 状态 |
