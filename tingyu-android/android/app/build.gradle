@@ -213,25 +213,3 @@ tasks.register('archiveReleaseMapping') {
         logger.lifecycle("[mapping] 已归档到 ${target}")
     }
 }
-
-
-// 本机 Robolectric 原生图形栈不可用时的兜底开关（默认关闭，不影响正常构建与 CI）：
-//   ./gradlew :app:testDebugUnitTest -PtingyuSkipRenderTests=true
-// 现象：Windows + JBR 21 下 RenderNodeNatives.nCreate / ColorSpace.<clinit> 直接段错误
-// （app/hs_err_pid*.log 可查），9 个 Compose 渲染用例会把测试 JVM 一起带走；
-// 其余 1000+ 纯逻辑用例照常可跑。图形栈正常的机器不要开这个开关。
-if (project.hasProperty('tingyuSkipRenderTests')) {
-    tasks.withType(Test).configureEach {
-        filter {
-            excludeTestsMatching "*MinimalScreenshotTest*"
-            excludeTestsMatching "*MinimalParityTest*"
-            excludeTestsMatching "*NativeSettingsTouchTest*"
-            excludeTestsMatching "*PlayerSurfaceMotionTest*"
-            excludeTestsMatching "*CoverStackControllerSkipTxTest*"
-            excludeTestsMatching "*MinimalCoverStackTest*"
-            excludeTestsMatching "*MinimalKaraokeFillTest*"
-            excludeTestsMatching "*MinimalKaraokeRenderTest*"
-            excludeTestsMatching "*MinimalLyricsViewportTest*"
-        }
-    }
-}
