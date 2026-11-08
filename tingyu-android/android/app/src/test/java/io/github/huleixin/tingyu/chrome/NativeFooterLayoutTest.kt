@@ -14,8 +14,10 @@ class NativeFooterLayoutTest {
     }
     @Test fun stageGeometryIsIndependentOfHiddenHtmlAnimationPoses(){
         val stage=NativeFooterLayout.rect("stage",393f,852f,30f,22f,false)
-        assertEquals(136f,stage.height,0f);assertEquals(32f,852f-stage.top-stage.height,0f)
-        assertEquals(16f,stage.left,0f)
+        // 紧凑一体胶囊：96dp 高（原 136dp），左右 10dp 与迷你播放器同一条安全边距。
+        assertEquals(96f,stage.height,0f);assertEquals(32f,852f-stage.top-stage.height,0f)
+        assertEquals(10f,stage.left,0f)
+        assertEquals(393f-20f,stage.width,0f)
         assertEquals(stage,NativeFooterLayout.rect("stage",393f,852f,30f,22f,true))
     }
     @Test fun returningWithoutChangingSongRestoresTheHomeNavigationAndMiniPosition(){

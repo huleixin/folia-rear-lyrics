@@ -15,8 +15,10 @@ internal object NativeFooterLayout {
     fun rect(id:String,width:Float,height:Float,top:Float,bottom:Float,detail:Boolean):ChromeRect {
         val wide=width>=840f;val short=wide&&height<=600f
         if(id=="stage"){
-            val stageWidth=minOf(width-32f,if(wide)600f else width-32f)
-            val stageHeight=136f
+            // 舞台播放胶囊：与首页迷你播放器同一条安全边距（手机左右各 10dp），
+            // 平板按迷你条宽度收窄并居中。高度 96dp = 14 padding + 46 控制行 + 6 间隙 + 30 进度区。
+            val stageWidth=if(wide)minOf(width-148f,600f) else width-20f
+            val stageHeight=96f
             return ChromeRect((width-stageWidth)/2,height-stageHeight-bottom-10f,stageWidth,stageHeight,1f)
         }
         return if(id=="nav"){
