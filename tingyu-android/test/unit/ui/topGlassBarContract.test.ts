@@ -69,8 +69,14 @@ describe('沉浸式毛玻璃顶栏结构契约', () => {
     it('内容全幅滚动：列表 contentPadding 由测量的玻璃范围驱动（非固定列内裁切）', () => {
         for (const file of pages) {
             const source = chrome(file);
-            expect(source, `${file} 列表必须消费 glass.headerBottomDp`).toContain('glass.headerBottomDp.dp');
+            expect(source, `${file} 列表必须消费 glass.contentTop`).toContain('glass.contentTop');
         }
+    });
+
+    it('静止无模糊：内容起点在玻璃衰减带之外（首个内容不被顶栏玻璃覆盖）', () => {
+        // contentTop = headerBottom + TailDp —— 打开页面时首个内容（猜你喜欢卡片、
+        // 资料库首行等）必须完全落在玻璃之外，只有滚动时才进入衰减带。
+        expect(glassKt).toContain('val contentTop: Dp get() = (headerBottomDp + TyTopGlass.TailDp).dp');
     });
 
     it('回归防护（1.3.185）：头部测量层不得被 fillMaxSize 撑成整页', () => {

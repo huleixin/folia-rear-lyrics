@@ -36,7 +36,7 @@ private val GroupIcons=mapOf("rear" to "captions","appearance" to "sparkles","co
         Box(Modifier.fillMaxSize()){
             TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()){
             val list = rememberLazyListState()
-            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=inset,end=inset,top=glass.headerBottomDp.dp,bottom=(24+page.safeBottom).dp)){
+            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=inset,end=inset,top=glass.contentTop,bottom=(24+page.safeBottom).dp)){
                 page.sections.forEach{section->item(key=section.id){
                     Column(Modifier.padding(bottom=16.dp)){
                         if(section.title.isNotBlank())Row(Modifier.padding(start=2.dp,end=2.dp,bottom=8.dp).height(20.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){

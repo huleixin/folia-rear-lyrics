@@ -50,7 +50,7 @@ import kotlinx.coroutines.launch
         Box(Modifier.fillMaxSize()) {
             TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()) {
             val list = rememberLazyListState()
-            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(top=glass.headerBottomDp.dp,bottom=(page.bottomClearance+page.safeBottom).dp)) {
+            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(top=glass.contentTop,bottom=(page.bottomClearance+page.safeBottom).dp)) {
                 page.sections.forEach { section ->
                     when {
                         section.layout=="hero" -> item(key=section.id){NativeHeroRail(section,viewport,start,end,wide,short,action)}

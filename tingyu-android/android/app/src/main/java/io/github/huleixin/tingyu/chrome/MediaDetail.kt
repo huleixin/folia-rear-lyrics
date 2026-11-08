@@ -67,7 +67,7 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
     val pageDensity=LocalDensity.current
     LaunchedEffect(tracks.locateRevision){if(tracks.locateRevision>0&&tracks.activeIndex>=0){
         // 定位落到玻璃顶栏下方 12dp（视口改为全幅后，原来的 -100 会把当前行留在玻璃后面）。
-        val clearPx=with(pageDensity){(glass.headerBottomDp+12).dp.toPx()}.roundToInt()
+        val clearPx=with(pageDensity){(glass.headerBottomDp+TyTopGlass.TailDp+12).dp.toPx()}.roundToInt()
         list.animateScrollToItem(tracks.activeIndex+headerItems,-clearPx)
     }}
     BoxWithConstraints(modifier.pageOrigin{pageOrigin=it}){
@@ -79,7 +79,7 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
         Box(Modifier.fillMaxSize()){
             TyTopGlassContentLayer(glass,colors,ambientImage=cover.image,ambientViewportHeight=detailMaxHeight,modifier=Modifier.fillMaxSize()){
             val listTop by animateDpAsState((if(short)8.dp else 18.dp)+if(searchExpanded)NativeSearchBarHeight+14.dp else 0.dp,tween(240),label="media-list-top")
-            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(top=glass.headerBottomDp.dp+listTop,bottom=(page.bottomClearance+page.safeBottom).dp)){
+            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(top=glass.contentTop+listTop,bottom=(page.bottomClearance+page.safeBottom).dp)){
                 item("header"){
                     MediaDetailHeader(cover,page.title,intro,controls,
                         page.sections.firstOrNull{it.id=="songHeading"},short,width,action)

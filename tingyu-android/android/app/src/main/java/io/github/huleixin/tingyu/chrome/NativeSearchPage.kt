@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.sp
     Box(modifier){
         TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()){
         val list=rememberLazyListState()
-        LazyColumn(Modifier.fillMaxSize().imePadding(),state=list,contentPadding=PaddingValues(start=14.dp,end=14.dp,top=glass.headerBottomDp.dp+if(menu)0.dp else 16.dp,bottom=(page.safeBottom+18).dp)){
+        LazyColumn(Modifier.fillMaxSize().imePadding(),state=list,contentPadding=PaddingValues(start=14.dp,end=14.dp,top=glass.contentTop+if(menu)0.dp else 16.dp,bottom=(page.safeBottom+18).dp)){
             page.sections.filter{it.id !in setOf("query","sources","tabs")}.forEach{section->
                 val history=section.id=="history";val hot=section.id=="hot"
                 if(section.title.isNotBlank())item(key="${section.id}:heading"){

@@ -139,6 +139,10 @@ internal class TyTopGlassState(val backdrop: com.kyant.backdrop.backdrops.LayerB
             }
         }
 
+    /** 内容起点（css-dp）：玻璃底边 + 衰减带。
+     *  静止时首个内容必须完全在玻璃之外（顶部无模糊）；滚动时才进入衰减带被柔化。 */
+    val contentTop: Dp get() = (headerBottomDp + TyTopGlass.TailDp).dp
+
     /** 头部内容节点回填（窗口物理 px）。 */
     fun reportHeader(windowY: Float, height: Int) {
         headerBottomWindowPx = windowY + height

@@ -67,7 +67,7 @@ import kotlin.math.roundToInt
         Box(Modifier.fillMaxSize()){
             TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()){
             val listTop by animateDpAsState(if(searchExpanded)NativeSearchBarHeight+16.dp else 0.dp,tween(240),label="dir-list-top")
-            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=start,end=end,top=glass.headerBottomDp.dp+listTop,
+            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=start,end=end,top=glass.contentTop+listTop,
                 bottom=(page.bottomClearance+page.safeBottom).dp)){
                 page.sections.forEach { section ->
                     when {
