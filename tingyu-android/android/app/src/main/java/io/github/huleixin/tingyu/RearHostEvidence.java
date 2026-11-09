@@ -7,7 +7,9 @@ final class RearHostEvidence {
         if("host/connect-request".equals(event))previous="";
         StringBuilder result=new StringBuilder();
         String[] lines=previous.split("\n");
-        for(int i=Math.max(0,lines.length-95);i<lines.length;i++)if(!lines[i].isEmpty())result.append(lines[i]).append('\n');
+        // Preserve the beginning of cold startup as well as recent outcomes; power chatter must
+        // not erase the evidence from before the user's double-tap.
+        for(int i=0;i<lines.length;i++)if((i<32||i>=lines.length-63)&&!lines[i].isEmpty())result.append(lines[i]).append('\n');
         result.append(entry.substring(0,Math.min(entry.length(),900))).append('\n');
         return result.toString();
     }

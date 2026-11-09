@@ -9,14 +9,22 @@ public class RearCardRenderPolicyTest {
         RearCardRenderPolicy.FrameEvidence f=new RearCardRenderPolicy.FrameEvidence();
         f.begin(1);assertFalse(f.recordDraw(1));assertFalse(f.drawn(1));
         assertTrue(f.visualReady(1));assertFalse(f.drawn(1));
+        assertFalse(f.recordDraw(1));assertTrue(f.contentReady(1));
         assertTrue(f.recordDraw(1));assertTrue(f.drawn(1));
     }
     @Test public void staleVisualCallbacksCannotAuthorizeAResumedMode(){
         RearCardRenderPolicy.FrameEvidence f=new RearCardRenderPolicy.FrameEvidence();
-        f.begin(1);f.visualReady(1);f.recordDraw(1);
+        f.begin(1);f.contentReady(1);f.visualReady(1);f.recordDraw(1);
         f.begin(2);assertFalse(f.visualReady(1));assertFalse(f.recordDraw(1));
         assertFalse(f.recordDraw(2));assertFalse(f.drawn(2));
-        assertTrue(f.visualReady(2));assertTrue(f.recordDraw(2));
+        assertFalse(f.contentReady(1));assertTrue(f.visualReady(2));assertFalse(f.recordDraw(2));
+        assertTrue(f.contentReady(2));assertTrue(f.recordDraw(2));
+    }
+    @Test public void cardLayoutMustCoverItsOwnViewportBeforeAcquisition(){
+        assertTrue(RearCardRenderPolicy.layoutValid(347,220,347,220,238,210));
+        assertFalse(RearCardRenderPolicy.layoutValid(347,220,347,50,238,40));
+        assertFalse(RearCardRenderPolicy.layoutValid(347,220,347,220,0,210));
+        assertFalse(RearCardRenderPolicy.layoutValid(Double.NaN,220,347,220,238,210));
     }
     private RearCardRenderPolicy.Decision resolve(RearCardRenderPolicy.Transition t,int power,long now,
             boolean center,boolean active,boolean shown,boolean owned,boolean own,boolean follow){

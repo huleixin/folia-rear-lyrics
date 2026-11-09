@@ -1,6 +1,7 @@
 // src/utils/rearViewport.ts
 // Convert the native visible WebView intersection into CSS pixels before sizing the lyric frame.
 export interface RearNativeViewport {
+    kind?: 'native-card';
     width: number; height: number;
     visibleLeft: number; visibleTop: number; visibleWidth: number; visibleHeight: number;
 }
@@ -9,6 +10,8 @@ export interface RearViewport { left: number; top: number; width: number; height
 export function resolveRearViewport(layout: { width: number; height: number },
     visual?: { width: number; height: number; offsetLeft: number; offsetTop: number } | null,
     native?: RearNativeViewport | null): RearViewport {
+    // A system card is already sized by its parent. Visibility is a paint clip, never a layout viewport.
+    if (native?.kind === 'native-card') return { left: 0, top: 0, width: layout.width, height: layout.height };
     const width = visual && visual.width > 0 ? Math.min(layout.width, visual.width) : layout.width;
     const height = visual && visual.height > 0 ? Math.min(layout.height, visual.height) : layout.height;
     const left = Math.max(0, visual?.offsetLeft ?? 0), top = Math.max(0, visual?.offsetTop ?? 0);

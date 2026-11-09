@@ -3,6 +3,13 @@ import { resolveRearViewport } from '../../../src/utils/rearViewport';
 
 // test/unit/visualizer/rearViewport.test.ts
 describe('rear visible viewport, not the retained main-screen layout', () => {
+    it('keeps a native card full size through an AOD ancestor clip and recovery', () => {
+        const layout={width:347,height:220};
+        const strip={kind:'native-card' as const,width:904,height:572,visibleLeft:0,visibleTop:440,visibleWidth:904,visibleHeight:132};
+        const full={left:0,top:0,width:347,height:220};
+        expect(resolveRearViewport(layout,{width:347,height:50,offsetTop:170,offsetLeft:0},strip)).toEqual(full);
+        expect(resolveRearViewport(layout,null,{...strip,visibleTop:0,visibleHeight:572})).toEqual(full);
+    });
     it('keeps the normal full rear frame unchanged', () => {
         expect(resolveRearViewport({ width: 556, height: 352 })).toEqual({ left: 0, top: 0, width: 556, height: 352 });
     });

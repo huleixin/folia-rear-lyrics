@@ -4,6 +4,8 @@ import { resolveRearViewport, type RearNativeViewport } from '../utils/rearViewp
 // src/hooks/useRearViewport.ts
 // Only the top document knows the visual viewport; an iframe's visual viewport equals its layout size.
 function measure(native?: RearNativeViewport | null) {
+    if (new URLSearchParams(window.location.search).get('nativeCard') === '1')
+        return { left: 0, top: 0, width: document.documentElement.clientWidth, height: document.documentElement.clientHeight };
     return resolveRearViewport({ width: document.documentElement.clientWidth, height: document.documentElement.clientHeight },
         window.visualViewport, native);
 }

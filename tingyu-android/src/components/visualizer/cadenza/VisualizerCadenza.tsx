@@ -1,4 +1,5 @@
 import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../../utils/visualizerFrameChannel';
+import {isRearAod} from '../../../services/rearAodRuntime';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -348,8 +349,11 @@ const VisualizerCadenza: React.FC<VisualizerProps> = (props) => {
                     const targetBlur = status === 'waiting' && !isInstantWordReveal ? 10 : 0;
                     const targetActiveMix = getClassicBodyMix(time, lineTiming, placement.word);
                     const targetGlowAlpha = getClassicGlowEnvelope(time, lineTiming, placement.word);
-                    const transformTransitionAmount = 1 - Math.exp(-11 * dt);
-                    const visualTransitionAmount = 1 - Math.exp(-14 * dt);
+                    // Sparse AOD draws must settle the current pose immediately, rather than
+                    // freezing a newly mounted word in its blurred/transparent entry state.
+                    const settleRearAod = rear && isRearAod();
+                    const transformTransitionAmount = settleRearAod ? 1 : 1 - Math.exp(-11 * dt);
+                    const visualTransitionAmount = settleRearAod ? 1 : 1 - Math.exp(-14 * dt);
                     const stateMap = animatedPlacementRef.current;
                     const existingState = stateMap.get(placement.id);
                     const shouldInitializeAsActive = isInstantWordReveal && time >= placement.word.startTime;

@@ -12,11 +12,17 @@ final class RearCardRenderPolicy {
     static final long TRANSITION_MS = 1500;
     /** A JS-ready signal or a pre-fence onDraw alone must never acquire native card ownership. */
     static final class FrameEvidence {
-        private long epoch=-1,visual=-1,drawn=-1;
-        void begin(long next){if(next!=epoch){epoch=next;visual=-1;drawn=-1;}}
+        private long epoch=-1,visual=-1,content=-1,drawn=-1;
+        void begin(long next){if(next!=epoch){epoch=next;visual=-1;content=-1;drawn=-1;}}
+        boolean contentReady(long sequence){if(epoch<0||sequence!=epoch)return false;content=sequence;return true;}
         boolean visualReady(long sequence){if(epoch<0||sequence!=epoch)return false;visual=sequence;return true;}
-        boolean recordDraw(long sequence){if(epoch<0||sequence!=epoch||visual!=epoch)return false;drawn=sequence;return true;}
+        boolean recordDraw(long sequence){if(epoch<0||sequence!=epoch||visual!=epoch||content!=epoch)return false;drawn=sequence;return true;}
         boolean drawn(long sequence){return epoch>=0&&sequence==epoch&&drawn==epoch;}
+    }
+    static boolean layoutValid(double w,double h,double rw,double rh,double sw,double sh){
+        return Double.isFinite(w)&&Double.isFinite(h)&&Double.isFinite(rw)&&Double.isFinite(rh)
+            &&Double.isFinite(sw)&&Double.isFinite(sh)&&w>1&&h>1&&Math.abs(w-rw)<=2&&Math.abs(h-rh)<=2
+            &&sw>1&&sh>1&&sw<=w&&sh<=h;
     }
     static final class Decision {
         final Mode mode;

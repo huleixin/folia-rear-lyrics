@@ -5,6 +5,7 @@ import { PlayerState, type LyricData } from '../types';
 import type { ObsBrowserSourceClock, ObsBrowserSourceConfig } from '../types/obsBrowserSource';
 import { createRearClockSynchronizer } from '../utils/rearLyricsClock';
 import type { RearSnapshotReceiver, RearStateSnapshot } from './rearStateRelay';
+import {isRearPreparing} from './rearPreparation';
 
 // Intercepted inside the rear WebView, not a network server or an external app.
 export const REAR_STATE_PATH = '/__folia_rear/state';
@@ -86,7 +87,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         let lastAppliedBeatAt = 0;
         /** 已经处理过的歌词指纹；变化即「这首歌的歌词内容变了」，必须重读一次。 */
         let lyricFingerprint = '';
-        const inactive = () => sleeping || (typeof document !== 'undefined' && document.hidden);
+        const inactive = () => sleeping || (typeof document !== 'undefined' && document.hidden && !isRearPreparing());
         const abort = new AbortController();
         const synchronizer = createRearClockSynchronizer();
         let receiveCleanup: (() => void) | undefined, pending: RearStateSnapshot | null = null, consuming = false;
@@ -95,6 +96,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         // fill the trace with the same line a hundred times a second.
         let traced: string[] = [];
         const trace = (event: string, detail: string, song?: string, epoch?: string) => {
+            if(event==='lyric-applied'&&options.onSnapshot)event='transport-content';
             const id = `${event}|${detail}`;
             if (traced.includes(id)) return;
             traced.push(id);
@@ -114,7 +116,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         const setConnected = (value: boolean) => { if (!closed && connected !== value) { connected = value; events.connected(value); } };
         const emitConfig = (config: ObsBrowserSourceConfig) => {
             if (closed || inactive()) return;
-            lastConfig = config; events.config(config); onConfig(config);
+            lastConfig = config; lyricLines=config.lyrics?.lines.length??0; events.config(config); onConfig(config);
         };
         /**
          * Swap the lyric timeline to the native one for this exact epoch. The first patch carries
@@ -233,6 +235,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                     }
                     events.config(safe); onConfig(safe);
                     lastConfig = safe;
+                    lyricLines=safe.lyrics?.lines.length??0;
                     lastPublishedConfig=snapshot.config;revision = snapshot.revision;
                     if(snapshot.owner?.engine==='compatible'&&authority.webAllowed){lyricLines=safe.lyrics?.lines.length??0;trace('lyric-applied',`source=compatible lines=${lyricLines}`,snapshot.owner.songKey,snapshot.owner.epoch);}
                 }
@@ -316,7 +319,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
             consuming = true;
             try { while (pending && !closed && !inactive()) { const next = pending; pending = null; await accept(next); } }
             catch { setConnected(false); }
-            finally { consuming = false; }
+            finally { consuming = false; sendAppliedBeat(); }
         };
         /**
          * 低频「渲染仍在推进」心跳。挂在 state 轮询循环上：这个循环只在

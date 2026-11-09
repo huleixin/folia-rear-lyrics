@@ -3,6 +3,7 @@ import {subscribeVisualizerLowPowerCadence,setVisualizerLowPowerDemand,invalidat
 import {reportRearAodFrames} from '../../services/rearAodDiagnostics';
 import type {RearAodCadenceChange} from '../../utils/rearAodCadence';
 import {useRearAod,isRearAod} from '../../services/rearAodRuntime';
+import {useRearPreparing} from '../../services/rearPreparation';
 import {MotionConfig} from 'framer-motion';
 import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../utils/visualizerFrameChannel';
 import { useRearStageActive } from '../../hooks/useStageActivity';
@@ -37,7 +38,9 @@ const buildEventSourceUrl = () => {
 const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConfigured?: () => void }> = ({ transport, onConfigured }) => {
     const aod=useRearAod();
     const { t } = useTranslation();
-    const surfaceActive = useRearStageActive();
+    const stageActive = useRearStageActive();
+    const preparing = useRearPreparing();
+    const surfaceActive = stageActive || preparing;
     const [config, setConfig] = useState<ObsBrowserSourceConfig | null>(null);
     const [connected, setConnected] = useState(false);
     const [currentLineIndex, setCurrentLineIndex] = useState(-1);
@@ -197,14 +200,18 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
 
     useEffect(() => {
         if (!config || !onConfigured || !surfaceActive) return;
-        let frame = 0;
         const confirm = () => {
             // A lazy mode must have mounted its shell/canvas before the native display can report success.
-            if (surfaceRef.current?.querySelector('.font-sans, .font-serif, .font-mono, canvas')) onConfigured();
-            else frame = requestAnimationFrame(confirm);
+            if (surfaceRef.current?.querySelector('.font-sans, .font-serif, .font-mono, canvas')) {
+                observer.disconnect(); onConfigured();
+            }
         };
-        frame = requestAnimationFrame(confirm);
-        return () => cancelAnimationFrame(frame);
+        // A hidden preparatory card may not receive rAF. This reports DOM preparation only;
+        // native visual-state + onDraw remain mandatory before taking ownership.
+        const observer = new MutationObserver(confirm);
+        if (surfaceRef.current) observer.observe(surfaceRef.current, {childList:true,subtree:true});
+        confirm();
+        return () => observer.disconnect();
     }, [config, onConfigured, surfaceActive]);
 
     const aodTimeline=useMemo(()=>buildRearAodTimeline(config?.lyrics?.lines??[],config?.lyrics?.isWordByWord===true),[config?.lyrics]);

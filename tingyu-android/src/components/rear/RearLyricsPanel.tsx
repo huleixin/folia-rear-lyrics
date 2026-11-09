@@ -9,6 +9,7 @@ import { PlayerState, type Theme } from '../../types';
 import { SkipBack, SkipForward, Play, Pause } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { subscribeRearStateRelay } from '../../services/rearStateRelay';
+import {useRearLayoutEvidence} from '../../hooks/useRearLayoutEvidence';
 
 // src/components/rear/RearLyricsPanel.tsx
 // The renderer lays out on the right, but its transitions paint across the full rear iframe.
@@ -26,13 +27,19 @@ export default function RearLyricsPanel() {
     const hideTimer = useRef(0);
     const [progressVisible, setProgressVisible] = useState(true);
     const [theme, setTheme] = useState<Theme | null>(null);
+    const lyricEvidence=useRef({lines:0,hasTrack:false});
+    useRearLayoutEvidence(lyricEvidence);
     const transport = useMemo(() => {
         const source = createRearLyricsTransport(value => {
             clock.current = value;
             refreshPausedProgress.current?.();
             const next = value.playerState === PlayerState.PLAYING;
             if (next !== playingRef.current) { playingRef.current = next; setPlaying(next); }
-        }, config => setTheme(config.theme), true, {
+        }, config => {
+            setTheme(config.theme);
+            lyricEvidence.current={lines:config.lyrics?.lines.length??0,hasTrack:config.hasTrack===true};
+            window.dispatchEvent(new Event('folia-rear-content-config'));
+        }, true, {
             receiveSnapshots: window.parent !== window ? subscribeRearStateRelay : undefined,
         });
         return { subscribe: (events: Parameters<typeof source.subscribe>[0]) => source.subscribe({ ...events,

@@ -34,7 +34,7 @@ final class RearHostView {
 
     /** 一个窗口里只允许一个听屿宿主；重复注入会命中这个 tag 并被拒绝。 */
     static final String TAG = "tingyu.rear.centre.host";
-    private static final String URL = "https://rear.folia.local/rear-lyrics.html";
+    private static final String URL = "https://rear.folia.local/rear-lyrics.html?nativeCard=1";
 
     private final android.content.Context context;
     private final RearNativeCardOwner card;
@@ -48,7 +48,7 @@ final class RearHostView {
     private final RearAodEvidenceGate evidenceGate=new RearAodEvidenceGate();
     private String trigger="created",decisionReason="initial";
     private long modeEpoch,lastSentEpoch=-1,lastReportedEpoch=-1,drawEpoch=-1,requestedFrameEpoch=-1,resumeEpoch=-1,drawCount;
-    private boolean iframeApplied,visualStateReady;
+    private boolean iframeApplied,visualStateReady,layoutReady;
     private final Runnable transitionTimeout=()->reconcile("transition-deadline");
     private final Runnable drawTimeout=this::checkDrawTimeout;
     private RearCardRenderPolicy.Mode mode=RearCardRenderPolicy.Mode.HIDDEN;
@@ -59,7 +59,7 @@ final class RearHostView {
     private boolean ready, readyReported, shown, renderPaused, resumed = true, aod, closed;
     private long loadStartedAt;
     private final Runnable preparationTimeout=this::freezePreparation;
-    private void freezePreparation(){if(!closed&&!ready&&!shown){pauseRenderer();events.report(session,"prepared-idle",displayId(),"hidden stage preparation budget reached; paused until system selects this own card, no ownership acquired");}}
+    private void freezePreparation(){if(!closed&&!shown){pauseRenderer();events.report(session,"web-stage",displayId(),"preparation-idle:bounded preparation ended; ready="+ready+", power="+panelState()+", waiting for system card visibility; no ownership acquired");}}
     private String failure = "not attached";
     private final java.util.Set<String> bootEvents=new java.util.HashSet<>();
     private void boot(String event,String detail){
@@ -165,6 +165,10 @@ final class RearHostView {
             renderer.setOnTouchListener((view, event) -> !ready || closed);
 
             client = new RearHostWebClient(RearHostContext.resolve(context), session, new RearHostWebClient.Events() {
+                @Override public void layoutApplied(long sequence,boolean valid,String detail){
+                    main.post(()->{if(closed)return;trace("iframe-layout","sequence="+sequence+", "+detail);
+                        if(sequence==modeEpoch&&valid&&frameEvidence.contentReady(sequence)&&renderer!=null){layoutReady=true;renderer.postInvalidateOnAnimation();}});
+                }
                 @Override public void diagnostic(String event,String detail){main.post(()->boot(event,detail));}
                 @Override public void modeApplied(long sequence,String applied,boolean iframe,boolean hidden,boolean frameHidden){
                     main.post(()->{if(closed||sequence!=modeEpoch||!mode.name().equals(applied))return;
@@ -187,6 +191,8 @@ final class RearHostView {
                 }
             });
             renderer.setWebViewClient(client);
+            // Read before the initial DOZE decision; waiting for page-ready creates a pause/ready cycle.
+            readPreference();
             renderer.setWebChromeClient(new android.webkit.WebChromeClient(){
                 @Override public boolean onConsoleMessage(android.webkit.ConsoleMessage message){
                     if(message.messageLevel()==android.webkit.ConsoleMessage.MessageLevel.ERROR)
@@ -199,8 +205,9 @@ final class RearHostView {
             group.addView(stage, new FrameLayout.LayoutParams(-1, -1));
             stage.addOnLayoutChangeListener((view, l, t, r, b, ol, ot, or, ob) -> {
                 if (renderer != null) {
-                    RearLyricsViewportMetrics.fit(stage, renderer);
-                    RearLyricsViewportMetrics.capture(renderer);
+                    // This is card content, not an independently migrated display window.
+                    // Ancestor AOD clips must never shrink or offset the WebView/iframe layout.
+                    RearLyricsViewportMetrics.captureCard(renderer);
 
                 }
             });
@@ -224,8 +231,10 @@ final class RearHostView {
 
             boot("load-url","rear-lyrics.html");
             loadStartedAt=android.os.SystemClock.uptimeMillis();
-            renderer.loadUrl(URL);
-            main.postDelayed(preparationTimeout,4500);
+            renderer.loadUrl(URL+"&prepareUntil="+(System.currentTimeMillis()+RearHostPreparation.LIMIT_MS));
+            RearSystemCardBinding.State initial=card.binding.snapshot();
+            boot("initial-card-state","power="+panelState()+", center="+initial.center+", active="+initial.active+", shown="+card.container.isShown()+", attached="+stage.isAttachedToWindow()+", owned="+card.owned());
+            main.postDelayed(preparationTimeout,RearHostPreparation.LIMIT_MS);
             if(!card.binding.current())events.report(session,"attaching",displayId(),"verified hidden own music card; no drawing ownership until ready and selected");
             main.postDelayed(()->{if(!closed)viewState();},1200);
             reconcile("attached");
@@ -261,12 +270,13 @@ final class RearHostView {
     }
 
     private void readPreference(){if(client!=null)preference.update(client.followAod());}
-    private void checkDrawTimeout(){if(!closed&&shown&&ready&&!frameEvidence.drawn(modeEpoch))trace("draw-timeout","nativeDraw="+(drawEpoch==modeEpoch)+", renderTreeReady="+visualStateReady+"; presentation=unmeasured; first-frame handoff deferred");}
+    private void checkDrawTimeout(){if(!closed&&shown&&ready&&!frameEvidence.drawn(modeEpoch))trace("draw-timeout","nativeDraw="+(drawEpoch==modeEpoch)+", layoutReady="+layoutReady+", renderTreeReady="+visualStateReady+"; presentation=unmeasured; first-frame handoff deferred");}
 
     private void reconcile(String why) {
         if(closed||stage==null)return;
         if(Looper.myLooper()!=main.getLooper()){main.post(()->reconcile(why));return;}
         trigger=why;
+        RearLyricsViewportMetrics.captureCard(renderer);
         RearSystemCardBinding.State binding=card.binding.snapshot();
         boolean own=card.ownMedia(),root=card.sameRoot();
         if(!binding.associated||!root||!own){
@@ -280,7 +290,7 @@ final class RearHostView {
         if(decision.remainingMs>0)main.postDelayed(transitionTimeout,decision.remainingMs);
         boolean recovered="verified-aod-transition".equals(decisionReason)&&"current-card".equals(decision.reason);
         decisionReason=decision.reason;
-        if(decision.mode!=mode||recovered){mode=decision.mode;modeEpoch++;readyReported=false;iframeApplied=false;visualStateReady=false;}
+        if(decision.mode!=mode||recovered){mode=decision.mode;modeEpoch++;readyReported=false;iframeApplied=false;visualStateReady=false;layoutReady=false;}
         // Functional mode events clear the app's active flag: emit exactly once per epoch,
         // separately from rate-limited diagnostic snapshots, and before any rendering/ready event.
         if(lastReportedEpoch!=modeEpoch){
@@ -307,7 +317,7 @@ final class RearHostView {
             +", mode="+mode+", seq="+modeEpoch+", aodCommand="+aod+", cameraPolicy=system-card, lease="+events.current(session)+", center="+b.center+", active="+b.active+", bound="+b.bound+", associated="+b.associated
             +", attached="+stage.isAttachedToWindow()+", shown="+card.container.isShown()+", webShown="+renderer.isShown()
             +", own="+card.ownMedia()+", sameRoot="+card.sameRoot()+", owned="+card.owned()+", webPauseRequested="+renderPaused+", webResumeEpoch="+resumeEpoch+", nativeResumed="+resumed
-            +", preference="+preference.status()+", iframeApplied="+iframeApplied+", visualState="+visualStateReady+", draws="+drawCount
+            +", preference="+preference.status()+", iframeApplied="+iframeApplied+", layoutReady="+layoutReady+", visualState="+visualStateReady+", draws="+drawCount
             +", elapsedMs="+android.os.SystemClock.elapsedRealtime()+", uptimeMs="+android.os.SystemClock.uptimeMillis()+", suppressed="+evidenceGate.takeSuppressed()+", "+detail);
     }
 
@@ -380,8 +390,13 @@ final class RearHostView {
         boolean was = shown;
         shown = false;
         if (!retainFrame && stage.getVisibility() != View.INVISIBLE) stage.setVisibility(View.INVISIBLE);
-        // Hidden preparation is bounded, and only permitted while the physical panel is already ON.
-        if(ready||power!=Display.STATE_ON||!events.current(session))pauseRenderer();
+        // Prepare verified inactive own cards in ON/DOZE too, without showing them or acquiring ownership.
+        boolean preparing=!ready&&RearHostPreparation.allowed(android.os.SystemClock.uptimeMillis(),loadStartedAt,
+            events.current(session),card.ownMedia()&&card.sameRoot()&&card.binding.associated(),
+            stage.isAttachedToWindow(),preference.enabled(),power);
+        if(!preparing)pauseRenderer();
+        else if(renderPaused&&renderer!=null){renderPaused=false;renderer.onResume();}
+        trace("preparation",preparing?"bounded-config-preload; no ownership requested":"idle; no preload budget");
         if (was) events.report(session, "paused", displayId(), reason+"; ownershipRetained="+retain+", frozenFrame="+retainFrame+", power="+power+"; display session unchanged");
     }
 

@@ -18,6 +18,7 @@ final class RearHostWebClient extends WebViewClient {
         void ready(); void failed(String reason);
         default void diagnostic(String stage,String detail){}
         default void modeApplied(long sequence,String mode,boolean iframe,boolean hidden,boolean iframeHidden){}
+        default void layoutApplied(long sequence,boolean valid,String detail){}
     }
     private final Context context;
     private final String session;
@@ -73,6 +74,13 @@ final class RearHostWebClient extends WebViewClient {
             if(!io.github.huleixin.tingyu.playback.SharedArtworkAccess.imageRequestUrl(url.toString()))return null;
         }
         try{
+            if("/__folia_rear/layout-report".equals(path)&&"rear.folia.local".equals(url.getHost())){
+                boolean shell="true".equals(url.getQueryParameter("shell"));
+                boolean valid=shell&&RearCardRenderPolicy.layoutValid(number(url,"w"),number(url,"h"),number(url,"rw"),number(url,"rh"),number(url,"sw"),number(url,"sh"));
+                StringBuilder detail=new StringBuilder("layoutValid="+valid+", shell="+shell);
+                for(String key:new String[]{"w","h","rw","rh","sw","sh","lines","glyphs","gx","gy","gr","gb"})detail.append(", ").append(key).append('=').append(number(url,key));
+                events.layoutApplied((long)number(url,"sequence"),valid,detail.toString());return text("{}");
+            }
             if("/__folia_rear/mode-report".equals(path)&&"rear.folia.local".equals(url.getHost())){
                 String mode=url.getQueryParameter("mode");
                 if(java.util.Arrays.asList("NORMAL","AOD","HIDDEN").contains(mode))
@@ -127,6 +135,7 @@ final class RearHostWebClient extends WebViewClient {
             return new WebResourceResponse("text/plain","UTF-8",404,"Not Found",Collections.emptyMap(),new ByteArrayInputStream(new byte[0]));}
     }
     private static long safeCount(Uri url,String key){try{return Math.max(0,Math.min(1_000_000,Long.parseLong(url.getQueryParameter(key))));}catch(Exception error){return 0;}}
+    private static double number(Uri url,String key){try{double n=Double.parseDouble(url.getQueryParameter(key));return Double.isFinite(n)&&Math.abs(n)<=100000?n:Double.NaN;}catch(Exception error){return Double.NaN;}}
     private void call(String method,Bundle b){context.getContentResolver().call(Uri.parse("content://"+RearHostContract.AUTHORITY),method,null,b);}
     @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){return request.isForMainFrame();}
     @Override public void onReceivedError(WebView view,WebResourceRequest request,android.webkit.WebResourceError error){if(request.isForMainFrame())events.failed("Main document unavailable code="+error.getErrorCode());}

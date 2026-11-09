@@ -15,6 +15,20 @@ final class RearLyricsViewportMetrics {
     static String snapshot() { return nativeSnapshot; }
     static String diagnostics() { return "Native viewport: " + nativeSnapshot + "\nBrowser viewport: " + browserSnapshot; }
 
+    /** Native-card layout belongs to the card, even while an ancestor temporarily clips it for AOD. */
+    static void captureCard(WebView renderer) {
+        if(renderer.getWidth()<=0||renderer.getHeight()<=0)return;
+        try {
+            Rect visible=new Rect();boolean shown=renderer.getLocalVisibleRect(visible);
+            nativeSnapshot=new JSONObject().put("kind","native-card")
+                .put("width",renderer.getWidth()).put("height",renderer.getHeight())
+                .put("visibleLeft",0).put("visibleTop",0)
+                .put("visibleWidth",renderer.getWidth()).put("visibleHeight",renderer.getHeight())
+                .put("clipLeft",shown?visible.left:0).put("clipTop",shown?visible.top:0)
+                .put("clipWidth",shown?visible.width():0).put("clipHeight",shown?visible.height():0).toString();
+        } catch(Exception ignored) { }
+    }
+
     static void fit(FrameLayout root, WebView renderer) {
         Display display = root.getDisplay();
         if (display == null || root.getWidth() <= 0 || root.getHeight() <= 0) return;
