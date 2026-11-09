@@ -71,6 +71,38 @@ class TopGlassMathTest {
     }
 
     @Test
+    fun `实际蒙版在完整尾带内贴合 smoothstep 而不是五点突降折线`() {
+        assertEquals(TyTopGlass.DecaySteps + 1, TyTopGlass.DecayPositions.size)
+        assertEquals(TyTopGlass.DecayPositions.size, TyTopGlass.DecayAlphas.size)
+        assertTrue(TyTopGlass.TailDp.toFloat() / TyTopGlass.DecaySteps <= 1f)
+        for (density in listOf(1f, 2f, 2.75f, 3.5f)) {
+            val header = 120f * density
+            val tail = TyTopGlass.TailDp * density
+            val stops = topGlassMaskStops(header, tail)
+            for (step in 0..256) {
+                val t = step / 256f
+                val actual = maskAlphaAt(stops, header + t * tail, header + tail)
+                // 包含实际 Color alpha 的 8-bit 量化及渐变线性插值误差。
+                assertEquals("density=$density, t=$t", 1f - TyTopGlass.ease(t), actual, 0.003f)
+            }
+        }
+    }
+
+    @Test
+    fun `主体和尾带交界两端半 dp 内的强度变化低于千分之三`() {
+        val header = 120f
+        val tail = TyTopGlass.TailDp.toFloat()
+        val stops = topGlassMaskStops(header, tail)
+        val total = header + tail
+        assertEquals(1f, maskAlphaAt(stops, header - 0.5f, total), 1e-6f)
+        assertEquals(1f, maskAlphaAt(stops, header, total), 1e-6f)
+        assertTrue(1f - maskAlphaAt(stops, header + 0.5f, total) < 0.003f)
+        assertTrue(maskAlphaAt(stops, total - 0.5f, total) < 0.003f)
+        assertEquals(0f, maskAlphaAt(stops, total, total), 1e-6f)
+        assertEquals(0f, maskAlphaAt(stops, total + 0.5f, total), 1e-6f)
+    }
+
+    @Test
     fun `浅色标题副标题音源标签与搜索文字在极端封面上仍有足够对比度`() {
         val foregrounds = listOf(TyTopGlass.LightInk, TyTopGlass.LightMuted, TyTopGlass.LightAccent)
         // 黑白和彩色封面极值；真实 GPU 模糊及滚动观感需另行真机验证。
@@ -114,5 +146,13 @@ class TopGlassMathTest {
         state.headerBottomEstimateDp = 500f
         // 400f * 0.6f 的 Float 结果为 240.00002；容差远小于一个物理像素。
         assertEquals(240f, state.headerBottomDp, 1e-4f)
+    }
+
+    /** 沿实际蒙版色标做线性插值，测试边缘邻域而不只检查首尾两个色标。 */
+    private fun maskAlphaAt(stops: List<Pair<Float, Color>>, yPx: Float, totalPx: Float): Float {
+        val y = (yPx / totalPx).coerceIn(0f, 1f)
+        val (a, b) = stops.zipWithNext().first { (a, b) -> y >= a.first && y <= b.first }
+        val t = (y - a.first) / (b.first - a.first)
+        return a.second.alpha + (b.second.alpha - a.second.alpha) * t
     }
 }

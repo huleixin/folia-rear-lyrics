@@ -204,4 +204,21 @@ describe('Design Token 双端一致性（WebView CSS ↔ Compose Kotlin）', () 
             if (index) expect(alpha).toBeLessThan(alphas[index - 1]);
         });
     });
+
+    it('顶栏尾带使用密集 smoothstep 采样，防止五点折线在主体边缘突降', () => {
+        const steps = TY_GLASS_TOP.decaySteps;
+        expect(Number(cssVar(tokensCss, '--ty-glass-top-decay-steps'))).toBe(steps);
+        expect(ktConst(topGlassBarKt, 'DecaySteps')).toBe(steps);
+        expect(steps).toBe(32);
+        expect(TY_GLASS_TOP.tailPx / steps).toBeLessThanOrEqual(1);
+        expect(TY_GLASS_TOP.decayPositions).toHaveLength(steps + 1);
+        TY_GLASS_TOP.decayPositions.forEach((position, index) => {
+            expect(position).toBeCloseTo(index / steps, 7);
+            const expected = 1 - position * position * (3 - 2 * position);
+            expect(TY_GLASS_TOP.decayAlphas[index]).toBeCloseTo(expected, 6);
+        });
+        // 首尾一个采样区间的强度变化都小于 0.5%，旧曲线起点约 4.8%/dp。
+        expect(1 - TY_GLASS_TOP.decayAlphas[1]).toBeLessThan(0.005);
+        expect(TY_GLASS_TOP.decayAlphas.at(-2)).toBeLessThan(0.005);
+    });
 });

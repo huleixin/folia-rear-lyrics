@@ -34,7 +34,8 @@ Haze 1.6.10 的经典 API：`rememberHazeState()` + `Modifier.hazeSource(state)`
 - **上滚**：内容滑入顶栏后方，透过玻璃看到模糊的颜色/形状/部分轮廓；离开顶栏范围的部分完全清晰。
 - **顶栏内容始终清晰**：标题/副标题/音源选择/搜索框/分类标签/返回与操作按钮画在玻璃之上（独立清晰层）。
 - **底边无分界线**：玻璃强度（模糊+tint 整体）在底部 `tail=32dp`（规范 24–40）按端点零斜率的
-  smoothstep 采样 `[1, .66, .34, .10, 0]` 平滑衰减到透明——单面蒙版，无内部折点、无横带。
+  `1 - smoothstep(t)` 的 33 个等距采样衰减到透明（每 1dp 一个区间）——单面蒙版，
+  两端缓起缓收，避免旧五点折线在主体边缘突然变陡。
 - **材质语言与底栏 Liquid Glass 同族**（vibrancy + 高斯模糊 + 半透明底色），无描边、无分隔线；
   但参数独立（底栏 4dp+lens，顶栏 14dp），不强制一致。
 
@@ -71,7 +72,7 @@ Android 正常路径在 tints 后执行 mask；Haze 原生 fallback 同样消费
 显式 `fallbackTint` 避免库自动增浓，使降级时保留相同透明度。构建开关关闭时设置
 `blurEnabled=false`，而非半径归零后继续采样清晰文字。
 
-mask 的位置、强度采样与 32dp 范围均保留；最末端 alpha=0 同时清除模糊与 tint，
+该轮保留 mask 的位置、强度采样与 32dp 范围（后续截图反馈的曲线调整见 §2.2）；最末端 alpha=0 同时清除模糊与 tint，
 不透明的采样底色不会逃逸 mask 而形成矩形。首帧使用当前 `LocalDensity` 生成蒙版，
 不等待测量状态的 `pxPerDp` 回填，避免首帧无 mask。
 
@@ -85,6 +86,24 @@ ContentLayer → Surface → 原头部节点的顺序及高度测量。浅色固
 Subtle/标签 Selected 背景下校验这些前景 ≥4.5:1。这是 SrcOver 合成与亮度数学验证，
 **不代表 GPU 截图、滚动残影或真机无障碍验收已通过**。浅色主体仍透出 32% 采样颜色，
 深色主体透出 45%；不增加饱和度处理。
+
+### 2.2 推荐封面交接处过渡修正（截图反馈，基于 `db8f08bb`）
+
+用户截图显示推荐页封面滚入顶栏后，玻璃与清晰封面的交接处仍有明显断层。
+代码核对发现：旧五点采样 `[1, .66, .34, .10, 0]` 并不是注释所说的 smoothstep；
+起点从恒定 alpha=1 突然转为约 4.8%/dp 的下降，前 7.04dp 即下降 34%。
+这是可从源码确认的突变因素，不能仅凭截图断言它是所有设备上唯一的成因。
+
+保留 32dp 过渡范围、14dp 模糊、浅 0.68 / 深 0.55 tint 与前景调色；
+只把同一张 Haze mask 的色标改为 `1 - t²(3 - 2t)` 的 33 点等距采样。
+`DecaySteps=32` 与 CSS/TS 对齐，现有数组逐项 parity 校验继续保留。
+该函数两端理论斜率为零，密集线性插值使实际 mask 在主体与清晰内容边缘缓慢起落。
+没有新增绘制层、独立采样、渐变模糊半径或滚动状态；source、effect、测量与图层顺序均不变。
+
+新增回归测试直接插值实际 `topGlassMaskStops`（包括 Color alpha 的 8-bit 量化）：
+4 种密度下整段曲线误差 ≤0.003，交界两端 0.5dp 内强度变化 <0.003，
+并继续验证主体全强度、末端透明、前景对比度及整页误测保护。
+实际截图中的断层是否消除、滑动中是否自然，仍须用原签名新包真机复验。
 
 内容起点统一为 `glass.contentTop`（= 顶栏底边 + 32dp 衰减带）：**静止时首个内容完全在玻璃之外**
 （猜你喜欢卡片/资料库首行不会被顶栏玻璃覆盖，顶部无模糊），只有滚动时内容才进入衰减带被柔化
@@ -105,8 +124,9 @@ Subtle/标签 Selected 背景下校验这些前景 ≥4.5:1。这是 SrcOver 合
 |---|---|---|---|---|
 | 玻璃模糊半径 blur | 14 | `--ty-glass-top-blur: 14px` | `TY_GLASS_TOP.blurPx` | `TyTopGlass.BlurDp` |
 | 底部衰减距离 tail | 32 | `--ty-glass-top-tail: 32px` | `TY_GLASS_TOP.tailPx` | `TyTopGlass.TailDp` |
-| 衰减采样位置 | 0/.22/.45/.72/1 | — | `decayPositions` | `DecayPositions` |
-| 衰减采样强度 | 1/.66/.34/.10/0 | — | `decayAlphas` | `DecayAlphas` |
+| 衰减区间数 | 32（33 色标） | `--ty-glass-top-decay-steps` | `decaySteps` | `DecaySteps` |
+| 衰减采样位置 | i/32，i=0…32 | — | `decayPositions` | `DecayPositions` |
+| 衰减采样强度 | 1 - t²(3 - 2t) | — | `decayAlphas` | `DecayAlphas` |
 | 玻璃 tint alpha | 深 0.55 / 浅 0.68 | `--ty-glass-top-tint-alpha`（浅色覆盖） | `tintAlphaDark/Light` | `TintAlphaDark/Light` |
 | 浅色顶栏前景 | #122e24 / #173629 / #0a3020 | `--ty-glass-top-text/text-secondary/accent` | `lightInk/Muted/Accent` | `LightInk/Muted/Accent` |
 

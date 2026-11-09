@@ -45,6 +45,7 @@
        底部强度经 tail 平滑衰减到透明（无横带、无分界线）。px 与 Compose dp 一一对应。 */
     --ty-glass-top-blur: 14px;   /* 顶栏玻璃高斯模糊半径 */
     --ty-glass-top-tail: 32px;   /* 底部强度衰减距离（规范参考 24–40） */
+    --ty-glass-top-decay-steps: 32; /* 单面 mask：1px 等距采样 1 - smoothstep，两端缓起缓收 */
     --ty-glass-top-tint-alpha: 0.55;
     --ty-glass-top-text: #f4f7f5;
     --ty-glass-top-text-secondary: #a2b6ac;

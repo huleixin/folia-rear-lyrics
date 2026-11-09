@@ -74,9 +74,24 @@ internal object TyTopGlass {
     val LightMuted = Color(0xFF173629)
     val LightAccent = Color(0xFF0A3020)
 
-    /** 底部衰减采样：位置（tail 内）与强度（1=全玻璃，0=全透明）。端点零斜率。 */
-    val DecayPositions = listOf(0f, 0.22f, 0.45f, 0.72f, 1f)
-    val DecayAlphas = listOf(1f, 0.66f, 0.34f, 0.10f, 0f)
+    /** 32dp 内每 1dp 一段；缓存单张蒙版的曲线采样，不增加模糊/采样层。 */
+    const val DecaySteps = 32
+
+    /** 1 - smoothstep 的等距采样；两端缓起缓收，避免主体到尾带的斜率突变。 */
+    val DecayPositions = listOf(
+        0f, 0.03125f, 0.0625f, 0.09375f, 0.125f, 0.15625f, 0.1875f, 0.21875f,
+        0.25f, 0.28125f, 0.3125f, 0.34375f, 0.375f, 0.40625f, 0.4375f, 0.46875f,
+        0.5f, 0.53125f, 0.5625f, 0.59375f, 0.625f, 0.65625f, 0.6875f, 0.71875f,
+        0.75f, 0.78125f, 0.8125f, 0.84375f, 0.875f, 0.90625f, 0.9375f, 0.96875f,
+        1f,
+    )
+    val DecayAlphas = listOf(
+        1f, 0.997131f, 0.98877f, 0.975281f, 0.957031f, 0.934387f, 0.907715f, 0.87738f,
+        0.84375f, 0.80719f, 0.768066f, 0.726746f, 0.683594f, 0.638977f, 0.593262f, 0.546814f,
+        0.5f, 0.453186f, 0.406738f, 0.361023f, 0.316406f, 0.273254f, 0.231934f, 0.19281f,
+        0.15625f, 0.12262f, 0.092285f, 0.065613f, 0.042969f, 0.024719f, 0.01123f, 0.002869f,
+        0f,
+    )
 
     /** smoothstep：与 playlistAmbientVisibility 同族（端点零斜率，避免可见折点）。 */
     fun ease(t: Float): Float {

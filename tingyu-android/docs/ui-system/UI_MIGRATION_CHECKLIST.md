@@ -75,6 +75,7 @@
 - [x] 接入：推荐/资料库(含本地分类)/搜索(含分类tab)/集合详情(封面氛围副本+定位落点适配)/歌手/设置索引/背屏控制；豁免面记录在案
 - [x] 测试：`topGlassBarContract`（单 Haze effect、同一 mask、首帧、清晰层配色作用域、测量保护、无指针拦截、旧 API 禁止复活）+ parity 三端 blur/tint/前景/衰减组 + `TopGlassMathTest`；本次运行数见 UI_TEST_MATRIX 专项表
 - [x] 2026-11-09 可读性专项：14dp / 浅 0.68 / 深 0.55；修复仅设置 backgroundColor 而无有效蒙层的问题，显式 Haze tint/fallbackTint 共用原有 32dp mask；浅色顶栏前景作用域与对比度测试，正文和图层顺序不变
+- [x] 推荐封面断层截图反馈：将旧五点突降折线替换为 33 点等距 `1 - smoothstep` 蒙版采样；仍为单张 32dp mask，追加实际色标插值误差及首尾邻域斜率回归校验
 - [ ] 真机验证（TOP_GLASS_BAR.md §6：推荐页首验 → 各页材质一致 → 深浅色 → 手势/轮播 → 流畅度与降级对比 → 页面切换无残影）
 
 ### F 其余待办 ⏳
