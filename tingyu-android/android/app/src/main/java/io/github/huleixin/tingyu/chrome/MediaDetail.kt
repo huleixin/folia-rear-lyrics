@@ -1,8 +1,6 @@
 package io.github.huleixin.tingyu.chrome
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,8 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -55,13 +51,13 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
     // （内容层绘制，页面级原件在能力具备时移除以免重复采样）。
     val colors=page.surfaceColors()
     val glass=rememberTyTopGlassState(estimateHeaderBottomDp=page.safeTop+52f)
-    // 集合内搜索（68593）：输入框由页面级固定层承载，从右上角放大镜的位置展开。
+    // 集合内搜索替换同一行工具栏；两种状态共用玻璃高度，搜索不再叠在按钮之上。
     val filterSection=page.sections.firstOrNull{it.layout=="input"}
-    var pageOrigin by remember{mutableStateOf(Offset.Zero)}
     var searchExpanded by remember(page.key){mutableStateOf(false)}
-    var filterIcon by remember{mutableStateOf<Rect?>(null)}
-    LaunchedEffect(filterSection!=null){if(filterSection!=null)searchExpanded=true}
-    BackHandler(enabled=searchExpanded){searchExpanded=false}
+    val focusManager=androidx.compose.ui.platform.LocalFocusManager.current
+    fun closeSearch(){focusManager.clearFocus();searchExpanded=false}
+    LaunchedEffect(filterSection!=null){searchExpanded=filterSection!=null}
+    BackHandler(enabled=searchExpanded){closeSearch()}
     val headerItems=1
     val currentVisible by remember(tracks.activeIndex,headerItems){derivedStateOf{list.layoutInfo.visibleItemsInfo.any{it.index==tracks.activeIndex+headerItems}}}
     val pageDensity=LocalDensity.current
@@ -70,14 +66,14 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
         val clearPx=with(pageDensity){(glass.headerBottomDp+TyTopGlass.TailDp+12).dp.toPx()}.roundToInt()
         list.animateScrollToItem(tracks.activeIndex+headerItems,-clearPx)
     }}
-    BoxWithConstraints(modifier.pageOrigin{pageOrigin=it}){
+    BoxWithConstraints(modifier){
         val short=maxHeight<500.dp;val width=maxWidth.value
         // BoxWithConstraintsScope 带 @LayoutScopeMarker：Column 作用域里不能再隐式读 maxHeight，
         // 需要先在根作用域提升为局部值（玻璃内容层的氛围层视口高度要用）。
         val detailMaxHeight=maxHeight
         Box(Modifier.fillMaxSize()){
             TyTopGlassContentLayer(glass,colors,ambientImage=cover.image,ambientViewportHeight=detailMaxHeight,modifier=Modifier.fillMaxSize()){
-            val listTop by animateDpAsState((if(short)8.dp else 18.dp)+if(searchExpanded)NativeSearchBarHeight+14.dp else 0.dp,tween(240),label="media-list-top")
+            val listTop=if(short)8.dp else 18.dp
             LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(top=glass.contentTop+listTop,bottom=(page.bottomClearance+page.safeBottom).dp)){
                 item("header"){
                     MediaDetailHeader(cover,page.title,intro,controls,
@@ -99,13 +95,14 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
             TyTopGlassForeground {
                 Column(Modifier.fillMaxWidth().padding(top=(page.safeTop+8).dp)
                     .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}){
-                Row(Modifier.fillMaxWidth().padding(horizontal=26.dp).height(44.dp),verticalAlignment=Alignment.CenterVertically){
-                    ChromeButton(label("back"),size=44.dp,onClick={action(page.leading,"",0.0)}){PageIcon("arrow-left",PageInk,Modifier.size(23.dp))}
+                MediaDetailToolbar(page.key,searchExpanded,filterSection,action,
+                    onRequestClose={closeSearch()},onClosed={action("filterClose","",0.0)}){
+                Row(Modifier.fillMaxWidth().padding(horizontal=26.dp).height(NativeSearchBarHeight),verticalAlignment=Alignment.CenterVertically){
+                    ChromeButton(label("back"),enabled=!searchExpanded,size=44.dp,onClick={action(page.leading,"",0.0)}){PageIcon("arrow-left",PageInk,Modifier.size(23.dp))}
                     Spacer(Modifier.weight(1f))
-                    Box(Modifier.pageAnchor(pageOrigin){filterIcon=it}){
-                        ChromeButton(label("filterToggle"),size=44.dp,onClick={action("filterToggle","",0.0)}){PageIcon("search",PageInk,Modifier.size(21.dp))}
-                    }
-                    ChromeButton(label("menu"),size=44.dp,onClick={action(page.trailing,"",0.0)}){PageIcon("ellipsis-vertical",PageInk,Modifier.size(23.dp))}
+                    ChromeButton(label("filterToggle"),enabled=!searchExpanded,size=44.dp,onClick={if(filterSection!=null)searchExpanded=true;action("filterToggle","",0.0)}){PageIcon("search",PageInk,Modifier.size(21.dp))}
+                    ChromeButton(label("menu"),enabled=!searchExpanded,size=44.dp,onClick={action(page.trailing,"",0.0)}){PageIcon("ellipsis-vertical",PageInk,Modifier.size(23.dp))}
+                }
                 }
                 }
             }
@@ -113,16 +110,6 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
         if(toolbar.any{it.id=="locateCurrent"}&&(!currentVisible||tracks.activeIndex<0))Box(Modifier.align(Alignment.BottomEnd).padding(end=18.dp,bottom=(page.safeBottom+74).dp)){
             PlaylistLocateButton(label("locateCurrent")){action("locateCurrent","",0.0)}
         }
-        if(filterSection!=null)NativeSearchOverlay(
-            visible=searchExpanded,
-            section=filterSection,
-            action=action,
-            safeTop=page.safeTop,
-            origin=filterIcon,
-            onRequestClose={searchExpanded=false},
-            // 收起动画播完才让 JS 撤掉筛选区：否则输入框会在动画中途消失（"闪一下"）。
-            onClosed={action("filterToggle","",0.0)},
-        )
     }
 }
 

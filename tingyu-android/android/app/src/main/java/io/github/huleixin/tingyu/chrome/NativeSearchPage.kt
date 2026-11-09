@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeSearchPage.kt
-// Same search field/close button, wrapping history chips and numbered two-column hot list.
+// Full-width search field, wrapping history chips and numbered two-column hot list.
 @OptIn(ExperimentalLayoutApi::class)
 @Composable internal fun NativeSearchPage(page:NativePage,modifier:Modifier,action:PageAction){
     val bottomClearance=with(LocalDensity.current){LocalNativePageBottomPx.current.toDp()}
@@ -135,7 +135,6 @@ import androidx.compose.ui.unit.sp
                             val sources=page.sections.firstOrNull{it.id=="sources"}
                             NativePageInput(section,action,search=true,trailing={if(sources!=null)SearchSourceMenu(sources,compact,action)})
                         }}
-                        Box(Modifier.size(44.dp).clip(RoundedCornerShape(999.dp)).background(interfaceColor(Color(0x08FFFFFF),LightInterfaceColors.Subtle)).clickable{action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("x",PageInk,Modifier.size(20.dp))}
                     }
                     page.sections.firstOrNull{it.id=="tabs"}?.let{section->
                         Row(Modifier.fillMaxWidth().padding(top=8.dp).horizontalScroll(rememberScrollState())){section.items.forEach{item->

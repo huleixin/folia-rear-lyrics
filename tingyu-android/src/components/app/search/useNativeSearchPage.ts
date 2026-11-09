@@ -135,7 +135,7 @@ export function useNativeSearchPage(p: Props) {
     }
     // Input, suggestions and results are updates to one editable screen. A new
     // route key disposes BasicTextField and its IME composition after the first key.
-    let model:NativePageModel={key:`search:${p.source}`,title:t('search.title','搜索'),leading:'close',bottomClearance:122,sections};
+    let model:NativePageModel={key:`search:${p.source}`,title:t('search.title','搜索'),bottomClearance:122,sections};
     if(menu) {
         const song=menu,meta=getProviderSongMetadata(song),items:PageItem[]=[];
         const add=(id:string,title:string,callback:()=>void,disabled=false)=>{items.push({id,title,action:id,disabled});actions[id]=()=>{setMenu(null);callback()}};

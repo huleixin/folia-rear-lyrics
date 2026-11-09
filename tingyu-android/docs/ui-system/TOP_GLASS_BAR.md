@@ -143,8 +143,8 @@ Subtle/标签 Selected 背景下校验这些前景 ≥4.5:1。这是 SrcOver 合
 |---|---|---|
 | 推荐首页 | ✅ `NativeHomePage` | 标题/副标题/音源选择清晰；猜你喜欢/最近播放/我的歌单滚入玻璃后方；横向轮播不受干扰 |
 | 资料库首页（含本地分类） | ✅ `NativeDirectoryPage` library 分支 | 五层头部整体为清晰层；搜索展开/收起玻璃范围随测量适配 |
-| 搜索首页 / 结果综合 / 分类结果 | ✅ `NativeSearchPage` | 输入框/关闭钮/音源标签/分类标签清晰；输入法经 imePadding 避让 |
-| 歌单/专辑/每日推荐/收藏/自建/本地文件夹详情 | ✅ `MediaDetailScaffold`（ambient 副本） | 玻璃范围只由固定返回栏测量决定；随滚动的封面/信息区不加玻璃；定位落点已适配 |
+| 搜索首页 / 结果综合 / 分类结果 | ✅ `NativeSearchPage` | 输入框内清空/音源入口及分类标签清晰，无外侧重复关闭钮；输入法经 imePadding 避让 |
+| 歌单/专辑/每日推荐/收藏/自建/本地文件夹详情 | ✅ `MediaDetailScaffold`（ambient 副本） | 返回工具栏与搜索行替换同一固定高度容器，由真实前景统一测量；封面/信息区不额外加一行搜索留白 |
 | 歌手详情 | ✅ `NativeDirectoryPage` artist 分支 | 返回栏 + 更多按钮清晰 |
 | 设置索引 / 背屏控制页 | ✅ `NativeSettingsPage` / `NativeRearControlPage` | 标题与按钮清晰 |
 | 语义化设置二级页 | ✅ `SettingsFlowPage` | 固定返回栏与标题；内容由 TySettings 排版 |

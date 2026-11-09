@@ -27,7 +27,7 @@
 | 8 | 播放指示器 | CSS 4柱18×20 820ms 中点缩放 vs Kotlin 3柱12×15 1500ms 底部对齐 | **已收敛**：Kotlin 对齐 WebView（4柱/18×20/820ms/负延迟/中点缩放/暂停停 0.4） |
 | 9 | 封面阴影 | CSS `0 8px 24px #0003` vs Kotlin 无 | **已收敛**：Kotlin 加 shadow(8dp, r12) |
 | 10 | 歌单内搜索返回键 | Kotlin 有 BackHandler 先收搜索；WebView 无 | **已收敛**：WebView 经 modalBackStack 注册（仅 `!native` 时，避免与原生抢返回） |
-| 11 | 搜索交互形态 | Kotlin：页面级固定层 morph 展开 280ms+取消钮；WebView：列表头内条件渲染无动画 | **保留差异**（记录）：形态改造成本高、影响布局结构；NATIVE_FIRST 正式包只见 Kotlin 形态。列入后续版本 |
+| 11 | 搜索交互形态 | Kotlin：同一固定工具栏内 220ms 淡出/淡入切换输入框+取消；WebView：列表头内条件渲染 | **平台差异**：正式包由 MediaDetailToolbar 单行替换，退出期间禁用旧控件，玻璃测量与列表避让只计算一次；资料库固定搜索浮层维持原路径 |
 | 12 | 封面占位图 | CSS Disc3 图标 vs Kotlin 纯色块 | **待收敛**（低成本项，需 NativePageIcon 增加 disc-3 几何） |
 | 13 | 定位当前按钮 | CSS 药丸「图标+文字」42 vs Kotlin 40dp 圆钮 | **保留差异**（记录）：形态分歧不影响交互语义 |
 | 14 | 音质标签配色混合比 | CSS 各档 52%~58% vs Kotlin 统一 50% | **待收敛**（低风险微调，需确认色差是否可感知） |

@@ -134,16 +134,7 @@ internal fun NativeSearchOverlay(
                 alpha = ((p - 0.35f) / 0.65f).coerceIn(0f, 1f)
             }) {
             TyTopGlassForeground {
-                androidx.compose.foundation.layout.Row(Modifier.fillMaxSize(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    Box(Modifier.weight(1f)) { SearchBarSurface(section, action, focus, autoFocus = visible) }
-                    androidx.compose.foundation.layout.Spacer(Modifier.width(10.dp))
-                    androidx.compose.material3.Text(
-                        dismissLabel,
-                        color = PageMuted,
-                        fontSize = 13.sp,
-                        modifier = Modifier.clickable { onRequestClose() }.padding(horizontal = 4.dp, vertical = 8.dp),
-                    )
-                }
+                NativeSearchBarRow(section,action,focus,autoFocus = visible,onRequestClose=onRequestClose,dismissLabel=dismissLabel,disableInactiveInput=false)
             }
         }
     }
@@ -151,8 +142,21 @@ internal fun NativeSearchOverlay(
 
 private fun lerp(from: Float, to: Float, t: Float) = from + (to - from) * t
 
+/** Shared input/cancel row; collection detail places it inside its one measured header. */
 @Composable
-private fun SearchBarSurface(section: NativePageSection, action: PageAction, focus: FocusRequester, autoFocus: Boolean) {
+internal fun NativeSearchBarRow(section:NativePageSection,action:PageAction,focus:FocusRequester,
+    autoFocus:Boolean,onRequestClose:()->Unit,dismissLabel:String="取消",disableInactiveInput:Boolean=true) {
+    val focusManager=androidx.compose.ui.platform.LocalFocusManager.current
+    androidx.compose.foundation.layout.Row(Modifier.fillMaxSize(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){
+        Box(Modifier.weight(1f)){SearchBarSurface(section,{id,text,value->if(autoFocus||!disableInactiveInput)action(id,text,value)},focus,autoFocus=autoFocus,passive=disableInactiveInput&&!autoFocus)}
+        androidx.compose.foundation.layout.Spacer(Modifier.width(10.dp))
+        androidx.compose.material3.Text(dismissLabel,color=PageMuted,fontSize=13.sp,
+            modifier=Modifier.clickable(enabled=autoFocus||!disableInactiveInput){focusManager.clearFocus();onRequestClose()}.padding(horizontal=4.dp,vertical=8.dp))
+    }
+}
+
+@Composable
+private fun SearchBarSurface(section: NativePageSection, action: PageAction, focus: FocusRequester, autoFocus: Boolean,passive:Boolean=false) {
     Box(Modifier.fillMaxSize()
         .background(interfaceColor(Color(0x1AFFFFFF), LightInterfaceColors.Subtle), RoundedCornerShape(999.dp))
         .border(1.dp, interfaceColor(Color(0x3391DBBD), LightInterfaceColors.Focus), RoundedCornerShape(999.dp))) {
@@ -165,6 +169,7 @@ private fun SearchBarSurface(section: NativePageSection, action: PageAction, foc
             // 无条件 autoFocus 会让"进入资料库"直接弹出输入法（68602）。
             autoFocus = autoFocus,
             bare = true,
+            passive = passive,
         )
     }
 }

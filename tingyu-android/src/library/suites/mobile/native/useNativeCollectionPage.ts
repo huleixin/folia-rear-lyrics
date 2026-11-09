@@ -43,7 +43,7 @@ export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:L
     useEffect(()=>{if(pendingLocate&&pendingLocate===activeKey&&activeIndex>=0){setPendingLocate('');locate()}},[pendingLocate,activeKey,activeIndex]);
     const actions:PageActions={back:props.onBack,menu:onCollectionMenu,playAll:model.actions.playScope,enqueueAll:model.actions.enqueueScope,
         reload:model.actions.reload,resume:model.actions.resumeSync,subscribe:onSubscribe,locateCurrent:locate,
-        filterToggle:()=>setFilterOpen(value=>!value),filter:e=>{model.setQuery(e.text??'');setOffset(0)},range:e=>setOffset(Math.max(0,Math.floor((e.value??0)/100)*100))};
+        filterToggle:()=>setFilterOpen(true),filterClose:()=>setFilterOpen(false),filter:e=>{model.setQuery(e.text??'');setOffset(0)},range:e=>setOffset(Math.max(0,Math.floor((e.value??0)/100)*100))};
     const items=useMemo(()=>Array.from({length:Math.max(0,Math.min(100,total-offset))},(_,local)=>{
         const index=indexes?.[offset+local]??offset+local,song=model.view.displayTracks[index],key=getPlaybackSongKey(song);
         // 原生音质标签：推**原始 spec 名**（normalizeCatalogAudioSpecs 已按档位优先排序），
@@ -75,7 +75,7 @@ export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:L
         ...(props.collection.type==='playlist'?[{id:'songHeading',layout:'message' as const,title:t('mobileLibrary.playlistSongs'),text:String(count)}]:[]),
         // 筛选区只在展开/有词时下发：Compose 侧按 filterSection!=null 触发固定层展开，
         // 常驻下发会让搜索层在进页时自动弹开（旧行为里专辑页是常驻内联输入框）。
-        ...(filterOpen||model.query?[{id:'filter',layout:'input' as const,value:model.query,placeholder:t('mobileLibrary.filter'),action:'filter'}]:[]),
+        ...(filterOpen||model.query?[{id:'filter',layout:'input' as const,value:model.query,placeholder:t('mobileLibrary.filter'),action:'filter',more:'filterClose',moreLabel:t('ui.cancel')}]:[]),
         {id:'tracks',key:`${model.query}:${model.field}:${model.direction}`,layout:'rows',total,offset,request:'range',items,
             activeKey,playing,activeIndex,locateRevision}];
     if(!total)sections.push({id:'empty',layout:'message',text:t(model.snapshot?.status==='loading'?'mobileLibrary.loading':'mobileLibrary.emptyCollection')});

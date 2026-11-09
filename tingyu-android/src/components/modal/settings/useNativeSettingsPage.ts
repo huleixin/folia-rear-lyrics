@@ -36,6 +36,6 @@ export function useNativeSettingsPage(root:RefObject<HTMLElement|null>,page:Rear
         {id:'coffee',title:t('mobileSettings.supportCoffee'),subtitle:t('mobileSettings.supportCoffeeDescription'),action:'support:coffee'},
         {id:'community',title:t('mobileSettings.supportCommunity'),subtitle:t('mobileSettings.supportCommunityDescription'),action:'support:group'},
     ]});
-    const model:NativePageModel=page==='control'||page==='advanced'?buildRearControlPage(page,rear,t):{key:'settings:index',title:t('ui.options'),leading:'close',bottomClearance:74,sections};
+    const model:NativePageModel=page==='control'||page==='advanced'?buildRearControlPage(page,rear,t):{key:'settings:index',title:t('ui.options'),bottomClearance:74,sections};
     return useNativePage(root,'settings',page!=='guide'&&page!=='diagnostics'&&!page.startsWith('appearance'),model,actions);
 }

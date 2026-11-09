@@ -57,12 +57,11 @@ private val GroupIcons=mapOf("rear" to "captions","appearance" to "sparkles","co
             }
             }
             TyTopGlassSurface(glass,colors)
-            // 顶栏内容（清晰层）：标题 + 关闭按钮，绘制在玻璃之上。
+            // 设置一级页由系统返回/底栏导航退出；顶栏只保留标题。
             TyTopGlassForeground {
                 Row(Modifier.fillMaxWidth().padding(start=inset,end=inset,top=(page.safeTop+24).dp,bottom=20.dp).heightIn(min=40.dp)
                     .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)},verticalAlignment=Alignment.CenterVertically){
                     Text(page.title,color=topGlassForegroundColor(interfaceColor(Color(0xFFE8F4ED),LightInterfaceColors.Ink),TyTopGlass.LightInk),fontSize=32.sp,lineHeight=40.sp,fontWeight=FontWeight.Bold,letterSpacing=(-1.28).sp,modifier=Modifier.weight(1f))
-                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(999.dp)).background(interfaceColor(Color(0x0B99BBA5),LightInterfaceColors.Subtle)).clickable{action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("x",PageInk,Modifier.size(23.dp))}
                 }
             }
         }
