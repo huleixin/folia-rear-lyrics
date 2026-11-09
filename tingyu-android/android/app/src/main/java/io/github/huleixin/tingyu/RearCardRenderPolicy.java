@@ -3,8 +3,8 @@ package io.github.huleixin.tingyu;
 // android/app/src/main/java/io/github/huleixin/tingyu/RearCardRenderPolicy.java
 final class RearCardRenderPolicy {
     enum Mode { NORMAL, AOD, HIDDEN }
-    static Mode mode(boolean current,boolean own,boolean visible,boolean suspended,boolean follow,boolean command,int power){
-        if(!current||!own||!visible||suspended||power==0||power==1)return Mode.HIDDEN;
+    static Mode mode(boolean current,boolean own,boolean visible,boolean follow,boolean command,int power){
+        if(!current||!own||!visible||power==0||power==1)return Mode.HIDDEN;
         if(command||power==3||power==4)return follow?Mode.AOD:Mode.HIDDEN;
         return power==2?Mode.NORMAL:Mode.HIDDEN;
     }
@@ -30,12 +30,12 @@ final class RearCardRenderPolicy {
         private boolean previousAod;
         private long until;
         Decision resolve(boolean lease,boolean own,boolean associated,boolean center,boolean active,
-                boolean attached,boolean shown,boolean owned,boolean suspended,boolean follow,
+                boolean attached,boolean shown,boolean owned,boolean follow,
                 boolean command,int power,long now){
             boolean systemAod=command||power==3||power==4;
             if(systemAod!=previousAod){until=now+TRANSITION_MS;previousAod=systemAod;}
             String reason=!lease?"lease-lost":!own?"media-session-lost":!associated?"binding-lost":
-                !attached?"detached":suspended?"camera":power!=2&&power!=3&&power!=4?"display-off":
+                !attached?"detached":power!=2&&power!=3&&power!=4?"display-off":
                 systemAod&&!follow?"aod-disabled":!center?"card-not-center":null;
             if(reason!=null){until=0;return new Decision(Mode.HIDDEN,reason,0);}
             if(active&&shown)return new Decision(systemAod?Mode.AOD:Mode.NORMAL,"current-card",0);

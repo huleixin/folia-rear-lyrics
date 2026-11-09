@@ -36,6 +36,7 @@ final class RearCameraMonitor {
         }
     }
     void stop() {
+        if(!running&&listener==null)return;
         running = false; main.removeCallbacks(settle); policy.stop();
         CameraManager.AvailabilityCallback previous = listener; listener = null;
         if (previous != null) try { manager.unregisterAvailabilityCallback(previous); }

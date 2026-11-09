@@ -350,7 +350,6 @@ public final class RearHostHooks {
         private RearNativeCardOwner card;
         private String assistantEvidence="";
         private IBinder lifeline;
-        private boolean suspended;
         private boolean resumed;
         private boolean launcherSeen;
         private int display = -1, rebinds, launches;
@@ -563,7 +562,6 @@ public final class RearHostHooks {
             if(lease.isEmpty())return FAILED;
             observeAssistant();
             Activity activity=launcher.get();
-            if(suspended)return PENDING;
             RearNativeCardOwner preferred=null;
             if(host!=null&&!host.closed()&&card!=null){
                 host.refresh();
@@ -621,7 +619,7 @@ public final class RearHostHooks {
          */
         private void requestLauncher(String why) {
             long now = SystemClock.uptimeMillis();
-            if (!RearHostPolicy.mayLaunch(host != null, suspended, resumed, display, state(display),
+            if (!RearHostPolicy.mayLaunch(host != null, false, resumed, display, state(display),
                 launches, nextLaunchAt, pausedAt, now)) return;
             String target = launcher.get() != null ? launcher.get().getClass().getName() : launcherClass;
             try {
@@ -662,7 +660,6 @@ public final class RearHostHooks {
             lease = "";
             assistantEvidence="";
             if (!old.isEmpty()) lastReleased = old;
-            suspended = false;
             rebinds = 0;
             launches = 0;
             nextLaunchAt = 0;
@@ -688,7 +685,6 @@ public final class RearHostHooks {
                 card=null;
                 if (!lease.isEmpty()) lastReleased = lease;
                 lease = "";
-                suspended = false;
                 rebinds = 0;
                 launches = 0;
                 nextLaunchAt = 0;
@@ -730,7 +726,6 @@ public final class RearHostHooks {
                             if (!lease.isEmpty() && !lease.equals(requested)) { reason[0] = "Another host lease exists"; return; }
                             lease = requested;
                             assistantEvidence="";
-                            suspended = false;
                             rebinds = 0;
                             launches = 0;
                             nextLaunchAt = 0;
@@ -749,11 +744,12 @@ public final class RearHostHooks {
                             reason[0] = ok[0] ? "宿主视图已移除，原生背屏界面已恢复" : "Host release not confirmed";
                         } else if (lease.equals(requested)) {
                             if (code == RearHostContract.SUSPEND) {
-                                suspended = value;
-                                if (host != null) host.suspended(value);
-                                if (!value) attach("suspend-cleared");
+                                // Old app versions may still send hardware-camera suspension. This
+                                // content belongs to Xiaomi's card: only its actual lifecycle decides.
+                                if (host != null) host.refresh();
                                 ok[0] = true;
-                                reason[0] = value ? "宿主让出背屏（相机/应用侧挂起）" : "宿主恢复显示";
+                                reason[0] = "Native card ignores legacy camera suspend; system visibility decides";
+                                report(lease,"web-stage",display,"legacy-camera-suspend-ignored:requested="+value);
                             } else if (code == RearHostContract.PROBE) {
                                 ok[0] = attach("probe") != FAILED;
                                 reason[0] = ok[0] ? "Host state refreshed" : lastFailure;

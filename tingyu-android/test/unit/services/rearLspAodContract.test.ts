@@ -35,3 +35,23 @@ it('separates functional mode edges from diagnostic snapshots and does not expir
     expect(source).toContain('boolean qualified=frameEvidence.recordDraw(modeEpoch)');
     expect(source).toContain('!card.owned()&&qualified&&binding.current()');
 });
+it('disconnects every hardware-camera suspension path from native cards while preserving Shizuku handoff',()=>{
+    const coordinator=read('RearLyricsCoordinator.java'),bridge=read('RearHostBridge.java'),hooks=read('RearHostHooks.java'),view=read('RearHostView.java');
+    expect(coordinator).not.toContain('RearHostBridge.suspend(');
+    expect(coordinator).toContain('RearCameraPolicy.monitorRequired(LspRearBridge.selected(context),enabled,dismissed)');
+    expect(coordinator).toContain('RearCameraPolicy.blocksPresentation(LspRearBridge.selected(context)');
+    const camera=coordinator.slice(coordinator.indexOf('private void cameraChanged('),coordinator.indexOf('private void evaluateRear('));
+    expect(camera).toContain('if(LspRearBridge.selected(context))return;');
+    const nativeHeartbeat=coordinator.slice(coordinator.indexOf('private void checkWindow()'),coordinator.indexOf('// 锁屏跳变 →'));
+    expect(nativeHeartbeat).not.toContain('cameraMonitor.blocked()');
+    expect(bridge).not.toContain('transact(RearHostContract.SUSPEND');
+    expect(bridge).not.toContain('active && !suspended');
+    expect(bridge).toContain('if(!RearLyricsCoordinator.get(context).canPresent())return;');
+    const legacy=hooks.slice(hooks.indexOf('if (code == RearHostContract.SUSPEND)'),hooks.indexOf('} else if (code == RearHostContract.PROBE)'));
+    expect(legacy).toContain('legacy-camera-suspend-ignored');
+    expect(legacy).not.toMatch(/suspended\s*=|host\.suspended|attach\(/);
+    expect(view).not.toMatch(/camera-command|void suspended\(|boolean[^;]*\bsuspended\b/);
+    expect(read('RearCardRenderPolicy.java')).not.toContain('"camera"');
+    expect(coordinator).toContain('observation.set(wanted(), cameraMonitor.blocked(), rearTaskCamera, mainTaskCamera');
+    expect(coordinator).toContain('startCameraRelease(now)');expect(coordinator).toContain('startCameraRestore(now)');
+});

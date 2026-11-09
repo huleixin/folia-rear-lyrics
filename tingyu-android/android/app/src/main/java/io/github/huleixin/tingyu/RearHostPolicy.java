@@ -65,14 +65,14 @@ final class RearHostPolicy {
             int display, int state) {
         return requested && !suspended && resumed && attached && display > 0 && state == STATE_ON;
     }
-    /** Display power pauses pixels, not card ownership. Explicit system-AOD preference/camera still release. */
-    static boolean retainCardOwnership(boolean requested,boolean ownMedia,boolean attached,boolean suspended,boolean restoreSystemAod){
-        return requested&&ownMedia&&attached&&!suspended&&!restoreSystemAod;
+    /** Native card ownership follows identity and system visibility, never camera hardware state. */
+    static boolean retainCardOwnership(boolean requested,boolean ownMedia,boolean attached,boolean restoreSystemAod){
+        return requested&&ownMedia&&attached&&!restoreSystemAod;
     }
     /** Outside the bounded AOD bridge, HIDDEN must not keep a cancelled/inactive card masked. */
-    static boolean retainCardOwnership(boolean requested,boolean ownMedia,boolean attached,boolean suspended,
+    static boolean retainCardOwnership(boolean requested,boolean ownMedia,boolean attached,
             boolean restoreSystemAod,boolean selected,int power){
-        return selected&&power==STATE_ON&&retainCardOwnership(requested,ownMedia,attached,suspended,restoreSystemAod);
+        return selected&&power==STATE_ON&&retainCardOwnership(requested,ownMedia,attached,restoreSystemAod);
     }
 
     /**

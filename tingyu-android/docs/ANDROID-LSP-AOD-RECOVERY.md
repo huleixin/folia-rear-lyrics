@@ -1,7 +1,7 @@
 <!-- docs/ANDROID-LSP-AOD-RECOVERY.md -->
 # LSP 原生卡片 AOD：可见度与恢复
 
-基线：GitHub main `23a45130f18fa8bb2c16cd83bdbf299d70db0b0b`，1.3.190 / 213。
+基线：GitHub main `23a45130f18fa8bb2c16cd83bdbf299d70db0b0b`，1.3.190 / 213；初轮修复 `01521bb5`，随后根据 2026-11-09 15:09 诊断补充相机职责分离。
 只修改 LSP 卡片及其背屏网页模式适配；Shizuku、主屏舞台、Media3、歌词时间轴与共享 graphics scheduler 实现未修改。
 
 ## 已确认的代码问题
@@ -15,15 +15,32 @@
 7. 应用侧普通首帧等待原先只排除 AOD，HIDDEN 仍可能启动可见 NORMAL 卡片的超时预算。现仅 NORMAL 进入该等待；有效隐藏卡片的准备仍受原有 4500ms 暂停预算约束。
 8. 异步业务可用性中的 card-collapsed 不再单独清除一个已有 NORMAL/AOD 原生 draw 的 active 标记。真实隐藏由严格卡片门控下的 render-mode/paused 确认，避免较晚的业务快照覆盖已完成的恢复。
 
-上述是静态及自动化可确认的问题，不代表已经定位用户设备偶发失效的唯一原因。
+9. 新诊断确认初轮包两次 AOD→HIDDEN 由 camera-command 触发，原生 center/active/bound/associated/attached/shown/own/root 仍有效。重复相机硬件暂停链已经拆除，详见下一节；无需修改歌词样式、时间轴或 AOD 亮度。
+
+上述是代码与诊断可确认的问题，不代表已证明所有 ROM 的物理合成行为。
+
+## 原生卡片与独立窗口的相机职责
+
+LSP 的歌词是系统原生卡片内容，不单独竞争相机窗口优先级。CameraManager unavailable 不再授权暂停/归还：
+
+- Coordinator 在构造恢复、启用、后端变更、LSP 连接及既有心跳处按后端同步 CameraMonitor；LSP 不注册，旧注册 stop 后拒绝在途旧回调。启动前尚无 host lease 时也适用。
+- cameraOwned/canPresent/presentationAllowed 对 LSP 不受硬件 camera 状态阻断；ready 仍校验 canPresent 的用户意图/关闭条件。
+- LSP 心跳不发 SUSPEND，也不按 cameraMonitor.blocked 决定能否 begin。Shizuku 的 evaluateRear 与 task-list 探测不进入 LSP；旧异步探测回调也检查当前后端。
+- Bridge 不再持有相机 suspended 标记或发送 SUSPEND；Hooks 不再持有该标记。兼容旧协议的 SUSPEND 仅对有效同租约做严格 refresh 并回复忽略，不 attach、不恢复卡片、不改变可见性优先级。
+- HostView、原生渲染策略和卡片所有权保留策略不再接受相机硬件挂起状态，因此不存在 reason=camera 路径；日志改为 cameraPolicy=system-card。
+- 系统真正显示背屏相机、切走/收起卡片时，仍通过实际 center/active/associated/root/attached/shown/Display 状态隐藏或释放。首帧 fence→onDraw 验证保留，不增加强制 acquire、轮询或 WakeLock。
+
+Shizuku 继续使用原 RearCameraPolicy 的 900ms 进入、2500ms 退出、8s 证据过期、task-list/RearOccupancy/RearHandoffState 及 release/restore 状态机；仅新加的后端边界在 nativeCard=false 时透传原外部占用结果。CameraMonitor.stop 幂等，不改变正常可用性回调和 episode 验证。
+
+新诊断包 SHA-256：`e3e54fdc0ff4a57d27976da0e6775a7cf02ee9bcc87fe38f98825de18d4b0c2f`，报告 build=`1.3.190@01521bb5`；两次故障 seq=3/5，rearPower=2/3，锁屏为 true、AOD 命令为 true。只提取状态事实，不把原始诊断包、歌词或个人数据提交仓库。
 
 ## 状态与安全边界
 
 - AOD 输入：原生 enterAod/exitAod 命令或真实 Display DOZE(3)/DOZE_SUSPEND(4)。OFF(1)、UNKNOWN(0) 和不支持状态不显示。
-- 严格门控：同一有效租约、听屿媒体 session、绑定/父子链、MAML root、附着、中心槽、相机挂起状态和偏好，均不可被过渡窗口跳过。
+- 严格门控：同一有效租约、听屿媒体 session、绑定/父子链、MAML root、附着、中心槽、真实系统可见性和偏好，均不可被过渡窗口跳过。
 - 最长 1500ms 的过渡窗口只由真实 AOD 边沿建立，使用 elapsedRealtime；DOZE→DOZE_SUSPEND、反复 visibility 回调不续期。Handler 不唤醒系统；CPU 暂停时不会主动执行或申请 WakeLock。
 - 仅已获得所有权且仍在中心槽的卡片可在 active/shown 短暂丢失时保留文档和所有权。此时舞台为 INVISIBLE，**不强显**，也不立即调用 WebView.onPause 或 restore。恢复 current/shown 后重同步并请求绘制；超时进入 HIDDEN、暂停并归还。
-- center 丢失、用户切走/收起、媒体/session/root/绑定失效、相机、关闭偏好或真正 OFF 不能使用例外。系统长期保持 active=false 时仍安全隐藏，需 ROM 实机证据才能继续细化。
+- center 丢失、用户切走/收起、媒体/session/root/绑定失效、关闭偏好或真正 OFF 不能使用例外。背屏相机通过这些实际系统状态接管，硬件 unavailable 本身不是依据。系统长期保持 active=false 时仍安全隐藏，需 ROM 实机证据才能继续细化。
 - 首次 acquire 仍要求 current/ownMedia/附着验证，并要求同 epoch 的 visual-state fence 已到达，再经过一次 super.onDraw。JS 配置就绪或 fence 前的 draw 不授权隐藏系统卡片；旧 epoch 回调不能授权新模式。
 - 没有新增 Hook 类型/方法/作用域，没有独立 Activity 接管、强制亮屏、POLICY_BRIGHT、全局亮度修改、轮询或唤醒锁。
 
@@ -45,7 +62,7 @@ VisualStateCallback 只表示内容可供下一次 onDraw 绘制，语义依据 
 |---|---|
 | 模式 | power 实值、mode、seq、trigger、reason、aodCommand |
 | 身份 | lease 有效性、非原始 token 的 leaseTag、own、sameRoot、associated、center、active、bound |
-| 可见性 | attached、shown、webShown、camera |
+| 可见性 | attached、shown、webShown、cameraPolicy=system-card |
 | WebView | webPauseRequested（本应用请求值，非系统内部状态）、nativeResumed、documentHidden、iframeHidden |
 | 模式投递 | outerApplied、iframeApplied、对应 seq |
 | 绘制 | visualState、draws、native-draw、draw-timeout、presentation=unmeasured |
@@ -58,7 +75,7 @@ VisualStateCallback 只表示内容可供下一次 onDraw 绘制，语义依据 
 ## 自动化与真机矩阵
 
 定向 Vitest 覆盖模式序号、HIDDEN 保留/恢复、晚加载 iframe、滤镜隔离、字幕作用域、既有时间轴/低功耗调度/状态 relay、暂停 Seek 及一小时虚拟时间预算。
-Java 测试覆盖严格门控、NORMAL→DOZE→DOZE_SUSPEND→NORMAL、过渡截止/不可续期、真实失效、相机、显式偏好关闭、快速切换、session token 和日志限频。
+Java 测试覆盖严格门控、NORMAL→DOZE→DOZE_SUSPEND→NORMAL、过渡截止/不可续期、真实失效、显式偏好关闭、快速切换、session token 和日志限频；新增后端相机边界、两次诊断状态重放、十轮虚拟锁屏/电源/充电状态序列，并继续跑 Shizuku 原相机/占用/命令回归。
 具体执行数量与编译结果以交付报告为准；虚拟时间不是一小时设备稳定性/功耗测量。
 
 浏览器验证使用真实 rear-lyrics.html 与合成诊断歌词（904×572），路径为 NORMAL→AOD→HIDDEN→iframe reload→AOD→NORMAL。Browser plugin 不可用，使用现有 Playwright/Chromium。没有 pageerror 或框架 overlay；Service Worker 被测试上下文禁用、Reduced Motion 提示是预期警告。截图不是 Android AOD 的屏幕证据。

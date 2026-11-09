@@ -17,8 +17,8 @@ import java.util.concurrent.Executors;
 /**
  * 应用侧的显示租约；与独立窗口（RearLyricsActivity）互斥，绝不共享同一块背屏。
  *
- * <p>1.3.96：宿主不再是「系统音乐卡片」，所以这里只负责把「听屿要显示」这一件事交给背屏
- * 中心进程，并等待宿主视图的首帧。首个 ready 之前失败/超时都会释放租约并回退独立窗口。
+ * <p>当前 LSP 只把内容交给已经验证的系统音乐卡片，并等待宿主视图的合格首帧。
+ * 相机优先级归系统卡片生命周期决定；失败释放租约，不回退独立 Activity。
  */
 final class RearHostBridge {
     interface Completion { void done(boolean ok,int display,String detail); }
@@ -34,7 +34,7 @@ final class RearHostBridge {
     private static volatile boolean pingAnswered;
     private static int pingGeneration;
     private static volatile String session="",detail=disconnectedReason();
-    private static volatile boolean active,suspended,releasing;
+    private static volatile boolean active,releasing;
     private static volatile String renderMode="HIDDEN";
     private static volatile int display=-1;
     private static int generation;
@@ -45,7 +45,7 @@ final class RearHostBridge {
     private static final RearHostFrameWait frameWait=new RearHostFrameWait();
     static boolean connected(){return service!=null && service.isBinderAlive();}
     static boolean hasSession(){return !session.isEmpty();}
-    static boolean active(){return active && !suspended && !releasing;}
+    static boolean active(){return active && !releasing;}
     static boolean renderSuspended(){return hasSession() && !active && pending==null && !releasing;}
     static boolean pending(){return hasSession() && !active && pending!=null;}
     static String session(){return session;}
@@ -157,7 +157,7 @@ final class RearHostBridge {
                 callback.done(false,-1,detail);
                 return;
             }
-            progress=new RearHostProgress();frameWait.stop();session=UUID.randomUUID().toString();active=false;suspended=false;releasing=false;pending=callback;display=rear;lastProbe=0;
+            progress=new RearHostProgress();frameWait.stop();session=UUID.randomUUID().toString();active=false;releasing=false;pending=callback;display=rear;lastProbe=0;
             final String expected=session;
             transact(RearHostContract.SHOW,expected,false,rear,(ok,id,message)->{
                 if(token!=generation || !matches(expected))return;
@@ -234,11 +234,6 @@ final class RearHostBridge {
             RearLyricsCoordinator.get(context).windowChanged();
         });
     }
-    static void suspend(boolean value){
-        if(!hasSession() || releasing || suspended==value)return;
-        suspended=value;if(value)active=false;final String expected=session;
-        transact(RearHostContract.SUSPEND,expected,value,display,(ok,id,why)->{if(matches(expected)&&!ok)detail=why;});
-    }
     static void pulse(Context context,long now){
         if(!hasSession()||releasing||now-lastProbe<10000)return;lastProbe=now;
         final String expected=session;
@@ -255,7 +250,7 @@ final class RearHostBridge {
         });
     }
     private static void clear(){
-        generation++;session="";active=false;suspended=false;releasing=false;display=-1;
+        generation++;session="";active=false;releasing=false;display=-1;
         frameWait.stop();renderMode="HIDDEN";
         if(timeout!=null)MAIN.removeCallbacks(timeout);
         Completion callback=pending;pending=null;if(callback!=null)callback.done(false,-1,"宿主会话已结束");

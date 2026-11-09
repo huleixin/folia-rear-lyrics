@@ -16,6 +16,9 @@ import java.util.Set;
  * camera session can never release a newer one (same rule as Mi Back Screen's Lend ids).
  */
 final class RearCameraPolicy {
+    /** Only the independent-window backend owns camera handoff; native cards follow Xiaomi. */
+    static boolean monitorRequired(boolean nativeCard,boolean enabled,boolean dismissed){return !nativeCard&&enabled&&!dismissed;}
+    static boolean blocksPresentation(boolean nativeCard,boolean externalOwned){return !nativeCard&&externalOwned;}
     /** Lens-switch gap: one camera closes before the next opens. */
     static final long ENTER_SETTLE_MS = 900;
     /** HyperCamera holds the rear task after closing; resume no earlier than this. */

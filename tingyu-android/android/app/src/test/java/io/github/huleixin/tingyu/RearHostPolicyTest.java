@@ -20,35 +20,35 @@ public class RearHostPolicyTest {
         for(String mode:new String[]{"NORMAL","AOD","HIDDEN"})assertTrue(RearHostPolicy.invalidatesDrawnState("paused",mode));
     }
     @Test public void hiddenInactiveOrOffCardsCannotKeepNativeContentMaskedOutsideTheAodBridge(){
-        assertTrue(RearHostPolicy.retainCardOwnership(true,true,true,false,false,true,2));
-        for(int power:new int[]{0,1,3,4})assertFalse(RearHostPolicy.retainCardOwnership(true,true,true,false,false,true,power));
-        assertFalse(RearHostPolicy.retainCardOwnership(true,true,true,false,false,false,2));
-        assertFalse(RearHostPolicy.retainCardOwnership(true,true,true,true,false,true,2));
-        assertFalse(RearHostPolicy.retainCardOwnership(true,true,true,false,true,true,2));
+        assertTrue(RearHostPolicy.retainCardOwnership(true,true,true,false,true,2));
+        for(int power:new int[]{0,1,3,4})assertFalse(RearHostPolicy.retainCardOwnership(true,true,true,false,true,power));
+        assertFalse(RearHostPolicy.retainCardOwnership(true,true,true,false,false,2));
+        assertTrue(RearHostPolicy.retainCardOwnership(true,true,true,false,true,2));
+        assertFalse(RearHostPolicy.retainCardOwnership(true,true,true,true,true,2));
     }
-    @Test public void powerTransitionsRetainOwnershipButCameraPreferenceAndSessionLossRelease(){
+    @Test public void powerTransitionsRetainOwnershipButPreferenceAndSessionLossRelease(){
         for(int cycle=0;cycle<100;cycle++)for(int power:new int[]{2,3,4,1,0,2}){
-            assertTrue(RearHostPolicy.retainCardOwnership(true,true,true,false,false));
-            RearCardRenderPolicy.Mode mode=RearCardRenderPolicy.mode(true,true,true,false,true,false,power);
+            assertTrue(RearHostPolicy.retainCardOwnership(true,true,true,false));
+            RearCardRenderPolicy.Mode mode=RearCardRenderPolicy.mode(true,true,true,true,false,power);
             assertEquals(power==2?RearCardRenderPolicy.Mode.NORMAL:power==3||power==4?RearCardRenderPolicy.Mode.AOD:RearCardRenderPolicy.Mode.HIDDEN,mode);
         }
-        assertFalse(RearHostPolicy.retainCardOwnership(true,true,true,true,false));
-        assertFalse(RearHostPolicy.retainCardOwnership(true,true,true,false,true));
-        assertFalse(RearHostPolicy.retainCardOwnership(false,true,true,false,false));
-        assertFalse(RearHostPolicy.retainCardOwnership(true,false,true,false,false));
-        assertFalse(RearHostPolicy.retainCardOwnership(true,true,false,false,false));
+        assertTrue(RearHostPolicy.retainCardOwnership(true,true,true,false));
+        assertFalse(RearHostPolicy.retainCardOwnership(true,true,true,true));
+        assertFalse(RearHostPolicy.retainCardOwnership(false,true,true,false));
+        assertFalse(RearHostPolicy.retainCardOwnership(true,false,true,false));
+        assertFalse(RearHostPolicy.retainCardOwnership(true,true,false,false));
     }
     @Test public void nativeNavigationKeepsTheSameLyricFrameAndReturnsWithoutAnotherEnable(){
         for(int trips=0;trips<50;trips++){
-            assertTrue(RearHostPolicy.retainCardOwnership(true,true,true,false,false));
+            assertTrue(RearHostPolicy.retainCardOwnership(true,true,true,false));
             assertFalse(RearHostPolicy.render(true,false,false,true,1,2));
             assertTrue(RearHostPolicy.render(true,false,true,true,1,2));
         }
-        assertFalse(RearHostPolicy.retainCardOwnership(false,true,true,false,false));
-        assertFalse(RearHostPolicy.retainCardOwnership(true,false,true,false,false));
-        assertFalse(RearHostPolicy.retainCardOwnership(true,true,false,false,false));
-        assertFalse(RearHostPolicy.retainCardOwnership(true,true,true,true,false));
-        assertFalse(RearHostPolicy.retainCardOwnership(true,true,true,false,true));
+        assertFalse(RearHostPolicy.retainCardOwnership(false,true,true,false));
+        assertFalse(RearHostPolicy.retainCardOwnership(true,false,true,false));
+        assertFalse(RearHostPolicy.retainCardOwnership(true,true,false,false));
+        assertTrue(RearHostPolicy.retainCardOwnership(true,true,true,false));
+        assertFalse(RearHostPolicy.retainCardOwnership(true,true,true,true));
     }
     @Test public void existingRendererIsReusableRegardlessOfPanelPower(){
         for(int state:new int[]{0,1,2,3,4}){

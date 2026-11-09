@@ -173,12 +173,12 @@ final class RearLyricsCoordinator {
             if (coverSleepEnabled && wanted()) changeSleep(value);
         });
         cameraMonitor = new RearCameraMonitor(context, main, this::cameraChanged);
-        main.post(() -> { watchDisplays(); if (enabled && !dismissed) cameraMonitor.start(); });
+        main.post(() -> { watchDisplays(); syncCameraMonitor(); });
     }
     boolean isEnabled() { return enabled; }
     boolean canChangeBackend() { return !wanted() && !isStarting() && !sleeping && !powerBusy && !closing && !RearHostBridge.hasSession(); }
-    void backendChanged() { main.post(() -> { shell = null; playback.reset(); nextAttempt = 0; nudge(); }); }
-    void lspConnected() { main.post(() -> { if (LspRearBridge.selected(context)) { shell = LspRearBridge.get(); nextAttempt = 0; nextHoldRefresh = 0; nudge(); } }); }
+    void backendChanged() { main.post(() -> { shell = null; playback.reset(); nextAttempt = 0; syncCameraMonitor(); nudge(); }); }
+    void lspConnected() { main.post(() -> { syncCameraMonitor(); if (LspRearBridge.selected(context)) { shell = LspRearBridge.get(); nextAttempt = 0; nextHoldRefresh = 0; nudge(); } }); }
     boolean isStarting() { return closing || pending || hostConnecting || RearHostBridge.pending() || RearLyricsLauncher.isStarting(); }
     boolean wanted() { return RearDisplayPolicy.wanted(playback.wanted(enabled, playing, manual, LspRearBridge.selected(context)),dismissed,rendererFailed); }
     boolean userDismissed() { return dismissed; }
@@ -187,7 +187,7 @@ final class RearLyricsCoordinator {
     /** The active engine decides; callers never ask one machine about the other one's state. */
     private boolean planA() { return RearPlanA.enabled(context); }
     /** True while an external app (a camera) legitimately owns the rear panel. */
-    boolean cameraOwned() { if(RearHostBridge.hasSession() && LspRearBridge.selected(context))return cameraMonitor.blocked();return planA() ? occupancy.externalOwned() : rear.blocksPresentation(); }
+    boolean cameraOwned() { return RearCameraPolicy.blocksPresentation(LspRearBridge.selected(context),planA()?occupancy.externalOwned():rear.blocksPresentation()); }
     /** Presentation (launch / move / wake) is allowed unless a camera owns the panel. */
     boolean canPresent() { return wanted() && !dismissed && !cameraOwned(); }
     boolean cameraSuspended() { return cameraOwned(); }
@@ -215,13 +215,19 @@ final class RearLyricsCoordinator {
 
     // ---------------------------------------------------------------- camera handoff
 
+    /** Register hardware availability only for the backend that owns an independent window. */
+    private void syncCameraMonitor(){
+        if(RearCameraPolicy.monitorRequired(LspRearBridge.selected(context),enabled,dismissed))cameraMonitor.start();
+        else cameraMonitor.stop();
+    }
+
     /**
      * Camera arrival/departure only nudges the state machine; it never decides anything itself.
      * The old build treated this callback as the whole truth, so a camera that kept a stale
      * handle (or never reported one) left the coordinator permanently parked.
      */
     private void cameraChanged(boolean blocked) {
-        if(RearHostBridge.hasSession() && LspRearBridge.selected(context)){RearHostBridge.suspend(blocked);nudge();return;}
+        if(LspRearBridge.selected(context))return; // Includes queued callbacks from the previous backend.
         if (!enabled) { evaluateRear(SystemClock.elapsedRealtime()); return; }
         RearLyricsTrace.record(context, "camera-availability", "blocked=" + blocked + ", " + cameraMonitor.status());
         evaluateRear(SystemClock.elapsedRealtime());
@@ -233,6 +239,7 @@ final class RearLyricsCoordinator {
      * so "the camera left" is never inferred from a single availability edge.
      */
     private void evaluateRear(long now) {
+        if(LspRearBridge.selected(context))return;
         int display = findRearDisplayId(context);
         if (display > 0) { RearLyricsLauncher.rememberRear(context, display); missingRearWakes = 0; }
         if (planA()) { evaluatePlanA(display, now); return; }
@@ -613,6 +620,7 @@ final class RearLyricsCoordinator {
             // LspRearBridge.selected() 为门），这里明确标注，避免把它的 profile 误读成
             // 「两种模式在共享状态」。
             + ", backend=" + (LspRearBridge.selected(context) ? "lsp" : "shizuku")
+            + ", cameraPolicy=" + (LspRearBridge.selected(context) ? "system-card" : "independent-window")
             + ", lsp=" + (LspRearBridge.selected(context) ? LspRearBridge.detail() : "not-selected (module profile unused)")
             + ", panelLease=" + panelLease + ", takeover=" + takeover
             + ", coveredRecovery={" + coveredRecovery + "}"
@@ -812,7 +820,7 @@ final class RearLyricsCoordinator {
             playback.start(playing, SystemClock.elapsedRealtime()); schedulePauseReturn();
             syncCoverMonitor();
             context.getSharedPreferences("rear_lyrics", 0).edit().putBoolean("auto_enabled", true).apply();
-            cameraMonitor.start();
+            syncCameraMonitor();
             int display = rearDisplayForShell();
             evaluateRear(SystemClock.elapsedRealtime());
             if (cameraOwned()) {
@@ -893,13 +901,14 @@ final class RearLyricsCoordinator {
         scheduled = true; main.postDelayed(check, delay);
     }
     private void checkWindow() {
+        syncCameraMonitor();
         io.github.huleixin.tingyu.playback.LyricSyncLedger.get().rearContext(wanted() && !dismissed, cameraOwned(), sleeping || RearHostBridge.renderSuspended());
         if (!wanted()) return;
         long now = SystemClock.elapsedRealtime();
         if(LspRearBridge.selected(context)){
             if(RearLyricsActivity.hasWindow() || RearLyricsActivity.isEnabled()){closeWindow(CloseReason.SWITCH);schedule(2000);return;}
-            if(RearHostBridge.hasSession()){RearHostBridge.suspend(cameraMonitor.blocked());RearHostBridge.pulse(context,now);}
-            else if(!closing && !cameraMonitor.blocked())begin();
+            if(RearHostBridge.hasSession())RearHostBridge.pulse(context,now);
+            else if(!closing)begin();
             schedule(2000);return;
         }
         // 锁屏跳变 → 0/5/60 秒三次快照。放在这里是因为它对两种后端都成立，且不依赖 Activity。
@@ -1209,6 +1218,7 @@ final class RearLyricsCoordinator {
     }
 
     private void inspectFront(int display, long now) {
+        if(LspRearBridge.selected(context))return;
         // Camera ownership must be observable even while our own window is absent, so the
         // session guard only applies to the occlusion logic inside the callback.
         if (display < 0 || probing || pending || RearLyricsLauncher.isStarting() || now - lastProbe < 2000
@@ -1217,6 +1227,7 @@ final class RearLyricsCoordinator {
         String session = RearLyricsActivity.currentSession();
         RearLyricsLauncher.inspectFront(shell, display, summary -> main.post(() -> {
             probing = false;
+            if(LspRearBridge.selected(context))return;
             RearLyricsTaskList.Evidence evidence = RearLyricsTaskList.parse(summary, display);
             // Plan A decides on this evidence; keep the whole look, not just the camera flags.
             this.evidence = evidence;

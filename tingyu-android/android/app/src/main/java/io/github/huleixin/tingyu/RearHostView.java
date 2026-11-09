@@ -56,7 +56,7 @@ final class RearHostView {
     private RearHostWebClient client;
     private ContentObserver updates;
     private DisplayManager displays;
-    private boolean ready, readyReported, shown, renderPaused, resumed = true, suspended, aod, closed;
+    private boolean ready, readyReported, shown, renderPaused, resumed = true, aod, closed;
     private long loadStartedAt;
     private final Runnable preparationTimeout=this::freezePreparation;
     private void freezePreparation(){if(!closed&&!ready&&!shown){pauseRenderer();events.report(session,"prepared-idle",displayId(),"hidden stage preparation budget reached; paused until system selects this own card, no ownership acquired");}}
@@ -244,8 +244,6 @@ final class RearHostView {
 
     void aod(boolean value){if(!closed){aod=value;reconcile("aod-command");}}
 
-    void suspended(boolean value) { if (!closed) { suspended = value; reconcile("camera-command"); } }
-
     /** 应用侧 PROBE / 心跳：重新核对一次可见性，不重建任何东西。 */
     void refresh() { if (!closed) reconcile("binding-or-probe"); }
 
@@ -277,7 +275,7 @@ final class RearHostView {
         }
         RearCardRenderPolicy.Decision decision=transition.resolve(events.current(session),own,binding.associated,
             binding.center,binding.active,stage.isAttachedToWindow()&&card.container.isAttachedToWindow(),
-            card.container.isShown(),card.owned(),suspended,preference.enabled(),aod,panelState(),android.os.SystemClock.elapsedRealtime());
+            card.container.isShown(),card.owned(),preference.enabled(),aod,panelState(),android.os.SystemClock.elapsedRealtime());
         main.removeCallbacks(transitionTimeout);
         if(decision.remainingMs>0)main.postDelayed(transitionTimeout,decision.remainingMs);
         boolean recovered="verified-aod-transition".equals(decisionReason)&&"current-card".equals(decision.reason);
@@ -306,7 +304,7 @@ final class RearHostView {
         String key=event+"|"+mode+"|"+panelState()+"|"+trigger+"|"+b.center+"|"+b.active+"|"+b.bound+"|"+card.container.isShown()+"|"+card.owned()+"|"+renderPaused+"|"+preference.status()+"|"+detail;
         if(!evidenceGate.allow(key,android.os.SystemClock.uptimeMillis()))return;
         events.report(session,"web-stage",displayId(),"aod/"+event+", trigger="+trigger+", reason="+decisionReason+", power="+panelState()
-            +", mode="+mode+", seq="+modeEpoch+", aodCommand="+aod+", camera="+suspended+", lease="+events.current(session)+", center="+b.center+", active="+b.active+", bound="+b.bound+", associated="+b.associated
+            +", mode="+mode+", seq="+modeEpoch+", aodCommand="+aod+", cameraPolicy=system-card, lease="+events.current(session)+", center="+b.center+", active="+b.active+", bound="+b.bound+", associated="+b.associated
             +", attached="+stage.isAttachedToWindow()+", shown="+card.container.isShown()+", webShown="+renderer.isShown()
             +", own="+card.ownMedia()+", sameRoot="+card.sameRoot()+", owned="+card.owned()+", webPauseRequested="+renderPaused+", webResumeEpoch="+resumeEpoch+", nativeResumed="+resumed
             +", preference="+preference.status()+", iframeApplied="+iframeApplied+", visualState="+visualStateReady+", draws="+drawCount
@@ -376,14 +374,14 @@ final class RearHostView {
         int power=panelState();
         boolean systemAod=!preference.enabled()&&(aod||power==Display.STATE_DOZE||power==Display.STATE_DOZE_SUSPEND);
         boolean retain=RearHostPolicy.retainCardOwnership(events.current(session),card.ownMedia()&&card.binding.associated(),
-            stage.isAttachedToWindow()&&card.sameRoot(),suspended,systemAod,card.binding.current()&&card.container.isShown(),power);
+            stage.isAttachedToWindow()&&card.sameRoot(),systemAod,card.binding.current()&&card.container.isShown(),power);
         boolean retainFrame=retain&&power==Display.STATE_ON&&!aod;
         if(!retain)card.restore();
         boolean was = shown;
         shown = false;
         if (!retainFrame && stage.getVisibility() != View.INVISIBLE) stage.setVisibility(View.INVISIBLE);
         // Hidden preparation is bounded, and only permitted while the physical panel is already ON.
-        if(ready||power!=Display.STATE_ON||suspended||!events.current(session))pauseRenderer();
+        if(ready||power!=Display.STATE_ON||!events.current(session))pauseRenderer();
         if (was) events.report(session, "paused", displayId(), reason+"; ownershipRetained="+retain+", frozenFrame="+retainFrame+", power="+power+"; display session unchanged");
     }
 
