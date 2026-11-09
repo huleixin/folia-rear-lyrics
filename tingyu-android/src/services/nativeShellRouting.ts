@@ -24,10 +24,11 @@ export function installNativeShellRouting() {
     if(!NATIVE_FIRST||installed)return;installed=true;
     const generation=newChromeGeneration();let revision=0,last='',lastRoute='',navigationRevision=0;
     const publish=()=>{
-        const view=useAppViewStore.getState(),settings=useSettingsModalStore.getState().settingsModalState;
+        const view=useAppViewStore.getState(),settingsState=useSettingsModalStore.getState(),settings=settingsState.settingsModalState;
         const stack=useCollectionNavigationStore.getState().snapshot?.stack;
         const search=useSearchNavigationStore.getState().isSearchOpen,collection=!!stack?.length;
         const index=settings.initialTab==='options'&&!settings.initialSubview&&!settings.initialAnchor&&!settings.initialVisualizerSection;
+        const settingsRoot=settings.isOpen&&!settingsState.isSubSettingsViewOpen;
         const {route,selectedTab}=nativeShellRoute({settingsOpen:settings.isOpen,settingsIndex:index,searchOpen:search,
             collectionOpen:collection,view:view.view,libraryPage:useMobileLibraryStore.getState().page});
         if(!canPublishNativeStage(route,document.querySelector('[data-folia-app-shell]'),composeMinimalOwnsSurface()))return;
@@ -48,18 +49,18 @@ export function installNativeShellRouting() {
         // 集合详情（非歌手）按页面层级判定：route==='collection' 即栈内有集合页。
         // 歌手页维持自身产品规则（全隐藏，与 WebView data-artist-detail 一致）。
         const collectionDetail=route==='collection'&&stack?.at(-1)?.type!=='artist';
-        const routeKey=JSON.stringify({route,selectedTab,pageTarget,entryKey});
+        const routeKey=JSON.stringify({route,selectedTab,pageTarget,entryKey,settingsRoot});
         if(routeKey!==lastRoute){lastRoute=routeKey;document.documentElement.dataset.nativeNavigation=`${generation}:${++navigationRevision}`;document.dispatchEvent(new Event('tingyu-native-navigation'));}
         const navigation=document.documentElement.dataset.nativeNavigation??'';
         const minimalPage=usePlayerViewModeStore.getState().page;
         // 「极简歌词页常亮」的开关值随 shell 包下发；页面状态由宿主自己判断。
         const minimalLyricsKeepOn=useAndroidLayoutSettingsStore.getState().minimalLyricsKeepOnEnabled;
-        const key=JSON.stringify({route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,collectionDetail,playerPresentation,minimalPage,minimalLyricsKeepOn});if(key===last)return;last=key;
+        const key=JSON.stringify({route,webOverlay,selectedTab,pageTarget,entryKey,settingsRoot,reducedMotion,collectionDetail,playerPresentation,minimalPage,minimalLyricsKeepOn});if(key===last)return;last=key;
         navigationMark('route-publish');
         const sent=++revision;
         const leavingStage=document.documentElement.dataset.nativeRoute==='stage'&&route!=='stage';
         if(!leavingStage)document.documentElement.dataset.nativeRoute=route;
-        void nativePages.shell({generation,revision:sent,route,webOverlay,selectedTab,pageTarget,entryKey,reducedMotion,navigation,collectionDetail,playerPresentation,minimalPage,minimalLyricsKeepOn}).then(()=>{
+        void nativePages.shell({generation,revision:sent,route,webOverlay,selectedTab,pageTarget,entryKey,settingsRoot,reducedMotion,navigation,collectionDetail,playerPresentation,minimalPage,minimalLyricsKeepOn}).then(()=>{
             if(sent===revision)document.documentElement.dataset.nativeRoute=route;
         }).catch(error=>console.warn('[NativeShell] Route update failed',error));
     };

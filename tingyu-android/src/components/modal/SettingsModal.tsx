@@ -1169,7 +1169,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         || showLyricFilterSettings
         || showGlobalLyricOffset
         || showAiHelpPrompt
-        || showReleaseNotes;
+        || showReleaseNotes
+        || showStageTheme;
+    const isSettingsIndexRoot = activeTab === 'options' && mobileSettingsIndex
+        && !mobileRearGuide && !isAnySubviewOpen;
 
     const closeAllSubviews = () => {
         if (shouldCloseModalOnSubviewBack) {
@@ -1214,12 +1217,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     }, [isAnySubviewOpen, showStageTheme, shouldCloseModalOnSubviewBack, onClose, isMobileSettings, activeTab, mobileSettingsIndex]);
 
     useEffect(() => {
-        setIsSubSettingsViewOpen(isAnySubviewOpen);
-
-        return () => {
-            setIsSubSettingsViewOpen(false);
-        };
-    }, [isAnySubviewOpen, setIsSubSettingsViewOpen]);
+        // Route depth is shared with the native footer. A category/help/editor page is
+        // secondary even when it is not one of the standalone preview subviews.
+        setIsSubSettingsViewOpen(!isSettingsIndexRoot);
+    }, [isSettingsIndexRoot, setIsSubSettingsViewOpen]);
 
     const visualizerModeOptions = VISUALIZER_REGISTRY.map(entry => ({
         mode: entry.mode,

@@ -9,17 +9,23 @@ package io.github.huleixin.tingyu.chrome
 //   设置主页            → 只有导航（迷你条退场，但播放不中断）
 //   歌单详情（非歌手）   → 只有迷你条
 //   设置二/三级、舞台     → 都不显示
-// 这里只回答「这个路由**允许**画哪一条」。设置二级页由 JS 侧 active=false 关掉
-// （isSubSettingsViewOpen），原生不再二次判断层级——层级知识只有 JS 有。
+// 这里只回答「这个路由**允许**画哪一条」。设置页用原生已提交的 pageTarget 判断层级，
+// 避免 JS 清理/effect 时序漏掉二级页，或在返回时多发一帧底栏。
 internal object NativeFooterLayout {
-    fun visible(id:String,route:String,detail:Boolean,width:Float,artist:Boolean=false):Boolean = when {
+    const val SettingsDepthExitMs = 220
+    const val SettingsDepthOffsetDp = 14f
+
+    fun settingsRoot(route:String,pageTarget:String,requested:Boolean=true):Boolean = requested&&route=="settings"&&pageTarget=="settings:index"
+
+    fun visible(id:String,route:String,detail:Boolean,width:Float,artist:Boolean=false,settingsRoot:Boolean=true):Boolean = when {
         route=="collection"&&artist -> false
         else -> when(id){
         "stage"->route=="stage"
         "nav"->when(route){
             "home"->true
             "collection"->!detail||width>=840f
-            "search","settings"->true
+            "search"->true
+            "settings"->settingsRoot
             else->false
         }
         // 设置页不显示迷你条；歌单详情反而保留它。

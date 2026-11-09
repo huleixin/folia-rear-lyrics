@@ -17,8 +17,8 @@ class NativeFooterLayoutTest {
      * 一级页面底部行为统一（2026-11-09）。
      *
      * 推荐 / 资料库 / 搜索 → 导航 + 迷你条；设置主页 → 只有导航；歌单详情 → 只有迷你条；
-     * 舞台 / web / 设置二级页（JS 侧 active=false）→ 都没有。
-     * 这里钉的是**原生允许画哪一条**；设置二级页由 JS 的 isSubSettingsViewOpen 关掉 active。
+     * 舞台 / web / 设置二级页（settingsRoot=false）→ 都没有。
+     * 设置页层级由壳层状态显式下发，NativeFooterLayout 再用 pageTarget 做根页校验。
      */
     @Test fun oneLevelPagesFollowTheSameFooterMatrix(){
         val w=393f
@@ -29,6 +29,7 @@ class NativeFooterLayoutTest {
         // 设置主页：导航保留，迷你条退出。
         assertTrue(NativeFooterLayout.visible("nav","settings",false,w))
         assertFalse(NativeFooterLayout.visible("mini","settings",false,w))
+        assertFalse(NativeFooterLayout.visible("nav","settings",false,w,settingsRoot=false))
         // 歌单详情（手机）：导航收起、迷你条上提保留；宽屏保留侧边导航。
         assertFalse(NativeFooterLayout.visible("nav","collection",true,393f))
         assertTrue(NativeFooterLayout.visible("mini","collection",true,393f))
@@ -41,6 +42,17 @@ class NativeFooterLayoutTest {
         // 舞台控制条只在舞台。
         assertTrue(NativeFooterLayout.visible("stage","stage",false,w))
         assertFalse(NativeFooterLayout.visible("stage","search",false,w))
+    }
+    @Test fun settingsNavigationOnlyBelongsToTheOptionsIndex(){
+        assertTrue(NativeFooterLayout.settingsRoot("settings","settings:index",true))
+        assertFalse(NativeFooterLayout.settingsRoot("settings","settings:index",false))
+        assertFalse(NativeFooterLayout.settingsRoot("settings","settings:rear:control",true))
+        assertFalse(NativeFooterLayout.settingsRoot("settings","settings:document:help:about",true))
+        assertFalse(NativeFooterLayout.settingsRoot("home","settings:index",true))
+        assertFalse(NativeFooterLayout.visible("nav","settings",false,393f,settingsRoot=false))
+        assertFalse(NativeFooterLayout.visible("mini","settings",false,393f,settingsRoot=false))
+        assertEquals(220,NativeFooterLayout.SettingsDepthExitMs)
+        assertEquals(14f,NativeFooterLayout.SettingsDepthOffsetDp,0f)
     }
     @Test fun stageGeometryIsIndependentOfHiddenHtmlAnimationPoses(){
         val stage=NativeFooterLayout.rect("stage",393f,852f,30f,22f,false)

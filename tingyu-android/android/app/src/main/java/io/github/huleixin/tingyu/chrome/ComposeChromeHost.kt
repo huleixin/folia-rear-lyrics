@@ -299,6 +299,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // model arrives; never replay a boot/index screen during ordinary navigation.
     }
     private var destination by mutableStateOf("home")
+    private var settingsRootRequested by mutableStateOf(false)
     private var webOverlay by mutableStateOf(false)
     private var selectedTab by mutableIntStateOf(0)
     private var collectionDetail by mutableStateOf(false)
@@ -372,6 +373,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         }
         minimalLyricsKeepOnEnabled=value.optBoolean("minimalLyricsKeepOn")
         destination=next;webOverlay=value.optBoolean("webOverlay");selectedTab=value.optInt("selectedTab").coerceIn(0,1)
+        settingsRootRequested=value.optBoolean("settingsRoot",false)
         StartupTrace.detail("route-commit"){
             put("from",from);put("to",next);put("overlay",webOverlay);put("tab",selectedTab)
             put("presentation",playerPresentation);put("pendingStageEntry",pendingStageEntry)
@@ -394,6 +396,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // 二级面板跟着它所属的页面走：路由一变就收起。面板里的动作对象（歌曲、集合）
         // 属于上一页的上下文，继续挂着只会让用户点到一个已经失效的目标。
         if(routeChanged && panelHost.panel != null) panelHost.dismissFromHost()
+        if(routeChanged && supportSheet != null) supportSheet = null
         syncWebBackground()
         pageTarget=value.optString("pageTarget");entryKey=value.optString("entryKey");reducedMotion=value.optBoolean("reducedMotion")
         navigation=value.optString("navigation")
@@ -645,14 +648,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         //     提前抽掉它们就是真机上看到的「首页跳位」。
         val composeOwnsMinimalEntry = minimalPlayerEnabled() && destination=="stage" &&
             playerPresentation=="minimal" && !stageAboveMinimal && !webOverlay
+        val settingsRoot = NativeFooterLayout.settingsRoot(destination,pageTarget,settingsRootRequested)
         // pendingStageEntry 不再抽走底栏：极简入场时它们会被页面自然覆盖；
         // 经典 WebView 舞台入场仍在 commit 时按路由规则收起。
         val visible = if (!webOverlay&&(!pendingStageEntry||minimalPlayerEnabled())) surfaces.values.filter {
             it.enabled && NativeFooterLayout.visible(
                 it.id,
                 if(composeOwnsMinimalEntry&&it.id!="stage")(page?.id?:"home") else destination,
-                collectionDetail,it.viewportWidth,
-                pageTarget.startsWith("collection:artist:")) &&
+                collectionDetail,it.viewportWidth,artist=pageTarget.startsWith("collection:artist:"),settingsRoot=settingsRoot) &&
                 (it.id!="stage"||it.rect.width>0&&it.rect.height>0) &&
                 !(composeOwnsMinimalEntry&&it.id=="stage")
         } else emptyList()
@@ -682,9 +685,20 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 density = density.density,
             )
             val footerHiddenForIme=imeAnimating||keyboardPx>0f
+            var lastSettingsNav by remember { mutableStateOf<ChromeSurface?>(null) }
+            val settingsNavAlpha by animateFloatAsState(
+                targetValue=if(destination=="settings"&&!settingsRoot)0f else 1f,
+                animationSpec=tween(if(reducedMotion)0 else NativeFooterLayout.SettingsDepthExitMs),
+                label="settings-nav-depth-alpha",
+            )
+            val settingsNavOffset by animateFloatAsState(
+                targetValue=if(destination=="settings"&&!settingsRoot)NativeFooterLayout.SettingsDepthOffsetDp else 0f,
+                animationSpec=tween(if(reducedMotion)0 else NativeFooterLayout.SettingsDepthExitMs),
+                label="settings-nav-depth-offset",
+            )
             val pageFooterTops=if(footerHiddenForIme)emptyList()else listOf("nav","mini").mapNotNull{id->
                 val hasSurface=visible.any{it.id==id}||ChromeBootSeed.shouldSeed(id,destination,firstHomeFrame,webOverlay,liveChrome)
-                if(hasSurface&&NativeFooterLayout.visible(id,destination,collectionDetail,width))
+                if(hasSurface&&NativeFooterLayout.visible(id,destination,collectionDetail,width,settingsRoot=settingsRoot))
                     chromeFooterRect(id,width,height,safeTop,safeBottom,density.density,keyboardPx,collectionDetail).top*density.density
                 else null
             }
@@ -837,16 +851,17 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 val seeded = remember("seed",id,live,width,height,safeBottom,safeTop,selectedTab,startupSelected,firstHomeFrame,destination,webOverlay,collectionDetail) {
                     if(live!=null) null
                     else if(ChromeBootSeed.shouldSeed(id,destination,firstHomeFrame,webOverlay,liveChrome) &&
-                        NativeFooterLayout.visible(id,destination,collectionDetail,width))
+                        NativeFooterLayout.visible(id,destination,collectionDetail,width,settingsRoot=settingsRoot))
                         cache.chrome(id,width,height,safeBottom,safeTop).let{if(id=="nav")it.copy(selected=startupSelected?:selectedTab)else it}
                     else null
                 }
                 // 两路数据里最多只有一个存在：live 优先，缺席时才用 seed；都没有就不画。
-                val original = live ?: seeded
+                val original = live ?: seeded ?: if(id=="nav"&&destination=="settings")lastSettingsNav else null
                 if (original != null) {
+                if(id=="nav"&&live!=null)SideEffect{lastSettingsNav=live}
                 val navSelection=startupSelected?:when(destination){"search"->2;"settings"->3;else->selectedTab.coerceIn(0,1)}
                 val surface = remember(original,interfaceLight){original.interfacePaint(interfaceLight)}
-                    .let{if(id=="nav")it.copy(selected=navSelection,disabled=footerHiddenForIme||live!=null&&it.disabled)else it}
+                    .let{if(id=="nav")it.copy(selected=navSelection,disabled=footerHiddenForIme||live!=null&&it.disabled||destination=="settings"&&!settingsRoot)else it}
                 // seed 与 live 共用同一个定位入口，而且**只在 dp 空间里算一次**：JS 的 innerWidth
                 // 是整数（375），真实 dp 宽是 375.38，走 CSS px × scale 会让交接时整条底栏
                 // 上台 0.8dp（23:02 报告实测）。现在两路只有 density 一个比例，矩形逐位相同。
@@ -868,9 +883,18 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 val placement = Modifier.zIndex(2f)
                     .offset { IntOffset(with(density){rect.left.dp.roundToPx()},with(density){animatedY.dp.roundToPx()}) }
                     .size(rect.width.dp,rect.height.dp)
-                    .graphicsLayer { alpha = if(id!="stage"&&footerHiddenForIme)0f else rect.alpha * if(id=="mini") miniFade else 1f }
+                    .graphicsLayer {
+                        alpha = when {
+                            id!="stage"&&footerHiddenForIme -> 0f
+                            id=="mini" -> rect.alpha * miniFade
+                            id=="nav"&&destination=="settings" -> rect.alpha * settingsNavAlpha
+                            else -> rect.alpha
+                        }
+                        if(id=="nav"&&destination=="settings")translationY=with(density){settingsNavOffset.dp.toPx()}
+                    }
                     val actions: (String,Double)->Unit = actions@ { action,value ->
                         if(id!="stage"&&footerHiddenForIme)return@actions
+                        if(id=="nav"&&destination=="settings"&&!settingsRoot)return@actions
                         // seed 不是 live 控制条：只接受「启动期导航」与「睡眠菜单」这两条安全动作，
                         // 缓存快照绝不触发业务命令（其余一律丢弃）。
                         if (live == null) {
@@ -896,6 +920,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             if(surface.id=="nav"&&action=="navigate"){
                                 navigationActionSerial++;clearStartupNavigation()
                                 destination=when(value.toInt()){2->"search";3->"settings";else->"home"}
+                                settingsRootRequested=destination=="settings"
                                 syncWebBackground()
                                 if(value.toInt() in 0..1)selectedTab=value.toInt()
                                 pageTarget=if(destination=="settings")"settings:index"else"";entryKey=pageTarget;resolvePage()
@@ -1081,7 +1106,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 MiniSleepMenu(sleepUi,sleepAnchor,safeTop,interfaceLight,backdrop,
                     preferredMinutes=surfaces["mini"]?.sleepPreferredMinutes?:30,reduced=reducedMotion){sleepMenuOpen=false}
             }
-            supportSheet?.let{kind->SupportSheets(kind,supportCopyJson){supportSheet=null}}
+            SupportSheetLayer(supportSheet,supportCopyJson,interfaceLight){supportSheet=null}
             // 二级操作面板：盖在底栏/迷你播放器/极简页之上，任何路由都可呈现。
             TyPanelLayer(panelHost,interfaceLight,Modifier.fillMaxSize().zIndex(9f))
             }

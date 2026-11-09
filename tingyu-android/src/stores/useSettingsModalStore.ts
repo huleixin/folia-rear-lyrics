@@ -94,6 +94,7 @@ export const useSettingsModalStore = create<SettingsModalUiState>((set, get) => 
     setIsUserGuideModalOpen: (isOpen) => set({ isUserGuideModalOpen: isOpen }),
     setIsSubSettingsViewOpen: (open) => set({ isSubSettingsViewOpen: open }),
     openSettings: (initialTab = 'help', initialSubview = null, initialVisualizerSection = null, initialAnchorId = null) => set({
+        isSubSettingsViewOpen: !(initialTab === 'options' && initialSubview === null && initialVisualizerSection === null && initialAnchorId === null),
         settingsModalState: {
             isOpen: true,
             initialTab,
@@ -113,10 +114,10 @@ export const useSettingsModalStore = create<SettingsModalUiState>((set, get) => 
         set({settingsModalState:{...state,isOpen:false},isSubSettingsViewOpen:false});
         flushNativeShellRoute();
     },
-    openSettingsFromIndex: (section) => set({settingsModalState:{isOpen:true,initialTab:section==='help'?'help':'options',initialSubview:section==='help'?null:section,
+    openSettingsFromIndex: (section) => set({isSubSettingsViewOpen:true,settingsModalState:{isOpen:true,initialTab:section==='help'?'help':'options',initialSubview:section==='help'?null:section,
         initialVisualizerSection:null,initialAnchor:null,returnToIndex:true,origin:get().settingsModalState.isOpen?get().settingsModalState.origin:settingsOrigin()}}),
     returnSettingsToIndex: () => {get().openSettings('options');},
-    openRearSettings:(rearPage='control')=>set({settingsModalState:{isOpen:true,initialTab:'options',initialSubview:null,initialAnchor:null,initialVisualizerSection:null,returnToIndex:true,rearPage}}),
+    openRearSettings:(rearPage='control')=>set({isSubSettingsViewOpen:true,settingsModalState:{isOpen:true,initialTab:'options',initialSubview:null,initialAnchor:null,initialVisualizerSection:null,returnToIndex:true,rearPage}}),
     handleSetAppLanguagePreference: async (preference) => {
         await applyAppLanguagePreference(preference);
         set({ appLanguagePreference: preference });

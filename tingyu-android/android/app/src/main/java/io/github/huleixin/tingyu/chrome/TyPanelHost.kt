@@ -125,26 +125,39 @@ internal fun TyPanelLayer(
     var lastPanel by androidx.compose.runtime.remember { mutableStateOf<TyPanel?>(null) }
     androidx.compose.runtime.LaunchedEffect(current) { if (current != null) lastPanel = current }
     val visible = current != null
-    // 菜单自带焦点弹层，遮罩仍是必需的：点空白关闭 + 挡住下层点击。
-    TyPanelScrim(visible = visible, light = light) { host.dismissFromUser() }
-    AnimatedVisibility(
-        visible = visible,
-        enter = TyPanelMotion.Enter,
-        exit = TyPanelMotion.Exit,
-        modifier = modifier,
-    ) {
+    TyPanelOverlay(visible, light, modifier, onClose = { host.dismissFromUser() }) {
         lastPanel?.let { panel ->
-            Box(Modifier.fillMaxSize().zIndex(1f)) {
-                TyPanelHostView(
-                    panel = panel,
-                    light = light,
-                    onAction = { action, text, value ->
-                        // 关闭类动作先本地收起，避免"确认删除后面板还挂在那里等网络"。
-                        host.dispatch(action, text, value)
-                    },
-                    onClose = { host.dismissFromUser() },
-                )
-            }
+            TyPanelHostView(
+                panel = panel,
+                light = light,
+                onAction = { action, text, value ->
+                    // 关闭类动作先本地收起，避免"确认删除后面板还挂在那里等网络"。
+                    host.dispatch(action, text, value)
+                },
+                onClose = { host.dismissFromUser() },
+            )
+        }
+    }
+}
+
+/** Shared host layer for native sheets: owns the scrim, stacking, and enter/exit motion. */
+@Composable
+internal fun TyPanelOverlay(
+    visible: Boolean,
+    light: Boolean,
+    modifier: Modifier = Modifier,
+    onClose: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    Box(modifier.fillMaxSize().zIndex(9f)) {
+        TyPanelScrim(visible = visible, light = light, onClose = onClose)
+        AnimatedVisibility(
+            visible = visible,
+            enter = TyPanelMotion.Enter,
+            exit = TyPanelMotion.Exit,
+            modifier = Modifier.fillMaxSize().zIndex(1f),
+        ) {
+            Box(Modifier.fillMaxSize()) { content() }
         }
     }
 }

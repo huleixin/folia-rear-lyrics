@@ -44,15 +44,25 @@ it('retains an explicit display preference chosen inside settings',()=>{
 });
 it('rear control and advanced navigation reuse settings state and never leak into a later section',()=>{
  const store=useSettingsModalStore;store.getState().openRearSettings();expect(store.getState().settingsModalState).toMatchObject({isOpen:true,initialTab:'options',initialSubview:null,rearPage:'control'});
+ expect(store.getState().isSubSettingsViewOpen).toBe(true);
  store.getState().openRearSettings('advanced');expect(store.getState().settingsModalState.rearPage).toBe('advanced');
- store.getState().returnSettingsToIndex();expect(store.getState().settingsModalState.rearPage).toBeUndefined();
- store.getState().openRearSettings('diagnostics');store.getState().openSettingsFromIndex('storage');expect(store.getState().settingsModalState.rearPage).toBeUndefined();
+ store.getState().returnSettingsToIndex();expect(store.getState().settingsModalState.rearPage).toBeUndefined();expect(store.getState().isSubSettingsViewOpen).toBe(false);
+ store.getState().openRearSettings('diagnostics');store.getState().openSettingsFromIndex('storage');expect(store.getState().settingsModalState.rearPage).toBeUndefined();expect(store.getState().isSubSettingsViewOpen).toBe(true);
 });
 it('records index entry atomically and clears the section on return',()=>{
     const store=useSettingsModalStore;store.getState().openSettingsFromIndex('playback');
     expect(store.getState().settingsModalState).toMatchObject({initialSubview:'playback',returnToIndex:true});
+    expect(store.getState().isSubSettingsViewOpen).toBe(true);
     store.getState().returnSettingsToIndex();expect(store.getState().settingsModalState).toMatchObject({initialTab:'options',initialSubview:null});
+    expect(store.getState().isSubSettingsViewOpen).toBe(false);
     expect(store.getState().settingsModalState.returnToIndex).not.toBe(true);
+});
+it('tracks only the options landing page as the settings navigation root',()=>{
+ const store=useSettingsModalStore;
+ store.getState().openSettings('options');expect(store.getState().isSubSettingsViewOpen).toBe(false);
+ store.getState().openSettings('help');expect(store.getState().isSubSettingsViewOpen).toBe(true);
+ store.getState().openSettingsFromIndex('help');expect(store.getState().isSubSettingsViewOpen).toBe(true);
+ store.getState().returnSettingsToIndex();expect(store.getState().isSubSettingsViewOpen).toBe(false);
 });
 it('does not retain index return semantics when opened directly from stage',()=>{
     const store=useSettingsModalStore;store.getState().openSettingsFromIndex('general');

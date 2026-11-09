@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -99,6 +100,14 @@ internal fun parseSupportCopy(json: String?): SupportCopy {
     when (kind) {
         "coffee" -> SupportCoffeeSheet(copy, onDismiss)
         "group" -> SupportGroupSheet(copy, onDismiss)
+    }
+}
+
+@Composable internal fun SupportSheetLayer(kind: String?, copyJson: String?, light: Boolean, onDismiss: () -> Unit) {
+    var lastKind by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(kind) { if (kind != null) lastKind = kind }
+    TyPanelOverlay(visible = kind != null, light = light, onClose = onDismiss) {
+        lastKind?.let { SupportSheets(it, copyJson, onDismiss) }
     }
 }
 
