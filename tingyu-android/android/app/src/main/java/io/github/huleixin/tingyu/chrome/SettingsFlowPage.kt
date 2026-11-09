@@ -94,34 +94,36 @@ internal fun SettingsFlowPage(
             }
             TyTopGlassSurface(glass, colors)
             // 顶栏清晰层：返回 + 标题。绘制在玻璃之上，只吃自己的点击。
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(start = inset - 8.dp, end = inset, top = (page.safeTop + 14).dp, bottom = 12.dp)
-                    .heightIn(min = 44.dp)
-                    .onGloballyPositioned { glass.reportHeader(it.positionInWindow().y, it.size.height) },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
+            TyTopGlassForeground {
+                Row(
                     Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(999.dp))
-                        .semantics { contentDescription = "返回" }
-                        .chromeClickable(role = Role.Button, scaleTo = .94f) { action("back", "", 0.0) },
-                    contentAlignment = Alignment.Center,
+                        .fillMaxWidth()
+                        .padding(start = inset - 8.dp, end = inset, top = (page.safeTop + 14).dp, bottom = 12.dp)
+                        .heightIn(min = 44.dp)
+                        .onGloballyPositioned { glass.reportHeader(it.positionInWindow().y, it.size.height) },
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    PageIcon("chevron-left", theme.text, Modifier.size(24.dp))
+                    Box(
+                        Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(999.dp))
+                            .semantics { contentDescription = "返回" }
+                            .chromeClickable(role = Role.Button, scaleTo = .94f) { action("back", "", 0.0) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        PageIcon("chevron-left", topGlassForegroundColor(theme.text, TyTopGlass.LightInk), Modifier.size(24.dp))
+                    }
+                    Text(
+                        flow.title.ifBlank { page.title },
+                        color = topGlassForegroundColor(theme.text, TyTopGlass.LightInk),
+                        fontSize = 19.sp,
+                        lineHeight = 25.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = 4.dp).weight(1f),
+                    )
                 }
-                Text(
-                    flow.title.ifBlank { page.title },
-                    color = theme.text,
-                    fontSize = 19.sp,
-                    lineHeight = 25.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(start = 4.dp).weight(1f),
-                )
             }
         }
     }

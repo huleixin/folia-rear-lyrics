@@ -1,7 +1,28 @@
 # UI_TEST_MATRIX — 测试与验收矩阵
 
-> 所有「通过/失败」均为真实执行结果（2026-11-08，基线 commit `1745121` + 设计系统阶段 B 提交）。
+> 所有「通过/失败」均为真实执行结果。§0 为 2026-11-09 顶栏专项；§1 保留 2026-11-08 历史基线记录。
 > 「待真机验证」项不得标记为通过。
+
+## 0. 顶栏可读性专项（2026-11-09）
+
+源码基线：main `f85d70a7c33390a256a0b232b4cc5741e5717d00`，版本 1.3.190 / 213。
+本次不运行全量 Vitest，不把下方历史全量结果当作本次结论。
+本机使用 Node 24、JDK 21、现有 Android SDK；Kotlin/Compose/AGP/Haze 声明均未修改。
+`npm ci` 被基线 lock 中 node-forge/once/resolve-path 的依赖不一致阻塞，
+本次以 `npm install --package-lock=false --ignore-scripts --no-audit --no-fund` 准备本地工具，
+不修改 package.json/package-lock.json；因此 JS 验证环境使用 semver 范围解析结果，非严格 lock 复现。
+
+| 检查 | 命令 | 本次结果 |
+|---|---|---|
+| Token、Haze 结构、页面归属定向门禁 | `npm run test:unit -- test/unit/ui/designTokenParity.test.ts test/unit/ui/topGlassBarContract.test.ts test/unit/architecture/androidPageOwnership.test.ts` | ✅ 3 文件，44/44 通过 |
+| TypeScript | `npm run typecheck` | ✅ 通过 |
+| 网页构建与 Android 同步 | `npm run cap:sync:android` | ✅ 通过；资源指纹与反馈浮层检查通过 |
+| Kotlin 编译与数学测试 | `gradlew.bat :app:testDebugUnitTest --tests io.github.huleixin.tingyu.chrome.TopGlassMathTest`（在 android 目录执行） | ✅ 主源码编译及单测通过，7/7，0 跳过 |
+| 真机视觉/交互/性能 | 推荐封面、资料库密集文字和封面、搜索/键盘、设置、歌单详情，均含深浅色；8 项页面操作及帧耗时对比 | **待真机验证**：`adb devices` 无设备，未声称视觉或性能通过 |
+
+测试保留并加强跨端一致性、参数范围、单管线/单 mask、清晰层顺序与高度保护。
+Kotlin 新增不同密度蒙版与极端封面下浅色前景 ≥4.5:1 的合成数学验证，不能替代 GPU 渲染验证。
+逐场景验收项见 [TOP_GLASS_BAR.md §6.1](./TOP_GLASS_BAR.md#61-可读性专项复验2026-11-09)。
 
 ## 1. 已执行（本机）
 

@@ -15,7 +15,7 @@
 | **1.6.10** | **Kotlin 2.1.0 + Compose（JB）1.8.0** | ✅ 低于项目 Compose 1.10.3 / Kotlin 2.3.10，Gradle 取高版本，基础依赖零升级 |
 
 Haze 1.6.10 的经典 API：`rememberHazeState()` + `Modifier.hazeSource(state)`（采样源）+
-`Modifier.hazeEffect(state) { blurRadius / backgroundColor / mask / noiseFactor }`（玻璃）。
+`Modifier.hazeEffect(state) { blurRadius / backgroundColor / tints / fallbackTint / mask / noiseFactor }`（玻璃）。
 底部 Liquid Glass 仍由 kyant0 backdrop 负责，两套管线分属不同区域，互不干扰。
 
 ## 0. 演进记录（诚实记录两轮实现）
@@ -26,7 +26,7 @@ Haze 1.6.10 的经典 API：`rememberHazeState()` + `Modifier.hazeSource(state)`
 | 本轮（Top Glass Bar） | **玻璃是固定顶栏自身的材质**：列表全幅滚动进入顶栏后方，透过单一连续玻璃面被高斯模糊观察 | ✅ 按参考图实现 |
 
 第一轮的结构性错误被明确禁止复活：`topGlassBarContract.test.ts` 断言玻璃文件**只有一个
-`drawBackdrop` 调用点**、不存在分段模糊循环（`BlurSegment`）、不得使用旧 Scrim API。
+`hazeEffect` 调用点**，禁止自研捕获/绘制、分段模糊与旧 Scrim API。
 
 ## 1. 视觉契约
 
@@ -36,7 +36,7 @@ Haze 1.6.10 的经典 API：`rememberHazeState()` + `Modifier.hazeSource(state)`
 - **底边无分界线**：玻璃强度（模糊+tint 整体）在底部 `tail=32dp`（规范 24–40）按端点零斜率的
   smoothstep 采样 `[1, .66, .34, .10, 0]` 平滑衰减到透明——单面蒙版，无内部折点、无横带。
 - **材质语言与底栏 Liquid Glass 同族**（vibrancy + 高斯模糊 + 半透明底色），无描边、无分隔线；
-  但参数独立（底栏 4dp+lens，顶栏 10dp），不强制一致。
+  但参数独立（底栏 4dp+lens，顶栏 14dp），不强制一致。
 
 ## 2. 渲染原理（Haze 采样关系 + 正确图层顺序）
 
@@ -49,12 +49,42 @@ Haze 1.6.10 的经典 API：`rememberHazeState()` + `Modifier.hazeSource(state)`
    不透明画面。**LazyColumn 全幅布局，contentPadding top = 测量的顶栏底边 + 衰减带**：
    内容真正滚动进入顶栏后方。
 3. **`TyTopGlassSurface`（Haze Effect 玻璃面）**：`Modifier.hazeEffect(state)` 设置
-   `blurRadius = 10dp`、`backgroundColor = 页面顶部同色半透明`、`noiseFactor = 0`、
+   `blurRadius = 14dp`、`backgroundColor = 页面顶部同色不透明底色`、
+   `tints = 页面顶部同色半透明蒙层`（浅色 0.68 / 深色 0.55）、`noiseFactor = 0`、
    `mask = 单面衰减蒙版`（主体 alpha=1，底部 TailDp 内按 smoothstep 采样衰减到 0）。
    无描边、无分隔线、不接指针事件（滑动穿透到列表）。一次 Haze effect = 唯一模糊管线。
 4. **顶栏内容（清晰层）**：头部控件独立组合，`onGloballyPositioned` 把内容底边测量回填
    `TyTopGlassState.reportHeader` —— 玻璃范围由**布局测量驱动**，搜索展开/收起、输入法
    弹出时自动适配，无固定屏幕坐标、无按机型硬编码。
+
+### 2.1 可读性修正（2026-11-09，基于 main `f85d70a` / 1.3.190 / 213）
+
+Haze 1.6.10 的 `backgroundColor` 画在采样内容后方。我们的 source 自带不透明页面底色，
+因此旧实现仅设置 `backgroundColor` 的 0.55/0.46 alpha **不能作为覆盖封面的蒙层**。
+修正为同一 Haze effect 内的显式 `HazeTint`（默认 SrcOver）：真实采样 → 14dp 高斯模糊 →
+半透明 tint → 原有单面 mask。没有额外采样、页面盖片或第二条模糊管线。
+
+核对依据：[HazeStyle.kt（1.6.10）](https://github.com/chrisbanes/haze/blob/1.6.10/haze/src/commonMain/kotlin/dev/chrisbanes/haze/HazeStyle.kt)、
+[BlurEffect.kt](https://github.com/chrisbanes/haze/blob/1.6.10/haze/src/commonMain/kotlin/dev/chrisbanes/haze/BlurEffect.kt)、
+[Android RenderEffect](https://github.com/chrisbanes/haze/blob/1.6.10/haze/src/androidMain/kotlin/dev/chrisbanes/haze/RenderEffect.android.kt)。
+Android 正常路径在 tints 后执行 mask；Haze 原生 fallback 同样消费该 mask。
+显式 `fallbackTint` 避免库自动增浓，使降级时保留相同透明度。构建开关关闭时设置
+`blurEnabled=false`，而非半径归零后继续采样清晰文字。
+
+mask 的位置、强度采样与 32dp 范围均保留；最末端 alpha=0 同时清除模糊与 tint，
+不透明的采样底色不会逃逸 mask 而形成矩形。首帧使用当前 `LocalDensity` 生成蒙版，
+不等待测量状态的 `pxPerDp` 回填，避免首帧无 mask。
+
+`TyTopGlassForeground` 仅提供 CompositionLocal，无布局/绘制节点，仍严格维持
+ContentLayer → Surface → 原头部节点的顺序及高度测量。浅色固定顶栏的标题/输入文字
+使用 `#122e24`，副标题/placeholder/未选分类使用 `#173629`，选中分类使用 `#0a3020`；
+音源胶囊的启用文字不再额外乘 0.85 alpha。搜索固定浮层同样使用这组前景。
+正文、禁用态与深色前景保留原语义色。
+
+`TopGlassMathTest` 在浅色页面三段背景、黑白及 RGB/CMY 封面极值、普通玻璃/输入框
+Subtle/标签 Selected 背景下校验这些前景 ≥4.5:1。这是 SrcOver 合成与亮度数学验证，
+**不代表 GPU 截图、滚动残影或真机无障碍验收已通过**。浅色主体仍透出 32% 采样颜色，
+深色主体透出 45%；不增加饱和度处理。
 
 内容起点统一为 `glass.contentTop`（= 顶栏底边 + 32dp 衰减带）：**静止时首个内容完全在玻璃之外**
 （猜你喜欢卡片/资料库首行不会被顶栏玻璃覆盖，顶部无模糊），只有滚动时内容才进入衰减带被柔化
@@ -73,17 +103,18 @@ Haze 1.6.10 的经典 API：`rememberHazeState()` + `Modifier.hazeSource(state)`
 
 | 参数 | 值 | CSS | TS | Kotlin |
 |---|---|---|---|---|
-| 玻璃模糊半径 blur | 10 | `--ty-glass-top-blur: 10px` | `TY_GLASS_TOP.blurPx` | `TyTopGlass.BlurDp` |
+| 玻璃模糊半径 blur | 14 | `--ty-glass-top-blur: 14px` | `TY_GLASS_TOP.blurPx` | `TyTopGlass.BlurDp` |
 | 底部衰减距离 tail | 32 | `--ty-glass-top-tail: 32px` | `TY_GLASS_TOP.tailPx` | `TyTopGlass.TailDp` |
 | 衰减采样位置 | 0/.22/.45/.72/1 | — | `decayPositions` | `DecayPositions` |
 | 衰减采样强度 | 1/.66/.34/.10/0 | — | `decayAlphas` | `DecayAlphas` |
-| 玻璃底色 alpha | 深 0.46 / 浅 0.55 | — | — | `TintAlphaDark/Light` |
+| 玻璃 tint alpha | 深 0.55 / 浅 0.68 | `--ty-glass-top-tint-alpha`（浅色覆盖） | `tintAlphaDark/Light` | `TintAlphaDark/Light` |
+| 浅色顶栏前景 | #122e24 / #173629 / #0a3020 | `--ty-glass-top-text/text-secondary/accent` | `lightInk/Muted/Accent` | `LightInk/Muted/Accent` |
 
 单位口径：WebView 1px ≈ Compose 1dp（页面以 `Density(cssScale, 1f)` 对齐 CSS 视口像素）。
 玻璃底色取 `surfaceColors()` 首色（页面顶部背景色）——深浅色与页面类型自动跟随。
 能力门控：Haze 官方判定 `HazeDefaults.blurEnabled()`（SDK<31 无 RenderEffect 模糊时
 `HazeState.blurEnabled=false`），此时玻璃自动退化为**同形状的半透明底色层**（无模糊、
-同样底部衰减）；`TINGYU_TOP_GLASS_BLUR=false` 构建可把 `blurRadius` 置 0 做性能回滚。
+同样底部衰减）；`TINGYU_TOP_GLASS_BLUR=false` 构建通过 `blurEnabled=false` 使用相同 fallback。
 两种降级都绝不退回横向模糊带。
 
 ## 4. 页面接入清单
@@ -96,7 +127,8 @@ Haze 1.6.10 的经典 API：`rememberHazeState()` + `Modifier.hazeSource(state)`
 | 歌单/专辑/每日推荐/收藏/自建/本地文件夹详情 | ✅ `MediaDetailScaffold`（ambient 副本） | 玻璃范围只由固定返回栏测量决定；随滚动的封面/信息区不加玻璃；定位落点已适配 |
 | 歌手详情 | ✅ `NativeDirectoryPage` artist 分支 | 返回栏 + 更多按钮清晰 |
 | 设置索引 / 背屏控制页 | ✅ `NativeSettingsPage` / `NativeRearControlPage` | 标题与按钮清晰 |
-| **设置二级文档页** | ⛔ 豁免 | 区域级独立滚动窗口、无固定顶栏（DOM 是排版真值源），按布局判断不启用 |
+| 语义化设置二级页 | ✅ `SettingsFlowPage` | 固定返回栏与标题；内容由 TySettings 排版 |
+| **DOM 测量设置文档页** | ⛔ 豁免 | `NativeSettingsDocumentView` 区域级滚动窗口，无固定顶栏 |
 | 经典歌词舞台 / 极简歌词 / 背屏歌词 | ⛔ 豁免 | 沉浸式全屏播放器，保留原有视觉 |
 | MobileSheet 等 sheet | ⛔ 豁免 | header 随内容滚动，无固定顶部栏 |
 | WebView 其余面 | — | 当前无固定顶栏的 WebView 全页面；归属规则见 ANDROID-PAGE-OWNERSHIP.md |
@@ -113,6 +145,8 @@ Haze 1.6.10 的经典 API：`rememberHazeState()` + `Modifier.hazeSource(state)`
 
 ## 6. 验证记录（2026-11-08）
 
+以下为历史执行记录；本次 2026-11-09 可读性专项的运行结果见 §6.1。
+
 - tsc `--noEmit` ✅；`topGlassBarContract` 13 断言 ✅；`designTokenParity` 8/8（glass-top 组）✅；
   `check:android-ui` 10/10 ✅；`compileDebugKotlin` ✅；`TopGlassMathTest` 4 用例 ✅（ASCII 镜像）；
   全量 vitest 失败集合与基线一致（14）。
@@ -121,3 +155,20 @@ Haze 1.6.10 的经典 API：`rememberHazeState()` + `Modifier.hazeSource(state)`
 - **待真机验证**：推荐页首验（静止观感贴近参考图 / 上滑透视模糊 / 底边无分界线）→
   资料库与搜索（头部高度不同下材质一致 / 搜索展开适配 / 输入法）→ 集合详情（亮色封面融合 /
   定位落点）→ 深浅色 → 横向轮播与返回手势 → 滚动流畅度（降级开关对比）→ 页面切换无残影。
+
+### 6.1 可读性专项复验（2026-11-09）
+
+- 定向 Vitest：`npm run test:unit -- test/unit/ui/designTokenParity.test.ts test/unit/ui/topGlassBarContract.test.ts test/unit/architecture/androidPageOwnership.test.ts`，44/44 通过。
+- `npm run cap:sync:android`：网页生产构建、资源指纹、Capacitor 同步与反馈浮层检查通过。
+- `npm run typecheck` 通过；在 `android` 目录运行 `gradlew.bat :app:testDebugUnitTest --tests io.github.huleixin.tingyu.chrome.TopGlassMathTest` 通过（7/7，含主源码编译）。结果同步记录在 `UI_TEST_MATRIX.md` 的本次专项表中。
+- 本机 `adb devices` 无设备；以下场景**全部待真机验证**，不得用数学测试替代视觉结论：
+
+| 页面/操作 | 浅色与深色均需验收 | 状态 |
+|---|---|---|
+| 推荐页 | 彩色大封面快速/慢速滚入顶栏；标题/副标题/音源胶囊清楚，色彩柔和而有透感 | 待真机验证 |
+| 资料库 | 密集歌曲文字与封面滚入顶栏；分类/排序/搜索 placeholder 清楚，无文字残影干扰 | 待真机验证 |
+| 搜索 | 首页/结果/分类，输入/清空/取消，键盘与资料库搜索展开/收起时玻璃高度正常 | 待真机验证 |
+| 设置 | 索引、语义化二级页滚动；测量型文档页继续豁免 | 待真机验证 |
+| 歌单详情 | 亮暗封面、氛围背景、返回/搜索/更多按钮与定位当前播放行 | 待真机验证 |
+| 全部固定顶栏 | 首帧/路由切换/后台恢复；32dp 底缘自然透明，无矩形、双模糊带或闪烁 | 待真机验证 |
+| 性能 | 同设备同列表对比基线及关闭模糊开关，记录帧耗时/卡顿；无明显回退 | 待真机验证 |

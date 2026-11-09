@@ -42,8 +42,13 @@ export const TY_SPRING = {
  * 衰减距离；decayPositions/decayAlphas 是玻璃强度在 tail 内的平滑衰减采样（端点零斜率）。
  */
 export const TY_GLASS_TOP = {
-    blurPx: 10,
+    blurPx: 14,
     tailPx: 32,
+    tintAlphaDark: 0.55,
+    tintAlphaLight: 0.68,
+    lightInk: '#122e24',
+    lightMuted: '#173629',
+    lightAccent: '#0a3020',
     decayPositions: [0, 0.22, 0.45, 0.72, 1],
     decayAlphas: [1, 0.66, 0.34, 0.1, 0],
 } as const;

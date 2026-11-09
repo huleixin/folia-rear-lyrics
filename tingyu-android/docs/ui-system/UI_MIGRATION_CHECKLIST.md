@@ -62,18 +62,19 @@
 
 ### F-1：沉浸式毛玻璃顶栏（Haze 内核）✅（2026-11-08 第三轮，已实现 + 已测试，待真机验证）
 
-- [x] **渲染内核切换为开源 Haze 1.6.10（Apache-2.0）**：`rememberHazeState` + `hazeSource`（内容采样源）+ `hazeEffect`（blurRadius 10dp + backgroundColor + 单面 mask 底部衰减 32dp）；选版依据 = 传递依赖 Compose 1.8/Kotlin 2.1 均低于项目版本，零基础依赖升级（2.x/1.7.x 会强制抬升 Compose 1.12，弃用）
+- [x] **渲染内核切换为开源 Haze 1.6.10（Apache-2.0）**：`rememberHazeState` + `hazeSource`（内容采样源）+ `hazeEffect`（blurRadius 14dp + backgroundColor + tints + 单面 mask 底部衰减 32dp）；选版依据 = 传递依赖 Compose 1.8/Kotlin 2.1 均低于项目版本，零基础依赖升级（2.x/1.7.x 会强制抬升 Compose 1.12，弃用）
 - [x] 自研 backdrop 捕获/DstIn 绘制管线全部移除（契约测试断言不得复活）；HazeState 生命周期由 Haze 管理，页面重组不重建
 - [x] 能力降级：`HazeDefaults.blurEnabled()`（SDK<31 关闭模糊）+ `TINGYU_TOP_GLASS_BLUR=false` 性能回滚，均保留同形状半透明底色玻璃
 - [x] 集合详情封面氛围层副本移入公共内容层（页面级原件移除，避免双绘；采样含氛围色）
 - [x] 底部 Liquid Glass（kyant0 backdrop）保持原样，两套管线分区独立
 
 - [x] **第一轮（Top Scroll Scrim）真机否决并彻底删除**：内容侧盖片 + 三段模糊 = 两条横向模糊带 + 水平分界线，根因是特效画在列表 overlay 上而非顶栏材质上；契约测试禁止其复活
-- [x] 公共组件 `chrome/TopGlassBar.kt`：TyTopGlassContentLayer（全幅滚动内容+对齐底色+封面氛围副本，捕获层）/ TyTopGlassSurface（单一连续玻璃面 = vibrancy+blur(10dp)+页面同色 tint，saveLayer+DstIn 底部 32dp 强度平滑衰减）/ TyTopGlass Token
+- [x] 公共组件 `chrome/TopGlassBar.kt`：TyTopGlassContentLayer（全幅滚动内容+对齐底色+封面氛围副本，捕获层）/ TyTopGlassSurface（单一 Haze effect = blur(14dp)+页面同色 tint，Haze mask 底部 32dp 强度平滑衰减）/ TyTopGlass Token
 - [x] 页面布局重构：LazyColumn 全幅 + contentPadding top=测量顶栏底边（内容真正滚入顶栏后方）；头部内容独立清晰层，测量回填玻璃范围（搜索展开/输入法自动适配）
 - [x] 三端参数：`--ty-glass-top-*` / `TY_GLASS_TOP` / `TyTopGlass`，parity 门禁锁定
 - [x] 接入：推荐/资料库(含本地分类)/搜索(含分类tab)/集合详情(封面氛围副本+定位落点适配)/歌手/设置索引/背屏控制；豁免面记录在案
-- [x] 测试：`topGlassBarContract` 13 断言（单 drawBackdrop 调用点、DstIn 蒙版、无分段、无指针拦截、旧 API 禁止复活）+ parity glass-top 组 + `TopGlassMathTest` 4 用例
+- [x] 测试：`topGlassBarContract`（单 Haze effect、同一 mask、首帧、清晰层配色作用域、测量保护、无指针拦截、旧 API 禁止复活）+ parity 三端 blur/tint/前景/衰减组 + `TopGlassMathTest`；本次运行数见 UI_TEST_MATRIX 专项表
+- [x] 2026-11-09 可读性专项：14dp / 浅 0.68 / 深 0.55；修复仅设置 backgroundColor 而无有效蒙层的问题，显式 Haze tint/fallbackTint 共用原有 32dp mask；浅色顶栏前景作用域与对比度测试，正文和图层顺序不变
 - [ ] 真机验证（TOP_GLASS_BAR.md §6：推荐页首验 → 各页材质一致 → 深浅色 → 手势/轮播 → 流畅度与降级对比 → 页面切换无残影）
 
 ### F 其余待办 ⏳

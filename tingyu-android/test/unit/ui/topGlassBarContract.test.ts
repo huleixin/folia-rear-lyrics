@@ -6,7 +6,7 @@
 // 分界线；第二轮自研 backdrop 管线仍属重复造轮子。当前渲染内核 = 开源库 Haze（Apache-2.0，
 // dev.chrisbanes.haze:haze:1.6.10），本测试锁定：
 //  1. 所有「固定顶部栏 + 滚动内容」的 Compose 页面必须经公共组件接入；
-//  2. 玻璃是**单一连续表面**（一个 drawBackdrop 调用 + saveLayer/DstIn 蒙版），
+//  2. 玻璃是**单一连续表面**（一个 Haze effect + Haze 内部合成蒙版），
 //     结构上不可能出现分段模糊带；
 //  3. 玻璃只画不接事件；头部内容独立成层（始终清晰）；
 //  4. 内容全幅滚动（列表真正进入顶栏后方），页面里不得再保留旧的视口裁切结构；
@@ -32,6 +32,7 @@ const pages = [
     'MediaDetail.kt',
     'NativeSettingsPage.kt',
     'NativeRearControlPage.kt',
+    'SettingsFlowPage.kt',
 ];
 
 describe('沉浸式毛玻璃顶栏结构契约', () => {
@@ -46,6 +47,10 @@ describe('沉浸式毛玻璃顶栏结构契约', () => {
         expect(source, `${file} 必须经 TyTopGlassContentLayer 接入`).toContain('TyTopGlassContentLayer(');
         expect(source, `${file} 必须绘制 TyTopGlassSurface`).toContain('TyTopGlassSurface(');
         expect(source, `${file} 头部内容必须测量回填玻璃范围`).toContain('glass.reportHeader(');
+        const surface = source.indexOf('TyTopGlassSurface(');
+        const foreground = source.indexOf('TyTopGlassForeground {');
+        expect(surface).toBeGreaterThan(source.indexOf('TyTopGlassContentLayer('));
+        expect(foreground, `${file} 前景调色只能作用于玻璃上方的头部`).toBeGreaterThan(surface);
         // 上一轮的错误实现不得复活。
         expect(source, `${file} 不得再使用旧 Scrim API`).not.toContain('TopScrollScrim');
         expect(source, `${file} 不得私自 Modifier.blur`).not.toMatch(/Modifier\.blur|\.blur\(/);
@@ -103,6 +108,30 @@ describe('沉浸式毛玻璃顶栏结构契约', () => {
     it('玻璃底色来自页面背景色板单一来源（跟随深浅色与页面类型）', () => {
         expect(chrome('NativePageView.kt')).toContain('internal fun NativePage.surfaceColors()');
         expect(glassKt).toContain('colors.first()');
+    });
+
+    it('显式 Haze tint 与 fallback 共用底部 mask，首帧不绘制无蒙版矩形', () => {
+        expect(glassKt).toContain('backgroundColor = background');
+        expect(glassKt).toContain('colors.first().copy(alpha = 1f)');
+        expect(glassKt).toContain('tints = listOf(tint)');
+        expect(glassKt).toContain('fallbackTint = tint');
+        expect(glassKt).toContain('blurEnabled = state.hazeState.blurEnabled && BuildConfig.TOP_GLASS_BLUR');
+        expect(glassKt).toContain('val pxPerDp = LocalDensity.current.density');
+        expect(glassKt).toContain('mask = topGlassMaskBrush(bottomPx, TyTopGlass.TailDp * pxPerDp)');
+        expect(glassKt).not.toContain('if (bottomPx > 0f)');
+    });
+
+    it('浅色前景调色仅由 CompositionLocal 提供且搜索浮层复用相同语义色', () => {
+        expect(glassKt).toContain('CompositionLocalProvider(LocalTopGlassForeground provides true, content = content)');
+        expect(glassKt).toContain('LocalTopGlassForeground.current && LocalInterfacePalette.current.light');
+        const widgets = chrome('NativePageWidgets.kt');
+        for (const name of ['Ink', 'Muted', 'Accent']) {
+            expect(widgets).toContain(`topGlassForegroundColor(LocalInterfacePalette.current.${name.toLowerCase()},TyTopGlass.Light${name})`);
+        }
+        expect(chrome('NativeSearchOverlay.kt')).toContain('TyTopGlassForeground {');
+        const input = chrome('NativePageInput.kt');
+        expect(input).toContain('TextStyle(color=PageInk');
+        expect(input).toContain('Text(section.placeholder,color=PageMuted');
     });
 
     it('Haze 依赖精确锁定 1.6.10（不升级 Compose/Kotlin/AGP 的选版依据）', () => {

@@ -1,6 +1,9 @@
 package io.github.huleixin.tingyu.chrome
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.luminance
+import dev.chrisbanes.haze.HazeState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -38,10 +41,78 @@ class TopGlassMathTest {
     }
 
     @Test
-    fun `玻璃材质参数为轻量克制值`() {
+    fun `玻璃材质参数保留透明感并锁定可读性基线`() {
+        assertEquals(14, TyTopGlass.BlurDp)
+        assertEquals(32, TyTopGlass.TailDp)
+        assertEquals(0.55f, TyTopGlass.TintAlphaDark, 1e-6f)
+        assertEquals(0.68f, TyTopGlass.TintAlphaLight, 1e-6f)
         assertTrue(TyTopGlass.BlurDp in 6..14)
         assertTrue(TyTopGlass.TailDp in 24..40)
-        assertTrue(TyTopGlass.TintAlphaDark in 0.3f..0.7f)
-        assertTrue(TyTopGlass.TintAlphaLight in 0.3f..0.7f)
+        assertTrue(TyTopGlass.TintAlphaDark in 0.5f..0.75f)
+        assertTrue(TyTopGlass.TintAlphaLight in 0.5f..0.75f)
+        assertTrue(TyTopGlass.TintAlphaLight > TyTopGlass.TintAlphaDark)
+    }
+
+    @Test
+    fun `不同密度和首帧估计高度的蒙版均保持平台和连续单调落零`() {
+        for (density in listOf(1f, 2f, 2.75f, 3.5f)) {
+            for (headerDp in listOf(52f, 120f, 240f)) {
+                val stops = topGlassMaskStops(headerDp * density, TyTopGlass.TailDp * density)
+                assertEquals(headerDp / (headerDp + TyTopGlass.TailDp), stops[1].first, 1e-6f)
+                assertEquals(1f, stops.last().first, 1e-6f)
+                assertEquals(0f, stops.last().second.alpha, 1e-6f)
+                assertTrue(stops.all { it.first in 0f..1f && it.second.alpha in 0f..1f })
+                assertTrue(stops.zipWithNext().all { (a, b) -> a.first <= b.first && a.second.alpha >= b.second.alpha })
+                // 同一 mask 覆盖模糊与 tint：即使蒙层增强，尾端有效 alpha 仍为 0。
+                assertEquals(0f, stops.last().second.alpha * TyTopGlass.TintAlphaLight, 1e-6f)
+                assertEquals(0f, stops.last().second.alpha * TyTopGlass.TintAlphaDark, 1e-6f)
+            }
+        }
+    }
+
+    @Test
+    fun `浅色标题副标题音源标签与搜索文字在极端封面上仍有足够对比度`() {
+        val foregrounds = listOf(TyTopGlass.LightInk, TyTopGlass.LightMuted, TyTopGlass.LightAccent)
+        // 黑白和彩色封面极值；真实 GPU 模糊及滚动观感需另行真机验证。
+        val samples = listOf(Color.Black, Color.White, Color.Red, Color.Green, Color.Blue, Color.Cyan, Color.Magenta, Color.Yellow)
+        for (pageColor in LightInterfaceColors.Backgrounds) {
+            val tint = pageColor.copy(alpha = TyTopGlass.TintAlphaLight)
+            for (sample in samples) {
+                val glass = tint.compositeOver(sample)
+                val surfaces = listOf(glass, LightInterfaceColors.Subtle.compositeOver(glass), LightInterfaceColors.Selected.compositeOver(glass))
+                for (surface in surfaces) {
+                    for (foreground in foregrounds) {
+                        val ratio = (surface.luminance() + 0.05f) / (foreground.luminance() + 0.05f)
+                        assertTrue("contrast=$ratio, sample=$sample, foreground=$foreground", ratio >= 4.5f)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `高度测量前使用估计值测量后只覆盖顶栏加尾带`() {
+        val state = TyTopGlassState(HazeState(initialBlurEnabled = false), 120f)
+        assertEquals(120f, state.headerBottomDp, 1e-6f)
+        assertEquals(152f, state.contentTop.value, 1e-6f)
+        state.pxPerDp = 2f
+        state.pageHeightPx = 800f
+        state.reportOrigin(100f)
+        state.reportHeader(100f, 280)
+        assertEquals(140f, state.headerBottomDp, 1e-6f)
+        assertEquals(172f, state.contentTop.value, 1e-6f)
+    }
+
+    @Test
+    fun `误测整页高度回退估计值且估计值仍受页面百分之六十限制`() {
+        val state = TyTopGlassState(HazeState(initialBlurEnabled = false), 120f)
+        state.pxPerDp = 2f
+        state.pageHeightPx = 800f
+        state.reportOrigin(100f)
+        state.reportHeader(100f, 800)
+        assertEquals(120f, state.headerBottomDp, 1e-6f)
+        state.headerBottomEstimateDp = 500f
+        // 400f * 0.6f 的 Float 结果为 240.00002；容差远小于一个物理像素。
+        assertEquals(240f, state.headerBottomDp, 1e-4f)
     }
 }

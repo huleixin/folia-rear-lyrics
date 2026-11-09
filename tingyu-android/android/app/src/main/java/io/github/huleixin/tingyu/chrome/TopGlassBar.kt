@@ -5,11 +5,13 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
@@ -21,6 +23,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeDefaults
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
@@ -35,12 +38,12 @@ import io.github.huleixin.tingyu.BuildConfig
 //    均低于本项目 Compose 1.10.3 / Kotlin 2.3.10 —— Gradle 取高版本后**不需要也不允许**
 //    升级 Compose/Kotlin/AGP；2.x 要求 Kotlin 2.4 + Compose 1.12（会强制升级，弃用）。
 //  · 采样关系：TyTopGlassContentLayer 挂 hazeSource（真实滚动内容 + 与页面同笔刷的底色），
-//    TyTopGlassSurface 挂 hazeEffect（backgroundColor + blurRadius + mask）。
+//    TyTopGlassSurface 挂 hazeEffect（backgroundColor + blurRadius + tints + mask）。
 //  · 顶栏底部过渡：mask = 主体全强度、底部 TailDp 内按端点零斜率 smoothstep 衰减到 0 的
 //    垂直渐变 —— 单面蒙版，无分段、无横带、无水平分界线。
 //  · 能力降级：Haze 自带模糊可用性判定（SDK<31 自动关闭模糊），此时保留同形状的
 //    半透明底色玻璃（无模糊、无横带）；BuildConfig.TOP_GLASS_BLUR=false 可强制关闭模糊
-//    （blurRadius=0）用于性能回滚。
+//    （blurEnabled=false，使用同色 fallbackTint）用于性能回滚。
 //
 // 历史：第一轮自制 Top Scroll Scrim（内容侧盖片 + 多段模糊）在真机产生两条横向模糊带
 // 与水平分界线；第二轮自研 backdrop 管线仍属重复造轮子 —— 本轮全部废弃，改用 Haze 单一
@@ -56,15 +59,20 @@ import io.github.huleixin.tingyu.BuildConfig
 // 双端参数：CSS --ty-glass-top-* / TS TY_GLASS_TOP / 本 object 三端一致，
 // 由 test/unit/ui/designTokenParity.test.ts 门禁锁定。
 internal object TyTopGlass {
-    /** 顶栏玻璃的高斯模糊半径（dp）。Haze blurRadius，轻盈克制。 */
-    const val BlurDp = 10
+    /** 顶栏玻璃的高斯模糊半径（dp）：柔化滚入顶栏的封面与文字。 */
+    const val BlurDp = 14
 
     /** 底部强度衰减距离（dp）。规范参考 24–32。 */
     const val TailDp = 32
 
-    /** 玻璃底色 alpha：深海绿半透明（颜色取页面顶部背景色，深浅色自动跟随）。 */
-    const val TintAlphaDark = 0.46f
-    const val TintAlphaLight = 0.55f
+    /** 采样内容之上的 Haze tint alpha（不是 backgroundColor 的 alpha）。 */
+    const val TintAlphaDark = 0.55f
+    const val TintAlphaLight = 0.68f
+
+    /** 浅色顶栏前景：覆盖深色封面时仍可读；仅供玻璃上方的清晰层使用。 */
+    val LightInk = Color(0xFF122E24)
+    val LightMuted = Color(0xFF173629)
+    val LightAccent = Color(0xFF0A3020)
 
     /** 底部衰减采样：位置（tail 内）与强度（1=全玻璃，0=全透明）。端点零斜率。 */
     val DecayPositions = listOf(0f, 0.22f, 0.45f, 0.72f, 1f)
@@ -76,6 +84,18 @@ internal object TyTopGlass {
         return x * x * (3 - 2 * x)
     }
 }
+
+internal val LocalTopGlassForeground = staticCompositionLocalOf { false }
+
+/** 只改变顶栏的语义前景色，不新增绘制层，不影响采样源或页面正文。 */
+@Composable
+internal fun TyTopGlassForeground(content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalTopGlassForeground provides true, content = content)
+}
+
+@Composable
+internal fun topGlassForegroundColor(default: Color, light: Color): Color =
+    if (LocalTopGlassForeground.current && LocalInterfacePalette.current.light) light else default
 
 /** 玻璃蒙版色标：主体（0..headerBottom）alpha=1，底部 tail 内按衰减采样落到 0。 */
 internal fun topGlassMaskStops(headerBottomPx: Float, tailPx: Float): List<Pair<Float, Color>> {
@@ -178,7 +198,7 @@ internal fun BoxScope.TyTopGlassContentLayer(
 }
 
 /**
- * ③ 顶栏玻璃面（Haze effect）：blurRadius + 页面顶部同色半透明底 + 底部衰减蒙版。
+ * ③ 顶栏玻璃面（Haze effect）：blurRadius + 页面顶部同色半透明 tint + 底部衰减蒙版。
  *    尺寸完全由组件内部决定（测量顶栏底边 + tail）；只画不接指针事件 ——
  *    标题/按钮在它之上，滑动穿透到列表，无点击穿透、无滚动范围改动。
  */
@@ -188,21 +208,28 @@ internal fun BoxScope.TyTopGlassSurface(
     colors: List<Color>,
 ) {
     val light = LocalInterfacePalette.current.light
-    // 玻璃底色：页面顶部背景色（深海绿/浅色主题色）+ 半透明 → 与页面自然融合。
-    val tint = colors.first().copy(alpha = if (light) TyTopGlass.TintAlphaLight else TyTopGlass.TintAlphaDark)
+    val pxPerDp = LocalDensity.current.density
+    val background = colors.first().copy(alpha = 1f)
+    val tint = HazeTint(background.copy(alpha = if (light) TyTopGlass.TintAlphaLight else TyTopGlass.TintAlphaDark))
     Box(
         Modifier.fillMaxWidth()
             .height((state.headerBottomDp + TyTopGlass.TailDp).dp)
             .hazeEffect(state = state.hazeState) {
-                blurRadius = if (BuildConfig.TOP_GLASS_BLUR) TyTopGlass.BlurDp.dp else 0.dp
-                backgroundColor = tint
+                // 禁用时走 Haze 原生 fallback；半径归零仍会采到清晰原文，不能当作降级。
+                blurEnabled = state.hazeState.blurEnabled && BuildConfig.TOP_GLASS_BLUR
+                blurRadius = TyTopGlass.BlurDp.dp
+                // Haze 1.6.10：background 在采样内容后方；tints 在模糊后、mask 前合成。
+                // Source 内有不透明页面底色，仅提高 background alpha 无法压低封面饱和度/残影。
+                backgroundColor = background
+                tints = listOf(tint)
+                // 显式指定，避免 Haze 对 fallback tint 自动增浓；同一 mask 同时衰减蒙层。
+                fallbackTint = tint
                 noiseFactor = 0f
                 // 底部过渡：主体全强度，tail 内按 smoothstep 采样衰减到 0（单面蒙版）。
                 // 这里读快照状态 —— 顶栏高度测量变化会让 Haze 失效重建 effect（不重建 HazeState）。
-                val bottomPx = state.headerBottomDp * state.pxPerDp
-                if (bottomPx > 0f) {
-                    mask = topGlassMaskBrush(bottomPx, TyTopGlass.TailDp * state.pxPerDp)
-                }
+                // 使用当前 Density，首帧 SideEffect 回填 pxPerDp 前也有完整蒙版。
+                val bottomPx = state.headerBottomDp * pxPerDp
+                mask = topGlassMaskBrush(bottomPx, TyTopGlass.TailDp * pxPerDp)
             }
     )
 }

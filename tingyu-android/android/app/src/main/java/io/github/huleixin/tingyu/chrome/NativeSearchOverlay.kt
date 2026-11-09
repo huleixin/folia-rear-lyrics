@@ -133,15 +133,17 @@ internal fun NativeSearchOverlay(
                 // 文字在小尺寸阶段压缩会很难看：后半段才显出来。
                 alpha = ((p - 0.35f) / 0.65f).coerceIn(0f, 1f)
             }) {
-            androidx.compose.foundation.layout.Row(Modifier.fillMaxSize(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                Box(Modifier.weight(1f)) { SearchBarSurface(section, action, focus, autoFocus = visible) }
-                androidx.compose.foundation.layout.Spacer(Modifier.width(10.dp))
-                androidx.compose.material3.Text(
-                    dismissLabel,
-                    color = PageMuted,
-                    fontSize = 13.sp,
-                    modifier = Modifier.clickable { onRequestClose() }.padding(horizontal = 4.dp, vertical = 8.dp),
-                )
+            TyTopGlassForeground {
+                androidx.compose.foundation.layout.Row(Modifier.fillMaxSize(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Box(Modifier.weight(1f)) { SearchBarSurface(section, action, focus, autoFocus = visible) }
+                    androidx.compose.foundation.layout.Spacer(Modifier.width(10.dp))
+                    androidx.compose.material3.Text(
+                        dismissLabel,
+                        color = PageMuted,
+                        fontSize = 13.sp,
+                        modifier = Modifier.clickable { onRequestClose() }.padding(horizontal = 4.dp, vertical = 8.dp),
+                    )
+                }
             }
         }
     }

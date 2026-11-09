@@ -32,9 +32,9 @@ import coil.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageWidgets.kt
-internal val PageInk:Color @Composable get()=LocalInterfacePalette.current.ink
-internal val PageMuted:Color @Composable get()=LocalInterfacePalette.current.muted
-internal val PageAccent:Color @Composable get()=LocalInterfacePalette.current.accent
+internal val PageInk:Color @Composable get()=topGlassForegroundColor(LocalInterfacePalette.current.ink,TyTopGlass.LightInk)
+internal val PageMuted:Color @Composable get()=topGlassForegroundColor(LocalInterfacePalette.current.muted,TyTopGlass.LightMuted)
+internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInterfacePalette.current.accent,TyTopGlass.LightAccent)
 @Composable internal fun pageImage(url: String): Any? {
     val context=LocalContext.current
     return remember(url,context) {
@@ -88,7 +88,7 @@ internal val PageAccent:Color @Composable get()=LocalInterfacePalette.current.ac
         horizontalArrangement=Arrangement.spacedBy(3.dp)) {
         // leading：本地音源选择器要求「设备图标 + 名称 + 下拉箭头」，online 来源不带图标照旧。
         if(leading.isNotBlank())PageIcon(leading,PageInk.copy(alpha=.9f),Modifier.size(15.dp))
-        Text(text, color=if(selected)PageAccent else PageInk.copy(alpha=if(enabled).85f else .45f),fontSize=font.sp,maxLines=1)
+        Text(text, color=if(selected)PageAccent else PageInk.copy(alpha=if(!enabled).45f else if(LocalTopGlassForeground.current&&LocalInterfacePalette.current.light)1f else .85f),fontSize=font.sp,maxLines=1)
         if(trailing.isNotBlank())PageIcon(trailing,PageMuted,Modifier.size(15.dp))
     }
 }
@@ -97,7 +97,7 @@ internal val PageAccent:Color @Composable get()=LocalInterfacePalette.current.ac
         if(page.leading.isNotBlank())ChromeButton("返回",size=40.dp,onClick={action(page.leading,"",0.0)}){PageIcon("chevron-left",PageInk,Modifier.size(24.dp))}
         Column(Modifier.weight(1f).padding(top=6.dp)) {
             Text(page.title,color=PageInk,fontSize=(if(large)32 else 27).sp,lineHeight=34.sp,fontWeight=FontWeight.Bold,letterSpacing=(-1).sp)
-            if(page.subtitle.isNotBlank())Text(page.subtitle,color=interfaceColor(Color(0xFFB5C3BD),LightInterfaceColors.Muted),fontSize=14.sp,lineHeight=19.sp,modifier=Modifier.padding(top=5.dp))
+            if(page.subtitle.isNotBlank())Text(page.subtitle,color=topGlassForegroundColor(interfaceColor(Color(0xFFB5C3BD),LightInterfaceColors.Muted),TyTopGlass.LightMuted),fontSize=14.sp,lineHeight=19.sp,modifier=Modifier.padding(top=5.dp))
         }
         if(page.trailing.isNotBlank())Box(Modifier.padding(top=9.dp)){
             PagePill(page.trailingLabel,{action(page.trailing,"",0.0)},height=34.dp,trailing=if(page.id=="home")"chevron-down"else"",font=11,

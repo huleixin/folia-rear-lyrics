@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
+import { TY_GLASS_TOP } from '../../../src/components/shared/motionTokens';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -137,12 +138,37 @@ describe('Design Token 双端一致性（WebView CSS ↔ Compose Kotlin）', () 
 
     it('沉浸式毛玻璃顶栏 token 三端一致（CSS px ↔ TS px ↔ Kotlin dp）', () => {
         // blur = 顶栏玻璃模糊半径；tail = 底部强度衰减距离。
-        expect(cssVar(tokensCss, '--ty-glass-top-blur')).toBe('10px');
+        expect(cssVar(tokensCss, '--ty-glass-top-blur')).toBe(`${TY_GLASS_TOP.blurPx}px`);
         expect(cssVar(tokensCss, '--ty-glass-top-tail')).toBe('32px');
-        expect(tokensTs).toMatch(/blurPx:\s*10/);
+        expect(TY_GLASS_TOP.blurPx).toBe(14);
         expect(tokensTs).toMatch(/tailPx:\s*32/);
-        expect(ktConst(topGlassBarKt, 'BlurDp')).toBe(10);
-        expect(ktConst(topGlassBarKt, 'TailDp')).toBe(32);
+        expect(ktConst(topGlassBarKt, 'BlurDp')).toBe(TY_GLASS_TOP.blurPx);
+        expect(ktConst(topGlassBarKt, 'TailDp')).toBe(TY_GLASS_TOP.tailPx);
+
+        // tint 是模糊内容上的半透明蒙层；深浅模式都必须三端同步并保留透光余量。
+        const lightScope = "html[data-interface-appearance='light']";
+        for (const [name, scope, expected] of [
+            ['Dark', ':root', TY_GLASS_TOP.tintAlphaDark],
+            ['Light', lightScope, TY_GLASS_TOP.tintAlphaLight],
+        ] as const) {
+            const match = topGlassBarKt.match(new RegExp(`const val TintAlpha${name}\\s*=\\s*(0\\.\\d+)f`));
+            expect(match, `Kotlin TintAlpha${name}`).toBeTruthy();
+            expect(Number(match![1])).toBe(expected);
+            expect(Number(cssVar(tokensCss, '--ty-glass-top-tint-alpha', scope))).toBe(expected);
+            expect(expected).toBeGreaterThanOrEqual(0.5);
+            expect(expected).toBeLessThanOrEqual(0.75);
+        }
+        expect(TY_GLASS_TOP.tintAlphaLight).toBe(0.68);
+        expect(TY_GLASS_TOP.tintAlphaDark).toBe(0.55);
+        expect(TY_GLASS_TOP.tintAlphaLight).toBeGreaterThan(TY_GLASS_TOP.tintAlphaDark);
+        for (const [css, kt, ts] of [
+            ['--ty-glass-top-text', 'LightInk', TY_GLASS_TOP.lightInk],
+            ['--ty-glass-top-text-secondary', 'LightMuted', TY_GLASS_TOP.lightMuted],
+            ['--ty-glass-top-accent', 'LightAccent', TY_GLASS_TOP.lightAccent],
+        ] as const) {
+            expect(cssVar(tokensCss, css, lightScope)).toBe(ts);
+            expectColor(ts, ktColor(topGlassBarKt, `val ${kt}`), css);
+        }
 
         // 底部衰减采样（玻璃强度平滑落零）：TS 数组 ↔ Kotlin 数组逐值一致。
         const parseList = (text: string, label: string): number[] => {
@@ -164,5 +190,18 @@ describe('Design Token 双端一致性（WebView CSS ↔ Compose Kotlin）', () 
         // 衰减必须落到 0（顶栏底缘无分界线），且首段保持全强度。
         expect(parseList(tsAlphas, 'TS decayAlphas')[0]).toBe(1);
         expect(parseList(tsAlphas, 'TS decayAlphas').slice(-1)[0]).toBeLessThan(0.01);
+        expect(TY_GLASS_TOP.decayPositions).toHaveLength(TY_GLASS_TOP.decayAlphas.length);
+        expect(TY_GLASS_TOP.decayPositions[0]).toBe(0);
+        expect(TY_GLASS_TOP.decayPositions.at(-1)).toBe(1);
+        TY_GLASS_TOP.decayPositions.forEach((position, index, positions) => {
+            expect(position).toBeGreaterThanOrEqual(0);
+            expect(position).toBeLessThanOrEqual(1);
+            if (index) expect(position).toBeGreaterThan(positions[index - 1]);
+        });
+        TY_GLASS_TOP.decayAlphas.forEach((alpha, index, alphas) => {
+            expect(alpha).toBeGreaterThanOrEqual(0);
+            expect(alpha).toBeLessThanOrEqual(1);
+            if (index) expect(alpha).toBeLessThan(alphas[index - 1]);
+        });
     });
 });

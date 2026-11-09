@@ -58,10 +58,12 @@ import androidx.compose.ui.unit.sp
                 }
                 TyTopGlassSurface(glass,colors)
                 // 顶栏内容（清晰层）：返回按钮 + 标题，绘制在玻璃之上。
-                Row(Modifier.fillMaxWidth().padding(start=inset,end=inset,top=(page.safeTop+24).dp,bottom=20.dp)
-                    .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
-                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(999.dp)).semantics{contentDescription=page.trailingLabel}.clickable{action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("chevron-left",PageInk,Modifier.size(24.dp))}
-                    Text(page.title,color=PageInk,fontSize=22.sp,lineHeight=28.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+                TyTopGlassForeground {
+                    Row(Modifier.fillMaxWidth().padding(start=inset,end=inset,top=(page.safeTop+24).dp,bottom=20.dp)
+                        .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(999.dp)).semantics{contentDescription=page.trailingLabel}.clickable{action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("chevron-left",PageInk,Modifier.size(24.dp))}
+                        Text(page.title,color=PageInk,fontSize=22.sp,lineHeight=28.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+                    }
                 }
             }
         }

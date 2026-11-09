@@ -106,46 +106,48 @@ import kotlin.math.roundToInt
             }
             TyTopGlassSurface(glass,colors)
             // 顶栏内容：绘制在玻璃之上，始终清晰可操作；测量底边回填玻璃范围。
-            Column(Modifier.fillMaxWidth().padding(top=(page.safeTop+if(library)36 else 8).dp)
-                .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}){
-            if(library){
-                // 搜索展开时整块头部收起（240ms 同步收缩），把屏幕让给"固定搜索层 + 列表"。
-                AnimatedVisibility(visible=!searchExpanded,
-                    enter=expandVertically(tween(240)),exit=shrinkVertically(tween(240))){
-                    Column{
-                        PageHeading(page,Modifier.padding(start=start+4.dp,end=end+4.dp,bottom=16.dp).heightIn(min=44.dp),large=true,action=action)
-                        page.sections.filter{it.layout=="chips"&&it.id!="sort"&&it.id!="song-sort"}.forEach { section ->
-                            NativeSourceTabs(section,Modifier.padding(start=start,end=end,bottom=12.dp),action=action)
-                        }
-                        page.sections.filter{it.layout=="message"&&it.more.isNotBlank()&&it.text.isBlank()}.forEach{section->
-                            Box(Modifier.padding(start=start,end=end,bottom=8.dp)){PagePill(section.moreLabel,{action(section.more,"",0.0)})}
-                        }
-                        page.sections.firstOrNull{it.layout=="input"}?.let{section->
-                            // 被动模式：文本框自己不拿焦点，点击由外层接管 —— 直接展开固定层，
-                            // 避免“内联先弹键盘 → 层展开再收键盘”的两次输入法动画。
-                            // 第三行：完整搜索框 + 右侧紧凑排序菜单（排序项收进下拉，不再占一行）。
-                            val sortSection=page.sections.firstOrNull{it.id=="song-sort"}
-                            Row(Modifier.padding(start=start,end=end,bottom=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
-                                Box(Modifier.weight(1f)
-                                    .pageAnchor(pageOrigin){fieldRect=it}
-                                    .clickable{searchExpanded=true}){
-                                    NativePageInput(section,action,passive=true)
+            TyTopGlassForeground {
+                Column(Modifier.fillMaxWidth().padding(top=(page.safeTop+if(library)36 else 8).dp)
+                    .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}){
+                if(library){
+                    // 搜索展开时整块头部收起（240ms 同步收缩），把屏幕让给"固定搜索层 + 列表"。
+                    AnimatedVisibility(visible=!searchExpanded,
+                        enter=expandVertically(tween(240)),exit=shrinkVertically(tween(240))){
+                        Column{
+                            PageHeading(page,Modifier.padding(start=start+4.dp,end=end+4.dp,bottom=16.dp).heightIn(min=44.dp),large=true,action=action)
+                            page.sections.filter{it.layout=="chips"&&it.id!="sort"&&it.id!="song-sort"}.forEach { section ->
+                                NativeSourceTabs(section,Modifier.padding(start=start,end=end,bottom=12.dp),action=action)
+                            }
+                            page.sections.filter{it.layout=="message"&&it.more.isNotBlank()&&it.text.isBlank()}.forEach{section->
+                                Box(Modifier.padding(start=start,end=end,bottom=8.dp)){PagePill(section.moreLabel,{action(section.more,"",0.0)})}
+                            }
+                            page.sections.firstOrNull{it.layout=="input"}?.let{section->
+                                // 被动模式：文本框自己不拿焦点，点击由外层接管 —— 直接展开固定层，
+                                // 避免“内联先弹键盘 → 层展开再收键盘”的两次输入法动画。
+                                // 第三行：完整搜索框 + 右侧紧凑排序菜单（排序项收进下拉，不再占一行）。
+                                val sortSection=page.sections.firstOrNull{it.id=="song-sort"}
+                                Row(Modifier.padding(start=start,end=end,bottom=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                                    Box(Modifier.weight(1f)
+                                        .pageAnchor(pageOrigin){fieldRect=it}
+                                        .clickable{searchExpanded=true}){
+                                        NativePageInput(section,action,passive=true)
+                                    }
+                                    if(sortSection!=null&&sortSection.items.isNotEmpty())LibrarySortMenu(sortSection,action)
                                 }
-                                if(sortSection!=null&&sortSection.items.isNotEmpty())LibrarySortMenu(sortSection,action)
+                            }
+                            val sort=page.sections.firstOrNull{it.id=="sort"}
+                            if(sort!=null)Row(Modifier.fillMaxWidth().padding(start=start,end=end,bottom=8.dp).heightIn(min=34.dp),verticalAlignment=Alignment.CenterVertically){
+                                Text(sort.title,color=PageInk,fontSize=17.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
+                                if(sort.items.isNotEmpty())PageSort(sort,action)
                             }
                         }
-                        val sort=page.sections.firstOrNull{it.id=="sort"}
-                        if(sort!=null)Row(Modifier.fillMaxWidth().padding(start=start,end=end,bottom=8.dp).heightIn(min=34.dp),verticalAlignment=Alignment.CenterVertically){
-                            Text(sort.title,color=PageInk,fontSize=17.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
-                            if(sort.items.isNotEmpty())PageSort(sort,action)
-                        }
                     }
+                } else Row(Modifier.fillMaxWidth().padding(start=start-8.dp,end=end-8.dp).height(44.dp),verticalAlignment=Alignment.CenterVertically){
+                    ChromeButton("返回",size=42.dp,onClick={action(page.leading,"",0.0)}){PageIcon("chevron-left",PageInk,Modifier.size(23.dp))}
+                    Spacer(Modifier.weight(1f))
+                    if(page.trailing.isNotBlank())ChromeButton("更多",size=42.dp,onClick={action(page.trailing,"",0.0)}){PageIcon("ellipsis-vertical",PageInk,Modifier.size(23.dp))}
                 }
-            } else Row(Modifier.fillMaxWidth().padding(start=start-8.dp,end=end-8.dp).height(44.dp),verticalAlignment=Alignment.CenterVertically){
-                ChromeButton("返回",size=42.dp,onClick={action(page.leading,"",0.0)}){PageIcon("chevron-left",PageInk,Modifier.size(23.dp))}
-                Spacer(Modifier.weight(1f))
-                if(page.trailing.isNotBlank())ChromeButton("更多",size=42.dp,onClick={action(page.trailing,"",0.0)}){PageIcon("ellipsis-vertical",PageInk,Modifier.size(23.dp))}
-            }
+                }
             }
         }
         // 固定搜索层：在列表之上、页面根之下；不参与 LazyColumn 布局，因此不随列表滚动。

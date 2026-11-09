@@ -106,22 +106,24 @@ import androidx.compose.ui.unit.sp
         }
         TyTopGlassSurface(glass,colors)
         // 顶栏内容（清晰层）：搜索框/关闭钮/音源标签/分类标签，绘制在玻璃之上。
-        Column(Modifier.fillMaxWidth().padding(top=page.safeTop.dp)
-            .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}){
-            if(menu)PageHeading(page,Modifier.padding(14.dp),action=action)
-            else Column(Modifier.padding(start=14.dp,end=14.dp,top=10.dp)){
-                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
-                    page.sections.firstOrNull{it.id=="query"}?.let{section->Box(Modifier.weight(1f)){NativePageInput(section,action,search=true)}}
-                    Box(Modifier.size(44.dp).clip(RoundedCornerShape(999.dp)).background(interfaceColor(Color(0x08FFFFFF),LightInterfaceColors.Subtle)).clickable{action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("x",PageInk,Modifier.size(20.dp))}
-                }
-                page.sections.firstOrNull{it.id=="sources"}?.let{NativeSourceTabs(it,Modifier.padding(top=10.dp,bottom=2.dp),search=true,action=action)}
-                page.sections.firstOrNull{it.id=="tabs"}?.let{section->
-                    Row(Modifier.fillMaxWidth().padding(top=8.dp).horizontalScroll(rememberScrollState())){section.items.forEach{item->
-                        Column(Modifier.widthIn(min=64.dp).clickable{action(item.action,"",0.0)},horizontalAlignment=Alignment.CenterHorizontally){
-                            Box(Modifier.height(44.dp).padding(horizontal=8.dp),contentAlignment=Alignment.Center){Text(item.title,color=if(item.selected)PageAccent else PageMuted,fontSize=14.sp,fontWeight=if(item.selected)FontWeight.SemiBold else FontWeight.Normal)}
-                            Box(Modifier.fillMaxWidth().height(2.dp).background(if(item.selected)PageAccent else Color.Transparent))
-                        }
-                    }}
+        TyTopGlassForeground {
+            Column(Modifier.fillMaxWidth().padding(top=page.safeTop.dp)
+                .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}){
+                if(menu)PageHeading(page,Modifier.padding(14.dp),action=action)
+                else Column(Modifier.padding(start=14.dp,end=14.dp,top=10.dp)){
+                    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                        page.sections.firstOrNull{it.id=="query"}?.let{section->Box(Modifier.weight(1f)){NativePageInput(section,action,search=true)}}
+                        Box(Modifier.size(44.dp).clip(RoundedCornerShape(999.dp)).background(interfaceColor(Color(0x08FFFFFF),LightInterfaceColors.Subtle)).clickable{action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("x",PageInk,Modifier.size(20.dp))}
+                    }
+                    page.sections.firstOrNull{it.id=="sources"}?.let{NativeSourceTabs(it,Modifier.padding(top=10.dp,bottom=2.dp),search=true,action=action)}
+                    page.sections.firstOrNull{it.id=="tabs"}?.let{section->
+                        Row(Modifier.fillMaxWidth().padding(top=8.dp).horizontalScroll(rememberScrollState())){section.items.forEach{item->
+                            Column(Modifier.widthIn(min=64.dp).clickable{action(item.action,"",0.0)},horizontalAlignment=Alignment.CenterHorizontally){
+                                Box(Modifier.height(44.dp).padding(horizontal=8.dp),contentAlignment=Alignment.Center){Text(item.title,color=if(item.selected)PageAccent else PageMuted,fontSize=14.sp,fontWeight=if(item.selected)FontWeight.SemiBold else FontWeight.Normal)}
+                                Box(Modifier.fillMaxWidth().height(2.dp).background(if(item.selected)PageAccent else Color.Transparent))
+                            }
+                        }}
+                    }
                 }
             }
         }
