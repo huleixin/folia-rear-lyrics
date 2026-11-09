@@ -14,7 +14,11 @@ import java.util.Collections;
 // android/app/src/main/java/io/github/huleixin/tingyu/RearHostWebClient.java
 /** Same packaged rear-lyrics.html and iframe renderer; only the process boundary differs. */
 final class RearHostWebClient extends WebViewClient {
-    interface Events { void ready(); void failed(String reason); default void diagnostic(String stage,String detail){} }
+    interface Events {
+        void ready(); void failed(String reason);
+        default void diagnostic(String stage,String detail){}
+        default void modeApplied(long sequence,String mode,boolean iframe,boolean hidden,boolean iframeHidden){}
+    }
     private final Context context;
     private final String session;
     private final Events events;
@@ -36,7 +40,13 @@ final class RearHostWebClient extends WebViewClient {
             return bytes.toString(StandardCharsets.UTF_8.name());
         }
     }
-    boolean followAod(){try{Bundle b=new Bundle();b.putString("session",session);Bundle result=context.getContentResolver().call(Uri.parse("content://"+RearHostContract.AUTHORITY),"aod",null,b);return result!=null&&result.getBoolean("enabled",true);}catch(Exception e){return false;}}
+    Boolean followAod(){
+        try{
+            Bundle b=new Bundle();b.putString("session",session);
+            Bundle result=context.getContentResolver().call(Uri.parse("content://"+RearHostContract.AUTHORITY),"aod",null,b);
+            return result!=null&&result.get("enabled") instanceof Boolean?(Boolean)result.get("enabled"):null;
+        }catch(Exception e){return null;}
+    }
     private String state(Uri url)throws Exception{
         int requested=-1;try{requested=Integer.parseInt(url.getQueryParameter("revision"));}catch(Exception ignored){}
         return cache.get(requested,android.os.SystemClock.elapsedRealtime());
@@ -63,6 +73,12 @@ final class RearHostWebClient extends WebViewClient {
             if(!io.github.huleixin.tingyu.playback.SharedArtworkAccess.imageRequestUrl(url.toString()))return null;
         }
         try{
+            if("/__folia_rear/mode-report".equals(path)&&"rear.folia.local".equals(url.getHost())){
+                String mode=url.getQueryParameter("mode");
+                if(java.util.Arrays.asList("NORMAL","AOD","HIDDEN").contains(mode))
+                    events.modeApplied(safeCount(url,"sequence"),mode,"true".equals(url.getQueryParameter("iframe")),"true".equals(url.getQueryParameter("hidden")),"true".equals(url.getQueryParameter("iframeHidden")));
+                return text("{}");
+            }
             if("/__folia_rear/boot".equals(path)){
                 String step=url.getQueryParameter("stage");
                 if(java.util.Arrays.asList("html-script","js-error","js-rejection","js-entry","react-mounted","state-config","iframe-mounted","config-received","configured").contains(step))diagnostic(step,"frontend executed");

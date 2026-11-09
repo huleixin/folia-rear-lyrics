@@ -33,7 +33,9 @@ final class RearNativeCardOwner {
         observing.registerCallback(callback,new android.os.Handler(android.os.Looper.getMainLooper()));
     }
     void unwatch(){if(observing!=null&&callback!=null)observing.unregisterCallback(callback);observing=null;callback=null;}
-    boolean ownMedia(){try{MediaController c=selected();return !destroyed&&c!=null&&RearNativeCardPolicy.ownMedia(c.getPackageName());}catch(Throwable error){return false;}}
+    boolean ownMedia(){try{MediaController c=selected();return c!=null&&RearNativeCardPolicy.ownMedia(c.getPackageName())
+        &&RearNativeCardPolicy.sameMediaSession(observing==null?null:observing.getSessionToken(),c.getSessionToken(),destroyed);}catch(Throwable error){return false;}}
+    boolean sameRoot(){try{return XposedHelpers.getObjectField(container,"mRoot")==root;}catch(Throwable error){return false;}}
     boolean owned(){return owned;}
     boolean applies(Object object){return object==root||object==music||object==container;}
     void acquire(View stage){

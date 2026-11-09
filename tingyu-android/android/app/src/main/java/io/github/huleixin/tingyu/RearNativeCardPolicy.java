@@ -4,6 +4,9 @@ package io.github.huleixin.tingyu;
 /** Runtime instance evidence is mandatory. Neither launcher visibility nor Binder proves a card. */
 final class RearNativeCardPolicy {
     static boolean ownMedia(String pkg){return RearHostContract.APP.equals(pkg);}
+    static boolean sameMediaSession(Object observed,Object selected,boolean destroyed){
+        return !destroyed&&selected!=null&&(observed==null||observed.equals(selected));
+    }
     static boolean mayMount(String pkg,boolean attached,boolean shown,int display,int expectedDisplay,int width,int height){
         return shown&&mayPrepare(pkg,attached,display,expectedDisplay,width,height);
     }

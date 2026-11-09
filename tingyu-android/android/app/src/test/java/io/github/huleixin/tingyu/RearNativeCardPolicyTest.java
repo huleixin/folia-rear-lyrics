@@ -5,6 +5,13 @@ import static org.junit.Assert.*;
 
 // android/app/src/test/java/io/github/huleixin/tingyu/RearNativeCardPolicyTest.java
 public class RearNativeCardPolicyTest {
+    @Test public void samePackageDoesNotAuthorizeAReplacementOrDestroyedMediaSession(){
+        assertTrue(RearNativeCardPolicy.sameMediaSession("token-a","token-a",false));
+        assertTrue(RearNativeCardPolicy.sameMediaSession(null,"token-a",false));
+        assertFalse(RearNativeCardPolicy.sameMediaSession("token-a","token-b",false));
+        assertFalse(RearNativeCardPolicy.sameMediaSession("token-a","token-a",true));
+        assertFalse(RearNativeCardPolicy.sameMediaSession(null,null,false));
+    }
     @Test public void onlyOwnSelectedMediaCanPassIdentityGate(){
         assertTrue(RearNativeCardPolicy.ownMedia(RearHostContract.APP));
         assertFalse(RearNativeCardPolicy.ownMedia(null));

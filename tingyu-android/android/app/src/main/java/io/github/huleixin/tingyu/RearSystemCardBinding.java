@@ -88,26 +88,31 @@ final class RearSystemCardBinding {
         return null;
     }
 
-    boolean current(){return associated(true);}
-    /** Collapsing changes navigation, not the underlying business/holder identity. */
-    boolean associated(){return associated(false);}
-    private boolean associated(boolean requireVisible){
+    static final class State {
+        final boolean associated,center,active,bound;
+        State(boolean associated,boolean center,boolean active,boolean bound){this.associated=associated;this.center=center;this.active=active;this.bound=bound;}
+        boolean current(){return associated&&center&&active;}
+    }
+    boolean current(){return snapshot().current();}
+    /** Association never implies selection; read all navigation fields in one snapshot. */
+    boolean associated(){return snapshot().associated;}
+    State snapshot(){
         try{
             List<?> holders=(List<?>)XposedHelpers.getObjectField(panel,profile.holdersField);
-            boolean center=holders.size()==3&&holders.get(1)==holder&&profile.matchesTypes(holder.getClass(),widget.getClass());
+            boolean listed=false;for(Object entry:holders)if(entry==holder)listed=true;
+            boolean center=holders.size()==3&&holders.get(1)==holder;
             Bundle data=(Bundle)XposedHelpers.getObjectField(widget,"i");
             Bundle media=data==null?null:data.getBundle("media_data");
             String mediaPackage=media==null?null:media.getString("packageName");
             String pkg=data==null?null:data.getString("package_name"),business=data==null?null:data.getString("business"),creator=data==null?null:data.getString("creator_package");
             boolean active=XposedHelpers.getBooleanField(panel,profile.activeField);
-            boolean bound=content.getParent()==slot&&XposedHelpers.getObjectField(holder,profile.holderWidgetField)==widget
-                    &&XposedHelpers.getObjectField(widget,"n")==content&&XposedHelpers.getObjectField(widget,"p")==slot;
-            boolean valid=RearSystemCardPolicy.eligible(pkg,business,creator,mediaPackage,!requireVisible||center,!requireVisible||active,bound);
-            if(!valid)evidence="system slot not eligible: panel="+profile.panelClass+", center="+center+", active="+active+", bound="+bound
-                +", notificationPackage="+label(pkg,"unified.music")+", business="+label(business,"music")+", creator="+label(creator,RearHostContract.APP)
-                +", mediaPackage="+label(mediaPackage,RearHostContract.APP);
-            return valid;
-        }catch(Throwable error){evidence="system slot revalidation failed: "+error.getClass().getSimpleName();return false;}
+            boolean bound=listed&&holders.size()==3&&profile.matchesTypes(holder.getClass(),widget.getClass())
+                &&content.getParent()==slot&&XposedHelpers.getObjectField(holder,profile.holderWidgetField)==widget
+                &&XposedHelpers.getObjectField(widget,"n")==content&&XposedHelpers.getObjectField(widget,"p")==slot;
+            boolean associated=RearSystemCardPolicy.eligible(pkg,business,creator,mediaPackage,true,true,bound);
+            if(!associated)evidence="system slot identity invalid: center="+center+", active="+active+", bound="+bound;
+            return new State(associated,center,active,bound);
+        }catch(Throwable error){evidence="system slot revalidation failed: "+error.getClass().getSimpleName();return new State(false,false,false,false);}
     }
 
     private String selectedPackage(){

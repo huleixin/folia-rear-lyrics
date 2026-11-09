@@ -1,0 +1,13 @@
+/* src/components/rear/rearAod.css — only documents receiving the LSP AOD mode opt in. */
+html[data-rear-aod='true'] *,
+html[data-rear-aod='true'] *::before,
+html[data-rear-aod='true'] *::after {
+    animation-play-state: paused !important;
+    transition: none !important;
+}
+
+/* Preserve lyric colors, glyph layout and word highlights; step down only existing subtitle rows. */
+html[data-rear-aod='true'][data-folia-surface='rear-lyrics-panel'] [data-subtitle-track],
+html[data-rear-aod='true'][data-folia-surface='rear-lyrics-panel'] [data-pendolo-subtitle-track] {
+    opacity: .72 !important;
+}

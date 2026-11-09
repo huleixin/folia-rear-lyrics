@@ -156,7 +156,7 @@ public final class RearHostHooks {
             XC_MethodHook guard=new XC_MethodHook(){@Override protected void beforeHookedMethod(MethodHookParam p){
                 Controller c=controller;RearNativeCardOwner owner=c==null?null:c.card;
                 if(owner==null||!owner.owned()||p.thisObject!=owner.root)return;
-                if(!owner.ownMedia()){if(c.host!=null)c.host.refresh();return;}
+                if(!owner.ownMedia()||!owner.sameRoot()){if(c.host!=null)c.host.refresh();return;}
                 Class<?> type=((java.lang.reflect.Method)p.method).getReturnType();
                 if(type==boolean.class)p.setResult(false);else if(type==long.class)p.setResult(Long.MAX_VALUE);else p.setResult(null);
             }};
@@ -363,12 +363,8 @@ public final class RearHostHooks {
             main.post(()->{
                 mediaRecheckPending.set(false);
                 if(lease.isEmpty())return;
-                if(card!=null&&host!=null&&!host.closed()){
-                    if(music==null||music==card.music)host.refresh();
-                    observeAssistant();
-                    if(host.closed())attach("native-business-rebound");
-                }
-                else attach("native-media-changed");
+                // A verified rebind can replace the card without another launcher resume.
+                attach("native-binding-or-media-event");
             });
         }
         private int publishFailures;
@@ -567,9 +563,6 @@ public final class RearHostHooks {
             if(lease.isEmpty())return FAILED;
             observeAssistant();
             Activity activity=launcher.get();
-            String evidence=RearMamlProbe.inspect(activity==null?null:activity.getWindow().getDecorView());
-            report(lease,"native-card-probe",display,evidence+"; admission="+RearMusicAdmission.status
-                +"; ownChecks="+RearMusicAdmission.ownChecks+", ownLists="+RearMusicAdmission.ownLists+"; "+RearMusicAdmission.sessionEvidence(context));
             if(suspended)return PENDING;
             RearNativeCardOwner preferred=null;
             if(host!=null&&!host.closed()&&card!=null){
@@ -581,6 +574,9 @@ public final class RearHostHooks {
                 }
                 host.close();host=null;
             }
+            String evidence=RearMamlProbe.inspect(activity==null?null:activity.getWindow().getDecorView());
+            report(lease,"native-card-probe",display,evidence+"; admission="+RearMusicAdmission.status
+                +"; ownChecks="+RearMusicAdmission.ownChecks+", ownLists="+RearMusicAdmission.ownLists+"; "+RearMusicAdmission.sessionEvidence(context));
             if(!nativeOwnershipHooks){lastFailure="Native card restoration hooks unavailable";return FAILED;}
             if(card!=null&&!card.restore()){lastFailure="Native restoration unconfirmed; no parallel fallback";return PENDING;}
             RearNativeCardOwner candidate=preferred!=null?preferred:RearMamlProbe.ownCard(display);

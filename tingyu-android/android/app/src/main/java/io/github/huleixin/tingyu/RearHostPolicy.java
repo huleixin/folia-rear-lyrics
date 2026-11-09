@@ -28,6 +28,10 @@ final class RearHostPolicy {
     static final int STATE_ON = 2;
 
     private RearHostPolicy() {}
+    /** Business availability is not a new draw/visibility verdict for an already active native host. */
+    static boolean invalidatesDrawnState(String event,String mode){
+        return "paused".equals(event)||"card-collapsed".equals(event)&&"HIDDEN".equals(mode);
+    }
 
     static boolean requiresNewView(boolean exists,boolean closed,boolean sameActivity){
         return !exists || closed || !sameActivity;
@@ -64,6 +68,11 @@ final class RearHostPolicy {
     /** Display power pauses pixels, not card ownership. Explicit system-AOD preference/camera still release. */
     static boolean retainCardOwnership(boolean requested,boolean ownMedia,boolean attached,boolean suspended,boolean restoreSystemAod){
         return requested&&ownMedia&&attached&&!suspended&&!restoreSystemAod;
+    }
+    /** Outside the bounded AOD bridge, HIDDEN must not keep a cancelled/inactive card masked. */
+    static boolean retainCardOwnership(boolean requested,boolean ownMedia,boolean attached,boolean suspended,
+            boolean restoreSystemAod,boolean selected,int power){
+        return selected&&power==STATE_ON&&retainCardOwnership(requested,ownMedia,attached,suspended,restoreSystemAod);
     }
 
     /**

@@ -42,7 +42,15 @@ final class RearHostView {
     private final Events events;
     private final Handler main = new Handler(Looper.getMainLooper());
     private FrameLayout stage;
-    private boolean followAod=true;
+    private final RearAodPreference preference=new RearAodPreference();
+    private final RearCardRenderPolicy.Transition transition=new RearCardRenderPolicy.Transition();
+    private final RearCardRenderPolicy.FrameEvidence frameEvidence=new RearCardRenderPolicy.FrameEvidence();
+    private final RearAodEvidenceGate evidenceGate=new RearAodEvidenceGate();
+    private String trigger="created",decisionReason="initial";
+    private long modeEpoch,lastSentEpoch=-1,lastReportedEpoch=-1,drawEpoch=-1,requestedFrameEpoch=-1,resumeEpoch=-1,drawCount;
+    private boolean iframeApplied,visualStateReady;
+    private final Runnable transitionTimeout=()->reconcile("transition-deadline");
+    private final Runnable drawTimeout=this::checkDrawTimeout;
     private RearCardRenderPolicy.Mode mode=RearCardRenderPolicy.Mode.HIDDEN;
     private WebView renderer;
     private RearHostWebClient client;
@@ -62,8 +70,8 @@ final class RearHostView {
 
     private final DisplayManager.DisplayListener displayListener = new DisplayManager.DisplayListener() {
         @Override public void onDisplayAdded(int id) {}
-        @Override public void onDisplayRemoved(int id) { if (id == displayId()) reconcile(); }
-        @Override public void onDisplayChanged(int id) { if (id == displayId()) reconcile(); }
+        @Override public void onDisplayRemoved(int id) { if (id == displayId()) reconcile("display-state"); }
+        @Override public void onDisplayChanged(int id) { if (id == displayId()) reconcile("display-state"); }
     };
 
     RearHostView(String session,Events events,RearNativeCardOwner card){
@@ -94,7 +102,7 @@ final class RearHostView {
         if (group.findViewWithTag(TAG) != null) { failure = "another Tingyu host view already exists in this window"; return false; }
         try {
             stage=new FrameLayout(context){
-                @Override public void onVisibilityAggregated(boolean visible){super.onVisibilityAggregated(visible);main.post(()->{if(!closed)reconcile();});}
+                @Override public void onVisibilityAggregated(boolean visible){super.onVisibilityAggregated(visible);main.post(()->{if(!closed)reconcile("visibility");});}
                 private android.view.MotionEvent down;private boolean moved;
                 @Override protected void onDetachedFromWindow(){if(down!=null){down.recycle();down=null;}super.onDetachedFromWindow();}
                 @Override public void requestDisallowInterceptTouchEvent(boolean value){super.requestDisallowInterceptTouchEvent(false);}
@@ -111,7 +119,7 @@ final class RearHostView {
                 if(!card.ownMedia()){
                     int id=displayId();close();
                     events.report(session,"paused",id,"selected session changed; native card restored, waiting for own music business");
-                }else reconcile();
+                }else reconcile("media-state");
             }});
             stage.setTag(TAG);
             stage.setAlpha(1f);
@@ -122,19 +130,21 @@ final class RearHostView {
 
             renderer = new WebView(context) {
                 @Override protected void onDraw(Canvas canvas) {
-                    if(!closed&&ready&&shown&&!card.owned()&&card.binding.current()&&card.ownMedia()){
-                        try{
-                            boolean first=!card.owned();card.acquire(stage);
-                            if(first)events.report(session,"handoff-acquired",displayId(),"ready stage draw; preparationMs="+(android.os.SystemClock.uptimeMillis()-loadStartedAt));
-                        }catch(Throwable error){fail("Native draw handoff failed: "+error.getClass().getSimpleName());return;}
-                    }
                     super.onDraw(canvas);
-                    boot("first-draw","ready="+ready+", shown="+shown);
-                    if (!readyReported && !closed && ready && shown && card.owned()&&card.ownMedia()&&card.binding.current() && isShown() && getWidth() > 0 && getHeight() > 0) {
-                        readyReported = true;
-                        if (stage != null) stage.setAlpha(1f);
-                        events.report(session,"drawn",displayId(),"visible WebView onDraw boundary; not hardware presentation proof");
-                        events.report(session, "ready", displayId(), "rear-centre host first frame on display " + displayId());
+                    drawCount++;
+                    if(closed||!ready||!shown||mode==RearCardRenderPolicy.Mode.HIDDEN)return;
+                    RearSystemCardBinding.State binding=card.binding.snapshot();
+                    if(drawEpoch!=modeEpoch){drawEpoch=modeEpoch;trace("native-draw","onDraw=true; presentation=unmeasured");}
+                    boolean qualified=frameEvidence.recordDraw(modeEpoch);
+                    if(qualified)main.removeCallbacks(drawTimeout);
+                    if(!card.owned()&&qualified&&binding.current()&&card.ownMedia()&&card.sameRoot()&&card.container.isShown()&&stage.isAttachedToWindow()){
+                        try{card.acquire(stage);trace("handoff-acquired","verified native draw; presentation=unmeasured");}
+                        catch(Throwable error){fail("Native draw handoff failed: "+error.getClass().getSimpleName());return;}
+                    }
+                    if(!readyReported&&qualified&&card.owned()&&card.ownMedia()&&binding.current()&&isShown()&&getWidth()>0&&getHeight()>0){
+                        readyReported=true;
+                        events.report(session,"drawn",displayId(),"WebView onDraw after visual-state fence; mode="+mode+"; epoch="+modeEpoch+"; presentation=unmeasured");
+                        events.report(session,"ready",displayId(),"verified own card stage draw; not physical presentation proof");
                     }
                 }
             };
@@ -156,16 +166,20 @@ final class RearHostView {
 
             client = new RearHostWebClient(RearHostContext.resolve(context), session, new RearHostWebClient.Events() {
                 @Override public void diagnostic(String event,String detail){main.post(()->boot(event,detail));}
+                @Override public void modeApplied(long sequence,String applied,boolean iframe,boolean hidden,boolean frameHidden){
+                    main.post(()->{if(closed||sequence!=modeEpoch||!mode.name().equals(applied))return;
+                        iframeApplied=iframe;trace("iframe-ack","iframeApplied="+iframe+", documentHidden="+hidden+", iframeHidden="+frameHidden+"; presentation=unmeasured");});
+                }
                 @Override public void ready() {
                     if (closed || !events.current(session)) return;
                     ready = true;
                     main.removeCallbacks(preparationTimeout);
-                    followAod=client.followAod();
-                    dispatch("folia-rear-mode","{\"mode\":\""+mode+"\"}");
+                    readPreference();
+
                     events.report(session,"page-ready",displayId(),"rear document ready; shown="+shown+", preparationMs="+(android.os.SystemClock.uptimeMillis()-loadStartedAt));
                     // An alpha-zero parent may be culled before the child ever reaches onDraw.
                     if(shown&&stage!=null)stage.setAlpha(1f);
-                    main.post(()->{if(!closed&&renderer!=null){reconcile();renderer.postInvalidateOnAnimation();}});
+                    main.post(()->{if(!closed&&renderer!=null){reconcile("page-ready");renderer.postInvalidateOnAnimation();}});
                 }
                 @Override public void failed(String reason) {
                     if (main.getLooper() == Looper.myLooper()) fail(reason);
@@ -203,7 +217,7 @@ final class RearHostView {
             displays = (DisplayManager) context.getSystemService(android.content.Context.DISPLAY_SERVICE);
             if (displays != null) displays.registerDisplayListener(displayListener, main);
             updates = new ContentObserver(main) {
-                @Override public void onChange(boolean self) { if (client != null) client.invalidate(); if(client!=null){followAod=client.followAod();reconcile();dispatch("folia-rear-refresh","{}");} }
+                @Override public void onChange(boolean self) { if (client != null) client.invalidate(); if(client!=null){readPreference();reconcile("preference-or-state");dispatch("folia-rear-refresh","{}");} }
             };
             context.getContentResolver().registerContentObserver(
                 Uri.parse("content://" + RearHostContract.AUTHORITY + "/state"), false, updates);
@@ -212,9 +226,9 @@ final class RearHostView {
             loadStartedAt=android.os.SystemClock.uptimeMillis();
             renderer.loadUrl(URL);
             main.postDelayed(preparationTimeout,4500);
-            if(!card.binding.current())events.report(session,"preparing",displayId(),"verified hidden own music card; no drawing ownership until ready and selected");
+            if(!card.binding.current())events.report(session,"attaching",displayId(),"verified hidden own music card; no drawing ownership until ready and selected");
             main.postDelayed(()->{if(!closed)viewState();},1200);
-            reconcile();
+            reconcile("attached");
             failure = "attached";
             return true;
         } catch (Throwable error) {
@@ -225,15 +239,15 @@ final class RearHostView {
     }
 
     void resumed(boolean value) { if (!closed) {
-        resumed = value; reconcile();
+        resumed = value; reconcile("native-lifecycle");
     } }
 
-    void aod(boolean value){if(!closed){aod=value;reconcile();}}
+    void aod(boolean value){if(!closed){aod=value;reconcile("aod-command");}}
 
-    void suspended(boolean value) { if (!closed) { suspended = value; reconcile(); } }
+    void suspended(boolean value) { if (!closed) { suspended = value; reconcile("camera-command"); } }
 
     /** 应用侧 PROBE / 心跳：重新核对一次可见性，不重建任何东西。 */
-    void refresh() { if (!closed) reconcile(); }
+    void refresh() { if (!closed) reconcile("binding-or-probe"); }
 
     /** 当前 launcher 窗口的显示 id；窗口不在背屏时返回 -1。 */
     int displayId() {
@@ -248,39 +262,86 @@ final class RearHostView {
         return display == null ? Display.STATE_UNKNOWN : display.getState();
     }
 
-    private void reconcile() {
-        if (closed || stage == null) return;
-        if (Looper.myLooper() != main.getLooper()) { main.post(this::reconcile); return; }
-        if(!card.binding.associated()){
-            int id=displayId();close();
-            events.report(session,"paused",id,"system recycled business holder; native content restored");
-            return;
+    private void readPreference(){if(client!=null)preference.update(client.followAod());}
+    private void checkDrawTimeout(){if(!closed&&shown&&ready&&!frameEvidence.drawn(modeEpoch))trace("draw-timeout","nativeDraw="+(drawEpoch==modeEpoch)+", renderTreeReady="+visualStateReady+"; presentation=unmeasured; first-frame handoff deferred");}
+
+    private void reconcile(String why) {
+        if(closed||stage==null)return;
+        if(Looper.myLooper()!=main.getLooper()){main.post(()->reconcile(why));return;}
+        trigger=why;
+        RearSystemCardBinding.State binding=card.binding.snapshot();
+        boolean own=card.ownMedia(),root=card.sameRoot();
+        if(!binding.associated||!root||!own){
+            trace("identity-invalid","associated="+binding.associated+", sameRoot="+root+", own="+own);
+            int id=displayId();close();events.report(session,"paused",id,"native binding/root/media session invalid; waiting for verified rebind");return;
         }
-        RearCardRenderPolicy.Mode next=RearCardRenderPolicy.mode(events.current(session),card.ownMedia(),
-            card.binding.current()&&card.container.isShown()&&stage.isAttachedToWindow(),suspended,followAod,aod,panelState());
-        if(next!=mode){
-            mode=next;
-            events.report(session,"render-mode",displayId(),"implementation=NATIVE_CARD, renderer=WEB_STAGE_AOD, mode="+mode+", power="+panelState()+", aodCommand="+aod+", own="+card.ownMedia());
-            dispatch("folia-rear-mode","{\"mode\":\""+mode+"\"}");
+        RearCardRenderPolicy.Decision decision=transition.resolve(events.current(session),own,binding.associated,
+            binding.center,binding.active,stage.isAttachedToWindow()&&card.container.isAttachedToWindow(),
+            card.container.isShown(),card.owned(),suspended,preference.enabled(),aod,panelState(),android.os.SystemClock.elapsedRealtime());
+        main.removeCallbacks(transitionTimeout);
+        if(decision.remainingMs>0)main.postDelayed(transitionTimeout,decision.remainingMs);
+        boolean recovered="verified-aod-transition".equals(decisionReason)&&"current-card".equals(decision.reason);
+        decisionReason=decision.reason;
+        if(decision.mode!=mode||recovered){mode=decision.mode;modeEpoch++;readyReported=false;iframeApplied=false;visualStateReady=false;}
+        // Functional mode events clear the app's active flag: emit exactly once per epoch,
+        // separately from rate-limited diagnostic snapshots, and before any rendering/ready event.
+        if(lastReportedEpoch!=modeEpoch){
+            lastReportedEpoch=modeEpoch;
+            events.report(session,"render-mode",displayId(),"mode="+mode+", seq="+modeEpoch+", power="+panelState()+", reason="+decision.reason);
         }
-        if(mode==RearCardRenderPolicy.Mode.HIDDEN){hide(hiddenReason());}
-        else {
-            renderer.setVisibility(View.VISIBLE);
-            dispatch("folia-rear-mode","{\"mode\":\""+mode+"\"}");
-            show();
-        }
+        if(mode==RearCardRenderPolicy.Mode.HIDDEN)hide(decisionReason);
+        else if(decision.remainingMs>0){
+            // Retain only the verified ownership/document. Never force pixels on an inactive card.
+            shown=false;
+            if(stage.getVisibility()!=View.INVISIBLE)stage.setVisibility(View.INVISIBLE);
+        }else{renderer.setVisibility(View.VISIBLE);show();}
+        sendMode();
+        if(recovered)dispatch("folia-rear-resync","{\"reason\":\"aod-transition-restored\"}");
+        trace("state",decision.reason);armDrawEvidence();
     }
 
-    private String hiddenReason() {
-        if (!events.current(session)) return "lease-lost";
-        if (suspended) return "camera";
-        if (aod) return "aod-command";
-        int state = panelState();
-        if (state != Display.STATE_ON) return state == Display.STATE_DOZE || state == Display.STATE_DOZE_SUSPEND ? "aod" : "display-off";
-        if (!resumed) return "launcher-paused";
-        if (!stage.isAttachedToWindow()) return "detached";
-        if (!card.binding.current()) return "system-card-navigation";
-        return "host-hidden";
+    private void trace(String event,String detail){
+        if(stage==null||renderer==null)return;
+        RearSystemCardBinding.State b=card.binding.snapshot();
+        String key=event+"|"+mode+"|"+panelState()+"|"+trigger+"|"+b.center+"|"+b.active+"|"+b.bound+"|"+card.container.isShown()+"|"+card.owned()+"|"+renderPaused+"|"+preference.status()+"|"+detail;
+        if(!evidenceGate.allow(key,android.os.SystemClock.uptimeMillis()))return;
+        events.report(session,"web-stage",displayId(),"aod/"+event+", trigger="+trigger+", reason="+decisionReason+", power="+panelState()
+            +", mode="+mode+", seq="+modeEpoch+", aodCommand="+aod+", camera="+suspended+", lease="+events.current(session)+", center="+b.center+", active="+b.active+", bound="+b.bound+", associated="+b.associated
+            +", attached="+stage.isAttachedToWindow()+", shown="+card.container.isShown()+", webShown="+renderer.isShown()
+            +", own="+card.ownMedia()+", sameRoot="+card.sameRoot()+", owned="+card.owned()+", webPauseRequested="+renderPaused+", webResumeEpoch="+resumeEpoch+", nativeResumed="+resumed
+            +", preference="+preference.status()+", iframeApplied="+iframeApplied+", visualState="+visualStateReady+", draws="+drawCount
+            +", elapsedMs="+android.os.SystemClock.elapsedRealtime()+", uptimeMs="+android.os.SystemClock.uptimeMillis()+", suppressed="+evidenceGate.takeSuppressed()+", "+detail);
+    }
+
+    private void sendMode(){
+        if(!ready||renderer==null||lastSentEpoch==modeEpoch)return;
+        long epoch=modeEpoch;lastSentEpoch=epoch;
+        String detail="{\"mode\":\""+mode+"\",\"sequence\":"+epoch+"}";
+        String script="(()=>{window.dispatchEvent(new CustomEvent('folia-rear-mode',{detail:"+detail+"}));"
+            +"const a=window.__foliaRearModeReceipt,b=document.querySelector('iframe')?.contentWindow?.__foliaRearModeReceipt;"
+            +"return JSON.stringify({outer:a?.sequence==="+epoch+",iframe:b?.sequence==="+epoch+"});})()";
+        try{renderer.evaluateJavascript(script,value->{
+            if(closed||epoch!=modeEpoch)return;
+            try{Object raw=new org.json.JSONTokener(value).nextValue();org.json.JSONObject ack=new org.json.JSONObject(String.valueOf(raw));
+                iframeApplied=ack.optBoolean("iframe");trace("mode-delivery","outerApplied="+ack.optBoolean("outer")+", iframeApplied="+iframeApplied+"; presentation=unmeasured");
+            }catch(Exception error){trace("mode-delivery","evaluation-unavailable; presentation=unmeasured");}
+        });}catch(Throwable error){lastSentEpoch=-1;trace("mode-delivery","evaluate-failed="+error.getClass().getSimpleName());}
+    }
+
+    /** One visual-state fence and timeout per visible mode epoch; neither proves physical presentation. */
+    private void armDrawEvidence(){
+        if(!ready||!shown||renderer==null||mode==RearCardRenderPolicy.Mode.HIDDEN||requestedFrameEpoch==modeEpoch)return;
+        long epoch=modeEpoch;requestedFrameEpoch=epoch;
+        frameEvidence.begin(epoch);
+        main.removeCallbacks(drawTimeout);main.postDelayed(drawTimeout,2500);
+        try{
+        if(resumeEpoch!=epoch){renderer.onResume();resumeEpoch=epoch;}
+        renderer.postVisualStateCallback(epoch,new WebView.VisualStateCallback(){
+            @Override public void onComplete(long id){if(closed||id!=modeEpoch||!shown)return;
+                visualStateReady=frameEvidence.visualReady(id);trace("visual-state","render-tree-ready; presentation=unmeasured");renderer.postInvalidateOnAnimation();}
+        });
+        }catch(Throwable error){trace("visual-state","unavailable="+error.getClass().getSimpleName()+"; presentation=unmeasured");}
+        renderer.postInvalidateOnAnimation();
     }
 
     private void show() {
@@ -290,10 +351,11 @@ final class RearHostView {
             renderPaused = false;
             if (renderer != null) {
                 renderer.onResume();
+                resumeEpoch=modeEpoch;
                 dispatch("folia-rear-power", "{\"sleeping\":false}");
             }
         }
-        if(ready&&card.owned())try{card.acquire(stage);}catch(Throwable error){fail("Native visibility refresh failed: "+error.getClass().getSimpleName());return;}
+        if(ready&&card.owned()&&card.binding.current()&&card.container.isShown())try{card.acquire(stage);}catch(Throwable error){fail("Native visibility refresh failed: "+error.getClass().getSimpleName());return;}
         if (shown) {if(ready&&!readyReported&&renderer!=null)renderer.postInvalidateOnAnimation();return;}
         shown = true;
         events.report(session,"rendering",displayId(),"own SmartAssistant music card visible; awaiting real stage draw");
@@ -312,9 +374,9 @@ final class RearHostView {
         if (closed || stage == null) return;
         // Keep valid ownership across power transitions, but never paint while OFF or AOD is disabled.
         int power=panelState();
-        boolean systemAod=!followAod&&(aod||power==Display.STATE_DOZE||power==Display.STATE_DOZE_SUSPEND);
+        boolean systemAod=!preference.enabled()&&(aod||power==Display.STATE_DOZE||power==Display.STATE_DOZE_SUSPEND);
         boolean retain=RearHostPolicy.retainCardOwnership(events.current(session),card.ownMedia()&&card.binding.associated(),
-            stage.isAttachedToWindow(),suspended,systemAod);
+            stage.isAttachedToWindow()&&card.sameRoot(),suspended,systemAod,card.binding.current()&&card.container.isShown(),power);
         boolean retainFrame=retain&&power==Display.STATE_ON&&!aod;
         if(!retain)card.restore();
         boolean was = shown;
@@ -326,6 +388,7 @@ final class RearHostView {
     }
 
     private void pauseRenderer() {
+        main.removeCallbacks(drawTimeout);
         if (renderPaused || renderer == null) return;
         renderPaused = true;
         dispatch("folia-rear-power", "{\"sleeping\":true}");
@@ -348,8 +411,10 @@ final class RearHostView {
     void close() {
         if (Looper.myLooper() != main.getLooper()) { main.post(this::close); return; }
         if (closed) return;
+        mode=RearCardRenderPolicy.Mode.HIDDEN;modeEpoch++;trace("closing","native restoration requested; presentation=unmeasured");
         closed = true;
         main.removeCallbacks(preparationTimeout);
+        main.removeCallbacks(transitionTimeout);main.removeCallbacks(drawTimeout);
         if(card!=null){card.restore();try{card.unwatch();}catch(Throwable error){boot("web-error","media callback cleanup "+error.getClass().getSimpleName());}}
         if (displays != null) { try { displays.unregisterDisplayListener(displayListener); } catch (Throwable ignored) {} displays = null; }
         if (updates != null) { try { context.getContentResolver().unregisterContentObserver(updates); } catch (Throwable ignored) {} updates = null; }

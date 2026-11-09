@@ -179,7 +179,7 @@ final class RearHostBridge {
         });
     }
     private static void awaitVisibleFrame(Context context,String expected){
-        if("AOD".equals(renderMode))return;
+        if(!RearHostFrameWait.requiredForMode(renderMode))return;
         if(timeout!=null)MAIN.removeCallbacks(timeout);
         long delay=frameWait.start(android.os.SystemClock.uptimeMillis());
         timeout=()->{if(matches(expected)&&!active&&frameWait.expired(android.os.SystemClock.uptimeMillis()))failStart(context,expected,"可见系统卡片的歌词首帧未确认；"+progress.describe());};
@@ -189,7 +189,7 @@ final class RearHostBridge {
         MAIN.post(()->{
             if(!matches(expected) || releasing)return;
             if("web-stage".equals(event)){int split=reason.indexOf(":");progress.update(split<0?reason:reason.substring(0,split),split<0?"":reason.substring(split+1));}else progress.update(event,reason);
-            RearLyricsTrace.record(context,"host/"+event,"session="+expected+", display="+id+", "+reason);
+            RearLyricsTrace.record(context,"host/"+event,"leaseTag="+Integer.toHexString(expected.hashCode())+", display="+id+", "+reason);
             if("render-mode".equals(event)){
                 renderMode=reason.contains("mode=AOD")?"AOD":reason.contains("mode=NORMAL")?"NORMAL":"HIDDEN";
                 detail=reason;active=false;frameWait.stop();if(timeout!=null)MAIN.removeCallbacks(timeout);
@@ -226,7 +226,7 @@ final class RearHostBridge {
                 active=false;
                 if(pending!=null)failStart(context,expected,reason);
                 else release((ok,d,message)->{if(ok)RearLyricsCoordinator.get(context).hostDisconnected(expected);});
-            }else if("paused".equals(event)||"card-collapsed".equals(event)){
+            }else if(RearHostPolicy.invalidatesDrawnState(event,renderMode)){
                 active=false;detail="宿主暂不可见："+reason;
                 frameWait.stop();
                 if(timeout!=null)MAIN.removeCallbacks(timeout);

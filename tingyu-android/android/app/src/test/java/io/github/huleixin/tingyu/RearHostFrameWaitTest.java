@@ -5,6 +5,12 @@ import static org.junit.Assert.*;
 
 // android/app/src/test/java/io/github/huleixin/tingyu/RearHostFrameWaitTest.java
 public class RearHostFrameWaitTest {
+    @Test public void hiddenAndAodCannotStartANormalVisibleFrameTimeout(){
+        assertTrue(RearHostFrameWait.requiredForMode("NORMAL"));
+        assertFalse(RearHostFrameWait.requiredForMode("AOD"));
+        assertFalse(RearHostFrameWait.requiredForMode("HIDDEN"));
+        assertFalse(RearHostFrameWait.requiredForMode(null));
+    }
     @Test public void repeatedCreationAndProbesCannotPostponeFailure(){
         RearHostFrameWait wait=new RearHostFrameWait();
         assertEquals(4500,wait.start(1000));

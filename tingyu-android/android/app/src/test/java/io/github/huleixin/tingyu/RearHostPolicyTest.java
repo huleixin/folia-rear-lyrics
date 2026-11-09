@@ -13,6 +13,19 @@ import static org.junit.Assert.*;
  * 成回归测试，而不是只靠删代码。
  */
 public class RearHostPolicyTest {
+    @Test public void staleBusinessAvailabilityCannotClearAnAlreadyDrawnAodHost(){
+        assertFalse(RearHostPolicy.invalidatesDrawnState("card-collapsed","AOD"));
+        assertFalse(RearHostPolicy.invalidatesDrawnState("card-collapsed","NORMAL"));
+        assertTrue(RearHostPolicy.invalidatesDrawnState("card-collapsed","HIDDEN"));
+        for(String mode:new String[]{"NORMAL","AOD","HIDDEN"})assertTrue(RearHostPolicy.invalidatesDrawnState("paused",mode));
+    }
+    @Test public void hiddenInactiveOrOffCardsCannotKeepNativeContentMaskedOutsideTheAodBridge(){
+        assertTrue(RearHostPolicy.retainCardOwnership(true,true,true,false,false,true,2));
+        for(int power:new int[]{0,1,3,4})assertFalse(RearHostPolicy.retainCardOwnership(true,true,true,false,false,true,power));
+        assertFalse(RearHostPolicy.retainCardOwnership(true,true,true,false,false,false,2));
+        assertFalse(RearHostPolicy.retainCardOwnership(true,true,true,true,false,true,2));
+        assertFalse(RearHostPolicy.retainCardOwnership(true,true,true,false,true,true,2));
+    }
     @Test public void powerTransitionsRetainOwnershipButCameraPreferenceAndSessionLossRelease(){
         for(int cycle=0;cycle<100;cycle++)for(int power:new int[]{2,3,4,1,0,2}){
             assertTrue(RearHostPolicy.retainCardOwnership(true,true,true,false,false));
