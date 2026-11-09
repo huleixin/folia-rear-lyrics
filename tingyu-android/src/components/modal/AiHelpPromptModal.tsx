@@ -68,6 +68,7 @@ export const AiHelpPromptModal: React.FC<AiHelpPromptModalProps> = ({
         <AnimatePresence>
             {isOpen && (
                 <motion.div
+                    data-native-settings-editor
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}

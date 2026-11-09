@@ -208,6 +208,7 @@ const ThemePark: React.FC<ThemeParkProps> = ({
 
     return (
         <motion.div
+            data-native-settings-editor
             initial={NATIVE_FIRST?false:{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -273,6 +274,7 @@ const ThemePark: React.FC<ThemeParkProps> = ({
                                     <button
                                         key={id}
                                         type="button"
+                                        aria-pressed={activeTab === id}
                                         onClick={() => setActiveTab(id)}
                                         className="truncate rounded-full px-2 py-2 text-xs transition-colors"
                                         style={{

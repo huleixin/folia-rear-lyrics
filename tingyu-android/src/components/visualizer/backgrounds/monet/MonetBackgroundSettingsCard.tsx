@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { HexColorPicker } from 'react-colorful';
+import FastColorPicker from '../../../shared/FastColorPicker';
 import { ImagePlus, Trash2 } from 'lucide-react';
 import {
     DEFAULT_MONET_BACKGROUND_TUNING,
@@ -444,10 +444,10 @@ export const MonetBackgroundSettingsCard: React.FC<MonetBackgroundSettingsCardPr
                                 {resolvedTuning.backgroundWashCustomColor.toUpperCase()}
                             </div>
                         </div>
-                        <HexColorPicker
+                        <FastColorPicker
                             color={resolvedTuning.backgroundWashCustomColor}
                             onChange={(value) => onTuningChange?.({ backgroundWashCustomColor: value })}
-                            style={{ width: '100%', height: 180 }}
+                            height={180}
                         />
                     </div>
                 )}

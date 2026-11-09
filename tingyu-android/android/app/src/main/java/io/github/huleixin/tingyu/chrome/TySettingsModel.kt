@@ -25,7 +25,7 @@ import org.json.JSONObject
 // 不迁移的部分（有意保留 DOM 测量）：实时可视化预览岛（VisPlayground / ThemePark /
 // GlobalLyricOffsetPreview）—— 它们需要真实的浏览器像素，本身就是 WebView 的强项。
 
-data class TySettingOption(val value: String, val label: String)
+data class TySettingOption(val value: String, val label: String, val disabled: Boolean = false)
 
 /**
  * 一个设置条目。`kind` 决定渲染成哪种控件，控件之间共享同一套行结构与触摸目标。
@@ -53,6 +53,8 @@ data class TySettingNode(
     val options: List<TySettingOption>,
     /** 点击回传的动作名；空串表示与 id 相同。 */
     val action: String,
+    val inputType: String = "text",
+    val immediate: Boolean = false,
 )
 
 /** 一张语义化设置页。 */
@@ -61,16 +63,18 @@ data class TySettingsPage(
     val title: String,
     val subtitle: String,
     val nodes: List<TySettingNode>,
+    val modal: TySettingsPage? = null,
 ) {
     companion object {
-        private val KINDS = setOf("group", "action", "switch", "select", "slider", "input", "note")
-        private const val MAX_NODES = 400
+        private val KINDS = setOf("group", "action", "switch", "checkbox", "select", "slider", "input", "note", "color", "preview", "image", "reorder")
+        private const val MAX_NODES = 2000
         private const val MAX_PACKET = 400_000
 
         fun parse(value: JSONObject): TySettingsPage {
             require(value.toString().length <= MAX_PACKET) { "Settings flow packet too large" }
             val raw = value.optJSONArray("nodes")
-            val count = minOf(raw?.length() ?: 0, MAX_NODES)
+            val count = raw?.length() ?: 0
+            require(count <= MAX_NODES) { "Settings flow has too many controls" }
             val nodes = (0 until count).mapNotNull { index ->
                 val node = raw!!.optJSONObject(index) ?: return@mapNotNull null
                 val kind = node.optString("kind")
@@ -79,9 +83,11 @@ data class TySettingsPage(
                 TySettingNode(
                     id = id,
                     kind = kind,
-                    title = node.optString("title").take(300),
+                    title = node.optString("title").let { if (kind == "note") it else it.take(1000) },
                     hint = node.optString("hint").take(600),
-                    value = node.optString("value").take(2000),
+                    // The packet is already bounded. Truncating JSON/password input here would
+                    // silently replace a valid original value with a partial value on the next edit.
+                    value = node.optString("value"),
                     icon = node.optString("icon").take(60),
                     disabled = node.optBoolean("disabled"),
                     detail = node.optString("detail").take(120),
@@ -94,6 +100,8 @@ data class TySettingsPage(
                     multiline = node.optBoolean("multiline"),
                     options = node.optJSONArray("options").options(),
                     action = node.optString("action").take(120).ifEmpty { id },
+                    inputType = node.optString("inputType", "text"),
+                    immediate = node.optBoolean("immediate"),
                 )
             }
             return TySettingsPage(
@@ -101,7 +109,14 @@ data class TySettingsPage(
                 title = value.optString("title").take(200),
                 subtitle = value.optString("subtitle").take(400),
                 nodes = nodes,
+                modal = value.optJSONObject("modal")?.let { modal -> parseWithoutModal(modal) },
             )
+        }
+
+        private fun parseWithoutModal(value: JSONObject): TySettingsPage {
+            // Only one modal is presented; untrusted packets cannot create recursive overlay trees.
+            val flat = JSONObject(value.toString()); flat.remove("modal")
+            return parse(flat)
         }
 
         private fun f(o: JSONObject, key: String, fallback: Float): Float =
@@ -111,7 +126,7 @@ data class TySettingsPage(
             (0 until minOf(this?.length() ?: 0, 300)).mapNotNull { i ->
                 val o = this?.optJSONObject(i) ?: return@mapNotNull null
                 val v = o.optString("value").take(200)
-                TySettingOption(v, o.optString("label").take(200).ifEmpty { v })
+                TySettingOption(v, o.optString("label").take(200).ifEmpty { v }, o.optBoolean("disabled"))
             }
     }
 }

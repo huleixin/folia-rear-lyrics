@@ -45,6 +45,8 @@ const LyricFilterRuleSection: React.FC<LyricFilterRuleSectionProps> = ({
                     type="button"
                     onClick={onToggle}
                     aria-label={t('lyricFilter.enableFilter')}
+                    role="switch"
+                    aria-checked={isEnabled}
                     className={`mt-0.5 h-6 w-12 shrink-0 rounded-full p-1 transition-colors ${!isEnabled ? toggleOffBackgroundClass : ''}`}
                     style={{ backgroundColor: isEnabled ? 'var(--text-secondary)' : undefined }}
                 >

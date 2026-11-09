@@ -15,6 +15,18 @@ it('translates WebView-only local-cover resources instead of handing their non-n
     expect(isWebManagedArtwork('https://y.gtimg.cn/cover.jpg')).toBe(false);
     expect(isWebManagedArtwork('https://other.test/__folia_cover/x')).toBe(false);
 });
+it('resolves semantic settings thumbnails including nested dialogs through the shared image adapter',async()=>{
+    (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;vi.useFakeTimers();
+    let model:any;const root=createRoot(document.createElement('div'));
+    const input={key:'settings:document:qa',title:'设置',sections:[],document:{paints:[],controls:[],areas:[],live:[],flow:{key:'qa',title:'设置',nodes:[{id:'i',kind:'image' as const,title:'背景缩略图',value:'blob:settings-main'}],modal:{key:'dialog',title:'预览',nodes:[{id:'m',kind:'image' as const,title:'导入图片',value:'blob:settings-modal'}]}}}};
+    function Probe(){model=useNativePageImages(input,true);return null}
+    try{
+        await act(()=>root.render(h(Probe)));expect(model.document.flow.nodes[0].value).toBe('');
+        await act(async()=>{cache.resolve['blob:settings-main']('data:image/jpeg;base64,main');cache.resolve['blob:settings-modal']('data:image/jpeg;base64,modal');await vi.advanceTimersByTimeAsync(49)});
+        expect(model.document.flow.nodes[0].value).toBe('data:image/jpeg;base64,main');
+        expect(model.document.flow.modal.nodes[0].value).toBe('data:image/jpeg;base64,modal');
+    }finally{await act(()=>root.unmount());vi.useRealTimers()}
+});
 it('publishes a fast cover while another is pending, and reuses it immediately when a page remounts',async()=>{
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;vi.useFakeTimers();
     let model:any;const root=createRoot(document.createElement('div'));

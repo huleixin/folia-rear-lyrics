@@ -9,7 +9,7 @@ import type { FlowBuilder } from './flowBuilder';
 //
 // 设置分区 → 语义化模型的注册表（原生化专项·第 22 轮）。
 //
-// 只有出现在这张表里的分区才会交出「声明式页面」，其余分区继续走原来的
+// 第 22 轮的历史实现：只有出现在这张表里的分区才会交出「声明式页面」，其余分区继续走原来的
 // 「DOM 测量 + Canvas 复刻」。迁移因此是**逐分区**的：
 // 改一个分区、提交一次、可单独回退，不影响其它分区。
 //
@@ -18,6 +18,8 @@ import type { FlowBuilder } from './flowBuilder';
 //   desktop    （isElectron 才有）
 //   mods       （isElectron 才有）
 // 它们也登记在这里，用空页面取代「测量一棵空 DOM 树」，语义上更准确。
+// Migration update: unregistered categories now use nativeSettingsSemantic's shared form
+// projection, not measured display lists. This registry remains for explicit store-only models.
 
 export type SettingsFlowResult = { flow: NativeSettingsFlow; handlers: FlowHandlers };
 
@@ -36,7 +38,7 @@ function emptyFlow(section: string, title: string, subtitle: string): FlowBuilde
 }
 
 /**
- * 构建当前分区的语义化页面。返回 null 表示该分区尚未迁移（继续用测量路径）。
+ * 构建当前分区的显式语义模型。返回 null 时使用共享表单语义适配器，不再走测量路径。
  *
  * 这是唯一入口：新增一个分区只需在这里加一行，不需要改 SettingsModal。
  */

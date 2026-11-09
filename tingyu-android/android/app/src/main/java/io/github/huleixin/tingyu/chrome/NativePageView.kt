@@ -62,5 +62,5 @@ internal typealias PageAction = (String, String, Double) -> Unit
         }
     }
 }
-internal fun NativePage.keepsEditing(action:String)=action.startsWith("scroll:")||sections.any{it.action==action||it.request==action}
+internal fun NativePage.keepsEditing(action:String)=action.startsWith("scroll:")||action.startsWith("preview:")||action.startsWith("preview-tap:")||action.startsWith("submit:")||action.startsWith("focus:")||sections.any{it.action==action||it.request==action}
     ||document?.controls?.any{it.id==action&&it.kind!="click"}==true

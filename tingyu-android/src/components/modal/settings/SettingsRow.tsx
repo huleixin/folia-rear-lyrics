@@ -27,19 +27,19 @@ const SettingsRow: React.FC<SettingsRowProps> = ({
     dividerClass,
     isLast = false,
 }) => (
-    <div className={`p-4 space-y-3${isLast ? '' : ` border-b ${dividerClass}`}`}>
+    <div data-settings-row className={`p-4 space-y-3${isLast ? '' : ` border-b ${dividerClass}`}`}>
         <div className="flex items-center justify-between gap-4">
             <div className="space-y-1 text-left min-w-0">
-                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                <div data-settings-title className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                     {title}
                 </div>
                 {description && (
-                    <div className="text-xs opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                    <div data-settings-description className="text-xs opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
                         {description}
                     </div>
                 )}
                 {note && (
-                    <div className="text-[11px] opacity-40 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                    <div data-settings-note className="text-[11px] opacity-40 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
                         {note}
                     </div>
                 )}
@@ -66,6 +66,8 @@ export const SettingsToggle: React.FC<SettingsToggleProps> = ({ checked, onChang
         onClick={onChange}
         disabled={disabled}
         aria-pressed={checked}
+        role="switch"
+        aria-checked={checked}
         aria-label={ariaLabel}
         className={`shrink-0 w-12 h-6 rounded-full p-1 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${checked ? '' : offClass}`}
         style={{ backgroundColor: checked ? onColor || 'rgba(114, 119, 134, 1)' : undefined }}

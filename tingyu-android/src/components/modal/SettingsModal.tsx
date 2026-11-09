@@ -81,7 +81,6 @@ import { useSettingsModalStore } from '../../stores/useSettingsModalStore';
 import { useAndroidLayoutSettingsStore } from '../../stores/useAndroidLayoutSettingsStore';
 import { NATIVE_FIRST } from '../../services/nativePages';
 import { useNativeSettingsDocument } from '../../hooks/useNativeSettingsDocument';
-import { buildSettingsFlow } from './settings/flow';
 import { selectAudioSettingsSnapshot, useAudioSettingsStore } from '../../stores/useAudioSettingsStore';
 import { selectHomeLayoutSettingsSnapshot, useHomeLayoutSettingsStore } from '../../stores/useHomeLayoutSettingsStore';
 import { setNavidromeEnabledState, useLibraryStore } from '../../stores/useLibraryStore';
@@ -1415,24 +1414,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     // 未迁移的分区返回 null，继续走逐元素测量。三级编辑器（可视化实验场 / 主题公园）、
     // 引导页、索引页、以及任何弹层打开时一律不下发 flow —— 那些面对应的是另一张页面，
     // 由原来的测量路径承接，避免"原生列表 + 旧编辑器"两张页面打架。
-    const flowSuppressed = Boolean(
-        mobileSettingsIndex || mobileRearGuide || showVisPlayground || showThemePark || showStageTheme
-        || showLyricFilterSettings || showGlobalLyricOffset || showAiHelpPrompt || showReleaseNotes
-        || activeTab !== 'options'
-    );
-    const settingsFlow = NATIVE_FIRST && !flowSuppressed
-        ? buildSettingsFlow(activeSettingsSection, {
-            t,
-            title: activeSettingsNavItem?.label ?? '',
-            subtitle: activeSettingsNavItem?.description ?? '',
-        })
-        : null;
+    // All categories and nested editors now expose semantic forms through the shared hook.
+    // Their mounted React components retain the existing handlers, not browser placement.
     useNativeSettingsDocument(nativeDocumentRef,NATIVE_FIRST,
         `${activeTab}:${activeSettingsSection}:${showVisPlayground}:${showStageTheme}:${showThemePark}:${showLyricFilterSettings}:${showGlobalLyricOffset}:${showAiHelpPrompt}:${showReleaseNotes}`,
-        showVisPlayground?t(showStageTheme?'rearAppearance.theme':'rearAppearance.edit'):activeSettingsNavItem?.label??t('ui.options'),
-        settingsFlow?.flow,
-        settingsFlow ? (nodeId, event) => settingsFlow.handlers[nodeId]?.(event) : undefined,
-        settingsFlow ? returnFromMobileSection : undefined);
+        showVisPlayground?t(showStageTheme?'rearAppearance.theme':'rearAppearance.edit'):activeSettingsNavItem?.label??t('ui.options'));
 
 
     return (

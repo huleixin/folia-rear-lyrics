@@ -51,6 +51,7 @@ const ThemeParkColorPanel: React.FC<ThemeParkColorPanelProps> = ({
                     <button
                         key={nextMode}
                         type="button"
+                        aria-pressed={mode === nextMode}
                         onClick={() => onModeChange(nextMode)}
                         className="flex-1 rounded-full px-3 py-2 text-sm transition-colors"
                         style={{
@@ -74,6 +75,7 @@ const ThemeParkColorPanel: React.FC<ThemeParkColorPanelProps> = ({
                         <button
                             key={`${mode}-${field.key}`}
                             type="button"
+                            aria-pressed={isActive}
                             onClick={() => onActiveColorKeyChange(field.key)}
                             className="flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all"
                             style={{

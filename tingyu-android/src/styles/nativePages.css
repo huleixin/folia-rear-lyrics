@@ -60,3 +60,33 @@ html[data-native-settings-document='true'] [data-native-live='true'] {
     overflow: hidden !important;
     clip-path: inset(0 round 28px);
 }
+
+/* Semantic forms are data hosts. Only Folia preview pixels survive; Compose supplies
+   their fixed viewport rectangle. No ancestor may clip or transform that rectangle. */
+html[data-native-settings-semantic='true'] [data-native-live-carrier='true']:not([data-native-document-root]) {
+    display: contents !important;
+    transform: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    contain: none !important;
+    overflow: visible !important;
+}
+html[data-native-settings-semantic='true'] [data-native-document-root] {
+    transform: none !important;
+    background: transparent !important;
+}
+html[data-native-settings-semantic='true'] [data-native-preview] {
+    visibility: hidden !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    pointer-events: none !important;
+}
+html[data-native-settings-semantic='true'] [data-native-preview][data-native-preview-ready='true'],
+html[data-native-settings-semantic='true'] [data-native-preview][data-native-preview-ready='true'] * {
+    visibility: visible !important;
+    pointer-events: none !important;
+}
+html[data-native-settings-semantic='true'] [data-native-preview][data-native-preview-ready='true'] :is(button,input,select,textarea),
+html[data-native-settings-semantic='true'] [data-native-preview][data-native-preview-ready='true'] button * {
+    visibility: hidden !important;
+}

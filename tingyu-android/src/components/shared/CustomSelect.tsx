@@ -211,10 +211,10 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
     // 关掉 DOM 菜单会让选项变成死控件，宁可继续用原来的自定义菜单。
     const [nativeOwned, setNativeOwned] = useState(false);
     useEffect(() => {
-        if (!nativeSelect || !NATIVE_FIRST) { setNativeOwned(false); return; }
+        if (!NATIVE_FIRST) { setNativeOwned(false); return; }
         const root = document.querySelector('[data-native-document-root]');
         const trigger = triggerRef.current;
-        setNativeOwned(Boolean(root && trigger && root.contains(trigger)));
+        setNativeOwned(Boolean(root && trigger && (root.contains(trigger) || trigger.closest('[data-folia-themed-dialog],[role="dialog"]'))));
     }, [nativeSelect]);
     useEffect(() => {
         if (!nativeOwned) return;
@@ -231,7 +231,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                 ref={triggerRef}
                 type="button"
                 role="combobox"
-                onClick={nativeOwned ? (event) => { event.preventDefault(); } : handleTriggerClick}
+                onClick={nativeOwned ? (event) => { event.preventDefault(); onOpen?.(); } : handleTriggerClick}
                 data-native-select={nativeOwned ? '' : undefined}
                 data-native-value={nativeOwned ? value : undefined}
                 data-native-options={nativeOwned ? JSON.stringify(options.map(option => ({ value: option.value, label: option.label }))) : undefined}

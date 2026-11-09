@@ -1,6 +1,12 @@
 <!-- docs/android-compose-settings.md -->
 # Settings and playlist follow-up — 1.3.20-beta.9
 
+Current settings implementation (1.3.190): see [ANDROID-NATIVE-SETTINGS.md](ANDROID-NATIVE-SETTINGS.md).
+Every secondary/tertiary settings route now emits semantic forms and uses TySettings native
+layout; the measured-display-list description below documents the historical implementation.
+Folia previews remain browser pixels positioned by Compose. The state/validation owners,
+memory-only document policy, native file picker and navigation rules remain in effect.
+
 ## Playlist detail
 
 `NativePlaylistPage` follows `MobilePlaylistHeader`, `MobileTrackList` and

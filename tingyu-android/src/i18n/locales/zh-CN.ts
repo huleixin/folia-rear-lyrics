@@ -1,6 +1,7 @@
 
 
 export default {
+  nativeSettings: { moveUp: '上移', moveDown: '下移', hue: '色相', saturation: '饱和度', brightness: '明度' },
   rearHost: {"show": "重新显示背屏歌词", "dismissed": "已退出本次显示", "rendererFailed": "渲染异常，已让回系统", "display": "显示承载", "active": "背屏中心宿主 · 已接管", "fallback": "独立窗口（宿主未接管）", "waiting": "宿主已连接 · 等待背屏中心", "disconnected": "宿主未连接 · 检查背屏中心作用域"},
   frontAppearance: {paletteHint: "当前正面舞台使用{{mode}}。下方切换仅选择要编辑的配色，保存后应用到正面；背屏独立配置不受影响。"},
   rearAppearance: {"independentSwitch": "独立配置背屏歌词舞台","independentSummary": "使用背屏独立的主题、背景与字体","followSummary": "当前跟随正面歌词舞台","preserveHint": "关闭后跟随正面，独立配置会保留。LSP 与 Shizuku 共用。","daylightHint": "仅切换背屏舞台使用的浅色或深色配色","backupHint": "导出或恢复背屏独立外观","paste": "粘贴外观 JSON","editLight": "编辑浅色配色","editDark": "编辑深色配色","paletteHint": "当前背屏使用{{mode}}。下方切换仅选择要编辑的配色，保存后应用。","unlimited": "不限制","modeLabel": "配置来源", "importFile": "选择背屏外观 JSON 文件","title": "歌词舞台外观", "entryHint": "跟随正面或使用背屏独立外观", "follow": "跟随正面", "independent": "独立设置", "followHint": "背屏跟随正面的主题、背景、字体和舞台效果；相机避让与背屏布局保持独立。", "independentHint": "仅修改背屏。切回跟随会保留这份独立配置，LSP 与 Shizuku 共用。", "edit": "舞台样式与字体", "editHint": "复用现有舞台、背景、字体、歌词及动画设置", "theme": "主题与配色", "daylight": "舞台浅色外观", "backup": "备份与恢复", "export": "导出背屏外观 JSON", "import": "导入背屏外观 JSON", "loading": "正在准备舞台编辑器…"},

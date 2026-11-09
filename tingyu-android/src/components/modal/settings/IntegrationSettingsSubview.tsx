@@ -146,7 +146,7 @@ const IntegrationSettingsSubview: React.FC<IntegrationSettingsSubviewProps> = ({
                         <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                             {t('navidrome.enable') || 'Enable Navidrome'}
                         </span>
-                        <button
+                        <button role="switch" aria-checked={navidromeEnabled}
                             onClick={() => onToggleNavidrome(!navidromeEnabled)}
                             className={`w-12 h-6 rounded-full p-1 transition-colors ${!navidromeEnabled ? toggleOffBackgroundClass : ''}`}
                             style={{ backgroundColor: navidromeEnabled ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}

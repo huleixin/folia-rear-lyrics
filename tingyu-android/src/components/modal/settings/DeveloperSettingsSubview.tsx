@@ -71,13 +71,15 @@ const ModeChoice: React.FC<{
         { mode: 'overwrite', label: t('options.debugLogModeOverwrite') || 'Overwrite' },
     ];
     return (
-        <div className={`flex gap-1.5 ${disabled ? 'pointer-events-none opacity-40' : ''}`}>
+        <div data-settings-disabled={disabled || undefined} className={`flex gap-1.5 ${disabled ? 'pointer-events-none opacity-40' : ''}`}>
             {options.map(option => {
                 const isActive = value === option.mode;
                 return (
                     <button
                         key={option.mode}
                         type="button"
+                        aria-pressed={isActive}
+                        disabled={disabled}
                         onClick={() => onChange(option.mode)}
                         className={`rounded-full border px-3 py-1 text-[11px] transition-colors ${isDaylight ? 'border-black/10 hover:bg-black/[0.05]' : 'border-white/10 hover:bg-white/[0.07]'} ${isActive ? (isDaylight ? 'bg-black/[0.08]' : 'bg-white/[0.12]') : 'opacity-55'}`}
                     >
@@ -267,6 +269,7 @@ const DeveloperSettingsSubview: React.FC<DeveloperSettingsSubviewProps> = ({
                                     key={interval}
                                     type="button"
                                     disabled={!debug.available}
+                                    aria-pressed={isActive}
                                     onClick={() => void setDebugModuleState({ memoryIntervalMs: interval })}
                                     className={`rounded-full border px-2.5 py-1 text-[11px] tabular-nums transition-colors disabled:opacity-30 ${isDaylight ? 'border-black/10 hover:bg-black/[0.05]' : 'border-white/10 hover:bg-white/[0.07]'} ${isActive ? (isDaylight ? 'bg-black/[0.08]' : 'bg-white/[0.12]') : 'opacity-55'}`}
                                 >

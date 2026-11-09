@@ -15,9 +15,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
@@ -74,8 +80,11 @@ internal fun SettingsFlowPage(
     val theme = settingsFlowTheme()
     val colors = page.surfaceColors()
     // 返回：更内层的面板/弹层各自有 BackHandler，会先吃掉；到这里才是退设置分区。
-    BackHandler(enabled = true) { action("back", "", 0.0) }
-    BoxWithConstraints(modifier) {
+    BackHandler(enabled = true) { action(if (flow.modal != null) "dismiss" else "back", "", 0.0) }
+    val density = LocalDensity.current
+    BoxWithConstraints(modifier.then(if (flow.nodes.any { it.kind == "preview" }) Modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen } else Modifier)) {
+        val viewportWidth = constraints.maxWidth.toFloat()
+        val viewportHeight = constraints.maxHeight.toFloat()
         val inset = if (maxWidth < 374.dp) 18.dp else 22.dp
         val glass = rememberTyTopGlassState(estimateHeaderBottomDp = page.safeTop + 72f)
         Box(Modifier.fillMaxSize()) {
@@ -83,14 +92,15 @@ internal fun SettingsFlowPage(
                 glass, colors, ambientImage = null, ambientViewportHeight = null,
                 modifier = Modifier.fillMaxSize(),
             ) {
-                TySettingsPageView(
+                CompositionLocalProvider(LocalSettingsPreviewViewport provides Rect(0f, with(density) { glass.contentTop.toPx() }, viewportWidth, viewportHeight)) {
+                key(flow.key) { TySettingsPageView(
                     page = flow,
                     theme = theme,
                     modifier = Modifier.fillMaxSize(),
                     contentTop = glass.contentTop,
                     bottomPadding = (24 + page.safeBottom).dp,
                     onAction = action,
-                )
+                ) } }
             }
             TyTopGlassSurface(glass, colors)
             // 顶栏清晰层：返回 + 标题。绘制在玻璃之上，只吃自己的点击。
@@ -123,6 +133,13 @@ internal fun SettingsFlowPage(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(start = 4.dp).weight(1f),
                     )
+                }
+            }
+            TyPanelOverlay(flow.modal != null, LocalInterfacePalette.current.light, onClose = { action("dismiss", "", 0.0) }) {
+                flow.modal?.let { modal ->
+                    TyDialogFrame(theme, modal.title, modal.subtitle, onClose = { action("dismiss", "", 0.0) }) {
+                        key(modal.key) { TySettingsContent(modal, theme, action) }
+                    }
                 }
             }
         }

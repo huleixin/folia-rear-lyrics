@@ -15,7 +15,7 @@ export default function FrontStageAppearancePage({page,editingTheme,initialTheme
     const {t}=useTranslation();
     useEffect(()=>page?warmRearThemeEditor():undefined,[page]);
     if(!page)return children;
-    return <div className="fixed inset-0 z-[140] flex flex-col" data-front-stage-settings="true"
+    return <div className="fixed inset-0 z-[140] flex flex-col" data-native-settings-editor data-front-stage-settings="true"
         data-folia-settings-overlay="true" data-mobile-settings="true">
         <div data-folia-settings-panel="true" className="flex h-full min-h-0 flex-col overflow-hidden">
             <MobileSettingsHeader primary={false} title={t(editingTheme?'rearAppearance.theme':'rearAppearance.edit')} onBack={onBack} onClose={onBack}/>

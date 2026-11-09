@@ -21,6 +21,13 @@ const toPickerColor=(color:string):HslColor=>{
 const FastColorPicker: React.FC<FastColorPickerProps> = ({ color, height = 236, onChange, onPointerDown, visibleHueSelection=false }) => {
     const [localColor, setLocalColor] = useState(()=>toPickerColor(color));
     const emitted=useRef<string | undefined>(undefined);
+    const nativeRef=useRef<HTMLDivElement>(null);
+    useEffect(()=>{
+        const element=nativeRef.current;
+        const apply=(event:Event)=>{const next=(event as CustomEvent).detail;if(typeof next!=='string'||!/^#[\da-f]{6}$/i.test(next))return;onPointerDown?.();onChange(next);};
+        element?.addEventListener('tingyu-native-color',apply);
+        return()=>element?.removeEventListener('tingyu-native-color',apply);
+    },[onChange,onPointerDown]);
 
     // Sync back when the parent switches mode or color field.
     useEffect(() => {
@@ -40,7 +47,7 @@ const FastColorPicker: React.FC<FastColorPickerProps> = ({ color, height = 236, 
     };
 
     return (
-        <div onPointerDown={onPointerDown} className="w-full h-full">
+        <div ref={nativeRef} data-native-color={color} onPointerDown={onPointerDown} className="w-full h-full">
             <HslColorPicker color={localColor} onChange={handleChange} style={{ width: '100%', height }} />
         </div>
     );

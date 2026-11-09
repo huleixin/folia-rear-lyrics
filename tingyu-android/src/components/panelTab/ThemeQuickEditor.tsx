@@ -294,6 +294,7 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
 
     return (
         <motion.div
+            data-native-settings-editor={pagePresentation ? undefined : true}
             initial={pagePresentation?false:{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -450,6 +451,7 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                             <button
                                                 key={nextMode}
                                                 type="button"
+                                                aria-pressed={selected}
                                                 onClick={() => {flushPendingColor();setMode(nextMode);}}
                                                 className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold ${allTransitionClass}`}
                                                 style={{
@@ -474,6 +476,7 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                             <button
                                                 key={field.key}
                                                 type="button"
+                                                aria-pressed={selected}
                                                 onClick={() => {flushPendingColor();setActiveKey(field.key);}}
                                                 className={`min-w-0 rounded-2xl border p-3.5 text-left ${allTransitionClass}`}
                                                 style={{

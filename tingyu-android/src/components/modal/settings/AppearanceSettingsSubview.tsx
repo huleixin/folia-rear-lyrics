@@ -694,7 +694,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                     {t('options.transparentPlayerBackgroundDesc')}
                                 </div>
                             </div>
-                            <button
+                            <button role="switch" aria-checked={transparentPlayerBackground}
                                 onClick={() => onToggleTransparentPlayerBackground(!transparentPlayerBackground)}
                                 className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!transparentPlayerBackground ? toggleOffBackgroundClass : ''}`}
                                 style={{ backgroundColor: transparentPlayerBackground ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
@@ -711,7 +711,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                     {t('options.autoHidePlayerChromeDesc')}
                                 </div>
                             </div>
-                            <button
+                            <button role="switch" aria-checked={autoHidePlayerChrome}
                                 onClick={() => onToggleAutoHidePlayerChrome(!autoHidePlayerChrome)}
                                 className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!autoHidePlayerChrome ? toggleOffBackgroundClass : ''}`}
                                 style={{ backgroundColor: autoHidePlayerChrome ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
@@ -730,7 +730,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                     {t('options.autoHideCursorWithPlayerChromeDesc')}
                                 </div>
                             </div>
-                            <button
+                            <button role="switch" aria-checked={autoHideCursorWithPlayerChrome}
                                 onClick={() => onToggleAutoHideCursorWithPlayerChrome(!autoHideCursorWithPlayerChrome)}
                                 className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!autoHideCursorWithPlayerChrome ? toggleOffBackgroundClass : ''}`}
                                 style={{ backgroundColor: autoHideCursorWithPlayerChrome ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
@@ -763,6 +763,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <button
+                            aria-pressed={bgMode === 'default'}
                             onClick={onApplyDefaultTheme}
                             className="flex flex-col items-center gap-2 p-3 rounded-lg border transition-all"
                             style={{
@@ -776,6 +777,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                             <span className="text-xs font-semibold" style={{ color: isDaylight ? '#27272a' : '#e4e4e7' }}>{t('options.themePresetsDefault') || 'Default'}</span>
                         </button>
                         <button
+                            aria-pressed={bgMode === 'custom'}
                             onClick={onApplyCustomTheme}
                             disabled={!hasCustomTheme}
                             className="flex flex-col items-center gap-2 p-3 rounded-lg border transition-all disabled:opacity-40 disabled:cursor-not-allowed"
@@ -872,7 +874,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                 {t('options.preferCustomThemeDesc')}
                             </div>
                         </div>
-                        <button
+                        <button role="switch" aria-checked={isCustomThemePreferred}
                             onClick={() => hasCustomTheme && onToggleCustomThemePreferred(!isCustomThemePreferred)}
                             disabled={!hasCustomTheme}
                             className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!isCustomThemePreferred ? toggleOffBackgroundClass : ''} disabled:opacity-40 disabled:cursor-not-allowed`}
@@ -890,7 +892,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                 {t('options.autoSwitchSongThemeDesc')}
                             </div>
                         </div>
-                        <button
+                        <button role="switch" aria-checked={songThemeAutoSwitchEnabled}
                             onClick={() => onToggleSongThemeAutoSwitch(!songThemeAutoSwitchEnabled)}
                             className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!songThemeAutoSwitchEnabled ? toggleOffBackgroundClass : ''}`}
                             style={{ backgroundColor: songThemeAutoSwitchEnabled ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
@@ -910,7 +912,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                         : 'options.autoGenerateSongThemeDesc')}
                                 </div>
                             </div>
-                            <button
+                            <button role="switch" aria-checked={songThemeAutoGenerateEnabled}
                                 onClick={() => onToggleSongThemeAutoGenerate(!songThemeAutoGenerateEnabled)}
                                 className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!songThemeAutoGenerateEnabled ? toggleOffBackgroundClass : ''}`}
                                 style={{ backgroundColor: songThemeAutoGenerateEnabled ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}

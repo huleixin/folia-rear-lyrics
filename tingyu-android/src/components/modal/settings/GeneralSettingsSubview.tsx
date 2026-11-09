@@ -138,7 +138,7 @@ const GeneralSettingsSubview: React.FC<GeneralSettingsSubviewProps> = ({
                                 {t('options.showHomeTabPlaylist')}
                             </div>
                         </div>
-                        <button
+                        <button role="switch" aria-checked={showHomeTabPlaylist}
                             onClick={() => handleToggleHomeTabPlaylist(!showHomeTabPlaylist)}
                             className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!showHomeTabPlaylist ? toggleOffBackgroundClass : ''}`}
                             style={{ backgroundColor: showHomeTabPlaylist ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
@@ -153,7 +153,7 @@ const GeneralSettingsSubview: React.FC<GeneralSettingsSubviewProps> = ({
                                 {t('options.showHomeTabRadio')}
                             </div>
                         </div>
-                        <button
+                        <button role="switch" aria-checked={showHomeTabRadio}
                             onClick={() => handleToggleHomeTabRadio(!showHomeTabRadio)}
                             className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!showHomeTabRadio ? toggleOffBackgroundClass : ''}`}
                             style={{ backgroundColor: showHomeTabRadio ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
@@ -168,7 +168,7 @@ const GeneralSettingsSubview: React.FC<GeneralSettingsSubviewProps> = ({
                                 {t('options.showHomeTabAlbums')}
                             </div>
                         </div>
-                        <button
+                        <button role="switch" aria-checked={showHomeTabAlbums}
                             onClick={() => handleToggleHomeTabAlbums(!showHomeTabAlbums)}
                             className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!showHomeTabAlbums ? toggleOffBackgroundClass : ''}`}
                             style={{ backgroundColor: showHomeTabAlbums ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
@@ -183,7 +183,7 @@ const GeneralSettingsSubview: React.FC<GeneralSettingsSubviewProps> = ({
                                 {t('options.showHomeTabLocal')}
                             </div>
                         </div>
-                        <button
+                        <button role="switch" aria-checked={showHomeTabLocal}
                             onClick={() => handleToggleHomeTabLocal(!showHomeTabLocal)}
                             className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!showHomeTabLocal ? toggleOffBackgroundClass : ''}`}
                             style={{ backgroundColor: showHomeTabLocal ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}

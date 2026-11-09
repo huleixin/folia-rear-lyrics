@@ -116,7 +116,7 @@ const LabSettingsModal: React.FC<LabSettingsModalProps> = ({
     const isMacElectron = window.electron?.platform === 'darwin';
 
     const renderToggle = (checked: boolean, onChange: () => void) => (
-        <button
+        <button role="switch" aria-checked={checked}
             type="button"
             onClick={onChange}
             className={`w-12 h-6 rounded-full p-1 transition-colors ${checked ? '' : toggleOffBackgroundClass}`}
@@ -331,6 +331,7 @@ const LabSettingsModal: React.FC<LabSettingsModalProps> = ({
         <AnimatePresence>
             {isOpen && (
                 <motion.div
+                    data-native-settings-editor
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
@@ -356,7 +357,7 @@ const LabSettingsModal: React.FC<LabSettingsModalProps> = ({
                                 style={{ backgroundColor: theme?.secondaryColor || theme?.accentColor || (isDaylight ? '#c084fc' : '#a855f7') }} 
                             />
                         </div>
-                        <div className="flex items-center justify-between border-b border-white/10 px-4 py-4 sm:px-6 relative z-10">
+                        <div data-native-settings-header className="flex items-center justify-between border-b border-white/10 px-4 py-4 sm:px-6 relative z-10">
                             <div className="flex items-center gap-3 min-w-0">
                                 <button
                                     type="button"
@@ -367,7 +368,7 @@ const LabSettingsModal: React.FC<LabSettingsModalProps> = ({
                                     <ChevronLeft size={18} />
                                 </button>
                                 <div className="min-w-0">
-                                    <div className="text-lg sm:text-xl font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                                    <div data-settings-page-title className="text-lg sm:text-xl font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
                                         {t('options.labSettings')}
                                     </div>
                                     <div className="text-xs opacity-50 mt-1" style={{ color: 'var(--text-secondary)' }}>

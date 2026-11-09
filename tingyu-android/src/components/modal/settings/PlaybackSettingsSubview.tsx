@@ -215,6 +215,7 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                                 <button
                                     key={option.value}
                                     type="button"
+                                    aria-pressed={selected}
                                     onClick={() => onQueueAddBehaviorChange(option.value)}
                                     className="rounded-xl border px-3 py-3 text-left transition-colors"
                                     style={getAccentOptionStyle(selected)}
@@ -351,6 +352,7 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                                     <button
                                         key={option.value}
                                         type="button"
+                                        aria-pressed={selected}
                                         onClick={() => onLocalLyricsPriorityChange(option.value)}
                                         className="rounded-xl border px-3 py-3 text-left transition-colors"
                                         style={getAccentOptionStyle(selected)}
@@ -384,6 +386,7 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                                         <button
                                             key={option.value}
                                             type="button"
+                                            aria-pressed={selected}
                                             onClick={() => onPreferredAlternativeLyricSourceChange(option.value)}
                                             className="rounded-xl border px-3 py-2 text-center transition-colors"
                                             style={getAccentOptionStyle(selected)}

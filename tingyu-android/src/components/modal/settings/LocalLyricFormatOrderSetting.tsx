@@ -86,6 +86,17 @@ const LocalLyricFormatOrderSetting: React.FC<LocalLyricFormatOrderSettingProps> 
     };
 
     const commitDraftOrder = () => applyOrder(draftOrderRef.current);
+    const nativeOrderRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const element = nativeOrderRef.current;
+        const apply = (event: Event) => {
+            const next = (event as CustomEvent).detail as unknown;
+            if (!Array.isArray(next) || next.length !== order.length || new Set(next).size !== order.length || !next.every(value => order.includes(value))) return;
+            updateDraftOrder(next); applyOrder(next);
+        };
+        element?.addEventListener('tingyu-native-order', apply);
+        return () => element?.removeEventListener('tingyu-native-order', apply);
+    }, [order, onOrderChange]);
 
     // Folder scans broadcast LOCAL_MUSIC_UPDATED_EVENT themselves, so the library reloads without a callback here.
     const handleResync = async () => {
@@ -127,6 +138,7 @@ const LocalLyricFormatOrderSetting: React.FC<LocalLyricFormatOrderSettingProps> 
                     {t('options.localLyricFormatOrderReset')}
                 </button>
             </div>
+            <div ref={nativeOrderRef} data-native-order={JSON.stringify(draftOrder)} aria-label={t('options.localLyricFormatOrder')}>
             <Reorder.Group axis="y" values={draftOrder} onReorder={updateDraftOrder} className="space-y-1.5">
                 {draftOrder.map((format, index) => (
                     <FormatRow
@@ -138,6 +150,7 @@ const LocalLyricFormatOrderSetting: React.FC<LocalLyricFormatOrderSettingProps> 
                     />
                 ))}
             </Reorder.Group>
+            </div>
             {needsResync && (
                 <div className="flex items-center justify-between gap-4 rounded-xl border px-3 py-2" style={getOptionStyle(true)}>
                     <div className="text-[11px] opacity-70" style={{ color: 'var(--text-secondary)' }}>

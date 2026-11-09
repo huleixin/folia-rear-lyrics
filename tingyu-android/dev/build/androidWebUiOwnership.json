@@ -25,7 +25,7 @@
       "id": "settings-document-root-kept",
       "file": "src/hooks/useNativeSettingsDocument.ts",
       "mustContain": "element.dataset.nativeDocumentRoot='true'",
-      "why": "设置文档 DOM 是排版真值源，必须保留挂载"
+      "why": "设置表单保留 React 状态与业务事件宿主，布局仅由 Compose 决定"
     },
     {
       "id": "no-forced-ready",
@@ -76,6 +76,20 @@
       "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageView.kt",
       "mustContain": "page.document?.flow!=null -> SettingsFlowPage",
       "why": "语义化设置页必须是页面路由的第一分支：自带底色/顶栏/排版，不消费任何 DOM 矩形"
+    },
+    {
+      "id": "settings-semantic-source-no-geometry",
+      "file": "src/services/nativeSettingsSemantic.ts",
+      "mustContain": "paints: [], controls: [], areas: [], live: [], flow",
+      "mustNotContain": ".getBoundingClientRect(",
+      "why": "所有设置二三级页只投影表单语义，不得重新测量 DOM 控件坐标"
+    },
+    {
+      "id": "settings-hook-no-measured-capture",
+      "file": "src/hooks/useNativeSettingsDocument.ts",
+      "mustContain": "captureSemanticSettings(element,key,title)",
+      "mustNotContain": "captureSettingsDocument(",
+      "why": "实际设置路由只生成语义化模型，历史显示列表仅兼容读取"
     },
     {
       "id": "settings-flow-skips-measurement",

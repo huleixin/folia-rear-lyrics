@@ -23,6 +23,7 @@ data class NativeSettingsDocument(val paints:List<SettingPaint>,val controls:Lis
     val flow:TySettingsPage?=null){
     companion object{
         fun parse(v:JSONObject):NativeSettingsDocument{
+            require(!v.has("flow") || v.isNull("flow") || v.optJSONObject("flow") != null) { "Invalid settings flow" }
             val paints=v.optJSONArray("paints").objects();require(paints.size<=14000)
             val controls=v.optJSONArray("controls").objects();require(controls.size<=3000)
             val areas=v.optJSONArray("areas").objects();require(areas.size<=100)
@@ -35,7 +36,7 @@ data class NativeSettingsDocument(val paints:List<SettingPaint>,val controls:Lis
                     (0..3).map{p.optJSONArray("padding")?.optDouble(it,0.0)?.toFloat()?:0f},p.optJSONArray("options").objects().map{it.getString("value") to it.getString("label")},p.optString("accent"),p.optBoolean("rangeFill",true))},
                 areas.map{SettingArea(it.getString("id"),SettingRect.parse(it),it.f("contentHeight").coerceIn(0f,2000000f),it.optInt("offset").coerceAtLeast(0))},
                 v.optJSONArray("live").objects().map{SettingRect.parse(it)},
-                v.optJSONObject("flow")?.let{runCatching{TySettingsPage.parse(it)}.getOrNull()})
+                v.optJSONObject("flow")?.let{TySettingsPage.parse(it)})
         }
     }
 }

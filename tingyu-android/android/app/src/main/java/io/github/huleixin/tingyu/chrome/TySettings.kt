@@ -36,6 +36,10 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.key
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -45,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -248,6 +253,7 @@ internal fun SettingsSelect(
     options: List<TySettingOption>,
     enabled: Boolean = true,
     placeholder: String = "",
+    onOpen: () -> Unit = {},
     onSelect: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -258,7 +264,7 @@ internal fun SettingsSelect(
             title = title,
             hint = hint,
             enabled = enabled,
-            onClick = { expanded = true },
+            onClick = { onOpen(); expanded = true },
             trailing = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -273,7 +279,7 @@ internal fun SettingsSelect(
                 }
             },
         )
-        if (expanded) SettingsOptionPopup(theme, title, options, value) { picked ->
+        if (expanded) SettingsOptionPopup(theme, title, options, value, onClose = { expanded = false }) { picked ->
             expanded = false
             onSelect(picked)
         }
@@ -287,10 +293,11 @@ private fun SettingsOptionPopup(
     label: String,
     options: List<TySettingOption>,
     value: String,
+    onClose: () -> Unit,
     onDismiss: (String) -> Unit,
 ) {
     androidx.compose.ui.window.Popup(
-        onDismissRequest = { onDismiss(value) },
+        onDismissRequest = onClose,
         properties = androidx.compose.ui.window.PopupProperties(
             focusable = true, dismissOnBackPress = true, dismissOnClickOutside = true,
         ),
@@ -298,6 +305,7 @@ private fun SettingsOptionPopup(
         Column(
             Modifier
                 .widthIn(min = 200.dp, max = 280.dp)
+                .heightIn(max = 360.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .background(theme.surface)
                 .border(1.dp, theme.line, RoundedCornerShape(14.dp))
@@ -310,7 +318,7 @@ private fun SettingsOptionPopup(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                 )
             }
-            options.forEach { option ->
+            Column(Modifier.verticalScroll(rememberScrollState())) { options.forEach { option ->
                 val selected = option.value == value
                 Row(
                     Modifier
@@ -319,6 +327,7 @@ private fun SettingsOptionPopup(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
+                            enabled = !option.disabled,
                             role = Role.Button,
                             onClick = { onDismiss(option.value) },
                         )
@@ -336,7 +345,7 @@ private fun SettingsOptionPopup(
                     )
                     if (selected) Box(Modifier.size(16.dp)) { CheckGlyph(theme.accent, Modifier.fillMaxSize()) }
                 }
-            }
+            } }
         }
     }
 }
@@ -440,10 +449,15 @@ internal fun SettingsInput(
     confirmLabel: String = "确定",
     multiline: Boolean = false,
     enabled: Boolean = true,
+    immediate: Boolean = false,
+    inputType: String = "text",
+    onFocus: (Boolean) -> Unit = {},
+    onDone: () -> Unit = {},
     onSubmit: (String) -> Unit,
 ) {
     var draft by remember(title) { mutableStateOf(value) }
-    LaunchedEffect(value) { if (value != draft && draft.isEmpty()) draft = value }
+    var focused by remember { mutableStateOf(false) }
+    LaunchedEffect(value, focused) { if (!focused && value != draft) draft = value }
     Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
         Text(title, color = theme.text, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium)
         if (hint.isNotBlank()) {
@@ -467,23 +481,24 @@ internal fun SettingsInput(
             }
             BasicTextField(
                 value = draft,
-                onValueChange = { draft = it },
+                onValueChange = { draft = it; if (immediate) onSubmit(it) },
                 enabled = enabled,
                 singleLine = !multiline,
                 textStyle = TextStyle(color = theme.text, fontSize = 13.5.sp, lineHeight = 19.sp),
                 cursorBrush = SolidColor(theme.accent),
-                keyboardOptions = KeyboardOptions(imeAction = if (multiline) ImeAction.Default else ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { if (draft.trim().isNotEmpty()) onSubmit(draft) }),
-                modifier = Modifier.fillMaxWidth(),
+                visualTransformation = if (inputType == "password") PasswordVisualTransformation() else VisualTransformation.None,
+                keyboardOptions = KeyboardOptions(keyboardType = when(inputType) { "password" -> KeyboardType.Password; "number" -> KeyboardType.Decimal; "url" -> KeyboardType.Uri; "email" -> KeyboardType.Email; else -> KeyboardType.Text }, imeAction = if (multiline) ImeAction.Default else ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onSubmit(draft); onDone() }),
+                modifier = Modifier.fillMaxWidth().onFocusChanged { if (focused != it.isFocused) { focused = it.isFocused; onFocus(focused) } },
             )
         }
-        Spacer(Modifier.height(8.dp))
+        if (!immediate) { Spacer(Modifier.height(8.dp))
         SettingsAction(
             theme = theme,
             title = confirmLabel,
-            enabled = enabled && draft.trim().isNotEmpty(),
+            enabled = enabled,
             onClick = { onSubmit(draft) },
-        )
+        ) }
     }
 }
 
@@ -622,21 +637,22 @@ internal fun TySettingsPageView(
         ) {
             // 分组切分：group 节点开一张卡片，其后的普通节点都装进这张卡片，
             // 直到遇到下一个 group。语义化模型的顺序即排版顺序，不需要 rect。
-            groupSettingsNodes(page.nodes).forEach { (group, items) ->
-                if (group != null) {
-                    SettingsGroup(theme, group.title, group.hint) {
-                        items.forEachIndexed { index, node ->
-                            if (index > 0) SettingsDivider(theme)
-                            TySettingItemView(theme, node, onAction)
-                        }
-                    }
-                } else {
-                    items.forEachIndexed { index, node ->
-                        if (index > 0) SettingsDivider(theme)
-                        TySettingItemView(theme, node, onAction)
-                    }
+            TySettingsContent(page, theme, onAction)
+        }
+    }
+}
+
+@Composable
+internal fun TySettingsContent(page: TySettingsPage, theme: TyPanelTheme, onAction: PageAction) {
+    groupSettingsNodes(page.nodes).forEach { (group, items) ->
+        key(group?.id ?: "ungrouped") {
+            @Composable fun Items() {
+                items.forEachIndexed { index, node ->
+                    if (index > 0 && node.kind != "note" && items[index - 1].kind != "note") SettingsDivider(theme)
+                    key(node.id) { TySettingItemView(theme, node, onAction) }
                 }
             }
+            if (group != null) SettingsGroup(theme, group.title, group.hint) { Items() } else Items()
         }
     }
 }
@@ -671,6 +687,7 @@ private fun TySettingItemView(
         }
         "select" -> SettingsSelect(
             theme, node.title, node.hint, node.value, node.options, !node.disabled, node.placeholder,
+            onOpen = { onAction("open:${node.action}", "", 0.0) },
         ) { picked -> onAction(TySettingEvent.set(node.action), picked, 0.0) }
         "slider" -> SettingsSlider(
             theme, node.title, node.hint, node.value.toFloatOrNull() ?: node.min,
@@ -679,7 +696,15 @@ private fun TySettingItemView(
         "input" -> SettingsInput(
             theme, node.title, node.hint, node.value, node.placeholder,
             node.confirmLabel, node.multiline, !node.disabled,
+            immediate = node.immediate, inputType = node.inputType,
+            onFocus = { onAction("focus:${node.action}", "", if (it) 1.0 else 0.0) },
+            onDone = { onAction("enter:${node.action}", "", 0.0) },
         ) { text -> onAction(TySettingEvent.submit(node.action), text, 0.0) }
+        "color" -> SettingsColor(theme, node, onAction)
+        "checkbox" -> SettingsCheckbox(theme, node, onAction)
+        "reorder" -> SettingsOrder(theme, node, onAction)
+        "preview" -> SettingsPreview(node, onAction)
+        "image" -> SettingsImage(node)
         "note" -> Text(
             node.title.ifEmpty { node.hint },
             color = if (node.value == "error") theme.danger else theme.muted,

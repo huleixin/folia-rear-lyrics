@@ -1,10 +1,17 @@
 import { navigationMark } from '../services/navigationTiming';
 import { useEffect, useMemo, useState } from 'react';
 import type { NativePageModel } from '../types/nativePages';
+import type { NativeSettingsFlow } from '../types/nativeSettingsDocument';
 import { useStableNativeData } from './useStableNativeData';
 import { NATIVE_FIRST } from '../services/nativePages';
 import { nativeCoverThumbnail, peekNativeCoverThumbnail } from '../services/nativeCoverThumbnail';
 // src/hooks/useNativePageImages.ts
+const flowImages=(flow:NativeSettingsFlow|undefined):string[]=>flow
+    ?[...flow.nodes.filter(node=>node.kind==='image').map(node=>node.value??''),...flowImages(flow.modal)]:[];
+function mapFlowImages(flow:NativeSettingsFlow|undefined,image:(url:string)=>string):NativeSettingsFlow|undefined{
+    if(!flow)return flow;
+    return {...flow,nodes:flow.nodes.map(node=>node.kind==='image'&&isWebManagedArtwork(node.value)?{...node,value:image(node.value)}:node),modal:mapFlowImages(flow.modal,image)};
+}
 export function isWebManagedArtwork(url:string|undefined):url is string {
     if(!url)return false;
     if(url.startsWith('blob:'))return true;
@@ -15,7 +22,7 @@ export function useNativePageImages(model:NativePageModel|null,active:boolean):N
     // model 为 null 表示「数据未就绪、暂不发包」：url 收集与最终替换都安全空过，
     // hook 顺序不能变（model 会在水合完成后 null→非 null 翻转）。
     const urls=useStableNativeData(useMemo(()=>model?[...new Set([...model.sections.flatMap(section=>section.items??[]).map(item=>item.image),
-        ...(model.document?.paints.map(paint=>paint.image)??[])].filter(isWebManagedArtwork))]:[], [model]));
+        ...(model.document?.paints.map(paint=>paint.image)??[]),...flowImages(model.document?.flow)].filter(isWebManagedArtwork))]:[], [model]));
     useEffect(()=>{
         if(!NATIVE_FIRST||!active)return;
         const list=urls;if(!list.length)return;
@@ -53,7 +60,7 @@ export function useNativePageImages(model:NativePageModel|null,active:boolean):N
     },[urls,active]);
     return useMemo(()=>{if(!model)return model;if(!urls.length)return model;
     const image=(url:string)=>images[url]||peekNativeCoverThumbnail(url)||'';
-    return {...model,document:model.document?{...model.document,paints:model.document.paints.map(paint=>isWebManagedArtwork(paint.image)?{...paint,image:image(paint.image)}:paint)}:undefined,
+    return {...model,document:model.document?{...model.document,flow:mapFlowImages(model.document.flow,image),paints:model.document.paints.map(paint=>isWebManagedArtwork(paint.image)?{...paint,image:image(paint.image)}:paint)}:undefined,
         sections:model.sections.map(section=>({...section,items:section.items?.map(item=>
         isWebManagedArtwork(item.image)?{...item,image:image(item.image)}:item)}))};
     },[model,images,urls]);

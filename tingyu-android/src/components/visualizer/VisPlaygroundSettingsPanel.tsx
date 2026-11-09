@@ -220,6 +220,7 @@ const PresetGroup = <T,>({
                     <button
                         key={String(option.value)}
                         type="button"
+                        aria-pressed={isActive}
                         onClick={() => onChange(option.value)}
                         className="px-3 py-2 rounded-full text-sm transition-all border"
                         style={{
@@ -309,6 +310,7 @@ const SectionTabs: React.FC<Pick<VisPlaygroundSettingsPanelProps, 'activeSection
                 <button
                     key={section}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => onSectionChange(section)}
                     className="rounded-full border px-3 py-1.5 text-sm transition-all"
                     style={{

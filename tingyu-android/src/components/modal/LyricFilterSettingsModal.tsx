@@ -164,6 +164,7 @@ const LyricFilterSettingsModal: React.FC<LyricFilterSettingsModalProps> = ({
         <SettingsPresence>
             {isOpen && (
                 <motion.div
+                    data-native-settings-editor
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
@@ -178,7 +179,7 @@ const LyricFilterSettingsModal: React.FC<LyricFilterSettingsModalProps> = ({
                         className={`mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded-[32px] border ${borderColor} ${glassBg} shadow-[0_24px_80px_rgba(0,0,0,0.28)]`}
                         onClick={(event) => event.stopPropagation()}
                     >
-                        <div className="flex items-center justify-between border-b border-white/10 px-4 py-4 sm:px-6">
+                        <div data-native-settings-header className="flex items-center justify-between border-b border-white/10 px-4 py-4 sm:px-6">
                             <div className="flex min-w-0 items-center gap-3">
                                 <button
                                     type="button"
@@ -189,7 +190,7 @@ const LyricFilterSettingsModal: React.FC<LyricFilterSettingsModalProps> = ({
                                     <ChevronLeft size={18} />
                                 </button>
                                 <div className="min-w-0">
-                                    <div className="truncate text-lg font-semibold sm:text-xl" style={{ color: 'var(--text-primary)' }}>
+                                    <div data-settings-page-title className="truncate text-lg font-semibold sm:text-xl" style={{ color: 'var(--text-primary)' }}>
                                         {t('lyricFilter.title')}
                                     </div>
                                     <div className={`mt-1 text-xs ${mutedText}`}>
