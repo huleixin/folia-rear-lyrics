@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -28,6 +29,7 @@ private val SettingIcons=mapOf("appearance" to "sparkles","general" to "language
     "coffee" to "coffee","community" to "messages-square")
 private val GroupIcons=mapOf("rear" to "captions","appearance" to "sparkles","controls" to "play-circle","connections" to "database","system" to "settings2","support" to "heart")
 @Composable internal fun NativeSettingsPage(page:NativePage,modifier:Modifier,action:PageAction){
+    val bottomClearance=with(LocalDensity.current){LocalNativePageBottomPx.current.toDp()}
     BoxWithConstraints(modifier){
         val inset=if(maxWidth<374.dp)18.dp else 22.dp
         // 沉浸式毛玻璃顶栏（TopGlassBar）：设置分组卡全幅滚动进入固定标题栏玻璃后方。
@@ -36,7 +38,7 @@ private val GroupIcons=mapOf("rear" to "captions","appearance" to "sparkles","co
         Box(Modifier.fillMaxSize()){
             TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()){
             val list = rememberLazyListState()
-            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=inset,end=inset,top=glass.contentTop,bottom=(24+page.safeBottom).dp)){
+            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=inset,end=inset,top=glass.contentTop,bottom=maxOf((24+page.safeBottom).dp,bottomClearance))){
                 page.sections.forEach{section->item(key=section.id){
                     Column(Modifier.padding(bottom=16.dp)){
                         if(section.title.isNotBlank())Row(Modifier.padding(start=2.dp,end=2.dp,bottom=8.dp).height(20.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){

@@ -1,0 +1,68 @@
+听屿：Kyant0 液态底栏动画移植及搜索/设置遮挡修复
+
+基线与交付
+- 听屿源码：d14b430f5c7b4df975635fe21f2cb34a3ea48c85。
+- 官方参考：Kyant0/AndroidLiquidGlass，65ab177e90e5c1d8c62e70cf7755841982da65f6。
+- 分析了用户录屏 68872.mp4，并逐份阅读 LiquidBottomTabs.kt、DampedDragAnimation.kt、InteractiveHighlight.kt、LiquidBottomTab.kt。
+- 完整参考文件、Apache-2.0 LICENSE 与 NOTICE 位于 third_party/AndroidLiquidGlass/。许可证声明也放入 Android assets/licenses/，供二进制分发保留。
+- 交付完整源码。没有连接真机，没有生成或伪造修复后真机录屏。
+
+现有实现与官方机制的差异
+1. 原底栏的点击位置来自 animateFloatAsState，而拖动另用 drag 浮点值覆盖；松手清空 drag 后会短暂回到旧 spring 的位置，再追新路由。
+2. 只有统一的按压放大，没有用实际移动速度产生形变。普通点击也没有速度驱动的折射变化。
+3. 原 pointerInput 以 s.selected 为键；选中项改变可重建手势协程。按压观测只记按下坐标，没有持续跟随手指位置。
+4. 原图标按 active 布尔值重取位图、标签立即换色；移动中的颜色与胶囊位置脱节。
+5. 原隐形镜像层重复执行一遍底栏 blur/lens。官方的层合成可以保留折射，但无需额外重算相同材质。
+
+移植与适配
+- LiquidNavMotion.kt：借鉴 DampedDragAnimation 的独立位置/按压/横纵缩放弹簧。拖动直接跟手；松手取最近槽位，从当前手指位置与速度起步。快速切换目标保留当前位置和已有速度，不按 tab/key 重建 Animatable。
+- 位移弹簧 dampingRatio=.78、stiffness=600；按压进度 1/1000；横向缩放 .6/250；纵向缩放 .7/250。按压为原有约 5.5% 轻微放大，避免照搬官方 78/56 后侵占听屿槽位。
+- 点击与拖动的真实速度同时参与横向拉伸、纵向收缩及 opticalProgress。向两侧移动都会拉伸；形变、拖动速度和边缘可见位移均有限幅。
+- LiquidNavGestures.kt：父层 Initial pass 观察按压，普通点击仍由四个 Tab.clickable 处理；仅从选中胶囊内部开始、超过 touch slop 的轴向拖动消费移动/up。释放只提交一次 navigate，取消回到当前路由。没有矩形 Ripple。
+- LiquidNavPill.kt：真实 drawBackdrop/lens/Highlight/Shadow/InnerShadow，保留原静止 scrim、accent、圆角和光学参数。移动速度与按压共同改变折射和高光/阴影强度。
+- LiquidNavHighlight.kt：适配官方 InteractiveHighlight；一份缓存 AGSL shader 与 ShaderBrush，复用同一个手势源，热点持续跟随手指。白色 uniform 直接使用预乘值，兼容 Android AGSL 与测试 Skia。
+- ChromeNavigation.kt：复用 rememberLayerBackdrop 和 rememberCombinedBackdrop。先绘制并导出实际底栏，再记录唯一可见图标行，最后绘制折射胶囊；首次绘制即有采样源。没有重复图标 UI，没有重新绘制第二份相同的玻璃模糊。
+- 原 SVG 图标只按主题/尺寸栅格化；颜色在绘制阶段连续混合，静止未选中时保留原 SVG 颜色。文字也在 draw 阶段读颜色，不以逐帧重组驱动。
+- ComposeChromeHost.kt：导航选中态按当前原生路由/selectedTab/startupSelected 同步。外部选中更新只改变动画目标，不反向触发 navigate。
+
+保留的布局与材质
+- 四入口仍是：推荐、资料库、搜索、设置；无加号按钮。
+- NativeFooterLayout 和 ChromeGlassPresets 没有修改。手机底栏高 54dp、左右各 10dp、外圆角 32dp、内容内距 4dp、23dp 图标及 10sp 标签保持原值；宽屏侧栏保留原几何。
+- 浅/深色保留原界面主题及玻璃预设。ChromeMiniPlayer 本体、播放控制和播放引擎没有修改。
+- AGSL lens 要求 Android 13/API 33+。较低系统继续用现有平台能力的 Backdrop/兼容效果，未宣称它们有同等真实折射。
+
+遮挡及输入法修复
+- NativePageViewport.kt / ComposeChromeHost.kt：按当前真正可见的 nav/mini 矩形计算覆盖高度，再加 12dp 阅读/触摸间隙；用物理像素传入页面，在 CSS density 内只转换一次。
+- NativeSearchPage.kt：末尾留白取真实覆盖高度和系统安全区的较大值，包含“展开更多热搜”以及最后一条结果。
+- NativeSettingsPage.kt：设置索引只避让实际导航栏；没有照搬搜索页双栏高度。
+- 搜索/设置索引高度直接跟随原生根视口，防止迟到的 DOM resize 包在键盘出现/收起时裁短列表。没有缩窄/改变底栏尺寸。
+- MainSystemBars.java：先发布真实 IME 状态，再改变 content padding。onPrepare 至 onEnd 隐藏但不卸载 nav/mini；IME 正在显示时也保持隐藏。动画进度与 ApplyInsets 一样消费已由父层预留的 IME，避免重复 imePadding。结束后恢复同一份底栏状态和图层。
+- 这里修正的是源码可确认的不同步/重复 inset 路径。用户设备上的白框是否完全消失仍需真机 IME 开关录像确认。
+
+性能复查
+- 连续值只在 graphicsLayer / Backdrop effects / Canvas / Text ColorProducer 中读取；不经 JS，不逐帧更新 React/store，也不按每帧创建 VelocityTracker 或启动速度协程。
+- 一个底栏保留一套 motion、玻璃导出、图标采样和高光 shader。独立迷你播放器不参与胶囊动画。
+- lens 在内部会减去 refractionHeight；代码先补回它并保留恒定 12dp padding，保证速度变化只更新光学参数，不反复改变离屏纹理尺寸。
+- 真机 GPU 帧耗时尚未测量；不能把 JVM 测试耗时或 Compose 虚拟帧钟当作 60/120fps 证据。
+
+验证结果
+见同目录 liquid-bottom-navigation-validation.txt 及源码包 verification/ 下的原始日志。
+原生测试覆盖实际弹簧、连续 10 次改目标、速度形变/光学能量、拖动吸附与取消、一次手势仅一次导航、普通点击、冷启动/外部路由，以及搜索/设置滚到最底部时末项可见。
+交互/选中态测试使用 API 32：Robolectric 的桌面 Skia 无法编译官方库 Android child-shader lens，故这些测试不验证 API 33+ 的真实光学。滚动及其余原生测试使用 API 34；真实 AGSL 只完成集成编译，等待设备验收。
+
+复现命令
+环境：Node.js 24、JDK 21、Android SDK 36 / 36.1、Build Tools 35 / 36、Gradle 8.14.3。
+在 tingyu-android：
+  npm install --ignore-scripts --package-lock=false
+  FOLIA_OFFLINE_BUILD=true npm run cap:sync:android
+  npm run check:android-ui
+  npm run test:unit -- --maxWorkers=2 test/unit/nativeChrome.test.ts test/unit/services/nativeChromeActions.test.ts test/unit/services/nativeShellCommit.test.ts test/unit/utils/nativePacketData.test.ts test/unit/utils/nativeShellState.test.ts test/unit/hooks/nativePage.test.ts
+在 android：
+  gradle :app:testDebugUnitTest --tests '*LiquidNavigationTest' --tests '*NativePageScrollClearanceTest' --tests '*NativePageViewportTest' --tests '*ChromeFooterGeometryTest' --tests '*NativeFooterLayoutTest' --tests '*ChromeGlassMaterialTest' --tests '*ChromeGlassOpticsTest' --tests '*PendingStartupNavigationTest' --tests '*TopGlassMathTest'
+本轮没有改依赖版本或锁文件；上游 npm ci 锁校验有既存不一致，实际使用上方安装命令。
+
+真机验收建议
+- 浅/深色各做：四入口连续快速点选、胶囊长按/横拖/取消、松手吸附；确认玻璃折射、形变、颜色、回弹和迷你条不重影。
+- 外部返回、应用后台恢复、横竖屏/宽屏、冷启动分别检查选中项。
+- 搜索空态/结果、“展开更多热搜”、设置末组滑到底；打开/收起输入法、快速切换焦点，确认无内容被挡、无白框、无重复避让。
+- Android 13+ 真机记录动画期间的 gfxinfo framestats / Perfetto；比较 GPU/主线程帧时，不能只凭单元测试判视觉。

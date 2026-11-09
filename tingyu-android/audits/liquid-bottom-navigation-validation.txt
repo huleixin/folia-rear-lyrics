@@ -1,0 +1,28 @@
+最终验证记录（非真机性能报告）
+
+基线 d14b430f5c7b4df975635fe21f2cb34a3ea48c85
+JDK 21 / Node 24 / Gradle 8.14.3 / Compose 1.10.3 / Backdrop 1.0.6
+
+Capacitor web build/sync: PASS
+Android compileDebugKotlin: PASS
+Android compileDebugJavaWithJavac: PASS
+Android testDebugUnitTest: 45 tests, 0 failures
+ChromeFooterGeometryTest: 6 tests, 0 failures, JVM 0.031 s
+ChromeGlassMaterialTest: 9 tests, 0 failures, JVM 0.027 s
+ChromeGlassOpticsTest: 7 tests, 0 failures, JVM 0.005 s
+LiquidNavigationTest: 5 tests, 0 failures, JVM 9.408 s
+NativeFooterLayoutTest: 7 tests, 0 failures, JVM 0.012 s
+NativePageScrollClearanceTest: 3 tests, 0 failures, JVM 1.232 s
+NativePageViewportTest: 3 tests, 0 failures, JVM 0.003 s
+PendingStartupNavigationTest: 2 tests, 0 failures, JVM 0.0 s
+TopGlassMathTest: 3 tests, 0 failures, JVM 0.002 s
+
+Vitest navigation/bridge/route: 6 files, 20 tests, 0 failures
+Android page ownership: 1 file, 16 tests, 0 failures
+git diff --check: PASS
+
+合计 81 项自动化用例/归属检查通过。
+
+限制：没有真机连接、没有 Android GPU framestats、没有修复后真机录像。
+Robolectric 桌面 Skia 无法编译 Kyant 官方 Android child-shader lens；交互/路由测试在 API 32 路径执行，不代表 AGSL 光学效果已通过实机验收。其他原生滚动/几何/材料测试使用 API 34。
+不把上述 JVM 秒数或虚拟帧钟当作设备帧率。

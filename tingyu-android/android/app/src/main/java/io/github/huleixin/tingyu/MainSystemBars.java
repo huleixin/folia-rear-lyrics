@@ -10,6 +10,10 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsAnimationCompat;
+import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.JSObject;
 
@@ -105,14 +109,38 @@ final class MainSystemBars {
                 io.github.huleixin.tingyu.chrome.ComposeChromeHost shell = ((MainActivity) activity).getNativeShell();
                 if (shell != null) shell.setSafeInsets(safe.top / nextDensity, safe.bottom / nextDensity);
                 int keyboard = insets.isVisible(WindowInsetsCompat.Type.ime()) ? insets.getInsets(WindowInsetsCompat.Type.ime()).bottom : 0;
-                view.setPadding(0, 0, 0, keyboard);
+                // Publish before resizing children: no frame with a smaller root and stale footer ownership.
+                if (shell != null) shell.setImeInset(keyboard / nextDensity);
+                if (view.getPaddingBottom() != keyboard) view.setPadding(0, 0, 0, keyboard);
                 // 2026-11-09：这里把 content 压矮了 keyboard px，而 Compose 侧的 ime inset 又被
                 // 下一行 consume 成 0 —— 底栏拿不到键盘高度，就会跟着压矮后的根贴到键盘上方
                 // （真机截图：迷你条/导航栏被顶起来）。把真实键盘高度原样喂给宿主，让它按
                 // 「虚拟整屏高」定位：原位不动、被键盘盖住。
-                if (shell != null) shell.setImeInset(keyboard / nextDensity);
                 return new WindowInsetsCompat.Builder(insets).setInsets(safeTypes | WindowInsetsCompat.Type.ime(), Insets.NONE).build();
             });
+            // Hide the retained footer layers before the first IME animation layout. Offsetting
+            // alone can expose a white glass rectangle above a keyboard that is still moving.
+            Set<WindowInsetsAnimationCompat> imeAnimations = new HashSet<>();
+            ViewCompat.setWindowInsetsAnimationCallback(content,
+                new WindowInsetsAnimationCompat.Callback(WindowInsetsAnimationCompat.Callback.DISPATCH_MODE_CONTINUE_ON_SUBTREE) {
+                    @Override public void onPrepare(WindowInsetsAnimationCompat animation) {
+                        if ((animation.getTypeMask() & WindowInsetsCompat.Type.ime()) == 0) return;
+                        imeAnimations.add(animation);
+                        io.github.huleixin.tingyu.chrome.ComposeChromeHost shell = ((MainActivity) activity).getNativeShell();
+                        if (shell != null) shell.setImeAnimationRunning(true);
+                    }
+                    @Override public WindowInsetsCompat onProgress(WindowInsetsCompat insets, List<WindowInsetsAnimationCompat> running) {
+                        // The parent already reserves IME space. Keep progress delivery consistent
+                        // with onApplyWindowInsets so descendants cannot apply imePadding twice.
+                        return new WindowInsetsCompat.Builder(insets).setInsets(
+                            WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout() | WindowInsetsCompat.Type.ime(), Insets.NONE).build();
+                    }
+                    @Override public void onEnd(WindowInsetsAnimationCompat animation) {
+                        if (!imeAnimations.remove(animation)) return;
+                        io.github.huleixin.tingyu.chrome.ComposeChromeHost shell = ((MainActivity) activity).getNativeShell();
+                        if (shell != null) shell.setImeAnimationRunning(!imeAnimations.isEmpty());
+                    }
+                });
             ViewCompat.requestApplyInsets(content);
         }
         return true;

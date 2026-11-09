@@ -7,13 +7,13 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 // Same search field/close button, wrapping history chips and numbered two-column hot list.
 @OptIn(ExperimentalLayoutApi::class)
 @Composable internal fun NativeSearchPage(page:NativePage,modifier:Modifier,action:PageAction){
+    val bottomClearance=with(LocalDensity.current){LocalNativePageBottomPx.current.toDp()}
     val menu=page.key.startsWith("search:menu:")
     val caches=page.sections.filter{it.layout=="rows"}.associate{it.id to key(it.id){rememberNativeRows(page.key,it)}}
     // 沉浸式毛玻璃顶栏（TopGlassBar）：搜索结果全幅滚动进入固定搜索区玻璃后方；
@@ -38,7 +39,7 @@ import androidx.compose.ui.unit.sp
     Box(modifier){
         TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()){
         val list=rememberLazyListState()
-        LazyColumn(Modifier.fillMaxSize().imePadding(),state=list,contentPadding=PaddingValues(start=14.dp,end=14.dp,top=glass.contentTop+if(menu)0.dp else 16.dp,bottom=(page.safeBottom+18).dp)){
+        LazyColumn(Modifier.fillMaxSize().imePadding(),state=list,contentPadding=PaddingValues(start=14.dp,end=14.dp,top=glass.contentTop+if(menu)0.dp else 16.dp,bottom=maxOf((page.safeBottom+18).dp,bottomClearance))){
             page.sections.filter{it.id !in setOf("query","sources","tabs")}.forEach{section->
                 val history=section.id=="history";val hot=section.id=="hot"
                 if(section.title.isNotBlank())item(key="${section.id}:heading"){

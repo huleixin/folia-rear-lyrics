@@ -1,0 +1,6 @@
+AndroidLiquidGlass by Kyant0
+https://github.com/Kyant0/AndroidLiquidGlass
+Upstream revision: 65ab177e90e5c1d8c62e70cf7755841982da65f6
+License: Apache-2.0 (LICENSE in this directory).
+Adapted examples: LiquidBottomTabs.kt, LiquidBottomTab.kt, DampedDragAnimation.kt, InteractiveHighlight.kt.
+Tingyu modifications: fixed four-slot geometry/material, velocity-driven retargetable motion, shared gesture ownership, draw-phase color/optical feedback, existing bar export, route synchronization.

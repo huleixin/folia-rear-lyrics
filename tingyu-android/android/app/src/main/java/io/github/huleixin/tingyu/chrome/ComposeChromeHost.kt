@@ -272,6 +272,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     // -1 = 该监听还没跑过，退回 Compose 自己的 ime inset 推算。
     private var nativeIme by mutableFloatStateOf(-1f)
     fun setImeInset(dp:Float){ nativeIme = dp.coerceAtLeast(0f) }
+    private var imeAnimating by mutableStateOf(false)
+    fun setImeAnimationRunning(running:Boolean){imeAnimating=running}
     fun setSafeInsets(top:Float,bottom:Float){
         val nextTop=top.coerceAtLeast(0f);val nextBottom=bottom.coerceAtLeast(0f)
         // 首帧诊断：安全区是底栏纵向位置的唯一输入，任何一次迟到 / 抖动都要留痕。
@@ -665,6 +667,27 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             val density=LocalDensity.current;val width=maxWidth.value;val height=maxHeight.value
             val safeTop=if(nativeTop>=0)nativeTop else WindowInsets.statusBars.getTop(density)/density.density
             val safeBottom=if(nativeBottom>=0)nativeBottom else WindowInsets.navigationBars.getBottom(density)/density.density
+            val imeInsetPx = WindowInsets.ime.getBottom(density)
+            val rootPx = height * density.density
+            val screenPx = web.resources.displayMetrics.heightPixels.toFloat()
+            val windowLocation = IntArray(2)
+            web.getLocationOnScreen(windowLocation)
+            val pinnedToScreenBottom = windowLocation[1] + web.height >= screenPx - 24f * density.density
+            val keyboardPx = chromeKeyboardPx(
+                nativeImeDp = nativeIme,
+                imeInsetPx = imeInsetPx,
+                pinnedToScreenBottom = pinnedToScreenBottom,
+                screenPx = screenPx,
+                rootPx = rootPx,
+                density = density.density,
+            )
+            val footerHiddenForIme=imeAnimating||keyboardPx>0f
+            val pageFooterTops=if(footerHiddenForIme)emptyList()else listOf("nav","mini").mapNotNull{id->
+                val hasSurface=visible.any{it.id==id}||ChromeBootSeed.shouldSeed(id,destination,firstHomeFrame,webOverlay,liveChrome)
+                if(hasSurface&&NativeFooterLayout.visible(id,destination,collectionDetail,width))
+                    chromeFooterRect(id,width,height,safeTop,safeBottom,density.density,keyboardPx,collectionDetail).top*density.density
+                else null
+            }
             val bootId=if(destination=="home"&&selectedTab==1)"library"else if(destination in setOf("home","collection","search","settings"))destination else "home"
             val bootPage=remember(bootId,width,height,safeTop,safeBottom){cache.page(bootId,width,height,safeTop).copy(safeBottom=safeBottom)}
             // Historical diagnostic groups retain the original whole-scene sampling path.
@@ -728,9 +751,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     }
                     val density=LocalDensity.current;val scale=web.width/shown.viewport
                     if(scale.isFinite()&&scale>0) savedPages.SaveableStateProvider(shownRoute) {
-                        val placement=Modifier.offset{IntOffset((shown.rect.left*scale).roundToInt(),(shown.rect.top*scale).roundToInt())}
-                            .size(with(density){(shown.rect.width*scale).toDp()},with(density){(shown.rect.height*scale).toDp()})
-                        CompositionLocalProvider(LocalSettingsTraceIdentity provides SettingsTraceIdentity(destination,shown.session,shown.key,navigation,!pendingStageEntry&&destination=="settings")) {
+                        val pageTopPx=shown.rect.top*scale
+                        val pageHeightPx=nativePageHeightPx(shown.id,shown.document!=null,shown.rect.height*scale,pageTopPx,rootPx)
+                        val pageBottomPx=nativePageBottomClearance(pageTopPx,pageHeightPx,pageFooterTops,12f*density.density)
+                        val placement=Modifier.offset{IntOffset((shown.rect.left*scale).roundToInt(),pageTopPx.roundToInt())}
+                            .size(with(density){(shown.rect.width*scale).toDp()},with(density){pageHeightPx.toDp()})
+                        CompositionLocalProvider(LocalNativePageBottomPx provides pageBottomPx,
+                            LocalSettingsTraceIdentity provides SettingsTraceIdentity(destination,shown.session,shown.key,navigation,!pendingStageEntry&&destination=="settings")) {
                         NativePageView(shown,placement,scale){action,text,value->
                             val current=pages[shown.id]
                             val reason=when {
@@ -772,20 +799,6 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             // 免form小窗/分屏修复（录屏 68720）：窗口不贴物理屏幕底边时，「屏幕-窗口」差值
             // 是桌面或其它窗口的高度，会被误当键盘把底栏推出窗外裁掉（内容正常、双栏消失）。
             // 因此只有窗口底边贴着屏幕底边（全屏/底部半屏）才允许这个兜底；真实 IME 高度优先。
-            val imeInsetPx = WindowInsets.ime.getBottom(density)
-            val rootPx = height * density.density
-            val screenPx = web.resources.displayMetrics.heightPixels.toFloat()
-            val windowLocation = IntArray(2)
-            web.getLocationOnScreen(windowLocation)
-            val pinnedToScreenBottom = windowLocation[1] + web.height >= screenPx - 24f * density.density
-            val keyboardPx = chromeKeyboardPx(
-                nativeImeDp = nativeIme,
-                imeInsetPx = imeInsetPx,
-                pinnedToScreenBottom = pinnedToScreenBottom,
-                screenPx = screenPx,
-                rootPx = rootPx,
-                density = density.density,
-            )
             // 一个 id 只画一次（2026-11-07 首页底部闪烁专项）。
             //
             // 旧实现是**两处调用点**：缓存 seed 一处、live 包一处，交接时 Compose 拆掉一棵、
@@ -831,8 +844,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 // 两路数据里最多只有一个存在：live 优先，缺席时才用 seed；都没有就不画。
                 val original = live ?: seeded
                 if (original != null) {
+                val navSelection=startupSelected?:when(destination){"search"->2;"settings"->3;else->selectedTab.coerceIn(0,1)}
                 val surface = remember(original,interfaceLight){original.interfacePaint(interfaceLight)}
-                    .let{ if(live==null&&id=="nav") it.copy(disabled=false) else it }
+                    .let{if(id=="nav")it.copy(selected=navSelection,disabled=footerHiddenForIme||live!=null&&it.disabled)else it}
                 // seed 与 live 共用同一个定位入口，而且**只在 dp 空间里算一次**：JS 的 innerWidth
                 // 是整数（375），真实 dp 宽是 375.38，走 CSS px × scale 会让交接时整条底栏
                 // 上台 0.8dp（23:02 报告实测）。现在两路只有 density 一个比例，矩形逐位相同。
@@ -854,8 +868,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 val placement = Modifier.zIndex(2f)
                     .offset { IntOffset(with(density){rect.left.dp.roundToPx()},with(density){animatedY.dp.roundToPx()}) }
                     .size(rect.width.dp,rect.height.dp)
-                    .graphicsLayer { alpha = rect.alpha * if(id=="mini") miniFade else 1f }
+                    .graphicsLayer { alpha = if(id!="stage"&&footerHiddenForIme)0f else rect.alpha * if(id=="mini") miniFade else 1f }
                     val actions: (String,Double)->Unit = actions@ { action,value ->
+                        if(id!="stage"&&footerHiddenForIme)return@actions
                         // seed 不是 live 控制条：只接受「启动期导航」与「睡眠菜单」这两条安全动作，
                         // 缓存快照绝不触发业务命令（其余一律丢弃）。
                         if (live == null) {
