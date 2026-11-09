@@ -101,6 +101,7 @@ internal fun SettingsImage(node: TySettingNode) {
 @Composable
 internal fun SettingsPreview(node: TySettingNode, onAction: PageAction) {
     val scale = LocalDensity.current.density
+    val liveEnabled = LocalSettingsTraceIdentity.current.liveEnabled
     val viewport = LocalSettingsPreviewViewport.current
     val latestAction by rememberUpdatedState(onAction)
     Canvas(Modifier.fillMaxWidth().height(node.min.coerceIn(132f, 320f).dp)
@@ -115,6 +116,8 @@ internal fun SettingsPreview(node: TySettingNode, onAction: PageAction) {
         }.pointerInput(node.id) { detectTapGestures { point ->
             latestAction("preview-tap:${node.id}", JSONObject().put("x", point.x / scale).put("y", point.y / scale).toString(), 0.0)
         } }) {
-        drawRoundRect(Color.Transparent, cornerRadius = androidx.compose.ui.geometry.CornerRadius(28.dp.toPx()), blendMode = BlendMode.Clear)
+        // Retained settings frames must stop exposing WebView pixels during stage handoff,
+        // exactly like the legacy document renderer's existing ownership guard.
+        if (liveEnabled) drawRoundRect(Color.Transparent, cornerRadius = androidx.compose.ui.geometry.CornerRadius(28.dp.toPx()), blendMode = BlendMode.Clear)
     }
 }
