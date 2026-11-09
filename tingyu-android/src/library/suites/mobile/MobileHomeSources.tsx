@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import type { LibraryHomeSurfaceProps } from '../../core/contracts/suite';
 import { useLibraryAccountProviders } from '../../core/bindings/useLibraryAccount';
 import { useLibraryHomeActions } from '../../core/bindings/useLibraryHomeActions';
-import { useHomeSourceStore } from '../../../stores/useHomeSourceStore';
+import { useHomeSourceStore, selectHomeSearchSource } from '../../../stores/useHomeSourceStore';
+import { useSearchNavigationStore } from '../../../stores/useSearchNavigationStore';
 import OperationPanel from './native/OperationPanel';
 import type { NativePanelActionRow } from '../../../types/nativePanels';
 
@@ -18,19 +19,25 @@ export function MobileSourceSheet({
     onOpenSettings,
     onClose,
     localSongCount,
+    navidromeEnabled=false,
 }: Pick<LibraryHomeSurfaceProps, 'account' | 'onOpenSettings'> & {
     onClose: () => void;
     /** 本地曲库当前歌曲数； undefined 时整个入口隐藏（例如本地库不可用的环境）。 */
     localSongCount?: number;
+    navidromeEnabled?: boolean;
 }) {
     const { t } = useTranslation();
     const { providers, activeProviderId } = useLibraryAccountProviders(account);
     const homeSource = useHomeSourceStore((state) => state.source);
+    const navidrome=useSearchNavigationStore(state=>state.homeViewTab)==='navidrome'&&homeSource!=='local';
     const setHomeSource = useHomeSourceStore((state) => state.setSource);
-    const selectOnlineSource = (providerId: string) => {
+    const selectOnlineSource = async (providerId: string) => {
         // 切回在线只换首页数据源与账户，不动播放器：正在播的本地歌继续播。
-        setHomeSource('online');
-        account.selectProvider(providerId);
+        if(providerId!==activeProviderId){
+            const result=await account.selectProvider(providerId);
+            if(result.action!=='switch'||result.result.status!=='switched')return;
+        }
+        selectHomeSearchSource(providerId);
     };
     const items: NativePanelActionRow[] = [];
     const handlers: Record<string, () => void> = {};
@@ -43,6 +50,10 @@ export function MobileSourceSheet({
         });
         handlers['source:local'] = () => setHomeSource('local');
     }
+    if(navidromeEnabled||navidrome){
+        items.push({id:'source:navidrome',label:'Navidrome',selected:navidrome});
+        handlers['source:navidrome']=()=>selectHomeSearchSource('navidrome');
+    }
     providers.forEach(provider => {
         const id = `source:${provider.providerId}`;
         items.push({
@@ -50,7 +61,7 @@ export function MobileSourceSheet({
             hint: provider.user?.nickname || provider.error
                 || t(provider.status === 'authenticated' ? 'mobileLibrary.connected' : 'mobileLibrary.notConnected'),
             disabled: !provider.availability.configured,
-            selected: homeSource === 'online' && provider.providerId === activeProviderId,
+            selected: homeSource === 'online' && !navidrome && provider.providerId === activeProviderId,
         });
         handlers[id] = () => selectOnlineSource(provider.providerId);
     });

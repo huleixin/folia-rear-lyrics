@@ -5,7 +5,7 @@ import type { NativeHomeProps } from './NativeHomeOverview';
 import type { NativePageModel, PageActions, PageSection } from '../../../../types/nativePages';
 import { useNativePage } from '../../../../hooks/useNativePage';
 import { absolutePageImage } from '../../../../services/nativePages';
-import { directoryRows, canSortDirectoryByUpdate, type DirectorySort } from '../mobileDirectoryModel';
+import { directoryRows, directoryContentTabs, canSortDirectoryByUpdate, type DirectorySort } from '../mobileDirectoryModel';
 import { pageRowActions } from '../../../../utils/nativePageActions';
 import { useHomeSourceStore } from '../../../../stores/useHomeSourceStore';
 
@@ -20,14 +20,12 @@ export default function NativeDirectoryPage({root,props,sources,onReady,onSource
     const localMode=useHomeSourceStore(state=>state.source)==='local';
     const rows=useMemo(()=>directoryRows(cards,query,sort),[cards,query,sort]);
     const actions:PageActions={...extraActions,sources:onSources,filter:e=>{setQuery(e.text??'');onFilter?.(e.text??'');setOffset(0)},range:e=>setOffset(Math.max(0,Math.floor((e.value??0)/100)*100))};
-    // 「歌单 / 电台 / 专辑 / 本地」是**在线**资料库的分类导航。全局来源是本地音乐时整行
-    // 不生成（不是只藏「本地」按钮，也不留空白占位）；本地资料库自己的分类由 sections 传入，
-    // 照常渲染。切回在线时这里自动恢复，不影响在线资料库。
-    const tabs:PageSection|null=localMode?null:{id:'sources',layout:'chips',items:sources.tabs.map(tab=>{
+    // Source selection belongs to the header. Only supported content categories remain here;
+    // local/Navidrome keep their own sections and all existing import/connection actions.
+    const tabs:PageSection|null=localMode||sources.tab==='navidrome'?null:{id:'sources',layout:'chips',items:directoryContentTabs(sources.tabs).map(tab=>{
         const key=`source:${tab.key}`;
-        // 资料库页签与推荐页音源是同一个概念的两面：切到本地页签 = 选本地音源，
-        // 切回在线页签 = 选在线音源（推荐页随之恢复在线首页）。播放不受影响。
-        actions[key]=()=>{sources.setTab(tab.key);useHomeSourceStore.getState().setSource(tab.key==='local'?'local':'online')};
+        // Category changes stay in the current online source; playback remains untouched.
+        actions[key]=()=>{sources.setTab(tab.key);useHomeSourceStore.getState().setSource('online')};
         return{id:key,title:tab.label,action:key,selected:sources.tab===tab.key,disabled:!!tab.disabledReason};
     })};
     if(tabs)for(const extra of props.extraTabs??[]){actions[`extra:${extra.id}`]=extra.select;tabs.items!.push({id:extra.id,title:extra.label,action:`extra:${extra.id}`})}
@@ -40,13 +38,12 @@ export default function NativeDirectoryPage({root,props,sources,onReady,onSource
         const key=`open:${index}:${card.id}`;actions[key]=()=>onOpen(card,index);
         return{id:key,title:card.name,subtitle:card.trackCount!=null?t('mobileLibrary.trackCount',{count:card.trackCount}):card.description,image:absolutePageImage(card.coverUrl),action:key};
     });
-    // 本地模式右上角不显示在线音源选择器（QQ 音乐下拉）；PageHeading 只在 trailing 非空时画胶囊。
-    // headingTrailing：本地资料库的「更多」入口（导入/刷新）；bottomClearance 本地页加大留白，
-    // 保证最后一首歌能完整滚动到迷你播放器与底部导航上方。
+    // Every library retains a source exit, including local. Its existing tools remain a separate
+    // compact header action, and bottom clearance still protects the final song from floating chrome.
     const model:NativePageModel={key:`library:${route}`,title:t('mobileLibrary.libraryTitle'),
-        trailing:headingTrailing||(localMode?'':'sources'),trailingLabel:headingTrailingLabel||(localMode?'':sources.online.providerLabel),
-        trailingIcon:headingTrailing?'ellipsis-vertical':'',
-        bottomClearance:localMode?172:152,sections:[...(tabs?[tabs]:[]),...sections,{id:'filter',layout:'input',value:query,placeholder:t('mobileLibrary.filterLibrary'),action:'filter'},...(heading||enableSort?[sorting]:[]),
+        trailing:'sources',trailingLabel:localMode?t('mobileLibrary.localMusicSource'):sources.tab==='navidrome'?'Navidrome':sources.online.providerLabel,
+        trailingIcon:localMode?'smartphone':'',
+        bottomClearance:localMode?172:152,sections:[...(headingTrailing?[{id:'library-tools',layout:'message' as const,action:headingTrailing,title:headingTrailingLabel}]:[]),...(tabs?[tabs]:[]),...sections,{id:'filter',layout:'input',value:query,placeholder:t('mobileLibrary.filterLibrary'),action:'filter'},...(heading||enableSort?[sorting]:[]),
             {id:'directory',key:`${query}:${sort}`,layout:'rows',items,total:rows.length,offset,request:'range'},...tailSections,...(!rows.length&&!tailSections.some(s=>s.total||s.items?.length)?[{id:'empty',layout:'message' as const,text:query?t('home.noResults'):emptyMessage}]:[])]};
     const bound=pageRowActions(actions,id=>{
         const match=/^open:(\d+):(.*)$/.exec(id);if(!match)return;

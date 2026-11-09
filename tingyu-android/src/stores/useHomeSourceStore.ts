@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { useSearchNavigationStore } from './useSearchNavigationStore';
+import { useSearchNavigationStore, type SearchSource } from './useSearchNavigationStore';
+import { useOnlineProviderAccountStore } from './useOnlineProviderAccountStore';
 import type { HomeViewTab } from '../types';
 
 // src/stores/useHomeSourceStore.ts
@@ -63,6 +64,9 @@ export const useHomeSourceStore = create<HomeSourceState>((set) => ({
         writeStorage(HOME_SOURCE_STORAGE_KEY, source);
         alignLibraryTab(source);
         set({ source });
+        const navigation=useSearchNavigationStore.getState();
+        const searchSource=resolveHomeSearchSource();
+        if(navigation.searchSourceTab!==searchSource)navigation.selectSearchSource(searchSource);
     },
 }));
 
@@ -73,5 +77,21 @@ export const useHomeSourceStore = create<HomeSourceState>((set) => ({
  * 资料库就会显示 QQ 音乐。这里以全局来源为准补齐，不清空任何用户数据。
  */
 export const reconcileSourceOnStartup = (): void => {
-    alignLibraryTab(useHomeSourceStore.getState().source);
+    useHomeSourceStore.getState().setSource(useHomeSourceStore.getState().source);
+};
+
+/** Resolve the search default from existing browsing state; no additional persisted source. */
+export const resolveHomeSearchSource = (): SearchSource => {
+    if(useHomeSourceStore.getState().source==='local')return 'local';
+    if(useSearchNavigationStore.getState().homeViewTab==='navidrome')return 'navidrome';
+    return useOnlineProviderAccountStore.getState().activeProviderId;
+};
+
+/** Align browsing and search after selecting a source (online provider activation stays with its controller). */
+export const selectHomeSearchSource = (source:SearchSource):void => {
+    useHomeSourceStore.getState().setSource(source==='local'?'local':'online');
+    const navigation=useSearchNavigationStore.getState();
+    if(source==='navidrome')navigation.setHomeViewTab('navidrome');
+    else if(source!=='local'&&navigation.homeViewTab==='navidrome')navigation.setHomeViewTab('playlist');
+    if(useSearchNavigationStore.getState().searchSourceTab!==source)navigation.selectSearchSource(source);
 };

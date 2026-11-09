@@ -48,6 +48,7 @@ describe('全局音乐来源与资料库页签一致性', () => {
         reconcileSourceOnStartup();
         expect(useSearchNavigationStore.getState().homeViewTab).toBe('local');
         expect(useHomeSourceStore.getState().source).toBe('local');
+        expect(useSearchNavigationStore.getState().searchSourceTab).toBe('local');
     });
 
     it('切换来源只改浏览模式，不动当前歌曲、队列与播放地址', async () => {
@@ -66,5 +67,34 @@ describe('全局音乐来源与资料库页签一致性', () => {
         expect(after.playQueue).toBe(before.playQueue);
         expect(after.audioSrc).toBe(before.audioSrc);
         expect(after.playerState).toBe(before.playerState);
+    });
+
+    it('搜索与资料库在 QQ、本地、Navidrome 间双向一致，不新增持久化音源', async () => {
+        const { useHomeSourceStore, selectHomeSearchSource, resolveHomeSearchSource }=await import('@/stores/useHomeSourceStore');
+        const { useSearchNavigationStore }=await import('@/stores/useSearchNavigationStore');
+        const { useOnlineProviderAccountStore }=await import('@/stores/useOnlineProviderAccountStore');
+        useOnlineProviderAccountStore.getState().setActiveProviderId('qq');
+        for(const source of ['local','navidrome','qq','navidrome','local','qq'] as const){
+            selectHomeSearchSource(source);
+            expect(resolveHomeSearchSource()).toBe(source);
+            expect(useSearchNavigationStore.getState().searchSourceTab).toBe(source);
+            expect(useSearchNavigationStore.getState().homeViewTab).toBe(source==='qq'?'playlist':source);
+        }
+        useSearchNavigationStore.getState().setHomeViewTab('albums');
+        useHomeSourceStore.getState().setSource('local');
+        expect(useSearchNavigationStore.getState().searchSourceTab).toBe('local');
+        useHomeSourceStore.getState().setSource('online');
+        expect(useSearchNavigationStore.getState().homeViewTab).toBe('albums');
+        expect(useSearchNavigationStore.getState().searchSourceTab).toBe('qq');
+    });
+    it('启动恢复 Navidrome 时搜索默认值跟随既有资料库来源',async()=>{
+        const { useHomeSourceStore,reconcileSourceOnStartup }=await import('@/stores/useHomeSourceStore');
+        const { useSearchNavigationStore }=await import('@/stores/useSearchNavigationStore');
+        useHomeSourceStore.setState({source:'online'});
+        useSearchNavigationStore.setState({homeViewTab:'navidrome',searchSourceTab:'qq'});
+        reconcileSourceOnStartup();
+        expect(useSearchNavigationStore.getState().searchSourceTab).toBe('navidrome');
+        useSearchNavigationStore.getState().followOnlineProvider('qq');
+        expect(useSearchNavigationStore.getState().searchSourceTab).toBe('navidrome');
     });
 });

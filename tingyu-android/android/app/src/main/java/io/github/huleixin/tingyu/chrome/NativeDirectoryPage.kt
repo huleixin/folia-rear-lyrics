@@ -114,7 +114,12 @@ import kotlin.math.roundToInt
                     AnimatedVisibility(visible=!searchExpanded,
                         enter=expandVertically(tween(240)),exit=shrinkVertically(tween(240))){
                         Column{
-                            PageHeading(page,Modifier.padding(start=start+4.dp,end=end+4.dp,bottom=16.dp).heightIn(min=44.dp),large=true,action=action)
+                            Row(Modifier.padding(start=start+4.dp,end=end+4.dp,bottom=16.dp).heightIn(min=44.dp),verticalAlignment=Alignment.CenterVertically){
+                                PageHeading(page,Modifier.weight(1f),large=true,action=action)
+                                page.sections.firstOrNull{it.id=="library-tools"}?.let{tools->
+                                    ChromeButton(tools.title,size=40.dp,onClick={action(tools.action,"",0.0)}){PageIcon("ellipsis-vertical",PageInk,Modifier.size(19.dp))}
+                                }
+                            }
                             page.sections.filter{it.layout=="chips"&&it.id!="sort"&&it.id!="song-sort"}.forEach { section ->
                                 NativeSourceTabs(section,Modifier.padding(start=start,end=end,bottom=12.dp),action=action)
                             }

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { LibrarySuiteStageProps } from '../../core/contracts/suite';
 import { useMobileLibraryStore } from '../../../stores/useMobileLibraryStore';
 import { useSearchNavigationStore } from '../../../stores/useSearchNavigationStore';
+import { resolveHomeSearchSource } from '../../../stores/useHomeSourceStore';
 import { useSettingsModalStore } from '../../../stores/useSettingsModalStore';
 import { scheduleNativeShellRoute } from '../../../services/nativeShellCommit';
 import MobileMiniPlayer from './MobileMiniPlayer';
@@ -52,7 +53,7 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
             if(search.isSearchOpen&&index!==2)search.hideSearchOverlay();
             if(settings.settingsModalState.isOpen)settings.closeSettings();
             if(index===0||index===1){useMobileLibraryStore.getState().setPage(index===0?'home':'library');props.onLibraryHome?.();}
-            else if(index===2&&!search.isSearchOpen){search.restoreSearch({query:'',sourceTab:search.searchSourceTab,returnView:'home'});}
+            else if(index===2&&!search.isSearchOpen){search.restoreSearch({query:'',sourceTab:resolveHomeSearchSource(),returnView:'home'});}
         }
         scheduleNativeShellRoute();
     }, [props.onLibraryHome]);
@@ -105,7 +106,7 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
                     aria-current={searchOpen && !settingsOpen ? 'page' : undefined}
                     onClick={() => {
                         const search = useSearchNavigationStore.getState();
-                        search.restoreSearch({ query: '', sourceTab: search.searchSourceTab, returnView: 'home' });
+                        search.restoreSearch({ query: '', sourceTab: resolveHomeSearchSource(), returnView: 'home' });
                     }}
                 >
                     <TingyuNavIcon name="search" active={searchOpen && !settingsOpen} />

@@ -158,6 +158,7 @@ export default {
   "mobileLibrary": {
     "onlineMusic": "在线音乐", "localMusicMode": "本地音乐",
     "localMusicSource": "本地音乐", "localMusicSourceHint": " {{count}} 首本地歌曲", "localDiscoverSubtitle": "发现你收藏的好音乐",
+    "hotShowMore": "查看更多", "hotShowLess": "收起",
     "directorySort": "歌单排序", "sourceOrder": "音源默认顺序", "recentlyUpdated": "按最近更新", "nameOrder": "按名称", "directoryEmpty": "暂无内容", "expandHot": "展开更多热搜", "collapseHot": "收起热搜",
     "playlistSongs": "歌曲", "playlistDescription": "歌单简介，点击展开或收起",
     "newReleasesLoading": "加载中", "newReleasesRetry": "重试",

@@ -168,6 +168,7 @@ export default {
     "noCandidates": "Nothing to add — every library song is already in this playlist",
     "addCountToPlaylist": "Add {{count}} songs",
     "removeCountFromPlaylist": "Remove {{count}} songs",
+    "hotShowMore": "See more", "hotShowLess": "Show less",
     "directorySort": "Playlist order", "sourceOrder": "Source order", "recentlyUpdated": "Recently updated", "nameOrder": "Name", "directoryEmpty": "Nothing here yet", "expandHot": "More trending searches", "collapseHot": "Show fewer",
     "playlistSongs": "Songs", "playlistDescription": "Playlist description, expand or collapse",
     "newReleasesLoading": "Loading", "newReleasesRetry": "Retry",

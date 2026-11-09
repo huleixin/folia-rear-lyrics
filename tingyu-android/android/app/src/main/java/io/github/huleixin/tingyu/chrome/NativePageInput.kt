@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.sp
     onFocusChanged:((Boolean)->Unit)?=null,
     /** 被动模式：自身不获取焦点（点击由外层接管，用于"点一下就上浮成固定层"的入口）。 */
     passive:Boolean=false,
+    /** Search source stays inside this field without replacing its IME-owning text node. */
+    trailing:(@Composable ()->Unit)?=null,
 ) {
     var draft by remember(section.id){mutableStateOf(TextFieldValue(section.value))}
     var focused by remember{mutableStateOf(false)}
@@ -69,5 +71,6 @@ import androidx.compose.ui.unit.sp
         if(draft.text.isNotEmpty())ChromeButton("清空",size=36.dp,onClick={draft=TextFieldValue("");action(section.action,"",0.0)}){
             PageIcon("x",PageMuted,Modifier.size(18.dp))
         }
+        trailing?.invoke()
     }
 }

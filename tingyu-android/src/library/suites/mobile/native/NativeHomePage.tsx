@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLibraryHomeOnline } from '../../../core/bindings/useLibraryHomeOnline';
 import { useLibraryHomeNavidrome } from '../../../core/bindings/useLibraryHomeNavidrome';
@@ -9,11 +9,16 @@ import NativeLocalLibrary from './NativeLocalLibrary';
 import NativeLocalHomeOverview from './NativeLocalHomeOverview';
 import { useHomeSourceStore } from '../../../../stores/useHomeSourceStore';
 import type { PageActions } from '../../../../types/nativePages';
+import { directoryContentTabs } from '../mobileDirectoryModel';
 
 // src/library/suites/mobile/native/NativeHomePage.tsx
 function OnlineLibrary(args:NativeHomeProps) {
     const {props,sources}=args;const online=useLibraryHomeOnline(props.homeResources,sources);
     const {t}=useTranslation();
+    const tabs=useMemo(()=>directoryContentTabs(sources.tabs),[sources.tabs]);
+    const valid=!tabs.length||tabs.some(tab=>tab.key===sources.tab);
+    useEffect(()=>{if(!valid)sources.setTab(tabs[0].key)},[valid,tabs,sources.setTab]);
+    if(!valid)return null;
     return <NativeDirectoryPage {...args} key={`${sources.online.providerId}:${sources.tab}`} route={`${sources.online.providerId}:${sources.tab}`}
         cards={online.items} heading={sources.tab==='playlist'?t('mobileLibrary.myPlaylists'):online.title} enableSort={sources.tab==='playlist'} emptyMessage={online.emptyMessage} onOpen={card=>{void props.homeResources.actions.openOnlineCard(card,sources.online.providerId,props.onOpenGridView)}}/>;
 }

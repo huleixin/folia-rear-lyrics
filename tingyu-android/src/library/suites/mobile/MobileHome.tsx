@@ -138,6 +138,7 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
                     onOpenSettings={props.onOpenSettings}
                     onClose={closeSources}
                     localSongCount={props.localSongs.length}
+                    navidromeEnabled={props.navidromeEnabled}
                 />
             )}
             {props.accountLayerRef &&

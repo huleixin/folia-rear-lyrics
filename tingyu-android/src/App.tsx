@@ -2471,6 +2471,7 @@ export default function App() {
 
     const openMinimalPlayerArtist = usePlayerArtistNavigation(navigateToCollection);
     const appOverlaysModel = useAppOverlaysModel({
+        account: accountController,
         onBackFromPlayer: leavePlayer,
         onOpenPlayerArtist: openMinimalPlayerArtist,
         theme,

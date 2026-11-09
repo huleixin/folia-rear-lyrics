@@ -45,9 +45,9 @@ class NativePageScrollClearanceTest {
         val bottom = compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot.bottom
         assertTrue("bottom=$bottom footer=${(600f-clearance+12f)*density}",bottom <= (600f-clearance+12f)*density)
     }
-    @Test fun hotSearchExpandButtonClearsMiniPlayer() {
+    @Test fun expandedHotSearchLastKeywordClearsMiniPlayer() {
         val items=JSONArray();repeat(40){items.put(JSONObject().put("id","hot$it").put("title","热搜 $it").put("action","hot:$it"))}
-        check(page("search",JSONArray().put(JSONObject().put("id","hot").put("title","热门搜索").put("layout","chips").put("items",items).put("more","expand").put("moreLabel","展开更多热搜"))),"展开更多热搜",148f)
+        check(page("search",JSONArray().put(JSONObject().put("id","hot").put("title","热门搜索").put("layout","chips").put("items",items).put("expanded",true).put("more","expand").put("moreLabel","收起"))),"热搜 39",148f)
     }
     @Test fun lastSearchResultClearsBothBars() {
         val sections=JSONArray()

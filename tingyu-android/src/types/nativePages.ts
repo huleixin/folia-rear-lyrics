@@ -13,7 +13,7 @@ export type PageItem = {
 export type PageSection = {
     id: string; title?: string; layout: 'rows' | 'cards' | 'hero' | 'chips' | 'input' | 'message' | 'quickLinks' | 'discoverCards';
     items?: PageItem[]; text?: string; value?: string; placeholder?: string; action?: string;
-    submit?: string; more?: string; moreLabel?: string; busy?: boolean;
+    submit?: string; more?: string; moreLabel?: string; busy?: boolean; expanded?: boolean;
     total?: number; offset?: number; request?: string; key?: string; image?: string;
     description?: string; creator?: string; creatorImage?: string;
     activeKey?:string;playing?:boolean;activeIndex?:number;locateRevision?:number;

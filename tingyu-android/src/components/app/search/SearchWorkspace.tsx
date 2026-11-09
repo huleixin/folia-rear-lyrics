@@ -21,6 +21,8 @@ import { useVisualViewport } from './useVisualViewport';
 import { buildSearchCollectionDescriptor } from './searchCollectionOpen';
 import { useCollectionNavigationStore } from '../../../stores/useCollectionNavigationStore';
 import { useOnlineProviderAccountStore } from '../../../stores/useOnlineProviderAccountStore';
+import { resolveHomeSearchSource, selectHomeSearchSource } from '../../../stores/useHomeSourceStore';
+import type { LibraryAccountController } from '../../../library/core/contracts/account';
 import { useSearchHistoryStore } from '../../../stores/useSearchHistoryStore';
 import { omni } from '../../../services/onlineMusic/omni';
 import { getNavidromeConfig } from '../../../services/navidromeService';
@@ -49,6 +51,7 @@ type SearchWorkspaceProps = {
     onOpenSearchCollection: (descriptor: GridViewCollectionDescriptor) => void;
     /** 本地歌单搜索需要读当前歌单目录。 */
     localPlaylists: readonly LocalPlaylist[];
+    account?: LibraryAccountController;
 };
 
 type ResultTab = 'overview' | 'song' | ExploreKind;
@@ -77,6 +80,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     resolveTrackDisplay,
     onOpenSearchCollection,
     localPlaylists,
+    account,
 }) => {
     const interfaceLight=useInterfaceLight();
     const isDaylight=isAndroidNativeRuntime()?interfaceLight:stageDaylight;
@@ -125,6 +129,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     useEffect(() => {
         if (!isSearchOpen) { useSearchExploreStore.getState().reset(); return; }
         const snapshot = useSearchNavigationStore.getState();
+        if(!snapshot.searchQuery.trim())selectHomeSearchSource(resolveHomeSearchSource());
         setMode(!snapshot.searchQuery.trim() ? 'landing' : snapshot.searchResults || snapshot.isSearching ? 'results' : 'suggest');
         setTab('overview');
     }, [isSearchOpen]);
@@ -161,18 +166,29 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
         inputRef.current?.blur();
     }, [deps, onSubmitSearch, setSearchQuery]);
 
-    const switchSource = useCallback((source: SearchSource) => {
+    const sourceSwitch=useRef(0);
+    useEffect(()=>()=>{sourceSwitch.current++},[]);
+    const switchSource = useCallback(async (source: SearchSource) => {
         if (source === useSearchNavigationStore.getState().searchSourceTab) return;
+        const revision=++sourceSwitch.current;
+        const snapshot=useSearchNavigationStore.getState();
+        const query=snapshot.searchQuery.trim();
+        if(source!=='local'&&source!=='navidrome'&&source!==useOnlineProviderAccountStore.getState().activeProviderId){
+            // Use the existing confirmation/cleanup owner, never mutate provider identity directly.
+            if(!account)return;
+            const result=await account.requestSwitch(source);
+            if(result.status!=='switched'||revision!==sourceSwitch.current)return;
+            useSearchNavigationStore.getState().restoreSearch({query,sourceTab:source,returnView:snapshot.searchReturnView});
+        }
+        selectHomeSearchSource(source);
         useSearchExploreStore.getState().reset();
         setTab('overview');
-        const query = useSearchNavigationStore.getState().searchQuery.trim();
         if (!query || mode !== 'results') {
-            useSearchNavigationStore.getState().selectSearchSource(source);
             return;
         }
         onSubmitSearch(source);
         if (source !== 'navidrome' || getNavidromeConfig()) void useSearchExploreStore.getState().submit({ query, source, deps });
-    }, [deps, mode, onSubmitSearch]);
+    }, [account, deps, mode, onSubmitSearch]);
 
     const openHit = useCallback((kind: 'artist' | 'album' | 'playlist', hit: SearchArtistHit | SearchAlbumHit | SearchPlaylistHit) => {
         const descriptor = buildSearchCollectionDescriptor(kind, hit, localPlaylists);

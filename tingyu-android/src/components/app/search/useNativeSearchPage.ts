@@ -79,7 +79,7 @@ export function useNativeSearchPage(p: Props) {
         words('history',t('mobileEnhancements.history'),terms,true);
         words('discovery',t('mobileEnhancements.discover'),discovery?.suggestions??[]);
         words('hot',t('mobileEnhancements.hotSearch'),discovery?.hot.slice(0,hotExpanded?undefined:10)??[]);
-        if(discovery&&discovery.hot.length>10){const hot=sections.find(section=>section.id==='hot');if(hot){hot.more='hotExpand';hot.moreLabel=t(hotExpanded?'mobileLibrary.collapseHot':'mobileLibrary.expandHot')}}
+        if(discovery&&discovery.hot.length>10){const hot=sections.find(section=>section.id==='hot');if(hot){hot.more='hotExpand';hot.expanded=hotExpanded;hot.moreLabel=t(hotExpanded?'mobileLibrary.hotShowLess':'mobileLibrary.hotShowMore')}}
         if(discoveryError)sections.push({id:'discoveryError',layout:'message',text:t('mobileEnhancements.searchUnavailable'),more:'discoveryRetry',moreLabel:t('search.retry')});
         else if(!discovery&&p.source!=='local'&&p.source!=='navidrome')sections.push({id:'discoveryLoading',layout:'message',busy:true});
     } else if(p.mode==='suggest') {

@@ -3,6 +3,10 @@ import type { LibraryHomeCard } from '../../core/contracts/homeModel';
 // src/library/suites/mobile/mobileDirectoryModel.ts
 export type DirectorySort = 'source' | 'updated' | 'name';
 
+/** Mobile library categories describe content; sources have their own global selector. */
+export const directoryContentTabs = <T extends {key:string;disabledReason?:string}>(tabs:readonly T[]):T[] =>
+    tabs.filter(tab=>['playlist','radio','albums'].includes(tab.key)&&!tab.disabledReason);
+
 // Only canonical timestamps supplied by the provider count; creation time is not update time.
 export function directoryUpdatedAt(card: LibraryHomeCard): number | null {
     const raw = card.raw as { updatedAt?: number; tracksUpdatedAt?: number } | undefined;
