@@ -32,3 +32,29 @@ internal fun chromeFooterRect(
     val boostDp=if(id=="nav"||id=="mini")keyboardPx/density else 0f
     return NativeFooterLayout.rect(id,widthDp,heightDp+boostDp,safeTopDp,safeBottomDp,detail)
 }
+
+/**
+ * 键盘补偿高度的唯一解算入口（2026-11-09 真机 68869）。
+ *
+ * 背景：`MainSystemBars` 给 `android.R.id.content` 加了键盘高度的 padding，并把 ime inset
+ * consume 成 0 —— Compose 侧 `WindowInsets.ime` 恒为 0。旧逻辑于是只剩「窗口是否贴屏幕底边」
+ * 一条路，而窗口被 padding 压矮后这条也不成立，补偿恒为 0：底栏跟着变矮的根贴到键盘上方。
+ *
+ * 现在的优先级：
+ *  1. `nativeImeDp >= 0`：窗口监听下发的真实键盘高度（权威，0 就代表没键盘）。
+ *  2. 退回 Compose 的 ime inset（监听缺席时的旧路径）。
+ *  3. 退回「窗口贴屏幕底边」的整屏差（分屏/小窗下故意不生效）。
+ */
+internal fun chromeKeyboardPx(
+    nativeImeDp:Float,
+    imeInsetPx:Int,
+    pinnedToScreenBottom:Boolean,
+    screenPx:Float,
+    rootPx:Float,
+    density:Float,
+):Float = when {
+    nativeImeDp >= 0f -> nativeImeDp * density
+    imeInsetPx > 0 -> imeInsetPx.toFloat()
+    pinnedToScreenBottom -> (screenPx - rootPx).coerceAtLeast(0f)
+    else -> 0f
+}

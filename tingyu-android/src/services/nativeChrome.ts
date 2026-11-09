@@ -92,8 +92,11 @@ export function canUseComposeChrome():Promise<boolean> {
 }
 export function hasBlockingChromeWindow():boolean {
     // The stage's small top menu does not overlap the transport; sheets and dialogs do.
+    // 设置弹窗自己就是原生页面（nativeShellRouting 也把它排除在 webOverlay 之外）：
+    // 它在的时候底栏必须照常显示，所以这里不能算"阻塞窗口"。二级/三级页由
+    // MobileLibraryStage 的 active（isSubSettingsViewOpen）关掉，不靠这个函数。
     return [...document.querySelectorAll<HTMLElement>('[data-folia-keyboard-window="true"]')]
-        .some(node=>node.dataset.nativeChromeOverlay!=='nonblocking');
+        .some(node=>node.dataset.nativeChromeOverlay!=='nonblocking'&&!node.closest('[data-folia-settings-overlay]'));
 }
 export function chromeClockNeedsAnchor(now:number,lastAt:number,position:number,lastPosition:number,playing:boolean):boolean {
     if(!Number.isFinite(position))return false;

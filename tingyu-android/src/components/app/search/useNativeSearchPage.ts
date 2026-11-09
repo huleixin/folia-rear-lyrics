@@ -135,7 +135,7 @@ export function useNativeSearchPage(p: Props) {
     }
     // Input, suggestions and results are updates to one editable screen. A new
     // route key disposes BasicTextField and its IME composition after the first key.
-    let model:NativePageModel={key:`search:${p.source}`,title:t('search.title','搜索'),leading:'close',bottomClearance:74,sections};
+    let model:NativePageModel={key:`search:${p.source}`,title:t('search.title','搜索'),leading:'close',bottomClearance:122,sections};
     if(menu) {
         const song=menu,meta=getProviderSongMetadata(song),items:PageItem[]=[];
         const add=(id:string,title:string,callback:()=>void,disabled=false)=>{items.push({id,title,action:id,disabled});actions[id]=()=>{setMenu(null);callback()}};
@@ -146,7 +146,7 @@ export function useNativeSearchPage(p: Props) {
         const album=meta.album;
         if(album?.name&&(song.isLocal?album.entityId:song.isNavidrome?song.navidromeData?.albumId:canResolveSongCatalogRef(song,'album',album)))
             add('menuAlbum',`${t('search.tabAlbum')} · ${album.name}`,()=>p.openAlbum(song,album.name,album.id,album.entityId));
-        model={key:`search:menu:${getPlaybackSongKey(song)}`,title:song.name,leading:'back',sections:[{id:'songActions',layout:'rows',items}],bottomClearance:74};
+        model={key:`search:menu:${getPlaybackSongKey(song)}`,title:song.name,leading:'back',sections:[{id:'songActions',layout:'rows',items}],bottomClearance:122};
     }
     const dispatch=pageRowActions(actions,key=>{
         const match=/^(play|menu):(\d+):(.+)$/.exec(key);

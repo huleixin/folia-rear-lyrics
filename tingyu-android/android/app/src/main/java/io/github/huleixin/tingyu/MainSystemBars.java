@@ -106,6 +106,11 @@ final class MainSystemBars {
                 if (shell != null) shell.setSafeInsets(safe.top / nextDensity, safe.bottom / nextDensity);
                 int keyboard = insets.isVisible(WindowInsetsCompat.Type.ime()) ? insets.getInsets(WindowInsetsCompat.Type.ime()).bottom : 0;
                 view.setPadding(0, 0, 0, keyboard);
+                // 2026-11-09：这里把 content 压矮了 keyboard px，而 Compose 侧的 ime inset 又被
+                // 下一行 consume 成 0 —— 底栏拿不到键盘高度，就会跟着压矮后的根贴到键盘上方
+                // （真机截图：迷你条/导航栏被顶起来）。把真实键盘高度原样喂给宿主，让它按
+                // 「虚拟整屏高」定位：原位不动、被键盘盖住。
+                if (shell != null) shell.setImeInset(keyboard / nextDensity);
                 return new WindowInsetsCompat.Builder(insets).setInsets(safeTypes | WindowInsetsCompat.Type.ime(), Insets.NONE).build();
             });
             ViewCompat.requestApplyInsets(content);

@@ -74,4 +74,27 @@ class ChromeFooterGeometryTest {
         assertEquals(widthDp - 20f, rect.width, 1e-4f)
         assertEquals(54f, rect.height, 1e-4f)
     }
+
+    /**
+     * 2026-11-09 真机 68869：`MainSystemBars` 把 content 压矮 keyboard px 并把 ime inset
+     * consume 成 0，Compose 侧旧逻辑只剩「窗口贴屏幕底边」，压矮后也不成立 → 补偿恒为 0，
+     * 迷你条/导航栏被顶到键盘上方。现在窗口监听下发的值优先，且 0 就是 0。
+     */
+    @Test
+    fun `native ime inset is authoritative`() {
+        // 有键盘：按 density 折回 px（分屏里也一样，不再依赖「窗口贴底边」）。
+        assertEquals(320f * 2.75f, chromeKeyboardPx(320f, 0, false, 2400f, 1520f, 2.75f), 1e-3f)
+        // 没键盘：原生给 0，就不能再拿「屏幕高 - 根高」当键盘（那会把底栏推出窗口）。
+        assertEquals(0f, chromeKeyboardPx(0f, 0, true, 2400f, 1700f, 2.75f), 1e-4f)
+    }
+
+    @Test
+    fun `guard-listener-absent falls back to the old paths`() {
+        // 监听还没跑过：先用 Compose 自己的 ime inset。
+        assertEquals(600f, chromeKeyboardPx(-1f, 600, false, 2400f, 1800f, 2.75f), 1e-3f)
+        // 两条都缺席时，才走「窗口贴屏幕底边」的整屏差。
+        assertEquals(700f, chromeKeyboardPx(-1f, 0, true, 2400f, 1700f, 2.75f), 1e-3f)
+        // 窗口不在屏幕底边（分屏/小窗）就不补偿。
+        assertEquals(0f, chromeKeyboardPx(-1f, 0, false, 2400f, 1700f, 2.75f), 1e-4f)
+    }
 }

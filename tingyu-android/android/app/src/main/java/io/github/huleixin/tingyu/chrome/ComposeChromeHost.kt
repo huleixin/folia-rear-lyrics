@@ -268,6 +268,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var motionKey=""
     private var nativeTop by mutableFloatStateOf(-1f)
     private var nativeBottom by mutableFloatStateOf(-1f)
+    // 真实键盘高度（dp），由 MainSystemBars 的 content inset 监听原样下发。
+    // -1 = 该监听还没跑过，退回 Compose 自己的 ime inset 推算。
+    private var nativeIme by mutableFloatStateOf(-1f)
+    fun setImeInset(dp:Float){ nativeIme = dp.coerceAtLeast(0f) }
     fun setSafeInsets(top:Float,bottom:Float){
         val nextTop=top.coerceAtLeast(0f);val nextBottom=bottom.coerceAtLeast(0f)
         // 首帧诊断：安全区是底栏纵向位置的唯一输入，任何一次迟到 / 抖动都要留痕。
@@ -774,11 +778,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             val windowLocation = IntArray(2)
             web.getLocationOnScreen(windowLocation)
             val pinnedToScreenBottom = windowLocation[1] + web.height >= screenPx - 24f * density.density
-            val keyboardPx = when {
-                imeInsetPx > 0 -> imeInsetPx.toFloat()
-                pinnedToScreenBottom -> (screenPx - rootPx).coerceAtLeast(0f)
-                else -> 0f
-            }
+            val keyboardPx = chromeKeyboardPx(
+                nativeImeDp = nativeIme,
+                imeInsetPx = imeInsetPx,
+                pinnedToScreenBottom = pinnedToScreenBottom,
+                screenPx = screenPx,
+                rootPx = rootPx,
+                density = density.density,
+            )
             // 一个 id 只画一次（2026-11-07 首页底部闪烁专项）。
             //
             // 旧实现是**两处调用点**：缓存 seed 一处、live 包一处，交接时 Compose 拆掉一棵、
@@ -841,7 +848,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 // 落地后（一帧之后）恢复原来的 spring，正常页面切换的手感不变。
                 var settled by remember(id){mutableStateOf(false)}
                 LaunchedEffect(id){withFrameNanos{};settled=true}
-                val animatedY by animateFloatAsState(y,if(id=="stage"||!focused||!active||surface.reducedMotion||reducedMotion||!settled)snap()else spring(dampingRatio=NativeMotionPolicy.Damping,stiffness=NativeMotionPolicy.Stiffness),label="native-chrome-y")
+                // 键盘升起/收起时直接吸附：底栏是按「虚拟整屏」定位的，走 spring 会看到
+                // 一条从原位滑到键盘下面（或滑回来）的补间，而需求要的是"原位不动、被键盘盖住"。
+                val animatedY by animateFloatAsState(y,if(id=="stage"||keyboardPx>0f||!focused||!active||surface.reducedMotion||reducedMotion||!settled)snap()else spring(dampingRatio=NativeMotionPolicy.Damping,stiffness=NativeMotionPolicy.Stiffness),label="native-chrome-y")
                 val placement = Modifier.zIndex(2f)
                     .offset { IntOffset(with(density){rect.left.dp.roundToPx()},with(density){animatedY.dp.roundToPx()}) }
                     .size(rect.width.dp,rect.height.dp)
