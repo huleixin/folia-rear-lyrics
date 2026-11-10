@@ -260,6 +260,7 @@ export const CustomSelectMenu: React.FC<CustomSelectMenuProps> = ({
             // 原生模式下直接呈现终态，第一次捕获就是最终样子（也少一次重绘）。
             transition={NATIVE_FIRST ? { duration: 0 } : { duration: 0.15, ease: 'easeOut' }}
             className={`fixed z-[200] rounded-xl border shadow-xl overscroll-contain backdrop-blur-md custom-scrollbar${isVirtualized ? '' : ' overflow-y-auto'}`}
+            data-interface-menu="true"
             data-wheel-scroll-region
             id={listboxId}
             role="listbox"

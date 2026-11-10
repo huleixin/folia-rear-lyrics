@@ -59,6 +59,7 @@ import kotlin.math.roundToInt
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ComposeChromeHost.kt
 // Stable WebView identity; native pages and the live stage use separate GPU backdrop sources.
 class ComposeChromeHost(private val web: WebView, var listener: ChromeActionListener) {
+    private var appearanceStyle by mutableStateOf(InterfaceAppearance.style(web.context))
     private var appearanceMode by mutableStateOf(InterfaceAppearance.mode(web.context))
     // 极简播放页第一阶段：数据全部来自既有播放器与统一歌词交付点，命令走同一条动作总线。
     private val minimal = io.github.huleixin.tingyu.minimal.MinimalPlayerRuntime.get(web.context)
@@ -154,7 +155,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     fun minimalRelease(session: String) {
         minimal.releaseSession(session)
     }
-    fun setAppearance(mode:String){InterfaceAppearance.save(web.context,mode);appearanceMode=mode}
+    fun setAppearance(mode:String,style:String){InterfaceAppearance.save(web.context,mode,style);appearanceMode=mode;appearanceStyle=InterfaceAppearance.style(web.context)}
     private val graphics=GraphicsProbe(web)
     private val webSamplingLayer=WebSamplingLayer(web)
     private var graphicsMarker:(()->Unit)?=null
@@ -605,7 +606,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             StartupTrace.detail("first-native-frame"){put("pages",pages.size);put("surfaces",surfaces.size);put("presented",presented?.key)} }}
         val configuration=androidx.compose.ui.platform.LocalConfiguration.current
         val interfaceLight=InterfaceAppearance.resolve(appearanceMode,(configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK)==android.content.res.Configuration.UI_MODE_NIGHT_NO)
-        val palette=remember(interfaceLight){InterfacePalette(interfaceLight)}
+        val palette=remember(interfaceLight,appearanceStyle){InterfacePalette(interfaceLight,appearanceStyle)}
         val activity=web.context as? android.app.Activity
         DisposableEffect(interfaceLight,destination,surfaces["stage"]?.light) {activity?.let{InterfaceAppearance.route(it,destination=="stage",surfaces["stage"]?.light?:false)};onDispose{}}
         val sleepUi=rememberMiniSleepUi(active&&focused)

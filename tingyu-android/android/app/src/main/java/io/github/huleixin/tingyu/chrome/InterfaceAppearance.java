@@ -17,15 +17,19 @@ public final class InterfaceAppearance {
         try {String mode=context.getSharedPreferences(PREFS,0).getString("mode","dark");return valid(mode)?mode:"dark";}
         catch(ClassCastException invalid){return "dark";}
     }
+    public static String style(Context context) {
+        try {return InterfaceThemes.INSTANCE.resolve(context.getSharedPreferences(PREFS,0).getString("style","classic"));}
+        catch(ClassCastException invalid){return "classic";}
+    }
+    public static int launchTheme(Context context) {return InterfaceThemes.INSTANCE.launchTheme(style(context),mode(context));}
     public static boolean systemLight(Context context) { return (context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)==Configuration.UI_MODE_NIGHT_NO; }
     public static boolean light(Context context) { return resolve(mode(context),systemLight(context)); }
-    public static void save(Context context,String mode) {
+    public static void save(Context context,String mode) {save(context,mode,style(context));}
+    public static void save(Context context,String mode,String style) {
         if(!valid(mode))throw new IllegalArgumentException("Invalid interface appearance");
-        context.getSharedPreferences(PREFS,0).edit().putString("mode",mode).apply();
+        context.getSharedPreferences(PREFS,0).edit().putString("mode",mode).putString("style",InterfaceThemes.INSTANCE.resolve(style)).apply();
         if(context instanceof Activity && android.os.Build.VERSION.SDK_INT>=31){
-            int theme="light".equals(mode)?io.github.huleixin.tingyu.R.style.AppTheme_NoActionBarLaunch_Light:
-                "system".equals(mode)?io.github.huleixin.tingyu.R.style.AppTheme_NoActionBarLaunch_System:
-                io.github.huleixin.tingyu.R.style.AppTheme_NoActionBarLaunch;
+            int theme=launchTheme(context);
             try { ((Activity)context).getSplashScreen().setSplashScreenTheme(theme); }
             catch(RuntimeException unavailable) {android.util.Log.w("TingyuAppearance","Starting-window theme unavailable",unavailable);}
         }

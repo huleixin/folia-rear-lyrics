@@ -26,7 +26,7 @@ function Component(){
         </main>
         {sheet&&<SleepTimerSheet/>}
         <ThemedDialog isOpen={dialog} isDaylight={false} onClose={()=>setDialog(false)} title="普通弹窗"><p>复用同一份界面主题</p></ThemedDialog>
-        <div data-testid="player-visual-surface" style={{color:'#ffeebb',background:'#121523'}}>舞台主题保持独立</div>
+        <div data-folia-stage-preview><div data-testid="player-visual-surface" style={{color:'#ffeebb',background:'#121523'}}>舞台主题保持独立</div></div>
     </div>;
 }
 export default {id:'interfaceAppearance',title:'三档外观',description:'原生桥接边界、主题状态、弹层和缓存卡片',Component} satisfies ProbeDefinition;

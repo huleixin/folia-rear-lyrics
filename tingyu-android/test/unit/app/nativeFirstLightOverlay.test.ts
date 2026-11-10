@@ -1,8 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import {interfaceThemes} from '@/theme/interfaceThemes.generated';
 
-const appearanceCss = fs.readFileSync(path.join(process.cwd(), 'src/styles/interfaceAppearance.css'), 'utf8');
+// Resolve the generated recipes before checking the original opacity contract.
+const appearanceCss = Object.entries(interfaceThemes.classic.light.web).reduce((css,[key,value])=>css.replaceAll('var('+key+')',value),fs.readFileSync(path.join(process.cwd(), 'src/styles/interfaceAppearance.css'), 'utf8'));
 
 describe('light appearance over native-first Compose pages', () => {
     it('does not paint an opaque WebView shell over the native page', () => {

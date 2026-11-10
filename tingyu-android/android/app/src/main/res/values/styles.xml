@@ -22,22 +22,15 @@
         <!-- 启动窗口底色 = 原生首页渐变首色（values/values-night 的 interfaceLaunchBackground）。
              原先用 @color/foliaWindowBackground(#09090B)：与页面深绿底不同色，冷启动/重建时
              就是录屏 68736/68737 里那块纯黑卡片。三个变体（base/Light/System）必须同源。 -->
-        <item name="android:windowBackground">@color/interfaceLaunchBackground</item>
+        <item name="android:windowBackground">@color/interface_launch_classic_dark</item>
+        <item name="windowSplashScreenBackground">@color/interface_launch_classic_dark</item>
+        <item name="android:windowSplashScreenBackground">@color/interface_launch_classic_dark</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
     </style>
-    <style name="AppTheme.NoActionBarLaunch.Light" parent="AppTheme.NoActionBarLaunch">
-        <item name="android:windowBackground">#F4F5EE</item>
-        <item name="android:windowSplashScreenBackground">#F4F5EE</item>
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">true</item>
-    </style>
-    <style name="AppTheme.NoActionBarLaunch.System" parent="AppTheme.NoActionBarLaunch">
-        <item name="android:windowBackground">@color/interfaceLaunchBackground</item>
-        <item name="android:windowSplashScreenBackground">@color/interfaceLaunchBackground</item>
-        <item name="android:windowLightStatusBar">@bool/interfaceLaunchLight</item>
-        <item name="android:windowLightNavigationBar">@bool/interfaceLaunchLight</item>
-    </style>
+    <!-- Compatibility aliases: old Android starting-window preferences may reference these IDs. -->
+    <style name="AppTheme.NoActionBarLaunch.Light" parent="InterfaceLaunch_classic_Light" />
+    <style name="AppTheme.NoActionBarLaunch.System" parent="InterfaceLaunch_classic_System" />
 </resources>

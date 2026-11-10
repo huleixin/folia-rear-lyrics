@@ -91,6 +91,11 @@ import androidx.compose.ui.graphics.toArgb
     val fallbackInk get() = colors[75]
     val fallbackMuted get() = colors[76]
     val fallbackAccent get() = colors[77]
+    val disabled get() = colors[78]
+    val scrim get() = colors[79]
+    val launchInk get() = colors[80]
+    val toggleKnob get() = colors[81]
+    val opticalShadow get() = colors[82]
     val backgrounds get() = gradients[0]
     val settingsBackgrounds get() = gradients[1]
     val searchBackgrounds get() = gradients[2]
@@ -99,4 +104,4 @@ import androidx.compose.ui.graphics.toArgb
 }
 internal val LocalInterfacePalette = staticCompositionLocalOf { InterfacePalette() }
 internal fun ChromeSurface.interfacePaint(palette: InterfacePalette): ChromeSurface =
-    if(id == "stage" || (!palette.light && palette.style == "classic" && !light)) this else copy(light=palette.light, ink=if(!palette.light && palette.style == "classic") ink else String.format("#%06x",palette.ink.toArgb() and 0xffffff), accent=if(!palette.light && palette.style == "classic") accent else String.format("#%06x",palette.accent.toArgb() and 0xffffff))
+    if(id == "stage" || (!palette.light && InterfaceThemes.resolve(palette.style) == "classic" && !light)) this else copy(light=palette.light, ink=if(!palette.light && InterfaceThemes.resolve(palette.style) == "classic") ink else String.format("#%06x",palette.ink.toArgb() and 0xffffff), accent=if(!palette.light && InterfaceThemes.resolve(palette.style) == "classic") accent else String.format("#%06x",palette.accent.toArgb() and 0xffffff))

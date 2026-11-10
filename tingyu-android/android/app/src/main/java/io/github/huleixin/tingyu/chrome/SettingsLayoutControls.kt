@@ -82,7 +82,7 @@ private fun InlineSettingToggle(node:TySettingNode,theme:TyPanelTheme,modifier:M
             if(checked){val path=androidx.compose.ui.graphics.Path().apply{moveTo(size.width*.23f,size.height*.5f);lineTo(size.width*.43f,size.height*.7f);lineTo(size.width*.78f,size.height*.3f)};drawPath(path,theme.surface,style=Stroke(2.dp.toPx()))}
         }else{
             drawRoundRect(if(checked)theme.accent.copy(alpha=.75f)else theme.muted.copy(alpha=.28f),cornerRadius=CornerRadius(size.height/2))
-            val radius=size.height/2-3.dp.toPx();drawCircle(Color.White,radius,androidx.compose.ui.geometry.Offset(if(checked)size.width-radius-3.dp.toPx()else radius+3.dp.toPx(),size.height/2))
+            val radius=size.height/2-3.dp.toPx();drawCircle(theme.knob,radius,androidx.compose.ui.geometry.Offset(if(checked)size.width-radius-3.dp.toPx()else radius+3.dp.toPx(),size.height/2))
         }
     }
 }

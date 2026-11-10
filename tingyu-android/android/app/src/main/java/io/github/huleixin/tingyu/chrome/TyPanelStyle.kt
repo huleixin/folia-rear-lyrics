@@ -46,6 +46,7 @@ internal data class TyPanelTheme(
     val line: Color,
     val scrim: Float,
     val danger: Color,
+    val knob: Color = Color.White,
 ) {
     companion object {
         // The optional style is supplied only by ordinary app panels. Minimal-player callers
@@ -53,7 +54,7 @@ internal data class TyPanelTheme(
         internal fun of(light: Boolean, style: String = "classic"): TyPanelTheme {
             val p = InterfacePalette(light, style)
             return TyPanelTheme(p.panelSurface,p.panelCard,p.panelInk,p.panelMuted,p.panelAccent,
-                p.panelLine,if(light) .28f else .55f,p.panelDanger)
+                p.panelLine,if(light) .28f else .55f,p.panelDanger,p.toggleKnob)
         }
     }
 }

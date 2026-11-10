@@ -37,6 +37,7 @@ import kotlin.math.abs
 // glass material parameters. Tab taps and drag commit once; external routes never emit taps.
 @Composable fun ChromeNavigation(s: ChromeSurface, backdrop: Backdrop, modifier: Modifier, action: (String, Double) -> Unit) {
     val ink = chromeColor(s.ink); val accent = chromeColor(s.accent)
+    val palette=LocalInterfacePalette.current
     val spec = ChromeGlassPresets.active()
     val radius = if (s.vertical) 28.dp else 32.dp
     val scope = rememberCoroutineScope()
@@ -80,8 +81,7 @@ import kotlin.math.abs
                     }) {
                         val w = weight()
                         // Lighting interpolation preserves every original inactive SVG color at rest.
-                        drawImage(bitmap, colorFilter = ColorFilter.lighting(
-                            Color(1f-w,1f-w,1f-w), Color(accent.red*w,accent.green*w,accent.blue*w)))
+                        drawImage(bitmap, colorFilter = palette.navigationPaint(accent,w))
                     }
                     Spacer(Modifier.height(2.dp))
                     BasicText(s.label("nav$index", listOf("推荐", "资料库", "搜索", "设置")[index]),

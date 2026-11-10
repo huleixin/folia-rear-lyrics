@@ -60,7 +60,11 @@ const registry=Object.fromEntries(spec.themes.map(theme=>[theme.id,{id:theme.id,
 output('src/theme/interfaceThemes.generated.ts','// src/theme/interfaceThemes.generated.ts — generated; edit interfaceThemeSpec.json.\nexport const interfaceThemes = '+JSON.stringify(registry,null,2)+' as const;\nexport type InterfaceThemeId = keyof typeof interfaceThemes;\nexport function resolveInterfaceTheme(value: unknown): InterfaceThemeId { return typeof value === "string" && Object.hasOwn(interfaceThemes,value) ? value as InterfaceThemeId : "classic"; }\n');
 const colors=Object.keys(spec.native),gradients=Object.keys(spec.gradients);
 let kt='package io.github.huleixin.tingyu.chrome\n\nimport androidx.compose.ui.graphics.Color\n\n// InterfaceThemes.generated.kt — generated from src/theme/interfaceThemeSpec.json.\ninternal object InterfaceThemes {\n';
-kt+='    fun resolve(id: String) = if (id in setOf('+spec.themes.map(t=>'"'+t.id+'"').join(',')+')) id else "classic"\n';
+kt+='    fun resolve(id: String?) = if (id in setOf('+spec.themes.map(t=>'"'+t.id+'"').join(',')+')) id!! else "classic"\n';
+kt+='    fun launchTheme(id: String, mode: String): Int = when(resolve(id) + "_" + mode) {\n';
+for(const theme of spec.themes)for(const mode of ["light","dark","system"])
+    kt+='        "'+theme.id+'_'+mode+'" -> io.github.huleixin.tingyu.R.style.InterfaceLaunch_'+theme.id+'_'+mode[0].toUpperCase()+mode.slice(1)+'\n';
+kt+='        else -> io.github.huleixin.tingyu.R.style.InterfaceLaunch_classic_Dark\n    }\n';
 for(const theme of spec.themes)for(const mode of ['light','dark']){
     const data=registry[theme.id][mode],name=theme.id+'_'+mode;
     kt+='    private val '+name+' = listOf('+colors.map(key=>kotlinColor(data.native[key])).join(',')+')\n';
@@ -75,7 +79,7 @@ for(const [funName,suffix,type] of [['colors','','List<Color>'],['gradients','Gr
 }
 kt+='}\n';
 output('android/app/src/main/java/io/github/huleixin/tingyu/chrome/InterfaceThemes.generated.kt',kt);
-const provider='package io.github.huleixin.tingyu.chrome\n\nimport androidx.compose.runtime.Immutable\nimport androidx.compose.runtime.staticCompositionLocalOf\nimport androidx.compose.ui.graphics.toArgb\n\n// InterfacePalette.kt — generated facade; edit interfaceThemeSpec.json.\n@Immutable internal data class InterfacePalette(val light: Boolean = false, val style: String = "classic") {\n    private val colors = InterfaceThemes.colors(style,light)\n    private val gradients = InterfaceThemes.gradients(style,light)\n'+colors.map((key,i)=>'    val '+key+' get() = colors['+i+']\n').join('')+gradients.map((key,i)=>'    val '+key+' get() = gradients['+i+']\n').join('')+'}\ninternal val LocalInterfacePalette = staticCompositionLocalOf { InterfacePalette() }\ninternal fun ChromeSurface.interfacePaint(palette: InterfacePalette): ChromeSurface =\n    if(id == "stage" || (!palette.light && palette.style == "classic" && !light)) this else copy(light=palette.light, ink=if(!palette.light && palette.style == "classic") ink else String.format("#%06x",palette.ink.toArgb() and 0xffffff), accent=if(!palette.light && palette.style == "classic") accent else String.format("#%06x",palette.accent.toArgb() and 0xffffff))\n';
+const provider='package io.github.huleixin.tingyu.chrome\n\nimport androidx.compose.runtime.Immutable\nimport androidx.compose.runtime.staticCompositionLocalOf\nimport androidx.compose.ui.graphics.toArgb\n\n// InterfacePalette.kt — generated facade; edit interfaceThemeSpec.json.\n@Immutable internal data class InterfacePalette(val light: Boolean = false, val style: String = "classic") {\n    private val colors = InterfaceThemes.colors(style,light)\n    private val gradients = InterfaceThemes.gradients(style,light)\n'+colors.map((key,i)=>'    val '+key+' get() = colors['+i+']\n').join('')+gradients.map((key,i)=>'    val '+key+' get() = gradients['+i+']\n').join('')+'}\ninternal val LocalInterfacePalette = staticCompositionLocalOf { InterfacePalette() }\ninternal fun ChromeSurface.interfacePaint(palette: InterfacePalette): ChromeSurface =\n    if(id == "stage" || (!palette.light && InterfaceThemes.resolve(palette.style) == "classic" && !light)) this else copy(light=palette.light, ink=if(!palette.light && InterfaceThemes.resolve(palette.style) == "classic") ink else String.format("#%06x",palette.ink.toArgb() and 0xffffff), accent=if(!palette.light && InterfaceThemes.resolve(palette.style) == "classic") accent else String.format("#%06x",palette.accent.toArgb() and 0xffffff))\n';
 const paletteHistory = [
     "// android/app/src/main/java/io/github/huleixin/tingyu/chrome/InterfacePalette.kt",
     "// 深色页面背景渐变收编（UI 统一工程）：原先以字面量散落在 NativePageView 等调用点，",
@@ -90,25 +94,53 @@ const block=(selector,vars)=>selector+' {\n'+Object.entries(vars).map(([k,v])=>'
 css+=block(':root',registry.classic.dark.web);
 // Rebind aliases at each ordinary boundary so values resolve locally, never through stage tokens.
 const source=fs.readFileSync(path.join(root,'src/styles/tingyuTokens.css'),'utf8');
-const [darkPart,lightPart]=source.split("html[data-interface-appearance='light']");
+const [darkPart,lightPart]=source.split(/\nhtml\[data-interface-appearance='light'\]/);
 const aliases=part=>Object.fromEntries([...part.matchAll(/(--ty-[\w-]+):\s*(var\(--it-[\w-]+\));/g)].map(m=>[m[1],m[2]]));
 for(const theme of spec.themes)for(const mode of ['light','dark']){
     const selector='html'+(theme.classic?':not([data-interface-theme]),html[data-interface-theme="classic"]':'[data-interface-theme="'+theme.id+'"]');
     const selectors=selector.split(',').map(s=>s+'[data-interface-appearance="'+mode+'"] '+scope).join(',');
     css+=block(selectors,{...registry[theme.id][mode].web,...aliases(darkPart),...(mode==='light'?aliases(lightPart):{})});
 }
+// Legacy ordinary boundaries can carry inline CSS aliases. Resolve all of them here,
+// while the root and lyric renderer retain their independently owned visual tokens.
+for(const theme of spec.themes.filter(t=>!t.classic))for(const mode of ['light','dark']){
+    const p=theme[mode],vars={};
+    const bind=(names,value)=>names.split(' ').forEach(name=>vars[name]=value+' !important');
+    bind('--ui-bg --bg-color --ml-bg --ml-home-base --ty-bg',p.background);
+    bind('--ui-surface --ml-surface --ty-card --ty-panel --lx-card',p.surface);
+    bind('--ui-sheet --mps-glass --ty-panel-strong',p.sheet);
+    bind('--ui-ink --text-primary --ml-ink --ty-text --lx-ink',p.ink);
+    bind('--ui-muted --text-secondary --ml-muted --ml-home-muted --ty-muted --ty-settings-muted --lx-muted',p.muted);
+    bind('--ui-accent --text-accent --accent-color --ml-jade --ty-accent --ty-settings-mint --lx-accent',p.accent);
+    bind('--text-on-accent',p.onAccent);
+    bind('--ui-selected --ty-accent-soft',p.accent+'20');
+    bind('--ui-line --ml-line --ty-border --ty-settings-line --mps-border --lx-border',p.border+'30');
+    for(const [role,value] of Object.entries(p))vars['--if-'+role]=value;
+    vars['color-scheme']=mode;
+    const selector='html[data-interface-theme="'+theme.id+'"][data-interface-appearance="'+mode+'"]';
+    css+=block(selector+' '+scope,vars);
+    // Portal menus are part of ordinary controls even when detached from the settings DOM.
+    css+=block(selector+' :is([data-folia-themed-dialog],[data-folia-themed-overlay],[data-interface-menu],.ty-lx-manager)',vars);
+}
 // Preview pixels use the original classic bindings; their artwork palettes remain locally owned.
 css+=block('[data-folia-stage-preview]',{...registry.classic.dark.web,...aliases(darkPart)});
 css+=block('html[data-interface-appearance="light"] [data-folia-stage-preview]',aliases(lightPart));
 output('src/styles/interfaceThemes.generated.css',css);
 const launch=Object.fromEntries(spec.themes.map(t=>[t.id,Object.fromEntries(['light','dark'].map(m=>[m,'#'+registry[t.id][m].native.launch.hex.slice(2)]))]));
-output('public/interface-theme-startup.js','// Generated synchronous startup palette; no fetch, mount or player side effects.\n(function(){var palettes='+JSON.stringify(launch)+';try{var mode=localStorage.getItem("tingyu_interface_appearance_v1")||"dark",style=localStorage.getItem("tingyu_interface_theme_v1")||"classic";if(!Object.prototype.hasOwnProperty.call(palettes,style))style="classic";var light=mode==="light"||(mode==="system"&&matchMedia("(prefers-color-scheme: light)").matches),root=document.documentElement;root.dataset.launchLight=String(light);root.dataset.interfaceTheme=style;root.style.setProperty("--ty-launch-bg",palettes[style][light?"light":"dark"]);}catch(e){}})();\n');
+const startup=Object.fromEntries(spec.themes.map(t=>[t.id,Object.fromEntries(['light','dark'].map(m=>{
+    const ink='#'+registry[t.id][m].native.launchInk.hex.slice(2);
+    return [m,{bg:launch[t.id][m],ink,rgb:[1,3,5].map(i=>parseInt(ink.slice(i,i+2),16)).join(',')}];
+}))]));
+output('public/interface-theme-startup.css','/* Generated first-frame fallback. */\n:root{--ty-launch-bg:'+startup.classic.dark.bg+';--ty-launch-ink:'+startup.classic.dark.ink+';--ty-launch-rgb:'+startup.classic.dark.rgb+'}\n');
+output('public/interface-theme-startup.js','// Generated synchronous startup palette; no fetch, mount or player side effects.\n(function(){var palettes='+JSON.stringify(startup)+',mode="dark",style="classic";try{mode=localStorage.getItem("tingyu_interface_appearance_v1")||mode;style=localStorage.getItem("tingyu_interface_theme_v1")||style;}catch(e){}if(!Object.prototype.hasOwnProperty.call(palettes,style))style="classic";var light=mode==="light"||(mode==="system"&&typeof matchMedia==="function"&&matchMedia("(prefers-color-scheme: light)").matches),root=document.documentElement,p=palettes[style][light?"light":"dark"];root.dataset.launchLight=String(light);root.dataset.interfaceTheme=style;root.style.setProperty("--ty-launch-bg",p.bg);root.style.setProperty("--ty-launch-ink",p.ink);root.style.setProperty("--ty-launch-rgb",p.rgb);})();\n');
 // Android 12 starting-window themes are persisted by SplashScreen.setSplashScreenTheme.
 for(const night of [false,true]){
     let xml='<?xml version="1.0" encoding="utf-8"?>\n<!-- Generated interface startup resources. -->\n<resources>\n';
+    for(const t of spec.themes)for(const m of ["light","dark"])
+        xml+='  <color name="interface_launch_'+t.id+'_'+m+'">'+launch[t.id][m]+'</color>\n';
     for(const t of spec.themes)for(const mode of ['Light','Dark','System']){
         const light=mode==='Light'||mode==='System'&&!night,bg=launch[t.id][light?'light':'dark'];
-        xml+='  <style name="InterfaceLaunch_'+t.id+'_'+mode+'" parent="AppTheme.NoActionBarLaunch">\n    <item name="android:windowBackground">'+bg+'</item>\n    <item name="android:windowSplashScreenBackground">'+bg+'</item>\n    <item name="android:windowLightStatusBar">'+light+'</item>\n    <item name="android:windowLightNavigationBar">'+light+'</item>\n  </style>\n';
+        xml+='  <style name="InterfaceLaunch_'+t.id+'_'+mode+'" parent="AppTheme.NoActionBarLaunch">\n    <item name="android:windowBackground">'+bg+'</item>\n    <item name="windowSplashScreenBackground">'+bg+'</item>\n    <item name="android:windowSplashScreenBackground">'+bg+'</item>\n    <item name="android:windowLightStatusBar">'+light+'</item>\n    <item name="android:windowLightNavigationBar">'+light+'</item>\n  </style>\n';
     }xml+='</resources>\n';output('android/app/src/main/res/values'+(night?'-night':'')+'/interface_themes.generated.xml',xml);
 }
 console.log(check?'Interface themes are current':'Generated '+ids.size+' interface theme(s)');

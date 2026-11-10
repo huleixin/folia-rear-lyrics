@@ -594,7 +594,7 @@ private fun TyToggleRow(
                 size = androidx.compose.ui.geometry.Size(size.width, trackH),
             )
             val x = 2.dp.toPx() + travel * progress
-            drawCircle(Color.White.copy(alpha = if (block.value) 0.95f else 0.85f), knob / 2f,
+            drawCircle(theme.knob.copy(alpha = if (block.value) 0.95f else 0.85f), knob / 2f,
                 Offset(x + knob / 2f, size.height / 2f))
         }
     }

@@ -237,7 +237,7 @@ internal fun SettingsSwitch(
                     size = androidx.compose.ui.geometry.Size(size.width, trackH),
                 )
                 val x = 2.dp.toPx() + if (checked) travel else 0f
-                drawCircle(Color.White.copy(alpha = if (checked) 0.95f else 0.85f), knob.toPx() / 2f,
+                drawCircle(theme.knob.copy(alpha = if (checked) 0.95f else 0.85f), knob.toPx() / 2f,
                     Offset(x + knob.toPx() / 2f, size.height / 2f))
             }
         },

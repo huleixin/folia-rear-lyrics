@@ -52,12 +52,13 @@ public class TingyuChromePlugin extends Plugin {
     @PluginMethod public void appearance(PluginCall call) { getActivity().runOnUiThread(() -> {
         try {
             String mode=call.getString("mode");
-            if(mode!=null)host().setAppearance(mode);
+            String style=call.getString("style");
+            if(mode!=null||style!=null)host().setAppearance(mode!=null?mode:InterfaceAppearance.mode(getContext()),style!=null?style:InterfaceAppearance.style(getContext()));
             call.resolve(appearanceState());
         } catch(Exception error){call.reject(error.getMessage(),error);}
     }); }
     private JSObject appearanceState(){return new JSObject().put("mode",InterfaceAppearance.mode(getContext()))
-        .put("systemLight",InterfaceAppearance.systemLight(getContext())).put("light",InterfaceAppearance.light(getContext()));}
+        .put("style",InterfaceAppearance.style(getContext())).put("systemLight",InterfaceAppearance.systemLight(getContext())).put("light",InterfaceAppearance.light(getContext()));}
     @Override protected void handleOnConfigurationChanged(android.content.res.Configuration config){
         notifyListeners("appearanceChanged",appearanceState());
         InterfaceAppearance.applyBars(getActivity());

@@ -1,6 +1,7 @@
 import {interfaceThemes,resolveInterfaceTheme,type InterfaceThemeId} from '../theme/interfaceThemes.generated';
 // Ordinary Android chrome has its own preference. Folia's isDaylight remains a stage setting.
 export type InterfaceAppearance = 'system' | 'light' | 'dark';
+export const INTERFACE_THEME_KEY = 'tingyu_interface_theme_v1';
 export const INTERFACE_APPEARANCE_KEY = 'tingyu_interface_appearance_v1';
 export const INTERFACE_APPEARANCE_EVENT = 'tingyu-interface-appearance';
 export function validInterfaceAppearance(value: unknown): value is InterfaceAppearance {

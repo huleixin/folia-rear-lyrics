@@ -1,2 +1,2 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources><color name="interfaceLaunchBackground">#F4F5EE</color><bool name="interfaceLaunchLight">true</bool></resources>
+<resources><color name="interfaceLaunchBackground">@color/interface_launch_classic_light</color><bool name="interfaceLaunchLight">true</bool></resources>

@@ -61,7 +61,7 @@ internal fun SettingsLayoutView(node: SettingsLayoutNode, controls: Map<String,T
                 if(node.kind=="card"||node.kind=="segment"||s.fill)outer=outer.clip(shape).background(if(node.kind=="segment")theme.line.copy(alpha=.4f) else theme.card)
                 if(s.border)outer=outer.border(1.dp,theme.line,shape)
                 if(s.divider)outer=outer.drawBehind { drawLine(theme.line, androidx.compose.ui.geometry.Offset(0f,size.height), androidx.compose.ui.geometry.Offset(size.width,size.height), 1.dp.toPx()) }
-                outer=outer.layoutEdges(s.padding)
+                outer=outer.settingsSwatch(node.text,s.radius).layoutEdges(s.padding)
                 when(containerKind){
                     "row","segment"->Row(outer,horizontalArrangement=if(s.align=="between"&&!node.children.any{it.style.grow})Arrangement.SpaceBetween else Arrangement.spacedBy(s.gap.dp,
                         if(s.center)Alignment.CenterHorizontally else if(s.align=="end")Alignment.End else Alignment.Start),

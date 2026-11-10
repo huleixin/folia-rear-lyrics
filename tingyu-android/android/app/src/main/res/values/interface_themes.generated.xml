@@ -1,21 +1,49 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Generated interface startup resources. -->
 <resources>
+  <color name="interface_launch_classic_light">#F4F5EE</color>
+  <color name="interface_launch_classic_dark">#102D25</color>
+  <color name="interface_launch_glacier_light">#E3ECF5</color>
+  <color name="interface_launch_glacier_dark">#101A28</color>
   <style name="InterfaceLaunch_classic_Light" parent="AppTheme.NoActionBarLaunch">
     <item name="android:windowBackground">#F4F5EE</item>
+    <item name="windowSplashScreenBackground">#F4F5EE</item>
     <item name="android:windowSplashScreenBackground">#F4F5EE</item>
     <item name="android:windowLightStatusBar">true</item>
     <item name="android:windowLightNavigationBar">true</item>
   </style>
   <style name="InterfaceLaunch_classic_Dark" parent="AppTheme.NoActionBarLaunch">
     <item name="android:windowBackground">#102D25</item>
+    <item name="windowSplashScreenBackground">#102D25</item>
     <item name="android:windowSplashScreenBackground">#102D25</item>
     <item name="android:windowLightStatusBar">false</item>
     <item name="android:windowLightNavigationBar">false</item>
   </style>
   <style name="InterfaceLaunch_classic_System" parent="AppTheme.NoActionBarLaunch">
     <item name="android:windowBackground">#F4F5EE</item>
+    <item name="windowSplashScreenBackground">#F4F5EE</item>
     <item name="android:windowSplashScreenBackground">#F4F5EE</item>
+    <item name="android:windowLightStatusBar">true</item>
+    <item name="android:windowLightNavigationBar">true</item>
+  </style>
+  <style name="InterfaceLaunch_glacier_Light" parent="AppTheme.NoActionBarLaunch">
+    <item name="android:windowBackground">#E3ECF5</item>
+    <item name="windowSplashScreenBackground">#E3ECF5</item>
+    <item name="android:windowSplashScreenBackground">#E3ECF5</item>
+    <item name="android:windowLightStatusBar">true</item>
+    <item name="android:windowLightNavigationBar">true</item>
+  </style>
+  <style name="InterfaceLaunch_glacier_Dark" parent="AppTheme.NoActionBarLaunch">
+    <item name="android:windowBackground">#101A28</item>
+    <item name="windowSplashScreenBackground">#101A28</item>
+    <item name="android:windowSplashScreenBackground">#101A28</item>
+    <item name="android:windowLightStatusBar">false</item>
+    <item name="android:windowLightNavigationBar">false</item>
+  </style>
+  <style name="InterfaceLaunch_glacier_System" parent="AppTheme.NoActionBarLaunch">
+    <item name="android:windowBackground">#E3ECF5</item>
+    <item name="windowSplashScreenBackground">#E3ECF5</item>
+    <item name="android:windowSplashScreenBackground">#E3ECF5</item>
     <item name="android:windowLightStatusBar">true</item>
     <item name="android:windowLightNavigationBar">true</item>
   </style>

@@ -14,7 +14,10 @@
     "danger",
     "glass",
     "reflection",
-    "shadow"
+    "shadow",
+    "disabled",
+    "success",
+    "warning"
   ],
   "native": {
     "ink": {
@@ -213,7 +216,7 @@
       "dark": "FF74D9BA"
     },
     "switchThumb": {
-      "role": "sheet",
+      "role": "onAccent",
       "light": "FFF1F4ED",
       "dark": "FF103327"
     },
@@ -406,6 +409,31 @@
       "role": "accent",
       "light": "FF2F7A63",
       "dark": "FF6DBDAD"
+    },
+    "disabled": {
+      "role": "disabled",
+      "light": "FF82958B",
+      "dark": "FF5C6F66"
+    },
+    "scrim": {
+      "role": "shadow",
+      "light": "5520382B",
+      "dark": "88000000"
+    },
+    "launchInk": {
+      "role": "ink",
+      "light": "FF213E34",
+      "dark": "FFFFFFFF"
+    },
+    "toggleKnob": {
+      "role": "onAccent",
+      "light": "FFFFFFFF",
+      "dark": "FFFFFFFF"
+    },
+    "opticalShadow": {
+      "role": "shadow",
+      "light": "FF000000",
+      "dark": "FF000000"
     }
   },
   "gradients": {
@@ -485,7 +513,7 @@
         "",
         {
           "classic": "#0d1a17",
-          "role": "background"
+          "role": "surface"
         },
         ""
       ]
@@ -496,7 +524,7 @@
         "",
         {
           "classic": "#ffffff0c",
-          "role": "ink"
+          "role": "surface"
         },
         ""
       ]
@@ -562,7 +590,7 @@
         "",
         {
           "classic": "#5c6f66",
-          "role": "muted"
+          "role": "disabled"
         },
         ""
       ]
@@ -573,7 +601,7 @@
         "",
         {
           "classic": "#a2b6ac",
-          "role": "ink"
+          "role": "muted"
         },
         ""
       ]
@@ -606,7 +634,7 @@
         "",
         {
           "classic": "#ff6b6b",
-          "role": "ink"
+          "role": "danger"
         },
         ""
       ]
@@ -617,7 +645,7 @@
         "",
         {
           "classic": "#74d9ba",
-          "role": "ink"
+          "role": "success"
         },
         ""
       ]
@@ -628,7 +656,7 @@
         "",
         {
           "classic": "#e8c468",
-          "role": "ink"
+          "role": "warning"
         },
         ""
       ]
@@ -705,12 +733,12 @@
         "linear-gradient(155deg, ",
         {
           "classic": "#ffffff0c",
-          "role": "glass"
+          "role": "reflection"
         },
         " 0%, transparent 55%, ",
         {
           "classic": "#ffffff04",
-          "role": "glass"
+          "role": "reflection"
         },
         " 100%)"
       ]
@@ -721,12 +749,12 @@
         "linear-gradient(150deg, ",
         {
           "classic": "#ffffff12",
-          "role": "glass"
+          "role": "reflection"
         },
         ", ",
         {
           "classic": "#ffffff02",
-          "role": "glass"
+          "role": "reflection"
         },
         " 55%)"
       ]
@@ -737,7 +765,7 @@
         "0 5px 16px ",
         {
           "classic": "#0003",
-          "role": "glass"
+          "role": "shadow"
         },
         ""
       ]
@@ -837,7 +865,7 @@
         "",
         {
           "classic": "#e3ebe2",
-          "role": "background"
+          "role": "surface"
         },
         ""
       ]
@@ -848,7 +876,7 @@
         "",
         {
           "classic": "#ffffff80",
-          "role": "ink"
+          "role": "surface"
         },
         ""
       ]
@@ -914,7 +942,7 @@
         "",
         {
           "classic": "#82958b",
-          "role": "muted"
+          "role": "disabled"
         },
         ""
       ]
@@ -925,7 +953,7 @@
         "",
         {
           "classic": "#486153",
-          "role": "ink"
+          "role": "muted"
         },
         ""
       ]
@@ -1013,12 +1041,12 @@
         "linear-gradient(155deg, ",
         {
           "classic": "#ffffff70",
-          "role": "glass"
+          "role": "reflection"
         },
         " 0%, transparent 55%, ",
         {
           "classic": "#ffffff20",
-          "role": "glass"
+          "role": "reflection"
         },
         " 100%)"
       ]
@@ -1029,12 +1057,12 @@
         "linear-gradient(150deg, ",
         {
           "classic": "#ffffff70",
-          "role": "glass"
+          "role": "reflection"
         },
         ", ",
         {
           "classic": "#ffffff20",
-          "role": "glass"
+          "role": "reflection"
         },
         " 55%)"
       ]
@@ -1045,7 +1073,7 @@
         "0 5px 16px ",
         {
           "classic": "#315d4314",
-          "role": "glass"
+          "role": "shadow"
         },
         ""
       ]
@@ -1122,7 +1150,7 @@
         "",
         {
           "classic": "#e5ede4",
-          "role": "background"
+          "role": "surface"
         },
         ""
       ]
@@ -1133,7 +1161,7 @@
         "",
         {
           "classic": "#f1f4ed",
-          "role": "background"
+          "role": "sheet"
         },
         ""
       ]
@@ -1188,7 +1216,7 @@
         "",
         {
           "classic": "#f0f3ea",
-          "role": "background"
+          "role": "backgroundEnd"
         },
         ""
       ]
@@ -1199,7 +1227,7 @@
         "",
         {
           "classic": "#486153",
-          "role": "background"
+          "role": "muted"
         },
         ""
       ]
@@ -1221,7 +1249,7 @@
         "",
         {
           "classic": "#dce8dd70",
-          "role": "background"
+          "role": "surface"
         },
         ""
       ]
@@ -1232,7 +1260,7 @@
         "",
         {
           "classic": "#82958b",
-          "role": "muted"
+          "role": "disabled"
         },
         ""
       ]
@@ -1254,7 +1282,7 @@
         "",
         {
           "classic": "#d2e6d7",
-          "role": "background"
+          "role": "surface"
         },
         ""
       ]
@@ -1265,7 +1293,7 @@
         "",
         {
           "classic": "#cce2d3",
-          "role": "background"
+          "role": "surface"
         },
         ""
       ]
@@ -1287,7 +1315,7 @@
         "",
         {
           "classic": "#3278561c",
-          "role": "background"
+          "role": "accent"
         },
         ""
       ]
@@ -1298,7 +1326,7 @@
         "",
         {
           "classic": "#9bd9bc",
-          "role": "background"
+          "role": "button"
         },
         ""
       ]
@@ -1309,7 +1337,7 @@
         "",
         {
           "classic": "#04231b",
-          "role": "background"
+          "role": "onAccent"
         },
         ""
       ]
@@ -1320,7 +1348,7 @@
         "",
         {
           "classic": "#32785615",
-          "role": "background"
+          "role": "accent"
         },
         ""
       ]
@@ -1342,7 +1370,7 @@
         "",
         {
           "classic": "#f1f4ed88",
-          "role": "background"
+          "role": "glass"
         },
         ""
       ]
@@ -1364,7 +1392,7 @@
         "",
         {
           "classic": "#f1f4ede8",
-          "role": "background"
+          "role": "sheet"
         },
         ""
       ]
@@ -1375,7 +1403,7 @@
         "",
         {
           "classic": "#20382b55",
-          "role": "background"
+          "role": "shadow"
         },
         ""
       ]
@@ -1430,7 +1458,7 @@
         "",
         {
           "classic": "#18181b",
-          "role": "background"
+          "role": "onAccent"
         },
         ""
       ]
@@ -1452,7 +1480,7 @@
         "",
         {
           "classic": "rgba(241,244,237,.97)",
-          "role": "background"
+          "role": "sheet"
         },
         ""
       ]
@@ -1474,7 +1502,7 @@
         "",
         {
           "classic": "rgba(14,35,25,.10)",
-          "role": "background"
+          "role": "shadow"
         },
         ""
       ]
@@ -1584,7 +1612,7 @@
         "inset 0 1px 0 ",
         {
           "classic": "#ffffff20",
-          "role": "shadow"
+          "role": "reflection"
         },
         ""
       ]
@@ -1595,7 +1623,7 @@
         "",
         {
           "classic": "#ace6cb",
-          "role": "ink"
+          "role": "accent"
         },
         ""
       ]
@@ -1606,7 +1634,7 @@
         "inset 0 1px 0 ",
         {
           "classic": "#ffffff22",
-          "role": "shadow"
+          "role": "reflection"
         },
         ", var(--ty-glass-shadow)"
       ]
@@ -1890,7 +1918,7 @@
         "",
         {
           "classic": "#031b14",
-          "role": "ink"
+          "role": "onAccent"
         },
         ""
       ]
@@ -2093,7 +2121,7 @@
         "",
         {
           "classic": "#7ee0c229",
-          "role": "background"
+          "role": "accent"
         },
         ""
       ]
@@ -2104,7 +2132,7 @@
         "",
         {
           "classic": "#0008",
-          "role": "sheet"
+          "role": "shadow"
         },
         ""
       ]
@@ -2126,7 +2154,7 @@
         "",
         {
           "classic": "#031b14",
-          "role": "ink"
+          "role": "onAccent"
         },
         ""
       ]
@@ -2449,7 +2477,7 @@
         "",
         {
           "classic": "#7ee0c2",
-          "role": "background"
+          "role": "button"
         },
         ""
       ]
@@ -2460,7 +2488,7 @@
         "",
         {
           "classic": "#04231b",
-          "role": "ink"
+          "role": "onAccent"
         },
         ""
       ]
@@ -2716,7 +2744,7 @@
         "",
         {
           "classic": "#e0f8ed",
-          "role": "ink"
+          "role": "onAccent"
         },
         ""
       ]
@@ -2727,12 +2755,12 @@
         "linear-gradient(120deg, ",
         {
           "classic": "#387a60",
-          "role": "background"
+          "role": "button"
         },
         ", ",
         {
           "classic": "#255a48",
-          "role": "background"
+          "role": "button"
         },
         ")"
       ]
@@ -2765,7 +2793,7 @@
         "",
         {
           "classic": "#333a3b",
-          "role": "background"
+          "role": "disabled"
         },
         ""
       ]
@@ -2776,7 +2804,7 @@
         "",
         {
           "classic": "#409b7b",
-          "role": "background"
+          "role": "accent"
         },
         ""
       ]
@@ -3019,6 +3047,49 @@
       "label": "经典",
       "labelKey": "interfaceThemeClassic",
       "classic": true
+    },
+    {
+      "id": "glacier",
+      "label": "冰川",
+      "labelKey": "interfaceThemeGlacier",
+      "light": {
+        "background": "#E3ECF5",
+        "backgroundEnd": "#F1F6FA",
+        "surface": "#F5F9FC",
+        "sheet": "#F5F9FC",
+        "ink": "#172A38",
+        "muted": "#526C80",
+        "accent": "#496B83",
+        "border": "#526C80",
+        "button": "#496B83",
+        "onAccent": "#FFFFFF",
+        "danger": "#AC343D",
+        "glass": "#F0F6FB",
+        "reflection": "#FFFFFF",
+        "shadow": "#142D42",
+        "disabled": "#788B9C",
+        "success": "#337266",
+        "warning": "#866018"
+      },
+      "dark": {
+        "background": "#101A28",
+        "backgroundEnd": "#0C1420",
+        "surface": "#202E40",
+        "sheet": "#1B293A",
+        "ink": "#E8F1F9",
+        "muted": "#A2BBCD",
+        "accent": "#9FC6E3",
+        "border": "#A2BBCD",
+        "button": "#9FC6E3",
+        "onAccent": "#102031",
+        "danger": "#FFADB5",
+        "glass": "#182639",
+        "reflection": "#E8F1F9",
+        "shadow": "#000711",
+        "disabled": "#738A9F",
+        "success": "#8ED7C8",
+        "warning": "#EBCB8B"
+      }
     }
   ]
 }

@@ -8,7 +8,8 @@
 
 import { create } from 'zustand';
 import {isAndroidNativeRuntime} from '../utils/platform';
-import {INTERFACE_APPEARANCE_KEY,migrateInterfaceAppearance,validInterfaceAppearance,type InterfaceAppearance} from '../services/interfaceAppearance';
+import {INTERFACE_THEME_KEY,INTERFACE_APPEARANCE_KEY,migrateInterfaceAppearance,validInterfaceAppearance,type InterfaceAppearance} from '../services/interfaceAppearance';
+import {resolveInterfaceTheme,type InterfaceThemeId} from '../theme/interfaceThemes.generated';
 import i18n from '../i18n/config';
 
 import { getStoredBoolean, setStoredBoolean } from './storagePrimitives';
@@ -50,6 +51,8 @@ const readStoredDisableHomeDynamicBackground = (): boolean => {
 };
 
 export type ThemeSettingsState = {
+    interfaceTheme: InterfaceThemeId;
+    setInterfaceTheme: (theme: InterfaceThemeId) => void;
     interfaceAppearance: InterfaceAppearance;
     interfaceSystemLight: boolean;
     setInterfaceAppearance: (mode: InterfaceAppearance) => void;
@@ -69,6 +72,12 @@ export type ThemeSettingsState = {
 
 export const useThemeSettingsStore = create<ThemeSettingsState>((set, get) => ({
     interfaceAppearance: migrateInterfaceAppearance(typeof localStorage === 'undefined' ? null : localStorage.getItem(INTERFACE_APPEARANCE_KEY), isAndroidNativeRuntime(), initialDaylight),
+    interfaceTheme: resolveInterfaceTheme(typeof localStorage === 'undefined' ? null : localStorage.getItem(INTERFACE_THEME_KEY)),
+    setInterfaceTheme: (value) => {
+        const theme=resolveInterfaceTheme(value);
+        localStorage.setItem(INTERFACE_THEME_KEY,theme);
+        set({interfaceTheme:theme});
+    },
     interfaceSystemLight: readSystemThemeIsDaylight() ?? false,
     setInterfaceAppearance: (mode) => {
         if(!validInterfaceAppearance(mode))return;

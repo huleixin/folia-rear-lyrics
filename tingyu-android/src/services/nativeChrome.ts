@@ -24,7 +24,7 @@ export type ChromeFrame = {id: ChromeSurfaceId; session: string; generation: num
     left: number; top: number; width: number; height: number; alpha: number; viewportWidth: number; safeBottom?:number; data: ChromeData & {position?: number}};
 export const chromeNative = registerPlugin<{
     navigationDiagnostics(value:{enabled?:boolean}):Promise<{enabled:boolean;nativeNow:number;startedAt:number;samples:{phase:string;at:number;elapsedMs?:number;gestureId?:number;detail?:Record<string,unknown>}[]}>;
-    appearance(value:{mode?:string}):Promise<{mode:'system'|'light'|'dark';systemLight:boolean;light:boolean}>;
+    appearance(value:{mode?:string;style?:string}):Promise<{style:string;mode:'system'|'light'|'dark';systemLight:boolean;light:boolean}>;
     addListener(name:'appearanceChanged',callback:(value:{systemLight:boolean})=>void):Promise<{remove:()=>Promise<void>}>;
     probe(): Promise<{supported:boolean;engine:string;pages?:boolean;minimalPlayer?:boolean;
         /** 二级操作面板能力位：只有 true 时 JS 才把 ⋯ 面板交给原生绘制。 */

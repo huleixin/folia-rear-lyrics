@@ -1,20 +1,21 @@
 import {test,expect} from './fixtures';
 import type {Page} from '@playwright/test';
+import fs from 'node:fs';
 
 // test/component/interfaceAppearance.spec.ts
 // Browser plugin not available. Playwright verifies DOM/CSS; it is not Android GPU evidence.
 const evidence=process.env.TINGYU_QA_DIR||'test-results';
-async function nativeBoundary(page:Page){
-    await page.addInitScript(()=>{
+async function nativeBoundary(page:Page,seed=true){
+    await page.addInitScript((seed)=>{
         (window as any).CapacitorCustomPlatform={name:'android'};
         (window as any).Capacitor={getPlatform:()=> 'android'};
-        localStorage.setItem('tingyu_interface_appearance_v1','dark');
+        if(seed)localStorage.setItem('tingyu_interface_appearance_v1','dark');
         localStorage.setItem('i18nextLng','zh-CN');
-    });
+    },seed);
     await page.route('**/src/services/nativeChrome.ts',async route=>{
         const response=await route.fetch();let source=await response.text();
         source=source.replace(/export const chromeNative = registerPlugin(?:<[\s\S]*?>)?\(['"]TingyuChrome['"]\);/,`export const chromeNative = {
-            appearance:async ({mode})=>{if(mode)localStorage.setItem('native-appearance-mirror',mode);const current=mode||localStorage.getItem('native-appearance-mirror')||'dark';return {mode:current,systemLight:matchMedia('(prefers-color-scheme: light)').matches};},
+            appearance:async ({mode,style})=>{if(mode)localStorage.setItem('native-appearance-mirror',mode);if(style)localStorage.setItem('native-style-mirror',style);const current=mode||localStorage.getItem('native-appearance-mirror')||'dark';return {mode:current,style:style||localStorage.getItem('native-style-mirror')||'classic',systemLight:matchMedia('(prefers-color-scheme: light)').matches};},
             addListener:async()=>({remove:async()=>{}}),
             probe:async()=>({supported:false}),
         };`);
@@ -117,4 +118,61 @@ test('actual search keeps focus and query through light/dark switching and keybo
     await page.evaluate(()=>document.documentElement.dataset.interfaceAppearance='light');
     await expect(input).toHaveValue('许嵩');await expect(input).toBeFocused();
     expect(await page.locator('.ty-search').evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true);
+});
+
+test('all four palettes update open UI without losing input, scroll, dialog or independent stage state',async({page,mount})=>{
+    await nativeBoundary(page);await page.setViewportSize({width:393,height:1000});await mount('interfaceAppearance');
+    const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+    const identity=await page.getByTestId('mount-id').textContent();
+    await page.getByRole('textbox',{name:'保留的搜索内容'}).fill('保留音乐搜索');
+    const stage=()=>page.getByTestId('player-visual-surface').evaluate(el=>({ink:getComputedStyle(el).color,bg:getComputedStyle(el).backgroundColor}));
+    const before=await stage();
+    const flow=await page.locator('.ty-interface-setting').evaluate(async element=>{
+        const module='/src/services/nativeSettingsSemantic.ts';
+        const {captureSemanticSettings}=await import(/* @vite-ignore */module);
+        return captureSemanticSettings(element as HTMLElement,'theme-preview','外观').document.flow;
+    });
+    fs.writeFileSync(evidence+'/theme-preview.json',JSON.stringify(flow,null,2));
+    for(const [style,label,light,dark] of [['classic','经典','rgb(33, 62, 52)','rgb(244, 244, 245)'],['glacier','冰川','rgb(23, 42, 56)','rgb(232, 241, 249)']]){
+        await page.getByRole('radio',{name:label,exact:true}).click();
+        for(const [mode,modeLabel,ink] of [['light','浅色',light],['dark','深色',dark]]){
+            await page.getByRole('radio',{name:modeLabel,exact:true}).click();
+            await expect(page.locator('html')).toHaveAttribute('data-interface-theme',style);
+            await expect(page.locator('html')).toHaveAttribute('data-interface-appearance',mode);
+            expect(await page.locator('.ty-interface-setting').evaluate(el=>getComputedStyle(el).color)).toBe(ink);
+            await expect(page.getByTestId('mount-id')).toHaveText(identity!);
+            await expect(page.getByRole('textbox')).toHaveValue('保留音乐搜索');expect(await stage()).toEqual(before);
+            await page.screenshot({path:evidence+'/theme-'+style+'-'+mode+'.png',fullPage:true});
+        }
+    }
+    await page.getByRole('button',{name:'普通弹窗',exact:true}).click();
+    await page.locator('[data-folia-themed-dialog]').evaluate(el=>el.setAttribute('data-same-dialog','retained'));
+    const scroll=await page.evaluate(()=>{window.scrollTo(0,90);return scrollY;});
+    // Exercise the original settings callbacks while the modal stays mounted.
+    await page.getByRole('radio',{name:'经典',exact:true}).evaluate(el=>(el as HTMLButtonElement).click());
+    await page.getByRole('radio',{name:'冰川',exact:true}).evaluate(el=>(el as HTMLButtonElement).click());
+    await expect(page.locator('[data-same-dialog="retained"]')).toBeVisible();
+    expect(await page.evaluate(()=>scrollY)).toBe(scroll);
+    expect(await page.locator('[data-folia-themed-dialog]').evaluate(el=>getComputedStyle(el).backgroundColor)).toBe('rgb(27, 41, 58)');
+    expect(await page.locator('[data-folia-themed-dialog] h2').evaluate(el=>getComputedStyle(el).color)).toBe('rgb(232, 241, 249)');
+    await expect.poll(()=>page.evaluate(()=>localStorage.getItem('native-style-mirror'))).toBe('glacier');
+    expect(await stage()).toEqual(before);expect(errors).toEqual([]);
+});
+test('glacier system changes preserve style and a fresh document restores the saved pair',async({page,mount,browser})=>{
+    await nativeBoundary(page);await mount('interfaceAppearance');
+    await page.getByRole('radio',{name:'冰川',exact:true}).click();
+    await page.getByRole('radio',{name:'跟随系统',exact:true}).click();
+    await page.emulateMedia({colorScheme:'light'});await expect(page.locator('html')).toHaveAttribute('data-interface-appearance','light');
+    await page.emulateMedia({colorScheme:'dark'});await expect(page.locator('html')).toHaveAttribute('data-interface-appearance','dark');
+    await expect(page.locator('html')).toHaveAttribute('data-interface-theme','glacier');
+    await expect.poll(()=>page.evaluate(()=>localStorage.getItem('native-appearance-mirror'))).toBe('system');
+    const restored=await browser.newContext({storageState:await page.context().storageState(),colorScheme:'light'});
+    try{
+        const fresh=await restored.newPage();await nativeBoundary(fresh,false);
+        await fresh.goto('http://127.0.0.1:4173/dev-probe.html');await fresh.waitForFunction(()=>typeof window.mount==='function');
+        await fresh.evaluate(()=>window.mount({story:'interfaceAppearance'}));
+        await expect(fresh.getByRole('radio',{name:'冰川',exact:true})).toHaveAttribute('aria-checked','true');
+        await expect(fresh.getByRole('radio',{name:'跟随系统',exact:true})).toHaveAttribute('aria-checked','true');
+        await expect(fresh.locator('html')).toHaveAttribute('data-interface-appearance','light');
+    }finally{await restored.close();}
 });

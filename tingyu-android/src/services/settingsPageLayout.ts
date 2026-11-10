@@ -69,7 +69,7 @@ export function captureSettingsPageLayout(source:HTMLElement,nodes:NativeSetting
         const swatch=element.getAttribute('data-settings-swatch');
         if(!children.length)return swatch||style.grow||typeof style.progress==='number'?[{id,kind:'spacer',style,text:swatch??''}]:[];
         const kind=element.getAttribute('data-settings-layout') as SettingsLayoutNode['kind']|null;
-        return kind?[{id,kind,style,children}]:children;
+        return kind?[{id,kind,style,children,text:swatch??undefined}]:children;
     };
     const body=source.querySelector<HTMLElement>('[data-settings-page-body]')??source;
     const children=(body!==source?[...source.querySelectorAll('[data-settings-toolbar]')].flatMap(visit):[]).concat(childrenOf(body));

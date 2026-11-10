@@ -227,14 +227,14 @@ fun Modifier.chromeGlass(
     val reflection = palette.glassReflection
     val shape = RoundedCornerShape(radius)
     // API 31 以下没有 RenderEffect / AGSL：这里明确降级为中性半透明底，不假装是玻璃。
-    if (Build.VERSION.SDK_INT < 31) return legacyChromeGlass(light, shape, material, surfaceFill, palette.glassFallback)
+    if (Build.VERSION.SDK_INT < 31) return legacyChromeGlass(light, shape, material, surfaceFill, palette.glassFallback, reflection)
     val density = LocalDensity.current
     val blurPx = with(density) { spec.blur.toPx() }
     val lensHeightPx = with(density) { (spec.lensHeight * lensScale).toPx() }
     val lensAmountPx = with(density) { (spec.lensAmount * lensScale).toPx() }
     val surface = material.surface(light, surfaceFill)
     // 内阴影只做「下缘暗部」：光从上方来，玻璃越厚下缘越沉。上缘留给高光与环境反射。
-    val innerColor = if (light) Color.Black.copy(alpha = .16f) else Color.Black.copy(alpha = .55f)
+    val innerColor = palette.opticalShadow.copy(alpha = if(light) .16f else .55f)
     // API<33 的 Highlight 会退化成均匀白描边，压暗一档，避免"毛玻璃外面画白线"。
     val highlightAlpha = if (Build.VERSION.SDK_INT >= 33) spec.highlightAlpha else spec.highlightAlpha * .62f
     return drawBackdrop(
@@ -320,11 +320,11 @@ internal fun ChromeGlassSpec.interfaceMaterial(style:String):ChromeGlassSpec {
 }
 
 /** API < 31 的降级底：中性半透明 + 一道柔光内缘（不是玻璃，也不再用品牌绿）。 */
-private fun Modifier.legacyChromeGlass(light: Boolean, shape: Shape, spec: ChromeGlassSpec, fill: Float, fallback: Color): Modifier {
+private fun Modifier.legacyChromeGlass(light: Boolean, shape: Shape, spec: ChromeGlassSpec, fill: Float, fallback: Color, reflection: Color): Modifier {
     val surface = if (light) fallback.copy(alpha = (spec.fallbackLightAlpha * fill).coerceIn(0f, 1f))
     else fallback.copy(alpha = (spec.fallbackDarkAlpha * fill).coerceIn(0f, 1f))
     return background(surface, shape)
-        .border(.7.dp, Color.White.copy(alpha = if (light) .26f else .15f), shape)
+        .border(.7.dp, reflection.copy(alpha = if (light) .26f else .15f), shape)
 }
 
 fun Modifier.chromeInteraction(action: (String,Double)->Unit): Modifier = pointerInput(Unit) {

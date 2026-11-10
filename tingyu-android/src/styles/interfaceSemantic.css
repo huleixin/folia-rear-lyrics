@@ -1,0 +1,22 @@
+/* src/styles/interfaceSemantic.css
+ * Ordinary component roles shared by every registered semantic palette.
+ * Classic keeps its exact recipe declarations in interfaceAppearance.css.
+ */
+html[data-interface-palette='semantic'] :is([data-folia-settings-overlay],[data-folia-search-workspace],.sleep-scrim,.ty-sheet,.ml-sheet,[data-folia-themed-dialog],[data-interface-menu]) {color:var(--if-ink);}
+html[data-interface-palette='semantic'] [data-folia-settings-overlay][data-mobile-settings='true'] {background:var(--if-background)!important;}
+html[data-interface-palette='semantic'] [data-mobile-settings='true'] > [data-folia-settings-panel] {background:linear-gradient(180deg,var(--if-background),var(--if-backgroundEnd));}
+html[data-interface-palette='semantic'] :is(.sleep-sheet,.ty-sheet,.ml-sheet,[data-folia-themed-dialog],[data-interface-menu]) {background:var(--if-sheet)!important;border-color:color-mix(in srgb,var(--if-border) 20%,transparent)!important;color:var(--if-ink);}
+html[data-interface-palette='semantic'] :is(.sleep-scrim,[data-folia-themed-overlay]) {background:color-mix(in srgb,var(--if-shadow) 50%,transparent)!important;}
+html[data-interface-palette='semantic'] .sleep-start {background:var(--if-button);color:var(--if-onAccent);}
+html[data-interface-palette='semantic'] [data-folia-themed-dialog] > button,
+html[data-interface-palette='semantic'] [data-folia-themed-dialog] h2 {color:var(--if-ink);}
+html[data-interface-palette='semantic'] [data-folia-themed-dialog] > .mb-5 > p {color:var(--if-muted);}
+html[data-interface-palette='semantic'] [data-interface-menu] [role='option'] {color:var(--if-ink)!important;}
+html[data-interface-palette='semantic'] [data-interface-menu] [role='option'][data-active='true'] {background:color-mix(in srgb,var(--if-ink) 6%,transparent)!important;}
+html[data-interface-palette='semantic'] [data-interface-menu] [role='option'][aria-selected='true'] {background:color-mix(in srgb,var(--if-accent) 12%,transparent)!important;color:var(--if-accent)!important;}
+html[data-interface-palette='semantic'] :is(.ty-audio-tools button,.ty-quality-button,.ty-quality-choices button,.ty-source-entry,.ty-lx-actions button) {border-color:var(--ui-line);background:color-mix(in srgb,var(--if-ink) 4%,transparent);}
+html[data-interface-palette='semantic'] .ty-quality-choices button[aria-pressed='true'] {border-color:var(--if-accent);background:var(--ui-selected);}
+html[data-interface-palette='semantic'] .ty-rear-choices button[aria-pressed='true'] {background:var(--ui-selected);border-color:var(--if-accent);color:var(--if-ink);}
+html[data-interface-palette='semantic'] .ty-settings-switch {background:var(--if-disabled);}
+html[data-interface-palette='semantic'] .ty-settings-switch[aria-checked='true'] {background:var(--if-accent);}
+html[data-interface-palette='semantic'] .ty-settings-switch::after {background:var(--if-onAccent);}

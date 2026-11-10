@@ -22,6 +22,8 @@ const read = (file: string) => readFileSync(resolve(root, file), 'utf8');
 const indexHtml = read('index.html');
 const launchSurface = read('android/app/src/main/java/io/github/huleixin/tingyu/chrome/LaunchSurface.kt');
 const indexCss = read('src/index.css');
+const startup = read('public/interface-theme-startup.js');
+const startupCss = read('public/interface-theme-startup.css');
 
 describe('启动底板契约（窗口 / WebView 首帧 / DOM 遮罩同色）', () => {
     it('原生常量仍是深 #102D25 / 浅 #F4F5EE', () => {
@@ -32,8 +34,9 @@ describe('启动底板契约（窗口 / WebView 首帧 / DOM 遮罩同色）', (
     });
 
     it('index.html 的启动底色与原生常量逐字一致', () => {
-        expect(indexHtml).toContain('--ty-launch-bg: #102d25');
-        expect(indexHtml).toContain('--ty-launch-bg: #f4f5ee');
+        expect(startupCss).toContain('--ty-launch-bg:#102D25');
+        expect(startup).toContain('"bg":"#F4F5EE"');
+        expect(indexHtml).toContain('href="/interface-theme-startup.css"');
     });
 
     it('html/body 与 #app-splash 都走 --ty-launch-bg，不再写死深色', () => {
@@ -44,11 +47,13 @@ describe('启动底板契约（窗口 / WebView 首帧 / DOM 遮罩同色）', (
     });
 
     it('首帧之前就按偏好定色（键与原生 SharedPreferences 同名同值）', () => {
-        expect(indexHtml).toContain("localStorage.getItem('tingyu_interface_appearance_v1')");
-        expect(indexHtml).toContain('data-launch-light');
-        expect(indexHtml).toContain("matchMedia('(prefers-color-scheme: light)')");
+        expect(startup).toContain('localStorage.getItem("tingyu_interface_appearance_v1")');
+        expect(startup).toContain('localStorage.getItem("tingyu_interface_theme_v1")');
+        expect(startup).toContain('dataset.launchLight');
+        expect(startup).toContain('matchMedia("(prefers-color-scheme: light)")');
         // 脚本必须在 <body> 之前，否则会先画一帧错色。
-        expect(indexHtml.indexOf('data-launch-light')).toBeLessThan(indexHtml.indexOf('<body'));
+        expect(indexHtml).toContain('<script src="/interface-theme-startup.js"></script>');
+        expect(indexHtml.indexOf('<script src="/interface-theme-startup.js">')).toBeLessThan(indexHtml.indexOf('<body'));
     });
 
     it('全局 body 底色跟随启动底板，未定义变量的入口仍回落原色', () => {

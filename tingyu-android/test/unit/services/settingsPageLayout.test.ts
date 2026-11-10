@@ -80,3 +80,15 @@ it('presents a settings filter menu natively and preserves the original menu han
     expect(result.document.flow!.modal!.title).toBe('Level');
     result.actions[`act:${result.document.flow!.modal!.nodes[0].id}`]({});expect(click).toHaveBeenCalledOnce();
 });
+
+it('captures a selected theme preview with both miniature backgrounds and its original click handler',()=>{
+    vi.stubGlobal('PointerEvent',MouseEvent);
+    document.body.innerHTML='<main><button role="radio" aria-checked="true" aria-label="冰川" data-settings-layout="column"><span aria-hidden="true" data-settings-layout="row"><span data-settings-layout="column" data-settings-swatch="#E3ECF5" data-settings-style=\'{"grow":true,"height":44}\'><span data-settings-swatch="#172A38" data-settings-style=\'{"width":22,"height":4}\'></span></span><span data-settings-swatch="#101A28"></span></span><span>冰川</span></button></main>';
+    const click=vi.fn();document.querySelector('button')!.addEventListener('click',click);
+    const result=captureSemanticSettings(document.querySelector('main')!,'appearance','外观');
+    const tree=all(result.document.flow!.layout!);
+    expect(tree.find(n=>n.text==='#E3ECF5')).toMatchObject({kind:'column',style:{grow:true,height:44}});
+    expect(tree.find(n=>n.text==='#101A28')).toMatchObject({kind:'spacer'});
+    expect(result.document.flow!.nodes[0]).toMatchObject({kind:'action',title:'冰川',detail:'✓'});
+    result.actions['act:'+result.document.flow!.nodes[0].id]({});expect(click).toHaveBeenCalledOnce();
+});

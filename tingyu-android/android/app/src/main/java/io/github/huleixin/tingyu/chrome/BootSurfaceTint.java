@@ -31,7 +31,7 @@ public final class BootSurfaceTint {
     public static void applyDecor(Activity activity, View decor) {
         if (decor == null) return;
         decor.setBackgroundColor(pending && activity != null
-            ? LaunchSurface.INSTANCE.color(InterfaceAppearance.light(activity))
+            ? LaunchSurface.INSTANCE.color(InterfaceAppearance.light(activity),InterfaceAppearance.style(activity))
             : Color.TRANSPARENT);
     }
 

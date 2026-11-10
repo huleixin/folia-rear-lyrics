@@ -95,7 +95,8 @@ public class MainActivity extends BridgeActivity {
         // 的那 0.3~0.5s 就是录屏 68723 里那块纯黑色圆角窗口。
         getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(
             io.github.huleixin.tingyu.chrome.LaunchSurface.INSTANCE.color(
-                io.github.huleixin.tingyu.chrome.InterfaceAppearance.light(this))));
+                io.github.huleixin.tingyu.chrome.InterfaceAppearance.light(this),
+                io.github.huleixin.tingyu.chrome.InterfaceAppearance.style(this))));
         // decor 背景会在 PhoneFitCutout/MainSystemBars 里被设成透明（避免舞台淡出透出色带），
         // 透明 + 不透明窗口 = 合成器清成黑色。首帧之前由 BootSurfaceTint 用页面底色顶着，
         // Compose 第一帧画出来后 settle() 交还透明（录屏 68736）。
@@ -103,6 +104,7 @@ public class MainActivity extends BridgeActivity {
         // 启动路径诊断：restored=true 表示 Activity 重建（进程内），配合 host-attach 与
         // activity-resume 计数即可区分冷启动 / 暖恢复 / renderer 死亡后的 recreate。
         android.util.Log.i("TingyuEntry", "activity-create restored=" + (savedInstanceState != null));
+        setTheme(io.github.huleixin.tingyu.chrome.InterfaceAppearance.launchTheme(this));
         super.onCreate(savedInstanceState);
         io.github.huleixin.tingyu.chrome.NavigationTiming.mark("activity-create-capacitor-ready");
         if (BuildConfig.DEBUG && (BuildConfig.GLASS_LAB || BuildConfig.COMPOSE_CHROME)) WebView.setWebContentsDebuggingEnabled(true);
