@@ -22,7 +22,9 @@ final class RearDirectPowerPolicy {
     synchronized Request latest(int display) { return requests.get(display); }
     synchronized boolean current(Request request) { return request != null && requests.get(request.display) == request; }
     int effective(Request request, long now) {
-        return request.original == Display.STATE_OFF && lease.holds(request.display, now) ? Display.STATE_ON : request.original;
+        boolean sleeping = request.original == Display.STATE_OFF || lease.isCard()
+            && (request.original == Display.STATE_DOZE || request.original == Display.STATE_DOZE_SUSPEND);
+        return sleeping && lease.holds(request.display, now) ? Display.STATE_ON : request.original;
     }
     synchronized void applied(Request request, int state) { if (current(request)) request.applied = state; }
     synchronized boolean needsReplay(Request request, long now) { return current(request) && request.applied != effective(request, now); }

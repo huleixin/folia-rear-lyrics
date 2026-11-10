@@ -6,6 +6,19 @@ import static org.junit.Assert.*;
 
 // android/app/src/test/java/io/github/huleixin/tingyu/lsp/RearDirectPowerPolicyTest.java
 public class RearDirectPowerPolicyTest {
+    @Test public void nativeCardKeepAwakeRestoresTheOriginalDozeRequestOnReleaseOrExpiry() {
+        for (int state : new int[] {Display.STATE_OFF, Display.STATE_DOZE, Display.STATE_DOZE_SUSPEND}) {
+            RearDisplayLease lease = new RearDisplayLease(); lease.acquireCard(2, "card", 0);
+            RearDirectPowerPolicy policy = new RearDirectPowerPolicy(lease);
+            RearDirectPowerPolicy.Request request = policy.record(2, state);
+            assertEquals(Display.STATE_ON, policy.effective(request, 1));
+            policy.applied(request, Display.STATE_ON);
+            assertEquals(state, request.original);
+            assertEquals(state, policy.effective(request, 12000));
+            lease.release(2, "card");
+            assertTrue(policy.needsReplay(request, 2)); assertEquals(state, policy.effective(request, 2));
+        }
+    }
     @Test public void mainAndUnleasedDisplaysKeepTheirSystemPolicy() {
         RearDisplayLease lease = new RearDisplayLease(); lease.acquire(2, "lyrics", 0);
         RearDirectPowerPolicy policy = new RearDirectPowerPolicy(lease);
