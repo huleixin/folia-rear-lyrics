@@ -430,6 +430,36 @@
       "light": "FFFFFFFF",
       "dark": "FFFFFFFF"
     },
+    "menuSurface": {
+      "role": "sheet",
+      "light": "FFF7F5EC",
+      "dark": "FFF7F5EC"
+    },
+    "menuInk": {
+      "role": "ink",
+      "light": "FF22322A",
+      "dark": "FF22322A"
+    },
+    "menuMuted": {
+      "role": "muted",
+      "light": "FF8A9389",
+      "dark": "FF8A9389"
+    },
+    "queueHighlight": {
+      "role": "ink",
+      "light": "FF10231D/0.07",
+      "dark": "FFFFFFFF/0.08"
+    },
+    "toolDanger": {
+      "role": "danger",
+      "light": "FFD06A5A",
+      "dark": "FFD06A5A"
+    },
+    "nowPlayingAccent": {
+      "role": "accent",
+      "light": "FF9FE0C4",
+      "dark": "FF9FE0C4"
+    },
     "opticalShadow": {
       "role": "shadow",
       "light": "FF000000",

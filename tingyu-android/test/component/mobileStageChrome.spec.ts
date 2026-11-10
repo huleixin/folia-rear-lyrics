@@ -58,3 +58,50 @@ test('stage more menu no longer owns a separate sleep timer entry',async({page})
  await expect(page.getByRole('menu')).toBeVisible();
  await expect(page.getByRole('menuitem',{name:/定时关闭|Sleep timer/i})).toHaveCount(0);
 });
+
+// Browser plugin not available; the existing Playwright harness checks the WebView menu boundary.
+test('ordinary stage menu follows glacier while its lyric surface keeps its own palette',async({page})=>{
+    const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+    await page.goto('/dev-probe.html?probe=mobileStageChrome&theme=saturated');
+    const stage=page.locator('.mobile-player-stage');
+    await expect(stage).toBeVisible();
+    // Settings warmup loads the shared glass styles; capture the baseline after that import.
+    await page.evaluate(async()=>{
+        const path='/src/components/app/dialogs/settingsModule.ts';
+        const {loadSettingsModule}=await import(/* @vite-ignore */path);
+        await loadSettingsModule();
+    });
+    await expect(page.locator('.mps-player')).toHaveCSS('background-color','rgba(12, 23, 21, 0.62)');
+    const colors=()=>stage.evaluate(el=>({color:getComputedStyle(el).color,background:getComputedStyle(el).backgroundImage,
+        player:getComputedStyle(el.querySelector('.mps-player')!).backgroundColor}));
+    const original=await colors();
+    await page.getByRole('button',{name:/More|更多/,exact:true}).click();
+    const menu=page.getByRole('menu');await expect(menu).toBeVisible();
+    const classic=await menu.evaluate(el=>({color:getComputedStyle(el).color,background:getComputedStyle(el).backgroundColor}));
+    await menu.evaluate(el=>el.setAttribute('data-retained','true'));
+    for(const mode of ['light','dark']) {
+        // Keep the existing light/dark glass behavior; only the global style must be isolated.
+        await page.evaluate(mode=>Object.assign(document.documentElement.dataset,{interfaceTheme:'classic',interfaceAppearance:mode,interfacePalette:'classic'}),mode);
+        await expect(page.locator('.mps-player')).toHaveCSS('background-color',mode==='light'?'rgba(241, 244, 237, 0.533)':'rgba(12, 23, 21, 0.62)');
+        const modeBaseline=await colors();
+        expect(modeBaseline.color).toEqual(original.color);
+        expect(modeBaseline.background).toEqual(original.background);
+        await page.evaluate(mode=>Object.assign(document.documentElement.dataset,{interfaceTheme:'glacier',interfaceAppearance:mode,interfacePalette:'semantic'}),mode);
+        await expect(menu).toHaveCSS('color',mode==='light'?'rgb(23, 42, 56)':'rgb(232, 241, 249)');
+        await expect(menu).toHaveCSS('background-color',mode==='light'?'rgb(245, 249, 252)':'rgb(27, 41, 58)');
+        await expect(menu).toHaveAttribute('data-retained','true');
+        expect(await colors()).toEqual(modeBaseline);
+        for(const width of [320,393,1024]) {
+            await page.setViewportSize({width,height:852});
+            const box=(await menu.boundingBox())!;expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(width);
+        }
+        await page.setViewportSize({width:393,height:852});
+        await page.screenshot({path:(process.env.TINGYU_QA_DIR||'test-results')+'/glacier-stage-menu-'+mode+'.png',animations:'disabled'});
+    }
+    await page.evaluate(()=>Object.assign(document.documentElement.dataset,{interfaceTheme:'classic',interfaceAppearance:'dark',interfacePalette:'classic'}));
+    await expect(menu).toHaveCSS('color',classic.color);
+    await expect(menu).toHaveCSS('background-color',classic.background);
+    await page.keyboard.press('Escape');await expect(menu).toHaveCount(0);
+    await page.getByRole('button',{name:/More|更多/,exact:true}).click();await expect(menu).toBeVisible();
+    expect(errors).toEqual([]);
+});

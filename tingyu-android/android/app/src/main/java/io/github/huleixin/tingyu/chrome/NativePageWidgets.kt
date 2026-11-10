@@ -157,7 +157,7 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){
         bars.forEachIndexed{index,bar->
             val value by bar
-            Box(Modifier.size(3.dp,(5f+6f*value).dp).clip(RoundedCornerShape(1.5.dp)).background(Color(0xFF9FE0C4)))
+            Box(Modifier.size(3.dp,(5f+6f*value).dp).clip(RoundedCornerShape(1.5.dp)).background(LocalInterfacePalette.current.nowPlayingAccent))
         }
     }
 }

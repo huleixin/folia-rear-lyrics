@@ -459,23 +459,18 @@ private data class QueueTheme(
     val scrim: Float,
 )
 
-private fun queueTheme(light: Boolean): QueueTheme = if (light) {
-    QueueTheme(
-        surface = Color(0xFFF7FAF8),
-        text = Color(0xFF10231D),
-        muted = Color(0xFF5C7268),
-        accent = Color(0xFF0F6B4F),
-        highlight = Color(0xFF10231D).copy(alpha = 0.07f),
-        scrim = 0.28f,
+@Composable
+private fun queueTheme(light: Boolean): QueueTheme {
+    val palette = io.github.huleixin.tingyu.chrome.InterfacePalette(
+        light, io.github.huleixin.tingyu.chrome.LocalInterfacePalette.current.style,
     )
-} else {
-    QueueTheme(
-        surface = Color(0xFF0E1A17),
-        text = Color(0xFFECF3EF),
-        muted = Color(0xFF8FA69C),
-        accent = Color(0xFF7FE3C0),
-        highlight = Color(0xFFFFFFFF).copy(alpha = 0.08f),
-        scrim = 0.55f,
+    return QueueTheme(
+        surface = palette.panelSurface,
+        text = palette.panelInk,
+        muted = palette.panelMuted,
+        accent = palette.panelAccent,
+        highlight = palette.queueHighlight,
+        scrim = if (light) 0.28f else 0.55f,
     )
 }
 

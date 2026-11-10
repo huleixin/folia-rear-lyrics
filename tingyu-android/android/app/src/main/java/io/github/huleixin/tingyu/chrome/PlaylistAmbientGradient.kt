@@ -9,8 +9,10 @@ internal const val PlaylistAmbientFadeEnd = .90f
 
 /** Same sRGB stops and viewport coordinates as the page's underlying background. */
 internal fun playlistBackgroundColor(position:Float,colors:List<Color> = PlaylistBackgroundColors):Color {
-    val progress=position.coerceIn(0f,1f)*2
-    val index=if(progress<1)0 else 1
+    require(colors.isNotEmpty())
+    if(colors.size==1) return colors.first()
+    val progress=position.coerceIn(0f,1f)*colors.lastIndex
+    val index=progress.toInt().coerceAtMost(colors.lastIndex-1)
     val fraction=(progress-index).coerceIn(0f,1f)
     val start=colors[index];val end=colors[index+1]
     return Color(start.red+(end.red-start.red)*fraction,start.green+(end.green-start.green)*fraction,
@@ -27,7 +29,7 @@ internal fun playlistAmbientVisibility(position:Float):Float {
 internal fun playlistAmbientCoverStops(viewportHeight:Float,ambientHeight:Float,colors:List<Color> = PlaylistBackgroundColors):Array<Pair<Float,Color>> {
     require(viewportHeight.isFinite()&&viewportHeight>0&&ambientHeight.isFinite()&&ambientHeight>0)
     val positions=( (0..32).map{it/32f} + listOf(PlaylistAmbientFadeStart,PlaylistAmbientFadeEnd)
-        + listOf((viewportHeight*.5f/ambientHeight).coerceIn(0f,1f)) ).distinct().sorted()
+        + (1 until colors.lastIndex).map { (viewportHeight*it/colors.lastIndex/ambientHeight).coerceIn(0f,1f) } ).distinct().sorted()
     return positions.map { position -> position to playlistBackgroundColor(position*ambientHeight/viewportHeight,colors)
         .copy(alpha=1-playlistAmbientVisibility(position)) }.toTypedArray()
 }

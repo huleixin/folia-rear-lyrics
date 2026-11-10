@@ -80,7 +80,13 @@ import kotlin.math.roundToInt
  */
 internal typealias ToolsTheme = io.github.huleixin.tingyu.chrome.TyPanelTheme
 
-internal fun toolsTheme(light: Boolean): ToolsTheme = io.github.huleixin.tingyu.chrome.TyPanelTheme.of(light)
+@Composable
+internal fun toolsTheme(light: Boolean): ToolsTheme {
+    val style = io.github.huleixin.tingyu.chrome.LocalInterfacePalette.current.style
+    return io.github.huleixin.tingyu.chrome.TyPanelTheme.of(light, style).copy(
+        danger = io.github.huleixin.tingyu.chrome.InterfacePalette(light, style).toolDanger,
+    )
+}
 
 // ---- 脚手架 ----
 
@@ -297,7 +303,7 @@ fun MinimalQualitySheet(
                 fontSize = 12.sp,
             )
             if (quality.error.isNotBlank()) {
-                Text(quality.error, color = Color(0xFFD06A5A), fontSize = 12.sp)
+                Text(quality.error, color = theme.danger, fontSize = 12.sp)
             }
             if (quality.switching) {
                 Text("正在切换音质…", color = theme.muted, fontSize = 12.sp)
@@ -1026,7 +1032,7 @@ fun MinimalLxSheet(
                 }
             }
             if (lx.message.isNotBlank()) {
-                Text(lx.message, color = if (lx.failed) Color(0xFFD06A5A) else theme.muted, fontSize = 11.5.sp)
+                Text(lx.message, color = if (lx.failed) theme.danger else theme.muted, fontSize = 11.5.sp)
             }
             Text(
                 "使用说明与兼容性",
@@ -1070,7 +1076,7 @@ private fun ScriptAction(theme: ToolsTheme, label: String, enabled: Boolean, dan
             label,
             color = when {
                 !enabled -> theme.muted.copy(alpha = 0.6f)
-                danger -> Color(0xFFD06A5A)
+                danger -> theme.danger
                 else -> theme.accent
             },
             fontSize = 12.sp,

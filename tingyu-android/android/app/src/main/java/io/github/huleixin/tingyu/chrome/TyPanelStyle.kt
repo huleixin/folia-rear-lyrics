@@ -51,6 +51,7 @@ internal data class TyPanelTheme(
     companion object {
         // The optional style is supplied only by ordinary app panels. Minimal-player callers
         // retain the classic palette and their own cover/daylight ownership.
+        // Ordinary tools/queue now supply the global style too; the player canvas stays independent.
         internal fun of(light: Boolean, style: String = "classic"): TyPanelTheme {
             val p = InterfacePalette(light, style)
             return TyPanelTheme(p.panelSurface,p.panelCard,p.panelInk,p.panelMuted,p.panelAccent,

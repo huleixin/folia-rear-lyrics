@@ -522,9 +522,10 @@ private fun MoreMenu(
 }
 
 /** 菜单自己的墨色（与 WebView 舞台菜单同一套：奶油底 + 深墨字 + 淡灰值），不随页面取色。 */
-private val MenuSurface = Color(0xFFF7F5EC)
-private val MenuInkColor = Color(0xFF22322A)
-private val MenuMutedColor = Color(0xFF8A9389)
+// Classic retains those exact menu colors; other styles use the global ordinary-menu roles.
+private val MenuSurface @Composable get() = io.github.huleixin.tingyu.chrome.LocalInterfacePalette.current.menuSurface
+private val MenuInkColor @Composable get() = io.github.huleixin.tingyu.chrome.LocalInterfacePalette.current.menuInk
+private val MenuMutedColor @Composable get() = io.github.huleixin.tingyu.chrome.LocalInterfacePalette.current.menuMuted
 
 /** 更多菜单的可视面板（不含 Popup 外壳）：奶油卡 + 五个带图标条目。 */
 @Composable

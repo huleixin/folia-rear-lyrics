@@ -256,6 +256,25 @@ export const interfaceThemes = {
         "toggleKnob": {
           "hex": "FFFFFFFF"
         },
+        "menuSurface": {
+          "hex": "FFF7F5EC"
+        },
+        "menuInk": {
+          "hex": "FF22322A"
+        },
+        "menuMuted": {
+          "hex": "FF8A9389"
+        },
+        "queueHighlight": {
+          "hex": "FF10231D",
+          "alpha": 0.07
+        },
+        "toolDanger": {
+          "hex": "FFD06A5A"
+        },
+        "nowPlayingAccent": {
+          "hex": "FF9FE0C4"
+        },
         "opticalShadow": {
           "hex": "FF000000"
         }
@@ -766,6 +785,25 @@ export const interfaceThemes = {
         },
         "toggleKnob": {
           "hex": "FFFFFFFF"
+        },
+        "menuSurface": {
+          "hex": "FFF7F5EC"
+        },
+        "menuInk": {
+          "hex": "FF22322A"
+        },
+        "menuMuted": {
+          "hex": "FF8A9389"
+        },
+        "queueHighlight": {
+          "hex": "FFFFFFFF",
+          "alpha": 0.08
+        },
+        "toolDanger": {
+          "hex": "FFD06A5A"
+        },
+        "nowPlayingAccent": {
+          "hex": "FF9FE0C4"
         },
         "opticalShadow": {
           "hex": "FF000000"
@@ -1281,6 +1319,25 @@ export const interfaceThemes = {
         "toggleKnob": {
           "hex": "FFFFFFFF"
         },
+        "menuSurface": {
+          "hex": "FFF5F9FC"
+        },
+        "menuInk": {
+          "hex": "FF172A38"
+        },
+        "menuMuted": {
+          "hex": "FF526C80"
+        },
+        "queueHighlight": {
+          "hex": "FF172A38",
+          "alpha": 0.07
+        },
+        "toolDanger": {
+          "hex": "FFAC343D"
+        },
+        "nowPlayingAccent": {
+          "hex": "FF496B83"
+        },
         "opticalShadow": {
           "hex": "FF142D42"
         }
@@ -1787,6 +1844,25 @@ export const interfaceThemes = {
         },
         "toggleKnob": {
           "hex": "FF102031"
+        },
+        "menuSurface": {
+          "hex": "FF1B293A"
+        },
+        "menuInk": {
+          "hex": "FFE8F1F9"
+        },
+        "menuMuted": {
+          "hex": "FFA2BBCD"
+        },
+        "queueHighlight": {
+          "hex": "FFE8F1F9",
+          "alpha": 0.08
+        },
+        "toolDanger": {
+          "hex": "FFFFADB5"
+        },
+        "nowPlayingAccent": {
+          "hex": "FF9FC6E3"
         },
         "opticalShadow": {
           "hex": "FF000711"

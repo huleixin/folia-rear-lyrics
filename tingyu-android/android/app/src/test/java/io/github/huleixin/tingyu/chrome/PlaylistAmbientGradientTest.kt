@@ -6,6 +6,32 @@ import org.junit.Test
 
 // android/app/src/test/java/io/github/huleixin/tingyu/chrome/PlaylistAmbientGradientTest.kt
 class PlaylistAmbientGradientTest {
+    @Test fun everyRegisteredThemeCanDrawThePlaylistCoverAcrossViewportSizes() {
+        for(style in listOf("classic","glacier")) for(light in listOf(false,true)) {
+            val colors=InterfacePalette(light,style).backgrounds
+            assertEquals(colors.first(),playlistBackgroundColor(0f,colors))
+            assertEquals(colors.last(),playlistBackgroundColor(1f,colors))
+            for(height in listOf(360f,640f,852f,1280f)) {
+                val ambient=minOf(560f,height*.7f)
+                val stops=playlistAmbientCoverStops(height,ambient,colors)
+                assertTrue(stops.toList().zipWithNext().all{(a,b)->a.first<b.first})
+                for((position,color) in stops.filter{it.first>=PlaylistAmbientFadeEnd})
+                    assertEquals(playlistBackgroundColor(position*ambient/height,colors),color)
+            }
+        }
+    }
+
+    @Test fun interpolationUsesTheActualNumberOfEvenlySpacedStops() {
+        for(colors in listOf(listOf(Color.Black,Color.White),
+            listOf(Color.Black,Color.Red,Color.Green,Color.White))) {
+            colors.forEachIndexed { index,color ->
+                assertEquals(color,playlistBackgroundColor(index.toFloat()/colors.lastIndex,colors))
+            }
+            assertEquals(colors.first(),playlistBackgroundColor(-1f,colors))
+            assertEquals(colors.last(),playlistBackgroundColor(2f,colors))
+        }
+    }
+
     @Test fun pageColorsStayIdenticalAtTheirOriginalViewportStops() {
         assertEquals(Color(0xFF03221A),playlistBackgroundColor(0f))
         assertEquals(Color(0xFF03130E),playlistBackgroundColor(.5f))
