@@ -793,7 +793,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                         </button>
                     </div>
                     <div className={`p-3 rounded-xl border space-y-3 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":12,"padding":[12,12,12,12]}' data-settings-layout="card">
-                        <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                        <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
                             <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                 {t('options.themeGenerationSource')}
                             </div>
@@ -847,7 +847,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                         )}
                     </div>
                     <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${settingsCardClass}`} data-settings-style='{"align":"between","radius":12,"border":true,"gap":12,"padding":[12,12,12,12],"fill":true}' data-settings-layout="row">
-                        <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                        <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
                             <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                 {isAndroidNativeRuntime() ? t('options.stageFollowSystemTheme') : t('options.followSystemTheme')}
                             </div>
@@ -858,7 +858,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                         <button
                             type="button"
                             onClick={() => onToggleFollowSystemTheme(!followSystemTheme)}
-                            aria-pressed={followSystemTheme}
+                            role="switch" aria-checked={followSystemTheme}
                             className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!followSystemTheme ? toggleOffBackgroundClass : ''}`}
                             style={{ backgroundColor: followSystemTheme ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
                          data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={followSystemTheme ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
@@ -866,7 +866,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                         </button>
                     </div>
                     <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${settingsCardClass}`} data-settings-style='{"align":"between","radius":12,"border":true,"gap":12,"padding":[12,12,12,12],"fill":true}' data-settings-layout="row">
-                        <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                        <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
                             <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                 {t('options.preferCustomTheme')}
                             </div>
@@ -884,7 +884,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                         </button>
                     </div>
                     <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${settingsCardClass}`} data-settings-style='{"align":"between","radius":12,"border":true,"gap":12,"padding":[12,12,12,12],"fill":true}' data-settings-layout="row">
-                        <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                        <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
                             <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                 {t('options.autoSwitchSongTheme')}
                             </div>
@@ -902,7 +902,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                     </div>
                     {songThemeAutoSwitchEnabled && (
                         <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${settingsCardClass}`} data-settings-style='{"align":"between","radius":12,"border":true,"gap":12,"padding":[12,12,12,12],"fill":true}' data-settings-layout="row">
-                            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                            <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
                                 <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                     {t('options.autoGenerateSongTheme')}
                                 </div>
@@ -950,7 +950,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
             {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="grid3dCardStyle" label={t('options.grid3dCardStyle')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={LayoutGrid} label={t('options.grid3dCardStyle')} />
                 <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
-                    <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                    <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
                         <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                             {t('options.grid3dCardStyle')}
                         </div>
@@ -1019,7 +1019,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
             <SettingsAnchor anchorId="importExportTitle" label={t('options.importExportTitle')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={Settings2} label={t('options.importExportTitle')} />
                 <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
-                    <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                    <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
                         <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                             {t('options.importExportTitle')}
                         </div>

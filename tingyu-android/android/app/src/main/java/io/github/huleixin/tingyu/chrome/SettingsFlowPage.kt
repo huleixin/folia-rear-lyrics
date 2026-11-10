@@ -147,8 +147,11 @@ internal fun SettingsFlowPage(
             }
             TyPanelOverlay(flow.modal != null, LocalInterfacePalette.current.light, onClose = { action("dismiss", "", 0.0) }) {
                 flow.modal?.let { modal ->
-                    TyDialogFrame(theme, modal.title, modal.subtitle, onClose = { action("dismiss", "", 0.0) }, settingsLayout = modal.layout != null) {
-                        key(modal.key) { TySettingsContent(modal, theme, action) }
+                    // Modal layouts need the same native viewport width for responsive rules.
+                    CompositionLocalProvider(LocalSettingsPreviewViewport provides Rect(0f, 0f, viewportWidth, viewportHeight)) {
+                        TyDialogFrame(theme, modal.title, modal.subtitle, onClose = { action("dismiss", "", 0.0) }, settingsLayout = modal.layout != null) {
+                            key(modal.key) { TySettingsContent(modal, theme, action) }
+                        }
                     }
                 }
             }

@@ -27,7 +27,8 @@ internal fun SettingsLayoutInput(node:TySettingNode,theme:TyPanelTheme,modifier:
     Box(modifier.fillMaxWidth().heightIn(min=if(s.minHeight>0)s.minHeight.dp else if(node.multiline)88.dp else 44.dp)
         .clip(RoundedCornerShape(if(s.radius>0)s.radius.dp else 12.dp)).background(theme.card)
         .border(1.dp,theme.line,RoundedCornerShape(if(s.radius>0)s.radius.dp else 12.dp))
-        .then(if(s.padding.size==4)Modifier.layoutEdges(s.padding)else Modifier.padding(horizontal=12.dp,vertical=10.dp))){
+        .then(if(s.padding.size==4)Modifier.layoutEdges(s.padding)else Modifier.padding(horizontal=12.dp,vertical=10.dp)),
+        propagateMinConstraints=true){
         if(draft.isEmpty())Text(node.placeholder,color=theme.muted,style=LocalTextStyle.current)
         BasicTextField(value=draft,onValueChange={draft=it;action(TySettingEvent.submit(node.action),it,0.0)},
             enabled=!node.disabled,singleLine=!node.multiline,textStyle=LocalTextStyle.current,cursorBrush=SolidColor(theme.accent),

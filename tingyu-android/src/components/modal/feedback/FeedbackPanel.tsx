@@ -17,9 +17,8 @@ import { captureScreenshots, MAX_FEEDBACK_SCREENSHOTS } from '../../../services/
 //
 // 设置 → 关于 / 帮助 →「问题反馈」。
 //
-// 一个自包含的全屏面板，不接入设置页的 native page 模型：反馈是低频、一次性的流程，
-// 走独立 portal 比在设置导航里再加一个 section 风险小得多（那个模型同时被 Compose 与本
-// 地文档视图消费）。视觉沿用现有玻璃卡：rounded-2xl + 1px 半透明描边 + 低对比底色，
+// 保留独立 portal 和原有反馈流程，通过语义布局声明交给 Compose 绘制原生弹窗。
+// 视觉沿用现有玻璃卡：rounded-2xl + 1px 半透明描边 + 低对比底色，
 // 深浅色由 useInterfaceLight() 显式取色，因为 portal 在 settings overlay 之外。
 
 type Phase = 'idle' | 'previewing' | 'preview' | 'working' | 'shared' | 'failed';
@@ -140,7 +139,7 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                 style={{ backgroundColor: palette.scrim, backdropFilter: 'blur(6px)' }}
             />
             <div
-                data-testid="feedback-panel"
+                data-testid="feedback-panel" data-settings-layout="column" data-settings-style='{"gap":16,"font":12}'
                 onClick={(event) => event.stopPropagation()}
                 className="relative flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border sm:rounded-3xl"
                 style={{
@@ -150,7 +149,7 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                     boxShadow: '0 24px 80px rgba(0,0,0,0.35)',
                 }}
             >
-                <div className="flex items-start gap-3 px-5 pb-3 pt-5">
+                <div className="flex items-start gap-3 px-5 pb-3 pt-5" data-settings-layout="column" data-settings-style='{"font":12,"tone":"muted"}'>
                     <div className="min-w-0 flex-1">
                         <h2 className="text-base font-semibold">{copy.title}</h2>
                         <p className="mt-1 text-xs leading-relaxed" style={{ color: palette.muted }}>
@@ -170,8 +169,8 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                 </div>
 
                 {phase === 'preview' ? (
-                    <div className="flex min-h-0 flex-1 flex-col px-5 pb-5">
-                        <div className="mb-2 flex items-center justify-between">
+                    <div className="flex min-h-0 flex-1 flex-col px-5 pb-5" data-settings-layout="column" data-settings-style='{"gap":8}'>
+                        <div className="mb-2 flex items-center justify-between" data-settings-layout="row" data-settings-style='{"align":"between","gap":8,"font":12}'>
                             <span className="text-sm font-semibold">{copy.previewTitle}</span>
                             <button
                                 type="button"
@@ -183,7 +182,7 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                             </button>
                         </div>
                         <pre
-                            data-testid="feedback-preview"
+                            data-testid="feedback-preview" data-settings-layout="column" data-settings-style='{"font":11,"maxHeight":280,"scroll":true,"fill":true,"radius":12,"padding":[12,12,12,12]}'
                             className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words rounded-2xl p-3 text-[11px] leading-relaxed"
                             style={{ backgroundColor: palette.surfaceAlt, color: palette.text }}
                         >
@@ -191,12 +190,12 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                         </pre>
                     </div>
                 ) : (
-                    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-4">
-                        <section>
+                    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-4" data-settings-layout="column" data-settings-style='{"gap":16}'>
+                        <section data-settings-layout="column" data-settings-style='{"gap":8}'>
                             <div className="mb-2 text-xs font-semibold" style={{ color: palette.muted }}>
                                 {copy.categoryLabel}
                             </div>
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-2 gap-2" data-settings-layout="grid" data-settings-style='{"columns":2,"gap":8}'>
                                 {categories.map((entry) => {
                                     const active = category === entry.id;
                                     return (
@@ -204,7 +203,7 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                                             key={entry.id}
                                             type="button"
                                             data-testid={`feedback-category-${entry.id}`}
-                                            aria-pressed={active}
+                                            aria-pressed={active} data-settings-layout="row" data-settings-style='{"gap":8,"align":"center","border":true,"radius":12,"padding":[10,10,10,10],"font":12,"minHeight":44}'
                                             onClick={() => setCategory(entry.id)}
                                             className="flex items-center gap-2 rounded-2xl border px-3 py-2.5 text-left text-xs font-medium transition-colors"
                                             style={{
@@ -214,24 +213,24 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                                             }}
                                         >
                                             {entry.icon}
-                                            <span className="min-w-0 truncate">{copy.categories[entry.id]}</span>
+                                            <span className="min-w-0 truncate" data-settings-layout="column" data-settings-style='{"grow":true}'>{copy.categories[entry.id]}</span>
                                         </button>
                                     );
                                 })}
                             </div>
                         </section>
 
-                        <section>
-                            <div className="mb-2 flex items-baseline justify-between">
+                        <section data-settings-layout="column" data-settings-style='{"gap":8}'>
+                            <div className="mb-2 flex items-baseline justify-between" data-settings-layout="row" data-settings-style='{"align":"between","gap":8}'>
                                 <span className="text-xs font-semibold" style={{ color: palette.muted }}>
                                     {copy.descriptionLabel}
                                 </span>
-                                <span className="text-[10px]" style={{ color: palette.muted }}>
+                                <span className="text-[10px]" data-settings-layout="column" data-settings-style='{"font":10,"tone":"muted"}' style={{ color: palette.muted }}>
                                     {description.length}/2000
                                 </span>
                             </div>
                             <textarea
-                                data-testid="feedback-description"
+                                data-testid="feedback-description" aria-label={copy.descriptionLabel} data-settings-style='{"minHeight":112,"font":14}'
                                 value={description}
                                 onChange={(event) => setDescription(event.target.value.slice(0, 2000))}
                                 placeholder={copy.descriptionPlaceholder}
@@ -243,32 +242,32 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                                     color: palette.text,
                                 }}
                             />
-                            <p className="mt-1 text-[10px]" style={{ color: palette.muted }}>
+                            <p className="mt-1 text-[10px]" data-settings-layout="column" data-settings-style='{"font":11,"tone":"muted"}' style={{ color: palette.muted }}>
                                 {copy.descriptionHint}
                             </p>
                         </section>
 
-                        <section>
-                            <div className="mb-2 flex items-center justify-between">
+                        <section data-settings-layout="column" data-settings-style='{"gap":8}'>
+                            <div className="mb-2 flex items-center justify-between" data-settings-layout="row" data-settings-style='{"align":"between","gap":8,"font":12}'>
                                 <span className="text-xs font-semibold" style={{ color: palette.muted }}>
                                     {copy.screenshotsLabel}
                                 </span>
-                                <span className="text-[10px]" style={{ color: palette.muted }}>
+                                <span className="text-[10px]" data-settings-layout="column" data-settings-style='{"font":10,"tone":"muted","grow":true}' style={{ color: palette.muted }}>
                                     {copy.screenshotLimit}
                                 </span>
                             </div>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-2" data-settings-layout="wrap" data-settings-style='{"gap":8}'>
                                 {screenshots.map((shot, index) => (
-                                    <div key={`${index}-${shot.length}`} className="relative">
+                                    <div key={`${index}-${shot.length}`} className="relative" data-settings-layout="column" data-settings-style='{"width":64,"gap":4}'>
                                         <img
                                             src={shot}
-                                            alt=""
+                                            alt="" data-settings-style='{"width":64,"height":64,"radius":12}'
                                             className="h-16 w-16 rounded-xl object-cover"
                                             style={{ border: `1px solid ${palette.border}` }}
                                         />
                                         <button
                                             type="button"
-                                            aria-label={copy.removeScreenshot}
+                                            aria-label={copy.removeScreenshot} data-settings-style='{"height":28,"center":true}'
                                             onClick={() => setScreenshots((list) => list.filter((_, i) => i !== index))}
                                             className="absolute -right-1 -top-1 rounded-full p-1"
                                             style={{ backgroundColor: palette.surface, border: `1px solid ${palette.border}` }}
@@ -280,7 +279,7 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                                 {screenshots.length < MAX_FEEDBACK_SCREENSHOTS && (
                                     <button
                                         type="button"
-                                        data-testid="feedback-add-screenshot"
+                                        data-testid="feedback-add-screenshot" data-settings-layout="column" data-settings-style='{"width":72,"height":72,"center":true,"gap":4,"border":true,"radius":12,"font":10}'
                                         onClick={() => fileRef.current?.click()}
                                         className="flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-xl border text-[10px]"
                                         style={{ borderColor: palette.border, color: palette.muted }}
@@ -304,14 +303,14 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                         </section>
 
                         <section
-                            className="flex items-start gap-3 rounded-2xl p-3"
+                            className="flex items-start gap-3 rounded-2xl p-3" data-settings-layout="row" data-settings-style='{"align":"start","gap":12,"radius":12,"fill":true,"padding":[12,12,12,12]}'
                             style={{ backgroundColor: palette.surfaceAlt }}
                         >
                             <button
                                 type="button"
                                 role="switch"
                                 aria-checked={includeDiagnostics}
-                                data-testid="feedback-include-diagnostics"
+                                data-testid="feedback-include-diagnostics" aria-label={copy.includeDiagnostics}
                                 onClick={() => setIncludeDiagnostics((value) => !value)}
                                 className="mt-0.5 h-5 w-9 shrink-0 rounded-full p-0.5 transition-colors"
                                 style={{ backgroundColor: includeDiagnostics ? palette.accent : palette.border }}
@@ -324,17 +323,17 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                                     }}
                                 />
                             </button>
-                            <div className="min-w-0">
+                            <div className="min-w-0" data-settings-layout="column" data-settings-style='{"grow":true,"gap":4}'>
                                 <div className="text-xs font-semibold">{copy.includeDiagnostics}</div>
-                                <p className="mt-0.5 text-[10px] leading-relaxed" style={{ color: palette.muted }}>
+                                <p className="mt-0.5 text-[10px] leading-relaxed" data-settings-layout="column" data-settings-style='{"font":11,"tone":"muted"}' style={{ color: palette.muted }}>
                                     {copy.includeDiagnosticsHint}
                                 </p>
                             </div>
                         </section>
 
-                        <section>
+                        <section data-settings-layout="column" data-settings-style='{"gap":8}'>
                             <div className="text-xs font-semibold">{copy.privacyTitle}</div>
-                            <p className="mt-1 text-[10px] leading-relaxed" style={{ color: palette.muted }}>
+                            <p className="mt-1 text-[10px] leading-relaxed" data-settings-layout="column" data-settings-style='{"font":11,"tone":"muted"}' style={{ color: palette.muted }}>
                                 {copy.privacyBody}
                             </p>
                         </section>
@@ -342,12 +341,12 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                 )}
 
                 <div
-                    className="flex items-center gap-2 border-t px-5 py-3"
+                    className="flex items-center gap-2 border-t px-5 py-3" data-settings-layout="grid" data-settings-style='{"columns":2,"gap":8,"stackBelow":360}'
                     style={{ borderColor: palette.border, backgroundColor: palette.surface }}
                 >
                     <button
                         type="button"
-                        data-testid="feedback-preview-button"
+                        data-testid="feedback-preview-button" data-settings-style='{"border":true,"radius":12,"padding":[10,12,10,12],"center":true,"font":12}'
                         onClick={() => void handlePreview()}
                         disabled={busy}
                         className="flex-1 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-opacity disabled:opacity-50"
@@ -357,7 +356,7 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                     </button>
                     <button
                         type="button"
-                        data-testid="feedback-export-button"
+                        data-testid="feedback-export-button" data-settings-layout="row" data-settings-style='{"fill":true,"tone":"accent","radius":12,"gap":8,"padding":[10,12,10,12],"center":true,"font":12}'
                         onClick={() => void handleExport()}
                         disabled={busy}
                         className="flex flex-[1.2] items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold transition-opacity disabled:opacity-60"

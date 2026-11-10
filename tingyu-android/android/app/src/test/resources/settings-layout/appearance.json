@@ -2946,7 +2946,8 @@
                             "id": "form:184",
                             "kind": "column",
                             "style": {
-                              "gap": 4
+                              "gap": 4,
+                              "grow": true
                             },
                             "children": [
                               {
@@ -3079,7 +3080,8 @@
                             "id": "form:187",
                             "kind": "column",
                             "style": {
-                              "gap": 4
+                              "gap": 4,
+                              "grow": true
                             },
                             "children": [
                               {
@@ -3154,7 +3156,8 @@
                             "id": "form:189",
                             "kind": "column",
                             "style": {
-                              "gap": 4
+                              "gap": 4,
+                              "grow": true
                             },
                             "children": [
                               {
@@ -3229,7 +3232,8 @@
                             "id": "form:191",
                             "kind": "column",
                             "style": {
-                              "gap": 4
+                              "gap": 4,
+                              "grow": true
                             },
                             "children": [
                               {
@@ -3305,7 +3309,8 @@
                             "id": "form:193",
                             "kind": "column",
                             "style": {
-                              "gap": 4
+                              "gap": 4,
+                              "grow": true
                             },
                             "children": [
                               {
@@ -4250,7 +4255,8 @@
                         "id": "form:225",
                         "kind": "column",
                         "style": {
-                          "gap": 4
+                          "gap": 4,
+                          "grow": true
                         },
                         "children": [
                           {

@@ -1,0 +1,266 @@
+{
+  "key": "settings-flow:qa",
+  "title": "诊断与日志",
+  "nodes": [
+    {
+      "id": "form:402",
+      "kind": "group",
+      "title": "连接与运行"
+    },
+    {
+      "id": "form:403:text:1",
+      "kind": "note",
+      "title": "LSP · 已连接"
+    },
+    {
+      "id": "form:404:text:2",
+      "kind": "note",
+      "title": "已启用"
+    },
+    {
+      "id": "form:404:text:3",
+      "kind": "note",
+      "title": "·"
+    },
+    {
+      "id": "form:404:text:4",
+      "kind": "note",
+      "title": "查看状态与导出完整日志"
+    },
+    {
+      "id": "form:405",
+      "kind": "action",
+      "title": "刷新状态",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:406",
+      "kind": "action",
+      "title": "导出诊断数据",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:407",
+      "kind": "action",
+      "title": "查看状态与导出完整日志",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "text",
+      "immediate": false,
+      "confirmLabel": "确定"
+    }
+  ],
+  "layout": {
+    "id": "page:form:412",
+    "kind": "column",
+    "style": {
+      "padding": [
+        22,
+        0,
+        22,
+        0
+      ]
+    },
+    "children": [
+      {
+        "id": "form:408",
+        "kind": "column",
+        "style": {
+          "gap": 16
+        },
+        "children": [
+          {
+            "id": "form:409",
+            "kind": "card",
+            "style": {
+              "gap": 12,
+              "border": true,
+              "radius": 14,
+              "padding": [
+                16,
+                16,
+                16,
+                16
+              ]
+            },
+            "children": [
+              {
+                "id": "form:402",
+                "kind": "column",
+                "style": {
+                  "font": 14,
+                  "weight": 600
+                },
+                "children": [
+                  {
+                    "id": "copy:1",
+                    "kind": "text",
+                    "text": "连接与运行"
+                  }
+                ]
+              },
+              {
+                "id": "form:403",
+                "kind": "column",
+                "style": {
+                  "font": 13,
+                  "tone": "muted"
+                },
+                "children": [
+                  {
+                    "id": "copy:2",
+                    "kind": "text",
+                    "text": "LSP · 已连接"
+                  }
+                ]
+              },
+              {
+                "id": "form:404",
+                "kind": "column",
+                "style": {
+                  "font": 12,
+                  "tone": "muted"
+                },
+                "children": [
+                  {
+                    "id": "copy:3",
+                    "kind": "text",
+                    "text": "已启用 · 查看状态与导出完整日志"
+                  }
+                ]
+              },
+              {
+                "id": "form:410",
+                "kind": "grid",
+                "style": {
+                  "columns": 2,
+                  "gap": 8
+                },
+                "children": [
+                  {
+                    "id": "layout:form:405",
+                    "kind": "control",
+                    "ref": "form:405",
+                    "style": {
+                      "radius": 12,
+                      "border": true,
+                      "font": 12,
+                      "center": true,
+                      "padding": [
+                        10,
+                        12,
+                        10,
+                        12
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:405",
+                        "kind": "row",
+                        "style": {
+                          "center": true
+                        },
+                        "children": [
+                          {
+                            "id": "copy:4",
+                            "kind": "text",
+                            "text": "刷新状态"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "layout:form:406",
+                    "kind": "control",
+                    "ref": "form:406",
+                    "style": {
+                      "radius": 12,
+                      "border": true,
+                      "font": 12,
+                      "padding": [
+                        10,
+                        12,
+                        10,
+                        12
+                      ],
+                      "center": true,
+                      "tone": "text"
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:406",
+                        "kind": "row",
+                        "style": {
+                          "center": true
+                        },
+                        "children": [
+                          {
+                            "id": "copy:5",
+                            "kind": "text",
+                            "text": "导出诊断数据"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "layout:form:407",
+            "kind": "control",
+            "ref": "form:407",
+            "style": {
+              "font": 13,
+              "minHeight": 44,
+              "tone": "accent"
+            },
+            "children": [
+              {
+                "id": "content:form:407",
+                "kind": "row",
+                "style": {},
+                "children": [
+                  {
+                    "id": "copy:6",
+                    "kind": "text",
+                    "text": "查看状态与导出完整日志"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "headerActions": []
+}

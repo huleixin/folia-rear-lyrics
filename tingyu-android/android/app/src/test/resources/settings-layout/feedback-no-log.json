@@ -1,0 +1,1565 @@
+{
+  "key": "settings-flow:qa",
+  "title": "关于与使用说明",
+  "nodes": [
+    {
+      "id": "form:247",
+      "kind": "action",
+      "title": "问题反馈选择问题类型、描述现象，附带诊断日志一起导出",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:248",
+      "kind": "group",
+      "title": "手机播放操作"
+    },
+    {
+      "id": "form:249:text:2",
+      "kind": "note",
+      "title": "进入歌词舞台"
+    },
+    {
+      "id": "form:250:text:3",
+      "kind": "note",
+      "title": "点击底部迷你播放器的封面或歌曲信息；点击左上角返回按钮回到音乐页面。"
+    },
+    {
+      "id": "form:251:text:4",
+      "kind": "note",
+      "title": "播放与切歌"
+    },
+    {
+      "id": "form:252:text:5",
+      "kind": "note",
+      "title": "使用播放器上的播放、暂停和切歌按钮；歌词舞台支持上一首、下一首及拖动进度。"
+    },
+    {
+      "id": "form:253:text:6",
+      "kind": "note",
+      "title": "查看播放队列"
+    },
+    {
+      "id": "form:254:text:7",
+      "kind": "note",
+      "title": "在歌词舞台点击“播放队列”，查看和选择队列中的歌曲。"
+    },
+    {
+      "id": "form:255:text:8",
+      "kind": "note",
+      "title": "听屿 · Tingyu"
+    },
+    {
+      "id": "form:255:text:9",
+      "kind": "note",
+      "title": "1.3.190"
+    },
+    {
+      "id": "form:255:text:10",
+      "kind": "note",
+      "title": "· 基于 Folia 的独立衍生版本"
+    },
+    {
+      "id": "form:256:text:11",
+      "kind": "note",
+      "title": "AGPL-3.0 · 原作者及第三方署名见下方"
+    },
+    {
+      "id": "form:257",
+      "kind": "action",
+      "title": "Project:",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:258",
+      "kind": "action",
+      "title": "chthollyphile/folia-major",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "text",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:259",
+      "kind": "action",
+      "title": "点击复制版本信息",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:260:text:15",
+      "kind": "note",
+      "title": "非官方构建：这个版本既不是 Folia 仓库的 CI 构建的，也不是文档里的自部署方式（Docker、Vercel、Cloudflare），可能经过他人修改或缺少后端服务。遇到问题请先联系提供者，官方版本请从 GitHub Releases 下载。"
+    }
+  ],
+  "layout": {
+    "id": "page:form:277",
+    "kind": "column",
+    "style": {
+      "padding": [
+        22,
+        0,
+        22,
+        0
+      ],
+      "gap": 24
+    },
+    "children": [
+      {
+        "id": "form:261",
+        "kind": "column",
+        "style": {
+          "gap": 12
+        },
+        "children": [
+          {
+            "id": "layout:form:247",
+            "kind": "control",
+            "ref": "form:247",
+            "style": {
+              "align": "center",
+              "gap": 12,
+              "radius": 16,
+              "padding": [
+                16,
+                16,
+                16,
+                16
+              ],
+              "tone": "text",
+              "border": true,
+              "fill": true
+            },
+            "children": [
+              {
+                "id": "content:form:247",
+                "kind": "row",
+                "style": {
+                  "gap": 12,
+                  "align": "center"
+                },
+                "children": [
+                  {
+                    "id": "form:262",
+                    "kind": "icon",
+                    "icon": "message-square-plus",
+                    "style": {
+                      "width": 19,
+                      "height": 19
+                    }
+                  },
+                  {
+                    "id": "form:263",
+                    "kind": "column",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "form:264",
+                        "kind": "column",
+                        "style": {
+                          "font": 14,
+                          "weight": 600
+                        },
+                        "children": [
+                          {
+                            "id": "copy:1",
+                            "kind": "text",
+                            "text": "问题反馈"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:265",
+                        "kind": "column",
+                        "style": {
+                          "font": 12,
+                          "tone": "muted",
+                          "margin": [
+                            0,
+                            2,
+                            0,
+                            0
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "copy:2",
+                            "kind": "text",
+                            "text": "选择问题类型、描述现象，附带诊断日志一起导出"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "form:266",
+        "kind": "column",
+        "style": {
+          "margin": [
+            0,
+            0,
+            0,
+            16
+          ]
+        },
+        "children": [
+          {
+            "id": "form:248",
+            "kind": "row",
+            "style": {
+              "gap": 10,
+              "font": 13,
+              "weight": 500,
+              "tone": "muted",
+              "margin": [
+                2,
+                0,
+                2,
+                8
+              ]
+            },
+            "children": [
+              {
+                "id": "form:267",
+                "kind": "icon",
+                "icon": "circle-play",
+                "style": {
+                  "width": 16,
+                  "height": 16
+                }
+              },
+              {
+                "id": "copy:3",
+                "kind": "text",
+                "text": "手机播放操作"
+              }
+            ]
+          },
+          {
+            "id": "form:268",
+            "kind": "card",
+            "style": {
+              "gap": 16,
+              "padding": [
+                16,
+                16,
+                16,
+                16
+              ],
+              "border": true,
+              "radius": 14
+            },
+            "children": [
+              {
+                "id": "form:269",
+                "kind": "column",
+                "style": {},
+                "children": [
+                  {
+                    "id": "form:249",
+                    "kind": "column",
+                    "style": {
+                      "font": 14,
+                      "weight": 500
+                    },
+                    "children": [
+                      {
+                        "id": "copy:4",
+                        "kind": "text",
+                        "text": "进入歌词舞台"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:250",
+                    "kind": "column",
+                    "style": {
+                      "font": 12,
+                      "tone": "muted",
+                      "margin": [
+                        0,
+                        4,
+                        0,
+                        0
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "copy:5",
+                        "kind": "text",
+                        "text": "点击底部迷你播放器的封面或歌曲信息；点击左上角返回按钮回到音乐页面。"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:270",
+                "kind": "column",
+                "style": {},
+                "children": [
+                  {
+                    "id": "form:251",
+                    "kind": "column",
+                    "style": {
+                      "font": 14,
+                      "weight": 500
+                    },
+                    "children": [
+                      {
+                        "id": "copy:6",
+                        "kind": "text",
+                        "text": "播放与切歌"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:252",
+                    "kind": "column",
+                    "style": {
+                      "font": 12,
+                      "tone": "muted",
+                      "margin": [
+                        0,
+                        4,
+                        0,
+                        0
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "copy:7",
+                        "kind": "text",
+                        "text": "使用播放器上的播放、暂停和切歌按钮；歌词舞台支持上一首、下一首及拖动进度。"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:271",
+                "kind": "column",
+                "style": {},
+                "children": [
+                  {
+                    "id": "form:253",
+                    "kind": "column",
+                    "style": {
+                      "font": 14,
+                      "weight": 500
+                    },
+                    "children": [
+                      {
+                        "id": "copy:8",
+                        "kind": "text",
+                        "text": "查看播放队列"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:254",
+                    "kind": "column",
+                    "style": {
+                      "font": 12,
+                      "tone": "muted",
+                      "margin": [
+                        0,
+                        4,
+                        0,
+                        0
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "copy:9",
+                        "kind": "text",
+                        "text": "在歌词舞台点击“播放队列”，查看和选择队列中的歌曲。"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "form:272",
+        "kind": "column",
+        "style": {
+          "center": true,
+          "font": 12,
+          "tone": "muted",
+          "gap": 4
+        },
+        "children": [
+          {
+            "id": "form:255",
+            "kind": "column",
+            "style": {},
+            "children": [
+              {
+                "id": "copy:10",
+                "kind": "text",
+                "text": "听屿 · Tingyu 1.3.190 · 基于 Folia 的独立衍生版本"
+              }
+            ]
+          },
+          {
+            "id": "form:256",
+            "kind": "column",
+            "style": {},
+            "children": [
+              {
+                "id": "copy:11",
+                "kind": "text",
+                "text": "AGPL-3.0 · 原作者及第三方署名见下方"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "form:273",
+        "kind": "column",
+        "style": {
+          "center": true,
+          "gap": 4
+        },
+        "children": [
+          {
+            "id": "form:274",
+            "kind": "column",
+            "style": {
+              "margin": [
+                0,
+                0,
+                0,
+                4
+              ]
+            },
+            "children": [
+              {
+                "id": "form:275",
+                "kind": "wrap",
+                "style": {
+                  "font": 12,
+                  "tone": "muted",
+                  "center": true,
+                  "gap": 4
+                },
+                "children": [
+                  {
+                    "id": "layout:form:257",
+                    "kind": "control",
+                    "ref": "form:257",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "content:form:257",
+                        "kind": "row",
+                        "style": {},
+                        "children": [
+                          {
+                            "id": "copy:12",
+                            "kind": "text",
+                            "text": "Project:"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "layout:form:258",
+                    "kind": "control",
+                    "ref": "form:258",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "content:form:258",
+                        "kind": "wrap",
+                        "style": {},
+                        "children": [
+                          {
+                            "id": "copy:13",
+                            "kind": "text",
+                            "text": "chthollyphile/folia-major"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "form:276",
+            "kind": "column",
+            "style": {
+              "align": "center",
+              "gap": 8,
+              "font": 12,
+              "center": true,
+              "margin": [
+                0,
+                8,
+                0,
+                8
+              ]
+            },
+            "children": [
+              {
+                "id": "layout:form:259",
+                "kind": "control",
+                "ref": "form:259",
+                "style": {
+                  "tone": "muted",
+                  "center": true,
+                  "font": 11
+                },
+                "children": [
+                  {
+                    "id": "content:form:259",
+                    "kind": "row",
+                    "style": {
+                      "center": true
+                    },
+                    "children": [
+                      {
+                        "id": "copy:14",
+                        "kind": "text",
+                        "text": "Tingyu 1.3.190 · a0cb8fd"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:260",
+                "kind": "wrap",
+                "style": {
+                  "font": 11
+                },
+                "children": [
+                  {
+                    "id": "copy:15",
+                    "kind": "text",
+                    "text": "非官方构建：这个版本既不是 Folia 仓库的 CI 构建的，也不是文档里的自部署方式（Docker、Vercel、Cloudflare），可能经过他人修改或缺少后端服务。遇到问题请先联系提供者，官方版本请从 GitHub Releases 下载。"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "headerActions": [],
+  "modal": {
+    "key": "settings-flow:qa:modal",
+    "title": "问题反馈",
+    "nodes": [
+      {
+        "id": "form:279:text:0",
+        "kind": "note",
+        "title": "描述发生了什么，附上诊断日志，开发者才能定位到具体模块。"
+      },
+      {
+        "id": "form:280:text:1",
+        "kind": "note",
+        "title": "问题类型"
+      },
+      {
+        "id": "form:281",
+        "kind": "action",
+        "title": "闪退或卡死",
+        "value": "",
+        "disabled": false,
+        "min": 0,
+        "max": 100,
+        "step": 0,
+        "unit": "",
+        "placeholder": "",
+        "multiline": false,
+        "inputType": "button",
+        "immediate": false,
+        "confirmLabel": "确定"
+      },
+      {
+        "id": "form:282",
+        "kind": "action",
+        "title": "播放异常",
+        "value": "",
+        "disabled": false,
+        "min": 0,
+        "max": 100,
+        "step": 0,
+        "unit": "",
+        "placeholder": "",
+        "multiline": false,
+        "inputType": "button",
+        "immediate": false,
+        "confirmLabel": "确定",
+        "detail": "✓"
+      },
+      {
+        "id": "form:283",
+        "kind": "action",
+        "title": "歌词问题",
+        "value": "",
+        "disabled": false,
+        "min": 0,
+        "max": 100,
+        "step": 0,
+        "unit": "",
+        "placeholder": "",
+        "multiline": false,
+        "inputType": "button",
+        "immediate": false,
+        "confirmLabel": "确定"
+      },
+      {
+        "id": "form:284",
+        "kind": "action",
+        "title": "界面显示问题",
+        "value": "",
+        "disabled": false,
+        "min": 0,
+        "max": 100,
+        "step": 0,
+        "unit": "",
+        "placeholder": "",
+        "multiline": false,
+        "inputType": "button",
+        "immediate": false,
+        "confirmLabel": "确定"
+      },
+      {
+        "id": "form:285",
+        "kind": "action",
+        "title": "背屏或灵动岛问题",
+        "value": "",
+        "disabled": false,
+        "min": 0,
+        "max": 100,
+        "step": 0,
+        "unit": "",
+        "placeholder": "",
+        "multiline": false,
+        "inputType": "button",
+        "immediate": false,
+        "confirmLabel": "确定"
+      },
+      {
+        "id": "form:286",
+        "kind": "action",
+        "title": "其他问题",
+        "value": "",
+        "disabled": false,
+        "min": 0,
+        "max": 100,
+        "step": 0,
+        "unit": "",
+        "placeholder": "",
+        "multiline": false,
+        "inputType": "button",
+        "immediate": false,
+        "confirmLabel": "确定"
+      },
+      {
+        "id": "form:287:text:8",
+        "kind": "note",
+        "title": "问题描述"
+      },
+      {
+        "id": "form:288:text:9",
+        "kind": "note",
+        "title": "8"
+      },
+      {
+        "id": "form:288:text:10",
+        "kind": "note",
+        "title": "/2000"
+      },
+      {
+        "id": "form:289",
+        "kind": "input",
+        "title": "问题描述",
+        "value": "窄屏反馈描述测试",
+        "disabled": false,
+        "min": 0,
+        "max": 100,
+        "step": 0,
+        "unit": "",
+        "placeholder": "例如：在资料库点开一首歌，播放到一半停住，进度条还在走但没有声音。",
+        "multiline": true,
+        "inputType": "textarea",
+        "immediate": true,
+        "confirmLabel": "确定"
+      },
+      {
+        "id": "form:290:text:12",
+        "kind": "note",
+        "title": "最多 2000 字。不要填写账号、密码等个人信息。"
+      },
+      {
+        "id": "form:291:text:13",
+        "kind": "note",
+        "title": "截图（可选）"
+      },
+      {
+        "id": "form:292:text:14",
+        "kind": "note",
+        "title": "最多 3 张，导出前会自动压缩"
+      },
+      {
+        "id": "form:293",
+        "kind": "action",
+        "title": "添加截图",
+        "value": "",
+        "disabled": false,
+        "min": 0,
+        "max": 100,
+        "step": 0,
+        "unit": "",
+        "placeholder": "",
+        "multiline": false,
+        "inputType": "button",
+        "immediate": false,
+        "confirmLabel": "确定"
+      },
+      {
+        "id": "form:294",
+        "kind": "switch",
+        "title": "附带诊断日志",
+        "value": "0",
+        "disabled": false,
+        "min": 0,
+        "max": 100,
+        "step": 0,
+        "unit": "",
+        "placeholder": "",
+        "multiline": false,
+        "inputType": "button",
+        "immediate": false,
+        "confirmLabel": "确定"
+      },
+      {
+        "id": "form:295:text:17",
+        "kind": "note",
+        "title": "附带诊断日志"
+      },
+      {
+        "id": "form:296:text:18",
+        "kind": "note",
+        "title": "开启后会打包最近事件、崩溃记录与性能摘要，不含账号与歌词内容。"
+      },
+      {
+        "id": "form:297:text:19",
+        "kind": "note",
+        "title": "隐私"
+      },
+      {
+        "id": "form:298:text:20",
+        "kind": "note",
+        "title": "诊断包只在本机生成。不含密码、Cookie、Token、账号信息、私人文件、完整歌词或音频内容；只有你点「导出并分享」后，它才会通过系统面板离开设备。"
+      },
+      {
+        "id": "form:299",
+        "kind": "action",
+        "title": "预览诊断信息",
+        "value": "",
+        "disabled": false,
+        "min": 0,
+        "max": 100,
+        "step": 0,
+        "unit": "",
+        "placeholder": "",
+        "multiline": false,
+        "inputType": "button",
+        "immediate": false,
+        "confirmLabel": "确定"
+      },
+      {
+        "id": "form:300",
+        "kind": "action",
+        "title": "导出并分享报告",
+        "value": "",
+        "disabled": false,
+        "min": 0,
+        "max": 100,
+        "step": 0,
+        "unit": "",
+        "placeholder": "",
+        "multiline": false,
+        "inputType": "button",
+        "immediate": false,
+        "confirmLabel": "确定"
+      }
+    ],
+    "layout": {
+      "id": "page:form:330",
+      "kind": "column",
+      "style": {
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "children": [
+        {
+          "id": "form:301",
+          "kind": "column",
+          "style": {
+            "gap": 16,
+            "font": 12
+          },
+          "children": [
+            {
+              "id": "form:302",
+              "kind": "column",
+              "style": {
+                "font": 12,
+                "tone": "muted"
+              },
+              "children": [
+                {
+                  "id": "copy:1",
+                  "kind": "text",
+                  "text": "描述发生了什么，附上诊断日志，开发者才能定位到具体模块。"
+                }
+              ]
+            },
+            {
+              "id": "form:304",
+              "kind": "column",
+              "style": {
+                "gap": 16
+              },
+              "children": [
+                {
+                  "id": "form:305",
+                  "kind": "column",
+                  "style": {
+                    "gap": 8
+                  },
+                  "children": [
+                    {
+                      "id": "copy:2",
+                      "kind": "text",
+                      "text": "问题类型"
+                    },
+                    {
+                      "id": "form:306",
+                      "kind": "grid",
+                      "style": {
+                        "columns": 2,
+                        "gap": 8
+                      },
+                      "children": [
+                        {
+                          "id": "layout:form:281",
+                          "kind": "control",
+                          "ref": "form:281",
+                          "style": {
+                            "gap": 8,
+                            "align": "center",
+                            "border": true,
+                            "radius": 12,
+                            "padding": [
+                              10,
+                              10,
+                              10,
+                              10
+                            ],
+                            "font": 12,
+                            "minHeight": 44
+                          },
+                          "children": [
+                            {
+                              "id": "content:form:281",
+                              "kind": "row",
+                              "style": {
+                                "gap": 8,
+                                "align": "center"
+                              },
+                              "children": [
+                                {
+                                  "id": "form:307",
+                                  "kind": "icon",
+                                  "icon": "activity",
+                                  "style": {
+                                    "width": 15,
+                                    "height": 15
+                                  }
+                                },
+                                {
+                                  "id": "form:308",
+                                  "kind": "column",
+                                  "style": {
+                                    "grow": true
+                                  },
+                                  "children": [
+                                    {
+                                      "id": "copy:3",
+                                      "kind": "text",
+                                      "text": "闪退或卡死"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "id": "layout:form:282",
+                          "kind": "control",
+                          "ref": "form:282",
+                          "style": {
+                            "gap": 8,
+                            "align": "center",
+                            "border": true,
+                            "radius": 12,
+                            "padding": [
+                              10,
+                              10,
+                              10,
+                              10
+                            ],
+                            "font": 12,
+                            "minHeight": 44
+                          },
+                          "children": [
+                            {
+                              "id": "content:form:282",
+                              "kind": "row",
+                              "style": {
+                                "gap": 8,
+                                "align": "center"
+                              },
+                              "children": [
+                                {
+                                  "id": "form:309",
+                                  "kind": "icon",
+                                  "icon": "sixteenth-notes",
+                                  "style": {
+                                    "width": 15,
+                                    "height": 15
+                                  }
+                                },
+                                {
+                                  "id": "form:310",
+                                  "kind": "column",
+                                  "style": {
+                                    "grow": true
+                                  },
+                                  "children": [
+                                    {
+                                      "id": "copy:4",
+                                      "kind": "text",
+                                      "text": "播放异常"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "id": "layout:form:283",
+                          "kind": "control",
+                          "ref": "form:283",
+                          "style": {
+                            "gap": 8,
+                            "align": "center",
+                            "border": true,
+                            "radius": 12,
+                            "padding": [
+                              10,
+                              10,
+                              10,
+                              10
+                            ],
+                            "font": 12,
+                            "minHeight": 44
+                          },
+                          "children": [
+                            {
+                              "id": "content:form:283",
+                              "kind": "row",
+                              "style": {
+                                "gap": 8,
+                                "align": "center"
+                              },
+                              "children": [
+                                {
+                                  "id": "form:311",
+                                  "kind": "icon",
+                                  "icon": "type",
+                                  "style": {
+                                    "width": 15,
+                                    "height": 15
+                                  }
+                                },
+                                {
+                                  "id": "form:312",
+                                  "kind": "column",
+                                  "style": {
+                                    "grow": true
+                                  },
+                                  "children": [
+                                    {
+                                      "id": "copy:5",
+                                      "kind": "text",
+                                      "text": "歌词问题"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "id": "layout:form:284",
+                          "kind": "control",
+                          "ref": "form:284",
+                          "style": {
+                            "gap": 8,
+                            "align": "center",
+                            "border": true,
+                            "radius": 12,
+                            "padding": [
+                              10,
+                              10,
+                              10,
+                              10
+                            ],
+                            "font": 12,
+                            "minHeight": 44
+                          },
+                          "children": [
+                            {
+                              "id": "content:form:284",
+                              "kind": "row",
+                              "style": {
+                                "gap": 8,
+                                "align": "center"
+                              },
+                              "children": [
+                                {
+                                  "id": "form:313",
+                                  "kind": "icon",
+                                  "icon": "sparkles",
+                                  "style": {
+                                    "width": 15,
+                                    "height": 15
+                                  }
+                                },
+                                {
+                                  "id": "form:314",
+                                  "kind": "column",
+                                  "style": {
+                                    "grow": true
+                                  },
+                                  "children": [
+                                    {
+                                      "id": "copy:6",
+                                      "kind": "text",
+                                      "text": "界面显示问题"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "id": "layout:form:285",
+                          "kind": "control",
+                          "ref": "form:285",
+                          "style": {
+                            "gap": 8,
+                            "align": "center",
+                            "border": true,
+                            "radius": 12,
+                            "padding": [
+                              10,
+                              10,
+                              10,
+                              10
+                            ],
+                            "font": 12,
+                            "minHeight": 44
+                          },
+                          "children": [
+                            {
+                              "id": "content:form:285",
+                              "kind": "row",
+                              "style": {
+                                "gap": 8,
+                                "align": "center"
+                              },
+                              "children": [
+                                {
+                                  "id": "form:315",
+                                  "kind": "icon",
+                                  "icon": "activity",
+                                  "style": {
+                                    "width": 15,
+                                    "height": 15
+                                  }
+                                },
+                                {
+                                  "id": "form:316",
+                                  "kind": "column",
+                                  "style": {
+                                    "grow": true
+                                  },
+                                  "children": [
+                                    {
+                                      "id": "copy:7",
+                                      "kind": "text",
+                                      "text": "背屏或灵动岛问题"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "id": "layout:form:286",
+                          "kind": "control",
+                          "ref": "form:286",
+                          "style": {
+                            "gap": 8,
+                            "align": "center",
+                            "border": true,
+                            "radius": 12,
+                            "padding": [
+                              10,
+                              10,
+                              10,
+                              10
+                            ],
+                            "font": 12,
+                            "minHeight": 44
+                          },
+                          "children": [
+                            {
+                              "id": "content:form:286",
+                              "kind": "row",
+                              "style": {
+                                "gap": 8,
+                                "align": "center"
+                              },
+                              "children": [
+                                {
+                                  "id": "form:317",
+                                  "kind": "icon",
+                                  "icon": "file-archive",
+                                  "style": {
+                                    "width": 15,
+                                    "height": 15
+                                  }
+                                },
+                                {
+                                  "id": "form:318",
+                                  "kind": "column",
+                                  "style": {
+                                    "grow": true
+                                  },
+                                  "children": [
+                                    {
+                                      "id": "copy:8",
+                                      "kind": "text",
+                                      "text": "其他问题"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "form:319",
+                  "kind": "column",
+                  "style": {
+                    "gap": 8
+                  },
+                  "children": [
+                    {
+                      "id": "form:320",
+                      "kind": "row",
+                      "style": {
+                        "align": "between",
+                        "gap": 8
+                      },
+                      "children": [
+                        {
+                          "id": "copy:9",
+                          "kind": "text",
+                          "text": "问题描述"
+                        },
+                        {
+                          "id": "form:288",
+                          "kind": "column",
+                          "style": {
+                            "font": 10,
+                            "tone": "muted"
+                          },
+                          "children": [
+                            {
+                              "id": "copy:10",
+                              "kind": "text",
+                              "text": "8/2000"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "id": "layout:form:289",
+                      "kind": "control",
+                      "ref": "form:289",
+                      "style": {
+                        "minHeight": 112,
+                        "font": 14
+                      }
+                    },
+                    {
+                      "id": "form:290",
+                      "kind": "column",
+                      "style": {
+                        "font": 11,
+                        "tone": "muted"
+                      },
+                      "children": [
+                        {
+                          "id": "copy:11",
+                          "kind": "text",
+                          "text": "最多 2000 字。不要填写账号、密码等个人信息。"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "form:321",
+                  "kind": "column",
+                  "style": {
+                    "gap": 8
+                  },
+                  "children": [
+                    {
+                      "id": "form:322",
+                      "kind": "row",
+                      "style": {
+                        "align": "between",
+                        "gap": 8,
+                        "font": 12
+                      },
+                      "children": [
+                        {
+                          "id": "copy:12",
+                          "kind": "text",
+                          "text": "截图（可选）"
+                        },
+                        {
+                          "id": "form:292",
+                          "kind": "column",
+                          "style": {
+                            "font": 10,
+                            "tone": "muted",
+                            "grow": true
+                          },
+                          "children": [
+                            {
+                              "id": "copy:13",
+                              "kind": "text",
+                              "text": "最多 3 张，导出前会自动压缩"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "id": "form:323",
+                      "kind": "wrap",
+                      "style": {
+                        "gap": 8
+                      },
+                      "children": [
+                        {
+                          "id": "layout:form:293",
+                          "kind": "control",
+                          "ref": "form:293",
+                          "style": {
+                            "width": 72,
+                            "height": 72,
+                            "center": true,
+                            "gap": 4,
+                            "border": true,
+                            "radius": 12,
+                            "font": 10
+                          },
+                          "children": [
+                            {
+                              "id": "content:form:293",
+                              "kind": "column",
+                              "style": {
+                                "gap": 4,
+                                "center": true
+                              },
+                              "children": [
+                                {
+                                  "id": "form:324",
+                                  "kind": "icon",
+                                  "icon": "camera",
+                                  "style": {
+                                    "width": 16,
+                                    "height": 16
+                                  }
+                                },
+                                {
+                                  "id": "copy:14",
+                                  "kind": "text",
+                                  "text": "添加截图"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "form:325",
+                  "kind": "row",
+                  "style": {
+                    "align": "start",
+                    "gap": 12,
+                    "radius": 12,
+                    "fill": true,
+                    "padding": [
+                      12,
+                      12,
+                      12,
+                      12
+                    ]
+                  },
+                  "children": [
+                    {
+                      "id": "layout:form:294",
+                      "kind": "control",
+                      "ref": "form:294",
+                      "style": {}
+                    },
+                    {
+                      "id": "form:326",
+                      "kind": "column",
+                      "style": {
+                        "grow": true,
+                        "gap": 4
+                      },
+                      "children": [
+                        {
+                          "id": "copy:15",
+                          "kind": "text",
+                          "text": "附带诊断日志"
+                        },
+                        {
+                          "id": "form:296",
+                          "kind": "column",
+                          "style": {
+                            "font": 11,
+                            "tone": "muted"
+                          },
+                          "children": [
+                            {
+                              "id": "copy:16",
+                              "kind": "text",
+                              "text": "开启后会打包最近事件、崩溃记录与性能摘要，不含账号与歌词内容。"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "form:327",
+                  "kind": "column",
+                  "style": {
+                    "gap": 8
+                  },
+                  "children": [
+                    {
+                      "id": "copy:17",
+                      "kind": "text",
+                      "text": "隐私"
+                    },
+                    {
+                      "id": "form:298",
+                      "kind": "column",
+                      "style": {
+                        "font": 11,
+                        "tone": "muted"
+                      },
+                      "children": [
+                        {
+                          "id": "copy:18",
+                          "kind": "text",
+                          "text": "诊断包只在本机生成。不含密码、Cookie、Token、账号信息、私人文件、完整歌词或音频内容；只有你点「导出并分享」后，它才会通过系统面板离开设备。"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "form:328",
+              "kind": "grid",
+              "style": {
+                "columns": 2,
+                "gap": 8,
+                "stackBelow": 360
+              },
+              "children": [
+                {
+                  "id": "layout:form:299",
+                  "kind": "control",
+                  "ref": "form:299",
+                  "style": {
+                    "border": true,
+                    "radius": 12,
+                    "padding": [
+                      10,
+                      12,
+                      10,
+                      12
+                    ],
+                    "center": true,
+                    "font": 12
+                  },
+                  "children": [
+                    {
+                      "id": "content:form:299",
+                      "kind": "row",
+                      "style": {
+                        "center": true
+                      },
+                      "children": [
+                        {
+                          "id": "copy:19",
+                          "kind": "text",
+                          "text": "预览诊断信息"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "layout:form:300",
+                  "kind": "control",
+                  "ref": "form:300",
+                  "style": {
+                    "fill": true,
+                    "tone": "accent",
+                    "radius": 12,
+                    "gap": 8,
+                    "padding": [
+                      10,
+                      12,
+                      10,
+                      12
+                    ],
+                    "center": true,
+                    "font": 12
+                  },
+                  "children": [
+                    {
+                      "id": "content:form:300",
+                      "kind": "row",
+                      "style": {
+                        "gap": 8,
+                        "center": true
+                      },
+                      "children": [
+                        {
+                          "id": "form:329",
+                          "kind": "icon",
+                          "icon": "send",
+                          "style": {
+                            "width": 14,
+                            "height": 14
+                          }
+                        },
+                        {
+                          "id": "copy:20",
+                          "kind": "text",
+                          "text": "导出并分享报告"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "headerActions": []
+  }
+}

@@ -3,7 +3,7 @@
   "title": "关于与使用说明",
   "nodes": [
     {
-      "id": "form:799",
+      "id": "form:247",
       "kind": "action",
       "title": "问题反馈选择问题类型、描述现象，附带诊断日志一起导出",
       "value": "",
@@ -19,99 +19,62 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:800",
-      "kind": "action",
-      "title": "版本更新查看这个版本带来的变化",
-      "value": "",
-      "disabled": false,
-      "min": 0,
-      "max": 100,
-      "step": 0,
-      "unit": "",
-      "placeholder": "",
-      "multiline": false,
-      "inputType": "button",
-      "immediate": false,
-      "confirmLabel": "确定"
-    },
-    {
-      "id": "form:801",
+      "id": "form:248",
       "kind": "group",
       "title": "手机播放操作"
     },
     {
-      "id": "form:802:text:3",
+      "id": "form:249:text:2",
       "kind": "note",
       "title": "进入歌词舞台"
     },
     {
-      "id": "form:803:text:4",
+      "id": "form:250:text:3",
       "kind": "note",
       "title": "点击底部迷你播放器的封面或歌曲信息；点击左上角返回按钮回到音乐页面。"
     },
     {
-      "id": "form:804:text:5",
+      "id": "form:251:text:4",
       "kind": "note",
       "title": "播放与切歌"
     },
     {
-      "id": "form:805:text:6",
+      "id": "form:252:text:5",
       "kind": "note",
       "title": "使用播放器上的播放、暂停和切歌按钮；歌词舞台支持上一首、下一首及拖动进度。"
     },
     {
-      "id": "form:806:text:7",
+      "id": "form:253:text:6",
       "kind": "note",
       "title": "查看播放队列"
     },
     {
-      "id": "form:807:text:8",
+      "id": "form:254:text:7",
       "kind": "note",
       "title": "在歌词舞台点击“播放队列”，查看和选择队列中的歌曲。"
     },
     {
-      "id": "form:808:text:9",
+      "id": "form:255:text:8",
       "kind": "note",
       "title": "听屿 · Tingyu"
     },
     {
-      "id": "form:808:text:10",
+      "id": "form:255:text:9",
       "kind": "note",
       "title": "1.3.190"
     },
     {
-      "id": "form:808:text:11",
+      "id": "form:255:text:10",
       "kind": "note",
       "title": "· 基于 Folia 的独立衍生版本"
     },
     {
-      "id": "form:809",
-      "kind": "action",
-      "title": "听屿下载与完整源码",
-      "value": "",
-      "disabled": false,
-      "min": 0,
-      "max": 100,
-      "step": 0,
-      "unit": "",
-      "placeholder": "",
-      "multiline": false,
-      "inputType": "text",
-      "immediate": false,
-      "confirmLabel": "确定"
-    },
-    {
-      "id": "form:808:text:13",
-      "kind": "note",
-      "title": "·"
-    },
-    {
-      "id": "form:808:text:14",
+      "id": "form:256:text:11",
       "kind": "note",
       "title": "AGPL-3.0 · 原作者及第三方署名见下方"
     },
     {
-      "id": "form:810",
+      "id": "form:257",
       "kind": "action",
       "title": "Project:",
       "value": "",
@@ -127,7 +90,7 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:811",
+      "id": "form:258",
       "kind": "action",
       "title": "chthollyphile/folia-major",
       "value": "",
@@ -143,7 +106,7 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:812",
+      "id": "form:259",
       "kind": "action",
       "title": "点击复制版本信息",
       "value": "",
@@ -157,10 +120,15 @@
       "inputType": "button",
       "immediate": false,
       "confirmLabel": "确定"
+    },
+    {
+      "id": "form:260:text:15",
+      "kind": "note",
+      "title": "非官方构建：这个版本既不是 Folia 仓库的 CI 构建的，也不是文档里的自部署方式（Docker、Vercel、Cloudflare），可能经过他人修改或缺少后端服务。遇到问题请先联系提供者，官方版本请从 GitHub Releases 下载。"
     }
   ],
   "layout": {
-    "id": "page:form:833",
+    "id": "page:form:277",
     "kind": "column",
     "style": {
       "padding": [
@@ -173,16 +141,16 @@
     },
     "children": [
       {
-        "id": "form:813",
+        "id": "form:261",
         "kind": "column",
         "style": {
           "gap": 12
         },
         "children": [
           {
-            "id": "layout:form:799",
+            "id": "layout:form:247",
             "kind": "control",
-            "ref": "form:799",
+            "ref": "form:247",
             "style": {
               "align": "center",
               "gap": 12,
@@ -199,7 +167,7 @@
             },
             "children": [
               {
-                "id": "content:form:799",
+                "id": "content:form:247",
                 "kind": "row",
                 "style": {
                   "gap": 12,
@@ -207,7 +175,7 @@
                 },
                 "children": [
                   {
-                    "id": "form:814",
+                    "id": "form:262",
                     "kind": "icon",
                     "icon": "message-square-plus",
                     "style": {
@@ -216,12 +184,12 @@
                     }
                   },
                   {
-                    "id": "form:815",
+                    "id": "form:263",
                     "kind": "column",
                     "style": {},
                     "children": [
                       {
-                        "id": "form:816",
+                        "id": "form:264",
                         "kind": "column",
                         "style": {
                           "font": 14,
@@ -236,7 +204,7 @@
                         ]
                       },
                       {
-                        "id": "form:817",
+                        "id": "form:265",
                         "kind": "column",
                         "style": {
                           "font": 12,
@@ -261,93 +229,11 @@
                 ]
               }
             ]
-          },
-          {
-            "id": "layout:form:800",
-            "kind": "control",
-            "ref": "form:800",
-            "style": {
-              "align": "center",
-              "gap": 12,
-              "radius": 16,
-              "fill": true,
-              "padding": [
-                16,
-                16,
-                16,
-                16
-              ],
-              "tone": "text"
-            },
-            "children": [
-              {
-                "id": "content:form:800",
-                "kind": "row",
-                "style": {
-                  "gap": 12,
-                  "align": "center"
-                },
-                "children": [
-                  {
-                    "id": "form:818",
-                    "kind": "icon",
-                    "icon": "sparkles",
-                    "style": {
-                      "width": 19,
-                      "height": 19
-                    }
-                  },
-                  {
-                    "id": "form:819",
-                    "kind": "column",
-                    "style": {},
-                    "children": [
-                      {
-                        "id": "form:820",
-                        "kind": "column",
-                        "style": {
-                          "font": 14,
-                          "weight": 600
-                        },
-                        "children": [
-                          {
-                            "id": "copy:3",
-                            "kind": "text",
-                            "text": "版本更新"
-                          }
-                        ]
-                      },
-                      {
-                        "id": "form:821",
-                        "kind": "column",
-                        "style": {
-                          "font": 12,
-                          "tone": "muted",
-                          "margin": [
-                            0,
-                            2,
-                            0,
-                            0
-                          ]
-                        },
-                        "children": [
-                          {
-                            "id": "copy:4",
-                            "kind": "text",
-                            "text": "查看这个版本带来的变化"
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
           }
         ]
       },
       {
-        "id": "form:822",
+        "id": "form:266",
         "kind": "column",
         "style": {
           "margin": [
@@ -359,7 +245,7 @@
         },
         "children": [
           {
-            "id": "form:801",
+            "id": "form:248",
             "kind": "row",
             "style": {
               "gap": 10,
@@ -375,7 +261,7 @@
             },
             "children": [
               {
-                "id": "form:823",
+                "id": "form:267",
                 "kind": "icon",
                 "icon": "circle-play",
                 "style": {
@@ -384,14 +270,14 @@
                 }
               },
               {
-                "id": "copy:5",
+                "id": "copy:3",
                 "kind": "text",
                 "text": "手机播放操作"
               }
             ]
           },
           {
-            "id": "form:824",
+            "id": "form:268",
             "kind": "card",
             "style": {
               "gap": 16,
@@ -406,12 +292,55 @@
             },
             "children": [
               {
-                "id": "form:825",
+                "id": "form:269",
                 "kind": "column",
                 "style": {},
                 "children": [
                   {
-                    "id": "form:802",
+                    "id": "form:249",
+                    "kind": "column",
+                    "style": {
+                      "font": 14,
+                      "weight": 500
+                    },
+                    "children": [
+                      {
+                        "id": "copy:4",
+                        "kind": "text",
+                        "text": "进入歌词舞台"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:250",
+                    "kind": "column",
+                    "style": {
+                      "font": 12,
+                      "tone": "muted",
+                      "margin": [
+                        0,
+                        4,
+                        0,
+                        0
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "copy:5",
+                        "kind": "text",
+                        "text": "点击底部迷你播放器的封面或歌曲信息；点击左上角返回按钮回到音乐页面。"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:270",
+                "kind": "column",
+                "style": {},
+                "children": [
+                  {
+                    "id": "form:251",
                     "kind": "column",
                     "style": {
                       "font": 14,
@@ -421,12 +350,12 @@
                       {
                         "id": "copy:6",
                         "kind": "text",
-                        "text": "进入歌词舞台"
+                        "text": "播放与切歌"
                       }
                     ]
                   },
                   {
-                    "id": "form:803",
+                    "id": "form:252",
                     "kind": "column",
                     "style": {
                       "font": 12,
@@ -442,19 +371,19 @@
                       {
                         "id": "copy:7",
                         "kind": "text",
-                        "text": "点击底部迷你播放器的封面或歌曲信息；点击左上角返回按钮回到音乐页面。"
+                        "text": "使用播放器上的播放、暂停和切歌按钮；歌词舞台支持上一首、下一首及拖动进度。"
                       }
                     ]
                   }
                 ]
               },
               {
-                "id": "form:826",
+                "id": "form:271",
                 "kind": "column",
                 "style": {},
                 "children": [
                   {
-                    "id": "form:804",
+                    "id": "form:253",
                     "kind": "column",
                     "style": {
                       "font": 14,
@@ -464,12 +393,12 @@
                       {
                         "id": "copy:8",
                         "kind": "text",
-                        "text": "播放与切歌"
+                        "text": "查看播放队列"
                       }
                     ]
                   },
                   {
-                    "id": "form:805",
+                    "id": "form:254",
                     "kind": "column",
                     "style": {
                       "font": 12,
@@ -485,49 +414,6 @@
                       {
                         "id": "copy:9",
                         "kind": "text",
-                        "text": "使用播放器上的播放、暂停和切歌按钮；歌词舞台支持上一首、下一首及拖动进度。"
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "id": "form:827",
-                "kind": "column",
-                "style": {},
-                "children": [
-                  {
-                    "id": "form:806",
-                    "kind": "column",
-                    "style": {
-                      "font": 14,
-                      "weight": 500
-                    },
-                    "children": [
-                      {
-                        "id": "copy:10",
-                        "kind": "text",
-                        "text": "查看播放队列"
-                      }
-                    ]
-                  },
-                  {
-                    "id": "form:807",
-                    "kind": "column",
-                    "style": {
-                      "font": 12,
-                      "tone": "muted",
-                      "margin": [
-                        0,
-                        4,
-                        0,
-                        0
-                      ]
-                    },
-                    "children": [
-                      {
-                        "id": "copy:11",
-                        "kind": "text",
                         "text": "在歌词舞台点击“播放队列”，查看和选择队列中的歌曲。"
                       }
                     ]
@@ -539,76 +425,51 @@
         ]
       },
       {
-        "id": "form:808",
-        "kind": "wrap",
+        "id": "form:272",
+        "kind": "column",
         "style": {
           "center": true,
           "font": 12,
-          "margin": [
-            0,
-            24,
-            0,
-            0
-          ]
+          "tone": "muted",
+          "gap": 4
         },
         "children": [
           {
-            "id": "copy:12",
-            "kind": "text",
-            "text": "听屿 · Tingyu 1.3.190 · 基于 Folia 的独立衍生版本"
-          },
-          {
-            "id": "form:828",
-            "kind": "break"
-          },
-          {
-            "id": "layout:form:809",
-            "kind": "control",
-            "ref": "form:809",
+            "id": "form:255",
+            "kind": "column",
             "style": {},
             "children": [
               {
-                "id": "content:form:809",
-                "kind": "wrap",
-                "style": {},
-                "children": [
-                  {
-                    "id": "copy:13",
-                    "kind": "text",
-                    "text": "听屿下载与完整源码"
-                  }
-                ]
+                "id": "copy:10",
+                "kind": "text",
+                "text": "听屿 · Tingyu 1.3.190 · 基于 Folia 的独立衍生版本"
               }
             ]
           },
           {
-            "id": "copy:14",
-            "kind": "text",
-            "text": "· AGPL-3.0 · 原作者及第三方署名见下方"
+            "id": "form:256",
+            "kind": "column",
+            "style": {},
+            "children": [
+              {
+                "id": "copy:11",
+                "kind": "text",
+                "text": "AGPL-3.0 · 原作者及第三方署名见下方"
+              }
+            ]
           }
         ]
       },
       {
-        "id": "form:829",
+        "id": "form:273",
         "kind": "column",
         "style": {
           "center": true,
-          "padding": [
-            0,
-            24,
-            0,
-            0
-          ],
-          "margin": [
-            0,
-            32,
-            0,
-            0
-          ]
+          "gap": 4
         },
         "children": [
           {
-            "id": "form:830",
+            "id": "form:274",
             "kind": "column",
             "style": {
               "margin": [
@@ -620,26 +481,28 @@
             },
             "children": [
               {
-                "id": "form:831",
+                "id": "form:275",
                 "kind": "wrap",
                 "style": {
-                  "font": 14,
-                  "tone": "muted"
+                  "font": 12,
+                  "tone": "muted",
+                  "center": true,
+                  "gap": 4
                 },
                 "children": [
                   {
-                    "id": "layout:form:810",
+                    "id": "layout:form:257",
                     "kind": "control",
-                    "ref": "form:810",
+                    "ref": "form:257",
                     "style": {},
                     "children": [
                       {
-                        "id": "content:form:810",
+                        "id": "content:form:257",
                         "kind": "row",
                         "style": {},
                         "children": [
                           {
-                            "id": "copy:15",
+                            "id": "copy:12",
                             "kind": "text",
                             "text": "Project:"
                           }
@@ -648,18 +511,18 @@
                     ]
                   },
                   {
-                    "id": "layout:form:811",
+                    "id": "layout:form:258",
                     "kind": "control",
-                    "ref": "form:811",
+                    "ref": "form:258",
                     "style": {},
                     "children": [
                       {
-                        "id": "content:form:811",
+                        "id": "content:form:258",
                         "kind": "wrap",
                         "style": {},
                         "children": [
                           {
-                            "id": "copy:16",
+                            "id": "copy:13",
                             "kind": "text",
                             "text": "chthollyphile/folia-major"
                           }
@@ -672,7 +535,7 @@
             ]
           },
           {
-            "id": "form:832",
+            "id": "form:276",
             "kind": "column",
             "style": {
               "align": "center",
@@ -681,31 +544,49 @@
               "center": true,
               "margin": [
                 0,
-                24,
+                8,
                 0,
                 8
               ]
             },
             "children": [
               {
-                "id": "layout:form:812",
+                "id": "layout:form:259",
                 "kind": "control",
-                "ref": "form:812",
+                "ref": "form:259",
                 "style": {
-                  "tone": "muted"
+                  "tone": "muted",
+                  "center": true,
+                  "font": 11
                 },
                 "children": [
                   {
-                    "id": "content:form:812",
+                    "id": "content:form:259",
                     "kind": "row",
-                    "style": {},
+                    "style": {
+                      "center": true
+                    },
                     "children": [
                       {
-                        "id": "copy:17",
+                        "id": "copy:14",
                         "kind": "text",
-                        "text": "Realeco v1.3.190 - codex/settings-layout-restore - 0827e42/牡丹的霜花与德墨忒尔"
+                        "text": "Tingyu 1.3.190 · a0cb8fd"
                       }
                     ]
+                  }
+                ]
+              },
+              {
+                "id": "form:260",
+                "kind": "wrap",
+                "style": {
+                  "font": 11
+                },
+                "children": [
+                  {
+                    "id": "copy:15",
+                    "kind": "text",
+                    "text": "非官方构建：这个版本既不是 Folia 仓库的 CI 构建的，也不是文档里的自部署方式（Docker、Vercel、Cloudflare），可能经过他人修改或缺少后端服务。遇到问题请先联系提供者，官方版本请从 GitHub Releases 下载。"
                   }
                 ]
               }

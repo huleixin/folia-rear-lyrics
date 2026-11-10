@@ -1617,14 +1617,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                 </div>}
 
                                 {/* Author Info (Moved from Footer) */}
-                                <div className="mt-6 text-center text-xs opacity-75" data-tingyu-attribution="true" data-settings-style='{"center":true,"font":12,"margin":[0,24,0,0]}' data-settings-layout="wrap">
-                                    听屿 · Tingyu {__APP_VERSION__} · 基于 Folia 的独立衍生版本<br  data-settings-layout="column"/>
-                                    <a href="https://github.com/huleixin/folia-rear-lyrics/releases" target="_blank" rel="noopener noreferrer" className="underline" data-settings-layout="wrap">听屿下载与完整源码</a>
-                                    {' · '}AGPL-3.0 · 原作者及第三方署名见下方
+                                <div className="mt-6 text-center text-xs opacity-75" data-tingyu-attribution="true" data-settings-style='{"center":true,"font":12,"tone":"muted","gap":4}' data-settings-layout="column">
+                                    <p data-settings-layout="column">听屿 · Tingyu {__APP_VERSION__} · 基于 Folia 的独立衍生版本</p>
+                                    <p data-settings-layout="column">AGPL-3.0 · 原作者及第三方署名见下方</p>
                                 </div>
-                                <div className="mt-8 pt-6 border-t border-white/10 text-center shrink-0" data-settings-style='{"center":true,"padding":[0,24,0,0],"margin":[0,32,0,0]}' data-settings-layout="column">
+                                <div className="mt-8 pt-6 border-t border-white/10 text-center shrink-0" data-settings-style='{"center":true,"gap":4}' data-settings-layout="column">
                                     <div className="relative mb-1" data-settings-style='{"margin":[0,0,0,4]}' data-settings-layout="column">
-                                        <p className="text-sm opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":14,"tone":"muted"}' data-settings-layout="wrap">
+                                        <p className="text-sm opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted","center":true,"gap":4}' data-settings-layout="wrap">
                                             <button
                                                 type="button"
                                                 onClick={handleAuthorLabelClick}
@@ -1637,7 +1636,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                             <a href="https://github.com/chthollyphile/folia-major" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors underline decoration-white/30 hover:decoration-white" data-settings-layout="wrap">chthollyphile/folia-major</a>
                                         </p>
                                     </div>
-                                    <div className="flex flex-col items-center gap-2 mt-6 mb-2 text-xs font-mono text-center" data-settings-style='{"align":"center","gap":8,"font":12,"center":true,"margin":[0,24,0,8]}' data-settings-layout="column">
+                                    <div className="flex flex-col items-center gap-2 mt-6 mb-2 text-xs font-mono text-center" data-settings-style='{"align":"center","gap":8,"font":12,"center":true,"margin":[0,8,0,8]}' data-settings-layout="column">
                                         {/* 第一行：原本的版本信息按钮 */}
                                         <button
                                             type="button"
@@ -1646,10 +1645,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                             style={{ color: 'var(--text-secondary)' }}
                                             title={versionCopied ? t('status.copied') : t('options.versionCopiedHint')}
                                             aria-label={versionCopied ? t('options.versionCopiedHint') : t('options.versionCopiedHint')}
-                                         data-settings-style='{"tone":"muted"}' data-settings-layout="row">
+                                         data-settings-style='{"tone":"muted","center":true,"font":11}' data-settings-layout="row">
                                             {versionCopied
                                                 ? t('status.copied')
-                                                : VERSION_INFO}
+                                                : isAndroidNativeRuntime() ? `Tingyu ${__APP_VERSION__} · ${__COMMIT_HASH__.split('/')[0]}` : VERSION_INFO}
                                         </button>
                                         {BUILD_KIND !== 'official' && (
                                             <p

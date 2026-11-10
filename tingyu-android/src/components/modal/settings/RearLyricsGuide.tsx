@@ -1,12 +1,13 @@
 import React, { useEffect,useRef,useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { rearLyricsPlugin } from '../../../services/rearLyricsControl';
+import { rearLyricsPlugin, type RearLyricsStatus } from '../../../services/rearLyricsControl';
 import RearLspGuide from './RearLspGuide';
 
 // src/components/modal/settings/RearLyricsGuide.tsx
 export default function RearLyricsGuide({backend='shizuku',diagnosticsOnly=false}:{backend?:'lsp'|'shizuku';diagnosticsOnly?:boolean}={}) {
     const { t } = useTranslation();
     const [diagnostics, setDiagnostics] = useState('');
+    const [status, setStatus] = useState<RearLyricsStatus | null>(null);
     const [busy, setBusy] = useState(false);
     const [exporting, setExporting] = useState(false), [exportMessage, setExportMessage] = useState('');
     const loading=useRef(false),exportLock=useRef(false);
@@ -29,8 +30,10 @@ export default function RearLyricsGuide({backend='shizuku',diagnosticsOnly=false
         setBusy(true);
         try {
             const result = await rearLyricsPlugin()?.getRearLyricsStatus();
-            setDiagnostics([`backend=${result?.backendMode || 'unknown'}, lspConnected=${!!result?.lspConnected}`, result?.lspDetail, result?.message, result?.diagnostics, result?.sleepDiagnostics].filter(Boolean).join('\n') || t('mobileSettings.diagnosticsUnavailable'));
+            setStatus(result ?? null);
+            setDiagnostics(result ? [`backend=${result.backendMode || 'unknown'}, lspConnected=${result.lspConnected ?? 'unknown'}`, result.lspDetail, result.message, result.diagnostics, result.sleepDiagnostics].filter(Boolean).join('\n') : t('mobileSettings.diagnosticsUnavailable'));
         } catch (error) {
+            setStatus(null);
             console.error('[settings/rear-lyrics] diagnostics unavailable', error);
             setDiagnostics(t('mobileSettings.diagnosticsUnavailable'));
         } finally { loading.current=false;setBusy(false); }
@@ -42,14 +45,33 @@ export default function RearLyricsGuide({backend='shizuku',diagnosticsOnly=false
             <h2 data-settings-style='{"font":20,"weight":600}' data-settings-layout="wrap">{t(`mobileSettings.guide.${topic}Title`)}</h2><p data-settings-layout="wrap">{t(`mobileSettings.guide.${topic}`)}</p>
         </div>)}
         {!diagnosticsOnly&&<details data-settings-layout="column"><summary data-settings-layout="column">{t('rearBridge.help')}</summary><p data-settings-layout="wrap">{t('rearBridge.behavior')}</p><p data-settings-layout="wrap">{t('rearBridge.lyricInfo')}</p></details>}
-        <details open={diagnosticsOnly?true:undefined} onToggle={event => { if (event.currentTarget.open && !diagnostics) void loadDiagnostics(); }} data-settings-layout="column">
-            <summary data-settings-layout="column">{t('rearControl.diagnostics')}</summary>
-            <pre className="ty-settings-diagnostics" data-settings-layout="column">{busy ? t('mobileSettings.rearState.detecting') : diagnostics}</pre>
+        <section className="ty-settings-card" data-settings-layout="card" data-settings-style='{"gap":12,"border":true,"radius":14,"padding":[16,16,16,16]}'>
+            <h2 data-settings-layout="column" data-settings-style='{"font":14,"weight":600}'>{t('rearControl.status')}</h2>
+            <p data-settings-layout="column" data-settings-style='{"font":13,"tone":"muted"}'>
+                {busy ? t('mobileSettings.rearState.detecting') : status
+                    ? (status.backendMode === 'lsp' ? 'LSP · ' + t(typeof status.lspConnected === 'boolean' ? (status.lspConnected ? 'rearControl.connected' : 'rearControl.disconnected') : 'mobileSettings.diagnosticsUnavailable')
+                        : status.backendMode === 'shizuku' ? 'Shizuku · ' + t(typeof status.shizukuAvailable === 'boolean' ? (status.shizukuAvailable ? 'rearControl.serviceStarted' : 'rearControl.serviceStopped') : 'mobileSettings.diagnosticsUnavailable')
+                        : t('mobileSettings.diagnosticsUnavailable'))
+                    : t('mobileSettings.diagnosticsUnavailable')}
+            </p>
+            {typeof status?.enabled === 'boolean' && <p data-settings-layout="column" data-settings-style='{"font":12,"tone":"muted"}'>
+                {t(status.enabled ? 'rearControl.enabled' : 'rearControl.disabled')} · {t('rearControl.diagnosticsBrief')}
+            </p>}
+            <div data-settings-layout="grid" data-settings-style='{"columns":2,"gap":8}'>
+            <button type="button" disabled={busy} onClick={()=>void loadDiagnostics()}
+                data-settings-layout="row" data-settings-style='{"radius":12,"border":true,"font":12,"center":true,"padding":[10,12,10,12]}'>
+                {t('rearControl.refresh')}
+            </button>
             <button type="button" disabled={exporting} aria-busy={exporting} onClick={()=>void exportDiagnostics()}
-                className="mt-3 rounded-xl border border-current/15 px-4 py-3 text-sm" style={{color:'var(--text-primary)'}} data-settings-style='{"radius":12,"border":true,"font":14,"padding":[16,12,16,12],"margin":[0,12,0,0],"tone":"text"}' data-settings-layout="row">
+                className="rounded-xl border border-current/15 px-4 py-3 text-sm" style={{color:'var(--text-primary)'}} data-settings-style='{"radius":12,"border":true,"font":12,"padding":[10,12,10,12],"center":true,"tone":"text"}' data-settings-layout="row">
                 {t('help.exportDiagnostics')}{exporting?'…':''}
             </button>
+            </div>
             {exportMessage && <p role="status" data-settings-layout="wrap">{exportMessage}</p>}
+        </section>
+        <details onToggle={event => { if (event.currentTarget.open && !diagnostics) void loadDiagnostics(); }} data-settings-layout="column" data-settings-style='{"gap":12}'>
+            <summary data-settings-layout="row" data-settings-style='{"font":13,"minHeight":44,"tone":"accent"}'>{t('rearControl.diagnosticsBrief')}</summary>
+            <pre className="ty-settings-diagnostics" data-settings-layout="column" data-settings-style='{"font":11,"maxHeight":320,"scroll":true,"fill":true,"radius":12,"padding":[12,12,12,12]}'>{busy ? t('mobileSettings.rearState.detecting') : diagnostics}</pre>
         </details>
     </article>;
 }

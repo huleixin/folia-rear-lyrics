@@ -1,0 +1,840 @@
+{
+  "key": "settings-flow:qa",
+  "title": "音源与系统歌词",
+  "nodes": [
+    {
+      "id": "form:332",
+      "kind": "action",
+      "title": "使用说明",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "icon": "circle-question-mark"
+    },
+    {
+      "id": "form:333",
+      "kind": "action",
+      "title": "洛雪自定义音源 · 导入 / 管理",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "submit",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:334",
+      "kind": "group",
+      "title": "ColorOS 锁屏歌词"
+    },
+    {
+      "id": "form:335:text:3",
+      "kind": "note",
+      "title": "ColorOS 锁屏歌词"
+    },
+    {
+      "id": "form:336:text:4",
+      "kind": "note",
+      "title": "把歌词写进系统 MediaSession，由原生锁屏 / 息屏歌词页渲染。仅在检测到 ColorOS 16+ 时启用，没有手动开关。装上 ColorOS-Live-Lyrics-Bridge 后由它接管逐字渲染与样式。"
+    },
+    {
+      "id": "form:337:text:5",
+      "kind": "note",
+      "title": "未启用"
+    },
+    {
+      "id": "form:338:text:6",
+      "kind": "note",
+      "title": "当前设备未被识别为 ColorOS 16+，这条通道不会启动。"
+    },
+    {
+      "id": "form:339",
+      "kind": "group",
+      "title": "Navidrome 设置"
+    },
+    {
+      "id": "form:340:text:8",
+      "kind": "note",
+      "title": "连接Navidrome (实验性)"
+    },
+    {
+      "id": "form:341",
+      "kind": "switch",
+      "title": "连接Navidrome (实验性)",
+      "value": "0",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "submit",
+      "immediate": false,
+      "confirmLabel": "确定"
+    }
+  ],
+  "layout": {
+    "id": "page:form:353",
+    "kind": "column",
+    "style": {
+      "padding": [
+        22,
+        0,
+        22,
+        0
+      ]
+    },
+    "children": [
+      {
+        "id": "form:343",
+        "kind": "column",
+        "style": {
+          "gap": 32
+        },
+        "children": [
+          {
+            "id": "layout:form:333",
+            "kind": "control",
+            "ref": "form:333",
+            "style": {
+              "font": 13,
+              "minHeight": 44,
+              "padding": [
+                12,
+                9,
+                12,
+                9
+              ],
+              "radius": 11,
+              "border": true,
+              "margin": [
+                0,
+                8,
+                0,
+                0
+              ]
+            },
+            "children": [
+              {
+                "id": "content:form:333",
+                "kind": "row",
+                "style": {},
+                "children": [
+                  {
+                    "id": "copy:1",
+                    "kind": "text",
+                    "text": "洛雪自定义音源 · 导入 / 管理"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "form:344",
+            "kind": "column",
+            "style": {
+              "kind": "column"
+            },
+            "children": [
+              {
+                "id": "form:334",
+                "kind": "row",
+                "style": {
+                  "align": "center",
+                  "font": 14,
+                  "weight": 700,
+                  "tone": "muted",
+                  "gap": 8,
+                  "margin": [
+                    0,
+                    0,
+                    0,
+                    16
+                  ],
+                  "padding": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "form:345",
+                    "kind": "icon",
+                    "icon": "activity",
+                    "style": {
+                      "width": 14,
+                      "height": 14
+                    }
+                  },
+                  {
+                    "id": "copy:2",
+                    "kind": "text",
+                    "text": "ColorOS 锁屏歌词"
+                  }
+                ]
+              },
+              {
+                "id": "form:346",
+                "kind": "card",
+                "style": {
+                  "radius": 12,
+                  "border": true,
+                  "gap": 16,
+                  "padding": [
+                    16,
+                    16,
+                    16,
+                    16
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "form:347",
+                    "kind": "column",
+                    "style": {
+                      "gap": 4
+                    },
+                    "children": [
+                      {
+                        "id": "form:335",
+                        "kind": "column",
+                        "style": {
+                          "font": 14,
+                          "weight": 500,
+                          "tone": "text"
+                        },
+                        "children": [
+                          {
+                            "id": "copy:3",
+                            "kind": "text",
+                            "text": "ColorOS 锁屏歌词"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:336",
+                        "kind": "column",
+                        "style": {
+                          "font": 10,
+                          "tone": "muted"
+                        },
+                        "children": [
+                          {
+                            "id": "copy:4",
+                            "kind": "text",
+                            "text": "把歌词写进系统 MediaSession，由原生锁屏 / 息屏歌词页渲染。仅在检测到 ColorOS 16+ 时启用，没有手动开关。装上 ColorOS-Live-Lyrics-Bridge 后由它接管逐字渲染与样式。"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:348",
+                    "kind": "wrap",
+                    "style": {
+                      "align": "center",
+                      "gap": 8
+                    },
+                    "children": [
+                      {
+                        "id": "form:337",
+                        "kind": "wrap",
+                        "style": {
+                          "radius": 64,
+                          "font": 10,
+                          "padding": [
+                            8,
+                            4,
+                            8,
+                            4
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "copy:5",
+                            "kind": "text",
+                            "text": "未启用"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:338",
+                        "kind": "wrap",
+                        "style": {
+                          "font": 10,
+                          "tone": "muted"
+                        },
+                        "children": [
+                          {
+                            "id": "copy:6",
+                            "kind": "text",
+                            "text": "当前设备未被识别为 ColorOS 16+，这条通道不会启动。"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "form:349",
+            "kind": "column",
+            "style": {
+              "kind": "column"
+            },
+            "children": [
+              {
+                "id": "form:339",
+                "kind": "row",
+                "style": {
+                  "align": "center",
+                  "font": 14,
+                  "weight": 700,
+                  "tone": "muted",
+                  "gap": 8,
+                  "margin": [
+                    0,
+                    0,
+                    0,
+                    16
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "form:350",
+                    "kind": "icon",
+                    "icon": "server",
+                    "style": {
+                      "width": 14,
+                      "height": 14
+                    }
+                  },
+                  {
+                    "id": "copy:7",
+                    "kind": "text",
+                    "text": "Navidrome 设置"
+                  }
+                ]
+              },
+              {
+                "id": "form:351",
+                "kind": "card",
+                "style": {
+                  "fill": true,
+                  "radius": 12,
+                  "border": true,
+                  "gap": 16,
+                  "padding": [
+                    16,
+                    16,
+                    16,
+                    16
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "form:352",
+                    "kind": "row",
+                    "style": {
+                      "align": "between"
+                    },
+                    "children": [
+                      {
+                        "id": "form:340",
+                        "kind": "wrap",
+                        "style": {
+                          "font": 14,
+                          "weight": 500,
+                          "tone": "text",
+                          "grow": true
+                        },
+                        "children": [
+                          {
+                            "id": "copy:8",
+                            "kind": "text",
+                            "text": "连接Navidrome (实验性)"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:341",
+                        "kind": "control",
+                        "ref": "form:341",
+                        "style": {
+                          "width": 48,
+                          "height": 24,
+                          "radius": 64,
+                          "padding": [
+                            4,
+                            4,
+                            4,
+                            4
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "headerActions": [
+    "form:332"
+  ],
+  "modal": {
+    "key": "settings-flow:qa:modal",
+    "title": "洛雪自定义音源",
+    "nodes": [
+      {
+        "id": "form:355:text:0",
+        "kind": "note",
+        "title": "导入自定义脚本，为搜索和已登录平台的歌单选择播放音源。"
+      },
+      {
+        "id": "form:356",
+        "kind": "action",
+        "title": "导入并启用音源.js 文件 · 最大 1 MB",
+        "value": "",
+        "disabled": false,
+        "min": 0,
+        "max": 100,
+        "step": 0,
+        "unit": "",
+        "placeholder": "",
+        "multiline": false,
+        "inputType": "button",
+        "immediate": false,
+        "confirmLabel": "确定"
+      },
+      {
+        "id": "form:357:text:2",
+        "kind": "note",
+        "title": "当前音源"
+      },
+      {
+        "id": "form:358:text:3",
+        "kind": "note",
+        "title": "平台原音源"
+      },
+      {
+        "id": "form:359",
+        "kind": "action",
+        "title": "使用中",
+        "value": "",
+        "disabled": true,
+        "min": 0,
+        "max": 100,
+        "step": 0,
+        "unit": "",
+        "placeholder": "",
+        "multiline": false,
+        "inputType": "button",
+        "immediate": false,
+        "confirmLabel": "确定"
+      },
+      {
+        "id": "form:397:text:5",
+        "kind": "note",
+        "title": "还没有导入音源"
+      },
+      {
+        "id": "form:398:text:6",
+        "kind": "note",
+        "title": "导入后会在这里显示支持的平台与音质"
+      },
+      {
+        "id": "form:362",
+        "kind": "action",
+        "title": "使用说明与兼容性",
+        "value": "",
+        "disabled": false,
+        "min": 0,
+        "max": 100,
+        "step": 0,
+        "unit": "",
+        "placeholder": "",
+        "multiline": false,
+        "inputType": "text",
+        "immediate": false,
+        "confirmLabel": "确定"
+      },
+      {
+        "id": "form:377:text:8",
+        "kind": "note",
+        "title": "启用后可在搜索页选择脚本支持的平台。已登录平台的歌单和收藏也会使用所选音源播放，收藏和歌单归属不变。切换时保留播放位置。"
+      },
+      {
+        "id": "form:378:text:9",
+        "kind": "note",
+        "title": "跨平台按歌名、歌手和时长匹配；失败会提示，不会自动切回原音源。未启用的脚本不会运行。"
+      },
+      {
+        "id": "form:379:text:10",
+        "kind": "note",
+        "title": "支持 request、Buffer、MD5、AES；暂不支持依赖 RSA、zlib 或 multipart 的脚本。不内置第三方音源。"
+      }
+    ],
+    "layout": {
+      "id": "page:form:376",
+      "kind": "column",
+      "style": {
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "children": [
+        {
+          "id": "form:363",
+          "kind": "column",
+          "style": {
+            "padding": [
+              0,
+              0,
+              40,
+              0
+            ],
+            "margin": [
+              0,
+              0,
+              0,
+              20
+            ]
+          },
+          "children": [
+            {
+              "id": "form:355",
+              "kind": "wrap",
+              "style": {
+                "font": 14,
+                "margin": [
+                  0,
+                  8,
+                  0,
+                  0
+                ]
+              },
+              "children": [
+                {
+                  "id": "copy:1",
+                  "kind": "text",
+                  "text": "导入自定义脚本，为搜索和已登录平台的歌单选择播放音源。"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "form:365",
+          "kind": "column",
+          "style": {},
+          "children": [
+            {
+              "id": "form:366",
+              "kind": "column",
+              "style": {
+                "gap": 12,
+                "font": 12
+              },
+              "children": [
+                {
+                  "id": "layout:form:356",
+                  "kind": "control",
+                  "ref": "form:356",
+                  "style": {
+                    "gap": 12,
+                    "align": "center",
+                    "padding": [
+                      14,
+                      12,
+                      14,
+                      12
+                    ],
+                    "radius": 14,
+                    "border": true,
+                    "fill": true,
+                    "tone": "accent",
+                    "minHeight": 60
+                  },
+                  "children": [
+                    {
+                      "id": "content:form:356",
+                      "kind": "row",
+                      "style": {
+                        "gap": 12,
+                        "align": "center"
+                      },
+                      "children": [
+                        {
+                          "id": "form:367",
+                          "kind": "icon",
+                          "icon": "upload",
+                          "style": {
+                            "width": 19,
+                            "height": 19
+                          }
+                        },
+                        {
+                          "id": "form:368",
+                          "kind": "column",
+                          "style": {
+                            "grow": true,
+                            "gap": 3
+                          },
+                          "children": [
+                            {
+                              "id": "form:369",
+                              "kind": "column",
+                              "style": {
+                                "font": 13,
+                                "weight": 600
+                              },
+                              "children": [
+                                {
+                                  "id": "copy:2",
+                                  "kind": "text",
+                                  "text": "导入并启用音源"
+                                }
+                              ]
+                            },
+                            {
+                              "id": "form:370",
+                              "kind": "column",
+                              "style": {
+                                "font": 11,
+                                "tone": "muted"
+                              },
+                              "children": [
+                                {
+                                  "id": "copy:3",
+                                  "kind": "text",
+                                  "text": ".js 文件 · 最大 1 MB"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "form:371",
+                  "kind": "row",
+                  "style": {
+                    "gap": 10,
+                    "align": "center",
+                    "font": 11,
+                    "padding": [
+                      2,
+                      2,
+                      2,
+                      2
+                    ]
+                  },
+                  "children": [
+                    {
+                      "id": "form:357",
+                      "kind": "column",
+                      "style": {
+                        "grow": true,
+                        "gap": 3,
+                        "tone": "muted"
+                      },
+                      "children": [
+                        {
+                          "id": "copy:4",
+                          "kind": "text",
+                          "text": "当前音源"
+                        },
+                        {
+                          "id": "form:358",
+                          "kind": "column",
+                          "style": {
+                            "font": 12,
+                            "weight": 600,
+                            "tone": "text"
+                          },
+                          "children": [
+                            {
+                              "id": "copy:5",
+                              "kind": "text",
+                              "text": "平台原音源"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "id": "layout:form:359",
+                      "kind": "control",
+                      "ref": "form:359",
+                      "style": {
+                        "border": true,
+                        "radius": 10,
+                        "font": 11,
+                        "padding": [
+                          10,
+                          6,
+                          10,
+                          6
+                        ],
+                        "minHeight": 40
+                      },
+                      "children": [
+                        {
+                          "id": "content:form:359",
+                          "kind": "row",
+                          "style": {},
+                          "children": [
+                            {
+                              "id": "copy:6",
+                              "kind": "text",
+                              "text": "使用中"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "form:399",
+                  "kind": "column",
+                  "style": {
+                    "gap": 8,
+                    "center": true,
+                    "tone": "muted",
+                    "padding": [
+                      10,
+                      24,
+                      10,
+                      24
+                    ]
+                  },
+                  "children": [
+                    {
+                      "id": "form:400",
+                      "kind": "icon",
+                      "icon": "file-code-corner",
+                      "style": {
+                        "width": 25,
+                        "height": 25
+                      }
+                    },
+                    {
+                      "id": "copy:7",
+                      "kind": "text",
+                      "text": "还没有导入音源"
+                    },
+                    {
+                      "id": "copy:8",
+                      "kind": "text",
+                      "text": "导入后会在这里显示支持的平台与音质"
+                    }
+                  ]
+                },
+                {
+                  "id": "form:375",
+                  "kind": "column",
+                  "style": {
+                    "gap": 10,
+                    "font": 11,
+                    "tone": "muted"
+                  },
+                  "children": [
+                    {
+                      "id": "layout:form:362",
+                      "kind": "control",
+                      "ref": "form:362",
+                      "style": {
+                        "minHeight": 40,
+                        "font": 12,
+                        "tone": "accent"
+                      },
+                      "children": [
+                        {
+                          "id": "content:form:362",
+                          "kind": "row",
+                          "style": {},
+                          "children": [
+                            {
+                              "id": "copy:9",
+                              "kind": "text",
+                              "text": "使用说明与兼容性"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "id": "form:377",
+                      "kind": "column",
+                      "style": {},
+                      "children": [
+                        {
+                          "id": "copy:10",
+                          "kind": "text",
+                          "text": "启用后可在搜索页选择脚本支持的平台。已登录平台的歌单和收藏也会使用所选音源播放，收藏和歌单归属不变。切换时保留播放位置。"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "form:378",
+                      "kind": "column",
+                      "style": {},
+                      "children": [
+                        {
+                          "id": "copy:11",
+                          "kind": "text",
+                          "text": "跨平台按歌名、歌手和时长匹配；失败会提示，不会自动切回原音源。未启用的脚本不会运行。"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "form:379",
+                      "kind": "column",
+                      "style": {},
+                      "children": [
+                        {
+                          "id": "copy:12",
+                          "kind": "text",
+                          "text": "支持 request、Buffer、MD5、AES；暂不支持依赖 RSA、zlib 或 multipart 的脚本。不内置第三方音源。"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "headerActions": []
+  }
+}

@@ -63,7 +63,7 @@ internal fun SettingsLayoutView(node: SettingsLayoutNode, controls: Map<String,T
                 if(s.divider)outer=outer.drawBehind { drawLine(theme.line, androidx.compose.ui.geometry.Offset(0f,size.height), androidx.compose.ui.geometry.Offset(size.width,size.height), 1.dp.toPx()) }
                 outer=outer.layoutEdges(s.padding)
                 when(containerKind){
-                    "row","segment"->Row(outer,horizontalArrangement=if(s.align=="between")Arrangement.SpaceBetween else Arrangement.spacedBy(s.gap.dp,
+                    "row","segment"->Row(outer,horizontalArrangement=if(s.align=="between"&&!node.children.any{it.style.grow})Arrangement.SpaceBetween else Arrangement.spacedBy(s.gap.dp,
                         if(s.center)Alignment.CenterHorizontally else if(s.align=="end")Alignment.End else Alignment.Start),
                         verticalAlignment=if(s.align=="start")Alignment.Top else Alignment.CenterVertically){
                         node.children.forEach { child->key(child.id){SettingsLayoutView(child,controls,theme,action,

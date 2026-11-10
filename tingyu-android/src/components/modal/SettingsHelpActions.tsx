@@ -170,8 +170,8 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
         </button>
     );
 
-    // Android exposes only the release action; diagnostic services remain available internally.
-    if (isAndroidNativeRuntime()) return <div className="space-y-3" data-settings-style='{"gap":12}' data-settings-layout="column">{feedbackCard}{releaseNotes}{feedbackLayer}</div>;
+    // Android keeps feedback here; release notes remain available to the desktop updater.
+    if (isAndroidNativeRuntime()) return <div className="space-y-3" data-settings-style='{"gap":12}' data-settings-layout="column">{feedbackCard}{feedbackLayer}</div>;
 
     return (
         <>

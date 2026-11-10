@@ -1,0 +1,304 @@
+{
+  "key": "settings-flow:qa",
+  "title": "诊断与日志",
+  "nodes": [
+    {
+      "id": "form:402",
+      "kind": "group",
+      "title": "连接与运行"
+    },
+    {
+      "id": "form:403:text:1",
+      "kind": "note",
+      "title": "LSP · 已连接"
+    },
+    {
+      "id": "form:404:text:2",
+      "kind": "note",
+      "title": "已启用"
+    },
+    {
+      "id": "form:404:text:3",
+      "kind": "note",
+      "title": "·"
+    },
+    {
+      "id": "form:404:text:4",
+      "kind": "note",
+      "title": "查看状态与导出完整日志"
+    },
+    {
+      "id": "form:405",
+      "kind": "action",
+      "title": "刷新状态",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:406",
+      "kind": "action",
+      "title": "导出诊断数据",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:407",
+      "kind": "action",
+      "title": "查看状态与导出完整日志",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "text",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:413:text:8",
+      "kind": "note",
+      "title": "backend=lsp, lspConnected=true\n测试连接状态\nsample=0, drawEvidence=not-measured, lifecycle=retained\nsample=1, drawEvidence=not-measured, lifecycle=retained\nsample=2, drawEvidence=not-measured, lifecycle=retained\nsample=3, drawEvidence=not-measured, lifecycle=retained\nsample=4, drawEvidence=not-measured, lifecycle=retained\nsample=5, drawEvidence=not-measured, lifecycle=retained\nsample=6, drawEvidence=not-measured, lifecycle=retained\nsample=7, drawEvidence=not-measured, lifecycle=retained\nsample=8, drawEvidence=not-measured, lifecycle=retained\nsample=9, drawEvidence=not-measured, lifecycle=retained\nsample=10, drawEvidence=not-measured, lifecycle=retained\nsample=11, drawEvidence=not-measured, lifecycle=retained\nsample=12, drawEvidence=not-measured, lifecycle=retained\nsample=13, drawEvidence=not-measured, lifecycle=retained\nsample=14, drawEvidence=not-measured, lifecycle=retained\nsample=15, drawEvidence=not-measured, lifecycle=retained\nsample=16, drawEvidence=not-measured, lifecycle=retained\nsample=17, drawEvidence=not-measured, lifecycle=retained\nsample=18, drawEvidence=not-measured, lifecycle=retained\nsample=19, drawEvidence=not-measured, lifecycle=retained\nsample=20, drawEvidence=not-measured, lifecycle=retained\nsample=21, drawEvidence=not-measured, lifecycle=retained\nsample=22, drawEvidence=not-measured, lifecycle=retained\nsample=23, drawEvidence=not-measured, lifecycle=retained\nsample=24, drawEvidence=not-measured, lifecycle=retained\nsample=25, drawEvidence=not-measured, lifecycle=retained\nsample=26, drawEvidence=not-measured, lifecycle=retained\nsample=27, drawEvidence=not-measured, lifecycle=retained\nsample=28, drawEvidence=not-measured, lifecycle=retained\nsample=29, drawEvidence=not-measured, lifecycle=retained\nsample=30, drawEvidence=not-measured, lifecycle=retained\nsample=31, drawEvidence=not-measured, lifecycle=retained\nsample=32, drawEvidence=not-measured, lifecycle=retained\nsample=33, drawEvidence=not-measured, lifecycle=retained\nsample=34, drawEvidence=not-measured, lifecycle=retained\nsample=35, drawEvidence=not-measured, lifecycle=retained\nsample=36, drawEvidence=not-measured, lifecycle=retained\nsample=37, drawEvidence=not-measured, lifecycle=retained\nsample=38, drawEvidence=not-measured, lifecycle=retained\nsample=39, drawEvidence=not-measured, lifecycle=retained\nsample=40, drawEvidence=not-measured, lifecycle=retained\nsample=41, drawEvidence=not-measured, lifecycle=retained\nsample=42, drawEvidence=not-measured, lifecycle=retained\nsample=43, drawEvidence=not-measured, lifecycle=retained\nsample=44, drawEvidence=not-measured, lifecycle=retained\nsample=45, drawEvidence=not-measured, lifecycle=retained\nsample=46, drawEvidence=not-measured, lifecycle=retained\nsample=47, drawEvidence=not-measured, lifecycle=retained\nsample=48, drawEvidence=not-measured, lifecycle=retained\nsample=49, drawEvidence=not-measured, lifecycle=retained\nsample=50, drawEvidence=not-measured, lifecycle=retained\nsample=51, drawEvidence=not-measured, lifecycle=retained\nsample=52, drawEvidence=not-measured, lifecycle=retained\nsample=53, drawEvidence=not-measured, lifecycle=retained\nsample=54, drawEvidence=not-measured, lifecycle=retained\nsample=55, drawEvidence=not-measured, lifecycle=retained\nsample=56, drawEvidence=not-measured, lifecycle=retained\nsample=57, drawEvidence=not-measured, lifecycle=retained\nsample=58, drawEvidence=not-measured, lifecycle=retained\nsample=59, drawEvidence=not-measured, lifecycle=retained\nsample=60, drawEvidence=not-measured, lifecycle=retained\nsample=61, drawEvidence=not-measured, lifecycle=retained\nsample=62, drawEvidence=not-measured, lifecycle=retained\nsample=63, drawEvidence=not-measured, lifecycle=retained\nsample=64, drawEvidence=not-measured, lifecycle=retained\nsample=65, drawEvidence=not-measured, lifecycle=retained\nsample=66, drawEvidence=not-measured, lifecycle=retained\nsample=67, drawEvidence=not-measured, lifecycle=retained\nsample=68, drawEvidence=not-measured, lifecycle=retained\nsample=69, drawEvidence=not-measured, lifecycle=retained\nsample=70, drawEvidence=not-measured, lifecycle=retained\nsample=71, drawEvidence=not-measured, lifecycle=retained\nsample=72, drawEvidence=not-measured, lifecycle=retained\nsample=73, drawEvidence=not-measured, lifecycle=retained\nsample=74, drawEvidence=not-measured, lifecycle=retained\nsample=75, drawEvidence=not-measured, lifecycle=retained\nsample=76, drawEvidence=not-measured, lifecycle=retained\nsample=77, drawEvidence=not-measured, lifecycle=retained\nsample=78, drawEvidence=not-measured, lifecycle=retained\nsample=79, drawEvidence=not-measured, lifecycle=retained\nsample=80, drawEvidence=not-measured, lifecycle=retained\nsample=81, drawEvidence=not-measured, lifecycle=retained\nsample=82, drawEvidence=not-measured, lifecycle=retained\nsample=83, drawEvidence=not-measured, lifecycle=retained\nsample=84, drawEvidence=not-measured, lifecycle=retained\nsample=85, drawEvidence=not-measured, lifecycle=retained\nsample=86, drawEvidence=not-measured, lifecycle=retained\nsample=87, drawEvidence=not-measured, lifecycle=retained\nsample=88, drawEvidence=not-measured, lifecycle=retained\nsample=89, drawEvidence=not-measured, lifecycle=retained\nEND-OF-DIAGNOSTICS"
+    }
+  ],
+  "layout": {
+    "id": "page:form:412",
+    "kind": "column",
+    "style": {
+      "padding": [
+        22,
+        0,
+        22,
+        0
+      ]
+    },
+    "children": [
+      {
+        "id": "form:408",
+        "kind": "column",
+        "style": {
+          "gap": 16
+        },
+        "children": [
+          {
+            "id": "form:409",
+            "kind": "card",
+            "style": {
+              "gap": 12,
+              "border": true,
+              "radius": 14,
+              "padding": [
+                16,
+                16,
+                16,
+                16
+              ]
+            },
+            "children": [
+              {
+                "id": "form:402",
+                "kind": "column",
+                "style": {
+                  "font": 14,
+                  "weight": 600
+                },
+                "children": [
+                  {
+                    "id": "copy:1",
+                    "kind": "text",
+                    "text": "连接与运行"
+                  }
+                ]
+              },
+              {
+                "id": "form:403",
+                "kind": "column",
+                "style": {
+                  "font": 13,
+                  "tone": "muted"
+                },
+                "children": [
+                  {
+                    "id": "copy:2",
+                    "kind": "text",
+                    "text": "LSP · 已连接"
+                  }
+                ]
+              },
+              {
+                "id": "form:404",
+                "kind": "column",
+                "style": {
+                  "font": 12,
+                  "tone": "muted"
+                },
+                "children": [
+                  {
+                    "id": "copy:3",
+                    "kind": "text",
+                    "text": "已启用 · 查看状态与导出完整日志"
+                  }
+                ]
+              },
+              {
+                "id": "form:410",
+                "kind": "grid",
+                "style": {
+                  "columns": 2,
+                  "gap": 8
+                },
+                "children": [
+                  {
+                    "id": "layout:form:405",
+                    "kind": "control",
+                    "ref": "form:405",
+                    "style": {
+                      "radius": 12,
+                      "border": true,
+                      "font": 12,
+                      "center": true,
+                      "padding": [
+                        10,
+                        12,
+                        10,
+                        12
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:405",
+                        "kind": "row",
+                        "style": {
+                          "center": true
+                        },
+                        "children": [
+                          {
+                            "id": "copy:4",
+                            "kind": "text",
+                            "text": "刷新状态"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "layout:form:406",
+                    "kind": "control",
+                    "ref": "form:406",
+                    "style": {
+                      "radius": 12,
+                      "border": true,
+                      "font": 12,
+                      "padding": [
+                        10,
+                        12,
+                        10,
+                        12
+                      ],
+                      "center": true,
+                      "tone": "text"
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:406",
+                        "kind": "row",
+                        "style": {
+                          "center": true
+                        },
+                        "children": [
+                          {
+                            "id": "copy:5",
+                            "kind": "text",
+                            "text": "导出诊断数据"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "form:411",
+            "kind": "column",
+            "style": {
+              "gap": 12
+            },
+            "children": [
+              {
+                "id": "layout:form:407",
+                "kind": "control",
+                "ref": "form:407",
+                "style": {
+                  "font": 13,
+                  "minHeight": 44,
+                  "tone": "accent"
+                },
+                "children": [
+                  {
+                    "id": "content:form:407",
+                    "kind": "row",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "copy:6",
+                        "kind": "text",
+                        "text": "查看状态与导出完整日志"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:413",
+                "kind": "column",
+                "style": {
+                  "font": 11,
+                  "maxHeight": 320,
+                  "scroll": true,
+                  "fill": true,
+                  "radius": 12,
+                  "padding": [
+                    12,
+                    12,
+                    12,
+                    12
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "copy:7",
+                    "kind": "text",
+                    "text": "backend=lsp, lspConnected=true\n测试连接状态\nsample=0, drawEvidence=not-measured, lifecycle=retained\nsample=1, drawEvidence=not-measured, lifecycle=retained\nsample=2, drawEvidence=not-measured, lifecycle=retained\nsample=3, drawEvidence=not-measured, lifecycle=retained\nsample=4, drawEvidence=not-measured, lifecycle=retained\nsample=5, drawEvidence=not-measured, lifecycle=retained\nsample=6, drawEvidence=not-measured, lifecycle=retained\nsample=7, drawEvidence=not-measured, lifecycle=retained\nsample=8, drawEvidence=not-measured, lifecycle=retained\nsample=9, drawEvidence=not-measured, lifecycle=retained\nsample=10, drawEvidence=not-measured, lifecycle=retained\nsample=11, drawEvidence=not-measured, lifecycle=retained\nsample=12, drawEvidence=not-measured, lifecycle=retained\nsample=13, drawEvidence=not-measured, lifecycle=retained\nsample=14, drawEvidence=not-measured, lifecycle=retained\nsample=15, drawEvidence=not-measured, lifecycle=retained\nsample=16, drawEvidence=not-measured, lifecycle=retained\nsample=17, drawEvidence=not-measured, lifecycle=retained\nsample=18, drawEvidence=not-measured, lifecycle=retained\nsample=19, drawEvidence=not-measured, lifecycle=retained\nsample=20, drawEvidence=not-measured, lifecycle=retained\nsample=21, drawEvidence=not-measured, lifecycle=retained\nsample=22, drawEvidence=not-measured, lifecycle=retained\nsample=23, drawEvidence=not-measured, lifecycle=retained\nsample=24, drawEvidence=not-measured, lifecycle=retained\nsample=25, drawEvidence=not-measured, lifecycle=retained\nsample=26, drawEvidence=not-measured, lifecycle=retained\nsample=27, drawEvidence=not-measured, lifecycle=retained\nsample=28, drawEvidence=not-measured, lifecycle=retained\nsample=29, drawEvidence=not-measured, lifecycle=retained\nsample=30, drawEvidence=not-measured, lifecycle=retained\nsample=31, drawEvidence=not-measured, lifecycle=retained\nsample=32, drawEvidence=not-measured, lifecycle=retained\nsample=33, drawEvidence=not-measured, lifecycle=retained\nsample=34, drawEvidence=not-measured, lifecycle=retained\nsample=35, drawEvidence=not-measured, lifecycle=retained\nsample=36, drawEvidence=not-measured, lifecycle=retained\nsample=37, drawEvidence=not-measured, lifecycle=retained\nsample=38, drawEvidence=not-measured, lifecycle=retained\nsample=39, drawEvidence=not-measured, lifecycle=retained\nsample=40, drawEvidence=not-measured, lifecycle=retained\nsample=41, drawEvidence=not-measured, lifecycle=retained\nsample=42, drawEvidence=not-measured, lifecycle=retained\nsample=43, drawEvidence=not-measured, lifecycle=retained\nsample=44, drawEvidence=not-measured, lifecycle=retained\nsample=45, drawEvidence=not-measured, lifecycle=retained\nsample=46, drawEvidence=not-measured, lifecycle=retained\nsample=47, drawEvidence=not-measured, lifecycle=retained\nsample=48, drawEvidence=not-measured, lifecycle=retained\nsample=49, drawEvidence=not-measured, lifecycle=retained\nsample=50, drawEvidence=not-measured, lifecycle=retained\nsample=51, drawEvidence=not-measured, lifecycle=retained\nsample=52, drawEvidence=not-measured, lifecycle=retained\nsample=53, drawEvidence=not-measured, lifecycle=retained\nsample=54, drawEvidence=not-measured, lifecycle=retained\nsample=55, drawEvidence=not-measured, lifecycle=retained\nsample=56, drawEvidence=not-measured, lifecycle=retained\nsample=57, drawEvidence=not-measured, lifecycle=retained\nsample=58, drawEvidence=not-measured, lifecycle=retained\nsample=59, drawEvidence=not-measured, lifecycle=retained\nsample=60, drawEvidence=not-measured, lifecycle=retained\nsample=61, drawEvidence=not-measured, lifecycle=retained\nsample=62, drawEvidence=not-measured, lifecycle=retained\nsample=63, drawEvidence=not-measured, lifecycle=retained\nsample=64, drawEvidence=not-measured, lifecycle=retained\nsample=65, drawEvidence=not-measured, lifecycle=retained\nsample=66, drawEvidence=not-measured, lifecycle=retained\nsample=67, drawEvidence=not-measured, lifecycle=retained\nsample=68, drawEvidence=not-measured, lifecycle=retained\nsample=69, drawEvidence=not-measured, lifecycle=retained\nsample=70, drawEvidence=not-measured, lifecycle=retained\nsample=71, drawEvidence=not-measured, lifecycle=retained\nsample=72, drawEvidence=not-measured, lifecycle=retained\nsample=73, drawEvidence=not-measured, lifecycle=retained\nsample=74, drawEvidence=not-measured, lifecycle=retained\nsample=75, drawEvidence=not-measured, lifecycle=retained\nsample=76, drawEvidence=not-measured, lifecycle=retained\nsample=77, drawEvidence=not-measured, lifecycle=retained\nsample=78, drawEvidence=not-measured, lifecycle=retained\nsample=79, drawEvidence=not-measured, lifecycle=retained\nsample=80, drawEvidence=not-measured, lifecycle=retained\nsample=81, drawEvidence=not-measured, lifecycle=retained\nsample=82, drawEvidence=not-measured, lifecycle=retained\nsample=83, drawEvidence=not-measured, lifecycle=retained\nsample=84, drawEvidence=not-measured, lifecycle=retained\nsample=85, drawEvidence=not-measured, lifecycle=retained\nsample=86, drawEvidence=not-measured, lifecycle=retained\nsample=87, drawEvidence=not-measured, lifecycle=retained\nsample=88, drawEvidence=not-measured, lifecycle=retained\nsample=89, drawEvidence=not-measured, lifecycle=retained\nEND-OF-DIAGNOSTICS"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "headerActions": []
+}

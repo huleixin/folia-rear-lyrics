@@ -54,7 +54,8 @@ it('ships native geometry for every icon in the real route fixtures, including L
     const icons=JSON.parse(readFileSync('android/app/src/main/res/raw/native_page_icons.json','utf8'));
     for(const file of readdirSync('android/app/src/test/resources/settings-layout')){
         const flow=JSON.parse(readFileSync(`android/app/src/test/resources/settings-layout/${file}`,'utf8'));
-        for(const node of all(flow.layout))if(node.kind==='icon')expect(icons[node.icon!],`${file}: ${node.icon}`).toBeTruthy();
+        for(const layout of [flow.layout,flow.modal?.layout].filter(Boolean))
+            for(const node of all(layout))if(node.kind==='icon')expect(icons[node.icon!],`${file}: ${node.icon}`).toBeTruthy();
         for(const id of flow.headerActions??[]){const icon=flow.nodes.find((n:{id:string})=>n.id===id)?.icon;if(icon)expect(icons[icon],icon).toBeTruthy();}
     }
 });
