@@ -637,19 +637,19 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6" data-settings-style='{"gap":24}' data-settings-layout="column">
             <InterfaceAppearanceSetting />
             <AndroidImmersiveSetting isDaylight={isDaylight} settingsCardClass={settingsCardClass} theme={theme} compact />
             <MobilePlayerDisplaySetting isDaylight={isDaylight} settingsCardClass={settingsCardClass} theme={theme} />
             <MobileRandomVisualizerSettings />
             {/* Section 1: Lyrics Animation & Player View */}
-            <SettingsAnchor anchorId="lyricsRenderer" label={t('options.lyricsRenderer')}>
+            <SettingsAnchor anchorId="lyricsRenderer" label={t('options.lyricsRenderer')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={Monitor} label={t('options.lyricsRenderer')} />
-                <div className="space-y-3">
+                <div className="space-y-3" data-settings-style='{"gap":12}' data-settings-layout="column">
                     {storePlayerChromeSettings.enablePlayerPageNativeBlur && (
-                        <div className={`flex items-center gap-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs ${isDaylight ? 'text-amber-600' : 'text-amber-400'}`}>
+                        <div className={`flex items-center gap-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs ${isDaylight ? 'text-amber-600' : 'text-amber-400'}`} data-settings-style='{"align":"center","gap":10,"radius":12,"border":true,"font":12,"padding":[16,12,16,12],"fill":true}' data-settings-layout="row">
                             <AlertTriangle size={16} className="shrink-0 text-amber-500" />
-                            <span>{t('options.nativeBlurBackgroundNotice')}</span>
+                            <span data-settings-layout="wrap">{t('options.nativeBlurBackgroundNotice')}</span>
                         </div>
                     )}
                     <button
@@ -663,7 +663,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                 `linear-gradient(120deg, ${lyricsStyleBorderStart}, ${lyricsStyleBorderEnd}) border-box`,
                             ].join(', '),
                         }}
-                    >
+                     data-settings-style='{"align":"center","gap":12,"radius":12,"padding":[16,16,16,16],"tone":"text"}' data-settings-layout="row">
                         <span
                             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border"
                             style={{
@@ -671,26 +671,26 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                 borderColor: `${accentOutlineColor}55`,
                                 backgroundColor: `${accentOutlineColor}18`,
                             }}
-                        >
+                         data-settings-style='{"align":"center","center":true,"height":40,"width":40,"radius":12,"border":true,"fill":true}' data-settings-layout="row" data-settings-swatch={`${accentOutlineColor}18`}>
                             <Settings2 size={19} />
                         </span>
-                        <span className="min-w-0 flex-1 space-y-1">
-                            <span className="block text-sm font-semibold">
+                        <span className="min-w-0 flex-1 space-y-1" data-settings-style='{"grow":true,"gap":4}' data-settings-layout="column">
+                            <span className="block text-sm font-semibold" data-settings-style='{"font":14,"weight":600}' data-settings-layout="column">
                                 {t('options.lyricsAnimationAdjust')}
                             </span>
-                            <span className="block text-xs opacity-55" style={{ color: 'var(--text-secondary)' }}>
+                            <span className="block text-xs opacity-55" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                 {t('options.lyricsRendererDesc')}
                             </span>
                         </span>
                         <ChevronRight size={18} className="shrink-0 opacity-45 transition-transform group-hover:translate-x-0.5 group-hover:opacity-80" />
                     </button>
-                    <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="space-y-1">
-                                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                    <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                        <div className="flex items-center justify-between gap-4" data-settings-style='{"align":"between","gap":16}' data-settings-layout="row">
+                            <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                     {t('options.transparentPlayerBackground')}
                                 </div>
-                                <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+                                <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                     {t('options.transparentPlayerBackgroundDesc')}
                                 </div>
                             </div>
@@ -698,16 +698,16 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                 onClick={() => onToggleTransparentPlayerBackground(!transparentPlayerBackground)}
                                 className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!transparentPlayerBackground ? toggleOffBackgroundClass : ''}`}
                                 style={{ backgroundColor: transparentPlayerBackground ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
-                            >
-                                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${transparentPlayerBackground ? 'translate-x-6' : 'translate-x-0'}`} />
+                             data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={transparentPlayerBackground ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
+                                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${transparentPlayerBackground ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
                             </button>
                         </div>
-                        {!isAndroidNativeRuntime() && <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-4">
-                            <div className="space-y-1">
-                                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                        {!isAndroidNativeRuntime() && <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-4" data-settings-style='{"align":"between","gap":16,"padding":[0,8,0,0]}' data-settings-layout="row">
+                            <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                     {t('options.autoHidePlayerChrome')}
                                 </div>
-                                <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+                                <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                     {t('options.autoHidePlayerChromeDesc')}
                                 </div>
                             </div>
@@ -715,18 +715,18 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                 onClick={() => onToggleAutoHidePlayerChrome(!autoHidePlayerChrome)}
                                 className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!autoHidePlayerChrome ? toggleOffBackgroundClass : ''}`}
                                 style={{ backgroundColor: autoHidePlayerChrome ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
-                            >
-                                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${autoHidePlayerChrome ? 'translate-x-6' : 'translate-x-0'}`} />
+                             data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={autoHidePlayerChrome ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
+                                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${autoHidePlayerChrome ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
                             </button>
                         </div>}
                         {/* 指针隐藏是控制栏自动隐藏的附加项：上面那个开关关着时它无事可做，
                             所以整行淡出，但仍可点击——先设好偏好再开自动隐藏也是合理的顺序。 */}
-                        {!isAndroidNativeRuntime() && <div className={`pl-4 border-l-2 border-white/10 flex items-center justify-between gap-4 transition-opacity ${autoHidePlayerChrome ? '' : 'opacity-40'}`}>
-                            <div className="space-y-1">
-                                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                        {!isAndroidNativeRuntime() && <div className={`pl-4 border-l-2 border-white/10 flex items-center justify-between gap-4 transition-opacity ${autoHidePlayerChrome ? '' : 'opacity-40'}`} data-settings-style='{"align":"between","gap":16,"padding":[16,0,0,0]}' data-settings-layout="row">
+                            <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                     {t('options.autoHideCursorWithPlayerChrome')}
                                 </div>
-                                <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+                                <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                     {t('options.autoHideCursorWithPlayerChromeDesc')}
                                 </div>
                             </div>
@@ -734,8 +734,8 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                 onClick={() => onToggleAutoHideCursorWithPlayerChrome(!autoHideCursorWithPlayerChrome)}
                                 className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!autoHideCursorWithPlayerChrome ? toggleOffBackgroundClass : ''}`}
                                 style={{ backgroundColor: autoHideCursorWithPlayerChrome ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
-                            >
-                                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${autoHideCursorWithPlayerChrome ? 'translate-x-6' : 'translate-x-0'}`} />
+                             data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={autoHideCursorWithPlayerChrome ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
+                                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${autoHideCursorWithPlayerChrome ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
                             </button>
                         </div>}
                     </div>
@@ -743,11 +743,11 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
             </SettingsAnchor>
 
             {/* Section 2: Theme presets and edit options */}
-            <SettingsAnchor anchorId="themePresets" label={t('options.themePresets')}>
+            <SettingsAnchor anchorId="themePresets" label={t('options.themePresets')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={Palette} label={t('options.themePresets')} />
-                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                    <div className="flex items-center justify-between gap-3" data-settings-style='{"align":"between","gap":12}' data-settings-layout="row">
+                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text","grow":true}' data-settings-layout="column">
                             {t('options.themePresets')}
                         </div>
                         <button
@@ -757,11 +757,11 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                             style={{ color: 'var(--text-primary)' }}
                             title={t('options.openThemePark')}
                             aria-label={t('options.openThemePark')}
-                        >
+                         data-settings-style='{"align":"center","center":true,"width":36,"height":36,"radius":64,"border":true,"tone":"text"}' data-settings-layout="row">
                             <Palette size={16} />
                         </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-3" data-settings-style='{"columns":2,"gap":12}' data-settings-layout="grid">
                         <button
                             aria-pressed={bgMode === 'default'}
                             onClick={onApplyDefaultTheme}
@@ -772,9 +772,9 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                     ? (isDaylight ? `${accentOutlineColor}12` : `${accentOutlineColor}18`)
                                     : (isDaylight ? 'rgba(24, 24, 27, 0.035)' : 'rgba(9, 9, 11, 0.5)'),
                             }}
-                        >
-                            <div className="w-6 h-6 rounded-full shadow-sm" style={{ background: `linear-gradient(135deg, ${themeParkInitialTheme.light.backgroundColor}, ${themeParkInitialTheme.dark.backgroundColor})`, borderColor: isDaylight ? 'rgba(24,24,27,0.08)' : 'rgba(255,255,255,0.15)' }} />
-                            <span className="text-xs font-semibold" style={{ color: isDaylight ? '#27272a' : '#e4e4e7' }}>{t('options.themePresetsDefault') || 'Default'}</span>
+                         data-settings-style='{"align":"center","gap":8,"radius":8,"border":true,"padding":[12,12,12,12]}' data-settings-layout="column">
+                            <div className="w-6 h-6 rounded-full shadow-sm" style={{ background: `linear-gradient(135deg, ${themeParkInitialTheme.light.backgroundColor}, ${themeParkInitialTheme.dark.backgroundColor})`, borderColor: isDaylight ? 'rgba(24,24,27,0.08)' : 'rgba(255,255,255,0.15)' }}  data-settings-style='{"width":24,"height":24,"radius":64}' data-settings-layout="column" data-settings-swatch={`linear-gradient(135deg, ${themeParkInitialTheme.light.backgroundColor}, ${themeParkInitialTheme.dark.backgroundColor})`}/>
+                            <span className="text-xs font-semibold" style={{ color: isDaylight ? '#27272a' : '#e4e4e7' }} data-settings-style='{"font":12,"weight":600}' data-settings-layout="wrap">{t('options.themePresetsDefault') || 'Default'}</span>
                         </button>
                         <button
                             aria-pressed={bgMode === 'custom'}
@@ -787,23 +787,23 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                     ? (isDaylight ? `${accentOutlineColor}12` : `${accentOutlineColor}18`)
                                     : (isDaylight ? 'rgba(255, 255, 255, 0.72)' : 'rgba(255, 255, 255, 0.08)'),
                             }}
-                        >
-                            <div className="w-6 h-6 rounded-full" style={{ background: hasCustomTheme ? `linear-gradient(135deg, ${themeParkInitialTheme.light.accentColor}, ${themeParkInitialTheme.dark.accentColor})` : 'rgba(114,119,134,0.4)' }} />
-                            <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{t('options.customTheme') || 'Custom'}</span>
+                         data-settings-style='{"align":"center","gap":8,"radius":8,"border":true,"padding":[12,12,12,12]}' data-settings-layout="column">
+                            <div className="w-6 h-6 rounded-full" style={{ background: hasCustomTheme ? `linear-gradient(135deg, ${themeParkInitialTheme.light.accentColor}, ${themeParkInitialTheme.dark.accentColor})` : 'rgba(114,119,134,0.4)' }}  data-settings-style='{"width":24,"height":24,"radius":64}' data-settings-layout="column" data-settings-swatch={hasCustomTheme ? `linear-gradient(135deg, ${themeParkInitialTheme.light.accentColor}, ${themeParkInitialTheme.dark.accentColor})` : 'rgba(114,119,134,0.4)'}/>
+                            <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":12,"weight":600,"tone":"text"}' data-settings-layout="wrap">{t('options.customTheme') || 'Custom'}</span>
                         </button>
                     </div>
-                    <div className={`p-3 rounded-xl border space-y-3 ${settingsCardClass}`}>
-                        <div className="space-y-1">
-                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <div className={`p-3 rounded-xl border space-y-3 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":12,"padding":[12,12,12,12]}' data-settings-layout="card">
+                        <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                 {t('options.themeGenerationSource')}
                             </div>
-                            <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                 {t(themeGenerationSource === 'cover'
                                     ? 'options.themeGenerationSourceCoverDesc'
                                     : 'options.themeGenerationSourceAiDesc')}
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-2" data-settings-style='{"columns":2,"gap":8}' data-settings-layout="grid">
                             {(['ai', 'cover'] as ThemeGenerationSource[]).map(source => {
                                 const isAiDisabled = source === 'ai' && aiApiKeyStatus !== 'configured';
                                 return (
@@ -821,17 +821,17 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                                 ? (isDaylight ? `${accentOutlineColor}12` : `${accentOutlineColor}18`)
                                                 : (isDaylight ? 'rgba(24, 24, 27, 0.035)' : 'rgba(9, 9, 11, 0.5)'),
                                         }}
-                                    >
+                                     data-settings-style='{"radius":8,"border":true,"font":12,"weight":600,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="row">
                                         {t(source === 'cover' ? 'options.themeGenerationSourceCover' : 'options.themeGenerationSourceAi')}
                                     </button>
                                 );
                             })}
                         </div>
                         {aiApiKeyStatus === 'missing' && (
-                            <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2.5 text-xs">
+                            <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2.5 text-xs" data-settings-style='{"gap":10,"radius":8,"border":true,"font":12,"padding":[12,10,12,10],"fill":true}' data-settings-layout="row">
                                 <KeyRound size={15} className="mt-0.5 shrink-0 text-amber-500" />
-                                <div className="space-y-1.5">
-                                    <p className={`leading-relaxed ${isDaylight ? 'text-amber-600' : 'text-amber-400'}`}>
+                                <div className="space-y-1.5" data-settings-style='{"gap":6}' data-settings-layout="column">
+                                    <p className={`leading-relaxed ${isDaylight ? 'text-amber-600' : 'text-amber-400'}`} data-settings-layout="wrap">
                                         {t('options.themeGenerationSourceAiUnavailable')}
                                     </p>
                                     <button
@@ -839,19 +839,19 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                         onClick={onOpenAiSettings}
                                         className="font-semibold underline underline-offset-2 transition-opacity hover:opacity-75"
                                         style={{ color: 'var(--text-primary)' }}
-                                    >
+                                     data-settings-style='{"weight":600,"tone":"text"}' data-settings-layout="row">
                                         {t('options.configureAiApiKey')}
                                     </button>
                                 </div>
                             </div>
                         )}
                     </div>
-                    <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${settingsCardClass}`}>
-                        <div className="space-y-1">
-                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${settingsCardClass}`} data-settings-style='{"align":"between","radius":12,"border":true,"gap":12,"padding":[12,12,12,12],"fill":true}' data-settings-layout="row">
+                        <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                 {isAndroidNativeRuntime() ? t('options.stageFollowSystemTheme') : t('options.followSystemTheme')}
                             </div>
-                            <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                 {t('options.followSystemThemeDesc')}
                             </div>
                         </div>
@@ -861,16 +861,16 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                             aria-pressed={followSystemTheme}
                             className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!followSystemTheme ? toggleOffBackgroundClass : ''}`}
                             style={{ backgroundColor: followSystemTheme ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
-                        >
-                            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${followSystemTheme ? 'translate-x-6' : 'translate-x-0'}`} />
+                         data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={followSystemTheme ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
+                            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${followSystemTheme ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
                         </button>
                     </div>
-                    <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${settingsCardClass}`}>
-                        <div className="space-y-1">
-                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${settingsCardClass}`} data-settings-style='{"align":"between","radius":12,"border":true,"gap":12,"padding":[12,12,12,12],"fill":true}' data-settings-layout="row">
+                        <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                 {t('options.preferCustomTheme')}
                             </div>
-                            <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                 {t('options.preferCustomThemeDesc')}
                             </div>
                         </div>
@@ -879,16 +879,16 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                             disabled={!hasCustomTheme}
                             className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!isCustomThemePreferred ? toggleOffBackgroundClass : ''} disabled:opacity-40 disabled:cursor-not-allowed`}
                             style={{ backgroundColor: isCustomThemePreferred ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
-                        >
-                            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${isCustomThemePreferred ? 'translate-x-6' : 'translate-x-0'}`} />
+                         data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={isCustomThemePreferred ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
+                            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${isCustomThemePreferred ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
                         </button>
                     </div>
-                    <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${settingsCardClass}`}>
-                        <div className="space-y-1">
-                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${settingsCardClass}`} data-settings-style='{"align":"between","radius":12,"border":true,"gap":12,"padding":[12,12,12,12],"fill":true}' data-settings-layout="row">
+                        <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                 {t('options.autoSwitchSongTheme')}
                             </div>
-                            <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                 {t('options.autoSwitchSongThemeDesc')}
                             </div>
                         </div>
@@ -896,17 +896,17 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                             onClick={() => onToggleSongThemeAutoSwitch(!songThemeAutoSwitchEnabled)}
                             className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!songThemeAutoSwitchEnabled ? toggleOffBackgroundClass : ''}`}
                             style={{ backgroundColor: songThemeAutoSwitchEnabled ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
-                        >
-                            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${songThemeAutoSwitchEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                         data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={songThemeAutoSwitchEnabled ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
+                            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${songThemeAutoSwitchEnabled ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
                         </button>
                     </div>
                     {songThemeAutoSwitchEnabled && (
-                        <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${settingsCardClass}`}>
-                            <div className="space-y-1">
-                                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                        <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${settingsCardClass}`} data-settings-style='{"align":"between","radius":12,"border":true,"gap":12,"padding":[12,12,12,12],"fill":true}' data-settings-layout="row">
+                            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                     {t('options.autoGenerateSongTheme')}
                                 </div>
-                                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                     {t(themeGenerationSource === 'cover'
                                         ? 'options.autoGenerateSongThemeCoverDesc'
                                         : 'options.autoGenerateSongThemeDesc')}
@@ -916,20 +916,20 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                 onClick={() => onToggleSongThemeAutoGenerate(!songThemeAutoGenerateEnabled)}
                                 className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 ${!songThemeAutoGenerateEnabled ? toggleOffBackgroundClass : ''}`}
                                 style={{ backgroundColor: songThemeAutoGenerateEnabled ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
-                            >
-                                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${songThemeAutoGenerateEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                             data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={songThemeAutoGenerateEnabled ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
+                                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${songThemeAutoGenerateEnabled ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
                             </button>
                         </div>
                     )}
                 </div>
             </SettingsAnchor>
             {/* Section 3: Now playing card */}
-            {isAndroidNativeRuntime() && <SettingsAnchor anchorId="mobileAiProvider" label={t('ui.aiTheme')}>
+            {isAndroidNativeRuntime() && <SettingsAnchor anchorId="mobileAiProvider" label={t('ui.aiTheme')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={Palette} label={t('ui.aiTheme')} />
                 <AiProviderSettings settingsCardClass={settingsCardClass} isDaylight={isDaylight} />
             </SettingsAnchor>}
 
-            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="stageTrackPill" label={t('options.stageTrackPill')}>
+            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="stageTrackPill" label={t('options.stageTrackPill')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={Music2} label={t('options.stageTrackPill')} />
                 <NowPlayingCardSettingsSection
                     accentOutlineColor={accentOutlineColor}
@@ -947,24 +947,24 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
             </SettingsAnchor>}
 
             {/* Section 4: Grid card style */}
-            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="grid3dCardStyle" label={t('options.grid3dCardStyle')}>
+            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="grid3dCardStyle" label={t('options.grid3dCardStyle')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={LayoutGrid} label={t('options.grid3dCardStyle')} />
-                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
-                    <div className="space-y-1">
-                        <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                    <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                        <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                             {t('options.grid3dCardStyle')}
                         </div>
-                        <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                             {t('options.grid3dCardStyleDesc')}
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-3" data-settings-style='{"columns":2,"gap":12}' data-settings-layout="grid">
                         <button
                             onClick={() => onChangeGrid3dCardStyle('image')}
                             className="flex flex-col items-center gap-2 p-3 rounded-lg border transition-all"
                             style={getAccentOptionStyle(grid3dCardStyle === 'image')}
-                        >
-                            <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                         data-settings-style='{"align":"center","gap":8,"radius":8,"border":true,"padding":[12,12,12,12]}' data-settings-layout="column">
+                            <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":12,"weight":600,"tone":"text"}' data-settings-layout="wrap">
                                 {t('options.grid3dCardStyleImage')}
                             </span>
                         </button>
@@ -972,8 +972,8 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                             onClick={() => onChangeGrid3dCardStyle('card')}
                             className="flex flex-col items-center gap-2 p-3 rounded-lg border transition-all"
                             style={getAccentOptionStyle(grid3dCardStyle === 'card')}
-                        >
-                            <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                         data-settings-style='{"align":"center","gap":8,"radius":8,"border":true,"padding":[12,12,12,12]}' data-settings-layout="column">
+                            <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":12,"weight":600,"tone":"text"}' data-settings-layout="wrap">
                                 {t('options.grid3dCardStyleCard')}
                             </span>
                         </button>
@@ -982,7 +982,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
             </SettingsAnchor>}
 
             {/* Section 5: Tile wall appearance (queue collage + bravais library wall) */}
-            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="latticeSettings" label={t('options.latticeSettings')}>
+            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="latticeSettings" label={t('options.latticeSettings')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={PanelsTopLeft} label={t('options.latticeSettings')} />
                 <LatticeSettingsSection
                     settingsCardClass={settingsCardClass}
@@ -993,7 +993,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
             </SettingsAnchor>}
 
             {/* Section 6: Folia card grid, sitting with the poster wall it shares its look with. */}
-            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="gridViewCardSettings" label={t('options.gridViewCardSettings')}>
+            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="gridViewCardSettings" label={t('options.gridViewCardSettings')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={Images} label={t('options.gridViewCardSettings')} />
                 <GridViewSettingsSection
                     settingsCardClass={settingsCardClass}
@@ -1004,7 +1004,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
             </SettingsAnchor>}
 
             {/* Section 7: Video layer behind the lyrics. Not part of the import/export payload below. */}
-            <SettingsAnchor anchorId="videoLayerSettings" label={t('options.videoLayerSettings')}>
+            <SettingsAnchor anchorId="videoLayerSettings" label={t('options.videoLayerSettings')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={Film} label={t('options.videoLayerSettings')} />
                 <VideoLayerSettingsSection
                     settingsCardClass={settingsCardClass}
@@ -1016,32 +1016,32 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
             </SettingsAnchor>
 
             {/* Section 8: Configurations Import/Export (New feature) */}
-            <SettingsAnchor anchorId="importExportTitle" label={t('options.importExportTitle')}>
+            <SettingsAnchor anchorId="importExportTitle" label={t('options.importExportTitle')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={Settings2} label={t('options.importExportTitle')} />
-                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
-                    <div className="space-y-1">
-                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                    <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                             {t('options.importExportTitle')}
                         </div>
-                        <div className="text-xs opacity-50 max-w-[400px]" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="text-xs opacity-50 max-w-[400px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                             {t('options.importExportDesc')}
                         </div>
                     </div>
 
-                    <div className="space-y-1.5 pt-1">
-                        <div className="text-xs font-semibold opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="space-y-1.5 pt-1" data-settings-style='{"gap":6,"padding":[0,4,0,0]}' data-settings-layout="column">
+                        <div className="text-xs font-semibold opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"weight":600,"tone":"muted"}' data-settings-layout="column">
                             {t('options.exportThemeLabel')}
                         </div>
-                        <div className="flex flex-wrap gap-2 mt-1">
+                        <div className="flex flex-wrap gap-2 mt-1" data-settings-style='{"gap":8,"margin":[0,4,0,0]}' data-settings-layout="wrap">
                             {aiTheme && (
                                 <button
                                     type="button"
                                     onClick={() => pickExportThemeType('ai')}
                                     className="px-2.5 py-1.5 rounded-lg text-xs border transition-all flex items-center gap-1.5"
                                     style={getAccentOptionStyle(exportThemeType === 'ai')}
-                                >
+                                 data-settings-style='{"align":"center","radius":8,"font":12,"border":true,"gap":6,"padding":[10,6,10,6]}' data-settings-layout="row">
                                     <Palette size={12} className="opacity-70" />
-                                    <span>{t('options.exportAiTheme')}: {aiTheme.light.name || 'AI'}</span>
+                                    <span data-settings-layout="wrap">{t('options.exportAiTheme')}: {aiTheme.light.name || 'AI'}</span>
                                 </button>
                             )}
                             {customTheme && (
@@ -1050,9 +1050,9 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                     onClick={() => pickExportThemeType('custom')}
                                     className="px-2.5 py-1.5 rounded-lg text-xs border transition-all flex items-center gap-1.5"
                                     style={getAccentOptionStyle(exportThemeType === 'custom')}
-                                >
+                                 data-settings-style='{"align":"center","radius":8,"font":12,"border":true,"gap":6,"padding":[10,6,10,6]}' data-settings-layout="row">
                                     <Palette size={12} className="opacity-70" />
-                                    <span>{t('options.exportCustomTheme')}: {customTheme.light.name || 'Custom'}</span>
+                                    <span data-settings-layout="wrap">{t('options.exportCustomTheme')}: {customTheme.light.name || 'Custom'}</span>
                                 </button>
                             )}
                             <button
@@ -1060,9 +1060,9 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                 onClick={() => pickExportThemeType('none')}
                                 className="px-2.5 py-1.5 rounded-lg text-xs border transition-all flex items-center gap-1.5"
                                 style={getAccentOptionStyle(exportThemeType === 'none')}
-                            >
+                             data-settings-style='{"align":"center","radius":8,"font":12,"border":true,"gap":6,"padding":[10,6,10,6]}' data-settings-layout="row">
                                 <Settings2 size={12} className="opacity-70" />
-                                <span>{t('options.exportNoTheme')}</span>
+                                <span data-settings-layout="wrap">{t('options.exportNoTheme')}</span>
                             </button>
                         </div>
                     </div>
@@ -1073,26 +1073,26 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                         placeholder={t('options.importPlaceholder')}
                         className="w-full h-24 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs focus:outline-none focus:border-white/30 transition-colors font-mono resize-none"
                         style={{ color: 'var(--text-primary)' }}
-                    />
+                     data-settings-style='{"height":96,"fill":true,"border":true,"radius":8,"font":12,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="column"/>
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2" data-settings-style='{"gap":8}' data-settings-layout="wrap">
                         <button
                             type="button"
                             onClick={handleCopyShortcode}
                             className="px-3 py-2 bg-white/15 hover:bg-white/20 active:bg-white/10 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
                             style={{ color: 'var(--text-primary)' }}
-                        >
+                         data-settings-style='{"align":"center","fill":true,"radius":8,"font":12,"weight":500,"gap":6,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="row">
                             {copiedType === 'shortcode' ? <Check size={13} className="text-green-500" /> : <Copy size={13} />}
-                            <span>{copiedType === 'shortcode' ? (t('status.copied')) : t('options.exportBtn')}</span>
+                            <span data-settings-layout="wrap">{copiedType === 'shortcode' ? (t('status.copied')) : t('options.exportBtn')}</span>
                         </button>
                         <button
                             type="button"
                             onClick={handleCopyJson}
                             className="px-3 py-2 bg-white/10 hover:bg-white/15 active:bg-white/5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
                             style={{ color: 'var(--text-primary)' }}
-                        >
+                         data-settings-style='{"align":"center","fill":true,"radius":8,"font":12,"weight":500,"gap":6,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="row">
                             {copiedType === 'json' ? <Check size={13} className="text-green-500" /> : <Copy size={13} />}
-                            <span>{copiedType === 'json' ? (t('status.copied')) : t('options.copyJson')}</span>
+                            <span data-settings-layout="wrap">{copiedType === 'json' ? (t('status.copied')) : t('options.copyJson')}</span>
                         </button>
                         {!isElectron && (
                             <ObsCopyUrlButton
@@ -1102,16 +1102,16 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                             />
                         )}
                         {!isElectron && <ObsCopyCssButton disabled={webObsSource === null} />}
-                        <div className="flex-1 min-w-[20px]" />
+                        <div className="flex-1 min-w-[20px]"  data-settings-style='{"grow":true}' data-settings-layout="column"/>
                         <button
                             type="button"
                             onClick={handleImportConfig}
                             disabled={!importText.trim()}
                             className="px-4 py-2 bg-white/20 hover:bg-white/25 active:bg-white/15 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5"
                             style={{ color: 'var(--text-primary)', borderColor: accentOutlineColor }}
-                        >
+                         data-settings-style='{"align":"center","fill":true,"radius":8,"font":12,"weight":600,"gap":6,"padding":[16,8,16,8],"tone":"text"}' data-settings-layout="row">
                             <Download size={13} />
-                            <span>{t('options.importBtn')}</span>
+                            <span data-settings-layout="wrap">{t('options.importBtn')}</span>
                         </button>
                     </div>
                 </div>

@@ -60,13 +60,13 @@ export default function MobileSettingsLanding({ onClose }: { onClose: () => void
     const model=buildRearControlPage(page==='advanced'?'advanced':'control',rear,t);
     const actions=rearControlActions(rear,openPage,back);
     return createPortal(<div ref={root} data-folia-settings-overlay="true" data-mobile-settings="true"
-        data-folia-keyboard-window="true" data-testid="mobile-settings-landing" className="fixed inset-0" style={{ zIndex: 136 }}>
+        data-folia-keyboard-window="true" data-testid="mobile-settings-landing" className="fixed inset-0" style={{ zIndex: 136 }} data-settings-layout="column">
         {(!native||guide)&&<div data-folia-settings-panel="true" role="dialog" aria-modal="true" aria-label={t('ui.options')}
-            className="flex flex-col overflow-hidden h-full" style={{ color: lightInterface ? '#213e34' : '#e8f4ed' }}>
+            className="flex flex-col overflow-hidden h-full" style={{ color: lightInterface ? '#213e34' : '#e8f4ed' }} data-settings-layout="column">
             <MobileSettingsHeader primary={page==='index'} title={t(appearance?appearanceTitle:page==='index'?'ui.options':page==='guide'?'mobileSettings.startupGuide':page==='diagnostics'?'rearControl.diagnostics':page==='advanced'?'rearControl.advanced':'rearControl.title')}
                 onBack={back} onClose={onClose} />
-            {guide ? <div className={editor?"ty-rear-editor-host":"ty-rear-page-scroll"}><Suspense fallback={null}>{appearance?<RearAppearance page={page as RearSettingsPage} open={openPage}/>:<RearLyricsGuide backend={rear.snapshot?.backendMode} diagnosticsOnly={page==='diagnostics'} />}</Suspense></div>
-                : page!=='index'?<div className="ty-rear-page-scroll">{page==='advanced'?<RearBridgeSettings rear={rear} actions={actions}/>:<RearControlView model={model} actions={actions}/>}</div>
+            {guide ? <div data-settings-page-body={!editor ? true : undefined} className={editor?"ty-rear-editor-host":"ty-rear-page-scroll"} data-settings-layout="column"><Suspense fallback={null}>{appearance?<RearAppearance page={page as RearSettingsPage} open={openPage}/>:<RearLyricsGuide backend={rear.snapshot?.backendMode} diagnosticsOnly={page==='diagnostics'} />}</Suspense></div>
+                : page!=='index'?<div data-settings-page-body className="ty-rear-page-scroll" data-settings-layout="column">{page==='advanced'?<RearBridgeSettings rear={rear} actions={actions}/>:<RearControlView model={model} actions={actions}/>}</div>
                 : <MobileSettingsNavigation groups={groups} index onSelect={select} onHelp={help}
                     onGuide={() => openPage('control')} rearEntry={<RearLyricsEntry state={rear} onOpen={()=>openPage('control')}/>} />}
         </div>}

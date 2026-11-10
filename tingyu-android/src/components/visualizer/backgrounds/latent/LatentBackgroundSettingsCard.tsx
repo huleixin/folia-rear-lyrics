@@ -52,10 +52,10 @@ const SliderRow: React.FC<SliderRowProps> = ({
     onPointerUp,
     disabled = false,
 }) => (
-    <label className="block space-y-2">
-        <span className="flex justify-between gap-3 text-sm" style={{ color: theme.primaryColor }}>
-            <span>{label}</span>
-            <span className="font-mono opacity-70">{format(value)}</span>
+    <label className="block space-y-2" data-settings-style='{"gap":8}' data-settings-layout="wrap">
+        <span className="flex justify-between gap-3 text-sm" style={{ color: theme.primaryColor }} data-settings-style='{"align":"between","gap":12,"font":14}' data-settings-layout="row">
+            <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{label}</span>
+            <span className="font-mono opacity-70" data-settings-layout="wrap">{format(value)}</span>
         </span>
         <input
             type="range"
@@ -68,7 +68,7 @@ const SliderRow: React.FC<SliderRowProps> = ({
             onPointerDown={onPointerDown}
             onPointerUp={onPointerUp}
             className={rangeInputClass}
-        />
+         data-settings-layout="column"/>
     </label>
 );
 
@@ -102,21 +102,21 @@ const LatentBackgroundSettingsCard: React.FC<LatentBackgroundSettingsCardProps> 
     };
 
     return (
-        <div className="rounded-[24px] border p-4 space-y-5" style={{ backgroundColor: controlCardBg, borderColor }}>
-            <div className="space-y-1">
-                <div className="text-sm font-medium" style={{ color: theme.primaryColor }}>
+        <div className="rounded-[24px] border p-4 space-y-5" style={{ backgroundColor: controlCardBg, borderColor }} data-settings-style='{"radius":24,"border":true,"gap":20,"padding":[16,16,16,16]}' data-settings-layout="card">
+            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: theme.primaryColor }} data-settings-style='{"font":14,"weight":500}' data-settings-layout="column">
                     {t('options.latentBackgroundSettings')}
                 </div>
-                <div className="text-xs opacity-70" style={{ color: theme.secondaryColor }}>
+                <div className="text-xs opacity-70" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12}' data-settings-layout="column">
                     {t('options.latentBackgroundSettingsDesc')}
                 </div>
             </div>
 
-            <div className="space-y-2">
-                <div className="text-sm" style={{ color: theme.primaryColor }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="text-sm" style={{ color: theme.primaryColor }} data-settings-style='{"font":14}' data-settings-layout="column">
                     {t('options.latentDisplayMode')}
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-2" data-settings-style='{"columns":3,"gap":8}' data-settings-layout="grid">
                     {displayModes.map(([value, label]) => (
                         <button
                             key={value}
@@ -128,18 +128,18 @@ const LatentBackgroundSettingsCard: React.FC<LatentBackgroundSettingsCardProps> 
                                 backgroundColor: tuning.displayMode === value ? selectedBg : 'transparent',
                                 color: theme.primaryColor,
                             }}
-                        >
+                         data-settings-style='{"radius":12,"border":true,"font":12,"padding":[8,8,8,8]}' data-settings-layout="row">
                             {label}
                         </button>
                     ))}
                 </div>
             </div>
 
-            <div className="space-y-2">
-                <div className="text-sm" style={{ color: theme.primaryColor }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="text-sm" style={{ color: theme.primaryColor }} data-settings-style='{"font":14}' data-settings-layout="column">
                     {t('options.latentColorSource')}
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2" data-settings-style='{"columns":2,"gap":8}' data-settings-layout="grid">
                     {colorSources.map(([value, label]) => (
                         <button
                             key={value}
@@ -151,7 +151,7 @@ const LatentBackgroundSettingsCard: React.FC<LatentBackgroundSettingsCardProps> 
                                 backgroundColor: tuning.colorSource === value ? selectedBg : 'transparent',
                                 color: theme.primaryColor,
                             }}
-                        >
+                         data-settings-style='{"radius":12,"border":true,"font":12,"padding":[8,8,8,8]}' data-settings-layout="row">
                             {label}
                         </button>
                     ))}
@@ -174,7 +174,7 @@ const LatentBackgroundSettingsCard: React.FC<LatentBackgroundSettingsCardProps> 
                 theme={theme}
             />
 
-            <div className="space-y-3 rounded-2xl border p-3" style={{ borderColor }}>
+            <div className="space-y-3 rounded-2xl border p-3" style={{ borderColor }} data-settings-style='{"gap":12,"radius":16,"border":true,"padding":[12,12,12,12]}' data-settings-layout="card">
                 <BackgroundToggleRow
                     label={t('options.nomandBackgroundOverlay')}
                     description={t('options.nomandBackgroundOverlayDesc')}
@@ -182,7 +182,7 @@ const LatentBackgroundSettingsCard: React.FC<LatentBackgroundSettingsCardProps> 
                     onChange={overlayEnabled => onTuningChange?.({ overlayEnabled })}
                     theme={theme}
                 />
-                <div className={tuning.overlayEnabled ? '' : 'opacity-45'}>
+                <div className={tuning.overlayEnabled ? '' : 'opacity-45'} data-settings-style='{"tone":"muted"}' data-settings-layout="column">
                     <SliderRow
                         {...sharedSliderProps}
                         label={t('options.nomandBackgroundOverlayOpacity')}
@@ -197,8 +197,8 @@ const LatentBackgroundSettingsCard: React.FC<LatentBackgroundSettingsCardProps> 
                 </div>
             </div>
 
-            <div className="space-y-4 rounded-2xl border p-3" style={{ borderColor }}>
-                <div className="text-xs font-medium uppercase tracking-[0.2em]" style={{ color: theme.secondaryColor }}>
+            <div className="space-y-4 rounded-2xl border p-3" style={{ borderColor }} data-settings-style='{"gap":16,"radius":16,"border":true,"padding":[12,12,12,12]}' data-settings-layout="card">
+                <div className="text-xs font-medium uppercase tracking-[0.2em]" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12,"weight":500}' data-settings-layout="column">
                     {t('options.latentDitheringGroup')}
                 </div>
                 <SliderRow
@@ -240,8 +240,8 @@ const LatentBackgroundSettingsCard: React.FC<LatentBackgroundSettingsCardProps> 
                 />
             </div>
 
-            <div className="space-y-4 rounded-2xl border p-3" style={{ borderColor }}>
-                <div className="text-xs font-medium uppercase tracking-[0.2em]" style={{ color: theme.secondaryColor }}>
+            <div className="space-y-4 rounded-2xl border p-3" style={{ borderColor }} data-settings-style='{"gap":16,"radius":16,"border":true,"padding":[12,12,12,12]}' data-settings-layout="card">
+                <div className="text-xs font-medium uppercase tracking-[0.2em]" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12,"weight":500}' data-settings-layout="column">
                     {t('options.latentMeshGroup')}
                 </div>
                 <SliderRow

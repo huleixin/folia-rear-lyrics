@@ -54,10 +54,10 @@ const StrengthControl: React.FC<StrengthControlProps> = ({
 
     return (
         <>
-            <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-45" style={{ color: theme.secondaryColor }}>
+            <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-45" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12,"weight":500,"tone":"muted"}' data-settings-layout="column">
                 {t('options.dioramaEffectStrength')}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" data-settings-style='{"gap":8}' data-settings-layout="wrap">
                 {choices.map(choice => {
                     const active = choice.key === activeChoice;
                     return (
@@ -85,19 +85,19 @@ const StrengthControl: React.FC<StrengthControlProps> = ({
                                     : colorWithAlpha(theme.backgroundColor, isDaylight ? 0.24 : 0.34),
                                 boxShadow: active ? `inset 0 0 0 1px ${theme.accentColor}` : 'none',
                             }}
-                        >
+                         data-settings-style='{"radius":64,"border":true,"font":14,"padding":[12,8,12,8]}' data-settings-layout="row">
                             {choice.label}
                         </button>
                     );
                 })}
             </div>
             {enabled && activeChoice === 'custom' && (
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                        <span style={{ color: 'var(--text-primary)' }}>
+                <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                    <div className="flex items-center justify-between text-sm" data-settings-style='{"align":"between","font":14}' data-settings-layout="row">
+                        <span style={{ color: 'var(--text-primary)' }} data-settings-style='{"tone":"text","grow":true}' data-settings-layout="wrap">
                             {t('options.dioramaCustomStrength')}
                         </span>
-                        <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+                        <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                             {Math.round(intensity * 100)}%
                         </span>
                     </div>
@@ -112,7 +112,7 @@ const StrengthControl: React.FC<StrengthControlProps> = ({
                         onPointerDown={onSliderPointerDown}
                         onPointerUp={onSliderCommit}
                         className={rangeInputClass}
-                    />
+                     data-settings-layout="column"/>
                 </div>
             )}
         </>
@@ -162,30 +162,30 @@ export const DioramaEffectSettings: React.FC<DioramaEffectSettingsProps> = ({
     const controlsId = useId();
 
     return (
-        <fieldset className="space-y-2.5">
-            <legend className="sr-only">{label}</legend>
+        <fieldset className="space-y-2.5" data-settings-style='{"gap":10}' data-settings-layout="column">
+            <legend className="sr-only" data-settings-layout="column">{label}</legend>
             <div
                 className="flex items-center justify-between gap-3 rounded-2xl border px-3.5 py-3"
                 style={{
                     borderColor: colorWithAlpha(theme.secondaryColor, isDaylight ? 0.17 : 0.14),
                     backgroundColor: colorWithAlpha(theme.backgroundColor, isDaylight ? 0.24 : 0.34),
                 }}
-            >
+             data-settings-style='{"align":"between","gap":12,"radius":16,"border":true,"padding":[14,12,14,12],"fill":true}' data-settings-layout="row">
                 <button
                     type="button"
                     aria-expanded={isExpanded}
                     aria-controls={controlsId}
                     onClick={() => setIsExpanded(expanded => !expanded)}
                     className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                >
+                 data-settings-style='{"align":"center","grow":true,"gap":8}' data-settings-layout="row">
                     <ChevronDown
                         size={16}
                         aria-hidden="true"
                         className={`shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                         style={{ color: 'var(--text-secondary)' }}
                     />
-                    <span className="min-w-0">
-                        <span className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <span className="min-w-0" data-settings-layout="column">
+                        <span className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                             {label}
                         </span>
                     </span>
@@ -204,7 +204,7 @@ export const DioramaEffectSettings: React.FC<DioramaEffectSettingsProps> = ({
                     id={controlsId}
                     className="ml-3 space-y-3 border-l pl-3"
                     style={{ borderColor: colorWithAlpha(theme.accentColor, enabled ? 0.3 : 0.12) }}
-                >
+                 data-settings-style='{"gap":12,"padding":[12,0,0,0],"margin":[12,0,0,0]}' data-settings-layout="column">
                     <StrengthControl
                         label={label}
                         intensity={intensity}
@@ -221,8 +221,8 @@ export const DioramaEffectSettings: React.FC<DioramaEffectSettingsProps> = ({
                         <div
                             className="flex items-center justify-between gap-3 border-t pt-3"
                             style={{ borderColor: colorWithAlpha(theme.secondaryColor, isDaylight ? 0.18 : 0.14) }}
-                        >
-                            <span className="min-w-0 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                         data-settings-style='{"align":"between","gap":12,"padding":[0,12,0,0]}' data-settings-layout="row">
+                            <span className="min-w-0 text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text","grow":true}' data-settings-layout="wrap">
                                 {subEffect.label}
                             </span>
                             <DioramaSettingsToggle

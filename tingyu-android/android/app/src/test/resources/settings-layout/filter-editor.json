@@ -1,0 +1,1207 @@
+{
+  "key": "settings-flow:qa",
+  "title": "歌词过滤",
+  "nodes": [
+    {
+      "id": "form:1244:text:0",
+      "kind": "note",
+      "title": "预览当前播放歌曲的歌词过滤效果"
+    },
+    {
+      "id": "form:1245",
+      "kind": "action",
+      "title": "清空",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "icon": "rotate-ccw"
+    },
+    {
+      "id": "form:1246",
+      "kind": "action",
+      "title": "保存",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1247:text:3",
+      "kind": "note",
+      "title": "预览"
+    },
+    {
+      "id": "form:1248:text:4",
+      "kind": "note",
+      "title": "当前没有可预览的歌词"
+    },
+    {
+      "id": "form:1249:text:5",
+      "kind": "note",
+      "title": "当前没有可预览的歌词内容"
+    },
+    {
+      "id": "form:1250:text:6",
+      "kind": "note",
+      "title": "逐行过滤规则"
+    },
+    {
+      "id": "form:1251:text:7",
+      "kind": "note",
+      "title": "按整首歌的正文歌词逐行匹配，命中后删除整行。"
+    },
+    {
+      "id": "form:1252",
+      "kind": "switch",
+      "title": "启用逐行过滤",
+      "value": "0",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1253",
+      "kind": "input",
+      "title": "逐行过滤规则",
+      "value": "",
+      "disabled": true,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "输入正则表达式",
+      "multiline": true,
+      "inputType": "textarea",
+      "immediate": true,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1254:text:10",
+      "kind": "note",
+      "title": "示例："
+    },
+    {
+      "id": "form:1255:text:11",
+      "kind": "note",
+      "title": "^(?=.*[：:（）()])(?=.*(?:词|曲|制作|发行)).*$"
+    },
+    {
+      "id": "form:1256:text:12",
+      "kind": "note",
+      "title": "开头制作人员信息"
+    },
+    {
+      "id": "form:1257:text:13",
+      "kind": "note",
+      "title": "识别并处理歌词开头的制作人员信息"
+    },
+    {
+      "id": "form:1258",
+      "kind": "action",
+      "title": "始终显示",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1259",
+      "kind": "action",
+      "title": "按前奏长度",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "detail": "✓"
+    },
+    {
+      "id": "form:1260",
+      "kind": "action",
+      "title": "始终隐藏",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1261:text:17",
+      "kind": "note",
+      "title": "前奏够长就显示，不够就整块隐藏。"
+    },
+    {
+      "id": "form:1262:text:18",
+      "kind": "note",
+      "title": "每行最少停留"
+    },
+    {
+      "id": "form:1263:text:19",
+      "kind": "note",
+      "title": "1.5 秒"
+    },
+    {
+      "id": "form:1264",
+      "kind": "slider",
+      "title": "每行最少停留",
+      "value": "1.5",
+      "disabled": false,
+      "min": 0.6,
+      "max": 4,
+      "step": 0.1,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "range",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1265:text:21",
+      "kind": "note",
+      "title": "单条歌词行的最低允许持续时间"
+    },
+    {
+      "id": "form:1266:text:22",
+      "kind": "note",
+      "title": "吸收相邻行"
+    },
+    {
+      "id": "form:1267",
+      "kind": "action",
+      "title": "关闭",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "detail": "✓"
+    },
+    {
+      "id": "form:1268",
+      "kind": "action",
+      "title": "向前吸收",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1269",
+      "kind": "action",
+      "title": "前后吸收",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1270:text:26",
+      "kind": "note",
+      "title": "只处理识别出的署名行。"
+    },
+    {
+      "id": "form:1271:text:27",
+      "kind": "note",
+      "title": "自定义识别规则"
+    },
+    {
+      "id": "form:1272:text:28",
+      "kind": "note",
+      "title": "留空使用内置署名词表。填写后整体替换内置规则，但仍然只作用于开头那一块。"
+    },
+    {
+      "id": "form:1273",
+      "kind": "input",
+      "title": "开头制作人员信息",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "留空则使用内置词表",
+      "multiline": true,
+      "inputType": "textarea",
+      "immediate": true,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1274:text:30",
+      "kind": "note",
+      "title": "示例："
+    },
+    {
+      "id": "form:1275:text:31",
+      "kind": "note",
+      "title": "^(?:作词|作曲|编曲|制作人|混音|母带)\\s*[:：]"
+    },
+    {
+      "id": "form:1276:text:32",
+      "kind": "note",
+      "title": "当前歌曲的判定"
+    },
+    {
+      "id": "form:1276:text:33",
+      "kind": "note",
+      "title": "："
+    },
+    {
+      "id": "form:1276:text:34",
+      "kind": "note",
+      "title": "未识别到署名块"
+    }
+  ],
+  "layout": {
+    "id": "page:form:1293",
+    "kind": "column",
+    "style": {
+      "padding": [
+        22,
+        0,
+        22,
+        0
+      ],
+      "grow": true,
+      "gap": 0
+    },
+    "children": [
+      {
+        "id": "form:1277",
+        "kind": "column",
+        "style": {
+          "minHeight": 0,
+          "divider": true
+        },
+        "children": [
+          {
+            "id": "form:1278",
+            "kind": "row",
+            "style": {
+              "align": "between",
+              "padding": [
+                16,
+                16,
+                16,
+                16
+              ]
+            },
+            "children": [
+              {
+                "id": "form:1279",
+                "kind": "column",
+                "style": {
+                  "grow": true
+                },
+                "children": [
+                  {
+                    "id": "form:1247",
+                    "kind": "column",
+                    "style": {
+                      "font": 14,
+                      "weight": 500,
+                      "tone": "text"
+                    },
+                    "children": [
+                      {
+                        "id": "copy:1",
+                        "kind": "text",
+                        "text": "预览"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:1248",
+                    "kind": "column",
+                    "style": {
+                      "font": 12,
+                      "margin": [
+                        0,
+                        4,
+                        0,
+                        0
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "copy:2",
+                        "kind": "text",
+                        "text": "当前没有可预览的歌词"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "form:1280",
+            "kind": "column",
+            "style": {
+              "grow": true,
+              "minHeight": 0,
+              "padding": [
+                16,
+                0,
+                16,
+                20
+              ]
+            },
+            "children": [
+              {
+                "id": "form:1249",
+                "kind": "row",
+                "style": {
+                  "align": "center",
+                  "center": true,
+                  "font": 14
+                },
+                "children": [
+                  {
+                    "id": "copy:3",
+                    "kind": "text",
+                    "text": "当前没有可预览的歌词内容"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "form:1281",
+        "kind": "column",
+        "style": {
+          "minHeight": 0,
+          "gap": 16,
+          "padding": [
+            16,
+            20,
+            16,
+            20
+          ]
+        },
+        "children": [
+          {
+            "id": "form:1282",
+            "kind": "card",
+            "style": {
+              "radius": 24,
+              "border": true,
+              "padding": [
+                16,
+                16,
+                16,
+                16
+              ]
+            },
+            "children": [
+              {
+                "id": "form:1283",
+                "kind": "row",
+                "style": {
+                  "align": "between",
+                  "gap": 16
+                },
+                "children": [
+                  {
+                    "id": "form:1284",
+                    "kind": "column",
+                    "style": {
+                      "grow": true
+                    },
+                    "children": [
+                      {
+                        "id": "form:1250",
+                        "kind": "column",
+                        "style": {
+                          "font": 14,
+                          "weight": 500,
+                          "tone": "text"
+                        },
+                        "children": [
+                          {
+                            "id": "copy:4",
+                            "kind": "text",
+                            "text": "逐行过滤规则"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:1251",
+                        "kind": "column",
+                        "style": {
+                          "font": 12,
+                          "margin": [
+                            0,
+                            4,
+                            0,
+                            0
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "copy:5",
+                            "kind": "text",
+                            "text": "按整首歌的正文歌词逐行匹配，命中后删除整行。"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "layout:form:1252",
+                    "kind": "control",
+                    "ref": "form:1252",
+                    "style": {
+                      "height": 24,
+                      "width": 48,
+                      "radius": 64,
+                      "padding": [
+                        4,
+                        4,
+                        4,
+                        4
+                      ],
+                      "margin": [
+                        0,
+                        2,
+                        0,
+                        0
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "layout:form:1253",
+                "kind": "control",
+                "ref": "form:1253",
+                "style": {
+                  "radius": 16,
+                  "border": true,
+                  "font": 14,
+                  "padding": [
+                    16,
+                    12,
+                    16,
+                    12
+                  ],
+                  "margin": [
+                    0,
+                    16,
+                    0,
+                    0
+                  ],
+                  "tone": "text",
+                  "minHeight": 81
+                }
+              },
+              {
+                "id": "form:1254",
+                "kind": "column",
+                "style": {
+                  "font": 12,
+                  "padding": [
+                    4,
+                    0,
+                    4,
+                    0
+                  ],
+                  "margin": [
+                    0,
+                    12,
+                    0,
+                    0
+                  ],
+                  "tone": "muted"
+                },
+                "children": [
+                  {
+                    "id": "copy:6",
+                    "kind": "text",
+                    "text": "示例："
+                  },
+                  {
+                    "id": "form:1255",
+                    "kind": "column",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "copy:7",
+                        "kind": "text",
+                        "text": "^(?=.*[：:（）()])(?=.*(?:词|曲|制作|发行)).*$"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "form:1285",
+            "kind": "card",
+            "style": {
+              "radius": 24,
+              "border": true,
+              "padding": [
+                16,
+                16,
+                16,
+                16
+              ]
+            },
+            "children": [
+              {
+                "id": "form:1256",
+                "kind": "column",
+                "style": {
+                  "font": 14,
+                  "weight": 500,
+                  "tone": "text"
+                },
+                "children": [
+                  {
+                    "id": "copy:8",
+                    "kind": "text",
+                    "text": "开头制作人员信息"
+                  }
+                ]
+              },
+              {
+                "id": "form:1257",
+                "kind": "column",
+                "style": {
+                  "font": 12,
+                  "margin": [
+                    0,
+                    4,
+                    0,
+                    0
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "copy:9",
+                    "kind": "text",
+                    "text": "识别并处理歌词开头的制作人员信息"
+                  }
+                ]
+              },
+              {
+                "id": "form:1286",
+                "kind": "grid",
+                "style": {
+                  "columns": 3,
+                  "gap": 4,
+                  "radius": 16,
+                  "border": true,
+                  "padding": [
+                    4,
+                    4,
+                    4,
+                    4
+                  ],
+                  "margin": [
+                    0,
+                    16,
+                    0,
+                    0
+                  ],
+                  "fill": true
+                },
+                "children": [
+                  {
+                    "id": "layout:form:1258",
+                    "kind": "control",
+                    "ref": "form:1258",
+                    "style": {
+                      "radius": 12,
+                      "font": 12,
+                      "weight": 500,
+                      "padding": [
+                        12,
+                        8,
+                        12,
+                        8
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:1258",
+                        "kind": "row",
+                        "style": {},
+                        "children": [
+                          {
+                            "id": "copy:10",
+                            "kind": "text",
+                            "text": "始终显示"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "layout:form:1259",
+                    "kind": "control",
+                    "ref": "form:1259",
+                    "style": {
+                      "radius": 12,
+                      "font": 12,
+                      "weight": 500,
+                      "padding": [
+                        12,
+                        8,
+                        12,
+                        8
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:1259",
+                        "kind": "row",
+                        "style": {},
+                        "children": [
+                          {
+                            "id": "copy:11",
+                            "kind": "text",
+                            "text": "按前奏长度"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "layout:form:1260",
+                    "kind": "control",
+                    "ref": "form:1260",
+                    "style": {
+                      "radius": 12,
+                      "font": 12,
+                      "weight": 500,
+                      "padding": [
+                        12,
+                        8,
+                        12,
+                        8
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:1260",
+                        "kind": "row",
+                        "style": {},
+                        "children": [
+                          {
+                            "id": "copy:12",
+                            "kind": "text",
+                            "text": "始终隐藏"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:1261",
+                "kind": "column",
+                "style": {
+                  "font": 12,
+                  "padding": [
+                    4,
+                    0,
+                    4,
+                    0
+                  ],
+                  "margin": [
+                    0,
+                    8,
+                    0,
+                    0
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "copy:13",
+                    "kind": "text",
+                    "text": "前奏够长就显示，不够就整块隐藏。"
+                  }
+                ]
+              },
+              {
+                "id": "form:1287",
+                "kind": "column",
+                "style": {
+                  "margin": [
+                    0,
+                    16,
+                    0,
+                    0
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "form:1288",
+                    "kind": "row",
+                    "style": {
+                      "align": "between",
+                      "font": 12,
+                      "tone": "text"
+                    },
+                    "children": [
+                      {
+                        "id": "form:1262",
+                        "kind": "wrap",
+                        "style": {
+                          "grow": true
+                        },
+                        "children": [
+                          {
+                            "id": "copy:14",
+                            "kind": "text",
+                            "text": "每行最少停留"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:1263",
+                        "kind": "wrap",
+                        "style": {},
+                        "children": [
+                          {
+                            "id": "copy:15",
+                            "kind": "text",
+                            "text": "1.5 秒"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "layout:form:1264",
+                    "kind": "control",
+                    "ref": "form:1264",
+                    "style": {
+                      "margin": [
+                        0,
+                        8,
+                        0,
+                        0
+                      ]
+                    }
+                  },
+                  {
+                    "id": "form:1265",
+                    "kind": "column",
+                    "style": {
+                      "font": 12,
+                      "margin": [
+                        0,
+                        4,
+                        0,
+                        0
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "copy:16",
+                        "kind": "text",
+                        "text": "单条歌词行的最低允许持续时间"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:1289",
+                "kind": "column",
+                "style": {
+                  "margin": [
+                    0,
+                    16,
+                    0,
+                    0
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "form:1290",
+                    "kind": "column",
+                    "style": {
+                      "font": 12,
+                      "tone": "text"
+                    },
+                    "children": [
+                      {
+                        "id": "form:1266",
+                        "kind": "wrap",
+                        "style": {},
+                        "children": [
+                          {
+                            "id": "copy:17",
+                            "kind": "text",
+                            "text": "吸收相邻行"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:1291",
+                    "kind": "grid",
+                    "style": {
+                      "columns": 3,
+                      "gap": 4,
+                      "radius": 16,
+                      "border": true,
+                      "padding": [
+                        4,
+                        4,
+                        4,
+                        4
+                      ],
+                      "margin": [
+                        0,
+                        8,
+                        0,
+                        0
+                      ],
+                      "fill": true
+                    },
+                    "children": [
+                      {
+                        "id": "layout:form:1267",
+                        "kind": "control",
+                        "ref": "form:1267",
+                        "style": {
+                          "radius": 12,
+                          "font": 12,
+                          "weight": 500,
+                          "padding": [
+                            12,
+                            8,
+                            12,
+                            8
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:1267",
+                            "kind": "row",
+                            "style": {},
+                            "children": [
+                              {
+                                "id": "copy:18",
+                                "kind": "text",
+                                "text": "关闭"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:1268",
+                        "kind": "control",
+                        "ref": "form:1268",
+                        "style": {
+                          "radius": 12,
+                          "font": 12,
+                          "weight": 500,
+                          "padding": [
+                            12,
+                            8,
+                            12,
+                            8
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:1268",
+                            "kind": "row",
+                            "style": {},
+                            "children": [
+                              {
+                                "id": "copy:19",
+                                "kind": "text",
+                                "text": "向前吸收"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:1269",
+                        "kind": "control",
+                        "ref": "form:1269",
+                        "style": {
+                          "radius": 12,
+                          "font": 12,
+                          "weight": 500,
+                          "padding": [
+                            12,
+                            8,
+                            12,
+                            8
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:1269",
+                            "kind": "row",
+                            "style": {},
+                            "children": [
+                              {
+                                "id": "copy:20",
+                                "kind": "text",
+                                "text": "前后吸收"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:1270",
+                    "kind": "column",
+                    "style": {
+                      "font": 12,
+                      "padding": [
+                        4,
+                        0,
+                        4,
+                        0
+                      ],
+                      "margin": [
+                        0,
+                        8,
+                        0,
+                        0
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "copy:21",
+                        "kind": "text",
+                        "text": "只处理识别出的署名行。"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:1271",
+                "kind": "column",
+                "style": {
+                  "font": 12,
+                  "weight": 500,
+                  "margin": [
+                    0,
+                    20,
+                    0,
+                    0
+                  ],
+                  "tone": "text"
+                },
+                "children": [
+                  {
+                    "id": "copy:22",
+                    "kind": "text",
+                    "text": "自定义识别规则"
+                  }
+                ]
+              },
+              {
+                "id": "form:1272",
+                "kind": "column",
+                "style": {
+                  "font": 12,
+                  "margin": [
+                    0,
+                    4,
+                    0,
+                    0
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "copy:23",
+                    "kind": "text",
+                    "text": "留空使用内置署名词表。填写后整体替换内置规则，但仍然只作用于开头那一块。"
+                  }
+                ]
+              },
+              {
+                "id": "layout:form:1273",
+                "kind": "control",
+                "ref": "form:1273",
+                "style": {
+                  "radius": 16,
+                  "border": true,
+                  "font": 14,
+                  "padding": [
+                    16,
+                    12,
+                    16,
+                    12
+                  ],
+                  "margin": [
+                    0,
+                    12,
+                    0,
+                    0
+                  ],
+                  "tone": "text",
+                  "minHeight": 81
+                }
+              },
+              {
+                "id": "form:1274",
+                "kind": "column",
+                "style": {
+                  "font": 12,
+                  "padding": [
+                    4,
+                    0,
+                    4,
+                    0
+                  ],
+                  "margin": [
+                    0,
+                    8,
+                    0,
+                    0
+                  ],
+                  "tone": "muted"
+                },
+                "children": [
+                  {
+                    "id": "copy:24",
+                    "kind": "text",
+                    "text": "示例："
+                  },
+                  {
+                    "id": "form:1275",
+                    "kind": "column",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "copy:25",
+                        "kind": "text",
+                        "text": "^(?:作词|作曲|编曲|制作人|混音|母带)\\s*[:：]"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:1292",
+                "kind": "card",
+                "style": {
+                  "radius": 16,
+                  "border": true,
+                  "padding": [
+                    12,
+                    12,
+                    12,
+                    12
+                  ],
+                  "margin": [
+                    0,
+                    20,
+                    0,
+                    0
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "form:1276",
+                    "kind": "column",
+                    "style": {
+                      "font": 12,
+                      "weight": 500,
+                      "tone": "text"
+                    },
+                    "children": [
+                      {
+                        "id": "copy:26",
+                        "kind": "text",
+                        "text": "当前歌曲的判定：未识别到署名块"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "headerActions": [
+    "form:1245",
+    "form:1246"
+  ]
+}

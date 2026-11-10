@@ -16,11 +16,11 @@ export default function FrontStageAppearancePage({page,editingTheme,initialTheme
     useEffect(()=>page?warmRearThemeEditor():undefined,[page]);
     if(!page)return children;
     return <div className="fixed inset-0 z-[140] flex flex-col" data-native-settings-editor data-front-stage-settings="true"
-        data-folia-settings-overlay="true" data-mobile-settings="true">
-        <div data-folia-settings-panel="true" className="flex h-full min-h-0 flex-col overflow-hidden">
+        data-folia-settings-overlay="true" data-mobile-settings="true" data-settings-layout="column">
+        <div data-folia-settings-panel="true" className="flex h-full min-h-0 flex-col overflow-hidden" data-settings-style='{"minHeight":0}' data-settings-layout="column">
             <MobileSettingsHeader primary={false} title={t(editingTheme?'rearAppearance.theme':'rearAppearance.edit')} onBack={onBack} onClose={onBack}/>
-            <div className="ty-rear-editor-host">
-                {editingTheme?<Suspense fallback={<p className="ty-rear-editor-loading">{t('rearAppearance.loading')}</p>}>
+            <div className="ty-rear-editor-host" data-settings-layout="column">
+                {editingTheme?<Suspense fallback={<p className="ty-rear-editor-loading" data-settings-layout="wrap">{t('rearAppearance.loading')}</p>}>
                     <ThemeEditor presentation="page" kind="custom" initialTheme={initialTheme} isDaylight={isDaylight}
                         paletteHint={t('frontAppearance.paletteHint',{mode:t(isDaylight?'options.lightTheme':'options.darkTheme')})}
                         coverUrl={null} promptSourceText={null} isPureMusic={false} songTitle={undefined}

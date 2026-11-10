@@ -27,7 +27,7 @@ export const FRAME_PROPS = {
 
 /** Player view: one big cover, the lyric column beside it, and the level meter underneath. */
 export const PlayerViewArt: React.FC<ArtProps> = ({ accentColor, className }) => (
-    <svg viewBox="0 0 160 100" className={className} role="presentation" aria-hidden="true">
+    <svg data-settings-art data-settings-style='{"aspect":1.6}' viewBox="0 0 160 100" className={className} role="presentation" aria-hidden="true">
         <rect {...FRAME_PROPS} />
         <rect x="16" y="20" width="44" height="44" rx="7" fill={accentColor} fillOpacity="0.85" />
         <rect x="72" y="24" width="62" height="6" rx="3" fill="currentColor" fillOpacity="0.25" />
@@ -62,7 +62,7 @@ const FOCUSED_ROW = 1;
 
 /** Lattice view: the whole queue as a poster wall, with the playing poster lifted out of it. */
 export const LatticeViewArt: React.FC<ArtProps> = ({ accentColor, className }) => (
-    <svg viewBox="0 0 160 100" className={className} role="presentation" aria-hidden="true">
+    <svg data-settings-art data-settings-style='{"aspect":1.6}' viewBox="0 0 160 100" className={className} role="presentation" aria-hidden="true">
         <rect {...FRAME_PROPS} />
         {Array.from({ length: LATTICE_ROWS }).flatMap((_, row) => (
             Array.from({ length: LATTICE_COLUMNS }).map((__, column) => {
@@ -114,7 +114,7 @@ const STAY_PLAYING_INDEX = 1;
  * as playing with a pause glyph — and nothing opening on top of it.
  */
 export const StayViewArt: React.FC<ArtProps> = ({ accentColor, className }) => (
-    <svg viewBox="0 0 160 100" className={className} role="presentation" aria-hidden="true">
+    <svg data-settings-art data-settings-style='{"aspect":1.6}' viewBox="0 0 160 100" className={className} role="presentation" aria-hidden="true">
         <rect {...FRAME_PROPS} />
         {Array.from({ length: STAY_ROWS * STAY_COLUMNS }).map((_, index) => {
             const column = index % STAY_COLUMNS;

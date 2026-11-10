@@ -45,8 +45,8 @@ const ThemeParkColorPanel: React.FC<ThemeParkColorPanelProps> = ({
     const selectedBg = isDaylight ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.07)';
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center gap-2 rounded-full bg-white/5 p-1">
+        <div className="space-y-4" data-settings-style='{"gap":16}' data-settings-layout="column">
+            <div className="flex items-center gap-2 rounded-full bg-white/5 p-1" data-settings-style='{"align":"center","gap":8,"radius":64,"fill":true,"padding":[4,4,4,4]}' data-settings-layout="row">
                 {(['light', 'dark'] as EditableMode[]).map(nextMode => (
                     <button
                         key={nextMode}
@@ -60,13 +60,13 @@ const ThemeParkColorPanel: React.FC<ThemeParkColorPanelProps> = ({
                                 ? (isDaylight ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.12)')
                                 : 'transparent',
                         }}
-                    >
+                     data-settings-style='{"grow":true,"radius":64,"font":14,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="row">
                         {t(nextMode === 'light' ? 'options.lightTheme' : 'options.darkTheme')}
                     </button>
                 ))}
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3" data-settings-style='{"gap":12}' data-settings-layout="column">
                 {COLOR_FIELDS.map(field => {
                     const colorValue = activeTheme[field.key];
                     const isActive = activeColorKey === field.key;
@@ -82,17 +82,17 @@ const ThemeParkColorPanel: React.FC<ThemeParkColorPanelProps> = ({
                                 borderColor: isActive ? activeTheme.accentColor : idleBorderColor,
                                 backgroundColor: isActive ? selectedBg : 'transparent',
                             }}
-                        >
-                            <div className="h-10 w-10 rounded-xl border border-black/10" style={{ backgroundColor: colorValue }} />
-                            <div className="min-w-0 flex-1">
-                                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                         data-settings-style='{"align":"center","gap":12,"radius":16,"border":true,"padding":[12,12,12,12]}' data-settings-layout="row">
+                            <div className="h-10 w-10 rounded-xl border border-black/10" style={{ backgroundColor: colorValue }}  data-settings-style='{"height":40,"width":40,"radius":12,"border":true}' data-settings-layout="card" data-settings-swatch={colorValue}/>
+                            <div className="min-w-0 flex-1" data-settings-style='{"grow":true}' data-settings-layout="column">
+                                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                     {t(field.labelKey)}
                                 </div>
-                                <div className="mt-0.5 text-xs opacity-55" style={{ color: 'var(--text-secondary)' }}>
+                                <div className="mt-0.5 text-xs opacity-55" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted","margin":[0,2,0,0]}' data-settings-layout="column">
                                     {t(field.descKey)}
                                 </div>
                             </div>
-                            <div className="text-xs font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="text-xs font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                 {colorValue.toUpperCase()}
                             </div>
                         </button>
@@ -100,22 +100,22 @@ const ThemeParkColorPanel: React.FC<ThemeParkColorPanelProps> = ({
                 })}
             </div>
 
-            <div className="relative z-40 space-y-3 rounded-[24px] border border-white/10 p-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            <div className="relative z-40 space-y-3 rounded-[24px] border border-white/10 p-4" data-settings-style='{"gap":12,"radius":24,"border":true,"padding":[16,16,16,16]}' data-settings-layout="card">
+                <div className="flex items-center justify-between" data-settings-style='{"align":"between"}' data-settings-layout="row">
+                    <div data-settings-style='{"grow":true}' data-settings-layout="column">
+                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                             {t(pickerField.labelKey)}
                         </div>
-                        <div className="mt-1 text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="mt-1 text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="column">
                             {t(pickerField.descKey)}
                         </div>
                     </div>
-                    <div className="rounded-full px-3 py-1 text-xs font-mono" style={{ color: activeTheme.backgroundColor, backgroundColor: activeColor }}>
+                    <div className="rounded-full px-3 py-1 text-xs font-mono" style={{ color: activeTheme.backgroundColor, backgroundColor: activeColor }} data-settings-style='{"radius":64,"font":12,"padding":[12,4,12,4]}' data-settings-layout="column">
                         {activeColor.toUpperCase()}
                     </div>
                 </div>
 
-                <div className="rounded-[22px] border border-white/10 bg-black/10 p-3">
+                <div className="rounded-[22px] border border-white/10 bg-black/10 p-3" data-settings-style='{"radius":22,"border":true,"fill":true,"padding":[12,12,12,12]}' data-settings-layout="card">
                     <FastColorPicker
                         color={activeColor}
                         height={220}
@@ -123,8 +123,8 @@ const ThemeParkColorPanel: React.FC<ThemeParkColorPanelProps> = ({
                     />
                 </div>
 
-                <label className="block space-y-2">
-                    <div className="text-xs font-medium uppercase tracking-[0.22em] opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                <label className="block space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                    <div className="text-xs font-medium uppercase tracking-[0.22em] opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"weight":500,"tone":"muted"}' data-settings-layout="column">
                         HEX
                     </div>
                     <input
@@ -135,16 +135,16 @@ const ThemeParkColorPanel: React.FC<ThemeParkColorPanelProps> = ({
                         className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-mono text-sm outline-none transition-colors focus:border-white/20"
                         style={{ color: 'var(--text-primary)' }}
                         spellCheck={false}
-                    />
+                     data-settings-style='{"radius":16,"border":true,"fill":true,"font":14,"padding":[16,12,16,12],"tone":"text"}' data-settings-layout="column"/>
                 </label>
             </div>
 
             {recommendedColors.length > 0 && (
-                <div className="space-y-2 rounded-[24px] border border-white/10 p-4">
-                    <div className="text-xs font-medium uppercase tracking-[0.22em] opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                <div className="space-y-2 rounded-[24px] border border-white/10 p-4" data-settings-style='{"gap":8,"radius":24,"border":true,"padding":[16,16,16,16]}' data-settings-layout="card">
+                    <div className="text-xs font-medium uppercase tracking-[0.22em] opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"weight":500,"tone":"muted"}' data-settings-layout="column">
                         {t('options.aiThemeQuickEditRecommendedColors')}
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2" data-settings-style='{"gap":8}' data-settings-layout="wrap">
                         {recommendedColors.map(color => (
                             <button
                                 key={color}
@@ -154,7 +154,7 @@ const ThemeParkColorPanel: React.FC<ThemeParkColorPanelProps> = ({
                                 style={{ backgroundColor: color }}
                                 title={color.toUpperCase()}
                                 aria-label={color}
-                            />
+                             data-settings-style='{"height":32,"width":32,"radius":8,"border":true}' data-settings-layout="row" data-settings-swatch={color}/>
                         ))}
                     </div>
                 </div>

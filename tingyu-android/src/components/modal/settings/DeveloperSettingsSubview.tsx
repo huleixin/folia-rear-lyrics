@@ -53,8 +53,8 @@ const Switch: React.FC<{
         aria-pressed={isOn}
         className={`w-12 h-6 shrink-0 rounded-full p-1 transition-colors ${!isOn ? toggleOffBackgroundClass : ''}`}
         style={{ backgroundColor: isOn ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
-    >
-        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${isOn ? 'translate-x-6' : 'translate-x-0'}`} />
+     data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={isOn ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
+        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${isOn ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
     </button>
 );
 
@@ -71,7 +71,7 @@ const ModeChoice: React.FC<{
         { mode: 'overwrite', label: t('options.debugLogModeOverwrite') || 'Overwrite' },
     ];
     return (
-        <div data-settings-disabled={disabled || undefined} className={`flex gap-1.5 ${disabled ? 'pointer-events-none opacity-40' : ''}`}>
+        <div data-settings-disabled={disabled || undefined} className={`flex gap-1.5 ${disabled ? 'pointer-events-none opacity-40' : ''}`} data-settings-style='{"gap":6}' data-settings-layout="row">
             {options.map(option => {
                 const isActive = value === option.mode;
                 return (
@@ -82,7 +82,7 @@ const ModeChoice: React.FC<{
                         disabled={disabled}
                         onClick={() => onChange(option.mode)}
                         className={`rounded-full border px-3 py-1 text-[11px] transition-colors ${isDaylight ? 'border-black/10 hover:bg-black/[0.05]' : 'border-white/10 hover:bg-white/[0.07]'} ${isActive ? (isDaylight ? 'bg-black/[0.08]' : 'bg-white/[0.12]') : 'opacity-55'}`}
-                    >
+                     data-settings-style='{"radius":64,"border":true,"font":11,"padding":[12,4,12,4]}' data-settings-layout="row">
                         {option.label}
                     </button>
                 );
@@ -101,9 +101,9 @@ const FileRow: React.FC<{
 }> = ({ label, path, onOpen, isDaylight, children }) => {
     const { t } = useTranslation();
     return (
-        <div className={`rounded-xl border px-3 py-2.5 ${isDaylight ? 'border-black/10 bg-black/[0.03]' : 'border-white/10 bg-black/15'}`}>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[11px] opacity-70" style={{ color: 'var(--text-secondary)' }}>{label}</span>
+        <div className={`rounded-xl border px-3 py-2.5 ${isDaylight ? 'border-black/10 bg-black/[0.03]' : 'border-white/10 bg-black/15'}`} data-settings-style='{"radius":12,"border":true,"padding":[12,10,12,10]}' data-settings-layout="card">
+            <div className="flex flex-wrap items-center justify-between gap-2" data-settings-style='{"align":"between","gap":8}' data-settings-layout="wrap">
+                <span className="text-[11px] opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="wrap">{label}</span>
                 {children}
             </div>
             <button
@@ -111,9 +111,9 @@ const FileRow: React.FC<{
                 onClick={onOpen}
                 className="mt-1.5 flex w-full items-center gap-1.5 text-left text-[10px] opacity-45 transition-opacity hover:opacity-80"
                 style={{ color: 'var(--text-secondary)' }}
-            >
+             data-settings-style='{"align":"center","gap":6,"font":10,"tone":"muted","margin":[0,6,0,0]}' data-settings-layout="row">
                 <FolderOpen size={10} className="shrink-0" />
-                <span className="min-w-0 flex-1 truncate">{path || (t('options.debugLogsUnavailable') || 'Desktop app only')}</span>
+                <span className="min-w-0 flex-1 truncate" data-settings-style='{"grow":true}' data-settings-layout="wrap">{path || (t('options.debugLogsUnavailable') || 'Desktop app only')}</span>
             </button>
         </div>
     );
@@ -137,17 +137,17 @@ const DeveloperSettingsSubview: React.FC<DeveloperSettingsSubviewProps> = ({
     const debug = useSyncExternalStore(subscribeToDebugModule, getDebugModuleSnapshot);
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4" data-settings-style='{"gap":16}' data-settings-layout="column">
             <GlassExperimentSection />
-            <div className={`rounded-2xl border p-4 space-y-4 ${settingsCardClass}`}>
-                <div className="flex items-center justify-between gap-4">
-                    <div className="flex min-w-0 items-start gap-3">
-                        <div className="p-2 rounded-lg opacity-60 shrink-0">
+            <div className={`rounded-2xl border p-4 space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":16,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                <div className="flex items-center justify-between gap-4" data-settings-style='{"align":"between","gap":16}' data-settings-layout="row">
+                    <div className="flex min-w-0 items-start gap-3" data-settings-style='{"gap":12,"grow":true}' data-settings-layout="row">
+                        <div className="p-2 rounded-lg opacity-60 shrink-0" data-settings-style='{"radius":8,"tone":"muted","padding":[8,8,8,8]}' data-settings-layout="column">
                             <ScrollText size={14} />
                         </div>
-                        <div className="min-w-0 space-y-1">
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                        <div className="min-w-0 space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                            <div className="flex items-center gap-2" data-settings-style='{"align":"center","gap":8}' data-settings-layout="row">
+                                <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="wrap">
                                     {t('options.consoleLogCapture') || 'Session log'}
                                 </span>
                                 {/* The same log is a keystroke away on the player page, and nobody
@@ -155,11 +155,11 @@ const DeveloperSettingsSubview: React.FC<DeveloperSettingsSubviewProps> = ({
                                 <kbd
                                     className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-normal tracking-wide ${isDaylight ? 'border-black/10 bg-black/[0.04]' : 'border-white/10 bg-white/[0.06]'}`}
                                     style={{ color: 'var(--text-secondary)' }}
-                                >
+                                 data-settings-style='{"radius":4,"border":true,"font":10,"weight":400,"padding":[6,2,6,2],"tone":"muted"}' data-settings-layout="card">
                                     Alt+Shift+D
                                 </kbd>
                             </div>
-                            <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                 {t('options.consoleLogCaptureDesc')
                                     || 'Keep what the app logs while it runs, so a problem can be read back and handed over.'}
                             </div>
@@ -179,7 +179,7 @@ const DeveloperSettingsSubview: React.FC<DeveloperSettingsSubviewProps> = ({
                     onOpen={() => void openDebugLogsFolder('runtime')}
                     isDaylight={isDaylight}
                 >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3" data-settings-style='{"align":"center","gap":12}' data-settings-layout="row">
                         <ModeChoice
                             value={debug.runtimeLogMode}
                             onChange={mode => void setDebugModuleState({ runtimeLogMode: mode })}
@@ -204,25 +204,25 @@ const DeveloperSettingsSubview: React.FC<DeveloperSettingsSubviewProps> = ({
                 />
             </div>
 
-            {debug.available && <div className={`rounded-2xl border p-4 space-y-4 ${settingsCardClass}`}>
-                <div className="flex items-center justify-between gap-4">
-                    <div className="flex min-w-0 items-start gap-3">
-                        <div className="p-2 rounded-lg opacity-60 shrink-0">
+            {debug.available && <div className={`rounded-2xl border p-4 space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":16,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                <div className="flex items-center justify-between gap-4" data-settings-style='{"align":"between","gap":16}' data-settings-layout="row">
+                    <div className="flex min-w-0 items-start gap-3" data-settings-style='{"gap":12,"grow":true}' data-settings-layout="row">
+                        <div className="p-2 rounded-lg opacity-60 shrink-0" data-settings-style='{"radius":8,"tone":"muted","padding":[8,8,8,8]}' data-settings-layout="column">
                             <Activity size={14} />
                         </div>
-                        <div className="min-w-0 space-y-1">
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                        <div className="min-w-0 space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                            <div className="flex items-center gap-2" data-settings-style='{"align":"center","gap":8}' data-settings-layout="row">
+                                <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="wrap">
                                     {t('options.memoryMonitor') || 'Memory monitor'}
                                 </span>
                                 <kbd
                                     className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-normal tracking-wide ${isDaylight ? 'border-black/10 bg-black/[0.04]' : 'border-white/10 bg-white/[0.06]'}`}
                                     style={{ color: 'var(--text-secondary)' }}
-                                >
+                                 data-settings-style='{"radius":4,"border":true,"font":10,"weight":400,"padding":[6,2,6,2],"tone":"muted"}' data-settings-layout="card">
                                     Alt+Shift+M
                                 </kbd>
                             </div>
-                            <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                 {t('options.memoryMonitorDesc') || 'Sample every process and record the curve.'}
                             </div>
                         </div>
@@ -241,7 +241,7 @@ const DeveloperSettingsSubview: React.FC<DeveloperSettingsSubviewProps> = ({
                     onOpen={() => void openDebugLogsFolder('memory')}
                     isDaylight={isDaylight}
                 >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3" data-settings-style='{"align":"center","gap":12}' data-settings-layout="row">
                         <ModeChoice
                             value={debug.memoryLogMode}
                             onChange={mode => void setDebugModuleState({ memoryLogMode: mode })}
@@ -257,11 +257,11 @@ const DeveloperSettingsSubview: React.FC<DeveloperSettingsSubviewProps> = ({
                     </div>
                 </FileRow>
 
-                <div className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 ${isDaylight ? 'border-black/10 bg-black/[0.03]' : 'border-white/10 bg-black/15'}`}>
-                    <span className="text-[11px] opacity-70" style={{ color: 'var(--text-secondary)' }}>
+                <div className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 ${isDaylight ? 'border-black/10 bg-black/[0.03]' : 'border-white/10 bg-black/15'}`} data-settings-style='{"align":"between","gap":12,"radius":12,"border":true,"padding":[12,10,12,10],"fill":true}' data-settings-layout="row">
+                    <span className="text-[11px] opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="wrap">
                         {t('options.memoryMonitorInterval') || 'Interval'}
                     </span>
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-1.5" data-settings-style='{"gap":6}' data-settings-layout="row">
                         {[1000, 2000, 5000, 15000].map(interval => {
                             const isActive = debug.memoryIntervalMs === interval;
                             return (
@@ -272,7 +272,7 @@ const DeveloperSettingsSubview: React.FC<DeveloperSettingsSubviewProps> = ({
                                     aria-pressed={isActive}
                                     onClick={() => void setDebugModuleState({ memoryIntervalMs: interval })}
                                     className={`rounded-full border px-2.5 py-1 text-[11px] tabular-nums transition-colors disabled:opacity-30 ${isDaylight ? 'border-black/10 hover:bg-black/[0.05]' : 'border-white/10 hover:bg-white/[0.07]'} ${isActive ? (isDaylight ? 'bg-black/[0.08]' : 'bg-white/[0.12]') : 'opacity-55'}`}
-                                >
+                                 data-settings-style='{"radius":64,"border":true,"font":11,"padding":[10,4,10,4]}' data-settings-layout="row">
                                     {`${interval / 1000}s`}
                                 </button>
                             );
@@ -281,7 +281,7 @@ const DeveloperSettingsSubview: React.FC<DeveloperSettingsSubviewProps> = ({
                 </div>
             </div>}
 
-            <div className="text-[11px] leading-relaxed opacity-45" style={{ color: 'var(--text-secondary)' }}>
+            <div className="text-[11px] leading-relaxed opacity-45" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                 {t('options.consoleLogConvention')
                     || 'Lines are grouped by the [Module] prefix they start with, so anything logged as console.log(\'[YourModule] …\') can be filtered on its own. See docs/client-logging.md.'}
                 {' '}

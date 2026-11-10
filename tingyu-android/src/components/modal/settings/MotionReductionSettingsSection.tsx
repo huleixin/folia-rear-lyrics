@@ -52,14 +52,14 @@ const MotionReductionSettingsSection: React.FC<MotionReductionSettingsSectionPro
         onChange: (next: boolean) => void,
         forcedBySystem = false,
     ) => (
-        <div className="flex items-center justify-between gap-4">
-            <div className="space-y-1 min-w-0">
-                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{label}</div>
-                <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+        <div className="flex items-center justify-between gap-4" data-settings-style='{"align":"between","gap":16}' data-settings-layout="row">
+            <div className="space-y-1 min-w-0" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">{label}</div>
+                <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {description}
                 </div>
                 {forcedBySystem && (
-                    <div className="text-[11px] opacity-40 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="text-[11px] opacity-40 max-w-[360px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                         {t('options.reduceMotionForcedBySystem')}
                     </div>
                 )}
@@ -74,14 +74,14 @@ const MotionReductionSettingsSection: React.FC<MotionReductionSettingsSectionPro
     const forcedBySystem = followSystem && systemPrefers;
 
     return (
-        <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
+        <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
             {/* 标题交给外面：实验室面板有自己的分区标题，命令面板的输入行会显示命令名。
                 这里只留那句解释，因为「默认不再跟随系统」这件事必须说一次。 */}
-            <div className="text-xs opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+            <div className="text-xs opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                 {t('options.reduceMotionSectionDesc')}
             </div>
 
-            <div className={`border-t pt-4 ${settingsDividerClass}`}>
+            <div className={`border-t pt-4 ${settingsDividerClass}`} data-settings-style='{"padding":[0,16,0,0]}' data-settings-layout="column">
                 {renderToggleRow(
                     t('options.reduceMotionFollowSystem'),
                     t('options.reduceMotionFollowSystemDesc'),
@@ -90,7 +90,7 @@ const MotionReductionSettingsSection: React.FC<MotionReductionSettingsSectionPro
                 )}
             </div>
 
-            <div className={`border-t pt-4 space-y-4 ${settingsDividerClass}`}>
+            <div className={`border-t pt-4 space-y-4 ${settingsDividerClass}`} data-settings-style='{"gap":16,"padding":[0,16,0,0]}' data-settings-layout="column">
                 {MOTION_SURFACE_IDS.filter(surface => !isAndroidNativeRuntime() || ['monetBackground', 'uiMicroMotion', 'settingsScroll'].includes(surface)).map(surface => (
                     <React.Fragment key={surface}>
                         {renderToggleRow(

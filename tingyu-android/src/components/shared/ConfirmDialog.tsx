@@ -56,7 +56,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                         type="button"
                         onClick={onClose}
                         className={`rounded-full border px-5 py-2.5 text-sm font-medium transition-colors ${cancelClass}`}
-                    >
+                     data-settings-style='{"radius":64,"border":true,"font":14,"weight":500,"padding":[20,10,20,10]}' data-settings-layout="row">
                         {cancelText || defaultCancelLabel}
                     </button>
                     <button
@@ -65,7 +65,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                             onConfirm();
                         }}
                         className={`rounded-full px-5 py-2.5 text-sm font-medium transition-colors ${confirmClass}`}
-                    >
+                     data-settings-style='{"radius":64,"font":14,"weight":500,"padding":[20,10,20,10]}' data-settings-layout="row">
                         {confirmText || defaultConfirmLabel}
                     </button>
                 </>

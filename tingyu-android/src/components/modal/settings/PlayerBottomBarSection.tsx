@@ -119,8 +119,8 @@ const PlayerBottomBarSection: React.FC<PlayerBottomBarSectionProps> = ({
         value: PlayerControlSlotActionId,
         label: string,
     ) => (
-        <div className="flex min-w-[160px] flex-1 flex-col gap-1.5">
-            <span className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }}>{label}</span>
+        <div className="flex min-w-[160px] flex-1 flex-col gap-1.5" data-settings-style='{"grow":true,"gap":6}' data-settings-layout="column">
+            <span className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">{label}</span>
             <CustomSelect
                 value={value}
                 onChange={next => handleSetPlayerControlSlot(slot, next as PlayerControlSlotActionId)}
@@ -134,13 +134,13 @@ const PlayerBottomBarSection: React.FC<PlayerBottomBarSectionProps> = ({
 
     return (
         <>
-            <div className={`p-4 rounded-xl border space-y-3 ${settingsCardClass}`}>
-                <div className="space-y-1">
-                    <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <div className={`p-4 rounded-xl border space-y-3 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":12,"padding":[16,16,16,16]}' data-settings-layout="card">
+                <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                    <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                         <Move size={14} />
                         {t('options.playerBottomBarOffset')}
                     </div>
-                    <div className="text-xs opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="text-xs opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                         {t('options.playerBottomBarOffsetDesc')}
                     </div>
                 </div>
@@ -152,14 +152,14 @@ const PlayerBottomBarSection: React.FC<PlayerBottomBarSectionProps> = ({
                     和确认/取消，误触可以退出。桌面版保留原来的滑块。
                 */}
                 {isAndroidNative ? (
-                    <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        <span className="font-mono opacity-60">
+                    <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"align":"center","gap":12,"font":12,"tone":"muted"}' data-settings-layout="row">
+                        <span className="font-mono opacity-60" data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                             {Math.min(maxOffset, playerBottomBarOffset)}px
                         </span>
-                        <span className="opacity-50">{t('options.playerBottomBarOffsetAndroidHint')}</span>
+                        <span className="opacity-50" data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">{t('options.playerBottomBarOffsetAndroidHint')}</span>
                     </div>
                 ) : (
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3" data-settings-style='{"align":"center","gap":12}' data-settings-layout="row">
                         <input
                             type="range"
                             min={PLAYER_BOTTOM_BAR_BASE_OFFSET_PX}
@@ -172,14 +172,14 @@ const PlayerBottomBarSection: React.FC<PlayerBottomBarSectionProps> = ({
                             onPointerCancel={handleOffsetPointerEnd}
                             onChange={handleOffsetChange}
                             className={rangeInputClass}
-                        />
-                        <span className="w-14 text-right font-mono text-xs opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                         data-settings-layout="column"/>
+                        <span className="w-14 text-right font-mono text-xs opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"width":56,"font":12,"tone":"muted"}' data-settings-layout="wrap">
                             {Math.min(maxOffset, playerBottomBarOffset)}px
                         </span>
                     </div>
                 )}
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2" data-settings-style='{"gap":8}' data-settings-layout="wrap">
                     <button
                         type="button"
                         onClick={requestPositioning}
@@ -187,9 +187,9 @@ const PlayerBottomBarSection: React.FC<PlayerBottomBarSectionProps> = ({
                         title={canStartPositioning ? undefined : t('options.playerBottomBarRepositionUnavailable')}
                         className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm transition-colors disabled:opacity-35 ${utilityGhostButtonClass}`}
                         style={{ color: 'var(--text-primary)' }}
-                    >
+                     data-settings-style='{"align":"center","gap":8,"radius":64,"border":true,"font":14,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="row">
                         <Move size={14} />
-                        <span>{t('options.playerBottomBarReposition')}</span>
+                        <span data-settings-layout="wrap">{t('options.playerBottomBarReposition')}</span>
                     </button>
                     <button
                         type="button"
@@ -197,23 +197,23 @@ const PlayerBottomBarSection: React.FC<PlayerBottomBarSectionProps> = ({
                         disabled={playerBottomBarOffset === PLAYER_BOTTOM_BAR_BASE_OFFSET_PX}
                         className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm transition-colors disabled:opacity-35 ${utilityGhostButtonClass}`}
                         style={{ color: 'var(--text-primary)' }}
-                    >
+                     data-settings-style='{"align":"center","gap":8,"radius":64,"border":true,"font":14,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="row">
                         <RotateCcw size={14} />
-                        <span>{t('options.playerBottomBarReset')}</span>
+                        <span data-settings-layout="wrap">{t('options.playerBottomBarReset')}</span>
                     </button>
                 </div>
             </div>
 
-            <div className={`p-4 rounded-xl border space-y-3 ${settingsCardClass}`}>
-                <div className="space-y-1">
-                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            <div className={`p-4 rounded-xl border space-y-3 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":12,"padding":[16,16,16,16]}' data-settings-layout="card">
+                <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                         {t('options.playerControlSlots')}
                     </div>
-                    <div className="text-xs opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="text-xs opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                         {t('options.playerControlSlotsDesc')}
                     </div>
                 </div>
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-3" data-settings-style='{"gap":12}' data-settings-layout="wrap">
                     {renderSlotPicker('primary', playerControlSlotPrimary, t('options.playerControlSlotPrimary'))}
                     {renderSlotPicker('secondary', playerControlSlotSecondary, t('options.playerControlSlotSecondary'))}
                 </div>

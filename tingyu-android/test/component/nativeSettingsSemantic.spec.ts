@@ -1,5 +1,8 @@
 import { test, expect } from './fixtures';
+import type { SettingsLayoutNode } from '../../src/types/settingsLayout';
 import type { NativeSettingsDocument, NativeSettingsFlow } from '../../src/types/nativeSettingsDocument';
+
+const layoutNodes=(node:SettingsLayoutNode):SettingsLayoutNode[]=>[node,...(node.children??[]).flatMap(layoutNodes)];
 
 // test/component/nativeSettingsSemantic.spec.ts
 // Real state hosts and handlers; Android pixels/IME still require Compose/device validation.
@@ -43,11 +46,21 @@ test('all settings categories and nested editors expose native forms without DOM
     for (const section of ['appearance', 'general', 'playback', 'integration', 'storage', 'graphics', 'developer', 'help']) {
         await open(section); const doc = await capture();
         expect(doc.flow?.nodes.length, section).toBeGreaterThan(3);
+        expect(doc.flow?.layout?.children?.length,section).toBeGreaterThan(0);
+        if(section==='help')expect(layoutNodes(doc.flow!.layout!).some(node=>node.kind==='control'&&node.style?.fill),section).toBe(true);
+        else expect(layoutNodes(doc.flow!.layout!).some(node=>node.kind==='card'),section).toBe(true);
         expect(doc.paints).toEqual([]); expect(doc.controls).toEqual([]); expect(doc.areas).toEqual([]);
         if (section === 'appearance') expect(doc.flow?.nodes.some(n => n.title.includes('导入配置'))).toBe(true);
+        if(section==='developer'){
+            await action('Level');const menu=(await capture()).flow?.modal;
+            expect(menu?.title).toBe('Level');expect(menu?.nodes.some(n=>n.title.includes('error'))).toBe(true);
+            await page.evaluate(()=>(window as any).__semanticSettings.actions.dismiss({}));await page.waitForTimeout(300);
+        }
     }
     await open('playback');
-    const order = (await capture()).flow!.nodes.find(n => n.kind === 'reorder')!;
+    const playback=(await capture()).flow!;
+    expect(layoutNodes(playback.layout!).some(node=>node.kind==='grid'&&node.style?.columns===2&&node.children?.length===2)).toBe(true);
+    const order = playback.nodes.find(n => n.kind === 'reorder')!;
     expect(order).toBeTruthy();
     const reordered = order.options!.map(o => o.value).reverse();
     await page.evaluate(({ id, values }) => (window as any).__semanticSettings.actions[`act:${id}`]({ text: JSON.stringify(values) }), { id: order.id, values: reordered });
@@ -62,7 +75,8 @@ test('all settings categories and nested editors expose native forms without DOM
     // Web builds do not mark this island native-owned; the Android build does.
     await page.locator('[data-folia-stage-preview]').evaluate(node => { (node as HTMLElement).dataset.nativeLive = 'true'; });
     const stage = (await capture()).flow!;
-    expect(stage.nodes.some(n => n.kind === 'preview')).toBe(true); expect(stage.nodes.some(n => n.title === '暂停预览')).toBe(true);
+    expect(stage.nodes.some(n => n.kind === 'preview')).toBe(true);
+    expect(layoutNodes(stage.layout!).find(n=>n.kind==='control'&&n.style?.preview==='stage')?.children?.some(n=>n.style?.overlay==='pause')).toBe(true); expect(stage.nodes.some(n => n.title === '暂停预览')).toBe(true);
     await action('主题与配色'); await page.locator('[data-native-color]').waitFor(); await capture();
     await page.evaluate(() => { const s = (window as any).__semanticSettings, n = s.document.flow.nodes.find((n: any) => n.kind === 'color'); s.actions[`act:${n.id}`]({ text: '#447755' }); });
     await expect.poll(async () => (await capture()).flow?.nodes.find(n => n.kind === 'color')?.value).toBe('#447755');

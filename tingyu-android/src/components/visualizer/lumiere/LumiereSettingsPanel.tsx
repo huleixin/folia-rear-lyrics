@@ -114,16 +114,16 @@ const LumiereSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
     ));
 
     const hint = (key: string) => (
-        <p className="text-xs leading-relaxed opacity-55" style={{ color: 'var(--text-secondary)' }}>{t(key)}</p>
+        <p className="text-xs leading-relaxed opacity-55" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">{t(key)}</p>
     );
 
     return (
-        <div className="rounded-[24px] border border-white/10 p-4 space-y-4" style={{ backgroundColor: controlCardBg }}>
-            <div className="space-y-1">
-                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+        <div className="rounded-[24px] border border-white/10 p-4 space-y-4" style={{ backgroundColor: controlCardBg }} data-settings-style='{"radius":24,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                     {t('options.lumiereSettings')}
                 </div>
-                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {t('options.lumiereSettingsDesc')}
                 </div>
             </div>

@@ -1,3 +1,5 @@
+import type { SettingsLayoutNode } from './settingsLayout';
+
 // src/types/nativeSettingsDocument.ts
 // Layout only: never persisted. Existing React settings remain the action/state owner.
 export type SettingsRect={x:number;y:number;w:number;h:number};
@@ -30,4 +32,5 @@ export type NativeSettingsFlowNode={
     /** 回传动作名；缺省等于 id。 */
     action?:string;
 };
-export type NativeSettingsFlow={key:string;title:string;subtitle?:string;nodes:NativeSettingsFlowNode[];modal?:NativeSettingsFlow};
+export type NativeSettingsFlow={key:string;title:string;subtitle?:string;nodes:NativeSettingsFlowNode[];modal?:NativeSettingsFlow;
+    layout?:SettingsLayoutNode;headerActions?:string[]};

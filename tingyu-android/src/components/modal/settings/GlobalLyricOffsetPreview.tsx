@@ -149,15 +149,15 @@ const GlobalLyricOffsetPreview: React.FC<GlobalLyricOffsetPreviewProps> = ({
 
     if (!lyrics?.lines.length) {
         return (
-            <div className={`flex min-h-[132px] items-center justify-center rounded-2xl border border-dashed px-4 text-xs ${previewBoxBg} ${mutedText}`}>
+            <div className={`flex min-h-[132px] items-center justify-center rounded-2xl border border-dashed px-4 text-xs ${previewBoxBg} ${mutedText}`} data-settings-style='{"align":"center","center":true,"minHeight":132,"radius":16,"border":true,"font":12,"padding":[16,0,16,0],"fill":true}' data-settings-layout="row">
                 {t('globalLyricOffset.noLyrics')}
             </div>
         );
     }
 
     return (
-        <div data-native-live="true" className={`flex min-h-[132px] flex-col items-center justify-center gap-2 rounded-2xl border px-4 py-5 ${previewBoxBg}`}>
-            <div className="flex h-9 w-full items-center justify-center overflow-hidden">
+        <div data-native-live="true" data-settings-style='{"preview":"offset"}' className={`flex min-h-[132px] flex-col items-center justify-center gap-2 rounded-2xl border px-4 py-5 ${previewBoxBg}`} data-settings-layout="card">
+            <div className="flex h-9 w-full items-center justify-center overflow-hidden" data-settings-style='{"align":"center","center":true,"height":36}' data-settings-layout="row">
                 <AnimatePresence mode="wait">
                     <motion.div
                         key={`line-${getLineKey(currentLine)}`}
@@ -166,7 +166,7 @@ const GlobalLyricOffsetPreview: React.FC<GlobalLyricOffsetPreviewProps> = ({
                         exit={{ opacity: 0, y: -8 }}
                         transition={{ duration: 0.15, ease: 'easeOut' }}
                         className="w-full min-w-0 truncate text-center text-lg font-semibold select-none"
-                    >
+                     data-settings-style='{"center":true,"font":18,"weight":600}' data-settings-layout="column">
                         {currentLine ? (
                             words.length > 0 ? (
                                 words.map((word, index) => (
@@ -182,7 +182,7 @@ const GlobalLyricOffsetPreview: React.FC<GlobalLyricOffsetPreviewProps> = ({
                                             display: 'inline-block',
                                             marginRight: '0.25em',
                                         }}
-                                    >
+                                     data-settings-layout="wrap">
                                         {word.text}
                                     </span>
                                 ))
@@ -197,18 +197,18 @@ const GlobalLyricOffsetPreview: React.FC<GlobalLyricOffsetPreviewProps> = ({
                                         WebkitTextFillColor: 'transparent',
                                         display: 'inline-block',
                                     }}
-                                >
+                                 data-settings-layout="wrap">
                                     {currentLine.fullText}
                                 </span>
                             )
                         ) : (
-                            <span className={`text-sm font-normal ${mutedText}`}>{t('globalLyricOffset.waitingForLine')}</span>
+                            <span className={`text-sm font-normal ${mutedText}`} data-settings-style='{"font":14,"weight":400}' data-settings-layout="wrap">{t('globalLyricOffset.waitingForLine')}</span>
                         )}
                     </motion.div>
                 </AnimatePresence>
             </div>
 
-            <div className="flex h-5 w-full items-center justify-center overflow-hidden">
+            <div className="flex h-5 w-full items-center justify-center overflow-hidden" data-settings-style='{"align":"center","center":true,"height":20}' data-settings-layout="row">
                 <AnimatePresence mode="wait">
                     <motion.p
                         key={`sub-${subLineText || 'none'}`}
@@ -221,7 +221,7 @@ const GlobalLyricOffsetPreview: React.FC<GlobalLyricOffsetPreviewProps> = ({
                                 ? (isDaylight ? 'text-emerald-600' : 'text-emerald-400/80')
                                 : mutedText
                         }`}
-                    >
+                     data-settings-style='{"center":true,"font":12}' data-settings-layout="wrap">
                         {subLineText || ' '}
                     </motion.p>
                 </AnimatePresence>

@@ -1,0 +1,590 @@
+{
+  "key": "settings-flow:qa",
+  "title": "全局时间偏移",
+  "nodes": [
+    {
+      "id": "form:1030:text:0",
+      "kind": "note",
+      "title": "补偿蓝牙耳机等输出设备造成的音画不同步"
+    },
+    {
+      "id": "form:1031",
+      "kind": "action",
+      "title": "应用",
+      "value": "",
+      "disabled": true,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1032:text:2",
+      "kind": "note",
+      "title": "播放一首带歌词的歌曲即可实时预览"
+    },
+    {
+      "id": "form:1033:text:3",
+      "kind": "note",
+      "title": "0"
+    },
+    {
+      "id": "form:1034:text:4",
+      "kind": "note",
+      "title": "ms"
+    },
+    {
+      "id": "form:1035:text:5",
+      "kind": "note",
+      "title": "歌词与音频时钟完全同步"
+    },
+    {
+      "id": "form:1036",
+      "kind": "action",
+      "title": "-50ms",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1037",
+      "kind": "action",
+      "title": "-10ms",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1038",
+      "kind": "action",
+      "title": "-1ms",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1039",
+      "kind": "action",
+      "title": "归零",
+      "value": "",
+      "disabled": true,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1040",
+      "kind": "action",
+      "title": "+1ms",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1041",
+      "kind": "action",
+      "title": "+10ms",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1042",
+      "kind": "action",
+      "title": "+50ms",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1043",
+      "kind": "slider",
+      "title": "全局时间偏移",
+      "value": "0",
+      "disabled": false,
+      "min": -2000,
+      "max": 2000,
+      "step": 1,
+      "unit": " ms",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "text",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1044:text:14",
+      "kind": "note",
+      "title": "对本设备的所有歌曲生效，且不参与同步。播放面板里的单曲偏移仍会叠加在此之上。"
+    }
+  ],
+  "layout": {
+    "id": "page:form:1050",
+    "kind": "column",
+    "style": {
+      "padding": [
+        16,
+        24,
+        16,
+        24
+      ],
+      "minHeight": 0,
+      "gap": 20
+    },
+    "children": [
+      {
+        "id": "form:1032",
+        "kind": "row",
+        "style": {
+          "align": "center",
+          "center": true,
+          "minHeight": 132,
+          "radius": 16,
+          "border": true,
+          "font": 12,
+          "padding": [
+            16,
+            0,
+            16,
+            0
+          ],
+          "fill": true
+        },
+        "children": [
+          {
+            "id": "copy:1",
+            "kind": "text",
+            "text": "播放一首带歌词的歌曲即可实时预览"
+          }
+        ]
+      },
+      {
+        "id": "form:1045",
+        "kind": "card",
+        "style": {
+          "radius": 16,
+          "border": true,
+          "padding": [
+            20,
+            20,
+            20,
+            20
+          ]
+        },
+        "children": [
+          {
+            "id": "form:1046",
+            "kind": "row",
+            "style": {
+              "align": "center",
+              "center": true,
+              "gap": 4
+            },
+            "children": [
+              {
+                "id": "form:1033",
+                "kind": "wrap",
+                "style": {
+                  "font": 36,
+                  "weight": 600,
+                  "tone": "text"
+                },
+                "children": [
+                  {
+                    "id": "copy:2",
+                    "kind": "text",
+                    "text": "0"
+                  }
+                ]
+              },
+              {
+                "id": "form:1034",
+                "kind": "wrap",
+                "style": {
+                  "font": 14
+                },
+                "children": [
+                  {
+                    "id": "copy:3",
+                    "kind": "text",
+                    "text": "ms"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "form:1035",
+            "kind": "column",
+            "style": {
+              "center": true,
+              "font": 12,
+              "margin": [
+                0,
+                4,
+                0,
+                0
+              ]
+            },
+            "children": [
+              {
+                "id": "copy:4",
+                "kind": "text",
+                "text": "歌词与音频时钟完全同步"
+              }
+            ]
+          },
+          {
+            "id": "form:1047",
+            "kind": "wrap",
+            "style": {
+              "align": "center",
+              "center": true,
+              "gap": 8,
+              "margin": [
+                0,
+                16,
+                0,
+                0
+              ]
+            },
+            "children": [
+              {
+                "id": "layout:form:1036",
+                "kind": "control",
+                "ref": "form:1036",
+                "style": {
+                  "radius": 64,
+                  "border": true,
+                  "font": 12,
+                  "padding": [
+                    12,
+                    8,
+                    12,
+                    8
+                  ],
+                  "tone": "text"
+                },
+                "children": [
+                  {
+                    "id": "content:form:1036",
+                    "kind": "row",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "copy:5",
+                        "kind": "text",
+                        "text": "-50ms"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "layout:form:1037",
+                "kind": "control",
+                "ref": "form:1037",
+                "style": {
+                  "radius": 64,
+                  "border": true,
+                  "font": 12,
+                  "padding": [
+                    12,
+                    8,
+                    12,
+                    8
+                  ],
+                  "tone": "text"
+                },
+                "children": [
+                  {
+                    "id": "content:form:1037",
+                    "kind": "row",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "copy:6",
+                        "kind": "text",
+                        "text": "-10ms"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "layout:form:1038",
+                "kind": "control",
+                "ref": "form:1038",
+                "style": {
+                  "radius": 64,
+                  "border": true,
+                  "font": 12,
+                  "padding": [
+                    12,
+                    8,
+                    12,
+                    8
+                  ],
+                  "tone": "text"
+                },
+                "children": [
+                  {
+                    "id": "content:form:1038",
+                    "kind": "row",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "copy:7",
+                        "kind": "text",
+                        "text": "-1ms"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "layout:form:1039",
+                "kind": "control",
+                "ref": "form:1039",
+                "style": {
+                  "align": "center",
+                  "center": true,
+                  "height": 36,
+                  "width": 36,
+                  "radius": 64,
+                  "border": true,
+                  "margin": [
+                    4,
+                    0,
+                    4,
+                    0
+                  ],
+                  "tone": "text"
+                },
+                "children": [
+                  {
+                    "id": "content:form:1039",
+                    "kind": "row",
+                    "style": {
+                      "align": "center",
+                      "center": true
+                    },
+                    "children": [
+                      {
+                        "id": "form:1048",
+                        "kind": "icon",
+                        "icon": "rotate-ccw",
+                        "style": {
+                          "width": 14,
+                          "height": 14
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "layout:form:1040",
+                "kind": "control",
+                "ref": "form:1040",
+                "style": {
+                  "radius": 64,
+                  "border": true,
+                  "font": 12,
+                  "padding": [
+                    12,
+                    8,
+                    12,
+                    8
+                  ],
+                  "tone": "text"
+                },
+                "children": [
+                  {
+                    "id": "content:form:1040",
+                    "kind": "row",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "copy:8",
+                        "kind": "text",
+                        "text": "+1ms"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "layout:form:1041",
+                "kind": "control",
+                "ref": "form:1041",
+                "style": {
+                  "radius": 64,
+                  "border": true,
+                  "font": 12,
+                  "padding": [
+                    12,
+                    8,
+                    12,
+                    8
+                  ],
+                  "tone": "text"
+                },
+                "children": [
+                  {
+                    "id": "content:form:1041",
+                    "kind": "row",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "copy:9",
+                        "kind": "text",
+                        "text": "+10ms"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "layout:form:1042",
+                "kind": "control",
+                "ref": "form:1042",
+                "style": {
+                  "radius": 64,
+                  "border": true,
+                  "font": 12,
+                  "padding": [
+                    12,
+                    8,
+                    12,
+                    8
+                  ],
+                  "tone": "text"
+                },
+                "children": [
+                  {
+                    "id": "content:form:1042",
+                    "kind": "row",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "copy:10",
+                        "kind": "text",
+                        "text": "+50ms"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "form:1049",
+            "kind": "column",
+            "style": {
+              "margin": [
+                0,
+                20,
+                0,
+                0
+              ]
+            },
+            "children": [
+              {
+                "id": "layout:form:1043",
+                "kind": "control",
+                "ref": "form:1043",
+                "style": {
+                  "height": 68
+                }
+              }
+            ]
+          },
+          {
+            "id": "form:1044",
+            "kind": "column",
+            "style": {
+              "center": true,
+              "font": 12,
+              "margin": [
+                0,
+                12,
+                0,
+                0
+              ]
+            },
+            "children": [
+              {
+                "id": "copy:11",
+                "kind": "text",
+                "text": "对本设备的所有歌曲生效，且不参与同步。播放面板里的单曲偏移仍会叠加在此之上。"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "headerActions": [
+    "form:1031"
+  ]
+}

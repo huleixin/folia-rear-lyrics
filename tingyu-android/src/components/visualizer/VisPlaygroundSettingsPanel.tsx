@@ -208,11 +208,11 @@ const PresetGroup = <T,>({
     theme,
     isOptionActive,
 }: PresetGroupProps<T>) => (
-    <div className="space-y-2.5">
-        <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-60" style={{ color: theme.secondaryColor }}>
+    <div className="space-y-2.5" data-settings-style='{"gap":10}' data-settings-layout="column">
+        <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-60" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12,"weight":500,"tone":"muted"}' data-settings-layout="column">
             {label}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" data-settings-style='{"gap":8}' data-settings-layout="wrap">
             {options.map(option => {
                 const isActive = isOptionActive ? isOptionActive(option) : option.value === value;
 
@@ -227,7 +227,7 @@ const PresetGroup = <T,>({
                             ...getAccentOptionStyle(isActive, theme, isDaylight),
                             color: theme.primaryColor,
                         }}
-                    >
+                     data-settings-style='{"radius":64,"font":14,"border":true,"padding":[12,8,12,8]}' data-settings-layout="row">
                         {option.label}
                     </button>
                 );
@@ -244,14 +244,14 @@ const ToggleRow: React.FC<ToggleRowProps> = ({
     theme,
     icon: Icon = Monitor,
 }) => (
-    <div className="flex items-center justify-between gap-4">
-        <div className="space-y-1">
-            <div className="text-sm font-medium flex items-center gap-2" style={{ color: theme.primaryColor }}>
+    <div className="flex items-center justify-between gap-4" data-settings-style='{"align":"between","gap":16}' data-settings-layout="row">
+        <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+            <div className="text-sm font-medium flex items-center gap-2" style={{ color: theme.primaryColor }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8}' data-settings-layout="row">
                 <Icon size={14} />
                 {label}
             </div>
             {description && (
-                <div className="text-xs opacity-70 max-w-[320px]" style={{ color: theme.secondaryColor }}>
+                <div className="text-xs opacity-70 max-w-[320px]" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12}' data-settings-layout="column">
                     {description}
                 </div>
             )}
@@ -266,11 +266,11 @@ const ToggleRow: React.FC<ToggleRowProps> = ({
             style={{
                 backgroundColor: checked ? theme.secondaryColor : colorWithAlpha(theme.secondaryColor, 0.18),
             }}
-        >
+         data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={checked ? theme.secondaryColor : colorWithAlpha(theme.secondaryColor, 0.18)}>
             <div
                 className={`w-4 h-4 rounded-full shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-0'}`}
                 style={{ backgroundColor: theme.backgroundColor }}
-            />
+             data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column" data-settings-swatch={theme.backgroundColor}/>
         </button>
     </div>
 );
@@ -290,7 +290,7 @@ const ResetSectionButton: React.FC<{
             borderColor: colorWithAlpha(theme.secondaryColor, 0.16),
             backgroundColor: colorWithAlpha(theme.backgroundColor, 0.22),
         }}
-    >
+     data-settings-style='{"align":"center","gap":6,"radius":64,"border":true,"font":12,"padding":[10,6,10,6]}' data-settings-layout="row">
         <RotateCcw size={12} />
         {label}
     </button>
@@ -303,7 +303,7 @@ const SectionTabs: React.FC<Pick<VisPlaygroundSettingsPanelProps, 'activeSection
     theme,
     isDaylight,
 }) => (
-    <div className="inline-flex w-fit items-center gap-1 rounded-full p-1" style={{ backgroundColor: colorWithAlpha(theme.backgroundColor, isDaylight ? 0.34 : 0.52) }}>
+    <div className="inline-flex w-fit items-center gap-1 rounded-full p-1" style={{ backgroundColor: colorWithAlpha(theme.backgroundColor, isDaylight ? 0.34 : 0.52) }} data-settings-style='{"align":"center","gap":4,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="row">
         {SECTION_OPTIONS.map(section => {
             const active = activeSection === section;
             return (
@@ -317,7 +317,7 @@ const SectionTabs: React.FC<Pick<VisPlaygroundSettingsPanelProps, 'activeSection
                         ...getAccentOptionStyle(active, theme, isDaylight),
                         color: active ? theme.primaryColor : theme.secondaryColor,
                     }}
-                >
+                 data-settings-style='{"radius":64,"border":true,"font":14,"padding":[12,6,12,6]}' data-settings-layout="row">
                     {getSectionLabel(section, t)}
                 </button>
             );
@@ -470,14 +470,14 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
     const renderMissingFoliumHint = (kind: 'visualizer' | 'background') => {
         const missing = missingFoliumSelections.find(entry => entry.kind === kind);
         return missing ? (
-            <div className="text-xs opacity-70" style={{ color: theme.secondaryColor }}>
+            <div className="text-xs opacity-70" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12}' data-settings-layout="column">
                 {t('options.foliumMissingSelection').replace('{{modId}}', missing.modId)}
             </div>
         ) : null;
     };
 
     return (
-        <div className="min-h-0 flex flex-col gap-4">
+        <div className="min-h-0 flex flex-col gap-4" data-settings-style='{"minHeight":0,"gap":16}' data-settings-layout="column">
             <SectionTabs
                 activeSection={activeSection}
                 onSectionChange={onSectionChange}
@@ -486,15 +486,15 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                 isDaylight={isDaylight}
             />
 
-            <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar space-y-4">
+            <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar space-y-4" data-settings-style='{"grow":true,"gap":16,"padding":[0,0,4,0]}' data-settings-layout="column">
                 {activeSection === 'common' && (
-                    <div className="rounded-[24px] border p-4 space-y-4" style={{ backgroundColor: controlCardBg, borderColor: colorWithAlpha(theme.secondaryColor, 0.16) }}>
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="space-y-1">
-                                <div className="text-sm font-medium" style={{ color: theme.primaryColor }}>
+                    <div className="rounded-[24px] border p-4 space-y-4" style={{ backgroundColor: controlCardBg, borderColor: colorWithAlpha(theme.secondaryColor, 0.16) }} data-settings-style='{"radius":24,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                        <div className="flex items-start justify-between gap-3" data-settings-style='{"align":"between","gap":12}' data-settings-layout="row">
+                            <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                                <div className="text-sm font-medium" style={{ color: theme.primaryColor }} data-settings-style='{"font":14,"weight":500}' data-settings-layout="column">
                                     {t('options.previewCommonSettings')}
                                 </div>
-                                <div className="text-xs opacity-70" style={{ color: theme.secondaryColor }}>
+                                <div className="text-xs opacity-70" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12}' data-settings-layout="column">
                                     {t('options.previewCommonSettingsDesc')}
                                 </div>
                             </div>
@@ -530,7 +530,7 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                         <fieldset
                             disabled={lyricsFontSizeAutoNoticeKey !== null}
                             className={`space-y-4 transition-opacity ${lyricsFontSizeAutoNoticeKey !== null ? 'opacity-40' : ''}`}
-                        >
+                         data-settings-style='{"gap":16}' data-settings-layout="column">
                             <PresetGroup
                                 label={t('options.fontSize')}
                                 value={fontScale}
@@ -540,10 +540,10 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                                 theme={theme}
                             />
 
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between text-sm" style={{ color: theme.primaryColor }}>
-                                    <span>{t('options.fontSize')}</span>
-                                    <span className="font-mono opacity-70" style={{ color: theme.secondaryColor }}>
+                            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                                <div className="flex items-center justify-between text-sm" style={{ color: theme.primaryColor }} data-settings-style='{"align":"between","font":14}' data-settings-layout="row">
+                                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.fontSize')}</span>
+                                    <span className="font-mono opacity-70" style={{ color: theme.secondaryColor }} data-settings-layout="wrap">
                                         {Math.round(fontScale * 100)}%
                                     </span>
                                 </div>
@@ -557,7 +557,7 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                                     onPointerDown={onSliderPointerDown}
                                     onPointerUp={onSliderCommit}
                                     className={rangeInputClass}
-                                />
+                                 data-settings-layout="column"/>
                             </div>
                         </fieldset>
 
@@ -569,7 +569,7 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                                     borderColor: colorWithAlpha(theme.accentColor, isDaylight ? 0.22 : 0.28),
                                     backgroundColor: colorWithAlpha(theme.accentColor, isDaylight ? 0.06 : 0.1),
                                 }}
-                            >
+                             data-settings-style='{"radius":16,"border":true,"font":12,"padding":[14,12,14,12]}' data-settings-layout="card">
                                 {t(lyricsFontSizeAutoNoticeKey)}
                             </div>
                         )}
@@ -583,7 +583,7 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                         />
 
                         {fontWeight !== null && (
-                            <div className="space-y-4">
+                            <div className="space-y-4" data-settings-style='{"gap":16}' data-settings-layout="column">
                                 <PresetGroup
                                     label={t('options.fontWeight')}
                                     value={fontWeightSliderValue}
@@ -595,10 +595,10 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                                     isDaylight={isDaylight}
                                     theme={theme}
                                 />
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm" style={{ color: theme.primaryColor }}>
-                                        <span>{t('options.fontWeight')}</span>
-                                        <span className="font-mono opacity-70" style={{ color: theme.secondaryColor }}>
+                                <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                                    <div className="flex items-center justify-between text-sm" style={{ color: theme.primaryColor }} data-settings-style='{"align":"between","font":14}' data-settings-layout="row">
+                                        <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.fontWeight')}</span>
+                                        <span className="font-mono opacity-70" style={{ color: theme.secondaryColor }} data-settings-layout="wrap">
                                             {fontWeightSliderValue}
                                         </span>
                                     </div>
@@ -618,15 +618,15 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                                         onPointerUp={onSliderCommit}
                                         onPointerCancel={onSliderCommit}
                                         className={rangeInputClass}
-                                    />
+                                     data-settings-layout="column"/>
                                 </div>
                             </div>
                         )}
 
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm" style={{ color: theme.primaryColor }}>
-                                <span>{t('options.visualizerOpacity')}</span>
-                                <span className="font-mono opacity-70" style={{ color: theme.secondaryColor }}>
+                        <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                            <div className="flex items-center justify-between text-sm" style={{ color: theme.primaryColor }} data-settings-style='{"align":"between","font":14}' data-settings-layout="row">
+                                <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.visualizerOpacity')}</span>
+                                <span className="font-mono opacity-70" style={{ color: theme.secondaryColor }} data-settings-layout="wrap">
                                     {Math.round(visualizerOpacity * 100)}%
                                 </span>
                             </div>
@@ -640,7 +640,7 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                                 onPointerDown={onSliderPointerDown}
                                 onPointerUp={onSliderCommit}
                                 className={rangeInputClass}
-                            />
+                             data-settings-layout="column"/>
                         </div>
                     </div>
                 )}
@@ -648,18 +648,18 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                 {activeSection === 'background' && (
                     <>
                         {enablePlayerPageNativeBlur && (
-                            <div className="flex items-center gap-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-500 dark:text-amber-400">
+                            <div className="flex items-center gap-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-500 dark:text-amber-400" data-settings-style='{"align":"center","gap":10,"radius":12,"border":true,"font":12,"padding":[16,12,16,12],"fill":true}' data-settings-layout="row">
                                 <AlertTriangle size={16} className="shrink-0 text-amber-500" />
-                                <span>{t('options.nativeBlurBackgroundNotice')}</span>
+                                <span data-settings-layout="wrap">{t('options.nativeBlurBackgroundNotice')}</span>
                             </div>
                         )}
-                        <div className="rounded-[24px] border p-4 space-y-4" style={{ backgroundColor: controlCardBg, borderColor: colorWithAlpha(theme.secondaryColor, 0.16) }}>
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="space-y-1">
-                                    <div className="text-sm font-medium" style={{ color: theme.primaryColor }}>
+                        <div className="rounded-[24px] border p-4 space-y-4" style={{ backgroundColor: controlCardBg, borderColor: colorWithAlpha(theme.secondaryColor, 0.16) }} data-settings-style='{"radius":24,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                            <div className="flex items-start justify-between gap-3" data-settings-style='{"align":"between","gap":12}' data-settings-layout="row">
+                                <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                                    <div className="text-sm font-medium" style={{ color: theme.primaryColor }} data-settings-style='{"font":14,"weight":500}' data-settings-layout="column">
                                         {t('options.previewBackgroundSettings')}
                                     </div>
-                                    <div className="text-xs opacity-70" style={{ color: theme.secondaryColor }}>
+                                    <div className="text-xs opacity-70" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12}' data-settings-layout="column">
                                         {t('options.previewBackgroundSettingsDesc')}
                                     </div>
                                 </div>
@@ -699,13 +699,13 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
 
                 {activeSection === 'visualizer' && (
                     <>
-                        <div className="rounded-[24px] border p-4 space-y-4" style={{ backgroundColor: controlCardBg, borderColor: colorWithAlpha(theme.secondaryColor, 0.16) }}>
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="space-y-1">
-                                    <div className="text-sm font-medium" style={{ color: theme.primaryColor }}>
+                        <div className="rounded-[24px] border p-4 space-y-4" style={{ backgroundColor: controlCardBg, borderColor: colorWithAlpha(theme.secondaryColor, 0.16) }} data-settings-style='{"radius":24,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                            <div className="flex items-start justify-between gap-3" data-settings-style='{"align":"between","gap":12}' data-settings-layout="row">
+                                <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                                    <div className="text-sm font-medium" style={{ color: theme.primaryColor }} data-settings-style='{"font":14,"weight":500}' data-settings-layout="column">
                                         {t('options.lyricsRenderer')}
                                     </div>
-                                    <div className="text-xs opacity-70" style={{ color: theme.secondaryColor }}>
+                                    <div className="text-xs opacity-70" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12}' data-settings-layout="column">
                                         {t('options.lyricsRendererDesc')}
                                     </div>
                                 </div>
@@ -789,13 +789,13 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                 )}
 
                 {activeSection === 'subtitle' && (
-                    <div className="rounded-[24px] border p-4 space-y-4" style={{ backgroundColor: controlCardBg, borderColor: colorWithAlpha(theme.secondaryColor, 0.16) }}>
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="space-y-1">
-                                <div className="text-sm font-medium" style={{ color: theme.primaryColor }}>
+                    <div className="rounded-[24px] border p-4 space-y-4" style={{ backgroundColor: controlCardBg, borderColor: colorWithAlpha(theme.secondaryColor, 0.16) }} data-settings-style='{"radius":24,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                        <div className="flex items-start justify-between gap-3" data-settings-style='{"align":"between","gap":12}' data-settings-layout="row">
+                            <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                                <div className="text-sm font-medium" style={{ color: theme.primaryColor }} data-settings-style='{"font":14,"weight":500}' data-settings-layout="column">
                                     {t('options.previewSubtitleSettings')}
                                 </div>
-                                <div className="text-xs opacity-70" style={{ color: theme.secondaryColor }}>
+                                <div className="text-xs opacity-70" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12}' data-settings-layout="column">
                                     {t('options.previewSubtitleSettingsDesc')}
                                 </div>
                             </div>
@@ -855,10 +855,10 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                             icon={Monitor}
                         />
 
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm" style={{ color: theme.primaryColor }}>
-                                <span>{t('options.subtitleFontScale')}</span>
-                                <span className="font-mono opacity-70" style={{ color: theme.secondaryColor }}>
+                        <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                            <div className="flex items-center justify-between text-sm" style={{ color: theme.primaryColor }} data-settings-style='{"align":"between","font":14}' data-settings-layout="row">
+                                <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.subtitleFontScale')}</span>
+                                <span className="font-mono opacity-70" style={{ color: theme.secondaryColor }} data-settings-layout="wrap">
                                     {Math.round(subtitleFontScale * 100)}%
                                 </span>
                             </div>
@@ -873,11 +873,11 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                                 onPointerDown={onSliderPointerDown}
                                 onPointerUp={onSliderCommit}
                                 className={rangeInputClass}
-                            />
+                             data-settings-layout="column"/>
                         </div>
 
                         {!subtitleFontInheritsLyrics && (
-                            <div className="space-y-4">
+                            <div className="space-y-4" data-settings-style='{"gap":16}' data-settings-layout="column">
                                 <PresetGroup
                                     label={t('options.subtitleFontFamily')}
                                     value={subtitleFontFamily ? 'custom' : subtitleFontStyle}
@@ -901,7 +901,7 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                                     theme={theme}
                                 />
                                 {subtitleFontWeight !== null && (
-                                    <div className="space-y-4">
+                                    <div className="space-y-4" data-settings-style='{"gap":16}' data-settings-layout="column">
                                         <PresetGroup
                                             label={t('options.subtitleFontWeight')}
                                             value={subtitleFontWeightSliderValue}
@@ -913,10 +913,10 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                                             isDaylight={isDaylight}
                                             theme={theme}
                                         />
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between text-sm" style={{ color: theme.primaryColor }}>
-                                                <span>{t('options.subtitleFontWeight')}</span>
-                                                <span className="font-mono opacity-70" style={{ color: theme.secondaryColor }}>
+                                        <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                                            <div className="flex items-center justify-between text-sm" style={{ color: theme.primaryColor }} data-settings-style='{"align":"between","font":14}' data-settings-layout="row">
+                                                <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.subtitleFontWeight')}</span>
+                                                <span className="font-mono opacity-70" style={{ color: theme.secondaryColor }} data-settings-layout="wrap">
                                                     {subtitleFontWeightSliderValue}
                                                 </span>
                                             </div>
@@ -936,17 +936,17 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                                                 onPointerUp={onSliderCommit}
                                                 onPointerCancel={onSliderCommit}
                                                 className={rangeInputClass}
-                                            />
+                                             data-settings-layout="column"/>
                                         </div>
                                     </div>
                                 )}
                             </div>
                         )}
 
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm" style={{ color: theme.primaryColor }}>
-                                <span>{t('options.subtitleOverlayOpacity')}</span>
-                                <span className="font-mono opacity-70" style={{ color: theme.secondaryColor }}>
+                        <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                            <div className="flex items-center justify-between text-sm" style={{ color: theme.primaryColor }} data-settings-style='{"align":"between","font":14}' data-settings-layout="row">
+                                <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.subtitleOverlayOpacity')}</span>
+                                <span className="font-mono opacity-70" style={{ color: theme.secondaryColor }} data-settings-layout="wrap">
                                     {Math.round(subtitleOverlayOpacity * 100)}%
                                 </span>
                             </div>
@@ -960,18 +960,18 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                                 onPointerDown={onSliderPointerDown}
                                 onPointerUp={onSliderCommit}
                                 className={rangeInputClass}
-                            />
+                             data-settings-layout="column"/>
                         </div>
                     </div>
                 )}
 
                 {activeSection === 'subtitle' && (
-                    <div className="rounded-[24px] border p-4 space-y-4" style={{ backgroundColor: controlCardBg, borderColor: colorWithAlpha(theme.secondaryColor, 0.16) }}>
-                        <div className="space-y-1">
-                            <div className="text-sm font-medium" style={{ color: theme.primaryColor }}>
+                    <div className="rounded-[24px] border p-4 space-y-4" style={{ backgroundColor: controlCardBg, borderColor: colorWithAlpha(theme.secondaryColor, 0.16) }} data-settings-style='{"radius":24,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                        <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                            <div className="text-sm font-medium" style={{ color: theme.primaryColor }} data-settings-style='{"font":14,"weight":500}' data-settings-layout="column">
                                 {t('options.harmonySubtitleSettings')}
                             </div>
-                            <div className="text-xs opacity-70" style={{ color: theme.secondaryColor }}>
+                            <div className="text-xs opacity-70" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12}' data-settings-layout="column">
                                 {t('options.harmonySubtitleSettingsDesc')}
                             </div>
                         </div>

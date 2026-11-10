@@ -136,6 +136,7 @@ internal fun TyDialogFrame(
     title: String,
     subtitle: String,
     onClose: () -> Unit,
+    settingsLayout: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     BackHandler(enabled = true) { onClose() }
@@ -148,11 +149,16 @@ internal fun TyDialogFrame(
                 .heightIn(max = maxCardHeight)
                 .clip(RoundedCornerShape(TyPanelDims.DialogRadius.dp))
                 .background(theme.surface)
-                .padding(horizontal = TyPanelDims.HorizontalPadding.dp),
+                .padding(horizontal = if(settingsLayout)24.dp else TyPanelDims.HorizontalPadding.dp),
         ) {
             if (title.isNotBlank()) {
                 Spacer(Modifier.height(20.dp))
-                Text(title, color = theme.text, fontSize = 17.sp, lineHeight = 23.sp, fontWeight = FontWeight.SemiBold)
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Text(title, color=theme.text,fontSize=if(settingsLayout)20.sp else 17.sp,lineHeight=if(settingsLayout)28.sp else 23.sp,
+                        fontWeight=if(settingsLayout)FontWeight.Bold else FontWeight.SemiBold,modifier=Modifier.weight(1f))
+                    if(settingsLayout)Box(Modifier.size(32.dp).clip(RoundedCornerShape(999.dp)).semantics{contentDescription="关闭"}
+                        .chromeClickable(role=Role.Button){onClose()},contentAlignment=Alignment.Center){PageIcon("x",theme.muted,Modifier.size(18.dp))}
+                }
                 if (subtitle.isNotBlank()) {
                     Spacer(Modifier.height(6.dp))
                     Text(subtitle, color = theme.muted, fontSize = 12.5.sp, lineHeight = 18.sp)

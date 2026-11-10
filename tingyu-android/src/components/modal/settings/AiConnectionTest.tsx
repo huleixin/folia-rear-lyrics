@@ -78,33 +78,33 @@ const AiConnectionTest: React.FC<AiConnectionTestProps> = ({ payload, buttonClas
         : undefined;
 
     return (
-        <div className="space-y-2 text-left">
-            <div className="flex flex-wrap items-center gap-3">
+        <div className="space-y-2 text-left" data-settings-style='{"gap":8}' data-settings-layout="column">
+            <div className="flex flex-wrap items-center gap-3" data-settings-style='{"align":"center","gap":12}' data-settings-layout="wrap">
                 <button
                     type="button"
                     onClick={runTest}
                     disabled={running}
                     className={`shrink-0 px-4 py-1.5 border active:scale-95 disabled:scale-100 disabled:opacity-50 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${buttonClassName}`}
                     style={{ color: 'var(--text-primary)' }}
-                >
+                 data-settings-style='{"align":"center","center":true,"border":true,"radius":12,"font":12,"weight":700,"gap":6,"padding":[16,6,16,6],"tone":"text"}' data-settings-layout="row">
                     {running ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-                    <span>{running ? t('options.aiTestRunning') : t('options.aiTestConnection')}</span>
+                    <span data-settings-layout="wrap">{running ? t('options.aiTestRunning') : t('options.aiTestConnection')}</span>
                 </button>
-                <span className="text-[10px] opacity-45 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                <span className="text-[10px] opacity-45 leading-relaxed" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":10,"tone":"muted"}' data-settings-layout="wrap">
                     {t('options.aiTestConnectionDesc')}
                 </span>
             </div>
 
             {result && (
-                <div className="space-y-1.5" role="status" aria-live="polite">
-                    <div className="text-xs font-semibold" style={{ color: statusColor }}>
+                <div className="space-y-1.5" role="status" aria-live="polite" data-settings-style='{"gap":6}' data-settings-layout="column">
+                    <div className="text-xs font-semibold" style={{ color: statusColor }} data-settings-style='{"font":12,"weight":600}' data-settings-layout="column">
                         {result.ok ? t('options.aiTestSuccess') : t('options.aiTestFailed')}
                     </div>
-                    <div className="text-[10px] opacity-60 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="text-[10px] opacity-60 leading-relaxed" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":10,"tone":"muted"}' data-settings-layout="column">
                         {metaParts.join(' · ')}
                     </div>
                     {emptyMessage && (
-                        <div className="text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                             {emptyMessage}
                         </div>
                     )}
@@ -112,7 +112,7 @@ const AiConnectionTest: React.FC<AiConnectionTestProps> = ({ payload, buttonClas
                         <pre
                             className={`max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-lg border p-2 text-[11px] leading-relaxed font-mono ${isDaylight ? 'border-black/10 bg-black/[0.03]' : 'border-white/10 bg-white/5'}`}
                             style={{ color: 'var(--text-primary)' }}
-                        >
+                         data-settings-style='{"radius":8,"border":true,"font":11,"padding":[8,8,8,8],"tone":"text"}' data-settings-layout="card">
                             {result.ok ? result.text : result.error}
                         </pre>
                     ) : null}

@@ -55,12 +55,12 @@ export const ClassicSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
         <div
             className="rounded-[24px] border border-white/10 p-4 space-y-4"
             style={{ backgroundColor: controlCardBg }}
-        >
-            <div className="space-y-1">
-                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+         data-settings-style='{"radius":24,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                     {t('options.classicSettings') }
                 </div>
-                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {t('options.classicSettingsDesc')}
                 </div>
             </div>
@@ -83,10 +83,10 @@ export const ClassicSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                 theme={theme}
             />
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.classicBreathingFloatMultiplier') }</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.classicBreathingFloatMultiplier') }</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {resolvedClassicTuning.breathingFloatMultiplier.toFixed(2)}x
                     </span>
                 </div>
@@ -100,14 +100,14 @@ export const ClassicSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
 
             {!resolvedClassicTuning.useLegacyLayout && (
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                        <span>{t('options.classicWordSpacing') }</span>
-                        <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+                <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                    <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                        <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.classicWordSpacing') }</span>
+                        <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                             {resolvedClassicTuning.wordSpacing.toFixed(2)}x
                         </span>
                     </div>
@@ -121,7 +121,7 @@ export const ClassicSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                         onPointerDown={onSliderPointerDown}
                         onPointerUp={onSliderCommit}
                         className={rangeInputClass}
-                    />
+                     data-settings-layout="column"/>
                 </div>
             )}
         </div>
@@ -173,12 +173,12 @@ export const PartitaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
         <div
             className="rounded-[24px] border border-white/10 p-4 space-y-4"
             style={{ backgroundColor: controlCardBg }}
-        >
-            <div className="space-y-1">
-                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+         data-settings-style='{"radius":24,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                     {t('options.partitaSettings') }
                 </div>
-                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {t('options.partitaSettingsDesc')}
                 </div>
             </div>
@@ -201,10 +201,10 @@ export const PartitaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                 theme={theme}
             />
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.partitaStaggerMin') }</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.partitaStaggerMin') }</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {resolvedPartitaTuning.staggerMin}px
                     </span>
                 </div>
@@ -218,13 +218,13 @@ export const PartitaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.partitaStaggerMax') }</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.partitaStaggerMax') }</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {resolvedPartitaTuning.staggerMax}px
                     </span>
                 </div>
@@ -238,7 +238,7 @@ export const PartitaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
         </div>
     );
@@ -286,12 +286,12 @@ export const FumeSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
         <div
             className="rounded-[24px] border border-white/10 p-4 space-y-4"
             style={{ backgroundColor: controlCardBg }}
-        >
-            <div className="space-y-1">
-                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+         data-settings-style='{"radius":24,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                     {t('options.fumeSettings') }
                 </div>
-                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {t('options.fumeSettingsDesc')}
                 </div>
             </div>
@@ -314,10 +314,10 @@ export const FumeSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                 theme={theme}
             />
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.fumeBackgroundObjectOpacity') }</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.fumeBackgroundObjectOpacity') }</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {Math.round(resolvedFumeTuning.backgroundObjectOpacity * 100)}%
                     </span>
                 </div>
@@ -331,13 +331,13 @@ export const FumeSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.fumeTextHoldRatio') }</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.fumeTextHoldRatio') }</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {Math.round(resolvedFumeTuning.textHoldRatio * 100)}%
                     </span>
                 </div>
@@ -351,13 +351,13 @@ export const FumeSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.fumeCameraSpeed') }</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.fumeCameraSpeed') }</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {resolvedFumeTuning.cameraSpeed.toFixed(2)}x
                     </span>
                 </div>
@@ -371,7 +371,7 @@ export const FumeSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
 
             <PresetGroup
@@ -383,10 +383,10 @@ export const FumeSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                 theme={theme}
             />
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.fumeGlowIntensity') }</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.fumeGlowIntensity') }</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {resolvedFumeTuning.glowIntensity.toFixed(2)}x
                     </span>
                 </div>
@@ -400,13 +400,13 @@ export const FumeSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.fumeHeroScale') }</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.fumeHeroScale') }</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {resolvedFumeTuning.heroScale.toFixed(2)}x
                     </span>
                 </div>
@@ -420,7 +420,7 @@ export const FumeSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
         </div>
     );
@@ -557,12 +557,12 @@ export const CappellaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
         <div
             className="rounded-[24px] border border-white/10 p-4 space-y-4"
             style={{ backgroundColor: controlCardBg }}
-        >
-            <div className="space-y-1">
-                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+         data-settings-style='{"radius":24,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                     {t('options.cappellaSettings') }
                 </div>
-                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {t('options.cappellaSettingsDesc')}
                 </div>
             </div>
@@ -579,11 +579,11 @@ export const CappellaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                 theme={theme}
             />
 
-            <div className="space-y-2.5">
-                <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-45" style={{ color: theme.secondaryColor }}>
+            <div className="space-y-2.5" data-settings-style='{"gap":10}' data-settings-layout="column">
+                <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-45" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12,"weight":500,"tone":"muted"}' data-settings-layout="column">
                     {t('options.cappellaAvatarSource') }
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2" data-settings-style='{"gap":8}' data-settings-layout="wrap">
                     {avatarSourceOptions.map(option => {
                         const isActive = option.value === resolvedTuning.avatarSource;
                         const isDisabled = option.value === 'custom' && !hasCappellaCustomAvatar;
@@ -603,7 +603,7 @@ export const CappellaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                                         : colorWithAlpha(theme.backgroundColor, isDaylight ? 0.24 : 0.34),
                                     boxShadow: isActive ? `inset 0 0 0 1px ${theme.accentColor}` : 'none',
                                 }}
-                            >
+                             data-settings-style='{"radius":64,"font":14,"border":true,"padding":[12,8,12,8]}' data-settings-layout="row">
                                 {option.label}
                             </button>
                         );
@@ -611,11 +611,11 @@ export const CappellaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                 </div>
             </div>
 
-            <div className="space-y-2.5">
-                <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-45" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2.5" data-settings-style='{"gap":10}' data-settings-layout="column">
+                <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-45" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"weight":500,"tone":"muted"}' data-settings-layout="column">
                     {t('options.cappellaAvatarPreview') }
                 </div>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-5 gap-2" data-settings-style='{"columns":5,"gap":8}' data-settings-layout="grid">
                     {avatarPreviewSlots.map((image, index) => (
                         <div
                             key={image?.id ?? `empty-${index}`}
@@ -626,26 +626,26 @@ export const CappellaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                                 color: 'var(--text-secondary)',
                             }}
                             title={image?.name ?? (t('options.cappellaEmojiEmptySlot') )}
-                        >
+                         data-settings-style='{"align":"center","center":true,"aspect":1,"radius":64,"border":true,"font":11,"tone":"muted","fill":true}' data-settings-layout="row" data-settings-swatch={isDaylight ? 'rgba(255,255,255,0.42)' : 'rgba(255,255,255,0.04)'}>
                             {image ? (
                                 <img
                                     src={image.url}
                                     alt={image.name}
                                     className="h-full w-full rounded-full object-cover"
-                                />
+                                 data-settings-style='{"radius":64}' data-settings-layout="column"/>
                             ) : (
-                                <span className="opacity-45">{index + 1}</span>
+                                <span className="opacity-45" data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">{index + 1}</span>
                             )}
                         </div>
                     ))}
                 </div>
-                <div className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {hasCappellaCustomAvatar
                         ? `${t('options.cappellaEmojiCount') } ${cappellaCustomAvatarImages.length}`
                         : t('options.cappellaAvatarUploadHint')}
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2" data-settings-style='{"gap":8}' data-settings-layout="wrap">
                     <button
                         type="button"
                         onClick={handleAvatarImportClick}
@@ -656,7 +656,7 @@ export const CappellaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                             borderColor: isDaylight ? 'rgba(24,24,27,0.08)' : 'rgba(255,255,255,0.08)',
                             backgroundColor: isDaylight ? 'rgba(255,255,255,0.56)' : 'rgba(255,255,255,0.04)',
                         }}
-                    >
+                     data-settings-style='{"radius":64,"font":14,"border":true,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="row">
                         {isImportingAvatar
                             ? t('options.cappellaAvatarUploading')
                             : (t('options.cappellaAvatarUpload') )}
@@ -671,7 +671,7 @@ export const CappellaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                             borderColor: isDaylight ? 'rgba(24,24,27,0.08)' : 'rgba(255,255,255,0.08)',
                             backgroundColor: isDaylight ? 'rgba(255,255,255,0.56)' : 'rgba(255,255,255,0.04)',
                         }}
-                    >
+                     data-settings-style='{"radius":64,"font":14,"border":true,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="row">
                         {t('options.cappellaAvatarClear') }
                     </button>
                 </div>
@@ -683,14 +683,14 @@ export const CappellaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     multiple
                     className="hidden"
                     onChange={(event) => void handleAvatarFileChange(event)}
-                />
+                 data-settings-layout="column"/>
             </div>
 
-            <div className="space-y-2.5">
-                <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-45" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2.5" data-settings-style='{"gap":10}' data-settings-layout="column">
+                <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-45" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"weight":500,"tone":"muted"}' data-settings-layout="column">
                     {t('options.cappellaEmojiSource') }
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2" data-settings-style='{"gap":8}' data-settings-layout="wrap">
                     {emojiSourceOptions.map(option => {
                         const isActive = option.value === resolvedTuning.emojiPackSource;
                         const isDisabled = option.value === 'custom' && !hasCappellaCustomEmojiPack;
@@ -710,7 +710,7 @@ export const CappellaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                                         : colorWithAlpha(theme.backgroundColor, isDaylight ? 0.24 : 0.34),
                                     boxShadow: isActive ? `inset 0 0 0 1px ${theme.accentColor}` : 'none',
                                 }}
-                            >
+                             data-settings-style='{"radius":64,"font":14,"border":true,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="row">
                                 {option.label}
                             </button>
                         );
@@ -718,11 +718,11 @@ export const CappellaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                 </div>
             </div>
 
-            <div className="space-y-2.5">
-                <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-45" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2.5" data-settings-style='{"gap":10}' data-settings-layout="column">
+                <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-45" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"weight":500,"tone":"muted"}' data-settings-layout="column">
                     {t('options.cappellaEmojiPreview') }
                 </div>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-5 gap-2" data-settings-style='{"columns":5,"gap":8}' data-settings-layout="grid">
                     {previewSlots.map((image, index) => (
                         <div
                             key={image?.id ?? `empty-${index}`}
@@ -733,27 +733,27 @@ export const CappellaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                                 color: 'var(--text-secondary)',
                             }}
                             title={image?.name ?? (t('options.cappellaEmojiEmptySlot') )}
-                        >
+                         data-settings-style='{"align":"center","center":true,"aspect":1,"radius":16,"border":true,"font":11,"padding":[4,0,4,0],"tone":"muted","fill":true}' data-settings-layout="row" data-settings-swatch={isDaylight ? 'rgba(255,255,255,0.42)' : 'rgba(255,255,255,0.04)'}>
                             {image ? (
                                 <img
                                     src={image.url}
                                     alt={image.name}
                                     className="h-full w-full object-contain"
-                                />
+                                 data-settings-layout="column"/>
                             ) : (
-                                <span className="opacity-45">{index + 1}</span>
+                                <span className="opacity-45" data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">{index + 1}</span>
                             )}
                         </div>
                     ))}
                 </div>
-                <div className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {hasCappellaCustomEmojiPack
                         ? `${t('options.cappellaEmojiCount') } ${cappellaCustomEmojiCount}`
                         : t('options.cappellaEmojiUploadHint')}
                 </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" data-settings-style='{"gap":8}' data-settings-layout="wrap">
                 <button
                     type="button"
                     onClick={handleImportClick}
@@ -764,7 +764,7 @@ export const CappellaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                         borderColor: isDaylight ? 'rgba(24,24,27,0.08)' : 'rgba(255,255,255,0.08)',
                         backgroundColor: isDaylight ? 'rgba(255,255,255,0.56)' : 'rgba(255,255,255,0.04)',
                     }}
-                >
+                 data-settings-style='{"radius":64,"font":14,"border":true,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="row">
                     {isImporting
                         ? t('options.cappellaEmojiUploading')
                         : (t('options.cappellaEmojiUpload') )}
@@ -779,7 +779,7 @@ export const CappellaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                         borderColor: isDaylight ? 'rgba(24,24,27,0.08)' : 'rgba(255,255,255,0.08)',
                         backgroundColor: isDaylight ? 'rgba(255,255,255,0.56)' : 'rgba(255,255,255,0.04)',
                     }}
-                >
+                 data-settings-style='{"radius":64,"font":14,"border":true,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="row">
                     {t('options.cappellaEmojiClear') }
                 </button>
             </div>
@@ -791,10 +791,10 @@ export const CappellaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                 multiple
                 className="hidden"
                 onChange={(event) => void handleFileChange(event)}
-            />
+             data-settings-layout="column"/>
 
             {feedback && (
-                <div className="text-xs leading-5 opacity-70" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-xs leading-5 opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {feedback}
                 </div>
             )}
@@ -834,12 +834,12 @@ export const TiltSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
         <div
             className="rounded-[24px] border border-white/10 p-4 space-y-4"
             style={{ backgroundColor: controlCardBg }}
-        >
-            <div className="space-y-1">
-                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+         data-settings-style='{"radius":24,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                     {t('options.tiltSettings') }
                 </div>
-                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {t('options.tiltSettingsDesc')}
                 </div>
             </div>
@@ -853,10 +853,10 @@ export const TiltSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                 theme={theme}
             />
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.tiltSplitProbability') }</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.tiltSplitProbability') }</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {Math.round(resolvedTuning.splitProbability * 100)}%
                     </span>
                 </div>
@@ -870,13 +870,13 @@ export const TiltSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.tiltStyleProbability') }</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.tiltStyleProbability') }</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {Math.round(resolvedTuning.tiltStyleProbability * 100)}%
                     </span>
                 </div>
@@ -890,7 +890,7 @@ export const TiltSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
         </div>
     );
@@ -960,17 +960,17 @@ export const DioramaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
         <div
             className="rounded-[24px] border border-white/10 p-4 space-y-4"
             style={{ backgroundColor: controlCardBg }}
-        >
-            <div>
-                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+         data-settings-style='{"radius":24,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+            <div data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                     {t('options.dioramaSettings')}
                 </div>
             </div>
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.dioramaCameraSpeed')}</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.dioramaCameraSpeed')}</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {resolvedTuning.cameraSpeed.toFixed(2)}x
                     </span>
                 </div>
@@ -984,13 +984,13 @@ export const DioramaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.dioramaMotionAmount')}</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.dioramaMotionAmount')}</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {resolvedTuning.motionAmount.toFixed(2)}x
                     </span>
                 </div>
@@ -1004,13 +1004,13 @@ export const DioramaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.dioramaAudioReactivity')}</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.dioramaAudioReactivity')}</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {Math.round(resolvedTuning.audioReactivity * 100)}%
                     </span>
                 </div>
@@ -1024,7 +1024,7 @@ export const DioramaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
 
             {/* Three independent, stackable follow-sing effects - each an on/off toggle plus strength
@@ -1086,8 +1086,8 @@ export const DioramaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     borderColor: colorWithAlpha(theme.secondaryColor, isDaylight ? 0.17 : 0.14),
                     backgroundColor: colorWithAlpha(theme.backgroundColor, isDaylight ? 0.24 : 0.34),
                 }}
-            >
-                <span className="min-w-0 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+             data-settings-style='{"align":"between","gap":12,"radius":16,"border":true,"padding":[14,12,14,12],"fill":true}' data-settings-layout="row">
+                <span className="min-w-0 text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="wrap">
                     {t('options.dioramaKeywordColoring')}
                 </span>
                 <DioramaSettingsToggle
@@ -1167,20 +1167,20 @@ export const CladdaghSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
         <div
             className="rounded-[24px] border border-white/10 p-4 space-y-4"
             style={{ backgroundColor: controlCardBg }}
-        >
-            <div className="space-y-1">
-                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+         data-settings-style='{"radius":24,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                     {t('options.claddaghSettings') }
                 </div>
-                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {t('options.claddaghSettingsDesc')}
                 </div>
             </div>
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.claddaghFocusScaleRatio') }</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.claddaghFocusScaleRatio') }</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {(resolvedTuning.focusScaleRatio + 1.0).toFixed(2)}x
                     </span>
                 </div>
@@ -1194,13 +1194,13 @@ export const CladdaghSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.claddaghRadiusScale') }</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.claddaghRadiusScale') }</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {resolvedTuning.radiusScale.toFixed(2)}x
                     </span>
                 </div>
@@ -1214,13 +1214,13 @@ export const CladdaghSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.claddaghEllipseTiltDeg') }</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.claddaghEllipseTiltDeg') }</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {resolvedTuning.ellipseTiltDeg}°
                     </span>
                 </div>
@@ -1234,7 +1234,7 @@ export const CladdaghSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
 
             <PresetGroup
@@ -1246,10 +1246,10 @@ export const CladdaghSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                 theme={theme}
             />
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.claddaghLetterSpacingOffset')}</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.claddaghLetterSpacingOffset')}</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {resolvedTuning.letterSpacingOffset > 0 ? '+' : ''}{resolvedTuning.letterSpacingOffset.toFixed(1)}px
                     </span>
                 </div>
@@ -1263,7 +1263,7 @@ export const CladdaghSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
         </div>
     );

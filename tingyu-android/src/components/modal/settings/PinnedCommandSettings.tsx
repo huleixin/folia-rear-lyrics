@@ -40,18 +40,18 @@ const PinnedCommandSettings: React.FC<PinnedCommandSettingsProps> = ({
     })), [t]);
 
     return (
-        <SettingsAnchor anchorId="pinnedCommands" label={t('options.pinnedCommands')}>
+        <SettingsAnchor anchorId="pinnedCommands" label={t('options.pinnedCommands')} nativeLayout={{"kind":"column"}}>
             <SettingsSectionHeading icon={Pin} label={t('options.pinnedCommands')} />
-            <div className={`space-y-4 rounded-xl border p-4 ${settingsCardClass}`}>
-                <div className="space-y-1">
-                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            <div className={`space-y-4 rounded-xl border p-4 ${settingsCardClass}`} data-settings-style='{"gap":16,"radius":12,"border":true,"padding":[16,16,16,16]}' data-settings-layout="card">
+                <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                         {t('options.pinnedCommands')}
                     </div>
-                    <div className="max-w-[520px] text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="max-w-[520px] text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                         {t('options.pinnedCommandsDesc')}
                     </div>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-3" data-settings-style='{"gap":12}' data-settings-layout="grid">
                     {pinnedCommandIds.map((commandId, slotIndex) => {
                         const options = [
                             { value: '', label: t('options.pinnedCommandNone') },
@@ -62,8 +62,8 @@ const PinnedCommandSettings: React.FC<PinnedCommandSettingsProps> = ({
                         const slotLabel = t('options.pinnedCommandSlot', { index: slotIndex + 1 });
 
                         return (
-                            <div key={slotIndex} className="min-w-0 space-y-1.5">
-                                <div className="text-xs opacity-65" style={{ color: 'var(--text-secondary)' }}>
+                            <div key={slotIndex} className="min-w-0 space-y-1.5" data-settings-style='{"gap":6}' data-settings-layout="column">
+                                <div className="text-xs opacity-65" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                     {slotLabel}
                                 </div>
                                 <CustomSelect

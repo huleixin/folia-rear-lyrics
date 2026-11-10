@@ -65,30 +65,30 @@ export const DioramaGeometrySettings: React.FC<DioramaGeometrySettingsProps> = (
     const childrenId = useId();
 
     return (
-        <fieldset className="space-y-2.5">
-            <legend className="sr-only">{t('options.dioramaGeometry')}</legend>
+        <fieldset className="space-y-2.5" data-settings-style='{"gap":10}' data-settings-layout="column">
+            <legend className="sr-only" data-settings-layout="column">{t('options.dioramaGeometry')}</legend>
             <div
                 className="flex items-center justify-between gap-3 rounded-2xl border px-3.5 py-3"
                 style={{
                     borderColor: colorWithAlpha(theme.secondaryColor, isDaylight ? 0.17 : 0.14),
                     backgroundColor: colorWithAlpha(theme.backgroundColor, isDaylight ? 0.24 : 0.34),
                 }}
-            >
+             data-settings-style='{"align":"between","gap":12,"radius":16,"border":true,"padding":[14,12,14,12],"fill":true}' data-settings-layout="row">
                 <button
                     type="button"
                     aria-expanded={isExpanded}
                     aria-controls={childrenId}
                     onClick={() => setIsExpanded((expanded) => !expanded)}
                     className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                >
+                 data-settings-style='{"align":"center","grow":true,"gap":8}' data-settings-layout="row">
                     <ChevronDown
                         size={16}
                         aria-hidden="true"
                         className={`shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                         style={{ color: 'var(--text-secondary)' }}
                     />
-                    <span className="min-w-0">
-                        <span className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <span className="min-w-0" data-settings-layout="column">
+                        <span className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                             {t('options.dioramaGeometry')}
                         </span>
                     </span>
@@ -107,14 +107,14 @@ export const DioramaGeometrySettings: React.FC<DioramaGeometrySettingsProps> = (
                     id={childrenId}
                     className="ml-3 space-y-1.5 border-l pl-3"
                     style={{ borderColor: colorWithAlpha(theme.accentColor, value.enabled ? 0.3 : 0.12) }}
-                >
+                 data-settings-style='{"gap":6,"padding":[12,0,0,0],"margin":[12,0,0,0]}' data-settings-layout="column">
                     {/* Mutually-exclusive shape of the whole layer: per-line clouds OR one path tunnel. */}
                     <div
                         className="flex gap-2 transition-opacity"
                         role="group"
                         aria-label={t('options.dioramaGeometryMode')}
                         style={{ opacity: value.enabled ? 1 : 0.52 }}
-                    >
+                     data-settings-style='{"gap":8}' data-settings-layout="row">
                         {MODES.map((item) => {
                             const isActive = value.mode === item.key;
                             return (
@@ -135,7 +135,7 @@ export const DioramaGeometrySettings: React.FC<DioramaGeometrySettingsProps> = (
                                             : colorWithAlpha(theme.backgroundColor, isDaylight ? 0.24 : 0.34),
                                         boxShadow: isActive ? `inset 0 0 0 1px ${theme.accentColor}` : 'none',
                                     }}
-                                >
+                                 data-settings-style='{"grow":true,"radius":12,"font":14,"border":true,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="row">
                                     {t(item.labelKey)}
                                 </button>
                             );
@@ -150,9 +150,9 @@ export const DioramaGeometrySettings: React.FC<DioramaGeometrySettingsProps> = (
                                 opacity: value.enabled ? 1 : 0.52,
                                 backgroundColor: colorWithAlpha(theme.backgroundColor, isDaylight ? 0.16 : 0.26),
                             }}
-                        >
-                            <div className="min-w-0">
-                                <div className="text-sm" style={{ color: 'var(--text-primary)' }}>
+                         data-settings-style='{"align":"between","gap":16,"radius":12,"padding":[12,10,12,10]}' data-settings-layout="row">
+                            <div className="min-w-0" data-settings-style='{"grow":true}' data-settings-layout="column">
+                                <div className="text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"tone":"text"}' data-settings-layout="column">
                                     {t(item.labelKey)}
                                 </div>
                             </div>

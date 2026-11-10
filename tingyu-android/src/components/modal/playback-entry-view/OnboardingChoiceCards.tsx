@@ -36,7 +36,7 @@ export const OnboardingChoiceCards = <Value extends string>({
     dataAttribute,
     gridClassName = 'grid-cols-2 sm:grid-cols-3',
 }: OnboardingChoiceCardsProps<Value>) => (
-    <div className={`grid ${gridClassName} gap-3`}>
+    <div className={`grid ${gridClassName} gap-3`} data-settings-style='{"gap":12,"columns":2}' data-settings-layout="grid">
         {cards.map(({ value: optionValue, art: Art, title, tag, description }) => {
             const isSelected = value === optionValue;
             const frameClass = isSelected
@@ -56,23 +56,23 @@ export const OnboardingChoiceCards = <Value extends string>({
                             ? accentColor
                             : (isDaylight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)'),
                     }}
-                >
+                 data-settings-style='{"radius":16,"border":true,"padding":[12,12,12,12]}' data-settings-layout="column">
                     <Art
                         accentColor={accentColor}
                         className={`w-full h-auto rounded-lg ${isDaylight ? 'text-zinc-900' : 'text-zinc-100'}`}
                     />
-                    <div className="mt-3 flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                        <span>{title}</span>
+                    <div className="mt-3 flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","gap":8,"font":14,"weight":500,"margin":[0,12,0,0],"tone":"text"}' data-settings-layout="row">
+                        <span data-settings-layout="wrap">{title}</span>
                         {tag && (
                             <span
                                 className="rounded-full border px-1.5 py-px text-[10px] font-normal leading-4 opacity-70"
                                 style={{ borderColor: isSelected ? accentColor : 'currentColor', color: isSelected ? accentColor : undefined }}
-                            >
+                             data-settings-style='{"radius":64,"border":true,"font":10,"weight":400,"padding":[6,0,6,0]}' data-settings-layout="card">
                                 {tag}
                             </span>
                         )}
                     </div>
-                    <div className="mt-1 text-[11px] leading-relaxed opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="mt-1 text-[11px] leading-relaxed opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="column">
                         {description}
                     </div>
                 </button>

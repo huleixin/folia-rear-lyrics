@@ -53,12 +53,12 @@ const TemperaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
         <div
             className="rounded-[24px] border border-white/10 p-4 space-y-4"
             style={{ backgroundColor: controlCardBg }}
-        >
-            <div className="space-y-1">
-                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+         data-settings-style='{"radius":24,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                     {t('options.temperaSettings')}
                 </div>
-                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {t('options.temperaSettingsDesc')}
                 </div>
             </div>
@@ -81,7 +81,7 @@ const TemperaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                         borderColor: colorWithAlpha(theme.secondaryColor, isDaylight ? 0.18 : 0.14),
                         backgroundColor: colorWithAlpha(theme.backgroundColor, isDaylight ? 0.24 : 0.34),
                     }}
-                >
+                 data-settings-style='{"radius":16,"border":true,"gap":10,"padding":[14,14,14,14]}' data-settings-layout="card">
                     <TemperaRangeControl
                         label={t('options.temperaTextureResolution')}
                         value={temperaTuning.textureResolution}
@@ -93,7 +93,7 @@ const TemperaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                         onPointerDown={onSliderPointerDown}
                         onPointerUp={onSliderCommit}
                     />
-                    <p className="text-xs leading-relaxed opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                    <p className="text-xs leading-relaxed opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">
                         {t('options.temperaTexturePerformanceWarning')}
                     </p>
                 </div>
@@ -122,7 +122,7 @@ const TemperaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                 />
-                <p className="text-xs leading-relaxed opacity-55" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-xs leading-relaxed opacity-55" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">
                     {t('options.temperaGlyphSettleStretchHint')
                         || '0 = 每字用同样的短窗口快速落位，切镜前画面已静止，适合快歌；1 = 整个分镜的字精确落在歌词结束那一刻，全程都在动，适合慢歌。'}
                 </p>
@@ -155,7 +155,7 @@ const TemperaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                             isDaylight={isDaylight}
                             theme={theme}
                         />
-                        <p className="text-xs leading-relaxed opacity-55" style={{ color: 'var(--text-secondary)' }}>
+                        <p className="text-xs leading-relaxed opacity-55" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">
                             {t('options.temperaPostProcessTextureCompressionHint')
                                 || '开启后后处理在 1x 纹理上运算再拉伸到画布，降低GPU和显存压力'}
                         </p>
@@ -227,14 +227,14 @@ const TemperaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     isDaylight={isDaylight}
                     theme={theme}
                 />
-                <p className="text-xs leading-relaxed opacity-55" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-xs leading-relaxed opacity-55" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">
                     {t('options.temperaWholeLineLyricsHint')
                         || '关闭时一句歌词按 2~4 词切成多个分镜，字号可以放得很大；开启后整句留在同一个分镜里，长句会自动缩小字号。'}
                 </p>
             </TemperaSettingsSection>
 
             <TemperaSettingsSection title={t('options.temperaDisplaySection')}>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2" data-settings-style='{"gap":16}' data-settings-layout="grid">
                     {visibilityControls.map(control => (
                         <VisualizerPresetGroup
                             key={control.key}

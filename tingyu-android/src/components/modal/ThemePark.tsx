@@ -217,7 +217,7 @@ const ThemePark: React.FC<ThemeParkProps> = ({
             style={{ backgroundColor: overlayBackground }}
             onMouseDown={handleOverlayMouseDown}
             onClick={handleOverlayClick}
-        >
+         data-settings-style='{"padding":[12,12,12,12]}' data-settings-layout="column">
             <motion.div
                 initial={NATIVE_FIRST?false:{ opacity: 0, y: 18, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -226,7 +226,7 @@ const ThemePark: React.FC<ThemeParkProps> = ({
                 onClick={(event) => event.stopPropagation()}
                 data-ponder="theme-park"
                 className={`mx-auto flex h-full max-w-7xl flex-col overflow-hidden rounded-[32px] border ${borderColor} ${glassBg} shadow-[0_24px_80px_rgba(0,0,0,0.28)]`}
-            >
+             data-settings-style='{"radius":32,"border":true}' data-settings-layout="card">
                 <ThemeParkHeader
                     target={target}
                     targetHint={targetHint}
@@ -238,8 +238,8 @@ const ThemePark: React.FC<ThemeParkProps> = ({
                     onClose={onClose}
                 />
 
-                <div className="grid min-h-0 flex-1 gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,1.2fr)_380px] lg:items-stretch">
-                    <div data-native-live={NATIVE_FIRST?'true':undefined} className="min-h-[300px] lg:min-h-0 lg:h-full">
+                <div data-settings-page-body data-settings-style='{"padding":[18,0,18,0],"gap":16}' className="grid min-h-0 flex-1 gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,1.2fr)_380px] lg:items-stretch" data-settings-layout="grid">
+                    <div data-settings-style='{"preview":"theme"}' data-native-live={NATIVE_FIRST?'true':undefined} className="min-h-[300px] lg:min-h-0 lg:h-full" data-settings-layout="column">
                         <ThemePreview
                             theme={previewTheme[mode]}
                             mode={mode}
@@ -264,12 +264,12 @@ const ThemePark: React.FC<ThemeParkProps> = ({
                         />
                     </div>
 
-                    <div className="relative z-30 min-h-0 overflow-y-auto pr-1 custom-scrollbar">
+                    <div className="relative z-30 min-h-0 overflow-y-auto pr-1 custom-scrollbar" data-settings-style='{"minHeight":0,"padding":[0,0,4,0]}' data-settings-layout="column">
                         <div
                             className="space-y-4 rounded-[24px] border border-white/10 p-4"
                             style={{ backgroundColor: controlCardBg }}
-                        >
-                            <div className="grid grid-cols-4 gap-1 rounded-full bg-white/5 p-1">
+                         data-settings-style='{"gap":16,"radius":24,"border":true,"padding":[16,16,16,16]}' data-settings-layout="card">
+                            <div className="grid grid-cols-4 gap-1 rounded-full bg-white/5 p-1" data-settings-style='{"columns":4,"gap":4,"radius":64,"fill":true,"padding":[4,4,4,4]}' data-settings-layout="grid">
                                 {TABS.map(({ id, labelKey }) => (
                                     <button
                                         key={id}
@@ -283,7 +283,7 @@ const ThemePark: React.FC<ThemeParkProps> = ({
                                                 ? (isDaylight ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.12)')
                                                 : 'transparent',
                                         }}
-                                    >
+                                     data-settings-style='{"radius":64,"font":12,"padding":[8,8,8,8],"tone":"text"}' data-settings-layout="row">
                                         {t(labelKey)}
                                     </button>
                                 ))}

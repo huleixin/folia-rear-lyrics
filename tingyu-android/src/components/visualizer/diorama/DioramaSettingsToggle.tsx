@@ -35,7 +35,9 @@ export const DioramaSettingsToggle: React.FC<DioramaSettingsToggleProps> = ({
                 ? colorWithAlpha(theme.accentColor, isDaylight ? 0.2 : 0.28)
                 : colorWithAlpha(theme.backgroundColor, isDaylight ? 0.34 : 0.48),
         }}
-    >
+     data-settings-style='{"height":28,"width":48,"radius":64,"border":true}' data-settings-layout="row" data-settings-swatch={checked
+                ? colorWithAlpha(theme.accentColor, isDaylight ? 0.2 : 0.28)
+                : colorWithAlpha(theme.backgroundColor, isDaylight ? 0.34 : 0.48)}>
         <span
             className="absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full transition-all"
             style={{
@@ -43,6 +45,6 @@ export const DioramaSettingsToggle: React.FC<DioramaSettingsToggleProps> = ({
                 backgroundColor: checked ? theme.accentColor : theme.secondaryColor,
                 boxShadow: `0 2px 8px ${colorWithAlpha(theme.backgroundColor, 0.35)}`,
             }}
-        />
+         data-settings-style='{"height":20,"width":20,"radius":64}' data-settings-layout="wrap" data-settings-swatch={checked ? theme.accentColor : theme.secondaryColor}/>
     </button>
 );

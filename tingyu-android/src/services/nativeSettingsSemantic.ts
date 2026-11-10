@@ -3,6 +3,7 @@ import type { PageActions } from '../types/nativePages';
 import { semanticControl, settingControlSelector, settingId, settingText } from './settingsSemanticControls';
 import { bindSemanticPreview } from './settingsSemanticPreview';
 import { absolutePageImage } from './nativePages';
+import { captureSettingsPageLayout } from './settingsPageLayout';
 
 // src/services/nativeSettingsSemantic.ts
 // Shared settings state hosts expose semantic forms; Compose owns every row, scroll and modal.
@@ -16,7 +17,7 @@ export function captureSemanticSettings(root: HTMLElement, key: string, fallback
     const actions: PageActions = {};
     const editors = [...root.querySelectorAll<HTMLElement>('[data-native-settings-editor], [data-front-stage-settings]')].filter(visible);
     const active = editors.at(-1) ?? root;
-    const portals = [...document.querySelectorAll<HTMLElement>('[data-folia-themed-dialog],[role="dialog"][aria-modal="true"]')]
+    const portals = [...document.querySelectorAll<HTMLElement>('[data-folia-themed-dialog],[role="dialog"][aria-modal="true"],[role="menu"]')]
         .filter(node => node !== root && node !== active && !node.contains(active) && visible(node)
             && !node.matches('[data-folia-settings-panel]') && !node.parentElement?.closest('[data-folia-themed-dialog]'));
     const modal = portals.at(-1);
@@ -69,11 +70,21 @@ export function captureSemanticSettings(root: HTMLElement, key: string, fallback
             }
         };
         visit(source);
-        return { key: `settings-flow:${key}${modalPage ? ':modal' : ''}`, title, nodes };
+        const headerActions=header?[...header.querySelectorAll<HTMLElement>(settingControlSelector)].filter(control=>control!==back&&!control.closest('[data-settings-toolbar]')).map(control=>{
+            const node=semanticControl(control,actions);node.icon=[...(control.querySelector('svg')?.classList??[])].find(name=>name.startsWith('lucide-')&&!name.endsWith('-icon'))?.slice(7);
+            const existing=nodes.find(item=>item.id===node.id);if(existing)existing.icon=node.icon;else nodes.push(node);return node.id;
+        }):[];
+        const layout=captureSettingsPageLayout(source,nodes,actions,[...excludedSetForLayout(source,header,titleNode),...(modal?[modal]:[]),...(back&&navigationButton(back)?[back]:[])]);
+        if(modalPage)layout.style={gap:layout.style?.gap,padding:[0,0,0,0]};
+        return { key: `settings-flow:${key}${modalPage ? ':modal' : ''}`, title, nodes, layout, headerActions };
     };
     const flow = read(active);
     if (modal) { modal.dataset.nativeSettingsPortal = 'true'; modal.dataset.nativePage = 'true'; flow.modal = read(modal, true); }
     if (!actions.back) actions.back = () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     if (!actions.dismiss) actions.dismiss = () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     return { document: { paints: [], controls: [], areas: [], live: [], flow } satisfies NativeSettingsDocument, actions };
+}
+
+function excludedSetForLayout(source:HTMLElement,header:Element|null,title:Element|null):Element[]{
+    return [header,title,...source.querySelectorAll('[data-native-decoration]')].filter((node):node is Element=>node!==null);
 }

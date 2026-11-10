@@ -86,8 +86,8 @@ const ThemePreviewLayer: React.FC<{
                 style={{
                     clipPath,
                 }}
-            >
-                <div className="absolute inset-0">
+             data-settings-layout="column">
+                <div className="absolute inset-0" data-settings-layout="column">
                     <VisualizerRenderer
                         mode={visualizerMode}
                         visualizerTunings={visualizerTunings}
@@ -115,38 +115,38 @@ const ThemePreviewLayer: React.FC<{
                     />
                 </div>
 
-                <div className={`relative z-10 flex h-full p-4 pointer-events-none ${overlayPositionClass}`}>
-                    <div className={`flex max-w-full flex-col gap-2 ${badgeRowAlignmentClass}`}>
+                <div className={`relative z-10 flex h-full p-4 pointer-events-none ${overlayPositionClass}`} data-settings-style='{"padding":[16,16,16,16]}' data-settings-layout="row">
+                    <div className={`flex max-w-full flex-col gap-2 ${badgeRowAlignmentClass}`} data-settings-style='{"gap":8}' data-settings-layout="column">
                         {isBottomRight && (
-                            <div className={`flex ${badgeRowAlignmentClass}`}>
-                                <div className="inline-flex items-center gap-2 rounded-full px-3 py-2 backdrop-blur-md" style={{ backgroundColor: `${theme.backgroundColor}88` }}>
-                                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: theme.accentColor }} />
-                                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: theme.primaryColor }} />
-                                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: theme.secondaryColor }} />
+                            <div className={`flex ${badgeRowAlignmentClass}`} data-settings-layout="row">
+                                <div className="inline-flex items-center gap-2 rounded-full px-3 py-2 backdrop-blur-md" style={{ backgroundColor: `${theme.backgroundColor}88` }} data-settings-style='{"align":"center","gap":8,"radius":64,"padding":[12,8,12,8]}' data-settings-layout="row">
+                                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: theme.accentColor }}  data-settings-style='{"height":12,"width":12,"radius":64}' data-settings-layout="column" data-settings-swatch={theme.accentColor}/>
+                                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: theme.primaryColor }}  data-settings-style='{"height":12,"width":12,"radius":64}' data-settings-layout="column" data-settings-swatch={theme.primaryColor}/>
+                                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: theme.secondaryColor }}  data-settings-style='{"height":12,"width":12,"radius":64}' data-settings-layout="column" data-settings-swatch={theme.secondaryColor}/>
                                 </div>
                             </div>
                         )}
-                        <div className={`flex max-w-full flex-wrap items-center gap-2 ${badgeRowAlignmentClass}`}>
-                            <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs uppercase tracking-[0.22em] backdrop-blur-md" style={{ color: theme.primaryColor, borderColor: `${theme.primaryColor}30`, backgroundColor: `${theme.backgroundColor}80` }}>
+                        <div className={`flex max-w-full flex-wrap items-center gap-2 ${badgeRowAlignmentClass}`} data-settings-style='{"align":"center","gap":8}' data-settings-layout="wrap">
+                            <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs uppercase tracking-[0.22em] backdrop-blur-md" style={{ color: theme.primaryColor, borderColor: `${theme.primaryColor}30`, backgroundColor: `${theme.backgroundColor}80` }} data-settings-style='{"align":"center","gap":8,"radius":64,"border":true,"font":12,"padding":[12,4,12,4],"fill":true}' data-settings-layout="row">
                                 {isLight ? <Sun size={13} /> : <Moon size={13} />}
-                                <span>{isLight ? 'Light' : 'Dark'}</span>
+                                <span data-settings-layout="wrap">{isLight ? 'Light' : 'Dark'}</span>
                             </div>
                             {isActive && (
-                                <div className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs backdrop-blur-md" style={{ color: theme.backgroundColor, backgroundColor: theme.accentColor }}>
+                                <div className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs backdrop-blur-md" style={{ color: theme.backgroundColor, backgroundColor: theme.accentColor }} data-settings-style='{"align":"center","gap":4,"radius":64,"font":12,"padding":[10,4,10,4]}' data-settings-layout="row">
                                     <Check size={12} />
-                                    <span>{t('theme.editingBadge')}</span>
+                                    <span data-settings-layout="wrap">{t('theme.editingBadge')}</span>
                                 </div>
                             )}
-                            <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] backdrop-blur-md" style={{ color: theme.secondaryColor, borderColor: `${theme.secondaryColor}25`, backgroundColor: `${theme.backgroundColor}88` }}>
-                                <span>{visualizerModeLabel}</span>
+                            <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] backdrop-blur-md" style={{ color: theme.secondaryColor, borderColor: `${theme.secondaryColor}25`, backgroundColor: `${theme.backgroundColor}88` }} data-settings-style='{"align":"center","gap":8,"radius":64,"border":true,"font":11,"padding":[12,6,12,6],"fill":true}' data-settings-layout="row">
+                                <span data-settings-layout="wrap">{visualizerModeLabel}</span>
                             </div>
                         </div>
                         {!isBottomRight && (
-                            <div className={`flex ${badgeRowAlignmentClass}`}>
-                                <div className="inline-flex items-center gap-2 rounded-full px-3 py-2 backdrop-blur-md" style={{ backgroundColor: `${theme.backgroundColor}88` }}>
-                                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: theme.accentColor }} />
-                                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: theme.primaryColor }} />
-                                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: theme.secondaryColor }} />
+                            <div className={`flex ${badgeRowAlignmentClass}`} data-settings-layout="row">
+                                <div className="inline-flex items-center gap-2 rounded-full px-3 py-2 backdrop-blur-md" style={{ backgroundColor: `${theme.backgroundColor}88` }} data-settings-style='{"align":"center","gap":8,"radius":64,"padding":[12,8,12,8]}' data-settings-layout="row">
+                                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: theme.accentColor }}  data-settings-style='{"height":12,"width":12,"radius":64}' data-settings-layout="column" data-settings-swatch={theme.accentColor}/>
+                                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: theme.primaryColor }}  data-settings-style='{"height":12,"width":12,"radius":64}' data-settings-layout="column" data-settings-swatch={theme.primaryColor}/>
+                                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: theme.secondaryColor }}  data-settings-style='{"height":12,"width":12,"radius":64}' data-settings-layout="column" data-settings-swatch={theme.secondaryColor}/>
                                 </div>
                             </div>
                         )}
@@ -206,7 +206,7 @@ const ThemePreview: React.FC<{
             <div
                 className="relative isolate h-[min(46vh,460px)] min-h-[300px] overflow-hidden rounded-[30px] border shadow-[0_18px_50px_rgba(0,0,0,0.18)] lg:h-full lg:min-h-0"
                 style={{ borderColor }}
-            >
+             data-settings-style='{"minHeight":300,"radius":30,"border":true}' data-settings-layout="card">
                 <button
                     type="button"
                     onClick={(e) => {
@@ -215,8 +215,9 @@ const ThemePreview: React.FC<{
                     }}
                     className="absolute right-4 top-4 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-zinc-950/40 text-white backdrop-blur-md transition-all hover:bg-zinc-950/60 hover:scale-105 active:scale-95 shadow-sm pointer-events-auto"
                     title={isPaused ? t('ui.play') : t('ui.pause')}
+                    data-settings-overlay="theme-pause"
                     aria-label={isPaused ? t('ui.playPreview') : t('ui.pausePreview')}
-                >
+                 data-settings-style='{"align":"center","center":true,"height":40,"width":40,"radius":64,"border":true}' data-settings-layout="row">
                     {isPaused ? <Play size={16} className="translate-x-[1px]" fill="currentColor" /> : <Pause size={16} fill="currentColor" />}
                 </button>
 

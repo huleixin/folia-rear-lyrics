@@ -26,13 +26,13 @@ export const SettingsSectionHeader: React.FC<SettingsSectionHeaderProps> = ({
     utilityGhostButtonClass,
     compact = false,
 }) => compact ? null : (
-    <div className="mb-4 md:mb-6 border-b border-white/10 pb-3 md:pb-4">
-        <div className="flex items-start justify-between gap-4">
-            <div>
-                {!compact && <h2 className="text-lg md:text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+    <div className="mb-4 md:mb-6 border-b border-white/10 pb-3 md:pb-4" data-settings-style='{"divider":true,"padding":[0,0,0,12],"margin":[0,0,0,16]}' data-settings-layout="column">
+        <div className="flex items-start justify-between gap-4" data-settings-style='{"align":"between","gap":16}' data-settings-layout="row">
+            <div data-settings-style='{"grow":true}' data-settings-layout="column">
+                {!compact && <h2 className="text-lg md:text-xl font-semibold" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":18,"weight":600,"tone":"text"}' data-settings-layout="wrap">
                     {title}
                 </h2>}
-                <p className="text-xs opacity-50 mt-1" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-xs opacity-50 mt-1" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="wrap">
                     {compact ? daylightLabel : description}
                 </p>
             </div>
@@ -44,7 +44,7 @@ export const SettingsSectionHeader: React.FC<SettingsSectionHeaderProps> = ({
                     title={daylightLabel}
                     aria-label={daylightLabel}
                     aria-pressed={isDaylight}
-                >
+                 data-settings-style='{"align":"center","center":true,"height":36,"width":36,"radius":64}' data-settings-layout="row">
                     {isDaylight ? <Sun size={17} /> : <Moon size={17} />}
                 </button>
             )}

@@ -148,7 +148,7 @@ const BoxControl: React.FC<{
     // A locked box has nothing to toggle, and the unchanged section puts one inside its own header
     // button -- a button within a button is invalid and swallows clicks on that region.
     if (state === 'locked') {
-        return <span aria-hidden="true" className={className} style={style}>{glyph}</span>;
+        return <span aria-hidden="true" className={className} style={style} data-settings-layout="wrap">{glyph}</span>;
     }
 
     return (
@@ -162,7 +162,7 @@ const BoxControl: React.FC<{
             aria-label={label}
             className={className}
             style={style}
-        >
+         data-settings-layout="row">
             {glyph}
         </button>
     );
@@ -251,7 +251,7 @@ const ImportConfirmDialog: React.FC<ImportConfirmDialogProps> = ({
         const cls = `text-xs ${dimmed ? `${mutedColor} line-through` : ''}`;
 
         // A row that reads "频谱样式  bar -> line" mixes the panel's wording with the store's ids.
-        if (named) return <span className={cls}>{named}</span>;
+        if (named) return <span className={cls} data-settings-layout="wrap">{named}</span>;
 
         // Theme sides are usually named after the preset they were seeded from, so the names would
         // read as an identical pair while the colours are what actually differ.
@@ -264,41 +264,41 @@ const ImportConfirmDialog: React.FC<ImportConfirmDialogProps> = ({
                 ['secondary', value.secondaryColor],
             ];
             return (
-                <span className={`inline-flex items-center gap-1 ${dimmed ? mutedColor : ''}`}>
+                <span className={`inline-flex items-center gap-1 ${dimmed ? mutedColor : ''}`} data-settings-style='{"align":"center","gap":4}' data-settings-layout="wrap">
                     {swatches.map(([name, color]) => (
                         <span
                             key={name}
                             title={`${name} ${color ?? ''}`}
                             className={`h-3.5 w-3.5 rounded-sm border border-white/20 ${dimmed ? 'opacity-40' : ''}`}
                             style={{ backgroundColor: color }}
-                        />
+                         data-settings-style='{"height":14,"width":14,"radius":2,"border":true}' data-settings-layout="card" data-settings-swatch={color}/>
                     ))}
                 </span>
             );
         }
         if (key === 'visualizerMode' && typeof value === 'string' && hasVisualizerMode(value)) {
-            return <span className={cls}>{getVisualizerModeLabel(value, k => t(k))}</span>;
+            return <span className={cls} data-settings-layout="wrap">{getVisualizerModeLabel(value, k => t(k))}</span>;
         }
         if (key === 'visualizerBackgroundMode' && typeof value === 'string' && hasVisualizerBackgroundMode(value)) {
-            return <span className={cls}>{getVisualizerBackgroundModeLabel(value, k => t(k))}</span>;
+            return <span className={cls} data-settings-layout="wrap">{getVisualizerBackgroundModeLabel(value, k => t(k))}</span>;
         }
         if (key === 'libraryWallSeamStyle' && isLibraryWallSeamStyle(value)) {
-            return <span className={cls}>{t(LIBRARY_WALL_SEAM_STYLE_LABEL_KEYS[value])}</span>;
+            return <span className={cls} data-settings-layout="wrap">{t(LIBRARY_WALL_SEAM_STYLE_LABEL_KEYS[value])}</span>;
         }
         if (isHexColor(value)) {
             return (
-                <span className={`inline-flex items-center gap-1 ${cls}`}>
-                    <span className="h-3 w-3 rounded-sm border border-white/20" style={{ backgroundColor: value }} />
-                    <span className="font-mono">{value}</span>
+                <span className={`inline-flex items-center gap-1 ${cls}`} data-settings-style='{"align":"center","gap":4}' data-settings-layout="wrap">
+                    <span className="h-3 w-3 rounded-sm border border-white/20" style={{ backgroundColor: value }}  data-settings-style='{"height":12,"width":12,"radius":2,"border":true}' data-settings-layout="card" data-settings-swatch={value}/>
+                    <span className="font-mono" data-settings-layout="wrap">{value}</span>
                 </span>
             );
         }
-        if (typeof value === 'boolean') return <span className={cls}>{t(value ? 'options.importValueOn' : 'options.importValueOff')}</span>;
-        if (value === null || value === undefined || value === '') return <span className={`${cls} opacity-60`}>{t('options.importValueNone')}</span>;
-        if (Array.isArray(value)) return <span className={cls}>{t('options.importValueCount', { count: value.length })}</span>;
+        if (typeof value === 'boolean') return <span className={cls} data-settings-layout="wrap">{t(value ? 'options.importValueOn' : 'options.importValueOff')}</span>;
+        if (value === null || value === undefined || value === '') return <span className={`${cls} opacity-60`} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">{t('options.importValueNone')}</span>;
+        if (Array.isArray(value)) return <span className={cls} data-settings-layout="wrap">{t('options.importValueCount', { count: value.length })}</span>;
         // In the unchanged section a bundle is equal on both sides; say so rather than leave a gap.
-        if (typeof value === 'object') return <span className={cls}>{t(bare ? 'options.importValueSame' : 'options.importValueGrouped')}</span>;
-        return <span className={cls}>{String(value)}</span>;
+        if (typeof value === 'object') return <span className={cls} data-settings-layout="wrap">{t(bare ? 'options.importValueSame' : 'options.importValueGrouped')}</span>;
+        return <span className={cls} data-settings-layout="wrap">{String(value)}</span>;
     };
 
     const changeRow = (change: ImportChange) => {
@@ -312,16 +312,16 @@ const ImportConfirmDialog: React.FC<ImportConfirmDialogProps> = ({
         const childPaths = children.map(c => c.key);
 
         return (
-            <li key={change.key} className="text-xs">
-                <div className="flex items-center gap-2">
+            <li key={change.key} className="text-xs" data-settings-style='{"font":12}' data-settings-layout="column">
+                <div className="flex items-center gap-2" data-settings-style='{"align":"center","gap":8}' data-settings-layout="row">
                     <BoxControl state={on ? 'on' : 'off'} tone={tone} label={fieldLabel(change)} onClick={() => toggleKey(change.key)} />
-                    <span className={`min-w-0 flex-1 truncate ${mutedColor}`}>{fieldLabel(change)}</span>
+                    <span className={`min-w-0 flex-1 truncate ${mutedColor}`} data-settings-style='{"grow":true}' data-settings-layout="wrap">{fieldLabel(change)}</span>
                     {opaque ? (
                         <button
                             type="button"
                             onClick={() => toggleCollapse(`child:${change.key}`)}
                             className={`flex shrink-0 items-center gap-1 ${!on ? `${mutedColor} line-through` : ''}`}
-                        >
+                         data-settings-style='{"align":"center","gap":4}' data-settings-layout="row">
                             {t('options.importChildCount', { count: children.length })}
                             <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
                         </button>
@@ -329,7 +329,7 @@ const ImportConfirmDialog: React.FC<ImportConfirmDialogProps> = ({
                         <>
                             {renderValue(change.from, false, change.key)}
                             {on
-                                ? <span className={`shrink-0 ${mutedColor}`}>→</span>
+                                ? <span className={`shrink-0 ${mutedColor}`} data-settings-layout="wrap">→</span>
                                 : <Undo2 size={12} className={`shrink-0 ${mutedColor}`} aria-label={t('options.importSkipped')} />}
                             {renderValue(change.to, !on, change.key)}
                         </>
@@ -337,7 +337,7 @@ const ImportConfirmDialog: React.FC<ImportConfirmDialogProps> = ({
                 </div>
 
                 {opaque && open && (
-                    <ul className={`mt-1 space-y-1 border-l pl-3 ${isDaylight ? 'border-zinc-900/10' : 'border-white/10'}`}>
+                    <ul className={`mt-1 space-y-1 border-l pl-3 ${isDaylight ? 'border-zinc-900/10' : 'border-white/10'}`} data-settings-style='{"gap":4,"padding":[12,0,0,0],"margin":[0,4,0,0]}' data-settings-layout="column">
                         {children.map((child) => {
                             // The panel's own label for this setting, if it has one.
                             const labelKey = resolveSettingLabelKey(change.key, child.key, k => i18n.exists(k), childPaths);
@@ -348,12 +348,12 @@ const ImportConfirmDialog: React.FC<ImportConfirmDialogProps> = ({
                                 return valueKey ? t(valueKey) : null;
                             };
                             return (
-                            <li key={child.key} className="flex items-center gap-2">
-                                <span className={`min-w-0 flex-1 truncate ${mutedColor} ${labelKey ? 'text-xs' : 'font-mono text-[11px]'}`}>
+                            <li key={child.key} className="flex items-center gap-2" data-settings-style='{"align":"center","gap":8}' data-settings-layout="row">
+                                <span className={`min-w-0 flex-1 truncate ${mutedColor} ${labelKey ? 'text-xs' : 'font-mono text-[11px]'}`} data-settings-style='{"grow":true}' data-settings-layout="wrap">
                                     {labelKey ? t(labelKey) : child.key}
                                 </span>
                                 {renderValue(child.from, false, undefined, false, named(child.from))}
-                                <span className={`shrink-0 ${mutedColor}`}>→</span>
+                                <span className={`shrink-0 ${mutedColor}`} data-settings-layout="wrap">→</span>
                                 {renderValue(child.to, !on, undefined, false, named(child.to))}
                             </li>
                             );
@@ -383,7 +383,7 @@ const ImportConfirmDialog: React.FC<ImportConfirmDialogProps> = ({
                         type="button"
                         onClick={onCancel}
                         className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${isDaylight ? 'hover:bg-zinc-200/60' : 'hover:bg-white/10'}`}
-                    >
+                     data-settings-style='{"radius":12,"font":14,"weight":500,"padding":[16,8,16,8]}' data-settings-layout="row">
                         {t('status.cancel')}
                     </button>
                     <button
@@ -394,17 +394,17 @@ const ImportConfirmDialog: React.FC<ImportConfirmDialogProps> = ({
                         // through the confirm button rather than only through cancel.
                         disabled={selectableKeys.length > 0 && selected.size === 0}
                         className="rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold transition-colors hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
+                     data-settings-style='{"radius":12,"fill":true,"font":14,"weight":600,"padding":[16,8,16,8]}' data-settings-layout="row">
                         {t('options.importApplySelected')}
                     </button>
                 </>
             )}
         >
-            <div className="max-h-[400px] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
+            <div className="max-h-[400px] space-y-2 overflow-y-auto pr-1 custom-scrollbar" data-settings-style='{"gap":8,"padding":[0,0,4,0]}' data-settings-layout="column">
                 {plan.changes.length === 0 && (
-                    <div className={`flex items-start gap-2 rounded-2xl border px-4 py-3 text-xs ${rowClass} ${mutedColor}`}>
+                    <div className={`flex items-start gap-2 rounded-2xl border px-4 py-3 text-xs ${rowClass} ${mutedColor}`} data-settings-style='{"gap":8,"radius":16,"border":true,"font":12,"padding":[16,12,16,12],"fill":true}' data-settings-layout="row">
                         <Info size={13} className="mt-0.5 shrink-0" />
-                        <span>{t('options.importNothingToChange')}</span>
+                        <span data-settings-layout="wrap">{t('options.importNothingToChange')}</span>
                     </div>
                 )}
 
@@ -423,8 +423,8 @@ const ImportConfirmDialog: React.FC<ImportConfirmDialogProps> = ({
                     if (plain.length === 0 && derived.length === 0) return null;
 
                     return (
-                        <div key={group} className={`rounded-2xl border px-4 py-3 ${rowClass}`}>
-                            <div className="flex items-center gap-3">
+                        <div key={group} className={`rounded-2xl border px-4 py-3 ${rowClass}`} data-settings-style='{"radius":16,"border":true,"padding":[16,12,16,12]}' data-settings-layout="card">
+                            <div className="flex items-center gap-3" data-settings-style='{"align":"center","gap":12}' data-settings-layout="row">
                                 <BoxControl
                                     state={plain.length === 0 ? 'locked' : groupState}
                                     tone={tone}
@@ -434,12 +434,12 @@ const ImportConfirmDialog: React.FC<ImportConfirmDialogProps> = ({
                                         setSelected(plain.reduce((acc, c) => withLinks(acc, c.key, on), selected));
                                     }}
                                 />
-                                <span className="text-sm font-medium">{t(GROUP_LABEL_KEYS[group])}</span>
+                                <span className="text-sm font-medium" data-settings-style='{"font":14,"weight":500}' data-settings-layout="wrap">{t(GROUP_LABEL_KEYS[group])}</span>
                                 <button
                                     type="button"
                                     onClick={() => toggleCollapse(group)}
                                     className={`ml-auto flex items-center gap-1 text-xs ${mutedColor} transition-opacity hover:opacity-100`}
-                                >
+                                 data-settings-style='{"align":"center","gap":4,"font":12}' data-settings-layout="row">
                                     {t('options.importChangeCount', { count: plain.length + derived.length })}
                                     <ChevronDown size={13} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                                 </button>
@@ -448,58 +448,58 @@ const ImportConfirmDialog: React.FC<ImportConfirmDialogProps> = ({
                             {/* The changes the config did not ask for, shown without a checkbox:
                                 they are not chosen, they follow. */}
                             {derived.map(change => (
-                                <div key={change.key} className="mt-2 flex items-start gap-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                                <div key={change.key} className="mt-2 flex items-start gap-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-300" data-settings-style='{"gap":8,"radius":12,"font":12,"padding":[12,8,12,8],"margin":[0,8,0,0]}' data-settings-layout="row">
                                     <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-                                    <span>{t(DERIVED_LABEL_KEYS[change.key] ?? change.key)}</span>
+                                    <span data-settings-layout="wrap">{t(DERIVED_LABEL_KEYS[change.key] ?? change.key)}</span>
                                 </div>
                             ))}
 
                             {plain.some(c => c.note === 'listMerged' && selected.has(c.key)) && (
-                                <div className={`mt-2 flex items-start gap-2 rounded-xl px-3 py-2 text-xs ${isDaylight ? 'bg-zinc-900/5 text-zinc-500' : 'bg-white/5 text-zinc-400'}`}>
+                                <div className={`mt-2 flex items-start gap-2 rounded-xl px-3 py-2 text-xs ${isDaylight ? 'bg-zinc-900/5 text-zinc-500' : 'bg-white/5 text-zinc-400'}`} data-settings-style='{"gap":8,"radius":12,"font":12,"padding":[12,8,12,8],"margin":[0,8,0,0]}' data-settings-layout="row">
                                     <Info size={13} className="mt-0.5 shrink-0" />
-                                    <span>{t('options.importListMerged')}</span>
+                                    <span data-settings-layout="wrap">{t('options.importListMerged')}</span>
                                 </div>
                             )}
 
                             {plain.some(c => c.note === 'fontUnavailable' && selected.has(c.key)) && (
-                                <div className={`mt-2 flex items-start gap-2 rounded-xl px-3 py-2 text-xs ${isDaylight ? 'bg-zinc-900/5 text-zinc-500' : 'bg-white/5 text-zinc-400'}`}>
+                                <div className={`mt-2 flex items-start gap-2 rounded-xl px-3 py-2 text-xs ${isDaylight ? 'bg-zinc-900/5 text-zinc-500' : 'bg-white/5 text-zinc-400'}`} data-settings-style='{"gap":8,"radius":12,"font":12,"padding":[12,8,12,8],"margin":[0,8,0,0]}' data-settings-layout="row">
                                     <Info size={13} className="mt-0.5 shrink-0" />
-                                    <span>{t('options.importFontUnavailable')}</span>
+                                    <span data-settings-layout="wrap">{t('options.importFontUnavailable')}</span>
                                 </div>
                             )}
 
-                            {isOpen && plain.length > 0 && <ul className="mt-2 space-y-1.5">{plain.map(changeRow)}</ul>}
+                            {isOpen && plain.length > 0 && <ul className="mt-2 space-y-1.5" data-settings-style='{"gap":6,"margin":[0,8,0,0]}' data-settings-layout="column">{plain.map(changeRow)}</ul>}
                         </div>
                     );
                 })}
 
                 {plan.unchanged.length > 0 && (
-                    <div className={`rounded-2xl border px-4 py-3 ${rowClass} opacity-70`}>
+                    <div className={`rounded-2xl border px-4 py-3 ${rowClass} opacity-70`} data-settings-style='{"radius":16,"border":true,"padding":[16,12,16,12]}' data-settings-layout="card">
                         <button
                             type="button"
                             onClick={() => toggleCollapse('__unchanged')}
                             className="flex w-full items-center gap-3"
-                        >
+                         data-settings-style='{"align":"center","gap":12}' data-settings-layout="row">
                             <BoxControl state="locked" tone={tone} />
-                            <span className="text-sm font-medium">{t('options.importUnchanged')}</span>
-                            <span className={`ml-auto flex items-center gap-1 text-xs ${mutedColor}`}>
+                            <span className="text-sm font-medium" data-settings-style='{"font":14,"weight":500}' data-settings-layout="wrap">{t('options.importUnchanged')}</span>
+                            <span className={`ml-auto flex items-center gap-1 text-xs ${mutedColor}`} data-settings-style='{"align":"center","gap":4,"font":12}' data-settings-layout="row">
                                 {t('options.importItemCount', { count: plan.unchanged.length })}
                                 <ChevronDown size={13} className={`transition-transform ${collapsed.has('__unchanged') ? '' : 'rotate-180'}`} />
                             </span>
                         </button>
 
                         {!collapsed.has('__unchanged') && (
-                            <div className="mt-2 space-y-2">
+                            <div className="mt-2 space-y-2" data-settings-style='{"gap":8,"margin":[0,8,0,0]}' data-settings-layout="column">
                                 {Object.entries(unchangedByGroup).map(([group, rows]) => (
-                                    <div key={group}>
+                                    <div key={group} data-settings-layout="column">
                                         {/* A heading must not be smaller than the rows it heads. */}
-                                        <div className={`text-xs font-medium ${isDaylight ? 'text-zinc-600' : 'text-zinc-300'}`}>
+                                        <div className={`text-xs font-medium ${isDaylight ? 'text-zinc-600' : 'text-zinc-300'}`} data-settings-style='{"font":12,"weight":500}' data-settings-layout="column">
                                             {t(GROUP_LABEL_KEYS[group as ImportGroup])}
                                         </div>
-                                        <ul className="mt-1 space-y-1.5">
+                                        <ul className="mt-1 space-y-1.5" data-settings-style='{"gap":6,"margin":[0,4,0,0]}' data-settings-layout="column">
                                             {rows.map(change => (
-                                                <li key={change.key} className="flex items-center gap-2 text-xs">
-                                                    <span className={`min-w-0 flex-1 truncate ${mutedColor}`}>{fieldLabel(change)}</span>
+                                                <li key={change.key} className="flex items-center gap-2 text-xs" data-settings-style='{"align":"center","gap":8,"font":12}' data-settings-layout="row">
+                                                    <span className={`min-w-0 flex-1 truncate ${mutedColor}`} data-settings-style='{"grow":true}' data-settings-layout="wrap">{fieldLabel(change)}</span>
                                                     {/* Identical on both sides, so one value says it. */}
                                                     {renderValue(change.from, false, change.key, true)}
                                                 </li>

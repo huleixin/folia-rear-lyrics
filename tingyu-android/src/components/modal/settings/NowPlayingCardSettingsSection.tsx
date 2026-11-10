@@ -46,16 +46,16 @@ const NowPlayingCardSettingsSection: React.FC<NowPlayingCardSettingsSectionProps
         };
 
     return (
-        <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
-            <div className="space-y-1">
-                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+        <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                     {t('options.stageTrackPill')}
                 </div>
-                <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {t('options.stageTrackPillDesc')}
                 </div>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2" data-settings-style='{"columns":3,"gap":8}' data-settings-layout="grid">
                 {(['auto', 'always', 'never'] as const).map(pillMode => (
                     <button
                         key={pillMode}
@@ -64,18 +64,18 @@ const NowPlayingCardSettingsSection: React.FC<NowPlayingCardSettingsSectionProps
                         aria-pressed={mode === pillMode}
                         className="px-2 py-1.5 rounded-lg text-xs border transition-all"
                         style={getOptionStyle(mode === pillMode)}
-                    >
+                     data-settings-style='{"radius":8,"font":12,"border":true,"padding":[8,6,8,6]}' data-settings-layout="row">
                         {t(`options.stageTrackPillMode_${pillMode}`)}
                     </button>
                 ))}
             </div>
             {mode === 'auto' && (
-                <div className="space-y-2 pt-1">
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                <div className="space-y-2 pt-1" data-settings-style='{"gap":8,"padding":[0,4,0,0]}' data-settings-layout="column">
+                    <div className="flex items-center justify-between gap-4" data-settings-style='{"align":"between","gap":16}' data-settings-layout="row">
+                        <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted","grow":true}' data-settings-layout="column">
                             {t('options.stageTrackPillTimeout')}
                         </div>
-                        <span className="text-xs font-mono w-12 text-right shrink-0" style={{ color: 'var(--text-primary)' }}>
+                        <span className="text-xs font-mono w-12 text-right shrink-0" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":12,"width":48,"tone":"text"}' data-settings-layout="wrap">
                             {timeoutSec}s
                         </span>
                     </div>
@@ -91,20 +91,20 @@ const NowPlayingCardSettingsSection: React.FC<NowPlayingCardSettingsSectionProps
                         className="w-full accent-current"
                         style={{ accentColor: theme?.accentColor }}
                         aria-label={t('options.stageTrackPillTimeout')}
-                    />
-                    <div className="flex justify-between text-[11px] font-mono opacity-60" style={{ color: 'var(--text-secondary)' }}>
-                        <span>3s</span>
-                        <span>60s</span>
+                     data-settings-layout="column"/>
+                    <div className="flex justify-between text-[11px] font-mono opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"align":"between","font":11,"tone":"muted"}' data-settings-layout="row">
+                        <span data-settings-style='{"grow":true}' data-settings-layout="wrap">3s</span>
+                        <span data-settings-layout="wrap">60s</span>
                     </div>
                 </div>
             )}
             {mode !== 'never' && (
-                <div className="flex items-center justify-between gap-4 pt-1">
-                    <div className="space-y-0.5 min-w-0">
-                        <div className="text-xs" style={{ color: 'var(--text-primary)' }}>
+                <div className="flex items-center justify-between gap-4 pt-1" data-settings-style='{"align":"between","gap":16,"padding":[0,4,0,0]}' data-settings-layout="row">
+                    <div className="space-y-0.5 min-w-0" data-settings-style='{"gap":2,"grow":true}' data-settings-layout="column">
+                        <div className="text-xs" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":12,"tone":"text"}' data-settings-layout="column">
                             {t('options.stageTrackPillOnHome')}
                         </div>
-                        <div className="text-xs opacity-50 max-w-[300px]" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="text-xs opacity-50 max-w-[300px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                             {t('options.stageTrackPillOnHomeDesc')}
                         </div>
                     </div>
@@ -115,8 +115,8 @@ const NowPlayingCardSettingsSection: React.FC<NowPlayingCardSettingsSectionProps
                         style={{ backgroundColor: showOnHome ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
                         aria-pressed={showOnHome}
                         aria-label={t('options.stageTrackPillOnHome')}
-                    >
-                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${showOnHome ? 'translate-x-6' : 'translate-x-0'}`} />
+                     data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={showOnHome ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
+                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${showOnHome ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
                     </button>
                 </div>
             )}

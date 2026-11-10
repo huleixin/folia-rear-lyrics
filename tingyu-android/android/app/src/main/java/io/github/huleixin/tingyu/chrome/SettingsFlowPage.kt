@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -85,8 +87,8 @@ internal fun SettingsFlowPage(
     BoxWithConstraints(modifier.then(if (flow.nodes.any { it.kind == "preview" }) Modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen } else Modifier)) {
         val viewportWidth = constraints.maxWidth.toFloat()
         val viewportHeight = constraints.maxHeight.toFloat()
-        val inset = if (maxWidth < 374.dp) 18.dp else 22.dp
-        val glass = rememberTyTopGlassState(estimateHeaderBottomDp = page.safeTop + 72f)
+        val inset = 22.dp
+        val glass = rememberTyTopGlassState(estimateHeaderBottomDp = page.safeTop + 84f)
         Box(Modifier.fillMaxSize()) {
             TyTopGlassContentLayer(
                 glass, colors, ambientImage = null, ambientViewportHeight = null,
@@ -108,14 +110,14 @@ internal fun SettingsFlowPage(
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .padding(start = inset - 8.dp, end = inset, top = (page.safeTop + 14).dp, bottom = 12.dp)
-                        .heightIn(min = 44.dp)
+                        .padding(start = inset, end = inset, top = (page.safeTop + 24).dp, bottom = 20.dp)
+                        .heightIn(min = 40.dp)
                         .onGloballyPositioned { glass.reportHeader(it.positionInWindow().y, it.size.height) },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(
                         Modifier
-                            .size(44.dp)
+                            .size(40.dp)
                             .clip(RoundedCornerShape(999.dp))
                             .semantics { contentDescription = "返回" }
                             .chromeClickable(role = Role.Button, scaleTo = .94f) { action("back", "", 0.0) },
@@ -126,18 +128,26 @@ internal fun SettingsFlowPage(
                     Text(
                         flow.title.ifBlank { page.title },
                         color = topGlassForegroundColor(theme.text, TyTopGlass.LightInk),
-                        fontSize = 19.sp,
-                        lineHeight = 25.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 22.sp,
+                        lineHeight = 30.sp,
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(start = 4.dp).weight(1f),
+                        modifier = Modifier.padding(start = 10.dp).weight(1f),
                     )
+                    flow.headerActions.forEach { id -> flow.nodes.firstOrNull { it.id == id }?.let { node ->
+                        Box(Modifier.then(if(node.icon.isBlank())Modifier.widthIn(min=40.dp,max=112.dp).height(40.dp).padding(horizontal=6.dp)else Modifier.size(40.dp)).clip(RoundedCornerShape(999.dp))
+                            .semantics { contentDescription = node.title }
+                            .chromeClickable(enabled = !node.disabled) { action(TySettingEvent.action(node.action), "", 0.0) }, contentAlignment = Alignment.Center) {
+                            if(node.icon.isNotBlank())PageIcon(node.icon,theme.text,Modifier.size(20.dp))
+                            else Text(node.title,color=theme.text,fontSize=12.sp,maxLines=1)
+                        }
+                    } }
                 }
             }
             TyPanelOverlay(flow.modal != null, LocalInterfacePalette.current.light, onClose = { action("dismiss", "", 0.0) }) {
                 flow.modal?.let { modal ->
-                    TyDialogFrame(theme, modal.title, modal.subtitle, onClose = { action("dismiss", "", 0.0) }) {
+                    TyDialogFrame(theme, modal.title, modal.subtitle, onClose = { action("dismiss", "", 0.0) }, settingsLayout = modal.layout != null) {
                         key(modal.key) { TySettingsContent(modal, theme, action) }
                     }
                 }

@@ -82,7 +82,7 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
                     className={`fixed inset-0 z-[200] flex items-center justify-center p-4 ${isDaylight ? 'bg-transparent' : NATIVE_FIRST ? 'bg-black/60' : 'bg-black/60 backdrop-blur-md'}`}
                     onMouseDown={handleOverlayMouseDown}
                     onClick={handleBackdropClick}
-                >
+                 data-settings-style='{"align":"center","center":true,"padding":[16,16,16,16]}' data-settings-layout="row">
                     <motion.div
                         initial={{ scale: reduced?1:0.99, y:reduced?0:10, opacity: 0 }}
                         animate={{ scale: 1, y:0, opacity: 1 }}
@@ -92,35 +92,35 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
                         data-folia-themed-dialog="true"
                         data-folia-themed-dialog-kind={panelKind}
                         className={`relative w-full ${maxWidthClass} rounded-3xl border ${bgClass} p-6 shadow-2xl backdrop-blur-sm`}
-                    >
+                     data-settings-style='{"radius":24,"border":true,"padding":[24,24,24,24]}' data-settings-layout="card">
                         <button
                             type="button"
                             onClick={onClose}
                             disabled={closeDisabled}
                             title={closeDisabled ? closeDisabledTitle : undefined}
                             className={`absolute right-4 top-4 rounded-full p-2 transition-colors ${closeDisabled ? 'opacity-20' : `opacity-50 hover:opacity-100 ${closeBtnHover}`} ${textPrimary}`}
-                        >
+                         data-settings-style='{"radius":64,"padding":[8,8,8,8]}' data-settings-layout="row">
                             <X size={18} />
                         </button>
 
-                        <div className="mb-5 pr-10">
-                            <div className="flex items-center justify-between gap-3">
-                                <h2 className={`min-w-0 text-xl font-bold ${textPrimary}`}>{title}</h2>
+                        <div className="mb-5 pr-10" data-settings-style='{"padding":[0,0,40,0],"margin":[0,0,0,20]}' data-settings-layout="column">
+                            <div className="flex items-center justify-between gap-3" data-settings-style='{"align":"between","gap":12}' data-settings-layout="row">
+                                <h2 className={`min-w-0 text-xl font-bold ${textPrimary}`} data-settings-style='{"font":20,"weight":700,"grow":true}' data-settings-layout="wrap">{title}</h2>
                                 {headerActions && (
-                                    <div className="shrink-0">{headerActions}</div>
+                                    <div className="shrink-0" data-settings-layout="column">{headerActions}</div>
                                 )}
                             </div>
                             {description && (
                                 // pre-line so a description can break where its meaning does rather
                                 // than wherever the width happens to run out.
-                                <p className={`mt-2 whitespace-pre-line text-sm ${textSecondary}`}>{description}</p>
+                                <p className={`mt-2 whitespace-pre-line text-sm ${textSecondary}`} data-settings-style='{"font":14,"margin":[0,8,0,0]}' data-settings-layout="wrap">{description}</p>
                             )}
                         </div>
 
-                        <div>{children}</div>
+                        <div data-settings-layout="column">{children}</div>
 
                         {footer && (
-                            <div className="mt-5 flex items-center justify-end gap-3">
+                            <div className="mt-5 flex items-center justify-end gap-3" data-settings-style='{"align":"end","gap":12,"margin":[0,20,0,0]}' data-settings-layout="row">
                                 {footer}
                             </div>
                         )}

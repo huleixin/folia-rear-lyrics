@@ -75,7 +75,7 @@ export const AiHelpPromptModal: React.FC<AiHelpPromptModalProps> = ({
                     transition={{ duration: 0.2 }}
                     className="fixed inset-0 z-[260] flex items-center justify-center bg-black/60 p-4"
                     onClick={onClose}
-                >
+                 data-settings-style='{"align":"center","center":true,"fill":true,"padding":[16,16,16,16]}' data-settings-layout="row">
                     <motion.div
                         initial={{ scale: 0.96, opacity: 0, y: 16 }}
                         animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -83,18 +83,18 @@ export const AiHelpPromptModal: React.FC<AiHelpPromptModalProps> = ({
                         transition={{ type: 'spring', bounce: 0, duration: 0.35 }}
                         onClick={(event) => event.stopPropagation()}
                         className={`${bgClass} ${textPrimary} relative w-full max-w-lg overflow-hidden rounded-[1.5rem] border p-6 shadow-2xl`}
-                    >
+                     data-settings-style='{"border":true,"padding":[24,24,24,24]}' data-settings-layout="column">
                         <div
                             className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full blur-[72px]"
                             style={{ backgroundColor: theme?.accentColor ?? '#60a5fa', opacity: isDaylight ? 0.2 : 0.12 }}
-                        />
+                         data-settings-style='{"height":224,"width":224,"radius":64}' data-settings-layout="column" data-settings-swatch={theme?.accentColor ?? '#60a5fa'}/>
 
 
 
-                        <div className="relative z-10 space-y-5">
-                            <div className="pr-10">
-                                <h2 className="text-xl font-semibold">{t('aiHelp.title', 'Need help?')}</h2>
-                                <p className={`mt-2 text-sm leading-6 ${textSecondary}`}>
+                        <div data-settings-page-body className="relative z-10 space-y-5" data-settings-style='{"gap":20}' data-settings-layout="column">
+                            <div className="pr-10" data-settings-style='{"padding":[0,0,40,0]}' data-settings-layout="column">
+                                <h2 className="text-xl font-semibold" data-settings-style='{"font":20,"weight":600}' data-settings-layout="wrap">{t('aiHelp.title', 'Need help?')}</h2>
+                                <p className={`mt-2 text-sm leading-6 ${textSecondary}`} data-settings-style='{"font":14,"margin":[0,8,0,0]}' data-settings-layout="wrap">
                                     {t('aiHelp.description', 'Check the Folia documentation first. If the issue remains unresolved, copy the prompt below and ask an AI model for help.')}
                                 </p>
                             </div>
@@ -104,17 +104,17 @@ export const AiHelpPromptModal: React.FC<AiHelpPromptModalProps> = ({
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className={`flex items-center gap-3 rounded-xl border p-4 transition hover:-translate-y-0.5 ${panelBg}`}
-                            >
-                                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isDaylight ? 'bg-white' : 'bg-white/10'}`}>
+                             data-settings-style='{"align":"center","gap":12,"radius":12,"border":true,"padding":[16,16,16,16],"fill":true}' data-settings-layout="row">
+                                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isDaylight ? 'bg-white' : 'bg-white/10'}`} data-settings-style='{"align":"center","center":true,"height":40,"width":40,"radius":12}' data-settings-layout="row">
                                     <BookOpen size={19} style={{ color: theme?.accentColor ?? '#60a5fa' }} />
                                 </span>
-                                <span className="min-w-0 flex-1">
-                                    <span className="block text-sm font-semibold">{t('aiHelp.docsTitle', 'Read the Folia documentation')}</span>
-                                    <span className={`mt-1 block text-xs leading-5 ${textSecondary}`}>
+                                <span className="min-w-0 flex-1" data-settings-style='{"grow":true}' data-settings-layout="column">
+                                    <span className="block text-sm font-semibold" data-settings-style='{"font":14,"weight":600}' data-settings-layout="column">{t('aiHelp.docsTitle', 'Read the Folia documentation')}</span>
+                                    <span className={`mt-1 block text-xs leading-5 ${textSecondary}`} data-settings-style='{"font":12,"margin":[0,4,0,0]}' data-settings-layout="wrap">
                                         {t('aiHelp.docsDescription', 'Find usage instructions, configuration details, and troubleshooting guidance.')}
                                     </span>
                                 </span>
-                                <span className={`inline-flex shrink-0 items-center gap-1 text-xs font-medium ${textSecondary}`}>
+                                <span className={`inline-flex shrink-0 items-center gap-1 text-xs font-medium ${textSecondary}`} data-settings-style='{"align":"center","gap":4,"font":12,"weight":500}' data-settings-layout="wrap">
                                     {t('aiHelp.openDocs', 'Open docs')}
                                     <ExternalLink size={14} />
                                 </span>
@@ -125,50 +125,50 @@ export const AiHelpPromptModal: React.FC<AiHelpPromptModalProps> = ({
                                 type="button"
                                 onClick={openDiscordInvite}
                                 className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition hover:-translate-y-0.5 ${panelBg}`}
-                            >
-                                <img src={discordIconUrl} alt="" aria-hidden className="h-10 w-10 shrink-0 rounded-xl" />
-                                <span className="min-w-0 flex-1">
-                                    <span className="block text-sm font-semibold">{t('aiHelp.discordTitle', 'Ask in the Discord community')}</span>
-                                    <span className={`mt-1 block text-xs leading-5 ${textSecondary}`}>
+                             data-settings-style='{"align":"center","gap":12,"radius":12,"border":true,"padding":[16,16,16,16]}' data-settings-layout="row">
+                                <img src={discordIconUrl} alt="" aria-hidden className="h-10 w-10 shrink-0 rounded-xl"  data-settings-style='{"height":40,"width":40,"radius":12}' data-settings-layout="column"/>
+                                <span className="min-w-0 flex-1" data-settings-style='{"grow":true}' data-settings-layout="column">
+                                    <span className="block text-sm font-semibold" data-settings-style='{"font":14,"weight":600}' data-settings-layout="column">{t('aiHelp.discordTitle', 'Ask in the Discord community')}</span>
+                                    <span className={`mt-1 block text-xs leading-5 ${textSecondary}`} data-settings-style='{"font":12,"margin":[0,4,0,0]}' data-settings-layout="wrap">
                                         {t('aiHelp.discordDescription', 'Get help from other users and the developers, and hear about new releases first.')}
                                     </span>
                                 </span>
-                                <span className={`inline-flex shrink-0 items-center gap-1 text-xs font-medium ${textSecondary}`}>
+                                <span className={`inline-flex shrink-0 items-center gap-1 text-xs font-medium ${textSecondary}`} data-settings-style='{"align":"center","gap":4,"font":12,"weight":500}' data-settings-layout="wrap">
                                     {t('aiHelp.openDiscord', 'Join')}
                                     <ExternalLink size={14} />
                                 </span>
                             </button>
 
-                            <div>
-                                <h3 className="text-sm font-semibold">{t('aiHelp.askAiTitle', 'Still need help? Ask AI')}</h3>
-                                <p className={`mt-1 text-xs leading-5 ${textSecondary}`}>
+                            <div data-settings-layout="column">
+                                <h3 className="text-sm font-semibold" data-settings-style='{"font":14,"weight":600}' data-settings-layout="wrap">{t('aiHelp.askAiTitle', 'Still need help? Ask AI')}</h3>
+                                <p className={`mt-1 text-xs leading-5 ${textSecondary}`} data-settings-style='{"font":12,"margin":[0,4,0,0]}' data-settings-layout="wrap">
                                     {t('aiHelp.askAiDescription', 'Describe your issue, then paste this prompt so the AI can use Folia documentation and source code as context.')}
                                 </p>
                             </div>
 
-                            <div className={`rounded-xl border p-4 ${panelBg}`}>
-                                <pre className={`max-h-52 overflow-auto whitespace-pre-wrap break-words text-xs leading-5 ${textSecondary}`}>
+                            <div className={`rounded-xl border p-4 ${panelBg}`} data-settings-style='{"radius":12,"border":true,"padding":[16,16,16,16]}' data-settings-layout="card">
+                                <pre className={`max-h-52 overflow-auto whitespace-pre-wrap break-words text-xs leading-5 ${textSecondary}`} data-settings-style='{"font":12}' data-settings-layout="column">
                                     {prompt}
                                 </pre>
                             </div>
 
-                            <div className={`rounded-xl border p-3 text-sm leading-6 ${panelBg} ${textSecondary}`}>
+                            <div className={`rounded-xl border p-3 text-sm leading-6 ${panelBg} ${textSecondary}`} data-settings-style='{"radius":12,"border":true,"font":14,"padding":[12,12,12,12]}' data-settings-layout="card">
                                 {t('aiHelp.usageHint', 'How to use it: open the AI model site you normally use, write your specific problem first, then paste this prompt below your question.')}
                             </div>
 
-                            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end" data-settings-style='{"gap":8}' data-settings-layout="column">
                                 <button
                                     type="button"
                                     onClick={onClose}
                                     className={`rounded-full border px-4 py-2 text-sm font-medium transition ${secondaryBtnClass}`}
-                                >
+                                 data-settings-style='{"radius":64,"border":true,"font":14,"weight":500,"padding":[16,8,16,8]}' data-settings-layout="row">
                                     {t('ui.cancel', 'Cancel')}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => void handleCopyPrompt()}
                                     className={`inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${primaryBtnClass}`}
-                                >
+                                 data-settings-style='{"align":"center","center":true,"gap":8,"radius":64,"font":14,"weight":600,"padding":[16,8,16,8]}' data-settings-layout="row">
                                     {copied ? <Check size={16} /> : <Copy size={16} />}
                                     {copied ? t('status.copied', 'Copied') : t('aiHelp.copyPrompt', 'Copy prompt')}
                                 </button>

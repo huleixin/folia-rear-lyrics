@@ -241,44 +241,44 @@ const StorageSettingsSection: React.FC<StorageSettingsSectionProps> = ({
     };
 
     return (
-        <div className="storage-settings">
+        <div className="storage-settings" data-settings-style='{"gap":28}' data-settings-layout="column">
             <SmartResourceCacheSettings />
-            <SettingsAnchor anchorId="cacheDetails" label={t('options.cacheDetails') || 'Cache Details'}>
-                <h3 className="storage-section-heading"><span><Database size={16}/>{t('options.cacheDetails')}</span><button type="button" className="storage-text-button" onClick={onClearAll} disabled={isCleaning === 'all'}>{isCleaning === 'all' ? <Loader2 size={14} className="animate-spin"/> : <Trash2 size={14}/>} {t('options.clearAll')}</button></h3>
-                <div className="cache-details-grid">
-                    {cacheItems.map(item=><div key={item.id} className="cache-detail-row">
-                        <div className="cache-detail-info"><span className="storage-icon"><item.icon size={18}/></span><div><div className="cache-detail-title">{item.label}</div><div className="cache-detail-size">{item.size}</div></div></div>
-                        <div className="cache-detail-actions">
-                            {item.id==='lyrics'&&<button type="button" data-ponder-lyric-export-settings-entry onClick={()=>{openCommandPaletteCommand(LYRIC_EXPORT_COMMAND_ID);closeSettings();}} title={t('lyricExport.settingsEntry')} aria-label={t('lyricExport.settingsEntry')}><Download size={17}/></button>}
-                            <button type="button" onClick={()=>onClear(item.id)} disabled={isCleaning===item.id} title={`${t('ui.clear')} ${item.label}`} aria-label={`${t('ui.clear')} ${item.label}`}>{isCleaning===item.id?<Loader2 size={17} className="animate-spin"/>:<Trash2 size={17}/>}</button>
+            <SettingsAnchor anchorId="cacheDetails" label={t('options.cacheDetails') || 'Cache Details'} nativeLayout={{"kind":"column"}}>
+                <h3 className="storage-section-heading" data-settings-style='{"align":"between","font":13,"weight":600,"tone":"muted","margin":[2,0,2,10]}' data-settings-layout="row"><span data-settings-style='{"grow":true}' data-settings-layout="wrap"><Database size={16}/>{t('options.cacheDetails')}</span><button type="button" className="storage-text-button" onClick={onClearAll} disabled={isCleaning === 'all'} data-settings-layout="row" data-settings-style='{"gap":6,"minHeight":44,"font":13,"tone":"muted"}'>{isCleaning === 'all' ? <Loader2 size={14} className="animate-spin"/> : <Trash2 size={14}/>} {t('options.clearAll')}</button></h3>
+                <div className="cache-details-grid" data-settings-style='{"padding":[16,0,16,0],"radius":20,"border":true}' data-settings-layout="card">
+                    {cacheItems.map(item=><div key={item.id} className="cache-detail-row" data-settings-style='{"align":"center","gap":10,"minHeight":68,"padding":[0,10,0,10],"divider":true}' data-settings-layout="row">
+                        <div className="cache-detail-info" data-settings-style='{"align":"center","gap":12,"grow":true}' data-settings-layout="row"><span className="storage-icon" data-settings-style='{"width":36,"height":36,"align":"center","center":true,"radius":12,"fill":true}' data-settings-layout="row"><item.icon size={18}/></span><div data-settings-layout="column"><div className="cache-detail-title" data-settings-style='{"font":14}' data-settings-layout="column">{item.label}</div><div className="cache-detail-size" data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">{item.size}</div></div></div>
+                        <div className="cache-detail-actions" data-settings-style='{"align":"center"}' data-settings-layout="row">
+                            {item.id==='lyrics'&&<button type="button" data-ponder-lyric-export-settings-entry onClick={()=>{openCommandPaletteCommand(LYRIC_EXPORT_COMMAND_ID);closeSettings();}} title={t('lyricExport.settingsEntry')} aria-label={t('lyricExport.settingsEntry')} data-settings-layout="row" data-settings-style='{"width":40,"minHeight":44,"center":true}'><Download size={17}/></button>}
+                            <button type="button" onClick={()=>onClear(item.id)} disabled={isCleaning===item.id} title={`${t('ui.clear')} ${item.label}`} aria-label={`${t('ui.clear')} ${item.label}`} data-settings-layout="row" data-settings-style='{"width":40,"minHeight":44,"center":true}'>{isCleaning===item.id?<Loader2 size={17} className="animate-spin"/>:<Trash2 size={17}/>}</button>
                         </div>
                     </div>)}
                 </div>
             </SettingsAnchor>
-            <SettingsAnchor anchorId="r2Sync" label={t('options.r2Sync') || 'Sync Server'}>
+            <SettingsAnchor anchorId="r2Sync" label={t('options.r2Sync') || 'Sync Server'} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={Cloud} label={t('options.r2Sync') || 'Sync Server'} />
-                <div className="storage-sync-card">
-                    <div className="storage-sync-summary"><div><h4>{t('options.r2SyncEnable')}</h4><p>在设备间同步主题与外观设置</p></div><button type="button" className="resource-switch" role="switch" aria-label={t('options.r2SyncEnable')} aria-checked={draftSyncConfig.enabled} onClick={()=>{updateDraftSyncConfig({enabled:!draftSyncConfig.enabled});setSyncExpanded(true);}}><span/></button></div>
-                    <button type="button" className="storage-text-button" aria-label="服务器设置" aria-expanded={syncExpanded} onClick={()=>setSyncExpanded(!syncExpanded)}>服务器设置{syncConfigDirty?' · 未保存':''}<ChevronDown size={16} style={{transform:syncExpanded?'rotate(180deg)':undefined}}/></button>
-                    {syncExpanded&&<div className="storage-sync-config">
-                        <p className="storage-sync-help">{t('options.r2SyncEnableDesc')} <a href="https://folia-site.cielaniska.top/guide/deploy-sync" target="_blank" rel="noopener noreferrer">{t('options.r2SyncDeployDocs')}</a></p>
-                        <label><span>{t('options.r2SyncWorkerUrl')}</span><input type="url" value={draftSyncConfig.workerBaseUrl} onChange={event=>updateDraftSyncConfig({workerBaseUrl:event.target.value})} placeholder="https://your-server.workers.dev"/></label>
-                        <label><span>{t('options.r2SyncToken')}</span><input type="password" value={draftSyncConfig.authToken} onChange={event=>updateDraftSyncConfig({authToken:event.target.value})} placeholder={t('options.r2SyncTokenPlaceholder')}/></label>
-                        <div className="storage-sync-actions">
-                            <button type="button" className="storage-button" onClick={handleSaveSyncConfig} disabled={!syncConfigDirty}><Check size={16}/>{t('options.r2SyncSave')}</button>
-                            <button type="button" className="storage-button" onClick={()=>void handleTestSync()} disabled={!syncConfigured||syncAction!=='idle'}>{syncAction==='testing'?<Loader2 size={16} className="animate-spin"/>:testResult==='success'?<Check size={16}/>:testResult==='error'?<X size={16}/>:<Cloud size={16}/>} {t('options.r2SyncTest')}</button>
+                <div className="storage-sync-card" data-settings-style='{"padding":[18,18,18,18],"gap":16,"radius":20,"border":true}' data-settings-layout="card">
+                    <div className="storage-sync-summary" data-settings-style='{"gap":16,"align":"between"}' data-settings-layout="row"><div data-settings-style='{"grow":true}' data-settings-layout="column"><h4 data-settings-style='{"font":14,"weight":600}' data-settings-layout="wrap">{t('options.r2SyncEnable')}</h4><p data-settings-layout="wrap">在设备间同步主题与外观设置</p></div><button type="button" className="resource-switch" role="switch" aria-label={t('options.r2SyncEnable')} aria-checked={draftSyncConfig.enabled} onClick={()=>{updateDraftSyncConfig({enabled:!draftSyncConfig.enabled});setSyncExpanded(true);}} data-settings-layout="row"><span data-settings-layout="wrap"/></button></div>
+                    <button type="button" className="storage-text-button" aria-label="服务器设置" aria-expanded={syncExpanded} onClick={()=>setSyncExpanded(!syncExpanded)} data-settings-layout="row" data-settings-style='{"gap":6,"minHeight":44,"font":13,"tone":"muted"}'>服务器设置{syncConfigDirty?' · 未保存':''}<ChevronDown size={16} style={{transform:syncExpanded?'rotate(180deg)':undefined}}/></button>
+                    {syncExpanded&&<div className="storage-sync-config" data-settings-style='{"gap":14,"padding":[0,16,0,0]}' data-settings-layout="column">
+                        <p className="storage-sync-help" data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">{t('options.r2SyncEnableDesc')} <a href="https://folia-site.cielaniska.top/guide/deploy-sync" target="_blank" rel="noopener noreferrer" data-settings-layout="wrap">{t('options.r2SyncDeployDocs')}</a></p>
+                        <label data-settings-layout="wrap"><span data-settings-layout="wrap">{t('options.r2SyncWorkerUrl')}</span><input type="url" value={draftSyncConfig.workerBaseUrl} onChange={event=>updateDraftSyncConfig({workerBaseUrl:event.target.value})} placeholder="https://your-server.workers.dev" data-settings-layout="column"/></label>
+                        <label data-settings-layout="wrap"><span data-settings-layout="wrap">{t('options.r2SyncToken')}</span><input type="password" value={draftSyncConfig.authToken} onChange={event=>updateDraftSyncConfig({authToken:event.target.value})} placeholder={t('options.r2SyncTokenPlaceholder')} data-settings-layout="column"/></label>
+                        <div className="storage-sync-actions" data-settings-style='{"columns":2,"gap":10}' data-settings-layout="grid">
+                            <button type="button" className="storage-button" onClick={handleSaveSyncConfig} disabled={!syncConfigDirty} data-settings-layout="row" data-settings-style='{"center":true,"minHeight":44,"radius":12,"border":true,"fill":true,"padding":[14,9,14,9],"gap":8,"font":13}'><Check size={16}/>{t('options.r2SyncSave')}</button>
+                            <button type="button" className="storage-button" onClick={()=>void handleTestSync()} disabled={!syncConfigured||syncAction!=='idle'} data-settings-layout="row" data-settings-style='{"center":true,"minHeight":44,"radius":12,"border":true,"fill":true,"padding":[14,9,14,9],"gap":8,"font":13}'>{syncAction==='testing'?<Loader2 size={16} className="animate-spin"/>:testResult==='success'?<Check size={16}/>:testResult==='error'?<X size={16}/>:<Cloud size={16}/>} {t('options.r2SyncTest')}</button>
                         </div>
                     </div>}
-                    {draftSyncConfig.enabled&&<div className="storage-sync-actions">
-                        <button type="button" className="storage-button storage-button-primary" onClick={()=>void handleSyncNow()} disabled={!syncConfigured||syncAction!=='idle'}>{syncAction==='syncing'?<Loader2 size={16} className="animate-spin"/>:<RefreshCw size={16}/>} {t('options.r2SyncNow')}</button>
-                        <button type="button" className="storage-button storage-button-primary" onClick={()=>void handleSyncSettings()} disabled={!syncConfigured||syncAction!=='idle'}>{syncAction==='syncingSettings'?<Loader2 size={16} className="animate-spin"/>:<Layers size={16}/>} {t('options.syncVisualSettings')}</button>
+                    {draftSyncConfig.enabled&&<div className="storage-sync-actions" data-settings-style='{"columns":2,"gap":10}' data-settings-layout="grid">
+                        <button type="button" className="storage-button storage-button-primary" onClick={()=>void handleSyncNow()} disabled={!syncConfigured||syncAction!=='idle'} data-settings-layout="row" data-settings-style='{"center":true,"minHeight":44,"radius":12,"border":true,"fill":true,"padding":[14,9,14,9],"gap":8,"font":13}'>{syncAction==='syncing'?<Loader2 size={16} className="animate-spin"/>:<RefreshCw size={16}/>} {t('options.r2SyncNow')}</button>
+                        <button type="button" className="storage-button storage-button-primary" onClick={()=>void handleSyncSettings()} disabled={!syncConfigured||syncAction!=='idle'} data-settings-layout="row" data-settings-style='{"center":true,"minHeight":44,"radius":12,"border":true,"fill":true,"padding":[14,9,14,9],"gap":8,"font":13}'>{syncAction==='syncingSettings'?<Loader2 size={16} className="animate-spin"/>:<Layers size={16}/>} {t('options.syncVisualSettings')}</button>
                     </div>}
-                    <div className="storage-sync-backup"><p>本地备份</p><div className="storage-sync-actions">
-                        <button type="button" className="storage-button" onClick={()=>void handleExportSyncLibrary()} disabled={syncAction!=='idle'}>{syncAction==='exporting'?<Loader2 size={16} className="animate-spin"/>:<Download size={16}/>} {t('options.r2SyncExportLibrary')}</button>
-                        <button type="button" className="storage-button" onClick={()=>syncImportInputRef.current?.click()} disabled={syncAction!=='idle'}>{syncAction==='importing'?<Loader2 size={16} className="animate-spin"/>:<Upload size={16}/>} {t('options.r2SyncImportLibrary')}</button>
+                    <div className="storage-sync-backup" data-settings-style='{"gap":10,"padding":[0,14,0,0]}' data-settings-layout="column"><p data-settings-layout="wrap">本地备份</p><div className="storage-sync-actions" data-settings-style='{"columns":2,"gap":10}' data-settings-layout="grid">
+                        <button type="button" className="storage-button" onClick={()=>void handleExportSyncLibrary()} disabled={syncAction!=='idle'} data-settings-layout="row" data-settings-style='{"center":true,"minHeight":44,"radius":12,"border":true,"fill":true,"padding":[14,9,14,9],"gap":8,"font":13}'>{syncAction==='exporting'?<Loader2 size={16} className="animate-spin"/>:<Download size={16}/>} {t('options.r2SyncExportLibrary')}</button>
+                        <button type="button" className="storage-button" onClick={()=>syncImportInputRef.current?.click()} disabled={syncAction!=='idle'} data-settings-layout="row" data-settings-style='{"center":true,"minHeight":44,"radius":12,"border":true,"fill":true,"padding":[14,9,14,9],"gap":8,"font":13}'>{syncAction==='importing'?<Loader2 size={16} className="animate-spin"/>:<Upload size={16}/>} {t('options.r2SyncImportLibrary')}</button>
                     </div></div>
-                    <input ref={syncImportInputRef} type="file" accept="application/zip,.zip,application/json,.json" className="hidden" onChange={event=>void handleImportSyncLibrary(event.target.files?.[0]??null)}/>
-                    {(draftSyncConfig.enabled||syncSummaryMsg||syncStatus.state==='error')&&<p role="status" className={`storage-sync-status ${syncStatus.state==='error'||testResult==='error'?'storage-error':''}`}>{syncSummaryMsg||syncStatusLabel}</p>}
+                    <input ref={syncImportInputRef} type="file" accept="application/zip,.zip,application/json,.json" className="hidden" onChange={event=>void handleImportSyncLibrary(event.target.files?.[0]??null)} data-settings-layout="column"/>
+                    {(draftSyncConfig.enabled||syncSummaryMsg||syncStatus.state==='error')&&<p role="status" className={`storage-sync-status ${syncStatus.state==='error'||testResult==='error'?'storage-error':''}`} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">{syncSummaryMsg||syncStatusLabel}</p>}
                 </div>
             </SettingsAnchor>
 
@@ -289,39 +289,39 @@ const StorageSettingsSection: React.FC<StorageSettingsSectionProps> = ({
                 toggleOffBackgroundClass={toggleOffBackgroundClass}
             />
 
-            <SettingsAnchor anchorId="mediaCache" label={t('options.mediaCache') || 'Media Cache'}>
+            <SettingsAnchor anchorId="mediaCache" label={t('options.mediaCache') || 'Media Cache'} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={Database} label={t('options.mediaCache') || 'Media Cache'} />
-                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                    <div className="flex items-center justify-between" data-settings-style='{"align":"between"}' data-settings-layout="row">
+                        <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                 {t('options.enableMediaCache') || 'Cache Songs'}
                             </div>
-                            <div className="resource-hint" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="resource-hint" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted","font":12}' data-settings-layout="column">
                                 {t('options.enableMediaCacheDesc') || 'Cache audio after playback for offline listening.'}
                             </div>
                         </div>
-                        <button type="button" role="switch" aria-label={t('options.enableMediaCache')} aria-checked={enableMediaCache} onClick={()=>onToggleMediaCache(!enableMediaCache)} className="resource-switch"><span/></button>
+                        <button type="button" role="switch" aria-label={t('options.enableMediaCache')} aria-checked={enableMediaCache} onClick={()=>onToggleMediaCache(!enableMediaCache)} className="resource-switch" data-settings-layout="row"><span data-settings-layout="wrap"/></button>
                     </div>
 
                     {isElectron && (
-                        <div className="pt-3 border-t border-white/10 space-y-3">
-                            <div className="space-y-1">
-                                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                        <div className="pt-3 border-t border-white/10 space-y-3" data-settings-style='{"gap":12,"padding":[0,12,0,0]}' data-settings-layout="column">
+                            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                     <FolderOpen size={14} />
                                     {t('options.cacheDirectory') || 'Cache Directory'}
                                 </div>
-                                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                     {t('options.cacheDirectoryDesc') || 'Choose where large desktop cache files should be stored.'}
                                 </div>
                             </div>
 
-                            <div className="flex gap-2">
-                                <div className="flex-1 bg-black/10 rounded-lg border border-white/5 px-3 py-2 min-w-0">
-                                    <div className="text-[11px] break-all font-mono" style={{ color: 'var(--text-primary)' }}>
+                            <div className="flex gap-2" data-settings-style='{"gap":8}' data-settings-layout="row">
+                                <div className="flex-1 bg-black/10 rounded-lg border border-white/5 px-3 py-2 min-w-0" data-settings-style='{"grow":true,"fill":true,"radius":8,"border":true,"padding":[12,8,12,8]}' data-settings-layout="card">
+                                    <div className="text-[11px] break-all font-mono" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":11,"tone":"text"}' data-settings-layout="column">
                                         {cacheDirectory || '...'}
                                     </div>
-                                    <div className="text-[10px] opacity-45 mt-1" style={{ color: 'var(--text-secondary)' }}>
+                                    <div className="text-[10px] opacity-45 mt-1" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":10,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="column">
                                         {cacheDirectoryIsDefault
                                             ? (t('options.cacheDirectoryDefaultHint') || 'Using the default desktop cache location.')
                                             : (t('options.cacheDirectoryCustomHint') || 'Using a custom cache location.')}
@@ -334,7 +334,7 @@ const StorageSettingsSection: React.FC<StorageSettingsSectionProps> = ({
                                     style={{ color: 'var(--text-primary)' }}
                                     title={t('options.chooseCacheDirectory') || 'Choose Folder'}
                                     aria-label={t('options.chooseCacheDirectory') || 'Choose Folder'}
-                                >
+                                 data-settings-style='{"align":"center","center":true,"width":48,"radius":8,"font":14,"weight":500,"fill":true,"tone":"text"}' data-settings-layout="row">
                                     {cacheDirectoryStatus === 'choosing' ? <Loader2 size={16} className="animate-spin" /> : <Pencil size={16} />}
                                 </button>
                             </div>
@@ -342,17 +342,17 @@ const StorageSettingsSection: React.FC<StorageSettingsSectionProps> = ({
                     )}
 
                     {isElectron && (
-                        <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-4">
-                            <div className="space-y-1">
-                                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                        <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-4" data-settings-style='{"align":"between","gap":16,"padding":[0,12,0,0]}' data-settings-layout="row">
+                            <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                     <HardDrive size={14} />
                                     {t('options.mediaCacheLimit') || 'Cache Limit'}
                                 </div>
-                                <div className="text-xs opacity-50 max-w-[240px]" style={{ color: 'var(--text-secondary)' }}>
+                                <div className="text-xs opacity-50 max-w-[240px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                     {t('options.mediaCacheLimitDesc') || 'Once past this, the songs you have not played in longest are dropped first.'}
                                 </div>
                             </div>
-                            <div className="w-32 shrink-0">
+                            <div className="w-32 shrink-0" data-settings-style='{"width":128}' data-settings-layout="column">
                                 <CustomSelect
                                     value={String(mediaCacheLimitGb)}
                                     onChange={(value) => onSetMediaCacheLimitGb(Number(value))}
@@ -365,9 +365,9 @@ const StorageSettingsSection: React.FC<StorageSettingsSectionProps> = ({
                         </div>
                     )}
 
-                    <div className="pt-3 border-t border-white/10 flex justify-between items-center text-xs opacity-50">
-                        <span>{t('options.cachedSongsCount') || 'Cached Songs'}:</span>
-                        <span className="font-mono">{mediaCount} · {cacheSizes.media}</span>
+                    <div className="pt-3 border-t border-white/10 flex justify-between items-center text-xs opacity-50" data-settings-style='{"align":"between","font":12,"tone":"muted","padding":[0,12,0,0]}' data-settings-layout="row">
+                        <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.cachedSongsCount') || 'Cached Songs'}:</span>
+                        <span className="font-mono" data-settings-layout="wrap">{mediaCount} · {cacheSizes.media}</span>
                     </div>
                 </div>
             </SettingsAnchor>

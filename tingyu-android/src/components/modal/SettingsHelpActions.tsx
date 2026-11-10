@@ -139,11 +139,11 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
                 border: '1px solid color-mix(in srgb, currentColor 22%, transparent)',
                 background: 'color-mix(in srgb, currentColor 7%, transparent)',
             }}
-        >
+         data-settings-style='{"align":"center","gap":12,"radius":16,"padding":[16,16,16,16],"tone":"text","border":true,"fill":true}' data-settings-layout="row">
             <MessageSquarePlus size={19} className="shrink-0 opacity-80" aria-hidden="true" />
-            <span className="min-w-0">
-                <span className="block text-sm font-semibold">{t('help.feedback')}</span>
-                <span className="mt-0.5 block text-xs opacity-55">{t('help.feedbackDescription')}</span>
+            <span className="min-w-0" data-settings-layout="column">
+                <span className="block text-sm font-semibold" data-settings-style='{"font":14,"weight":600}' data-settings-layout="column">{t('help.feedback')}</span>
+                <span className="mt-0.5 block text-xs opacity-55" data-settings-style='{"font":12,"tone":"muted","margin":[0,2,0,0]}' data-settings-layout="column">{t('help.feedbackDescription')}</span>
             </span>
         </button>
     );
@@ -161,22 +161,22 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
             onClick={onOpenReleaseNotes}
             className="flex w-full items-center gap-3 rounded-2xl bg-white/5 p-4 text-left transition-colors hover:bg-white/10"
             style={{ color: 'var(--text-primary)' }}
-        >
+         data-settings-style='{"align":"center","gap":12,"radius":16,"fill":true,"padding":[16,16,16,16],"tone":"text"}' data-settings-layout="row">
             <Sparkles size={19} className="shrink-0 opacity-75" aria-hidden="true" />
-            <span>
-                <span className="block text-sm font-semibold">{t('help.releaseNotes')}</span>
-                <span className="mt-0.5 block text-xs opacity-55">{t('help.releaseNotesDescription')}</span>
+            <span data-settings-layout="column">
+                <span className="block text-sm font-semibold" data-settings-style='{"font":14,"weight":600}' data-settings-layout="column">{t('help.releaseNotes')}</span>
+                <span className="mt-0.5 block text-xs opacity-55" data-settings-style='{"font":12,"tone":"muted","margin":[0,2,0,0]}' data-settings-layout="column">{t('help.releaseNotesDescription')}</span>
             </span>
         </button>
     );
 
     // Android exposes only the release action; diagnostic services remain available internally.
-    if (isAndroidNativeRuntime()) return <div className="space-y-3">{feedbackCard}{releaseNotes}{feedbackLayer}</div>;
+    if (isAndroidNativeRuntime()) return <div className="space-y-3" data-settings-style='{"gap":12}' data-settings-layout="column">{feedbackCard}{releaseNotes}{feedbackLayer}</div>;
 
     return (
         <>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="sm:col-span-2">{feedbackCard}</div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" data-settings-style='{"columns":1,"gap":12}' data-settings-layout="grid">
+            <div className="sm:col-span-2" data-settings-layout="column">{feedbackCard}</div>
             <StartupDiagnosticsControl/>
             {releaseNotes}
             <button
@@ -186,21 +186,21 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
                 disabled={copyState === 'working'}
                 className="flex items-center gap-3 rounded-2xl bg-white/5 p-4 text-left transition-colors hover:bg-white/10 disabled:opacity-50 disabled:cursor-default sm:col-span-2"
                 style={{ color: 'var(--text-primary)' }}
-            >
+             data-settings-style='{"align":"center","gap":12,"radius":16,"fill":true,"padding":[16,16,16,16],"tone":"text"}' data-settings-layout="row">
                 <CopyIcon
                     size={19}
                     className={`shrink-0 opacity-75 ${copyState === 'working' ? 'animate-spin' : ''}`}
                     aria-hidden="true"
                 />
-                <span>
-                    <span className="block text-sm font-semibold">
+                <span data-settings-layout="column">
+                    <span className="block text-sm font-semibold" data-settings-style='{"font":14,"weight":600}' data-settings-layout="column">
                         {copyState === 'copied'
                             ? t('help.copyDiagnosticsCopied')
                             : copyState === 'failed'
                                 ? t('help.copyDiagnosticsFailed')
                                 : t('help.copyDiagnostics')}
                     </span>
-                    <span className="mt-0.5 block text-xs opacity-55">{t('help.copyDiagnosticsDescription')}</span>
+                    <span className="mt-0.5 block text-xs opacity-55" data-settings-style='{"font":12,"tone":"muted","margin":[0,2,0,0]}' data-settings-layout="column">{t('help.copyDiagnosticsDescription')}</span>
                 </span>
             </button>
             <button
@@ -210,14 +210,14 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
                 disabled={trailState === 'working'}
                 className="flex items-center gap-3 rounded-2xl bg-white/5 p-4 text-left transition-colors hover:bg-white/10 disabled:opacity-50 disabled:cursor-default sm:col-span-2"
                 style={{ color: 'var(--text-primary)' }}
-            >
+             data-settings-style='{"align":"center","gap":12,"radius":16,"fill":true,"padding":[16,16,16,16],"tone":"text"}' data-settings-layout="row">
                 <TrailIcon
                     size={19}
                     className={`shrink-0 opacity-75 ${trailState === 'working' ? 'animate-spin' : ''}`}
                     aria-hidden="true"
                 />
-                <span>
-                    <span className="block text-sm font-semibold">
+                <span data-settings-layout="column">
+                    <span className="block text-sm font-semibold" data-settings-style='{"font":14,"weight":600}' data-settings-layout="column">
                         {trailState === 'cleared'
                             ? '播放轨迹已清空'
                             : trailState === 'failed'
@@ -226,7 +226,7 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
                                     ? '当前平台不支持'
                                     : '清空播放轨迹（取证用）'}
                     </span>
-                    <span className="mt-0.5 block text-xs opacity-55">
+                    <span className="mt-0.5 block text-xs opacity-55" data-settings-style='{"font":12,"tone":"muted","margin":[0,2,0,0]}' data-settings-layout="column">
                         只清空原生播放轨迹，不影响播放列表、音源设置与任何用户数据
                     </span>
                 </span>
@@ -238,21 +238,21 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
                 disabled={faultState === 'working'}
                 className="flex items-center gap-3 rounded-2xl bg-white/5 p-4 text-left transition-colors hover:bg-white/10 disabled:opacity-50 disabled:cursor-default sm:col-span-2"
                 style={{ color: 'var(--text-primary)' }}
-            >
+             data-settings-style='{"align":"center","gap":12,"radius":16,"fill":true,"padding":[16,16,16,16],"tone":"text"}' data-settings-layout="row">
                 <FaultIcon
                     size={19}
                     className={`shrink-0 opacity-75 ${faultState === 'working' ? 'animate-spin' : ''}`}
                     aria-hidden="true"
                 />
-                <span>
-                    <span className="block text-sm font-semibold">
+                <span data-settings-layout="column">
+                    <span className="block text-sm font-semibold" data-settings-style='{"font":14,"weight":600}' data-settings-layout="column">
                         {faultState === 'shared'
                             ? '背屏故障诊断已导出'
                             : faultState === 'failed'
                                 ? '背屏故障诊断导出失败'
                                 : '背屏故障诊断'}
                     </span>
-                    <span className="mt-0.5 block text-xs opacity-55">
+                    <span className="mt-0.5 block text-xs opacity-55" data-settings-style='{"font":12,"tone":"muted","margin":[0,2,0,0]}' data-settings-layout="column">
                         立刻采集一次背屏状态并导出；锁屏前后 0/5/60 秒的快照会自动记录，不需要重新打开应用
                     </span>
                 </span>
@@ -264,14 +264,14 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
                 disabled={exportState === 'working'}
                 className={`flex items-center gap-3 rounded-2xl bg-white/5 p-4 text-left transition-colors hover:bg-white/10 disabled:opacity-50 disabled:cursor-default ${canDeleteDiagnostics ? '' : 'sm:col-span-2'}`}
                 style={{ color: 'var(--text-primary)' }}
-            >
+             data-settings-style='{"align":"center","gap":12,"radius":16,"fill":true,"padding":[16,16,16,16],"tone":"text"}' data-settings-layout="row">
                 <ExportIcon
                     size={19}
                     className={`shrink-0 opacity-75 ${exportState === 'working' ? 'animate-spin' : ''}`}
                     aria-hidden="true"
                 />
-                <span>
-                    <span className="block text-sm font-semibold">
+                <span data-settings-layout="column">
+                    <span className="block text-sm font-semibold" data-settings-style='{"font":14,"weight":600}' data-settings-layout="column">
                         {exportState === 'shared'
                             ? t('help.exportDiagnosticsShared')
                             : exportState === 'downloaded'
@@ -280,7 +280,7 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
                                     ? t('help.exportDiagnosticsFailed')
                                     : t('help.exportDiagnostics')}
                     </span>
-                    <span className="mt-0.5 block text-xs opacity-55">{t('help.exportDiagnosticsDescription')}</span>
+                    <span className="mt-0.5 block text-xs opacity-55" data-settings-style='{"font":12,"tone":"muted","margin":[0,2,0,0]}' data-settings-layout="column">{t('help.exportDiagnosticsDescription')}</span>
                 </span>
             </button>
             {canDeleteDiagnostics ? (
@@ -291,14 +291,14 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
                     disabled={deleteState === 'working'}
                     className="flex items-center gap-3 rounded-2xl bg-white/5 p-4 text-left transition-colors hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-default"
                     style={{ color: 'var(--text-primary)' }}
-                >
+                 data-settings-style='{"align":"center","gap":12,"radius":16,"fill":true,"padding":[16,16,16,16],"tone":"text"}' data-settings-layout="row">
                     <DeleteIcon
                         size={19}
                         className={`shrink-0 opacity-75 ${deleteState === 'working' ? 'animate-spin' : ''}`}
                         aria-hidden="true"
                     />
-                    <span>
-                        <span className="block text-sm font-semibold">
+                    <span data-settings-layout="column">
+                        <span className="block text-sm font-semibold" data-settings-style='{"font":14,"weight":600}' data-settings-layout="column">
                             {deleteState === 'done'
                                 ? t('help.deleteDiagnosticsDone', { count: deletedCount })
                                 : deleteState === 'empty'
@@ -307,7 +307,7 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
                                         ? t('help.deleteDiagnosticsFailed')
                                         : t('help.deleteDiagnostics')}
                         </span>
-                        <span className="mt-0.5 block text-xs opacity-55">{t('help.deleteDiagnosticsDescription')}</span>
+                        <span className="mt-0.5 block text-xs opacity-55" data-settings-style='{"font":12,"tone":"muted","margin":[0,2,0,0]}' data-settings-layout="column">{t('help.deleteDiagnosticsDescription')}</span>
                     </span>
                 </button>
             ) : null}

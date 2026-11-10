@@ -153,15 +153,15 @@ const AutomixModelsSection: React.FC<{ isDaylight: boolean }> = ({ isDaylight })
     const manualLinks = (status.manual?.links ?? []).filter(link => link.url.trim());
 
     return (
-        <div id="automix-models" className="rounded-lg border px-3 py-3 space-y-3" style={{ borderColor }}>
-            <div>
-                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+        <div id="automix-models" className="rounded-lg border px-3 py-3 space-y-3" style={{ borderColor }} data-settings-style='{"radius":8,"border":true,"gap":12,"padding":[12,12,12,12]}' data-settings-layout="card">
+            <div data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                     {t('options.modelsTitle')}
                 </div>
                 {/* Added up rather than written down. It was a hardcoded 249MB, which the runtime
                     made wrong on every platform and by a different amount on each - and there is
                     no one number to write, because the runtime is a different size per OS. */}
-                <div className="mt-1 text-[11px] leading-relaxed opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                <div className="mt-1 text-[11px] leading-relaxed opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="column">
                     {t('options.modelsDesc', {
                         size: megabytes(status.models.reduce(
                             (total, model) => total + (model.supported ? model.bytes : 0), 0,
@@ -177,16 +177,16 @@ const AutomixModelsSection: React.FC<{ isDaylight: boolean }> = ({ isDaylight })
                 const reasons = failures[model.name] ?? [];
 
                 return (
-                    <div key={model.name} className="rounded-lg border px-3 py-2.5 space-y-2" style={{ borderColor }}>
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                                <div className="text-[13px] font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                    <div key={model.name} className="rounded-lg border px-3 py-2.5 space-y-2" style={{ borderColor }} data-settings-style='{"radius":8,"border":true,"gap":8,"padding":[12,10,12,10]}' data-settings-layout="card">
+                        <div className="flex items-center justify-between gap-3" data-settings-style='{"align":"between","gap":12}' data-settings-layout="row">
+                            <div className="min-w-0" data-settings-style='{"grow":true}' data-settings-layout="column">
+                                <div className="text-[13px] font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":13,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                     {model.path && <Check size={13} className="shrink-0 opacity-70" />}
                                     {t(rowTitle(model))}
                                     {/* No size on a row with nothing to download. "0 MB" beside a
                                         thing this machine cannot have reads like a bug. */}
                                     {model.supported && (
-                                        <span className="font-mono text-[11px] opacity-50 tabular-nums">{megabytes(model.bytes)}</span>
+                                        <span className="font-mono text-[11px] opacity-50 tabular-nums" data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="wrap">{megabytes(model.bytes)}</span>
                                     )}
                                 </div>
                                 {/* What this weight is for (chips keyed by feature - see scopesOf),
@@ -194,18 +194,18 @@ const AutomixModelsSection: React.FC<{ isDaylight: boolean }> = ({ isDaylight })
                                     and "which of these do I need" is otherwise unanswered. Neither
                                     model touches a crossfade - that planner reads the profile's
                                     silence edges and nothing else. */}
-                                <div className="mt-1 flex items-center gap-2">
+                                <div className="mt-1 flex items-center gap-2" data-settings-style='{"align":"center","gap":8,"margin":[0,4,0,0]}' data-settings-layout="row">
                                     {scopesOf(model.enables).map(({ key, Icon }) => (
                                         <span
                                             key={key}
                                             className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] shrink-0"
                                             style={{ backgroundColor: scopeChipColor, color: 'var(--text-secondary)' }}
-                                        >
+                                         data-settings-style='{"align":"center","gap":4,"radius":64,"font":10,"padding":[6,2,6,2],"tone":"muted"}' data-settings-layout="wrap">
                                             <Icon size={10} />
                                             {t(key)}
                                         </span>
                                     ))}
-                                    <span className="text-[11px] opacity-50 truncate" style={{ color: 'var(--text-secondary)' }}>
+                                    <span className="text-[11px] opacity-50 truncate" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="wrap">
                                         {model.supported
                                             ? model.path ?? t('options.modelMissing')
                                             : t('options.modelUnsupportedWhy')}
@@ -216,11 +216,11 @@ const AutomixModelsSection: React.FC<{ isDaylight: boolean }> = ({ isDaylight })
                                 where the button would be - the one place someone looking for the
                                 download is already looking. */}
                             {!model.supported ? (
-                                <span className="text-[11px] opacity-60 shrink-0" style={{ color: 'var(--text-secondary)' }}>
+                                <span className="text-[11px] opacity-60 shrink-0" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="wrap">
                                     {t('options.modelUnsupported')}
                                 </span>
                             ) : model.path ? (
-                                <span className="text-[11px] opacity-60 shrink-0" style={{ color: 'var(--text-secondary)' }}>
+                                <span className="text-[11px] opacity-60 shrink-0" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="wrap">
                                     {t('options.modelInstalled')}
                                 </span>
                             ) : (
@@ -231,7 +231,7 @@ const AutomixModelsSection: React.FC<{ isDaylight: boolean }> = ({ isDaylight })
                                         : download(model.name))}
                                     className="shrink-0 rounded-lg border px-2.5 py-1.5 text-[11px] flex items-center gap-1.5 transition-colors"
                                     style={{ borderColor, color: 'var(--text-primary)' }}
-                                >
+                                 data-settings-style='{"align":"center","radius":8,"border":true,"font":11,"gap":6,"padding":[10,6,10,6],"tone":"text"}' data-settings-layout="row">
                                     {busy ? <X size={12} /> : <Download size={12} />}
                                     {t(busy ? 'options.modelCancel' : 'options.modelDownload')}
                                 </button>
@@ -239,23 +239,23 @@ const AutomixModelsSection: React.FC<{ isDaylight: boolean }> = ({ isDaylight })
                         </div>
 
                         {busy && (
-                            <div className="space-y-1">
-                                <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: trackColor }}>
+                            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                                <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: trackColor }} data-settings-style='{"height":4,"radius":64}' data-settings-layout="column">
                                     <div
                                         className="h-full rounded-full transition-[width] duration-200"
                                         style={{ width: `${percent}%`, backgroundColor: 'var(--text-primary)', opacity: 0.55 }}
-                                    />
+                                     data-settings-style='{"radius":64}' data-settings-layout="column"/>
                                 </div>
-                                <div className="flex justify-between text-[10px] font-mono tabular-nums opacity-50" style={{ color: 'var(--text-secondary)' }}>
-                                    <span>{live?.host ?? ''}</span>
-                                    <span>{percent.toFixed(0)}%</span>
+                                <div className="flex justify-between text-[10px] font-mono tabular-nums opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"align":"between","font":10,"tone":"muted"}' data-settings-layout="row">
+                                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{live?.host ?? ''}</span>
+                                    <span data-settings-layout="wrap">{percent.toFixed(0)}%</span>
                                 </div>
                             </div>
                         )}
 
                         {reasons.length > 0 && (
-                            <div className="text-[10px] font-mono leading-relaxed opacity-60 space-y-0.5" style={{ color: 'var(--text-secondary)' }}>
-                                {reasons.map((reason, index) => <div key={index} className="truncate">{reason}</div>)}
+                            <div className="text-[10px] font-mono leading-relaxed opacity-60 space-y-0.5" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":10,"tone":"muted","gap":2}' data-settings-layout="column">
+                                {reasons.map((reason, index) => <div key={index} className="truncate" data-settings-layout="column">{reason}</div>)}
                             </div>
                         )}
                     </div>
@@ -265,14 +265,14 @@ const AutomixModelsSection: React.FC<{ isDaylight: boolean }> = ({ isDaylight })
             {/* Offered whether or not anything failed: someone who already has the file - copied off
                 another machine, or downloaded before a reinstall - should not have to fetch it
                 again to find that out. */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2" data-settings-style='{"align":"center","gap":8}' data-settings-layout="wrap">
                 <button
                     type="button"
                     onClick={scan}
                     disabled={scanning}
                     className="rounded-lg border px-2.5 py-1.5 text-[11px] flex items-center gap-1.5 disabled:opacity-45"
                     style={{ borderColor, color: 'var(--text-primary)' }}
-                >
+                 data-settings-style='{"align":"center","radius":8,"border":true,"font":11,"gap":6,"padding":[10,6,10,6],"tone":"text"}' data-settings-layout="row">
                     {scanning ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
                     {t(scanning ? 'options.modelScanning' : 'options.modelScan')}
                 </button>
@@ -281,7 +281,7 @@ const AutomixModelsSection: React.FC<{ isDaylight: boolean }> = ({ isDaylight })
                     onClick={chooseDirectory}
                     className="rounded-lg border px-2.5 py-1.5 text-[11px] flex items-center gap-1.5"
                     style={{ borderColor, color: 'var(--text-primary)' }}
-                >
+                 data-settings-style='{"align":"center","radius":8,"border":true,"font":11,"gap":6,"padding":[10,6,10,6],"tone":"text"}' data-settings-layout="row">
                     <FolderOpen size={12} />
                     {t('options.modelLocationChange')}
                 </button>
@@ -293,21 +293,21 @@ const AutomixModelsSection: React.FC<{ isDaylight: boolean }> = ({ isDaylight })
                         onClick={() => setRemoveOpen(true)}
                         className="rounded-lg border px-2.5 py-1.5 text-[11px] flex items-center gap-1.5 transition-colors hover:border-red-500/60"
                         style={{ borderColor, color: 'var(--text-secondary)' }}
-                    >
+                     data-settings-style='{"align":"center","radius":8,"border":true,"font":11,"gap":6,"padding":[10,6,10,6],"tone":"muted"}' data-settings-layout="row">
                         <Trash2 size={12} />
                         {t('options.modelRemoveAll')}
                     </button>
                 )}
                 {scanResult && (
-                    <span className="text-[11px] opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                    <span className="text-[11px] opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="wrap">
                         {scanResult}
                     </span>
                 )}
             </div>
 
-            <div className="text-[11px] opacity-50 break-all" style={{ color: 'var(--text-secondary)' }}>
+            <div className="text-[11px] opacity-50 break-all" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                 {t('options.modelLocation')}: {status.downloadDir}
-                <button type="button" onClick={resetDirectory} className="ml-2 underline opacity-70">
+                <button type="button" onClick={resetDirectory} className="ml-2 underline opacity-70" data-settings-style='{"margin":[8,0,0,0]}' data-settings-layout="row">
                     {t('options.modelLocationReset')}
                 </button>
             </div>
@@ -316,8 +316,8 @@ const AutomixModelsSection: React.FC<{ isDaylight: boolean }> = ({ isDaylight })
                 whose download would have worked is noise, and an EMPTY list is worse than none -
                 which is why the routes live in the manifest and an empty one hides this entirely. */}
             {anyFailed && manualLinks.length > 0 && (
-                <div className="rounded-lg border px-3 py-2.5 space-y-2" style={{ borderColor }}>
-                    <div className="text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                <div className="rounded-lg border px-3 py-2.5 space-y-2" style={{ borderColor }} data-settings-style='{"radius":8,"border":true,"gap":8,"padding":[12,10,12,10]}' data-settings-layout="card">
+                    <div className="text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                         {t('options.modelManualHint')}
                     </div>
                     <button
@@ -325,12 +325,12 @@ const AutomixModelsSection: React.FC<{ isDaylight: boolean }> = ({ isDaylight })
                         onClick={() => setManualOpen(true)}
                         className="rounded-lg border px-2.5 py-1.5 text-[11px] flex items-center gap-1.5"
                         style={{ borderColor, color: 'var(--text-primary)' }}
-                    >
+                     data-settings-style='{"align":"center","radius":8,"border":true,"font":11,"gap":6,"padding":[10,6,10,6],"tone":"text"}' data-settings-layout="row">
                         <ExternalLink size={12} />
                         {t('options.modelManualLink')}
                     </button>
                     {status.manual?.note && (
-                        <div className="text-[10px] opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="text-[10px] opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":10,"tone":"muted"}' data-settings-layout="column">
                             {status.manual.note}
                         </div>
                     )}
@@ -347,14 +347,14 @@ const AutomixModelsSection: React.FC<{ isDaylight: boolean }> = ({ isDaylight })
                 title={t('options.modelManualTitle')}
                 description={t('options.modelManualDialogDesc')}
             >
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" data-settings-style='{"columns":1,"gap":12}' data-settings-layout="grid">
                     {manualLinks.map(link => (
                         <div
                             key={link.url}
                             className="rounded-2xl border px-4 py-4 flex flex-col items-center gap-3"
                             style={{ borderColor }}
-                        >
-                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                         data-settings-style='{"align":"center","radius":16,"border":true,"gap":12,"padding":[16,16,16,16]}' data-settings-layout="card">
+                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                 {link.label}
                             </div>
                             <button
@@ -362,7 +362,7 @@ const AutomixModelsSection: React.FC<{ isDaylight: boolean }> = ({ isDaylight })
                                 onClick={() => window.electron?.openExternalUrl?.(link.url)}
                                 className="w-full rounded-xl border px-3 py-2 text-xs flex items-center justify-center gap-1.5"
                                 style={{ borderColor, color: 'var(--text-primary)' }}
-                            >
+                             data-settings-style='{"align":"center","center":true,"radius":12,"border":true,"font":12,"gap":6,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="row">
                                 <ExternalLink size={12} />
                                 {t('options.modelManualOpen')}
                             </button>
@@ -375,7 +375,7 @@ const AutomixModelsSection: React.FC<{ isDaylight: boolean }> = ({ isDaylight })
                                     onClick={() => copyCode(link.code as string)}
                                     className="w-full rounded-xl border px-3 py-2 text-xs font-mono flex items-center justify-center gap-1.5"
                                     style={{ borderColor, color: 'var(--text-secondary)' }}
-                                >
+                                 data-settings-style='{"align":"center","center":true,"radius":12,"border":true,"font":12,"gap":6,"padding":[12,8,12,8],"tone":"muted"}' data-settings-layout="row">
                                     {copiedCode === link.code ? <Check size={12} /> : <Copy size={12} />}
                                     {copiedCode === link.code
                                         ? t('options.modelManualCodeCopied')

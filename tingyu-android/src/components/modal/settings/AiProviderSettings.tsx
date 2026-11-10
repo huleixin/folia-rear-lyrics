@@ -59,34 +59,34 @@ const AiProviderSettings: React.FC<AiProviderSettingsProps> = ({ settingsCardCla
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${selected
                     ? 'bg-white/15 text-[var(--text-primary)]'
                     : 'opacity-55 hover:opacity-85 text-[var(--text-primary)]'}`}
-            >
+             data-settings-style='{"radius":8,"font":12,"weight":600,"padding":[12,6,12,6]}' data-settings-layout="row">
                 {label}
             </button>
         );
     };
 
     return (
-        <div className={`rounded-xl border overflow-hidden ${settingsCardClass}`}>
-            <div className={`flex flex-wrap items-center justify-between gap-4 p-4 border-b ${rowDividerClass}`}>
-                <div className="space-y-1 text-left min-w-0">
-                    <div className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+        <div className={`rounded-xl border overflow-hidden ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true}' data-settings-layout="card">
+            <div className={`flex flex-wrap items-center justify-between gap-4 p-4 border-b ${rowDividerClass}`} data-settings-style='{"align":"between","gap":16,"divider":true,"padding":[16,16,16,16]}' data-settings-layout="wrap">
+                <div className="space-y-1 text-left min-w-0" data-settings-style='{"gap":4}' data-settings-layout="column">
+                    <div className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","gap":8,"font":14,"weight":500,"tone":"text"}' data-settings-layout="row">
                         <Sparkles size={15} className="opacity-70" aria-hidden="true" />
                         {t('ui.aiTheme')}
                     </div>
-                    <div className="text-xs opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="text-xs opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                         {t('options.aiThemeDesc')}
                     </div>
                 </div>
-                <div className={`flex rounded-xl border p-1 shrink-0 ${isDaylight ? 'bg-black/[0.05] border-black/10' : 'bg-white/5 border-white/5'}`}>
+                <div className={`flex rounded-xl border p-1 shrink-0 ${isDaylight ? 'bg-black/[0.05] border-black/10' : 'bg-white/5 border-white/5'}`} data-settings-style='{"radius":12,"border":true,"padding":[4,4,4,4],"fill":true}' data-settings-layout="row">
                     {renderProviderOption('gemini', 'Google Gemini')}
                     {renderProviderOption('openai', t('options.otherCompatibleApi'))}
                 </div>
             </div>
 
-            <div className={`p-4 space-y-3 border-b ${rowDividerClass}`}>
+            <div className={`p-4 space-y-3 border-b ${rowDividerClass}`} data-settings-style='{"gap":12,"divider":true,"padding":[16,16,16,16]}' data-settings-layout="column">
                 {settings.provider === 'gemini' ? (
-                    <label className="block space-y-1 text-left">
-                        <span className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                    <label className="block space-y-1 text-left" data-settings-style='{"gap":4}' data-settings-layout="wrap">
+                        <span className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">
                             {t('options.geminiApiKey')}
                         </span>
                         <input
@@ -98,12 +98,12 @@ const AiProviderSettings: React.FC<AiProviderSettingsProps> = ({ settingsCardCla
                             placeholder="AIza..."
                             className={fieldClass}
                             style={{ color: 'var(--text-primary)' }}
-                        />
+                         data-settings-style='{"tone":"text"}' data-settings-layout="column"/>
                     </label>
                 ) : (
                     <>
-                        <label className="block space-y-1 text-left">
-                            <span className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                        <label className="block space-y-1 text-left" data-settings-style='{"gap":4}' data-settings-layout="wrap">
+                            <span className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">
                                 {t('options.openaiApiUrl')}
                             </span>
                             <input
@@ -115,10 +115,10 @@ const AiProviderSettings: React.FC<AiProviderSettingsProps> = ({ settingsCardCla
                                 placeholder="https://api.openai.com/v1 or https://api.deepseek.com"
                                 className={fieldClass}
                                 style={{ color: 'var(--text-primary)' }}
-                            />
+                             data-settings-style='{"tone":"text"}' data-settings-layout="column"/>
                         </label>
-                        <label className="block space-y-1 text-left">
-                            <span className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                        <label className="block space-y-1 text-left" data-settings-style='{"gap":4}' data-settings-layout="wrap">
+                            <span className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">
                                 {t('options.openaiApiModel')}
                             </span>
                             <input
@@ -130,13 +130,13 @@ const AiProviderSettings: React.FC<AiProviderSettingsProps> = ({ settingsCardCla
                                 placeholder="gpt-5.6-luna / deepseek-v4-flash"
                                 className={fieldClass}
                                 style={{ color: 'var(--text-primary)' }}
-                            />
-                            <span className="block text-[10px] opacity-45" style={{ color: 'var(--text-secondary)' }}>
+                             data-settings-style='{"tone":"text"}' data-settings-layout="column"/>
+                            <span className="block text-[10px] opacity-45" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":10,"tone":"muted"}' data-settings-layout="column">
                                 {t('options.openaiApiModelDesc')}
                             </span>
                         </label>
-                        <label className="block space-y-1 text-left">
-                            <span className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                        <label className="block space-y-1 text-left" data-settings-style='{"gap":4}' data-settings-layout="wrap">
+                            <span className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">
                                 {t('options.openaiApiTemperature')}
                             </span>
                             <input
@@ -149,10 +149,10 @@ const AiProviderSettings: React.FC<AiProviderSettingsProps> = ({ settingsCardCla
                                 placeholder="0.7"
                                 className={fieldClass}
                                 style={{ color: 'var(--text-primary)' }}
-                            />
+                             data-settings-style='{"tone":"text"}' data-settings-layout="column"/>
                         </label>
-                        <label className="block space-y-1 text-left">
-                            <span className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                        <label className="block space-y-1 text-left" data-settings-style='{"gap":4}' data-settings-layout="wrap">
+                            <span className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">
                                 {t('options.openaiApiKey')}
                             </span>
                             <input
@@ -164,26 +164,26 @@ const AiProviderSettings: React.FC<AiProviderSettingsProps> = ({ settingsCardCla
                                 placeholder="sk-..."
                                 className={fieldClass}
                                 style={{ color: 'var(--text-primary)' }}
-                            />
+                             data-settings-style='{"tone":"text"}' data-settings-layout="column"/>
                         </label>
                     </>
                 )}
 
-                <div className="flex flex-wrap items-center gap-3 text-left">
+                <div className="flex flex-wrap items-center gap-3 text-left" data-settings-style='{"align":"center","gap":12}' data-settings-layout="wrap">
                     <button
                         type="button"
                         onClick={() => void runTest()}
                         disabled={testState === 'running'}
                         className={ghostButtonClass}
                         style={{ color: 'var(--text-primary)' }}
-                    >
+                     data-settings-style='{"tone":"text"}' data-settings-layout="row">
                         {testState === 'running'
                             ? <Loader2 size={13} className="animate-spin" />
                             : <Sparkles size={13} />}
                         {testState === 'running' ? t('options.aiTestRunning') : t('options.aiTestConnection')}
                     </button>
                     {testState === 'done' && testResult && (
-                        <span className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                        <span className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"align":"center","gap":6,"font":11,"tone":"muted"}' data-settings-layout="wrap">
                             {testResult.ok
                                 ? <Check size={12} className="text-green-400" />
                                 : <X size={12} className="text-red-400" />}
@@ -195,12 +195,12 @@ const AiProviderSettings: React.FC<AiProviderSettingsProps> = ({ settingsCardCla
                     )}
                 </div>
                 {testState === 'done' && testResult?.ok && testResult.reply && (
-                    <div className="text-[11px] opacity-55 break-words text-left" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="text-[11px] opacity-55 break-words text-left" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                         {testResult.reply}
                     </div>
                 )}
 
-                <div className="text-[10px] opacity-45 text-left" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-[10px] opacity-45 text-left" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":10,"tone":"muted"}' data-settings-layout="column">
                     {t('options.aiKeyStoredLocally')}
                 </div>
             </div>

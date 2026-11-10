@@ -1239,11 +1239,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         ? (theme?.accentColor || (isDaylight ? '#18181b' : '#f4f4f5'))
                         : undefined
                 }}
-            >
+             data-settings-style='{"width":44,"height":24,"radius":64}' data-settings-layout="column" data-settings-swatch={checked
+                        ? (theme?.accentColor || (isDaylight ? '#18181b' : '#f4f4f5'))
+                        : undefined}>
                 <div
                     className={`absolute top-1 left-1 w-4 h-4 rounded-full transition-transform duration-300 shadow-sm ${isDaylight ? 'bg-white' : 'bg-zinc-100'
                         } ${checked ? 'translate-x-5' : 'translate-x-0'}`}
-                />
+                 data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
             </button>
         );
     };
@@ -1277,48 +1279,48 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     style={{ backgroundColor: overlayBackground, zIndex }}
                     onMouseDown={handleOverlayMouseDown}
                     onClick={(event) => handleBackdropClose(event, handleClose)}
-                >
+                 data-settings-style='{"padding":[12,12,12,12]}' data-settings-layout="column">
                     <motion.div
                         {...panelMotion}
                         transition={shellTransition}
                         data-folia-settings-panel="true"
                         className={`mx-auto flex h-full max-w-3xl flex-col overflow-hidden rounded-[32px] border ${borderColor} ${subviewPanelBg} shadow-[0_24px_80px_rgba(0,0,0,0.28)] relative`}
                         onClick={(event) => event.stopPropagation()}
-                    >
+                     data-settings-style='{"radius":32,"border":true}' data-settings-layout="card">
                         {/* Decorative background blobs */}
-                        <div className="absolute inset-0 pointer-events-none z-0">
+                        <div className="absolute inset-0 pointer-events-none z-0" data-settings-layout="column">
                             <div
                                 className={`absolute -top-24 -right-24 w-64 h-64 rounded-full blur-[80px] ${isDaylight ? 'opacity-20' : 'opacity-10'}`}
                                 style={{ backgroundColor: theme?.accentColor || (isDaylight ? '#60a5fa' : '#3b82f6') }}
-                            />
+                             data-settings-style='{"width":256,"height":256,"radius":64}' data-settings-layout="column" data-settings-swatch={theme?.accentColor || (isDaylight ? '#60a5fa' : '#3b82f6')}/>
                             <div
                                 className={`absolute -bottom-24 -left-24 w-64 h-64 rounded-full blur-[80px] ${isDaylight ? 'opacity-20' : 'opacity-10'}`}
                                 style={{ backgroundColor: theme?.secondaryColor || theme?.accentColor || (isDaylight ? '#c084fc' : '#a855f7') }}
-                            />
+                             data-settings-style='{"width":256,"height":256,"radius":64}' data-settings-layout="column" data-settings-swatch={theme?.secondaryColor || theme?.accentColor || (isDaylight ? '#c084fc' : '#a855f7')}/>
                         </div>
-                        <div className="flex items-center justify-between border-b border-white/10 px-4 py-4 sm:px-6 relative z-10">
-                            <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex items-center justify-between border-b border-white/10 px-4 py-4 sm:px-6 relative z-10" data-settings-style='{"align":"between","divider":true,"padding":[16,16,16,16]}' data-settings-layout="row">
+                            <div className="flex items-center gap-3 min-w-0" data-settings-style='{"align":"center","gap":12,"grow":true}' data-settings-layout="row">
                                 <button
                                     type="button"
                                     onClick={handleClose}
                                     className="h-10 w-10 rounded-full border border-white/10 bg-white/5 flex items-center justify-center transition-colors hover:bg-white/10"
                                     style={{ color: 'var(--text-primary)' }}
-                                >
+                                 data-settings-style='{"align":"center","center":true,"height":40,"width":40,"radius":64,"border":true,"fill":true,"tone":"text"}' data-settings-layout="row">
                                     <ChevronLeft size={18} />
                                 </button>
-                                <div className="min-w-0">
-                                    <div className="text-lg sm:text-xl font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                                <div className="min-w-0" data-settings-layout="column">
+                                    <div className="text-lg sm:text-xl font-semibold truncate" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":18,"weight":600,"tone":"text"}' data-settings-layout="column">
                                         {title}
                                     </div>
-                                    <div className="text-xs opacity-50 mt-1" style={{ color: 'var(--text-secondary)' }}>
+                                    <div className="text-xs opacity-50 mt-1" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="column">
                                         {description}
                                     </div>
                                 </div>
                             </div>
                             {action ?? null}
                         </div>
-                        <div className="flex-1 overflow-y-auto custom-scrollbar px-4 py-5 sm:px-6 relative z-10">
-                            <div className="space-y-8">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar px-4 py-5 sm:px-6 relative z-10" data-settings-style='{"grow":true,"padding":[16,20,16,20]}' data-settings-layout="column">
+                            <div className="space-y-8" data-settings-style='{"gap":32}' data-settings-layout="column">
                                 {children}
                             </div>
                         </div>
@@ -1441,24 +1443,24 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             } : {}) } as React.CSSProperties}
             onMouseDown={handleOverlayMouseDown}
             onClick={(event) => handleBackdropClose(event, onClose)}
-        >
+         data-settings-style='{"align":"center","center":true,"padding":[16,32,16,32]}' data-settings-layout="row">
             <motion.div
                 {...(NATIVE_FIRST?{}:panelMotion)}
                 transition={shellTransition}
                 className={`${glassBg} border ${borderColor} p-6 md:p-8 rounded-3xl ${activeTab === 'options' ? 'w-full md:max-w-4xl md:w-[900px] h-[90vh] md:h-[85vh]' : 'w-full md:max-w-lg'} relative shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-all duration-300`}
                 onClick={(event) => event.stopPropagation()}
                 data-folia-settings-panel="true"
-            >
+             data-settings-style='{"border":true,"radius":24,"padding":[24,24,24,24]}' data-settings-layout="card">
                 {/* Decorative background blobs */}
-                <div className="absolute inset-0 pointer-events-none z-0">
+                <div className="absolute inset-0 pointer-events-none z-0" data-settings-layout="column">
                     <div
                         className={`absolute -top-24 -right-24 w-64 h-64 rounded-full blur-[80px] ${isDaylight ? 'opacity-20' : 'opacity-10'}`}
                         style={{ backgroundColor: theme?.accentColor || (isDaylight ? '#60a5fa' : '#3b82f6') }}
-                    />
+                     data-settings-style='{"width":256,"height":256,"radius":64}' data-settings-layout="column" data-settings-swatch={theme?.accentColor || (isDaylight ? '#60a5fa' : '#3b82f6')}/>
                     <div
                         className={`absolute -bottom-24 -left-24 w-64 h-64 rounded-full blur-[80px] ${isDaylight ? 'opacity-20' : 'opacity-10'}`}
                         style={{ backgroundColor: theme?.secondaryColor || theme?.accentColor || (isDaylight ? '#c084fc' : '#a855f7') }}
-                    />
+                     data-settings-style='{"width":256,"height":256,"radius":64}' data-settings-layout="column" data-settings-swatch={theme?.secondaryColor || theme?.accentColor || (isDaylight ? '#c084fc' : '#a855f7')}/>
                 </div>
 
                 {!isMobileSettings && <button
@@ -1466,7 +1468,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     aria-label={t('ui.close')}
                     className="absolute top-4 right-4 opacity-30 hover:opacity-100 rounded-full bg-white/5 p-1 transition-colors z-20"
                     style={{ color: 'var(--text-primary)' }}
-                >
+                 data-settings-style='{"tone":"text","radius":64,"fill":true,"padding":[4,4,4,4]}' data-settings-layout="row">
                     <X size={20} />
                 </button>}
 
@@ -1477,13 +1479,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     onClose={onClose}
                     onBack={() => { if(NATIVE_FIRST&&activeTab==='help'&&initialTab==='help')returnFromMobileSection();else if (activeTab === 'help') setActiveTab('options'); else if(NATIVE_FIRST)returnFromMobileSection();else { setMobileRearGuide(false); setMobileSettingsIndex(true); } }}
                     onHelp={activeTab === 'options' && !mobileSettingsIndex ? () => setActiveTab('help') : undefined}
-                /> : <div className="relative shrink-0 z-10 mb-6 select-none">
-                    <div data-folia-settings-tabs="true" className="flex items-center gap-6">
+                /> : <div className="relative shrink-0 z-10 mb-6 select-none" data-settings-style='{"margin":[0,0,0,24]}' data-settings-layout="column">
+                    <div data-folia-settings-tabs="true" className="flex items-center gap-6" data-settings-style='{"align":"center","gap":24}' data-settings-layout="row">
                         <button
                             onClick={() => handleTabChange('help')}
                             className={`relative text-2xl font-bold transition-colors pb-2 ${activeTab === 'help' ? 'opacity-100' : 'opacity-40 hover:opacity-80'}`}
                             style={{ color: 'var(--text-primary)' }}
-                        >
+                         data-settings-style='{"font":24,"weight":700,"padding":[0,0,0,8],"tone":"text"}' data-settings-layout="row">
                             {t('help.title') || "Help"}
                             {activeTab === 'help' && (
                                 <motion.div
@@ -1492,14 +1494,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                     initial={{ opacity: 0, scaleX: 0.65 }}
                                     animate={{ opacity: 1, scaleX: 1 }}
                                     transition={{ duration: 0.18, ease: 'easeOut' }}
-                                />
+                                 data-settings-style='{"height":3,"radius":64}' data-settings-layout="column"/>
                             )}
                         </button>
                         <button
                             onClick={() => handleTabChange('options')}
                             className={`relative text-2xl font-bold transition-colors pb-2 ${activeTab === 'options' ? 'opacity-100' : 'opacity-40 hover:opacity-80'}`}
                             style={{ color: 'var(--text-primary)' }}
-                        >
+                         data-settings-style='{"font":24,"weight":700,"padding":[0,0,0,8],"tone":"text"}' data-settings-layout="row">
                             {t('ui.options') || "Options"}
                             {activeTab === 'options' && (
                                 <motion.div
@@ -1508,18 +1510,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                     initial={{ opacity: 0, scaleX: 0.65 }}
                                     animate={{ opacity: 1, scaleX: 1 }}
                                     transition={{ duration: 0.18, ease: 'easeOut' }}
-                                />
+                                 data-settings-style='{"height":3,"radius":64}' data-settings-layout="column"/>
                             )}
                         </button>
                     </div>
                 </div>}
 
-                <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative z-10">
+                <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative z-10" data-settings-style='{"grow":true,"minHeight":0}' data-settings-layout="column">
                     <SettingsPresence mode="popLayout" initial={false}>
                         {activeTab === 'help' ? (
                             <motion.div
                                 key="help-tab"
-                                data-folia-settings-help="true"
+                                data-folia-settings-help="true" data-settings-page-body
                                 custom={tabDirection}
                                 variants={tabVariants}
                                 initial="enter"
@@ -1527,7 +1529,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                 exit="exit"
                                 transition={shellTransition}
                                 className="space-y-6 select-none flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-2 pb-4"
-                            >
+                             data-settings-style='{"gap":24,"padding":[22,0,22,0]}' data-settings-layout="column">
                                 <SettingsHelpActions
                                     onOpenReleaseNotes={() => setShowReleaseNotes(true)}
                                     buildDiagnostics={buildDiagnosticReport}
@@ -1556,18 +1558,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
                                 {isAndroidNativeRuntime() && <MobilePlaybackHelp />}
                                 {/* Shortcuts */}
-                                {!isAndroidNativeRuntime() && <div>
-                                    <h3 className="text-sm font-bold uppercase tracking-wider opacity-50 mb-3 flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
+                                {!isAndroidNativeRuntime() && <div data-settings-layout="column">
+                                    <h3 className="text-sm font-bold uppercase tracking-wider opacity-50 mb-3 flex items-center gap-2" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"align":"center","font":14,"weight":700,"tone":"muted","gap":8,"margin":[0,0,0,12]}' data-settings-layout="row">
                                         <Keyboard size={14} /> {t('help.keyboardShortcuts')}
                                     </h3>
-                                    <ul className="space-y-2 text-sm" style={{ color: 'var(--text-primary)' }}>
+                                    <ul className="space-y-2 text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"gap":8,"font":14,"tone":"text"}' data-settings-layout="column">
                                         {HELP_TAB_PRIMARY_SHORTCUTS.map(shortcut => (
-                                            <li key={shortcut.id} className="flex items-center justify-between bg-white/5 p-2 rounded-lg">
-                                                <span>{t(shortcut.titleKey, shortcut.fallback)}</span>
-                                                <div className="flex items-center gap-1">
-                                                    <kbd className="px-2 py-0.5 bg-white/10 rounded text-xs font-mono">{isMac ? 'Cmd' : 'Ctrl'}</kbd>
-                                                    <span className="text-xs opacity-50">+</span>
-                                                    <kbd className="px-2 py-0.5 bg-white/10 rounded text-xs font-mono">{shortcut.key}</kbd>
+                                            <li key={shortcut.id} className="flex items-center justify-between bg-white/5 p-2 rounded-lg" data-settings-style='{"align":"between","fill":true,"radius":8,"padding":[8,8,8,8]}' data-settings-layout="row">
+                                                <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t(shortcut.titleKey, shortcut.fallback)}</span>
+                                                <div className="flex items-center gap-1" data-settings-style='{"align":"center","gap":4}' data-settings-layout="row">
+                                                    <kbd className="px-2 py-0.5 bg-white/10 rounded text-xs font-mono" data-settings-style='{"fill":true,"radius":4,"font":12,"padding":[8,2,8,2]}' data-settings-layout="column">{isMac ? 'Cmd' : 'Ctrl'}</kbd>
+                                                    <span className="text-xs opacity-50" data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">+</span>
+                                                    <kbd className="px-2 py-0.5 bg-white/10 rounded text-xs font-mono" data-settings-style='{"fill":true,"radius":4,"font":12,"padding":[8,2,8,2]}' data-settings-layout="column">{shortcut.key}</kbd>
                                                 </div>
                                             </li>
                                         ))}
@@ -1575,39 +1577,39 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                 </div>}
 
                                 {/* Player Controls */}
-                                {!isAndroidNativeRuntime() && <div>
-                                    <h3 className="text-sm font-bold uppercase tracking-wider opacity-50 mb-3 flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
+                                {!isAndroidNativeRuntime() && <div data-settings-layout="column">
+                                    <h3 className="text-sm font-bold uppercase tracking-wider opacity-50 mb-3 flex items-center gap-2" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"align":"center","font":14,"weight":700,"tone":"muted","gap":8,"margin":[0,0,0,12]}' data-settings-layout="row">
                                         <Keyboard size={14} /> {t('help.playerControls')}
                                     </h3>
-                                    <ul className="space-y-2 text-sm" style={{ color: 'var(--text-primary)' }}>
-                                        <li className="flex items-center justify-between bg-white/5 p-2 rounded-lg">
-                                            <span>{t('help.playPause')}</span>
-                                            <kbd className="px-2 py-0.5 bg-white/10 rounded text-xs font-mono">Space</kbd>
+                                    <ul className="space-y-2 text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"gap":8,"font":14,"tone":"text"}' data-settings-layout="column">
+                                        <li className="flex items-center justify-between bg-white/5 p-2 rounded-lg" data-settings-style='{"align":"between","fill":true,"radius":8,"padding":[8,8,8,8]}' data-settings-layout="row">
+                                            <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('help.playPause')}</span>
+                                            <kbd className="px-2 py-0.5 bg-white/10 rounded text-xs font-mono" data-settings-style='{"fill":true,"radius":4,"font":12,"padding":[8,2,8,2]}' data-settings-layout="column">Space</kbd>
                                         </li>
-                                        <li className="flex items-center justify-between bg-white/5 p-2 rounded-lg">
-                                            <span>{t('help.previousTrack')} / {t('help.nextTrack')}</span>
-                                            <div className="flex items-center gap-1">
-                                                <kbd className="px-2 py-0.5 bg-white/10 rounded text-xs font-mono">{isMac ? 'Cmd' : 'Ctrl'}</kbd>
-                                                <span className="text-xs opacity-50">+</span>
-                                                <kbd className="px-2 py-0.5 bg-white/10 rounded text-xs font-mono">← / →</kbd>
+                                        <li className="flex items-center justify-between bg-white/5 p-2 rounded-lg" data-settings-style='{"align":"between","fill":true,"radius":8,"padding":[8,8,8,8]}' data-settings-layout="row">
+                                            <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('help.previousTrack')} / {t('help.nextTrack')}</span>
+                                            <div className="flex items-center gap-1" data-settings-style='{"align":"center","gap":4}' data-settings-layout="row">
+                                                <kbd className="px-2 py-0.5 bg-white/10 rounded text-xs font-mono" data-settings-style='{"fill":true,"radius":4,"font":12,"padding":[8,2,8,2]}' data-settings-layout="column">{isMac ? 'Cmd' : 'Ctrl'}</kbd>
+                                                <span className="text-xs opacity-50" data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">+</span>
+                                                <kbd className="px-2 py-0.5 bg-white/10 rounded text-xs font-mono" data-settings-style='{"fill":true,"radius":4,"font":12,"padding":[8,2,8,2]}' data-settings-layout="column">← / →</kbd>
                                             </div>
                                         </li>
-                                        <li className="flex items-center justify-between bg-white/5 p-2 rounded-lg">
-                                            <span>{t('help.seekBackward')} / {t('help.seekForward')}</span>
-                                            <kbd className="px-2 py-0.5 bg-white/10 rounded text-xs font-mono">← / →</kbd>
+                                        <li className="flex items-center justify-between bg-white/5 p-2 rounded-lg" data-settings-style='{"align":"between","fill":true,"radius":8,"padding":[8,8,8,8]}' data-settings-layout="row">
+                                            <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('help.seekBackward')} / {t('help.seekForward')}</span>
+                                            <kbd className="px-2 py-0.5 bg-white/10 rounded text-xs font-mono" data-settings-style='{"fill":true,"radius":4,"font":12,"padding":[8,2,8,2]}' data-settings-layout="column">← / →</kbd>
                                         </li>
 
                                     </ul>
                                 </div>}
 
                                 {/* Desktop help and community links. Android keeps this page focused on usage and version info. */}
-                                {!isAndroidNativeRuntime() && <div className="mt-6 flex flex-wrap justify-center gap-3">
+                                {!isAndroidNativeRuntime() && <div className="mt-6 flex flex-wrap justify-center gap-3" data-settings-style='{"align":"center","center":true,"gap":12,"margin":[0,24,0,0]}' data-settings-layout="wrap">
                                     <button
                                         type="button"
                                         onClick={() => setShowAiHelpPrompt(true)}
                                         className="px-6 py-2 bg-white/10 hover:bg-white/20 transition-colors rounded-full text-sm font-medium flex items-center gap-2"
                                         style={{ color: 'var(--text-primary)' }}
-                                    >
+                                     data-settings-style='{"align":"center","fill":true,"radius":64,"font":14,"weight":500,"gap":8,"padding":[24,8,24,8],"tone":"text"}' data-settings-layout="row">
                                         <CircleHelp size={16} />
                                         {t('aiHelp.openButton', 'Need help?')}
                                     </button>
@@ -1615,27 +1617,27 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                 </div>}
 
                                 {/* Author Info (Moved from Footer) */}
-                                <div className="mt-6 text-center text-xs opacity-75" data-tingyu-attribution="true">
-                                    听屿 · Tingyu {__APP_VERSION__} · 基于 Folia 的独立衍生版本<br />
-                                    <a href="https://github.com/huleixin/folia-rear-lyrics/releases" target="_blank" rel="noopener noreferrer" className="underline">听屿下载与完整源码</a>
+                                <div className="mt-6 text-center text-xs opacity-75" data-tingyu-attribution="true" data-settings-style='{"center":true,"font":12,"margin":[0,24,0,0]}' data-settings-layout="wrap">
+                                    听屿 · Tingyu {__APP_VERSION__} · 基于 Folia 的独立衍生版本<br  data-settings-layout="column"/>
+                                    <a href="https://github.com/huleixin/folia-rear-lyrics/releases" target="_blank" rel="noopener noreferrer" className="underline" data-settings-layout="wrap">听屿下载与完整源码</a>
                                     {' · '}AGPL-3.0 · 原作者及第三方署名见下方
                                 </div>
-                                <div className="mt-8 pt-6 border-t border-white/10 text-center shrink-0">
-                                    <div className="relative mb-1">
-                                        <p className="text-sm opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                                <div className="mt-8 pt-6 border-t border-white/10 text-center shrink-0" data-settings-style='{"center":true,"padding":[0,24,0,0],"margin":[0,32,0,0]}' data-settings-layout="column">
+                                    <div className="relative mb-1" data-settings-style='{"margin":[0,0,0,4]}' data-settings-layout="column">
+                                        <p className="text-sm opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":14,"tone":"muted"}' data-settings-layout="wrap">
                                             <button
                                                 type="button"
                                                 onClick={handleAuthorLabelClick}
                                                 className="hover:opacity-100 transition-opacity"
                                                 style={{ color: 'inherit' }}
                                                 aria-label={t('help.madeBy')}
-                                            >
+                                             data-settings-layout="row">
                                                 {t('help.madeBy')}
                                             </button>{' '}
-                                            <a href="https://github.com/chthollyphile/folia-major" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors underline decoration-white/30 hover:decoration-white">chthollyphile/folia-major</a>
+                                            <a href="https://github.com/chthollyphile/folia-major" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors underline decoration-white/30 hover:decoration-white" data-settings-layout="wrap">chthollyphile/folia-major</a>
                                         </p>
                                     </div>
-                                    <div className="flex flex-col items-center gap-2 mt-6 mb-2 text-xs font-mono text-center">
+                                    <div className="flex flex-col items-center gap-2 mt-6 mb-2 text-xs font-mono text-center" data-settings-style='{"align":"center","gap":8,"font":12,"center":true,"margin":[0,24,0,8]}' data-settings-layout="column">
                                         {/* 第一行：原本的版本信息按钮 */}
                                         <button
                                             type="button"
@@ -1644,7 +1646,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                             style={{ color: 'var(--text-secondary)' }}
                                             title={versionCopied ? t('status.copied') : t('options.versionCopiedHint')}
                                             aria-label={versionCopied ? t('options.versionCopiedHint') : t('options.versionCopiedHint')}
-                                        >
+                                         data-settings-style='{"tone":"muted"}' data-settings-layout="row">
                                             {versionCopied
                                                 ? t('status.copied')
                                                 : VERSION_INFO}
@@ -1654,7 +1656,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                                 className={`max-w-sm text-[11px] leading-snug font-sans ${BUILD_KIND === 'unofficial' ? 'text-amber-500/90' : 'opacity-60'}`}
                                                 style={BUILD_KIND === 'unofficial' ? undefined : { color: 'var(--text-secondary)' }}
                                                 data-build-kind-notice={BUILD_KIND}
-                                            >
+                                             data-settings-style='{"font":11}' data-settings-layout="wrap">
                                                 {t(BUILD_KIND === 'unofficial' ? 'options.unofficialBuildNotice' : 'options.selfHostedBuildNotice')}
                                             </p>
                                         )}
@@ -1662,8 +1664,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                         {/* 第二行：版本状态与安装操作 */}
                                         {updateStatus?.availableVersion && (
                                             <>
-                                                <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 mt-0.5">
-                                                    <span className="text-amber-500 font-semibold">
+                                                <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 mt-0.5" data-settings-style='{"align":"center","center":true,"margin":[0,2,0,0]}' data-settings-layout="wrap">
+                                                    <span className="text-amber-500 font-semibold" data-settings-style='{"weight":600}' data-settings-layout="wrap">
                                                         {t('options.newVersionFound', { version: updateStatus.availableVersion })}
                                                     </span>
 
@@ -1672,11 +1674,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                                             type="button"
                                                             onClick={handleInstallUpdate}
                                                             className="text-green-400 font-bold hover:underline"
-                                                        >
+                                                         data-settings-style='{"weight":700}' data-settings-layout="row">
                                                             {t('options.restartToInstallUpdate')}
                                                         </button>
                                                     ) : updateStatus.autoUpdateSupported && updateStatus.status === 'downloading' ? (
-                                                        <span className="text-zinc-300 opacity-80">
+                                                        <span className="text-zinc-300 opacity-80" data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                                                             {t('options.downloadingProgress', { percent: Math.round(updateStatus.downloadProgress?.percent || 0) })}
                                                         </span>
                                                     ) : (
@@ -1686,7 +1688,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                                                 onClick={handleDownloadUpdate}
                                                                 disabled={!canDownloadUpdate}
                                                                 className="text-zinc-100 hover:text-white font-bold inline-flex items-center gap-1 transition-colors disabled:opacity-40"
-                                                            >
+                                                             data-settings-style='{"align":"center","weight":700,"gap":4}' data-settings-layout="row">
                                                                 <Download size={12} />
                                                                 {t('options.downloadUpdate')}
                                                             </button>
@@ -1698,8 +1700,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                                 <div
                                                     className="mt-1 flex max-w-full flex-wrap items-center justify-center gap-1 rounded-xl border border-white/10 bg-white/[0.035] p-1"
                                                     aria-label={t('options.downloadSources')}
-                                                >
-                                                    <span className="px-1.5 opacity-45" style={{ color: 'var(--text-secondary)' }}>
+                                                 data-settings-style='{"align":"center","center":true,"gap":4,"radius":12,"border":true,"fill":true,"padding":[4,4,4,4],"margin":[0,4,0,0]}' data-settings-layout="wrap">
+                                                    <span className="px-1.5 opacity-45" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted","padding":[6,0,6,0]}' data-settings-layout="wrap">
                                                         {t('options.downloadSources')}
                                                     </span>
                                                     {showQuarkDownload && updateStatus.platform !== 'linux' && (
@@ -1708,7 +1710,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                                             onClick={handleOpenChinaDownload}
                                                             className="inline-flex items-center gap-1 rounded-lg px-2 py-1 opacity-65 transition-colors hover:bg-white/10 hover:opacity-100"
                                                             style={{ color: 'var(--text-secondary)' }}
-                                                        >
+                                                         data-settings-style='{"align":"center","gap":4,"radius":8,"tone":"muted","padding":[8,4,8,4]}' data-settings-layout="row">
                                                             <ExternalLink size={11} />
                                                             {t('options.quarkDrive')}
                                                         </button>
@@ -1719,7 +1721,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                                             onClick={() => handleOpenDownloadUrl(BAIDU_DOWNLOAD_URL)}
                                                             className="inline-flex items-center gap-1 rounded-lg px-2 py-1 opacity-65 transition-colors hover:bg-white/10 hover:opacity-100"
                                                             style={{ color: 'var(--text-secondary)' }}
-                                                        >
+                                                         data-settings-style='{"align":"center","gap":4,"radius":8,"tone":"muted","padding":[8,4,8,4]}' data-settings-layout="row">
                                                             <ExternalLink size={11} />
                                                             {t('options.baiduDrive')}
                                                         </button>
@@ -1729,7 +1731,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                                         onClick={() => window.electron?.openUpdateReleasePage(updateStatus.availableVersion)}
                                                         className="inline-flex items-center gap-1 rounded-lg px-2 py-1 opacity-65 transition-colors hover:bg-white/10 hover:opacity-100"
                                                         style={{ color: 'var(--text-secondary)' }}
-                                                    >
+                                                     data-settings-style='{"align":"center","gap":4,"radius":8,"tone":"muted","padding":[8,4,8,4]}' data-settings-layout="row">
                                                         <ExternalLink size={11} />
                                                         {updateStatus.autoUpdateSupported
                                                             ? t('options.githubRelease')
@@ -1741,7 +1743,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                                             onClick={() => handleOpenDownloadUrl(AUR_PACKAGE_URL)}
                                                             className="inline-flex items-center gap-1 rounded-lg px-2 py-1 opacity-65 transition-colors hover:bg-white/10 hover:opacity-100"
                                                             style={{ color: 'var(--text-secondary)' }}
-                                                        >
+                                                         data-settings-style='{"align":"center","gap":4,"radius":8,"tone":"muted","padding":[8,4,8,4]}' data-settings-layout="row">
                                                             <ExternalLink size={11} />
                                                             {t('options.aurPackage')}
                                                         </button>
@@ -1752,9 +1754,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
                                         {/* 第三行：多平台网络与手动下载提醒小字 */}
                                         {updateStatus?.availableVersion && (
-                                            <div className="text-xs opacity-60 mt-0.5 space-y-0.5" style={{ color: 'var(--text-secondary)' }}>
+                                            <div className="text-xs opacity-60 mt-0.5 space-y-0.5" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted","gap":2,"margin":[0,2,0,0]}' data-settings-layout="column">
                                                 {!updateStatus.autoUpdateSupported && (
-                                                    <div>
+                                                    <div data-settings-layout="column">
                                                         {updateStatus.platform === 'darwin'
                                                             ? t('options.macManualUpdateNotice')
                                                             : updateStatus.platform === 'linux'
@@ -1763,7 +1765,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                                     </div>
                                                 )}
                                                 {showQuarkDownload && updateStatus.platform !== 'linux' && (
-                                                    <div>{t('options.chinaDownloadHint')}</div>
+                                                    <div data-settings-layout="column">{t('options.chinaDownloadHint')}</div>
                                                 )}
                                             </div>
                                         )}
@@ -1781,7 +1783,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                 transition={shellTransition}
                                 className={`flex flex-col gap-4 h-full min-h-0 ${isWideSettingsLayout ? 'md:flex-row md:gap-6' : ''}`}
                                 data-mobile-settings-options={isMobileSettings || undefined}
-                            >
+                             data-settings-style='{"gap":16,"minHeight":0}' data-settings-layout="column">
                                 <SettingsAnchorProvider store={settingsAnchorStore}>
                                 {isWideSettingsLayout ? (
                                     <SettingsSidebarWide
@@ -1811,10 +1813,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                         isDaylight={isDaylight}
                                     />
                                 )}
-                                <div data-folia-settings-content="true" ref={contentScrollRef} style={isMobileSettings && mobileSettingsIndex ? { display: 'none' } : undefined} className="flex-1 overflow-y-auto custom-scrollbar pl-1 md:pl-2 pr-2 md:pr-4 relative pb-4">
+                                <div data-folia-settings-content="true" data-settings-page-body data-settings-style='{"padding":[22,0,22,0]}' ref={contentScrollRef} style={isMobileSettings && mobileSettingsIndex ? { display: 'none' } : undefined} className="flex-1 overflow-y-auto custom-scrollbar pl-1 md:pl-2 pr-2 md:pr-4 relative pb-4" data-settings-layout="column">
                                     {(!isMobileSettings || !mobileSettingsIndex) && <>
                                     {isMobileSettings && mobileRearGuide ? <RearLyricsGuide /> : <>
-                                    <div data-mobile-section-heading={isMobileSettings || undefined}>
+                                    <div data-mobile-section-heading={isMobileSettings || undefined} data-settings-layout="column">
                                     <SettingsSectionHeader
                                         compact={isMobileSettings}
                                         title={activeSettingsNavItem?.label ?? ''}
@@ -1826,7 +1828,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                         utilityGhostButtonClass={utilityGhostButtonClass}
                                     />
                                     </div>
-                                    <div className="space-y-8">
+                                    <div className="space-y-8" data-settings-style='{"gap":32}' data-settings-layout="column">
                                         {activeSettingsSection === 'appearance' && (
                                             <AppearanceSettingsSubview
                                                 accentOutlineColor={accentOutlineColor}
@@ -2107,7 +2109,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                 duration: 0.6,
                                 ease: [0.22, 1, 0.36, 1],
                             }}
-                        />
+                         data-settings-style='{"width":112}' data-settings-layout="column"/>
                     )}
                 </SettingsPresence>
             </motion.div>

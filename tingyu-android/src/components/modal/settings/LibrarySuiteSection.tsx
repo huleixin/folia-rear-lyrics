@@ -33,13 +33,13 @@ const LibrarySuiteSection: React.FC<LibrarySuiteSectionProps> = ({
     const accentColor = theme?.accentColor || (isDaylight ? '#3b82f6' : '#60a5fa');
 
     return (
-        <SettingsAnchor anchorId="librarySuite" label={t('options.librarySuite')}>
+        <SettingsAnchor anchorId="librarySuite" label={t('options.librarySuite')} nativeLayout={{"kind":"column"}}>
             <SettingsSectionHeading icon={Library} label={t('options.librarySuite')} />
-            <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
-                <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+            <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                     {t('options.librarySuiteDesc')}
                 </div>
-                <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label={t('options.librarySuite')}>
+                <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label={t('options.librarySuite')} data-settings-style='{"columns":2,"gap":12}' data-settings-layout="grid">
                     {listLibrarySuiteOptions().map(option => {
                         const isSelected = option.id === activeSuiteId;
                         const frameClass = isSelected
@@ -60,7 +60,7 @@ const LibrarySuiteSection: React.FC<LibrarySuiteSectionProps> = ({
                                         ? accentColor
                                         : (isDaylight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)'),
                                 }}
-                            >
+                             data-settings-style='{"radius":16,"border":true,"font":14,"weight":500,"padding":[12,10,12,10],"tone":"text"}' data-settings-layout="row">
                                 {t(option.labelKey)}
                             </button>
                         );

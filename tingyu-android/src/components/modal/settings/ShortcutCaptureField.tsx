@@ -87,8 +87,8 @@ export const ShortcutCaptureField: React.FC<ShortcutCaptureFieldProps> = ({
             : t('options.customShortcutNoKey');
 
     return (
-        <div className="space-y-1.5">
-            <div className="flex items-center gap-1">
+        <div className="space-y-1.5" data-settings-style='{"gap":6}' data-settings-layout="column">
+            <div className="flex items-center gap-1" data-settings-style='{"align":"center","gap":4}' data-settings-layout="row">
                 <button
                     type="button"
                     onClick={() => {
@@ -106,17 +106,17 @@ export const ShortcutCaptureField: React.FC<ShortcutCaptureFieldProps> = ({
                         isDaylight ? 'hover:bg-black/5' : 'hover:bg-white/5'
                     }`}
                     style={{ color: 'var(--text-primary)' }}
-                >
+                 data-settings-style='{"align":"center","minHeight":52,"radius":12,"padding":[8,8,8,8],"tone":"text"}' data-settings-layout="row">
                     {/* Alt is the half the listener does not choose, so it is drawn as a key that is
                         already down rather than as part of the editable value. */}
-                    <span className="inline-flex items-center gap-2">
-                        <span className={`${capClass} opacity-60`}>Alt</span>
-                        <span className="opacity-40">+</span>
+                    <span className="inline-flex items-center gap-2" data-settings-style='{"align":"center","gap":8}' data-settings-layout="wrap">
+                        <span className={`${capClass} opacity-60`} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">Alt</span>
+                        <span className="opacity-40" data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">+</span>
                         <span
                             data-testid="custom-shortcut-slot"
                             className={`${capClass} ${isListening ? 'animate-pulse' : ''}`}
                             style={isListening ? { borderColor: accentColor, color: accentColor } : undefined}
-                        >
+                         data-settings-layout="wrap">
                             {slotText}
                         </span>
                     </span>
@@ -128,13 +128,13 @@ export const ShortcutCaptureField: React.FC<ShortcutCaptureFieldProps> = ({
                         aria-label={t('options.customShortcutClear')}
                         title={t('options.customShortcutClear')}
                         className="rounded-full p-1.5 opacity-45 transition-opacity hover:opacity-90 cursor-pointer"
-                    >
+                     data-settings-style='{"radius":64,"tone":"muted","padding":[6,6,6,6]}' data-settings-layout="row">
                         <X size={14} />
                     </button>
                 )}
             </div>
             {rejection && (
-                <div className="text-[11px]" style={{ color: '#f87171' }}>
+                <div className="text-[11px]" style={{ color: '#f87171' }} data-settings-style='{"font":11}' data-settings-layout="column">
                     {rejection}
                 </div>
             )}

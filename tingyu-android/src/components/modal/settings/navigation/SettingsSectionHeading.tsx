@@ -18,7 +18,7 @@ export const SettingsSectionHeading: React.FC<SettingsSectionHeadingProps> = ({ 
         <h3
             className={`text-sm font-bold uppercase tracking-wider opacity-50 flex items-center gap-2${action ? '' : ' mb-4'}${divider ? ' border-t border-white/10 pt-5' : ''}${className ? ` ${className}` : ''}`}
             style={{ color: 'var(--text-secondary)' }}
-        >
+         data-settings-style={JSON.stringify({align:"center",font:14,weight:700,tone:"muted",gap:8,margin:action?[0,0,0,0]:[0,0,0,16],padding:divider?[0,20,0,0]:[0,0,0,0]})} data-settings-layout="row">
             <Icon size={14} /> {label}
         </h3>
     );
@@ -29,7 +29,7 @@ export const SettingsSectionHeading: React.FC<SettingsSectionHeadingProps> = ({ 
 
     // The action sits outside the h3 so it keeps full opacity instead of inheriting the heading's dimming.
     return (
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mb-4 flex items-center justify-between gap-3" data-settings-style='{"align":"between","gap":12,"margin":[0,0,0,16]}' data-settings-layout="row">
             {heading}
             {action}
         </div>

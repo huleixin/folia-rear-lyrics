@@ -40,16 +40,16 @@ const LibraryWallLookSettings: React.FC<LibraryWallLookSettingsProps> = ({ isDay
         : (isDaylight ? 'bg-zinc-50 hover:bg-white' : 'bg-white/[0.03] hover:bg-white/[0.06]'));
 
     return (
-        <div className="space-y-4 border-t pt-4" style={{ borderColor: idleBorder }} data-library-wall-look-settings="">
-            <div className="space-y-1">
-                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+        <div className="space-y-4 border-t pt-4" style={{ borderColor: idleBorder }} data-library-wall-look-settings="" data-settings-style='{"gap":16,"padding":[0,16,0,0]}' data-settings-layout="column">
+            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                     {t('options.libraryWallLook')}
                 </div>
-                <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                     {t('options.libraryWallLookDesc')}
                 </div>
             </div>
-            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t('options.libraryWallLook')}>
+            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t('options.libraryWallLook')} data-settings-style='{"columns":3,"gap":8}' data-settings-layout="grid">
                 {LIBRARY_WALL_LOOKS.map(option => {
                     const isSelected = option === look;
                     return (
@@ -62,9 +62,9 @@ const LibraryWallLookSettings: React.FC<LibraryWallLookSettingsProps> = ({ isDay
                             onClick={() => setLook(option)}
                             className={`text-left rounded-xl border px-3 py-2.5 transition-colors ${frameClass(isSelected)}`}
                             style={{ color: 'var(--text-primary)', borderColor: isSelected ? accentColor : idleBorder }}
-                        >
-                            <span className="block text-sm font-medium">{t(LOOK_LABEL_KEYS[option].label)}</span>
-                            <span className="mt-0.5 block text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                         data-settings-style='{"radius":12,"border":true,"padding":[12,10,12,10],"tone":"text"}' data-settings-layout="row">
+                            <span className="block text-sm font-medium" data-settings-style='{"font":14,"weight":500}' data-settings-layout="column">{t(LOOK_LABEL_KEYS[option].label)}</span>
+                            <span className="mt-0.5 block text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted","margin":[0,2,0,0]}' data-settings-layout="column">
                                 {t(LOOK_LABEL_KEYS[option].description)}
                             </span>
                         </button>
@@ -72,16 +72,16 @@ const LibraryWallLookSettings: React.FC<LibraryWallLookSettingsProps> = ({ isDay
                 })}
             </div>
             {look === 'partial' && (
-                <div className="space-y-2">
-                    <div className="space-y-1">
-                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                    <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                             {t('options.libraryWallWindows')}
                         </div>
-                        <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                             {t('options.libraryWallWindowsDesc')}
                         </div>
                     </div>
-                    <div className="grid grid-cols-6 gap-1.5" role="radiogroup" aria-label={t('options.libraryWallWindows')}>
+                    <div className="grid grid-cols-6 gap-1.5" role="radiogroup" aria-label={t('options.libraryWallWindows')} data-settings-style='{"columns":6,"gap":6}' data-settings-layout="grid">
                         {LIBRARY_WALL_WINDOW_COUNTS.map(count => {
                             const isSelected = count === windowsPerBlock;
                             const percent = libraryWallWindowSharePercent(count);
@@ -96,9 +96,9 @@ const LibraryWallLookSettings: React.FC<LibraryWallLookSettingsProps> = ({ isDay
                                     onClick={() => setWindowsPerBlock(count)}
                                     className={`rounded-lg border px-1 py-1.5 text-center transition-colors ${frameClass(isSelected)}`}
                                     style={{ color: 'var(--text-primary)', borderColor: isSelected ? accentColor : idleBorder }}
-                                >
-                                    <span className="block text-sm font-medium tabular-nums">{count}</span>
-                                    <span className="block text-[10px] opacity-50 tabular-nums">{percent}%</span>
+                                 data-settings-style='{"radius":8,"border":true,"center":true,"padding":[4,6,4,6],"tone":"text"}' data-settings-layout="row">
+                                    <span className="block text-sm font-medium tabular-nums" data-settings-style='{"font":14,"weight":500}' data-settings-layout="column">{count}</span>
+                                    <span className="block text-[10px] opacity-50 tabular-nums" data-settings-style='{"font":10,"tone":"muted"}' data-settings-layout="column">{percent}%</span>
                                 </button>
                             );
                         })}

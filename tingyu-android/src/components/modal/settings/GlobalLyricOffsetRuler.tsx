@@ -178,33 +178,33 @@ const GlobalLyricOffsetRuler: React.FC<GlobalLyricOffsetRulerProps> = ({
             onPointerCancel={endDrag}
             onKeyDown={handleKeyDown}
             className="relative h-[68px] w-full cursor-ew-resize touch-none select-none outline-none"
-        >
+         data-settings-style='{"height":68}' data-settings-layout="column">
             {/* 中线两侧的高亮底：让「对准中线」这个动作有落点感。
                 accentColor 在默认主题下就是正文色，所以这里只能给很低的透明度，否则会糊成一团 */}
             <div
                 className="pointer-events-none absolute left-1/2 top-0 h-10 w-24 -translate-x-1/2 opacity-15"
                 style={{ background: `linear-gradient(to right, transparent, ${accentColor}, transparent)` }}
-            />
+             data-settings-style='{"height":40,"width":96}' data-settings-layout="column"/>
 
             <div
                 className="absolute inset-0 overflow-hidden"
                 style={{ maskImage: EDGE_FADE, WebkitMaskImage: EDGE_FADE }}
-            >
+             data-settings-layout="column">
                 {/* 刻度基线：让整条尺读起来是一把尺，而不是一排孤立的短线 */}
                 <div
                     className="absolute inset-x-0 top-3 h-px"
                     style={{ backgroundColor: tickColor('minor', 1) }}
-                />
+                 data-settings-layout="column"/>
                 <div
                     className="absolute inset-x-0 top-3"
                     style={{ transform: `translate3d(${-valueMs * PX_PER_MS}px, 0, 0)` }}
-                >
+                 data-settings-layout="column">
                     {ticks.map(({ ms, kind }) => (
                         <div
                             key={ms}
                             className="absolute top-0 w-0"
                             style={{ left: `calc(50% + ${ms * PX_PER_MS}px)` }}
-                        >
+                         data-settings-style='{"width":0}' data-settings-layout="column">
                             <div
                                 className="absolute left-0 top-0 -translate-x-1/2 rounded-full"
                                 style={{
@@ -212,13 +212,13 @@ const GlobalLyricOffsetRuler: React.FC<GlobalLyricOffsetRulerProps> = ({
                                     height: ms === 0 ? TICK_HEIGHT.label + 4 : TICK_HEIGHT[kind],
                                     backgroundColor: tickColor(kind, ms),
                                 }}
-                            />
+                             data-settings-style='{"radius":64}' data-settings-layout="column"/>
                             {/* 标签用固定 top，不跟着刻度线高度走，否则零点那根更长的线会把「0」压低一截 */}
                             {kind === 'label' && (
                                 <div
                                     className="absolute left-0 -translate-x-1/2 font-mono text-[10px] tabular-nums whitespace-nowrap"
                                     style={{ top: LABEL_TOP_PX, color: tickColor(kind, ms) }}
-                                >
+                                 data-settings-style='{"font":10}' data-settings-layout="column">
                                     {ms === 0 ? '0' : formatTickLabel(ms)}
                                 </div>
                             )}
@@ -228,15 +228,15 @@ const GlobalLyricOffsetRuler: React.FC<GlobalLyricOffsetRulerProps> = ({
             </div>
 
             {/* 固定不动的读数中线。刻意只覆盖刻度区、不压到标签行，否则中线正下方的数字永远被挡住 */}
-            <div className="pointer-events-none absolute left-1/2 top-0 flex h-10 -translate-x-1/2 flex-col items-center">
+            <div className="pointer-events-none absolute left-1/2 top-0 flex h-10 -translate-x-1/2 flex-col items-center" data-settings-style='{"align":"center","height":40}' data-settings-layout="column">
                 <div
                     className="h-0 w-0 border-x-[5px] border-t-[6px] border-x-transparent"
                     style={{ borderTopColor: accentColor }}
-                />
+                 data-settings-style='{"height":0,"width":0}' data-settings-layout="column"/>
                 <div
                     className="w-[2px] flex-1 rounded-full"
                     style={{ backgroundColor: accentColor, boxShadow: `0 0 12px ${accentColor}` }}
-                />
+                 data-settings-style='{"grow":true,"width":2,"radius":64}' data-settings-layout="column" data-settings-swatch={accentColor}/>
             </div>
         </div>
     );

@@ -815,7 +815,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
         const isActive = activePickerFontFamily?.toLocaleLowerCase() === font.family.toLocaleLowerCase();
 
         return (
-            <div style={style} {...ariaAttributes}>
+            <div style={style} {...ariaAttributes} data-settings-layout="column">
                 <button
                     type="button"
                     onClick={() => handleChooseSystemFont(font)}
@@ -829,7 +829,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                         height: FONT_ROW_HEIGHT - 8,
                         marginBottom: 8,
                     }}
-                >
+                 data-settings-style='{"radius":16,"border":true,"padding":[16,16,16,16],"tone":"text"}' data-settings-layout="column">
                     <div
                         className="text-lg font-medium"
                         style={{
@@ -838,10 +838,10 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                                 fontFamily: font.family,
                             }),
                         }}
-                    >
+                     data-settings-style='{"font":18,"weight":500}' data-settings-layout="column">
                         {font.label}
                     </div>
-                    <div className="text-xs opacity-50 mt-1" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="text-xs opacity-50 mt-1" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="column">
                         {font.family}
                     </div>
                 </button>
@@ -1175,7 +1175,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
             className={presentation==='page'?"ty-rear-stage-editor":"fixed inset-0 z-[140] backdrop-blur-xl p-3 sm:p-5"}
             style={presentation==='page'?undefined:{ backgroundColor: overlayBackground }}
             onClick={onClose}
-        >
+         data-settings-style='{"padding":[12,12,12,12]}' data-settings-layout="column">
             <motion.div
                 initial={NATIVE_FIRST||presentation==='page'?false:{ opacity: 0, y: 18, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1184,36 +1184,36 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                 onClick={(event) => event.stopPropagation()}
                 data-ponder="vis-playground"
                 className={`mx-auto flex h-full max-w-[1600px] flex-col overflow-hidden rounded-[32px] border ${borderColor} ${glassBg} shadow-[0_24px_80px_rgba(0,0,0,0.28)]`}
-            >
-                {presentation!=='page'&&<div className={`flex items-center justify-between border-b px-4 py-4 sm:px-6 ${isDaylight ? 'border-black/10' : 'border-white/10'}`}>
-                    <div className="flex items-center gap-3 min-w-0">
+             data-settings-style='{"radius":32,"border":true}' data-settings-layout="card">
+                {presentation!=='page'&&<div className={`flex items-center justify-between border-b px-4 py-4 sm:px-6 ${isDaylight ? 'border-black/10' : 'border-white/10'}`} data-settings-style='{"align":"between","divider":true,"padding":[16,16,16,16]}' data-settings-layout="row">
+                    <div className="flex items-center gap-3 min-w-0" data-settings-style='{"align":"center","gap":12,"grow":true}' data-settings-layout="row">
                         <button
                             type="button"
                             onClick={onClose}
                             className={`h-10 w-10 rounded-full border flex items-center justify-center transition-colors ${isDaylight ? 'border-black/10 bg-black/[0.035] hover:bg-black/[0.07]' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
                             style={{ color: isDaylight ? '#213E34' : 'var(--text-primary)' }}
-                        >
+                         data-settings-style='{"align":"center","center":true,"height":40,"width":40,"radius":64,"border":true}' data-settings-layout="row">
                             <ChevronLeft size={18} />
                         </button>
-                        <div className="min-w-0">
-                            <div className="text-lg sm:text-xl font-semibold truncate" style={{ color: isDaylight ? '#213E34' : 'var(--text-primary)' }}>
+                        <div className="min-w-0" data-settings-layout="column">
+                            <div className="text-lg sm:text-xl font-semibold truncate" style={{ color: isDaylight ? '#213E34' : 'var(--text-primary)' }} data-settings-style='{"font":18,"weight":600}' data-settings-layout="column">
                                 {t('options.lyricsStyleSettings')}
                             </div>
                         </div>
                     </div>
                 </div>}
 
-                <div className="ty-stage-editor-content grid min-h-0 flex-1 gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,1.25fr)_360px]">
-                    <div data-folia-stage-preview="true" data-native-live={NATIVE_FIRST?'true':undefined} style={{contain:'layout paint',isolation:'isolate'}} className="relative min-h-[320px] overflow-hidden rounded-[28px] border border-white/10 bg-black/20">
-                        <div className="absolute left-4 top-4 z-20 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/25 px-3 py-1.5 text-xs uppercase tracking-[0.22em] backdrop-blur-md" style={{ color: 'rgba(255,255,255,0.78)' }}>
+                <div data-settings-page-body data-settings-layout="column" data-settings-style='{"padding":[18,0,18,0],"gap":16}' className="ty-stage-editor-content grid min-h-0 flex-1 gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,1.25fr)_360px]">
+                    <div data-folia-stage-preview="true" data-settings-style='{"preview":"stage"}' data-native-live={NATIVE_FIRST?'true':undefined} style={{contain:'layout paint',isolation:'isolate'}} className="relative min-h-[320px] overflow-hidden rounded-[28px] border border-white/10 bg-black/20" data-settings-layout="card">
+                        <div className="absolute left-4 top-4 z-20 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/25 px-3 py-1.5 text-xs uppercase tracking-[0.22em] backdrop-blur-md" style={{ color: 'rgba(255,255,255,0.78)' }} data-settings-style='{"align":"center","gap":8,"radius":64,"border":true,"fill":true,"font":12,"padding":[12,6,12,6]}' data-settings-layout="row">
                             <Sparkles size={13} />
-                            <span>{t('ui.livePreview')}</span>
+                            <span data-settings-layout="wrap">{t('ui.livePreview')}</span>
                         </div>
-                        <div className="absolute right-4 top-4 z-20 rounded-full border border-white/10 bg-black/25 px-3 py-1.5 text-xs backdrop-blur-md" style={{ color: 'rgba(255,255,255,0.78)' }}>
+                        <div className="absolute right-4 top-4 z-20 rounded-full border border-white/10 bg-black/25 px-3 py-1.5 text-xs backdrop-blur-md" style={{ color: 'rgba(255,255,255,0.78)' }} data-settings-style='{"radius":64,"border":true,"fill":true,"font":12,"padding":[12,6,12,6]}' data-settings-layout="card">
                             {modeLabel}
                         </div>
 
-                        <div className="absolute inset-0">
+                        <div className="absolute inset-0" data-settings-layout="column">
                             {previewReady&&<VisualizerRenderer key={visualizerMode}
                                 mode={visualizerMode}
                                 currentTime={currentTime}
@@ -1264,13 +1264,13 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                             aria-label={t(isPreviewPaused ? 'options.resumePreview' : 'options.pausePreview')}
                             title={t(isPreviewPaused ? 'options.resumePreview' : 'options.pausePreview')}
                             className="absolute bottom-4 right-4 z-40 flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/45 text-white shadow-lg backdrop-blur-md transition-colors hover:bg-black/65 focus:outline-none focus:ring-2 focus:ring-white/70"
-                        >
+                         data-settings-style='{"align":"center","center":true,"height":40,"width":40,"radius":64,"border":true,"fill":true}' data-settings-layout="row">
                             {isPreviewPaused ? <Play size={17} fill="currentColor" /> : <Pause size={17} fill="currentColor" />}
                         </button>
                     </div>
 
-                    {onOpenTheme&&<button type="button" className="ty-stage-theme-entry ty-settings-card ty-settings-row" onClick={onOpenTheme}>
-                        <Palette size={20}/><span className="ty-settings-row-copy"><strong>{t('rearAppearance.theme')}</strong></span><ChevronRight size={20}/>
+                    {onOpenTheme&&<button type="button" className="ty-stage-theme-entry ty-settings-card ty-settings-row" onClick={onOpenTheme} data-settings-style='{"gap":12,"padding":[14,8,14,8],"minHeight":48,"border":true,"radius":14,"align":"center"}' data-settings-layout="row">
+                        <Palette size={20}/><span className="ty-settings-row-copy" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column"><strong data-settings-layout="wrap">{t('rearAppearance.theme')}</strong></span><ChevronRight size={20}/>
                     </button>}
                     <VisPlaygroundSettingsPanel
                         readOnlyExternalTunings={rearScope}
@@ -1381,16 +1381,16 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                 </div>
 
                 {isFontPickerOpen && (
-                    <div className="absolute inset-0 z-30 bg-black/45 backdrop-blur-md p-4 sm:p-6">
-                        <div className={`mx-auto flex h-full max-w-2xl flex-col overflow-hidden rounded-[28px] border ${borderColor} ${glassBg} shadow-[0_24px_80px_rgba(0,0,0,0.32)]`}>
-                            <div className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4">
-                                <div className="min-w-0">
-                                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <div className="absolute inset-0 z-30 bg-black/45 backdrop-blur-md p-4 sm:p-6" data-settings-style='{"fill":true,"padding":[16,16,16,16]}' data-settings-layout="column">
+                        <div className={`mx-auto flex h-full max-w-2xl flex-col overflow-hidden rounded-[28px] border ${borderColor} ${glassBg} shadow-[0_24px_80px_rgba(0,0,0,0.32)]`} data-settings-style='{"radius":28,"border":true}' data-settings-layout="card">
+                            <div className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4" data-settings-style='{"align":"between","gap":16,"divider":true,"padding":[20,16,20,16]}' data-settings-layout="row">
+                                <div className="min-w-0" data-settings-style='{"grow":true}' data-settings-layout="column">
+                                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                         {shouldShowUploadedFontFallback
                                             ? t('options.uploadCustomFont')
                                             : t('options.chooseSystemFont')}
                                     </div>
-                                    <div className="text-xs opacity-50 mt-1" style={{ color: 'var(--text-secondary)' }}>
+                                    <div className="text-xs opacity-50 mt-1" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="column">
                                         {shouldShowUploadedFontFallback
                                             ? (t('options.uploadCustomFontDesc'))
                                             : (t('options.chooseSystemFontDesc'))}
@@ -1401,14 +1401,14 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                                     onClick={() => setIsFontPickerOpen(false)}
                                     className="h-10 w-10 rounded-full border border-white/10 bg-white/5 flex items-center justify-center transition-colors hover:bg-white/10"
                                     style={{ color: 'var(--text-primary)' }}
-                                >
+                                 data-settings-style='{"align":"center","center":true,"height":40,"width":40,"radius":64,"border":true,"fill":true,"tone":"text"}' data-settings-layout="row">
                                     <X size={18} />
                                 </button>
                             </div>
 
                             {!shouldShowUploadedFontFallback && (
-                                <div className="border-b border-white/10 px-5 py-4">
-                                    <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                                <div className="border-b border-white/10 px-5 py-4" data-settings-style='{"divider":true,"padding":[20,16,20,16]}' data-settings-layout="column">
+                                    <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3" data-settings-style='{"align":"center","gap":12,"radius":16,"border":true,"fill":true,"padding":[16,12,16,12]}' data-settings-layout="row">
                                         <Search size={16} style={{ color: 'var(--text-secondary)' }} />
                                         <input
                                             type="text"
@@ -1417,33 +1417,33 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                                             placeholder={t('options.searchSystemFont')}
                                             className="w-full bg-transparent text-sm outline-none placeholder:opacity-40"
                                             style={{ color: 'var(--text-primary)' }}
-                                        />
+                                         data-settings-style='{"font":14,"tone":"text"}' data-settings-layout="column"/>
                                     </label>
                                 </div>
                             )}
 
-                            <div ref={fontListRef} className="min-h-0 flex-1 overflow-hidden p-5">
+                            <div ref={fontListRef} className="min-h-0 flex-1 overflow-hidden p-5" data-settings-style='{"grow":true,"minHeight":0,"padding":[20,20,20,20]}' data-settings-layout="column">
                                 {shouldShowUploadedFontFallback ? (
-                                    <div className="space-y-4">
+                                    <div className="space-y-4" data-settings-style='{"gap":16}' data-settings-layout="column">
                                         <input
                                             ref={fontUploadInputRef}
                                             type="file"
                                             accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf,application/font-woff,application/font-woff2,application/x-font-ttf,application/x-font-otf,application/vnd.ms-opentype"
                                             className="hidden"
                                             onChange={handleUploadFontFile}
-                                        />
-                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                            <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                                         data-settings-layout="column"/>
+                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4" data-settings-style='{"radius":16,"border":true,"fill":true,"padding":[16,16,16,16]}' data-settings-layout="card">
+                                            <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                                 {t('options.currentFont')}
                                             </div>
-                                            <div className="mt-1 text-base font-medium" style={{ color: 'var(--text-primary)' }}>
+                                            <div className="mt-1 text-base font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":16,"weight":500,"margin":[0,4,0,0],"tone":"text"}' data-settings-layout="column">
                                                 {fontPickerTarget === 'subtitle'
                                                     ? (subtitleFontFamily || t('options.systemFontInactive'))
                                                     : (customFontFamily
                                                         ? currentFontLabel
                                                         : t('options.systemFontInactive'))}
                                             </div>
-                                            <div className="mt-1 text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                                            <div className="mt-1 text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="column">
                                                 {fontPickerTarget === 'subtitle'
                                                     ? (subtitleFontFallbackFamilies.length > 0 ? subtitleFontFallbackFamilies.join(', ') : t('options.fontFallbackEmpty'))
                                                     : (fontFallbackFamilies.length > 0 ? fontFallbackFamilies.join(', ') : t('options.fontFallbackEmpty'))}
@@ -1457,7 +1457,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                                             placeholder={t('options.fontFallbackFamiliesPlaceholder') || 'Songti SC, SimSun, serif'}
                                         />
                                         {fontPickerError && (
-                                            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm leading-6 text-red-200">
+                                            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm leading-6 text-red-200" data-settings-style='{"radius":16,"border":true,"font":14,"tone":"danger","padding":[16,16,16,16]}' data-settings-layout="card">
                                                 {fontPickerError}
                                             </div>
                                         )}
@@ -1466,7 +1466,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                                             onClick={() => fontUploadInputRef.current?.click()}
                                             disabled={isUploadingCustomFont}
                                             className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-semibold text-zinc-950 transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-45"
-                                        >
+                                         data-settings-style='{"align":"center","center":true,"height":48,"gap":8,"radius":16,"font":14,"weight":600,"padding":[16,0,16,0]}' data-settings-layout="row">
                                             {isUploadingCustomFont ? (
                                                 <Loader2 size={17} className="animate-spin" />
                                             ) : (
@@ -1489,38 +1489,38 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                                                 }}
                                                 className="flex h-11 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 text-sm font-medium transition hover:bg-white/10"
                                                 style={{ color: 'var(--text-primary)' }}
-                                            >
+                                             data-settings-style='{"align":"center","center":true,"height":44,"radius":16,"border":true,"fill":true,"font":14,"weight":500,"padding":[16,0,16,0],"tone":"text"}' data-settings-layout="row">
                                                 {t('options.clearSystemFont')}
                                             </button>
                                         )}
                                     </div>
                                 ) : isLoadingSystemFonts ? (
-                                    <div className="h-full flex items-center justify-center text-sm gap-3" style={{ color: 'var(--text-secondary)' }}>
+                                    <div className="h-full flex items-center justify-center text-sm gap-3" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"align":"center","center":true,"font":14,"gap":12,"tone":"muted"}' data-settings-layout="row">
                                         <Loader2 size={18} className="animate-spin" />
-                                        <span>{t('options.loadingSystemFonts')}</span>
+                                        <span data-settings-layout="wrap">{t('options.loadingSystemFonts')}</span>
                                     </div>
                                 ) : fontPickerError ? (
-                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6" style={{ color: 'var(--text-secondary)' }}>
+                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"radius":16,"border":true,"fill":true,"font":14,"padding":[16,16,16,16],"tone":"muted"}' data-settings-layout="card">
                                         {fontPickerError}
                                     </div>
                                 ) : filteredSystemFonts.length === 0 ? (
-                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6" style={{ color: 'var(--text-secondary)' }}>
+                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"radius":16,"border":true,"fill":true,"font":14,"padding":[16,16,16,16],"tone":"muted"}' data-settings-layout="card">
                                         {t('options.systemFontNoResults')}
                                     </div>
                                 ) : (
-                                    <div className="flex h-full min-h-0 flex-col gap-4">
-                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                            <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                                    <div className="flex h-full min-h-0 flex-col gap-4" data-settings-style='{"minHeight":0,"gap":16}' data-settings-layout="column">
+                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4" data-settings-style='{"radius":16,"border":true,"fill":true,"padding":[16,16,16,16]}' data-settings-layout="card">
+                                            <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                                 {t('options.currentFont')}
                                             </div>
-                                            <div className="mt-1 text-base font-medium" style={{ color: 'var(--text-primary)' }}>
+                                            <div className="mt-1 text-base font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":16,"weight":500,"margin":[0,4,0,0],"tone":"text"}' data-settings-layout="column">
                                                 {fontPickerTarget === 'subtitle'
                                                     ? (subtitleFontFamily || t('options.systemFontInactive'))
                                                     : (customFontFamily
                                                         ? currentFontLabel
                                                         : t('options.systemFontInactive'))}
                                             </div>
-                                            <div className="mt-1 text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                                            <div className="mt-1 text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="column">
                                                 {fontPickerTarget === 'subtitle'
                                                     ? (subtitleFontFallbackFamilies.length > 0 ? subtitleFontFallbackFamilies.join(', ') : t('options.fontFallbackEmpty'))
                                                     : (fontFallbackFamilies.length > 0 ? fontFallbackFamilies.join(', ') : t('options.fontFallbackEmpty'))}
@@ -1533,7 +1533,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                                             theme={activePickerTheme}
                                             placeholder={t('options.fontFallbackFamiliesPlaceholder') || 'Songti SC, SimSun, serif'}
                                         />
-                                        <div className="min-h-0 flex-1">
+                                        <div className="min-h-0 flex-1" data-settings-style='{"grow":true,"minHeight":0}' data-settings-layout="column">
                                             <List
                                                 listRef={fontVirtualListRef}
                                                 rowCount={filteredSystemFonts.length}

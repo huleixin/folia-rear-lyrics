@@ -22,13 +22,13 @@ const ModsSettingsSubview: React.FC<ModsSettingsSubviewProps> = ({ isDaylight, t
     const classes = modManagerClassesFor(isDaylight);
 
     return (
-        <div className="space-y-5">
-            <SettingsAnchor anchorId="modSystem" label={t('options.enableModSystem')} className="space-y-4">
+        <div className="space-y-5" data-settings-style='{"gap":20}' data-settings-layout="column">
+            <SettingsAnchor anchorId="modSystem" label={t('options.enableModSystem')} className="space-y-4" nativeLayout={{"kind":"column","gap":16}}>
                 <SettingsSectionHeading icon={Power} label={t('options.enableModSystem')} />
                 <ModSystemSwitch classes={classes} theme={theme ?? null} />
             </SettingsAnchor>
 
-            <SettingsAnchor anchorId="modList" label={t('mods.title')} className="space-y-4">
+            <SettingsAnchor anchorId="modList" label={t('mods.title')} className="space-y-4" nativeLayout={{"kind":"column","gap":16}}>
                 <SettingsSectionHeading icon={Boxes} label={t('mods.title')} />
                 <ModManager classes={classes} isDaylight={isDaylight} theme={theme ?? null} />
             </SettingsAnchor>

@@ -1,0 +1,3757 @@
+{
+  "key": "settings-flow:qa",
+  "title": "播放控制",
+  "nodes": [
+    {
+      "id": "form:325",
+      "kind": "action",
+      "title": "使用说明",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "icon": "circle-question-mark"
+    },
+    {
+      "id": "form:326",
+      "kind": "group",
+      "title": "启动播放"
+    },
+    {
+      "id": "form:327",
+      "kind": "switch",
+      "title": "进入应用后自动播放",
+      "value": "0",
+      "disabled": false,
+      "hint": "启动应用并成功恢复上次歌曲后自动续播；关闭后恢复歌曲但等待手动播放。",
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:328",
+      "kind": "group",
+      "title": "播放引擎"
+    },
+    {
+      "id": "form:329:text:4",
+      "kind": "note",
+      "title": "默认优先使用系统原生播放，缓存音频也会尝试原生。均衡器、自动混音或 ReplayGain 开启时使用兼容通道。"
+    },
+    {
+      "id": "form:330",
+      "kind": "action",
+      "title": "系统原生 ✓",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "detail": "✓"
+    },
+    {
+      "id": "form:331",
+      "kind": "action",
+      "title": "兼容通道",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:332:text:7",
+      "kind": "note",
+      "title": "当前使用：正在检测"
+    },
+    {
+      "id": "form:332:text:8",
+      "kind": "note",
+      "title": "· 原生通道未响应或不可用"
+    },
+    {
+      "id": "form:333",
+      "kind": "action",
+      "title": "停止播放并应用",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:334:text:10",
+      "kind": "note",
+      "title": "手动切换会先停止播放。明确解码不兼容时仅本曲使用兼容通道，下一次播放重新尝试原生；手动选择兼容时保持该选择。"
+    },
+    {
+      "id": "form:335",
+      "kind": "group",
+      "title": "播放队列"
+    },
+    {
+      "id": "form:336:text:12",
+      "kind": "note",
+      "title": "加入队列的默认位置"
+    },
+    {
+      "id": "form:337:text:13",
+      "kind": "note",
+      "title": "加入播放队列按钮的默认行为。"
+    },
+    {
+      "id": "form:338",
+      "kind": "action",
+      "title": "追加到末尾加入到播放队列的末尾。",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "detail": "✓"
+    },
+    {
+      "id": "form:339",
+      "kind": "action",
+      "title": "追加到下一首加入当前播放歌曲后面。",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:340:text:16",
+      "kind": "note",
+      "title": "无法播放时自动跳过"
+    },
+    {
+      "id": "form:341:text:17",
+      "kind": "note",
+      "title": "歌曲需要会员或购买、只能试听、所在地区不可播放，或原因不明无法播放时，像已下架的歌曲一样倒计时后跳到下一首。需要登录的歌曲和网络问题不会跳过。"
+    },
+    {
+      "id": "form:342",
+      "kind": "switch",
+      "title": "无法播放时自动跳过",
+      "value": "0",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:343",
+      "kind": "group",
+      "title": "听歌打卡"
+    },
+    {
+      "id": "form:344:text:20",
+      "kind": "note",
+      "title": "上报播放记录(仅网易云)"
+    },
+    {
+      "id": "form:345:text:21",
+      "kind": "note",
+      "title": "在线网易云歌曲真实播放满 30 秒后，向你的网易云账号上报一次听歌记录。本地文件、云盘歌曲和其他音乐平台一律不上报；此功能可能有一定风险，请谨慎使用"
+    },
+    {
+      "id": "form:346:text:22",
+      "kind": "note",
+      "title": "需要先登录网易云音乐账号。"
+    },
+    {
+      "id": "form:347",
+      "kind": "switch",
+      "title": "上报播放记录(仅网易云)",
+      "value": "0",
+      "disabled": true,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:348",
+      "kind": "group",
+      "title": "听屿智能过渡"
+    },
+    {
+      "id": "form:349:text:25",
+      "kind": "note",
+      "title": "过渡"
+    },
+    {
+      "id": "form:350",
+      "kind": "switch",
+      "title": "过渡",
+      "value": "0",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:351:text:27",
+      "kind": "note",
+      "title": "过渡模式"
+    },
+    {
+      "id": "form:352",
+      "kind": "action",
+      "title": "Folia Crossfade固定的淡出淡入。",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:353",
+      "kind": "action",
+      "title": "Folia Automix使用中分析歌曲并自动混音。",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "detail": "✓"
+    },
+    {
+      "id": "form:354:text:30",
+      "kind": "note",
+      "title": "歌曲缓存已关闭，在线歌曲不会被分析。这会使 AutoMix 实际效果下降 50%。"
+    },
+    {
+      "id": "form:355",
+      "kind": "action",
+      "title": "开启歌曲缓存",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:356:text:32",
+      "kind": "note",
+      "title": "兼容模式"
+    },
+    {
+      "id": "form:357:text:33",
+      "kind": "note",
+      "title": "因浏览器端技术限制原因实际混音效果可能比客户端差十分之五。"
+    },
+    {
+      "id": "form:358:text:34",
+      "kind": "note",
+      "title": "表现模式"
+    },
+    {
+      "id": "form:359:text:35",
+      "kind": "note",
+      "title": "浏览器端技术限制无法开启。"
+    },
+    {
+      "id": "form:360",
+      "kind": "switch",
+      "title": "表现模式",
+      "value": "0",
+      "disabled": true,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:361",
+      "kind": "action",
+      "title": "过渡动画混音时把这次过渡画出来。过渡短于 5 秒不显示。已关闭",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:362",
+      "kind": "group",
+      "title": "音频增益"
+    },
+    {
+      "id": "form:363:text:39",
+      "kind": "note",
+      "title": "ReplayGain 模式 (响度平衡)"
+    },
+    {
+      "id": "form:364:text:40",
+      "kind": "note",
+      "title": "检测到增益数据时，按单曲或专辑 ReplayGain 统一播放响度。"
+    },
+    {
+      "id": "form:365",
+      "kind": "action",
+      "title": "关闭",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:366",
+      "kind": "action",
+      "title": "单曲",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:367",
+      "kind": "action",
+      "title": "专辑",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:368",
+      "kind": "group",
+      "title": "歌词"
+    },
+    {
+      "id": "form:369:text:45",
+      "kind": "note",
+      "title": "自动使用最佳歌词"
+    },
+    {
+      "id": "form:370:text:46",
+      "kind": "note",
+      "title": "自动检索网易云、AMLLDB、QQ 和酷狗歌词，若存在完美匹配的逐字歌词则自动优先采用。"
+    },
+    {
+      "id": "form:371",
+      "kind": "switch",
+      "title": "自动使用最佳歌词",
+      "value": "1",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "detail": "✓"
+    },
+    {
+      "id": "form:372:text:48",
+      "kind": "note",
+      "title": "统一简体歌词"
+    },
+    {
+      "id": "form:373:text:49",
+      "kind": "note",
+      "title": "歌词舞台、背屏与灵动岛共用同一条简繁规则，繁体歌词统一转为简体。手动选定的歌词版本始终优先。"
+    },
+    {
+      "id": "form:374",
+      "kind": "switch",
+      "title": "统一简体歌词",
+      "value": "0",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:375:text:51",
+      "kind": "note",
+      "title": "本地歌曲歌词优先级"
+    },
+    {
+      "id": "form:376:text:52",
+      "kind": "note",
+      "title": "本地歌曲同时存在在线匹配歌词时，选择优先使用的歌词。手动指定的歌词来源不受影响。"
+    },
+    {
+      "id": "form:377",
+      "kind": "action",
+      "title": "本地歌词优先使用同目录和内嵌歌词，缺失时再使用在线歌词。",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "detail": "✓"
+    },
+    {
+      "id": "form:378",
+      "kind": "action",
+      "title": "在线优先优先使用已匹配的在线歌词，缺失时再使用本地歌词。",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:379:text:55",
+      "kind": "note",
+      "title": "本地歌词文件格式优先级"
+    },
+    {
+      "id": "form:380:text:56",
+      "kind": "note",
+      "title": "同一首歌有多个同名歌词文件时，按此顺序选用。.fia 始终最优先。手动上传的歌词不受影响。"
+    },
+    {
+      "id": "form:381",
+      "kind": "action",
+      "title": "恢复默认",
+      "value": "",
+      "disabled": true,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:382",
+      "kind": "reorder",
+      "title": "本地歌词文件格式优先级",
+      "value": "",
+      "disabled": false,
+      "options": [
+        {
+          "value": "lrc",
+          "label": ".lrc"
+        },
+        {
+          "value": "vtt",
+          "label": ".vtt"
+        },
+        {
+          "value": "ttml",
+          "label": ".ttml"
+        },
+        {
+          "value": "qrc",
+          "label": ".qrc"
+        },
+        {
+          "value": "yrc",
+          "label": ".yrc"
+        },
+        {
+          "value": "krc",
+          "label": ".krc"
+        }
+      ],
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "上移",
+      "multiline": false,
+      "inputType": "text",
+      "immediate": false,
+      "confirmLabel": "下移"
+    },
+    {
+      "id": "form:383:text:59",
+      "kind": "note",
+      "title": "歌词匹配优先级"
+    },
+    {
+      "id": "form:384:text:60",
+      "kind": "note",
+      "title": "在多个歌词源都存在高置信度匹配时，优先选择该歌词源的结果。"
+    },
+    {
+      "id": "form:385",
+      "kind": "action",
+      "title": "网易云音乐",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:386",
+      "kind": "action",
+      "title": "AMLLDB",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:387",
+      "kind": "action",
+      "title": "QQ 音乐",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "detail": "✓"
+    },
+    {
+      "id": "form:388",
+      "kind": "action",
+      "title": "酷狗音乐",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:389",
+      "kind": "action",
+      "title": "全局时间偏移为本设备的所有歌曲整体平移歌词时间轴，补偿蓝牙等输出延迟。点击后可在实时预览中微调。0ms",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:390",
+      "kind": "action",
+      "title": "歌词过滤配置逐行过滤规则，以及歌词开头制作人员信息的处理方式。",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:391",
+      "kind": "group",
+      "title": "播放设备"
+    },
+    {
+      "id": "form:392:text:68",
+      "kind": "note",
+      "title": "暂停/播放淡入淡出"
+    },
+    {
+      "id": "form:393:text:69",
+      "kind": "note",
+      "title": "暂停前先短暂淡出声音，恢复播放时再淡入，而不是瞬间切断。音频未接入音频引擎时会直接暂停。"
+    },
+    {
+      "id": "form:394",
+      "kind": "switch",
+      "title": "暂停/播放淡入淡出",
+      "value": "1",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "detail": "✓"
+    },
+    {
+      "id": "form:395:text:71",
+      "kind": "note",
+      "title": "当前播放声卡"
+    },
+    {
+      "id": "form:396:text:72",
+      "kind": "note",
+      "title": "切换当前播放器的音频输出设备。在支持 setSinkId 时可使用。"
+    },
+    {
+      "id": "form:397",
+      "kind": "action",
+      "title": "刷新",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:398",
+      "kind": "action",
+      "title": "当前播放声卡",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    }
+  ],
+  "layout": {
+    "id": "page:form:515",
+    "kind": "column",
+    "style": {
+      "padding": [
+        22,
+        0,
+        22,
+        0
+      ]
+    },
+    "children": [
+      {
+        "id": "form:400",
+        "kind": "column",
+        "style": {
+          "gap": 32
+        },
+        "children": [
+          {
+            "id": "form:401",
+            "kind": "column",
+            "style": {
+              "gap": 20
+            },
+            "children": [
+              {
+                "id": "form:402",
+                "kind": "column",
+                "style": {
+                  "kind": "column"
+                },
+                "children": [
+                  {
+                    "id": "form:326",
+                    "kind": "row",
+                    "style": {
+                      "align": "center",
+                      "font": 14,
+                      "weight": 700,
+                      "tone": "muted",
+                      "gap": 8,
+                      "margin": [
+                        0,
+                        0,
+                        0,
+                        16
+                      ],
+                      "padding": [
+                        0,
+                        0,
+                        0,
+                        0
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "form:403",
+                        "kind": "icon",
+                        "icon": "circle-play",
+                        "style": {
+                          "width": 14,
+                          "height": 14
+                        }
+                      },
+                      {
+                        "id": "copy:1",
+                        "kind": "text",
+                        "text": "启动播放"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:404",
+                    "kind": "card",
+                    "style": {
+                      "radius": 12,
+                      "border": true
+                    },
+                    "children": [
+                      {
+                        "id": "form:405",
+                        "kind": "column",
+                        "style": {
+                          "gap": 12,
+                          "padding": [
+                            16,
+                            16,
+                            16,
+                            16
+                          ],
+                          "divider": false
+                        },
+                        "children": [
+                          {
+                            "id": "form:406",
+                            "kind": "row",
+                            "style": {
+                              "align": "between",
+                              "gap": 16
+                            },
+                            "children": [
+                              {
+                                "id": "form:407",
+                                "kind": "column",
+                                "style": {
+                                  "gap": 4,
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:408",
+                                    "kind": "row",
+                                    "style": {
+                                      "align": "center",
+                                      "font": 14,
+                                      "weight": 500,
+                                      "gap": 8,
+                                      "tone": "text"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:2",
+                                        "kind": "text",
+                                        "text": "进入应用后自动播放"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:409",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 12,
+                                      "tone": "muted"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:3",
+                                        "kind": "text",
+                                        "text": "启动应用并成功恢复上次歌曲后自动续播；关闭后恢复歌曲但等待手动播放。"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "layout:form:327",
+                                "kind": "control",
+                                "ref": "form:327",
+                                "style": {
+                                  "width": 48,
+                                  "height": 24,
+                                  "radius": 64,
+                                  "padding": [
+                                    4,
+                                    4,
+                                    4,
+                                    4
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:410",
+                    "kind": "card",
+                    "style": {
+                      "radius": 12,
+                      "border": true,
+                      "gap": 12,
+                      "padding": [
+                        16,
+                        16,
+                        16,
+                        16
+                      ],
+                      "margin": [
+                        0,
+                        16,
+                        0,
+                        0
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "form:328",
+                        "kind": "wrap",
+                        "style": {
+                          "font": 14,
+                          "weight": 600
+                        },
+                        "children": [
+                          {
+                            "id": "copy:4",
+                            "kind": "text",
+                            "text": "播放引擎"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:329",
+                        "kind": "wrap",
+                        "style": {
+                          "font": 12,
+                          "tone": "muted"
+                        },
+                        "children": [
+                          {
+                            "id": "copy:5",
+                            "kind": "text",
+                            "text": "默认优先使用系统原生播放，缓存音频也会尝试原生。均衡器、自动混音或 ReplayGain 开启时使用兼容通道。"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:411",
+                        "kind": "row",
+                        "style": {
+                          "gap": 8
+                        },
+                        "children": [
+                          {
+                            "id": "layout:form:330",
+                            "kind": "control",
+                            "ref": "form:330",
+                            "style": {
+                              "grow": true,
+                              "minHeight": 36,
+                              "padding": [
+                                12,
+                                8,
+                                12,
+                                8
+                              ],
+                              "font": 12,
+                              "center": true,
+                              "radius": 8,
+                              "border": true
+                            },
+                            "children": [
+                              {
+                                "id": "content:form:330",
+                                "kind": "row",
+                                "style": {
+                                  "center": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:6",
+                                    "kind": "text",
+                                    "text": "系统原生 ✓"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "layout:form:331",
+                            "kind": "control",
+                            "ref": "form:331",
+                            "style": {
+                              "grow": true,
+                              "minHeight": 36,
+                              "padding": [
+                                12,
+                                8,
+                                12,
+                                8
+                              ],
+                              "font": 12,
+                              "center": true,
+                              "radius": 8,
+                              "border": true
+                            },
+                            "children": [
+                              {
+                                "id": "content:form:331",
+                                "kind": "row",
+                                "style": {
+                                  "center": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:7",
+                                    "kind": "text",
+                                    "text": "兼容通道"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:332",
+                        "kind": "wrap",
+                        "style": {
+                          "font": 12
+                        },
+                        "children": [
+                          {
+                            "id": "copy:8",
+                            "kind": "text",
+                            "text": "当前使用：正在检测 · 原生通道未响应或不可用"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:333",
+                        "kind": "control",
+                        "ref": "form:333",
+                        "style": {
+                          "minHeight": 36,
+                          "padding": [
+                            12,
+                            8,
+                            12,
+                            8
+                          ],
+                          "font": 12,
+                          "center": true,
+                          "radius": 8,
+                          "border": true
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:333",
+                            "kind": "row",
+                            "style": {
+                              "center": true
+                            },
+                            "children": [
+                              {
+                                "id": "copy:9",
+                                "kind": "text",
+                                "text": "停止播放并应用"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:334",
+                        "kind": "wrap",
+                        "style": {
+                          "font": 12,
+                          "tone": "muted"
+                        },
+                        "children": [
+                          {
+                            "id": "copy:10",
+                            "kind": "text",
+                            "text": "手动切换会先停止播放。明确解码不兼容时仅本曲使用兼容通道，下一次播放重新尝试原生；手动选择兼容时保持该选择。"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:412",
+                "kind": "column",
+                "style": {
+                  "kind": "column"
+                },
+                "children": [
+                  {
+                    "id": "form:335",
+                    "kind": "row",
+                    "style": {
+                      "align": "center",
+                      "font": 14,
+                      "weight": 700,
+                      "tone": "muted",
+                      "gap": 8,
+                      "margin": [
+                        0,
+                        0,
+                        0,
+                        16
+                      ],
+                      "padding": [
+                        0,
+                        0,
+                        0,
+                        0
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "form:413",
+                        "kind": "icon",
+                        "icon": "circle-play",
+                        "style": {
+                          "width": 14,
+                          "height": 14
+                        }
+                      },
+                      {
+                        "id": "copy:11",
+                        "kind": "text",
+                        "text": "播放队列"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:414",
+                    "kind": "card",
+                    "style": {
+                      "radius": 12,
+                      "border": true,
+                      "gap": 16,
+                      "padding": [
+                        16,
+                        16,
+                        16,
+                        16
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "form:415",
+                        "kind": "column",
+                        "style": {
+                          "gap": 4
+                        },
+                        "children": [
+                          {
+                            "id": "form:336",
+                            "kind": "column",
+                            "style": {
+                              "font": 14,
+                              "weight": 500,
+                              "tone": "text"
+                            },
+                            "children": [
+                              {
+                                "id": "copy:12",
+                                "kind": "text",
+                                "text": "加入队列的默认位置"
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:337",
+                            "kind": "column",
+                            "style": {
+                              "font": 11,
+                              "tone": "muted"
+                            },
+                            "children": [
+                              {
+                                "id": "copy:13",
+                                "kind": "text",
+                                "text": "加入播放队列按钮的默认行为。"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:416",
+                        "kind": "grid",
+                        "style": {
+                          "columns": 2,
+                          "gap": 8
+                        },
+                        "children": [
+                          {
+                            "id": "layout:form:338",
+                            "kind": "control",
+                            "ref": "form:338",
+                            "style": {
+                              "radius": 12,
+                              "border": true,
+                              "padding": [
+                                12,
+                                12,
+                                12,
+                                12
+                              ]
+                            },
+                            "children": [
+                              {
+                                "id": "content:form:338",
+                                "kind": "column",
+                                "style": {},
+                                "children": [
+                                  {
+                                    "id": "form:417",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 14,
+                                      "weight": 500,
+                                      "tone": "text"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:14",
+                                        "kind": "text",
+                                        "text": "追加到末尾"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:418",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 11,
+                                      "tone": "muted",
+                                      "margin": [
+                                        0,
+                                        4,
+                                        0,
+                                        0
+                                      ]
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:15",
+                                        "kind": "text",
+                                        "text": "加入到播放队列的末尾。"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "layout:form:339",
+                            "kind": "control",
+                            "ref": "form:339",
+                            "style": {
+                              "radius": 12,
+                              "border": true,
+                              "padding": [
+                                12,
+                                12,
+                                12,
+                                12
+                              ]
+                            },
+                            "children": [
+                              {
+                                "id": "content:form:339",
+                                "kind": "column",
+                                "style": {},
+                                "children": [
+                                  {
+                                    "id": "form:419",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 14,
+                                      "weight": 500,
+                                      "tone": "text"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:16",
+                                        "kind": "text",
+                                        "text": "追加到下一首"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:420",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 11,
+                                      "tone": "muted",
+                                      "margin": [
+                                        0,
+                                        4,
+                                        0,
+                                        0
+                                      ]
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:17",
+                                        "kind": "text",
+                                        "text": "加入当前播放歌曲后面。"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:421",
+                        "kind": "row",
+                        "style": {
+                          "align": "between",
+                          "gap": 12,
+                          "padding": [
+                            0,
+                            16,
+                            0,
+                            0
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "form:422",
+                            "kind": "column",
+                            "style": {
+                              "gap": 4,
+                              "grow": true
+                            },
+                            "children": [
+                              {
+                                "id": "form:340",
+                                "kind": "column",
+                                "style": {
+                                  "font": 14,
+                                  "weight": 500,
+                                  "tone": "text"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:18",
+                                    "kind": "text",
+                                    "text": "无法播放时自动跳过"
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:341",
+                                "kind": "column",
+                                "style": {
+                                  "font": 11,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:19",
+                                    "kind": "text",
+                                    "text": "歌曲需要会员或购买、只能试听、所在地区不可播放，或原因不明无法播放时，像已下架的歌曲一样倒计时后跳到下一首。需要登录的歌曲和网络问题不会跳过。"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "layout:form:342",
+                            "kind": "control",
+                            "ref": "form:342",
+                            "style": {
+                              "width": 48,
+                              "height": 24,
+                              "radius": 64,
+                              "padding": [
+                                4,
+                                4,
+                                4,
+                                4
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:423",
+                "kind": "column",
+                "style": {
+                  "kind": "column"
+                },
+                "children": [
+                  {
+                    "id": "form:343",
+                    "kind": "row",
+                    "style": {
+                      "align": "center",
+                      "font": 14,
+                      "weight": 700,
+                      "tone": "muted",
+                      "gap": 8,
+                      "margin": [
+                        0,
+                        0,
+                        0,
+                        16
+                      ],
+                      "padding": [
+                        0,
+                        0,
+                        0,
+                        0
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "form:424",
+                        "kind": "icon",
+                        "icon": "radio",
+                        "style": {
+                          "width": 14,
+                          "height": 14
+                        }
+                      },
+                      {
+                        "id": "copy:20",
+                        "kind": "text",
+                        "text": "听歌打卡"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:425",
+                    "kind": "card",
+                    "style": {
+                      "radius": 12,
+                      "border": true,
+                      "gap": 16,
+                      "padding": [
+                        16,
+                        16,
+                        16,
+                        16
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "form:426",
+                        "kind": "row",
+                        "style": {
+                          "align": "between",
+                          "gap": 12
+                        },
+                        "children": [
+                          {
+                            "id": "form:427",
+                            "kind": "column",
+                            "style": {
+                              "gap": 4,
+                              "grow": true
+                            },
+                            "children": [
+                              {
+                                "id": "form:344",
+                                "kind": "column",
+                                "style": {
+                                  "font": 14,
+                                  "weight": 500,
+                                  "tone": "text"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:21",
+                                    "kind": "text",
+                                    "text": "上报播放记录(仅网易云)"
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:345",
+                                "kind": "column",
+                                "style": {
+                                  "font": 11,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:22",
+                                    "kind": "text",
+                                    "text": "在线网易云歌曲真实播放满 30 秒后，向你的网易云账号上报一次听歌记录。本地文件、云盘歌曲和其他音乐平台一律不上报；此功能可能有一定风险，请谨慎使用"
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:346",
+                                "kind": "column",
+                                "style": {
+                                  "font": 11,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:23",
+                                    "kind": "text",
+                                    "text": "需要先登录网易云音乐账号。"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "layout:form:347",
+                            "kind": "control",
+                            "ref": "form:347",
+                            "style": {
+                              "width": 48,
+                              "height": 24,
+                              "radius": 64,
+                              "padding": [
+                                4,
+                                4,
+                                4,
+                                4
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:428",
+                "kind": "column",
+                "style": {
+                  "kind": "column"
+                },
+                "children": [
+                  {
+                    "id": "form:348",
+                    "kind": "row",
+                    "style": {
+                      "align": "center",
+                      "font": 14,
+                      "weight": 700,
+                      "tone": "muted",
+                      "gap": 8,
+                      "margin": [
+                        0,
+                        0,
+                        0,
+                        16
+                      ],
+                      "padding": [
+                        0,
+                        0,
+                        0,
+                        0
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "form:429",
+                        "kind": "icon",
+                        "icon": "blend",
+                        "style": {
+                          "width": 14,
+                          "height": 14
+                        }
+                      },
+                      {
+                        "id": "copy:24",
+                        "kind": "text",
+                        "text": "听屿智能过渡"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:430",
+                    "kind": "card",
+                    "style": {
+                      "radius": 12,
+                      "border": true
+                    },
+                    "children": [
+                      {
+                        "id": "form:431",
+                        "kind": "row",
+                        "style": {
+                          "align": "between",
+                          "gap": 16,
+                          "padding": [
+                            16,
+                            16,
+                            16,
+                            16
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "form:349",
+                            "kind": "column",
+                            "style": {
+                              "font": 14,
+                              "weight": 500,
+                              "tone": "text",
+                              "grow": true
+                            },
+                            "children": [
+                              {
+                                "id": "copy:25",
+                                "kind": "text",
+                                "text": "过渡"
+                              }
+                            ]
+                          },
+                          {
+                            "id": "layout:form:350",
+                            "kind": "control",
+                            "ref": "form:350",
+                            "style": {
+                              "width": 48,
+                              "height": 24,
+                              "radius": 64,
+                              "padding": [
+                                4,
+                                4,
+                                4,
+                                4
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:432",
+                        "kind": "column",
+                        "style": {
+                          "gap": 12,
+                          "padding": [
+                            16,
+                            16,
+                            16,
+                            16
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "form:351",
+                            "kind": "column",
+                            "style": {
+                              "font": 14,
+                              "weight": 500,
+                              "tone": "text"
+                            },
+                            "children": [
+                              {
+                                "id": "copy:26",
+                                "kind": "text",
+                                "text": "过渡模式"
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:433",
+                            "kind": "grid",
+                            "style": {
+                              "columns": 1,
+                              "gap": 8
+                            },
+                            "children": [
+                              {
+                                "id": "layout:form:352",
+                                "kind": "control",
+                                "ref": "form:352",
+                                "style": {
+                                  "radius": 12,
+                                  "border": true,
+                                  "padding": [
+                                    12,
+                                    12,
+                                    12,
+                                    12
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "id": "content:form:352",
+                                    "kind": "column",
+                                    "style": {},
+                                    "children": [
+                                      {
+                                        "id": "form:434",
+                                        "kind": "row",
+                                        "style": {
+                                          "align": "center",
+                                          "font": 14,
+                                          "weight": 500,
+                                          "gap": 8,
+                                          "tone": "text"
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "form:435",
+                                            "kind": "icon",
+                                            "icon": "waves-horizontal",
+                                            "style": {
+                                              "width": 14,
+                                              "height": 14
+                                            }
+                                          },
+                                          {
+                                            "id": "copy:27",
+                                            "kind": "text",
+                                            "text": "Folia Crossfade"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "id": "form:436",
+                                        "kind": "column",
+                                        "style": {
+                                          "font": 11,
+                                          "tone": "muted",
+                                          "margin": [
+                                            0,
+                                            4,
+                                            0,
+                                            0
+                                          ]
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "copy:28",
+                                            "kind": "text",
+                                            "text": "固定的淡出淡入。"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "layout:form:353",
+                                "kind": "control",
+                                "ref": "form:353",
+                                "style": {
+                                  "radius": 12,
+                                  "border": true,
+                                  "padding": [
+                                    12,
+                                    12,
+                                    12,
+                                    12
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "id": "content:form:353",
+                                    "kind": "column",
+                                    "style": {},
+                                    "children": [
+                                      {
+                                        "id": "form:437",
+                                        "kind": "row",
+                                        "style": {
+                                          "align": "center",
+                                          "font": 14,
+                                          "weight": 500,
+                                          "gap": 8,
+                                          "tone": "text"
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "form:438",
+                                            "kind": "icon",
+                                            "icon": "disc-3",
+                                            "style": {
+                                              "width": 14,
+                                              "height": 14
+                                            }
+                                          },
+                                          {
+                                            "id": "copy:29",
+                                            "kind": "text",
+                                            "text": "Folia Automix"
+                                          },
+                                          {
+                                            "id": "form:439",
+                                            "kind": "wrap",
+                                            "style": {
+                                              "radius": 64,
+                                              "font": 10,
+                                              "weight": 600,
+                                              "padding": [
+                                                8,
+                                                2,
+                                                8,
+                                                2
+                                              ],
+                                              "tone": "text"
+                                            },
+                                            "children": [
+                                              {
+                                                "id": "copy:30",
+                                                "kind": "text",
+                                                "text": "使用中"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "id": "form:440",
+                                        "kind": "column",
+                                        "style": {
+                                          "font": 11,
+                                          "tone": "muted",
+                                          "margin": [
+                                            0,
+                                            4,
+                                            0,
+                                            0
+                                          ]
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "copy:31",
+                                            "kind": "text",
+                                            "text": "分析歌曲并自动混音。"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:441",
+                            "kind": "column",
+                            "style": {
+                              "gap": 8,
+                              "padding": [
+                                0,
+                                4,
+                                0,
+                                0
+                              ]
+                            },
+                            "children": [
+                              {
+                                "id": "form:442",
+                                "kind": "row",
+                                "style": {
+                                  "gap": 8,
+                                  "radius": 8,
+                                  "border": true,
+                                  "font": 11,
+                                  "padding": [
+                                    12,
+                                    10,
+                                    12,
+                                    10
+                                  ],
+                                  "fill": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:443",
+                                    "kind": "icon",
+                                    "icon": "triangle-exclamation-point",
+                                    "style": {
+                                      "width": 14,
+                                      "height": 14
+                                    }
+                                  },
+                                  {
+                                    "id": "form:354",
+                                    "kind": "column",
+                                    "style": {
+                                      "weight": 500
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:32",
+                                        "kind": "text",
+                                        "text": "歌曲缓存已关闭，在线歌曲不会被分析。这会使 AutoMix 实际效果下降 50%。"
+                                      },
+                                      {
+                                        "id": "layout:form:355",
+                                        "kind": "control",
+                                        "ref": "form:355",
+                                        "style": {
+                                          "weight": 600,
+                                          "margin": [
+                                            8,
+                                            0,
+                                            0,
+                                            0
+                                          ]
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "content:form:355",
+                                            "kind": "row",
+                                            "style": {},
+                                            "children": [
+                                              {
+                                                "id": "copy:33",
+                                                "kind": "text",
+                                                "text": "开启歌曲缓存"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:444",
+                                "kind": "row",
+                                "style": {
+                                  "align": "center",
+                                  "gap": 8,
+                                  "font": 11,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:356",
+                                    "kind": "wrap",
+                                    "style": {
+                                      "radius": 64,
+                                      "font": 10,
+                                      "weight": 600,
+                                      "padding": [
+                                        8,
+                                        2,
+                                        8,
+                                        2
+                                      ],
+                                      "tone": "text"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:34",
+                                        "kind": "text",
+                                        "text": "兼容模式"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:357",
+                                    "kind": "wrap",
+                                    "style": {
+                                      "tone": "muted"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:35",
+                                        "kind": "text",
+                                        "text": "因浏览器端技术限制原因实际混音效果可能比客户端差十分之五。"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:445",
+                                "kind": "row",
+                                "style": {
+                                  "align": "between",
+                                  "gap": 16,
+                                  "radius": 8,
+                                  "border": true,
+                                  "padding": [
+                                    12,
+                                    12,
+                                    12,
+                                    12
+                                  ],
+                                  "fill": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:446",
+                                    "kind": "column",
+                                    "style": {},
+                                    "children": [
+                                      {
+                                        "id": "form:358",
+                                        "kind": "row",
+                                        "style": {
+                                          "align": "center",
+                                          "font": 14,
+                                          "weight": 500,
+                                          "gap": 8,
+                                          "tone": "text"
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "form:447",
+                                            "kind": "icon",
+                                            "icon": "sparkles",
+                                            "style": {
+                                              "width": 14,
+                                              "height": 14
+                                            }
+                                          },
+                                          {
+                                            "id": "copy:36",
+                                            "kind": "text",
+                                            "text": "表现模式"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "id": "form:359",
+                                        "kind": "column",
+                                        "style": {
+                                          "font": 11,
+                                          "tone": "muted",
+                                          "margin": [
+                                            0,
+                                            4,
+                                            0,
+                                            0
+                                          ]
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "copy:37",
+                                            "kind": "text",
+                                            "text": "浏览器端技术限制无法开启。"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "layout:form:360",
+                                    "kind": "control",
+                                    "ref": "form:360",
+                                    "style": {
+                                      "width": 48,
+                                      "height": 24,
+                                      "radius": 64,
+                                      "padding": [
+                                        4,
+                                        4,
+                                        4,
+                                        4
+                                      ]
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:448",
+                                "kind": "card",
+                                "style": {
+                                  "radius": 8,
+                                  "border": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "layout:form:361",
+                                    "kind": "control",
+                                    "ref": "form:361",
+                                    "style": {
+                                      "align": "between",
+                                      "gap": 16,
+                                      "padding": [
+                                        12,
+                                        12,
+                                        12,
+                                        12
+                                      ]
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "content:form:361",
+                                        "kind": "row",
+                                        "style": {
+                                          "gap": 16,
+                                          "align": "between"
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "form:449",
+                                            "kind": "column",
+                                            "style": {
+                                              "grow": true
+                                            },
+                                            "children": [
+                                              {
+                                                "id": "form:450",
+                                                "kind": "row",
+                                                "style": {
+                                                  "align": "center",
+                                                  "font": 14,
+                                                  "weight": 500,
+                                                  "gap": 8,
+                                                  "tone": "text"
+                                                },
+                                                "children": [
+                                                  {
+                                                    "id": "form:451",
+                                                    "kind": "icon",
+                                                    "icon": "orbit",
+                                                    "style": {
+                                                      "width": 14,
+                                                      "height": 14
+                                                    }
+                                                  },
+                                                  {
+                                                    "id": "copy:38",
+                                                    "kind": "text",
+                                                    "text": "过渡动画"
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "id": "form:452",
+                                                "kind": "column",
+                                                "style": {
+                                                  "font": 11,
+                                                  "tone": "muted",
+                                                  "margin": [
+                                                    0,
+                                                    4,
+                                                    0,
+                                                    0
+                                                  ]
+                                                },
+                                                "children": [
+                                                  {
+                                                    "id": "copy:39",
+                                                    "kind": "text",
+                                                    "text": "混音时把这次过渡画出来。过渡短于 5 秒不显示。"
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "id": "form:453",
+                                            "kind": "row",
+                                            "style": {
+                                              "align": "center",
+                                              "gap": 8,
+                                              "padding": [
+                                                0,
+                                                2,
+                                                0,
+                                                0
+                                              ],
+                                              "tone": "muted"
+                                            },
+                                            "children": [
+                                              {
+                                                "id": "form:454",
+                                                "kind": "wrap",
+                                                "style": {
+                                                  "font": 11
+                                                },
+                                                "children": [
+                                                  {
+                                                    "id": "copy:40",
+                                                    "kind": "text",
+                                                    "text": "已关闭"
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "id": "form:455",
+                                                "kind": "icon",
+                                                "icon": "chevron-down",
+                                                "style": {
+                                                  "width": 14,
+                                                  "height": 14
+                                                }
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:456",
+                "kind": "column",
+                "style": {
+                  "kind": "column"
+                },
+                "children": [
+                  {
+                    "id": "form:362",
+                    "kind": "row",
+                    "style": {
+                      "align": "center",
+                      "font": 14,
+                      "weight": 700,
+                      "tone": "muted",
+                      "gap": 8,
+                      "margin": [
+                        0,
+                        0,
+                        0,
+                        16
+                      ],
+                      "padding": [
+                        0,
+                        0,
+                        0,
+                        0
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "form:457",
+                        "kind": "icon",
+                        "icon": "audio-lines",
+                        "style": {
+                          "width": 14,
+                          "height": 14
+                        }
+                      },
+                      {
+                        "id": "copy:41",
+                        "kind": "text",
+                        "text": "音频增益"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:458",
+                    "kind": "card",
+                    "style": {
+                      "radius": 12,
+                      "border": true,
+                      "gap": 16,
+                      "padding": [
+                        16,
+                        16,
+                        16,
+                        16
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "form:459",
+                        "kind": "column",
+                        "style": {
+                          "gap": 4
+                        },
+                        "children": [
+                          {
+                            "id": "form:363",
+                            "kind": "column",
+                            "style": {
+                              "font": 14,
+                              "weight": 500,
+                              "tone": "text"
+                            },
+                            "children": [
+                              {
+                                "id": "copy:42",
+                                "kind": "text",
+                                "text": "ReplayGain 模式 (响度平衡)"
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:364",
+                            "kind": "column",
+                            "style": {
+                              "font": 11,
+                              "tone": "muted"
+                            },
+                            "children": [
+                              {
+                                "id": "copy:43",
+                                "kind": "text",
+                                "text": "检测到增益数据时，按单曲或专辑 ReplayGain 统一播放响度。"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:460",
+                        "kind": "grid",
+                        "style": {
+                          "columns": 3,
+                          "gap": 8
+                        },
+                        "children": [
+                          {
+                            "id": "layout:form:365",
+                            "kind": "control",
+                            "ref": "form:365",
+                            "style": {
+                              "radius": 12,
+                              "border": true,
+                              "center": true,
+                              "font": 14,
+                              "weight": 500,
+                              "padding": [
+                                12,
+                                10,
+                                12,
+                                10
+                              ]
+                            },
+                            "children": [
+                              {
+                                "id": "content:form:365",
+                                "kind": "row",
+                                "style": {
+                                  "center": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:44",
+                                    "kind": "text",
+                                    "text": "关闭"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "layout:form:366",
+                            "kind": "control",
+                            "ref": "form:366",
+                            "style": {
+                              "radius": 12,
+                              "border": true,
+                              "center": true,
+                              "font": 14,
+                              "weight": 500,
+                              "padding": [
+                                12,
+                                10,
+                                12,
+                                10
+                              ]
+                            },
+                            "children": [
+                              {
+                                "id": "content:form:366",
+                                "kind": "row",
+                                "style": {
+                                  "center": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:45",
+                                    "kind": "text",
+                                    "text": "单曲"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "layout:form:367",
+                            "kind": "control",
+                            "ref": "form:367",
+                            "style": {
+                              "radius": 12,
+                              "border": true,
+                              "center": true,
+                              "font": 14,
+                              "weight": 500,
+                              "padding": [
+                                12,
+                                10,
+                                12,
+                                10
+                              ]
+                            },
+                            "children": [
+                              {
+                                "id": "content:form:367",
+                                "kind": "row",
+                                "style": {
+                                  "center": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:46",
+                                    "kind": "text",
+                                    "text": "专辑"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:461",
+                "kind": "column",
+                "style": {
+                  "kind": "column"
+                },
+                "children": [
+                  {
+                    "id": "form:368",
+                    "kind": "row",
+                    "style": {
+                      "align": "center",
+                      "font": 14,
+                      "weight": 700,
+                      "tone": "muted",
+                      "gap": 8,
+                      "margin": [
+                        0,
+                        0,
+                        0,
+                        16
+                      ],
+                      "padding": [
+                        0,
+                        0,
+                        0,
+                        0
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "form:462",
+                        "kind": "icon",
+                        "icon": "settings-2",
+                        "style": {
+                          "width": 14,
+                          "height": 14
+                        }
+                      },
+                      {
+                        "id": "copy:47",
+                        "kind": "text",
+                        "text": "歌词"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:463",
+                    "kind": "card",
+                    "style": {
+                      "radius": 12,
+                      "border": true
+                    },
+                    "children": [
+                      {
+                        "id": "form:464",
+                        "kind": "row",
+                        "style": {
+                          "align": "between",
+                          "gap": 16,
+                          "padding": [
+                            16,
+                            16,
+                            16,
+                            16
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "form:465",
+                            "kind": "column",
+                            "style": {
+                              "gap": 4,
+                              "grow": true
+                            },
+                            "children": [
+                              {
+                                "id": "form:369",
+                                "kind": "row",
+                                "style": {
+                                  "align": "center",
+                                  "font": 14,
+                                  "weight": 500,
+                                  "gap": 8,
+                                  "tone": "text"
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:466",
+                                    "kind": "icon",
+                                    "icon": "settings-2",
+                                    "style": {
+                                      "width": 14,
+                                      "height": 14
+                                    }
+                                  },
+                                  {
+                                    "id": "copy:48",
+                                    "kind": "text",
+                                    "text": "自动使用最佳歌词"
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:370",
+                                "kind": "column",
+                                "style": {
+                                  "font": 11,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:49",
+                                    "kind": "text",
+                                    "text": "自动检索网易云、AMLLDB、QQ 和酷狗歌词，若存在完美匹配的逐字歌词则自动优先采用。"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "layout:form:371",
+                            "kind": "control",
+                            "ref": "form:371",
+                            "style": {
+                              "width": 48,
+                              "height": 24,
+                              "radius": 64,
+                              "padding": [
+                                4,
+                                4,
+                                4,
+                                4
+                              ]
+                            },
+                            "text": "#71717a"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:467",
+                        "kind": "row",
+                        "style": {
+                          "align": "between",
+                          "gap": 16,
+                          "padding": [
+                            16,
+                            16,
+                            16,
+                            16
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "form:468",
+                            "kind": "column",
+                            "style": {
+                              "gap": 4,
+                              "grow": true
+                            },
+                            "children": [
+                              {
+                                "id": "form:372",
+                                "kind": "row",
+                                "style": {
+                                  "align": "center",
+                                  "font": 14,
+                                  "weight": 500,
+                                  "gap": 8,
+                                  "tone": "text"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:50",
+                                    "kind": "text",
+                                    "text": "统一简体歌词"
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:373",
+                                "kind": "column",
+                                "style": {
+                                  "font": 11,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:51",
+                                    "kind": "text",
+                                    "text": "歌词舞台、背屏与灵动岛共用同一条简繁规则，繁体歌词统一转为简体。手动选定的歌词版本始终优先。"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "layout:form:374",
+                            "kind": "control",
+                            "ref": "form:374",
+                            "style": {
+                              "width": 48,
+                              "height": 24,
+                              "radius": 64,
+                              "padding": [
+                                4,
+                                4,
+                                4,
+                                4
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:469",
+                        "kind": "column",
+                        "style": {
+                          "gap": 12,
+                          "padding": [
+                            16,
+                            16,
+                            16,
+                            16
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "form:470",
+                            "kind": "column",
+                            "style": {
+                              "gap": 4
+                            },
+                            "children": [
+                              {
+                                "id": "form:375",
+                                "kind": "column",
+                                "style": {
+                                  "font": 14,
+                                  "weight": 500,
+                                  "tone": "text"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:52",
+                                    "kind": "text",
+                                    "text": "本地歌曲歌词优先级"
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:376",
+                                "kind": "column",
+                                "style": {
+                                  "font": 11,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:53",
+                                    "kind": "text",
+                                    "text": "本地歌曲同时存在在线匹配歌词时，选择优先使用的歌词。手动指定的歌词来源不受影响。"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:471",
+                            "kind": "grid",
+                            "style": {
+                              "columns": 2,
+                              "gap": 8
+                            },
+                            "children": [
+                              {
+                                "id": "layout:form:377",
+                                "kind": "control",
+                                "ref": "form:377",
+                                "style": {
+                                  "radius": 12,
+                                  "border": true,
+                                  "padding": [
+                                    12,
+                                    12,
+                                    12,
+                                    12
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "id": "content:form:377",
+                                    "kind": "column",
+                                    "style": {},
+                                    "children": [
+                                      {
+                                        "id": "form:472",
+                                        "kind": "column",
+                                        "style": {
+                                          "font": 14,
+                                          "weight": 500,
+                                          "tone": "text"
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "copy:54",
+                                            "kind": "text",
+                                            "text": "本地歌词"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "id": "form:473",
+                                        "kind": "column",
+                                        "style": {
+                                          "font": 11,
+                                          "tone": "muted",
+                                          "margin": [
+                                            0,
+                                            4,
+                                            0,
+                                            0
+                                          ]
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "copy:55",
+                                            "kind": "text",
+                                            "text": "优先使用同目录和内嵌歌词，缺失时再使用在线歌词。"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "layout:form:378",
+                                "kind": "control",
+                                "ref": "form:378",
+                                "style": {
+                                  "radius": 12,
+                                  "border": true,
+                                  "padding": [
+                                    12,
+                                    12,
+                                    12,
+                                    12
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "id": "content:form:378",
+                                    "kind": "column",
+                                    "style": {},
+                                    "children": [
+                                      {
+                                        "id": "form:474",
+                                        "kind": "column",
+                                        "style": {
+                                          "font": 14,
+                                          "weight": 500,
+                                          "tone": "text"
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "copy:56",
+                                            "kind": "text",
+                                            "text": "在线优先"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "id": "form:475",
+                                        "kind": "column",
+                                        "style": {
+                                          "font": 11,
+                                          "tone": "muted",
+                                          "margin": [
+                                            0,
+                                            4,
+                                            0,
+                                            0
+                                          ]
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "copy:57",
+                                            "kind": "text",
+                                            "text": "优先使用已匹配的在线歌词，缺失时再使用本地歌词。"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:476",
+                        "kind": "column",
+                        "style": {
+                          "gap": 12,
+                          "padding": [
+                            16,
+                            16,
+                            16,
+                            16
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "form:477",
+                            "kind": "row",
+                            "style": {
+                              "align": "between",
+                              "gap": 16
+                            },
+                            "children": [
+                              {
+                                "id": "form:478",
+                                "kind": "column",
+                                "style": {
+                                  "gap": 4,
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:379",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 14,
+                                      "weight": 500,
+                                      "tone": "text"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:58",
+                                        "kind": "text",
+                                        "text": "本地歌词文件格式优先级"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:380",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 11,
+                                      "tone": "muted"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:59",
+                                        "kind": "text",
+                                        "text": "同一首歌有多个同名歌词文件时，按此顺序选用。.fia 始终最优先。手动上传的歌词不受影响。"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "layout:form:381",
+                                "kind": "control",
+                                "ref": "form:381",
+                                "style": {
+                                  "align": "center",
+                                  "gap": 4,
+                                  "radius": 8,
+                                  "font": 11,
+                                  "padding": [
+                                    8,
+                                    4,
+                                    8,
+                                    4
+                                  ],
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "content:form:381",
+                                    "kind": "row",
+                                    "style": {
+                                      "gap": 4,
+                                      "align": "center"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "form:479",
+                                        "kind": "icon",
+                                        "icon": "rotate-ccw",
+                                        "style": {
+                                          "width": 12,
+                                          "height": 12
+                                        }
+                                      },
+                                      {
+                                        "id": "copy:60",
+                                        "kind": "text",
+                                        "text": "恢复默认"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "layout:form:382",
+                            "kind": "control",
+                            "ref": "form:382",
+                            "style": {
+                              "gap": 6
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:480",
+                        "kind": "column",
+                        "style": {
+                          "gap": 12,
+                          "padding": [
+                            16,
+                            16,
+                            16,
+                            16
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "form:481",
+                            "kind": "column",
+                            "style": {
+                              "gap": 4
+                            },
+                            "children": [
+                              {
+                                "id": "form:383",
+                                "kind": "column",
+                                "style": {
+                                  "font": 14,
+                                  "weight": 500,
+                                  "tone": "text"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:61",
+                                    "kind": "text",
+                                    "text": "歌词匹配优先级"
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:384",
+                                "kind": "column",
+                                "style": {
+                                  "font": 11,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:62",
+                                    "kind": "text",
+                                    "text": "在多个歌词源都存在高置信度匹配时，优先选择该歌词源的结果。"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:482",
+                            "kind": "grid",
+                            "style": {
+                              "columns": 2,
+                              "gap": 8,
+                              "margin": [
+                                0,
+                                8,
+                                0,
+                                0
+                              ]
+                            },
+                            "children": [
+                              {
+                                "id": "layout:form:385",
+                                "kind": "control",
+                                "ref": "form:385",
+                                "style": {
+                                  "radius": 12,
+                                  "border": true,
+                                  "center": true,
+                                  "padding": [
+                                    12,
+                                    8,
+                                    12,
+                                    8
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "id": "content:form:385",
+                                    "kind": "column",
+                                    "style": {
+                                      "center": true
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "form:483",
+                                        "kind": "column",
+                                        "style": {
+                                          "font": 12,
+                                          "weight": 500,
+                                          "tone": "text"
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "copy:63",
+                                            "kind": "text",
+                                            "text": "网易云音乐"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "layout:form:386",
+                                "kind": "control",
+                                "ref": "form:386",
+                                "style": {
+                                  "radius": 12,
+                                  "border": true,
+                                  "center": true,
+                                  "padding": [
+                                    12,
+                                    8,
+                                    12,
+                                    8
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "id": "content:form:386",
+                                    "kind": "column",
+                                    "style": {
+                                      "center": true
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "form:484",
+                                        "kind": "column",
+                                        "style": {
+                                          "font": 12,
+                                          "weight": 500,
+                                          "tone": "text"
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "copy:64",
+                                            "kind": "text",
+                                            "text": "AMLLDB"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "layout:form:387",
+                                "kind": "control",
+                                "ref": "form:387",
+                                "style": {
+                                  "radius": 12,
+                                  "border": true,
+                                  "center": true,
+                                  "padding": [
+                                    12,
+                                    8,
+                                    12,
+                                    8
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "id": "content:form:387",
+                                    "kind": "column",
+                                    "style": {
+                                      "center": true
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "form:485",
+                                        "kind": "column",
+                                        "style": {
+                                          "font": 12,
+                                          "weight": 500,
+                                          "tone": "text"
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "copy:65",
+                                            "kind": "text",
+                                            "text": "QQ 音乐"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "layout:form:388",
+                                "kind": "control",
+                                "ref": "form:388",
+                                "style": {
+                                  "radius": 12,
+                                  "border": true,
+                                  "center": true,
+                                  "padding": [
+                                    12,
+                                    8,
+                                    12,
+                                    8
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "id": "content:form:388",
+                                    "kind": "column",
+                                    "style": {
+                                      "center": true
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "form:486",
+                                        "kind": "column",
+                                        "style": {
+                                          "font": 12,
+                                          "weight": 500,
+                                          "tone": "text"
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "copy:66",
+                                            "kind": "text",
+                                            "text": "酷狗音乐"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:389",
+                        "kind": "control",
+                        "ref": "form:389",
+                        "style": {
+                          "padding": [
+                            16,
+                            16,
+                            16,
+                            16
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:389",
+                            "kind": "column",
+                            "style": {},
+                            "children": [
+                              {
+                                "id": "form:487",
+                                "kind": "row",
+                                "style": {
+                                  "align": "between",
+                                  "gap": 16
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:488",
+                                    "kind": "column",
+                                    "style": {
+                                      "gap": 4,
+                                      "grow": true
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "form:489",
+                                        "kind": "row",
+                                        "style": {
+                                          "align": "center",
+                                          "font": 14,
+                                          "weight": 500,
+                                          "gap": 8,
+                                          "tone": "text"
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "form:490",
+                                            "kind": "icon",
+                                            "icon": "timer",
+                                            "style": {
+                                              "width": 14,
+                                              "height": 14
+                                            }
+                                          },
+                                          {
+                                            "id": "copy:67",
+                                            "kind": "text",
+                                            "text": "全局时间偏移"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "id": "form:491",
+                                        "kind": "column",
+                                        "style": {
+                                          "font": 11,
+                                          "tone": "muted"
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "copy:68",
+                                            "kind": "text",
+                                            "text": "为本设备的所有歌曲整体平移歌词时间轴，补偿蓝牙等输出延迟。点击后可在实时预览中微调。"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:492",
+                                    "kind": "row",
+                                    "style": {
+                                      "align": "center",
+                                      "gap": 8
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "form:493",
+                                        "kind": "wrap",
+                                        "style": {
+                                          "font": 12,
+                                          "tone": "text"
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "copy:69",
+                                            "kind": "text",
+                                            "text": "0ms"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "id": "form:494",
+                                        "kind": "icon",
+                                        "icon": "chevron-right",
+                                        "style": {
+                                          "width": 18,
+                                          "height": 18
+                                        }
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:390",
+                        "kind": "control",
+                        "ref": "form:390",
+                        "style": {
+                          "padding": [
+                            16,
+                            16,
+                            16,
+                            16
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:390",
+                            "kind": "column",
+                            "style": {},
+                            "children": [
+                              {
+                                "id": "form:495",
+                                "kind": "row",
+                                "style": {
+                                  "align": "between",
+                                  "gap": 16
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:496",
+                                    "kind": "column",
+                                    "style": {
+                                      "gap": 4,
+                                      "grow": true
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "form:497",
+                                        "kind": "row",
+                                        "style": {
+                                          "align": "center",
+                                          "font": 14,
+                                          "weight": 500,
+                                          "gap": 8,
+                                          "tone": "text"
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "form:498",
+                                            "kind": "icon",
+                                            "icon": "list-filter",
+                                            "style": {
+                                              "width": 14,
+                                              "height": 14
+                                            }
+                                          },
+                                          {
+                                            "id": "copy:70",
+                                            "kind": "text",
+                                            "text": "歌词过滤"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "id": "form:499",
+                                        "kind": "column",
+                                        "style": {
+                                          "font": 11,
+                                          "tone": "muted"
+                                        },
+                                        "children": [
+                                          {
+                                            "id": "copy:71",
+                                            "kind": "text",
+                                            "text": "配置逐行过滤规则，以及歌词开头制作人员信息的处理方式。"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:500",
+                                    "kind": "icon",
+                                    "icon": "chevron-right",
+                                    "style": {
+                                      "width": 18,
+                                      "height": 18
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:501",
+                "kind": "column",
+                "style": {
+                  "kind": "column"
+                },
+                "children": [
+                  {
+                    "id": "form:391",
+                    "kind": "row",
+                    "style": {
+                      "align": "center",
+                      "font": 14,
+                      "weight": 700,
+                      "tone": "muted",
+                      "gap": 8,
+                      "margin": [
+                        0,
+                        0,
+                        0,
+                        16
+                      ],
+                      "padding": [
+                        0,
+                        0,
+                        0,
+                        0
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "form:502",
+                        "kind": "icon",
+                        "icon": "monitor",
+                        "style": {
+                          "width": 14,
+                          "height": 14
+                        }
+                      },
+                      {
+                        "id": "copy:72",
+                        "kind": "text",
+                        "text": "播放设备"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:503",
+                    "kind": "card",
+                    "style": {
+                      "radius": 12,
+                      "border": true,
+                      "gap": 16,
+                      "padding": [
+                        16,
+                        16,
+                        16,
+                        16
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "form:504",
+                        "kind": "row",
+                        "style": {
+                          "align": "between",
+                          "gap": 12,
+                          "divider": true,
+                          "padding": [
+                            0,
+                            0,
+                            0,
+                            16
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "form:505",
+                            "kind": "column",
+                            "style": {
+                              "gap": 4,
+                              "grow": true
+                            },
+                            "children": [
+                              {
+                                "id": "form:392",
+                                "kind": "column",
+                                "style": {
+                                  "font": 14,
+                                  "weight": 500,
+                                  "tone": "text"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:73",
+                                    "kind": "text",
+                                    "text": "暂停/播放淡入淡出"
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:393",
+                                "kind": "column",
+                                "style": {
+                                  "font": 11,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:74",
+                                    "kind": "text",
+                                    "text": "暂停前先短暂淡出声音，恢复播放时再淡入，而不是瞬间切断。音频未接入音频引擎时会直接暂停。"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "layout:form:394",
+                            "kind": "control",
+                            "ref": "form:394",
+                            "style": {
+                              "width": 48,
+                              "height": 24,
+                              "radius": 64,
+                              "padding": [
+                                4,
+                                4,
+                                4,
+                                4
+                              ]
+                            },
+                            "text": "#71717a"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:506",
+                        "kind": "row",
+                        "style": {
+                          "align": "between",
+                          "gap": 12
+                        },
+                        "children": [
+                          {
+                            "id": "form:507",
+                            "kind": "column",
+                            "style": {
+                              "gap": 4,
+                              "grow": true
+                            },
+                            "children": [
+                              {
+                                "id": "form:395",
+                                "kind": "column",
+                                "style": {
+                                  "font": 14,
+                                  "weight": 500,
+                                  "tone": "text"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:75",
+                                    "kind": "text",
+                                    "text": "当前播放声卡"
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:396",
+                                "kind": "column",
+                                "style": {
+                                  "font": 11,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:76",
+                                    "kind": "text",
+                                    "text": "切换当前播放器的音频输出设备。在支持 setSinkId 时可使用。"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "layout:form:397",
+                            "kind": "control",
+                            "ref": "form:397",
+                            "style": {
+                              "align": "center",
+                              "gap": 8,
+                              "radius": 64,
+                              "border": true,
+                              "font": 12,
+                              "padding": [
+                                12,
+                                8,
+                                12,
+                                8
+                              ],
+                              "tone": "text"
+                            },
+                            "children": [
+                              {
+                                "id": "content:form:397",
+                                "kind": "row",
+                                "style": {
+                                  "gap": 8,
+                                  "align": "center"
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:508",
+                                    "kind": "icon",
+                                    "icon": "refresh-cw",
+                                    "style": {
+                                      "width": 13,
+                                      "height": 13
+                                    }
+                                  },
+                                  {
+                                    "id": "form:509",
+                                    "kind": "wrap",
+                                    "style": {},
+                                    "children": [
+                                      {
+                                        "id": "copy:77",
+                                        "kind": "text",
+                                        "text": "刷新"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:510",
+                        "kind": "column",
+                        "style": {
+                          "gap": 12
+                        },
+                        "children": [
+                          {
+                            "id": "layout:form:398",
+                            "kind": "control",
+                            "ref": "form:398",
+                            "style": {},
+                            "children": [
+                              {
+                                "id": "content:form:398",
+                                "kind": "row",
+                                "style": {},
+                                "children": [
+                                  {
+                                    "id": "copy:78",
+                                    "kind": "text",
+                                    "text": "系统默认"
+                                  },
+                                  {
+                                    "id": "form:513",
+                                    "kind": "icon",
+                                    "icon": "chevron-down",
+                                    "style": {
+                                      "width": 16,
+                                      "height": 16
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "headerActions": [
+    "form:325"
+  ]
+}

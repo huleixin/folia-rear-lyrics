@@ -305,7 +305,7 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
             style={pagePresentation?undefined:{ backgroundColor: overlayBg, willChange: 'opacity' }}
             onMouseDown={handleOverlayMouseDown}
             onClick={handleOverlayClick}
-        >
+         data-settings-style='{"align":"center","center":true,"padding":[16,16,16,16]}' data-settings-layout="row">
             <motion.div
                 initial={pagePresentation?false:{ opacity: 0, y: 16, scale: 0.98 }}
                 animate={pagePresentation?undefined:{ opacity: 1, y: 0, scale: 1 }}
@@ -315,33 +315,33 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                 className={pagePresentation?"ty-rear-theme-panel":`relative w-full max-w-[36rem] overflow-hidden rounded-[1.5rem] border shadow-[0_24px_80px_rgba(0,0,0,0.4)] transform-gpu ${themeTransitionClass}`}
                 style={pagePresentation?undefined:{ backgroundColor: panelBg, borderColor, color: textColor, willChange: 'transform' }}
                 onClick={(event) => event.stopPropagation()}
-            >
+             data-settings-style='{"border":true}' data-settings-layout="column">
                 {/* Background glow effects for real-time preview */}
                 {!pagePresentation&&<div
                     className={`absolute -top-32 -right-32 h-64 w-64 rounded-full blur-[90px] opacity-40 pointer-events-none transform-gpu ${themeTransitionClass}`}
                     style={{ backgroundColor: accentColor, willChange: 'background-color' }}
-                />}
+                 data-settings-style='{"height":256,"width":256,"radius":64,"tone":"muted"}' data-settings-layout="column" data-settings-swatch={accentColor}/>}
                 {!pagePresentation&&<div
                     className={`absolute -bottom-32 -left-32 h-64 w-64 rounded-full blur-[90px] opacity-30 pointer-events-none transform-gpu ${themeTransitionClass}`}
                     style={{ backgroundColor: mutedTextColor, willChange: 'background-color' }}
-                />}
+                 data-settings-style='{"height":256,"width":256,"radius":64,"tone":"muted"}' data-settings-layout="column" data-settings-swatch={mutedTextColor}/>}
 
-                <div className={pagePresentation?"ty-rear-theme-scroll":"relative z-10 transform-gpu"}>
-                    <div className={`flex items-center justify-between gap-3 border-b px-5 py-4 ${themeTransitionClass}`} style={{ borderColor }}>
-                        {!pagePresentation&&<div className="flex min-w-0 items-center gap-4">
-                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${themeTransitionClass}`} style={{ backgroundColor: softBg, color: accentColor }}>
+                <div data-settings-page-body data-settings-style='{"padding":[18,0,18,0],"gap":12}' className={pagePresentation?"ty-rear-theme-scroll":"relative z-10 transform-gpu"} data-settings-layout="column">
+                    <div className={`flex items-center justify-between gap-3 border-b px-5 py-4 ${themeTransitionClass}`} style={{ borderColor }} data-settings-style={JSON.stringify(pagePresentation?{align:"end",gap:12,padding:[0,0,0,8]}:{align:"between",gap:12,divider:true,padding:[20,16,20,16]})} data-settings-layout="row">
+                        {!pagePresentation&&<div className="flex min-w-0 items-center gap-4" data-settings-style='{"align":"center","gap":16}' data-settings-layout="row">
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${themeTransitionClass}`} style={{ backgroundColor: softBg, color: accentColor }} data-settings-style='{"align":"center","center":true,"height":40,"width":40,"radius":64}' data-settings-layout="row" data-settings-swatch={softBg}>
                                 <Palette size={18} />
                             </div>
-                            <div className="min-w-0">
-                                <div className="truncate text-sm font-bold tracking-tight">
+                            <div className="min-w-0" data-settings-layout="column">
+                                <div className="truncate text-sm font-bold tracking-tight" data-settings-style='{"font":14,"weight":700}' data-settings-layout="column">
                                     {title}
                                 </div>
-                                <div className={`mt-0.5 truncate text-xs ${themeTransitionClass}`} style={{ color: mutedTextColor }}>
+                                <div className={`mt-0.5 truncate text-xs ${themeTransitionClass}`} style={{ color: mutedTextColor }} data-settings-style='{"font":12,"margin":[0,2,0,0]}' data-settings-layout="column">
                                     {description}
                                 </div>
                             </div>
                         </div>}
-                        <div className="flex shrink-0 items-center gap-1.5">
+                        <div className="flex shrink-0 items-center gap-1.5" data-settings-style='{"align":"center","gap":6}' data-settings-layout="row">
                             <button
                                 type="button"
                                 onClick={handleReset}
@@ -350,9 +350,9 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = hoverBg; e.currentTarget.style.color = textColor; }}
                                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = mutedTextColor; }}
                                 title={t('ui.resetToDefaultTheme') || 'Reset'}
-                            >
+                             data-settings-style='{"align":"center","center":true,"height":36,"gap":6,"radius":64,"font":11,"weight":700,"padding":[12,0,12,0]}' data-settings-layout="row">
                                 <RotateCcw size={14} />
-                                <span className="hidden sm:inline">{t('ui.resetToDefaultTheme') || 'Reset'}</span>
+                                <span className="hidden sm:inline" data-settings-layout="wrap">{t('ui.resetToDefaultTheme') || 'Reset'}</span>
                             </button>
                             {!pagePresentation&&<button
                                 type="button"
@@ -362,20 +362,20 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = hoverBg; e.currentTarget.style.color = textColor; }}
                                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = mutedTextColor; }}
                                 aria-label={t('ui.close') || 'Close'}
-                            >
+                             data-settings-style='{"align":"center","center":true,"height":36,"width":36,"radius":64}' data-settings-layout="row" data-settings-swatch={'transparent'}>
                                 <X size={17} />
                             </button>}
                         </div>
                     </div>
 
-                    {pagePresentation&&<p className="ty-rear-theme-hint">{paletteHint??t('rearAppearance.paletteHint', {mode:t(isDaylight?'options.lightTheme':'options.darkTheme')})}</p>}
+                    {pagePresentation&&<p className="ty-rear-theme-hint" data-settings-style='{"font":12,"tone":"muted","margin":[0,0,0,12]}' data-settings-layout="wrap">{paletteHint??t('rearAppearance.paletteHint', {mode:t(isDaylight?'options.lightTheme':'options.darkTheme')})}</p>}
                     {isImportPanelOpen ? (
-                        <div className="flex flex-col gap-6 p-6">
-                            <div className="space-y-4">
-                                <div className={`text-sm font-bold ${themeTransitionClass}`} style={{ color: textColor }}>
+                        <div className="flex flex-col gap-6 p-6" data-settings-style='{"gap":24,"padding":[24,24,24,24]}' data-settings-layout="column">
+                            <div className="space-y-4" data-settings-style='{"gap":16}' data-settings-layout="column">
+                                <div className={`text-sm font-bold ${themeTransitionClass}`} style={{ color: textColor }} data-settings-style='{"font":14,"weight":700}' data-settings-layout="column">
                                     {t('aiHelp.copyPromptTitle') || '1. Copy AI Prompt'}
                                 </div>
-                                <div className={`text-xs ${themeTransitionClass}`} style={{ color: mutedTextColor }}>
+                                <div className={`text-xs ${themeTransitionClass}`} style={{ color: mutedTextColor }} data-settings-style='{"font":12}' data-settings-layout="column">
                                     {t('aiHelp.copyPromptDesc') || 'Copy the prompt and paste it into any AI model to generate your theme.'}
                                 </div>
                                 <button
@@ -383,14 +383,14 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                     onClick={handleCopyPrompt}
                                     className={`flex w-full min-h-11 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold hover:brightness-110 active:scale-95 ${allTransitionClass}`}
                                     style={{ borderColor, backgroundColor: softBg, color: textColor }}
-                                >
+                                 data-settings-style='{"align":"center","center":true,"minHeight":44,"gap":8,"radius":12,"border":true,"font":12,"weight":700,"padding":[12,8,12,8]}' data-settings-layout="row">
                                     {isCopied ? <Check size={15} className="text-green-500" /> : <Copy size={15} />}
-                                    <span>{isCopied ? (t('status.copied') || 'Copied!') : (t('aiHelp.copyPrompt') || 'Copy Prompt')}</span>
+                                    <span data-settings-layout="wrap">{isCopied ? (t('status.copied') || 'Copied!') : (t('aiHelp.copyPrompt') || 'Copy Prompt')}</span>
                                 </button>
                             </div>
 
-                            <div className="space-y-4">
-                                <div className={`text-sm font-bold ${themeTransitionClass}`} style={{ color: textColor }}>
+                            <div className="space-y-4" data-settings-style='{"gap":16}' data-settings-layout="column">
+                                <div className={`text-sm font-bold ${themeTransitionClass}`} style={{ color: textColor }} data-settings-style='{"font":14,"weight":700}' data-settings-layout="column">
                                     {t('aiHelp.importJsonTitle') || '2. Paste JSON Result'}
                                 </div>
                                 <textarea
@@ -408,13 +408,13 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                         e.currentTarget.style.boxShadow = 'none';
                                     }}
                                     spellCheck={false}
-                                />
+                                 data-settings-style='{"height":128,"radius":12,"border":true,"font":12,"padding":[12,12,12,12]}' data-settings-layout="column"/>
                                 {importError && (
-                                    <div className="text-xs text-red-500 font-bold">{importError}</div>
+                                    <div className="text-xs text-red-500 font-bold" data-settings-style='{"font":12,"tone":"danger","weight":700}' data-settings-layout="column">{importError}</div>
                                 )}
                             </div>
 
-                            <div className="flex items-center gap-3 pt-2">
+                            <div className="flex items-center gap-3 pt-2" data-settings-style='{"align":"center","gap":12,"padding":[0,8,0,0]}' data-settings-layout="row">
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -424,9 +424,9 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                     }}
                                     className={`flex flex-1 min-h-11 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold hover:brightness-110 active:scale-95 ${allTransitionClass}`}
                                     style={{ borderColor, backgroundColor: softBg, color: textColor }}
-                                >
+                                 data-settings-style='{"align":"center","center":true,"grow":true,"minHeight":44,"gap":8,"radius":12,"border":true,"font":12,"weight":700,"padding":[12,8,12,8]}' data-settings-layout="row">
                                     <ArrowLeft size={15} />
-                                    <span>{t('ui.cancel') || 'Cancel'}</span>
+                                    <span data-settings-layout="wrap">{t('ui.cancel') || 'Cancel'}</span>
                                 </button>
                                 <button
                                     type="button"
@@ -434,17 +434,17 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                     disabled={!importJsonText.trim()}
                                     className={`flex flex-1 min-h-11 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${allTransitionClass}`}
                                     style={{ backgroundColor: accentColor, color: panelBg }}
-                                >
+                                 data-settings-style='{"align":"center","center":true,"grow":true,"minHeight":44,"gap":8,"radius":12,"font":12,"weight":700,"padding":[12,8,12,8]}' data-settings-layout="row">
                                     <Download size={16} strokeWidth={2.5} />
-                                    <span>{t('ui.apply') || 'Apply'}</span>
+                                    <span data-settings-layout="wrap">{t('ui.apply') || 'Apply'}</span>
                                 </button>
                             </div>
                         </div>
                     ) : (
-                        <div className="grid gap-5 p-5 sm:grid-cols-[1fr_14rem]">
-                            <div className="space-y-5">
+                        <div className="grid gap-5 p-5 sm:grid-cols-[1fr_14rem]" data-settings-style={JSON.stringify({gap:20,padding:pagePresentation?[0,12,0,0]:[20,20,20,20]})} data-settings-layout="grid">
+                            <div className="space-y-5" data-settings-style='{"gap":20}' data-settings-layout="column">
                                 {/* Mode Switcher */}
-                                <div className={`flex gap-2 rounded-2xl p-1.5 ${themeTransitionClass}`} style={{ backgroundColor: softBg }}>
+                                <div className={`flex gap-2 rounded-2xl p-1.5 ${themeTransitionClass}`} style={{ backgroundColor: softBg }} data-settings-style='{"gap":8,"radius":16,"padding":[6,6,6,6]}' data-settings-layout="row">
                                     {(['light', 'dark'] as EditableMode[]).map(nextMode => {
                                         const selected = mode === nextMode;
                                         return (
@@ -459,16 +459,16 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                                     color: selected ? panelBg : textColor,
                                                     boxShadow: selected ? (pagePresentation?'none':`0 4px 12px ${accentColor}40`) : 'none',
                                                 }}
-                                            >
+                                             data-settings-style='{"align":"center","center":true,"grow":true,"gap":8,"radius":12,"font":12,"weight":700,"padding":[12,10,12,10]}' data-settings-layout="row">
                                                 {nextMode === 'light' ? <Sun size={15} /> : <Moon size={15} />}
-                                                <span>{pagePresentation?t(nextMode==='light'?'rearAppearance.editLight':'rearAppearance.editDark'):nextMode === 'light' ? (t('options.lightTheme') || 'Light Theme') : (t('options.darkTheme') || 'Dark Theme')}</span>
+                                                <span data-settings-layout="wrap">{pagePresentation?t(nextMode==='light'?'rearAppearance.editLight':'rearAppearance.editDark'):nextMode === 'light' ? (t('options.lightTheme') || 'Light Theme') : (t('options.darkTheme') || 'Dark Theme')}</span>
                                             </button>
                                         );
                                     })}
                                 </div>
 
                                 {/* Color Fields */}
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-2 gap-3" data-settings-style='{"columns":2,"gap":12}' data-settings-layout="grid">
                                     {COLOR_FIELDS.map(field => {
                                         const color = draftTheme[mode][field.key];
                                         const selected = activeKey === field.key;
@@ -484,14 +484,14 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                                     backgroundColor: selected ? (pagePresentation?hoverBg:`${accentColor}1a`) : softBg,
                                                     boxShadow: selected ? `0 0 0 1px ${accentColor}` : 'none',
                                                 }}
-                                            >
-                                                <div className="flex items-center gap-2.5">
-                                                    <span className={`h-6 w-6 shrink-0 rounded-full border shadow-inner ${themeTransitionClass}`} style={{ backgroundColor: color, borderColor: borderColor }} />
-                                                    <span className="min-w-0 truncate text-xs font-bold">
+                                             data-settings-style='{"radius":16,"border":true,"padding":[14,14,14,14]}' data-settings-layout="column">
+                                                <div className="flex items-center gap-2.5" data-settings-style='{"align":"center","gap":10}' data-settings-layout="row">
+                                                    <span className={`h-6 w-6 shrink-0 rounded-full border shadow-inner ${themeTransitionClass}`} style={{ backgroundColor: color, borderColor: borderColor }}  data-settings-style='{"height":24,"width":24,"radius":64,"border":true}' data-settings-layout="card" data-settings-swatch={color}/>
+                                                    <span className="min-w-0 truncate text-xs font-bold" data-settings-style='{"font":12,"weight":700}' data-settings-layout="wrap">
                                                         {t(field.labelKey) || field.fallbackLabel}
                                                     </span>
                                                 </div>
-                                                <div className={`mt-2.5 truncate font-mono text-[10px] uppercase tracking-wider ${themeTransitionClass}`} style={{ color: mutedTextColor }}>
+                                                <div className={`mt-2.5 truncate font-mono text-[10px] uppercase tracking-wider ${themeTransitionClass}`} style={{ color: mutedTextColor }} data-settings-style='{"font":10,"margin":[0,10,0,0]}' data-settings-layout="column">
                                                     {color}
                                                 </div>
                                             </button>
@@ -503,7 +503,7 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                 <div
                                     className={`rounded-3xl border p-4 transform-gpu ${themeTransitionClass}`}
                                     style={{ borderColor, backgroundColor: softBg }}
-                                >
+                                 data-settings-style='{"radius":24,"border":true,"padding":[16,16,16,16]}' data-settings-layout="card">
                                     <FastColorPicker
                                         key={`${mode}:${activeKey}`}
                                         visibleHueSelection
@@ -514,13 +514,13 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                 </div>
                             </div>
 
-                            <div className="flex min-w-0 flex-col gap-4">
+                            <div className="flex min-w-0 flex-col gap-4" data-settings-style='{"gap":16}' data-settings-layout="column">
                                 {/* Recommended Colors */}
-                                <div className={`rounded-3xl border p-4 ${themeTransitionClass}`} style={{ borderColor, backgroundColor: softBg }}>
-                                    <div className={`text-xs font-bold mb-3 ${themeTransitionClass}`} style={{ color: textColor }}>
+                                <div className={`rounded-3xl border p-4 ${themeTransitionClass}`} style={{ borderColor, backgroundColor: softBg }} data-settings-style='{"radius":24,"border":true,"padding":[16,16,16,16]}' data-settings-layout="card">
+                                    <div className={`text-xs font-bold mb-3 ${themeTransitionClass}`} style={{ color: textColor }} data-settings-style='{"font":12,"weight":700,"margin":[0,0,0,12]}' data-settings-layout="column">
                                         {t('options.aiThemeQuickEditRecommendedColors') || 'Recommended Colors'}
                                     </div>
-                                    <div className="grid grid-cols-4 gap-2.5">
+                                    <div className="grid grid-cols-4 gap-2.5" data-settings-style='{"columns":4,"gap":10}' data-settings-layout="grid">
                                         {recommendedColors.map(color => (
                                             <button
                                                 key={color}
@@ -530,18 +530,18 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                                 style={{ backgroundColor: color, borderColor: borderColor }}
                                                 title={color.toUpperCase()}
                                                 aria-label={color.toUpperCase()}
-                                            />
+                                             data-settings-style='{"aspect":1,"radius":12,"border":true}' data-settings-layout="row" data-settings-swatch={color}/>
                                         ))}
                                     </div>
                                 </div>
 
                                 {/* Theme Rename */}
-                                <div className={`rounded-3xl border p-4 ${themeTransitionClass}`} style={{ borderColor, backgroundColor: softBg }}>
-                                    <div className={`text-xs font-bold mb-3 ${themeTransitionClass}`} style={{ color: textColor }}>
+                                <div className={`rounded-3xl border p-4 ${themeTransitionClass}`} style={{ borderColor, backgroundColor: softBg }} data-settings-style='{"radius":24,"border":true,"padding":[16,16,16,16]}' data-settings-layout="card">
+                                    <div className={`text-xs font-bold mb-3 ${themeTransitionClass}`} style={{ color: textColor }} data-settings-style='{"font":12,"weight":700,"margin":[0,0,0,12]}' data-settings-layout="column">
                                         {t('options.themeName') || 'Theme Name'}
                                     </div>
-                                    <label className="block">
-                                        <span className={`mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase ${themeTransitionClass}`} style={{ color: mutedTextColor }}>
+                                    <label className="block" data-settings-layout="wrap">
+                                        <span className={`mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase ${themeTransitionClass}`} style={{ color: mutedTextColor }} data-settings-style='{"align":"center","gap":6,"font":10,"weight":700,"margin":[0,0,0,6]}' data-settings-layout="row">
                                             {mode === 'light' ? <Sun size={12} /> : <Moon size={12} />}
                                             {mode === 'light'
                                                 ? (t('options.lightTheme') || 'Light Theme')
@@ -567,12 +567,12 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                             }}
                                             placeholder={t('ui.enterThemeName')}
                                             spellCheck={false}
-                                        />
+                                         data-settings-style='{"radius":12,"border":true,"font":12,"weight":700,"padding":[16,10,16,10]}' data-settings-layout="column"/>
                                     </label>
                                 </div>
 
                                 {/* Actions */}
-                                <div className="flex flex-col gap-2 mt-auto pt-2">
+                                <div className="flex flex-col gap-2 mt-auto pt-2" data-settings-style='{"gap":8,"padding":[0,8,0,0]}' data-settings-layout="column">
                                     <button
                                         type="button"
                                         onClick={handleSave}
@@ -583,11 +583,11 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                             color: panelBg,
                                             opacity: isNameValid ? 1 : 0.5,
                                         }}
-                                    >
+                                     data-settings-style='{"align":"center","center":true,"minHeight":44,"gap":8,"radius":12,"font":12,"weight":700,"padding":[12,8,12,8]}' data-settings-layout="row">
                                         <Check size={16} strokeWidth={2.5} />
-                                        <span>{saveLabel}</span>
+                                        <span data-settings-layout="wrap">{saveLabel}</span>
                                     </button>
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2" data-settings-style='{"gap":8}' data-settings-layout="row">
                                         <button
                                             type="button"
                                             onClick={() => void handleCopyThemeJson()}
@@ -596,9 +596,9 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                             style={{ backgroundColor: 'transparent', color: mutedTextColor }}
                                             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = hoverBg}
                                             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                        >
+                                         data-settings-style='{"align":"center","center":true,"grow":true,"minHeight":36,"gap":6,"radius":12,"font":11,"weight":700}' data-settings-layout="row">
                                             {isJsonCopied ? <Check size={13} className="text-green-500" /> : <Copy size={13} />}
-                                            <span>{isJsonCopied ? (t('status.copied') || 'Copied!') : (t('options.copyThemeJson') || 'Copy JSON')}</span>
+                                            <span data-settings-layout="wrap">{isJsonCopied ? (t('status.copied') || 'Copied!') : (t('options.copyThemeJson') || 'Copy JSON')}</span>
                                         </button>
                                         {kind === 'ai' && (
                                             <button
@@ -608,9 +608,9 @@ const ThemeQuickEditor: React.FC<ThemeQuickEditorProps> = ({
                                             style={{ backgroundColor: 'transparent', color: mutedTextColor }}
                                             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = hoverBg}
                                             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                        >
+                                         data-settings-style='{"align":"center","center":true,"grow":true,"minHeight":36,"gap":6,"radius":12,"font":11,"weight":700}' data-settings-layout="row">
                                             <Download size={13} />
-                                            <span>{t('options.manualImportAiTheme') || 'Manual Import'}</span>
+                                            <span data-settings-layout="wrap">{t('options.manualImportAiTheme') || 'Manual Import'}</span>
                                             </button>
                                         )}
                                     </div>

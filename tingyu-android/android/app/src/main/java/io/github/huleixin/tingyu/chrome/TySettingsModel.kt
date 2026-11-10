@@ -64,6 +64,8 @@ data class TySettingsPage(
     val subtitle: String,
     val nodes: List<TySettingNode>,
     val modal: TySettingsPage? = null,
+    val layout: SettingsLayoutNode? = null,
+    val headerActions: List<String> = emptyList(),
 ) {
     companion object {
         private val KINDS = setOf("group", "action", "switch", "checkbox", "select", "slider", "input", "note", "color", "preview", "image", "reorder")
@@ -110,6 +112,8 @@ data class TySettingsPage(
                 subtitle = value.optString("subtitle").take(400),
                 nodes = nodes,
                 modal = value.optJSONObject("modal")?.let { modal -> parseWithoutModal(modal) },
+                layout = value.optJSONObject("layout")?.let { SettingsLayoutNode.parse(it) },
+                headerActions = value.optJSONArray("headerActions")?.let { a -> (0 until a.length().coerceAtMost(4)).map { a.optString(it) } } ?: emptyList(),
             )
         }
 

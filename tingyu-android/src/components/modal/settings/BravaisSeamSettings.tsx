@@ -42,12 +42,12 @@ const BravaisSeamSettings: React.FC<BravaisSeamSettingsProps> = ({ isDaylight, a
                 onColor={toggleOnColor}
                 dataAttribute="data-bravais-seam-clear-toggle"
             />
-            <div className="space-y-2 border-t pt-4" style={{ borderColor: idleBorder }} data-bravais-seam-style-settings="">
-                <div className="space-y-1">
-                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            <div className="space-y-2 border-t pt-4" style={{ borderColor: idleBorder }} data-bravais-seam-style-settings="" data-settings-style='{"gap":8,"padding":[0,16,0,0]}' data-settings-layout="column">
+                <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                         {t('options.bravaisSeamStyle')}
                     </div>
-                    <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                         {seamClear ? t('options.bravaisSeamStyleDisabled') : t('options.bravaisSeamStyleDesc')}
                     </div>
                 </div>
@@ -56,7 +56,7 @@ const BravaisSeamSettings: React.FC<BravaisSeamSettingsProps> = ({ isDaylight, a
                     role="radiogroup"
                     aria-label={t('options.bravaisSeamStyle')}
                     aria-disabled={seamClear || undefined}
-                >
+                 data-settings-style='{"columns":4,"gap":8}' data-settings-layout="grid">
                     {LIBRARY_WALL_SEAM_STYLES.map(style => {
                         const isSelected = style === seamStyle;
                         const look = LIBRARY_WALL_SEAM_STYLE_LOOKS[style];
@@ -71,16 +71,16 @@ const BravaisSeamSettings: React.FC<BravaisSeamSettingsProps> = ({ isDaylight, a
                                 onClick={() => setSeamStyle(style)}
                                 className="rounded-xl border p-1.5 text-left transition-colors disabled:cursor-not-allowed"
                                 style={{ borderColor: isSelected ? accentColor : idleBorder, color: 'var(--text-primary)' }}
-                            >
+                             data-settings-style='{"radius":12,"border":true,"padding":[6,6,6,6],"tone":"text"}' data-settings-layout="row">
                                 <span
                                     aria-hidden="true"
                                     className="flex h-12 items-center justify-center rounded-lg text-base font-extrabold"
                                     style={{ background: look.surface, color: look.ink ?? 'var(--text-primary)' }}
                                     data-bravais-seam-swatch={style}
-                                >
+                                 data-settings-style='{"align":"center","center":true,"height":48,"radius":8,"font":16}' data-settings-layout="row">
                                     {t('options.bravaisSeamSwatchGlyph')}
                                 </span>
-                                <span className="mt-1 block truncate text-[11px] font-medium">{t(LIBRARY_WALL_SEAM_STYLE_LABEL_KEYS[style])}</span>
+                                <span className="mt-1 block truncate text-[11px] font-medium" data-settings-style='{"font":11,"weight":500,"margin":[0,4,0,0]}' data-settings-layout="column">{t(LIBRARY_WALL_SEAM_STYLE_LABEL_KEYS[style])}</span>
                             </button>
                         );
                     })}

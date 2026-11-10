@@ -47,10 +47,10 @@ const GridViewSettingsSection: React.FC<GridViewSettingsSectionProps> = ({
         active: boolean,
         onChange: (next: boolean) => void,
     ) => (
-        <div className="flex items-center justify-between gap-4">
-            <div className="space-y-1 min-w-0">
-                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{label}</div>
-                <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+        <div className="flex items-center justify-between gap-4" data-settings-style='{"align":"between","gap":16}' data-settings-layout="row">
+            <div className="space-y-1 min-w-0" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">{label}</div>
+                <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {description}
                 </div>
             </div>
@@ -60,8 +60,8 @@ const GridViewSettingsSection: React.FC<GridViewSettingsSectionProps> = ({
                 style={{ backgroundColor: active ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
                 aria-pressed={active}
                 aria-label={label}
-            >
-                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${active ? 'translate-x-6' : 'translate-x-0'}`} />
+             data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={active ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
+                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${active ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
             </button>
         </div>
     );
@@ -73,15 +73,15 @@ const GridViewSettingsSection: React.FC<GridViewSettingsSectionProps> = ({
         bounds: { min: number; max: number },
         onChange: (next: number) => void,
     ) => (
-        <div className="space-y-2">
-            <div className="flex items-center justify-between gap-4">
-                <div className="space-y-1 min-w-0">
-                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{label}</div>
-                    <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+        <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+            <div className="flex items-center justify-between gap-4" data-settings-style='{"align":"between","gap":16}' data-settings-layout="row">
+                <div className="space-y-1 min-w-0" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">{label}</div>
+                    <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                         {description}
                     </div>
                 </div>
-                <span className="font-mono text-xs shrink-0" style={{ color: 'var(--text-primary)' }}>
+                <span className="font-mono text-xs shrink-0" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":12,"tone":"text"}' data-settings-layout="wrap">
                     {Math.round(value * 100)}%
                 </span>
             </div>
@@ -95,12 +95,12 @@ const GridViewSettingsSection: React.FC<GridViewSettingsSectionProps> = ({
                 className="w-full accent-current"
                 style={{ accentColor: theme?.accentColor }}
                 aria-label={label}
-            />
+             data-settings-layout="column"/>
         </div>
     );
 
     return (
-        <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
+        <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
             {renderToggleRow(
                 t('options.gridViewFullBleedCover'),
                 t('options.gridViewFullBleedCoverDesc'),
@@ -111,7 +111,7 @@ const GridViewSettingsSection: React.FC<GridViewSettingsSectionProps> = ({
             {/* Squaring only means anything once the artwork owns the whole card; under the
                 polaroid frame the extra height is the printed label. */}
             {fullBleedCover && (
-                <div className={`border-t pt-4 ${settingsDividerClass}`}>
+                <div className={`border-t pt-4 ${settingsDividerClass}`} data-settings-style='{"padding":[0,16,0,0]}' data-settings-layout="column">
                     {renderToggleRow(
                         t('options.gridViewSquareCard'),
                         t('options.gridViewSquareCardDesc'),
@@ -121,7 +121,7 @@ const GridViewSettingsSection: React.FC<GridViewSettingsSectionProps> = ({
                 </div>
             )}
 
-            <div className={`border-t pt-4 space-y-4 ${settingsDividerClass}`}>
+            <div className={`border-t pt-4 space-y-4 ${settingsDividerClass}`} data-settings-style='{"gap":16,"padding":[0,16,0,0]}' data-settings-layout="column">
                 {renderSlider(
                     t('options.gridViewMinCardScale'),
                     t('options.gridViewMinCardScaleDesc'),
@@ -142,7 +142,7 @@ const GridViewSettingsSection: React.FC<GridViewSettingsSectionProps> = ({
                     disabled={isDefaultFalloff}
                     className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-opacity hover:bg-current/10 disabled:cursor-default disabled:opacity-35"
                     style={{ color: 'var(--text-secondary)' }}
-                >
+                 data-settings-style='{"align":"center","gap":6,"radius":8,"font":12,"padding":[10,6,10,6],"tone":"muted"}' data-settings-layout="row">
                     <RotateCcw size={12} />
                     {t('options.gridViewCardFalloffReset')}
                 </button>

@@ -65,11 +65,11 @@ const LyricStaffSection: React.FC<LyricStaffSectionProps> = ({
     const verdictLabel = t(`lyricStaff.verdict${decision.verdict.charAt(0).toUpperCase()}${decision.verdict.slice(1)}`);
 
     return (
-        <div className={`rounded-[24px] border p-4 ${cardBg} ${borderColor}`}>
-            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+        <div className={`rounded-[24px] border p-4 ${cardBg} ${borderColor}`} data-settings-style='{"radius":24,"border":true,"padding":[16,16,16,16]}' data-settings-layout="card">
+            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                 {t('lyricStaff.title')}
             </div>
-            <div className={`mt-1 text-xs ${mutedText}`}>{t('lyricStaff.description')}</div>
+            <div className={`mt-1 text-xs ${mutedText}`} data-settings-style='{"font":12,"margin":[0,4,0,0]}' data-settings-layout="column">{t('lyricStaff.description')}</div>
 
             {/* 选中态沿用设置页分段控件的做法：白天用实心白药丸 + 深色字，夜间用高亮层，
                 未选中一律压透明度。早先两种状态都是 white/x 叠加，在亮色背景上分不出来。
@@ -77,7 +77,7 @@ const LyricStaffSection: React.FC<LyricStaffSectionProps> = ({
             <div
                 data-staff-policy-group=""
                 className={`mt-4 grid grid-cols-3 gap-1 rounded-2xl border p-1 ${borderColor} ${trackBg}`}
-            >
+             data-settings-style='{"columns":3,"gap":4,"radius":16,"border":true,"padding":[4,4,4,4],"margin":[0,16,0,0],"fill":true}' data-settings-layout="grid">
                 {POLICY_ORDER.map((option) => {
                     const isSelected = policy === option;
 
@@ -93,19 +93,19 @@ const LyricStaffSection: React.FC<LyricStaffSectionProps> = ({
                                     : 'opacity-50 hover:opacity-100'
                             }`}
                             style={{ color: isSelected && isDaylight ? undefined : 'var(--text-primary)' }}
-                        >
+                         data-settings-style='{"radius":12,"font":12,"weight":500,"padding":[12,8,12,8]}' data-settings-layout="row">
                             {t(POLICY_LABEL_KEYS[option].label)}
                         </button>
                     );
                 })}
             </div>
-            <div className={`mt-2 px-1 text-xs ${mutedText}`}>{t(POLICY_LABEL_KEYS[policy].description)}</div>
+            <div className={`mt-2 px-1 text-xs ${mutedText}`} data-settings-style='{"font":12,"padding":[4,0,4,0],"margin":[0,8,0,0]}' data-settings-layout="column">{t(POLICY_LABEL_KEYS[policy].description)}</div>
 
             {policy === 'smart' && (
-                <div className="mt-4">
-                    <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-primary)' }}>
-                        <span>{t('lyricStaff.minDwell')}</span>
-                        <span>{t('lyricStaff.minDwellValue', { seconds: formatSeconds(minDwellSeconds) })}</span>
+                <div className="mt-4" data-settings-style='{"margin":[0,16,0,0]}' data-settings-layout="column">
+                    <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":12,"tone":"text"}' data-settings-layout="row">
+                        <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('lyricStaff.minDwell')}</span>
+                        <span data-settings-layout="wrap">{t('lyricStaff.minDwellValue', { seconds: formatSeconds(minDwellSeconds) })}</span>
                     </div>
                     <input
                         type="range"
@@ -116,20 +116,20 @@ const LyricStaffSection: React.FC<LyricStaffSectionProps> = ({
                         onChange={(event) => onMinDwellChange(Number.parseFloat(event.target.value))}
                         className={`mt-2 w-full accent-current ${isDaylight ? 'text-zinc-900' : 'text-white'}`}
                         aria-label={t('lyricStaff.minDwell')}
-                    />
-                    <div className={`mt-1 text-xs ${mutedText}`}>{t('lyricStaff.minDwellDesc')}</div>
+                     data-settings-style='{"margin":[0,8,0,0]}' data-settings-layout="column"/>
+                    <div className={`mt-1 text-xs ${mutedText}`} data-settings-style='{"font":12,"margin":[0,4,0,0]}' data-settings-layout="column">{t('lyricStaff.minDwellDesc')}</div>
                 </div>
             )}
             {/* 只在 smart 下露出：吸收的边界面就是上面那个滑块的阈值，而 hide 压根不做吸收。 */}
             {policy === 'smart' && (
-                <div className="mt-4">
-                    <div className="text-xs" style={{ color: 'var(--text-primary)' }}>
-                        <span>{t('lyricStaff.absorb')}</span>
+                <div className="mt-4" data-settings-style='{"margin":[0,16,0,0]}' data-settings-layout="column">
+                    <div className="text-xs" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":12,"tone":"text"}' data-settings-layout="column">
+                        <span data-settings-layout="wrap">{t('lyricStaff.absorb')}</span>
                     </div>
                     <div
                         data-staff-absorb-group=""
                         className={`mt-2 grid grid-cols-3 gap-1 rounded-2xl border p-1 ${borderColor} ${trackBg}`}
-                    >
+                     data-settings-style='{"columns":3,"gap":4,"radius":16,"border":true,"padding":[4,4,4,4],"margin":[0,8,0,0],"fill":true}' data-settings-layout="grid">
                         {ABSORB_ORDER.map((option) => {
                             const isSelected = absorbMode === option;
 
@@ -145,22 +145,22 @@ const LyricStaffSection: React.FC<LyricStaffSectionProps> = ({
                                             : 'opacity-50 hover:opacity-100'
                                     }`}
                                     style={{ color: isSelected && isDaylight ? undefined : 'var(--text-primary)' }}
-                                >
+                                 data-settings-style='{"radius":12,"font":12,"weight":500,"padding":[12,8,12,8]}' data-settings-layout="row">
                                     {t(ABSORB_LABEL_KEYS[option].label)}
                                 </button>
                             );
                         })}
                     </div>
-                    <div className={`mt-2 px-1 text-xs ${mutedText}`}>{t(ABSORB_LABEL_KEYS[absorbMode].description)}</div>
+                    <div className={`mt-2 px-1 text-xs ${mutedText}`} data-settings-style='{"font":12,"padding":[4,0,4,0],"margin":[0,8,0,0]}' data-settings-layout="column">{t(ABSORB_LABEL_KEYS[absorbMode].description)}</div>
                 </div>
             )}
 
             {policy !== 'keep' && (
                 <>
-                    <div className="mt-5 text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <div className="mt-5 text-xs font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":12,"weight":500,"margin":[0,20,0,0],"tone":"text"}' data-settings-layout="column">
                         {t('lyricStaff.customPattern')}
                     </div>
-                    <div className={`mt-1 text-xs ${mutedText}`}>{t('lyricStaff.customPatternDesc')}</div>
+                    <div className={`mt-1 text-xs ${mutedText}`} data-settings-style='{"font":12,"margin":[0,4,0,0]}' data-settings-layout="column">{t('lyricStaff.customPatternDesc')}</div>
                     <textarea
                         value={pattern}
                         onChange={(event) => onPatternChange(event.target.value)}
@@ -168,23 +168,23 @@ const LyricStaffSection: React.FC<LyricStaffSectionProps> = ({
                         rows={3}
                         className={`mt-3 w-full resize-none rounded-2xl border px-4 py-3 text-sm outline-none transition-colors ${inputBg}`}
                         style={{ color: 'var(--text-primary)' }}
-                    />
-                    <div className="mt-2 px-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        {t('lyricFilter.example')} <code>{LYRIC_STAFF_PATTERN_EXAMPLE}</code>
+                     data-settings-style='{"radius":16,"border":true,"font":14,"padding":[16,12,16,12],"margin":[0,12,0,0],"tone":"text","minHeight":81}' data-settings-layout="column"/>
+                    <div className="mt-2 px-1 text-xs" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"padding":[4,0,4,0],"margin":[0,8,0,0],"tone":"muted"}' data-settings-layout="column">
+                        {t('lyricFilter.example')} <code data-settings-layout="column">{LYRIC_STAFF_PATTERN_EXAMPLE}</code>
                     </div>
                     {patternError && (
-                        <div className={`mt-2 text-xs ${dangerText}`}>
+                        <div className={`mt-2 text-xs ${dangerText}`} data-settings-style='{"font":12,"margin":[0,8,0,0]}' data-settings-layout="column">
                             {t('lyricFilter.invalidRegex', { error: patternError })}
                         </div>
                     )}
 
-                    <div className={`mt-5 rounded-2xl border px-3 py-3 ${borderColor} ${inputBg}`}>
-                        <div className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <div className={`mt-5 rounded-2xl border px-3 py-3 ${borderColor} ${inputBg}`} data-settings-style='{"radius":16,"border":true,"padding":[12,12,12,12],"margin":[0,20,0,0]}' data-settings-layout="card">
+                        <div className="text-xs font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":12,"weight":500,"tone":"text"}' data-settings-layout="column">
                             {t('lyricStaff.verdict')}：{verdictLabel}
                         </div>
                         {decision.verdict !== 'none' && policy === 'smart' && (
                             // 吸收行数是额外信息：大多数歌词吸不到东西，常驻一行 0 反而是噪音。
-                            <div className={`mt-1 text-xs ${mutedText}`}>
+                            <div className={`mt-1 text-xs ${mutedText}`} data-settings-style='{"font":12,"margin":[0,4,0,0]}' data-settings-layout="column">
                                 {decision.absorbedLineCount > 0
                                     ? t('lyricStaff.verdictSummaryAbsorbed', {
                                         lines: decision.blockLineCount,

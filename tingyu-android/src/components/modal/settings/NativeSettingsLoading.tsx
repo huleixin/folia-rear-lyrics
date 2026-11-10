@@ -10,5 +10,5 @@ export default function NativeSettingsLoading({section,onClose}:{section?:Settin
     const root=useRef<HTMLDivElement>(null),{t}=useTranslation();
     const title=section==='visualizer'?t('options.lyricsStyleSettings'):findSettingsNavItem(buildSettingsNavGroups(t,{isElectron:false,hasLibrarySuiteChoice:true,isBravaisSuiteActive:false}),section as SettingsSectionId)?.label??t('ui.options');
     useNativePage(root,'settings',true,{key:`settings:loading:${section??''}`,title,leading:'close',sections:[]},{close:onClose});
-    return <div ref={root} className="fixed inset-0" data-folia-keyboard-window="true"/>;
+    return <div ref={root} className="fixed inset-0" data-folia-keyboard-window="true" data-settings-layout="column"/>;
 }

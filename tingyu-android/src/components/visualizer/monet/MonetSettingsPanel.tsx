@@ -43,7 +43,7 @@ const clampValue = (value: number, min: number, max: number, fallback: number) =
 );
 
 const SectionLabel: React.FC<{ children: React.ReactNode; theme: MonetSettingsTheme; }> = ({ children, theme }) => (
-    <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-45" style={{ color: theme.secondaryColor }}>
+    <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-45" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12,"weight":500,"tone":"muted"}' data-settings-layout="column">
         {children}
     </div>
 );
@@ -56,9 +56,9 @@ const PresetGroup = <T,>({
     isDaylight,
     theme,
 }: PresetGroupProps<T>) => (
-    <div className="space-y-2.5">
+    <div className="space-y-2.5" data-settings-style='{"gap":10}' data-settings-layout="column">
         <SectionLabel theme={theme}>{label}</SectionLabel>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" data-settings-style='{"gap":8}' data-settings-layout="wrap">
             {options.map(option => {
                 const isActive = option.value === value;
                 return (
@@ -80,7 +80,7 @@ const PresetGroup = <T,>({
                                 : colorWithAlpha(theme.backgroundColor, isDaylight ? 0.24 : 0.34),
                             boxShadow: isActive ? `inset 0 0 0 1px ${theme.accentColor}` : 'none',
                         }}
-                    >
+                     data-settings-style='{"radius":64,"border":true,"font":14,"padding":[12,8,12,8]}' data-settings-layout="row">
                         {option.label}
                     </button>
                 );
@@ -101,10 +101,10 @@ const SliderControl: React.FC<SliderControlProps> = ({
     onSliderPointerDown,
     onSliderCommit,
 }) => (
-    <div className="space-y-2">
-        <div className="flex items-center justify-between gap-3 text-sm" style={{ color: 'var(--text-primary)' }}>
-            <span>{label}</span>
-            <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+    <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+        <div className="flex items-center justify-between gap-3 text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","gap":12,"font":14,"tone":"text"}' data-settings-layout="row">
+            <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{label}</span>
+            <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                 {valueLabel}
             </span>
         </div>
@@ -120,7 +120,7 @@ const SliderControl: React.FC<SliderControlProps> = ({
             onPointerCancel={onSliderCommit}
             onBlur={onSliderCommit}
             className={rangeInputClass}
-        />
+         data-settings-layout="column"/>
     </div>
 );
 
@@ -206,19 +206,19 @@ export const MonetSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
         <div
             className="space-y-4 rounded-[24px] border border-white/10 p-4"
             style={{ backgroundColor: controlCardBg }}
-        >
-            <div className="space-y-1">
-                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+         data-settings-style='{"gap":16,"radius":24,"border":true,"padding":[16,16,16,16]}' data-settings-layout="card">
+            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                     {t('options.monetSettings')}
                 </div>
-                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {t('options.monetSettingsDesc')}
                 </div>
             </div>
 
             {/* Section 1: Lyrics & Typography */}
-            <div className="space-y-3.5 rounded-[18px] border border-white/5 p-3.5 bg-black/5 dark:bg-white/5">
-                <div className="text-xs font-semibold uppercase tracking-wider opacity-65" style={{ color: theme.accentColor }}>
+            <div className="space-y-3.5 rounded-[18px] border border-white/5 p-3.5 bg-black/5 dark:bg-white/5" data-settings-style='{"gap":14,"radius":18,"border":true,"fill":true,"padding":[14,14,14,14]}' data-settings-layout="card">
+                <div className="text-xs font-semibold uppercase tracking-wider opacity-65" style={{ color: theme.accentColor }} data-settings-style='{"font":12,"weight":600,"tone":"muted"}' data-settings-layout="column">
                     {t('options.lyricsStyleSettings')}
                 </div>
                 
@@ -255,8 +255,8 @@ export const MonetSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
             </div>
 
             {/* Section 2: Portrait Character */}
-            <div className="space-y-3.5 rounded-[18px] border border-white/5 p-3.5 bg-black/5 dark:bg-white/5">
-                <div className="text-xs font-semibold uppercase tracking-wider opacity-65" style={{ color: theme.accentColor }}>
+            <div className="space-y-3.5 rounded-[18px] border border-white/5 p-3.5 bg-black/5 dark:bg-white/5" data-settings-style='{"gap":14,"radius":18,"border":true,"fill":true,"padding":[14,14,14,14]}' data-settings-layout="card">
+                <div className="text-xs font-semibold uppercase tracking-wider opacity-65" style={{ color: theme.accentColor }} data-settings-style='{"font":12,"weight":600,"tone":"muted"}' data-settings-layout="column">
                     {t('options.cappellaAvatarSource')}
                 </div>
 
@@ -287,9 +287,9 @@ export const MonetSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     theme={theme}
                 />
 
-                <div className="space-y-2.5">
+                <div className="space-y-2.5" data-settings-style='{"gap":10}' data-settings-layout="column">
                     <SectionLabel theme={theme}>{t('options.monetUploadPortrait')}</SectionLabel>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2" data-settings-style='{"align":"center","gap":8}' data-settings-layout="wrap">
                         <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
@@ -300,9 +300,9 @@ export const MonetSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                                 borderColor: colorWithAlpha(theme.secondaryColor, isDaylight ? 0.18 : 0.14),
                                 backgroundColor: colorWithAlpha(theme.backgroundColor, isDaylight ? 0.24 : 0.34),
                             }}
-                        >
+                         data-settings-style='{"align":"center","gap":8,"radius":64,"border":true,"font":14,"padding":[12,8,12,8]}' data-settings-layout="row">
                             <ImagePlus size={15} />
-                            <span>{t('options.monetUploadPortrait')}</span>
+                            <span data-settings-layout="wrap">{t('options.monetUploadPortrait')}</span>
                         </button>
                         <button
                             type="button"
@@ -314,12 +314,12 @@ export const MonetSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                                 borderColor: colorWithAlpha(theme.secondaryColor, isDaylight ? 0.18 : 0.14),
                                 backgroundColor: colorWithAlpha(theme.backgroundColor, isDaylight ? 0.24 : 0.34),
                             }}
-                        >
+                         data-settings-style='{"align":"center","gap":8,"radius":64,"border":true,"font":14,"padding":[12,8,12,8]}' data-settings-layout="row">
                             <Trash2 size={15} />
-                            <span>{t('options.monetClearPortrait')}</span>
+                            <span data-settings-layout="wrap">{t('options.monetClearPortrait')}</span>
                         </button>
                     </div>
-                    <div className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                         {feedback || monetPortraitImage?.name || '-'}
                     </div>
                 </div>
@@ -329,12 +329,12 @@ export const MonetSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     accept=".png,.jpg,.jpeg,.gif,.webp,.svg,image/*"
                     className="hidden"
                     onChange={(event) => void handleFileChange(event)}
-                />
+                 data-settings-layout="column"/>
             </div>
 
             {/* Section 3: Audio Spectrum */}
-            <div className="space-y-3.5 rounded-[18px] border border-white/5 p-3.5 bg-black/5 dark:bg-white/5">
-                <div className="text-xs font-semibold uppercase tracking-wider opacity-65" style={{ color: theme.accentColor }}>
+            <div className="space-y-3.5 rounded-[18px] border border-white/5 p-3.5 bg-black/5 dark:bg-white/5" data-settings-style='{"gap":14,"radius":18,"border":true,"fill":true,"padding":[14,14,14,14]}' data-settings-layout="card">
+                <div className="text-xs font-semibold uppercase tracking-wider opacity-65" style={{ color: theme.accentColor }} data-settings-style='{"font":12,"weight":600,"tone":"muted"}' data-settings-layout="column">
                     {t('options.monetAudioStyle')}
                 </div>
 

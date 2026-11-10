@@ -55,7 +55,7 @@ const Pill: React.FC<{
             type="button"
             onClick={onClick}
             className={`rounded-full border px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] transition-colors ${baseClass} ${isActive ? activeClass : 'opacity-75'}`}
-        >
+         data-settings-style='{"radius":64,"border":true,"font":10,"padding":[12,6,12,6]}' data-settings-layout="row">
             {label}
         </button>
     );
@@ -73,10 +73,10 @@ const MenuRow: React.FC<{
         type="button"
         onClick={onClick}
         className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] transition-colors ${isDaylight ? 'hover:bg-black/[0.06]' : 'hover:bg-white/[0.08]'} ${isOn ? '' : 'opacity-45'}`}
-    >
-        <span aria-hidden="true" className="w-3 shrink-0 text-center">{isOn ? '✓' : ''}</span>
-        <span className="min-w-0 flex-1 truncate">{label}</span>
-        {count !== undefined && <span className="shrink-0 tabular-nums opacity-50">{count}</span>}
+     data-settings-style='{"align":"center","gap":8,"radius":4,"font":11,"padding":[8,6,8,6]}' data-settings-layout="row">
+        <span aria-hidden="true" className="w-3 shrink-0 text-center" data-settings-style='{"width":12,"center":true}' data-settings-layout="wrap">{isOn ? '✓' : ''}</span>
+        <span className="min-w-0 flex-1 truncate" data-settings-style='{"grow":true}' data-settings-layout="wrap">{label}</span>
+        {count !== undefined && <span className="shrink-0 tabular-nums opacity-50" data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">{count}</span>}
     </button>
 );
 
@@ -135,31 +135,31 @@ const FilterMenu: React.FC<{
         : 'border-white/10 bg-zinc-900 text-white shadow-2xl';
 
     return (
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1" data-settings-style='{"grow":true}' data-settings-layout="column">
             <button
                 ref={buttonRef}
                 type="button"
                 onClick={() => (at ? setAt(null) : place())}
                 aria-expanded={at !== null}
                 className={`flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1 text-[10px] uppercase tracking-[0.14em] transition-colors ${frameClass}`}
-            >
-                <span className="truncate">{label}</span>
-                <span className="flex shrink-0 items-center gap-1 opacity-60">
+             data-settings-style='{"align":"between","gap":8,"radius":6,"border":true,"font":10,"padding":[8,4,8,4]}' data-settings-layout="row">
+                <span className="truncate" data-settings-style='{"grow":true}' data-settings-layout="wrap">{label}</span>
+                <span className="flex shrink-0 items-center gap-1 opacity-60" data-settings-style='{"align":"center","gap":4,"tone":"muted"}' data-settings-layout="row">
                     {summary}
-                    <span aria-hidden="true">{at ? '▴' : '▾'}</span>
+                    <span aria-hidden="true" data-settings-layout="wrap">{at ? '▴' : '▾'}</span>
                 </span>
             </button>
             {at && createPortal(
                 <>
                     {/* Takes the next click wherever it lands, so the menu closes the way every
                         other menu does rather than only when the button is hit again. */}
-                    <div className="fixed inset-0 z-[999]" onMouseDown={() => setAt(null)} />
+                    <div className="fixed inset-0 z-[999]" onMouseDown={() => setAt(null)}  data-settings-layout="column"/>
                     <div
                         ref={sheetRef}
-                        role="menu"
+                        role="menu" aria-label={label}
                         className={`fixed z-[1000] max-h-[16rem] overflow-y-auto overscroll-contain rounded-lg border p-1 ${sheetClass}`}
                         style={{ top: at.top, left: at.left, minWidth: at.width }}
-                    >
+                     data-settings-style='{"radius":8,"border":true,"padding":[4,4,4,4]}' data-settings-layout="card">
                         {children}
                     </div>
                 </>,
@@ -286,8 +286,8 @@ export const ConsoleLogPanel: React.FC<ConsoleLogPanelProps> = ({
     // where the switch is.
     if (!capturing) {
         return (
-            <section className={className}>
-                <div className="px-3 py-3 text-[11px] leading-relaxed opacity-60">
+            <section className={className} data-settings-layout="column">
+                <div className="px-3 py-3 text-[11px] leading-relaxed opacity-60" data-settings-style='{"font":11,"tone":"muted","padding":[12,12,12,12]}' data-settings-layout="column">
                     Not recording. Nothing from this session can be read back or copied.
                 </div>
             </section>
@@ -299,14 +299,14 @@ export const ConsoleLogPanel: React.FC<ConsoleLogPanelProps> = ({
     const mutedScopes = scopeCounts.filter(([scope]) => hiddenScopes.has(scope)).length;
 
     return (
-        <section className={className}>
-            <div className="flex items-center justify-between gap-2 px-3 pt-3">
-                <div className="text-[10px] uppercase tracking-[0.16em] opacity-60">
+        <section className={className} data-settings-layout="column">
+            <div className="flex items-center justify-between gap-2 px-3 pt-3" data-settings-style='{"align":"between","gap":8,"padding":[12,12,12,0]}' data-settings-layout="row">
+                <div className="text-[10px] uppercase tracking-[0.16em] opacity-60" data-settings-style='{"font":10,"tone":"muted","grow":true}' data-settings-layout="column">
                     Console ({visible.length}
                     {hiddenCount > 0 ? ` of ${entries.length}` : ''}
                     {selected.size > 0 ? `, ${selected.size} picked` : ''})
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2" data-settings-style='{"gap":8}' data-settings-layout="row">
                     <Pill
                         label={
                             copyState === 'copied' ? 'Copied'
@@ -321,15 +321,15 @@ export const ConsoleLogPanel: React.FC<ConsoleLogPanelProps> = ({
                 </div>
             </div>
 
-            <div className="flex flex-col gap-2 px-3 pt-2">
+            <div className="flex flex-col gap-2 px-3 pt-2" data-settings-style='{"gap":8,"padding":[12,8,12,0]}' data-settings-layout="column">
                 <input
                     type="search"
                     value={query}
                     onChange={event => setQuery(event.target.value)}
                     placeholder="Search this session's log"
                     className={`w-full rounded-md border px-2 py-1 text-[11px] outline-none transition-colors focus:border-current ${inputClass}`}
-                />
-                <div className="flex flex-wrap items-start gap-2">
+                 data-settings-style='{"radius":6,"border":true,"font":11,"padding":[8,4,8,4]}' data-settings-layout="column"/>
+                <div className="flex flex-wrap items-start gap-2" data-settings-style='{"gap":8}' data-settings-layout="wrap">
                     <FilterMenu
                         label="Level"
                         summary={mutedLevels === 0 ? 'all' : `${CONSOLE_LEVELS.length - mutedLevels}/${CONSOLE_LEVELS.length}`}
@@ -357,19 +357,19 @@ export const ConsoleLogPanel: React.FC<ConsoleLogPanelProps> = ({
                     >
                         {/* All and None first: narrowing to one module out of a dozen is the common
                             move, and doing it by unpicking the other eleven is not a filter. */}
-                        <div className="flex gap-1 px-1 pb-1">
+                        <div className="flex gap-1 px-1 pb-1" data-settings-style='{"gap":4,"padding":[4,0,4,4]}' data-settings-layout="row">
                             <button
                                 type="button"
                                 onClick={() => setHiddenScopes(new Set())}
                                 className={`flex-1 rounded px-2 py-1 text-[10px] uppercase tracking-[0.14em] ${isDaylight ? 'bg-black/[0.05] hover:bg-black/[0.09]' : 'bg-white/[0.07] hover:bg-white/[0.12]'}`}
-                            >
+                             data-settings-style='{"grow":true,"radius":4,"font":10,"padding":[8,4,8,4]}' data-settings-layout="row">
                                 All
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setHiddenScopes(new Set(scopeCounts.map(([scope]) => scope)))}
                                 className={`flex-1 rounded px-2 py-1 text-[10px] uppercase tracking-[0.14em] ${isDaylight ? 'bg-black/[0.05] hover:bg-black/[0.09]' : 'bg-white/[0.07] hover:bg-white/[0.12]'}`}
-                            >
+                             data-settings-style='{"grow":true,"radius":4,"font":10,"padding":[8,4,8,4]}' data-settings-layout="row">
                                 None
                             </button>
                         </div>
@@ -388,7 +388,7 @@ export const ConsoleLogPanel: React.FC<ConsoleLogPanelProps> = ({
             </div>
 
             {visible.length === 0 ? (
-                <div className="px-3 pb-3 pt-2 text-[11px] opacity-70">
+                <div className="px-3 pb-3 pt-2 text-[11px] opacity-70" data-settings-style='{"font":11,"padding":[12,8,12,12]}' data-settings-layout="column">
                     {entries.length === 0
                         ? 'Nothing logged yet.'
                         : `Nothing matches. ${entries.length} lines are hidden by the filters above.`}
@@ -397,17 +397,17 @@ export const ConsoleLogPanel: React.FC<ConsoleLogPanelProps> = ({
                 // column-reverse over a reversed list, so the newest line is pinned to the bottom by
                 // the scroll container itself. Scrolling up to read then stays put as lines arrive,
                 // which no amount of scrollTop bookkeeping manages reliably.
-                <div className={`mt-2 flex ${listMaxHeightClass} select-none flex-col-reverse overflow-y-auto overscroll-contain px-1 pb-2`}>
+                <div className={`mt-2 flex ${listMaxHeightClass} select-none flex-col-reverse overflow-y-auto overscroll-contain px-1 pb-2`} data-settings-style='{"padding":[4,0,4,8],"margin":[0,8,0,0]}' data-settings-layout="row">
                     {visible.slice().reverse().map(entry => (
                         <div
                             key={entry.id}
                             onClick={event => handleRowClick(entry, event)}
                             className={`flex cursor-pointer gap-2 rounded px-2 py-[3px] text-[10px] leading-4 ${levelClass(entry.level)} ${selected.has(entry.id) ? selectedClass : ''}`}
-                        >
-                            <span className="shrink-0 tabular-nums opacity-50">
+                         data-settings-style='{"gap":8,"radius":4,"font":10,"padding":[8,0,8,0]}' data-settings-layout="row">
+                            <span className="shrink-0 tabular-nums opacity-50" data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                                 {new Date(entry.at).toLocaleTimeString()}
                             </span>
-                            <span className="whitespace-pre-wrap break-all">{entry.text}</span>
+                            <span className="whitespace-pre-wrap break-all" data-settings-layout="wrap">{entry.text}</span>
                         </div>
                     ))}
                 </div>

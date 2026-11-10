@@ -92,10 +92,10 @@ const GraphicsSettingsSubview: React.FC<GraphicsSettingsSubviewProps> = ({
     };
 
     return (
-        <div className="space-y-5">
-            <SettingsAnchor anchorId="graphicsPerformance" label={t('options.labPerformanceSection')} className="space-y-4">
+        <div className="space-y-5" data-settings-style='{"gap":20}' data-settings-layout="column">
+            <SettingsAnchor anchorId="graphicsPerformance" label={t('options.labPerformanceSection')} className="space-y-4" nativeLayout={{"kind":"column","gap":16}}>
                 <SettingsSectionHeading icon={MonitorCog} label={t('options.labPerformanceSection')} />
-                <div className={`rounded-xl border overflow-hidden ${settingsCardClass}`}>
+                <div className={`rounded-xl border overflow-hidden ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true}' data-settings-layout="card">
                     <SettingsRow
                         title={t(isAndroidNativeRuntime() ? 'mobileSettings.staticModeTitle' : 'options.enableStaticMode')}
                         description={t('options.enableStaticModeDesc')}
@@ -141,7 +141,7 @@ const GraphicsSettingsSubview: React.FC<GraphicsSettingsSubviewProps> = ({
                                     rel="noopener noreferrer"
                                     onClick={openDocsLinkExternally}
                                     className="underline underline-offset-2 hover:opacity-80"
-                                >
+                                 data-settings-layout="wrap">
                                     {t('options.glowBlurQuantizeDocs')}
                                 </a>
                             </>
@@ -153,7 +153,7 @@ const GraphicsSettingsSubview: React.FC<GraphicsSettingsSubviewProps> = ({
                 </div>
             </SettingsAnchor>
 
-            <SettingsAnchor anchorId="graphicsMotion" label={t('options.reduceMotionSection')} className="space-y-4">
+            <SettingsAnchor anchorId="graphicsMotion" label={t('options.reduceMotionSection')} className="space-y-4" nativeLayout={{"kind":"column","gap":16}}>
                 <SettingsSectionHeading icon={Gauge} label={t('options.reduceMotionSection')} />
                 <MotionReductionSettingsSection
                     settingsCardClass={settingsCardClass}
@@ -175,7 +175,7 @@ const GraphicsSettingsSubview: React.FC<GraphicsSettingsSubviewProps> = ({
                             onClick={() => setIsNativeBlurNoticeOpen(false)}
                             className={`rounded-xl border px-4 py-2 text-sm font-medium transition-colors ${utilityGhostButtonClass}`}
                             style={{ color: 'var(--text-primary)' }}
-                        >
+                         data-settings-style='{"radius":12,"border":true,"font":14,"weight":500,"padding":[16,8,16,8],"tone":"text"}' data-settings-layout="row">
                             {t('localMusic.cancel')}
                         </button>
                         <button
@@ -183,13 +183,13 @@ const GraphicsSettingsSubview: React.FC<GraphicsSettingsSubviewProps> = ({
                             onClick={confirmNativeBlur}
                             className="rounded-xl px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
                             style={{ backgroundColor: theme?.accentColor || '#3b82f6' }}
-                        >
+                         data-settings-style='{"radius":12,"font":14,"weight":600,"padding":[16,8,16,8]}' data-settings-layout="row">
                             {t('options.nativeBlurConfirmAction')}
                         </button>
                     </>
                 )}
             >
-                <p className="text-sm leading-6 opacity-75" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-sm leading-6 opacity-75" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":14,"tone":"muted"}' data-settings-layout="wrap">
                     {t('options.nativeBlurConfirmDesc')}
                 </p>
             </ThemedDialog>

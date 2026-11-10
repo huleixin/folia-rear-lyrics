@@ -24,8 +24,8 @@ const NomandHalftoneDotsSettings: React.FC<NomandBackgroundEffectPanelProps> = (
     };
 
     return (
-        <div className="space-y-4 rounded-2xl border p-3" style={{ borderColor }}>
-            <div className="text-xs font-medium uppercase tracking-[0.2em]" style={{ color: theme.secondaryColor }}>
+        <div className="space-y-4 rounded-2xl border p-3" style={{ borderColor }} data-settings-style='{"gap":16,"radius":16,"border":true,"padding":[12,12,12,12]}' data-settings-layout="card">
+            <div className="text-xs font-medium uppercase tracking-[0.2em]" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12,"weight":500}' data-settings-layout="column">
                 {t('options.nomandBackgroundEffectHalftoneDots')}
             </div>
             <SliderRow

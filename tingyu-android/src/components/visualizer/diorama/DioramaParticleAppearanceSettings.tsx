@@ -61,10 +61,10 @@ const RangeSetting: React.FC<RangeSettingProps> = ({
     onSliderPointerDown,
     onSliderCommit,
 }) => (
-    <div className="space-y-2">
-        <div className="flex items-center justify-between gap-3 text-sm">
-            <div className="min-w-0" style={{ color: 'var(--text-primary)' }}>{label}</div>
-            <span className="shrink-0 font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+    <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+        <div className="flex items-center justify-between gap-3 text-sm" data-settings-style='{"align":"between","gap":12,"font":14}' data-settings-layout="row">
+            <div className="min-w-0" style={{ color: 'var(--text-primary)' }} data-settings-style='{"tone":"text","grow":true}' data-settings-layout="column">{label}</div>
+            <span className="shrink-0 font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                 {displayValue}
             </span>
         </div>
@@ -80,7 +80,7 @@ const RangeSetting: React.FC<RangeSettingProps> = ({
             onPointerDown={onSliderPointerDown}
             onPointerUp={onSliderCommit}
             className={`${rangeInputClass} disabled:cursor-not-allowed disabled:opacity-35`}
-        />
+         data-settings-layout="column"/>
     </div>
 );
 
@@ -98,7 +98,7 @@ export const DioramaParticleAppearanceSettings: React.FC<DioramaParticleAppearan
 
     return (
         <>
-            <div className="rounded-xl px-3 py-2.5 transition-opacity" style={cardStyle}>
+            <div className="rounded-xl px-3 py-2.5 transition-opacity" style={cardStyle} data-settings-style='{"radius":12,"padding":[12,10,12,10]}' data-settings-layout="column">
                 <RangeSetting
                     {...sharedRangeProps}
                     label={props.t('options.dioramaParticleDensity')}
@@ -110,7 +110,7 @@ export const DioramaParticleAppearanceSettings: React.FC<DioramaParticleAppearan
                     onChange={props.onDensityChange}
                 />
             </div>
-            <div className="rounded-xl px-3 py-2.5 transition-opacity" style={cardStyle}>
+            <div className="rounded-xl px-3 py-2.5 transition-opacity" style={cardStyle} data-settings-style='{"radius":12,"padding":[12,10,12,10]}' data-settings-layout="column">
                 <RangeSetting
                     {...sharedRangeProps}
                     label={props.t('options.dioramaParticleScale')}
@@ -122,10 +122,10 @@ export const DioramaParticleAppearanceSettings: React.FC<DioramaParticleAppearan
                     onChange={props.onParticleScaleChange}
                 />
             </div>
-            <div className="space-y-2.5 rounded-xl px-3 py-2.5 transition-opacity" style={cardStyle}>
-                <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                        <div className="text-sm" style={{ color: 'var(--text-primary)' }}>
+            <div className="space-y-2.5 rounded-xl px-3 py-2.5 transition-opacity" style={cardStyle} data-settings-style='{"gap":10,"radius":12,"padding":[12,10,12,10]}' data-settings-layout="column">
+                <div className="flex items-center justify-between gap-3" data-settings-style='{"align":"between","gap":12}' data-settings-layout="row">
+                    <div className="min-w-0" data-settings-style='{"grow":true}' data-settings-layout="column">
+                        <div className="text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"tone":"text"}' data-settings-layout="column">
                             {props.t('options.dioramaParticleGlow')}
                         </div>
                     </div>

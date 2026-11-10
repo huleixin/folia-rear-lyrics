@@ -1,0 +1,1660 @@
+{
+  "key": "settings-flow:qa",
+  "title": "Theme Park",
+  "nodes": [
+    {
+      "id": "form:1913:text:0",
+      "kind": "note",
+      "title": "正在编辑已保存的自定义主题。"
+    },
+    {
+      "id": "form:1914",
+      "kind": "action",
+      "title": "AI 主题",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1915",
+      "kind": "action",
+      "title": "自定义主题",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "detail": "✓"
+    },
+    {
+      "id": "form:1916",
+      "kind": "action",
+      "title": "重置",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1917",
+      "kind": "action",
+      "title": "保存并应用",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1918",
+      "kind": "preview",
+      "title": "",
+      "min": 160
+    },
+    {
+      "id": "form:1919",
+      "kind": "action",
+      "title": "暂停预览",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1920",
+      "kind": "action",
+      "title": "配色",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "detail": "✓"
+    },
+    {
+      "id": "form:1921",
+      "kind": "action",
+      "title": "信息",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1922",
+      "kind": "action",
+      "title": "内容",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1923",
+      "kind": "action",
+      "title": "AI",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1924",
+      "kind": "action",
+      "title": "亮色主题",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1925",
+      "kind": "action",
+      "title": "暗色主题",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "detail": "✓"
+    },
+    {
+      "id": "form:1926",
+      "kind": "action",
+      "title": "背景页面主背景与大面积氛围色#09090B",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1927",
+      "kind": "action",
+      "title": "主文本主文本与歌词颜色#F4F4F5",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1928",
+      "kind": "action",
+      "title": "强调色高亮、按钮与歌词发光颜色#F4F4F5",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "detail": "✓"
+    },
+    {
+      "id": "form:1929",
+      "kind": "action",
+      "title": "辅助色辅助文本与几何背景颜色#71717A",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1930:text:17",
+      "kind": "note",
+      "title": "强调色"
+    },
+    {
+      "id": "form:1931:text:18",
+      "kind": "note",
+      "title": "高亮、按钮与歌词发光颜色"
+    },
+    {
+      "id": "form:1932:text:19",
+      "kind": "note",
+      "title": "#F4F4F5"
+    },
+    {
+      "id": "form:1933",
+      "kind": "color",
+      "title": "强调色",
+      "value": "#f4f4f5",
+      "disabled": false,
+      "options": [
+        {
+          "value": "hue",
+          "label": "色相"
+        },
+        {
+          "value": "saturation",
+          "label": "饱和度"
+        },
+        {
+          "value": "brightness",
+          "label": "明度"
+        }
+      ],
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "text",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1934:text:21",
+      "kind": "note",
+      "title": "HEX"
+    },
+    {
+      "id": "form:1935",
+      "kind": "input",
+      "title": "HEX",
+      "value": "#f4f4f5",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "text",
+      "immediate": true,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1936:text:23",
+      "kind": "note",
+      "title": "推荐色"
+    },
+    {
+      "id": "form:1937",
+      "kind": "action",
+      "title": "#f5f5f4",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1938",
+      "kind": "action",
+      "title": "#1c1917",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1939",
+      "kind": "action",
+      "title": "#ea580c",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1940",
+      "kind": "action",
+      "title": "#44403c",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1941",
+      "kind": "action",
+      "title": "#09090b",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1942",
+      "kind": "action",
+      "title": "#f4f4f5",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1943",
+      "kind": "action",
+      "title": "#71717a",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    }
+  ],
+  "layout": {
+    "id": "page:form:1984",
+    "kind": "column",
+    "style": {
+      "padding": [
+        18,
+        0,
+        18,
+        0
+      ],
+      "gap": 16
+    },
+    "children": [
+      {
+        "id": "form:1944",
+        "kind": "wrap",
+        "style": {
+          "align": "center",
+          "gap": 8
+        },
+        "children": [
+          {
+            "id": "form:1945",
+            "kind": "row",
+            "style": {
+              "align": "center",
+              "gap": 4,
+              "radius": 64,
+              "fill": true,
+              "padding": [
+                4,
+                4,
+                4,
+                4
+              ]
+            },
+            "children": [
+              {
+                "id": "layout:form:1914",
+                "kind": "control",
+                "ref": "form:1914",
+                "style": {
+                  "radius": 64,
+                  "font": 14,
+                  "padding": [
+                    12,
+                    8,
+                    12,
+                    8
+                  ],
+                  "tone": "text"
+                },
+                "children": [
+                  {
+                    "id": "content:form:1914",
+                    "kind": "row",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "copy:1",
+                        "kind": "text",
+                        "text": "AI 主题"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "layout:form:1915",
+                "kind": "control",
+                "ref": "form:1915",
+                "style": {
+                  "radius": 64,
+                  "font": 14,
+                  "padding": [
+                    12,
+                    8,
+                    12,
+                    8
+                  ],
+                  "tone": "text"
+                },
+                "children": [
+                  {
+                    "id": "content:form:1915",
+                    "kind": "row",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "copy:2",
+                        "kind": "text",
+                        "text": "自定义主题"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "layout:form:1916",
+            "kind": "control",
+            "ref": "form:1916",
+            "style": {
+              "align": "center",
+              "minHeight": 44,
+              "gap": 8,
+              "radius": 64,
+              "border": true,
+              "fill": true,
+              "font": 14,
+              "padding": [
+                12,
+                8,
+                12,
+                8
+              ],
+              "tone": "text"
+            },
+            "children": [
+              {
+                "id": "content:form:1916",
+                "kind": "row",
+                "style": {
+                  "gap": 8,
+                  "align": "center"
+                },
+                "children": [
+                  {
+                    "id": "form:1946",
+                    "kind": "icon",
+                    "icon": "rotate-ccw",
+                    "style": {
+                      "width": 14,
+                      "height": 14
+                    }
+                  },
+                  {
+                    "id": "form:1947",
+                    "kind": "wrap",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "copy:3",
+                        "kind": "text",
+                        "text": "重置"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "layout:form:1917",
+            "kind": "control",
+            "ref": "form:1917",
+            "style": {
+              "align": "center",
+              "minHeight": 44,
+              "gap": 8,
+              "radius": 64,
+              "border": true,
+              "fill": true,
+              "font": 14,
+              "padding": [
+                12,
+                8,
+                12,
+                8
+              ],
+              "tone": "text"
+            },
+            "children": [
+              {
+                "id": "content:form:1917",
+                "kind": "row",
+                "style": {
+                  "gap": 8,
+                  "align": "center"
+                },
+                "children": [
+                  {
+                    "id": "form:1948",
+                    "kind": "icon",
+                    "icon": "palette",
+                    "style": {
+                      "width": 14,
+                      "height": 14
+                    }
+                  },
+                  {
+                    "id": "form:1949",
+                    "kind": "wrap",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "copy:4",
+                        "kind": "text",
+                        "text": "保存并应用"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "form:1918",
+        "kind": "control",
+        "ref": "form:1918",
+        "style": {
+          "preview": "theme"
+        },
+        "children": [
+          {
+            "id": "layout:form:1919",
+            "kind": "control",
+            "ref": "form:1919",
+            "style": {
+              "width": 40,
+              "height": 40,
+              "align": "center",
+              "center": true,
+              "radius": 64,
+              "border": true,
+              "overlay": "theme-pause"
+            },
+            "children": [
+              {
+                "id": "content:form:1919",
+                "kind": "row",
+                "style": {
+                  "align": "center",
+                  "center": true
+                },
+                "children": [
+                  {
+                    "id": "form:1950",
+                    "kind": "icon",
+                    "icon": "pause",
+                    "style": {
+                      "width": 16,
+                      "height": 16
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "form:1951",
+        "kind": "column",
+        "style": {
+          "minHeight": 0,
+          "padding": [
+            0,
+            0,
+            4,
+            0
+          ]
+        },
+        "children": [
+          {
+            "id": "form:1952",
+            "kind": "card",
+            "style": {
+              "gap": 16,
+              "radius": 24,
+              "border": true,
+              "padding": [
+                16,
+                16,
+                16,
+                16
+              ]
+            },
+            "children": [
+              {
+                "id": "form:1953",
+                "kind": "grid",
+                "style": {
+                  "columns": 4,
+                  "gap": 4,
+                  "radius": 64,
+                  "fill": true,
+                  "padding": [
+                    4,
+                    4,
+                    4,
+                    4
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "layout:form:1920",
+                    "kind": "control",
+                    "ref": "form:1920",
+                    "style": {
+                      "radius": 64,
+                      "font": 12,
+                      "padding": [
+                        8,
+                        8,
+                        8,
+                        8
+                      ],
+                      "tone": "text"
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:1920",
+                        "kind": "row",
+                        "style": {},
+                        "children": [
+                          {
+                            "id": "copy:5",
+                            "kind": "text",
+                            "text": "配色"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "layout:form:1921",
+                    "kind": "control",
+                    "ref": "form:1921",
+                    "style": {
+                      "radius": 64,
+                      "font": 12,
+                      "padding": [
+                        8,
+                        8,
+                        8,
+                        8
+                      ],
+                      "tone": "text"
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:1921",
+                        "kind": "row",
+                        "style": {},
+                        "children": [
+                          {
+                            "id": "copy:6",
+                            "kind": "text",
+                            "text": "信息"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "layout:form:1922",
+                    "kind": "control",
+                    "ref": "form:1922",
+                    "style": {
+                      "radius": 64,
+                      "font": 12,
+                      "padding": [
+                        8,
+                        8,
+                        8,
+                        8
+                      ],
+                      "tone": "text"
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:1922",
+                        "kind": "row",
+                        "style": {},
+                        "children": [
+                          {
+                            "id": "copy:7",
+                            "kind": "text",
+                            "text": "内容"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "layout:form:1923",
+                    "kind": "control",
+                    "ref": "form:1923",
+                    "style": {
+                      "radius": 64,
+                      "font": 12,
+                      "padding": [
+                        8,
+                        8,
+                        8,
+                        8
+                      ],
+                      "tone": "text"
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:1923",
+                        "kind": "row",
+                        "style": {},
+                        "children": [
+                          {
+                            "id": "copy:8",
+                            "kind": "text",
+                            "text": "AI"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:1954",
+                "kind": "column",
+                "style": {
+                  "gap": 16
+                },
+                "children": [
+                  {
+                    "id": "form:1955",
+                    "kind": "row",
+                    "style": {
+                      "align": "center",
+                      "gap": 8,
+                      "radius": 64,
+                      "fill": true,
+                      "padding": [
+                        4,
+                        4,
+                        4,
+                        4
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "layout:form:1924",
+                        "kind": "control",
+                        "ref": "form:1924",
+                        "style": {
+                          "grow": true,
+                          "radius": 64,
+                          "font": 14,
+                          "padding": [
+                            12,
+                            8,
+                            12,
+                            8
+                          ],
+                          "tone": "text"
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:1924",
+                            "kind": "row",
+                            "style": {},
+                            "children": [
+                              {
+                                "id": "copy:9",
+                                "kind": "text",
+                                "text": "亮色主题"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:1925",
+                        "kind": "control",
+                        "ref": "form:1925",
+                        "style": {
+                          "grow": true,
+                          "radius": 64,
+                          "font": 14,
+                          "padding": [
+                            12,
+                            8,
+                            12,
+                            8
+                          ],
+                          "tone": "text"
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:1925",
+                            "kind": "row",
+                            "style": {},
+                            "children": [
+                              {
+                                "id": "copy:10",
+                                "kind": "text",
+                                "text": "暗色主题"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:1956",
+                    "kind": "column",
+                    "style": {
+                      "gap": 12
+                    },
+                    "children": [
+                      {
+                        "id": "layout:form:1926",
+                        "kind": "control",
+                        "ref": "form:1926",
+                        "style": {
+                          "align": "center",
+                          "gap": 12,
+                          "radius": 16,
+                          "border": true,
+                          "padding": [
+                            12,
+                            12,
+                            12,
+                            12
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:1926",
+                            "kind": "row",
+                            "style": {
+                              "gap": 12,
+                              "align": "center"
+                            },
+                            "children": [
+                              {
+                                "id": "form:1957",
+                                "kind": "spacer",
+                                "style": {
+                                  "height": 40,
+                                  "width": 40,
+                                  "radius": 12,
+                                  "border": true
+                                },
+                                "text": "#09090b"
+                              },
+                              {
+                                "id": "form:1958",
+                                "kind": "column",
+                                "style": {
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:1959",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 14,
+                                      "weight": 500,
+                                      "tone": "text"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:11",
+                                        "kind": "text",
+                                        "text": "背景"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:1960",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 12,
+                                      "tone": "muted",
+                                      "margin": [
+                                        0,
+                                        2,
+                                        0,
+                                        0
+                                      ]
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:12",
+                                        "kind": "text",
+                                        "text": "页面主背景与大面积氛围色"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:1961",
+                                "kind": "column",
+                                "style": {
+                                  "font": 12,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:13",
+                                    "kind": "text",
+                                    "text": "#09090B"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:1927",
+                        "kind": "control",
+                        "ref": "form:1927",
+                        "style": {
+                          "align": "center",
+                          "gap": 12,
+                          "radius": 16,
+                          "border": true,
+                          "padding": [
+                            12,
+                            12,
+                            12,
+                            12
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:1927",
+                            "kind": "row",
+                            "style": {
+                              "gap": 12,
+                              "align": "center"
+                            },
+                            "children": [
+                              {
+                                "id": "form:1962",
+                                "kind": "spacer",
+                                "style": {
+                                  "height": 40,
+                                  "width": 40,
+                                  "radius": 12,
+                                  "border": true
+                                },
+                                "text": "#f4f4f5"
+                              },
+                              {
+                                "id": "form:1963",
+                                "kind": "column",
+                                "style": {
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:1964",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 14,
+                                      "weight": 500,
+                                      "tone": "text"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:14",
+                                        "kind": "text",
+                                        "text": "主文本"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:1965",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 12,
+                                      "tone": "muted",
+                                      "margin": [
+                                        0,
+                                        2,
+                                        0,
+                                        0
+                                      ]
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:15",
+                                        "kind": "text",
+                                        "text": "主文本与歌词颜色"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:1966",
+                                "kind": "column",
+                                "style": {
+                                  "font": 12,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:16",
+                                    "kind": "text",
+                                    "text": "#F4F4F5"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:1928",
+                        "kind": "control",
+                        "ref": "form:1928",
+                        "style": {
+                          "align": "center",
+                          "gap": 12,
+                          "radius": 16,
+                          "border": true,
+                          "padding": [
+                            12,
+                            12,
+                            12,
+                            12
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:1928",
+                            "kind": "row",
+                            "style": {
+                              "gap": 12,
+                              "align": "center"
+                            },
+                            "children": [
+                              {
+                                "id": "form:1967",
+                                "kind": "spacer",
+                                "style": {
+                                  "height": 40,
+                                  "width": 40,
+                                  "radius": 12,
+                                  "border": true
+                                },
+                                "text": "#f4f4f5"
+                              },
+                              {
+                                "id": "form:1968",
+                                "kind": "column",
+                                "style": {
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:1969",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 14,
+                                      "weight": 500,
+                                      "tone": "text"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:17",
+                                        "kind": "text",
+                                        "text": "强调色"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:1970",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 12,
+                                      "tone": "muted",
+                                      "margin": [
+                                        0,
+                                        2,
+                                        0,
+                                        0
+                                      ]
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:18",
+                                        "kind": "text",
+                                        "text": "高亮、按钮与歌词发光颜色"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:1971",
+                                "kind": "column",
+                                "style": {
+                                  "font": 12,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:19",
+                                    "kind": "text",
+                                    "text": "#F4F4F5"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:1929",
+                        "kind": "control",
+                        "ref": "form:1929",
+                        "style": {
+                          "align": "center",
+                          "gap": 12,
+                          "radius": 16,
+                          "border": true,
+                          "padding": [
+                            12,
+                            12,
+                            12,
+                            12
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:1929",
+                            "kind": "row",
+                            "style": {
+                              "gap": 12,
+                              "align": "center"
+                            },
+                            "children": [
+                              {
+                                "id": "form:1972",
+                                "kind": "spacer",
+                                "style": {
+                                  "height": 40,
+                                  "width": 40,
+                                  "radius": 12,
+                                  "border": true
+                                },
+                                "text": "#71717a"
+                              },
+                              {
+                                "id": "form:1973",
+                                "kind": "column",
+                                "style": {
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:1974",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 14,
+                                      "weight": 500,
+                                      "tone": "text"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:20",
+                                        "kind": "text",
+                                        "text": "辅助色"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:1975",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 12,
+                                      "tone": "muted",
+                                      "margin": [
+                                        0,
+                                        2,
+                                        0,
+                                        0
+                                      ]
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:21",
+                                        "kind": "text",
+                                        "text": "辅助文本与几何背景颜色"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:1976",
+                                "kind": "column",
+                                "style": {
+                                  "font": 12,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:22",
+                                    "kind": "text",
+                                    "text": "#71717A"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:1977",
+                    "kind": "card",
+                    "style": {
+                      "gap": 12,
+                      "radius": 24,
+                      "border": true,
+                      "padding": [
+                        16,
+                        16,
+                        16,
+                        16
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "form:1978",
+                        "kind": "row",
+                        "style": {
+                          "align": "between"
+                        },
+                        "children": [
+                          {
+                            "id": "form:1979",
+                            "kind": "column",
+                            "style": {
+                              "grow": true
+                            },
+                            "children": [
+                              {
+                                "id": "form:1930",
+                                "kind": "column",
+                                "style": {
+                                  "font": 14,
+                                  "weight": 500,
+                                  "tone": "text"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:23",
+                                    "kind": "text",
+                                    "text": "强调色"
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:1931",
+                                "kind": "column",
+                                "style": {
+                                  "font": 12,
+                                  "tone": "muted",
+                                  "margin": [
+                                    0,
+                                    4,
+                                    0,
+                                    0
+                                  ]
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:24",
+                                    "kind": "text",
+                                    "text": "高亮、按钮与歌词发光颜色"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:1932",
+                            "kind": "column",
+                            "style": {
+                              "radius": 64,
+                              "font": 12,
+                              "padding": [
+                                12,
+                                4,
+                                12,
+                                4
+                              ]
+                            },
+                            "children": [
+                              {
+                                "id": "copy:25",
+                                "kind": "text",
+                                "text": "#F4F4F5"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:1980",
+                        "kind": "card",
+                        "style": {
+                          "radius": 22,
+                          "border": true,
+                          "fill": true,
+                          "padding": [
+                            12,
+                            12,
+                            12,
+                            12
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "layout:form:1933",
+                            "kind": "control",
+                            "ref": "form:1933",
+                            "style": {
+                              "height": 220
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:1981",
+                        "kind": "column",
+                        "style": {
+                          "gap": 8
+                        },
+                        "children": [
+                          {
+                            "id": "form:1934",
+                            "kind": "column",
+                            "style": {
+                              "font": 12,
+                              "weight": 500,
+                              "tone": "muted"
+                            },
+                            "children": [
+                              {
+                                "id": "copy:26",
+                                "kind": "text",
+                                "text": "HEX"
+                              }
+                            ]
+                          },
+                          {
+                            "id": "layout:form:1935",
+                            "kind": "control",
+                            "ref": "form:1935",
+                            "style": {
+                              "radius": 16,
+                              "border": true,
+                              "fill": true,
+                              "font": 14,
+                              "padding": [
+                                16,
+                                12,
+                                16,
+                                12
+                              ],
+                              "tone": "text"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:1982",
+                    "kind": "card",
+                    "style": {
+                      "gap": 8,
+                      "radius": 24,
+                      "border": true,
+                      "padding": [
+                        16,
+                        16,
+                        16,
+                        16
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "form:1936",
+                        "kind": "column",
+                        "style": {
+                          "font": 12,
+                          "weight": 500,
+                          "tone": "muted"
+                        },
+                        "children": [
+                          {
+                            "id": "copy:27",
+                            "kind": "text",
+                            "text": "推荐色"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:1983",
+                        "kind": "wrap",
+                        "style": {
+                          "gap": 8
+                        },
+                        "children": [
+                          {
+                            "id": "layout:form:1937",
+                            "kind": "control",
+                            "ref": "form:1937",
+                            "style": {
+                              "height": 32,
+                              "width": 32,
+                              "radius": 8,
+                              "border": true
+                            },
+                            "text": "#f5f5f4"
+                          },
+                          {
+                            "id": "layout:form:1938",
+                            "kind": "control",
+                            "ref": "form:1938",
+                            "style": {
+                              "height": 32,
+                              "width": 32,
+                              "radius": 8,
+                              "border": true
+                            },
+                            "text": "#1c1917"
+                          },
+                          {
+                            "id": "layout:form:1939",
+                            "kind": "control",
+                            "ref": "form:1939",
+                            "style": {
+                              "height": 32,
+                              "width": 32,
+                              "radius": 8,
+                              "border": true
+                            },
+                            "text": "#ea580c"
+                          },
+                          {
+                            "id": "layout:form:1940",
+                            "kind": "control",
+                            "ref": "form:1940",
+                            "style": {
+                              "height": 32,
+                              "width": 32,
+                              "radius": 8,
+                              "border": true
+                            },
+                            "text": "#44403c"
+                          },
+                          {
+                            "id": "layout:form:1941",
+                            "kind": "control",
+                            "ref": "form:1941",
+                            "style": {
+                              "height": 32,
+                              "width": 32,
+                              "radius": 8,
+                              "border": true
+                            },
+                            "text": "#09090b"
+                          },
+                          {
+                            "id": "layout:form:1942",
+                            "kind": "control",
+                            "ref": "form:1942",
+                            "style": {
+                              "height": 32,
+                              "width": 32,
+                              "radius": 8,
+                              "border": true
+                            },
+                            "text": "#f4f4f5"
+                          },
+                          {
+                            "id": "layout:form:1943",
+                            "kind": "control",
+                            "ref": "form:1943",
+                            "style": {
+                              "height": 32,
+                              "width": 32,
+                              "radius": 8,
+                              "border": true
+                            },
+                            "text": "#71717a"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "headerActions": []
+}

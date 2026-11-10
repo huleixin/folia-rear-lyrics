@@ -35,11 +35,11 @@ const PendoloSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
     ]), [t]);
 
     return (
-        <div className="space-y-4">
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.pendoloWheelCenterX')}</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+        <div className="space-y-4" data-settings-style='{"gap":16}' data-settings-layout="column">
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.pendoloWheelCenterX')}</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {resolvedTuning.wheelCenterX > 0 ? '+' : ''}{Math.round(resolvedTuning.wheelCenterX * 100)}%
                     </span>
                 </div>
@@ -53,13 +53,13 @@ const PendoloSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.pendoloArcRadius')}</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.pendoloArcRadius')}</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {Math.round(resolvedTuning.arcRadius * 100)}%
                     </span>
                 </div>
@@ -73,13 +73,13 @@ const PendoloSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.pendoloArcAngleDeg')}</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.pendoloArcAngleDeg')}</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {Math.round(resolvedTuning.arcAngleDeg)}°
                     </span>
                 </div>
@@ -93,13 +93,13 @@ const PendoloSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.pendoloTickSnappiness')}</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.pendoloTickSnappiness')}</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {resolvedTuning.tickSnappiness.toFixed(1)}x
                     </span>
                 </div>
@@ -113,13 +113,13 @@ const PendoloSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span>{t('options.pendoloActiveScale')}</span>
-                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                    <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.pendoloActiveScale')}</span>
+                    <span className="font-mono opacity-70" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                         {resolvedTuning.activeScale.toFixed(2)}x
                     </span>
                 </div>
@@ -133,7 +133,7 @@ const PendoloSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onPointerDown={onSliderPointerDown}
                     onPointerUp={onSliderCommit}
                     className={rangeInputClass}
-                />
+                 data-settings-layout="column"/>
             </div>
 
             <VisualizerPresetGroup

@@ -66,6 +66,7 @@ const VisPlaygroundPreviewHotspots: React.FC<VisPlaygroundPreviewHotspotsProps> 
                 return (
                     <button
                         key={hotspot.section}
+                        data-settings-overlay={hotspot.section}
                         type="button"
                         aria-pressed={isActive}
                         onClick={(event) => {

@@ -31,9 +31,9 @@ import kotlin.math.max
 internal val LocalSettingsPreviewViewport = staticCompositionLocalOf { Rect(0f, 0f, Float.MAX_VALUE, Float.MAX_VALUE) }
 
 @Composable
-internal fun SettingsOrder(theme: TyPanelTheme, node: TySettingNode, onAction: PageAction) {
+internal fun SettingsOrder(theme: TyPanelTheme, node: TySettingNode, onAction: PageAction, showTitle: Boolean = true) {
     Column(Modifier.fillMaxWidth()) {
-        Text(node.title, color = theme.text, fontSize = 14.sp, modifier = Modifier.padding(vertical = 10.dp))
+        if(showTitle)Text(node.title, color = theme.text, fontSize = 14.sp, modifier = Modifier.padding(vertical = 10.dp))
         node.options.forEachIndexed { index, option ->
             SettingsItem(theme, "${index + 1}. ${option.label}", trailing = {
                 Row {
@@ -104,7 +104,7 @@ internal fun SettingsPreview(node: TySettingNode, onAction: PageAction) {
     val liveEnabled = LocalSettingsTraceIdentity.current.liveEnabled
     val viewport = LocalSettingsPreviewViewport.current
     val latestAction by rememberUpdatedState(onAction)
-    Canvas(Modifier.fillMaxWidth().height(node.min.coerceIn(132f, 320f).dp)
+    Canvas(Modifier.fillMaxWidth().height(node.min.coerceIn(132f, 460f).dp)
         .onGloballyPositioned { coordinates ->
             val p = coordinates.positionInWindow(); val clipped = coordinates.boundsInWindow()
             val height = coordinates.size.height.toFloat()

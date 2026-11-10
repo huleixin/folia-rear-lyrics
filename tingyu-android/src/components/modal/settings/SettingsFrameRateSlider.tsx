@@ -10,16 +10,16 @@ export default function SettingsFrameRateSlider({value,disabled,onChange,classNa
 }){
     const {t}=useTranslation();
     const selected=value==='off'?60:value;
-    return <div className={`ty-frame-rate-slider space-y-3 ${disabled?'opacity-50':''}`} aria-disabled={disabled}>
-        <div className="flex items-center justify-between gap-3 text-xs" style={{color:'var(--ty-settings-muted,var(--text-secondary))'}}>
-            <span>{t('options.visualizerFrameRateValue')}</span><span className="font-mono">{selected} FPS</span>
+    return <div className={`ty-frame-rate-slider space-y-3 ${disabled?'opacity-50':''}`} aria-disabled={disabled} data-settings-style='{"gap":12}' data-settings-layout="column">
+        <div className="flex items-center justify-between gap-3 text-xs" style={{color:'var(--ty-settings-muted,var(--text-secondary))'}} data-settings-style='{"align":"between","gap":12,"font":12,"tone":"muted"}' data-settings-layout="row">
+            <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.visualizerFrameRateValue')}</span><span className="font-mono" data-settings-layout="wrap">{selected} FPS</span>
         </div>
         <input type="range" min="0" max={VISUALIZER_FRAME_RATE_OPTIONS.length-1} step="1"
             value={Math.max(0,VISUALIZER_FRAME_RATE_OPTIONS.indexOf(selected))} disabled={disabled}
             onChange={e=>onChange(VISUALIZER_FRAME_RATE_OPTIONS[Number(e.target.value)])}
-            className={className} aria-label={t('options.visualizerFrameRateValue')}/>
-        <div className="flex justify-between text-[11px] font-mono" style={{color:'var(--ty-settings-muted,var(--text-secondary))'}}>
-            {VISUALIZER_FRAME_RATE_OPTIONS.map(rate=><span key={rate}>{rate}</span>)}
+            className={className} aria-label={t('options.visualizerFrameRateValue')} data-settings-layout="column"/>
+        <div className="flex justify-between text-[11px] font-mono" style={{color:'var(--ty-settings-muted,var(--text-secondary))'}} data-settings-style='{"align":"between","font":11,"tone":"muted"}' data-settings-layout="row">
+            {VISUALIZER_FRAME_RATE_OPTIONS.map(rate=><span key={rate} data-settings-layout="wrap">{rate}</span>)}
         </div>
     </div>;
 }

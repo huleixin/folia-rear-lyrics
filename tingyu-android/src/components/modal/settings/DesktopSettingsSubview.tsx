@@ -207,13 +207,13 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
     );
 
     const renderField = (label: React.ReactNode, input: React.ReactNode, hint?: React.ReactNode) => (
-        <label className="block space-y-1 text-left">
-            <span className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }}>
+        <label className="block space-y-1 text-left" data-settings-style='{"gap":4}' data-settings-layout="wrap">
+            <span className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">
                 {label}
             </span>
             {input}
             {hint && (
-                <span className="block text-[10px] opacity-45 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                <span className="block text-[10px] opacity-45 leading-relaxed" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":10,"tone":"muted"}' data-settings-layout="column">
                     {hint}
                 </span>
             )}
@@ -234,7 +234,7 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
             : null;
         return renderField(
             label,
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" data-settings-style='{"align":"center","gap":8}' data-settings-layout="row">
                 <input
                     type="password"
                     autoComplete="off"
@@ -243,14 +243,14 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                     placeholder={saved ? t('options.aiApiKeySavedPlaceholder') : placeholder}
                     className={fieldClass}
                     style={{ color: 'var(--text-primary)' }}
-                />
+                 data-settings-style='{"tone":"text"}' data-settings-layout="column"/>
                 {saved && (
                     <button
                         type="button"
                         onClick={() => void onClearAiApiKey(key)}
                         className={`shrink-0 rounded-lg border px-3 py-2 text-xs transition-colors ${ghostButtonClass}`}
                         style={{ color: 'var(--text-primary)' }}
-                    >
+                     data-settings-style='{"radius":8,"border":true,"font":12,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="row">
                         {t('options.aiApiKeyClear')}
                     </button>
                 )}
@@ -275,7 +275,7 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                         : 'opacity-50 hover:opacity-100'
                 }`}
                 style={{ color: 'var(--text-primary)' }}
-            >
+             data-settings-style='{"radius":8,"font":12,"weight":600,"padding":[16,6,16,6],"tone":"text"}' data-settings-layout="row">
                 {label}
             </button>
         );
@@ -283,9 +283,9 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
 
     return (
         <>
-            <SettingsAnchor anchorId="desktopTrayBehavior" label={t('options.desktopTrayBehavior')} className="space-y-4">
+            <SettingsAnchor anchorId="desktopTrayBehavior" label={t('options.desktopTrayBehavior')} className="space-y-4" nativeLayout={{"kind":"column","gap":16}}>
                 <SettingsSectionHeading icon={Monitor} label={t('options.desktopTrayBehavior')} />
-                <div className={`rounded-xl border ${settingsCardClass} overflow-hidden`}>
+                <div className={`rounded-xl border ${settingsCardClass} overflow-hidden`} data-settings-style='{"radius":12,"border":true}' data-settings-layout="card">
                     {renderRow(
                         t('options.minimizeToTray'),
                         '点击最小化时，应用将隐藏至系统托盘。',
@@ -335,7 +335,7 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                     )}
                 </div>
 
-                <div className="px-1 text-[10px] opacity-45 leading-relaxed text-left" style={{ color: 'var(--text-secondary)' }}>
+                <div className="px-1 text-[10px] opacity-45 leading-relaxed text-left" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":10,"tone":"muted","padding":[4,0,4,0]}' data-settings-layout="column">
                     {t('options.desktopTrayBehaviorDesc')}
                 </div>
 
@@ -348,20 +348,20 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                                 ? 'bg-amber-500/10 border-amber-500/20 text-amber-800'
                                 : 'bg-amber-500/8 border-amber-500/15 text-amber-200'
                         }`}
-                    >
+                     data-settings-style='{"gap":12,"radius":12,"border":true,"font":12,"padding":[14,14,14,14],"fill":true}' data-settings-layout="row">
                         <ShieldAlert size={16} className="shrink-0 mt-0.5" />
-                        <div className="space-y-0.5 text-left">
-                            <span className="font-semibold">重要提示：</span>
-                            <span>隐藏任务栏图标后，应用只会在系统托盘显示。如需找回主窗口，请双击或右键点击托盘中的 Folia 图标。建议同时配合启用“最小化到托盘”。</span>
+                        <div className="space-y-0.5 text-left" data-settings-style='{"gap":2}' data-settings-layout="column">
+                            <span className="font-semibold" data-settings-style='{"weight":600}' data-settings-layout="wrap">重要提示：</span>
+                            <span data-settings-layout="wrap">隐藏任务栏图标后，应用只会在系统托盘显示。如需找回主窗口，请双击或右键点击托盘中的 Folia 图标。建议同时配合启用“最小化到托盘”。</span>
                         </div>
                     </motion.div>
                 )}
             </SettingsAnchor>
 
             {(isLinux || isWindows || isMac) && (
-                <SettingsAnchor anchorId="wallpaperMode" label={t('options.wallpaperMode') || 'Wallpaper Mode'} className="space-y-4">
+                <SettingsAnchor anchorId="wallpaperMode" label={t('options.wallpaperMode') || 'Wallpaper Mode'} className="space-y-4" nativeLayout={{"kind":"column","gap":16}}>
                     <SettingsSectionHeading icon={AppWindow} label={t('options.wallpaperMode') || 'Wallpaper Mode'} />
-                    <div className={`rounded-xl border ${settingsCardClass} overflow-hidden`}>
+                    <div className={`rounded-xl border ${settingsCardClass} overflow-hidden`} data-settings-style='{"radius":12,"border":true}' data-settings-layout="card">
                         {renderRow(
                             t('options.wallpaperMode'),
                             t('options.wallpaperModeDesc') || 'Sink the app window to the bottom of the desktop and keep it always visible as a lyrics wallpaper.',
@@ -376,14 +376,14 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                         )}
                     </div>
                     {isMac && (
-                        <div className="px-1 text-xs leading-relaxed text-left text-amber-500">
+                        <div className="px-1 text-xs leading-relaxed text-left text-amber-500" data-settings-style='{"font":12,"padding":[4,0,4,0]}' data-settings-layout="column">
                             {t('options.wallpaperModeMacPermissionHint') || 'Mac wallpaper mode needs Input Monitoring: enable Folia in System Settings → Privacy & Security → Input Monitoring, then restart the app.'}
                         </div>
                     )}
                 </SettingsAnchor>
             )}
 
-            <SettingsAnchor anchorId="updateCheck" label={t('options.updateCheck') || 'Update Check'} className="space-y-4">
+            <SettingsAnchor anchorId="updateCheck" label={t('options.updateCheck') || 'Update Check'} className="space-y-4" nativeLayout={{"kind":"column","gap":16}}>
                 <SettingsSectionHeading
                     icon={RefreshCw}
                     label={t('options.updateCheck') || 'Update Check'}
@@ -394,14 +394,14 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                             disabled={!electronSettings.ENABLE_UPDATE_CHECK || !updateStatus?.updateCheckSupported || updateStatus?.status === 'checking'}
                             className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${ghostButtonClass}`}
                             style={{ color: 'var(--text-primary)' }}
-                        >
+                         data-settings-style='{"align":"center","gap":6,"radius":64,"border":true,"font":12,"weight":500,"padding":[12,4,12,4],"tone":"text"}' data-settings-layout="row">
                             {updateBadgeIcon}
-                            <span>{updateBadgeLabel}</span>
+                            <span data-settings-layout="wrap">{updateBadgeLabel}</span>
                         </button>
                     )}
                 />
 
-                <div className={`rounded-xl border ${settingsCardClass} overflow-hidden`}>
+                <div className={`rounded-xl border ${settingsCardClass} overflow-hidden`} data-settings-style='{"radius":12,"border":true}' data-settings-layout="card">
                     {renderRow(
                         t('options.enableUpdateCheck') || 'Enable Update Check',
                         t('options.enableUpdateCheckDesc') || 'Check GitHub releases through the system proxy when the desktop app starts.',
@@ -410,7 +410,7 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                     {renderRow(
                         t('options.updateChannel') || 'Update Channel',
                         t('options.updateChannelDesc') || 'Choose which release lane this desktop app follows.',
-                        <div className="w-44 shrink-0">
+                        <div className="w-44 shrink-0" data-settings-style='{"width":176}' data-settings-layout="column">
                             <CustomSelect
                                 value={electronSettings.UPDATE_CHANNEL}
                                 onChange={(value) => void onUpdateChannelChange(value as 'realeco' | 'limo' | 'cielo')}
@@ -445,48 +445,48 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                 </div>
 
                 {updateStatus?.autoUpdateSupportReason === 'system' && (
-                    <div className="px-1 text-xs leading-relaxed text-left text-amber-500">
+                    <div className="px-1 text-xs leading-relaxed text-left text-amber-500" data-settings-style='{"font":12,"padding":[4,0,4,0]}' data-settings-layout="column">
                         {t('options.updateUnsupportedSystem') || 'Automatic updates are unavailable on the current system.'}
                     </div>
                 )}
 
                 {updateStatus?.updateCheckSupportReason === 'channel' && (
-                    <div className="px-1 text-xs leading-relaxed text-left text-amber-500">
+                    <div className="px-1 text-xs leading-relaxed text-left text-amber-500" data-settings-style='{"font":12,"padding":[4,0,4,0]}' data-settings-layout="column">
                         {t('options.updateUnsupportedChannel') || 'Automatic updates are unavailable for this internal build.'}
                     </div>
                 )}
 
-                <div className="text-[10px] opacity-45 px-1 leading-relaxed text-left" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-[10px] opacity-45 px-1 leading-relaxed text-left" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":10,"tone":"muted","padding":[4,0,4,0]}' data-settings-layout="column">
                     {updateStatus?.autoUpdateSupported
                         ? t('options.autoUpdateGithubNotice') || 'Auto update needs access to GitHub; if the network is unstable, keep a system proxy enabled.'
                         : t('options.updateCheckGithubNotice')}
                 </div>
 
                 {updateStatus?.availableVersion && (
-                    <div className={`p-4 rounded-xl border ${settingsCardClass} space-y-3`}>
-                        <div className="flex items-center gap-2">
+                    <div className={`p-4 rounded-xl border ${settingsCardClass} space-y-3`} data-settings-style='{"radius":12,"border":true,"gap":12,"padding":[16,16,16,16]}' data-settings-layout="card">
+                        <div className="flex items-center gap-2" data-settings-style='{"align":"center","gap":8}' data-settings-layout="row">
                             <AlertCircle size={16} className="text-amber-500 shrink-0" />
-                            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="wrap">
                                 {t('options.newVersionFound', { version: updateStatus.availableVersion })}
                             </span>
                         </div>
 
                         {/* 多平台 / 手动下载时的提示 */}
                         {updateStatus.platform === 'darwin' ? (
-                            <div className={`text-xs text-left font-medium opacity-90 ${noticeTextClass}`}>
+                            <div className={`text-xs text-left font-medium opacity-90 ${noticeTextClass}`} data-settings-style='{"font":12,"weight":500}' data-settings-layout="column">
                                 {t('options.macManualUpdateNotice')}
                             </div>
                         ) : updateStatus.platform === 'linux' ? (
-                            <div className={`text-xs text-left font-medium opacity-90 ${noticeTextClass}`}>
+                            <div className={`text-xs text-left font-medium opacity-90 ${noticeTextClass}`} data-settings-style='{"font":12,"weight":500}' data-settings-layout="column">
                                 {t('options.linuxManualUpdateNotice')}
                             </div>
                         ) : !updateStatus.autoUpdateSupported ? (
-                            <div className={`text-xs text-left font-medium opacity-90 ${noticeTextClass}`}>
+                            <div className={`text-xs text-left font-medium opacity-90 ${noticeTextClass}`} data-settings-style='{"font":12,"weight":500}' data-settings-layout="column">
                                 {t('options.manualUpdateNotice')}
                             </div>
                         ) : (
                             electronSettings.ENABLE_AUTO_UPDATE && updateStatus.status === 'downloading' && (
-                                <div className="text-xs text-left opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                                <div className="text-xs text-left opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                     {t('options.autoUpdateGithubNotice')}
                                 </div>
                             )
@@ -494,30 +494,30 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
 
                         {/* 下载进度条 */}
                         {updateStatus.autoUpdateSupported && updateStatus.status === 'downloading' && updateStatus.downloadProgress && (
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between text-xs font-mono">
-                                    <span className="opacity-60 text-left" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                                <div className="flex items-center justify-between text-xs font-mono" data-settings-style='{"align":"between","font":12}' data-settings-layout="row">
+                                    <span className="opacity-60 text-left" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted","grow":true}' data-settings-layout="wrap">
                                         {t('options.downloadUpdate')}
                                     </span>
-                                    <span className={`font-semibold ${isDaylight ? 'text-emerald-600' : 'text-emerald-400'}`}>
+                                    <span className={`font-semibold ${isDaylight ? 'text-emerald-600' : 'text-emerald-400'}`} data-settings-style='{"weight":600}' data-settings-layout="wrap">
                                         {Math.round(updateStatus.downloadProgress.percent)}%
                                     </span>
                                 </div>
-                                <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDaylight ? 'bg-black/10' : 'bg-white/10'}`}>
+                                <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDaylight ? 'bg-black/10' : 'bg-white/10'}`} data-settings-style='{"height":6,"radius":64}' data-settings-layout="column">
                                     <div
                                         className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-[width] duration-300 ease-out"
                                         style={{ width: `${updateStatus.downloadProgress.percent}%` }}
-                                    />
+                                     data-settings-style='{"radius":64}' data-settings-layout="column"/>
                                 </div>
                                 {updateStatus.downloadProgress.transferred !== undefined && updateStatus.downloadProgress.total !== undefined && (
-                                    <div className="text-[10px] opacity-40 text-right font-mono" style={{ color: 'var(--text-secondary)' }}>
+                                    <div className="text-[10px] opacity-40 text-right font-mono" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":10,"tone":"muted"}' data-settings-layout="column">
                                         {(updateStatus.downloadProgress.transferred / 1024 / 1024).toFixed(1)} MB / {(updateStatus.downloadProgress.total / 1024 / 1024).toFixed(1)} MB
                                     </div>
                                 )}
                             </div>
                         )}
 
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2" data-settings-style='{"gap":8}' data-settings-layout="wrap">
                             {updateStatus.autoUpdateSupported && !electronSettings.ENABLE_AUTO_UPDATE && (
                                 <button
                                     type="button"
@@ -525,7 +525,7 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                                     disabled={!canDownloadUpdate}
                                     className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 ${ghostButtonClass}`}
                                     style={{ color: 'var(--text-primary)' }}
-                                >
+                                 data-settings-style='{"align":"center","gap":6,"radius":12,"border":true,"font":12,"weight":600,"padding":[14,8,14,8],"tone":"text"}' data-settings-layout="row">
                                     <Download size={14} />
                                     {t('options.downloadUpdate') || 'Download Update'}
                                 </button>
@@ -535,7 +535,7 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                                     type="button"
                                     onClick={onInstallUpdate}
                                     className={`inline-flex items-center gap-1.5 rounded-xl bg-green-500/20 hover:bg-green-500/30 px-3.5 py-2 text-xs font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] ${successTextColor}`}
-                                >
+                                 data-settings-style='{"align":"center","gap":6,"radius":12,"font":12,"weight":600,"padding":[14,8,14,8]}' data-settings-layout="row">
                                     <RefreshCw size={14} className="animate-spin-slow" />
                                     {t('options.restartToInstallUpdate') || 'Restart to Install'}
                                 </button>
@@ -546,8 +546,8 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                         <div
                             className={`flex max-w-full flex-wrap items-center gap-1 rounded-xl border p-1.5 ${isDaylight ? 'border-black/10 bg-black/[0.02]' : 'border-white/10 bg-white/[0.035]'}`}
                             aria-label={t('options.downloadSources')}
-                        >
-                            <span className="px-1.5 text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                         data-settings-style='{"align":"center","gap":4,"radius":12,"border":true,"padding":[6,6,6,6],"fill":true}' data-settings-layout="wrap">
+                            <span className="px-1.5 text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted","padding":[6,0,6,0]}' data-settings-layout="wrap">
                                 {t('options.downloadSources')}
                             </span>
                             {electronSettings.UPDATE_CHANNEL === 'realeco' && updateStatus.platform !== 'linux' && (
@@ -557,7 +557,7 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                                         onClick={onOpenChinaDownload}
                                         className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium opacity-70 transition-colors hover:opacity-100 ${linkButtonHoverClass}`}
                                         style={{ color: 'var(--text-primary)' }}
-                                    >
+                                     data-settings-style='{"align":"center","gap":4,"radius":8,"font":12,"weight":500,"padding":[10,6,10,6],"tone":"text"}' data-settings-layout="row">
                                         <ExternalLink size={12} />
                                         {t('options.quarkDrive')}
                                     </button>
@@ -566,7 +566,7 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                                         onClick={onOpenBaiduDownload}
                                         className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium opacity-70 transition-colors hover:opacity-100 ${linkButtonHoverClass}`}
                                         style={{ color: 'var(--text-primary)' }}
-                                    >
+                                     data-settings-style='{"align":"center","gap":4,"radius":8,"font":12,"weight":500,"padding":[10,6,10,6],"tone":"text"}' data-settings-layout="row">
                                         <ExternalLink size={12} />
                                         {t('options.baiduDrive')}
                                     </button>
@@ -577,7 +577,7 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                                 onClick={() => window.electron?.openUpdateReleasePage(updateStatus.availableVersion)}
                                 className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium opacity-70 transition-colors hover:opacity-100 ${linkButtonHoverClass}`}
                                 style={{ color: 'var(--text-primary)' }}
-                            >
+                             data-settings-style='{"align":"center","gap":4,"radius":8,"font":12,"weight":500,"padding":[10,6,10,6],"tone":"text"}' data-settings-layout="row">
                                 <ExternalLink size={12} />
                                 {updateStatus.autoUpdateSupported
                                     ? t('options.githubRelease')
@@ -589,7 +589,7 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                                     onClick={() => window.electron?.openExternalUrl(AUR_PACKAGE_URL)}
                                     className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium opacity-70 transition-colors hover:opacity-100 ${linkButtonHoverClass}`}
                                     style={{ color: 'var(--text-primary)' }}
-                                >
+                                 data-settings-style='{"align":"center","gap":4,"radius":8,"font":12,"weight":500,"padding":[10,6,10,6],"tone":"text"}' data-settings-layout="row">
                                     <ExternalLink size={12} />
                                     {t('options.aurPackage')}
                                 </button>
@@ -597,7 +597,7 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                         </div>
 
                         {updateStatus.platform !== 'linux' && (
-                            <div className="text-xs opacity-50 pt-1 text-left" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="text-xs opacity-50 pt-1 text-left" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted","padding":[0,4,0,0]}' data-settings-layout="column">
                                 {t('options.chinaDownloadHint')}
                             </div>
                         )}
@@ -605,27 +605,27 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                 )}
             </SettingsAnchor>
 
-            <SettingsAnchor anchorId="electronSettings" label={t('options.electronSettings') || 'Desktop App Settings'} className="space-y-4">
+            <SettingsAnchor anchorId="electronSettings" label={t('options.electronSettings') || 'Desktop App Settings'} className="space-y-4" nativeLayout={{"kind":"column","gap":16}}>
                 <SettingsSectionHeading icon={Cpu} label={t('options.electronSettings') || 'Desktop App Settings'} />
 
-                <div className={`rounded-xl border ${settingsCardClass} overflow-hidden`}>
-                    <div className={`flex flex-wrap items-center justify-between gap-4 p-4 border-b ${rowDividerClass}`}>
-                        <div className="space-y-1 text-left min-w-0">
-                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                <div className={`rounded-xl border ${settingsCardClass} overflow-hidden`} data-settings-style='{"radius":12,"border":true}' data-settings-layout="card">
+                    <div className={`flex flex-wrap items-center justify-between gap-4 p-4 border-b ${rowDividerClass}`} data-settings-style='{"align":"between","gap":16,"divider":true,"padding":[16,16,16,16]}' data-settings-layout="wrap">
+                        <div className="space-y-1 text-left min-w-0" data-settings-style='{"gap":4}' data-settings-layout="column">
+                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                 {t('options.aiProvider') || 'AI Provider'}
                             </div>
-                            <div className="text-xs opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="text-xs opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                 选择生成智能歌词主题效果的 AI 服务商。
                             </div>
                         </div>
 
-                        <div className={`flex rounded-xl border p-1 shrink-0 ${isDaylight ? 'bg-black/[0.05] border-black/10' : 'bg-white/5 border-white/5'}`}>
+                        <div className={`flex rounded-xl border p-1 shrink-0 ${isDaylight ? 'bg-black/[0.05] border-black/10' : 'bg-white/5 border-white/5'}`} data-settings-style='{"radius":12,"border":true,"padding":[4,4,4,4],"fill":true}' data-settings-layout="row">
                             {renderProviderOption('gemini', 'Google Gemini')}
                             {renderProviderOption('openai', t('options.otherCompatibleApi'))}
                         </div>
                     </div>
 
-                    <div className={`p-4 space-y-3 border-b ${rowDividerClass}`}>
+                    <div className={`p-4 space-y-3 border-b ${rowDividerClass}`} data-settings-style='{"gap":12,"divider":true,"padding":[16,16,16,16]}' data-settings-layout="column">
                         {electronSettings.AI_PROVIDER !== 'openai' ? (
                             <>
                             {renderApiKeyField(
@@ -656,7 +656,7 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                                         placeholder="https://api.openai.com/v1 or https://api.deepseek.com"
                                         className={fieldClass}
                                         style={{ color: 'var(--text-primary)' }}
-                                    />,
+                                     data-settings-style='{"tone":"text"}' data-settings-layout="column"/>,
                                 )}
                                 {renderField(
                                     t('options.openaiApiModel') || 'OpenAI Model',
@@ -667,7 +667,7 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                                         placeholder="gpt-5.6-luna / gpt-4.1-mini / deepseek-v4-flash"
                                         className={fieldClass}
                                         style={{ color: 'var(--text-primary)' }}
-                                    />,
+                                     data-settings-style='{"tone":"text"}' data-settings-layout="column"/>,
                                     t('options.openaiApiModelDesc') || 'Required for many OpenAI-compatible providers. DeepSeek models like deepseek-v4-flash must be filled explicitly if auto-detection does not apply.',
                                 )}
                                 {renderField(
@@ -682,15 +682,15 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                                         placeholder="0.7"
                                         className={fieldClass}
                                         style={{ color: 'var(--text-primary)' }}
-                                    />,
+                                     data-settings-style='{"tone":"text"}' data-settings-layout="column"/>,
                                     t('options.openaiApiTemperatureDesc') || 'Range: 0–2. Defaults to 0.7 when left blank.',
                                 )}
-                                <div className="flex items-center justify-between gap-4 text-left">
-                                    <div className="space-y-1 min-w-0">
-                                        <div className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                                <div className="flex items-center justify-between gap-4 text-left" data-settings-style='{"align":"between","gap":16}' data-settings-layout="row">
+                                    <div className="space-y-1 min-w-0" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                                        <div className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                             {t('options.openaiApiStream') || 'Streaming'}
                                         </div>
-                                        <div className="text-[10px] opacity-45 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                                        <div className="text-[10px] opacity-45 leading-relaxed" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":10,"tone":"muted"}' data-settings-layout="column">
                                             {t('options.openaiApiStreamDesc')}
                                         </div>
                                     </div>
@@ -727,8 +727,8 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                         renderToggle(electronSettings.USE_SYSTEM_PROXY_FOR_AI, () => setElectronSettings({ ...electronSettings, USE_SYSTEM_PROXY_FOR_AI: !electronSettings.USE_SYSTEM_PROXY_FOR_AI })),
                     )}
 
-                    <div className="flex items-center justify-between gap-4 p-4">
-                        <span className="text-[10px] opacity-45 leading-relaxed max-w-[280px] text-left" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="flex items-center justify-between gap-4 p-4" data-settings-style='{"align":"between","gap":16,"padding":[16,16,16,16]}' data-settings-layout="row">
+                        <span className="text-[10px] opacity-45 leading-relaxed max-w-[280px] text-left" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":10,"tone":"muted","grow":true}' data-settings-layout="wrap">
                             {electronSettings.AI_PROVIDER !== 'openai'
                                 ? (t('options.geminiApiKeyDesc') || 'Netease API backend runs locally.')
                                 : t('options.openaiApiUrlDesc')}
@@ -739,19 +739,19 @@ const DesktopSettingsSubview: React.FC<DesktopSettingsSubviewProps> = ({
                             disabled={electronSaveStatus === 'saving'}
                             className={`shrink-0 px-6 py-2 border active:scale-95 disabled:scale-100 disabled:opacity-50 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 min-w-[80px] ${ghostButtonClass}`}
                             style={{ color: 'var(--text-primary)' }}
-                        >
+                         data-settings-style='{"align":"center","center":true,"border":true,"radius":12,"font":12,"weight":700,"gap":6,"padding":[24,8,24,8],"tone":"text"}' data-settings-layout="row">
                             {electronSaveStatus === 'saved' ? (
                                 <>
                                     <Check size={14} className={successTextColor} />
-                                    <span className={successTextColor}>已保存</span>
+                                    <span className={successTextColor} data-settings-layout="wrap">已保存</span>
                                 </>
                             ) : electronSaveStatus === 'saving' ? (
                                 <>
                                     <Loader2 size={14} className="animate-spin" />
-                                    <span>正在保存...</span>
+                                    <span data-settings-layout="wrap">正在保存...</span>
                                 </>
                             ) : (
-                                <span>{t('options.save') || 'Save'}</span>
+                                <span data-settings-layout="wrap">{t('options.save') || 'Save'}</span>
                             )}
                         </button>
                     </div>

@@ -126,8 +126,8 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
             className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 disabled:cursor-not-allowed disabled:opacity-40 ${checked ? '' : toggleOffBackgroundClass}`}
             style={{ backgroundColor: checked ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
             aria-pressed={checked}
-        >
-            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-0'}`} />
+         data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={checked ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
+            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
         </button>
     );
 
@@ -192,20 +192,20 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
     }
 
     return (
-        <div className="space-y-5">
+        <div className="space-y-5" data-settings-style='{"gap":20}' data-settings-layout="column">
             <MobilePlaybackStartupSetting isDaylight={isDaylight} settingsCardClass={settingsCardClass} theme={theme} />
-            <SettingsAnchor anchorId="queueSettings" label={t('options.queueSettings')}>
+            <SettingsAnchor anchorId="queueSettings" label={t('options.queueSettings')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={PlayCircle} label={t('options.queueSettings')} />
-                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
-                    <div className="space-y-1">
-                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                    <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                             {t('options.queueDefaultBehavior')}
                         </div>
-                        <div className="text-[11px] opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="text-[11px] opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                             {t('options.queueDefaultBehaviorDesc')}
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2" data-settings-style='{"columns":2,"gap":8}' data-settings-layout="grid">
                         {([
                             { value: 'append', label: t('options.queueAppendLabel'), desc: t('options.queueAppendDesc') },
                             { value: 'next', label: t('options.queueNextLabel'), desc: t('options.queueNextDesc') },
@@ -219,23 +219,23 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                                     onClick={() => onQueueAddBehaviorChange(option.value)}
                                     className="rounded-xl border px-3 py-3 text-left transition-colors"
                                     style={getAccentOptionStyle(selected)}
-                                >
-                                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                                 data-settings-style='{"radius":12,"border":true,"padding":[12,12,12,12]}' data-settings-layout="column">
+                                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                         {option.label}
                                     </div>
-                                    <div className="mt-1 text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                                    <div className="mt-1 text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="column">
                                         {option.desc}
                                     </div>
                                 </button>
                             );
                         })}
                     </div>
-                    <div className="flex items-start justify-between gap-3 border-t border-current/10 pt-4">
-                        <div className="space-y-1">
-                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <div className="flex items-start justify-between gap-3 border-t border-current/10 pt-4" data-settings-style='{"align":"between","gap":12,"padding":[0,16,0,0]}' data-settings-layout="row">
+                        <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                 {t('options.autoSkipUnplayable')}
                             </div>
-                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                                 {t('options.autoSkipUnplayableDesc')}
                             </div>
                         </div>
@@ -244,19 +244,19 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                 </div>
             </SettingsAnchor>
 
-            <SettingsAnchor anchorId="scrobbleSettings" label={t('options.scrobbleSettings')}>
+            <SettingsAnchor anchorId="scrobbleSettings" label={t('options.scrobbleSettings')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={Radio} label={t('options.scrobbleSettings')} />
-                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
-                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                    <div className="flex items-start justify-between gap-3" data-settings-style='{"align":"between","gap":12}' data-settings-layout="row">
+                        <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                 {t('options.neteaseScrobble')}
                             </div>
-                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                                 {t('options.neteaseScrobbleDesc')}
                             </div>
                             {!canReportNeteasePlayback && (
-                                <div className="text-[11px] max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                                <div className="text-[11px] max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                                     {t('options.neteaseScrobbleSignInHint')}
                                 </div>
                             )}
@@ -276,18 +276,18 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                 theme={theme}
             />
 
-            <SettingsAnchor anchorId="replayGainSettings" label={t('options.replayGainSettings')}>
+            <SettingsAnchor anchorId="replayGainSettings" label={t('options.replayGainSettings')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={AudioLines} label={t('options.replayGainSettings')} />
-                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
-                    <div className="space-y-1">
-                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                    <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                             {t('options.replayGainMode')}
                         </div>
-                        <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                             {t('options.replayGainModeDesc')}
                         </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 gap-2" data-settings-style='{"columns":3,"gap":8}' data-settings-layout="grid">
                         {([
                             { value: 'off', label: t('localMusic.replayGainOff') },
                             { value: 'track', label: t('localMusic.replayGainTrack') },
@@ -299,7 +299,7 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                                 onClick={() => onReplayGainModeChange(option.value)}
                                 className="rounded-xl border px-3 py-2.5 text-center text-sm font-medium transition-colors"
                                 style={getAccentOptionStyle(replayGainMode === option.value)}
-                            >
+                             data-settings-style='{"radius":12,"border":true,"center":true,"font":14,"weight":500,"padding":[12,10,12,10]}' data-settings-layout="row">
                                 {option.label}
                             </button>
                         ))}
@@ -307,42 +307,42 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                 </div>
             </SettingsAnchor>
 
-            <SettingsAnchor anchorId="lyrics" label={t('options.lyrics')}>
+            <SettingsAnchor anchorId="lyrics" label={t('options.lyrics')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={Settings2} label={t('options.lyrics')} />
-                <div className={`rounded-xl border overflow-hidden ${settingsCardClass}`}>
-                    <div className="p-4 flex items-center justify-between gap-4">
-                        <div className="space-y-1">
-                            <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                <div className={`rounded-xl border overflow-hidden ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true}' data-settings-layout="card">
+                    <div className="p-4 flex items-center justify-between gap-4" data-settings-style='{"align":"between","gap":16,"padding":[16,16,16,16]}' data-settings-layout="row">
+                        <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                            <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                 <Settings2 size={14} />
                                 {t('options.autoUseBestLyric')}
                             </div>
-                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                                 {t('options.autoUseBestLyricDesc')}
                             </div>
                         </div>
                         {renderToggle(autoUseBestLyric, () => onToggleAutoUseBestLyric(!autoUseBestLyric))}
                     </div>
-                    <div className="p-4 flex items-center justify-between gap-4 border-t" style={{ borderColor: 'var(--border-primary, rgba(255,255,255,0.06))' }}>
-                        <div className="space-y-1">
-                            <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                    <div className="p-4 flex items-center justify-between gap-4 border-t" style={{ borderColor: 'var(--border-primary, rgba(255,255,255,0.06))' }} data-settings-style='{"align":"between","gap":16,"padding":[16,16,16,16]}' data-settings-layout="row">
+                        <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                            <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                 {t('options.lyricVariantSimplified')}
                             </div>
-                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                                 {t('options.lyricVariantSimplifiedDesc')}
                             </div>
                         </div>
                         {renderToggle(lyricVariant === 't2s', () => onLyricVariantChange(lyricVariant === 't2s' ? 'off' : 't2s'))}
                     </div>
-                    <div className="p-4 space-y-3 border-t" style={{ borderColor: 'var(--border-primary, rgba(255,255,255,0.06))' }}>
-                        <div className="space-y-1">
-                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <div className="p-4 space-y-3 border-t" style={{ borderColor: 'var(--border-primary, rgba(255,255,255,0.06))' }} data-settings-style='{"gap":12,"padding":[16,16,16,16]}' data-settings-layout="column">
+                        <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                 {t('options.localLyricsPriority')}
                             </div>
-                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                                 {t('options.localLyricsPriorityDesc')}
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-2" data-settings-style='{"columns":2,"gap":8}' data-settings-layout="grid">
                             {([
                                 { value: 'local', label: t('options.localLyricsPriorityLocal'), desc: t('options.localLyricsPriorityLocalDesc') },
                                 { value: 'online', label: t('options.localLyricsPriorityOnline'), desc: t('options.localLyricsPriorityOnlineDesc') },
@@ -356,11 +356,11 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                                         onClick={() => onLocalLyricsPriorityChange(option.value)}
                                         className="rounded-xl border px-3 py-3 text-left transition-colors"
                                         style={getAccentOptionStyle(selected)}
-                                    >
-                                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                                     data-settings-style='{"radius":12,"border":true,"padding":[12,12,12,12]}' data-settings-layout="column">
+                                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                             {option.label}
                                         </div>
-                                        <div className="mt-1 text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                                        <div className="mt-1 text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="column">
                                             {option.desc}
                                         </div>
                                     </button>
@@ -369,16 +369,16 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                         </div>
                     </div>
                     <LocalLyricFormatOrderSetting getOptionStyle={getAccentOptionStyle} />
-                    <div className="p-4 space-y-3 border-t" style={{ borderColor: 'var(--border-primary, rgba(255,255,255,0.06))' }}>
-                            <div className="space-y-1">
-                                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <div className="p-4 space-y-3 border-t" style={{ borderColor: 'var(--border-primary, rgba(255,255,255,0.06))' }} data-settings-style='{"gap":12,"padding":[16,16,16,16]}' data-settings-layout="column">
+                            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                     {t('settings.lyricMatchPriority')}
                                 </div>
-                                <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                                <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                                     {t('settings.lyricMatchPriorityDesc')}
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2" data-settings-style='{"columns":2,"gap":8,"margin":[0,8,0,0]}' data-settings-layout="grid">
                                 {LYRIC_MATCH_SOURCES.map((source) => {
                                     const option = { value: source, label: getLyricProviderPreferenceLabel(source) };
                                     const selected = preferredAlternativeLyricSource === option.value;
@@ -390,8 +390,8 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                                             onClick={() => onPreferredAlternativeLyricSourceChange(option.value)}
                                             className="rounded-xl border px-3 py-2 text-center transition-colors"
                                             style={getAccentOptionStyle(selected)}
-                                        >
-                                            <div className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+                                         data-settings-style='{"radius":12,"border":true,"center":true,"padding":[12,8,12,8]}' data-settings-layout="column">
+                                            <div className="text-xs font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":12,"weight":500,"tone":"text"}' data-settings-layout="column">
                                                 {option.label}
                                             </div>
                                         </button>
@@ -404,19 +404,19 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                         onClick={onOpenGlobalLyricOffsetSettings}
                         className="w-full p-4 border-t text-left transition-colors hover:bg-white/8"
                         style={{ borderColor: 'var(--border-primary, rgba(255,255,255,0.06))' }}
-                    >
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="space-y-1">
-                                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                     data-settings-style='{"padding":[16,16,16,16]}' data-settings-layout="column">
+                        <div className="flex items-center justify-between gap-4" data-settings-style='{"align":"between","gap":16}' data-settings-layout="row">
+                            <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                     <Timer size={14} />
                                     {t('options.globalLyricTimelineOffset')}
                                 </div>
-                                <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                                <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                                     {t('options.globalLyricTimelineOffsetDesc')}
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                                <span className="font-mono text-xs opacity-70" style={{ color: 'var(--text-primary)' }}>
+                            <div className="flex items-center gap-2 shrink-0" data-settings-style='{"align":"center","gap":8}' data-settings-layout="row">
+                                <span className="font-mono text-xs opacity-70" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":12,"tone":"text"}' data-settings-layout="wrap">
                                     {globalLyricTimelineOffsetMs > 0 ? `+${globalLyricTimelineOffsetMs}` : globalLyricTimelineOffsetMs}ms
                                 </span>
                                 <ChevronRight size={18} className="opacity-60" style={{ color: 'var(--text-primary)' }} />
@@ -428,14 +428,14 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                         onClick={onOpenLyricFilterSettings}
                         className="w-full p-4 border-t text-left transition-colors hover:bg-white/8"
                         style={{ borderColor: 'var(--border-primary, rgba(255,255,255,0.06))' }}
-                    >
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="space-y-1">
-                                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                     data-settings-style='{"padding":[16,16,16,16]}' data-settings-layout="column">
+                        <div className="flex items-center justify-between gap-4" data-settings-style='{"align":"between","gap":16}' data-settings-layout="row">
+                            <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                                <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                     <ListFilter size={14} />
                                     {t('options.lyricFilterRegex')}
                                 </div>
-                                <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                                <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                                     {t('options.lyricFilterRegexDesc')}
                                 </div>
                             </div>
@@ -445,39 +445,39 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                 </div>
             </SettingsAnchor>
 
-            <SettingsAnchor anchorId="audioOutputSettings" label={t('options.audioOutputSettings')}>
+            <SettingsAnchor anchorId="audioOutputSettings" label={t('options.audioOutputSettings')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={Monitor} label={t('options.audioOutputSettings')} />
-                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
-                    <div className="flex items-start justify-between gap-3 border-b border-current/10 pb-4">
-                        <div className="space-y-1">
-                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                    <div className="flex items-start justify-between gap-3 border-b border-current/10 pb-4" data-settings-style='{"align":"between","gap":12,"divider":true,"padding":[0,0,0,16]}' data-settings-layout="row">
+                        <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                 {t('options.playbackFade')}
                             </div>
-                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                                 {t('options.playbackFadeDesc')}
                             </div>
                         </div>
                         {renderToggle(playbackFadeEnabled, () => onTogglePlaybackFade(!playbackFadeEnabled))}
                     </div>
                     {window.electron?.requestTranscodeFallback && (
-                        <div className="flex items-start justify-between gap-3 border-b border-current/10 pb-4">
-                            <div className="space-y-1">
-                                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                        <div className="flex items-start justify-between gap-3 border-b border-current/10 pb-4" data-settings-style='{"align":"between","gap":12,"divider":true,"padding":[0,0,0,16]}' data-settings-layout="row">
+                            <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                     {t('options.transcodeFallback')}
                                 </div>
-                                <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                                <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                                     {t('options.transcodeFallbackDesc')}
                                 </div>
                             </div>
                             {renderToggle(enableTranscodeFallback, () => onToggleTranscodeFallback(!enableTranscodeFallback))}
                         </div>
                     )}
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
-                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <div className="flex items-start justify-between gap-3" data-settings-style='{"align":"between","gap":12}' data-settings-layout="row">
+                        <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                 {t('options.audioOutputDevice')}
                             </div>
-                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                                 {t('options.audioOutputDeviceDesc')}
                             </div>
                         </div>
@@ -487,18 +487,18 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                             disabled={!supportsAudioOutputSelection || isAudioOutputDevicesLoading || isSelectingAudioOutput}
                             className={`shrink-0 inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs transition-colors ${utilityGhostButtonClass} disabled:cursor-not-allowed disabled:opacity-45`}
                             style={{ color: 'var(--text-primary)' }}
-                        >
+                         data-settings-style='{"align":"center","gap":8,"radius":64,"border":true,"font":12,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="row">
                             <RefreshCw size={13} className={isAudioOutputDevicesLoading ? 'animate-spin' : ''} />
-                            <span>{t('options.audioOutputRefresh')}</span>
+                            <span data-settings-layout="wrap">{t('options.audioOutputRefresh')}</span>
                         </button>
                     </div>
 
                     {!supportsAudioOutputSelection ? (
-                        <div className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                             {t('options.audioOutputUnsupported')}
                         </div>
                     ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-3" data-settings-style='{"gap":12}' data-settings-layout="column">
                             <CustomSelect
                                 value={audioOutputDeviceId}
                                 onChange={(val) => {
@@ -512,7 +512,7 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                                 theme={theme}
                             />
 
-                            <div className="text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                                 {isSelectingAudioOutput
                                     ? (t('options.audioOutputSelecting'))
                                     : isAudioOutputDevicesLoading
@@ -521,13 +521,13 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                             </div>
 
                             {audioOutputDevicesErrorKey && (
-                                <div className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                                <div className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                     {t(audioOutputDevicesErrorKey)}
                                 </div>
                             )}
 
                             {hasLoadedAudioOutputDevices && !isAudioOutputDevicesLoading && audioOutputDevices.length === 0 && !audioOutputDevicesErrorKey && (
-                                <div className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                                <div className="text-xs opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                     {t('options.audioOutputEmpty')}
                                 </div>
                             )}

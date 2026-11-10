@@ -47,7 +47,7 @@ const FastColorPicker: React.FC<FastColorPickerProps> = ({ color, height = 236, 
     };
 
     return (
-        <div ref={nativeRef} data-native-color={color} onPointerDown={onPointerDown} className="w-full h-full">
+        <div ref={nativeRef} data-native-color={color} data-settings-style={JSON.stringify({height})} data-native-visible-hue={visibleHueSelection?'true':undefined} onPointerDown={onPointerDown} className="w-full h-full">
             <HslColorPicker color={localColor} onChange={handleChange} style={{ width: '100%', height }} />
         </div>
     );

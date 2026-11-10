@@ -74,6 +74,7 @@ export function semanticControl(element: HTMLElement, actions: PageActions): Nat
         detail: element.getAttribute('aria-pressed') === 'true' || element.getAttribute('aria-selected') === 'true' || element.matches('[role="radio"][aria-checked="true"]') ? '✓' : undefined,
     };
     if (color) node.options = ['hue', 'saturation', 'brightness'].map(value => ({ value, label: String(i18n.t(`nativeSettings.${value}`, { defaultValue: value })) }));
+    if (color&&element.getAttribute('data-native-visible-hue')==='true') node.detail='visible-hue';
     if (reorder) {
         try { const order = JSON.parse(element.getAttribute('data-native-order') ?? '[]'); node.options = Array.isArray(order) ? order.map(value => ({ value: String(value), label: `.${value}` })) : []; } catch { node.options = []; }
         node.placeholder = String(i18n.t('nativeSettings.moveUp')); node.confirmLabel = String(i18n.t('nativeSettings.moveDown'));

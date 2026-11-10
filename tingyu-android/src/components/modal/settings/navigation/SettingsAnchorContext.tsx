@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { createSettingsAnchorStore, type SettingsAnchor as SettingsAnchorEntry, type SettingsAnchorStore } from './settingsAnchorStore';
+import type { SettingsLayoutNode, SettingsLayoutStyle } from '../../../../types/settingsLayout';
 // src/components/modal/settings/navigation/SettingsAnchorContext.tsx
 // Lets a settings subview declare its sections where they render, so the sidebar table of contents
 // follows conditional and late-arriving sections without a second hand-maintained list.
@@ -38,6 +39,7 @@ type SettingsAnchorProps = {
     label: string;
     className?: string;
     children: React.ReactNode;
+    nativeLayout?: SettingsLayoutStyle & { kind?: SettingsLayoutNode['kind'] };
 };
 
 /**
@@ -47,7 +49,7 @@ type SettingsAnchorProps = {
  * Registration is keyed on the element rather than the id, because StrictMode replays the mount as
  * register/unregister/register and an id-keyed teardown would drop the surviving registration.
  */
-export const SettingsAnchor: React.FC<SettingsAnchorProps> = ({ anchorId, label, className, children }) => {
+export const SettingsAnchor: React.FC<SettingsAnchorProps> = ({ anchorId, label, className, children, nativeLayout }) => {
     const nodeRef = useRef<HTMLElement | null>(null);
     const store = useContext(SettingsAnchorContext);
 
@@ -61,7 +63,7 @@ export const SettingsAnchor: React.FC<SettingsAnchorProps> = ({ anchorId, label,
     }, [store, anchorId, label]);
 
     return (
-        <section ref={nodeRef} id={`settings-${anchorId}`} data-settings-anchor={anchorId} className={className}>
+        <section ref={nodeRef} id={`settings-${anchorId}`} data-settings-anchor={anchorId} className={className} data-settings-layout={nativeLayout?.kind ?? 'column'} data-settings-style={JSON.stringify(nativeLayout ?? {})}>
             {children}
         </section>
     );

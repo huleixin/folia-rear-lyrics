@@ -43,13 +43,13 @@ const LatticeSettingsSection: React.FC<LatticeSettingsSectionProps> = ({
     })));
 
     return (
-        <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
-            <div className="flex items-center justify-between gap-4">
-                <div className="space-y-1">
-                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+        <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+            <div className="flex items-center justify-between gap-4" data-settings-style='{"align":"between","gap":16}' data-settings-layout="row">
+                <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                         {t('options.latticePerformanceMode')}
                     </div>
-                    <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                         {t('options.latticePerformanceModeDesc')}
                     </div>
                 </div>
@@ -59,17 +59,17 @@ const LatticeSettingsSection: React.FC<LatticeSettingsSectionProps> = ({
                     style={{ backgroundColor: latticePerformanceMode ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
                     aria-pressed={latticePerformanceMode}
                     aria-label={t('options.latticePerformanceMode')}
-                >
-                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${latticePerformanceMode ? 'translate-x-6' : 'translate-x-0'}`} />
+                 data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={latticePerformanceMode ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
+                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${latticePerformanceMode ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
                 </button>
             </div>
-            <div className={`border-t pt-4 ${settingsDividerClassFor(isDaylight)}`} />
-            <div className="flex items-center justify-between gap-4">
-                <div className="space-y-1">
-                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            <div className={`border-t pt-4 ${settingsDividerClassFor(isDaylight)}`}  data-settings-style='{"padding":[0,16,0,0]}' data-settings-layout="column"/>
+            <div className="flex items-center justify-between gap-4" data-settings-style='{"align":"between","gap":16}' data-settings-layout="row">
+                <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                         {t('options.latticeVignette')}
                     </div>
-                    <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                         {t('options.latticeVignetteDesc')}
                     </div>
                 </div>
@@ -79,11 +79,11 @@ const LatticeSettingsSection: React.FC<LatticeSettingsSectionProps> = ({
                     style={{ backgroundColor: latticeVignette ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
                     aria-pressed={latticeVignette}
                     aria-label={t('options.latticeVignette')}
-                >
-                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${latticeVignette ? 'translate-x-6' : 'translate-x-0'}`} />
+                 data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={latticeVignette ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
+                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${latticeVignette ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
                 </button>
             </div>
-            <div className={`border-t pt-4 ${settingsDividerClassFor(isDaylight)}`}>
+            <div className={`border-t pt-4 ${settingsDividerClassFor(isDaylight)}`} data-settings-style='{"padding":[0,16,0,0]}' data-settings-layout="column">
                 <LatticePosterTintControls
                     {...posterTint}
                     isDaylight={isDaylight}

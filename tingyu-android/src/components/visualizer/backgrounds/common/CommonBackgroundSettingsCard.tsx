@@ -23,7 +23,7 @@ const CommonBackgroundSettingsCard: React.FC<VisualizerBackgroundSettingsProps> 
 
     return (
         <>
-            <div className="rounded-[24px] border p-4 space-y-4" style={{ backgroundColor: controlCardBg, borderColor }}>
+            <div className="rounded-[24px] border p-4 space-y-4" style={{ backgroundColor: controlCardBg, borderColor }} data-settings-style='{"radius":24,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
                 <BackgroundToggleRow
                     label={t('options.disableVisualizerVignette')}
                     description={t('options.disableVisualizerVignetteDesc')}
@@ -40,12 +40,12 @@ const CommonBackgroundSettingsCard: React.FC<VisualizerBackgroundSettingsProps> 
                 />
             </div>
 
-            <div className="rounded-[24px] border p-4 space-y-4" style={{ backgroundColor: controlCardBg, borderColor }}>
-                <div className="space-y-2">
-                    <div className="text-sm font-medium" style={{ color: theme.primaryColor }}>
+            <div className="rounded-[24px] border p-4 space-y-4" style={{ backgroundColor: controlCardBg, borderColor }} data-settings-style='{"radius":24,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                    <div className="text-sm font-medium" style={{ color: theme.primaryColor }} data-settings-style='{"font":14,"weight":500}' data-settings-layout="column">
                         {t('options.previewCoverBackgroundSettings')}
                     </div>
-                    <div className="text-xs opacity-70" style={{ color: theme.secondaryColor }}>
+                    <div className="text-xs opacity-70" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12}' data-settings-layout="column">
                         {t('options.previewCoverBackgroundSettingsDesc')}
                     </div>
                     <BackgroundToggleRow
@@ -55,9 +55,9 @@ const CommonBackgroundSettingsCard: React.FC<VisualizerBackgroundSettingsProps> 
                         onChange={commonActions?.onCoverColorChange}
                         theme={theme}
                     />
-                    <div className="flex items-center justify-between text-sm" style={{ color: theme.primaryColor }}>
-                        <span>{t('options.previewCoverBackgroundOpacity')}</span>
-                        <span className="font-mono opacity-70" style={{ color: theme.secondaryColor }}>
+                    <div className="flex items-center justify-between text-sm" style={{ color: theme.primaryColor }} data-settings-style='{"align":"between","font":14}' data-settings-layout="row">
+                        <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.previewCoverBackgroundOpacity')}</span>
+                        <span className="font-mono opacity-70" style={{ color: theme.secondaryColor }} data-settings-layout="wrap">
                             {Math.round(opacity * 100)}%
                         </span>
                     </div>
@@ -71,7 +71,7 @@ const CommonBackgroundSettingsCard: React.FC<VisualizerBackgroundSettingsProps> 
                         onPointerDown={onSliderPointerDown}
                         onPointerUp={onSliderCommit}
                         className={rangeInputClass}
-                    />
+                     data-settings-layout="column"/>
                 </div>
             </div>
         </>

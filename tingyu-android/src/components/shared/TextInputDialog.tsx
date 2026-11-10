@@ -72,7 +72,7 @@ const TextInputDialog: React.FC<TextInputDialogProps> = ({
                         onClick={onClose}
                         disabled={isSubmitting}
                         className={`rounded-full border px-5 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${cancelClass}`}
-                    >
+                     data-settings-style='{"radius":64,"border":true,"font":14,"weight":500,"padding":[20,10,20,10]}' data-settings-layout="row">
                         {t('localMusic.cancel')}
                     </button>
                     <button
@@ -80,7 +80,7 @@ const TextInputDialog: React.FC<TextInputDialogProps> = ({
                         onClick={handleConfirm}
                         disabled={isSubmitting || !value.trim()}
                         className="rounded-full bg-sky-500 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-sky-500/20 transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
+                     data-settings-style='{"radius":64,"font":14,"weight":500,"padding":[20,10,20,10]}' data-settings-layout="row">
                         {confirmLabel || t('localMusic.save')}
                     </button>
                 </>
@@ -99,7 +99,7 @@ const TextInputDialog: React.FC<TextInputDialogProps> = ({
                 }}
                 placeholder={placeholder}
                 className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none transition-colors focus:border-sky-400 ${inputClass}`}
-            />
+             data-settings-style='{"radius":16,"border":true,"font":14,"padding":[16,12,16,12]}' data-settings-layout="column"/>
         </ThemedDialog>
     );
 };

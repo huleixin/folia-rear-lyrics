@@ -26,9 +26,9 @@ const SoraBackgroundSettingsCard: React.FC<SoraBackgroundSettingsCardProps> = ({
     const borderColor = colorWithAlpha(theme.secondaryColor, isDaylight ? 0.18 : 0.16);
 
     return (
-        <div className="rounded-[24px] border p-4 space-y-5" style={{ backgroundColor: controlCardBg, borderColor }}>
-            <div className="space-y-1">
-                <div className="text-sm font-medium" style={{ color: theme.primaryColor }}>
+        <div className="rounded-[24px] border p-4 space-y-5" style={{ backgroundColor: controlCardBg, borderColor }} data-settings-style='{"radius":24,"border":true,"gap":20,"padding":[16,16,16,16]}' data-settings-layout="card">
+            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: theme.primaryColor }} data-settings-style='{"font":14,"weight":500}' data-settings-layout="column">
                     {t('options.soraBackgroundSettings')}
                 </div>
             </div>

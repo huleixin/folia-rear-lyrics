@@ -83,13 +83,13 @@ const VideoLayerSettingsSection: React.FC<VideoLayerSettingsSectionProps> = ({
     const hasLocalFile = settings.localFileStatus !== 'none';
 
     return (
-        <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
-            <div className="flex items-center justify-between gap-4">
-                <div className="space-y-1 min-w-0">
-                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+        <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+            <div className="flex items-center justify-between gap-4" data-settings-style='{"align":"between","gap":16}' data-settings-layout="row">
+                <div className="space-y-1 min-w-0" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                         {t('options.videoLayerEnabled')}
                     </div>
-                    <div className="text-xs opacity-50 max-w-[400px]" style={{ color: 'var(--text-secondary)' }}>
+                    <div className="text-xs opacity-50 max-w-[400px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                         {t('options.videoLayerDesc')}
                     </div>
                 </div>
@@ -99,27 +99,27 @@ const VideoLayerSettingsSection: React.FC<VideoLayerSettingsSectionProps> = ({
                     style={{ backgroundColor: settings.enabled ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
                     aria-pressed={settings.enabled}
                     aria-label={t('options.videoLayerEnabled')}
-                >
-                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${settings.enabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                 data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={settings.enabled ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
+                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${settings.enabled ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
                 </button>
             </div>
 
-            <div className={`border-t pt-4 space-y-2 ${settingsDividerClass}`}>
-                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            <div className={`border-t pt-4 space-y-2 ${settingsDividerClass}`} data-settings-style='{"gap":8,"padding":[0,16,0,0]}' data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                     {t('options.videoLayerLocalFile')}
                 </div>
-                <div className="text-xs opacity-50 max-w-[400px]" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-xs opacity-50 max-w-[400px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {t(settings.canPersistLocalFile ? 'options.videoLayerLocalFileDesc' : 'options.videoLayerLocalFileSessionDesc')}
                 </div>
-                <div className="flex flex-wrap items-center gap-2 pt-1">
+                <div className="flex flex-wrap items-center gap-2 pt-1" data-settings-style='{"align":"center","gap":8,"padding":[0,4,0,0]}' data-settings-layout="wrap">
                     <button
                         type="button"
                         onClick={() => void handlePick()}
                         className="px-3 py-1.5 rounded-lg text-xs border transition-all flex items-center gap-1.5"
                         style={getAccentOptionStyle(false)}
-                    >
+                     data-settings-style='{"align":"center","radius":8,"font":12,"border":true,"gap":6,"padding":[12,6,12,6]}' data-settings-layout="row">
                         <FolderOpen size={12} className="opacity-70" />
-                        <span>{t('options.videoLayerPickFile')}</span>
+                        <span data-settings-layout="wrap">{t('options.videoLayerPickFile')}</span>
                     </button>
                     {settings.localFileStatus === 'needs-permission' && (
                         <button
@@ -127,9 +127,9 @@ const VideoLayerSettingsSection: React.FC<VideoLayerSettingsSectionProps> = ({
                             onClick={() => void actions.regrantLocalFile()}
                             className="px-3 py-1.5 rounded-lg text-xs border transition-all flex items-center gap-1.5"
                             style={getAccentOptionStyle(true)}
-                        >
+                         data-settings-style='{"align":"center","radius":8,"font":12,"border":true,"gap":6,"padding":[12,6,12,6]}' data-settings-layout="row">
                             <KeyRound size={12} className="opacity-70" />
-                            <span>{t('options.videoLayerRegrant')}</span>
+                            <span data-settings-layout="wrap">{t('options.videoLayerRegrant')}</span>
                         </button>
                     )}
                     {hasLocalFile && (
@@ -138,14 +138,14 @@ const VideoLayerSettingsSection: React.FC<VideoLayerSettingsSectionProps> = ({
                             onClick={() => void actions.clearLocalFile()}
                             className="px-3 py-1.5 rounded-lg text-xs border transition-all flex items-center gap-1.5"
                             style={getAccentOptionStyle(false)}
-                        >
+                         data-settings-style='{"align":"center","radius":8,"font":12,"border":true,"gap":6,"padding":[12,6,12,6]}' data-settings-layout="row">
                             <Trash2 size={12} className="opacity-70" />
-                            <span>{t('options.videoLayerClearFile')}</span>
+                            <span data-settings-layout="wrap">{t('options.videoLayerClearFile')}</span>
                         </button>
                     )}
                     {hasLocalFile && (
-                        <span className="flex min-w-0 items-center gap-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                            <span className="truncate max-w-[220px]" title={settings.localFileName ?? undefined}>
+                        <span className="flex min-w-0 items-center gap-1 text-xs" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"align":"center","gap":4,"font":12,"tone":"muted"}' data-settings-layout="row">
+                            <span className="truncate max-w-[220px]" title={settings.localFileName ?? undefined} data-settings-layout="wrap">
                                 {settings.localFileName}
                             </span>
                         </span>
@@ -153,11 +153,11 @@ const VideoLayerSettingsSection: React.FC<VideoLayerSettingsSectionProps> = ({
                 </div>
             </div>
 
-            <div className="space-y-2">
-                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                     {t('options.videoLayerUrl')}
                 </div>
-                <div className="text-xs opacity-50 max-w-[400px]" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-xs opacity-50 max-w-[400px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {t('options.videoLayerUrlDesc')}
                 </div>
                 <input
@@ -171,16 +171,16 @@ const VideoLayerSettingsSection: React.FC<VideoLayerSettingsSectionProps> = ({
                     }}
                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs focus:outline-none focus:border-white/30 transition-colors font-mono"
                     style={{ color: 'var(--text-primary)' }}
-                />
+                 data-settings-style='{"fill":true,"border":true,"radius":8,"font":12,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="column"/>
             </div>
 
-            <div className={`border-t pt-4 space-y-4 ${settingsDividerClass}`}>
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            <div className={`border-t pt-4 space-y-4 ${settingsDividerClass}`} data-settings-style='{"gap":16,"padding":[0,16,0,0]}' data-settings-layout="column">
+                <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                    <div className="flex items-center justify-between gap-4" data-settings-style='{"align":"between","gap":16}' data-settings-layout="row">
+                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text","grow":true}' data-settings-layout="column">
                             {t('options.videoLayerOpacity')}
                         </div>
-                        <span className="font-mono text-xs shrink-0" style={{ color: 'var(--text-primary)' }}>
+                        <span className="font-mono text-xs shrink-0" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":12,"tone":"text"}' data-settings-layout="wrap">
                             {Math.round(settings.opacity * 100)}%
                         </span>
                     </div>
@@ -194,14 +194,14 @@ const VideoLayerSettingsSection: React.FC<VideoLayerSettingsSectionProps> = ({
                         className="w-full accent-current"
                         style={{ accentColor: theme?.accentColor }}
                         aria-label={t('options.videoLayerOpacity')}
-                    />
+                     data-settings-layout="column"/>
                 </div>
 
-                <div className="space-y-2">
-                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                         {t('options.videoLayerFit')}
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-3" data-settings-style='{"columns":2,"gap":12}' data-settings-layout="grid">
                         {FIT_OPTIONS.map(([value, labelKey]) => (
                             <button
                                 key={value}
@@ -209,8 +209,8 @@ const VideoLayerSettingsSection: React.FC<VideoLayerSettingsSectionProps> = ({
                                 onClick={() => actions.setFit(value)}
                                 className="flex flex-col items-center gap-2 p-3 rounded-lg border transition-all"
                                 style={getAccentOptionStyle(settings.fit === value)}
-                            >
-                                <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                             data-settings-style='{"align":"center","gap":8,"radius":8,"border":true,"padding":[12,12,12,12]}' data-settings-layout="column">
+                                <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":12,"weight":600,"tone":"text"}' data-settings-layout="wrap">
                                     {t(labelKey)}
                                 </span>
                             </button>
@@ -219,7 +219,7 @@ const VideoLayerSettingsSection: React.FC<VideoLayerSettingsSectionProps> = ({
                 </div>
             </div>
 
-            <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+            <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                 {t('options.videoLayerNotInExport')}
             </div>
         </div>

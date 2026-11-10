@@ -55,12 +55,12 @@ const SonnetSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
         <div
             className="rounded-[24px] border border-white/10 p-4 space-y-4"
             style={{ backgroundColor: controlCardBg }}
-        >
-            <div className="space-y-1">
-                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+         data-settings-style='{"radius":24,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                     {t('options.sonnetSettings')}
                 </div>
-                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-xs opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {t('options.sonnetSettingsDesc')}
                 </div>
             </div>
@@ -72,7 +72,7 @@ const SonnetSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                         borderColor: colorWithAlpha(theme.secondaryColor, isDaylight ? 0.18 : 0.14),
                         backgroundColor: colorWithAlpha(theme.backgroundColor, isDaylight ? 0.24 : 0.34),
                     }}
-                >
+                 data-settings-style='{"radius":16,"border":true,"gap":10,"padding":[14,14,14,14]}' data-settings-layout="card">
                     <SonnetRangeControl
                         label={t('options.sonnetTextureResolution')}
                         value={sonnetTuning.textureResolution}
@@ -84,7 +84,7 @@ const SonnetSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                         onPointerDown={onSliderPointerDown}
                         onPointerUp={onSliderCommit}
                     />
-                    <p className="text-xs leading-relaxed opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                    <p className="text-xs leading-relaxed opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">
                         {t('options.sonnetTexturePerformanceWarning')}
                     </p>
                 </div>
@@ -205,7 +205,7 @@ const SonnetSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     isDaylight={isDaylight}
                     theme={theme}
                 />
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2" data-settings-style='{"gap":16}' data-settings-layout="grid">
                     {visibilityControls.map(control => (
                         <VisualizerPresetGroup
                             key={control.key}

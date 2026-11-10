@@ -121,8 +121,8 @@ const LabSettingsModal: React.FC<LabSettingsModalProps> = ({
             onClick={onChange}
             className={`w-12 h-6 rounded-full p-1 transition-colors ${checked ? '' : toggleOffBackgroundClass}`}
             style={{ backgroundColor: checked ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
-        >
-            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-0'}`} />
+         data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={checked ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
+            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
         </button>
     );
 
@@ -140,91 +140,91 @@ const LabSettingsModal: React.FC<LabSettingsModalProps> = ({
 
     const content = (
         <>
-            <div className={embedded ? "space-y-4" : "flex-1 overflow-y-auto custom-scrollbar px-4 py-5 sm:px-6 relative z-10"}>
-            <div className={embedded ? "space-y-4" : "space-y-4"}>
-                <SettingsAnchor anchorId="labPlayerUi" label={t('options.labPlayerUiSection')} className="space-y-4">
+            <div className={embedded ? "space-y-4" : "flex-1 overflow-y-auto custom-scrollbar px-4 py-5 sm:px-6 relative z-10"} data-settings-style='{"grow":true,"gap":16,"padding":[16,20,16,20]}' data-settings-layout="column">
+            <div className={embedded ? "space-y-4" : "space-y-4"} data-settings-style='{"gap":16}' data-settings-layout="column">
+                <SettingsAnchor anchorId="labPlayerUi" label={t('options.labPlayerUiSection')} className="space-y-4" nativeLayout={{"kind":"column","gap":16}}>
                     <SettingsSectionHeading icon={Settings2} label={t('options.labPlayerUiSection')} />
 
-                                <div className={`p-4 rounded-xl border space-y-3 ${settingsCardClass}`}>
-                                    <div className="space-y-1">
-                                        <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                                <div className={`p-4 rounded-xl border space-y-3 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":12,"padding":[16,16,16,16]}' data-settings-layout="card">
+                                    <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                                        <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                             <Settings2 size={14} />
                                             {t('options.labHidePlayerUi')}
                                         </div>
-                                        <div className="text-xs opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                                        <div className="text-xs opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                             {t('options.labHidePlayerUiDesc')}
                                         </div>
                                     </div>
-                                    <div className="flex flex-wrap gap-2">
+                                    <div className="flex flex-wrap gap-2" data-settings-style='{"gap":8}' data-settings-layout="wrap">
                                         <button
                                             type="button"
                                             onClick={() => onToggleHidePlayerProgressBar(!hidePlayerProgressBar)}
                                             className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm transition-colors ${hidePlayerProgressBar ? 'bg-white/12 border-white/20' : utilityGhostButtonClass}`}
                                             style={{ color: 'var(--text-primary)' }}
-                                        >
-                                            <span className={`flex h-4 w-4 items-center justify-center rounded-sm border ${hidePlayerProgressBar ? 'border-white/30 bg-white/15' : 'border-white/20 bg-transparent'}`}>
+                                         data-settings-style='{"align":"center","gap":8,"radius":64,"border":true,"font":14,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="row">
+                                            <span className={`flex h-4 w-4 items-center justify-center rounded-sm border ${hidePlayerProgressBar ? 'border-white/30 bg-white/15' : 'border-white/20 bg-transparent'}`} data-settings-style='{"align":"center","center":true,"height":16,"width":16,"radius":2,"border":true,"fill":true}' data-settings-layout="row">
                                                 {hidePlayerProgressBar ? <Check size={12} /> : null}
                                             </span>
-                                            <span>{t('options.hidePlayerProgressBar')}</span>
+                                            <span data-settings-layout="wrap">{t('options.hidePlayerProgressBar')}</span>
                                         </button>
                                         <button
                                             type="button"
                                             onClick={() => onToggleHidePlayerTranslationSubtitle(!hidePlayerTranslationSubtitle)}
                                             className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm transition-colors ${hidePlayerTranslationSubtitle ? 'bg-white/12 border-white/20' : utilityGhostButtonClass}`}
                                             style={{ color: 'var(--text-primary)' }}
-                                        >
-                                            <span className={`flex h-4 w-4 items-center justify-center rounded-sm border ${hidePlayerTranslationSubtitle ? 'border-white/30 bg-white/15' : 'border-white/20 bg-transparent'}`}>
+                                         data-settings-style='{"align":"center","gap":8,"radius":64,"border":true,"font":14,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="row">
+                                            <span className={`flex h-4 w-4 items-center justify-center rounded-sm border ${hidePlayerTranslationSubtitle ? 'border-white/30 bg-white/15' : 'border-white/20 bg-transparent'}`} data-settings-style='{"align":"center","center":true,"height":16,"width":16,"radius":2,"border":true,"fill":true}' data-settings-layout="row">
                                                 {hidePlayerTranslationSubtitle ? <Check size={12} /> : null}
                                             </span>
-                                            <span>{t('options.hidePlayerTranslationSubtitle')}</span>
+                                            <span data-settings-layout="wrap">{t('options.hidePlayerTranslationSubtitle')}</span>
                                         </button>
                                         <button
                                             type="button"
                                             onClick={() => onToggleHidePlayerRightPanelButton(!hidePlayerRightPanelButton)}
                                             className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm transition-colors ${hidePlayerRightPanelButton ? 'bg-white/12 border-white/20' : utilityGhostButtonClass}`}
                                             style={{ color: 'var(--text-primary)' }}
-                                        >
-                                            <span className={`flex h-4 w-4 items-center justify-center rounded-sm border ${hidePlayerRightPanelButton ? 'border-white/30 bg-white/15' : 'border-white/20 bg-transparent'}`}>
+                                         data-settings-style='{"align":"center","gap":8,"radius":64,"border":true,"font":14,"padding":[12,8,12,8],"tone":"text"}' data-settings-layout="row">
+                                            <span className={`flex h-4 w-4 items-center justify-center rounded-sm border ${hidePlayerRightPanelButton ? 'border-white/30 bg-white/15' : 'border-white/20 bg-transparent'}`} data-settings-style='{"align":"center","center":true,"height":16,"width":16,"radius":2,"border":true,"fill":true}' data-settings-layout="row">
                                                 {hidePlayerRightPanelButton ? <Check size={12} /> : null}
                                             </span>
-                                            <span>{t('options.hidePlayerRightPanelButton')}</span>
+                                            <span data-settings-layout="wrap">{t('options.hidePlayerRightPanelButton')}</span>
                                         </button>
                                     </div>
                                 </div>
 
-                                <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${settingsCardClass}`}>
-                                    <div className="space-y-1">
-                                        <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                                <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${settingsCardClass}`} data-settings-style='{"align":"between","radius":12,"border":true,"gap":16,"padding":[16,16,16,16],"fill":true}' data-settings-layout="row">
+                                    <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                                        <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                             <GamepadDirectional size={14} />
                                             {t('options.showOpenPanelCloseButton')}
                                         </div>
-                                        <div className="text-xs opacity-50 max-w-[320px]" style={{ color: 'var(--text-secondary)' }}>
+                                        <div className="text-xs opacity-50 max-w-[320px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                             {t('options.showOpenPanelCloseButtonDesc')}
                                         </div>
                                     </div>
                                     {renderToggle(showOpenPanelCloseButton, () => onToggleOpenPanelCloseButton(!showOpenPanelCloseButton))}
                                 </div>
 
-                                <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${settingsCardClass}`}>
-                                    <div className="space-y-1">
-                                        <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                                <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${settingsCardClass}`} data-settings-style='{"align":"between","radius":12,"border":true,"gap":16,"padding":[16,16,16,16],"fill":true}' data-settings-layout="row">
+                                    <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                                        <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                             <ChevronLeft size={14} />
                                             {t('options.alwaysShowPlayerBackButton')}
                                         </div>
-                                        <div className="text-xs opacity-50 max-w-[320px]" style={{ color: 'var(--text-secondary)' }}>
+                                        <div className="text-xs opacity-50 max-w-[320px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                             {t('options.alwaysShowPlayerBackButtonDesc')}
                                         </div>
                                     </div>
                                     {renderToggle(alwaysShowPlayerBackButton, () => onToggleAlwaysShowPlayerBackButton(!alwaysShowPlayerBackButton))}
                                 </div>
 
-                                <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${settingsCardClass}`}>
-                                    <div className="space-y-1">
-                                        <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                                <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${settingsCardClass}`} data-settings-style='{"align":"between","radius":12,"border":true,"gap":16,"padding":[16,16,16,16],"fill":true}' data-settings-layout="row">
+                                    <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                                        <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                             <ChevronsLeftRight size={14} />
                                             {t('options.alwaysShowTrackSwitchButtons')}
                                         </div>
-                                        <div className="text-xs opacity-50 max-w-[320px]" style={{ color: 'var(--text-secondary)' }}>
+                                        <div className="text-xs opacity-50 max-w-[320px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                             {t('options.alwaysShowTrackSwitchButtonsDesc')}
                                         </div>
                                     </div>
@@ -233,32 +233,32 @@ const LabSettingsModal: React.FC<LabSettingsModalProps> = ({
 
                 </SettingsAnchor>
 
-                <SettingsAnchor anchorId="labWindowAndTools" label={t('options.labWindowAndToolsSection')} className="space-y-4">
+                <SettingsAnchor anchorId="labWindowAndTools" label={t('options.labWindowAndToolsSection')} className="space-y-4" nativeLayout={{"kind":"column","gap":16}}>
                     <SettingsSectionHeading icon={Boxes} label={t('options.labWindowAndToolsSection')} divider />
 
-                                <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${settingsCardClass}`}>
-                                    <div className="space-y-1">
-                                        <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                                <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${settingsCardClass}`} data-settings-style='{"align":"between","radius":12,"border":true,"gap":16,"padding":[16,16,16,16],"fill":true}' data-settings-layout="row">
+                                    <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                                        <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                             <Play size={14} />
                                             {t('options.autoPlayOnLaunch')}
                                         </div>
-                                        <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+                                        <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                             {t('options.autoPlayOnLaunchDesc')}
                                         </div>
-                                        <div className="text-[11px] opacity-40 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+                                        <div className="text-[11px] opacity-40 max-w-[360px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                                             {t('options.autoPlayOnLaunchDescSub')}
                                         </div>
                                     </div>
                                     {renderToggle(autoPlayOnLaunch, () => onToggleAutoPlayOnLaunch(!autoPlayOnLaunch))}
                                 </div>
 
-                                {isElectron && <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${settingsCardClass}`}>
-                                    <div className="space-y-1">
-                                        <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                                {isElectron && <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${settingsCardClass}`} data-settings-style='{"align":"between","radius":12,"border":true,"gap":16,"padding":[16,16,16,16],"fill":true}' data-settings-layout="row">
+                                    <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                                        <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                             <Monitor size={14} />
                                             {t('options.alwaysShowMainWindowTitlebar')}
                                         </div>
-                                        <div className="text-xs opacity-50 max-w-[320px]" style={{ color: 'var(--text-secondary)' }}>
+                                        <div className="text-xs opacity-50 max-w-[320px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                             {t('options.alwaysShowMainWindowTitlebarDesc')}
                                         </div>
                                     </div>
@@ -266,13 +266,13 @@ const LabSettingsModal: React.FC<LabSettingsModalProps> = ({
                                 </div>}
 
                                 {isMacElectron && (
-                                    <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${settingsCardClass}`}>
-                                        <div className="space-y-1">
-                                            <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                                    <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${settingsCardClass}`} data-settings-style='{"align":"between","radius":12,"border":true,"gap":16,"padding":[16,16,16,16],"fill":true}' data-settings-layout="row">
+                                        <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                                            <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                                 <Monitor size={14} />
                                                 {t('options.useNativeMacFullscreenButton')}
                                             </div>
-                                            <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+                                            <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                                 {t('options.useNativeMacFullscreenButtonDesc')}
                                             </div>
                                         </div>
@@ -281,13 +281,13 @@ const LabSettingsModal: React.FC<LabSettingsModalProps> = ({
                                 )}
 
                                 {isElectron && (
-                                    <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${settingsCardClass}`}>
-                                        <div className="space-y-1">
-                                            <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                                    <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${settingsCardClass}`} data-settings-style='{"align":"between","radius":12,"border":true,"gap":16,"padding":[16,16,16,16],"fill":true}' data-settings-layout="row">
+                                        <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                                            <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                                 <Moon size={14} />
                                                 {t('options.preventDisplaySleepDuringPlayback')}
                                             </div>
-                                            <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+                                            <div className="text-xs opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                                                 {t('options.preventDisplaySleepDuringPlaybackDesc')}
                                             </div>
                                         </div>
@@ -296,13 +296,13 @@ const LabSettingsModal: React.FC<LabSettingsModalProps> = ({
                                 )}
 
                                 {voiceInputPause?.supported && (
-                                    <div className={`flex items-center justify-between p-4 rounded-xl border transition-colors hover:bg-white/8 ${settingsCardInteractiveClass}`} onClick={voiceInputPause.onToggle}>
-                                        <div className="flex flex-col pr-8">
-                                            <span className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                                    <div className={`flex items-center justify-between p-4 rounded-xl border transition-colors hover:bg-white/8 ${settingsCardInteractiveClass}`} onClick={voiceInputPause.onToggle} data-settings-style='{"align":"between","radius":12,"border":true,"padding":[16,16,16,16],"fill":true}' data-settings-layout="row">
+                                        <div className="flex flex-col pr-8" data-settings-style='{"padding":[0,0,32,0]}' data-settings-layout="column">
+                                            <span className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                                 <Mic size={14} />
                                                 {t('options.voiceInputPause')}
                                             </span>
-                                            <span className="text-xs opacity-50 mt-1 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+                                            <span className="text-xs opacity-50 mt-1 max-w-[360px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="wrap">
                                                 {t('options.voiceInputPauseDesc')}
                                             </span>
                                         </div>
@@ -313,7 +313,7 @@ const LabSettingsModal: React.FC<LabSettingsModalProps> = ({
 
                 {/* 安卓/网页版：AI 凭据由用户自己填并保存在本机。桌面版用主进程里的那份设置。 */}
                 {!isElectronBuild && (
-                    <div className="space-y-4">
+                    <div className="space-y-4" data-settings-style='{"gap":16}' data-settings-layout="column">
                         <SettingsSectionHeading icon={Sparkles} label={t('ui.aiTheme')} divider />
                         <AiProviderSettings settingsCardClass={settingsCardClass} isDaylight={isDaylight} />
                     </div>
@@ -340,38 +340,38 @@ const LabSettingsModal: React.FC<LabSettingsModalProps> = ({
                     style={{ backgroundColor: overlayBackground }}
                     onMouseDown={handleOverlayMouseDown}
                     onClick={handleBackdropClick}
-                >
+                 data-settings-style='{"padding":[12,12,12,12]}' data-settings-layout="column">
                     <motion.div
                         {...panelMotion}
                         transition={shellTransition}
                         className={`mx-auto flex h-full max-w-3xl flex-col overflow-hidden rounded-[32px] border ${borderColor} ${subviewPanelBg} shadow-[0_24px_80px_rgba(0,0,0,0.28)] relative`}
                         onClick={(event) => event.stopPropagation()}
-                    >
-                        <div className="absolute inset-0 pointer-events-none z-0">
+                     data-settings-style='{"radius":32,"border":true}' data-settings-layout="card">
+                        <div className="absolute inset-0 pointer-events-none z-0" data-settings-layout="column">
                             <div 
                                 className={`absolute -top-24 -right-24 w-64 h-64 rounded-full blur-[80px] ${isDaylight ? 'opacity-20' : 'opacity-10'}`} 
                                 style={{ backgroundColor: theme?.accentColor || (isDaylight ? '#60a5fa' : '#3b82f6') }} 
-                            />
+                             data-settings-style='{"width":256,"height":256,"radius":64}' data-settings-layout="column" data-settings-swatch={theme?.accentColor || (isDaylight ? '#60a5fa' : '#3b82f6')}/>
                             <div 
                                 className={`absolute -bottom-24 -left-24 w-64 h-64 rounded-full blur-[80px] ${isDaylight ? 'opacity-20' : 'opacity-10'}`} 
                                 style={{ backgroundColor: theme?.secondaryColor || theme?.accentColor || (isDaylight ? '#c084fc' : '#a855f7') }} 
-                            />
+                             data-settings-style='{"width":256,"height":256,"radius":64}' data-settings-layout="column" data-settings-swatch={theme?.secondaryColor || theme?.accentColor || (isDaylight ? '#c084fc' : '#a855f7')}/>
                         </div>
-                        <div data-native-settings-header className="flex items-center justify-between border-b border-white/10 px-4 py-4 sm:px-6 relative z-10">
-                            <div className="flex items-center gap-3 min-w-0">
+                        <div data-native-settings-header className="flex items-center justify-between border-b border-white/10 px-4 py-4 sm:px-6 relative z-10" data-settings-style='{"align":"between","divider":true,"padding":[16,16,16,16]}' data-settings-layout="row">
+                            <div className="flex items-center gap-3 min-w-0" data-settings-style='{"align":"center","gap":12,"grow":true}' data-settings-layout="row">
                                 <button
                                     type="button"
                                     onClick={onClose}
                                     className={`h-10 w-10 rounded-full border flex items-center justify-center transition-colors ${utilityGhostButtonClass}`}
                                     style={{ color: 'var(--text-primary)' }}
-                                >
+                                 data-settings-style='{"align":"center","center":true,"height":40,"width":40,"radius":64,"border":true,"tone":"text"}' data-settings-layout="row">
                                     <ChevronLeft size={18} />
                                 </button>
-                                <div className="min-w-0">
-                                    <div data-settings-page-title className="text-lg sm:text-xl font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                                <div className="min-w-0" data-settings-layout="column">
+                                    <div data-settings-page-title className="text-lg sm:text-xl font-semibold truncate" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":18,"weight":600,"tone":"text"}' data-settings-layout="column">
                                         {t('options.labSettings')}
                                     </div>
-                                    <div className="text-xs opacity-50 mt-1" style={{ color: 'var(--text-secondary)' }}>
+                                    <div className="text-xs opacity-50 mt-1" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":12,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="column">
                                         {t('options.labSettingsDesc')}
                                     </div>
                                 </div>

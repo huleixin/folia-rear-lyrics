@@ -18,9 +18,9 @@ export default function MobilePlaybackStartupSetting({ isDaylight, settingsCardC
     const enabled = useAudioSettingsStore(state => state.autoPlayOnLaunch);
     const toggle = useAudioSettingsStore(state => state.handleToggleAutoPlayOnLaunch);
     if (!isAndroidNativeRuntime()) return null;
-    return <SettingsAnchor anchorId="playbackStartup" label={t('mobileSettings.playbackStartup')}>
+    return <SettingsAnchor anchorId="playbackStartup" label={t('mobileSettings.playbackStartup')} nativeLayout={{"kind":"column"}}>
         <SettingsSectionHeading icon={PlayCircle} label={t('mobileSettings.playbackStartup')} />
-        <div className={`rounded-xl border ${settingsCardClass}`}>
+        <div className={`rounded-xl border ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true}' data-settings-layout="card">
             <SettingsRow title={t('options.autoPlayOnLaunch')} description={t('mobileSettings.autoPlayDescription')} isLast dividerClass=""
                 control={<SettingsToggle checked={enabled} onChange={() => toggle(!enabled)}
                     ariaLabel={t('options.autoPlayOnLaunch')} offClass={isDaylight ? 'bg-zinc-200' : 'bg-[#2A2D35]'} onColor={theme?.secondaryColor} />} />

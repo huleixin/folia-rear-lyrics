@@ -172,11 +172,11 @@ const TransitionSettingsSection: React.FC<TransitionSettingsSectionProps> = ({
             : null;
 
     return (
-        <SettingsAnchor anchorId="transitionSettings" label={t('options.transitionSettings')}>
+        <SettingsAnchor anchorId="transitionSettings" label={t('options.transitionSettings')} nativeLayout={{"kind":"column"}}>
             <SettingsSectionHeading icon={Blend} label={t('options.transitionSettings')} />
-            <div className={`rounded-xl border overflow-hidden ${settingsCardClass}`}>
-                <div className="p-4 flex items-start justify-between gap-4">
-                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            <div className={`rounded-xl border overflow-hidden ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true}' data-settings-layout="card">
+                <div className="p-4 flex items-start justify-between gap-4" data-settings-style='{"align":"between","gap":16,"padding":[16,16,16,16]}' data-settings-layout="row">
+                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text","grow":true}' data-settings-layout="column">
                         {t('options.transitionEnable')}
                     </div>
                     <button
@@ -186,19 +186,19 @@ const TransitionSettingsSection: React.FC<TransitionSettingsSectionProps> = ({
                         style={{ backgroundColor: automixEnabled ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
                         aria-pressed={automixEnabled}
                         aria-label={t('options.transitionEnable')}
-                    >
-                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${automixEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                     data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={automixEnabled ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
+                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${automixEnabled ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
                     </button>
                 </div>
 
                 <div
                     className={`p-4 space-y-3 border-t transition-opacity ${automixEnabled ? 'opacity-100' : 'opacity-45 pointer-events-none'}`}
                     style={{ borderColor: 'var(--border-primary, rgba(255,255,255,0.06))' }}
-                >
-                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                 data-settings-style='{"gap":12,"padding":[16,16,16,16]}' data-settings-layout="column">
+                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                         {t('options.transitionMode')}
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" data-settings-style='{"columns":1,"gap":8}' data-settings-layout="grid">
                         {modes.map((mode) => {
                             const selected = transitionMode === mode.value;
                             return (
@@ -210,22 +210,22 @@ const TransitionSettingsSection: React.FC<TransitionSettingsSectionProps> = ({
                                     className="rounded-xl border px-3 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-45"
                                     style={getAccentOptionStyle(selected)}
                                     aria-pressed={selected}
-                                >
-                                    <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                                 data-settings-style='{"radius":12,"border":true,"padding":[12,12,12,12]}' data-settings-layout="column">
+                                    <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                         {mode.icon}
                                         {mode.label}
                                         {selected && (
                                             <span
                                                 className="ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
                                                 style={{ backgroundColor: `${accentOutlineColor}24`, color: 'var(--text-primary)' }}
-                                            >
+                                             data-settings-style='{"radius":64,"font":10,"weight":600,"padding":[8,2,8,2],"tone":"text"}' data-settings-layout="wrap">
                                                 {effectiveMode === mode.value
                                                     ? t('options.transitionActive')
                                                     : t('options.transitionFellBack')}
                                             </span>
                                         )}
                                     </div>
-                                    <div className="mt-1 text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                                    <div className="mt-1 text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="column">
                                         {mode.desc}
                                     </div>
                                 </button>
@@ -234,10 +234,10 @@ const TransitionSettingsSection: React.FC<TransitionSettingsSectionProps> = ({
                     </div>
 
                     {transitionMode === 'crossfade' ? (
-                        <div className="space-y-3 pt-1">
-                            <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }}>
-                                <span>{t('options.crossfadeMaxSeconds')}</span>
-                                <span className="font-mono opacity-70 tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="space-y-3 pt-1" data-settings-style='{"gap":12,"padding":[0,4,0,0]}' data-settings-layout="column">
+                            <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","font":14,"tone":"text"}' data-settings-layout="row">
+                                <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.crossfadeMaxSeconds')}</span>
+                                <span className="font-mono opacity-70 tabular-nums" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                                     {t('options.crossfadeSecondsValue', { seconds: crossfadeMaxSec })}
                                 </span>
                             </div>
@@ -250,14 +250,14 @@ const TransitionSettingsSection: React.FC<TransitionSettingsSectionProps> = ({
                                 onChange={(event) => onSetCrossfadeMaxSec(Number(event.target.value))}
                                 className={rangeInputClass}
                                 aria-label={t('options.crossfadeMaxSeconds')}
-                            />
-                            <div className="flex justify-between text-[11px] font-mono opacity-60" style={{ color: 'var(--text-secondary)' }}>
-                                <span>{t('options.crossfadeSecondsValue', { seconds: CROSSFADE_MIN_SEC })}</span>
-                                <span>{t('options.crossfadeSecondsValue', { seconds: CROSSFADE_MAX_SEC })}</span>
+                             data-settings-layout="column"/>
+                            <div className="flex justify-between text-[11px] font-mono opacity-60" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"align":"between","font":11,"tone":"muted"}' data-settings-layout="row">
+                                <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.crossfadeSecondsValue', { seconds: CROSSFADE_MIN_SEC })}</span>
+                                <span data-settings-layout="wrap">{t('options.crossfadeSecondsValue', { seconds: CROSSFADE_MAX_SEC })}</span>
                             </div>
                         </div>
                     ) : (
-                        <div className="space-y-2 pt-1">
+                        <div className="space-y-2 pt-1" data-settings-style='{"gap":8,"padding":[0,4,0,0]}' data-settings-layout="column">
                             {/* First, not last. This is the one line on the page that says the mode
                                 below it will not do what it says, and at the bottom of a panel of
                                 switches it read as a footnote to them. */}
@@ -270,16 +270,16 @@ const TransitionSettingsSection: React.FC<TransitionSettingsSectionProps> = ({
                                         color: isDaylight ? '#92400e' : '#fcd34d',
                                     }}
                                     role="status"
-                                >
+                                 data-settings-style='{"gap":8,"radius":8,"border":true,"font":11,"padding":[12,10,12,10],"fill":true}' data-settings-layout="row">
                                     <AlertTriangle size={14} className="mt-px shrink-0" />
-                                    <div className="min-w-0 font-medium">
+                                    <div className="min-w-0 font-medium" data-settings-style='{"weight":500}' data-settings-layout="column">
                                         {notice.text}
                                         {notice.fix && (
                                             <button
                                                 type="button"
                                                 onClick={notice.fix}
                                                 className="ml-2 font-semibold underline underline-offset-2"
-                                            >
+                                             data-settings-style='{"weight":600,"margin":[8,0,0,0]}' data-settings-layout="row">
                                                 {t('options.transitionAutomixEnableCache')}
                                             </button>
                                         )}
@@ -293,7 +293,7 @@ const TransitionSettingsSection: React.FC<TransitionSettingsSectionProps> = ({
                             <div
                                 className="flex items-center gap-2 text-[11px]"
                                 style={{ color: 'var(--text-secondary)' }}
-                            >
+                             data-settings-style='{"align":"center","gap":8,"font":11,"tone":"muted"}' data-settings-layout="row">
                                 <span
                                     className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide shrink-0"
                                     style={{
@@ -302,10 +302,10 @@ const TransitionSettingsSection: React.FC<TransitionSettingsSectionProps> = ({
                                             : isDaylight ? 'rgba(24,24,27,0.08)' : 'rgba(255,255,255,0.08)',
                                         color: 'var(--text-primary)',
                                     }}
-                                >
+                                 data-settings-style='{"radius":64,"font":10,"weight":600,"padding":[8,2,8,2],"tone":"text"}' data-settings-layout="wrap">
                                     {t(capabilities.full ? 'options.transitionEngineFull' : 'options.transitionEngineLite')}
                                 </span>
-                                <span className="opacity-60">
+                                <span className="opacity-60" data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                                     {t(capabilities.full
                                         ? 'options.transitionEngineFullDesc'
                                         : awaitingModels
@@ -324,13 +324,13 @@ const TransitionSettingsSection: React.FC<TransitionSettingsSectionProps> = ({
                                 style={{
                                     borderColor: isDaylight ? 'rgba(24, 24, 27, 0.12)' : 'rgba(255, 255, 255, 0.1)',
                                 }}
-                            >
-                                <div className="min-w-0">
-                                    <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                             data-settings-style='{"align":"between","gap":16,"radius":8,"border":true,"padding":[12,12,12,12],"fill":true}' data-settings-layout="row">
+                                <div className="min-w-0" data-settings-layout="column">
+                                    <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                         <Sparkles size={14} />
                                         {t('options.transitionPerformance')}
                                     </div>
-                                    <div className="mt-1 text-[11px] leading-relaxed opacity-60 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                                    <div className="mt-1 text-[11px] leading-relaxed opacity-60 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="column">
                                         {capabilities.stems
                                             ? t('options.transitionPerformanceDesc')
                                             : t(capabilities.desktop
@@ -346,8 +346,8 @@ const TransitionSettingsSection: React.FC<TransitionSettingsSectionProps> = ({
                                     style={{ backgroundColor: transitionPerformance && capabilities.stems ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
                                     aria-pressed={transitionPerformance && capabilities.stems}
                                     aria-label={t('options.transitionPerformance')}
-                                >
-                                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${transitionPerformance && capabilities.stems ? 'translate-x-6' : 'translate-x-0'}`} />
+                                 data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={transitionPerformance && capabilities.stems ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
+                                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${transitionPerformance && capabilities.stems ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
                                 </button>
                             </div>
                             {/* Two pictures of one blend, each with its own switch: the ring in the
@@ -365,26 +365,26 @@ const TransitionSettingsSection: React.FC<TransitionSettingsSectionProps> = ({
                                 style={{
                                     borderColor: isDaylight ? 'rgba(24, 24, 27, 0.12)' : 'rgba(255, 255, 255, 0.1)',
                                 }}
-                            >
+                             data-settings-style='{"radius":8,"border":true}' data-settings-layout="card">
                                 <button
                                     type="button"
                                     onClick={() => setAnimationOpen(open => !open)}
                                     aria-expanded={animationOpen}
                                     className="flex w-full items-start justify-between gap-4 px-3 py-3 text-left"
-                                >
-                                    <div className="min-w-0">
-                                        <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                                 data-settings-style='{"align":"between","gap":16,"padding":[12,12,12,12]}' data-settings-layout="row">
+                                    <div className="min-w-0" data-settings-style='{"grow":true}' data-settings-layout="column">
+                                        <div className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"center","font":14,"weight":500,"gap":8,"tone":"text"}' data-settings-layout="row">
                                             <Orbit size={14} />
                                             {t('options.transitionAnimation')}
                                         </div>
-                                        <div className="mt-1 text-[11px] leading-relaxed opacity-60 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                                        <div className="mt-1 text-[11px] leading-relaxed opacity-60 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="column">
                                             {t('options.transitionAnimationDesc')}
                                         </div>
                                     </div>
-                                    <div className="flex shrink-0 items-center gap-2 pt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                                    <div className="flex shrink-0 items-center gap-2 pt-0.5" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"align":"center","gap":8,"padding":[0,2,0,0],"tone":"muted"}' data-settings-layout="row">
                                         {/* Which of the two are on, without opening it. Named rather
                                             than counted: "one of two" does not say which. */}
-                                        <span className="text-[11px] opacity-70">
+                                        <span className="text-[11px] opacity-70" data-settings-style='{"font":11}' data-settings-layout="wrap">
                                             {[
                                                 transitionAnimation ? t('options.transitionAnimationRing') : null,
                                                 transitionAnimationCard ? t('options.transitionAnimationCard') : null,
@@ -400,14 +400,14 @@ const TransitionSettingsSection: React.FC<TransitionSettingsSectionProps> = ({
                                     <div
                                         className="space-y-3 border-t px-3 py-3"
                                         style={{ borderColor: isDaylight ? 'rgba(24, 24, 27, 0.12)' : 'rgba(255, 255, 255, 0.1)' }}
-                                    >
+                                     data-settings-style='{"gap":12,"padding":[12,12,12,12]}' data-settings-layout="column">
                                         {animationSwitches.map(({ key, label, desc, on, onToggle }) => (
-                                            <div key={key} className="flex items-start justify-between gap-4">
-                                                <div className="min-w-0">
-                                                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                                            <div key={key} className="flex items-start justify-between gap-4" data-settings-style='{"align":"between","gap":16}' data-settings-layout="row">
+                                                <div className="min-w-0" data-settings-style='{"grow":true}' data-settings-layout="column">
+                                                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                                         {label}
                                                     </div>
-                                                    <div className="mt-1 text-[11px] leading-relaxed opacity-60 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                                                    <div className="mt-1 text-[11px] leading-relaxed opacity-60 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="column">
                                                         {desc}
                                                     </div>
                                                 </div>
@@ -422,8 +422,8 @@ const TransitionSettingsSection: React.FC<TransitionSettingsSectionProps> = ({
                                                     style={{ backgroundColor: on ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined }}
                                                     aria-pressed={on}
                                                     aria-label={label}
-                                                >
-                                                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${on ? 'translate-x-6' : 'translate-x-0'}`} />
+                                                 data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={on ? theme?.secondaryColor || 'rgba(114, 119, 134, 1)' : undefined}>
+                                                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${on ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
                                                 </button>
                                             </div>
                                         ))}

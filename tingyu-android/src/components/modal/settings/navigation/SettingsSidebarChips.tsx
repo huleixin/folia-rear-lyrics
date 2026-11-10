@@ -28,7 +28,7 @@ export const SettingsSidebarChips: React.FC<SettingsSidebarChipsProps> = ({
             ref={scrollContainerRef}
             {...handlers}
             className={`w-full shrink-0 overflow-x-auto mobile-hide-scrollbar custom-scrollbar pr-0 flex flex-row space-x-2 space-y-0 border-b border-white/10 pb-3 mb-2 items-center ${isDragging ? 'cursor-grabbing select-none' : 'cursor-default'}`}
-        >
+         data-settings-style='{"align":"center","gap":0,"divider":true,"padding":[0,0,0,12],"margin":[0,0,0,8]}' data-settings-layout="row">
             {items.map((section) => {
                 const Icon = section.icon;
                 const isActive = activeSectionId === section.id;
@@ -41,12 +41,12 @@ export const SettingsSidebarChips: React.FC<SettingsSidebarChipsProps> = ({
                             onSelectSection(section.id);
                         }}
                         className={`shrink-0 w-auto p-2 rounded-xl border transition-colors flex items-center justify-center gap-2 text-left ${isActive ? (isDaylight ? 'border-zinc-300/70 bg-white/80' : 'border-white/20 bg-white/10') : (isDaylight ? 'border-transparent hover:bg-white/50' : 'border-transparent hover:bg-white/5')}`}
-                    >
-                        <div className="flex items-center gap-2">
-                            <div className="opacity-70" style={{ color: 'var(--text-primary)' }}>
+                     data-settings-style='{"align":"center","center":true,"radius":12,"border":true,"gap":8,"padding":[8,8,8,8]}' data-settings-layout="row">
+                        <div className="flex items-center gap-2" data-settings-style='{"align":"center","gap":8}' data-settings-layout="row">
+                            <div className="opacity-70" style={{ color: 'var(--text-primary)' }} data-settings-style='{"tone":"text"}' data-settings-layout="column">
                                 <Icon size={18} />
                             </div>
-                            <div className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
+                            <div className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                 {section.label}
                             </div>
                         </div>

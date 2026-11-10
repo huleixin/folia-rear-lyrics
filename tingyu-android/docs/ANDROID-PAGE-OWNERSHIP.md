@@ -121,3 +121,11 @@ React 负责数据、路由、业务动作与原生桥接；Compose 负责绘制
   `-I C:/tb/exclude-native-graphics.gradle -I C:/tb/fork-per-class.gradle`；
   被排除的 4 个渲染类（`MinimalParityTest` / `MinimalScreenshotTest` / `NativeSettingsTouchTest` /
   `PlayerSurfaceMotionTest`）只能在真机或 CI 上验。
+
+### 2026-11-10 设置排版恢复
+
+当前设置文档的 `flow.layout` 保存源页面显式声明的卡片/行/网格/文本层级，
+`SettingsLayoutView` + 行内原生控件按该树排版。不得再只下发扁平控件后自动拼成列表。
+声明来自源 JSX 的设计 token；生产适配器不采集浏览器坐标、文字折行或滚动偏移。
+既有无 layout 的历史 flow 仍兼容，但当前页面均应生成 layout。实时预览仍是原白名单岛，
+其位置由 Compose 提供，原生覆盖按钮不会新增 WebView UI。详见 ANDROID-NATIVE-SETTINGS.md。

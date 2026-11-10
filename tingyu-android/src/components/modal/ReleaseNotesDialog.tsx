@@ -57,14 +57,14 @@ const ReleaseNotesDialog: React.FC<ReleaseNotesDialogProps> = ({ isOpen, isDayli
             aria-modal="true"
             aria-labelledby="release-notes-title"
             onClick={onClose}
-        >
+         data-settings-style='{"align":"center","center":true,"fill":true,"padding":[16,16,16,16]}' data-settings-layout="row">
             <motion.div
                 {...overlayPanelMotionFor(calm)}
                 className={`relative max-h-[86vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border p-7 shadow-2xl ${
                     isDaylight ? 'border-zinc-200 bg-white' : 'border-zinc-800 bg-[#18181b]'
                 }`}
                 onClick={event => event.stopPropagation()}
-            >
+             data-settings-style='{"border":true,"padding":[28,28,28,28]}' data-settings-layout="column">
                 <button
                     type="button"
                     data-testid="release-notes-close"
@@ -72,16 +72,16 @@ const ReleaseNotesDialog: React.FC<ReleaseNotesDialogProps> = ({ isOpen, isDayli
                     aria-label={t('ui.close')}
                     className="absolute right-5 top-5 rounded-full p-2 opacity-50 transition-opacity hover:opacity-100"
                     style={{ color: 'var(--text-primary)' }}
-                >
+                 data-settings-style='{"radius":64,"tone":"text","padding":[8,8,8,8]}' data-settings-layout="row">
                     <X size={18} />
                 </button>
-                <h2 id="release-notes-title" className={`mb-5 pr-12 text-2xl font-bold ${classes.textPrimary}`}>
+                <h2 id="release-notes-title" className={`mb-5 pr-12 text-2xl font-bold ${classes.textPrimary}`} data-settings-style='{"font":24,"weight":700,"padding":[0,0,48,0],"margin":[0,0,0,20]}' data-settings-layout="wrap">
                     {t('help.releaseNotes')}
                 </h2>
                 <div
                     className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full blur-[70px]"
                     style={{ backgroundColor: theme?.accentColor || '#f43f5e', opacity: 0.14 }}
-                />
+                 data-settings-style='{"height":160,"width":160,"radius":64}' data-settings-layout="column" data-settings-swatch={theme?.accentColor || '#f43f5e'}/>
                 <NewFeaturesIntro isDaylight={isDaylight} classes={classes} />
             </motion.div>
         </motion.div>

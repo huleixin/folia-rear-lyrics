@@ -41,10 +41,10 @@ const BravaisSettingsSection: React.FC<BravaisSettingsSectionProps> = ({ isDayli
     const toggleOnColor = theme?.secondaryColor;
 
     return (
-        <SettingsAnchor anchorId="bravaisSettings" label={t('options.bravaisSettings')}>
+        <SettingsAnchor anchorId="bravaisSettings" label={t('options.bravaisSettings')} nativeLayout={{"kind":"column"}}>
             <SettingsSectionHeading icon={LayoutGrid} label={t('options.bravaisSettings')} />
-            <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-bravais-settings="">
-                <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+            <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-bravais-settings="" data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                     {t('options.bravaisSettingsDesc')}
                 </div>
                 <LibraryWallLookSettings isDaylight={isDaylight} accentColor={accentColor} />

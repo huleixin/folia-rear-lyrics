@@ -1,0 +1,999 @@
+{
+  "key": "settings-flow:qa",
+  "title": "图形",
+  "nodes": [
+    {
+      "id": "form:644",
+      "kind": "action",
+      "title": "使用说明",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "icon": "circle-question-mark"
+    },
+    {
+      "id": "form:645",
+      "kind": "group",
+      "title": "性能与背景"
+    },
+    {
+      "id": "form:646",
+      "kind": "switch",
+      "title": "歌词舞台静态模式",
+      "value": "1",
+      "disabled": false,
+      "hint": "禁用几何背景以节省资源。\n不会影响歌词文本效果或渲染。",
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "detail": "✓"
+    },
+    {
+      "id": "form:647",
+      "kind": "switch",
+      "title": "动画帧率上限",
+      "value": "0",
+      "disabled": false,
+      "hint": "限制界面动画的最高刷新频率以降低负载，不改变音乐播放速度；实际帧率由设备和系统决定。",
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:648:text:4",
+      "kind": "note",
+      "title": "限制档位"
+    },
+    {
+      "id": "form:649:text:5",
+      "kind": "note",
+      "title": "120"
+    },
+    {
+      "id": "form:649:text:6",
+      "kind": "note",
+      "title": "FPS"
+    },
+    {
+      "id": "form:650",
+      "kind": "slider",
+      "title": "限制档位",
+      "value": "3",
+      "disabled": true,
+      "hint": "限制界面动画的最高刷新频率以降低负载，不改变音乐播放速度；实际帧率由设备和系统决定。",
+      "min": 0,
+      "max": 3,
+      "step": 1,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "range",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:651:text:8",
+      "kind": "note",
+      "title": "30"
+    },
+    {
+      "id": "form:652:text:9",
+      "kind": "note",
+      "title": "60"
+    },
+    {
+      "id": "form:653:text:10",
+      "kind": "note",
+      "title": "90"
+    },
+    {
+      "id": "form:654:text:11",
+      "kind": "note",
+      "title": "120"
+    },
+    {
+      "id": "form:655",
+      "kind": "group",
+      "title": "降低动态效果"
+    },
+    {
+      "id": "form:656:text:13",
+      "kind": "note",
+      "title": "Folia 默认播放完整动画，不再自行跟随系统的动画设置。想让哪一处安静下来，就在下面关掉它。"
+    },
+    {
+      "id": "form:657:text:14",
+      "kind": "note",
+      "title": "跟随系统设置"
+    },
+    {
+      "id": "form:658:text:15",
+      "kind": "note",
+      "title": "让系统的动画设置重新决定全部动效，也就是旧版本一直以来的行为。"
+    },
+    {
+      "id": "form:659",
+      "kind": "switch",
+      "title": "跟随系统设置",
+      "value": "0",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:660:text:17",
+      "kind": "note",
+      "title": "Monet 背景漂移"
+    },
+    {
+      "id": "form:661:text:18",
+      "kind": "note",
+      "title": "由封面生成的背景图那层缓慢漂移。"
+    },
+    {
+      "id": "form:662",
+      "kind": "switch",
+      "title": "Monet 背景漂移",
+      "value": "0",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:663:text:20",
+      "kind": "note",
+      "title": "界面微动效"
+    },
+    {
+      "id": "form:664:text:21",
+      "kind": "note",
+      "title": "减少底部播放器切换位置、连接按钮等界面动画。"
+    },
+    {
+      "id": "form:665",
+      "kind": "switch",
+      "title": "界面微动效",
+      "value": "0",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:666:text:23",
+      "kind": "note",
+      "title": "设置页平滑滚动"
+    },
+    {
+      "id": "form:667:text:24",
+      "kind": "note",
+      "title": "跳转到某个设置分区时是滑过去，还是直接落到位。"
+    },
+    {
+      "id": "form:668",
+      "kind": "switch",
+      "title": "设置页平滑滚动",
+      "value": "0",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    }
+  ],
+  "layout": {
+    "id": "page:form:702",
+    "kind": "column",
+    "style": {
+      "padding": [
+        22,
+        0,
+        22,
+        0
+      ]
+    },
+    "children": [
+      {
+        "id": "form:670",
+        "kind": "column",
+        "style": {
+          "gap": 32
+        },
+        "children": [
+          {
+            "id": "form:671",
+            "kind": "column",
+            "style": {
+              "gap": 20
+            },
+            "children": [
+              {
+                "id": "form:672",
+                "kind": "column",
+                "style": {
+                  "kind": "column",
+                  "gap": 16
+                },
+                "children": [
+                  {
+                    "id": "form:645",
+                    "kind": "row",
+                    "style": {
+                      "align": "center",
+                      "font": 14,
+                      "weight": 700,
+                      "tone": "muted",
+                      "gap": 8,
+                      "margin": [
+                        0,
+                        0,
+                        0,
+                        16
+                      ],
+                      "padding": [
+                        0,
+                        0,
+                        0,
+                        0
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "form:673",
+                        "kind": "icon",
+                        "icon": "monitor-cog",
+                        "style": {
+                          "width": 14,
+                          "height": 14
+                        }
+                      },
+                      {
+                        "id": "copy:1",
+                        "kind": "text",
+                        "text": "性能与背景"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:674",
+                    "kind": "card",
+                    "style": {
+                      "radius": 12,
+                      "border": true
+                    },
+                    "children": [
+                      {
+                        "id": "form:675",
+                        "kind": "column",
+                        "style": {
+                          "gap": 12,
+                          "padding": [
+                            16,
+                            16,
+                            16,
+                            16
+                          ],
+                          "divider": true
+                        },
+                        "children": [
+                          {
+                            "id": "form:676",
+                            "kind": "row",
+                            "style": {
+                              "align": "between",
+                              "gap": 16
+                            },
+                            "children": [
+                              {
+                                "id": "form:677",
+                                "kind": "column",
+                                "style": {
+                                  "gap": 4,
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:678",
+                                    "kind": "row",
+                                    "style": {
+                                      "align": "center",
+                                      "font": 14,
+                                      "weight": 500,
+                                      "gap": 8,
+                                      "tone": "text"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:2",
+                                        "kind": "text",
+                                        "text": "歌词舞台静态模式"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:679",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 12,
+                                      "tone": "muted"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:3",
+                                        "kind": "text",
+                                        "text": "禁用几何背景以节省资源。"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:680",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 11,
+                                      "tone": "muted"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:4",
+                                        "kind": "text",
+                                        "text": "不会影响歌词文本效果或渲染。"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "layout:form:646",
+                                "kind": "control",
+                                "ref": "form:646",
+                                "style": {
+                                  "width": 48,
+                                  "height": 24,
+                                  "radius": 64,
+                                  "padding": [
+                                    4,
+                                    4,
+                                    4,
+                                    4
+                                  ]
+                                },
+                                "text": "#71717a"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:681",
+                        "kind": "column",
+                        "style": {
+                          "gap": 12,
+                          "padding": [
+                            16,
+                            16,
+                            16,
+                            16
+                          ],
+                          "divider": true
+                        },
+                        "children": [
+                          {
+                            "id": "form:682",
+                            "kind": "row",
+                            "style": {
+                              "align": "between",
+                              "gap": 16
+                            },
+                            "children": [
+                              {
+                                "id": "form:683",
+                                "kind": "column",
+                                "style": {
+                                  "gap": 4,
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:684",
+                                    "kind": "row",
+                                    "style": {
+                                      "align": "center",
+                                      "font": 14,
+                                      "weight": 500,
+                                      "gap": 8,
+                                      "tone": "text"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:5",
+                                        "kind": "text",
+                                        "text": "动画帧率上限"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:685",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 12,
+                                      "tone": "muted"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:6",
+                                        "kind": "text",
+                                        "text": "限制界面动画的最高刷新频率以降低负载，不改变音乐播放速度；实际帧率由设备和系统决定。"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "layout:form:647",
+                                "kind": "control",
+                                "ref": "form:647",
+                                "style": {
+                                  "width": 48,
+                                  "height": 24,
+                                  "radius": 64,
+                                  "padding": [
+                                    4,
+                                    4,
+                                    4,
+                                    4
+                                  ]
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:686",
+                            "kind": "column",
+                            "style": {
+                              "gap": 12
+                            },
+                            "children": [
+                              {
+                                "id": "form:687",
+                                "kind": "row",
+                                "style": {
+                                  "align": "between",
+                                  "gap": 12,
+                                  "font": 12,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:648",
+                                    "kind": "wrap",
+                                    "style": {
+                                      "grow": true
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:7",
+                                        "kind": "text",
+                                        "text": "限制档位"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:649",
+                                    "kind": "wrap",
+                                    "style": {},
+                                    "children": [
+                                      {
+                                        "id": "copy:8",
+                                        "kind": "text",
+                                        "text": "120 FPS"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "layout:form:650",
+                                "kind": "control",
+                                "ref": "form:650",
+                                "style": {}
+                              },
+                              {
+                                "id": "form:688",
+                                "kind": "row",
+                                "style": {
+                                  "align": "between",
+                                  "font": 11,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:651",
+                                    "kind": "wrap",
+                                    "style": {},
+                                    "children": [
+                                      {
+                                        "id": "copy:9",
+                                        "kind": "text",
+                                        "text": "30"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:652",
+                                    "kind": "wrap",
+                                    "style": {},
+                                    "children": [
+                                      {
+                                        "id": "copy:10",
+                                        "kind": "text",
+                                        "text": "60"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:653",
+                                    "kind": "wrap",
+                                    "style": {},
+                                    "children": [
+                                      {
+                                        "id": "copy:11",
+                                        "kind": "text",
+                                        "text": "90"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:654",
+                                    "kind": "wrap",
+                                    "style": {},
+                                    "children": [
+                                      {
+                                        "id": "copy:12",
+                                        "kind": "text",
+                                        "text": "120"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:689",
+                "kind": "column",
+                "style": {
+                  "kind": "column",
+                  "gap": 16
+                },
+                "children": [
+                  {
+                    "id": "form:655",
+                    "kind": "row",
+                    "style": {
+                      "align": "center",
+                      "font": 14,
+                      "weight": 700,
+                      "tone": "muted",
+                      "gap": 8,
+                      "margin": [
+                        0,
+                        0,
+                        0,
+                        16
+                      ],
+                      "padding": [
+                        0,
+                        0,
+                        0,
+                        0
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "form:690",
+                        "kind": "icon",
+                        "icon": "gauge",
+                        "style": {
+                          "width": 14,
+                          "height": 14
+                        }
+                      },
+                      {
+                        "id": "copy:13",
+                        "kind": "text",
+                        "text": "降低动态效果"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:691",
+                    "kind": "card",
+                    "style": {
+                      "radius": 12,
+                      "border": true,
+                      "gap": 16,
+                      "padding": [
+                        16,
+                        16,
+                        16,
+                        16
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "form:656",
+                        "kind": "column",
+                        "style": {
+                          "font": 12,
+                          "tone": "muted"
+                        },
+                        "children": [
+                          {
+                            "id": "copy:14",
+                            "kind": "text",
+                            "text": "Folia 默认播放完整动画，不再自行跟随系统的动画设置。想让哪一处安静下来，就在下面关掉它。"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:692",
+                        "kind": "column",
+                        "style": {
+                          "padding": [
+                            0,
+                            16,
+                            0,
+                            0
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "form:693",
+                            "kind": "row",
+                            "style": {
+                              "align": "between",
+                              "gap": 16
+                            },
+                            "children": [
+                              {
+                                "id": "form:694",
+                                "kind": "column",
+                                "style": {
+                                  "gap": 4,
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:657",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 14,
+                                      "weight": 500,
+                                      "tone": "text"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:15",
+                                        "kind": "text",
+                                        "text": "跟随系统设置"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:658",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 12,
+                                      "tone": "muted"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:16",
+                                        "kind": "text",
+                                        "text": "让系统的动画设置重新决定全部动效，也就是旧版本一直以来的行为。"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "layout:form:659",
+                                "kind": "control",
+                                "ref": "form:659",
+                                "style": {
+                                  "width": 48,
+                                  "height": 24,
+                                  "radius": 64,
+                                  "padding": [
+                                    4,
+                                    4,
+                                    4,
+                                    4
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:695",
+                        "kind": "column",
+                        "style": {
+                          "gap": 16,
+                          "padding": [
+                            0,
+                            16,
+                            0,
+                            0
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "form:696",
+                            "kind": "row",
+                            "style": {
+                              "align": "between",
+                              "gap": 16
+                            },
+                            "children": [
+                              {
+                                "id": "form:697",
+                                "kind": "column",
+                                "style": {
+                                  "gap": 4,
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:660",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 14,
+                                      "weight": 500,
+                                      "tone": "text"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:17",
+                                        "kind": "text",
+                                        "text": "Monet 背景漂移"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:661",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 12,
+                                      "tone": "muted"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:18",
+                                        "kind": "text",
+                                        "text": "由封面生成的背景图那层缓慢漂移。"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "layout:form:662",
+                                "kind": "control",
+                                "ref": "form:662",
+                                "style": {
+                                  "width": 48,
+                                  "height": 24,
+                                  "radius": 64,
+                                  "padding": [
+                                    4,
+                                    4,
+                                    4,
+                                    4
+                                  ]
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:698",
+                            "kind": "row",
+                            "style": {
+                              "align": "between",
+                              "gap": 16
+                            },
+                            "children": [
+                              {
+                                "id": "form:699",
+                                "kind": "column",
+                                "style": {
+                                  "gap": 4,
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:663",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 14,
+                                      "weight": 500,
+                                      "tone": "text"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:19",
+                                        "kind": "text",
+                                        "text": "界面微动效"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:664",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 12,
+                                      "tone": "muted"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:20",
+                                        "kind": "text",
+                                        "text": "减少底部播放器切换位置、连接按钮等界面动画。"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "layout:form:665",
+                                "kind": "control",
+                                "ref": "form:665",
+                                "style": {
+                                  "width": 48,
+                                  "height": 24,
+                                  "radius": 64,
+                                  "padding": [
+                                    4,
+                                    4,
+                                    4,
+                                    4
+                                  ]
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:700",
+                            "kind": "row",
+                            "style": {
+                              "align": "between",
+                              "gap": 16
+                            },
+                            "children": [
+                              {
+                                "id": "form:701",
+                                "kind": "column",
+                                "style": {
+                                  "gap": 4,
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:666",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 14,
+                                      "weight": 500,
+                                      "tone": "text"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:21",
+                                        "kind": "text",
+                                        "text": "设置页平滑滚动"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:667",
+                                    "kind": "column",
+                                    "style": {
+                                      "font": 12,
+                                      "tone": "muted"
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:22",
+                                        "kind": "text",
+                                        "text": "跳转到某个设置分区时是滑过去，还是直接落到位。"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "layout:form:668",
+                                "kind": "control",
+                                "ref": "form:668",
+                                "style": {
+                                  "width": 48,
+                                  "height": 24,
+                                  "radius": 64,
+                                  "padding": [
+                                    4,
+                                    4,
+                                    4,
+                                    4
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "headerActions": [
+    "form:644"
+  ]
+}

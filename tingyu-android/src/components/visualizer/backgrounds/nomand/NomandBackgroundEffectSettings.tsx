@@ -36,12 +36,12 @@ const NomandBackgroundEffectSettings: React.FC<NomandBackgroundEffectPanelProps>
     const { borderColor, selectedBg } = getNomandEffectPanelColors(theme, isDaylight);
 
     return (
-        <div className="space-y-4">
-            <div className="space-y-2">
-                <div className="text-sm" style={{ color: theme.primaryColor }}>
+        <div className="space-y-4" data-settings-style='{"gap":16}' data-settings-layout="column">
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="text-sm" style={{ color: theme.primaryColor }} data-settings-style='{"font":14}' data-settings-layout="column">
                     {t('options.nomandBackgroundEffect')}
                 </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" data-settings-style='{"columns":2,"gap":8}' data-settings-layout="grid">
                     {EFFECTS.map(effect => (
                         <button
                             key={effect}
@@ -53,7 +53,7 @@ const NomandBackgroundEffectSettings: React.FC<NomandBackgroundEffectPanelProps>
                                 backgroundColor: tuning.effect === effect ? selectedBg : 'transparent',
                                 color: theme.primaryColor,
                             }}
-                        >
+                         data-settings-style='{"radius":12,"border":true,"font":12,"padding":[8,8,8,8]}' data-settings-layout="row">
                             {t(EFFECT_LABEL_KEYS[effect])}
                         </button>
                     ))}

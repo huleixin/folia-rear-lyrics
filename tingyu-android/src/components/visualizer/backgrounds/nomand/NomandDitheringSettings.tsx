@@ -27,15 +27,15 @@ const NomandDitheringSettings: React.FC<NomandBackgroundEffectPanelProps> = ({
     };
 
     return (
-        <div className="space-y-4 rounded-2xl border p-3" style={{ borderColor }}>
-            <div className="text-xs font-medium uppercase tracking-[0.2em]" style={{ color: theme.secondaryColor }}>
+        <div className="space-y-4 rounded-2xl border p-3" style={{ borderColor }} data-settings-style='{"gap":16,"radius":16,"border":true,"padding":[12,12,12,12]}' data-settings-layout="card">
+            <div className="text-xs font-medium uppercase tracking-[0.2em]" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12,"weight":500}' data-settings-layout="column">
                 {t('options.nomandBackgroundEffectDithering')}
             </div>
-            <div className="space-y-2">
-                <div className="text-sm" style={{ color: theme.primaryColor }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="text-sm" style={{ color: theme.primaryColor }} data-settings-style='{"font":14}' data-settings-layout="column">
                     {t('options.nomandBackgroundDitheringType')}
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-2" data-settings-style='{"columns":3,"gap":8}' data-settings-layout="grid">
                     {DITHERING_TYPES.map(type => (
                         <button
                             key={type}
@@ -47,7 +47,7 @@ const NomandDitheringSettings: React.FC<NomandBackgroundEffectPanelProps> = ({
                                 backgroundColor: tuning.ditheringType === type ? selectedBg : 'transparent',
                                 color: theme.primaryColor,
                             }}
-                        >
+                         data-settings-style='{"radius":12,"border":true,"font":12,"padding":[8,8,8,8]}' data-settings-layout="row">
                             {type}
                         </button>
                     ))}

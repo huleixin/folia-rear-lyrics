@@ -79,8 +79,8 @@ export const InteractionSettingsSubview: React.FC<InteractionSettingsSubviewProp
             role="switch"
             aria-checked={checked}
             aria-label={label}
-        >
-            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-0'}`} />
+         data-settings-style='{"width":48,"height":24,"radius":64,"padding":[4,4,4,4]}' data-settings-layout="column" data-settings-swatch={checked ? accentOutlineColor : undefined}>
+            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-0'}`}  data-settings-style='{"width":16,"height":16,"radius":64}' data-settings-layout="column"/>
         </button>
     );
 
@@ -120,19 +120,19 @@ export const InteractionSettingsSubview: React.FC<InteractionSettingsSubviewProp
     if (isAndroidNativeRuntime()) return null;
 
     return (
-        <div className="space-y-5">
-            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="gridActionButton" label={t('options.gridActionButton')}>
+        <div className="space-y-5" data-settings-style='{"gap":20}' data-settings-layout="column">
+            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="gridActionButton" label={t('options.gridActionButton')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={MousePointerClick} label={t('options.gridActionButton')} />
-                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
-                    <div className="space-y-1">
-                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                    <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                             {t('options.gridSlideTarget')}
                         </div>
-                        <div className="text-[11px] opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="text-[11px] opacity-50 max-w-[360px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                             {t('options.gridSlideTargetDesc')}
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2" data-settings-style='{"columns":2,"gap":8}' data-settings-layout="grid">
                         {slideOptions.map(option => (
                             <button
                                 key={option.value}
@@ -141,11 +141,11 @@ export const InteractionSettingsSubview: React.FC<InteractionSettingsSubviewProp
                                 className="rounded-xl border px-3 py-3 text-left transition-colors"
                                 style={optionStyle(gridActionButtonSlideTarget === option.value)}
                                 aria-pressed={gridActionButtonSlideTarget === option.value}
-                            >
-                                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                             data-settings-style='{"radius":12,"border":true,"padding":[12,12,12,12]}' data-settings-layout="column">
+                                <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                     {option.label}
                                 </div>
-                                <div className="mt-1 text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }}>
+                                <div className="mt-1 text-[11px] opacity-50" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted","margin":[0,4,0,0]}' data-settings-layout="column">
                                     {option.desc}
                                 </div>
                             </button>
@@ -154,15 +154,15 @@ export const InteractionSettingsSubview: React.FC<InteractionSettingsSubviewProp
                 </div>
             </SettingsAnchor>}
 
-            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="gridPaletteHotkey" label={t('options.gridPaletteHotkey')}>
+            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="gridPaletteHotkey" label={t('options.gridPaletteHotkey')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={Command} label={t('options.gridPaletteHotkey')} />
-                <div className={`p-4 rounded-xl border ${settingsCardClass}`}>
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="space-y-1">
-                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                <div className={`p-4 rounded-xl border ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"padding":[16,16,16,16]}' data-settings-layout="card">
+                    <div className="flex items-center justify-between gap-4" data-settings-style='{"align":"between","gap":16}' data-settings-layout="row">
+                        <div className="space-y-1" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column">
+                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                                 {t('options.gridPaletteHotkey')}
                             </div>
-                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                                 {t('options.gridPaletteHotkeyDesc')}
                             </div>
                         </div>
@@ -175,20 +175,20 @@ export const InteractionSettingsSubview: React.FC<InteractionSettingsSubviewProp
                 </div>
             </SettingsAnchor>}
 
-            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="customShortcut" label={t('options.customShortcut')}>
+            {!isAndroidNativeRuntime() && <SettingsAnchor anchorId="customShortcut" label={t('options.customShortcut')} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={Keyboard} label={t('options.customShortcut')} />
-                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`}>
-                    <div className="space-y-1">
-                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+                    <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }} data-settings-style='{"font":14,"weight":500,"tone":"text"}' data-settings-layout="column">
                             {t('options.customShortcut')}
                         </div>
-                        <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }} data-settings-style='{"font":11,"tone":"muted"}' data-settings-layout="column">
                             {t('options.customShortcutDesc')}
                         </div>
                     </div>
                     {/* One row, two halves of one sentence: this key runs that command. The column
                         captions are gone because the caps and the select already say which is which. */}
-                    <div className="grid items-center gap-3 sm:grid-cols-2">
+                    <div className="grid items-center gap-3 sm:grid-cols-2" data-settings-style='{"align":"center","gap":12}' data-settings-layout="grid">
                         <ShortcutCaptureField
                             value={customShortcutLetter}
                             onChange={setCustomShortcutLetter}
@@ -197,7 +197,7 @@ export const InteractionSettingsSubview: React.FC<InteractionSettingsSubviewProp
                             isDaylight={isDaylight}
                             theme={theme}
                         />
-                        <div className="min-w-0">
+                        <div className="min-w-0" data-settings-layout="column">
                             <CustomSelect
                                 value={customShortcutCommandId ?? ''}
                                 onChange={(value) => setCustomShortcutCommandId(value || null)}

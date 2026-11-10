@@ -57,21 +57,21 @@ const NomandBackgroundSettingsCard: React.FC<NomandBackgroundSettingsCardProps> 
     };
 
     return (
-        <div className="rounded-[24px] border p-4 space-y-4" style={{ backgroundColor: controlCardBg, borderColor }}>
-            <div className="space-y-1">
-                <div className="text-sm font-medium" style={{ color: theme.primaryColor }}>
+        <div className="rounded-[24px] border p-4 space-y-4" style={{ backgroundColor: controlCardBg, borderColor }} data-settings-style='{"radius":24,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
+            <div className="space-y-1" data-settings-style='{"gap":4}' data-settings-layout="column">
+                <div className="text-sm font-medium" style={{ color: theme.primaryColor }} data-settings-style='{"font":14,"weight":500}' data-settings-layout="column">
                     {t('options.nomandBackgroundSettings')}
                 </div>
-                <div className="text-xs opacity-70" style={{ color: theme.secondaryColor }}>
+                <div className="text-xs opacity-70" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12}' data-settings-layout="column">
                     {t('options.nomandBackgroundSettingsDesc')}
                 </div>
             </div>
 
-            <div className="space-y-2">
-                <div className="text-sm" style={{ color: theme.primaryColor }}>
+            <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
+                <div className="text-sm" style={{ color: theme.primaryColor }} data-settings-style='{"font":14}' data-settings-layout="column">
                     {t('options.nomandBackgroundSource')}
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2" data-settings-style='{"columns":2,"gap":8}' data-settings-layout="grid">
                     {([
                         ['cover-derived', t('options.monetBackgroundSourceCover')],
                         ['uploaded-global', t('options.monetBackgroundSourceUploaded')],
@@ -87,12 +87,12 @@ const NomandBackgroundSettingsCard: React.FC<NomandBackgroundSettingsCardProps> 
                                 backgroundColor: resolvedTuning.imageSource === value ? selectedBg : 'transparent',
                                 color: theme.primaryColor,
                             }}
-                        >
+                         data-settings-style='{"radius":16,"border":true,"font":14,"padding":[12,8,12,8]}' data-settings-layout="row">
                             {label}
                         </button>
                     ))}
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2" data-settings-style='{"gap":8}' data-settings-layout="wrap">
                     <input
                         ref={inputRef}
                         type="file"
@@ -102,14 +102,14 @@ const NomandBackgroundSettingsCard: React.FC<NomandBackgroundSettingsCardProps> 
                             void handleFiles(Array.from(event.target.files ?? []));
                             event.target.value = '';
                         }}
-                    />
+                     data-settings-layout="column"/>
                     <button
                         type="button"
                         disabled={isLoadingMonetBackgroundImage || !onUploadMonetBackgroundImage}
                         onClick={() => inputRef.current?.click()}
                         className="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs disabled:opacity-40"
                         style={{ borderColor, color: theme.primaryColor }}
-                    >
+                     data-settings-style='{"align":"center","gap":8,"radius":64,"border":true,"font":12,"padding":[12,8,12,8]}' data-settings-layout="row">
                         <Upload size={14} />
                         {t('options.monetUploadBackground')}
                     </button>
@@ -119,12 +119,12 @@ const NomandBackgroundSettingsCard: React.FC<NomandBackgroundSettingsCardProps> 
                         onClick={() => void onClearMonetBackgroundImage?.()}
                         className="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs disabled:opacity-40"
                         style={{ borderColor, color: theme.secondaryColor }}
-                    >
+                     data-settings-style='{"align":"center","gap":8,"radius":64,"border":true,"font":12,"padding":[12,8,12,8]}' data-settings-layout="row">
                         <Trash2 size={14} />
                         {t('options.monetClearBackground')}
                     </button>
                 </div>
-                <div className="truncate text-xs opacity-60" style={{ color: theme.secondaryColor }}>
+                <div className="truncate text-xs opacity-60" style={{ color: theme.secondaryColor }} data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="column">
                     {feedback || monetBackgroundImage?.name || '-'}
                 </div>
             </div>
@@ -140,7 +140,7 @@ const NomandBackgroundSettingsCard: React.FC<NomandBackgroundSettingsCardProps> 
                 onSliderCommit={onSliderCommit}
             />
 
-            <div className="space-y-3 rounded-2xl border p-3" style={{ borderColor }}>
+            <div className="space-y-3 rounded-2xl border p-3" style={{ borderColor }} data-settings-style='{"gap":12,"radius":16,"border":true,"padding":[12,12,12,12]}' data-settings-layout="card">
                 <BackgroundToggleRow
                     label={t('options.nomandBackgroundOverlay')}
                     description={t('options.nomandBackgroundOverlayDesc')}
@@ -148,10 +148,10 @@ const NomandBackgroundSettingsCard: React.FC<NomandBackgroundSettingsCardProps> 
                     onChange={overlayEnabled => onTuningChange?.({ overlayEnabled })}
                     theme={theme}
                 />
-                <label className={`block space-y-2 ${resolvedTuning.overlayEnabled ? '' : 'opacity-45'}`}>
-                    <span className="flex justify-between text-sm" style={{ color: theme.primaryColor }}>
-                        <span>{t('options.nomandBackgroundOverlayOpacity')}</span>
-                        <span className="font-mono opacity-70">{Math.round(resolvedTuning.overlayOpacity * 100)}%</span>
+                <label className={`block space-y-2 ${resolvedTuning.overlayEnabled ? '' : 'opacity-45'}`} data-settings-style='{"gap":8}' data-settings-layout="wrap">
+                    <span className="flex justify-between text-sm" style={{ color: theme.primaryColor }} data-settings-style='{"align":"between","font":14}' data-settings-layout="row">
+                        <span data-settings-style='{"grow":true}' data-settings-layout="wrap">{t('options.nomandBackgroundOverlayOpacity')}</span>
+                        <span className="font-mono opacity-70" data-settings-layout="wrap">{Math.round(resolvedTuning.overlayOpacity * 100)}%</span>
                     </span>
                     <input
                         type="range"
@@ -164,7 +164,7 @@ const NomandBackgroundSettingsCard: React.FC<NomandBackgroundSettingsCardProps> 
                         onPointerDown={onSliderPointerDown}
                         onPointerUp={onSliderCommit}
                         className={rangeInputClass}
-                    />
+                     data-settings-layout="column"/>
                 </label>
             </div>
 

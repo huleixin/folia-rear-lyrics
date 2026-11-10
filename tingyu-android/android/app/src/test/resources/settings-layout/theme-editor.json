@@ -1,0 +1,1291 @@
+{
+  "key": "settings-flow:qa",
+  "title": "主题与配色",
+  "nodes": [
+    {
+      "id": "form:1605",
+      "kind": "action",
+      "title": "重置",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1606:text:1",
+      "kind": "note",
+      "title": "当前正面舞台使用暗色主题。下方切换仅选择要编辑的配色，保存后应用到正面；背屏独立配置不受影响。"
+    },
+    {
+      "id": "form:1607",
+      "kind": "action",
+      "title": "编辑浅色配色",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1608",
+      "kind": "action",
+      "title": "编辑深色配色",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "detail": "✓"
+    },
+    {
+      "id": "form:1609",
+      "kind": "action",
+      "title": "背景#09090b",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1610",
+      "kind": "action",
+      "title": "主文本#f4f4f5",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1611",
+      "kind": "action",
+      "title": "强调色#f4f4f5",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "detail": "✓"
+    },
+    {
+      "id": "form:1612",
+      "kind": "action",
+      "title": "辅助色#71717a",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1613",
+      "kind": "color",
+      "title": "推荐色主题名称暗色主题",
+      "value": "#f4f4f5",
+      "disabled": false,
+      "options": [
+        {
+          "value": "hue",
+          "label": "色相"
+        },
+        {
+          "value": "saturation",
+          "label": "饱和度"
+        },
+        {
+          "value": "brightness",
+          "label": "明度"
+        }
+      ],
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "text",
+      "immediate": false,
+      "confirmLabel": "确定",
+      "detail": "visible-hue"
+    },
+    {
+      "id": "form:1614:text:9",
+      "kind": "note",
+      "title": "推荐色"
+    },
+    {
+      "id": "form:1615",
+      "kind": "action",
+      "title": "#F5F5F4",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1616",
+      "kind": "action",
+      "title": "#1C1917",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1617",
+      "kind": "action",
+      "title": "#EA580C",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1618",
+      "kind": "action",
+      "title": "#44403C",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1619",
+      "kind": "action",
+      "title": "#09090B",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1620",
+      "kind": "action",
+      "title": "#F4F4F5",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1621",
+      "kind": "action",
+      "title": "#71717A",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1622:text:17",
+      "kind": "note",
+      "title": "主题名称"
+    },
+    {
+      "id": "form:1623:text:18",
+      "kind": "note",
+      "title": "暗色主题"
+    },
+    {
+      "id": "form:1624",
+      "kind": "input",
+      "title": "暗色主题",
+      "value": "Midnight Default",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "输入主题名称...",
+      "multiline": false,
+      "inputType": "text",
+      "immediate": true,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1625",
+      "kind": "action",
+      "title": "保存自定义主题",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:1626",
+      "kind": "action",
+      "title": "复制 JSON",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    }
+  ],
+  "layout": {
+    "id": "page:form:1604",
+    "kind": "column",
+    "style": {
+      "padding": [
+        18,
+        0,
+        18,
+        0
+      ],
+      "gap": 12
+    },
+    "children": [
+      {
+        "id": "form:1627",
+        "kind": "row",
+        "style": {
+          "align": "end",
+          "gap": 12,
+          "padding": [
+            0,
+            0,
+            0,
+            8
+          ]
+        },
+        "children": [
+          {
+            "id": "form:1628",
+            "kind": "row",
+            "style": {
+              "align": "center",
+              "gap": 6
+            },
+            "children": [
+              {
+                "id": "layout:form:1605",
+                "kind": "control",
+                "ref": "form:1605",
+                "style": {
+                  "align": "center",
+                  "center": true,
+                  "height": 36,
+                  "gap": 6,
+                  "radius": 64,
+                  "font": 11,
+                  "weight": 700,
+                  "padding": [
+                    12,
+                    0,
+                    12,
+                    0
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "content:form:1605",
+                    "kind": "row",
+                    "style": {
+                      "gap": 6,
+                      "align": "center",
+                      "center": true
+                    },
+                    "children": [
+                      {
+                        "id": "form:1629",
+                        "kind": "icon",
+                        "icon": "rotate-ccw",
+                        "style": {
+                          "width": 14,
+                          "height": 14
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "form:1606",
+        "kind": "wrap",
+        "style": {
+          "font": 12,
+          "tone": "muted",
+          "margin": [
+            0,
+            0,
+            0,
+            12
+          ]
+        },
+        "children": [
+          {
+            "id": "copy:1",
+            "kind": "text",
+            "text": "当前正面舞台使用暗色主题。下方切换仅选择要编辑的配色，保存后应用到正面；背屏独立配置不受影响。"
+          }
+        ]
+      },
+      {
+        "id": "form:1630",
+        "kind": "grid",
+        "style": {
+          "gap": 20,
+          "padding": [
+            0,
+            12,
+            0,
+            0
+          ]
+        },
+        "children": [
+          {
+            "id": "form:1631",
+            "kind": "column",
+            "style": {
+              "gap": 20
+            },
+            "children": [
+              {
+                "id": "form:1632",
+                "kind": "row",
+                "style": {
+                  "gap": 8,
+                  "radius": 16,
+                  "padding": [
+                    6,
+                    6,
+                    6,
+                    6
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "layout:form:1607",
+                    "kind": "control",
+                    "ref": "form:1607",
+                    "style": {
+                      "align": "center",
+                      "center": true,
+                      "grow": true,
+                      "gap": 8,
+                      "radius": 12,
+                      "font": 12,
+                      "weight": 700,
+                      "padding": [
+                        12,
+                        10,
+                        12,
+                        10
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:1607",
+                        "kind": "row",
+                        "style": {
+                          "gap": 8,
+                          "align": "center",
+                          "center": true
+                        },
+                        "children": [
+                          {
+                            "id": "form:1633",
+                            "kind": "icon",
+                            "icon": "sun",
+                            "style": {
+                              "width": 15,
+                              "height": 15
+                            }
+                          },
+                          {
+                            "id": "form:1634",
+                            "kind": "wrap",
+                            "style": {},
+                            "children": [
+                              {
+                                "id": "copy:2",
+                                "kind": "text",
+                                "text": "编辑浅色配色"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "layout:form:1608",
+                    "kind": "control",
+                    "ref": "form:1608",
+                    "style": {
+                      "align": "center",
+                      "center": true,
+                      "grow": true,
+                      "gap": 8,
+                      "radius": 12,
+                      "font": 12,
+                      "weight": 700,
+                      "padding": [
+                        12,
+                        10,
+                        12,
+                        10
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:1608",
+                        "kind": "row",
+                        "style": {
+                          "gap": 8,
+                          "align": "center",
+                          "center": true
+                        },
+                        "children": [
+                          {
+                            "id": "form:1635",
+                            "kind": "icon",
+                            "icon": "moon",
+                            "style": {
+                              "width": 15,
+                              "height": 15
+                            }
+                          },
+                          {
+                            "id": "form:1636",
+                            "kind": "wrap",
+                            "style": {},
+                            "children": [
+                              {
+                                "id": "copy:3",
+                                "kind": "text",
+                                "text": "编辑深色配色"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:1637",
+                "kind": "grid",
+                "style": {
+                  "columns": 2,
+                  "gap": 12
+                },
+                "children": [
+                  {
+                    "id": "layout:form:1609",
+                    "kind": "control",
+                    "ref": "form:1609",
+                    "style": {
+                      "radius": 16,
+                      "border": true,
+                      "padding": [
+                        14,
+                        14,
+                        14,
+                        14
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:1609",
+                        "kind": "column",
+                        "style": {},
+                        "children": [
+                          {
+                            "id": "form:1638",
+                            "kind": "row",
+                            "style": {
+                              "align": "center",
+                              "gap": 10
+                            },
+                            "children": [
+                              {
+                                "id": "form:1639",
+                                "kind": "spacer",
+                                "style": {
+                                  "height": 24,
+                                  "width": 24,
+                                  "radius": 64,
+                                  "border": true
+                                },
+                                "text": "#09090b"
+                              },
+                              {
+                                "id": "form:1640",
+                                "kind": "wrap",
+                                "style": {
+                                  "font": 12,
+                                  "weight": 700
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:4",
+                                    "kind": "text",
+                                    "text": "背景"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:1641",
+                            "kind": "column",
+                            "style": {
+                              "font": 10,
+                              "margin": [
+                                0,
+                                10,
+                                0,
+                                0
+                              ]
+                            },
+                            "children": [
+                              {
+                                "id": "copy:5",
+                                "kind": "text",
+                                "text": "#09090b"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "layout:form:1610",
+                    "kind": "control",
+                    "ref": "form:1610",
+                    "style": {
+                      "radius": 16,
+                      "border": true,
+                      "padding": [
+                        14,
+                        14,
+                        14,
+                        14
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:1610",
+                        "kind": "column",
+                        "style": {},
+                        "children": [
+                          {
+                            "id": "form:1642",
+                            "kind": "row",
+                            "style": {
+                              "align": "center",
+                              "gap": 10
+                            },
+                            "children": [
+                              {
+                                "id": "form:1643",
+                                "kind": "spacer",
+                                "style": {
+                                  "height": 24,
+                                  "width": 24,
+                                  "radius": 64,
+                                  "border": true
+                                },
+                                "text": "#f4f4f5"
+                              },
+                              {
+                                "id": "form:1644",
+                                "kind": "wrap",
+                                "style": {
+                                  "font": 12,
+                                  "weight": 700
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:6",
+                                    "kind": "text",
+                                    "text": "主文本"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:1645",
+                            "kind": "column",
+                            "style": {
+                              "font": 10,
+                              "margin": [
+                                0,
+                                10,
+                                0,
+                                0
+                              ]
+                            },
+                            "children": [
+                              {
+                                "id": "copy:7",
+                                "kind": "text",
+                                "text": "#f4f4f5"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "layout:form:1611",
+                    "kind": "control",
+                    "ref": "form:1611",
+                    "style": {
+                      "radius": 16,
+                      "border": true,
+                      "padding": [
+                        14,
+                        14,
+                        14,
+                        14
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:1611",
+                        "kind": "column",
+                        "style": {},
+                        "children": [
+                          {
+                            "id": "form:1646",
+                            "kind": "row",
+                            "style": {
+                              "align": "center",
+                              "gap": 10
+                            },
+                            "children": [
+                              {
+                                "id": "form:1647",
+                                "kind": "spacer",
+                                "style": {
+                                  "height": 24,
+                                  "width": 24,
+                                  "radius": 64,
+                                  "border": true
+                                },
+                                "text": "#f4f4f5"
+                              },
+                              {
+                                "id": "form:1648",
+                                "kind": "wrap",
+                                "style": {
+                                  "font": 12,
+                                  "weight": 700
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:8",
+                                    "kind": "text",
+                                    "text": "强调色"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:1649",
+                            "kind": "column",
+                            "style": {
+                              "font": 10,
+                              "margin": [
+                                0,
+                                10,
+                                0,
+                                0
+                              ]
+                            },
+                            "children": [
+                              {
+                                "id": "copy:9",
+                                "kind": "text",
+                                "text": "#f4f4f5"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "layout:form:1612",
+                    "kind": "control",
+                    "ref": "form:1612",
+                    "style": {
+                      "radius": 16,
+                      "border": true,
+                      "padding": [
+                        14,
+                        14,
+                        14,
+                        14
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:1612",
+                        "kind": "column",
+                        "style": {},
+                        "children": [
+                          {
+                            "id": "form:1650",
+                            "kind": "row",
+                            "style": {
+                              "align": "center",
+                              "gap": 10
+                            },
+                            "children": [
+                              {
+                                "id": "form:1651",
+                                "kind": "spacer",
+                                "style": {
+                                  "height": 24,
+                                  "width": 24,
+                                  "radius": 64,
+                                  "border": true
+                                },
+                                "text": "#71717a"
+                              },
+                              {
+                                "id": "form:1652",
+                                "kind": "wrap",
+                                "style": {
+                                  "font": 12,
+                                  "weight": 700
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:10",
+                                    "kind": "text",
+                                    "text": "辅助色"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:1653",
+                            "kind": "column",
+                            "style": {
+                              "font": 10,
+                              "margin": [
+                                0,
+                                10,
+                                0,
+                                0
+                              ]
+                            },
+                            "children": [
+                              {
+                                "id": "copy:11",
+                                "kind": "text",
+                                "text": "#71717a"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:1654",
+                "kind": "card",
+                "style": {
+                  "radius": 24,
+                  "border": true,
+                  "padding": [
+                    16,
+                    16,
+                    16,
+                    16
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "layout:form:1613",
+                    "kind": "control",
+                    "ref": "form:1613",
+                    "style": {
+                      "height": 236
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "form:1655",
+            "kind": "column",
+            "style": {
+              "gap": 16
+            },
+            "children": [
+              {
+                "id": "form:1656",
+                "kind": "card",
+                "style": {
+                  "radius": 24,
+                  "border": true,
+                  "padding": [
+                    16,
+                    16,
+                    16,
+                    16
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "form:1614",
+                    "kind": "column",
+                    "style": {
+                      "font": 12,
+                      "weight": 700,
+                      "margin": [
+                        0,
+                        0,
+                        0,
+                        12
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "copy:12",
+                        "kind": "text",
+                        "text": "推荐色"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:1657",
+                    "kind": "grid",
+                    "style": {
+                      "columns": 4,
+                      "gap": 10
+                    },
+                    "children": [
+                      {
+                        "id": "layout:form:1615",
+                        "kind": "control",
+                        "ref": "form:1615",
+                        "style": {
+                          "aspect": 1,
+                          "radius": 12,
+                          "border": true
+                        },
+                        "text": "#f5f5f4"
+                      },
+                      {
+                        "id": "layout:form:1616",
+                        "kind": "control",
+                        "ref": "form:1616",
+                        "style": {
+                          "aspect": 1,
+                          "radius": 12,
+                          "border": true
+                        },
+                        "text": "#1c1917"
+                      },
+                      {
+                        "id": "layout:form:1617",
+                        "kind": "control",
+                        "ref": "form:1617",
+                        "style": {
+                          "aspect": 1,
+                          "radius": 12,
+                          "border": true
+                        },
+                        "text": "#ea580c"
+                      },
+                      {
+                        "id": "layout:form:1618",
+                        "kind": "control",
+                        "ref": "form:1618",
+                        "style": {
+                          "aspect": 1,
+                          "radius": 12,
+                          "border": true
+                        },
+                        "text": "#44403c"
+                      },
+                      {
+                        "id": "layout:form:1619",
+                        "kind": "control",
+                        "ref": "form:1619",
+                        "style": {
+                          "aspect": 1,
+                          "radius": 12,
+                          "border": true
+                        },
+                        "text": "#09090b"
+                      },
+                      {
+                        "id": "layout:form:1620",
+                        "kind": "control",
+                        "ref": "form:1620",
+                        "style": {
+                          "aspect": 1,
+                          "radius": 12,
+                          "border": true
+                        },
+                        "text": "#f4f4f5"
+                      },
+                      {
+                        "id": "layout:form:1621",
+                        "kind": "control",
+                        "ref": "form:1621",
+                        "style": {
+                          "aspect": 1,
+                          "radius": 12,
+                          "border": true
+                        },
+                        "text": "#71717a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:1658",
+                "kind": "card",
+                "style": {
+                  "radius": 24,
+                  "border": true,
+                  "padding": [
+                    16,
+                    16,
+                    16,
+                    16
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "form:1622",
+                    "kind": "column",
+                    "style": {
+                      "font": 12,
+                      "weight": 700,
+                      "margin": [
+                        0,
+                        0,
+                        0,
+                        12
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "copy:13",
+                        "kind": "text",
+                        "text": "主题名称"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:1659",
+                    "kind": "wrap",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "form:1623",
+                        "kind": "row",
+                        "style": {
+                          "align": "center",
+                          "gap": 6,
+                          "font": 10,
+                          "weight": 700,
+                          "margin": [
+                            0,
+                            0,
+                            0,
+                            6
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "form:1660",
+                            "kind": "icon",
+                            "icon": "moon",
+                            "style": {
+                              "width": 12,
+                              "height": 12
+                            }
+                          },
+                          {
+                            "id": "copy:14",
+                            "kind": "text",
+                            "text": "暗色主题"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:1624",
+                        "kind": "control",
+                        "ref": "form:1624",
+                        "style": {
+                          "radius": 12,
+                          "border": true,
+                          "font": 12,
+                          "weight": 700,
+                          "padding": [
+                            16,
+                            10,
+                            16,
+                            10
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:1661",
+                "kind": "column",
+                "style": {
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    8,
+                    0,
+                    0
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "layout:form:1625",
+                    "kind": "control",
+                    "ref": "form:1625",
+                    "style": {
+                      "align": "center",
+                      "center": true,
+                      "minHeight": 44,
+                      "gap": 8,
+                      "radius": 12,
+                      "font": 12,
+                      "weight": 700,
+                      "padding": [
+                        12,
+                        8,
+                        12,
+                        8
+                      ]
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:1625",
+                        "kind": "row",
+                        "style": {
+                          "gap": 8,
+                          "align": "center",
+                          "center": true
+                        },
+                        "children": [
+                          {
+                            "id": "form:1662",
+                            "kind": "icon",
+                            "icon": "check",
+                            "style": {
+                              "width": 16,
+                              "height": 16
+                            }
+                          },
+                          {
+                            "id": "form:1663",
+                            "kind": "wrap",
+                            "style": {},
+                            "children": [
+                              {
+                                "id": "copy:15",
+                                "kind": "text",
+                                "text": "保存自定义主题"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:1664",
+                    "kind": "row",
+                    "style": {
+                      "gap": 8
+                    },
+                    "children": [
+                      {
+                        "id": "layout:form:1626",
+                        "kind": "control",
+                        "ref": "form:1626",
+                        "style": {
+                          "align": "center",
+                          "center": true,
+                          "grow": true,
+                          "minHeight": 36,
+                          "gap": 6,
+                          "radius": 12,
+                          "font": 11,
+                          "weight": 700
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:1626",
+                            "kind": "row",
+                            "style": {
+                              "gap": 6,
+                              "align": "center",
+                              "center": true
+                            },
+                            "children": [
+                              {
+                                "id": "form:1665",
+                                "kind": "icon",
+                                "icon": "copy",
+                                "style": {
+                                  "width": 13,
+                                  "height": 13
+                                }
+                              },
+                              {
+                                "id": "form:1666",
+                                "kind": "wrap",
+                                "style": {},
+                                "children": [
+                                  {
+                                    "id": "copy:16",
+                                    "kind": "text",
+                                    "text": "复制 JSON"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "headerActions": []
+}

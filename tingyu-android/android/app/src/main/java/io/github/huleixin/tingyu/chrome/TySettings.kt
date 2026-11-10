@@ -288,7 +288,7 @@ internal fun SettingsSelect(
 
 /** 下拉弹层：与面板里的选择块共用同一套外观（自绘 Popup，不依赖 Material 主题）。 */
 @Composable
-private fun SettingsOptionPopup(
+internal fun SettingsOptionPopup(
     theme: TyPanelTheme,
     label: String,
     options: List<TySettingOption>,
@@ -364,6 +364,7 @@ internal fun SettingsSlider(
     step: Float = 0f,
     unit: String = "",
     enabled: Boolean = true,
+    showLabel: Boolean = true,
     onCommit: (Float) -> Unit,
 ) {
     var draft by remember(title) { mutableFloatStateOf(value) }
@@ -375,7 +376,8 @@ internal fun SettingsSlider(
         val clamped = raw.coerceIn(min, max)
         return if (step > 0f) (min + round((clamped - min) / step) * step).coerceIn(min, max) else clamped
     }
-    Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
+    Column(Modifier.fillMaxWidth().padding(vertical = if(showLabel)10.dp else 0.dp)) {
+        if(showLabel){
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(title, color = theme.text, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium)
@@ -393,6 +395,7 @@ internal fun SettingsSlider(
             )
         }
         Spacer(Modifier.height(10.dp))
+        }
         Canvas(
             Modifier
                 .fillMaxWidth()
@@ -632,7 +635,7 @@ internal fun TySettingsPageView(
                 .fillMaxWidth()
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, end = 16.dp, top = contentTop)
+                .padding(start = if(page.layout==null)16.dp else 0.dp, end = if(page.layout==null)16.dp else 0.dp, top = contentTop)
                 .padding(bottom = bottomPadding),
         ) {
             // 分组切分：group 节点开一张卡片，其后的普通节点都装进这张卡片，
@@ -644,6 +647,12 @@ internal fun TySettingsPageView(
 
 @Composable
 internal fun TySettingsContent(page: TySettingsPage, theme: TyPanelTheme, onAction: PageAction) {
+    if(page.layout!=null){
+        androidx.compose.runtime.CompositionLocalProvider(androidx.compose.material3.LocalTextStyle provides TextStyle(color=theme.text,fontSize=14.sp,lineHeight=20.sp)){
+            SettingsLayoutView(page.layout,page.nodes.associateBy{it.id},theme,onAction)
+        }
+        return
+    }
     groupSettingsNodes(page.nodes).forEach { (group, items) ->
         key(group?.id ?: "ungrouped") {
             @Composable fun Items() {
