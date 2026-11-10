@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { canUseRearLyrics, rearLyricsPlugin, type RearLyricsStatus } from '../../../services/rearLyricsControl';
+import { canUseRearLyrics, rearLyricsPlugin, rememberRearControlStatus, type RearLyricsStatus } from '../../../services/rearLyricsControl';
 import { rearSettingsCanToggle, rearSettingsFingerprint } from './rearLyricsSettingsModel';
 
 // src/components/modal/settings/useRearLyricsSettings.ts
@@ -15,7 +15,7 @@ export function useRearLyricsSettings(poll = true) {
     const polling = useRef<Promise<void>|null>(null);
     const current = useRef(snapshot);
     const commit = useCallback((result: RearLyricsStatus) => {
-        current.current = result;
+        current.current = result; rememberRearControlStatus(result);
         setSnapshot(previous => previous && rearSettingsFingerprint(previous) === rearSettingsFingerprint(result) ? previous : result);
         setFailed(false);
     }, []);

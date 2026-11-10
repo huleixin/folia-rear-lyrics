@@ -10,7 +10,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
@@ -103,11 +102,16 @@ internal fun SettingsPreview(node: TySettingNode, onAction: PageAction) {
     val scale = LocalDensity.current.density
     val liveEnabled = LocalSettingsTraceIdentity.current.liveEnabled
     val viewport = LocalSettingsPreviewViewport.current
+    val cutouts = LocalSettingsPreviewCutouts.current
+    DisposableEffect(node.id, cutouts) { onDispose { cutouts?.remove(node.id) } }
     val latestAction by rememberUpdatedState(onAction)
     Canvas(Modifier.fillMaxWidth().height(node.min.coerceIn(132f, 460f).dp)
         .onGloballyPositioned { coordinates ->
             val p = coordinates.positionInWindow(); val clipped = coordinates.boundsInWindow()
             val height = coordinates.size.height.toFloat()
+            val bounds = Rect(p.x, p.y, p.x + coordinates.size.width, p.y + height)
+            if (liveEnabled) cutouts?.update(node.id, bounds, clipped.intersect(viewport))
+            else cutouts?.remove(node.id)
             val packet = JSONObject().put("x", p.x / scale).put("y", p.y / scale)
                 .put("w", coordinates.size.width / scale).put("h", height / scale)
                 .put("top", (max(clipped.top, viewport.top) - p.y).coerceIn(0f, height) / scale)
@@ -116,8 +120,6 @@ internal fun SettingsPreview(node: TySettingNode, onAction: PageAction) {
         }.pointerInput(node.id) { detectTapGestures { point ->
             latestAction("preview-tap:${node.id}", JSONObject().put("x", point.x / scale).put("y", point.y / scale).toString(), 0.0)
         } }) {
-        // Retained settings frames must stop exposing WebView pixels during stage handoff,
-        // exactly like the legacy document renderer's existing ownership guard.
-        if (liveEnabled) drawRoundRect(Color.Transparent, cornerRadius = androidx.compose.ui.geometry.CornerRadius(28.dp.toPx()), blendMode = BlendMode.Clear)
+        // The source background excludes this region; clearing a captured Haze layer can lose frames.
     }
 }

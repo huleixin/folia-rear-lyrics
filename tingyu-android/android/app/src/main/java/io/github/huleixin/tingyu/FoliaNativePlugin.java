@@ -1140,8 +1140,30 @@ public class FoliaNativePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void selectSongVisualizerMode(PluginCall call){
+        try{
+            String song=call.getString("songKey", ""), current=call.getString("current", "classic");
+            JSONObject policy=call.getObject("policy");
+            JSONObject nativeTrack=RearNativeTrack.snapshot();
+            if("media3".equals(nativeTrack.optString("engine"))&&!nativeTrack.optString("songKey").isEmpty()&&!song.equals(nativeTrack.optString("songKey"))){call.reject("Song changed before style selection");return;}
+            JSObject result=new JSObject();result.put("mode",RearRandomVisualizer.select(policy,song,current));call.resolve(result);
+        }catch(Exception error){call.reject("Style selection unavailable",error);}
+    }
+
+    @PluginMethod
     public void setRearCardAod(PluginCall call){
         getContext().getSharedPreferences("rear-card",0).edit().putBoolean("aod",Boolean.TRUE.equals(call.getBoolean("enabled",true))).apply();
+        RearHostUpdates.changed();call.resolve();
+    }
+
+    @PluginMethod
+    public void setRearCardKeepAwake(PluginCall call){
+        boolean enabled=Boolean.TRUE.equals(call.getBoolean("enabled",false));
+        if(enabled&&(!LspRearBridge.selected(getContext())||LspRearBridge.get()==null)){
+            LspRearBridge.request(getContext());call.reject("请启用 LSP 系统框架作用域并重启手机后再开启背屏常亮");return;
+        }
+        getContext().getSharedPreferences("rear-card",0).edit().putBoolean("keep-awake",enabled).apply();
+        if(!enabled)RearCardKeepAwake.release();
         RearHostUpdates.changed();call.resolve();
     }
 
@@ -1150,6 +1172,10 @@ public class FoliaNativePlugin extends Plugin {
         JSObject result = new JSObject();
         if (LspRearBridge.selected(getContext())) LspRearBridge.request(getContext());
         result.put("backendMode", LspRearBridge.selected(getContext()) ? "lsp" : "shizuku");
+        result.put("nativeCardKeepAwake",RearCardKeepAwake.requested(getContext()));
+        result.put("nativeCardKeepAwakeAvailable",LspRearBridge.get()!=null);
+        result.put("nativeCardKeepAwakeActive",RearCardKeepAwake.active());
+        result.put("nativeCardKeepAwakeDetail",RearCardKeepAwake.detail());
         result.put("nativeCardAod",getContext().getSharedPreferences("rear-card",0).getBoolean("aod",true));
         result.put("displayImplementation",LspRearBridge.selected(getContext())?"NATIVE_CARD":"SHIZUKU_WINDOW");
         result.put("controlEngine", RearPlanA.engine(getContext()));

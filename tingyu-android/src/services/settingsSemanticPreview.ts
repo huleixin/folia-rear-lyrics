@@ -16,7 +16,8 @@ export function bindSemanticPreview(element: HTMLElement, id: string, actions: P
             const r = JSON.parse(event.text ?? '{}') as Record<string, number>;
             if (!['x', 'y', 'w', 'h', 'top', 'bottom'].every(key => Number.isFinite(r[key])) || r.w <= 0 || r.h <= 0 || r.w > 4000 || r.h > 4000) return;
             Object.assign(element.style, { position: 'fixed', left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px`, minHeight: '0', margin: '0', zIndex: '1',
-                clipPath: `inset(${Math.max(0, r.top)}px 0 ${Math.max(0, r.bottom)}px 0 round 28px)` });
+                borderRadius: '28px', overflow: 'hidden',
+                clipPath: `inset(${Math.max(0, r.top)}px 0 ${Math.max(0, r.bottom)}px 0)` });
             element.dataset.nativePreviewReady = 'true';
         } catch { /* Ignore stale or malformed native layout packets. */ }
     };

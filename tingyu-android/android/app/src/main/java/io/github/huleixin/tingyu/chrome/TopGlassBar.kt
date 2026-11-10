@@ -16,6 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.ClipOp
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
@@ -134,6 +137,7 @@ internal fun topGlassMaskBrush(headerBottomPx: Float, tailPx: Float): Brush =
  */
 internal class TyTopGlassState(val hazeState: HazeState, estimateHeaderBottomDp: Float) {
     var headerBottomWindowPx by mutableFloatStateOf(Float.NaN)
+    var originLeftPx by mutableFloatStateOf(0f)
     var originTopPx by mutableFloatStateOf(Float.NaN)
     var pageHeightPx by mutableFloatStateOf(0f)
     var pxPerDp by mutableFloatStateOf(0f)
@@ -162,7 +166,8 @@ internal class TyTopGlassState(val hazeState: HazeState, estimateHeaderBottomDp:
     }
 
     /** 内容层节点回填（= 页面顶部在窗口的 y，物理 px）。 */
-    fun reportOrigin(windowY: Float) {
+    fun reportOrigin(windowY: Float, windowX: Float = 0f) {
+        originLeftPx = windowX
         originTopPx = windowY
     }
 }
@@ -192,18 +197,23 @@ internal fun BoxScope.TyTopGlassContentLayer(
     ambientImage: String?,
     ambientViewportHeight: Dp?,
     modifier: Modifier = Modifier,
+    backgroundCutout: (() -> Path?)? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Box(
         modifier
             .onGloballyPositioned { coords ->
-                state.reportOrigin(coords.positionInWindow().y)
+                state.reportOrigin(coords.positionInWindow().y, coords.positionInWindow().x)
                 state.pageHeightPx = coords.size.height.toFloat()
             }
             .hazeSource(state.hazeState)
     ) {
         // 与 NativePageView 背景同笔刷、同边界（内容层=页面根大小）→ 逐像素对齐。
-        Box(Modifier.matchParentSize().drawBehind { drawRect(Brush.verticalGradient(colors)) })
+        Box(Modifier.matchParentSize().drawBehind {
+            val hole = backgroundCutout?.invoke()
+            if (hole == null) drawRect(Brush.verticalGradient(colors))
+            else clipPath(hole, ClipOp.Difference) { drawRect(Brush.verticalGradient(colors)) }
+        })
         if (ambientImage != null && ambientViewportHeight != null) {
             // 封面氛围层副本：与页面层同参数同位置（集合详情的页面级原件已移除，避免双绘）。
             Box(Modifier.fillMaxWidth()) { NativePlaylistBackdrop(ambientImage, ambientViewportHeight) }

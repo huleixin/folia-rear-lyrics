@@ -63,3 +63,15 @@ it('shows actual host ownership separately from module connection and keeps re-e
     expect(page.sections.find(s=>s.id==='rear-show')?.items?.[0].action).toBe('rear:show');
     expect(page.sections.find(s=>s.id==='rear-status')?.items?.find(i=>i.id==='host')?.subtitle).not.toContain('已接管');
 });
+
+it('exposes LSP card AOD and keep-awake as independent preferences and permits disabling after a lost framework connection',()=>{
+    const model=(snapshot:object)=>buildRearControlPage('advanced',{...state,snapshot:{backendMode:'lsp',...snapshot}},t);
+    const card=model({nativeCardAod:false,nativeCardKeepAwake:true,nativeCardKeepAwakeAvailable:false}).sections.find(s=>s.id==='rear-aod')!.items!;
+    expect(card.find(r=>r.id==='aod')?.selected).toBe(false);
+    expect(card.find(r=>r.id==='keep-awake')).toMatchObject({selected:true,disabled:false,action:'rear:keep-awake'});
+    expect(model({nativeCardKeepAwake:false,nativeCardKeepAwakeAvailable:false}).sections.find(s=>s.id==='rear-aod')!.items!.find(r=>r.id==='keep-awake')?.disabled).toBe(true);
+    expect(model({nativeCardKeepAwakeAvailable:true}).sections.find(s=>s.id==='rear-aod')!.items!.find(r=>r.id==='keep-awake')?.disabled).toBe(false);
+    const before={backendMode:'lsp' as const,nativeCardAod:true};
+    expect(rearSettingsFingerprint(before)).not.toBe(rearSettingsFingerprint({...before,nativeCardAod:false}));
+    expect(rearSettingsFingerprint(before)).not.toBe(rearSettingsFingerprint({...before,nativeCardKeepAwake:true}));
+});

@@ -6,6 +6,8 @@ import android.os.SystemClock;
 /** A renewable, session-scoped rear-only lease. A crashed/stalled player cannot hold it forever. */
 final class RearDisplayLease {
     static final long TIMEOUT_MS = 60_000;
+    static final long CARD_TIMEOUT_MS = 12_000;
+    private boolean card;
     /**
      * While a lyric window is still attached to the rear display the client cannot be gone -
      * the window manager would have removed the window with its process. HyperOS freezes
@@ -39,9 +41,16 @@ final class RearDisplayLease {
     synchronized int acquire(int id, String token, long now) {
         if (id <= 0 || !RearBridgeContract.validSession(token)) throw new IllegalArgumentException("Invalid rear lease");
         int previous = display;
-        display = id; session = token; until = now + TIMEOUT_MS; windowRenewals = 0;
+        display = id; session = token; until = now + TIMEOUT_MS; windowRenewals = 0; card = false;
         return previous;
     }
+
+    synchronized int acquireCard(int id, String token, long now) {
+        int previous = acquire(id, token, now);
+        card = true; until = now + CARD_TIMEOUT_MS;
+        return previous;
+    }
+    synchronized boolean isCard() { return card; }
 
     synchronized boolean holds(int id, long now) { return id > 0 && id == display && now < until; }
 
@@ -58,6 +67,9 @@ final class RearDisplayLease {
     synchronized boolean holdsWindow(int id, String pkg, String activity,
                                     WindowTreeProbe.Presence presence, boolean ownActivityOnTop, long now) {
         if (!holds(id, now)) return false;
+        // Fresh card receipts own this short lease; legacy window probes cannot renew it.
+        if (card) return !RearBridgeContract.isCameraPackage(pkg)
+            && ("com.xiaomi.subscreencenter".equals(pkg) || RearBridgeContract.isSystemOverlay(pkg));
         if (RearBridgeContract.PACKAGE.equals(pkg) && RearBridgeContract.ACTIVITY.equals(activity)) return true;
         // A camera is never overridden, even with our window still attached underneath.
         if (RearBridgeContract.isCameraPackage(pkg)) return false;
@@ -81,7 +93,7 @@ final class RearDisplayLease {
      * 也没有引入任何新的保活机制或唤醒源。
      */
     synchronized boolean renewForWindow(int id, long now) {
-        if (id <= 0 || id != display || windowRenewals >= MAX_WINDOW_RENEWALS) return false;
+        if (card || id <= 0 || id != display || windowRenewals >= MAX_WINDOW_RENEWALS) return false;
         if (now >= until) return false; // 已过期：不偷偷复活，让 expire() 正常收尾。
         windowRenewals++;
         until = now + TIMEOUT_MS;
@@ -109,7 +121,7 @@ final class RearDisplayLease {
     private int clearWith(String reason) {
         int old = display;
         if (old > 0) lastEnd = reason;
-        display = -1; session = ""; until = 0; windowRenewals = 0;
+        display = -1; session = ""; until = 0; windowRenewals = 0; card = false;
         return old;
     }
 
@@ -123,7 +135,7 @@ final class RearDisplayLease {
         return "lease=display" + display
             + ", session=" + session.substring(0, Math.min(8, session.length())) + "…"
             + ", remainingMs=" + Math.max(0, until - SystemClock.elapsedRealtime())
-            + ", windowRenewals=" + windowRenewals
+            + ", card=" + card + ", windowRenewals=" + windowRenewals
             + (lastEnd.isEmpty() ? "" : ", lastEnd=" + lastEnd);
     }
 }

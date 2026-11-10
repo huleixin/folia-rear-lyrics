@@ -45,3 +45,12 @@ it('rear light/dark palettes remain independent and survive a follow roundtrip',
     expect(s.getState().profile!.visual.theme.name).toBe('Rear night');s.getState().patch({isDaylight:true});expect(s.getState().profile!.visual.theme.name).toBe('Rear day');
     await s.getState().setMode('follow');await s.getState().setMode('independent');expect(s.getState().profile!.visual.theme.name).toBe('Rear day');
 });
+
+it('roundtrips independent random rules through the existing rear appearance shortcode',async()=>{
+    const {useRearStageAppearanceStore:s,exportRearAppearance}=await import('@/stores/useRearStageAppearanceStore');
+    s.getState().observeFront(front(),null);await s.getState().setMode('independent');
+    s.getState().patch({randomVisualizer:{enabled:true,modes:['classic','hanabi'],seed:'rear-session',initialSongKey:'qq:B'}});
+    const backup=decompressConfig(compressConfig({rearStageAppearance:exportRearAppearance()}));
+    await s.getState().restore(backup.rearStageAppearance);
+    expect(s.getState().profile!.visual.randomVisualizer).toEqual({enabled:true,modes:['classic','hanabi'],seed:'rear-session',initialSongKey:'qq:B'});
+});

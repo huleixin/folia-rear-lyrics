@@ -7,6 +7,8 @@ import {rearStageEditorProps} from './rearStageEditorProps';
 import {rearStageEditorAssets,rearBackgroundAssets} from './rearStageEditorAssets';
 import {loadRearThemeEditor,peekRearThemeEditor,warmRearThemeEditor} from './rearAppearanceModules';
 import SettingsFrameRateSlider from './SettingsFrameRateSlider';
+import MobileRandomVisualizerSettings from './MobileRandomVisualizerSettings';
+import { normalizeRandomVisualizerModes } from '../../../utils/randomVisualizerModes';
 import type {RearSettingsPage} from './rearControlModel';
 import {useTranslation} from 'react-i18next';
 
@@ -79,6 +81,20 @@ export default function RearStageAppearancePage({page,open}:{page:RearSettingsPa
                     </div>
                 </div>
             </div>
+            <MobileRandomVisualizerSettings settings={{
+                enabled: visual?.randomVisualizer?.enabled === true,
+                pool: normalizeRandomVisualizerModes(visual?.randomVisualizer?.modes),
+                onToggle: enabled => state.patch({ randomVisualizer: {
+                    enabled, modes: normalizeRandomVisualizerModes(visual?.randomVisualizer?.modes),
+                    seed: visual?.randomVisualizer?.seed ?? `rear-${Date.now()}`,
+                    initialSongKey: state.frontSongKey,
+                } }),
+                onPool: modes => state.patch({ randomVisualizer: {
+                    enabled: visual?.randomVisualizer?.enabled === true, modes,
+                    seed: visual?.randomVisualizer?.seed ?? `rear-${Date.now()}`,
+                    initialSongKey: visual?.randomVisualizer?.initialSongKey ?? state.frontSongKey,
+                } }),
+            }}/>
             <div className="ty-settings-card ty-rear-backup-entry" data-settings-style='{"border":true,"radius":14,"margin":[0,16,0,0]}' data-settings-layout="card"><button className="ty-settings-row" onClick={()=>open('appearance-backup')} data-settings-style='{"align":"center","gap":12,"padding":[14,8,14,8],"minHeight":48}' data-settings-layout="row"><Archive size={18}/><span className="ty-settings-row-copy" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column"><strong data-settings-layout="wrap">{t('rearAppearance.backup')}</strong><small data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">{t('rearAppearance.backupHint')}</small></span><ChevronRight size={18}/></button></div>
         </fieldset>
         {(error||state.error)&&<p className="ty-rear-notice" role="alert" data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">{error||state.error}</p>}

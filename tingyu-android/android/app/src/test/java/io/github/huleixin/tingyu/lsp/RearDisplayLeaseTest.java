@@ -5,6 +5,22 @@ import static org.junit.Assert.*;
 
 // android/app/src/test/java/io/github/huleixin/tingyu/lsp/RearDisplayLeaseTest.java
 public class RearDisplayLeaseTest {
+    @Test public void verifiedCardLeaseIsRearOnlyShortLivedAndCannotBeRenewedByAnOldWindow() {
+        RearDisplayLease lease = new RearDisplayLease(); lease.acquireCard(1, "card-session", 0);
+        assertTrue(lease.isCard()); assertFalse(lease.holds(0, 1)); assertFalse(lease.holds(2, 1));
+        assertTrue(lease.holds(1, 11999)); assertFalse(lease.renewForWindow(1, 9000));
+        assertFalse(lease.holdsWindow(1, "com.android.camera", "Camera", WindowTreeProbe.Presence.PRESENT, true, 1));
+        assertTrue(lease.holdsWindow(1, "com.xiaomi.subscreencenter", "Launcher", WindowTreeProbe.Presence.ABSENT, false, 1));
+        assertFalse(lease.holdsWindow(1, "another.app", "Other", WindowTreeProbe.Presence.PRESENT, true, 1));
+        assertFalse(lease.release(1, "stale-session")); assertEquals(1, lease.expire(12000));
+        assertFalse(lease.holds(1, 12000)); assertFalse(lease.isCard());
+    }
+    @Test public void cardReceiptsExtendOnlyTheirOwnSessionAndReleaseRestoresSystemControl() {
+        RearDisplayLease lease = new RearDisplayLease(); lease.acquireCard(2, "card-one", 0);
+        lease.acquireCard(2, "card-one", 4000); assertTrue(lease.holds(2, 15000));
+        lease.acquireCard(2, "card-two", 8000); assertFalse(lease.release(2, "card-one"));
+        assertTrue(lease.release(2, "card-two")); assertFalse(lease.holds(2, 8001));
+    }
     @Test public void neverKeepsTheMainOrAnotherDisplayBright() {
         RearDisplayLease lease = new RearDisplayLease(); lease.acquire(2, "session", 0);
         assertFalse(lease.holds(0, 1)); assertFalse(lease.holds(1, 1)); assertTrue(lease.holds(2, 1));

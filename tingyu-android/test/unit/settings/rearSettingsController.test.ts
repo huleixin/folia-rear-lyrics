@@ -8,7 +8,7 @@ import type {RearLyricsStatus} from '@/services/rearLyricsControl';
 
 const mock=vi.hoisted(()=>({get:vi.fn(),start:vi.fn(),stop:vi.fn(),backend:vi.fn(),engine:vi.fn(),route:vi.fn(),cover:vi.fn(),report:vi.fn(),export:vi.fn(),redact:vi.fn()}));
 vi.mock('react-i18next',()=>({useTranslation:()=>({t:(key:string)=>key})}));
-vi.mock('@/services/rearLyricsControl',()=>({canUseRearLyrics:()=>true,rearLyricsPlugin:()=>({getRearLyricsStatus:mock.get,startRearLyrics:mock.start,returnFromRearLyrics:mock.stop}),setRearLyricsBackend:mock.backend,setRearControlEngine:mock.engine,setRearLockedRoute:mock.route,toggleRearCoverSleep:mock.cover}));
+vi.mock('@/services/rearLyricsControl',()=>({rememberRearControlStatus:vi.fn(),toggleRearCardKeepAwake:vi.fn(),toggleRearCardAod:vi.fn(),canUseRearLyrics:()=>true,rearLyricsPlugin:()=>({getRearLyricsStatus:mock.get,startRearLyrics:mock.start,returnFromRearLyrics:mock.stop}),setRearLyricsBackend:mock.backend,setRearControlEngine:mock.engine,setRearLockedRoute:mock.route,toggleRearCoverSleep:mock.cover}));
 vi.mock('@/utils/buildDiagnosticReport',()=>({buildDiagnosticReport:mock.report}));
 vi.mock('@/services/exportDiagnosticReport',()=>({exportDiagnosticReport:mock.export}));
 vi.mock('@/utils/diagnosticRedaction',()=>({redactDiagnosticReport:mock.redact}));
@@ -54,9 +54,11 @@ it('refreshes saved configuration and surfaces a real rejected action',async()=>
 });
 it('diagnostics stays directly reachable and exports the complete report through existing redaction',async()=>{
     await act(async()=>root.render(createElement<{backend:'lsp';diagnosticsOnly:boolean}>(RearLyricsGuide,{backend:'lsp',diagnosticsOnly:true})));
+    expect(host.querySelector('details')?.open).toBe(false);
+    await act(async()=>{host.querySelector('summary')!.click();});
     expect(host.querySelector('details')?.open).toBe(true);expect(host.textContent).toContain('backend=lsp');
     expect(mock.report).not.toHaveBeenCalled();
-    await act(async()=>{host.querySelector('button')!.click();});
+    await act(async()=>{[...host.querySelectorAll('button')].find(b=>b.textContent==='help.exportDiagnostics')!.click();});
     expect(mock.report).toHaveBeenCalledTimes(1);expect(mock.redact).toHaveBeenCalledWith('all-existing-fields\ntoken=secret');
     expect(mock.export).toHaveBeenCalledWith('all-existing-fields\ntoken=[redacted]','help.exportDiagnostics');
 });

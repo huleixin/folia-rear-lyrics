@@ -22,8 +22,6 @@ import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
@@ -84,7 +82,9 @@ internal fun SettingsFlowPage(
     // 返回：更内层的面板/弹层各自有 BackHandler，会先吃掉；到这里才是退设置分区。
     BackHandler(enabled = true) { action(if (flow.modal != null) "dismiss" else "back", "", 0.0) }
     val density = LocalDensity.current
-    BoxWithConstraints(modifier.then(if (flow.nodes.any { it.kind == "preview" }) Modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen } else Modifier)) {
+    val cutouts = remember(flow.key) { SettingsPreviewCutouts() }
+    val live = LocalSettingsTraceIdentity.current.liveEnabled
+    BoxWithConstraints(modifier) {
         val viewportWidth = constraints.maxWidth.toFloat()
         val viewportHeight = constraints.maxHeight.toFloat()
         val inset = 22.dp
@@ -93,8 +93,15 @@ internal fun SettingsFlowPage(
             TyTopGlassContentLayer(
                 glass, colors, ambientImage = null, ambientViewportHeight = null,
                 modifier = Modifier.fillMaxSize(),
+                backgroundCutout = {
+                    if (live) cutouts.path(glass.originLeftPx, glass.originTopPx.takeIf { it.isFinite() } ?: 0f, with(density) { 28.dp.toPx() }) else null
+                },
             ) {
-                CompositionLocalProvider(LocalSettingsPreviewViewport provides Rect(0f, with(density) { glass.contentTop.toPx() }, viewportWidth, viewportHeight)) {
+                val origin = glass.originTopPx.takeIf { it.isFinite() } ?: 0f
+                CompositionLocalProvider(
+                    LocalSettingsPreviewCutouts provides cutouts,
+                    LocalSettingsPreviewViewport provides Rect(glass.originLeftPx, origin + with(density) { glass.contentTop.toPx() }, glass.originLeftPx + viewportWidth, origin + viewportHeight),
+                ) {
                 key(flow.key) { TySettingsPageView(
                     page = flow,
                     theme = theme,

@@ -14,12 +14,13 @@ import { reduceMotionSurface } from '../surfaces/reduceMotionSurface';
 import { librarySuitePickerSurface } from '../surfaces/librarySuitePickerSurface';
 import { libraryWallLookCommands } from './libraryWallLookCommands';
 import { openCurrentPagePonder } from '../../../services/ponder/pagePonderTarget';
-import { canUseRearLyrics, toggleRearLyrics, toggleRearCoverSleep, setRearLyricsBackend } from '../../../services/rearLyricsControl';
+import { canUseRearCardKeepAwake, toggleRearCardKeepAwake, canUseRearLyrics, toggleRearLyrics, toggleRearCoverSleep, setRearLyricsBackend } from '../../../services/rearLyricsControl';
 
 // src/components/command-palette/commands/settingsCommands.ts
 // Commands in the `settings` group: settings subviews, app toggles, theme, sync, and desktop-only switches.
 
 export const settingsCommands: CommandPaletteCommand[] = [
+    defineCommand({id:'rear-keep-awake-toggle',group:'settings',title:'Rear lyrics keep awake',description:'Keep the verified LSP lyric card visible with the main screen off',keywords:['rear keep awake','背屏常亮','背屏歌词亮屏'],isAvailable:canUseRearCardKeepAwake,execute:toggleRearCardKeepAwake}),
     defineCommand({id:'settings-rear-appearance',group:'settings',title:'Rear stage appearance',description:'Configure independent rear stage visuals',keywords:['rear appearance','背屏外观','背屏舞台'],isAvailable:canUseRearLyrics,execute:async()=>{const {useSettingsModalStore}=await import('../../../stores/useSettingsModalStore');useSettingsModalStore.getState().openRearSettings('appearance');return true;}}),
     defineCommand({id:'settings-rear',group:'settings',title:'Rear lyrics settings',description:'Open the rear lyrics control center',
         keywords:['rear control','背屏设置','背屏控制中心'],isAvailable:canUseRearLyrics,

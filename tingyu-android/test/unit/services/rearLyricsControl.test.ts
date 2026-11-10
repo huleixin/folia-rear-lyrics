@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { canUseRearLyrics, toggleRearLyrics, setRearLyricsBackend, setRearControlEngine, type RearLyricsStatus } from '../../../src/services/rearLyricsControl';
+import { toggleRearCardKeepAwake, canUseRearLyrics, toggleRearLyrics, setRearLyricsBackend, setRearControlEngine, type RearLyricsStatus } from '../../../src/services/rearLyricsControl';
 import { rearSettingsHint, rearSettingsFingerprint, rearSettingsState } from '../../../src/components/modal/settings/rearLyricsSettingsModel';
 
 // test/unit/services/rearLyricsControl.test.ts
@@ -82,4 +82,20 @@ describe('rear lyrics persistent control', () => {
         expect(await setRearControlEngine('legacy')).toBe(false);
         expect(plugin.setRearControlEngine).not.toHaveBeenCalled();
     });
+});
+
+it('gates native-card keep awake by backend and framework, while allowing an existing preference to be disabled',async()=>{
+    for(const status of [
+        {backendMode:'shizuku',nativeCardKeepAwakeAvailable:true},
+        {backendMode:'lsp',nativeCardKeepAwakeAvailable:false},
+        {backendMode:'lsp',nativeCardKeepAwakeAvailable:true},
+        {backendMode:'lsp',nativeCardKeepAwake:true,nativeCardKeepAwakeAvailable:false},
+    ] as RearLyricsStatus[]){
+        const plugin={getRearLyricsStatus:vi.fn().mockResolvedValue(status),setRearCardKeepAwake:vi.fn().mockResolvedValue(undefined)};
+        vi.stubGlobal('window',{Capacitor:{getPlatform:()=> 'android',Plugins:{FoliaNative:plugin}}});
+        const allowed=status.backendMode==='lsp'&&(!!status.nativeCardKeepAwake||!!status.nativeCardKeepAwakeAvailable);
+        expect(await toggleRearCardKeepAwake()).toBe(allowed);
+        if(allowed)expect(plugin.setRearCardKeepAwake).toHaveBeenCalledWith({enabled:!status.nativeCardKeepAwake});
+        else expect(plugin.setRearCardKeepAwake).not.toHaveBeenCalled();
+    }
 });

@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react';
+import { isAndroidNativeRuntime } from '../utils/platform';
+import { getFoliaNative } from '../platform/foliaNative';
 import type { SongResult, VisualizerMode } from '../types';
 import { VISUALIZER_REGISTRY } from '../components/visualizer/registry';
 import { useVisualizerSettingsStore } from '../stores/useVisualizerSettingsStore';
-import { pickRandomVisualizerMode } from '../utils/randomVisualizerModes';
+import { pickRandomVisualizerMode, RANDOM_VISUALIZER_SESSION_SEED } from '../utils/randomVisualizerModes';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
 
-// Applies a different registered lyric animation mode when the active track changes.
+// Selects a registered lyric animation mode when the active track changes.
 export function useRandomVisualizerMode({
     currentSong,
     enabled,
@@ -52,7 +54,16 @@ export function useRandomVisualizerMode({
         observedSongIdRef.current = songId;
         const modes = new Set(VISUALIZER_REGISTRY.map(entry => entry.mode));
         const candidates = pool.filter(mode => modes.has(mode));
-        const nextMode = pickRandomVisualizerMode(candidates, visualizerMode);
-        setVisualizerMode(nextMode, { notify: false });
+        if (!isAndroidNativeRuntime()) {
+            setVisualizerMode(pickRandomVisualizerMode(candidates, visualizerMode), { notify: false });
+            return;
+        }
+        let cancelled = false;
+        const plugin = getFoliaNative<{ selectSongVisualizerMode: (value: object) => Promise<{ mode: VisualizerMode }> }>();
+        void plugin.selectSongVisualizerMode({ songKey: songId, current: visualizerMode,
+            policy: { enabled: true, modes: candidates, seed: RANDOM_VISUALIZER_SESSION_SEED } })
+            .then(result => { if (!cancelled && candidates.includes(result.mode)) setVisualizerMode(result.mode, { notify: false }); })
+            .catch(() => { if (!cancelled) setVisualizerMode(pickRandomVisualizerMode(candidates, visualizerMode), { notify: false }); });
+        return () => { cancelled = true; };
     }, [currentSong, enabled, setVisualizerMode, visualizerMode, pool]);
 }

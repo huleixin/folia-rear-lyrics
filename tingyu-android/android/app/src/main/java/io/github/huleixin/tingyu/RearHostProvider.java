@@ -59,6 +59,7 @@ public final class RearHostProvider extends ContentProvider {
         }
         String session=extras.getString("session","");enforceSession(session);
         if("aod".equals(method)){out.putBoolean("enabled",getContext().getSharedPreferences("rear-card",0).getBoolean("aod",true));
+            out.putBoolean("keepAwake",RearCardKeepAwake.requested(getContext()));
         }else if("report".equals(method)){
             String event=extras.getString("event","");
             if(!RearHostContract.knownEvent(event))throw new IllegalArgumentException("Invalid host event");

@@ -1,4 +1,5 @@
 import {isRearAod} from './rearAodRuntime';
+import { resolveRearRandomVisualizer } from './rearRandomVisualizer';
 import {rearPlaybackAuthority} from './rearPlaybackAuthority';
 import type { LyricsSurfaceTransport } from '../types/lyricsSurfaceTransport';
 import { PlayerState, type LyricData } from '../types';
@@ -116,6 +117,7 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
         const setConnected = (value: boolean) => { if (!closed && connected !== value) { connected = value; events.connected(value); } };
         const emitConfig = (config: ObsBrowserSourceConfig) => {
             if (closed || inactive()) return;
+            config = resolveRearRandomVisualizer(config);
             lastConfig = config; lyricLines=config.lyrics?.lines.length??0; events.config(config); onConfig(config);
         };
         /**
@@ -231,8 +233,9 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                     if (closed || inactive() || acceptedGeneration!==pollGeneration) return;
                     let safe=snapshot.owner&&(authority.blocked||authority.track&&!authority.webAllowed)?{...snapshot.config,hasTrack:false,song:null,lyrics:{lines:[]}}:snapshot.config;
                     if(authority.track&&!authority.webAllowed&&nativeAppliedEpoch===authority.track.epoch&&lastConfig){
-                        safe={...snapshot.config,song:lastConfig.song,songArtist:lastConfig.songArtist,hasTrack:lastConfig.hasTrack,lyrics:lastConfig.lyrics};
+                        safe={...snapshot.config,playbackSongKey:lastConfig.playbackSongKey,playbackSessionId:lastConfig.playbackSessionId,playbackEpoch:lastConfig.playbackEpoch,song:lastConfig.song,songArtist:lastConfig.songArtist,hasTrack:lastConfig.hasTrack,lyrics:lastConfig.lyrics};
                     }
+                    safe = resolveRearRandomVisualizer(safe);
                     events.config(safe); onConfig(safe);
                     lastConfig = safe;
                     lyricLines=safe.lyrics?.lines.length??0;

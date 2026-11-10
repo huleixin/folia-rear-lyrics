@@ -1,4 +1,5 @@
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
+import { SongVisualizerPolicyTracker } from '../utils/randomVisualizerModes';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MotionValue } from 'framer-motion';
 import type {
@@ -255,7 +256,13 @@ export const useObsBrowserSourcePublisher = ({
         };
     }, [background?.customImage, cappellaCustomAvatarImages, cappellaCustomEmojiImages, monetPortraitImage, temperaLayerImages]);
 
+    const randomEnabled = useVisualizerSettingsStore(state => state.randomVisualizerModePerSong);
+    const randomModes = useVisualizerSettingsStore(state => state.randomVisualizerModes);
+    const randomPolicyTracker = useRef<SongVisualizerPolicyTracker | null>(null);
+    if (!randomPolicyTracker.current) randomPolicyTracker.current = new SongVisualizerPolicyTracker();
     const config = useMemo<ObsBrowserSourceConfig>(() => {
+        const songKey = currentSong ? getPlaybackSongKey(currentSong) : '';
+        const randomVisualizer = randomPolicyTracker.current!.update(randomEnabled, randomModes, songKey, visualizerMode);
         const resolvedBackground = {
             ...background,
             customImage: obsCustomImages.monetBackground,
@@ -275,6 +282,7 @@ export const useObsBrowserSourcePublisher = ({
             subtitleTheme,
             isDaylight,
             visualizerMode,
+            randomVisualizer,
             visualizerFrameRate,
             visualizerTunings,
             visualAssetsReady: obsAssetsReady&&(!background?.customImage || !!obsCustomImages.monetBackground)&&(!temperaLayerImages?.length||obsCustomImages.temperaLayer.length===temperaLayerImages.length),
@@ -323,6 +331,7 @@ export const useObsBrowserSourcePublisher = ({
         theme,
         subtitleTheme,
         visualizerMode,
+        randomEnabled, randomModes,
         visualizerFrameRate,
         visualizerTunings,
         visualizerOpacity,

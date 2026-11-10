@@ -23,7 +23,7 @@ export function rearStageEditorProps(visual:RearVisualConfig,onClose:()=>void):C
         onFontScaleChange:(lyricsFontScale:number)=>patch({lyricsFontScale}),onFontWeightChange:(fontWeight:number|null)=>theme({fontWeight:fontWeight??undefined}),
         onCustomFontChange:(font:{family:string}|null)=>{theme({fontFamily:font?.family});if(!font)patch({},null);},
         onFontFallbackFamiliesChange:(fontFamilyStack:string[])=>theme({fontFamilyStack}),
-        onVisualizerModeChange:(visualizerMode:VisualizerMode)=>patch({visualizerMode})};
+        onVisualizerModeChange:(visualizerMode:VisualizerMode)=>{const state=useRearStageAppearanceStore.getState();const policy=state.profile?.visual.randomVisualizer;patch({visualizerMode,...(policy?.enabled?{randomVisualizer:{...policy,initialSongKey:state.frontSongKey}}:{})})}};
     for(const [handler,key] of Object.entries({VisualizerOpacity:'visualizerOpacity',SubtitleFontScale:'subtitleFontScale',HideTranslationSubtitle:'hideTranslationSubtitle',ShowSubtitleTranslation:'showSubtitleTranslation',SubtitleContentMode:'subtitleContentMode',SubtitleOverlayOpacity:'subtitleOverlayOpacity',SubtitleOverlayBackground:'subtitleOverlayBackground',SubtitleUpcomingLyricsBlur:'subtitleUpcomingLyricsBlur',ShowHarmonySubtitle:'showHarmonySubtitle',HarmonySubtitleBackground:'harmonySubtitleBackground'})){
         const fn=(value:unknown)=>patch({[key]:value});result[`on${handler}Change`]=fn;result[`onToggle${handler}`]=fn;
     }

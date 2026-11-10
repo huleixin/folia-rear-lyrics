@@ -9,7 +9,8 @@ public final class RearBridgeContract {
     public static final String REQUEST = PACKAGE + ".LSP_CONNECT";
     public static final String PERMISSION = PACKAGE + ".permission.LSP_CONNECT";
     public static final String DESCRIPTOR = PACKAGE + ".REAR_LYRICS_V2";
-    public static final int VERSION = 6;
+    public static final int VERSION = 7;
+    public static final int HOLD_CARD_POWER = android.os.IBinder.FIRST_CALL_TRANSACTION + 10;
     public static final int HOLD_POWER = android.os.IBinder.FIRST_CALL_TRANSACTION + 6;
     public static final int RELEASE_POWER = android.os.IBinder.FIRST_CALL_TRANSACTION + 7;
     /** Reserved for the bounded log snapshot; always rejected in LSP mode (never fork from system_server). */

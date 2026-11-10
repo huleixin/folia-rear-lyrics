@@ -141,6 +141,7 @@ final class RearHostView {
                         try{card.acquire(stage);trace("handoff-acquired","verified native draw; presentation=unmeasured");}
                         catch(Throwable error){fail("Native draw handoff failed: "+error.getClass().getSimpleName());return;}
                     }
+                    if(qualified)publishPowerEligibility(false);
                     if(!readyReported&&qualified&&card.owned()&&card.ownMedia()&&binding.current()&&isShown()&&getWidth()>0&&getHeight()>0){
                         readyReported=true;
                         events.report(session,"drawn",displayId(),"WebView onDraw after visual-state fence; mode="+mode+"; epoch="+modeEpoch+"; presentation=unmeasured");
@@ -272,6 +273,25 @@ final class RearHostView {
     private void readPreference(){if(client!=null)preference.update(client.followAod());}
     private void checkDrawTimeout(){if(!closed&&shown&&ready&&!frameEvidence.drawn(modeEpoch))trace("draw-timeout","nativeDraw="+(drawEpoch==modeEpoch)+", layoutReady="+layoutReady+", renderTreeReady="+visualStateReady+"; presentation=unmeasured; first-frame handoff deferred");}
 
+    private void publishPowerEligibility(boolean force){
+        if(stage==null)return;
+        boolean requested=client!=null&&client.keepAwakeRequested();
+        if(!requested&&!lastPowerHold)return;
+        long now=android.os.SystemClock.elapsedRealtime();
+        if(!force&&lastPowerHold&&lastPowerEpoch==modeEpoch&&now-lastPowerReport<4000)return;
+        RearSystemCardBinding.State b=card.binding.snapshot();
+        boolean hold=!closed&&requested&&ready&&shown&&card.owned()
+            &&events.current(session)&&card.ownMedia()&&card.sameRoot()&&b.current()
+            &&stage.isAttachedToWindow()&&card.container.isShown()&&panelState()!=Display.STATE_OFF;
+        if(stage.getKeepScreenOn()!=hold)stage.setKeepScreenOn(hold);
+        if(hold!=lastPowerHold||lastPowerEpoch!=modeEpoch||now-lastPowerReport>=4000){
+            lastPowerHold=hold;lastPowerReport=now;lastPowerEpoch=modeEpoch;
+            events.report(session,"keep-awake",displayId(),hold?"hold":"release");
+        }
+    }
+    private boolean lastPowerHold;
+    private long lastPowerReport, lastPowerEpoch=-1;
+
     private void reconcile(String why) {
         if(closed||stage==null)return;
         if(Looper.myLooper()!=main.getLooper()){main.post(()->reconcile(why));return;}
@@ -285,7 +305,8 @@ final class RearHostView {
         }
         RearCardRenderPolicy.Decision decision=transition.resolve(events.current(session),own,binding.associated,
             binding.center,binding.active,stage.isAttachedToWindow()&&card.container.isAttachedToWindow(),
-            card.container.isShown(),card.owned(),preference.enabled(),aod,panelState(),android.os.SystemClock.elapsedRealtime());
+            card.container.isShown(),card.owned(),preference.enabled()||client!=null&&client.keepAwakeRequested(),
+            aod&&!(client!=null&&client.keepAwakeRequested()&&panelState()==Display.STATE_ON),panelState(),android.os.SystemClock.elapsedRealtime());
         main.removeCallbacks(transitionTimeout);
         if(decision.remainingMs>0)main.postDelayed(transitionTimeout,decision.remainingMs);
         boolean recovered="verified-aod-transition".equals(decisionReason)&&"current-card".equals(decision.reason);
@@ -304,6 +325,7 @@ final class RearHostView {
             if(stage.getVisibility()!=View.INVISIBLE)stage.setVisibility(View.INVISIBLE);
         }else{renderer.setVisibility(View.VISIBLE);show();}
         sendMode();
+        publishPowerEligibility(true);
         if(recovered)dispatch("folia-rear-resync","{\"reason\":\"aod-transition-restored\"}");
         trace("state",decision.reason);armDrawEvidence();
     }
@@ -424,6 +446,7 @@ final class RearHostView {
     void close() {
         if (Looper.myLooper() != main.getLooper()) { main.post(this::close); return; }
         if (closed) return;
+        if(stage!=null){stage.setKeepScreenOn(false);events.report(session,"keep-awake",displayId(),"release");}
         mode=RearCardRenderPolicy.Mode.HIDDEN;modeEpoch++;trace("closing","native restoration requested; presentation=unmeasured");
         closed = true;
         main.removeCallbacks(preparationTimeout);

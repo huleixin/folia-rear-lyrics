@@ -51,7 +51,7 @@ final class SystemRearBinder extends Binder {
             + " · " + power.status() + " · ROM behavior requires device verification";
     }
     @Override protected boolean onTransact(int code, Parcel data, Parcel reply, int flags) throws RemoteException {
-        if (code < FIRST_CALL_TRANSACTION || code > RearBridgeContract.FRONT_PROBE)
+        if (code < FIRST_CALL_TRANSACTION || code > RearBridgeContract.HOLD_CARD_POWER)
             return super.onTransact(code, data, reply, flags);
         data.enforceInterface(RearBridgeContract.DESCRIPTOR);
         int uid = Binder.getCallingUid();
@@ -95,14 +95,15 @@ final class SystemRearBinder extends Binder {
             // Deliberately unsupported: forking logcat from system_server is not worth the risk.
             return "unavailable: LSP mode does not collect system logs";
         }
-        if (operation == 6 || operation == 7) {
+        if (operation == 6 || operation == 7 || operation == 10) {
             synchronized (this) {
-                if (operation == 6) {
+                if (operation == 6 || operation == 10) {
                     if (client == null || !client.isBinderAlive()) throw new IllegalStateException("Player process disconnected");
-                    power.acquire(display, session);
+                    if (operation == 10) power.acquireCard(display, session);
+                    else power.acquire(display, session);
                 } else power.release(display, session);
             }
-            return (operation == 6 ? "Rear bright policy leased for 60s; " : "Matching rear bright policy released; ") + power.status();
+            return (operation == 10 ? "Verified native card bright policy leased for 12s; " : operation == 6 ? "Rear bright policy leased for 60s; " : "Matching rear bright policy released; ") + power.status();
         }
         if (operation == 0) {
             Intent intent = new Intent().setComponent(new ComponentName(RearBridgeContract.PACKAGE, RearBridgeContract.ACTIVITY))

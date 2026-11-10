@@ -1,3 +1,4 @@
+import { rearCardKeepAwakeCanToggle } from '../../../services/rearLyricsControl';
 import type { RearLyricsStatus } from '../../../services/rearLyricsControl';
 import type { NativePageModel, PageSection } from '../../../types/nativePages';
 import { rearSettingsCanToggle, rearSettingsHint } from './rearLyricsSettingsModel';
@@ -55,7 +56,9 @@ export function buildRearControlPage(page:'control'|'advanced',state:RearPresent
     }else{
         if(backend==='shizuku')sections.push({...chips('engine',t('rearControl.engine'),[['plan-a','Plan A'],['legacy','Legacy']],s?.controlEngine??'plan-a',locked),text:t('rearControl.engineBrief')});
         if(backend==='shizuku')sections.push({...chips('route',t('rearControl.lockedRoute'),[['auto','Auto'],['reuse','Reuse'],['migrate','Migrate']],s?.lockedRoute??'auto',!s||state.busy),text:t('rearControl.routeBrief')});
-        if(backend==='lsp')sections.push({id:'rear-aod',title:'原生卡片 AOD',layout:'rows',items:[{id:'aod',title:'跟随系统背屏 AOD 设置',subtitle:'系统允许时以黑底静态歌词显示；关闭系统 AOD 后不强制亮屏',action:'rear:aod',selected:s?.nativeCardAod!==false,secondaryLabel:s?.nativeCardAod===false?'未启用':'已启用',disabled:!s||state.busy}]});
+        if(backend==='lsp')sections.push({id:'rear-aod',title:t('rearControl.cardPower'),layout:'rows',items:[
+            {id:'aod',title:t('rearControl.followAod'),subtitle:t('rearControl.followAodHint'),action:'rear:aod',selected:s?.nativeCardAod!==false,disabled:!s||state.busy},
+            {id:'keep-awake',title:t('rearControl.keepAwake'),subtitle:t(!s?.nativeCardKeepAwakeAvailable?'rearControl.keepAwakeUnavailable':s?.nativeCardKeepAwakeActive?'rearControl.keepAwakeActive':s?.nativeCardKeepAwake?'rearControl.keepAwakeWaiting':'rearControl.keepAwakeHint'),action:'rear:keep-awake',selected:s?.nativeCardKeepAwake===true,disabled:state.busy||!rearCardKeepAwakeCanToggle(s)}]});
         if(backend==='shizuku')sections.push({id:'rear-sleep',title:t('rearControl.power'),layout:'rows',items:[{id:'cover-sleep',title:t('mobileEnhancements.rearCoverSleep'),
             subtitle:t(s?.sleepUnsupported?'rearControl.sleepUnsupported':s?.sensorAvailable?'rearControl.sleepBrief':'rearControl.sensorUnavailable'),
             action:'rear:cover',secondaryLabel:t(s?.coverSleepEnabled?'rearControl.enabled':'rearControl.disabled'),selected:!!s?.coverSleepEnabled,

@@ -31,7 +31,7 @@ export function rearSettingsHint(snapshot: RearLyricsStatus | null): string | nu
 
 /** Native diagnostics include timestamps; they must not invalidate the whole card each poll. */
 export function rearSettingsFingerprint(snapshot: RearLyricsStatus): string {
-    return JSON.stringify([snapshot.userDismissed,snapshot.rendererFailed,snapshot.hostConnected,snapshot.hostActive,snapshot.hostDetail,snapshot.displayMode,snapshot.enabled, snapshot.active, snapshot.starting, snapshot.rearDisplayId,
+    return JSON.stringify([snapshot.nativeCardAod,snapshot.nativeCardKeepAwake,snapshot.nativeCardKeepAwakeAvailable,snapshot.nativeCardKeepAwakeActive,snapshot.userDismissed,snapshot.rendererFailed,snapshot.hostConnected,snapshot.hostActive,snapshot.hostDetail,snapshot.displayMode,snapshot.enabled, snapshot.active, snapshot.starting, snapshot.rearDisplayId,
         snapshot.shizukuAvailable, snapshot.authorized, snapshot.build, snapshot.sleeping,
         snapshot.backendMode, snapshot.lspConnected, snapshot.lspDetail, snapshot.returnedToSystem,
         snapshot.controlEngine,snapshot.lockedRoute,snapshot.lastLaunchRoute,snapshot.coverSleepEnabled,

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
 import { BUILTIN_VISUALIZER_MODES } from '@/types/visualizerModes';
-import { normalizeRandomVisualizerModes, pickRandomVisualizerMode, readRandomVisualizerModes } from '@/utils/randomVisualizerModes';
+import { SongVisualizerPolicyTracker, RANDOM_VISUALIZER_SESSION_SEED, pickSongVisualizerMode, normalizeRandomVisualizerModes, pickRandomVisualizerMode, readRandomVisualizerModes } from '@/utils/randomVisualizerModes';
 import { compressConfig, decompressConfig } from '@/utils/appearanceCodec';
 import { collectVisualizerTunings, applyVisualizerTuningsToSettings } from '@/components/visualizer/tuningRegistry';
 import { useVisualizerSettingsStore } from '@/stores/useVisualizerSettingsStore';
@@ -37,4 +37,15 @@ describe('selected random lyric styles', () => {
         expect(readRandomVisualizerModes()).toEqual(['hanabi']);
         expect(useVisualizerSettingsStore.getState().visualizerMode).toBe(before);
     });
+});
+
+it('tracks manual overrides without mistaking the automatic song transition for a manual change',()=>{
+    const tracker=new SongVisualizerPolicyTracker(),modes=['classic','hanabi','monet'] as const;
+    expect(tracker.update(true,[...modes],'A','classic').initialSongKey).toBe('A');
+    const previous=tracker.update(true,[...modes],'B','classic');expect(previous.initialSongKey).toBe('A');
+    const automatic=pickSongVisualizerMode(modes,'B',RANDOM_VISUALIZER_SESSION_SEED);
+    expect(tracker.update(true,[...modes],'B',automatic).initialSongKey).toBe(automatic==='classic'?'A':'B');
+    const manual=modes.find(m=>m!==automatic)!;
+    expect(tracker.update(true,[...modes],'B',manual).initialSongKey).toBe('B');
+    expect(tracker.update(true,[...modes],'C',manual).initialSongKey).toBe('B');
 });

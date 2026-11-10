@@ -22,7 +22,7 @@ final class RearDisplayPower {
     private final RearLeaseView leaseView = new RearLeaseView() {
         @Override public boolean lyricsLeaseHeld() {
             int id = lease.displayId();
-            return id > 0 && lease.holds(id, SystemClock.elapsedRealtime());
+            return !lease.isCard() && id > 0 && lease.holds(id, SystemClock.elapsedRealtime());
         }
         @Override public boolean cameraRecentlyOnLeasedDisplay() {
             int id = lease.displayId();
@@ -73,6 +73,7 @@ final class RearDisplayPower {
      * 唤醒源，只在租约仍然绑定（含过期后的宽限观测）时按 15 秒间隔重排。
      */
     private void runWindowRenew() {
+        if (lease.isCard()) return;
         long now = SystemClock.elapsedRealtime();
         // 第一行就计数：1.3.61 的日志里 windowRenewals/probePresent/probeUnknown 全是 0、
         // lastRenew=not consulted，却无法区分「循环没跑」与「跑了但没解析出显示」。
@@ -152,22 +153,26 @@ final class RearDisplayPower {
     String status() { return "rearPowerHook=" + installed + ", hookError=" + loggedFailure + ", " + windows.status()
         + ", " + direct.status() + ", " + homes.status() + ", " + fronts.status() + ", " + dreams.status()
         + ", " + lease.describe() + ", leaseRemainingMs=" + lease.remaining(SystemClock.elapsedRealtime()); }
-    synchronized void acquire(int display, String session) {
+    synchronized void acquireCard(int display, String session) { acquire(display, session, true); }
+    synchronized void acquire(int display, String session) { acquire(display, session, false); }
+    private void acquire(int display, String session, boolean card) {
         synchronized (requests) {
             if (!installed || loggedFailure || timer == null || cpuLease == null || !requests.containsKey(display))
                 throw new IllegalStateException("Rear power controller unavailable; reboot after updating the module");
         }
         // Keeps the expiry and pause handoff runnable while the main display is asleep.
         // PARTIAL_WAKE_LOCK does not wake display 0; every acquire has a bounded timeout.
-        cpuLease.acquire(RearDisplayLease.TIMEOUT_MS + 5000);
+        long timeout = card ? RearDisplayLease.CARD_TIMEOUT_MS : RearDisplayLease.TIMEOUT_MS;
+        cpuLease.acquire(timeout + 5000);
         timer.removeCallbacks(releaseCpuWhenIdle);
-        int previous = lease.acquire(display, session, SystemClock.elapsedRealtime());
+        int previous = card ? lease.acquireCard(display, session, SystemClock.elapsedRealtime())
+            : lease.acquire(display, session, SystemClock.elapsedRealtime());
         if (previous > 0 && previous != display) { replay(previous); windows.refresh(previous); direct.replay(previous); }
         replay(display); windows.refresh(display); direct.replay(display);
         Handler handler = timer;
         if (handler != null) {
-            handler.removeCallbacks(expiry); handler.postDelayed(expiry, RearDisplayLease.TIMEOUT_MS);
-            handler.removeCallbacks(windowRenew); handler.postDelayed(windowRenew, RearDisplayLease.WINDOW_RENEW_MS / 2);
+            handler.removeCallbacks(expiry); handler.postDelayed(expiry, timeout);
+            handler.removeCallbacks(windowRenew); if (!card) handler.postDelayed(windowRenew, RearDisplayLease.WINDOW_RENEW_MS / 2);
         }
     }
     synchronized void release(int display, String session) {

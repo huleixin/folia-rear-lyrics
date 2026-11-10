@@ -41,6 +41,8 @@ final class RearHostBridge {
     private static Completion pending;
     private static Runnable timeout;
     private static long lastProbe;
+    private static boolean powerEligible;
+    private static long powerReceiptAt;
     private static RearHostProgress progress=new RearHostProgress();
     private static final RearHostFrameWait frameWait=new RearHostFrameWait();
     static boolean connected(){return service!=null && service.isBinderAlive();}
@@ -188,11 +190,16 @@ final class RearHostBridge {
     static void report(Context context,String expected,String event,int id,String reason){
         MAIN.post(()->{
             if(!matches(expected) || releasing)return;
+            if("keep-awake".equals(event)){
+                powerEligible="hold".equals(reason)&&id>0;powerReceiptAt=android.os.SystemClock.elapsedRealtime();
+                if(id>0)display=id;
+                syncPower(context,android.os.SystemClock.elapsedRealtime());return;
+            }
             if("web-stage".equals(event)){int split=reason.indexOf(":");progress.update(split<0?reason:reason.substring(0,split),split<0?"":reason.substring(split+1));}else progress.update(event,reason);
             RearLyricsTrace.record(context,"host/"+event,"leaseTag="+Integer.toHexString(expected.hashCode())+", display="+id+", "+reason);
             if("render-mode".equals(event)){
                 renderMode=reason.contains("mode=AOD")?"AOD":reason.contains("mode=NORMAL")?"NORMAL":"HIDDEN";
-                detail=reason;active=false;frameWait.stop();if(timeout!=null)MAIN.removeCallbacks(timeout);
+                detail=reason;active=false;powerEligible=false;frameWait.stop();if(timeout!=null)MAIN.removeCallbacks(timeout);
             }else if("card-available".equals(event)){
                 // An actual system business exists, possibly collapsed. Retain the lease and entry;
                 // do not replace native navigation with an Activity or mark unseen content active.
@@ -221,27 +228,34 @@ final class RearHostBridge {
             }else if("released".equals(event)){
                 detail=reason;
             }else if("user-exit".equals(event)){
-                active=false;RearLyricsCoordinator.get(context).dismissDisplaySession(expected);
+                active=false;powerEligible=false;RearLyricsCoordinator.get(context).dismissDisplaySession(expected);
             }else if("failed".equals(event)){
-                active=false;
+                active=false;powerEligible=false;
                 if(pending!=null)failStart(context,expected,reason);
                 else release((ok,d,message)->{if(ok)RearLyricsCoordinator.get(context).hostDisconnected(expected);});
             }else if(RearHostPolicy.invalidatesDrawnState(event,renderMode)){
-                active=false;detail="宿主暂不可见："+reason;
+                active=false;powerEligible=false;detail="宿主暂不可见："+reason;
                 frameWait.stop();
                 if(timeout!=null)MAIN.removeCallbacks(timeout);
             }
+            syncPower(context,android.os.SystemClock.elapsedRealtime());
             RearLyricsCoordinator.get(context).windowChanged();
         });
     }
+    private static void syncPower(Context context,long now){
+        RearCardKeepAwake.sync(context,session,display,hasSession()&&connected()&&!releasing&&powerEligible
+            &&!"HIDDEN".equals(renderMode)&&now-powerReceiptAt<10000);
+    }
     static void pulse(Context context,long now){
-        if(!hasSession()||releasing||now-lastProbe<10000)return;lastProbe=now;
+        syncPower(context,now);
+        long interval=RearCardKeepAwake.requested(context)?4000:10000;
+        if(!hasSession()||releasing||now-lastProbe<interval)return;lastProbe=now;
         final String expected=session;
         transact(RearHostContract.PROBE,expected,false,display,(ok,id,why)->{if(matches(expected)&&!ok){RearLyricsTrace.record(context,"host/probe-failed","reason="+why+", "+progress.describe());detail="宿主探测失败："+why+"；"+progress.describe();release((released,d,reason)->{if(released)RearLyricsCoordinator.get(context).hostDisconnected(expected);});}});
     }
     static void release(Completion callback){
         if(!hasSession()){callback.done(true,-1,"No host lease");return;}
-        final String expected=session;releasing=true;active=false;
+        final String expected=session;releasing=true;active=false;RearCardKeepAwake.release();
         if(timeout!=null)MAIN.removeCallbacks(timeout);
         transact(RearHostContract.HIDE,expected,false,display,(ok,id,message)->{
             if(!matches(expected)){callback.done(false,-1,"Host lease changed");return;}
@@ -250,6 +264,7 @@ final class RearHostBridge {
         });
     }
     private static void clear(){
+        powerEligible=false;powerReceiptAt=0;RearCardKeepAwake.release();
         generation++;session="";active=false;releasing=false;display=-1;
         frameWait.stop();renderMode="HIDDEN";
         if(timeout!=null)MAIN.removeCallbacks(timeout);

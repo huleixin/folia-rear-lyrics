@@ -14,6 +14,7 @@ export type RearControlEngine = 'plan-a' | 'legacy';
  */
 export type RearLockedRoute = 'auto' | 'reuse' | 'migrate';
 export type RearLyricsStatus = {
+    nativeCardKeepAwake?:boolean; nativeCardKeepAwakeAvailable?:boolean; nativeCardKeepAwakeActive?:boolean; nativeCardKeepAwakeDetail?:string;
     nativeCardAod?:boolean; displayImplementation?:string; backendMode?: 'shizuku' | 'lsp'; lspConnected?: boolean; lspDetail?: string;
     controlEngine?: RearControlEngine; lockedRoute?: RearLockedRoute; lastLaunchRoute?: string;
     userDismissed?:boolean;rendererFailed?:boolean;hostConnected?:boolean;hostActive?:boolean;hostDetail?:string;displayMode?:'system-card'|'independent';
@@ -24,6 +25,7 @@ export type RearLyricsStatus = {
     cameraSuspended?:boolean;yieldingToCamera?:boolean;
 };
 export type RearLyricsPlugin = {
+    setRearCardKeepAwake: (options:{enabled:boolean})=>Promise<void>;
     setRearCardAod: (options:{enabled:boolean})=>Promise<void>;
     setRearLyricsBackend: (options: { mode: 'shizuku' | 'lsp' }) => Promise<void>;
     setRearControlEngine: (options: { engine: RearControlEngine }) => Promise<{ engine?: RearControlEngine }>;
@@ -76,3 +78,16 @@ export async function toggleRearLyrics() {
 }
 
 export async function toggleRearCardAod(){const p=rearLyricsPlugin();if(!p)return false;const s=await p.getRearLyricsStatus();await p.setRearCardAod({enabled:s.nativeCardAod===false});return true;}
+
+let lastRearStatus: RearLyricsStatus | null = null;
+export function rememberRearControlStatus(status: RearLyricsStatus) { lastRearStatus = status; }
+export const rearCardKeepAwakeCanToggle = (status: RearLyricsStatus | null) => status?.backendMode === 'lsp'
+    && (status.nativeCardKeepAwake === true || status.nativeCardKeepAwakeAvailable === true);
+export const canUseRearCardKeepAwake = () => canUseRearLyrics() && rearCardKeepAwakeCanToggle(lastRearStatus);
+export async function toggleRearCardKeepAwake() {
+    const plugin = rearLyricsPlugin(); if (!plugin) return false;
+    const status = await plugin.getRearLyricsStatus(); rememberRearControlStatus(status);
+    if (!rearCardKeepAwakeCanToggle(status)) return false;
+    await plugin.setRearCardKeepAwake({ enabled: !status.nativeCardKeepAwake });
+    return true;
+}

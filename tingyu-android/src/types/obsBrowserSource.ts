@@ -23,6 +23,7 @@ import type {
 } from '../types';
 import type { VisualizerTuningBundle } from '../components/visualizer/tuningRegistry';
 import type { VisualizerBackgroundConfig } from '../components/visualizer/backgrounds/definition';
+import type { SongVisualizerPolicy } from '../utils/randomVisualizerModes';
 
 // src/types/obsBrowserSource.ts
 // Shared contracts for the local OBS browser source renderer.
@@ -53,6 +54,9 @@ export interface ObsBrowserSourceConfig {
     subtitleTheme?: Theme;
     isDaylight: boolean;
     visualizerMode: VisualizerMode;
+    randomVisualizer?: SongVisualizerPolicy;
+    randomVisualizerSongKey?: string;
+    randomVisualizerSelectedMode?: VisualizerMode;
     visualizerFrameRate?: VisualizerFrameRate;
     visualizerTunings?: VisualizerTuningBundle;
     background?: VisualizerBackgroundConfig;

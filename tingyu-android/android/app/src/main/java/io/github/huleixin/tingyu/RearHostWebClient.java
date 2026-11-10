@@ -41,12 +41,15 @@ final class RearHostWebClient extends WebViewClient {
             return bytes.toString(StandardCharsets.UTF_8.name());
         }
     }
+    private boolean keepAwake;
+    boolean keepAwakeRequested(){return keepAwake;}
     Boolean followAod(){
         try{
             Bundle b=new Bundle();b.putString("session",session);
             Bundle result=context.getContentResolver().call(Uri.parse("content://"+RearHostContract.AUTHORITY),"aod",null,b);
+            keepAwake=result!=null&&result.getBoolean("keepAwake",false);
             return result!=null&&result.get("enabled") instanceof Boolean?(Boolean)result.get("enabled"):null;
-        }catch(Exception e){return null;}
+        }catch(Exception e){keepAwake=false;return null;}
     }
     private String state(Uri url)throws Exception{
         int requested=-1;try{requested=Integer.parseInt(url.getQueryParameter("revision"));}catch(Exception ignored){}
