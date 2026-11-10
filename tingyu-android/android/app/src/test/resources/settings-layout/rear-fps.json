@@ -1,0 +1,878 @@
+{
+  "key": "settings-flow:qa",
+  "title": "歌词舞台外观",
+  "nodes": [
+    {
+      "id": "form:2:text:0",
+      "kind": "note",
+      "title": "独立配置背屏歌词舞台"
+    },
+    {
+      "id": "form:3:text:1",
+      "kind": "note",
+      "title": "使用背屏独立的主题、背景与字体"
+    },
+    {
+      "id": "form:4",
+      "kind": "switch",
+      "title": "独立配置背屏歌词舞台",
+      "value": "1",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:5:text:3",
+      "kind": "note",
+      "title": "关闭后跟随正面，独立配置会保留。LSP 与 Shizuku 共用。"
+    },
+    {
+      "id": "form:6",
+      "kind": "action",
+      "title": "舞台样式与字体复用现有舞台、背景、字体、歌词及动画设置",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "submit",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:7",
+      "kind": "action",
+      "title": "主题与配色Midnight Default",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "submit",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:8:text:6",
+      "kind": "note",
+      "title": "舞台浅色外观"
+    },
+    {
+      "id": "form:9:text:7",
+      "kind": "note",
+      "title": "仅切换背屏舞台使用的浅色或深色配色"
+    },
+    {
+      "id": "form:10",
+      "kind": "switch",
+      "title": "舞台浅色外观",
+      "value": "0",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:11:text:9",
+      "kind": "note",
+      "title": "歌词舞台静态模式"
+    },
+    {
+      "id": "form:12",
+      "kind": "switch",
+      "title": "歌词舞台静态模式",
+      "value": "1",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:13:text:11",
+      "kind": "note",
+      "title": "动画帧率上限"
+    },
+    {
+      "id": "form:14",
+      "kind": "switch",
+      "title": "动画帧率上限",
+      "value": "1",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:15:text:13",
+      "kind": "note",
+      "title": "限制档位"
+    },
+    {
+      "id": "form:16:text:14",
+      "kind": "note",
+      "title": "30"
+    },
+    {
+      "id": "form:16:text:15",
+      "kind": "note",
+      "title": "FPS"
+    },
+    {
+      "id": "form:17",
+      "kind": "slider",
+      "title": "限制档位",
+      "value": "0",
+      "disabled": false,
+      "min": 0,
+      "max": 3,
+      "step": 1,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "range",
+      "immediate": false,
+      "confirmLabel": "确定"
+    },
+    {
+      "id": "form:18:text:17",
+      "kind": "note",
+      "title": "30"
+    },
+    {
+      "id": "form:19:text:18",
+      "kind": "note",
+      "title": "60"
+    },
+    {
+      "id": "form:20:text:19",
+      "kind": "note",
+      "title": "90"
+    },
+    {
+      "id": "form:21:text:20",
+      "kind": "note",
+      "title": "120"
+    },
+    {
+      "id": "form:22",
+      "kind": "action",
+      "title": "备份与恢复导出或恢复背屏独立外观",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "submit",
+      "immediate": false,
+      "confirmLabel": "确定"
+    }
+  ],
+  "layout": {
+    "id": "page:form:55",
+    "kind": "column",
+    "style": {
+      "padding": [
+        22,
+        0,
+        22,
+        0
+      ]
+    },
+    "children": [
+      {
+        "id": "form:23",
+        "kind": "column",
+        "style": {},
+        "children": [
+          {
+            "id": "form:24",
+            "kind": "column",
+            "style": {
+              "margin": [
+                0,
+                0,
+                0,
+                16
+              ]
+            },
+            "children": [
+              {
+                "id": "form:25",
+                "kind": "card",
+                "style": {
+                  "border": true,
+                  "radius": 14
+                },
+                "children": [
+                  {
+                    "id": "form:26",
+                    "kind": "row",
+                    "style": {
+                      "align": "center",
+                      "gap": 12,
+                      "padding": [
+                        14,
+                        8,
+                        14,
+                        8
+                      ],
+                      "minHeight": 48
+                    },
+                    "children": [
+                      {
+                        "id": "form:27",
+                        "kind": "column",
+                        "style": {
+                          "gap": 4,
+                          "grow": true
+                        },
+                        "children": [
+                          {
+                            "id": "form:2",
+                            "kind": "wrap",
+                            "style": {},
+                            "children": [
+                              {
+                                "id": "copy:1",
+                                "kind": "text",
+                                "text": "独立配置背屏歌词舞台"
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:3",
+                            "kind": "wrap",
+                            "style": {
+                              "font": 12,
+                              "tone": "muted"
+                            },
+                            "children": [
+                              {
+                                "id": "copy:2",
+                                "kind": "text",
+                                "text": "使用背屏独立的主题、背景与字体"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:4",
+                        "kind": "control",
+                        "ref": "form:4",
+                        "style": {}
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:5",
+                "kind": "wrap",
+                "style": {
+                  "font": 12,
+                  "tone": "muted",
+                  "margin": [
+                    2,
+                    8,
+                    2,
+                    0
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "copy:3",
+                    "kind": "text",
+                    "text": "关闭后跟随正面，独立配置会保留。LSP 与 Shizuku 共用。"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "form:28",
+            "kind": "column",
+            "style": {},
+            "children": [
+              {
+                "id": "form:29",
+                "kind": "card",
+                "style": {
+                  "border": true,
+                  "radius": 14
+                },
+                "children": [
+                  {
+                    "id": "layout:form:6",
+                    "kind": "control",
+                    "ref": "form:6",
+                    "style": {
+                      "align": "center",
+                      "gap": 12,
+                      "padding": [
+                        14,
+                        8,
+                        14,
+                        8
+                      ],
+                      "minHeight": 48
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:6",
+                        "kind": "row",
+                        "style": {
+                          "gap": 12,
+                          "align": "center"
+                        },
+                        "children": [
+                          {
+                            "id": "form:30",
+                            "kind": "column",
+                            "style": {
+                              "gap": 4,
+                              "grow": true
+                            },
+                            "children": [
+                              {
+                                "id": "form:31",
+                                "kind": "wrap",
+                                "style": {},
+                                "children": [
+                                  {
+                                    "id": "copy:4",
+                                    "kind": "text",
+                                    "text": "舞台样式与字体"
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:32",
+                                "kind": "wrap",
+                                "style": {
+                                  "font": 12,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:5",
+                                    "kind": "text",
+                                    "text": "复用现有舞台、背景、字体、歌词及动画设置"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:33",
+                            "kind": "icon",
+                            "icon": "chevron-right",
+                            "style": {
+                              "width": 18,
+                              "height": 18
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "layout:form:7",
+                    "kind": "control",
+                    "ref": "form:7",
+                    "style": {
+                      "align": "center",
+                      "gap": 12,
+                      "padding": [
+                        14,
+                        8,
+                        14,
+                        8
+                      ],
+                      "minHeight": 48
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:7",
+                        "kind": "row",
+                        "style": {
+                          "gap": 12,
+                          "align": "center"
+                        },
+                        "children": [
+                          {
+                            "id": "form:34",
+                            "kind": "column",
+                            "style": {
+                              "gap": 4,
+                              "grow": true
+                            },
+                            "children": [
+                              {
+                                "id": "form:35",
+                                "kind": "wrap",
+                                "style": {},
+                                "children": [
+                                  {
+                                    "id": "copy:6",
+                                    "kind": "text",
+                                    "text": "主题与配色"
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:36",
+                                "kind": "wrap",
+                                "style": {
+                                  "font": 12,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:7",
+                                    "kind": "text",
+                                    "text": "Midnight Default"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:37",
+                            "kind": "icon",
+                            "icon": "chevron-right",
+                            "style": {
+                              "width": 18,
+                              "height": 18
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:38",
+                    "kind": "row",
+                    "style": {
+                      "align": "center",
+                      "gap": 12,
+                      "padding": [
+                        14,
+                        8,
+                        14,
+                        8
+                      ],
+                      "minHeight": 48
+                    },
+                    "children": [
+                      {
+                        "id": "form:39",
+                        "kind": "column",
+                        "style": {
+                          "gap": 4,
+                          "grow": true
+                        },
+                        "children": [
+                          {
+                            "id": "form:8",
+                            "kind": "wrap",
+                            "style": {},
+                            "children": [
+                              {
+                                "id": "copy:8",
+                                "kind": "text",
+                                "text": "舞台浅色外观"
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:9",
+                            "kind": "wrap",
+                            "style": {
+                              "font": 12,
+                              "tone": "muted"
+                            },
+                            "children": [
+                              {
+                                "id": "copy:9",
+                                "kind": "text",
+                                "text": "仅切换背屏舞台使用的浅色或深色配色"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:10",
+                        "kind": "control",
+                        "ref": "form:10",
+                        "style": {}
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:40",
+                    "kind": "row",
+                    "style": {
+                      "align": "center",
+                      "gap": 12,
+                      "padding": [
+                        14,
+                        8,
+                        14,
+                        8
+                      ],
+                      "minHeight": 48
+                    },
+                    "children": [
+                      {
+                        "id": "form:41",
+                        "kind": "column",
+                        "style": {
+                          "gap": 4,
+                          "grow": true
+                        },
+                        "children": [
+                          {
+                            "id": "form:11",
+                            "kind": "wrap",
+                            "style": {},
+                            "children": [
+                              {
+                                "id": "copy:10",
+                                "kind": "text",
+                                "text": "歌词舞台静态模式"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:12",
+                        "kind": "control",
+                        "ref": "form:12",
+                        "style": {}
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:42",
+                    "kind": "column",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "form:43",
+                        "kind": "row",
+                        "style": {
+                          "align": "center",
+                          "gap": 12,
+                          "padding": [
+                            14,
+                            8,
+                            14,
+                            8
+                          ],
+                          "minHeight": 48
+                        },
+                        "children": [
+                          {
+                            "id": "form:44",
+                            "kind": "column",
+                            "style": {
+                              "gap": 4,
+                              "grow": true
+                            },
+                            "children": [
+                              {
+                                "id": "form:13",
+                                "kind": "wrap",
+                                "style": {},
+                                "children": [
+                                  {
+                                    "id": "copy:11",
+                                    "kind": "text",
+                                    "text": "动画帧率上限"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "layout:form:14",
+                            "kind": "control",
+                            "ref": "form:14",
+                            "style": {}
+                          }
+                        ]
+                      },
+                      {
+                        "id": "form:45",
+                        "kind": "column",
+                        "style": {
+                          "padding": [
+                            14,
+                            0,
+                            14,
+                            14
+                          ]
+                        },
+                        "children": [
+                          {
+                            "id": "form:46",
+                            "kind": "column",
+                            "style": {
+                              "gap": 12
+                            },
+                            "children": [
+                              {
+                                "id": "form:47",
+                                "kind": "row",
+                                "style": {
+                                  "align": "between",
+                                  "gap": 12,
+                                  "font": 12,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:15",
+                                    "kind": "wrap",
+                                    "style": {
+                                      "grow": true
+                                    },
+                                    "children": [
+                                      {
+                                        "id": "copy:12",
+                                        "kind": "text",
+                                        "text": "限制档位"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:16",
+                                    "kind": "wrap",
+                                    "style": {},
+                                    "children": [
+                                      {
+                                        "id": "copy:13",
+                                        "kind": "text",
+                                        "text": "30 FPS"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "layout:form:17",
+                                "kind": "control",
+                                "ref": "form:17",
+                                "style": {}
+                              },
+                              {
+                                "id": "form:48",
+                                "kind": "row",
+                                "style": {
+                                  "align": "between",
+                                  "font": 11,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "form:18",
+                                    "kind": "wrap",
+                                    "style": {},
+                                    "children": [
+                                      {
+                                        "id": "copy:14",
+                                        "kind": "text",
+                                        "text": "30"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:19",
+                                    "kind": "wrap",
+                                    "style": {},
+                                    "children": [
+                                      {
+                                        "id": "copy:15",
+                                        "kind": "text",
+                                        "text": "60"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:20",
+                                    "kind": "wrap",
+                                    "style": {},
+                                    "children": [
+                                      {
+                                        "id": "copy:16",
+                                        "kind": "text",
+                                        "text": "90"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "form:21",
+                                    "kind": "wrap",
+                                    "style": {},
+                                    "children": [
+                                      {
+                                        "id": "copy:17",
+                                        "kind": "text",
+                                        "text": "120"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:49",
+                "kind": "card",
+                "style": {
+                  "border": true,
+                  "radius": 14,
+                  "margin": [
+                    0,
+                    16,
+                    0,
+                    0
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "layout:form:22",
+                    "kind": "control",
+                    "ref": "form:22",
+                    "style": {
+                      "align": "center",
+                      "gap": 12,
+                      "padding": [
+                        14,
+                        8,
+                        14,
+                        8
+                      ],
+                      "minHeight": 48
+                    },
+                    "children": [
+                      {
+                        "id": "content:form:22",
+                        "kind": "row",
+                        "style": {
+                          "gap": 12,
+                          "align": "center"
+                        },
+                        "children": [
+                          {
+                            "id": "form:50",
+                            "kind": "icon",
+                            "icon": "archive",
+                            "style": {
+                              "width": 18,
+                              "height": 18
+                            }
+                          },
+                          {
+                            "id": "form:51",
+                            "kind": "column",
+                            "style": {
+                              "gap": 4,
+                              "grow": true
+                            },
+                            "children": [
+                              {
+                                "id": "form:52",
+                                "kind": "wrap",
+                                "style": {},
+                                "children": [
+                                  {
+                                    "id": "copy:18",
+                                    "kind": "text",
+                                    "text": "备份与恢复"
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "form:53",
+                                "kind": "wrap",
+                                "style": {
+                                  "font": 12,
+                                  "tone": "muted"
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:19",
+                                    "kind": "text",
+                                    "text": "导出或恢复背屏独立外观"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "form:54",
+                            "kind": "icon",
+                            "icon": "chevron-right",
+                            "style": {
+                              "width": 18,
+                              "height": 18
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "headerActions": []
+}

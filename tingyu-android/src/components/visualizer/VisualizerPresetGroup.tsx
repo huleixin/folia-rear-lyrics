@@ -26,11 +26,13 @@ const VisualizerPresetGroup = <T,>({
     isDaylight,
     theme,
 }: VisualizerPresetGroupProps<T>) => (
-    <div className="space-y-2.5">
-        <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-45" style={{ color: theme.secondaryColor }}>
+    <div className="space-y-2.5" data-settings-layout="column" data-settings-style='{"gap":10}'>
+        <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-45" style={{ color: theme.secondaryColor }}
+            data-settings-layout="wrap" data-settings-style='{"font":12,"weight":500,"tone":"muted"}'>
             {label}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" role="group" aria-label={label}
+            data-settings-layout="wrap" data-settings-style='{"gap":8}'>
             {options.map(option => {
                 const isActive = option.value === value;
 
@@ -38,8 +40,11 @@ const VisualizerPresetGroup = <T,>({
                     <button
                         key={String(option.value)}
                         type="button"
+                        aria-pressed={isActive}
                         onClick={() => onChange(option.value)}
                         className="px-3 py-2 rounded-full text-sm transition-all border"
+                        data-settings-layout="row"
+                        data-settings-style='{"radius":64,"border":true,"font":14,"padding":[12,8,12,8],"center":true}'
                         style={{
                             color: theme.primaryColor,
                             borderColor: isActive ? theme.accentColor : colorWithAlpha(theme.secondaryColor, isDaylight ? 0.18 : 0.14),
