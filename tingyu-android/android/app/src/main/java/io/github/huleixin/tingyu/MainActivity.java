@@ -17,6 +17,9 @@ import com.getcapacitor.WebViewListener;
 import java.io.File;
 
 public class MainActivity extends BridgeActivity {
+    private io.github.huleixin.tingyu.chrome.BrandLaunchState brandLaunch;
+    public void setBrandLaunch(io.github.huleixin.tingyu.chrome.BrandLaunchState state) { brandLaunch = state; }
+    public io.github.huleixin.tingyu.chrome.BrandLaunchState getBrandLaunch() { return brandLaunch; }
     private long lastWebViewRecoveryAt = 0L;
     /**
      * How many renderer rebuilds we run back to back before giving up.
@@ -82,6 +85,7 @@ public class MainActivity extends BridgeActivity {
         io.github.huleixin.tingyu.playback.PlaybackLifecycle.noteActivity("create", true);
         clearWebViewCachesAfterAppUpdate();
         boolean skipOptional = io.github.huleixin.tingyu.diagnostics.StartupGuard.skipOptional();
+        registerPlugin(io.github.huleixin.tingyu.chrome.BrandLaunchPlugin.class);
         registerPlugin(FoliaNativePlugin.class);
         registerPlugin(io.github.huleixin.tingyu.playback.TingyuPlaybackPlugin.class);
         // 安全模式「跳过非必要模块」：原生 Compose 页面不是启动必需品，少装一份就少一个崩溃面。

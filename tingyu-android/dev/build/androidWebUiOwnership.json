@@ -106,6 +106,7 @@
     "src/library/suites/mobile/MobileSheet.tsx",
     "src/App.tsx",
     "src/library/suites/mobile/native/OperationPanel.tsx",
-    "src/library/suites/mobile/native/NativeLocalLibrary.tsx"
+    "src/library/suites/mobile/native/NativeLocalLibrary.tsx",
+    "index.html"
   ]
 }

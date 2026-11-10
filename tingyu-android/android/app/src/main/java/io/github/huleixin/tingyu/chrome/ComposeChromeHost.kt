@@ -59,6 +59,7 @@ import kotlin.math.roundToInt
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ComposeChromeHost.kt
 // Stable WebView identity; native pages and the live stage use separate GPU backdrop sources.
 class ComposeChromeHost(private val web: WebView, var listener: ChromeActionListener) {
+    private val brandLaunch = (web.context as? io.github.huleixin.tingyu.MainActivity)?.brandLaunch ?: BrandLaunchState()
     private var appearanceStyle by mutableStateOf(InterfaceAppearance.style(web.context))
     private var appearanceMode by mutableStateOf(InterfaceAppearance.mode(web.context))
     // 极简播放页第一阶段：数据全部来自既有播放器与统一歌词交付点，命令走同一条动作总线。
@@ -649,6 +650,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         //     提前抽掉它们就是真机上看到的「首页跳位」。
         val composeOwnsMinimalEntry = minimalPlayerEnabled() && destination=="stage" &&
             playerPresentation=="minimal" && !stageAboveMinimal && !webOverlay
+        val brandAlpha = brandLaunchAlpha(brandLaunch, page != null || minimalOwns,
+            reducedMotion || brandLaunch.reduced, web,
+            webContentReady = webOverlay || destination=="web" || destination=="stage"&&!composeOwnsMinimalEntry)
         val settingsRoot = NativeFooterLayout.settingsRoot(destination,pageTarget,settingsRootRequested)
         // pendingStageEntry 不再抽走底栏：极简入场时它们会被页面自然覆盖；
         // 经典 WebView 舞台入场仍在 commit 时按路由规则收起。
@@ -707,7 +711,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             val bootPage=remember(bootId,width,height,safeTop,safeBottom){cache.page(bootId,width,height,safeTop).copy(safeBottom=safeBottom)}
             // Historical diagnostic groups retain the original whole-scene sampling path.
             // Normal builds exclude WebView from native-page sampling and gate stage recording.
-            Box(Modifier.fillMaxSize().zIndex(if(destination!="stage"||stageAboveMinimal)1f else 0f).then(if(legacySampling&&Build.VERSION.SDK_INT>=31&&graphics.sampleStage(destination))Modifier.layerBackdrop(backdrop)else Modifier)) {
+            // Startup elevates only the retained WebView; native page/footer render underneath.
                 // A reproduces the unverified 1.3.32 isolation hypothesis; a TextureView
                 // workaround is not evidence that this fixes WebView. C31 removes only
                 // this modifier. Neither path changes lyric effects or global frame rate.
@@ -716,13 +720,16 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 // A live reader uses the tested C2 texture only for the reader's lifetime.
                 // 第 16 轮：Compose 接管极简入场时 WebView 退回 zIndex 0（首页底下），
                 // 升层+上滑都只属于 WebView 回退模式和经典舞台。
-                Box(Modifier.fillMaxSize().zIndex(if((destination=="stage"&&!composeOwnsMinimalEntry)||webOverlay||stageExit.active&&!nativeMinimalCollapse)2f else 0f)
+                Box(Modifier.fillMaxSize().zIndex(if(brandLaunch.active)100f else if((destination=="stage"&&!composeOwnsMinimalEntry)||webOverlay||stageExit.active&&!nativeMinimalCollapse){if(destination=="stage"&&!stageAboveMinimal).5f else 1.25f}else -1f)
+                    .graphicsLayer { alpha = if(brandLaunch.active)brandAlpha.value else 1f }
+                    .then(if(brandLaunch.active)Modifier.background(palette.launch)else Modifier)
                     .then(if(!legacySampling&&Build.VERSION.SDK_INT>=31&&sampleWeb)Modifier.layerBackdrop(stageBackdrop)else Modifier)) {
                 AndroidView(factory = { web }, modifier = Modifier.fillMaxSize()
                     .then(if(legacySampling&&graphics.mode!=GraphicsProbeMode.C31)Modifier.graphicsLayer { alpha = if(Build.VERSION.SDK_INT>=31).999f else 1f }else Modifier)
                     .stageExitTransform(stageExit,exitProgress,webOwnsRoutePixels(destination,webOverlay,stageExit.active)&&!nativeMinimalCollapse)
                     .playerEntryTransform(destination=="stage"&&playerPresentation=="minimal"&&!returningFromSettings&&!minimalPlayerEnabled(),reducedMotion,height*density.density))
                 }
+            Box(Modifier.fillMaxSize().zIndex(if(destination!="stage"||stageAboveMinimal)1f else 0f).then(if(legacySampling&&Build.VERSION.SDK_INT>=31&&graphics.sampleStage(destination))Modifier.layerBackdrop(backdrop)else Modifier)) {
                 Box(Modifier.fillMaxSize().zIndex(1f).then(if(!legacySampling&&Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop)else Modifier)) {
                 if(page==null&&firstHomeFrame&&destination=="home")NativePageView(bootPage,Modifier.fillMaxSize().zIndex(1f)){_,_,_->}
                 // One route-level animation, with no HTML exit animation or full-screen blur.

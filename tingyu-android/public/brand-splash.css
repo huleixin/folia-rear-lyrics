@@ -1,0 +1,48 @@
+/* Startup-only canvas. Supplied Logo paths and animation timings are unchanged. */
+#app-splash{position:fixed;inset:0;z-index:2147483000;isolation:isolate;overflow:hidden;
+ font-family:system-ui,-apple-system,"Noto Sans CJK SC","Microsoft YaHei",sans-serif;
+ color:var(--ty-launch-ink);background-color:var(--ty-launch-bg);transition:opacity 320ms ease}
+/* Environment light enters over the exact native starting-window color. */
+#app-splash::before{content:"";position:absolute;inset:0;opacity:0;
+ background:radial-gradient(ellipse at 48% 34%,var(--ty-launch-halo),transparent 77%);
+ animation:brandAmbient 1.1s ease-out both;pointer-events:none}
+#app-splash *{box-sizing:border-box}
+#app-splash.is-hiding{opacity:0;pointer-events:none}
+html[data-launch-skip="true"] #app-splash{display:none}
+@keyframes brandAmbient{to{opacity:.12}}
+#app-splash .glow{position:absolute;pointer-events:none;width:250px;height:250px;filter:blur(50px);background:var(--ty-launch-halo);opacity:0;border-radius:50%;animation:brandCorner 1.1s ease-out both}
+@keyframes brandCorner{to{opacity:.26}}
+#app-splash .glow.a{top:-135px;left:-115px}#app-splash .glow.b{bottom:-160px;right:-120px}
+/* 开场波浪只存在于舞台画布，动画完成后 visibility:hidden，不会残留在 Logo 底下。 */
+#app-splash .opening-wave{position:absolute;top:34%;left:0;width:100%;height:135px;opacity:0;visibility:hidden;pointer-events:none;color:var(--ty-launch-wave)}
+#app-splash .opening-wave path{stroke-dasharray:450;stroke-dashoffset:450}
+#app-splash .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 15px 0;z-index:1}
+#app-splash .logo{width:112px;height:112px;display:block;overflow:hidden;border-radius:27px;flex-shrink:0;/* 不使用底部发光/装饰，避免深色主题残留 */}
+#app-splash .logo img{width:100%;height:100%;display:block;clip-path:inset(0 round 24%)}
+#app-splash .brand{font-size:38px;line-height:1.4;letter-spacing:7px;margin:17px 0 0 7px;font-weight:680}
+#app-splash .brand-english{font-size:10px;letter-spacing:4px;font-weight:550;margin-top:4px;color:var(--ty-launch-muted)}
+#app-splash .slogan{font-size:17px;font-weight:540;letter-spacing:1.9px;margin-top:53px;text-align:center;white-space:nowrap}
+#app-splash .subtitle{font-size:11px;letter-spacing:.6px;text-align:center;margin-top:12px;color:var(--ty-launch-muted)}
+#app-splash .footer{position:absolute;bottom:30px;width:100%;text-align:center;font-size:9px;letter-spacing:3px;color:var(--ty-launch-muted);opacity:.7}
+#app-splash .opening-wave{animation:waveFade 1.12s ease-out both;visibility:visible}
+#app-splash .opening-wave path{animation:drawWave .75s ease-out both}
+#app-splash .logo{animation:logoEnter .86s cubic-bezier(.2,.85,.2,1) .38s both}
+#app-splash .brand{animation:fadeUp .55s ease-out 1s both}
+#app-splash .brand-english{animation:fadeUp .55s ease-out 1.18s both}
+#app-splash .slogan{animation:fadeUp .6s ease-out 1.58s both}
+#app-splash .subtitle{animation:fadeUp .6s ease-out 1.83s both}
+#app-splash .footer{animation:fadeUp .65s ease-out 2.05s both}
+@keyframes waveFade{0%{opacity:0;visibility:visible;transform:translateY(16px)}20%{opacity:.8}65%{opacity:.65}99%{visibility:visible}100%{opacity:0;visibility:hidden;transform:translateY(-34px) scale(.70)}}
+@keyframes drawWave{to{stroke-dashoffset:0}}
+@keyframes logoEnter{from{opacity:0;transform:translateY(15px) scale(.78);filter:blur(4px)}to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
+
+html[data-launch-reduced="true"] #app-splash,
+html[data-launch-reduced="true"] #app-splash *,
+html[data-launch-reduced="true"] #app-splash::before{animation:none!important;transition:none!important}
+html[data-launch-reduced="true"] #app-splash .opening-wave{visibility:hidden!important}
+@media(prefers-reduced-motion:reduce){
+ #app-splash,#app-splash *,#app-splash::before{animation:none!important;transition:none!important}
+ #app-splash .opening-wave{visibility:hidden!important}
+}
+@media(max-height:460px){#app-splash .slogan{margin-top:20px}#app-splash .logo{width:80px;height:80px}#app-splash .footer{bottom:10px}}

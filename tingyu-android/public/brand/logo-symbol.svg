@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="听屿海浪岛屿品牌图标">
+  <defs>
+    <linearGradient id="ice" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#DDEDFB"/>
+      <stop offset=".50" stop-color="#A8CAE8"/>
+      <stop offset="1" stop-color="#669CCB"/>
+    </linearGradient>
+    <clipPath id="rounded"><rect width="120" height="120" rx="28" ry="28"/></clipPath>
+  </defs>
+  <g clip-path="url(#rounded)">
+    <rect width="120" height="120" fill="url(#ice)"/>
+    <path d="M-12 62 C20 47 38 88 64 61 S101 25 132 34 L132 132 H-12Z" fill="#EAF4FF" opacity=".58"/>
+    <path d="M-14 88 C19 106 44 94 70 75 S103 59 135 65 L135 132 H-14Z" fill="#528DBC" opacity=".35"/>
+    <path d="M-10 78 C20 97 42 81 66 57 S103 42 132 53" fill="none" stroke="#FFFFFF" stroke-width="11" stroke-linecap="round"/>
+    <path d="M-12 94 C19 108 46 92 73 76 S108 62 131 70" fill="none" stroke="#F6FBFF" stroke-width="3" stroke-linecap="round" opacity=".65"/>
+  </g>
+</svg>

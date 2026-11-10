@@ -129,3 +129,7 @@ React 负责数据、路由、业务动作与原生桥接；Compose 负责绘制
 声明来自源 JSX 的设计 token；生产适配器不采集浏览器坐标、文字折行或滚动偏移。
 既有无 layout 的历史 flow 仍兼容，但当前页面均应生成 layout。实时预览仍是原白名单岛，
 其位置由 Compose 提供，原生覆盖按钮不会新增 WebView UI。详见 ANDROID-NATIVE-SETTINGS.md。
+
+### 品牌冷启动画布
+
+index.html / public/brand-splash.* 是启动期 SVG + CSS 画布白名单。复用现有 WebView，在首个原生页面已绘制且 React 提交后淡出并移除；不承载任何业务页面，不允许导航或主题切换重播。原生启动窗口仅显示同色背景。

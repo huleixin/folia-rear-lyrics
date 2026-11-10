@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated from public/brand/logo-symbol.svg. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt" android:width="108dp" android:height="108dp" android:viewportWidth="120" android:viewportHeight="120">
+  <group android:scaleX="0.6666667" android:scaleY="0.6666667" android:translateX="20" android:translateY="20">
+  <path android:pathData="M-12 62 C20 47 38 88 64 61 S101 25 132 34 L132 132 H-12Z" android:fillColor="#EAF4FF" android:fillAlpha=".58" />
+  <path android:pathData="M-14 88 C19 106 44 94 70 75 S103 59 135 65 L135 132 H-14Z" android:fillColor="#528DBC" android:fillAlpha=".35" />
+  <path android:pathData="M-10 78 C20 97 42 81 66 57 S103 42 132 53" android:fillColor="#00000000" android:fillAlpha="1" android:strokeColor="#FFFFFF" android:strokeWidth="11" android:strokeAlpha="1" android:strokeLineCap="round" />
+  <path android:pathData="M-12 94 C19 108 46 92 73 76 S108 62 131 70" android:fillColor="#00000000" android:fillAlpha=".65" android:strokeColor="#F6FBFF" android:strokeWidth="3" android:strokeAlpha=".65" android:strokeLineCap="round" />
+  </group>
+</vector>
