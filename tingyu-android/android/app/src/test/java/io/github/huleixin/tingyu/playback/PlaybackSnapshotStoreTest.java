@@ -96,6 +96,18 @@ public class PlaybackSnapshotStoreTest {
         store.checkpoint("online:qq:2",7000,true,"shuffle",false);store.mode("one");
         assertEquals("one",new PlaybackSnapshotStore(dir).read().getJSONObject("snapshot").getString("mode"));
     }
+
+    @Test public void completeNativeRoundSurvivesMidRoundSaveAndColdRestore() throws Exception {
+        File dir=temp.newFolder();PlaybackSnapshotStore store=new PlaybackSnapshotStore(dir);
+        JSONObject value=snapshot(5,2,true);
+        JSONArray order=new JSONArray().put("online:qq:4").put("online:qq:1").put("online:qq:2").put("online:qq:0").put("online:qq:3");
+        store.nativeOrder(order,"shuffle",true,"online:qq:2");store.save(value,0,"online:qq:2");
+        store.checkpoint("online:qq:0",12000,false,"shuffle",false);
+        JSONObject result=new PlaybackSnapshotStore(dir).read().getJSONObject("snapshot");
+        assertEquals(order.toString(),result.getJSONArray("order").toString());
+        assertEquals("online:qq:0",result.getString("currentKey"));
+        assertEquals(12000,result.getInt("positionMs"));
+    }
     @Test public void stopBeforeFirstQueueCommitRejectsAnInFlightOldSave() throws Exception {
         File dir=temp.newFolder();PlaybackSnapshotStore store=new PlaybackSnapshotStore(dir);
         store.checkpoint("online:qq:1",0,true,"all",true);

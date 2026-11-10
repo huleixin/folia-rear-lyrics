@@ -1,4 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { shufflePlayback } from '@/services/shufflePlayback';
+import { getPlaybackSongKey } from '@/utils/appPlaybackGuards';
 
 // 阶段 A 的 JS 侧：把逻辑歌单与播放顺序交给原生。
 // 这里只验证"交给原生的是什么"，不验证原生怎么用（那是 JVM 侧的责任）。
@@ -54,6 +56,17 @@ const { syncNativePlaylist, syncNativePlaylistMode, resetNativePlaylistSyncForTe
 );
 
 describe('nativePlaylistSync', () => {
+    it('retains the entire round after eight of ten songs instead of handing native only three', async () => {
+        const queue=Array.from({length:10},(_,i)=>song(String(i)));let current=queue[0];
+        shufflePlayback.setEnabled(true);shufflePlayback.observe(queue,current);
+        try {
+            for(let i=0;i<7;i++){current=shufflePlayback.next(queue,current)! as never;shufflePlayback.observe(queue,current)}
+            await syncNativePlaylist({song:current,queue,loop:'all',shuffle:true,quality:'high'});
+            const keys=lastPlaylist().tracks.map(item=>item.songKey);
+            expect(keys).toEqual(shufflePlayback.recoveryOrder());expect(new Set(keys).size).toBe(10);
+            expect(keys.indexOf(getPlaybackSongKey(current))).toBe(7);
+        }finally{shufflePlayback.setEnabled(false)}
+    });
     beforeEach(() => {
         setNativePlaylist.mockClear();
         setNativePlaylistMode.mockClear();

@@ -122,7 +122,7 @@ beforeEach(() => {
     audioSettings.autoSkipUnplayable = false;
     vi.stubGlobal('window', { setTimeout: vi.fn(() => 1), setInterval: vi.fn(() => 2), clearTimeout: vi.fn(), clearInterval: vi.fn() });
     usePlaybackStore.setState({ activePlaybackContext: 'main', currentSong: songs[0], playQueue: songs,
-        playerState: PlayerState.PLAYING, isFmMode: false, audioSrc: 'https://cdn.example/1.mp3' });
+        playerState: PlayerState.PLAYING, isFmMode: false, audioSrc: 'https://cdn.example/1.mp3', pendingSongKey: '' });
     useStatusMessageStore.setState({ message: null });
 });
 afterEach(() => {
@@ -1102,12 +1102,31 @@ it('does not apply an old same-song lyric callback after replay creates a new pl
 
 
 describe('explicit track selection cuts old output before async work',()=>{
+ it.each(['cancel','error'])('clears the pending marker when a hook ends with %s',async outcome=>{
+  vi.mocked(hasBeforePlayHook).mockReturnValue(true);
+  const hook=deferred<UnifiedSong|null>();vi.mocked(runBeforePlayHook).mockReturnValueOnce(hook.promise);
+  const pending=controller({transition:'manual'}).playSong(songs[1],songs);
+  expect(usePlaybackStore.getState().pendingSongKey).toBe(getPlaybackSongKey(songs[1]));
+  if(outcome==='cancel')hook.resolve(null);else hook.reject(new Error('hook failed'));
+  if(outcome==='error')await expect(pending).rejects.toThrow('hook failed');else await pending;
+  expect(usePlaybackStore.getState().pendingSongKey).toBe('');expect(loader).not.toHaveBeenCalled();
+ });
+ it('inserts a selected song behind the live current song even before React rerenders',async()=>{
+  const queue=controller({transition:'manual'});
+  usePlaybackStore.setState({currentSong:songs[1],playQueue:songs});
+  loader.mockResolvedValue({kind:'ok',audioSrc:'https://cdn.example/new.mp3'});
+  queue.handleQueueAddAndPlay(makeSong('4'));
+  await vi.waitFor(()=>expect(usePlaybackStore.getState().currentSong?.id).toBe('4'));
+  expect(usePlaybackStore.getState().playQueue.map(song=>song.id)).toEqual(['1','2','4','3']);
+ });
  it('pauses and clears the old source synchronously while the next URL waits',async()=>{
   const loading=deferred<OnlineAudioSourceResult>();loader.mockReturnValueOnce(loading.promise);
   const queue=controller({transition:'manual'});const pending=queue.playSong(songs[1],songs);
   expect(queue.pause).toHaveBeenCalledOnce();expect(queue.shouldAutoPlayRef.current).toBe(false);
   expect(usePlaybackStore.getState().audioSrc).toBeNull();
+  expect(usePlaybackStore.getState().pendingSongKey).toBe(getPlaybackSongKey(songs[1]));
   loading.resolve({kind:'ok',audioSrc:'https://cdn.example/2.mp3'});await pending;
+  expect(usePlaybackStore.getState().pendingSongKey).toBe('');
   expect(queue.shouldAutoPlayRef.current).toBe(true);expect(usePlaybackStore.getState()).toMatchObject({currentSong:{id:'2'},audioSrc:'https://cdn.example/2.mp3'});
  });
  it('invalidates an older URL immediately, even while the latest beforePlay hook is waiting',async()=>{
@@ -1118,9 +1137,11 @@ describe('explicit track selection cuts old output before async work',()=>{
   vi.mocked(hasBeforePlayHook).mockReturnValue(true);vi.mocked(runBeforePlayHook).mockReturnValueOnce(hook.promise);
   const latest=queue.playSong(songs[2],songs);expect(queue.pause).toHaveBeenCalledTimes(2);
   old.resolve({kind:'ok',audioSrc:'https://cdn.example/2.mp3'});await first;
+  expect(usePlaybackStore.getState().pendingSongKey).toBe(getPlaybackSongKey(songs[2]));
   expect(usePlaybackStore.getState().audioSrc).toBeNull();expect(usePlaybackStore.getState().currentSong?.id).toBe('1');
   hook.resolve(songs[2]);await latest;expect(usePlaybackStore.getState().currentSong?.id).toBe('3');
   expect(usePlaybackStore.getState().audioSrc).toBe('https://cdn.example/3.mp3');
+  expect(usePlaybackStore.getState().pendingSongKey).toBe('');
  });
  it.each([{transition:'automatic' as const},{isAutomixAdvance:true}])('preserves the automatic/Automix handover: %j',async options=>{
   const loading=deferred<OnlineAudioSourceResult>();loader.mockReturnValueOnce(loading.promise);

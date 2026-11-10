@@ -172,7 +172,7 @@ internal fun LazyListScope.pagedNativeRows(page:NativePage,section:NativePageSec
     val plain=art==null
     items(section.total,key={index->"${section.id}:${section.dataKey}:$index"}){index->
         val item=cache.get(section,index)
-        if(item!=null)NativePageRow(item,height.dp,art?:40.dp,if(plain)14 else 15,if(plain)11 else 12,divider=plain,playing=section.playing,alwaysArt=!plain){action(it,"",0.0)}
+        if(item!=null)NativePageRow(if(page.id=="search"&&section.id=="songs")item.copy(selected=item.id==section.activeKey)else item,height.dp,art?:40.dp,if(plain)14 else 15,if(plain)11 else 12,divider=plain,playing=section.playing,alwaysArt=!plain||section.id=="songs",pending=item.id==section.pendingKey){action(it,"",0.0)}
         else {
             Spacer(Modifier.height(height.dp))
             if(section.request.isNotBlank())LaunchedEffect(page.key,page.session,section.id,section.dataKey,index/100){if(cache.request(index,page.session))action(section.request,"",(index/100*100).toDouble())}

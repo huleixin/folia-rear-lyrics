@@ -10,9 +10,11 @@ const mocks = vi.hoisted(() => ({
     setPlayQueue: vi.fn(),
     setStatusMessage: vi.fn(),
     refreshPrefetchAfterQueueEdit: vi.fn(),
+    getState: vi.fn(),
 }));
 
-vi.mock('../../../src/stores/usePlaybackStore', () => ({ setPlayQueue: mocks.setPlayQueue }));
+vi.mock('../../../src/stores/usePlaybackStore', () => ({ setPlayQueue: mocks.setPlayQueue, usePlaybackStore: { getState: mocks.getState } }));
+vi.mock('../../../src/services/playbackAdapters', () => ({ buildNavidromeQueue: (songs: any[]) => songs.map(song => ({id:song.id,name:song.title,artists:[],sourceRef:{kind:'navidrome',mediaId:song.id}})) }));
 vi.mock('../../../src/stores/useStatusMessageStore', () => ({ setStatusMessage: mocks.setStatusMessage }));
 vi.mock('../../../src/services/prefetchService', () => ({ refreshPrefetchAfterQueueEdit: mocks.refreshPrefetchAfterQueueEdit }));
 
@@ -49,6 +51,17 @@ beforeEach(() => {
     mocks.setPlayQueue.mockReset();
     mocks.setStatusMessage.mockReset();
     mocks.refreshPrefetchAfterQueueEdit.mockReset();
+    mocks.getState.mockReset();
+});
+
+it('inserts a single Navidrome song after the live current track and keeps batch append settings', () => {
+    const {playQueue,mutations,persistLastPlaybackCache}=setup();
+    mocks.getState.mockReturnValue({playQueue,currentSong:playQueue[1]});
+    mutations.addNavidromeSongsToQueue([{id:'n1',title:'New'}] as any);
+    expect(ids(mocks.setPlayQueue.mock.calls[0][0])).toEqual([1,2,'n1',3,4]);
+    expect(persistLastPlaybackCache).toHaveBeenCalledWith(playQueue[1],mocks.setPlayQueue.mock.calls[0][0]);
+    mutations.addNavidromeSongsToQueue([{id:'n1',title:'New'},{id:'n2',title:'New 2'}] as any);
+    expect(ids(mocks.setPlayQueue.mock.calls[1][0])).toEqual([1,2,3,4,'n1','n2']);
 });
 
 describe('createQueueMutations.moveQueueSong', () => {

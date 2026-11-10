@@ -2,6 +2,13 @@ package io.github.huleixin.tingyu.chrome
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filter
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -35,6 +42,7 @@ import androidx.compose.ui.unit.dp
 // 只是把 indication 从系统 ripple 换成这套反馈。
 
 /** 行级按压色：浅色用墨色 6%，深色用白色 7%。叠在玻璃/卡片上都只是"轻压一下"。 */
+// 1.5.0: semantic tint now uses 12% / 16%; release fades visibly even after a quick tap.
 @Composable
 internal fun pagePressTint(): Color = LocalInterfacePalette.current.pressTint
 
@@ -53,6 +61,16 @@ internal fun Modifier.chromePressed(
     scaleTo: Float = 1f,
 ): Modifier {
     val pressed by source.collectIsPressedAsState()
+    val tintProgress = remember(source) { Animatable(0f) }
+    LaunchedEffect(source) {
+        source.interactions.filter { it is PressInteraction }.collectLatest { interaction ->
+            when (interaction) {
+                is PressInteraction.Press -> tintProgress.snapTo(1f)
+                is PressInteraction.Release -> tintProgress.animateTo(0f, tween(220))
+                is PressInteraction.Cancel -> tintProgress.animateTo(0f, tween(70))
+            }
+        }
+    }
     // damping 0.62 / stiffness 1100：按下快、回弹略过冲，和底栏选中项的 press 曲线同一手感。
     val progress by animateFloatAsState(
         targetValue = if (pressed) 1f else 0f,
@@ -69,6 +87,7 @@ internal fun Modifier.chromePressed(
     }
     if (tint.isSpecified) {
         modifier = modifier.drawBehind {
+            val progress = tintProgress.value
             if (progress > .001f) {
                 // 按控件真实圆角画，矩形区域永远不会露出方角。
                 val outline = shape.createOutline(size, layoutDirection, this)

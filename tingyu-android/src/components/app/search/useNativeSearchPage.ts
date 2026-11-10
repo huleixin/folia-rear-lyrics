@@ -15,6 +15,8 @@ import { getPlaybackSongKey } from '../../../utils/appPlaybackGuards';
 import { pageRowActions } from '../../../utils/nativePageActions';
 import type { NativePageModel, PageActions, PageItem, PageSection } from '../../../types/nativePages';
 import { loadSearchDiscovery } from './SearchLanding';
+import { usePlaybackStore } from '../../../stores/usePlaybackStore';
+import { PlayerState } from '../../../types';
 
 // src/components/app/search/useNativeSearchPage.ts
 // Presentation only: playback, source selection, discovery and pagination retain their existing owners.
@@ -37,6 +39,9 @@ type Props = {
 const EMPTY: string[]=[];
 export function useNativeSearchPage(p: Props) {
     const {t}=useTranslation();
+    const activeKey=usePlaybackStore(s=>s.activePlaybackContext==='main'&&s.currentSong?getPlaybackSongKey(s.currentSong):'');
+    const pendingKey=usePlaybackStore(s=>s.pendingSongKey);
+    const playing=usePlaybackStore(s=>s.playerState===PlayerState.PLAYING);
     const [offset,setOffset]=useState(0);
     const [menu,setMenu]=useState<UnifiedSong|null>(null);
     const [discovery,setDiscovery]=useState<{suggestions:string[];hot:string[]}|null>(null);
@@ -107,6 +112,7 @@ export function useNativeSearchPage(p: Props) {
                 const start=p.tab==='overview'?0:offset;
                 actions.allSongs=()=>p.selectTab('song');
                 sections.push({id:'songs',title:t('search.tabSong'),layout:'rows',total:songs.length,offset:start,request:'range',
+                    activeKey,playing,pendingKey,
                     busy:p.searching||p.loadingMore,more:p.error?'retry':p.tab==='overview'?(p.results.length>3||p.hasMore?'allSongs':undefined):p.hasMore?'more':undefined,
                     moreLabel:t(p.error?'search.retry':p.tab==='overview'?'search.seeAll':'home.loadMore'),
                     items:songs.slice(start,start+100).map((song,index)=>{

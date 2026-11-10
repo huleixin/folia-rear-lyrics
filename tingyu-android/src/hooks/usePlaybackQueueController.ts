@@ -244,24 +244,26 @@ export function usePlaybackQueueController({
 
     const [pendingUnavailableReplacement, setPendingUnavailableReplacement] = useState<UnavailableReplacementRequest | null>(null);
 
-    const appendOnlineSongsToMainQueue = useCallback((songs: SongResult[], options?: { suppressToast?: boolean }) => {
+    const appendOnlineSongsToMainQueue = useCallback((songs: SongResult[], options?: { suppressToast?: boolean; next?: boolean }) => {
+        const addBehavior = options?.next ? 'next' : queueAddBehavior;
         if (songs.length === 0) {
-            return { changed: false, deduplicated: false, affectedCount: 0, baseQueue: [], affectedSongs: [], addBehavior: queueAddBehavior };
+            return { changed: false, deduplicated: false, affectedCount: 0, baseQueue: [], affectedSongs: [], addBehavior };
         }
 
-        const mainSnapshot = activePlaybackContext === 'stage' ? mainPlaybackSnapshotRef.current : null;
-        const queueAnchorSong = mainSnapshot?.currentSong ?? (activePlaybackContext === 'main' ? currentSong : null);
-        const existingQueue = mainSnapshot?.playQueue ?? (activePlaybackContext === 'main' ? playQueue : []);
+        const live = usePlaybackStore.getState();
+        const mainSnapshot = live.activePlaybackContext === 'stage' ? mainPlaybackSnapshotRef.current : null;
+        const queueAnchorSong = mainSnapshot?.currentSong ?? (live.activePlaybackContext === 'main' ? live.currentSong : null);
+        const existingQueue = mainSnapshot?.playQueue ?? (live.activePlaybackContext === 'main' ? live.playQueue : []);
         const baseQueue = existingQueue.length > 0 ? existingQueue : (queueAnchorSong ? [queueAnchorSong] : []);
         const queueableSongs = songs.filter(song => !isSongUnavailable(song));
         const { nextQueue, affectedSongs, changed } = applyQueueAddBehavior({
             queue: baseQueue,
             songs: queueableSongs,
             currentSong: queueAnchorSong,
-            behavior: queueAddBehavior,
+            behavior: addBehavior,
         });
 
-        if (activePlaybackContext === 'stage') {
+        if (live.activePlaybackContext === 'stage') {
             mainPlaybackSnapshotRef.current = mainSnapshot
                 ? { ...mainSnapshot, playQueue: nextQueue }
                 : {
@@ -285,7 +287,7 @@ export function usePlaybackQueueController({
         }
 
         if (changed && affectedSongs.length > 0 && !options?.suppressToast) {
-            if (queueAddBehavior === 'next') {
+            if (addBehavior === 'next') {
                 setStatusMsg({ type: 'success', text: t('status.added_to_next_play'), nonce: Date.now(), durationMs: 1200 });
             } else {
                 setStatusMsg({ type: 'success', text: t('status.added_to_play_queue'), nonce: Date.now(), durationMs: 1200 });
@@ -300,16 +302,16 @@ export function usePlaybackQueueController({
             baseQueue,
             queue: nextQueue,
             affectedSongs,
-            addBehavior: queueAddBehavior,
+            addBehavior,
         };
-    }, [activePlaybackContext, currentSong, mainPlaybackSnapshotRef, persistLastPlaybackCache, playQueue, queueAddBehavior, setPlayQueue, setStatusMsg, t]);
+    }, [mainPlaybackSnapshotRef, persistLastPlaybackCache, queueAddBehavior, setPlayQueue, setStatusMsg, t]);
 
     const addOnlineSongToQueue = useCallback((song: SongResult) => {
         if (isSongUnavailable(song)) {
             return;
         }
 
-        appendOnlineSongsToMainQueue([song]);
+        appendOnlineSongsToMainQueue([song], { next: true });
     }, [appendOnlineSongsToMainQueue]);
 
     // Batch variant; returns how many songs the queue actually took so callers that want their own toast can count.
@@ -478,6 +480,8 @@ export function usePlaybackQueueController({
         // out instead of replacing the song the user picked last.
         // An automix advance skips the hook (see `isAutomixAdvance`).
         const playSongCallId = ++playSongCallIdRef.current;
+        usePlaybackStore.setState({ pendingSongKey: getPlaybackSongKey(requestedSong) });
+        try {
         // Invalidate older URL/file/hook work before the first await, even if this hook is slow.
         const playbackRequestId = ++playbackRequestIdRef.current;
         const isLatestPlaybackRequest = () => playbackRequestIdRef.current === playbackRequestId
@@ -898,6 +902,9 @@ export function usePlaybackQueueController({
         if (newQueue.length > 1) {
             prefetchNearbySongs(resolvedSong, resolvedQueue, audioQuality, userId);
         }
+        } finally {
+            if (playSongCallIdRef.current === playSongCallId) usePlaybackStore.setState({ pendingSongKey: '' });
+        }
     }, [
         audioQuality,
         audioRef,
@@ -956,16 +963,13 @@ export function usePlaybackQueueController({
     }, [getPlayableOnlineQueue, isQueueSongPlayable, playSong, setStatusMsg, t]);
 
     const handleQueueAddAndPlay = useCallback((song: SongResult) => {
-        const songKey = getPlaybackSongKey(song);
-        const existingIndex = playQueue.findIndex(candidate => getPlaybackSongKey(candidate) === songKey);
-        const nextQueue = [...playQueue];
-
-        if (existingIndex === -1) {
-            nextQueue.push(song);
-        }
-
+        const live = usePlaybackStore.getState();
+        const { nextQueue } = applyQueueAddBehavior({
+            queue: live.playQueue.length ? live.playQueue : [live.currentSong ?? song], songs: [song],
+            currentSong: live.currentSong, behavior: 'next',
+        });
         void playSong(song, nextQueue, false);
-    }, [playQueue, playSong]);
+    }, [playSong]);
 
     const handleSearchOverlaySubmit = useCallback(async (requestedSource?: SearchSource) => {
         // A discovery chip sets the query and submits in one gesture, before React re-renders.

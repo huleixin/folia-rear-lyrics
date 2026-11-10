@@ -17,6 +17,7 @@ public final class PlaybackSnapshotStore {
     private long intentRevision;
     private JSONArray nativeOrder;
     private String nativeMode,nativeLoopMode;
+    private String nativeAnchor = "";
     private String state = "empty";
     PlaybackSnapshotStore(File dir) {
         this.dir=dir; dir.mkdirs();
@@ -56,7 +57,7 @@ public final class PlaybackSnapshotStore {
         if(next.optInt("v")!=1||!valid(next))throw new IOException("invalid-queue");
         if(liveKey!=null&&!liveKey.isEmpty()&&!next.optBoolean("cleared")&&!liveKey.equals(next.optString("currentKey")))
             throw new IOException("stale-js-current");
-        if(nativeOrder!=null && nativeOrder.length()>0 && next.optString("currentKey").equals(nativeOrder.optString(0))
+        if(nativeOrder!=null && nativeOrder.length()>0 && next.optString("currentKey").equals(nativeAnchor)
                 && next.optString("mode").equals(nativeMode) && (queue==null||sameRows(queue,next)))
             next.put("order",mergeOrder(next.optJSONArray("order"),nativeOrder,next.optJSONArray("queue"))).put("loopMode",nativeLoopMode);
         next.put("v",1).put("revision",revision()+1).put("id",UUID.randomUUID().toString()).put("at",System.currentTimeMillis());
@@ -90,6 +91,10 @@ public final class PlaybackSnapshotStore {
     }
     public synchronized void nativeOrder(JSONArray keys,String mode) throws Exception {nativeOrder(keys,mode,true);}
     public synchronized void nativeOrder(JSONArray keys,String mode,boolean loopAll) throws Exception {
+        nativeOrder(keys,mode,loopAll,keys.optString(0));
+    }
+    public synchronized void nativeOrder(JSONArray keys,String mode,boolean loopAll,String anchor) throws Exception {
+        nativeAnchor = anchor == null ? "" : anchor;
         nativeOrder=new JSONArray(keys.toString());nativeMode=mode;nativeLoopMode="shuffle".equals(mode)?(loopAll?"all":"off"):mode;
         if(!"restored".equals(state)||keys.length()==0||!contains(keys.optString(0)))return;
         queue.put("order",mergeOrder(queue.optJSONArray("order"),keys,queue.optJSONArray("queue"))).put("mode",mode).put("loopMode",nativeLoopMode);

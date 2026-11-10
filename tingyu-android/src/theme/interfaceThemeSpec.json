@@ -102,8 +102,8 @@
     },
     "pressTint": {
       "role": "muted",
-      "light": "0F1B2A22",
-      "dark": "12FFFFFF"
+      "light": "1F1B2A22",
+      "dark": "29FFFFFF"
     },
     "mediaAccent": {
       "role": "accent",

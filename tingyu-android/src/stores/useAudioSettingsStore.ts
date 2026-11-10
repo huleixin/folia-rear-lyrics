@@ -109,11 +109,11 @@ const readStoredAudioQuality = (): AudioQuality => {
 
 const readStoredQueueAddBehavior = (): QueueAddBehavior => {
     if (typeof window === 'undefined') {
-        return 'append';
+        return 'next';
     }
 
     const saved = localStorage.getItem('queue_add_behavior');
-    return saved === 'next' ? 'next' : 'append';
+    return saved === 'append' ? 'append' : 'next';
 };
 
 const readStoredAudioOutputDeviceId = (): string => {

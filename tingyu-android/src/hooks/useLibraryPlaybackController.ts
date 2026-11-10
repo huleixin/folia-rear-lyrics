@@ -138,7 +138,6 @@ export function useLibraryPlaybackController({
     // Read here rather than passed in: all store fields, a module-level signal, or i18n.
     const { t } = useTranslation();
     const audioQuality = useAudioSettingsStore(state => state.audioQuality);
-    const queueAddBehavior = useAudioSettingsStore(state => state.queueAddBehavior);
     const currentSong = usePlaybackStore(state => state.currentSong);
     const lyrics = usePlaybackStore(state => state.lyrics);
     const playQueue = usePlaybackStore(state => state.playQueue);
@@ -526,12 +525,13 @@ export function useLibraryPlaybackController({
     const handleLocalQueueAdd = useCallback(async (localSong: LocalSong) => {
         const preparedLocalSong = await ensureLocalSongCoverAsset(localSong);
         const { unifiedSong } = await resolveLocalMetadataUI(preparedLocalSong, null);
-        const baseQueue = playQueue.length > 0 ? playQueue : (currentSong ? [currentSong] : []);
+        const live = usePlaybackStore.getState();
+        const baseQueue = live.playQueue.length > 0 ? live.playQueue : (live.currentSong ? [live.currentSong] : []);
         const { nextQueue, affectedSongs, changed } = applyQueueAddBehavior({
             queue: baseQueue,
             songs: [unifiedSong],
-            currentSong,
-            behavior: queueAddBehavior,
+            currentSong: live.currentSong,
+            behavior: 'next',
         });
 
         if (!changed || affectedSongs.length === 0) {
@@ -539,14 +539,14 @@ export function useLibraryPlaybackController({
         }
 
         setPlayQueue(nextQueue);
-        void persistLastPlaybackCache(currentSong, nextQueue);
+        void persistLastPlaybackCache(live.currentSong, nextQueue);
         setStatusMsg({
             type: 'success',
-            text: queueAddBehavior === 'next' ? (t('status.insertedToNext') || '') : (t('status.queueUpdated') || ''),
+            text: t('status.insertedToNext') || '',
             nonce: Date.now(),
             durationMs: 1200,
         });
-    }, [currentSong, persistLastPlaybackCache, playQueue, queueAddBehavior, resolveLocalMetadataUI, setPlayQueue, setStatusMsg, t]);
+    }, [persistLastPlaybackCache, resolveLocalMetadataUI, setPlayQueue, setStatusMsg, t]);
 
     // 预热一首本地歌曲的封面与在线匹配；可能写过库（提取了封面或跑过匹配）时返回 true，供调用方回写到 localSongs。
     const prewarmLocalSongMetadata = useCallback(async (localSong: LocalSong): Promise<boolean> => {

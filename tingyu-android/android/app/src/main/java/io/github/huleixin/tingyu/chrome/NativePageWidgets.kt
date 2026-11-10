@@ -124,7 +124,7 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
     }
 }
 @Composable internal fun NativePageRow(item:NativePageItem, height:Dp=68.dp, art:Dp=56.dp, titleSize:Int=15,
-    subtitleSize:Int=12, divider:Boolean=false, chevron:Boolean=false, playing:Boolean=false, alwaysArt:Boolean=false, action:(String)->Unit) {
+    subtitleSize:Int=12, divider:Boolean=false, chevron:Boolean=false, playing:Boolean=false, alwaysArt:Boolean=false, pending:Boolean=false, action:(String)->Unit) {
     // 歌单/资料库/搜索的歌曲行：以前是整行 clickable + 系统 ripple，长按就在标题副标题上
     // 压出一块方角灰底。改成自绘圆角 tint（14dp），关掉 ripple。
     val pressSource=rememberPressSource()
@@ -136,7 +136,9 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
         // 叠加轻量标识：播放中=均衡器动画，暂停=静止暂停符；标题色由 selected 走 PageAccent。
         if(item.image.isNotBlank()||chevron||alwaysArt)Box(Modifier.size(art)){
             PageArtwork(item.image,Modifier.size(art),if(art>=50.dp)11.dp else 7.dp)
-            if(item.selected&&item.image.isNotBlank())Box(Modifier.fillMaxSize().background(Color(0x52000000)),contentAlignment=Alignment.Center){NowPlayingBadge(playing)}
+            if(pending)Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){
+                androidx.compose.material3.CircularProgressIndicator(Modifier.size(20.dp),color=PageAccent,strokeWidth=2.dp)
+            }else if(item.selected)Box(Modifier.fillMaxSize().background(Color(0x52000000)),contentAlignment=Alignment.Center){NowPlayingBadge(playing)}
         }
         Column(Modifier.weight(1f)) {
             Text(item.title,color=if(item.selected)PageAccent else PageInk.copy(alpha=if(item.disabled).45f else 1f),fontSize=titleSize.sp,lineHeight=(titleSize*1.4).sp,

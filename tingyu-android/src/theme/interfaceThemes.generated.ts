@@ -55,7 +55,7 @@ export const interfaceThemes = {
           "hex": "FFF1F4ED"
         },
         "pressTint": {
-          "hex": "0F1B2A22"
+          "hex": "1F1B2A22"
         },
         "mediaAccent": {
           "hex": "FF246E55"
@@ -584,7 +584,7 @@ export const interfaceThemes = {
           "hex": "FF061D16"
         },
         "pressTint": {
-          "hex": "12FFFFFF"
+          "hex": "29FFFFFF"
         },
         "mediaAccent": {
           "hex": "FF7EE0C2"
@@ -1118,7 +1118,7 @@ export const interfaceThemes = {
           "hex": "FFF5F9FC"
         },
         "pressTint": {
-          "hex": "0F526C80"
+          "hex": "1F526C80"
         },
         "mediaAccent": {
           "hex": "FF496B83"
@@ -1643,7 +1643,7 @@ export const interfaceThemes = {
           "hex": "FF1B293A"
         },
         "pressTint": {
-          "hex": "12A2BBCD"
+          "hex": "29A2BBCD"
         },
         "mediaAccent": {
           "hex": "FF9FC6E3"

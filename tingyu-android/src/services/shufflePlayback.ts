@@ -1,5 +1,6 @@
 import type { SongResult } from '../types';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
+import { nextShuffleCycle } from './shuffleCycle';
 
 // src/services/shufflePlayback.ts
 // One stable random plan is shared by skip, automatic advance, preview and prefetch.
@@ -31,14 +32,22 @@ export function createShufflePlayback(random: () => number = Math.random) {
             const nextKeys = [...new Set(queue.map(getPlaybackSongKey))];
             if (nextKeys.length !== keys.length || nextKeys.some((value, i) => value !== keys[i])) {
                 const allowed = new Set(nextKeys);
-                remaining = shuffle(nextKeys.filter(value => value !== key));
-                history = history.slice(0, cursor + 1).filter(value => allowed.has(value));
-                cursor = history.length - 1; pendingCursor = null;
+                const known = new Set(keys);
+                remaining = remaining.filter(value => allowed.has(value));
+                remaining.push(...shuffle(nextKeys.filter(value => !known.has(value) && value !== key)));
+                const past = history.slice(0, cursor + 1).filter(value => allowed.has(value));
+                history = [...past, ...history.slice(cursor + 1).filter(value => allowed.has(value))];
+                cursor = past.length - 1; pendingCursor = null;
                 keys = nextKeys;reshaped=true;
             }
             queueRef = queue;
         }
         if (key === current && history[cursor] === key) {if(reshaped)captureRecoveryPlan();return;}
+        if (key && key !== current && !remaining.length && cursor === history.length - 1
+            && keys.includes(key) && key === nextShuffleCycle(recoveryPlan)[0]) {
+            remaining = nextShuffleCycle(recoveryPlan);
+            recoveryPlan = [...remaining];
+        }
         current = key;
         if (!key || !keys.includes(key)) return;
         remaining = remaining.filter(value => value !== key);
@@ -66,8 +75,7 @@ export function createShufflePlayback(random: () => number = Math.random) {
                 return queue.find(item => getPlaybackSongKey(item) === history[past + 1]) ?? null;
             observe(queue, song);
             const forward = history[cursor + 1];
-            if (!forward && !remaining.length) { remaining = shuffle(keys.filter(key => key !== current));recoveryPlan=[current,...remaining]; }
-            const key = forward ?? remaining[0] ?? current;
+            const key = forward ?? remaining[0] ?? nextShuffleCycle(recoveryPlan)[0] ?? current;
             return queue.find(item => getPlaybackSongKey(item) === key) ?? null;
         },
         /**
@@ -75,6 +83,7 @@ export function createShufflePlayback(random: () => number = Math.random) {
          *
          * 原生要知道"下一首是谁"，而随机序列只有这里知道。给原生一份真实的洗牌结果，
          * 它就不必（也不可能）在 Kotlin 里复刻洗牌算法，两条通道也不会算出不同顺序。
+         * 1.5.0: the complete current round is synchronized; subsequent rounds use the shared deterministic cycle.
          */
         forwardKeys(): string[] {
             if (!active()) return [];
@@ -91,6 +100,17 @@ export function createShufflePlayback(random: () => number = Math.random) {
          * 后者会顺带观察/重塑历史，渲染期间调用会产生隐式副作用。
          */
         peekPrevious(): string { return cursor > 0 ? history[cursor - 1] ?? '' : ''; },
+        adoptNativePlan(queue:SongResult[],song:SongResult,order:string[]) {
+            if (!active()) return;
+            const key=getPlaybackSongKey(song),allowed=new Set(queue.map(getPlaybackSongKey));
+            const plan=[...new Set(order)].filter(value=>allowed.has(value));
+            const index=plan.indexOf(key);
+            if(index<0 || plan.length!==allowed.size)return;
+            observe(queue,song);
+            history=history.slice(0,cursor+1);
+            recoveryPlan=plan;
+            remaining=plan.slice(index+1);
+        },
         restorePlan(queue:SongResult[],song:SongResult,order:string[]) {
             if(!enabled)return;
             keys=[...new Set(queue.map(getPlaybackSongKey))];

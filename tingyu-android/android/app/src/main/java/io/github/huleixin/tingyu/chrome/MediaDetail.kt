@@ -175,11 +175,11 @@ private val PlaylistJade:Color @Composable get()=LocalInterfacePalette.current.m
     val numberWidth=playlistNumberWidth(numberDigits,LocalDensity.current.fontScale).dp
     Column(Modifier.fillMaxWidth().background(if(item.selected)LocalInterfacePalette.current.mediaSelected else Color.Transparent)
         .drawBehind{if(item.selected)drawRect(jade,size=Size(3.dp.toPx(),size.height))}){
-        Row(Modifier.fillMaxWidth().height(51.dp).padding(start=18.dp,end=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
+        Row(Modifier.fillMaxWidth().height(51.dp).chromeClickable(enabled=!item.disabled&&item.action.isNotBlank(),corner=10.dp){action(item.action,"",0.0)}.padding(start=18.dp,end=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
             Text(item.number,color=if(item.selected)PlaylistJade else PageMuted,fontSize=11.sp,maxLines=1,softWrap=false,
                 textAlign=TextAlign.End,modifier=Modifier.width(numberWidth))
-            PageArtwork(item.image,Modifier.size(36.dp).chromeClickable(enabled=!item.disabled,corner=7.dp){action(item.action,"",0.0)},7.dp)
-            Column(Modifier.weight(1f).chromeClickable(enabled=!item.disabled,corner=10.dp){action(item.action,"",0.0)}){
+            PageArtwork(item.image,Modifier.size(36.dp),7.dp)
+            Column(Modifier.weight(1f)){
                 Text(item.title,color=if(item.selected)PlaylistJade else PageInk.copy(alpha=if(item.disabled).45f else 1f),fontSize=14.sp,fontWeight=FontWeight(if(item.selected)700 else 550),maxLines=1,overflow=TextOverflow.Ellipsis)
                 NativeSongSubtitle(item,modifier=Modifier.padding(top=1.dp))
             }

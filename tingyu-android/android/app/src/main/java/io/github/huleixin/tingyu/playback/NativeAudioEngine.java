@@ -134,6 +134,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     private Consumer<JSObject> listener;
     private boolean sleepStopped;
     private volatile String sourceId="";
+    private String shuffleClockKey = "";
     private String songKey="";
     private final PowerManager.WakeLock handoffWake;
     private boolean endedHandoff;
@@ -287,6 +288,14 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 if(sourceId.isEmpty()||item==null||item.localConfiguration==null||!(item.localConfiguration.tag instanceof JSObject))return;
                 JSObject queued=(JSObject)item.localConfiguration.tag;
                 songKey=item.mediaId;endedHandoff=false;staleNudges=0;
+                if (NativePlaylist.get().observeCurrent(songKey, reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)) {
+                    PlaybackSessionPersistence recovery = PlaybackSessionPersistence.get(context);
+                    org.json.JSONArray order = NativePlaylist.get().orderKeys();
+                    boolean loop = NativePlaylist.get().loopAll();
+                    String anchor = songKey;
+                    recovery.io.execute(() -> { try { recovery.store.nativeOrder(order, "shuffle", loop, anchor); }
+                        catch (Exception error) { PlaybackSessionPersistence.note("save-failed", ""); } });
+                }
                 if(reason==Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)applyOutputPolicy(true);
                 // 歌词按**真实的 MediaItem id** 取，且先钉住当前曲、再保护下一首：换歌这一刻
                 // 缓存里的「下一首」若被预置淘汰掉，灵动岛就会空到下一次换歌。
@@ -1477,6 +1486,14 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     public JSObject snapshot(String type,boolean external){
         JSObject value=new JSObject();value.put("id",sourceId);value.put("sequence",sequence);value.put("type",type);value.put("external",external);
         value.put("songKey",songKey);value.put("endedBySleep",sleepStopped);
+        // Include complete rounds on handoff/snapshot and the first heartbeat of a new song.
+        // Routine clocks and spectrum frames never resend the full playlist.
+        if (NativePlaylist.get().mode() == NativePlaylist.Mode.SHUFFLE
+                && (type.equals("queue-transition") || type.equals("snapshot") || type.equals("session-reuse")
+                    || type.equals("state") || type.equals("clock") && !songKey.equals(shuffleClockKey))) {
+            value.put("shuffleOrder", NativePlaylist.get().orderKeys());
+            if (type.equals("clock")) shuffleClockKey = songKey;
+        }
         // 只读的当前音轨规格快照：随 state 帧走（状态变化即携带），换轨/换质不残留。
         if(type.equals("state")||type.equals("audio-spec")){
             JSObject spec=audioSpecSnapshot();

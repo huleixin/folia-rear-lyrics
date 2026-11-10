@@ -74,8 +74,8 @@ public class NativePlaylistTest {
         NativePlaylist.get().replace(tracks, NativePlaylist.Mode.SHUFFLE, true, 0L, "test");
         assertEquals("song-1", NativePlaylist.get().advance("song-4").track.songKey);
         assertEquals("song-9", NativePlaylist.get().advance("song-1").track.songKey);
-        assertEquals("wrapped shuffle goes back to the head",
-            "song-4", NativePlaylist.get().advance("song-7").track.songKey);
+        assertEquals("wrapped shuffle uses the same forecast as prefetch",
+            NativePlaylist.get().lookahead("song-7", 1).songKey, NativePlaylist.get().advance("song-7").track.songKey);
     }
 
     @Test
@@ -84,6 +84,25 @@ public class NativePlaylistTest {
         for (int i : new int[] { 4, 1, 9 }) tracks.add(track(String.valueOf(i)));
         NativePlaylist.get().replace(tracks, NativePlaylist.Mode.SHUFFLE, false, 0L, "test");
         assertEquals(NativePlaylist.Outcome.END, NativePlaylist.get().advance("song-9").outcome);
+    }
+
+    @Test
+    public void backgroundShuffleKeepsAllSongsAcrossFreshRounds() {
+        NativePlaylist playlist=NativePlaylist.get();
+        playlist.replace(list(10), NativePlaylist.Mode.SHUFFLE, true, 0L, "test");
+        String current="song-0",previous="";
+        playlist.observeCurrent(current);
+        for(int round=0;round<5;round++) {
+            java.util.Set<String> heard=new java.util.HashSet<>();
+            for(int i=0;i<10;i++) {
+                assertFalse(current.equals(previous));assertTrue(heard.add(current));
+                String forecast=playlist.lookahead(current,1).songKey;
+                assertEquals(forecast,playlist.advance(current).track.songKey);
+                assertEquals(forecast,playlist.advance(current).track.songKey);
+                previous=current;current=forecast;playlist.observeCurrent(current);
+            }
+            assertEquals(10,heard.size());assertEquals(10,playlist.size());
+        }
     }
 
     @Test
@@ -98,6 +117,25 @@ public class NativePlaylistTest {
         }
         assertEquals("the 31st boundary is the real end",
             NativePlaylist.Outcome.END, NativePlaylist.get().advance(current).outcome);
+    }
+
+    @Test public void cycleMatchesTheWebUtf16Vector() {
+        java.util.List<NativePlaylist.Track> input=new java.util.ArrayList<>();
+        for(String key:new String[]{"online:qq:1","local:海浪🎵","online:netease:3","local:4","online:qq:5"})
+            input.add(new NativePlaylist.Track(key,"","","","","",0,"",""));
+        java.util.List<String> actual=new java.util.ArrayList<>();
+        for(NativePlaylist.Track t:ShuffleCycle.next(input))actual.add(t.songKey);
+        assertEquals(java.util.Arrays.asList("online:netease:3","local:4","online:qq:5","online:qq:1","local:海浪🎵"),actual);
+    }
+
+    @Test public void skippedFirstCandidateStillCommitsTheNextRound() {
+        NativePlaylist playlist=NativePlaylist.get();
+        playlist.replace(list(10),NativePlaylist.Mode.SHUFFLE,true,0,"test");
+        playlist.observeCurrent("song-9");
+        String second=playlist.lookahead("song-9",2).songKey;
+        if(second.equals("song-9"))second=playlist.lookahead("song-9",3).songKey;
+        assertTrue(playlist.observeCurrent(second,true));
+        assertTrue(playlist.indexOf(second)>0);assertEquals(10,playlist.size());
     }
 
     @Test

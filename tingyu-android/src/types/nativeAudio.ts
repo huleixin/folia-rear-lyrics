@@ -2,7 +2,7 @@
 export type NativeAudioState={decoderOffer?:number;eventRevision?:number;engineSessionId?:string;capturedAtElapsedMs?:number;trackGeneration?:number;playbackRate?:number;endedBySleep?:boolean;id:string;sequence:number;type:string;external?:boolean;position:number;capturedAtMs?:number;duration:number;buffered:number;songKey?:string;uri?:string;
     playing:boolean;paused:boolean;status:number;errorCode?:number;message?:string;spectrum?:number[];compatibilityClaimed?:boolean;
     /** 只读的当前音轨规格快照（Media3 所选音轨的源 Format，不是解码后的 PCM 参数）。 */
-    audioSpec?:NativeAudioSpec};
+    audioSpec?:NativeAudioSpec;shuffleOrder?:string[]};
 /**
  * 当前播放音轨的真实规格（Media3 Format）。
  *

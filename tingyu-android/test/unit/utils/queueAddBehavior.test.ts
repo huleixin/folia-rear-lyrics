@@ -15,6 +15,23 @@ const song = (id: number, patch: Partial<SongResult> = {}): SongResult => ({
 });
 
 describe('applyQueueAddBehavior', () => {
+    it('inserts new songs after the current anchor while preserving both sides', () => {
+        const queue=[1,2,3,4].map(id=>song(id));
+        const result=applyQueueAddBehavior({queue,songs:[song(5),song(6),song(5)],currentSong:queue[1],behavior:'next'});
+        expect(result.nextQueue.map(s=>s.id)).toEqual([1,2,5,6,3,4]);
+        expect(queue.map(s=>s.id)).toEqual([1,2,3,4]);
+    });
+    it('does not duplicate or move the currently playing song', () => {
+        const queue=[1,2,3].map(id=>song(id));
+        const result=applyQueueAddBehavior({queue,songs:[queue[1]],currentSong:queue[1],behavior:'next'});
+        expect(result.nextQueue).toBe(queue);expect(result.changed).toBe(false);
+    });
+    it('adds at the start when there is no current song, including an empty queue', () => {
+        for(const queue of [[],[song(1),song(2)]]){
+            const result=applyQueueAddBehavior({queue,songs:[song(3)],currentSong:null,behavior:'next'});
+            expect(result.nextQueue.map(s=>s.id)).toEqual([3,...queue.map(s=>s.id)]);
+        }
+    });
     it('does not deduplicate different sources that share a numeric id', () => {
         const local = song(-1, {
             isLocal: true,

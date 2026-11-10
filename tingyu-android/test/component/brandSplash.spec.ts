@@ -25,6 +25,15 @@ async function openSplash(page: Page, style = 'classic', mode = 'dark', native?:
 }
 const hide = (page:Page) => page.evaluate(()=> (window as unknown as {__tingyuHideSplash:()=>void}).__tingyuHideSplash());
 
+test('branding is visible in the first 300ms of the animation without a readiness hold',async({page})=>{
+  await openSplash(page);
+  await page.evaluate(()=>document.getAnimations().forEach(animation=>{animation.pause();animation.currentTime=300;}));
+  for(const selector of ['.logo','.brand','.brand-english']){
+    expect(await page.locator(selector).evaluate(el=>Number(getComputedStyle(el).opacity))).toBeGreaterThan(.15);
+  }
+  await hide(page);await expect(page.locator('#app-splash')).toHaveCount(0,{timeout:1000});
+});
+
 for(const [style,mode,bg] of [
   ['classic','light','rgb(244, 245, 238)'],['classic','dark','rgb(16, 45, 37)'],
   ['glacier','light','rgb(227, 236, 245)'],['glacier','dark','rgb(16, 26, 40)'],

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createShufflePlayback, shufflePlayback } from '@/services/shufflePlayback';
 import type { SongResult } from '@/types';
 import { getPlaybackSongKey } from '@/utils/appPlaybackGuards';
+import { nextShuffleCycle } from '@/services/shuffleCycle';
 
 // test/unit/services/shufflePlayback.test.ts
 const song = (id: number): SongResult => ({ id, name: `Track ${id}`, artists: [], album: { id: 0, name: '' }, durationMs: 120000,
@@ -9,6 +10,45 @@ const song = (id: number): SongResult => ({ id, name: `Track ${id}`, artists: []
 const queue = [1, 2, 3, 4, 5].map(song);
 afterEach(() => { shufflePlayback.setEnabled(false); shufflePlayback.setSuspended(false); vi.unstubAllGlobals(); });
 describe('shuffle sequence', () => {
+    it('matches the native cross-language cycle vector, including UTF-16 identities', () => {
+        expect(nextShuffleCycle(['online:qq:1','local:海浪🎵','online:netease:3','local:4','online:qq:5']))
+            .toEqual(['online:netease:3','local:4','online:qq:5','online:qq:1','local:海浪🎵']);
+    });
+    it('adopts a later native round without replaying its played prefix', () => {
+        const sequence=createShufflePlayback(()=>.2);sequence.setEnabled(true);sequence.observe(queue,queue[0]);
+        const round=nextShuffleCycle(nextShuffleCycle(sequence.recoveryOrder()));
+        const current=queue.find(song=>getPlaybackSongKey(song)===round[2])!;
+        sequence.adoptNativePlan(queue,current,round);
+        expect(sequence.recoveryOrder()).toEqual(round);
+        expect(sequence.forwardKeys()).toEqual(round.slice(3));
+        expect(getPlaybackSongKey(sequence.next(queue,current)!)).toBe(round[3]);
+    });
+    it('keeps played songs out of the remaining round when adding, removing or reordering', () => {
+        const sequence=createShufflePlayback(()=>.2);sequence.setEnabled(true);
+        sequence.observe(queue,queue[0]);
+        const second=sequence.next(queue,queue[0])!;sequence.observe(queue,second);
+        const before=sequence.forwardKeys();
+        const edited=[...queue].reverse().concat(song(6));sequence.observe(edited,second);
+        expect(sequence.forwardKeys()).toEqual([...before,getPlaybackSongKey(song(6))]);
+        const removed=edited.filter(item=>getPlaybackSongKey(item)!==before[0]);sequence.observe(removed,second);
+        expect(sequence.forwardKeys()).toEqual([...before.slice(1),getPlaybackSongKey(song(6))]);
+        expect(sequence.previous(removed,second)).toBe(queue[0]);
+    });
+    it('shares fresh complete rounds with native without consuming a peek', () => {
+        const sequence=createShufflePlayback(()=>.2);sequence.setEnabled(true);let current=queue[0];
+        sequence.observe(queue,current);
+        for(let round=0;round<4;round++){
+            const planned=sequence.recoveryOrder(),played=[getPlaybackSongKey(current)];
+            for(let i=1;i<queue.length;i++){
+                current=sequence.next(queue,current)!;sequence.observe(queue,current);played.push(getPlaybackSongKey(current));
+            }
+            expect(played).toEqual(planned);expect(new Set(played).size).toBe(queue.length);
+            const forecast=nextShuffleCycle(planned),next=sequence.next(queue,current)!;
+            expect(getPlaybackSongKey(next)).toBe(forecast[0]);expect(next).not.toBe(current);
+            expect(sequence.recoveryOrder()).toEqual(planned);
+            sequence.observe(queue,next);current=next;expect(sequence.recoveryOrder()).toEqual(forecast);
+        }
+    });
     it('keeps peeks stable, plays every remaining track once and never edits the queue', () => {
         const sequence = createShufflePlayback(() => .2); sequence.setEnabled(true);
         let current = queue[2]; sequence.observe(queue, current);

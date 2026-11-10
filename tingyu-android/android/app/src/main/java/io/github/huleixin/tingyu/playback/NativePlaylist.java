@@ -130,11 +130,14 @@ public final class NativePlaylist {
      * 调用方必须据此判定不可用，而不是猜一个。
      */
     private Track previous;
+    // 1.5.0: shuffle tracks now retains the complete round, including its played prefix.
     private Mode mode = Mode.SEQUENCE;
     private boolean loopAll;
     private long generation;
     private long syncedAt;
     private String origin = "none";
+    private List<Track> nextRound;
+    private String observedKey = "";
 
     private NativePlaylist() { }
 
@@ -152,6 +155,8 @@ public final class NativePlaylist {
             INSTANCE.generation = 0;
             INSTANCE.syncedAt = 0;
             INSTANCE.origin = "none";
+            INSTANCE.nextRound = null;
+            INSTANCE.observedKey = "";
         }
     }
 
@@ -177,6 +182,7 @@ public final class NativePlaylist {
                 ? Collections.<Track>emptyList()
                 : Collections.unmodifiableList(new ArrayList<>(ordered));
             this.previous = previous;
+            this.nextRound = null;
             this.mode = mode == null ? Mode.SEQUENCE : mode;
             this.loopAll = loopAll;
             this.syncedAt = syncedAt;
@@ -320,6 +326,7 @@ public final class NativePlaylist {
             boolean wrap = mode == Mode.LOOP_ALL || (mode == Mode.SHUFFLE && loopAll);
             if (!wrap) return new Step(Outcome.END, null, -1, generation);
             if (tracks.size() == 1) return new Step(Outcome.REPEAT_CURRENT, tracks.get(0), 0, generation);
+            if (mode == Mode.SHUFFLE) return new Step(Outcome.ADVANCE, followingRound().get(0), 0, generation);
             return new Step(Outcome.ADVANCE, tracks.get(0), 0, generation);
         }
     }
@@ -347,10 +354,51 @@ public final class NativePlaylist {
             if (target < 0 || target >= tracks.size()) {
                 boolean wrap = mode == Mode.LOOP_ALL || (mode == Mode.SHUFFLE && loopAll);
                 if (!wrap || tracks.isEmpty()) return null;
+                if (mode == Mode.SHUFFLE && target >= tracks.size()) {
+                    List<Track> round = followingRound();
+                    target -= tracks.size();
+                    while (target >= round.size()) { target -= round.size(); round = ShuffleCycle.next(round); }
+                    return round.get(target);
+                }
                 target = target % tracks.size();
                 if (target < 0) target += tracks.size();
             }
             return tracks.get(target);
+        }
+    }
+
+    private List<Track> followingRound() {
+        if (nextRound == null) nextRound = ShuffleCycle.next(tracks);
+        return nextRound;
+    }
+
+    /** Commit a forecast only when Media3 actually enters it; peeks never consume songs. */
+    public boolean observeCurrent(String key) {
+        return observeCurrent(key, true);
+    }
+
+    public boolean observeCurrent(String key, boolean automatic) {
+        synchronized (lock) {
+            boolean changed = false;
+            if (key != null && !key.equals(observedKey) && contains(key)
+                    && mode == Mode.SHUFFLE && loopAll && tracks.size() > 1
+                    && observedKey.equals(tracks.get(tracks.size() - 1).songKey)
+                    && (automatic || key.equals(followingRound().get(0).songKey))) {
+                previous = trackFor(observedKey);
+                tracks = Collections.unmodifiableList(new ArrayList<>(followingRound()));
+                nextRound = null;
+                changed = true;
+            }
+            observedKey = key == null ? "" : key;
+            return changed;
+        }
+    }
+
+    public org.json.JSONArray orderKeys() {
+        synchronized (lock) {
+            org.json.JSONArray result = new org.json.JSONArray();
+            for (Track track : tracks) result.put(track.songKey);
+            return result;
         }
     }
 

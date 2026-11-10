@@ -4,6 +4,9 @@ import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 import { useNativeSearchPage } from '@/components/app/search/useNativeSearchPage';
 import type { NativePageModel, PageActions } from '@/types/nativePages';
+import { usePlaybackStore } from '@/stores/usePlaybackStore';
+import { PlayerState } from '@/types';
+import { getPlaybackSongKey } from '@/utils/appPlaybackGuards';
 
 // test/unit/hooks/useNativeSearchPage.test.ts
 let captured:NativePageModel,actions:PageActions;
@@ -28,6 +31,22 @@ it('keeps the editable native screen mounted across first character, composition
         }
         actions!.change({text:'我们',value:1});expect(change).toHaveBeenCalledWith('我们',true);
         actions!.submit({text:'我们的歌'});expect(submit).toHaveBeenCalledWith('我们的歌');
+        const old=usePlaybackStore.getState();
+        const track={id:1,name:'Song',artists:[],album:{id:0,name:''},durationMs:200000};
+        try {
+            await act(()=>root.render(React.createElement(Probe,{value:{...props,query:'Song',mode:'results',tab:'song',results:[track]}})));
+            const rows=()=>captured.sections.find(section=>section.id==='songs')!;
+            const row=rows().items![0];actions[row.action!]({});expect(props.play).toHaveBeenCalledWith(track);
+            await act(()=>usePlaybackStore.setState({currentSong:null,pendingSongKey:getPlaybackSongKey(track),activePlaybackContext:'main'}));
+            expect(rows()).toMatchObject({pendingKey:getPlaybackSongKey(track),activeKey:''});
+            await act(()=>usePlaybackStore.setState({currentSong:track,pendingSongKey:'',playerState:PlayerState.PLAYING}));
+            expect(rows()).toMatchObject({pendingKey:'',activeKey:getPlaybackSongKey(track),playing:true});
+            await act(()=>usePlaybackStore.setState({playerState:PlayerState.PAUSED}));
+            expect(rows()).toMatchObject({activeKey:getPlaybackSongKey(track),playing:false});
+            await act(()=>usePlaybackStore.setState({pendingSongKey:getPlaybackSongKey(track)}));
+            await act(()=>usePlaybackStore.setState({pendingSongKey:''}));
+            expect(rows().pendingKey).toBe('');
+        } finally {await act(()=>usePlaybackStore.setState(old));}
     } finally {await act(()=>root.unmount())}
 });
 

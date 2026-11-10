@@ -207,11 +207,16 @@ export const syncNativePlaylist = async (options: {
     const currentKey = getPlaybackSongKey(song);
     if (!currentKey) return;
     const ordered = orderedAfter(queue, currentKey, shuffle);
+    // Retain the played prefix as well: a sleeping WebView cannot replenish a shrinking tail.
+    const byKey = new Map(queue.map(item => [getPlaybackSongKey(item), item]));
+    const complete = shuffle && shufflePlayback.active()
+        ? shufflePlayback.recoveryOrder().map(key => byKey.get(key)).filter((item): item is SongResult => !!item)
+        : [song, ...ordered];
     // 当前曲目本身也要在列表里，原生才能用它做锚点找到位置。
     const tracks: NativePlaylistTrackPayload[] = [];
     const head = toNativeResourcePayload(song);
-    if (head) tracks.push(head);
-    for (const next of ordered) {
+    if (head && !complete.some(item => getPlaybackSongKey(item) === currentKey)) tracks.push(head);
+    for (const next of complete) {
         const payload = toNativeResourcePayload(next);
         if (payload && !tracks.some(item => item.songKey === payload.songKey)) tracks.push(payload);
     }

@@ -1,4 +1,5 @@
 /* Startup-only canvas. Supplied Logo paths and animation timings are unchanged. */
+/* 1.5.0: retain the supplied artwork; bring branding forward without delaying home readiness. */
 #app-splash{position:fixed;inset:0;z-index:2147483000;isolation:isolate;overflow:hidden;
  font-family:system-ui,-apple-system,"Noto Sans CJK SC","Microsoft YaHei",sans-serif;
  color:var(--ty-launch-ink);background-color:var(--ty-launch-bg);transition:opacity 320ms ease}
@@ -26,12 +27,12 @@ html[data-launch-skip="true"] #app-splash{display:none}
 #app-splash .footer{position:absolute;bottom:30px;width:100%;text-align:center;font-size:9px;letter-spacing:3px;color:var(--ty-launch-muted);opacity:.7}
 #app-splash .opening-wave{animation:waveFade 1.12s ease-out both;visibility:visible}
 #app-splash .opening-wave path{animation:drawWave .75s ease-out both}
-#app-splash .logo{animation:logoEnter .86s cubic-bezier(.2,.85,.2,1) .38s both}
-#app-splash .brand{animation:fadeUp .55s ease-out 1s both}
-#app-splash .brand-english{animation:fadeUp .55s ease-out 1.18s both}
-#app-splash .slogan{animation:fadeUp .6s ease-out 1.58s both}
-#app-splash .subtitle{animation:fadeUp .6s ease-out 1.83s both}
-#app-splash .footer{animation:fadeUp .65s ease-out 2.05s both}
+#app-splash .logo{animation:logoEnter .42s cubic-bezier(.2,.85,.2,1) .04s both}
+#app-splash .brand{animation:fadeUp .36s ease-out .12s both}
+#app-splash .brand-english{animation:fadeUp .36s ease-out .2s both}
+#app-splash .slogan{animation:fadeUp .4s ease-out .32s both}
+#app-splash .subtitle{animation:fadeUp .4s ease-out .42s both}
+#app-splash .footer{animation:fadeUp .45s ease-out .52s both}
 @keyframes waveFade{0%{opacity:0;visibility:visible;transform:translateY(16px)}20%{opacity:.8}65%{opacity:.65}99%{visibility:visible}100%{opacity:0;visibility:hidden;transform:translateY(-34px) scale(.70)}}
 @keyframes drawWave{to{stroke-dashoffset:0}}
 @keyframes logoEnter{from{opacity:0;transform:translateY(15px) scale(.78);filter:blur(4px)}to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}

@@ -38,6 +38,7 @@ type PlaybackStoreState = {
     // ---- raw ----
     currentSong: SongResult | null;
     audioSrc: string | null;
+    pendingSongKey: string;
     lyrics: LyricData | null;
     activeLocalLyricsSource: ActiveLocalLyricsSource | null;
     cachedCoverUrl: string | null;
@@ -87,6 +88,7 @@ const readStoredReplayGainMode = (): ReplayGainMode => {
 export const usePlaybackStore = create<PlaybackStoreState>((set, get) => ({
     currentSong: null,
     audioSrc: null,
+    pendingSongKey: '',
     lyrics: null,
     activeLocalLyricsSource: null,
     cachedCoverUrl: null,
@@ -105,7 +107,10 @@ export const usePlaybackStore = create<PlaybackStoreState>((set, get) => ({
         shufflePlayback.observe(get().playQueue, song);
         set({ currentSong: song });
     },
-    setAudioSrc: (next) => set({ audioSrc: resolve(next, get().audioSrc) }),
+    setAudioSrc: (next) => {
+        const audioSrc = resolve(next, get().audioSrc);
+        set({ audioSrc, ...(audioSrc ? { pendingSongKey: '' } : {}) });
+    },
     // Plain setter: the extension transform (Folium `lyrics.transform`) runs in the lyrics
     // pipeline (createLyricsSetter), so functional updates here never re-transform.
     setLyricsState: (next) => {

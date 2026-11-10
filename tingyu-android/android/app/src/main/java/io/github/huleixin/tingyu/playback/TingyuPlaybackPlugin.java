@@ -262,7 +262,8 @@ public final class TingyuPlaybackPlugin extends Plugin {
             org.json.JSONArray savedOrder=new org.json.JSONArray();
             for(NativePlaylist.Track t:tracks)savedOrder.put(t.songKey);
             String savedMode=call.getString("mode","off");
-            recovery.io.execute(() -> {try{recovery.store.nativeOrder(savedOrder,savedMode,call.getData().optBoolean("loopAll"));}catch(Exception error){PlaybackSessionPersistence.note("save-failed","");}});
+            String anchor=NativeAudioEngine.currentKey();
+            recovery.io.execute(() -> {try{recovery.store.nativeOrder(savedOrder,savedMode,call.getData().optBoolean("loopAll"),anchor);}catch(Exception error){PlaybackSessionPersistence.note("save-failed","");}});
             call.resolve(new JSObject().put("generation",generation).put("size",tracks.size()));
             prefetchAfterPlaylistSync(tracks);
         }

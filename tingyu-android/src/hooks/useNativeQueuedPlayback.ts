@@ -3,6 +3,7 @@ import { usePlaybackStore } from '../stores/usePlaybackStore';
 import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
 import { useLxSourceStore } from '../stores/useLxSourceStore';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
+import { shufflePlayback } from '../services/shufflePlayback';
 import { hasBeforePlayHook } from '../services/hostExtensionHooks';
 import { resolveNativeQueueWindow } from '../services/nativeQueueWindow';
 import { primeNativeLyricsForSongs } from '../services/nativeLyricPriming';
@@ -80,6 +81,8 @@ export function useNativeQueuedPlayback(
             const current = latest.current;
             const track = current.queue.find(candidate => getPlaybackSongKey(candidate) === state.songKey);
             if (!track || !state.uri) return;
+            if (state.shuffleOrder?.length && shufflePlayback.active())
+                shufflePlayback.adoptNativePlan(current.queue, track, state.shuffleOrder);
             void current.play(track, current.queue, current.fm, {
                 shouldNavigateToPlayer: false,
                 nativeHandoff: { uri: state.uri, position: state.position, playing: !state.paused },

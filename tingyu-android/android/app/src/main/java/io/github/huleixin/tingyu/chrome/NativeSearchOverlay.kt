@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.width
 import kotlin.math.roundToInt
 
@@ -151,7 +150,7 @@ internal fun NativeSearchBarRow(section:NativePageSection,action:PageAction,focu
         Box(Modifier.weight(1f)){SearchBarSurface(section,{id,text,value->if(autoFocus||!disableInactiveInput)action(id,text,value)},focus,autoFocus=autoFocus,passive=disableInactiveInput&&!autoFocus)}
         androidx.compose.foundation.layout.Spacer(Modifier.width(10.dp))
         androidx.compose.material3.Text(dismissLabel,color=PageMuted,fontSize=13.sp,
-            modifier=Modifier.clickable(enabled=autoFocus||!disableInactiveInput){focusManager.clearFocus();onRequestClose()}.padding(horizontal=4.dp,vertical=8.dp))
+            modifier=Modifier.chromeClickable(enabled=autoFocus||!disableInactiveInput,corner=8.dp){focusManager.clearFocus();onRequestClose()}.padding(horizontal=4.dp,vertical=8.dp))
     }
 }
 

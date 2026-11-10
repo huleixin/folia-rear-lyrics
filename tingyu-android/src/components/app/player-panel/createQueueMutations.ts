@@ -10,7 +10,7 @@ import { refreshPrefetchAfterQueueEdit } from '../../../services/prefetchService
 import type { AudioQualityPreference, MediaId } from '../../../types/onlineMusic';
 import type { QueueBatchAction } from '../../command-palette/queueQuery';
 import { setStatusMessage as setStatusMsg } from '../../../stores/useStatusMessageStore';
-import { setPlayQueue } from '../../../stores/usePlaybackStore';
+import { setPlayQueue, usePlaybackStore } from '../../../stores/usePlaybackStore';
 
 // src/components/app/player-panel/createQueueMutations.ts
 
@@ -41,21 +41,23 @@ export const createQueueMutations = ({
         }
 
         const unifiedSongs = buildNavidromeQueue(songs);
-        const baseQueue = playQueue.length > 0 ? playQueue : (currentSong ? [currentSong] : []);
+        const live = usePlaybackStore.getState();
+        const addBehavior = songs.length === 1 ? 'next' : queueAddBehavior;
+        const baseQueue = live.playQueue.length > 0 ? live.playQueue : (live.currentSong ? [live.currentSong] : []);
         const { nextQueue, affectedSongs, changed } = applyQueueAddBehavior({
             queue: baseQueue,
             songs: unifiedSongs,
-            currentSong,
-            behavior: queueAddBehavior,
+            currentSong: live.currentSong,
+            behavior: addBehavior,
         });
 
         setPlayQueue(nextQueue);
-        void persistLastPlaybackCache(currentSong, nextQueue);
+        void persistLastPlaybackCache(live.currentSong, nextQueue);
 
         if (changed && affectedSongs.length > 0) {
             setStatusMsg({
                 type: 'success',
-                text: queueAddBehavior === 'next' ? t('status.insertedToNext') : t('status.queueUpdated'),
+                text: addBehavior === 'next' ? t('status.insertedToNext') : t('status.queueUpdated'),
                 nonce: Date.now(),
                 durationMs: 1200,
             });

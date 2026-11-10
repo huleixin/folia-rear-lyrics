@@ -69,8 +69,9 @@ class ChromePressIndicationTest {
     @Test fun bottomBarAndSongRowsUseTheSharedPressFeedback() {
         val dir = chromeDir()
         val nav = File(dir, "ChromeNavigation.kt").readText()
-        assertTrue("底栏入口必须走缩放反馈", nav.contains(".chromeTapPressed(pressSource)"))
-        assertTrue("底栏入口必须关掉系统 ripple", nav.contains("indication=null,enabled=!s.disabled,role=Role.Tab"))
+        // Liquid navigation now owns its gesture/press scale; preserve it rather than layering another scale.
+        assertTrue("底栏入口必须保留液态按压反馈", nav.contains(".liquidNavGestures(") && nav.contains("motion.pressProgress"))
+        assertTrue("底栏入口必须关掉系统 ripple", nav.replace(" ", "").contains("indication=null,enabled=!s.disabled,role=Role.Tab"))
 
         val widgets = File(dir, "NativePageWidgets.kt").readText()
         assertTrue("歌单行必须走圆角 tint 反馈", widgets.contains(".chromeRowPressed(pressSource)"))
