@@ -128,7 +128,8 @@ export function useNativeAudioDeck(audioRef: RefObject<HTMLAudioElement | null>,
             audioRef.current=element;
             if (!own) {
                 const current = latest.current, previous = handoff.current;
-                if (requested && current.source) {
+                handoff.current = null;
+                if (requested && current.source && !mixing) {
                     element.src = current.source;
                     element.addEventListener('loadedmetadata', () => {
                         if (cancelled || latest.current.attempt !== current.attempt || adapter.current) return;
@@ -155,15 +156,16 @@ export function useNativeAudioDeck(audioRef: RefObject<HTMLAudioElement | null>,
         };
         if (transfer.current) void transfer.current.then(install).catch(() => {}); else install();
         return () => {
-            cancelled = true; setReady(false);setWebReady(false);
+            cancelled = true; setReady(false);
             if (!owned) return;
+            setWebReady(false);
             handoff.current = owned.snapshot(); adapter.current = null;
             if (audioRef.current === element) audioRef.current = null;
             const stopping = owned.dispose(); transfer.current = stopping;
             void stopping.then(() => { if (transfer.current === stopping) transfer.current = null; })
                 .catch(() => setStatusMessage({ type: 'error', text: '旧播放内核未确认停止，已阻止切换以避免双重播放' }));
         };
-    }, [own, supported, activeDeck, audioRef, android, requested]);
+    }, [own, supported, audioRef, android, requested]);
     useEffect(()=>()=>{if(android)void releaseCompatibleSleepOutput().catch(()=>{});},[android]);
     useEffect(()=>{
         if(!webReady)return;
@@ -176,9 +178,9 @@ export function useNativeAudioDeck(audioRef: RefObject<HTMLAudioElement | null>,
     useLayoutEffect(commitSource, [source, songKey, generation, ready]);
     // React never assigns a browser src during an Android handoff. Detach is acknowledged first.
     useLayoutEffect(() => {
-        if (!android || !requested || own || !webReady || transfer.current || adapter.current) return;
+        if (!android || !requested || own || !webReady || transfer.current || adapter.current || mixing) return;
         const element = audioRef.current;
         if (element && source && element.getAttribute('src') !== source) { element.src = source; element.load(); }
-    }, [source, own, webReady, android, requested, audioRef]);
+    }, [source, own, webReady, android, requested, audioRef, mixing]);
     return { suppressBrowserSource: android && requested && (own || !webReady), nativeReady: own && ready };
 }

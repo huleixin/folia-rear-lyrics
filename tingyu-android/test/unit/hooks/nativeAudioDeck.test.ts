@@ -155,3 +155,56 @@ it('consumes the existing autoplay intent when a cold native probe becomes ready
         expect(port.command.mock.calls.some(([c])=>c.action==='play')).toBe(true);expect(intent.current).toBe(false);
     }finally{await act(async()=>root.unmount());host.remove();usePlaybackStore.setState(saved);useAudioSettingsStore.setState(audio);useAutomixSettingsStore.setState(mix);}
 });
+
+it('keeps compatible web playback active and never clobbers incoming deck when activeDeck changes in automix', async () => {
+    (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+    const saved = usePlaybackStore.getState(), audio = useAudioSettingsStore.getState(), mix = useAutomixSettingsStore.getState();
+    const loadCalls: string[] = [];
+    vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(function (this: HTMLMediaElement) {
+        loadCalls.push(this.getAttribute('data-deck') || 'unknown');
+    });
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+
+    const song1: SongResult = { id: 1, name: 'Song 1', durationMs: 200000, artists: [], album: { id: 1, name: '' } };
+    usePlaybackStore.setState({ audioSrc: 'https://audio.test/song1.mp3', currentSong: song1, replayGainMode: 'off', playerState: PlayerState.PLAYING });
+    useAudioSettingsStore.setState({ audioEqualizerSettings: { ...audio.audioEqualizerSettings, enabled: false } });
+    useAutomixSettingsStore.setState({ automixEnabled: true });
+
+    let latestSuppress = false;
+    function Probe({ active }: { active: string }) {
+        const refA = useRef<HTMLAudioElement>(null);
+        const refB = useRef<HTMLAudioElement>(null);
+        const activeRef = active === 'A' ? refA : refB;
+        const deck = useNativeAudioDeck(activeRef, active);
+        latestSuppress = deck.suppressBrowserSource;
+        return h('div', null,
+            h('audio', { ref: refA, 'data-deck': 'A', src: deck.suppressBrowserSource ? undefined : 'https://audio.test/song1.mp3' }),
+            h('audio', { ref: refB, 'data-deck': 'B', src: deck.suppressBrowserSource ? undefined : 'https://audio.test/song2.mp3' })
+        );
+    }
+
+    try {
+        await act(async () => root.render(h(Probe, { active: 'A' })));
+        expect(latestSuppress).toBe(false);
+
+        // Transition arms: activeDeck moves to B, while audioSrc is still song 1
+        await act(async () => root.render(h(Probe, { active: 'B' })));
+
+        // Browser source should NOT be suppressed (must stay false)
+        expect(latestSuppress).toBe(false);
+
+        // Deck B must NOT be reloaded with song 1
+        const audioB = host.querySelector('audio[data-deck="B"]') as HTMLAudioElement;
+        expect(audioB.getAttribute('src')).toBe('https://audio.test/song2.mp3');
+        expect(loadCalls.filter(d => d === 'B').length).toBe(0);
+    } finally {
+        await act(async () => root.unmount());
+        host.remove();
+        vi.restoreAllMocks();
+        usePlaybackStore.setState(saved);
+        useAudioSettingsStore.setState(audio);
+        useAutomixSettingsStore.setState(mix);
+    }
+});
