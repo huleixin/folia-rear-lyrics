@@ -3,12 +3,12 @@
   "title": "歌词过滤",
   "nodes": [
     {
-      "id": "form:1244:text:0",
+      "id": "form:1241:text:0",
       "kind": "note",
       "title": "预览当前播放歌曲的歌词过滤效果"
     },
     {
-      "id": "form:1245",
+      "id": "form:1242",
       "kind": "action",
       "title": "清空",
       "value": "",
@@ -25,7 +25,7 @@
       "icon": "rotate-ccw"
     },
     {
-      "id": "form:1246",
+      "id": "form:1243",
       "kind": "action",
       "title": "保存",
       "value": "",
@@ -41,32 +41,32 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1247:text:3",
+      "id": "form:1244:text:3",
       "kind": "note",
       "title": "预览"
     },
     {
-      "id": "form:1248:text:4",
+      "id": "form:1245:text:4",
       "kind": "note",
       "title": "当前没有可预览的歌词"
     },
     {
-      "id": "form:1249:text:5",
+      "id": "form:1246:text:5",
       "kind": "note",
       "title": "当前没有可预览的歌词内容"
     },
     {
-      "id": "form:1250:text:6",
+      "id": "form:1247:text:6",
       "kind": "note",
       "title": "逐行过滤规则"
     },
     {
-      "id": "form:1251:text:7",
+      "id": "form:1248:text:7",
       "kind": "note",
       "title": "按整首歌的正文歌词逐行匹配，命中后删除整行。"
     },
     {
-      "id": "form:1252",
+      "id": "form:1249",
       "kind": "switch",
       "title": "启用逐行过滤",
       "value": "0",
@@ -82,7 +82,7 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1253",
+      "id": "form:1250",
       "kind": "input",
       "title": "逐行过滤规则",
       "value": "",
@@ -98,27 +98,27 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1254:text:10",
+      "id": "form:1251:text:10",
       "kind": "note",
       "title": "示例："
     },
     {
-      "id": "form:1255:text:11",
+      "id": "form:1252:text:11",
       "kind": "note",
       "title": "^(?=.*[：:（）()])(?=.*(?:词|曲|制作|发行)).*$"
     },
     {
-      "id": "form:1256:text:12",
+      "id": "form:1253:text:12",
       "kind": "note",
       "title": "开头制作人员信息"
     },
     {
-      "id": "form:1257:text:13",
+      "id": "form:1254:text:13",
       "kind": "note",
       "title": "识别并处理歌词开头的制作人员信息"
     },
     {
-      "id": "form:1258",
+      "id": "form:1255",
       "kind": "action",
       "title": "始终显示",
       "value": "",
@@ -134,7 +134,7 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1259",
+      "id": "form:1256",
       "kind": "action",
       "title": "按前奏长度",
       "value": "",
@@ -151,7 +151,7 @@
       "detail": "✓"
     },
     {
-      "id": "form:1260",
+      "id": "form:1257",
       "kind": "action",
       "title": "始终隐藏",
       "value": "",
@@ -167,22 +167,22 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1261:text:17",
+      "id": "form:1258:text:17",
       "kind": "note",
       "title": "前奏够长就显示，不够就整块隐藏。"
     },
     {
-      "id": "form:1262:text:18",
+      "id": "form:1259:text:18",
       "kind": "note",
       "title": "每行最少停留"
     },
     {
-      "id": "form:1263:text:19",
+      "id": "form:1260:text:19",
       "kind": "note",
       "title": "1.5 秒"
     },
     {
-      "id": "form:1264",
+      "id": "form:1261",
       "kind": "slider",
       "title": "每行最少停留",
       "value": "1.5",
@@ -198,17 +198,17 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1265:text:21",
+      "id": "form:1262:text:21",
       "kind": "note",
       "title": "单条歌词行的最低允许持续时间"
     },
     {
-      "id": "form:1266:text:22",
+      "id": "form:1263:text:22",
       "kind": "note",
       "title": "吸收相邻行"
     },
     {
-      "id": "form:1267",
+      "id": "form:1264",
       "kind": "action",
       "title": "关闭",
       "value": "",
@@ -225,7 +225,7 @@
       "detail": "✓"
     },
     {
-      "id": "form:1268",
+      "id": "form:1265",
       "kind": "action",
       "title": "向前吸收",
       "value": "",
@@ -241,7 +241,7 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1269",
+      "id": "form:1266",
       "kind": "action",
       "title": "前后吸收",
       "value": "",
@@ -257,22 +257,22 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1270:text:26",
+      "id": "form:1267:text:26",
       "kind": "note",
       "title": "只处理识别出的署名行。"
     },
     {
-      "id": "form:1271:text:27",
+      "id": "form:1268:text:27",
       "kind": "note",
       "title": "自定义识别规则"
     },
     {
-      "id": "form:1272:text:28",
+      "id": "form:1269:text:28",
       "kind": "note",
       "title": "留空使用内置署名词表。填写后整体替换内置规则，但仍然只作用于开头那一块。"
     },
     {
-      "id": "form:1273",
+      "id": "form:1270",
       "kind": "input",
       "title": "开头制作人员信息",
       "value": "",
@@ -288,33 +288,33 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1274:text:30",
+      "id": "form:1271:text:30",
       "kind": "note",
       "title": "示例："
     },
     {
-      "id": "form:1275:text:31",
+      "id": "form:1272:text:31",
       "kind": "note",
       "title": "^(?:作词|作曲|编曲|制作人|混音|母带)\\s*[:：]"
     },
     {
-      "id": "form:1276:text:32",
+      "id": "form:1273:text:32",
       "kind": "note",
       "title": "当前歌曲的判定"
     },
     {
-      "id": "form:1276:text:33",
+      "id": "form:1273:text:33",
       "kind": "note",
       "title": "："
     },
     {
-      "id": "form:1276:text:34",
+      "id": "form:1273:text:34",
       "kind": "note",
       "title": "未识别到署名块"
     }
   ],
   "layout": {
-    "id": "page:form:1293",
+    "id": "page:form:1290",
     "kind": "column",
     "style": {
       "padding": [
@@ -328,7 +328,7 @@
     },
     "children": [
       {
-        "id": "form:1277",
+        "id": "form:1274",
         "kind": "column",
         "style": {
           "minHeight": 0,
@@ -336,7 +336,7 @@
         },
         "children": [
           {
-            "id": "form:1278",
+            "id": "form:1275",
             "kind": "row",
             "style": {
               "align": "between",
@@ -349,14 +349,14 @@
             },
             "children": [
               {
-                "id": "form:1279",
+                "id": "form:1276",
                 "kind": "column",
                 "style": {
                   "grow": true
                 },
                 "children": [
                   {
-                    "id": "form:1247",
+                    "id": "form:1244",
                     "kind": "column",
                     "style": {
                       "font": 14,
@@ -372,7 +372,7 @@
                     ]
                   },
                   {
-                    "id": "form:1248",
+                    "id": "form:1245",
                     "kind": "column",
                     "style": {
                       "font": 12,
@@ -396,7 +396,7 @@
             ]
           },
           {
-            "id": "form:1280",
+            "id": "form:1277",
             "kind": "column",
             "style": {
               "grow": true,
@@ -410,7 +410,7 @@
             },
             "children": [
               {
-                "id": "form:1249",
+                "id": "form:1246",
                 "kind": "row",
                 "style": {
                   "align": "center",
@@ -430,7 +430,7 @@
         ]
       },
       {
-        "id": "form:1281",
+        "id": "form:1278",
         "kind": "column",
         "style": {
           "minHeight": 0,
@@ -444,7 +444,7 @@
         },
         "children": [
           {
-            "id": "form:1282",
+            "id": "form:1279",
             "kind": "card",
             "style": {
               "radius": 24,
@@ -458,7 +458,7 @@
             },
             "children": [
               {
-                "id": "form:1283",
+                "id": "form:1280",
                 "kind": "row",
                 "style": {
                   "align": "between",
@@ -466,14 +466,14 @@
                 },
                 "children": [
                   {
-                    "id": "form:1284",
+                    "id": "form:1281",
                     "kind": "column",
                     "style": {
                       "grow": true
                     },
                     "children": [
                       {
-                        "id": "form:1250",
+                        "id": "form:1247",
                         "kind": "column",
                         "style": {
                           "font": 14,
@@ -489,7 +489,7 @@
                         ]
                       },
                       {
-                        "id": "form:1251",
+                        "id": "form:1248",
                         "kind": "column",
                         "style": {
                           "font": 12,
@@ -511,9 +511,9 @@
                     ]
                   },
                   {
-                    "id": "layout:form:1252",
+                    "id": "layout:form:1249",
                     "kind": "control",
-                    "ref": "form:1252",
+                    "ref": "form:1249",
                     "style": {
                       "height": 24,
                       "width": 48,
@@ -535,9 +535,9 @@
                 ]
               },
               {
-                "id": "layout:form:1253",
+                "id": "layout:form:1250",
                 "kind": "control",
-                "ref": "form:1253",
+                "ref": "form:1250",
                 "style": {
                   "radius": 16,
                   "border": true,
@@ -559,7 +559,7 @@
                 }
               },
               {
-                "id": "form:1254",
+                "id": "form:1251",
                 "kind": "column",
                 "style": {
                   "font": 12,
@@ -584,7 +584,7 @@
                     "text": "示例："
                   },
                   {
-                    "id": "form:1255",
+                    "id": "form:1252",
                     "kind": "column",
                     "style": {},
                     "children": [
@@ -600,7 +600,7 @@
             ]
           },
           {
-            "id": "form:1285",
+            "id": "form:1282",
             "kind": "card",
             "style": {
               "radius": 24,
@@ -614,7 +614,7 @@
             },
             "children": [
               {
-                "id": "form:1256",
+                "id": "form:1253",
                 "kind": "column",
                 "style": {
                   "font": 14,
@@ -630,7 +630,7 @@
                 ]
               },
               {
-                "id": "form:1257",
+                "id": "form:1254",
                 "kind": "column",
                 "style": {
                   "font": 12,
@@ -650,7 +650,7 @@
                 ]
               },
               {
-                "id": "form:1286",
+                "id": "form:1283",
                 "kind": "grid",
                 "style": {
                   "columns": 3,
@@ -673,9 +673,9 @@
                 },
                 "children": [
                   {
-                    "id": "layout:form:1258",
+                    "id": "layout:form:1255",
                     "kind": "control",
-                    "ref": "form:1258",
+                    "ref": "form:1255",
                     "style": {
                       "radius": 12,
                       "font": 12,
@@ -689,7 +689,7 @@
                     },
                     "children": [
                       {
-                        "id": "content:form:1258",
+                        "id": "content:form:1255",
                         "kind": "row",
                         "style": {},
                         "children": [
@@ -703,9 +703,9 @@
                     ]
                   },
                   {
-                    "id": "layout:form:1259",
+                    "id": "layout:form:1256",
                     "kind": "control",
-                    "ref": "form:1259",
+                    "ref": "form:1256",
                     "style": {
                       "radius": 12,
                       "font": 12,
@@ -719,7 +719,7 @@
                     },
                     "children": [
                       {
-                        "id": "content:form:1259",
+                        "id": "content:form:1256",
                         "kind": "row",
                         "style": {},
                         "children": [
@@ -733,9 +733,9 @@
                     ]
                   },
                   {
-                    "id": "layout:form:1260",
+                    "id": "layout:form:1257",
                     "kind": "control",
-                    "ref": "form:1260",
+                    "ref": "form:1257",
                     "style": {
                       "radius": 12,
                       "font": 12,
@@ -749,7 +749,7 @@
                     },
                     "children": [
                       {
-                        "id": "content:form:1260",
+                        "id": "content:form:1257",
                         "kind": "row",
                         "style": {},
                         "children": [
@@ -765,7 +765,7 @@
                 ]
               },
               {
-                "id": "form:1261",
+                "id": "form:1258",
                 "kind": "column",
                 "style": {
                   "font": 12,
@@ -791,7 +791,7 @@
                 ]
               },
               {
-                "id": "form:1287",
+                "id": "form:1284",
                 "kind": "column",
                 "style": {
                   "margin": [
@@ -803,7 +803,7 @@
                 },
                 "children": [
                   {
-                    "id": "form:1288",
+                    "id": "form:1285",
                     "kind": "row",
                     "style": {
                       "align": "between",
@@ -812,7 +812,7 @@
                     },
                     "children": [
                       {
-                        "id": "form:1262",
+                        "id": "form:1259",
                         "kind": "wrap",
                         "style": {
                           "grow": true
@@ -826,7 +826,7 @@
                         ]
                       },
                       {
-                        "id": "form:1263",
+                        "id": "form:1260",
                         "kind": "wrap",
                         "style": {},
                         "children": [
@@ -840,9 +840,9 @@
                     ]
                   },
                   {
-                    "id": "layout:form:1264",
+                    "id": "layout:form:1261",
                     "kind": "control",
-                    "ref": "form:1264",
+                    "ref": "form:1261",
                     "style": {
                       "margin": [
                         0,
@@ -853,7 +853,7 @@
                     }
                   },
                   {
-                    "id": "form:1265",
+                    "id": "form:1262",
                     "kind": "column",
                     "style": {
                       "font": 12,
@@ -875,7 +875,7 @@
                 ]
               },
               {
-                "id": "form:1289",
+                "id": "form:1286",
                 "kind": "column",
                 "style": {
                   "margin": [
@@ -887,7 +887,7 @@
                 },
                 "children": [
                   {
-                    "id": "form:1290",
+                    "id": "form:1287",
                     "kind": "column",
                     "style": {
                       "font": 12,
@@ -895,7 +895,7 @@
                     },
                     "children": [
                       {
-                        "id": "form:1266",
+                        "id": "form:1263",
                         "kind": "wrap",
                         "style": {},
                         "children": [
@@ -909,7 +909,7 @@
                     ]
                   },
                   {
-                    "id": "form:1291",
+                    "id": "form:1288",
                     "kind": "grid",
                     "style": {
                       "columns": 3,
@@ -932,9 +932,9 @@
                     },
                     "children": [
                       {
-                        "id": "layout:form:1267",
+                        "id": "layout:form:1264",
                         "kind": "control",
-                        "ref": "form:1267",
+                        "ref": "form:1264",
                         "style": {
                           "radius": 12,
                           "font": 12,
@@ -948,7 +948,7 @@
                         },
                         "children": [
                           {
-                            "id": "content:form:1267",
+                            "id": "content:form:1264",
                             "kind": "row",
                             "style": {},
                             "children": [
@@ -962,9 +962,9 @@
                         ]
                       },
                       {
-                        "id": "layout:form:1268",
+                        "id": "layout:form:1265",
                         "kind": "control",
-                        "ref": "form:1268",
+                        "ref": "form:1265",
                         "style": {
                           "radius": 12,
                           "font": 12,
@@ -978,7 +978,7 @@
                         },
                         "children": [
                           {
-                            "id": "content:form:1268",
+                            "id": "content:form:1265",
                             "kind": "row",
                             "style": {},
                             "children": [
@@ -992,9 +992,9 @@
                         ]
                       },
                       {
-                        "id": "layout:form:1269",
+                        "id": "layout:form:1266",
                         "kind": "control",
-                        "ref": "form:1269",
+                        "ref": "form:1266",
                         "style": {
                           "radius": 12,
                           "font": 12,
@@ -1008,7 +1008,7 @@
                         },
                         "children": [
                           {
-                            "id": "content:form:1269",
+                            "id": "content:form:1266",
                             "kind": "row",
                             "style": {},
                             "children": [
@@ -1024,7 +1024,7 @@
                     ]
                   },
                   {
-                    "id": "form:1270",
+                    "id": "form:1267",
                     "kind": "column",
                     "style": {
                       "font": 12,
@@ -1052,7 +1052,7 @@
                 ]
               },
               {
-                "id": "form:1271",
+                "id": "form:1268",
                 "kind": "column",
                 "style": {
                   "font": 12,
@@ -1074,7 +1074,7 @@
                 ]
               },
               {
-                "id": "form:1272",
+                "id": "form:1269",
                 "kind": "column",
                 "style": {
                   "font": 12,
@@ -1094,9 +1094,9 @@
                 ]
               },
               {
-                "id": "layout:form:1273",
+                "id": "layout:form:1270",
                 "kind": "control",
-                "ref": "form:1273",
+                "ref": "form:1270",
                 "style": {
                   "radius": 16,
                   "border": true,
@@ -1118,7 +1118,7 @@
                 }
               },
               {
-                "id": "form:1274",
+                "id": "form:1271",
                 "kind": "column",
                 "style": {
                   "font": 12,
@@ -1143,7 +1143,7 @@
                     "text": "示例："
                   },
                   {
-                    "id": "form:1275",
+                    "id": "form:1272",
                     "kind": "column",
                     "style": {},
                     "children": [
@@ -1157,7 +1157,7 @@
                 ]
               },
               {
-                "id": "form:1292",
+                "id": "form:1289",
                 "kind": "card",
                 "style": {
                   "radius": 16,
@@ -1177,7 +1177,7 @@
                 },
                 "children": [
                   {
-                    "id": "form:1276",
+                    "id": "form:1273",
                     "kind": "column",
                     "style": {
                       "font": 12,
@@ -1201,7 +1201,7 @@
     ]
   },
   "headerActions": [
-    "form:1245",
-    "form:1246"
+    "form:1242",
+    "form:1243"
   ]
 }

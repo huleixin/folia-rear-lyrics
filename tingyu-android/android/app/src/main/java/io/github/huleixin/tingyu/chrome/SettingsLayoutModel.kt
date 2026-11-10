@@ -11,7 +11,7 @@ data class SettingsLayoutStyle(
     val grow: Boolean = false, val align: String = "start", val font: Float = 0f, val weight: Int = 0,
     val tone: String = "", val border: Boolean = false, val fill: Boolean = false,
     val center: Boolean = false, val divider: Boolean = false, val preview: String = "",
-    val overlay: String = "", val progress: Float = -1f, val stackBelow: Float = 0f,
+    val overlay: String = "", val progress: Float = -1f, val stackBelow: Float = 0f, val maxHeight: Float = 0f, val scroll: Boolean = false, val reverse: Boolean = false,
 ) {
     companion object {
         fun parse(v: JSONObject?): SettingsLayoutStyle {
@@ -22,7 +22,7 @@ data class SettingsLayoutStyle(
                 v.optInt("columns",1).coerceIn(1,8),v.optInt("wideColumns").coerceIn(0,8),number("breakpoint",1024.0,1600f),
                 number("width"),number("height"),number("minHeight"),number("aspect",max=4f),v.optBoolean("grow"),v.optString("align","start"),
                 number("font",max=40f),v.optInt("weight").let { if(it>0)it.coerceIn(100,900) else 0 },v.optString("tone"),v.optBoolean("border"),v.optBoolean("fill"),
-                v.optBoolean("center"),v.optBoolean("divider"),v.optString("preview"),v.optString("overlay"),if(v.has("progress"))number("progress",max=1f)else -1f,number("stackBelow"))
+                v.optBoolean("center"),v.optBoolean("divider"),v.optString("preview"),v.optString("overlay"),if(v.has("progress"))number("progress",max=1f)else -1f,number("stackBelow"),number("maxHeight"),v.optBoolean("scroll"),v.optBoolean("reverse"))
         }
     }
 }

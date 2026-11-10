@@ -3,7 +3,7 @@
   "title": "主题与配色",
   "nodes": [
     {
-      "id": "form:1605",
+      "id": "form:1602",
       "kind": "action",
       "title": "重置",
       "value": "",
@@ -19,12 +19,12 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1606:text:1",
+      "id": "form:1603:text:1",
       "kind": "note",
       "title": "当前正面舞台使用暗色主题。下方切换仅选择要编辑的配色，保存后应用到正面；背屏独立配置不受影响。"
     },
     {
-      "id": "form:1607",
+      "id": "form:1604",
       "kind": "action",
       "title": "编辑浅色配色",
       "value": "",
@@ -40,7 +40,7 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1608",
+      "id": "form:1605",
       "kind": "action",
       "title": "编辑深色配色",
       "value": "",
@@ -57,7 +57,7 @@
       "detail": "✓"
     },
     {
-      "id": "form:1609",
+      "id": "form:1606",
       "kind": "action",
       "title": "背景#09090b",
       "value": "",
@@ -73,7 +73,7 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1610",
+      "id": "form:1607",
       "kind": "action",
       "title": "主文本#f4f4f5",
       "value": "",
@@ -89,7 +89,7 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1611",
+      "id": "form:1608",
       "kind": "action",
       "title": "强调色#f4f4f5",
       "value": "",
@@ -106,7 +106,7 @@
       "detail": "✓"
     },
     {
-      "id": "form:1612",
+      "id": "form:1609",
       "kind": "action",
       "title": "辅助色#71717a",
       "value": "",
@@ -122,7 +122,7 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1613",
+      "id": "form:1610",
       "kind": "color",
       "title": "推荐色主题名称暗色主题",
       "value": "#f4f4f5",
@@ -153,12 +153,12 @@
       "detail": "visible-hue"
     },
     {
-      "id": "form:1614:text:9",
+      "id": "form:1611:text:9",
       "kind": "note",
       "title": "推荐色"
     },
     {
-      "id": "form:1615",
+      "id": "form:1612",
       "kind": "action",
       "title": "#F5F5F4",
       "value": "",
@@ -174,7 +174,7 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1616",
+      "id": "form:1613",
       "kind": "action",
       "title": "#1C1917",
       "value": "",
@@ -190,7 +190,7 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1617",
+      "id": "form:1614",
       "kind": "action",
       "title": "#EA580C",
       "value": "",
@@ -206,7 +206,7 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1618",
+      "id": "form:1615",
       "kind": "action",
       "title": "#44403C",
       "value": "",
@@ -222,7 +222,7 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1619",
+      "id": "form:1616",
       "kind": "action",
       "title": "#09090B",
       "value": "",
@@ -238,7 +238,7 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1620",
+      "id": "form:1617",
       "kind": "action",
       "title": "#F4F4F5",
       "value": "",
@@ -254,7 +254,7 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1621",
+      "id": "form:1618",
       "kind": "action",
       "title": "#71717A",
       "value": "",
@@ -270,17 +270,17 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1622:text:17",
+      "id": "form:1619:text:17",
       "kind": "note",
       "title": "主题名称"
     },
     {
-      "id": "form:1623:text:18",
+      "id": "form:1620:text:18",
       "kind": "note",
       "title": "暗色主题"
     },
     {
-      "id": "form:1624",
+      "id": "form:1621",
       "kind": "input",
       "title": "暗色主题",
       "value": "Midnight Default",
@@ -296,7 +296,7 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1625",
+      "id": "form:1622",
       "kind": "action",
       "title": "保存自定义主题",
       "value": "",
@@ -312,7 +312,7 @@
       "confirmLabel": "确定"
     },
     {
-      "id": "form:1626",
+      "id": "form:1623",
       "kind": "action",
       "title": "复制 JSON",
       "value": "",
@@ -329,7 +329,7 @@
     }
   ],
   "layout": {
-    "id": "page:form:1604",
+    "id": "page:form:1601",
     "kind": "column",
     "style": {
       "padding": [
@@ -342,7 +342,7 @@
     },
     "children": [
       {
-        "id": "form:1627",
+        "id": "form:1624",
         "kind": "row",
         "style": {
           "align": "end",
@@ -356,7 +356,7 @@
         },
         "children": [
           {
-            "id": "form:1628",
+            "id": "form:1625",
             "kind": "row",
             "style": {
               "align": "center",
@@ -364,9 +364,9 @@
             },
             "children": [
               {
-                "id": "layout:form:1605",
+                "id": "layout:form:1602",
                 "kind": "control",
-                "ref": "form:1605",
+                "ref": "form:1602",
                 "style": {
                   "align": "center",
                   "center": true,
@@ -384,7 +384,7 @@
                 },
                 "children": [
                   {
-                    "id": "content:form:1605",
+                    "id": "content:form:1602",
                     "kind": "row",
                     "style": {
                       "gap": 6,
@@ -393,7 +393,7 @@
                     },
                     "children": [
                       {
-                        "id": "form:1629",
+                        "id": "form:1626",
                         "kind": "icon",
                         "icon": "rotate-ccw",
                         "style": {
@@ -410,7 +410,7 @@
         ]
       },
       {
-        "id": "form:1606",
+        "id": "form:1603",
         "kind": "wrap",
         "style": {
           "font": 12,
@@ -431,7 +431,7 @@
         ]
       },
       {
-        "id": "form:1630",
+        "id": "form:1627",
         "kind": "grid",
         "style": {
           "gap": 20,
@@ -444,14 +444,14 @@
         },
         "children": [
           {
-            "id": "form:1631",
+            "id": "form:1628",
             "kind": "column",
             "style": {
               "gap": 20
             },
             "children": [
               {
-                "id": "form:1632",
+                "id": "form:1629",
                 "kind": "row",
                 "style": {
                   "gap": 8,
@@ -465,9 +465,9 @@
                 },
                 "children": [
                   {
-                    "id": "layout:form:1607",
+                    "id": "layout:form:1604",
                     "kind": "control",
-                    "ref": "form:1607",
+                    "ref": "form:1604",
                     "style": {
                       "align": "center",
                       "center": true,
@@ -485,7 +485,7 @@
                     },
                     "children": [
                       {
-                        "id": "content:form:1607",
+                        "id": "content:form:1604",
                         "kind": "row",
                         "style": {
                           "gap": 8,
@@ -494,7 +494,7 @@
                         },
                         "children": [
                           {
-                            "id": "form:1633",
+                            "id": "form:1630",
                             "kind": "icon",
                             "icon": "sun",
                             "style": {
@@ -503,7 +503,7 @@
                             }
                           },
                           {
-                            "id": "form:1634",
+                            "id": "form:1631",
                             "kind": "wrap",
                             "style": {},
                             "children": [
@@ -519,9 +519,9 @@
                     ]
                   },
                   {
-                    "id": "layout:form:1608",
+                    "id": "layout:form:1605",
                     "kind": "control",
-                    "ref": "form:1608",
+                    "ref": "form:1605",
                     "style": {
                       "align": "center",
                       "center": true,
@@ -539,7 +539,7 @@
                     },
                     "children": [
                       {
-                        "id": "content:form:1608",
+                        "id": "content:form:1605",
                         "kind": "row",
                         "style": {
                           "gap": 8,
@@ -548,7 +548,7 @@
                         },
                         "children": [
                           {
-                            "id": "form:1635",
+                            "id": "form:1632",
                             "kind": "icon",
                             "icon": "moon",
                             "style": {
@@ -557,7 +557,7 @@
                             }
                           },
                           {
-                            "id": "form:1636",
+                            "id": "form:1633",
                             "kind": "wrap",
                             "style": {},
                             "children": [
@@ -575,7 +575,7 @@
                 ]
               },
               {
-                "id": "form:1637",
+                "id": "form:1634",
                 "kind": "grid",
                 "style": {
                   "columns": 2,
@@ -583,9 +583,9 @@
                 },
                 "children": [
                   {
-                    "id": "layout:form:1609",
+                    "id": "layout:form:1606",
                     "kind": "control",
-                    "ref": "form:1609",
+                    "ref": "form:1606",
                     "style": {
                       "radius": 16,
                       "border": true,
@@ -598,12 +598,12 @@
                     },
                     "children": [
                       {
-                        "id": "content:form:1609",
+                        "id": "content:form:1606",
                         "kind": "column",
                         "style": {},
                         "children": [
                           {
-                            "id": "form:1638",
+                            "id": "form:1635",
                             "kind": "row",
                             "style": {
                               "align": "center",
@@ -611,7 +611,7 @@
                             },
                             "children": [
                               {
-                                "id": "form:1639",
+                                "id": "form:1636",
                                 "kind": "spacer",
                                 "style": {
                                   "height": 24,
@@ -622,7 +622,7 @@
                                 "text": "#09090b"
                               },
                               {
-                                "id": "form:1640",
+                                "id": "form:1637",
                                 "kind": "wrap",
                                 "style": {
                                   "font": 12,
@@ -639,7 +639,7 @@
                             ]
                           },
                           {
-                            "id": "form:1641",
+                            "id": "form:1638",
                             "kind": "column",
                             "style": {
                               "font": 10,
@@ -663,9 +663,9 @@
                     ]
                   },
                   {
-                    "id": "layout:form:1610",
+                    "id": "layout:form:1607",
                     "kind": "control",
-                    "ref": "form:1610",
+                    "ref": "form:1607",
                     "style": {
                       "radius": 16,
                       "border": true,
@@ -678,12 +678,12 @@
                     },
                     "children": [
                       {
-                        "id": "content:form:1610",
+                        "id": "content:form:1607",
                         "kind": "column",
                         "style": {},
                         "children": [
                           {
-                            "id": "form:1642",
+                            "id": "form:1639",
                             "kind": "row",
                             "style": {
                               "align": "center",
@@ -691,7 +691,7 @@
                             },
                             "children": [
                               {
-                                "id": "form:1643",
+                                "id": "form:1640",
                                 "kind": "spacer",
                                 "style": {
                                   "height": 24,
@@ -702,7 +702,7 @@
                                 "text": "#f4f4f5"
                               },
                               {
-                                "id": "form:1644",
+                                "id": "form:1641",
                                 "kind": "wrap",
                                 "style": {
                                   "font": 12,
@@ -719,7 +719,7 @@
                             ]
                           },
                           {
-                            "id": "form:1645",
+                            "id": "form:1642",
                             "kind": "column",
                             "style": {
                               "font": 10,
@@ -743,9 +743,9 @@
                     ]
                   },
                   {
-                    "id": "layout:form:1611",
+                    "id": "layout:form:1608",
                     "kind": "control",
-                    "ref": "form:1611",
+                    "ref": "form:1608",
                     "style": {
                       "radius": 16,
                       "border": true,
@@ -758,12 +758,12 @@
                     },
                     "children": [
                       {
-                        "id": "content:form:1611",
+                        "id": "content:form:1608",
                         "kind": "column",
                         "style": {},
                         "children": [
                           {
-                            "id": "form:1646",
+                            "id": "form:1643",
                             "kind": "row",
                             "style": {
                               "align": "center",
@@ -771,7 +771,7 @@
                             },
                             "children": [
                               {
-                                "id": "form:1647",
+                                "id": "form:1644",
                                 "kind": "spacer",
                                 "style": {
                                   "height": 24,
@@ -782,7 +782,7 @@
                                 "text": "#f4f4f5"
                               },
                               {
-                                "id": "form:1648",
+                                "id": "form:1645",
                                 "kind": "wrap",
                                 "style": {
                                   "font": 12,
@@ -799,7 +799,7 @@
                             ]
                           },
                           {
-                            "id": "form:1649",
+                            "id": "form:1646",
                             "kind": "column",
                             "style": {
                               "font": 10,
@@ -823,9 +823,9 @@
                     ]
                   },
                   {
-                    "id": "layout:form:1612",
+                    "id": "layout:form:1609",
                     "kind": "control",
-                    "ref": "form:1612",
+                    "ref": "form:1609",
                     "style": {
                       "radius": 16,
                       "border": true,
@@ -838,12 +838,12 @@
                     },
                     "children": [
                       {
-                        "id": "content:form:1612",
+                        "id": "content:form:1609",
                         "kind": "column",
                         "style": {},
                         "children": [
                           {
-                            "id": "form:1650",
+                            "id": "form:1647",
                             "kind": "row",
                             "style": {
                               "align": "center",
@@ -851,7 +851,7 @@
                             },
                             "children": [
                               {
-                                "id": "form:1651",
+                                "id": "form:1648",
                                 "kind": "spacer",
                                 "style": {
                                   "height": 24,
@@ -862,7 +862,7 @@
                                 "text": "#71717a"
                               },
                               {
-                                "id": "form:1652",
+                                "id": "form:1649",
                                 "kind": "wrap",
                                 "style": {
                                   "font": 12,
@@ -879,7 +879,7 @@
                             ]
                           },
                           {
-                            "id": "form:1653",
+                            "id": "form:1650",
                             "kind": "column",
                             "style": {
                               "font": 10,
@@ -905,7 +905,7 @@
                 ]
               },
               {
-                "id": "form:1654",
+                "id": "form:1651",
                 "kind": "card",
                 "style": {
                   "radius": 24,
@@ -919,9 +919,9 @@
                 },
                 "children": [
                   {
-                    "id": "layout:form:1613",
+                    "id": "layout:form:1610",
                     "kind": "control",
-                    "ref": "form:1613",
+                    "ref": "form:1610",
                     "style": {
                       "height": 236
                     }
@@ -931,14 +931,14 @@
             ]
           },
           {
-            "id": "form:1655",
+            "id": "form:1652",
             "kind": "column",
             "style": {
               "gap": 16
             },
             "children": [
               {
-                "id": "form:1656",
+                "id": "form:1653",
                 "kind": "card",
                 "style": {
                   "radius": 24,
@@ -952,7 +952,7 @@
                 },
                 "children": [
                   {
-                    "id": "form:1614",
+                    "id": "form:1611",
                     "kind": "column",
                     "style": {
                       "font": 12,
@@ -973,13 +973,46 @@
                     ]
                   },
                   {
-                    "id": "form:1657",
+                    "id": "form:1654",
                     "kind": "grid",
                     "style": {
                       "columns": 4,
                       "gap": 10
                     },
                     "children": [
+                      {
+                        "id": "layout:form:1612",
+                        "kind": "control",
+                        "ref": "form:1612",
+                        "style": {
+                          "aspect": 1,
+                          "radius": 12,
+                          "border": true
+                        },
+                        "text": "#f5f5f4"
+                      },
+                      {
+                        "id": "layout:form:1613",
+                        "kind": "control",
+                        "ref": "form:1613",
+                        "style": {
+                          "aspect": 1,
+                          "radius": 12,
+                          "border": true
+                        },
+                        "text": "#1c1917"
+                      },
+                      {
+                        "id": "layout:form:1614",
+                        "kind": "control",
+                        "ref": "form:1614",
+                        "style": {
+                          "aspect": 1,
+                          "radius": 12,
+                          "border": true
+                        },
+                        "text": "#ea580c"
+                      },
                       {
                         "id": "layout:form:1615",
                         "kind": "control",
@@ -989,7 +1022,7 @@
                           "radius": 12,
                           "border": true
                         },
-                        "text": "#f5f5f4"
+                        "text": "#44403c"
                       },
                       {
                         "id": "layout:form:1616",
@@ -1000,7 +1033,7 @@
                           "radius": 12,
                           "border": true
                         },
-                        "text": "#1c1917"
+                        "text": "#09090b"
                       },
                       {
                         "id": "layout:form:1617",
@@ -1011,45 +1044,12 @@
                           "radius": 12,
                           "border": true
                         },
-                        "text": "#ea580c"
+                        "text": "#f4f4f5"
                       },
                       {
                         "id": "layout:form:1618",
                         "kind": "control",
                         "ref": "form:1618",
-                        "style": {
-                          "aspect": 1,
-                          "radius": 12,
-                          "border": true
-                        },
-                        "text": "#44403c"
-                      },
-                      {
-                        "id": "layout:form:1619",
-                        "kind": "control",
-                        "ref": "form:1619",
-                        "style": {
-                          "aspect": 1,
-                          "radius": 12,
-                          "border": true
-                        },
-                        "text": "#09090b"
-                      },
-                      {
-                        "id": "layout:form:1620",
-                        "kind": "control",
-                        "ref": "form:1620",
-                        "style": {
-                          "aspect": 1,
-                          "radius": 12,
-                          "border": true
-                        },
-                        "text": "#f4f4f5"
-                      },
-                      {
-                        "id": "layout:form:1621",
-                        "kind": "control",
-                        "ref": "form:1621",
                         "style": {
                           "aspect": 1,
                           "radius": 12,
@@ -1062,7 +1062,7 @@
                 ]
               },
               {
-                "id": "form:1658",
+                "id": "form:1655",
                 "kind": "card",
                 "style": {
                   "radius": 24,
@@ -1076,7 +1076,7 @@
                 },
                 "children": [
                   {
-                    "id": "form:1622",
+                    "id": "form:1619",
                     "kind": "column",
                     "style": {
                       "font": 12,
@@ -1097,12 +1097,12 @@
                     ]
                   },
                   {
-                    "id": "form:1659",
+                    "id": "form:1656",
                     "kind": "wrap",
                     "style": {},
                     "children": [
                       {
-                        "id": "form:1623",
+                        "id": "form:1620",
                         "kind": "row",
                         "style": {
                           "align": "center",
@@ -1118,7 +1118,7 @@
                         },
                         "children": [
                           {
-                            "id": "form:1660",
+                            "id": "form:1657",
                             "kind": "icon",
                             "icon": "moon",
                             "style": {
@@ -1134,9 +1134,9 @@
                         ]
                       },
                       {
-                        "id": "layout:form:1624",
+                        "id": "layout:form:1621",
                         "kind": "control",
-                        "ref": "form:1624",
+                        "ref": "form:1621",
                         "style": {
                           "radius": 12,
                           "border": true,
@@ -1155,7 +1155,7 @@
                 ]
               },
               {
-                "id": "form:1661",
+                "id": "form:1658",
                 "kind": "column",
                 "style": {
                   "gap": 8,
@@ -1168,9 +1168,9 @@
                 },
                 "children": [
                   {
-                    "id": "layout:form:1625",
+                    "id": "layout:form:1622",
                     "kind": "control",
-                    "ref": "form:1625",
+                    "ref": "form:1622",
                     "style": {
                       "align": "center",
                       "center": true,
@@ -1188,7 +1188,7 @@
                     },
                     "children": [
                       {
-                        "id": "content:form:1625",
+                        "id": "content:form:1622",
                         "kind": "row",
                         "style": {
                           "gap": 8,
@@ -1197,7 +1197,7 @@
                         },
                         "children": [
                           {
-                            "id": "form:1662",
+                            "id": "form:1659",
                             "kind": "icon",
                             "icon": "check",
                             "style": {
@@ -1206,7 +1206,7 @@
                             }
                           },
                           {
-                            "id": "form:1663",
+                            "id": "form:1660",
                             "kind": "wrap",
                             "style": {},
                             "children": [
@@ -1222,16 +1222,16 @@
                     ]
                   },
                   {
-                    "id": "form:1664",
+                    "id": "form:1661",
                     "kind": "row",
                     "style": {
                       "gap": 8
                     },
                     "children": [
                       {
-                        "id": "layout:form:1626",
+                        "id": "layout:form:1623",
                         "kind": "control",
-                        "ref": "form:1626",
+                        "ref": "form:1623",
                         "style": {
                           "align": "center",
                           "center": true,
@@ -1244,7 +1244,7 @@
                         },
                         "children": [
                           {
-                            "id": "content:form:1626",
+                            "id": "content:form:1623",
                             "kind": "row",
                             "style": {
                               "gap": 6,
@@ -1253,7 +1253,7 @@
                             },
                             "children": [
                               {
-                                "id": "form:1665",
+                                "id": "form:1662",
                                 "kind": "icon",
                                 "icon": "copy",
                                 "style": {
@@ -1262,7 +1262,7 @@
                                 }
                               },
                               {
-                                "id": "form:1666",
+                                "id": "form:1663",
                                 "kind": "wrap",
                                 "style": {},
                                 "children": [

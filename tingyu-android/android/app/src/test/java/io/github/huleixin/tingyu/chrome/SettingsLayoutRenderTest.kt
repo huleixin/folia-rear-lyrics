@@ -67,7 +67,7 @@ class SettingsLayoutRenderTest {
                     bitmap.recycle()
                 }
             }
-            if(height<400)descendants(layout).lastOrNull { it.kind=="control" }?.let { tail ->
+            if(height<400)descendants(layout).lastOrNull { it.kind=="text"||it.kind=="control" }?.let { tail ->
                 compose.onNodeWithTag("settings-layout:${tail.id}",useUnmergedTree=true).performScrollTo().assertIsDisplayed()
             }
         }

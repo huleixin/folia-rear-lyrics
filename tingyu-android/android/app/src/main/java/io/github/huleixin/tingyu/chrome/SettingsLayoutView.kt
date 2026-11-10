@@ -1,5 +1,7 @@
 package io.github.huleixin.tingyu.chrome
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -35,6 +37,7 @@ internal fun SettingsLayoutView(node: SettingsLayoutNode, controls: Map<String,T
     if(s.width>0)outer=outer.width(s.width.dp)
     if(s.height>0)outer=outer.height(s.height.dp)
     if(s.minHeight>0)outer=outer.heightIn(min=s.minHeight.dp)
+    if(s.maxHeight>0)outer=outer.heightIn(max=s.maxHeight.dp)
     if(s.aspect>0)outer=outer.aspectRatio(s.aspect)
     val textStyle=LocalTextStyle.current.merge(TextStyle(
         color=when(s.tone){"muted"->theme.muted;"accent"->theme.accent;"danger"->theme.danger;else->Color.Unspecified},
@@ -78,8 +81,8 @@ internal fun SettingsLayoutView(node: SettingsLayoutNode, controls: Map<String,T
                             } }
                         }
                     }
-                    else->Column(outer,verticalArrangement=Arrangement.spacedBy(s.gap.dp),horizontalAlignment=if(s.center)Alignment.CenterHorizontally else Alignment.Start){
-                        node.children.forEach { child->key(child.id){SettingsLayoutView(child,controls,theme,action)} }
+                    else->Column(outer.then(if(s.scroll)Modifier.verticalScroll(rememberScrollState(),reverseScrolling=s.reverse)else Modifier),verticalArrangement=Arrangement.spacedBy(s.gap.dp),horizontalAlignment=if(s.center)Alignment.CenterHorizontally else Alignment.Start){
+                        (if(s.reverse)node.children.reversed()else node.children).forEach { child->key(child.id){SettingsLayoutView(child,controls,theme,action)} }
                     }
                 }
             }

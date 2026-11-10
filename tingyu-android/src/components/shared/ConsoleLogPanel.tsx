@@ -397,17 +397,18 @@ export const ConsoleLogPanel: React.FC<ConsoleLogPanelProps> = ({
                 // column-reverse over a reversed list, so the newest line is pinned to the bottom by
                 // the scroll container itself. Scrolling up to read then stays put as lines arrive,
                 // which no amount of scrollTop bookkeeping manages reliably.
-                <div className={`mt-2 flex ${listMaxHeightClass} select-none flex-col-reverse overflow-y-auto overscroll-contain px-1 pb-2`} data-settings-style='{"padding":[4,0,4,8],"margin":[0,8,0,0]}' data-settings-layout="row">
+                <div className={`mt-2 flex ${listMaxHeightClass} select-none flex-col-reverse overflow-y-auto overscroll-contain px-1 pb-2`} data-settings-style='{"padding":[4,0,4,8],"margin":[0,8,0,0],"maxHeight":416,"scroll":true,"reverse":true}' data-settings-layout="column">
                     {visible.slice().reverse().map(entry => (
                         <div
                             key={entry.id}
+                            role="button" aria-pressed={selected.has(entry.id)}
                             onClick={event => handleRowClick(entry, event)}
                             className={`flex cursor-pointer gap-2 rounded px-2 py-[3px] text-[10px] leading-4 ${levelClass(entry.level)} ${selected.has(entry.id) ? selectedClass : ''}`}
-                         data-settings-style='{"gap":8,"radius":4,"font":10,"padding":[8,0,8,0]}' data-settings-layout="row">
+                         data-settings-style='{"gap":8,"radius":4,"font":10,"minHeight":22,"padding":[8,3,8,3]}' data-settings-layout="row">
                             <span className="shrink-0 tabular-nums opacity-50" data-settings-style='{"tone":"muted"}' data-settings-layout="wrap">
                                 {new Date(entry.at).toLocaleTimeString()}
                             </span>
-                            <span className="whitespace-pre-wrap break-all" data-settings-layout="wrap">{entry.text}</span>
+                            <span className="whitespace-pre-wrap break-all" data-settings-style='{"grow":true}' data-settings-layout="wrap">{entry.text}</span>
                         </div>
                     ))}
                 </div>
