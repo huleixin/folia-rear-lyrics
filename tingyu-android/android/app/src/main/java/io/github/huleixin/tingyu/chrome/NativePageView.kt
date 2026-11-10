@@ -22,10 +22,10 @@ internal typealias PageAction = (String, String, Double) -> Unit
  *  浅色优先于页面类型（与 1.3.182 基线行为一致），数值全部收编在 DarkInterfaceColors。 */
 @Composable internal fun NativePage.surfaceColors(): List<Color> = when {
     LocalInterfacePalette.current.light -> LocalInterfacePalette.current.backgrounds
-    id == "settings" -> DarkInterfaceColors.SettingsBackgrounds
-    id == "search" -> DarkInterfaceColors.SearchBackgrounds
-    home -> DarkInterfaceColors.HomeBackgrounds
-    else -> DarkInterfaceColors.Backgrounds
+    id == "settings" -> LocalInterfacePalette.current.settingsBackgrounds
+    id == "search" -> LocalInterfacePalette.current.searchBackgrounds
+    home -> LocalInterfacePalette.current.homeBackgrounds
+    else -> LocalInterfacePalette.current.backgrounds
 }
 
 @Composable fun NativePageView(page: NativePage, modifier: Modifier, cssScale: Float? = null, onAction: PageAction) {
@@ -38,9 +38,7 @@ internal typealias PageAction = (String, String, Double) -> Unit
     val colors = page.surfaceColors()
     Box(if(page.document!=null)modifier else modifier.background(Brush.verticalGradient(colors))) {
         // Match CSS viewport pixels, independent of Android system text magnification.
-        val scheme=if(LocalInterfacePalette.current.light)lightColorScheme(
-            primary=LightInterfaceColors.Accent,surface=LightInterfaceColors.Sheet,onSurface=LightInterfaceColors.Ink,
-            onSurfaceVariant=LightInterfaceColors.Muted,surfaceContainer=LightInterfaceColors.Surface)else MaterialTheme.colorScheme
+        val scheme = interfaceMaterialScheme(LocalInterfacePalette.current, MaterialTheme.colorScheme)
         MaterialTheme(colorScheme=scheme) {
         CompositionLocalProvider(LocalDensity provides Density(cssScale ?: density.density, 1f)) {
             when {

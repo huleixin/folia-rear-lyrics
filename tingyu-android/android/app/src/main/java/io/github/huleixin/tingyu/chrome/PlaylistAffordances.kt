@@ -23,15 +23,15 @@ import kotlinx.coroutines.isActive
 import kotlin.math.sin
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/PlaylistAffordances.kt
-internal val PlaylistAccent = Color(0xFF7EE0C2)
+internal val PlaylistAccent get() = InterfacePalette().mediaAccent
 internal fun playlistNumberWidth(digits: Int, fontScale: Float): Float =
     (maxOf(2, digits) * 6.8f * fontScale.coerceAtLeast(1f) + 4f).coerceAtLeast(19f)
 internal fun playlistBarHeight(phase: Float, bar: Int): Float =
     .24f + .64f * ((sin((phase * 6.283185f + bar * 2.1f).toDouble()) + 1) / 2).toFloat()
 @Composable internal fun PlaylistLocateButton(label: String, onClick: () -> Unit) {
-    val accent=interfaceColor(PlaylistAccent,LightInterfaceColors.Accent)
+    val accent=LocalInterfacePalette.current.mediaAccent
     ChromeButton(label, size=40.dp, onClick=onClick, modifier=Modifier
-        .shadow(3.dp,CircleShape).background(interfaceColor(Color(0xF0183029),LightInterfaceColors.Floating),CircleShape)
+        .shadow(3.dp,CircleShape).background(LocalInterfacePalette.current.floating,CircleShape)
         .border(.8.dp,accent.copy(alpha=.34f),CircleShape)) {
         Canvas(Modifier.size(21.dp)) {
             val stroke=Stroke(1.65.dp.toPx(),cap=StrokeCap.Round)
@@ -45,7 +45,7 @@ internal fun playlistBarHeight(phase: Float, bar: Int): Float =
 
 /** Only this visible draw node ticks. No audio analysis, bridge traffic or list recomposition. */
 @Composable internal fun PlaylistPlaybackIndicator(playing: Boolean) {
-    val accent=interfaceColor(PlaylistAccent,LightInterfaceColors.Accent)
+    val accent=LocalInterfacePalette.current.mediaAccent
     val phase=remember { mutableFloatStateOf(0f) }
     val rendering=LocalChromeRendering.current
     LaunchedEffect(playing,rendering) {

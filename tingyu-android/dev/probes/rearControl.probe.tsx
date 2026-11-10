@@ -3,7 +3,7 @@ import React from 'react';
 import MobileSettingsLanding from '../../src/components/modal/settings/MobileSettingsLanding';
 import {useSettingsModalStore} from '../../src/stores/useSettingsModalStore';
 import {useThemeSettingsStore} from '../../src/stores/useThemeSettingsStore';
-import {lightInterfaceTokens} from '../../src/services/interfaceAppearance';
+import {interfaceUiTokens} from '../../src/services/interfaceAppearance';
 import type {RearLyricsStatus} from '../../src/services/rearLyricsControl';
 import i18n from '../../src/i18n/config';
 import type {ProbeDefinition} from './definition';
@@ -29,7 +29,7 @@ const Component=()=>{
             status={...status,backendMode:backend,enabled:false,active:false,starting:false,sleeping:false,...patch};
             useThemeSettingsStore.setState({interfaceAppearance:light?'light':'dark'});
             document.documentElement.dataset.interfaceAppearance=light?'light':'dark';
-            for(const [key,value]of Object.entries(lightInterfaceTokens)){if(light)document.documentElement.style.setProperty(key,value);else document.documentElement.style.removeProperty(key);}
+            for(const [key,value]of Object.entries(interfaceUiTokens())){if(light)document.documentElement.style.setProperty(key,value);else document.documentElement.style.removeProperty(key);}
             document.documentElement.style.setProperty('--text-primary',light?'#213e34':'#e8f4ed');
             document.dispatchEvent(new Event('visibilitychange'));
         };

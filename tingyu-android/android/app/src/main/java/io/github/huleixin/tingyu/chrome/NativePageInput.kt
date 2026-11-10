@@ -52,8 +52,8 @@ import androidx.compose.ui.unit.sp
     val shape=RoundedCornerShape(if(search)999.dp else 14.dp)
     val fieldHeight=if(bare)46.dp else (if(search)NativePageDesign.SearchField else NativePageDesign.LibraryFilter).dp
     Row(Modifier.fillMaxWidth().height(fieldHeight)
-        .then(if(bare)Modifier else Modifier.background(interfaceColor(Color(0x08FFFFFF),LightInterfaceColors.Subtle),shape)
-            .border(1.dp,if(focused)interfaceColor(Color(0x7791DBBD),LightInterfaceColors.Focus)else interfaceColor(Color(0x14C6E6D6),LightInterfaceColors.Border),shape))
+        .then(if(bare)Modifier else Modifier.background(LocalInterfacePalette.current.subtle,shape)
+            .border(1.dp,if(focused)LocalInterfacePalette.current.focus else LocalInterfacePalette.current.inputBorder,shape))
         .padding(start=12.dp,end=4.dp),
         verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
         PageIcon("search",PageMuted,Modifier.size(17.dp))

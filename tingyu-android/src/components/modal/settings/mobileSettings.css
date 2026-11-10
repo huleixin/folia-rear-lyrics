@@ -2,16 +2,15 @@
 /* Page-only paint. Native MainSystemBars already provides transparent bars and real CSS insets. */
 [data-folia-settings-overlay][data-mobile-settings='true'] {
     padding: 0;
-    background: #031510;
-    --ty-settings-line: rgba(165, 205, 185, .12);
-    --ty-settings-muted: #9eb3aa;
-    --ty-settings-mint: #74d9ba;
+    background: var(--it-mobile-settings-background-1);
+    --ty-settings-line: var(--it-mobile-settings-ty-settings-line-1);
+    --ty-settings-muted: var(--it-mobile-settings-ty-settings-muted-1);
+    --ty-settings-mint: var(--it-mobile-settings-ty-settings-mint-1);
 }
 [data-mobile-settings='true'] > [data-folia-settings-panel] {
     width: 100%; max-width: 100%; height: 100%; max-height: 100%; min-height: 0;
     padding: 0; border: 0; border-radius: 0;
-    background: radial-gradient(ellipse at 14% -12%, #12453680, transparent 53%),
-        linear-gradient(155deg, #061d16, #02120e 64%, #041a13);
+    background: var(--it-mobile-settings-background-2);
     box-shadow: none; backdrop-filter: none; transition: none;
 }
 [data-mobile-settings='true'] > [data-folia-settings-panel] > .pointer-events-none { display: none; }
@@ -37,9 +36,9 @@
 [data-mobile-settings='true'] .ty-settings-header-primary h1 { font-size: 32px; letter-spacing: -.04em; }
 [data-mobile-settings='true'] .ty-settings-header > button {
     display: grid; place-items: center; flex: none; width: 40px; height: 40px;
-    padding: 0; border: 0; border-radius: 50%; color: #e5eee9; background: transparent;
+    padding: 0; border: 0; border-radius: 50%; color: var(--it-mobile-settings-color-1); background: transparent;
 }
-[data-mobile-settings='true'] .ty-settings-header > .ty-settings-close { background: #99bba50b; }
+[data-mobile-settings='true'] .ty-settings-header > .ty-settings-close { background: var(--it-mobile-settings-background-3); }
 [data-mobile-settings='true'] .ty-settings-home {
     flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; touch-action: pan-y;
     padding: 0 max(22px, var(--folia-main-inset-right, env(safe-area-inset-right, 0px)))
@@ -49,12 +48,12 @@
 [data-mobile-settings='true'] .ty-settings-feature { margin: 0 0 16px; }
 [data-mobile-settings='true'] .ty-settings-group-title {
     display: flex; align-items: center; gap: 10px; margin: 0 2px 8px;
-    color: #acbfb6; font-size: 13px; line-height: 20px; font-weight: 500;
+    color: var(--it-mobile-settings-color-2); font-size: 13px; line-height: 20px; font-weight: 500;
 }
 [data-mobile-settings='true'] .ty-settings-card {
-    background: linear-gradient(125deg, #23493b33, #14362926);
+    background: var(--it-mobile-settings-background-4);
     border: 1px solid var(--ty-settings-line); border-radius: 14px;
-    box-shadow: inset 0 1px 0 #d9ffe805, 0 4px 12px #0011090a;
+    box-shadow: var(--it-mobile-settings-box-shadow-1);
 }
 [data-mobile-settings='true'] .ty-settings-feature-title { margin: 0; font-size: 15px; line-height: 1.5; font-weight: 600; }
 [data-mobile-settings='true'] .ty-settings-description { margin: 4px 0 0; color: var(--ty-settings-muted); font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
@@ -65,16 +64,16 @@
 [data-mobile-settings='true'] .ty-settings-row { border: 0; background: transparent; }
 [data-mobile-settings='true'] .ty-settings-row + .ty-settings-row { position: relative; }
 [data-mobile-settings='true'] .ty-settings-row + .ty-settings-row::before {
-    content: ''; position: absolute; left: 62px; right: 14px; top: 0; border-top: 1px solid #a5cdb90c;
+    content: ''; position: absolute; left: 62px; right: 14px; top: 0; border-top: var(--it-mobile-settings-border-top-1);
 }
 [data-mobile-settings='true'] .ty-setting-symbol {
     display: grid; place-items: center; width: 34px; height: 34px; flex: none;
-    border-radius: 50%; background: #a6d7bf0c; color: #d2e3da;
+    border-radius: 50%; background: var(--it-mobile-settings-background-5); color: var(--it-mobile-settings-color-3);
 }
 [data-mobile-settings='true'] .ty-settings-row-copy { flex: 1; min-width: 0; }
 [data-mobile-settings='true'] .ty-settings-row-copy strong { display: block; font-size: 13px; line-height: 1.45; font-weight: 500; }
 [data-mobile-settings='true'] .ty-settings-row-copy small { display: block; margin-top: 2px; font-size: 11px; line-height: 1.5; color: var(--ty-settings-muted); overflow-wrap: anywhere; }
-[data-mobile-settings='true'] .ty-settings-row > svg { flex: none; color: #c7d7ce; }
+[data-mobile-settings='true'] .ty-settings-row > svg { flex: none; color: var(--it-mobile-settings-color-4); }
 [data-mobile-settings='true'] .ty-rear-card { padding: 14px 14px 0; }
 [data-mobile-settings='true'] .ty-rear-intro { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; padding: 0 3px 10px; }
 /* Anchor to the entire intro: the narrow button column must not cut the phone's left rim. */
@@ -95,7 +94,7 @@
 [data-mobile-settings='true'] .ty-rear-toggle {
     display: flex; align-items: center; justify-content: center; gap: 3px; min-height: 36px; margin-top: 0;
     padding: 7px 9px; border-radius: 12px; font-size: 12px; font-weight: 500; white-space: nowrap;
-    color: #e0f8ed; background: linear-gradient(120deg, #387a60, #255a48); border: 1px solid #7fc2a51a;
+    color: var(--it-mobile-settings-color-5); background: var(--it-mobile-settings-background-6); border: var(--it-mobile-settings-border-1);
 }
 [data-mobile-settings='true'] .ty-rear-toggle:disabled { opacity: .45; }
 [data-mobile-settings='true'] .ty-rear-card > .ty-settings-detail-row { padding-inline: 2px; }
@@ -104,25 +103,25 @@
 [data-mobile-settings='true'] .ty-settings-inline-status { margin: 4px 0 10px; color: var(--ty-settings-muted); font-size: 11px; line-height: 1.6; }
 [data-mobile-settings='true'] .ty-settings-row-copy .ty-rear-status-enabled,
 [data-mobile-settings='true'] .ty-settings-row-copy .ty-rear-status-disabled { color: var(--ty-settings-mint); }
-[data-mobile-settings='true'] .ty-settings-row-copy .ty-rear-status-failed { color: #e5b897; }
+[data-mobile-settings='true'] .ty-settings-row-copy .ty-rear-status-failed { color: var(--it-mobile-settings-color-6); }
 [data-mobile-settings='true'] .ty-settings-text-action { flex: none; font-size: 11px; color: var(--ty-settings-mint); min-height: 40px; }
 [data-mobile-settings='true'] .ty-immersive-card { padding: 12px 14px; }
 [data-mobile-settings='true'] .ty-settings-switch {
-    position: relative; box-sizing: border-box; flex: none; width: 44px; height: 24px; padding: 3px; border: 0; border-radius: 20px; background: #333a3b;
+    position: relative; box-sizing: border-box; flex: none; width: 44px; height: 24px; padding: 3px; border: 0; border-radius: 20px; background: var(--it-mobile-settings-background-7);
 }
-[data-mobile-settings='true'] .ty-settings-switch[aria-checked='true'] { background: #409b7b; }
+[data-mobile-settings='true'] .ty-settings-switch[aria-checked='true'] { background: var(--it-mobile-settings-background-8); }
 [data-mobile-settings='true'] .ty-settings-switch-thumb {
     position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: white;
-    box-shadow: 0 1px 2px #0002; transform: translateX(0); transition: transform 180ms ease;
+    box-shadow: var(--it-mobile-settings-box-shadow-2); transform: translateX(0); transition: transform 180ms ease;
 }
 [data-mobile-settings='true'] .ty-settings-switch[aria-checked='true'] > .ty-settings-switch-thumb { transform: translateX(20px); }
 @media (prefers-reduced-motion: reduce) {
     [data-mobile-settings='true'] .ty-settings-switch-thumb { transition: none; }
 }
-[data-mobile-settings='true'] .ty-settings-row:active { background: #a3d9bc09; }
+[data-mobile-settings='true'] .ty-settings-row:active { background: var(--it-mobile-settings-background-9); }
 [data-mobile-settings='true'] .ty-rear-toggle:active:not(:disabled) { filter: brightness(1.1); }
 [data-mobile-settings='true'] button:focus-visible, [data-mobile-settings='true'] summary:focus-visible {
-    outline: 2px solid #82caae; outline-offset: 2px;
+    outline: var(--it-mobile-settings-outline-1); outline-offset: 2px;
 }
 [data-mobile-settings='true'] .ty-rear-guide > .ty-settings-card { margin-bottom: 14px; padding: 16px; }
 [data-mobile-settings='true'] .ty-rear-guide h2 { margin: 0 0 8px; font-size: 15px; font-weight: 600; }

@@ -696,7 +696,7 @@ internal fun TyPanelHostView(
     onAction: (String, String, Double) -> Unit,
     onClose: () -> Unit,
 ) {
-    val theme = TyPanelTheme.of(light)
+    val theme = TyPanelTheme.of(light, LocalInterfacePalette.current.style)
     when (panel.kind) {
         "menu" -> TyMenuFrame(theme, panel, onAction, onClose)
         "dialog" -> TyDialogFrame(theme, panel.title, panel.subtitle, onClose) {

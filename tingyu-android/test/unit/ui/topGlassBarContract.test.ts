@@ -126,7 +126,7 @@ describe('沉浸式毛玻璃顶栏结构契约', () => {
         expect(glassKt).toContain('LocalTopGlassForeground.current && LocalInterfacePalette.current.light');
         const widgets = chrome('NativePageWidgets.kt');
         for (const name of ['Ink', 'Muted', 'Accent']) {
-            expect(widgets).toContain(`topGlassForegroundColor(LocalInterfacePalette.current.${name.toLowerCase()},TyTopGlass.Light${name})`);
+            expect(widgets).toContain(`topGlassForegroundColor(LocalInterfacePalette.current.${name.toLowerCase()},LocalInterfacePalette.current.top${name})`);
         }
         expect(chrome('NativeSearchOverlay.kt')).toContain('TyTopGlassForeground {');
         const input = chrome('NativePageInput.kt');

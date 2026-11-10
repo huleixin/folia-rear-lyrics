@@ -73,9 +73,6 @@ internal object TyTopGlass {
     const val TintAlphaLight = 0.68f
 
     /** 浅色顶栏前景：覆盖深色封面时仍可读；仅供玻璃上方的清晰层使用。 */
-    val LightInk = Color(0xFF122E24)
-    val LightMuted = Color(0xFF173629)
-    val LightAccent = Color(0xFF0A3020)
 
     /** 32dp 内每 1dp 一段；缓存单张蒙版的曲线采样，不增加模糊/采样层。 */
     const val DecaySteps = 32

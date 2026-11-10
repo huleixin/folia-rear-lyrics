@@ -218,7 +218,7 @@ internal fun LazyListScope.pagedNativeRows(page:NativePage,section:NativePageSec
         }
         scroll.animateScrollTo(target.roundToInt())
     }
-    val fade=interfaceColor(Color(0xE6102D25),Color(0xFFF4F5EE))
+    val fade=LocalInterfacePalette.current.directoryFade
     Box(modifier.onGloballyPositioned{origin.value=it.positionInWindow()}){
         Row(Modifier.fillMaxWidth().horizontalScroll(scroll).onSizeChanged{viewport.value=it.width.toFloat()},
             horizontalArrangement=Arrangement.spacedBy(if(search)8.dp else 6.dp)){
@@ -226,8 +226,8 @@ internal fun LazyListScope.pagedNativeRows(page:NativePage,section:NativePageSec
                 val shape=RoundedCornerShape(999.dp)
                 Box(Modifier.height(36.dp)
                     .onGloballyPositioned{coords->spans[index]=coords.positionInWindow().x to (coords.positionInWindow().x+coords.size.width)}
-                    .clip(shape).background(if(item.selected)interfaceColor(Color(0x2C6BC8A7),LightInterfaceColors.Selected)else if(search)interfaceColor(Color(0x08FFFFFF),LightInterfaceColors.Subtle)else Color.Transparent)
-                    .then(if(search)Modifier.border(1.dp,if(item.selected)interfaceColor(Color(0x709FE0C4),LightInterfaceColors.SelectedBorder)else Color.Transparent,shape)else Modifier)
+                    .clip(shape).background(if(item.selected)LocalInterfacePalette.current.directorySelected else if(search)LocalInterfacePalette.current.subtle else Color.Transparent)
+                    .then(if(search)Modifier.border(1.dp,if(item.selected)LocalInterfacePalette.current.selectedBorder else Color.Transparent,shape)else Modifier)
                     .clickable(enabled=!item.disabled){action(item.action,"",0.0)}.padding(horizontal=if(search)14.dp else 18.dp),contentAlignment=Alignment.Center){
                     Text(item.title,color=if(item.selected)PageAccent else PageMuted,fontSize=(if(search)13 else 14).sp)
                 }

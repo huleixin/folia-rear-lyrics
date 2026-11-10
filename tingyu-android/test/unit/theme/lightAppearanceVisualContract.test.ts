@@ -2,10 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { getContrastRatio } from '@/utils/themeColorMath';
-import { lightInterfaceTokens } from '@/services/interfaceAppearance';
+import { interfaceUiTokens } from '@/services/interfaceAppearance';
 
 const root = process.cwd();
-const backgrounds = [lightInterfaceTokens['--ui-bg'], lightInterfaceTokens['--ui-sheet'], lightInterfaceTokens['--ui-surface']];
+const backgrounds = [interfaceUiTokens()['--ui-bg'], interfaceUiTokens()['--ui-sheet'], interfaceUiTokens()['--ui-surface']];
 const svgDir = path.join(root, 'public/assets/tingyu-nav/light');
 const icons = ['recommend', 'library', 'search', 'settings'] as const;
 
@@ -24,7 +24,7 @@ function exposedSvgColors(svg: string) {
 
 describe('light appearance visual contracts', () => {
     it('keeps ordinary text tokens at AA contrast across page, sheet and card surfaces', () => {
-        for (const foreground of [lightInterfaceTokens['--ui-ink'], lightInterfaceTokens['--ui-muted'], lightInterfaceTokens['--ui-accent']]) {
+        for (const foreground of [interfaceUiTokens()['--ui-ink'], interfaceUiTokens()['--ui-muted'], interfaceUiTokens()['--ui-accent']]) {
             for (const background of backgrounds) expect(getContrastRatio(foreground, background)).toBeGreaterThanOrEqual(4.5);
         }
     });
@@ -32,7 +32,7 @@ describe('light appearance visual contracts', () => {
     it('does not globally rewrite opacity utilities and gives semantic secondary settings text full opacity', () => {
         const css = fs.readFileSync(path.join(root, 'src/styles/interfaceAppearance.css'), 'utf8');
         expect(css).not.toMatch(/opacity:\s*\.82\s*!important/);
-        expect(css).toMatch(/\[style\*="--text-secondary"\]\s*\{color:var\(--ui-muted,#496357\)!important;opacity:1!important\}/);
+        expect(css).toMatch(/\[style\*="--text-secondary"\]\s*\{color:var\(--ui-muted,var\(--it-ordinary-muted\)\)!important;opacity:1!important\}/);
         expect(css).toContain('h1,h2,h3,h4,h5,h6,button,a)[style*="--text-secondary"]');
         expect(css).toContain('[data-folia-settings-tabs] button[class~="opacity-40"]');
         expect(css).toMatch(/:not\(\[data-folia-stage-preview\]\s*\*\)/);
@@ -59,7 +59,7 @@ describe('light appearance visual contracts', () => {
     });
 
     it('keeps light modal surfaces readable over saturated art and leaves dark glass literals unchanged', () => {
-        const modalCss = fs.readFileSync(path.join(root, 'src/styles/interfaceAppearance.css'), 'utf8');
+        const modalCss = fs.readFileSync(path.join(root, 'src/theme/interfaceThemeSpec.json'), 'utf8');
         const queueCss = fs.readFileSync(path.join(root, 'src/components/app/player-panel/mobileQueueSheet.css'), 'utf8');
         expect(modalCss).toContain('rgba(241,244,237,.97)');
         expect(queueCss).toContain('rgba(244,247,241,.97)');
@@ -71,7 +71,7 @@ describe('light appearance visual contracts', () => {
         };
         expect(getContrastRatio('#213e34', canvas('#db54aa', '#f1f4ed', .97))).toBeGreaterThanOrEqual(4.5);
         const material = fs.readFileSync(path.join(root, 'android/app/src/main/java/io/github/huleixin/tingyu/chrome/ChromeMaterial.kt'), 'utf8');
-        expect(material).toContain('else Color(0x78303B36)');
-        expect(material).toContain('else Color.White.copy(alpha=0.23f)');
+        expect(material).toContain('spec.interfaceMaterial(palette.style)');
+        expect(material).toContain('palette.glassFallback');
     });
 });

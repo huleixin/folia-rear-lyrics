@@ -65,7 +65,7 @@ import kotlin.math.abs
                 val name = listOf("recommend", "library", "search", "settings")[index]
                 // Rasterize once per theme/size. Color and press scale are read at draw time.
                 val bitmap = remember(index, s.light, px) { (GlassNavIcons.load(context, name, false, s.light, px) as BitmapDrawable).bitmap.asImageBitmap() }
-                val muted = if (s.light) LightInterfaceColors.Muted else ink.copy(alpha = .82f)
+                val muted = if (s.light) LocalInterfacePalette.current.muted else ink.copy(alpha = .82f)
                 val source = remember { MutableInteractionSource() }
                 val active = motion.targetIndex == index && s.selected >= 0
                 fun weight() = if (latest.selected < 0) 0f else (1f - abs(motion.value - index)).coerceIn(0f, 1f)

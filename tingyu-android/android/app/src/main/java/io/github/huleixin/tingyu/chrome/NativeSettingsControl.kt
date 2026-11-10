@@ -52,7 +52,7 @@ import kotlin.math.round
         "click"->{
             if(control.inputType in setOf("checkbox","radio"))Box(modifier.background(if(control.value=="1")accent else Color.Transparent,RoundedCornerShape(if(control.inputType=="radio")99.dp else 3.dp))
                 .border(1.dp,if(control.value=="1")accent else ink.copy(alpha=.6f),RoundedCornerShape(if(control.inputType=="radio")99.dp else 3.dp)),contentAlignment=Alignment.Center){
-                if(control.value=="1")PageIcon("check",Color(0xFF04231B),Modifier.fillMaxSize().padding(2.dp))
+                if(control.value=="1")PageIcon("check",LocalInterfacePalette.current.onAccent,Modifier.fillMaxSize().padding(2.dp))
             }
             if(control.inputType=="color")Box(modifier.padding(3.dp).background(Color(settingColor(control.value))))
         }
@@ -107,9 +107,9 @@ import kotlin.math.round
             // 排版按 DOM 的内边距与控件框对齐：文字左对齐、箭头贴右、菜单挂在输入框正下方。
             var expanded by remember(control.id){mutableStateOf(false)}
             val light=LocalInterfacePalette.current.light
-            val panel=if(light)Color(0xFFF6FAF7)else Color(0xFF16221E)
-            val edge=if(light)Color(0x1F0C2A20)else Color(0x33FFFFFF)
-            val label=if(light)Color(0xFF122019)else Color(0xFFE9F2EC)
+            val panel=LocalInterfacePalette.current.dropdownSurface
+            val edge=LocalInterfacePalette.current.dropdownBorder
+            val label=LocalInterfacePalette.current.dropdownInk
             val density=LocalDensity.current
             val current=control.options.firstOrNull{it.first==control.value}?.second?:control.value
             val padStart=control.padding.getOrElse(0){12f}

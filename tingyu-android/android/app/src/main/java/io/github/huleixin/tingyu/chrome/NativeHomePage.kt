@@ -87,13 +87,13 @@ import kotlinx.coroutines.launch
                                     Column(Modifier.weight(1f)
                                         .graphicsLayer{scaleX=scale;scaleY=scale;alpha=if(pressed)0.85f else 1f}
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(interfaceColor(Color(0x3A17352A),Color(0x59D7EADC)))
-                                        .border(1.dp,interfaceColor(Color(0x14FFFFFF),Color(0x2E93BBA0)),RoundedCornerShape(12.dp))
+                                        .background(LocalInterfacePalette.current.homeQuickCard)
+                                        .border(1.dp,LocalInterfacePalette.current.homeQuickBorder,RoundedCornerShape(12.dp))
                                         .clickable(interactionSource=interaction,indication=null,enabled=!item.disabled&&item.action.isNotBlank()){action(item.action,"",0.0)}
                                         .padding(vertical=10.dp),
                                         horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(5.dp)) {
                                         Box(Modifier.size(32.dp).clip(RoundedCornerShape(999.dp))
-                                            .background(interfaceColor(Color(0x3D9FE0C4),LightInterfaceColors.Selected)),
+                                            .background(LocalInterfacePalette.current.homeQuickSelected),
                                             contentAlignment=Alignment.Center){PageIcon(if(item.image.isNotBlank())item.image else "music2",PageInk.copy(alpha=.92f),Modifier.size(15.dp))}
                                         Text(item.title,color=PageInk,fontSize=12.sp,lineHeight=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
                                         Text(item.subtitle,color=PageMuted,fontSize=10.sp,lineHeight=13.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
@@ -206,11 +206,11 @@ import kotlinx.coroutines.launch
     }
     Row(Modifier.fillMaxWidth().padding(top=4.dp,bottom=6.dp).height(15.dp),horizontalArrangement=Arrangement.spacedBy(7.dp,Alignment.CenterHorizontally),verticalAlignment=Alignment.CenterVertically){
         section.items.forEachIndexed { index,_ -> Box(Modifier.size(14.dp,3.dp).clip(RoundedCornerShape(4.dp))
-            .background(if(state.firstVisibleItemIndex==index)interfaceColor(Color(0xFFF1F5F2),LightInterfaceColors.Muted)else interfaceColor(Color(0x38FFFFFF),LightInterfaceColors.SelectedBorder)).clickable{scope.launch{state.animateScrollToItem(index)}}) }
+            .background(if(state.firstVisibleItemIndex==index)LocalInterfacePalette.current.homeDotActive else LocalInterfacePalette.current.homeDotIdle).clickable{scope.launch{state.animateScrollToItem(index)}}) }
     }
 }
 @Composable private fun NativeHomePlaylist(item:NativePageItem,modifier:Modifier,action:PageAction){
-    Row(modifier.heightIn(min=58.dp).clip(RoundedCornerShape(8.dp)).background(interfaceColor(Color(0xDB14241F),LightInterfaceColors.Card)).border(1.dp,interfaceColor(Color(0x10FFFFFF),LightInterfaceColors.Border),RoundedCornerShape(8.dp)),verticalAlignment=Alignment.CenterVertically){
+    Row(modifier.heightIn(min=58.dp).clip(RoundedCornerShape(8.dp)).background(LocalInterfacePalette.current.homeCard).border(1.dp,LocalInterfacePalette.current.homeBorder,RoundedCornerShape(8.dp)),verticalAlignment=Alignment.CenterVertically){
         Row(Modifier.weight(1f).chromeClickable(corner=8.dp){action(item.action,"",0.0)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
             PageArtwork(item.image,Modifier.size(56.dp),10.dp)
             Column(Modifier.weight(1f)){

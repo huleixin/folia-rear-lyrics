@@ -139,11 +139,11 @@
   width: 14px;
   height: 3px;
   border-radius: 4px;
-  background: #ffffff38;
+  background: var(--it-mobile-recommendations-background-1);
 }
 .mobile-library .ml-feature-dots button[aria-current="true"] {
   width: 14px;
-  background: #f1f5f2;
+  background: var(--it-mobile-recommendations-background-2);
 }
 @media (min-width: 700px) {
   .ml-feature-card {

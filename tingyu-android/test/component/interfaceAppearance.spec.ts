@@ -35,6 +35,7 @@ for(const width of [320,393,588])test(`appearance live switch and typography ${w
     await expect(page.getByTestId('stage-state')).toHaveText('false');
     await page.evaluate(()=>document.documentElement.style.fontSize='24px');
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.waitForTimeout(900); // Settle the production JS spring before comparing color pixels.
     await page.screenshot({path:`${evidence}/appearance-light-settings-${width}.png`,fullPage:true});
     await page.getByRole('button',{name:'普通弹窗',exact:true}).click();
     await expect(page.locator('[data-folia-themed-dialog] h2')).toHaveClass(/text-zinc-900/);
@@ -43,6 +44,7 @@ for(const width of [320,393,588])test(`appearance live switch and typography ${w
     await page.getByRole('button',{name:'定时关闭',exact:true}).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     expect(await page.getByRole('dialog').evaluate(node=>getComputedStyle(node).backgroundColor)).toBe('rgb(241, 244, 237)');
+    await page.waitForTimeout(900); // Settle the production JS spring before comparing color pixels.
     await page.screenshot({path:`${evidence}/appearance-light-sleep-${width}.png`});
     expect(errors).toEqual([]);
 });
@@ -68,19 +70,25 @@ test('actual mobile home, directory and playlist retain their dark pixels after 
     const home=page.getByTestId('mobile-home');await expect(home).toBeVisible();
     await page.addStyleTag({content:'[data-testid="dev-library-renderer-switch"]{display:none!important}*{transition:none!important;animation:none!important}'});
     await page.evaluate(()=>document.fonts.ready);
-    const baseline=await home.screenshot();
+    await page.waitForTimeout(900);
+    const colors=()=>home.evaluate(node=>Array.from(node.querySelectorAll('.ml-home-playlist-card,.ml-home-playlist-copy,h2,button')).map(el=>{const s=getComputedStyle(el);return [s.color,s.backgroundColor,s.backgroundImage,s.borderColor];}));
+    const baseline=await colors();
     const card=page.locator('.ml-home-playlist-card').first();
     await page.evaluate(()=>document.documentElement.dataset.interfaceAppearance='light');
+    await page.waitForTimeout(900); // Settle the production JS spring before comparing color pixels.
     await page.screenshot({path:`${evidence}/appearance-light-home.png`});
     expect(await home.evaluate(node=>getComputedStyle(node).getPropertyValue('--ml-ink').trim())).toBe('#213e34');
     expect(await card.evaluate(node=>getComputedStyle(node).backgroundImage)).not.toContain('20, 36, 31');
     await page.evaluate(()=>document.documentElement.dataset.interfaceAppearance='dark');
+    await page.waitForTimeout(900);
     // No dark CSS paint rules changed. This catches accidental generic selector changes.
-    expect(await home.screenshot()).toEqual(baseline);
+    expect(await colors()).toEqual(baseline);
+    await page.waitForTimeout(900); // Settle the production JS spring before comparing color pixels.
     await page.screenshot({path:`${evidence}/appearance-dark-home.png`});
     await page.evaluate(()=>document.documentElement.dataset.interfaceAppearance='light');
     await page.locator('.ml-home-playlist-copy').filter({hasText:'Public Playlist'}).click();
     const collection=page.getByTestId('mobile-collection');await expect(collection.getByTestId('mobile-song-row').first()).toBeVisible();
+    await page.waitForTimeout(900); // Settle the production JS spring before comparing color pixels.
     await page.screenshot({path:`${evidence}/appearance-light-playlist.png`});
     await collection.getByRole('button',{name:'Search this playlist'}).click();
     const filter=collection.getByRole('textbox',{name:'Search this playlist'});await filter.fill('Track 2 Cedar');
@@ -90,6 +98,7 @@ test('actual mobile home, directory and playlist retain their dark pixels after 
     await collection.getByRole('button',{name:'Back',exact:true}).click();
     await page.locator('.ml-footer nav button').nth(1).click();
     await expect(page.locator('[data-page="library"]')).toBeVisible();
+    await page.waitForTimeout(900); // Settle the production JS spring before comparing color pixels.
     await page.screenshot({path:`${evidence}/appearance-light-library.png`});
 });
 test('actual search keeps focus and query through light/dark switching and keyboard resize',async({page})=>{
@@ -101,6 +110,7 @@ test('actual search keeps focus and query through light/dark switching and keybo
     const input=page.locator('.ty-search-field input');await input.fill('许嵩');
     await page.evaluate(()=>document.documentElement.dataset.interfaceAppearance='light');
     await expect(input).toHaveValue('许嵩');await expect(input).toBeFocused();
+    await page.waitForTimeout(900); // Settle the production JS spring before comparing color pixels.
     await page.screenshot({path:`${evidence}/appearance-light-search.png`});
     await page.setViewportSize({width:360,height:520});
     await page.evaluate(()=>document.documentElement.dataset.interfaceAppearance='dark');

@@ -1,13 +1,13 @@
 /* src/components/app/search/searchWorkspace.css — 听屿搜索页专用样式，全部限定在 .ty-search 内。 */
 .ty-search {
-    --ty-bg: #03110c;
-    --ty-panel: #ffffff08;
-    --ty-panel-strong: #ffffff0e;
-    --ty-border: #ffffff12;
-    --ty-text: #eef5ef;
-    --ty-muted: #9db0a7;
-    --ty-accent: #9fe0c4;
-    --ty-accent-soft: #9fe0c42e;
+    --ty-bg: var(--it-search-workspace-ty-bg-1);
+    --ty-panel: var(--it-search-workspace-ty-panel-1);
+    --ty-panel-strong: var(--it-search-workspace-ty-panel-strong-1);
+    --ty-border: var(--it-search-workspace-ty-border-1);
+    --ty-text: var(--it-search-workspace-ty-text-1);
+    --ty-muted: var(--it-search-workspace-ty-muted-1);
+    --ty-accent: var(--it-search-workspace-ty-accent-1);
+    --ty-accent-soft: var(--it-search-workspace-ty-accent-soft-1);
     position: fixed;
     inset: 0;
     /* 层级由组件按「是否已打开集合页」写进 --ty-z；否则固定的 50 会把歌手/歌单/专辑页压在下面。 */
@@ -17,18 +17,18 @@
     box-sizing: border-box;
     overflow: hidden;
     color: var(--ty-text);
-    background: linear-gradient(165deg, color-mix(in srgb, var(--ty-bg) 94%, #20432d) 0%, var(--ty-bg) 42%);
+    background: var(--it-search-workspace-background-1);
     padding-top: var(--folia-main-inset-top, env(safe-area-inset-top, 0px));
 }
 .ty-search[data-light='true'] {
-    --ty-bg: #f4f6f1;
-    --ty-panel: #101c1610;
-    --ty-panel-strong: #101c1618;
-    --ty-border: #101c1624;
-    --ty-text: #12271e;
-    --ty-muted: #5c7066;
-    --ty-accent: #22775a;
-    --ty-accent-soft: #22775a1f;
+    --ty-bg: var(--it-search-workspace-ty-bg-2);
+    --ty-panel: var(--it-search-workspace-ty-panel-2);
+    --ty-panel-strong: var(--it-search-workspace-ty-panel-strong-2);
+    --ty-border: var(--it-search-workspace-ty-border-2);
+    --ty-text: var(--it-search-workspace-ty-text-2);
+    --ty-muted: var(--it-search-workspace-ty-muted-2);
+    --ty-accent: var(--it-search-workspace-ty-accent-2);
+    --ty-accent-soft: var(--it-search-workspace-ty-accent-soft-2);
 }
 .ty-search * { box-sizing: border-box; }
 :where(.ty-search) button { font: inherit; color: inherit; cursor: pointer; }
@@ -40,7 +40,7 @@
 .ty-search-field input:focus-visible { outline: none; box-shadow: none; }
 .ty-search-field:focus-within {
     border-color: color-mix(in srgb, var(--ty-accent) 55%, transparent);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ty-accent) 28%, transparent), 0 6px 20px #00000024;
+    box-shadow: var(--it-search-workspace-box-shadow-1);
 }
 
 .ty-search-head { flex: none; padding: 10px 14px 0; }

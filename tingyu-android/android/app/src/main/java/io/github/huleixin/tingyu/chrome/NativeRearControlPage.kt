@@ -46,7 +46,7 @@ import androidx.compose.ui.unit.sp
                                 "chips"->RearChoices(section,action)
                                 else->Column(Modifier.fillMaxWidth().rearCard()){
                                     section.items.forEachIndexed{index,item->
-                                        if(index>0)Box(Modifier.fillMaxWidth().padding(horizontal=14.dp).height(1.dp).background(interfaceColor(Color(0x1FA5CDB9),LightInterfaceColors.Divider)))
+                                        if(index>0)Box(Modifier.fillMaxWidth().padding(horizontal=14.dp).height(1.dp).background(LocalInterfacePalette.current.rearDivider))
                                         RearControlRow(item,action)
                                     }
                                 }
@@ -69,17 +69,17 @@ import androidx.compose.ui.unit.sp
         }
     }
 }
-@Composable private fun Modifier.rearCard()=clip(RoundedCornerShape(14.dp)).background(interfaceColor(Color(0x3323493B),LightInterfaceColors.Card))
-    .border(1.dp,interfaceColor(Color(0x1FA5CDB9),LightInterfaceColors.Border),RoundedCornerShape(14.dp))
+@Composable private fun Modifier.rearCard()=clip(RoundedCornerShape(14.dp)).background(LocalInterfacePalette.current.card)
+    .border(1.dp,LocalInterfacePalette.current.border,RoundedCornerShape(14.dp))
 @Composable private fun RearChoices(section:NativePageSection,action:PageAction){
     Row(Modifier.fillMaxWidth().rearCard().padding(4.dp),horizontalArrangement=Arrangement.spacedBy(4.dp)){
         section.items.forEach{item->
             Box(Modifier.weight(1f).heightIn(min=42.dp).clip(RoundedCornerShape(10.dp))
-                .background(if(item.selected)interfaceColor(Color(0x1A74D9BA),LightInterfaceColors.Selected)else Color.Transparent)
-                .border(1.dp,if(item.selected)interfaceColor(Color(0x4074D9BA),LightInterfaceColors.SelectedBorder)else Color.Transparent,RoundedCornerShape(10.dp))
+                .background(if(item.selected)LocalInterfacePalette.current.rearSelected else Color.Transparent)
+                .border(1.dp,if(item.selected)LocalInterfacePalette.current.rearSelectedBorder else Color.Transparent,RoundedCornerShape(10.dp))
                 .semantics{selected=item.selected;role=Role.RadioButton;if(item.disabled)disabled()}
                 .clickable(enabled=!item.disabled){action(item.action,"",0.0)}.padding(horizontal=6.dp,vertical=9.dp),contentAlignment=Alignment.Center){
-                Text(item.title,color=if(item.selected)interfaceColor(Color(0xFF74D9BA),LightInterfaceColors.Ink)else PageInk,fontSize=13.sp,lineHeight=19.sp,fontWeight=if(item.selected)FontWeight.SemiBold else FontWeight.Normal,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+                Text(item.title,color=if(item.selected)LocalInterfacePalette.current.settingsAccent else PageInk,fontSize=13.sp,lineHeight=19.sp,fontWeight=if(item.selected)FontWeight.SemiBold else FontWeight.Normal,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
             }
         }
     }
@@ -94,7 +94,7 @@ import androidx.compose.ui.unit.sp
         }
         when{
             toggle->Switch(checked=item.selected,onCheckedChange={action(item.action,"",0.0)},enabled=!item.disabled,
-                modifier=Modifier.semantics{contentDescription=item.title},colors=SwitchDefaults.colors(checkedTrackColor=interfaceColor(Color(0xFF74D9BA),LightInterfaceColors.Accent),checkedThumbColor=interfaceColor(Color(0xFF103327),LightInterfaceColors.Sheet),uncheckedTrackColor=interfaceColor(Color(0xFF40584D),LightInterfaceColors.Surface),uncheckedThumbColor=PageMuted,uncheckedBorderColor=PageMuted))
+                modifier=Modifier.semantics{contentDescription=item.title},colors=SwitchDefaults.colors(checkedTrackColor=LocalInterfacePalette.current.settingsAccentSurface,checkedThumbColor=LocalInterfacePalette.current.switchThumb,uncheckedTrackColor=LocalInterfacePalette.current.switchTrack,uncheckedThumbColor=PageMuted,uncheckedBorderColor=PageMuted))
             item.action.isNotBlank()->PageIcon("chevron-right",PageMuted,Modifier.size(18.dp))
             else->Text(item.subtitle,color=PageMuted,fontSize=13.sp,lineHeight=19.sp,textAlign=androidx.compose.ui.text.style.TextAlign.End,modifier=Modifier.weight(1f))
         }

@@ -158,8 +158,8 @@ internal fun NativeSearchBarRow(section:NativePageSection,action:PageAction,focu
 @Composable
 private fun SearchBarSurface(section: NativePageSection, action: PageAction, focus: FocusRequester, autoFocus: Boolean,passive:Boolean=false) {
     Box(Modifier.fillMaxSize()
-        .background(interfaceColor(Color(0x1AFFFFFF), LightInterfaceColors.Subtle), RoundedCornerShape(999.dp))
-        .border(1.dp, interfaceColor(Color(0x3391DBBD), LightInterfaceColors.Focus), RoundedCornerShape(999.dp))) {
+        .background(LocalInterfacePalette.current.searchSubtle, RoundedCornerShape(999.dp))
+        .border(1.dp, LocalInterfacePalette.current.searchFocus, RoundedCornerShape(999.dp))) {
         NativePageInput(
             section = section,
             action = action,

@@ -42,7 +42,7 @@ class MiniSleepPreviewActivity:ComponentActivity() {
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val pixels=with(real){maxWidth.toPx()}
                 CompositionLocalProvider(LocalDensity provides Density(pixels/previewWidth,1f),LocalInterfacePalette provides InterfacePalette(light)) {
-                    BoxWithConstraints(Modifier.fillMaxSize().background(if(light)LightInterfaceColors.Sheet else Color(0xFF031812))) {
+                    BoxWithConstraints(Modifier.fillMaxSize().background(if(light)InterfacePalette(true).sheet else Color(0xFF031812))) {
                         val backdrop=rememberLayerBackdrop();val ui=rememberMiniSleepUi(true)
                         val w=maxWidth.value;val h=maxHeight.value;val density=LocalDensity.current
                         var anchor by remember{mutableStateOf(Rect.Zero)}
@@ -50,7 +50,7 @@ class MiniSleepPreviewActivity:ComponentActivity() {
                         Box(Modifier.fillMaxSize().layerBackdrop(backdrop)) {NativePageView(cache.page("home",w,h,24f),Modifier.fillMaxSize()){_,_,_->}}
                         val mini=NativeFooterLayout.rect("mini",w,h,24f,24f,false)
                         val surface=remember(light){ChromeSurface.parse(JSONObject().put("id","mini").put("session","preview").put("viewportWidth",393)
-                            .put("data",JSONObject().put("title","戒烟").put("artist","李荣浩").put("playing",false).put("labels",JSONObject().put("qualityValue","无损")))).interfacePaint(light)}
+                            .put("data",JSONObject().put("title","戒烟").put("artist","李荣浩").put("playing",false).put("labels",JSONObject().put("qualityValue","无损")))).interfacePaint(InterfacePalette(light))}
                         ChromeMiniPlayer(surface,ChromeTimeline(12.0,300.0,false,SystemClock.elapsedRealtime()),backdrop,
                             Modifier.offset(mini.left.dp,mini.top.dp).size(mini.width.dp,mini.height.dp),ui,{anchor=it}){name,_->if(name=="sleep")menu=!menu}
                         val nav=NativeFooterLayout.rect("nav",w,h,24f,24f,false)

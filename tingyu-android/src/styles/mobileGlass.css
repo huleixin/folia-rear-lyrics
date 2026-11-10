@@ -35,9 +35,9 @@
 }
 
 .mobile-library.ml-footer nav button[aria-current='page']:not([disabled]) {
-    background: linear-gradient(155deg, #ffffff20, #ffffff0b 72%);
-    border: 1px solid #ffffff18;
-    box-shadow: inset 0 1px 0 #ffffff20;
+    background: var(--it-mobile-glass-background-1);
+    border: var(--it-mobile-glass-border-1);
+    box-shadow: var(--it-mobile-glass-box-shadow-1);
     transition: transform 240ms var(--ty-ease-standard), background-color var(--ty-duration-base) ease;
 }
 
@@ -55,7 +55,7 @@
     object-fit: contain;
 }
 .mobile-library.ml-footer nav button[aria-current='page'] {
-    color: #ace6cb;
+    color: var(--it-mobile-glass-color-1);
 }
 
 .mobile-library.ml-footer nav button,
@@ -73,7 +73,7 @@
 .mobile-player-stage .mps-player[data-soft-glass] {
     background: var(--ty-glass-highlight-strong), var(--ty-glass-tint-strong);
     border: 1px solid var(--ty-glass-border-strong);
-    box-shadow: inset 0 1px 0 #ffffff22, var(--ty-glass-shadow);
+    box-shadow: var(--it-mobile-glass-box-shadow-2);
     -webkit-backdrop-filter: blur(var(--ty-glass-blur)) saturate(var(--ty-glass-saturate-soft));
     backdrop-filter: blur(var(--ty-glass-blur)) saturate(var(--ty-glass-saturate-soft));
     /* A moving filter/transform transition would compete with the existing footer WAAPI. */
@@ -115,7 +115,7 @@
 .ml-mini-toggle > svg:not(.ml-mini-progress) { width: 17px; height: 17px; }
 .ml-mini-progress { position: absolute; width: 40px; height: 40px; pointer-events: none; }
 .ml-mini-progress circle { fill: none; stroke-width: 2.2; }
-.ml-mini-progress-track { stroke: #ffffff35; }
+.ml-mini-progress-track { stroke: var(--it-mobile-glass-stroke-1); }
 .ml-mini-progress-value { stroke: currentColor; stroke-linecap: round; }
 /* Press feedback starts immediately; expensive layout/filter properties are never animated. */
 .mobile-library.ml-footer button, .mobile-player-stage button { transition-duration: 90ms; }

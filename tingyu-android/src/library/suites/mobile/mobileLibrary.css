@@ -1,12 +1,12 @@
 /* src/library/suites/mobile/mobileLibrary.css
  * Only the mobile browsing shell owns these tokens. Never restyle the lyrics stage or document. */
 .mobile-library {
-    --ml-bg: #030a09;
-    --ml-ink: #f4f7f5;
-    --ml-muted: #a2b6ac;   /* 对齐 InterfacePalette dark.muted */
-    --ml-jade: #7ee0c2;
-    --ml-line: #ffffff10;
-    --ml-surface: #14211e;
+    --ml-bg: var(--it-mobile-library-ml-bg-1);
+    --ml-ink: var(--it-mobile-library-ml-ink-1);
+    --ml-muted: var(--it-mobile-library-ml-muted-1);   /* 对齐 InterfacePalette dark.muted */
+    --ml-jade: var(--it-mobile-library-ml-jade-1);
+    --ml-line: var(--it-mobile-library-ml-line-1);
+    --ml-surface: var(--it-mobile-library-ml-surface-1);
     --ml-footer: calc(132px + env(safe-area-inset-bottom, 0px));
     /* Native Android insets include the status bar; env() only covers display cutouts. */
     --ml-safe-top: var(--folia-main-inset-top, env(safe-area-inset-top, 0px));
@@ -48,7 +48,7 @@
     position: absolute;
     pointer-events: none;
     z-index: 2;
-    background: #c4d2cc80;
+    background: var(--it-mobile-library-background-1);
     border-radius: 3px;
     opacity: 0;
     transition: opacity 180ms ease;
@@ -193,11 +193,11 @@
 .ml-home {
     padding-top: calc(38px + var(--ml-safe-top));
     padding-bottom: 0;
-    background: linear-gradient(180deg, #062a23 0, #030f0c 160px, var(--ml-bg) 350px);
+    background: var(--it-mobile-library-background-2);
 }
 .ml-home[data-page='home'] {
-    --ml-home-base: #010e0d;
-    --ml-home-muted: #a8b8b2;
+    --ml-home-base: var(--it-mobile-library-ml-home-base-1);
+    --ml-home-muted: var(--it-mobile-library-ml-home-muted-1);
     --ml-home-title-size: 32px;
     --ml-home-section-size: 16px;
     --ml-home-subtitle-size: 14px;
@@ -210,9 +210,7 @@
     --ml-home-inset: 22px;
     padding: calc(36px + var(--ml-safe-top)) var(--ml-home-inset) 0;
     background:
-        radial-gradient(ellipse 75% 30% at 52% 0%, #184b4080, transparent 100%),
-        radial-gradient(ellipse 70% 13% at 5% 100%, #1c51415c, transparent 100%),
-        linear-gradient(180deg, #081f1a 0, var(--ml-home-base) 45%, #010d0c 100%);
+        var(--it-mobile-library-background-3);
 }
 .ml-home-scroll,
 .ml-directory-shell {
@@ -245,7 +243,7 @@
         background-color: transparent;
     }
     to {
-        background-color: #0008;
+        background-color: var(--it-mobile-library-background-color-1);
     }
 }
 @keyframes ml-dim-out {
@@ -272,10 +270,10 @@
 @media (hover: hover) {
     .mobile-library .ml-icon:hover,
     .ml-footer nav button:hover {
-        background: #ffffff0d;
+        background: var(--it-mobile-library-background-4);
     }
     .ml-song-row:hover {
-        background: #ffffff05;
+        background: var(--it-mobile-library-background-5);
     }
 }
 .mobile-library .ml-icon {
@@ -323,7 +321,7 @@
 }
 .ml-home[data-page='home'] .ml-home-heading p {
     margin-top: 5px !important;
-    color: #b5c3bd;
+    color: var(--it-mobile-library-color-1);
     font-size: var(--ml-home-subtitle-size);
     line-height: 1.35;
 }
@@ -343,9 +341,9 @@
     max-width: 150px;
     margin-top: 9px;
     padding: 0 12px;
-    border: 1px solid #ffffff20;
+    border: var(--it-mobile-library-border-1);
     border-radius: 20px;
-    background: #ffffff08;
+    background: var(--it-mobile-library-background-6);
 }
 .ml-home-scroll {
     min-height: 0;
@@ -395,10 +393,10 @@
     gap: 3px;
     min-height: 30px;
     padding: 0 10px;
-    border: 1px solid #ffffff18;
+    border: var(--it-mobile-library-border-2);
     border-radius: 18px;
-    color: #d1ddd7;
-    background: #ffffff08;
+    color: var(--it-mobile-library-color-2);
+    background: var(--it-mobile-library-background-7);
     font-size: 11px;
     white-space: nowrap;
 }
@@ -444,7 +442,7 @@
     bottom: 0;
     padding: 32px 14px 14px;
     border-radius: 0 0 20px 20px;
-    background: linear-gradient(transparent, #000a);
+    background: var(--it-mobile-library-background-8);
     color: white;
 }
 .ml-feature-caption > button:first-child {
@@ -468,7 +466,7 @@
     margin-top: 3px !important;
 }
 .ml-feature-caption p {
-    color: #ffffffb3;
+    color: var(--it-mobile-library-color-3);
 }
 .mobile-library .ml-play {
     display: inline-flex;
@@ -477,7 +475,7 @@
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    color: #031b14;
+    color: var(--it-mobile-library-color-4);
     background: var(--ml-jade);
     flex: none;
 }
@@ -531,7 +529,7 @@
     width: 100%;
     min-height: 62px;
     padding: 5px 0;
-    border-bottom: 1px solid #ffffff0e;
+    border-bottom: var(--it-mobile-library-border-bottom-1);
 }
 .ml-recent-full .ml-art {
     width: 46px;
@@ -579,9 +577,9 @@
     min-height: 58px;
     min-width: 0;
     overflow: hidden;
-    border: 1px solid #ffffff10;
+    border: var(--it-mobile-library-border-3);
     border-radius: var(--ml-home-playlist-radius, 11px);
-    background: linear-gradient(125deg, #14241fdb, #101b18d9);
+    background: var(--it-mobile-library-background-9);
     text-align: left;
 }
 .ml-home-playlist-card .ml-art {
@@ -615,7 +613,7 @@
     flex: none;
     width: 24px;
     min-height: 36px;
-    color: #bac8c1;
+    color: var(--it-mobile-library-color-5);
 }
 .ml-home-playlist-card .ml-home-more {
     width: 22px;
@@ -681,7 +679,7 @@
 }
 .mobile-library .ml-tabs button[aria-pressed='true'] {
     color: var(--ml-jade);
-    background: #7ee0c21a;
+    background: var(--it-mobile-library-background-10);
     font-weight: 600;
 }
 .ml-directory,
@@ -767,12 +765,12 @@
     gap: 4px;
     height: 46px;
     padding: 2px 5px 2px 8px;
-    border: 1px solid #ffffff30;
+    border: var(--it-mobile-library-border-4);
     border-radius: 25px;
-    background: #17221eeb;
+    background: var(--it-mobile-library-background-11);
     backdrop-filter: blur(16px) saturate(1.3);
     -webkit-backdrop-filter: blur(16px) saturate(1.3);
-    box-shadow: 0 4px 18px #0007;
+    box-shadow: var(--it-mobile-library-box-shadow-1);
 }
 .mobile-library .ml-mini-track {
     display: flex;
@@ -822,12 +820,12 @@
     height: 54px;
     padding: 4px;
     gap: 3px;
-    border: 1px solid #ffffff30;
+    border: var(--it-mobile-library-border-5);
     border-radius: 31px;
-    background: #1d2926eb;
+    background: var(--it-mobile-library-background-12);
     backdrop-filter: blur(18px) saturate(1.35);
     -webkit-backdrop-filter: blur(18px) saturate(1.35);
-    box-shadow: 0 6px 22px #0008;
+    box-shadow: var(--it-mobile-library-box-shadow-2);
 }
 .mobile-library.ml-footer nav button {
     display: flex;
@@ -836,7 +834,7 @@
     justify-content: center;
     gap: 2px;
     font-size: 10px;
-    color: #ffffffe6;
+    color: var(--it-mobile-library-color-6);
     border-radius: 26px;
 }
 .ml-footer nav svg {
@@ -846,11 +844,11 @@
 }
 .mobile-library.ml-footer nav button[aria-current='page'] {
     color: white;
-    background: #ffffff20;
+    background: var(--it-mobile-library-background-13);
     font-weight: 650;
 }
 .ml-footer nav button[aria-current='page'] svg {
-    fill: #ffffff26;
+    fill: var(--it-mobile-library-fill-1);
     stroke-width: 2.6;
 }
 .ml-collection {
@@ -941,10 +939,10 @@
     min-height: 42px;
     padding: 0 13px;
     border-radius: 22px;
-    border: 1px solid #ffffff30;
-    background: #1d2926f0;
+    border: var(--it-mobile-library-border-6);
+    background: var(--it-mobile-library-background-14);
     color: var(--ml-jade);
-    box-shadow: 0 4px 18px #0007;
+    box-shadow: var(--it-mobile-library-box-shadow-3);
     backdrop-filter: blur(12px);
     font-size: 12px;
 }
@@ -952,7 +950,7 @@
     animation: ml-locate-flash 1500ms ease-out;
 }
 @keyframes ml-locate-flash {
-    0%, 30% { background: #7ee0c229; }
+    0%, 30% { background: var(--it-mobile-library-background-15); }
     100% { background: transparent; }
 }
 .ml-song-row {
@@ -1058,7 +1056,7 @@
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    background: #0008;
+    background: var(--it-mobile-library-background-16);
     padding-top: 40px;
 }
 .ml-sheet {
@@ -1070,7 +1068,7 @@
     padding: 16px 20px calc(24px + env(safe-area-inset-bottom, 0px));
     overflow-y: auto;
     overscroll-behavior: contain;
-    box-shadow: 0 -8px 40px #10231d18;
+    box-shadow: var(--it-mobile-library-box-shadow-4);
 }
 .ml-sheet header {
     display: flex;
@@ -1126,12 +1124,12 @@
     min-height: 44px;
     width: 100%;
     background: var(--ml-jade);
-    color: #031b14;
+    color: var(--it-mobile-library-color-7);
     text-align: center;
     margin-top: 12px;
 }
 .ml-error {
-    color: #ff939a;
+    color: var(--it-mobile-library-color-8);
     font-size: 13px;
     padding: 10px 0;
 }
@@ -1249,8 +1247,8 @@
     text-overflow: ellipsis;
 }
 .ml-quality-text[data-level="standard"] { color: color-mix(in srgb, var(--ml-muted) 82%, var(--ml-jade) 8%); }
-.ml-quality-text[data-level="hq"]       { color: color-mix(in srgb, #7FA3C4 52%, var(--ml-muted)); }
-.ml-quality-text[data-level="flac"]     { color: color-mix(in srgb, #C9A96E 58%, var(--ml-muted)); }
-.ml-quality-text[data-level="hires"]    { color: color-mix(in srgb, #A5A2E8 52%, var(--ml-muted)); }
-.ml-quality-text[data-level="master"]   { color: color-mix(in srgb, #D2A8A8 52%, var(--ml-muted)); }
-.ml-quality-text[data-level="spatial"]  { color: color-mix(in srgb, #86BDBB 55%, var(--ml-muted)); }
+.ml-quality-text[data-level="hq"]       { color: var(--it-mobile-library-color-9); }
+.ml-quality-text[data-level="flac"]     { color: var(--it-mobile-library-color-10); }
+.ml-quality-text[data-level="hires"]    { color: var(--it-mobile-library-color-11); }
+.ml-quality-text[data-level="master"]   { color: var(--it-mobile-library-color-12); }
+.ml-quality-text[data-level="spatial"]  { color: var(--it-mobile-library-color-13); }

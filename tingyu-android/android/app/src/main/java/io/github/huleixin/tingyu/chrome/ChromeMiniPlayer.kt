@@ -73,12 +73,12 @@ import kotlin.math.abs
                 Spacer(Modifier.width(spacing.gap.dp))
                 Column(Modifier.weight(1f)) {
                     Text(s.title,color=ink,fontSize=13.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
-                    Text(s.artist,color=if(s.light)LightInterfaceColors.Muted else ink.copy(alpha=.65f),fontSize=10.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+                    Text(s.artist,color=if(s.light)LocalInterfacePalette.current.muted else ink.copy(alpha=.65f),fontSize=10.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
                 }
             }
         }
         ChromeButton(s.label("quality","音质"),size=spacing.quality.dp,reduced=s.reducedMotion,onClick={action("quality",0.0)}) {
-            Text(s.label("qualityValue","高品质"),color=if(s.light)LightInterfaceColors.Muted else ink.copy(alpha=.75f),fontSize=if(compact)8.sp else 9.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+            Text(s.label("qualityValue","高品质"),color=if(s.light)LocalInterfacePalette.current.muted else ink.copy(alpha=.75f),fontSize=if(compact)8.sp else 9.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
         }
         if(timer!=null)MiniSleepButton(timer,s.light,spacing.moon,s.reducedMotion,action={action("sleep",0.0)},
             modifier=Modifier.onGloballyPositioned{onSleepAnchor(it.boundsInRoot())})

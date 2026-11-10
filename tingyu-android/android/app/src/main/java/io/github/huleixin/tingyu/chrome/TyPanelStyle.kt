@@ -48,25 +48,13 @@ internal data class TyPanelTheme(
     val danger: Color,
 ) {
     companion object {
-        internal fun of(light: Boolean): TyPanelTheme = if (light) TyPanelTheme(
-            surface = Color(0xFFF7FAF8),
-            card = Color(0xFFFFFFFF).copy(alpha = 0.62f),
-            text = Color(0xFF10231D),
-            muted = Color(0xFF5C7268),
-            accent = Color(0xFF0F6B4F),
-            line = Color(0xFF10231D).copy(alpha = 0.10f),
-            scrim = 0.28f,
-            danger = Color(0xFFB3261E),
-        ) else TyPanelTheme(
-            surface = Color(0xFF0E1A17),
-            card = Color(0xFFFFFFFF).copy(alpha = 0.055f),
-            text = Color(0xFFECF3EF),
-            muted = Color(0xFF8FA69C),
-            accent = Color(0xFF7FE3C0),
-            line = Color(0xFFFFFFFF).copy(alpha = 0.09f),
-            scrim = 0.55f,
-            danger = Color(0xFFFF8A80),
-        )
+        // The optional style is supplied only by ordinary app panels. Minimal-player callers
+        // retain the classic palette and their own cover/daylight ownership.
+        internal fun of(light: Boolean, style: String = "classic"): TyPanelTheme {
+            val p = InterfacePalette(light, style)
+            return TyPanelTheme(p.panelSurface,p.panelCard,p.panelInk,p.panelMuted,p.panelAccent,
+                p.panelLine,if(light) .28f else .55f,p.panelDanger)
+        }
     }
 }
 

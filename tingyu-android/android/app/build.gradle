@@ -261,3 +261,10 @@ tasks.register('archiveReleaseMapping') {
         logger.lifecycle("[mapping] 已归档到 ${target}")
     }
 }
+
+// Keep direct Android builds in sync with the shared theme source.
+tasks.register('verifyInterfaceThemes', Exec) {
+    workingDir rootProject.projectDir.parentFile
+    commandLine 'node', 'dev/build/generateInterfaceThemes.mjs', '--check'
+}
+tasks.named('preBuild').configure { dependsOn('verifyInterfaceThemes') }

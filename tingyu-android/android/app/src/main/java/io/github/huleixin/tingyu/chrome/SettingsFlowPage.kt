@@ -55,13 +55,13 @@ import androidx.compose.ui.unit.sp
 @Composable
 internal fun settingsFlowTheme(): TyPanelTheme {
     val light = LocalInterfacePalette.current.light
-    return TyPanelTheme.of(light).copy(
-        surface = interfaceColor(Color(0xFF061D16), LightInterfaceColors.Sheet),
-        card = interfaceColor(Color(0x3323493B), LightInterfaceColors.Card),
-        text = interfaceColor(Color(0xFFE8F4ED), LightInterfaceColors.Ink),
-        muted = interfaceColor(Color(0xFF9EB3AA), LightInterfaceColors.Muted),
-        accent = interfaceColor(Color(0xFF74D9BA), LightInterfaceColors.Accent),
-        line = interfaceColor(Color(0x1FA5CDB9), LightInterfaceColors.Border),
+    return TyPanelTheme.of(light, LocalInterfacePalette.current.style).copy(
+        surface = LocalInterfacePalette.current.sheet,
+        card = LocalInterfacePalette.current.card,
+        text = LocalInterfacePalette.current.settingsInk,
+        muted = LocalInterfacePalette.current.settingsMuted,
+        accent = LocalInterfacePalette.current.settingsAccentSurface,
+        line = LocalInterfacePalette.current.border,
     )
 }
 
@@ -130,11 +130,11 @@ internal fun SettingsFlowPage(
                             .chromeClickable(role = Role.Button, scaleTo = .94f) { action("back", "", 0.0) },
                         contentAlignment = Alignment.Center,
                     ) {
-                        PageIcon("chevron-left", topGlassForegroundColor(theme.text, TyTopGlass.LightInk), Modifier.size(24.dp))
+                        PageIcon("chevron-left", topGlassForegroundColor(theme.text, LocalInterfacePalette.current.topInk), Modifier.size(24.dp))
                     }
                     Text(
                         flow.title.ifBlank { page.title },
-                        color = topGlassForegroundColor(theme.text, TyTopGlass.LightInk),
+                        color = topGlassForegroundColor(theme.text, LocalInterfacePalette.current.topInk),
                         fontSize = 22.sp,
                         lineHeight = 30.sp,
                         fontWeight = FontWeight.Bold,

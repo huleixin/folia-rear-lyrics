@@ -1,5 +1,5 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
-import {migrateInterfaceAppearance,resolveInterfaceLight,INTERFACE_APPEARANCE_KEY,lightInterfaceTokens} from '@/services/interfaceAppearance';
+import {migrateInterfaceAppearance,resolveInterfaceLight,INTERFACE_APPEARANCE_KEY,interfaceUiTokens} from '@/services/interfaceAppearance';
 import {useThemeSettingsStore} from '@/stores/useThemeSettingsStore';
 import {getContrastRatio} from '@/utils/themeColorMath';
 import {useSleepTimerStore} from '@/stores/useSleepTimerStore';
@@ -43,8 +43,8 @@ describe('ordinary interface appearance is independent of stage and playback set
         expect(localStorage.setItem).toHaveBeenCalledTimes(1);
     });
     it('ordinary light text, secondary labels and accent meet AA on page/card/sheet surfaces',()=>{
-        for(const background of [lightInterfaceTokens['--ui-bg'],lightInterfaceTokens['--ui-surface'],lightInterfaceTokens['--ui-sheet']]){
-            for(const ink of [lightInterfaceTokens['--ui-ink'],lightInterfaceTokens['--ui-muted'],lightInterfaceTokens['--ui-accent']])
+        for(const background of [interfaceUiTokens()['--ui-bg'],interfaceUiTokens()['--ui-surface'],interfaceUiTokens()['--ui-sheet']]){
+            for(const ink of [interfaceUiTokens()['--ui-ink'],interfaceUiTokens()['--ui-muted'],interfaceUiTokens()['--ui-accent']])
                 expect(getContrastRatio(ink,background)).toBeGreaterThanOrEqual(4.5);
         }
     });

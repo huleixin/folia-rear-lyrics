@@ -84,13 +84,13 @@ import androidx.compose.ui.unit.sp
                     history||section.layout=="chips"&&section.id=="discovery" -> item(key=section.id){
                         FlowRow(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
                             section.items.forEach{item->
-                                Row(Modifier.height(38.dp).clip(RoundedCornerShape(999.dp)).background(interfaceColor(Color(0x08FFFFFF),LightInterfaceColors.Subtle)).border(1.dp,interfaceColor(Color(0x12FFFFFF),LightInterfaceColors.Border),RoundedCornerShape(999.dp)),verticalAlignment=Alignment.CenterVertically){
+                                Row(Modifier.height(38.dp).clip(RoundedCornerShape(999.dp)).background(LocalInterfacePalette.current.subtle).border(1.dp,LocalInterfacePalette.current.searchBorder,RoundedCornerShape(999.dp)),verticalAlignment=Alignment.CenterVertically){
                                     Text(item.title,color=PageInk,fontSize=13.sp,modifier=Modifier.clickable{action(item.action,"",0.0)}.padding(horizontal=12.dp))
                                     if(item.secondary.isNotBlank())Box(Modifier.width(30.dp).fillMaxHeight().clickable{action(item.secondary,"",0.0)},contentAlignment=Alignment.Center){PageIcon("x",PageMuted,Modifier.size(13.dp))}
                                 }
                             }
                         }
-                        Spacer(Modifier.height(20.dp));Box(Modifier.fillMaxWidth().height(1.dp).background(interfaceColor(Color(0x12FFFFFF),LightInterfaceColors.Border)));Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(20.dp));Box(Modifier.fillMaxWidth().height(1.dp).background(LocalInterfacePalette.current.searchBorder));Spacer(Modifier.height(12.dp))
                     }
                     section.layout=="rows" -> pagedNativeRows(page,section,caches.getValue(section.id),56,action)
                     section.layout=="chips" -> item(key=section.id){Column{section.items.forEach{item->

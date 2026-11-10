@@ -50,7 +50,7 @@ private val StageFill = 1.06f   // 舞台背景更花，表面比底栏厚 6%，
 @Composable fun ChromeStagePlayer(s: ChromeSurface, timeline: ChromeTimeline?, backdrop: Backdrop, modifier: Modifier, action: (String,Double)->Unit) {
     val ink=chromeColor(s.ink);val accent=chromeColor(s.accent)
     Column(
-        modifier.chromeGlass(backdrop,s.light,28.dp,ChromeGlassPresets.active(),StageFill)
+        modifier.chromeGlass(backdrop,s.light,28.dp,ChromeGlassPresets.active(),StageFill, interfaceTheme = false)
             .padding(horizontal=14.dp,vertical=7.dp),
         verticalArrangement=Arrangement.SpaceBetween,
     ) {

@@ -40,13 +40,11 @@ internal fun NativePageFallbackPanel(
     modifier: Modifier = Modifier,
     onRetry: () -> Unit,
 ) {
-    val background = remember(light) {
-        if (light) Brush.verticalGradient(listOf(Color(0xFFF4F8F5), Color(0xFFE9F0EB)))
-        else Brush.verticalGradient(listOf(Color(0xFF0C1A16), Color(0xFF050F0C)))
-    }
-    val ink = if (light) Color(0xFF11201B) else Color(0xFFF2F8F4)
-    val muted = if (light) Color(0xFF5B6F66) else Color(0xFF9FB3AA)
-    val accent = if (light) Color(0xFF2F7A63) else Color(0xFF6DBDAD)
+    val palette=LocalInterfacePalette.current
+    val background = remember(palette) { Brush.verticalGradient(palette.fallbackBackgrounds) }
+    val ink = palette.fallbackInk
+    val muted = palette.fallbackMuted
+    val accent = palette.fallbackAccent
     val title = when (route) {
         "home" -> "首页没有完成加载"
         "collection" -> "这个歌单没有完成加载"

@@ -2,8 +2,9 @@ import {useEffect} from 'react';
 import {useThemeSettingsStore} from '../stores/useThemeSettingsStore';
 import {isAndroidNativeRuntime} from '../utils/platform';
 import {chromeNative} from '../services/nativeChrome';
-import {INTERFACE_APPEARANCE_EVENT,INTERFACE_APPEARANCE_KEY,lightInterfaceTokens,resolveInterfaceLight} from '../services/interfaceAppearance';
+import {INTERFACE_APPEARANCE_EVENT,INTERFACE_APPEARANCE_KEY,resolveInterfaceLight} from '../services/interfaceAppearance';
 import '../styles/interfaceAppearance.css';
+import '../styles/interfaceThemes.generated.css';
 
 export const selectInterfaceLight = (state: ReturnType<typeof useThemeSettingsStore.getState>) =>
     isAndroidNativeRuntime() ? resolveInterfaceLight(state.interfaceAppearance,state.interfaceSystemLight) : state.isDaylight;
@@ -17,9 +18,6 @@ function paintPreference() {
     const light=selectInterfaceLight(useThemeSettingsStore.getState());
     const root=document.documentElement;
     if(root.dataset.interfaceAppearance===(light?'light':'dark'))return;
-    for(const [key,value] of Object.entries(lightInterfaceTokens)){
-        if(light)root.style.setProperty(key,value);else root.style.removeProperty(key);
-    }
     root.dataset.interfaceAppearance=light?'light':'dark';
     document.dispatchEvent(new Event(INTERFACE_APPEARANCE_EVENT));
 }

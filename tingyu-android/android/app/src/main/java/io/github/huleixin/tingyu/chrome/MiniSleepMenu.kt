@@ -39,15 +39,15 @@ import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.Backdrop
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/MiniSleepMenu.kt
-internal class SleepMenuColors(light:Boolean) {
-    private val palette=InterfacePalette(light)
+internal class SleepMenuColors(private val palette:InterfacePalette) {
+    constructor(light:Boolean):this(InterfacePalette(light))
     val ink=palette.ink
     val muted=palette.muted
     val accent=palette.accent
     // The same neutral glass tint as chromeGlass, with a modest readability veil for a larger panel.
-    val tint=if(light)Color(0x33F1F4ED)else Color(0x4D303B36)
-    val arrowTint=if(light)Color(0xB8F1F4ED)else Color(0xA1303B36)
-    val line=if(light)LightInterfaceColors.Border else Color.White.copy(alpha=.23f)
+    val tint=palette.sleepTint
+    val arrowTint=palette.sleepArrow
+    val line=palette.sleepLine
     val control=ink.copy(alpha=.045f)
     val selected=accent.copy(alpha=.14f)
 
@@ -68,7 +68,8 @@ internal class SleepMenuColors(light:Boolean) {
 @Composable internal fun MiniSleepButton(ui:MiniSleepUi,light:Boolean,width:Float,reduced:Boolean,action:()->Unit,modifier:Modifier=Modifier) {
     val snapshot=ui.snapshot
     val now=sleepDisplayNow(snapshot,LocalChromeRendering.current,false)
-    val colors=remember(light){SleepMenuColors(light)}
+    val palette=LocalInterfacePalette.current
+    val colors=remember(palette){SleepMenuColors(palette)}
     val color=if(snapshot.active)colors.accent else colors.ink.copy(alpha=.85f)
     val label=if(snapshot.active)"定时关闭：${if(snapshot.waiting)"本曲结束"else snapshot.clockAt(now)}，点击修改或取消"else"定时关闭"
     ChromeButton(label,modifier=modifier,size=width.dp,reduced=reduced,onClick=action) {
@@ -83,7 +84,8 @@ internal class SleepMenuColors(light:Boolean) {
 /** One in-scene floating surface. The same measured bottom edge anchors both views. */
 @Composable internal fun MiniSleepMenu(ui:MiniSleepUi,anchor:Rect,safeTop:Float,light:Boolean,backdrop:Backdrop,
     preferredMinutes:Int=30,reduced:Boolean=false,onDismiss:()->Unit) {
-    val colors=remember(light){SleepMenuColors(light)}
+    val palette=LocalInterfacePalette.current
+    val colors=remember(palette){SleepMenuColors(palette)}
     val snapshot=ui.snapshot
     val now=sleepDisplayNow(snapshot,LocalChromeRendering.current,true)
     var advanced by rememberSaveable { mutableStateOf(false) }
@@ -154,7 +156,7 @@ internal class SleepMenuColors(light:Boolean) {
                     }
                     SleepMenuAction("开始定时",colors,Modifier.fillMaxWidth(),primary=true,enabled=mode=="track"||hours*60+minutes>0){start(mode,(hours*60+minutes)*60000L)}
                 }
-                if(ui.error.isNotBlank())Text(ui.error,color=if(light)Color(0xFFA13F35)else Color(0xFFFFB6A6),fontSize=12.sp,lineHeight=18.sp,modifier=Modifier.semantics{contentDescription="定时设置失败：${ui.error}"})
+                if(ui.error.isNotBlank())Text(ui.error,color=LocalInterfacePalette.current.sleepError,fontSize=12.sp,lineHeight=18.sp,modifier=Modifier.semantics{contentDescription="定时设置失败：${ui.error}"})
             }
             Canvas(Modifier.size(16.dp,10.dp)) {
                 val path=Path().apply{moveTo(0f,0f);lineTo(size.width/2,size.height);lineTo(size.width,0f)}

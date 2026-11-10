@@ -35,7 +35,7 @@ import kotlin.math.roundToInt
 // 统一原生音乐集合详情模板（阶段 E）：歌单/专辑/每日推荐/收藏/自建/本地文件夹共用，
 // 歌手页保留独立结构（NativeDirectoryPage artist 分支）。结构与度量和 WebView 侧
 // MobilePlaylistHeader / mobilePlaylistDetail.css 逐值对齐（PLAYLIST_DETAIL_PARITY.md）。
-private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2),LightInterfaceColors.Accent)
+private val PlaylistJade:Color @Composable get()=LocalInterfacePalette.current.mediaAccent
 
 /** 集合详情统一入口：按 sections 契约（toolbar/intro/controls/songHeading/filter/tracks）渲染。 */
 @Composable internal fun MediaDetailScaffold(page:NativePage,modifier:Modifier,action:PageAction){
@@ -121,7 +121,7 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
     Column(Modifier.padding(horizontal=18.dp)){
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(if(width<=370)12.dp else 16.dp)){
             val art=if(short)80.dp else (width*.31f).coerceIn(108f,140f).dp
-            Box(Modifier.size(art).shadow(8.dp,RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).background(interfaceColor(Color(0xFF14211E),LightInterfaceColors.Surface))){
+            Box(Modifier.size(art).shadow(8.dp,RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).background(LocalInterfacePalette.current.surface)){
                 // 封面阴影与 WebView .ml-playlist-cover（0 8px 24px）对齐。
                 AsyncImage(pageImage(cover.image),null,Modifier.fillMaxSize(),contentScale=ContentScale.Fit)
             }
@@ -155,14 +155,14 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
 @Composable internal fun MediaDetailActionsRow(controls:NativePageSection,action:PageAction){
     Row(Modifier.fillMaxWidth().padding(top=14.dp,bottom=16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
         controls.items.firstOrNull()?.let{item->
-            Row(Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(24.dp)).background(interfaceColor(Color(0xFF7EE0C2),LightInterfaceColors.Button))
+            Row(Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(24.dp)).background(LocalInterfacePalette.current.button)
                 .graphicsLayer{alpha=if(item.disabled).45f else 1f}.clickable(enabled=!item.disabled){action(item.action,"",0.0)},
                 horizontalArrangement=Arrangement.spacedBy(8.dp,Alignment.CenterHorizontally),verticalAlignment=Alignment.CenterVertically){
-                ChromeGlyph("play",Color(0xFF04231B),Modifier.size(20.dp));Text(item.title,color=Color(0xFF04231B),fontSize=15.sp,fontWeight=FontWeight(650))
+                ChromeGlyph("play",LocalInterfacePalette.current.onAccent,Modifier.size(20.dp));Text(item.title,color=LocalInterfacePalette.current.onAccent,fontSize=15.sp,fontWeight=FontWeight(650))
             }
         }
         controls.items.drop(1).forEach{item->
-            Box(Modifier.size(44.dp,42.dp).clip(RoundedCornerShape(99.dp)).background(interfaceColor(Color(0x0AB7E6D3),LightInterfaceColors.Subtle)).clickable(enabled=!item.disabled){action(item.action,"",0.0)},contentAlignment=Alignment.Center){
+            Box(Modifier.size(44.dp,42.dp).clip(RoundedCornerShape(99.dp)).background(LocalInterfacePalette.current.mediaSubtle).clickable(enabled=!item.disabled){action(item.action,"",0.0)},contentAlignment=Alignment.Center){
                 PageIcon(if(item.id=="subscribe")"heart"else"plus",if(item.selected)PlaylistJade else PageInk,Modifier.size(24.dp),filled=item.id=="subscribe"&&item.selected)
             }
         }
@@ -173,7 +173,7 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
 @Composable internal fun MediaDetailTrack(item:NativePageItem,playing:Boolean,numberDigits:Int,action:PageAction){
     val jade=PlaylistJade
     val numberWidth=playlistNumberWidth(numberDigits,LocalDensity.current.fontScale).dp
-    Column(Modifier.fillMaxWidth().background(if(item.selected)interfaceColor(Color(0x247EE0C2),LightInterfaceColors.Selected)else Color.Transparent)
+    Column(Modifier.fillMaxWidth().background(if(item.selected)LocalInterfacePalette.current.mediaSelected else Color.Transparent)
         .drawBehind{if(item.selected)drawRect(jade,size=Size(3.dp.toPx(),size.height))}){
         Row(Modifier.fillMaxWidth().height(51.dp).padding(start=18.dp,end=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
             Text(item.number,color=if(item.selected)PlaylistJade else PageMuted,fontSize=11.sp,maxLines=1,softWrap=false,
@@ -187,6 +187,6 @@ private val PlaylistJade:Color @Composable get()=interfaceColor(Color(0xFF7EE0C2
             Text(item.duration,color=PageMuted,fontSize=11.sp,textAlign=TextAlign.End,modifier=Modifier.width(34.dp))
             ChromeButton(item.secondaryLabel,size=36.dp,onClick={action(item.secondary,"",0.0)}){PageIcon("ellipsis-vertical",PageMuted,Modifier.size(19.dp))}
         }
-        Box(Modifier.fillMaxWidth().padding(start=86.dp,end=18.dp).height(1.dp).background(interfaceColor(Color(0x09C7E4D5),LightInterfaceColors.Divider)))
+        Box(Modifier.fillMaxWidth().padding(start=86.dp,end=18.dp).height(1.dp).background(LocalInterfacePalette.current.mediaDivider))
     }
 }

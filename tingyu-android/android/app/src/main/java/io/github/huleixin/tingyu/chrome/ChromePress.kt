@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
 
 /** 行级按压色：浅色用墨色 6%，深色用白色 7%。叠在玻璃/卡片上都只是"轻压一下"。 */
 @Composable
-internal fun pagePressTint(): Color = interfaceColor(Color(0x12FFFFFF), Color(0x0F1B2A22))
+internal fun pagePressTint(): Color = LocalInterfacePalette.current.pressTint
 
 /**
  * 给 [source] 绑定的控件加按压反馈。必须配合

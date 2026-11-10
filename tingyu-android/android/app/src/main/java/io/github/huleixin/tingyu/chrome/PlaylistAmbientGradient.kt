@@ -3,7 +3,7 @@ package io.github.huleixin.tingyu.chrome
 import androidx.compose.ui.graphics.Color
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/PlaylistAmbientGradient.kt
-internal val PlaylistBackgroundColors = listOf(Color(0xFF03221A),Color(0xFF03130E),Color(0xFF031812))
+internal val PlaylistBackgroundColors = InterfacePalette().backgrounds
 internal const val PlaylistAmbientFadeStart = .28f
 internal const val PlaylistAmbientFadeEnd = .90f
 

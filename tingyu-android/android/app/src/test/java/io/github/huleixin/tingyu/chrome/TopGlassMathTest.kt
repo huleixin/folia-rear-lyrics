@@ -104,14 +104,14 @@ class TopGlassMathTest {
 
     @Test
     fun `浅色标题副标题音源标签与搜索文字在极端封面上仍有足够对比度`() {
-        val foregrounds = listOf(TyTopGlass.LightInk, TyTopGlass.LightMuted, TyTopGlass.LightAccent)
+        val foregrounds = listOf(InterfacePalette(true).topInk, InterfacePalette(true).topMuted, InterfacePalette(true).topAccent)
         // 黑白和彩色封面极值；真实 GPU 模糊及滚动观感需另行真机验证。
         val samples = listOf(Color.Black, Color.White, Color.Red, Color.Green, Color.Blue, Color.Cyan, Color.Magenta, Color.Yellow)
-        for (pageColor in LightInterfaceColors.Backgrounds) {
+        for (pageColor in InterfacePalette(true).backgrounds) {
             val tint = pageColor.copy(alpha = TyTopGlass.TintAlphaLight)
             for (sample in samples) {
                 val glass = tint.compositeOver(sample)
-                val surfaces = listOf(glass, LightInterfaceColors.Subtle.compositeOver(glass), LightInterfaceColors.Selected.compositeOver(glass))
+                val surfaces = listOf(glass, InterfacePalette(true).subtle.compositeOver(glass), InterfacePalette(true).selected.compositeOver(glass))
                 for (surface in surfaces) {
                     for (foreground in foregrounds) {
                         val ratio = (surface.luminance() + 0.05f) / (foreground.luminance() + 0.05f)

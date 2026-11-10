@@ -860,7 +860,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 if (original != null) {
                 if(id=="nav"&&live!=null)SideEffect{lastSettingsNav=live}
                 val navSelection=startupSelected?:when(destination){"search"->2;"settings"->3;else->selectedTab.coerceIn(0,1)}
-                val surface = remember(original,interfaceLight){original.interfacePaint(interfaceLight)}
+                val surface = remember(original,palette){original.interfacePaint(palette)}
                     .let{if(id=="nav")it.copy(selected=navSelection,disabled=footerHiddenForIme||live!=null&&it.disabled||destination=="settings"&&!settingsRoot)else it}
                 // seed 与 live 共用同一个定位入口，而且**只在 dp 空间里算一次**：JS 的 innerWidth
                 // 是整数（375），真实 dp 宽是 375.38，走 CSS px × scale 会让交接时整条底栏

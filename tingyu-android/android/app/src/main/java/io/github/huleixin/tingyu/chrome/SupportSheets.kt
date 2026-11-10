@@ -65,7 +65,7 @@ import java.io.File
 // 改用 TyPanelTheme + TySheetFrame —— 与队列、工具页、二级操作面板同一份表面色、
 // 同一份圆角、同一份进出场。用户从设置点进"请作者喝杯咖啡"和点开任意 ⋯ 面板，
 // 看到的是同一个弹窗，不再有第三套弹窗方言。
-private val sheetTheme @Composable get() = TyPanelTheme.of(LocalInterfacePalette.current.light)
+private val sheetTheme @Composable get() = TyPanelTheme.of(LocalInterfacePalette.current.light, LocalInterfacePalette.current.style)
 
 internal data class SupportCopy(
     val coffeeTitle: String, val coffeeDescription: String, val channelWechat: String, val channelAlipay: String,

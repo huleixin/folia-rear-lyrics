@@ -10,35 +10,35 @@
 
 :root {
     /* ---- 颜色 · 深色（默认） ---- */
-    --ty-color-bg: #030a09;                  /* 页面主背景（ Midnight 基底） */
-    --ty-color-bg-raised: #0d1a17;           /* 次级背景 / 抬升面 */
-    --ty-color-card: #ffffff0c;              /* 深色卡片表面 */
-    --ty-color-accent: #9fe0c4;              /* 品牌强调（InterfacePalette.dark.accent） */
-    --ty-color-accent-strong: #ace6cb;       /* 选中态强调（底栏当前页文字） */
-    --ty-color-on-accent: #04231b;           /* 强调色之上的文字 */
-    --ty-color-text: #f4f7f5;                /* 一级文字 */
-    --ty-color-text-secondary: #a2b6ac;      /* 二级文字 */
-    --ty-color-text-disabled: #5c6f66;       /* 禁用文字 */
-    --ty-color-icon: #a2b6ac;                /* 图标默认 */
-    --ty-color-border: #ffffff20;            /* 常规描边 */
-    --ty-color-selected: #ffffff20;          /* 选中/激活底色 */
-    --ty-color-danger: #ff6b6b;
-    --ty-color-success: #74d9ba;
-    --ty-color-warning: #e8c468;
+    --ty-color-bg:var(--it-tokens-color-bg-dark);                  /* 页面主背景（ Midnight 基底） */
+    --ty-color-bg-raised:var(--it-tokens-color-bg-raised-dark);           /* 次级背景 / 抬升面 */
+    --ty-color-card:var(--it-tokens-color-card-dark);              /* 深色卡片表面 */
+    --ty-color-accent:var(--it-tokens-color-accent-dark);              /* 品牌强调（InterfacePalette.dark.accent） */
+    --ty-color-accent-strong:var(--it-tokens-color-accent-strong-dark);       /* 选中态强调（底栏当前页文字） */
+    --ty-color-on-accent:var(--it-tokens-color-on-accent-dark);           /* 强调色之上的文字 */
+    --ty-color-text:var(--it-tokens-color-text-dark);                /* 一级文字 */
+    --ty-color-text-secondary:var(--it-tokens-color-text-secondary-dark);      /* 二级文字 */
+    --ty-color-text-disabled:var(--it-tokens-color-text-disabled-dark);       /* 禁用文字 */
+    --ty-color-icon:var(--it-tokens-color-icon-dark);                /* 图标默认 */
+    --ty-color-border:var(--it-tokens-color-border-dark);            /* 常规描边 */
+    --ty-color-selected:var(--it-tokens-color-selected-dark);          /* 选中/激活底色 */
+    --ty-color-danger:var(--it-tokens-color-danger-dark);
+    --ty-color-success:var(--it-tokens-color-success-dark);
+    --ty-color-warning:var(--it-tokens-color-warning-dark);
 
     /* ---- Liquid Glass · 玻璃材质（收编 mobileGlass.css 的既有参数） ---- */
     --ty-glass-blur: 10px;
     --ty-glass-saturate: 1.25;
     --ty-glass-saturate-soft: 1.15;
-    --ty-glass-tint: rgb(11 20 19 / 46%);        /* 底栏/迷你条材质底色 */
-    --ty-glass-tint-nav: rgb(11 20 19 / 58%);    /* 导航栏比迷你条深一档 */
-    --ty-glass-tint-strong: rgb(12 23 21 / 62%); /* 播放器 soft-glass 底色 */
-    --ty-glass-tint-fallback: rgb(16 24 23 / 38%); /* 非 Blink 引擎降级 */
-    --ty-glass-border: #ffffff20;
-    --ty-glass-border-strong: #ffffff26;
-    --ty-glass-highlight: linear-gradient(155deg, #ffffff0c 0%, transparent 55%, #ffffff04 100%);
-    --ty-glass-highlight-strong: linear-gradient(150deg, #ffffff12, #ffffff02 55%);
-    --ty-glass-shadow: 0 5px 16px #0003;
+    --ty-glass-tint:var(--it-tokens-glass-tint-dark);        /* 底栏/迷你条材质底色 */
+    --ty-glass-tint-nav:var(--it-tokens-glass-tint-nav-dark);    /* 导航栏比迷你条深一档 */
+    --ty-glass-tint-strong:var(--it-tokens-glass-tint-strong-dark); /* 播放器 soft-glass 底色 */
+    --ty-glass-tint-fallback:var(--it-tokens-glass-tint-fallback-dark); /* 非 Blink 引擎降级 */
+    --ty-glass-border:var(--it-tokens-glass-border-dark);
+    --ty-glass-border-strong:var(--it-tokens-glass-border-strong-dark);
+    --ty-glass-highlight:var(--it-tokens-glass-highlight-dark);
+    --ty-glass-highlight-strong:var(--it-tokens-glass-highlight-strong-dark);
+    --ty-glass-shadow:var(--it-tokens-glass-shadow-dark);
 
     /* ---- Top Glass Bar · 沉浸式毛玻璃顶栏（三端对齐：motionTokens.ts / TopGlassBar.kt） ----
        玻璃是固定顶栏的材质：滚动内容透过玻璃被高斯模糊观察，不是内容侧特效。
@@ -46,10 +46,10 @@
     --ty-glass-top-blur: 14px;   /* 顶栏玻璃高斯模糊半径 */
     --ty-glass-top-tail: 32px;   /* 底部强度衰减距离（规范参考 24–40） */
     --ty-glass-top-decay-steps: 32; /* 单面 mask：1px 等距采样 1 - smoothstep，两端缓起缓收 */
-    --ty-glass-top-tint-alpha: 0.55;
-    --ty-glass-top-text: #f4f7f5;
-    --ty-glass-top-text-secondary: #a2b6ac;
-    --ty-glass-top-accent: #9fe0c4;
+    --ty-glass-top-tint-alpha:var(--it-tokens-glass-top-tint-alpha-dark);
+    --ty-glass-top-text:var(--it-tokens-glass-top-text-dark);
+    --ty-glass-top-text-secondary:var(--it-tokens-glass-top-text-secondary-dark);
+    --ty-glass-top-accent:var(--it-tokens-glass-top-accent-dark);
 
     /* ---- 圆角等级 ---- */
     --ty-radius-xs: 8px;
@@ -89,28 +89,28 @@
 
 /* ---- 浅色覆盖（数值与 interfaceAppearance.css 既有浅色一致） ---- */
 html[data-interface-appearance='light'] {
-    --ty-glass-top-tint-alpha: 0.68;
-    --ty-glass-top-text: #122e24;
-    --ty-glass-top-text-secondary: #173629;
-    --ty-glass-top-accent: #0a3020;
-    --ty-color-bg: #f4f5ee;
-    --ty-color-bg-raised: #e3ebe2;   /* 对齐 LightInterfaceColors.Surface（原 #e5ede4 为双端漂移值） */
-    --ty-color-card: #ffffff80;
-    --ty-color-accent: #246e55;
-    --ty-color-accent-strong: #246e55;
-    --ty-color-on-accent: #ffffff;
-    --ty-color-text: #213e34;
-    --ty-color-text-secondary: #496357;
-    --ty-color-text-disabled: #82958b;
-    --ty-color-icon: #486153;
-    --ty-color-border: #315d4326;
-    --ty-color-selected: #3278561c;
-    --ty-glass-tint: #f1f4ed88;
-    --ty-glass-tint-nav: #f1f4ed88;
-    --ty-glass-tint-strong: #f1f4ed88;
-    --ty-glass-tint-fallback: #f1f4ed88;
-    --ty-glass-border: #315d4326;
-    --ty-glass-highlight: linear-gradient(155deg, #ffffff70 0%, transparent 55%, #ffffff20 100%);
-    --ty-glass-highlight-strong: linear-gradient(150deg, #ffffff70, #ffffff20 55%);
-    --ty-glass-shadow: 0 5px 16px #315d4314;
+    --ty-glass-top-tint-alpha:var(--it-tokens-glass-top-tint-alpha-light);
+    --ty-glass-top-text:var(--it-tokens-glass-top-text-light);
+    --ty-glass-top-text-secondary:var(--it-tokens-glass-top-text-secondary-light);
+    --ty-glass-top-accent:var(--it-tokens-glass-top-accent-light);
+    --ty-color-bg:var(--it-tokens-color-bg-light);
+    --ty-color-bg-raised:var(--it-tokens-color-bg-raised-light);   /* 对齐 LightInterfaceColors.Surface（原 #e5ede4 为双端漂移值） */
+    --ty-color-card:var(--it-tokens-color-card-light);
+    --ty-color-accent:var(--it-tokens-color-accent-light);
+    --ty-color-accent-strong:var(--it-tokens-color-accent-strong-light);
+    --ty-color-on-accent:var(--it-tokens-color-on-accent-light);
+    --ty-color-text:var(--it-tokens-color-text-light);
+    --ty-color-text-secondary:var(--it-tokens-color-text-secondary-light);
+    --ty-color-text-disabled:var(--it-tokens-color-text-disabled-light);
+    --ty-color-icon:var(--it-tokens-color-icon-light);
+    --ty-color-border:var(--it-tokens-color-border-light);
+    --ty-color-selected:var(--it-tokens-color-selected-light);
+    --ty-glass-tint:var(--it-tokens-glass-tint-light);
+    --ty-glass-tint-nav:var(--it-tokens-glass-tint-nav-light);
+    --ty-glass-tint-strong:var(--it-tokens-glass-tint-strong-light);
+    --ty-glass-tint-fallback:var(--it-tokens-glass-tint-fallback-light);
+    --ty-glass-border:var(--it-tokens-glass-border-light);
+    --ty-glass-highlight:var(--it-tokens-glass-highlight-light);
+    --ty-glass-highlight-strong:var(--it-tokens-glass-highlight-strong-light);
+    --ty-glass-shadow:var(--it-tokens-glass-shadow-light);
 }

@@ -25,8 +25,10 @@ const indexCss = read('src/index.css');
 
 describe('启动底板契约（窗口 / WebView 首帧 / DOM 遮罩同色）', () => {
     it('原生常量仍是深 #102D25 / 浅 #F4F5EE', () => {
-        expect(launchSurface).toContain('0xFF102D25');
-        expect(launchSurface).toContain('0xFFF4F5EE');
+        expect(launchSurface).toContain('InterfacePalette(false).launch');
+        expect(read('src/theme/interfaceThemeSpec.json')).toContain('FF102D25');
+        expect(launchSurface).toContain('InterfacePalette(true).launch');
+        expect(read('src/theme/interfaceThemeSpec.json')).toContain('FFF4F5EE');
     });
 
     it('index.html 的启动底色与原生常量逐字一致', () => {

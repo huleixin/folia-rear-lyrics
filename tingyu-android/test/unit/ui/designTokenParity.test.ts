@@ -13,12 +13,17 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
+import {interfaceThemes} from '../../../src/theme/interfaceThemes.generated';
 import { TY_GLASS_TOP } from '../../../src/components/shared/motionTokens';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
 const read = (...segments: string[]) =>
-    readFileSync(path.join(root, ...segments), 'utf8');
+    resolveClassic(readFileSync(path.join(root, ...segments), 'utf8'));
+function resolveClassic(value:string){
+    for(const [key,color] of Object.entries(interfaceThemes.classic.dark.web)) value=value.replaceAll('var('+key+')',color);
+    return value;
+}
 
 const tokensCss = read('src', 'styles', 'tingyuTokens.css');
 const tokensTs = read('src', 'components', 'shared', 'motionTokens.ts');
@@ -55,11 +60,14 @@ function cssVar(source: string, name: string, scope = ':root'): string {
  *  兼容两种形态：`val Ink=Color(0x…)`（LightInterfaceColors）与
  *  `val muted get()=color(Color(0x…),…)`（InterfacePalette 深色 getter）。 */
 function ktColor(source: string, name: string): string {
-    const match = source.match(
-        new RegExp(`${name}\\s*(?:get\\(\\)\\s*=\\s*color\\()?\\s*=?\\s*Color\\(0x([0-9A-Fa-f]{8})\\)`)
-    );
-    expect(match, `Kotlin 存在 ${name}`).toBeTruthy();
-    return match![1].toUpperCase();
+    const role=name.replace('val ','');
+    const keys:Record<string,string>={LightInk:'topInk',LightMuted:'topMuted',LightAccent:'topAccent',PlaylistAccent:'mediaAccent'};
+    const light=role[0]===role[0].toUpperCase() && role!=='PlaylistAccent';
+    const key=keys[role]||role[0].toLowerCase()+role.slice(1);
+    const palette=interfaceThemes.classic[light?'light':'dark'].native;
+    expect(key in palette).toBe(true);
+    return palette[key as keyof typeof palette].hex;
+
 }
 
 /** 提取 Kotlin object 中的 const val 整数。 */

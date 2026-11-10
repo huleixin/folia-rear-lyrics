@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated interface startup resources. -->
+<resources>
+  <style name="InterfaceLaunch_classic_Light" parent="AppTheme.NoActionBarLaunch">
+    <item name="android:windowBackground">#F4F5EE</item>
+    <item name="android:windowSplashScreenBackground">#F4F5EE</item>
+    <item name="android:windowLightStatusBar">true</item>
+    <item name="android:windowLightNavigationBar">true</item>
+  </style>
+  <style name="InterfaceLaunch_classic_Dark" parent="AppTheme.NoActionBarLaunch">
+    <item name="android:windowBackground">#102D25</item>
+    <item name="android:windowSplashScreenBackground">#102D25</item>
+    <item name="android:windowLightStatusBar">false</item>
+    <item name="android:windowLightNavigationBar">false</item>
+  </style>
+  <style name="InterfaceLaunch_classic_System" parent="AppTheme.NoActionBarLaunch">
+    <item name="android:windowBackground">#F4F5EE</item>
+    <item name="android:windowSplashScreenBackground">#F4F5EE</item>
+    <item name="android:windowLightStatusBar">true</item>
+    <item name="android:windowLightNavigationBar">true</item>
+  </style>
+</resources>

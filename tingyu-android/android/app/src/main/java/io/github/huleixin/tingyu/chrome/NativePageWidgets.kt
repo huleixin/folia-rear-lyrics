@@ -32,9 +32,9 @@ import coil.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageWidgets.kt
-internal val PageInk:Color @Composable get()=topGlassForegroundColor(LocalInterfacePalette.current.ink,TyTopGlass.LightInk)
-internal val PageMuted:Color @Composable get()=topGlassForegroundColor(LocalInterfacePalette.current.muted,TyTopGlass.LightMuted)
-internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInterfacePalette.current.accent,TyTopGlass.LightAccent)
+internal val PageInk:Color @Composable get()=topGlassForegroundColor(LocalInterfacePalette.current.ink,LocalInterfacePalette.current.topInk)
+internal val PageMuted:Color @Composable get()=topGlassForegroundColor(LocalInterfacePalette.current.muted,LocalInterfacePalette.current.topMuted)
+internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInterfacePalette.current.accent,LocalInterfacePalette.current.topAccent)
 @Composable internal fun pageImage(url: String): Any? {
     val context=LocalContext.current
     return remember(url,context) {
@@ -73,7 +73,7 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
     var lastKnown by remember { mutableStateOf("") }
     val effective = if (url.isBlank()) lastKnown else url
     SideEffect { if (url.isNotBlank() && url != lastKnown) lastKnown = url }
-    Box(modifier.clip(RoundedCornerShape(radius)).background(interfaceColor(Color(0xFF14211E),LightInterfaceColors.Surface)), contentAlignment = Alignment.Center) {
+    Box(modifier.clip(RoundedCornerShape(radius)).background(LocalInterfacePalette.current.surface), contentAlignment = Alignment.Center) {
         if (effective.isBlank()) PageIcon("music2", PageMuted, Modifier.size(21.dp))
         else AsyncImage(pageImage(effective), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
     }
@@ -82,8 +82,8 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
     height: Dp = 30.dp, font: Int = 11, trailing: String = "", border: Boolean = true, leading: String = "") {
     val shape = RoundedCornerShape(999.dp)
     Row(Modifier.heightIn(min=height).clip(shape)
-        .background(if (selected) interfaceColor(Color(0x2E9FE0C4),LightInterfaceColors.Selected) else interfaceColor(Color(0x08FFFFFF),LightInterfaceColors.Subtle))
-        .then(if(border) Modifier.border(1.dp, if(selected) interfaceColor(Color(0x709FE0C4),LightInterfaceColors.SelectedBorder) else interfaceColor(Color(0x18FFFFFF),LightInterfaceColors.Border), shape) else Modifier)
+        .background(if (selected) LocalInterfacePalette.current.selected else LocalInterfacePalette.current.subtle)
+        .then(if(border) Modifier.border(1.dp, if(selected) LocalInterfacePalette.current.selectedBorder else LocalInterfacePalette.current.chipBorder, shape) else Modifier)
         .clickable(enabled=enabled,onClick=onClick).padding(horizontal=10.dp), verticalAlignment=Alignment.CenterVertically,
         horizontalArrangement=Arrangement.spacedBy(3.dp)) {
         // leading：本地音源选择器要求「设备图标 + 名称 + 下拉箭头」，online 来源不带图标照旧。
@@ -97,7 +97,7 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
         if(page.leading.isNotBlank())ChromeButton("返回",size=40.dp,onClick={action(page.leading,"",0.0)}){PageIcon("chevron-left",PageInk,Modifier.size(24.dp))}
         Column(Modifier.weight(1f).padding(top=6.dp)) {
             Text(page.title,color=PageInk,fontSize=(if(large)32 else 27).sp,lineHeight=34.sp,fontWeight=FontWeight.Bold,letterSpacing=(-1).sp)
-            if(page.subtitle.isNotBlank())Text(page.subtitle,color=topGlassForegroundColor(interfaceColor(Color(0xFFB5C3BD),LightInterfaceColors.Muted),TyTopGlass.LightMuted),fontSize=14.sp,lineHeight=19.sp,modifier=Modifier.padding(top=5.dp))
+            if(page.subtitle.isNotBlank())Text(page.subtitle,color=topGlassForegroundColor(LocalInterfacePalette.current.headerSubtitle,LocalInterfacePalette.current.topMuted),fontSize=14.sp,lineHeight=19.sp,modifier=Modifier.padding(top=5.dp))
         }
         if(page.trailing.isNotBlank())Box(Modifier.padding(top=9.dp)){
             PagePill(page.trailingLabel,{action(page.trailing,"",0.0)},height=34.dp,trailing=if(page.id=="home")"chevron-down"else"",font=11,
@@ -115,7 +115,7 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
     var expanded by remember { mutableStateOf(false) }
     Box {
         Row(Modifier.heightIn(min=34.dp).chromeClickable(corner=10.dp){expanded=true},verticalAlignment=Alignment.CenterVertically) {
-            Text(section.items.firstOrNull{it.selected}?.title?:"",color=interfaceColor(Color(0xFFB4C9BF),LightInterfaceColors.Muted),fontSize=12.sp)
+            Text(section.items.firstOrNull{it.selected}?.title?:"",color=LocalInterfacePalette.current.selectionLabel,fontSize=12.sp)
             PageIcon("chevron-down",PageMuted,Modifier.padding(start=3.dp).size(14.dp))
         }
         DropdownMenu(expanded,{expanded=false}) { section.items.forEach { item ->
@@ -147,7 +147,7 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
         if(item.secondary.isNotBlank())ChromeButton("更多",size=36.dp,onClick={action(item.secondary)}){PageIcon("ellipsis-vertical",PageMuted,Modifier.size(18.dp))}
         else if(chevron)PageIcon("chevron-right",PageMuted,Modifier.size(16.dp))
     }
-    if(divider)Box(Modifier.fillMaxWidth().height(1.dp).background(interfaceColor(Color(0x0EFFFFFF),LightInterfaceColors.Divider)))
+    if(divider)Box(Modifier.fillMaxWidth().height(1.dp).background(LocalInterfacePalette.current.divider))
 }
 /** 当前播放封面标识：播放中=三根轻量均衡器条（青绿强调色），暂停=静止暂停符。 */
 @Composable private fun NowPlayingBadge(playing:Boolean){
