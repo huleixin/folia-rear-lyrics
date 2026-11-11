@@ -147,13 +147,14 @@ function controller({ mainPlaybackSnapshotRef = { current: null }, onPlayNavidro
     const persistLastPlaybackCache = vi.fn(async () => undefined);
     const navigateToPlaybackView = vi.fn();
     const setLyrics = vi.fn();
+    const setIsLyricsLoading = vi.fn();
     const result = usePlaybackQueueController({
         localSongs: [], localLibraryCatalog: {}, isNowPlayingStageActive: false, shouldNavigateToPlayerOnTrackChange: true,
         audioRef: { current: { pause } }, shouldAutoPlayRef, currentSongRef, playbackGenerationRef, playbackAutoSkipCountRef,
         blobUrlRef, pendingResumeTimeRef: { current: null },
         lastAudioRecoverySourceRef: { current: null }, currentOnlineAudioUrlFetchedAtRef: { current: null },
         mainPlaybackSnapshotRef,
-        setIsLyricsLoading: vi.fn(), setLyrics, persistLastPlaybackCache,
+        setIsLyricsLoading, setLyrics, persistLastPlaybackCache,
         navigateToPlaybackView, restoreCachedThemeForSong: vi.fn(async () => undefined),
         interruptStagePlaybackForMainTransition: vi.fn(),
         onPlayNavidromeSong,
@@ -161,7 +162,7 @@ function controller({ mainPlaybackSnapshotRef = { current: null }, onPlayNavidro
     const setPendingUnavailableReplacement = stateSetters.at(-1)!;
     return {
         ...result, playSong:(song:Parameters<typeof result.playSong>[0],queue:Parameters<typeof result.playSong>[1]=[],fm=false,options:Parameters<typeof result.playSong>[3]={})=>result.playSong(song,queue,fm,{transition,...options}), pause, shouldAutoPlayRef, currentSongRef, playbackAutoSkipCountRef, blobUrlRef,
-        persistLastPlaybackCache, setLyrics, setPendingUnavailableReplacement, navigateToPlaybackView,
+        persistLastPlaybackCache, setIsLyricsLoading, setLyrics, setPendingUnavailableReplacement, navigateToPlaybackView,
     };
 }
 
@@ -702,6 +703,20 @@ describe('stale requests', () => {
         expect(playbackGenerationRef.current).toBe(1);
         await queue.playSong(songs[0], songs);
         expect(playbackGenerationRef.current).toBe(2);
+    });
+
+    it('starts cached audio without waiting for online lyrics', async () => {
+        const lyrics = deferred<void>();
+        vi.mocked(loadOnlineSongLyrics).mockReturnValueOnce(lyrics.promise);
+        loader.mockResolvedValueOnce({ kind: 'ok', audioSrc: 'blob:cached', blobUrl: 'blob:cached' });
+        const queue = controller();
+
+        await queue.playSong(songs[1], songs);
+
+        expect(usePlaybackStore.getState().audioSrc).toBe('blob:cached');
+        expect(queue.shouldAutoPlayRef.current).toBe(true);
+        expect(queue.setIsLyricsLoading).toHaveBeenLastCalledWith(false);
+        lyrics.resolve();
     });
 
     it('still plays a successful request end to end', async () => {

@@ -1,3 +1,4 @@
+import { shufflePlayback } from '../../../services/shufflePlayback';
 import type { Dispatch, SetStateAction } from 'react';
 import { buildNavidromeQueue } from '../../../services/playbackAdapters';
 import { applyQueueAddBehavior } from '../../../utils/queueAddBehavior';
@@ -51,6 +52,11 @@ export const createQueueMutations = ({
             behavior: addBehavior,
         });
 
+        if (addBehavior === 'next' && affectedSongs.length > 0 && shufflePlayback.active()) {
+            for (let i = affectedSongs.length - 1; i >= 0; i--) {
+                shufflePlayback.insertNext(getPlaybackSongKey(affectedSongs[i]));
+            }
+        }
         setPlayQueue(nextQueue);
         void persistLastPlaybackCache(live.currentSong, nextQueue);
 

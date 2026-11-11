@@ -32,7 +32,7 @@ type Props = {
     close():void; change(text:string,composing:boolean):void; submit(text?:string):void; selectTab(tab:Tab):void;
     switchSource(source:SearchSource):void; sourceLabel(source:SearchSource):string; loadMore():void;
     loadExplore(kind:ExploreKind):void; openHit(kind:ExploreKind,hit:Hit):void;
-    play(song:UnifiedSong):void; enqueue(song:UnifiedSong):void;
+    openMenu?(song:UnifiedSong):void; play(song:UnifiedSong):void; enqueue(song:UnifiedSong):void;
     openArtist(song:UnifiedSong,name:string,id?:MediaId,entityId?:string):void;
     openAlbum(song:UnifiedSong,name:string,id?:MediaId,entityId?:string):void;
 };
@@ -157,7 +157,7 @@ export function useNativeSearchPage(p: Props) {
     const dispatch=pageRowActions(actions,key=>{
         const match=/^(play|menu):(\d+):(.+)$/.exec(key);
         if(match){const song=p.results[Number(match[2])];if(!song||getPlaybackSongKey(song)!==match[3])return;
-            return()=>{if(match[1]==='menu')setMenu(song);else if(!isSongUnavailable(song))p.play(song)};}
+            return()=>{if(match[1]==='menu'){if(p.openMenu)p.openMenu(song);else setMenu(song);}else if(!isSongUnavailable(song))p.play(song)};}
         const hit=/^hit:(artist|album|playlist):(\d+):(.+)$/.exec(key);
         if(hit){const kind=hit[1] as ExploreKind,items=kind==='artist'?p.artists.items:kind==='album'?p.albums.items:p.playlists.items;
             const item=items[Number(hit[2])];if(item&&String(item.id)===hit[3])return()=>p.openHit(kind,item);}

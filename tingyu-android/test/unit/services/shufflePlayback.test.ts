@@ -10,6 +10,13 @@ const song = (id: number): SongResult => ({ id, name: `Track ${id}`, artists: []
 const queue = [1, 2, 3, 4, 5].map(song);
 afterEach(() => { shufflePlayback.setEnabled(false); shufflePlayback.setSuspended(false); vi.unstubAllGlobals(); });
 describe('shuffle sequence', () => {
+    it('insertNext places target songs immediately after the current song and preserves deterministic cycle', () => {
+        const sequence = createShufflePlayback(() => .2); sequence.setEnabled(true);
+        sequence.observe(queue, queue[0]);
+        const target = song(99);
+        sequence.insertNext(getPlaybackSongKey(target));
+        expect(getPlaybackSongKey(sequence.next([...queue, target], queue[0])!)).toBe(getPlaybackSongKey(target));
+    });
     it('matches the native cross-language cycle vector, including UTF-16 identities', () => {
         expect(nextShuffleCycle(['online:qq:1','local:海浪🎵','online:netease:3','local:4','online:qq:5']))
             .toEqual(['online:netease:3','local:4','online:qq:5','online:qq:1','local:海浪🎵']);

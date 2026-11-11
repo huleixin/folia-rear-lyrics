@@ -263,6 +263,11 @@ export function usePlaybackQueueController({
             behavior: addBehavior,
         });
 
+        if (addBehavior === 'next' && affectedSongs.length > 0 && shufflePlayback.active()) {
+            for (let i = affectedSongs.length - 1; i >= 0; i--) {
+                shufflePlayback.insertNext(getPlaybackSongKey(affectedSongs[i]));
+            }
+        }
         if (live.activePlaybackContext === 'stage') {
             mainPlaybackSnapshotRef.current = mainSnapshot
                 ? { ...mainSnapshot, playQueue: nextQueue }
@@ -850,46 +855,58 @@ export function usePlaybackQueueController({
         }
         setAudioSrc(audioResult.audioSrc);
 
-        try {
-            noteLyricsDiagnostic('queue:load:start', song);
-            const isCurrentLyrics = () => currentSongRef.current === songKey && playbackGenerationRef.current === landedGeneration;
-            await loadOnlineSongLyrics(song, prefetched, userId, {
-                isCurrent: isCurrentLyrics,
-                onLyrics: resolvedLyrics => { if (isCurrentLyrics()) setLyrics(resolvedLyrics); },
-                onPureMusicChange: isPureMusic => {
-                    if (!isCurrentLyrics()) return;
-                    setCurrentSong(prev => {
-                        if (!prev || !isSamePlaybackSong(prev, song)) return prev;
-                        return { ...prev, isPureMusic };
-                    });
-                },
-                onStateChange: state => {
-                    if (!isCurrentLyrics()) return;
-                    setCurrentSong(prev => {
-                        if (!prev || !isSamePlaybackSong(prev, song)) return prev;
-                        return { ...prev, onlineLyricsState: state ?? undefined };
-                    });
-                },
-                onAutoMatchStart: () => {
-                    if (!isCurrentLyrics()) return;
-                    setStatusMsg({ type: 'info', text: t('status.matchingBestLyrics') });
-                },
-                onDone: () => {
-                    if (!isCurrentLyrics()) return;
-                    noteLyricsDiagnostic('queue:load:done', song);
-                    setIsLyricsLoading(false);
-                },
-            });
-        } catch (error) {
-            if (currentSongRef.current !== songKey || playbackGenerationRef.current !== landedGeneration) {
-                noteLyricsDiagnostic('queue:discard', song, { reason: 'stale-lyric-error' }); return;
+        const lyricsTask = (async () => {
+            try {
+                noteLyricsDiagnostic('queue:load:start', song);
+                const isCurrentLyrics = () => currentSongRef.current === songKey && playbackGenerationRef.current === landedGeneration;
+                await loadOnlineSongLyrics(song, prefetched, userId, {
+                    isCurrent: isCurrentLyrics,
+                    onLyrics: resolvedLyrics => { if (isCurrentLyrics()) setLyrics(resolvedLyrics); },
+                    onPureMusicChange: isPureMusic => {
+                        if (!isCurrentLyrics()) return;
+                        setCurrentSong(prev => {
+                            if (!prev || !isSamePlaybackSong(prev, song)) return prev;
+                            return { ...prev, isPureMusic };
+                        });
+                    },
+                    onStateChange: state => {
+                        if (!isCurrentLyrics()) return;
+                        setCurrentSong(prev => {
+                            if (!prev || !isSamePlaybackSong(prev, song)) return prev;
+                            return { ...prev, onlineLyricsState: state ?? undefined };
+                        });
+                    },
+                    onAutoMatchStart: () => {
+                        if (!isCurrentLyrics()) return;
+                        setStatusMsg({ type: 'info', text: t('status.matchingBestLyrics') });
+                    },
+                    onDone: () => {
+                        if (!isCurrentLyrics()) return;
+                        noteLyricsDiagnostic('queue:load:done', song);
+                        setIsLyricsLoading(false);
+                    },
+                });
+            } catch (error) {
+                if (currentSongRef.current !== songKey || playbackGenerationRef.current !== landedGeneration) {
+                    noteLyricsDiagnostic('queue:discard', song, { reason: 'stale-lyric-error' }); return;
+                }
+                noteLyricsDiagnostic('queue:load:error', song, {
+                    message: error instanceof Error ? error.message : String(error),
+                });
+                console.warn('[App] Lyric fetch failed', error);
+                setLyrics(null);
+                setIsLyricsLoading(false);
             }
-            noteLyricsDiagnostic('queue:load:error', song, {
-                message: error instanceof Error ? error.message : String(error),
-            });
-            console.warn('[App] Lyric fetch failed', error);
-            setLyrics(null);
+        })();
+
+        if (audioResult.blobUrl) {
+            // The decoder already has the complete track locally. Lyrics and optional best-match
+            // upgrades may still use the network, so they must not hold cached audio behind the
+            // autoplay gate on a weak or unavailable connection.
             setIsLyricsLoading(false);
+            void lyricsTask;
+        } else {
+            await lyricsTask;
         }
 
         try {

@@ -1,3 +1,4 @@
+import { shufflePlayback } from '../services/shufflePlayback';
 import { noteLyricsDiagnostic } from '../utils/lyricsDiagnostics';
 import { capturePlaybackRequest } from '../utils/playbackRequestGuard';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -538,6 +539,11 @@ export function useLibraryPlaybackController({
             return;
         }
 
+        if (affectedSongs.length > 0 && shufflePlayback.active()) {
+            for (let i = affectedSongs.length - 1; i >= 0; i--) {
+                shufflePlayback.insertNext(getPlaybackSongKey(affectedSongs[i]));
+            }
+        }
         setPlayQueue(nextQueue);
         void persistLastPlaybackCache(live.currentSong, nextQueue);
         setStatusMsg({

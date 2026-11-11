@@ -1,3 +1,8 @@
+import OperationPanel from '../../../library/suites/mobile/native/OperationPanel';
+import type { NativePanelModel, NativePanelActionRow } from '../../../types/nativePanels';
+import { getProviderSongMetadata } from '../../../services/onlineMusic/songMetadata';
+import { canResolveSongCatalogRef } from '../../../services/onlineMusic/catalogRefs';
+import { isSongUnavailable } from '../../../services/onlineMusic/songAvailability';
 import {useInterfaceLight} from '../../../hooks/useInterfaceAppearance';
 import {isAndroidNativeRuntime} from '../../../utils/platform';
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
@@ -124,10 +129,11 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     );
     const [tab, setTab] = useState<ResultTab>('overview');
     const [composing, setComposing] = useState(false);
+    const [floatingMenuSong, setFloatingMenuSong] = useState<UnifiedSong | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     // Reopening an empty search must not retain the previous result tabs or mode.
     useEffect(() => {
-        if (!isSearchOpen) { useSearchExploreStore.getState().reset(); return; }
+        if (!isSearchOpen) { useSearchExploreStore.getState().reset(); setFloatingMenuSong(null); return; }
         const snapshot = useSearchNavigationStore.getState();
         if(!snapshot.searchQuery.trim())selectHomeSearchSource(resolveHomeSearchSource());
         setMode(!snapshot.searchQuery.trim() ? 'landing' : snapshot.searchResults || snapshot.isSearching ? 'results' : 'suggest');
@@ -235,7 +241,50 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
         hasMore,needsSetup:sourceNeedsSetup,artists,albums,playlists,suggestions:suggestionState,historyMatches,
         close:onClose,change:(text,composing)=>{setComposing(composing);useSearchExploreStore.getState().reset();setSearchQuery(text);setMode(text.trim()?'suggest':'landing')},
         submit,selectTab:setTab,switchSource,sourceLabel:getSourceLabel,loadMore:onLoadMore,loadExplore:kind=>{void useSearchExploreStore.getState().loadMore(kind,deps)},
-        openHit,play:onPlayTrack,enqueue:onAddTrackToQueue,openArtist:onOpenArtist,openAlbum:onOpenAlbum});
+        openHit,play:onPlayTrack,enqueue:onAddTrackToQueue,openArtist:onOpenArtist,openAlbum:onOpenAlbum,openMenu:setFloatingMenuSong});
+
+    const searchMenuPanel = useMemo((): NativePanelModel | null => {
+        if (!floatingMenuSong) return null;
+        const song = floatingMenuSong;
+        const meta = getProviderSongMetadata(song);
+        const unavailable = isSongUnavailable(song);
+        const items: NativePanelActionRow[] = [
+            { id: 'play', label: t('search.playTrack'), icon: 'play-circle', disabled: unavailable },
+            { id: 'queue', label: t('navidrome.addToQueue'), icon: 'list-plus', disabled: unavailable },
+        ];
+        meta.artists.filter(a => song.isLocal ? a.entityId : song.isNavidrome ? song.navidromeData?.artistId : canResolveSongCatalogRef(song, 'artist', a)).forEach((a, index) => {
+            items.push({ id: 'artist:' + index, label: t('search.tabArtist') + ' · ' + a.name, icon: 'user' });
+        });
+        const album = meta.album;
+        if (album?.name && (song.isLocal ? album.entityId : song.isNavidrome ? song.navidromeData?.albumId : canResolveSongCatalogRef(song, 'album', album))) {
+            items.push({ id: 'album', label: t('search.tabAlbum') + ' · ' + album.name, icon: 'disc-2' });
+        }
+        return {
+            title: song.name,
+            kind: 'sheet',
+            blocks: [{ kind: 'actions', id: 'search-track-actions', items }],
+        };
+    }, [floatingMenuSong, t]);
+
+    const handleSearchMenuAction = useCallback((actionId: string) => {
+        if (!floatingMenuSong) return;
+        const song = floatingMenuSong;
+        const meta = getProviderSongMetadata(song);
+        setFloatingMenuSong(null);
+        if (actionId === 'play') {
+            if (!isSongUnavailable(song)) onPlayTrack(song);
+        } else if (actionId === 'queue') {
+            if (!isSongUnavailable(song)) onAddTrackToQueue(song);
+        } else if (actionId.startsWith('artist:')) {
+            const index = Number(actionId.slice(7));
+            const validArtists = meta.artists.filter(a => song.isLocal ? a.entityId : song.isNavidrome ? song.navidromeData?.artistId : canResolveSongCatalogRef(song, 'artist', a));
+            const targetArtist = validArtists[index];
+            if (targetArtist) onOpenArtist(song, targetArtist.name, targetArtist.id, targetArtist.entityId);
+        } else if (actionId === 'album') {
+            const album = meta.album;
+            if (album) onOpenAlbum(song, album.name, album.id, album.entityId);
+        }
+    }, [floatingMenuSong, onPlayTrack, onAddTrackToQueue, onOpenArtist, onOpenAlbum]);
 
     return (
         <AnimatePresence>
@@ -442,6 +491,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
                         </div>
                     )}
                     </>}
+                    <OperationPanel panel={searchMenuPanel} onAction={handleSearchMenuAction} onClose={() => setFloatingMenuSong(null)} id="search-track-menu" />
                 </motion.section>
             )}
         </AnimatePresence>

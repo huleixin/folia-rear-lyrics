@@ -65,6 +65,16 @@ export function createShufflePlayback(random: () => number = Math.random) {
         setEnabled(value: boolean) { if (enabled !== value) { enabled = value; reset(); } },
         setSuspended(value: boolean) { if (suspended !== value) { suspended = value; reset(); } },
         observe,
+        insertNext(songKey: string) {
+            if (!songKey) return;
+            // Remove existing instances from upcoming history and remaining candidates
+            const nextHistory = history.slice(0, cursor + 1);
+            const futureHistory = history.slice(cursor + 1).filter(k => k !== songKey);
+            history = [...nextHistory, songKey, ...futureHistory];
+            remaining = remaining.filter(k => k !== songKey);
+            if (!keys.includes(songKey)) keys.push(songKey);
+            captureRecoveryPlan();
+        },
         next(queue: SongResult[], song: SongResult): SongResult | null {
             if (!active()) return null;
             // During a crossfade a preview can still describe the held outgoing track.
