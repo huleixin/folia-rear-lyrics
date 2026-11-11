@@ -81,18 +81,23 @@ it('retries Media3 across 50 attempts, repeated identities and decoder fallbacks
             else{const detach=port.command.mock.calls.filter(([c])=>c.action==='detach').length;await act(async()=>listener({...event,errorCode:2002}));await settle();expect(port.command.mock.calls.filter(([c])=>c.action==='detach')).toHaveLength(detach);}
         }
         generation.current++;await act(async()=>usePlaybackStore.setState({audioSrc:'https://audio.test/last'}));await settle();
+        const preparesBeforeSettings=prepares().length;
         await act(async()=>useAudioSettingsStore.setState({audioEqualizerSettings:{...audio.audioEqualizerSettings,enabled:true}}));await settle();
-        expect(usePlaybackEngineTestStore.getState()).toMatchObject({actual:'web',reason:'effects'});
+        expect(usePlaybackEngineTestStore.getState()).toMatchObject({actual:'media3',reason:'native-selected'});
         await act(async()=>useAudioSettingsStore.setState({audioEqualizerSettings:{...audio.audioEqualizerSettings,enabled:false}}));await settle();
         expect(usePlaybackEngineTestStore.getState().actual).toBe('media3');
         await act(async()=>useAutomixSettingsStore.setState({automixEnabled:true}));await settle();
-        expect(usePlaybackEngineTestStore.getState()).toMatchObject({actual:'web',reason:'automix'});
+        expect(usePlaybackEngineTestStore.getState()).toMatchObject({actual:'media3',reason:'native-selected'});
         await act(async()=>useAutomixSettingsStore.setState({automixEnabled:false}));await settle();
         expect(usePlaybackEngineTestStore.getState().actual).toBe('media3');
         await act(async()=>usePlaybackStore.setState({replayGainMode:'track'}));await settle();
-        expect(usePlaybackEngineTestStore.getState()).toMatchObject({actual:'web',reason:'replaygain'});
+        expect(usePlaybackEngineTestStore.getState()).toMatchObject({actual:'media3',reason:'native-selected'});
         await act(async()=>usePlaybackStore.setState({replayGainMode:'off'}));await settle();
         expect(usePlaybackEngineTestStore.getState().actual).toBe('media3');
+        expect(prepares()).toHaveLength(preparesBeforeSettings);
+        const nativeConfigurations=port.command.mock.calls.filter(([c])=>c.action==='configure').map(([c])=>c);
+        expect(nativeConfigurations.some(c=>(c.equalizer as {enabled:boolean})?.enabled===true)).toBe(true);
+        expect(nativeConfigurations.some(c=>(c.mix as {enabled:boolean})?.enabled===true)).toBe(true);
     }finally{await act(async()=>root.unmount());host.remove();load.mockRestore();pause.mockRestore();usePlaybackStore.setState(saved);useAudioSettingsStore.setState(audio);useAutomixSettingsStore.setState(mix);}
 });
 
@@ -156,7 +161,8 @@ it('consumes the existing autoplay intent when a cold native probe becomes ready
     }finally{await act(async()=>root.unmount());host.remove();usePlaybackStore.setState(saved);useAudioSettingsStore.setState(audio);useAutomixSettingsStore.setState(mix);}
 });
 
-it('keeps compatible web playback active and never clobbers incoming deck when activeDeck changes in automix', async () => {
+it('preserves both web fallback decks when Media3 is unavailable', async () => {
+    port.probe.mockResolvedValueOnce({supported:false,engine:'test'});
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
     const saved = usePlaybackStore.getState(), audio = useAudioSettingsStore.getState(), mix = useAutomixSettingsStore.getState();
     const loadCalls: string[] = [];

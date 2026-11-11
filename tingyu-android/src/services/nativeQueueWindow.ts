@@ -1,3 +1,5 @@
+import { nativeTransition, nativeReplayGain } from './nativeAudioProcessing';
+import { usePlaybackStore } from '../stores/usePlaybackStore';
 import { getPlaybackSongKey, isLocalPlaybackSong, isNavidromePlaybackSong } from '../utils/appPlaybackGuards';
 import { getPrefetchedData, resolvePrefetchAudioUrl, updatePrefetchedAudioUrl } from './prefetchService';
 import { nativeAudioUrlForRef } from './nativeLocalMusic';
@@ -148,6 +150,8 @@ export const resolveNativeQueueWindow = async (
             album: metadata.album,
             coverUrl: metadata.coverUrl,
             duration: metadata.duration,
+            replayGain: nativeReplayGain(next, usePlaybackStore.getState().replayGainMode, isLocalPlaybackSong(next)?localSongs.find(local=>local.id===next.localRef.songId):undefined),
+            transition: nativeTransition(songs.at(-1) ?? queue.find(song => getPlaybackSongKey(song) === songKey), next),
         });
         songs.push(next);
         if (!localOnly && onProgress) await onProgress(tracks.slice());

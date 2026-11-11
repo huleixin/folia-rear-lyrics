@@ -1,3 +1,4 @@
+import { isNativeAudioElement } from '../nativeAudioElement';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
 import { PlayerState } from '../../types';
@@ -564,6 +565,7 @@ export function useAutomixDecks({
      * seconds of a track.
      */
     const checkTransitionPoint = useCallback((time: number) => {
+        if (isNativeAudioElement(audioRef.current)) return; // Native decoder owns queue and overlap timing.
         const sleep=useSleepTimerStore.getState();
         if(sleep.sleepTimerEnabled&&sleep.sleepTimerWaiting){
             // A natural end belongs to the native timer, not to an early crossfade.

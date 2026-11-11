@@ -1,3 +1,4 @@
+import { nativeReplayGain } from './nativeAudioProcessing';
 import { recoveryReady } from './playbackRecoverySnapshot';
 import { hasPendingColdRecovery } from './androidSessionRecovery';
 import { PlayerState } from '../types';
@@ -24,6 +25,7 @@ type NativePlaybackPlugin = {
 let installed = false;
 
 type NativePlaybackPayload = {
+  replayGain?: number;
   capturedAtMs?: number;
   title: string;
   artist: string;
@@ -42,6 +44,7 @@ export const buildNativePlaybackPayload = (
 ): NativePlaybackPayload => {
   const metadata = createProviderSongMetadata(song);
   return {
+    replayGain: nativeReplayGain(song, usePlaybackStore.getState().replayGainMode),
     capturedAtMs: Date.now(),
     title: song.name || 'Unknown Song',
     artist: metadata.artists.map(artist => artist.name).filter(Boolean).join(' / '),

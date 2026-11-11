@@ -1,6 +1,7 @@
 import { useEffect, useRef, type RefObject } from 'react';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
 import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
+import { useAutomixSettingsStore } from '../stores/useAutomixSettingsStore';
 import { useLxSourceStore } from '../stores/useLxSourceStore';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
 import { shufflePlayback } from '../services/shufflePlayback';
@@ -39,6 +40,12 @@ export function useNativeQueuedPlayback(
     const song = usePlaybackStore(s => s.currentSong);
     const queue = usePlaybackStore(s => s.playQueue);
     const source = usePlaybackStore(s => s.audioSrc);
+    const lyrics = usePlaybackStore(s => s.lyrics);
+    const duration = usePlaybackStore(s => s.duration);
+    const gainMode = usePlaybackStore(s => s.replayGainMode);
+    const mixing = useAutomixSettingsStore(s => s.automixEnabled);
+    const transitionMode = useAutomixSettingsStore(s => s.transitionMode);
+    const crossfadeMaxSec = useAutomixSettingsStore(s => s.crossfadeMaxSec);
     const context = usePlaybackStore(s => s.activePlaybackContext);
     const fm = usePlaybackStore(s => s.isFmMode);
     const quality = useAudioSettingsStore(s => s.audioQuality);
@@ -161,5 +168,5 @@ export function useNativeQueuedPlayback(
             if (valid()) console.warn('[NativeQueue] Preload failed; native supervisor will retry', error);
         });
         return () => { abort.abort(); if (retryTimer !== null) clearTimeout(retryTimer); };
-    }, [enabled, audio, song, queue, source, context, quality, loop, shuffle, lx, localSongs]);
+    }, [enabled, audio, song, queue, source, context, quality, loop, shuffle, lx, localSongs, gainMode, mixing, transitionMode, crossfadeMaxSec, lyrics, duration]);
 }

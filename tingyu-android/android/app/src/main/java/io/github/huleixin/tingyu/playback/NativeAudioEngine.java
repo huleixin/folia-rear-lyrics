@@ -125,9 +125,14 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     }
     public static void releaseIfPresent(){if(instance!=null){instance.release();instance=null;}}
     private final Handler main=new Handler(Looper.getMainLooper());
-    private final ExoPlayer player;
+    private ExoPlayer player;
+    private NativeAudioDeck activeDeck;
+    private Player.Listener engineListener;
+    private NativeMixController mixer;
+    private JSObject equalizerSettings=new JSObject();
+    private double replayGain=1;
     private final Context context;
-    private final PlaybackSpectrumProcessor spectrum;
+    private PlaybackSpectrumProcessor spectrum;
     private final NativeAudioOutputPolicy outputPolicy=new NativeAudioOutputPolicy();
     private final QueueSupervision supervision=new QueueSupervision();
     private boolean interactive=true;
@@ -141,7 +146,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     private long sequence,fadeGeneration,eventRevision;
     private final String engineSessionId=java.util.UUID.randomUUID().toString();
     private float volume=1;
-    private boolean fade=true;
+    private boolean fade=true,analysisRequested;
     private boolean desiredPaused=true;
     private PlaybackException failure;
     private int networkRetries;
@@ -254,25 +259,11 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         PowerManager power=(PowerManager)context.getSystemService(Context.POWER_SERVICE);
         handoffWake=power==null?null:power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"Tingyu:TrackHandoff");
         if(handoffWake!=null)handoffWake.setReferenceCounted(false);
-        spectrum=new PlaybackSpectrumProcessor(this::emitSpectrum);
-        DefaultRenderersFactory renderers=new DefaultRenderersFactory(context){
-            @Override protected AudioSink buildAudioSink(Context context,boolean floating,boolean params){
-                return new DefaultAudioSink.Builder(context).setEnableFloatOutput(false).setAudioProcessors(new AudioProcessor[]{spectrum}).build();
-            }
-        };
-        OkHttpClient http=new OkHttpClient.Builder().connectTimeout(15,TimeUnit.SECONDS).readTimeout(30,TimeUnit.SECONDS).build();
-        // 音频 CDN 请求头：与前台 WebView 播放环境对齐（浏览器 UA + y.qq.com Referer）。
-        // 旧版用 OkHttp 默认 UA，某些音频服务器会因此拒掉本可通过的请求；不带任何凭据。
-        player=new ExoPlayer.Builder(context,renderers)
-            .setMediaSourceFactory(new DefaultMediaSourceFactory(new DefaultDataSource.Factory(context,
-                new OkHttpDataSource.Factory(http)
-                    .setUserAgent("Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36")
-                    .setDefaultRequestProperties(java.util.Collections.singletonMap("Referer","https://y.qq.com/")))))
-            .setAudioAttributes(new AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),true)
-            .setHandleAudioBecomingNoisy(true).setWakeMode(C.WAKE_MODE_LOCAL).build();
+        activeDeck=new NativeAudioDeck(context,true,this::emitSpectrum);
+        player=activeDeck.player;spectrum=activeDeck.spectrum;
         io.github.huleixin.tingyu.diagnostics.DiagnosticLog.event(
             "playback", "info", "media3-engine-created", null);
-        player.addListener(new Player.Listener(){
+        engineListener=new Player.Listener(){
             @Override public void onTracksChanged(androidx.media3.common.Tracks tracks){
                 // 音轨规格变化（换歌 / 换质 / 解码器切换）立刻把最新快照递给 JS：
                 // 上一首歌的规格不允许残留到下一首的标签上。
@@ -288,6 +279,8 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 if(sourceId.isEmpty()||item==null||item.localConfiguration==null||!(item.localConfiguration.tag instanceof JSObject))return;
                 JSObject queued=(JSObject)item.localConfiguration.tag;
                 songKey=item.mediaId;endedHandoff=false;staleNudges=0;
+                replayGain=queued.optDouble("replayGain",1);
+                activeDeck.processing.configure(equalizerSettings,replayGain);
                 if (NativePlaylist.get().observeCurrent(songKey, reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)) {
                     PlaybackSessionPersistence recovery = PlaybackSessionPersistence.get(context);
                     org.json.JSONArray order = NativePlaylist.get().orderKeys();
@@ -372,6 +365,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 syncRearTrack();
             }
             @Override public void onPlayWhenReadyChanged(boolean playWhenReady,int reason){
+                if(!playWhenReady&&mixer!=null)mixer.cancel();
                 if(!playWhenReady&&reason==Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM)SleepTimerController.get(context).boundary();
                 // The reason field distinguishes user pause from focus loss / noisy output /
                 // remote commands; this is the difference between "user stopped it" and
@@ -387,6 +381,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                     .put("playing",player.isPlaying()).put("song",PlaybackDiagnostics.anonKey(songKey)));
             }
             @Override public void onEvents(Player p,Player.Events events){
+                if(mixer!=null)mixer.wake();
                 if(!events.containsAny(Player.EVENT_PLAYBACK_STATE_CHANGED,Player.EVENT_IS_PLAYING_CHANGED,Player.EVENT_PLAY_WHEN_READY_CHANGED,Player.EVENT_PLAYER_ERROR,Player.EVENT_TIMELINE_CHANGED,Player.EVENT_POSITION_DISCONTINUITY))return;
                 // Media3 releases its normal wake lock at EOF. Protect only the bounded async
                 // queue/source handoff; hidden WebView animations remain stopped.
@@ -487,8 +482,28 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 // 通知栏、蓝牙、车载端发起的 seek 走的是 MediaSession.onSeekTo → player.seekTo，
                 // 只触发这一个回调。当时没有同步 RearNativeTrack，于是背屏继续按旧锚点外推，
                 // 歌词行停留在错误的位置直到下一次换歌。
+                if(mixer!=null)mixer.cancel();
                 syncRearTrack();
                 emit("seeked",false);
+            }
+        };
+        player.addListener(engineListener);
+        mixer=new NativeMixController(main,new NativeMixController.Host(){
+            public NativeAudioDeck active(){return activeDeck;}
+            public NativeAudioDeck create(){return new NativeAudioDeck(context,false,NativeAudioEngine.this::emitSpectrum);}
+            public boolean allowed(){return !desiredPaused&&!sourceId.isEmpty()&&!decoderClaimed&&!SleepTimerController.get(context).waiting();}
+            public float volume(){return volume;}
+            public void configure(NativeAudioDeck deck,MediaItem item){
+                org.json.JSONObject tag=item.localConfiguration!=null&&item.localConfiguration.tag instanceof org.json.JSONObject?(org.json.JSONObject)item.localConfiguration.tag:null;
+                deck.processing.configure(equalizerSettings,tag==null?1:tag.optDouble("replayGain",1));
+            }
+            public void promote(NativeAudioDeck incoming){
+                player.removeListener(engineListener);activeDeck.focus(false);cancelFade();
+                activeDeck=incoming;player=incoming.player;spectrum=incoming.spectrum;
+                spectrum.enabled=analysisRequested;activeDeck.focus(true);player.play();
+                player.addListener(engineListener);attachSleepTimer();
+                engineListener.onMediaItemTransition(player.getCurrentMediaItem(),Player.MEDIA_ITEM_TRANSITION_REASON_AUTO);
+                syncRearTrack();emit("state",true);
             }
         });
         PlaybackTestDiagnostics.note("engine-create-ready",new JSObject());
@@ -516,6 +531,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             if(value.optBoolean("adopt")){
                 sourceId=id;sequence=seq;syncRearTrack();
                 if(active!=null&&active.localConfiguration!=null&&active.mediaId.equals(value.optString("songKey"))&&active.localConfiguration.uri.equals(uri)){
+                    configure(value);
                     emit("load",false);return new JSObject().put("accepted",true);
                 }
                 // JS can wake after more than one native transition. Do not rewind to
@@ -536,7 +552,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 // 同曲同址的重复 prepare：Media3 的 setMediaItem 会清空整个播放列表，
                 // 这里绝不能跟着走。窗口、位置、continuation-adopt 的下一首全部保留，
                 // 只把这次 JS 会话重新挂回引擎。
-                sourceId=id;sequence=seq;failure=null;errorSkips=0;desiredPaused=false;syncRearTrack();
+                configure(value);sourceId=id;sequence=seq;failure=null;errorSkips=0;desiredPaused=false;syncRearTrack();
                 emit("load",false);
                 PlaybackDiagnostics.note("prepare-kept-window",new JSObject()
                     .put("items",player.getMediaItemCount())
@@ -556,7 +572,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                     .put("remaining",Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1)));
                 return new JSObject().put("accepted",true);
             }
-            sourceId="";songKey=wantKey;endedHandoff=false;sequence=seq;failure=null;networkRetries=0;retryGeneration++;desiredPaused=true;cancelFade();player.pause();
+            mixer.cancel();sourceId="";songKey=wantKey;endedHandoff=false;sequence=seq;failure=null;networkRetries=0;retryGeneration++;desiredPaused=true;cancelFade();player.pause();
         BackgroundContinuation.get().cancel();
             // A new source starts a new continuation story; the window command that follows
             // re-declares it. The generation is never invented here - JS owns that counter.
@@ -575,10 +591,10 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             sequence=seq;
             switch(action){
                 case "play":case "pause":case "stop":transport(action,false);if("play".equals(action))noteLiveness("play");break;
-                case "detach":io.github.huleixin.tingyu.RearNativeTrack.clear();BackgroundContinuation.get().cancel();desiredPaused=true;retryGeneration++;cancelFade();PlaybackDiagnostics.note("engine-detach",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
+                case "detach":mixer.cancel();io.github.huleixin.tingyu.RearNativeTrack.clear();BackgroundContinuation.get().cancel();desiredPaused=true;retryGeneration++;cancelFade();PlaybackDiagnostics.note("engine-detach",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
                         .put("positionMs",Math.max(0,player.getCurrentPosition())));sourceId="";player.stop();player.clearMediaItems();io.github.huleixin.tingyu.RearNativeTrack.clear();SleepTimerController.get(context).nativeDetached();main.removeCallbacks(heartbeat);supervision.continuation(false,supervision.generation());supervision.satisfied();main.removeCallbacks(superviseTick);break;
-                case "seek":player.seekTo(Math.max(0,value.optLong("position")));break;
-                case "volume":volume=(float)Math.max(0,Math.min(1,value.optDouble("volume",1)));cancelFade();player.setVolume(volume);break;
+                case "seek":mixer.cancel();player.seekTo(Math.max(0,value.optLong("position")));break;
+                case "volume":volume=(float)Math.max(0,Math.min(1,value.optDouble("volume",1)));cancelFade();if(!mixer.overlapping())player.setVolume(volume);break;
                 case "configure":configure(value);break;
                 case "snapshot":{
                     // Sent by the element whenever the page becomes visible again: the one reliable
@@ -1230,6 +1246,18 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         lastVerdict=verdict.name().toLowerCase(java.util.Locale.US);
         int start=plan.trim;
         if(start>0)items=new java.util.ArrayList<>(items.subList(start,items.size()));
+        // Settings/planner updates may keep identical URIs. Refresh only processing metadata,
+        // retaining the MediaItems and their buffered decoders instead of removing/reloading them.
+        java.util.HashMap<String,MediaItem> processingItems=new java.util.HashMap<>();
+        for(MediaItem offered:items)processingItems.put(offered.mediaId,offered);
+        for(int i=player.getCurrentMediaItemIndex()+1;i<player.getMediaItemCount();i++){
+            MediaItem existing=player.getMediaItemAt(i),offered=processingItems.get(existing.mediaId);
+            if(offered==null||existing.localConfiguration==null||offered.localConfiguration==null
+                ||!existing.localConfiguration.uri.equals(offered.localConfiguration.uri)
+                ||!(existing.localConfiguration.tag instanceof org.json.JSONObject)||!(offered.localConfiguration.tag instanceof org.json.JSONObject))continue;
+            org.json.JSONObject oldTag=(org.json.JSONObject)existing.localConfiguration.tag,newTag=(org.json.JSONObject)offered.localConfiguration.tag;
+            try{oldTag.put("replayGain",newTag.optDouble("replayGain",1));oldTag.put("transition",newTag.optJSONObject("transition"));}catch(org.json.JSONException ignored){}
+        }
         boolean wasEnded=player.getPlaybackState()==Player.STATE_ENDED;
         int next=player.getCurrentMediaItemIndex()+1;
         int before=player.getMediaItemCount();
@@ -1410,11 +1438,15 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         emit("queue-request",false);
     }
     private void configure(JSObject value){
-        fade=value.optBoolean("fade",fade);spectrum.enabled=value.optBoolean("analysis",spectrum.enabled);
-        if(value.has("volume")){volume=(float)Math.max(0,Math.min(1,value.optDouble("volume",volume)));player.setVolume(volume);}
+        fade=value.optBoolean("fade",fade);analysisRequested=value.optBoolean("analysis",analysisRequested);spectrum.enabled=analysisRequested;
+        if(value.optJSONObject("equalizer")!=null)equalizerSettings=copy(value.optJSONObject("equalizer"));
+        if(value.has("replayGain"))replayGain=value.optDouble("replayGain",1);
+        activeDeck.processing.configure(equalizerSettings,replayGain);
+        if(mixer!=null)mixer.configure(value.optJSONObject("mix"));
+        if(value.has("volume")){volume=(float)Math.max(0,Math.min(1,value.optDouble("volume",volume)));if(mixer==null||!mixer.overlapping())player.setVolume(volume);}
         player.setRepeatMode(value.optBoolean("loop",false)?Player.REPEAT_MODE_ONE:Player.REPEAT_MODE_OFF);
         interactive=value.optBoolean("interactive",interactive);
-        outputPolicy.request(interactive,spectrum.enabled);
+        outputPolicy.request(interactive,spectrum.enabled||activeDeck.processing.needed()||(mixer!=null&&mixer.enabled()));
         applyOutputPolicy(!player.getPlayWhenReady()||player.getPlaybackState()==Player.STATE_IDLE||player.getPlaybackState()==Player.STATE_ENDED);
     }
     private void applyOutputPolicy(boolean safeBoundary){
@@ -1454,7 +1486,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
 
     private void releaseHandoff(){if(handoffWake!=null&&handoffWake.isHeld())handoffWake.release();}
     private void transport(String action,boolean external){
-        cancelFade();
+        if(!action.equals("play"))mixer.cancel();cancelFade();
         desiredPaused=!action.equals("play");
         if(desiredPaused)releaseHandoff();
         if(desiredPaused){
@@ -1468,7 +1500,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             // 用户主动停止：洛雪脚本引擎没有理由继续占着内存，脚本本身留着（下次播放再起）。
             io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.release();return;}
         if(action.equals("play")){sleepStopped=false;if(player.getPlaybackState()==Player.STATE_IDLE&&player.getCurrentMediaItem()!=null){failure=null;networkRetries=0;player.prepare();}
-            boolean fadeIn=fade&&!player.isPlaying();player.setVolume(fadeIn?0:volume);player.play();emit("state",external);
+            mixer.wake();boolean fadeIn=fade&&!player.isPlaying()&&!mixer.overlapping();if(!mixer.overlapping())player.setVolume(fadeIn?0:volume);player.play();emit("state",external);
             // Pressing play on a drained window is an explicit "I still want music": re-arm the
             // refill schedule instead of leaving the session parked.
             if(player.getPlaybackState()==Player.STATE_ENDED){supervision.satisfied();main.postDelayed(()->superviseQueue("user-play"),200);}
@@ -1513,6 +1545,8 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         if(failure!=null){value.put("errorCode",failure.errorCode);value.put("message",failure.getErrorCodeName());if(DecoderFallbackOffer.decoderError(failure.errorCode))value.put("compatibilityClaimed",decoderClaimed);}
         if("decoder-offer".equals(type)&&offeredDecoderFailure!=null)value.put("decoderOffer",decoderTicket).put("errorCode",offeredDecoderFailure.errorCode).put("message",offeredDecoderFailure.getErrorCodeName());
         if(type.equals("diagnostics")){
+            JSObject mix=mixer.diagnostics();java.util.Iterator<String> mixKeys=mix.keys();while(mixKeys.hasNext()){String key=mixKeys.next();value.put(key,mix.opt(key));}
+            value.put("nativeDsp",activeDeck.processing.needed());
             value.put("nativeQueueItems",player.getMediaItemCount()).put("nativeQueueIndex",player.getCurrentMediaItemIndex())
                 .put("analysis",spectrum.enabled).put("offloadPreference",outputPolicy.applied()).put("interactive",interactive).put("handoffWakeHeld",handoffWake!=null&&handoffWake.isHeld());
             value.put("volume",player.getVolume()).put("playWhenReady",player.getPlayWhenReady()).put("suppressionReason",player.getPlaybackSuppressionReason()).put("audioSessionId",player.getAudioSessionId());
@@ -1667,7 +1701,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         JSObject value=snapshot("spectrum",false);JSArray array=new JSArray();for(int bin:bins)array.put(bin);
         value.put("spectrum",array);listener.accept(value);
     });}
-    private void release(){sourceId="";io.github.huleixin.tingyu.RearNativeTrack.clear();SleepTimerController.get(context).detach();PlaybackDiagnostics.note("engine-release",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
+    private void release(){mixer.close();sourceId="";io.github.huleixin.tingyu.RearNativeTrack.clear();SleepTimerController.get(context).detach();PlaybackDiagnostics.note("engine-release",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
             .put("positionMs",Math.max(0,player.getCurrentPosition())));releaseHandoff();cancelFade();main.removeCallbacksAndMessages(null);sourceId="";listener=null;PlaybackLifecycle.noteBridge(false);player.release();spectrum.close();
             io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.release();}
 }

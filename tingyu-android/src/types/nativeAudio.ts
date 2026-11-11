@@ -11,8 +11,11 @@ export type NativeAudioState={decoderOffer?:number;eventRevision?:number;engineS
  * `confirmed` 表示这些值来自 Media3 所选音轨的 Format（数据来源与确认状态）。
  */
 export type NativeAudioSpec={songKey:string;sourceId:string;mime:string;codecs:string;sampleRate:number;channels:number;bitrate?:number;bitsPerSample?:number;capturedAtMs:number;confirmed:boolean};
-export type NativeAudioOptions={fade:boolean;analysis:boolean;loop:boolean;interactive?:boolean};
-export type NativeQueueTrack={songKey:string;uri:string;title:string;artist:string;album:string;coverUrl:string;duration:number};
+export type NativeTransition={fromKey:string;toKey:string;fade:boolean;outStartMs:number;inStartMs:number;overlapMs:number;stretch:number};
+export type NativeAudioOptions={fade:boolean;analysis:boolean;loop:boolean;interactive?:boolean;
+    equalizer?:{enabled:boolean;gains:number[];effects?:Record<string,number>};replayGain?:number;
+    mix?:{enabled:boolean;mode:string;seconds:number}};
+export type NativeQueueTrack={songKey:string;uri:string;title:string;artist:string;album:string;coverUrl:string;duration:number;replayGain?:number;transition?:NativeTransition};
 /**
  * Window metadata for the native playlist.
  *

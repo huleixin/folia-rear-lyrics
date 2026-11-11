@@ -1,3 +1,4 @@
+import { nativeReplayGain } from '../services/nativeAudioProcessing';
 import { consumeRecoveryPosition } from '../services/androidSessionRecovery';
 import { shouldUseCompatibleDecoder } from '../utils/nativePlaybackFailure';
 import { PLAYBACK_TEST_SESSION_ENGINE } from '../utils/playbackEngineTestBuild';
@@ -14,16 +15,16 @@ import { useAppViewStore } from '../stores/useAppViewStore';
 import { useRearRuntimeStore } from '../stores/useRearRuntimeStore';
 import { useMainStageActive } from './useStageActivity';
 import { isAndroidNativeRuntime } from '../utils/platform';
-import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
+import { getPlaybackSongKey, isLocalPlaybackSong } from '../utils/appPlaybackGuards';
 import { setStatusMessage } from '../stores/useStatusMessageStore';
-import { PlayerState } from '../types';
+import { PlayerState, type LocalSong } from '../types';
 import { buildNativePlaybackPayload } from '../services/nativePlaybackBridge';
 import { ensureCompatibleSleepOutput, hasCompatibleSleepOutput, releaseCompatibleSleepOutput } from '../services/compatibleSleepOutput';
 
 // src/hooks/useNativeAudioDeck.ts
 const native = getTingyuPlayback<NativeAudioPort>();
 export const nativeAudioUri = (source: string | null) => !source || /^(https?:|content:|file:|blob:)/.test(source);
-export function useNativeAudioDeck(audioRef: RefObject<HTMLAudioElement | null>, activeDeck: string, playbackGeneration?: RefObject<number>, quietCompatibleGraph?:(reason:'timer'|'handoff')=>Promise<boolean>, autoplayIntent?:RefObject<boolean>) {
+export function useNativeAudioDeck(audioRef: RefObject<HTMLAudioElement | null>, activeDeck: string, playbackGeneration?: RefObject<number>, quietCompatibleGraph?:(reason:'timer'|'handoff')=>Promise<boolean>, autoplayIntent?:RefObject<boolean>, localSongs?:LocalSong[]) {
     const android = isAndroidNativeRuntime(), requested = PLAYBACK_TEST_SESSION_ENGINE !== 'web';
     const [supported, setSupported] = useState<boolean | null>(android ? null : false);
     const [failedAttempt, setFailedAttempt] = useState<{ token: string; reason: string } | null>(null);
@@ -32,18 +33,22 @@ export function useNativeAudioDeck(audioRef: RefObject<HTMLAudioElement | null>,
     const adapter = useRef<ReturnType<typeof attachNativeAudioElement> | null>(null);
     const source = usePlaybackStore(s => s.audioSrc), song = usePlaybackStore(s => s.currentSong);
     const gain = usePlaybackStore(s => s.replayGainMode), playing = usePlaybackStore(s => s.playerState === PlayerState.PLAYING);
-    const effects = useAudioSettingsStore(s => s.audioEqualizerSettings.enabled), fade = useAudioSettingsStore(s => s.playbackFadeEnabled);
+    const equalizer = useAudioSettingsStore(s => s.audioEqualizerSettings), fade = useAudioSettingsStore(s => s.playbackFadeEnabled);
     const loop = useAudioSettingsStore(s => s.loopMode), mixing = useAutomixSettingsStore(s => s.automixEnabled);
+    const transitionMode=useAutomixSettingsStore(s=>s.transitionMode), crossfadeMaxSec=useAutomixSettingsStore(s=>s.crossfadeMaxSec);
+    const localSongId=song&&isLocalPlaybackSong(song)?song.localRef.songId:undefined;
+    const nativeGain=nativeReplayGain(song,gain,localSongId?localSongs?.find(local=>local.id===localSongId):undefined);
+    const processing={equalizer,replayGain:nativeGain,mix:{enabled:mixing,mode:transitionMode,seconds:transitionMode==='crossfade'?crossfadeMaxSec:5}};
     const main = useMainStageActive(), view = useAppViewStore(s => s.view), rear = useRearRuntimeStore(s => s.enabled && !s.sleeping);
     const songKey = song ? getPlaybackSongKey(song) : '';
     const generation = playbackGeneration?.current ?? 0;
     const attempt = JSON.stringify([songKey, playbackGeneration ? generation : source]);
-    const restriction = effects ? 'effects' : mixing ? 'automix' : gain !== 'off' ? 'replaygain' : !nativeAudioUri(source) ? 'unsupported-uri' : '';
+    const restriction = !nativeAudioUri(source) ? 'unsupported-uri' : '';
     const failure = failedAttempt?.token === attempt ? failedAttempt.reason : '';
     const own = android && requested && supported !== false && !restriction && !failure;
     const analysis = playing && ((main && view === 'player') || rear);
-    const options=useRef({fade,analysis,loop:loop==='one',interactive:main||rear});
-    options.current={fade,analysis,loop:loop==='one',interactive:main||rear};
+    const options=useRef({fade,analysis,loop:loop==='one',interactive:main||rear,...processing});
+    options.current={fade,analysis,loop:loop==='one',interactive:main||rear,...processing};
     const latest = useRef({ source, songKey, song, playing, attempt });
     latest.current = { source, songKey, song, playing, attempt };
     const quietGraph=useRef(quietCompatibleGraph);quietGraph.current=quietCompatibleGraph;
@@ -174,7 +179,7 @@ export function useNativeAudioDeck(audioRef: RefObject<HTMLAudioElement | null>,
         element.addEventListener('timeupdate',remember);element.addEventListener('pause',remember);
         return()=>{element.removeEventListener('timeupdate',remember);element.removeEventListener('pause',remember);};
     },[webReady,activeDeck,audioRef]);
-    useLayoutEffect(() => { adapter.current?.configure({ fade, analysis, loop: loop === 'one', interactive: main || rear }); }, [fade, analysis, loop, main, rear, ready]);
+    useLayoutEffect(() => { adapter.current?.configure(options.current); }, [fade, analysis, loop, main, rear, ready, equalizer, nativeGain, song, mixing, transitionMode, crossfadeMaxSec]);
     useLayoutEffect(commitSource, [source, songKey, generation, ready]);
     // React never assigns a browser src during an Android handoff. Detach is acknowledged first.
     useLayoutEffect(() => {

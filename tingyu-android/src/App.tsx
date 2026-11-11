@@ -1408,7 +1408,7 @@ export default function App() {
         const context=audioContextRef.current;
         if(context?.state==='running')await context.suspend();
         return !context||context.state==='suspended'||context.state==='closed';
-    },shouldAutoPlay);
+    },shouldAutoPlay,localSongs);
     useNativeQueuedPlayback(audioRef,playbackDeck.nativeReady,localSongs,playSong);
     const { setupAudioAnalyzer, cacheSongAssets, cacheSongAssetsFor, adoptActiveDeckSource } = usePlaybackAudioBridge({
         audioRef,
