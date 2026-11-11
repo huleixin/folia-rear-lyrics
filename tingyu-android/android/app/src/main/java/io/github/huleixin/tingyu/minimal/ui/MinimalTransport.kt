@@ -1,15 +1,10 @@
 package io.github.huleixin.tingyu.minimal.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -24,10 +19,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -57,14 +50,12 @@ import androidx.compose.ui.unit.sp
 import io.github.huleixin.tingyu.minimal.MinimalControls
 import io.github.huleixin.tingyu.minimal.MinimalPlayback
 import io.github.huleixin.tingyu.minimal.MinimalPlayerCommands
-import kotlinx.coroutines.delay
-import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
 // android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/MinimalTransport.kt
 //
-// 进度条 + 五个传输按钮 + 分页点。
+// 共用底栏：进度条 + 上一首/播放/下一首 + 独立工具行。
 //
 // 进度是"锚点 + 帧外推"：只重画不重组。时间文字用整秒做派生值，一秒才换一次字符串；
 // 轨道、已播部分、拇指、辉光全部在 draw 阶段读时钟。
@@ -79,6 +70,12 @@ fun MinimalTransport(
     accent: Color,
     commands: MinimalPlayerCommands,
     light: Boolean = false,
+    onOpenSleep: (() -> Unit)? = null,
+    sleepActive: Boolean = false,
+    sleepLabel: String = "定时关闭",
+    onSleepAnchor: ((androidx.compose.ui.geometry.Rect) -> Unit)? = null,
+    onOpenMore: () -> Unit = {},
+    moreMenu: @Composable () -> Unit = {},
     /**
      * 上一首 / 下一首的封面动画入口。给定时由封面堆叠控制器接管（先跑动画再确认），
      * 没给就仍然直连动作总线 —— 两种情况下发的都是同一条命令，只是有没有过渡。
@@ -103,11 +100,22 @@ fun MinimalTransport(
             controls = controls,
             live = live,
             ink = ink,
-            accent = accent,
-            light = light,
             commands = commands,
             onPrevious = onPrevious,
             onNext = onNext,
+        )
+        MinimalPlayerTools(
+            controls = controls,
+            live = live,
+            ink = ink,
+            light = light,
+            commands = commands,
+            onOpenSleep = onOpenSleep,
+            sleepActive = sleepActive,
+            sleepLabel = sleepLabel,
+            onSleepAnchor = onSleepAnchor,
+            onOpenMore = onOpenMore,
+            moreMenu = moreMenu,
         )
     }
 }
@@ -246,42 +254,16 @@ private fun TransportButtons(
     controls: MinimalControls,
     live: Boolean,
     ink: MinimalInk,
-    accent: Color,
-    light: Boolean,
     commands: MinimalPlayerCommands,
     onPrevious: (() -> Boolean)?,
     onNext: (() -> Boolean)?,
 ) {
-    var hint by remember { mutableStateOf<String?>(null) }
-    var lastMode by remember { mutableStateOf(controls.mode) }
-    LaunchedEffect(controls.mode) {
-        if (controls.mode != lastMode) {
-            lastMode = controls.mode
-            hint = modeLabel(controls.mode)
-            delay(1500)
-            hint = null
-        }
-    }
-
     Box(Modifier.fillMaxWidth().padding(top = 14.dp)) {
         Row(
             Modifier.fillMaxWidth().height(56.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(28.dp, Alignment.CenterHorizontally),
         ) {
-            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                TransportButton("播放模式：${modeLabel(controls.mode)}", live, ink, 50.dp, { commands.cycleMode() }) {
-                    // 播放模式图标：全局唯一来源 PlayerIcons（第 20 轮听屿图标包几何）——
-                    // 与歌词舞台、队列抽屉、歌曲工具页、WebView 回退侧同一套，六个入口一张脸。
-                    // 激活态（非顺序）用薄荷绿，顺序播放随主题淡色。
-                    PlaybackModeIcon(
-                        controls.mode,
-                        if (modeIsActive(controls.mode)) mintActive(light) else ink.inkAlpha(74),
-                        Modifier.size(22.dp),
-                    )
-                }
-            }
-            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 TransportButton(
                     label = "上一首",
                     enabled = live && controls.canPrevious,
@@ -291,11 +273,7 @@ private fun TransportButtons(
                 ) {
                     PlayerControlIcon("skipBack", ink.ink, Modifier.size(24.dp))
                 }
-            }
-            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 PlayButton(playing, live, ink) { commands.toggle() }
-            }
-            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 TransportButton(
                     label = "下一首",
                     enabled = live && controls.canNext,
@@ -305,48 +283,19 @@ private fun TransportButtons(
                 ) {
                     PlayerControlIcon("skipForward", ink.ink, Modifier.size(24.dp))
                 }
-            }
-            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                TransportButton("播放队列", live, ink, 50.dp, { commands.openQueue() }) {
-                    PlayerControlIcon("queue", ink.ink, Modifier.size(22.dp))
-                }
-            }
-        }
-        // 模式名在按钮正上方停 1.5 秒（CSS 的 .min-mode-hint），不落在歌词上。
-        AnimatedVisibility(
-            visible = hint != null,
-            enter = fadeIn(tween(150)),
-            exit = fadeOut(tween(220)),
-            modifier = Modifier.align(Alignment.TopStart),
-        ) {
-            Box(
-                Modifier
-                    .height(22.dp)
-                    .background(ink.ink.copy(alpha = 0.04f), RoundedCornerShape(999.dp))
-                    .border(1.dp, ink.inkAlpha(12), RoundedCornerShape(999.dp))
-                    .padding(horizontal = 9.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = hint ?: "",
-                    color = ink.inkAlpha(88),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = 0.22.sp,
-                    maxLines = 1,
-                )
-            }
         }
     }
 }
 
 @Composable
-private fun TransportButton(
+internal fun TransportButton(
     label: String,
     enabled: Boolean,
     ink: MinimalInk,
     size: Dp,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -357,7 +306,7 @@ private fun TransportButton(
         label = "minimal-btn-press",
     )
     Box(
-        Modifier
+        modifier
             .size(size)
             .graphicsLayer {
                 scaleX = scale
@@ -365,7 +314,8 @@ private fun TransportButton(
                 alpha = if (enabled) 1f else 0.3f
             }
             .semantics { contentDescription = label }
-            .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick),
+            .combinedClickable(interactionSource = interaction, indication = null, enabled = enabled,
+                onLongClick = onLongClick, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { content() }
 }
@@ -436,56 +386,7 @@ private fun PlayPauseGlyph(playing: Boolean, color: Color, modifier: Modifier) {
     }
 }
 
-/** 分页点：跟随 pager 的位置，靠近的那个变长变亮。绘制阶段读位置，不触发重组。
- *
- * 长按任意一点：翻转渲染来源诊断角标（临时，验收后删）。角标状态由 JS 的 localStorage 持有，
- * 经动作桥翻转后随下一帧回来 —— 两端（Compose / WebView）看同一个开关。
- */
-@Composable
-fun PageDots(
-    pageOffset: () -> Float,
-    pageCount: Int,
-    ink: MinimalInk,
-    onSelect: (Int) -> Unit,
-    onLongPress: () -> Unit = {},
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier.fillMaxWidth().height(24.dp)
-            .pointerInput(onLongPress) { detectTapGestures(onLongPress = { onLongPress() }) },
-        horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        repeat(pageCount) { index ->
-            val interaction = remember { MutableInteractionSource() }
-            Box(
-                Modifier
-                    .size(16.dp)
-                    .clickable(interactionSource = interaction, indication = null) { onSelect(index) }
-                    .semantics { contentDescription = if (index == 0) "封面页" else "歌词页" },
-                contentAlignment = Alignment.Center,
-            ) {
-                Canvas(Modifier.size(width = 8.dp, height = 4.dp)) {
-                    val near = (1f - abs(pageOffset() - index)).coerceIn(0f, 1f)
-                    drawRoundRect(
-                        color = ink.ink.copy(alpha = 0.32f + 0.68f * near * 0.88f),
-                        size = Size(size.width * (0.5f + 0.5f * near), size.height),
-                        cornerRadius = CornerRadius(999f, 999f),
-                    )
-                }
-            }
-        }
-    }
-}
-
 private fun timeText(seconds: Int): String {
     val value = max(0, seconds)
     return "%02d:%02d".format(value / 60, value % 60)
-}
-
-private fun modeLabel(mode: String): String = when (mode) {
-    "all" -> "列表循环"
-    "one" -> "单曲循环"
-    "shuffle" -> "随机播放"
-    else -> "顺序播放"
 }

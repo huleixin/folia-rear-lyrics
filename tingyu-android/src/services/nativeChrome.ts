@@ -48,6 +48,8 @@ export const chromeNative = registerPlugin<{
      * Android 上不再有第二个队列界面。
      */
     openMinimalQueue(): Promise<void>;
+    /** 当前路由共享的原生睡眠定时菜单，宿主不可用时拒绝请求。 */
+    openSleepTimer(): Promise<{ accepted: boolean }>;
     /**
      * 原生工具页（音质/效果器/歌词工具/洛雪音源）的状态快照。
      * 只在某个工具页打开期间推；对账没变化就零字节。第 11 轮起替代 WebView 弹窗。

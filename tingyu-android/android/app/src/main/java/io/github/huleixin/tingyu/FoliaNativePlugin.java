@@ -144,6 +144,49 @@ public class FoliaNativePlugin extends Plugin {
         if (plugin != null) plugin.notifyListeners("mainWindowInsetsChanged", payload, true);
     }
 
+    private static JSObject stageOrientationPayload(StageOrientation.State state) {
+        JSObject payload = new JSObject().put("session", state.session).put("active", state.active)
+            .put("landscape", state.landscape).put("pending", state.pending)
+            .put("revision", state.revision).put("reason", state.reason);
+        if (state.error != null) payload.put("error", state.error);
+        return payload;
+    }
+
+    static void emitStageOrientation(StageOrientation.State state) {
+        FoliaNativePlugin plugin = instance;
+        if (plugin != null) plugin.notifyListeners("stageOrientationChanged", stageOrientationPayload(state));
+    }
+
+    @PluginMethod
+    public void getStageOrientation(PluginCall call) {
+        Activity activity = getActivity();
+        if (!(activity instanceof MainActivity)) { call.reject("Main activity is unavailable"); return; }
+        activity.runOnUiThread(() -> call.resolve(stageOrientationPayload(((MainActivity) activity).getStageOrientation().state())));
+    }
+
+    @PluginMethod
+    public void setStageOrientation(PluginCall call) {
+        Activity activity = getActivity();
+        if (!(activity instanceof MainActivity)) { call.reject("Main activity is unavailable"); return; }
+        activity.runOnUiThread(() -> {
+            try {
+                StageOrientation orientation = ((MainActivity) activity).getStageOrientation();
+                String session = call.getString("session", "");
+                if (Boolean.TRUE.equals(call.getBoolean("reset", false))) orientation.reset("reset", true);
+                else if (Boolean.FALSE.equals(call.getBoolean("active"))) orientation.deactivate(session);
+                else {
+                    if (activity.isFinishing() || activity.isDestroyed()) throw new IllegalStateException("Main activity is unavailable");
+                    if (activity.getWindowManager().getDefaultDisplay().getDisplayId() != android.view.Display.DEFAULT_DISPLAY)
+                        throw new IllegalStateException("Stage rotation is available only on the main display");
+                    if (Boolean.TRUE.equals(call.getBoolean("active"))) orientation.activate(session);
+                    Boolean landscape = call.getBoolean("landscape");
+                    if (landscape != null) orientation.setLandscape(session, landscape, call.getData().optLong("revision", -1));
+                }
+                call.resolve(stageOrientationPayload(orientation.state()));
+            } catch (RuntimeException error) { call.reject(error.getMessage(), error); }
+        });
+    }
+
     @PluginMethod
     public void getMainWindowInsets(PluginCall call) {
         call.resolve(MainSystemBars.getInsets());

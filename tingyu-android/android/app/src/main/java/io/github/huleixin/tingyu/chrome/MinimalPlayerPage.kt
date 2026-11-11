@@ -24,6 +24,11 @@ fun MinimalPlayerSurface(
     onOpenQueue: () -> Unit,
     /** 打开宿主的工具页（quality / effects / lyrics）。音质/效果器/歌词不再走 WebView 弹窗。 */
     onOpenTools: (String) -> Unit = {},
+    /** 定时入口走宿主共享的原生面板，状态由 SleepTimerController 提供。 */
+    onOpenSleep: (() -> Unit)? = null,
+    sleepActive: Boolean = false,
+    sleepLabel: String = "定时关闭",
+    onSleepAnchor: ((androidx.compose.ui.geometry.Rect) -> Unit)? = null,
     /** 首次展示的 pager 页（0 封面 / 1 歌词）。 */
     initialPage: Int = 0,
     /** 每次从浏览页进入播放器 +1：pager 状态按它重建，保证"每次打开都是封面"。 */
@@ -46,6 +51,10 @@ fun MinimalPlayerSurface(
         queue = queue,
         onOpenQueue = onOpenQueue,
         onOpenTools = onOpenTools,
+        onOpenSleep = onOpenSleep,
+        sleepActive = sleepActive,
+        sleepLabel = sleepLabel,
+        onSleepAnchor = onSleepAnchor,
         initialPage = initialPage,
         resetToken = resetToken,
         onPageChanged = onPageChanged,

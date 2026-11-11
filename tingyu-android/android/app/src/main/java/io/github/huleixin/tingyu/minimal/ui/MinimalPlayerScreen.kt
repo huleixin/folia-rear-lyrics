@@ -68,7 +68,7 @@ import kotlinx.coroutines.launch
 
 // android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/MinimalPlayerScreen.kt
 //
-// 极简播放页的外壳：顶栏 + 横向 pager（封面 / 歌词）+ 共用传输 + 分页点。
+// 极简播放页的外壳：顶栏 + 横向 pager（封面 / 歌词）+ 共用进度、传输与工具栏。
 //
 // 结构与 `MinimalStage.tsx` 一一对应：两个页面共用**一条**传输条和**一套**状态，
 // 翻页只改 pager 位置，不重建任何组件 —— 所以播放、歌词进度、背景颜色都是连续的。
@@ -97,6 +97,11 @@ fun MinimalPlayerScreen(
     onOpenQueue: () -> Unit = {},
     /** 打开宿主的工具页："quality" | "effects" | "lyrics"。不再发 JS 开 WebView 弹窗。 */
     onOpenTools: (String) -> Unit = {},
+    /** 打开宿主的原生定时面板；未接入时禁用入口，不发 JS 弹窗动作。 */
+    onOpenSleep: (() -> Unit)? = null,
+    sleepActive: Boolean = false,
+    sleepLabel: String = "定时关闭",
+    onSleepAnchor: ((androidx.compose.ui.geometry.Rect) -> Unit)? = null,
     /** 页面重建时恢复的 pager 页。宿主持有这个值，进出设置、后台回来都不丢。 */
     initialPage: Int = 0,
     /** 新会话令牌：每次从浏览页进入播放器 +1。用 key() 包住 pager 状态，
@@ -139,7 +144,7 @@ fun MinimalPlayerScreen(
     // 之前这里裸用 `commands`，于是底部的列表按钮走的是另一条路 —— 同一个页面两套行为。
     // 第 11 轮：菜单的音质/效果器/歌词也改开原生工具页 —— 走 JS 开 WebView 弹窗会把
     // 原生页埋掉，还要触发一次让位/回退的抖动。
-    val sheetCommands = remember(commands, onOpenQueue) {
+    val sheetCommands = remember(commands, onOpenQueue, onOpenTools) {
         object : MinimalPlayerCommands by commands {
             override fun openQueue(): Boolean {
                 onOpenQueue()
@@ -169,6 +174,10 @@ fun MinimalPlayerScreen(
     }
     val scope = rememberCoroutineScope()
     val page = pagerState.currentPage
+    var menuOpen by remember { mutableStateOf(false) }
+    // 保留弹窗直到退场动画完成；封面和歌词页共用同一个菜单。
+    var menuClosing by remember { mutableStateOf(false) }
+    val dismissMenu = { menuClosing = true; menuOpen = false }
 
     // ---- 封面堆叠：动画器 + 位图缓存 + 唯一的过渡控制器 ----
     //
@@ -232,7 +241,7 @@ fun MinimalPlayerScreen(
                     .background(Color(0xDD09251C), RoundedCornerShape(999.dp))
                     .padding(horizontal = 8.dp, vertical = 2.dp),
             )
-            // 帧耗时探针：真机验收用。长按分页点打开 diag 后，这里实时给出
+            // 帧耗时探针：真机验收用。长按底部更多打开 diag 后，这里实时给出
 // 最近约 3 秒的帧均值/卡顿帧占比/最差帧，不接 adb 也能读数。
             val frameProbe = rememberFrameProbeText()
             if (frameProbe.isNotEmpty()) {
@@ -260,13 +269,9 @@ fun MinimalPlayerScreen(
             TopBar(
                 ink = ink,
                 liked = state.controls.liked,
-                qualityMode = state.controls.qualityMode,
-                effectsOn = state.controls.effectsOn,
                 likeDisabled = state.controls.likeDisabled,
                 onLyricsPage = page == 1,
                 commands = commands,
-                onOpenQueue = onOpenQueue,
-                onOpenTools = onOpenTools,
                 onCollapse = onCollapse,
                 onOpenStage = onOpenStage,
             )
@@ -276,7 +281,7 @@ fun MinimalPlayerScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    // 封面拖动 / 切歌动画期间，把 pager 提到传输条与分页点之上 ——
+                    // 封面拖动 / 切歌动画期间，把 pager 提到共用底栏之上 ——
                     // 正在移动的封面拖进进度条、播放按钮区域时能自然遮挡它们。
                     // 只影响绘制顺序；pager 内容都在自身边界内，实际越界的只有移动中的封面。
                     .zIndex(if (coverStackState.phase != StackPhase.IDLE) 1f else 0f),
@@ -337,18 +342,36 @@ fun MinimalPlayerScreen(
                 accent = Color(palette.accent),
                 commands = sheetCommands,
                 light = !dark,
+                onOpenSleep = onOpenSleep,
+                sleepActive = sleepActive,
+                sleepLabel = sleepLabel,
+                onSleepAnchor = onSleepAnchor,
+                onOpenMore = { menuOpen = true; menuClosing = false },
+                moreMenu = {
+                    if (menuOpen || menuClosing) {
+                        MoreMenu(
+                            qualityMode = state.controls.qualityMode,
+                            effectsOn = state.controls.effectsOn,
+                            shown = menuOpen,
+                            onExited = { menuClosing = false },
+                            onDismiss = dismissMenu,
+                            onPick = { pick ->
+                                dismissMenu()
+                                when (pick) {
+                                    0 -> sheetCommands.openAudioQuality()
+                                    1 -> sheetCommands.openAudioEffects()
+                                    2 -> sheetCommands.openLyricsPanel()
+                                    3 -> sheetCommands.openQueue()
+                                    else -> commands.openPlaybackSettings()
+                                }
+                            },
+                        )
+                    }
+                },
                 // 与手势共用同一个过渡控制器：先跑封面动画，动画里的那一次命令由它发。
                 onPrevious = { coverController.skip(DragDirection.PREV) },
                 onNext = { coverController.skip(DragDirection.NEXT) },
                 modifier = Modifier.padding(top = 2.dp),
-            )
-            PageDots(
-                pageOffset = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
-                pageCount = PAGE_COUNT,
-                ink = ink,
-                onSelect = { target -> scope.launch { pagerState.animateScrollToPage(target) } },
-                onLongPress = { commands.toggleDiagBadge() },
-                modifier = Modifier.padding(top = 6.dp),
             )
         }
 
@@ -378,21 +401,13 @@ private fun rememberMinimalClock(playback: MinimalPlayback,active:Boolean): Stat
 @Composable
 private fun TopBar(
     ink: MinimalInk,
-    onOpenQueue: () -> Unit,
-    onOpenTools: (String) -> Unit,
     liked: Boolean,
-    qualityMode: String,
-    effectsOn: Boolean,
     likeDisabled: Boolean,
     onLyricsPage: Boolean,
     commands: MinimalPlayerCommands,
     onCollapse: () -> Unit,
     onOpenStage: () -> Unit,
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
-    // 关闭动画的哨兵：menuOpen 翻 false 后弹窗还留在组合里播 120ms 退场，播完才摘除。
-    // 没有它，关闭就是一帧内直接消失，和 WebView 舞台菜单对不上。
-    var menuClosing by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -425,40 +440,6 @@ private fun TopBar(
                         }
                     }
                 }
-            } else {
-                // 更多在原始页面里是一个真菜单（音质选择 / 均衡器与音效 / 歌词工具 / 播放队列 / 播放设置），
-                // 不是队列按钮。上一版把它接到了 openQueue，点更多直接弹队列就是这么来的。
-                Box {
-                    TopIcon("更多", onClick = { menuOpen = !menuOpen }) {
-                        Canvas(Modifier.size(22.dp)) {
-                            val u = size.minDimension / 22f
-                            listOf(5f, 11f, 17f).forEach { dot ->
-                                drawCircle(ink.ink, 1.7f * u, Offset(dot * u, 11f * u))
-                            }
-                        }
-                    }
-                    if (menuOpen || menuClosing) {
-                        MoreMenu(
-                            qualityMode = qualityMode,
-                            effectsOn = effectsOn,
-                            shown = menuOpen,
-                            onExited = { menuClosing = false },
-                            onDismiss = { menuOpen = false },
-                            onPick = { pick ->
-                                menuOpen = false
-                                when (pick) {
-                                    0 -> onOpenTools("quality")
-                                    1 -> onOpenTools("effects")
-                                    2 -> onOpenTools("lyrics")
-                                    3 -> onOpenQueue()
-                                    // 播放设置走既有设置文档路由：设置弹窗本身已被
-                                    // NativeSettingsDocumentView 原生复刻渲染，不重复开发。
-                                    else -> commands.openPlaybackSettings()
-                                }
-                            },
-                        )
-                    }
-                }
             }
         }
     }
@@ -488,6 +469,7 @@ private fun MoreMenu(
     onPick: (Int) -> Unit,
 ) {
     val progress = remember { Animatable(0f) }
+    val menuOffset = with(androidx.compose.ui.platform.LocalDensity.current) { 48.dp.roundToPx() }
     LaunchedEffect(shown) {
         if (shown) {
             progress.animateTo(1f, tween(160, easing = CubicBezierEasing(0.2f, 0.7f, 0.2f, 1f)))
@@ -497,8 +479,8 @@ private fun MoreMenu(
         }
     }
     androidx.compose.ui.window.Popup(
-        alignment = Alignment.TopEnd,
-        offset = androidx.compose.ui.unit.IntOffset(0, 96),
+        alignment = Alignment.BottomEnd,
+        offset = androidx.compose.ui.unit.IntOffset(0, -menuOffset),
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.PopupProperties(focusable = true),
     ) {
@@ -509,11 +491,11 @@ private fun MoreMenu(
             Modifier.graphicsLayer {
                 val p = progress.value
                 alpha = p
-                translationY = -8.dp.toPx() * (1f - p)
+                translationY = 8.dp.toPx() * (1f - p)
                 val scale = 0.97f + 0.03f * p
                 scaleX = scale
                 scaleY = scale
-                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0f)
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 1f)
             }
         ) {
             MoreMenuPanel(qualityMode, effectsOn, onPick)

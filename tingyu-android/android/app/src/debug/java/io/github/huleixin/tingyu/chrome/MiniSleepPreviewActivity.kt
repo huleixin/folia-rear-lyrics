@@ -52,7 +52,11 @@ class MiniSleepPreviewActivity:ComponentActivity() {
                         val surface=remember(light){ChromeSurface.parse(JSONObject().put("id","mini").put("session","preview").put("viewportWidth",393)
                             .put("data",JSONObject().put("title","戒烟").put("artist","李荣浩").put("playing",false).put("labels",JSONObject().put("qualityValue","无损")))).interfacePaint(InterfacePalette(light))}
                         ChromeMiniPlayer(surface,ChromeTimeline(12.0,300.0,false,SystemClock.elapsedRealtime()),backdrop,
-                            Modifier.offset(mini.left.dp,mini.top.dp).size(mini.width.dp,mini.height.dp),ui,{anchor=it}){name,_->if(name=="sleep")menu=!menu}
+                            Modifier.offset(mini.left.dp,mini.top.dp).size(mini.width.dp,mini.height.dp)){_,_->}
+                        // The production mini no longer hosts sleep; keep the debug menu fixture independently reachable.
+                        MiniSleepButton(ui,light,48f,true,{menu=!menu},
+                            Modifier.offset((mini.left+mini.width-48f).dp,(mini.top-56f).dp)
+                                .onGloballyPositioned{anchor=it.boundsInRoot()})
                         val nav=NativeFooterLayout.rect("nav",w,h,24f,24f,false)
                         ChromeNavigation(surface.copy(id="nav",selected=0),backdrop,Modifier.offset(nav.left.dp,nav.top.dp).size(nav.width.dp,nav.height.dp)){_,_->}
                         if(menu)MiniSleepMenu(ui,anchor,24f,light,backdrop,30,true){menu=false}

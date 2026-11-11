@@ -37,7 +37,12 @@ internal object NativeFooterLayout {
         if(id=="stage"){
             // 舞台播放胶囊：与首页迷你播放器同一条安全边距（手机左右各 10dp），
             // 平板按迷你条宽度收窄并居中。高度 96dp = 14 padding + 46 控制行 + 6 间隙 + 30 进度区。
-            val stageWidth=if(wide)minOf(width-148f,600f) else width-20f
+            // 横屏手机也限宽居中，让五个播放按钮仍在单手可触及的范围内。
+            val stageWidth=when {
+                width>height -> minOf(width-20f,430f)
+                wide -> minOf(width-148f,600f)
+                else -> width-20f
+            }
             val stageHeight=96f
             return ChromeRect((width-stageWidth)/2,height-stageHeight-bottom-10f,stageWidth,stageHeight,1f)
         }

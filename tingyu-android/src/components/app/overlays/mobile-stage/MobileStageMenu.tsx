@@ -1,11 +1,14 @@
 import React, { useEffect, useRef } from 'react';
-import { AudioLines, Captions, Settings2, SlidersHorizontal } from 'lucide-react';
+import { AudioLines, Captions, Moon, Palette, Settings2, SlidersHorizontal } from 'lucide-react';
 import PlayerControlIcon from '../../icons/PlayerControlIcon';
 import { useTranslation } from 'react-i18next';
 import './mobileStageMenu.css';
 import { useAppViewStore } from '../../../../stores/useAppViewStore';
 import { openNativeQueueSheet } from '../../../../services/nativeMinimalQueue';
 import { openNativeToolPage } from '../../../../services/nativeMinimalTools';
+import { openNativeSleepTimer } from '../../../../services/nativePlayerSleep';
+import { useSleepTimerStore } from '../../../../stores/useSleepTimerStore';
+import { warmSettingsModule } from '../../dialogs/settingsModule';
 import { openSettings } from '../../../../stores/useSettingsModalStore';
 import { useAudioSettingsStore } from '../../../../stores/useAudioSettingsStore';
 import { useAudioToolsStore, QUALITY_LABELS } from '../../../../stores/useAudioToolsStore';
@@ -86,6 +89,10 @@ export default function MobileStageMenu({
                 if (closing && event.target === event.currentTarget) onClosed?.();
             }}
         >
+            <button role="menuitem" onPointerDown={warmSettingsModule} onClick={() => run(() => openSettings('options', 'visualizer', 'visualizer'))}>
+                <Palette size={18} />
+                {t('mobileStage.stageAppearance')}
+            </button>
             <button role="menuitem" onClick={() => runNative('quality', () => useAudioToolsStore.getState().show())}>
                 <AudioLines size={18} />
                 <span className="mps-menu-label">{t('mobileStage.audioQuality')}</span>
@@ -101,6 +108,12 @@ export default function MobileStageMenu({
                 {t('mobileStage.lyricsTools')}
             </button>
             {/* Both player views open the existing shared queue panel. */}
+            <button role="menuitem" onClick={() => run(() => { void openNativeSleepTimer().then(handled => {
+                if (!handled) useSleepTimerStore.setState({ sleepTimerSheetOpen: true });
+            }); })}>
+                <Moon size={18} />
+                {t('mobileStage.sleepTimer')}
+            </button>
             <button role="menuitem" onClick={() => run(() => { void openNativeQueueSheet().then(handled => { if (handled) return; const state=useAppViewStore.getState();state.setPanelTab('queue');state.setIsPanelOpen(true); }); })}>
                 <PlayerControlIcon kind="queue" size={18} />
                 {t('mobileStage.queueMenu')}

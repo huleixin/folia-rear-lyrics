@@ -130,6 +130,10 @@ export default {
     "rearSensorUnavailable": "未检测到可用的遮挡传感器", "rearSleep": "背屏息屏", "rearWake": "唤醒背屏"
   },
   "mobileStage": {
+    "stageAppearance": "舞台外观",
+    "sleepTimer": "睡眠定时",
+    "landscape": "横屏显示",
+    "restoreOrientation": "恢复原方向",
     "playbackSettings": "播放设置",
     "audioQuality": "音质选择",
     "audioEffects": "均衡器与音效",

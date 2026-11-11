@@ -4,7 +4,8 @@ import {
     Heart,
     MoreHorizontal,
     Music2,
-    Palette,
+    RectangleHorizontal,
+    RectangleVertical,
 } from 'lucide-react';
 import PlaybackModeIcon from '../../icons/PlaybackModeIcon';
 import PlayerControlIcon from '../../icons/PlayerControlIcon';
@@ -12,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { openNativeQueueSheet } from '../../../../services/nativeMinimalQueue';
 import { useAppViewStore } from '../../../../stores/useAppViewStore';
 import { usePlayerViewModeStore } from '../../../../stores/usePlayerViewModeStore';
-import { openSettings } from '../../../../stores/useSettingsModalStore';
+import { setStatusMessage } from '../../../../stores/useStatusMessageStore';
 import { PlayerState } from '../../../../types';
 import { colorWithAlpha, mixColors, parseColorChannels } from '../../../visualizer/colorMix';
 import ProgressBar from '../../../ProgressBar';
@@ -25,7 +26,8 @@ import { useReducedMotionFor } from '../../../../hooks/useReducedMotionFor';
 import { getPlaybackSongKey } from '../../../../utils/appPlaybackGuards';
 import { playbackModeLabelKey, playbackModeLegacyToken, resolvePlaybackMode } from '../../../../utils/playbackMode';
 import { usePlaybackStore } from '../../../../stores/usePlaybackStore';
-import { warmSettingsModule, scheduleSettingsWarmup } from '../../dialogs/settingsModule';
+import { scheduleSettingsWarmup } from '../../dialogs/settingsModule';
+import { useStageOrientation } from '../../../../hooks/useStageOrientation';
 import '../../../../styles/composeChrome.css';
 import './mobileStageChrome.css';
 import './playerStageTransition.css';
@@ -49,6 +51,10 @@ export default function MobileStageChrome({
     }, [menuOpen]);
     const closeMenu = useCallback(() => setMenuOpen(false), []);
     const stageTransition = usePlayerViewModeStore(state => state.stageTransition);
+    const orientation = useStageOrientation(stageTransition !== 'to-minimal');
+    useEffect(() => {
+        if (orientation.error) setStatusMessage({ type: 'error', text: orientation.error });
+    }, [orientation.error]);
     const panelOpen = useAppViewStore((state) => state.isPanelOpen);
     const stageRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<HTMLElement>(null);
@@ -103,6 +109,7 @@ export default function MobileStageChrome({
             style={style}
             data-testid="mobile-stage-chrome"
             data-hidden={hidden || undefined}
+            data-stage-landscape={orientation.landscape || undefined}
             data-stage-motion={stageTransition === 'idle' ? undefined : stageTransition}
             inert={moving || undefined}
         >
@@ -140,11 +147,14 @@ export default function MobileStageChrome({
                 </div>
                 <button
                     className="mps-icon"
-                    aria-label={t('mobileStage.lyricSettings')}
-                    onPointerDown={warmSettingsModule}
-                    onClick={() => openSettings('options', 'visualizer', 'visualizer')}
+                    type="button"
+                    aria-label={t(orientation.landscape ? 'mobileStage.restoreOrientation' : 'mobileStage.landscape')}
+                    aria-pressed={orientation.landscape}
+                    disabled={orientation.pending}
+                    data-testid="stage-orientation"
+                    onClick={() => { closeMenu(); void orientation.toggle(); }}
                 >
-                    <Palette size={21} />
+                    {orientation.landscape ? <RectangleVertical size={21} /> : <RectangleHorizontal size={21} />}
                 </button>
                 <button
                     className="mps-icon mps-like"
@@ -174,7 +184,7 @@ export default function MobileStageChrome({
                 )}
             </header>
             {controls && !controls.hideControlBar && (
-                <section ref={playerRef} className="mps-player" style={compose?{height:136,boxSizing:"border-box"}:undefined} aria-label={t('mobileStage.playback')}>
+                <section ref={playerRef} className="mps-player" style={compose?{height:96,boxSizing:"border-box"}:undefined} aria-label={t('mobileStage.playback')}>
                     {!compose && <>
                     <div className="mps-transport">
                         <button

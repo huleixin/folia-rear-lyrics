@@ -60,8 +60,8 @@
     /* The arrow's own 44px box supplies the left gutter: with 8px here its glyph lands at ~19px,
        which is where the minimal page's chevron sits. It used to be 20px because the arrow had no
        box of its own — it was drawn inside the artwork. */
-    left: 8px;
-    right: 12px;
+    left: max(8px, var(--folia-main-inset-left, env(safe-area-inset-left, 0px)));
+    right: max(12px, var(--folia-main-inset-right, env(safe-area-inset-right, 0px)));
     display: flex;
     gap: 3px;
     align-items: center;
@@ -256,10 +256,9 @@
 }
 @media (max-height: 500px) {
     .mps-header {
-        max-width: 430px;
-        margin: 0 auto;
         min-height: 48px;
-        top: 6px;
+        padding-block: 0;
+        top: max(6px, var(--folia-main-inset-top, env(safe-area-inset-top, 0px)));
     }
     .mps-art {
         width: 36px;
@@ -268,7 +267,7 @@
     .mps-player {
         max-width: 430px;
         padding: 6px 18px 7px;
-        bottom: 6px;
+        bottom: max(6px, var(--folia-main-inset-bottom, env(safe-area-inset-bottom, 0px)));
         border-radius: 24px;
     }
     .mps-progress {

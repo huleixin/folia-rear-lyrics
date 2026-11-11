@@ -38,15 +38,19 @@ final class PhoneLayoutOrientation {
 
     static void apply(Activity activity) {
         if (activity == null) return;
-        if (!isEnabled(activity)) {
-            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+        // Preference synchronization must not override the temporary stage session.
+        if (activity instanceof MainActivity
+            && ((MainActivity) activity).getStageOrientation().applyPhoneFitOverride()) {
             return;
         }
-        activity.setRequestedOrientation(
-            MODE_LANDSCAPE.equals(getOrientation(activity))
+        activity.setRequestedOrientation(requestedOrientation(activity));
+    }
+
+    static int requestedOrientation(Context context) {
+        if (!isEnabled(context)) return ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
+        return MODE_LANDSCAPE.equals(getOrientation(context))
                 ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                : ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-        );
+                : ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT;
     }
 
     private static String normalize(String value) {

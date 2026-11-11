@@ -12,7 +12,8 @@ test('unified chrome binds playback, previous/next, repeat and seek without a se
     await expect(page.locator('.mps-header')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     await expect(page.locator('.mps-header')).toHaveCSS('backdrop-filter', 'none');
     expect(await page.locator('.mps-player').evaluate((el) => getComputedStyle(el).backdropFilter)).toMatch(/blur\(/);
-    await page.getByRole('button', { name: /Lyrics style|歌词样式/ }).click();
+    await page.getByRole('button', { name: /More|更多/, exact: true }).click();
+    await page.getByRole('menuitem', { name: /Stage appearance|舞台外观/ }).click();
     await expect(page.getByTestId('style-route')).toHaveText('true:visualizer:visualizer');
     await expect(page.getByTestId('mobile-stage-chrome')).toBeVisible();
     await page.getByRole('button', { name: 'Pause', exact: true }).click();
@@ -52,11 +53,53 @@ test('unified chrome binds playback, previous/next, repeat and seek without a se
     expect(errors).toEqual([]);
 });
 
-test('stage more menu no longer owns a separate sleep timer entry',async({page})=>{
+test('stage more menu exposes shared sleep timer and appearance without crowding the header',async({page})=>{
  await page.goto('/dev-probe.html?probe=mobileStageChrome');
  await page.getByRole('button',{name:/More|更多/,exact:true}).click();
  await expect(page.getByRole('menu')).toBeVisible();
- await expect(page.getByRole('menuitem',{name:/定时关闭|Sleep timer/i})).toHaveCount(0);
+ await expect(page.getByRole('menuitem',{name:/睡眠定时|Sleep timer/i})).toHaveCount(1);
+ await expect(page.getByRole('menuitem',{name:/舞台外观|Stage appearance/i})).toHaveCount(1);
+ await expect(page.getByTestId('stage-orientation')).toHaveAttribute('aria-pressed','false');
+ const menu=page.getByRole('menu');
+ expect((await menu.boundingBox())!.width).toBeLessThanOrEqual(204);
+ for(const size of [{width:320,height:568},{width:844,height:390}]) {
+     await page.setViewportSize(size);
+     const box=(await menu.boundingBox())!;
+     expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(size.width);
+     expect(box.y+box.height).toBeLessThanOrEqual(size.height);
+     const sleep=page.getByRole('menuitem',{name:/睡眠定时|Sleep timer/i});
+     await sleep.scrollIntoViewIfNeeded();
+     await expect(sleep).toBeVisible();
+ }
+ await page.getByRole('menuitem',{name:/睡眠定时|Sleep timer/i}).click();
+ await expect.poll(()=>page.evaluate(async()=>{
+     const path='/src/stores/useSleepTimerStore.ts';
+     const {useSleepTimerStore}=await import(/* @vite-ignore */path);
+     return useSleepTimerStore.getState().sleepTimerSheetOpen;
+ })).toBe(true);
+});
+
+test('landscape control locks and restores the display without resetting playback',async({page})=>{
+    await page.addInitScript(()=>{
+        const calls:string[]=[];
+        Object.assign(window,{stageOrientationCalls:calls});
+        Object.defineProperty(screen.orientation,'lock',{configurable:true,value:async(value:string)=>{calls.push(value);}});
+        Object.defineProperty(screen.orientation,'unlock',{configurable:true,value:()=>{calls.push('unlock');}});
+        Object.defineProperty(document.documentElement,'requestFullscreen',{configurable:true,value:async()=>undefined});
+    });
+    await page.goto('/dev-probe.html?probe=mobileStageChrome&longTitle');
+    const toggle=page.getByTestId('stage-orientation');
+    const before=await page.getByTestId('stage-result').textContent();
+    await toggle.click();await expect(toggle).toHaveAttribute('aria-pressed','true');
+    await page.setViewportSize({width:844,height:390});
+    const header=(await page.locator('.mps-header').boundingBox())!;
+    const player=(await page.locator('.mps-player').boundingBox())!;
+    expect(header.width).toBeGreaterThan(700);expect(player.width).toBeLessThanOrEqual(470);
+    await expect(toggle).toHaveAccessibleName(/Restore orientation|恢复原方向/);
+    await toggle.click();await expect(toggle).toHaveAttribute('aria-pressed','false');
+    await expect(page.getByTestId('stage-result')).toHaveText(before!);
+    const calls=await page.evaluate(()=>(window as unknown as {stageOrientationCalls:string[]}).stageOrientationCalls);
+    expect(calls[0]).toBe('landscape');expect(calls).toContain('unlock');
 });
 
 // Browser plugin not available; the existing Playwright harness checks the WebView menu boundary.

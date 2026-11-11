@@ -130,6 +130,10 @@ export default {
     "rearSensorUnavailable": "No supported cover sensor was detected", "rearSleep": "Sleep rear screen", "rearWake": "Wake rear screen"
   },
   "mobileStage": {
+    "stageAppearance": "Stage appearance",
+    "sleepTimer": "Sleep timer",
+    "landscape": "Landscape display",
+    "restoreOrientation": "Restore orientation",
     "playbackSettings": "Playback settings",
     "audioQuality": "Audio quality",
     "audioEffects": "Equalizer & effects",

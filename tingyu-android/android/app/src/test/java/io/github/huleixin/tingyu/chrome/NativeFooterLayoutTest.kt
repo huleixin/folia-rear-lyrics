@@ -62,6 +62,16 @@ class NativeFooterLayoutTest {
         assertEquals(393f-20f,stage.width,0f)
         assertEquals(stage,NativeFooterLayout.rect("stage",393f,852f,30f,22f,true))
     }
+    @Test fun landscapeStageControlsStayCenteredAndClearOfTheBottomInset(){
+        for(width in listOf(780f,844f,1024f)){
+            val stage=NativeFooterLayout.rect("stage",width,390f,24f,22f,false)
+            assertEquals(430f,stage.width,0f)
+            assertEquals(width/2f,stage.left+stage.width/2f,0f)
+            assertEquals(96f,stage.height,0f)
+            assertEquals(32f,390f-stage.top-stage.height,0f)
+            assertTrue(stage.top>24f+48f)
+        }
+    }
     @Test fun returningWithoutChangingSongRestoresTheHomeNavigationAndMiniPosition(){
         val home=NativeFooterLayout.rect("mini",393f,852f,30f,22f,false)
         val detail=NativeFooterLayout.rect("mini",393f,852f,30f,22f,true)

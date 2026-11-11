@@ -172,7 +172,16 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     var pageListener: NativePageActionListener? = null
     // 「支持与交流」sheets: opened from settings page actions (support:coffee / support:group).
     private var sleepMenuOpen by mutableStateOf(false)
-    private var sleepAnchor by mutableStateOf(androidx.compose.ui.geometry.Rect.Zero)
+    private var minimalSleepAnchor = androidx.compose.ui.geometry.Rect.Zero
+    private var sleepMenuAnchor by mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)
+    /** 舞台桥调用不沿用其他播放器的旧锚点，按当前窗口底部定位。 */
+    fun openSleepTimer(): Boolean = openSleepTimer(null)
+    private fun openSleepTimer(anchor: androidx.compose.ui.geometry.Rect?): Boolean {
+        if (!active || !focused || webOverlay || stageExit.active || pendingStageEntry || host?.isAttachedToWindow != true) return false
+        sleepMenuAnchor = anchor?.takeIf { it.width > 0f && it.height > 0f }
+        sleepMenuOpen = true
+        return true
+    }
     private var supportSheet by mutableStateOf<String?>(null)
     private var supportCopyJson by mutableStateOf<String?>(null)
     /**
@@ -208,6 +217,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     /** JS 说抽屉关了（返回键、点击遮罩），宿主跟着收。 */
     fun closeNativeQueue(){queueOpen=false}
     fun openNativeQueue(){
+        sleepMenuOpen=false
         queueOpen=true
         // 打开时立刻要一份新快照。走宿主级通道：从首页/歌单/舞台打开时极简页的桥帧
         // 可能早已过期，旧实现在这里同样发不出去，抽屉会拿到过期队列。
@@ -244,6 +254,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         availability = { minimal.bridgeLive() },
     )
     fun openNativeTools(page: String) {
+        sleepMenuOpen=false
         if (toolsPage == page) return
         // 一次只叠一个工具页；从音质进效果器/洛雪是替换，不是叠加。
         toolsPage = page
@@ -257,6 +268,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         minimalCommands.notifyToolsClosed()
     }
     fun collapseStage(reply:()->Unit){
+        sleepMenuOpen=false
         if(destination!="stage"||webOverlay){reply();return}
         val nativeMinimal=minimalPlayerEnabled()&&playerPresentation=="minimal"&&minimal.bridgeLive()&&!minimal.state.value.controls.detour
         stageExit.begin(retained.lastBrowsing(),nativeMinimal,reply)
@@ -361,7 +373,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         else if(destination!="stage")stageExit.suppressReturnMotion=false
         require(next in setOf("home","collection","search","settings","stage","web"))
         val routeChanged=next!=destination||value.optString("pageTarget")!=pageTarget||value.optString("entryKey")!=entryKey||value.optInt("selectedTab").coerceIn(0,1)!=selectedTab
-        playerPresentation=if(value.optString("playerPresentation")=="minimal")"minimal"else"stage"
+        val nextPresentation=if(value.optString("playerPresentation")=="minimal")"minimal"else"stage"
+        if(nextPresentation!=playerPresentation)sleepMenuOpen=false
+        playerPresentation=nextPresentation
         // 从浏览页（home/collection/search/…）进入播放器 = 一次**新会话**：令牌 +1，
         // pager 状态随之重建，首次组合就落在封面页（需求二）。设置页返回与完整舞台往返
         // 不算新会话（前者 destination=="settings"，后者 from 已是 stage），页面状态保持。
@@ -903,7 +917,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     val actions: (String,Double)->Unit = actions@ { action,value ->
                         if(id!="stage"&&footerHiddenForIme)return@actions
                         if(id=="nav"&&destination=="settings"&&!settingsRoot)return@actions
-                        // seed 不是 live 控制条：只接受「启动期导航」与「睡眠菜单」这两条安全动作，
+                        // seed 不是 live 控制条：只接受启动期导航，
                         // 缓存快照绝不触发业务命令（其余一律丢弃）。
                         if (live == null) {
                             if(action=="interactionStart")NavigationTiming.markGesture("startup-nav-press",-1.0)
@@ -911,11 +925,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             else if(id=="nav"&&action=="navigate"&&active&&startupNavigation.request(value.toInt())){
                                 navigationActionSerial++;startupSelected=value.toInt();NavigationTiming.mark("startup-navigation-requested")
                                 startupToast?.cancel();startupToast=android.widget.Toast.makeText(web.context,"正在准备${listOf("推荐","资料库","搜索","设置")[value.toInt()]}，就绪后自动打开",android.widget.Toast.LENGTH_SHORT).also{it.show()}
-                            }else if(id=="mini"&&action=="sleep")sleepMenuOpen=!sleepMenuOpen
+                            }
                             return@actions
                         }
                         if (active && surfaces[surface.id]?.enabled==true && surfaces[surface.id]?.session == surface.session && (action !in setOf("next","previous","toggle","seek") || surfaces[surface.id]?.trackKey == surface.trackKey)) {
-                            if(surface.id=="mini"&&action=="sleep"){sleepMenuOpen=!sleepMenuOpen;return@actions}
                             if(action=="navigate"||action=="openStage"||action=="queue"||action=="quality")sleepMenuOpen=false
                             // Dismiss home chrome on the UI thread before the JS route transition starts.
                             if (surface.id=="mini" && action=="openStage") {
@@ -939,7 +952,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     val interactivePlacement = placement.chromeInteraction(actions)
                     when(id) {
                         "nav" -> ChromeNavigation(surface,backdrop,interactivePlacement,actions)
-                        "mini" -> ChromeMiniPlayer(surface,if(live==null)null else clocks[id],backdrop,interactivePlacement,sleepUi,{sleepAnchor=it},actions)
+                        "mini" -> ChromeMiniPlayer(surface,if(live==null)null else clocks[id],backdrop,interactivePlacement,action=actions)
                         "stage" -> Box(Modifier.fillMaxSize().zIndex(2f).stageExitTransform(stageExit,exitProgress).playerDetourTransform(surface.playerTransition,reducedMotion||surface.reducedMotion,height*density.density)){ChromeStagePlayer(surface,clocks[id],if(legacySampling)backdrop else stageBackdrop,interactivePlacement,actions)}
                     }
                 }
@@ -982,6 +995,15 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     queue = queueState,
                     onOpenQueue = { openNativeQueue() },
                     onOpenTools = { page -> openNativeTools(page) },
+                    onOpenSleep = {
+                        if (!openSleepTimer(minimalSleepAnchor))
+                            android.widget.Toast.makeText(web.context, "原生定时面板暂不可用，请稍后重试", android.widget.Toast.LENGTH_SHORT).show()
+                    },
+                    onSleepAnchor = { minimalSleepAnchor = it },
+                    sleepActive = sleepUi.snapshot.active,
+                    sleepLabel = if (!sleepUi.snapshot.active) "定时关闭"
+                        else if (sleepUi.snapshot.waiting) "本曲结束暂停，点击修改或取消"
+                        else "定时已开启，点击修改或取消",
                     // 每次新会话都从封面页开始（resetToken 变了 pager 状态会重建）；
                     // 完整舞台往返 / 设置往返不换令牌，页面状态与进出动画保持原样。
                     initialPage = 0,
@@ -1110,8 +1132,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     pageListener?.onAction(destination,"","","__refresh","manual-retry",0.0)
                 },
             )
-            if(sleepMenuOpen&&!webOverlay&&active&&destination in setOf("home","collection"))Box(Modifier.fillMaxSize().zIndex(6f)) {
-                MiniSleepMenu(sleepUi,sleepAnchor,safeTop,interfaceLight,backdrop,
+            if(sleepMenuOpen&&!webOverlay&&active&&focused&&!stageExit.active)Box(Modifier.fillMaxSize().zIndex(10f)) {
+                // 桥调用没有按钮锚点；使用当前窗口可见底边，横屏时仍留足可滚动高度。
+                val bottom=(height-safeBottom-12f).coerceAtLeast(safeTop+1f)*density.density
+                val center=width*density.density/2f
+                val anchor=sleepMenuAnchor?.takeIf { it.top < height*density.density && it.center.x in 0f..width*density.density }
+                    ?: androidx.compose.ui.geometry.Rect(center-24f*density.density,bottom,center+24f*density.density,bottom+1f)
+                MiniSleepMenu(sleepUi,anchor,safeTop,interfaceLight,if(destination=="stage"&&!legacySampling)stageBackdrop else backdrop,
                     preferredMinutes=surfaces["mini"]?.sleepPreferredMinutes?:30,reduced=reducedMotion){sleepMenuOpen=false}
             }
             SupportSheetLayer(supportSheet,supportCopyJson,interfaceLight){supportSheet=null}
@@ -1121,6 +1148,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         }
     }
     fun destroy() {
+        sleepMenuOpen=false;sleepMenuAnchor=null;minimalSleepAnchor=androidx.compose.ui.geometry.Rect.Zero
         routeFence.close()
         webSamplingLayer.close()
         graphics.close()

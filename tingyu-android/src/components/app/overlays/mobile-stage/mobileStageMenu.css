@@ -3,8 +3,8 @@
     position: absolute;
     top: calc(100% + 8px);
     right: 0;
-    width: 210px;
-    padding: 7px;
+    width: 190px;
+    padding: 6px;
     background: var(--mps-glass);
     backdrop-filter: blur(24px);
     border: 1px solid var(--mps-border);
@@ -13,12 +13,12 @@
 }
 .mps-menu button {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     align-items: center;
     text-align: left;
     width: 100%;
     min-height: 47px;
-    padding: 10px 12px;
+    padding: 10px 8px;
     font-size: 14px;
     border-radius: 11px;
 }

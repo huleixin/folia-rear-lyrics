@@ -142,6 +142,21 @@ public class TingyuChromePlugin extends Plugin {
         });
     }
 
+    /** 所有路由共用原生定时菜单；失败必须交给调用方显示，不能静默成功。 */
+    @PluginMethod public void openSleepTimer(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            try {
+                if (!host().openSleepTimer()) {
+                    call.reject("原生定时面板暂不可用，请稍后重试");
+                    return;
+                }
+                call.resolve(new JSObject().put("accepted", true));
+            } catch (Exception error) {
+                call.reject("无法打开原生定时面板", error);
+            }
+        });
+    }
+
     @PluginMethod public void minimalPlayerFrame(PluginCall call) {
         final org.json.JSONObject frame = call.getData();
         getActivity().runOnUiThread(() -> {

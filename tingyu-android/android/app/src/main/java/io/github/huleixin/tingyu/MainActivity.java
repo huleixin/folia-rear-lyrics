@@ -3,7 +3,11 @@ package io.github.huleixin.tingyu;
 import android.content.ComponentCallbacks2;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebSettings;
@@ -17,6 +21,63 @@ import com.getcapacitor.WebViewListener;
 import java.io.File;
 
 public class MainActivity extends BridgeActivity {
+    private StageOrientation stageOrientation;
+    private android.window.OnBackInvokedCallback stageBackCallback;
+
+    private void syncStageBackCallback(boolean forced) {
+        if (android.os.Build.VERSION.SDK_INT < 33) return;
+        if (forced && stageBackCallback == null) {
+            stageBackCallback = () -> getStageOrientation().handleBack();
+            // The temporary stage override precedes Compose/AndroidX navigation callbacks.
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_OVERLAY, stageBackCallback);
+        } else if (!forced && stageBackCallback != null) {
+            getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(stageBackCallback);
+            stageBackCallback = null;
+        }
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(android.view.KeyEvent event) {
+        if (event.getKeyCode() == android.view.KeyEvent.KEYCODE_BACK
+            && getStageOrientation().overridesPhoneFit()) {
+            if (event.getAction() == android.view.KeyEvent.ACTION_UP && !event.isCanceled()) getStageOrientation().handleBack();
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public void onBackPressed() {
+        if (!getStageOrientation().handleBack()) super.onBackPressed();
+    }
+
+    StageOrientation getStageOrientation() {
+        if (stageOrientation == null) {
+            Handler handler = new Handler(Looper.getMainLooper());
+            stageOrientation = new StageOrientation(new StageOrientation.Host() {
+                public int requestedOrientation() { return getRequestedOrientation(); }
+                public int preferredOrientation() { return PhoneLayoutOrientation.requestedOrientation(MainActivity.this); }
+                public int poseOrientation() {
+                    return isLandscape() ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT;
+                }
+                public boolean isLandscape() {
+                    return getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+                }
+                public void requestOrientation(int value) { setRequestedOrientation(value); }
+                public void requestLandscape() { setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE); }
+                public void schedule(Runnable task, long delayMs) { handler.postDelayed(task, delayMs); }
+                public void cancel(Runnable task) { handler.removeCallbacks(task); }
+                public void changed(StageOrientation.State state) {
+                    syncStageBackCallback(state.landscape);
+                    FoliaNativePlugin.emitStageOrientation(state);
+                }
+            });
+        }
+        return stageOrientation;
+    }
+
     private io.github.huleixin.tingyu.chrome.BrandLaunchState brandLaunch;
     public void setBrandLaunch(io.github.huleixin.tingyu.chrome.BrandLaunchState state) { brandLaunch = state; }
     public io.github.huleixin.tingyu.chrome.BrandLaunchState getBrandLaunch() { return brandLaunch; }
@@ -184,6 +245,8 @@ public class MainActivity extends BridgeActivity {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
+                // Native owns this first Back, even before any WebView listener is ready.
+                if (getStageOrientation().handleBack()) return;
                 // Let the WebView close its own settings/effects layer first. When nothing is open the
                 // JS handler now moves the task to the background so playback keeps running; this
                 // Also preserve playback if Back arrives before the JS listener is ready.
@@ -331,6 +394,7 @@ public class MainActivity extends BridgeActivity {
                 long now = SystemClock.elapsedRealtime();
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
+                    getStageOrientation().reset("renderer-reset", true);
                     // A quiet minute means the previous rebuild held: start counting again.
                     if (now - lastWebViewRecoveryAt > RENDERER_RECOVERY_WINDOW_MS) rendererRecoveries = 0;
                     lastWebViewRecoveryAt = now;
@@ -382,6 +446,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onResume() {
         super.onResume();
+        getStageOrientation().resume();
         io.github.huleixin.tingyu.playback.PlaybackLifecycle.noteActivity("resume", true);
         if (nativeShell != null) nativeShell.resume();
         updateStageActivity(true);
@@ -419,6 +484,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onStop() {
+        getStageOrientation().stop();
         // 用户主动退出（不是被系统杀）：下一次启动不算「启动失败」。
         if (isFinishing()) {
             io.github.huleixin.tingyu.diagnostics.StartupGuard.noteUserExit();
@@ -442,6 +508,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onDestroy() {
+        if (stageOrientation != null) stageOrientation.reset("destroy", true);
         io.github.huleixin.tingyu.chrome.NavigationTiming.destroy();
         // The Activity owns the Capacitor bridge, and the bridge is the only path JS has into the
         // engine. Its destruction is therefore a playback event, not only a lifecycle one.
@@ -460,6 +527,17 @@ public class MainActivity extends BridgeActivity {
         );
         super.onDestroy();
         if (nativeShell != null) { nativeShell.destroy(); nativeShell = null; }
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration configuration) {
+        // Keep the bridge, player and stage timeline alive; resize the existing window only.
+        super.onConfigurationChanged(configuration);
+        getStageOrientation().configurationChanged();
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            WebView webView = getBridge().getWebView();
+            webView.post(() -> restoreAdaptiveLayout(webView));
+        }
     }
 
     @Override

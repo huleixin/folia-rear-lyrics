@@ -16,9 +16,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,13 +28,12 @@ import kotlin.math.abs
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ChromeMiniPlayer.kt
 @Composable internal fun ChromeMiniPlayer(s: ChromeSurface, timeline: ChromeTimeline?, backdrop: Backdrop, modifier: Modifier,
-    timer:MiniSleepUi?=null,onSleepAnchor:(Rect)->Unit={},action: (String,Double)->Unit) {
+    action: (String,Double)->Unit) {
     val ink=chromeColor(s.ink);val accent=chromeColor(s.accent)
     val cover=pageImage(s.cover)
     // 与底栏同一份材质规范（vibrancy → blur → lens + 光学高光/内阴影），只在表面不透明度上
     // 按内容密度加厚一档（MiniFill）：歌名/歌手/播放键要压住模糊背景，但折射与高光逻辑一致。
     BoxWithConstraints(modifier.chromeGlass(backdrop,s.light,28.dp,ChromeGlassPresets.active(),ChromeGlassPresets.MiniFill)) {
-    val compact=maxWidth<340.dp
     val spacing=miniPlayerSpacing(maxWidth.value)
     Row(Modifier.fillMaxSize().padding(horizontal=6.dp,vertical=3.dp),verticalAlignment=Alignment.CenterVertically) {
         val scope=rememberCoroutineScope();val offset=remember{Animatable(0f)}
@@ -77,11 +73,6 @@ import kotlin.math.abs
                 }
             }
         }
-        ChromeButton(s.label("quality","音质"),size=spacing.quality.dp,reduced=s.reducedMotion,onClick={action("quality",0.0)}) {
-            Text(s.label("qualityValue","高品质"),color=if(s.light)LocalInterfacePalette.current.muted else ink.copy(alpha=.75f),fontSize=if(compact)8.sp else 9.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
-        }
-        if(timer!=null)MiniSleepButton(timer,s.light,spacing.moon,s.reducedMotion,action={action("sleep",0.0)},
-            modifier=Modifier.onGloballyPositioned{onSleepAnchor(it.boundsInRoot())})
         ChromeButton(s.label(if(s.playing)"pause" else "play",if(s.playing)"暂停" else "播放"),enabled=!s.disabled,size=42.dp,reduced=s.reducedMotion,onClick={action("toggle",0.0)}) {
             ChromeProgressRing(timeline,Modifier.size(34.dp),ink);ChromeGlyph(if(s.playing)"pause" else "play",ink,Modifier.size(19.dp))
         }
