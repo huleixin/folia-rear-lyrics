@@ -371,6 +371,8 @@ export type LibraryPlayerBackdrop = { readonly lyrics: boolean; readonly blur: b
 export type LibrarySuiteStageProps = {
     /** Return to the library root through the host's history-aware navigation. */
     onLibraryHome?: () => void;
+    /** Close any active search overlay through the host's history-aware navigation. */
+    onCloseSearch?: () => void;
     onNextTrack?: () => void;
     canNextTrack?: boolean;
     onPreviousTrack?: () => void;

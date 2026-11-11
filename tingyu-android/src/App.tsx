@@ -2259,6 +2259,7 @@ export default function App() {
         activeProvider,
         playSong,
         navigateToPlayer,
+        onCloseSearch: closeSearchView,
         navigateToLattice,
         togglePlayback: togglePlay,
         nextTrack: () => { void handleNextTrack({ shouldNavigateToPlayer: false }); },

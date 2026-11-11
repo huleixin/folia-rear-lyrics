@@ -47,16 +47,25 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
         const search=useSearchNavigationStore.getState();
         const settings=useSettingsModalStore.getState();
         if(index===3){
-            if(search.isSearchOpen)search.hideSearchOverlay();
+            if(search.isSearchOpen){
+                props.onCloseSearch ? props.onCloseSearch() : search.hideSearchOverlay();
+            }
             if(!settings.settingsModalState.isOpen)settings.openSettings('options');
         }else{
-            if(search.isSearchOpen&&index!==2)search.hideSearchOverlay();
+            if(search.isSearchOpen&&index!==2){
+                props.onCloseSearch ? props.onCloseSearch() : search.hideSearchOverlay();
+            }
             if(settings.settingsModalState.isOpen)settings.closeSettings();
-            if(index===0||index===1){useMobileLibraryStore.getState().setPage(index===0?'home':'library');props.onLibraryHome?.();}
-            else if(index===2&&!search.isSearchOpen){search.restoreSearch({query:'',sourceTab:resolveHomeSearchSource(),returnView:'home'});}
+            if(index===0||index===1){
+                useMobileLibraryStore.getState().setPage(index===0?'home':'library');
+                props.onLibraryHome?.();
+            }
+            else if(index===2&&!search.isSearchOpen){
+                search.restoreSearch({query:'',sourceTab:resolveHomeSearchSource(),returnView:'home'});
+            }
         }
         scheduleNativeShellRoute();
-    }, [props.onLibraryHome]);
+    }, [props.onCloseSearch, props.onLibraryHome]);
     const nativeGlass = useNativeGlassNav(navRef, !COMPOSE_CHROME && props.isInteractive && !settingsOpen && !searchOpen, `${collectionDetail}:${page}`, nativeNavigate);
     const reducedMotion = useReducedMotionFor('uiMicroMotion');
     const panelOpen = useAppViewStore(state => state.isPanelOpen);
@@ -72,6 +81,10 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
         return () => cancelAnimationFrame(frame);
     }, [props.reportPlayerOcclusion, props.navigation.activeType]);
     const go = (next: 'home' | 'library') => {
+        const search = useSearchNavigationStore.getState();
+        if (search.isSearchOpen) {
+            props.onCloseSearch ? props.onCloseSearch() : search.hideSearchOverlay();
+        }
         useMobileLibraryStore.getState().setPage(next);
         props.onLibraryHome?.();
     };

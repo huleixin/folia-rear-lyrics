@@ -2,6 +2,7 @@ import {useInterfaceLight} from '../../hooks/useInterfaceAppearance';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { useSearchNavigationStore } from '../../stores/useSearchNavigationStore';
 import {
     getActiveGridViewCollection,
     subscribeCollectionPop,
@@ -306,7 +307,12 @@ const GridViewOverlayHost: React.FC<GridViewOverlayHostProps> = ({
         armedBackRef.current = useCollectionNavigationStore.getState().snapshot;
         onBackCollection();
     }, [activeTransitions, onBackCollection]);
-    const handleLibraryHome = useCallback(() => onPopCollectionTo(0), [onPopCollectionTo]);
+    const handleLibraryHome = useCallback(() => {
+        if (surfaceProps.onCloseSearch && (useSearchNavigationStore.getState().isSearchOpen || window.history.state?.search)) {
+            surfaceProps.onCloseSearch();
+        }
+        onPopCollectionTo(0);
+    }, [onPopCollectionTo, surfaceProps]);
 
     // 浏览器后退（popstate 直接恢复历史里的栈，不经过上面的 handleBackCollection）：在 store 变化之前跑同一个
     // beforeBack，网格的反向移形换影与卡片散开和应用内返回一样出现。
@@ -633,6 +639,7 @@ const GridViewOverlayHost: React.FC<GridViewOverlayHostProps> = ({
             {/* 生效 suite 的常驻舞台：首页之上、背景板与集合层之下；始终占这个位置，打开 / 关闭集合不重挂。 */}
             <LibrarySuiteStageSlot
                 onLibraryHome={handleLibraryHome}
+                onCloseSearch={surfaceProps.onCloseSearch}
                 stage={stage}
                 isInteractive={isInteractive}
                 theme={surfaceProps.theme}

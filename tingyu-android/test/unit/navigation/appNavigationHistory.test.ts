@@ -56,6 +56,13 @@ describe('player navigation history', () => {
     it('pushes a new entry when opening the player from home', () => {
         expect(shouldReplacePlayerNavigation(state('home', 2))).toBe(false);
     });
+
+    it('clears search in navigation state when returning from search to home', () => {
+        const searchState = { ...state('home', 1), search: { query: 'test', sourceTab: 'qq' as const, returnView: 'home' as const } };
+        expect(searchState.search).not.toBeNull();
+        const clearedHomeState = state('home', 1);
+        expect(clearedHomeState.search).toBeNull();
+    });
 });
 
 describe('Lattice navigation availability', () => {

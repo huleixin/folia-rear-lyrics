@@ -47,6 +47,7 @@ export type LibraryLocalCatalogSnapshot = {
 export interface LibraryHomeData {
     onPlaySong: (song: SongResult, playlistCtx?: SongResult[], isFmCall?: boolean) => void;
     onBackToPlayer: () => void;
+    onCloseSearch?: () => void;
     /**
      * fb3：暂停 / 继续正在播放的那首（与播放条、空格同一个开关）。资料库里「正在播放的那张卡」上的播放键用它，
      * 而不是再「立即播放」一次。身份稳定。

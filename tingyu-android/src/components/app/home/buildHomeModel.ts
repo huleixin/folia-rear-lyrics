@@ -32,6 +32,7 @@ export type HomeModelDeps = {
     activeProvider?: ProviderAccountSummary;
     playSong: HomeSurfaceProps['onPlaySong'];
     navigateToPlayer: HomeSurfaceProps['onBackToPlayer'];
+    onCloseSearch?: HomeSurfaceProps['onCloseSearch'];
     navigateToLattice: NonNullable<HomeSurfaceProps['onOpenLattice']>;
     /** fb3：暂停 / 继续（应用的 togglePlay；useHomeModel 给它稳定身份）。 */
     togglePlayback: NonNullable<HomeSurfaceProps['onTogglePlayback']>;
@@ -81,6 +82,7 @@ export const buildHomeModel = ({
     activeProvider,
     playSong,
     navigateToPlayer,
+    onCloseSearch,
     navigateToLattice,
     togglePlayback,
     nextTrack,
@@ -131,6 +133,7 @@ export const buildHomeModel = ({
         surfaceProps: {
             onPlaySong: playSong,
             onBackToPlayer: navigateToPlayer,
+            onCloseSearch,
             onOpenLattice: navigateToLattice,
             onTogglePlayback: togglePlayback,
             onNextTrack: nextTrack,
