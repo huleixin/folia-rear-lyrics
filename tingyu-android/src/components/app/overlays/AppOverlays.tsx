@@ -1,7 +1,9 @@
 import { isAndroidNativeRuntime } from '../../../utils/platform';
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import FloatingPlayerControls from '../../FloatingPlayerControls';
-const SearchWorkspace = lazy(() => import('../search/SearchWorkspace'));
+import { createPreloadableComponent } from '../../../services/startupPreload';
+const searchWorkspaceLoader = createPreloadableComponent(() => import('../search/SearchWorkspace'));
+const SearchWorkspace = searchWorkspaceLoader.Component;
 const DevDebugOverlay = lazy(() => import('../../DevDebugOverlay'));
 const MemoryMonitorWindow = lazy(() => import('../../debug/MemoryMonitorWindow'));
 import NowPlayingToast from './NowPlayingToast';
@@ -20,11 +22,13 @@ import { useNativeMinimalPlayer } from '../../../hooks/useNativeMinimalPlayer';
 type AppOverlaysProps = {
     model: AppOverlaysModel;
 };
-const MobileStageChrome = lazy(() => import('./mobile-stage/MobileStageChrome'));
-const MinimalStage = lazy(() => import('./minimal-stage/MinimalStage'));
+const mobileStageChromeLoader = createPreloadableComponent(() => import('./mobile-stage/MobileStageChrome'));
+const minimalStageLoader = createPreloadableComponent(() => import('./minimal-stage/MinimalStage'));
+const MobileStageChrome = mobileStageChromeLoader.Component;
+const MinimalStage = minimalStageLoader.Component;
 import './mobile-stage/playerStageTransition.css';
 /** Module-scope so the warm-up queue can tell one request from another and only run it once. */
-const warmMinimalStage = () => import('./minimal-stage/MinimalStage');
+const warmMinimalStage = minimalStageLoader.preload;
 
 const AppOverlays: React.FC<AppOverlaysProps> = ({ model }) => {
     countRender('AppOverlays');
@@ -58,6 +62,7 @@ const AppOverlays: React.FC<AppOverlaysProps> = ({ model }) => {
     const ownsStageChrome = suite === 'mobile' && view === 'player' && !!model.mobileStage
         && (playerViewMode === 'stage' || playerViewDetour || stageTransition === 'to-minimal');
     const ownsMinimalStage = suite === 'mobile' && view === 'player' && playerViewMode === 'minimal';
+    const prebindMinimalStage = suite === 'mobile' && playerViewMode === 'minimal';
     const {
         searchOverlay,
         debugOverlay,
@@ -73,7 +78,8 @@ const AppOverlays: React.FC<AppOverlaysProps> = ({ model }) => {
     // that panel natively; until then a hand-off is better than an invisible queue.
     const panelOpen = useAppViewStore(state => state.isPanelOpen);
     const nativeMinimal = useNativeMinimalPlayer({
-        enabled: ownsMinimalStage && !panelOpen,
+        enabled: prebindMinimalStage && !panelOpen,
+        active: ownsMinimalStage && !panelOpen,
         chrome: model.mobileStage,
         controls: floatingControls,
     });

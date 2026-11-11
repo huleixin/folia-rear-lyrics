@@ -26,4 +26,4 @@ export const createCollectionResourceRegistry = (
 });
 
 /** 应用里共用的那一个。 */
-export const collectionResourceRegistry = createCollectionResourceRegistry();
+export const collectionResourceRegistry = createCollectionResourceRegistry({ maxRetained: 8 });

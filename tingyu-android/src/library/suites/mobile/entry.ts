@@ -1,6 +1,6 @@
 import React from 'react';
 import type { LibrarySuiteManifest } from '../../core/contracts/suite';
-import { mobileCollectionLoader } from './mobileCollectionPreload';
+import { mobileAccountLoader, mobileArtistLoader, mobileCollectionLoader } from './mobileCollectionPreload';
 import MobileLibraryStage from './MobileLibraryStage';
 import MobileHome from './MobileHome';
 import { COMPOSE_CHROME } from '../../../services/nativeChrome';
@@ -12,11 +12,11 @@ const mobile: LibrarySuiteManifest = {
     labelKey: 'mobileLibrary.name',
     surfaces: {
         account: {
-            component: React.lazy(() => import('./account/GridAccountSurface')),
+            component: mobileAccountLoader.Component,
             actions: ['account-login', 'account-login-method', 'account-switch-confirm', 'account-select', 'account-logout', 'account-login-diagnostics', 'account-backend-restart'],
         },
         artist: {
-            component: React.lazy(() => import('./MobileArtist')),
+            component: mobileArtistLoader.Component,
             actions: [
                 'play',
                 'enqueue',

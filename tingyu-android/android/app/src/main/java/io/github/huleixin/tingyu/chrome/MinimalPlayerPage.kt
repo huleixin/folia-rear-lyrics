@@ -7,6 +7,8 @@ import androidx.compose.ui.Modifier
 import io.github.huleixin.tingyu.minimal.MinimalPlayerCommands
 import io.github.huleixin.tingyu.minimal.MinimalQueue
 import io.github.huleixin.tingyu.minimal.MinimalPlayerRuntime
+import io.github.huleixin.tingyu.minimal.cover.CoverStackArtwork
+import io.github.huleixin.tingyu.minimal.cover.CoverStackState
 import io.github.huleixin.tingyu.minimal.ui.MinimalPlayerScreen
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/MinimalPlayerPage.kt
@@ -33,6 +35,8 @@ fun MinimalPlayerSurface(
     initialPage: Int = 0,
     /** 每次从浏览页进入播放器 +1：pager 状态按它重建，保证"每次打开都是封面"。 */
     resetToken: Int = 0,
+    coverStack: CoverStackState? = null,
+    coverArtwork: CoverStackArtwork? = null,
     /** pager 停留页变化时上报宿主。 */
     onPageChanged: (Int) -> Unit = {},
     light: Boolean,
@@ -57,6 +61,8 @@ fun MinimalPlayerSurface(
         onSleepAnchor = onSleepAnchor,
         initialPage = initialPage,
         resetToken = resetToken,
+        coverStack = coverStack,
+        coverArtwork = coverArtwork,
         onPageChanged = onPageChanged,
         light = light,
         safeTop = safeTop,

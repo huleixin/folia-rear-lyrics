@@ -98,4 +98,19 @@ class NativeFooterLayoutTest {
         exit.clear();assertFalse(exit.active)
         exit.begin(null){calls++};assertTrue(exit.active);exit.finish();assertEquals(4,calls)
     }
+    @Test fun targetVisibleCoordinatesFooterPresenceDuringStageEnterCollapseAndDetailRoutes(){
+        // Entering stage from home hides nav immediately while keeping mini bound to the returning route.
+        assertFalse(NativeFooterLayout.targetVisible("nav","home","home",pendingStageEntry=true))
+        assertFalse(NativeFooterLayout.targetVisible("nav","stage","home",stageExiting=false))
+        assertTrue(NativeFooterLayout.targetVisible("mini","stage","home",stageExiting=false))
+        // Collapsing stage back to home restores nav during the exit animation; collapsing to playlist keeps nav hidden.
+        assertTrue(NativeFooterLayout.targetVisible("nav","stage","home",stageExiting=true))
+        assertFalse(NativeFooterLayout.targetVisible("nav","stage","collection",stageExiting=true,detail=true,width=393f))
+        assertTrue(NativeFooterLayout.targetVisible("mini","stage","collection",stageExiting=true,detail=true,width=393f))
+        // Artist and settings subview hide target visibility cleanly.
+        assertFalse(NativeFooterLayout.targetVisible("nav","collection","collection",artist=true))
+        assertFalse(NativeFooterLayout.targetVisible("mini","collection","collection",artist=true))
+        assertFalse(NativeFooterLayout.targetVisible("nav","settings","settings",settingsRoot=false))
+        assertFalse(NativeFooterLayout.targetVisible("mini","settings","settings",settingsRoot=true))
+    }
 }

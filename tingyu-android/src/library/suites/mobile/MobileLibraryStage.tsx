@@ -59,8 +59,9 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
     }, [props.onLibraryHome]);
     const nativeGlass = useNativeGlassNav(navRef, !COMPOSE_CHROME && props.isInteractive && !settingsOpen && !searchOpen, `${collectionDetail}:${page}`, nativeNavigate);
     const reducedMotion = useReducedMotionFor('uiMicroMotion');
+    const panelOpen = useAppViewStore(state => state.isPanelOpen);
     const homeView = useAppViewStore(state=>state.view==='home'&&!state.isPanelOpen);
-    const compose = useComposeChrome(navRef,'nav',homeView && !artistDetail && (PREHIDE_COMPOSE_CHROME||props.isInteractive) && !(settingsOpen && settingsSubview),{
+    const compose = useComposeChrome(navRef,'nav',PREHIDE_COMPOSE_CHROME ? !panelOpen : (homeView && !artistDetail && props.isInteractive && !(settingsOpen && settingsSubview)),{
         selected:homeActive?0:libraryActive?1:searchOpen?2:settingsOpen?3:-1,vertical:wide,reducedMotion,
         accent:'#86d8b8',ink:'#eef5ef',labels:{nav0:t('mobileLibrary.recommend'),nav1:t('mobileLibrary.libraryNav'),nav2:t('mobileLibrary.search'),nav3:t('mobileLibrary.settingsNav')},
     },{navigate:nativeNavigate});

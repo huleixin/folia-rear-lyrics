@@ -108,6 +108,7 @@ fun MinimalArtworkView(
     }
 
     // 当前曲的封面 runtime 已经解码过了：先塞进堆叠的缓存，起播那一帧就不会空
+    covers.seed(artwork.songKey, artwork.bitmap)
     LaunchedEffect(artwork.songKey, artwork.bitmap) {
         covers.seed(artwork.songKey, artwork.bitmap)
     }
@@ -118,6 +119,7 @@ fun MinimalArtworkView(
         val corner = (side.value * 0.07f).coerceIn(18f, 30f).dp
         val density = LocalDensity.current
         val sidePx = with(density) { side.toPx() }
+        stack.setSize(sidePx, density.density)
         LaunchedEffect(sidePx, density.density) { stack.setSize(sidePx, density.density) }
         val twoPi = 2f * PI.toFloat()
 

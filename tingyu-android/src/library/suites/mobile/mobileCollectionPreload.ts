@@ -1,15 +1,22 @@
 import { scheduleUiWarmup } from '../../../services/uiWarmup';
+import { registerStartupPreload } from '../../../services/startupPreload';
 import { createElement, lazy, type ComponentType } from 'react';
-import type { LibraryCollectionSurfaceProps } from '../../core/contracts/suite';
+import type { LibraryAccountSurfaceProps } from '../../core/contracts/account';
+import type {
+    LibraryArtistSurfaceProps,
+    LibraryCollectionSurfaceProps,
+} from '../../core/contracts/suite';
 
 // src/library/suites/mobile/mobileCollectionPreload.ts
-type CollectionModule = { default: ComponentType<LibraryCollectionSurfaceProps> };
+type SurfaceModule<P> = { default: ComponentType<P> };
 
 // Share the import with the entry renderer. A fulfilled import must render synchronously:
 // handing an already-fulfilled Promise to React.lazy still suspends on its first render.
-export function createMobileCollectionLoader(load: () => Promise<CollectionModule>) {
-    let resolved: CollectionModule | undefined;
-    let pending: Promise<CollectionModule> | undefined;
+export function createMobileCollectionLoader<P extends object = LibraryCollectionSurfaceProps>(
+    load: () => Promise<SurfaceModule<P>>,
+) {
+    let resolved: SurfaceModule<P> | undefined;
+    let pending: Promise<SurfaceModule<P>> | undefined;
     const preload = () => {
         if (!pending) pending = load().then(module => {
             resolved = module;
@@ -21,13 +28,19 @@ export function createMobileCollectionLoader(load: () => Promise<CollectionModul
         return pending;
     };
     const LazyCollection = lazy(preload);
-    function Component(props: LibraryCollectionSurfaceProps) {
+    function Component(props: P) {
         return createElement(resolved?.default ?? LazyCollection, props);
     }
     return { preload, Component };
 }
 
 export const mobileCollectionLoader = createMobileCollectionLoader(() => import('./MobileCollection'));
+export const mobileArtistLoader = createMobileCollectionLoader<LibraryArtistSurfaceProps>(() => import('./MobileArtist'));
+export const mobileAccountLoader = createMobileCollectionLoader<LibraryAccountSurfaceProps>(() => import('./account/GridAccountSurface'));
+
+registerStartupPreload(mobileCollectionLoader.preload);
+registerStartupPreload(mobileArtistLoader.preload);
+registerStartupPreload(mobileAccountLoader.preload);
 
 // One cancellable idle job after the browsing page has had a frame. Never mount a hidden
 // detail page, fetch playlists, or keep timers running while the app is in the background.

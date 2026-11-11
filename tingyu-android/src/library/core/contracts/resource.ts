@@ -56,6 +56,8 @@ export interface CollectionResource {
     subscribe(listener: () => void): () => void;
     /** 让资源对齐这份集合描述；同一版本重复调用不会重复请求。 */
     ensure(descriptor: LibraryCollectionDescriptor, context: CollectionResourceContext): void;
+    /** 仅从本地缓存预热曲目快照（不触发任何网络请求），供首页首屏歌单秒开。 */
+    warmCache?(descriptor: LibraryCollectionDescriptor, context?: CollectionResourceContext): Promise<boolean>;
     /** 跳过缓存从头重新加载；正在加载时忽略。 */
     reload(): void;
     /** 从中断的 offset 续传后台补页。 */

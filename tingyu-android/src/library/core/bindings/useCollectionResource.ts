@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { SongResult } from '../../../types';
-import type { MediaId } from '../../../types/onlineMusic';
-import type { LibraryCollectionDescriptor } from '../contracts/collection';
+import type { MediaId, OnlineProviderId, ProviderCollection } from '../../../types/onlineMusic';
+import type { LibraryCollectionDescriptor, OnlineGridViewCollectionDescriptor } from '../contracts/collection';
+import type { LibraryHomeCard } from '../contracts/homeModel';
 import type { CollectionResource } from '../contracts/resource';
 import { collectionResourceRegistry } from '../services/collectionResourceRegistry';
 import { createCollectionResource, resolveCollectionResourceKey } from '../services/createCollectionResource';
@@ -53,4 +54,49 @@ export const useCollectionResource = ({
     }, [currentUserId, descriptor, resource]);
 
     return resource;
+};
+
+/** 首页首屏歌单缓存预热：仅把已在本地 IndexedDB 命中的歌单提前装入资源表，不发网络请求。 */
+export const useWarmCachedOnlineCollections = (
+    cards: LibraryHomeCard[],
+    providerId: OnlineProviderId,
+    currentUserId?: MediaId | null,
+    enabled = true,
+) => {
+    useEffect(() => {
+        if (!enabled || !cards.length) return;
+        let cancelled = false;
+        void (async () => {
+            for (const card of cards) {
+                if (cancelled) return;
+                const raw = (card.raw ?? null) as Partial<ProviderCollection> | null;
+                const descriptor: OnlineGridViewCollectionDescriptor = {
+                    source: 'online',
+                    providerId,
+                    id: card.id,
+                    name: card.name,
+                    type: card.type === 'album' ? 'album' : 'playlist',
+                    coverUrl: card.coverUrl,
+                    description: card.description,
+                    trackCount: card.trackCount,
+                    updatedAt: raw?.updatedAt,
+                    tracksUpdatedAt: raw?.tracksUpdatedAt,
+                    creator: raw?.creator,
+                    providerData: raw?.providerData,
+                    raw: card.raw,
+                };
+                const key = resolveCollectionResourceKey(descriptor, currentUserId);
+                const resource = collectionResourceRegistry.peekOrCreate(key, descriptor, () => createCollectionResource(key, descriptor));
+                const release = collectionResourceRegistry.retain(resource);
+                try {
+                    await resource.warmCache?.(descriptor, { currentUserId });
+                } finally {
+                    release?.();
+                }
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [cards, currentUserId, enabled, providerId]);
 };

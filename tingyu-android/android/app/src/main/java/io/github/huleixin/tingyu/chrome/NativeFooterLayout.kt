@@ -14,8 +14,45 @@ package io.github.huleixin.tingyu.chrome
 internal object NativeFooterLayout {
     const val SettingsDepthExitMs = 220
     const val SettingsDepthOffsetDp = 14f
+    const val FooterExitMs = 220
+    const val FooterEnterMs = 250
+    const val FooterStageReturnDelayMs = 90
+    const val FooterStageReturnMs = 280
+    const val NavSlideOffsetDp = 20f
+    const val MiniSlideOffsetDp = 14f
 
     fun settingsRoot(route:String,pageTarget:String,requested:Boolean=true):Boolean = requested&&route=="settings"&&pageTarget=="settings:index"
+
+    /**
+     * 底栏目标可见性（含进入/退出播放页、歌单详情、歌手页及设置页的连续过渡态）。
+     * 进入播放页时底栏立即退场；从播放页收起（stageExiting）时按返回目标路由提前进场。
+     */
+    fun targetVisible(
+        id: String,
+        route: String,
+        returningRoute: String = route,
+        pendingStageEntry: Boolean = false,
+        stageExiting: Boolean = false,
+        detail: Boolean = false,
+        width: Float = 393f,
+        artist: Boolean = false,
+        settingsRoot: Boolean = true,
+        webOverlay: Boolean = false,
+        imeHidden: Boolean = false,
+    ): Boolean = when {
+        webOverlay -> false
+        id != "stage" && imeHidden -> false
+        id == "stage" -> route == "stage" && !pendingStageEntry
+        id == "nav" -> when {
+            pendingStageEntry || (route == "stage" && !stageExiting) -> false
+            route == "stage" && stageExiting -> visible("nav", returningRoute, detail, width, artist = artist, settingsRoot = settingsRoot)
+            else -> visible("nav", route, detail, width, artist = artist, settingsRoot = settingsRoot)
+        }
+        else -> when {
+            route == "stage" || pendingStageEntry -> visible("mini", returningRoute, detail, width, artist = artist, settingsRoot = settingsRoot)
+            else -> visible("mini", route, detail, width, artist = artist, settingsRoot = settingsRoot)
+        }
+    }
 
     fun visible(id:String,route:String,detail:Boolean,width:Float,artist:Boolean=false,settingsRoot:Boolean=true):Boolean = when {
         route=="collection"&&artist -> false

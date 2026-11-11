@@ -5,7 +5,7 @@ import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import MobileSettingsLanding from '../../modal/settings/MobileSettingsLanding';
 import type SettingsModalType from '../../modal/SettingsModal';
 import { NATIVE_FIRST } from '../../../services/nativePages';
-import { loadSettingsModule } from './settingsModule';
+import { loadSettingsModule, peekSettingsModule } from './settingsModule';
 import NativeSettingsLoading from '../../modal/settings/NativeSettingsLoading';
 
 // src/components/app/dialogs/SettingsDialogHost.tsx
@@ -16,8 +16,9 @@ export default function SettingsDialogHost(props: React.ComponentProps<typeof Se
     const wide = useMediaQuery('(min-width: 768px)') && !phoneFit;
     const index = suite === 'mobile' && (!wide||NATIVE_FIRST) && (!props.initialTab || props.initialTab === 'options')
         && !props.initialSubview && !props.initialAnchor && !props.initialVisualizerSection;
+    const ResolvedSettingsModal = peekSettingsModule()?.default ?? SettingsModal;
     return index ? <MobileSettingsLanding onClose={props.onClose} />
         : <Suspense fallback={NATIVE_FIRST?<NativeSettingsLoading section={props.initialSubview} onClose={props.onClose}/>:suite === 'mobile' ? <MobileSettingsLanding onClose={props.onClose} /> : null}>
-            <SettingsModal {...props} />
+            <ResolvedSettingsModal {...props} />
         </Suspense>;
 }

@@ -4,6 +4,7 @@ import type { LibraryHomeSurfaceProps } from '../../../core/contracts/suite';
 import type { LibraryHomeSources } from '../../../core/bindings/useLibraryHomeSources';
 import type { LibraryHomeCard } from '../../../core/contracts/homeModel';
 import { useLibraryHomeOnline } from '../../../core/bindings/useLibraryHomeOnline';
+import { useWarmCachedOnlineCollections } from '../../../core/bindings/useCollectionResource';
 import { buildOnlinePlaylistCards, isPersonalFmCard } from '../../../core/model/homeCards';
 import { collectionKey } from '../../../core/model/collectionIdentity';
 import { useMobileLibraryStore } from '../../../../stores/useMobileLibraryStore';
@@ -29,6 +30,8 @@ export default function NativeHomeOverview({root,props,sources,onReady,onSources
     const recent=useMobileLibraryStore(s=>s.recentTracks);
     const play=useLibraryTrackPlayback(props.onPlaySong,props.onTogglePlayback);
     const playlists=useMemo(()=>buildOnlinePlaylistCards(sources.online.collections,t),[sources.online.collections,t]);
+    const topPlaylists=useMemo(()=>playlists.slice(0,4),[playlists]);
+    useWarmCachedOnlineCollections(topPlaylists,sources.online.providerId,sources.online.user?.id,sources.online.accountView!=='resolving');
     const [all,setAll]=useState(false),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
     const [menu,setMenu]=useState<{kind:'track';song:SongResult}|{kind:'playlist';card:LibraryHomeCard}|null>(null);
     const pending=useRef(false),provider=useRef(sources.online.providerId);provider.current=sources.online.providerId;

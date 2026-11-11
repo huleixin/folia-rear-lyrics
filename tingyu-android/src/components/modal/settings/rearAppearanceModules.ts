@@ -1,4 +1,5 @@
 import {scheduleUiWarmup} from '../../../services/uiWarmup';
+import {registerStartupPreload} from '../../../services/startupPreload';
 import {navigationMark} from '../../../services/navigationTiming';
 
 // src/components/modal/settings/rearAppearanceModules.ts
@@ -16,3 +17,4 @@ export function loadRearThemeEditor(){
     })());
 }
 export const warmRearThemeEditor=()=>scheduleUiWarmup(loadRearThemeEditor);
+registerStartupPreload(loadRearThemeEditor);

@@ -39,12 +39,12 @@ internal class MinimalPlayerMorph(val panel: Rect, val cover: Rect, val entry: S
         val x=((entry.value*SaltPlayerTimeline.EnterMs-start)/(end-start)).coerceIn(0f,1f)
         return x*x*(3-2*x)
     }
-    fun shellAlpha()=enterRamp(0f,35f)*(if(exit.active)1f-ramp(210f,440f)else 1f)
+    fun shellAlpha()=enterRamp(0f,35f)*(if(exit.active)1f-ramp(140f,380f)else 1f)
     fun decorations()=if(exit.active)enterRamp(600f,980f)*(1f-ramp(0f,100f)) else enterRamp(600f,980f)
     fun coverAlpha()=if(exit.active)1f-ramp(380f,500f) else 1f
     fun miniAlpha(): Float {
         val before=1f-enterRamp(0f,35f)
-        return if(exit.active)before+(1-before)*ramp(210f,400f) else before
+        return if(exit.active)before+(1-before)*ramp(120f,340f) else before
     }
     fun sectionAlpha(role: String): Float {
         if(!active())return 1f

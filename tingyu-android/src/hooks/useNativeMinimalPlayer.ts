@@ -10,7 +10,7 @@ import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
 import { useAudioToolsStore, QUALITY_LABELS } from '../stores/useAudioToolsStore';
 import { openSettings, useSettingsModalStore } from '../stores/useSettingsModalStore';
 import i18n from '../i18n/config';
-import { flushNativeShellRoute } from '../services/nativeShellCommit';
+import { flushNativeShellRoute, scheduleNativeShellRoute } from '../services/nativeShellCommit';
 import { resolveQualityBadges } from '../components/app/overlays/minimal-stage/minimalQuality';
 import { resolvePlayingQualityLevel } from '../components/app/overlays/minimal-stage/qualityBadgeSpecs';
 import { nativeAudioSpecStore } from '../services/nativeAudioElement';
@@ -112,10 +112,12 @@ const settingsOpen = (): boolean => useSettingsModalStore.getState().settingsMod
 
 export function useNativeMinimalPlayer({
     enabled,
+    active = enabled,
     chrome,
     controls,
 }: {
     enabled: boolean;
+    active?: boolean;
     chrome?: StageChrome | null;
     controls?: Controls | null;
 }): NativeMinimalPlayer {
@@ -268,6 +270,7 @@ export function useNativeMinimalPlayer({
                     ownsRef.current = true;
                     setComposeMinimalOwnership(true);
                     document.documentElement.dataset.nativePlayerMotion = 'true';
+                    scheduleNativeShellRoute();
                     ownershipLog('own', `Compose 接管（桥帧被接受，track=${frame.trackKey.slice(0, 40)}）`);
                 }
                 failures = 0;
@@ -428,6 +431,8 @@ export function useNativeMinimalPlayer({
         current.controls?.audioSrc ? 'a' : '',
         useAudioSettingsStore.getState().audioQuality,
         useAudioSettingsStore.getState().audioEqualizerSettings.enabled ? 'e' : '',
+        palette ? palette.join(',') : '',
+        active ? 'v' : '',
     ].join('|');
     useEffect(() => {
         if (!enabled || !identity) return;

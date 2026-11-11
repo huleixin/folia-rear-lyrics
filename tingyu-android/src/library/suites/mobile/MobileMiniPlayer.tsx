@@ -28,6 +28,7 @@ import { useSettingsModalStore } from '../../../stores/useSettingsModalStore';
 import { useAudioSettingsStore } from '../../../stores/useAudioSettingsStore';
 import { useAudioToolsStore, QUALITY_LABELS } from '../../../stores/useAudioToolsStore';
 import { QualityButton } from '../../../components/audio-tools/AudioToolButtons';
+import { PREHIDE_COMPOSE_CHROME } from '../../../services/nativeChrome';
 
 // src/library/suites/mobile/MobileMiniPlayer.tsx
 // Transport actions stay with the host; gestures and the tiny progress ring never re-render the page.
@@ -56,6 +57,7 @@ export default function MobileMiniPlayer({
         });
     };
     const active = useAppViewStore(s=>s.view==='home'&&!s.isPanelOpen);
+    const panelOpen = useAppViewStore(s=>s.isPanelOpen);
     const settingsOpen = useSettingsModalStore(s=>s.settingsModalState.isOpen);
     const duration = usePlaybackStore(selectDisplayDuration);
     const quality = useAudioSettingsStore(s=>s.audioQuality);
@@ -68,8 +70,8 @@ export default function MobileMiniPlayer({
     const recoveryHold = !recoveryReady() && !song;
     // 搜索页现在也显示迷你条（2026-11-09）：封面解析不能再看 searchOpen，
     // 否则在搜索页点「下一首」会掉封面。设置页仍不需要。
-    const nativeCover = useNativeChromeCover(cover,active&&!settingsOpen);
-    const compose = useComposeChrome(glassRef,'mini',active&&!settingsOpen,{
+    const nativeCover = useNativeChromeCover(cover,PREHIDE_COMPOSE_CHROME || (active&&!settingsOpen));
+    const compose = useComposeChrome(glassRef,'mini',PREHIDE_COMPOSE_CHROME ? !panelOpen : (active&&!settingsOpen),{
         title:song?.name||t('mobileLibrary.nothingPlaying'),artist:song?getSongArtistLabel(song):t('mobileLibrary.chooseMusic'),cover:nativeCover,
         trackKey:song?getPlaybackSongKey(song):'',playing:state===PlayerState.PLAYING,disabled:!song||!onTogglePlayback,
         sleepPreferredMinutes,

@@ -140,6 +140,10 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
         sync.current = schedule;
         void canUseNativePages().then(async supported => {
             if (!supported || disposed) return;
+            // Publish the initial page packet before awaiting addListener so the first
+            // navigation to a playlist, search, or settings page saves a bridge round-trip.
+            started = true;
+            measure();
             listener = await nativePages.addListener('pageAction', event => {
                 const current = latest.current;
                 if(disposed||!current.active||event.id!==id)return;
@@ -157,7 +161,7 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
             navigationMark('page-listener-ready');
             navigationDetail('page-lifecycle-owner', { route:id, ...nativePageLifecycles[id] });
             if (disposed) { void listener.remove(); return; }
-            started = true; resize = new ResizeObserver(schedule); resize.observe(node);
+            resize = new ResizeObserver(schedule); resize.observe(node);
             mutation = new MutationObserver(records => {
                 if (records.some(record => record.type === 'childList'
                     ? [...record.addedNodes, ...record.removedNodes].some(item => item instanceof Element &&

@@ -118,6 +118,8 @@ fun MinimalPlayerScreen(
      * 可以传进来 —— 动画进度、卡片层位、当前速度都在里面。
      */
     coverStack: CoverStackState? = null,
+    /** 宿主级封面位图缓存：跨进出保留已解码的堆叠位图，冷启动首帧直接命中。 */
+    coverArtwork: CoverStackArtwork? = null,
     /** pager 停留页变化时上报宿主。 */
     onPageChanged: (Int) -> Unit = {},
     light: Boolean,
@@ -188,8 +190,9 @@ fun MinimalPlayerScreen(
     //
     // 这一层只做装配。四个切歌入口（左滑 / 右滑 / 上一首 / 下一首）与"播放器自己切歌"
     // 全部走同一个 controller，所以不会出现两套手感，也不会一次切歌发两条命令。
-    val coverCaches = remember(context) { CoverStackArtwork(context) }
-    DisposableEffect(coverCaches) { onDispose { coverCaches.release() } }
+    val coverCaches = remember(context, coverArtwork) { coverArtwork ?: CoverStackArtwork(context) }
+    DisposableEffect(coverCaches, coverArtwork) { onDispose { if (coverArtwork == null) coverCaches.release() } }
+    coverCaches.seed(artwork.songKey, artwork.bitmap)
     val coverStackState = remember(coverStack) { coverStack ?: CoverStackState() }
     // 控制器**必须**跨重组保持同一个实例：它持有"这次切歌等的是哪一首"这类动画状态，
     // 一旦被重建就会忘掉，动画跑到终点时找不到该推进哪张卡片。
@@ -201,7 +204,11 @@ fun MinimalPlayerScreen(
             artwork = coverCaches,
             sendNext = { requestId -> latestCommands.value.next(requestId) },
             sendPrevious = { requestId -> latestCommands.value.previous(requestId) },
-        )
+        ).also {
+            if (coverStackState.cards.isEmpty() && playback.track.key.isNotEmpty()) {
+                it.sync(playback.track, queue)
+            }
+        }
     }
     // 动画逐帧推进。相位变了才起循环；一帧一次 graphicsLayer 写入，不进重组。
     LaunchedEffect(coverStackState, coverStackState.phase) {

@@ -284,11 +284,41 @@ export const createOnlineCollectionResource = (key: string, deps: OnlineCollecti
                 void load();
                 return;
             }
+            if (!state.get().detail) {
+                fetchDetail(next);
+            }
             if (pausedSyncOffset !== null && !loading) {
                 void startSync(state.get().tracks, resolveOnlineTracksTargetTime(next), undefined, pausedSyncOffset);
             } else if (!loading && !refreshing && supportsTimedTracksCache(next) && !resolveOnlineTracksTargetTime(next)
                 && !areTimedTracksFresh(fetchedAt)) {
                 void load({ bypassCache: true, preserveVisible: true });
+            }
+        },
+        warmCache: async (next, nextContext = {}) => {
+            if (disposed || next.source !== 'online') return false;
+            if (started && state.get().status === 'ready') return true;
+            try {
+                const targetTime = resolveOnlineTracksTargetTime(next);
+                const cached = await deps.readCache(next, nextContext.currentUserId);
+                if (disposed || started) return false;
+                const timedCache = targetTime === 0 && supportsTimedTracksCache(next) && isTimedTracksCacheReadable(cached);
+                if (!(isOnlineTracksCacheValid(cached, targetTime) || timedCache)) return false;
+                descriptor = next;
+                context = nextContext;
+                started = true;
+                fetchedAt = cached.fetchedAt ?? 0;
+                upstreamOffset = cached.nextOffset ?? cached.tracks.length;
+                pausedSyncOffset = cached.hasMore ? upstreamOffset : null;
+                state.set({
+                    status: 'ready',
+                    error: null,
+                    sync: { status: 'none' },
+                    tracks: withoutTombstones(cached.tracks),
+                    revision: collectionRevision(next),
+                }, 'urgent');
+                return true;
+            } catch {
+                return false;
             }
         },
         reload: () => {

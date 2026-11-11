@@ -138,14 +138,12 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     fun minimalFrame(value: JSONObject): Boolean {
         minimal.onBridgeFrame(value)
         val flagOn = minimalPlayerEnabled()
-        val routeMatch = destination == "stage" && playerPresentation == "minimal"
-        val accept = flagOn && routeMatch && !webOverlay
+        val accept = flagOn && !webOverlay
         if (accept != lastFrameAccept) {
             lastFrameAccept = accept
             val reason = when {
                 accept -> "accept: Compose 绘制极简页"
                 !flagOn -> "reject: COMPOSE_MINIMAL_PLAYER=false → WebView 极简页"
-                !routeMatch -> "reject: 路由不在极简页（destination=$destination presentation=$playerPresentation）"
                 else -> "reject: WebView 弹层打开 → 暂时让位"
             }
             android.util.Log.i("TingyuMinimal", "$reason at=${System.currentTimeMillis()}")
@@ -215,6 +213,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private fun clearStartupNavigation(){startupNavigation.clear();startupSelected=null;startupToast?.cancel();startupToast=null}
 
     private val stageExit=NativeStageExit()
+    private val minimalCoverStack = io.github.huleixin.tingyu.minimal.cover.CoverStackState()
+    private val minimalCoverArtwork = io.github.huleixin.tingyu.minimal.cover.CoverStackArtwork(web.context)
     /** 原生队列抽屉的开合。它是**宿主**的状态：任何页面都能打开同一张表。 */
     private var queueOpen by mutableStateOf(false)
     /** 队列列表滚动状态：宿主持有，抽屉关开（去极简页再回来）不换实例、浏览位置不跳。 */
@@ -416,7 +416,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // pager 状态随之重建，首次组合就落在封面页（需求二）。设置页返回与完整舞台往返
         // 不算新会话（前者 destination=="settings"，后者 from 已是 stage），页面状态保持。
         if(next=="stage"&&from!="stage"&&from!="settings"){
-            minimalSessionToken++
+            if(minimalCurrentPage!=0)minimalSessionToken++
             minimalLastPage=0;minimalCurrentPage=0
         } else if(next=="stage"&&from=="settings"&&value.has("minimalPage")){
             // 从设置返回：沿用 JS 记下的页，进出设置不重置。
@@ -623,7 +623,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         if (position.isFinite()) clocks[current.id] = ChromeTimeline(position.coerceAtLeast(0.0), current.duration,current.playing,SystemClock.elapsedRealtime())
     }
     /** 底栏延迟摘除的代际令牌：新一次 remove/挂起都会作废尚未执行的延迟任务。 */
-    private var chromeRemovalSerial = 0L
+    private val chromeRemovalSerial = mutableMapOf<String, Long>()
     fun remove(id: String, session: String) {
         frameOrder.retire(id,session)
         if (surfaces[id]?.session == session) {
@@ -635,19 +635,20 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             // 路由又回到 home，JS 重挂载会用新会话 update 覆盖同一 id，这次延迟任务
             // 因会话不匹配自动失效，不会闪掉底栏。
             val entryPending = (id == "nav" || id == "mini") && !webOverlay &&
-                (pendingStageEntry || destination == "stage")
+                (pendingStageEntry || destination == "stage" || stageExit.active)
             StartupTrace.detail("chrome-remove"){put("id",id);put("session",session);put("delayed",entryPending);put("route",destination)}
             if (entryPending) {
-                val token = ++chromeRemovalSerial
+                val token = (chromeRemovalSerial[id] ?: 0L) + 1L
+                chromeRemovalSerial[id] = token
                 web.postDelayed({
-                    if (token == chromeRemovalSerial && surfaces[id]?.session == session) {
+                    if (token == chromeRemovalSerial[id] && !pendingStageEntry && destination != "stage" && !stageExit.active && surfaces[id]?.session == session) {
                         surfaces.remove(id); clocks.remove(id)
                     }
                 }, CHROME_ENTRY_GRACE_MS)
             } else { surfaces.remove(id); clocks.remove(id) }
         }
     }
-    fun suspend() { navigationActionSerial++;chromeRemovalSerial++;clearStartupNavigation();active = false;sleepMenuOpen=false;stageExit.clear();io.github.huleixin.tingyu.NativeKeepScreenOn.setLyrics(false) }
+    fun suspend() { navigationActionSerial++;chromeRemovalSerial.clear();clearStartupNavigation();active = false;sleepMenuOpen=false;stageExit.clear();io.github.huleixin.tingyu.NativeKeepScreenOn.setLyrics(false) }
     // 回到前台重读一次权威：后台期间到达的歌词、以及引擎在后台走掉的位置都必须立刻反映出来。
     // 诊断（启动专项）：updates/pages 计数能区分暖恢复（计数累积）与 Activity 重建/进程重建
     // （host 重建后归零，updates 从小数字重新爬升）；配合 CrashDiagnostics 的 renderer-gone
@@ -699,6 +700,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // 才由原生画。桥不在时这里什么都不画，屏幕上是原来的 WebView 极简页 —— 不会两个都在。
         // 只订阅这条低频流，整个场景不跟着每秒的状态帧重建。
         val minimalBound by minimal.bound.collectAsState()
+        val minimalArtwork by minimal.artwork.collectAsState()
+        SideEffect { minimalCoverArtwork.seed(minimalArtwork.songKey, minimalArtwork.bitmap) }
         val hostPresentations = remember(minimal) { minimal.state.hostPresentations() }
         val playerHost by hostPresentations.collectAsState(initial = minimal.state.value.hostPresentation())
         val queueState by minimal.queue.collectAsState()
@@ -734,6 +737,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         }
         val nativeMinimalCollapse=stageExit.active&&stageExit.minimal
         val page=presented?:if(stageExit.active)stageExit.returning else null
+        val browsingPage = page ?: retained.lastBrowsing()
+        val browsingRoute = browsingPage?.id ?: "home"
+        val isArtistRoute = pageTarget.startsWith("collection:artist:")
+        var startupWarmupDone by remember { mutableStateOf(!brandLaunch.active) }
         // 第 16 轮：Compose 将接管极简页（能力开关在、路由到 stage、presentation=minimal、无顺访/弹层）。
         // 这是入口动画唯一的拥有者判定：
         //   · WebView 不再升层也不再整屏上滑 —— 它这时是首页底下的备用层，动它是纯浪费，
@@ -742,7 +749,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         //     提前抽掉它们就是真机上看到的「首页跳位」。
         val composeOwnsMinimalEntry = minimalPlayerEnabled() && destination=="stage" &&
             playerPresentation=="minimal" && !stageAboveMinimal && !webOverlay
-        val brandAlpha = brandLaunchAlpha(brandLaunch, page != null || minimalOwns,
+        val brandAlpha = brandLaunchAlpha(brandLaunch, (page != null || minimalOwns) && startupWarmupDone,
             reducedMotion || brandLaunch.reduced, web,
             webContentReady = webOverlay || destination=="web" || destination=="stage"&&!composeOwnsMinimalEntry)
         val settingsRoot = NativeFooterLayout.settingsRoot(destination,pageTarget,settingsRootRequested)
@@ -750,11 +757,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // 经典 WebView 舞台入场仍在 commit 时按路由规则收起。
         val displayedSurfaces=if(settingsHandoff!=null&&handoffFooter!=null)
             surfaces.values.filter{it.id!="stage"}+listOfNotNull(handoffFooter) else surfaces.values.toList()
-        val visible = if (!webOverlay&&(!pendingStageEntry||destination!="stage"||playerEntering)) displayedSurfaces.filter {
+        val visible = if (!webOverlay&&(!pendingStageEntry||destination!="stage"||playerEntering||stageExit.active)) displayedSurfaces.filter {
             it.enabled && NativeFooterLayout.visible(
                 it.id,
-                if((composeOwnsMinimalEntry||playerEntering)&&it.id!="stage")(page?.id?:"home") else destination,
-                collectionDetail,it.viewportWidth,artist=pageTarget.startsWith("collection:artist:"),settingsRoot=settingsRoot) &&
+                if((composeOwnsMinimalEntry||playerEntering||stageExit.active)&&it.id!="stage")browsingRoute else destination,
+                collectionDetail,it.viewportWidth,artist=isArtistRoute,settingsRoot=settingsRoot) &&
                 (it.id!="stage"||it.rect.width>0&&it.rect.height>0) &&
                 !(composeOwnsMinimalEntry&&it.id=="stage")
         } else emptyList()
@@ -799,16 +806,67 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 if(layout.toString()!=stageLayout.toString()){stageLayout=layout;stageLayoutListener?.invoke(layout)}
             }
             var lastSettingsNav by remember { mutableStateOf<ChromeSurface?>(null) }
-            SideEffect { if(destination=="stage"||webOverlay)lastSettingsNav=null }
-            val settingsNavAlpha by animateFloatAsState(
-                targetValue=if(destination=="settings"&&!settingsRoot)0f else 1f,
-                animationSpec=tween(if(reducedMotion)0 else NativeFooterLayout.SettingsDepthExitMs),
-                label="settings-nav-depth-alpha",
+            val retainedFooter = remember { mutableStateMapOf<String, ChromeSurface>() }
+            SideEffect {
+                if (webOverlay) retainedFooter.clear()
+                else displayedSurfaces.forEach { if (it.enabled && (it.id == "nav" || it.id == "mini")) retainedFooter[it.id] = it }
+            }
+            val navTarget = NativeFooterLayout.targetVisible(
+                id = "nav",
+                route = destination,
+                returningRoute = browsingRoute,
+                pendingStageEntry = pendingStageEntry,
+                stageExiting = stageExit.active,
+                detail = collectionDetail,
+                width = width,
+                artist = isArtistRoute,
+                settingsRoot = settingsRoot,
+                webOverlay = webOverlay,
+                imeHidden = footerHiddenForIme,
             )
-            val settingsNavOffset by animateFloatAsState(
-                targetValue=if(destination=="settings"&&!settingsRoot)NativeFooterLayout.SettingsDepthOffsetDp else 0f,
-                animationSpec=tween(if(reducedMotion)0 else NativeFooterLayout.SettingsDepthExitMs),
-                label="settings-nav-depth-offset",
+            val miniTarget = NativeFooterLayout.targetVisible(
+                id = "mini",
+                route = destination,
+                returningRoute = browsingRoute,
+                pendingStageEntry = pendingStageEntry,
+                stageExiting = stageExit.active,
+                detail = collectionDetail,
+                width = width,
+                artist = isArtistRoute,
+                settingsRoot = settingsRoot,
+                webOverlay = webOverlay,
+                imeHidden = footerHiddenForIme,
+            )
+            val navPresence by animateFloatAsState(
+                targetValue = if (navTarget) 1f else 0f,
+                animationSpec = if (reducedMotion || !active || !focused) snap()
+                    else if (navTarget && stageExit.active) tween(
+                        durationMillis = NativeFooterLayout.FooterStageReturnMs,
+                        delayMillis = NativeFooterLayout.FooterStageReturnDelayMs,
+                        easing = androidx.compose.animation.core.CubicBezierEasing(0.22f, 1f, 0.36f, 1f),
+                    )
+                    else if (navTarget) tween(
+                        durationMillis = NativeFooterLayout.FooterEnterMs,
+                        easing = androidx.compose.animation.core.CubicBezierEasing(0.22f, 1f, 0.36f, 1f),
+                    )
+                    else tween(
+                        durationMillis = NativeFooterLayout.FooterExitMs,
+                        easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0f, 0.67f, 0f),
+                    ),
+                label = "nav-footer-presence",
+            )
+            val miniPresence by animateFloatAsState(
+                targetValue = if (miniTarget) 1f else 0f,
+                animationSpec = if (reducedMotion || !active || !focused) snap()
+                    else if (miniTarget) tween(
+                        durationMillis = NativeFooterLayout.FooterEnterMs,
+                        easing = androidx.compose.animation.core.CubicBezierEasing(0.22f, 1f, 0.36f, 1f),
+                    )
+                    else tween(
+                        durationMillis = NativeFooterLayout.FooterExitMs,
+                        easing = androidx.compose.animation.core.CubicBezierEasing(0.32f, 0f, 0.67f, 0f),
+                    ),
+                label = "mini-footer-presence",
             )
             val pageFooterTops=if(footerHiddenForIme)emptyList()else listOf("nav","mini").mapNotNull{id->
                 val hasSurface=visible.any{it.id==id}||ChromeBootSeed.shouldSeed(id,destination,firstHomeFrame,webOverlay,liveChrome)
@@ -818,6 +876,24 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             }
             val bootId=if(destination=="home"&&selectedTab==1)"library"else if(destination in setOf("home","collection","search","settings"))destination else "home"
             val bootPage=remember(bootId,width,height,safeTop,safeBottom){cache.page(bootId,width,height,safeTop).copy(safeBottom=safeBottom)}
+            if (brandLaunch.active && !startupWarmupDone) {
+                StartupSurfaceWarmup(
+                    cache = cache,
+                    width = width,
+                    height = height,
+                    safeTop = safeTop,
+                    safeBottom = safeBottom,
+                    minimal = minimal,
+                    minimalCommands = minimalCommands,
+                    queueState = queueState,
+                    coverStack = minimalCoverStack,
+                    coverArtwork = minimalCoverArtwork,
+                    playerArtwork = playerArtwork,
+                    interfaceLight = interfaceLight,
+                    minimalEnabled = minimalPlayerEnabled(),
+                    onDone = { startupWarmupDone = true },
+                )
+            }
             // Historical diagnostic groups retain the original whole-scene sampling path.
             // Normal builds exclude WebView from native-page sampling and gate stage recording.
             // Startup elevates only the retained WebView; native page/footer render underneath.
@@ -960,26 +1036,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             // 做法：mini 消失后保留它上一帧的数据 170ms 只做透明度收尾；位置仍由
             // chromeFooterRect 算，所以不会上下跳；节点不重建，玻璃图层也不重分配。
             // 只在 settings 生效 —— 舞台/详情/启动期完全走原来的路径，不碰既有的闪烁修复。
-            val miniNow = visible.firstOrNull { it.id == "mini" }
-            var lastMini by remember { mutableStateOf<ChromeSurface?>(null) }
-            SideEffect { if(destination=="stage"||webOverlay)lastMini=null else if (miniNow != null) lastMini = miniNow }
-            var miniGhost by remember { mutableStateOf(false) }
-            LaunchedEffect(miniNow, destination, webOverlay) {
-                miniGhost = false
-                if (miniNow == null && destination == "settings" && !webOverlay && lastMini != null) {
-                    miniGhost = true
-                    delay(if (reducedMotion) 0L else 170L)
-                    miniGhost = false
-                }
-            }
-            // 目标只看「是否真的可见」：进设置 1→0，回一级页 0→1（节点重新组合时也接着这个值淡入）。
-            val miniFade by animateFloatAsState(
-                targetValue = if (miniNow != null) 1f else 0f,
-                animationSpec = tween(if (reducedMotion) 0 else 170),
-                label = "mini-fade",
-            )
             val liveById = visible.associateBy { it.id }.toMutableMap()
-            if (miniGhost) lastMini?.let { liveById["mini"] = it }
             for(id in listOf("nav","mini","stage")) key(id) {
                 val live = liveById[id]
                 val seeded = remember("seed",id,live,width,height,safeBottom,safeTop,selectedTab,startupSelected,firstHomeFrame,destination,webOverlay,collectionDetail) {
@@ -989,10 +1046,17 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         cache.chrome(id,width,height,safeBottom,safeTop).let{if(id=="nav")it.copy(selected=startupSelected?:selectedTab)else it}
                     else null
                 }
+                val miniStageAlpha = if(destination=="stage") { if(playerPresentation=="minimal"&&minimalMorph!=null)minimalMorph.miniAlpha() else (1f-playerReveal.value*4f).coerceIn(0f,1f) } else 1f
+                val retainFooter = when(id) {
+                    "nav" -> navTarget || navPresence > 0.001f
+                    "mini" -> (miniTarget || miniPresence > 0.001f) && (destination != "stage" || miniStageAlpha > 0.001f || stageExit.active || playerEntering)
+                    else -> false
+                }
                 // 两路数据里最多只有一个存在：live 优先，缺席时才用 seed；都没有就不画。
-                val original = live ?: seeded ?: if(id=="nav"&&destination=="settings")lastSettingsNav else null
+                val original = live ?: seeded ?: if(retainFooter) (retainedFooter[id] ?: if(id=="nav")lastSettingsNav else null) else null
                 if (original != null) {
-                if(id=="nav"&&live!=null)SideEffect{lastSettingsNav=live}
+                if(id=="nav"&&live!=null)SideEffect{lastSettingsNav=live;retainedFooter["nav"]=live}
+                if(id=="mini"&&live!=null)SideEffect{retainedFooter["mini"]=live}
                 val navSelection=startupSelected?:when(destination){"search"->2;"settings"->3;else->selectedTab.coerceIn(0,1)}
                 val surface = original.interfacePaint(palette)
                     .let{if(id=="nav")it.copy(selected=navSelection,disabled=footerHiddenForIme||live!=null&&it.disabled||destination=="settings"&&!settingsRoot)else it}
@@ -1021,20 +1085,29 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         if(id=="stage"&&width>height)translationY=(height-rect.top)*density.density*(1f-stagePresence)
                         alpha = when {
                             id!="stage"&&footerHiddenForIme -> 0f
-                            id=="mini" -> rect.alpha * miniFade * (if(destination=="stage") { if(playerPresentation=="minimal"&&minimalMorph!=null)minimalMorph.miniAlpha() else (1f-playerReveal.value*4f).coerceIn(0f,1f) } else 1f)
-                            id=="nav"&&destination=="settings" -> rect.alpha * settingsNavAlpha
+                            id=="mini" -> rect.alpha * miniPresence * miniStageAlpha
+                            id=="nav" -> rect.alpha * navPresence
                             else -> rect.alpha
                         }
-                        if(id=="nav"&&destination=="settings")translationY=with(density){settingsNavOffset.dp.toPx()}
+                        if(id=="nav") {
+                            translationY = with(density) { (NativeFooterLayout.NavSlideOffsetDp * (1f - navPresence)).dp.toPx() }
+                            val navScale = 0.96f + 0.04f * navPresence
+                            scaleX = navScale; scaleY = navScale
+                        } else if(id=="mini" && destination != "stage" && !pendingStageEntry && !stageExit.active) {
+                            translationY = with(density) { (NativeFooterLayout.MiniSlideOffsetDp * (1f - miniPresence)).dp.toPx() }
+                        }
                     }
                     val actions: (String,Double)->Unit = actions@ { action,value ->
                         if(settingsHandoff!=null)return@actions
                         if(id=="stage"&&surface.controlsHidden)return@actions
                         if(id!="stage"&&footerHiddenForIme)return@actions
                         if(id=="nav"&&destination=="settings"&&!settingsRoot)return@actions
+                        if(id=="nav"&&(!navTarget||navPresence<0.85f))return@actions
+                        if(id=="mini"&&(!miniTarget||miniPresence<0.85f||destination=="stage"||pendingStageEntry||stageExit.active))return@actions
+                        val activeLive = live ?: surfaces[id]?.takeIf { it.enabled }
                         // seed 不是 live 控制条：只接受启动期导航，
                         // 缓存快照绝不触发业务命令（其余一律丢弃）。
-                        if (live == null) {
+                        if (activeLive == null) {
                             if(action=="interactionStart")NavigationTiming.markGesture("startup-nav-press",-1.0)
                             else if(action=="interactionEnd")NavigationTiming.markGesture("startup-nav-release",-1.0)
                             else if(id=="nav"&&action=="navigate"&&active&&startupNavigation.request(value.toInt())){
@@ -1122,6 +1195,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     // 完整舞台往返 / 设置往返不换令牌，页面状态与进出动画保持原样。
                     initialPage = 0,
                     resetToken = minimalSessionToken,
+                    coverStack = minimalCoverStack,
+                    coverArtwork = minimalCoverArtwork,
                     onPageChanged = { page ->
                         minimalCurrentPage = page
                         if(minimalLastPage!=page){minimalLastPage=page;listener.onAction("minimal",minimal.session(),"pageChanged",page.toDouble())}
@@ -1273,7 +1348,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         routeFence.close()
         webSamplingLayer.close()
         graphics.close()
-        chromeRemovalSerial++
+        chromeRemovalSerial.clear()
+        minimalCoverArtwork.release()
         val compose = host ?: return
         active = false;navigationActionSerial++;clearStartupNavigation();stageExit.clear(); surfaces.clear();liveChrome.clear(); clocks.clear();pages.clear();retained.clear();presented=null
         panelHost.clear()
@@ -1287,6 +1363,73 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
 }
 
 private fun navigationTrace(phase:String){NavigationTiming.mark(phase);if(android.util.Log.isLoggable("TingyuNavigation",android.util.Log.DEBUG))android.util.Log.d("TingyuNavigation","$phase at=${System.currentTimeMillis()}")}
+
+@Composable
+private fun StartupSurfaceWarmup(
+    cache: NativeShellCache,
+    width: Float,
+    height: Float,
+    safeTop: Float,
+    safeBottom: Float,
+    minimal: io.github.huleixin.tingyu.minimal.MinimalPlayerRuntime,
+    minimalCommands: io.github.huleixin.tingyu.minimal.MinimalPlayerCommands,
+    queueState: io.github.huleixin.tingyu.minimal.MinimalQueue,
+    coverStack: io.github.huleixin.tingyu.minimal.cover.CoverStackState,
+    coverArtwork: io.github.huleixin.tingyu.minimal.cover.CoverStackArtwork,
+    playerArtwork: PlayerArtworkAnchor,
+    interfaceLight: Boolean,
+    minimalEnabled: Boolean,
+    onDone: () -> Unit,
+) {
+    val warmupPages = remember(width, height, safeTop, safeBottom) {
+        val collectionJson = JSONObject()
+            .put("id", "collection").put("session", "warmup").put("generation", 0).put("revision", 0)
+            .put("enabled", true).put("left", 0).put("top", 0).put("width", width).put("height", height)
+            .put("viewportWidth", width).put("safeTop", safeTop).put("safeBottom", safeBottom)
+            .put("model", JSONObject().put("key", "collection:warmup").put("title", "歌单").put("leading", "back").put("trailing", "menu")
+                .put("sections", org.json.JSONArray()
+                    .put(JSONObject().put("id", "toolbar").put("layout", "toolbar").put("items", org.json.JSONArray()))
+                    .put(JSONObject().put("id", "intro").put("layout", "intro").put("items", org.json.JSONArray().put(JSONObject().put("id", "cover").put("title", "歌单"))))
+                    .put(JSONObject().put("id", "controls").put("layout", "actions").put("items", org.json.JSONArray().put(JSONObject().put("id", "play").put("title", "播放全部").put("action", "playAll"))))
+                    .put(JSONObject().put("id", "tracks").put("layout", "rows").put("total", 1).put("offset", 0).put("items", org.json.JSONArray().put(JSONObject().put("id", "0:warmup").put("title", "预热").put("number", "01").put("duration", "03:00"))))
+                ))
+        listOf(
+            NativePage.parse(collectionJson),
+            cache.page("search", width, height, safeTop).copy(safeBottom = safeBottom),
+            cache.page("settings", width, height, safeTop).copy(safeBottom = safeBottom),
+        )
+    }
+    LaunchedEffect(Unit) {
+        withFrameNanos {}
+        NavigationTiming.mark("native-surface-warmup-done")
+        onDone()
+    }
+    Box(Modifier.fillMaxSize().zIndex(-10f).graphicsLayer { alpha = 0f }) {
+        if (minimalEnabled) {
+            MinimalPlayerSurface(
+                runtime = minimal,
+                commands = minimalCommands,
+                queue = queueState,
+                onOpenQueue = {},
+                initialPage = 0,
+                resetToken = 0,
+                coverStack = coverStack,
+                coverArtwork = coverArtwork,
+                light = interfaceLight,
+                safeTop = safeTop,
+                safeBottom = safeBottom,
+                onCollapse = {},
+                onOpenStage = {},
+                modifier = Modifier.fillMaxSize().onGloballyPositioned { playerArtwork.canvas(it) },
+            )
+        }
+        warmupPages.forEach { warmPage ->
+            key(warmPage.key) {
+                NativePageView(warmPage, Modifier.fillMaxSize()) { _, _, _ -> }
+            }
+        }
+    }
+}
 
 /** 极简入场期间底栏的延迟摘除窗口：commit 延迟（真机 100~300ms）+ 360ms 上滑 + 余量。 */
 private const val CHROME_ENTRY_GRACE_MS = 900L
