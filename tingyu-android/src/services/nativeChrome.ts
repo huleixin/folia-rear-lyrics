@@ -1,6 +1,7 @@
 import { registerPlugin } from '@capacitor/core';
 import { isAndroidNativeRuntime } from '../utils/platform';
 import type { NativePageEvent, NativePageFrame, NativePageId } from '../types/nativePages';
+import type { GraphicsMode } from '../utils/graphicsDiagnosticsBuild';
 
 // src/services/nativeChrome.ts
 export const COMPOSE_CHROME = import.meta.env.VITE_TINGYU_COMPOSE_CHROME === 'true';
@@ -25,9 +26,12 @@ export type ChromeAction = {nativeDispatchedAt?:number;nativeGestureId?:number;i
 export type ChromeFrame = {id: ChromeSurfaceId; session: string; generation: number; revision: number; enabled: boolean;
     left: number; top: number; width: number; height: number; alpha: number; viewportWidth: number; safeBottom?:number; data: ChromeData & {position?: number}};
 export const chromeNative = registerPlugin<{
+    graphicsProbe():Promise<Record<string,unknown>&{mode:GraphicsMode}>;
+    graphicsConfigure(value:{mode:GraphicsMode}):Promise<{saved:boolean}>;
+    addListener(name:'graphicsMark',listener:(value:Record<string,unknown>&{mode:GraphicsMode})=>void):Promise<{remove():Promise<void>}>;
     getStageLayout():Promise<NativeStageLayout>;
     addListener(name:'stageLayout',callback:(value:NativeStageLayout)=>void):Promise<{remove:()=>Promise<void>}>;
-    navigationDiagnostics(value:{enabled?:boolean}):Promise<{enabled:boolean;nativeNow:number;startedAt:number;samples:{phase:string;at:number;elapsedMs?:number;gestureId?:number;detail?:Record<string,unknown>}[]}>;
+    navigationDiagnostics(value:{enabled?:boolean}):Promise<{enabled:boolean;nativeNow:number;startedAt:number;frames?:Record<string,unknown>;frameWindowStartedAt?:number;frameSamplingActive?:boolean;samples:{phase:string;at:number;elapsedMs?:number;gestureId?:number;detail?:Record<string,unknown>}[]}>;
     appearance(value:{mode?:string;style?:string}):Promise<{style:string;mode:'system'|'light'|'dark';systemLight:boolean;light:boolean}>;
     addListener(name:'appearanceChanged',callback:(value:{systemLight:boolean})=>void):Promise<{remove:()=>Promise<void>}>;
     probe(): Promise<{supported:boolean;engine:string;pages?:boolean;minimalPlayer?:boolean;

@@ -6,6 +6,7 @@ import MobileStageMenu from '../../src/components/app/overlays/mobile-stage/Mobi
 import { runTopModalBack } from '../../src/services/modalBackStack';
 import { useMotionSettingsStore } from '../../src/stores/useMotionSettingsStore';
 import { useSleepTimerStore } from '../../src/stores/useSleepTimerStore';
+import SleepTimerSheet from '../../src/components/modal/SleepTimerSheet';
 import type { ProbeDefinition } from './definition';
 import '../../src/library/suites/mobile/mobileLibrary.css';
 
@@ -14,6 +15,7 @@ import '../../src/library/suites/mobile/mobileLibrary.css';
 function LiquidMotionProbe() {
     const [sheet,setSheet]=useState(false);
     const [confirm,setConfirm]=useState(false);
+    const [selfConfirm,setSelfConfirm]=useState(false);
     const [menu,setMenu]=useState(false);
     const [closing,setClosing]=useState(false);
     const [closed,setClosed]=useState(0);
@@ -23,6 +25,10 @@ function LiquidMotionProbe() {
     const finishMenu=useCallback(()=>{setMenu(false);setClosed(v=>v+1)},[]);
     return <div style={{padding:24,background:'#e6edf2',height:'100vh'}}>
         <button data-testid="open-confirm" onClick={()=>setConfirm(true)}>确认框</button>
+        <button data-testid="open-self-confirm" onClick={()=>setSelfConfirm(true)}>独立确认框</button>
+        <button data-testid="open-sleep" onClick={()=>useSleepTimerStore.setState({sleepTimerSheetOpen:true})}>定时关闭</button>
+        <button data-testid="force-confirm-close" onClick={()=>setConfirm(false)}>移除确认框</button>
+        <button data-testid="force-sleep-close" onClick={()=>useSleepTimerStore.setState({sleepTimerSheetOpen:false})}>移除定时</button>
         <button data-testid="open-sheet" onClick={()=>setSheet(true)}>打开抽屉</button>
         <button data-testid="open-menu" data-mps-more onClick={()=>{setMenu(true);setClosing(false)}}>打开菜单</button>
         <button data-testid="back" data-mps-more onClick={()=>runTopModalBack()}>系统返回</button>
@@ -30,7 +36,9 @@ function LiquidMotionProbe() {
         <button data-testid="reduce" onClick={()=>useMotionSettingsStore.getState().handleToggleReducedMotionSurface('uiMicroMotion',true)}>减少动态</button>
         <output data-testid="closed">{closed}</output>
         <output data-testid="sleep">{String(sleep)}</output>
-        <ConfirmDialog isOpen={confirm} nativeStatic={false} title="账号切换回归" confirmText="确认切换" cancelText="取消切换" onConfirm={()=>setConfirm(false)} onClose={()=>setConfirm(false)}/>
+        <AnimatePresence>{confirm&&<ConfirmDialog key="confirm" presenceOwner="parent" isOpen={true} nativeStatic={false} title="账号切换回归" confirmText="确认切换" cancelText="取消切换" onConfirm={()=>setConfirm(false)} onClose={()=>setConfirm(false)}/>}</AnimatePresence>
+        <ConfirmDialog isOpen={selfConfirm} nativeStatic={false} title="独立确认回归" onConfirm={()=>setSelfConfirm(false)} onClose={()=>setSelfConfirm(false)}/>
+        <AnimatePresence>{sleep&&<SleepTimerSheet key="sleep"/>}</AnimatePresence>
         <AnimatePresence>{sheet&&<MobileSheet title="动效回归" onClose={()=>{setSheet(false);setClosed(v=>v+1)}}>
             <button data-testid="inside">内部按钮</button>
             <button data-testid="external-close" onClick={()=>setSheet(false)}>外部状态关闭</button>

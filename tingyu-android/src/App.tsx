@@ -167,6 +167,7 @@ import { useAppChromeStore } from './stores/useAppChromeStore';
 import { useAppViewStore } from './stores/useAppViewStore';
 import { usePlayerViewModeStore } from './stores/usePlayerViewModeStore';
 import { selectDisplayCoverUrl, selectDisplayDuration, selectDisplayLyrics, selectDisplayPlayerState, selectDisplaySong, selectIsShowingTail, usePlaybackStore } from './stores/usePlaybackStore';
+import { useDebugLyricIndex } from './hooks/useDebugLyricIndex';
 import { logSkipTx } from './services/skipTxLog';
 import { useLibraryStore } from './stores/useLibraryStore';
 import { selectLibraryOccludesPlayer, selectLibraryPlayerBackdrop, useLibraryPlayerOcclusionStore } from './stores/useLibraryPlayerOcclusionStore';
@@ -223,7 +224,6 @@ export default function App() {
         cachedCoverUrl, setCachedCoverUrl,
         duration, setDuration,
         playerState, setPlayerState,
-        currentLineIndex,
         playQueue, setPlayQueue,
         activePlaybackContext,
         isFmMode, setIsFmMode,
@@ -236,7 +236,6 @@ export default function App() {
         cachedCoverUrl: state.cachedCoverUrl, setCachedCoverUrl: state.setCachedCoverUrl,
         duration: state.duration, setDuration: state.setDuration,
         playerState: state.playerState, setPlayerState: state.setPlayerState,
-        currentLineIndex: state.currentLineIndex, setCurrentLineIndex: state.setCurrentLineIndex,
         playQueue: state.playQueue, setPlayQueue: state.setPlayQueue,
         activePlaybackContext: state.activePlaybackContext, setActivePlaybackContext: state.setActivePlaybackContext,
         isFmMode: state.isFmMode, setIsFmMode: state.setIsFmMode,
@@ -275,6 +274,7 @@ export default function App() {
         isDevDebugOverlayVisible: state.isDevDebugOverlayVisible,
     })));
     const isDev = import.meta.env.DEV;
+    const currentLineIndex = useDebugLyricIndex(isDev || isDevDebugOverlayVisible);
     const isElectronWindow = Boolean((window as typeof window & { electron?: unknown; }).electron);
 
     // Player Data

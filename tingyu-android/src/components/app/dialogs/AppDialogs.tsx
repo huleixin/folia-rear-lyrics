@@ -26,7 +26,7 @@ const AppDialogs: React.FC<AppDialogsProps> = ({ model }) => {
 
     return (
         <>
-            {sleepOpen&&<Suspense fallback={null}><SleepTimerSheet/></Suspense>}
+            <AnimatePresence>{sleepOpen&&<Suspense key="sleep" fallback={null}><SleepTimerSheet/></Suspense>}</AnimatePresence>
             {createPortal(
                 <AnimatePresence>
                     {statusToast && (
@@ -69,11 +69,13 @@ const AppDialogs: React.FC<AppDialogsProps> = ({ model }) => {
                 document.body,
             )}
 
-            {lyricMatchDialog && <Suspense fallback={null}><LyricMatchModal {...lyricMatchDialog} /></Suspense>}
-            {naviLyricMatchDialog && <Suspense fallback={null}><NaviLyricMatchModal {...naviLyricMatchDialog} /></Suspense>}
-            {onlineLyricMatchDialog && <Suspense fallback={null}><OnlineLyricMatchModal {...onlineLyricMatchDialog} /></Suspense>}
-            {unavailableReplacementDialog && <Suspense fallback={null}><UnavailableReplacementDialog {...unavailableReplacementDialog} /></Suspense>}
-            {wallpaperEntryConfirmDialog && <ConfirmDialog {...wallpaperEntryConfirmDialog} />}
+            <AnimatePresence>
+            {lyricMatchDialog && <Suspense key="lyric-local" fallback={null}><LyricMatchModal {...lyricMatchDialog} /></Suspense>}
+            {naviLyricMatchDialog && <Suspense key="lyric-navi" fallback={null}><NaviLyricMatchModal {...naviLyricMatchDialog} /></Suspense>}
+            {onlineLyricMatchDialog && <Suspense key="lyric-online" fallback={null}><OnlineLyricMatchModal {...onlineLyricMatchDialog} /></Suspense>}
+            {unavailableReplacementDialog && <Suspense key="replacement" fallback={null}><UnavailableReplacementDialog {...unavailableReplacementDialog} presenceOwner="parent" /></Suspense>}
+            {wallpaperEntryConfirmDialog && <ConfirmDialog key="wallpaper-confirm" {...wallpaperEntryConfirmDialog} presenceOwner="parent" />}
+            </AnimatePresence>
             <Suspense fallback={null}><SettingsPresence>
                 {settingsDialog && <SettingsDialogHost {...settingsDialog} />}
             </SettingsPresence></Suspense>

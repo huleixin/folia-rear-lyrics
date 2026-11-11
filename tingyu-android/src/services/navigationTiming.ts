@@ -63,6 +63,8 @@ export async function navigationDiagnosticLines(): Promise<string[]> {
         `  originEpochMs=${origin.toFixed(1)} nativeMinusJsMs=${offset.toFixed(1)} alignmentUncertaintyMs<=${((after-before)/2).toFixed(1)}`,
         '  sampling: 60 seconds after startup/enabling; first 128 + recent 128 events retained per runtime',
         '  FrameMetrics/Compose frame boundaries are app-frame evidence, not physical screen presentation',
+        `  app-frame distribution (latest sampling window): ${JSON.stringify(native?.frames ?? {status:'unavailable'})}`,
+        `  frame window: startedAt=${native?.frameWindowStartedAt ?? 'unavailable'} active=${native?.frameSamplingActive ?? 'unavailable'}`,
         ...combined.map(s=>`  +${(s.at-origin).toFixed(1)}ms ${s.source} ${s.phase}${s.gestureId?` gesture=${s.gestureId}`:''}${s.elapsedMs===undefined?'':` durationOrLagMs=${s.elapsedMs.toFixed(1)}`}${s.detail?` detail=${JSON.stringify(s.detail)}`:''}`)];
 }
 sampling();

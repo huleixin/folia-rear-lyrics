@@ -3,6 +3,26 @@ import { expect, it, vi } from 'vitest';
 import { scheduleUiWarmup, noteUiInteraction } from '@/services/uiWarmup';
 
 // test/unit/services/uiWarmup.test.ts
+it('yields idle budget exhaustion instead of spinning within the same idle period', async () => {
+    vi.resetModules(); vi.useFakeTimers();
+    try {
+        const scheduler = await import('@/services/uiWarmup');
+        const idle: IdleRequestCallback[] = [];
+        vi.stubGlobal('requestIdleCallback', (fn: IdleRequestCallback) => { idle.push(fn); return idle.length; });
+        vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+        vi.spyOn(performance, 'now').mockReturnValue(1000);
+        const load = vi.fn(async () => undefined);
+        const cancel = scheduler.scheduleUiWarmup(load);
+        idle.shift()!({didTimeout:false,timeRemaining:()=>2});
+        expect(idle).toHaveLength(0);
+        expect(load).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(49); expect(idle).toHaveLength(0);
+        await vi.advanceTimersByTimeAsync(1); expect(idle).toHaveLength(1);
+        cancel(); idle.shift()!({didTimeout:false,timeRemaining:()=>20});
+        expect(load).not.toHaveBeenCalled();
+        expect(vi.getTimerCount()).toBe(0);
+    } finally { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); }
+});
 it('serializes speculative imports, honors cancellation, and pauses when hidden', async () => {
     const idle: IdleRequestCallback[] = [];
     vi.stubGlobal('requestIdleCallback', (fn: IdleRequestCallback) => { idle.push(fn); return idle.length; });
@@ -17,7 +37,7 @@ it('serializes speculative imports, honors cancellation, and pauses when hidden'
     const budget = { didTimeout: false, timeRemaining: () => 20 };
     noteUiInteraction(); idle.shift()!(budget);
     expect(first).not.toHaveBeenCalled();
-    clock.mockReturnValue(1400); idle.shift()!(budget);
+    clock.mockReturnValue(1400); await vi.waitFor(() => expect(idle).toHaveLength(1), {timeout:1000}); idle.shift()!(budget);
     await Promise.resolve();
     expect(first).toHaveBeenCalledOnce(); expect(second).not.toHaveBeenCalled();
     hidden = true; finish();

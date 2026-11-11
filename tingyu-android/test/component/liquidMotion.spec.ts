@@ -7,6 +7,43 @@ test.beforeEach(async({page})=>{
     await page.goto('/dev-probe.html?probe=liquidMotion');
 });
 
+test('self-owned confirmation also retains its exit and consumes Back',async({page})=>{
+    await page.getByTestId('open-self-confirm').click();
+    const card=page.locator('[data-folia-themed-dialog]');
+    await expect(card).toBeVisible();
+    await page.evaluate(()=>(document.querySelector('[data-testid="back"]') as HTMLElement).click());
+    await expect(card).toHaveCount(1);
+    await expect(card).toHaveCount(0);
+    await page.getByTestId('open-self-confirm').click();
+    await expect(card).toHaveCount(1);
+});
+
+test('parent removal retains the real confirmation and sleep surfaces through exit',async({page})=>{
+    await page.getByTestId('open-confirm').click();
+    await expect(page.locator('[data-folia-themed-dialog]')).toBeVisible();
+    await page.evaluate(()=>(document.querySelector('[data-testid="force-confirm-close"]') as HTMLElement).click());
+    await expect(page.locator('[data-folia-themed-dialog]')).toHaveCount(1);
+    await expect(page.locator('[data-folia-themed-dialog]')).toHaveCount(0);
+    await page.getByTestId('open-sleep').click();
+    await expect(page.locator('.sleep-sheet')).toBeVisible();
+    await page.evaluate(()=>(document.querySelector('[data-testid="force-sleep-close"]') as HTMLElement).click());
+    await expect(page.locator('.sleep-scrim[data-exiting="true"]')).toHaveCount(1);
+    await expect(page.locator('.sleep-sheet')).toHaveCount(0);
+});
+
+test('sleep sheet consumes system Back and reverses an interrupted exit without duplicates',async({page})=>{
+    await page.getByTestId('open-sleep').click();
+    await expect(page.locator('.sleep-sheet')).toBeVisible();
+    await page.evaluate(()=>{
+        (document.querySelector('[data-testid="back"]') as HTMLElement).click();
+        setTimeout(()=>(document.querySelector('[data-testid="open-sleep"]') as HTMLElement).click(),40);
+    });
+    await expect(page.locator('.sleep-sheet')).toHaveCount(1);
+    await expect(page.locator('.sleep-scrim')).not.toHaveAttribute('data-exiting');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.sleep-sheet')).toHaveCount(0);
+});
+
 test('sheet animates, traps focus, consumes inside taps and exits once on outside tap',async({page},info)=>{
     await page.getByTestId('open-sheet').click();
     const dialog=page.getByRole('dialog',{name:'动效回归'});
@@ -84,6 +121,8 @@ test('reduced motion and modal Back both complete dismissal',async({page})=>{
 
 
 test('account-style confirmation keeps content during exit and can reverse',async({page})=>{
+    const identityErrors:string[]=[];
+    page.on('console',message=>{if(message.type()==='error'&&/same key|unique.*key/i.test(message.text()))identityErrors.push(message.text())});
     await page.getByTestId('open-confirm').click();
     const card=page.locator('[data-folia-themed-dialog="true"]');
     await expect(card).toBeVisible();
@@ -100,4 +139,5 @@ test('account-style confirmation keeps content during exit and can reverse',asyn
     await expect(card).toBeVisible();
     await page.getByRole('button',{name:'确认切换',exact:true}).click();
     await expect(card).toHaveCount(0);
+    expect(identityErrors).toEqual([]);
 });

@@ -114,7 +114,7 @@ internal fun TyPanelScrim(visible: Boolean, light: Boolean, onClose: () -> Unit,
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = onClose,
+                    onClick = { if (visible) onClose() },
                 ),
         )
     }

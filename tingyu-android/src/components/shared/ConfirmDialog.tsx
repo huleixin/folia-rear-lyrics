@@ -7,6 +7,7 @@ import ThemedDialog from './ThemedDialog';
 export interface ConfirmDialogProps {
     isOpen: boolean;
     nativeStatic?: boolean;
+    presenceOwner?: 'self' | 'parent';
     title: string;
     description?: React.ReactNode;
     confirmText?: string;
@@ -21,6 +22,7 @@ export interface ConfirmDialogProps {
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     isOpen,
     nativeStatic,
+    presenceOwner,
     title,
     description,
     confirmText,
@@ -47,6 +49,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
     return (
         <ThemedDialog
+            presenceOwner={presenceOwner}
             isOpen={isOpen}
             nativeStatic={nativeStatic}
             onClose={onClose}

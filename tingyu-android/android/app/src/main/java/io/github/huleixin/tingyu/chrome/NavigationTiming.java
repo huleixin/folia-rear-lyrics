@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Build;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.view.FrameMetrics;
@@ -24,6 +25,9 @@ public final class NavigationTiming {
     private static Window.OnFrameMetricsAvailableListener frameListener;
     private static HandlerThread frameThread;
     private static Runnable pulse, stop;
+    private static volatile long samplingGeneration;
+    private static volatile FrameWindowStats frames = new FrameWindowStats();
+    private static volatile long frameWindowStartedAt;
     private NavigationTiming() {}
     public static boolean enabled(){return enabled;}
     public static long epochNow(){return originEpoch+SystemClock.elapsedRealtime()-originElapsed;}
@@ -36,6 +40,11 @@ public final class NavigationTiming {
     public static void startSampling(Activity activity){
         stopSampling();
         if(!enabled)return;
+        final long generation = samplingGeneration;
+        final FrameWindowStats recording = new FrameWindowStats(); frames = recording;
+        frameWindowStartedAt = epochNow();
+        final float refresh = activity.getWindowManager().getDefaultDisplay().getRefreshRate();
+        final long nominalBudget = (long)(1e9 / (refresh > 0 ? refresh : 60));
         final long end=SystemClock.elapsedRealtime()+60000;
         pulse=new Runnable(){long due=SystemClock.uptimeMillis()+100;
             public void run(){if(!enabled||SystemClock.elapsedRealtime()>end)return;
@@ -46,7 +55,10 @@ public final class NavigationTiming {
         window=activity.getWindow();frameThread=new HandlerThread("tingyu-startup-frames");frameThread.start();
         frameListener=new Window.OnFrameMetricsAvailableListener(){boolean first=true;
             public void onFrameMetricsAvailable(Window w,FrameMetrics metrics,int dropped){
-                if(!enabled||SystemClock.elapsedRealtime()>end)return;
+                if(!enabled||generation!=samplingGeneration||SystemClock.elapsedRealtime()>end)return;
+                long deadline = Build.VERSION.SDK_INT >= 31 ? metrics.getMetric(FrameMetrics.DEADLINE) : nominalBudget;
+                recording.add(metrics.getMetric(FrameMetrics.TOTAL_DURATION), deadline > 0 ? deadline : nominalBudget,
+                    dropped, metrics.getMetric(FrameMetrics.LAYOUT_MEASURE_DURATION), metrics.getMetric(FrameMetrics.DRAW_DURATION));
                 double duration=metrics.getMetric(FrameMetrics.TOTAL_DURATION)/1000000.0;
                 if(first||duration>=32){mark(first?"first-app-frame-metric":"slow-app-frame",duration);first=false;}
             }};
@@ -54,6 +66,7 @@ public final class NavigationTiming {
         stop=NavigationTiming::stopSampling;main.postDelayed(stop,Math.max(0,end-SystemClock.elapsedRealtime()));
     }
     private static void stopSampling(){
+        samplingGeneration++;
         if(pulse!=null)main.removeCallbacks(pulse);if(stop!=null)main.removeCallbacks(stop);
         if(window!=null&&frameListener!=null)window.removeOnFrameMetricsAvailableListener(frameListener);
         if(frameThread!=null)frameThread.quitSafely();window=null;frameListener=null;frameThread=null;
@@ -61,7 +74,7 @@ public final class NavigationTiming {
     public static void destroy(){stopSampling();}
     public static void configure(Context context,boolean value){
         context.getSharedPreferences("navigation_timing",Context.MODE_PRIVATE).edit().putBoolean("enabled",value).apply();
-        enabled=value;if(!value){stopSampling();synchronized(NavigationTiming.class){samples.clear();}}
+        enabled=value;if(!value){stopSampling();frames=new FrameWindowStats();synchronized(NavigationTiming.class){samples.clear();}}
         mark("diagnostics-enabled-next-cold-start");
     }
     public static void mark(String phase){mark(phase,-1);}
@@ -86,6 +99,8 @@ public final class NavigationTiming {
     public static synchronized JSONObject snapshot(){
         JSONObject result=new JSONObject();try{return result.put("enabled",enabled).put("startedAt",originEpoch)
             .put("nativeNow",epochNow()).put("samples",new JSONArray(samples)).put("samplingWindowMs",60000)
+            .put("frames",frames.snapshot())
+            .put("frameWindowStartedAt",frameWindowStartedAt).put("frameSamplingActive",frameListener!=null)
             .put("frameEvidence","FrameMetrics describes completed app frames, not physical display presentation");
         }catch(Exception ignored){return result;}
     }

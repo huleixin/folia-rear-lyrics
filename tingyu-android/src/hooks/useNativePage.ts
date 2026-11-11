@@ -1,6 +1,7 @@
 import { noteUiInteraction, markStartupReady } from '../services/uiWarmup';
 import { diagnosticEvent, millisecondsSinceInteraction } from '../services/diagnostics/diagnosticLog';
-import { navigationMark } from '../services/navigationTiming';
+import { navigationMark, navigationDetail } from '../services/navigationTiming';
+import { nativePageLifecycles } from '../services/uiLifecyclePolicy';
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { NATIVE_FIRST, canUseNativePages, nativePages } from '../services/nativePages';
 import { newChromeGeneration } from '../services/nativeChrome';
@@ -154,6 +155,7 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
                 current.actions[event.action]?.({ text: event.text, value: event.value });
             });
             navigationMark('page-listener-ready');
+            navigationDetail('page-lifecycle-owner', { route:id, ...nativePageLifecycles[id] });
             if (disposed) { void listener.remove(); return; }
             started = true; resize = new ResizeObserver(schedule); resize.observe(node);
             mutation = new MutationObserver(records => {

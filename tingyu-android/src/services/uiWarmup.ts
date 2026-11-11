@@ -12,14 +12,19 @@ export function noteUiInteraction() { lastInput = performance.now(); }
 export function markStartupReady(part: 'chrome'|'page') {
     if (!ready.has(part)) { ready.add(part); navigationMark(`startup-${part}-interactive`); schedule(); }
 }
-function schedule() {
+function schedule(delayMs = 0) {
     if (running || scheduled || !jobs.size || document.hidden) return;
     if (isAndroidNativeRuntime() && ready.size < 2) return;
     scheduled = true;
+    // Idle callbacks can run repeatedly within one idle period. A real timer yields
+    // the cooldown instead of polling performance.now() throughout that period.
+    if (delayMs > 0) { window.setTimeout(() => { scheduled = false; schedule(); }, delayMs); return; }
     const run = (budget?: IdleDeadline) => {
         scheduled = false;
         if (document.hidden) return;
-        if (performance.now() - lastInput < 300 || performance.now() - lastFinished < 300 || (budget && budget.timeRemaining() < 12)) { schedule(); return; }
+        const cooldown = Math.max(300 - (performance.now() - lastInput), 300 - (performance.now() - lastFinished));
+        if (cooldown > 0) { schedule(Math.ceil(cooldown)); return; }
+        if (budget && budget.timeRemaining() < 12) { schedule(50); return; }
         const entry = jobs.values().next().value;
         if (!entry) return;
         jobs.delete(entry.load); running = true; activeLoad=entry.load; navigationMark(`warmup-${entry.label}-start`); const started = performance.timeOrigin+performance.now();
@@ -36,7 +41,7 @@ export function scheduleUiWarmup(load: () => Promise<unknown>, label: 'settings'
         installed = true;
         window.addEventListener('pointerdown', noteUiInteraction, { passive: true });
         window.addEventListener('keydown', noteUiInteraction);
-        document.addEventListener('visibilitychange', schedule);
+        document.addEventListener('visibilitychange', () => schedule());
     }
     const owner=Symbol(), job=jobs.get(load)??{load,owners:new Set<symbol>(),label};job.owners.add(owner);jobs.set(load,job);schedule();
     return () => { job.owners.delete(owner);if(!job.owners.size&&jobs.get(load)===job)jobs.delete(load); };

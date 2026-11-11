@@ -8,13 +8,15 @@ import { getLyricMatchSourceLabel, getMatchResultArtists, getMatchResultAlbumNam
 import { LyricPreviewPanel } from '../modal/LyricPreviewPanel';
 import { formatSongName } from '../../utils/songNameFormatter';
 import './mobilePlayerSheet.css';
+import { useModalBackHandler } from '../../hooks/useModalBackHandler';
 
 // src/components/mobile-player/MobileLyricMatcher.tsx
 type Props={title:string;query:string;onQuery:(v:string)=>void;source:LyricMatchSource;onSource:(v:LyricMatchSource)=>void;results:SongResult[];selected:SongResult|null;onSelect:(v:SongResult)=>void;searching:boolean;matching:boolean;onSearch:()=>void;onConfirm:()=>void;onClose:()=>void;isDaylight:boolean;options?:React.ReactNode};
 export default function MobileLyricMatcher(p:Props){
     const {t,i18n}=useTranslation(),zh=(i18n.resolvedLanguage||i18n.language).startsWith('zh');
     const [preview,setPreview]=useState(false),ref=useRef<HTMLElement>(null),closeRef=useRef(p.onClose);
-    closeRef.current=p.onClose;
+    closeRef.current=()=>{if(!p.matching)p.onClose();};
+    useModalBackHandler(true,()=>closeRef.current());
     useEffect(()=>{const previous=document.activeElement as HTMLElement|null;ref.current?.focus();const key=(e:KeyboardEvent)=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeRef.current();}if(e.key!=='Tab')return;const nodes=[...(ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input,select,summary')??[])].filter(n=>n.getClientRects().length);if(e.shiftKey&&(document.activeElement===nodes[0]||document.activeElement===ref.current)){e.preventDefault();nodes.at(-1)?.focus();}else if(!e.shiftKey&&document.activeElement===nodes.at(-1)){e.preventDefault();nodes[0]?.focus();}};document.addEventListener('keydown',key,true);return()=>{document.removeEventListener('keydown',key,true);if(previous?.isConnected)previous.focus();};},[]);
     return createPortal(<div className="ty-sheet-scrim ty-match-scrim" data-testid="mobile-lyric-matcher" onClick={e=>{if(e.target===e.currentTarget&&!p.matching)p.onClose();}}><section className="ty-sheet ty-match" ref={ref} role="dialog" aria-modal="true" aria-label={zh?'匹配歌词':'Match lyrics'} tabIndex={-1} data-light={p.isDaylight||undefined} data-folia-keyboard-window="true">
         <div className="ty-sheet-grip" aria-hidden="true"/><header className="ty-sheet-header"><div><small>{zh?'匹配歌词':'Match lyrics'}</small><h2>{p.title}</h2></div><button className="ty-icon" aria-label={t('ui.close')} disabled={p.matching} onClick={p.onClose}><X size={22}/></button></header>

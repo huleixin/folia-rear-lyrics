@@ -79,6 +79,7 @@ internal fun SettingsFlowPage(
 ) {
     val theme = settingsFlowTheme()
     val retainedModal = remember(flow.key) { androidx.compose.runtime.mutableStateOf(flow.modal) }
+    val currentModal = androidx.compose.runtime.rememberUpdatedState(flow.modal)
     androidx.compose.runtime.SideEffect { if (flow.modal != null) retainedModal.value = flow.modal }
     val colors = page.surfaceColors()
     // 返回：更内层的面板/弹层各自有 BackHandler，会先吃掉；到这里才是退设置分区。
@@ -156,10 +157,14 @@ internal fun SettingsFlowPage(
             }
             TyPanelOverlay(flow.modal != null, LocalInterfacePalette.current.light, onClose = { action("dismiss", "", 0.0) }) {
                 (flow.modal ?: retainedModal.value)?.let { modal ->
+                    // Retain pixels for exit, not authority to act on a closed/replaced form.
+                    val modalAction: PageAction = { name, text, value ->
+                        if (currentModal.value?.key == modal.key) action(name, text, value)
+                    }
                     // Modal layouts need the same native viewport width for responsive rules.
                     CompositionLocalProvider(LocalSettingsPreviewViewport provides Rect(0f, 0f, viewportWidth, viewportHeight)) {
-                        TyDialogFrame(theme, modal.title, modal.subtitle, onClose = { action("dismiss", "", 0.0) }, settingsLayout = modal.layout != null) {
-                            key(modal.key) { TySettingsContent(modal, theme, action) }
+                        TyDialogFrame(theme, modal.title, modal.subtitle, onClose = { modalAction("dismiss", "", 0.0) }, settingsLayout = modal.layout != null) {
+                            key(modal.key) { TySettingsContent(modal, theme, modalAction) }
                         }
                     }
                 }

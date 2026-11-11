@@ -8,6 +8,7 @@ import { getProviderSongMetadata } from '../../services/onlineMusic/songMetadata
 
 interface UnavailableReplacementDialogProps {
     isOpen: boolean;
+    presenceOwner?: 'self' | 'parent';
     originalSong: SongResult | null;
     replacementSong: SongResult | null;
     typeDesc?: string;
@@ -18,6 +19,7 @@ interface UnavailableReplacementDialogProps {
 
 const UnavailableReplacementDialog: React.FC<UnavailableReplacementDialogProps> = ({
     isOpen,
+    presenceOwner,
     originalSong,
     replacementSong,
     typeDesc,
@@ -84,6 +86,7 @@ const UnavailableReplacementDialog: React.FC<UnavailableReplacementDialogProps> 
 
     return (
         <ThemedDialog
+            presenceOwner={presenceOwner}
             isOpen={isOpen}
             onClose={() => {
                 if (!isSubmitting) {

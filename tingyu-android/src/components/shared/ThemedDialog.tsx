@@ -1,14 +1,16 @@
 import { useLiquidReduced } from './useLiquidReduced';
 import { TY_DURATION, TY_SPRING } from './motionTokens';
 import {useInterfaceLight} from '../../hooks/useInterfaceAppearance';
-import React, { useEffect, useRef } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import React, { useRef } from 'react';
+import { AnimatePresence, motion, useIsPresent } from 'framer-motion';
 import { X } from 'lucide-react';
-import { registerModalBack } from '../../services/modalBackStack';
+import { useModalBackHandler } from '../../hooks/useModalBackHandler';
 import { NATIVE_FIRST } from '../../services/nativePages';
 
 interface ThemedDialogProps {
     isOpen: boolean;
+    /** Exactly one presence owner: conditional app overlays use their persistent parent. */
+    presenceOwner?: 'self' | 'parent';
     /** False only for allowlisted overlays actually rendered in WebView. */
     nativeStatic?: boolean;
     onClose: () => void;
@@ -31,8 +33,7 @@ interface ThemedDialogProps {
     closeDisabledTitle?: string;
 }
 
-const ThemedDialog: React.FC<ThemedDialogProps> = ({
-    isOpen,
+const ThemedDialogContent: React.FC<ThemedDialogProps> = ({
     nativeStatic = true,
     onClose,
     isDaylight: stageDaylight = false,
@@ -47,6 +48,7 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
     closeDisabledTitle,
 }) => {
     const reduced = useLiquidReduced();
+    const present = useIsPresent();
     const staticSurface = reduced || (NATIVE_FIRST && nativeStatic);
     const isDaylight=useInterfaceLight(stageDaylight);
     const bgClass = isDaylight ? 'bg-white/90 border-white/30' : 'bg-zinc-900/95 border-white/10';
@@ -57,26 +59,22 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
 
     // 返回键优先级（68600）：本弹窗在最上层时，第一次返回只关它。
     // closeDisabled（导入/验证进行中）时消费返回但不关，保持原有操作锁定。
-    useEffect(() => {
-        if (!isOpen) return;
-        return registerModalBack(() => { if (!closeDisabled) onClose(); });
-    }, [isOpen, closeDisabled, onClose]);
+    useModalBackHandler(true, () => { if (present && !closeDisabled) onClose(); });
 
     const handleOverlayMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
         isMouseDownOnOverlayRef.current = event.target === event.currentTarget;
     };
 
     const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
-        if (closeDisabled) return;
+        if (closeDisabled || !present) return;
         if (event.target === event.currentTarget && isMouseDownOnOverlayRef.current) {
             onClose();
         }
     };
 
     return (
-        <AnimatePresence>
-            {isOpen && (
                 <motion.div
+                    key="themed-overlay"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
@@ -95,6 +93,7 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
                         transition={staticSurface?{duration:0}:TY_SPRING.panel}
                         onClick={(event) => event.stopPropagation()}
                         data-folia-themed-dialog="true"
+                        inert={!present}
                         data-folia-themed-dialog-kind={panelKind}
                         className={`relative w-full ${maxWidthClass} rounded-3xl border ${bgClass} p-6 shadow-2xl backdrop-blur-sm`}
                      data-settings-style='{"radius":24,"border":true,"padding":[24,24,24,24]}' data-settings-layout="card">
@@ -131,9 +130,12 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
                         )}
                     </motion.div>
                 </motion.div>
-            )}
-        </AnimatePresence>
     );
+};
+
+const ThemedDialog: React.FC<ThemedDialogProps> = props => {
+    const content = props.isOpen ? <ThemedDialogContent key="themed-dialog" {...props}/> : null;
+    return props.presenceOwner === 'parent' ? content : <AnimatePresence>{content}</AnimatePresence>;
 };
 
 export default ThemedDialog;

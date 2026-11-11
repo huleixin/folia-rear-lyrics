@@ -699,18 +699,19 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // 才由原生画。桥不在时这里什么都不画，屏幕上是原来的 WebView 极简页 —— 不会两个都在。
         // 只订阅这条低频流，整个场景不跟着每秒的状态帧重建。
         val minimalBound by minimal.bound.collectAsState()
-        val minimalState by minimal.state.collectAsState()
+        val hostPresentations = remember(minimal) { minimal.state.hostPresentations() }
+        val playerHost by hostPresentations.collectAsState(initial = minimal.state.value.hostPresentation())
         val queueState by minimal.queue.collectAsState()
         // 顺访期间保留原生 pager，但让 WebView 舞台及其底栏占上层；返回过渡结束才交还触摸。
         // 不含退场判定的那一份：退场那 280ms 里 destination 仍是 stage、presentation 仍是 minimal，
         // 差别只在 stageExit.active。播放页必须靠这一份继续留在组合里 —— 见 playerShown。
         val nativeDetour = minimalPlayerEnabled() && minimalBound && !webOverlay && destination=="stage" && playerPresentation=="minimal"
-        val detourOffset = rememberPlayerDetourProgress(nativeDetour,minimalState.controls.stageMotionDetour,reducedMotion||!active||!focused,minimalState.controls.stageMotionToken) { stageShown, token ->
+        val detourOffset = rememberPlayerDetourProgress(nativeDetour,playerHost.stageMotionDetour,reducedMotion||!active||!focused,playerHost.stageMotionToken) { stageShown, token ->
             val session=minimal.session()
             if(session.isNotEmpty())listener.onAction("minimal",session,"stageMotionFinished",token.toDouble()*2.0+(if(stageShown)1.0 else 0.0))
         }
         val detourAbove by remember(nativeDetour,detourOffset) { derivedStateOf { nativeDetour && detourOffset.value < .9999f } }
-        val stageAboveMinimal=minimalState.controls.stageMotionDetour||detourAbove
+        val stageAboveMinimal=playerHost.stageMotionDetour||detourAbove
         val playerReady=playerPresentation!="minimal"||!minimalPlayerEnabled()||minimalBound
         val playerEntry=rememberLiquidPlayerProgress(destination=="stage",returningFromSettings||minimalResumePending,reducedMotion||!active||!focused,stageExit.active,playerReady,playerPresentation=="minimal"&&playerPanelOrigin!=null)
         val minimalMorph=remember(playerPanelOrigin,playerOrigin,playerEntry,exitProgress,reducedMotion,active,focused) {
@@ -1168,7 +1169,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 MinimalQueueSheet(
                     queue = queueState,
                     light = interfaceLight,
-                    mode = queueState.mode.ifEmpty { minimalState.controls.mode },
+                    mode = queueState.mode.ifEmpty { playerHost.mode },
                     // 列表状态宿主持有：去极简页再回来，队列浏览位置不跳。
                     listState = queueListState,
                     onClose = { queueOpen = false; queueCommands.closeQueue() },
@@ -1208,7 +1209,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     )
                     "lyrics"->io.github.huleixin.tingyu.minimal.ui.MinimalLyricsToolsSheet(
                         tools=toolsState,light=interfaceLight,actions=toolActions,transport=minimalCommands,
-                        mode=minimalState.controls.mode,playing=minimalState.playback.playing,
+                        mode=playerHost.mode,playing=playerHost.playing,
                         onClose={closeNativeTools()},
                         onOpenQueue={closeNativeTools();openNativeQueue()},
                     )

@@ -1,4 +1,4 @@
-import { registerPlugin } from '@capacitor/core';
+import { chromeNative } from './nativeChrome';
 import { GRAPHICS_DIAGNOSTICS, type GraphicsMode } from '../utils/graphicsDiagnosticsBuild';
 import { isMainAppSurface } from '../utils/appSurface';
 import { useAppViewStore } from '../stores/useAppViewStore';
@@ -11,11 +11,7 @@ import { getTingyuPlayback } from '../platform/tingyuPlayback';
 // src/services/graphicsDiagnostics.ts
 // No pixel readback, mutation observer, RAF, per-frame state, or continuous disk writes.
 type NativeSnapshot=Record<string,unknown>&{mode:GraphicsMode};
-export const graphicsPort=registerPlugin<{
-    graphicsProbe():Promise<NativeSnapshot>;
-    graphicsConfigure(value:{mode:GraphicsMode}):Promise<{saved:boolean}>;
-    addListener(name:'graphicsMark',listener:(value:NativeSnapshot)=>void):Promise<{remove():Promise<void>}>;
-}>('TingyuChrome');
+export const graphicsPort=chromeNative;
 type StageState={mode:string;seed?:string|number;line:number;paused?:boolean;staticMode?:boolean;clock:number};
 type Entry={at:number;kind:string;data:unknown};
 type Run={id:string;mode:string;startedAt:number;stoppedAt?:number;observation?:string;entries:Entry[]};
