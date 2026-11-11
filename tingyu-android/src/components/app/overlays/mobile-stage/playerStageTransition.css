@@ -6,3 +6,6 @@
 @keyframes player-stage-rise { from { transform: translate3d(0,100vh,0); } to { transform: none; } }
 @keyframes player-stage-fall { from { transform: none; } to { transform: translate3d(0,100vh,0); } }
 @media (prefers-reduced-motion: reduce) { [data-stage-motion] { animation-duration: 1ms; } }
+
+/* The retained Android WebView and native transport share one host clock. */
+html[data-native-player-motion='true'] [data-stage-motion] { animation: none; }

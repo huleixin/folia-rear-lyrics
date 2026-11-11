@@ -10,8 +10,12 @@ const minimal = 'android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/
 const read = name => readFileSync(path.join(root, name), 'utf8');
 const contracts = [
     ['retained cover-origin player', chrome+'ComposeChromeHost.kt', ['miniCoverBounds','playerArtwork','rememberLiquidPlayerProgress']],
-    ['real canvas transform', chrome+'LiquidMotion.kt', ['playerTransform(origin','scaleX = transform.scale','liquidReveal']],
+    ['classic stage canvas fallback', chrome+'LiquidMotion.kt', ['playerTransform(origin','scaleX = transform.scale','liquidReveal']],
     ['measured destination cover', minimal+'MinimalCoverPage.kt', ['anchor.artwork(it)']],
+    ['reference minimal shell and artwork', chrome+'MinimalPlayerMorph.kt', ['SaltPlayerTimeline.sample','panelBounds','coverBounds','sectionAlpha']],
+    ['one actual cover in overlay', chrome+'MinimalCoverOverlay.kt', ['renderInSharedTransitionScopeOverlay','renderInOverlay={motion.active() && active}']],
+    ['one detour clock', chrome+'ComposeChromeHost.kt', ['rememberPlayerDetourProgress','detourOffset.value','minimalBound && !webOverlay']],
+    ['artist routed on minimal session', 'src/hooks/useNativeMinimalPlayer.ts', ["if(action==='artistOpen')",'openNativeMinimalArtist','nativePlayerMotion']],
     ['gradient stop normalization', chrome+'LiquidPalette.kt', ['blendGradient(fromGradients','segments = a / gcd']],
     ['route families', chrome+'NativePageView.kt', ['NativeHomePage','NativeDirectoryPage','NativeSearchPage','SettingsFlowPage','NativeRearControlPage','MediaDetailScaffold']],
     ['retained settings modal', chrome+'SettingsFlowPage.kt', ['retainedModal','flow.modal ?: retainedModal.value','TyPanelOverlay']],

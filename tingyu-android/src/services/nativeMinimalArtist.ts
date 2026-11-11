@@ -6,7 +6,6 @@ import { resolveTrackArtistLinks } from '../library/core/model/trackLinks';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
 import { setStatusMessage } from '../stores/useStatusMessageStore';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
-import { chromeNative } from './nativeChrome';
 import i18n from '../i18n/config';
 
 // src/services/nativeMinimalArtist.ts
@@ -23,42 +22,37 @@ import i18n from '../i18n/config';
 type ArtistOpener = (collection: GridViewCollectionDescriptor) => void;
 
 let opener: ArtistOpener | null = null;
-let actionListener: { remove: () => Promise<void> } | null = null;
+let request = 0;
+let pending = '';
 
-/** App 启动时把集合导航注册进来；传 null 拆除监听。 */
+/** The already session-checked minimal action subscription owns artist clicks too. */
 export function registerNativeArtistOpener(next: ArtistOpener | null): void {
     opener = next;
-    if (!next) {
-        const listener = actionListener;
-        actionListener = null;
-        void listener?.remove().catch(() => { /* 桥已不在 */ });
-        return;
-    }
-    void attachArtistActionListener();
+    request += 1;
+    pending = '';
 }
 
-async function attachArtistActionListener(): Promise<void> {
-    if (actionListener) return;
-    try {
-        actionListener = await chromeNative.addListener('action', event => {
-            if (event.id !== 'minimal' || event.action !== 'artistOpen') return;
-            const index = typeof event.value === 'number' ? Math.trunc(event.value) : -1;
-            void openArtistByIndex(Number.isFinite(index) ? index : -1);
-        });
-    } catch {
-        // 非 Android 环境没有动作可接。
-    }
-}
-
-async function openArtistByIndex(index: number): Promise<void> {
+/** Match the displayed segments before using IDs; cached songs can have only a display string. */
+export async function openNativeMinimalArtist(index: number, displayArtist?: string): Promise<void> {
     const navigate = opener;
     const song = usePlaybackStore.getState().currentSong;
     if (!navigate || !song) return;
     const links = resolveTrackArtistLinks(song, canResolveSongCatalogRef);
-    const link = index >= 0 ? links[index] : links[0];
-    const artist = link?.artist;
-    const name = artist?.name || '';
-    if (!name && !artist?.id) return;
+    const names = (displayArtist ?? song.artists?.map(artist => artist.name).join(' / ') ?? '').split(/\s*[/、，,;；&]\s*/u).map(name => name.trim()).filter(Boolean);
+    const selected = Number.isFinite(index) && index >= 0 ? Math.trunc(index) : 0;
+    const shownName = names[selected];
+    const artist = links.find(link => shownName && link.artist.name.trim() === shownName)?.artist
+        ?? (names.length === links.length || !shownName ? links[selected]?.artist : undefined);
+    const name = shownName || artist?.name || '';
+    if (!name && !artist?.id) {
+        setStatusMessage({ type: 'error', text: i18n.t('search.catalogUnavailable') });
+        return;
+    }
+    const songKey = getPlaybackSongKey(song);
+    const key = `${songKey}:${selected}:${name}`;
+    if (pending === key) return;
+    pending = key;
+    const generation = ++request;
     try {
         const collection = await createSearchArtistCollection(
             song as UnifiedSong,
@@ -66,12 +60,17 @@ async function openArtistByIndex(index: number): Promise<void> {
             artist?.id,
             artist?.entityId,
         );
+        const currentSong = usePlaybackStore.getState().currentSong;
+        if (generation !== request || opener !== navigate || !currentSong || getPlaybackSongKey(currentSong) !== songKey) return;
         if (collection) {
             navigate(collection);
             return;
         }
     } catch (error) {
+        if (generation !== request) return;
         console.warn('[CatalogNavigation] Player artist lookup failed', error, getPlaybackSongKey(song));
+    } finally {
+        if (generation === request) pending = '';
     }
-    setStatusMessage({ type: 'error', text: i18n.t('search.catalogUnavailable') });
+    if (generation === request) setStatusMessage({ type: 'error', text: i18n.t('search.catalogUnavailable') });
 }

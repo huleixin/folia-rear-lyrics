@@ -29,6 +29,15 @@ class MinimalBridgeFrameTest {
         assertEquals(7_000L, frame.receivedAtElapsed)
     }
 
+    @Test fun overlaysDoNotMasqueradeAsStageVisitsAndKeepTheMotionToken() {
+        val frame=MinimalBridgeFrame.parse(JSONObject("""{"session":"s","detour":true,"stageMotionDetour":false,"stageMotionToken":17}"""),0L)
+        assertTrue(frame.detour);assertFalse(frame.stageMotionDetour);assertEquals(17L,frame.stageMotionToken)
+    }
+    @Test fun olderFramesStillUseDetourAndMissingTokensAreSafe() {
+        val frame=MinimalBridgeFrame.parse(JSONObject("""{"session":"s","detour":true}"""),0L)
+        assertTrue(frame.stageMotionDetour);assertEquals(0L,frame.stageMotionToken)
+    }
+
     @Test fun unknownModeFallsBackToOff() {
         assertEquals("off", MinimalBridgeFrame.parse(JSONObject("""{"session":"s","mode":"sideways"}"""), 0L).mode)
         assertEquals("off", MinimalBridgeFrame.parse(JSONObject("""{"session":"s"}"""), 0L).mode)

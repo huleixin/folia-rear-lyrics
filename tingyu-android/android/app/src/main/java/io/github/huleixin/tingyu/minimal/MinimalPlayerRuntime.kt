@@ -73,6 +73,8 @@ data class MinimalControls(
     val detour: Boolean = false,
     /** 渲染来源诊断角标（临时）。 */
     val diag: Boolean = false,
+    val stageMotionToken: Long = 0L,
+    val stageMotionDetour: Boolean = false,
 )
 
 data class MinimalPlayerState(
@@ -138,6 +140,8 @@ data class MinimalBridgeFrame(
     val detour: Boolean = false,
     /** 渲染来源诊断角标（临时）。JS 控制台 `__tingyuMinimalSource()` 开关，验收后删。 */
     val diag: Boolean = false,
+    val stageMotionToken: Long = 0L,
+    val stageMotionDetour: Boolean = false,
     val palette: MinimalPalette? = null,
     val receivedAtElapsed: Long = 0L,
 ) {
@@ -171,6 +175,8 @@ data class MinimalBridgeFrame(
                 liked = value.optBoolean("liked", false),
                 likeDisabled = value.optBoolean("likeDisabled", true),
                 detour = value.optBoolean("detour", false),
+                stageMotionDetour = value.optBoolean("stageMotionDetour",value.optBoolean("detour",false)),
+                stageMotionToken = value.optLong("stageMotionToken", 0L).coerceAtLeast(0L),
                 diag = value.optBoolean("diag", false),
                 receivedAtElapsed = nowElapsed,
             )
@@ -545,6 +551,8 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
             liked = bridge?.liked == true,
             likeDisabled = bridge?.likeDisabled ?: true,
             detour = bridge?.detour == true,
+            stageMotionToken = bridge?.stageMotionToken ?: 0L,
+            stageMotionDetour = bridge?.stageMotionDetour == true,
             diag = bridge?.diag == true,
         )
         return MinimalPlayerState(

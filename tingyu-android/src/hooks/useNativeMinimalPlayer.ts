@@ -1,3 +1,4 @@
+import { openNativeMinimalArtist } from '../services/nativeMinimalArtist';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppOverlaysModel } from '../components/app/overlays/buildAppOverlaysModel';
 import { PlayerState } from '../types';
@@ -151,6 +152,10 @@ export function useNativeMinimalPlayer({
     const publishedTrackKey = useRef('');
     const publishRef = useRef<() => void>(() => undefined);
 
+    useEffect(() => usePlayerViewModeStore.subscribe((state, previous) => {
+        if (state.detour !== previous.detour || state.stageTransition !== previous.stageTransition) publishRef.current();
+    }), []);
+
     // 本地封面是 WebView 专用地址：把它异步转成原生可读的 data:，解析完成后重推一帧，
     // 让 Compose 播放页不必等下一次定时 publish 才换掉默认音符占位图。
     const coverUrl = chrome?.song?.coverUrl ?? '';
@@ -218,6 +223,8 @@ export function useNativeMinimalPlayer({
             liked: !!likeContext?.isLiked,
             likeDisabled: !likeContext || !!likeContext.likeDisabled,
             detour: usePlayerViewModeStore.getState().detour || webOverlayOpen(),
+            stageMotionDetour: usePlayerViewModeStore.getState().detour,
+            stageMotionToken: usePlayerViewModeStore.getState().stageTransitionId,
             // 渲染来源诊断角标：开关在控制台 `__tingyuMinimalSource()`。真机验收后随模块一起删。
             diag: minimalSourceBadgeEnabled(),
             palette: paletteRef.current,
@@ -229,6 +236,7 @@ export function useNativeMinimalPlayer({
             if (ownsRef.current) ownershipLog('release', 'enabled=false（WebView 面板打开或已离开极简页）→ 原生停画，交回 WebView');
             ownsRef.current = false;
             setComposeMinimalOwnership(false);
+            delete document.documentElement.dataset.nativePlayerMotion;
             setOwns(false);
             publishedTrackKey.current = '';
             sessionRef.current = '';
@@ -259,6 +267,7 @@ export function useNativeMinimalPlayer({
                 if (!ownsRef.current) {
                     ownsRef.current = true;
                     setComposeMinimalOwnership(true);
+                    document.documentElement.dataset.nativePlayerMotion = 'true';
                     ownershipLog('own', `Compose 接管（桥帧被接受，track=${frame.trackKey.slice(0, 40)}）`);
                 }
                 failures = 0;
@@ -283,6 +292,7 @@ export function useNativeMinimalPlayer({
                     if (ownsRef.current) {
                         ownsRef.current = false;
                         setComposeMinimalOwnership(false);
+                        delete document.documentElement.dataset.nativePlayerMotion;
                         ownershipLog('handback', 'WebView 弹层打开 → 立即交回 WebView 画极简页当背景');
                         setOwns(false);
                     }
@@ -294,6 +304,7 @@ export function useNativeMinimalPlayer({
                         if (ownsRef.current) {
                             ownsRef.current = false;
                             setComposeMinimalOwnership(false);
+                            delete document.documentElement.dataset.nativePlayerMotion;
                             ownershipLog('fallback', '连续拒绝 → 回退 WebView 极简页（桥每秒仍在重试，恢复时会有 own 日志）');
                         }
                         setOwns(false);
@@ -304,6 +315,12 @@ export function useNativeMinimalPlayer({
         publishRef.current = () => { void publish(); };
 
         const onAction = (action: string, value: number) => {
+            if(action==='stageMotionFinished'){
+                if(Number.isSafeInteger(value) && value>=0)usePlayerViewModeStore.getState().acknowledgeStageTransition(value%2===1,Math.floor(value/2)); return;
+            }
+            if(action==='artistOpen'){
+                void openNativeMinimalArtist(value,latest.current.chrome?.song?.artist); return;
+            }
             if(action==='pageChanged'){
                 usePlayerViewModeStore.getState().setPage(value===1?'lyrics':'cover');return;
             }
@@ -378,6 +395,7 @@ export function useNativeMinimalPlayer({
             if (ownsRef.current) ownershipLog('release', '卸载极简页 → 交回 WebView');
             ownsRef.current = false;
             setComposeMinimalOwnership(false);
+            delete document.documentElement.dataset.nativePlayerMotion;
             setOwns(false);
         };
     }, [enabled, buildFrame]);

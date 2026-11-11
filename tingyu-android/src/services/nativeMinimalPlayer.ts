@@ -56,6 +56,8 @@ export type MinimalPlayerFrame = {
      * layer, so it must step aside instead of covering a stage that still lives in the WebView.
      */
     detour: boolean;
+    stageMotionToken?: number;
+    stageMotionDetour?: boolean;
     /**
      * 渲染来源诊断角标（临时，真机验收后删）。true 时原生在极简页上画一个 "Compose" 角标，
      * WebView 极简页画 "WebView" —— 来源是显式声明，不靠外观判断。

@@ -18,6 +18,8 @@ export const MINIMAL_PLAYER_PAGE_KEY = 'tingyu_minimal_player_page';
 
 /** Retain both surfaces beyond the 360ms sheet motion, including bridge delivery time. */
 export const STAGE_TRANSITION_MS = 400;
+/** Native keeps the real renderer until its completion ack, with a bounded lost-bridge fallback. */
+export const NATIVE_STAGE_TRANSITION_TIMEOUT_MS = 1400;
 
 const isPage = (value: unknown): value is MinimalPlayerPage => value === 'cover' || value === 'lyrics';
 
@@ -60,12 +62,14 @@ type PlayerViewModeState = {
     detour: boolean;
     /** The temporary stage sheet currently moving, if any. */
     stageTransition: StageTransition;
+    stageTransitionId: number;
     setMode: (mode: PlayerViewMode) => void;
     setPage: (page: MinimalPlayerPage) => void;
     openStage: () => void;
     closeStage: () => void;
     /** Only the layer that owns the hold should end it; exported for that component. */
     endStageTransition: () => void;
+    acknowledgeStageTransition: (detour: boolean, token: number) => void;
     restoreSettingsPresentation: (origin: Pick<PlayerViewModeState,'mode'|'modeRevision'|'page'|'detour'>) => void;
 };
 
@@ -90,7 +94,8 @@ const startHold = (end: () => void) => {
     holdTimer = window.setTimeout(() => {
         holdTimer = 0;
         end();
-    }, STAGE_TRANSITION_MS);
+    }, typeof document !== 'undefined' && document.documentElement.dataset.nativePlayerMotion === 'true'
+        ? NATIVE_STAGE_TRANSITION_TIMEOUT_MS : STAGE_TRANSITION_MS);
 };
 
 export const usePlayerViewModeStore = create<PlayerViewModeState>((set, get) => ({
@@ -99,6 +104,7 @@ export const usePlayerViewModeStore = create<PlayerViewModeState>((set, get) => 
     page: readStoredMinimalPage(),
     detour: false,
     stageTransition: 'idle',
+    stageTransitionId: 0,
     setMode: (mode) => {
         write(PLAYER_VIEW_MODE_KEY, mode);
         // A mode change is a decision, not a transition: drop any sheet transition that is still running so a
@@ -119,7 +125,7 @@ export const usePlayerViewModeStore = create<PlayerViewModeState>((set, get) => 
         // navigation: the same pair of surfaces is already mounted, so this only turns the sheet transition
         // around instead of stacking a second one.
         startHold(() => get().endStageTransition());
-        set({ detour: true, stageTransition: 'to-stage' });
+        set({ detour: true, stageTransition: 'to-stage', stageTransitionId: state.stageTransitionId + 1 });
     },
     closeStage: () => {
         const state = get();
@@ -127,7 +133,13 @@ export const usePlayerViewModeStore = create<PlayerViewModeState>((set, get) => 
             return;
         }
         startHold(() => get().endStageTransition());
-        set({ detour: false, stageTransition: 'to-minimal' });
+        set({ detour: false, stageTransition: 'to-minimal', stageTransitionId: state.stageTransitionId + 1 });
+    },
+    acknowledgeStageTransition: (detour, token) => {
+        const state = get();
+        if (state.stageTransitionId === token && state.detour === detour && state.stageTransition === (detour ? 'to-stage' : 'to-minimal')) {
+            get().endStageTransition();
+        }
     },
     endStageTransition: () => {
         cancelHold();

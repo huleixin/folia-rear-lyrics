@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
+import io.github.huleixin.tingyu.chrome.LocalMinimalMorph
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
@@ -83,6 +84,8 @@ fun MinimalArtworkView(
     gesture: Modifier = Modifier,
     modifier: Modifier = Modifier,
 ) {
+    val morph = LocalMinimalMorph.current
+    fun decoration() = if(morph!=null && morph.active())morph.decorations()else 1f
     var breath by remember { mutableFloatStateOf(0f) }
     // 手势 / 切歌动画期间冻结呼吸：不更新相位，姿态停在当前值
     val animate = floating && !still && stack.phase == StackPhase.IDLE
@@ -125,7 +128,7 @@ fun MinimalArtworkView(
                 val inset = size.minDimension * 0.18f
                 drawRect(
                     Brush.radialGradient(
-                        colors = listOf(bloom.copy(alpha = 0.25f + 0.05f * glowWave), Color.Transparent),
+                        colors = listOf(bloom.copy(alpha = (0.25f + 0.05f * glowWave) * decoration()), Color.Transparent),
                         center = center,
                         radius = size.minDimension * 0.68f,
                     ),
@@ -141,8 +144,8 @@ fun MinimalArtworkView(
                 Modifier.fillMaxSize().graphicsLayer {
                     val scaleWave = sin(twoPi * breath / 10f)
                     val floatWave = sin(twoPi * breath / 13f + 1.1f)
-                    translationY = 3.dp.toPx() * floatWave
-                    val breathe = 1.006f + 0.006f * scaleWave
+                    translationY = 3.dp.toPx() * floatWave * decoration()
+                    val breathe = 1f + (0.006f + 0.006f * scaleWave) * decoration()
                     scaleX = breathe
                     scaleY = breathe
                 }
@@ -152,6 +155,7 @@ fun MinimalArtworkView(
                     Modifier
                         .matchParentSize()
                         .graphicsLayer {
+                            alpha = decoration()
                             val plate = twoPi * breath / 17f + 2.0f
                             rotationZ = 4f + 0.3f * sin(plate)
                             translationX = (7f + 1.5f * sin(plate + 0.7f)).dp.toPx()
@@ -180,6 +184,7 @@ fun MinimalArtworkView(
                             stack = stack,
                             corner = corner,
                             z = z - 0.5f,
+                            motionAlpha = { decoration() },
                         )
                         CoverLayer(
                             card = card,
@@ -188,6 +193,7 @@ fun MinimalArtworkView(
                             corner = corner,
                             ink = ink,
                             z = z,
+                            motionAlpha = { if(index==0)1f else decoration() },
                         )
                     }
                 }
@@ -249,6 +255,7 @@ private fun ShadowLayer(
     stack: CoverStackState,
     corner: androidx.compose.ui.unit.Dp,
     z: Float,
+    motionAlpha: () -> Float = { 1f },
 ) {
     val shape = remember(corner) { RoundedCornerShape(corner) }
     Box(
@@ -262,6 +269,7 @@ private fun ShadowLayer(
                 scaleX = frame[2]
                 scaleY = frame[2]
                 rotationZ = frame[3]
+                alpha = motionAlpha()
                 this.shape = shape
                 // 不裁剪：阴影必须延伸到卡片边界之外
             }
@@ -315,6 +323,7 @@ private fun CoverLayer(
     corner: androidx.compose.ui.unit.Dp,
     ink: MinimalInk,
     z: Float,
+    motionAlpha: () -> Float = { 1f },
 ) {
     val shape = remember(corner) { RoundedCornerShape(corner) }
     Box(
@@ -328,6 +337,7 @@ private fun CoverLayer(
                 scaleX = frame[2]
                 scaleY = frame[2]
                 rotationZ = frame[3]
+                alpha = motionAlpha()
                 this.shape = shape
                 // 只裁剪封面图片本身；阴影由独立的 ShadowLayer 承担，
                 // 不再使用 RenderNode 的 shadowElevation（原因见 ShadowLayer 注释）。

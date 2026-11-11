@@ -40,8 +40,11 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import io.github.huleixin.tingyu.chrome.minimalMovingCover
+import io.github.huleixin.tingyu.chrome.minimalSection
 import androidx.compose.ui.layout.onGloballyPositioned
 import io.github.huleixin.tingyu.chrome.LocalPlayerArtworkAnchor
+import io.github.huleixin.tingyu.chrome.chromeClickable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -157,6 +160,8 @@ fun MinimalCoverPage(
                 .padding(start = HORIZONTAL_PADDING, end = HORIZONTAL_PADDING, top = clampDp(12f, vh.value * 0.024f, 22f), bottom = 2.dp),
             verticalArrangement = Arrangement.Bottom,
         ) {
+            Box(Modifier.size(stageWidth).onGloballyPositioned { anchor.artwork(it) }
+                .zIndex(if (stack.phase != StackPhase.IDLE) 1f else 0f)) {
             MinimalArtworkView(
                 artwork = artwork,
                 bloom = Color(palette.bloom),
@@ -167,7 +172,7 @@ fun MinimalCoverPage(
                 covers = covers,
                 gesture = coverGesture,
                 modifier = Modifier
-                    .size(stageWidth).onGloballyPositioned { anchor.artwork(it) }
+                    .fillMaxSize().minimalMovingCover(anchor,active)
                     // 拖动 / 切歌动画期间把整摞封面提到本页文字之上：只有正在移动的那一张
                     // 会越出封面区域（后两层不越界，视觉上就是"拿起最上面这张盖住文字"），
                     // 松手回弹 / 补位完成（phase 回 IDLE）后立即恢复原层级。zIndex 只改
@@ -178,7 +183,9 @@ fun MinimalCoverPage(
                     .semantics { contentDescription = "专辑封面" }
                     .graphicsLayer { translationX = parallax() },
             )
+            }
             Spacer(Modifier.height(clampDp(15f, vh.value * 0.020f, 19f)))
+            Column(Modifier.minimalSection("metadata")) {
 
             // ---- 歌曲信息：与顶层封面同源的统一显示身份 ----
             //
@@ -249,6 +256,7 @@ fun MinimalCoverPage(
                 suppressed = previewing,
                 onOpenLyrics = onOpenLyrics,
             )
+            }
         }
     }
 }
@@ -352,7 +360,7 @@ private fun ArtistLine(artist: String, ink: MinimalInk, onOpenArtist: (Int) -> U
     val segments = remember(artist) {
         ARTIST_SEPARATORS.split(artist).map { it.trim() }.filter { it.isNotEmpty() }
     }
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.semantics { contentDescription = "打开歌手：$artist" }.chromeClickable(corner=10.dp) { onOpenArtist(0) }, verticalAlignment = Alignment.CenterVertically) {
         if (segments.isEmpty()) {
             Text(
                 text = artist,

@@ -1,5 +1,8 @@
 package io.github.huleixin.tingyu.minimal.ui
 
+import io.github.huleixin.tingyu.chrome.MinimalCoverOverlay
+import io.github.huleixin.tingyu.chrome.minimalSection
+import io.github.huleixin.tingyu.chrome.minimalBackground
 import io.github.huleixin.tingyu.chrome.LiquidIcon
 import android.os.SystemClock
 import androidx.compose.foundation.Canvas
@@ -230,7 +233,8 @@ fun MinimalPlayerScreen(
         coverController.sync(playback.track, queue, force = true)
     }
 
-    Box(modifier.fillMaxSize().background(Color(palette.base))) {
+    MinimalCoverOverlay {
+    Box(modifier.fillMaxSize()) {
         // 渲染来源角标（临时诊断，验收后删）：看到 "Compose" 就说明这一屏是原生画的。
         if (state.controls.diag) {
             Text(
@@ -264,7 +268,7 @@ fun MinimalPlayerScreen(
             light = !dark,
             paused = !playback.playing || detour,
             still = still,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().minimalBackground().background(Color(palette.base)),
         )
 
         Column(Modifier.fillMaxSize().padding(top = safeTop.dp, bottom = safeBottom.dp)) {
@@ -276,6 +280,7 @@ fun MinimalPlayerScreen(
                 commands = commands,
                 onCollapse = onCollapse,
                 onOpenStage = onOpenStage,
+                modifier = Modifier.minimalSection("header"),
             )
 
             HorizontalPager(
@@ -283,7 +288,7 @@ fun MinimalPlayerScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .liquidPlayerContent(.14f)
+                    .then(if(page==1)Modifier.minimalSection("lyrics")else Modifier)
                     // 封面拖动 / 切歌动画期间，把 pager 提到共用底栏之上 ——
                     // 正在移动的封面拖进进度条、播放按钮区域时能自然遮挡它们。
                     // 只影响绘制顺序；pager 内容都在自身边界内，实际越界的只有移动中的封面。
@@ -374,10 +379,11 @@ fun MinimalPlayerScreen(
                 // 与手势共用同一个过渡控制器：先跑封面动画，动画里的那一次命令由它发。
                 onPrevious = { coverController.skip(DragDirection.PREV) },
                 onNext = { coverController.skip(DragDirection.NEXT) },
-                modifier = Modifier.padding(top = 2.dp).liquidPlayerContent(.32f),
+                modifier = Modifier.padding(top = 2.dp).minimalSection("controls"),
             )
         }
 
+    }
     }
 }
 
@@ -410,9 +416,10 @@ private fun TopBar(
     commands: MinimalPlayerCommands,
     onCollapse: () -> Unit,
     onOpenStage: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 2.dp),
+        modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {

@@ -8,6 +8,13 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import io.github.huleixin.tingyu.minimal.BridgeMinimalCommands
@@ -76,6 +83,17 @@ class MinimalPlayerFooterTest {
 
     private fun bounds(label: String): Rect =
         compose.onNodeWithContentDescription(label).fetchSemanticsNode().boundsInRoot
+
+    @Test
+    fun artistNameAndWholeRowBothReachTheExistingArtistActionOnce() {
+        start()
+        compose.onAllNodes(hasText("Artist") and hasClickAction(),useUnmergedTree=true).assertCountEquals(1)
+        compose.onNode(hasText("Artist") and hasClickAction(),useUnmergedTree=true).performTouchInput { click() }
+        assertEquals(listOf("artistOpen"),events)
+        events.clear()
+        compose.onNodeWithContentDescription("打开歌手：Artist",useUnmergedTree=true).performTouchInput { click(androidx.compose.ui.geometry.Offset(width-2f,height/2f)) }
+        assertEquals(listOf("artistOpen"),events)
+    }
 
     @Test
     fun coverAndLyricsKeepSeekTransportAndFiveToolsInTheSamePositions() {

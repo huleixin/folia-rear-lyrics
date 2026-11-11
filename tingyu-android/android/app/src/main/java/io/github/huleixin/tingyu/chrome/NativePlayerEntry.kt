@@ -28,3 +28,16 @@ import androidx.compose.ui.graphics.graphicsLayer
     }
     return graphicsLayer{translationY=height*offset.value}
 }
+
+/** Boolean presentation survives missed/expired JS phase labels; one clock moves renderer and chrome. */
+@Composable internal fun rememberPlayerDetourProgress(enabled: Boolean, detour: Boolean, reduced: Boolean, token: Long = 0L, onSettled: (Boolean,Long)->Unit = { _, _ -> }): State<Float> {
+    val settled by rememberUpdatedState(onSettled)
+    val offset = remember(enabled) { Animatable(if(enabled && !detour)1f else 0f) }
+    LaunchedEffect(enabled, detour, reduced, token) {
+        val target = if(enabled && !detour)1f else 0f
+        if(reduced || !enabled) offset.snapTo(target)
+        else offset.animateTo(target,tween(360,easing=if(detour)CubicBezierEasing(.2f,.72f,.16f,1f)else CubicBezierEasing(.4f,0f,.7f,.3f)))
+        if(enabled)settled(detour,token)
+    }
+    return offset.asState()
+}

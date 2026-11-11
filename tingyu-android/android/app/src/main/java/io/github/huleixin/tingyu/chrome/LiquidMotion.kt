@@ -45,14 +45,14 @@ internal fun Modifier.liquidPlayer(origin: Rect?, entry: State<Float>, exit: Nat
     }
 }
 
-@Composable internal fun rememberLiquidPlayerProgress(show: Boolean, resume: Boolean, reduced: Boolean, exiting: Boolean, ready: Boolean = true): State<Float> {
+@Composable internal fun rememberLiquidPlayerProgress(show: Boolean, resume: Boolean, reduced: Boolean, exiting: Boolean, ready: Boolean = true, reference: Boolean = false): State<Float> {
     // A new route owns a new entry clock: frame zero is already the mini bounds.
     // Cancelling this effect on Back freezes entry before the collapse clock takes over.
     val value = remember(show) { Animatable(if (show && !resume && !reduced) 0f else 1f) }
-    LaunchedEffect(show, reduced, exiting, ready, resume) {
+    LaunchedEffect(show, reduced, exiting, ready, resume, reference) {
         if (exiting) value.stop()
         else if (!show || resume || reduced) value.snapTo(1f)
-        else if (ready) value.animateTo(1f, tween(TingYuMotion.PlayerMorphMs, easing = TingYuMotion.Emphasized))
+        else if (ready) value.animateTo(1f, tween(if(reference)SaltPlayerTimeline.EnterMs else TingYuMotion.PlayerMorphMs, easing = if(reference)androidx.compose.animation.core.LinearEasing else TingYuMotion.Emphasized))
     }
     return value.asState()
 }

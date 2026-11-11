@@ -683,15 +683,16 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val motionOrigin=remember{MotionOrigin()}
         val playerArtwork = remember(configuration.screenWidthDp, configuration.screenHeightDp) { PlayerArtworkAnchor() }
         var miniCoverBounds by remember(configuration.screenWidthDp, configuration.screenHeightDp) { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+        var playerPanelOrigin by remember(configuration.screenWidthDp, configuration.screenHeightDp) { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
         var playerOrigin by remember(configuration.screenWidthDp, configuration.screenHeightDp){mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)}
-        LaunchedEffect(destination, pendingStageEntry) { if(destination!="stage"&&!pendingStageEntry) playerOrigin=null }
+        LaunchedEffect(destination, pendingStageEntry) { if(destination!="stage"&&!pendingStageEntry) { playerOrigin=null;playerPanelOrigin=null } }
 
         val activity=web.context as? android.app.Activity
         DisposableEffect(interfaceLight,destination,surfaces["stage"]?.light) {activity?.let{InterfaceAppearance.route(it,destination=="stage",surfaces["stage"]?.light?:false)};onDispose{}}
         val sleepUi=rememberMiniSleepUi(active&&focused)
         val backdrop = rememberLayerBackdrop()
         val stageBackdrop = rememberLayerBackdrop()
-        val exitProgress=rememberStageExitProgress(stageExit,reducedMotion)
+        val exitProgress=rememberStageExitProgress(stageExit,reducedMotion,playerPanelOrigin!=null)
         // 极简页归 Compose 所有时，WebView 那条 stage 控制条必须退场：两个传输并排出现
         // 就是两套「播放/暂停」在同一个屏幕上，和 1.3.119 里「极简页 vs 舞台」的规则一致。
         // 条件里的 bound 是握手：只有 JS 正在推帧（也就意味着它已经把 WebView 极简页让出来）
@@ -703,10 +704,18 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // 顺访期间保留原生 pager，但让 WebView 舞台及其底栏占上层；返回过渡结束才交还触摸。
         // 不含退场判定的那一份：退场那 280ms 里 destination 仍是 stage、presentation 仍是 minimal，
         // 差别只在 stageExit.active。播放页必须靠这一份继续留在组合里 —— 见 playerShown。
-        val stagePhase=surfaces["stage"]?.playerTransition?:"idle"
-        val stageAboveMinimal=minimalState.controls.detour||stagePhase in setOf("to-stage","to-minimal")
+        val nativeDetour = minimalPlayerEnabled() && minimalBound && !webOverlay && destination=="stage" && playerPresentation=="minimal"
+        val detourOffset = rememberPlayerDetourProgress(nativeDetour,minimalState.controls.stageMotionDetour,reducedMotion||!active||!focused,minimalState.controls.stageMotionToken) { stageShown, token ->
+            val session=minimal.session()
+            if(session.isNotEmpty())listener.onAction("minimal",session,"stageMotionFinished",token.toDouble()*2.0+(if(stageShown)1.0 else 0.0))
+        }
+        val detourAbove by remember(nativeDetour,detourOffset) { derivedStateOf { nativeDetour && detourOffset.value < .9999f } }
+        val stageAboveMinimal=minimalState.controls.stageMotionDetour||detourAbove
         val playerReady=playerPresentation!="minimal"||!minimalPlayerEnabled()||minimalBound
-        val playerEntry=rememberLiquidPlayerProgress(destination=="stage",returningFromSettings||minimalResumePending,reducedMotion||!active||!focused,stageExit.active,playerReady)
+        val playerEntry=rememberLiquidPlayerProgress(destination=="stage",returningFromSettings||minimalResumePending,reducedMotion||!active||!focused,stageExit.active,playerReady,playerPresentation=="minimal"&&playerPanelOrigin!=null)
+        val minimalMorph=remember(playerPanelOrigin,playerOrigin,playerEntry,exitProgress,reducedMotion,active,focused) {
+            playerPanelOrigin?.let { panel -> playerOrigin?.let { cover -> MinimalPlayerMorph(panel,cover,playerEntry,stageExit,exitProgress,reducedMotion||!active||!focused) } }
+        }
         val playerReveal=remember(playerEntry,exitProgress){derivedStateOf{playerEntry.value*(if(stageExit.active)1f-exitProgress.value else 1f)}}
         val playerEntering by remember(playerEntry){derivedStateOf{destination=="stage"&&playerEntry.value<.9999f&&!stageExit.active}}
         val minimalBase = minimalPlayerEnabled() && destination=="stage" && playerPresentation=="minimal" && !webOverlay && minimalBound
@@ -755,7 +764,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         SideEffect{if(!legacySampling)webSamplingLayer.update(Build.VERSION.SDK_INT>=31&&sampleWeb)}
         val savedPages=rememberSaveableStateHolder()
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            CompositionLocalProvider(LocalChromeRendering provides (active&&focused),LocalInterfacePalette provides palette,LocalLiquidReduced provides (reducedMotion||!active||!focused),LocalMotionOrigin provides motionOrigin,LocalPlayerReveal provides playerReveal,LocalPlayerArtworkAnchor provides playerArtwork) {
+            CompositionLocalProvider(LocalChromeRendering provides (active&&focused),LocalInterfacePalette provides palette,LocalLiquidReduced provides (reducedMotion||!active||!focused),LocalMotionOrigin provides motionOrigin,LocalPlayerReveal provides playerReveal,LocalPlayerArtworkAnchor provides playerArtwork,LocalMinimalMorph provides minimalMorph) {
             val density=LocalDensity.current;val width=maxWidth.value;val height=maxHeight.value
             val safeTop=if(nativeTop>=0)nativeTop else WindowInsets.statusBars.getTop(density)/density.density
             val safeBottom=if(nativeBottom>=0)nativeBottom else WindowInsets.navigationBars.getBottom(density)/density.density
@@ -825,9 +834,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     .then(if(!legacySampling&&Build.VERSION.SDK_INT>=31&&sampleWeb)Modifier.layerBackdrop(stageBackdrop)else Modifier)) {
                 AndroidView(factory = { web }, modifier = Modifier.fillMaxSize()
                     .then(if(legacySampling&&graphics.mode!=GraphicsProbeMode.C31)Modifier.graphicsLayer { alpha = if(Build.VERSION.SDK_INT>=31).999f else 1f }else Modifier)
-                    .liquidPlayer(playerOrigin,playerEntry,stageExit,exitProgress,webOwnsRoutePixels(destination,webOverlay,stageExit.active)&&!nativeMinimalCollapse))
+                    .then(if(nativeDetour)Modifier.graphicsLayer { alpha=if(webOwnsRoutePixels(destination,webOverlay,stageExit.active)&&!nativeMinimalCollapse)1f else 0f } else Modifier.liquidPlayer(playerOrigin,playerEntry,stageExit,exitProgress,webOwnsRoutePixels(destination,webOverlay,stageExit.active)&&!nativeMinimalCollapse))
+                    .graphicsLayer { translationY=if(nativeDetour&&!webOverlay)height*density.density*detourOffset.value else 0f })
                 }
-            Box(Modifier.fillMaxSize().zIndex(if(destination!="stage"||stageAboveMinimal)1f else 0f).then(if(legacySampling&&Build.VERSION.SDK_INT>=31&&graphics.sampleStage(destination))Modifier.layerBackdrop(backdrop)else Modifier)) {
+            Box(Modifier.fillMaxSize().zIndex(if(destination!="stage")1f else 0f).then(if(legacySampling&&Build.VERSION.SDK_INT>=31&&graphics.sampleStage(destination))Modifier.layerBackdrop(backdrop)else Modifier)) {
                 Box(Modifier.fillMaxSize().zIndex(1f).then(if(!legacySampling&&Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop)else Modifier)) {
                 if(page==null&&firstHomeFrame&&destination=="home")NativePageView(bootPage,Modifier.fillMaxSize().zIndex(1f)){_,_,_->}
                 // One route-level animation, with no HTML exit animation or full-screen blur.
@@ -1010,7 +1020,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         if(id=="stage"&&width>height)translationY=(height-rect.top)*density.density*(1f-stagePresence)
                         alpha = when {
                             id!="stage"&&footerHiddenForIme -> 0f
-                            id=="mini" -> rect.alpha * miniFade * (if(destination=="stage") (1f-playerReveal.value*4f).coerceIn(0f,1f) else 1f)
+                            id=="mini" -> rect.alpha * miniFade * (if(destination=="stage") { if(playerPresentation=="minimal"&&minimalMorph!=null)minimalMorph.miniAlpha() else (1f-playerReveal.value*4f).coerceIn(0f,1f) } else 1f)
                             id=="nav"&&destination=="settings" -> rect.alpha * settingsNavAlpha
                             else -> rect.alpha
                         }
@@ -1036,6 +1046,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             if(action=="navigate"||action=="openStage"||action=="queue"||action=="quality")sleepMenuOpen=false
                             // Dismiss home chrome on the UI thread before the JS route transition starts.
                             if (surface.id=="mini" && action=="openStage") {
+                                playerPanelOrigin=androidx.compose.ui.geometry.Rect(rect.left*density.density,animatedY*density.density,(rect.left+rect.width)*density.density,(animatedY+rect.height)*density.density)
                                 playerOrigin=miniCoverBounds ?: androidx.compose.ui.geometry.Rect((rect.left+16f)*density.density,(animatedY+9f)*density.density,(rect.left+50f)*density.density,(animatedY+43f)*density.density)
                                 pendingStageEntry=true
                                 val request=++stageEntryRequest
@@ -1058,7 +1069,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     when(id) {
                         "nav" -> ChromeNavigation(surface,backdrop,interactivePlacement,actions)
                         "mini" -> ChromeMiniPlayer(surface,if(live==null)null else clocks[id],backdrop,interactivePlacement,onCoverBounds={miniCoverBounds=it},action=actions)
-                        "stage" -> Box(Modifier.fillMaxSize().zIndex(2f).liquidPlayer(playerOrigin,playerEntry,stageExit,exitProgress).playerDetourTransform(surface.playerTransition,reducedMotion||surface.reducedMotion,height*density.density)){ChromeStagePlayer(surface,clocks[id],if(legacySampling)backdrop else stageBackdrop,interactivePlacement,actions)}
+                        "stage" -> Box(Modifier.fillMaxSize().zIndex(2f).then(if(nativeDetour)Modifier else Modifier.liquidPlayer(playerOrigin,playerEntry,stageExit,exitProgress)).graphicsLayer { translationY=if(nativeDetour)height*density.density*detourOffset.value else 0f }){ChromeStagePlayer(surface,clocks[id],if(legacySampling)backdrop else stageBackdrop,interactivePlacement,actions)}
                     }
                 }
             }
@@ -1089,7 +1100,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         targetOffsetY = { it },
                     ) + fadeOut(tween(TingYuMotion.MinimalFadeMs))
                 },
-                modifier = Modifier.fillMaxSize().zIndex(playerZ).liquidPlayer(playerOrigin,playerEntry,stageExit,exitProgress,artwork=if(minimalCurrentPage==0)playerArtwork else null),
+                modifier = Modifier.fillMaxSize().zIndex(playerZ).then(if(minimalMorph!=null)Modifier.minimalPlayerContainer(minimalMorph) else Modifier.liquidPlayer(playerOrigin,playerEntry,stageExit,exitProgress)),
             ) {
                 MinimalPlayerSurface(
                     runtime = minimal,

@@ -25,10 +25,10 @@ internal class NativeStageExit {
     fun finish(){completed=true;val callbacks=replies.toList();replies.clear();callbacks.forEach{it()}}
     fun clear(){if(replies.isNotEmpty())finish();active=false;completed=false;returning=null;minimal=false}
 }
-@Composable internal fun rememberStageExitProgress(exit:NativeStageExit,reduced:Boolean):State<Float>{
+@Composable internal fun rememberStageExitProgress(exit:NativeStageExit,reduced:Boolean,reference:Boolean=false):State<Float>{
     val progress=remember{Animatable(0f)}
-    LaunchedEffect(exit.active,reduced){
-        if(exit.active){progress.animateTo(1f,tween(if(reduced)0 else if(exit.minimal)TingYuMotion.StageCollapseMinimalMs else TingYuMotion.StageCollapseClassicMs,easing=if(exit.minimal)TingYuMotion.Collapse else TingYuMotion.Emphasized));exit.finish()}
+    LaunchedEffect(exit.active,reduced,reference){
+        if(exit.active){progress.animateTo(1f,tween(if(reduced)0 else if(exit.minimal&&reference)SaltPlayerTimeline.ExitMs else if(exit.minimal)TingYuMotion.StageCollapseMinimalMs else TingYuMotion.StageCollapseClassicMs,easing=if(exit.minimal&&reference)androidx.compose.animation.core.LinearEasing else if(exit.minimal)TingYuMotion.Collapse else TingYuMotion.Emphasized));exit.finish()}
         else progress.snapTo(0f)
     }
     return progress.asState()
