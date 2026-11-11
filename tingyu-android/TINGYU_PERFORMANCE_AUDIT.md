@@ -151,12 +151,12 @@ React 不是 Android 普通页面的第二套可见 UI。Android 普通页面由
 
 ## 5. 验证结果
 
-以下为本次实际执行结果，最终构建结果在交付时补录：
+以下为本次实际执行结果：
 
 - TypeScript / 主题生成一致性：通过。
 - 前端针对性单元与架构测试：70 项通过（13 个文件），含页面归属 18 项、导航 journal、阶段令牌、页面桥/图片桥、返回栈、预热与关闭诊断零采样。
 - 原生针对性 JVM / Robolectric：69 项通过（15 类），含本次状态投影/模态退出/分布统计，以及包预解析、路由栅栏、页面保留、行缓存、首帧顺序、播放器轨迹/退出、首帧交接、原生面板和 sheet 触摸。
-- 桌面 Chrome 实际组件：17 项通过，覆盖浮层生命周期与设置导航；未发现重复 key 或重复插件注册错误。Service Worker 被测试配置主动屏蔽的提示属于预期。
+- 桌面 Chrome 实际组件：18 项通过，覆盖自主管理/父级管理浮层生命周期与设置导航；最终日志无重复 key 或重复插件注册错误。Service Worker 被测试配置主动屏蔽的提示属于预期。
 - 原生测试采用 LEGACY 软件测试环境的用例，不声称其像素或运行耗时等同真机 GPU。
 - 扩展试跑发现 `test/component/collectionMorph.spec.ts` 的 11 项测试引用基线已不存在的 `collectionMorph` 探针。这 11 项未能执行到产品代码，未标为通过、未删除或通过 skip 掩盖，也未复活已淘汰的 WebView 歌单实现。当前歌单原生机制通过现有几何/保留类测试覆盖；完整歌单设备交互仍待验证。
 - 没有宣称整仓所有历史测试通过。
@@ -202,4 +202,15 @@ React 不是 Android 普通页面的第二套可见 UI。Android 普通页面由
 
 ## 构建与交付记录
 
-构建/最终复核进行中；以本节最后补录结果为准。输出日志位于工作区 `outputs/performance-*.log`。APK 需验证包名、1.5.8/223、原有签名与前端资源一致性后再作为本次候选交付。
+Release 构建与最终复核已完成。代码提交：`fbd2ea0b6528b74b41df55fc8b61b7f879f42745`；Build ID：`1.5.8@fbd2ea0b`。报告结果补录属于后续文档提交，应用代码与上述提交一致。
+
+- APK：`outputs/Tingyu-1.5.8-performance-release.apk`，51,953,597 bytes。
+- 包名 `io.github.huleixin.tingyu`，versionName `1.5.8`，versionCode `223`；非 debuggable，沿用原签名，apksigner 验证通过。
+- SHA-256：`deaa612b4cd674418a12332695da9d9bb3dc1998d370d9ba4010bdc4342cff4d`。
+- BuildConfig 与 APK DEX 的 Build ID 已核对；Compose、极简播放器和原生播放能力保持开启，播放测试/图形诊断构建标记关闭。
+- APK 中 2,188 个前端产物与本次 dist 逐文件哈希一致；仅额外包含 Capacitor 生成的两个 cordova 文件，没有残留旧资源。
+- TypeScript/主题一致性通过，70 项前端单元与架构 + 69 项原生 + 18 项浏览器，共 157 项针对性测试通过；不包括前述无法执行的 11 项历史探针测试。
+- 初次完整构建在归档旧 public 目录时遇 Windows EPERM 并正确中止。校验绝对路径后，把旧生成资源的 24 个顶层条目移至工作区 `.trash-old`，确认原目录为空，再同步本次已通过资产验证的 dist、检查反馈层并继续 assembleRelease。最终构建成功，没有使用 stale-web-assets 跳过开关。
+- 没有连接设备，未进行安装/触摸真机验收，没有新增 GitHub 发布。候选 APK 与源码快照供本轮本地验收。
+
+验证清单：`outputs/Tingyu-1.5.8-performance-verification.json`；签名及包信息：`outputs/performance-apk-signature.txt`、`performance-apk-badging.txt`。构建与测试日志：`outputs/performance-*.log`。输出目录为本工作区的 outputs，不属于源码仓库。
