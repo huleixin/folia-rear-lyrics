@@ -11,7 +11,7 @@ const bridge = vi.hoisted(() => ({ addListener: vi.fn(), getStageLayout: vi.fn()
 vi.mock('../../../src/services/nativeChrome', () => ({ PREHIDE_COMPOSE_CHROME: true, chromeNative: bridge }));
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 const shown: NativeStageLayout = { active: true, width: 852, height: 393, safeBottom: 12,
-    shown: true, shownBottom: 126, hiddenBottom: 20, durationMs: 0 };
+    shown: true, shownBottom: 122, hiddenBottom: 16, durationMs: 0 };
 let root: Root, host: HTMLDivElement;
 let receive: (layout: NativeStageLayout) => void;
 function Probe() { const ref = useRef<HTMLDivElement>(null); useNativeStageSubtitleBottom(ref); return h('div', { ref }); }
@@ -23,11 +23,11 @@ beforeEach(() => {
 });
 afterEach(() => { act(() => root.unmount()); host.remove(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
 
-it('follows the control translation then stops eight dp above the bottom safe area', () => {
-    expect(resolveNativeStageSubtitleBottom(shown, 1, 852)).toBe(126);
-    expect(resolveNativeStageSubtitleBottom(shown, .5, 852)).toBe(67);
-    expect(resolveNativeStageSubtitleBottom(shown, 0, 852)).toBe(20);
-    expect(resolveNativeStageSubtitleBottom(shown, 1, 426)).toBe(63);
+it('follows the control translation then stops four dp above the bottom safe area', () => {
+    expect(resolveNativeStageSubtitleBottom(shown, 1, 852)).toBe(122);
+    expect(resolveNativeStageSubtitleBottom(shown, .5, 852)).toBe(63);
+    expect(resolveNativeStageSubtitleBottom(shown, 0, 852)).toBe(16);
+    expect(resolveNativeStageSubtitleBottom(shown, 1, 426)).toBe(61);
     expect(resolveHostSubtitleBottom(250, 220, true, 20)).toBe(20);
     expect(resolveHostSubtitleBottom(250, 220, false, 20)).toBe(250);
     expect(resolveNativeStageSubtitleBottom({ ...shown, active: false }, 1, 852)).toBe(-1);
@@ -37,7 +37,7 @@ it('follows the control translation then stops eight dp above the bottom safe ar
 
 it('clears on rotation and unmount and removes its listener', async () => {
     await act(async () => root.render(h(Probe)));
-    expect(nativeLandscapeSubtitleBottom.get()).toBe(126);
+    expect(nativeLandscapeSubtitleBottom.get()).toBe(122);
     vi.stubGlobal('innerWidth', 393); vi.stubGlobal('innerHeight', 852);
     window.dispatchEvent(new Event('resize'));
     expect(nativeLandscapeSubtitleBottom.get()).toBe(-1);
@@ -52,7 +52,7 @@ it('does not let a late initial reply overwrite a newer layout event', async () 
     bridge.getStageLayout.mockReturnValueOnce(new Promise<NativeStageLayout>(resolve => { reply = resolve; }));
     await act(async () => root.render(h(Probe)));
     receive({ ...shown, shown: false });
-    expect(nativeLandscapeSubtitleBottom.get()).toBe(20);
+    expect(nativeLandscapeSubtitleBottom.get()).toBe(16);
     await act(async () => reply(shown));
-    expect(nativeLandscapeSubtitleBottom.get()).toBe(20);
+    expect(nativeLandscapeSubtitleBottom.get()).toBe(16);
 });

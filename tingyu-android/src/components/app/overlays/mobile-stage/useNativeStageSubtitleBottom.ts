@@ -7,8 +7,8 @@ import { nativeLandscapeSubtitleBottom } from '../../../../utils/mobileStageSubt
 export function resolveNativeStageSubtitleBottom(layout: NativeStageLayout, presence: number, cssWidth: number): number {
     if (!layout.active || !(layout.width > layout.height) || !(layout.height > 0) || !(cssWidth > 0)
         || !Number.isFinite(layout.shownBottom) || !Number.isFinite(layout.hiddenBottom)) return -1;
-    // 8dp 是字幕与播放条上沿的距离，位移和 Compose 控件一致，最后钳在安全区上方。
-    return Math.max(layout.hiddenBottom, layout.shownBottom - (layout.shownBottom - 8) * (1 - presence)) * cssWidth / layout.width;
+    // 4dp 是字幕与播放条上沿的距离，位移和 Compose 控件一致，最后钳在安全区上方。
+    return Math.max(layout.hiddenBottom, layout.shownBottom - (layout.shownBottom - 4) * (1 - presence)) * cssWidth / layout.width;
 }
 
 /** 原生只发布显隐/几何变化；逐帧更新留在 MotionValue，不重渲染 React 树。 */

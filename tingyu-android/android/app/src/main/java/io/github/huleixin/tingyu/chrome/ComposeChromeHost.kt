@@ -37,6 +37,7 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.ComposeView
@@ -322,9 +323,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var collectionDetail by mutableStateOf(false)
     private val routeFence=NativeRouteFence()
     private var settingsHandoff by mutableStateOf<StageSettingsHandoff?>(null)
+    private var settingsDrawHandoff by mutableStateOf<StageSettingsHandoff?>(null)
     private var handoffFooter by mutableStateOf<ChromeSurface?>(null)
     private var settingsHandoffFailed by mutableStateOf(false)
     private var playerPresentation by mutableStateOf("stage")
+    private var stageVisible by mutableStateOf(true)
     private var returningFromSettings by mutableStateOf(false)
     private var minimalResumePending by mutableStateOf(false)
     /** 离开播放页去集合页时"举着"播放页：原地保持不透明，等新页面盖上来再摘。见 MinimalPlayerExitPolicy。 */
@@ -351,13 +354,16 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     fun shell(value:JSONObject,complete:(()->Unit)?=null) {
         val generation=value.optLong("generation");val revision=value.optLong("revision")
         val ticket=routeFence.request(generation,revision)?:run{complete?.invoke();return}
-        settingsHandoff?.complete?.invoke()
+        val awaitingSettingsDraw=settingsHandoff!=null||settingsDrawHandoff!=null
+        settingsHandoff?.complete()
+        settingsDrawHandoff?.complete()
         settingsHandoff=null
+        settingsDrawHandoff=null
         stageEntryRequest++
         val next=value.optString("route","home")
         require(next in setOf("home","collection","search","settings","stage","web"))
         settingsHandoffFailed=false
-        if(destination=="stage"&&playerPresentation=="stage"&&next=="settings") {
+        if(needsStageSettingsHandoff(destination,stageVisible,next,awaitingSettingsDraw)) {
             val pending=StageSettingsHandoff(value,complete)
             settingsHandoff=pending
             if(handoffFooter==null)handoffFooter=surfaces["stage"]
@@ -367,9 +373,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 if(settingsHandoff===pending&&routeFence.current(ticket)) {
                     androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
                         settingsHandoff=null;handoffFooter=null
+                        settingsDrawHandoff=pending
                         commitShell(value);presented=null;settingsHandoffFailed=true
                     }
-                    complete?.invoke()
                 }
             },1500)
             return
@@ -404,6 +410,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val nextPresentation=if(value.optString("playerPresentation")=="minimal")"minimal"else"stage"
         if(nextPresentation!=playerPresentation)sleepMenuOpen=false
         playerPresentation=nextPresentation
+        stageVisible=shellStageVisible(value)
         // 从浏览页（home/collection/search/…）进入播放器 = 一次**新会话**：令牌 +1，
         // pager 状态随之重建，首次组合就落在封面页（需求二）。设置页返回与完整舞台往返
         // 不算新会话（前者 destination=="settings"，后者 from 已是 stage），页面状态保持。
@@ -421,6 +428,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         StartupTrace.detail("route-commit"){
             put("from",from);put("to",next);put("overlay",webOverlay);put("tab",selectedTab)
             put("presentation",playerPresentation);put("pendingStageEntry",pendingStageEntry)
+            put("stageVisible",stageVisible)
         }
         if(next=="stage"&&playerPresentation=="minimal"){
             val stagePhase=surfaces["stage"]?.playerTransition?:"idle"
@@ -493,6 +501,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 retained.update(next);pages[next.id]=next;pageNavigations[next.id]=value.navigation
                 cache.commit(value.cache)
                 settingsHandoff=null;handoffFooter=null
+                settingsDrawHandoff=pending
                 commitShell(pending.shell);presented=next
             }
             navigationTrace("page-native-commit:${next.id}")
@@ -501,8 +510,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             settingsTrace("stage-settings-handoff","key" to next.key,"navigation" to value.navigation)
             NavigationTiming.mark("page-ui-commit",(SystemClock.elapsedRealtime()-started).toDouble())
             // 原生页首次以不透明内容接管后，才让 JS 隐藏旧舞台。
-            // postOnAnimation 后的普通 post 在该次 UI traversal 后执行。
-            host?.postOnAnimation { web.post { pending.complete?.invoke() } } ?: pending.complete?.invoke()
+            // 完成回执由目标 NativePageView 的 drawContent 发出，而非猜测下一帧已完成绘制。
             reply(status().put("accepted",true).put("session",next.session).put("reason",""))
             return
         }
@@ -759,13 +767,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             val stageRect=NativeFooterLayout.rect("stage",width,height,safeTop,safeBottom,false)
             val stageReduced=reducedMotion||stageSurface?.reducedMotion==true
             // 新路由/旋转从实际姿态起步；只有舞台内的显隐切换播放跟随动画。
-            val stagePresence by key(destination=="stage",playerPresentation,width>height) {
+            val stagePresence by key(destination=="stage",stageVisible,width>height) {
                 animateFloatAsState(if(stageShown)1f else 0f,
                     tween(if(stageReduced)0 else STAGE_CONTROLS_MOTION_MS),label="stage-controls-presence")
             }
             SideEffect {
                 val layout=stageSubtitleLayout(width,height,safeBottom,stageRect,stageShown,stageReduced)
-                    .put("active",destination=="stage"&&playerPresentation=="stage")
+                    .put("active",destination=="stage"&&stageVisible)
                 if(layout.toString()!=stageLayout.toString()){stageLayout=layout;stageLayoutListener?.invoke(layout)}
             }
             var lastSettingsNav by remember { mutableStateOf<ChromeSurface?>(null) }
@@ -829,7 +837,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         val travel=with(density){28.dp.roundToPx()}
                         val tabTravel=with(density){8.dp.roundToPx()}
                         val position=tween<IntOffset>(TingYuMotion.PushMs,easing=ease)
-                        val opaqueSettingsEntry=from=="stage"&&to.startsWith("settings:")&&playerPresentation=="stage"
+                        val opaqueSettingsEntry=from=="stage"&&to.startsWith("settings:")&&(stageVisible||settingsDrawHandoff!=null)
                         (when(NativeMotionPolicy.kind(from,to,backwards,!focused||!active||reducedMotion||returningFromSettings||opaqueSettingsEntry||stageExit.suppressReturnMotion&&from=="stage")){
                             NativeMotionKind.NONE->EnterTransition.None togetherWith ExitTransition.None
                             NativeMotionKind.STAGE->fadeIn(tween(140,easing=ease)) togetherWith fadeOut(tween(if(to=="stage"&&playerPresentation=="minimal")1 else 100,delayMillis=if(to=="stage"&&playerPresentation=="minimal")520 else 0,easing=ease))
@@ -858,6 +866,15 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         val pageBottomPx=nativePageBottomClearance(pageTopPx,pageHeightPx,pageFooterTops,12f*density.density)
                         val placement=Modifier.offset{IntOffset((shown.rect.left*scale).roundToInt(),pageTopPx.roundToInt())}
                             .size(with(density){(shown.rect.width*scale).toDp()},with(density){pageHeightPx.toDp()})
+                            .drawWithContent {
+                                drawContent()
+                                val pending=settingsDrawHandoff
+                                if(pending!=null&&destination=="settings") {
+                                    pending.pageDrawn(shown,presented,pageNavigations[shown.id]?:"") { completion ->
+                                        web.post { if(settingsDrawHandoff===pending){settingsDrawHandoff=null;completion();navigationTrace("stage-settings-drawn")} }
+                                    }
+                                }
+                            }
                         CompositionLocalProvider(LocalNativePageBottomPx provides pageBottomPx,
                             LocalSettingsTraceIdentity provides SettingsTraceIdentity(destination,shown.session,shown.key,navigation,!pendingStageEntry&&destination=="settings")) {
                         NativePageView(shown,placement,scale){action,text,value->
@@ -1195,7 +1212,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             if(pageFallback||settingsHandoffFailed)NativePageFallbackPanel(
                 route=destination,
                 light=LocalInterfacePalette.current.light,
-                modifier=Modifier.fillMaxSize().zIndex(1.5f),
+                modifier=Modifier.fillMaxSize().zIndex(1.5f).drawWithContent {
+                    drawContent()
+                    val pending=settingsDrawHandoff
+                    if(pending!=null&&settingsHandoffFailed)pending.afterDraw { completion ->
+                        web.post { if(settingsDrawHandoff===pending){settingsDrawHandoff=null;completion()} }
+                    }
+                },
                 onRetry={
                     pageFallback=false;settingsHandoffFailed=false
                     pageListener?.onAction(destination,"","","__refresh","manual-retry",0.0)
@@ -1216,7 +1239,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         }
     }
     fun destroy() {
-        settingsHandoff?.complete?.invoke();settingsHandoff=null;handoffFooter=null
+        settingsHandoff?.complete();settingsHandoff=null;handoffFooter=null
+        settingsDrawHandoff?.complete();settingsDrawHandoff=null
         sleepMenuOpen=false;sleepMenuAnchor=null;minimalSleepAnchor=androidx.compose.ui.geometry.Rect.Zero
         routeFence.close()
         webSamplingLayer.close()

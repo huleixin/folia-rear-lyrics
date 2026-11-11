@@ -11,8 +11,8 @@ class StageSubtitleLayoutTest {
             val rect=NativeFooterLayout.rect("stage",width,height,0f,safe,false)
             for(shown in listOf(true,false)) {
                 val layout=stageSubtitleLayout(width,height,safe,rect,shown,false)
-                assertEquals(rect.top-8f,height-layout.getDouble("shownBottom").toFloat(),.01f)
-                assertEquals(safe+8f,layout.getDouble("hiddenBottom").toFloat(),.01f)
+                assertEquals(rect.top-4f,height-layout.getDouble("shownBottom").toFloat(),.01f)
+                assertEquals(safe+4f,layout.getDouble("hiddenBottom").toFloat(),.01f)
                 assertEquals(shown,layout.getBoolean("shown"))
                 assertEquals(240,layout.getInt("durationMs"))
             }

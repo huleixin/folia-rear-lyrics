@@ -13,13 +13,23 @@ export function useNativeStagePresentation<T>(visible: boolean, active: boolean,
         if (visible || !active) {
             setRetained(visible); setVisualizerRenderingSuspended(false); return;
         }
-        let idle = 0, timer = 0, second = 0;
-        const first = requestAnimationFrame(() => { second = requestAnimationFrame(() => {
-            const retire = () => setRetained(false);
-            if (window.requestIdleCallback) idle = window.requestIdleCallback(retire, { timeout: 160 });
-            else timer = window.setTimeout(retire, 32);
-        }); });
+        let idle = 0, timer = 0, first = 0, second = 0, retiring = false;
+        // A route request is not a drawn native page. Keep the renderer (including a
+        // minimal-player detour) until the shell acknowledgement changes nativeRoute.
+        const retireAfterCommit = () => {
+            if (retiring || document.documentElement.dataset.nativeRoute === 'stage') return;
+            retiring = true;
+            first = requestAnimationFrame(() => { second = requestAnimationFrame(() => {
+                const retire = () => setRetained(false);
+                if (window.requestIdleCallback) idle = window.requestIdleCallback(retire, { timeout: 160 });
+                else timer = window.setTimeout(retire, 32);
+            }); });
+        };
+        const observer = new MutationObserver(retireAfterCommit);
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-native-route'] });
+        retireAfterCommit();
         return () => {
+            observer.disconnect();
             cancelAnimationFrame(first); cancelAnimationFrame(second); clearTimeout(timer);
             if (idle) window.cancelIdleCallback(idle);
         };
