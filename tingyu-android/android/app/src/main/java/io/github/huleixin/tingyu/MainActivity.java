@@ -79,6 +79,14 @@ public class MainActivity extends BridgeActivity {
     }
 
     private io.github.huleixin.tingyu.chrome.BrandLaunchState brandLaunch;
+    private boolean enteringSafeMode = false;
+
+    @Override
+    protected void load() {
+        if (enteringSafeMode) return;
+        super.load();
+    }
+
     public void setBrandLaunch(io.github.huleixin.tingyu.chrome.BrandLaunchState state) { brandLaunch = state; }
     public io.github.huleixin.tingyu.chrome.BrandLaunchState getBrandLaunch() { return brandLaunch; }
     private long lastWebViewRecoveryAt = 0L;
@@ -122,10 +130,13 @@ public class MainActivity extends BridgeActivity {
         if (!getIntent().getBooleanExtra(SafeModeActivity.EXTRA_FROM_SAFE_MODE, false)
             && io.github.huleixin.tingyu.diagnostics.StartupGuard.shouldEnterSafeMode(this)) {
             try {
+                enteringSafeMode = true;
+                super.onCreate(savedInstanceState);
                 startActivity(new Intent(this, SafeModeActivity.class));
                 finish();
                 return;
             } catch (Throwable cannotOpenSafeMode) {
+                enteringSafeMode = false;
                 // 打不开恢复页时宁可继续正常启动，也不要留一个空白 Activity 给用户。
                 CrashDiagnostics.recordText(
                     getApplicationContext(), "startup-guard", "main", "safe-mode-open-failed",

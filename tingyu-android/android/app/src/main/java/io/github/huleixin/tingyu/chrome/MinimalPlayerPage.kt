@@ -37,6 +37,7 @@ fun MinimalPlayerSurface(
     resetToken: Int = 0,
     coverStack: CoverStackState? = null,
     coverArtwork: CoverStackArtwork? = null,
+    active: Boolean = true,
     /** pager 停留页变化时上报宿主。 */
     onPageChanged: (Int) -> Unit = {},
     light: Boolean,
@@ -67,7 +68,7 @@ fun MinimalPlayerSurface(
         light = light,
         safeTop = safeTop,
         safeBottom = safeBottom,
-        detour = state.controls.detour,
+        detour = state.controls.detour || !active,
         onCollapse = onCollapse,
         onOpenStage = onOpenStage,
         modifier = modifier,

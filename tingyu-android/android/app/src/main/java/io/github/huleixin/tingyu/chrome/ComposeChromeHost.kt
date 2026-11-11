@@ -1365,7 +1365,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
 private fun navigationTrace(phase:String){NavigationTiming.mark(phase);if(android.util.Log.isLoggable("TingyuNavigation",android.util.Log.DEBUG))android.util.Log.d("TingyuNavigation","$phase at=${System.currentTimeMillis()}")}
 
 @Composable
-private fun StartupSurfaceWarmup(
+internal fun StartupSurfaceWarmup(
     cache: NativeShellCache,
     width: Float,
     height: Float,
@@ -1382,22 +1382,24 @@ private fun StartupSurfaceWarmup(
     onDone: () -> Unit,
 ) {
     val warmupPages = remember(width, height, safeTop, safeBottom) {
-        val collectionJson = JSONObject()
-            .put("id", "collection").put("session", "warmup").put("generation", 0).put("revision", 0)
-            .put("enabled", true).put("left", 0).put("top", 0).put("width", width).put("height", height)
-            .put("viewportWidth", width).put("safeTop", safeTop).put("safeBottom", safeBottom)
-            .put("model", JSONObject().put("key", "collection:warmup").put("title", "歌单").put("leading", "back").put("trailing", "menu")
-                .put("sections", org.json.JSONArray()
-                    .put(JSONObject().put("id", "toolbar").put("layout", "toolbar").put("items", org.json.JSONArray()))
-                    .put(JSONObject().put("id", "intro").put("layout", "intro").put("items", org.json.JSONArray().put(JSONObject().put("id", "cover").put("title", "歌单"))))
-                    .put(JSONObject().put("id", "controls").put("layout", "actions").put("items", org.json.JSONArray().put(JSONObject().put("id", "play").put("title", "播放全部").put("action", "playAll"))))
-                    .put(JSONObject().put("id", "tracks").put("layout", "rows").put("total", 1).put("offset", 0).put("items", org.json.JSONArray().put(JSONObject().put("id", "0:warmup").put("title", "预热").put("number", "01").put("duration", "03:00"))))
-                ))
-        listOf(
-            NativePage.parse(collectionJson),
-            cache.page("search", width, height, safeTop).copy(safeBottom = safeBottom),
-            cache.page("settings", width, height, safeTop).copy(safeBottom = safeBottom),
-        )
+        runCatching {
+            val collectionJson = JSONObject()
+                .put("id", "collection").put("session", "warmup").put("generation", 0).put("revision", 0)
+                .put("enabled", true).put("left", 0).put("top", 0).put("width", width).put("height", height)
+                .put("viewportWidth", width.coerceAtLeast(1f)).put("safeTop", safeTop).put("safeBottom", safeBottom)
+                .put("model", JSONObject().put("key", "collection:warmup").put("title", "歌单").put("leading", "back").put("trailing", "menu")
+                    .put("sections", org.json.JSONArray()
+                        .put(JSONObject().put("id", "toolbar").put("layout", "chips").put("items", org.json.JSONArray().put(JSONObject().put("id", "back").put("title", "返回").put("action", "back"))))
+                        .put(JSONObject().put("id", "intro").put("layout", "rows").put("items", org.json.JSONArray().put(JSONObject().put("id", "cover").put("title", "歌单"))))
+                        .put(JSONObject().put("id", "controls").put("layout", "chips").put("items", org.json.JSONArray().put(JSONObject().put("id", "play").put("title", "播放全部").put("action", "playAll"))))
+                        .put(JSONObject().put("id", "tracks").put("layout", "rows").put("total", 1).put("offset", 0).put("items", org.json.JSONArray().put(JSONObject().put("id", "0:warmup").put("title", "预热").put("number", "01").put("duration", "03:00"))))
+                    ))
+            listOf(
+                NativePage.parse(collectionJson),
+                cache.page("search", width.coerceAtLeast(1f), height.coerceAtLeast(1f), safeTop).copy(safeBottom = safeBottom),
+                cache.page("settings", width.coerceAtLeast(1f), height.coerceAtLeast(1f), safeTop).copy(safeBottom = safeBottom),
+            )
+        }.getOrElse { emptyList() }
     }
     LaunchedEffect(Unit) {
         withFrameNanos {}
@@ -1406,6 +1408,7 @@ private fun StartupSurfaceWarmup(
     }
     Box(Modifier.fillMaxSize().zIndex(-10f).graphicsLayer { alpha = 0f }) {
         if (minimalEnabled) {
+            CompositionLocalProvider(LocalPlayerArtworkAnchor provides playerArtwork) {
             MinimalPlayerSurface(
                 runtime = minimal,
                 commands = minimalCommands,
@@ -1413,6 +1416,7 @@ private fun StartupSurfaceWarmup(
                 onOpenQueue = {},
                 initialPage = 0,
                 resetToken = 0,
+                active = false,
                 coverStack = coverStack,
                 coverArtwork = coverArtwork,
                 light = interfaceLight,
@@ -1422,6 +1426,7 @@ private fun StartupSurfaceWarmup(
                 onOpenStage = {},
                 modifier = Modifier.fillMaxSize().onGloballyPositioned { playerArtwork.canvas(it) },
             )
+            }
         }
         warmupPages.forEach { warmPage ->
             key(warmPage.key) {

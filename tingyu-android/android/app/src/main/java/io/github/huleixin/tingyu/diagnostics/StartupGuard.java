@@ -43,6 +43,7 @@ public final class StartupGuard {
     private static final String KEY_LAST_EXIT_DETAIL = "last_exit_detail";
     private static final String KEY_ENTRY = "entry_activity";
     private static final String KEY_SKIP_OPTIONAL = "skip_optional";
+    private static final String KEY_BUILD_ID = "build_id";
     private static final int MAX_STAGES = 24;
 
     /** 实际存在的启动阶段（按源码，不虚构 Media3 阶段：它在首次播放时才创建）。 */
@@ -80,22 +81,33 @@ public final class StartupGuard {
         processStartedAt = System.currentTimeMillis();
         begun = true;
 
+        String currentBuildId = io.github.huleixin.tingyu.BuildConfig.BUILD_ID;
+        String lastBuildId = store.getString(KEY_BUILD_ID, "");
+        boolean buildUpdated = !currentBuildId.equals(lastBuildId);
+
         // 先把上一会话的结论读进内存，再覆盖成本会话的状态：
         // 只有确认「这次是主界面启动」之后才会把失败计数 +1（见 confirmMainLaunch）。
-        previousCompleted = store.getBoolean(KEY_COMPLETED, true);
-        previousUserExit = store.getBoolean(KEY_USER_EXIT, false);
-        previousEntry = store.getString(KEY_ENTRY, "");
-        skipOptional = store.getBoolean(KEY_SKIP_OPTIONAL, false);
+        previousCompleted = buildUpdated || store.getBoolean(KEY_COMPLETED, true);
+        previousUserExit = !buildUpdated && store.getBoolean(KEY_USER_EXIT, false);
+        previousEntry = buildUpdated ? "" : store.getString(KEY_ENTRY, "");
+        skipOptional = !buildUpdated && store.getBoolean(KEY_SKIP_OPTIONAL, false);
 
         // 本次会话重新开始记账：completed=false 是「没走完」的唯一标志。
         // 注意 consecutive 不在这里改：背屏 Activity 单独拉起进程时不应该影响主界面的计数。
-        store.edit()
+        SharedPreferences.Editor editor = store.edit()
+            .putString(KEY_BUILD_ID, currentBuildId)
             .putBoolean(KEY_COMPLETED, false)
             .putBoolean(KEY_USER_EXIT, false)
             .remove(KEY_ENTRY)
             .remove(KEY_STAGES)
-            .remove(KEY_STAGE)
-            .apply();
+            .remove(KEY_STAGE);
+        if (buildUpdated) {
+            editor.putInt(KEY_CONSECUTIVE, 0)
+                .putBoolean(KEY_SAFE_MODE, false)
+                .putBoolean(KEY_SKIP_OPTIONAL, false)
+                .remove(KEY_SAFE_REASON);
+        }
+        editor.apply();
         completed = false;
         STAGES.clear();
     }

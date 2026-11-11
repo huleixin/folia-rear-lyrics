@@ -39,8 +39,9 @@ private val PlaylistJade:Color @Composable get()=LocalInterfacePalette.current.m
 
 /** 集合详情统一入口：按 sections 契约（toolbar/intro/controls/songHeading/filter/tracks）渲染。 */
 @Composable internal fun MediaDetailScaffold(page:NativePage,modifier:Modifier,action:PageAction){
-    val intro=page.sections.first{it.id=="intro"};val cover=intro.items.first()
-    val controls=page.sections.first{it.id=="controls"};val tracks=page.sections.first{it.id=="tracks"}
+    val intro=page.sections.firstOrNull{it.id=="intro"};val cover=intro?.items?.firstOrNull()
+    val controls=page.sections.firstOrNull{it.id=="controls"};val tracks=page.sections.firstOrNull{it.id=="tracks"}
+    if(intro==null||cover==null||controls==null||tracks==null){NativeDirectoryPage(page,modifier,action);return}
     val toolbar=page.sections.firstOrNull{it.id=="toolbar"}?.items.orEmpty()
     fun label(id:String)=toolbar.firstOrNull{it.id==id}?.title?:""
     val cache=rememberNativeRows(page.key,tracks)
