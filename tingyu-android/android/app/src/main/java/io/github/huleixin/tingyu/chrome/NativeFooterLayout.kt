@@ -11,6 +11,13 @@ package io.github.huleixin.tingyu.chrome
 //   设置二/三级、舞台     → 都不显示
 // 这里只回答「这个路由**允许**画哪一条」。设置页用原生已提交的 pageTarget 判断层级，
 // 避免 JS 清理/effect 时序漏掉二级页，或在返回时多发一帧底栏。
+internal data class NativeFooterRoute(val route:String="home",val detail:Boolean=false,val artist:Boolean=false) {
+    // 播放器/设置壳不携带来源页层级；只在真实浏览路由提交时替换快照。
+    fun follow(route:String,detail:Boolean,pageTarget:String):NativeFooterRoute =
+        if(route in setOf("home","collection","search"))
+            NativeFooterRoute(route,detail,pageTarget.startsWith("collection:artist:")) else this
+}
+
 internal object NativeFooterLayout {
     const val SettingsDepthExitMs = 220
     const val SettingsDepthOffsetDp = 14f
@@ -20,6 +27,10 @@ internal object NativeFooterLayout {
     const val FooterStageReturnMs = 280
     const val NavSlideOffsetDp = 20f
     const val MiniSlideOffsetDp = 14f
+
+    // 舞台下的迷你条已透明，进入设置时不能把它恢复成一条可见的退场动画。
+    fun miniPresenceAlpha(route:String,presence:Float,settingsFromStage:Boolean):Float =
+        if(route=="settings"&&settingsFromStage)0f else presence
 
     fun settingsRoot(route:String,pageTarget:String,requested:Boolean=true):Boolean = requested&&route=="settings"&&pageTarget=="settings:index"
 

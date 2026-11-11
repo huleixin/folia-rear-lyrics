@@ -5,6 +5,34 @@ import org.junit.Test
 
 // android/app/src/test/java/io/github/huleixin/tingyu/chrome/NativeFooterLayoutTest.kt
 class NativeFooterLayoutTest {
+    @Test fun playlistFooterSurvivesStageAndSettingsShellsUntilBrowsingResumes(){
+        val source=NativeFooterRoute().follow("collection",true,"collection:playlist:123")
+        val stage=source.follow("stage",false,"stage")
+        val settings=stage.follow("settings",false,"settings:document:options:playback:")
+        val returned=settings.follow("stage",false,"stage")
+        assertEquals(source,returned)
+        for(width in listOf(393f,1000f)){
+            assertEquals(width>=840f,NativeFooterLayout.targetVisible("nav","stage",returned.route,
+                stageExiting=true,detail=returned.detail,width=width,artist=returned.artist))
+            assertTrue(NativeFooterLayout.targetVisible("mini","stage",returned.route,
+                stageExiting=true,detail=returned.detail,width=width,artist=returned.artist))
+            assertEquals(NativeFooterLayout.rect("mini",width,852f,30f,22f,true),
+                NativeFooterLayout.rect("mini",width,852f,30f,22f,returned.detail))
+        }
+        assertEquals(NativeFooterRoute(),returned.follow("home",false,"home:recommend"))
+        val artist=returned.follow("collection",false,"collection:artist:456").follow("stage",false,"stage")
+        assertFalse(NativeFooterLayout.targetVisible("mini","stage",artist.route,
+            stageExiting=true,detail=artist.detail,artist=artist.artist))
+    }
+
+    @Test fun openingPlayerSettingsNeverRevealsTheHiddenMiniDuringItsExit(){
+        for(presence in listOf(1f,.75f,.5f,.01f,0f)){
+            assertEquals(0f,NativeFooterLayout.miniPresenceAlpha("settings",presence,true),0f)
+            assertEquals(presence,NativeFooterLayout.miniPresenceAlpha("settings",presence,false),0f)
+            assertEquals(presence,NativeFooterLayout.miniPresenceAlpha("collection",presence,true),0f)
+        }
+    }
+
     @Test fun artistDetailHidesBothNativeFootersAndHomeRestoresThem(){
         for(width in listOf(393f,1000f))for(id in listOf("mini","nav")){
             assertFalse(NativeFooterLayout.visible(id,"collection",false,width,artist=true))

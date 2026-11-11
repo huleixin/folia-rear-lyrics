@@ -322,6 +322,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var webOverlay by mutableStateOf(false)
     private var selectedTab by mutableIntStateOf(0)
     private var collectionDetail by mutableStateOf(false)
+    private var browsingFooter by mutableStateOf(NativeFooterRoute())
+    private var settingsFromStage by mutableStateOf(false)
     private val routeFence=NativeRouteFence()
     private var settingsHandoff by mutableStateOf<StageSettingsHandoff?>(null)
     private var settingsDrawHandoff by mutableStateOf<StageSettingsHandoff?>(null)
@@ -402,6 +404,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         pendingStageEntry=false;stageEntryRequest++
         val from=destination
         val next=value.optString("route","home")
+        if(next!=from)settingsFromStage=from=="stage"&&next=="settings"
+        browsingFooter=browsingFooter.follow(next,value.optBoolean("collectionDetail"),value.optString("pageTarget"))
         if(next!=destination)minimalCollapseCommitted=stageExit.active&&stageExit.minimal&&stageExit.completed&&next!="stage"
         if(next!=destination){returningFromSettings=destination=="settings"&&next=="stage";minimalResumePending=returningFromSettings}
         if(next!="stage")stageExit.clear()
@@ -747,9 +751,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         }
         val nativeMinimalCollapse=stageExit.active&&stageExit.minimal
         val page=presented?:if(stageExit.active)stageExit.returning else null
-        val browsingPage = page ?: retained.lastBrowsing()
-        val browsingRoute = browsingPage?.id ?: "home"
-        val isArtistRoute = pageTarget.startsWith("collection:artist:")
+        val browsingRoute = browsingFooter.route
+        val footerDetail = if(destination=="stage"||pendingStageEntry)browsingFooter.detail else collectionDetail
+        val isArtistRoute = if(destination=="stage"||pendingStageEntry)browsingFooter.artist else pageTarget.startsWith("collection:artist:")
         var startupWarmupDone by remember { mutableStateOf(!brandLaunch.active) }
         // 第 16 轮：Compose 将接管极简页（能力开关在、路由到 stage、presentation=minimal、无顺访/弹层）。
         // 这是入口动画唯一的拥有者判定：
@@ -771,7 +775,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             it.enabled && NativeFooterLayout.visible(
                 it.id,
                 if((composeOwnsMinimalEntry||playerEntering||stageExit.active)&&it.id!="stage")browsingRoute else destination,
-                collectionDetail,it.viewportWidth,artist=isArtistRoute,settingsRoot=settingsRoot) &&
+                footerDetail,it.viewportWidth,artist=isArtistRoute,settingsRoot=settingsRoot) &&
                 (it.id!="stage"||it.rect.width>0&&it.rect.height>0) &&
                 !(composeOwnsMinimalEntry&&it.id=="stage")
         } else emptyList()
@@ -827,7 +831,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 returningRoute = browsingRoute,
                 pendingStageEntry = pendingStageEntry,
                 stageExiting = stageExit.active,
-                detail = collectionDetail,
+                detail = footerDetail,
                 width = width,
                 artist = isArtistRoute,
                 settingsRoot = settingsRoot,
@@ -840,7 +844,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 returningRoute = browsingRoute,
                 pendingStageEntry = pendingStageEntry,
                 stageExiting = stageExit.active,
-                detail = collectionDetail,
+                detail = footerDetail,
                 width = width,
                 artist = isArtistRoute,
                 settingsRoot = settingsRoot,
@@ -1091,7 +1095,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 // seed 与 live 共用同一个定位入口，而且**只在 dp 空间里算一次**：JS 的 innerWidth
                 // 是整数（375），真实 dp 宽是 375.38，走 CSS px × scale 会让交接时整条底栏
                 // 上台 0.8dp（23:02 报告实测）。现在两路只有 density 一个比例，矩形逐位相同。
-                val rect=chromeFooterRect(id,width,height,safeTop,safeBottom,density.density,keyboardPx,collectionDetail)
+                val rect=chromeFooterRect(id,width,height,safeTop,safeBottom,density.density,keyboardPx,footerDetail)
                 // 首帧诊断：底栏第一次以 seed / live 身份落地时的几何与可见性。
                 LaunchedEffect(id,live==null,surface.session){StartupTrace.detail(if(live==null)"footer-seed-frame" else "footer-live-frame"){
                     put("id",id);put("session",surface.session);put("top",rect.top);put("height",rect.height)
@@ -1113,7 +1117,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         if(id=="stage"&&width>height)translationY=(height-rect.top)*density.density*(1f-stagePresence)
                         alpha = when {
                             id!="stage"&&footerHiddenForIme -> 0f
-                            id=="mini" -> rect.alpha * miniPresence * miniStageAlpha
+                            id=="mini" -> rect.alpha * NativeFooterLayout.miniPresenceAlpha(destination,miniPresence,settingsFromStage) * miniStageAlpha
                             id=="nav" -> rect.alpha * navPresence
                             else -> rect.alpha
                         }
