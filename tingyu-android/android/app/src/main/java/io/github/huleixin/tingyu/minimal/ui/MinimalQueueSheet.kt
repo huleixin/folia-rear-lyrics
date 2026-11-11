@@ -57,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.huleixin.tingyu.minimal.MinimalQueue
+import io.github.huleixin.tingyu.chrome.liquidPanel
 import kotlinx.coroutines.delay
 
 // android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/MinimalQueueSheet.kt
@@ -203,6 +204,7 @@ fun MinimalQueueSheet(
             Modifier
                 .fillMaxWidth()
                 .height(animatedHeight)
+                .liquidPanel("sheet")
                 .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
                 .background(theme.surface)
                 .pointerInput(Unit) { detectTapGestures { /* 面板内空白不穿透到关闭遮罩。 */ } }

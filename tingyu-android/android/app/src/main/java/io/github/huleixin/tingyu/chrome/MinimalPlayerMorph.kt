@@ -62,6 +62,34 @@ internal fun Modifier.minimalPlayerContainer(motion: MinimalPlayerMorph?) = grap
         shape=MinimalShellShape(motion.panelBounds(size),size.width*.16f)
     } else clip=false
 }
+internal fun Modifier.minimalStageCanvas(motion: MinimalPlayerMorph?, visible: Boolean = true) = graphicsLayer {
+    if(!visible) {
+        alpha = 0f
+        scaleX = 1f; scaleY = 1f
+        translationX = 0f; translationY = 0f
+        clip = false
+    } else if(motion != null && motion.active()) {
+        val c = motion.channels()
+        val initScale = (motion.cover.width / (size.width * 0.42f)).coerceIn(0.18f, 0.45f)
+        val scale = initScale + (1f - initScale) * c[6]
+        val targetCenterX = size.width * 0.5f
+        val targetCenterY = size.height * 0.44f
+        val currentCenterX = motion.cover.center.x + (targetCenterX - motion.cover.center.x) * c[4]
+        val currentCenterY = motion.cover.center.y + (targetCenterY - motion.cover.center.y) * c[5]
+        transformOrigin = TransformOrigin(0f, 0f)
+        scaleX = scale
+        scaleY = scale
+        translationX = currentCenterX - targetCenterX * scale
+        translationY = currentCenterY - targetCenterY * scale
+        alpha = motion.shellAlpha()
+        clip = false
+    } else {
+        alpha = 1f
+        scaleX = 1f; scaleY = 1f
+        translationX = 0f; translationY = 0f
+        clip = false
+    }
+}
 @Composable internal fun Modifier.minimalSection(role: String): Modifier {
     val motion=LocalMinimalMorph.current
     return graphicsLayer {

@@ -2,6 +2,7 @@ package io.github.huleixin.tingyu.chrome
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -12,11 +13,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
@@ -26,11 +35,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.kyant.backdrop.Backdrop
+import io.github.huleixin.tingyu.minimal.MinimalClockSource
+import io.github.huleixin.tingyu.minimal.MinimalLyrics
+import io.github.huleixin.tingyu.minimal.MinimalPlayback
+import io.github.huleixin.tingyu.minimal.MinimalPlayerRuntime
+import io.github.huleixin.tingyu.minimal.MinimalPlayerState
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ChromeMiniPlayer.kt
 @Composable internal fun ChromeMiniPlayer(s: ChromeSurface, timeline: ChromeTimeline?, backdrop: Backdrop, modifier: Modifier,
+    minimal: MinimalPlayerRuntime? = null,
     onCoverBounds: (Rect)->Unit = {}, action: (String,Double)->Unit) {
     val ink=chromeColor(s.ink);val accent=chromeColor(s.accent)
     val cover=pageImage(s.cover)
@@ -72,7 +90,12 @@ import kotlin.math.abs
                 Spacer(Modifier.width(spacing.gap.dp))
                 Column(Modifier.weight(1f)) {
                     Text(s.title,color=ink,fontSize=13.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
-                    Text(s.artist,color=if(s.light)LocalInterfacePalette.current.muted else ink.copy(alpha=.65f),fontSize=10.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+                    MiniPlayerSubtitle(
+                        s = s,
+                        timeline = timeline,
+                        minimal = minimal,
+                        color = if(s.light)LocalInterfacePalette.current.muted else ink.copy(alpha=.65f),
+                    )
                 }
             }
         }
@@ -81,5 +104,197 @@ import kotlin.math.abs
         }
         ChromeButton(s.label("queue","播放队列"),size=spacing.queue.dp,reduced=s.reducedMotion,onClick={action("queue",0.0)}) {ChromeGlyph("queue",ink,Modifier.size(24.dp))}
     }
+    }
+}
+
+internal data class MiniLyricProjection(
+    val playback: MinimalPlayback = MinimalPlayback(),
+    val lyrics: MinimalLyrics = MinimalLyrics(),
+)
+
+internal fun Flow<MinimalPlayerState>.miniLyricProjections(): Flow<MiniLyricProjection> =
+    map { MiniLyricProjection(it.playback, it.lyrics) }.distinctUntilChanged()
+
+/**
+ * 计算迷你播放条长句歌词的横向跟随滚动位移（px，>= 0）。
+ * 短句（未超出容器宽度）固定返回 0；长句在唱过阅读锚点后平滑左移，句尾贴齐右边界后停止。
+ */
+internal fun miniLyricScrollOffsetPx(
+    textWidthPx: Int,
+    containerWidthPx: Int,
+    sungFraction: Float,
+    anchorFraction: Float = 0.36f,
+): Float {
+    if (textWidthPx <= 0 || containerWidthPx <= 0 || textWidthPx <= containerWidthPx) return 0f
+    val overflow = (textWidthPx - containerWidthPx).toFloat()
+    val progress = sungFraction.coerceIn(0f, 1f)
+    val sungX = progress * textWidthPx.toFloat()
+    val anchorX = containerWidthPx.toFloat() * anchorFraction.coerceIn(0.1f, 0.9f)
+    return (sungX - anchorX).coerceIn(0f, overflow)
+}
+
+/**
+ * 迷你播放条第二行：有实时歌词时显示当前唱到的那句歌词（长句按演唱进度平滑横向滚动），
+ * 前奏、加载中或无歌词时回退显示歌手名，切歌立即复位。
+ */
+@Composable
+private fun MiniPlayerSubtitle(
+    s: ChromeSurface,
+    timeline: ChromeTimeline?,
+    minimal: MinimalPlayerRuntime?,
+    color: Color,
+) {
+    if (minimal == null) {
+        Text(s.artist, color = color, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        return
+    }
+    val projectionFlow = remember(minimal) { minimal.state.miniLyricProjections() }
+    val projection by projectionFlow.collectAsState(
+        initial = MiniLyricProjection(minimal.state.value.playback, minimal.state.value.lyrics),
+    )
+    val lyrics = projection.lyrics
+    val playback = projection.playback
+    val hasReadyLyrics = s.trackKey.isNotEmpty() && lyrics.songKey == s.trackKey && lyrics.ready
+    val rendering = LocalChromeRendering.current && !s.reducedMotion && !LocalLiquidReduced.current
+    val clockActive = hasReadyLyrics && rendering && (s.playing || playback.playing)
+    val now = remember { mutableLongStateOf(android.os.SystemClock.elapsedRealtime()) }
+    LaunchedEffect(
+        clockActive,
+        s.trackKey,
+        playback.anchorElapsedMs,
+        playback.anchorPositionMs,
+        timeline,
+    ) {
+        now.longValue = android.os.SystemClock.elapsedRealtime()
+        if (clockActive) {
+            while (true) {
+                withFrameNanos { now.longValue = android.os.SystemClock.elapsedRealtime() }
+            }
+        }
+    }
+    fun resolveSec(elapsedMs: Long): Double = when {
+        playback.track.key == s.trackKey && playback.source != MinimalClockSource.NONE -> playback.lyricSecAt(elapsedMs)
+        timeline != null -> timeline.at(elapsedMs)
+        else -> 0.0
+    }
+    val activeLineIndex by remember(hasReadyLyrics, lyrics, playback, timeline, s.trackKey) {
+        derivedStateOf {
+            if (!hasReadyLyrics) -1 else lyrics.activeIndex(resolveSec(now.longValue))
+        }
+    }
+    val activeLine = if (activeLineIndex >= 0) lyrics.lines.getOrNull(activeLineIndex) else null
+    val lyricText = activeLine?.text?.trim().orEmpty()
+    val showingLyric = activeLine != null && lyricText.isNotEmpty()
+    val displayText = if (showingLyric) lyricText else s.artist
+
+    var lastLineIndex by remember(s.trackKey) { mutableIntStateOf(activeLineIndex) }
+    val lineProgress = remember(s.trackKey) { Animatable(1f) }
+    LaunchedEffect(s.trackKey, activeLineIndex, s.reducedMotion) {
+        if (activeLineIndex != lastLineIndex) {
+            lastLineIndex = activeLineIndex
+            if (!s.reducedMotion) {
+                lineProgress.snapTo(0f)
+                lineProgress.animateTo(1f, tween(180))
+            } else {
+                lineProgress.snapTo(1f)
+            }
+        }
+    }
+
+    var containerWidthPx by remember { mutableIntStateOf(0) }
+    var textWidthPx by remember(s.trackKey, activeLineIndex, displayText) { mutableIntStateOf(0) }
+    val currentLine = activeLine
+    val overflows = currentLine != null && lyricText.isNotEmpty() && textWidthPx > containerWidthPx && containerWidthPx > 0
+
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clipToBounds()
+            .onSizeChanged { containerWidthPx = it.width }
+            .then(
+                if (overflows) {
+                    Modifier
+                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        .drawWithContent {
+                            drawContent()
+                            val scrollPx = miniLyricScrollOffsetPx(
+                                textWidthPx,
+                                containerWidthPx,
+                                currentLine.sungFraction(resolveSec(now.longValue)),
+                            )
+                            val fadePx = 10.dp.toPx().coerceAtMost(size.width * 0.22f)
+                            if (fadePx > 1f) {
+                                if (scrollPx > 1f) {
+                                    drawRect(
+                                        brush = Brush.horizontalGradient(
+                                            0f to Color.Transparent,
+                                            1f to Color.Black,
+                                            startX = 0f,
+                                            endX = fadePx,
+                                        ),
+                                        topLeft = Offset.Zero,
+                                        size = Size(fadePx, size.height),
+                                        blendMode = BlendMode.DstIn,
+                                    )
+                                }
+                                val maxScroll = (textWidthPx - containerWidthPx).toFloat()
+                                if (scrollPx < maxScroll - 1f) {
+                                    drawRect(
+                                        brush = Brush.horizontalGradient(
+                                            0f to Color.Black,
+                                            1f to Color.Transparent,
+                                            startX = size.width - fadePx,
+                                            endX = size.width,
+                                        ),
+                                        topLeft = Offset(size.width - fadePx, 0f),
+                                        size = Size(fadePx, size.height),
+                                        blendMode = BlendMode.DstIn,
+                                    )
+                                }
+                            }
+                        }
+                } else Modifier,
+            ),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        if (currentLine != null && lyricText.isNotEmpty()) {
+            Text(
+                text = displayText,
+                color = color,
+                fontSize = 10.sp,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Clip,
+                onTextLayout = { textWidthPx = it.size.width },
+                modifier = Modifier
+                    .wrapContentWidth(unbounded = true, align = Alignment.Start)
+                    .graphicsLayer {
+                        val scrollPx = if (textWidthPx > containerWidthPx && containerWidthPx > 0) {
+                            miniLyricScrollOffsetPx(
+                                textWidthPx,
+                                containerWidthPx,
+                                currentLine.sungFraction(resolveSec(now.longValue)),
+                            )
+                        } else 0f
+                        translationX = -scrollPx
+                        alpha = lineProgress.value
+                        translationY = 3.dp.toPx() * (1f - lineProgress.value)
+                    },
+            )
+        } else {
+            Text(
+                text = displayText,
+                color = color,
+                fontSize = 10.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        alpha = lineProgress.value
+                        translationY = 3.dp.toPx() * (1f - lineProgress.value)
+                    },
+            )
+        }
     }
 }

@@ -109,6 +109,7 @@ internal class SleepMenuColors(private val palette:InterfacePalette) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
             .heightIn(max=(maxHeight-safeTop.dp).coerceAtLeast(0.dp))
+            .liquidPanel("sheet")
             .clip(RoundedCornerShape(topStart=TyPanelDims.TopRadius.dp,topEnd=TyPanelDims.TopRadius.dp))
             .background(theme.surface).pointerInput(Unit){detectTapGestures{}}
             .semantics{paneTitle="定时关闭"}) {

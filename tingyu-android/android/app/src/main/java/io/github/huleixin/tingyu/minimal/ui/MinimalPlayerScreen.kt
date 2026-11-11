@@ -24,8 +24,10 @@ import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.unit.sp
@@ -362,31 +364,31 @@ fun MinimalPlayerScreen(
                 sleepLabel = sleepLabel,
                 onSleepAnchor = onSleepAnchor,
                 onOpenMore = { menuOpen = true; menuClosing = false },
-                moreMenu = {
-                    if (menuOpen || menuClosing) {
-                        MoreMenu(
-                            qualityMode = state.controls.qualityMode,
-                            effectsOn = state.controls.effectsOn,
-                            shown = menuOpen,
-                            onExited = { menuClosing = false },
-                            onDismiss = dismissMenu,
-                            onPick = { pick ->
-                                dismissMenu()
-                                when (pick) {
-                                    0 -> sheetCommands.openAudioQuality()
-                                    1 -> sheetCommands.openAudioEffects()
-                                    2 -> sheetCommands.openLyricsPanel()
-                                    3 -> sheetCommands.openQueue()
-                                    else -> commands.openPlaybackSettings()
-                                }
-                            },
-                        )
-                    }
-                },
+                moreMenu = {},
                 // 与手势共用同一个过渡控制器：先跑封面动画，动画里的那一次命令由它发。
                 onPrevious = { coverController.skip(DragDirection.PREV) },
                 onNext = { coverController.skip(DragDirection.NEXT) },
                 modifier = Modifier.padding(top = 2.dp).minimalSection("controls"),
+            )
+        }
+        if (menuOpen || menuClosing) {
+            MoreMenu(
+                qualityMode = state.controls.qualityMode,
+                effectsOn = state.controls.effectsOn,
+                shown = menuOpen,
+                safeBottom = safeBottom,
+                onExited = { menuClosing = false },
+                onDismiss = dismissMenu,
+                onPick = { pick ->
+                    dismissMenu()
+                    when (pick) {
+                        0 -> sheetCommands.openAudioQuality()
+                        1 -> sheetCommands.openAudioEffects()
+                        2 -> sheetCommands.openLyricsPanel()
+                        3 -> sheetCommands.openQueue()
+                        else -> commands.openPlaybackSettings()
+                    }
+                },
             )
         }
 
@@ -481,40 +483,52 @@ private fun MoreMenu(
     qualityMode: String,
     effectsOn: Boolean,
     shown: Boolean,
+    safeBottom: Float,
     onExited: () -> Unit,
     onDismiss: () -> Unit,
     onPick: (Int) -> Unit,
 ) {
     val reduced = io.github.huleixin.tingyu.chrome.LocalLiquidReduced.current
     val progress = remember { Animatable(0f) }
-    val menuOffset = with(androidx.compose.ui.platform.LocalDensity.current) { 48.dp.roundToPx() }
+    BackHandler(enabled = shown) { onDismiss() }
     LaunchedEffect(shown, reduced) {
         if (shown) {
-            progress.animateTo(1f, tween(if(reduced)0 else 220, easing = CubicBezierEasing(0.2f, 0.7f, 0.2f, 1f)))
+            if (reduced) progress.snapTo(1f)
+            else progress.animateTo(1f, spring(dampingRatio = 0.82f, stiffness = 520f))
         } else {
-            progress.animateTo(0f, tween(if(reduced)0 else 160, easing = CubicBezierEasing(0.42f, 0f, 0.74f, 0.3f)))
+            if (reduced) progress.snapTo(0f)
+            else progress.animateTo(0f, tween(160, easing = CubicBezierEasing(0.42f, 0f, 0.74f, 0.3f)))
             onExited()
         }
     }
-    androidx.compose.ui.window.Popup(
-        alignment = Alignment.BottomEnd,
-        offset = androidx.compose.ui.unit.IntOffset(0, -menuOffset),
-        onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.PopupProperties(focusable = true),
-    ) {
-        // 菜单本体拆成独立面板：测试里可以不经 Popup（独立窗口拍不到 decorView）直接渲染对照。
+    Box(Modifier.fillMaxSize().zIndex(5f)) {
+        if (shown) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onDismiss,
+                    ),
+            )
+        }
+        // 菜单本体拆成独立面板：不建独立 Popup 窗口（避免抢走 Activity windowFocus 导致动画降级），
         // 运动只动这一层 graphicsLayer：位移/缩放/透明度都是渲染线程的图层属性，
         // 不触发面板重绘，更不触发面板重新排版。
         Box(
-            Modifier.graphicsLayer {
-                val p = progress.value
-                alpha = p
-                translationY = 8.dp.toPx() * (1f - p)
-                val scale = 0.97f + 0.03f * p
-                scaleX = scale
-                scaleY = scale
-                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 1f)
-            }
+            Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 18.dp, bottom = (safeBottom + 64f).dp)
+                .graphicsLayer {
+                    val p = progress.value.coerceIn(0f, 1.08f)
+                    alpha = (p * 1.35f).coerceIn(0f, 1f)
+                    translationY = 14.dp.toPx() * (1f - p)
+                    val scale = 0.84f + 0.16f * p
+                    scaleX = scale
+                    scaleY = scale
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.92f, 1f)
+                },
         ) {
             MoreMenuPanel(qualityMode, effectsOn, onPick)
         }

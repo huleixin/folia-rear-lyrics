@@ -151,17 +151,41 @@ internal fun TyPanelOverlay(
     onClose: () -> Unit,
     content: @Composable () -> Unit,
 ) {
+    val reduced = LocalLiquidReduced.current
+    val progress = androidx.compose.runtime.remember { Animatable(if (visible) 1f else 0f) }
+    var keepMounted by androidx.compose.runtime.remember { mutableStateOf(visible) }
+    androidx.compose.runtime.LaunchedEffect(visible, reduced) {
+        if (visible) {
+            keepMounted = true
+            if (reduced) {
+                progress.snapTo(1f)
+            } else {
+                if (progress.value <= 0.001f) progress.snapTo(0f)
+                progress.animateTo(
+                    1f,
+                    spring(dampingRatio = TingYuMotion.PanelDamping, stiffness = TingYuMotion.PanelStiffness),
+                )
+            }
+        } else {
+            if (reduced) {
+                progress.snapTo(0f)
+            } else {
+                progress.animateTo(0f, tween(TingYuMotion.PanelExitMs, easing = TingYuMotion.StageExit))
+            }
+            keepMounted = false
+        }
+    }
+    val progressState = androidx.compose.runtime.remember(reduced, visible) {
+        androidx.compose.runtime.derivedStateOf {
+            if (reduced) (if (visible) 1f else 0f) else progress.value
+        }
+    }
     Box(modifier.fillMaxSize().zIndex(9f)) {
         TyPanelScrim(visible = visible, light = light, onClose = onClose)
-        AnimatedVisibility(
-            visible = visible,
-            enter = EnterTransition.None,
-            exit = ExitTransition.None,
-            modifier = Modifier.fillMaxSize().zIndex(1f),
-        ) {
-            val reduced=LocalLiquidReduced.current
-            val progress=transition.animateFloat(transitionSpec={if(reduced)snap()else if(targetState==EnterExitState.Visible)spring(dampingRatio=TingYuMotion.PanelDamping,stiffness=TingYuMotion.PanelStiffness)else tween(TingYuMotion.PanelExitMs,easing=TingYuMotion.StageExit)},label="panel-morph"){if(it==EnterExitState.Visible)1f else 0f}
-            CompositionLocalProvider(LocalPanelProgress provides progress){Box(Modifier.fillMaxSize()) { content() }}
+        if (visible || keepMounted || progressState.value > 0.001f) {
+            CompositionLocalProvider(LocalPanelProgress provides progressState) {
+                Box(Modifier.fillMaxSize().zIndex(1f)) { content() }
+            }
         }
     }
 }

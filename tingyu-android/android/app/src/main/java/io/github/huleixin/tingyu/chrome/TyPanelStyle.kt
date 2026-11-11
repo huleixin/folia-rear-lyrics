@@ -86,12 +86,12 @@ internal object TyPanelDims {
 internal object TyPanelMotion {
     val Enter: EnterTransition = slideInVertically(
         animationSpec = androidx.compose.animation.core.spring(dampingRatio=TingYuMotion.PanelDamping,stiffness=TingYuMotion.PanelStiffness),
-        initialOffsetY = { it },
+        initialOffsetY = { (it * 0.6f).toInt() },
     ) + fadeIn(tween(200, easing = TingYuMotion.SheetIn))
 
     val Exit: ExitTransition = slideOutVertically(
-        animationSpec = tween(200, easing = TingYuMotion.StageExit),
-        targetOffsetY = { it },
+        animationSpec = tween(220, easing = TingYuMotion.StageExit),
+        targetOffsetY = { (it * 0.55f).toInt() },
     ) + fadeOut(tween(140, easing = TingYuMotion.StageExit))
 
     /** 遮罩只渐显渐隐，不吃滑移 —— 遮罩跟着面板一起滑会像"整屏在动"。 */

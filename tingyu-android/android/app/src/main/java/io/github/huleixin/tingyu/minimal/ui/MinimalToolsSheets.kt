@@ -1,6 +1,14 @@
 package io.github.huleixin.tingyu.minimal.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -56,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import io.github.huleixin.tingyu.minimal.MinimalPlayerCommands
 import io.github.huleixin.tingyu.minimal.MinimalToolActions
 import io.github.huleixin.tingyu.minimal.MinimalTools
+import io.github.huleixin.tingyu.chrome.liquidPanel
 import kotlin.math.ln
 import kotlin.math.roundToInt
 
@@ -118,6 +127,7 @@ internal fun ToolsSheetScaffold(
             Modifier
                 .fillMaxWidth()
                 .heightIn(max = maxSheetHeight)
+                .liquidPanel("sheet")
                 .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
                 .background(theme.surface)
                 .align(Alignment.BottomCenter),
@@ -688,10 +698,20 @@ fun MinimalLyricsToolsSheet(
             ) {
                 listOf("song" to "歌曲", "lyrics" to "歌词", "queue" to "队列").forEach { (id, label) ->
                     val selected = tab == id
+                    val pillBg by animateColorAsState(
+                        targetValue = if (selected) theme.accent.copy(alpha = 0.12f) else Color.Transparent,
+                        animationSpec = tween(180),
+                        label = "lyrics-tools-tab-bg",
+                    )
+                    val pillFg by animateColorAsState(
+                        targetValue = if (selected) theme.accent else theme.muted,
+                        animationSpec = tween(180),
+                        label = "lyrics-tools-tab-fg",
+                    )
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(9.dp))
-                            .background(if (selected) theme.accent.copy(alpha = 0.12f) else Color.Transparent)
+                            .background(pillBg)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
@@ -702,24 +722,34 @@ fun MinimalLyricsToolsSheet(
                     ) {
                         Text(
                             label,
-                            color = if (selected) theme.accent else theme.muted,
+                            color = pillFg,
                             fontSize = 13.sp,
                             fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
                         )
                     }
                 }
             }
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                if (tab == "lyrics") {
-                    LyricsTab(theme, lyrics, actions)
-                } else {
-                    SongTab(theme, lyrics, transport, mode, playing, light)
+            AnimatedContent(
+                targetState = tab,
+                transitionSpec = {
+                    val dir = if (targetState == "lyrics") 1 else -1
+                    (slideInHorizontally(tween(200)) { it * dir / 6 } + fadeIn(tween(180))) togetherWith
+                        (slideOutHorizontally(tween(160)) { -it * dir / 6 } + fadeOut(tween(130)))
+                },
+                label = "lyrics-tools-tab-content",
+            ) { activeTab ->
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    if (activeTab == "lyrics") {
+                        LyricsTab(theme, lyrics, actions, onClose = onClose)
+                    } else {
+                        SongTab(theme, lyrics, transport, mode, playing, light, onClose = onClose)
+                    }
                 }
             }
         }
@@ -727,7 +757,12 @@ fun MinimalLyricsToolsSheet(
 }
 
 @Composable
-private fun LyricsTab(theme: ToolsTheme, lyrics: io.github.huleixin.tingyu.minimal.MinimalLyricsState, actions: MinimalToolActions) {
+private fun LyricsTab(
+    theme: ToolsTheme,
+    lyrics: io.github.huleixin.tingyu.minimal.MinimalLyricsState,
+    actions: MinimalToolActions,
+    onClose: () -> Unit = {},
+) {
     if (lyrics.sources.isNotEmpty()) {
         ToolsCard(theme) {
             Text("当前歌词来源", color = theme.text, fontSize = 13.5.sp, fontWeight = FontWeight.Medium)
@@ -761,7 +796,7 @@ private fun LyricsTab(theme: ToolsTheme, lyrics: io.github.huleixin.tingyu.minim
         }
     }
     ToolsCard(theme) {
-        ToolsEntryRow(theme, "重新匹配歌词", "歌词不对？按歌名和歌手重新选择。", onClick = { actions.send("lyricsMatch", 0.0) })
+        ToolsEntryRow(theme, "重新匹配歌词", "歌词不对？按歌名和歌手重新选择。", onClick = { onClose(); actions.send("lyricsMatch", 0.0) })
         ToolsEntryRow(theme, "导入歌词文件", "支持 LRC、TTML、QRC、KRC 等歌词文件。", onClick = { actions.send("lyricsImport", 0.0) })
         if (lyrics.message.isNotBlank()) {
             Text(lyrics.message, color = theme.muted, fontSize = 11.5.sp)
@@ -859,6 +894,7 @@ private fun SongTab(
     mode: String,
     playing: Boolean,
     light: Boolean,
+    onClose: () -> Unit = {},
 ) {
     ToolsCard(theme) {
         Text(lyrics.title.ifBlank { "未知曲目" }, color = theme.text, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold)
@@ -892,7 +928,7 @@ private fun SongTab(
         }
     }
     ToolsCard(theme) {
-        ToolsEntryRow(theme, "播放设置", "启动播放、播放引擎、队列插入位置", onClick = { transport.openPlaybackSettings() })
+        ToolsEntryRow(theme, "播放设置", "启动播放、播放引擎、队列插入位置", onClick = { onClose(); transport.openPlaybackSettings() })
     }
 }
 

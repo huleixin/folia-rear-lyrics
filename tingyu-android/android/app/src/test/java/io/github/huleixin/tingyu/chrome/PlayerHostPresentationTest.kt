@@ -63,4 +63,22 @@ class PlayerHostPresentationTest {
         compose.waitForIdle(); assertTrue(shown.playing)
         println("Shell invalidation reproduction: 60 revisions; full=60 projected=0 (controlled JVM Compose test, not device frames)")
     }
+
+    @Test fun miniLyricScrollOffsetStaysStillForShortLinesAndTracksLongLinesWithinBounds() {
+        // 短句不滚动
+        assertEquals(0f, miniLyricScrollOffsetPx(textWidthPx = 140, containerWidthPx = 200, sungFraction = 0f), 0.001f)
+        assertEquals(0f, miniLyricScrollOffsetPx(textWidthPx = 200, containerWidthPx = 200, sungFraction = 0.5f), 0.001f)
+        assertEquals(0f, miniLyricScrollOffsetPx(textWidthPx = 180, containerWidthPx = 200, sungFraction = 1f), 0.001f)
+
+        // 长句：起唱阶段在锚点前保持 0，中段平滑左移，末尾贴齐右边界不越界
+        val textWidth = 400
+        val containerWidth = 200
+        val maxScroll = (textWidth - containerWidth).toFloat()
+        assertEquals(0f, miniLyricScrollOffsetPx(textWidth, containerWidth, 0f), 0.001f)
+        assertEquals(0f, miniLyricScrollOffsetPx(textWidth, containerWidth, 0.15f), 0.001f)
+        val midScroll = miniLyricScrollOffsetPx(textWidth, containerWidth, 0.5f)
+        assertTrue(midScroll > 0f && midScroll < maxScroll)
+        assertEquals(maxScroll, miniLyricScrollOffsetPx(textWidth, containerWidth, 0.92f), 0.001f)
+        assertEquals(maxScroll, miniLyricScrollOffsetPx(textWidth, containerWidth, 1f), 0.001f)
+    }
 }
