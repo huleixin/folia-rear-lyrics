@@ -56,14 +56,14 @@ public final class NativeMixControllerTest {
     private static MediaItem song(String id){return new MediaItem.Builder().setMediaId(id).setUri("https://audio.test/"+id)
         .setTag(new JSObject().put("duration",20000)).build();}
     private static final class Fixture implements NativeMixController.Host {
-        Decoder first=new Decoder(),second;NativeAudioDeck active;boolean allowed=true;int promotions;
+        Decoder first=new Decoder(),second;NativeAudioDeck active;boolean allowed=true,failPromotion;int promotions;
         final NativeMixController mix;
         Fixture(){first.items.add(song("a"));first.items.add(song("b"));first.items.add(song("c"));active=new NativeAudioDeck(first.player);
             mix=new NativeMixController(new Handler(Looper.getMainLooper()),this);
             mix.configure(new JSObject().put("enabled",true).put("seconds",5));}
         public NativeAudioDeck active(){return active;}
         public NativeAudioDeck create(){second=new Decoder();second.playing=false;return new NativeAudioDeck(second.player);}
-        public void promote(NativeAudioDeck incoming){active=incoming;second.playing=true;promotions++;}
+        public void promote(NativeAudioDeck incoming){if(failPromotion)throw new IllegalStateException("focus transfer failed");active=incoming;second.playing=true;promotions++;}
         public boolean allowed(){return allowed;}
         public float volume(){return .8f;}
         public void configure(NativeAudioDeck deck,MediaItem item){}
@@ -95,6 +95,13 @@ public final class NativeMixControllerTest {
         Fixture f=new Fixture();try{
             f.first.position=14000;f.tick();Decoder stale=f.second;f.first.items.set(1,song("d"));f.tick();
             assertTrue(stale.released);assertEquals("d",f.second.items.get(0).mediaId);assertEquals(0,f.promotions);
+        }finally{f.close();}
+    }
+    @Test public void failedPromotionCannotReleaseTheStillAudibleOwner(){
+        Fixture f=new Fixture();try{
+            f.first.position=14000;f.tick();f.failPromotion=true;f.first.position=15000;f.tick();
+            assertFalse(f.first.released);assertTrue(f.first.playing);assertTrue(f.second.released);
+            assertFalse(f.mix.overlapping());assertEquals("error",f.mix.diagnostics().optString("mixState"));
         }finally{f.close();}
     }
 }

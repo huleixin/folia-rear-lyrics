@@ -44,7 +44,13 @@ final class NativeMixController {
     private void schedule(){if(enabled&&!closed&&host.active().player.getPlayWhenReady()&&!queued){queued=true;handler.postDelayed(tick,tail==null?100:16);}}
     private void discardWarm(){if(warm!=null){warm.close();warm=null;}warmedKey="";}
     /** Manual seek/skip/pause/detach terminates every secondary output before transport proceeds. */
-    void cancel(){handler.removeCallbacks(tick);queued=false;discardWarm();if(tail!=null){tail.close();tail=null;}blend=null;host.active().player.setVolume(host.volume());host.active().player.setPlaybackSpeed(1);}
+    void cancel(){
+        handler.removeCallbacks(tick);queued=false;discardWarm();
+        NativeAudioDeck current=host.active(),retiring=tail;tail=null;
+        // A failed promotion can leave the outgoing decoder as the current owner. Never release it.
+        if(retiring!=null&&retiring!=current)retiring.close();
+        blend=null;current.player.setVolume(host.volume());current.player.setPlaybackSpeed(1);
+    }
     void close(){closed=true;cancel();}
     private static JSONObject tag(MediaItem item){return item!=null&&item.localConfiguration!=null&&item.localConfiguration.tag instanceof JSONObject?(JSONObject)item.localConfiguration.tag:null;}
     private void update(){
@@ -100,7 +106,10 @@ final class NativeMixController {
         // Exactly one deck owns focus, noisy-device handling, queue, lyrics and the sleep timer.
         tail.spectrum.enabled=false;tail.player.setPauseAtEndOfMediaItems(true);
         tail.player.setPlaybackSpeed(plan.stretch);
-        host.promote(incoming);
+        try{host.promote(incoming);}catch(RuntimeException error){
+            if(host.active()!=incoming){incoming.close();host.active().focus(true);}
+            throw error;
+        }
         state="overlap";reason=plan.source;
         PlaybackDiagnostics.note("native-mix-start",new JSObject().put("overlapMs",blendLength).put("incomingReady",incoming.player.getPlaybackState()));
     }

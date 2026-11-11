@@ -498,9 +498,15 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 deck.processing.configure(equalizerSettings,tag==null?1:tag.optDouble("replayGain",1));
             }
             public void promote(NativeAudioDeck incoming){
-                player.removeListener(engineListener);activeDeck.focus(false);cancelFade();
+                NativeAudioDeck outgoing=activeDeck;
+                player.removeListener(engineListener);cancelFade();
+                try{outgoing.focus(false);incoming.focus(true);incoming.player.play();}
+                catch(RuntimeException error){
+                    incoming.focus(false);outgoing.focus(true);outgoing.spectrum.enabled=analysisRequested;
+                    outgoing.player.addListener(engineListener);throw error;
+                }
                 activeDeck=incoming;player=incoming.player;spectrum=incoming.spectrum;
-                spectrum.enabled=analysisRequested;activeDeck.focus(true);player.play();
+                spectrum.enabled=analysisRequested;
                 player.addListener(engineListener);attachSleepTimer();
                 engineListener.onMediaItemTransition(player.getCurrentMediaItem(),Player.MEDIA_ITEM_TRANSITION_REASON_AUTO);
                 syncRearTrack();emit("state",true);
