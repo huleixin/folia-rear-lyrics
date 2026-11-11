@@ -65,7 +65,7 @@ import java.io.File
 // 改用 TyPanelTheme + TySheetFrame —— 与队列、工具页、二级操作面板同一份表面色、
 // 同一份圆角、同一份进出场。用户从设置点进"请作者喝杯咖啡"和点开任意 ⋯ 面板，
 // 看到的是同一个弹窗，不再有第三套弹窗方言。
-private val sheetTheme @Composable get() = TyPanelTheme.of(LocalInterfacePalette.current.light, LocalInterfacePalette.current.style)
+private val sheetTheme @Composable get() = TyPanelTheme.from(LocalInterfacePalette.current)
 
 internal data class SupportCopy(
     val coffeeTitle: String, val coffeeDescription: String, val channelWechat: String, val channelAlipay: String,
@@ -152,17 +152,7 @@ internal fun parseSupportCopy(json: String?): SupportCopy {
             Spacer(Modifier.height(10.dp))
             Text(copy.coffeeDescription, color = theme.muted, fontSize = 12.sp, lineHeight = 19.sp, textAlign = TextAlign.Center)
             Spacer(Modifier.height(16.dp))
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(theme.card).padding(3.dp)) {
-                listOf(copy.channelWechat to 0, copy.channelAlipay to 1).forEach { (label, index) ->
-                    val selected = channel == index
-                    Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
-                        .background(if (selected) theme.accent.copy(alpha = 0.16f) else Color.Transparent)
-                        .border(1.dp, if (selected) theme.accent.copy(alpha = 0.45f) else Color.Transparent, RoundedCornerShape(10.dp))
-                        .clickable { channel = index }.padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
-                        Text(label, color = if (selected) theme.accent else theme.muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                    }
-                }
-            }
+            LiquidChoiceRow(listOf(copy.channelWechat, copy.channelAlipay), channel, theme) { channel = it }
             Spacer(Modifier.height(14.dp))
             if (qrRes != 0) Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White).padding(14.dp), contentAlignment = Alignment.Center) {
                 Image(painterResource(qrRes), null, Modifier.fillMaxWidth().widthIn(max = 300.dp).heightIn(max = 300.dp), contentScale = ContentScale.Fit)

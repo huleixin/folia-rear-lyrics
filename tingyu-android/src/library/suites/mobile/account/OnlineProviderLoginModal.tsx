@@ -1,3 +1,5 @@
+import { useLiquidReduced } from '../../../../components/shared/useLiquidReduced';
+import { TY_DURATION, TY_SPRING } from '../../../../components/shared/motionTokens';
 import { useState } from 'react';
 import { AlertTriangle, Check, ClipboardCopy, Loader2, RotateCcw, ServerCog, X } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -78,6 +80,7 @@ const OnlineProviderLoginModal = ({
     onRetry,
     onClose,
 }: OnlineProviderLoginModalProps) => {
+    const reduced = useLiquidReduced();
     const [diagCopyState, setDiagCopyState] = useState<'idle' | 'working' | 'copied' | 'failed'>('idle');
     const copyDiagnostics = async () => {
         if (!diagnosticsEntry) return;
@@ -107,7 +110,7 @@ const OnlineProviderLoginModal = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
+            transition={{ duration: reduced ? 0 : TY_DURATION.panelExit }}
             className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xl p-4"
             data-folia-keyboard-window="true"
             style={{ position: 'fixed' }}
@@ -119,7 +122,7 @@ const OnlineProviderLoginModal = ({
                 initial={{ scale: 0.92, opacity: 0, y: 24 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.92, opacity: 0, y: 12 }}
-                transition={{ type: 'spring', bounce: 0, duration: 0.5 }}
+                transition={reduced ? { duration: 0 } : TY_SPRING.panel}
                 // 失败后加宽成两栏；矮窗口里放不下时在卡片内滚动，而不是被上下裁掉。
                 className={`bg-zinc-900/90 border border-white/10 p-8 rounded-3xl w-full max-h-full overflow-y-auto text-center relative shadow-2xl ${twoColumns ? 'max-w-3xl' : 'max-w-sm'}`}
             >

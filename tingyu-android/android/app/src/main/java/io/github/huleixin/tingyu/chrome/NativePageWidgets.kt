@@ -65,7 +65,7 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
     }
 }
 }
-@Composable internal fun PageArtwork(url: String, modifier: Modifier, radius: Dp = 9.dp) {
+@Composable internal fun PageArtwork(url: String, modifier: Modifier, radius: Dp = 9.dp, sharedAction: String = "") {
     // 启动期封面模型会翻一次面（Web 管理地址在缩略图就绪前发的是空串，就绪后才是 data:）。
     // Coil 一换模型就清空重解 —— 深色页面上一帧空图，肉眼看就是「卡片闪一下」
     // （23:29 录屏逐帧：两张亮色封面只消失一帧）。这里记住最近一个非空地址：
@@ -73,7 +73,7 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
     var lastKnown by remember { mutableStateOf("") }
     val effective = if (url.isBlank()) lastKnown else url
     SideEffect { if (url.isNotBlank() && url != lastKnown) lastKnown = url }
-    Box(modifier.clip(RoundedCornerShape(radius)).background(LocalInterfacePalette.current.surface), contentAlignment = Alignment.Center) {
+    Box(modifier.liquidCover(sharedAction,radius).background(LocalInterfacePalette.current.surface), contentAlignment = Alignment.Center) {
         if (effective.isBlank()) PageIcon("music2", PageMuted, Modifier.size(21.dp))
         else AsyncImage(pageImage(effective), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
     }
@@ -118,7 +118,7 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
             Text(section.items.firstOrNull{it.selected}?.title?:"",color=LocalInterfacePalette.current.selectionLabel,fontSize=12.sp)
             PageIcon("chevron-down",PageMuted,Modifier.padding(start=3.dp).size(14.dp))
         }
-        DropdownMenu(expanded,{expanded=false}) { section.items.forEach { item ->
+        LiquidDropdown(expanded,{expanded=false}) { section.items.forEach { item ->
             DropdownMenuItem(text={Text(item.title,fontSize=12.sp)},onClick={expanded=false;action(item.action,"",0.0)})
         } }
     }
@@ -128,14 +128,15 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
     // 歌单/资料库/搜索的歌曲行：以前是整行 clickable + 系统 ripple，长按就在标题副标题上
     // 压出一块方角灰底。改成自绘圆角 tint（14dp），关掉 ripple。
     val pressSource=rememberPressSource()
+    val coverSource=rememberCoverSource(item.action,if(art>=50.dp)11.dp else 7.dp)
     Row(Modifier.fillMaxWidth().height(height)
             .chromeRowPressed(pressSource)
-            .clickable(interactionSource=pressSource,indication=null,enabled=!item.disabled&&item.action.isNotBlank()){action(item.action)},
+            .clickable(interactionSource=pressSource,indication=null,enabled=!item.disabled&&item.action.isNotBlank()){coverSource.select();action(item.action)},
         verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(if(art>=50.dp)13.dp else 10.dp)) {
         // alwaysArt：资料库歌曲行固定占位（无封面歌也保持同一布局）；当前播放行在封面上
         // 叠加轻量标识：播放中=均衡器动画，暂停=静止暂停符；标题色由 selected 走 PageAccent。
         if(item.image.isNotBlank()||chevron||alwaysArt)Box(Modifier.size(art)){
-            PageArtwork(item.image,Modifier.size(art),if(art>=50.dp)11.dp else 7.dp)
+            PageArtwork(item.image,Modifier.size(art),if(art>=50.dp)11.dp else 7.dp,sharedAction=if(item.action.startsWith("open:")||item.action.startsWith("playlist:")||item.action.startsWith("album:"))coverSource.key else "")
             if(pending)Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){
                 androidx.compose.material3.CircularProgressIndicator(Modifier.size(20.dp),color=PageAccent,strokeWidth=2.dp)
             }else if(item.selected)Box(Modifier.fillMaxSize().background(Color(0x52000000)),contentAlignment=Alignment.Center){NowPlayingBadge(playing)}
@@ -153,7 +154,7 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
 }
 /** 当前播放封面标识：播放中=三根轻量均衡器条（青绿强调色），暂停=静止暂停符。 */
 @Composable private fun NowPlayingBadge(playing:Boolean){
-    if(!playing){ChromeGlyph("pause",Color.White,Modifier.size(13.dp));return}
+    if(!playing||LocalLiquidReduced.current){ChromeGlyph(if(playing)"play"else"pause",Color.White,Modifier.size(13.dp));return}
     val transition=rememberInfiniteTransition(label="now-playing-eq")
     val bars=List(3){index->transition.animateFloat(0f,1f,infiniteRepeatable(tween(420+index*90,easing=LinearEasing),RepeatMode.Reverse),label="eq-$index")}
     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){

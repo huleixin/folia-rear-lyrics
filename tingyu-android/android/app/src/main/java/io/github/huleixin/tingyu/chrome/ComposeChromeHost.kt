@@ -36,6 +36,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.zIndex
@@ -633,8 +634,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             // 推迟到入场窗口之后：极简页不透明，盖住后底栏走不走都看不见；若期间
             // 路由又回到 home，JS 重挂载会用新会话 update 覆盖同一 id，这次延迟任务
             // 因会话不匹配自动失效，不会闪掉底栏。
-            val entryPending = minimalPlayerEnabled() && (id == "nav" || id == "mini") && !webOverlay &&
-                (pendingStageEntry || (destination == "stage" && playerPresentation == "minimal"))
+            val entryPending = (id == "nav" || id == "mini") && !webOverlay &&
+                (pendingStageEntry || destination == "stage")
             StartupTrace.detail("chrome-remove"){put("id",id);put("session",session);put("delayed",entryPending);put("route",destination)}
             if (entryPending) {
                 val token = ++chromeRemovalSerial
@@ -677,7 +678,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             StartupTrace.detail("first-native-frame"){put("pages",pages.size);put("surfaces",surfaces.size);put("presented",presented?.key)} }}
         val configuration=androidx.compose.ui.platform.LocalConfiguration.current
         val interfaceLight=InterfaceAppearance.resolve(appearanceMode,(configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK)==android.content.res.Configuration.UI_MODE_NIGHT_NO)
-        val palette=remember(interfaceLight,appearanceStyle){InterfacePalette(interfaceLight,appearanceStyle)}
+        val palette=rememberLiquidPalette(interfaceLight,appearanceStyle,reducedMotion||!active||!focused)
+        val coverSelection=remember{CoverSelection()}
+        val motionOrigin=remember{MotionOrigin()}
+        val playerArtwork = remember(configuration.screenWidthDp, configuration.screenHeightDp) { PlayerArtworkAnchor() }
+        var miniCoverBounds by remember(configuration.screenWidthDp, configuration.screenHeightDp) { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+        var playerOrigin by remember(configuration.screenWidthDp, configuration.screenHeightDp){mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)}
+        LaunchedEffect(destination, pendingStageEntry) { if(destination!="stage"&&!pendingStageEntry) playerOrigin=null }
+
         val activity=web.context as? android.app.Activity
         DisposableEffect(interfaceLight,destination,surfaces["stage"]?.light) {activity?.let{InterfaceAppearance.route(it,destination=="stage",surfaces["stage"]?.light?:false)};onDispose{}}
         val sleepUi=rememberMiniSleepUi(active&&focused)
@@ -697,6 +705,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // 差别只在 stageExit.active。播放页必须靠这一份继续留在组合里 —— 见 playerShown。
         val stagePhase=surfaces["stage"]?.playerTransition?:"idle"
         val stageAboveMinimal=minimalState.controls.detour||stagePhase in setOf("to-stage","to-minimal")
+        val playerReady=playerPresentation!="minimal"||!minimalPlayerEnabled()||minimalBound
+        val playerEntry=rememberLiquidPlayerProgress(destination=="stage",returningFromSettings||minimalResumePending,reducedMotion||!active||!focused,stageExit.active,playerReady)
+        val playerReveal=remember(playerEntry,exitProgress){derivedStateOf{playerEntry.value*(if(stageExit.active)1f-exitProgress.value else 1f)}}
+        val playerEntering by remember(playerEntry){derivedStateOf{destination=="stage"&&playerEntry.value<.9999f&&!stageExit.active}}
         val minimalBase = minimalPlayerEnabled() && destination=="stage" && playerPresentation=="minimal" && !webOverlay && minimalBound
         val minimalOwns = minimalBase && !stageAboveMinimal && !stageExit.active
         // 极简歌词页常亮（需求一）：只有「真正显示 Compose 极简歌词页」时才申请。
@@ -728,10 +740,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // 经典 WebView 舞台入场仍在 commit 时按路由规则收起。
         val displayedSurfaces=if(settingsHandoff!=null&&handoffFooter!=null)
             surfaces.values.filter{it.id!="stage"}+listOfNotNull(handoffFooter) else surfaces.values.toList()
-        val visible = if (!webOverlay&&(!pendingStageEntry||minimalPlayerEnabled())) displayedSurfaces.filter {
+        val visible = if (!webOverlay&&(!pendingStageEntry||destination!="stage"||playerEntering)) displayedSurfaces.filter {
             it.enabled && NativeFooterLayout.visible(
                 it.id,
-                if(composeOwnsMinimalEntry&&it.id!="stage")(page?.id?:"home") else destination,
+                if((composeOwnsMinimalEntry||playerEntering)&&it.id!="stage")(page?.id?:"home") else destination,
                 collectionDetail,it.viewportWidth,artist=pageTarget.startsWith("collection:artist:"),settingsRoot=settingsRoot) &&
                 (it.id!="stage"||it.rect.width>0&&it.rect.height>0) &&
                 !(composeOwnsMinimalEntry&&it.id=="stage")
@@ -743,7 +755,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         SideEffect{if(!legacySampling)webSamplingLayer.update(Build.VERSION.SDK_INT>=31&&sampleWeb)}
         val savedPages=rememberSaveableStateHolder()
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            CompositionLocalProvider(LocalChromeRendering provides (active&&focused),LocalInterfacePalette provides palette) {
+            CompositionLocalProvider(LocalChromeRendering provides (active&&focused),LocalInterfacePalette provides palette,LocalLiquidReduced provides (reducedMotion||!active||!focused),LocalMotionOrigin provides motionOrigin,LocalPlayerReveal provides playerReveal,LocalPlayerArtworkAnchor provides playerArtwork) {
             val density=LocalDensity.current;val width=maxWidth.value;val height=maxHeight.value
             val safeTop=if(nativeTop>=0)nativeTop else WindowInsets.statusBars.getTop(density)/density.density
             val safeBottom=if(nativeBottom>=0)nativeBottom else WindowInsets.navigationBars.getBottom(density)/density.density
@@ -813,8 +825,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     .then(if(!legacySampling&&Build.VERSION.SDK_INT>=31&&sampleWeb)Modifier.layerBackdrop(stageBackdrop)else Modifier)) {
                 AndroidView(factory = { web }, modifier = Modifier.fillMaxSize()
                     .then(if(legacySampling&&graphics.mode!=GraphicsProbeMode.C31)Modifier.graphicsLayer { alpha = if(Build.VERSION.SDK_INT>=31).999f else 1f }else Modifier)
-                    .stageExitTransform(stageExit,exitProgress,webOwnsRoutePixels(destination,webOverlay,stageExit.active)&&!nativeMinimalCollapse)
-                    .playerEntryTransform(destination=="stage"&&playerPresentation=="minimal"&&!returningFromSettings&&!minimalPlayerEnabled(),reducedMotion,height*density.density))
+                    .liquidPlayer(playerOrigin,playerEntry,stageExit,exitProgress,webOwnsRoutePixels(destination,webOverlay,stageExit.active)&&!nativeMinimalCollapse))
                 }
             Box(Modifier.fillMaxSize().zIndex(if(destination!="stage"||stageAboveMinimal)1f else 0f).then(if(legacySampling&&Build.VERSION.SDK_INT>=31&&graphics.sampleStage(destination))Modifier.layerBackdrop(backdrop)else Modifier)) {
                 Box(Modifier.fillMaxSize().zIndex(1f).then(if(!legacySampling&&Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop)else Modifier)) {
@@ -826,7 +837,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 // （等极简页盖住），这 520ms 里默认 SizeTransform 正把整页缩成一张小卡片 ——
                 // 真机录屏里极简页上方那张缩小、上移、带裁剪的首页残影（拖影）就是它。
                 // 这些页面全是整屏，结构上绝不该缩放；sizeAnimationSpec 返回 null 即无尺寸动画。
-                AnimatedContent(if(destination=="stage"&&!stageExit.active)null else page,modifier=Modifier.fillMaxSize().zIndex(1f),contentKey={it?.let{NativeMotionPolicy.pageRouteKey(it.key)}?:"stage"},
+                androidx.compose.animation.SharedTransitionLayout {
+                val sharedScope=this
+                AnimatedContent(if(destination=="stage"&&playerReady&&!stageExit.active)null else page,modifier=Modifier.fillMaxSize().zIndex(1f),contentKey={it?.let{NativeMotionPolicy.pageRouteKey(it.key)}?:"stage"},
                     transitionSpec={
                         // 转场只认**路由**，不认模型 key：home/library/search 的模型 key 带着会变的
                         // 数据身份（音源、歌单 id），按它建内容实例会同时存在两份首页，旧的那份
@@ -840,16 +853,19 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         val opaqueSettingsEntry=from=="stage"&&to.startsWith("settings:")&&(stageVisible||settingsDrawHandoff!=null)
                         (when(NativeMotionPolicy.kind(from,to,backwards,!focused||!active||reducedMotion||returningFromSettings||opaqueSettingsEntry||stageExit.suppressReturnMotion&&from=="stage")){
                             NativeMotionKind.NONE->EnterTransition.None togetherWith ExitTransition.None
-                            NativeMotionKind.STAGE->fadeIn(tween(140,easing=ease)) togetherWith fadeOut(tween(if(to=="stage"&&playerPresentation=="minimal")1 else 100,delayMillis=if(to=="stage"&&playerPresentation=="minimal")520 else 0,easing=ease))
+                            NativeMotionKind.STAGE->fadeIn(tween(140,easing=ease)) togetherWith fadeOut(tween(if(to=="stage")1 else 100,delayMillis=if(to=="stage")520 else 0,easing=ease))
                             NativeMotionKind.TAB->(slideInHorizontally(tween(TingYuMotion.TabInMs,easing=ease)){tabTravel}+fadeIn(tween(TingYuMotion.TabInMs,easing=ease))) togetherWith (slideOutHorizontally(tween(TingYuMotion.TabOutMs,easing=ease)){-tabTravel}+fadeOut(tween(TingYuMotion.TabOutMs,easing=ease)))
                             NativeMotionKind.PUSH->(slideInHorizontally(position){travel}+fadeIn(tween(TingYuMotion.PushMs,easing=ease))) togetherWith (slideOutHorizontally(position){-travel/3}+fadeOut(tween(200,easing=ease)))
                             NativeMotionKind.POP->((slideInHorizontally(tween(220,easing=ease)){-travel/3}+fadeIn(tween(220,easing=ease))) togetherWith (slideOutHorizontally(tween(220,easing=ease)){travel}+fadeOut(tween(200,easing=ease)))).apply{targetContentZIndex=-1f}
-                        })
+                        }).using(null)
                     },label="native-route") { shown ->
                 // 空态也占满整屏（透明）：two states same size —— AnimatedContent 的
                 // SizeTransform 没有尺寸差可动画，首页退场就不会被缩成小卡片（拖影）。
                 if(shown==null){Box(Modifier.fillMaxSize())}
                 if(shown!=null) {
+                    val coverRoute=NativeMotionPolicy.pageRouteKey(shown.key)
+                    val coverDestination=remember(coverRoute){coverSelection.enter(coverRoute,backwards)}
+                    CompositionLocalProvider(LocalCoverScope provides CoverScope(sharedScope,this,coverRoute,coverSelection,coverDestination),LocalDetailReveal provides rememberDetailReveal(this)) {
                     // 页面实例与保存态都按**路由**归并：同一路由的模型更新只重组，不换实例、
                     // 不丢滚动位置；LRU 记账也按路由，避免模型 key 每次变化都把状态挤出去。
                     val shownRoute=NativeMotionPolicy.pageRouteKey(shown.key)
@@ -894,6 +910,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                                 if(destination==shown.id)pageListener?.onAction(shown.id,shown.session,shown.key,"__refresh",reason,0.0)
                                 return@NativePageView
                             }
+                            coverSelection.acceptAction(shownRoute,action)
                             // Support sheets are fully native: intercept before the JS action bus.
                             if(action.startsWith("support:")){
                                 supportCopyJson=pages[shown.id]?.sections?.firstOrNull{it.id=="support"}?.text
@@ -907,6 +924,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 }
                 }
             }
+            } } // Shared route scope and per-route cover identity.
             if(firstHomeFrame&&destination=="home"&&!webOverlay) {
                 LaunchedEffect(Unit){withFrameNanos{NavigationTiming.mark("cached-shell-frame-boundary")}}
             }
@@ -965,7 +983,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 if (original != null) {
                 if(id=="nav"&&live!=null)SideEffect{lastSettingsNav=live}
                 val navSelection=startupSelected?:when(destination){"search"->2;"settings"->3;else->selectedTab.coerceIn(0,1)}
-                val surface = remember(original,palette){original.interfacePaint(palette)}
+                val surface = original.interfacePaint(palette)
                     .let{if(id=="nav")it.copy(selected=navSelection,disabled=footerHiddenForIme||live!=null&&it.disabled||destination=="settings"&&!settingsRoot)else it}
                 // seed 与 live 共用同一个定位入口，而且**只在 dp 空间里算一次**：JS 的 innerWidth
                 // 是整数（375），真实 dp 宽是 375.38，走 CSS px × scale 会让交接时整条底栏
@@ -992,7 +1010,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         if(id=="stage"&&width>height)translationY=(height-rect.top)*density.density*(1f-stagePresence)
                         alpha = when {
                             id!="stage"&&footerHiddenForIme -> 0f
-                            id=="mini" -> rect.alpha * miniFade
+                            id=="mini" -> rect.alpha * miniFade * (if(destination=="stage") (1f-playerReveal.value*4f).coerceIn(0f,1f) else 1f)
                             id=="nav"&&destination=="settings" -> rect.alpha * settingsNavAlpha
                             else -> rect.alpha
                         }
@@ -1018,6 +1036,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             if(action=="navigate"||action=="openStage"||action=="queue"||action=="quality")sleepMenuOpen=false
                             // Dismiss home chrome on the UI thread before the JS route transition starts.
                             if (surface.id=="mini" && action=="openStage") {
+                                playerOrigin=miniCoverBounds ?: androidx.compose.ui.geometry.Rect((rect.left+16f)*density.density,(animatedY+9f)*density.density,(rect.left+50f)*density.density,(animatedY+43f)*density.density)
                                 pendingStageEntry=true
                                 val request=++stageEntryRequest
                                 // Hide the footer immediately, but do not promote an old WebView
@@ -1038,8 +1057,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     val interactivePlacement = placement.chromeInteraction(actions)
                     when(id) {
                         "nav" -> ChromeNavigation(surface,backdrop,interactivePlacement,actions)
-                        "mini" -> ChromeMiniPlayer(surface,if(live==null)null else clocks[id],backdrop,interactivePlacement,action=actions)
-                        "stage" -> Box(Modifier.fillMaxSize().zIndex(2f).stageExitTransform(stageExit,exitProgress).playerDetourTransform(surface.playerTransition,reducedMotion||surface.reducedMotion,height*density.density)){ChromeStagePlayer(surface,clocks[id],if(legacySampling)backdrop else stageBackdrop,interactivePlacement,actions)}
+                        "mini" -> ChromeMiniPlayer(surface,if(live==null)null else clocks[id],backdrop,interactivePlacement,onCoverBounds={miniCoverBounds=it},action=actions)
+                        "stage" -> Box(Modifier.fillMaxSize().zIndex(2f).liquidPlayer(playerOrigin,playerEntry,stageExit,exitProgress).playerDetourTransform(surface.playerTransition,reducedMotion||surface.reducedMotion,height*density.density)){ChromeStagePlayer(surface,clocks[id],if(legacySampling)backdrop else stageBackdrop,interactivePlacement,actions)}
                     }
                 }
             }
@@ -1062,10 +1081,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 // 入场只滑不淡：这一页不透明，淡入会强制一整屏离屏图层。
                 // 360ms（320~380ms 目标带），入场是页面唯一的一套上滑 ——
                 // WebView 侧的同名位移已在 composeOwnsMinimalEntry 里关掉。
-                enter = if (minimalResumePending || minimalCoverHold) EnterTransition.None else slideInVertically(
-                    animationSpec = tween(TingYuMotion.MinimalEnterMs, easing = TingYuMotion.StageEnter),
-                    initialOffsetY = { it },
-                ),
+                enter = EnterTransition.None, // The retained canvas is revealed by liquidPlayer below.
                 exit = when (MinimalPlayerExitPolicy.exit(destination, page != null,minimalCollapseCommitted)) {
                     MinimalPlayerExitPolicy.Exit.NONE -> ExitTransition.None
                     MinimalPlayerExitPolicy.Exit.SLIDE_AND_FADE -> slideOutVertically(
@@ -1073,7 +1089,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         targetOffsetY = { it },
                     ) + fadeOut(tween(TingYuMotion.MinimalFadeMs))
                 },
-                modifier = Modifier.fillMaxSize().zIndex(playerZ).stageExitTransform(stageExit,exitProgress,slide=true),
+                modifier = Modifier.fillMaxSize().zIndex(playerZ).liquidPlayer(playerOrigin,playerEntry,stageExit,exitProgress,artwork=if(minimalCurrentPage==0)playerArtwork else null),
             ) {
                 MinimalPlayerSurface(
                     runtime = minimal,
@@ -1103,7 +1119,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     safeBottom = safeBottom,
                     onCollapse = { minimalCommands.collapse() },
                     onOpenStage = { minimalCommands.openStage() },
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().onGloballyPositioned { playerArtwork.canvas(it) },
                 )
             }
             // 页面进组合后还要等它压上来（PUSH 240ms）才摘播放页；页面迟迟不来就超时放手，
@@ -1168,7 +1184,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 modifier = Modifier.fillMaxSize().zIndex(6f),
             ) {
                 val toolsState by minimal.tools.collectAsState()
-                when(lastToolsPage){
+                when(toolsPage.ifEmpty{lastToolsPage}){
                     "quality"->io.github.huleixin.tingyu.minimal.ui.MinimalQualitySheet(
                         tools=toolsState,light=interfaceLight,actions=toolActions,
                         onClose={closeNativeTools()},

@@ -61,10 +61,11 @@ import kotlinx.coroutines.launch
                                 LazyRow(contentPadding=PaddingValues(start=start,end=end),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                                     items(section.items,key={it.id}) { item ->
                                         val cover=NativePageDesign.recentWidth(viewport,wide).dp
+                                        val source=rememberCoverSource(item.action,9.dp)
                                         Column(Modifier.width(cover)) {
-                                            Box(Modifier.chromeClickable(enabled=!item.disabled,corner=12.dp){action(item.action,"",0.0)}){PageArtwork(item.image,Modifier.fillMaxWidth().aspectRatio(1f))}
+                                            Box(Modifier.chromeClickable(enabled=!item.disabled,corner=12.dp){source.select();action(item.action,"",0.0)}){PageArtwork(item.image,Modifier.fillMaxWidth().aspectRatio(1f),sharedAction=source.key)}
                                             Row(Modifier.fillMaxWidth().padding(top=4.dp),verticalAlignment=Alignment.CenterVertically) {
-                                                Column(Modifier.weight(1f).chromeClickable(enabled=!item.disabled,corner=10.dp){action(item.action,"",0.0)}){
+                                                Column(Modifier.weight(1f).chromeClickable(enabled=!item.disabled,corner=10.dp){source.select();action(item.action,"",0.0)}){
                                                     Text(item.title,color=PageInk,fontSize=13.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
                                                     Text(item.subtitle,color=PageMuted,fontSize=12.sp,lineHeight=18.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=2.dp))
                                                 }
@@ -210,9 +211,10 @@ import kotlinx.coroutines.launch
     }
 }
 @Composable private fun NativeHomePlaylist(item:NativePageItem,modifier:Modifier,action:PageAction){
+    val source=rememberCoverSource(item.action,10.dp)
     Row(modifier.heightIn(min=58.dp).clip(RoundedCornerShape(8.dp)).background(LocalInterfacePalette.current.homeCard).border(1.dp,LocalInterfacePalette.current.homeBorder,RoundedCornerShape(8.dp)),verticalAlignment=Alignment.CenterVertically){
-        Row(Modifier.weight(1f).chromeClickable(corner=8.dp){action(item.action,"",0.0)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
-            PageArtwork(item.image,Modifier.size(56.dp),10.dp)
+        Row(Modifier.weight(1f).chromeClickable(corner=8.dp){source.select();action(item.action,"",0.0)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
+            PageArtwork(item.image,Modifier.size(56.dp),10.dp,sharedAction=source.key)
             Column(Modifier.weight(1f)){
                 Text(item.title,color=PageInk,fontSize=12.sp,lineHeight=16.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
                 Text(item.subtitle,color=PageMuted,fontSize=10.sp,lineHeight=14.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=3.dp))

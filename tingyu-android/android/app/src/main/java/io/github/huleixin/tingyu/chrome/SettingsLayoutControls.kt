@@ -42,7 +42,7 @@ internal fun SettingsLayoutControl(node:TySettingNode,layout:SettingsLayoutNode,
                     Text(node.options.firstOrNull{it.value==node.value}?.label?:node.placeholder.ifBlank{node.value},modifier=if(compact&&s.width<=0)Modifier.widthIn(max=160.dp)else Modifier.weight(1f))
                     PageIcon("chevron-down",theme.muted,Modifier.padding(start=8.dp).size(16.dp))
                 }
-                if(expanded)SettingsOptionPopup(theme,node.title,node.options,node.value,onClose={expanded=false}){value->expanded=false;action(TySettingEvent.set(node.action),value,0.0)}
+                SettingsOptionPopup(theme,node.title,node.options,node.value,visible=expanded,onClose={expanded=false}){value->expanded=false;action(TySettingEvent.set(node.action),value,0.0)}
             }
         }
         "slider"->Box(outer){SettingsSlider(theme,"",value=node.value.toFloatOrNull()?:node.min,min=node.min,max=node.max,step=node.step,enabled=enabled,showLabel=false){value->action(TySettingEvent.slide(node.action),"",value.toDouble())}}

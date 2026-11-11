@@ -1,5 +1,5 @@
 import { NATIVE_FIRST } from '../../../../services/nativePages';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -135,6 +135,9 @@ const GridAccountSurface: React.FC<LibraryAccountSurfaceProps> = ({ account, isD
     const { t } = useTranslation();
     const login = useLibraryAccountLogin(account);
     const pendingSwitch = useLibraryAccountPendingSwitch(account);
+    const [lastSwitch, setLastSwitch] = useState(pendingSwitch);
+    useEffect(() => { if (pendingSwitch) setLastSwitch(pendingSwitch); }, [pendingSwitch]);
+    const switchContent = pendingSwitch ?? lastSwitch;
     const layerElement = useLibraryAccountLayerElement(layer);
     const features: GridLoginFeatures = {
         diagnostics: hasAction(declaredActions.actions, 'account-login-diagnostics'),
@@ -151,15 +154,16 @@ const GridAccountSurface: React.FC<LibraryAccountSurfaceProps> = ({ account, isD
     return (
         <>
             {NATIVE_FIRST && canPortal ? createPortal(loginModal, document.body) : layerElement ? createPortal(loginModal, layerElement) : loginModal}
-            {pendingSwitch && canPortal && createPortal(
+            {switchContent && canPortal && createPortal(
                 <ConfirmDialog
-                    isOpen
+                    isOpen={Boolean(pendingSwitch)}
+                    nativeStatic={false}
                     isDaylight={isDaylight}
-                    title={pendingSwitch.title}
-                    description={pendingSwitch.description}
+                    title={switchContent.title}
+                    description={switchContent.description}
                     // 不等确认的事务（清理、刷新）走完：controller 同步清掉待确认请求，框随之收起。
-                    onConfirm={() => void account.confirmSwitch(pendingSwitch.request.id)}
-                    onClose={() => void account.cancelSwitch(pendingSwitch.request.id)}
+                    onConfirm={() => void account.confirmSwitch(switchContent.request.id)}
+                    onClose={() => void account.cancelSwitch(switchContent.request.id)}
                 />,
                 document.body,
             )}

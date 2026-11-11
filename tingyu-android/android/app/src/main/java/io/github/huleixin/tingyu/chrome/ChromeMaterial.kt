@@ -16,6 +16,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -222,7 +224,7 @@ fun Modifier.chromeGlass(
     exportedBackdrop: LayerBackdrop? = null,
     interfaceTheme: Boolean = true,
 ): Modifier {
-    val palette = InterfacePalette(light, if(interfaceTheme) LocalInterfacePalette.current.style else "classic")
+    val palette = if (interfaceTheme && light == LocalInterfacePalette.current.light) LocalInterfacePalette.current else InterfacePalette(light, "classic")
     val material = remember(spec,palette.style) { spec.interfaceMaterial(palette.style) }
     val reflection = palette.glassReflection
     val shape = RoundedCornerShape(radius)
@@ -232,7 +234,9 @@ fun Modifier.chromeGlass(
     val blurPx = with(density) { spec.blur.toPx() }
     val lensHeightPx = with(density) { (spec.lensHeight * lensScale).toPx() }
     val lensAmountPx = with(density) { (spec.lensAmount * lensScale).toPx() }
-    val surface = material.surface(light, surfaceFill)
+    // Animate the exact optical preset endpoint, including classic custom presets.
+    val surface by androidx.compose.animation.animateColorAsState(material.surface(light, surfaceFill),
+        androidx.compose.animation.core.tween(if (LocalLiquidReduced.current) 0 else TingYuMotion.ThemeMs), label = "glass-surface")
     // 内阴影只做「下缘暗部」：光从上方来，玻璃越厚下缘越沉。上缘留给高光与环境反射。
     val innerColor = palette.opticalShadow.copy(alpha = if(light) .16f else .55f)
     // API<33 的 Highlight 会退化成均匀白描边，压暗一档，避免"毛玻璃外面画白线"。
@@ -341,9 +345,11 @@ fun chromeColor(value: String, fallback: Color = Color.White): Color = try { Col
     onClick: () -> Unit, content: @Composable () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if(pressed && !reduced) 0.92f else 1f,label="press")
-    Box(modifier.size(size).graphicsLayer { scaleX=scale;scaleY=scale;alpha=if(enabled)1f else .35f }
-        .semantics { contentDescription=label }.clickable(interactionSource=interaction,indication=null,enabled=enabled,role=Role.Button,onClick=onClick),
+    val origin=LocalMotionOrigin.current
+    val bounds = remember { MotionOrigin() }
+    val scale by animateFloatAsState(if(pressed && !reduced && !LocalLiquidReduced.current) 0.94f else 1f,animationSpec=androidx.compose.animation.core.spring(dampingRatio=.85f,stiffness=900f),label="press")
+    Box(modifier.size(size).onGloballyPositioned{bounds.bounds=it.boundsInRoot()}.graphicsLayer { scaleX=scale;scaleY=scale;alpha=if(enabled)1f else .35f }
+        .semantics { contentDescription=label }.clickable(interactionSource=interaction,indication=null,enabled=enabled,role=Role.Button,onClick={origin.record(bounds.bounds);onClick()}),
         contentAlignment=Alignment.Center) { content() }
 }
 /**

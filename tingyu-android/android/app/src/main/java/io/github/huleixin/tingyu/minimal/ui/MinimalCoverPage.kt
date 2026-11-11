@@ -40,6 +40,8 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.layout.onGloballyPositioned
+import io.github.huleixin.tingyu.chrome.LocalPlayerArtworkAnchor
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -135,6 +137,7 @@ fun MinimalCoverPage(
     coverGesture: Modifier = Modifier,
     modifier: Modifier = Modifier,
 ) {
+    val anchor = LocalPlayerArtworkAnchor.current
     val playback = state.playback
     BoxWithConstraints(modifier.fillMaxSize()) {
         val pageWidth = maxWidth
@@ -164,7 +167,7 @@ fun MinimalCoverPage(
                 covers = covers,
                 gesture = coverGesture,
                 modifier = Modifier
-                    .size(stageWidth)
+                    .size(stageWidth).onGloballyPositioned { anchor.artwork(it) }
                     // 拖动 / 切歌动画期间把整摞封面提到本页文字之上：只有正在移动的那一张
                     // 会越出封面区域（后两层不越界，视觉上就是"拿起最上面这张盖住文字"），
                     // 松手回弹 / 补位完成（phase 回 IDLE）后立即恢复原层级。zIndex 只改

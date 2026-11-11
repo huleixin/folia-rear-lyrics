@@ -1,3 +1,5 @@
+import { useLiquidReduced } from '../../../../components/shared/useLiquidReduced';
+import { TY_DURATION } from '../../../../components/shared/motionTokens';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronRight, LogIn, LogOut, UserRound } from 'lucide-react';
 import { AnimatePresence, motion, useMotionValueEvent } from 'framer-motion';
@@ -74,6 +76,7 @@ const OnlineProviderSwitcher: React.FC<OnlineProviderSwitcherProps> = ({
     onLogout,
     onBackToPlayer,
 }) => {
+    const reduced = useLiquidReduced();
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const [showProviderLabel, setShowProviderLabel] = useState(false);
@@ -179,7 +182,7 @@ const OnlineProviderSwitcher: React.FC<OnlineProviderSwitcherProps> = ({
                                 initial={{ width: 0, opacity: 0 }}
                                 animate={{ width: 'auto', opacity: 1 }}
                                 exit={{ width: 0, opacity: 0 }}
-                                transition={{ duration: 0.2, ease: 'easeOut' }}
+                                transition={{ duration: reduced ? 0 : TY_DURATION.fast, ease: 'easeOut' }}
                                 className="hidden max-w-16 overflow-hidden whitespace-nowrap text-xs font-semibold md:block"
                             >
                                 {activeProvider.shortName}
@@ -206,7 +209,7 @@ const OnlineProviderSwitcher: React.FC<OnlineProviderSwitcherProps> = ({
                         initial={{ opacity: 0, y: 8, scale: 0.96 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 6, scale: 0.97 }}
-                        transition={{ duration: 0.16 }}
+                        transition={{ duration: reduced ? 0 : TY_DURATION.panelExit }}
                         className={`absolute bottom-[calc(100%+0.75rem)] right-0 w-72 max-w-[calc(100vw-2rem)] origin-bottom-right rounded-3xl p-3 shadow-2xl md:w-80 ${surfaceClass}`}
                     >
                         <div className="px-3 pb-3 pt-1 text-xs font-medium opacity-50">{t('home.onlineProvider')}</div>

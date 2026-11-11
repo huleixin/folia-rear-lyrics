@@ -1,3 +1,4 @@
+import { AnimatePresence } from 'framer-motion';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import MobileSheet from '../MobileSheet';
 import {
@@ -121,9 +122,11 @@ export default function OperationPanel({ panel, onAction, onClose, id = 'overlay
         lastPushed.current = serialized;
         if (!frame) { void removeNativePanel(id, session.current); return; }
         revision.current += 1;
+        let alive = true;
         void pushNativePanel({ ...frame, revision: revision.current, enabled: true })
-            .then(result => { if (!result.accepted) setRejected(true); })
-            .catch(() => setRejected(true));
+            .then(result => { if (alive && !result.accepted) setRejected(true); })
+            .catch(() => { if (alive) setRejected(true); });
+        return () => { alive = false; };
     }, [frame, native, id]);
 
     // 卸载时清掉原生面板（页面整体退场、路由切换）。
@@ -132,8 +135,7 @@ export default function OperationPanel({ panel, onAction, onClose, id = 'overlay
     // 只有"确定原生不可用"或"这一帧被拒"才画 DOM。探测期什么都不画 ——
     // 画了再撤会让用户看到一次闪动，而探测本身只占一个微任务。
     const drawDom = native === false || rejected;
-    if (!panel || !drawDom) return null;
-    return <DomPanel panel={panel} onAction={onAction} onClose={onClose} />;
+    return <AnimatePresence>{panel && drawDom ? <DomPanel key={id} panel={panel} onAction={onAction} onClose={onClose} /> : null}</AnimatePresence>;
 }
 
 /** 非原生环境的等价渲染：消费同一份 spec，产出与 .ml-sheet 一致的 DOM。 */

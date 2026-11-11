@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -61,19 +63,20 @@ internal fun Modifier.chromePressed(
     scaleTo: Float = 1f,
 ): Modifier {
     val pressed by source.collectIsPressedAsState()
+    val reduced = LocalLiquidReduced.current
     val tintProgress = remember(source) { Animatable(0f) }
-    LaunchedEffect(source) {
+    LaunchedEffect(source, reduced) {
         source.interactions.filter { it is PressInteraction }.collectLatest { interaction ->
             when (interaction) {
                 is PressInteraction.Press -> tintProgress.snapTo(1f)
-                is PressInteraction.Release -> tintProgress.animateTo(0f, tween(220))
-                is PressInteraction.Cancel -> tintProgress.animateTo(0f, tween(70))
+                is PressInteraction.Release -> tintProgress.animateTo(0f, tween(if(reduced)0 else 220))
+                is PressInteraction.Cancel -> tintProgress.animateTo(0f, tween(if(reduced)0 else 70))
             }
         }
     }
     // damping 0.62 / stiffness 1100：按下快、回弹略过冲，和底栏选中项的 press 曲线同一手感。
     val progress by animateFloatAsState(
-        targetValue = if (pressed) 1f else 0f,
+        targetValue = if (pressed && !reduced) 1f else 0f,
         animationSpec = spring(dampingRatio = .62f, stiffness = 1100f),
         label = "chrome-pressed",
     )
@@ -132,13 +135,15 @@ internal fun Modifier.chromeClickable(
     onClick: () -> Unit,
 ): Modifier {
     val source = androidx.compose.runtime.remember { MutableInteractionSource() }
+    val origin = LocalMotionOrigin.current
+    val bounds = androidx.compose.runtime.remember { MotionOrigin() }
     val resolvedTint = tint ?: if (scaleTo != 1f) Color.Unspecified else pagePressTint()
-    return chromePressed(source, RoundedCornerShape(corner), resolvedTint, scaleTo)
+    return onGloballyPositioned { bounds.bounds = it.boundsInRoot() }.chromePressed(source, RoundedCornerShape(corner), resolvedTint, scaleTo)
         .clickable(
             interactionSource = source,
             indication = null,
             enabled = enabled,
             role = role,
-            onClick = onClick,
+            onClick = { origin.record(bounds.bounds); onClick() },
         )
 }

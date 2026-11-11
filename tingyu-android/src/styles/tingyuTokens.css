@@ -72,6 +72,13 @@
     --ty-duration-base: 180ms;   /* 颜色/透明度过渡 */
     --ty-duration-slow: 280ms;   /* 覆盖层/页面级进出场 */
     --ty-duration-stage: 360ms;  /* 极简页往返舞台 */
+    --ty-duration-player-morph: 520ms;
+    --ty-duration-cover: 480ms;
+    --ty-duration-theme: 320ms;
+    --ty-duration-panel-exit: 190ms;
+    --ty-duration-popup-exit: 160ms;
+    --ty-ease-emphasized: cubic-bezier(.16, 1, .3, 1);
+    /* Spring uses native/Motion clocks: stiffness 420, damping ratio .92 (JS damping 37.71). */
     --ty-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);   /* 位移类通用 */
     --ty-ease-enter: cubic-bezier(0.22, 1, 0.36, 1);      /* 进入（减速收尾） */
     --ty-ease-exit: cubic-bezier(0.42, 0, 0.74, 0.3);     /* 退出（加速离场） */

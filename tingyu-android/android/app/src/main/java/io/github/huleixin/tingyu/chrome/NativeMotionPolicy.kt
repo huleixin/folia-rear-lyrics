@@ -7,7 +7,7 @@ internal object NativeMotionPolicy {
     // Spring 参数收编到 TingYuMotion（UI 统一工程）：这里保留原名做别名，调用点不变。
     val Stiffness=TingYuMotion.SpringStiffness
     val Damping=TingYuMotion.SpringDamping // Critically damped: nonlinear deceleration without overshoot.
-    private fun root(key:String)=key.startsWith("home:")||key.startsWith("library:")||key.startsWith("search:")||key=="settings:index"
+    private fun root(key:String)=key in setOf("home","library","search","settings:index")||key.startsWith("home:")||key.startsWith("library:")||key.startsWith("search:")
     /**
      * 页面身份：`home:qq:2473297053:false` → `home:qq`。
      *

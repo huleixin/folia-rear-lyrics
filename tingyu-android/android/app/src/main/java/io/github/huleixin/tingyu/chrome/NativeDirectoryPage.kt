@@ -20,6 +20,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
+import androidx.compose.animation.animateContentSize
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -44,6 +45,7 @@ import kotlin.math.roundToInt
 @Composable internal fun NativeDirectoryPage(page:NativePage,modifier:Modifier,action:PageAction) {
     // 资料库搜索（68591）：搜索框平时是页面里的一块普通区域，点一下就升到状态栏下方成为
     // 固定层；列表在它下面继续滚动。用 pageOrigin 采集根布局坐标，供展开动画从原位起飞。
+    val reduced = LocalLiquidReduced.current
     var pageOrigin by remember{mutableStateOf(Offset.Zero)}
     var searchExpanded by remember(page.key){mutableStateOf(false)}
     var fieldRect by remember{mutableStateOf<Rect?>(null)}
@@ -66,7 +68,7 @@ import kotlin.math.roundToInt
         val glass=rememberTyTopGlassState(estimateHeaderBottomDp=page.safeTop+if(library)240f else 52f)
         Box(Modifier.fillMaxSize()){
             TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()){
-            val listTop by animateDpAsState(if(searchExpanded)NativeSearchBarHeight+16.dp else 0.dp,tween(240),label="dir-list-top")
+            val listTop by animateDpAsState(if(searchExpanded)NativeSearchBarHeight+16.dp else 0.dp,tween(if(reduced)0 else 240),label="dir-list-top")
             LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=start,end=end,top=glass.contentTop+listTop,
                 bottom=(page.bottomClearance+page.safeBottom).dp)){
                 page.sections.forEach { section ->
@@ -80,7 +82,7 @@ import kotlin.math.roundToInt
                                     val collapsible=item.subtitle.length>90||item.subtitle.contains('\n')
                                     Row(Modifier.fillMaxWidth().padding(top=12.dp),horizontalArrangement=Arrangement.spacedBy(16.dp),verticalAlignment=Alignment.CenterVertically){
                                         PageArtwork(item.image,Modifier.size(88.dp),12.dp)
-                                        Column(Modifier.weight(1f).then(if(collapsible)Modifier.clickable{expanded=!expanded}else Modifier)){
+                                        Column(Modifier.weight(1f).animateContentSize(tween(if(reduced)0 else 220)).then(if(collapsible)Modifier.chromeClickable(corner=10.dp){expanded=!expanded}else Modifier)){
                                             Text(item.subtitle,color=PageMuted,fontSize=13.sp,lineHeight=20.sp,maxLines=if(expanded||!collapsible)Int.MAX_VALUE else 3,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                                             if(collapsible)Text(if(expanded)"收起" else "展开简介",color=PageAccent,fontSize=12.sp,modifier=Modifier.padding(top=4.dp))
                                         }
@@ -112,7 +114,7 @@ import kotlin.math.roundToInt
                 if(library){
                     // 搜索展开时整块头部收起（240ms 同步收缩），把屏幕让给"固定搜索层 + 列表"。
                     AnimatedVisibility(visible=!searchExpanded,
-                        enter=expandVertically(tween(240)),exit=shrinkVertically(tween(240))){
+                        enter=expandVertically(tween(if(reduced)0 else 240)),exit=shrinkVertically(tween(if(reduced)0 else 240))){
                         Column{
                             Row(Modifier.padding(start=start+4.dp,end=end+4.dp,bottom=16.dp).heightIn(min=44.dp),verticalAlignment=Alignment.CenterVertically){
                                 PageHeading(page,Modifier.weight(1f),large=true,action=action)
@@ -134,7 +136,7 @@ import kotlin.math.roundToInt
                                 Row(Modifier.padding(start=start,end=end,bottom=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
                                     Box(Modifier.weight(1f)
                                         .pageAnchor(pageOrigin){fieldRect=it}
-                                        .clickable{searchExpanded=true}){
+                                        .chromeClickable(corner=18.dp){searchExpanded=true}){
                                         NativePageInput(section,action,passive=true)
                                     }
                                     if(sortSection!=null&&sortSection.items.isNotEmpty())LibrarySortMenu(sortSection,action)
@@ -185,55 +187,12 @@ internal fun LazyListScope.pagedNativeRows(page:NativePage,section:NativePageSec
     val selected=section.items.firstOrNull{it.selected}
     Box{
         PagePill(selected?.title?:section.title,{open=true},height=38.dp,font=13,trailing="chevron-down")
-        DropdownMenu(expanded=open,onDismissRequest={open=false}){
+        LiquidDropdown(expanded=open,onDismissRequest={open=false}){
             section.items.forEach{item->
                 DropdownMenuItem(text={Text(item.title,color=if(item.selected)PageAccent else PageInk,fontSize=14.sp)},
                     onClick={open=false;action(item.action,"",0.0)},
                     trailingIcon={if(item.selected)PageIcon("check",PageAccent,Modifier.size(16.dp))else null})
             }
         }
-    }
-}
-@Composable internal fun NativeSourceTabs(section:NativePageSection,modifier:Modifier=Modifier,search:Boolean=false,action:PageAction){
-    // 分类栏：选中项自动滚进可视区，右缘常驻轻微渐隐提示还有更多（左缘仅滚动后出现）。
-    // 不改变分类名称、数据与横向滑动手势。
-    val scroll=rememberScrollState()
-    val viewport=remember{mutableStateOf(0f)}
-    val origin=remember{mutableStateOf(Offset.Zero)}
-    val spans=remember{mutableStateMapOf<Int,Pair<Float,Float>>()}
-    val pad=with(LocalDensity.current){6.dp.toPx()}
-    val selected=section.items.indexOfFirst{it.selected}
-    LaunchedEffect(selected,section.items.size){
-        if(selected<0)return@LaunchedEffect
-        withFrameNanos{}
-        val span=spans[selected]?:return@LaunchedEffect
-        val vp=viewport.value
-        if(vp<=0f)return@LaunchedEffect
-        val startInView=span.first-origin.value.x
-        val endInView=span.second-origin.value.x
-        val target=when{
-            startInView<pad -> scroll.value+(startInView-pad)
-            endInView>vp-pad -> scroll.value+(endInView-vp+pad)
-            else -> return@LaunchedEffect
-        }
-        scroll.animateScrollTo(target.roundToInt())
-    }
-    val fade=LocalInterfacePalette.current.directoryFade
-    Box(modifier.onGloballyPositioned{origin.value=it.positionInWindow()}){
-        Row(Modifier.fillMaxWidth().horizontalScroll(scroll).onSizeChanged{viewport.value=it.width.toFloat()},
-            horizontalArrangement=Arrangement.spacedBy(if(search)8.dp else 6.dp)){
-            section.items.forEachIndexed { index, item ->
-                val shape=RoundedCornerShape(999.dp)
-                Box(Modifier.height(36.dp)
-                    .onGloballyPositioned{coords->spans[index]=coords.positionInWindow().x to (coords.positionInWindow().x+coords.size.width)}
-                    .clip(shape).background(if(item.selected)LocalInterfacePalette.current.directorySelected else if(search)LocalInterfacePalette.current.subtle else Color.Transparent)
-                    .then(if(search)Modifier.border(1.dp,if(item.selected)LocalInterfacePalette.current.selectedBorder else Color.Transparent,shape)else Modifier)
-                    .clickable(enabled=!item.disabled){action(item.action,"",0.0)}.padding(horizontal=if(search)14.dp else 18.dp),contentAlignment=Alignment.Center){
-                    Text(item.title,color=if(item.selected)PageAccent else PageMuted,fontSize=(if(search)13 else 14).sp)
-                }
-            }
-        }
-        if(scroll.value>1)Box(Modifier.height(36.dp).width(18.dp).align(Alignment.CenterStart).background(Brush.horizontalGradient(listOf(fade,Color.Transparent))))
-        Box(Modifier.height(36.dp).width(18.dp).align(Alignment.CenterEnd).background(Brush.horizontalGradient(listOf(Color.Transparent,fade))))
     }
 }

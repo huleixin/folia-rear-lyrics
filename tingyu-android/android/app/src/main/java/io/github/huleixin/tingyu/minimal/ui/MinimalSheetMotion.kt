@@ -24,9 +24,9 @@ import io.github.huleixin.tingyu.chrome.TyPanelTheme
 // 遮罩从各弹窗内部上收到宿主：弹窗本体只滑自己，遮罩只淡自己 —— 上一版没有动画，
 // 弹窗是"啪"一下出现的；再上一版遮罩长在弹窗里，会跟着弹窗一起滑，视觉上像整屏在动。
 
-internal fun minimalSheetEnter(): EnterTransition = TyPanelMotion.Enter
+@Composable internal fun minimalSheetEnter(): EnterTransition = if(io.github.huleixin.tingyu.chrome.LocalLiquidReduced.current)EnterTransition.None else TyPanelMotion.Enter
 
-internal fun minimalSheetExit(): ExitTransition = TyPanelMotion.Exit
+@Composable internal fun minimalSheetExit(): ExitTransition = if(io.github.huleixin.tingyu.chrome.LocalLiquidReduced.current)ExitTransition.None else TyPanelMotion.Exit
 
 /** 遮罩浓度：与所有面板同一套值（深色 0.55 / 浅色 0.28）。 */
 internal fun minimalSheetScrimAlpha(light: Boolean): Float = TyPanelTheme.of(light).scrim

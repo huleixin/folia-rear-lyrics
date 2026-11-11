@@ -6,6 +6,7 @@ import ThemedDialog from './ThemedDialog';
 
 export interface ConfirmDialogProps {
     isOpen: boolean;
+    nativeStatic?: boolean;
     title: string;
     description?: React.ReactNode;
     confirmText?: string;
@@ -19,6 +20,7 @@ export interface ConfirmDialogProps {
 // 渲染应用内统一样式的确认弹窗
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     isOpen,
+    nativeStatic,
     title,
     description,
     confirmText,
@@ -46,6 +48,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     return (
         <ThemedDialog
             isOpen={isOpen}
+            nativeStatic={nativeStatic}
             onClose={onClose}
             isDaylight={isDaylight}
             title={title}

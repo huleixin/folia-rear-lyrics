@@ -121,11 +121,11 @@ private val PlaylistJade:Color @Composable get()=LocalInterfacePalette.current.m
     Column(Modifier.padding(horizontal=18.dp)){
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(if(width<=370)12.dp else 16.dp)){
             val art=if(short)80.dp else (width*.31f).coerceIn(108f,140f).dp
-            Box(Modifier.size(art).shadow(8.dp,RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).background(LocalInterfacePalette.current.surface)){
+            Box(Modifier.size(art).liquidCover("",12.dp,destination=true).shadow(8.dp,RoundedCornerShape(12.dp),clip=false).background(LocalInterfacePalette.current.surface)){
                 // 封面阴影与 WebView .ml-playlist-cover（0 8px 24px）对齐。
                 AsyncImage(pageImage(cover.image),null,Modifier.fillMaxSize(),contentScale=ContentScale.Fit)
             }
-            Column(Modifier.weight(1f)){
+            Column(Modifier.weight(1f).liquidDetailContent(.12f)){
                 val font=if(short)18f else (width*.048f).coerceIn(18f,22f)
                 Text(title,color=PageInk,fontSize=font.sp,lineHeight=(font*1.4f).sp,fontWeight=FontWeight.Bold,maxLines=if(short)2 else 3,overflow=TextOverflow.Ellipsis)
                 Text(cover.subtitle,color=PageMuted,fontSize=12.sp,modifier=Modifier.padding(top=9.dp,bottom=8.dp))
@@ -138,7 +138,7 @@ private val PlaylistJade:Color @Composable get()=LocalInterfacePalette.current.m
         if(intro.description.isNotBlank()){
             var expanded by remember(intro.description){mutableStateOf(false)}
             val collapsible=intro.description.length>80||intro.description.contains('\n')
-            Row(Modifier.fillMaxWidth().padding(top=11.dp).chromeClickable(enabled=collapsible,corner=10.dp){expanded=!expanded},verticalAlignment=Alignment.CenterVertically){
+            Row(Modifier.fillMaxWidth().liquidDetailContent(.18f).padding(top=11.dp).chromeClickable(enabled=collapsible,corner=10.dp){expanded=!expanded},verticalAlignment=Alignment.CenterVertically){
                 Text(intro.description,color=PageMuted,fontSize=12.sp,lineHeight=19.8.sp,maxLines=if(expanded||!collapsible)Int.MAX_VALUE else 2,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f))
                 if(collapsible)PageIcon("chevron-down",PageMuted,Modifier.padding(start=8.dp).size(16.dp))
             }
@@ -153,7 +153,7 @@ private val PlaylistJade:Color @Composable get()=LocalInterfacePalette.current.m
 
 /** 播放全部主按钮 + 次级图标按钮（入队/收藏），能力由数据侧决定。 */
 @Composable internal fun MediaDetailActionsRow(controls:NativePageSection,action:PageAction){
-    Row(Modifier.fillMaxWidth().padding(top=14.dp,bottom=16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
+    Row(Modifier.fillMaxWidth().liquidDetailContent(.24f).padding(top=14.dp,bottom=16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
         controls.items.firstOrNull()?.let{item->
             Row(Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(24.dp)).background(LocalInterfacePalette.current.button)
                 .graphicsLayer{alpha=if(item.disabled).45f else 1f}.clickable(enabled=!item.disabled){action(item.action,"",0.0)},
@@ -173,7 +173,7 @@ private val PlaylistJade:Color @Composable get()=LocalInterfacePalette.current.m
 @Composable internal fun MediaDetailTrack(item:NativePageItem,playing:Boolean,numberDigits:Int,action:PageAction){
     val jade=PlaylistJade
     val numberWidth=playlistNumberWidth(numberDigits,LocalDensity.current.fontScale).dp
-    Column(Modifier.fillMaxWidth().background(if(item.selected)LocalInterfacePalette.current.mediaSelected else Color.Transparent)
+    Column(Modifier.fillMaxWidth().liquidDetailContent(.28f).background(if(item.selected)LocalInterfacePalette.current.mediaSelected else Color.Transparent)
         .drawBehind{if(item.selected)drawRect(jade,size=Size(3.dp.toPx(),size.height))}){
         Row(Modifier.fillMaxWidth().height(51.dp).chromeClickable(enabled=!item.disabled&&item.action.isNotBlank(),corner=10.dp){action(item.action,"",0.0)}.padding(start=18.dp,end=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
             Text(item.number,color=if(item.selected)PlaylistJade else PageMuted,fontSize=11.sp,maxLines=1,softWrap=false,

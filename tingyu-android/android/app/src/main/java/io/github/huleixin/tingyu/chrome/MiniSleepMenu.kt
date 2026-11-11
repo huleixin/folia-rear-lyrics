@@ -39,15 +39,15 @@ import androidx.compose.ui.unit.sp
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/MiniSleepMenu.kt
 internal class SleepMenuColors(private val palette:InterfacePalette) {
     constructor(light:Boolean):this(InterfacePalette(light))
-    val ink=palette.ink
-    val muted=palette.muted
-    val accent=palette.accent
+    val ink get()=palette.ink
+    val muted get()=palette.muted
+    val accent get()=palette.accent
     // The same neutral glass tint as chromeGlass, with a modest readability veil for a larger panel.
-    val tint=palette.sleepTint
-    val arrowTint=palette.sleepArrow
-    val line=palette.sleepLine
-    val control=ink.copy(alpha=.045f)
-    val selected=accent.copy(alpha=.14f)
+    val tint get()=palette.sleepTint
+    val arrowTint get()=palette.sleepArrow
+    val line get()=palette.sleepLine
+    val control get()=ink.copy(alpha=.045f)
+    val selected get()=accent.copy(alpha=.14f)
 
 }
 @Composable internal fun SleepAlarm(color:Color,modifier:Modifier=Modifier) {
@@ -86,7 +86,7 @@ internal class SleepMenuColors(private val palette:InterfacePalette) {
     preferredMinutes:Int=30,reduced:Boolean=false,onDismiss:()->Unit) {
     val palette=LocalInterfacePalette.current
     val colors=remember(palette){SleepMenuColors(palette)}
-    val theme=TyPanelTheme.of(light,palette.style)
+    val theme=TyPanelTheme.from(palette)
     val snapshot=ui.snapshot
     val now=sleepDisplayNow(snapshot,LocalChromeRendering.current,true)
     var advanced by rememberSaveable { mutableStateOf(false) }

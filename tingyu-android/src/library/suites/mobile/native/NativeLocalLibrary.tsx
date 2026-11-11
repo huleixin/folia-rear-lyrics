@@ -1,3 +1,4 @@
+import { AnimatePresence } from 'framer-motion';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLibraryHomeLocal } from '../../../core/bindings/useLibraryHomeLocal';
@@ -137,7 +138,7 @@ export default function NativeLocalLibrary(args:NativeHomeProps) {
         <NativeDirectoryPage {...args} key={`${local.activeSection.key}:${path}`} route={`local:${local.activeSection.key}:${path}`} cards={cards}
             onOpen={open} sections={sections} tailSections={tailSections} onFilter={value=>{setQuery(value);setSongOffset(0)}} extraActions={actions} emptyMessage={local.activeSection.emptyMessage}
             headingTrailing="tools" headingTrailingLabel={t('mobileLibrary.more')}/>
-        {tools&&<MobileSheet title={t('mobileLibrary.importMusic')} onClose={()=>setTools(false)}><MobileLocalTools homeResources={props.homeResources}/></MobileSheet>}
+        <AnimatePresence>{tools&&<MobileSheet title={t('mobileLibrary.importMusic')} onClose={()=>setTools(false)}><MobileLocalTools homeResources={props.homeResources}/></MobileSheet>}</AnimatePresence>
         {menu&&<LocalSongActionSheet menu={menu} liked={menuLiked}
             onClose={()=>setMenu(null)}
             onPlay={()=>{if(!menu)return;play(menu.song,menu.queue);setMenu(null)}}

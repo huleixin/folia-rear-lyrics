@@ -103,6 +103,7 @@ fun MinimalQueueSheet(
      */
     listState: LazyListState = rememberLazyListState(),
 ) {
+    val reduced=io.github.huleixin.tingyu.chrome.LocalLiquidReduced.current
     val theme = queueTheme(light)
     val density = LocalDensity.current
 
@@ -116,7 +117,7 @@ fun MinimalQueueSheet(
             // 拖动中让高度跟手（拖上变高），松手后动画吸附到档位。
             targetValue = if (dragY != 0f) (targetHeight - with(density) { dragY.toDp() }).coerceIn(fullHeight * 0.35f, fullHeight * 0.95f)
             else targetHeight,
-            animationSpec = spring(stiffness = 380f),
+            animationSpec = if(reduced || dragY!=0f) androidx.compose.animation.core.snap() else spring(stiffness = 380f),
             label = "queue-height",
         )
         fun handleSheetDragEnd() {
@@ -311,7 +312,7 @@ fun MinimalQueueSheet(
                             }
                             QueueRow(
                                 // 被拖的行自己跟手指，不让 animateItem 抢；其余行让位时自然滑过去。
-                                modifier = if (dragged) Modifier else Modifier.animateItem(),
+                                modifier = if (dragged || reduced) Modifier else Modifier.animateItem(),
                                 item = item,
                                 position = index + 1,
                                 current = isCurrent,

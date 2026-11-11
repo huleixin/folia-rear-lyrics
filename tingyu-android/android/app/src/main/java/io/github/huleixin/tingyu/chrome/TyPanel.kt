@@ -3,6 +3,11 @@ package io.github.huleixin.tingyu.chrome
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.type
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,6 +29,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -108,6 +115,7 @@ internal fun TySheetFrame(
             Modifier
                 .fillMaxWidth()
                 .heightIn(max = maxSheetHeight)
+                .liquidPanel("sheet")
                 .clip(RoundedCornerShape(topStart = TyPanelDims.TopRadius.dp, topEnd = TyPanelDims.TopRadius.dp))
                 .background(theme.surface)
                 .align(Alignment.BottomCenter),
@@ -147,6 +155,7 @@ internal fun TyDialogFrame(
                 .widthIn(max = 400.dp)
                 .fillMaxWidth(0.92f)
                 .heightIn(max = maxCardHeight)
+                .liquidPanel("dialog")
                 .clip(RoundedCornerShape(TyPanelDims.DialogRadius.dp))
                 .background(theme.surface)
                 .padding(horizontal = if(settingsLayout)24.dp else TyPanelDims.HorizontalPadding.dp),
@@ -186,31 +195,47 @@ internal fun TyMenuFrame(
 ) {
     BackHandler(enabled = true) { onClose() }
     val density = LocalDensity.current
+    val origin=LocalMotionOrigin.current
+    val menuFocus=remember { FocusRequester() }
+    val focusManager=LocalFocusManager.current
+    LaunchedEffect(panel.session) { menuFocus.requestFocus(); focusManager.moveFocus(FocusDirection.Next) }
+    val nativeAnchor=remember(panel.session){origin.recent()}
+    val anchor=nativeAnchor?:with(density){androidx.compose.ui.geometry.Rect(panel.anchor.x.dp.toPx(),panel.anchor.y.dp.toPx(),(panel.anchor.x+panel.anchor.w).dp.toPx(),(panel.anchor.y+panel.anchor.h).dp.toPx())}
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val screenW = maxWidth
         val screenH = maxHeight
         val margin = 12.dp
         val menuWidth = minOf(screenW - margin * 2, 264.dp)
-        val anchorLeft = with(density) { panel.anchor.x.toDp() }
-        val anchorBottom = with(density) { (panel.anchor.y + panel.anchor.h).toDp() }
-        val anchorTop = with(density) { panel.anchor.y.toDp() }
+        val anchorLeft = with(density) { anchor.left.toDp() }
+        val anchorBottom = with(density) { anchor.bottom.toDp() }
+        val anchorTop = with(density) { anchor.top.toDp() }
         // 菜单估算高度：标题 44 + 每行 46，上限屏高 60%；用估算值决定向上还是向下。
         val rows = panel.blocks.sumOf { block -> if (block is TyPanelBlock.Actions) block.items.size else 1 }
         val estimated = (52 + rows * 46).dp.coerceAtMost(screenH * 0.6f)
         val openUp = anchorBottom + estimated + margin > screenH && anchorTop - estimated - margin > 0.dp
         val x = anchorLeft.coerceIn(margin, (screenW - menuWidth - margin).coerceAtLeast(margin))
         val y = if (openUp) (anchorTop - estimated - 6.dp) else (anchorBottom + 6.dp)
-        Popup(
-            offset = IntOffset(with(density) { x.roundToPx() }, with(density) { y.roundToPx() }),
-            onDismissRequest = onClose,
-            properties = PopupProperties(focusable = true, dismissOnBackPress = true, dismissOnClickOutside = true),
-        ) {
+        val position = with(density) { Offset(x.toPx(), y.coerceIn(margin, (screenH-estimated-margin).coerceAtLeast(margin)).toPx()) }
+        Box(Modifier.offset { IntOffset(position.x.roundToInt(), position.y.roundToInt()) }) {
             Column(
                 Modifier
-                    .widthIn(max = menuWidth)
+                    .width(menuWidth)
+                    .heightIn(max=screenH*.6f)
+                    .focusRequester(menuFocus).focusable()
+                    .semantics { paneTitle=panel.title }
+                    .onPreviewKeyEvent { event ->
+                        if(event.type!=KeyEventType.KeyDown) false else when(event.key) {
+                            Key.Escape -> {onClose();true}
+                            Key.DirectionDown -> focusManager.moveFocus(FocusDirection.Next)
+                            Key.DirectionUp -> focusManager.moveFocus(FocusDirection.Previous)
+                            else -> false
+                        }
+                    }
+                    .liquidPanel("menu",anchor,position)
                     .clip(RoundedCornerShape(16.dp))
                     .background(theme.surface)
                     .border(1.dp, theme.line, RoundedCornerShape(16.dp))
+                    .verticalScroll(rememberScrollState())
                     .padding(vertical = 6.dp),
             ) {
                 if (panel.title.isNotBlank()) {
@@ -227,7 +252,6 @@ internal fun TyMenuFrame(
                     when (block) {
                         is TyPanelBlock.Actions -> block.items.forEach { item ->
                             TyActionRow(theme, item, enabled = !panel.busy) {
-                                if (item.selected || item.tone == "danger") onClose()
                                 onAction(TyPanelEvent.action(item.id), "", 0.0)
                             }
                         }
@@ -383,7 +407,7 @@ private fun TyPrimaryButton(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed && enabled) 0.985f else 1f, tween(120), label = "ty-primary-press")
+    val scale by animateFloatAsState(if (pressed && enabled && !LocalLiquidReduced.current) 0.985f else 1f, tween(120), label = "ty-primary-press")
     Box(
         Modifier
             .fillMaxWidth()
@@ -506,19 +530,16 @@ private fun TySelectRow(
             Spacer(Modifier.size(4.dp))
             Box(Modifier.size(16.dp)) { PageIcon("chevron-down", theme.muted, Modifier.fillMaxSize()) }
         }
-        if (expanded) {
-            Popup(
-                offset = IntOffset(0, 0),
-                onDismissRequest = { expanded = false },
-                properties = PopupProperties(focusable = true, dismissOnBackPress = true, dismissOnClickOutside = true),
-            ) {
+        run {
+            LiquidPopup(visible = expanded, onDismissRequest = { expanded = false }) {
                 Column(
                     Modifier
                         .widthIn(min = 200.dp, max = 300.dp)
                         .clip(RoundedCornerShape(14.dp))
                         .background(theme.surface)
                         .border(1.dp, theme.line, RoundedCornerShape(14.dp))
-                        .padding(vertical = 6.dp),
+                        .verticalScroll(rememberScrollState())
+                    .padding(vertical = 6.dp),
                 ) {
                     Text(block.label, color = theme.muted, fontSize = 11.sp,
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp), maxLines = 1,
@@ -583,7 +604,7 @@ private fun TyToggleRow(
             }
         }
         Spacer(Modifier.size(12.dp))
-        val progress by animateFloatAsState(if (block.value) 1f else 0f, tween(180), label = "ty-toggle")
+        val progress by animateFloatAsState(if (block.value) 1f else 0f, tween(if(LocalLiquidReduced.current)0 else 180), label = "ty-toggle")
         Canvas(Modifier.size(width = 46.dp, height = 28.dp)) {
             val trackH = 28.dp.toPx()
             val knob = 22.dp.toPx()
@@ -696,8 +717,11 @@ internal fun TyPanelHostView(
     onAction: (String, String, Double) -> Unit,
     onClose: () -> Unit,
 ) {
-    val theme = TyPanelTheme.of(light, LocalInterfacePalette.current.style)
-    when (panel.kind) {
+    val theme = TyPanelTheme.from(LocalInterfacePalette.current)
+    val origin = LocalMotionOrigin.current
+    val hasNativeAnchor = remember(panel.session) { origin.recent() != null }
+    val kind = resolvePanelKind(panel, hasNativeAnchor)
+    when (kind) {
         "menu" -> TyMenuFrame(theme, panel, onAction, onClose)
         "dialog" -> TyDialogFrame(theme, panel.title, panel.subtitle, onClose) {
             TyPanelBlocks(theme, panel, onAction)

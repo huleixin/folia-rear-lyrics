@@ -63,7 +63,10 @@ class TyPanelTest {
 
     /** 声明成 menu 却拿不到锚点 → 退化成 sheet，绝不"点了 ⋯ 什么都没出现"。 */
     @Test fun menuWithoutAnchorFallsBackToSheet() {
-        assertEquals("sheet", panel("""{"id":"p","session":"s","kind":"menu","blocks":[]}""").kind)
+        val unanchored=panel("""{"id":"p","session":"s","kind":"menu","blocks":[]}""")
+        assertEquals("menu",unanchored.kind)
+        assertEquals("sheet",resolvePanelKind(unanchored,false))
+        assertEquals("menu",resolvePanelKind(unanchored,true))
         assertEquals(
             "menu",
             panel("""{"id":"p","session":"s","kind":"menu","anchor":{"x":10,"y":20,"w":30,"h":40},"blocks":[]}""").kind

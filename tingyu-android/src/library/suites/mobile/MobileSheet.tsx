@@ -1,5 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
+import { useLiquidReduced } from '../../../components/shared/useLiquidReduced';
+import { TY_DURATION, TY_SPRING } from '../../../components/shared/motionTokens';
+import { registerModalBack } from '../../../services/modalBackStack';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import MobileScrollFrame from './MobileScrollFrame';
@@ -11,20 +15,14 @@ export default function MobileSheet({
     children,
 }: React.PropsWithChildren<{ title: string; onClose: () => void }>) {
     const ref = useRef<HTMLDivElement>(null);
-    const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const reduced = useLiquidReduced();
     const [closing, setClosing] = useState(false);
-    const close = useCallback(() => {
-        if (timer.current !== null) return;
-        setClosing(true);
-        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        timer.current = setTimeout(onClose, reduced ? 0 : 160);
-    }, [onClose]);
-    useEffect(
-        () => () => {
-            if (timer.current !== null) clearTimeout(timer.current);
-        },
-        []
-    );
+    const closed = useRef(false);
+    const close = useCallback(() => setClosing(true), []);
+    const finishClose = () => {
+        if (closing && !closed.current) { closed.current = true; onClose(); }
+    };
+    useEffect(() => registerModalBack(close), [close]);
     const { t } = useTranslation();
     useEffect(() => {
         const previous = document.activeElement as HTMLElement | null;
@@ -57,15 +55,26 @@ export default function MobileSheet({
         };
     }, [close]);
     return createPortal(
-        <div
+        <motion.div
+            initial={{ opacity: reduced ? 1 : 0 }}
+            animate={{ opacity: closing ? 0 : 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: reduced ? 0 : TY_DURATION.panelExit }}
+            onAnimationComplete={finishClose}
+            style={{ animation: 'none' }}
             className="mobile-library ml-sheet-scrim"
             data-closing={closing || undefined}
             onClick={(event) => {
-                if (event.target === event.currentTarget) close();
+                if (!ref.current?.contains(event.target as Node)) close();
             }}
         >
             <MobileScrollFrame className="ml-sheet-frame">
-                <div
+                <motion.div
+                    initial={{ y: reduced ? 0 : '100%' }}
+                    animate={{ y: closing ? '100%' : 0 }}
+                    exit={{ y: '100%', transition: { duration: reduced ? 0 : TY_DURATION.panelExit } }}
+                    transition={reduced ? { duration: 0 } : closing ? { duration: TY_DURATION.panelExit } : TY_SPRING.panel}
+                    style={{ animation: 'none' }}
                     ref={ref}
                     tabIndex={-1}
                     role="dialog"
@@ -81,9 +90,9 @@ export default function MobileSheet({
                         </button>
                     </header>
                     {children}
-                </div>
+                </motion.div>
             </MobileScrollFrame>
-        </div>,
+        </motion.div>,
         document.body
     );
 }

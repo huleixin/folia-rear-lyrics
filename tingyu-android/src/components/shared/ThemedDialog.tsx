@@ -1,4 +1,5 @@
-import { useMotionSettingsStore, resolveReducedMotion } from '../../stores/useMotionSettingsStore';
+import { useLiquidReduced } from './useLiquidReduced';
+import { TY_DURATION, TY_SPRING } from './motionTokens';
 import {useInterfaceLight} from '../../hooks/useInterfaceAppearance';
 import React, { useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -8,6 +9,8 @@ import { NATIVE_FIRST } from '../../services/nativePages';
 
 interface ThemedDialogProps {
     isOpen: boolean;
+    /** False only for allowlisted overlays actually rendered in WebView. */
+    nativeStatic?: boolean;
     onClose: () => void;
     isDaylight?: boolean;
     title: string;
@@ -30,6 +33,7 @@ interface ThemedDialogProps {
 
 const ThemedDialog: React.FC<ThemedDialogProps> = ({
     isOpen,
+    nativeStatic = true,
     onClose,
     isDaylight: stageDaylight = false,
     title,
@@ -42,7 +46,8 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
     closeDisabled = false,
     closeDisabledTitle,
 }) => {
-    const reduced = useMotionSettingsStore(state => resolveReducedMotion(state, 'uiMicroMotion'));
+    const reduced = useLiquidReduced();
+    const staticSurface = reduced || (NATIVE_FIRST && nativeStatic);
     const isDaylight=useInterfaceLight(stageDaylight);
     const bgClass = isDaylight ? 'bg-white/90 border-white/30' : 'bg-zinc-900/95 border-white/10';
     const textPrimary = isDaylight ? 'text-zinc-900' : 'text-white';
@@ -76,7 +81,7 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     // 原生设置文档页：这层会被拍成静态画，动画期间捕获=半透明快照（68600 的"发灰"）。
-                    transition={{duration:reduced||NATIVE_FIRST?0:.18}}
+                    transition={{duration:staticSurface?0:TY_DURATION.panelExit}}
                     data-folia-keyboard-window="true"
                     data-folia-themed-overlay="true"
                     className={`fixed inset-0 z-[200] flex items-center justify-center p-4 ${isDaylight ? 'bg-transparent' : NATIVE_FIRST ? 'bg-black/60' : 'bg-black/60 backdrop-blur-md'}`}
@@ -84,10 +89,10 @@ const ThemedDialog: React.FC<ThemedDialogProps> = ({
                     onClick={handleBackdropClick}
                  data-settings-style='{"align":"center","center":true,"padding":[16,16,16,16]}' data-settings-layout="row">
                     <motion.div
-                        initial={{ scale: reduced?1:0.99, y:reduced?0:10, opacity: 0 }}
+                        initial={{ scale: staticSurface?1:0.94, y:0, opacity: staticSurface?1:0 }}
                         animate={{ scale: 1, y:0, opacity: 1 }}
-                        exit={{ scale: reduced?1:0.99, y:reduced?0:10, opacity: 0 }}
-                        transition={{ duration:reduced||NATIVE_FIRST?0:.18, ease:[.16,1,.3,1] }}
+                        exit={{ scale: staticSurface?1:0.96, opacity: 0, transition: { duration:staticSurface?0:TY_DURATION.panelExit } }}
+                        transition={staticSurface?{duration:0}:TY_SPRING.panel}
                         onClick={(event) => event.stopPropagation()}
                         data-folia-themed-dialog="true"
                         data-folia-themed-dialog-kind={panelKind}

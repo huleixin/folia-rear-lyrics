@@ -1,5 +1,6 @@
 package io.github.huleixin.tingyu.minimal.ui
 
+import io.github.huleixin.tingyu.chrome.LiquidIcon
 import android.os.SystemClock
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -42,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
+import io.github.huleixin.tingyu.chrome.liquidPlayerContent
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -281,6 +283,7 @@ fun MinimalPlayerScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
+                    .liquidPlayerContent(.14f)
                     // 封面拖动 / 切歌动画期间，把 pager 提到共用底栏之上 ——
                     // 正在移动的封面拖进进度条、播放按钮区域时能自然遮挡它们。
                     // 只影响绘制顺序；pager 内容都在自身边界内，实际越界的只有移动中的封面。
@@ -371,7 +374,7 @@ fun MinimalPlayerScreen(
                 // 与手势共用同一个过渡控制器：先跑封面动画，动画里的那一次命令由它发。
                 onPrevious = { coverController.skip(DragDirection.PREV) },
                 onNext = { coverController.skip(DragDirection.NEXT) },
-                modifier = Modifier.padding(top = 2.dp),
+                modifier = Modifier.padding(top = 2.dp).liquidPlayerContent(.32f),
             )
         }
 
@@ -426,7 +429,7 @@ private fun TopBar(
                 label = if (liked) "取消喜欢" else "喜欢",
                 enabled = !likeDisabled,
                 onClick = { commands.like() },
-            ) { HeartGlyph(liked, if (liked) Color(0xFFFF7B88) else ink.ink, Modifier.size(21.dp)) }
+            ) { LiquidIcon(liked) { shown -> HeartGlyph(shown, if (shown) Color(0xFFFF7B88) else ink.ink, Modifier.size(21.dp)) } }
 
             if (onLyricsPage) {
                 TopIcon("打开完整歌词舞台", onClick = onOpenStage) {
@@ -468,13 +471,14 @@ private fun MoreMenu(
     onDismiss: () -> Unit,
     onPick: (Int) -> Unit,
 ) {
+    val reduced = io.github.huleixin.tingyu.chrome.LocalLiquidReduced.current
     val progress = remember { Animatable(0f) }
     val menuOffset = with(androidx.compose.ui.platform.LocalDensity.current) { 48.dp.roundToPx() }
-    LaunchedEffect(shown) {
+    LaunchedEffect(shown, reduced) {
         if (shown) {
-            progress.animateTo(1f, tween(160, easing = CubicBezierEasing(0.2f, 0.7f, 0.2f, 1f)))
+            progress.animateTo(1f, tween(if(reduced)0 else 220, easing = CubicBezierEasing(0.2f, 0.7f, 0.2f, 1f)))
         } else {
-            progress.animateTo(0f, tween(120, easing = CubicBezierEasing(0.42f, 0f, 0.74f, 0.3f)))
+            progress.animateTo(0f, tween(if(reduced)0 else 160, easing = CubicBezierEasing(0.42f, 0f, 0.74f, 0.3f)))
             onExited()
         }
     }

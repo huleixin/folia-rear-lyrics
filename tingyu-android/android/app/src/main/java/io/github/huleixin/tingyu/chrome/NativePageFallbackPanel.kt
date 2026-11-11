@@ -41,7 +41,7 @@ internal fun NativePageFallbackPanel(
     onRetry: () -> Unit,
 ) {
     val palette=LocalInterfacePalette.current
-    val background = remember(palette) { Brush.verticalGradient(palette.fallbackBackgrounds) }
+    val background = Brush.verticalGradient(palette.fallbackBackgrounds)
     val ink = palette.fallbackInk
     val muted = palette.fallbackMuted
     val accent = palette.fallbackAccent
@@ -67,7 +67,7 @@ internal fun NativePageFallbackPanel(
                 Modifier
                     .height(42.dp)
                     .background(accent.copy(alpha = 0.16f), RoundedCornerShape(21.dp))
-                    .clickable { onRetry() }
+                    .chromeClickable(corner=21.dp) { onRetry() }
                     .padding(horizontal = 26.dp),
                 contentAlignment = Alignment.Center,
             ) {

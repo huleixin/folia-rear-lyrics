@@ -6,6 +6,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.animation.animateBounds
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,27 +30,39 @@ import kotlin.math.max
 // remains a browser island, placed and clipped using native layout evidence.
 internal val LocalSettingsPreviewViewport = staticCompositionLocalOf { Rect(0f, 0f, Float.MAX_VALUE, Float.MAX_VALUE) }
 
+@OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun SettingsOrder(theme: TyPanelTheme, node: TySettingNode, onAction: PageAction, showTitle: Boolean = true) {
-    Column(Modifier.fillMaxWidth()) {
-        if(showTitle)Text(node.title, color = theme.text, fontSize = 14.sp, modifier = Modifier.padding(vertical = 10.dp))
-        node.options.forEachIndexed { index, option ->
-            SettingsItem(theme, "${index + 1}. ${option.label}", trailing = {
-                Row {
-                    listOf(-1 to node.placeholder, 1 to node.confirmLabel).forEach { (direction, label) ->
-                        val target = index + direction
-                        val enabled = !node.disabled && target in node.options.indices
-                        Box(Modifier.size(44.dp).semantics { contentDescription = "$label ${option.label}" }
-                            .chromeClickable(enabled = enabled, role = Role.Button) {
-                                val order = node.options.map { it.value }.toMutableList()
-                                java.util.Collections.swap(order, index, target)
-                                onAction(TySettingEvent.action(node.action), org.json.JSONArray(order).toString(), 0.0)
-                            }, contentAlignment = androidx.compose.ui.Alignment.Center) {
-                            PageIcon(if (direction < 0) "chevron-up" else "chevron-down", if (enabled) theme.accent else theme.muted.copy(alpha = .3f), Modifier.size(18.dp))
-                        }
+    val reduced = LocalLiquidReduced.current
+    androidx.compose.ui.layout.LookaheadScope {
+        Column(Modifier.fillMaxWidth()) {
+            if (showTitle) Text(node.title, color = theme.text, fontSize = 14.sp, modifier = Modifier.padding(vertical = 10.dp))
+            node.options.forEachIndexed { index, option ->
+                androidx.compose.runtime.key(option.value) {
+                    val placement = if (reduced) Modifier else Modifier.animateBounds(this@LookaheadScope,
+                        boundsTransform = androidx.compose.animation.BoundsTransform { _, _ ->
+                            androidx.compose.animation.core.spring(dampingRatio = TingYuMotion.PanelDamping, stiffness = TingYuMotion.PanelStiffness)
+                        })
+                    Box(placement) {
+                        SettingsItem(theme, "${index + 1}. ${option.label}", trailing = {
+                            Row {
+                                listOf(-1 to node.placeholder, 1 to node.confirmLabel).forEach { (direction, label) ->
+                                    val target = index + direction
+                                    val enabled = !node.disabled && target in node.options.indices
+                                    Box(Modifier.size(44.dp).semantics { contentDescription = "$label ${option.label}" }
+                                        .chromeClickable(enabled = enabled, role = Role.Button) {
+                                            val order = node.options.map { it.value }.toMutableList()
+                                            java.util.Collections.swap(order, index, target)
+                                            onAction(TySettingEvent.action(node.action), org.json.JSONArray(order).toString(), 0.0)
+                                        }, contentAlignment = androidx.compose.ui.Alignment.Center) {
+                                        PageIcon(if (direction < 0) "chevron-up" else "chevron-down", if (enabled) theme.accent else theme.muted.copy(alpha = .3f), Modifier.size(18.dp))
+                                    }
+                                }
+                            }
+                        })
                     }
                 }
-            })
+            }
         }
     }
 }

@@ -1,62 +1,102 @@
-# MOTION_SYSTEM — 听屿动效规范与动画矩阵
+# 听屿 Liquid Motion 动效系统
 
-> 基线：commit `1745121`。三处单一事实源：`src/components/shared/motionTokens.ts`（framer-motion）、`src/styles/tingyuTokens.css`（CSS）、`android/.../chrome/TingYuMotion.kt`（Compose）。改曲线必须三处同步。
+实施日期：2026-11-11。源码基线：1.5.5 / Android 220，原提交 029d2023。
 
-## 1. Motion Tokens
+## 技术归属
 
-### Easing
-| Token | 值 | 用途 |
-|---|---|---|
-| `Emphasized` / `--ty-ease-standard` | cubic-bezier(0.2, 0.8, 0.2, 1) | 位移类通用（页面推进/返回、底栏、卡片） |
-| `enter` / `--ty-ease-enter` | cubic-bezier(0.22, 1, 0.36, 1) | 进入：减速收尾（覆盖层托起、sheet 上滑的渐入） |
-| `exit` / `--ty-ease-exit` | cubic-bezier(0.42, 0, 0.74, 0.3) | 退出：加速离场（极简页滑出、sheet 下滑） |
-| `SheetIn`（Compose） | cubic-bezier(0.2, 0.7, 0.2, 1) | 底部 sheet 上滑进场 |
-| `Collapse`（Compose） | cubic-bezier(0.4, 0, 0.7, 0.3) | 舞台收起（stageExit 极简档） |
-| `StageEnter`（Compose） | cubic-bezier(0.2, 0.72, 0.16, 1) | 极简页自底部上滑入场 |
+Android 普通页面、歌曲菜单、设置、迷你播放器、极简播放页由 Compose 绘制；React 提供页面模型，WebView 保留 Folia 歌词舞台和许可的富内容。浏览器端使用现有 Motion for React（包名 framer-motion ^13.4.3），没有新增运行时动画依赖，也没有把普通 Android 页面迁回 DOM。
 
-### Duration
-| Token | 值 | 用途 |
-|---|---|---|
-| fast / `--ty-duration-fast` | 120ms | 微反馈 |
-| base / `--ty-duration-base` | 180ms | 颜色/透明度 |
-| slow / `--ty-duration-slow` | 280ms | 覆盖层/页面级 |
-| stage / `--ty-duration-stage` | 360ms | 极简页 ↔ 舞台 |
-| PushMs 240 / TabIn 200 / TabOut 180 / MinimalEnter 360 / MinimalExit 300 / SheetIn 260 | | Compose 侧 |
+Compose UI/Foundation 1.10.3、Material3 1.4.0、activity-compose 1.12.4、Kotlin 2.3.10；当前版本支持 SharedTransitionLayout/sharedElement，已通过编译。项目使用自定义路由宿主，不引入 Navigation，不升级 Compose。Motion Primitives 的 Morphing Dialog 作为触发位置、布局连续性、退出保留的参考，适配现有样式，未引入其 Tailwind 组件栈。
 
-### Spring
-`stiffness 520 / dampingRatio 1.0`（临界阻尼，无过冲）——底栏选中指示、chrome y 位移。
+## 参数与公共实现
 
-## 2. 动效语义矩阵（空间层级）
+参数源：Android chrome/TingYuMotion.kt、src/components/shared/motionTokens.ts、src/styles/tingyuTokens.css。新增公共实现位于 chrome/LiquidMotion.kt、LiquidCover.kt、LiquidPalette.kt、LiquidPopup.kt、LiquidSourceTabs.kt、LiquidIcon.kt；Web 减少动态效果统一通过 useLiquidReduced。
 
-| 层级变化 | 进场 | 退场 | 实现 |
-|---|---|---|---|
-| 一级页签切换 | 8dp 横移 + 200ms 淡入 | 180ms 反向 | `NativeMotionKind.TAB` |
-| 二级推进（PUSH） | 左进 28dp + 240ms | 右退 travel/3 + 淡出 | `NativeMotionKind.PUSH` |
-| 返回（POP） | 右进 travel/3 | 右出 28dp，zIndex 置底 | `NativeMotionKind.POP` |
-| 舞台进出 | 全窗淡入 140ms | 收起动画（stageExit 280/360ms） | `NativeMotionKind.STAGE` |
-| 极简页进入 | 自底部上滑 360ms，只滑不淡 | 下滑 300ms + 淡出 200ms | `AnimatedVisibility`（ComposeChromeHost） |
-| 底部 sheet | 上滑 260ms + 渐入 200ms | 下滑 200ms + 渐隐 140ms | `MinimalSheetMotion` |
-| 覆盖层（WebView） | y18+scale0.985 托起 280ms | y12 退出 | `overlayEntranceMotion.ts` |
-| 列表状态变化 | 原位置连续变化（layout 动画），不整段重播 | | |
+| 语义 | 参数 | 实际用途 |
+| --- | --- | --- |
+| 按压 | 轻缩至 0.94，释放弹簧 | 原生 ChromeButton |
+| 页面推进/返回 | 240ms，曲线 (.16,1,.3,1) | 根据层级反向的短距离位移和透明度 |
+| 一级页面 | 进入 200ms / 退出 180ms | 页面内容；既有底部导航流动弹簧不变 |
+| 播放器容器 | 520ms | 从迷你封面坐标开始，整张画布等比缩放、移动并改变圆角 |
+| 歌单封面 | 480ms | Compose 原生共享元素 |
+| 面板进入 | stiffness 420，dampingRatio .92 | 原生弹簧；React 等效 damping 37.71 |
+| 面板/菜单退出 | 190ms / 160ms | 保留内容直到退出完成 |
+| 主题颜色 | 320ms | 可中断的可见颜色插值 |
+| 状态图标 | 150ms，缩放 .92 | 收藏、播放模式切换 |
 
-**规则**：一级导航不大幅位移；返回方向必须与进入相反；列表变化保持空间连续性。
+历史舞台收起节奏、底部导航弹簧与歌词内部动画参数保留，不要求所有动画采用同一个时长。
 
-## 3. 极简歌词页专项（强制）
+## 三个关键交互
 
-1. 进入：自屏幕底部上滑展开（唯一一套上滑，WebView 侧同名位移已由 `composeOwnsMinimalEntry` 关闭，防双重动画）。
-2. 退出：下滑消失；**恢复原播放器，不重建**（所有权握手：桥 `minimalPlayerFrame` accepted 才接管；WebView 回退形态自动生效）。
-3. 退出期间 `stageExit` 保持舞台挂载、全屏吞触摸，防止返回中途误触底层。
-4. 收起 → 集合页时 `minimalCoverHold` 原地举牌（≤1200ms，超时放手）防止二次入场闪跳。
-5. 播放不断、进度不跳、歌词时钟不重置：桥面只传 1fps 展示帧，歌曲身份/歌词/Media3 时钟原生直读，**禁止**为转场创建第二套播放器实例。
+### 迷你播放器到完整播放器
 
-## 4. 动画状态机与中断
+捕获迷你封面的真实坐标，并在同一播放器画布内测量大封面的目标位置。使用等比 scale + translation + 圆角，将完整播放器从封面位置展开到全屏；收起沿同一几何路径反向。直接进入 Folia 舞台时使用封面来源的虚拟焦点，不改变舞台终态。这是同一份保留画布的变形，不逐帧重排或创建第二个播放器。
 
-现状：极简页由布尔组合表达（`minimalBase`/`minimalOwns`/`minimalCoverHold`/`pendingStageEntry`/`stageExit`），stageExit 是显式的小状态机（active/completed/returning）。规则：
+入场等待原生准备状态；迷你内容先退出，完整控件与内容按同一进度分层显现。收起冻结当时的入场进度，再接既有退出时钟，支持入场中返回。底层页面与导航保留到覆盖关系完成；恢复前台、减少动态效果和无有效来源坐标有明确分支。直接打开或旋转后无有效来源时使用短距离托起的降级动画。
 
-- 快速连续操作：路由提交经 `NativeRouteFence` + `ChromeFrameOrder` 幂等闸门丢弃迟到帧；延迟任务用代际令牌作废。
-- **禁止**用无条件延时假装动画完成（现存 900ms grace / 520ms 延迟等魔法数均有录屏专项注释，改动前必须复现对应专项）。
-- `reducedMotion`（`useMotionSettingsStore` → `data-reduce-motion`；Compose 侧 `NativeMotionPolicy.kind(...,reduced)`）下全部转场退化为 NONE/纯淡。
+舞台打开设置仍保留“不透明原生设置页面实际绘制完成后再交接”的握手。路由栅栏、迟到帧过滤和底层触摸拦截继续负责异步及快速返回的安全性。
 
-## 5. WebView 侧散乱参数收敛计划
+### 歌单卡片到详情
 
-存量：20+ 种 duration、9 种 easing 散落 148 文件（审计数据）。策略：**只收编跨页面共享语义**（已收编：覆盖层进出），页面内部角色动画（可视化器 15 模式、歌词逐字）保留自有节奏。新增代码一律从 `motionTokens.ts` 取用。
+真实 SharedTransitionLayout/sharedElement 连接首页歌单卡、最近播放/专辑卡、资料库条目与 MediaDetailHeader；根据实际点击的来源捕获身份和圆角。每个可保存页面项具有独立 ID，即使同一歌单出现多次也不会共用来源。
+
+封面位置、尺寸和圆角连续变化；标题、描述、操作、歌曲列表分层出现。封面槽在曲目加载完成前存在。路由保存有界的共享绑定，嵌套返回恢复对应封面；非匹配操作清除待用绑定，避免其他入口误用上次卡片。原来源已不在组合/滚动离屏时降级为常规页面过渡。
+
+直接播放的推荐入口、没有封面目标的歌手页不伪造共享元素。
+
+### 菜单、抽屉、确认弹窗
+
+TyPanelOverlay 保留关闭中的面板直到动画结束；歌曲菜单从真实触发区域变形到最终菜单区域。优先原生触发坐标，桥接坐标作为兼容来源。底部面板使用弹簧上滑；确认弹窗轻缩放与透明度；设置选择菜单由 LiquidPopup 保留原生 Popup 完成退出。
+
+点击外部、系统返回、重复点击、重新打开使用同一会话状态。菜单内部空白不触发外部关闭。原生菜单支持键盘焦点与 Escape/上下键。Web MobileSheet 具有独立遮罩、焦点限制与恢复、退出完成回调；MobileStageMenu 在真实退出后执行一次操作，重开会取消旧的待执行操作。Web ThemedDialog 使用统一弹簧，Android 静态语义采集层保持静态，避免半透明快照。
+
+## 真实页面与组件覆盖清单
+
+| 页面/组件 | 实现与范围 |
+| --- | --- |
+| 推荐、资料库、搜索、设置首页 | ComposeChromeHost + NativeMotionPolicy 统一内容转场；原底部导航自身动画保留 |
+| 推荐子页、目录、最近/历史、本地音乐、下载 | 原生路由短位移进出；加载内容沿用已有宿主，保持滚动状态 |
+| 歌单、专辑详情 | 可匹配封面共享元素 + 详情内容分层；无来源则常规路由 |
+| 歌手等其他详情 | 与层级一致的推进/返回 |
+| 设置二/三级页 | SettingsFlowPage / TySettings 统一路由与元素反馈 |
+| 主题、外观、播放、音源、系统歌词、存储、图形、开发、帮助 | 共用原生设置宿主；包括筛选/偏移、主题/字体/背景编辑、背屏指南、诊断等现有子页 |
+| 下拉选择、布局菜单、选项菜单 | LiquidPopup 触发附近展开/退出；选择状态连续变化 |
+| 音源切换 | LiquidSourceTabs 单个连续移动指示器 |
+| 歌曲更多、普通操作菜单 | TyPanel 触发位置形变、按压反馈、退出保留 |
+| 播放队列、定时关闭、音质、音效、歌词工具、支持面板 | 原生弹簧面板，遮罩与内容独立；退出与外部关闭 |
+| 收藏、播放模式、设置按钮/开关 | LiquidIcon / ChromeButton 与既有原生状态控件 |
+| 队列排序、新增、移除 | 保留惰性列表 animateItem；拖动中跟手，释放后弹簧；减少动态效果禁用布局动画 |
+| 浏览器资料库/首页菜单、本地页回退菜单、操作面板 | AnimatePresence + MobileSheet，保留退出生命周期 |
+| Web 舞台菜单、确认及富内容对话框 | MobileStageMenu / ThemedDialog，统一弹簧、关闭和减少动态效果 |
+| 经典深色、冰川深色、冰川浅色及既有主题 | LiquidPalette 可中断颜色插值；渐变按公共均匀节点重采样，兼容不同节点数；ChromeMaterial surface 颜色动画 |
+
+新搜索结果不对整张长列表逐行高开销入场；保留惰性列表，只在页面/容器和可见操作反馈层使用动画。菜单内容功能、业务顺序和主题最终颜色不变。
+
+## 中断、性能和保护边界
+
+- 路由内容按规范化身份保存；页面宿主禁用不必要的 SizeTransform，避免键盘/内容尺寸改变触发整页尺寸动画。
+- 共享封面绑定有界；坐标在放置回调获取，不逐帧测量 DOM。播放器变形走绘制层边界，不逐帧改变整个页面测量约束。
+- 不添加逐帧 blur 或 box-shadow；长列表不全量启用 layout 动画。
+- 主题切换从当前可见颜色继续插值，快速切换不会先跳回旧起点，不重挂玻璃组件。
+- Android 同时响应现有减少动态效果选项与系统动画时长比例；Web 尊重应用减少动态效果/跟随系统选择。原有“跟随系统”默认值不改。
+- 减少动态效果时共享位移、弹簧和微交互直接到终点，退出仍正确完成；播放中动态图标采用静态反馈。
+- 保留 Folia 舞台核心视觉、逐字动画、歌词时钟、Media3、背屏/灵动岛数据链路。主屏舞台横屏和背屏布局分支不合并。
+
+## 验证与交付
+
+构建命令：npm run build:motion-test。该命令先完整生成并校验 Capacitor 资源，再同步 Android、构建独立的动效测试包；不启用播放诊断模式，不允许混合诊断构建参数。
+
+测试明细、APK 校验和与真机限制见 LIQUID_MOTION_VALIDATION.md。依赖及许可证见 LIQUID_MOTION_NOTICES.md。
+
+本地自动化验证不等同于 Android WebView/GPU 真机性能认证。最终帧率、系统预测返回手势、软键盘、旋转、前后台切换及双屏表现需要安装测试 APK 实测。
+
+## 1.5.6 正式版补全
+
+新增 LiquidPlayerArtwork.kt（封面与画布局部坐标、等比展开）、LiquidChoiceRow.kt（连续选择指示器）。
+搜索音源与排序下拉统一使用 LiquidDropdown；搜索分类下划线连续移动；热榜与更多菜单接入减少动态效果。
+设置弹窗在退场时保留最后模型；设置顺序控制在稳定 option.value 身份的局部 LookaheadScope 中使用 animateBounds。
+歌手简介和搜索历史容器平滑改变高度；普通设置、搜索、背屏控制与错误重试按钮补充按压反馈。
+账号登录与切换器统一参数/减少动态效果；账号确认框保留关闭内容，并显式声明为真实 WebView 绘制层，设置表单源仍保持静态。
+
+执行 npm run audit:motion 可检查统一动效合同与 46 个原生相关模块（含绘图 / 模型等明确排除项）；它是源码覆盖审计，不代表真机帧率或全部界面视觉通过。
+最新验证与正式版说明见 LIQUID_MOTION_RELEASE_1.5.6.md；此前 motion-test.1 记录保留在 LIQUID_MOTION_VALIDATION.md。

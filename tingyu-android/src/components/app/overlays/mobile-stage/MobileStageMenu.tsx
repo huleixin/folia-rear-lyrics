@@ -1,4 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
+import { useLiquidReduced } from '../../../shared/useLiquidReduced';
+import { TY_DURATION, TY_SPRING } from '../../../shared/motionTokens';
+import { registerModalBack } from '../../../../services/modalBackStack';
+import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { AudioLines, Captions, AlarmClock, Palette, Settings2, SlidersHorizontal } from 'lucide-react';
 import PlayerControlIcon from '../../icons/PlayerControlIcon';
 import { useTranslation } from 'react-i18next';
@@ -16,7 +20,7 @@ import { useAudioToolsStore, QUALITY_LABELS } from '../../../../stores/useAudioT
 // src/components/app/overlays/mobile-stage/MobileStageMenu.tsx
 export default function MobileStageMenu({
     onClose,
-    /** true = 正在播 120ms 退场动画；播完回调 onClosed，由宿主摘除。 */
+    /** true = 正在播 160ms 退场动画；播完回调 onClosed，由宿主摘除。 */
     closing = false,
     onClosed,
 }: {
@@ -25,21 +29,25 @@ export default function MobileStageMenu({
     onClosed?: () => void;
 }) {
     const { t } = useTranslation();
+    const reduced = useLiquidReduced();
     const quality = useAudioSettingsStore(state => state.audioQuality);
     const effectsEnabled = useAudioSettingsStore(state => state.audioEqualizerSettings.enabled);
     const ref = useRef<HTMLDivElement>(null);
+    const closeRef = useRef(onClose);
+    useLayoutEffect(() => { closeRef.current = onClose; }, [onClose]);
+    useEffect(() => registerModalBack(() => closeRef.current()), []);
     useEffect(() => {
         const previous = document.activeElement as HTMLElement | null;
         ref.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
         const outside = (event: PointerEvent) => {
             if ((event.target as Element)?.closest?.('[data-mps-more], [data-min-more]')) return;
-            if (!ref.current?.contains(event.target as Node)) onClose();
+            if (!ref.current?.contains(event.target as Node)) closeRef.current();
         };
         const key = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
                 event.preventDefault();
                 event.stopPropagation();
-                onClose();
+                closeRef.current();
                 return;
             }
             if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
@@ -56,7 +64,7 @@ export default function MobileStageMenu({
         };
         document.addEventListener('pointerdown', outside, true);
         document.addEventListener('keydown', key, true);
-        const nativeInteraction=()=>onClose();
+        const nativeInteraction=()=>closeRef.current();
         window.addEventListener('tingyu-native-chrome-interaction',nativeInteraction);
         return () => {
             document.removeEventListener('pointerdown', outside, true);
@@ -64,31 +72,45 @@ export default function MobileStageMenu({
             window.removeEventListener('tingyu-native-chrome-interaction',nativeInteraction);
             previous?.isConnected && previous.focus();
         };
-    }, [onClose]);
+    }, []);
+    const pendingAction = useRef<(() => void) | null>(null);
+    const completed = useRef(false);
     const run = (action: () => void) => {
+        if (closing || pendingAction.current) return;
+        pendingAction.current = action;
         onClose();
-        onClosed?.();
-        action();
     };
-    // 退场动画结束后通知宿主摘除：onAnimationEnd 对入场动画也会触发，
-    // 只在 closing 时响应，且只认菜单根元素自己的动画结束事件。
+    const finishClose = () => {
+        if (!closing || completed.current) return;
+        completed.current = true;
+        const action = pendingAction.current;
+        pendingAction.current = null;
+        onClosed?.();
+        action?.();
+    };
+    useEffect(() => {
+        // Reopening reverses the motion and cancels the previous pending navigation.
+        if (!closing) { completed.current = false; pendingAction.current = null; }
+    }, [closing]);
+    // Motion 完成退场后摘除，closing 和 completed 防止入场/重复回调执行动作。
     // Android + Compose 桥可用时，这四个工具都开**原生页**（第 11 轮）；否则回退原 WebView 弹窗。
     // 原生页不占 WebView，也不触发极简页让位 —— 弹窗被遮挡/双开那类问题从根上消失。
     const runNative = (page: 'quality' | 'effects' | 'lyrics', fallback: () => void) => {
-        onClose();
-        void openNativeToolPage(page).then(handled => { if (!handled) fallback(); });
+        run(() => { void openNativeToolPage(page).then(handled => { if (!handled) fallback(); }); });
     };
     return (
-        <div
+        <motion.div
+            initial={{ opacity: reduced ? 1 : 0, scale: reduced ? 1 : .9, y: reduced ? 0 : -6 }}
+            animate={{ opacity: closing ? 0 : 1, scale: closing ? .94 : 1, y: closing ? -4 : 0 }}
+            transition={reduced ? { duration: 0 } : closing ? { duration: TY_DURATION.popupExit } : TY_SPRING.panel}
+            style={{ animation: 'none', transformOrigin: 'top right' }}
             ref={ref}
             role="menu"
             aria-label={t('mobileStage.more')}
             data-folia-keyboard-window="true"
             data-native-chrome-overlay="nonblocking"
             className={`mps-menu${closing ? ' mps-menu--closing' : ''}`}
-            onAnimationEnd={(event) => {
-                if (closing && event.target === event.currentTarget) onClosed?.();
-            }}
+            onAnimationComplete={finishClose}
         >
             <button role="menuitem" onPointerDown={warmSettingsModule} onClick={() => run(() => openSettings('options', 'visualizer', 'visualizer'))}>
                 <Palette size={18} />
@@ -123,6 +145,6 @@ export default function MobileStageMenu({
                 <Settings2 size={18} />
                 {t('mobileStage.playbackSettings')}
             </button>
-        </div>
+        </motion.div>
     );
 }

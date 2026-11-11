@@ -8,9 +8,10 @@
     "email": "chthollyphile@users.noreply.github.com"
   },
   "private": true,
-  "version": "1.5.5",
-  "androidVersionCode": 220,
+  "version": "1.5.6",
+  "androidVersionCode": 221,
   "playbackTestRevision": 2,
+  "motionTestRevision": 1,
   "license": "AGPL-3.0",
   "type": "module",
   "engines": {
@@ -21,6 +22,7 @@
     "release:android": "npm run release:bump && npm run build:android:release",
     "build:playback-test": "node dev/build/buildPlaybackTest.mjs",
     "build:graphics-test": "node dev/build/buildGraphicsTest.mjs",
+    "build:motion-test": "node dev/build/buildMotionTest.mjs",
     "build:android:release": "npm run cap:sync:android && node dev/build/verifyFeedbackOverlay.mjs && cd android && gradlew.bat assembleRelease",
     "dev": "vite",
     "dev:probe": "vite --open /dev-probe.html",
@@ -54,7 +56,8 @@
     "dev:cover-stack": "vite --open /cover-stack-preview.html",
     "check:android-ui": "vitest run test/unit/architecture/androidPageOwnership.test.ts",
     "theme:generate": "node dev/build/generateInterfaceThemes.mjs",
-    "theme:check": "node dev/build/generateInterfaceThemes.mjs --check"
+    "theme:check": "node dev/build/generateInterfaceThemes.mjs --check",
+    "audit:motion": "node dev/build/auditLiquidMotion.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

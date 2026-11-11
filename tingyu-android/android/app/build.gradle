@@ -8,9 +8,14 @@ apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 def playbackTestBuild = (project.findProperty('tingyuPlaybackTest') == 'true')
 def graphicsTestBuild = (project.findProperty('tingyuGraphicsDiagnostics') == 'true')
+def motionTestBuild = (project.findProperty('tingyuMotionTest') == 'true')
+if (motionTestBuild && (playbackTestBuild || graphicsTestBuild)) {
+    throw new GradleException('Motion test must use the ordinary playback engine; do not combine test modes')
+}
 
 def packageJson = new JsonSlurper().parseText(file('../../package.json').text)
 def playbackTestRevision = (packageJson.playbackTestRevision ?: 1) as int
+def motionTestRevision = (packageJson.motionTestRevision ?: 1) as int
 
 // 构建标识：commit + 是否有未提交改动。写进 BuildConfig 并随宿主 register 上报，
 // 用来区分「装的是不是刚构建的包」，避免旧包/新包混在一起判断。
@@ -59,12 +64,12 @@ android {
         buildConfigField 'boolean', 'PLAYBACK_ENGINE_TEST', (playbackTestBuild || graphicsTestBuild).toString()
         buildConfigField 'boolean', 'GRAPHICS_DIAGNOSTICS', graphicsTestBuild.toString()
         buildConfigField 'String', 'BUILD_ID', "\"${packageJson.version}@${gitBuildId}\""
-        applicationId (playbackTestBuild ? "io.github.huleixin.tingyu.playbacktest" : "io.github.huleixin.tingyu")
-        manifestPlaceholders['tingyuAppLabel'] = playbackTestBuild ? '听屿播放测试' : '听屿'
+        applicationId (motionTestBuild ? "io.github.huleixin.tingyu.motiontest" : playbackTestBuild ? "io.github.huleixin.tingyu.playbacktest" : "io.github.huleixin.tingyu")
+        manifestPlaceholders['tingyuAppLabel'] = motionTestBuild ? '听屿动效测试' : playbackTestBuild ? '听屿播放测试' : '听屿'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode (playbackTestBuild ? (packageJson.androidVersionCode as int) * 100 + playbackTestRevision : packageJson.androidVersionCode as int)
-        versionName "${packageJson.version}${playbackTestBuild ? "-playback-test.${playbackTestRevision}" : graphicsTestBuild ? '-graphics-test.1' : ''}"
+        versionCode (motionTestBuild ? (packageJson.androidVersionCode as int) * 100 + motionTestRevision : playbackTestBuild ? (packageJson.androidVersionCode as int) * 100 + playbackTestRevision : packageJson.androidVersionCode as int)
+        versionName "${packageJson.version}${motionTestBuild ? "-motion-test.${motionTestRevision}" : playbackTestBuild ? "-playback-test.${playbackTestRevision}" : graphicsTestBuild ? '-graphics-test.1' : ''}"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             // Host Chromium may defer consuming modulepreload bodies. Serve packaged assets by

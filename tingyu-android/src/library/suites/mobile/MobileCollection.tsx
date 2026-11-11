@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ArrowLeft, MoreVertical, Play, Heart, Search, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { LibraryCollectionSurfaceProps } from '../../core/contracts/suite';
@@ -202,7 +202,7 @@ function MobileCollection(props: LibraryCollectionSurfaceProps) {
             />
             </>}
             {target && <MobileCollectionMenu props={props} model={model} target={target} onClose={closeMenu} onOpenManage={() => { closeMenu(); setManageOpen(true); }} />}
-            {manageOpen && (props.collection as { playlistId?: string }).playlistId && (
+            <AnimatePresence>{manageOpen && (props.collection as { playlistId?: string }).playlistId && (
                 <MobileSheet
                     title={model.mutations.renamedTo ?? props.collection.name}
                     onClose={() => setManageOpen(false)}
@@ -214,7 +214,7 @@ function MobileCollection(props: LibraryCollectionSurfaceProps) {
                         onReload={() => { model.actions.reload(); }}
                     />
                 </MobileSheet>
-            )}
+            )}</AnimatePresence>
         </motion.section>
     );
 }

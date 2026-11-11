@@ -53,9 +53,11 @@ internal data class TyPanelTheme(
         // retain the classic palette and their own cover/daylight ownership.
         // Ordinary tools/queue now supply the global style too; the player canvas stays independent.
         internal fun of(light: Boolean, style: String = "classic"): TyPanelTheme {
-            val p = InterfacePalette(light, style)
+            return from(InterfacePalette(light, style))
+        }
+        internal fun from(p: InterfacePalette): TyPanelTheme {
             return TyPanelTheme(p.panelSurface,p.panelCard,p.panelInk,p.panelMuted,p.panelAccent,
-                p.panelLine,if(light) .28f else .55f,p.panelDanger,p.toggleKnob)
+                p.panelLine,if(p.light) .28f else .55f,p.panelDanger,p.toggleKnob)
         }
     }
 }
@@ -77,12 +79,13 @@ internal object TyPanelDims {
 }
 
 /**
- * 统一底部面板进出场：上滑 + 渐入 260ms，下滑 + 渐隐 200/140ms。
+ * 统一底部面板进出场：原 260ms 上滑在 Liquid Motion 中改为柔和弹簧，
+ * 保留 200ms 渐入和下滑 + 渐隐 200/140ms 的既有收起节奏。
  * 与极简队列/工具页同一节奏 —— 这是"Liquid Glass 之下统一动效"的唯一一份实现。
  */
 internal object TyPanelMotion {
     val Enter: EnterTransition = slideInVertically(
-        animationSpec = tween(TingYuMotion.SheetInMs, easing = TingYuMotion.SheetIn),
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio=TingYuMotion.PanelDamping,stiffness=TingYuMotion.PanelStiffness),
         initialOffsetY = { it },
     ) + fadeIn(tween(200, easing = TingYuMotion.SheetIn))
 
@@ -102,7 +105,8 @@ internal object TyPanelMotion {
  */
 @Composable
 internal fun TyPanelScrim(visible: Boolean, light: Boolean, onClose: () -> Unit, modifier: Modifier = Modifier) {
-    AnimatedVisibility(visible = visible, enter = TyPanelMotion.ScrimEnter, exit = TyPanelMotion.ScrimExit, modifier = modifier) {
+    val reduced=LocalLiquidReduced.current
+    AnimatedVisibility(visible = visible, enter = if(reduced)EnterTransition.None else TyPanelMotion.ScrimEnter, exit = if(reduced)ExitTransition.None else TyPanelMotion.ScrimExit, modifier = modifier) {
         Box(
             Modifier
                 .fillMaxSize()

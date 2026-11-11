@@ -18,9 +18,15 @@ export const TY_DURATION = {
     slow: 0.28,
     /** 极简页 ↔ 舞台往返（对齐 Compose 360ms） */
     stage: 0.36,
+    playerMorph: 0.52,
+    cover: 0.48,
+    theme: 0.32,
+    panelExit: 0.19,
+    popupExit: 0.16,
 } as const;
 
 export const TY_EASE = {
+    emphasized: [0.16, 1, 0.3, 1] as const,
     /** 位移类通用（底栏、卡片位移） */
     standard: [0.2, 0.8, 0.2, 1] as const,
     /** 进入：减速收尾（覆盖层托起） */
@@ -30,8 +36,10 @@ export const TY_EASE = {
 } as const;
 
 export const TY_SPRING = {
+    /** Compose dampingRatio .92 at stiffness 420, mass 1. */
+    panel: { type: 'spring', stiffness: 420, damping: 37.71 },
     /** 列表重排 / 拖拽回弹 */
-    snappy: { type: 'spring', stiffness: 520, damping: 1 },
+    snappy: { type: 'spring', stiffness: 520, damping: 46 },
     /** 轻量位移反馈 */
     gentle: { type: 'spring', stiffness: 320, damping: 26 },
 } as const;

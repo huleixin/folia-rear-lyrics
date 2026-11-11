@@ -61,7 +61,7 @@ import androidx.compose.ui.unit.sp
                 TyTopGlassForeground {
                     Row(Modifier.fillMaxWidth().padding(start=inset,end=inset,top=(page.safeTop+24).dp,bottom=20.dp)
                         .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
-                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(999.dp)).semantics{contentDescription=page.trailingLabel}.clickable{action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("chevron-left",PageInk,Modifier.size(24.dp))}
+                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(999.dp)).semantics{contentDescription=page.trailingLabel}.chromeClickable(corner=999.dp){action(page.leading,"",0.0)},contentAlignment=Alignment.Center){PageIcon("chevron-left",PageInk,Modifier.size(24.dp))}
                         Text(page.title,color=PageInk,fontSize=22.sp,lineHeight=28.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
                     }
                 }
@@ -78,7 +78,7 @@ import androidx.compose.ui.unit.sp
                 .background(if(item.selected)LocalInterfacePalette.current.rearSelected else Color.Transparent)
                 .border(1.dp,if(item.selected)LocalInterfacePalette.current.rearSelectedBorder else Color.Transparent,RoundedCornerShape(10.dp))
                 .semantics{selected=item.selected;role=Role.RadioButton;if(item.disabled)disabled()}
-                .clickable(enabled=!item.disabled){action(item.action,"",0.0)}.padding(horizontal=6.dp,vertical=9.dp),contentAlignment=Alignment.Center){
+                .chromeClickable(enabled=!item.disabled,corner=12.dp){action(item.action,"",0.0)}.padding(horizontal=6.dp,vertical=9.dp),contentAlignment=Alignment.Center){
                 Text(item.title,color=if(item.selected)LocalInterfacePalette.current.settingsAccent else PageInk,fontSize=13.sp,lineHeight=19.sp,fontWeight=if(item.selected)FontWeight.SemiBold else FontWeight.Normal,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
             }
         }

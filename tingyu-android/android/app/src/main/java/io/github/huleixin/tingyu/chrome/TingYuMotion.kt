@@ -13,7 +13,8 @@ import androidx.compose.animation.core.CubicBezierEasing
 //
 // 与 JS 侧 src/components/shared/motionTokens.ts、CSS 侧 src/styles/tingyuTokens.css
 // 数值一一对应。修改任何曲线必须三处同步，并在 docs/ui-system/MOTION_SYSTEM.md 记录原因。
-// 所有数值 = 1.3.182 基线的原值（收编，不是重设计）。
+// 1.3.182 收编的基线参数继续保留；Liquid Motion 新增独立语义参数，
+// 并调整页面 Emphasized 曲线。原导航流动弹簧、舞台收起节奏不变。
 internal object TingYuMotion {
     // ---- Easing ----
 
@@ -51,6 +52,14 @@ internal object TingYuMotion {
     const val StageCollapseClassicMs = 280
     /** sheet 上滑进场时长（原 MinimalSheetMotion）。 */
     const val SheetInMs = 260
+
+    const val PlayerMorphMs = 520
+    const val CoverMs = 480
+    const val ThemeMs = 320
+    const val PanelExitMs = 190
+    const val PopupExitMs = 160
+    const val PanelDamping = .92f
+    const val PanelStiffness = 420f
 
     // ---- Spring（原 NativeMotionPolicy 参数，收编到此，NativeMotionPolicy 保留别名） ----
 

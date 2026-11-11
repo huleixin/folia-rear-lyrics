@@ -104,6 +104,9 @@ sealed interface TyPanelBlock {
  *  · `dialog` —— 居中卡片（确认框、短输入）；
  *  · `menu`   —— 贴着触发元素展开的浮层菜单（需要 [anchor]；缺 anchor 时退化为 sheet）。
  */
+internal fun resolvePanelKind(panel: TyPanel, nativeAnchor: Boolean): String =
+    if(panel.kind == "menu" && !panel.anchor.valid && !nativeAnchor) "sheet" else panel.kind
+
 data class TyPanel(
     val id: String,
     val session: String,
@@ -186,7 +189,7 @@ data class TyPanel(
                 revision = value.optLong("revision"),
                 enabled = value.optBoolean("enabled", true),
                 // 需要锚点却拿不到 -> 退化成 sheet，绝不让菜单"消失"。
-                kind = if (kind == "menu" && !anchor.valid) "sheet" else kind,
+                kind = kind,
                 title = value.optString("title").take(300),
                 subtitle = value.optString("subtitle").take(600),
                 busy = value.optBoolean("busy"),

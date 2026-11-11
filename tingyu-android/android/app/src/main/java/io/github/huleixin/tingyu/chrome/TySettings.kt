@@ -148,7 +148,7 @@ internal fun SettingsItem(
             .fillMaxWidth()
             .heightIn(min = 52.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(if (pressed && enabled && onClick != null) theme.line.copy(alpha = 0.35f) else Color.Transparent)
+            .chromePressed(interaction, tint = theme.line.copy(alpha = 0.35f))
             .then(
                 if (onClick != null) Modifier.clickable(
                     interactionSource = interaction,
@@ -279,7 +279,7 @@ internal fun SettingsSelect(
                 }
             },
         )
-        if (expanded) SettingsOptionPopup(theme, title, options, value, onClose = { expanded = false }) { picked ->
+        SettingsOptionPopup(theme, title, options, value, visible = expanded, onClose = { expanded = false }) { picked ->
             expanded = false
             onSelect(picked)
         }
@@ -294,14 +294,10 @@ internal fun SettingsOptionPopup(
     options: List<TySettingOption>,
     value: String,
     onClose: () -> Unit,
+    visible: Boolean,
     onDismiss: (String) -> Unit,
 ) {
-    androidx.compose.ui.window.Popup(
-        onDismissRequest = onClose,
-        properties = androidx.compose.ui.window.PopupProperties(
-            focusable = true, dismissOnBackPress = true, dismissOnClickOutside = true,
-        ),
-    ) {
+    LiquidPopup(visible = visible, onDismissRequest = onClose) {
         Column(
             Modifier
                 .widthIn(min = 200.dp, max = 280.dp)
@@ -324,9 +320,8 @@ internal fun SettingsOptionPopup(
                     Modifier
                         .fillMaxWidth()
                         .heightIn(min = 44.dp)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
+                        .chromeClickable(
+                            corner = 10.dp,
                             enabled = !option.disabled,
                             role = Role.Button,
                             onClick = { onDismiss(option.value) },

@@ -301,7 +301,7 @@ internal fun TransportButton(
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (pressed && enabled) 0.9f else 1f,
+        targetValue = if (pressed && enabled && !io.github.huleixin.tingyu.chrome.LocalLiquidReduced.current) 0.94f else 1f,
         animationSpec = tween(150),
         label = "minimal-btn-press",
     )
@@ -325,7 +325,7 @@ private fun PlayButton(playing: Boolean, enabled: Boolean, ink: MinimalInk, onCl
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (pressed && enabled) 0.9f else 1f,
+        targetValue = if (pressed && enabled && !io.github.huleixin.tingyu.chrome.LocalLiquidReduced.current) 0.94f else 1f,
         animationSpec = tween(130),
         label = "minimal-play-press",
     )
@@ -368,12 +368,12 @@ private fun PlayButton(playing: Boolean, enabled: Boolean, ink: MinimalInk, onCl
 private fun PlayPauseGlyph(playing: Boolean, color: Color, modifier: Modifier) {
     val playAlpha by animateFloatAsState(
         targetValue = if (playing) 0f else 1f,
-        animationSpec = tween(170),
+        animationSpec = tween(if(io.github.huleixin.tingyu.chrome.LocalLiquidReduced.current)0 else 170),
         label = "minimal-play-alpha",
     )
     val pauseAlpha by animateFloatAsState(
         targetValue = if (playing) 1f else 0f,
-        animationSpec = tween(170),
+        animationSpec = tween(if(io.github.huleixin.tingyu.chrome.LocalLiquidReduced.current)0 else 170),
         label = "minimal-pause-alpha",
     )
     Box(modifier) {

@@ -124,9 +124,8 @@ import kotlin.math.round
                         modifier=Modifier.weight(1f))
                     Box(Modifier.padding(start=8.dp).size(16.dp)){PageIcon("chevron-down",ink.copy(alpha=.55f),Modifier.fillMaxSize())}
                 }
-                if(expanded)Popup(
+                LiquidPopup(visible=expanded,
                     onDismissRequest={expanded=false},
-                    properties=PopupProperties(focusable=true),
                     // 贴着输入框下沿展开，宽度与控件框一致 —— 不再飘到分组标题上。
                     offset=IntOffset(0,with(density){(control.rect.h+4f).dp.roundToPx()}),
                 ){

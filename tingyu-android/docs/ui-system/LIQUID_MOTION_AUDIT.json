@@ -1,0 +1,278 @@
+{
+  "kind": "source-coverage-only",
+  "checks": [
+    {
+      "area": "retained cover-origin player",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/ComposeChromeHost.kt",
+      "pass": true
+    },
+    {
+      "area": "real canvas transform",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/LiquidMotion.kt",
+      "pass": true
+    },
+    {
+      "area": "measured destination cover",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/MinimalCoverPage.kt",
+      "pass": true
+    },
+    {
+      "area": "gradient stop normalization",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/LiquidPalette.kt",
+      "pass": true
+    },
+    {
+      "area": "route families",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageView.kt",
+      "pass": true
+    },
+    {
+      "area": "retained settings modal",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/SettingsFlowPage.kt",
+      "pass": true
+    },
+    {
+      "area": "search and hotlist",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeSearchPage.kt",
+      "pass": true
+    },
+    {
+      "area": "library and artist",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeDirectoryPage.kt",
+      "pass": true
+    },
+    {
+      "area": "sort menus",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageWidgets.kt",
+      "pass": true
+    },
+    {
+      "area": "native popup exit",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/LiquidPopup.kt",
+      "pass": true
+    },
+    {
+      "area": "minimal menu policy",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/MinimalPlayerScreen.kt",
+      "pass": true
+    },
+    {
+      "area": "queue mutations",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/MinimalQueueSheet.kt",
+      "pass": true
+    },
+    {
+      "area": "settings reorder",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/SettingsRichControls.kt",
+      "pass": true
+    },
+    {
+      "area": "support choices",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/SupportSheets.kt",
+      "pass": true
+    },
+    {
+      "area": "account reduced motion",
+      "file": "src/library/suites/mobile/account/OnlineProviderLoginModal.tsx",
+      "pass": true
+    },
+    {
+      "area": "account retained confirmation",
+      "file": "src/library/suites/mobile/account/GridAccountSurface.tsx",
+      "pass": true
+    },
+    {
+      "area": "no unclassified Material dropdown entry",
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/",
+      "pass": true,
+      "files": []
+    }
+  ],
+  "surfaces": [
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/LiquidPopup.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/MinimalPlayerPage.kt",
+      "coverage": "adapter: motion owned by ComposeChromeHost + MinimalPlayerScreen"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/MiniSleepMenu.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeDirectoryPage.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeHomePage.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageDesign.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageFallbackPanel.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageIcon.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageInput.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageModel.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageRetention.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageRows.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageView.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageViewport.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageWidgets.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeRearControlPage.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeSearchPage.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeSettingsControl.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeSettingsDocumentModel.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeSettingsDocumentView.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeSettingsGradient.kt",
+      "coverage": "static gradient parser; palette animation owned by consumers"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeSettingsPage.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeSettingsPaint.kt",
+      "coverage": "static compatibility display-list painter"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeSettingsSvg.kt",
+      "coverage": "static SVG painter"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/SettingsColorPad.kt",
+      "coverage": "direct finger tracking; adding spring would delay color selection"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/SettingsDiagnostics.kt",
+      "coverage": "diagnostic identity/logging, no visible surface"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/SettingsFlowPage.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/SettingsLayoutArt.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/SettingsLayoutControls.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/SettingsLayoutInput.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/SettingsLayoutModel.kt",
+      "coverage": "declarative model/parser, no visible surface"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/SettingsLayoutPreview.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/SettingsLayoutView.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/SettingsPreviewCutout.kt",
+      "coverage": "preview clipping geometry; protected renderer owns preview motion"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/SettingsRichControls.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/SettingsSvgViewport.kt",
+      "coverage": "SVG viewport math, no visible surface"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/SettingsSwatch.kt",
+      "coverage": "static swatch drawing helper; parent controls own feedback"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/StageSettingsHandoff.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/SupportSheets.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/TySettings.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/chrome/TySettingsModel.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/MinimalCoverPage.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/MinimalLyricsPage.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/MinimalQueueSheet.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/MinimalSheetMotion.kt",
+      "coverage": "shared or local implementation"
+    },
+    {
+      "file": "android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/MinimalToolsSheets.kt",
+      "coverage": "shared or local implementation"
+    }
+  ],
+  "deviceVerified": false
+}

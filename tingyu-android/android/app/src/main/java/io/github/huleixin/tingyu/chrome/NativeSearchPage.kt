@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 @OptIn(ExperimentalLayoutApi::class)
 @Composable internal fun NativeSearchPage(page:NativePage,modifier:Modifier,action:PageAction){
     val bottomClearance=with(LocalDensity.current){LocalNativePageBottomPx.current.toDp()}
+    val reduced = LocalLiquidReduced.current
     val menu=page.key.startsWith("search:menu:")
     val caches=page.sections.filter{it.layout=="rows"}.associate{it.id to key(it.id){rememberNativeRows(page.key,it)}}
     // 沉浸式毛玻璃顶栏（TopGlassBar）：搜索结果全幅滚动进入固定搜索区玻璃后方；
@@ -58,7 +59,7 @@ import androidx.compose.ui.unit.sp
                         Text(section.title,color=PageInk,fontSize=16.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
                         if(history)ChromeButton("清空历史",size=40.dp,onClick={action(section.more,"",0.0)}){PageIcon("trash2",PageMuted,Modifier.size(17.dp))}
                         if(hot&&section.more.isNotBlank()){
-                            val rotation by animateFloatAsState(if(section.expanded)180f else 0f,tween(220),label="hot-toggle")
+                            val rotation by animateFloatAsState(if(section.expanded)180f else 0f,tween(if(reduced)0 else 220),label="hot-toggle")
                             Row(Modifier.heightIn(min=40.dp).chromeClickable(role=Role.Button,corner=10.dp){action(section.more,"",0.0)}
                                 .semantics{stateDescription=if(section.expanded)"已展开" else "已收起"}.padding(horizontal=6.dp),
                                 verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)){
@@ -70,7 +71,7 @@ import androidx.compose.ui.unit.sp
                 }
                 when {
                     hot -> item(key=section.id){
-                        Column(Modifier.animateContentSize(tween(220))){
+                        Column(Modifier.animateContentSize(tween(if(reduced)0 else 220))){
                             section.items.chunked(2).forEachIndexed{row,items->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){
                                 items.forEachIndexed{column,item->Row(Modifier.weight(1f).height(44.dp).chromeClickable(corner=10.dp){action(item.action,"",0.0)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
                                     val rank=row*2+column+1
@@ -82,11 +83,11 @@ import androidx.compose.ui.unit.sp
                         }
                     }
                     history||section.layout=="chips"&&section.id=="discovery" -> item(key=section.id){
-                        FlowRow(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+                        FlowRow(Modifier.fillMaxWidth().animateContentSize(tween(if(reduced)0 else 180)),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
                             section.items.forEach{item->
                                 Row(Modifier.height(38.dp).clip(RoundedCornerShape(999.dp)).background(LocalInterfacePalette.current.subtle).border(1.dp,LocalInterfacePalette.current.searchBorder,RoundedCornerShape(999.dp)),verticalAlignment=Alignment.CenterVertically){
-                                    Text(item.title,color=PageInk,fontSize=13.sp,modifier=Modifier.clickable{action(item.action,"",0.0)}.padding(horizontal=12.dp))
-                                    if(item.secondary.isNotBlank())Box(Modifier.width(30.dp).fillMaxHeight().clickable{action(item.secondary,"",0.0)},contentAlignment=Alignment.Center){PageIcon("x",PageMuted,Modifier.size(13.dp))}
+                                    Text(item.title,color=PageInk,fontSize=13.sp,modifier=Modifier.chromeClickable(corner=999.dp){action(item.action,"",0.0)}.padding(horizontal=12.dp))
+                                    if(item.secondary.isNotBlank())Box(Modifier.width(30.dp).fillMaxHeight().chromeClickable(corner=10.dp){action(item.secondary,"",0.0)},contentAlignment=Alignment.Center){PageIcon("x",PageMuted,Modifier.size(13.dp))}
                                 }
                             }
                         }
@@ -94,7 +95,7 @@ import androidx.compose.ui.unit.sp
                     }
                     section.layout=="rows" -> pagedNativeRows(page,section,caches.getValue(section.id),56,action)
                     section.layout=="chips" -> item(key=section.id){Column{section.items.forEach{item->
-                        Row(Modifier.fillMaxWidth().height(52.dp).clickable{action(item.action,"",0.0)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
+                        Row(Modifier.fillMaxWidth().height(52.dp).chromeClickable(corner=12.dp){action(item.action,"",0.0)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
                             PageIcon("search",PageMuted,Modifier.size(17.dp));Text(item.title,color=PageInk,fontSize=14.sp)
                         }
                     }}}
@@ -137,12 +138,7 @@ import androidx.compose.ui.unit.sp
                         }}
                     }
                     page.sections.firstOrNull{it.id=="tabs"}?.let{section->
-                        Row(Modifier.fillMaxWidth().padding(top=8.dp).horizontalScroll(rememberScrollState())){section.items.forEach{item->
-                            Column(Modifier.widthIn(min=64.dp).clickable{action(item.action,"",0.0)},horizontalAlignment=Alignment.CenterHorizontally){
-                                Box(Modifier.height(44.dp).padding(horizontal=8.dp),contentAlignment=Alignment.Center){Text(item.title,color=if(item.selected)PageAccent else PageMuted,fontSize=14.sp,fontWeight=if(item.selected)FontWeight.SemiBold else FontWeight.Normal)}
-                                Box(Modifier.fillMaxWidth().height(2.dp).background(if(item.selected)PageAccent else Color.Transparent))
-                            }
-                        }}
+                        NativeSourceTabs(section, Modifier.padding(top=8.dp), underline=true, action=action)
                     }
                 }
             }
@@ -163,7 +159,7 @@ import androidx.compose.ui.unit.sp
             if(!compact)Text(selected?.title.orEmpty(),color=PageInk,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f,false))
             PageIcon("chevron-down",PageMuted,Modifier.size(16.dp))
         }
-        DropdownMenu(expanded=open,onDismissRequest={open=false}){
+        LiquidDropdown(expanded=open,onDismissRequest={open=false}){
             section.items.forEach{item->DropdownMenuItem(
                 text={Text(item.title,color=PageInk)},enabled=!item.disabled,
                 trailingIcon={if(item.selected)PageIcon("check",PageAccent,Modifier.size(17.dp))},

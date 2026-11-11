@@ -1,5 +1,6 @@
 package io.github.huleixin.tingyu.minimal.ui
 
+import io.github.huleixin.tingyu.chrome.LiquidIcon
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -71,7 +72,7 @@ internal fun MinimalPlayerTools(
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 TransportButton("播放模式：${modeLabel(controls.mode)}", live, ink, 48.dp, { commands.cycleMode() }) {
                     // 所有播放器共用 PlayerIcons；非顺序模式保持薄荷绿激活态。
-                    PlaybackModeIcon(controls.mode, if (modeIsActive(controls.mode)) mintActive(light) else ink.inkAlpha(74), Modifier.size(22.dp))
+                    LiquidIcon(controls.mode) { mode -> PlaybackModeIcon(mode, if (modeIsActive(mode)) mintActive(light) else ink.inkAlpha(74), Modifier.size(22.dp)) }
                 }
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {

@@ -1,3 +1,4 @@
+import { AnimatePresence } from 'framer-motion';
 import React, {
   useCallback,
   useLayoutEffect,
@@ -305,7 +306,7 @@ export default function MobileHomeOverview({
           )}
         </div>
       </MobileScrollFrame>
-      {menu && (
+      <AnimatePresence>{menu && (
         <MobileSheet
           title={menu.kind === "track" ? menu.song.name : menu.card.name}
           onClose={() => setMenu(null)}
@@ -358,7 +359,7 @@ export default function MobileHomeOverview({
             </>
           )}
         </MobileSheet>
-      )}
+      )}</AnimatePresence>
     </>
   );
 }

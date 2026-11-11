@@ -15,6 +15,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -28,7 +31,7 @@ import kotlin.math.abs
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ChromeMiniPlayer.kt
 @Composable internal fun ChromeMiniPlayer(s: ChromeSurface, timeline: ChromeTimeline?, backdrop: Backdrop, modifier: Modifier,
-    action: (String,Double)->Unit) {
+    onCoverBounds: (Rect)->Unit = {}, action: (String,Double)->Unit) {
     val ink=chromeColor(s.ink);val accent=chromeColor(s.accent)
     val cover=pageImage(s.cover)
     // 与底栏同一份材质规范（vibrancy → blur → lens + 光学高光/内阴影），只在表面不透明度上
@@ -62,7 +65,7 @@ import kotlin.math.abs
                 // 左上角正好落进圆角被裁掉 —— 看起来就是「封面偏左、缺一角」。
                 // 只给封面本体让出 10.dp，不动整条的高度/宽度、玻璃效果、按钮与圆角；
                 // padding 放在 size 之前，34.dp 的封面尺寸与 10.dp 圆角保持不变。
-                Box(Modifier.padding(start=10.dp).size(34.dp).clip(RoundedCornerShape(10.dp)).background(accent.copy(alpha=.2f)),contentAlignment=Alignment.Center) {
+                Box(Modifier.padding(start=10.dp).size(34.dp).onGloballyPositioned { onCoverBounds(it.boundsInRoot()) }.clip(RoundedCornerShape(10.dp)).background(accent.copy(alpha=.2f)),contentAlignment=Alignment.Center) {
                     ChromeGlyph("music",if(s.light)ink else ink.copy(alpha=.7f))
                     if(s.cover.isNotBlank())AsyncImage(model=cover,contentDescription=null,modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
                 }

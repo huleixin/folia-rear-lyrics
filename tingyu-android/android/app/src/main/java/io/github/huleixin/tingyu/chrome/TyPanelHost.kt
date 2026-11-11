@@ -1,6 +1,8 @@
 package io.github.huleixin.tingyu.chrome
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -126,15 +128,15 @@ internal fun TyPanelLayer(
     androidx.compose.runtime.LaunchedEffect(current) { if (current != null) lastPanel = current }
     val visible = current != null
     TyPanelOverlay(visible, light, modifier, onClose = { host.dismissFromUser() }) {
-        lastPanel?.let { panel ->
+        (current ?: lastPanel)?.let { panel ->
             TyPanelHostView(
                 panel = panel,
                 light = light,
                 onAction = { action, text, value ->
                     // 关闭类动作先本地收起，避免"确认删除后面板还挂在那里等网络"。
-                    host.dispatch(action, text, value)
+                    if(host.panel?.session==panel.session)host.dispatch(action, text, value)
                 },
-                onClose = { host.dismissFromUser() },
+                onClose = { if(host.panel?.session==panel.session)host.dismissFromUser() },
             )
         }
     }
@@ -153,11 +155,13 @@ internal fun TyPanelOverlay(
         TyPanelScrim(visible = visible, light = light, onClose = onClose)
         AnimatedVisibility(
             visible = visible,
-            enter = TyPanelMotion.Enter,
-            exit = TyPanelMotion.Exit,
+            enter = EnterTransition.None,
+            exit = ExitTransition.None,
             modifier = Modifier.fillMaxSize().zIndex(1f),
         ) {
-            Box(Modifier.fillMaxSize()) { content() }
+            val reduced=LocalLiquidReduced.current
+            val progress=transition.animateFloat(transitionSpec={if(reduced)snap()else if(targetState==EnterExitState.Visible)spring(dampingRatio=TingYuMotion.PanelDamping,stiffness=TingYuMotion.PanelStiffness)else tween(TingYuMotion.PanelExitMs,easing=TingYuMotion.StageExit)},label="panel-morph"){if(it==EnterExitState.Visible)1f else 0f}
+            CompositionLocalProvider(LocalPanelProgress provides progress){Box(Modifier.fillMaxSize()) { content() }}
         }
     }
 }
