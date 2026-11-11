@@ -3,6 +3,8 @@ import { motionValue } from 'framer-motion';
 // src/utils/mobileStageSubtitleClearance.ts
 // Written only by the front-display controls; rear/preview hosts never publish a value.
 export const mobileStageSubtitleClearance = motionValue(0);
+// -1 = 未接管。只有正屏横屏使用原生几何；竖屏和背屏仍走原有底距。
+export const nativeLandscapeSubtitleBottom = motionValue(-1);
 const SUBTITLE_CONTROL_GAP_PX = 24;
 
 export function resolveMobileStageSubtitleClearance(stage: DOMRect, controls: DOMRect): number {
@@ -11,6 +13,6 @@ export function resolveMobileStageSubtitleClearance(stage: DOMRect, controls: DO
     return Math.ceil(stage.bottom - controls.top + SUBTITLE_CONTROL_GAP_PX);
 }
 
-export function resolveHostSubtitleBottom(legacy: number, clearance: number, isPlayerHost: boolean): number {
-    return isPlayerHost ? Math.max(legacy, clearance) : legacy;
+export function resolveHostSubtitleBottom(legacy: number, clearance: number, isPlayerHost: boolean, landscapeBottom = -1): number {
+    return isPlayerHost ? landscapeBottom >= 0 ? landscapeBottom : Math.max(legacy, clearance) : legacy;
 }

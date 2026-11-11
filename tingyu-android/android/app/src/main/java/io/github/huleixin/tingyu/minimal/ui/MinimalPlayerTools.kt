@@ -33,7 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.huleixin.tingyu.chrome.SleepMoon
+import io.github.huleixin.tingyu.chrome.SleepAlarm
 import io.github.huleixin.tingyu.minimal.MinimalControls
 import io.github.huleixin.tingyu.minimal.MinimalPlayerCommands
 import kotlinx.coroutines.delay
@@ -78,15 +78,14 @@ internal fun MinimalPlayerTools(
                 // 定时是原生宿主动作，不依赖 JS 播放动作桥是否可用。
                 TransportButton(sleepLabel, onOpenSleep != null, ink, 48.dp, { onOpenSleep?.invoke() },
                     modifier = Modifier.onGloballyPositioned { onSleepAnchor?.invoke(it.boundsInRoot()) }) {
-                    SleepMoon(if (sleepActive) mintActive(light) else ink.ink, Modifier.size(22.dp), sleepActive)
+                    SleepAlarm(if (sleepActive) mintActive(light) else ink.ink, Modifier.size(22.dp))
                 }
             }
-            Box(Modifier.weight(1.4f), contentAlignment = Alignment.Center) {
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 val quality = currentQualityLabel(controls)
                 TransportButton("当前音质：$quality，选择音质", live, ink, 48.dp, { commands.openAudioQuality() },
                     modifier = Modifier.fillMaxWidth()) {
-                    Text(quality, color = ink.inkAlpha(88), fontSize = 11.sp, fontWeight = FontWeight.Medium,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 3.dp))
+                    PlayerControlIcon("audioBars", ink.ink, Modifier.size(22.dp))
                 }
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {

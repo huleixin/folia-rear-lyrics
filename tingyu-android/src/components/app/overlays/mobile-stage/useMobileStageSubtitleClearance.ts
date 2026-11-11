@@ -1,8 +1,10 @@
 import { useLayoutEffect, type RefObject } from 'react';
 import { mobileStageSubtitleClearance, resolveMobileStageSubtitleClearance } from '../../../../utils/mobileStageSubtitleClearance';
+import { useNativeStageSubtitleBottom } from './useNativeStageSubtitleBottom';
 
 // src/components/app/overlays/mobile-stage/useMobileStageSubtitleClearance.ts
 export function useMobileStageSubtitleClearance(stageRef: RefObject<HTMLDivElement | null>, visible: boolean) {
+    useNativeStageSubtitleBottom(stageRef);
     useLayoutEffect(() => {
         const stage = stageRef.current;
         const controls = stage?.querySelector<HTMLElement>('.mps-player');

@@ -59,6 +59,9 @@ import kotlin.math.roundToInt
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ComposeChromeHost.kt
 // Stable WebView identity; native pages and the live stage use separate GPU backdrop sources.
 class ComposeChromeHost(private val web: WebView, var listener: ChromeActionListener) {
+    var stageLayoutListener:((JSONObject)->Unit)?=null
+    private var stageLayout=JSONObject()
+    fun stageLayoutSnapshot():JSONObject=stageLayout
     private val brandLaunch = (web.context as? io.github.huleixin.tingyu.MainActivity)?.brandLaunch ?: BrandLaunchState()
     private var appearanceStyle by mutableStateOf(InterfaceAppearance.style(web.context))
     private var appearanceMode by mutableStateOf(InterfaceAppearance.mode(web.context))
@@ -318,6 +321,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var selectedTab by mutableIntStateOf(0)
     private var collectionDetail by mutableStateOf(false)
     private val routeFence=NativeRouteFence()
+    private var settingsHandoff by mutableStateOf<StageSettingsHandoff?>(null)
+    private var handoffFooter by mutableStateOf<ChromeSurface?>(null)
+    private var settingsHandoffFailed by mutableStateOf(false)
     private var playerPresentation by mutableStateOf("stage")
     private var returningFromSettings by mutableStateOf(false)
     private var minimalResumePending by mutableStateOf(false)
@@ -342,12 +348,33 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         web.invalidate()
     }
     fun bootstrap() { NativeArtworkCache.install(web.context);if(host==null)attach();syncWebBackground() }
-    fun shell(value:JSONObject) {
+    fun shell(value:JSONObject,complete:(()->Unit)?=null) {
         val generation=value.optLong("generation");val revision=value.optLong("revision")
-        val ticket=routeFence.request(generation,revision)?:return
+        val ticket=routeFence.request(generation,revision)?:run{complete?.invoke();return}
+        settingsHandoff?.complete?.invoke()
+        settingsHandoff=null
         stageEntryRequest++
         val next=value.optString("route","home")
         require(next in setOf("home","collection","search","settings","stage","web"))
+        settingsHandoffFailed=false
+        if(destination=="stage"&&playerPresentation=="stage"&&next=="settings") {
+            val pending=StageSettingsHandoff(value,complete)
+            settingsHandoff=pending
+            if(handoffFooter==null)handoffFooter=surfaces["stage"]
+            // 先请求目标模型。shell 的完成回执也等到交接，WebView 不会先撤掉舞台底色。
+            pageListener?.onAction("settings","","","__refresh","stage-handoff",0.0)
+            web.postDelayed({
+                if(settingsHandoff===pending&&routeFence.current(ticket)) {
+                    androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
+                        settingsHandoff=null;handoffFooter=null
+                        commitShell(value);presented=null;settingsHandoffFailed=true
+                    }
+                    complete?.invoke()
+                }
+            },1500)
+            return
+        }
+        handoffFooter=null
         val nativeMinimalReady=minimalPlayerEnabled()&&value.optString("playerPresentation")=="minimal"&&minimal.bridgeLive()&&!minimal.state.value.controls.detour
         // 第 16 轮：极简入场不再等 Chromium 的 visualStateCallback。进来的页面是一整块
         // 不透明的原生图层，Chromium 那边画什么都被盖住；这一等就是真机上点击后
@@ -361,6 +388,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 override fun onComplete(requestId:Long){if(routeFence.current(ticket))commitShell(value)}
             })
         } else commitShell(value)
+        complete?.invoke()
     }
     private fun commitShell(value:JSONObject) {
         navigationTrace("route-native-commit")
@@ -459,10 +487,30 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val next=value.page;val id="page:${next.id}"
         if(!frameOrder.accept(id,next.session,next.generation,next.revision)){reply(status().put("accepted",false).put("reason","frame-order"));return}
         if(next.enabled&&host==null)attach()
+        val pending=settingsHandoff
+        if(pending!=null&&pending.accepts(next,value.navigation)) {
+            androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
+                retained.update(next);pages[next.id]=next;pageNavigations[next.id]=value.navigation
+                cache.commit(value.cache)
+                settingsHandoff=null;handoffFooter=null
+                commitShell(pending.shell);presented=next
+            }
+            navigationTrace("page-native-commit:${next.id}")
+            recordMotion(next.key)
+            if(!bootTintSettled){bootTintSettled=true;BootSurfaceTint.settle(web.context as? android.app.Activity)}
+            settingsTrace("stage-settings-handoff","key" to next.key,"navigation" to value.navigation)
+            NavigationTiming.mark("page-ui-commit",(SystemClock.elapsedRealtime()-started).toDouble())
+            // 原生页首次以不透明内容接管后，才让 JS 隐藏旧舞台。
+            // postOnAnimation 后的普通 post 在该次 UI traversal 后执行。
+            host?.postOnAnimation { web.post { pending.complete?.invoke() } } ?: pending.complete?.invoke()
+            reply(status().put("accepted",true).put("session",next.session).put("reason",""))
+            return
+        }
         // Do not poison retained geometry with an enabled packet from a route being
         // retired (e.g. the home DOM acquiring the stage's safe-area coordinates).
         val ownsPresentation=retained.updateForRoute(next,destination,selectedTab,pageTarget,value.navigation,navigation)
         if(ownsPresentation){
+            settingsHandoffFailed=false
             pages[next.id]=next;pageNavigations[next.id]=value.navigation
             navigationTrace("page-native-commit:${next.id}")
             recordMotion(next.key)
@@ -670,7 +718,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val settingsRoot = NativeFooterLayout.settingsRoot(destination,pageTarget,settingsRootRequested)
         // pendingStageEntry 不再抽走底栏：极简入场时它们会被页面自然覆盖；
         // 经典 WebView 舞台入场仍在 commit 时按路由规则收起。
-        val visible = if (!webOverlay&&(!pendingStageEntry||minimalPlayerEnabled())) surfaces.values.filter {
+        val displayedSurfaces=if(settingsHandoff!=null&&handoffFooter!=null)
+            surfaces.values.filter{it.id!="stage"}+listOfNotNull(handoffFooter) else surfaces.values.toList()
+        val visible = if (!webOverlay&&(!pendingStageEntry||minimalPlayerEnabled())) displayedSurfaces.filter {
             it.enabled && NativeFooterLayout.visible(
                 it.id,
                 if(composeOwnsMinimalEntry&&it.id!="stage")(page?.id?:"home") else destination,
@@ -704,7 +754,22 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 density = density.density,
             )
             val footerHiddenForIme=imeAnimating||keyboardPx>0f
+            val stageSurface=visible.firstOrNull{it.id=="stage"}
+            val stageShown=stageSurface!=null&&!stageSurface.controlsHidden
+            val stageRect=NativeFooterLayout.rect("stage",width,height,safeTop,safeBottom,false)
+            val stageReduced=reducedMotion||stageSurface?.reducedMotion==true
+            // 新路由/旋转从实际姿态起步；只有舞台内的显隐切换播放跟随动画。
+            val stagePresence by key(destination=="stage",playerPresentation,width>height) {
+                animateFloatAsState(if(stageShown)1f else 0f,
+                    tween(if(stageReduced)0 else STAGE_CONTROLS_MOTION_MS),label="stage-controls-presence")
+            }
+            SideEffect {
+                val layout=stageSubtitleLayout(width,height,safeBottom,stageRect,stageShown,stageReduced)
+                    .put("active",destination=="stage"&&playerPresentation=="stage")
+                if(layout.toString()!=stageLayout.toString()){stageLayout=layout;stageLayoutListener?.invoke(layout)}
+            }
             var lastSettingsNav by remember { mutableStateOf<ChromeSurface?>(null) }
+            SideEffect { if(destination=="stage"||webOverlay)lastSettingsNav=null }
             val settingsNavAlpha by animateFloatAsState(
                 targetValue=if(destination=="settings"&&!settingsRoot)0f else 1f,
                 animationSpec=tween(if(reducedMotion)0 else NativeFooterLayout.SettingsDepthExitMs),
@@ -764,7 +829,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         val travel=with(density){28.dp.roundToPx()}
                         val tabTravel=with(density){8.dp.roundToPx()}
                         val position=tween<IntOffset>(TingYuMotion.PushMs,easing=ease)
-                        (when(NativeMotionPolicy.kind(from,to,backwards,!focused||!active||reducedMotion||returningFromSettings||stageExit.suppressReturnMotion&&from=="stage")){
+                        val opaqueSettingsEntry=from=="stage"&&to.startsWith("settings:")&&playerPresentation=="stage"
+                        (when(NativeMotionPolicy.kind(from,to,backwards,!focused||!active||reducedMotion||returningFromSettings||opaqueSettingsEntry||stageExit.suppressReturnMotion&&from=="stage")){
                             NativeMotionKind.NONE->EnterTransition.None togetherWith ExitTransition.None
                             NativeMotionKind.STAGE->fadeIn(tween(140,easing=ease)) togetherWith fadeOut(tween(if(to=="stage"&&playerPresentation=="minimal")1 else 100,delayMillis=if(to=="stage"&&playerPresentation=="minimal")520 else 0,easing=ease))
                             NativeMotionKind.TAB->(slideInHorizontally(tween(TingYuMotion.TabInMs,easing=ease)){tabTravel}+fadeIn(tween(TingYuMotion.TabInMs,easing=ease))) togetherWith (slideOutHorizontally(tween(TingYuMotion.TabOutMs,easing=ease)){-tabTravel}+fadeOut(tween(TingYuMotion.TabOutMs,easing=ease)))
@@ -850,7 +916,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             // 只在 settings 生效 —— 舞台/详情/启动期完全走原来的路径，不碰既有的闪烁修复。
             val miniNow = visible.firstOrNull { it.id == "mini" }
             var lastMini by remember { mutableStateOf<ChromeSurface?>(null) }
-            SideEffect { if (miniNow != null) lastMini = miniNow }
+            SideEffect { if(destination=="stage"||webOverlay)lastMini=null else if (miniNow != null) lastMini = miniNow }
             var miniGhost by remember { mutableStateOf(false) }
             LaunchedEffect(miniNow, destination, webOverlay) {
                 miniGhost = false
@@ -906,6 +972,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     .offset { IntOffset(with(density){rect.left.dp.roundToPx()},with(density){animatedY.dp.roundToPx()}) }
                     .size(rect.width.dp,rect.height.dp)
                     .graphicsLayer {
+                        if(id=="stage"&&width>height)translationY=(height-rect.top)*density.density*(1f-stagePresence)
                         alpha = when {
                             id!="stage"&&footerHiddenForIme -> 0f
                             id=="mini" -> rect.alpha * miniFade
@@ -915,6 +982,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         if(id=="nav"&&destination=="settings")translationY=with(density){settingsNavOffset.dp.toPx()}
                     }
                     val actions: (String,Double)->Unit = actions@ { action,value ->
+                        if(settingsHandoff!=null)return@actions
+                        if(id=="stage"&&surface.controlsHidden)return@actions
                         if(id!="stage"&&footerHiddenForIme)return@actions
                         if(id=="nav"&&destination=="settings"&&!settingsRoot)return@actions
                         // seed 不是 live 控制条：只接受启动期导航，
@@ -1044,7 +1113,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             MinimalSheetScrim(
                 visible = queueOpen,
                 light = interfaceLight,
-                onClose = { queueOpen = false; minimalCommands.closeQueue() },
+                onClose = { queueOpen = false; queueCommands.closeQueue() },
             )
             AnimatedVisibility(
                 visible = queueOpen,
@@ -1123,23 +1192,22 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     if(presented==null&&destination==routeAtStart&&!webOverlay)pageFallback=true
                 }
             }
-            if(pageFallback)NativePageFallbackPanel(
+            if(pageFallback||settingsHandoffFailed)NativePageFallbackPanel(
                 route=destination,
                 light=LocalInterfacePalette.current.light,
                 modifier=Modifier.fillMaxSize().zIndex(1.5f),
                 onRetry={
-                    pageFallback=false
+                    pageFallback=false;settingsHandoffFailed=false
                     pageListener?.onAction(destination,"","","__refresh","manual-retry",0.0)
                 },
             )
-            if(sleepMenuOpen&&!webOverlay&&active&&focused&&!stageExit.active)Box(Modifier.fillMaxSize().zIndex(10f)) {
-                // 桥调用没有按钮锚点；使用当前窗口可见底边，横屏时仍留足可滚动高度。
-                val bottom=(height-safeBottom-12f).coerceAtLeast(safeTop+1f)*density.density
-                val center=width*density.density/2f
-                val anchor=sleepMenuAnchor?.takeIf { it.top < height*density.density && it.center.x in 0f..width*density.density }
-                    ?: androidx.compose.ui.geometry.Rect(center-24f*density.density,bottom,center+24f*density.density,bottom+1f)
-                MiniSleepMenu(sleepUi,anchor,safeTop,interfaceLight,if(destination=="stage"&&!legacySampling)stageBackdrop else backdrop,
-                    preferredMinutes=surfaces["mini"]?.sleepPreferredMinutes?:30,reduced=reducedMotion){sleepMenuOpen=false}
+            Box(Modifier.fillMaxSize().zIndex(10f)) {
+                val sleepVisible=sleepMenuOpen&&!webOverlay&&active&&focused&&!stageExit.active
+                TyPanelScrim(sleepVisible,interfaceLight,{sleepMenuOpen=false})
+                AnimatedVisibility(sleepVisible,enter=minimalSheetEnter(),exit=minimalSheetExit()) {
+                    MiniSleepMenu(sleepUi,safeTop,safeBottom,interfaceLight,
+                        preferredMinutes=surfaces["mini"]?.sleepPreferredMinutes?:30,reduced=reducedMotion){sleepMenuOpen=false}
+                }
             }
             SupportSheetLayer(supportSheet,supportCopyJson,interfaceLight){supportSheet=null}
             // 二级操作面板：盖在底栏/迷你播放器/极简页之上，任何路由都可呈现。
@@ -1148,6 +1216,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         }
     }
     fun destroy() {
+        settingsHandoff?.complete?.invoke();settingsHandoff=null;handoffFooter=null
         sleepMenuOpen=false;sleepMenuAnchor=null;minimalSleepAnchor=androidx.compose.ui.geometry.Rect.Zero
         routeFence.close()
         webSamplingLayer.close()

@@ -8,7 +8,7 @@ internal class NativePageRetention(private val limit:Int=12) {
     fun updateForRoute(page:NativePage,route:String,selected:Int,target:String,packetNavigation:String,navigation:String)=
         pageBelongsToRoute(page,route,selected,target,packetNavigation,navigation)&&update(page)
     fun update(page:NativePage):Boolean{
-        if(!page.enabled||page.key.startsWith("settings:loading:")||page.key.startsWith("settings:document:")&&page.document==null)return false
+        if(!nativePageReady(page))return false
         frames.remove(page.key);frames[page.key]=page
         while(frames.size>limit)frames.remove(frames.keys.first())
         return true
@@ -20,6 +20,8 @@ internal class NativePageRetention(private val limit:Int=12) {
     fun clear(){frames.clear()}
     fun lastBrowsing():NativePage?=frames.values.lastOrNull{it.id in setOf("home","collection","search")}
 }
+internal fun nativePageReady(page:NativePage)=page.enabled&&!page.key.startsWith("settings:loading:")&&
+    (!page.key.startsWith("settings:document:")||page.document!=null)
 internal fun pageBelongsToRoute(page:NativePage,route:String,selected:Int,target:String,packetNavigation:String,navigation:String):Boolean =
     packetNavigation==navigation&&page.id==route&&
         (route!="home"||page.key.startsWith(if(selected==1)"library:"else"home:"))&&

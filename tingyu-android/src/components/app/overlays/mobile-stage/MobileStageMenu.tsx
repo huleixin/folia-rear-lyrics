@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { AudioLines, Captions, Moon, Palette, Settings2, SlidersHorizontal } from 'lucide-react';
+import { AudioLines, Captions, AlarmClock, Palette, Settings2, SlidersHorizontal } from 'lucide-react';
 import PlayerControlIcon from '../../icons/PlayerControlIcon';
 import { useTranslation } from 'react-i18next';
 import './mobileStageMenu.css';
@@ -67,6 +67,7 @@ export default function MobileStageMenu({
     }, [onClose]);
     const run = (action: () => void) => {
         onClose();
+        onClosed?.();
         action();
     };
     // 退场动画结束后通知宿主摘除：onAnimationEnd 对入场动画也会触发，
@@ -111,14 +112,14 @@ export default function MobileStageMenu({
             <button role="menuitem" onClick={() => run(() => { void openNativeSleepTimer().then(handled => {
                 if (!handled) useSleepTimerStore.setState({ sleepTimerSheetOpen: true });
             }); })}>
-                <Moon size={18} />
+                <AlarmClock size={18} />
                 {t('mobileStage.sleepTimer')}
             </button>
             <button role="menuitem" onClick={() => run(() => { void openNativeQueueSheet().then(handled => { if (handled) return; const state=useAppViewStore.getState();state.setPanelTab('queue');state.setIsPanelOpen(true); }); })}>
                 <PlayerControlIcon kind="queue" size={18} />
                 {t('mobileStage.queueMenu')}
             </button>
-            <button role="menuitem" onClick={() => run(() => openSettings('options', 'playback'))}>
+            <button role="menuitem" onPointerDown={warmSettingsModule} onClick={() => run(() => openSettings('options', 'playback'))}>
                 <Settings2 size={18} />
                 {t('mobileStage.playbackSettings')}
             </button>

@@ -59,7 +59,8 @@ class MiniSleepPreviewActivity:ComponentActivity() {
                                 .onGloballyPositioned{anchor=it.boundsInRoot()})
                         val nav=NativeFooterLayout.rect("nav",w,h,24f,24f,false)
                         ChromeNavigation(surface.copy(id="nav",selected=0),backdrop,Modifier.offset(nav.left.dp,nav.top.dp).size(nav.width.dp,nav.height.dp)){_,_->}
-                        if(menu)MiniSleepMenu(ui,anchor,24f,light,backdrop,30,true){menu=false}
+                        TyPanelScrim(menu,light,{menu=false})
+                        if(menu)MiniSleepMenu(ui,24f,24f,light,30,true){menu=false}
                     }
                 }
             }

@@ -4,7 +4,7 @@ import { playerBottomBarLiveOffset } from '../stores/motionSignals';
 import { usePlayerChromeSettingsStore } from '../stores/usePlayerChromeSettingsStore';
 import { useIsPlayerBottomBarHost } from '../components/floating-player/PlayerBottomBarLayoutContext';
 import { useMediaQuery } from './useMediaQuery';
-import { mobileStageSubtitleClearance, resolveHostSubtitleBottom } from '../utils/mobileStageSubtitleClearance';
+import { mobileStageSubtitleClearance, nativeLandscapeSubtitleBottom, resolveHostSubtitleBottom } from '../utils/mobileStageSubtitleClearance';
 import {
     PLAYER_BOTTOM_BAR_BASE_OFFSET_PX,
     resolvePlayerBottomComponentBottomPx,
@@ -70,10 +70,10 @@ export const usePlayerSubtitleBottomPx = (isPlayerChromeHidden: boolean): Motion
     }, [controlBarPresence, isControlBarAbsent]);
 
     return useTransform(
-        [controlBarPresence, playerBottomBarLiveOffset, mobileStageSubtitleClearance],
-        ([presence, offset, clearance]: number[]) => resolveHostSubtitleBottom(resolvePlayerSubtitleBottomFromPresence(
+        [controlBarPresence, playerBottomBarLiveOffset, mobileStageSubtitleClearance, nativeLandscapeSubtitleBottom],
+        ([presence, offset, clearance, landscapeBottom]: number[]) => resolveHostSubtitleBottom(resolvePlayerSubtitleBottomFromPresence(
             isBottomBarHost ? offset : PLAYER_BOTTOM_BAR_BASE_OFFSET_PX,
             presence,
-        ), clearance, isBottomBarHost),
+        ), clearance, isBottomBarHost, landscapeBottom),
     );
 };

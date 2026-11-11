@@ -5,6 +5,7 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import io.github.huleixin.tingyu.chrome.TyPanelMotion
 import io.github.huleixin.tingyu.chrome.TyPanelScrim
 import io.github.huleixin.tingyu.chrome.TyPanelTheme
@@ -37,5 +38,6 @@ internal fun MinimalSheetScrim(
     light: Boolean,
     onClose: () -> Unit,
 ) {
-    TyPanelScrim(visible, light, onClose)
+    // 宿主页面和播放器最高在 z=3；遮罩必须在它们上面，才能收到面板外的点击。
+    TyPanelScrim(visible, light, onClose, Modifier.fillMaxSize().zIndex(5f))
 }

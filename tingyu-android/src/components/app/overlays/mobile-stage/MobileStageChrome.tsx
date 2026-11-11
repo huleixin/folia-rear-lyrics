@@ -22,6 +22,7 @@ import MobileStageMenu from './MobileStageMenu';
 import { useMobileGlass } from '../../../../hooks/useMobileGlass';
 import { useMobileStageSubtitleClearance } from './useMobileStageSubtitleClearance';
 import { useComposeChrome } from '../../../../hooks/useComposeChrome';
+import { PREHIDE_COMPOSE_CHROME } from '../../../../services/nativeChrome';
 import { useReducedMotionFor } from '../../../../hooks/useReducedMotionFor';
 import { getPlaybackSongKey } from '../../../../utils/appPlaybackGuards';
 import { playbackModeLabelKey, playbackModeLegacyToken, resolvePlaybackMode } from '../../../../utils/playbackMode';
@@ -95,7 +96,8 @@ export default function MobileStageChrome({
     // booleans, so the two views cannot show different modes for the same state.
     const mode = resolvePlaybackMode(controls?.shuffleEnabled, controls?.loopMode);
     const loop = playbackModeLegacyToken(mode);
-    const compose = useComposeChrome(playerRef,'stage',!hidden&&!!controls&&!controls.hideControlBar,{
+    const compose = useComposeChrome(playerRef,'stage',!!controls&&!controls.hideControlBar&&((PREHIDE_COMPOSE_CHROME&&orientation.landscape)||!hidden),{
+        controlsHidden:hidden||!!controls?.hideControlBar,
         playerTransition:stageTransition,playing:controls?.playerState===PlayerState.PLAYING,disabled:disabled||moving,duration:controls?.duration||0,
         trackKey:song?getPlaybackSongKey(song):'',canNext:!!controls?.trackNavigation?.canNext,canPrevious:!!controls?.trackNavigation?.canPrev,
         loop,accent,ink,reducedMotion,labels:{play:t('mobileLibrary.play'),pause:t('mobileLibrary.pause'),queue:t('mobileStage.queue'),seek:t('mobileStage.seek'),loop:t('mobileStage.loop'),loopValue:t(playbackModeLabelKey(mode)),

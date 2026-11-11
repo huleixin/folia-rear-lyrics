@@ -34,6 +34,10 @@ public class TingyuChromePlugin extends Plugin {
             JSObject event=new JSObject();event.put("id",id);event.put("session",session);event.put("key",key);
             event.put("action",action);event.put("text",text);event.put("value",value);traceDispatch(event);notifyListeners("pageAction",event);
         });
+        host.setStageLayoutListener(value -> {
+            try { notifyListeners("stageLayout",JSObject.fromJSONObject(value)); } catch(Exception ignored){}
+            return kotlin.Unit.INSTANCE;
+        });
         host.setPanelListener((id,session,key,action,text,value) -> {
             JSObject event=new JSObject();event.put("id",id);event.put("session",session);event.put("key",key);
             event.put("action",action);event.put("text",text);event.put("value",value);traceDispatch(event);notifyListeners("panelAction",event);
@@ -214,7 +218,11 @@ public class TingyuChromePlugin extends Plugin {
         if(host!=null)host.panelRemove(call.getString("id",""),call.getString("session",""));call.resolve();
     }); }
     @PluginMethod public void shell(PluginCall call) { getActivity().runOnUiThread(() -> {
-        try { host().shell(call.getData());call.resolve(); } catch(Exception error){call.reject(error.getMessage(),error);}
+        try { host().shell(call.getData(),()->{call.resolve();return kotlin.Unit.INSTANCE;}); } catch(Exception error){call.reject(error.getMessage(),error);}
+    }); }
+    @PluginMethod public void getStageLayout(PluginCall call) { getActivity().runOnUiThread(() -> {
+        try { call.resolve(JSObject.fromJSONObject(host().stageLayoutSnapshot())); }
+        catch(Exception error){call.reject(error.getMessage(),error);}
     }); }
     @PluginMethod public void collapseStage(PluginCall call) { getActivity().runOnUiThread(() -> {
         try { host().collapseStage(() -> { call.resolve();return kotlin.Unit.INSTANCE; }); }

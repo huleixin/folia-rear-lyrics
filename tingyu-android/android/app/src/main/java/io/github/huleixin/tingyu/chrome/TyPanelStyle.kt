@@ -101,8 +101,8 @@ internal object TyPanelMotion {
  * 点击关闭 = 与 WebView .ml-sheet-scrim 的"点空白处关闭"同一语义。
  */
 @Composable
-internal fun TyPanelScrim(visible: Boolean, light: Boolean, onClose: () -> Unit) {
-    AnimatedVisibility(visible = visible, enter = TyPanelMotion.ScrimEnter, exit = TyPanelMotion.ScrimExit) {
+internal fun TyPanelScrim(visible: Boolean, light: Boolean, onClose: () -> Unit, modifier: Modifier = Modifier) {
+    AnimatedVisibility(visible = visible, enter = TyPanelMotion.ScrimEnter, exit = TyPanelMotion.ScrimExit, modifier = modifier) {
         Box(
             Modifier
                 .fillMaxSize()

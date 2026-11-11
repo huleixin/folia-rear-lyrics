@@ -117,7 +117,7 @@ object PlayerIcons {
         ),
     )
 
-    /** control_audio_bars 音频柱标识 —— 只用于音质徽章，不是随机播放。 */
+    /** control_audio_bars 音频柱标识 —— 用于音质徽章和音质入口，不是随机播放。 */
     val AUDIO_BARS = PlayerIcon(
         stroke = listOf(
             StrokeRun(2.85f, listOf("M3.7 17.2 V20.4 M7.85 12.4 V20.4 M12.0 6.2 V20.4 M16.15 12.4 V20.4 M20.3 17.2 V20.4")),

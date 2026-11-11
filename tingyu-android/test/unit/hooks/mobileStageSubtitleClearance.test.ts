@@ -2,7 +2,7 @@
 import { act, createElement as h, useRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { mobileStageSubtitleClearance, resolveHostSubtitleBottom, resolveMobileStageSubtitleClearance } from '../../../src/utils/mobileStageSubtitleClearance';
+import { mobileStageSubtitleClearance, nativeLandscapeSubtitleBottom, resolveHostSubtitleBottom, resolveMobileStageSubtitleClearance } from '../../../src/utils/mobileStageSubtitleClearance';
 import { useMobileStageSubtitleClearance } from '../../../src/components/app/overlays/mobile-stage/useMobileStageSubtitleClearance';
 import { PlayerBottomBarLayoutContext } from '../../../src/components/floating-player/PlayerBottomBarLayoutContext';
 import { usePlayerSubtitleBottomPx } from '../../../src/hooks/usePlayerBottomBarBottomPx';
@@ -21,7 +21,7 @@ beforeEach(() => {
     });
     host = document.createElement('div'); document.body.append(host); root = createRoot(host);
 });
-afterEach(() => { act(() => root.unmount()); host.remove(); mobileStageSubtitleClearance.set(0); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => { act(() => root.unmount()); host.remove(); mobileStageSubtitleClearance.set(0); nativeLandscapeSubtitleBottom.set(-1); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 it.each([360, 393, 430])('places the subtitle above the actual control bounds at %ipx, including multiline text', width => {
     const stage = new DOMRect(0, 0, width, 860);
@@ -74,4 +74,9 @@ it('keeps the real subtitle hook unchanged outside the front player host, even w
     expect(values.at(-1)).toBe(112);
     await act(async () => root.render(h(PlayerBottomBarLayoutContext.Provider, { value: true }, h(SubtitleProbe))));
     expect(values.at(-1)).toBe(220);
+    nativeLandscapeSubtitleBottom.set(20);
+    await act(async () => root.render(h(PlayerBottomBarLayoutContext.Provider, { value: false }, h(SubtitleProbe))));
+    expect(values.at(-1)).toBe(112);
+    await act(async () => root.render(h(PlayerBottomBarLayoutContext.Provider, { value: true }, h(SubtitleProbe))));
+    expect(values.at(-1)).toBe(20);
 });

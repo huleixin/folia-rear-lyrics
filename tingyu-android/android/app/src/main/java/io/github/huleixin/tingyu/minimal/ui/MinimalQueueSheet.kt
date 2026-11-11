@@ -8,6 +8,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -203,6 +204,7 @@ fun MinimalQueueSheet(
                 .height(animatedHeight)
                 .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
                 .background(theme.surface)
+                .pointerInput(Unit) { detectTapGestures { /* 面板内空白不穿透到关闭遮罩。 */ } }
                 .align(Alignment.BottomCenter),
         ) {
                 // 把手：上下拖在两档高度间切换；半档再往下拖即关闭。

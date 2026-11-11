@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -19,24 +20,21 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.kyant.backdrop.Backdrop
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/MiniSleepMenu.kt
 internal class SleepMenuColors(private val palette:InterfacePalette) {
@@ -52,17 +50,19 @@ internal class SleepMenuColors(private val palette:InterfacePalette) {
     val selected=accent.copy(alpha=.14f)
 
 }
-@Composable internal fun SleepMoon(color:Color,modifier:Modifier=Modifier,active:Boolean=false) {
+@Composable internal fun SleepAlarm(color:Color,modifier:Modifier=Modifier) {
     Canvas(modifier.size(22.dp)) {
         val u=size.minDimension/24f
+        val stroke=Stroke(1.8f*u,cap=StrokeCap.Round)
+        drawCircle(color,8f*u,Offset(12f*u,13f*u),style=stroke)
         val path=Path().apply {
-            moveTo(20.8f*u,13f*u);cubicTo(19.6f*u,13.6f*u,18.2f*u,13.9f*u,16.9f*u,13.9f*u)
-            cubicTo(12.5f*u,13.9f*u,9f*u,10.4f*u,9f*u,6f*u);cubicTo(9f*u,4.7f*u,9.3f*u,3.4f*u,9.9f*u,2.2f*u)
-            cubicTo(5.7f*u,3.2f*u,2.8f*u,6.8f*u,2.8f*u,11.2f*u);cubicTo(2.8f*u,16.4f*u,7f*u,20.6f*u,12.2f*u,20.6f*u)
-            cubicTo(16.4f*u,20.6f*u,20f*u,17.7f*u,20.8f*u,13f*u);close()
+            moveTo(12f*u,8f*u);lineTo(12f*u,13f*u);lineTo(15f*u,15f*u)
+            moveTo(3f*u,5f*u);lineTo(6f*u,2f*u)
+            moveTo(18f*u,2f*u);lineTo(21f*u,5f*u)
+            moveTo(6f*u,20f*u);lineTo(4f*u,22f*u)
+            moveTo(18f*u,20f*u);lineTo(20f*u,22f*u)
         }
-        drawPath(path,color,style=Stroke(1.8f*u,cap=StrokeCap.Round))
-        if(active){val z=Path().apply{moveTo(16f*u,3f*u);lineTo(20f*u,3f*u);lineTo(16f*u,7f*u);lineTo(20f*u,7f*u)};drawPath(z,color,style=Stroke(1.5f*u,cap=StrokeCap.Round))}
+        drawPath(path,color,style=stroke)
     }
 }
 @Composable internal fun MiniSleepButton(ui:MiniSleepUi,light:Boolean,width:Float,reduced:Boolean,action:()->Unit,modifier:Modifier=Modifier) {
@@ -75,17 +75,18 @@ internal class SleepMenuColors(private val palette:InterfacePalette) {
     ChromeButton(label,modifier=modifier,size=width.dp,reduced=reduced,onClick=action) {
         Column(Modifier.background(if(snapshot.active)colors.accent.copy(alpha=.10f)else Color.Transparent,RoundedCornerShape(14.dp))
             .padding(horizontal=4.dp,vertical=2.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
-            SleepMoon(color,Modifier.size(if(snapshot.active&&!snapshot.waiting)17.dp else 21.dp),snapshot.active)
+            SleepAlarm(color,Modifier.size(if(snapshot.active&&!snapshot.waiting)17.dp else 21.dp))
             if(snapshot.active&&!snapshot.waiting)Text(snapshot.minutesAt(now),color=color,fontSize=8.sp,lineHeight=10.sp,maxLines=1)
         }
     }
 }
 
-/** One in-scene floating surface. The same measured bottom edge anchors both views. */
-@Composable internal fun MiniSleepMenu(ui:MiniSleepUi,anchor:Rect,safeTop:Float,light:Boolean,backdrop:Backdrop,
+/** 与队列共用面板底色和动效，短屏内容滚动；定时状态仍由原生服务持有。 */
+@Composable internal fun MiniSleepMenu(ui:MiniSleepUi,safeTop:Float,safeBottom:Float,light:Boolean,
     preferredMinutes:Int=30,reduced:Boolean=false,onDismiss:()->Unit) {
     val palette=LocalInterfacePalette.current
     val colors=remember(palette){SleepMenuColors(palette)}
+    val theme=TyPanelTheme.of(light,palette.style)
     val snapshot=ui.snapshot
     val now=sleepDisplayNow(snapshot,LocalChromeRendering.current,true)
     var advanced by rememberSaveable { mutableStateOf(false) }
@@ -98,19 +99,39 @@ internal class SleepMenuColors(private val palette:InterfacePalette) {
     BackHandler {onDismiss()}
     DisposableEffect(ui){ui.clearError();onDispose{ui.clearError()}}
     fun start(nextMode:String,duration:Long){if(ui.start(nextMode,duration))onDismiss()}
-    Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().semantics{contentDescription="关闭定时菜单"}.clickable(
-            interactionSource=remember{MutableInteractionSource()},indication=null,onClick=onDismiss))
-        val scale=LocalDensity.current.density
-        Layout(modifier=Modifier.fillMaxSize(),content={
-            Column(Modifier.animateContentSize(tween(if(reduced)0 else 180)).chromeGlass(backdrop,light,28.dp)
-                .background(colors.tint,RoundedCornerShape(28.dp))
-                .clip(RoundedCornerShape(28.dp)).pointerInput(Unit){detectTapGestures{}}
-                .semantics{paneTitle="定时关闭"}.verticalScroll(scroll).padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+    val density=LocalDensity.current
+    val dismiss by rememberUpdatedState(onDismiss)
+    var drag by remember { mutableFloatStateOf(0f) }
+    val handle=Modifier.pointerInput(Unit) {
+        detectVerticalDragGestures(onDragStart={drag=0f},onDragCancel={drag=0f},
+            onDragEnd={if(drag>with(density){56.dp.toPx()})dismiss();drag=0f}) {change,amount->change.consume();drag+=amount}
+    }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+            .heightIn(max=(maxHeight-safeTop.dp).coerceAtLeast(0.dp))
+            .clip(RoundedCornerShape(topStart=TyPanelDims.TopRadius.dp,topEnd=TyPanelDims.TopRadius.dp))
+            .background(theme.surface).pointerInput(Unit){detectTapGestures{}}
+            .semantics{paneTitle="定时关闭"}) {
+            Box(Modifier.fillMaxWidth().height(28.dp).then(handle),contentAlignment=Alignment.Center) {
+                Box(Modifier.size(36.dp,4.dp).background(theme.muted.copy(alpha=.35f),RoundedCornerShape(99.dp)))
+            }
+            Row(Modifier.fillMaxWidth().padding(horizontal=20.dp).then(handle),verticalAlignment=Alignment.CenterVertically) {
+                SleepAlarm(colors.ink,Modifier.size(22.dp))
+                Text("定时关闭",color=theme.text,fontSize=17.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f).padding(start=10.dp))
+                ChromeButton("关闭定时菜单",size=44.dp,onClick=onDismiss){
+                    Canvas(Modifier.size(22.dp)) {
+                        val u=size.minDimension/22f
+                        drawLine(theme.text,Offset(5f*u,5f*u),Offset(17f*u,17f*u),1.8f*u,StrokeCap.Round)
+                        drawLine(theme.text,Offset(17f*u,5f*u),Offset(5f*u,17f*u),1.8f*u,StrokeCap.Round)
+                    }
+                }
+            }
+            Column(Modifier.weight(1f,fill=false).verticalScroll(scroll)
+                .padding(start=20.dp,end=20.dp,top=8.dp,bottom=maxOf(safeBottom,TyPanelDims.BottomPadding).dp),
+                verticalArrangement=Arrangement.spacedBy(10.dp)) {
                 Row(Modifier.fillMaxWidth().heightIn(min=40.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                     if(advanced)ChromeButton("返回快捷定时",size=32.dp,onClick={advanced=false;ui.clearError()}){PageIcon("chevron-left",colors.ink,Modifier.size(20.dp))}
-                    else SleepMoon(colors.ink,Modifier.size(21.dp))
-                    Text(if(advanced)"定时关闭 · 更多选项"else"定时关闭",color=colors.ink,fontSize=15.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
+                    Text(if(advanced)"更多选项"else"快捷定时",color=colors.muted,fontSize=13.sp,modifier=Modifier.weight(1f))
                     if(!advanced)SleepMenuAction("更多选项 ›",colors,Modifier.widthIn(min=88.dp),small=true){advanced=true;ui.clearError()}
                 }
                 if(snapshot.active) {
@@ -158,17 +179,6 @@ internal class SleepMenuColors(private val palette:InterfacePalette) {
                 }
                 if(ui.error.isNotBlank())Text(ui.error,color=LocalInterfacePalette.current.sleepError,fontSize=12.sp,lineHeight=18.sp,modifier=Modifier.semantics{contentDescription="定时设置失败：${ui.error}"})
             }
-            Canvas(Modifier.size(16.dp,10.dp)) {
-                val path=Path().apply{moveTo(0f,0f);lineTo(size.width/2,size.height);lineTo(size.width,0f)}
-                drawPath(path,colors.arrowTint);drawPath(path,colors.line,style=Stroke(.8.dp.toPx()))
-            }
-        }){measurables,constraints->
-            val top=(safeTop*scale).toInt()
-            val placement=sleepMenuPlacement(constraints.maxWidth,constraints.maxHeight,top,anchor.center.x.toInt(),anchor.top.toInt(),advanced,scale=scale)
-            val card=measurables[0].measure(Constraints(minWidth=placement.width,maxWidth=placement.width,maxHeight=placement.maxHeight))
-            val arrow=measurables[1].measure(Constraints.fixed((16*scale).toInt(),(10*scale).toInt()))
-            val placed=sleepMenuPlacement(constraints.maxWidth,constraints.maxHeight,top,anchor.center.x.toInt(),anchor.top.toInt(),advanced,card.height,scale)
-            layout(constraints.maxWidth,constraints.maxHeight){card.place(placed.left,placed.top);arrow.place(placed.arrowLeft,placed.arrowTop)}
         }
     }
 }

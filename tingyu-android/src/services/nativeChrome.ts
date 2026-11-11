@@ -12,7 +12,9 @@ export type ChromeSurfaceId = 'nav' | 'mini' | 'stage';
  * own (native reads its data directly), so it is an action id but never a surface id.
  */
 export type ChromeActionId = ChromeSurfaceId | 'minimal';
+export type NativeStageLayout = {active:boolean;width:number;height:number;safeBottom:number;shown:boolean;shownBottom:number;hiddenBottom:number;durationMs:number};
 export type ChromeData = {
+    controlsHidden?: boolean;
     playerTransition?: 'idle' | 'to-stage' | 'to-minimal';
     title?: string; artist?: string; cover?: string; trackKey?: string; playing?: boolean; disabled?: boolean;
     canNext?: boolean; canPrevious?: boolean; duration?: number; selected?: number; loop?: string;
@@ -23,6 +25,8 @@ export type ChromeAction = {nativeDispatchedAt?:number;nativeGestureId?:number;i
 export type ChromeFrame = {id: ChromeSurfaceId; session: string; generation: number; revision: number; enabled: boolean;
     left: number; top: number; width: number; height: number; alpha: number; viewportWidth: number; safeBottom?:number; data: ChromeData & {position?: number}};
 export const chromeNative = registerPlugin<{
+    getStageLayout():Promise<NativeStageLayout>;
+    addListener(name:'stageLayout',callback:(value:NativeStageLayout)=>void):Promise<{remove:()=>Promise<void>}>;
     navigationDiagnostics(value:{enabled?:boolean}):Promise<{enabled:boolean;nativeNow:number;startedAt:number;samples:{phase:string;at:number;elapsedMs?:number;gestureId?:number;detail?:Record<string,unknown>}[]}>;
     appearance(value:{mode?:string;style?:string}):Promise<{style:string;mode:'system'|'light'|'dark';systemLight:boolean;light:boolean}>;
     addListener(name:'appearanceChanged',callback:(value:{systemLight:boolean})=>void):Promise<{remove:()=>Promise<void>}>;
