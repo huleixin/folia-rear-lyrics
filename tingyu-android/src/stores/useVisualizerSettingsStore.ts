@@ -720,7 +720,11 @@ export const useVisualizerSettingsStore = create<VisualizerSettingsState>((set, 
 
         const image = buildStoredMonetBackgroundImage(file);
         await saveMonetBackgroundImage(image);
-        useVisualizerAssetStore.setState({ storedMonetBackgroundImage: image });
+        useVisualizerAssetStore.setState({
+            storedMonetBackgroundImage: image,
+            monetBackgroundImage: { id: image.id, name: image.name, url: URL.createObjectURL(image.blob) },
+            isLoadingMonetBackgroundImage: false,
+        });
         setStatusMessage({ type: 'success', text: i18n.t('notifications.monetBgUpdated') });
         return { ok: true };
     },
@@ -754,7 +758,11 @@ export const useVisualizerSettingsStore = create<VisualizerSettingsState>((set, 
 
         const image = buildStoredMonetPortraitImage(file);
         await saveMonetPortraitImage(image);
-        useVisualizerAssetStore.setState({ storedMonetPortraitImage: image });
+        useVisualizerAssetStore.setState({
+            storedMonetPortraitImage: image,
+            monetPortraitImage: { id: image.id, name: image.name, url: URL.createObjectURL(image.blob) },
+            isLoadingMonetPortraitImage: false,
+        });
         setStatusMessage({ type: 'success', text: i18n.t('notifications.monetPortraitUpdated') });
         return { ok: true };
     },

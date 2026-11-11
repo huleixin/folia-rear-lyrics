@@ -709,6 +709,33 @@ public class FoliaNativePlugin extends Plugin {
                     if (mime == null) mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(
                         MimeTypeMap.getFileExtensionFromUrl(name).toLowerCase(Locale.ROOT));
                     if (mime == null) mime = "application/octet-stream";
+                    try {
+                        android.graphics.BitmapFactory.Options opts = new android.graphics.BitmapFactory.Options();
+                        opts.inJustDecodeBounds = true;
+                        android.graphics.BitmapFactory.decodeFile(target.getAbsolutePath(), opts);
+                        if (opts.outWidth > 0 && opts.outHeight > 0) {
+                            if (opts.outMimeType != null && !opts.outMimeType.isEmpty()) mime = opts.outMimeType;
+                            boolean isHeic = "image/heic".equalsIgnoreCase(mime) || "image/heif".equalsIgnoreCase(mime);
+                            boolean lacksExt = !name.matches("(?i).*\\.(png|jpg|jpeg|webp|gif|svg)$");
+                            if (isHeic || lacksExt || "application/octet-stream".equals(mime)) {
+                                android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeFile(target.getAbsolutePath());
+                                if (bmp != null) {
+                                    File transTarget = new File(directory, token + ".jpg");
+                                    try (OutputStream out = new FileOutputStream(transTarget)) {
+                                        bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 92, out);
+                                    }
+                                    bmp.recycle();
+                                    if (transTarget.exists() && transTarget.length() > 0) {
+                                        target.delete();
+                                        target = transTarget;
+                                        mime = "image/jpeg";
+                                        name = name.replaceAll("(?i)\\.[^.]+$", "") + ".jpg";
+                                        if (name.isEmpty() || name.equals(".jpg")) name = "image.jpg";
+                                    }
+                                }
+                            }
+                        }
+                    } catch (Throwable ignored) {}
                     pendingSettingsFiles.put(token, target); created.add(token);
                     files.put(new JSObject().put("id", token).put("name", name).put("mimeType", mime).put("size", target.length()));
                 }
@@ -1203,10 +1230,14 @@ public class FoliaNativePlugin extends Plugin {
     public void setRearCardKeepAwake(PluginCall call){
         boolean enabled=Boolean.TRUE.equals(call.getBoolean("enabled",false));
         if(enabled&&(!LspRearBridge.selected(getContext())||LspRearBridge.get()==null)){
-            LspRearBridge.request(getContext());call.reject("请启用 LSP 系统框架作用域并重启手机后再开启背屏常亮");return;
+            LspRearBridge.request(getContext());
+            if(!LspRearBridge.selected(getContext())){
+                call.reject("请在设置中选择 LSP 模式");return;
+            }
         }
         getContext().getSharedPreferences("rear-card",0).edit().putBoolean("keep-awake",enabled).apply();
         if(!enabled)RearCardKeepAwake.release();
+        else RearLyricsCoordinator.get(getContext()).windowChanged();
         RearHostUpdates.changed();call.resolve();
     }
 

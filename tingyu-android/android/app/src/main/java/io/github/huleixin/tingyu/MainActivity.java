@@ -156,6 +156,7 @@ public class MainActivity extends BridgeActivity {
         io.github.huleixin.tingyu.playback.PlaybackDiagnostics.initialize(getApplicationContext());
         io.github.huleixin.tingyu.playback.PlaybackLifecycle.noteActivity("create", true);
         clearWebViewCachesAfterAppUpdate();
+        if (LspRearBridge.selected(this)) LspRearBridge.request(this);
         boolean skipOptional = io.github.huleixin.tingyu.diagnostics.StartupGuard.skipOptional();
         registerPlugin(io.github.huleixin.tingyu.chrome.BrandLaunchPlugin.class);
         registerPlugin(FoliaNativePlugin.class);

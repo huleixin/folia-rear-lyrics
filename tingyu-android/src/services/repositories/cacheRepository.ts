@@ -32,6 +32,8 @@ const USER_CACHE_KEYS = new Set([
   'user_playlists',
   'user_liked_songs',
   'user_cloud_playlist',
+  'monet_background_image',
+  'monet_portrait_image',
 ]);
 
 export const getCacheTableName = (key: string): CacheTableName => {
@@ -155,6 +157,8 @@ export const clearCacheTables = async (preserveKeys: string[] = []): Promise<voi
     LOCAL_LIBRARY_BOOTSTRAP_MARKER_KEY,
     LOCAL_LIBRARY_ARTIST_SPLIT_MARKER_KEY,
     VIDEO_LAYER_FILE_BLOB_KEY,
+    'monet_background_image',
+    'monet_portrait_image',
   ]);
   await appDatabase.transaction('rw', CACHE_TABLE_NAMES, async () => {
     await Promise.all(CACHE_TABLE_NAMES.map(async name => {

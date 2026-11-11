@@ -900,6 +900,12 @@ final class RearLyricsCoordinator {
         if (scheduled || !wanted()) return;
         scheduled = true; main.postDelayed(check, delay);
     }
+    public void pulseHeartbeat(long now) {
+        if (!wanted()) return;
+        if (LspRearBridge.selected(context)) {
+            if (RearHostBridge.hasSession()) RearHostBridge.pulse(context, now);
+        }
+    }
     private void checkWindow() {
         syncCameraMonitor();
         io.github.huleixin.tingyu.playback.LyricSyncLedger.get().rearContext(wanted() && !dismissed, cameraOwned(), sleeping || RearHostBridge.renderSuspended());

@@ -118,6 +118,9 @@ public class FoliaPlaybackService extends Service {
         public void run() {
             try {
                 refreshSessionClock();
+                if (cachedPlaying) {
+                    RearLyricsCoordinator.get(FoliaPlaybackService.this).pulseHeartbeat(SystemClock.elapsedRealtime());
+                }
             } catch (Throwable ignored) {
                 // 时钟刷新失败绝不能影响播放。
             }
@@ -132,7 +135,10 @@ public class FoliaPlaybackService extends Service {
             noteSessionSample("tick");
             // 心跳顺带一次受控自检：guard 是幂等的（版本一致时什么都不做），
             // 且每个 (songKey, 版本) 最多重发 3 次，因此这不是轮询、也不会反复刷新。
-            if (cachedPlaying) ensureLyricPublished("heartbeat");
+            if (cachedPlaying) {
+                ensureLyricPublished("heartbeat");
+                RearLyricsCoordinator.get(FoliaPlaybackService.this).pulseHeartbeat(SystemClock.elapsedRealtime());
+            }
             mainHandler.postDelayed(this, SERVICE_HEARTBEAT_INTERVAL_MS);
         }
     };
@@ -143,6 +149,7 @@ public class FoliaPlaybackService extends Service {
         // 后台播放服务单独特拉起进程时不算「主界面启动」：它不加载 React，不该计入启动失败。
         io.github.huleixin.tingyu.diagnostics.StartupGuard.noteEntry("service");
         running = true;
+        if (LspRearBridge.selected(this)) LspRearBridge.request(this);
         // 恢复 JS 同步过的歌词偏移（进程重建后、WebView 启动前，原生兜底取词就要用）。
         io.github.huleixin.tingyu.playback.LyricOffsetPersistence.loadOnce(this);
         createNotificationChannel();

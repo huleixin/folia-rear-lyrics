@@ -9,7 +9,7 @@ interface StoredVisualizerImageAsset {
     blob: Blob;
 }
 
-const SUPPORTED_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'];
+const SUPPORTED_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.heic', '.heif', '.avif', '.bmp'];
 
 export const getStoredVisualizerImageAsset = async <T extends StoredVisualizerImageAsset>(key: string): Promise<T | null> => {
     const stored = await getFromCache<T>(key);

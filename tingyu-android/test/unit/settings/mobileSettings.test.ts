@@ -19,7 +19,7 @@ import type { RearLyricsStatus } from '@/services/rearLyricsControl';
 // test/unit/settings/mobileSettings.test.ts
 // DOM/action tests only: jsdom does not measure WebView layout, system bars or scrolling performance.
 const bridge = vi.hoisted(() => ({ getRearLyricsStatus: vi.fn(), startRearLyrics: vi.fn(), returnFromRearLyrics: vi.fn(), setRearCoverSleep: vi.fn() }));
-vi.mock('@/services/rearLyricsControl', () => ({ canUseRearLyrics: () => true, rearLyricsPlugin: () => bridge }));
+vi.mock('@/services/rearLyricsControl', () => ({ canUseRearLyrics: () => true, rearLyricsPlugin: () => bridge, rememberRearControlStatus: vi.fn() }));
 vi.mock('@/services/androidPhoneLayout', () => ({
     applyAndroidPhoneFit: vi.fn(), syncAndroidPhoneFitNative: vi.fn(), readStoredAndroidPhoneFit: () => false,
     readStoredAndroidPhoneFitOrientation: () => 'portrait', writeStoredAndroidPhoneFit: vi.fn(), writeStoredAndroidPhoneFitOrientation: vi.fn(),

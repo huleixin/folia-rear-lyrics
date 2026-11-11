@@ -23,6 +23,7 @@ public final class LspRearProvider extends ContentProvider {
         }
         try { LspRearBridge.accept(getContext(), extras.getBinder("service"), extras.getString("profile", "LSP")); }
         catch (Exception error) { throw new IllegalStateException("LSP connection rejected", error); }
+        RearHostUpdates.changed();
         Bundle result = new Bundle(); result.putBoolean("connected", true); result.putBinder("lifeline", lifeline); return result;
     }
     @Override public Cursor query(Uri u, String[] p, String s, String[] a, String o) { throw new SecurityException("No query"); }
