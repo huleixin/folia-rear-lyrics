@@ -61,6 +61,7 @@ import VisPlaygroundPreviewHotspots, { type VisPlaygroundEditSection } from './V
 import VisPlaygroundSettingsPanel from './VisPlaygroundSettingsPanel';
 import type { VisualizerBackgroundActions, VisualizerBackgroundConfig } from './backgrounds/definition';
 import { useVisPlaygroundPreviewPlayback } from './useVisPlaygroundPreviewPlayback';
+import {useNativePreviewVisible} from './useNativePreviewVisible';
 import { NATIVE_FIRST } from '../../services/nativePages';
 
 interface VisPlaygroundProps {
@@ -420,6 +421,8 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
     const spectrum = useMotionValue(new Uint8Array(64));
     const [previewPlaceholderId, setPreviewPlaceholderId] = useState<PreviewPlaceholderId>('default');
     const previewPlaceholder = VIS_PLAYGROUND_PREVIEW_PLACEHOLDERS[previewPlaceholderId];
+    const previewRoot=useRef<HTMLDivElement>(null);
+    const previewVisible=useNativePreviewVisible(previewRoot);
     const [isPreviewPaused, setIsPreviewPaused] = useState(false);
     // Show the complete controls first; creating WebGL/canvas previews must not block entry.
     const [previewReady,setPreviewReady]=useState(!NATIVE_FIRST);
@@ -637,7 +640,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
         visualizerMode,
         loopDuration: previewPlaceholder.loopDuration,
         playbackKey: previewPlaceholderId,
-        isPaused: isPreviewPaused||!previewReady,
+        isPaused: isPreviewPaused||!previewReady||!previewVisible,
     });
 
     useEffect(() => {
@@ -1166,7 +1169,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
     };
 
     return (
-        <motion.div
+        <motion.div ref={previewRoot}
             initial={NATIVE_FIRST||presentation==='page'?false:{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -1214,7 +1217,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                         </div>
 
                         <div className="absolute inset-0" data-settings-layout="column">
-                            {previewReady&&<VisualizerRenderer key={visualizerMode}
+                            {previewReady&&previewVisible&&<VisualizerRenderer key={visualizerMode}
                                 mode={visualizerMode}
                                 currentTime={currentTime}
                                 currentLineIndex={currentLineIndex}

@@ -20,6 +20,7 @@ import { canUseRearCardKeepAwake, toggleRearCardKeepAwake, canUseRearLyrics, tog
 // Commands in the `settings` group: settings subviews, app toggles, theme, sync, and desktop-only switches.
 
 export const settingsCommands: CommandPaletteCommand[] = [
+    defineCommand({id:'rear-tap-controls-toggle',group:'settings',title:'Toggle rear tap controls',description:'Show music controls when tapping the rear stage',keywords:['rear touch playback','背屏点按控件'],isAvailable:canUseRearLyrics,execute:async()=>{const {useRearInteractionStore}=await import('../../../stores/useRearInteractionStore');useRearInteractionStore.getState().toggle();return true;}}),
     defineCommand({id:'rear-keep-awake-toggle',group:'settings',title:'Rear lyrics keep awake',description:'Keep the verified LSP lyric card visible with the main screen off',keywords:['rear keep awake','背屏常亮','背屏歌词亮屏'],isAvailable:canUseRearCardKeepAwake,execute:toggleRearCardKeepAwake}),
     defineCommand({id:'settings-rear-appearance',group:'settings',title:'Rear stage appearance',description:'Configure independent rear stage visuals',keywords:['rear appearance','背屏外观','背屏舞台'],isAvailable:canUseRearLyrics,execute:async()=>{const {useSettingsModalStore}=await import('../../../stores/useSettingsModalStore');useSettingsModalStore.getState().openRearSettings('appearance');return true;}}),
     defineCommand({id:'settings-rear',group:'settings',title:'Rear lyrics settings',description:'Open the rear lyrics control center',

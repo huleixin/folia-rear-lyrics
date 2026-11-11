@@ -1,3 +1,4 @@
+import {useRearInteractionStore} from '../../../stores/useRearInteractionStore';
 import { useRef,useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toggleRearCardKeepAwake,toggleRearCardAod,setRearLyricsBackend,setRearControlEngine,setRearLockedRoute,toggleRearCoverSleep,type RearControlEngine,type RearLockedRoute } from '../../../services/rearLyricsControl';
@@ -8,6 +9,7 @@ import { rearModeLocked } from './rearControlModel';
 // One existing status hook for the whole index/control/advanced/guide journey.
 export function useRearSettingsController(){
     const rear=useRearLyricsSettings(),{t}=useTranslation();
+    const tapControls=useRearInteractionStore(s=>s.tapControls);
     const [changing,setChanging]=useState(false),[error,setError]=useState(''),lock=useRef(false),live=useRef(rear);
     live.current=rear;
     const change=async(kind:'backend'|'engine'|'route'|'cover'|'aod'|'keep-awake',value:string)=>{
@@ -23,6 +25,6 @@ export function useRearSettingsController(){
         }catch{setError(t('rearBridge.failed'));}
         finally{await rear.refresh(true);lock.current=false;setChanging(false);}
     };
-    return {...rear,busy:rear.busy||changing,error,change,show:async()=>{if(lock.current)return;lock.current=true;setError('');try{await rear.toggle(true);}finally{lock.current=false;}},toggle:async()=>{if(lock.current)return;lock.current=true;setError('');try{await rear.toggle();}finally{lock.current=false;}}};
+    return {...rear,tapControls,busy:rear.busy||changing,error,change,show:async()=>{if(lock.current)return;lock.current=true;setError('');try{await rear.toggle(true);}finally{lock.current=false;}},toggle:async()=>{if(lock.current)return;lock.current=true;setError('');try{await rear.toggle();}finally{lock.current=false;}}};
 }
 export type RearSettingsController=ReturnType<typeof useRearSettingsController>;

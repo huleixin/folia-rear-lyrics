@@ -11,6 +11,7 @@ import MobileRandomVisualizerSettings from './MobileRandomVisualizerSettings';
 import { normalizeRandomVisualizerModes } from '../../../utils/randomVisualizerModes';
 import type {RearSettingsPage} from './rearControlModel';
 import {useTranslation} from 'react-i18next';
+import {useShallow} from 'zustand/react/shallow';
 
 // src/components/modal/settings/RearStageAppearancePage.tsx
 // The existing editor receives only rear-profile setters. It cannot mutate front playback/UI state.
@@ -20,7 +21,12 @@ function AppearanceSwitch({label,checked,disabled,onChange}:{label:string;checke
         className="ty-settings-switch" onClick={onChange} data-settings-layout="row"><span className="ty-settings-switch-thumb" data-settings-layout="wrap"/></button>;
 }
 export default function RearStageAppearancePage({page,open}:{page:RearSettingsPage;open:(page:RearSettingsPage)=>void}){
-    const state=useRearStageAppearanceStore(),[busy,setBusy]=useState(false),[error,setError]=useState(''),[importText,setImport]=useState('');
+    // Independent editing does not consume live front-stage snapshots. Avoid rebuilding the
+    // preview and every settings control when playback publishes an unrelated front update.
+    const state=useRearStageAppearanceStore(useShallow(s=>({mode:s.mode,profile:s.profile,ready:s.ready,error:s.error,
+        front:s.mode==='independent'?null:s.front,frontSongKey:s.frontSongKey,
+        initialize:s.initialize,setMode:s.setMode,patch:s.patch,restore:s.restore}))),
+        [busy,setBusy]=useState(false),[error,setError]=useState(''),[importText,setImport]=useState('');
     const file=useRef<HTMLInputElement>(null),{t}=useTranslation();
     const [loadedTheme,setLoadedTheme]=useState(()=>peekRearThemeEditor());
     const ThemeQuickEditor=loadedTheme??peekRearThemeEditor();
@@ -65,7 +71,7 @@ export default function RearStageAppearancePage({page,open}:{page:RearSettingsPa
             </div></div>
             <p className="ty-rear-footnote" data-settings-style='{"font":12,"tone":"muted","margin":[2,8,2,0]}' data-settings-layout="wrap">{t('rearAppearance.preserveHint')}</p>
         </div>
-        <fieldset className="ty-rear-appearance-fields" disabled={!editable} data-settings-layout="column">
+        <fieldset className="ty-rear-appearance-fields" disabled={!editable} data-settings-layout="column" data-settings-style='{"gap":16}'>
             <div className="ty-settings-card" data-settings-style='{"border":true,"radius":14}' data-settings-layout="card">
                 <button className="ty-settings-row" onClick={()=>open('appearance-editor')} data-settings-style='{"align":"center","gap":12,"padding":[14,8,14,8],"minHeight":48}' data-settings-layout="row"><span className="ty-settings-row-copy" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column"><strong data-settings-layout="wrap">{t('rearAppearance.edit')}</strong><small data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">{t('rearAppearance.editHint')}</small></span><ChevronRight size={18}/></button>
                 <button className="ty-settings-row" onPointerDown={()=>{void loadRearThemeEditor().catch(()=>{});}} onFocus={()=>{void loadRearThemeEditor().catch(()=>{});}} onClick={()=>open('appearance-theme')} data-settings-style='{"align":"center","gap":12,"padding":[14,8,14,8],"minHeight":48}' data-settings-layout="row"><span className="ty-settings-row-copy" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column"><strong data-settings-layout="wrap">{t('rearAppearance.theme')}</strong><small data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">{visual?.theme.name}</small></span><ChevronRight size={18}/></button>
@@ -95,7 +101,7 @@ export default function RearStageAppearancePage({page,open}:{page:RearSettingsPa
                     initialSongKey: visual?.randomVisualizer?.initialSongKey ?? state.frontSongKey,
                 } }),
             }}/>
-            <div className="ty-settings-card ty-rear-backup-entry" data-settings-style='{"border":true,"radius":14,"margin":[0,16,0,0]}' data-settings-layout="card"><button className="ty-settings-row" onClick={()=>open('appearance-backup')} data-settings-style='{"align":"center","gap":12,"padding":[14,8,14,8],"minHeight":48}' data-settings-layout="row"><Archive size={18}/><span className="ty-settings-row-copy" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column"><strong data-settings-layout="wrap">{t('rearAppearance.backup')}</strong><small data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">{t('rearAppearance.backupHint')}</small></span><ChevronRight size={18}/></button></div>
+            <div className="ty-settings-card ty-rear-backup-entry" data-settings-style='{"border":true,"radius":14}' data-settings-layout="card"><button className="ty-settings-row" onClick={()=>open('appearance-backup')} data-settings-style='{"align":"center","gap":12,"padding":[14,8,14,8],"minHeight":48}' data-settings-layout="row"><Archive size={18}/><span className="ty-settings-row-copy" data-settings-style='{"gap":4,"grow":true}' data-settings-layout="column"><strong data-settings-layout="wrap">{t('rearAppearance.backup')}</strong><small data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">{t('rearAppearance.backupHint')}</small></span><ChevronRight size={18}/></button></div>
         </fieldset>
         {(error||state.error)&&<p className="ty-rear-notice" role="alert" data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">{error||state.error}</p>}
     </div>;

@@ -81,8 +81,8 @@ html[data-native-settings-semantic='true'] [data-native-preview] {
     max-width: none !important;
     pointer-events: none !important;
 }
-html[data-native-settings-semantic='true'] [data-native-preview][data-native-preview-ready='true'],
-html[data-native-settings-semantic='true'] [data-native-preview][data-native-preview-ready='true'] * {
+html[data-native-settings-semantic='true'] [data-native-preview][data-native-preview-ready='true'][data-native-preview-visible='true'],
+html[data-native-settings-semantic='true'] [data-native-preview][data-native-preview-ready='true'][data-native-preview-visible='true'] * {
     visibility: visible !important;
     pointer-events: none !important;
 }

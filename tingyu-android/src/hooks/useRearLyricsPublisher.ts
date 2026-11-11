@@ -1,3 +1,4 @@
+import {useRearInteractionStore} from '../stores/useRearInteractionStore';
 import {useRearStageAppearanceStore} from '../stores/useRearStageAppearanceStore';
 import {resolveRearStageConfig} from '../services/rearStageAppearance';
 import {nativeAudioIdentity,compatibleOutputSession,compatibleOutputRequest} from '../services/playbackOutputIdentity';
@@ -24,7 +25,8 @@ export function useRearLyricsPublisher(frontConfig: ObsBrowserSourceConfig, cloc
     audio: () => ObsBrowserSourceAudio, readPlaybackClock: RearPlaybackClockReader) {
     const font = useTypographySettingsStore(state => state.lyricsCustomFont);
     const mode=useRearStageAppearanceStore(s=>s.mode),profile=useRearStageAppearanceStore(s=>s.profile),appearanceReady=useRearStageAppearanceStore(s=>s.ready);
-    const config=useMemo(()=>resolveRearStageConfig(frontConfig,{version:1,mode,profile}),[frontConfig,mode,profile]);
+    const tapControls=useRearInteractionStore(s=>s.tapControls);
+    const config=useMemo(()=>({...resolveRearStageConfig(frontConfig,{version:1,mode,profile}),rearTapControls:tapControls}),[frontConfig,mode,profile,tapControls]);
     const rearEnabled=useRearRuntimeStore(s=>s.enabled),appearanceOpen=useSettingsModalStore(s=>!!s.settingsModalState.rearPage?.startsWith('appearance'));
     const [frontUploaded,setFrontUploaded]=useState<RearUploadedFont|null>(null);
 

@@ -5,7 +5,7 @@ import { rearSettingsCanToggle, rearSettingsHint } from './rearLyricsSettingsMod
 
 // src/components/modal/settings/rearControlModel.ts
 export type RearSettingsPage = 'control'|'advanced'|'guide'|'diagnostics'|'appearance'|'appearance-editor'|'appearance-theme'|'appearance-backup';
-export type RearPresentation = { available:boolean;snapshot:RearLyricsStatus|null;busy:boolean;failed:boolean;actionFailed:boolean;error?:string };
+export type RearPresentation = { tapControls?:boolean;available:boolean;snapshot:RearLyricsStatus|null;busy:boolean;failed:boolean;actionFailed:boolean;error?:string };
 type Translate=(key:string,options?:Record<string,unknown>)=>string;
 export const rearPageKey=(page:RearSettingsPage|'index')=>page==='index'?'settings:index':page==='guide'||page==='diagnostics'||page.startsWith('appearance')?`settings:document:rear-${page}`:`settings:rear:${page}`;
 export const rearPageBack=(page:RearSettingsPage)=>page==='control'?'index':page==='appearance-editor'||page==='appearance-theme'||page==='appearance-backup'?'appearance':'control';
@@ -51,6 +51,7 @@ export function buildRearControlPage(page:'control'|'advanced',state:RearPresent
         sections.push({id:'rear-links',layout:'rows',items:[
             {id:'guide',title:t(backend==='lsp'?'rearControl.moduleGuide':'rearControl.authorizationGuide'),subtitle:t('rearControl.guideBrief'),action:'rear:guide'},
             {id:'appearance',title:t('rearAppearance.title'),subtitle:t('rearAppearance.entryHint'),action:'rear:appearance'},
+            {id:'tap-controls',title:t('rearControl.tapControls'),subtitle:t('rearControl.tapControlsHint'),action:'rear:tap-controls',selected:state.tapControls!==false},
             {id:'advanced',title:t('rearControl.advanced'),subtitle:t('rearControl.advancedBrief'),action:'rear:advanced'},
             {id:'diagnostics',title:t('rearControl.diagnostics'),subtitle:t('rearControl.diagnosticsBrief'),action:'rear:diagnostics'}]});
     }else{

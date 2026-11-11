@@ -103,6 +103,8 @@ internal fun SettingsPreview(node: TySettingNode, onAction: PageAction) {
     val liveEnabled = LocalSettingsTraceIdentity.current.liveEnabled
     val viewport = LocalSettingsPreviewViewport.current
     val cutouts = LocalSettingsPreviewCutouts.current
+    val lastPacket = remember(node.id) { arrayOf<String?>(null) }
+    val lastVisible = remember(node.id) { arrayOf<Boolean?>(null) }
     DisposableEffect(node.id, cutouts) { onDispose { cutouts?.remove(node.id) } }
     val latestAction by rememberUpdatedState(onAction)
     Canvas(Modifier.fillMaxWidth().height(node.min.coerceIn(132f, 460f).dp)
@@ -110,13 +112,23 @@ internal fun SettingsPreview(node: TySettingNode, onAction: PageAction) {
             val p = coordinates.positionInWindow(); val clipped = coordinates.boundsInWindow()
             val height = coordinates.size.height.toFloat()
             val bounds = Rect(p.x, p.y, p.x + coordinates.size.width, p.y + height)
-            if (liveEnabled) cutouts?.update(node.id, bounds, clipped.intersect(viewport))
+            val visibleBounds = clipped.intersect(viewport)
+            val visible = liveEnabled && visibleBounds.width > 0f && visibleBounds.height > 0f
+            if (visible) cutouts?.update(node.id, bounds, visibleBounds)
             else cutouts?.remove(node.id)
+            // An offscreen island needs one hide packet, not bridge traffic for every scroll pixel.
+            if (!visible && lastVisible[0] == false) return@onGloballyPositioned
+            lastVisible[0] = visible
             val packet = JSONObject().put("x", p.x / scale).put("y", p.y / scale)
                 .put("w", coordinates.size.width / scale).put("h", height / scale)
                 .put("top", (max(clipped.top, viewport.top) - p.y).coerceIn(0f, height) / scale)
                 .put("bottom", (p.y + height - minOf(clipped.bottom, viewport.bottom)).coerceIn(0f, height) / scale)
-            latestAction("preview:${node.id}", packet.toString(), 0.0)
+            if (!visible) packet.put("top", height / scale).put("bottom", 0)
+            val serialized = packet.toString()
+            if (lastPacket[0] != serialized) {
+                lastPacket[0] = serialized
+                latestAction("preview:${node.id}", serialized, 0.0)
+            }
         }.pointerInput(node.id) { detectTapGestures { point ->
             latestAction("preview-tap:${node.id}", JSONObject().put("x", point.x / scale).put("y", point.y / scale).toString(), 0.0)
         } }) {

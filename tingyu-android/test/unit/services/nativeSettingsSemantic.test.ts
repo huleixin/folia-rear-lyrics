@@ -69,8 +69,14 @@ it('lets Compose place and clip the sole preview island, ignoring its frame-by-f
     expect(result.document.flow!.nodes[1].title).toBe('暂停');
     result.actions[`preview:${node.id}`]?.({ text: JSON.stringify({ x: 16, y: 92, w: 320, h: 240, top: 10, bottom: 0 }) });
     const preview = root.querySelector<HTMLElement>('[data-native-live]')!;
-    expect(preview.style.top).toBe('92px'); expect(preview.style.clipPath).toContain('10px'); expect(preview.dataset.nativePreviewReady).toBe('true');
-    result.actions[`preview:${node.id}`]?.({ text: '{"w":null}' }); expect(preview.style.top).toBe('92px');
+    expect(preview.style.top).toBe('0px'); expect(preview.style.transform).toBe('translate3d(16px, 92px, 0)'); expect(preview.style.clipPath).toContain('10px'); expect(preview.dataset.nativePreviewReady).toBe('true');
+    result.actions[`preview:${node.id}`]?.({ text: '{"w":null}' }); expect(preview.style.top).toBe('0px'); expect(preview.style.transform).toBe('translate3d(16px, 92px, 0)');
+    const visibility=vi.fn();preview.addEventListener('tingyu-preview-visibility',visibility);
+    const packet=(y:number,top:number)=>result.actions[`preview:${node.id}`]?.({text:JSON.stringify({x:16,y,w:320,h:240,top,bottom:0})});
+    packet(-240,240);packet(-260,240);
+    expect(preview.style.visibility).toBe('hidden');expect(visibility).toHaveBeenCalledTimes(1);
+    packet(80,0);expect(preview.style.visibility).toBe('visible');expect(visibility).toHaveBeenCalledTimes(2);
+    expect(preview.style.transform).toBe('translate3d(16px, 80px, 0)');
     clearSemanticPreviews(); expect(preview.style.top).toBe('');
 });
 

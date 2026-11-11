@@ -25,7 +25,9 @@ export default function RearLyricsPanel() {
     const refreshPausedProgress = useRef<(() => void) | null>(null);
     const bar = useRef<HTMLDivElement>(null), elapsedText = useRef<HTMLSpanElement>(null), durationText = useRef<HTMLSpanElement>(null);
     const hideTimer = useRef(0);
-    const [progressVisible, setProgressVisible] = useState(true);
+    const [progressVisible, setProgressVisible] = useState(false);
+    const [controlsEnabled,setControlsEnabled]=useState(false);
+    const controlsAllowed=useRef(false);
     const [theme, setTheme] = useState<Theme | null>(null);
     const lyricEvidence=useRef({lines:0,hasTrack:false});
     useRearLayoutEvidence(lyricEvidence);
@@ -37,6 +39,8 @@ export default function RearLyricsPanel() {
             if (next !== playingRef.current) { playingRef.current = next; setPlaying(next); }
         }, config => {
             setTheme(config.theme);
+            controlsAllowed.current=config.rearTapControls!==false;
+            setControlsEnabled(controlsAllowed.current);
             lyricEvidence.current={lines:config.lyrics?.lines.length??0,hasTrack:config.hasTrack===true};
             window.dispatchEvent(new Event('folia-rear-content-config'));
         }, true, {
@@ -57,9 +61,11 @@ export default function RearLyricsPanel() {
         finally { window.setTimeout(() => setSending(false), 250); }
     };
     const reveal = useCallback(() => {
+        if(!controlsAllowed.current)return;
         setProgressVisible(true); clearTimeout(hideTimer.current);
         hideTimer.current = window.setTimeout(() => setProgressVisible(false), 2500);
     }, []);
+    useEffect(()=>{if(controlsEnabled)reveal();else{clearTimeout(hideTimer.current);setProgressVisible(false);}},[controlsEnabled,reveal]);
     const configured = useCallback(() => {
         rearBootTrace('configured');
         void fetch('/__folia_rear/ready', { cache: 'no-store' }).catch(() => undefined);
@@ -96,7 +102,7 @@ export default function RearLyricsPanel() {
         <div style={{ width: '100%', height: '100%', pointerEvents: 'none' }}>
             <ObsBrowserSourceApp transport={transport} onConfigured={configured} />
         </div>
-        <div hidden={aod} data-testid="rear-progress" aria-hidden={!progressVisible}
+        <div hidden={aod||!controlsEnabled} data-testid="rear-progress" aria-hidden={!progressVisible}
             style={{ position: 'absolute', left: '40.6%', right: '6.6%', bottom: 'max(18px, 8%)', opacity: progressVisible ? 1 : 0,
                 transition: 'opacity 180ms', pointerEvents: progressVisible ? 'auto' : 'none', color: theme?.primaryColor ?? '#eee' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 18, marginBottom: 7 }}>
