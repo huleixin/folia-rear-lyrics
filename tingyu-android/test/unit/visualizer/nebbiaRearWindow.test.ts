@@ -17,7 +17,7 @@ describe('Nebbia rear window scene', () => {
         expect(nebbiaRearPaintsOwnWindow(undefined)).toBe(false);
     });
     it('tightens only the rear wipe edge and leaves the front stage untouched', () => {
-        const spot = { x: 0, y: 0, r: 100, i: 0 };
+        const spot = { x: 0, y: 0, r: 100, i: 0 } as unknown as Parameters<typeof nebbiaFrameUniforms>[2];
         const front = nebbiaFrameUniforms(DEFAULT_NEBBIA_TUNING, [0, 0], spot, 400, 300, 0, null);
         const rear = nebbiaFrameUniforms(DEFAULT_NEBBIA_TUNING, [0, 0], spot, 400, 300, 0, null, true);
         expect(front.edge).toBe(NEBBIA_FIXED.edge);

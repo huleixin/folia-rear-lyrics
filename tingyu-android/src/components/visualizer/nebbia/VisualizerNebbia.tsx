@@ -44,14 +44,16 @@ const VisualizerNebbia: React.FC<Props> = (props) => {
 
     // 分辨率（#929）：全屏着色器没有 MSAA，只跟分辨率倍数；预览的小图保持原来的像素密度
     const renderScale = useStageRenderScale('nebbia');
+    // The rear panel does not forward rearSafeArea through the OBS shell, so resolve it the same way
+    // the reading box does; otherwise this component cannot tell it is on the back screen at all.
+    const rearSafe=props.rearSafeArea??getRearSafeInset();
     // A rear panel always hands this frame a transparent background, so that flag alone cannot decide
     // this: the rain street and the aquarium still have to paint their own window on the back screen.
-    const rearOwnWindow = Boolean(props.rearSafeArea) && !props.isPreviewMode && nebbiaRearPaintsOwnWindow(nebbiaTuning.behind);
+    const rearOwnWindow = Boolean(rearSafe) && nebbiaRearPaintsOwnWindow(nebbiaTuning.behind);
     const seeThrough = rearOwnWindow ? false : nebbiaSeesThrough(nebbiaTuning, props.background, props.isPreviewMode);
     // 透出后面时（播放页透明）窗外不画，但选了水族箱时水珠里折射的还是水族箱（水母照样游，车不颠）；选了共用背景就折射街景
     const scene = nebbiaTuning.behind === 'aquarium' ? 'aquarium' : 'night';
     const glass = nebbiaTuning.glass;
-    const rearSafe=props.rearSafeArea??getRearSafeInset();
     // Native lettering uses the whole camera-safe surface; empty subtitle lanes reserve no space.
     const readingArea = useRearStageReadingArea(rearSafe ?? undefined);
 
