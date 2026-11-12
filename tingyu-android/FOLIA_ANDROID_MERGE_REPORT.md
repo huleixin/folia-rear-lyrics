@@ -201,3 +201,25 @@ pm run typecheck 全面通过。
 
 - 单元测试：test/unit/visualizer/nebbia.test.ts 10/10 全部通过；test/unit/visualizer/machiRearFraming.test.ts 3/3 全部通过。
 - 资产与包构建：已同步构建并生成 1.5.20 正式 Release 包与源码归档。
+
+## 1.5.21：背屏雾笺窗外场景修复与可读性提升
+
+修复基线：e10a2cb126a1f53f5c776167ce04ef3e5a1e4721（1.5.20 / 235）。版本提升为 1.5.21 / 236。
+
+背屏内层把配置里的 `background.transparent` 无条件改成 `true`，而 `nebbiaSeesThrough` 正是用这个字段判断是否透出后方，于是背屏上雨夜街景与梦海流萤都不再绘制，任何窗外选择都只看到外层共用背景。
+
+| 问题 | 修改文件与处理 |
+| --- | --- |
+| 背屏选雨夜街景 / 梦海流萤仍透出共用背景 | `nebbiaBehind.ts` 新增 `nebbiaRearPaintsOwnWindow`；`VisualizerNebbia.tsx` 在背屏下按窗外选择决定是否透出，街景与水族箱自行绘制 |
+| 选「背景」时外层没有可透内容 | `RearLyricsSurface.tsx` 渲染 wallpaper 时使用一份 `transparent: false` 的配置，透明播放页不再让背屏黑屏 |
+| 背屏字迹偏灰、细笔画糊 | `nebbiaGl.ts` 背屏遮罩倍率下限提到 1.5（上限 2.5）；`nebbiaMask.ts` 背屏笔画下限 0.75 → 1.05；`nebbiaFrameUniforms.ts` 背屏擦痕边缘收紧到 0.62 倍，主屏取值不变 |
+
+动画时序、构图选择、逐字高亮、书写速度、水珠雨痕与摄像头避让均未改动。
+
+### 检查结果
+
+- 新增 `test/unit/visualizer/nebbiaRearWindow.test.ts`：窗外场景选择与背屏擦痕边缘 3/3 通过。
+- 定向单元测试：雾笺 10/10、町景背屏避让 3/3 通过。
+- 前端全量单元测试 7586 通过、2 跳过；两个并行超时的用例单独重跑通过。
+- 背屏组件回归 10/10 通过（DPR 1/3、长词、三种町景场景）。
+- 未连接真机：背屏实际观感与功耗需安装后确认。

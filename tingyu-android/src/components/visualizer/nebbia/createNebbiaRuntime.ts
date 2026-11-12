@@ -384,7 +384,7 @@ export class NebbiaRuntime {
         } else if (this.condensation) this.condensation.touchInk(this.mask.sweeps ?? [], this.mask.wet ?? [], t.dewSize);
         const field = this.condensation ? this.condensation.instances(frozen ? 0 : dt, t.dew, t.dewSize)
             : this.snow ? this.snow.instances(this.fieldInst) : this.motion.fieldInstances(this.fieldInst, t.busSpeed);
-        const u = nebbiaFrameUniforms(t, this.motion.shake(), this.spot, this.W, this.H, this.clock.time, aqua);
+        const u = nebbiaFrameUniforms(t, this.motion.shake(), this.spot, this.W, this.H, this.clock.time, aqua, Boolean(this.readingArea));
         this.gl.render(this.mask.ctx, this.mask.breath.active ? this.mask.breath : null, this.motion.drops, field, u, this.condensation?.changed ?? this.snow?.changed ?? true);
         if (this.snow) this.gl.drawFlakes(...this.snow.flakeInstances(this.mask.ice ?? []), u.glassShift);
         if (this.fireflies) this.gl.drawFireflies(...this.fireflies.step(frozen ? 0 : dt));

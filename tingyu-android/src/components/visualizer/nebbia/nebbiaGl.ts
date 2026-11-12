@@ -195,7 +195,8 @@ export class NebbiaGl {
         this.mask.resize(this.W, this.H, this.maskScale());
     }
 
-    private maskScale() { return this.rearMaskDetail ? Math.min(2, Math.max(1, this.dpr)) : MASK_SCALE; }
+    /** Rear panels keep a floor of 1.5 so thin handwriting stays crisp even when the panel reports dpr 1. */
+    private maskScale() { return this.rearMaskDetail ? Math.min(2.5, Math.max(1.5, this.dpr)) : MASK_SCALE; }
 
     /** W、H 是 CSS 像素（水珠纹理用这个分辨率），dpr 是画布的像素比。 */
     resize(W: number, H: number, dpr: number) {

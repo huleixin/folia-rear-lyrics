@@ -48,7 +48,7 @@ export class NebbiaMask {
         if (this.ice) this.ice.length = 0;
         const wetDue = !!this.wet && now - this.wetAt >= WET_EVERY;
         if (wetDue) { this.wet!.length = 0; this.wetAt = now; }
-        const ink: InkContext = { ctx, motion, strokeWidth: tuning.strokeWidth, strokeFloor: rear ? .75 : 1.5, writeSpeed: tuning.writeSpeed, busSpeed: tuning.busSpeed, sweeps: this.sweeps, wet: wetDue ? this.wet : null,
+        const ink: InkContext = { ctx, motion, strokeWidth: tuning.strokeWidth, strokeFloor: rear ? 1.05 : 1.5, writeSpeed: tuning.writeSpeed, busSpeed: tuning.busSpeed, sweeps: this.sweeps, wet: wetDue ? this.wet : null,
             ice: this.ice ? { out: this.ice, k: this.H / 1000, H: this.H } : null };
         laid.forEach((line, i) => {
             if (line.breathAt < Infinity) this.breath.drawLine(line, i, T, line.breathAt, line.breathUntil, line.breathDur, true);

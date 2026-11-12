@@ -73,7 +73,9 @@ export default function RearLyricsSurface() {
     return <main data-testid="rear-lyrics-surface" onPointerDownCapture={reveal}
         style={{ position: 'fixed', inset: 0, overflow: 'hidden', touchAction: 'none', userSelect: 'none', background: aod?'#000':config?.theme.backgroundColor ?? '#09090b' }}>
         <div data-testid="rear-wallpaper" style={{ filter:aod?'brightness(.38) saturate(.6)':undefined, background:config?.theme.backgroundColor??'#09090b', position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', opacity: config?.visualizerOpacity ?? 1 }}>
-            {config && active && <VisualizerBackgroundRenderer config={config.background} theme={config.theme}
+            {/* The panel owns this wallpaper; a transparent player page must still leave something
+                behind the lyric frame, or 雾笺 with 窗外 = 背景 would show a black sheet. */}
+            {config && active && <VisualizerBackgroundRenderer config={{...config.background, transparent: false}} theme={config.theme}
                 isDaylight={config.isDaylight} coverUrl={getSizedCoverUrl(config.coverUrl, 1024)}
                 audioPower={audioPower} audioBands={audioBands} seed={config.seed} staticMode={config.staticMode||aod} paused={paused || sleeping||aod} />}
         </div>

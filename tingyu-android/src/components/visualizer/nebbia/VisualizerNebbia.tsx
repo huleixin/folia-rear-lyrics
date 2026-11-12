@@ -11,7 +11,7 @@ import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
 import { useStageRenderScale } from '../../../hooks/useStageRenderQuality';
 import { NebbiaRuntime } from './createNebbiaRuntime';
 import { cancelNebbiaShaderWarmup } from './nebbiaShaderWarmup';
-import { nebbiaSeesThrough } from './nebbiaBehind';
+import { nebbiaRearPaintsOwnWindow, nebbiaSeesThrough } from './nebbiaBehind';
 import { DEFAULT_NEBBIA_TUNING, type NebbiaTuning } from './types';
 import { getRearSafeInset } from '../../../utils/visualizerSurface';
 import StageCompatibilityFallback from '../StageCompatibilityFallback';
@@ -44,7 +44,10 @@ const VisualizerNebbia: React.FC<Props> = (props) => {
 
     // 分辨率（#929）：全屏着色器没有 MSAA，只跟分辨率倍数；预览的小图保持原来的像素密度
     const renderScale = useStageRenderScale('nebbia');
-    const seeThrough = nebbiaSeesThrough(nebbiaTuning, props.background, props.isPreviewMode);
+    // A rear panel always hands this frame a transparent background, so that flag alone cannot decide
+    // this: the rain street and the aquarium still have to paint their own window on the back screen.
+    const rearOwnWindow = Boolean(props.rearSafeArea) && !props.isPreviewMode && nebbiaRearPaintsOwnWindow(nebbiaTuning.behind);
+    const seeThrough = rearOwnWindow ? false : nebbiaSeesThrough(nebbiaTuning, props.background, props.isPreviewMode);
     // 透出后面时（播放页透明）窗外不画，但选了水族箱时水珠里折射的还是水族箱（水母照样游，车不颠）；选了共用背景就折射街景
     const scene = nebbiaTuning.behind === 'aquarium' ? 'aquarium' : 'night';
     const glass = nebbiaTuning.glass;

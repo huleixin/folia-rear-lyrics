@@ -14,12 +14,15 @@ const RAIN_BITS: Record<NebbiaRain, number> = { slant: 16 | 32, straight: 16, of
 
 export const nebbiaFrameUniforms = (
     t: NebbiaTuning, [sx, sy]: [number, number], spot: NebbiaSpot, W: number, H: number, time: number, aqua: NebbiaAquaUniforms | null = null,
+    /** Rear glass sits on a small panel behind a camera cutout: a tighter wipe edge keeps thin strokes readable. */
+    rear = false,
 ): NebbiaUniforms => {
     const asp = W / H;
     const srcY = aqua ? -0.04 : 0.595;
     return {
         time,
-        mist: t.mist, edge: NEBBIA_FIXED.edge, refract: NEBBIA_FIXED.refract, bus: t.busSpeed, glint: NEBBIA_FIXED.glint, neon: t.neon,
+        mist: t.mist, edge: rear ? NEBBIA_FIXED.edge * .62 : NEBBIA_FIXED.edge,
+        refract: NEBBIA_FIXED.refract, bus: t.busSpeed, glint: NEBBIA_FIXED.glint, neon: t.neon,
         glassShift: [-sx * 0.35 / W, -sy * 0.35 / H], sceneShift: [-sx / W, -sy / H],
         spotSrc: [t.spotX * asp, srcY], spotSrc2: [(1 - t.spotX) * asp, srcY],
         spotTgt: [spot.x / W * asp, spot.y / H],
