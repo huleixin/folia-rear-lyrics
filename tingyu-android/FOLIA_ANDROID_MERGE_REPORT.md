@@ -130,5 +130,15 @@ P0 已在 1.5.17 / 232 完成首次正式包交付，阶段 SHA 与构建证据�
 - 本次测量用于确认布局、实际场景保留及共享时钟接线，不能作为 Android 性能前后对比；音频切换时延没有用 UI 测试数据替代。
 - P1 自由三行组合、歌词匹配差异、QQ 新能力、队列缺陷审计补全及触屏速记簿仍暂缓，不冒充已完成。
 
-正式包重新构建、资产同步、签名及远程附件核验结果将在构建完成后补录。
+### 1.5.18 正式包核验
+
+- 版本准备提交：`6b76a6e0a134c459beb10610bd2385c5fa7289ef`。正式包构建标识 `1.5.18@6b76a6e0`，无 dirty 标记；最终源码归档在此提交后只补录本文档，发布脚本核实两者没有代码差异。
+- 使用 Temurin 21 执行 `npm run build:android:release`：主题校验、正式 Vite 构建、必需资源验证、Capacitor 同步、反馈层验证、Gradle release 编译与签名全部成功。原生构建 254 项任务，56 项执行、198 项无需重复；最终构建未使用陈旧 Web 资产绕过选项。
+- APK：`Tingyu-1.5.18-release.apk`，56,943,028 字节；SHA-256：`f3d6c85c18a1775f00c97a864a59f9e899c64eba7884e8f3e82e1fbbcb1b905e`。
+- 2034 个 dist 文件逐个与 APK 内 `assets/public/` 文件 SHA-256 一致，未发现多余旧资产；实际新舞台、安全歌词与背屏预览代码均进入安装包。
+- APK 内 4,485,083 字节 AnimCJK 笔顺、三份 AnimCJK 授权及 raindrop-fx 授权再次核验通过；圆角开屏矢量、系统开屏图绑定也再次核验。
+- 包名 `io.github.huleixin.tingyu`、versionName 1.5.18、versionCode 233、非调试包、原生页面与 Media3 开关、DEX Build ID 均已核验。正式签名证书 SHA-256：`a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d`，与此前正式包一致。
+- 交付附件包含 APK、提交源码 ZIP、本文档、verification.json、SHA256 清单和两种背屏预览截图。发布脚本逐项核验 GitHub 返回的附件长度与 SHA-256，全部通过后才公开 Release，并核验发布标签指向源码归档提交。
+- GitHub 交付位置：[v1.5.18](https://github.com/huleixin/folia-rear-lyrics/releases/tag/v1.5.18)；工作分支 `feat/folia-449-selective-port`。源码 ZIP 包含修复报告和保留的项目许可证；不包含签名密钥、账号或测试日志。
+- 未进行真机安装验证，实际背屏避让和新舞台功耗仍有上节列出的设备验证限制。
 
