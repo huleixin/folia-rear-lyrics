@@ -88,6 +88,8 @@ export interface ProviderPage<T> {
 }
 
 export interface ProviderAudioSource {
+    /** False when a custom source only negotiated a quality without inspecting decoded media. */
+    qualityVerified?: boolean;
     url: string;
     fetchedAt: number;
     expiresAt?: number;

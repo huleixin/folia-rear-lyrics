@@ -2,23 +2,26 @@ import {expect,it,vi,afterEach} from 'vitest';
 import {lxHttp} from '@/services/lxSource/http';
 
 // test/unit/services/lxHttp.test.ts
-const {http}=vi.hoisted(()=>({http:vi.fn()}));
-vi.mock('@capacitor/core',()=>({Capacitor:{isNativePlatform:()=>true},CapacitorHttp:{request:http}}));
-afterEach(()=>http.mockReset());
-it('follows an API redirect while preserving the script callback contract',async()=>{
- http.mockResolvedValueOnce({status:302,headers:{Location:'https://cdn.example/result'},data:''}).mockResolvedValueOnce({status:200,headers:{'Content-Type':'application/json'},data:'{"url":"https://audio.example/song.mp3"}'});
- const result=await lxHttp('https://api.example/start',{headers:{Authorization:'private','X-Token':'private'}},new AbortController().signal);
- expect(result).toMatchObject({statusCode:200,body:{url:'https://audio.example/song.mp3'}});
- expect(http.mock.calls[1][0].headers).not.toHaveProperty('Authorization');expect(http.mock.calls[1][0].headers).not.toHaveProperty('X-Token');
+const {http,cancel}=vi.hoisted(()=>({http:vi.fn(),cancel:vi.fn(async()=>{})}));
+vi.mock('@capacitor/core',()=>({Capacitor:{isNativePlatform:()=>true}}));
+vi.mock('@/platform/tingyuPlayback',()=>({getTingyuPlayback:()=>({lxHttp:http,cancelLxHttp:cancel})}));
+afterEach(()=>{http.mockReset();cancel.mockClear();});
+it('uses the shared isolated native transport without dropping POST body or headers',async()=>{
+    http.mockResolvedValue({response:JSON.stringify({statusCode:201,statusMessage:'Created',headers:{},body:{url:'https://audio.example/song.mp3'}})});
+    const options={method:'POST',timeout:45000,body:{id:42},headers:{Cookie:'script=yes'}};
+    expect(await lxHttp('https://api.example/resolve',options,new AbortController().signal)).toMatchObject({statusCode:201,body:{url:'https://audio.example/song.mp3'}});
+    expect(http.mock.calls[0][0].options).toEqual(options);
 });
-it('does not follow redirects to a private destination',async()=>{
- http.mockResolvedValue({status:302,headers:{location:'http://127.0.0.1/private'},data:''});
- await expect(lxHttp('https://api.example/start',{},new AbortController().signal)).rejects.toThrow('公网');expect(http).toHaveBeenCalledTimes(1);
+it('passes cancellation to the actual native request and drops a late result',async()=>{
+    let complete!:(value:unknown)=>void;http.mockImplementation(()=>new Promise(resolve=>{complete=resolve;}));
+    const controller=new AbortController(),request=lxHttp('https://api.example/resolve',{},controller.signal);
+    controller.abort();expect(cancel).toHaveBeenCalledWith({id:http.mock.calls[0][0].id});
+    complete({response:'{}'});await expect(request).rejects.toThrow('Cancelled');
 });
-it('honours a script timeout beyond the old fixed fifteen second budget',async()=>{
- http.mockResolvedValue({status:200,headers:{},data:'ok'});await lxHttp('https://api.example/start',{timeout:25000},new AbortController().signal);
- expect(http.mock.calls[0][0].readTimeout).toBe(25000);
+it('refuses private destinations before invoking any bridge method',async()=>{
+    await expect(lxHttp('http://127.0.0.1/private',{},new AbortController().signal)).rejects.toThrow('公网');expect(http).not.toHaveBeenCalled();
 });
-it('stops redirect loops and settles with an explicit error',async()=>{
- http.mockResolvedValue({status:302,headers:{location:'/again'},data:''});await expect(lxHttp('https://api.example/start',{},new AbortController().signal)).rejects.toThrow('重定向');expect(http).toHaveBeenCalledTimes(6);
+it('keeps binary bytes intact for the sandbox callback',async()=>{
+    http.mockResolvedValue({response:JSON.stringify({statusCode:200,headers:{},binary:true,body:[0,255]})});
+    expect((await lxHttp('https://api.example/binary',{binary:true},new AbortController().signal)).body).toEqual([0,255]);
 });

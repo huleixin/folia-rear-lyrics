@@ -12,6 +12,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -44,6 +46,12 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
     private var quickJs: QuickJs? = null
     private val pending = ConcurrentHashMap<Long, CompletableDeferred<LxOutcome>>()
     private val serial = AtomicLong(0)
+    private val calls = ConcurrentHashMap<Long, okhttp3.Call>()
+    private val cancelled = ConcurrentHashMap.newKeySet<Long>()
+    private val timerJobs = ConcurrentHashMap<Long, Job>()
+    private val cancelledTimers = ConcurrentHashMap.newKeySet<Long>()
+    private var initResult: CompletableDeferred<Unit>? = null
+    private var declaredActions: JSONObject = JSONObject()
 
     @Volatile
     var capabilities: Map<String, List<String>> = emptyMap()
@@ -54,9 +62,10 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
         private set
 
     /** 初始化脚本：装宿主 API → 注入脚本信息 → 执行脚本 → 等 inited。 */
-    suspend fun start(code: String, info: JSONObject, timeoutMs: Long = 20_000) {
+    suspend fun start(code: String, info: JSONObject, timeoutMs: Long = 65_000) {
         withContext(dispatcher) {
             closeLocked()
+            initResult = CompletableDeferred()
             val engine = QuickJs.create(Dispatchers.IO)
             quickJs = engine
             engine.memoryLimit = 64L * 1024 * 1024
@@ -64,12 +73,21 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
             engine.function("__emit") { args -> emit(args.firstOrNull()?.toString().orEmpty()); "" }
             engine.function("__utility") { args -> LxUtility.handle(args.firstOrNull()?.toString().orEmpty()) }
             engine.asyncFunction("__http") { args -> http(args) }
+            engine.function("__cancelHttp") { args ->
+                val id = (args.firstOrNull() as? Number)?.toLong() ?: -1L
+                cancelled.add(id); calls.remove(id)?.cancel(); ""
+            }
             engine.asyncFunction("__sleep") { args -> sleep(args) }
+            engine.function("__cancelTimer") { args ->
+                val id=(args.firstOrNull() as? Number)?.toLong() ?: -1L
+                cancelledTimers.add(id);timerJobs.remove(id)?.cancel(); ""
+            }
             // 超时由这里统一兜住：不是所有平台的 QuickJS 封装都提供 evaluationTimeout。
             withTimeout(timeoutMs) {
                 engine.evaluate<Any?>(LxBootstrap.SHIM)
-                engine.evaluate<Any?>("lx.currentScriptInfo=" + info.toString() + ";")
+                engine.evaluate<Any?>("lx.currentScriptInfo=" + JSONObject(info.toString()).put("rawScript", code).toString() + ";__seal();")
                 engine.evaluate<Any?>(code)
+                initResult!!.await()
             }
             if (capabilities.isEmpty()) throw IllegalStateException("音源脚本未声明可用的 musicUrl 平台")
             started = true
@@ -80,15 +98,26 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
     }
 
     /** 向脚本发一次 musicUrl（或 lyric / pic）请求，等到它给出结果或超时。 */
-    suspend fun request(payload: JSONObject, timeoutMs: Long = 45_000): LxOutcome = withContext(dispatcher) {
+    suspend fun request(payload: JSONObject, timeoutMs: Long = 65_000): LxOutcome = withContext(dispatcher) {
         val engine = quickJs
             ?: return@withContext LxOutcome(false, null, "音源引擎未启动")
         val id = serial.incrementAndGet()
+        val source = payload.optString("source")
+        val action = payload.optString("action")
+        val actions = declaredActions.optJSONObject(source)?.optJSONArray("actions")
+        if ((source != "local" && action != "musicUrl") || actions == null || (0 until actions.length()).none { actions.optString(it) == action })
+            return@withContext LxOutcome(false, null, "音源不支持操作 $source/$action")
         val deferred = CompletableDeferred<LxOutcome>()
         pending[id] = deferred
         try {
-            engine.evaluate<Any?>("__request(" +
-                JSONObject().put("id", id).put("payload", payload).toString() + ");")
+            withTimeout(timeoutMs) {
+                engine.evaluate<Any?>("__request(" + JSONObject().put("id", id).put("payload", payload).toString() + ");")
+                deferred.await()
+            }
+        } catch (_: TimeoutCancellationException) {
+            calls.values.forEach { it.cancel() }
+            pending.remove(id)
+            return@withContext LxOutcome(false, null, "音源取流超时")
         } catch (failure: Throwable) {
             pending.remove(id)
             deferred.cancel()
@@ -111,6 +140,8 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
     }
 
     private fun closeLocked() {
+        calls.values.forEach { it.cancel() }; calls.clear(); cancelled.clear()
+        timerJobs.values.forEach { it.cancel() }; timerJobs.clear(); cancelledTimers.clear()
         try {
             quickJs?.close()
         } catch (_: Throwable) {
@@ -118,6 +149,9 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
         }
         quickJs = null
         started = false
+        capabilities = emptyMap()
+        declaredActions = JSONObject()
+        initResult?.cancel(); initResult = null
         pending.values.forEach { if (!it.isCompleted) it.cancel() }
         pending.clear()
     }
@@ -140,9 +174,13 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
         }
         when (message.optString("kind")) {
             "inited" -> {
+                val sources = message.optJSONObject("data")?.optJSONObject("sources") ?: JSONObject()
+                declaredActions = sources
                 capabilities = LxPlatform.validateCapabilities(message.opt("data")?.let {
                     (it as? JSONObject)?.opt("sources") ?: JSONObject.NULL
                 })
+                if (capabilities.isEmpty()) initResult?.completeExceptionally(IllegalArgumentException("音源未声明可用来源"))
+                else initResult?.complete(Unit)
                 hooks.note("lx-inited", JSONObject().put("sources", capabilities.keys.joinToString(",")))
             }
             "updateAlert" -> hooks.note("lx-update-alert", JSONObject())
@@ -153,7 +191,8 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
                     LxOutcome(false, null, message.optString("error", "音源返回错误").take(160))
                 } else {
                     val value = message.opt("value")
-                    if (value is String && value.isNotBlank()) LxOutcome(true, value.trim(), "")
+                    if (value is JSONObject) LxOutcome(true, value.toString(), "")
+                    else if (value is String && value.isNotBlank()) LxOutcome(true, value.trim(), "")
                     else LxOutcome(false, null, "音源未返回播放地址")
                 }
                 deferred.complete(outcome)
@@ -166,13 +205,18 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
         // 收到什么都要能解析：JSON 文本（shim 现在给的是这个）、JsObject/Map、JSONObject。
         // 以前只认 JSONObject，其余静默变成空 options —— 那正是 POST 被发成 GET 的原因。
         val options = LxJson.toJsonObject(args.getOrNull(1))
+        val id = (args.getOrNull(2) as? Number)?.toLong() ?: -1L
         return withContext(Dispatchers.IO) {
             val host = LxHttp.hostOf(url)
             val method = options.optString("method", "GET").uppercase()
             hooks.request(url, options)
             val startedAt = System.nanoTime()
             try {
-                val text = LxHttp.request(url, options)
+                if (calls.size >= 12) throw IllegalStateException("音源同时请求过多")
+                val text = LxHttp.request(url, options) { call ->
+                    calls[id] = call
+                    if (cancelled.contains(id)) call.cancel()
+                }
                 hooks.http(host, statusOf(text), text.length)
                 text
             } catch (failure: Throwable) {
@@ -188,6 +232,8 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
                     .put("message", describeNetwork(failure))
                     .put("elapsedMs", (System.nanoTime() - startedAt) / 1_000_000L))
                 throw failure
+            } finally {
+                calls.remove(id); cancelled.remove(id)
             }
         }
     }
@@ -198,7 +244,12 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
             is String -> raw.toLongOrNull() ?: 0L
             else -> 0L
         }
-        delay(ms.coerceIn(0, 15_000))
+        val id=(args.getOrNull(1) as? Number)?.toLong() ?: -1L
+        require(timerJobs.size < 32) { "音源定时器过多" }
+        val job=currentCoroutineContext()[Job]
+        if(job != null)timerJobs[id]=job
+        try { if(!cancelledTimers.contains(id))delay(ms.coerceIn(0, 2_147_483_647)) }
+        finally { timerJobs.remove(id);cancelledTimers.remove(id) }
         return ""
     }
 
@@ -209,14 +260,14 @@ class LxScriptEngine(private val hooks: LxHooks = LxHooks.NONE) {
     }
 
     private fun describe(failure: Throwable): String {
-        val message = failure.message?.take(160) ?: ""
+        val message = LxRedaction.clean(failure.message).take(160)
         return (failure.javaClass.simpleName + (if (message.isEmpty()) "" else ": $message"))
     }
 
     /** 网络异常的文字摘要：抹掉可能夹带的 URL/查询串，只留异常自己的描述。 */
     private fun describeNetwork(failure: Throwable): String {
         val raw = failure.message ?: return ""
-        return raw.replace(Regex("https?://\\S+"), "<url>")
+        return LxRedaction.clean(raw).replace(Regex("https?://\\S+"), "<url>")
             .replace(Regex("[\\r\\n\\t]+"), " ")
             .take(96)
     }

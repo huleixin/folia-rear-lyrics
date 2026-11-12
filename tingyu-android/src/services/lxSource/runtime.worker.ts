@@ -13,7 +13,7 @@ let evaluating = false;
 let initMessage: unknown = null;
 function run(code: string) {
     if (!vm) throw Error('LX runtime not initialized');
-    deadline = Date.now() + 300;
+    deadline = Date.now() + 1000;
     messageCount = 0;
     vm.unwrapResult(vm.evalCode(code)).dispose();
     while (vm.runtime.hasPendingJob()) {
@@ -27,7 +27,7 @@ self.onmessage = async event => {
         if (data.kind === 'init') {
             const module = await newQuickJSWASMModuleFromVariant(newVariant(RELEASE_SYNC, { wasmLocation: wasmUrl }));
             vm = module.newContext();
-            vm.runtime.setMemoryLimit(24 * 1024 * 1024);
+            vm.runtime.setMemoryLimit(64 * 1024 * 1024);
             vm.runtime.setMaxStackSize(256 * 1024);
             vm.runtime.setInterruptHandler(() => Date.now() > deadline);
             vm.newFunction('emit', input => {
@@ -41,6 +41,7 @@ self.onmessage = async event => {
             vm.newFunction('utility', input => vm!.newString(lxUtility(vm!.getString(input)))).consume(handle => vm!.setProp(vm!.global, '__utility', handle));
             run(lxBootstrap);
             run(`lx.currentScriptInfo=${JSON.stringify(data.metadata)};`);
+            run('__seal();');
             evaluating = true;
             run(data.code);
             evaluating = false;

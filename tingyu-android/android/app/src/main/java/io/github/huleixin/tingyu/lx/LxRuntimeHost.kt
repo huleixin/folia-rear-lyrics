@@ -30,6 +30,7 @@ object LxRuntimeHost {
         val author: String,
         val homepage: String,
         val code: String,
+        val policy: String = "{}",
     )
 
     private val lock = Any()
@@ -96,7 +97,8 @@ object LxRuntimeHost {
     }
 
     /** 用户启用/切换脚本。空 code 表示停用。 */
-    fun install(id: String, name: String, version: String, description: String, author: String, homepage: String, code: String): Boolean {
+    @JvmOverloads
+    fun install(id: String, name: String, version: String, description: String, author: String, homepage: String, code: String, policy: String = "{}"): Boolean {
         if (code.isBlank()) {
             clear()
             return false
@@ -105,15 +107,15 @@ object LxRuntimeHost {
             PlaybackDiagnostics.note("lx-install", JSONObject().put("result", "too-large"))
             return false
         }
-        val next = Installed(id, name.take(64), version.take(24), description.take(120), author.take(48), homepage.take(120), code)
+        val next = Installed(id, name.take(160), version.take(160), description.take(160), author.take(160), homepage.take(160), code, policy.take(2048))
         synchronized(lock) {
-            val changed = installed?.code != code
+            val changed = installed?.copy(policy = next.policy) != next
             installed = next
             if (changed) {
                 // 换脚本：正在跑的引擎必须整个废掉，迟到的旧结果一律不要。
                 val stale = engine
                 engine = null
-                if (stale != null) runBlocking { stale.close() }
+                if (stale != null) runBlocking { stale.shutdown() }
                 initFailedAt = 0L
             }
         }
@@ -130,17 +132,32 @@ object LxRuntimeHost {
             val stale = engine
             engine = null
             installed = null
-            if (stale != null) runBlocking { stale.close() }
+            lastError = null
+            initFailedAt = 0L
+            if (stale != null) runBlocking { stale.shutdown() }
         }
         appContext?.let { File(it.filesDir, DIR).resolve(FILE).delete() }
         PlaybackDiagnostics.note("lx-install", JSONObject().put("result", "cleared"))
     }
 
     /** 有没有装脚本（不管引擎有没有起来）。用于决定"要不要尝试"，而不是"能不能成功"。 */
+    fun autoDowngrade(): Boolean = try { JSONObject(installed?.policy ?: "{}").optBoolean("autoDowngrade", true) } catch (_: Throwable) { true }
+    fun retries(): Int = try { JSONObject(installed?.policy ?: "{}").optInt("retries", 0).coerceIn(0, 1) } catch (_: Throwable) { 0 }
+    fun preferredSource(): String = try { JSONObject(installed?.policy ?: "{}").optString("preferredSource", "").let { if (it == "null") "" else it } } catch (_: Throwable) { "" }
+
     fun hasScript(): Boolean = installed != null
 
     /** 上一次初始化失败的原因。解析器的诊断要区分"没装脚本"和"装了但起不来"。 */
     fun lastInitError(): String? = lastError
+
+    /** Validate a candidate without replacing or stopping the active source. */
+    fun validate(code: String, metadata: JSONObject): String {
+        if (code.toByteArray(Charsets.UTF_8).size > 1_048_576) return "音源脚本不能超过 1 MB"
+        val candidate=LxScriptEngine(hooks)
+        return try {runBlocking {candidate.start(code, JSONObject().apply { listOf("name","version","description","author","homepage").forEach { put(it, metadata.optString(it).take(160)) } })}; ""}
+        catch (failure: Throwable) {redact(failure.message ?: failure.javaClass.simpleName)}
+        finally {runBlocking {candidate.shutdown()}}
+    }
 
     /**
      * 显式把引擎拉起来，不解析任何歌。
@@ -192,7 +209,7 @@ object LxRuntimeHost {
      * 解析跑在引擎自己的守护线程上，不占 Media3 回调线程，也不占主线程。
      */
     @JvmOverloads
-    fun resolve(source: String, quality: String, musicInfo: JSONObject, timeoutMs: Long = 45_000): LxOutcome {
+    fun resolve(source: String, quality: String, musicInfo: JSONObject, timeoutMs: Long = 65_000): LxOutcome {
         val script = installed ?: return LxOutcome(false, null, "未安装洛雪音源脚本")
         val live = ensureEngine(script)
             ?: return LxOutcome(false, null, lastError ?: "音源引擎不可用")
@@ -206,6 +223,7 @@ object LxRuntimeHost {
         } catch (failure: Throwable) {
             LxOutcome(false, null, failure.javaClass.simpleName)
         }
+        if (installed !== script || engine !== live) return LxOutcome(false, null, "音源已更换，旧解析结果已丢弃")
         if (outcome.ok) successes++ else failures++
         PlaybackDiagnostics.note(if (outcome.ok) "lx-resolved" else "lx-failed", JSONObject()
             .put("source", source)
@@ -225,7 +243,7 @@ object LxRuntimeHost {
             engine = null
             // 下一次播放是全新的一次机会：别让上一次的失败冷却期挡住它。
             initFailedAt = 0L
-            if (live != null) runBlocking { live.close() }
+            if (live != null) runBlocking { live.shutdown() }
         }
         PlaybackDiagnostics.note("lx-release", JSONObject().put("requests", requests).put("ok", successes))
     }
@@ -256,6 +274,7 @@ object LxRuntimeHost {
 
     private fun ensureEngine(script: Installed): LxScriptEngine? {
         synchronized(lock) {
+            if (installed !== script) return null
             engine?.let { return it }
             if (System.currentTimeMillis() - initFailedAt < INIT_COOLDOWN_MS) return null
             val created = LxScriptEngine(hooks)
@@ -273,7 +292,7 @@ object LxRuntimeHost {
             } catch (failure: Throwable) {
                 lastError = redact(failure.message ?: failure.javaClass.simpleName).take(160)
                 initFailedAt = System.currentTimeMillis()
-                runBlocking { created.close() }
+                runBlocking { created.shutdown() }
                 PlaybackDiagnostics.note("lx-init-failed", JSONObject().put("reason", lastError))
                 null
             }
@@ -293,6 +312,7 @@ object LxRuntimeHost {
                 .put("author", script.author)
                 .put("homepage", script.homepage)
                 .put("code", script.code)
+                .put("policy", script.policy)
             File(dir, FILE).writeText(payload.toString())
         } catch (_: Throwable) {
             // 落盘失败不影响本次会话：内存里那份还在，只是进程重启后需要 JS 再同步一次。
@@ -314,6 +334,7 @@ object LxRuntimeHost {
                 payload.optString("author", ""),
                 payload.optString("homepage", ""),
                 code,
+                payload.optString("policy", "{}"),
             )
         } catch (_: Throwable) {
             null
@@ -326,9 +347,7 @@ object LxRuntimeHost {
      */
     private val URL_PATTERN = Regex("https?://[^\\s\"'<>]+")
 
-    private fun redact(text: String?): String = (text ?: "")
-        .replace(URL_PATTERN, "[地址]")
-        .replace(Regex("[\\r\\n\\t]"), " ")
+    private fun redact(text: String?): String = LxRedaction.clean(text)
 
     /** 诊断字段里出现的文本统一裁剪，避免脚本把大段内容塞进诊断。 */
     private fun String.take(max: Int) = if (length <= max) this else substring(0, max)

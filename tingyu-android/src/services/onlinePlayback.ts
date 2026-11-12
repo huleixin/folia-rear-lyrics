@@ -1,3 +1,4 @@
+import { usePlaybackStore } from '../stores/usePlaybackStore';
 import { readSharedLyricRecord } from './sharedSongResources';
 import { useAudioToolsStore } from '../stores/useAudioToolsStore';
 import { selectedLxScript } from './lxSource/selection';
@@ -130,7 +131,7 @@ export async function loadOnlineSongAudioSource(
                 const replayGain = applyOnlineAudioSourceMetadata(song, source?.replayGain).replayGain;
                 // 预取条目只在成功时更新；失败永不回写。
                 updatePrefetchedAudioUrl(song, url, audioQuality, replayGain);
-                useAudioToolsStore.setState({ actual: source ? { key: getPlaybackSongKey(song), quality: source.quality } : null });
+                if (getPlaybackSongKey(usePlaybackStore.getState().currentSong ?? song) === getPlaybackSongKey(song)) useAudioToolsStore.setState({ actual: source ? { key: getPlaybackSongKey(song), quality: source.quality, verified:source.qualityVerified } : null });
                 return { kind: 'ok', audioSrc: url, replayGain };
             }
             failure = classifyMissingAudioUrl(source?.url, { stage, providerId });

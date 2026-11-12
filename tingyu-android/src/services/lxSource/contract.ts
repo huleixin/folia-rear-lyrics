@@ -3,9 +3,10 @@ import type { AudioQualityPreference } from '../../types/onlineMusic';
 // src/services/lxSource/contract.ts
 export const LX_QUALITIES = ['128k', '320k', 'flac', 'flac24bit'] as const;
 export type LxQuality = typeof LX_QUALITIES[number];
-export interface LxCapability { name: string; qualitys: LxQuality[] }
+export type LxAction = 'musicUrl' | 'lyric' | 'pic';
+export interface LxCapability { name: string; qualitys: LxQuality[]; actions?: LxAction[] }
 export type LxCapabilities = Record<string, LxCapability>;
-export interface LxScript { id: string; name: string; version: string; description: string; author: string; homepage: string; code: string; capabilities: LxCapabilities }
+export interface LxScript { id: string; name: string; version: string; description: string; author: string; homepage: string; code: string; capabilities: LxCapabilities; importUrl?: string; previous?: Omit<LxScript, 'previous'> }
 export function parseLxScript(code: string): Omit<LxScript, 'capabilities'> {
     if (new TextEncoder().encode(code).length > 1024 * 1024) throw new Error('音源脚本不能超过 1 MB');
     const header = code.replace(/^\uFEFF/, '').match(/^\s*\/\*\*?([\s\S]*?)\*\//)?.[1] || '';
@@ -17,12 +18,21 @@ export function validateCapabilities(value: unknown): LxCapabilities {
     const result: LxCapabilities = {};
     if (!value || typeof value !== 'object') throw new Error('音源未声明支持的平台');
     for (const [key, item] of Object.entries(value)) {
-        if (!['kw','kg','tx','wy','mg'].includes(key) || !item || typeof item !== 'object') continue;
-        if (item.type !== 'music' || !Array.isArray(item.actions) || !item.actions.includes('musicUrl')) continue;
+        if (!['kw','kg','tx','wy','mg','local'].includes(key) || !item || typeof item !== 'object') continue;
+        if (item.type !== 'music' || !Array.isArray(item.actions) || !Array.isArray(item.qualitys)) continue;
+        const actions = (key === 'local' ? ['musicUrl','lyric','pic'] as const : ['musicUrl'] as const).filter(a => item.actions.includes(a));
+        if (!actions.length) continue;
         const qualitys = LX_QUALITIES.filter(q => Array.isArray(item.qualitys) && item.qualitys.includes(q));
-        if (qualitys.length) result[key] = { name: String(item.name || key).slice(0, 60), qualitys };
+        if (qualitys.length || key === 'local') result[key] = { name: String(item.name || key).slice(0, 60), qualitys: key === 'local' ? [] : qualitys, actions: [...actions] };
     }
     if (!Object.keys(result).length) throw new Error('此脚本没有可用的 musicUrl 平台');
+    return result;
+}
+/** Only equal or lower declared qualities are eligible; never silently upgrade. */
+export function lxQualityAttempts(preference: AudioQualityPreference, supported: readonly LxQuality[], downgrade = true): LxQuality[] {
+    const target = Math.max(0, ['standard','high','lossless','hires'].indexOf(preference));
+    const result = LX_QUALITIES.slice(0, target + 1).filter(q => supported.includes(q)).reverse();
+    if (!downgrade) return supported.includes(LX_QUALITIES[target]) ? [LX_QUALITIES[target]] : [];
     return result;
 }
 export function chooseLxQuality(preference: AudioQualityPreference, supported: readonly LxQuality[]): LxQuality {

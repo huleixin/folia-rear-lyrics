@@ -1,42 +1,47 @@
 import { validateRemoteUrl } from './contract';
-import { Capacitor, CapacitorHttp } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
+import { getTingyuPlayback } from '../../platform/tingyuPlayback';
+import { noteLx } from './diagnostics';
 
 // src/services/lxSource/http.ts
-export async function lxHttp(url: string, options: Record<string, unknown>, signal: AbortSignal, redirects=0): Promise<{statusCode:number;headers:Record<string,string>;body:unknown}> {
+export async function lxHttp(url: string, options: Record<string, unknown>, signal: AbortSignal): Promise<{statusCode:number;statusMessage?:string;headers:Record<string,string>;body:unknown;binary?:boolean}> {
     validateRemoteUrl(url);
-    const headers: Record<string, string> = {};
-    for (const [key, value] of Object.entries(options.headers || {})) {
-        if (!/^(cookie|host|origin)$/i.test(key)) headers[key] = String(value);
-    }
-    const timeout = Math.min(30000, Math.max(1000, Number(options.timeout) || 15000));
-    const method = String(options.method || 'GET').toUpperCase();
-    if (!['GET','POST','PUT','DELETE','PATCH','HEAD'].includes(method)) throw Error('HTTP method unsupported');
-    let body = options.body;
-    if (options.form) { body = new URLSearchParams(options.form as Record<string, string>).toString(); headers['Content-Type'] = 'application/x-www-form-urlencoded'; }
-    if (options.formData) throw Error('此版本不支持音源 multipart 上传');
-    if (body && typeof body !== 'string') { body = JSON.stringify(body); headers['Content-Type'] ||= 'application/json'; }
-    if (String(body || '').length > 1048576) throw Error('Request too large');
     if (signal.aborted) throw Error('Cancelled');
     if (Capacitor.isNativePlatform()) {
-        const response = await CapacitorHttp.request({ url, method, headers, data: body, connectTimeout: timeout, readTimeout: timeout, disableRedirects: true, responseType: 'text' });
-        if (signal.aborted) throw Error('Cancelled');
-        if (String(response.data || '').length > 2097152) throw Error('Response too large');
-        const location=Object.entries(response.headers).find(([key])=>key.toLowerCase()==='location')?.[1];
-        if([301,302,303,307,308].includes(response.status)&&location){
-            if(redirects>=5)throw Error('音源重定向次数过多');
-            const next=new URL(location,url);validateRemoteUrl(next.href);
-            const nextOptions={...options,headers:{...headers}};
-            if(next.origin!==new URL(url).origin)for(const key of Object.keys(nextOptions.headers))if(/^(authorization|cookie|x-token)$/i.test(key))delete nextOptions.headers[key];
-            if(response.status===303||([301,302].includes(response.status)&&method==='POST')){Object.assign(nextOptions,{method:'GET',body:undefined,form:undefined});}
-            return lxHttp(next.href,nextOptions,signal,redirects+1);
-        }
-        let result = response.data;
-        try { result = JSON.parse(result); } catch { /* text responses are allowed */ }
-        return { statusCode: response.status, headers: response.headers, body: result };
+        const native=getTingyuPlayback<{lxHttp(options:{id:string;url:string;options:Record<string,unknown>}):Promise<{response:string}>;cancelLxHttp(options:{id:string}):Promise<void>}>();
+        const id=crypto.randomUUID();
+        const cancel=()=>{void native.cancelLxHttp({id}).catch(()=>{});};
+        signal.addEventListener('abort',cancel,{once:true});
+        try {
+            const response=await native.lxHttp({id,url,options});
+            if(signal.aborted)throw Error('Cancelled');
+            const result=JSON.parse(response.response);noteLx('http','http',`method=${String(options.method||'GET')} status=${result.statusCode}`);return result;
+        }finally{signal.removeEventListener('abort',cancel);}
     }
-    const response = await fetch(url, { method, headers, body: method === 'GET' || method === 'HEAD' ? undefined : body as string, signal, credentials: 'omit', redirect: 'error' });
+    const headers:Record<string,string>={};
+    for(const [key,value] of Object.entries(options.headers||{}))if(!/^(cookie|host|origin)$/i.test(key))headers[key]=String(value);
+    const method=String(options.method||'GET').toUpperCase();
+    if(!['GET','POST','PUT','DELETE','PATCH','HEAD'].includes(method))throw Error('HTTP method unsupported');
+    let body:BodyInit|undefined=options.body==null?undefined:typeof options.body==='string'?options.body:JSON.stringify(options.body);
+    if(options.form){body=new URLSearchParams(options.form as Record<string,string>);headers['Content-Type']='application/x-www-form-urlencoded';}
+    if(options.formData){
+        const form=new FormData();
+        for(const [key,value] of Object.entries(options.formData as Record<string,unknown>)){
+            if(!['string','number','boolean'].includes(typeof value))throw Error('Multipart fields must be scalar values');
+            form.append(key,String(value));
+        }
+        body=form;for(const key of Object.keys(headers))if(key.toLowerCase()==='content-type')delete headers[key];
+    }
+    if(typeof body==='string'&&new TextEncoder().encode(body).length>1048576)throw Error('Request too large');
+    const controller=new AbortController(),relay=()=>controller.abort();
+    const timeout=typeof options.timeout==='number'&&options.timeout>0?Math.min(60000,options.timeout):13000;
+    const timer=setTimeout(()=>controller.abort(),timeout);signal.addEventListener('abort',relay,{once:true});
+    try {
+    const response = await fetch(url, { method, headers, body: method === 'GET' || method === 'HEAD' ? undefined : body, signal:controller.signal, credentials: 'omit', redirect: 'error' });
+    if(options.binary===true){const data=new Uint8Array(await response.arrayBuffer());if(data.length>2097152)throw Error('Response too large');return {statusCode:response.status,statusMessage:response.statusText,headers:Object.fromEntries(response.headers.entries()),body:Array.from(data),binary:true};}
     const text = await response.text();
     if (text.length > 2097152) throw Error('Response too large');
     let result: unknown = text; try { result = JSON.parse(text); } catch { /* text */ }
-    return { statusCode: response.status, headers: Object.fromEntries(response.headers.entries()), body: result };
+    return { statusCode: response.status, statusMessage:response.statusText, headers: Object.fromEntries(response.headers.entries()), body: result };
+    }finally{clearTimeout(timer);signal.removeEventListener('abort',relay);}
 }

@@ -1,4 +1,5 @@
 import CryptoJS from 'crypto-js';
+import { rsaEncrypt } from './rsa';
 
 // src/services/lxSource/utilities.ts
 const bytes = (data: unknown): Uint8Array => Uint8Array.from(Array.isArray(data) ? data.slice(0, 1048576) : []);
@@ -22,8 +23,10 @@ export function lxUtility(input: string): string {
         else if (op === 'aes') {
             const mode = String(args[1]).toLowerCase();
             if (!['aes-128-cbc','aes-128-ecb','aes-256-cbc','aes-256-ecb'].includes(mode)) throw Error('AES mode unsupported');
+            if (bytes(args[2]).length !== (mode.includes('256') ? 32 : 16)) throw Error('AES key size invalid');
             value = array(CryptoJS.AES.encrypt(words(args[0]), words(args[2]), { iv: words(args[3]), mode: mode.endsWith('ecb') ? CryptoJS.mode.ECB : CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }).ciphertext);
-        } else throw Error('Unsupported LX utility');
+        } else if (op === 'rsa') value = rsaEncrypt(bytes(args[0]), args[1]);
+        else throw Error('Unsupported LX utility');
         return JSON.stringify({ value });
     } catch (error) { return JSON.stringify({ error: String(error) }); }
 }

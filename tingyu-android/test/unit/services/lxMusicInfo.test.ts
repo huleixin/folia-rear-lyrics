@@ -8,6 +8,11 @@ it('keeps QQ mid, numeric song id and media mid distinct, with both script recor
         sourceRef:{kind:'online',providerId:'qq',mediaId:'003sZs4P2hFUVQ',providerData:{songId:560651613,songMid:'003sZs4P2hFUVQ',mediaMid:'media-file',albumMid:'001V8PDy1om05K',source:'wrong'}}} as SongResult;
     const before=structuredClone(song),info=buildLxMusicInfo(song,'tx',{name:'QQ',qualitys:['128k','320k']});
     expect(info).toMatchObject({id:'003sZs4P2hFUVQ',source:'tx',songmid:'003sZs4P2hFUVQ',songId:560651613,strMediaMid:'media-file',interval:'3:56',albumId:'001V8PDy1om05K',
-        meta:{songId:560651613,strMediaMid:'media-file'},_types:{'320k':{type:'320k'}}});
+        meta:{songId:'003sZs4P2hFUVQ',id:560651613,strMediaMid:'media-file'},_types:{'320k':{type:'320k'}}});
     expect(song).toEqual(before);
+});
+
+it('preserves the official NetEase numeric songmid contract even for LX catalog wrappers',()=>{
+    const song={id:'lx-wy:123',name:'Fixture',artists:[],album:{id:7,name:'Album'},durationMs:120000,sourceRef:{kind:'online',providerId:'lx-wy',mediaId:'123'}} as SongResult;
+    const info=buildLxMusicInfo(song,'wy',{name:'WY',qualitys:['128k']});expect(info.songmid).toBe(123);expect(info.meta.songId).toBe(123);
 });

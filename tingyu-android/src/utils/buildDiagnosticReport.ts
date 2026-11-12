@@ -1,4 +1,5 @@
 import { navigationDiagnosticLines } from '../services/navigationTiming';
+import { getLxDiagnosticLines } from '../services/lxSource/diagnostics';
 import { COMPOSE_CHROME, chromeNative } from '../services/nativeChrome';
 import { isAndroidNativeRuntime } from '../utils/platform';
 import { sampleFrameTimingWindow } from './frameTimingDemand';
@@ -1257,6 +1258,7 @@ export const buildDiagnosticReport = async (): Promise<string> => {
         });
     }
 
+    lines.push(...getLxDiagnosticLines());
     lines.push('```');
     return lines.join('\n');
 };

@@ -462,7 +462,7 @@ export function useLibraryPlaybackController({
     const resolveLocalMetadataUI = useCallback(async (localData: LocalSong, matchedSong: SongResult | null) => {
         const localCoverUrl = getLocalCoverAssetUrl(localData.localCoverAssetId, 1024);
         const preferOnlineCover = localData.useOnlineCover === true;
-        const coverUrl = preferOnlineCover
+        let coverUrl = preferOnlineCover
             ? (localData.onlineMetadata?.coverUrl || localCoverUrl || null)
             : localCoverUrl;
 
@@ -472,13 +472,19 @@ export function useLibraryPlaybackController({
         );
 
         const catalog = await getLocalLibraryCatalogSnapshot();
-        const unifiedSong = applyLocalLibraryEntityDisplay(buildUnifiedLocalSong({
+        let unifiedSong = applyLocalLibraryEntityDisplay(buildUnifiedLocalSong({
             localSong: localData,
             matchedSong,
             coverUrl,
             preferOnlineMetadata: false,
         }), catalog);
 
+        if ((!resolvedLyrics.lyrics && !localData.lyricsSource && !localData.markedPureMusic) || !coverUrl) {
+            const { resolveLxLocalResources } = await import('../services/lxSource/localResources');
+            const extra = await resolveLxLocalResources(unifiedSong, {lyric:!resolvedLyrics.lyrics && !localData.lyricsSource && !localData.markedPureMusic,pic:!coverUrl});
+            if (extra.lyrics) { resolvedLyrics.lyrics=extra.lyrics; resolvedLyrics.source='online'; }
+            if (extra.coverUrl) { coverUrl=extra.coverUrl; unifiedSong={...unifiedSong,album:{...unifiedSong.album,coverUrl}}; }
+        }
         return { lyrics: resolvedLyrics.lyrics, lyricsSource: resolvedLyrics.source, coverUrl, unifiedSong, catalog };
     }, []);
 

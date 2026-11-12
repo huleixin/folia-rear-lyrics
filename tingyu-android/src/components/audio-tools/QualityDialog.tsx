@@ -22,7 +22,7 @@ export default function QualityDialog({ isDaylight }: { isDaylight: boolean }) {
     useEffect(() => { const back = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.stopPropagation(); state.close(); } }; window.addEventListener('keydown', back); return () => window.removeEventListener('keydown', back); }, []);
     return <ThemedDialog isOpen onClose={state.close} isDaylight={isDaylight} title="音质" panelKind="audio-tools" description={local ? '本地或外部音频按原文件播放，不重新编码' : '切换后保留播放位置；可用音质由音源和账号决定'}>
         <div className="ty-quality-choices">{(Object.keys(QUALITY_LABELS) as AudioQualityPreference[]).map(value => <button key={value} disabled={local || state.switching} aria-pressed={value === quality} onClick={() => state.switchQuality(value)}>{QUALITY_LABELS[value]}{value === quality ? ' ✓' : ''}</button>)}</div>
-        <p className="ty-audio-hint">{state.switching ? '正在准备新音质，原音频继续播放…' : `首选：${QUALITY_LABELS[quality]} · 当前：${actual ? QUALITY_LABELS[actual] : local ? '原文件' : '未确认（可能来自缓存）'}`}</p>
+        <p className="ty-audio-hint">{state.switching ? '正在准备新音质，原音频继续播放…' : `首选：${QUALITY_LABELS[quality]} · 当前：${actual ? state.actual?.verified===false ? `音源请求 ${QUALITY_LABELS[actual]}（实际未验证）` : QUALITY_LABELS[actual] : local ? '原文件' : '未确认（可能来自缓存）'}`}</p>
         {fileInfo && <p className="ty-audio-hint">{fileInfo}</p>}
         {state.error && <p role="alert">{state.error}</p>}
         <button className="ty-source-entry" onClick={() => { state.close(); useAudioSettingsStore.getState().openAudioEqualizer(); }}>音效调节器 ›</button>

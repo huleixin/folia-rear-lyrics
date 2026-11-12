@@ -17,7 +17,7 @@ object LxPlatform {
         "kuwo" to "kw",
         "migu" to "mg",
     )
-    private val SOURCES = setOf("kw", "kg", "tx", "wy", "mg")
+    private val SOURCES = setOf("kw", "kg", "tx", "wy", "mg", "local")
 
     val QUALITIES = arrayOf("128k", "320k", "flac", "flac24bit")
 
@@ -54,7 +54,7 @@ object LxPlatform {
             val actions = item.optJSONArray("actions") ?: continue
             var hasMusicUrl = false
             for (i in 0 until actions.length()) if (actions.optString(i) == "musicUrl") hasMusicUrl = true
-            if (!hasMusicUrl) continue
+            if (!hasMusicUrl && !(key == "local" && (0 until actions.length()).any { actions.optString(it) in setOf("lyric", "pic") })) continue
             val declared = item.optJSONArray("qualitys")
             val qualitys = ArrayList<String>()
             if (declared != null) {
@@ -63,7 +63,7 @@ object LxPlatform {
                     if (QUALITIES.contains(quality) && !qualitys.contains(quality)) qualitys.add(quality)
                 }
             }
-            if (qualitys.isNotEmpty()) result[key] = qualitys
+            if (qualitys.isNotEmpty() || key == "local") result[key] = if (key == "local") emptyList() else qualitys
         }
         return result
     }
@@ -84,26 +84,32 @@ object LxPlatform {
         providerData: String,
         qualitys: List<String>,
     ): JSONObject {
+        require(sourceFor(providerId) == source) { "歌曲 ID 与来源平台不一致" }
         val data = try {
             if (providerData.isBlank()) JSONObject() else JSONObject(providerData)
         } catch (_: Throwable) {
             JSONObject()
         }
-        val songmid = firstText(data, "songMid", "songmid", "strMediaMid", "mediaMid") ?: mediaId
-        val songId = firstText(data, "songId", "copyrightId") ?: mediaId
-        val albumId = firstText(data, "albumId", "albumMid") ?: album
+        val numericWy = mediaId.toLongOrNull()?.takeIf { source == "wy" && it in 0..9_007_199_254_740_991L }
+        val songmid = firstValue(data, "songMid", "songmid") ?: numericWy ?: mediaId
+        val songId = firstValue(data, "songId", "copyrightId") ?: if(source == "wy") songmid else mediaId
+        val albumId = firstValue(data, "albumId", "albumMid") ?: JSONObject.NULL
         val strMediaMid = firstText(data, "strMediaMid", "mediaMid") ?: songmid
         val hash = firstText(data, "hash") ?: mediaId
         val types = JSONArray()
         qualitys.forEach { quality ->
             val item = JSONObject().put("type", quality).put("size", JSONObject.NULL)
             if (source == "kg") item.put("hash", hash)
+            val declared = (data.optJSONObject("_types") ?: data.optJSONObject("_qualitys"))?.optJSONObject(quality)
+            declared?.keys()?.forEach { key -> item.put(key, declared.opt(key)) }
             types.put(item)
         }
         val typeMap = JSONObject()
         qualitys.forEach { quality ->
             val item = JSONObject().put("type", quality).put("size", JSONObject.NULL)
             if (source == "kg") item.put("hash", hash)
+            val declared = (data.optJSONObject("_types") ?: data.optJSONObject("_qualitys"))?.optJSONObject(quality)
+            declared?.keys()?.forEach { key -> item.put(key, declared.opt(key)) }
             typeMap.put(quality, item)
         }
         val minutes = durationSeconds / 60
@@ -128,7 +134,8 @@ object LxPlatform {
             .put("_types", typeMap)
             .put("typeUrl", JSONObject())
         val meta = JSONObject()
-            .put("songId", songId)
+            .put("songId", if (source == "tx") songmid else songId)
+            .put("id", if (source == "tx") songId else JSONObject.NULL)
             .put("albumName", album)
             .put("picUrl", artwork)
             .put("qualitys", types)
@@ -150,6 +157,10 @@ object LxPlatform {
             if (!info.has(key)) info.put(key, data.opt(key))
         }
         return info
+    }
+
+    private fun firstValue(data: JSONObject, vararg names: String): Any? = names.firstNotNullOfOrNull { name ->
+        data.opt(name)?.takeIf { it is Number || it is String && it.isNotBlank() }
     }
 
     private fun firstText(data: JSONObject, vararg names: String): String? {

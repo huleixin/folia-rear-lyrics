@@ -15,8 +15,8 @@ export const getSongResourceCacheKey = (kind: SongResourceKind, song: SongResult
         && sourceRef.providerId === 'kugou'
         ? 'cover_v2'
         : kind;
-    const lxId = kind === 'audio' ? useLxSourceStore.getState().activeId : null;
-    const variant = lxId ? `lx_${lxId}_${quality ?? useAudioSettingsStore.getState().audioQuality}_` : '';
+    const lxId = kind === 'audio' && sourceRef.kind === 'online' ? useLxSourceStore.getState().activeId : null;
+    const variant = lxId ? `lx_${lxId}_${useLxSourceStore.getState().revision}_${quality ?? useAudioSettingsStore.getState().audioQuality}_` : '';
     return `${versionedKind}_${variant}${getPlaybackSongKey(song)}`;
 };
 

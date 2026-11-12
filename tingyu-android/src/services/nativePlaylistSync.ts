@@ -112,7 +112,8 @@ const artworkOf = (song: SongResult): string => {
  */
 const selectedSourceId = (providerId: string): string => {
     if (!providerId) return '';
-    if (!useLxSourceStore.getState().activeId) return `${providerId}-original`;
+    const state=useLxSourceStore.getState(),script=state.scripts.find(s=>s.id===state.activeId);
+    if (!script||Object.keys(script.capabilities).every(key=>key==='local')) return `${providerId}-original`;
     const platform = Object.keys(LX_PLATFORMS).find(key => LX_PLATFORMS[key].original === providerId);
     return platform ? `lx:${platform}` : `${providerId}-original`;
 };
@@ -123,6 +124,8 @@ export const toNativeResourcePayload = (song: SongResult): NativePlaylistTrackPa
     const ref = getPlaybackSourceRef(song);
     const online = ref?.kind === 'online' ? ref : null;
     const providerId = online?.providerId ?? '';
+    const sourceId=selectedSourceId(providerId);
+    const lxAudio=sourceId.startsWith('lx:')||providerId.startsWith('lx-');
     return {
         songKey,
         providerId,
@@ -135,8 +138,8 @@ export const toNativeResourcePayload = (song: SongResult): NativePlaylistTrackPa
         durationMs: Math.max(0, Math.round(song.durationMs ?? 0)),
         artwork: artworkOf(song),
         // 用户选的音源：原生据此挑解析器，不再靠 providerId 猜。
-        sourceId: selectedSourceId(providerId),
-        ...(online?.providerData ? { providerData: online.providerData as Record<string, unknown> } : {}),
+        sourceId,
+        ...(online?.providerData||lxAudio ? { providerData: { ...(lxAudio?{albumId:song.album?.id}:{}),...online?.providerData } as Record<string, unknown> } : {}),
     };
 };
 

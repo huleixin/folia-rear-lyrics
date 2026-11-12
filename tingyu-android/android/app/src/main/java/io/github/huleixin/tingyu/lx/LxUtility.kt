@@ -4,6 +4,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.security.KeyFactory
+import java.security.spec.X509EncodedKeySpec
 import java.util.Locale
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
@@ -33,6 +35,7 @@ object LxUtility {
                 args.optString(1).lowercase(Locale.US),
                 bytes(args.opt(2)),
                 bytes(args.opt(3)))))
+            "rsa" -> ok(bytesToJson(rsaEncrypt(bytes(args.opt(0)), args.optString(1))))
             "btoa" -> ok(encodeBase64(utf8(args.opt(0).toString())))
             "atob" -> ok(String(decodeBase64(args.opt(0).toString()), Charsets.UTF_8))
             else -> error("Unsupported LX utility: $op")
@@ -115,19 +118,30 @@ object LxUtility {
 
     fun aesEncrypt(data: ByteArray, mode: String, key: ByteArray, iv: ByteArray): ByteArray {
         if (!AES_MODES.contains(mode)) throw IllegalArgumentException("AES mode unsupported")
-        if (key.size != 16 && key.size != 32) throw IllegalArgumentException("AES key size unsupported")
+        if (key.size != (if (mode.contains("256")) 32 else 16)) throw IllegalArgumentException("AES key size unsupported")
         val ecb = mode.endsWith("ecb")
         val transformation = if (ecb) "AES/ECB/PKCS5Padding" else "AES/CBC/PKCS5Padding"
         val cipher = Cipher.getInstance(transformation)
         val secret = SecretKeySpec(key, "AES")
         if (ecb) cipher.init(Cipher.ENCRYPT_MODE, secret)
-        else cipher.init(Cipher.ENCRYPT_MODE, secret, IvParameterSpec(padIv(iv, key.size)))
+        else cipher.init(Cipher.ENCRYPT_MODE, secret, IvParameterSpec(padIv(iv, 16)))
         return cipher.doFinal(data)
     }
 
     private fun padIv(iv: ByteArray, size: Int): ByteArray {
         if (iv.size >= size) return iv.copyOf(size)
         return ByteArray(size).also { iv.copyInto(it) }
+    }
+
+    /** The official mobile preload selects RSA/ECB/NoPadding, not PKCS1/OAEP. */
+    fun rsaEncrypt(data: ByteArray, pem: String): ByteArray {
+        require(pem.length <= 16384) { "Invalid RSA key" }
+        val encoded = pem.replace("-----BEGIN PUBLIC KEY-----", "")
+            .replace("-----END PUBLIC KEY-----", "").replace(Regex("\\s"), "")
+        val key = KeyFactory.getInstance("RSA").generatePublic(X509EncodedKeySpec(decodeBase64(encoded)))
+        val cipher = Cipher.getInstance("RSA/ECB/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, key)
+        return cipher.doFinal(data)
     }
 
     // ------------------------------------------------------------------ codecs
@@ -148,7 +162,7 @@ object LxUtility {
 
     fun encodeBase64(data: ByteArray): String = java.util.Base64.getEncoder().encodeToString(data)
 
-    fun decodeBase64(text: String): ByteArray = java.util.Base64.getDecoder().decode(text)
+    fun decodeBase64(text: String): ByteArray = java.util.Base64.getDecoder().decode(text.replace(Regex("\\s"), ""))
 
     private const val HEX = "0123456789abcdef"
 

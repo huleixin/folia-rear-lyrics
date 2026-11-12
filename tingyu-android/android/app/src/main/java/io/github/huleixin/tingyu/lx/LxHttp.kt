@@ -3,6 +3,7 @@ package io.github.huleixin.tingyu.lx
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Call
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.net.IDN
@@ -14,7 +15,7 @@ import java.util.concurrent.TimeUnit
 //
 // 边界（这一条比"能不能用"更重要）：
 // - 只认公网 http(s)，userinfo、内网、localhost、本机代理端口一律拒绝；
-// - cookie / host / origin 三个头不给脚本设置（与 http.ts 同规则），避免脚本冒充；
+// - Host 由已验证的目标地址决定；脚本自己的 Cookie/Origin 可以显式传入，但不读取应用凭据；
 // - 单次请求体 ≤1MB、响应 ≤2MB、重定向 ≤5 跳且跨域时剥掉授权头；
 // - 不携带任何本应用的用户凭据，脚本拿什么头自己给。
 object LxHttp {
@@ -23,8 +24,8 @@ object LxHttp {
     private const val MAX_RESPONSE = 2_097_152
     private const val MAX_REDIRECTS = 5
     private val METHODS = setOf("GET", "POST", "PUT", "DELETE", "PATCH", "HEAD")
-    private val BLOCKED_HEADERS = setOf("cookie", "host", "origin")
-    private val SENSITIVE_HEADERS = setOf("authorization", "cookie", "x-token")
+    private val BLOCKED_HEADERS = setOf("host")
+    private val SENSITIVE_HEADERS = setOf("authorization", "proxy-authorization", "cookie", "x-token", "x-api-key", "x-auth-token", "x-access-token")
 
     // 真机 1.3.50 的第二次停播里，后台解析连续三次 `connection closed`（status=-1）。
     // 原来每一跳都 `CLIENT.newBuilder().build()`：OkHttp 的 Builder 在没显式给
@@ -36,6 +37,15 @@ object LxHttp {
     private val DISPATCHER = okhttp3.Dispatcher()
 
     private val CLIENT = OkHttpClient.Builder()
+        .dns(object : okhttp3.Dns {
+            override fun lookup(hostname: String): List<java.net.InetAddress> = okhttp3.Dns.SYSTEM.lookup(hostname).also { addresses ->
+                if (addresses.any { it.isAnyLocalAddress || it.isLoopbackAddress || it.isLinkLocalAddress || it.isSiteLocalAddress || it.isMulticastAddress ||
+                    (it.address.size == 16 && (it.address[0].toInt() and 0xfe) == 0xfc) ||
+                    (it.address.size == 4 && ((it.address[0].toInt() and 255) == 0 || (it.address[0].toInt() and 255) >= 224 ||
+                        ((it.address[0].toInt() and 255) == 100 && (it.address[1].toInt() and 255) in 64..127))) })
+                    throw java.net.UnknownHostException("LX destination is not public")
+            }
+        })
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .followRedirects(false)
@@ -62,7 +72,7 @@ object LxHttp {
                 if (!BLOCKED_HEADERS.contains(key.lowercase(Locale.US))) headers[key] = declared.opt(key).toString()
             }
         }
-        val timeout = clamp(options.opt("timeout"), 1_000, 30_000).toLong()
+        val timeout = (options.opt("timeout") as? Number)?.toLong()?.takeIf { it > 0 }?.coerceAtMost(60_000) ?: 13_000L
         val method = options.optString("method", "GET").uppercase(Locale.US).let { if (it.isEmpty()) "GET" else it }
         if (!METHODS.contains(method)) throw IllegalArgumentException("HTTP method unsupported: $method")
         // 脚本没给 UA 时不要露出 okhttp/4.x：一部分音源站按 UA 分流甚至直接关连接。
@@ -84,15 +94,27 @@ object LxHttp {
             }
             body = encoded.toString()
             headers["Content-Type"] = "application/x-www-form-urlencoded"
-        } else if (options.has("formData")) {
-            throw IllegalArgumentException("multipart unsupported")
+        } else if (!options.isNull("formData")) {
+            val fields = options.optJSONObject("formData") ?: throw IllegalArgumentException("formData must be an object")
+            val boundary = "tingyu-lx-" + java.util.UUID.randomUUID().toString()
+            val encoded = StringBuilder()
+            fields.keys().forEach { key ->
+                require(!key.contains('\r') && !key.contains('\n') && !key.contains('"')) { "Invalid multipart field" }
+                val value = fields.opt(key)
+                require(value is String || value is Number || value is Boolean) { "Multipart fields must be scalar values" }
+                encoded.append("--$boundary\r\nContent-Disposition: form-data; name=\"$key\"\r\n\r\n$value\r\n")
+            }
+            encoded.append("--$boundary--\r\n")
+            body = encoded.toString()
+            headers.keys.removeAll { it.equals("Content-Type", true) }
+            headers["Content-Type"] = "multipart/form-data; boundary=$boundary"
         } else if (!options.isNull("body")) {
             // 对象/数组请求体必须按 JSON 序列化（与 WebView http.ts 的 JSON.stringify 同语义）；
             // 早先是 raw.toString()，对象会变成 Java 的 com.xxx@hash，服务端永远读不懂。
             body = LxJson.bodyText(options.opt("body"))
             if (!headers.keys.any { it.equals("Content-Type", true) }) headers["Content-Type"] = "application/json"
         }
-        if ((body?.length ?: 0) > MAX_BODY) throw IllegalArgumentException("Request too large")
+        if ((body?.toByteArray(Charsets.UTF_8)?.size ?: 0) > MAX_BODY) throw IllegalArgumentException("Request too large")
         return LxRequestPlan(url, method, headers, body, timeout)
     }
 
@@ -101,6 +123,12 @@ object LxHttp {
      * 失败直接抛，由引擎映射成脚本回调里的 err。
      */
     fun request(rawUrl: String, options: JSONObject): String {
+        return request(rawUrl, options) { }
+    }
+
+    fun request(rawUrl: String, options: JSONObject, onCall: (Call) -> Unit): String = requestWithClient(rawUrl, options, CLIENT, onCall)
+
+    internal fun requestWithClient(rawUrl: String, options: JSONObject, client: OkHttpClient, onCall: (Call) -> Unit = {}): String {
         val first = plan(rawUrl, options)
         var target = first.url
         var activeMethod = first.method
@@ -108,15 +136,20 @@ object LxHttp {
         var activeHeaders = first.headers
         val timeout = first.timeoutMs
         var redirect = 0
+        val startedAt=System.nanoTime()
         while (true) {
-            val response = execute(target, activeMethod, activeHeaders, activeBody, timeout)
+            val remaining=timeout-(System.nanoTime()-startedAt)/1_000_000L
+            if(remaining<=0)throw java.net.SocketTimeoutException("LX HTTP timeout")
+            val response = execute(target, activeMethod, activeHeaders, activeBody, remaining, options.optBoolean("binary"), onCall, client)
             val location = response.optString("location", "").takeIf { it.isNotEmpty() }
             val status = response.optInt("statusCode", 0)
             if (status in 301..308 && location != null) {
                 if (++redirect > MAX_REDIRECTS) throw IllegalArgumentException("too many redirects")
                 val next = validateUrl(URI(URI(target).toString()).resolve(location).toString(), allowRedirectTarget = true)
                 val nextHeaders = LinkedHashMap(activeHeaders)
-                if (hostOf(next) != hostOf(target)) nextHeaders.keys.removeAll { SENSITIVE_HEADERS.contains(it.lowercase(Locale.US)) }
+                val oldOrigin = originOf(target)
+                val newOrigin = originOf(next)
+                if (oldOrigin != newOrigin) nextHeaders.keys.removeAll { SENSITIVE_HEADERS.contains(it.lowercase(Locale.US)) }
                 val downgrade = status == 303 || ((status == 301 || status == 302) && activeMethod == "POST")
                 target = next
                 if (downgrade) {
@@ -139,7 +172,7 @@ object LxHttp {
         val timeoutMs: Long,
     )
 
-    private fun execute(url: String, method: String, headers: Map<String, String>, body: String?, timeoutMs: Long): JSONObject {
+    private fun execute(url: String, method: String, headers: Map<String, String>, body: String?, timeoutMs: Long, binary: Boolean, onCall: (Call) -> Unit, client: OkHttpClient): JSONObject {
         val builder = Request.Builder().url(url)
         headers.forEach { (key, value) -> builder.header(key, value) }
         if (body != null && method != "GET" && method != "HEAD") {
@@ -147,30 +180,44 @@ object LxHttp {
         } else {
             builder.method(method, if (method == "GET" || method == "HEAD") null else "".toRequestBody(null))
         }
-        val call = CLIENT.newBuilder()
+        val call = client.newBuilder()
             .connectTimeout(timeoutMs, TimeUnit.MILLISECONDS)
             .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+            .callTimeout(timeoutMs, TimeUnit.MILLISECONDS)
             .build()
             .newCall(builder.build())
+        onCall(call)
         call.execute().use { response ->
-            val text = response.body?.string().orEmpty()
-            if (text.length > MAX_RESPONSE) throw IllegalArgumentException("Response too large")
+            val source = response.body?.source()
+            val data = source?.readByteArray((MAX_RESPONSE + 1).toLong().let { limit ->
+                // Read at most the budget plus one byte; never allocate an unbounded body.
+                if (source.request(limit)) limit else source.buffer.size
+            }) ?: ByteArray(0)
+            if (data.size > MAX_RESPONSE) throw IllegalArgumentException("Response too large")
+            val text = String(data, Charsets.UTF_8)
             val outHeaders = JSONObject()
             response.headers.forEach { pair -> outHeaders.put(pair.first, pair.second) }
-            val parsed = try {
-                if (text.isEmpty()) "" else JSONObject(text)
-            } catch (_: Throwable) {
-                try {
-                    if (text.isEmpty()) "" else org.json.JSONArray(text)
-                } catch (_: Throwable) {
-                    text
-                }
-            }
+            // JSON responses may be scalars too. Keep arbitrary JS/text downloads intact.
+            val trimmed=text.trim()
+            val candidate=trimmed.startsWith("{")||trimmed.startsWith("[")||trimmed.startsWith("\"")||
+                Regex("(?:true|false|null|-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)").matches(trimmed)
+            val parsed=if(candidate)try {
+                val tokenizer=org.json.JSONTokener(trimmed)
+                val value=tokenizer.nextValue()
+                if(tokenizer.nextClean().code==0)value else text
+            }catch(_:Throwable){text}else text
             return JSONObject()
                 .put("statusCode", response.code)
+                .put("statusMessage", response.message)
                 .put("headers", outHeaders)
-                .put("body", parsed ?: "")
+                .put("location", response.header("Location", ""))
+                .put("binary", binary)
+                .put("body", if (binary) org.json.JSONArray(data.map { it.toInt() and 255 }) else parsed ?: "")
         }
+    }
+
+    private fun originOf(url: String): String = URI(url).let {
+        "${it.scheme.lowercase(Locale.US)}://${it.host.lowercase(Locale.US)}:${if(it.port>=0)it.port else if(it.scheme.equals("https",true))443 else 80}"
     }
 
     private fun contentType(headers: Map<String, String>) =

@@ -88,7 +88,12 @@ public final class ResolverRegistry {
         if (kind == SourceRouting.Kind.ORIGINAL && track.prefersOriginal()) {
             // 用户选了平台原版：只认这个平台自己的解析器（QQ 原版 → QqResolver）。
             // 这里必须与前台 omni.getAudioSource 在未启用脚本时走的分支一致。
-            for (SourceResolver resolver : resolvers) if (resolver.supports(track.providerId)) return resolver;
+            for (SourceResolver resolver : resolvers) {
+                // A warm LX engine may still exist while the ordered script-clear bridge is pending.
+                // Explicit original playback must never be claimed by that previous custom source.
+                if ("lx-native".equals(resolver.id()) || "lx-script".equals(resolver.id())) continue;
+                if (resolver.supports(track.providerId)) return resolver;
+            }
             return null;
         }
         // 前端没说（老版本同步包 / 本地与局域网曲目）：沿用旧的平台启发式，行为不变。

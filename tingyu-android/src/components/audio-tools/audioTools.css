@@ -63,3 +63,13 @@
 .ty-lx-help { border-top:1px solid var(--lx-border); margin-top:14px; }
 .ty-lx-empty { padding:24px 10px; display:flex; flex-direction:column; align-items:center; gap:8px; color:var(--lx-muted); font-size:12px; }
 .ty-lx-empty small { font-size:11px; }
+
+/* The existing LX manager shares these control styles with its native semantic form. */
+.ty-lx-controls,.ty-lx-policy { display:flex; flex-direction:column; gap:10px; }
+.ty-lx-controls label { display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--lx-muted); }
+.ty-lx-controls :is(input,select) { width:100%; min-height:42px; border:1px solid var(--lx-border); border-radius:10px; padding:9px 10px; background:var(--lx-card); color:var(--lx-ink); font:inherit; }
+.ty-lx-controls select option { color:#18392e; background:#f3f6ef; }
+.ty-lx-controls button,.ty-lx-updates button { min-height:40px; padding:9px 12px; border:1px solid var(--lx-border); border-radius:10px; color:var(--lx-accent); text-align:left; background:var(--lx-card); }
+.ty-lx-controls summary { min-height:40px; padding:10px 0; color:var(--lx-accent); cursor:pointer; }
+.ty-lx-policy p { font-size:11px; line-height:1.6; color:var(--lx-muted); }
+.ty-lx-priority,.ty-lx-updates { display:flex; gap:7px; flex-wrap:wrap; }

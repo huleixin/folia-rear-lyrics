@@ -7,6 +7,26 @@ import java.util.function.Consumer;
 // android/app/src/main/java/io/github/huleixin/tingyu/playback/TingyuPlaybackPlugin.java
 @CapacitorPlugin(name="TingyuPlayback")
 public final class TingyuPlaybackPlugin extends Plugin {
+    private static final java.util.concurrent.ExecutorService LX_HTTP_IO=java.util.concurrent.Executors.newFixedThreadPool(4);
+    private static final java.util.concurrent.ConcurrentHashMap<String,okhttp3.Call> LX_HTTP_CALLS=new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.Set<String> LX_HTTP_CANCELLED=java.util.concurrent.ConcurrentHashMap.newKeySet();
+    /** The Worker and native engine share the same credential-free, public-network transport. */
+    @PluginMethod public void lxHttp(PluginCall call) {
+        final String id=call.getString("id","");
+        if(id.length()>80||LX_HTTP_CALLS.size()>=12){call.reject("LX request limit");return;}
+        LX_HTTP_IO.execute(()->{try{
+            String response=io.github.huleixin.tingyu.lx.LxHttp.INSTANCE.request(call.getString("url",""),call.getData().optJSONObject("options"),request->{
+                LX_HTTP_CALLS.put(id,request);if(LX_HTTP_CANCELLED.contains(id))request.cancel();return kotlin.Unit.INSTANCE;
+            });
+            call.resolve(new JSObject().put("response",response));
+        }catch(Exception error){call.reject("LX HTTP "+error.getClass().getSimpleName());}
+        finally{LX_HTTP_CALLS.remove(id);LX_HTTP_CANCELLED.remove(id);}});
+    }
+    @PluginMethod public void cancelLxHttp(PluginCall call) {
+        String id=call.getString("id","");
+        if(LX_HTTP_CANCELLED.size()<128)LX_HTTP_CANCELLED.add(id);
+        okhttp3.Call request=LX_HTTP_CALLS.get(id);if(request!=null)request.cancel();call.resolve();
+    }
     private static final java.util.concurrent.ExecutorService AUDIO_CACHE_IO=java.util.concurrent.Executors.newSingleThreadExecutor(r->new Thread(r,"tingyu-audio-cache"));
     private static AudioCacheStaging audioStaging;
     private AudioCacheStaging audioStaging()throws java.io.IOException{
@@ -399,7 +419,7 @@ public final class TingyuPlaybackPlugin extends Plugin {
                 data==null?"":String.valueOf(data.opt("description")),
                 data==null?"":String.valueOf(data.opt("author")),
                 data==null?"":String.valueOf(data.opt("homepage")),
-                "null".equals(code)?"":code);
+                "null".equals(code)?"":code, data==null?"{}":data.optString("policy","{}"));
             // 脚本换了，之前"这首取不到"的判定不再适用：清掉续播的有界预算。
             BackgroundContinuation.get().resetBudgets();
             // 预热：前台就把 QuickJS 拉起来。后台真要取地址时引擎已经是热的，
@@ -420,6 +440,15 @@ public final class TingyuPlaybackPlugin extends Plugin {
             call.resolve(new JSObject().put("installed",installed).put("warming",installed));
         }
         catch(Exception error){call.reject("安装音源脚本失败："+error.getClass().getSimpleName());}
+    }
+
+    @PluginMethod public void validateLxScript(PluginCall call) {
+        LX_HTTP_IO.execute(()->{
+            try {
+                String reason=io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.validate(call.getString("code",""),call.getData());
+                call.resolve(new JSObject().put("valid",reason.isEmpty()).put("reason",reason));
+            } catch(Exception error) {call.reject("LX validation failed: "+error.getClass().getSimpleName());}
+        });
     }
 
     /** 洛雪原生引擎的运行状态，进诊断报告。 */

@@ -74,10 +74,10 @@ public class LxHttpMappingTest {
         assertEquals("a=1&b=x+y", plan.getBody());
     }
 
-    @Test public void blockedHeadersAreDropped() throws Exception {
+    @Test public void hostHeaderIsDroppedWhileExplicitScriptCookieIsPreserved() throws Exception {
         LxHttp.LxRequestPlan plan = LxHttp.INSTANCE.plan(RESOLVE_URL, new JSONObject()
             .put("headers", new JSONObject().put("cookie", "x").put("host", "evil").put("X-Token", "keep")));
-        assertEquals("", header(plan, "cookie"));
+        assertEquals("x", header(plan, "cookie"));
         assertEquals("", header(plan, "host"));
         assertEquals("keep", header(plan, "X-Token"));
     }
@@ -133,7 +133,7 @@ public class LxHttpMappingTest {
     @Test public void bootstrapSerializesOptionsBeforeCrossingIntoKotlin() {
         assertTrue("lx.request 必须先把 options 序列化成 JSON 文本再交给宿主，"
             + "否则 QuickJS 绑定交过来的 JsObject 会被当成空 options",
-            LxBootstrap.SHIM.contains("http(String(url), JSON.stringify(options || {}))"));
+            LxBootstrap.SHIM.replaceAll("\\s+", "").contains("http(String(url),JSON.stringify(options||{}),id)"));
     }
 
     private static String header(LxHttp.LxRequestPlan plan, String name) {

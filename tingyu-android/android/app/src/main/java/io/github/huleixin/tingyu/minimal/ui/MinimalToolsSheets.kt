@@ -21,6 +21,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -949,6 +951,7 @@ private fun ToolIconButton(theme: ToolsTheme, label: String, onClick: () -> Unit
 
 // ---- 洛雪音源页 ----
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MinimalLxSheet(
     tools: MinimalTools,
@@ -1014,6 +1017,7 @@ fun MinimalLxSheet(
                     ) { actions.send("lxRestore", 0.0) },
                 )
             }
+            ScriptAction(theme, "URL 导入 / 更新回退 / 换源策略 / 日志", enabled = !lx.busy) { actions.send("lxManage", 0.0); onClose() }
             if (lx.scripts.isEmpty()) {
                 Box(Modifier.fillMaxWidth().padding(vertical = 18.dp), contentAlignment = Alignment.Center) {
                     Text("还没有导入音源", color = theme.muted, fontSize = 12.5.sp)
@@ -1042,7 +1046,7 @@ fun MinimalLxSheet(
                     }
                     if (script.caps.isNotEmpty()) {
                         Spacer(Modifier.height(7.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             script.caps.forEach { (name, qualitys) ->
                                 Column(
                                     Modifier
@@ -1083,7 +1087,7 @@ fun MinimalLxSheet(
                 Text(
                     "启用后可在搜索页选择脚本支持的平台。已登录平台的歌单和收藏也会使用所选音源播放，收藏和歌单归属不变。切换时保留播放位置。\n" +
                         "跨平台按歌名、歌手和时长匹配；失败会提示，不会自动切回原音源。未启用的脚本不会运行。\n" +
-                        "支持 request、Buffer、MD5、AES；暂不支持依赖 RSA、zlib 或 multipart 的脚本。不内置第三方音源。",
+                        "支持移动版 request、字节数组、MD5、AES、RSA 与文本 multipart；移动版协议无全局 Node Buffer 或 zlib。音质声明不代表实际音频已验证。不内置第三方音源。",
                     color = theme.muted,
                     fontSize = 11.sp,
                 )

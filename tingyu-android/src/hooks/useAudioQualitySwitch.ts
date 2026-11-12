@@ -9,9 +9,9 @@ import { PlayerState } from '../types';
 // src/hooks/useAudioQualitySwitch.ts
 export function useAudioQualitySwitch(recover: (options: OnlineRecoveryOptions) => Promise<OnlineRecoveryResult>) {
     useEffect(()=>useLxSourceStore.subscribe((next,previous)=>{
-        const signature=(state:typeof next)=>{const script=state.scripts.find(item=>item.id===state.activeId);return [state.activeId,script?.code] as const};
+        const signature=(state:typeof next)=>{const script=state.scripts.find(item=>item.id===state.activeId);return [state.activeId,script?.code,JSON.stringify(state.policy)] as const};
         const before=signature(previous),after=signature(next);
-        if(before[0]===after[0]&&before[1]===after[1])return;
+        if(before[0]===after[0]&&before[1]===after[1]&&before[2]===after[2])return;
         if(usePlaybackStore.getState().currentSong?.sourceRef?.kind!=='online')return;
         useAudioToolsStore.setState({request:{quality:useAudioSettingsStore.getState().audioQuality,id:Date.now(),reason:'source'},error:''});
     }),[]);

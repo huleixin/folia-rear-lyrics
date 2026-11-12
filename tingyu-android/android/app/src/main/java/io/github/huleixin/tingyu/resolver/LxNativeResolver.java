@@ -72,6 +72,9 @@ public final class LxNativeResolver implements SourceResolver {
             // 让调用方回落到 JS 通道 —— 绝不能因为 provider=qq 就静默改走 musicu。
             return SourceResolution.unsupported("SCRIPT_NOT_INSTALLED");
         }
+        String preferred=LxRuntimeHost.INSTANCE.preferredSource();
+        if(!preferred.isEmpty()&&!preferred.equals(source))
+            return SourceResolution.unsupported("默认来源需要前台按歌名、歌手和时长匹配，不能复用当前平台的歌曲 ID");
         // prepare 会先把引擎拉起来，再给出能力表。顺序反了就永远走不到执行脚本这一步。
         List<String> qualitys = LxRuntimeHost.INSTANCE.prepare(track.providerId);
         if (qualitys == null || qualitys.isEmpty()) {
@@ -81,25 +84,27 @@ public final class LxNativeResolver implements SourceResolver {
             }
             return SourceResolution.unsupported("SOURCE_NOT_READY: no " + source + " musicUrl");
         }
-        String type;
-        try {
-            type = LxPlatform.INSTANCE.qualityFor(quality, qualitys);
-        } catch (Exception error) {
-            return SourceResolution.unsupported("lx script has no usable quality for " + source);
+        int target=java.util.Arrays.asList("standard","high","lossless","hires").indexOf(quality);
+        if(target<0)target=1;
+        String lastReason="音源不支持所选音质";
+        JSONObject musicInfo=LxPlatform.INSTANCE.musicInfo(source,track.providerId,track.mediaId,track.title,track.artist,track.album,
+            Math.max(0,track.durationMs/1000L),track.artwork,track.providerData,qualitys);
+        long deadline=System.nanoTime()+65_000_000_000L;
+        for(int index=target;index>=0;index--){
+            if(index!=target&&!LxRuntimeHost.INSTANCE.autoDowngrade())break;
+            String type=LxPlatform.INSTANCE.getQUALITIES()[index];
+            if(!qualitys.contains(type))continue;
+            for(int attempt=0;attempt<=LxRuntimeHost.INSTANCE.retries();attempt++){
+                long remaining=(deadline-System.nanoTime())/1_000_000L;
+                if(remaining<=0)return SourceResolution.failure("音源取流总预算超时，请更换音源");
+                LxOutcome outcome=LxRuntimeHost.INSTANCE.resolve(source,type,musicInfo,remaining);
+                if(outcome!=null&&outcome.getOk()&&isPlayable(outcome.getValue()))
+                    return SourceResolution.ok(outcome.getValue(),resolvedQuality(type),System.currentTimeMillis());
+                lastReason=outcome==null?"null outcome":outcome.getOk()?"无有效播放 URL":outcome.getReason();
+                if(lastReason.contains("已更换"))return SourceResolution.failure(lastReason);
+            }
         }
-        JSONObject musicInfo = LxPlatform.INSTANCE.musicInfo(
-            source, track.providerId, track.mediaId, track.title, track.artist, track.album,
-            Math.max(0, track.durationMs / 1000L), track.artwork, track.providerData, qualitys);
-        LxOutcome outcome = LxRuntimeHost.INSTANCE.resolve(source, type, musicInfo);
-        if (outcome == null || !outcome.getOk()) {
-            String reason = outcome == null ? "null outcome" : outcome.getReason();
-            return SourceResolution.failure("lx " + source + ": " + reason);
-        }
-        String url = outcome.getValue();
-        if (!isPlayable(url)) {
-            return SourceResolution.failure("lx returned an unusable url");
-        }
-        return SourceResolution.ok(url, resolvedQuality(type), System.currentTimeMillis());
+        return SourceResolution.failure("lx "+source+": "+lastReason+"；请在前台更换音源或恢复原音源");
     }
 
     /** 与 JS validateRemoteUrl 同规则：只认公网 http(s)。 */
@@ -117,7 +122,8 @@ public final class LxNativeResolver implements SourceResolver {
 
     static String resolvedQuality(String type) {
         if ("128k".equals(type)) return "standard";
-        if ("flac".equals(type) || "flac24bit".equals(type)) return "lossless";
+        if ("flac24bit".equals(type)) return "hires";
+        if ("flac".equals(type)) return "lossless";
         return "high";
     }
 }

@@ -19,11 +19,12 @@ interface TingyuPlaybackLx {
         author: string;
         homepage: string;
         code: string;
+        policy?: string;
     }): Promise<{ installed: boolean }>;
 }
 
-let lastCode = '';
-let lastActiveId: string | null = null;
+let queuedSignature = '';
+let syncQueue: Promise<void> = Promise.resolve();
 
 /** 最近一次下发的结果。诊断里能回答"脚本到底有没有交到播放进程"。 */
 let lastSync: { at: number; installed: boolean | null; error: string | null } =
@@ -31,33 +32,25 @@ let lastSync: { at: number; installed: boolean | null; error: string | null } =
 
 export const readLxNativeSyncState = () => ({ ...lastSync });
 
-export const syncLxScriptToNative = async (): Promise<void> => {
-    const { scripts, activeId } = useLxSourceStore.getState();
-    const active = scripts.find(script => script.id === activeId) ?? null;
-    const code = active?.code ?? '';
-    if (activeId === lastActiveId && code === lastCode) return;
-    lastActiveId = activeId;
-    lastCode = code;
-    try {
-        const native = getTingyuPlayback<TingyuPlaybackLx>();
-        const result = await native.setLxScript({
-            id: active?.id ?? '',
-            name: active?.name ?? '',
-            version: active?.version ?? '',
-            description: active?.description ?? '',
-            author: active?.author ?? '',
-            homepage: active?.homepage ?? '',
-            code,
-        });
-        lastSync = { at: Date.now(), installed: result?.installed === true, error: null };
-        // 启用了脚本却没装上：这是后台续播会失败的明确前兆，必须留痕（不记脚本内容）。
-        if (active && result?.installed !== true) {
-            console.warn('[lx-native] 脚本已启用但未交给播放进程，后台将无法独立取流');
+export const syncLxScriptToNative = (): Promise<void> => {
+    const {scripts,activeId,policy}=useLxSourceStore.getState();
+    const active=scripts.find(script=>script.id===activeId)??null;
+    const payload={id:active?.id??'',name:active?.name??'',version:active?.version??'',description:active?.description??'',author:active?.author??'',homepage:active?.homepage??'',code:active?.code??'',policy:JSON.stringify(policy)};
+    const signature=JSON.stringify(payload);
+    if(signature===queuedSignature)return syncQueue;
+    queuedSignature=signature;
+    // Serialize mutations so a slow old install can never overwrite the new selection.
+    syncQueue=syncQueue.then(async()=>{
+        try {
+            const result=await getTingyuPlayback<TingyuPlaybackLx>().setLxScript(payload);
+            lastSync={at:Date.now(),installed:result?.installed===true,error:null};
+            if(active&&result?.installed!==true&&queuedSignature===signature)queuedSignature='';
+        }catch(error){
+            lastSync={at:Date.now(),installed:false,error:error instanceof Error?error.name:'unknown'};
+            if(queuedSignature===signature)queuedSignature='';
         }
-    } catch (error) {
-        lastSync = { at: Date.now(), installed: false, error: error instanceof Error ? error.name : 'unknown' };
-        // 同步是增强：失败时原生只是跑不了脚本，前台那条 JS 通道照旧。
-    }
+    });
+    return syncQueue;
 };
 
 // 用户在设置里启用/切换/删除脚本时立刻同步，不等下一次播放。
@@ -65,6 +58,6 @@ useLxSourceStore.subscribe(() => { void syncLxScriptToNative(); });
 
 /** 测试用：忘掉上次同步的内容，强制下一次真的下发。 */
 export const resetLxScriptSyncForTest = (): void => {
-    lastCode = '';
-    lastActiveId = null;
+    queuedSignature = '';
+    syncQueue = Promise.resolve();
 };

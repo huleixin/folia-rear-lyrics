@@ -49,6 +49,21 @@ public class AllSourcesRoutingTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void originalSelectionCannotBeClaimedByAWarmOrLateLxResolver() throws Exception {
+        java.lang.reflect.Field field=ResolverRegistry.class.getDeclaredField("resolvers");field.setAccessible(true);
+        java.util.List<SourceResolver> entries=(java.util.List<SourceResolver>)field.get(ResolverRegistry.get());
+        // Models the interval before a queued native clear has retired the previous LX engine.
+        entries.add(0,new SourceResolver(){
+            public String id(){return "lx-native";}
+            public boolean supports(String provider){return true;}
+            public SourceResolution resolve(NativePlaylist.Track track,String quality){throw new AssertionError("LX must not claim original playback");}
+        });
+        for(String provider:new String[]{"qq","netease","kugou"})
+            assertEquals(provider,ResolverRegistry.get().forTrack(track("original-"+provider,provider,provider+"-original")).id());
+    }
+
+    @Test
     public void kugouOriginalRoutesToTheKugouResolver() {
         SourceResolver chosen = ResolverRegistry.get().forTrack(track("s1", "kugou", "kugou-original"));
         assertEquals("kugou", chosen.id());

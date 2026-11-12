@@ -17,6 +17,23 @@ import org.junit.Test;
  * 这些是脚本能跑对的前提：身份拼错就是"取到别的歌"，边界放错就是把本机代理暴露给第三方脚本。
  */
 public class LxEngineTest {
+    @Test public void neteaseSongmidKeepsTheOfficialNumericType() throws Exception {
+        JSONObject info=LxPlatform.INSTANCE.musicInfo("wy","netease","123","Fixture","Artist","Album",120,"","{}",java.util.Arrays.asList("128k"));
+        assertTrue(info.get("songmid") instanceof Number);assertEquals(123,info.getInt("songmid"));assertTrue(info.getJSONObject("meta").get("songId") instanceof Number);
+    }
+
+    @Test public void qqSongMidNeverFallsBackToFileMidAndNumericIdsKeepTheirType() throws Exception {
+        JSONObject info=LxPlatform.INSTANCE.musicInfo("tx","qq","song-mid","Fixture","Artist","Album",120,"",
+            new JSONObject().put("mediaMid","file-mid").put("songId",42).put("albumId",7).toString(),java.util.Arrays.asList("128k"));
+        assertEquals("song-mid",info.getString("songmid"));assertEquals("file-mid",info.getString("strMediaMid"));
+        assertTrue(info.get("songId") instanceof Number);assertTrue(info.get("albumId") instanceof Number);
+        assertEquals("song-mid",info.getJSONObject("meta").getString("songId"));assertEquals(42,info.getJSONObject("meta").getInt("id"));
+    }
+
+    @Test public void scriptErrorsAreRedactedBeforeDiagnosticDelivery() {
+        String result=LxRedaction.INSTANCE.clean("failed https://example.com/?token=private Cookie: session=private");
+        assertFalse(result.contains("private"));assertFalse(LxRedaction.INSTANCE.clean("Token=secret-value").contains("secret-value"));
+    }
 
     private static JSONObject call(String op, Object... args) throws Exception {
         JSONArray array = new JSONArray();

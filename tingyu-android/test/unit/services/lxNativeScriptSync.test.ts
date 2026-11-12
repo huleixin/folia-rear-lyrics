@@ -48,7 +48,7 @@ const script = (id: string, name: string, code: string) => ({
 });
 
 describe('lxNativeScriptSync', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
         // mockReset 而不是 mockClear：前一个用例的 mockRejectedValueOnce 会残留，
         // 把本该成功的下发变成失败，测出来的"同步状态"就是假的。
         setLxScript.mockReset();
@@ -59,6 +59,9 @@ describe('lxNativeScriptSync', () => {
         scriptCalls.length = 0;
         resetLxScriptSyncForTest();
         useLxSourceStore.setState({ scripts: [], activeId: null });
+        await syncLxScriptToNative();
+        scriptCalls.length = 0;
+        setLxScript.mockClear();
     });
 
     it('hands the active script to native', async () => {

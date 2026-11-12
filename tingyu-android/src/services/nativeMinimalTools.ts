@@ -1,9 +1,11 @@
 import { usePlaybackStore } from '../stores/usePlaybackStore';
 import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
 import { useAudioToolsStore, QUALITY_LABELS } from '../stores/useAudioToolsStore';
+import { useSettingsModalStore } from '../stores/useSettingsModalStore';
 import { useLxSourceStore } from '../stores/useLxSourceStore';
 import { omni } from './onlineMusic/omni';
-import { LxRuntime } from './lxSource/client';
+import { checkLxScript } from './lxSource/management';
+import { noteLx, redactLx } from './lxSource/diagnostics';
 import { pickLxScript } from './lxSource/importFile';
 import { isLocalPlaybackSong, resolveNavidromePlaybackCarrier } from '../utils/appPlaybackGuards';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
@@ -143,7 +145,7 @@ function buildQualitySnapshot() {
     const song = usePlaybackStore.getState().currentSong;
     const local = song ? isLocalPlaybackSong(song) || !!resolveNavidromePlaybackCarrier(song) : false;
     const actual = tools.actual && song && tools.actual.key === getPlaybackSongKey(song)
-        ? (QUALITY_LABELS[tools.actual.quality] ?? tools.actual.quality)
+        ? (tools.actual.verified===false ? `音源请求 ${QUALITY_LABELS[tools.actual.quality]}（实际未验证）` : QUALITY_LABELS[tools.actual.quality] ?? tools.actual.quality)
         : local ? '原文件' : '未确认（可能来自缓存）';
     return {
         current: settings.audioQuality,
@@ -327,20 +329,17 @@ async function importLxScript(): Promise<void> {
     lxBusy = true; lxMessage = '正在检查音源…'; lxFailed = false;
     lastSent = '';
     syncNativeTools();
-    let runtime: LxRuntime | null = null;
     try {
         const script = await pickLxScript();
         if (!script) { lxMessage = '已取消选择'; return; }
-        runtime = new LxRuntime(script);
-        const capabilities = await runtime.ready;
-        useLxSourceStore.getState().save({ ...script, capabilities });
-        omni.activateLxSource(script.id);
+        const {capabilities} = await checkLxScript(script);
+        const id = useLxSourceStore.getState().save({ ...script, capabilities });
+        omni.activateLxSource(id);
         lxMessage = `初始化成功：${Object.values(capabilities).map(c => `${c.name} (${c.qualitys.join(' / ')})`).join('、')}`;
     } catch (error) {
         lxFailed = true;
-        lxMessage = error instanceof Error ? error.message : String(error);
+        lxMessage = redactLx(error);noteLx('import','import',error);
     } finally {
-        runtime?.stop();
         lxBusy = false;
         lastSent = '';
         syncNativeTools();
@@ -353,17 +352,14 @@ async function testLxScript(id: string): Promise<void> {
     lxBusy = true; lxMessage = '正在检查音源…'; lxFailed = false;
     lastSent = '';
     syncNativeTools();
-    let runtime: LxRuntime | null = null;
     try {
-        runtime = new LxRuntime(script);
-        const capabilities = await runtime.ready;
+        const {capabilities} = await checkLxScript(script);
         useLxSourceStore.getState().save({ ...script, capabilities });
         lxMessage = `初始化成功：${Object.values(capabilities).map(c => `${c.name} (${c.qualitys.join(' / ')})`).join('、')}。实际取流请播放对应平台的歌曲验证。`;
     } catch (error) {
         lxFailed = true;
-        lxMessage = error instanceof Error ? error.message : String(error);
+        lxMessage = redactLx(error);noteLx('import','import',error);
     } finally {
-        runtime?.stop();
         lxBusy = false;
         lastSent = '';
         syncNativeTools();
@@ -519,6 +515,11 @@ export function runNativeToolsAction(action: string, value: number): boolean {
             handlers.lyrics?.onClearOnlineLyricsState();
             lastSent = '';
             syncNativeTools();
+            return true;
+        }
+        case 'lxManage': {
+            useSettingsModalStore.getState().openSettingsFromIndex('integration');
+            useLxSourceStore.getState().show();
             return true;
         }
         case 'lxImport': {
