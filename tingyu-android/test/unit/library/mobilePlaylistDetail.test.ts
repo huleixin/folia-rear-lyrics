@@ -26,6 +26,7 @@ vi.mock('../../../src/hooks/useLiquidGlass', () => ({ useLiquidGlass: () => useR
 let host: HTMLDivElement;
 let root: Root;
 beforeEach(() => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }));
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
     vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => setTimeout(() => fn(0), 0));
     vi.stubGlobal('cancelAnimationFrame', clearTimeout);
@@ -95,7 +96,18 @@ describe('playlist chrome and bounded virtual rows', () => {
         usePlaybackStore.setState({ currentSong: song(1), playerState: PlayerState.PLAYING });
         const props = stageProps(); props.navigation = { depth: 1, activeType: 'playlist', origin: 'home' };
         act(() => root.render(h(MobileLibraryStage, props)));
-        act(() => { host.querySelector<HTMLButtonElement>('.ml-mini-track')!.click(); host.querySelector<HTMLButtonElement>('.ml-mini-toggle')!.click(); host.querySelector<HTMLButtonElement>('.ml-mini-next')!.click(); });
+        act(() => { host.querySelector<HTMLButtonElement>('[aria-label="mobileLibrary.openStage"]')!.click(); host.querySelector<HTMLButtonElement>('[aria-label="mobileLibrary.pause"]')!.click(); });
+        // Next track moved to the swipe gesture; the second button now opens the queue.
+        const mini = host.querySelector<HTMLElement>('.ml-mini')!;
+        const track = host.querySelector<HTMLElement>('.ml-mini-track')!;
+        mini.setPointerCapture = vi.fn();
+        track.animate = vi.fn(() => ({ cancel: vi.fn(), onfinish: null }) as unknown as Animation);
+        const swipe = (type: string, clientX: number) => {
+            const event = new MouseEvent(type, { bubbles: true, clientX, clientY: 20, button: 0 });
+            Object.defineProperties(event, { pointerId: { value: 1 }, isPrimary: { value: true } });
+            track.dispatchEvent(event);
+        };
+        act(() => { swipe('pointerdown', 200); swipe('pointermove', 80); swipe('pointerup', 80); });
         expect(props.onBackToPlayer).toHaveBeenCalledOnce(); expect(props.onTogglePlayback).toHaveBeenCalledOnce(); expect(props.onNextTrack).toHaveBeenCalledOnce();
         expect(host.querySelectorAll('.ml-mini-controls button')).toHaveLength(2);
     });
@@ -137,7 +149,9 @@ describe('playlist chrome and bounded virtual rows', () => {
         const props = { view, sessionKey: 'test-long-playlist', query: '', onPlay: vi.fn(), onMenu: vi.fn() };
         const html = renderToStaticMarkup(h(MobileTrackList, { ...props, showArtwork: true, footer: h('div', { className: 'ml-playlist-tail' }) }));
         expect((html.match(/data-testid="mobile-song-row"/g) ?? []).length).toBeLessThan(30);
-        expect(html).toContain('ml-song-art');
-        expect(renderToStaticMarkup(h(MobileTrackList, props))).not.toContain('ml-song-art');
+        const artwork = document.createElement('div'); artwork.innerHTML = html;
+        expect(artwork.querySelectorAll('.ml-song-art').length).toBeGreaterThan(0);
+        artwork.innerHTML = renderToStaticMarkup(h(MobileTrackList, props));
+        expect(artwork.querySelector('.ml-song-art')).toBeNull();
     });
 });

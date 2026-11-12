@@ -280,15 +280,15 @@ describe('command palette registry', () => {
         expect(context.playback.setReplayGainMode).toHaveBeenCalledWith('off');
     });
 
-    it('opens the controls panel and ten-band equalizer', () => {
+    it('opens the independent audio effects tool', () => {
         const context = createContext();
         const [match] = getCommandPaletteMatches('十段均衡器', context);
 
         expect(match.command.id).toBe('playback-equalizer');
         match.command.execute(match.input, context);
 
-        expect(context.panel.setPanelTab).toHaveBeenCalledWith('controls');
-        expect(context.panel.setIsPanelOpen).toHaveBeenCalledWith(true);
+        expect(context.panel.setPanelTab).not.toHaveBeenCalled();
+        expect(context.panel.setIsPanelOpen).not.toHaveBeenCalled();
         expect(context.playback.openAudioEqualizer).toHaveBeenCalled();
     });
 
@@ -886,7 +886,7 @@ describe('the player surface gates the panel commands', () => {
     // 面板长在播放页上；命令面板放开到全 app 之后，这些命令在首页没有可开的东西。
     // 置灰而不是隐藏——它们在播放页始终存在，凭视图消失会让列表看起来在闪。
     const PLAYER_SURFACE_COMMAND_IDS = [
-        'panel-cover', 'panel-queue', 'panel-onlineLyrics', 'playback-equalizer',
+        'panel-cover', 'panel-queue', 'panel-onlineLyrics',
     ];
 
     const availableIds = (view: 'home' | 'player') => (
@@ -906,6 +906,7 @@ describe('the player surface gates the panel commands', () => {
     it('leaves the rest of the registry alone on home', () => {
         const ids = availableIds('home');
         expect(ids).toContain('playback-next');
+        expect(ids).toContain('playback-equalizer');
         expect(ids).toContain('navigate-player');
         expect(ids).toContain('visualizer-picker');
     });
@@ -942,6 +943,7 @@ describe('personal FM withdraws the queue commands', () => {
         const ids = availableIds(true);
         expect(ids).toContain('playback-fm-mode');
         expect(ids).toContain('playback-next');
+        expect(ids).toContain('playback-equalizer');
         expect(ids).not.toContain('navigate-lattice');
     });
 });

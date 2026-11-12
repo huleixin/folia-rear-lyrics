@@ -6,7 +6,7 @@ vi.mock('@/services/nativeChrome',()=>({chromeNative:native}));
 // test/unit/services/navigationTiming.test.ts
 beforeEach(()=>{vi.resetModules();localStorage.clear();native.navigationDiagnostics.mockReset();delete (window as any).Capacitor});
 afterEach(()=>{vi.useRealTimers();vi.restoreAllMocks();vi.unstubAllGlobals();delete (window as any).Capacitor});
-it('does no continuous sampling when off, stops after ten seconds, and clears when disabled',async()=>{
+it('does no continuous sampling when off, stops after sixty seconds, and clears when disabled',async()=>{
     vi.useFakeTimers();
     const observe=vi.fn(),disconnect=vi.fn(),construct=vi.fn();
     vi.stubGlobal('PerformanceObserver',class{constructor(){construct()}observe=observe;disconnect=disconnect});
@@ -15,7 +15,8 @@ it('does no continuous sampling when off, stops after ten seconds, and clears wh
     recorder.navigationMark('off');expect(recorder.navigationTimingSnapshot()).toEqual([]);
     await recorder.setNavigationDiagnostics(true);expect(observe).toHaveBeenCalledOnce();
     recorder.navigationMark('first-touch');expect(recorder.navigationTimingSnapshot().some(s=>s.phase==='first-touch')).toBe(true);
-    await vi.advanceTimersByTimeAsync(10001);expect(disconnect).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(10000);expect(disconnect).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(50001);expect(disconnect).toHaveBeenCalledOnce();
     await recorder.setNavigationDiagnostics(false);expect(recorder.navigationTimingSnapshot()).toEqual([]);
     await vi.advanceTimersByTimeAsync(10000);expect(observe).toHaveBeenCalledOnce();
 });

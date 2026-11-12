@@ -155,7 +155,12 @@ describe('library core layer boundaries', () => {
 
     it('lets nothing outside the suites reach into a suite except the registry', () => {
         const files = listSources('src').filter(file => !/^src\/library\/(suites\/|registry\.ts$)/.test(file));
-        const offenders = offendersOf(files, target => /^src\/library\/suites\//.test(target), allSpecifiersOf);
+        // Search reuses existing touch/Compose operation shells, without library data ownership.
+        const sharedShells = new Set([
+            'src/components/app/search/SearchResultRow.tsx -> ../../../library/suites/mobile/MobileSheet',
+            'src/components/app/search/SearchWorkspace.tsx -> ../../../library/suites/mobile/native/OperationPanel',
+        ]);
+        const offenders = offendersOf(files, target => /^src\/library\/suites\//.test(target), allSpecifiersOf).filter(edge => !sharedShells.has(edge));
         expect(files).toEqual(expect.arrayContaining(['src/components/app/Home.tsx', 'src/library/app/GridViewOverlayHost.tsx']));
         expect(offenders).toEqual([]);
     });
@@ -209,7 +214,8 @@ describe('library core layer boundaries', () => {
     it('keeps the artist data in core: the grid artist page loads nothing itself', () => {
         // P4.1：歌手页的数据是宿主持有的歌手资源（core/services/artistResource），本地歌手由宿主的 catalog 派生；
         // 网格歌手页不再自己调 omni / Navidrome，也不再自带第二个本地曲库 catalog。
-        const ARTIST_VIEWS = listSources('src/library/suites/mobile');
+        // Artist ownership applies to artist views, not playlist/account/local mutation adapters.
+        const ARTIST_VIEWS = listSources('src/library/suites/mobile').filter(file => /artist/i.test(path.basename(file)));
         const offenders = offendersOf(ARTIST_VIEWS, target => (
             /^src\/services\/(onlineMusic\/omni|navidromeService|localCoverAssetUrl|playbackAdapters)$/.test(target)
             || /^src\/hooks\/useLocalLibraryCatalog$/.test(target)

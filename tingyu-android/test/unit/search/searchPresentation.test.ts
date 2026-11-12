@@ -21,7 +21,7 @@ vi.mock('@/services/onlineMusic/catalogRefs', () => ({ canResolveSongCatalogRef:
 vi.mock('framer-motion', async importOriginal => {
     const actual = await importOriginal<typeof import('framer-motion')>();
     return { ...actual, AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
-        motion: { ...actual.motion, section: ({ initial: _initial, animate: _animate, exit: _exit, transition: _transition, ...props }: any) => h('section', props) } };
+        motion: { div: actual.motion.div, section: ({ initial: _initial, animate: _animate, exit: _exit, transition: _transition, ...props }: any) => h('section', props) } };
 });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 let host: HTMLDivElement, root: Root;

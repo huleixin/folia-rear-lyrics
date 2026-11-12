@@ -66,20 +66,20 @@ describe('本地资料库的在线分类导航', () => {
         useHomeSourceStore.setState({ source: 'online' });
     });
 
-    it('本地模式：整行在线导航不生成（不留空白占位），右上角音源选择器为空', async () => {
+    it('本地模式：整行在线导航不生成（不留空白占位），保留切换音源入口', async () => {
         useHomeSourceStore.setState({ source: 'local' });
         const model = await render();
         expect(model.sections.some(section => section.id === 'sources')).toBe(false);
-        expect(model.trailing).toBe('');
-        expect(model.trailingLabel).toBe('');
+        expect(model.trailing).toBe('sources');
+        expect(model.trailingLabel).toBe('mobileLibrary.localMusicSource');
         // 本地资料库自己的分类与搜索框照常保留
         expect(model.sections.some(section => section.id === 'filter')).toBe(true);
     });
 
-    it('在线模式：原有「歌单/电台/专辑/本地」导航与 QQ 音乐选择器完整恢复', async () => {
+    it('在线模式：在线分类恢复，本地音乐通过音源入口切换', async () => {
         const model = await render();
         const tabs = model.sections.find(section => section.id === 'sources');
-        expect(tabs?.items?.map(item => item.title)).toEqual(['歌单', '电台', '专辑', '本地']);
+        expect(tabs?.items?.map(item => item.title)).toEqual(['歌单', '电台', '专辑']);
         expect(model.trailing).toBe('sources');
         expect(model.trailingLabel).toBe('QQ音乐');
     });

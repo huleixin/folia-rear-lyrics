@@ -64,7 +64,7 @@ describe('which commands may be bound', () => {
     it('excludes the ones that need particular surroundings', () => {
         const bindable = COMMAND_PALETTE_COMMANDS.filter(isScopeIndependentCommand).map(command => command.id);
         expect(bindable).not.toContain('panel-cover');
-        expect(bindable).not.toContain('playback-equalizer');
+        expect(bindable).toContain('playback-equalizer'); // Independent tool works from every page.
         expect(bindable).not.toContain('filter-view');
     });
 

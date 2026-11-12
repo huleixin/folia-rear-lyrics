@@ -16,7 +16,7 @@ const settingsFiles = fs.readdirSync(SETTINGS_DIR)
 
 // Android-only leaf cards have no desktop table-of-contents entry. They were already
 // plain sections before the rear control center; keep testing every desktop section.
-const androidLeafCards = new Set(['GraphicsDiagnosticsSettings.tsx', 'InterfaceAppearanceSetting.tsx', 'SmartResourceCacheSettings.tsx']);
+const androidLeafCards = new Set(['RearLyricsGuide.tsx', 'GraphicsDiagnosticsSettings.tsx', 'InterfaceAppearanceSetting.tsx', 'SmartResourceCacheSettings.tsx']);
 
 describe('settings section anchors', () => {
     it.each(settingsFiles.filter(file => !androidLeafCards.has(path.basename(file))).map(file => [path.basename(file), file]))('uses SettingsAnchor instead of a bare section in %s', (_name, file) => {

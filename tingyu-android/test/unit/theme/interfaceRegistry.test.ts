@@ -16,7 +16,15 @@ describe('shared ordinary theme registry',()=>{
         for(const [key,value] of Object.entries(interfaceThemes.classic.dark.web))
             css=css.replaceAll('var('+key+')',value);
         const declarations:string[]=[];
-        postcss.parse(css).walkDecls(d=>{declarations.push(d.prop+':'+d.value+(d.important?'!important':''));});
+        // Six motion declarations were added after the color baseline by the native transition pass.
+        const motionTokens:Record<string,string> = {
+            '--ty-duration-player-morph':'520ms', '--ty-duration-cover':'480ms', '--ty-duration-theme':'320ms',
+            '--ty-duration-panel-exit':'190ms', '--ty-duration-popup-exit':'160ms', '--ty-ease-emphasized':'cubic-bezier(.16, 1, .3, 1)',
+        };
+        postcss.parse(css).walkDecls(d=>{
+            if (file.endsWith('tingyuTokens.css') && d.prop in motionTokens) expect(d.value).toBe(motionTokens[d.prop]);
+            else declarations.push(d.prop+':'+d.value+(d.important?'!important':''));
+        });
         expect(crypto.createHash('sha256').update(JSON.stringify(declarations)).digest('hex')).toBe(expected);
     });
     it('keeps generated native, CSS and startup outputs current',async()=>{

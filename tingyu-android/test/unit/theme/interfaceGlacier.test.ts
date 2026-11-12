@@ -31,7 +31,7 @@ it('style persistence does not mutate mode, lyric settings or the lyric settings
 for(const style of ['classic','glacier','unknown'])for(const mode of ['light','dark','system'])for(const system of [true,false])
 it('synchronous startup '+[style,mode,system].join('/'),()=>{
     const vars:Record<string,string>={},dataset:Record<string,string>={};
-    vm.runInNewContext(fs.readFileSync('public/interface-theme-startup.js','utf8'),{
+    vm.runInNewContext(fs.readFileSync('public/interface-theme-startup.js','utf8'),{window:{},
         localStorage:{getItem:(key:string)=>key===INTERFACE_THEME_KEY?style:mode},
         matchMedia:()=>({matches:system}),document:{documentElement:{dataset,style:{setProperty:(key:string,value:string)=>vars[key]=value}}},
     });
@@ -41,7 +41,7 @@ it('synchronous startup '+[style,mode,system].join('/'),()=>{
 });
 it('blocked startup storage uses the safe classic dark first frame',()=>{
     const vars:Record<string,string>={};
-    vm.runInNewContext(fs.readFileSync('public/interface-theme-startup.js','utf8'),{
+    vm.runInNewContext(fs.readFileSync('public/interface-theme-startup.js','utf8'),{window:{},
         localStorage:{getItem:()=>{throw Error('blocked')}},document:{documentElement:{dataset:{},style:{setProperty:(k:string,v:string)=>vars[k]=v}}},
     });
     expect(vars['--ty-launch-bg']).toBe('#102D25');

@@ -114,7 +114,10 @@ describe('store contract', () => {
             useSearchExploreStore: ['useSearchNavigationStore'],
             // 全局音乐来源（在线/本地）是唯一权威：它驱动资料库页签，避免音源弹窗选了
             // 本地音乐而资料库仍停在 QQ 音乐。单向边，navigation store 不反向导入它。
-            useHomeSourceStore: ['useSearchNavigationStore'],
+            useHomeSourceStore: ['useSearchNavigationStore', 'useOnlineProviderAccountStore'],
+            // Source selection synchronizes the active provider; settings capture the return page/mode.
+            // All three edges are one-way, guarded by the acyclic check above.
+            useSettingsModalStore: ['useAppViewStore', 'usePlayerViewModeStore'],
         };
         const INFRASTRUCTURE = new Set([
             'storagePrimitives', 'useStatusMessageStore', 'visualizerSettingsPersistence', 'motionSignals',

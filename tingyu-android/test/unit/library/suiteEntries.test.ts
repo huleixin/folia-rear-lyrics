@@ -9,7 +9,11 @@ describe('Tingyu suite entry boundaries',()=>{
     it('ships only the mobile renderer entry',()=>{const dir=path.join(root,'src/library/suites');const entries=readdirSync(dir).filter(id=>existsSync(path.join(dir,id,'entry.ts')));expect(entries).toEqual(['mobile']);});
     it('keeps surfaces split while allowing idle collection preloading',()=>{
         const entry=read('src/library/suites/mobile/entry.ts');
-        expect(entry.match(/React\.lazy\(/g)).toHaveLength(4);
+        // Native adapters attach synchronously; web views and detail loaders remain lazy.
+        expect(entry).toContain('COMPOSE_CHROME ? MobileHome : React.lazy');
+        expect(entry).toContain('COMPOSE_CHROME ? MobileLibraryStage : React.lazy');
+        expect(entry).toContain('component: mobileArtistLoader.Component');
+        expect(entry).toContain('component: mobileAccountLoader.Component');
         expect(entry).toContain('component: mobileCollectionLoader.Component');
         expect(entry).not.toMatch(/from ['"]\.\/MobileCollection['"]/);
         expect(read('src/library/suites/mobile/mobileCollectionPreload.ts')).toContain("import('./MobileCollection')");
