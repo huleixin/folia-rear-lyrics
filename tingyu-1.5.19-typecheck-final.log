@@ -1,0 +1,9 @@
+
+> tingyu-android@1.5.18 typecheck
+> npm run theme:check && tsc --noEmit
+
+
+> tingyu-android@1.5.18 theme:check
+> node dev/build/generateInterfaceThemes.mjs --check
+
+Interface themes are current

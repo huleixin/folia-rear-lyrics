@@ -158,10 +158,16 @@ export class NebbiaRuntime {
     setFontScale(scale: number) { if (scale !== this.fontScale) { this.fontScale = scale; this.rebuild(); } }
     setReadingArea(area: RearRect | undefined) {
         const previous=this.readingArea;
-        if(previous?.left===area?.left&&previous?.top===area?.top&&previous?.width===area?.width&&previous?.height===area?.height)return;
+        const sameArea = previous?.left === area?.left && previous?.top === area?.top
+            && previous?.width === area?.width && previous?.height === area?.height;
+        if (sameArea) return;
+        const wasRear = Boolean(previous);
+        const isRear = Boolean(area);
         this.readingArea=area;
         this.gl.setRearMaskDetail(Boolean(area));
-        this.rebuild();
+        if (wasRear !== isRear || !this.laid.length) {
+            this.rebuild();
+        }
     }
     setShowText(show: boolean) { if (show !== this.showText) { this.showText = show; this.rebuild(); } }
     /** 透明时雾的颜色跟主题日夜：日间乳白，夜间深色（像夜里起雾的车窗）。 */

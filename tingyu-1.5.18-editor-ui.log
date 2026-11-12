@@ -1,0 +1,75 @@
+
+[WebServer] (node:42548) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+
+(node:51412) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/2] [components] › test\component\rearNewStagesEditor.spec.ts:20:38 › nebbia rear editor keeps actual renderer, settings and native touch targets
+
+[WebServer] 14:26:02 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+  1) [components] › test\component\rearNewStagesEditor.spec.ts:20:38 › nebbia rear editor keeps actual renderer, settings and native touch targets 
+
+    TypeError: Cannot read properties of undefined (reading 'id')
+
+      36 |     const choice=mode==='machi'?'加油站':'梦海流萤';
+      37 |     const control=doc.nodes.find((n:any)=>n.title===choice)!;
+    > 38 |     const layout=nodes.find(n=>n.ref===control.id)!;
+         |                                                ^
+      39 |     expect(layout.style).toMatchObject({minHeight:44,radius:12,fill:true,center:true});
+      40 |     await semantic(page,choice);
+      41 |     await expect.poll(()=>page.evaluate(({mode})=>(window as any).__rearAppearance().profile.visual.visualizerTunings[mode][mode==='machi'?'scene':'behind'],{mode})).toBe(mode==='machi'?'station':'aquarium');
+        at find (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\test\component\rearNewStagesEditor.spec.ts:38:48)
+        at C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\test\component\rearNewStagesEditor.spec.ts:38:24
+
+    Error Context: ..\..\..\outputs\rear-stage-repair\editor\rearNewStagesEditor-nebbia-1c575-gs-and-native-touch-targets-components\error-context.md
+
+
+
+(node:51740) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[2/2] [components] › test\component\rearNewStagesEditor.spec.ts:20:38 › machi rear editor keeps actual renderer, settings and native touch targets
+
+[WebServer] 14:26:07 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+  2) [components] › test\component\rearNewStagesEditor.spec.ts:20:38 › machi rear editor keeps actual renderer, settings and native touch targets 
+
+    Test timeout of 90000ms exceeded.
+
+    Error: locator.click: Test timeout of 90000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: /舞台样式与字体/ })
+        - locator resolved to <button class="ty-settings-row" data-settings-layout="row" data-settings-style="{"align":"center","gap":12,"padding":[14,8,14,8],"minHeight":48}">…</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is not enabled
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is not enabled
+        - retrying click action
+          - waiting 100ms
+        165 × waiting for element to be visible, enabled and stable
+            - element is not enabled
+          - retrying click action
+            - waiting 500ms
+
+
+      24 |     await expect(page.getByRole('switch',{name:'独立配置背屏歌词舞台',exact:true})).toBeVisible();
+      25 |     await semantic(page,'独立配置背屏歌词舞台');
+    > 26 |     await page.getByRole('button',{name:/舞台样式与字体/}).click();
+         |                                                     ^
+      27 |     const label=mode==='machi'?'町景':'雾笺';
+      28 |     await page.getByRole('button',{name:'歌词动画',exact:true}).click();
+      29 |     await expect(page.getByRole('button',{name:label,exact:true})).toBeVisible();
+        at C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\test\component\rearNewStagesEditor.spec.ts:26:53
+
+    Error Context: ..\..\..\outputs\rear-stage-repair\editor\rearNewStagesEditor-machi--31c42-gs-and-native-touch-targets-components\error-context.md
+
+
+  2 failed
+    [components] › test\component\rearNewStagesEditor.spec.ts:20:38 › nebbia rear editor keeps actual renderer, settings and native touch targets 
+    [components] › test\component\rearNewStagesEditor.spec.ts:20:38 › machi rear editor keeps actual renderer, settings and native touch targets 

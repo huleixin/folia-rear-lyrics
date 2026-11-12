@@ -1,0 +1,84 @@
+
+> tingyu-android@1.5.18 test:component
+> playwright test --project=components test/component/rearBoot.spec.ts test/component/rearAppearanceUi.spec.ts test/component/subtitleDualRow.spec.ts --workers=1 --output=C:/Users/DELL/Documents/Codex/2026-11-10/hze/outputs/rear-regression-1519
+
+
+[WebServer] (node:45908) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 13 tests using 1 worker
+
+(node:41352) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/13] [components] › test\component\rearAppearanceUi.spec.ts:21:1 › follow keeps disabled controls visible; native actions obey the master switch
+[WebServer] 16:54:46 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[2/13] [components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 320 dark and palette changes reach the rear config
+[WebServer] 16:54:54 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 320 dark and palette changes reach the rear config
+{"width":320,"light":false,"readyMs":160,"captureMs":9,"paints":59,"controls":17,"areas":1}
+
+[3/13] [components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 320 light and palette changes reach the rear config
+
+[WebServer] 16:55:04 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 320 light and palette changes reach the rear config
+{"width":320,"light":true,"readyMs":127,"captureMs":10.699999999254942,"paints":59,"controls":17,"areas":1}
+
+[4/13] [components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 360 dark and palette changes reach the rear config
+[WebServer] 16:55:14 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 360 dark and palette changes reach the rear config
+{"width":360,"light":false,"readyMs":125,"captureMs":9.800000000745058,"paints":53,"controls":17,"areas":1}
+
+[5/13] [components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 360 light and palette changes reach the rear config
+[WebServer] 16:55:23 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 360 light and palette changes reach the rear config
+{"width":360,"light":true,"readyMs":103,"captureMs":4.799999997019768,"paints":53,"controls":17,"areas":1}
+
+[6/13] [components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 393 dark and palette changes reach the rear config
+
+[WebServer] 16:55:27 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 393 dark and palette changes reach the rear config
+{"width":393,"light":false,"readyMs":75,"captureMs":5.800000000745058,"paints":53,"controls":17,"areas":1}
+
+[7/13] [components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 393 light and palette changes reach the rear config
+
+[WebServer] 16:55:31 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 393 light and palette changes reach the rear config
+{"width":393,"light":true,"readyMs":85,"captureMs":3.600000001490116,"paints":53,"controls":17,"areas":1}
+
+[8/13] [components] › test\component\rearBoot.spec.ts:5:1 › rear document relays configuration to the real iframe before ready
+
+[WebServer] 16:55:35 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[WebServer] 16:55:36 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[WebServer] 16:55:36 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[9/13] [components] › test\component\rearBoot.spec.ts:21:38 › nebbia remains selected through the rear iframe and forwards camera calibration
+
+[WebServer] 16:55:40 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[WebServer] 16:55:40 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[WebServer] 16:55:40 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[10/13] [components] › test\component\rearBoot.spec.ts:21:38 › machi remains selected through the rear iframe and forwards camera calibration
+
+[WebServer] 16:55:44 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[WebServer] 16:55:45 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[WebServer] 16:55:45 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[11/13] [components] › test\component\subtitleDualRow.spec.ts:6:1 › 双行模式下罗马音在上、翻译在下，且字号小一档
+[WebServer] 16:55:50 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[12/13] [components] › test\component\subtitleDualRow.spec.ts:24:1 › 双行模式下只有一种数据时只剩那一行
+
+[WebServer] 16:55:52 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[13/13] [components] › test\component\subtitleDualRow.spec.ts:40:1 › 单来源模式保持原样，只显示自己那一行
+
+[WebServer] 16:55:55 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+  13 passed (2.6m)

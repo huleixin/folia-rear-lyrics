@@ -1,0 +1,13 @@
+
+> tingyu-android@1.5.17 test:unit
+> vitest run -c vitest.config.ts test/unit/visualizer/rearCameraSafeArea.test.ts test/unit/visualizer/rearLyricsFrameUrl.test.ts test/unit/visualizer/nebbia.test.ts test/unit/settings/rearStageAppearance.test.ts
+
+
+ RUN  v4.1.11 C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android
+
+
+ Test Files  4 passed (4)
+      Tests  21 passed (21)
+   Start at  14:16:45
+   Duration  1.30s (transform 671ms, setup 0ms, import 1.21s, tests 192ms, environment 0ms)
+

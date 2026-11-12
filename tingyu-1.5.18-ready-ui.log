@@ -1,0 +1,29 @@
+
+[WebServer] (node:40376) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+
+(node:3528) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/6] [components] › test\component\rearNewStagesEditor.spec.ts:20:38 › nebbia rear editor keeps actual renderer, settings and native touch targets
+
+[WebServer] 14:45:20 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[2/6] [components] › test\component\rearNewStagesEditor.spec.ts:20:38 › machi rear editor keeps actual renderer, settings and native touch targets
+
+[WebServer] 14:45:30 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[3/6] [components] › test\component\rearStageSafety.spec.ts:4:65 › machi rear scene and long lyrics at DPR 1
+
+[WebServer] 14:45:38 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[4/6] [components] › test\component\rearStageSafety.spec.ts:4:65 › machi rear scene and long lyrics at DPR 3
+[WebServer] 14:45:45 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[5/6] [components] › test\component\rearStageSafety.spec.ts:4:65 › nebbia rear scene and long lyrics at DPR 1
+[WebServer] 14:45:51 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[6/6] [components] › test\component\rearStageSafety.spec.ts:4:65 › nebbia rear scene and long lyrics at DPR 3
+
+[WebServer] 14:45:57 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+  6 passed (1.2m)

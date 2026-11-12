@@ -1,0 +1,37 @@
+
+> tingyu-android@1.5.18 test:unit
+> vitest run -c vitest.config.ts test/unit/visualizer/machiRearFraming.test.ts test/unit/visualizer/nebbia.test.ts
+
+
+ RUN  v4.1.11 C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android
+
+ ❯ test/unit/visualizer/machiRearFraming.test.ts (3 tests | 1 failed) 170ms
+     × keeps the original front projection, does not accumulate framing, and restores it when leaving rear mode 156ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/visualizer/machiRearFraming.test.ts > Machi rear native lettering > keeps the original front projection, does not accumulate framing, and restores it when leaving rear mode
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ test/unit/visualizer/machiRearFraming.test.ts:61:65
+     59|         for(let i=0;i<1000;i++){camera.update(.1,.1);camera.fitRearLet…
+     60|         camera.setRearArea(undefined);camera.setMotion(false);camera.s…
+     61|         expect(camera.camera.projectionMatrix.equals(original)).toBe(t…
+       |                                                                 ^
+     62|         camera.dispose();
+     63|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 10 passed (11)
+   Start at  16:12:08
+   Duration  1.38s (transform 575ms, setup 0ms, import 1.12s, tests 295ms, environment 0ms)
+

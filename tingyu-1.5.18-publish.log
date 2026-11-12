@@ -1,0 +1,60 @@
+Packaged committed source and report: 26d7f24fb4422a4000d65ee8cf2a10f574a74bb7
+To https://github.com/huleixin/folia-rear-lyrics.git
+   b3728c52..26d7f24f  HEAD -> feat/folia-449-selective-port
+Uploaded and verified: Tingyu-1.5.18-release.apk
+Uploaded and verified: Tingyu-1.5.18-source.zip
+Uploaded and verified: FOLIA_ANDROID_MERGE_REPORT.md
+Uploaded and verified: Tingyu-1.5.18-verification.json
+Uploaded and verified: Tingyu-1.5.18-machi-rear-preview.png
+Uploaded and verified: Tingyu-1.5.18-nebbia-rear-preview.png
+Uploaded and verified: Tingyu-1.5.18-SHA256.txt
+{
+  "url": "https://github.com/huleixin/folia-rear-lyrics/releases/tag/v1.5.18",
+  "tag": "v1.5.18",
+  "buildCommit": "6b76a6e0a134c459beb10610bd2385c5fa7289ef",
+  "sourceArchiveCommit": "26d7f24fb4422a4000d65ee8cf2a10f574a74bb7",
+  "assets": [
+    {
+      "name": "FOLIA_ANDROID_MERGE_REPORT.md",
+      "size": 21272,
+      "digest": "sha256:473b17e1f5c7d05bf243c22a42b68a1ac2c67e948299189e16bd724a69d31e4f",
+      "browser_download_url": "https://github.com/huleixin/folia-rear-lyrics/releases/download/v1.5.18/FOLIA_ANDROID_MERGE_REPORT.md"
+    },
+    {
+      "name": "Tingyu-1.5.18-machi-rear-preview.png",
+      "size": 135401,
+      "digest": "sha256:9185d887894fd6b7489ccf08a23ee3345fd274e9987c6b69824d6de970ad03e3",
+      "browser_download_url": "https://github.com/huleixin/folia-rear-lyrics/releases/download/v1.5.18/Tingyu-1.5.18-machi-rear-preview.png"
+    },
+    {
+      "name": "Tingyu-1.5.18-nebbia-rear-preview.png",
+      "size": 98047,
+      "digest": "sha256:91633f06098e79051be6bd4c530e8c27b61890678c57bf973adfab7302aaa374",
+      "browser_download_url": "https://github.com/huleixin/folia-rear-lyrics/releases/download/v1.5.18/Tingyu-1.5.18-nebbia-rear-preview.png"
+    },
+    {
+      "name": "Tingyu-1.5.18-release.apk",
+      "size": 56943028,
+      "digest": "sha256:f3d6c85c18a1775f00c97a864a59f9e899c64eba7884e8f3e82e1fbbcb1b905e",
+      "browser_download_url": "https://github.com/huleixin/folia-rear-lyrics/releases/download/v1.5.18/Tingyu-1.5.18-release.apk"
+    },
+    {
+      "name": "Tingyu-1.5.18-SHA256.txt",
+      "size": 590,
+      "digest": "sha256:e50bd9eb712bc217aa4676601051b25536917df9d937e9f1fc0389182376167d",
+      "browser_download_url": "https://github.com/huleixin/folia-rear-lyrics/releases/download/v1.5.18/Tingyu-1.5.18-SHA256.txt"
+    },
+    {
+      "name": "Tingyu-1.5.18-source.zip",
+      "size": 44450707,
+      "digest": "sha256:f944604b9c59a0697761907947b2d330a024dde98d45cee9e245677d499d1087",
+      "browser_download_url": "https://github.com/huleixin/folia-rear-lyrics/releases/download/v1.5.18/Tingyu-1.5.18-source.zip"
+    },
+    {
+      "name": "Tingyu-1.5.18-verification.json",
+      "size": 1797,
+      "digest": "sha256:0b345005b40491ed0f1f6ba76c6447322cb384cb03aa5f493cdf3c4bb443dcad",
+      "browser_download_url": "https://github.com/huleixin/folia-rear-lyrics/releases/download/v1.5.18/Tingyu-1.5.18-verification.json"
+    }
+  ]
+}

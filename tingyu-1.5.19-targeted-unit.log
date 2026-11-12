@@ -1,0 +1,13 @@
+
+> tingyu-android@1.5.18 test:unit
+> vitest run -c vitest.config.ts test/unit/visualizer/machiRearFraming.test.ts test/unit/visualizer/nebbia.test.ts test/unit/visualizer/machi.test.ts test/unit/architecture/androidPageOwnership.test.ts
+
+
+ RUN  v4.1.11 C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android
+
+
+ Test Files  4 passed (4)
+      Tests  34 passed (34)
+   Start at  16:16:37
+   Duration  1.66s (transform 821ms, setup 0ms, import 2.11s, tests 419ms, environment 0ms)
+

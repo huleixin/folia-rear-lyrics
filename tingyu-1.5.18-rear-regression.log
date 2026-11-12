@@ -1,0 +1,151 @@
+
+> tingyu-android@1.5.17 test:component
+> playwright test --project=components test/component/rearNewStagesEditor.spec.ts test/component/rearBoot.spec.ts test/component/rearAppearanceUi.spec.ts test/component/subtitleDualRow.spec.ts --workers=2
+
+
+[WebServer] (node:45632) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 15 tests using 2 workers
+
+(node:54916) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+
+(node:53448) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/15] [components] › test\component\rearBoot.spec.ts:5:1 › rear document relays configuration to the real iframe before ready
+[2/15] [components] › test\component\rearAppearanceUi.spec.ts:21:1 › follow keeps disabled controls visible; native actions obey the master switch
+
+[WebServer] 14:17:11 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[WebServer] 14:17:12 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[WebServer] 14:17:12 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+
+[WebServer] 14:17:12 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[WebServer] 14:17:12 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[WebServer] 14:17:12 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[3/15] [components] › test\component\rearBoot.spec.ts:21:38 › nebbia remains selected through the rear iframe and forwards camera calibration
+[4/15] [components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 320 dark and palette changes reach the rear config
+[WebServer] 14:17:16 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[WebServer] 14:17:16 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[WebServer] 14:17:16 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+
+[WebServer] 14:17:17 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[WebServer] 14:17:17 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[WebServer] 14:17:17 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[WebServer] 14:17:17 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 320 dark and palette changes reach the rear config
+{"width":320,"light":false,"readyMs":125,"captureMs":6.200000001117587,"paints":59,"controls":17,"areas":1}
+
+[5/15] [components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 320 light and palette changes reach the rear config
+[6/15] [components] › test\component\rearBoot.spec.ts:21:38 › machi remains selected through the rear iframe and forwards camera calibration
+
+[WebServer] 14:17:21 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[WebServer] 14:17:22 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[WebServer] 14:17:22 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+
+[WebServer] 14:17:22 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[WebServer] 14:17:22 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+
+[WebServer] 14:17:22 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[WebServer] 14:17:22 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 320 light and palette changes reach the rear config
+{"width":320,"light":true,"readyMs":92,"captureMs":4,"paints":59,"controls":17,"areas":1}
+
+[7/15] [components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 360 dark and palette changes reach the rear config
+[8/15] [components] › test\component\rearNewStagesEditor.spec.ts:15:38 › nebbia rear editor keeps actual renderer, settings and native touch targets
+
+[WebServer] 14:17:27 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 360 dark and palette changes reach the rear config
+{"width":360,"light":false,"readyMs":98,"captureMs":7.599999999627471,"paints":53,"controls":17,"areas":1}
+
+[9/15] [components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 360 light and palette changes reach the rear config
+[WebServer] 14:17:31 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+  1) [components] › test\component\rearNewStagesEditor.spec.ts:15:38 › nebbia rear editor keeps actual renderer, settings and native touch targets 
+
+    Error: page.evaluate: Error: Missing control 独立配置背屏歌词舞台
+        at eval (eval at evaluate (:311:30), <anonymous>:7:24)
+        at async <anonymous>:337:30
+        at eval (eval at evaluate (:311:30), <anonymous>:7:24)
+        at async <anonymous>:337:30
+        at semantic (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\test\component\rearNewStagesEditor.spec.ts:6:17)
+        at C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\test\component\rearNewStagesEditor.spec.ts:19:11
+
+    Error Context: test-results\rearNewStagesEditor-nebbia-1c575-gs-and-native-touch-targets-components\error-context.md
+
+
+(node:52096) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[10/15] [components] › test\component\rearNewStagesEditor.spec.ts:15:38 › machi rear editor keeps actual renderer, settings and native touch targets
+
+[WebServer] 14:17:33 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[WebServer] 14:17:35 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[WebServer] 14:17:35 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 360 light and palette changes reach the rear config
+{"width":360,"light":true,"readyMs":111,"captureMs":6.900000000372529,"paints":53,"controls":17,"areas":1}
+
+[11/15] [components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 393 dark and palette changes reach the rear config
+  2) [components] › test\component\rearNewStagesEditor.spec.ts:15:38 › machi rear editor keeps actual renderer, settings and native touch targets 
+
+    Error: page.evaluate: Error: Missing control 独立配置背屏歌词舞台
+        at eval (eval at evaluate (:311:30), <anonymous>:7:24)
+        at async <anonymous>:337:30
+        at eval (eval at evaluate (:311:30), <anonymous>:7:24)
+        at async <anonymous>:337:30
+        at semantic (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\test\component\rearNewStagesEditor.spec.ts:6:17)
+        at C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\test\component\rearNewStagesEditor.spec.ts:19:11
+
+    Error Context: test-results\rearNewStagesEditor-machi--31c42-gs-and-native-touch-targets-components\error-context.md
+
+
+(node:44380) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[12/15] [components] › test\component\subtitleDualRow.spec.ts:6:1 › 双行模式下罗马音在上、翻译在下，且字号小一档
+
+[WebServer] 14:17:39 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[WebServer] 14:17:40 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+
+[WebServer] 14:17:40 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[13/15] [components] › test\component\subtitleDualRow.spec.ts:24:1 › 双行模式下只有一种数据时只剩那一行
+[components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 393 dark and palette changes reach the rear config
+{"width":393,"light":false,"readyMs":100,"captureMs":7.300000000745058,"paints":53,"controls":17,"areas":1}
+
+[14/15] [components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 393 light and palette changes reach the rear config
+[WebServer] 14:17:44 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[15/15] [components] › test\component\subtitleDualRow.spec.ts:40:1 › 单来源模式保持原样，只显示自己那一行
+
+[WebServer] 14:17:45 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[components] › test\component\rearAppearanceUi.spec.ts:46:66 › editors fit 393 light and palette changes reach the rear config
+{"width":393,"light":true,"readyMs":113,"captureMs":5.700000001117587,"paints":53,"controls":17,"areas":1}
+
+[WebServer] 14:17:48 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+  2 failed
+    [components] › test\component\rearNewStagesEditor.spec.ts:15:38 › nebbia rear editor keeps actual renderer, settings and native touch targets 
+    [components] › test\component\rearNewStagesEditor.spec.ts:15:38 › machi rear editor keeps actual renderer, settings and native touch targets 
+  13 passed (1.1m)

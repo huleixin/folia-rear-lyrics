@@ -1,0 +1,45 @@
+
+> tingyu-android@1.5.18 test:component
+> playwright test --project=components test/component/rearStageSafety.spec.ts test/component/rearNewStagesEditor.spec.ts --workers=1 --output=C:/Users/DELL/Documents/Codex/2026-11-10/hze/outputs/rear-native-1519
+
+
+[WebServer] (node:12952) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 10 tests using 1 worker
+
+(node:53120) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/10] [components] › test\component\rearNewStagesEditor.spec.ts:20:38 › nebbia rear editor keeps actual renderer, settings and native touch targets
+[WebServer] 16:51:21 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[2/10] [components] › test\component\rearNewStagesEditor.spec.ts:20:38 › machi rear editor keeps actual renderer, settings and native touch targets
+[WebServer] 16:51:29 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[3/10] [components] › test\component\rearStageSafety.spec.ts:44:65 › machi keeps original long lyrics at DPR 1
+[WebServer] 16:51:37 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[4/10] [components] › test\component\rearStageSafety.spec.ts:44:65 › machi keeps original long lyrics at DPR 3
+[WebServer] 16:51:44 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[5/10] [components] › test\component\rearStageSafety.spec.ts:44:65 › nebbia keeps original long lyrics at DPR 1
+
+[WebServer] 16:51:51 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[6/10] [components] › test\component\rearStageSafety.spec.ts:44:65 › nebbia keeps original long lyrics at DPR 3
+
+[WebServer] 16:51:56 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[7/10] [components] › test\component\rearStageSafety.spec.ts:83:1 › Nebbia handwriting occupies the full camera-safe surface
+
+[WebServer] 16:52:01 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[8/10] [components] › test\component\rearStageSafety.spec.ts:100:52 › Machi konbini keeps live sign lyrics outside the camera
+
+[WebServer] 16:52:06 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[9/10] [components] › test\component\rearStageSafety.spec.ts:100:52 › Machi station keeps live sign lyrics outside the camera
+
+[WebServer] 16:52:11 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[10/10] [components] › test\component\rearStageSafety.spec.ts:100:52 › Machi kowloon keeps live sign lyrics outside the camera
+
+[WebServer] 16:52:16 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+  10 passed (1.5m)

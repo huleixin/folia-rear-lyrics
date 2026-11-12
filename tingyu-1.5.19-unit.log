@@ -1,0 +1,83 @@
+
+> tingyu-android@1.5.18 test:unit
+> vitest run -c vitest.config.ts
+
+
+ RUN  v4.1.11 C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android
+
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\nodes\HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\generated\HTMLCanvasElement.js:131:58)
+    at collectWebGL2Diagnostics (C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/src/utils/webglDiagnostics.ts:29:21)
+    at buildDiagnosticReport (C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/src/utils/buildDiagnosticReport.ts:1146:37)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/test/unit/utils/frameTimingReport.test.ts:45:24
+    at file:///C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20 undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\nodes\HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\generated\HTMLCanvasElement.js:131:58)
+    at probeWebGL1 (C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/src/utils/webglDiagnostics.ts:18:57)
+    at collectWebGL2Diagnostics (C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/src/utils/webglDiagnostics.ts:30:83)
+    at buildDiagnosticReport (C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/src/utils/buildDiagnosticReport.ts:1146:37)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/test/unit/utils/frameTimingReport.test.ts:45:24
+    at file:///C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20 undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\nodes\HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\generated\HTMLCanvasElement.js:131:58)
+    at collectWebGL2Diagnostics (C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/src/utils/webglDiagnostics.ts:29:21)
+    at buildDiagnosticReport (C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/src/utils/buildDiagnosticReport.ts:1146:37)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/test/unit/utils/frameTimingReport.test.ts:83:24
+    at file:///C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20 undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\nodes\HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\generated\HTMLCanvasElement.js:131:58)
+    at probeWebGL1 (C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/src/utils/webglDiagnostics.ts:18:57)
+    at collectWebGL2Diagnostics (C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/src/utils/webglDiagnostics.ts:30:83)
+    at buildDiagnosticReport (C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/src/utils/buildDiagnosticReport.ts:1146:37)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/test/unit/utils/frameTimingReport.test.ts:83:24
+    at file:///C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20 undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\nodes\HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\generated\HTMLCanvasElement.js:131:58)
+    at collectWebGL2Diagnostics (C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/src/utils/webglDiagnostics.ts:29:21)
+    at buildDiagnosticReport (C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/src/utils/buildDiagnosticReport.ts:1146:37)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/test/unit/utils/frameTimingReport.test.ts:101:24
+    at file:///C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20 undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\nodes\HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\generated\HTMLCanvasElement.js:131:58)
+    at probeWebGL1 (C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/src/utils/webglDiagnostics.ts:18:57)
+    at collectWebGL2Diagnostics (C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/src/utils/webglDiagnostics.ts:30:83)
+    at buildDiagnosticReport (C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/src/utils/buildDiagnosticReport.ts:1146:37)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/test/unit/utils/frameTimingReport.test.ts:101:24
+    at file:///C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20 undefined
+Error: Could not parse CSS stylesheet
+    at exports.createStylesheet (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\helpers\stylesheets.js:37:21)
+    at HTMLStyleElementImpl._updateAStyleBlock (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\nodes\HTMLStyleElement-impl.js:68:5)
+    at HTMLStyleElementImpl._attach (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\nodes\HTMLStyleElement-impl.js:19:12)
+    at HTMLHeadElementImpl._insert (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\nodes\Node-impl.js:837:14)
+    at HTMLHeadElementImpl._preInsert (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\nodes\Node-impl.js:758:10)
+    at HTMLHeadElementImpl._append (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\nodes\Node-impl.js:864:17)
+    at HTMLHeadElementImpl.appendChild (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\nodes\Node-impl.js:600:17)
+    at HTMLHeadElement.appendChild (C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\node_modules\jsdom\lib\jsdom\living\generated\Node.js:411:60)
+    at Object.onAdd (C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/src/mods/folium/registries/styles.ts:32:23)
+    at Object.register (C:/Users/DELL/Documents/Codex/2026-11-10/hze/work/native-audio-fix/tingyu-android/src/mods/folium/registry.ts:88:21) @layer folium-mods {
+[data-folium-part="progress.fill"] { background: red; }
+}
+
+ Test Files  800 passed | 1 skipped (801)
+      Tests  7583 passed | 2 skipped (7585)
+   Start at  16:53:21
+   Duration  121.42s (transform 291.22s, setup 0ms, import 774.93s, tests 153.55s, environment 315.65s)
+

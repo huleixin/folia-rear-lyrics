@@ -8,7 +8,6 @@ import type { NebbiaWipe } from './nebbiaWipe';
 import type { NebbiaTuning } from './types';
 import { createVisualizerRng, hashVisualizerSeed } from '../visualizerSeedHash';
 import type { RearRect } from '../../../utils/rearCameraSafeArea';
-import { fitNebbiaLineToArea } from './nebbiaRearLayout';
 
 // src/components/visualizer/nebbia/nebbiaScene.ts
 // 一首歌在雾笺上的全部安排：每个字的位置、变形后的字形、擦痕边的水珠和下淌的水珠、出现方式（手写或透出）；
@@ -179,7 +178,6 @@ function* prepareNebbiaScene(
             chars.push(out);
             yield;
         }
-        if(size.area)fitNebbiaLineToArea(chars,size.area,tuning.strokeWidth);
         laid.push({ t: line.t, end: line.end, next: line.next, mode: modes[li], fogAt: fogAt(li), yieldAt: Infinity,
             breathAt: Infinity, breathUntil: Infinity, breathDur: NEBBIA_FIXED.breathSpread,
             appearBreathAt: Infinity, appearBreathUntil: Infinity, chars });

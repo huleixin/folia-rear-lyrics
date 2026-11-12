@@ -1,0 +1,21 @@
+
+> tingyu-android@1.5.18 test:component
+> playwright test --project=components test/component/rearStageSafety.spec.ts --grep nebbia keeps original --workers=1 --output=C:/Users/DELL/Documents/Codex/2026-11-10/hze/outputs/rear-ink-final
+
+
+[WebServer] (node:55884) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+
+
+(node:55864) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/2] [components] › test\component\rearStageSafety.spec.ts:60:65 › nebbia keeps original long lyrics at DPR 1
+[WebServer] 18:10:25 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[2/2] [components] › test\component\rearStageSafety.spec.ts:60:65 › nebbia keeps original long lyrics at DPR 3
+
+[WebServer] 18:10:31 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+  2 passed (42.5s)

@@ -1,0 +1,14 @@
+
+[WebServer] (node:47924) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+
+(node:53012) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/1] [components] › test\component\rearStageSafety.spec.ts:44:1 › Nebbia keeps the original handwriting behind its readable rear lyrics
+[WebServer] 15:03:01 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+  1 passed (30.0s)

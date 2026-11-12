@@ -15,8 +15,9 @@ export function RearStageReadingProvider({ area, children }: React.PropsWithChil
     }, []);
     const reading = useMemo(() => {
         const gap = Math.min(4, area.height * .02);
-        const top = Math.max(area.top, edges.top === null ? area.top : edges.top + gap);
-        const bottom = Math.min(area.top + area.height, edges.bottom === null ? area.top + area.height : edges.bottom - gap);
+        // Bound auxiliary reservation to predictable lanes so readingArea remains stable during playback.
+        const top = edges.top === null ? area.top : Math.max(area.top, Math.min(area.top + area.height * 0.28, edges.top + gap));
+        const bottom = edges.bottom === null ? area.top + area.height : Math.min(area.top + area.height, Math.max(area.top + area.height * 0.72, edges.bottom - gap));
         return { ...area, top, height: Math.max(1, bottom - top) };
     }, [area.left, area.top, area.width, area.height, edges]);
     return <ReportEdge.Provider value={report}><ReadingArea.Provider value={reading}>{children}</ReadingArea.Provider></ReportEdge.Provider>;

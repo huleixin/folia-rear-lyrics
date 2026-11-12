@@ -1,0 +1,70 @@
+
+[WebServer] (node:56768) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+
+(node:19940) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/6] [components] › test\component\rearNewStagesEditor.spec.ts:20:38 › nebbia rear editor keeps actual renderer, settings and native touch targets
+[WebServer] 14:36:33 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+
+[2/6] [components] › test\component\rearNewStagesEditor.spec.ts:20:38 › machi rear editor keeps actual renderer, settings and native touch targets
+
+[WebServer] 14:36:41 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+  1) [components] › test\component\rearNewStagesEditor.spec.ts:20:38 › machi rear editor keeps actual renderer, settings and native touch targets 
+
+    Test timeout of 90000ms exceeded.
+
+    Error: locator.click: Test timeout of 90000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: /舞台样式与字体/ })
+        - locator resolved to <button class="ty-settings-row" data-settings-layout="row" data-settings-style="{"align":"center","gap":12,"padding":[14,8,14,8],"minHeight":48}">…</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is not enabled
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is not enabled
+        - retrying click action
+          - waiting 100ms
+        167 × waiting for element to be visible, enabled and stable
+            - element is not enabled
+          - retrying click action
+            - waiting 500ms
+
+
+      24 |     await expect(page.getByRole('switch',{name:'独立配置背屏歌词舞台',exact:true})).toBeVisible();
+      25 |     await semantic(page,'独立配置背屏歌词舞台');
+    > 26 |     await page.getByRole('button',{name:/舞台样式与字体/}).click();
+         |                                                     ^
+      27 |     const label=mode==='machi'?'町景':'雾笺';
+      28 |     await page.getByRole('button',{name:'歌词动画',exact:true}).click();
+      29 |     await expect(page.getByRole('button',{name:label,exact:true})).toBeVisible();
+        at C:\Users\DELL\Documents\Codex\2026-11-10\hze\work\native-audio-fix\tingyu-android\test\component\rearNewStagesEditor.spec.ts:26:53
+
+    Error Context: ..\..\..\outputs\rear-stage-repair\final\rearNewStagesEditor-machi--31c42-gs-and-native-touch-targets-components\error-context.md
+
+
+
+(node:50484) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[3/6] [components] › test\component\rearStageSafety.spec.ts:4:65 › machi rear scene and long lyrics at DPR 1
+
+[WebServer] 14:38:14 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[4/6] [components] › test\component\rearStageSafety.spec.ts:4:65 › machi rear scene and long lyrics at DPR 3
+
+[WebServer] 14:38:22 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[5/6] [components] › test\component\rearStageSafety.spec.ts:4:65 › nebbia rear scene and long lyrics at DPR 1
+
+[WebServer] 14:38:30 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+[6/6] [components] › test\component\rearStageSafety.spec.ts:4:65 › nebbia rear scene and long lyrics at DPR 3
+
+[WebServer] 14:38:36 [vite] (client) [console.warn] Service Worker registration blocked by Playwright
+  1 failed
+    [components] › test\component\rearNewStagesEditor.spec.ts:20:38 › machi rear editor keeps actual renderer, settings and native touch targets 
+  5 passed (2.5m)
