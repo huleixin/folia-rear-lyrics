@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated from public/brand/logo-symbol.svg. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt" android:width="288dp" android:height="288dp" android:viewportWidth="120" android:viewportHeight="120">
+  <group android:scaleX="0.3888889" android:scaleY="0.3888889" android:translateX="36.666666" android:translateY="36.666666">
+    <clip-path android:pathData="M28,0h64a28,28 0,0 1,28,28v64a28,28 0,0 1,-28,28h-64a28,28 0,0 1,-28,-28v-64a28,28 0,0 1,28,-28z" />
+  <path android:pathData="M0,0h120v120h-120z">
+    <aapt:attr name="android:fillColor"><gradient android:startX="0" android:startY="0" android:endX="120" android:endY="120" android:type="linear">
+      <item android:offset="0" android:color="#DDEDFB" /><item android:offset="0.5" android:color="#A8CAE8" /><item android:offset="1" android:color="#669CCB" />
+    </gradient></aapt:attr>
+  </path>
+  <path android:pathData="M-12 62 C20 47 38 88 64 61 S101 25 132 34 L132 132 H-12Z" android:fillColor="#EAF4FF" android:fillAlpha=".58" />
+  <path android:pathData="M-14 88 C19 106 44 94 70 75 S103 59 135 65 L135 132 H-14Z" android:fillColor="#528DBC" android:fillAlpha=".35" />
+  <path android:pathData="M-10 78 C20 97 42 81 66 57 S103 42 132 53" android:fillColor="#00000000" android:fillAlpha="1" android:strokeColor="#FFFFFF" android:strokeWidth="11" android:strokeAlpha="1" android:strokeLineCap="round" />
+  <path android:pathData="M-12 94 C19 108 46 92 73 76 S108 62 131 70" android:fillColor="#00000000" android:fillAlpha=".65" android:strokeColor="#F6FBFF" android:strokeWidth="3" android:strokeAlpha=".65" android:strokeLineCap="round" />
+  </group>
+</vector>

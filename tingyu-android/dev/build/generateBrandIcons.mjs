@@ -19,6 +19,16 @@ const write = (name, data) => { const file = resolve(res, name); mkdirSync(resol
 // keeps its original proportions inside the mask instead of becoming a cropped close-up.
 write('drawable/ic_launcher_foreground.xml',vector('  <group android:scaleX="0.6666667" android:scaleY="0.6666667" android:translateX="20" android:translateY="20">\n' + vectorPaths + '\n  </group>'));
 write('drawable/ic_launcher_background.xml',vector('  <path android:pathData="M0,0h120v120h-120z">\n    <aapt:attr name="android:fillColor"><gradient android:startX="0" android:startY="0" android:endX="120" android:endY="120" android:type="linear">\n      <item android:offset="0" android:color="#DDEDFB" /><item android:offset="0.5" android:color="#A8CAE8" /><item android:offset="1" android:color="#669CCB" />\n    </gradient></aapt:attr>\n  </path>'));
+// Standalone branding is not an adaptive launcher layer: preserve the SVG's full
+// gradient, wave proportions and rounded outline without a launcher-supplied mask.
+const background = readFileSync(resolve(res, 'drawable/ic_launcher_background.xml'), 'utf8')
+  .match(/  <path[\s\S]*<\/path>/)[0];
+const roundedClip = '    <clip-path android:pathData="M28,0h64a28,28 0,0 1,28,28v64a28,28 0,0 1,-28,28h-64a28,28 0,0 1,-28,-28v-64a28,28 0,0 1,28,-28z" />';
+write('drawable/ic_brand_logo.xml', vector('  <group>\n' + roundedClip + '\n' + background + '\n' + vectorPaths + '\n  </group>'));
+// The system's 288dp icon container needs transparent padding. A centered 112dp
+// logo stays inside its safe mask and matches the native brand animation size.
+write('drawable/brand_splash_logo.xml', vector('  <group android:scaleX="0.3888889" android:scaleY="0.3888889" android:translateX="36.666666" android:translateY="36.666666">\n' + roundedClip + '\n' + background + '\n' + vectorPaths + '\n  </group>')
+  .replace('android:width="108dp" android:height="108dp"', 'android:width="288dp" android:height="288dp"'));
 // Monochrome reuses the strokes inside the guaranteed 66dp safe circle.
 write('drawable/ic_tingyu_monochrome.xml',vector('  <group android:scaleX="0.44" android:scaleY="0.44" android:translateX="33.6" android:translateY="33.6">\n    <clip-path android:pathData="M28,0h64a28,28 0,0 1,28,28v64a28,28 0,0 1,-28,28h-64a28,28 0,0 1,-28,-28v-64a28,28 0,0 1,28,-28z" />\n' + vectorPaths.split('\n').slice(2).map(line=>line.replace(/#F6FBFF/g,'#FFFFFF').replace(/strokeAlpha=".65"/g,'strokeAlpha="1"')).join('\n')+'\n  </group>'));
 const adaptive = '<?xml version="1.0" encoding="utf-8"?>\n<!-- Full-bleed ice background; central S curve remains visible under launcher masks. -->\n<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n  <background android:drawable="@drawable/ic_launcher_background" />\n  <foreground android:drawable="@drawable/ic_launcher_foreground" />\n  <monochrome android:drawable="@drawable/ic_tingyu_monochrome" />\n</adaptive-icon>\n';

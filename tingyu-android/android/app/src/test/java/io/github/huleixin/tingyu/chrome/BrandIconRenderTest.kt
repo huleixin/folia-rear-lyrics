@@ -28,9 +28,36 @@ class BrandIconRenderTest {
             save(bitmap,if(id==R.mipmap.ic_launcher)"legacy" else "legacy-round")
         }
     }
-    @Test @Config(sdk=[33]) fun nativeStartingIconIsEmpty(){
-        val empty=context.getDrawable(R.drawable.brand_splash_empty)!!;val bitmap=Bitmap.createBitmap(48,48,Bitmap.Config.ARGB_8888)
-        empty.setBounds(0,0,48,48);empty.draw(Canvas(bitmap));assertEquals(0,Color.alpha(bitmap.getPixel(24,24)))
+    @Test @Config(sdk=[26,33]) fun standaloneBrandHasRoundedCornersAndFullArtwork(){
+        val icon=context.getDrawable(R.drawable.ic_brand_logo)!!
+        val bitmap=Bitmap.createBitmap(120,120,Bitmap.Config.ARGB_8888)
+        icon.setBounds(0,0,120,120);icon.draw(Canvas(bitmap))
+        for((x,y) in listOf(0 to 0,119 to 0,0 to 119,119 to 119))
+            assertEquals("Corners must stay transparent",0,Color.alpha(bitmap.getPixel(x,y)))
+        assertEquals(255,Color.alpha(bitmap.getPixel(60,5)))
+        assertTrue("Gradient top must retain the original ice color",Color.red(bitmap.getPixel(60,5))>170)
+        assertTrue("Original wave must reach the left edge",Color.red(bitmap.getPixel(2,82))>240)
+        save(bitmap,"standalone-brand")
+    }
+    @Test @Config(sdk=[31,33]) fun nativeStartingIconUsesCompleteRoundedBrand(){
+        val theme=context.resources.newTheme().apply{applyStyle(R.style.AppTheme_NoActionBarLaunch,true)}
+        val value=android.util.TypedValue()
+        assertTrue(theme.resolveAttribute(android.R.attr.windowSplashScreenAnimatedIcon,value,true))
+        assertEquals(R.drawable.brand_splash_logo,value.resourceId)
+        val icon=context.getDrawable(value.resourceId)!!
+        val bitmap=Bitmap.createBitmap(288,288,Bitmap.Config.ARGB_8888)
+        icon.setBounds(0,0,288,288);icon.draw(Canvas(bitmap))
+        var opaque=0
+        for(y in 0 until 288)for(x in 0 until 288){
+            if(Color.alpha(bitmap.getPixel(x,y))>0){
+                opaque++
+                assertTrue("Artwork must stay inside the system safe circle",(x-144)*(x-144)+(y-144)*(y-144)<=96*96)
+            }
+        }
+        assertTrue("Brand must be visible from the system starting window",opaque>10000)
+        assertEquals(0,Color.alpha(bitmap.getPixel(88,88)))
+        assertEquals(255,Color.alpha(bitmap.getPixel(144,92)))
+        save(bitmap,"system-starting-brand")
     }
     @Test @Config(sdk=[33]) fun adaptiveLayersAndMasks(){
         val icon=context.getDrawable(R.mipmap.ic_launcher) as AdaptiveIconDrawable
