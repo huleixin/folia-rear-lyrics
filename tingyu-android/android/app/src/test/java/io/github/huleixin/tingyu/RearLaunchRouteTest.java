@@ -74,9 +74,13 @@ public class RearLaunchRouteTest {
     }
 
     @Test
-    public void modeReuseIsTheOldBehaviourAndNeverMigrates() {
-        // A 侧对照：只让旧任务回前台。真机用它证明「A 单独确实不行」。
+    public void modeReuseStillMigratesWhenTheWindowIsNotVisible() {
+        // 1.5.16 真机日志：锁屏 + Shizuku 时窗口 attached=true/visible=false，前台是
+        // SubScreenLauncher；只做 moveTaskToFront 命令成功但前台不变，背屏因此一直不显示。
+        // 可见时仍然复用，不可见时必须交给迁移，否则用户选过 Reuse 就再也无法锁屏显示。
         assertEquals(RearLaunchRoute.Route.REUSE,
+            RearLaunchRoute.decide(ATTACHED, VISIBLE, LOCKED, PLAN_A, RearLaunchRoute.Mode.REUSE));
+        assertEquals(RearLaunchRoute.Route.MIGRATE,
             RearLaunchRoute.decide(ATTACHED, HIDDEN, LOCKED, PLAN_A, RearLaunchRoute.Mode.REUSE));
         assertEquals(RearLaunchRoute.Route.DIRECT,
             RearLaunchRoute.decide(DETACHED, HIDDEN, LOCKED, PLAN_A, RearLaunchRoute.Mode.REUSE));

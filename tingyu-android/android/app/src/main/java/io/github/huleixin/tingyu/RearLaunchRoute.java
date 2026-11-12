@@ -84,8 +84,11 @@ final class RearLaunchRoute {
         Mode chosen = mode == null ? Mode.AUTO : mode;
         switch (chosen) {
             case REUSE:
-                // A：只让已有任务回前台，永不迁移。用于确认「这条确实不行」。
-                return attached ? Route.REUSE : Route.DIRECT;
+                // A：可见时只让已有任务回前台。锁屏且不可见时，置顶命令会返回成功但前台不变
+                // （1.5.16 真机日志：moveTaskToFront 后前台仍是 SubScreenLauncher），所以这一态
+                // 必须交给迁移，否则用户选过 Reuse 之后就再也无法在锁屏显示。
+                if (!attached) return Route.DIRECT;
+                return visible ? Route.REUSE : Route.MIGRATE;
             case MIGRATE:
                 // B：无视现有窗口，直接走迁移。用于单独验证迁移能力。
                 return Route.MIGRATE;
@@ -93,6 +96,9 @@ final class RearLaunchRoute {
             default:
                 // 看得见就不打扰；看不见（被背屏桌面盖住 / 窗口已不在）就走迁移。
                 // 这一行就是 1.3.39 → 1.3.59 的回归点。
+                // 真机日志（1.5.16，Shizuku，锁屏）：窗口 attached=true/visible=false，前台是
+                // SubScreenLauncher。此时 REUSE 只会对一个被系统压住的子任务做 moveTaskToFront，
+                // 命令成功但前台不变；只有迁移能真正把窗口搬回背屏。
                 return visible ? Route.REUSE : Route.MIGRATE;
         }
     }

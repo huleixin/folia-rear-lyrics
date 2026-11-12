@@ -188,10 +188,13 @@ internal fun LazyListScope.pagedNativeRows(page:NativePage,section:NativePageSec
     Box{
         PagePill(selected?.title?:section.title,{open=true},height=38.dp,font=13,trailing="chevron-down")
         LiquidDropdown(expanded=open,onDismissRequest={open=false}){
+            // Same reason as the search source menu: menu surfaces are cream in every theme.
+            val menuInk=LocalInterfacePalette.current.menuInk
+            val menuAccent=LocalInterfacePalette.current.accent
             section.items.forEach{item->
-                DropdownMenuItem(text={Text(item.title,color=if(item.selected)PageAccent else PageInk,fontSize=14.sp)},
+                DropdownMenuItem(text={Text(item.title,color=if(item.selected)menuAccent else menuInk,fontSize=14.sp)},
                     onClick={open=false;action(item.action,"",0.0)},
-                    trailingIcon={if(item.selected)PageIcon("check",PageAccent,Modifier.size(16.dp))else null})
+                    trailingIcon={if(item.selected)PageIcon("check",menuAccent,Modifier.size(16.dp))else null})
             }
         }
     }

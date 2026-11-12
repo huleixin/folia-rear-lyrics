@@ -271,11 +271,11 @@ function normalizeLoginInfo(profile, account, body) {
 }
 
 const NETEASE_QUALITY = [
-  { level: 'jymaster', br: 999000, label: '超清母带', svip: true },
-  { level: 'hires', br: 1999000, label: '高清臻音', svip: true },
-  { level: 'lossless', br: 999000, label: '无损', svip: false },
-  { level: 'exhigh', br: 320000, label: '极高', svip: false },
-  { level: 'standard', br: 128000, label: '标准', svip: false },
+  { level: 'jymaster', br: 999000, label: '超清母带', svip: true, encodeType: 'flac' },
+  { level: 'hires', br: 1999000, label: '高清臻音', svip: true, encodeType: 'flac' },
+  { level: 'lossless', br: 999000, label: '无损', svip: false, encodeType: 'flac' },
+  { level: 'exhigh', br: 320000, label: '极高', svip: false, encodeType: 'mp3' },
+  { level: 'standard', br: 128000, label: '标准', svip: false, encodeType: 'mp3' },
 ];
 
 function normalizeQualityPreference(value) {
@@ -539,6 +539,8 @@ export async function handleSongUrl(id, cookie, qualityPreference) {
   const svipReady = hasNeteaseSvip(loginInfo);
   const vipReady = !!(loginInfo.isVip || loginInfo.isSvip);
   const qualities = qualityCandidates(qualityPreference).filter((q) => !q.svip || svipReady);
+  // A preview clip is only the last resort: NetEase can answer a high level with freeTrialInfo
+  // and still hand out a full URL for a lower level, so keep asking after a trial result.
   let trialFallback = null;
   let lastData = null;
   let lastError = null;
@@ -550,7 +552,9 @@ export async function handleSongUrl(id, cookie, qualityPreference) {
     try {
       let d = null;
       try {
-        const v1 = await api('/api/song/enhance/player/url/v1', { ids: `[${songId}]`, level: q.level, encodeType: 'flac' }, cookie);
+        // Asking for flac while requesting a 320k mp3 level is what pushes NetEase into returning
+        // a 30-second trial even though the account can stream that level in full.
+        const v1 = await api('/api/song/enhance/player/url/v1', { ids: `[${songId}]`, level: q.level, encodeType: q.encodeType }, cookie);
         d = v1.data && v1.data[0];
       } catch (err) {
         lastError = err;

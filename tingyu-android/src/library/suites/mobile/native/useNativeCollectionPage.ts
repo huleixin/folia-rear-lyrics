@@ -24,9 +24,16 @@ import { collectionKey } from '../../../core/model/collectionIdentity';
 import { getCatalogAudioLabels } from '../../../../utils/catalogAudioLabels';
 
 // src/library/suites/mobile/native/useNativeCollectionPage.ts
+// The row offset has to outlive the page: leaving for the player unmounts this hook, and starting
+// again from 0 makes the re-mounted list request page 0 while it is still scrolled further down.
+const savedOffsets = new Map<string, number>();
+
 export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:LibraryCollectionSurfaceProps,model:ReturnType<typeof useMobileCollection>,
     name:string,count:number,onSongMenu:(song:SongResult,index:number)=>void,onCollectionMenu:()=>void,onSubscribe:()=>void) {
-    const {t}=useTranslation();const [offset,setOffset]=useState(0),[filterOpen,setFilterOpen]=useState(false);
+    const {t}=useTranslation();const [filterOpen,setFilterOpen]=useState(false);
+    const collectionIdentity=collectionKey(props.collection);
+    const [offset,setOffsetState]=useState(()=>savedOffsets.get(collectionIdentity)??0);
+    const setOffset=(value:number)=>{savedOffsets.set(collectionIdentity,value);setOffsetState(value);};
     const top=useCollectionNavigationStore(state=>state.snapshot?.stack.at(-1));
     const browsing=useAppViewStore(state=>state.view!=='player');
     const settings=useSettingsModalStore(state=>state.settingsModalState.isOpen);

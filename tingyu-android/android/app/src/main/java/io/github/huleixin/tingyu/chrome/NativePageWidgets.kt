@@ -119,7 +119,8 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
             PageIcon("chevron-down",PageMuted,Modifier.padding(start=3.dp).size(14.dp))
         }
         LiquidDropdown(expanded,{expanded=false}) { section.items.forEach { item ->
-            DropdownMenuItem(text={Text(item.title,fontSize=12.sp)},onClick={expanded=false;action(item.action,"",0.0)})
+            // The menu surface is the same cream in every theme; page ink disappears on it in dark mode.
+            DropdownMenuItem(text={Text(item.title,color=LocalInterfacePalette.current.menuInk,fontSize=12.sp)},onClick={expanded=false;action(item.action,"",0.0)})
         } }
     }
 }

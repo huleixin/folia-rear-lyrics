@@ -160,9 +160,13 @@ import androidx.compose.ui.unit.sp
             PageIcon("chevron-down",PageMuted,Modifier.size(16.dp))
         }
         LiquidDropdown(expanded=open,onDismissRequest={open=false}){
+            // Menu surfaces keep one palette across themes, so the rows must use menuInk rather
+            // than the page ink: on a dark theme the page ink is near-white and vanished on cream.
+            val menuInk=LocalInterfacePalette.current.menuInk
+            val menuAccent=LocalInterfacePalette.current.accent
             section.items.forEach{item->DropdownMenuItem(
-                text={Text(item.title,color=PageInk)},enabled=!item.disabled,
-                trailingIcon={if(item.selected)PageIcon("check",PageAccent,Modifier.size(17.dp))},
+                text={Text(item.title,color=menuInk)},enabled=!item.disabled,
+                trailingIcon={if(item.selected)PageIcon("check",menuAccent,Modifier.size(17.dp))},
                 onClick={open=false;action(item.action,"",0.0)})}
         }
     }

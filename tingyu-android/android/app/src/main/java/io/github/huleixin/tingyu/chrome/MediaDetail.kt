@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,7 +47,11 @@ private val PlaylistJade:Color @Composable get()=LocalInterfacePalette.current.m
     fun label(id:String)=toolbar.firstOrNull{it.id==id}?.title?:""
     val cache=rememberNativeRows(page.key,tracks)
     val list=rememberLazyListState()
-    LaunchedEffect(tracks.dataKey){list.scrollToItem(0)}
+    // Returning from the player re-enters the composition, which used to re-run an unconditional
+    // scrollToItem(0) and throw away the position the saveable list state had just restored.
+    // Reset only when the row identity really changes (sort, filter, in-collection search).
+    var previousTracksKey by rememberSaveable { mutableStateOf(tracks.dataKey) }
+    LaunchedEffect(tracks.dataKey){if(previousTracksKey!=tracks.dataKey){list.scrollToItem(0);previousTracksKey=tracks.dataKey}}
     // 沉浸式毛玻璃顶栏（TopGlassBar）：歌曲列表全幅滚动进入固定返回栏的玻璃后方；
     // 随滚动的封面/信息区不是顶栏，玻璃范围只由返回栏测量决定。玻璃底色含封面氛围层副本
     // （内容层绘制，页面级原件在能力具备时移除以免重复采样）。
