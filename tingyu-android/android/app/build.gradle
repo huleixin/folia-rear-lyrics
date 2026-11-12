@@ -22,7 +22,8 @@ def motionTestRevision = (packageJson.motionTestRevision ?: 1) as int
 def gitBuildId = "unknown"
 try {
     def revision = ['git', 'rev-parse', '--short=8', 'HEAD'].execute(null, rootProject.projectDir).text.trim()
-    def dirty = ['git', 'status', '--porcelain'].execute(null, rootProject.projectDir).text.trim()
+    // The web build writes generated assets below this Android module, so ask about application source only.
+    def dirty = ['git', 'status', '--porcelain', '--', '..'].execute(null, rootProject.projectDir).text.trim()
     if (revision) gitBuildId = revision + (dirty.isEmpty() ? '' : '-dirty')
 } catch (Exception ignored) {
     gitBuildId = 'unknown'
