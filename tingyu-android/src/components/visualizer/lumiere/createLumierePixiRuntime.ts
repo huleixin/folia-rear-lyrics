@@ -1,3 +1,4 @@
+import { getStageAntialias } from '../../../utils/stageQualityRuntime';
 import { bindVisualizerTickerRate } from '../../../utils/visualizerFrameChannel';
 import { getRearSafeInset, resolveVisualizerDimension } from '../../../utils/visualizerSurface';
 // Copyright (c) 2026 chthollyphile
@@ -136,7 +137,7 @@ export class LumierePixiRuntime {
             // 画布透明：folia 的共享背景层要透出来，由运行时的暗场层按暗场强度压暗。
             backgroundAlpha: 0,
             // 大头（图形组）画进 filter 纹理，MSAA 管不到；只剩画框细线，不值得整屏多重采样的解析开销。
-            antialias: false,
+            antialias: getStageAntialias('lumiere', false),
             autoDensity: true,
             resolution,
             autoStart: false,
@@ -185,6 +186,8 @@ export class LumierePixiRuntime {
     }
 
     /** 尺寸没变返回 false。渲染器立刻跟上，场景（尺寸烘焙在里面）防抖重建。 */
+    refreshRenderQuality() { this.resizeToHost(false); }
+
     private resizeToHost(immediate: boolean) {
         if (this.destroyed) return false;
         const width = resolveVisualizerDimension(this.options.host.clientWidth, MIN_WIDTH);

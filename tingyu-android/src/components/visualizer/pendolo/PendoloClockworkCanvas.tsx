@@ -1,3 +1,4 @@
+import { useStageAntialias } from '../../../hooks/useStageRenderQuality';
 import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../../utils/visualizerFrameChannel';
 import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import React, { useEffect, useMemo, useRef } from 'react';
@@ -70,6 +71,7 @@ const PendoloClockworkCanvas: React.FC<PendoloClockworkCanvasProps> = ({
     const canvas2dRef = useRef<HTMLCanvasElement | null>(null);
     const rendererRef = useRef<PendoloClockworkRenderer | null>(null);
     const useWebglRef = useRef(false);
+    const renderAntialias = useStageAntialias('pendolo', true);
     const motionStateRef = useRef(createPendoloClockworkMotionState());
     const lastTimestampRef = useRef<number | null>(null);
     const coverImageRef = useRef<HTMLImageElement | null>(null);
@@ -254,7 +256,7 @@ const PendoloClockworkCanvas: React.FC<PendoloClockworkCanvasProps> = ({
                 animationFrameId = requestVisualizerAnimationFrame(render);
                 return;
             }
-            const dpr = resolveStageRenderRatio(window.devicePixelRatio, window.devicePixelRatio || 1);
+            const dpr = resolveStageRenderRatio(window.devicePixelRatio, window.devicePixelRatio || 1, 'pendolo');
 
             const renderer = rendererRef.current;
             if (useWebglRef.current && !renderer?.isReady) useWebglRef.current = false;
@@ -310,7 +312,7 @@ const PendoloClockworkCanvas: React.FC<PendoloClockworkCanvasProps> = ({
             webglCanvas?.removeEventListener('webglcontextlost', handleContextLost);
             webglCanvas?.removeEventListener('webglcontextrestored', handleContextRestored);
         };
-    }, [showGearDecor, showCenterGradient, showCover, audioBassMotionValue, escapementAngleMotionValue]);
+    }, [showGearDecor, showCenterGradient, showCover, audioBassMotionValue, escapementAngleMotionValue, renderAntialias]);
 
     useEffect(() => () => {
         rendererRef.current?.release();
@@ -337,7 +339,7 @@ const PendoloClockworkCanvas: React.FC<PendoloClockworkCanvasProps> = ({
     return (
         <div className="absolute pointer-events-none" style={boxStyle}>
             <canvas
-                ref={webglCanvasRef}
+                key={String(renderAntialias)} ref={webglCanvasRef}
                 className={canvasClass}
                 style={{ filter: lineGlow }}
                 aria-hidden="true"

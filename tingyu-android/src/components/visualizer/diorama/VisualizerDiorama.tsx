@@ -1,3 +1,4 @@
+import { useStageAntialias, useStageRenderScale } from '../../../hooks/useStageRenderQuality';
 import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../../utils/visualizerFrameChannel';
 import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -109,6 +110,8 @@ const INSTRUMENTAL_COMMIT_SECONDS = 2;
 const READY_GRACE_MS = 8000;
 
 const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
+    useStageRenderScale('diorama');
+    const renderAntialias = useStageAntialias('diorama', !IS_ANDROID_WEBVIEW);
     const rearAod=useRearAod();
     const {
         currentTime,
@@ -414,16 +417,16 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
             sharedProps={props}
         >
             <div className="absolute inset-0 z-0">
-                <Canvas
+                <Canvas key={String(renderAntialias)}
                     camera={{ position: [0, 0.6, 9], fov: 55 }}
-                    dpr={[1, resolveStageRenderRatio(2)]}
+                    dpr={resolveStageRenderRatio(Math.min(window.devicePixelRatio || 1, 2), 2, 'diorama')}
                     // 暂停时切 demand：画面静止就不再每帧重画 3D 场景，恢复播放由 R3F 自动续帧。
                     frameloop={props.paused||rearAod ? 'demand' : 'always'}
                     gl={{
                         alpha: true,
                         // 安卓 WebView 上全屏 MSAA 多重采样的填充率开销极大；移动端关闭，
                         // dpr≤2 已足够清晰，桌面保留。
-                        antialias: !IS_ANDROID_WEBVIEW,
+                        antialias: renderAntialias,
                     }}
                     style={{ background: 'transparent' }}
                 >

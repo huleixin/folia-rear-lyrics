@@ -1,3 +1,4 @@
+import { getStageAntialias } from '../../../utils/stageQualityRuntime';
 import { bindVisualizerTickerRate } from '../../../utils/visualizerFrameChannel';
 import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import { resolveVisualizerDimension } from '../../../utils/visualizerSurface';
@@ -64,7 +65,7 @@ const MAX_RESOLUTION = 2;
 const DARK_SKY = 0.5;
 const NIGHT_BACKGROUND = '#0b0d24';
 
-const resolveRenderResolution = (devicePixelRatio: number) => resolveStageRenderRatio(devicePixelRatio, MAX_RESOLUTION);
+const resolveRenderResolution = (devicePixelRatio: number) => resolveStageRenderRatio(devicePixelRatio, MAX_RESOLUTION, 'hanabi');
 
 export class HanabiPixiRuntime {
     private unbindFrameRate: (() => void) | null = null;
@@ -125,7 +126,7 @@ export class HanabiPixiRuntime {
         const contextOptions = {
             // 画布透明：夜空不透明度小于 1 时 folia 的共享背景要透出来。
             backgroundAlpha: 0,
-            antialias: false,
+            antialias: getStageAntialias('hanabi', false),
             powerPreference: 'high-performance',
         } as const;
         const context = await makePixiContext(pixi, contextOptions, options.signal);
@@ -192,6 +193,8 @@ export class HanabiPixiRuntime {
     }
 
     /** 尺寸没变返回 false。渲染器立刻跟上，场景（尺寸烘焙在里面）防抖重建。 */
+    refreshRenderQuality() { this.resizeToHost(false); }
+
     private resizeToHost(immediate: boolean) {
         if (this.destroyed) return false;
         const surface = getVisualizerSurface();

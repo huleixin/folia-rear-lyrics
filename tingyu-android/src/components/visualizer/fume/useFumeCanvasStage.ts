@@ -1,3 +1,4 @@
+import { useStageRenderScale } from '../../../hooks/useStageRenderQuality';
 import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../../utils/visualizerFrameChannel';
 import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import { useEffect, useRef, type RefObject } from 'react';
@@ -33,6 +34,7 @@ export const useFumeCanvasStage = (
     driver: FumeStageDriver,
     paused: boolean,
 ) => {
+    const renderScale = useStageRenderScale('fume');
     const staticBlockSnapshotCacheRef = useRef<Map<string, { snapshot: StaticBlockSnapshot; lastUsed: number }>>(new Map());
     const liveRasterRef = useRef<FumeLiveRaster | null>(null);
     const { article, theme } = scene;
@@ -46,6 +48,7 @@ export const useFumeCanvasStage = (
         releaseSnapshots(staticBlockSnapshotCacheRef.current, Number.POSITIVE_INFINITY);
     }, [
         article,
+        renderScale,
         theme.name,
         theme.primaryColor,
         theme.secondaryColor,
@@ -75,7 +78,7 @@ export const useFumeCanvasStage = (
         const liveRaster = liveRasterRef.current;
         let hasPrintedContent = false;
 
-        prepareVisualizerCanvas(canvas, context, viewport.width, viewport.height);
+        prepareVisualizerCanvas(canvas, context, viewport.width, viewport.height, 'fume');
 
         let settleEntry = !!getVisualizerSurface() && !cameraState.initialized && currentTime.get() > .75;
         syncFumeCameraToArticle(cameraState, article, getVisualizerSurface() ? .001 : undefined);
@@ -89,7 +92,7 @@ export const useFumeCanvasStage = (
                 : clamp((now - lastFrameAt) / 1000, 1 / 240, 0.05);
             lastFrameAt = now;
 
-            const paint = prepareVisualizerCanvas(canvas, context, viewport.width, viewport.height);
+            const paint = prepareVisualizerCanvas(canvas, context, viewport.width, viewport.height, 'fume');
 
             const time = currentTime.get();
             const viewportCenterX = viewport.width * 0.5;
@@ -189,14 +192,14 @@ export const useFumeCanvasStage = (
                 passedGlowBase,
                 passedFadeDuration,
                 overviewTextRestoreProgress,
-                snapshotScale: resolveStageRenderRatio(window.devicePixelRatio, 2),
+                snapshotScale: resolveStageRenderRatio(window.devicePixelRatio, 2, 'fume'),
             };
 
             const rasterLive = isGlowBlurQuantized();
             // A little margin so glyphs entering the screen are already drawn.
             const margin = 32 / screenScale;
             const liveFrame = {
-                deviceScale: screenScale * resolveStageRenderRatio(window.devicePixelRatio, window.devicePixelRatio || 1),
+                deviceScale: screenScale * resolveStageRenderRatio(window.devicePixelRatio, window.devicePixelRatio || 1, 'fume'),
                 visible: {
                     left: camera.x - (viewportCenterX + paint.offsetX) / screenScale - margin,
                     top: camera.y - viewportCenterY / screenScale - margin,
@@ -232,7 +235,7 @@ export const useFumeCanvasStage = (
                             (1 - fit.scale) * worldY + (fit.top - projected.top) / screenScale);
                         const fittedScale = screenScale * fit.scale;
                         // Raster cache culling must use the corrected transform, or the visible sentence gets clipped internally.
-                        currentFrame = { ...liveFrame, deviceScale: fittedScale * resolveStageRenderRatio(window.devicePixelRatio, window.devicePixelRatio || 1),
+                        currentFrame = { ...liveFrame, deviceScale: fittedScale * resolveStageRenderRatio(window.devicePixelRatio, window.devicePixelRatio || 1, 'fume'),
                             visible: { left: worldX - fit.left / fittedScale - margin,
                                 top: worldY - fit.top / fittedScale - margin,
                                 right: worldX + (viewport.width - fit.left) / fittedScale + margin,
@@ -297,7 +300,7 @@ export const useFumeCanvasStage = (
             cancelVisualizerAnimationFrame(frameId);
             lastFrameAt = null;
         };
-    }, [article, canvasRef, driver, paused, scene, theme]);
+    }, [article, canvasRef, driver, paused, scene, theme, renderScale]);
 };
 
 /** Releases snapshots idle for longer than SNAPSHOT_IDLE_MS (all of them for `now` = Infinity). */

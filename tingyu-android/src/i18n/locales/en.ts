@@ -1,6 +1,7 @@
 
 
 export default {
+  stageQuality: {"preset": "Lyric rendering quality", "description": "Auto adapts to sustained frame cost and recovers when smooth. High improves detail; Battery reduces rendering cost without changing playback or the FPS cap.", "auto": "Auto", "high": "High", "battery": "Battery", "custom": "Custom", "scope": "Apply to", "global": "Global", "follow": "Follow global", "resolution": "Canvas resolution", "antialias": "Antialiasing", "on": "On", "off": "Off", "aaHint": "Applies to supported canvas stages. Antialiasing changes recreate the drawing context. The rear display keeps its own policy."},
   nativeSettings: { moveUp: 'Move up', moveDown: 'Move down', hue: 'Hue', saturation: 'Saturation', brightness: 'Brightness' },
   rearHost: {"show": "Show rear lyrics again", "dismissed": "Current display dismissed", "rendererFailed": "Renderer unavailable; system restored", "display": "Display host", "active": "Rear-centre host · owned", "fallback": "Independent window (host not owned)", "waiting": "Host connected · waiting for rear centre", "disconnected": "Host disconnected · check rear-centre scope"},
   frontAppearance: {paletteHint: "The front stage currently uses {{mode}}. Choose a palette to edit, then save to apply it to the front. Independent rear colors are unchanged."},

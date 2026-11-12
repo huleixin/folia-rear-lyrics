@@ -1,3 +1,4 @@
+import { getStageAntialias } from '../../../utils/stageQualityRuntime';
 import { parseColorChannels } from '../colorMix';
 import {
     buildPendoloClockworkCacheKey,
@@ -231,7 +232,7 @@ export class PendoloClockworkRenderer {
         const gl = canvas.getContext('webgl2', {
             alpha: true,
             premultipliedAlpha: true,
-            antialias: true,
+            antialias: getStageAntialias('pendolo', true),
             powerPreference: 'high-performance',
         });
         if (!gl) return;

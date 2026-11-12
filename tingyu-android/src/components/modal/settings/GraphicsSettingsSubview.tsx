@@ -1,3 +1,4 @@
+import StageQualitySettings from './StageQualitySettings';
 import { isAndroidNativeRuntime } from '../../../utils/platform';
 import React, { useState } from 'react';
 import { Gauge, MonitorCog } from 'lucide-react';
@@ -96,6 +97,7 @@ const GraphicsSettingsSubview: React.FC<GraphicsSettingsSubviewProps> = ({
             <SettingsAnchor anchorId="graphicsPerformance" label={t('options.labPerformanceSection')} className="space-y-4" nativeLayout={{"kind":"column","gap":16}}>
                 <SettingsSectionHeading icon={MonitorCog} label={t('options.labPerformanceSection')} />
                 <div className={`rounded-xl border overflow-hidden ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true}' data-settings-layout="card">
+                    <StageQualitySettings dividerClass={dividerClass} />
                     <SettingsRow
                         title={t(isAndroidNativeRuntime() ? 'mobileSettings.staticModeTitle' : 'options.enableStaticMode')}
                         description={t('options.enableStaticModeDesc')}

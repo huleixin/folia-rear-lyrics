@@ -1,6 +1,7 @@
 
 
 export default {
+  stageQuality: {"preset": "歌词渲染画质", "description": "自动保留当前清晰度，根据持续帧耗时调整；高画质更精细，省电减少绘制成本。不会改变播放速度或全局帧率。", "auto": "自动", "high": "高画质", "battery": "省电", "custom": "自定义", "scope": "调整范围", "global": "全局", "follow": "跟随全局", "resolution": "画布分辨率", "antialias": "抗锯齿", "on": "开启", "off": "关闭", "aaHint": "作用于支持的画布舞台；更改抗锯齿会重新创建绘制上下文。背屏保留独立策略。"},
   nativeSettings: { moveUp: '上移', moveDown: '下移', hue: '色相', saturation: '饱和度', brightness: '明度' },
   rearHost: {"show": "重新显示背屏歌词", "dismissed": "已退出本次显示", "rendererFailed": "渲染异常，已让回系统", "display": "显示承载", "active": "背屏中心宿主 · 已接管", "fallback": "独立窗口（宿主未接管）", "waiting": "宿主已连接 · 等待背屏中心", "disconnected": "宿主未连接 · 检查背屏中心作用域"},
   frontAppearance: {paletteHint: "当前正面舞台使用{{mode}}。下方切换仅选择要编辑的配色，保存后应用到正面；背屏独立配置不受影响。"},

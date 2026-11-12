@@ -1,3 +1,6 @@
+import type { StageRenderSettings } from '../types/lyricRenderQuality';
+import { normalizeStageRenderSettings, readStageRenderSettings, STAGE_QUALITY_STORAGE_KEY } from '../utils/stageQualitySettings';
+import { setStageRenderSettings } from '../utils/stageQualityRuntime';
 import { normalizeRandomVisualizerModes, readRandomVisualizerModes, RANDOM_VISUALIZER_POOL_STORAGE_KEY } from '../utils/randomVisualizerModes';
 import { normalizeHanabiTuning } from '../components/visualizer/hanabi/hanabiTuning';
 import { DEFAULT_HANABI_TUNING, type HanabiTuning } from '../components/visualizer/hanabi/types';
@@ -29,6 +32,8 @@ import { useVisualizerAssetStore } from './useVisualizerAssetStore';
 import { normalizeLumiereTuning } from '../utils/lumiereTuning';
 
 export type VisualizerSettingsState = {
+    stageRenderSettings: StageRenderSettings;
+    handleSetStageRenderSettings: (value: unknown) => void;
     disableVisualizerVignette: boolean;
     disableVisualizerGeometricBackground: boolean;
     backgroundOpacity: number;
@@ -123,6 +128,13 @@ export type VisualizerSettingsState = {
 };
 
 export const useVisualizerSettingsStore = create<VisualizerSettingsState>((set, get) => ({
+    stageRenderSettings: readStageRenderSettings(),
+    handleSetStageRenderSettings: value => {
+        const next = normalizeStageRenderSettings(value);
+        if (typeof localStorage !== 'undefined') localStorage.setItem(STAGE_QUALITY_STORAGE_KEY, JSON.stringify(next));
+        setStageRenderSettings(next);
+        set({ stageRenderSettings: next });
+    },
     disableVisualizerVignette: getStoredBoolean('disable_visualizer_vignette', false),
     disableVisualizerGeometricBackground: getStoredBoolean('disable_visualizer_geometric_background', false),
     backgroundOpacity: readStoredBackgroundOpacity(),
@@ -947,6 +959,8 @@ export const selectVisualizerSettingsSnapshot = (state: VisualizerSettingsState)
     partitaTuning: state.partitaTuning,
     pendoloTuning: state.pendoloTuning,
     randomVisualizerModePerSong: state.randomVisualizerModePerSong,
+    stageRenderSettings: state.stageRenderSettings,
+    handleSetStageRenderSettings: state.handleSetStageRenderSettings,
     randomVisualizerModes: state.randomVisualizerModes,
     sonnetTuning: state.sonnetTuning,
     soraBackgroundTuning: state.soraBackgroundTuning,

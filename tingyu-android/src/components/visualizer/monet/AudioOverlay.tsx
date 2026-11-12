@@ -1,3 +1,4 @@
+import { subscribeStageQuality } from '../../../utils/stageQualityRuntime';
 import { requestVisualizerAnimationFrame, cancelVisualizerAnimationFrame } from '../../../utils/visualizerFrameChannel';
 import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import React, { useEffect, useRef } from 'react';
@@ -181,7 +182,7 @@ const AudioOverlay: React.FC<AudioOverlayProps> = ({
 
         const resizeCanvas = () => {
             const rect = canvas.getBoundingClientRect();
-            const dpr = resolveStageRenderRatio(window.devicePixelRatio, window.devicePixelRatio || 1);
+            const dpr = resolveStageRenderRatio(window.devicePixelRatio, window.devicePixelRatio || 1, 'monet');
             const nextWidth = Math.max(1, Math.floor(rect.width * dpr));
             const nextHeight = Math.max(1, Math.floor(rect.height * dpr));
             canvasWidth = rect.width;
@@ -309,12 +310,13 @@ const AudioOverlay: React.FC<AudioOverlayProps> = ({
 
         resizeCanvas();
         window.addEventListener('resize', handleResize);
+        const unsubscribeQuality = subscribeStageQuality(handleResize);
 
         if (staticMode || isPreviewMode) {
             if (canvasWidth > 0 && canvasHeight > 0) {
                 drawStaticBars(context, canvasWidth, canvasHeight, theme, mode);
             }
-            return () => window.removeEventListener('resize', handleResize);
+            return () => { unsubscribeQuality(); window.removeEventListener('resize', handleResize); };
         }
 
         const loop = () => {
@@ -324,6 +326,7 @@ const AudioOverlay: React.FC<AudioOverlayProps> = ({
 
         loop();
         return () => {
+            unsubscribeQuality();
             cancelVisualizerAnimationFrame(frameId);
             window.removeEventListener('resize', handleResize);
         };

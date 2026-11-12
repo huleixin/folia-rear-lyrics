@@ -56,9 +56,9 @@ export function getVisualizerPaintBounds(width: number, height: number) {
     return { width, height, offsetX: 0, offsetY: 0 };
 }
 /** Bitmap and CSS size describe the same local rectangle; no extra camera translation. */
-export function prepareVisualizerCanvas(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D, width: number, height: number) {
+export function prepareVisualizerCanvas(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D, width: number, height: number, mode = '') {
     const paint = getVisualizerPaintBounds(width, height);
-    const dpr = resolveStageRenderRatio(window.devicePixelRatio, window.devicePixelRatio || 1);
+    const dpr = resolveStageRenderRatio(window.devicePixelRatio, window.devicePixelRatio || 1, mode);
     const pixelsWide = Math.max(1, Math.floor(paint.width * dpr));
     const pixelsHigh = Math.max(1, Math.floor(paint.height * dpr));
     if (canvas.width !== pixelsWide || canvas.height !== pixelsHigh) {

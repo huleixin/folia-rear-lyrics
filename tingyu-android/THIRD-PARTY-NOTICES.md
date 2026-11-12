@@ -11,6 +11,7 @@
 
 | 位置 | 组件 | 许可 | 说明 |
 |---|---|---|---|
+| `src/utils/lyricRenderQuality.ts`、`src/types/lyricRenderQuality.ts` | [whycfawa/folia-android](https://github.com/whycfawa/folia-android) / [chthollyphile/folia-major](https://github.com/chthollyphile/folia-major)，原作者 chthollyphile 及贡献者 | AGPL-3.0 | 选择性移植固定 Tag `v0.7.27-android.449`（`37ba4903a7148883d75492f0f07afbda2c68f647`）的画质类型及归一化策略；保留原始文件注释，Android 主背屏隔离、档位和运行期适配由听屿补充。 |
 | `src/nativeBridge/vendor/crypto-es.mjs` | crypto-es（crypto-js 的 ESM 分支） | MIT | 文件内已保留完整的 MIT 许可原文与版权声明 |
 | `src/utils/rearFrameGeometry.ts`、对应几何单测 | [wmqc97/folia-android](https://github.com/wmqc97/folia-android) | AGPL-3.0 | 复用提交 `4d86ad210d3004a61fce1378a253220b05c7fb8c` 的背屏构图几何代码；`rearCameraSafeArea.ts` 的坐标换算参考其 `rearLyricsBridge.ts`。原项目作者及许可声明保留，听屿接入时区分整屏动画与当前句安全区。 |
 | `src/nativeBridge/vendor/node-forge.mjs` | node-forge 的转发垫片 | BSD-3-Clause / MIT | 仅数百字节的 `require` 转发，不包含 node-forge 实现本体 |

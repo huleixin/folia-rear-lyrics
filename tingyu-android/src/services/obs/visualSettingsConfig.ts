@@ -33,6 +33,7 @@ export function buildVisualSettingsConfig(): Record<string, unknown> {
     followSystemTheme: storeThemeSettings.followSystemTheme,
     visualizerMode: storeVisualizer.visualizerMode,
     randomVisualizerModePerSong: storeVisualizer.randomVisualizerModePerSong,
+    stageRenderSettings: storeVisualizer.stageRenderSettings,
     randomVisualizerModes: storeVisualizer.randomVisualizerModes,
     visualizerBackgroundMode: storeVisualizer.visualizerBackgroundMode,
     backgroundOpacity: storeVisualizer.backgroundOpacity,

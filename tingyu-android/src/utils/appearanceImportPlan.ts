@@ -68,6 +68,7 @@ export const ACTIVATE_CUSTOM_THEME_KEY = 'activateCustomTheme';
 // Fields the codec round-trips but the import path does not apply are deliberately absent, so the
 // plan can never promise a change that will not happen.
 const FIELD_GROUPS: Record<string, ImportGroup> = {
+    stageRenderSettings: 'visualizer',
     rearStageAppearance: 'visualizer',
     visualizerMode: 'visualizer',
     randomVisualizerModePerSong: 'visualizer',

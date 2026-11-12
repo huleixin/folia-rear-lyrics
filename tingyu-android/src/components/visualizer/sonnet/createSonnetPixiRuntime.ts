@@ -1,3 +1,4 @@
+import { getStageAntialias } from '../../../utils/stageQualityRuntime';
 import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import { getRearSafeInset, resolveVisualizerDimension } from '../../../utils/visualizerSurface';
 import type { RearRect } from '../../../utils/rearCameraSafeArea';
@@ -148,9 +149,9 @@ export class SonnetPixiRuntime {
             width,
             height,
             backgroundAlpha: 0,
-            antialias: true,
+            antialias: getStageAntialias('sonnet', true),
             autoDensity: true,
-            resolution: snapResolutionToTexturePool(width, height, resolveStageRenderRatio(options.tuning.textureResolution, options.tuning.textureResolution)),
+            resolution: snapResolutionToTexturePool(width, height, resolveStageRenderRatio(options.tuning.textureResolution, options.tuning.textureResolution, 'sonnet')),
             autoStart: false,
             sharedTicker: false,
             preference: 'webgl',
@@ -190,6 +191,16 @@ export class SonnetPixiRuntime {
         if (!this.options.paused) this.app.start();
     }
 
+    /** Resize only the backing target; preserve lyric program and GPU scene caches. */
+    refreshRenderQuality() {
+        if (this.destroyed || !this.app?.renderer || !this.lastWidth) return;
+        const resolution = snapResolutionToTexturePool(this.lastWidth, this.lastHeight, resolveStageRenderRatio(this.options.tuning.textureResolution, this.options.tuning.textureResolution, 'sonnet'));
+        if (this.app.renderer.resolution === resolution) return;
+        this.app.renderer.resize(this.lastWidth, this.lastHeight, resolution);
+        this.app.canvas.style.width = '100%'; this.app.canvas.style.height = '100%';
+        if (this.options.paused) this.renderOnce();
+    }
+
     private resizeToHost() {
         if (this.destroyed) return false;
         const width = resolveVisualizerDimension(this.options.host.clientWidth, 320);
@@ -205,7 +216,7 @@ export class SonnetPixiRuntime {
         this.app.renderer.resize(
             width,
             height,
-            snapResolutionToTexturePool(width, height, resolveStageRenderRatio(this.options.tuning.textureResolution, this.options.tuning.textureResolution)),
+            snapResolutionToTexturePool(width, height, resolveStageRenderRatio(this.options.tuning.textureResolution, this.options.tuning.textureResolution, 'sonnet')),
         );
         // autoDensity rounds the backing store; keep its CSS box fitted to the entire panel after every resize.
         this.app.canvas.style.width = '100%';

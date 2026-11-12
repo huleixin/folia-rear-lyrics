@@ -29,6 +29,7 @@ export type SyncedVisualSettings = {
     visualizerMode?: VisualizerMode;
     randomVisualizerModePerSong?: boolean;
     randomVisualizerModes?: string[];
+    stageRenderSettings?: import('../../types/lyricRenderQuality').StageRenderSettings;
     visualizerBackgroundMode?: VisualizerBackgroundMode | null;
     backgroundOpacity?: number;
     visualizerOpacity?: number;

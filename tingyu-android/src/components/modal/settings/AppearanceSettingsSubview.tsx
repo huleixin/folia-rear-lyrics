@@ -223,6 +223,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
     const storeVisualizer = useVisualizerSettingsStore(useShallow(state => ({
         visualizerMode: state.visualizerMode,
         randomVisualizerModePerSong: state.randomVisualizerModePerSong,
+        stageRenderSettings: state.stageRenderSettings,
         randomVisualizerModes: state.randomVisualizerModes,
         visualizerBackgroundMode: state.visualizerBackgroundMode,
         backgroundOpacity: state.backgroundOpacity,
@@ -248,6 +249,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
         urlBackgroundSelectedId: state.urlBackgroundSelectedId,
         handleSetVisualizerMode: state.handleSetVisualizerMode,
         handleToggleRandomVisualizerModePerSong: state.handleToggleRandomVisualizerModePerSong,
+        handleSetStageRenderSettings: state.handleSetStageRenderSettings,
         handleSetRandomVisualizerModes: state.handleSetRandomVisualizerModes,
         handleSetVisualizerBackgroundMode: state.handleSetVisualizerBackgroundMode,
         handleSetBackgroundOpacity: state.handleSetBackgroundOpacity,
@@ -425,6 +427,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
             if (has('visualizerMode') && config.visualizerMode) {
                 storeVisualizer.handleSetVisualizerMode(config.visualizerMode);
             }
+            if (has('stageRenderSettings')) storeVisualizer.handleSetStageRenderSettings(config.stageRenderSettings);
             if (has('randomVisualizerModes')) storeVisualizer.handleSetRandomVisualizerModes(config.randomVisualizerModes);
             if (has('randomVisualizerModePerSong')) {
                 storeVisualizer.handleToggleRandomVisualizerModePerSong(Boolean(config.randomVisualizerModePerSong));

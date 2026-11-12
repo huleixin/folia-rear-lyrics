@@ -70,6 +70,7 @@ const FIELD_LABEL_KEYS: Record<string, string> = {
     songThemeAutoSwitchEnabled: 'options.autoSwitchSongTheme',
     songThemeAutoGenerateEnabled: 'options.autoGenerateSongTheme',
     randomVisualizerModePerSong: 'options.importFieldRandomMode',
+    stageRenderSettings: 'stageQuality.preset',
     randomVisualizerModes: 'options.randomStyleRange',
     lyricsFontStyle: 'options.importFieldLyricsFontStyle',
     lyricsFontScale: 'options.importFieldLyricsFontScale',

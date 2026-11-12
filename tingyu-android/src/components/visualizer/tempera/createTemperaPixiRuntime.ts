@@ -1,3 +1,4 @@
+import { getStageAntialias } from '../../../utils/stageQualityRuntime';
 import { resolveStageRenderRatio } from '../../../utils/stageRenderBudget';
 import type { RearRect } from '../../../utils/rearCameraSafeArea';
 import { resolveSonnetRearReadingArea } from '../sonnet/sonnetRearReadingArea';
@@ -20,7 +21,7 @@ import {
 import { loadPixi } from '../loadPixi';
 import { PixiSceneCache } from '../pixiSceneCache';
 import { PixiSongSwap } from '../pixiSongSwap';
-import { setTemperaTransitionBlur } from './temperaSceneFilters';
+import { resolveTemperaPassResolution, resolveTemperaTransitionBlurResolution, setTemperaTransitionBlur } from './temperaSceneFilters';
 import { destroyTemperaGradientFills } from './temperaShapes';
 import { TemperaImageTextures } from './temperaImageTextures';
 import { TemperaOverlay } from './temperaOverlay';
@@ -153,12 +154,12 @@ export class TemperaPixiRuntime {
         const app = new pixi.Application();
         const width = resolveVisualizerDimension(options.host.clientWidth, 320);
         const height = resolveVisualizerDimension(options.host.clientHeight, 240);
-        const resolution = snapResolutionToTexturePool(width, height, resolveStageRenderRatio(options.tuning.textureResolution, options.tuning.textureResolution));
+        const resolution = snapResolutionToTexturePool(width, height, resolveStageRenderRatio(options.tuning.textureResolution, options.tuning.textureResolution, 'tempera'));
         await app.init({
             width,
             height,
             backgroundAlpha: 0,
-            antialias: true,
+            antialias: getStageAntialias('tempera', true),
             autoDensity: true,
             resolution,
             autoStart: false,
@@ -212,7 +213,24 @@ export class TemperaPixiRuntime {
     private resolveRenderResolution(tuning: TemperaTuning) {
         const width = this.lastWidth || resolveVisualizerDimension(this.options.host.clientWidth, 320);
         const height = this.lastHeight || resolveVisualizerDimension(this.options.host.clientHeight, 240);
-        return snapResolutionToTexturePool(width, height, resolveStageRenderRatio(tuning.textureResolution, tuning.textureResolution));
+        return snapResolutionToTexturePool(width, height, resolveStageRenderRatio(tuning.textureResolution, tuning.textureResolution, 'tempera'));
+    }
+
+    /** Resize only the backing target; preserve lyric program and GPU scene caches. */
+    refreshRenderQuality() {
+        if (this.destroyed || !this.app?.renderer || !this.lastWidth) return;
+        const resolution = this.resolveRenderResolution(this.options.tuning);
+        if (this.app.renderer.resolution === resolution) return;
+        this.renderResolution = resolution;
+        this.app.renderer.resize(this.lastWidth, this.lastHeight, resolution);
+        this.app.canvas.style.width = '100%'; this.app.canvas.style.height = '100%';
+        const update = (scene: TemperaSceneView) => {
+            for (const filter of scene.baseFilters) filter.resolution = resolveTemperaPassResolution(this.options.tuning, resolution);
+            if (scene.transitionBlurFilter) scene.transitionBlurFilter.resolution = resolveTemperaTransitionBlurResolution(this.options.tuning, resolution);
+        };
+        this.sceneCache.forEach(update);
+        if (this.songSwap.staged) update(this.songSwap.staged.scene);
+        if (this.options.paused) this.renderOnce();
     }
 
     private resizeToHost() {

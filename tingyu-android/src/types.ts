@@ -1431,3 +1431,4 @@ export interface AudioBands {
     treble: MotionValue<number>;  // 3500Hz+ (Crosses)
     spectrum?: MotionValue<Uint8Array<ArrayBuffer>>; // Raw analyser FFT magnitude bins for full-spectrum visualizers
   }
+export type { LyricRenderScale, LyricAntialias, LyricRenderQuality, LyricRenderOverride, StageQualityPreset, StageRenderSettings } from './types/lyricRenderQuality';

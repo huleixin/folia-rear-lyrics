@@ -1,3 +1,5 @@
+import { useStageAntialias } from '../../hooks/useStageRenderQuality';
+import { subscribeStageQuality } from '../../utils/stageQualityRuntime';
 import { useCallback, useEffect, useRef, type DependencyList, type RefObject } from 'react';
 
 // src/components/visualizer/pixiRuntimeHost.ts
@@ -44,6 +46,7 @@ export const useVisualizerPixiHost = <TRuntime, TSong>({
     destroy,
     onFailedChange,
 }: VisualizerPixiHostOptions<TRuntime, TSong>) => {
+    const qualityAntialias = useStageAntialias(label.toLowerCase(), label === 'Sonnet' || label === 'Tempera');
     const runtimeRef = useRef<TRuntime | null>(null);
     const songRef = useRef(song);
     songRef.current = song;
@@ -98,6 +101,8 @@ export const useVisualizerPixiHost = <TRuntime, TSong>({
     useEffect(() => {
         const host = hostRef.current;
         if (!host) return undefined;
+        const refreshQuality = () => (runtimeRef.current as { refreshRenderQuality?: () => void } | null)?.refreshRenderQuality?.();
+        const unsubscribeQuality = subscribeStageQuality(refreshQuality);
         let disposed = false;
         let createdRuntime: TRuntime | null = null;
         const abortController = new AbortController();
@@ -114,6 +119,7 @@ export const useVisualizerPixiHost = <TRuntime, TSong>({
                 }
                 createdRuntime = runtime;
                 runtimeRef.current = runtime;
+                refreshQuality();
                 appliedSongRef.current = initialSong;
                 void drainSong();
             })
@@ -124,6 +130,7 @@ export const useVisualizerPixiHost = <TRuntime, TSong>({
             });
         return () => {
             disposed = true;
+            unsubscribeQuality();
             abortController.abort();
             if (signalRef.current === abortController.signal) signalRef.current = null;
             appliedSongRef.current = null;
@@ -133,7 +140,7 @@ export const useVisualizerPixiHost = <TRuntime, TSong>({
             host.replaceChildren();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [drainSong, hostRef, label, ...rebuildKey]);
+    }, [drainSong, hostRef, label, ...rebuildKey, qualityAntialias]);
 
     useEffect(() => {
         void drainSong();
