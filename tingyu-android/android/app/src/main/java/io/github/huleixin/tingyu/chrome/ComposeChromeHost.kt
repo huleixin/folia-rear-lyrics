@@ -937,6 +937,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         }
                     )
                     .graphicsLayer { translationY=if(nativeDetour&&!webOverlay)height*density.density*detourOffset.value else 0f })
+                if (brandLaunch.active) {
+                    BrandLaunchSurface(palette = palette, reduced = reducedMotion || brandLaunch.reduced)
+                }
                 }
             Box(Modifier.fillMaxSize().zIndex(if(destination!="stage")1f else 0f).then(if(legacySampling&&Build.VERSION.SDK_INT>=31&&graphics.sampleStage(destination))Modifier.layerBackdrop(backdrop)else Modifier)) {
                 Box(Modifier.fillMaxSize().zIndex(1f).then(if(!legacySampling&&Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop)else Modifier)) {

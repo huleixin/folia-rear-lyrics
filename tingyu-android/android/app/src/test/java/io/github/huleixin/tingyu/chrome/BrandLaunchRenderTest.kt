@@ -22,6 +22,11 @@ class BrandLaunchRenderTest {
     @get:Rule val compose=createAndroidComposeRule<ComponentActivity>()
     @Test fun waitsForBothHostsThenFadesExactlyOnce() = exercise(false)
     @Test fun reducedMotionReleasesAfterReadyFrames() = exercise(true)
+    @Test fun brandLaunchSurfaceRendersContent() {
+        val palette = InterfacePalette(false)
+        compose.setContent { BrandLaunchSurface(palette = palette, reduced = false) }
+        compose.waitForIdle()
+    }
     @Test fun webStageColdLinkFadesOnlyTheHtmlCover() {
         val state=BrandLaunchState(true).apply{reactReady=true}
         val scripts=mutableListOf<String>()
