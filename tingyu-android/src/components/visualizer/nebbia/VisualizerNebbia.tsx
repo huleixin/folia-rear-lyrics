@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Line } from '../../../types';
-import { resolveThemeFontStack, resolveThemeFontWeight } from '../../../utils/fontStacks';
 import { getLineRenderEndTime } from '../../../utils/lyrics/renderHints';
 import type { VisualizerSharedProps } from '../definition';
 import { useVisualizerRuntime } from '../runtime';
@@ -14,6 +13,10 @@ import { NebbiaRuntime } from './createNebbiaRuntime';
 import { cancelNebbiaShaderWarmup } from './nebbiaShaderWarmup';
 import { nebbiaSeesThrough } from './nebbiaBehind';
 import { DEFAULT_NEBBIA_TUNING, type NebbiaTuning } from './types';
+import { getRearSafeInset } from '../../../utils/visualizerSurface';
+import { resolveRearLyricRegions } from '../../../utils/rearCameraSafeArea';
+import StageCompatibilityFallback from '../StageCompatibilityFallback';
+import RearCurrentLyrics from '../RearCurrentLyrics';
 
 // src/components/visualizer/nebbia/VisualizerNebbia.tsx
 // 雾笺的 React 外壳：挂共享 shell / 字幕层，运行时建一次，换歌、tuning、主题、暂停都就地推给它。
@@ -46,6 +49,9 @@ const VisualizerNebbia: React.FC<Props> = (props) => {
     // 透出后面时（播放页透明）窗外不画，但选了水族箱时水珠里折射的还是水族箱（水母照样游，车不颠）；选了共用背景就折射街景
     const scene = nebbiaTuning.behind === 'aquarium' ? 'aquarium' : 'night';
     const glass = nebbiaTuning.glass;
+    const rearSafe=props.rearSafeArea??getRearSafeInset();
+    const hasHarmony=useMemo(()=>props.showHarmonySubtitle!==false&&lines.some(line=>line.backgroundVocal||line.backgroundVocals?.length),[lines,props.showHarmonySubtitle]);
+    const readingArea=useMemo(()=>rearSafe?resolveRearLyricRegions(rearSafe,hasHarmony).lyrics:undefined,[rearSafe?.left,rearSafe?.top,rearSafe?.width,rearSafe?.height,hasHarmony]);
 
     // 真正在画的歌：切歌时滞后于 props，免得对着还没到的歌词排版（songHandover.ts）
     const committed = useVisualizerSongCommit({ seed, lines, currentTime, readyGraceMs: 3000 });
@@ -55,8 +61,8 @@ const VisualizerNebbia: React.FC<Props> = (props) => {
         [committedLines, committed.seed, songTitle, songArtist],
     );
 
-    const latest = useRef({ theme, tuning: nebbiaTuning, renderScale, song, lyricsFontScale, showText, isDaylight, paused, staticMode });
-    latest.current = { theme, tuning: nebbiaTuning, renderScale, song, lyricsFontScale, showText, isDaylight, paused, staticMode };
+    const latest = useRef({ theme, tuning: nebbiaTuning, renderScale, song, lyricsFontScale, showText, isDaylight, paused, staticMode, readingArea });
+    latest.current = { theme, tuning: nebbiaTuning, renderScale, song, lyricsFontScale, showText, isDaylight, paused, staticMode, readingArea };
 
     useEffect(() => {
         const host = hostRef.current;
@@ -78,6 +84,7 @@ const VisualizerNebbia: React.FC<Props> = (props) => {
                 onRestored: () => setGeneration(value => value + 1),
             }, l.theme, l.tuning, l.renderScale);
             runtime.setFontScale(l.lyricsFontScale);
+            runtime.setReadingArea(l.readingArea);
             runtime.setShowText(l.showText);
             runtime.setDaylight(l.isDaylight);
             runtime.setPlayback(l.paused, l.staticMode);
@@ -103,6 +110,7 @@ const VisualizerNebbia: React.FC<Props> = (props) => {
     useEffect(() => { runtimeRef.current?.setRenderScale(renderScale); }, [renderScale]);
     useEffect(() => { runtimeRef.current?.setTheme(theme); }, [theme]);
     useEffect(() => { runtimeRef.current?.setFontScale(lyricsFontScale); }, [lyricsFontScale]);
+    useEffect(() => { runtimeRef.current?.setReadingArea(readingArea); }, [readingArea]);
     useEffect(() => { runtimeRef.current?.setShowText(showText); }, [showText]);
     useEffect(() => { runtimeRef.current?.setDaylight(isDaylight); }, [isDaylight]);
     useEffect(() => { runtimeRef.current?.setPlayback(paused, staticMode); }, [paused, staticMode]);
@@ -120,21 +128,15 @@ const VisualizerNebbia: React.FC<Props> = (props) => {
         <VisualizerShell theme={theme} audioPower={audioPower} audioBands={audioBands} sharedProps={props} renderBackground={seeThrough}>
             <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden" style={{ background: seeThrough ? undefined : '#05070a' }}>
                 <div ref={hostRef} className="absolute inset-0" aria-hidden="true" data-nebbia-ready={drawn} data-nebbia-scene={scene} data-nebbia-glass={glass} />
-                {failed && (
-                    <div
-                        className="absolute inset-0 flex items-center justify-center px-10 text-center"
-                        style={{
-                            color: theme.primaryColor,
-                            fontFamily: resolveThemeFontStack(theme),
-                            fontWeight: resolveThemeFontWeight(theme, 600),
-                            fontSize: `clamp(2rem, ${5.4 * lyricsFontScale}vw, 5.6rem)`,
-                        }}
-                    >
-                        <div><div>{showText && !committed.isInstrumental ? (activeLine?.fullText || t('ui.waitingForMusic')) : null}</div><p className="mt-4 text-sm">{t('stageQuality.compatibilityFallback')}</p><button className="pointer-events-auto mt-3 rounded-xl border px-4 py-2 text-sm" onClick={() => setGeneration(value => value + 1)}>{t('stageQuality.retry')}</button></div>
-                    </div>
+                {failed&&<StageCompatibilityFallback theme={theme} fontScale={lyricsFontScale} area={readingArea}
+                    text={showText&&!committed.isInstrumental?(activeLine?.fullText||t('ui.waitingForMusic')):null} onRetry={()=>setGeneration(value=>value+1)}/>}
+                {readingArea && showText && !committed.isInstrumental && !failed && (
+                    <RearCurrentLyrics area={readingArea} line={activeLine ?? recentCompletedLine}
+                        currentTime={currentTime} theme={theme} fontScale={lyricsFontScale} />
                 )}
             </div>
             <VisualizerSubtitleOverlay
+                rearSafeArea={rearSafe??undefined}
                 showText={showText}
                 activeLine={activeLine}
                 recentCompletedLine={recentCompletedLine}

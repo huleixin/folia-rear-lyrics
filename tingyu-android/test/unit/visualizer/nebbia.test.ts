@@ -9,11 +9,32 @@ import { DEFAULT_NEBBIA_TUNING } from '../../../src/components/visualizer/nebbia
 import { buildNebbiaScene, buildNebbiaSceneAsync } from '../../../src/components/visualizer/nebbia/nebbiaScene';
 import { buildNebbiaLines } from '../../../src/components/visualizer/nebbia/nebbiaChars';
 import { measureGlyph, type NebbiaGlyphCache } from '../../../src/components/visualizer/nebbia/nebbiaGlyphs';
+import { resolveRearLyricRegions } from '../../../src/utils/rearCameraSafeArea';
+import { resolveRearReadingBox } from '../../../src/utils/visualizerSurface';
 
 // test/unit/visualizer/nebbia.test.ts
 // Live spectrum boundaries and async layout must preserve the original handwriting schedule.
 const audio = () => ({bass:motionValue(0),lowMid:motionValue(0),mid:motionValue(0),vocal:motionValue(0),treble:motionValue(0),spectrum:motionValue(new Uint8Array(16))});
 describe('Nebbia Android adaptation', () => {
+    it('fits every actual warped/rotated handwriting stroke right of the camera at multiple scales',()=>{
+        const cache={get:()=>measureGlyph([[[-.15,0],[.5,1.2],[1.15,-.1]]])} as unknown as NebbiaGlyphCache;
+        const text='这是一句很长的歌词，HelloSuperLongUnbrokenWord 星光和雨夜';
+        const source=buildNebbiaLines([{fullText:text,startTime:0,endTime:8,words:[{text,startTime:0,endTime:8}]}],'rear',0,[]);
+        for(const width of [329,347,904])for(const fontScale of [.5,1,3]){
+            const H=width*596/976,area=resolveRearLyricRegions(resolveRearReadingBox(width,H)).lyrics;
+            const scene=buildNebbiaScene(source,cache,{...DEFAULT_NEBBIA_TUNING,jitter:1,warp:1,strokeWidth:.08},{W:width,H,fontScale,area},'rear');
+            for(const line of scene)for(const c of line.chars)for(const stroke of c.glyph?.strokes??[])for(const [x,y] of stroke.pts){
+                const margin=Math.max(1.5,c.s*.08)/2;
+                const px=c.x+((x-.5)*Math.cos(c.rot)-(y-.5)*Math.sin(c.rot))*c.s;
+                const py=c.y+((x-.5)*Math.sin(c.rot)+(y-.5)*Math.cos(c.rot))*c.s;
+                expect(px-margin).toBeGreaterThanOrEqual(area.left-.001);
+                expect(py-margin).toBeGreaterThanOrEqual(area.top-.001);
+                expect(px+margin).toBeLessThanOrEqual(area.left+area.width+.001);
+                expect(py+margin).toBeLessThanOrEqual(area.top+area.height+.001);
+                expect(c.wt).toBeGreaterThanOrEqual(c.t);expect(Number.isFinite(c.wd)).toBe(true);
+            }
+        }
+    });
     it('round-trips the registered mode settings through appearance export and import', () => {
         const tuning = normalizeNebbiaTuning({ behind: 'aquarium', glass: 'snow', motionStrength: 1.6 });
         const bundle = collectVisualizerTunings({ nebbiaTuning: tuning });

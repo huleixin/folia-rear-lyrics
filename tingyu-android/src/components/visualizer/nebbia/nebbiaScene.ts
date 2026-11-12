@@ -7,6 +7,8 @@ import type { NebbiaBreath } from './nebbiaBreath';
 import type { NebbiaWipe } from './nebbiaWipe';
 import type { NebbiaTuning } from './types';
 import { createVisualizerRng, hashVisualizerSeed } from '../visualizerSeedHash';
+import type { RearRect } from '../../../utils/rearCameraSafeArea';
+import { fitNebbiaLineToArea } from './nebbiaRearLayout';
 
 // src/components/visualizer/nebbia/nebbiaScene.ts
 // 一首歌在雾笺上的全部安排：每个字的位置、变形后的字形、擦痕边的水珠和下淌的水珠、出现方式（手写或透出）；
@@ -147,7 +149,7 @@ function* prepareNebbiaScene(
     source: NebbiaSourceLine[],
     glyphs: NebbiaGlyphCache,
     tuning: NebbiaTuning,
-    size: { W: number; H: number; fontScale: number },
+    size: { W: number; H: number; fontScale: number; area?: RearRect },
     seed: string | number,
 ): Generator<void, LaidLine[], void> {
     const seedHash = hashVisualizerSeed(String(seed));
@@ -161,7 +163,7 @@ function* prepareNebbiaScene(
     const lingerAt = (i: number) => Math.max(fogAt(i), Math.min(fogAt(i) + LINGER_MAX, (source[i + LINGER_LINES]?.t ?? Infinity) + tuning.hold, beforeCredits(i)));
     const goneAt = (i: number) => fogAt(i) + fadeOf(i);
     const pos = layoutNebbiaSong(source, {
-        W: size.W, H: size.H, jitter: tuning.jitter, layouts: tuning.layouts, fontScale: size.fontScale, visibleUntil: goneAt, fogAt,
+        W: size.W, H: size.H, area: size.area, jitter: tuning.jitter, layouts: tuning.layouts, fontScale: size.fontScale, visibleUntil: goneAt, fogAt,
         lingerUntil: i => lingerAt(i) + fadeOf(i),
     });
     const laid: LaidLine[] = [];
@@ -176,6 +178,7 @@ function* prepareNebbiaScene(
             chars.push(out);
             yield;
         }
+        if(size.area)fitNebbiaLineToArea(chars,size.area,tuning.strokeWidth);
         laid.push({ t: line.t, end: line.end, next: line.next, mode: modes[li], fogAt: fogAt(li), yieldAt: Infinity,
             breathAt: Infinity, breathUntil: Infinity, breathDur: NEBBIA_FIXED.breathSpread,
             appearBreathAt: Infinity, appearBreathUntil: Infinity, chars });
@@ -222,7 +225,7 @@ export function buildNebbiaScene(...args: Parameters<typeof prepareNebbiaScene>)
 /** Preserve geometry and RNG order, yielding between glyphs before a UI task grows long. */
 export async function buildNebbiaSceneAsync(
     source: NebbiaSourceLine[], glyphs: NebbiaGlyphCache, tuning: NebbiaTuning,
-    size: { W: number; H: number; fontScale: number }, seed: string | number, cancelled: () => boolean,
+    size: { W: number; H: number; fontScale: number; area?: RearRect }, seed: string | number, cancelled: () => boolean,
 ): Promise<LaidLine[] | null> {
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     if (cancelled()) return null;

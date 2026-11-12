@@ -233,7 +233,7 @@ const PresetGroup = <T,>({
                             ...getAccentOptionStyle(isActive, theme, isDaylight),
                             color: theme.primaryColor,
                         }}
-                     data-settings-style='{"radius":64,"font":14,"border":true,"padding":[12,8,12,8]}' data-settings-layout="row">
+                     data-settings-style='{"radius":64,"font":14,"border":true,"fill":true,"minHeight":44,"center":true,"padding":[12,8,12,8]}' data-settings-layout="row">
                         {option.label}
                     </button>
                 );

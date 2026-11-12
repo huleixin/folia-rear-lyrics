@@ -268,7 +268,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
         );
     }
 
-    const displayMode = getVisualizerSurface() && config.visualizerMode === 'nebbia' ? 'sonnet' : config.visualizerMode;
+    const displayMode = config.visualizerMode;
     return (
         <div
             ref={surfaceRef}

@@ -4,6 +4,19 @@
 export const REAR_REFERENCE = { width: 976, cameraRight: 277 } as const;
 export interface RearRect { left: number; top: number; width: number; height: number }
 
+/** Reserve the bottom third for up to three subtitle rows without moving the scenery. */
+export function resolveRearLyricRegions(safe: RearRect, hasHarmony = false) {
+    const gap=Math.min(8,safe.height*.04);
+    const subtitleHeight=safe.height*.32;
+    const harmonyHeight=hasHarmony?safe.height*.24:0;
+    const lyricsTop=safe.top+harmonyHeight+(hasHarmony?gap:0);
+    return {
+        harmony:{...safe,height:harmonyHeight},
+        lyrics:{...safe,top:lyricsTop,height:Math.max(1,safe.top+safe.height-subtitleHeight-gap-lyricsTop)},
+        subtitles:{...safe,top:safe.top+safe.height-subtitleHeight,height:subtitleHeight},
+    };
+}
+
 export function resolveRearSafeLeft(width: number, safeLeftPx = REAR_REFERENCE.cameraRight as number,
     physicalWidthPx = REAR_REFERENCE.width as number) {
     const ratio = Number.isFinite(safeLeftPx) && Number.isFinite(physicalWidthPx)

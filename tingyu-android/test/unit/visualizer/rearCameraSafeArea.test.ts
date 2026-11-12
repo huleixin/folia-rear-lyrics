@@ -1,8 +1,30 @@
 import { describe, expect, it } from 'vitest';
-import { fitRearCurrentLine, resolveRearSafeLeft } from '../../../src/utils/rearCameraSafeArea';
+import { fitRearCurrentLine, resolveRearSafeLeft, resolveRearLyricRegions } from '../../../src/utils/rearCameraSafeArea';
 
 // test/unit/visualizer/rearCameraSafeArea.test.ts
 describe('rear current-line projection', () => {
+    it('fits harmony, handwriting and subtitles into separate camera-safe regions',()=>{
+        for(const width of [329,347,904]){
+            const left=resolveRearSafeLeft(width)+5;
+            const safe={left,top:5,width:width-left-5,height:width*596/976-10};
+            const {harmony,lyrics,subtitles}=resolveRearLyricRegions(safe,true);
+            expect(harmony.top+harmony.height).toBeLessThan(lyrics.top);
+            expect(lyrics.top+lyrics.height).toBeLessThan(subtitles.top);
+            for(const region of [harmony,lyrics,subtitles]){
+                expect(region.left).toBe(safe.left);
+                expect(region.width).toBe(safe.width);
+                expect(region.height).toBeGreaterThan(0);
+                expect(region.top+region.height).toBeLessThanOrEqual(safe.top+safe.height+.001);
+            }
+        }
+    });
+    it('reserves separate current and subtitle regions without moving the scene',()=>{
+        const safe={left:104,top:5,width:238,height:202};
+        const regions=resolveRearLyricRegions(safe);
+        expect(regions.lyrics.left).toBe(safe.left);expect(regions.subtitles.left).toBe(safe.left);
+        expect(regions.lyrics.top+regions.lyrics.height).toBeLessThan(regions.subtitles.top);
+        expect(regions.subtitles.top+regions.subtitles.height).toBeCloseTo(safe.top+safe.height);
+    });
     it('converts physical camera width by viewport ratio, independently of devicePixelRatio', () => {
         expect(resolveRearSafeLeft(347)).toBeCloseTo(98.485, 2);
         expect(resolveRearSafeLeft(904, 277, 976)).toBeCloseTo(256.566, 2);

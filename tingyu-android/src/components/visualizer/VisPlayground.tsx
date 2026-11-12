@@ -66,6 +66,8 @@ import type { VisualizerBackgroundActions, VisualizerBackgroundConfig } from './
 import { useVisPlaygroundPreviewPlayback } from './useVisPlaygroundPreviewPlayback';
 import {useNativePreviewVisible} from './useNativePreviewVisible';
 import { NATIVE_FIRST } from '../../services/nativePages';
+import { resolveRearReadingBox } from '../../utils/visualizerSurface';
+import type { RearRect } from '../../utils/rearCameraSafeArea';
 
 interface VisPlaygroundProps {
     rearScope?:boolean;
@@ -100,6 +102,12 @@ interface VisPlaygroundProps {
     sonnetTuning?: SonnetTuning;
     temperaTuning?: TemperaTuning;
     lumiereTuning?: LumiereTuning;
+    nebbiaTuning?: NebbiaTuning;
+    machiTuning?: MachiTuning;
+    onNebbiaTuningChange?: (patch: Partial<NebbiaTuning>) => void;
+    onMachiTuningChange?: (patch: Partial<MachiTuning>) => void;
+    onResetNebbiaTuning?: () => void;
+    onResetMachiTuning?: () => void;
     cappellaCustomEmojiImages?: CappellaEmojiImage[];
     cappellaCustomAvatarImages?: CappellaAvatarImage[];
     monetPortraitImage?: MonetPortraitImage | null;
@@ -335,6 +343,12 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
     sonnetTuning = DEFAULT_SONNET_TUNING,
     temperaTuning = DEFAULT_TEMPERA_TUNING,
     lumiereTuning = DEFAULT_LUMIERE_TUNING,
+    nebbiaTuning: controlledNebbiaTuning,
+    machiTuning: controlledMachiTuning,
+    onNebbiaTuningChange: controlledNebbiaChange,
+    onMachiTuningChange: controlledMachiChange,
+    onResetNebbiaTuning,
+    onResetMachiTuning,
     cappellaCustomEmojiImages = [],
     cappellaCustomAvatarImages = [],
     monetPortraitImage = null,
@@ -425,6 +439,20 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
     const [previewPlaceholderId, setPreviewPlaceholderId] = useState<PreviewPlaceholderId>('default');
     const previewPlaceholder = VIS_PLAYGROUND_PREVIEW_PLACEHOLDERS[previewPlaceholderId];
     const previewRoot=useRef<HTMLDivElement>(null);
+    const previewCanvas=useRef<HTMLDivElement>(null);
+    const [rearPreviewArea,setRearPreviewArea]=useState<RearRect>();
+    useEffect(()=>{
+        const element=previewCanvas.current;
+        if(!rearScope||!element)return;
+        const measure=()=>{
+            const next=resolveRearReadingBox(element.clientWidth,element.clientHeight);
+            setRearPreviewArea(previous=>previous&&previous.left===next.left&&previous.top===next.top&&previous.width===next.width&&previous.height===next.height?previous:next);
+        };
+        measure();
+        const observer=new ResizeObserver(measure);
+        observer.observe(element);
+        return()=>observer.disconnect();
+    },[rearScope]);
     const previewVisible=useNativePreviewVisible(previewRoot);
     const [isPreviewPaused, setIsPreviewPaused] = useState(false);
     // Show the complete controls first; creating WebGL/canvas previews must not block entry.
@@ -463,10 +491,10 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
     const [draftTemperaTuning, setDraftTemperaTuning] = useState<TemperaTuning>(temperaTuning);
     const storedNebbiaTuning = useVisualizerSettingsStore(state => state.nebbiaTuning);
     const storedMachiTuning = useVisualizerSettingsStore(state => state.machiTuning);
-    const nebbiaTuning = rearScope ? DEFAULT_NEBBIA_TUNING : storedNebbiaTuning;
-    const machiTuning = rearScope ? DEFAULT_MACHI_TUNING : storedMachiTuning;
-    const onNebbiaTuningChange = (patch: Partial<NebbiaTuning>) => { if (!rearScope) useVisualizerSettingsStore.getState().handleSetNebbiaTuning(patch); };
-    const onMachiTuningChange = (patch: Partial<MachiTuning>) => { if (!rearScope) useVisualizerSettingsStore.getState().handleSetMachiTuning(patch); };
+    const nebbiaTuning = controlledNebbiaTuning ?? (rearScope ? DEFAULT_NEBBIA_TUNING : storedNebbiaTuning);
+    const machiTuning = controlledMachiTuning ?? (rearScope ? DEFAULT_MACHI_TUNING : storedMachiTuning);
+    const onNebbiaTuningChange = (patch: Partial<NebbiaTuning>) => { if(controlledNebbiaChange)controlledNebbiaChange(patch);else if (!rearScope) useVisualizerSettingsStore.getState().handleSetNebbiaTuning(patch); };
+    const onMachiTuningChange = (patch: Partial<MachiTuning>) => { if(controlledMachiChange)controlledMachiChange(patch);else if (!rearScope) useVisualizerSettingsStore.getState().handleSetMachiTuning(patch); };
     const [draftNebbiaTuning, setDraftNebbiaTuning] = useState(nebbiaTuning);
     const [draftMachiTuning, setDraftMachiTuning] = useState(machiTuning);
     const [draftLumiereTuning, setDraftLumiereTuning] = useState<LumiereTuning>(lumiereTuning);
@@ -712,8 +740,8 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
             resetPendoloTuning: onResetPendoloTuning,
             resetSonnetTuning: onResetSonnetTuning,
             resetTemperaTuning: onResetTemperaTuning,
-            resetNebbiaTuning: () => { if (!rearScope) useVisualizerSettingsStore.getState().handleResetNebbiaTuning(); },
-            resetMachiTuning: () => { if (!rearScope) useVisualizerSettingsStore.getState().handleResetMachiTuning(); },
+            resetNebbiaTuning: () => { if(onResetNebbiaTuning)onResetNebbiaTuning();else if (!rearScope) useVisualizerSettingsStore.getState().handleResetNebbiaTuning(); },
+            resetMachiTuning: () => { if(onResetMachiTuning)onResetMachiTuning();else if (!rearScope) useVisualizerSettingsStore.getState().handleResetMachiTuning(); },
             setDraftNebbiaTuning,
             setDraftMachiTuning,
             resetLumiereTuning: onResetLumiereTuning,
@@ -946,23 +974,23 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
 
     const handleFontWeightDraft = (weight: number | null) => {
         if (weight !== null) lastFontWeightRef.current = weight;
+        setDraftFontWeight(weight);
         if (isDraggingSlider.current) {
             pendingCommitRef.current = () => onFontWeightChange(weight);
             return;
         }
 
-        setDraftFontWeight(weight);
         onFontWeightChange(weight);
     };
 
     const handleSubtitleFontWeightDraft = (weight: number | null) => {
         if (weight !== null) lastSubtitleFontWeightRef.current = weight;
+        setDraftSubtitleFontWeight(weight);
         if (isDraggingSlider.current) {
             pendingCommitRef.current = () => onSubtitleFontWeightChange?.(weight);
             return;
         }
 
-        setDraftSubtitleFontWeight(weight);
         onSubtitleFontWeightChange?.(weight);
     };
 
@@ -1242,7 +1270,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                 </div>}
 
                 <div data-settings-page-body data-settings-layout="column" data-settings-style='{"padding":[18,0,18,0],"gap":16}' className="ty-stage-editor-content grid min-h-0 flex-1 gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,1.25fr)_360px]">
-                    <div data-folia-stage-preview="true" data-settings-style='{"preview":"stage"}' data-native-live={NATIVE_FIRST?'true':undefined} style={{contain:'layout paint',isolation:'isolate'}} className="relative min-h-[320px] overflow-hidden rounded-[28px] border border-white/10 bg-black/20" data-settings-layout="card">
+                    <div data-folia-stage-preview="true" data-settings-style={rearScope?'{"preview":"rear-stage"}':'{"preview":"stage"}'} data-native-live={NATIVE_FIRST?'true':undefined} style={{contain:'layout paint',isolation:'isolate',...(rearScope?{aspectRatio:'976 / 596'}:{})}} className={'relative '+(rearScope?'':'min-h-[320px] ')+'overflow-hidden rounded-[28px] border border-white/10 bg-black/20'} data-settings-layout="card">
                         <div className="absolute left-4 top-4 z-20 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/25 px-3 py-1.5 text-xs uppercase tracking-[0.22em] backdrop-blur-md" style={{ color: 'rgba(255,255,255,0.78)' }} data-settings-style='{"align":"center","gap":8,"radius":64,"border":true,"fill":true,"font":12,"padding":[12,6,12,6]}' data-settings-layout="row">
                             <Sparkles size={13} />
                             <span data-settings-layout="wrap">{t('ui.livePreview')}</span>
@@ -1251,9 +1279,10 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                             {modeLabel}
                         </div>
 
-                        <div className="absolute inset-0" data-settings-layout="column">
-                            {previewReady&&previewVisible&&<VisualizerRenderer key={visualizerMode}
-                                mode={rearScope && ['nebbia', 'machi'].includes(visualizerMode) ? 'sonnet' : visualizerMode}
+                        <div ref={previewCanvas} className="absolute inset-0" data-settings-layout="column">
+                            {previewReady&&previewVisible&&(!rearScope||rearPreviewArea)&&<VisualizerRenderer key={visualizerMode}
+                                mode={visualizerMode}
+                                rearSafeArea={rearScope?rearPreviewArea:undefined}
                                 currentTime={currentTime}
                                 currentLineIndex={currentLineIndex}
                                 lines={previewPlaceholder.lines}

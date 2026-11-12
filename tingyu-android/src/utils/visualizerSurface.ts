@@ -7,8 +7,8 @@ import { resolveRearSafeLeft } from './rearCameraSafeArea';
 /** Content area to the right of the camera. Background artwork still covers the whole panel. */
 export function resolveRearReadingBox(width: number, height: number) {
     const params = typeof window !== 'undefined' ? new URLSearchParams(window.location?.search ?? '') : null;
-    const cameraRight = resolveRearSafeLeft(width, Number(params?.get('safeLeftPx')) || undefined,
-        Number(params?.get('physicalWidthPx')) || undefined);
+    const cameraRight = resolveRearSafeLeft(width, params?.has('safeLeftPx') ? Number(params.get('safeLeftPx')) : undefined,
+        params?.has('physicalWidthPx') ? Number(params.get('physicalWidthPx')) : undefined);
     const padding = Math.max(3, width * .015);
     const frame = resolveRearContentFrame({ stageWidth: Math.max(1, width - cameraRight - padding * 2),
         stageHeight: Math.max(1, height - padding * 2), frame: { canvasX: cameraRight + padding,

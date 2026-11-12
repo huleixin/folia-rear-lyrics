@@ -20,8 +20,9 @@ internal fun SettingsLayoutPreview(node:TySettingNode,layout:SettingsLayoutNode,
     modifier:Modifier,action:PageAction){
     val density=LocalDensity.current
     val screen=with(density){LocalSettingsPreviewViewport.current.bottom.toDp().value}
-    val height=when(layout.style.preview){"stage"->(screen*.32f).coerceIn(180f,300f);"theme"->(screen*.46f).coerceIn(300f,460f);"offset"->132f;else->240f}
-    Box(modifier.fillMaxWidth().height(height.dp).clip(RoundedCornerShape(28.dp))){
+    BoxWithConstraints(modifier.fillMaxWidth()){
+    val height=when(layout.style.preview){"rear-stage"->maxWidth.value*596f/976f;"stage"->(screen*.32f).coerceIn(180f,300f);"theme"->(screen*.46f).coerceIn(300f,460f);"offset"->132f;else->240f}
+    Box(Modifier.fillMaxWidth().height(height.dp).clip(RoundedCornerShape(28.dp))){
         SettingsPreview(node.copy(min=height),action)
         layout.children.forEach { child->controls[child.ref]?.let { control->
             val area=when(child.style.overlay){
@@ -41,5 +42,6 @@ internal fun SettingsLayoutPreview(node:TySettingNode,layout:SettingsLayoutNode,
                 }
             }
         } }
+    }
     }
 }

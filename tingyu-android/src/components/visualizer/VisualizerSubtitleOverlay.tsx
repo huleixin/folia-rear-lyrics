@@ -12,6 +12,8 @@ import {
 import { colorWithAlpha } from './colorMix';
 import { usePlayerSubtitleBottomPx } from '../../hooks/usePlayerBottomBarBottomPx';
 import { getRearSafeInset, getVisualizerSurface, resolveVisualizerCssSize } from '../../utils/visualizerSurface';
+import { resolveRearLyricRegions, type RearRect } from '../../utils/rearCameraSafeArea';
+import RearFittedContent from './RearFittedContent';
 
 // Some songs' lyric data carries pure marker/separator lines ("//", "●●●", dashes, stray slashes from
 // instrumental breaks or credits formatting). Those are timing placeholders, never display text: a
@@ -42,6 +44,7 @@ interface VisualizerSubtitleOverlayProps {
     hideTranslationSubtitle?: boolean;
     showSubtitleTranslation?: boolean;
     subtitleContentMode?: SubtitleContentMode;
+    rearSafeArea?: RearRect;
 }
 
 // Picks the rows to show: the first of active / recently-completed line that has any readable row.
@@ -94,6 +97,7 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
     subtitleOverlayOpacity,
     subtitleOverlayBackground = true,
     subtitleUpcomingLyricsBlur = true,
+    rearSafeArea,
     isPlayerChromeHidden = false,
     hideTranslationSubtitle = false,
     showSubtitleTranslation = true,
@@ -116,7 +120,7 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
     });
     const resolvedOpacity = subtitleOverlayOpacity ?? opacity;
     const surface = getVisualizerSurface();
-    const rearSafe = getRearSafeInset();
+    const rearSafe = rearSafeArea ?? getRearSafeInset();
     const scaleFontSize = (fontSize: string, factor = 1) => {
         const size = resolveVisualizerCssSize(fontSize.replace(/(-?\d*\.?\d+)(rem|vw|px)/g, (_match, value, unit) => `${(Number(value) * subtitleFontScale * factor).toFixed(3)}${unit}`));
         return surface ? `min(${size}, ${Math.max(11, Math.min(14, surface.height * .075))}px)` : size;
@@ -135,6 +139,23 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
         : undefined;
     const textShadow = `0 1px 2px ${colorWithAlpha(theme.backgroundColor, 0.24)}`;
 
+    if(rearSafe){
+        const font=Math.max(11,Math.min(14,rearSafe.height*.075))*subtitleFontScale;
+        const area=resolveRearLyricRegions(rearSafe).subtitles;
+        return shouldRenderOverlay?<div className="absolute inset-0 z-20 pointer-events-none" style={{opacity:resolvedOpacity}}>
+            <RearFittedContent area={area} align="bottom"><div data-rear-subtitles style={{textAlign:'center',padding:4,lineHeight:1.3,
+                background:subtitleOverlayBackground?'radial-gradient(ellipse, '+colorWithAlpha(theme.backgroundColor,.85)+', transparent)':undefined}}>
+                {subtitleText?subtitleTracks.map((track,index)=><div key={track.role} data-subtitle-track={track.role} style={{
+                    color:theme.secondaryColor,fontFamily:resolveThemeTranslationFontStack(subtitleTheme??theme),
+                    fontWeight:resolveThemeFontWeight(subtitleTheme??theme,index?SECONDARY_TRACK_FONT_WEIGHT_FALLBACK:500),
+                    fontSize:font*(index?SECONDARY_TRACK_SIZE_FACTOR:1),opacity:index?SECONDARY_TRACK_OPACITY:undefined,textShadow}}>{track.text}</div>)
+                    :upcomingLines.slice(0,2).map((line,index)=><div key={index} style={{fontSize:font,color:theme.secondaryColor,
+                        fontFamily:resolveThemeTranslationFontStack(subtitleTheme??theme),fontWeight:resolveThemeFontWeight(subtitleTheme??theme,400),
+                        filter:subtitleUpcomingLyricsBlur?'blur(1px)':undefined,textShadow}}>{line.fullText}</div>)}
+            </div></RearFittedContent>
+        </div>:null;
+    }
+
     return (
         <AnimatePresence>
             {shouldRenderOverlay && (
@@ -148,9 +169,7 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
                     }}
                     // bottom 由共享 MotionValue 直接驱动，跟着底部基线走。
                     // 不要改回 transform：这一层下面压着 blur 辉光，多一个合成层就会变色。
-                    // Inside the rear reading box the subtitle is the last row: keep it at the bottom
-                    // and size it from the box height so two tracks still fit above the controls.
-                    style={rearSafe ? { bottom: rearSafe.top, left: rearSafe.left, right: 'auto', width: rearSafe.width, padding: '0 4px' } : { bottom: subtitleBottomPx }}
+                    style={{ bottom: subtitleBottomPx }}
                     className="absolute left-0 right-0 text-center space-y-2 px-4 z-20 pointer-events-none"
                 >
                     {subtitleText ? (

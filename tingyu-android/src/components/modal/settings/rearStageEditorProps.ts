@@ -4,12 +4,14 @@ import type VisPlayground from '../../visualizer/VisPlayground';
 import type {RearVisualConfig} from '../../../services/rearStageAppearance';
 import {useRearStageAppearanceStore} from '../../../stores/useRearStageAppearanceStore';
 import type {Theme,VisualizerMode} from '../../../types';
+import {DEFAULT_NEBBIA_TUNING} from '../../visualizer/nebbia/types';
+import {DEFAULT_MACHI_TUNING} from '../../visualizer/machi/types';
 
 // src/components/modal/settings/rearStageEditorProps.ts
 // Adapt the existing controlled editor; never call a front-store action from this scope.
 export function rearStageEditorProps(visual:RearVisualConfig,onClose:()=>void):ComponentProps<typeof VisPlayground>{
     const patch=useRearStageAppearanceStore.getState().patch;
-    const defaults=stageDefaults as unknown as Record<string,object>;
+    const defaults={...stageDefaults,DEFAULT_NEBBIA_TUNING,DEFAULT_MACHI_TUNING} as unknown as Record<string,object>;
     const backgroundDefaults=Object.fromEntries(['monet','nomand','latent','sora'].map(key=>[key,defaults[`DEFAULT_${key.toUpperCase()}_BACKGROUND_TUNING`]]));
     const theme=(value:Partial<Theme>)=>patch({theme:{...useRearStageAppearanceStore.getState().profile!.visual.theme,...value}});
     const current=()=>useRearStageAppearanceStore.getState().profile!.visual;
@@ -27,7 +29,7 @@ export function rearStageEditorProps(visual:RearVisualConfig,onClose:()=>void):C
     for(const [handler,key] of Object.entries({VisualizerOpacity:'visualizerOpacity',SubtitleFontScale:'subtitleFontScale',HideTranslationSubtitle:'hideTranslationSubtitle',ShowSubtitleTranslation:'showSubtitleTranslation',SubtitleContentMode:'subtitleContentMode',SubtitleOverlayOpacity:'subtitleOverlayOpacity',SubtitleOverlayBackground:'subtitleOverlayBackground',SubtitleUpcomingLyricsBlur:'subtitleUpcomingLyricsBlur',ShowHarmonySubtitle:'showHarmonySubtitle',HarmonySubtitleBackground:'harmonySubtitleBackground'})){
         const fn=(value:unknown)=>patch({[key]:value});result[`on${handler}Change`]=fn;result[`onToggle${handler}`]=fn;
     }
-    for(const mode of ['classic','cadenza','partita','fume','claddagh','cappella','tilt','diorama','monet','pendolo','sonnet','tempera','lumiere'] as const){
+    for(const mode of ['classic','cadenza','partita','fume','claddagh','cappella','tilt','diorama','monet','pendolo','sonnet','tempera','lumiere','nebbia','machi'] as const){
         const name=mode[0].toUpperCase()+mode.slice(1);
         result[`${mode}Tuning`]=visual.visualizerTunings?.[mode];
         result[`on${name}TuningChange`]=(value:object)=>patch({visualizerTunings:{...current().visualizerTunings,[mode]:{...defaults[`DEFAULT_${mode.toUpperCase()}_TUNING`],...current().visualizerTunings?.[mode],...value}}});

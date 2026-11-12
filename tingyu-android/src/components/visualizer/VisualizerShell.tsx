@@ -33,6 +33,7 @@ type VisualizerShellSharedProps = Pick<
     | 'alwaysShowBackButton'
     | 'onPlayerPanelGuideHotspotChange'
     | 'isPreviewMode'
+    | 'rearSafeArea'
 >;
 
 interface VisualizerShellProps {
@@ -81,7 +82,7 @@ const VisualizerShell = forwardRef<HTMLDivElement, VisualizerShellProps>(({
     const onPlayerPanelGuideHotspotChange = sharedProps?.onPlayerPanelGuideHotspotChange;
     const isBackButtonVisible = sharedProps?.alwaysShowBackButton || showBackButton;
     // Artwork covers the whole panel; only the lyric text layer is moved beside the camera.
-    const rearSafe = getRearSafeInset();
+    const rearSafe = sharedProps?.rearSafeArea ?? getRearSafeInset();
     const showStageLayers = !sharedProps?.isPreviewMode && !resolvedStaticMode;
 
     const updatePlayerPanelGuideHotspot = (isActive: boolean) => {

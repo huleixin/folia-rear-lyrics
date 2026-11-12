@@ -27,6 +27,7 @@ import { NebbiaCondensation } from './nebbiaCondensation';
 import { NebbiaSnow } from './nebbiaSnow';
 import { NebbiaFireflies } from './nebbiaFireflies';
 import { NebbiaAquarium, type NebbiaAquaBeats } from './nebbiaAquarium';
+import type { RearRect } from '../../../utils/rearCameraSafeArea';
 
 // src/components/visualizer/nebbia/createNebbiaRuntime.ts
 // 雾笺的运行时：一块画布、一个 WebGL2 上下文，复用共享帧调度。React 外壳把歌、tuning、主题、暂停推进来，
@@ -75,6 +76,7 @@ export class NebbiaRuntime {
     private theme: Theme;
     private tuning: NebbiaTuning;
     private fontScale = 1;
+    private readingArea: RearRect | undefined;
     /** 分辨率倍数（#929）：外壳从全局档位和每模式覆盖合出来，预览时是 1。 */
     private renderScale: number;
     private showText = true;
@@ -154,6 +156,11 @@ export class NebbiaRuntime {
         this.rebuild();
     }
     setFontScale(scale: number) { if (scale !== this.fontScale) { this.fontScale = scale; this.rebuild(); } }
+    setReadingArea(area: RearRect | undefined) {
+        const previous=this.readingArea;
+        if(previous?.left===area?.left&&previous?.top===area?.top&&previous?.width===area?.width&&previous?.height===area?.height)return;
+        this.readingArea=area;this.rebuild();
+    }
     setShowText(show: boolean) { if (show !== this.showText) { this.showText = show; this.rebuild(); } }
     /** 透明时雾的颜色跟主题日夜：日间乳白，夜间深色（像夜里起雾的车窗）。 */
     setDaylight(daylight: boolean) { this.gl.mistTint = daylight ? [0.86, 0.89, 0.92] : [0.07, 0.08, 0.1]; this.requestFrame(); }
@@ -279,13 +286,14 @@ export class NebbiaRuntime {
     // 换歌、改排版相关的设置、换尺寸时重排整首；图标先加载好（图标字形要用 lucide 的节点）
     private rebuild() {
         const token = ++this.buildToken;
+        this.input.host.dataset.nebbiaLayoutReady = 'false';
         const { lines, seed, title, artist } = this.song;
         const themeIcons = resolveLucideIconNames(this.theme.lyricsIcons);
         const doodles = themeIcons.length ? themeIcons : NEBBIA_DEFAULT_DOODLES;
         void loadLucideIcons([...doodles, ...collectEmojiIcons(lines)]).catch(() => undefined).then(async () => {
             if (token !== this.buildToken || this.dead || !this.W) return;
             const source = this.showText ? appendNebbiaCredits(buildNebbiaLines(lines, seed, this.tuning.doodle, doodles), this.tuning.credits ? title : null, artist) : [];
-            const laid = await buildNebbiaSceneAsync(source, this.glyphs, this.tuning, { W: this.W, H: this.H, fontScale: this.fontScale }, seed,
+            const laid = await buildNebbiaSceneAsync(source, this.glyphs, this.tuning, { W: this.W, H: this.H, fontScale: this.fontScale, area: this.readingArea }, seed,
                 () => token !== this.buildToken || this.dead);
             if (!laid || token !== this.buildToken || this.dead) return;
             this.laid = laid;
@@ -293,6 +301,7 @@ export class NebbiaRuntime {
             this.words = source.map(l => l.words);
             this.rebuildHits();
             this.spot.reset();
+            this.input.host.dataset.nebbiaLayoutReady = 'true';
             this.requestFrame();
         }).catch(error => { if (token === this.buildToken && !this.dead) this.fail(error); });
     }

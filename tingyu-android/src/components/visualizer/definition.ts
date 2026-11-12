@@ -28,6 +28,7 @@ import {
 } from '../../types';
 import type { VisualizerTuningBundle } from './tuningRegistry';
 import type { VisualizerBackgroundConfig } from './backgrounds/definition';
+import type { RearRect } from '../../utils/rearCameraSafeArea';
 
 // src/components/visualizer/definition.ts
 // Shared contracts for discoverable visualizer modes.
@@ -76,6 +77,8 @@ export interface VisualizerSharedProps {
     onPlayerPanelGuideHotspotChange?: (isActive: boolean) => void;
     onLyricLineSeek?: (lyricTimeSec: number) => void;
     isPreviewMode?: boolean;
+    /** Panel-space reading box, also supplied by the rear profile's live preview. */
+    rearSafeArea?: RearRect;
     visualizerTunings?: VisualizerTuningBundle;
     classicTuning?: ClassicTuning;
     cadenzaTuning?: CadenzaTuning;

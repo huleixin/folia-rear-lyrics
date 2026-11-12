@@ -3,6 +3,7 @@ import type { NebbiaSourceLine } from './nebbiaChars';
 import { assignRoles, makeBlocks, mergeWords, ROLE_SCALE, ROLE_SCALE_FAST, type PlacedItem } from './nebbiaBlocks';
 import { COMPOSITION_BIAS, COMPOSITIONS, SIMPLE_COMPOSITIONS, type CompositionContext } from './nebbiaCompositions';
 import { createVisualizerRng, hashVisualizerSeed } from '../visualizerSeedHash';
+import type { RearRect } from '../../../utils/rearCameraSafeArea';
 
 // src/components/visualizer/nebbia/nebbiaLayout.ts
 // 雾笺的整首排版：每句挑一个构图，再在屏上几个候选位置、几档字号里找一个不和「这句出现时还没消失的句子」
@@ -12,6 +13,7 @@ export interface NebbiaCharPos { x: number; y: number; s: number; rot: number }
 export interface NebbiaLayoutOptions {
     W: number;
     H: number;
+    area?: RearRect;
     jitter: number;
     /** 打开的构图；关掉的不参与挑选（实在放不下时的三行兜底不受限）。 */
     layouts: readonly string[];
@@ -41,7 +43,8 @@ const overlapArea = (a: Box, b: Box) => Math.max(0, Math.min(a.x1, b.x1) - Math.
 
 /** 排整首歌：每句一个数组，和 chars 一一对应（空格也有位置，但不画）。 */
 export const layoutNebbiaSong = (lines: NebbiaSourceLine[], opts: NebbiaLayoutOptions): NebbiaCharPos[][] => {
-    const { W, H, jitter, layouts, fontScale, visibleUntil, fogAt, lingerUntil } = opts;
+    const { jitter, layouts, fontScale, visibleUntil, fogAt, lingerUntil } = opts;
+    const W=opts.area?.width??opts.W,H=opts.area?.height??opts.H;
     const mx = W * 0.05, my = H * 0.07;
     const Smin = Math.max(26, H * 0.065) * fontScale, Smax = H * 0.14 * fontScale;
     const placed: { box: Box; until: number; fogAt: number; linger: number }[] = [];
@@ -66,7 +69,7 @@ export const layoutNebbiaSong = (lines: NebbiaSourceLine[], opts: NebbiaLayoutOp
         const fits = Math.min(Smax * 1.15, (W - mx * 2) * 0.8 / bb.w) >= Smin;
         return (fits ? null : COMPOSITIONS.lines2(ctx)) ?? one;
     };
-    return lines.map((line, li) => {
+    const positions=lines.map((line, li) => {
         const { chars } = line;
         const rnd = createVisualizerRng((hashVisualizerSeed(chars.map(c => c.ch).join('')) + li * 7919) >>> 0);
         const visible = chars.filter(c => c.ch.trim());
@@ -159,4 +162,5 @@ export const layoutNebbiaSong = (lines: NebbiaSourceLine[], opts: NebbiaLayoutOp
             return lastPos;
         });
     });
+    return opts.area?positions.map(line=>line.map(c=>({...c,x:c.x+opts.area!.left,y:c.y+opts.area!.top}))):positions;
 };

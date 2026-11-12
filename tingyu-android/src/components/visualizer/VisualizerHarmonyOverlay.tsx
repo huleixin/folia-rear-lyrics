@@ -6,6 +6,9 @@ import { buildLineGraphemeTimeline } from '../../utils/lyrics/graphemeTiming';
 import { measureMonetGraphemeOffsets, resolveClampFontPx } from './monet/monetLyricsModel';
 import { colorWithAlpha } from './colorMix';
 import { resolveWordColor } from './wordColoring';
+import { getRearSafeInset } from '../../utils/visualizerSurface';
+import { resolveRearLyricRegions, type RearRect } from '../../utils/rearCameraSafeArea';
+import RearCurrentLyrics from './RearCurrentLyrics';
 import {
     getLyricsBackgroundVocals,
     resolveHarmonyAlternateText,
@@ -29,6 +32,7 @@ interface VisualizerHarmonyOverlayProps {
     showHarmonySubtitle?: boolean;
     harmonySubtitleBackground?: boolean;
     subtitleFontScale?: number;
+    rearSafeArea?: RearRect;
 }
 
 const EMPTY_HARMONY_SNAPSHOT: HarmonySnapshot = { signature: '', lines: [] };
@@ -175,6 +179,7 @@ const VisualizerHarmonyOverlay: React.FC<VisualizerHarmonyOverlayProps> = ({
     showHarmonySubtitle = true,
     harmonySubtitleBackground = true,
     subtitleFontScale = 1,
+    rearSafeArea,
 }) => {
     const backgroundVocals = useMemo(() => getLyricsBackgroundVocals(lines), [lines]);
     const buildSnapshot = useCallback(
@@ -202,6 +207,22 @@ const VisualizerHarmonyOverlay: React.FC<VisualizerHarmonyOverlayProps> = ({
 
     useMotionValueEvent(currentTime, 'change', updateSnapshot);
     const harmonyTopPx = 76;
+
+    const rearSafe=rearSafeArea??getRearSafeInset();
+    if(rearSafe){
+        const area=resolveRearLyricRegions(rearSafe,true).harmony;
+        const rowHeight=area.height/Math.max(1,snapshot.lines.length);
+        return <div data-rear-harmony className="absolute inset-0 z-30 pointer-events-none">
+            {snapshot.lines.map((entry,index)=>{
+                const alternate=hideTranslationSubtitle?null:resolveHarmonyAlternateText(entry.vocal,subtitleContentMode,showSubtitleTranslation);
+                return <RearCurrentLyrics key={entry.key} area={{...area,top:area.top+index*rowHeight,height:rowHeight}}
+                    line={createHarmonyLine(entry.vocal)} currentTime={currentTime} theme={subtitleTheme??theme} fontScale={subtitleFontScale} background={harmonySubtitleBackground}>
+                    {alternate&&<div style={{fontSize:'.75em',color:(subtitleTheme??theme).secondaryColor,
+                        fontFamily:resolveThemeTranslationFontStack(subtitleTheme??theme)}}>{alternate}</div>}
+                </RearCurrentLyrics>;
+            })}
+        </div>;
+    }
 
     return (
         <AnimatePresence>

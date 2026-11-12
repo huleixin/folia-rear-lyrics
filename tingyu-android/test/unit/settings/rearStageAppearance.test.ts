@@ -39,6 +39,23 @@ it('existing editor callbacks write only the rear profile including tuning, back
     props.onFontScaleChange(1.7);props.onCladdaghTuningChange!({radiusScale:1.2} as any);props.onSubtitleFontFamilyChange!('RearSubtitle');props.backgroundActions!.common!.onOpacityChange!(.4);
     expect(s.getState().profile!.visual.lyricsFontScale).toBe(1.7);expect(s.getState().profile!.visual.subtitleTheme!.fontFamily).toBe('RearSubtitle');expect(s.getState().profile!.visual.background!.common!.opacity).toBe(.4);expect(front().lyricsFontScale).toBe(1);
 });
+it('Nebbia and Machi controls persist independently and reset only their own rear tuning',async()=>{
+    const {useRearStageAppearanceStore:s}=await import('@/stores/useRearStageAppearanceStore');
+    const f=front();s.getState().observeFront(f,null);await s.getState().setMode('independent');
+    const {rearStageEditorProps}=await import('@/components/modal/settings/rearStageEditorProps');
+    const props=rearStageEditorProps(s.getState().profile!.visual,()=>{});
+    props.onNebbiaTuningChange!({behind:'aquarium',strokeWidth:.08});props.onMachiTuningChange!({scene:'station'});
+    props.onVisualizerModeChange!('nebbia');
+    expect(s.getState().profile!.visual.visualizerTunings!.nebbia!.behind).toBe('aquarium');
+    expect(s.getState().profile!.visual.visualizerTunings!.machi!.scene).toBe('station');
+    expect(resolveRearStageConfig(f,s.getState()).visualizerMode).toBe('nebbia');
+    expect(f.visualizerTunings).not.toHaveProperty('nebbia');expect(f.visualizerMode).toBe('claddagh');
+    props.onResetNebbiaTuning!();
+    expect(s.getState().profile!.visual.visualizerTunings).not.toHaveProperty('nebbia');
+    expect(s.getState().profile!.visual.visualizerTunings!.machi!.scene).toBe('station');
+    props.onResetMachiTuning!();
+    expect(s.getState().profile!.visual.visualizerTunings).not.toHaveProperty('machi');
+});
 it('rear light/dark palettes remain independent and survive a follow roundtrip',async()=>{
     const {useRearStageAppearanceStore:s}=await import('@/stores/useRearStageAppearanceStore');s.getState().observeFront(front(),null);await s.getState().setMode('independent');
     const base=front().theme;s.getState().patch({},undefined,{light:{...base,name:'Rear day'},dark:{...base,name:'Rear night'}});

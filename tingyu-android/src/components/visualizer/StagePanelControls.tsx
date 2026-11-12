@@ -10,7 +10,7 @@ export const times = (value: number) => value.toFixed(2) + '×';
 export function Group({ def, foot, children }: React.PropsWithChildren<{ def: SettingsGroupDef; foot?: string }>) {
     const { t } = useTranslation();
     return <section id={def.id} className="space-y-3 rounded-2xl border border-current/10" data-settings-layout="column" data-settings-style='{"gap":12,"radius":16,"border":true}'>
-        <h3 className="px-4 pt-4 text-sm font-medium" data-settings-layout="wrap">{t(def.titleKey)}</h3>
+        <h3 className="px-4 pt-4 text-sm font-medium" data-settings-layout="wrap" data-settings-style='{"padding":[16,16,16,0],"font":14,"weight":500}'>{t(def.titleKey)}</h3>
         {children}{foot && <p className="px-4 pb-3 text-xs opacity-60" data-settings-layout="wrap">{foot}</p>}
     </section>;
 }
@@ -22,6 +22,7 @@ export function Segmented<T extends string>({ value, options, onChange, disabled
 }) {
     return <div className="flex flex-wrap gap-2" data-settings-layout="wrap" data-settings-style='{"gap":8}'>
         {options.map(option => <button type="button" key={option.value} disabled={disabled} aria-pressed={value === option.value}
+            data-settings-layout="row" data-settings-style='{"minHeight":44,"radius":12,"border":true,"fill":true,"padding":[12,8,12,8],"font":12,"center":true}'
             onClick={() => onChange(option.value)} className="rounded-xl border border-current/20 px-3 py-2 text-xs disabled:opacity-40"
             style={{ backgroundColor: value === option.value ? 'var(--bg-secondary)' : 'transparent' }}>{option.label}</button>)}
     </div>;
