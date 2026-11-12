@@ -159,7 +159,9 @@ export class NebbiaRuntime {
     setReadingArea(area: RearRect | undefined) {
         const previous=this.readingArea;
         if(previous?.left===area?.left&&previous?.top===area?.top&&previous?.width===area?.width&&previous?.height===area?.height)return;
-        this.readingArea=area;this.rebuild();
+        this.readingArea=area;
+        this.gl.setRearMaskDetail(Boolean(area));
+        this.rebuild();
     }
     setShowText(show: boolean) { if (show !== this.showText) { this.showText = show; this.rebuild(); } }
     /** 透明时雾的颜色跟主题日夜：日间乳白，夜间深色（像夜里起雾的车窗）。 */
@@ -366,7 +368,7 @@ export class NebbiaRuntime {
         }
         const e = this.energy.update(this.input.vocal.get(), Math.max(dt, 1 / 60));
         this.hits.advance(T, e, this.still ? 0 : t.rainHit * vocalStrength, NebbiaHits.lifeOf(t.refog, NEBBIA_FIXED.beadHold), this.W, this.H);
-        this.mask.draw(this.laid, T, now, t, this.motion, this.hits, t.rainBig * vocalStrength);
+        this.mask.draw(this.laid, T, now, t, this.motion, this.hits, t.rainBig * vocalStrength, Boolean(this.readingArea));
         this.spot.update(this.laid, T, dt);
         const aqua = this.aquarium?.step(dt, this.clock.time, this.W / this.H, t, this.aquaBeats()) ?? null;
         if (this.snow) {

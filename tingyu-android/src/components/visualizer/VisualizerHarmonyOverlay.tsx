@@ -9,6 +9,7 @@ import { resolveWordColor } from './wordColoring';
 import { getRearSafeInset } from '../../utils/visualizerSurface';
 import { resolveRearLyricRegions, type RearRect } from '../../utils/rearCameraSafeArea';
 import RearCurrentLyrics from './RearCurrentLyrics';
+import { useRearStageTextEdge } from './RearStageReadingArea';
 import {
     getLyricsBackgroundVocals,
     resolveHarmonyAlternateText,
@@ -209,10 +210,12 @@ const VisualizerHarmonyOverlay: React.FC<VisualizerHarmonyOverlayProps> = ({
     const harmonyTopPx = 76;
 
     const rearSafe=rearSafeArea??getRearSafeInset();
+    const rearTextHost = useRef<HTMLDivElement>(null);
+    useRearStageTextEdge(rearTextHost, 'top', Boolean(rearSafe && snapshot.lines.length), rearSafe);
     if(rearSafe){
         const area=resolveRearLyricRegions(rearSafe,true).harmony;
         const rowHeight=area.height/Math.max(1,snapshot.lines.length);
-        return <div data-rear-harmony className="absolute inset-0 z-30 pointer-events-none">
+        return <div ref={rearTextHost} data-rear-harmony className="absolute inset-0 z-30 pointer-events-none">
             {snapshot.lines.map((entry,index)=>{
                 const alternate=hideTranslationSubtitle?null:resolveHarmonyAlternateText(entry.vocal,subtitleContentMode,showSubtitleTranslation);
                 return <RearCurrentLyrics key={entry.key} area={{...area,top:area.top+index*rowHeight,height:rowHeight}}

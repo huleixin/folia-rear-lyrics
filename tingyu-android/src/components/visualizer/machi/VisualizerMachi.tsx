@@ -4,7 +4,6 @@ import type { Line, Theme } from '../../../types';
 import { loadLucideIcons } from '../../../services/lucideIconResolver';
 import { useVisualizerSettingsStore } from '../../../stores/useVisualizerSettingsStore';
 import { stageModeQuality } from '../../../utils/stageQualitySettings';
-import { resolveRearLyricRegions } from '../../../utils/rearCameraSafeArea';
 import { getRearSafeInset } from '../../../utils/visualizerSurface';
 import { getLineRenderEndTime } from '../../../utils/lyrics/renderHints';
 import type { VisualizerSharedProps } from '../definition';
@@ -14,8 +13,8 @@ import { useVisualizerSongCommit } from '../songHandover';
 import { resolveSubtitleFontSizes } from '../subtitleFontSizes';
 import VisualizerShell from '../VisualizerShell';
 import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
-import RearCurrentLyrics from '../RearCurrentLyrics';
 import StageCompatibilityFallback from '../StageCompatibilityFallback';
+import { useRearStageReadingArea } from '../RearStageReadingArea';
 import type { MachiRuntime, MachiSongContext } from './createMachiRuntime';
 import { DEFAULT_MACHI_TUNING, type MachiSceneId, type MachiTuning } from './types';
 
@@ -68,9 +67,9 @@ const VisualizerMachi: React.FC<VisualizerMachiProps> = (props) => {
     // 透明模式：町景不画天空，只留街景本身。样式小图也把背景标成透明，那只是「不画共用背景」，小图照样画天空。
     const transparent = !isPreviewMode && (props.background?.transparent ?? false);
     const rearSafe = props.rearSafeArea ?? getRearSafeInset();
-    const hasHarmony=useMemo(()=>props.showHarmonySubtitle!==false&&lines.some(line=>line.backgroundVocal||line.backgroundVocals?.length),[lines,props.showHarmonySubtitle]);
-    const readingArea = rearSafe ? resolveRearLyricRegions(rearSafe,hasHarmony).lyrics : undefined;
-    const sceneShowText = showText && !rearSafe;
+    // Native lettering uses the whole camera-safe surface; empty subtitle lanes reserve no space.
+    const readingArea = useRearStageReadingArea(rearSafe ?? undefined);
+    const sceneShowText = showText;
     const { t } = useTranslation();
     const hostRef = useRef<HTMLDivElement>(null);
     const [runtimeFailed, setRuntimeFailed] = useState(false);
@@ -82,8 +81,8 @@ const VisualizerMachi: React.FC<VisualizerMachiProps> = (props) => {
     const settings = useVisualizerSettingsStore(state => state.stageRenderSettings);
     const renderQuality = useMemo(() => stageModeQuality(settings, 'machi'), [settings]);
     const shownTuning = machiTuning;
-    const latestRef = useRef({ theme, paused, showText: sceneShowText, staticMode, machiTuning, shownTuning, renderQuality, onMachiTuningChange });
-    latestRef.current = { theme, paused, showText: sceneShowText, staticMode, machiTuning, shownTuning, renderQuality, onMachiTuningChange };
+    const latestRef = useRef({ theme, paused, showText: sceneShowText, staticMode, machiTuning, shownTuning, renderQuality, readingArea, onMachiTuningChange });
+    latestRef.current = { theme, paused, showText: sceneShowText, staticMode, machiTuning, shownTuning, renderQuality, readingArea, onMachiTuningChange };
 
     // 真正在画的歌：切歌时滞后于 props，免得对着还没到的歌词换牌面（songHandover.ts）。
     const committedSong = useVisualizerSongCommit({ seed, lines, currentTime, readyGraceMs: 3000 });
@@ -120,6 +119,7 @@ const VisualizerMachi: React.FC<VisualizerMachiProps> = (props) => {
             const latest = latestRef.current;
             const runtime = await Runtime.create({
                 host,
+                rearSafeArea: latest.readingArea,
                 song,
                 theme: latest.theme,
                 tuning: latest.shownTuning,
@@ -144,6 +144,7 @@ const VisualizerMachi: React.FC<VisualizerMachiProps> = (props) => {
                 signal,
             });
             const current = latestRef.current;
+            runtime.setRearSafeArea(current.readingArea);
             runtime.setTheme(current.theme);
             runtime.setTuning(current.shownTuning);
             runtime.setRenderQuality(current.renderQuality);
@@ -176,6 +177,10 @@ const VisualizerMachi: React.FC<VisualizerMachiProps> = (props) => {
     useEffect(() => {
         runtimeRef.current?.setRenderQuality(renderQuality);
     }, [renderQuality, runtimeRef]);
+
+    useEffect(() => {
+        runtimeRef.current?.setRearSafeArea(readingArea);
+    }, [readingArea?.left, readingArea?.top, readingArea?.width, readingArea?.height, runtimeRef]);
 
     useEffect(() => {
         runtimeRef.current?.setShowText(sceneShowText);
@@ -218,10 +223,7 @@ const VisualizerMachi: React.FC<VisualizerMachiProps> = (props) => {
                         onRetry={() => setContextEpoch(epoch => epoch + 1)}
                     />
                 )}
-                {readingArea && showText && !committedSong.isInstrumental && !runtimeFailed && (
-                    <RearCurrentLyrics area={readingArea} line={activeLine ?? recentCompletedLine}
-                        currentTime={currentTime} theme={theme} fontScale={lyricsFontScale} />
-                )}
+
             </div>
 
             <VisualizerSubtitleOverlay

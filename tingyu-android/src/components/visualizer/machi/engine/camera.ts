@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import type { RearRect } from '../../../../utils/rearCameraSafeArea';
+import { MachiRearFraming, type MachiLetteringFace } from './rearFraming';
 import type { MachiCameraView } from '../types';
 
 // src/components/visualizer/machi/engine/camera.ts
@@ -86,6 +88,9 @@ export class MachiCamera {
     /** 构图点投影的半宽、半高（缩放 1 时）。 */
     private fitHalf = { width: 9, height: 7 };
     private aspect = 16 / 9;
+    private rearArea: RearRect | undefined;
+    private lettering: MachiLetteringFace[] = [];
+    private readonly rearFraming = new MachiRearFraming();
     /** 自定义视角（相对默认构图）；null 是默认视角。 */
     private custom: MachiCameraView | null = null;
     private interacting = false;
@@ -208,6 +213,26 @@ export class MachiCamera {
         this.needsRender = true;
     }
 
+    setRearArea(area: RearRect | undefined, faces?: MachiLetteringFace[]) {
+        const wasRear = Boolean(this.rearArea);
+        if (faces) this.lettering = faces;
+        if (!wasRear && !area) return;
+        this.rearArea = area;
+        if (wasRear && !area) this.applyFrustum();
+        if (wasRear !== Boolean(area)) this.settle();
+        this.needsRender = true;
+    }
+
+    /** Reset the base projection before fitting, so drift/resize never accumulates a crop. */
+    fitRearLettering() {
+        if (!this.rearArea) return;
+        const h = this.halfHeight, shift = h * SUBTITLE_RESERVE;
+        this.camera.left = -h * this.aspect; this.camera.right = h * this.aspect;
+        this.camera.top = h - shift; this.camera.bottom = -h - shift;
+        this.camera.updateProjectionMatrix();
+        if (this.rearArea) this.rearFraming.fit(this.camera, this.lettering, this.rearArea);
+    }
+
     setAspect(width: number, height: number) {
         const aspect = width / Math.max(1, height);
         if (Math.abs(aspect - this.aspect) < 1e-4) return;
@@ -285,6 +310,11 @@ export class MachiCamera {
 
     /** 摆到某个视角、绕某个目标点。 */
     private place(view: MachiView, target: THREE.Vector3) {
+        // Rear-only view limits keep the native sign facing the viewer, without altering saved views.
+        if (this.rearArea) view = { ...view,
+            azimuth: clamp(view.azimuth, this.framing.view.azimuth - 15 * DEG, this.framing.view.azimuth + 15 * DEG),
+            elevation: clamp(view.elevation, this.framing.view.elevation - 5 * DEG, this.framing.view.elevation + 5 * DEG),
+        };
         this.target.copy(target);
         this.controls?.target.copy(target);
         this.camera.position.copy(target).addScaledVector(orbitDirection(view.azimuth, view.elevation), CAMERA_DISTANCE);

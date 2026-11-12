@@ -13,6 +13,8 @@ export interface InkContext {
     ctx: NebbiaSegments;
     motion: NebbiaGlassMotion;
     strokeWidth: number;
+    /** Rear masks have enough detail for subpixel strokes on small glyphs. */
+    strokeFloor?: number;
     writeSpeed: number;
     busSpeed: number;
     /** 雪窗、凝露时收这一帧扫过的几段（笔尖、往下淌的水珠头；nebbiaSnow.ts 的 PEN_FLOATS 格式）：抹雪、吸水。雨窗 null。 */
@@ -118,7 +120,8 @@ export const drawChar = (ink: InkContext, c: LaidChar, T: number, clarityIn: num
     let clarity = clarityIn, beadV = beadIn;
     if (fadeIn) { const a = smooth(clamp((T - c.t) / c.appearDur)); clarity *= a; beadV *= a; }
     const wd = c.wd;
-    const gap = Math.min(0.06 / ink.writeSpeed, wd * 0.08);
+    // Dense characters still need positive ink time when a fast lyric compresses their duration.
+    const gap = Math.min(0.06 / ink.writeSpeed, wd * 0.08, wd * 0.5 / Math.max(1, g.strokes.length - 1));
     const inkTime = wd - gap * (g.strokes.length - 1);
     let local = T - (fadeIn ? c.t : c.wt);
     const k = MASK_SCALE, cs = Math.cos(c.rot), sn = Math.sin(c.rot);
@@ -127,7 +130,7 @@ export const drawChar = (ink: InkContext, c: LaidChar, T: number, clarityIn: num
     // 原来的 8 像素在 40px 字号上等于 0.2em，会直接盖过 strokeWidth 设置，
     // 用户把笔画调到最细，实际宽度仍是 0.2em，相邻笔画就粘连。
     const thin = clamp(Math.sqrt(9 / g.strokes.length), 0.55, 1);
-    const width = Math.max(ink.strokeWidth * thin, 1.5 * thin / c.s);
+    const width = Math.max(ink.strokeWidth * thin, (ink.strokeFloor ?? 1.5) * thin / c.s);
     const drips: [GlyphStroke, Drip, number][] = [];
     g.strokes.forEach((st, si) => {
         const dur = fadeIn ? 0 : inkTime * st.len / g.total;

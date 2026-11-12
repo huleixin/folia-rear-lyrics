@@ -40,7 +40,7 @@ export class NebbiaMask {
     }
 
     /** `rainSize` 是大雨点的大小倍数（tuning.rainBig × 雨点强度）。 */
-    draw(laid: LaidLine[], T: number, now: number, tuning: NebbiaTuning, motion: NebbiaGlassMotion, hits: NebbiaHits, rainSize: number) {
+    draw(laid: LaidLine[], T: number, now: number, tuning: NebbiaTuning, motion: NebbiaGlassMotion, hits: NebbiaHits, rainSize: number, rear = false) {
         const { ctx } = this;
         ctx.clear();
         this.breath.begin();
@@ -48,7 +48,7 @@ export class NebbiaMask {
         if (this.ice) this.ice.length = 0;
         const wetDue = !!this.wet && now - this.wetAt >= WET_EVERY;
         if (wetDue) { this.wet!.length = 0; this.wetAt = now; }
-        const ink: InkContext = { ctx, motion, strokeWidth: tuning.strokeWidth, writeSpeed: tuning.writeSpeed, busSpeed: tuning.busSpeed, sweeps: this.sweeps, wet: wetDue ? this.wet : null,
+        const ink: InkContext = { ctx, motion, strokeWidth: tuning.strokeWidth, strokeFloor: rear ? .75 : 1.5, writeSpeed: tuning.writeSpeed, busSpeed: tuning.busSpeed, sweeps: this.sweeps, wet: wetDue ? this.wet : null,
             ice: this.ice ? { out: this.ice, k: this.H / 1000, H: this.H } : null };
         laid.forEach((line, i) => {
             if (line.breathAt < Infinity) this.breath.drawLine(line, i, T, line.breathAt, line.breathUntil, line.breathDur, true);

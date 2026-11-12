@@ -10,14 +10,14 @@ import { SEGMENT_FLOATS, type NebbiaSegments } from './nebbiaSegments';
 
 export const NEBBIA_MASK_VS = /* glsl */ `#version 300 es
 in vec2 aCorner; in vec4 aSeg; in vec2 aParam;
-uniform vec2 uView;
+uniform vec2 uView; uniform float uPixelSize;
 out vec2 vP; flat out vec4 vSeg; flat out vec2 vParam;
 void main() {
   vec2 a = aSeg.xy, b = aSeg.zw, d = b - a;
   float l = length(d);
   vec2 t = l > 1e-5 ? d / l : vec2(1.0, 0.0), n = vec2(-t.y, t.x);
   // 最宽那层的半宽再留 1 像素抗锯齿
-  float R = aParam.x * 0.65 + 1.0;
+  float R = aParam.x * 0.65 + uPixelSize;
   vec2 p = (a + b) * 0.5 + t * aCorner.x * (l * 0.5 + R) + n * aCorner.y * R;
   vP = p; vSeg = aSeg; vParam = aParam;
   gl_Position = vec4(p / uView * 2.0 - 1.0, 0.0, 1.0);
@@ -26,9 +26,10 @@ void main() {
 export const NEBBIA_MASK_FS = /* glsl */ `#version 300 es
 precision highp float;
 in vec2 vP; flat in vec4 vSeg; flat in vec2 vParam;
+uniform float uPixelSize;
 out vec4 o;
 // 半宽 r 的线离像素中心 d 时的覆盖度（1 像素线性过渡，接近画布的抗锯齿）
-float cover(float r, float d) { return clamp(r + 0.5 - d, 0.0, 1.0); }
+float cover(float r, float d) { return clamp((r + 0.5 * uPixelSize - d) / uPixelSize, 0.0, 1.0); }
 // 画布的颜色是 8 位：先量化再乘覆盖度
 float level(float x) { return floor(x * 255.0 + 0.5) / 255.0; }
 void main() {
@@ -49,8 +50,10 @@ export class NebbiaMaskGl {
     private readonly vao: WebGLVertexArrayObject;
     private readonly buf: WebGLBuffer;
     private uView: WebGLUniformLocation | null = null;
+    private uPixelSize: WebGLUniformLocation | null = null;
     private readonly fb: WebGLFramebuffer;
-    private w = 1; private h = 1;
+    private w = 0; private h = 0;
+    private viewW = 1; private viewH = 1; private pixelSize = 1;
 
     /** 纹理挂在采样单元 `unit` 上（主程序的 uMask 由 nebbiaGl.ts 编好后指过来）。 */
     constructor(private readonly gl: WebGL2RenderingContext, unit: number) {
@@ -74,13 +77,18 @@ export class NebbiaMaskGl {
     attach(prog: WebGLProgram) {
         this.prog = prog;
         this.uView = this.gl.getUniformLocation(prog, 'uView');
+        this.uPixelSize = this.gl.getUniformLocation(prog, 'uPixelSize');
     }
 
-    /** W、H 是 CSS 像素，遮罩按 MASK_SCALE 缩（和原来的遮罩画布一样大）。 */
-    resize(W: number, H: number) {
+    /** Coordinates keep the original MASK_SCALE basis; rear text can use a finer R8 target without changing stroke geometry. */
+    resize(W: number, H: number, detailScale = MASK_SCALE) {
         const { gl } = this;
-        this.w = Math.max(1, Math.round(W * MASK_SCALE));
-        this.h = Math.max(1, Math.round(H * MASK_SCALE));
+        this.viewW = Math.max(1, Math.round(W * MASK_SCALE));
+        this.viewH = Math.max(1, Math.round(H * MASK_SCALE));
+        this.pixelSize = MASK_SCALE / detailScale;
+        const w = Math.max(1, Math.round(W * detailScale)), h = Math.max(1, Math.round(H * detailScale));
+        if (w === this.w && h === this.h) return;
+        this.w = w; this.h = h;
         gl.activeTexture(gl.TEXTURE0 + this.tex.unit);
         gl.bindTexture(gl.TEXTURE_2D, this.tex.t);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, this.w, this.h, 0, gl.RED, gl.UNSIGNED_BYTE, null);
@@ -101,7 +109,8 @@ export class NebbiaMaskGl {
             gl.bindVertexArray(this.vao);
             gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
             gl.bufferData(gl.ARRAY_BUFFER, segs.data.subarray(0, segs.count * SEGMENT_FLOATS), gl.DYNAMIC_DRAW);
-            gl.uniform2f(this.uView, this.w, this.h);
+            gl.uniform2f(this.uView, this.viewW, this.viewH);
+            gl.uniform1f(this.uPixelSize, this.pixelSize);
             gl.enable(gl.BLEND);
             gl.blendEquation(gl.MAX);
             gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, segs.count);

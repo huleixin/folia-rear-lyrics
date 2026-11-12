@@ -95,21 +95,22 @@ const scheduleWrite = (cs: LaidChar[], nat: number[], k: number) => {
 
 /**
  * 一句的出现方式和书写节奏：写字不必跟着每个字唱的那一点，可以一直写到下一句开唱（或这句唱完，取晚的）。
- * 字照顺序一个接一个写，不早于开唱；整句统一一个速度系数，正好写完，最慢是自然速度、最快压到 0.3 倍。
+ * 字照顺序一个接一个写，不早于开唱；整句统一一个速度系数，最慢是自然速度。
+ * 只开书写时允许继续加快，让长句在唱完前写全；片尾曲名、歌手仍按自然速度写。
  * 书写的两种（手指书写、哈气后书写）开着几种就按种子挑一种；慢慢显现也开着时，压到 0.3 倍都写不完的句子改成慢慢显现，
  * 只开慢慢显现就句句显现。
  */
-const applyAppear = (line: LaidLine, tuning: NebbiaTuning, idx: number, seed: number) => {
+const applyAppear = (line: LaidLine, tuning: NebbiaTuning, idx: number, seed: number, credits = false) => {
     const kinds = tuning.appear.filter(a => a !== 'fade');
     const canFade = tuning.appear.includes('fade');
     const kind = kinds.length ? kinds[Math.floor(createVisualizerRng((seed + idx * 613 + 11) >>> 0)() * kinds.length)] : null;
     const cs = line.chars.filter(c => c.glyph);
     const nat = cs.map(c => naturalWriteTime(c.glyph!, tuning.writeSpeed));
-    const until = Math.max(line.next, line.end);
+    const until = credits ? Infinity : Math.max(Number.isFinite(line.next) ? line.next : line.end, line.end);
     let k = 1;
     if (scheduleWrite(cs, nat, 1).end > until) {
         // 写完的时刻随 k 单调，二分找正好写完的 k
-        let lo = 0.3, hi = 1;
+        let lo = canFade ? 0.3 : 0, hi = 1;
         for (let n = 0; n < 14; n += 1) { const m = (lo + hi) / 2; if (scheduleWrite(cs, nat, m).end > until) hi = m; else lo = m; }
         k = lo;
     }
@@ -183,7 +184,7 @@ function* prepareNebbiaScene(
             breathAt: Infinity, breathUntil: Infinity, breathDur: NEBBIA_FIXED.breathSpread,
             appearBreathAt: Infinity, appearBreathUntil: Infinity, chars });
     }
-    laid.forEach((line, li) => applyAppear(line, tuning, li, seedHash));
+    laid.forEach((line, li) => applyAppear(line, tuning, li, seedHash, Boolean(source[li].credits)));
     alignCredits(laid, source);
     // 让位：后面第一句和这句重叠、且在这句（多留之后）消失前开始的，记下它开始的时刻。
     // 多留：屏上还空着就晚点起雾，留到让位前 refog 秒（来得及慢慢起雾），不早于原来的时刻。

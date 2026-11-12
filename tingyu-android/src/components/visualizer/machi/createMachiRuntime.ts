@@ -18,6 +18,8 @@ import {
     resolveMachiScreenFlash,
     type MachiBeatFrame,
 } from './engine/beatFx';
+import type { RearRect } from '../../../utils/rearCameraSafeArea';
+import { collectMachiLettering } from './engine/rearFraming';
 import { MachiCamera } from './engine/camera';
 import { MachiClock } from './engine/clock';
 import {
@@ -86,6 +88,7 @@ export interface MachiSongContext {
 
 export interface MachiRuntimeOptions {
     host: HTMLDivElement;
+    rearSafeArea?: RearRect;
     song: MachiSongContext;
     theme: Theme;
     tuning: MachiTuning;
@@ -375,7 +378,7 @@ export class MachiRuntime {
     private start() {
         this.holding = false;
         this.reportDegrade();
-        if (!this.options.previewMode && this.tuning.camera === 'custom') this.camera.attach(this.renderer.domElement);
+        if (!this.options.previewMode && !this.options.rearSafeArea && this.tuning.camera === 'custom') this.camera.attach(this.renderer.domElement);
         this.clockTimer = window.setInterval(this.onClockCheck, CLOCK_CHECK_MS);
         // 第一帧在 create 里画好：换样式的过渡等它（firstFrame.ts）。
         this.renderFrame(performance.now());
@@ -474,6 +477,7 @@ export class MachiRuntime {
         this.atmosphere.wind.set(Math.sin(stage.weather.windYaw), Math.cos(stage.weather.windYaw)).multiplyScalar(0.06);
         this.reflection.planeY = stage.reflectionPlaneY;
         this.camera.setFraming(stage.framing, this.customView(id));
+        this.camera.setRearArea(this.normalizedRearArea(), collectMachiLettering(stage.root));
     }
 
     /** 新场景画上招牌（歌、主题、调色板、字体、图标），颜色同步一次，报出换上了哪个场景。 */
@@ -582,12 +586,29 @@ export class MachiRuntime {
         this.wake();
     };
 
+    private normalizedRearArea(): RearRect | undefined {
+        const area = this.options.rearSafeArea;
+        if (!area) return undefined;
+        const { width, height } = this.size;
+        return { left: area.left / width, top: area.top / height,
+            width: area.width / width, height: area.height / height };
+    }
+
+    setRearSafeArea(area: RearRect | undefined) {
+        this.options.rearSafeArea = area;
+        if (area) this.camera.detach();
+        else if (!this.options.previewMode && this.tuning.camera === 'custom') this.camera.attach(this.renderer.domElement);
+        this.camera.setRearArea(this.normalizedRearArea());
+        this.wake();
+    }
+
     private resize(width: number, height: number) {
         const w = Math.max(1, Math.round(width));
         const h = Math.max(1, Math.round(height));
         this.size = { width: w, height: h };
         this.renderer.setSize(w, h, false);
         this.camera.setAspect(w, h);
+        this.camera.setRearArea(this.normalizedRearArea());
         this.post.setSize();
         this.reflection.setSize(w * this.pixelRatio, h * this.pixelRatio);
         this.wantsFrame = true;
@@ -735,6 +756,7 @@ export class MachiRuntime {
 
         this.stepFade(this.clock.realDelta);
         this.camera.update(this.clock.realDelta, this.clock.delta);
+        this.camera.fitRearLettering();
         this.stepEnvironment(this.clock.realDelta);
         // Paused frames only repaint for an explicit invalidation, never to keep interpolating a settled scene.
         if ((!this.clock.paused && this.blend.step(this.clock.realDelta)) || this.environmentDirty) {
@@ -1010,7 +1032,7 @@ export class MachiRuntime {
         }
         if (previous.timeOfDay !== tuning.timeOfDay || previous.weather !== tuning.weather) this.refreshEnvironmentTarget();
         this.camera.setCustom(this.customView(this.stageId));
-        if (this.tuning.camera === 'custom') this.camera.attach(this.renderer.domElement);
+        if (!this.options.rearSafeArea && this.tuning.camera === 'custom') this.camera.attach(this.renderer.domElement);
         else this.camera.detach();
         this.camera.setMotion(tuning.motion, tuning.motionSpeed);
         if (qualityKey(previous.quality) !== qualityKey(tuning.quality)) {

@@ -1,6 +1,6 @@
 import { clamp } from './nebbiaConstants';
 import type { NebbiaSourceLine } from './nebbiaChars';
-import { assignRoles, makeBlocks, mergeWords, ROLE_SCALE, ROLE_SCALE_FAST, type PlacedItem } from './nebbiaBlocks';
+import { assignRoles, makeBlocks, mergeWords, wrapRearWords, ROLE_SCALE, ROLE_SCALE_FAST, type PlacedItem } from './nebbiaBlocks';
 import { COMPOSITION_BIAS, COMPOSITIONS, SIMPLE_COMPOSITIONS, type CompositionContext } from './nebbiaCompositions';
 import { createVisualizerRng, hashVisualizerSeed } from '../visualizerSeedHash';
 import type { RearRect } from '../../../utils/rearCameraSafeArea';
@@ -46,7 +46,9 @@ export const layoutNebbiaSong = (lines: NebbiaSourceLine[], opts: NebbiaLayoutOp
     const { jitter, layouts, fontScale, visibleUntil, fogAt, lingerUntil } = opts;
     const W=opts.area?.width??opts.W,H=opts.area?.height??opts.H;
     const mx = W * 0.05, my = H * 0.07;
-    const Smin = Math.max(26, H * 0.065) * fontScale, Smax = H * 0.14 * fontScale;
+    // Rear viewports are CSS-sized: a fixed 26px floor rejected every composition on small displays.
+    const Smin = (opts.area ? H * 0.09 : Math.max(26, H * 0.065)) * fontScale;
+    const Smax = H * (opts.area ? 0.22 : 0.14) * fontScale;
     const placed: { box: Box; until: number; fogAt: number; linger: number }[] = [];
     const recent: string[] = [];
     let prev: Candidate | null = null;
@@ -75,7 +77,8 @@ export const layoutNebbiaSong = (lines: NebbiaSourceLine[], opts: NebbiaLayoutOp
         const visible = chars.filter(c => c.ch.trim());
         // 快歌：每个字平均唱不到 0.22 秒
         const fast = visible.length > 0 && (line.end - line.t) / visible.length < 0.22;
-        const words = mergeWords(chars, line.words);
+        const merged = mergeWords(chars, line.words);
+        const words = opts.area ? wrapRearWords(chars, merged) : merged;
         if (!words.length) return chars.map(() => ({ x: W / 2, y: H / 2, s: Smin, rot: 0 }));
         const roles = assignRoles(chars, words);
         const RS = fast ? ROLE_SCALE_FAST : ROLE_SCALE;
@@ -98,7 +101,8 @@ export const layoutNebbiaSong = (lines: NebbiaSourceLine[], opts: NebbiaLayoutOp
                 if (!res || !res.items.length) continue;
                 const bb = bboxOf(res.items);
                 // 构图最多占半屏左右，给下一句留出地方
-                const maxH = H * (name === 'ribbon' ? 0.28 : 0.5), maxW = (W - mx * 2) * (SIMPLE_COMPOSITIONS.has(name) ? 0.94 : 0.68);
+                const maxH = H * (opts.area ? 0.80 : name === 'ribbon' ? 0.28 : 0.5);
+                const maxW = (W - mx * 2) * (opts.area ? 0.98 : SIMPLE_COMPOSITIONS.has(name) ? 0.94 : 0.68);
                 const Sfit = Math.min(maxW / bb.w, maxH / bb.h, Smax);
                 if (Sfit < Smin * 0.75) continue;
                 // 字号也是候选：屏上挤的时候缩小一点换位置，不低于最小字号的 3/4
@@ -130,7 +134,9 @@ export const layoutNebbiaSong = (lines: NebbiaSourceLine[], opts: NebbiaLayoutOp
         }
         // 实在放不下（极长的一句）：三行，按屏幕能放下的字号居中
         if (!best) {
-            const blocks = makeBlocks(chars, words, roles, ROLE_SCALE_FAST, 9);
+            // Keep rear wrap points: merging them again would shrink a long token and every CJK glyph.
+            const fallbackRoles = opts.area ? words.map(() => 'support' as const) : roles;
+            const blocks = makeBlocks(chars, words, fallbackRoles, ROLE_SCALE_FAST, opts.area ? words.length : 9);
             const ctx: CompositionContext = { blocks, h: 0, chars };
             const res = COMPOSITIONS.lines3(ctx) ?? COMPOSITIONS.lines2(ctx) ?? COMPOSITIONS.ribbon(ctx)!;
             const bb = bboxOf(res.items);

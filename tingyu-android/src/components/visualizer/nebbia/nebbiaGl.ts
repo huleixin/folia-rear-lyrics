@@ -1,4 +1,4 @@
-import { FOG_DIV, NEBBIA_FIXED } from './nebbiaConstants';
+import { FOG_DIV, MASK_SCALE, NEBBIA_FIXED } from './nebbiaConstants';
 import raindropSpriteUrl from './nebbiaRaindrop.png';
 import { BLD_FILL_UNIFORMS, NebbiaBuildingCache, type NebbiaBuildingState } from './nebbiaBuildingCache';
 import { NebbiaFogGl } from './nebbiaFogGl';
@@ -62,6 +62,8 @@ export class NebbiaGl {
     /** 凝露玻璃上的萤虫；别的玻璃 null。 */
     private readonly fireflies: NebbiaFireflyGl | null;
     private W = 1; private H = 1;
+    private rearMaskDetail = false;
+    private dpr = 1;
     private spriteReady = false;
     /** 白气纹理里是哪一版画布、多大（版本没变不重传）。 */
     private breathVersion = -1; private breathW = 0; private breathH = 0;
@@ -186,13 +188,23 @@ export class NebbiaGl {
         this.bld?.invalidate();
     }
 
+    /** Only the small handwriting target needs extra detail; subtitle changes never resize the full scene. */
+    setRearMaskDetail(enabled: boolean) {
+        if (enabled === this.rearMaskDetail) return;
+        this.rearMaskDetail = enabled;
+        this.mask.resize(this.W, this.H, this.maskScale());
+    }
+
+    private maskScale() { return this.rearMaskDetail ? Math.min(2, Math.max(1, this.dpr)) : MASK_SCALE; }
+
     /** W、H 是 CSS 像素（水珠纹理用这个分辨率），dpr 是画布的像素比。 */
     resize(W: number, H: number, dpr: number) {
         const { gl } = this;
         this.W = Math.max(1, Math.round(W)); this.H = Math.max(1, Math.round(H));
+        this.dpr = dpr;
         this.canvas.width = Math.max(1, Math.round(W * dpr));
         this.canvas.height = Math.max(1, Math.round(H * dpr));
-        this.mask.resize(W, H);
+        this.mask.resize(W, H, this.maskScale());
         this.fieldValid = false;
         for (const tex of [this.drop, this.field]) {
             gl.activeTexture(gl.TEXTURE0 + tex.unit);

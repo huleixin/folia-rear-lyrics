@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Line, SubtitleContentMode, Theme } from '../../types';
 import { resolveThemeFontWeight, resolveThemeTranslationFontStack } from '../../utils/fontStacks';
@@ -14,6 +14,7 @@ import { usePlayerSubtitleBottomPx } from '../../hooks/usePlayerBottomBarBottomP
 import { getRearSafeInset, getVisualizerSurface, resolveVisualizerCssSize } from '../../utils/visualizerSurface';
 import { resolveRearLyricRegions, type RearRect } from '../../utils/rearCameraSafeArea';
 import RearFittedContent from './RearFittedContent';
+import { useRearStageTextEdge } from './RearStageReadingArea';
 
 // Some songs' lyric data carries pure marker/separator lines ("//", "●●●", dashes, stray slashes from
 // instrumental breaks or credits formatting). Those are timing placeholders, never display text: a
@@ -121,6 +122,8 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
     const resolvedOpacity = subtitleOverlayOpacity ?? opacity;
     const surface = getVisualizerSurface();
     const rearSafe = rearSafeArea ?? getRearSafeInset();
+    const rearTextHost = useRef<HTMLDivElement>(null);
+    useRearStageTextEdge(rearTextHost, 'bottom', Boolean(rearSafe && shouldRenderOverlay && resolvedOpacity > 0), rearSafe);
     const scaleFontSize = (fontSize: string, factor = 1) => {
         const size = resolveVisualizerCssSize(fontSize.replace(/(-?\d*\.?\d+)(rem|vw|px)/g, (_match, value, unit) => `${(Number(value) * subtitleFontScale * factor).toFixed(3)}${unit}`));
         return surface ? `min(${size}, ${Math.max(11, Math.min(14, surface.height * .075))}px)` : size;
@@ -142,7 +145,7 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
     if(rearSafe){
         const font=Math.max(11,Math.min(14,rearSafe.height*.075))*subtitleFontScale;
         const area=resolveRearLyricRegions(rearSafe).subtitles;
-        return shouldRenderOverlay?<div className="absolute inset-0 z-20 pointer-events-none" style={{opacity:resolvedOpacity}}>
+        return shouldRenderOverlay?<div ref={rearTextHost} className="absolute inset-0 z-20 pointer-events-none" style={{opacity:resolvedOpacity}}>
             <RearFittedContent area={area} align="bottom"><div data-rear-subtitles style={{textAlign:'center',padding:4,lineHeight:1.3,
                 background:subtitleOverlayBackground?'radial-gradient(ellipse, '+colorWithAlpha(theme.backgroundColor,.85)+', transparent)':undefined}}>
                 {subtitleText?subtitleTracks.map((track,index)=><div key={track.role} data-subtitle-track={track.role} style={{

@@ -7,6 +7,8 @@ import { applyVisualizerTuning } from './tuningRegistry';
 import { DEFAULT_VISUALIZER_BACKGROUND_MODE } from './backgrounds/registry';
 import VisualizerHarmonyOverlay from './VisualizerHarmonyOverlay';
 import { useGraphicsStageProbe } from '../../hooks/useGraphicsStageProbe';
+import { getRearSafeInset } from '../../utils/visualizerSurface';
+import { RearStageReadingProvider } from './RearStageReadingArea';
 
 interface VisualizerRendererProps extends VisualizerSharedProps {
     mode: VisualizerMode;
@@ -26,7 +28,7 @@ const VisualizerRenderer: React.FC<VisualizerRendererProps> = ({ mode, ...props 
         },
     }, props.visualizerTunings);
 
-    return (
+    const content = (
         <>
             {/*
               * renderer 是按模式懒加载的（见 definition.ts 的 render 说明）。fallback 给 null 而不是
@@ -52,6 +54,10 @@ const VisualizerRenderer: React.FC<VisualizerRendererProps> = ({ mode, ...props 
             />
         </>
     );
+    const rearSafe = resolvedProps.rearSafeArea ?? getRearSafeInset();
+    return rearSafe && (mode === 'nebbia' || mode === 'machi')
+        ? <RearStageReadingProvider key={mode} area={rearSafe}>{content}</RearStageReadingProvider>
+        : content;
 };
 
 // Transport/chrome changes must not rebuild unchanged lyric renderer props.

@@ -46,6 +46,19 @@ export const mergeWords = (chars: NebbiaChar[], words: number[][]): number[][] =
     return out;
 };
 
+/** Small rear displays may wrap an oversized token without altering characters or lyric timing. */
+export const wrapRearWords = (chars: NebbiaChar[], words: number[][]): number[][] => words.flatMap(word => {
+    const chunks: number[][] = [];
+    let chunk: number[] = [], width = 0;
+    for (const k of word) {
+        const advance = advanceOf(chars[k].ch);
+        if (chunk.length && width + advance > 6) { chunks.push(chunk); chunk = []; width = 0; }
+        chunk.push(k); width += advance;
+    }
+    if (chunk.length) chunks.push(chunk);
+    return chunks;
+});
+
 // 商籁同款打分：字数（最多 8）× 14 + 时长（最多 2.5 秒）× 18
 const scoreWord = (chars: NebbiaChar[], w: number[]) => {
     const len = w.filter(k => chars[k].ch.trim()).length;

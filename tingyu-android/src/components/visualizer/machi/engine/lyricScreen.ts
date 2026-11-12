@@ -196,6 +196,7 @@ export class MachiLyricScreen {
         this.geometries.push(geometry);
         const face = new THREE.Mesh(geometry, this.material);
         face.name = name;
+        face.userData.machiLettering = true;
         face.position.copy(position);
         face.rotation.y = rotationY;
         return face;

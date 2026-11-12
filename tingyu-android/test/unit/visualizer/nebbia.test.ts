@@ -9,19 +9,59 @@ import { DEFAULT_NEBBIA_TUNING } from '../../../src/components/visualizer/nebbia
 import { buildNebbiaScene, buildNebbiaSceneAsync } from '../../../src/components/visualizer/nebbia/nebbiaScene';
 import { buildNebbiaLines } from '../../../src/components/visualizer/nebbia/nebbiaChars';
 import { measureGlyph, type NebbiaGlyphCache } from '../../../src/components/visualizer/nebbia/nebbiaGlyphs';
-import { resolveRearLyricRegions } from '../../../src/utils/rearCameraSafeArea';
+import { layoutNebbiaSong } from '../../../src/components/visualizer/nebbia/nebbiaLayout';
 import { resolveRearReadingBox } from '../../../src/utils/visualizerSurface';
+import { appendNebbiaCredits } from '../../../src/components/visualizer/nebbia/nebbiaCredits';
+import { drawChar, type InkContext } from '../../../src/components/visualizer/nebbia/nebbiaInk';
+import { NebbiaSegments } from '../../../src/components/visualizer/nebbia/nebbiaSegments';
 
 // test/unit/visualizer/nebbia.test.ts
 // Live spectrum boundaries and async layout must preserve the original handwriting schedule.
 const audio = () => ({bass:motionValue(0),lowMid:motionValue(0),mid:motionValue(0),vocal:motionValue(0),treble:motionValue(0),spectrum:motionValue(new Uint8Array(16))});
 describe('Nebbia Android adaptation', () => {
+    it('keeps dense compressed handwriting progressive and completes every stroke by its deadline', () => {
+        const glyph = measureGlyph(Array.from({length:20}, (_,i) => [[0,i/20],[1,i/20]]));
+        const cache = {get:()=>glyph!} as unknown as NebbiaGlyphCache;
+        const source = buildNebbiaLines([{fullText:'字',startTime:1,endTime:1.2,words:[{text:'字',startTime:1,endTime:1.2}]}],'ink',0,[]);
+        const c = buildNebbiaScene(source,cache,{...DEFAULT_NEBBIA_TUNING,appear:['write']},{W:347,H:212,fontScale:1},'ink')[0].chars[0];
+        c.beads = glyph!.strokes.map(()=>[]); c.drips = glyph!.strokes.map(()=>null); c.s = 30;
+        const ctx = new NebbiaSegments();
+        const ink = {ctx,strokeWidth:.03,writeSpeed:1,busSpeed:1,sweeps:null,wet:null,ice:null,motion:{}} as InkContext;
+        drawChar(ink,c,c.wt-.001,1,0); expect(ctx.count).toBe(0);
+        drawChar(ink,c,c.wt+c.wd*.001,1,0); expect(ctx.count).toBe(1);
+        expect(Math.hypot(ctx.data[2]-ctx.data[0],ctx.data[3]-ctx.data[1])).toBeLessThan(1);
+        ctx.clear(); drawChar(ink,c,c.wt+c.wd*.5,1,0);
+        expect(ctx.count).toBeGreaterThan(1); expect(ctx.count).toBeLessThan(20);
+        ctx.clear(); drawChar(ink,c,c.wt+c.wd,1,0); expect(ctx.count).toBe(20);
+    });
+    it('finishes dense final lyrics in the shared lyric interval without flattening handwriting or rushing credits',()=>{
+        const glyph=measureGlyph(Array.from({length:20},()=>[[0,0],[1,1],[0,1]]));
+        const cache={get:()=>glyph} as unknown as NebbiaGlyphCache;
+        const text='这是整句需要完整显示的歌词';
+        const source=buildNebbiaLines([{fullText:text,startTime:0,endTime:3,words:Array.from(text).map((text,i)=>({text,startTime:i*3/13,endTime:(i+1)*3/13}))}],'final',0,[]);
+        const tuning={...DEFAULT_NEBBIA_TUNING,appear:['write' as const],writeSpeed:.5};
+        const make=(lines:typeof source)=>buildNebbiaScene(lines,cache,tuning,{W:347,H:212,fontScale:1},'final');
+        expect(source[0].next).toBe(Infinity);
+        const line=make(source)[0];
+        let previousEnd=0;
+        for(const c of line.chars){
+            expect(c.wt).toBeGreaterThanOrEqual(Math.max(c.t,previousEnd));
+            expect(c.wd).toBeGreaterThan(0);expect(c.appearDur).toBe(0);
+            previousEnd=c.wt+c.wd;
+        }
+        expect(previousEnd).toBeLessThanOrEqual(line.end+.001);
+        const withCredits=make(appendNebbiaCredits(source,'听屿','歌手'));
+        const title=withCredits[1],artist=withCredits[2];
+        expect(title.chars[0].wd).toBeGreaterThan(10);
+        const titleEnd=Math.max(...title.chars.map(c=>c.wt+c.wd));
+        expect(artist.chars[0].wt).toBeGreaterThanOrEqual(titleEnd+.4);
+    });
     it('fits every actual warped/rotated handwriting stroke right of the camera at multiple scales',()=>{
         const cache={get:()=>measureGlyph([[[-.15,0],[.5,1.2],[1.15,-.1]]])} as unknown as NebbiaGlyphCache;
         const text='这是一句很长的歌词，HelloSuperLongUnbrokenWord 星光和雨夜';
         const source=buildNebbiaLines([{fullText:text,startTime:0,endTime:8,words:[{text,startTime:0,endTime:8}]}],'rear',0,[]);
         for(const width of [329,347,904])for(const fontScale of [.5,1,3]){
-            const H=width*596/976,area=resolveRearLyricRegions(resolveRearReadingBox(width,H)).lyrics;
+            const H=width*596/976,area=resolveRearReadingBox(width,H);
             const scene=buildNebbiaScene(source,cache,{...DEFAULT_NEBBIA_TUNING,jitter:1,warp:1,strokeWidth:.08},{W:width,H,fontScale,area},'rear');
             for(const line of scene)for(const c of line.chars)for(const stroke of c.glyph?.strokes??[])for(const [x,y] of stroke.pts){
                 const margin=Math.max(1.5,c.s*.08)/2;
@@ -34,6 +74,26 @@ describe('Nebbia Android adaptation', () => {
                 expect(c.wt).toBeGreaterThanOrEqual(c.t);expect(Number.isFinite(c.wd)).toBe(true);
             }
         }
+    });
+    it('preserves composition variety across CSS viewport densities instead of falling back to the same three rows',()=>{
+        const texts=['听见风吹过窗边','我们一起走过这片星海','月光落在你眼中','雨夜街景慢慢消失'];
+        const source=buildNebbiaLines(texts.map((fullText,i)=>({fullText,startTime:i*15,endTime:i*15+12,
+            words:Array.from(fullText).map((text,k)=>({text,startTime:i*15+k,endTime:i*15+k+1}))})),'composition',0,[]);
+        const shapes=new Set<string>();
+        for(const layout of DEFAULT_NEBBIA_TUNING.layouts){
+            const make=(scale:number)=>layoutNebbiaSong(source,{W:347*scale,H:212*scale,
+                area:resolveRearReadingBox(347*scale,212*scale),fontScale:1,jitter:0,layouts:[layout],
+                visibleUntil:i=>i*15+12,fogAt:i=>i*15+12});
+            const small=make(1),large=make(3);
+            for(let i=0;i<small.length;i++)for(let k=0;k<small[i].length;k++){
+                expect(large[i][k].x/3).toBeCloseTo(small[i][k].x,6);
+                expect(large[i][k].y/3).toBeCloseTo(small[i][k].y,6);
+                expect(large[i][k].s/3).toBeCloseTo(small[i][k].s,6);
+            }
+            shapes.add(JSON.stringify(small[0].map(c=>[Math.round(c.x),Math.round(c.y),Math.round(c.rot*10)])));
+            expect(Math.max(...small[0].map(c=>c.s))).toBeGreaterThan(24);
+        }
+        expect(shapes.size).toBeGreaterThanOrEqual(7);
     });
     it('round-trips the registered mode settings through appearance export and import', () => {
         const tuning = normalizeNebbiaTuning({ behind: 'aquarium', glass: 'snow', motionStrength: 1.6 });

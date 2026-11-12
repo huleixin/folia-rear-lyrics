@@ -14,9 +14,8 @@ import { cancelNebbiaShaderWarmup } from './nebbiaShaderWarmup';
 import { nebbiaSeesThrough } from './nebbiaBehind';
 import { DEFAULT_NEBBIA_TUNING, type NebbiaTuning } from './types';
 import { getRearSafeInset } from '../../../utils/visualizerSurface';
-import { resolveRearLyricRegions } from '../../../utils/rearCameraSafeArea';
 import StageCompatibilityFallback from '../StageCompatibilityFallback';
-import RearCurrentLyrics from '../RearCurrentLyrics';
+import { useRearStageReadingArea } from '../RearStageReadingArea';
 
 // src/components/visualizer/nebbia/VisualizerNebbia.tsx
 // 雾笺的 React 外壳：挂共享 shell / 字幕层，运行时建一次，换歌、tuning、主题、暂停都就地推给它。
@@ -50,8 +49,8 @@ const VisualizerNebbia: React.FC<Props> = (props) => {
     const scene = nebbiaTuning.behind === 'aquarium' ? 'aquarium' : 'night';
     const glass = nebbiaTuning.glass;
     const rearSafe=props.rearSafeArea??getRearSafeInset();
-    const hasHarmony=useMemo(()=>props.showHarmonySubtitle!==false&&lines.some(line=>line.backgroundVocal||line.backgroundVocals?.length),[lines,props.showHarmonySubtitle]);
-    const readingArea=useMemo(()=>rearSafe?resolveRearLyricRegions(rearSafe,hasHarmony).lyrics:undefined,[rearSafe?.left,rearSafe?.top,rearSafe?.width,rearSafe?.height,hasHarmony]);
+    // Native lettering uses the whole camera-safe surface; empty subtitle lanes reserve no space.
+    const readingArea = useRearStageReadingArea(rearSafe ?? undefined);
 
     // 真正在画的歌：切歌时滞后于 props，免得对着还没到的歌词排版（songHandover.ts）
     const committed = useVisualizerSongCommit({ seed, lines, currentTime, readyGraceMs: 3000 });
@@ -130,10 +129,7 @@ const VisualizerNebbia: React.FC<Props> = (props) => {
                 <div ref={hostRef} className="absolute inset-0" aria-hidden="true" data-nebbia-ready={drawn} data-nebbia-scene={scene} data-nebbia-glass={glass} />
                 {failed&&<StageCompatibilityFallback theme={theme} fontScale={lyricsFontScale} area={readingArea}
                     text={showText&&!committed.isInstrumental?(activeLine?.fullText||t('ui.waitingForMusic')):null} onRetry={()=>setGeneration(value=>value+1)}/>}
-                {readingArea && showText && !committed.isInstrumental && !failed && (
-                    <RearCurrentLyrics area={readingArea} line={activeLine ?? recentCompletedLine}
-                        currentTime={currentTime} theme={theme} fontScale={lyricsFontScale} />
-                )}
+
             </div>
             <VisualizerSubtitleOverlay
                 rearSafeArea={rearSafe??undefined}
