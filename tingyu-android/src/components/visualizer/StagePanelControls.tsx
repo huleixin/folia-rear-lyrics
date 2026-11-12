@@ -11,7 +11,7 @@ export function Group({ def, foot, children }: React.PropsWithChildren<{ def: Se
     const { t } = useTranslation();
     return <section id={def.id} className="space-y-3 rounded-2xl border border-current/10" data-settings-layout="column" data-settings-style='{"gap":12,"radius":16,"border":true}'>
         <h3 className="px-4 pt-4 text-sm font-medium" data-settings-layout="wrap" data-settings-style='{"padding":[16,16,16,0],"font":14,"weight":500}'>{t(def.titleKey)}</h3>
-        {children}{foot && <p className="px-4 pb-3 text-xs opacity-60" data-settings-layout="wrap">{foot}</p>}
+        {children}{foot && <p className="px-4 pb-4 text-xs opacity-60" data-settings-layout="wrap" data-settings-style='{"padding":[16,0,16,16],"font":12,"tone":"muted"}'>{foot}</p>}
     </section>;
 }
 export function Row({ label, note, children }: React.PropsWithChildren<{ label: string; note?: string }>) {
@@ -31,8 +31,8 @@ export function SliderRow({ label, note, value, min, max, step, format, onChange
     label: string; note?: string; value: number; min: number; max: number; step?: number;
     format?: (value: number) => string; onChange: (value: number) => void; onDragStart?: () => void; onDragEnd?: () => void; disabled?: boolean;
 }) {
-    return <div className="px-4 py-3" data-settings-layout="column">
-        {note && <p className="mb-2 text-xs opacity-60" data-settings-layout="wrap">{note}</p>}
+    return <div className="px-4 py-3" data-settings-layout="column" data-settings-style='{"padding":[16,12,16,12],"gap":8}'>
+        {note && <p className="text-xs opacity-60" data-settings-layout="wrap" data-settings-style='{"font":12,"tone":"muted"}'>{note}</p>}
         <TemperaRangeControl label={label} value={value} min={min} max={max} step={step} formatValue={format} disabled={disabled}
             onChange={onChange} rangeInputClass="w-full" onPointerDown={onDragStart} onPointerUp={onDragEnd} onPointerCancel={onDragEnd}/>
     </div>;

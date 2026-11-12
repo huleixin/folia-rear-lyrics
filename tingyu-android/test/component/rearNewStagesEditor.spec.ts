@@ -42,6 +42,16 @@ for(const mode of ['nebbia','machi'])test(mode+' rear editor keeps actual render
     const control=doc.nodes.find((n:any)=>n.title===choice)!;
     const layout=nodes.find(n=>n.ref===control.id)!;
     expect(layout.style).toMatchObject({minHeight:44,radius:12,fill:true,center:true});
+    // Compose receives explicit insets; CSS padding alone cannot fix the native page.
+    const paths:any[][]=[];
+    const walkPaths=(node:any,path:any[]=[])=>{paths.push([...path,node]);node.children?.forEach((child:any)=>walkPaths(child,[...path,node]));};
+    walkPaths(doc.layout);
+    const labelPath=paths.find(path=>path.at(-1).text===(mode==='machi'?'光圈':'车速'))!;
+    expect(labelPath.some(node=>JSON.stringify(node.style?.padding)==='[16,12,16,12]')).toBe(true);
+    expect(labelPath.some(node=>node.style?.grow===true)).toBe(true);
+    const notePath=paths.find(path=>mode==='machi'?path.at(-1).text?.startsWith('光圈越大'):path.at(-1).text?.startsWith('每句在打开'))!;
+    expect(notePath.some(node=>node.style?.font===12&&node.style?.tone==='muted')).toBe(true);
+    if(mode==='nebbia')expect(notePath.some(node=>JSON.stringify(node.style?.padding)==='[16,0,16,16]')).toBe(true);
     await semantic(page,choice);
     await expect.poll(()=>page.evaluate(({mode})=>(window as any).__rearAppearance().profile.visual.visualizerTunings[mode][mode==='machi'?'scene':'behind'],{mode})).toBe(mode==='machi'?'station':'aquarium');
     // Drive the same measured viewport packet supplied by Compose; renderer observes the new size.
