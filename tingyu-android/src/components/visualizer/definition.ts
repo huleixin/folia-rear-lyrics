@@ -1,3 +1,4 @@
+import type { NebbiaTuning } from './nebbia/types';
 import type { HanabiTuning } from './hanabi/types';
 import React from 'react';
 import { type MotionValue } from 'framer-motion';
@@ -29,7 +30,7 @@ import type { VisualizerBackgroundConfig } from './backgrounds/definition';
 
 // src/components/visualizer/definition.ts
 // Shared contracts for discoverable visualizer modes.
-export type VisualizerTuningKind = 'none' | 'classic' | 'cadenza' | 'partita' | 'fume' | 'claddagh' | 'cappella' | 'tilt' | 'monet' | 'diorama' | 'pendolo' | 'sonnet' | 'tempera' | 'lumiere' | 'hanabi';
+export type VisualizerTuningKind = 'none' | 'classic' | 'cadenza' | 'partita' | 'fume' | 'claddagh' | 'cappella' | 'tilt' | 'monet' | 'diorama' | 'pendolo' | 'sonnet' | 'tempera' | 'lumiere' | 'hanabi' | 'nebbia';
 
 export interface VisualizerSharedProps {
     currentTime: MotionValue<number>;
@@ -97,11 +98,14 @@ export interface VisualizerSharedProps {
     onTemperaTuningChange?: (patch: Partial<TemperaTuning>) => void;
     lumiereTuning?: LumiereTuning;
     hanabiTuning?: HanabiTuning;
+    nebbiaTuning?: NebbiaTuning;
     onLumiereTuningChange?: (patch: Partial<LumiereTuning>) => void;
     onHanabiTuningChange?: (patch: Partial<HanabiTuning>) => void;
+    onNebbiaTuningChange?: (patch: Partial<NebbiaTuning>) => void;
 }
 
 export interface VisualizerSettingsPanelProps {
+    readOnlyExternalTunings?: boolean;
     t: (key: string) => string;
     isDaylight: boolean;
     theme: Theme;
@@ -146,8 +150,10 @@ export interface VisualizerSettingsPanelProps {
     onTemperaTuningChange?: (patch: Partial<TemperaTuning>) => void;
     lumiereTuning?: LumiereTuning;
     hanabiTuning?: HanabiTuning;
+    nebbiaTuning?: NebbiaTuning;
     onLumiereTuningChange?: (patch: Partial<LumiereTuning>) => void;
     onHanabiTuningChange?: (patch: Partial<HanabiTuning>) => void;
+    onNebbiaTuningChange?: (patch: Partial<NebbiaTuning>) => void;
     /** Mark slider drag start so onChange only updates draft. */
     onSliderPointerDown?: () => void;
     /** Commit draft values to persistent store on slider release. */
@@ -168,6 +174,7 @@ export interface VisualizerSettingsResetProps {
     resetTemperaTuning?: () => void;
     resetLumiereTuning?: () => void;
     resetHanabiTuning?: () => void;
+    resetNebbiaTuning?: () => void;
     setDraftFumeTuning?: (tuning: FumeTuning) => void;
     setDraftCladdaghTuning?: (tuning: CladdaghTuning) => void;
     setDraftPendoloTuning?: (tuning: PendoloTuning) => void;
@@ -175,6 +182,7 @@ export interface VisualizerSettingsResetProps {
     setDraftTemperaTuning?: (tuning: TemperaTuning) => void;
     setDraftLumiereTuning?: (tuning: LumiereTuning) => void;
     setDraftHanabiTuning?: (tuning: HanabiTuning) => void;
+    setDraftNebbiaTuning?: (tuning: NebbiaTuning) => void;
 }
 
 export interface VisualizerRegistryEntry {

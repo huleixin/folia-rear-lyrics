@@ -1,3 +1,4 @@
+import type { NebbiaTuning } from './nebbia/types';
 import type { HanabiTuning } from './hanabi/types';
 import type {
     CappellaTuning,
@@ -34,6 +35,7 @@ export interface VisualizerTuningMap {
     tempera: TemperaTuning;
     lumiere: LumiereTuning;
     hanabi: HanabiTuning;
+    nebbia: NebbiaTuning;
 }
 
 export type VisualizerTuningMode = keyof VisualizerTuningMap;

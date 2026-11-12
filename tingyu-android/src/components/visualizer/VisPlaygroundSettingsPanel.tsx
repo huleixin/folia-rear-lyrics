@@ -1,3 +1,4 @@
+import type { NebbiaTuning } from './nebbia/types';
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CaptionsOff, Focus, Monitor, PanelTop, RotateCcw, type LucideIcon } from 'lucide-react';
 import {
@@ -114,6 +115,8 @@ interface VisPlaygroundSettingsPanelProps {
     onSonnetTuningChange?: (patch: Partial<SonnetTuning>) => void;
     temperaTuning?: TemperaTuning;
     onTemperaTuningChange?: (patch: Partial<TemperaTuning>) => void;
+    nebbiaTuning?: NebbiaTuning;
+    onNebbiaTuningChange?: (patch: Partial<NebbiaTuning>) => void;
     lumiereTuning?: LumiereTuning;
     onLumiereTuningChange?: (patch: Partial<LumiereTuning>) => void;
     cappellaTuning: CappellaTuning;
@@ -391,6 +394,8 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
         onSonnetTuningChange,
         temperaTuning,
         onTemperaTuningChange,
+        nebbiaTuning,
+        onNebbiaTuningChange,
         lumiereTuning,
         onLumiereTuningChange,
         monetPortraitImage,
@@ -731,6 +736,7 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                             t,
                             isDaylight,
                             theme,
+                            readOnlyExternalTunings,
                             controlCardBg,
                             rangeInputClass,
                             classicTuning,
@@ -766,7 +772,9 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                             onSonnetTuningChange,
                             temperaTuning,
                             onTemperaTuningChange,
-                            lumiereTuning,
+                            nebbiaTuning,
+        onNebbiaTuningChange,
+        lumiereTuning,
                             onLumiereTuningChange,
                             monetPortraitImage,
                             onUploadMonetPortraitImage,

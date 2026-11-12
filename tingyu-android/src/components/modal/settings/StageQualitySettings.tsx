@@ -7,7 +7,7 @@ import { LYRIC_RENDER_SCALES } from '../../../utils/lyricRenderQuality';
 import SettingsRow from './SettingsRow';
 
 // Existing semantic rows are projected into Compose; no second graphics page or settings kit.
-const CANVAS_MODES = new Set(['sonnet', 'tempera', 'hanabi', 'lumiere', 'diorama', 'fume', 'monet', 'pendolo']);
+const CANVAS_MODES = new Set(['sonnet', 'tempera', 'hanabi', 'lumiere', 'diorama', 'fume', 'monet', 'pendolo', 'nebbia']);
 export default function StageQualitySettings({ dividerClass }: { dividerClass: string }) {
     const { t } = useTranslation();
     const settings = useVisualizerSettingsStore(state => state.stageRenderSettings);
@@ -35,12 +35,12 @@ export default function StageQualitySettings({ dividerClass }: { dividerClass: s
                 {!global && <option value="global">{t('stageQuality.follow')}</option>}
                 {LYRIC_RENDER_SCALES.map(value => <option key={value} value={value}>{value}×</option>)}
             </select>} />
-        <SettingsRow title={t('stageQuality.antialias')} description={t('stageQuality.aaHint')} dividerClass={dividerClass} control={
+        {mode !== 'nebbia' && <SettingsRow title={t('stageQuality.antialias')} description={t('stageQuality.aaHint')} dividerClass={dividerClass} control={
             <select aria-label={t('stageQuality.antialias')} className={selectClass} value={quality.antialias} onChange={event => global
                 ? setSettings({ ...settings, preset: 'custom', quality: { ...settings.quality, antialias: event.target.value } })
                 : change({ antialias: event.target.value as LyricRenderOverride['antialias'] })}>
                 <option value={global ? 'auto' : 'global'}>{t(global ? 'stageQuality.auto' : 'stageQuality.follow')}</option>
                 <option value="on">{t('stageQuality.on')}</option><option value="off">{t('stageQuality.off')}</option>
-            </select>} />
+            </select>} />}
     </>;
 }

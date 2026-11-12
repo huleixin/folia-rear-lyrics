@@ -1,3 +1,6 @@
+import { normalizeNebbiaTuning, readNebbiaRender } from '../components/visualizer/nebbia/nebbiaTuning';
+import { DEFAULT_NEBBIA_TUNING, type NebbiaTuning } from '../components/visualizer/nebbia/types';
+import { readStoredNebbiaTuning } from './visualizerSettingsPersistence';
 import type { StageRenderSettings } from '../types/lyricRenderQuality';
 import { normalizeStageRenderSettings, readStageRenderSettings, STAGE_QUALITY_STORAGE_KEY } from '../utils/stageQualitySettings';
 import { setStageRenderSettings } from '../utils/stageQualityRuntime';
@@ -66,6 +69,9 @@ export type VisualizerSettingsState = {
     temperaTuning: TemperaTuning;
     lumiereTuning: LumiereTuning;
     hanabiTuning: HanabiTuning;
+    nebbiaTuning: NebbiaTuning;
+    handleSetNebbiaTuning: (patch: Partial<NebbiaTuning>) => void;
+    handleResetNebbiaTuning: () => void;
     handleToggleDisableVisualizerVignette: (disable: boolean) => void;
     handleToggleDisableVisualizerGeometricBackground: (disable: boolean) => void;
     handleSetBackgroundOpacity: (opacity: number) => void;
@@ -169,6 +175,22 @@ export const useVisualizerSettingsStore = create<VisualizerSettingsState>((set, 
     sonnetTuning: readStoredSonnetTuning(),
     temperaTuning: readStoredTemperaTuning(),
     lumiereTuning: readStoredLumiereTuning(),
+    nebbiaTuning: readStoredNebbiaTuning(),
+    handleSetNebbiaTuning: patch => {
+        const next = normalizeNebbiaTuning({ ...get().nebbiaTuning, ...patch });
+        const legacy = patch as { render?: unknown; resolution?: unknown };
+        if (legacy.render !== undefined || legacy.resolution !== undefined) {
+            const settings = get().stageRenderSettings;
+            get().handleSetStageRenderSettings({ ...settings, modes: { ...settings.modes, nebbia: readNebbiaRender(legacy.render, legacy.resolution) } });
+        }
+        if (typeof localStorage !== 'undefined') localStorage.setItem('nebbia_tuning', JSON.stringify(next));
+        set({ nebbiaTuning: next });
+    },
+    handleResetNebbiaTuning: () => {
+        const next = normalizeNebbiaTuning(DEFAULT_NEBBIA_TUNING);
+        if (typeof localStorage !== 'undefined') localStorage.setItem('nebbia_tuning', JSON.stringify(next));
+        set({ nebbiaTuning: next });
+    },
     hanabiTuning: readStoredHanabiTuning(),
     handleSetHanabiTuning: patch => {
         const next = normalizeHanabiTuning({ ...get().hanabiTuning, ...patch });
@@ -927,6 +949,8 @@ export const selectVisualizerSettingsSnapshot = (state: VisualizerSettingsState)
     handleSetLatentBackgroundTuning: state.handleSetLatentBackgroundTuning,
     handleSetLumiereTuning: state.handleSetLumiereTuning,
     handleSetHanabiTuning: state.handleSetHanabiTuning,
+    handleSetNebbiaTuning: state.handleSetNebbiaTuning,
+    handleResetNebbiaTuning: state.handleResetNebbiaTuning,
     handleResetHanabiTuning: state.handleResetHanabiTuning,
     handleSetMonetBackgroundTuning: state.handleSetMonetBackgroundTuning,
     handleSetMonetTuning: state.handleSetMonetTuning,
@@ -953,6 +977,7 @@ export const selectVisualizerSettingsSnapshot = (state: VisualizerSettingsState)
     latentBackgroundTuning: state.latentBackgroundTuning,
     lumiereTuning: state.lumiereTuning,
     hanabiTuning: state.hanabiTuning,
+    nebbiaTuning: state.nebbiaTuning,
     monetBackgroundTuning: state.monetBackgroundTuning,
     monetTuning: state.monetTuning,
     nomandBackgroundTuning: state.nomandBackgroundTuning,

@@ -1,3 +1,5 @@
+import { useVisualizerSettingsStore } from '../../stores/useVisualizerSettingsStore';
+import { DEFAULT_NEBBIA_TUNING, type NebbiaTuning } from './nebbia/types';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useMotionValue, useMotionValueEvent } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Palette, Loader2, Pause, Play, Search, Sparkles, Upload, X } from 'lucide-react';
@@ -458,6 +460,10 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
     const [draftPendoloTuning, setDraftPendoloTuning] = useState<PendoloTuning>(pendoloTuning);
     const [draftSonnetTuning, setDraftSonnetTuning] = useState<SonnetTuning>(sonnetTuning);
     const [draftTemperaTuning, setDraftTemperaTuning] = useState<TemperaTuning>(temperaTuning);
+    const storedNebbiaTuning = useVisualizerSettingsStore(state => state.nebbiaTuning);
+    const nebbiaTuning = rearScope ? DEFAULT_NEBBIA_TUNING : storedNebbiaTuning;
+    const onNebbiaTuningChange = (patch: Partial<NebbiaTuning>) => { if (!rearScope) useVisualizerSettingsStore.getState().handleSetNebbiaTuning(patch); };
+    const [draftNebbiaTuning, setDraftNebbiaTuning] = useState(nebbiaTuning);
     const [draftLumiereTuning, setDraftLumiereTuning] = useState<LumiereTuning>(lumiereTuning);
     const [activeEditSection, setActiveEditSection] = useState<VisPlaygroundEditSection>(initialEditSection);
     const fontListRef = React.useRef<HTMLDivElement>(null);
@@ -575,7 +581,8 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
         sonnet: draftSonnetTuning,
         tempera: previewTemperaTuning,
         lumiere: draftLumiereTuning,
-    }), [cadenzaTuning, cappellaTuning, draftClassicTuning, draftDioramaTuning, draftLumiereTuning, draftMonetTuning, draftPendoloTuning, draftSonnetTuning, draftTiltTuning, previewTemperaTuning, resolvedCladdaghTuning, resolvedFumeTuning, resolvedPartitaTuning]);
+        nebbia: draftNebbiaTuning,
+    }), [cadenzaTuning, cappellaTuning, draftClassicTuning, draftDioramaTuning, draftLumiereTuning, draftNebbiaTuning, draftMonetTuning, draftPendoloTuning, draftSonnetTuning, draftTiltTuning, previewTemperaTuning, resolvedCladdaghTuning, resolvedFumeTuning, resolvedPartitaTuning]);
     const currentFontLabel = customFontLabel || customFontFamily || t('options.customFont');
     const fontStyleOptions: PresetOption<Theme['fontStyle'] | 'custom'>[] = useMemo(() => ([
         ...builtinFontOptions,
@@ -625,6 +632,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
     useEffect(() => { setDraftPendoloTuning(pendoloTuning); }, [pendoloTuning]);
     useEffect(() => { setDraftSonnetTuning(sonnetTuning); }, [sonnetTuning]);
     useEffect(() => { setDraftTemperaTuning(temperaTuning); }, [temperaTuning]);
+    useEffect(() => { setDraftNebbiaTuning(nebbiaTuning); }, [nebbiaTuning]);
     useEffect(() => { setDraftLumiereTuning(lumiereTuning); }, [lumiereTuning]);
     useEffect(() => { setActiveEditSection(initialEditSection); }, [initialEditSection]);
 
@@ -697,6 +705,8 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
             resetPendoloTuning: onResetPendoloTuning,
             resetSonnetTuning: onResetSonnetTuning,
             resetTemperaTuning: onResetTemperaTuning,
+            resetNebbiaTuning: () => { if (!rearScope) useVisualizerSettingsStore.getState().handleResetNebbiaTuning(); },
+            setDraftNebbiaTuning,
             resetLumiereTuning: onResetLumiereTuning,
             setDraftFumeTuning,
             setDraftCladdaghTuning,
@@ -1069,6 +1079,14 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
             pendingCommitRef.current = () => onLumiereTuningChange?.(patch);
         }
     };
+    const handleNebbiaTuningDraft = (patch: Partial<NebbiaTuning>) => {
+        setDraftNebbiaTuning(prev => ({ ...prev, ...patch }));
+        if (!isDraggingSlider.current) {
+            onNebbiaTuningChange?.(patch);
+        } else {
+            pendingCommitRef.current = () => onNebbiaTuningChange?.(patch);
+        }
+    };
 
     const handleResetSubtitleSettings = () => {
         setDraftSubtitleOverlayOpacity(0.6);
@@ -1218,7 +1236,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
 
                         <div className="absolute inset-0" data-settings-layout="column">
                             {previewReady&&previewVisible&&<VisualizerRenderer key={visualizerMode}
-                                mode={visualizerMode}
+                                mode={rearScope && visualizerMode === 'nebbia' ? 'sonnet' : visualizerMode}
                                 currentTime={currentTime}
                                 currentLineIndex={currentLineIndex}
                                 lines={previewPlaceholder.lines}
@@ -1343,6 +1361,8 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                         onSonnetTuningChange={handleSonnetTuningDraft}
                         temperaTuning={draftTemperaTuning}
                         onTemperaTuningChange={handleTemperaTuningDraft}
+                        nebbiaTuning={draftNebbiaTuning}
+                        onNebbiaTuningChange={handleNebbiaTuningDraft}
                         lumiereTuning={draftLumiereTuning}
                         onLumiereTuningChange={handleLumiereTuningDraft}
                         onResetMonetTuning={onResetMonetTuning}

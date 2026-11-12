@@ -2,6 +2,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { type ConfigEnv, type UserConfig, type ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
+import { nebbiaStrokesPlugin } from './dev/nebbia/nebbiaStrokesPlugin.mjs';
 import { commandPinyinPlugin } from './dev/pinyin/commandPinyinPlugin.mjs';
 import { icuFoliaDataPlugin } from './dev/icuFolia/icuFoliaDataPlugin.mjs';
 import { visualizerFrameScopePlugin } from './dev/build/visualizerFrameScopePlugin.mjs';
@@ -272,6 +273,7 @@ export default async function viteConfig(_config: ConfigEnv): Promise<UserConfig
     },
     plugins: [
       ...(isCapacitorBuild ? [visualizerFrameScopePlugin(__dirname)] : []),
+      nebbiaStrokesPlugin(),
       devLyricProxyPlugin(),
       commandPinyinPlugin(),
       icuFoliaDataPlugin(),

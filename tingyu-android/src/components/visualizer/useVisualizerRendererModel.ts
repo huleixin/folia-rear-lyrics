@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useStageIdleWarmup } from '../../hooks/useStageIdleWarmup';
 import { useShallow } from 'zustand/react/shallow';
 import { PlayerState, type Theme, type VisualizerMode } from '../../types';
 import type { VisualizerBackgroundConfig } from './backgrounds/definition';
@@ -75,6 +76,7 @@ export const useVisualizerRendererModel = ({
     const staticMode = useThemeSettingsStore(state => state.staticMode);
     const alwaysShowPlayerBackButton = usePlayerChromeSettingsStore(state => state.alwaysShowPlayerBackButton);
     const visualizerMode = useVisualizerSettingsStore(state => state.visualizerMode);
+    useStageIdleWarmup(visualizerMode);
     const obsKeepMainWindowAnimation = useStageSettingsStore(state => state.obsKeepMainWindowAnimation);
     const visualizerOpacity = useVisualizerSettingsStore(state => state.visualizerOpacity);
     const disableGeometricBackground = useVisualizerSettingsStore(state => state.disableVisualizerGeometricBackground);

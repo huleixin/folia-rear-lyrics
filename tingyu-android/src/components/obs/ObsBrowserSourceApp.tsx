@@ -268,10 +268,11 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
         );
     }
 
+    const displayMode = getVisualizerSurface() && config.visualizerMode === 'nebbia' ? 'sonnet' : config.visualizerMode;
     return (
         <div
             ref={surfaceRef}
-            data-visualizer-mode={config.visualizerMode}
+            data-visualizer-mode={displayMode}
             className="overflow-hidden"
             style={{
                 position: getVisualizerSurface() ? 'absolute' : undefined,
@@ -286,7 +287,7 @@ const ObsBrowserSourceApp: React.FC<{ transport?: LyricsSurfaceTransport; onConf
             }}
         >
             <MotionConfig reducedMotion={aod?"always":"user"}>{surfaceActive && <VisualizerRenderer
-                mode={config.visualizerMode}
+                mode={displayMode}
                 visualizerTunings={config.visualizerTunings}
                 currentTime={currentTime}
                 currentLineIndex={currentLineIndex}
