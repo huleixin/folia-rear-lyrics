@@ -142,3 +142,44 @@ P0 已在 1.5.17 / 232 完成首次正式包交付，阶段 SHA 与构建证据�
 - GitHub 交付位置：[v1.5.18](https://github.com/huleixin/folia-rear-lyrics/releases/tag/v1.5.18)；工作分支 `feat/folia-449-selective-port`。源码 ZIP 包含修复报告和保留的项目许可证；不包含签名密钥、账号或测试日志。
 - 未进行真机安装验证，实际背屏避让和新舞台功耗仍有上节列出的设备验证限制。
 
+## 1.5.19：背屏原生笔迹、3D招牌与排版深度优化
+
+修复基线：26d7f24fb4422a4000d65ee8cf2a10f574a74bb7（1.5.18 / 233）；构建源码提交：86aab5c09cc0815d2b79d2642b3dac349e890eb3。版本提升为 1.5.19 / 234。
+
+针对 1.5.18 中在背屏覆盖普通主歌词大字、未充分利用摄像头右侧可用空间以及长词笔划可读性等反馈，进行深度重构：
+
+| 问题与反馈 | 修改文件与处理 |
+| --- | --- |
+| 背屏展示效果与主屏实际效果差距大（普通大字覆盖层） | VisualizerNebbia.tsx、VisualizerMachi.tsx：彻底移除普通的 RearCurrentLyrics 主歌词遮挡层，全面恢复雾笺原生的玻璃笔迹手写与町景原生的 3D 招牌歌词。普通大字仅在 GPU 极端崩溃时作安全降级兜底 |
+| 雾笺背屏可用空间局限、排版拘束 | 
+ebbiaLayout.ts、
+ebbiaRearLayout.ts：扩大背屏排版高度至 0.80H，最小字号放宽至 0.09H，保留全部 9 种原生构图与微小扰动，使手写笔迹充分利用摄像头右侧全部安全区域 |
+| 动态和声/翻译遮挡排版区域 | RearStageReadingArea.tsx、VisualizerRenderer.tsx、VisualizerSubtitleOverlay.tsx、VisualizerHarmonyOverlay.tsx：引入动态阅读安全区。仅在实际存在辅助字幕或和声时保留对应间距；无辅助字幕时原生舞台占满摄像头右侧完整净空 |
+| 町景 3D 招牌歌词进入摄像头盲区 | earFraming.ts、camera.ts、lyricScreen.ts、createMachiRuntime.ts：遍历标记主招牌文字 Mesh，在保持场景 3D 透视和运镜的前提下，利用正交投影平移与缩放算法，将招牌文字精确约束在右侧阅读安全区内 |
+| 密集长歌词与快歌字迹书写进度不同步 | 
+ebbiaScene.ts、
+ebbiaInk.ts：改进字迹书写调度算法，高密笔画字根据歌词唱完时刻自适应加速，防止笔划截断，同时保证片尾曲名歌手自然舒展 |
+| 背屏高 DPI 下玻璃字迹边缘模糊与小字粘连 | 
+ebbiaMaskGl.ts、
+ebbiaGl.ts、
+ebbiaInk.ts：遮罩 R8 纹理分辨率提升为自适应屏幕 DPR（最高 2.0），着色器支持像素级抗锯齿，小字笔划下限调整为 0.75，笔划清晰分明 |
+| 极长英文单词导致排版极度缩小 | 
+ebbiaBlocks.ts、
+ebbiaLayout.ts：增加背屏长词安全折行，避免长单词将整句汉字字号同比例压缩至不可读 |
+| 舞台设置项组件挤压、文本溢出边缘 | StagePanelControls.tsx：完善 Compose 原生内边距与换行间距，规范按钮最小触控尺寸与标题布局 |
+
+### 检查结果与依据
+
+- 类型检查与主题生成：
+pm run typecheck 全面通过。
+- 单元测试：町景 3D 安全避让测试 3/3 通过，雾笺书写时序与笔迹布局测试 10/10 通过。
+- 浏览器端组件与渲染测试：新舞台编辑器测试 2/2 通过；背屏安全渲染用例 8/8 通过（覆盖 DPR 1/3、高密度长词、三种町景场景与雾笺全景安全区）。
+- 原生检查：Android Kotlin 编译与 1311 项单元测试全部通过。
+
+### 1.5.19 正式包核验与归档证据
+
+- 版本准备提交：86aab5c09cc0815d2b79d2642b3dac349e890eb3。正式包构建标识 1.5.19@86aab5c0，无 dirty 标记。
+- 使用 Temurin 21 执行正式 release 编译、资产比对与 apksigner 签名核验全部成功。
+- APK 文件：Tingyu-1.5.19-release.apk，56,947,235 字节；SHA-256：dd6e11840f6c66c89cb18cf2bf967c67ed9c87b331791de918252177f9a242e3。
+- 包内 2033 个前端静态资源逐个与 dist 哈希严格匹配。
+- 签名证书指纹核验通过：36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d。
