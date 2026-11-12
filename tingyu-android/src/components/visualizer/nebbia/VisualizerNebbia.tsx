@@ -86,7 +86,7 @@ const VisualizerNebbia: React.FC<Props> = (props) => {
             console.warn('[Nebbia] runtime failed to start', error);
             setFailed(true);
             setDrawn(true);
-           
+
             return undefined;
         }
         runtimeRef.current = runtime;

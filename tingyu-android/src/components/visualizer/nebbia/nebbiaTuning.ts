@@ -61,7 +61,7 @@ export const normalizeNebbiaTuning = (stored: unknown): NebbiaTuning => {
     const fade = values.fade ?? LEGACY_FADE[String(values.fadeMode)];
     const behind = NEBBIA_BEHIND.find(b => b === values.behind) ?? base.behind;
     return {
-        
+
         appear: subsetOf(NEBBIA_APPEAR_STYLES, appear, base.appear),
         fade: subsetOf(NEBBIA_FADE_STYLES, fade, base.fade),
         layouts: subsetOf(NEBBIA_LAYOUTS, values.layouts, base.layouts),

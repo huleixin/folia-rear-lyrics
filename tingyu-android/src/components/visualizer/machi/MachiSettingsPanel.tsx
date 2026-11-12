@@ -352,4 +352,3 @@ export default function MachiSettingsPanelBridge(props: VisualizerSettingsPanelP
         onSliderPointerDown={() => { dragging.current = true; props.onSliderPointerDown?.(); }}
         onSliderCommit={commit} />;
 }
-
