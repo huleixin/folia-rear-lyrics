@@ -16,6 +16,8 @@ describe('visualizer registry', () => {
             'tempera',
             'lumiere',
             'hanabi',
+            'nebbia',
+            'machi',
             'classic',
             'cadenza',
             'partita',

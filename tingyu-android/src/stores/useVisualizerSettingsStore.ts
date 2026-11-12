@@ -1,3 +1,6 @@
+import { normalizeMachiTuning } from '../components/visualizer/machi/machiTuning';
+import { DEFAULT_MACHI_TUNING, type MachiTuning } from '../components/visualizer/machi/types';
+import { readStoredMachiTuning } from './visualizerSettingsPersistence';
 import { normalizeNebbiaTuning, readNebbiaRender } from '../components/visualizer/nebbia/nebbiaTuning';
 import { DEFAULT_NEBBIA_TUNING, type NebbiaTuning } from '../components/visualizer/nebbia/types';
 import { readStoredNebbiaTuning } from './visualizerSettingsPersistence';
@@ -69,6 +72,9 @@ export type VisualizerSettingsState = {
     temperaTuning: TemperaTuning;
     lumiereTuning: LumiereTuning;
     hanabiTuning: HanabiTuning;
+    machiTuning: MachiTuning;
+    handleSetMachiTuning: (patch: Partial<MachiTuning>) => void;
+    handleResetMachiTuning: () => void;
     nebbiaTuning: NebbiaTuning;
     handleSetNebbiaTuning: (patch: Partial<NebbiaTuning>) => void;
     handleResetNebbiaTuning: () => void;
@@ -175,6 +181,17 @@ export const useVisualizerSettingsStore = create<VisualizerSettingsState>((set, 
     sonnetTuning: readStoredSonnetTuning(),
     temperaTuning: readStoredTemperaTuning(),
     lumiereTuning: readStoredLumiereTuning(),
+    machiTuning: readStoredMachiTuning(),
+    handleSetMachiTuning: patch => {
+        const next = normalizeMachiTuning({ ...get().machiTuning, ...patch });
+        if (typeof localStorage !== 'undefined') localStorage.setItem('machi_tuning', JSON.stringify(next));
+        set({ machiTuning: next });
+    },
+    handleResetMachiTuning: () => {
+        const next = normalizeMachiTuning(DEFAULT_MACHI_TUNING);
+        if (typeof localStorage !== 'undefined') localStorage.setItem('machi_tuning', JSON.stringify(next));
+        set({ machiTuning: next });
+    },
     nebbiaTuning: readStoredNebbiaTuning(),
     handleSetNebbiaTuning: patch => {
         const next = normalizeNebbiaTuning({ ...get().nebbiaTuning, ...patch });
@@ -950,7 +967,9 @@ export const selectVisualizerSettingsSnapshot = (state: VisualizerSettingsState)
     handleSetLumiereTuning: state.handleSetLumiereTuning,
     handleSetHanabiTuning: state.handleSetHanabiTuning,
     handleSetNebbiaTuning: state.handleSetNebbiaTuning,
+    handleSetMachiTuning: state.handleSetMachiTuning,
     handleResetNebbiaTuning: state.handleResetNebbiaTuning,
+    handleResetMachiTuning: state.handleResetMachiTuning,
     handleResetHanabiTuning: state.handleResetHanabiTuning,
     handleSetMonetBackgroundTuning: state.handleSetMonetBackgroundTuning,
     handleSetMonetTuning: state.handleSetMonetTuning,
@@ -978,6 +997,7 @@ export const selectVisualizerSettingsSnapshot = (state: VisualizerSettingsState)
     lumiereTuning: state.lumiereTuning,
     hanabiTuning: state.hanabiTuning,
     nebbiaTuning: state.nebbiaTuning,
+    machiTuning: state.machiTuning,
     monetBackgroundTuning: state.monetBackgroundTuning,
     monetTuning: state.monetTuning,
     nomandBackgroundTuning: state.nomandBackgroundTuning,

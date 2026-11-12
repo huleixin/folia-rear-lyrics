@@ -23,4 +23,5 @@ export const useVisualizerTunings = () => useVisualizerSettingsStore(useShallow(
     lumiere: state.lumiereTuning,
     hanabi: state.hanabiTuning,
     nebbia: state.nebbiaTuning,
+    machi: state.machiTuning,
 })));

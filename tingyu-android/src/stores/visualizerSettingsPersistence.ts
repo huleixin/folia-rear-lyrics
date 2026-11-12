@@ -1,3 +1,5 @@
+import { normalizeMachiTuning } from '../components/visualizer/machi/machiTuning';
+import type { MachiTuning } from '../components/visualizer/machi/types';
 import { normalizeNebbiaTuning } from '../components/visualizer/nebbia/nebbiaTuning';
 import type { NebbiaTuning } from '../components/visualizer/nebbia/types';
 import { normalizeHanabiTuning } from '../components/visualizer/hanabi/hanabiTuning';
@@ -1050,4 +1052,9 @@ export const readStoredHanabiTuning = (): HanabiTuning => {
 export const readStoredNebbiaTuning = (): NebbiaTuning => {
     try { return normalizeNebbiaTuning(JSON.parse(localStorage.getItem('nebbia_tuning') ?? 'null')); }
     catch { return normalizeNebbiaTuning(null); }
+};
+
+export const readStoredMachiTuning = (): MachiTuning => {
+    try { return normalizeMachiTuning(JSON.parse(localStorage.getItem('machi_tuning') ?? 'null')); }
+    catch { return normalizeMachiTuning(null); }
 };

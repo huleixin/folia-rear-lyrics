@@ -1,4 +1,5 @@
 import type { NebbiaTuning } from './nebbia/types';
+import type { MachiTuning } from './machi/types';
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CaptionsOff, Focus, Monitor, PanelTop, RotateCcw, type LucideIcon } from 'lucide-react';
 import {
@@ -116,7 +117,9 @@ interface VisPlaygroundSettingsPanelProps {
     temperaTuning?: TemperaTuning;
     onTemperaTuningChange?: (patch: Partial<TemperaTuning>) => void;
     nebbiaTuning?: NebbiaTuning;
+    machiTuning?: MachiTuning;
     onNebbiaTuningChange?: (patch: Partial<NebbiaTuning>) => void;
+    onMachiTuningChange?: (patch: Partial<MachiTuning>) => void;
     lumiereTuning?: LumiereTuning;
     onLumiereTuningChange?: (patch: Partial<LumiereTuning>) => void;
     cappellaTuning: CappellaTuning;
@@ -395,7 +398,9 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
         temperaTuning,
         onTemperaTuningChange,
         nebbiaTuning,
+        machiTuning,
         onNebbiaTuningChange,
+        onMachiTuningChange,
         lumiereTuning,
         onLumiereTuningChange,
         monetPortraitImage,
@@ -773,7 +778,9 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
                             temperaTuning,
                             onTemperaTuningChange,
                             nebbiaTuning,
+                            machiTuning,
         onNebbiaTuningChange,
+        onMachiTuningChange,
         lumiereTuning,
                             onLumiereTuningChange,
                             monetPortraitImage,

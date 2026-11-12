@@ -1,4 +1,5 @@
 import type { NebbiaTuning } from './nebbia/types';
+import type { MachiTuning } from './machi/types';
 import type { HanabiTuning } from './hanabi/types';
 import React from 'react';
 import { type MotionValue } from 'framer-motion';
@@ -30,7 +31,7 @@ import type { VisualizerBackgroundConfig } from './backgrounds/definition';
 
 // src/components/visualizer/definition.ts
 // Shared contracts for discoverable visualizer modes.
-export type VisualizerTuningKind = 'none' | 'classic' | 'cadenza' | 'partita' | 'fume' | 'claddagh' | 'cappella' | 'tilt' | 'monet' | 'diorama' | 'pendolo' | 'sonnet' | 'tempera' | 'lumiere' | 'hanabi' | 'nebbia';
+export type VisualizerTuningKind = 'none' | 'classic' | 'cadenza' | 'partita' | 'fume' | 'claddagh' | 'cappella' | 'tilt' | 'monet' | 'diorama' | 'pendolo' | 'sonnet' | 'tempera' | 'lumiere' | 'hanabi' | 'nebbia' | 'machi';
 
 export interface VisualizerSharedProps {
     currentTime: MotionValue<number>;
@@ -99,9 +100,11 @@ export interface VisualizerSharedProps {
     lumiereTuning?: LumiereTuning;
     hanabiTuning?: HanabiTuning;
     nebbiaTuning?: NebbiaTuning;
+    machiTuning?: MachiTuning;
     onLumiereTuningChange?: (patch: Partial<LumiereTuning>) => void;
     onHanabiTuningChange?: (patch: Partial<HanabiTuning>) => void;
     onNebbiaTuningChange?: (patch: Partial<NebbiaTuning>) => void;
+    onMachiTuningChange?: (patch: Partial<MachiTuning>) => void;
 }
 
 export interface VisualizerSettingsPanelProps {
@@ -151,9 +154,11 @@ export interface VisualizerSettingsPanelProps {
     lumiereTuning?: LumiereTuning;
     hanabiTuning?: HanabiTuning;
     nebbiaTuning?: NebbiaTuning;
+    machiTuning?: MachiTuning;
     onLumiereTuningChange?: (patch: Partial<LumiereTuning>) => void;
     onHanabiTuningChange?: (patch: Partial<HanabiTuning>) => void;
     onNebbiaTuningChange?: (patch: Partial<NebbiaTuning>) => void;
+    onMachiTuningChange?: (patch: Partial<MachiTuning>) => void;
     /** Mark slider drag start so onChange only updates draft. */
     onSliderPointerDown?: () => void;
     /** Commit draft values to persistent store on slider release. */
@@ -175,6 +180,7 @@ export interface VisualizerSettingsResetProps {
     resetLumiereTuning?: () => void;
     resetHanabiTuning?: () => void;
     resetNebbiaTuning?: () => void;
+    resetMachiTuning?: () => void;
     setDraftFumeTuning?: (tuning: FumeTuning) => void;
     setDraftCladdaghTuning?: (tuning: CladdaghTuning) => void;
     setDraftPendoloTuning?: (tuning: PendoloTuning) => void;
@@ -183,6 +189,7 @@ export interface VisualizerSettingsResetProps {
     setDraftLumiereTuning?: (tuning: LumiereTuning) => void;
     setDraftHanabiTuning?: (tuning: HanabiTuning) => void;
     setDraftNebbiaTuning?: (tuning: NebbiaTuning) => void;
+    setDraftMachiTuning?: (tuning: MachiTuning) => void;
 }
 
 export interface VisualizerRegistryEntry {

@@ -1,5 +1,6 @@
 import { useVisualizerSettingsStore } from '../../stores/useVisualizerSettingsStore';
 import { DEFAULT_NEBBIA_TUNING, type NebbiaTuning } from './nebbia/types';
+import { DEFAULT_MACHI_TUNING, type MachiTuning } from './machi/types';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useMotionValue, useMotionValueEvent } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Palette, Loader2, Pause, Play, Search, Sparkles, Upload, X } from 'lucide-react';
@@ -461,9 +462,13 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
     const [draftSonnetTuning, setDraftSonnetTuning] = useState<SonnetTuning>(sonnetTuning);
     const [draftTemperaTuning, setDraftTemperaTuning] = useState<TemperaTuning>(temperaTuning);
     const storedNebbiaTuning = useVisualizerSettingsStore(state => state.nebbiaTuning);
+    const storedMachiTuning = useVisualizerSettingsStore(state => state.machiTuning);
     const nebbiaTuning = rearScope ? DEFAULT_NEBBIA_TUNING : storedNebbiaTuning;
+    const machiTuning = rearScope ? DEFAULT_MACHI_TUNING : storedMachiTuning;
     const onNebbiaTuningChange = (patch: Partial<NebbiaTuning>) => { if (!rearScope) useVisualizerSettingsStore.getState().handleSetNebbiaTuning(patch); };
+    const onMachiTuningChange = (patch: Partial<MachiTuning>) => { if (!rearScope) useVisualizerSettingsStore.getState().handleSetMachiTuning(patch); };
     const [draftNebbiaTuning, setDraftNebbiaTuning] = useState(nebbiaTuning);
+    const [draftMachiTuning, setDraftMachiTuning] = useState(machiTuning);
     const [draftLumiereTuning, setDraftLumiereTuning] = useState<LumiereTuning>(lumiereTuning);
     const [activeEditSection, setActiveEditSection] = useState<VisPlaygroundEditSection>(initialEditSection);
     const fontListRef = React.useRef<HTMLDivElement>(null);
@@ -582,7 +587,8 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
         tempera: previewTemperaTuning,
         lumiere: draftLumiereTuning,
         nebbia: draftNebbiaTuning,
-    }), [cadenzaTuning, cappellaTuning, draftClassicTuning, draftDioramaTuning, draftLumiereTuning, draftNebbiaTuning, draftMonetTuning, draftPendoloTuning, draftSonnetTuning, draftTiltTuning, previewTemperaTuning, resolvedCladdaghTuning, resolvedFumeTuning, resolvedPartitaTuning]);
+        machi: draftMachiTuning,
+    }), [cadenzaTuning, cappellaTuning, draftClassicTuning, draftDioramaTuning, draftLumiereTuning, draftNebbiaTuning, draftMachiTuning, draftMonetTuning, draftPendoloTuning, draftSonnetTuning, draftTiltTuning, previewTemperaTuning, resolvedCladdaghTuning, resolvedFumeTuning, resolvedPartitaTuning]);
     const currentFontLabel = customFontLabel || customFontFamily || t('options.customFont');
     const fontStyleOptions: PresetOption<Theme['fontStyle'] | 'custom'>[] = useMemo(() => ([
         ...builtinFontOptions,
@@ -633,6 +639,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
     useEffect(() => { setDraftSonnetTuning(sonnetTuning); }, [sonnetTuning]);
     useEffect(() => { setDraftTemperaTuning(temperaTuning); }, [temperaTuning]);
     useEffect(() => { setDraftNebbiaTuning(nebbiaTuning); }, [nebbiaTuning]);
+    useEffect(() => { setDraftMachiTuning(machiTuning); }, [machiTuning]);
     useEffect(() => { setDraftLumiereTuning(lumiereTuning); }, [lumiereTuning]);
     useEffect(() => { setActiveEditSection(initialEditSection); }, [initialEditSection]);
 
@@ -706,7 +713,9 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
             resetSonnetTuning: onResetSonnetTuning,
             resetTemperaTuning: onResetTemperaTuning,
             resetNebbiaTuning: () => { if (!rearScope) useVisualizerSettingsStore.getState().handleResetNebbiaTuning(); },
+            resetMachiTuning: () => { if (!rearScope) useVisualizerSettingsStore.getState().handleResetMachiTuning(); },
             setDraftNebbiaTuning,
+            setDraftMachiTuning,
             resetLumiereTuning: onResetLumiereTuning,
             setDraftFumeTuning,
             setDraftCladdaghTuning,
@@ -1087,6 +1096,14 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
             pendingCommitRef.current = () => onNebbiaTuningChange?.(patch);
         }
     };
+    const handleMachiTuningDraft = (patch: Partial<MachiTuning>) => {
+        setDraftMachiTuning(prev => ({ ...prev, ...patch }));
+        if (!isDraggingSlider.current) {
+            onMachiTuningChange?.(patch);
+        } else {
+            pendingCommitRef.current = () => onMachiTuningChange?.(patch);
+        }
+    };
 
     const handleResetSubtitleSettings = () => {
         setDraftSubtitleOverlayOpacity(0.6);
@@ -1236,7 +1253,7 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
 
                         <div className="absolute inset-0" data-settings-layout="column">
                             {previewReady&&previewVisible&&<VisualizerRenderer key={visualizerMode}
-                                mode={rearScope && visualizerMode === 'nebbia' ? 'sonnet' : visualizerMode}
+                                mode={rearScope && ['nebbia', 'machi'].includes(visualizerMode) ? 'sonnet' : visualizerMode}
                                 currentTime={currentTime}
                                 currentLineIndex={currentLineIndex}
                                 lines={previewPlaceholder.lines}
@@ -1362,7 +1379,9 @@ const VisPlayground: React.FC<VisPlaygroundProps> = ({
                         temperaTuning={draftTemperaTuning}
                         onTemperaTuningChange={handleTemperaTuningDraft}
                         nebbiaTuning={draftNebbiaTuning}
+                        machiTuning={draftMachiTuning}
                         onNebbiaTuningChange={handleNebbiaTuningDraft}
+                        onMachiTuningChange={handleMachiTuningDraft}
                         lumiereTuning={draftLumiereTuning}
                         onLumiereTuningChange={handleLumiereTuningDraft}
                         onResetMonetTuning={onResetMonetTuning}

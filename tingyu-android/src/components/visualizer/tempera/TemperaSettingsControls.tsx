@@ -33,6 +33,7 @@ interface TemperaRangeControlProps {
     step?: number;
     /** Readout next to the label; defaults to a multiplier such as `1.00x`. */
     formatValue?: (value: number) => string;
+    disabled?: boolean;
 }
 
 const defaultFormatValue = (value: number) => `${value.toFixed(2)}x`;
@@ -49,6 +50,7 @@ export const TemperaRangeControl: React.FC<TemperaRangeControlProps> = ({
     max = 2,
     step = 0.05,
     formatValue = defaultFormatValue,
+    disabled = false,
 }) => (
     <div className="space-y-2" data-settings-style='{"gap":8}' data-settings-layout="column">
         <div className="flex items-center justify-between gap-3 text-sm" style={{ color: 'var(--text-primary)' }} data-settings-style='{"align":"between","gap":12,"font":14,"tone":"text"}' data-settings-layout="row">
@@ -67,6 +69,7 @@ export const TemperaRangeControl: React.FC<TemperaRangeControlProps> = ({
             onPointerDown={onPointerDown}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerCancel ?? onPointerUp}
+            disabled={disabled}
             className={rangeInputClass}
          data-settings-layout="column"/>
     </div>

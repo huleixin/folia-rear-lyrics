@@ -7,7 +7,7 @@ import { LYRIC_RENDER_SCALES } from '../../../utils/lyricRenderQuality';
 import SettingsRow from './SettingsRow';
 
 // Existing semantic rows are projected into Compose; no second graphics page or settings kit.
-const CANVAS_MODES = new Set(['sonnet', 'tempera', 'hanabi', 'lumiere', 'diorama', 'fume', 'monet', 'pendolo', 'nebbia']);
+const CANVAS_MODES = new Set(['sonnet', 'tempera', 'hanabi', 'lumiere', 'diorama', 'fume', 'monet', 'pendolo', 'nebbia', 'machi']);
 export default function StageQualitySettings({ dividerClass }: { dividerClass: string }) {
     const { t } = useTranslation();
     const settings = useVisualizerSettingsStore(state => state.stageRenderSettings);

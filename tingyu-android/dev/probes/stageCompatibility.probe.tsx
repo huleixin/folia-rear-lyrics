@@ -21,6 +21,7 @@ const StageCompatibility = () => {
     const {t} = useTranslation();
     const mode = useVisualizerSettingsStore(state => state.visualizerMode);
     const nebbiaTuning = useVisualizerSettingsStore(state => state.nebbiaTuning);
+    const machiTuning = useVisualizerSettingsStore(state => state.machiTuning);
     const tunings = useVisualizerTunings();
     const time = useMotionValue(1), power = useMotionValue(.4);
     const bass = useMotionValue(0), lowMid = useMotionValue(0), mid = useMotionValue(0), vocal = useMotionValue(0), treble = useMotionValue(0);
@@ -56,7 +57,8 @@ const StageCompatibility = () => {
         </div>
         {settings && <div data-testid="stage-settings" style={{position:'fixed',inset:'40px 0 0',overflow:'auto',background:theme.backgroundColor,color:theme.primaryColor,zIndex:99}}>
             {getVisualizerRegistryEntry(mode).renderSettingsPanel?.({t,isDaylight:day,theme,controlCardBg:theme.backgroundColor,rangeInputClass:'w-full',nebbiaTuning,
-                onNebbiaTuningChange: patch => useVisualizerSettingsStore.getState().handleSetNebbiaTuning(patch)})}
+                onNebbiaTuningChange: patch => useVisualizerSettingsStore.getState().handleSetNebbiaTuning(patch), machiTuning,
+                onMachiTuningChange: patch => useVisualizerSettingsStore.getState().handleSetMachiTuning(patch)})}
         </div>}
     </div>;
 };

@@ -26,17 +26,23 @@ export function Segmented<T extends string>({ value, options, onChange, disabled
             style={{ backgroundColor: value === option.value ? 'var(--bg-secondary)' : 'transparent' }}>{option.label}</button>)}
     </div>;
 }
-export function SliderRow({ label, note, value, min, max, step, format, onChange, onDragStart, onDragEnd }: {
+export function SliderRow({ label, note, value, min, max, step, format, onChange, onDragStart, onDragEnd, disabled }: {
     label: string; note?: string; value: number; min: number; max: number; step?: number;
-    format?: (value: number) => string; onChange: (value: number) => void; onDragStart?: () => void; onDragEnd?: () => void;
+    format?: (value: number) => string; onChange: (value: number) => void; onDragStart?: () => void; onDragEnd?: () => void; disabled?: boolean;
 }) {
     return <div className="px-4 py-3" data-settings-layout="column">
         {note && <p className="mb-2 text-xs opacity-60" data-settings-layout="wrap">{note}</p>}
-        <TemperaRangeControl label={label} value={value} min={min} max={max} step={step} formatValue={format}
+        <TemperaRangeControl label={label} value={value} min={min} max={max} step={step} formatValue={format} disabled={disabled}
             onChange={onChange} rangeInputClass="w-full" onPointerDown={onDragStart} onPointerUp={onDragEnd} onPointerCancel={onDragEnd}/>
     </div>;
 }
 export function ToggleRow({ label, note, checked, onChange, disabled }: { label: string; note?: string; checked: boolean; onChange: (value: boolean) => void; disabled?: boolean }) {
     return <SettingsRow title={label} description={note} dividerClass="border-current/10" control={
         <SettingsToggle checked={checked} onChange={() => onChange(!checked)} offClass="bg-current/20" disabled={disabled} ariaLabel={label}/>}/>;
+}
+
+export function Select<T extends string>({value, options, onChange}: {value: T; options: {value:T;label:string}[];onChange:(value:T)=>void}) {
+    return <select className="rounded-xl bg-transparent p-2" value={value} onChange={event => onChange(event.target.value as T)}>
+        {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+    </select>;
 }

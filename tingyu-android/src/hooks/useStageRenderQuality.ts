@@ -33,7 +33,7 @@ export function useStageQualityMonitor(mode: string, preview = false, inactive =
     const settings = useVisualizerSettingsStore(state => state.stageRenderSettings);
     const frameRate = useVisualizerSettingsStore(state => state.visualizerFrameRate);
     useEffect(() => {
-        if (preview || inactive || settings.preset !== 'auto' || isRearQualitySurface()) return;
+        if (mode === 'machi' || preview || inactive || settings.preset !== 'auto' || isRearQualitySurface()) return;
         const override = settings.modes[mode]?.scale;
         if (override && override !== 'global') return;
         return watchQuality(mode, frameRate);
