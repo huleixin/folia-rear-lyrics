@@ -207,10 +207,13 @@ interface MinimalToolActions {
 
     /** value 编码见 JS `runNativeToolsAction` 的注释。 */
     fun send(action: String, value: Double): Boolean
+    /** Text carries an update URL; the value channel remains numeric. */
+    fun sendText(action: String, text: String): Boolean
 }
 
 class BridgeToolActions(
     private val sender: MinimalCommandSender,
+    private val textSender: (String, String) -> Boolean = { _, _ -> false },
     private val availability: () -> Boolean,
 ) : MinimalToolActions {
     override val available: Boolean get() = availability()
@@ -222,5 +225,9 @@ class BridgeToolActions(
         } catch (_: Throwable) {
             false
         }
+    }
+    override fun sendText(action: String, text: String): Boolean {
+        if (!available) return false
+        return try { textSender(action, text) } catch (_: Throwable) { false }
     }
 }

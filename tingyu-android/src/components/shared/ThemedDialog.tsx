@@ -95,7 +95,7 @@ const ThemedDialogContent: React.FC<ThemedDialogProps> = ({
                         data-folia-themed-dialog="true"
                         inert={!present}
                         data-folia-themed-dialog-kind={panelKind}
-                        className={`relative w-full ${maxWidthClass} rounded-3xl border ${bgClass} p-6 shadow-2xl backdrop-blur-sm`}
+                        className={`ty-themed-dialog-frame relative flex w-full ${maxWidthClass} rounded-3xl border ${bgClass} p-6 shadow-2xl backdrop-blur-sm`}
                      data-settings-style='{"radius":24,"border":true,"padding":[24,24,24,24]}' data-settings-layout="card">
                         <button
                             type="button"
@@ -121,7 +121,7 @@ const ThemedDialogContent: React.FC<ThemedDialogProps> = ({
                             )}
                         </div>
 
-                        <div data-settings-layout="column">{children}</div>
+                        <div className="ty-themed-dialog-body" data-settings-layout="column">{children}</div>
 
                         {footer && (
                             <div className="mt-5 flex items-center justify-end gap-3" data-settings-style='{"align":"end","gap":12,"margin":[0,20,0,0]}' data-settings-layout="row">

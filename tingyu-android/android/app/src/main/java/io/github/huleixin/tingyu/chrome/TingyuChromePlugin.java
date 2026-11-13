@@ -30,6 +30,10 @@ public class TingyuChromePlugin extends Plugin {
         host.setListener((id,session,action,value) -> {
             JSObject event=new JSObject();event.put("id",id);event.put("session",session);event.put("action",action);event.put("value",value);traceDispatch(event);notifyListeners("action",event);
         });
+        host.setTextActionListener((id,session,action,text) -> {
+            JSObject event=new JSObject();event.put("id",id);event.put("session",session);event.put("action",action);event.put("text",text);traceDispatch(event);notifyListeners("action",event);
+            return kotlin.Unit.INSTANCE;
+        });
         host.setPageListener((id,session,key,action,text,value) -> {
             JSObject event=new JSObject();event.put("id",id);event.put("session",session);event.put("key",key);
             event.put("action",action);event.put("text",text);event.put("value",value);traceDispatch(event);notifyListeners("pageAction",event);

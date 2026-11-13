@@ -9,7 +9,7 @@ import { classifyLx, noteLx } from './diagnostics';
 export async function loadLxScriptUrl(input:string) {
     const importUrl=validateRemoteUrl(input.trim());
     const response=await lxHttp(importUrl,{timeout:15000},new AbortController().signal);
-    if(response.statusCode<200||response.statusCode>=300)throw Error(`音源下载失败：HTTP ${response.statusCode}`);
+    if(response.statusCode<200||response.statusCode>=300)throw Error(`更新检查失败：服务器返回 HTTP ${response.statusCode}，请检查更新地址或稍后重试`);
     if(typeof response.body!=='string')throw Error('地址没有返回 JavaScript 文本');
     return {...parseLxScript(response.body),importUrl};
 }

@@ -4,7 +4,7 @@ import { useAudioToolsStore, QUALITY_LABELS } from '../stores/useAudioToolsStore
 import { useSettingsModalStore } from '../stores/useSettingsModalStore';
 import { useLxSourceStore } from '../stores/useLxSourceStore';
 import { omni } from './onlineMusic/omni';
-import { checkLxScript } from './lxSource/management';
+import { checkLxScript, loadLxScriptUrl } from './lxSource/management';
 import { noteLx, redactLx } from './lxSource/diagnostics';
 import { pickLxScript } from './lxSource/importFile';
 import { isLocalPlaybackSong, resolveNavidromePlaybackCarrier } from '../utils/appPlaybackGuards';
@@ -87,7 +87,10 @@ export type NativeToolsSnapshot = {
     };
     lx: {
         activeName: string;
-        scripts: { id: string; name: string; meta: string; active: boolean; caps: { name: string; qualitys: string }[] }[];
+        scripts: { id: string; name: string; meta: string; active: boolean; caps: { name: string; qualitys: string }[]; hasUpdateUrl: boolean; canRollback: boolean }[];
+        selectedId: string;
+        policy: { autoDowngrade: boolean; autoSwitch: boolean; retries: number; preferredSource: string };
+        qualities: { value: string; label: string }[];
         busy: boolean;
         message: string;
         failed: boolean;
@@ -102,6 +105,7 @@ let syncTimer: number | undefined;
 let lxMessage = '';
 let lxFailed = false;
 let lxBusy = false;
+let lxSelectedId = '';
 
 export function registerNativeTools(next: NativeToolsHandlers | null): void {
     handlers = next;
@@ -218,7 +222,15 @@ function buildLxSnapshot(): NativeToolsSnapshot['lx'] {
                 name: cap.name,
                 qualitys: cap.qualitys.join(' / '),
             })),
+            hasUpdateUrl: Boolean(script.importUrl),
+            canRollback: Boolean(script.previous),
         })),
+        selectedId: state.scripts.some(script => script.id === lxSelectedId) ? lxSelectedId : (state.activeId || state.scripts[0]?.id || ''),
+        policy: { autoDowngrade: state.policy.autoDowngrade, autoSwitch: state.policy.autoSwitch, retries: state.policy.retries, preferredSource: state.policy.preferredSource || '' },
+        qualities: [
+            { value: 'standard', label: '标准 128k' }, { value: 'high', label: '高品质 320k' },
+            { value: 'lossless', label: '无损 FLAC' }, { value: 'hires', label: 'Hi-Res FLAC 24bit' },
+        ],
         busy: lxBusy,
         message: lxMessage,
         failed: lxFailed,
@@ -262,13 +274,13 @@ export function syncNativeTools(): void {
 
 // ---- 动作监听（代次守卫，R10 教训）----
 
-type ToolsActionEvent = { id: string; action: string; value: number };
+type ToolsActionEvent = { id: string; action: string; value: number; text?: string };
 let toolsActionListener: { remove: () => Promise<void> } | null = null;
 let listenerGeneration = 0;
 
 function onToolsActionEvent(event: ToolsActionEvent): void {
     if (event.id !== 'minimal') return;
-    runNativeToolsAction(event.action, typeof event.value === 'number' ? event.value : 0);
+    runNativeToolsAction(event.action, typeof event.value === 'number' ? event.value : 0, typeof event.text === 'string' ? event.text : '');
 }
 
 async function attachToolsActionListener(): Promise<void> {
@@ -373,7 +385,7 @@ async function testLxScript(id: string): Promise<void> {
  *  · effectsPreset：value = 预设下标（flat lofi radio hall vocal bass custom1 custom2）
  *  · lyricsSource：value = 来源下标；lyricsOffset：value = 毫秒（可负）
  */
-export function runNativeToolsAction(action: string, value: number): boolean {
+export function runNativeToolsAction(action: string, value: number, text = ''): boolean {
     if (!handlers) return false;
     switch (action) {
         case 'toolsOpen': {
@@ -521,6 +533,38 @@ export function runNativeToolsAction(action: string, value: number): boolean {
             useSettingsModalStore.getState().openSettingsFromIndex('integration');
             useLxSourceStore.getState().show();
             return true;
+        }
+        case 'lxSelect': {
+            const script=useLxSourceStore.getState().scripts[value];if(!script)return false;lxSelectedId=script.id;lastSent='';syncNativeTools();return true;
+        }
+        case 'lxToggleDowngrade': {
+            const state=useLxSourceStore.getState();state.setPolicy({autoDowngrade:!state.policy.autoDowngrade});lastSent='';syncNativeTools();return true;
+        }
+        case 'lxToggleSwitch': {
+            const state=useLxSourceStore.getState();state.setPolicy({autoSwitch:!state.policy.autoSwitch});lastSent='';syncNativeTools();return true;
+        }
+        case 'lxUpdateUrl': {
+            const state=useLxSourceStore.getState(),script=state.scripts.find(item=>item.id===lxSelectedId);
+            if(!script)return false;
+            lxBusy=true;lastSent='';syncNativeTools();
+            void (async()=>{try{state.setImportUrl(script.id,text);lxMessage=text?'更新地址已绑定':'更新地址已清除';lxFailed=false;}catch(error){lxFailed=true;lxMessage=redactLx(error);}finally{lxBusy=false;lastSent='';syncNativeTools();}})();
+            return true;
+        }
+        case 'lxCheckUpdate': {
+            const state=useLxSourceStore.getState(),script=state.scripts.find(item=>item.id===lxSelectedId);
+            if(!script?.importUrl)return false;
+            lxBusy=true;lxMessage='正在检查更新…';lxFailed=false;lastSent='';syncNativeTools();
+            void (async()=>{try{const next=await loadLxScriptUrl(script.importUrl!);if(next.name!==script.name)throw Error('更新脚本名称与原音源不一致');
+                if(next.code===script.code){lxMessage='已是最新版本';return;}
+                const {capabilities}=await checkLxScript(next);const id=state.save({...next,id:script.id,capabilities});if(state.activeId===script.id)omni.activateLxSource(id);
+                lxMessage=`已更新到 ${next.version||'新版本'}，可回退上一版`;
+            }catch(error){lxFailed=true;lxMessage=redactLx(error);noteLx('update-check','import',error);}finally{lxBusy=false;lastSent='';syncNativeTools();}})();
+            return true;
+        }
+        case 'lxRollback': {
+            const state=useLxSourceStore.getState(),script=state.scripts.find(item=>item.id===lxSelectedId);if(!script?.previous)return false;
+            try{state.rollback(script.id);lxMessage='已回退上一版';lxFailed=false;}catch(error){lxMessage=redactLx(error);lxFailed=true;}
+            lastSent='';syncNativeTools();return true;
         }
         case 'lxImport': {
             void importLxScript();

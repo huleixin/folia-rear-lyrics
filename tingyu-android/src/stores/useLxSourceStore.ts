@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { LxScript } from '../services/lxSource/contract';
+import { validateRemoteUrl, type LxScript } from '../services/lxSource/contract';
 
 // src/stores/useLxSourceStore.ts
 const KEY = 'tingyu_lx_sources_v1';
@@ -16,6 +16,7 @@ export const useLxSourceStore=create<{
     scripts:LxScript[];activeId:string|null;open:boolean;revision:number;policy:LxPolicy;
     show:()=>void;close:()=>void;save:(script:LxScript)=>string;rollback:(id:string)=>void;
     activate:(id:string|null)=>void;remove:(id:string)=>void;setPolicy:(value:Partial<LxPolicy>)=>void;
+    setImportUrl:(id:string,url:string)=>void;
 }>((set,get)=>{
     const persist=(scripts:LxScript[],activeId:string|null,policy=get().policy)=>{
         const revision=get().revision+1;
@@ -34,6 +35,7 @@ export const useLxSourceStore=create<{
         rollback:id=>{const old=get().scripts.find(s=>s.id===id);if(!old?.previous)throw Error('没有可回退版本');persist(get().scripts.map(s=>s.id===id?{...old.previous!,id}:s),get().activeId);},
         activate:id=>persist(get().scripts,id&&get().scripts.some(s=>s.id===id)?id:null),
         remove:id=>persist(get().scripts.filter(s=>s.id!==id),get().activeId===id?null:get().activeId),
+        setImportUrl:(id,url)=>{const script=get().scripts.find(s=>s.id===id);if(!script)throw Error('音源不存在');const next=url.trim();persist(get().scripts.map(s=>s.id===id?{...s,importUrl:next?validateRemoteUrl(next):undefined}:s),get().activeId);},
         setPolicy:value=>{const next={...get().policy,...value};next.retries=Math.min(1,Math.max(0,Math.floor(Number(next.retries)||0)));if(next.preferredSource&&!['kw','tx','wy','kg','mg'].includes(next.preferredSource))next.preferredSource=null;next.priority=[...new Set(next.priority.filter(s=>['kw','tx','wy','kg','mg'].includes(s)))];persist(get().scripts,get().activeId,next);},
     };
 });

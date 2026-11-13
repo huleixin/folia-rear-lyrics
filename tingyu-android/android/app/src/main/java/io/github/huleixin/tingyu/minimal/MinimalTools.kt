@@ -52,6 +52,8 @@ data class MinimalLxScript(
     val meta: String,
     val active: Boolean,
     val caps: List<Pair<String, String>>, // name to qualitys
+    val hasUpdateUrl: Boolean = false,
+    val canRollback: Boolean = false,
 )
 
 data class MinimalLxState(
@@ -60,6 +62,12 @@ data class MinimalLxState(
     val busy: Boolean = false,
     val message: String = "",
     val failed: Boolean = false,
+    val selectedId: String = "",
+    val autoDowngrade: Boolean = true,
+    val autoSwitch: Boolean = true,
+    val retries: Int = 0,
+    val preferredSource: String = "",
+    val qualities: List<Pair<String, String>> = emptyList(),
 )
 
 data class MinimalTools(
@@ -140,6 +148,8 @@ data class MinimalTools(
                         meta = row.optString("meta", ""),
                         active = row.optBoolean("active", false),
                         caps = caps,
+                        hasUpdateUrl = row.optBoolean("hasUpdateUrl", false),
+                        canRollback = row.optBoolean("canRollback", false),
                     )
                 }
             }
@@ -149,6 +159,17 @@ data class MinimalTools(
                 busy = lxJson.optBoolean("busy", false),
                 message = lxJson.optString("message", ""),
                 failed = lxJson.optBoolean("failed", false),
+                selectedId = lxJson.optString("selectedId", ""),
+                autoDowngrade = lxJson.optJSONObject("policy")?.optBoolean("autoDowngrade", true) ?: true,
+                autoSwitch = lxJson.optJSONObject("policy")?.optBoolean("autoSwitch", true) ?: true,
+                retries = lxJson.optJSONObject("policy")?.optInt("retries", 0) ?: 0,
+                preferredSource = lxJson.optJSONObject("policy")?.optString("preferredSource", "") ?: "",
+                qualities = lxJson.optJSONArray("qualities")?.let { rows ->
+                    (0 until rows.length()).mapNotNull { index ->
+                        val row = rows.optJSONObject(index) ?: return@mapNotNull null
+                        row.optString("value", "") to row.optString("label", "")
+                    }
+                } ?: emptyList(),
             )
             return MinimalTools(
                 version = version,

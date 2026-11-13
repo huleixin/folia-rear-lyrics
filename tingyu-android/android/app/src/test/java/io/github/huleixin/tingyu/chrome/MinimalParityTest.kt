@@ -287,6 +287,7 @@ class MinimalParityTest {
     private val stubToolActions = object : io.github.huleixin.tingyu.minimal.MinimalToolActions {
         override val available: Boolean = true
         override fun send(action: String, value: Double): Boolean = true
+        override fun sendText(action: String, text: String): Boolean = true
     }
 
     private fun sampleTools(page: String) = io.github.huleixin.tingyu.minimal.MinimalTools(
@@ -311,9 +312,11 @@ class MinimalParityTest {
                 io.github.huleixin.tingyu.minimal.MinimalLxScript(
                     id = "s1", name = "示例音源.js", meta = "v1.2 · demo", active = true,
                     caps = listOf("网易" to "标准 / 无损", "咪咕" to "标准 / 高品质"),
+                    hasUpdateUrl = true, canRollback = true,
                 ),
             ),
             message = "", failed = false,
+            selectedId = "s1", qualities = listOf("standard" to "标准 128k", "high" to "高品质 320k"),
         ),
     )
 

@@ -19,7 +19,10 @@ public final class TingyuPlaybackPlugin extends Plugin {
                 LX_HTTP_CALLS.put(id,request);if(LX_HTTP_CANCELLED.contains(id))request.cancel();return kotlin.Unit.INSTANCE;
             });
             call.resolve(new JSObject().put("response",response));
-        }catch(Exception error){call.reject("LX HTTP "+error.getClass().getSimpleName());}
+        }catch(Exception error){
+            String detail=io.github.huleixin.tingyu.lx.LxRedaction.INSTANCE.clean(error.getMessage());
+            call.reject("LX HTTP "+error.getClass().getSimpleName()+(detail.isEmpty()?"":": "+detail));
+        }
         finally{LX_HTTP_CALLS.remove(id);LX_HTTP_CANCELLED.remove(id);}});
     }
     @PluginMethod public void cancelLxHttp(PluginCall call) {

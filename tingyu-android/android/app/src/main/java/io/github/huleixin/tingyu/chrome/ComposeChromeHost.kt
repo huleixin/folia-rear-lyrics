@@ -61,6 +61,9 @@ import kotlin.math.roundToInt
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ComposeChromeHost.kt
 // Stable WebView identity; native pages and the live stage use separate GPU backdrop sources.
 class ComposeChromeHost(private val web: WebView, var listener: ChromeActionListener) {
+    /** Text actions use the existing action event with a text field, never a fake numeric value. */
+    var nativeTextActionListener: ((String,String,String,String)->Unit)? = null
+    fun setTextActionListener(value: ((String,String,String,String)->Unit)?) { nativeTextActionListener = value }
     var stageLayoutListener:((JSONObject)->Unit)?=null
     private var stageLayout=JSONObject()
     fun stageLayoutSnapshot():JSONObject=stageLayout
@@ -255,6 +258,19 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             val session = minimal.session()
             if (session.isEmpty()) false
             else { listener.onAction("minimal", session, action, value); true }
+        },
+        availability = { minimal.bridgeLive() },
+    )
+    private val textToolActions = io.github.huleixin.tingyu.minimal.BridgeToolActions(
+        sender = { action, value ->
+            val session = minimal.session()
+            if (session.isEmpty()) false
+            else { listener.onAction("minimal", session, action, value); true }
+        },
+        textSender = { action, text ->
+            val session = minimal.session()
+            if (session.isEmpty()) false
+            else { (nativeTextActionListener ?: { id, session, action, text -> listener.onActionText(id, session, action, text) })("minimal", session, action, text); true }
         },
         availability = { minimal.bridgeLive() },
     )

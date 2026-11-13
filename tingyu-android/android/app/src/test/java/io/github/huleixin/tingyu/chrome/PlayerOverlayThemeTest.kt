@@ -36,6 +36,7 @@ class PlayerOverlayThemeTest {
     private val actions=object:MinimalToolActions {
         override val available=true
         override fun send(action:String,value:Double):Boolean {events+=action;return true}
+        override fun sendText(action:String,text:String):Boolean {events+=action;return true}
     }
     private val transport=BridgeMinimalCommands(MinimalCommandSender { _,_->true }) {true}
     private val tools=MinimalTools(

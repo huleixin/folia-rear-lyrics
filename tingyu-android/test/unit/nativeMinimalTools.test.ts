@@ -149,4 +149,16 @@ describe('nativeMinimalTools', () => {
         expect(useLxSourceStore.getState().scripts).toHaveLength(0);
         activate.mockRestore();
     });
+    it('routes native source selection and policy switches through the existing LX store', () => {
+        useLxSourceStore.setState({
+            scripts: [{ id: 'a', name: 'A', code: 'x' } as never, { id: 'b', name: 'B', code: 'y' } as never],
+            activeId: 'a', policy: { autoDowngrade: true, autoSwitch: true, retries: 0, priority: ['kw', 'tx'], preferredSource: null },
+        });
+        registerNativeTools(handlers());
+        expect(runNativeToolsAction('lxSelect', 1)).toBe(true);
+        expect(runNativeToolsAction('lxToggleDowngrade', 0)).toBe(true);
+        expect(useLxSourceStore.getState().policy.autoDowngrade).toBe(false);
+        expect(runNativeToolsAction('lxToggleSwitch', 0)).toBe(true);
+        expect(useLxSourceStore.getState().policy.autoSwitch).toBe(false);
+    });
 });

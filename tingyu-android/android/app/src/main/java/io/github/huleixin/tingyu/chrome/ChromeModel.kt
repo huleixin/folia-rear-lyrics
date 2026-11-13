@@ -46,4 +46,8 @@ data class ChromeSurface(
         }
     }
 }
-fun interface ChromeActionListener { fun onAction(id: String, session: String, action: String, value: Double) }
+fun interface ChromeActionListener {
+    fun onAction(id: String, session: String, action: String, value: Double)
+    /** Native text actions are separate from numeric action values. */
+    fun onActionText(id: String, session: String, action: String, text: String) {}
+}

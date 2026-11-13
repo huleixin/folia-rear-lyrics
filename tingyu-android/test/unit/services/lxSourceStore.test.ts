@@ -31,3 +31,9 @@ it('bounds retry settings, persists policy and clears the active selection on de
     expect(useLxSourceStore.getState().policy).toMatchObject({retries:1,priority:['kw','tx'],preferredSource:null});state.remove('a');expect(useLxSourceStore.getState().activeId).toBeNull();
     expect(JSON.parse(localStorage.getItem('tingyu_lx_sources_v1')!).scripts).toEqual([]);
 });
+it('binds and clears a public update URL without changing the installed script',()=>{
+    const state=useLxSourceStore.getState();state.save(script('a','v1'));state.setImportUrl('a','https://updates.example/source.js');
+    expect(useLxSourceStore.getState().scripts[0]).toMatchObject({code:'v1',importUrl:'https://updates.example/source.js'});
+    state.setImportUrl('a','');expect(useLxSourceStore.getState().scripts[0].importUrl).toBeUndefined();
+    expect(()=>state.setImportUrl('a','http://127.0.0.1/source.js')).toThrow('公网');
+});

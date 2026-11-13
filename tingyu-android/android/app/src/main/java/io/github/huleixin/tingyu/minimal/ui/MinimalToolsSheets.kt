@@ -961,7 +961,10 @@ fun MinimalLxSheet(
 ) {
     val theme = toolsTheme(light)
     val lx = tools.lx
+    val selectedIndex = lx.scripts.indexOfFirst { it.id == lx.selectedId }.let { if (it < 0) 0 else it }
+    val selected = lx.scripts.getOrNull(selectedIndex)
     var helpOpen by remember { mutableStateOf(false) }
+    var updateUrl by remember(selected?.id, selected?.hasUpdateUrl) { mutableStateOf("") }
     ToolsSheetScaffold(
         title = "洛雪自定义音源",
         subtitle = "导入自定义脚本，为搜索和已登录平台的歌单选择播放音源。",
@@ -1017,14 +1020,21 @@ fun MinimalLxSheet(
                     ) { actions.send("lxRestore", 0.0) },
                 )
             }
-            ScriptAction(theme, "URL 导入 / 更新回退 / 换源策略 / 日志", enabled = !lx.busy) { actions.send("lxManage", 0.0); onClose() }
+            ScriptAction(theme, "URL 导入 · 更新与换源策略 · 诊断", enabled = !lx.busy) { actions.send("lxManage", 0.0); onClose() }
             if (lx.scripts.isEmpty()) {
                 Box(Modifier.fillMaxWidth().padding(vertical = 18.dp), contentAlignment = Alignment.Center) {
                     Text("还没有导入音源", color = theme.muted, fontSize = 12.5.sp)
                 }
             }
             lx.scripts.forEachIndexed { index, script ->
-                ToolsCard(theme) {
+                ToolsCard(
+                    theme,
+                    Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        enabled = !lx.busy,
+                    ) { actions.send("lxSelect", index.toDouble()) },
+                ) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(script.name, color = theme.text, fontSize = 13.5.sp, fontWeight = FontWeight.Medium)
                         if (script.active) {
@@ -1040,6 +1050,7 @@ fun MinimalLxSheet(
                             )
                         }
                         Spacer(Modifier.weight(1f))
+                        if (index == selectedIndex) CheckGlyph(theme.accent, Modifier.size(15.dp))
                     }
                     if (script.meta.isNotBlank()) {
                         Text(script.meta, color = theme.muted, fontSize = 11.sp)
@@ -1062,12 +1073,37 @@ fun MinimalLxSheet(
                         }
                     }
                     Spacer(Modifier.height(9.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         ScriptAction(theme, if (script.active) "已启用" else "启用", enabled = !lx.busy && !script.active) {
                             actions.send("lxActivate", index.toDouble())
                         }
                         ScriptAction(theme, "检查音源", enabled = !lx.busy) { actions.send("lxTest", index.toDouble()) }
                         ScriptAction(theme, "删除", enabled = !lx.busy, danger = true) { actions.send("lxRemove", index.toDouble()) }
+                    }
+                    if (index == selectedIndex) {
+                        Spacer(Modifier.height(12.dp))
+                        LxDivider(theme)
+                        Spacer(Modifier.height(10.dp))
+                        Text("更新", color = theme.text, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Spacer(Modifier.height(6.dp))
+                        Text(if (script.hasUpdateUrl) "已绑定更新地址" else "本地导入，尚未绑定更新地址", color = theme.muted, fontSize = 10.sp)
+                        Spacer(Modifier.height(6.dp))
+                        LxTextInput(theme, updateUrl, "更新地址", enabled = !lx.busy) { updateUrl = it }
+                        Spacer(Modifier.height(8.dp))
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ScriptAction(theme, "保存更新地址", enabled = !lx.busy) { actions.sendText("lxUpdateUrl", updateUrl.trim()) }
+                            ScriptAction(theme, "检查并安装更新", enabled = !lx.busy && script.hasUpdateUrl) { actions.send("lxCheckUpdate", 0.0) }
+                            if (script.canRollback) ScriptAction(theme, "回退上一版", enabled = !lx.busy) { actions.send("lxRollback", 0.0) }
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        LxDivider(theme)
+                        Spacer(Modifier.height(10.dp))
+                        Text("播放与换源", color = theme.text, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Spacer(Modifier.height(5.dp))
+                        LxSwitchRow(theme, "自动音质降级", "请求失败时尝试脚本声明的较低音质", lx.autoDowngrade, !lx.busy) { actions.send("lxToggleDowngrade", 0.0) }
+                        LxSwitchRow(theme, "匹配后自动换源", "按歌名、歌手和时长匹配其他平台", lx.autoSwitch, !lx.busy) { actions.send("lxToggleSwitch", 0.0) }
+                        Text("默认播放来源：${lx.preferredSource.ifBlank { "跟随歌曲所属平台" }}", color = theme.muted, fontSize = 10.sp)
+                        Text("同来源重试：${lx.retries} 次 · 换源顺序 ${lx.preferredSource.ifBlank { "跟随平台" }}", color = theme.muted, fontSize = 10.sp)
                     }
                 }
             }
@@ -1122,4 +1158,48 @@ private fun ScriptAction(theme: ToolsTheme, label: String, enabled: Boolean, dan
             fontSize = 12.sp,
         )
     }
+}
+
+@Composable
+private fun LxDivider(theme: ToolsTheme) {
+    Box(Modifier.fillMaxWidth().height(1.dp).background(theme.line))
+}
+
+@Composable
+private fun LxSwitchRow(theme: ToolsTheme, title: String, hint: String, checked: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(
+            interactionSource = remember { MutableInteractionSource() }, indication = null, enabled = enabled, onClick = onClick,
+        ).semantics { contentDescription = title }.padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = theme.text, fontSize = 11.5.sp, fontWeight = FontWeight.Medium)
+            Text(hint, color = theme.muted, fontSize = 9.5.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        Spacer(Modifier.width(10.dp))
+        Canvas(Modifier.size(42.dp, 24.dp).semantics { contentDescription = title }) {
+            drawRoundRect(if (checked) theme.accent.copy(alpha = .8f) else theme.muted.copy(alpha = .28f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2))
+            val radius = size.height / 2 - 3.dp.toPx()
+            drawCircle(theme.knob, radius, Offset(if (checked) size.width - radius - 3.dp.toPx() else radius + 3.dp.toPx(), size.height / 2))
+        }
+    }
+}
+
+@Composable
+private fun LxTextInput(theme: ToolsTheme, value: String, hint: String, enabled: Boolean, onChange: (String) -> Unit) {
+    androidx.compose.foundation.text.BasicTextField(
+        value = value,
+        onValueChange = onChange,
+        enabled = enabled,
+        singleLine = true,
+        textStyle = TextStyle(color = theme.text, fontSize = 11.5.sp),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp).clip(RoundedCornerShape(10.dp)).background(theme.card)
+            .border(1.dp, theme.line, RoundedCornerShape(10.dp)).padding(horizontal = 11.dp, vertical = 10.dp),
+        decorationBox = { inner ->
+            if (value.isBlank()) Text(hint, color = theme.muted, fontSize = 11.5.sp)
+            inner()
+        },
+    )
 }
