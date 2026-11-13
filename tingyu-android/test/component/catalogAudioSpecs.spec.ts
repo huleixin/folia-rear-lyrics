@@ -18,6 +18,15 @@ for (const width of [320, 393, 840]) for (const appearance of ['light', 'dark'])
         await expect(rows.nth(1).locator('[data-spec="hires"]')).toBeVisible();
         await expect(rows.nth(1).locator('[data-spec="dolby"]')).toBeVisible();
         await expect(rows.nth(2).locator('[data-spec="dts"]')).toBeVisible();
+        if (width < 360) {
+            await expect(rows.nth(2).locator('[data-spec="lossless"]')).toBeVisible();
+            await expect(rows.nth(2).locator('[data-spec="dts"]')).toBeVisible();
+            await expect(rows.nth(2).locator('[data-spec="vip"]')).toBeHidden();
+        } else {
+            await expect(rows.nth(2).locator('[data-spec="lossless"]')).toBeVisible();
+            await expect(rows.nth(2).locator('[data-spec="dts"]')).toBeVisible();
+            await expect(rows.nth(2).locator('[data-spec="vip"]')).toBeVisible();
+        }
         await expect(rows.nth(3).locator('[data-spec="paid"]')).toBeVisible();
         if (width < 360) await expect(rows.nth(1).locator('[data-spec="vip"]')).toBeHidden();
         else await expect(rows.nth(1).locator('[data-spec="vip"]')).toBeVisible();

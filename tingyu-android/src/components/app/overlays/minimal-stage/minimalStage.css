@@ -445,6 +445,19 @@
     min-height: 24px;
     margin-top: clamp(6px, .9vh, 8px);
 }
+.min-cover__catalog-version {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 6px;
+    border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+    border-radius: 10px;
+    color: color-mix(in srgb, currentColor 76%, transparent);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+}
 
 .min-live-lyric {
     position: relative;

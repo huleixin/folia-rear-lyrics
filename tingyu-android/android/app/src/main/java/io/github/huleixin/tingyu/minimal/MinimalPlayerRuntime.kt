@@ -49,6 +49,8 @@ data class MinimalControls(
     val qualityLevel: String = "",
     /** 无损标签的真实格式文案（APE/WAV/DSD/ALAC 不冒充 FLAC）；FLAC 为空。 */
     val qualityLabelOverride: String = "",
+    /** Catalog-only audio versions; never used to claim the current stream quality. */
+    val catalogVersions: String = "",
     /** 队列抽屉正在打开：`true` 时 JS 会持续把快照推过来。 */
     val queueOpen: Boolean = false,
     /** 播放偏好里的音质档位，只出现在「更多」菜单的第二列。 */
@@ -130,6 +132,8 @@ data class MinimalBridgeFrame(
     val qualityLevel: String = "",
     /** 无损标签的真实格式文案（APE/WAV/DSD/ALAC 不冒充 FLAC）；FLAC 为空。 */
     val qualityLabelOverride: String = "",
+    /** Catalog-only versions; never evidence for the current stream quality. */
+    val catalogVersions: String = "",
     val qualityGold: Boolean = false,
     val qualityMode: String = "",
     val effectsOn: Boolean = false,
@@ -168,6 +172,7 @@ data class MinimalBridgeFrame(
                 quality = value.optString("quality", "").take(40),
                 qualityLevel = value.optString("qualityLevel", "").take(16),
                 qualityLabelOverride = value.optString("qualityLabelOverride", "").take(40),
+                catalogVersions = value.optString("catalogVersions", "").take(80),
                 qualityGold = value.optBoolean("qualityGold", false),
                 qualityMode = value.optString("qualityMode", "").take(40),
                 effectsOn = value.optBoolean("effectsOn", false),
@@ -544,6 +549,7 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
             quality = bridge?.quality ?: "",
             qualityLevel = bridge?.qualityLevel ?: "",
             qualityLabelOverride = bridge?.qualityLabelOverride ?: "",
+            catalogVersions = bridge?.catalogVersions ?: "",
             qualityGold = bridge?.qualityGold == true,
             qualityMode = bridge?.qualityMode ?: "",
             effectsOn = bridge?.effectsOn == true,

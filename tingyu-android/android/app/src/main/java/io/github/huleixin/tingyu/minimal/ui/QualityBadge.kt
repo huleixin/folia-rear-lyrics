@@ -190,19 +190,36 @@ internal fun MinimalCatalogBadge(spec: String, label: String, modifier: Modifier
         "vip", "paid" -> visualOf(QualityLevel.FLAC).iconColor
         else -> visualOf(QualityLevel.fromCatalogSpec(spec) ?: QualityLevel.HQ).iconColor
     }
-    val ink = androidx.compose.ui.graphics.lerp(tint, palette.ink, if (palette.light) 0.72f else 0.3f)
-    val shape = RoundedCornerShape(3.dp)
+    // List chips stay light and compact; the larger playing badge remains the primary visual.
+    val ink = androidx.compose.ui.graphics.lerp(tint, palette.muted, if (palette.light) 0.44f else 0.28f)
+    val shape = RoundedCornerShape(2.dp)
     Text(
         text = label,
         color = ink,
-        fontSize = 10.sp,
-        fontWeight = FontWeight.SemiBold,
+        fontSize = 9.sp,
+        lineHeight = 11.sp,
+        fontWeight = FontWeight.Medium,
         maxLines = 1,
         softWrap = false,
         modifier = modifier
-            .background(ink.copy(alpha = 0.07f), shape)
-            .border(0.5.dp, ink.copy(alpha = 0.4f), shape)
-            .padding(horizontal = 5.dp, vertical = 1.dp),
+            .background(ink.copy(alpha = 0.045f), shape)
+            .border(0.5.dp, ink.copy(alpha = 0.25f), shape)
+            .padding(horizontal = 3.dp, vertical = 0.5.dp),
+    )
+}
+
+/** Catalog version chip on the playing page; distinct from the current stream badge. */
+@Composable
+internal fun MinimalCatalogVersionBadge(label: String, ink: MinimalInk, modifier: Modifier = Modifier) {
+    Text(
+        text = label,
+        color = ink.muted,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.Medium,
+        maxLines = 1,
+        modifier = modifier
+            .border(1.dp, ink.muted.copy(alpha = 0.28f), RoundedCornerShape(999.dp))
+            .padding(horizontal = 7.dp, vertical = 3.dp),
     )
 }
 

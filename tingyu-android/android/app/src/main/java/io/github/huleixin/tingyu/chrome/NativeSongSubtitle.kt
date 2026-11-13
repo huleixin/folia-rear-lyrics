@@ -45,17 +45,17 @@ internal fun catalogBadges(specs: List<String>): List<CatalogBadge> {
     val density = LocalDensity.current
     val screenWidth = LocalConfiguration.current.screenWidthDp
     val measurer = rememberTextMeasurer()
-    val badgeStyle = LocalTextStyle.current.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+    val badgeStyle = LocalTextStyle.current.copy(fontSize = 9.sp, fontWeight = FontWeight.Medium)
     BoxWithConstraints(modifier.fillMaxWidth().clearAndSetSemantics {
         contentDescription = listOf(item.subtitle, item.audioSpecsLabel.ifBlank { badges.joinToString(", ") { it.label } })
             .filter { it.isNotBlank() }.joinToString(", ")
     }) {
         val limit = catalogBadgeLimit(screenWidth, density.fontScale)
-        val budget = with(density) { (maxWidth * 0.6f).toPx() }
+        val budget = with(density) { (maxWidth * 0.52f).toPx() }
         var used = 0f
         val visible = badges.take(limit).takeWhile { badge ->
             val width = measurer.measure(AnnotatedString(badge.label), badgeStyle).size.width
-            used += width + with(density) { 14.dp.toPx() }
+            used += width + with(density) { 9.dp.toPx() }
             used <= budget
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {

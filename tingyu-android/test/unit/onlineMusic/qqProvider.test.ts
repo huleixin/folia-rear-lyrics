@@ -1105,6 +1105,19 @@ describe('qqProvider', () => {
         ]);
     });
 
+    it('normalizes the Dolby and VIP metadata carried by playlist detail rows', async () => {
+        requestMock.mockResolvedValue({
+            response: { code: 0, cdlist: [{ disstid: '7', dissname: '杜比歌单', songnum: 1, songlist: [{
+                ...SEARCH_ITEM,
+                file: { size_flac: 100, size_dolby: 40, size_dts: 0 },
+                pay: { pay_month: 1 },
+            }] }] },
+        });
+        await expect(qqProvider.catalog!.getPlaylistTracks!(7, 50, 0)).resolves.toMatchObject({
+            items: [expect.objectContaining({ catalogAudioSpecs: ['lossless', 'dolby'], catalogAccess: 'vip' })],
+        });
+    });
+
     // 「歌单读不到」和「歌单是空的」必须分开，判据是 `dissname` 在不在。
     it('fails loudly when the playlist detail carries no cdlist entry', async () => {
         requestMock.mockResolvedValue({ response: { code: 0, cdlist: [] } });

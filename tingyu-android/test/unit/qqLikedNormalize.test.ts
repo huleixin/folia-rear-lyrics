@@ -59,4 +59,17 @@ describe('mergeQQSearchEnrich', () => {
         expect(song.album?.name).toBe('叶惠美');
         expect(song.artists?.map(artist => artist.name)).toEqual(['周杰伦']);
     });
+    it('keeps a Dolby variant from a fresh per-song detail response', () => {
+        const row: Record<string, unknown> = { mid: '004Fs2FP1EvZYc', name: '晴天 (Live)', artist: '周杰伦' };
+        mergeQQSearchEnrich(row, {
+            mid: '004Fs2FP1EvZYc', name: '晴天 (Live)', artist: '周杰伦',
+            file: { size_flac: 54393782, size_dolby: 13997445, size_dts: 0 },
+            pay: { pay_month: 1 },
+        });
+        expect(row.file).toEqual({ size_flac: 54393782, size_dolby: 13997445, size_dts: 0 });
+        expect(row.catalogAccess).toBeUndefined();
+        const song = normalizeQqSong(row);
+        expect(song.catalogAudioSpecs).toEqual(['lossless', 'dolby']);
+        expect(song.catalogAccess).toBe('vip');
+    });
 });

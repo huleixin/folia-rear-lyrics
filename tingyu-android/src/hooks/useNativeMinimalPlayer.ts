@@ -13,6 +13,7 @@ import i18n from '../i18n/config';
 import { flushNativeShellRoute, scheduleNativeShellRoute } from '../services/nativeShellCommit';
 import { resolveQualityBadges } from '../components/app/overlays/minimal-stage/minimalQuality';
 import { resolvePlayingQualityLevel } from '../components/app/overlays/minimal-stage/qualityBadgeSpecs';
+import { getCatalogBadges } from '../utils/catalogAudioLabels';
 import { nativeAudioSpecStore } from '../services/nativeAudioElement';
 import {
     isWebManagedArtworkUrl,
@@ -213,6 +214,9 @@ export function useNativeMinimalPlayer({
             qualityGold: badges.some(badge => badge.tone === 'gold'),
             qualityLevel,
             qualityLabelOverride: playingQuality?.labelOverride ?? '',
+            catalogVersions: getCatalogBadges(song?.track ?? {}, i18n.t)
+                .filter(badge => badge.id === 'dolby' || badge.id === 'dts' || badge.id === 'jyeffect' || badge.id === 'sky')
+                .map(badge => badge.label).join(','),
             qualityMode: QUALITY_LABELS[useAudioSettingsStore.getState().audioQuality],
             effectsOn: useAudioSettingsStore.getState().audioEqualizerSettings.enabled,
             // 和 palette 用同一个 light：页面主题只有一个来源。

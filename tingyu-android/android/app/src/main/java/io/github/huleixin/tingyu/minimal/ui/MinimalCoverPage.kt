@@ -218,6 +218,11 @@ fun MinimalCoverPage(
                 QualityLevel.fromWire(state.controls.qualityLevel)?.let { level ->
                     MinimalQualityBadge(level, QualityBadgeSize.FULL, labelOverride = state.controls.qualityLabelOverride.ifBlank { null })
                 }
+                // Catalog versions are provider facts, kept visually separate from current-stream quality.
+                state.controls.catalogVersions.split(',').filter { it.isNotBlank() }.take(2).forEach { version ->
+                    Spacer(Modifier.width(5.dp))
+                    MinimalCatalogVersionBadge(version.trim(), ink)
+                }
                 if (showPreparing) {
                     Spacer(Modifier.width(8.dp))
                     PreparingChip(ink)

@@ -38,6 +38,7 @@ export type MinimalPlayerFrame = {
     qualityLevel: string;
     /** 无损标签的真实格式文案（APE/WAV/DSD/ALAC 不冒充 FLAC）；FLAC 为空。 */
     qualityLabelOverride: string;
+    catalogVersions: string;
     /** 播放偏好里的音质档位（"无损"/"高品质"…），只给"更多"菜单用，和上面的容器角标不是一回事。 */
     qualityMode: string;
     /** 音效开关状态，同样是菜单里的第二行值。 */

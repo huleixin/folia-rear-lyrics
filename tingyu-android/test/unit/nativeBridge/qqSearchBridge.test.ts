@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { handleQQSmartbox, handleQQTypedSearch } from '@/nativeBridge/api/qq';
+import { qqSongDetailsBatch, mapQQPlaylistSonglistWithCatalog } from '@/nativeBridge/api/qq.js';
 
 // test/unit/nativeBridge/qqSearchBridge.test.ts
 // 桥接层回归：综合搜索/联想必须走真机可用的 musicu / smartbox 通道。
@@ -55,6 +56,45 @@ describe('Android bridge QQ typed search', () => {
     it('surfaces an upstream refusal as an error instead of an empty list', async () => {
         globalThis.fetch = vi.fn(() => jsonResponse({ code: 2001, request: { code: 2001, data: {} } })) as unknown as typeof fetch;
         await expect(handleQQTypedSearch('许嵩', 'singer', 10, 1, '')).rejects.toThrow(/QQ typed search failed/);
+    });
+});
+
+describe('Android bridge QQ catalog hydration', () => {
+    it('requests each playlist row by one song_mid and preserves Dolby plus VIP', async () => {
+        const mids: string[] = [];
+        globalThis.fetch = vi.fn((_url: string, init?: RequestInit) => {
+            const payload = JSON.parse(String(init?.body || '{}'));
+            const mid = payload?.songinfo?.param?.song_mid;
+            mids.push(mid);
+            return jsonResponse({
+                code: 0,
+                songinfo: { code: 0, data: { track_info: {
+                    mid, name: `Song ${mid}`, interval: 200,
+                    file: { size_flac: 100, size_dolby: mid === 'm2' ? 50 : 0, size_dts: 0 },
+                    pay: { pay_month: 1 },
+                } } },
+            });
+        }) as unknown as typeof fetch;
+
+        const items: Array<Record<string, unknown>> = [
+            { mid: 'm1', songmid: 'm1', id: 1, name: 'One' },
+            { mid: 'm2', songmid: 'm2', id: 2, name: 'Two' },
+        ];
+        await qqSongDetailsBatch(items, '');
+        expect(mids).toEqual(['m1', 'm2']);
+        expect(items[1].file).toEqual({ size_flac: 100, size_dolby: 50, size_dts: 0 });
+        expect(items[1].pay).toEqual({ pay_month: 1 });
+    });
+    it('hydrates playlist rows through the exact function used by the playlist route', async () => {
+        globalThis.fetch = vi.fn((_url: string, init?: RequestInit) => {
+            const mid = JSON.parse(String(init?.body || '{}'))?.songinfo?.param?.song_mid;
+            return jsonResponse({ songinfo: { code: 0, data: { track_info: {
+                mid, name: 'Playlist Song', interval: 180,
+                file: { size_flac: 100, size_dolby: 30, size_dts: 0 },
+            } } } });
+        }) as unknown as typeof fetch;
+        const songs = await mapQQPlaylistSonglistWithCatalog([{ songmid: 'playlist-mid', songname: 'Playlist Song' }], '');
+        expect(songs[0].file).toEqual({ size_flac: 100, size_dolby: 30, size_dts: 0 });
     });
 });
 

@@ -279,19 +279,20 @@ export function mergeQQSearchEnrich(item, detail) {
   return item;
 }
 
-async function qqSongDetailsBatch(items, cookieHeader) {
-  items = (items || []).filter((item) => item && item.mid);
+async function qqSongDetailsBatch(items, cookieHeader, options = {}) {
+  const allItems = items || [];
+  items = allItems.filter((item) => item && (item.mid || item.songmid))
+    .slice(0, Math.max(0, options.maxItems ?? allItems.length));
   if (!items.length) return items;
   if (items.length === 1) {
     try {
-      mergeQQSearchEnrich(items[0], await qqSongDetail(items[0].mid, items[0], cookieHeader));
+      mergeQQSearchEnrich(items[0], await qqSongDetail(items[0].mid || items[0].songmid, items[0], cookieHeader));
     } catch (_) {}
     return items;
   }
-  // The upstream detail endpoint starts rejecting the request once the mid list
-  // gets long, so ask for them in chunks instead of falling back to one request
-  // per song (which made a 150-song playlist take minutes).
-  const CHUNK_SIZE = 50;
+  // get_song_detail_yqq accepts one song_mid; joining mids returns code 404.
+  // Fan out bounded single-song requests so catalog variants survive playlist hydration.
+  const CHUNK_SIZE = 12;
   const MAX_PARALLEL = 4;
   const chunks = [];
   for (let index = 0; index < items.length; index += CHUNK_SIZE) {
@@ -301,27 +302,16 @@ async function qqSongDetailsBatch(items, cookieHeader) {
     await Promise.all(
       chunks.slice(index, index + MAX_PARALLEL).map(async (chunk) => {
         try {
-          const json = await qqMusicRequest({
-            comm: { ct: 24, cv: 0 },
-            songinfo: {
-              module: 'music.pf_song_detail_svr',
-              method: 'get_song_detail_yqq',
-              param: { song_mid: chunk.map((item) => item.mid).join(',') },
-            },
-          }, cookieHeader);
-          const data = json && json.songinfo && json.songinfo.data;
-          let rawTracks = [];
-          if (Array.isArray(data && data.track_info)) rawTracks = data.track_info;
-          else if (data && data.track_info) rawTracks = [data.track_info];
-          else if (Array.isArray(data)) rawTracks = data;
-          const byMid = {};
-          rawTracks.forEach((raw) => {
-            const track = raw && (raw.track_info || raw.songInfo || raw.songinfo || raw);
-            const mapped = mapQQTrack(track, {});
-            if (mapped && mapped.mid) byMid[mapped.mid] = mapped;
-          });
-          chunk.forEach((item) => {
-            if (byMid[item.mid]) mergeQQSearchEnrich(item, byMid[item.mid]);
+          const details = await Promise.all(chunk.map(async (item) => {
+            try {
+              // Pass the row as fallback so missing detail fields cannot erase display metadata.
+              return [item, await qqSongDetail(item.mid || item.songmid, item, cookieHeader)];
+            } catch (_) {
+              return [item, null];
+            }
+          }));
+          details.forEach(([item, detail]) => {
+            if (detail) mergeQQSearchEnrich(item, detail);
           });
         } catch (_) {}
       }),
@@ -334,13 +324,14 @@ async function qqSongDetailsBatch(items, cookieHeader) {
   noteQQLibraryStep('song-details:batch', {
     requested: items.length,
     named: items.filter((item) => Boolean(item.name)).length,
+    detailed: items.filter((item) => Boolean(item.file)).length,
     chunks: chunks.length,
     fallback: Math.min(missing.length, 30),
   });
   await Promise.all(
     missing.slice(0, 30).map(async (item) => {
       try {
-        mergeQQSearchEnrich(item, await qqSongDetail(item.mid, item, cookieHeader));
+        mergeQQSearchEnrich(item, await qqSongDetail(item.mid || item.songmid, item, cookieHeader));
       } catch (_) {}
     }),
   );
@@ -1832,6 +1823,13 @@ function mapQQPlaylistSonglist(list) {
     .filter((song) => song.name || song.mid || song.qqId);
 }
 
+/** Playlist search rows omit size_dolby/size_dts; enrich only the requested page before mapping. */
+async function mapQQPlaylistSonglistWithCatalog(list, cookieHeader) {
+  const rows = (Array.isArray(list) ? list : []).filter((item) => item && (item.songmid || item.mid));
+  if (rows.length) await qqSongDetailsBatch(rows, cookieHeader, { maxItems: 100 });
+  return mapQQPlaylistSonglist(rows);
+}
+
 function extractQQPlaylistMeta(source) {
   const dirinfo = (source && source.dirinfo) || {};
   return {
@@ -1862,7 +1860,7 @@ async function fetchQQPlaylistTracksUcc(disstid, cookieHeader) {
   }, cookieHeader);
   if (!body || Number(body.code) !== 0 || Number(body.subcode) !== 0 || !body.cdlist || !body.cdlist[0]) return null;
   const cd = body.cdlist[0];
-  const songs = mapQQPlaylistSonglist(cd.songlist);
+  const songs = await mapQQPlaylistSonglistWithCatalog(cd.songlist, cookieHeader);
   if (!songs.length) return null;
   return { meta: extractQQPlaylistMeta(cd), songs };
 }
@@ -1889,7 +1887,7 @@ async function fetchQQPlaylistTracksUniform(disstid, cookieHeader, hostUin) {
   const code = Number(block && block.code);
   if (!block || (code && code !== 0 && code !== 200)) return null;
   const result = block.data || {};
-  const songs = mapQQPlaylistSonglist(result.songlist);
+  const songs = await mapQQPlaylistSonglistWithCatalog(result.songlist, cookieHeader);
   if (!songs.length) return null;
   return { meta: extractQQPlaylistMeta(result), songs };
 }
@@ -1907,7 +1905,7 @@ async function fetchQQPlaylistTracksPlaza(disstid, cookieHeader) {
   const code = Number(block && block.code);
   if (!block || (code && code !== 0 && code !== 200)) return null;
   const data = block.data || {};
-  const songs = mapQQPlaylistSonglist(data.songlist || data.songList);
+  const songs = await mapQQPlaylistSonglistWithCatalog(data.songlist || data.songList, cookieHeader);
   if (!songs.length) return null;
   return {
     meta: {
@@ -1934,7 +1932,7 @@ async function fetchQQDirPlaylistTracks(dirid, cookieHeader) {
   const code = Number(block && block.code);
   if (!block || (code && code !== 0 && code !== 200)) return null;
   const data = block.data || {};
-  const songs = mapQQPlaylistSonglist(data.songlist || data.songList || data.list);
+  const songs = await mapQQPlaylistSonglistWithCatalog(data.songlist || data.songList || data.list, cookieHeader);
   if (!songs.length) return null;
   return {
     meta: {
@@ -1944,6 +1942,7 @@ async function fetchQQDirPlaylistTracks(dirid, cookieHeader) {
     songs,
   };
 }
+
 
 async function fetchQQFavPlaylistTracks(cookieHeader) {
   const dirResult = await fetchQQDirPlaylistTracks(201, cookieHeader);
@@ -1965,8 +1964,7 @@ async function fetchQQFavPlaylistTracks(cookieHeader) {
     const mids = Object.keys(midMap).filter(Boolean);
     if (!mids.length) return null;
     const items = mids.slice(0, 300).map((mid) => ({ mid, songmid: mid, id: midMap[mid] }));
-    await qqSongDetailsBatch(items, cookieHeader);
-    const songs = mapQQPlaylistSonglist(items);
+    const songs = await mapQQPlaylistSonglistWithCatalog(items, cookieHeader);
     if (!songs.length) return null;
     return { meta: { name: '我喜欢', cover: '' }, songs };
   } catch (_) {}
@@ -2076,7 +2074,7 @@ export async function handleQQLyric(mid, id, cookieHeader) {
 }
 
 export { getQQCookie, mapQQTrack, qqSongDetail };
-export { qqMusicRequest, qqGetJSON, buildQQAuthComm, qqSongDetailsBatch };
+export { qqMusicRequest, qqGetJSON, buildQQAuthComm, qqSongDetailsBatch, mapQQPlaylistSonglistWithCatalog };
 
 // ---- qq-music-api 3.2.0 / 3.3.0 的新路由：推荐与写入 ----
 //

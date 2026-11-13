@@ -999,27 +999,27 @@
     line-height: 18px;
 }
 .ml-song-artist { min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
-.ml-audio-specs { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; max-width: 62%; overflow: hidden; }
+.ml-audio-specs { display: inline-flex; align-items: center; gap: 3px; flex: 0 0 auto; max-width: 52%; overflow: hidden; }
 .ml-audio-spec {
     flex: none;
     min-width: 0;
-    padding: 0 4px;
-    border: 1px solid color-mix(in srgb, var(--ml-jade) 22%, transparent);
-    border-radius: 4px;
-    background: color-mix(in srgb, var(--ml-jade) 7%, transparent);
-    color: color-mix(in srgb, var(--ml-jade) 78%, var(--ml-muted));
-    font-size: 10px;
-    line-height: 15px;
-    font-weight: 600;
+    padding: 0 3px;
+    border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+    border-radius: 2px;
+    background: color-mix(in srgb, currentColor 3.5%, transparent);
+    color: color-mix(in srgb, var(--ml-muted) 70%, var(--ml-jade));
+    font-size: 9px;
+    line-height: 11px;
+    font-weight: 500;
     overflow: hidden;
     text-overflow: ellipsis;
+    box-sizing: border-box;
 }
-.ml-audio-spec[data-spec="lossless"] { color: var(--it-mobile-library-color-10); }
-.ml-audio-spec[data-spec="hires"] { color: var(--it-mobile-library-color-11); }
-.ml-audio-spec[data-spec="master"] { color: var(--it-mobile-library-color-12); }
-.ml-audio-spec[data-spec="dolby"], .ml-audio-spec[data-spec="dts"] { color: var(--it-mobile-library-color-13); }
-.ml-audio-spec[data-spec="vip"], .ml-audio-spec[data-spec="paid"] { color: var(--it-mobile-library-color-12); }
-.ml-audio-spec { border-color: color-mix(in srgb, currentColor 32%, transparent); background: color-mix(in srgb, currentColor 7%, transparent); }
+.ml-audio-spec[data-spec="lossless"] { color: color-mix(in srgb, var(--ml-muted) 62%, var(--it-mobile-library-color-10)); }
+.ml-audio-spec[data-spec="hires"] { color: color-mix(in srgb, var(--ml-muted) 62%, var(--it-mobile-library-color-11)); }
+.ml-audio-spec[data-spec="master"] { color: color-mix(in srgb, var(--ml-muted) 62%, var(--it-mobile-library-color-12)); }
+.ml-audio-spec[data-spec="dolby"], .ml-audio-spec[data-spec="dts"], .ml-audio-spec[data-spec="jyeffect"], .ml-audio-spec[data-spec="sky"] { color: color-mix(in srgb, var(--ml-muted) 62%, var(--it-mobile-library-color-13)); }
+.ml-audio-spec[data-spec="vip"], .ml-audio-spec[data-spec="paid"] { color: color-mix(in srgb, var(--ml-muted) 72%, var(--it-mobile-library-color-12)); }
 @media (max-width: 359px) {
     .ml-audio-spec:nth-child(n + 3) { display: none; }
 }

@@ -6,6 +6,7 @@ import MinimalLiveLyric from './MinimalLiveLyric';
 import { MinimalArtworkFrame } from './MinimalArtwork';
 import { resolveQualityBadges } from './minimalQuality';
 import { resolvePlayingQualityLevel } from './qualityBadgeSpecs';
+import { getCatalogBadges } from '../../../../utils/catalogAudioLabels';
 import { QualityBadge } from './QualityBadge';
 import { nativeAudioSpecStore } from '../../../../services/nativeAudioElement';
 import PlayerControlIcon from '../../icons/PlayerControlIcon';
@@ -72,6 +73,8 @@ function CoverMetadata({
     );
     const title = snapshot.song?.title || t('mobileLibrary.nothingPlaying');
     const artist = snapshot.song?.artist || '';
+    // Playing quality is evidence from the current stream; catalog versions remain separate facts.
+    const catalogBadges = getCatalogBadges(snapshot.song?.track ?? {}, t);
 
     return (
         <div className={className} ref={metaRef}>
@@ -79,6 +82,8 @@ function CoverMetadata({
             <MinimalArtistLink label={artist} track={snapshot.song?.track ?? null} className="min-cover__artist" onOpen={onOpenArtist} />
             <div className="min-cover__foot">
                 {playingQuality && <QualityBadge level={playingQuality.level} size="full" labelOverride={playingQuality.labelOverride} />}
+                {catalogBadges.filter(badge => badge.id === 'dolby' || badge.id === 'dts' || badge.id === 'jyeffect' || badge.id === 'sky').map(badge =>
+                    <span key={badge.id} className="min-cover__catalog-version">{badge.label}</span>)}
                 <PlayingMeter playing={playing} />
             </div>
         </div>
