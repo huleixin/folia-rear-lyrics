@@ -37,7 +37,7 @@ data class NativePage(val id: String, val session: String, val generation: Long,
                     NativePageItem(item.optString("id").take(600),item.optString("title").take(500),item.optString("subtitle").take(1000),
                         item.optString("image").take(200000),item.optString("action").take(800),item.optString("secondary").take(800),
                         item.optString("secondaryLabel",""),item.optBoolean("disabled"),item.optBoolean("selected"),item.optString("number"),item.optString("duration"),
-                        item.optJSONArray("audioSpecs").let { specs -> (0 until minOf(specs?.length()?:0,2)).mapNotNull { (specs?.opt(it) as? String)?.take(16)?.takeIf { text -> text.isNotBlank() } } },
+                        item.optJSONArray("audioSpecs").let { specs -> (0 until minOf(specs?.length()?:0,8)).mapNotNull { (specs?.opt(it) as? String)?.take(16)?.takeIf { text -> text.isNotBlank() } } },
                         item.optString("audioSpecsLabel").take(240))
                 }
                 NativePageSection(block.optString("id"),block.optString("title"),layout,items,block.optString("text"),block.optString("value"),

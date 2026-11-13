@@ -1239,6 +1239,8 @@ export interface SongResult {
   sourceRef?: PlaybackSourceRef;
   /** Platform-declared catalog specifications; distinct from the stream actually being played. */
   catalogAudioSpecs?: readonly CatalogAudioSpec[];
+  /** Catalog access requirement, not the current account's entitlement or availability. */
+  catalogAccess?: 'vip' | 'paid';
   /** Identity of the concrete bytes selected for playback; used to reject stale derived media. */
   playbackSourceRevision?: string;
   fee?: number;
@@ -1295,6 +1297,11 @@ export interface LocalSong {
   fileSignature?: string; // Lightweight file identity for incremental scans
   mimeType: string;
   bitrate?: number; // bps
+  /** Original file header specifications, never the decoder output format. */
+  sampleRate?: number;
+  bitDepth?: number;
+  codec?: string;
+  lossless?: boolean;
   addedAt: number; // timestamp
 
   // Canonical metadata and retained source snapshots

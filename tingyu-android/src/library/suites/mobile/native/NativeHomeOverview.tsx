@@ -1,3 +1,4 @@
+import { catalogBadgePageFields } from '../../../../utils/catalogAudioLabels';
 import React, { useMemo, useState, useRef, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LibraryHomeSurfaceProps } from '../../../core/contracts/suite';
@@ -64,7 +65,7 @@ export default function NativeHomeOverview({root,props,sources,onReady,onSources
     }
     sections.push({id:'recent',title:t('mobileLibrary.recent'),layout:all?'rows':'cards',more:'all',moreLabel:t(all?'mobileLibrary.back':'mobileLibrary.all'),items:recent.slice(0,all?100:12).map((song,index)=>{
         const key=`recent:${index}:${getPlaybackSongKey(song)}`;actions[key]=()=>play(song,recent);actions[`${key}:menu`]=()=>setMenu({kind:'track',song});
-        return{id:key,title:song.name,subtitle:getSongArtistLabel(song),image:absolutePageImage(getSongCoverUrl(song)),action:key,disabled:isSongUnavailable(song),secondary:`${key}:menu`,secondaryLabel:'⋮'};
+        return{id:key,title:song.name,...catalogBadgePageFields(song,t),subtitle:getSongArtistLabel(song),image:absolutePageImage(getSongCoverUrl(song)),action:key,disabled:isSongUnavailable(song),secondary:`${key}:menu`,secondaryLabel:'⋮'};
     })});
     if(!recent.length)sections.push({id:'recent-empty',layout:'message',text:t('mobileLibrary.noRecent')});
     if(!all){

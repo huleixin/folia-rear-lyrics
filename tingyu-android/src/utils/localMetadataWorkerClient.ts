@@ -8,6 +8,10 @@ export interface EmbeddedMetadataResult {
     cover?: Blob;
     coverAssetId?: string;
     bitrate?: number;
+    sampleRate?: number;
+    bitDepth?: number;
+    codec?: string;
+    lossless?: boolean;
     lyrics?: string;
     translationLyrics?: string;
     replayGain?: number;

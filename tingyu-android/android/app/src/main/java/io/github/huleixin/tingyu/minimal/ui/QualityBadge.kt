@@ -181,6 +181,31 @@ fun MinimalQualityBadge(
     }
 }
 
+/** Small catalog-only chips; use the interface palette so light and dark lists remain readable. */
+@Composable
+internal fun MinimalCatalogBadge(spec: String, label: String, modifier: Modifier = Modifier) {
+    val palette = io.github.huleixin.tingyu.chrome.LocalInterfacePalette.current
+    val tint = when (spec) {
+        "jyeffect", "sky", "dolby", "dts" -> visualOf(QualityLevel.SPATIAL).iconColor
+        "vip", "paid" -> visualOf(QualityLevel.FLAC).iconColor
+        else -> visualOf(QualityLevel.fromCatalogSpec(spec) ?: QualityLevel.HQ).iconColor
+    }
+    val ink = androidx.compose.ui.graphics.lerp(tint, palette.ink, if (palette.light) 0.72f else 0.3f)
+    val shape = RoundedCornerShape(3.dp)
+    Text(
+        text = label,
+        color = ink,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.SemiBold,
+        maxLines = 1,
+        softWrap = false,
+        modifier = modifier
+            .background(ink.copy(alpha = 0.07f), shape)
+            .border(0.5.dp, ink.copy(alpha = 0.4f), shape)
+            .padding(horizontal = 5.dp, vertical = 1.dp),
+    )
+}
+
 /**
  * 歌单页轻量**文字**标签（用户指定的克制样式）：
  * 无底色、无边框、无图标；层级色相与页面墨色（muted）做 50% 低饱和混合，

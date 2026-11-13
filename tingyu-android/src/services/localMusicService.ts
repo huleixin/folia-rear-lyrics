@@ -927,6 +927,10 @@ async function buildImportedSong(
         fileSignature: buildFileSignature(entry.relativePath, file.size, file.lastModified),
         mimeType: file.type,
         bitrate: embeddedMetadata.bitrate || 0,
+        sampleRate: embeddedMetadata.sampleRate,
+        bitDepth: embeddedMetadata.bitDepth,
+        codec: embeddedMetadata.codec,
+        lossless: embeddedMetadata.lossless,
         addedAt: existingSong?.addedAt || Date.now(),
         title: titleOrigin === 'import' ? importedMetadata.title : existingSong?.title || importedMetadata.title,
         titleOrigin,
@@ -1010,6 +1014,10 @@ async function hydrateSongMetadata(song: LocalSong): Promise<LocalSong> {
         song.fileLastModified = file.lastModified;
         song.mimeType = file.type;
         song.bitrate = embeddedMetadata.bitrate || song.bitrate || 0;
+        song.sampleRate = embeddedMetadata.sampleRate;
+        song.bitDepth = embeddedMetadata.bitDepth;
+        song.codec = embeddedMetadata.codec;
+        song.lossless = embeddedMetadata.lossless;
         const filenameMetadata = extractMetadataFromFilename(file.name);
         song.importedMetadata = buildImportedMetadataSnapshot({
             fileName: file.name,

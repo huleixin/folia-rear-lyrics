@@ -133,6 +133,10 @@ export const applyEmbeddedMetadataToSong = (
     if (metadata.trackNumber) next.trackNumber = metadata.trackNumber;
     if (metadata.discNumber) next.discNumber = metadata.discNumber;
     if (metadata.bitrate) next.bitrate = metadata.bitrate;
+    if (Number.isFinite(metadata.sampleRate) && metadata.sampleRate! > 0) next.sampleRate = metadata.sampleRate;
+    if (Number.isFinite(metadata.bitDepth) && metadata.bitDepth! > 0) next.bitDepth = metadata.bitDepth;
+    if (metadata.codec) next.codec = metadata.codec;
+    if (typeof metadata.lossless === 'boolean') next.lossless = metadata.lossless;
     if (metadata.duration) next.duration = metadata.duration;
     next.embeddedMetadataVersion = EMBEDDED_METADATA_VERSION_NATIVE;
 

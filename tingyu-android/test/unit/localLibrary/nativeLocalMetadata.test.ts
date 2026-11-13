@@ -303,3 +303,16 @@ describe('hydrateNativeSong 的兜底顺序', () => {
         expect(readNativeLyricSidecar).not.toHaveBeenCalled();
     });
 });
+
+
+it('persists source format evidence through Android hydration and IndexedDB', async () => {
+    const { applyEmbeddedMetadataToSong } = await import('../../../src/services/nativeLocalMetadata');
+    const { saveLocalSong, getLocalSong } = await import('../../../src/services/db');
+    const evidence = { sampleRate: 96000, bitDepth: 24, codec: 'FLAC', lossless: true };
+    const enriched = applyEmbeddedMetadataToSong(makeSong(), evidence);
+    await saveLocalSong(enriched);
+    expect(await getLocalSong(enriched.id)).toMatchObject(evidence);
+    expect(applyEmbeddedMetadataToSong(enriched, {})).toMatchObject(evidence);
+    expect(applyEmbeddedMetadataToSong(enriched, { sampleRate: NaN, bitDepth: -1 })).toMatchObject(evidence);
+    expect(applyEmbeddedMetadataToSong(enriched, { lossless: false }).lossless).toBe(false);
+});

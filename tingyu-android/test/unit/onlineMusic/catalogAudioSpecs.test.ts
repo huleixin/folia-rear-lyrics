@@ -17,7 +17,8 @@ describe('catalog specifications are independent of selected playback quality', 
             size_hires: 0, size_dts: 0, size_dolby: 0, size_new: [191257082], url: 'https://never-retain.test/audio',
         } };
         const bridged = mapQQTrack(raw, {});
-        expect(bridged.file).toEqual({ size_320mp3: 11611130, size_flac: 32695409 });
+        // Explicit zero sizes are authoritative: they clear stale cached tiers.
+        expect(bridged.file).toEqual({ size_320mp3: 11611130, size_flac: 32695409, size_hires: 0, size_dolby: 0, size_dts: 0 });
         const normalized = normalizeQqSong(bridged);
         expect(normalized.catalogAudioSpecs).toEqual(['lossless']);
         expect(normalizeQqSong(JSON.parse(JSON.stringify(normalized)))).toEqual(normalized);
@@ -33,6 +34,14 @@ describe('catalog specifications are independent of selected playback quality', 
             url: 'https://test/audio.flac', file: { size_new: [99999] }, sa: 1024 })).toEqual({});
         expect(qqCatalogAudioFields({ file: { size_hires: true, size_flac: 'invalid', size_dolby: -1, size_dts: Infinity } })).toEqual({});
     });
+    it('keeps QQ subscription access separate from quality and clears it on a fresh free response', () => {
+        expect(qqCatalogAudioFields({ file: { size_flac: 10 }, pay: { pay_month: 1, pay_play: 0 } }))
+            .toEqual({ catalogAudioSpecs: ['lossless'], catalogAccess: 'vip' });
+        expect(qqCatalogAudioFields({ catalogAudioSpecs: ['lossless'], catalogAccess: 'vip', file: { size_flac: 10 }, pay: { pay_month: 0 } }))
+            .toEqual({ catalogAudioSpecs: ['lossless'] });
+        expect(qqCatalogAudioFields({ file: { size_flac: 10 }, pay: { pay_play: 1, pay_month: 0 } }))
+            .toEqual({ catalogAudioSpecs: ['lossless'] });
+    });
     it('does not preserve obsolete cached capability when a fresh explicit response removes it', () => {
         expect(qqCatalogAudioFields({ catalogAudioSpecs: ['hires', 'dolby'], file: { size_hires: 0, size_dolby: 0, size_320mp3: 5 } }))
             .toEqual({ catalogAudioSpecs: ['high'] });
@@ -44,6 +53,14 @@ describe('catalog specifications are independent of selected playback quality', 
         expect(neteaseApi.normalizeSongResult(JSON.parse(JSON.stringify(song))).catalogAudioSpecs).toEqual(['hires']);
         expect(neteaseCatalogAudioFields({ simpleSong: { sq: { size: 12 } } })).toEqual({ catalogAudioSpecs: ['lossless'] });
         expect(neteaseCatalogAudioFields({ h: { size: 12, br: 320000 } })).toEqual({ catalogAudioSpecs: ['high'] });
+    });
+    it('retains NetEase master and immersive variants with explicit fee access', () => {
+        expect(neteaseCatalogAudioFields({ jm: { size: 80 }, je: { size: 20 }, sk: { size: 30 }, fee: 1 }))
+            .toEqual({ catalogAudioSpecs: ['master', 'jyeffect', 'sky'], catalogAccess: 'vip' });
+        expect(neteaseCatalogAudioFields({ simpleSong: { sk: { size: 12 } }, privilege: { fee: 4 } }))
+            .toEqual({ catalogAudioSpecs: ['sky'], catalogAccess: 'paid' });
+        expect(neteaseCatalogAudioFields({ privilege: { maxBrLevel: 'jymaster', fee: 8 } }))
+            .toEqual({ catalogAudioSpecs: ['master'], catalogAccess: 'vip' });
     });
     it('requires a real variant rather than inferring lossless or high resolution from bitrate alone', () => {
         expect(neteaseCatalogAudioFields({ privilege: { maxbr: 1999000 }, bitrate: 1999000, hr: { br: 1999000, size: 0 } })).toEqual({});

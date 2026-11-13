@@ -44,3 +44,29 @@ describe('deriveLocalAudioSpecs', () => {
         expect(deriveLocalAudioSpecs(song('audio/flac', 0, 0))).toEqual(['lossless']);
     });
 });
+
+
+describe('local source format evidence', () => {
+    const source = (patch: Partial<LocalSong>) => ({ ...song('audio/mp4', 0, 0), ...patch });
+    it('requires both hi-res dimensions and lossless evidence', () => {
+        expect(deriveLocalAudioSpecs(source({ codec: 'ALAC', sampleRate: 96000, bitDepth: 24 }))).toEqual(['hires']);
+        for (const patch of [
+            { sampleRate: 44100, bitDepth: 24 }, { sampleRate: 96000, bitDepth: 16 },
+            { sampleRate: 96000 }, { bitDepth: 24 }, { sampleRate: Infinity, bitDepth: 24 },
+            { sampleRate: 96000, bitDepth: NaN },
+        ]) expect(deriveLocalAudioSpecs(source({ lossless: true, ...patch }))).toEqual(['lossless']);
+        expect(deriveLocalAudioSpecs(source({ lossless: true, sampleRate: 48000, bitDepth: 24 }))).toEqual(['hires']);
+        expect(deriveLocalAudioSpecs(source({ sampleRate: 96000, bitDepth: 24 }))).toBeUndefined();
+    });
+    it('does not mistake a lossy codec or a lookalike MIME for lossless', () => {
+        expect(deriveLocalAudioSpecs(source({ mimeType: 'audio/wav', codec: 'ADPCM', sampleRate: 96000, bitDepth: 24 }))).toBeUndefined();
+        expect(deriveLocalAudioSpecs(source({ mimeType: 'audio/flac', lossless: false }))).toBeUndefined();
+        expect(deriveLocalAudioSpecs(source({ mimeType: 'audio/not-flac' }))).toBeUndefined();
+        expect(deriveLocalAudioSpecs(source({ codec: 'AAC', sampleRate: 96000, bitDepth: 24 }))).toBeUndefined();
+    });
+    it('prefers measured source bitrate and does not round up the threshold', () => {
+        expect(deriveLocalAudioSpecs(source({ bitrate: 320000 }))).toEqual(['high']);
+        expect(deriveLocalAudioSpecs({ ...song('audio/mpeg', 8000000, 200000), bitrate: 128000 })).toBeUndefined();
+        expect(deriveLocalAudioSpecs(song('audio/mpeg', 6399999, 200000))).toBeUndefined();
+    });
+});

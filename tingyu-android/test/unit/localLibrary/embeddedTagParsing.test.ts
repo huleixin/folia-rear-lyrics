@@ -120,12 +120,25 @@ beforeAll(async () => {
 });
 
 describe('现有标签解析器：ID3v2 内嵌歌词与封面', () => {
+    it('exposes source hi-res WAV header fields without decoding', async () => {
+        const wav = buildWavWithId3(buildId3Tag({ title: 'Source format' }));
+        const view = new DataView(wav.buffer, wav.byteOffset, wav.byteLength);
+        view.setUint32(24, 96000, true);
+        view.setUint32(28, 288000, true);
+        view.setUint16(32, 3, true);
+        view.setUint16(34, 24, true);
+        const result = await parseWithWorker(new File([wav], 'source.wav', { type: 'audio/wav' }), false);
+        expect(result.data).toMatchObject({ sampleRate: 96000, bitDepth: 24, lossless: true });
+        expect(result.data?.codec).toBeTruthy();
+    });
+
     it('读得出 USLT 内嵌歌词（LyricsTagReader 的核心能力）', async () => {
         const lyrics = '[00:01.00]第一行歌词\n[00:05.00]第二行歌词';
         const wav = buildWavWithId3(buildId3Tag({ title: '内嵌标题', lyrics }));
         const result = await parseWithWorker(new File([wav], 'tagged.wav', { type: 'audio/wav' }), false);
 
         expect(result.type).toBe('result');
+        expect(result.data).toMatchObject({ sampleRate: 44100, bitDepth: 16, lossless: true });
         expect(result.data?.lyrics).toContain('第一行歌词');
         expect(result.data?.lyrics).toContain('[00:05.00]');
     });

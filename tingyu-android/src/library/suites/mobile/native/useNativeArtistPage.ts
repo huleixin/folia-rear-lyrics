@@ -1,3 +1,4 @@
+import { catalogBadgePageFields } from '../../../../utils/catalogAudioLabels';
 import { useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SongResult } from '../../../../types';
@@ -27,7 +28,7 @@ export function useNativeArtistPage(root:RefObject<HTMLElement|null>,props:Libra
         const index=offset+local;
         if(tab==='albums') {const album=model.shownAlbums[index];return{id:String(album.id),title:album.name,image:absolutePageImage(album.coverUrl),action:`album:${index}:${album.id}`}}
         const song=tracks.displayTracks[tracks.matchIndexes?.[index]??index],key=getPlaybackSongKey(song);
-        return{id:key,title:song.name,subtitle:getSongArtistLabel(song),image:absolutePageImage(getSongCoverUrl(song)),
+        return{id:key,title:song.name,...catalogBadgePageFields(song,t),subtitle:getSongArtistLabel(song),image:absolutePageImage(getSongCoverUrl(song)),
             action:`play:${index}:${key}`,secondary:`menu:${index}:${key}`,secondaryLabel:'⋮',disabled:isSongUnavailable(song)};
     });
     const sections:PageSection[]=[{id:'play',layout:'chips',items:[{id:'play',title:t('mobileLibrary.playAll'),action:'playAll',disabled:!model.playableTopSongs.length}]},

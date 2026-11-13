@@ -9,15 +9,15 @@ import type { ProbeDefinition } from './definition';
 // dev/probes/catalogAudioSpecs.probe.tsx
 const variants = [
     { name: '无损规格示例', file: { size_flac: 1000 }, artist: '歌手甲 / 歌手乙' },
-    { name: '高清与杜比规格示例', file: { size_hires: 1000, size_dolby: 1000 }, artist: '名字很长的歌手甲 / 名字很长的歌手乙 / The Long Artist Name' },
+    { name: '高清与杜比规格示例', file: { size_hires: 1000, size_dolby: 1000 }, artist: '名字很长的歌手甲 / 名字很长的歌手乙 / The Long Artist Name', catalogAccess: 'vip' as const },
     { name: 'DTS 规格示例', file: { size_dts: 1000 }, artist: '歌手丙' },
-    { name: '高品质规格示例', file: { size_320mp3: 1000 }, artist: '歌手丁' },
+    { name: '高品质规格示例', file: { size_320mp3: 1000 }, artist: '歌手丁', catalogAccess: 'paid' as const },
     { name: '未知规格示例', file: {}, artist: '未知规格应保持原来的歌手排版' },
 ];
 const songs = Array.from({ length: 397 }, (_, index) => {
     const item = variants[index % variants.length];
-    return normalizeQqSong({ mid: `spec-${index}`, name: `${item.name} ${index + 1}`, interval: 270,
-        singer: [{ mid: `artist-${index}`, name: item.artist }], file: item.file });
+    return { ...normalizeQqSong({ mid: `spec-${index}`, name: `${item.name} ${index + 1}`, interval: 270,
+        singer: [{ mid: `artist-${index}`, name: item.artist }], file: item.file }), catalogAccess: item.catalogAccess };
 });
 function CatalogAudioSpecsProbe() {
     const [unknown, setUnknown] = useState(false), [action, setAction] = useState('待操作');

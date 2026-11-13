@@ -43,11 +43,12 @@ export const getSongCacheWithLegacyMigration = async <T>(
 
 export const getCachedSongAudioBlob = async (song: SongResult, quality?: AudioQualityPreference): Promise<Blob | null> => {
     const cacheKey = getSongResourceCacheKey('audio', song, quality);
-    const legacyKeys = getLegacySongResourceCacheKeys('audio', song);
     const current = await getCachedAudioBlob(cacheKey);
     if (current) return current;
 
-    for (const legacyKey of legacyKeys) {
+    // A quality/LX-scoped read must not silently accept a different stream's bytes.
+    // Legacy migration is only valid when the caller requested the default audio resource.
+    for (const legacyKey of quality ? [] : getLegacySongResourceCacheKeys('audio', song)) {
         const legacy = await getCachedAudioBlob(legacyKey);
         if (!legacy) continue;
         await saveAudioBlob(cacheKey, legacy);

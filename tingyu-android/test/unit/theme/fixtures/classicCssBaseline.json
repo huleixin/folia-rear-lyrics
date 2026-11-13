@@ -1,7 +1,7 @@
 {
   "src/components/app/search/searchWorkspace.css": "8dfbf739622bb8f1f47a5c4725e72996c90f55d5c20de5b0e93d3b76b7f8b2fb",
   "src/components/modal/settings/mobileSettings.css": "a3c247cf919fb1a735a707c0395fb1cf38f4a2c495507db65019a841d45effe3",
-  "src/library/suites/mobile/mobileLibrary.css": "2d332b61bb53ff3ec361421896b7178ee77f83bf84b3e3daba8d0de53d1d90e7",
+  "src/library/suites/mobile/mobileLibrary.css": "fd5acff3965e06b421bd5635fe50c13ebf97be5f859798e4093323228a315782",
   "src/library/suites/mobile/mobileLibraryPage.css": "6b43446b62e252281bba2cdd09dbf0ee750e6d08a99d26277319adc7723a8cbf",
   "src/library/suites/mobile/mobilePlaylistDetail.css": "96958c0cdd31c98c2f6ea0f6e8e69514c105eca06a8d2f20a791ba52564ff283",
   "src/library/suites/mobile/mobileRecommendations.css": "150adabe6b6f92ec0054c94f9a2d6553efa165186562ce06f897000e03e7c34e",

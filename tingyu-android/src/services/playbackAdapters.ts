@@ -136,21 +136,26 @@ export const getLocalSongId = (localSong: LocalSong): number => {
     return combined === 0 ? -1 : -combined;
 };
 
-/**
- * 阶段五：本地歌曲的音质信息（目录标注语义，与在线 catalogAudioSpecs 同一渲染通道）。
- *
- * 规则保守：容器为无损编码（FLAC/WAV）才标 lossless；有损容器只在估算码率 ≥256kbps 时标 high；
- * 时长缺失或算不出时不标 —— 没有数据入口的档位一律不显示，禁止从文件名推断。
- */
+/** Derives local quality from source header evidence; legacy MIME is only a fallback. */
 export function deriveLocalAudioSpecs(localSong: LocalSong): import('../types/catalogAudioSpecs').CatalogAudioSpec[] | undefined {
-    const mime = (localSong.mimeType || '').toLowerCase();
-    const isLosslessContainer = mime.includes('flac') || mime.includes('wav') || mime.includes('ape') || mime.includes('alac');
-    if (isLosslessContainer) return ['lossless'];
-    const bitrateKbps = localSong.duration > 0 && localSong.fileSize > 0
-        ? Math.round((localSong.fileSize * 8) / (localSong.duration / 1000) / 1000)
-        : 0;
-    if (bitrateKbps >= 256) return ['high'];
-    return undefined;
+    const mime = (localSong.mimeType || '').toLowerCase().split(';')[0].trim();
+    const codec = (localSong.codec || '').trim();
+    // A codec is stronger evidence than its container (M4A can be AAC or ALAC; WAV can be lossy).
+    const lossless = localSong.lossless ?? (codec
+        ? /^(FLAC|ALAC|APE|Monkey's Audio|PCM(?:\b.*)?)$/i.test(codec)
+        : ['audio/flac', 'audio/x-flac', 'audio/wav', 'audio/x-wav', 'audio/wave', 'audio/vnd.wave',
+            'audio/ape', 'audio/x-ape', 'audio/alac', 'audio/x-alac'].includes(mime));
+    if (lossless) {
+        const { sampleRate, bitDepth } = localSong;
+        return Number.isFinite(sampleRate) && sampleRate! >= 48000
+            && Number.isFinite(bitDepth) && bitDepth! > 16 ? ['hires'] : ['lossless'];
+    }
+    const bitrate = Number.isFinite(localSong.bitrate) && localSong.bitrate! > 0
+        ? localSong.bitrate!
+        : Number.isFinite(localSong.duration) && Number.isFinite(localSong.fileSize)
+            && localSong.duration > 0 && localSong.fileSize > 0
+            ? localSong.fileSize * 8 / (localSong.duration / 1000) : 0;
+    return bitrate >= 256000 ? ['high'] : undefined;
 }
 
 export function buildUnifiedLocalSong({

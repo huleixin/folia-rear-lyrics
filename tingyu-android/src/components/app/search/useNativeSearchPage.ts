@@ -1,3 +1,4 @@
+import { catalogBadgePageFields } from '../../../utils/catalogAudioLabels';
 import { useEffect, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { UnifiedSong } from '../../../types';
@@ -117,7 +118,7 @@ export function useNativeSearchPage(p: Props) {
                     moreLabel:t(p.error?'search.retry':p.tab==='overview'?'search.seeAll':'home.loadMore'),
                     items:songs.slice(start,start+100).map((song,index)=>{
                         const key=getPlaybackSongKey(song),meta=getProviderSongMetadata(song);
-                        return{id:key,title:song.name,subtitle:[meta.artists.map(a=>a.name).join(', '),...meta.aliases.slice(0,1)].filter(Boolean).join(' · '),image:absolutePageImage(meta.coverUrl),
+                        return{id:key,title:song.name,...catalogBadgePageFields(song,t,song.isLocal === true),subtitle:[meta.artists.map(a=>a.name).join(', '),...meta.aliases.slice(0,1)].filter(Boolean).join(' · '),image:absolutePageImage(meta.coverUrl),
                             action:`play:${start+index}:${key}`,secondary:`menu:${start+index}:${key}`,secondaryLabel:'•••',disabled:isSongUnavailable(song)};
                     })});
                 if(!p.searching&&!p.results.length)sections.push({id:'songsEmpty',layout:'message',text:t(p.error?'search.error':'home.noResults')});

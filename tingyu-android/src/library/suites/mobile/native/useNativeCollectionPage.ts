@@ -6,7 +6,6 @@ import type { SongResult } from '../../../../types';
 import type { NativePageModel, PageActions, PageSection } from '../../../../types/nativePages';
 import { useNativePage } from '../../../../hooks/useNativePage';
 import { absolutePageImage } from '../../../../services/nativePages';
-import { normalizeCatalogAudioSpecs } from '../../../../types/catalogAudioSpecs';
 import { getSongArtistLabel, getSongCoverUrl, getSongDurationMs } from '../../../../services/onlineMusic/songMetadata';
 import { formatTime } from '../../../../utils/appPlaybackHelpers';
 import { isLocalPlaybackSong } from '../../../../utils/appPlaybackGuards';
@@ -21,7 +20,7 @@ import { useCollectionNavigationStore } from '../../../../stores/useCollectionNa
 import { useAppViewStore } from '../../../../stores/useAppViewStore';
 import { useSettingsModalStore } from '../../../../stores/useSettingsModalStore';
 import { collectionKey } from '../../../core/model/collectionIdentity';
-import { getCatalogAudioLabels } from '../../../../utils/catalogAudioLabels';
+import { catalogBadgePageFields } from '../../../../utils/catalogAudioLabels';
 
 // src/library/suites/mobile/native/useNativeCollectionPage.ts
 // The row offset has to outlive the page: leaving for the player unmounts this hook, and starting
@@ -53,14 +52,10 @@ export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:L
         filterToggle:()=>setFilterOpen(true),filterClose:()=>setFilterOpen(false),filter:e=>{model.setQuery(e.text??'');setOffset(0)},range:e=>setOffset(Math.max(0,Math.floor((e.value??0)/100)*100))};
     const items=useMemo(()=>Array.from({length:Math.max(0,Math.min(100,total-offset))},(_,local)=>{
         const index=indexes?.[offset+local]??offset+local,song=model.view.displayTracks[index],key=getPlaybackSongKey(song);
-        // 原生音质标签：推**原始 spec 名**（normalizeCatalogAudioSpecs 已按档位优先排序），
-        // 原生 QualityLevel.fromCatalogSpec 映射成统一标签 —— 旧实现推的是翻译文案，映射不了。
-        // 只取最高一档：标签设计是每行一枚。
-        const audioSpecs=(normalizeCatalogAudioSpecs(song.catalogAudioSpecs)||[]).slice(0,1);
         // 统一详情契约（阶段 E）：所有非歌手集合的歌名都是原始名；序号由独立 number 字段承载，
         // 由公共行组件决定展示 —— 不再把序号拼进歌名（旧专辑/每日推荐行为）。
         return{id:`${index}:${key}`,title:song.name,number:String(index+1).padStart(2,'0'),duration:formatTime(getSongDurationMs(song)/1000),subtitle:getSongArtistLabel(song),image:absolutePageImage(getSongCoverUrl(song)),
-            ...(audioSpecs.length?{audioSpecs,audioSpecsLabel:t(isLocalPlaybackSong(song)?'localMusic.audioSpecsLabel':'catalogAudioSpecs.description',{specs:audioSpecs.map(spec=>t(`catalogAudioSpecs.${spec}`)).join(' / ')})}:{}),
+            ...catalogBadgePageFields(song,t,isLocalPlaybackSong(song)),
             action:`play:${index}:${key}`,secondary:`menu:${index}:${key}`,secondaryLabel:t('mobileLibrary.trackActions',{name:song.name}),disabled:isSongUnavailable(song),selected:key===activeKey};
     }),[model.view.displayTracks,indexes,total,offset,activeKey,t]);
     const controls=[{id:'play',title:t('mobileLibrary.playAll'),action:'playAll',disabled:!model.actions.capabilities.scope.enabled}];

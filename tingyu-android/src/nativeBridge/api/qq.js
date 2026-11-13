@@ -209,6 +209,43 @@ function qqFeeFromTrack(track) {
   return 0;
 }
 
+// Catalog metadata stays at the provider boundary: never retain URLs, credentials or bit masks.
+const QQ_CATALOG_FILE_KEYS = ['size_320mp3', 'size_320', 'size_ape', 'size_flac', 'size_hires', 'size_dolby', 'size_dts'];
+const QQ_CATALOG_PAY_KEYS = ['pay_month', 'pay_play', 'pay_down', 'pay_status', 'price_album', 'price_track', 'time_free'];
+const qqSupplied = (value, key) => value && Object.hasOwn(value, key) && value[key] !== undefined;
+const qqRecord = (value) => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+function qqCatalogNumbers(value, keys) {
+  const source = qqRecord(value), result = {};
+  for (const key of keys) {
+    const raw = source[key];
+    const number = typeof raw === 'string' && /^\d{1,15}$/.test(raw) ? Number(raw) : raw;
+    if (Object.hasOwn(source, key) && typeof number === 'number' && Number.isSafeInteger(number) && number >= 0) result[key] = number;
+  }
+  return result;
+}
+
+/** Replace explicit fresh containers, including empty/zero values; only absent metadata uses fallback. */
+function qqCatalogMetadata(track, fallback = {}) {
+  const result = {};
+  const hasLegacy = ['size320', 'sizeflac', 'sizeape'].some(key => qqSupplied(track, key));
+  const fileSource = qqSupplied(track, 'file') || hasLegacy ? track : fallback;
+  if (qqSupplied(fileSource, 'file') || ['size320', 'sizeflac', 'sizeape'].some(key => qqSupplied(fileSource, key))) {
+    const file = qqRecord(fileSource.file);
+    result.file = qqCatalogNumbers({
+      ...qqCatalogNumbers(file, QQ_CATALOG_FILE_KEYS),
+      size_320mp3: qqSupplied(file, 'size_320mp3') ? file.size_320mp3 : qqSupplied(file, 'size_320') ? file.size_320 : fileSource.size320,
+      size_flac: qqSupplied(file, 'size_flac') ? file.size_flac : fileSource.sizeflac,
+      size_ape: qqSupplied(file, 'size_ape') ? file.size_ape : fileSource.sizeape,
+    }, QQ_CATALOG_FILE_KEYS);
+  }
+  const paySource = qqSupplied(track, 'pay') ? track : fallback;
+  if (qqSupplied(paySource, 'pay')) result.pay = qqCatalogNumbers(paySource.pay, QQ_CATALOG_PAY_KEYS);
+  // Canonical hydration has no raw pay container; only these two normalized access values are valid.
+  const access = qqSupplied(track, 'catalogAccess') ? track.catalogAccess : fallback.catalogAccess;
+  if (!('pay' in result) && (access === 'vip' || access === 'paid')) result.catalogAccess = access;
+  return result;
+}
+
 export function mergeQQSearchEnrich(item, detail) {
   if (!item || !detail) return item;
   // The liked-songs and playlist paths build bare `{ mid, id }` rows and rely
@@ -228,6 +265,17 @@ export function mergeQQSearchEnrich(item, detail) {
   if (detail.albumMid && !item.albumMid) item.albumMid = detail.albumMid;
   if (detail.artistMid && !item.artistMid) item.artistMid = detail.artistMid;
   if (detail.fee != null) item.fee = detail.fee;
+  const catalog = qqCatalogMetadata(detail);
+  if (Object.hasOwn(catalog, 'file')) {
+    item.file = catalog.file;
+    delete item.catalogAudioSpecs;
+    // Fresh modern detail supersedes stale legacy aliases as well.
+    for (const key of ['size320', 'sizeflac', 'sizeape']) delete item[key];
+  }
+  if (Object.hasOwn(catalog, 'pay')) {
+    item.pay = catalog.pay;
+    delete item.catalogAccess;
+  } else if (catalog.catalogAccess) item.catalogAccess = catalog.catalogAccess;
   return item;
 }
 
@@ -327,6 +375,7 @@ function mapQQSearchSong(item) {
     albumMid,
     cover: qqAlbumCover(albumMid, 300) || item.albumimg || '',
     duration: (Number(item.interval) || 0) * 1000,
+    ...qqCatalogMetadata(item),
     fee: qqFeeFromTrack(item),
     playable: false,
   };
@@ -378,6 +427,7 @@ function mapQQSmartSong(item) {
     album: item.albumname || '',
     cover: item.albumimg || qqAlbumCover(albumMid, 300) || '',
     duration: Number(item.duration || 0) * 1000,
+    ...qqCatalogMetadata(item),
     fee: qqFeeFromTrack(item),
     playable: false,
   };
@@ -396,12 +446,6 @@ function mapQQTrack(track, fallback) {
   const albumName = albumObj.name || albumObj.title || (typeof track.album === 'string' ? track.album : '') || track.albumname || track.albumName || fallback.album || '';
   const qqId = track.id || track.songid || track.songId || track.songID || fallback.qqId || fallback.id || '';
   const interval = Number(track.interval || track.songInterval || track.duration || fallback.interval || 0) || 0;
-  // Keep only named catalog sizes, not playback URLs or undocumented capability bit masks.
-  const catalogFile = {};
-  for (const key of ['size_320mp3', 'size_ape', 'size_flac', 'size_hires', 'size_dolby', 'size_dts']) {
-    const value = Number(track.file?.[key] ?? fallback.file?.[key]);
-    if (Number.isFinite(value) && value > 0) catalogFile[key] = value;
-  }
   return {
     provider: 'qq',
     source: 'qq',
@@ -411,7 +455,7 @@ function mapQQTrack(track, fallback) {
     mid,
     songmid: mid,
     mediaMid: (track.file && track.file.media_mid) || track.strMediaMid || track.media_mid || track.mediaMid || fallback.mediaMid || '',
-    ...(Object.keys(catalogFile).length ? { file: catalogFile } : {}),
+    ...qqCatalogMetadata(track, fallback),
     name: track.name || track.title || track.songname || track.songName || fallback.name || '',
     artist: artistText || fallback.artist || '',
     artists: artists.length ? artists : (artistText ? [{ name: artistText }] : fallback.artists || []),

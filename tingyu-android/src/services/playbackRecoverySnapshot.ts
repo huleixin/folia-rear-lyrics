@@ -41,7 +41,7 @@ export const readPlaybackRecovery=async():Promise<RecoveryReply|null>=>{
 /** Keep identity and stable metadata; exclude transport URLs, credentials and resource payloads. */
 export const sanitizeRecoverySong=(song:SongResult):SongResult=>{
     song=normalizePlaybackSongSource(song);
-    const fields=['id','name','artists','artist','album','durationMs','sourceRef','localRef','isLocal','isNavidrome','navidromeData','qqMid','hash','catalogAudioSpecs','sourceType','t'];
+    const fields=['id','name','artists','artist','album','durationMs','sourceRef','localRef','isLocal','isNavidrome','navidromeData','qqMid','hash','catalogAudioSpecs','catalogAccess','sourceType','t'];
     const clean=(value:unknown):unknown=>{
         if(Array.isArray(value))return value.map(clean);
         if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).filter(([key])=>
