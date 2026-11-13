@@ -223,12 +223,6 @@ void main() {
     }
     col = mix(col, lens, dmask);
   }
-  // A small rear window needs a stable ink contrast even over headlights and dark rain.
-  if (uRearGlass > 0.5) {
-    vec3 ink = dot(uMistTint, vec3(0.333)) > 0.5 ? vec3(0.045) : vec3(0.96);
-    col = mix(col, ink, lyricClear * 0.82);
-    if (uSeeThrough) alpha = mix(alpha, 1.0, lyricClear * 0.82);
-  }
 #ifdef NEBBIA_SOFT_HIGHLIGHT
   // 水族箱：聚光灯、水母、凝露的水珠叠在同一处会加过 1，烧成一块白。最亮的那个通道过了 0.75 以后
   // 按指数慢慢逼近 1，三个通道同比例压，颜色不变；0.75 以下不动
