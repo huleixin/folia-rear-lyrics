@@ -61,16 +61,17 @@ import kotlin.math.abs
     Row(Modifier.fillMaxSize().padding(horizontal=6.dp,vertical=3.dp),verticalAlignment=Alignment.CenterVertically) {
         val scope=rememberCoroutineScope();val offset=remember{Animatable(0f)}
         var dx by remember{mutableFloatStateOf(0f)};var width by remember{mutableFloatStateOf(1f)}
+        val latestAction by rememberUpdatedState(action)
         val drag=Modifier.pointerInput(s.canNext,s.canPrevious,s.disabled,s.trackKey) {
-            detectHorizontalDragGestures(onDragStart={dx=0f;width=size.width.toFloat();action("interactionStart",0.0)},onDragCancel={scope.launch{offset.animateTo(0f)};action("interactionEnd",0.0)},onDragEnd={
+            detectHorizontalDragGestures(onDragStart={dx=0f;width=size.width.toFloat();latestAction("interactionStart",0.0)},onDragCancel={scope.launch{offset.animateTo(0f)};latestAction("interactionEnd",0.0)},onDragEnd={
                 val next=dx<0;val allowed=!s.disabled && if(next)s.canNext else s.canPrevious
                 val commit=allowed && abs(dx)>minOf(width*.24f,72.dp.toPx())
                 scope.launch {
                     if(commit && !s.reducedMotion)offset.animateTo(if(next)-width else width,spring(stiffness=900f))
-                    if(commit)action(if(next)"next" else "previous",0.0)
+                    if(commit)latestAction(if(next)"next" else "previous",0.0)
                     offset.snapTo(if(commit && !s.reducedMotion) if(next)width*.18f else -width*.18f else offset.value)
                     if(s.reducedMotion)offset.snapTo(0f) else offset.animateTo(0f,spring(stiffness=650f))
-                    action("interactionEnd",0.0)
+                    latestAction("interactionEnd",0.0)
                 }
             }) { change,amount ->
                 change.consume();val desired=dx+amount;val allowed=if(desired<0)s.canNext else s.canPrevious

@@ -93,6 +93,16 @@ public class FoliaNativePlugin extends Plugin {
     private static volatile FoliaNativePlugin instance;
     private static final NativeHttpDispatcher HTTP_WORK=new NativeHttpDispatcher(2,64);
     private static final java.util.concurrent.atomic.AtomicLong HTTP_IDS=new java.util.concurrent.atomic.AtomicLong();
+    private static final class HttpJob {
+        volatile boolean cancelled;
+        volatile okhttp3.Call network;
+    }
+    private final java.util.concurrent.ConcurrentHashMap<String,HttpJob> httpJobs=new java.util.concurrent.ConcurrentHashMap<>();
+    @PluginMethod public void cancelHttpRequest(PluginCall call) {
+        HttpJob job=httpJobs.get(call.getString("requestId", ""));
+        if(job!=null){job.cancelled=true;okhttp3.Call network=job.network;if(network!=null)network.cancel();}
+        call.resolve();
+    }
     private static volatile String playbackArtworkCover = "";
     private static volatile String playbackArtworkStatus = "none";
     private static volatile String playbackArtworkDetail = "";
@@ -400,20 +410,27 @@ public class FoliaNativePlugin extends Plugin {
     @PluginMethod
     public void httpRequest(PluginCall call) {
         final long id=HTTP_IDS.incrementAndGet(),submitted=android.os.SystemClock.elapsedRealtime();
+        final String requestId=call.getString("requestId", "native-"+id);
+        final HttpJob job=new HttpJob();
+        httpJobs.put(requestId,job);
         io.github.huleixin.tingyu.chrome.NavigationTiming.mark("native-http-queued:"+id);
         try { HTTP_WORK.execute(()->{
             final long started=android.os.SystemClock.elapsedRealtime();
             io.github.huleixin.tingyu.chrome.NavigationTiming.mark("native-http-start:"+id,started-submitted);
-            try { performHttpRequest(call); }
+            try {
+                long remaining=call.getInt("timeoutMs",45000)-(started-submitted);
+                if(job.cancelled||remaining<=0){call.reject("网络请求已取消或排队超时");return;}
+                performHttpRequest(call,job,remaining);
+            }
             catch(RuntimeException error){call.reject("原生网络请求失败",error);}
-            finally{io.github.huleixin.tingyu.chrome.NavigationTiming.mark("native-http-end:"+id,android.os.SystemClock.elapsedRealtime()-started);}
+            finally{httpJobs.remove(requestId,job);io.github.huleixin.tingyu.chrome.NavigationTiming.mark("native-http-end:"+id,android.os.SystemClock.elapsedRealtime()-started);}
         }); } catch(java.util.concurrent.RejectedExecutionException busy){
             io.github.huleixin.tingyu.chrome.NavigationTiming.mark("native-http-rejected:"+id);
             call.reject("网络请求队列繁忙，请稍后重试");
         }
     }
 
-    private void performHttpRequest(PluginCall call) {
+    private void performHttpRequest(PluginCall call,HttpJob job,long remainingMs) {
         String url = call.getString("url", "");
         String method = call.getString("method", "GET");
         String bodyText = call.getString("bodyText", "");
@@ -510,8 +527,12 @@ public class FoliaNativePlugin extends Plugin {
                     .build();
             }
 
+            requestClient=requestClient.newBuilder().callTimeout(Math.max(1,remainingMs),TimeUnit.MILLISECONDS).build();
             String requestUrl = url;
-            try (Response response = requestClient.newCall(builder.build()).execute()) {
+            okhttp3.Call network=requestClient.newCall(builder.build());
+            job.network=network;
+            if(job.cancelled){network.cancel();call.reject("网络请求已取消");return;}
+            try (Response response = network.execute()) {
                 // Preserve repeated headers (Set-Cookie) by handing JS an array
                 // instead of an object, which would collapse duplicates.
                 JSArray responseHeaders = new JSArray();

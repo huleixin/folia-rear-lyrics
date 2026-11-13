@@ -286,7 +286,7 @@ fun MinimalPlayerScreen(
                 ink = ink,
                 liked = state.controls.liked,
                 likeDisabled = state.controls.likeDisabled,
-                onLyricsPage = page == 1,
+                onLyricsPage = padSplit || page == 1,
                 commands = commands,
                 onCollapse = onCollapse,
                 onOpenStage = onOpenStage,

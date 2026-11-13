@@ -63,6 +63,7 @@ type NativePlugin = {
   cookiesSet: (options: Record<string, unknown>) => Promise<{ ok?: boolean }>;
   cookiesRemove: (options: Record<string, unknown>) => Promise<{ ok?: boolean }>;
   cookiesRemoveBatch: (options: Record<string, unknown>) => Promise<{ ok?: boolean; removed?: number }>;
+  cancelHttpRequest?: (options: { requestId: string }) => Promise<unknown>;
   httpRequest: (options: Record<string, unknown>) => Promise<{
     status: number;
     headers?: Array<{ name?: string; value?: string }> | Record<string, string>;
@@ -268,7 +269,7 @@ const installCookieShim = (plugin: NativePlugin) => {
   };
 };
 
-const installFetchShim = (plugin: NativePlugin) => {
+export const installFetchShim = (plugin: NativePlugin) => {
   const originalFetch = window.fetch.bind(window);
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const request = input instanceof Request ? input : null;
@@ -300,8 +301,19 @@ const installFetchShim = (plugin: NativePlugin) => {
     const bridgeTimeoutMs = Number.isFinite(requestedTimeoutMs) && requestedTimeoutMs > 0
       ? Math.min(requestedTimeoutMs, BRIDGED_REQUEST_MAX_TIMEOUT_MS)
       : BRIDGED_REQUEST_TIMEOUT_MS;
+    const signal = init?.signal ?? request?.signal;
+    if(signal?.aborted)throw new DOMException('Request aborted','AbortError');
+    const requestId = crypto.randomUUID();
+    const cancel = () => { void plugin.cancelHttpRequest?.({ requestId }).catch(() => {}); };
+    let abortListener: (() => void) | undefined;
+    const aborted = new Promise<never>((_, reject) => {
+      abortListener = () => { cancel(); reject(new DOMException('Request aborted','AbortError')); };
+      signal?.addEventListener('abort', abortListener, { once: true });
+    });
     const result = await Promise.race([
+      aborted,
       plugin.httpRequest({
+        requestId,
         url: targetUrl,
         method,
         headers: Object.fromEntries(headers.entries()),
@@ -312,11 +324,12 @@ const installFetchShim = (plugin: NativePlugin) => {
       }),
       new Promise<never>((_resolve, reject) => {
         timeoutHandle = setTimeout(
-          () => reject(new Error(`Bridged request timed out after ${bridgeTimeoutMs}ms: ${method} ${targetUrl}`)),
+          () => { cancel(); reject(new Error(`Bridged request timed out after ${bridgeTimeoutMs}ms`)); },
           bridgeTimeoutMs,
         );
       }),
     ]).finally(() => {
+      if(abortListener)signal?.removeEventListener('abort', abortListener);
       if (timeoutHandle) clearTimeout(timeoutHandle);
     });
     const responseBytes = base64ToBytes(result.bodyBase64);

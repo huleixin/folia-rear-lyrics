@@ -106,7 +106,15 @@ export function hasBlockingChromeWindow():boolean {
     // 它在的时候底栏必须照常显示，所以这里不能算"阻塞窗口"。二级/三级页由
     // MobileLibraryStage 的 active（isSubSettingsViewOpen）关掉，不靠这个函数。
     return [...document.querySelectorAll<HTMLElement>('[data-folia-keyboard-window="true"]')]
-        .some(node=>node.dataset.nativeChromeOverlay!=='nonblocking'&&!node.closest('[data-folia-settings-overlay]'));
+        .some(node=>{
+            if(node.dataset.nativeChromeOverlay==='nonblocking'||node.closest('[data-folia-settings-overlay]'))return false;
+            for(let ancestor:HTMLElement|null=node;ancestor;ancestor=ancestor.parentElement){
+                if(ancestor.hidden||ancestor.inert||ancestor.getAttribute('aria-hidden')==='true')return false;
+                const style=getComputedStyle(ancestor);
+                if(style.display==='none'||style.visibility==='hidden'||style.visibility==='collapse')return false;
+            }
+            return node.getClientRects().length>0;
+        });
 }
 export function chromeClockNeedsAnchor(now:number,lastAt:number,position:number,lastPosition:number,playing:boolean):boolean {
     if(!Number.isFinite(position))return false;

@@ -48,11 +48,11 @@ internal typealias PageAction = (String, String, Double) -> Unit
                 }
                 LocalPadWindow.current.splitPlayer&&page.id=="collection"&&!page.key.startsWith("collection:artist:")&&libraryPage!=null -> Row(Modifier.fillMaxSize().padding(start=104.dp)){
                     NativeDirectoryPage(libraryPage.copy(bottomClearance=100f),Modifier.width(320.dp).fillMaxHeight(),libraryAction)
-                    Box(Modifier.weight(1f).fillMaxHeight()){MediaDetailScaffold(page,Modifier.fillMaxSize(),action)}
+                    Box(Modifier.weight(1f).fillMaxHeight()){MediaDetailScaffold(page,Modifier.fillMaxSize(),splitPane=true,action=action)}
                 }
                 // 语义化设置页（原生化专项·第 22 轮）：自带底色 + 毛玻璃顶栏 + 原生排版，
                 // 不消费任何 DOM 矩形。没有 flow 的分区继续走下面的测量显示列表。
-                page.document?.flow!=null -> SettingsFlowPage(page.document.flow,page,Modifier.fillMaxSize().then(if(LocalPadWindow.current.expanded)Modifier.padding(horizontal=100.dp)else Modifier),action)
+                page.document?.flow!=null -> SettingsFlowPage(page.document.flow,page,Modifier.fillMaxSize(),action)
                 page.document!=null -> NativeSettingsDocumentView(page.document,Modifier.fillMaxSize(),action)
                 page.id=="settings"&&page.key.startsWith("settings:rear:")->NativeRearControlPage(page,Modifier.fillMaxSize(),density.fontScale,action)
                 page.id == "settings" -> NativeSettingsPage(page, Modifier.fillMaxSize(), action)
@@ -61,7 +61,7 @@ internal typealias PageAction = (String, String, Double) -> Unit
                 // 集合详情按页面语义路由，不按 intro/playlistIntro 分流标记（阶段 E）：
                 // 歌手保留独立结构（NativeDirectoryPage artist 分支），其余集合走统一 MediaDetailScaffold。
                 page.id == "collection"&&page.key.startsWith("collection:artist:") -> NativeDirectoryPage(page, Modifier.fillMaxSize(), action)
-                page.id == "collection" -> MediaDetailScaffold(page,Modifier.fillMaxSize().then(if(LocalPadWindow.current.expanded)Modifier.padding(start=104.dp)else Modifier),action)
+                page.id == "collection" -> MediaDetailScaffold(page,Modifier.fillMaxSize().then(if(LocalPadWindow.current.expanded)Modifier.padding(start=104.dp)else Modifier),action=action)
                 else -> NativeDirectoryPage(page, Modifier.fillMaxSize(), action)
             }
         }

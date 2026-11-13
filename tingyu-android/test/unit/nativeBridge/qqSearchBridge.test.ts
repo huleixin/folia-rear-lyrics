@@ -121,3 +121,24 @@ describe('Android bridge QQ smartbox', () => {
         await expect(handleQQSmartbox('许嵩', 4)).rejects.toThrow(/QQ smartbox failed/);
     });
 });
+
+
+describe('playlist latency budget', () => {
+    it('returns valid rows while optional catalog detail hangs, cancels workers and never starts 48 calls', async () => {
+        vi.useFakeTimers();
+        const signals: AbortSignal[] = [];
+        globalThis.fetch = vi.fn((_url, init) => {
+            signals.push(init!.signal!);
+            return new Promise(() => {});
+        }) as typeof fetch;
+        try {
+            const pending = mapQQPlaylistSonglistWithCatalog(Array.from({length:100},(_,i)=>({songmid:`m${i}`,songname:`Song ${i}`,interval:180})), '');
+            await vi.advanceTimersByTimeAsync(1200);
+            const songs = await pending;
+            expect(songs).toHaveLength(100);
+            expect(songs[99].name).toBe('Song 99');
+            expect(signals).toHaveLength(4);
+            expect(signals.every(signal=>signal.aborted)).toBe(true);
+        } finally { vi.useRealTimers(); }
+    });
+});

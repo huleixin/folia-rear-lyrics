@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.composed
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.boundsInRoot
@@ -331,13 +332,16 @@ private fun Modifier.legacyChromeGlass(light: Boolean, shape: Shape, spec: Chrom
         .border(.7.dp, reflection.copy(alpha = if (light) .26f else .15f), shape)
 }
 
-fun Modifier.chromeInteraction(action: (String,Double)->Unit): Modifier = pointerInput(Unit) {
+fun Modifier.chromeInteraction(action: (String,Double)->Unit): Modifier = composed {
+    val currentAction = androidx.compose.runtime.rememberUpdatedState(action)
+    pointerInput(Unit) {
     awaitEachGesture {
         awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-        action("interactionStart",0.0)
+        currentAction.value("interactionStart",0.0)
         try { do { val event = awaitPointerEvent(PointerEventPass.Initial) } while(event.changes.any { it.pressed }) }
-        finally { action("interactionEnd",0.0) }
+        finally { currentAction.value("interactionEnd",0.0) }
     }
+}
 }
 fun chromeColor(value: String, fallback: Color = Color.White): Color = try { Color(value.toColorInt()) } catch (_: Exception) { fallback }
 

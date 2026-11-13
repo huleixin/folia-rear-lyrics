@@ -284,57 +284,17 @@ async function qqSongDetailsBatch(items, cookieHeader, options = {}) {
   items = allItems.filter((item) => item && (item.mid || item.songmid))
     .slice(0, Math.max(0, options.maxItems ?? allItems.length));
   if (!items.length) return items;
-  if (items.length === 1) {
-    try {
-      mergeQQSearchEnrich(items[0], await qqSongDetail(items[0].mid || items[0].songmid, items[0], cookieHeader));
-    } catch (_) {}
-    return items;
-  }
-  // get_song_detail_yqq accepts one song_mid; joining mids returns code 404.
-  // Fan out bounded single-song requests so catalog variants survive playlist hydration.
-  const CHUNK_SIZE = 12;
-  const MAX_PARALLEL = 4;
-  const chunks = [];
-  for (let index = 0; index < items.length; index += CHUNK_SIZE) {
-    chunks.push(items.slice(index, index + CHUNK_SIZE));
-  }
-  for (let index = 0; index < chunks.length; index += MAX_PARALLEL) {
-    await Promise.all(
-      chunks.slice(index, index + MAX_PARALLEL).map(async (chunk) => {
-        try {
-          const details = await Promise.all(chunk.map(async (item) => {
-            try {
-              // Pass the row as fallback so missing detail fields cannot erase display metadata.
-              return [item, await qqSongDetail(item.mid || item.songmid, item, cookieHeader)];
-            } catch (_) {
-              return [item, null];
-            }
-          }));
-          details.forEach(([item, detail]) => {
-            if (detail) mergeQQSearchEnrich(item, detail);
-          });
-        } catch (_) {}
-      }),
-    );
-  }
-  // Only the rows that still lack a title (or a resolvable media id) need the
-  // per-song fallback, and even then bounded so one bad chunk cannot stall the
-  // whole page.
-  const missing = items.filter((item) => !item.name || (!item.mediaMid && item.fee == null));
-  noteQQLibraryStep('song-details:batch', {
-    requested: items.length,
-    named: items.filter((item) => Boolean(item.name)).length,
-    detailed: items.filter((item) => Boolean(item.file)).length,
-    chunks: chunks.length,
-    fallback: Math.min(missing.length, 30),
-  });
-  await Promise.all(
-    missing.slice(0, 30).map(async (item) => {
+  // Bound actual requests, not chunks containing another unbounded Promise.all.
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(4, items.length) }, async () => {
+    while (cursor < items.length && !options.signal?.aborted) {
+      const item = items[cursor++];
       try {
-        mergeQQSearchEnrich(item, await qqSongDetail(item.mid || item.songmid, item, cookieHeader));
+        const detail = await qqSongDetail(item.mid || item.songmid, item, cookieHeader, options);
+        if (!options.signal?.aborted) mergeQQSearchEnrich(item, detail);
       } catch (_) {}
-    }),
-  );
+    }
+  }));
   return items;
 }
 
@@ -477,6 +437,7 @@ async function qqMusicRequest(payload, cookieHeader, ua, options = {}) {
       'User-Agent': ua || UA,
       Cookie: cookieHeader || '',
     },
+    signal: options.signal,
     body: JSON.stringify(payload),
   });
   return resp.json();
@@ -633,7 +594,7 @@ export async function handleQQSmartbox(keyword, limit) {
   };
 }
 
-async function qqSongDetail(mid, fallback, cookieHeader) {
+async function qqSongDetail(mid, fallback, cookieHeader, options = {}) {
   if (!mid) return fallback;
   const json = await qqMusicRequest({
     comm: { ct: 24, cv: 0 },
@@ -642,7 +603,7 @@ async function qqSongDetail(mid, fallback, cookieHeader) {
       method: 'get_song_detail_yqq',
       param: { song_mid: mid },
     },
-  }, cookieHeader);
+  }, cookieHeader, undefined, options);
   const data = json && json.songinfo && json.songinfo.data;
   return mapQQTrack(data && data.track_info, fallback);
 }
@@ -847,7 +808,7 @@ export async function handleQQSearch(keywords, limit, cookieHeader, page) {
   let songs = await qqDesktopSearch(keywords, safeLimit, page || 1, cookieHeader);
   if (!songs.length) {
     const base = await qqSmartboxSearch(keywords, safeLimit);
-    await qqSongDetailsBatch(base, cookieHeader);
+    await hydrateQQCatalogWithinBudget(base, cookieHeader);
     songs = base;
   }
   const seen = new Set();
@@ -1823,10 +1784,23 @@ function mapQQPlaylistSonglist(list) {
     .filter((song) => song.name || song.mid || song.qqId);
 }
 
-/** Playlist search rows omit size_dolby/size_dts; enrich only the requested page before mapping. */
+/** Share a small catalog budget between playlist and smartbox fallback results. */
+async function hydrateQQCatalogWithinBudget(rows, cookieHeader) {
+  // Catalog labels are optional. A slow detail server must not hide a valid playlist.
+  const controller = new AbortController();
+  let timer;
+  try {
+    await Promise.race([
+      qqSongDetailsBatch(rows, cookieHeader, { maxItems: 100, signal: controller.signal }),
+      new Promise(resolve => { timer = setTimeout(resolve, 1200); }),
+    ]);
+  } finally { clearTimeout(timer); controller.abort(); }
+}
+
+/** Preserve metadata supplied by the playlist; optional detail must never block its first paint. */
 async function mapQQPlaylistSonglistWithCatalog(list, cookieHeader) {
   const rows = (Array.isArray(list) ? list : []).filter((item) => item && (item.songmid || item.mid));
-  if (rows.length) await qqSongDetailsBatch(rows, cookieHeader, { maxItems: 100 });
+  await hydrateQQCatalogWithinBudget(rows, cookieHeader);
   return mapQQPlaylistSonglist(rows);
 }
 

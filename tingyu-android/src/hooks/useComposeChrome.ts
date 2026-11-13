@@ -129,7 +129,10 @@ export function useComposeChrome(ref:RefObject<HTMLElement|null>,id:ChromeSurfac
                 noteUiInteraction();
                 navigationMark('chrome-event-js',event.nativeDispatchedAt,event.nativeGestureId);
                 if(event.action==='interactionEnd'){held=false;chromeWindowInteraction('end');return;}
-                if(!latest.current.active||node.dataset.composeNative!=='true'||hasBlockingChromeWindow())return;
+                if(!latest.current.active||node.dataset.composeNative!=='true'||hasBlockingChromeWindow()){
+                    navigationMark(!latest.current.active?'chrome-rejected-inactive':node.dataset.composeNative!=='true'?'chrome-rejected-ownership':'chrome-rejected-overlay');
+                    schedule();return;
+                }
                 if(event.action==='interactionStart'){held=true;chromeWindowInteraction('start');return;}
                 navigationMark('chrome-business-start',undefined,event.nativeGestureId);chromeWindowInteraction('start');try{dispatchChromeAction(latest.current.actions,event.action,event.value);}finally{chromeWindowInteraction('end');}
             });

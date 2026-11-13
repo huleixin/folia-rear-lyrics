@@ -74,12 +74,13 @@ class PadPagesTest {
         val state=MinimalPlayerState(playback=MinimalPlayback(track=track,anchorPositionMs=4000,source=MinimalClockSource.ENGINE),lyrics=lyrics,controls=MinimalControls(bound=true,canNext=true,canPrevious=true))
         val commands=BridgeMinimalCommands({action,_->events+=action;true},{true})
         compose.setContent{CompositionLocalProvider(LocalPadWindow provides PadWindow(1280f,800f),LocalInterfacePalette provides InterfacePalette(true,"glacier")){
-            MinimalPlayerScreen(state,MinimalArtwork(),commands,light=true,safeTop=24f,safeBottom=0f,detour=false,onCollapse={},onOpenStage={})
+            MinimalPlayerScreen(state,MinimalArtwork(),commands,light=true,safeTop=24f,safeBottom=0f,detour=false,onCollapse={},onOpenStage={events+="full-stage"})
         }}
         compose.mainClock.advanceTimeByFrame();compose.mainClock.advanceTimeByFrame()
         shot("player-landscape")
         compose.onAllNodesWithText("陪我看日出").assertCountEquals(2)
         compose.onNodeWithText("雨过了就有路").assertExists()
+        compose.onNodeWithContentDescription("打开完整歌词舞台").performClick();assertEquals("full-stage",events.last())
     }
     @Test fun libraryPanesKeepIndependentActions(){
         val directory=page("home","library:qq:playlist",listOf(section("directory","rows","我的歌单",listOf(row("open:one","测试歌单")))))

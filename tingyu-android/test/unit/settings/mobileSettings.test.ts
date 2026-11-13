@@ -180,7 +180,7 @@ describe('mobile options navigation and existing controls', () => {
         expect(thumb.className).toBe('ty-settings-switch-thumb');
         expect(thumb.className).not.toMatch(/translate-x/);
         expect(host.querySelector('.ty-immersive-link')).toBeNull();
-        expect(host.textContent).toContain('播放界面自动隐藏');
+        expect(host.textContent).toContain('歌词舞台自动隐藏');
         act(() => toggle.click()); expect(storage.get('folia_android_immersive_mode')).toBe('false');
     });
     it('removes the unused daylight control from the phone secondary view', () => {

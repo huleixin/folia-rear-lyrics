@@ -447,7 +447,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     // Matches the md:flex-row split below; the two sidebars are different enough to render separately.
     const phoneFitEnabled = useAndroidLayoutSettingsStore(state => state.phoneFitEnabled);
     const isWideSettingsLayout = useMediaQuery('(min-width: 768px)') && !phoneFitEnabled;
-    const isMobileSettings = useActiveLibrarySuiteId() === 'mobile' && !isWideSettingsLayout;
+    const isMobileSettings = useActiveLibrarySuiteId() === 'mobile' && (NATIVE_FIRST || !isWideSettingsLayout);
     const returnFromMobileSection = () => {
         if(useSettingsModalStore.getState().settingsModalState.returnToIndex)useSettingsModalStore.getState().returnSettingsToIndex();
         else onClose();

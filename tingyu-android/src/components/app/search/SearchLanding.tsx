@@ -17,10 +17,14 @@ export function loadSearchDiscovery(source: Exclude<SearchSource, 'local' | 'nav
     if (saved && Date.now() - saved.saved < 600_000) return Promise.resolve(saved.data);
     let request = pending.get(source);
     if (!request) {
-        request = omni.getSearchDiscovery(source).then(data => {
+        let timer: ReturnType<typeof setTimeout>;
+        request = Promise.race([
+            omni.getSearchDiscovery(source),
+            new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('Search discovery timed out')), 8000); }),
+        ]).then(data => {
             cache.set(source, { data, saved: Date.now() });
             return data;
-        }).finally(() => pending.delete(source));
+        }).finally(() => { clearTimeout(timer); pending.delete(source); });
         pending.set(source, request);
     }
     return request;

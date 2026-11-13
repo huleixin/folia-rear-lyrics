@@ -91,6 +91,7 @@ internal fun SettingsFlowPage(
         val viewportWidth = constraints.maxWidth.toFloat()
         val viewportHeight = constraints.maxHeight.toFloat()
         val inset = 22.dp
+        val railInset = if(LocalPadWindow.current.expanded)104.dp else 0.dp
         val glass = rememberTyTopGlassState(estimateHeaderBottomDp = page.safeTop + 84f)
         Box(Modifier.fillMaxSize()) {
             TyTopGlassContentLayer(
@@ -108,7 +109,7 @@ internal fun SettingsFlowPage(
                 key(flow.key) { TySettingsPageView(
                     page = flow,
                     theme = theme,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().padding(start=railInset),
                     contentTop = glass.contentTop,
                     bottomPadding = (24 + page.safeBottom).dp,
                     onAction = action,
@@ -120,7 +121,7 @@ internal fun SettingsFlowPage(
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .padding(start = inset, end = inset, top = (page.safeTop + 24).dp, bottom = 20.dp)
+                        .padding(start = inset + railInset, end = inset, top = (page.safeTop + 24).dp, bottom = 20.dp)
                         .heightIn(min = 40.dp)
                         .onGloballyPositioned { glass.reportHeader(it.positionInWindow().y, it.size.height) },
                     verticalAlignment = Alignment.CenterVertically,
