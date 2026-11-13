@@ -49,6 +49,7 @@ export function installNativeShellRouting() {
         const playerPresentation=playerView.mode;
         // Preference stays minimal during a temporary stage visit. Publish the actual surface separately.
         const stageVisible=isStageSurface(playerView.mode,playerView.detour)||playerView.stageTransition==='to-minimal';
+        const stageDisplayActive=route==='stage'&&isStageSurface(playerView.mode,playerView.detour)&&playerView.stageTransition!=='to-minimal'&&!webOverlay&&!view.isPanelOpen;
         // 集合详情（非歌手）按页面层级判定：route==='collection' 即栈内有集合页。
         // 歌手页维持自身产品规则（全隐藏，与 WebView data-artist-detail 一致）。
         const collectionDetail=route==='collection'&&stack?.at(-1)?.type!=='artist';
@@ -58,12 +59,12 @@ export function installNativeShellRouting() {
         const minimalPage=usePlayerViewModeStore.getState().page;
         // 「极简歌词页常亮」的开关值随 shell 包下发；页面状态由宿主自己判断。
         const minimalLyricsKeepOn=useAndroidLayoutSettingsStore.getState().minimalLyricsKeepOnEnabled;
-        const key=JSON.stringify({route,webOverlay,selectedTab,pageTarget,entryKey,settingsRoot,reducedMotion,collectionDetail,playerPresentation,stageVisible,minimalPage,minimalLyricsKeepOn});if(key===last)return;last=key;
+        const key=JSON.stringify({route,webOverlay,selectedTab,pageTarget,entryKey,settingsRoot,reducedMotion,collectionDetail,playerPresentation,stageVisible,stageDisplayActive,minimalPage,minimalLyricsKeepOn});if(key===last)return;last=key;
         navigationMark('route-publish');
         const sent=++revision;
         const leavingStage=document.documentElement.dataset.nativeRoute==='stage'&&route!=='stage';
         if(!leavingStage)document.documentElement.dataset.nativeRoute=route;
-        void nativePages.shell({generation,revision:sent,route,webOverlay,selectedTab,pageTarget,entryKey,settingsRoot,reducedMotion,navigation,collectionDetail,playerPresentation,stageVisible,minimalPage,minimalLyricsKeepOn}).then(()=>{
+        void nativePages.shell({generation,revision:sent,route,webOverlay,selectedTab,pageTarget,entryKey,settingsRoot,reducedMotion,navigation,collectionDetail,playerPresentation,stageVisible,stageDisplayActive,minimalPage,minimalLyricsKeepOn}).then(()=>{
             if(sent===revision)document.documentElement.dataset.nativeRoute=route;
         }).catch(error=>console.warn('[NativeShell] Route update failed',error));
     };

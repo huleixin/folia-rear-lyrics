@@ -81,7 +81,7 @@ export const chromeNative = registerPlugin<{
      */
     panelUpdate(frame:import('../types/nativePanels').NativePanelFrame):Promise<{accepted:boolean;session:string}>;
     panelRemove(value:{id:string;session:string}):Promise<void>;
-    shell(value:{generation:number;revision:number;route:string;webOverlay:boolean;selectedTab:number;pageTarget?:string;entryKey?:string;settingsRoot?:boolean;reducedMotion?:boolean;navigation?:string;collectionDetail?:boolean;playerPresentation?:'minimal'|'stage';stageVisible?:boolean;minimalPage?:'cover'|'lyrics';minimalLyricsKeepOn?:boolean}):Promise<void>;
+    shell(value:{generation:number;revision:number;route:string;webOverlay:boolean;selectedTab:number;pageTarget?:string;entryKey?:string;settingsRoot?:boolean;reducedMotion?:boolean;navigation?:string;collectionDetail?:boolean;playerPresentation?:'minimal'|'stage';stageVisible?:boolean;stageDisplayActive?:boolean;minimalPage?:'cover'|'lyrics';minimalLyricsKeepOn?:boolean}):Promise<void>;
     collapseStage():Promise<void>;
     addListener(name:'action',callback:(value:ChromeAction)=>void):Promise<{remove:()=>Promise<void>}>;
     addListener(name:'pageAction',callback:(value:NativePageEvent)=>void):Promise<{remove:()=>Promise<void>}>;

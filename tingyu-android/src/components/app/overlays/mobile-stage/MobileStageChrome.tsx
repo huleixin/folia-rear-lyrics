@@ -28,6 +28,7 @@ import { getPlaybackSongKey } from '../../../../utils/appPlaybackGuards';
 import { playbackModeLabelKey, playbackModeLegacyToken, resolvePlaybackMode } from '../../../../utils/playbackMode';
 import { usePlaybackStore } from '../../../../stores/usePlaybackStore';
 import { scheduleSettingsWarmup } from '../../dialogs/settingsModule';
+import { useVisibleLyricStage } from '../../../../hooks/useAndroidMobilePlayerStage';
 import { useStageOrientation } from '../../../../hooks/useStageOrientation';
 import '../../../../styles/composeChrome.css';
 import './mobileStageChrome.css';
@@ -52,7 +53,8 @@ export default function MobileStageChrome({
     }, [menuOpen]);
     const closeMenu = useCallback(() => setMenuOpen(false), []);
     const stageTransition = usePlayerViewModeStore(state => state.stageTransition);
-    const orientation = useStageOrientation(stageTransition !== 'to-minimal');
+    const visibleLyricStage = useVisibleLyricStage();
+    const orientation = useStageOrientation(visibleLyricStage);
     useEffect(() => {
         if (orientation.error) setStatusMessage({ type: 'error', text: orientation.error });
     }, [orientation.error]);

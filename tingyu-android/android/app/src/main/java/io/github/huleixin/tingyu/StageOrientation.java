@@ -28,6 +28,7 @@ final class StageOrientation {
 
     private final Host host;
     private String session = "";
+    private boolean surfaceVisible = true;
     private boolean active, landscape, pending, stopped, holdingEntryPose, restoreOutstanding;
     private int entryOrientation, entryPreference, entryPose;
     private long revision;
@@ -40,7 +41,14 @@ final class StageOrientation {
     State state() { return new State(session, active, landscape, pending, revision, error, reason); }
     boolean overridesPhoneFit() { return landscape; }
 
+    void setSurfaceVisible(boolean visible) {
+        if (surfaceVisible == visible) return;
+        surfaceVisible = visible;
+        if (!visible) reset("page-hidden", false);
+    }
+
     boolean applyPhoneFitOverride() {
+        if (!surfaceVisible) { host.requestOrientation(7); return true; }
         if (landscape) { host.requestLandscape(); return true; }
         if (holdingEntryPose && host.preferredOrientation() == entryPreference) {
             host.requestOrientation(entryPose); return true;
@@ -72,6 +80,7 @@ final class StageOrientation {
         if (expectedRevision >= 0 && expectedRevision != revision) return;
         if (stopped) throw new IllegalStateException("主屏当前不可见，无法旋转舞台");
         if (!value) { reset("button", false); return; }
+        if (!surfaceVisible) return;
         if (landscape) return;
         error = null; landscape = true; holdingEntryPose = false;
         try {
@@ -118,18 +127,18 @@ final class StageOrientation {
     void resume() { stopped = false; }
     void stop() { stopped = true; reset("stop", false); }
 
-    /** Button/Back restore the entry pose; leaving restores its policy, honoring changed preferences. */
+    /** Button/Back restore the entry pose; hidden pages always use sensor portrait. */
     void reset(String cause, boolean endSession) {
         cancelTimeout();
-        boolean restore = landscape || holdingEntryPose || restoreOutstanding;
+        boolean restore = !surfaceVisible || landscape || holdingEntryPose || restoreOutstanding;
         landscape = false; pending = false;
         holdingEntryPose = false;
         if (endSession) active = false;
         if (restore) {
             try {
                 int preferred = host.preferredOrientation();
-                int target = preferred == entryPreference ? entryOrientation : preferred;
-                if (!endSession && preferred == entryPreference && ("button".equals(cause) || "back".equals(cause))) {
+                int target = !surfaceVisible ? 7 : preferred == entryPreference ? entryOrientation : preferred;
+                if (surfaceVisible && !endSession && preferred == entryPreference && ("button".equals(cause) || "back".equals(cause))) {
                     // Auto-rotate would otherwise leave the phone landscape after the restore button.
                     target = entryPose; holdingEntryPose = target != entryOrientation;
                 }

@@ -33,15 +33,15 @@ it('publishes the real stage for both entries and keeps route ownership until th
     useAppViewStore.setState({view:'player'});
     usePlayerViewModeStore.getState().setMode('minimal');
     installNativeShellRouting();
-    expect(bridge.shell.mock.lastCall?.[0]).toMatchObject({route:'stage',playerPresentation:'minimal',stageVisible:false});
+    expect(bridge.shell.mock.lastCall?.[0]).toMatchObject({route:'stage',playerPresentation:'minimal',stageVisible:false,stageDisplayActive:false});
     usePlayerViewModeStore.getState().openStage();flushNativeShellRoute();
-    expect(bridge.shell.mock.lastCall?.[0]).toMatchObject({route:'stage',playerPresentation:'minimal',stageVisible:true});
+    expect(bridge.shell.mock.lastCall?.[0]).toMatchObject({route:'stage',playerPresentation:'minimal',stageVisible:true,stageDisplayActive:true});
     usePlayerViewModeStore.getState().endStageTransition();flushNativeShellRoute();
     expect(usePlayerViewModeStore.getState().mode).toBe('minimal');
     for(const section of ['appearance','playback']) {
         bridge.settings.settingsModalState={isOpen:true,initialTab:'options',initialSubview:section};
         flushNativeShellRoute();
-        expect(bridge.shell.mock.lastCall?.[0]).toMatchObject({route:'settings',stageVisible:true});
+        expect(bridge.shell.mock.lastCall?.[0]).toMatchObject({route:'settings',stageVisible:true,stageDisplayActive:false});
         expect(document.documentElement.dataset.nativeRoute).toBe('stage');
     }
     replies.at(-2)!();await Promise.resolve();
@@ -50,11 +50,11 @@ it('publishes the real stage for both entries and keeps route ownership until th
     expect(document.documentElement.dataset.nativeRoute).toBe('settings');
     bridge.settings.settingsModalState.isOpen=false;
     usePlayerViewModeStore.getState().setMode('stage');flushNativeShellRoute();
-    expect(bridge.shell.mock.lastCall?.[0]).toMatchObject({route:'stage',playerPresentation:'stage',stageVisible:true});
+    expect(bridge.shell.mock.lastCall?.[0]).toMatchObject({route:'stage',playerPresentation:'stage',stageVisible:true,stageDisplayActive:true});
     usePlayerViewModeStore.getState().setMode('minimal');flushNativeShellRoute();
     usePlayerViewModeStore.getState().openStage();flushNativeShellRoute();
     usePlayerViewModeStore.getState().closeStage();flushNativeShellRoute();
-    expect(bridge.shell.mock.lastCall?.[0].stageVisible).toBe(true);
+    expect(bridge.shell.mock.lastCall?.[0]).toMatchObject({stageVisible:true,stageDisplayActive:false});
     usePlayerViewModeStore.getState().endStageTransition();flushNativeShellRoute();
     expect(bridge.shell.mock.lastCall?.[0].stageVisible).toBe(false);
 });

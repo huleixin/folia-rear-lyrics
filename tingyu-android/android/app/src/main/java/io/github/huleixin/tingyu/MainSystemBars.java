@@ -24,6 +24,14 @@ final class MainSystemBars {
     private static Insets latestSafe = Insets.NONE;
     private static float density = 1f;
     private static volatile boolean systemBarsVisible = true;
+    private static boolean stageVisible;
+
+    static void setStageVisible(Activity activity, boolean visible) {
+        if (stageVisible == visible) return;
+        stageVisible = visible;
+        if (!visible) systemBarsVisible = true;
+        applyVisibility(activity);
+    }
 
     static JSObject getInsets() {
         JSObject result = new JSObject();
@@ -36,7 +44,7 @@ final class MainSystemBars {
 
     static void setVisible(Activity activity, boolean visible) {
         if (!(activity instanceof MainActivity)) return;
-        systemBarsVisible = visible;
+        systemBarsVisible = visible || !stageVisible;
         applyVisibility(activity);
     }
 

@@ -126,4 +126,21 @@ public class StageOrientationTest {
         host.requestOrientation(host.preferred); stage.deactivate("one");
         assertEquals(6, host.requested); assertEquals(6, host.preferred);
     }
+
+    @Test public void leavingStageForcesPortraitAndRejectsDelayedRotation() {
+        FakeHost host = new FakeHost(); host.preferred = 6;
+        StageOrientation stage = new StageOrientation(host);
+        stage.activate("one"); stage.setLandscape("one", true);
+        long revision = stage.state().revision;
+        stage.setSurfaceVisible(false);
+        assertEquals(7, host.requested); assertFalse(stage.state().landscape);
+        assertNull(host.scheduled);
+        stage.setLandscape("one", true, revision);
+        stage.setLandscape("one", true);
+        assertEquals(7, host.requested);
+        stage.deactivate("one");
+        assertTrue(stage.applyPhoneFitOverride()); assertEquals(7, host.requested);
+        stage.setSurfaceVisible(true); stage.activate("two"); stage.setLandscape("two", true);
+        assertEquals(6, host.requested);
+    }
 }

@@ -346,6 +346,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var handoffFooter by mutableStateOf<ChromeSurface?>(null)
     private var settingsHandoffFailed by mutableStateOf(false)
     private var playerPresentation by mutableStateOf("stage")
+    private var stageDisplayActive by mutableStateOf(false)
     private var stageVisible by mutableStateOf(true)
     private var returningFromSettings by mutableStateOf(false)
     private var minimalResumePending by mutableStateOf(false)
@@ -373,6 +374,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     fun shell(value:JSONObject,complete:(()->Unit)?=null) {
         val generation=value.optLong("generation");val revision=value.optLong("revision")
         val ticket=routeFence.request(generation,revision)?:run{complete?.invoke();return}
+        if (!value.optBoolean("stageDisplayActive")) {
+            stageDisplayActive=false
+            (web.context as? io.github.huleixin.tingyu.MainActivity)?.setLyricStageVisible(false)
+        }
         val awaitingSettingsDraw=settingsHandoff!=null||settingsDrawHandoff!=null
         settingsHandoff?.complete()
         settingsDrawHandoff?.complete()
@@ -432,6 +437,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         if(nextPresentation!=playerPresentation)sleepMenuOpen=false
         playerPresentation=nextPresentation
         stageVisible=shellStageVisible(value)
+        stageDisplayActive=value.optBoolean("stageDisplayActive")
         // 从浏览页（home/collection/search/…）进入播放器 = 一次**新会话**：令牌 +1，
         // pager 状态随之重建，首次组合就落在封面页（需求二）。设置页返回与完整舞台往返
         // 不算新会话（前者 destination=="settings"，后者 from 已是 stage），页面状态保持。
@@ -671,7 +677,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             } else { surfaces.remove(id); clocks.remove(id) }
         }
     }
-    fun suspend() { navigationActionSerial++;chromeRemovalSerial.clear();clearStartupNavigation();active = false;sleepMenuOpen=false;stageExit.clear();io.github.huleixin.tingyu.NativeKeepScreenOn.setLyrics(false) }
+    fun suspend() { (web.context as? io.github.huleixin.tingyu.MainActivity)?.setLyricStageVisible(false);navigationActionSerial++;chromeRemovalSerial.clear();clearStartupNavigation();active = false;sleepMenuOpen=false;stageExit.clear();io.github.huleixin.tingyu.NativeKeepScreenOn.setLyrics(false) }
     // 回到前台重读一次权威：后台期间到达的歌词、以及引擎在后台走掉的位置都必须立刻反映出来。
     // 诊断（启动专项）：updates/pages 计数能区分暖恢复（计数累积）与 Activity 重建/进程重建
     // （host 重建后归零，updates 从小数字重新爬升）；配合 CrashDiagnostics 的 renderer-gone
@@ -764,6 +770,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             val hostActivity = web.context as? android.app.Activity
             if (hostActivity != null) io.github.huleixin.tingyu.NativeKeepScreenOn.attach(hostActivity)
             io.github.huleixin.tingyu.NativeKeepScreenOn.setLyrics(lyricsKeepOn)
+            (hostActivity as? io.github.huleixin.tingyu.MainActivity)?.setLyricStageVisible(
+                stageDisplayActive && destination=="stage" && active && focused && !webOverlay &&
+                    !stageExit.active && panelHost.panel==null && supportSheet==null && !sleepMenuOpen && !queueOpen
+            )
         }
         val nativeMinimalCollapse=stageExit.active&&stageExit.minimal
         val page=presented?:if(stageExit.active)stageExit.returning else null

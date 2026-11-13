@@ -53,6 +53,14 @@ public class MainActivity extends BridgeActivity {
         if (!getStageOrientation().handleBack()) super.onBackPressed();
     }
 
+    private boolean lyricStageVisible;
+    public void setLyricStageVisible(boolean visible) {
+        lyricStageVisible = visible;
+        getStageOrientation().setSurfaceVisible(visible);
+        MainSystemBars.setStageVisible(this, visible);
+        NativeKeepScreenOn.INSTANCE.setStageVisible(visible);
+    }
+
     StageOrientation getStageOrientation() {
         if (stageOrientation == null) {
             Handler handler = new Handler(Looper.getMainLooper());
@@ -74,6 +82,7 @@ public class MainActivity extends BridgeActivity {
                     FoliaNativePlugin.emitStageOrientation(state);
                 }
             });
+            stageOrientation.setSurfaceVisible(lyricStageVisible);
         }
         return stageOrientation;
     }
