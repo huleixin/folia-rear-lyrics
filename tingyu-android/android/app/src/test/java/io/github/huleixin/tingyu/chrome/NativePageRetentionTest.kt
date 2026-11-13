@@ -6,6 +6,14 @@ import org.junit.Test
 
 // android/app/src/test/java/io/github/huleixin/tingyu/chrome/NativePageRetentionTest.kt
 class NativePageRetentionTest {
+    @Test fun libraryGeometrySurvivesThePlayerWhileRetiredControlsStayBlocked(){
+        val frames=NativePageRetention();val library=page("library:qq:playlist",id="home")
+        frames.update(library);frames.update(page("collection:qq:one"));frames.update(library.copy(enabled=false))
+        val cached=frames.find("home",1,"")!!
+        assertEquals(library,cached)
+        assertFalse(pageInteractionIsCurrent(library.copy(enabled=false),cached))
+        assertNull(frames.find("home",0,""))
+    }
     @Test fun rearSubpagesRejectLateIndexAndKeepTheirOwnReturnPresentation(){
         val control=page("settings:rear:control");val advanced=page("settings:rear:advanced");val frames=NativePageRetention()
         assertTrue(frames.updateForRoute(control,"settings",0,control.key,"rear:1","rear:1"))

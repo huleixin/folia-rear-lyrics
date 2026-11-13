@@ -104,3 +104,27 @@ it('recovers a retained snapshot from a retired session without executing its ac
     expect(bridge.update).toHaveBeenCalledTimes(2);
     document.removeEventListener('tingyu-native-settings-refresh',refresh);
 });
+
+it('never publishes new controls before their native action listener is registered',async()=>{
+    const updates=bridge.update.mock.calls.length;
+    bridge.update.mockImplementation(async frame=>{
+        expect(bridge.callback).toBeTypeOf('function');
+        bridge.callback?.({id:'home',session:frame.session,key:frame.model.key,action:'open'});
+        return {accepted:true,session:frame.session};
+    });
+    bridge.callback=null;
+    await act(async()=>root.render(h(Probe)));
+    expect(bridge.update.mock.calls.length).toBeGreaterThan(updates);
+    expect(click).toHaveBeenCalled();
+});
+
+it('recovers a transient listener failure while retaining native ownership',async()=>{
+    const {nativePages}=await import('@/services/nativePages');
+    vi.spyOn(nativePages,'addListener').mockRejectedValueOnce(new Error('temporary bridge failure'));
+    await act(async()=>root.render(h(Probe)));
+    expect(bridge.update).not.toHaveBeenCalled();expect(host.firstElementChild?.getAttribute('data-native-page')).toBe('true');
+    await act(async()=>{await new Promise(resolve=>setTimeout(resolve,350))});
+    expect(bridge.update).toHaveBeenCalledTimes(1);
+    const frame=bridge.update.mock.calls[0][0];
+    act(()=>bridge.callback?.({id:'home',session:frame.session,key:frame.model.key,action:'open'}));expect(click).toHaveBeenCalled();
+});

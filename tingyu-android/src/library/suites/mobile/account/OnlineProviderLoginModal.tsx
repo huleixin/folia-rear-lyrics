@@ -113,7 +113,7 @@ const OnlineProviderLoginModal = ({
             transition={{ duration: reduced ? 0 : TY_DURATION.panelExit }}
             className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xl p-4"
             data-folia-keyboard-window="true"
-            style={{ position: 'fixed' }}
+            style={{ position: 'fixed', padding: 16 }}
             role="dialog"
             aria-modal="true"
             aria-label={title}
@@ -125,6 +125,7 @@ const OnlineProviderLoginModal = ({
                 transition={reduced ? { duration: 0 } : TY_SPRING.panel}
                 // 失败后加宽成两栏；矮窗口里放不下时在卡片内滚动，而不是被上下裁掉。
                 className={`bg-zinc-900/90 border border-white/10 p-8 rounded-3xl w-full max-h-full overflow-y-auto text-center relative shadow-2xl ${twoColumns ? 'max-w-3xl' : 'max-w-sm'}`}
+                style={{maxWidth:twoColumns?768:384,maxHeight:'calc(100dvh - 32px)',boxSizing:'border-box'}}
             >
                 <button
                     type="button"
@@ -173,9 +174,10 @@ const OnlineProviderLoginModal = ({
                 <div className={twoColumns ? 'flex flex-col items-center gap-6 sm:flex-row sm:items-start' : 'flex flex-col items-center'}>
                     {/* 左栏：二维码（或后端故障原因）、状态行、重启 / 重试。 */}
                     <div className={`flex flex-col items-center ${twoColumns ? 'w-full sm:w-48 sm:shrink-0' : ''}`}>
-                        <div className="relative inline-block bg-white p-2 rounded-xl mb-4 shadow-inner">
+                        <div className="relative inline-block bg-white p-2 rounded-xl mb-4 shadow-inner"
+                            style={{width:'min(176px, calc(100vw - 64px), 40dvh)',aspectRatio:'1',padding:8,boxSizing:'border-box',flexShrink:0}}>
                             {backendFailure ? (
-                                <div className="w-40 h-40 flex flex-col items-center justify-center gap-1.5 rounded-lg bg-red-50 px-3 text-center">
+                                <div style={{width:'100%',height:'100%',maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}} className="w-40 h-40 flex flex-col items-center justify-center gap-1.5 rounded-lg bg-red-50 px-3 text-center">
                                     <AlertTriangle className="text-red-500 shrink-0" size={22} />
                                     <p className="text-[11px] font-semibold leading-snug text-red-600">{backendFailure.title}</p>
                                     {backendFailure.detail && (
@@ -185,13 +187,13 @@ const OnlineProviderLoginModal = ({
                                     )}
                                 </div>
                             ) : awaitingMethod ? (
-                                <div className="w-40 h-40 flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 px-4 text-center text-[11px] font-medium leading-snug text-gray-400">
+                                <div style={{width:'100%',height:'100%',maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}} className="w-40 h-40 flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 px-4 text-center text-[11px] font-medium leading-snug text-gray-400">
                                     {loginMethods?.pendingText}
                                 </div>
                             ) : qrCodeImg ? (
-                                <img src={qrCodeImg} alt="QR Code" className="w-40 h-40" />
+                                <img src={qrCodeImg} alt="QR Code" style={{width:'100%',height:'100%',maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}} className="w-40 h-40" />
                             ) : (
-                                <div className="w-40 h-40 flex items-center justify-center bg-gray-100 rounded-lg">
+                                <div style={{width:'100%',height:'100%',maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}} className="w-40 h-40 flex items-center justify-center bg-gray-100 rounded-lg">
                                     <Loader2 className="animate-spin text-gray-400" size={24} />
                                 </div>
                             )}

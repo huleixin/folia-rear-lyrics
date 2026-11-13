@@ -1047,7 +1047,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             }
                         CompositionLocalProvider(LocalNativePageBottomPx provides pageBottomPx,
                             LocalSettingsTraceIdentity provides SettingsTraceIdentity(destination,shown.session,shown.key,navigation,!pendingStageEntry&&destination=="settings")) {
-                        val shownLibrary=pages["home"]?.takeIf{selectedTab==1&&it.enabled&&it.key.startsWith("library:")&&pageNavigations["home"]==navigation}
+                        val shownLibrary=if(selectedTab==1)pages["home"]?.takeIf{it.enabled&&it.key.startsWith("library:")&&pageNavigations["home"]==navigation}
+                            ?:retained.find("home",1,"") else null
                         NativePageView(shown,placement,scale,libraryPage=shownLibrary,libraryAction={action,text,value->
                             val library=pages["home"]
                             if(active&&!pendingStageEntry&&destination=="collection"&&selectedTab==1&&library?.enabled==true&&shownLibrary!=null&&pageInteractionIsCurrent(library,shownLibrary)&&pageNavigations["home"]==navigation)

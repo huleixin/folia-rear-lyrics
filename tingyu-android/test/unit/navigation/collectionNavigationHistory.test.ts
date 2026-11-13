@@ -374,3 +374,12 @@ describe('minimal player stage return', () => {
         expect(usePlayerViewModeStore.getState().mode).toBe('minimal');
     });
 });
+
+it('leaves every successive root playlist when returning to the top-level tab',async()=>{
+    run(()=>navigation.navigateToCollection(root, 'home'));
+    run(()=>navigation.navigateToCollection(skyline, 'home'));
+    run(()=>navigation.navigateToCollection(polaris, 'home'));
+    run(()=>navigation.popCollectionTo(0));await settle();
+    expect(stackIds()).toEqual([]);
+    expect(historyState().collection??null).toBeNull();
+});

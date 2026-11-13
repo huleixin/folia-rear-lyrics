@@ -141,12 +141,10 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
         };
         const schedule = () => { if (!frame && !disposed) frame = requestAnimationFrame(measure); };
         sync.current = schedule;
-        void canUseNativePages().then(async supported => {
+        let setupFailures=0;
+        const setup=()=>{void canUseNativePages().then(async supported => {
             if (!supported || disposed) return;
-            // Publish the initial page packet before awaiting addListener so the first
-            // navigation to a playlist, search, or settings page saves a bridge round-trip.
-            started = true;
-            measure();
+            // Register actions before exposing new controls; a first tap must have a listener.
             listener = await nativePages.addListener('pageAction', event => {
                 const current = latest.current;
                 if(disposed||!current.active||event.id!==id)return;
@@ -164,6 +162,7 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
             navigationMark('page-listener-ready');
             navigationDetail('page-lifecycle-owner', { route:id, ...nativePageLifecycles[id] });
             if (disposed) { void listener.remove(); return; }
+            started = true;
             resize = new ResizeObserver(schedule); resize.observe(node);
             mutation = new MutationObserver(records => {
                 if (records.some(record => record.type === 'childList'
@@ -176,7 +175,13 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
             window.addEventListener('resize', schedule); window.visualViewport?.addEventListener('resize', schedule);
             document.addEventListener('tingyu-native-navigation',schedule);
             measure();
-        }).catch(() => mark(false));
+        }).catch(error => {
+            started=false;last=undefined;resize?.disconnect();mutation?.disconnect();unsubscribe?.();
+            void listener?.remove();listener=undefined;mark(false);
+            settingsDiagnostic('listener-registration-failed',{id,session,key:latest.current.model?.key??'',reason:error instanceof Error?error.name:'rejected'});
+            if(!disposed&&setupFailures<3){setupFailures++;retryTimer=window.setTimeout(setup,300*2**(setupFailures-1));}
+        });};
+        setup();
         return () => {
             disposed = true; window.clearTimeout(retryTimer); cancelAnimationFrame(frame); resize?.disconnect(); mutation?.disconnect(); unsubscribe?.();
             window.removeEventListener('resize', schedule); window.visualViewport?.removeEventListener('resize', schedule);

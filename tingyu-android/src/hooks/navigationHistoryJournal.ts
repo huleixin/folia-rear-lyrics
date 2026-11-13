@@ -130,7 +130,16 @@ export const findCollectionTraversal = (
         const base = findLayerBaseIndex(journal, index);
         if (to) return currentIndex - base;
         // 整个关掉：落到根之前那一条（它必须在日志里，否则不知道那里是什么）。
-        return base > 0 && journal.get(base - 1) ? currentIndex - base + 1 : null;
+        // Consecutive root-playlist selections are separate visits, not the library root.
+        // Closing the whole collection must cross all of them before landing.
+        let root = base - 1;
+        while (root >= 0) {
+            const previous = journal.get(root);
+            if (!previous) return null;
+            if (previous.view !== 'home' || !previous.collection) return currentIndex - root;
+            root -= 1;
+        }
+        return null;
     }
     return null;
 };

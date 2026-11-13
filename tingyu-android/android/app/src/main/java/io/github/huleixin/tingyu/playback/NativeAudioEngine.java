@@ -870,45 +870,44 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 // 同一首、降一档音质重取地址（RS01→F000→M800→M500）。降级也只这一轮：
                 // 重新解析失败或低档也播不动，就走正常的重试/跳过路径。
                 downgradeTriedKey=songKey;
-                NativePlaylist.Track self=list.trackFor(songKey);
-                String quality=nextPrefix.isEmpty()
-                    ?neteaseQuality
+                final NativePlaylist.Track self=list.trackFor(songKey);
+                final String target=songKey,token=sourceId;
+                final long generation=++retryGeneration;
+                final MediaItem expected=player.getCurrentMediaItem();
+                final String quality=nextPrefix.isEmpty()?neteaseQuality
                     :io.github.huleixin.tingyu.resolver.QqResolver.qualityTokenForPrefix(nextPrefix);
-                io.github.huleixin.tingyu.resolver.SourceResolution resolution=self==null?null
-                    :io.github.huleixin.tingyu.resolver.ResolverRegistry.get().resolve(self,quality);
-                if(resolution==null||!resolution.ok()){
-                    PlaybackDiagnostics.note("quality-downgrade-failed",new JSObject()
-                        .put("song",PlaybackDiagnostics.anonKey(songKey))
-                        .put("reason",resolution==null?"no-track":resolution.reason)
-                        .put("nextPrefix",nextPrefix));
-                    if(hasNext){executeSkip("downgrade-unavailable");return true;}
-                    return false;
-                }
-                MediaItem current=player.getCurrentMediaItem();
-                if(current==null||current.localConfiguration==null)return false;
-                // 降档重取的地址与后台续播走同一条登记路径（代理/直连同构），
-                // 不能这里直连、正常播放却走代理。
-                String loweredUri;
-                try{loweredUri=BackgroundContinuation.get().registerForPlayback(resolution);}
-                catch(Exception registerError){
-                    PlaybackDiagnostics.note("quality-downgrade-failed",new JSObject()
-                        .put("song",PlaybackDiagnostics.anonKey(songKey)).put("reason","register")
-                        .put("nextPrefix",nextPrefix));
-                    if(hasNext){executeSkip("downgrade-unavailable");return true;}
-                    return false;
-                }
-                JSObject refreshedTag=copy((JSObject)current.localConfiguration.tag);
-                refreshedTag.put("adoptedAt",SystemClock.elapsedRealtime());
-                MediaItem lowered=new MediaItem.Builder()
-                    .setUri(Uri.parse(loweredUri)).setMediaId(current.mediaId)
-                    .setTag(refreshedTag).build();
-                int index=Math.max(0,player.getCurrentMediaItemIndex());
-                player.replaceMediaItem(index,lowered);
-                player.prepare();player.play();
-                PlaybackDiagnostics.note("quality-downgrade",new JSObject()
-                    .put("song",PlaybackDiagnostics.anonKey(songKey))
-                    .put("from",prefix).put("to",nextPrefix)
-                    .put("httpStatus",httpStatus>0?httpStatus:"?"));
+                if(self==null||expected==null||expected.localConfiguration==null)return false;
+                // URL resolution can perform HTTP. Keep it off the Media3 application thread.
+                PlaybackRecoveryWork.start(work->main.post(work),()->{
+                    io.github.huleixin.tingyu.resolver.SourceResolution resolved=null;
+                    String uri=null,reason="resolve-failed";
+                    try{
+                        resolved=io.github.huleixin.tingyu.resolver.ResolverRegistry.get().resolve(self,quality);
+                        if(resolved!=null&&resolved.ok())uri=BackgroundContinuation.get().registerForPlayback(resolved);
+                        else reason=resolved==null?"no-resolution":resolved.reason;
+                    }catch(Exception problem){reason=problem.getClass().getSimpleName();}
+                    return new String[]{uri,reason};
+                },()->generation==retryGeneration&&sourceId.equals(token)&&songKey.equals(target)
+                    &&player.getCurrentMediaItem()==expected,result->{
+                        final String loweredUri=result[0],failureReason=result[1];
+                        if(loweredUri==null){
+                            PlaybackDiagnostics.note("quality-downgrade-failed",new JSObject()
+                                .put("song",PlaybackDiagnostics.anonKey(target)).put("reason",failureReason).put("nextPrefix",nextPrefix));
+                            if(!desiredPaused&&player.getNextMediaItemIndex()>=0)executeSkip("downgrade-unavailable");
+                            else{failure=error;emit("error",false);}
+                            return;
+                        }
+                        JSObject tag=expected.localConfiguration.tag instanceof JSObject?copy((JSObject)expected.localConfiguration.tag):new JSObject();
+                        tag.put("adoptedAt",SystemClock.elapsedRealtime());
+                        MediaItem lowered=expected.buildUpon().setUri(Uri.parse(loweredUri)).setTag(tag).build();
+                        int index=Math.max(0,player.getCurrentMediaItemIndex());
+                        long position=player.getCurrentPosition();
+                        player.replaceMediaItem(index,lowered);player.seekTo(index,position);
+                        failure=null;player.prepare();if(!desiredPaused)player.play();else player.pause();
+                        PlaybackDiagnostics.note("quality-downgrade",new JSObject()
+                            .put("song",PlaybackDiagnostics.anonKey(target)).put("from",prefix).put("to",nextPrefix)
+                            .put("httpStatus",httpStatus>0?httpStatus:"?"));
+                });
                 return true;
             }
             case SKIP_NEXT:
