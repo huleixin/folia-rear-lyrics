@@ -230,7 +230,7 @@ export interface LibraryHomeActionsController {
     importPlaylistFile(file: File): Promise<LibraryHomeActionResult>;
     /** 取私人 FM 并从第一首开始播放（取不到歌时什么都不做）。 */
     playPersonalFm(options?: PersonalFmRequestOptions): Promise<LibraryHomeActionResult>;
-    /** 打开在线卡片：私人 FM 直接播放，其余交给宿主打开集合。 */
+    /** 打开在线卡片集合，包括私人 FM；浏览不触发播放。 */
     openOnlineCard(card: LibraryHomeCard, providerId: string, open: LibraryHomeOpenCollection): Promise<LibraryHomeActionResult>;
     openLocalGroup(group: LocalLibraryGroup, open: LibraryHomeOpenCollection): void;
     openNavidromeCard(card: LibraryHomeCard, type: NavidromeGridViewCollectionType, open: LibraryHomeOpenCollection): void;

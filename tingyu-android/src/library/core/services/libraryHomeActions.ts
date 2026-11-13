@@ -168,8 +168,10 @@ export const createLibraryHomeActions = (port: LibraryHomePort): LibraryHomeActi
         playPersonalFm,
 
         openOnlineCard: async (card: LibraryHomeCard, providerId: string, open: LibraryHomeOpenCollection) => {
-            if (isPersonalFmCard(card)) return playPersonalFm();
-            open(port.describeOnlineCollection(onlineCardCollection(card), providerId));
+            // Browsing never starts transport. The existing radio resource fetches the FM batch.
+            const collection = onlineCardCollection(card);
+            open(port.describeOnlineCollection(isPersonalFmCard(card)
+                ? { ...collection, id: 'personal_fm', type: 'radio' } : collection, providerId));
             return OK;
         },
 

@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import { Play } from "lucide-react";
+import { ChevronRight, Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type {
   LibraryHomeCard,
@@ -150,8 +150,8 @@ export default function MobileRecommendations({
                 }
                 onClick={() => void open(card, false)}
               >
-                <Play fill="currentColor" size={17} />
                 <span>{t("mobileLibrary.viewSongs")}</span>
+                <ChevronRight size={14} />
               </button>
             ) : kind === "new" && chart.supported ? (
               <button className="ml-hero-unavailable" disabled={chart.status === 'loading'} onClick={chart.retry}

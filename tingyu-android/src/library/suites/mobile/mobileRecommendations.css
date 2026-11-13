@@ -123,6 +123,19 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
+/* Collection entry: quiet text link, aligned with the poster copy. */
+.mobile-library .ml-hero-play {
+    gap: 5px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    justify-content: flex-start;
+    margin-top: 10px;
+}
 .ml-hero-unavailable {
   color: #ffffffcf;
   background: #17132c58;

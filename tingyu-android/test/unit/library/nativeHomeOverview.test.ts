@@ -103,7 +103,8 @@ afterEach(() => {
 });
 
 describe('NativeHomeOverview 解析期 hold（录屏 68804 回归）', () => {
-    it('hero opens the song collection without requesting autoplay or replacing playback', async () => {
+    it.each(['guess-you-like', 'daily-30', 'new-releases'])('%s opens the collection without autoplay', async (kind) => {
+        chart.status = 'ready'; chart.collection = { id: 'new', type: 'playlist', name: 'New' };
         const props = makeProps();
         const open = props.homeResources.actions.openOnlineCard as ReturnType<typeof vi.fn>;
         open.mockImplementation(async (_card, _provider, ready) => {
@@ -117,7 +118,7 @@ describe('NativeHomeOverview 解析期 hold（录屏 68804 回归）', () => {
         const { useMobileLibraryStore } = await import('../../../src/stores/useMobileLibraryStore');
         const request = useMobileLibraryStore.getState().requestCollectionPlay as ReturnType<typeof vi.fn>;
         request.mockClear();
-        await act(async () => { (captured.actions['hero:daily-30'] as () => void)(); });
+        await act(async () => { (captured.actions['hero:' + kind] as () => void)(); });
         expect(props.onOpenGridView).toHaveBeenCalledTimes(1);
         expect(request).not.toHaveBeenCalled();
         expect(props.onPlaySong).not.toHaveBeenCalled();

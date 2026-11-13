@@ -2,6 +2,7 @@ import type { SongResult, UnifiedSong } from '../../types';
 import type { LibraryPlaybackPort } from '../core/contracts/ports';
 import { resolveNavidromePlaybackCarrier } from '../../utils/appPlaybackGuards';
 import type { HomeSurfaceProps } from '../../components/app/home/homeSurfaceTypes';
+import type { LibraryCollectionDescriptor } from '../core/contracts/collection';
 
 // src/library/app/createLibraryPlaybackPort.ts
 // 把首页 surface 上的播放回调装配成 Library Core 的播放端口。核心层只说「播这首、以这些为队列」，
@@ -19,9 +20,14 @@ type PlaybackSurface = Pick<
     | 'localSongs'
 >;
 
-export const createLibraryPlaybackPort = (surface: PlaybackSurface): LibraryPlaybackPort => ({
-    playTrack: (track, queue) => surface.onPlaySong(track, queue),
-    playAll: tracks => surface.onPlayAll?.(tracks),
+export const createLibraryPlaybackPort = (surface: PlaybackSurface, collection?: LibraryCollectionDescriptor | null): LibraryPlaybackPort => ({
+    playTrack: (track, queue) => collection?.source === 'online' && collection.type === 'radio' && collection.id === 'personal_fm'
+        ? surface.onPlaySong(track, queue, true) : surface.onPlaySong(track, queue),
+    playAll: tracks => {
+        if (collection?.source === 'online' && collection.type === 'radio' && collection.id === 'personal_fm') {
+            if (tracks.length) surface.onPlaySong(tracks[0], tracks, true);
+        } else surface.onPlayAll?.(tracks);
+    },
     // 单曲入队按来源分流：本地歌交给本地队列，Navidrome 歌交出它的播放载体，其余走在线入队。
     enqueueTrack: (track: SongResult) => {
         const unifiedTrack = track as UnifiedSong;

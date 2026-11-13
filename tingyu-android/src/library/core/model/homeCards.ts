@@ -113,7 +113,7 @@ export const buildOnlineRadioCards = (
     }));
 };
 
-/** 这张卡是私人 FM（直接播放，不打开集合）。 */
+/** 这张卡是私人 FM（打开现有 radio 集合，播放后继续私人电台）。 */
 export const isPersonalFmCard = (card: Pick<LibraryHomeCard, 'id' | 'raw'>): boolean => (
     card.id === PERSONAL_FM_CARD_ID || (card.raw as { id?: unknown } | undefined)?.id === PERSONAL_FM_CARD_ID
 );

@@ -174,7 +174,7 @@ import kotlinx.coroutines.launch
         }
     }
 }
-@Composable private fun NativeHeroRail(section:NativePageSection,viewport:Float,start:androidx.compose.ui.unit.Dp,end:androidx.compose.ui.unit.Dp,wide:Boolean,short:Boolean,action:PageAction) {
+@Composable internal fun NativeHeroRail(section:NativePageSection,viewport:Float,start:androidx.compose.ui.unit.Dp,end:androidx.compose.ui.unit.Dp,wide:Boolean,short:Boolean,action:PageAction) {
     val state=rememberLazyListState();val scope=rememberCoroutineScope()
     val width=NativePageDesign.heroWidth(viewport,wide,short).dp
     val height=NativePageDesign.heroHeight(width.value,short).dp
@@ -196,12 +196,11 @@ import kotlinx.coroutines.launch
                 Text(item.title,color=Color.White,fontSize=title,lineHeight=title*1.14f,fontWeight=FontWeight(780),letterSpacing=(-1.1).sp,
                     modifier=Modifier.padding(start=18.dp,top=if(short)40.dp else 50.dp).width(width*.8f))
                 if(eyebrow.isNotBlank())Box(Modifier.offset(18.dp,(50+title.value*2.28f+10).dp).size(16.dp,2.dp).background(Color(0x99FFFFFF),RoundedCornerShape(2.dp)))
-                Text(item.subtitle,color=Color(0xD9FFFDF2),fontSize=12.sp,lineHeight=18.sp,maxLines=2,modifier=Modifier.align(Alignment.BottomStart).padding(start=18.dp,bottom=52.dp))
-                Row(Modifier.align(Alignment.BottomStart).padding(start=18.dp,bottom=14.dp).height(38.dp)
-                    .clip(RoundedCornerShape(24.dp)).background(Color(0x30FFFFFF)).border(1.dp,Color(0x45FFFFFF),RoundedCornerShape(24.dp))
-                    .clickable(enabled=!item.disabled){action(item.action,"",0.0)}.padding(horizontal=15.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)) {
-                    if(!item.disabled)PageIcon("chevron-right",Color.White,Modifier.size(16.dp))
-                    Text(item.secondaryLabel.ifBlank{if(item.disabled)"暂不可用"else"立即播放"},color=Color.White,fontSize=13.sp,fontWeight=FontWeight.Medium)
+                Text(item.subtitle,color=Color(0xD9FFFDF2),fontSize=12.sp,lineHeight=18.sp,maxLines=2,modifier=Modifier.align(Alignment.BottomStart).padding(start=18.dp,bottom=64.dp))
+                Row(Modifier.align(Alignment.BottomStart).padding(start=18.dp,bottom=12.dp).height(40.dp)
+                    .clickable(enabled=!item.disabled){action(item.action,"",0.0)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)) {
+                    Text(item.secondaryLabel.ifBlank{if(item.disabled)"暂不可用"else"查看歌曲"},color=Color.White,fontSize=13.sp,fontWeight=FontWeight.Medium)
+                    if(!item.disabled)PageIcon("chevron-right",Color.White,Modifier.size(14.dp))
                 }
             }
         }

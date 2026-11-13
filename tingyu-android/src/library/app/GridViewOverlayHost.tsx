@@ -281,7 +281,7 @@ const GridViewOverlayHost: React.FC<GridViewOverlayHostProps> = ({
         local: artistLocalLibrary,
     });
     // 播放与入队的语义集中在端口里，网格与别的 renderer 共用。
-    const playbackPort = useMemo(() => createLibraryPlaybackPort(surfaceProps), [surfaceProps]);
+    const playbackPort = useMemo(() => createLibraryPlaybackPort(surfaceProps, liveSelectedCollection), [surfaceProps, liveSelectedCollection]);
 
     const openGridView = useCallback((collection: GridViewCollectionDescriptor) => {
         onOpenCollection(collection);

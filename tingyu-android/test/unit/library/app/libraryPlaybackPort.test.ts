@@ -26,6 +26,19 @@ const surface = (localSongs: LocalSong[] = [localSong]) => ({
 });
 
 describe('library playback port', () => {
+    it('FM collection browsing creates no playback and intentional row/all play retains FM continuation', () => {
+        const props = surface();
+        const port = createLibraryPlaybackPort(props, { source: 'online', providerId: 'qq', id: 'personal_fm', type: 'radio', name: 'FM' });
+        expect(props.onPlaySong).not.toHaveBeenCalled();
+        port.playTrack(onlineSong, [onlineSong]);
+        expect(props.onPlaySong).toHaveBeenLastCalledWith(onlineSong, [onlineSong], true);
+        port.playAll([onlineSong]);
+        expect(props.onPlaySong).toHaveBeenCalledTimes(2);
+        expect(props.onPlaySong).toHaveBeenLastCalledWith(onlineSong, [onlineSong], true);
+        port.playAll([]);
+        expect(props.onPlaySong).toHaveBeenCalledTimes(2);
+        expect(props.onPlayAll).not.toHaveBeenCalled();
+    });
     it('routes a local song to the local queue with its library entry', () => {
         const props = surface();
         createLibraryPlaybackPort(props).enqueueTrack(buildLocalQueue([localSong])[0]);

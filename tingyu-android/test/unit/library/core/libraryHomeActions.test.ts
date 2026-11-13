@@ -218,13 +218,19 @@ describe('createLibraryHomeActions — scan progress subscription', () => {
 });
 
 describe('createLibraryHomeActions — opening cards', () => {
-    it('Personal FM plays from the first song and opens nothing', async () => {
+    it('Personal FM opens a radio collection without fetching or starting transport', async () => {
         const { port } = createPort();
         const open = vi.fn();
         const result = await createLibraryHomeActions(port).openOnlineCard({ id: 'personal_fm', name: 'FM', type: 'radio' }, 'p', open);
         expect(result).toEqual({ ok: true });
+        expect(port.playPersonalFm).not.toHaveBeenCalled();
+        expect(port.getPersonalFm).not.toHaveBeenCalled();
+        expect(open).toHaveBeenCalledWith(expect.objectContaining({ id: 'personal_fm', type: 'radio', providerId: 'p' }));
+    });
+    it('explicit FM play remains an intentional action', async () => {
+        const { port } = createPort();
+        await createLibraryHomeActions(port).playPersonalFm();
         expect(port.playPersonalFm).toHaveBeenCalledWith({ id: 'fm-1' }, [{ id: 'fm-1' }, { id: 'fm-2' }]);
-        expect(open).not.toHaveBeenCalled();
     });
 
     it('an empty FM plays nothing; a failing FM is logged', async () => {
