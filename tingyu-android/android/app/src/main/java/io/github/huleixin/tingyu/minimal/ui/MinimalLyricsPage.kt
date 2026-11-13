@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -164,7 +165,8 @@ private fun CenteredHint(text: String, ink: MinimalInk) {
 private fun Header(playback: MinimalPlayback, artwork: MinimalArtwork, ink: MinimalInk) {
     val track = playback.track
     Column(Modifier.fillMaxWidth().padding(start = 26.dp, end = 26.dp, top = 2.dp, bottom = 6.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        val pad=io.github.huleixin.tingyu.chrome.LocalPadWindow.current.splitPlayer
+        Row(Modifier.then(if(pad)Modifier.align(Alignment.CenterHorizontally).widthIn(max=320.dp)else Modifier),verticalAlignment = Alignment.CenterVertically) {
             val bitmap = artwork.bitmap
             Box(
                 Modifier
@@ -182,7 +184,7 @@ private fun Header(playback: MinimalPlayback, artwork: MinimalArtwork, ink: Mini
                 }
             }
             Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
+            Column(if(pad)Modifier.widthIn(max=250.dp) else Modifier.weight(1f)) {
                 Text(
                     text = track.title.ifBlank { "未在播放" },
                     color = ink.ink,
@@ -208,6 +210,7 @@ private fun Header(playback: MinimalPlayback, artwork: MinimalArtwork, ink: Mini
         }
         Box(
             Modifier
+                .then(if(pad)Modifier.align(Alignment.CenterHorizontally)else Modifier)
                 .padding(top = 11.dp)
                 .width(22.dp)
                 .height(1.5.dp)

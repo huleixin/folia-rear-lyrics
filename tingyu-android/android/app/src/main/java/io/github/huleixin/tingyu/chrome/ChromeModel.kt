@@ -7,9 +7,9 @@ import kotlin.math.min
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ChromeModel.kt
 // Geometry is CSS pixels until the host applies WebView scale; business state stays in the existing player.
 data class ChromeRect(val left: Float, val top: Float, val width: Float, val height: Float, val alpha: Float)
-data class ChromeTimeline(val position: Double, val duration: Double, val playing: Boolean, val receivedAt: Long) {
+data class ChromeTimeline(val position: Double, val duration: Double, val playing: Boolean, val receivedAt: Long, val playback: io.github.huleixin.tingyu.minimal.MinimalPlayback? = null) {
     // A missing renderer heartbeat never leaves an independently advancing native player clock.
-    fun at(now: Long): Double = (position + if (playing) (now - receivedAt).coerceIn(0, 2500) / 1000.0 else 0.0)
+    fun at(now: Long): Double = playback?.positionSecAt(now) ?: (position + if (playing) (now - receivedAt).coerceIn(0, 2500) / 1000.0 else 0.0)
         .coerceIn(0.0, max(0.0, duration))
 }
 data class ChromeSurface(

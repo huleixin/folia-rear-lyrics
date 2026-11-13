@@ -11,3 +11,7 @@ data class PadWindow(val width: Float = 0f, val height: Float = 0f) {
     val rail get() = if (expanded) 104f else 0f
 }
 val LocalPadWindow = staticCompositionLocalOf { PadWindow() }
+
+// Window metrics exclude the IME resize; genuine split-window changes still apply.
+internal fun padLayoutWindow(width:Float,contentHeight:Float,windowHeight:Float)=
+    PadWindow(width,windowHeight.takeIf{it.isFinite()&&it>0f}?.coerceAtLeast(contentHeight)?:contentHeight)

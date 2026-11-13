@@ -10,7 +10,7 @@ const bridge=vi.hoisted(()=>({update:vi.fn(),clock:vi.fn(),remove:vi.fn(),callba
 vi.mock('@/services/nativeChrome',()=>({COMPOSE_CHROME_FAILURE_EVENT:'tingyu-compose-chrome-failed',PREHIDE_COMPOSE_CHROME:true,canUseComposeChrome:async()=>bridge.supported,newChromeGeneration:()=>1,
     chromeNative:{update:bridge.update,clock:bridge.clock,remove:bridge.remove,addListener:async(_name:string,callback:(e:any)=>void)=>{bridge.callback=callback;return{remove:async()=>{}}}},
     chromeWindowInteraction:bridge.interact,
-    hasBlockingChromeWindow:()=>[...document.querySelectorAll<HTMLElement>('[data-folia-keyboard-window="true"]')].some(n=>n.dataset.nativeChromeOverlay!=='nonblocking'),
+    hasBlockingChromeWindow:()=>[...document.querySelectorAll<HTMLElement>('[data-folia-keyboard-window="true"]')].some(n=>n.dataset.nativeChromeOverlay!=='nonblocking'&&!n.closest('[data-folia-settings-overlay]')),
     chromeClockNeedsAnchor:(now:number,at:number,p:number,last:number,playing:boolean)=>now-at>=2000||Math.abs(p-last-(playing?(now-at)/1000:0))>.65,
 }));
 vi.mock('@/utils/stageActivity',()=>({isMainStageActive:()=>true,subscribeMainStageActivity:()=>()=>{}}));
@@ -135,4 +135,16 @@ it('keeps transport painted behind a non-overlapping stage menu',async()=>{
     expect(bridge.update.mock.calls.at(-1)?.[0].enabled).toBe(true);
     expect(host.firstElementChild?.getAttribute('data-compose-native')).toBe('true');
     await act(async()=>menu.remove());
+});
+
+it('keeps live commands and clock anchors behind the native settings host',async()=>{
+    const overlay=document.createElement('div');overlay.dataset.foliaSettingsOverlay='true';overlay.dataset.foliaKeyboardWindow='true';document.body.append(overlay);
+    try{
+        await act(async()=>root.render(h(Probe)));await settle(20);
+        const frame=bridge.update.mock.calls.at(-1)![0];
+        expect(frame.enabled).toBe(true);
+        bridge.callback?.({id:'mini',session:frame.session,action:'queue',value:0});expect(queue).toHaveBeenCalled();
+        await act(async()=>{clock.set(42)});
+        expect(bridge.clock.mock.calls.at(-1)![0]).toMatchObject({id:'mini',session:frame.session,position:42});
+    }finally{overlay.remove();}
 });

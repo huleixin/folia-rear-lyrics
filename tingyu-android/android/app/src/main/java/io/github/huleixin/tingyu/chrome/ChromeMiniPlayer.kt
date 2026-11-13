@@ -50,6 +50,11 @@ import kotlin.math.abs
 @Composable internal fun ChromeMiniPlayer(s: ChromeSurface, timeline: ChromeTimeline?, backdrop: Backdrop, modifier: Modifier,
     minimal: MinimalPlayerRuntime? = null,
     onCoverBounds: (Rect)->Unit = {}, action: (String,Double)->Unit) {
+    val playbackFlow=remember(minimal){minimal?.state?.map{it.playback}?.distinctUntilChanged()}
+    val playback=playbackFlow?.collectAsState(initial=minimal!!.state.value.playback)?.value
+    val currentPlayback=playback?.takeIf{it.track.key==s.trackKey&&s.trackKey.isNotBlank()&&it.source!=MinimalClockSource.NONE}
+    val transportTimeline=currentPlayback?.let{ChromeTimeline(it.anchorPositionMs/1000.0,it.track.durationMs/1000.0,it.playing,it.anchorElapsedMs,it)}?:timeline
+    val playing=currentPlayback?.playing?:s.playing
     val ink=chromeColor(s.ink);val accent=chromeColor(s.accent)
     val cover=pageImage(s.cover)
     // 与底栏同一份材质规范（vibrancy → blur → lens + 光学高光/内阴影），只在表面不透明度上
@@ -104,12 +109,12 @@ import kotlin.math.abs
         }
         if(pad)ChromeButton("喜欢 / 取消喜欢",enabled=!s.disabled,size=46.dp,onClick={action("padLike",0.0)}){PageIcon("heart",ink,Modifier.size(23.dp))}
         if(pad)ChromeButton("上一首",enabled=!s.disabled&&s.canPrevious,size=46.dp,onClick={action("previous",0.0)}){ChromeGlyph("previous",ink,Modifier.size(23.dp))}
-        ChromeButton(s.label(if(s.playing)"pause" else "play",if(s.playing)"暂停" else "播放"),enabled=!s.disabled,size=42.dp,reduced=s.reducedMotion,onClick={action("toggle",0.0)}) {
-            ChromeProgressRing(timeline,Modifier.size(34.dp),ink);ChromeGlyph(if(s.playing)"pause" else "play",ink,Modifier.size(19.dp))
+        ChromeButton(s.label(if(playing)"pause" else "play",if(playing)"暂停" else "播放"),enabled=!s.disabled,size=42.dp,reduced=s.reducedMotion,onClick={action("toggle",0.0)}) {
+            ChromeProgressRing(transportTimeline,Modifier.size(34.dp),ink);ChromeGlyph(if(playing)"pause" else "play",ink,Modifier.size(19.dp))
         }
         if(pad)ChromeButton("下一首",enabled=!s.disabled&&s.canNext,size=46.dp,onClick={action("next",0.0)}){ChromeGlyph("next",ink,Modifier.size(23.dp))}
         ChromeButton(s.label("queue","播放队列"),size=spacing.queue.dp,reduced=s.reducedMotion,onClick={action("queue",0.0)}) {ChromeGlyph("queue",ink,Modifier.size(24.dp))}
-        if(pad)Box(Modifier.width(padSeekWidth).padding(horizontal=18.dp)){ChromeSeek(s,timeline,accent,ink,action)}
+        if(pad)Box(Modifier.width(padSeekWidth).padding(horizontal=18.dp)){ChromeSeek(s,transportTimeline,accent,ink,action)}
     }
     }
 }

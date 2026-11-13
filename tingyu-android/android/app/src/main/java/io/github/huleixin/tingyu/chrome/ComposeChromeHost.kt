@@ -805,7 +805,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             it.enabled && NativeFooterLayout.visible(
                 it.id,
                 if((composeOwnsMinimalEntry||playerEntering||stageExit.active)&&it.id!="stage")browsingRoute else destination,
-                footerDetail,it.viewportWidth,artist=isArtistRoute,settingsRoot=settingsRoot) &&
+                footerDetail,(host?.width?.takeIf{it>0}?:web.width)/web.resources.displayMetrics.density,artist=isArtistRoute,settingsRoot=settingsRoot) &&
                 (it.id!="stage"||it.rect.width>0&&it.rect.height>0) &&
                 !(composeOwnsMinimalEntry&&it.id=="stage")
         } else emptyList()
@@ -816,7 +816,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         SideEffect{if(!legacySampling)webSamplingLayer.update(Build.VERSION.SDK_INT>=31&&sampleWeb)}
         val savedPages=rememberSaveableStateHolder()
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            CompositionLocalProvider(LocalPadWindow provides PadWindow(maxWidth.value,maxHeight.value),LocalChromeRendering provides (active&&focused),LocalInterfacePalette provides palette,LocalLiquidReduced provides motionReduced,LocalMotionOrigin provides motionOrigin,LocalPlayerReveal provides playerReveal,LocalPlayerArtworkAnchor provides playerArtwork,LocalMinimalMorph provides minimalMorph) {
+            CompositionLocalProvider(LocalPadWindow provides padLayoutWindow(maxWidth.value,maxHeight.value,
+                if(Build.VERSION.SDK_INT>=30) (web.context.getSystemService(android.view.WindowManager::class.java)?.currentWindowMetrics?.bounds?.height()?.div(LocalDensity.current.density)?:maxHeight.value)
+                else maxHeight.value + WindowInsets.ime.getBottom(LocalDensity.current)/LocalDensity.current.density),LocalChromeRendering provides (active&&focused),LocalInterfacePalette provides palette,LocalLiquidReduced provides motionReduced,LocalMotionOrigin provides motionOrigin,LocalPlayerReveal provides playerReveal,LocalPlayerArtworkAnchor provides playerArtwork,LocalMinimalMorph provides minimalMorph) {
             val density=LocalDensity.current;val width=maxWidth.value;val height=maxHeight.value
             val safeTop=if(nativeTop>=0)nativeTop else WindowInsets.statusBars.getTop(density)/density.density
             val safeBottom=if(nativeBottom>=0)nativeBottom else WindowInsets.navigationBars.getBottom(density)/density.density

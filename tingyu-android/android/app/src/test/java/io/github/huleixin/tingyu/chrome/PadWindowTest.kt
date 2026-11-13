@@ -5,6 +5,12 @@ import org.junit.Test
 
 // Boundary coverage prevents a wide phone or narrow split window acquiring a split player.
 class PadWindowTest {
+    @Test fun keyboardResizeDoesNotReplaceTabletInput(){
+        assertTrue(padLayoutWindow(1280f,380f,800f).expanded)
+        assertTrue(padLayoutWindow(1280f,800f,800f).expanded)
+        assertFalse(padLayoutWindow(640f,380f,800f).expanded)
+        assertFalse(padLayoutWindow(1280f,380f,380f).expanded)
+    }
     @Test fun sizes() {
         assertFalse(PadWindow(393f,852f).expanded)
         assertFalse(PadWindow(852f,393f).splitPlayer)

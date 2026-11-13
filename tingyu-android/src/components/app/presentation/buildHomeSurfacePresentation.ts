@@ -2,6 +2,7 @@
 
 type BuildHomeSurfacePresentationInput = {
     currentView: string;
+    keepNativeControlsMounted?: boolean;
     isSettingsModalOpen: boolean;
     isPanelOpen: boolean;
     panelKeepsHomeVisible?: boolean;
@@ -18,13 +19,14 @@ type BuildHomeSurfacePresentationInput = {
 // 关掉设置不重新淡入，bravais 实色墙也继续遮挡 visualizer（见 playerVisualizerMount）。
 export const buildHomeSurfacePresentation = ({
     currentView,
+    keepNativeControlsMounted = false,
     isSettingsModalOpen,
     isPanelOpen,
     keepsHomeForHandoff = false,
     panelKeepsHomeVisible = false,
 }: BuildHomeSurfacePresentationInput) => {
     // Overlays may hide Home while it is active, but must not remount it from the player view.
-    const shouldKeepHomeMounted = currentView === 'home' || keepsHomeForHandoff;
+    const shouldKeepHomeMounted = currentView === 'home' || keepsHomeForHandoff || keepNativeControlsMounted;
     const shouldShowHomeSurface = currentView === 'home' && !isSettingsModalOpen && !isPanelOpen;
     // 显示比可交互多两种情况：设置弹窗盖着首页（墙在遮罩下面看得见），交接进 Lattice 时首页墙还看得见；两者都不接输入。
     const shouldRevealHomeSurface = (currentView === 'home' && (!isPanelOpen || panelKeepsHomeVisible)) || keepsHomeForHandoff;

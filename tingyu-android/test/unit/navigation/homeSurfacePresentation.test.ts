@@ -99,3 +99,9 @@ it('keeps Home visible and non-interactive under its own queue without revealing
         shouldKeepHomeMounted: true, shouldShowHomeSurface: false, shouldRevealHomeSurface: true,
     });
 });
+
+it('keeps native Pad control publisher alive behind settings opened from player, with Home still hidden',()=>{
+    expect(buildHomeSurfacePresentation({currentView:'player',isSettingsModalOpen:true,isPanelOpen:false,keepNativeControlsMounted:true})).toEqual({
+        shouldKeepHomeMounted:true,shouldShowHomeSurface:false,shouldRevealHomeSurface:false,
+    });
+});

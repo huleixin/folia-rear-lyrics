@@ -50,7 +50,7 @@ import androidx.compose.ui.unit.sp
     val hasTabs=page.sections.any{it.id=="tabs"}
     val glass=rememberTyTopGlassState(estimateHeaderBottomDp=if(pane)0f else page.safeTop+if(menu)74f else 56f+if(hasTabs)54f else 0f)
     Box(modifier){
-        TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()){
+        TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize(),paintBackground=!pane&&!headerOnly){
         val list=rememberLazyListState()
         LazyColumn(Modifier.fillMaxSize().imePadding(),state=list,contentPadding=PaddingValues(start=14.dp,end=14.dp,top=glass.contentTop+if(menu)0.dp else 16.dp,bottom=maxOf((page.safeBottom+18).dp,bottomClearance))){
             page.sections.filter{it.id !in setOf("query","sources","tabs")}.forEach{section->
@@ -126,7 +126,7 @@ import androidx.compose.ui.unit.sp
             }
         }
         }
-        TyTopGlassSurface(glass,colors)
+        if(!pane&&!headerOnly)TyTopGlassSurface(glass,colors)
         // 顶栏内容（清晰层）：搜索框内含音源入口；实际测量同时覆盖分类标签的增减。
         if(!pane)TyTopGlassForeground {
             Column(Modifier.fillMaxWidth().padding(top=page.safeTop.dp)

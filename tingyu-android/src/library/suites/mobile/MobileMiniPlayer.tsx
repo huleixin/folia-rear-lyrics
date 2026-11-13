@@ -50,6 +50,10 @@ export default function MobileMiniPlayer({
     const glassRef = useRef<HTMLDivElement>(null);
 
     useMiniPlayerSwipe(glassRef, onNextTrack, onPreviousTrack, !!song && !!canNextTrack, !!song && !!canPreviousTrack);
+    const openPlayer = () => {
+        if(PREHIDE_COMPOSE_CHROME)useSettingsModalStore.getState().closeSettings();
+        onBackToPlayer?.();
+    };
     const openQueue = () => {
         void openNativeQueueSheet().then(handled => {
             if (handled) return;
@@ -59,6 +63,7 @@ export default function MobileMiniPlayer({
     const active = useAppViewStore(s=>s.view==='home'&&!s.isPanelOpen);
     const panelOpen = useAppViewStore(s=>s.isPanelOpen);
     const settingsOpen = useSettingsModalStore(s=>s.settingsModalState.isOpen);
+    const settingsRoot = useSettingsModalStore(s=>!s.isSubSettingsViewOpen);
     const duration = usePlaybackStore(selectDisplayDuration);
     const quality = useAudioSettingsStore(s=>s.audioQuality);
     const reducedMotion = useReducedMotionFor('uiMicroMotion');
@@ -71,13 +76,13 @@ export default function MobileMiniPlayer({
     // 搜索页现在也显示迷你条（2026-11-09）：封面解析不能再看 searchOpen，
     // 否则在搜索页点「下一首」会掉封面。设置页仍不需要。
     const nativeCover = useNativeChromeCover(cover,PREHIDE_COMPOSE_CHROME || (active&&!settingsOpen));
-    const compose = useComposeChrome(glassRef,'mini',PREHIDE_COMPOSE_CHROME ? !panelOpen : (active&&!settingsOpen),{
+    const compose = useComposeChrome(glassRef,'mini',PREHIDE_COMPOSE_CHROME ? (!panelOpen || settingsOpen&&settingsRoot) : (active&&!settingsOpen),{
         title:song?.name||t('mobileLibrary.nothingPlaying'),artist:song?getSongArtistLabel(song):t('mobileLibrary.chooseMusic'),cover:nativeCover,
         trackKey:song?getPlaybackSongKey(song):'',playing:state===PlayerState.PLAYING,disabled:!song||!onTogglePlayback,
         sleepPreferredMinutes,
         duration,canNext:!!song&&!!canNextTrack,canPrevious:!!song&&!!canPreviousTrack,reducedMotion,ink:'#eef5ef',accent:'#86d8b8',
         labels:{next:nextTrackLabel||t('ui.nextTrack'),previous:previousTrackLabel||t('ui.previousTrack'),play:t('mobileLibrary.play'),pause:t('mobileLibrary.pause'),queue:t('mobileLibrary.queue'),quality:'音质切换',qualityValue:QUALITY_LABELS[quality]},
-    },{openStage:onBackToPlayer,toggle:onTogglePlayback,next:onNextTrack,previous:onPreviousTrack,queue:openQueue,quality:()=>useAudioToolsStore.getState().show()},currentTime,recoveryHold);
+    },{openStage:openPlayer,toggle:onTogglePlayback,next:onNextTrack,previous:onPreviousTrack,queue:openQueue,quality:()=>useAudioToolsStore.getState().show()},currentTime,recoveryHold);
     useMobileGlass(glassRef,!compose);
     return (
         <div ref={glassRef} className="ml-mini" data-testid="mobile-mini-player">

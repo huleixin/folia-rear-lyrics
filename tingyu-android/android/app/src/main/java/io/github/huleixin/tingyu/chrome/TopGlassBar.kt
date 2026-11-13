@@ -195,6 +195,7 @@ internal fun BoxScope.TyTopGlassContentLayer(
     ambientViewportHeight: Dp?,
     modifier: Modifier = Modifier,
     backgroundCutout: (() -> Path?)? = null,
+    paintBackground: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Box(
@@ -206,7 +207,7 @@ internal fun BoxScope.TyTopGlassContentLayer(
             .hazeSource(state.hazeState)
     ) {
         // 与 NativePageView 背景同笔刷、同边界（内容层=页面根大小）→ 逐像素对齐。
-        Box(Modifier.matchParentSize().drawBehind {
+        if(paintBackground) Box(Modifier.matchParentSize().drawBehind {
             val hole = backgroundCutout?.invoke()
             if (hole == null) drawRect(Brush.verticalGradient(colors))
             else clipPath(hole, ClipOp.Difference) { drawRect(Brush.verticalGradient(colors)) }

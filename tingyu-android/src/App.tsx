@@ -1,3 +1,4 @@
+import {useMediaQuery} from './hooks/useMediaQuery';
 import { consumeRecoveryPresentation } from './services/androidSessionRecovery';
 import { usePlaybackSessionPersistence } from './hooks/usePlaybackSessionPersistence';
 import { usePlaybackDeck } from './hooks/usePlaybackDeck';
@@ -2580,7 +2581,10 @@ export default function App() {
     const wallHandoffSession = useWallHandoffStore(state => state.session);
     const wallHandoff = resolveWallHandoffPresentation(wallHandoffSession);
 
+    const padControlsWindow=useMediaQuery('(min-width:840px)');
+    const keepNativeControlsMounted=PREHIDE_COMPOSE_CHROME&&padControlsWindow&&isSettingsModalOpen;
     const { shouldKeepHomeMounted, shouldShowHomeSurface, shouldRevealHomeSurface } = buildHomeSurfacePresentation({
+        keepNativeControlsMounted,
         currentView,
         isSettingsModalOpen,
         isPanelOpen,
