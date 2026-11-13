@@ -36,6 +36,8 @@ export type NativeToolPage = 'quality' | 'effects' | 'lyrics' | 'lx';
 const PAGE_INDEX: Record<NativeToolPage, number> = { quality: 1, effects: 2, lyrics: 3, lx: 4 };
 
 export type NativeToolsHandlers = {
+    seek?: (seconds: number) => void;
+    like?: () => void;
     /** 音质切换（走 useAudioToolsStore 的请求链，由 useAudioQualitySwitch 真正执行）。 */
     switchQuality: (quality: 'standard' | 'high' | 'lossless' | 'hires') => void;
     /** 歌词工具的处理器，来自播放面板模型（与 WebView 歌词工具同一批函数）。 */
@@ -388,6 +390,11 @@ async function testLxScript(id: string): Promise<void> {
 export function runNativeToolsAction(action: string, value: number, text = ''): boolean {
     if (!handlers) return false;
     switch (action) {
+        case 'padLike': { handlers.like?.(); return !!handlers.like; }
+        case 'padSeek': {
+            if (!Number.isFinite(value) || value < 0 || !handlers.seek) return false;
+            handlers.seek(value); return true;
+        }
         case 'toolsOpen': {
             pageOpen = ({ 1: 'quality', 2: 'effects', 3: 'lyrics', 4: 'lx' } as Record<number, NativeToolPage>)[value] ?? '';
             if (!pageOpen) return true;

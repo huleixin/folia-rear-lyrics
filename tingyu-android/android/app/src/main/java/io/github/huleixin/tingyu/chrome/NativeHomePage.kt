@@ -38,6 +38,7 @@ import kotlinx.coroutines.launch
 // Mirrors mobileLibrary.css + mobileRecommendations.css: fixed heading, snapping hero,
 // horizontal square recent artwork, and compact two-column playlist rows.
 @Composable internal fun NativeHomePage(page:NativePage,modifier:Modifier,action:PageAction) {
+    if(LocalPadWindow.current.expanded){PadHomePage(page,modifier,action);return}
     BoxWithConstraints(modifier){
         val wide=maxWidth>=840.dp;val short=wide&&maxHeight<=600.dp
         val start=if(wide)if(short)108.dp else 116.dp else 22.dp

@@ -7,6 +7,13 @@ import static org.junit.Assert.*;
 
 // android/app/src/test/java/io/github/huleixin/tingyu/StageOrientationTest.java
 public class StageOrientationTest {
+    @Test public void tabletDoesNotForcePortraitWhenLeavingStage() {
+        FakeHost host = new FakeHost() { public boolean adaptiveWindow() { return true; } };
+        StageOrientation stage = new StageOrientation(host);
+        stage.setSurfaceVisible(false);
+        assertEquals(-1,host.requested);
+        stage.applyPhoneFitOverride();assertEquals(-1,host.requested);
+    }
     private static class FakeHost implements StageOrientation.Host {
         int requested = 7, preferred = 7; // Android sensor portrait; landscape is 6.
         boolean actualLandscape, rejectLandscape, rejectRestore;

@@ -2420,7 +2420,13 @@ export default function App() {
     // ref 转发最新面板模型；歌词动作与 WebView 歌词工具走同一批函数，不复制业务。
     const nativeToolsRef = useRef(playerPanelModel.panelProps);
     nativeToolsRef.current = playerPanelModel.panelProps;
+    const nativeSeekRef = useRef(seekMainAudio);
+    nativeSeekRef.current = seekMainAudio;
+    const nativeLikeRef = useRef(handleLike);
+    nativeLikeRef.current = handleLike;
     const stableNativeToolsHandlers = useMemo<NativeToolsHandlers>(() => ({
+        seek: seconds => nativeSeekRef.current(seconds),
+        like: () => nativeLikeRef.current(),
         switchQuality: (quality: 'standard' | 'high' | 'lossless' | 'hires') => {
             useAudioToolsStore.getState().switchQuality(quality);
         },

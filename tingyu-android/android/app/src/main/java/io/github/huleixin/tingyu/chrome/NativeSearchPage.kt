@@ -37,16 +37,18 @@ import androidx.compose.ui.unit.sp
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeSearchPage.kt
 // Full-width search field, wrapping history chips and numbered two-column hot list.
 @OptIn(ExperimentalLayoutApi::class)
-@Composable internal fun NativeSearchPage(page:NativePage,modifier:Modifier,action:PageAction){
+@Composable internal fun NativeSearchPage(page:NativePage,modifier:Modifier,action:PageAction,pane:Boolean=false,headerOnly:Boolean=false){
+    if(LocalPadWindow.current.expanded&&!pane&&!headerOnly&&!page.key.startsWith("search:menu:")){PadSearchPage(page,modifier,action);return}
     val bottomClearance=with(LocalDensity.current){LocalNativePageBottomPx.current.toDp()}
     val reduced = LocalLiquidReduced.current
+    val padGrid=LocalPadWindow.current.expanded
     val menu=page.key.startsWith("search:menu:")
     val caches=page.sections.filter{it.layout=="rows"}.associate{it.id to key(it.id){rememberNativeRows(page.key,it)}}
     // 沉浸式毛玻璃顶栏（TopGlassBar）：搜索结果全幅滚动进入固定搜索区玻璃后方；
     // 输入框/内联音源/分类标签是玻璃之上的清晰层，输入法弹出时列表随 imePadding 避让。
     val colors=page.surfaceColors()
     val hasTabs=page.sections.any{it.id=="tabs"}
-    val glass=rememberTyTopGlassState(estimateHeaderBottomDp=page.safeTop+if(menu)74f else 56f+if(hasTabs)54f else 0f)
+    val glass=rememberTyTopGlassState(estimateHeaderBottomDp=if(pane)0f else page.safeTop+if(menu)74f else 56f+if(hasTabs)54f else 0f)
     Box(modifier){
         TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()){
         val list=rememberLazyListState()
@@ -93,6 +95,7 @@ import androidx.compose.ui.unit.sp
                         }
                         Spacer(Modifier.height(20.dp));Box(Modifier.fillMaxWidth().height(1.dp).background(LocalInterfacePalette.current.searchBorder));Spacer(Modifier.height(12.dp))
                     }
+                    section.layout=="rows"&&padGrid&&section.id in setOf("artist","album","playlist") -> padSearchGrid(page,section,caches.getValue(section.id),action)
                     section.layout=="rows" -> pagedNativeRows(page,section,caches.getValue(section.id),56,action)
                     section.layout=="chips" -> item(key=section.id){Column{section.items.forEach{item->
                         Row(Modifier.fillMaxWidth().height(52.dp).chromeClickable(corner=12.dp){action(item.action,"",0.0)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
@@ -125,7 +128,7 @@ import androidx.compose.ui.unit.sp
         }
         TyTopGlassSurface(glass,colors)
         // 顶栏内容（清晰层）：搜索框内含音源入口；实际测量同时覆盖分类标签的增减。
-        TyTopGlassForeground {
+        if(!pane)TyTopGlassForeground {
             Column(Modifier.fillMaxWidth().padding(top=page.safeTop.dp)
                 .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}){
                 if(menu)PageHeading(page,Modifier.padding(14.dp),action=action)

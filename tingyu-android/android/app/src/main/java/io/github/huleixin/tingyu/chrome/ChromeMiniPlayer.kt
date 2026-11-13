@@ -56,6 +56,8 @@ import kotlin.math.abs
     // 按内容密度加厚一档（MiniFill）：歌名/歌手/播放键要压住模糊背景，但折射与高光逻辑一致。
     BoxWithConstraints(modifier.chromeGlass(backdrop,s.light,28.dp,ChromeGlassPresets.active(),ChromeGlassPresets.MiniFill)) {
     val spacing=miniPlayerSpacing(maxWidth.value)
+    val pad=LocalPadWindow.current.expanded
+    val padSeekWidth=(maxWidth*.34f).coerceIn(200.dp,420.dp)
     Row(Modifier.fillMaxSize().padding(horizontal=6.dp,vertical=3.dp),verticalAlignment=Alignment.CenterVertically) {
         val scope=rememberCoroutineScope();val offset=remember{Animatable(0f)}
         var dx by remember{mutableFloatStateOf(0f)};var width by remember{mutableFloatStateOf(1f)}
@@ -83,7 +85,7 @@ import kotlin.math.abs
                 // 左上角正好落进圆角被裁掉 —— 看起来就是「封面偏左、缺一角」。
                 // 只给封面本体让出 10.dp，不动整条的高度/宽度、玻璃效果、按钮与圆角；
                 // padding 放在 size 之前，34.dp 的封面尺寸与 10.dp 圆角保持不变。
-                Box(Modifier.padding(start=10.dp).size(34.dp).onGloballyPositioned { onCoverBounds(it.boundsInRoot()) }.clip(RoundedCornerShape(10.dp)).background(accent.copy(alpha=.2f)),contentAlignment=Alignment.Center) {
+                Box(Modifier.padding(start=10.dp).size(if(pad)48.dp else 34.dp).onGloballyPositioned { onCoverBounds(it.boundsInRoot()) }.clip(RoundedCornerShape(10.dp)).background(accent.copy(alpha=.2f)),contentAlignment=Alignment.Center) {
                     ChromeGlyph("music",if(s.light)ink else ink.copy(alpha=.7f))
                     if(s.cover.isNotBlank())AsyncImage(model=cover,contentDescription=null,modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
                 }
@@ -99,10 +101,14 @@ import kotlin.math.abs
                 }
             }
         }
+        if(pad)ChromeButton("喜欢 / 取消喜欢",enabled=!s.disabled,size=46.dp,onClick={action("padLike",0.0)}){PageIcon("heart",ink,Modifier.size(23.dp))}
+        if(pad)ChromeButton("上一首",enabled=!s.disabled&&s.canPrevious,size=46.dp,onClick={action("previous",0.0)}){ChromeGlyph("previous",ink,Modifier.size(23.dp))}
         ChromeButton(s.label(if(s.playing)"pause" else "play",if(s.playing)"暂停" else "播放"),enabled=!s.disabled,size=42.dp,reduced=s.reducedMotion,onClick={action("toggle",0.0)}) {
             ChromeProgressRing(timeline,Modifier.size(34.dp),ink);ChromeGlyph(if(s.playing)"pause" else "play",ink,Modifier.size(19.dp))
         }
+        if(pad)ChromeButton("下一首",enabled=!s.disabled&&s.canNext,size=46.dp,onClick={action("next",0.0)}){ChromeGlyph("next",ink,Modifier.size(23.dp))}
         ChromeButton(s.label("queue","播放队列"),size=spacing.queue.dp,reduced=s.reducedMotion,onClick={action("queue",0.0)}) {ChromeGlyph("queue",ink,Modifier.size(24.dp))}
+        if(pad)Box(Modifier.width(padSeekWidth).padding(horizontal=18.dp)){ChromeSeek(s,timeline,accent,ink,action)}
     }
     }
 }

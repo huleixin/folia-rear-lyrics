@@ -104,8 +104,11 @@ export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePage
             // A document capture and its key are one model. Never publish a header-only
             // settings/index substitute between the two layout-effect passes.
             if(current.model.key.startsWith('settings:document:')&&!current.model.document)return;
-            const enabled = current.active && isMainStageActive() && (NATIVE_FIRST&&id==='collection'||!node.closest('[inert]'))
-                && (style.visibility !== 'hidden'||node.dataset.nativeDocumentRoot==='true') && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+            const padLibrary = NATIVE_FIRST && id === 'home' && current.model.key.startsWith('library:')
+                && window.matchMedia('(min-width:840px) and (min-height:480px) and (orientation:landscape)').matches
+                && document.documentElement.dataset.nativeRoute === 'collection';
+            const enabled = current.active && isMainStageActive() && (NATIVE_FIRST&&id==='collection'||padLibrary||!node.closest('[inert]'))
+                && (padLibrary||style.visibility !== 'hidden'||node.dataset.nativeDocumentRoot==='true') && style.display !== 'none' && rect.width > 0 && rect.height > 0;
             const safeTop = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--folia-main-inset-top')) || 0;
             const safeBottom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--folia-main-inset-bottom')) || 0;
             const packet = { id, session, generation, enabled, left: rect.left, top: rect.top, width: rect.width,

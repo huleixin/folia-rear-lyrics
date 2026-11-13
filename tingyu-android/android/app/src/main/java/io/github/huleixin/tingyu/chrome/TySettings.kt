@@ -642,6 +642,17 @@ internal fun TySettingsPageView(
 
 @Composable
 internal fun TySettingsContent(page: TySettingsPage, theme: TyPanelTheme, onAction: PageAction) {
+    val padGroups=groupSettingsNodes(page.nodes)
+    if(LocalPadWindow.current.expanded&&page.layout==null&&padGroups.size>1){
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(24.dp)){
+            repeat(2){column->Column(Modifier.weight(1f)){
+                padGroups.filterIndexed{index,_->index%2==column}.forEach{(group,nodes)->
+                    TySettingsContent(page.copy(nodes=listOfNotNull(group)+nodes),theme,onAction)
+                }
+            }}
+        }
+        return
+    }
     if(page.layout!=null){
         androidx.compose.runtime.CompositionLocalProvider(androidx.compose.material3.LocalTextStyle provides TextStyle(color=theme.text,fontSize=14.sp,lineHeight=20.sp)){
             SettingsLayoutView(page.layout,page.nodes.associateBy{it.id},theme,onAction)

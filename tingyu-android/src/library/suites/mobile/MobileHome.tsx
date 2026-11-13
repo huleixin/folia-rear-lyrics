@@ -34,6 +34,7 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
                 event.defaultPrevented ||
                 !props.isInteractive ||
                 page !== 'library' ||
+                document.documentElement.dataset.nativeRoute === 'collection' ||
                 // 有已注册模态在开时，资料库页不参与返回（栈顶优先，modalBackStack 契约）。
                 hasRegisteredModal() ||
                 hasBlockingWindow() ||

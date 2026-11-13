@@ -67,6 +67,7 @@ public class MainActivity extends BridgeActivity {
             stageOrientation = new StageOrientation(new StageOrientation.Host() {
                 public int requestedOrientation() { return getRequestedOrientation(); }
                 public int preferredOrientation() { return PhoneLayoutOrientation.requestedOrientation(MainActivity.this); }
+                public boolean adaptiveWindow() { return isInMultiWindowMode() || getResources().getConfiguration().smallestScreenWidthDp >= 600; }
                 public int poseOrientation() {
                     return isLandscape() ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT;
                 }

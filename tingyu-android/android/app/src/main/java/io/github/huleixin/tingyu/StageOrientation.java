@@ -12,6 +12,7 @@ final class StageOrientation {
         void schedule(Runnable task, long delayMs);
         void cancel(Runnable task);
         void changed(State state);
+        default boolean adaptiveWindow() { return false; }
     }
 
     static final class State {
@@ -48,7 +49,7 @@ final class StageOrientation {
     }
 
     boolean applyPhoneFitOverride() {
-        if (!surfaceVisible) { host.requestOrientation(7); return true; }
+        if (!surfaceVisible) { host.requestOrientation(host.adaptiveWindow() ? -1 : 7); return true; }
         if (landscape) { host.requestLandscape(); return true; }
         if (holdingEntryPose && host.preferredOrientation() == entryPreference) {
             host.requestOrientation(entryPose); return true;
@@ -137,7 +138,7 @@ final class StageOrientation {
         if (restore) {
             try {
                 int preferred = host.preferredOrientation();
-                int target = !surfaceVisible ? 7 : preferred == entryPreference ? entryOrientation : preferred;
+                int target = !surfaceVisible ? (host.adaptiveWindow() ? -1 : 7) : preferred == entryPreference ? entryOrientation : preferred;
                 if (surfaceVisible && !endSession && preferred == entryPreference && ("button".equals(cause) || "back".equals(cause))) {
                     // Auto-rotate would otherwise leave the phone landscape after the restore button.
                     target = entryPose; holdingEntryPose = target != entryOrientation;

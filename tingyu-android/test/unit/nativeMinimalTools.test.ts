@@ -49,6 +49,7 @@ const { useLxSourceStore } = await import('../../src/stores/useLxSourceStore');
 const { omni } = await import('../../src/services/onlineMusic/omni');
 
 const handlers = () => ({
+    seek: vi.fn(),
     switchQuality: vi.fn(),
     lyrics: {
         currentSong: null,
@@ -74,6 +75,13 @@ const flush = async () => {
 };
 
 describe('nativeMinimalTools', () => {
+    it('routes Pad seeks to the existing player and rejects invalid positions', () => {
+        const h=handlers(); registerNativeTools(h);
+        expect(runNativeToolsAction('padSeek',42)).toBe(true);
+        expect(h.seek).toHaveBeenCalledWith(42);
+        expect(runNativeToolsAction('padSeek',NaN)).toBe(false);
+        expect(runNativeToolsAction('padSeek',-1)).toBe(false);
+    });
     beforeEach(() => {
         registered.length = 0;
         resolveListeners = [];

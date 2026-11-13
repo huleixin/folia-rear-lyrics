@@ -29,7 +29,9 @@ private val SettingIcons=mapOf("appearance" to "sparkles","general" to "language
     "coffee" to "coffee","community" to "messages-square")
 private val GroupIcons=mapOf("rear" to "captions","appearance" to "sparkles","controls" to "play-circle","connections" to "database","system" to "settings2","support" to "heart")
 @Composable internal fun NativeSettingsPage(page:NativePage,modifier:Modifier,action:PageAction){
+    if(LocalPadWindow.current.expanded){PadSettingsPage(page,modifier,action);return}
     val bottomClearance=with(LocalDensity.current){LocalNativePageBottomPx.current.toDp()}
+    val tablet=LocalPadWindow.current.tablet
     BoxWithConstraints(modifier){
         val inset=if(maxWidth<374.dp)18.dp else 22.dp
         // 沉浸式毛玻璃顶栏（TopGlassBar）：设置分组卡全幅滚动进入固定标题栏玻璃后方。
@@ -39,7 +41,7 @@ private val GroupIcons=mapOf("rear" to "captions","appearance" to "sparkles","co
             TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()){
             val list = rememberLazyListState()
             LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=inset,end=inset,top=glass.contentTop,bottom=maxOf((24+page.safeBottom).dp,bottomClearance))){
-                page.sections.forEach{section->item(key=section.id){
+                page.sections.filter{!tablet||it.id!="rear"}.forEach{section->item(key=section.id){
                     Column(Modifier.padding(bottom=16.dp)){
                         if(section.title.isNotBlank())Row(Modifier.padding(start=2.dp,end=2.dp,bottom=8.dp).height(20.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
                             PageIcon(GroupIcons[section.id]?:"settings2",LocalInterfacePalette.current.settingsGroup,Modifier.size(16.dp))
@@ -67,11 +69,11 @@ private val GroupIcons=mapOf("rear" to "captions","appearance" to "sparkles","co
         }
     }
 }
-@Composable private fun SettingsCard(content:@Composable ColumnScope.()->Unit){
+@Composable internal fun SettingsCard(content:@Composable ColumnScope.()->Unit){
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(LocalInterfacePalette.current.card)
         .border(1.dp,LocalInterfacePalette.current.border,RoundedCornerShape(14.dp)),content=content)
 }
-@Composable private fun NativeSettingsRow(item:NativePageItem,modifier:Modifier=Modifier,inset:Dp=14.dp,action:PageAction){
+@Composable internal fun NativeSettingsRow(item:NativePageItem,modifier:Modifier=Modifier,inset:Dp=14.dp,action:PageAction){
     Row(modifier.fillMaxWidth().heightIn(min=48.dp).chromeClickable(enabled=item.action.isNotBlank()&&!item.disabled,corner=12.dp){action(item.action,"",0.0)}
         .padding(horizontal=inset,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
         Box(Modifier.size(34.dp).clip(RoundedCornerShape(999.dp)).background(LocalInterfacePalette.current.settingsIconSurface),contentAlignment=Alignment.Center){PageIcon(SettingIcons[item.id]?:"settings2",LocalInterfacePalette.current.settingsIcon,Modifier.size(21.dp))}

@@ -1,4 +1,7 @@
 import {useInterfaceLight} from '../../hooks/useInterfaceAppearance';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { NATIVE_FIRST } from '../../services/nativePages';
+import { useMobileLibraryStore } from '../../stores/useMobileLibraryStore';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -182,6 +185,9 @@ const GridViewOverlayHost: React.FC<GridViewOverlayHostProps> = ({
     children,
 }) => {
     countRender('GridViewOverlayHost');
+    const padWide = useMediaQuery('(min-width:840px) and (min-height:480px) and (orientation:landscape)');
+    const mobileLibraryPage = useMobileLibraryStore(state => state.page);
+    const padLibrary = NATIVE_FIRST && padWide && mobileLibraryPage === 'library';
     const { t } = useTranslation();
     const collectionSnapshot = useCollectionNavigationStore(state => state.snapshot);
     const isDaylight = useInterfaceLight();
@@ -634,7 +640,7 @@ const GridViewOverlayHost: React.FC<GridViewOverlayHostProps> = ({
                     pointerEvents: selectedCollection ? 'none' : 'auto',
                 }}
             >
-                {children(openGridView, isInteractive && !selectedCollection)}
+                {children(openGridView, isInteractive && (!selectedCollection || padLibrary))}
             </div>
             {/* 生效 suite 的常驻舞台：首页之上、背景板与集合层之下；始终占这个位置，打开 / 关闭集合不重挂。 */}
             <LibrarySuiteStageSlot

@@ -36,6 +36,7 @@ import kotlin.math.abs
 // Copyright (c) Kyant0. Tingyu adaptation keeps four original slots, all dimensions and
 // glass material parameters. Tab taps and drag commit once; external routes never emit taps.
 @Composable fun ChromeNavigation(s: ChromeSurface, backdrop: Backdrop, modifier: Modifier, action: (String, Double) -> Unit) {
+    if(LocalPadWindow.current.expanded){PadNavigation(s,backdrop,modifier,action);return}
     val ink = chromeColor(s.ink); val accent = chromeColor(s.accent)
     val palette=LocalInterfacePalette.current
     val spec = ChromeGlassPresets.active()

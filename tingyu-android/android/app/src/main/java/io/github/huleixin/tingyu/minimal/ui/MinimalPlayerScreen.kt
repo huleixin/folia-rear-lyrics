@@ -132,6 +132,7 @@ fun MinimalPlayerScreen(
     onOpenStage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val padSplit=io.github.huleixin.tingyu.chrome.LocalPadWindow.current.splitPlayer
     // 顺访舞台时保留同一份 pager/封面控制器，由宿主把它放在 WebView 舞台下面。
 
     val playback = state.playback
@@ -178,8 +179,8 @@ fun MinimalPlayerScreen(
     val pagerState = androidx.compose.runtime.key(resetToken) {
         rememberPagerState(initialPage = initialPage.coerceIn(0, PAGE_COUNT - 1)) { PAGE_COUNT }
     }
-    LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.currentPage }.collect { page -> onPageChanged(page) }
+    LaunchedEffect(pagerState,padSplit) {
+        snapshotFlow { if(padSplit)1 else pagerState.currentPage }.collect { page -> onPageChanged(page) }
     }
     val scope = rememberCoroutineScope()
     val page = pagerState.currentPage
@@ -292,7 +293,21 @@ fun MinimalPlayerScreen(
                 modifier = Modifier.minimalSection("header"),
             )
 
-            HorizontalPager(
+            if(padSplit) {
+                Row(Modifier.fillMaxWidth().weight(1f)){
+                    Column(Modifier.weight(1f)){
+                        MinimalCoverPage(state,artwork,palette,ink,!dark,clock,!detour,still,coverStackState,coverCaches,
+                            skipTransaction=skipTransaction,onOpenLyrics={},onAudioTools={onOpenTools("quality")},
+                            onOpenArtist={commands.openArtist(it)},coverGesture=Modifier.coverStackDrag(coverStackState,coverController),modifier=Modifier.weight(1f))
+                        MinimalTransport(playback=playback,controls=state.controls,clock=clock,ink=ink,accent=Color(palette.accent),commands=sheetCommands,light=!dark,
+                            onOpenSleep=onOpenSleep,sleepActive=sleepActive,sleepLabel=sleepLabel,onSleepAnchor=onSleepAnchor,
+                            onOpenMore={menuOpen=true;menuClosing=false},moreMenu={},onPrevious={coverController.skip(DragDirection.PREV)},onNext={coverController.skip(DragDirection.NEXT)})
+                    }
+                    Box(Modifier.weight(1.3f).padding(horizontal=22.dp)){
+                        MinimalLyricsPage(state,artwork,palette,ink,clock,active=!detour,pagerBusy=false,onSeek={commands.seekTo(it)})
+                    }
+                }
+            } else HorizontalPager(
                 state = pagerState,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -351,7 +366,7 @@ fun MinimalPlayerScreen(
                 }
             }
 
-            MinimalTransport(
+            if(!padSplit)MinimalTransport(
                 playback = playback,
                 controls = state.controls,
                 clock = clock,

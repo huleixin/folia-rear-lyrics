@@ -545,6 +545,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         }
         // Do not poison retained geometry with an enabled packet from a route being
         // retired (e.g. the home DOM acquiring the stage's safe-area coordinates).
+        val padLibrarySidecar=PadWindow(web.width/web.resources.displayMetrics.density,web.height/web.resources.displayMetrics.density).splitPlayer && destination=="collection" && selectedTab==1 && next.id=="home" && next.key.startsWith("library:") && next.enabled && value.navigation==navigation
+        if(padLibrarySidecar){
+            pages[next.id]=next;pageNavigations[next.id]=value.navigation
+            reply(status().put("accepted",true).put("session",next.session));return
+        }
         val ownsPresentation=retained.updateForRoute(next,destination,selectedTab,pageTarget,value.navigation,navigation)
         if(ownsPresentation){
             settingsHandoffFailed=false
@@ -811,7 +816,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         SideEffect{if(!legacySampling)webSamplingLayer.update(Build.VERSION.SDK_INT>=31&&sampleWeb)}
         val savedPages=rememberSaveableStateHolder()
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            CompositionLocalProvider(LocalChromeRendering provides (active&&focused),LocalInterfacePalette provides palette,LocalLiquidReduced provides motionReduced,LocalMotionOrigin provides motionOrigin,LocalPlayerReveal provides playerReveal,LocalPlayerArtworkAnchor provides playerArtwork,LocalMinimalMorph provides minimalMorph) {
+            CompositionLocalProvider(LocalPadWindow provides PadWindow(maxWidth.value,maxHeight.value),LocalChromeRendering provides (active&&focused),LocalInterfacePalette provides palette,LocalLiquidReduced provides motionReduced,LocalMotionOrigin provides motionOrigin,LocalPlayerReveal provides playerReveal,LocalPlayerArtworkAnchor provides playerArtwork,LocalMinimalMorph provides minimalMorph) {
             val density=LocalDensity.current;val width=maxWidth.value;val height=maxHeight.value
             val safeTop=if(nativeTop>=0)nativeTop else WindowInsets.statusBars.getTop(density)/density.density
             val safeBottom=if(nativeBottom>=0)nativeBottom else WindowInsets.navigationBars.getBottom(density)/density.density
@@ -1040,7 +1045,12 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             }
                         CompositionLocalProvider(LocalNativePageBottomPx provides pageBottomPx,
                             LocalSettingsTraceIdentity provides SettingsTraceIdentity(destination,shown.session,shown.key,navigation,!pendingStageEntry&&destination=="settings")) {
-                        NativePageView(shown,placement,scale){action,text,value->
+                        val shownLibrary=pages["home"]?.takeIf{selectedTab==1&&it.enabled&&it.key.startsWith("library:")&&pageNavigations["home"]==navigation}
+                        NativePageView(shown,placement,scale,libraryPage=shownLibrary,libraryAction={action,text,value->
+                            val library=pages["home"]
+                            if(active&&!pendingStageEntry&&destination=="collection"&&selectedTab==1&&library?.enabled==true&&shownLibrary!=null&&pageInteractionIsCurrent(library,shownLibrary)&&pageNavigations["home"]==navigation)
+                                pageListener?.onAction("home",library.session,library.key,action,text,value)
+                        }){action,text,value->
                             val current=pages[shown.id]
                             val reason=when {
                                 !active->"host-inactive"
@@ -1119,7 +1129,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 if(id=="mini"&&live!=null)SideEffect{retainedFooter["mini"]=live}
                 val navSelection=startupSelected?:when(destination){"search"->2;"settings"->3;else->selectedTab.coerceIn(0,1)}
                 val surface = original.interfacePaint(palette)
-                    .let{if(id=="nav")it.copy(selected=navSelection,disabled=footerHiddenForIme||live!=null&&it.disabled||destination=="settings"&&!settingsRoot)else it}
+                    .let{if(id=="nav")it.copy(vertical=width>=840f,selected=navSelection,disabled=footerHiddenForIme||live!=null&&it.disabled||destination=="settings"&&!settingsRoot)else it}
                 // seed 与 live 共用同一个定位入口，而且**只在 dp 空间里算一次**：JS 的 innerWidth
                 // 是整数（375），真实 dp 宽是 375.38，走 CSS px × scale 会让交接时整条底栏
                 // 上台 0.8dp（23:02 报告实测）。现在两路只有 density 一个比例，矩形逐位相同。
@@ -1176,8 +1186,12 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             }
                             return@actions
                         }
-                        if (active && surfaces[surface.id]?.enabled==true && surfaces[surface.id]?.session == surface.session && (action !in setOf("next","previous","toggle","seek") || surfaces[surface.id]?.trackKey == surface.trackKey)) {
+                        if (active && surfaces[surface.id]?.enabled==true && surfaces[surface.id]?.session == surface.session && (action !in setOf("next","previous","toggle","seek","padLike") || surfaces[surface.id]?.trackKey == surface.trackKey)) {
                             if(action=="navigate"||action=="openStage"||action=="queue"||action=="quality")sleepMenuOpen=false
+                            if(surface.id=="mini"&&action=="padLike"){toolActions.send("padLike",0.0);return@actions}
+                            if(surface.id=="mini"&&action=="seek"){
+                                toolActions.send("padSeek",value);return@actions
+                            }
                             // Dismiss home chrome on the UI thread before the JS route transition starts.
                             if (surface.id=="mini" && action=="openStage") {
                                 playerPanelOrigin=androidx.compose.ui.geometry.Rect(rect.left*density.density,animatedY*density.density,(rect.left+rect.width)*density.density,(animatedY+rect.height)*density.density)

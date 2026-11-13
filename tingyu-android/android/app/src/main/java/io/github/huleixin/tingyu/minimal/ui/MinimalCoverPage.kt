@@ -152,7 +152,7 @@ fun MinimalCoverPage(
         val titleSize = clampSp(23f, pageWidth.value * 0.074f, if (vh >= 900.dp) 29f else 30f)
         val lyricSize = clampSp(17f, pageWidth.value * 0.046f, 19f)
         // `.min-cover__stage { width: min(90%, 39vh) }`，并按媒体查询换档（见 stageCap）。
-        val stageWidth = minOf(contentWidth * stageWidthFraction(vh), vh * stageCap(vh))
+        val stageWidth = if(io.github.huleixin.tingyu.chrome.LocalPadWindow.current.splitPlayer)minOf(contentWidth*.88f,maxHeight*.57f) else minOf(contentWidth * stageWidthFraction(vh), vh * stageCap(vh))
 
         Column(
             modifier = Modifier
@@ -246,6 +246,7 @@ fun MinimalCoverPage(
                 }
             }
 
+            if(!io.github.huleixin.tingyu.chrome.LocalPadWindow.current.splitPlayer){
             Spacer(Modifier.height(clampDp(16f, vh.value * 0.022f, 20f)))
             LiveLyric(
                 playback = playback,
@@ -261,6 +262,7 @@ fun MinimalCoverPage(
                 suppressed = previewing,
                 onOpenLyrics = onOpenLyrics,
             )
+            }
             }
         }
     }

@@ -77,7 +77,7 @@ internal object NativeFooterLayout {
             else->false
         }
         // 设置页不显示迷你条；歌单详情反而保留它。
-        else->route in setOf("home","collection","search")
+        else->route in setOf("home","collection","search")||width>=840f&&route=="settings"&&settingsRoot
     }
     }
     fun rect(id:String,width:Float,height:Float,top:Float,bottom:Float,detail:Boolean):ChromeRect {
@@ -97,7 +97,7 @@ internal object NativeFooterLayout {
         return if(id=="nav"){
             if(wide)ChromeRect(if(short)8f else 12f,16f+top,80f,height-32f-top,1f)
             else ChromeRect(10f,height-62f-bottom,width-20f,54f,1f)
-        }else if(wide)ChromeRect(if(short)108f else 116f,height-(if(short)72f else 76f),width-(if(short)128f else 148f),if(short)64f else 62f,1f)
+        }else if(wide)ChromeRect(if(short)108f else 116f,height-76f-bottom,width-(if(short)128f else 148f),62f,1f)
         else ChromeRect(10f,height-(if(detail)54f else 114f)-bottom,width-20f,46f,1f)
     }
 }

@@ -1,10 +1,10 @@
 package io.github.huleixin.tingyu.chrome
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Text
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
@@ -28,7 +28,7 @@ internal typealias PageAction = (String, String, Double) -> Unit
     else -> LocalInterfacePalette.current.backgrounds
 }
 
-@Composable fun NativePageView(page: NativePage, modifier: Modifier, cssScale: Float? = null, onAction: PageAction) {
+@Composable fun NativePageView(page: NativePage, modifier: Modifier, cssScale: Float? = null, libraryPage:NativePage?=null, libraryAction:PageAction={_,_,_->}, onAction: PageAction) {
     val density = LocalDensity.current
     val focus = LocalFocusManager.current
     val action: PageAction = { id, text, value ->
@@ -42,9 +42,17 @@ internal typealias PageAction = (String, String, Double) -> Unit
         MaterialTheme(colorScheme=scheme) {
         CompositionLocalProvider(LocalDensity provides Density(cssScale ?: density.density, 1f)) {
             when {
+                LocalPadWindow.current.splitPlayer&&page.key.startsWith("library:") -> Row(Modifier.fillMaxSize().padding(start=104.dp)){
+                    NativeDirectoryPage(page.copy(bottomClearance=100f),Modifier.width(320.dp).fillMaxHeight(),action)
+                    Box(Modifier.weight(1f).fillMaxHeight(),contentAlignment=androidx.compose.ui.Alignment.Center){Text("选择歌单、专辑或电台查看内容",color=PageMuted)}
+                }
+                LocalPadWindow.current.splitPlayer&&page.id=="collection"&&!page.key.startsWith("collection:artist:")&&libraryPage!=null -> Row(Modifier.fillMaxSize().padding(start=104.dp)){
+                    NativeDirectoryPage(libraryPage.copy(bottomClearance=100f),Modifier.width(320.dp).fillMaxHeight(),libraryAction)
+                    Box(Modifier.weight(1f).fillMaxHeight()){MediaDetailScaffold(page,Modifier.fillMaxSize(),action)}
+                }
                 // 语义化设置页（原生化专项·第 22 轮）：自带底色 + 毛玻璃顶栏 + 原生排版，
                 // 不消费任何 DOM 矩形。没有 flow 的分区继续走下面的测量显示列表。
-                page.document?.flow!=null -> SettingsFlowPage(page.document.flow,page,Modifier.fillMaxSize(),action)
+                page.document?.flow!=null -> SettingsFlowPage(page.document.flow,page,Modifier.fillMaxSize().then(if(LocalPadWindow.current.expanded)Modifier.padding(horizontal=100.dp)else Modifier),action)
                 page.document!=null -> NativeSettingsDocumentView(page.document,Modifier.fillMaxSize(),action)
                 page.id=="settings"&&page.key.startsWith("settings:rear:")->NativeRearControlPage(page,Modifier.fillMaxSize(),density.fontScale,action)
                 page.id == "settings" -> NativeSettingsPage(page, Modifier.fillMaxSize(), action)
@@ -53,7 +61,7 @@ internal typealias PageAction = (String, String, Double) -> Unit
                 // 集合详情按页面语义路由，不按 intro/playlistIntro 分流标记（阶段 E）：
                 // 歌手保留独立结构（NativeDirectoryPage artist 分支），其余集合走统一 MediaDetailScaffold。
                 page.id == "collection"&&page.key.startsWith("collection:artist:") -> NativeDirectoryPage(page, Modifier.fillMaxSize(), action)
-                page.id == "collection" -> MediaDetailScaffold(page,Modifier.fillMaxSize(),action)
+                page.id == "collection" -> MediaDetailScaffold(page,Modifier.fillMaxSize().then(if(LocalPadWindow.current.expanded)Modifier.padding(start=104.dp)else Modifier),action)
                 else -> NativeDirectoryPage(page, Modifier.fillMaxSize(), action)
             }
         }

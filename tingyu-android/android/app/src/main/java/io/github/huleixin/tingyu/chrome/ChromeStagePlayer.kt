@@ -132,7 +132,7 @@ private val StageFill = 1.06f   // 舞台背景更花，表面比底栏厚 6%，
     }
 }
 
-@Composable private fun ChromeSeek(s: ChromeSurface, timeline: ChromeTimeline?, accent: Color, ink: Color, action: (String,Double)->Unit) {
+@Composable internal fun ChromeSeek(s: ChromeSurface, timeline: ChromeTimeline?, accent: Color, ink: Color, action: (String,Double)->Unit) {
     val now=rememberChromeNow(timeline);var dragged by remember(s.trackKey){mutableStateOf<Double?>(null)}
     val current by remember(timeline) { derivedStateOf { chromeTime(timeline?.at(now.value)?:0.0) } }
     val enabled=!s.disabled&&s.duration>0
