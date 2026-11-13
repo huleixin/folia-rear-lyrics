@@ -463,6 +463,12 @@ public final class SongInfoLoader {
                 PlaybackDiagnostics.note("lyrics-failure", detail.put("reason", "no-identity"));
                 LEDGER.outcome(info.songKey, LyricChainLedger.Outcome.FAILED, "no-identity", 0);
                 break;
+            case UNRESOLVED:
+                lyricsCooldown.put(info.songKey, SystemClock.elapsedRealtime() + RETRY_COOLDOWN_MS);
+                PlaybackDiagnostics.note("lyrics-failure", detail.put("reason", "backup-miss-pending"));
+                LEDGER.outcome(info.songKey, LyricChainLedger.Outcome.FAILED, "backup-miss", 0);
+                scheduleLyricFetchRetry(info, "UNRESOLVED");
+                break;
             default:
                 lyricsCooldown.put(info.songKey, SystemClock.elapsedRealtime() + RETRY_COOLDOWN_MS);
                 PlaybackDiagnostics.note("lyrics-failure", detail.put("reason", "network"));

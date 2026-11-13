@@ -19,6 +19,11 @@ import org.junit.Test;
  * 与限流结论（RATE_LIMITED，对方要求别打了）不自动重试。
  */
 public class LyricFetchRetryPolicyTest {
+    @Test public void backupMissIsPendingAndRetriesRemainBounded() {
+        assertTrue(LyricFetchRetryPolicy.decide("UNRESOLVED",0).retry);
+        assertTrue(LyricFetchRetryPolicy.decide("UNRESOLVED",1).retry);
+        assertFalse(LyricFetchRetryPolicy.decide("UNRESOLVED",2).retry);
+    }
 
     @Test public void aTransientNetworkFailureGetsABoundedSlowRetry() {
         LyricFetchRetryPolicy.Decision first =

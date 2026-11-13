@@ -210,7 +210,12 @@ export const ensureNativeLyric = (
         if (isLocalPlaybackSong(song)) return ensureLocalNativeLyric(song, key);
         const startedAt = Date.now(),epoch=lyricEpoch;
         const shared=await readSharedLyricRecord(song);
-        if(shared&&(shared.userChoice||shared.confirmedBy==='stage'||!options.fetch))return true;
+        if(epoch!==lyricEpoch)return false;
+        if(shared&&(shared.userChoice||shared.confirmedBy==='stage'||!options.fetch)) {
+            const published = await publishTimeline(song, shared.lyrics, key);
+            noteNativeAnswer(song, 'shared', published, shared.lyrics.lines.length, Date.now()-startedAt);
+            return published;
+        }
         const cached = await readCachedLyrics(song, quality);
         if(epoch!==lyricEpoch)return false;
         if (cached) {

@@ -19,6 +19,21 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.LEGACY)
 @Config(sdk=[34])
 class SaltPlayerMotionTest {
+    @Test fun cornersReachZeroWithFullscreenBoundsAndReverseContinuously() {
+        val entry=mutableStateOf(0f);val leaving=mutableStateOf(0f);val exit=NativeStageExit()
+        val motion=MinimalPlayerMorph(panel,cover,entry,exit,leaving,false)
+        var previous=Float.MAX_VALUE
+        for(ms in 0..980){
+            entry.value=ms/980f
+            val radius=motion.shellRadius(size)
+            assertTrue(radius.isFinite()&&radius>=0&&radius<=previous+.001f)
+            previous=radius
+            if(ms>=566)assertEquals(0f,radius,.001f)
+        }
+        entry.value=.2f;val before=motion.shellRadius(size)
+        exit.begin(null,true){}
+        assertEquals(before,motion.shellRadius(size),.001f)
+    }
     @get:Rule val compose=createAndroidComposeRule<ComponentActivity>()
     private val fixture get()=JSONObject(javaClass.classLoader!!.getResource("salt-player-motion.json")!!.readText())
     private val panel=Rect(13f,604f,292f,643f)

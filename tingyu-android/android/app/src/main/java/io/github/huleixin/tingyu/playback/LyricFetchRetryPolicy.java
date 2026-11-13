@@ -53,7 +53,7 @@ public static final long[] RETRY_DELAYS_MS = {20_000L, 60_000L};
      * @return retry=true 时 {@code delayMs} 取自 {@link #RETRY_DELAYS_MS}[attempt]
      */
     public static Decision decide(String status, int attempt) {
-        if ("NETWORK".equals(status) || "EXCEPTION".equals(status)) {
+        if ("NETWORK".equals(status) || "EXCEPTION".equals(status) || "UNRESOLVED".equals(status)) {
             if (attempt >= 0 && attempt < RETRY_DELAYS_MS.length) {
                 return new Decision(true, RETRY_DELAYS_MS[attempt], "transient-retry-" + (attempt + 1));
             }

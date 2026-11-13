@@ -39,6 +39,8 @@ vi.mock('@/services/db', () => ({
 
 const omni = vi.hoisted(() => ({ getLyrics: vi.fn() }));
 vi.mock('@/services/onlineMusic/omni', () => ({ omni }));
+const shared = vi.hoisted(() => ({ read: vi.fn() }));
+vi.mock('@/services/sharedSongResources', () => ({ readSharedLyricRecord: shared.read }));
 
 const song = (id: number) => ({
     id,
@@ -71,8 +73,28 @@ describe('native lyric priming', () => {
         persisted.clear();
         saved.length = 0;
         omni.getLyrics.mockReset();
+        shared.read.mockReset().mockResolvedValue(null);
         const priming = await import('@/services/nativeLyricPriming');
         priming.resetNativeLyricPriming();
+    });
+
+    it('republishes the shared timeline instead of assuming the native bridge still has it', async () => {
+        const priming = await import('@/services/nativeLyricPriming');
+        shared.read.mockResolvedValue({ lyrics: lyrics('共享仓库的歌词'), confirmedBy: 'stage' });
+        expect(await priming.ensureNativeLyric(song(30), 'hires', { fetch: true })).toBe(true);
+        expect(bodyFor(30)?.lyric).toContain('共享仓库的歌词');
+        expect(omni.getLyrics).not.toHaveBeenCalled();
+    });
+
+    it('discards a shared timeline that returns after the playback session was reset', async () => {
+        const priming = await import('@/services/nativeLyricPriming');
+        let resolve: (value: any) => void = () => undefined;
+        shared.read.mockReturnValue(new Promise(done => { resolve = done; }));
+        const pending = priming.ensureNativeLyric(song(31));
+        priming.resetNativeLyricPriming();
+        resolve({ lyrics: lyrics('过期歌词'), confirmedBy: 'stage' });
+        expect(await pending).toBe(false);
+        expect(bridge.publish).not.toHaveBeenCalled();
     });
 
     it('publishes an upcoming track again when its lyrics arrive after the priming pass', async () => {

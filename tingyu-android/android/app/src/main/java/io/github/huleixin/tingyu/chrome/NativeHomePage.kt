@@ -199,7 +199,7 @@ import kotlinx.coroutines.launch
                 if(eyebrow.isNotBlank())Box(Modifier.offset(18.dp,(50+title.value*2.28f+10).dp).size(16.dp,2.dp).background(Color(0x99FFFFFF),RoundedCornerShape(2.dp)))
                 Text(item.subtitle,color=Color(0xD9FFFDF2),fontSize=12.sp,lineHeight=18.sp,maxLines=2,modifier=Modifier.align(Alignment.BottomStart).padding(start=18.dp,bottom=64.dp))
                 Row(Modifier.align(Alignment.BottomStart).padding(start=18.dp,bottom=12.dp).height(40.dp)
-                    .clickable(enabled=!item.disabled){action(item.action,"",0.0)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)) {
+                    .chromeClickable(enabled=!item.disabled,corner=8.dp){action(item.action,"",0.0)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)) {
                     Text(item.secondaryLabel.ifBlank{if(item.disabled)"暂不可用"else"查看歌曲"},color=Color.White,fontSize=13.sp,fontWeight=FontWeight.Medium)
                     if(!item.disabled)PageIcon("chevron-right",Color.White,Modifier.size(14.dp))
                 }

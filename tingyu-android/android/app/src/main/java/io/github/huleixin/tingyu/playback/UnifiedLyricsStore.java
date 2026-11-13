@@ -154,8 +154,13 @@ public final class UnifiedLyricsStore {
     public synchronized Record get(String songKey) {
         if (songKey == null || songKey.isEmpty()) return null;
         Record cached = memory.get(songKey);
-        if (cached != null && !("none".equals(cached.status) && System.currentTimeMillis() - cached.at > 3L*86400000L)) return cached;
+        if (cached != null && !obsoleteBackupNone(cached) && !("none".equals(cached.status) && System.currentTimeMillis() - cached.at > 3L*86400000L)) return cached;
         return readDisk(songKey);
+    }
+
+    /** Migration: preserve manual/platform no-lyrics decisions, discard old backup-only negatives. */
+    private static boolean obsoleteBackupNone(Record record) {
+        return "none".equals(record.status) && !record.userChoice && "native-none".equals(record.sourceId);
     }
 
     /**
@@ -257,7 +262,7 @@ public final class UnifiedLyricsStore {
                     record.optInt("revision", 0),
                     record.optLong("at", 0L),
                     version >= 2 && record.optBoolean("offsetKnown", false));
-            if ("none".equals(parsed.status) && System.currentTimeMillis() - parsed.at > 3L*86400000L) return null;
+            if (obsoleteBackupNone(parsed) || "none".equals(parsed.status) && System.currentTimeMillis() - parsed.at > 3L*86400000L) return null;
             parsed.renderModel = record.optString("renderModel", null);
             synchronized (this) {
                 memory.put(songKey, parsed);

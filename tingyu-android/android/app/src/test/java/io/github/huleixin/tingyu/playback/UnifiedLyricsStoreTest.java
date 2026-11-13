@@ -24,6 +24,13 @@ import static org.junit.Assert.assertTrue;
  * </ol>
  */
 public class UnifiedLyricsStoreTest {
+    @Test public void oldBackupNegativeIsIgnoredOnDiskButExplicitNoneSurvives() throws Exception {
+        File dir=tempDir(); UnifiedLyricsStore store=new UnifiedLyricsStore(dir);
+        store.put(KEY,"none",null,false,false,"native-none","native",false,"off");
+        store.flushForTest();assertNull(new UnifiedLyricsStore(dir).get(KEY));
+        store.put(KEY,"none",null,false,false,"stage","stage",true,"off");
+        store.flushForTest();assertNotNull(new UnifiedLyricsStore(dir).get(KEY));
+    }
 
     private static final String KEY = "song-key-1";
     private static final String NATIVE_JSON = "{\"lyric\":\"[00:01.000]native\"}";

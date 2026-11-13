@@ -193,7 +193,7 @@ public final class RearNativeLyricLines {
 
         NativeLyricsRepository.Result cached = NativeLyricsRepository.get(context).readCache(songKey);
         boolean nativeTimeline = cached != null && cached.hasTimeline();
-        boolean nativeNone = cached != null && !cached.hasTimeline();
+        boolean nativeNone = cached != null && cached.status == NativeLyricsRepository.Status.NOT_FOUND;
         boolean bridgeNone = "none".equals(bridgeState);
 
         io.github.huleixin.tingyu.playback.LyricDelivery.Decision decision =

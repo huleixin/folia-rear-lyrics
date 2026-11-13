@@ -24,6 +24,12 @@ internal class MinimalPlayerMorph(val panel: Rect, val cover: Rect, val entry: S
         return Rect(panel.left*(1-c[1]),panel.top*(1-c[0]),
             panel.right+(size.width-panel.right)*c[2],panel.bottom+(size.height-panel.bottom)*c[3])
     }
+    fun shellRadius(size: Size): Float {
+        // The corners converge with the shell, before the slower decorative timeline ends.
+        val c=channels()
+        val open=minOf(c[0],c[1],c[2],c[3]).coerceIn(0f,1f)
+        return minOf(size.width*.16f,panel.height/2f)*(1f-open)
+    }
     fun coverBounds(target: Rect): Rect {
         val c=channels();val center=Offset(cover.center.x+(target.center.x-cover.center.x)*c[4],
             cover.center.y+(target.center.y-cover.center.y)*c[5])
@@ -59,7 +65,7 @@ private class MinimalShellShape(val bounds: Rect,val radius: Float): Shape {
 internal fun Modifier.minimalPlayerContainer(motion: MinimalPlayerMorph?) = graphicsLayer {
     if(motion!=null && motion.active()) {
         clip=true
-        shape=MinimalShellShape(motion.panelBounds(size),size.width*.16f)
+        shape=MinimalShellShape(motion.panelBounds(size),motion.shellRadius(size))
     } else clip=false
 }
 internal fun Modifier.minimalStageCanvas(motion: MinimalPlayerMorph?, visible: Boolean = true) = graphicsLayer {

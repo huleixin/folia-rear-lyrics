@@ -48,7 +48,7 @@ public final class NativeLyricsRepository {
     /** LRCLIB 文档要求客户端自报身份；不写就会被按「generic client」限流。 */
     private static final String USER_AGENT = "Tingyu/1.3.50 (+https://github.com/huleixin/tingyu)";
     private static final String HOST = "https://lrclib.net";
-    private static final long NEGATIVE_TTL_MS = 3L * 24L * 60L * 60L * 1000L;
+    private static final long MISS_TTL_MS = 15_000L;
     private final java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.FutureTask<Result>> flights = new java.util.concurrent.ConcurrentHashMap<>();
 
     public enum Status {
@@ -58,6 +58,8 @@ public final class NativeLyricsRepository {
         FETCHED,
         /** 服务端明确表示没有这首歌的同步歌词；允许写负缓存。 */
         NOT_FOUND,
+        /** Backup catalogs did not match; the owning platform may still have lyrics. */
+        UNRESOLVED,
         /** 429 / 限流：本轮放弃，不写负缓存。 */
         RATE_LIMITED,
         /** 超时、断网、5xx：可重试的失败，不写负缓存。 */
@@ -140,10 +142,11 @@ public final class NativeLyricsRepository {
                     record.optString("source", "cache"), 0, "cache", 0,
                     record.optInt("score", 0), record.optInt("durationDeltaMs", -1));
         }
-        if ("none".equals(status)) {
+        // Old all-sources negatives were not evidence of an instrumental track. Ignore them.
+        if ("miss".equals(status)) {
             long age = System.currentTimeMillis() - record.optLong("at", 0L);
-            if (age >= 0 && age < NEGATIVE_TTL_MS) {
-                return new Result(Status.NOT_FOUND, null, false, "cache", 0, "cache", 0, 0, -1);
+            if (age >= 0 && age < MISS_TTL_MS) {
+                return new Result(Status.UNRESOLVED, null, false, "backup-cache", 0, "cache", 0, 0, -1);
             }
         }
         return null;
@@ -218,10 +221,10 @@ public final class NativeLyricsRepository {
         if (kugou.result.status == Status.RATE_LIMITED) return kugou.result;
 
         if (search.result.status == Status.NOT_FOUND && kugou.result.status == Status.NOT_FOUND) {
-            // 两个来源都明确说没有 = 这首歌确实没有同步歌词。只有这种结论才允许写负缓存。
-            Result negative = new Result(Status.NOT_FOUND, null, false, "all-sources", 404,
+            // Neither backup catalog owns this track. A miss is not a global no-lyrics verdict.
+            Result negative = new Result(Status.UNRESOLVED, null, false, "backup-miss", 404,
                     "search", search.result.candidateCount, 0, -1);
-            writeRecord(info.songKey, "none", null, false, "all-sources", 0, -1);
+            writeRecord(info.songKey, "miss", null, false, "backup-miss", 0, -1);
             return negative;
         }
         // 网络失败/超时：不要写负缓存，下一次换歌或重试还能再问。
