@@ -255,24 +255,23 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var minimalLyricsKeepOnEnabled by mutableStateOf(false)
     private val toolActions = io.github.huleixin.tingyu.minimal.BridgeToolActions(
         sender = { action, value ->
-            val session = minimal.session()
-            if (session.isEmpty()) false
-            else { listener.onAction("minimal", session, action, value); true }
+            listener.onAction("minimal", minimal.session(), action, value)
+            true
         },
-        availability = { minimal.bridgeLive() },
+        // Tools have a module-level JS listener, independent of minimal-player frames.
+        availability = { active },
     )
     private val textToolActions = io.github.huleixin.tingyu.minimal.BridgeToolActions(
         sender = { action, value ->
-            val session = minimal.session()
-            if (session.isEmpty()) false
-            else { listener.onAction("minimal", session, action, value); true }
+            listener.onAction("minimal", minimal.session(), action, value)
+            true
         },
         textSender = { action, text ->
             val session = minimal.session()
-            if (session.isEmpty()) false
-            else { (nativeTextActionListener ?: { id, session, action, text -> listener.onActionText(id, session, action, text) })("minimal", session, action, text); true }
+            (nativeTextActionListener ?: { id, session, action, text -> listener.onActionText(id, session, action, text) })("minimal", session, action, text)
+            true
         },
-        availability = { minimal.bridgeLive() },
+        availability = { active },
     )
     fun openNativeTools(page: String) {
         sleepMenuOpen=false
@@ -281,12 +280,12 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         toolsPage = page
         toolsRoute = destination
         val index = when (page) { "quality" -> 1; "effects" -> 2; "lyrics" -> 3; "lx" -> 4; else -> 0 }
-        if (index > 0) minimalCommands.notifyToolsOpened(index)
+        if (index > 0) toolActions.send("toolsOpen", index.toDouble())
     }
     fun closeNativeTools() {
         if (toolsPage.isEmpty()) return
         toolsPage = ""
-        minimalCommands.notifyToolsClosed()
+        toolActions.send("toolsClose", 0.0)
     }
     fun collapseStage(reply:()->Unit){
         sleepMenuOpen=false
@@ -1339,7 +1338,6 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             tools=toolsState,light=interfaceLight,actions=toolActions,
                             onClose={closeNativeTools()},
                             onOpenEffects={openNativeTools("effects")},
-                            onOpenLx={openNativeTools("lx")},
                         )
                         "effects"->io.github.huleixin.tingyu.minimal.ui.MinimalEffectsSheet(
                             tools=toolsState,light=interfaceLight,actions=toolActions,

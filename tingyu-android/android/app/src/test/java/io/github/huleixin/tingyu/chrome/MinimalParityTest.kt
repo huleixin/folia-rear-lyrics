@@ -343,7 +343,7 @@ class MinimalParityTest {
     fun qualitySheet() = renderTool("tools-quality") {
         io.github.huleixin.tingyu.minimal.ui.MinimalQualitySheet(
             tools = sampleTools("quality"), light = false, actions = stubToolActions,
-            onClose = {}, onOpenEffects = {}, onOpenLx = {},
+            onClose = {}, onOpenEffects = {},
         )
     }
 
@@ -351,7 +351,7 @@ class MinimalParityTest {
     fun qualitySheetLight() = renderTool("tools-quality-light") {
         io.github.huleixin.tingyu.minimal.ui.MinimalQualitySheet(
             tools = sampleTools("quality"), light = true, actions = stubToolActions,
-            onClose = {}, onOpenEffects = {}, onOpenLx = {},
+            onClose = {}, onOpenEffects = {},
         )
     }
 

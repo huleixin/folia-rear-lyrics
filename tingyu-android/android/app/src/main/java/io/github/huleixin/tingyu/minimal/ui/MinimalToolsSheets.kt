@@ -250,7 +250,6 @@ fun MinimalQualitySheet(
     actions: MinimalToolActions,
     onClose: () -> Unit,
     onOpenEffects: () -> Unit,
-    onOpenLx: () -> Unit,
 ) {
     val theme = toolsTheme(light)
     val quality = tools.quality
@@ -258,9 +257,9 @@ fun MinimalQualitySheet(
         title = "音质",
         subtitle = "切换后保留播放位置；可用音质由音源和账号决定",
         light = light,
-        // 音质页就五档选择 + 两张入口卡：内容自适应，实测约 40–46% 屏高（参考要求 35–45%），
+        // 四档音质选择与音效入口按内容自适应。
         // 不再拖一大块空白。超小屏 / 大字体超过上限时仍可滚动，不裁切内容。
-        heightFraction = 0.46f,
+        heightFraction = 0.42f,
         onClose = onClose,
     ) {
         Column(
@@ -322,9 +321,6 @@ fun MinimalQualitySheet(
             }
             ToolsCard(theme) {
                 ToolsEntryRow(theme, "音效调节器", "均衡器与音频效果", onClick = onOpenEffects)
-            }
-            ToolsCard(theme) {
-                ToolsEntryRow(theme, "洛雪自定义音源", "导入 .js 脚本，替换在线音源", onClick = onOpenLx)
             }
             Spacer(Modifier.height(4.dp))
         }

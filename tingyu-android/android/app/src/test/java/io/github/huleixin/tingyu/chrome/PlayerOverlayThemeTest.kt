@@ -71,9 +71,10 @@ class PlayerOverlayThemeTest {
         }
     }
     @Test fun qualityUsesGlobalThemeAndKeepsActions() {
-        mount {MinimalQualitySheet(tools,palette.light,actions,{}, {}, {})}
+        mount {MinimalQualitySheet(tools,palette.light,actions,{}, {})}
         verifyAllPalettes("quality") {
             compose.onNodeWithText("音质",substring=false).assertIsDisplayed()
+            compose.onNodeWithText("洛雪自定义音源").assertDoesNotExist()
             compose.onNodeWithText("高品质").performClick()
             assertEquals("qualityPick",events.last())
         }

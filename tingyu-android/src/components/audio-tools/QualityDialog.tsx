@@ -6,7 +6,6 @@ import { usePlaybackStore } from '../../stores/usePlaybackStore';
 import { getPlaybackSourceRef, getPlaybackSongKey } from '../../utils/appPlaybackGuards';
 import type { AudioQualityPreference } from '../../types/onlineMusic';
 import { getLocalSong } from '../../services/db';
-import { useLxSourceStore } from '../../stores/useLxSourceStore';
 
 // src/components/audio-tools/QualityDialog.tsx
 export default function QualityDialog({ isDaylight }: { isDaylight: boolean }) {
@@ -26,6 +25,5 @@ export default function QualityDialog({ isDaylight }: { isDaylight: boolean }) {
         {fileInfo && <p className="ty-audio-hint">{fileInfo}</p>}
         {state.error && <p role="alert">{state.error}</p>}
         <button className="ty-source-entry" onClick={() => { state.close(); useAudioSettingsStore.getState().openAudioEqualizer(); }}>音效调节器 ›</button>
-        <button className="ty-source-entry" onClick={() => { state.close(); useLxSourceStore.getState().show(); }}>洛雪自定义音源 ›</button>
     </ThemedDialog>;
 }
