@@ -22,7 +22,7 @@ import com.getcapacitor.JSObject
 internal class DesktopLyricsController(private val context: Context, private val projection: LyricsProjectionSource) {
     private val preferences = LyricsPreferences.get(context)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val uiContext = if (Build.VERSION.SDK_INT >= 30) context.createWindowContext(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, null) else context
+    private val uiContext = desktopLyricsWindowContext(context)
     private val wm = uiContext.getSystemService(WindowManager::class.java)
     private val main = Handler(Looper.getMainLooper())
     private var view: ComposeView? = null
@@ -82,7 +82,7 @@ internal class DesktopLyricsController(private val context: Context, private val
             status.value = "visible"
         } catch (error: RuntimeException) {
             removeWindow(); status.value = "window-error"
-            PlaybackDiagnostics.note("desktop-lyrics-window", JSObject().put("error", error.javaClass.simpleName))
+            PlaybackDiagnostics.note("desktop-lyrics-window", desktopLyricsFailure(error))
         }
     }
 

@@ -2,6 +2,14 @@
 
 日期：2026-11-13。基础版本：1.5.24 / 239。
 
+## 11:45 用户诊断反馈修复
+
+用户日志反复出现 `desktop-lyrics-start / UnsupportedOperationException`，发生在控制器构造阶段。原实现从未关联显示屏的播放 Service 直接调用 `createWindowContext(type, options)`，违反 Android API 约束；原 Compose 截图测试没有覆盖服务窗口初始化。
+
+修复：通过 DisplayManager 明确取得 DEFAULT_DISPLAY，再 createDisplayContext，最后创建 overlay WindowContext，保证歌词浮在前屏且不依赖 Activity。新增 API 30/31/34 服务上下文回归测试，模拟未关联显示屏调用必定抛出异常，验证修复路径先绑定显示屏。异常诊断增加前八个代码栈位置和异常类型，不记录异常消息中的用户数据。
+
+诊断设备为 Android API 37；本地仍无连接实机，不能将 JVM 测试通过等同于该手机窗口已显示。需用户安装修复包后复验。
+
 ## 实现及修改清单
 
 - `lyrics/LyricsProjection.kt`：复用 MinimalPlayerRuntime、原生歌词缓存、现有单调播放锚点。桌面与车载共享按歌词边界唤醒的任务；未新增播放器、歌词解析器或服务。

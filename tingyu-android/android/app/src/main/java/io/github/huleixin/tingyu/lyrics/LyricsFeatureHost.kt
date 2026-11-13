@@ -27,7 +27,7 @@ class LyricsFeatureHost(private val context: Context, private val publish: Consu
             if (settings.desktop && desktop == null) {
                 runCatching { DesktopLyricsController(context, source!!) }.onSuccess { desktop = it }.onFailure {
                     DesktopLyricsController.status.value = "window-error"
-                    PlaybackDiagnostics.note("desktop-lyrics-start", JSObject().put("error", it.javaClass.simpleName))
+                    PlaybackDiagnostics.note("desktop-lyrics-start", desktopLyricsFailure(it))
                 }
             }
             if (!settings.desktop) { desktop?.close(); desktop = null }
