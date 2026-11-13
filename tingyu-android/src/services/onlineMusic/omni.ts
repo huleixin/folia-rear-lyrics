@@ -264,10 +264,10 @@ export const omni = {
         });
     },
 
-    async searchProviderSongs(providerId: OmniProviderId, query: string, page: PageInput): Promise<OmniPage<UnifiedSong>> {
+    async searchProviderSongs(providerId: OmniProviderId, query: string, page: PageInput, signal?: AbortSignal): Promise<OmniPage<UnifiedSong>> {
         const provider = requireOnlineMusicProvider(providerId);
         if (!providerSupports(provider, 'search') || !provider.search) return emptyPage(page.offset);
-        return provider.search.searchSongs(query, page.limit, page.offset);
+        return provider.search.searchSongs(query, page.limit, page.offset, signal);
     },
 
     /** 搜索能力只看 provider 上真正实现的方法；界面据此隐藏未实现的分类。 */

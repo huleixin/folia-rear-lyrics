@@ -152,7 +152,8 @@ fun MinimalCoverPage(
         val titleSize = clampSp(23f, pageWidth.value * 0.074f, if (vh >= 900.dp) 29f else 30f)
         val lyricSize = clampSp(17f, pageWidth.value * 0.046f, 19f)
         // `.min-cover__stage { width: min(90%, 39vh) }`，并按媒体查询换档（见 stageCap）。
-        val stageWidth = if(io.github.huleixin.tingyu.chrome.LocalPadWindow.current.splitPlayer)minOf(contentWidth*.88f,maxHeight*.57f) else minOf(contentWidth * stageWidthFraction(vh), vh * stageCap(vh))
+        val splitPlayer = io.github.huleixin.tingyu.chrome.LocalPadWindow.current.splitPlayer
+        val stageWidth = if(splitPlayer)minOf(contentWidth*.88f,maxHeight*.57f) else minOf(contentWidth * stageWidthFraction(vh), vh * stageCap(vh))
 
         Column(
             modifier = Modifier
@@ -160,7 +161,7 @@ fun MinimalCoverPage(
                 .padding(start = HORIZONTAL_PADDING, end = HORIZONTAL_PADDING, top = clampDp(12f, vh.value * 0.024f, 22f), bottom = 2.dp),
             verticalArrangement = Arrangement.Bottom,
         ) {
-            Box(Modifier.size(stageWidth).onGloballyPositioned { anchor.artwork(it) }
+            Box(Modifier.size(stageWidth).then(if(splitPlayer)Modifier.align(Alignment.CenterHorizontally)else Modifier).onGloballyPositioned { anchor.artwork(it) }
                 .zIndex(if (stack.phase != StackPhase.IDLE) 1f else 0f)) {
             MinimalArtworkView(
                 artwork = artwork,

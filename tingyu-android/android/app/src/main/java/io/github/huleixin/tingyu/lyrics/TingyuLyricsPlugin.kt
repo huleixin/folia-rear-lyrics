@@ -50,7 +50,16 @@ class TingyuLyricsPlugin : Plugin() {
             }
             dialog.setOnDismissListener { compose.disposeComposition(); if (sheet === dialog) sheet = null }
             dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            dialog.window?.let{window->
+                androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window,false)
+                window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            }
             dialog.show(); dialog.window?.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
+            dialog.window?.let{window->
+                val bars=androidx.core.view.WindowCompat.getInsetsController(window,compose)
+                bars.isAppearanceLightStatusBars=InterfaceAppearance.light(activity)
+                bars.isAppearanceLightNavigationBars=InterfaceAppearance.light(activity)
+            }
             sheet = dialog; call.resolve()
         } catch (error: RuntimeException) { call.reject("Lyrics settings could not open", error) }
     } }

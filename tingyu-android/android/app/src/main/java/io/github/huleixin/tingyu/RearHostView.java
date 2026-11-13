@@ -49,6 +49,8 @@ final class RearHostView {
     private String trigger="created",decisionReason="initial";
     private long modeEpoch,lastSentEpoch=-1,lastReportedEpoch=-1,drawEpoch=-1,requestedFrameEpoch=-1,resumeEpoch=-1,drawCount;
     private boolean iframeApplied,visualStateReady,layoutReady;
+    private final RearAodCommandGate aodGate=new RearAodCommandGate();
+    private final Runnable aodDeadline=()->reconcile("aod-command-deadline");
     private final Runnable transitionTimeout=()->reconcile("transition-deadline");
     private final Runnable drawTimeout=this::checkDrawTimeout;
     private RearCardRenderPolicy.Mode mode=RearCardRenderPolicy.Mode.HIDDEN;
@@ -71,7 +73,7 @@ final class RearHostView {
     private final DisplayManager.DisplayListener displayListener = new DisplayManager.DisplayListener() {
         @Override public void onDisplayAdded(int id) {}
         @Override public void onDisplayRemoved(int id) { if (id == displayId()) reconcile("display-state"); }
-        @Override public void onDisplayChanged(int id) { if (id == displayId()) reconcile("display-state"); }
+        @Override public void onDisplayChanged(int id) { if (id == displayId()||id==Display.DEFAULT_DISPLAY) reconcile("display-state"); }
     };
 
     RearHostView(String session,Events events,RearNativeCardOwner card){
@@ -252,7 +254,20 @@ final class RearHostView {
         resumed = value; reconcile("native-lifecycle");
     } }
 
-    void aod(boolean value){if(!closed){aod=value;reconcile("aod-command");}}
+    void aod(boolean value){
+        if(Looper.myLooper()!=main.getLooper()){main.post(()->aod(value));return;}
+        if(!closed){aod=value;aodGate.command(value,android.os.SystemClock.elapsedRealtime());
+            main.removeCallbacks(aodDeadline);if(value)main.postDelayed(aodDeadline,RearAodCommandGate.SETTLE_MS);
+            reconcile("aod-command");}
+    }
+    private boolean mainAwakeUnlocked(){
+        try{
+            Display mainDisplay=displays==null?null:displays.getDisplay(Display.DEFAULT_DISPLAY);
+            android.app.KeyguardManager keyguard=context.getSystemService(android.app.KeyguardManager.class);
+            android.os.PowerManager power=context.getSystemService(android.os.PowerManager.class);
+            return mainDisplay!=null&&mainDisplay.getState()==Display.STATE_ON&&keyguard!=null&&!keyguard.isKeyguardLocked()&&power!=null&&power.isInteractive();
+        }catch(RuntimeException unavailable){return false;}
+    }
 
     /** 应用侧 PROBE / 心跳：重新核对一次可见性，不重建任何东西。 */
     void refresh() { if (!closed) reconcile("binding-or-probe"); }
@@ -303,13 +318,16 @@ final class RearHostView {
             trace("identity-invalid","associated="+binding.associated+", sameRoot="+root+", own="+own);
             int id=displayId();close();events.report(session,"paused",id,"native binding/root/media session invalid; waiting for verified rebind");return;
         }
+        boolean command=aodGate.effective(panelState()==Display.STATE_ON,mainAwakeUnlocked(),
+            events.current(session)&&own&&root&&binding.associated&&binding.center&&binding.active&&stage.isAttachedToWindow()&&card.container.isShown(),android.os.SystemClock.elapsedRealtime());
+        if(aod&&!command){aod=false;trace("stale-command-cleared","verified awake own card; no display power override");}
         RearCardRenderPolicy.Decision decision=transition.resolve(events.current(session),own,binding.associated,
             binding.center,binding.active,stage.isAttachedToWindow()&&card.container.isAttachedToWindow(),
             card.container.isShown(),card.owned(),preference.enabled()||client!=null&&client.keepAwakeRequested(),
-            aod&&!(client!=null&&client.keepAwakeRequested()&&panelState()==Display.STATE_ON),panelState(),android.os.SystemClock.elapsedRealtime());
+            command&&!(client!=null&&client.keepAwakeRequested()&&panelState()==Display.STATE_ON),panelState(),android.os.SystemClock.elapsedRealtime());
         main.removeCallbacks(transitionTimeout);
         if(decision.remainingMs>0)main.postDelayed(transitionTimeout,decision.remainingMs);
-        boolean recovered="verified-aod-transition".equals(decisionReason)&&"current-card".equals(decision.reason);
+        boolean recovered=("verified-aod-transition".equals(decisionReason)||"aod-disabled".equals(decisionReason))&&"current-card".equals(decision.reason);
         decisionReason=decision.reason;
         if(decision.mode!=mode||recovered){mode=decision.mode;modeEpoch++;readyReported=false;iframeApplied=false;visualStateReady=false;layoutReady=false;}
         // Functional mode events clear the app's active flag: emit exactly once per epoch,
@@ -450,7 +468,7 @@ final class RearHostView {
         mode=RearCardRenderPolicy.Mode.HIDDEN;modeEpoch++;trace("closing","native restoration requested; presentation=unmeasured");
         closed = true;
         main.removeCallbacks(preparationTimeout);
-        main.removeCallbacks(transitionTimeout);main.removeCallbacks(drawTimeout);
+        main.removeCallbacks(transitionTimeout);main.removeCallbacks(aodDeadline);main.removeCallbacks(drawTimeout);
         if(card!=null){card.restore();try{card.unwatch();}catch(Throwable error){boot("web-error","media callback cleanup "+error.getClass().getSimpleName());}}
         if (displays != null) { try { displays.unregisterDisplayListener(displayListener); } catch (Throwable ignored) {} displays = null; }
         if (updates != null) { try { context.getContentResolver().unregisterContentObserver(updates); } catch (Throwable ignored) {} updates = null; }

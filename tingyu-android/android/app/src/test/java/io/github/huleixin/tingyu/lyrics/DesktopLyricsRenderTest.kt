@@ -31,7 +31,8 @@ class DesktopLyricsRenderTest {
         view.draw(android.graphics.Canvas(bitmap)); val file = File("build/screenshots/lyrics/$name.png"); file.parentFile?.mkdirs()
         file.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
     } }
-    @Test fun settingsUseAllThreePalettesAndRemainScrollable() {
+    // JVM software Canvas cannot create the Haze RenderScript Surface; verify full-page layout on the supported non-blur SDK path.
+    @Test @Config(sdk=[30]) fun settingsUseAllThreePalettesAndRemainScrollable() {
         var light by mutableStateOf(false); var style by mutableStateOf("classic")
         compose.setContent { CompositionLocalProvider(LocalInterfacePalette provides InterfacePalette(light, style)) { LyricsSettingsSheet(compose.activity) {} } }
         for (mode in listOf("classic", "glacier-light", "glacier-dark")) {
@@ -51,7 +52,7 @@ class DesktopLyricsRenderTest {
         compose.onNodeWithContentDescription("若是无缘再见").assertIsDisplayed(); save("overlay-large-font")
         compose.runOnIdle { key = "tx:2" }; compose.onNodeWithContentDescription("若是无缘再见").assertDoesNotExist(); compose.onNodeWithContentDescription("新歌曲").assertIsDisplayed()
     }
-    @Test fun bluetoothSettingsUseExistingPalettesAndShowExperimentalStatus() {
+    @Test @Config(sdk=[30]) fun bluetoothSettingsUseExistingPalettesAndShowExperimentalStatus() {
         var light by mutableStateOf(false); var style by mutableStateOf("classic")
         compose.setContent { CompositionLocalProvider(LocalInterfacePalette provides InterfacePalette(light, style)) {
             BluetoothLyricsSettingsSheet(compose.activity, {}) {}

@@ -19,6 +19,9 @@ internal data class NativeFooterRoute(val route:String="home",val detail:Boolean
 }
 
 internal object NativeFooterLayout {
+    // IME covers bottom controls, but a Pad's vertical navigation remains usable above it.
+    fun imeHides(id:String,width:Float,imeVisible:Boolean):Boolean =
+        imeVisible && id!="stage" && !(id=="nav"&&width>=840f)
     const val SettingsDepthExitMs = 220
     const val SettingsDepthOffsetDp = 14f
     const val FooterExitMs = 220
@@ -52,7 +55,7 @@ internal object NativeFooterLayout {
         imeHidden: Boolean = false,
     ): Boolean = when {
         webOverlay -> false
-        id != "stage" && imeHidden -> false
+        imeHides(id,width,imeHidden) -> false
         id == "stage" -> route == "stage" && !pendingStageEntry
         id == "nav" -> when {
             pendingStageEntry || (route == "stage" && !stageExiting) -> false

@@ -879,6 +879,7 @@ export default {
       "settings-rear-appearance": {"title": "Rear stage appearance", "description": "Configure follow-front or independent rear visuals"},
       "settings-rear": {"title": "Rear lyrics settings", "description": "Open the rear lyrics control center"},
       "settings-desktop-lyrics": {"title": "Desktop lyrics settings", "description": "Open floating lyrics and style settings"},
+      "settings-bluetooth-display": {"title": "Bluetooth lyric display", "description": "Choose lyric placement, translation and refresh interval"},
       "settings-bluetooth-lyrics": {"title": "Car Bluetooth lyrics", "description": "Open experimental A2DP lyrics settings"},
       "rear-cover-sleep-toggle": { "title": "Rear cover to sleep", "description": "Toggle rear-screen cover and tabletop power saving" },
       "rear-backend-lsp": {"title": "Use LSP rear mode", "description": "Close rear lyrics, then switch to framework control"},

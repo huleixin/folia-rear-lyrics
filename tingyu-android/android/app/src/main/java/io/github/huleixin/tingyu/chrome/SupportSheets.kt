@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -104,11 +106,7 @@ internal fun parseSupportCopy(json: String?): SupportCopy {
 }
 
 @Composable internal fun SupportSheetLayer(kind: String?, copyJson: String?, light: Boolean, onDismiss: () -> Unit) {
-    var lastKind by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(kind) { if (kind != null) lastKind = kind }
-    TyPanelOverlay(visible = kind != null, light = light, onClose = onDismiss) {
-        lastKind?.let { SupportSheets(it, copyJson, onDismiss) }
-    }
+    if(kind!=null)Box(Modifier.fillMaxSize().zIndex(9f)){SupportSheets(kind,copyJson,onDismiss)}
 }
 
 @Composable private fun SupportCoffeeSheet(copy: SupportCopy, onDismiss: () -> Unit) {
@@ -144,7 +142,7 @@ internal fun parseSupportCopy(json: String?): SupportCopy {
         } else legacySave.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
     }
     val theme = sheetTheme
-    TySheetFrame(theme, copy.coffeeTitle, "", 0.92f, onDismiss) {
+    SettingsFullScreenFrame(theme, copy.coffeeTitle, "", onDismiss) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.size(44.dp).clip(RoundedCornerShape(999.dp)).background(theme.card), contentAlignment = Alignment.Center) {
                 PageIcon("coffee", theme.text, Modifier.size(22.dp))
@@ -187,7 +185,7 @@ internal fun parseSupportCopy(json: String?): SupportCopy {
         toast(context, copy.groupCopied)
     }
     val theme = sheetTheme
-    TySheetFrame(theme, copy.communityTitle, "", 0.7f, onDismiss) {
+    SettingsFullScreenFrame(theme, copy.communityTitle, "", onDismiss) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.size(44.dp).clip(RoundedCornerShape(999.dp)).background(theme.card), contentAlignment = Alignment.Center) {
                 PageIcon("messages-square", theme.text, Modifier.size(22.dp))

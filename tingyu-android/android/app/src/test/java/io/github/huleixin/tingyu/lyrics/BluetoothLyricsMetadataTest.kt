@@ -30,6 +30,35 @@ class BluetoothLyricsMetadataTest {
             }
             assertEquals("Song", original.getString(MediaMetadata.METADATA_KEY_TITLE))
     }
+    @Test fun layoutsAndTranslationKeepTheCanonicalCopyUntouched(){
+        val original=original()
+        val state=MinimalPlayerState(playback=MinimalPlayback(MinimalTrack("tx:1"),epoch="one"),lyrics=MinimalLyrics("tx:1","one",status=MinimalLyricsStatus.READY,lines=listOf(MinimalLyricLine(0.0,10.0,"Line","Translation"),MinimalLyricLine(10.0,20.0,"Next"))))
+        val projection=LyricsProjection(state,0)
+        fun shown(mode:String,content:String="original")=BluetoothLyricsMetadata.project(original,projection,LyricsPreferencesState(btMode=mode,btContent=content))
+        assertEquals("Line",shown("artist").getString(MediaMetadata.METADATA_KEY_ARTIST))
+        assertEquals("Song",shown("artist").getString(MediaMetadata.METADATA_KEY_TITLE))
+        assertEquals("Line",shown("album").getString(MediaMetadata.METADATA_KEY_ALBUM))
+        assertEquals("Song · Artist",shown("title_song").getString(MediaMetadata.METADATA_KEY_ARTIST))
+        assertEquals("Next",shown("two_lines").getString(MediaMetadata.METADATA_KEY_ARTIST))
+        assertEquals("Translation",shown("title","translation").getString(MediaMetadata.METADATA_KEY_TITLE))
+        assertEquals("Line / Translation",shown("title","paired").getString(MediaMetadata.METADATA_KEY_TITLE))
+        assertEquals("Artist",original.getString(MediaMetadata.METADATA_KEY_ARTIST))
+        assertEquals("Album",original.getString(MediaMetadata.METADATA_KEY_ALBUM))
+        assertEquals(180000L,shown("two_lines").getLong(MediaMetadata.METADATA_KEY_DURATION))
+    }
+    @Test fun preferenceMigrationAndBoundsAreSafe(){
+        val settings=LyricsPreferencesState.from(org.json.JSONObject("""{"bluetooth":false,"btMode":"unknown","btIntervalMs":1,"btMaxChars":9000}"""))
+        assertEquals("title",settings.btMode);assertEquals(1500,settings.btIntervalMs);assertEquals(180,settings.btMaxChars)
+        assertFalse(settings.bluetooth)
+        val changed=settings.copy(btMode="album",btContent="paired",btIntervalMs=5000,btMaxChars=64)
+        assertEquals(changed,LyricsPreferencesState.from(changed.json()))
+    }
+    @Test fun missingTranslationFallsBackAndTextLimitNeverSplitsSurrogatePair(){
+        val text="a".repeat(31)+"\uD83C\uDFB5"
+        val state=MinimalPlayerState(playback=MinimalPlayback(MinimalTrack("tx:1"),epoch="one"),lyrics=MinimalLyrics("tx:1","one",status=MinimalLyricsStatus.READY,lines=listOf(MinimalLyricLine(0.0,10.0,text))))
+        val shown=BluetoothLyricsMetadata.project(original(),LyricsProjection(state,0),LyricsPreferencesState(btContent="translation",btMaxChars=32))
+        assertEquals("a".repeat(31),shown.getString(MediaMetadata.METADATA_KEY_TITLE))
+    }
     @Test fun rejectsOldSongEpochAndMissingLyrics() {
         val state = MinimalPlayerState(
             playback = MinimalPlayback(MinimalTrack("tx:1"), epoch = "one"),

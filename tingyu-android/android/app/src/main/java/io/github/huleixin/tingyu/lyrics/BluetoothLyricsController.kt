@@ -61,21 +61,21 @@ internal class BluetoothLyricsController(context: Context, private val source: L
             return
         }
         if (lastEpoch != projection.epoch) { restore(); lastEpoch = projection.epoch }
-        val line = projection.line!!.text
+        val line = BluetoothLyricsMetadata.signature(projection,prefs.state.value)
         if (projected && line == lastTitle) return
-        val wait = (BluetoothLyricsMetadata.MIN_INTERVAL_MS - (SystemClock.elapsedRealtime() - lastWrite)).coerceAtLeast(0)
+        val wait = (prefs.state.value.btIntervalMs.toLong() - (SystemClock.elapsedRealtime() - lastWrite)).coerceAtLeast(0)
         if (wait == 0L) apply(projection, line)
         else pending = scope.launch { delay(wait); val latest = source.state.value
-            if (latest.songKey == projection.songKey && latest.epoch == projection.epoch && compatible(latest)) apply(latest, latest.line!!.text)
+            if (latest.songKey == projection.songKey && latest.epoch == projection.epoch && compatible(latest)) apply(latest, BluetoothLyricsMetadata.signature(latest,prefs.state.value))
         }
     }
     private fun apply(projection: LyricsProjection, line: String) {
         if (closed || !compatible(projection)) return
         val value = canonical ?: return
         try {
-            publish.accept(BluetoothLyricsMetadata.project(value, line)); projected = true; lastTitle = line
+            publish.accept(BluetoothLyricsMetadata.project(value, projection,prefs.state.value)); projected = true; lastTitle = line
             lastWrite = SystemClock.elapsedRealtime(); status.value = "metadata-updated"
-            PlaybackDiagnostics.note("bluetooth-lyrics-metadata", JSObject().put("song", PlaybackDiagnostics.anonKey(projection.songKey)).put("line", projection.index).put("vehicleVerified", false))
+            PlaybackDiagnostics.note("bluetooth-lyrics-metadata", JSObject().put("song", PlaybackDiagnostics.anonKey(projection.songKey)).put("line", projection.index).put("vehicleVerified", false).put("mode",prefs.state.value.btMode).put("intervalMs",prefs.state.value.btIntervalMs))
         } catch (error: RuntimeException) { status.value = "metadata-error"; restore() }
     }
     private fun restore() {
@@ -86,8 +86,8 @@ internal class BluetoothLyricsController(context: Context, private val source: L
     fun test(): Boolean {
         val value = source.state.value
         if (!compatible(value)) { refresh(); return false }
-        if (SystemClock.elapsedRealtime() - lastWrite < BluetoothLyricsMetadata.MIN_INTERVAL_MS) return false
-        pending?.cancel(); apply(value, value.line!!.text)
+        if (SystemClock.elapsedRealtime() - lastWrite < prefs.state.value.btIntervalMs) return false
+        pending?.cancel(); apply(value, BluetoothLyricsMetadata.signature(value,prefs.state.value))
         testRestore?.cancel(); testRestore = scope.launch { delay(3000); restore(); status.value = "test-complete" }
         return projected
     }

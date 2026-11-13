@@ -32,15 +32,20 @@ data class LyricsPreferencesState(
     val desktop: Boolean = false, val locked: Boolean = false, val hideInApp: Boolean = true,
     val x: Float = .5f, val y: Float = .25f, val style: DesktopLyricsStyle = DesktopLyricsStyle(),
     val bluetooth: Boolean = false, val device: String = "",
+    val btMode:String="title",val btContent:String="original",val btIntervalMs:Int=1500,val btMaxChars:Int=180,
 ) {
     fun json() = JSONObject().put("desktop", desktop).put("locked", locked).put("hideInApp", hideInApp)
         .put("x", x).put("y", y).put("style", style.json()).put("bluetooth", bluetooth).put("device", device)
+        .put("btMode",btMode).put("btContent",btContent).put("btIntervalMs",btIntervalMs).put("btMaxChars",btMaxChars)
     companion object {
         fun from(value: JSONObject): LyricsPreferencesState {
             fun coordinate(key: String, default: Float) = value.optDouble(key, default.toDouble()).toFloat().let { if (it.isFinite()) it.coerceIn(0f, 1f) else default }
             return LyricsPreferencesState(value.optBoolean("desktop"), value.optBoolean("locked"), value.optBoolean("hideInApp", true),
                 coordinate("x", .5f), coordinate("y", .25f), DesktopLyricsStyle.from(value.optJSONObject("style") ?: JSONObject()),
-                value.optBoolean("bluetooth"), value.optString("device", "").take(80))
+                value.optBoolean("bluetooth"), value.optString("device", "").take(80),
+                value.optString("btMode","title").takeIf{it in setOf("title","title_song","artist","album","two_lines")}?:"title",
+                value.optString("btContent","original").takeIf{it in setOf("original","translation","paired")}?:"original",
+                value.optInt("btIntervalMs",1500).coerceIn(1500,5000),value.optInt("btMaxChars",180).coerceIn(32,180))
         }
     }
 }

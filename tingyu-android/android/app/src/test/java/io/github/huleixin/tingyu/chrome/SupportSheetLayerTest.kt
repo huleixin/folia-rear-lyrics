@@ -9,6 +9,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.click
@@ -25,7 +27,7 @@ import org.robolectric.annotation.Config
 class SupportSheetLayerTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
-    @Test fun supportSheetAppearsAbovePageAndScrimConsumesOutsideTap() {
+    @Test fun supportPageFillsWindowBlocksUnderlyingTapAndClosesWithBack() {
         var pageTaps = 0
         var dismissals = 0
         compose.setContent {
@@ -37,6 +39,8 @@ class SupportSheetLayerTest {
         compose.onRoot().performTouchInput { click(Offset(8f, 8f)) }
         compose.waitForIdle()
         assertEquals(0, pageTaps)
+        assertEquals(0, dismissals)
+        compose.onNodeWithContentDescription("返回").performClick()
         assertEquals(1, dismissals)
     }
 }

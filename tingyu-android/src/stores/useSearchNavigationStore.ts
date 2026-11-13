@@ -1,3 +1,4 @@
+import { searchRequestBudget } from '../services/search/searchRequestBudget';
 import { create } from 'zustand';
 import { getNavidromeConfig, navidromeApi } from '../services/navidromeService';
 import type { HomeViewTab, LocalSong, SongResult, UnifiedSong } from '../types';
@@ -145,8 +146,9 @@ const searchOnlineProviderSongs = async (
     query: string,
     limit: number,
     offset: number,
+    signal?: AbortSignal,
 ): Promise<SearchExecutionResult> => {
-    const page = await omni.searchProviderSongs(providerId, query, { limit, offset });
+    const page = await omni.searchProviderSongs(providerId, query, { limit, offset }, signal);
     return { results: page.items, hasMore: page.hasMore, nextOffset: page.nextOffset };
 };
 
@@ -155,7 +157,8 @@ const executeSearch = async (
     sourceTab: SearchSource,
     offset: number,
     limit: number,
-    deps: SearchExecutorDeps
+    deps: SearchExecutorDeps,
+    signal?: AbortSignal,
 ): Promise<SearchExecutionResult> => {
     if (sourceTab === 'local') {
         return searchLocalSongs(deps, query);
@@ -165,7 +168,7 @@ const executeSearch = async (
         return searchNavidromeSongs(query);
     }
 
-    return searchOnlineProviderSongs(sourceTab, query, limit, offset);
+    return searchOnlineProviderSongs(sourceTab, query, limit, offset, signal);
 };
 
 const getInitialHomeViewTab = (): HomeViewTab => {
@@ -290,7 +293,7 @@ export const useSearchNavigationStore = create<SearchNavigationState>((set, get)
         });
 
         try {
-            const result = await executeSearch(trimmedQuery, sourceTab, 0, get().limit, deps);
+            const result = await searchRequestBudget(signal => executeSearch(trimmedQuery, sourceTab, 0, get().limit, deps, signal));
             if (get().requestId !== requestId) {
                 return true;
             }
@@ -352,7 +355,7 @@ export const useSearchNavigationStore = create<SearchNavigationState>((set, get)
         set({ isLoadingMore: true, searchError: null });
 
         try {
-            const result = await executeSearch(searchQuery, searchSourceTab, offset, limit, deps);
+            const result = await searchRequestBudget(signal => executeSearch(searchQuery, searchSourceTab, offset, limit, deps, signal));
             if (get().requestId !== requestId) {
                 return;
             }

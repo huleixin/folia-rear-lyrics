@@ -5,6 +5,14 @@ import org.junit.Test
 
 // android/app/src/test/java/io/github/huleixin/tingyu/chrome/NativeFooterLayoutTest.kt
 class NativeFooterLayoutTest {
+    @Test fun padRailRemainsVisibleDuringImeWithoutShowingMiniOrPhoneFooter(){
+        assertTrue(NativeFooterLayout.targetVisible("nav","search",width=1280f,imeHidden=true))
+        assertTrue(NativeFooterLayout.targetVisible("nav","search",width=840f,imeHidden=true))
+        assertFalse(NativeFooterLayout.targetVisible("nav","search",width=839f,imeHidden=true))
+        assertFalse(NativeFooterLayout.targetVisible("mini","search",width=1280f,imeHidden=true))
+        assertFalse(NativeFooterLayout.imeHides("nav",1280f,true))
+        assertTrue(NativeFooterLayout.imeHides("mini",1280f,true))
+    }
     @Test fun playlistFooterSurvivesStageAndSettingsShellsUntilBrowsingResumes(){
         val source=NativeFooterRoute().follow("collection",true,"collection:playlist:123")
         val stage=source.follow("stage",false,"stage")

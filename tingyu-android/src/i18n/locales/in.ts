@@ -642,6 +642,7 @@ export default {
       "settings-rear-appearance": {"title": "Tampilan panggung belakang", "description": "Atur tampilan depan atau belakang terpisah"},
       "settings-rear": {"title": "Rear lyrics settings", "description": "Open the rear lyrics control center"},
       "settings-desktop-lyrics": {"title": "Pengaturan lirik desktop", "description": "Buka lirik mengambang dan tampilan"},
+      "settings-bluetooth-display": {"title": "Tampilan lirik Bluetooth", "description": "Pilih kolom lirik, terjemahan dan interval pembaruan"},
       "settings-bluetooth-lyrics": {"title": "Lirik Bluetooth mobil", "description": "Buka pengaturan lirik A2DP eksperimental"},
       "rear-cover-sleep-toggle": { "title": "Tidur saat layar belakang tertutup", "description": "Alihkan hemat daya layar belakang saat tertutup atau diletakkan terbalik" },
       "rear-backend-lsp": {"title": "Gunakan mode LSP", "description": "Tutup lirik belakang lalu gunakan kerangka"},

@@ -1,3 +1,4 @@
+import { searchRequestBudget, SUGGEST_REQUEST_TIMEOUT_MS } from '../../../services/search/searchRequestBudget';
 import { useEffect, useRef, useState } from 'react';
 import type { OnlineProviderId } from '../../../types/onlineMusic';
 import type { SearchSuggestions } from '../../../types/search';
@@ -86,7 +87,7 @@ export function useSearchSuggestions({
             if (generation.current !== current) return;
             const controller = new AbortController();
             abortRef.current = controller;
-            const request = omni.suggestProvider(source as OnlineProviderId, trimmed, controller.signal)
+            const request = searchRequestBudget(signal => omni.suggestProvider(source as OnlineProviderId, trimmed, signal), SUGGEST_REQUEST_TIMEOUT_MS, controller.signal)
                 .then(result => {
                     if (!controller.signal.aborted) {
                         cache.set(key, { data: result, savedAt: Date.now() });

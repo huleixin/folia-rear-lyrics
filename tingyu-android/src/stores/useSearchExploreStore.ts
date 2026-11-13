@@ -1,3 +1,4 @@
+import { searchRequestBudget } from '../services/search/searchRequestBudget';
 import { create } from 'zustand';
 import type { OnlineProviderId } from '../types/onlineMusic';
 import type { LocalPlaylist } from '../types';
@@ -51,6 +52,7 @@ const fetchCategory = async (
     query: string,
     deps: ExploreDeps,
     offset: number,
+    signal?: AbortSignal,
 ): Promise<SearchPage<SearchArtistHit | SearchAlbumHit | SearchPlaylistHit>> => {
     if (source === 'local') {
         if (kind === 'playlist') return searchLocalPlaylists(query, deps.localPlaylists, SEARCH_PAGE_LIMIT, offset);
@@ -64,9 +66,9 @@ const fetchCategory = async (
     }
     const page = { limit: SEARCH_PAGE_LIMIT, offset };
     const providerId = source as OnlineProviderId;
-    if (kind === 'artist') return omni.searchProviderArtists(providerId, query, page);
-    if (kind === 'album') return omni.searchProviderAlbums(providerId, query, page);
-    return omni.searchProviderPlaylists(providerId, query, page);
+    if (kind === 'artist') return omni.searchProviderArtists(providerId, query, page, signal);
+    if (kind === 'album') return omni.searchProviderAlbums(providerId, query, page, signal);
+    return omni.searchProviderPlaylists(providerId, query, page, signal);
 };
 
 const isExploreKind = (value: string): value is ExploreKind => value === 'artist' || value === 'album' || value === 'playlist';
@@ -88,7 +90,7 @@ export const useSearchExploreStore = create<ExploreState>((set, get) => {
         const offset = append ? current.offset : 0;
         apply(kind, { status: 'loading', error: null, ...(append ? {} : { items: [], hasMore: false, offset: 0 }) });
         try {
-            const page = await fetchCategory(kind, source, query, deps, offset);
+            const page = await searchRequestBudget(signal => fetchCategory(kind, source, query, deps, offset, signal));
             if (get().generation !== generation) return; // 关键词 / 音源已变，丢弃旧响应
             const latest = get()[key] as ExploreCategory<any>;
             const items = append ? [...latest.items, ...page.items] : page.items;

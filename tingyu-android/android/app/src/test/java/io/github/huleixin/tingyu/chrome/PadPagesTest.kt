@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onAllNodesWithText
@@ -78,6 +79,9 @@ class PadPagesTest {
         }}
         compose.mainClock.advanceTimeByFrame();compose.mainClock.advanceTimeByFrame()
         shot("player-landscape")
+        val cover=compose.onNodeWithContentDescription("专辑封面").fetchSemanticsNode().boundsInRoot
+        val root=compose.onRoot().fetchSemanticsNode().boundsInRoot
+        assertEquals("large cover centered in left player pane",root.width/2.3f/2f,cover.center.x,2f)
         compose.onAllNodesWithText("陪我看日出").assertCountEquals(2)
         compose.onNodeWithText("雨过了就有路").assertExists()
         compose.onNodeWithContentDescription("打开完整歌词舞台").performClick();assertEquals("full-stage",events.last())

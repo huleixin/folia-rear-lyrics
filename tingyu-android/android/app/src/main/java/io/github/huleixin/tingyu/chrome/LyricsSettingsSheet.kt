@@ -19,7 +19,7 @@ internal fun LyricsSettingsSheet(activity: Activity, mode: String = "desktop", r
     fun text(cn: String, en: String) = if (zh) cn else en
     val theme = settingsFlowTheme()
     fun style(change: (DesktopLyricsStyle) -> DesktopLyricsStyle) { preferences.update { it.copy(style = change(it.style)) } }
-    TySheetFrame(theme, text("桌面歌词", "Desktop lyrics"), text("复用当前播放时间轴；后台同步，锁屏隐藏。", "Uses the current playback timeline; hides on the lock screen."), .92f, onClose) {
+    SettingsFullScreenFrame(theme, text("桌面歌词", "Desktop lyrics"), text("复用当前播放时间轴；后台同步，锁屏隐藏。", "Uses the current playback timeline; hides on the lock screen."), onClose) {
         SettingsGroup(theme, text("显示与权限", "Display and permission")) {
             SettingsSwitch(theme, text("启用桌面歌词", "Enable desktop lyrics"),
                 hint = if (Settings.canDrawOverlays(activity)) text("权限已授予", "Permission granted") else text("请授权后再开启", "Grant overlay permission, then enable"), checked = settings.desktop) { enabled ->

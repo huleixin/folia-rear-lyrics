@@ -1132,7 +1132,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 if(id=="mini"&&live!=null)SideEffect{retainedFooter["mini"]=live}
                 val navSelection=startupSelected?:when(destination){"search"->2;"settings"->3;else->selectedTab.coerceIn(0,1)}
                 val surface = original.interfacePaint(palette)
-                    .let{if(id=="nav")it.copy(vertical=width>=840f,selected=navSelection,disabled=footerHiddenForIme||live!=null&&it.disabled||destination=="settings"&&!settingsRoot)else it}
+                    .let{if(id=="nav")it.copy(vertical=width>=840f,selected=navSelection,disabled=NativeFooterLayout.imeHides(id,width,footerHiddenForIme)||live!=null&&it.disabled||destination=="settings"&&!settingsRoot)else it}
                 // seed 与 live 共用同一个定位入口，而且**只在 dp 空间里算一次**：JS 的 innerWidth
                 // 是整数（375），真实 dp 宽是 375.38，走 CSS px × scale 会让交接时整条底栏
                 // 上台 0.8dp（23:02 报告实测）。现在两路只有 density 一个比例，矩形逐位相同。
@@ -1157,7 +1157,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     .graphicsLayer {
                         if(id=="stage"&&width>height)translationY=(height-rect.top)*density.density*(1f-stagePresence)
                         alpha = when {
-                            id!="stage"&&footerHiddenForIme -> 0f
+                            NativeFooterLayout.imeHides(id,width,footerHiddenForIme) -> 0f
                             id=="mini" -> rect.alpha * NativeFooterLayout.miniPresenceAlpha(destination,miniPresence,settingsFromStage) * miniStageAlpha
                             id=="nav" -> rect.alpha * navPresence
                             else -> rect.alpha
@@ -1173,7 +1173,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     val actions: (String,Double)->Unit = actions@ { action,value ->
                         if(settingsHandoff!=null)return@actions
                         if(id=="stage"&&surface.controlsHidden)return@actions
-                        if(id!="stage"&&footerHiddenForIme)return@actions
+                        if(NativeFooterLayout.imeHides(id,width,footerHiddenForIme))return@actions
                         if(id=="nav"&&destination=="settings"&&!settingsRoot)return@actions
                         if(id=="nav"&&(!navTarget||navPresence<0.85f))return@actions
                         if(id=="mini"&&(!miniTarget||miniPresence<0.85f||destination=="stage"||pendingStageEntry||stageExit.active))return@actions

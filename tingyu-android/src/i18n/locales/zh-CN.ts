@@ -869,6 +869,7 @@ export default {
       "settings-rear-appearance": {"title": "背屏舞台外观", "description": "设置跟随正面或背屏独立外观"},
       "settings-rear": {"title": "背屏歌词设置", "description": "打开背屏控制中心"},
       "settings-desktop-lyrics": {"title": "桌面歌词设置", "description": "打开悬浮歌词与样式设置"},
+      "settings-bluetooth-display": {"title": "车载歌词显示策略", "description": "设置歌词显示栏、翻译及刷新间隔"},
       "settings-bluetooth-lyrics": {"title": "车载蓝牙歌词", "description": "打开实验性 A2DP 歌词设置"},
       "rear-cover-sleep-toggle": { "title": "背屏遮盖息屏", "description": "切换背屏遮挡与朝下静置的省电息屏" },
       "rear-backend-lsp": {"title": "使用 LSP 背屏模式", "description": "关闭背屏后切换到框架控制"},
