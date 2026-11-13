@@ -171,7 +171,7 @@ export default {
     "newReleasesLoading": "加载中", "newReleasesRetry": "重试",
     "personalRadioDescription": "为你而来的\n私人电台", "dailyHeading": "每日", "dailyCountHeading": "30首", "newReleasesDescription": "发现值得一听的新鲜音乐",
     "discoverMoreMusic": "为你发现更多好音乐", "newReleases": "新歌速递", "newReleasesUnavailable": "当前音源暂不支持新歌速递",
-    "dailyDescription": "根据你的喜好，精心推荐", "playNow": "立即播放", "unavailable": "暂不可用",
+    "viewSongs": "查看歌曲", "dailyDescription": "根据你的喜好，精心推荐", "playNow": "立即播放", "unavailable": "暂不可用",
     "all": "全部", "recommendationPages": "推荐卡片分页", "recommendationPage": "第 {{count}} 张推荐卡片",
     "locateCurrent": "定位当前",
     "guessYouLike": "猜你喜欢", "guessLineOne": "猜你", "guessLineTwo": "喜欢",

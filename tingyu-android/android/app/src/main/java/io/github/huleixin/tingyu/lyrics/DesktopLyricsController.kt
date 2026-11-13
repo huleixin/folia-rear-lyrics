@@ -98,7 +98,8 @@ internal class DesktopLyricsController(private val context: Context, private val
             leftInset = inset.left; topInset = inset.top; right = inset.right; bottom = inset.bottom
         } else { topInset = (24 * density).toInt(); bottom = (48 * density).toInt() }
         val w = minOf((420 * density).toInt(), width - leftInset - right - (24 * density).toInt()).coerceAtLeast(1)
-        val h = ((settings.style.fontSize * 1.6f * (if (settings.style.doubleLine) 1.82f else 1f) * uiContext.resources.configuration.fontScale + 12 + (if (settings.locked) 0 else 48)) * density)
+        val lyricHeight = settings.style.fontSize * 1.6f * (if (settings.style.doubleLine) { if (settings.style.splitLines) 2f else 1.82f } else 1f) * uiContext.resources.configuration.fontScale
+        val h = ((lyricHeight + 12 + (if (settings.locked) 0 else 16)) * density)
             .toInt().coerceAtMost(height - topInset - bottom).coerceAtLeast(1)
         availableX = (width - leftInset - right - w).coerceAtLeast(0).toFloat()
         availableY = (height - topInset - bottom - h).coerceAtLeast(0).toFloat()

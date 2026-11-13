@@ -85,6 +85,7 @@ uniform bool uNoiseOn; uniform sampler2D uNoise;
 // 透明（窗外是共用背景或桌面）：不画窗外，输出预乘的透明度。雾是一层半透明的雾，擦开的地方全透明，
 // 光（聚光灯、擦痕边、水珠高光）只加颜色不加不透明度，叠在后面的东西上。雾的颜色跟主题日夜：日间乳白、夜间深色
 uniform bool uSeeThrough; uniform vec3 uMistTint;
+uniform float uRearGlass;
 ${STATIC_NOISE}
 void main() {
   // 颠簸：玻璃上的东西（雾、擦痕、水珠）跟车身一起晃，窗外晃得更多
@@ -167,6 +168,7 @@ void main() {
   fog += smoothstep(0.78, 0.98, nz.b) * 0.05 * dens;
   // 水珠纹理：擦痕边 / 下淌的水珠 rd，雾上的凝结水珠 fd（擦开的地方没有）
   vec4 rd = texture(uDrop, gv);
+  float lyricClear = clear;
   vec4 fd = texture(uField, gv) * (1.0 - clear);
   // 和 raindrop-fx 一样，水珠周围一圈的雾也被抹掉
   clear = max(clear, smoothstep(0.93, 1.0, rd.a));
@@ -181,6 +183,8 @@ void main() {
   // 合成方式照搬 raindrop-fx 的 compose.glsl：阈值成形、按法线折射清晰的窗外、按光照明暗
   vec4 comp = vec4(rd.rgb + fd.rgb - 2.0 * rd.rgb * fd.rgb, max(rd.a, fd.a));
   float dmask = smoothstep(0.96, 0.99, comp.a);
+  // On the small rear panel preserve handwriting strokes instead of painting lenses over them.
+  dmask *= 1.0 - uRearGlass * lyricClear * 0.92;
   if (dmask > 0.001) {
     vec2 nn = comp.rg - 0.5;
     vec2 ruv = sv + vec2(-nn.x, nn.y) * (comp.b * 0.6 + 0.4) * uRefract;
@@ -219,6 +223,12 @@ void main() {
     }
     col = mix(col, lens, dmask);
   }
+  // A small rear window needs a stable ink contrast even over headlights and dark rain.
+  if (uRearGlass > 0.5) {
+    vec3 ink = dot(uMistTint, vec3(0.333)) > 0.5 ? vec3(0.045) : vec3(0.96);
+    col = mix(col, ink, lyricClear * 0.82);
+    if (uSeeThrough) alpha = mix(alpha, 1.0, lyricClear * 0.82);
+  }
 #ifdef NEBBIA_SOFT_HIGHLIGHT
   // 水族箱：聚光灯、水母、凝露的水珠叠在同一处会加过 1，烧成一块白。最亮的那个通道过了 0.75 以后
   // 按指数慢慢逼近 1，三个通道同比例压，颜色不变；0.75 以下不动
@@ -250,9 +260,10 @@ export const nebbiaSceneShaders = (scene: NebbiaWindowScene, glass: NebbiaGlass 
 export const NEBBIA_SPRITE_VS = /* glsl */ `#version 300 es
 in vec2 aCorner; in vec4 aRect; in vec2 aParam;
 uniform vec2 uView;
+uniform float uDropScale;
 out vec2 vUV; out float vSize; out float vAlpha;
 void main() {
-  vec2 p = aRect.xy + (aCorner - 0.5) * aRect.zw;
+  vec2 p = aRect.xy + (aCorner - 0.5) * aRect.zw * uDropScale;
   vUV = aCorner; vSize = aParam.x; vAlpha = aParam.y;
   gl_Position = vec4(p.x / uView.x * 2.0 - 1.0, p.y / uView.y * 2.0 - 1.0, 0.0, 1.0);
 }`;

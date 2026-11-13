@@ -7,11 +7,14 @@ import android.widget.FrameLayout;
 // android/app/src/main/java/io/github/huleixin/tingyu/RearInteractionFrame.java
 /** Both backends host this view. Intercepting a drag sends CANCEL to the child WebView. */
 final class RearInteractionFrame extends FrameLayout {
-    interface Actions { boolean canInteract(); void exit(); }
+    interface Actions { boolean canInteract(); void exit(); default boolean canDraw() { return true; } }
     private final RearSwipeGesture gesture=new RearSwipeGesture();
     private final Actions actions;
     private boolean intercepting,exited;
     RearInteractionFrame(Context context, Actions actions) { super(context); this.actions=actions; }
+    @Override public void draw(android.graphics.Canvas canvas) {
+        if (actions.canDraw()) super.draw(canvas);
+    }
     private float dp(float value) { return value/getResources().getDisplayMetrics().density; }
     @Override public boolean onInterceptTouchEvent(MotionEvent event) {
         if(exited)return true;

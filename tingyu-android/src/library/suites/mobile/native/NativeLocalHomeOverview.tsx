@@ -152,27 +152,27 @@ export default function NativeLocalHomeOverview({root,props,sources,onReady,onSo
         {
             id:'local-most-played',title:t('localHome.mostPlayed'),subtitle:t('localHome.mostPlayedHint'),
             image:absolutePageImage('/assets/mobile-home/local_favorites.webp'),
-            secondaryLabel:t('mobileLibrary.playNow'),action:'local:hero-most',
+            secondaryLabel:t('mobileLibrary.viewSongs'),action:'local:hero-most',
             disabled:mostUnified.length===0,
         },
         {
             id:'local-daily-30',title:t('localHome.daily30'),subtitle:t('localHome.dailyHint'),
             image:absolutePageImage('/assets/mobile-home/local_daily30.webp'),
-            secondaryLabel:t('mobileLibrary.playNow'),action:'local:hero-daily',
+            secondaryLabel:t('mobileLibrary.viewSongs'),action:'local:hero-daily',
             disabled:dailyUnified.length===0,
         },
         {
             id:'local-recent-added',title:t('localHome.recentAdded'),subtitle:t('localHome.recentAddedHint'),
             image:absolutePageImage('/assets/mobile-home/local_recent.webp'),
-            secondaryLabel:t('mobileLibrary.playNow'),action:'local:hero-recent-added',
+            secondaryLabel:t('mobileLibrary.viewSongs'),action:'local:hero-recent-added',
             disabled:recentAddedUnified.length===0,
         },
     ];
     const heroItems=heroCandidates.filter(item=>!item.disabled);
     if(heroItems.length>0){
-        actions['local:hero-most']=()=>{if(mostUnified.length)play(mostUnified[0],mostUnified)};
-        actions['local:hero-daily']=()=>{if(dailyUnified.length)play(dailyUnified[0],dailyUnified)};
-        actions['local:hero-recent-added']=()=>{if(recentAddedUnified.length)play(recentAddedUnified[0],recentAddedUnified)};
+        actions['local:hero-most']=()=>openGroup({id:'hero-most',type:'playlist',name:t('localHome.mostPlayed'),songs:mostPlayedSongs,trackCount:mostPlayedSongs.length});
+        actions['local:hero-daily']=()=>openGroup({id:'hero-daily',type:'playlist',name:t('localHome.daily30'),songs:dailySongs,trackCount:dailySongs.length});
+        actions['local:hero-recent-added']=()=>openGroup({id:'hero-recent-added',type:'playlist',name:t('localHome.recentAdded'),songs:recentAddedSongs,trackCount:recentAddedSongs.length});
         sections.push({id:'local-hero',layout:'hero',items:heroItems});
     }
 

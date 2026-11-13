@@ -67,9 +67,22 @@ public final class RearLyricsActivity extends Activity {
             | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
         root = new RearInteractionFrame(this,new RearInteractionFrame.Actions(){
             public boolean canInteract(){return contentReady && shouldRunRenderer();}
+            public boolean canDraw(){return RearDisplayPolicy.targetDisplay(currentDisplayId(), requestedDisplay) && isCurrentSession(session) && !exitRequested;}
             public void exit(){RearLyricsCoordinator.get(RearLyricsActivity.this).dismissDisplaySession(session);}
         });
         setContentView(root);
+        root.getViewTreeObserver().addOnPreDrawListener(new android.view.ViewTreeObserver.OnPreDrawListener() {
+            private int lastDisplay = -2;
+            public boolean onPreDraw() {
+                int actual = currentDisplayId();
+                if (actual != lastDisplay) {
+                    lastDisplay = actual;
+                    syncRendererState("display-changed", true);
+                    record("display-changed", "actual=" + actual + ", expected=" + requestedDisplay);
+                }
+                return true;
+            }
+        });
         root.addOnLayoutChangeListener((view, l, t, r, b, ol, ot, or, ob) -> updateViewport());
         // The shell may stage this transparent Activity on the main display while locked.
         // Create Chromium only after the window actually reaches the rear display.
@@ -133,12 +146,21 @@ public final class RearLyricsActivity extends Activity {
 
     private boolean shouldRunRenderer() {
         Display display=getWindow().getDecorView().getDisplay();
-        return !destroyed && !isFinishing() && !exitRequested && currentDisplayId()==requestedDisplay
+        return !destroyed && !isFinishing() && !exitRequested && RearDisplayPolicy.targetDisplay(currentDisplayId(), requestedDisplay)
             && RearDisplayPolicy.render(isCurrentSession(session),RearLyricsCoordinator.get(this).canPresent(),
                 yieldingToCamera,RearLyricsCoordinator.get(this).isSleeping(),display==null?Display.STATE_UNKNOWN:display.getState());
     }
     /** Per-view pause only: pauseTimers would also freeze the compatibility audio WebView. */
     private void syncRendererState(String reason, boolean forceResync) {
+        // Pausing Chromium does not erase its last frame. Hide before any early return.
+        boolean target = RearDisplayPolicy.targetDisplay(currentDisplayId(), requestedDisplay);
+        if (root != null) root.setVisibility(target && !yieldingToCamera && !exitRequested ? View.VISIBLE : View.INVISIBLE);
+        if (renderer != null) renderer.setVisibility(target && !yieldingToCamera && !exitRequested ? View.VISIBLE : View.INVISIBLE);
+        if (!target && opaque) {
+            root.setBackgroundColor(Color.TRANSPARENT);
+            if (Build.VERSION.SDK_INT >= 30) setTranslucent(true);
+            opaque = false;
+        }
         if(renderer==null)return;
         boolean running=shouldRunRenderer();
         if(!running) {
@@ -352,9 +374,9 @@ public final class RearLyricsActivity extends Activity {
         activity.runOnUiThread(() -> {
             if (activity.isFinishing() || activity.destroyed || activity.exitRequested || !isCurrentSession(expected) || !RearDisplayPolicy.matching(expected,activity.session) || !RearLyricsCoordinator.get(activity).canPresent() || !activity.yieldingToCamera) return;
             activity.yieldingToCamera = false;
-            if (activity.root != null) activity.root.setVisibility(View.VISIBLE);
+            if (activity.root != null) activity.root.setVisibility(RearDisplayPolicy.targetDisplay(activity.currentDisplayId(), requestedDisplay) ? View.VISIBLE : View.INVISIBLE);
             if (activity.renderer != null) {
-                activity.renderer.setVisibility(View.VISIBLE);
+                activity.renderer.setVisibility(RearDisplayPolicy.targetDisplay(activity.currentDisplayId(), requestedDisplay) ? View.VISIBLE : View.INVISIBLE);
                 activity.syncRendererState("camera-return",true);
             }
             // A window that yielded before Chromium was created still needs its renderer; the

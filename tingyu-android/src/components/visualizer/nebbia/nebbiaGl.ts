@@ -1,4 +1,5 @@
 import { FOG_DIV, MASK_SCALE, NEBBIA_FIXED } from './nebbiaConstants';
+import { nebbiaRearDropScale } from './nebbiaFrameUniforms';
 import raindropSpriteUrl from './nebbiaRaindrop.png';
 import { BLD_FILL_UNIFORMS, NebbiaBuildingCache, type NebbiaBuildingState } from './nebbiaBuildingCache';
 import { NebbiaFogGl } from './nebbiaFogGl';
@@ -28,7 +29,7 @@ const PALETTE_UNIFORMS = ['uSky0', 'uSky1', 'uLa', 'uLb', 'uLc'];
 // 水族箱的（uJelly 这些）在街景的程序里取不到位置，设了也没事
 const SCENE_UNIFORMS = ['uRes', 'uSceneShift', 'uTime', 'uBus', 'uNeon', ...PALETTE_UNIFORMS, 'uSpotSrc', 'uSpotSrc2', 'uSpotTgt', 'uSpotR', 'uSpotI', 'uScenery', 'uBldOn', 'uBldGeo',
     'uJelly', 'uJellyC', 'uJellyN', 'uBubbles', 'uSway', 'uBurst', 'uBurstN', 'uBeatRows', 'uWeedIdle'];
-const MAIN_UNIFORMS = [...SCENE_UNIFORMS, 'uDewGlint', 'uMist', 'uEdge', 'uRefract', 'uGlint', 'uGlassShift', 'uBreathOn', 'uBreathThick', 'uNoiseOn', 'uSeeThrough', 'uMistTint'];
+const MAIN_UNIFORMS = [...SCENE_UNIFORMS, 'uRearGlass', 'uDewGlint', 'uMist', 'uEdge', 'uRefract', 'uGlint', 'uGlassShift', 'uBreathOn', 'uBreathThick', 'uNoiseOn', 'uSeeThrough', 'uMistTint'];
 
 /** uScenery 里楼群那一位（nebbiaFrameUniforms.ts 的 SCENERY_BITS），和关着时给着色器的楼群缓存状态。 */
 const SCN_BUILDINGS = 1;
@@ -192,6 +193,7 @@ export class NebbiaGl {
     setRearMaskDetail(enabled: boolean) {
         if (enabled === this.rearMaskDetail) return;
         this.rearMaskDetail = enabled;
+        this.fieldValid = false;
         this.mask.resize(this.W, this.H, this.maskScale());
     }
 
@@ -242,6 +244,8 @@ export class NebbiaGl {
             gl.bindBuffer(gl.ARRAY_BUFFER, this.instBuf);
             gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
             gl.uniform2f(this.uView, this.W, this.H);
+            gl.uniform1f(gl.getUniformLocation(this.build.programs.sprite, 'uDropScale'),
+                nebbiaRearDropScale(this.W, this.H, this.rearMaskDetail));
             gl.enable(gl.BLEND);
             gl.blendFuncSeparate(gl.ONE_MINUS_DST_COLOR, gl.ONE_MINUS_SRC_COLOR, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
             gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, inst.length / 6);
@@ -314,6 +318,7 @@ export class NebbiaGl {
         this.setScene(U, u);
         this.setBuildings(U, buildings);
         gl.uniform1f(U.uMist, u.mist); gl.uniform1f(U.uEdge, u.edge);
+        gl.uniform1f(U.uRearGlass, this.rearMaskDetail ? 1 : 0);
         gl.uniform1f(U.uRefract, u.refract); gl.uniform1f(U.uGlint, u.glint);
         gl.uniform2fv(U.uGlassShift, u.glassShift);
         gl.uniform1i(U.uBreathOn, breath ? 1 : 0);

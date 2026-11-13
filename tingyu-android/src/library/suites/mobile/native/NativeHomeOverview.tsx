@@ -56,10 +56,10 @@ export default function NativeHomeOverview({root,props,sources,onReady,onSources
             chart.supported&&chart.collection?{...chart.collection,raw:chart.collection}:undefined];
         const names=[`${t('mobileLibrary.guessLineOne')}\n${t('mobileLibrary.guessLineTwo')}`,`${t('mobileLibrary.dailyHeading')}\n${t('mobileLibrary.dailyCountHeading')}`,t('mobileLibrary.newReleases')];
         sections.push({id:'hero',layout:'hero',items:['guess-you-like','daily-30','new-releases'].map((kind,index)=>{
-            const card=cards[index];actions[`hero:${kind}`]=()=>{if(card)void open(card,true);else chart.retry()};
+            const card=cards[index];actions[`hero:${kind}`]=()=>{if(card)void open(card);else chart.retry()};
             return{id:kind,title:names[index],subtitle:t(['mobileLibrary.personalRadioDescription','mobileLibrary.dailyDescription','mobileLibrary.newReleasesDescription'][index]),
                 image:absolutePageImage(`/assets/mobile-home/${kind}.png`),action:`hero:${kind}`,
-                secondaryLabel:index===2&&!card&&chart.supported?t(chart.status==='error'?'search.retry':'mobileLibrary.loading'):undefined,
+                secondaryLabel:index===2&&!card&&chart.supported?t(chart.status==='error'?'search.retry':'mobileLibrary.loading'):t('mobileLibrary.viewSongs'),
                 disabled:busy||sources.online.accountView==='resolving'||(!card&&!(index===2&&chart.supported&&chart.status==='error'))};
         })});
     }

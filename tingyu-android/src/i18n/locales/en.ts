@@ -181,7 +181,7 @@ export default {
     "newReleasesLoading": "Loading", "newReleasesRetry": "Retry",
     "personalRadioDescription": "Your personal\nradio", "dailyHeading": "Daily", "dailyCountHeading": "30 songs", "newReleasesDescription": "Discover fresh music worth hearing",
     "discoverMoreMusic": "Discover more music for you", "newReleases": "New releases", "newReleasesUnavailable": "New releases are not supported by this source",
-    "dailyDescription": "Picked for your taste", "playNow": "Play now", "unavailable": "Unavailable",
+    "viewSongs": "View songs", "dailyDescription": "Picked for your taste", "playNow": "Play now", "unavailable": "Unavailable",
     "all": "All", "recommendationPages": "Recommendation cards", "recommendationPage": "Recommendation card {{count}}",
     "locateCurrent": "Find playing track",
     "guessYouLike": "Made for you", "guessLineOne": "Your", "guessLineTwo": "own mix",

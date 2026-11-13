@@ -187,7 +187,8 @@ import kotlinx.coroutines.launch
             // 本地三张卡用的成品背景图底部偏亮，白色副标题/按钮对比度不足；
             // 只对 local-* 加一层非常轻的底部渐变遮罩（≤16% 黑），在线卡的既有设计不动。
             val localScrim=item.id.startsWith("local-")
-            Box(Modifier.width(width).height(height).clip(RoundedCornerShape(15.dp)).background(Color(0xFF172320))) {
+            Box(Modifier.width(width).height(height).clip(RoundedCornerShape(15.dp)).background(Color(0xFF172320))
+                .clickable(enabled=!item.disabled && item.action.isNotBlank()){action(item.action,"",0.0)}) {
                 AsyncImage(pageImage(item.image),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
                 if(localScrim)Box(Modifier.fillMaxSize().background(
                     Brush.verticalGradient(0f to Color(0x00000000),0.55f to Color(0x00000000),1f to Color(0x29000000))))
@@ -199,7 +200,7 @@ import kotlinx.coroutines.launch
                 Row(Modifier.align(Alignment.BottomStart).padding(start=18.dp,bottom=14.dp).height(38.dp)
                     .clip(RoundedCornerShape(24.dp)).background(Color(0x30FFFFFF)).border(1.dp,Color(0x45FFFFFF),RoundedCornerShape(24.dp))
                     .clickable(enabled=!item.disabled){action(item.action,"",0.0)}.padding(horizontal=15.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)) {
-                    if(!item.disabled)ChromeGlyph("play",Color.White,Modifier.size(16.dp))
+                    if(!item.disabled)PageIcon("chevron-right",Color.White,Modifier.size(16.dp))
                     Text(item.secondaryLabel.ifBlank{if(item.disabled)"暂不可用"else"立即播放"},color=Color.White,fontSize=13.sp,fontWeight=FontWeight.Medium)
                 }
             }

@@ -43,6 +43,7 @@ internal fun LyricsSettingsSheet(activity: Activity, mode: String = "desktop", r
         }
         SettingsGroup(theme, text("歌词样式", "Lyric style")) {
             SettingsSwitch(theme, text("双行模式", "Two lines"), checked = settings.style.doubleLine) { value -> style { it.copy(doubleLine = value) } }
+            if (settings.style.doubleLine) SettingsSwitch(theme, text("左右分离", "Alternating left and right"), checked = settings.style.splitLines) { value -> style { it.copy(splitLines = value) } }
             SettingsSwitch(theme, text("逐字平滑高亮", "Smooth word highlight"), checked = settings.style.wordHighlight) { value -> style { it.copy(wordHighlight = value) } }
             SettingsSelect(theme, text("字体", "Font"), value = settings.style.font, options = listOf(
                 TySettingOption("sans", text("无衬线", "Sans")), TySettingOption("serif", text("衬线", "Serif")), TySettingOption("mono", text("等宽", "Mono")))) { value -> style { it.copy(font = value) } }

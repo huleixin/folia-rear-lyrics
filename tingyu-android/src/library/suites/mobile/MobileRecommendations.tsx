@@ -144,14 +144,14 @@ export default function MobileRecommendations({
             {card ? (
               <button
                 className="ml-hero-play"
-                aria-label={t("mobileLibrary.playPlaylist", { name: title })}
+                aria-label={t("mobileLibrary.openPlaylist", { name: title })}
                 disabled={
                   busy === String(card.id) || source.accountView === "resolving"
                 }
-                onClick={() => void open(card, true)}
+                onClick={() => void open(card, false)}
               >
                 <Play fill="currentColor" size={17} />
-                <span>{t("mobileLibrary.playNow")}</span>
+                <span>{t("mobileLibrary.viewSongs")}</span>
               </button>
             ) : kind === "new" && chart.supported ? (
               <button className="ml-hero-unavailable" disabled={chart.status === 'loading'} onClick={chart.retry}

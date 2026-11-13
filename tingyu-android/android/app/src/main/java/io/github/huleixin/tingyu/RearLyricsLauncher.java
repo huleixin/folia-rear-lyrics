@@ -217,6 +217,8 @@ final class RearLyricsLauncher {
             save(context, message, trace.toString());
             callback.success(rear, message);
         } catch (Cancelled stopped) {
+            RearLyricsActivity.WindowState staged = RearLyricsActivity.windowState(session);
+            if (RearLyricsActivity.isCurrentSession(session) && staged != null && staged.displayId == Display.DEFAULT_DISPLAY) RearLyricsActivity.finishIfShown();
             // The camera took the panel back mid-launch. Report a cancellation so the coordinator
             // keeps its handoff state machine driving instead of backing off as if it had failed.
             trace.append("\nCancelled: the rear display was handed over mid-launch");

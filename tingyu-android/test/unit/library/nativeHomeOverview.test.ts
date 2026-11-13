@@ -103,6 +103,25 @@ afterEach(() => {
 });
 
 describe('NativeHomeOverview 解析期 hold（录屏 68804 回归）', () => {
+    it('hero opens the song collection without requesting autoplay or replacing playback', async () => {
+        const props = makeProps();
+        const open = props.homeResources.actions.openOnlineCard as ReturnType<typeof vi.fn>;
+        open.mockImplementation(async (_card, _provider, ready) => {
+            ready({ id: 'daily', type: 'playlist', name: '每日三十首', songs: [] });
+            return { ok: true };
+        });
+        act(() => root.render(h(NativeHomeOverview, {
+            root: { current: host }, props, sources: makeSources('authenticated', true),
+            onReady: vi.fn(), onSources: vi.fn(),
+        })));
+        const { useMobileLibraryStore } = await import('../../../src/stores/useMobileLibraryStore');
+        const request = useMobileLibraryStore.getState().requestCollectionPlay as ReturnType<typeof vi.fn>;
+        request.mockClear();
+        await act(async () => { (captured.actions['hero:daily-30'] as () => void)(); });
+        expect(props.onOpenGridView).toHaveBeenCalledTimes(1);
+        expect(request).not.toHaveBeenCalled();
+        expect(props.onPlaySong).not.toHaveBeenCalled();
+    });
     it('resolving 阶段不发包：原生继续呈递缓存页，绝不让过渡模型上屏', () => {
         act(() => {
             root.render(h(NativeHomeOverview, {

@@ -5,7 +5,7 @@ import { setStatusMessage } from '../stores/useStatusMessageStore';
 // src/services/nativeLyrics.ts
 // Native settings own functionality; only visual style participates in appearance sharing.
 export interface DesktopLyricsStyle {
-    doubleLine: boolean; wordHighlight: boolean; fontSize: number; font: 'sans' | 'serif' | 'mono';
+    doubleLine: boolean; splitLines?: boolean; wordHighlight: boolean; fontSize: number; font: 'sans' | 'serif' | 'mono';
     color: string; highlight: string; opacity: number; outline: number;
 }
 interface LyricsPort {

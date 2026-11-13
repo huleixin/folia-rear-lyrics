@@ -11,6 +11,8 @@ import type { NebbiaRain, NebbiaSceneryPart, NebbiaTuning } from './types';
 const SCENERY_BITS: Partial<Record<NebbiaSceneryPart, number>> = { buildings: 1, lights: 2, cars: 4, road: 8 };
 /** 雨：下（16）、斜着落（32）。 */
 const RAIN_BITS: Record<NebbiaRain, number> = { slant: 16 | 32, straight: 16, off: 0 };
+export const nebbiaRearDropScale = (width: number, height: number, rear: boolean) =>
+    rear ? Math.min(.48, Math.max(.25, Math.min(width, height) / 650)) : 1;
 
 export const nebbiaFrameUniforms = (
     t: NebbiaTuning, [sx, sy]: [number, number], spot: NebbiaSpot, W: number, H: number, time: number, aqua: NebbiaAquaUniforms | null = null,
@@ -22,7 +24,7 @@ export const nebbiaFrameUniforms = (
     return {
         time,
         mist: t.mist, edge: rear ? NEBBIA_FIXED.edge * .62 : NEBBIA_FIXED.edge,
-        refract: NEBBIA_FIXED.refract, bus: t.busSpeed, glint: NEBBIA_FIXED.glint, neon: t.neon,
+        refract: rear ? NEBBIA_FIXED.refract * .35 : NEBBIA_FIXED.refract, bus: t.busSpeed, glint: rear ? NEBBIA_FIXED.glint * .55 : NEBBIA_FIXED.glint, neon: t.neon,
         glassShift: [-sx * 0.35 / W, -sy * 0.35 / H], sceneShift: [-sx / W, -sy / H],
         spotSrc: [t.spotX * asp, srcY], spotSrc2: [(1 - t.spotX) * asp, srcY],
         spotTgt: [spot.x / W * asp, spot.y / H],

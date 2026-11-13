@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { nebbiaRearPaintsOwnWindow } from '../../../src/components/visualizer/nebbia/nebbiaBehind';
-import { nebbiaFrameUniforms } from '../../../src/components/visualizer/nebbia/nebbiaFrameUniforms';
+import { nebbiaFrameUniforms, nebbiaRearDropScale } from '../../../src/components/visualizer/nebbia/nebbiaFrameUniforms';
 import { DEFAULT_NEBBIA_TUNING } from '../../../src/components/visualizer/nebbia/types';
 import { NEBBIA_FIXED } from '../../../src/components/visualizer/nebbia/nebbiaConstants';
 
@@ -24,5 +24,13 @@ describe('Nebbia rear window scene', () => {
         expect(rear.edge).toBeLessThan(front.edge);
         expect(rear.mist).toBe(front.mist);
         expect(rear.scenery).toBe(front.scenery);
+        expect(rear.refract).toBeLessThan(front.refract);
+        expect(rear.glint).toBeLessThan(front.glint);
+    });
+    it('scales rear droplets to the small panel without changing front geometry', () => {
+        expect(nebbiaRearDropScale(300, 190, false)).toBe(1);
+        expect(nebbiaRearDropScale(300, 190, true)).toBeCloseTo(190 / 650);
+        expect(nebbiaRearDropScale(900, 570, true)).toBe(.48);
+        expect(nebbiaRearDropScale(10, 10, true)).toBe(.25);
     });
 });

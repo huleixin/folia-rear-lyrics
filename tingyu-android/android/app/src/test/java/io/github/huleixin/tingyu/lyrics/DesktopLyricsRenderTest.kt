@@ -63,4 +63,24 @@ class DesktopLyricsRenderTest {
             compose.onNodeWithText("仅兼容部分车机").performScrollTo()
         }
     }
+    @Test fun longSplitLinesKeepFullTextAndCompactIconActions() {
+        val sentence = "这是一句很长很长的歌词需要跟随演唱进度滚动显示完整内容"
+        val s = MinimalPlayerState(
+            playback = MinimalPlayback(MinimalTrack("tx:long"), anchorPositionMs = 5000, epoch = "one", source = MinimalClockSource.ENGINE),
+            lyrics = MinimalLyrics("tx:long", "one", status = MinimalLyricsStatus.READY, lines = listOf(
+                MinimalLyricLine(0.0, 10.0, sentence), MinimalLyricLine(10.0, 20.0, "下一句靠右显示"))))
+        compose.setContent { Box(Modifier.width(320.dp)) {
+            DesktopLyricsView(LyricsProjection.at(s, 0), LyricsPreferencesState(style = DesktopLyricsStyle(splitLines = true)),
+                { _, _ -> }, {}, {}, {})
+        } }
+        compose.onNodeWithContentDescription(sentence).assertIsDisplayed()
+        compose.onNodeWithContentDescription("下一句靠右显示").assertIsDisplayed()
+        compose.onNodeWithContentDescription("锁定").assertIsDisplayed()
+        compose.onNodeWithContentDescription("关闭").assertIsDisplayed()
+        val lock = compose.onNodeWithContentDescription("锁定").fetchSemanticsNode().boundsInRoot
+        val close = compose.onNodeWithContentDescription("关闭").fetchSemanticsNode().boundsInRoot
+        org.junit.Assert.assertEquals(lock.top, close.top, .1f)
+        org.junit.Assert.assertTrue(close.left >= lock.right)
+        save("overlay-long-split")
+    }
 }

@@ -10,11 +10,11 @@ data class DesktopLyricsStyle(
     val doubleLine: Boolean = true, val wordHighlight: Boolean = true,
     val fontSize: Float = 22f, val font: String = "sans",
     val color: String = "#FFFFFF", val highlight: String = "#8FE6C3",
-    val opacity: Float = .8f, val outline: Float = 2f,
+    val opacity: Float = .8f, val outline: Float = 2f, val splitLines: Boolean = false,
 ) {
     fun json() = JSONObject().put("doubleLine", doubleLine).put("wordHighlight", wordHighlight)
         .put("fontSize", fontSize).put("font", font).put("color", color).put("highlight", highlight)
-        .put("opacity", opacity).put("outline", outline)
+        .put("opacity", opacity).put("outline", outline).put("splitLines", splitLines)
     companion object {
         fun from(value: JSONObject): DesktopLyricsStyle {
             val fallback = DesktopLyricsStyle()
@@ -23,7 +23,7 @@ data class DesktopLyricsStyle(
             fun color(key: String, default: String) = value.optString(key, default).takeIf { it.matches(Regex("#[0-9a-fA-F]{6}")) } ?: default
             return DesktopLyricsStyle(value.optBoolean("doubleLine", true), value.optBoolean("wordHighlight", true),
                 number("fontSize", 22f, 14f, 40f), value.optString("font", "sans").takeIf { it in setOf("sans", "serif", "mono") } ?: "sans",
-                color("color", fallback.color), color("highlight", fallback.highlight), number("opacity", .8f, .2f, 1f), number("outline", 2f, 0f, 5f))
+                color("color", fallback.color), color("highlight", fallback.highlight), number("opacity", .8f, .2f, 1f), number("outline", 2f, 0f, 5f), value.optBoolean("splitLines", false))
         }
     }
 }
