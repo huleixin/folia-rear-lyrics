@@ -19,6 +19,20 @@ beforeEach(()=>{
 afterEach(async()=>{await releaseCompatibleSleepOutput();element.remove();usePlaybackStore.setState(saved);});
 const flush=()=>new Promise(resolve=>setTimeout(resolve,0));
 const lease=()=>port.compatiblePlayback.mock.calls.find(([o])=>o.action==='claim')![0].lease;
+it('forwards event anchors for seek, pause and speed without retaining listeners after release',async()=>{
+    element.src='blob:audio';element.currentTime=12;element.playbackRate=1.5;
+    Object.defineProperty(element,'duration',{value:200});
+    Object.defineProperty(element,'readyState',{value:4});
+    await ensureCompatibleSleepOutput(()=>attempt);await flush();
+    expect(port.compatiblePlayback.mock.lastCall?.[0]).toMatchObject({positionMs:12000,durationMs:200000,rate:1.5,title:'A',buffering:false});
+    element.currentTime=50;element.dispatchEvent(new Event('seeked'));await flush();
+    expect(port.compatiblePlayback.mock.lastCall?.[0].positionMs).toBe(50000);
+    paused=true;element.dispatchEvent(new Event('pause'));await flush();
+    expect(port.compatiblePlayback.mock.lastCall?.[0].playing).toBe(false);
+    await releaseCompatibleSleepOutput();const count=port.compatiblePlayback.mock.calls.length;
+    element.dispatchEvent(new Event('seeked'));await flush();
+    expect(port.compatiblePlayback).toHaveBeenCalledTimes(count);
+});
 it('manual selection does not label an outgoing browser source as the newly selected song',async()=>{
     element.setAttribute('src','blob:old');await ensureCompatibleSleepOutput(()=>attempt);await flush();
     expect(port.compatiblePlayback.mock.lastCall?.[0].songKey).toBe('');

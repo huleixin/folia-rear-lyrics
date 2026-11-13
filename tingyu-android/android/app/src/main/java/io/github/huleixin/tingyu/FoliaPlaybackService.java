@@ -64,6 +64,7 @@ public class FoliaPlaybackService extends Service {
      */
     private volatile String cachedDurationSource = "none";
     private volatile long cachedPositionMs = 0L;
+    private io.github.huleixin.tingyu.lyrics.LyricsFeatureHost lyricsFeatures;
     private volatile long cachedPositionUpdatedAt = 0L;
     private volatile boolean cachedPlaying = false;
     private long lastSystemSeekAt;
@@ -195,6 +196,16 @@ public class FoliaPlaybackService extends Service {
         io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("service-create",
             new com.getcapacitor.JSObject().put("pid", android.os.Process.myPid()));
         activeService = this;
+        lyricsFeatures = new io.github.huleixin.tingyu.lyrics.LyricsFeatureHost(this, metadata -> {
+            if (mediaSession == null || !running) throw new IllegalStateException("Playback session unavailable");
+            mediaSession.setMetadata(metadata);
+            MediaMetadata observed = readSessionMetadata();
+            io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("lyrics-metadata-session",
+                new com.getcapacitor.JSObject().put("readbackMatches", observed != null
+                    && java.util.Objects.equals(metadata.getString(MediaMetadata.METADATA_KEY_MEDIA_ID), observed.getString(MediaMetadata.METADATA_KEY_MEDIA_ID))
+                    && java.util.Objects.equals(metadata.getString(MediaMetadata.METADATA_KEY_TITLE), observed.getString(MediaMetadata.METADATA_KEY_TITLE)))
+                    .put("vehicleVerified", false));
+        });
         mainHandler.post(serviceHeartbeatRunnable);
         mainHandler.post(sessionClockRunnable);
     }
@@ -810,7 +821,7 @@ public class FoliaPlaybackService extends Service {
     private void publishMetadata(Bitmap artwork) {
         MediaMetadata metadata = buildMetadata(cachedTitle, cachedArtist, cachedAlbum, cachedDurationMs,
             artwork, cachedCoverUrl, cachedSongKey);
-        mediaSession.setMetadata(metadata);
+        if (lyricsFeatures == null) mediaSession.setMetadata(metadata); else lyricsFeatures.canonical(metadata);
         mediaSession.setQueue(Collections.singletonList(new MediaSession.QueueItem(metadata.getDescription(), queueId(cachedSongKey))));
         // 记账：会话里现在装的是哪个歌曲版本。applyNativeLyric / requestRefresh /
         // ensureLyricPublished 三条路径都经过这里，因此它们互相之间天然去重，
@@ -1347,6 +1358,7 @@ public class FoliaPlaybackService extends Service {
 
     @Override
     public void onDestroy() {
+        if (lyricsFeatures != null) { lyricsFeatures.close(); lyricsFeatures = null; }
         // Recorded before the engine is released so the trail keeps the last song and
         // position; releaseIfPresent then writes its own engine-release entry.
         io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("service-destroy",

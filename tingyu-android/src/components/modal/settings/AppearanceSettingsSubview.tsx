@@ -1,4 +1,5 @@
 import {useRearStageAppearanceStore} from '../../../stores/useRearStageAppearanceStore';
+import { snapshotDesktopLyricsStyle, restoreDesktopLyricsStyle } from '../../../services/nativeLyrics';
 import InterfaceAppearanceSetting from './InterfaceAppearanceSetting';
 import MobileRandomVisualizerSettings from './MobileRandomVisualizerSettings';
 import { isAndroidNativeRuntime } from '../../../utils/platform';
@@ -294,7 +295,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
     const lyricsStyleBorderStart = theme?.accentColor || accentOutlineColor;
     const lyricsStyleBorderEnd = theme?.secondaryColor || theme?.primaryColor || accentOutlineColor;
 
-    const buildCurrentConfig = () => {
+    const buildCurrentConfig = async () => {
         let exportTheme: DualTheme | null = null;
         if (exportThemeType === 'custom') {
             exportTheme = customTheme || readSavedCustomTheme() || null;
@@ -305,6 +306,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
         return {
             theme: exportTheme,
             ...buildVisualSettingsConfig(),
+            desktopLyricsStyle: await snapshotDesktopLyricsStyle(),
             songThemeAutoSwitchEnabled,
             songThemeAutoGenerateEnabled,
             // Mod settings and tunings (Folium param store) are visual settings too.
@@ -313,9 +315,9 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
     };
 
     const handleCopyShortcode = async () => {
-        const config = buildCurrentConfig();
-        const code = compressConfig(config);
         try {
+            const config = await buildCurrentConfig();
+            const code = compressConfig(config);
             await navigator.clipboard.writeText(code);
             setCopiedType('shortcode');
             setTimeout(() => setCopiedType('none'), 2000);
@@ -326,9 +328,9 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
     };
 
     const handleCopyJson = async () => {
-        const config = buildCurrentConfig();
-        const code = JSON.stringify(config, null, 2);
         try {
+            const config = await buildCurrentConfig();
+            const code = JSON.stringify(config, null, 2);
             await navigator.clipboard.writeText(code);
             setCopiedType('json');
             setTimeout(() => setCopiedType('none'), 2000);
@@ -366,7 +368,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
 
     // Parse and diff only. Applying waits for the confirmation, because a config can change settings
     // it never mentions -- unpinning a custom theme, discarding an uploaded font.
-    const handleImportConfig = () => {
+    const handleImportConfig = async () => {
         if (!importText.trim()) return;
         try {
             // Import accepts a bare shortcode/JSON or a full OBS URL (extracting its cfg param), so a look can be re-tuned from someone's link.
@@ -375,7 +377,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
             const customFont = uiStoreTypographySettings.lyricsCustomFont;
             const plan = buildImportPlan({
                 incoming: config,
-                current: { ...buildVisualSettingsConfig(), theme: customTheme ?? null },
+                current: { ...buildVisualSettingsConfig(), desktopLyricsStyle: await snapshotDesktopLyricsStyle(), theme: customTheme ?? null },
                 switches: { isCustomThemePreferred, songThemeAutoSwitchEnabled, songThemeAutoGenerateEnabled },
                 customFontSource: customFont?.source ?? null,
                 customFontLabel: customFont?.label ?? customFont?.family ?? null,
@@ -402,10 +404,11 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
 
     // `keys` are the plan's change keys, which are the config field names apart from the two theme
     // sides. Anything not picked is left exactly as it is.
-    const applyImportedConfig = (config: any, keys: string[]) => {
+    const applyImportedConfig = async (config: any, keys: string[]) => {
         const has = (key: string) => keys.includes(key);
         if(has("rearStageAppearance"))void useRearStageAppearanceStore.getState().restore(config.rearStageAppearance).catch(error=>setStatusMessage({type:"error",text:String(error)}));
         try {
+            if (has('desktopLyricsStyle')) await restoreDesktopLyricsStyle(config.desktopLyricsStyle);
             // 1. Restore Theme, per side: taking someone's night colours must not drag their day
             // ones along, so the side that was not picked keeps whatever is saved now.
             const savesTheme = Boolean(config.theme) && (has(THEME_LIGHT_KEY) || has(THEME_DARK_KEY));

@@ -67,7 +67,7 @@ data class MinimalPlayback(
         // 上限只截「外推的那一段」，锚点本身永远成立：桥断了画面停在最后已知位置，不假装在走。
         val elapsed = (nowElapsedMs - anchorElapsedMs).coerceIn(0L, maxExtrapolationMs)
         return PlaybackPositionClock.at(
-            playing, anchorPositionMs, anchorElapsedMs, anchorElapsedMs + elapsed,
+            playing && !buffering, anchorPositionMs, anchorElapsedMs, anchorElapsedMs + elapsed,
             track.durationMs, playbackRate,
         )
     }

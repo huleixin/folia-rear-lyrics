@@ -372,7 +372,10 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
 
     private val hostListener = RearHostUpdates.Listener { scheduleRefresh() }
     private val storeListener = UnifiedLyricsStore.Observer { songKey ->
-        if (songKey == _state.value.playback.track.key) scheduleRefresh()
+        main.post {
+            val current = _state.value.playback
+            if (songKey == current.track.key) requestLyrics(songKey, current.epoch, force = false)
+        }
     }
 
     private val lyricRetry = Runnable {
@@ -502,7 +505,8 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
         val bridgePlaying = bridge?.playing == true
 
         // 身份：Media3 说话时它是唯一权威；否则用桥报的那一首（浏览器音频通道原生没有别的来源）。
-        val key = if (engine == "media3" && nativeKey.isNotEmpty()) nativeKey else bridgeKey.ifEmpty { nativeKey }
+        val acceptedClock = engine == "media3" || (engine == "compatible" && native.optBoolean("compatibleClock"))
+        val key = if (engine == "media3" || engine == "compatible") nativeKey else bridgeKey.ifEmpty { nativeKey }
         val catalogTrack = if (key.isEmpty()) null else try {
             NativePlaylist.get().trackFor(key)
         } catch (_: Throwable) {
@@ -511,18 +515,19 @@ class MinimalPlayerRuntime private constructor(private val appContext: Context) 
         val track = identitySafeTrack(key, engine, nativeKey, native, bridge, catalogTrack)
 
         val playback = when {
-            engine == "media3" && key.isNotEmpty() -> MinimalPlayback(
+            acceptedClock && key.isNotEmpty() -> MinimalPlayback(
                 track = track,
                 playing = native.optBoolean("playing", false),
                 anchorPositionMs = native.optLong("anchorPositionMs", 0L),
                 anchorElapsedMs = native.optLong("anchorElapsedMs", 0L),
                 playbackRate = native.optDouble("playbackRate", 1.0).toFloat().takeIf { it.isFinite() && it > 0f } ?: 1f,
-                source = MinimalClockSource.ENGINE,
+                source = if (engine == "media3") MinimalClockSource.ENGINE else MinimalClockSource.BRIDGE,
+                maxExtrapolationMs = if (engine == "media3") Long.MAX_VALUE else BRIDGE_EXTRAPOLATION_CAP_MS,
                 epoch = native.optString("epoch", ""),
                 buffering = native.optBoolean("buffering", false),
             )
 
-            bridge != null && bridgeKey.isNotEmpty() -> MinimalPlayback(
+            bridge != null && bridgeKey.isNotEmpty() && bridgeKey == key -> MinimalPlayback(
                 track = track,
                 playing = bridgePlaying,
                 anchorPositionMs = (bridge.positionSec * 1000.0).toLong(),
@@ -761,7 +766,7 @@ internal fun identitySafeTrack(
     bridge: MinimalBridgeFrame?,
     catalogTrack: NativePlaylist.Track?,
 ): MinimalTrack {
-    val nativeMatchesKey = engine == "media3" && nativeKey == key && key.isNotEmpty()
+    val nativeMatchesKey = (engine == "media3" || engine == "compatible") && nativeKey == key && key.isNotEmpty()
     val bridgeMatchesKey = bridge != null && bridge.trackKey == key && key.isNotEmpty()
 
     val title = (if (nativeMatchesKey) native.optString("title", "").takeIf { it.isNotEmpty() } else null)

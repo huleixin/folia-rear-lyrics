@@ -499,6 +499,7 @@ const decompressLumiere = (o: any) => normalizeLumiereTuning(Object.fromEntries(
 export const compressConfig = (config: any): string => {
     const minified: any = {};
     if(config.rearStageAppearance)minified.rsa=config.rearStageAppearance;
+    if(config.desktopLyricsStyle)minified.dls=config.desktopLyricsStyle;
     if (config.theme) {
         minified.t = {
             l: compressTheme(config.theme.light),
@@ -641,6 +642,7 @@ export const decompressConfig = (str: string): any => {
     if (isMinified) {
         const decompressed: any = {};
         if(parsed.rsa)decompressed.rearStageAppearance=parsed.rsa;
+        if(parsed.dls)decompressed.desktopLyricsStyle=parsed.dls;
         if (parsed.t) {
             decompressed.theme = {
                 light: decompressTheme(parsed.t.l),
@@ -715,7 +717,7 @@ export const decompressConfig = (str: string): any => {
         return decompressed;
     } else {
         const validKeys = [
-            'stageRenderSettings', 'rearStageAppearance', 'theme', 'visualizerMode', 'randomVisualizerModePerSong', 'randomVisualizerModes', 'visualizerBackgroundMode', 'backgroundOpacity',
+            'stageRenderSettings', 'rearStageAppearance', 'desktopLyricsStyle', 'theme', 'visualizerMode', 'randomVisualizerModePerSong', 'randomVisualizerModes', 'visualizerBackgroundMode', 'backgroundOpacity',
             'useCoverColorBg', 'disableVisualizerGeometricBackground', 'disableVisualizerVignette', 'staticMode',
             'visualizerOpacity', 'hidePlayerTranslationSubtitle', 'showSubtitleTranslation', 'subtitleContentMode',
             'subtitleOverlayBackground', 'subtitleUpcomingLyricsBlur', 'subtitleOverlayOpacity',

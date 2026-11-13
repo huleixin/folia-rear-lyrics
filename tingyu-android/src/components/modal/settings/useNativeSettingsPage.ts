@@ -6,6 +6,7 @@ import {rearControlActions} from './rearControlActions';
 import type {RearSettingsController} from './useRearSettingsController';
 import type { SettingsNavGroup, SettingsSectionId } from './navigation/settingsNavModel';
 import type { NativePageModel, PageActions, PageSection, PageItem } from '../../../types/nativePages';
+import { nativeLyricsAvailable, openNativeLyricsSettings } from '../../../services/nativeLyrics';
 
 // src/components/modal/settings/useNativeSettingsPage.ts
 // Same index groups and rear-display controls as MobileSettingsNavigation / AndroidRearLyricsSetting.
@@ -14,6 +15,14 @@ export function useNativeSettingsPage(root:RefObject<HTMLElement|null>,page:Rear
     const {t}=useTranslation();
     const actions:PageActions={close:onClose,help:onHelp,...rearControlActions(rear,onPage,onBack)};
     const sections:PageSection[]=[];
+    if (nativeLyricsAvailable()) {
+        actions['lyrics:desktop'] = () => openNativeLyricsSettings('desktop');
+        actions['lyrics:bluetooth'] = () => openNativeLyricsSettings('bluetooth');
+        sections.push({id:'lyrics-output',title:t('lyricsOutput.title'),layout:'rows',items:[
+            {id:'desktop-lyrics',title:t('lyricsOutput.desktop'),subtitle:t('lyricsOutput.desktopHint'),action:'lyrics:desktop'},
+            {id:'bluetooth-lyrics',title:t('lyricsOutput.bluetooth'),subtitle:t('lyricsOutput.bluetoothHint'),action:'lyrics:bluetooth'},
+        ]});
+    }
     if(rear.available)sections.push({id:'rear',layout:'rows',items:[{id:'rear-entry',title:t('rearControl.title'),subtitle:rearEntrySubtitle(rear.snapshot,rear.failed,t),action:'rear:open'}]});
     for(const group of groups){
         const items:PageItem[]=group.items.map(item=>{actions[`settings:${item.id}`]=()=>onSelect(item.id);

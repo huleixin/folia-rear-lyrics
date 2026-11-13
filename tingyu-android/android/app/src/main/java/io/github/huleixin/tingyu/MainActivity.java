@@ -161,6 +161,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(io.github.huleixin.tingyu.chrome.BrandLaunchPlugin.class);
         registerPlugin(FoliaNativePlugin.class);
         registerPlugin(io.github.huleixin.tingyu.playback.TingyuPlaybackPlugin.class);
+        registerPlugin(io.github.huleixin.tingyu.lyrics.TingyuLyricsPlugin.class);
         // 安全模式「跳过非必要模块」：原生 Compose 页面不是启动必需品，少装一份就少一个崩溃面。
         if (BuildConfig.COMPOSE_CHROME && !skipOptional) registerPlugin(io.github.huleixin.tingyu.chrome.TingyuChromePlugin.class);
         if (BuildConfig.GLASS_LAB) {
@@ -458,6 +459,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onResume() {
         super.onResume();
+        io.github.huleixin.tingyu.lyrics.DesktopLyricsController.setAppVisible(true);
         getStageOrientation().resume();
         io.github.huleixin.tingyu.playback.PlaybackLifecycle.noteActivity("resume", true);
         if (nativeShell != null) nativeShell.resume();
@@ -496,6 +498,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onStop() {
+        io.github.huleixin.tingyu.lyrics.DesktopLyricsController.setAppVisible(false);
         getStageOrientation().stop();
         // 用户主动退出（不是被系统杀）：下一次启动不算「启动失败」。
         if (isFinishing()) {

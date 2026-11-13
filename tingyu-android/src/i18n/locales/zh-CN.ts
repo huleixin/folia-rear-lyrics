@@ -1,6 +1,7 @@
 
 
 export default {
+  lyricsOutput: {"title":"桌面与车载歌词","desktop":"桌面歌词","desktopHint":"原生悬浮歌词与样式设置","bluetooth":"车载蓝牙歌词","bluetoothHint":"为选定 A2DP 设备尝试显示歌词标题","desktopStyle":"桌面歌词样式"},
   stageQuality: {"compatibilityFallback": "当前设备暂时无法绘制此场景，已保留歌词显示。", "retry": "重新加载舞台", "bandMotion": "频段动感", "bandMotionHint": "根据当前音频频段的起伏驱动霓虹、涟漪和大屏呼吸，无需在线分析。", "motionStrength": "动感强度", "preset": "歌词渲染画质", "description": "自动保留当前清晰度，根据持续帧耗时调整；高画质更精细，省电减少绘制成本。不会改变播放速度或全局帧率。", "auto": "自动", "high": "高画质", "battery": "省电", "custom": "自定义", "scope": "调整范围", "global": "全局", "follow": "跟随全局", "resolution": "画布分辨率", "antialias": "抗锯齿", "on": "开启", "off": "关闭", "aaHint": "作用于支持的画布舞台；更改抗锯齿会重新创建绘制上下文。背屏保留独立策略。"},
   nativeSettings: { moveUp: '上移', moveDown: '下移', hue: '色相', saturation: '饱和度', brightness: '明度' },
   rearHost: {"show": "重新显示背屏歌词", "dismissed": "已退出本次显示", "rendererFailed": "渲染异常，已让回系统", "display": "显示承载", "active": "背屏中心宿主 · 已接管", "fallback": "独立窗口（宿主未接管）", "waiting": "宿主已连接 · 等待背屏中心", "disconnected": "宿主未连接 · 检查背屏中心作用域"},
@@ -867,6 +868,8 @@ export default {
       "rear-tap-controls-toggle": {"title": "切换背屏点按控件", "description": "开启或关闭轻触背屏显示音乐控件"},
       "settings-rear-appearance": {"title": "背屏舞台外观", "description": "设置跟随正面或背屏独立外观"},
       "settings-rear": {"title": "背屏歌词设置", "description": "打开背屏控制中心"},
+      "settings-desktop-lyrics": {"title": "桌面歌词设置", "description": "打开悬浮歌词与样式设置"},
+      "settings-bluetooth-lyrics": {"title": "车载蓝牙歌词", "description": "打开实验性 A2DP 歌词设置"},
       "rear-cover-sleep-toggle": { "title": "背屏遮盖息屏", "description": "切换背屏遮挡与朝下静置的省电息屏" },
       "rear-backend-lsp": {"title": "使用 LSP 背屏模式", "description": "关闭背屏后切换到框架控制"},
       "rear-backend-shizuku": {"title": "使用 Shizuku 背屏模式", "description": "关闭背屏后切换到 Shizuku 控制"},

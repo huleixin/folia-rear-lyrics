@@ -82,6 +82,7 @@ public final class SleepTimerController {
         if(revision<compatible.revision)return new JSObject().put("accepted",false);
         compatible.revision=revision;compatible.songKey=message.optString("songKey");compatible.playing=message.optBoolean("playing");
         io.github.huleixin.tingyu.RearNativeTrack.compatible(lease,compatible.songKey,message.optString("playbackAttempt"));
+        io.github.huleixin.tingyu.RearNativeTrack.onCompatibleClock(lease,compatible.songKey,message.optString("playbackAttempt"),message);
         if("resume".equals(action))pauseAttempts=0;
         check();applyBarrier();
         boolean blocked=pausePending;

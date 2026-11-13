@@ -30,6 +30,7 @@ public final class RearNativeTrack {
     private static long eventRevision;
     private static String engine="none", outputSession="", attempt="";
     private static float playbackRate = 1f;
+    private static boolean compatibleClock;
     private static volatile String songKey = "";
     private static volatile String title = "";
     private static volatile String artist = "";
@@ -59,6 +60,17 @@ public final class RearNativeTrack {
         onTrack(key,null);
     }
     public static synchronized void releaseCompatible(String lease){if("compatible".equals(engine)&&outputSession.equals(lease))reset();}
+    /** Event anchors belong only to the already accepted browser output lease and request. */
+    public static synchronized void onCompatibleClock(String lease,String key,String request,JSObject value){
+        if(!"compatible".equals(engine)||!outputSession.equals(lease)||!songKey.equals(key)||key.isEmpty()||!attempt.equals(request))return;
+        double pos=value.optDouble("positionMs",Double.NaN),speed=value.optDouble("rate",1);
+        long age=System.currentTimeMillis()-value.optLong("capturedAtMs",0);
+        if(!Double.isFinite(pos)||pos<0||age< -1000||age>4000)return;
+        playbackRate=Double.isFinite(speed)&&speed>0&&speed<=8?(float)speed:1f;
+        playing=value.optBoolean("playing");buffering=value.optBoolean("buffering");
+        positionMs=(long)pos + (playing && !buffering ? (long)(Math.max(0,age)*playbackRate) : 0); anchorAt=elapsedClock.getAsLong(); compatibleClock=true;
+        applyMeta(value);updatedAt=System.currentTimeMillis();eventRevision++;RearHostUpdates.changed();
+    }
     public static synchronized void repeatNative(String lease,String key,JSObject metadata){
         if(!"media3".equals(engine)||!outputSession.equals(lease))return;
         songKey="";onTrack(key,metadata);
@@ -75,9 +87,9 @@ public final class RearNativeTrack {
         String from = songKey;
         songKey = next;
         title = ""; artist = ""; playbackRate = 1f;
+        compatibleClock = false;
         generation += 1; eventRevision++;
         io.github.huleixin.tingyu.playback.LyricSyncLedger.get().track(next, next + "#" + generation);
-        RearHostUpdates.changed();
         epoch = next + "#" + generation;
         positionMs = 0L;
         anchorAt = elapsedClock.getAsLong();
@@ -86,6 +98,8 @@ public final class RearNativeTrack {
         buffering = false;
         updatedAt = System.currentTimeMillis();
         if (queued != null) applyMeta(queued);
+        // Publish only after identity, epoch and clock anchors form one complete snapshot.
+        RearHostUpdates.changed();
         // 切歌时间线：引擎真实换曲（自动续播 / 命令生效 / 兼容通道喂新曲）。
         // 与封面动画完成（TingyuSkipTx COVER_ANIMATION_DONE）相减即得封面领先毫秒数。
         io.github.huleixin.tingyu.minimal.cover.SkipTxLog.engineTrackChangedInternal(from, next);
@@ -153,7 +167,9 @@ public final class RearNativeTrack {
 
     /** 锚点外推；暂停时就是暂停那一刻的位置。 */
     public static synchronized long positionNow() {
-        return PlaybackPositionClock.at(playing, positionMs, anchorAt, elapsedClock.getAsLong(), durationMs, playbackRate);
+        long now=elapsedClock.getAsLong();
+        if("compatible".equals(engine))now=Math.min(now,anchorAt+4000);
+        return PlaybackPositionClock.at(playing&&!buffering, positionMs, anchorAt, now, durationMs, playbackRate);
     }
 
     /** 幂等快照；字段名与背屏页面的字段一一对应，缺失时给 0 或空串而不是 null。 */
@@ -165,6 +181,7 @@ public final class RearNativeTrack {
             value.put("songKey", songKey);
             io.github.huleixin.tingyu.playback.LyricSyncLedger.get().ownership(engine,outputSession);
             value.put("engine",engine).put("outputSessionId",outputSession).put("requestId",attempt);
+            value.put("compatibleClock",compatibleClock);
             value.put("sessionId", sessionId).put("eventRevision", eventRevision);
             value.put("anchorPositionMs", positionMs).put("anchorElapsedMs", anchorAt)
                 .put("capturedAtElapsedMs", elapsedClock.getAsLong()).put("playbackRate", playbackRate);
@@ -186,11 +203,12 @@ public final class RearNativeTrack {
 
     public static synchronized void clear() { reset(); }
     static synchronized void reset() {
-        RearHostUpdates.changed();
         eventRevision++;
         engine="none";outputSession="";attempt="";
+        compatibleClock=false;
         io.github.huleixin.tingyu.playback.LyricSyncLedger.get().track("","");
         songKey = ""; title = ""; artist = ""; epoch = "";
         durationMs = 0L; positionMs = 0L; anchorAt = 0L; playing = false; buffering = false; updatedAt = 0L;
+        RearHostUpdates.changed();
     }
 }

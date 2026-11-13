@@ -5,6 +5,26 @@ import org.json.JSONObject;
 import static org.junit.Assert.*;
 // android/app/src/test/java/io/github/huleixin/tingyu/RearNativeTrackTest.java
 public class RearNativeTrackTest {
+ @Test public void compatibleClockRejectsRetiredRequestsAndFreezesPauseBufferAndStaleClock() throws Exception {
+  long[] now={1000};RearNativeTrack.elapsedClock=()->now[0];
+  RearNativeTrack.compatible("web","qq:a","attempt1");
+  JSObject clock=new JSObject().put("positionMs",2000).put("rate",2).put("playing",true).put("capturedAtMs",System.currentTimeMillis());
+  RearNativeTrack.onCompatibleClock("web","qq:a","attempt1",clock);
+  now[0]+=1000;assertEquals(4000,RearNativeTrack.positionNow(),40);
+  now[0]+=20000;assertEquals(10000,RearNativeTrack.positionNow(),40);
+  clock.put("buffering",true).put("capturedAtMs",System.currentTimeMillis());
+  RearNativeTrack.onCompatibleClock("web","qq:a","attempt1",clock);
+  now[0]+=5000;assertEquals(2000,RearNativeTrack.positionNow());
+  RearNativeTrack.compatible("web","qq:b","attempt2");
+  RearNativeTrack.onCompatibleClock("web","qq:a","attempt1",clock);
+  assertFalse(RearNativeTrack.snapshot().getBoolean("compatibleClock"));assertEquals(0,RearNativeTrack.positionNow());
+  clock.put("capturedAtMs",System.currentTimeMillis()-10000);
+  RearNativeTrack.onCompatibleClock("web","qq:b","attempt2",clock);
+  assertFalse(RearNativeTrack.snapshot().getBoolean("compatibleClock"));
+  clock.put("playing",false).put("buffering",false).put("capturedAtMs",System.currentTimeMillis());
+  RearNativeTrack.onCompatibleClock("web","qq:b","attempt2",clock);now[0]+=5000;
+  assertEquals(2000,RearNativeTrack.positionNow());
+ }
  @Test public void leasesRetireClocksAndReplayGetsANewEpoch() throws Exception {
   RearNativeTrack.bindNative("a","qq:a",null);RearNativeTrack.onPlayback(true,5000);
   String first=RearNativeTrack.epoch();

@@ -1,6 +1,7 @@
 
 
 export default {
+  lyricsOutput: {"title":"Desktop and car lyrics","desktop":"Desktop lyrics","desktopHint":"Floating native lyrics and appearance","bluetooth":"Car Bluetooth lyrics","bluetoothHint":"Experimental title display for selected A2DP devices","desktopStyle":"Desktop lyrics appearance"},
   stageQuality: {"compatibilityFallback": "This scene could not be drawn. Lyrics remain available.", "retry": "Retry scene", "bandMotion": "Audio band motion", "bandMotionHint": "Live audio onsets drive neon, ripples and screen swells. No online analysis required.", "motionStrength": "Motion strength", "preset": "Lyric rendering quality", "description": "Auto adapts to sustained frame cost and recovers when smooth. High improves detail; Battery reduces rendering cost without changing playback or the FPS cap.", "auto": "Auto", "high": "High", "battery": "Battery", "custom": "Custom", "scope": "Apply to", "global": "Global", "follow": "Follow global", "resolution": "Canvas resolution", "antialias": "Antialiasing", "on": "On", "off": "Off", "aaHint": "Applies to supported canvas stages. Antialiasing changes recreate the drawing context. The rear display keeps its own policy."},
   nativeSettings: { moveUp: 'Move up', moveDown: 'Move down', hue: 'Hue', saturation: 'Saturation', brightness: 'Brightness' },
   rearHost: {"show": "Show rear lyrics again", "dismissed": "Current display dismissed", "rendererFailed": "Renderer unavailable; system restored", "display": "Display host", "active": "Rear-centre host · owned", "fallback": "Independent window (host not owned)", "waiting": "Host connected · waiting for rear centre", "disconnected": "Host disconnected · check rear-centre scope"},
@@ -877,6 +878,8 @@ export default {
       "rear-tap-controls-toggle": {"title": "Toggle rear tap controls", "description": "Enable or disable music controls on rear-stage taps"},
       "settings-rear-appearance": {"title": "Rear stage appearance", "description": "Configure follow-front or independent rear visuals"},
       "settings-rear": {"title": "Rear lyrics settings", "description": "Open the rear lyrics control center"},
+      "settings-desktop-lyrics": {"title": "Desktop lyrics settings", "description": "Open floating lyrics and style settings"},
+      "settings-bluetooth-lyrics": {"title": "Car Bluetooth lyrics", "description": "Open experimental A2DP lyrics settings"},
       "rear-cover-sleep-toggle": { "title": "Rear cover to sleep", "description": "Toggle rear-screen cover and tabletop power saving" },
       "rear-backend-lsp": {"title": "Use LSP rear mode", "description": "Close rear lyrics, then switch to framework control"},
       "rear-backend-shizuku": {"title": "Use Shizuku rear mode", "description": "Close rear lyrics, then switch to Shizuku control"},

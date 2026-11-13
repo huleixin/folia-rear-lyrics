@@ -42,6 +42,7 @@ const DERIVED_LABEL_KEYS: Record<string, string> = {
 
 // Field names that already have a label elsewhere in settings are reused as-is; the rest get one.
 const FIELD_LABEL_KEYS: Record<string, string> = {
+    desktopLyricsStyle: 'lyricsOutput.desktopStyle',
     rearStageAppearance: 'rearAppearance.title',
     [THEME_LIGHT_KEY]: 'options.importFieldThemeLight',
     [THEME_DARK_KEY]: 'options.importFieldThemeDark',

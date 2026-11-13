@@ -77,6 +77,8 @@ exports[`command palette registry contract > keeps the registered command order 
   "playback-clear-queue",
   "playback-auto-match-best-lyric",
   "playback-toggle-pure-music",
+  "settings-desktop-lyrics",
+  "settings-bluetooth-lyrics",
   "rear-tap-controls-toggle",
   "rear-keep-awake-toggle",
   "settings-rear-appearance",
