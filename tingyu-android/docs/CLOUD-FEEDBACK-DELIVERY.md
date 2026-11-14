@@ -99,7 +99,7 @@ PATCH详情状态/commit/note，GET issues/stats，登录/退出/会话/一次�
 | 前端功能与原生归属 | 18项Android UI归属检查、此前18文件199项专项回归、本次提交/确认专项与类型检查通过；原生Debug 11项（含反馈两项覆盖8种主题/尺寸组合）通过 | 实机主题/Pad呈现 |
 | 上传期间响应/播放 | 编译Worker浏览器8.336秒两次校验+发送期间主线程417次响应 | 实机音乐稳定性、耗电/内存 |
 | 播放/歌词/背屏/本地/音源 | 专项199项包括相关既有功能单测；原生重试/背屏策略通过 | 实际设备完整端到端 |
-| 构建/部署配置 | 初版APK构建通过；现有远程迁移/Secrets/Worker/完整绑定/cron部署及健康检查通过 | 新版测试包结果见下 |
+| 构建/部署配置 | 新版 APK 重新 Vite 构建/cap sync/原生 Release 打包通过；签名/版本/commit/无真实凭据检查通过；远程绑定/cron/健康复核通过 | 无 |
 
 服务8套是SQLite+故障注入R2模拟；本地Wrangler使用本地真实运行时和存储，不是Cloudflare云端。
 浏览器与JVM也不能代替Android实机。当前ADB无已连接设备。没有虚构实机或云端通过。
@@ -110,11 +110,12 @@ TySettingsContent 反馈弹窗，跳过底层设置页顶栏。没有改动生�
 
 ## APK与本机工具
 
-测试APK：C:/Users/DELL/Documents/Codex/2026-11-10/hze/outputs/cloud-feedback-1.5.40-test/tingyu-1.5.40-feedback-test.apk
-大小57,360,942字节，versionName 1.5.40，versionCode 255。
-SHA256：169ab136a7a2b413cd511544e7868197101399020e49aed9ae688f4b4effb074。
+新版测试 APK：C:/Users/DELL/Documents/Codex/2026-11-10/hze/outputs/cloud-feedback-1.5.40-ui-test/tingyu-1.5.40-feedback-ui-test.apk
+大小57,362,815字节，versionName 1.5.40，versionCode 255。
+SHA256：b5cb43c426db22084b20c5fd2a0b228188a38e00c78f53ac4e8dbd9e24dcfaa7。
+APK 内 Build ID：1.5.40@3717a1a7；对应完整源码 commit 3717a1a7c32267b365d86f79a92bee2104c6a336。
 签名SHA256：a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d，与原安装包一致。
-这是此前测试构建，已按用户要求上传 GitHub prerelease，未发布正式版。新版按钮测试包信息随后记录。
+此前 cloud-feedback-1.5.40-test 初版仍保留；新版单独上传 GitHub 测试版，不覆盖旧包，不设为正式 latest。
 
 本机凭据：C:/Users/DELL/AppData/Local/TingyuFeedback/read.dpapi、admin.dpapi，分别加密。
 普通list/pull/summary只读；管理mark/login-link须显式操作。可通过安全环境变量读取
