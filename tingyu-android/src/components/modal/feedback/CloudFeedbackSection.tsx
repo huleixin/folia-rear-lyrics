@@ -6,6 +6,7 @@ import type {CloudFeedbackFlow} from './useCloudFeedbackFlow';
 export default function CloudFeedbackSection({flow}:{flow:CloudFeedbackFlow}){
   const {copy,preview,busy}=flow;
   const [details,setDetails]=React.useState(false),[historyOpen,setHistoryOpen]=React.useState(false);
+  const pending=flow.history.filter(r=>!r.feedbackId);
   React.useEffect(()=>setDetails(false),[preview?.localId]);
   const payload=React.useMemo(()=>{try{return preview?JSON.parse(preview.preview):null;}catch{return null;}},[preview]);
   return <section data-testid="feedback-cloud" data-settings-layout="column" data-settings-style='{"gap":10}'>
@@ -26,15 +27,16 @@ export default function CloudFeedbackSection({flow}:{flow:CloudFeedbackFlow}){
       <p data-settings-style='{"font":11,"tone":"muted"}'>{copy('privacy')}</p>
     </>}
     {flow.message&&<p role="status" aria-live="polite">{flow.message}</p>}
+    {!preview&&flow.submittedId&&<>
+      <p className="break-words">{flow.submittedId}</p>
+      <button type="button" onClick={()=>void flow.copyId(flow.submittedId!)}>{copy('copy')}</button>
+    </>}
     {flow.failure&&<button type="button" onClick={()=>void flow.copyError(flow.failure!)}>{copy('copyError')}</button>}
-    {!preview&&<button type="button" disabled={busy} onClick={()=>setHistoryOpen(v=>!v)}>{copy('history')}{flow.history.length? ' · '+flow.history.length:''}</button>}
-    {!preview&&historyOpen&&flow.history.length===0&&<p>{copy('emptyHistory')}</p>}
-    {!preview&&historyOpen&&flow.history.map(r=><article key={r.localId} data-settings-layout="column" data-settings-style='{"gap":6,"border":true,"radius":12,"padding":[10,10,10,10]}'>
-      <p>{new Date(r.at).toLocaleString()} · {copy('statuses.'+r.status)}</p><p>{r.feedbackId??copy('pending')}</p>
+    {!preview&&pending.length>0&&<button type="button" disabled={busy} onClick={()=>setHistoryOpen(v=>!v)}>{copy('drafts')}</button>}
+    {!preview&&historyOpen&&pending.map(r=><article key={r.localId} data-settings-layout="column" data-settings-style='{"gap":6,"border":true,"radius":12,"padding":[10,10,10,10]}'>
+      <p>{new Date(r.at).toLocaleString()} · {copy('statuses.'+r.status)}</p>
       <div data-settings-layout="wrap" data-settings-style='{"gap":8}'>
-        {r.feedbackId?<><button type="button" onClick={()=>void flow.copyId(r.feedbackId!)}>{copy('copy')}</button>
-          <button type="button" disabled={busy} onClick={()=>void flow.status(r.localId)}>{copy('refresh')}</button></>:
-          <button type="button" disabled={busy} onClick={()=>void flow.prepare(r.localId)}>{copy('retry')}</button>}
+        <button type="button" disabled={busy} onClick={()=>void flow.prepare(r.localId)}>{copy('retry')}</button>
         <button type="button" disabled={busy} onClick={()=>void flow.remove(r.localId)}>{copy('remove')}</button>
         {r.lastError&&<button type="button" onClick={()=>void flow.copyError(r.lastError!)}>{copy('copyError')}</button>}
       </div>

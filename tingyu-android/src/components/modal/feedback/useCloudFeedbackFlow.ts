@@ -11,6 +11,7 @@ export function useCloudFeedbackFlow(draft:FeedbackDraft){
   const [consent,setConsent]=React.useState(false),[busy,setBusy]=React.useState(false),[message,setMessage]=React.useState('');
   const [history,setHistory]=React.useState<CloudHistory[]>([]);
   const [failure,setFailure]=React.useState<CloudFailure|null>(null);
+  const [submittedId,setSubmittedId]=React.useState<string|null>(null);
   const refresh=React.useCallback(async()=>setHistory(await cloudCall<CloudHistory[]>('history')),[]);
   React.useEffect(()=>{void refresh().catch(()=>setMessage(copy('historyFailed')));},[refresh]);
   const signature=JSON.stringify([draft.category,draft.description,draft.includeDiagnostics,steps]);
@@ -18,7 +19,7 @@ export function useCloudFeedbackFlow(draft:FeedbackDraft){
   async function prepare(localId?:string){
     if(busy)return;
     if(!localId&&!draft.description.trim()){setMessage(copy('descriptionRequired'));return;}
-    setBusy(true);setMessage('');setFailure(null);setConsent(false);
+    setBusy(true);setMessage('');setFailure(null);setConsent(false);setSubmittedId(null);
     try{setPreview(localId?await cloudCall<CloudPreview>('preview',{localId}):await prepareCloudFeedback({...draft,steps}));await refresh();}
     catch{setMessage(copy('previewFailed'));}finally{setBusy(false);}
   }
@@ -26,7 +27,7 @@ export function useCloudFeedbackFlow(draft:FeedbackDraft){
   async function send(){if(!preview||!consent||busy)return;setBusy(true);setMessage(copy('challenge'));
     setFailure(null);
     try{const r=await cloudCall<{id:string}>('send',{localId:preview.localId},u=>setMessage(u.phase==='challenge'?copy('challenge'):u.phase==='awaiting'?copy('awaiting'):u.phase==='retry'?copy('retrying'):copy('upload')+' '+(u.progress??0)+'%'));
-      setMessage(copy('success')+' · '+r.id);setPreview(null);setConsent(false);
+      setMessage(copy('success'));setSubmittedId(r.id);setPreview(null);setConsent(false);
     }catch(e){const code=e instanceof Error?e.message:'';setFailure((e as Error&{report?:CloudFailure}).report??null);setMessage(code==='uploads_paused'?copy('paused'):['rate_limit','daily_capacity','storage_capacity'].includes(code)?copy('rate'):copy('failed'));}
     finally{await refresh().catch(()=>undefined);setBusy(false);}
   }
@@ -35,6 +36,6 @@ export function useCloudFeedbackFlow(draft:FeedbackDraft){
   async function copyId(id:string){try{await navigator.clipboard.writeText(id);setMessage(copy('copied'));}catch{setMessage(copy('copyFailed'));}}
   async function copyError(report:CloudFailure){try{await navigator.clipboard.writeText(JSON.stringify(report,null,2));setMessage(copy('errorCopied'));}catch{setMessage(copy('copyFailed'));}}
   const cancel=()=>{if(!busy){setPreview(null);setConsent(false);setMessage('');}};
-  return {copy,steps,setSteps,preview,consent,setConsent,busy,message,history,failure,prepare,send,status,remove,copyId,copyError,cancel};
+  return {copy,steps,setSteps,preview,consent,setConsent,busy,message,history,failure,submittedId,prepare,send,status,remove,copyId,copyError,cancel};
 }
 export type CloudFeedbackFlow=ReturnType<typeof useCloudFeedbackFlow>;

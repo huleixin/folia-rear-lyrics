@@ -36,6 +36,34 @@ it('requires fresh consent for every preview and projects native actions without
     await render({...draft,description:'Changed'});expect(host.querySelector('[data-testid=cloud-preview]')).toBeNull();
     await click('feedbackCloud.prepare');expect(host.querySelector<HTMLButtonElement>('button[role=switch]')!.getAttribute('aria-checked')).toBe('false');
     await click('feedbackCloud.consent');await click('feedbackCloud.send');expect(mocks.call).toHaveBeenCalledWith('send',{localId:'draft'},expect.any(Function));
+    expect(host.textContent).toContain('TY-test');
+    captured=captureSemanticSettings(host,'help','Feedback');
+    expect(captured.document.flow!.nodes.some(n=>n.title==='feedbackCloud.copy'&&n.kind==='action')).toBe(true);
+    expect(host.textContent).not.toContain('feedbackCloud.drafts');
+  }finally{await act(async()=>root.unmount());host.remove();}
+});
+
+it('keeps failed drafts retryable with fresh consent while hiding submitted history',async()=>{
+  (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
+  const records=[
+    {localId:'accepted',at:1,category:'other',status:'pending',feedbackId:'TY-previous'},
+    {localId:'unsent',at:2,category:'playback',status:'retry'}
+  ];
+  mocks.call.mockImplementation(async(action:string)=>action==='history'?records:{localId:'unsent',preview:'{"description":"Saved failure","diagnostics":null}',bytes:50});
+  const host=document.createElement('main');document.body.append(host);const root=createRoot(host);
+  try{
+    await act(async()=>root.render(h(Form,{draft:{category:'other',description:'',includeDiagnostics:false,screenshots:[]}})));
+    const drafts=[...host.querySelectorAll('button')].find(b=>b.textContent==='feedbackCloud.drafts')!;
+    await act(async()=>drafts.click());
+    expect(host.querySelectorAll('article')).toHaveLength(1);
+    expect(host.textContent).not.toContain('TY-previous');
+    let captured=captureSemanticSettings(host,'help','Feedback');
+    const retry=captured.document.flow!.nodes.find(n=>n.title==='feedbackCloud.retry')!;
+    await act(async()=>{captured.actions['act:'+retry.id]?.({});});
+    expect(mocks.call).toHaveBeenCalledWith('preview',{localId:'unsent'});
+    captured=captureSemanticSettings(host,'help','Feedback');
+    expect(captured.document.flow!.nodes.find(n=>n.title==='feedbackCloud.send')?.disabled).toBe(true);
+    expect(mocks.call.mock.calls.some(([action])=>action==='send')).toBe(false);
   }finally{await act(async()=>root.unmount());host.remove();}
 });
 
