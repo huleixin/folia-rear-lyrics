@@ -22,9 +22,11 @@ export function useRandomVisualizerMode({
     const pool = useVisualizerSettingsStore(state => state.randomVisualizerModes);
     const observedSongIdRef = useRef<string | null>(null);
     const wasEnabledRef = useRef(enabled);
+    // Metadata hydration replaces the object while native selection is pending.
+    // Depend on identity so that the same song still receives its choice.
+    const songId = currentSong ? getPlaybackSongKey(currentSong) : null;
 
     useEffect(() => {
-        const songId = currentSong ? getPlaybackSongKey(currentSong) : null;
         const wasEnabled = wasEnabledRef.current;
         wasEnabledRef.current = enabled;
 
@@ -65,5 +67,5 @@ export function useRandomVisualizerMode({
             .then(result => { if (!cancelled && candidates.includes(result.mode)) setVisualizerMode(result.mode, { notify: false }); })
             .catch(() => { if (!cancelled) setVisualizerMode(pickRandomVisualizerMode(candidates, visualizerMode), { notify: false }); });
         return () => { cancelled = true; };
-    }, [currentSong, enabled, setVisualizerMode, visualizerMode, pool]);
+    }, [songId, enabled, setVisualizerMode, visualizerMode, pool]);
 }
