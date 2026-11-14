@@ -931,6 +931,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 label = "mini-footer-presence",
             )
             val pageFooterTops=if(footerHiddenForIme)emptyList()else listOf("nav","mini").mapNotNull{id->
+                if(!NativeFooterLayout.bottomBar(id,width))return@mapNotNull null
                 val hasSurface=visible.any{it.id==id}||ChromeBootSeed.shouldSeed(id,destination,firstHomeFrame,webOverlay,liveChrome)
                 if(hasSurface&&NativeFooterLayout.visible(id,destination,collectionDetail,width,settingsRoot=settingsRoot))
                     chromeFooterRect(id,width,height,safeTop,safeBottom,density.density,keyboardPx,collectionDetail).top*density.density

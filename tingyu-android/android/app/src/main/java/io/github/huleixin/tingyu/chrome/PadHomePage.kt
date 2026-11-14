@@ -10,6 +10,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -34,56 +39,60 @@ import kotlin.math.abs
 @Composable internal fun PadHomePage(page:NativePage,modifier:Modifier,action:PageAction){
     val hero=page.sections.firstOrNull{it.layout=="hero"}
     val recent=page.sections.firstOrNull{it.id=="recent"}
-    LazyColumn(modifier.padding(start=112.dp,end=26.dp),contentPadding=PaddingValues(top=(page.safeTop+24).dp,bottom=110.dp),verticalArrangement=Arrangement.spacedBy(20.dp)){
-        item{PageHeading(page,Modifier.fillMaxWidth(),large=true,action=action)}
-        item{
-            Row(horizontalArrangement=Arrangement.spacedBy(26.dp)){
-                if(hero!=null)Box(Modifier.weight(1.65f)){PadHeroStack(hero,action)}
-                if(recent!=null)Column(Modifier.weight(1f)){
-                    PageSectionHeading(recent,Modifier.padding(bottom=12.dp),action)
-                    recent.items.take(4).chunked(2).forEach{row->
-                        Row(horizontalArrangement=Arrangement.spacedBy(14.dp)){
-                            row.forEach{PadArtworkCard(it,Modifier.weight(1f),action,1.6f)}
-                            if(row.size==1)Spacer(Modifier.weight(1f))
+    val hostBottom=with(LocalDensity.current){LocalNativePageBottomPx.current.toDp()}
+    BoxWithConstraints(modifier.padding(start=112.dp,end=26.dp)){
+        val bottom=if(hostBottom>0.dp)hostBottom else (page.safeBottom+88f).dp
+        val columns=((maxWidth.value+18f)/208f).toInt().coerceIn(4,5)
+        // Reserve readable headings + the first playlist row before sizing the hero/recent band.
+        val heroHeight=(maxHeight-bottom-page.safeTop.dp-460.dp).coerceIn(220.dp,300.dp)
+        val recentHeight=((heroHeight-80.dp)/2).coerceIn(70.dp,110.dp)
+        LazyColumn(Modifier.fillMaxSize().padding(bottom=bottom).clipToBounds().testTag("pad-home-list"),
+            contentPadding=PaddingValues(top=(page.safeTop+24).dp,bottom=16.dp),verticalArrangement=Arrangement.spacedBy(20.dp)){
+            item(key="heading"){PageHeading(page,Modifier.fillMaxWidth(),large=true,action=action)}
+            if(hero!=null||recent!=null)item(key="recommendation-band"){
+                Row(horizontalArrangement=Arrangement.spacedBy(26.dp)){
+                    if(hero!=null)Box(Modifier.weight(1.65f)){PadHeroStack(hero,action,heroHeight)}
+                    if(recent!=null)Column(Modifier.weight(1f)){
+                        PageSectionHeading(recent,Modifier.padding(bottom=12.dp),action,titleSize=20)
+                        recent.items.take(4).chunked(2).forEachIndexed{index,row->
+                            if(index>0)Spacer(Modifier.height(14.dp))
+                            Row(horizontalArrangement=Arrangement.spacedBy(14.dp)){
+                                row.forEach{PadArtworkCard(it,Modifier.weight(1f),action,1.6f,recentHeight)}
+                                if(row.size==1)Spacer(Modifier.weight(1f))
+                            }
                         }
-                        Spacer(Modifier.height(12.dp))
                     }
                 }
             }
-        }
-        page.sections.filter{it!==hero&&it!==recent}.forEach{section->
-            item(key=section.id){
-                Column{
-                    PageSectionHeading(section,Modifier.padding(bottom=12.dp),action)
-                    if(section.items.isNotEmpty())section.items.chunked(LocalPadWindow.current.columns).forEach{row->
-                        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(18.dp)){
-                            row.forEach{PadArtworkCard(it,Modifier.weight(1f),action)}
-                            repeat(LocalPadWindow.current.columns-row.size){Spacer(Modifier.weight(1f))}
-                        }
-                        Spacer(Modifier.height(16.dp))
-                    }else if(section.text.isNotBlank())Text(section.text,color=PageMuted)
-                }
+            page.sections.filter{it!==hero&&it!==recent}.forEach{section->
+                item(key="${section.id}:heading"){PageSectionHeading(section,Modifier.fillMaxWidth(),action,titleSize=20)}
+                if(section.items.isNotEmpty())items(section.items.chunked(columns),key={"${section.id}:${it.first().id}"}){row->
+                    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(18.dp)){
+                        row.forEach{PadArtworkCard(it,Modifier.weight(1f),action)}
+                        repeat(columns-row.size){Spacer(Modifier.weight(1f))}
+                    }
+                }else if(section.text.isNotBlank())item(key="${section.id}:message"){Text(section.text,color=PageMuted)}
             }
         }
     }
 }
 
-@Composable internal fun PadArtworkCard(item:NativePageItem,modifier:Modifier,action:PageAction,ratio:Float=1.3f){
-    Column(modifier){
-        Box(Modifier.fillMaxWidth().aspectRatio(ratio).clip(RoundedCornerShape(14.dp)).chromeClickable(enabled=!item.disabled,corner=14.dp){action(item.action,"",0.0)}){
+@Composable internal fun PadArtworkCard(item:NativePageItem,modifier:Modifier,action:PageAction,ratio:Float=1.5f,imageHeight:Dp?=null){
+    Column(modifier.testTag("pad-card:${item.id}")){
+        Box(Modifier.fillMaxWidth().then(if(imageHeight!=null)Modifier.height(imageHeight)else Modifier.aspectRatio(ratio)).clip(RoundedCornerShape(14.dp)).chromeClickable(enabled=!item.disabled,corner=14.dp){action(item.action,"",0.0)}){
             PageArtwork(item.image,Modifier.fillMaxSize(),14.dp)
         }
-        Row(Modifier.fillMaxWidth().padding(top=5.dp),verticalAlignment=Alignment.CenterVertically){
+        Row(Modifier.fillMaxWidth().padding(top=8.dp),verticalAlignment=Alignment.CenterVertically){
             Column(Modifier.weight(1f).chromeClickable(enabled=!item.disabled,corner=8.dp){action(item.action,"",0.0)}){
-                Text(item.title,color=PageInk,fontSize=14.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
-                Text(item.subtitle,color=PageMuted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+                Text(item.title,color=PageInk,fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+                Text(item.subtitle,color=PageMuted,fontSize=13.sp,lineHeight=18.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
             }
             if(item.secondary.isNotBlank())ChromeButton("更多",size=36.dp,onClick={action(item.secondary,"",0.0)}){PageIcon("ellipsis-vertical",PageMuted,Modifier.size(17.dp))}
         }
     }
 }
 
-@Composable internal fun PadHeroStack(section:NativePageSection,action:PageAction){
+@Composable internal fun PadHeroStack(section:NativePageSection,action:PageAction,cardHeight:Dp?=null){
     val items=section.items
     if(items.isEmpty())return
     var index by remember(section.id){mutableIntStateOf(0)}
@@ -101,7 +110,7 @@ import kotlin.math.abs
     }
     Column{
         BoxWithConstraints(Modifier.fillMaxWidth().padding(bottom=28.dp)){
-            val h=(maxWidth*.54f).coerceIn(245.dp,360.dp)
+            val h=cardHeight?:(maxWidth*.54f).coerceIn(220.dp,300.dp)
             for(depth in 2 downTo 1){
                 val item=items[(index+depth)%items.size]
                 AsyncImage(pageImage(item.image),null,Modifier.padding(horizontal=(depth*8).dp).offset(y=(depth*12).dp).fillMaxWidth().height(h).clip(RoundedCornerShape(24.dp)),contentScale=ContentScale.Crop)

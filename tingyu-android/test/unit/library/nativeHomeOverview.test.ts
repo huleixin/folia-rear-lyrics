@@ -59,6 +59,8 @@ vi.mock('../../../src/services/onlineMusic/songAvailability', () => ({
     isSongUnavailable: () => false,
 }));
 
+vi.mock('../../../src/library/core/bindings/useCollectionResource', () => ({ useWarmCachedOnlineCollections: vi.fn() }));
+import { useWarmCachedOnlineCollections } from '../../../src/library/core/bindings/useCollectionResource';
 import NativeHomeOverview from '../../../src/library/suites/mobile/native/NativeHomeOverview';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -103,6 +105,21 @@ afterEach(() => {
 });
 
 describe('NativeHomeOverview 解析期 hold（录屏 68804 回归）', () => {
+    it('publishes all loaded playlist summaries while warming only the original four', async () => {
+        const sources=makeSources('authenticated',true);
+        sources.online.collections=Array.from({length:25},(_,i)=>({id:`pl${i}`,name:`歌单${i}`,coverUrl:'/cover.jpg',trackCount:i,type:'playlist'})) as typeof sources.online.collections;
+        const props=makeProps();
+        const open=props.homeResources.actions.openOnlineCard as ReturnType<typeof vi.fn>;
+        open.mockResolvedValue({ok:true});
+        act(()=>root.render(h(NativeHomeOverview,{root:{current:host},props,sources,onReady:vi.fn(),onSources:vi.fn()})));
+        const rows=captured.model!.sections.find(section=>section.id==='playlists')!.items!;
+        expect(rows).toHaveLength(25);
+        const warm=vi.mocked(useWarmCachedOnlineCollections).mock.calls.at(-1)!;
+        expect(warm[0]).toHaveLength(4);
+        await act(async()=>{await (captured.actions[rows[24].action!] as () => Promise<void>)();});
+        expect(open).toHaveBeenCalledWith(expect.objectContaining({id:'pl24'}),'qq',expect.any(Function));
+    });
+
     it.each(['guess-you-like', 'daily-30', 'new-releases'])('%s opens the collection without autoplay', async (kind) => {
         chart.status = 'ready'; chart.collection = { id: 'new', type: 'playlist', name: 'New' };
         const props = makeProps();

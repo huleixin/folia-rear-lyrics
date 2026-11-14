@@ -5,6 +5,11 @@ import org.junit.Test
 
 // android/app/src/test/java/io/github/huleixin/tingyu/chrome/NativeFooterLayoutTest.kt
 class NativeFooterLayoutTest {
+    @Test fun verticalRailDoesNotConsumeThePageBottomViewport(){
+        val tops=listOf("nav","mini").filter{NativeFooterLayout.bottomBar(it,1280f)}.map{NativeFooterLayout.rect(it,1280f,854f,24f,0f,false).top}
+        assertEquals(88f,nativePageBottomClearance(0f,854f,tops,12f),.1f)
+        assertTrue(NativeFooterLayout.bottomBar("nav",393f))
+    }
     @Test fun padRailRemainsVisibleDuringImeWithoutShowingMiniOrPhoneFooter(){
         assertTrue(NativeFooterLayout.targetVisible("nav","search",width=1280f,imeHidden=true))
         assertTrue(NativeFooterLayout.targetVisible("nav","search",width=840f,imeHidden=true))

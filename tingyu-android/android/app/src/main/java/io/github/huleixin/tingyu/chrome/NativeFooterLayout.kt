@@ -19,6 +19,7 @@ internal data class NativeFooterRoute(val route:String="home",val detail:Boolean
 }
 
 internal object NativeFooterLayout {
+    fun bottomBar(id:String,width:Float)=id!="nav"||width<840f
     // IME covers bottom controls, but a Pad's vertical navigation remains usable above it.
     fun imeHides(id:String,width:Float,imeVisible:Boolean):Boolean =
         imeVisible && id!="stage" && !(id=="nav"&&width>=840f)

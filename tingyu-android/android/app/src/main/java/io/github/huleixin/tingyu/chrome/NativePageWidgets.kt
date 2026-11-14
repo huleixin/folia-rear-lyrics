@@ -105,9 +105,9 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
         }
     }
 }
-@Composable internal fun PageSectionHeading(section:NativePageSection,modifier:Modifier=Modifier,action:PageAction) {
+@Composable internal fun PageSectionHeading(section:NativePageSection,modifier:Modifier=Modifier,action:PageAction,titleSize:Int=16) {
     Row(modifier.fillMaxWidth().heightIn(min=30.dp),verticalAlignment=Alignment.CenterVertically) {
-        Text(section.title,color=PageInk,fontSize=16.sp,lineHeight=21.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
+        Text(section.title,color=PageInk,fontSize=titleSize.sp,lineHeight=(titleSize+5).sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
         if(section.more.isNotBlank())PagePill(section.moreLabel,{action(section.more,"",0.0)},trailing="chevron-right")
     }
 }

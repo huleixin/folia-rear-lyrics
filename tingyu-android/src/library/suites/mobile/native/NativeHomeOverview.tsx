@@ -69,9 +69,9 @@ export default function NativeHomeOverview({root,props,sources,onReady,onSources
     })});
     if(!recent.length)sections.push({id:'recent-empty',layout:'message',text:t('mobileLibrary.noRecent')});
     if(!all){
-        sections.push({id:'playlists',title:t('mobileLibrary.myPlaylists'),layout:'cards',more:'library',moreLabel:t('mobileLibrary.all'),items:playlists.slice(0,4).map((card,index)=>{
+        sections.push({id:'playlists',title:t('mobileLibrary.myPlaylists'),layout:'cards',more:'library',moreLabel:t('mobileLibrary.all'),items:playlists.map((card,index)=>{
             const key=`playlist:${index}:${card.id}`;actions[key]=()=>{void open(card)};actions[`${key}:menu`]=()=>setMenu({kind:'playlist',card});
-            return{id:key,title:card.name,subtitle:card.trackCount!=null?t('mobileLibrary.trackCount',{count:card.trackCount}):card.description,
+            return{id:key,title:card.name,subtitle:card.trackCount!=null?t('mobileLibrary.trackCount',{count:card.trackCount}):card.description?.slice(0,160),
                 image:absolutePageImage(card.coverUrl),action:key,secondary:`${key}:menu`,secondaryLabel:'⋮'};
         })});
         if(!playlists.length)sections.push({id:'playlist-empty',layout:'message',text:t('mobileLibrary.noPlaylists')});

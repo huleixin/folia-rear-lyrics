@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -39,6 +40,9 @@ import kotlinx.coroutines.launch
 // horizontal square recent artwork, and compact two-column playlist rows.
 @Composable internal fun NativeHomePage(page:NativePage,modifier:Modifier,action:PageAction) {
     if(LocalPadWindow.current.expanded){PadHomePage(page,modifier,action);return}
+    val tablet=LocalPadWindow.current.tablet
+    // Full summaries feed Pad; the phone retains its existing four-card overview.
+    val sections=if(tablet||page.key=="home:local")page.sections else page.sections.map{if(it.id=="playlists")it.copy(items=it.items.take(4))else it}
     BoxWithConstraints(modifier){
         val wide=maxWidth>=840.dp;val short=wide&&maxHeight<=600.dp
         val start=if(wide)if(short)108.dp else 116.dp else 22.dp
@@ -51,8 +55,8 @@ import kotlinx.coroutines.launch
         Box(Modifier.fillMaxSize()) {
             TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()) {
             val list = rememberLazyListState()
-            LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(top=glass.contentTop,bottom=(page.bottomClearance+page.safeBottom).dp)) {
-                page.sections.forEach { section ->
+            LazyColumn(Modifier.fillMaxSize().testTag("native-home-list"),state=list,contentPadding=PaddingValues(top=glass.contentTop,bottom=(page.bottomClearance+page.safeBottom).dp)) {
+                sections.forEach { section ->
                     when {
                         section.layout=="hero" -> item(key=section.id){NativeHeroRail(section,viewport,start,end,wide,short,action)}
                         // 方形封面横滑 rail：在线首页的「最近播放」与本地首页的「最近播放 / 常听专辑」共用一套。
@@ -140,6 +144,15 @@ import kotlinx.coroutines.launch
                                                 contentAlignment=Alignment.Center){ChromeGlyph("play",Color.White,Modifier.size(13.dp))}
                                         }
                                     }
+                                }
+                            }
+                        }
+                        section.id=="playlists"&&tablet -> {
+                            item(key="${section.id}:heading"){PageSectionHeading(section,Modifier.padding(start=start,end=end,top=20.dp,bottom=4.dp),action)}
+                            items(section.items.chunked(2),key={"${section.id}:${it.first().id}"}){row->
+                                Row(Modifier.fillMaxWidth().padding(start=start,end=end,bottom=10.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                                    row.forEach{NativeHomePlaylist(it,Modifier.weight(1f),action)}
+                                    if(row.size<2)Spacer(Modifier.weight(1f))
                                 }
                             }
                         }
