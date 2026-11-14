@@ -1,7 +1,9 @@
+import {audioCacheIn} from '../audioCacheCopy';
 
 
 import {cloudFeedbackId} from '../cloudFeedbackCopy';
 export default {
+  audioCache: audioCacheIn,
   feedbackCloud: cloudFeedbackId,
   lyricsOutput: {"title":"Lirik desktop dan mobil","desktop":"Lirik desktop","desktopHint":"Lirik mengambang dan tampilan","bluetooth":"Lirik Bluetooth mobil","bluetoothHint":"Judul eksperimental untuk perangkat A2DP terpilih","desktopStyle":"Tampilan lirik desktop"},
   nativeSettings: { moveUp: 'Pindah ke atas', moveDown: 'Pindah ke bawah', hue: 'Rona', saturation: 'Saturasi', brightness: 'Kecerahan' },
@@ -678,6 +680,14 @@ export default {
       "lx-auto-switch": {"title": "Alihkan fallback sumber LX", "description": "Izinkan platform alternatif yang cocok"},
       "lx-retry": {"title": "Alihkan percobaan ulang LX", "description": "Nol atau satu percobaan per kualitas"},
       "lx-default-source": {"title": "Ganti sumber default LX", "description": "Pilih platform atau ikuti lagu"},
+      "audio-cache": {"title": "Simpan sambil mendengarkan", "description": "Buka pengaturan cache audio"},
+      "audio-cache-wifi": {"title": "Cache melalui Wi-Fi", "description": "Pilih jaringan yang diizinkan"},
+      "audio-cache-playlist": {"title": "Cache daftar putar otomatis", "description": "Atur cache seluruh daftar putar"},
+      "audio-cache-limit": {"title": "Batas cache audio", "description": "Pilih kapasitas penyimpanan"},
+      "audio-cache-tasks": {"title": "Tugas cache", "description": "Lihat, coba ulang, atau hentikan"},
+      "audio-cache-clear": {"title": "Hapus cache audio", "description": "Tinjau dan konfirmasi penghapusan"},
+      "lx-routing": {"title": "Prioritas pemutaran LX", "description": "Pilih sumber platform atau sumber khusus"},
+      "lx-backup-scripts": {"title": "Skrip cadangan LX", "description": "Aktifkan dan urutkan skrip cadangan"},
       "lx-source-priority": {"title": "Putar prioritas LX", "description": "Ubah urutan platform cadangan"},
       "playback-equalizer": { "title": "Efek audio", "description": "Buka equalizer dan rantai efek" },
       "playback-sound-preset-flat": { "title": "Suara: Netral", "description": "Bersihkan equalizer dan semua efek" },

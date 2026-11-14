@@ -5,6 +5,7 @@ import { useAudioToolsStore } from '../../../stores/useAudioToolsStore';
 import { useLxSourceStore } from '../../../stores/useLxSourceStore';
 import { PlayerState } from '../../../types';
 import { Heart, ListX, Pause, Piano, Play, Repeat, Shuffle, SkipBack, SkipForward, Star, VolumeX } from 'lucide-react';
+import { audioCacheCommands } from './audioCacheCommands';
 import { executeModeCommand } from './executeModeCommand';
 import { queueCommand } from './queueCommand';
 import { volumeCommand } from './volumeCommand';
@@ -19,6 +20,7 @@ import { usePlaybackStore } from '../../../stores/usePlaybackStore';
 // sound presets.
 
 export const playbackCommands: CommandPaletteCommand[] = [
+    ...audioCacheCommands,
     defineCommand(createSettingsAnchorCommand('playback-engine', 'Playback engine', 'Choose native or compatible audio output', ['native audio', 'exoplayer', '播放引擎', '音频通道'], 'playbackStartup', { isAvailable: canSelectPlaybackEngine })),
     defineCommand({ id: 'playback-test-tone', group: 'playback', title: 'Load test audio', description: 'Replace the test queue with a 10-second tone', keywords: ['test tone', '测试音频'], isAvailable: canUsePlaybackEngineTest,
         execute: () => { void loadPlaybackTestTone().then(() => setStatusMessage({ type: 'info', text: i18n.t('playbackTest.toneLoaded') })).catch(() => setStatusMessage({ type: 'error', text: i18n.t('playbackEngine.failed') })); return true; } }),

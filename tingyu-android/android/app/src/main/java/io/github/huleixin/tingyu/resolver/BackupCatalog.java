@@ -23,15 +23,22 @@ final class BackupCatalog {
 
     BackupCatalog() {
         this(request -> {
-            try (Response response = CLIENT.newCall(request).execute()) {
+            okhttp3.Call call=CLIENT.newCall(request);Long timeout=request.tag(Long.class);if(timeout!=null)call.timeout().timeout(timeout,TimeUnit.MILLISECONDS);
+            try (Response response = call.execute()) {
                 if (!response.isSuccessful() || response.body() == null) return "";
-                return response.body().string();
+                try(java.io.InputStream input=response.body().byteStream();java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream()){
+                    byte[] bytes=new byte[8192];int n;while((n=input.read(bytes))!=-1){if(out.size()+n>1024*1024)throw new java.io.IOException("catalog limit");out.write(bytes,0,n);}return out.toString("UTF-8");
+                }
             }
         });
     }
     BackupCatalog(Transport transport) { this.transport = transport; }
 
     List<NativePlaylist.Track> search(String provider, String query) throws Exception {
+        return search(provider,query,5000);
+    }
+    List<NativePlaylist.Track> search(String provider,String query,long timeoutMs)throws Exception {
+        if(timeoutMs<=0)return new ArrayList<>();
         Request request;
         if ("qq".equals(provider)) {
             request = new Request.Builder().url(QqResolver.MUSICU_URL)
@@ -44,8 +51,8 @@ final class BackupCatalog {
             request = new Request.Builder().url(NeteaseResolver.EAPI_BASE + "/eapi/cloudsearch/pc")
                 .header("User-Agent", NeteaseResolver.EAPI_UA).header("Cookie", NeteaseResolver.formatCookieHeader(header))
                 .post(new FormBody.Builder().add("params", NeteaseResolver.eapiEncrypt("/api/cloudsearch/pc", payload.toString())).build()).build();
-        } else return new ArrayList<>();
-        return parse(provider, transport.execute(request));
+        } else {request=LxCatalogAdapters.request(provider,query);if(request==null)return new ArrayList<>();}
+        return parse(provider, transport.execute(request.newBuilder().tag(Long.class,Math.min(5000,timeoutMs)).build()));
     }
 
     static JSONObject qqPayload(String query) throws Exception {
@@ -62,6 +69,7 @@ final class BackupCatalog {
         List<NativePlaylist.Track> songs = new ArrayList<>();
         if (body == null || body.isEmpty()) return songs;
         JSONObject root = new JSONObject(body);
+        if(!"qq".equals(provider)&&!"netease".equals(provider))return LxCatalogAdapters.parse(provider,root);
         JSONArray items;
         boolean qq = "qq".equals(provider);
         if (qq) {
@@ -97,8 +105,9 @@ final class BackupCatalog {
                 .put("mediaMid", file == null ? "" : file.optString("media_mid", ""));
             long duration = qq ? item.optLong("interval", 0) * 1000 : item.optLong("dt", item.optLong("duration", 0));
             if (id.isEmpty() || title.isEmpty()) continue;
+            StringBuilder singer=new StringBuilder();for(int n=0;n<names.length();n++){if(n>0)singer.append("、");singer.append(names.optString(n));}
             songs.add(new NativePlaylist.Track("online:" + provider + ":" + id, provider, id, title,
-                names.length() == 1 ? names.optString(0) : "", album == null ? "" : album.optString("name", ""),
+                singer.toString(), album == null ? "" : album.optString("name", ""),
                 duration, "", data.toString(), provider + "-original"));
         }
         return songs;

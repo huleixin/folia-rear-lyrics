@@ -35,9 +35,9 @@ final class NativeAudioDeck {
         };
         OkHttpClient http=new OkHttpClient.Builder().connectTimeout(15,TimeUnit.SECONDS).readTimeout(30,TimeUnit.SECONDS).build();
         player=new ExoPlayer.Builder(context,renderers).setMediaSourceFactory(new DefaultMediaSourceFactory(
-            new DefaultDataSource.Factory(context,new OkHttpDataSource.Factory(http)
+            new DefaultDataSource.Factory(context,()->new AudioCacheDataSource(new OkHttpDataSource.Factory(http)
                 .setUserAgent("Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36")
-                .setDefaultRequestProperties(java.util.Collections.singletonMap("Referer","https://y.qq.com/")))))
+                .setDefaultRequestProperties(java.util.Collections.singletonMap("Referer","https://y.qq.com/")).createDataSource(),AudioCacheStore.get(context)))))
             .setAudioAttributes(ATTRIBUTES,focus).setHandleAudioBecomingNoisy(focus).setWakeMode(C.WAKE_MODE_LOCAL).build();
     }
     void focus(boolean enabled){player.setAudioAttributes(ATTRIBUTES,enabled);player.setHandleAudioBecomingNoisy(enabled);}

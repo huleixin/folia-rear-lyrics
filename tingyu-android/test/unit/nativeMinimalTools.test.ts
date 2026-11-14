@@ -160,7 +160,7 @@ describe('nativeMinimalTools', () => {
     it('routes native source selection and policy switches through the existing LX store', () => {
         useLxSourceStore.setState({
             scripts: [{ id: 'a', name: 'A', code: 'x' } as never, { id: 'b', name: 'B', code: 'y' } as never],
-            activeId: 'a', policy: { autoDowngrade: true, autoSwitch: true, retries: 0, priority: ['kw', 'tx'], preferredSource: null },
+            activeId: 'a', policy: { routing:'lx-first',scriptFallback:false,scriptOrder:[], autoDowngrade: true, autoSwitch: true, retries: 0, priority: ['kw', 'tx'], preferredSource: null },
         });
         registerNativeTools(handlers());
         expect(runNativeToolsAction('lxSelect', 1)).toBe(true);
@@ -169,4 +169,22 @@ describe('nativeMinimalTools', () => {
         expect(runNativeToolsAction('lxToggleSwitch', 0)).toBe(true);
         expect(useLxSourceStore.getState().policy.autoSwitch).toBe(false);
     });
+    it('only enables explicitly picked backup scripts and preserves their chosen order', () => {
+        useLxSourceStore.setState({scripts:['a','b','c'].map(id=>({id,name:id,code:id,capabilities:{}} as never)),activeId:'a',policy:{routing:'lx-first',scriptFallback:false,scriptOrder:[],autoDowngrade:true,autoSwitch:true,retries:0,priority:['kw','tx'],preferredSource:null}});
+        registerNativeTools(handlers());
+        expect(runNativeToolsAction('lxToggleRouting',0)).toBe(true);
+        expect(useLxSourceStore.getState().policy.routing).toBe('original-first');
+        expect(runNativeToolsAction('lxToggleScriptFallback',0)).toBe(true);
+        expect(useLxSourceStore.getState().policy.scriptFallback).toBe(true);
+        expect(runNativeToolsAction('lxToggleBackup',0)).toBe(false);
+        expect(runNativeToolsAction('lxToggleBackup',1)).toBe(true);
+        expect(runNativeToolsAction('lxToggleBackup',2)).toBe(true);
+        expect(useLxSourceStore.getState().policy.scriptOrder).toEqual(['b','c']);
+        expect(runNativeToolsAction('lxBackupEarlier',2)).toBe(true);
+        expect(useLxSourceStore.getState().policy.scriptOrder).toEqual(['c','b']);
+        expect(runNativeToolsAction('lxToggleBackup',1)).toBe(true);
+        expect(useLxSourceStore.getState().policy.scriptOrder).toEqual(['c']);
+        expect(runNativeToolsAction('lxToggleBackup',9)).toBe(false);
+    });
+
 });

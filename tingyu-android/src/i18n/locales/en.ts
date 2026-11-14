@@ -1,7 +1,9 @@
+import {audioCacheEn} from '../audioCacheCopy';
 
 
 import {cloudFeedbackEn} from '../cloudFeedbackCopy';
 export default {
+  audioCache: audioCacheEn,
   feedbackCloud: cloudFeedbackEn,
   lyricsOutput: {"title":"Desktop and car lyrics","desktop":"Desktop lyrics","desktopHint":"Floating native lyrics and appearance","bluetooth":"Car Bluetooth lyrics","bluetoothHint":"Experimental title display for selected A2DP devices","desktopStyle":"Desktop lyrics appearance"},
   stageQuality: {"compatibilityFallback": "This scene could not be drawn. Lyrics remain available.", "retry": "Retry scene", "bandMotion": "Audio band motion", "bandMotionHint": "Live audio onsets drive neon, ripples and screen swells. No online analysis required.", "motionStrength": "Motion strength", "preset": "Lyric rendering quality", "description": "Auto adapts to sustained frame cost and recovers when smooth. High improves detail; Battery reduces rendering cost without changing playback or the FPS cap.", "auto": "Auto", "high": "High", "battery": "Battery", "custom": "Custom", "scope": "Apply to", "global": "Global", "follow": "Follow global", "resolution": "Canvas resolution", "antialias": "Antialiasing", "on": "On", "off": "Off", "aaHint": "Applies to supported canvas stages. Antialiasing changes recreate the drawing context. The rear display keeps its own policy."},
@@ -915,6 +917,14 @@ export default {
       "lx-auto-switch": {"title": "Toggle LX source fallback", "description": "Allow matched alternative platforms"},
       "lx-retry": {"title": "Toggle LX retry", "description": "Use zero or one retry per quality"},
       "lx-default-source": {"title": "Cycle LX default source", "description": "Choose a declared platform or follow the song"},
+      "audio-cache": {"title": "Save while listening", "description": "Open persistent cache settings"},
+      "audio-cache-wifi": {"title": "Cache on Wi-Fi", "description": "Choose allowed networks"},
+      "audio-cache-playlist": {"title": "Automatic playlist caching", "description": "Configure whole-playlist caching"},
+      "audio-cache-limit": {"title": "Audio cache limit", "description": "Choose storage capacity"},
+      "audio-cache-tasks": {"title": "Cache tasks", "description": "View, retry and stop tasks"},
+      "audio-cache-clear": {"title": "Clear audio cache", "description": "Review and confirm deletion"},
+      "lx-routing": {"title": "LX playback priority", "description": "Choose platform or custom source first"},
+      "lx-backup-scripts": {"title": "LX backup scripts", "description": "Enable and order backup scripts"},
       "lx-source-priority": {"title": "Rotate LX source priority", "description": "Change the platform fallback order"},
       "playback-equalizer": { "title": "Audio effects", "description": "Open the equalizer and effect chain" },
       "playback-sound-preset-flat": { "title": "Sound: Level", "description": "Clear the equalizer and every effect" },

@@ -1,3 +1,5 @@
+import { getAudioCacheRoute } from './onlineMusic/resourceKeys';
+import { enabledLxScripts } from './lxSource/selection';
 import { useLxSourceStore } from '../stores/useLxSourceStore';
 import { getTingyuPlayback } from '../platform/tingyuPlayback';
 
@@ -20,6 +22,8 @@ interface TingyuPlaybackLx {
         homepage: string;
         code: string;
         policy?: string;
+        cacheRoute:string;
+        fallbackScripts?: unknown[];
     }): Promise<{ installed: boolean }>;
 }
 
@@ -35,7 +39,7 @@ export const readLxNativeSyncState = () => ({ ...lastSync });
 export const syncLxScriptToNative = (): Promise<void> => {
     const {scripts,activeId,policy}=useLxSourceStore.getState();
     const active=scripts.find(script=>script.id===activeId)??null;
-    const payload={id:active?.id??'',name:active?.name??'',version:active?.version??'',description:active?.description??'',author:active?.author??'',homepage:active?.homepage??'',code:active?.code??'',policy:JSON.stringify(policy)};
+    const payload={cacheRoute:getAudioCacheRoute(),id:active?.id??'',name:active?.name??'',version:active?.version??'',description:active?.description??'',author:active?.author??'',homepage:active?.homepage??'',code:active?.code??'',policy:JSON.stringify(policy),fallbackScripts:enabledLxScripts().slice(1).map(({previous,capabilities,importUrl,...script})=>script)};
     const signature=JSON.stringify(payload);
     if(signature===queuedSignature)return syncQueue;
     queuedSignature=signature;

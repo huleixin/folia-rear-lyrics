@@ -1,3 +1,4 @@
+import { getAudioCacheRoute, getPersistentAudioKey } from './onlineMusic/resourceKeys';
 import { recoveryReady, keepLiveQueue } from './playbackRecoverySnapshot';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
 import { syncPlaylistResources } from './playlistResourceSnapshot';
@@ -114,6 +115,8 @@ const selectedSourceId = (providerId: string): string => {
     if (!providerId) return '';
     const state=useLxSourceStore.getState(),script=state.scripts.find(s=>s.id===state.activeId);
     if (!script||Object.keys(script.capabilities).every(key=>key==='local')) return `${providerId}-original`;
+    if(providerId.startsWith('lx-'))return 'lx:'+providerId.slice(3);
+    if(state.policy.routing==='original-first')return providerId+'-original-lx-fallback';
     const platform = Object.keys(LX_PLATFORMS).find(key => LX_PLATFORMS[key].original === providerId);
     return platform ? `lx:${platform}` : `${providerId}-original`;
 };
@@ -140,6 +143,8 @@ export const toNativeResourcePayload = (song: SongResult): NativePlaylistTrackPa
         // 用户选的音源：原生据此挑解析器，不再靠 providerId 猜。
         sourceId,
         ...(online||lxAudio ? { providerData: { ...(lxAudio?{albumId:song.album?.id}:{}),...online?.providerData,
+            audioCacheRoute:getAudioCacheRoute(),
+            audioCacheKeys:Object.fromEntries((['standard','high','lossless','hires'] as const).map(q=>[q,getPersistentAudioKey(song,q)])),
             fallbackArtists: (song.artists ?? []).map(artist => artist.name).filter(Boolean),
         } as Record<string, unknown> } : {}),
     };

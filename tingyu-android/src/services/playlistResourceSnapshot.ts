@@ -61,6 +61,7 @@ export const syncPlaylistResources = async <T>(
         }
         if (own === revision) {
             lastIdentity = identity;
+            void import('./audioPlaylistCache').then(m=>m.resumeAudioPlaylistCatalogs());
             void import('./platformResourcePrecache').then(module => module.runPlatformResourcePrecache());
         }
     } catch { /* The next queue synchronization retries an interrupted snapshot. */ }

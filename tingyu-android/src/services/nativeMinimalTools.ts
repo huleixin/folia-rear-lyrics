@@ -89,9 +89,9 @@ export type NativeToolsSnapshot = {
     };
     lx: {
         activeName: string;
-        scripts: { id: string; name: string; meta: string; active: boolean; caps: { name: string; qualitys: string }[]; hasUpdateUrl: boolean; canRollback: boolean }[];
+        scripts: { id: string; name: string; meta: string; active: boolean; backup: boolean; backupRank: number; caps: { name: string; qualitys: string }[]; hasUpdateUrl: boolean; canRollback: boolean }[];
         selectedId: string;
-        policy: { autoDowngrade: boolean; autoSwitch: boolean; retries: number; preferredSource: string };
+        policy: { autoDowngrade: boolean; autoSwitch: boolean; retries: number; preferredSource: string; routing: string; scriptFallback: boolean; priority: string[] };
         qualities: { value: string; label: string }[];
         busy: boolean;
         message: string;
@@ -220,6 +220,8 @@ function buildLxSnapshot(): NativeToolsSnapshot['lx'] {
             name: script.name,
             meta: [script.version, script.author].filter(Boolean).join(' · '),
             active: script.id === state.activeId,
+            backup: state.policy.scriptOrder.includes(script.id),
+            backupRank: state.policy.scriptOrder.indexOf(script.id) + 1,
             caps: Object.values(script.capabilities ?? {}).map(cap => ({
                 name: cap.name,
                 qualitys: cap.qualitys.join(' / '),
@@ -228,7 +230,7 @@ function buildLxSnapshot(): NativeToolsSnapshot['lx'] {
             canRollback: Boolean(script.previous),
         })),
         selectedId: state.scripts.some(script => script.id === lxSelectedId) ? lxSelectedId : (state.activeId || state.scripts[0]?.id || ''),
-        policy: { autoDowngrade: state.policy.autoDowngrade, autoSwitch: state.policy.autoSwitch, retries: state.policy.retries, preferredSource: state.policy.preferredSource || '' },
+        policy: { autoDowngrade: state.policy.autoDowngrade, autoSwitch: state.policy.autoSwitch, retries: state.policy.retries, preferredSource: state.policy.preferredSource || '', routing: state.policy.routing, scriptFallback: state.policy.scriptFallback, priority: state.policy.priority },
         qualities: [
             { value: 'standard', label: '标准 128k' }, { value: 'high', label: '高品质 320k' },
             { value: 'lossless', label: '无损 FLAC' }, { value: 'hires', label: 'Hi-Res FLAC 24bit' },
@@ -543,6 +545,28 @@ export function runNativeToolsAction(action: string, value: number, text = ''): 
         }
         case 'lxSelect': {
             const script=useLxSourceStore.getState().scripts[value];if(!script)return false;lxSelectedId=script.id;lastSent='';syncNativeTools();return true;
+        }
+        case 'lxToggleRouting': {
+            const s=useLxSourceStore.getState();s.setPolicy({routing:s.policy.routing==='original-first'?'lx-first':'original-first'});lastSent='';syncNativeTools();return true;
+        }
+        case 'lxToggleScriptFallback': {
+            const s=useLxSourceStore.getState();s.setPolicy({scriptFallback:!s.policy.scriptFallback});lastSent='';syncNativeTools();return true;
+        }
+        case 'lxToggleBackup': {
+            const s=useLxSourceStore.getState(),script=s.scripts[value];if(!script||script.id===s.activeId)return false;
+            s.setPolicy({scriptOrder:s.policy.scriptOrder.includes(script.id)?s.policy.scriptOrder.filter(id=>id!==script.id):[...s.policy.scriptOrder,script.id]});lastSent='';syncNativeTools();return true;
+        }
+        case 'lxBackupEarlier': {
+            const s=useLxSourceStore.getState(),script=s.scripts[value];if(!script)return false;
+            const order=[...s.policy.scriptOrder],i=order.indexOf(script.id);if(i<=0)return false;
+            [order[i-1],order[i]]=[order[i],order[i-1]];s.setPolicy({scriptOrder:order});lastSent='';syncNativeTools();return true;
+        }
+        case 'lxRotatePriority': {
+            const s=useLxSourceStore.getState();s.setPolicy({priority:[...s.policy.priority.slice(1),s.policy.priority[0]]});lastSent='';syncNativeTools();return true;
+        }
+        case 'lxDefaultSource': {
+            const s=useLxSourceStore.getState(),sources=[null,...s.policy.priority];
+            s.setPolicy({preferredSource:sources[(sources.indexOf(s.policy.preferredSource)+1)%sources.length]});lastSent='';syncNativeTools();return true;
         }
         case 'lxToggleDowngrade': {
             const state=useLxSourceStore.getState();state.setPolicy({autoDowngrade:!state.policy.autoDowngrade});lastSent='';syncNativeTools();return true;

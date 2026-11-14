@@ -1,3 +1,4 @@
+import AudioCacheSettings from './AudioCacheSettings';
 import SmartResourceCacheSettings from './SmartResourceCacheSettings';
 import React from 'react';
 import { AudioWaveform, Check, ChevronDown, Cloud, Command, Database, Disc3, Download, FolderOpen, HardDrive, Layers, Loader2, Pencil, PlayCircle, RefreshCw, Trash2, Upload, X } from 'lucide-react';
@@ -242,6 +243,7 @@ const StorageSettingsSection: React.FC<StorageSettingsSectionProps> = ({
 
     return (
         <div className="storage-settings" data-settings-style='{"gap":28}' data-settings-layout="column">
+            <AudioCacheSettings/>
             <SmartResourceCacheSettings />
             <SettingsAnchor anchorId="cacheDetails" label={t('options.cacheDetails') || 'Cache Details'} nativeLayout={{"kind":"column"}}>
                 <h3 className="storage-section-heading" data-settings-style='{"align":"between","font":13,"weight":600,"tone":"muted","margin":[2,0,2,10]}' data-settings-layout="row"><span data-settings-style='{"grow":true}' data-settings-layout="wrap"><Database size={16}/>{t('options.cacheDetails')}</span><button type="button" className="storage-text-button" onClick={onClearAll} disabled={isCleaning === 'all'} data-settings-layout="row" data-settings-style='{"gap":6,"minHeight":44,"font":13,"tone":"muted"}'>{isCleaning === 'all' ? <Loader2 size={14} className="animate-spin"/> : <Trash2 size={14}/>} {t('options.clearAll')}</button></h3>

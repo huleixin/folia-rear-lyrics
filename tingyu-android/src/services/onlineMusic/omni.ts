@@ -616,7 +616,8 @@ export const omni = {
         const revision = useLxSourceStore.getState().revision;
         const isCurrent = () => useLxSourceStore.getState().revision === revision && (options.isCurrent?.() ?? true);
         // Custom scripts retain their own routing/auto-switch policy.
-        const customSource = !!useLxSourceStore.getState().activeId;
+        const lx = useLxSourceStore.getState();
+        const customSource = !!lx.activeId && lx.policy.routing !== 'original-first';
         let originalError: unknown;
         try {
             const source = options.skipPrimary && !customSource ? null : await this.getPrimaryAudioSource(song, quality);
@@ -625,6 +626,12 @@ export const omni = {
         } catch (error) {
             if (customSource || (error as Error)?.name === 'AbortError') throw error;
             originalError = error;
+        }
+        if (lx.activeId && lx.policy.routing === 'original-first' && canUseLxFallback(originalError)) {
+            const { resolveLxSource } = await import('../lxSource/playback');
+            const rescue = await resolveLxSource(song, quality);
+            if (!isCurrent()) throw new DOMException('Playback changed', 'AbortError');
+            if (rescue && !options.excludedUrls?.has(playbackUrlIdentity(rescue.url))) return bind(rescue);
         }
         const backup = await resolvePlaybackFallback(song, quality, { ...options, isCurrent });
         if (backup) {
@@ -640,7 +647,7 @@ export const omni = {
     async getPrimaryAudioSource(song: SongResult, quality: AudioQualityPreference): Promise<OmniAudioSource | null> {
         const bind = captureAudioSourceBinding(song, quality);
         const lxState = useLxSourceStore.getState();
-        if (lxState.activeId) {
+        if (lxState.activeId && lxState.policy.routing !== 'original-first') {
             const { resolveLxSource } = await import('../lxSource/playback');
             const lxSource = await resolveLxSource(song, quality);
             if (lxSource) return bind(lxSource);
@@ -956,3 +963,10 @@ export const omni = {
 };
 
 export type OmniService = typeof omni;
+
+// Explicit access restrictions must not become an automatic source bypass.
+function canUseLxFallback(error: unknown): boolean {
+    if (!error) return true;
+    const value=error as {kind?:string;code?:string;message?:string};
+    return !/auth|forbidden|restricted|entitlement|copyright|vip|会员|权限|登录|下架|版权/i.test([value.kind,value.code,value.message].join(' '));
+}

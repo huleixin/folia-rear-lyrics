@@ -1,0 +1,29 @@
+import {useState} from 'react';
+import {useTranslation} from 'react-i18next';
+import {Download,RefreshCw,ChevronDown} from 'lucide-react';
+import {useAudioCacheStatus} from './useAudioCacheStatus';
+import './resourceCacheSettings.css';
+
+// src/components/modal/settings/AudioCacheSettings.tsx
+export default function AudioCacheSettings(){
+    const {t}=useTranslation(),{status:s,busy,error,update}=useAudioCacheStatus();
+    const [details,setDetails]=useState(false),[confirm,setConfirm]=useState(false);
+    if(!s)return null;
+    const text=(key:string)=>t('audioCache.'+key);
+    const toggle=(key:'enabled'|'wifiOnly'|'autoPlaylist')=><div key={key} className="resource-setting" data-settings-layout="row" data-settings-style='{"align":"between","gap":16,"font":13}'><span data-settings-layout="wrap" data-settings-style='{"grow":true}'>{text(key)}</span><button type="button" role="switch" aria-label={text(key)} aria-checked={s[key]} disabled={busy} className="resource-switch" onClick={()=>void update('configure',{[key]:!s[key]})} data-settings-layout="row"><span data-settings-layout="wrap"/></button></div>;
+    const total=s.complete+s.pending+s.running+s.failed+s.evicted;
+    return <section className="resource-card" aria-label={text('title')} data-settings-layout="card" data-settings-style='{"padding":[20,20,20,20],"gap":20,"radius":22,"border":true}'>
+        <header className="resource-heading" data-settings-layout="row" data-settings-style='{"gap":12,"align":"center"}'><Download size={20}/><div data-settings-layout="column" data-settings-style='{"grow":true}'><h3 data-settings-layout="wrap">{text('title')}</h3><p data-settings-layout="wrap">{text('hint')}</p></div><button className="storage-icon-button" aria-label={t('resourceCache.refresh')} disabled={busy} onClick={()=>void update()} data-settings-layout="row" data-settings-style='{"width":44,"height":44,"center":true}'><RefreshCw size={18}/></button></header>
+        <p className="resource-hint" data-settings-layout="wrap" data-settings-style='{"font":12,"tone":"muted"}'>{text('consent')}</p>
+        <div data-settings-layout="column" data-settings-style='{"gap":12}'>{toggle('enabled')}{toggle('wifiOnly')}{toggle('autoPlaylist')}</div>
+        <div data-settings-layout="column" data-settings-style='{"gap":8}'><span data-settings-layout="wrap">{text('limit')}</span><div data-settings-layout="grid" data-settings-style='{"columns":4,"gap":8}'>{[1,2,4,8].map(value=><button key={value} disabled={busy} aria-pressed={s.limitGb===value} className="storage-button" data-settings-layout="row" data-settings-style={JSON.stringify({center:true,minHeight:44,radius:12,border:true,fill:s.limitGb===value,tone:s.limitGb===value?'accent':'muted'})} onClick={()=>void update('configure',{limitGb:value})}>{value} GB</button>)}</div></div>
+        <div data-settings-layout="column" data-settings-style='{"gap":8}'><strong data-settings-layout="wrap">{t('audioCache.usage',{count:s.cached,size:(s.bytes/1048576).toFixed(1)})}</strong><span data-settings-layout="wrap">{t('audioCache.progress',{complete:s.complete,pending:s.pending+s.running,failed:s.failed})}</span>{total>0&&<div className="resource-meter" role="progressbar" aria-valuenow={s.complete} aria-valuemax={total} aria-valuemin={0} data-settings-layout="column" data-settings-style={JSON.stringify({height:5,radius:64,progress:s.complete/total})}><div style={{width:s.complete/total*100+'%'}} data-settings-layout="column"/></div>}{s.enabled&&!s.networkAllowed&&s.pending>0&&<p data-settings-layout="wrap">{text('waiting')}</p>}{s.incompleteCatalogs>0&&<p className="resource-hint" data-settings-layout="wrap">{text('catalog')}</p>}</div>
+        {s.stale>0&&<p className="resource-hint" data-settings-layout="wrap">{text('staleHint')}</p>}
+        {s.taskLimitReached&&<p className="resource-hint" data-settings-layout="wrap">{text('limitHint')}</p>}
+        {error&&<p role="alert" data-settings-layout="wrap" data-settings-style='{"tone":"danger"}'>{text('error')}</p>}
+        <button className="storage-text-button" aria-expanded={details} onClick={()=>setDetails(!details)} data-settings-layout="row" data-settings-style='{"gap":6,"minHeight":44}'>{text('details')}<ChevronDown size={16}/></button>
+        {details&&<div data-settings-layout="column" data-settings-style='{"gap":12}'><p data-settings-layout="wrap" className="resource-hint">{text('verifyHint')}</p>{s.tasks.map((task,index)=><div key={index} data-settings-layout="column"><span data-settings-layout="wrap">{task.title}</span><span className="resource-hint" data-settings-layout="wrap">{text('state.'+task.state)} · {(task.bytes/1048576).toFixed(1)} MB{task.reason?' · '+task.reason:''}</span></div>)}</div>}
+        <div data-settings-layout="wrap" data-settings-style='{"gap":8}'>{(s.failed>0||s.incompleteCatalogs>0)&&<button disabled={busy} className="storage-text-button" data-settings-layout="row" onClick={()=>void update('retry')}>{text('retry')}</button>}{s.pending+s.running+s.incompleteCatalogs>0&&<button disabled={busy} className="storage-text-button" data-settings-layout="row" onClick={()=>void update('cancel')}>{text('cancel')}</button>}<button disabled={busy} className="storage-text-button" data-settings-layout="row" onClick={()=>setConfirm(true)}>{text('clear')}</button></div>
+        {confirm&&<div data-settings-layout="column" data-settings-style='{"gap":8}'><p data-settings-layout="wrap">{text('clearHint')}</p><div data-settings-layout="row" data-settings-style='{"gap":12}'><button disabled={busy} data-settings-layout="row" className="storage-text-button" onClick={()=>{void update('clear');setConfirm(false);}}>{text('confirm')}</button><button data-settings-layout="row" className="storage-text-button" onClick={()=>setConfirm(false)}>{text('back')}</button></div></div>}
+    </section>;
+}

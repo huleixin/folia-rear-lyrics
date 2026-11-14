@@ -1,3 +1,4 @@
+import { bindPersistentAudio } from '../persistentAudioCache';
 import type { SongResult } from '../../types';
 import type { AudioQualityPreference, OmniAudioSource } from '../../types/onlineMusic';
 import { useLxSourceStore } from '../../stores/useLxSourceStore';
@@ -12,7 +13,7 @@ const identity = (song: SongResult, url: string) => `${getPlaybackSongKey(song)}
 export function captureAudioSourceBinding(song: SongResult, quality: AudioQualityPreference) {
     const revision = useLxSourceStore.getState().revision;
     const key = getSongResourceCacheKey('audio', song, quality);
-    return (source: OmniAudioSource | null) => {
+    return async (source: OmniAudioSource | null) => {
         if (useLxSourceStore.getState().revision !== revision) throw new DOMException('Audio source changed', 'AbortError');
         const url = toPlayableAudioUrl(source?.url);
         if (url) {
@@ -20,6 +21,8 @@ export function captureAudioSourceBinding(song: SongResult, quality: AudioQualit
             bindings.set(identity(song, url), source?.backupSource ? null : key);
             while (bindings.size > 256) bindings.delete(bindings.keys().next().value!);
         }
+        await bindPersistentAudio(song,quality,source);
+        if(useLxSourceStore.getState().revision!==revision)throw new DOMException('Audio source changed','AbortError');
         return source;
     };
 }

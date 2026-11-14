@@ -1,3 +1,4 @@
+import { cacheAudioPlaylist } from '../../../services/audioPlaylistCache';
 import { precacheCollectionResources } from '../../../services/collectionResourcePrecache';
 import { useMemo, useCallback } from 'react';
 import { useLibraryTrackPlayback } from '../../../hooks/useLibraryTrackPlayback';
@@ -64,6 +65,7 @@ export function useMobileCollection(props: LibraryCollectionSurfaceProps) {
     });
     const startResourceCache = useCallback((track: import('../../../types').SongResult) => {
         void precacheCollectionResources(props.collection, snapshot?.tracks ?? [], track);
+        void cacheAudioPlaylist(props.collection,snapshot?.tracks??[],true);
     }, [props.collection, snapshot?.tracks]);
     const actions = useMemo(() => ({ ...baseActions,
         playScope: () => {

@@ -1,3 +1,4 @@
+import { isCapacitorAndroid } from '../platform/runtime';
 import type { SongResult } from '../types';
 import { resolvedAudioCacheKey } from './onlineMusic/audioSourceBinding';
 import { hasCachedAudio, saveAudioBlob } from './audioCache';
@@ -42,7 +43,7 @@ export const cachePlayedTrackAssets = async (
     // to bytes that are either already cached or on disk, so there is nothing to fetch and store.
     // 缓存里那份已被标记为不可信（解码失败过）时，即使还在也要用这次的合格下载覆盖它。
     const audioKey=src?resolvedAudioCacheKey(song,src):null;
-    if (audioKey && src && !src.startsWith('blob:') && (!(audioKey===getSongResourceCacheKey('audio',song)?await hasCachedSongAudio(song):await hasCachedAudio(audioKey)) || audioKey===getSongResourceCacheKey('audio',song)&&isCachedSongAudioDistrusted(song))) {
+    if (!isCapacitorAndroid() && audioKey && src && !src.startsWith('blob:') && (!(audioKey===getSongResourceCacheKey('audio',song)?await hasCachedSongAudio(song):await hasCachedAudio(audioKey)) || audioKey===getSongResourceCacheKey('audio',song)&&isCachedSongAudioDistrusted(song))) {
         console.log('[Cache] Caching fully played song:', song.name);
         try {
             const response = await fetch(src);

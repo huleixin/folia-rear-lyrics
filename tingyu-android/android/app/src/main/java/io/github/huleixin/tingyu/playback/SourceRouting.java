@@ -46,7 +46,7 @@ public final class SourceRouting {
         String value = normalize(sourceId);
         if (value.isEmpty()) return Kind.UNKNOWN;
         if (value.startsWith("lx:")) return Kind.LX;
-        if (value.endsWith("-original") || value.startsWith("original:")) return Kind.ORIGINAL;
+        if ((value.endsWith("-original") || value.endsWith("-original-lx-fallback")) || value.startsWith("original:")) return Kind.ORIGINAL;
         return Kind.UNKNOWN;
     }
 
@@ -67,7 +67,7 @@ public final class SourceRouting {
         if (want.isEmpty()) return true;
         String value = normalize(sourceId);
         if (value.startsWith("original:")) return want.equals(value.substring("original:".length()));
-        return value.equals(want + "-original");
+        return value.equals(want + "-original") || value.equals(want + "-original-lx-fallback");
     }
 
     /** {@code lx:tx} 取出 platform 部分 {@code tx}；不是洛雪源返回空串。 */

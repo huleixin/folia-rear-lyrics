@@ -137,10 +137,36 @@ public final class ResolverRegistry {
      * 没有解析器认领时返回 UNSUPPORTED，调用方据此回落到 JS 通道，而不是当成失败重试。
      */
     public SourceResolution resolve(NativePlaylist.Track track, String quality) {
+        io.github.huleixin.tingyu.playback.AudioCacheStore cache=io.github.huleixin.tingyu.playback.AudioCacheStore.peek();
+        if(cache!=null&&track!=null){java.io.File file=cache.lookup(io.github.huleixin.tingyu.playback.AudioCacheStore.key(track,quality));if(file!=null)return cachedResult(track,quality,android.net.Uri.fromFile(file).toString(),cache.info(io.github.huleixin.tingyu.playback.AudioCacheStore.key(track,quality)));}
         SourceResolution primary = resolvePrimary(track, quality);
-        if (primary.ok() || !OriginalPlaybackFallback.eligible(track)) return primary;
+        if(primary.ok())bindCache(track,quality,primary);
+        if(primary.ok())return primary;
+        if(track!=null&&track.sourceId.endsWith("-original-lx-fallback")&&allowsFallback(primary.reason)) {
+            SourceResolution lx=lxResolver().resolve(track,quality);if(lx.ok()){bindCache(track,quality,lx);return lx;}
+        }
+        if (!allowsFallback(primary.reason)||!OriginalPlaybackFallback.eligible(track)) return primary;
         SourceResolution backup = resolveBackup(track, quality);
+        if(backup.ok())bindCache(track,quality,backup);
         return backup.ok() ? backup : primary;
+    }
+
+    /** Preserve the negotiated quality and backup identity when replaying private verified files. */
+    static SourceResolution cachedResult(NativePlaylist.Track track,String requested,String url,org.json.JSONObject info){
+        String quality=info.optString("negotiatedQuality",requested);
+        if(!java.util.Arrays.asList("standard","high","lossless","hires").contains(quality))quality=requested;
+        String actual=info.optString("actualSource","");
+        try{if(actual.startsWith("{")){org.json.JSONObject p=new org.json.JSONObject(actual);actual=p.optString("scriptId").isEmpty()?p.optString("providerId"):"lx:"+p.optString("providerId")+":"+p.optString("scriptId");}}catch(Exception ignored){actual="";}
+        if(!actual.startsWith("lx:")){int colon=actual.indexOf(':');if(colon>=0)actual=actual.substring(0,colon);if(actual.equals(track.providerId))actual="";}
+        // Unknown metadata also keeps gain neutral rather than claiming the original mastering.
+        if(actual.isEmpty()&&info.optString("actualSource","").isEmpty())actual="cached-unknown";
+        SourceResolution result=SourceResolution.okDirect(url,quality,System.currentTimeMillis());
+        return actual.isEmpty()?result:result.asBackup(actual);
+    }
+
+    private static void bindCache(NativePlaylist.Track track,String quality,SourceResolution source){io.github.huleixin.tingyu.playback.AudioCacheStore cache=io.github.huleixin.tingyu.playback.AudioCacheStore.peek();if(cache!=null&&cache.routeMatches(track))cache.bind(source.url,io.github.huleixin.tingyu.playback.AudioCacheStore.key(track,quality),source.backupProviderId.isEmpty()?track.providerId:source.backupProviderId,track.durationMs,source.quality);}
+    static boolean allowsFallback(String reason) {
+        return reason==null||!reason.toLowerCase(Locale.ROOT).matches(".*(auth|forbidden|restricted|entitlement|membership|purchase|preview|region|taken.?down|copyright|vip|会员|权限|登录|下架|版权).*" );
     }
 
     /** Called on media failure too, even when the original provider keeps returning a dead URL. */
@@ -179,6 +205,8 @@ public final class ResolverRegistry {
 
     /** 原生能不能不经过 WebView 拿到这首的地址。用于决定要不要走后台续播，不发请求。 */
     public boolean canResolveNatively(NativePlaylist.Track track) {
+        io.github.huleixin.tingyu.playback.AudioCacheStore cache=io.github.huleixin.tingyu.playback.AudioCacheStore.peek();
+        if(cache!=null&&track!=null&&cache.hasFiles(io.github.huleixin.tingyu.playback.AudioCacheStore.key(track,io.github.huleixin.tingyu.playback.QualityPreference.get())))return true;
         return canResolvePrimary(track) || canTryBackup(track);
     }
 

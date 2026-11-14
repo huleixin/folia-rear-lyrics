@@ -52,6 +52,8 @@ data class MinimalLxScript(
     val meta: String,
     val active: Boolean,
     val caps: List<Pair<String, String>>, // name to qualitys
+    val backup: Boolean = false,
+    val backupRank: Int = 0,
     val hasUpdateUrl: Boolean = false,
     val canRollback: Boolean = false,
 )
@@ -67,6 +69,9 @@ data class MinimalLxState(
     val autoSwitch: Boolean = true,
     val retries: Int = 0,
     val preferredSource: String = "",
+    val routing: String = "lx-first",
+    val scriptFallback: Boolean = false,
+    val priority: List<String> = emptyList(),
     val qualities: List<Pair<String, String>> = emptyList(),
 )
 
@@ -147,6 +152,8 @@ data class MinimalTools(
                         name = row.optString("name", ""),
                         meta = row.optString("meta", ""),
                         active = row.optBoolean("active", false),
+                        backup = row.optBoolean("backup", false),
+                        backupRank = row.optInt("backupRank", 0),
                         caps = caps,
                         hasUpdateUrl = row.optBoolean("hasUpdateUrl", false),
                         canRollback = row.optBoolean("canRollback", false),
@@ -164,6 +171,9 @@ data class MinimalTools(
                 autoSwitch = lxJson.optJSONObject("policy")?.optBoolean("autoSwitch", true) ?: true,
                 retries = lxJson.optJSONObject("policy")?.optInt("retries", 0) ?: 0,
                 preferredSource = lxJson.optJSONObject("policy")?.optString("preferredSource", "") ?: "",
+                routing = lxJson.optJSONObject("policy")?.optString("routing", "lx-first") ?: "lx-first",
+                scriptFallback = lxJson.optJSONObject("policy")?.optBoolean("scriptFallback", false) ?: false,
+                priority = lxJson.optJSONObject("policy")?.optJSONArray("priority")?.let { rows -> (0 until rows.length()).map { rows.optString(it) } } ?: emptyList(),
                 qualities = lxJson.optJSONArray("qualities")?.let { rows ->
                     (0 until rows.length()).mapNotNull { index ->
                         val row = rows.optJSONObject(index) ?: return@mapNotNull null

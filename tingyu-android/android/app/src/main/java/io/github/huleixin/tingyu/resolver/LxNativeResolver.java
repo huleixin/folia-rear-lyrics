@@ -72,39 +72,56 @@ public final class LxNativeResolver implements SourceResolver {
             // 让调用方回落到 JS 通道 —— 绝不能因为 provider=qq 就静默改走 musicu。
             return SourceResolution.unsupported("SCRIPT_NOT_INSTALLED");
         }
-        String preferred=LxRuntimeHost.INSTANCE.preferredSource();
-        if(!preferred.isEmpty()&&!preferred.equals(source))
-            return SourceResolution.unsupported("默认来源需要前台按歌名、歌手和时长匹配，不能复用当前平台的歌曲 ID");
-        // prepare 会先把引擎拉起来，再给出能力表。顺序反了就永远走不到执行脚本这一步。
-        List<String> qualitys = LxRuntimeHost.INSTANCE.prepare(track.providerId);
-        if (qualitys == null || qualitys.isEmpty()) {
-            String initError = LxRuntimeHost.INSTANCE.lastInitError();
-            if (initError != null && !initError.isEmpty()) {
-                return SourceResolution.failure("lx engine unavailable: " + initError);
-            }
-            return SourceResolution.unsupported("SOURCE_NOT_READY: no " + source + " musicUrl");
+        final long deadline=System.nanoTime()+65_000_000_000L;
+        final int[] budget={12};
+        SourceResolution last=SourceResolution.failure("no matching LX source");
+        for(String id:io.github.huleixin.tingyu.lx.LxScriptChain.INSTANCE.ids()) {
+            if(Thread.currentThread().isInterrupted()||System.nanoTime()>=deadline||budget[0]<=0)break;
+            last=io.github.huleixin.tingyu.lx.LxScriptChain.INSTANCE.run(id,deadline,access -> {
+                java.util.LinkedHashSet<String> platforms=new java.util.LinkedHashSet<>();
+                String preferred=LxRuntimeHost.INSTANCE.preferredSource();
+                if(!preferred.isEmpty())platforms.add(preferred);else platforms.add(source);
+                if(LxRuntimeHost.INSTANCE.autoSwitch()) {platforms.add(source);platforms.addAll(LxRuntimeHost.INSTANCE.priority());}
+                SourceResolution failure=SourceResolution.failure("no matching recording");
+                for(String platform:platforms) {
+                    if(System.nanoTime()>=deadline||budget[0]<=0||Thread.currentThread().isInterrupted())break;
+                    String provider=providerFor(platform);
+                    List<String> qualitys=access.qualities(provider);
+                    if(qualitys==null||qualitys.isEmpty())continue;
+                    NativePlaylist.Track candidate=track;
+                    if(!source.equals(platform)) {
+                        candidate=null;
+                        try {for(NativePlaylist.Track item:new BackupCatalog().search(provider,track.title+" "+track.artist,(deadline-System.nanoTime())/1_000_000L))
+                            if(OriginalPlaybackFallback.matches(track,item)){candidate=item;break;}}catch(Exception ignored){}
+                        if(candidate==null)continue;
+                    }
+                    int target=java.util.Arrays.asList("standard","high","lossless","hires").indexOf(quality);
+                    if(target<0)target=1;
+                    JSONObject info=LxPlatform.INSTANCE.musicInfo(platform,candidate.providerId,candidate.mediaId,candidate.title,candidate.artist,candidate.album,
+                        Math.max(0,candidate.durationMs/1000L),candidate.artwork,candidate.providerData,qualitys);
+                    for(int q=target;q>=0;q--) {
+                        if(q!=target&&!LxRuntimeHost.INSTANCE.autoDowngrade())break;
+                        String type=LxPlatform.INSTANCE.getQUALITIES()[q];if(!qualitys.contains(type))continue;
+                        for(int attempt=0;attempt<=LxRuntimeHost.INSTANCE.retries()&&budget[0]>0;attempt++) {
+                            long remaining=(deadline-System.nanoTime())/1_000_000L;if(remaining<=0)break;
+                            budget[0]--;
+                            LxOutcome outcome=access.resolve(platform,type,info,Math.min(15000,remaining));
+                            if(outcome!=null&&outcome.getOk()&&isPlayable(outcome.getValue())) {
+                                SourceResolution result=SourceResolution.ok(outcome.getValue(),resolvedQuality(type),System.currentTimeMillis());
+                                return result.asBackup("lx:"+platform+(id.isEmpty()?"":":"+id));
+                            }
+                            failure=SourceResolution.failure("LX source did not supply playable audio");
+                        }
+                    }
+                }
+                return failure;
+            });
+            if(last.ok())return last;
         }
-        int target=java.util.Arrays.asList("standard","high","lossless","hires").indexOf(quality);
-        if(target<0)target=1;
-        String lastReason="音源不支持所选音质";
-        JSONObject musicInfo=LxPlatform.INSTANCE.musicInfo(source,track.providerId,track.mediaId,track.title,track.artist,track.album,
-            Math.max(0,track.durationMs/1000L),track.artwork,track.providerData,qualitys);
-        long deadline=System.nanoTime()+65_000_000_000L;
-        for(int index=target;index>=0;index--){
-            if(index!=target&&!LxRuntimeHost.INSTANCE.autoDowngrade())break;
-            String type=LxPlatform.INSTANCE.getQUALITIES()[index];
-            if(!qualitys.contains(type))continue;
-            for(int attempt=0;attempt<=LxRuntimeHost.INSTANCE.retries();attempt++){
-                long remaining=(deadline-System.nanoTime())/1_000_000L;
-                if(remaining<=0)return SourceResolution.failure("音源取流总预算超时，请更换音源");
-                LxOutcome outcome=LxRuntimeHost.INSTANCE.resolve(source,type,musicInfo,remaining);
-                if(outcome!=null&&outcome.getOk()&&isPlayable(outcome.getValue()))
-                    return SourceResolution.ok(outcome.getValue(),resolvedQuality(type),System.currentTimeMillis());
-                lastReason=outcome==null?"null outcome":outcome.getOk()?"无有效播放 URL":outcome.getReason();
-                if(lastReason.contains("已更换"))return SourceResolution.failure(lastReason);
-            }
-        }
-        return SourceResolution.failure("lx "+source+": "+lastReason+"；请在前台更换音源或恢复原音源");
+        return last;
+    }
+    private static String providerFor(String source) {
+        switch(source){case "tx":return "qq";case "wy":return "netease";case "kg":return "kugou";case "kw":return "kuwo";case "mg":return "migu";default:return "";}
     }
 
     /** 与 JS validateRemoteUrl 同规则：只认公网 http(s)。 */

@@ -1,3 +1,4 @@
+import { cacheAudioPlaylist } from '../../../../services/audioPlaylistCache';
 import { useEffect,useMemo,useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LibraryCollectionSurfaceProps } from '../../../core/contracts/suite';
@@ -48,7 +49,7 @@ export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:L
         else {setOffset(Math.floor(activeIndex/100)*100);setLocateRevision(value=>value+1)}};
     useEffect(()=>{if(pendingLocate&&pendingLocate===activeKey&&activeIndex>=0){setPendingLocate('');locate()}},[pendingLocate,activeKey,activeIndex]);
     const actions:PageActions={back:props.onBack,menu:onCollectionMenu,playAll:model.actions.playScope,enqueueAll:model.actions.enqueueScope,
-        reload:model.actions.reload,resume:model.actions.resumeSync,subscribe:onSubscribe,locateCurrent:locate,
+        cacheAudio:()=>{void cacheAudioPlaylist(props.collection,model.snapshot?.tracks??[]);},reload:model.actions.reload,resume:model.actions.resumeSync,subscribe:onSubscribe,locateCurrent:locate,
         filterToggle:()=>setFilterOpen(true),filterClose:()=>setFilterOpen(false),filter:e=>{model.setQuery(e.text??'');setOffset(0)},range:e=>setOffset(Math.max(0,Math.floor((e.value??0)/100)*100))};
     const items=useMemo(()=>Array.from({length:Math.max(0,Math.min(100,total-offset))},(_,local)=>{
         const index=indexes?.[offset+local]??offset+local,song=model.view.displayTracks[index],key=getPlaybackSongKey(song);
@@ -61,6 +62,7 @@ export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:L
     const controls=[{id:'play',title:t('mobileLibrary.playAll'),action:'playAll',disabled:!model.actions.capabilities.scope.enabled}];
     if(model.actions.capabilities.scope.supported)controls.push({id:'queue',title:t('mobileLibrary.enqueue'),action:'enqueueAll',disabled:!model.actions.capabilities.scope.enabled});
     if(model.mutations.capabilities.subscribe.supported)controls.push({id:'subscribe',title:t(model.mutations.subscribed?'mobileLibrary.saved':'mobileLibrary.save'),action:'subscribe',disabled:!model.mutations.capabilities.subscribe.enabled});
+    if(props.collection.source==='online'&&props.collection.type==='playlist')controls.push({id:'cacheAudio',title:t('audioCache.playlist'),action:'cacheAudio',disabled:!model.snapshot?.tracks.length});
     const creator=model.snapshot?.detail?.creator??props.collection.creator;
     const source=props.collection.source==='online'?omni.getProviderLabel(props.collection.providerId):t(props.collection.source==='local'?'search.sourceLocal':'search.sourceNavidrome');
     // 统一详情契约：所有非歌手集合（歌单/专辑/每日推荐/本地文件夹…）都发 toolbar + intro +

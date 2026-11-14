@@ -28,7 +28,7 @@ it('does not mutate installed state when storage rejects an update',()=>{
 });
 it('bounds retry settings, persists policy and clears the active selection on deletion',()=>{
     const state=useLxSourceStore.getState();state.save(script('a','v1'));state.activate('a');state.setPolicy({retries:100,priority:['kw','kw','bad','tx'],preferredSource:'bad'});
-    expect(useLxSourceStore.getState().policy).toMatchObject({retries:1,priority:['kw','tx'],preferredSource:null});state.remove('a');expect(useLxSourceStore.getState().activeId).toBeNull();
+    expect(useLxSourceStore.getState().policy).toMatchObject({retries:1,priority:['kw','tx','wy','kg','mg'],preferredSource:null});state.remove('a');expect(useLxSourceStore.getState().activeId).toBeNull();
     expect(JSON.parse(localStorage.getItem('tingyu_lx_sources_v1')!).scripts).toEqual([]);
 });
 it('binds and clears a public update URL without changing the installed script',()=>{

@@ -86,6 +86,7 @@ object LxRuntimeHost {
 
     fun attach(context: Context) {
         appContext = context.applicationContext
+        LxScriptChain.attach(context.applicationContext)
         synchronized(lock) {
             if (installed == null) installed = read()
         }
@@ -145,6 +146,8 @@ object LxRuntimeHost {
     fun retries(): Int = try { JSONObject(installed?.policy ?: "{}").optInt("retries", 0).coerceIn(0, 1) } catch (_: Throwable) { 0 }
     fun preferredSource(): String = try { JSONObject(installed?.policy ?: "{}").optString("preferredSource", "").let { if (it == "null") "" else it } } catch (_: Throwable) { "" }
 
+    fun autoSwitch(): Boolean = try { JSONObject(installed?.policy ?: "{}").optBoolean("autoSwitch", true) } catch (_: Throwable) { true }
+    fun priority(): List<String> = try { val a=JSONObject(installed?.policy ?: "{}").optJSONArray("priority"); if(a==null) listOf("kw","tx","wy","kg","mg") else (0 until a.length()).map { a.optString(it) }.filter { it in listOf("kw","tx","wy","kg","mg") } } catch (_: Throwable) { emptyList() }
     fun hasScript(): Boolean = installed != null
 
     /** 上一次初始化失败的原因。解析器的诊断要区分"没装脚本"和"装了但起不来"。 */
@@ -186,10 +189,12 @@ object LxRuntimeHost {
      * - 没装脚本 → SCRIPT_NOT_INSTALLED（用户没启用自定义源，不是故障）；
      * - 装了但引擎起不来，或脚本没声明这个平台 → SOURCE_NOT_READY。
      */
-    fun prepare(providerId: String): List<String>? {
+    @JvmOverloads
+    fun prepare(providerId: String, timeoutMs: Long = 65_000): List<String>? {
         val source = LxPlatform.sourceFor(providerId) ?: return null
         val script = installed ?: return null
-        val live = ensureEngine(script) ?: return null
+        val deadline=System.nanoTime()+timeoutMs.coerceIn(1L,65_000L)*1_000_000L
+        val live = ensureEngine(script,deadline) ?: return null
         return live.capabilities[source]
     }
 
@@ -211,15 +216,18 @@ object LxRuntimeHost {
     @JvmOverloads
     fun resolve(source: String, quality: String, musicInfo: JSONObject, timeoutMs: Long = 65_000): LxOutcome {
         val script = installed ?: return LxOutcome(false, null, "未安装洛雪音源脚本")
-        val live = ensureEngine(script)
+        val deadline=System.nanoTime()+timeoutMs.coerceIn(1L,65_000L)*1_000_000L
+        val live = ensureEngine(script,deadline)
             ?: return LxOutcome(false, null, lastError ?: "音源引擎不可用")
+        val remaining=(deadline-System.nanoTime())/1_000_000L
+        if(remaining<=0)return LxOutcome(false,null,"音源取流超时")
         requests++
         val payload = JSONObject()
             .put("source", source)
             .put("action", "musicUrl")
             .put("info", JSONObject().put("type", quality).put("musicInfo", musicInfo))
         val outcome = try {
-            runBlocking { withTimeout(timeoutMs + 5_000) { live.request(payload, timeoutMs) } }
+            runBlocking { withTimeout(remaining + 5_000) { live.request(payload, remaining) } }
         } catch (failure: Throwable) {
             LxOutcome(false, null, failure.javaClass.simpleName)
         }
@@ -272,9 +280,11 @@ object LxRuntimeHost {
 
     // ------------------------------------------------------------------ internals
 
-    private fun ensureEngine(script: Installed): LxScriptEngine? {
+    private fun ensureEngine(script: Installed, deadlineNs: Long = Long.MAX_VALUE): LxScriptEngine? {
         synchronized(lock) {
             if (installed !== script) return null
+            val remaining=minOf(65_000L,(deadlineNs-System.nanoTime())/1_000_000L)
+            if(remaining<=0)return null
             engine?.let { return it }
             if (System.currentTimeMillis() - initFailedAt < INIT_COOLDOWN_MS) return null
             val created = LxScriptEngine(hooks)
@@ -285,7 +295,7 @@ object LxRuntimeHost {
                 .put("author", script.author)
                 .put("homepage", script.homepage)
             return try {
-                runBlocking { created.start(script.code, info) }
+                runBlocking { created.start(script.code, info, remaining) }
                 lastError = null
                 engine = created
                 created

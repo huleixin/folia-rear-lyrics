@@ -1073,6 +1073,10 @@ fun MinimalLxSheet(
                         ScriptAction(theme, if (script.active) "已启用" else "启用", enabled = !lx.busy && !script.active) {
                             actions.send("lxActivate", index.toDouble())
                         }
+                        if (!script.active) {
+                            ScriptAction(theme, if (script.backup) "取消备用 · 顺序 ${script.backupRank}" else "加入备用", enabled = !lx.busy) { actions.send("lxToggleBackup", index.toDouble()) }
+                            if (script.backup && script.backupRank > 1) ScriptAction(theme, "备用顺序提前", enabled = !lx.busy) { actions.send("lxBackupEarlier", index.toDouble()) }
+                        }
                         ScriptAction(theme, "检查音源", enabled = !lx.busy) { actions.send("lxTest", index.toDouble()) }
                         ScriptAction(theme, "删除", enabled = !lx.busy, danger = true) { actions.send("lxRemove", index.toDouble()) }
                     }
@@ -1096,9 +1100,12 @@ fun MinimalLxSheet(
                         Spacer(Modifier.height(10.dp))
                         Text("播放与换源", color = theme.text, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         Spacer(Modifier.height(5.dp))
+                        LxSwitchRow(theme, "平台原音源优先", "原音源不可用时尝试已启用的洛雪音源；不会绕过权限限制", lx.routing == "original-first", !lx.busy) { actions.send("lxToggleRouting", 0.0) }
+                        LxSwitchRow(theme, "启用备用脚本", "仅按你加入的备用顺序尝试，可能增加等待时间", lx.scriptFallback, !lx.busy) { actions.send("lxToggleScriptFallback", 0.0) }
                         LxSwitchRow(theme, "自动音质降级", "请求失败时尝试脚本声明的较低音质", lx.autoDowngrade, !lx.busy) { actions.send("lxToggleDowngrade", 0.0) }
                         LxSwitchRow(theme, "匹配后自动换源", "按歌名、歌手和时长匹配其他平台", lx.autoSwitch, !lx.busy) { actions.send("lxToggleSwitch", 0.0) }
-                        Text("默认播放来源：${lx.preferredSource.ifBlank { "跟随歌曲所属平台" }}", color = theme.muted, fontSize = 10.sp)
+                        ScriptAction(theme, "默认来源：${lx.preferredSource.ifBlank { "跟随歌曲平台" }}", enabled = !lx.busy) { actions.send("lxDefaultSource", 0.0) }
+                        ScriptAction(theme, "换源顺序：${lx.priority.joinToString(" → ")}", enabled = !lx.busy) { actions.send("lxRotatePriority", 0.0) }
                         Text("同来源重试：${lx.retries} 次 · 换源顺序 ${lx.preferredSource.ifBlank { "跟随平台" }}", color = theme.muted, fontSize = 10.sp)
                     }
                 }

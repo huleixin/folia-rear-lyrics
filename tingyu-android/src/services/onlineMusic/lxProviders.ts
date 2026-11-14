@@ -1,5 +1,6 @@
 import type { SongResult, UnifiedSong } from '../../types';
 import type { OnlineMusicProvider, ProviderCapabilities, ProviderLyricsResult } from '../../types/onlineMusic';
+import { enabledLxScripts } from '../lxSource/selection';
 import { useLxSourceStore } from '../../stores/useLxSourceStore';
 import { createProviderSongMetadata } from '../../utils/songMetadata';
 
@@ -20,7 +21,7 @@ export function createLxProvider(platform: string, getOriginal: (id:string) => O
         return {...song,id:`${id}:${song.sourceRef.mediaId}`,sourceRef:{...song.sourceRef,providerId:id,providerData:{...song.sourceRef.providerData,lxPlatform:platform}}};
     };
     return { id, displayName:`洛雪 · ${spec.name}`, shortName:`洛雪${spec.name}`, capabilities,
-        getAvailability: () => ({configured:!!useLxSourceStore.getState().scripts.find(s=>s.id===useLxSourceStore.getState().activeId)?.capabilities[platform]}),
+        getAvailability: () => ({configured:enabledLxScripts().some(s=>!!s.capabilities[platform])}),
         normalizeSong: normalize, songMetadata:{getSongMetadata:createProviderSongMetadata},
         search:{async searchSongs(query,limit,offset,signal) {
             if (!spec.original) { const {searchLxCatalog}=await import('./lxCatalog'); return searchLxCatalog(platform as 'kw'|'mg',query,limit,offset,signal); }
@@ -50,8 +51,8 @@ export function createLxProvider(platform: string, getOriginal: (id:string) => O
 export function installLxProviders(register:(provider:OnlineMusicProvider)=>void, unregister:(id:string)=>void, getOriginal:(id:string)=>OnlineMusicProvider|null) {
     const registered = new Set<string>();
     const sync = () => {
-        const state = useLxSourceStore.getState(), script = state.scripts.find(s=>s.id===state.activeId);
-        const desired = Object.keys(script?.capabilities || {}).filter(key=>LX_PLATFORMS[key]);
+        const state = useLxSourceStore.getState();
+        const desired = [...new Set(enabledLxScripts(state).flatMap(s=>Object.keys(s.capabilities??{})))].filter(key=>LX_PLATFORMS[key]);
         for (const key of registered) if (!desired.includes(key)) { unregister(`lx-${key}`); registered.delete(key); }
         for (const key of desired) { register(createLxProvider(key,getOriginal)); registered.add(key); }
     };

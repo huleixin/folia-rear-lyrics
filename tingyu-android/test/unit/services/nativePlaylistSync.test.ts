@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { getAudioCacheRoute, getPersistentAudioKey } from '@/services/onlineMusic/resourceKeys';
 import { shufflePlayback } from '@/services/shufflePlayback';
 import { getPlaybackSongKey } from '@/utils/appPlaybackGuards';
 
@@ -92,7 +93,7 @@ describe('nativePlaylistSync', () => {
             .toEqual(['online:qq:a', 'online:qq:b', 'online:qq:c']);
         expect(payload.mode).toBe('off');
         expect(payload.tracks[0].providerId).toBe('qq');
-        expect(payload.tracks[0].providerData).toEqual({ mediaMid: 'mm-a', fallbackArtists: ['artist'] });
+        expect(payload.tracks[0].providerData).toEqual({ mediaMid: 'mm-a', fallbackArtists: ['artist'],audioCacheRoute:getAudioCacheRoute(),audioCacheKeys:Object.fromEntries((['standard','high','lossless','hires'] as const).map(q=>[q,getPersistentAudioKey(queue[0],q)])) });
         // 契约是**毫秒**。这首歌 200 秒 → 200000ms。老测试断言 200（秒），正是因为它在
         // 保护错误的契约，真机上才一路绿灯地把卡片时长发成 200ms。
         expect(payload.tracks[0].durationMs).toBe(200_000);

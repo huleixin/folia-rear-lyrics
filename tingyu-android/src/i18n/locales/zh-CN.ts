@@ -1,7 +1,9 @@
+import {audioCacheZh} from '../audioCacheCopy';
 
 
 import {cloudFeedbackZh} from '../cloudFeedbackCopy';
 export default {
+  audioCache: audioCacheZh,
   feedbackCloud: cloudFeedbackZh,
   lyricsOutput: {"title":"桌面与车载歌词","desktop":"桌面歌词","desktopHint":"原生悬浮歌词与样式设置","bluetooth":"车载蓝牙歌词","bluetoothHint":"为选定 A2DP 设备尝试显示歌词标题","desktopStyle":"桌面歌词样式"},
   stageQuality: {"compatibilityFallback": "当前设备暂时无法绘制此场景，已保留歌词显示。", "retry": "重新加载舞台", "bandMotion": "频段动感", "bandMotionHint": "根据当前音频频段的起伏驱动霓虹、涟漪和大屏呼吸，无需在线分析。", "motionStrength": "动感强度", "preset": "歌词渲染画质", "description": "自动保留当前清晰度，根据持续帧耗时调整；高画质更精细，省电减少绘制成本。不会改变播放速度或全局帧率。", "auto": "自动", "high": "高画质", "battery": "省电", "custom": "自定义", "scope": "调整范围", "global": "全局", "follow": "跟随全局", "resolution": "画布分辨率", "antialias": "抗锯齿", "on": "开启", "off": "关闭", "aaHint": "作用于支持的画布舞台；更改抗锯齿会重新创建绘制上下文。背屏保留独立策略。"},
@@ -905,6 +907,14 @@ export default {
       "lx-auto-switch": {"title": "洛雪自动换源", "description": "切换是否使用匹配的其他平台"},
       "lx-retry": {"title": "洛雪有限重试", "description": "切换每档音质重试零次或一次"},
       "lx-default-source": {"title": "洛雪默认来源", "description": "选择声明的平台或跟随歌曲"},
+      "audio-cache": {"title": "边听边存", "description": "查看并启用离线音频缓存"},
+      "audio-cache-wifi": {"title": "仅 Wi-Fi 缓存", "description": "选择允许缓存的网络"},
+      "audio-cache-playlist": {"title": "自动缓存歌单", "description": "设置播放歌单时自动缓存整单"},
+      "audio-cache-limit": {"title": "音频缓存上限", "description": "选择音频缓存空间"},
+      "audio-cache-tasks": {"title": "缓存任务", "description": "查看进度、重试或停止缓存"},
+      "audio-cache-clear": {"title": "清空音频缓存", "description": "查看并确认清空缓存"},
+      "lx-routing": {"title": "洛雪播放优先级", "description": "选择原音源优先或自定义音源优先"},
+      "lx-backup-scripts": {"title": "洛雪备用脚本", "description": "启用备用脚本并调整顺序"},
       "lx-source-priority": {"title": "洛雪换源优先级", "description": "轮换备用平台的尝试顺序"},
       "playback-equalizer": { "title": "音频效果器", "description": "打开均衡器和效果链" },
       "playback-sound-preset-flat": { "title": "音效：水平", "description": "清空均衡器和所有效果" },

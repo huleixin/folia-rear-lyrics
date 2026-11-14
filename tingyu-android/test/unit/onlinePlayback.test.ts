@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const persistentMock=vi.hoisted(()=>vi.fn(async()=>null as {url:string;originalRecording:boolean}|null));
+vi.mock('@/services/persistentAudioCache',()=>({readPersistentAudio:persistentMock}));
+
 const cachedAudioMock = vi.hoisted(() => vi.fn());
 const songCacheMock = vi.hoisted(() => vi.fn());
 const sourceMock = vi.hoisted(() => vi.fn());
@@ -79,9 +82,22 @@ describe('online audio ReplayGain plumbing', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         cachedAudioMock.mockResolvedValue(null);
+        persistentMock.mockResolvedValue(null);
         isUrlValidMock.mockReturnValue(true);
         resetProviderPlaybackCooldowns();
         useOnlineProviderAccountStore.setState({ accounts: {} });
+    });
+
+    it('replays complete private audio before asking any provider or blob cache',async()=>{
+        persistentMock.mockResolvedValue({url:'http://127.0.0.1:1234/offline-audio/fixture',originalRecording:true});
+        const original={...song,replayGain:{trackGain:-7}};
+        expect(await loadOnlineSongAudioSource(original,'high',null)).toMatchObject({kind:'ok',audioSrc:'http://127.0.0.1:1234/offline-audio/fixture',replayGain:original.replayGain});
+        expect(sourceMock).not.toHaveBeenCalled();expect(cachedAudioMock).not.toHaveBeenCalled();
+    });
+    it('does not apply original mastering gain to a cached LX or cross-platform backup',async()=>{
+        persistentMock.mockResolvedValue({url:'http://127.0.0.1:1234/offline-audio/fixture',originalRecording:false});
+        const result=await loadOnlineSongAudioSource({...song,replayGain:{trackGain:-7}},'high',null);
+        expect(result.kind).toBe('ok');if(result.kind==='ok')expect(result.replayGain).toBeUndefined();
     });
 
     it.each([
@@ -173,6 +189,7 @@ describe('online audio source failures', () => {
         sourceMock.mockReset();
         cachedAudioMock.mockReset();
         cachedAudioMock.mockResolvedValue(null);
+        persistentMock.mockResolvedValue(null);
         isUrlValidMock.mockReturnValue(true);
         resetProviderPlaybackCooldowns();
         clearCachedSongAudioDistrust(song);
@@ -274,7 +291,7 @@ describe('online audio source failures', () => {
 
             await loadOnlineSongAudioSource(song, 'high', null, { retry: { isCurrent: () => false, onRetrying, sleep } });
 
-            expect(sourceMock).toHaveBeenCalledTimes(1);
+            expect(sourceMock).not.toHaveBeenCalled();
             expect(sleep).not.toHaveBeenCalled();
             expect(onRetrying).not.toHaveBeenCalled();
         });

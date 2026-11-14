@@ -27,7 +27,7 @@ it('does not try another platform or return an old result after a source change'
     vi.useFakeTimers();const song={id:1,name:'Song',artists:[],album:{id:1,name:''},durationMs:236000,sourceRef:{kind:'online',providerId:'qq',mediaId:'1'}} as SongResult;
     mock.match.mockResolvedValue(song);mock.request.mockImplementationOnce(async()=>{useLxSourceStore.setState({revision:72});throw Error('old source failed')});
     useLxSourceStore.setState({revision:71,scripts:[{id:'test',name:'test',code:'',version:'1',description:'',author:'',homepage:'',capabilities:{}}],activeId:'test'});
-    await expect(resolveLxSource(song,'standard')).rejects.toThrow('音源已更换');expect(mock.request).toHaveBeenCalledTimes(1);
+    await expect(resolveLxSource(song,'standard')).rejects.toMatchObject({name:'AbortError'});expect(mock.request).toHaveBeenCalledTimes(1);
 });
 it('does not retire a worker while another playback or prefetch call is still resolving',async()=>{
     vi.useFakeTimers();const song={id:1,name:'Song',artists:[],album:{id:1,name:''},durationMs:236000,sourceRef:{kind:'online',providerId:'qq',mediaId:'1'}} as SongResult;

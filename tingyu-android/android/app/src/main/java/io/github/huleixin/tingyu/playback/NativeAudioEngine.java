@@ -447,6 +447,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                     .put("proxied",proxied)
                     .put("upstreamStatus",upstreamStatusOf(error))
                     .put("urlAgeMs",adoptedAt>0?SystemClock.elapsedRealtime()-adoptedAt:-1));
+                if(recoverCachedAudio(error))return;
                 if(!desiredPaused&&NativeRetryPolicy.canRetry(error.errorCode,networkRetries)){
                     int attempt=++networkRetries;String token=sourceId;long generation=++retryGeneration;
                     PlaybackTestDiagnostics.note("network-retry",new JSObject().put("attempt",attempt).put("code",error.errorCode));
@@ -793,6 +794,39 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     /** 本会话内已对哪首歌做过音质降级（同一首只降一轮）。 */
     private String downgradeTriedKey="";
     private String backupTriedToken="";
+
+    private String cachedRetryToken="";
+    /** Invalidate a failed cached file and resolve fresh audio once; keep the existing skip policy. */
+    private boolean recoverCachedAudio(PlaybackException error){
+        final MediaItem expected=player.getCurrentMediaItem();
+        if(expected==null||expected.localConfiguration==null)return false;
+        Uri uri=expected.localConfiguration.uri;
+        AudioCacheStore cache=AudioCacheStore.peek();
+        boolean cached="file".equals(uri.getScheme())&&uri.getPath()!=null&&uri.getPath().contains("/audio-offline-v1/")
+            ||"127.0.0.1".equals(uri.getHost())&&uri.getPath()!=null&&uri.getPath().startsWith("/offline-audio/");
+        if(!cached||cache==null)return false;
+        final String target=songKey,token=sourceId,attempt=token+"|"+target;
+        final NativePlaylist.Track track=NativePlaylist.get().trackFor(target);
+        if(track==null||attempt.equals(cachedRetryToken))return false;
+        cachedRetryToken=attempt;final long generation=++retryGeneration;
+        final String quality=QualityPreference.get();
+        PlaybackRecoveryWork.start(work->main.post(work),()->{
+            try{
+                for(String q:new String[]{"standard","high","lossless","hires"})cache.invalidate(AudioCacheStore.key(track,q));
+                io.github.huleixin.tingyu.resolver.SourceResolution result=io.github.huleixin.tingyu.resolver.ResolverRegistry.get().resolve(track,quality);
+                return result.ok()?new String[]{BackgroundContinuation.get().registerForPlayback(result),result.backupProviderId}:null;
+            }catch(Exception ignored){return null;}
+        },()->generation==retryGeneration&&sourceId.equals(token)&&songKey.equals(target)&&player.getCurrentMediaItem()==expected,result->{
+            if(result==null){if(!handleUnplayableError(error)){failure=error;emit("error",false);}return;}
+            int index=Math.max(0,player.getCurrentMediaItemIndex());long position=player.getCurrentPosition();
+            JSObject tag=expected.localConfiguration.tag instanceof JSObject?copy((JSObject)expected.localConfiguration.tag):new JSObject();
+            tag.put("adoptedAt",SystemClock.elapsedRealtime());
+            if(!result[1].isEmpty()){tag.put("backupProviderId",result[1]);tag.put("replayGain",1);replayGain=1;activeDeck.processing.configure(equalizerSettings,replayGain);}
+            player.replaceMediaItem(index,expected.buildUpon().setUri(Uri.parse(result[0])).setTag(tag).build());player.seekTo(index,position);
+            failure=null;player.prepare();if(!desiredPaused)player.play();
+            PlaybackDiagnostics.note("audio-cache-recovery",new JSObject().put("code",error.errorCode));
+        });return true;
+    }
 
     /** Try the same recording on another platform once before the existing retry/skip policy. */
     private boolean recoverFromBackup(PlaybackException error) {

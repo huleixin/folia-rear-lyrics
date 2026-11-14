@@ -1,3 +1,4 @@
+import { readPersistentAudio } from './persistentAudioCache';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
 import { readSharedLyricRecord } from './sharedSongResources';
 import { useAudioToolsStore } from '../stores/useAudioToolsStore';
@@ -57,6 +58,9 @@ export async function loadOnlineSongAudioSource(
     // resourceKeys scopes custom audio by script id + quality + provider-aware song key;
     // that path explicitly excludes legacy/platform entries when a custom source is selected.
     if (!options.excludedUrls?.size && !options.bypassMediaCache && !isCachedSongAudioDistrusted(song)) {
+        const persistent=await readPersistentAudio(song,audioQuality);
+        if (!(options.isCurrent?.() ?? options.retry?.isCurrent?.() ?? true)) return {kind:'failed',failure:{reason:'unknown',stage:options.stage??'resolve-url'}};
+        if(persistent)return {kind:'ok',audioSrc:persistent.url,replayGain:persistent.originalRecording?(song.replayGain??prefetched?.replayGain??await getCachedSongReplayGain(song)):undefined};
         let cachedAudioBlob: Blob | null = null;
         try {
             cachedAudioBlob = await getCachedSongAudioBlob(song,audioQuality);

@@ -71,6 +71,7 @@ public final class LocalAudioServer {
         .followRedirects(true)
         .followSslRedirects(true)
         .build();
+    private final Map<String, File> cachedAudioFiles = new LinkedHashMap<>();
     private final Map<String, String> remoteAudioUrls = new LinkedHashMap<>();
     private final java.util.Set<String> lxAudioTokens = new java.util.HashSet<>();
     /** 转发时要额外带上的请求头（按 token 存）；没有时为 null，见 {@link #registerRemoteAudio}。 */
@@ -126,6 +127,8 @@ public final class LocalAudioServer {
         return port;
     }
 
+    public int ensureStarted()throws IOException{return start();}
+
     int getPort() {
         return port;
     }
@@ -168,6 +171,9 @@ public final class LocalAudioServer {
      * 显式打开 {@code allowPrivateHost}，因为那个域名是用户自己敲进去的。
      */
     public synchronized String registerResolvedAudio(String value, boolean allowPrivateHost) throws IOException {
+        return registerResolvedAudio(value,allowPrivateHost,null);
+    }
+    public synchronized String registerResolvedAudio(String value, boolean allowPrivateHost, Map<String,String> headers) throws IOException {
         if (!allowPrivateHost) LxAudioProxy.validate(value);
         else {
             URL url = new URL(value);
@@ -175,7 +181,22 @@ public final class LocalAudioServer {
             if (!("http".equals(url.getProtocol()) || "https".equals(url.getProtocol())) || host.isEmpty())
                 throw new IOException("Unsupported resolved audio URL");
         }
-        return registerRemoteAudio(value, null, true, false);
+        String proxy=registerRemoteAudio(value, headers, true, false);
+        io.github.huleixin.tingyu.playback.AudioCacheStore.get(context).alias(value,proxy);return proxy;
+    }
+
+    /** Only verified cache files are registered; URLs never expose private filesystem paths. */
+    public synchronized String registerCachedAudio(File file)throws IOException {
+        if(!io.github.huleixin.tingyu.playback.AudioCacheStore.get(context).containsFile(file))throw new IOException("Not a cached audio file");
+        String token=java.util.UUID.randomUUID().toString();cachedAudioFiles.put(token,file);
+        while(cachedAudioFiles.size()>128)cachedAudioFiles.remove(cachedAudioFiles.keySet().iterator().next());
+        return "http://127.0.0.1:"+start()+"/offline-audio/"+token;
+    }
+    /** Bind an already registered proxy to its actual upstream, without persisting its signed URL. */
+    public synchronized void bindCacheAlias(String url) {
+        String prefix="http://127.0.0.1:"+port+REMOTE_AUDIO_PATH_PREFIX;
+        if(url.startsWith(prefix)){String target; synchronized(remoteAudioUrls){target=remoteAudioUrls.get(url.substring(prefix.length()));}
+            if(target!=null)io.github.huleixin.tingyu.playback.AudioCacheStore.get(context).alias(url,target);}
     }
 
     /** 原生解析器登记的地址是否还在（token 未被 LRU 挤掉）。 */
@@ -300,6 +321,11 @@ public final class LocalAudioServer {
                 output.write(response.getBytes(StandardCharsets.US_ASCII));
                 output.flush();
                 return;
+            }
+            if(path.startsWith("/offline-audio/")) {
+                File file; synchronized(this){file=cachedAudioFiles.get(path.substring("/offline-audio/".length()));}
+                if(file==null||!io.github.huleixin.tingyu.playback.AudioCacheStore.get(context).containsFile(file)){writeStatus(output,404,"Not Found");return;}
+                writeResponse(output,requestParts,headers,file.length(),"application/octet-stream",()->new FileInputStream(file));return;
             }
             if (path.startsWith(REMOTE_AUDIO_PATH_PREFIX)) {
                 streamRemoteAudio(output, requestParts, headers, path.substring(REMOTE_AUDIO_PATH_PREFIX.length()));
@@ -519,11 +545,14 @@ public final class LocalAudioServer {
 
             if ("GET".equals(requestParts[0])) {
                 try (InputStream audio = body.byteStream()) {
-                    byte[] buffer = new byte[64 * 1024];
-                    int read;
-                    while ((read = audio.read(buffer)) != -1) {
-                        output.write(buffer, 0, read);
-                    }
+                    io.github.huleixin.tingyu.playback.AudioCacheStore.Sink cacheSink=null;
+                    try {
+                        long start=0,total=size;
+                        if(contentRange!=null){java.util.regex.Matcher m=java.util.regex.Pattern.compile("bytes ([0-9]+)-([0-9]+)/([0-9]+)").matcher(contentRange);if(m.matches()){start=Long.parseLong(m.group(1));total=Long.parseLong(m.group(3));}else total=-1;}
+                        if(upstream.header("Content-Encoding", "identity").equals("identity"))cacheSink=io.github.huleixin.tingyu.playback.AudioCacheStore.get(context).open(target,start,total,contentType,upstream.header("ETag","")+upstream.header("Last-Modified",""));
+                        byte[] buffer = new byte[64 * 1024];int read;
+                        while ((read = audio.read(buffer)) != -1) {if(cacheSink!=null)cacheSink.write(buffer,0,read);output.write(buffer,0,read);}
+                    }finally{if(cacheSink!=null)cacheSink.close();}
                 }
             }
             output.flush();

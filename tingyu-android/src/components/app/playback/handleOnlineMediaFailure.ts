@@ -1,3 +1,4 @@
+import { isPersistentAudioUrl, invalidatePersistentAudio } from '../../../services/persistentAudioCache';
 import type { SongResult } from '../../../types';
 import type {
     OnlineRecoveryOptions,
@@ -46,9 +47,10 @@ export const handleOnlineMediaFailure = async ({
     if (!mediaFailure) return;
 
     // 缓存 blob 解码失败时，本会话内不再信任这份缓存，刷新也绕过它直接问 provider。
-    const isBlob = failedSrc.startsWith('blob:');
+    const isBlob = failedSrc.startsWith('blob:') || isPersistentAudioUrl(failedSrc);
     if (isBlob) {
         distrustCachedSongAudio(song);
+        if(isPersistentAudioUrl(failedSrc))await invalidatePersistentAudio(song);
     }
 
     // 手动重试：跳过按媒体文件的去重再刷新一次，并回到出错时的位置。

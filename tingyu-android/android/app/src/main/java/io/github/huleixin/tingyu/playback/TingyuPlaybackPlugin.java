@@ -35,6 +35,14 @@ public final class TingyuPlaybackPlugin extends Plugin {
     private AudioCacheStaging audioStaging()throws java.io.IOException{
         if(audioStaging==null)audioStaging=new AudioCacheStaging(new java.io.File(getContext().getCacheDir(),"audio-bridge-v1"));return audioStaging;
     }
+    @PluginMethod public void audioOffline(PluginCall call){AudioCacheJobs.dispatch(getContext(),jobs->{try{
+        AudioCacheStore cache=AudioCacheStore.get(getContext());org.json.JSONObject d=call.getData();String action=call.getString("action","");
+        if("bind".equals(action)){if(!cache.route().equals(call.getString("cacheRoute",""))){call.resolve();return;}cache.bind(call.getString("url",""),call.getString("key",""),call.getString("actualSource",""),d.optLong("durationMs"),call.getString("negotiatedQuality",""));io.github.huleixin.tingyu.LocalAudioServer.shared(getContext()).bindCacheAlias(call.getString("url",""));call.resolve();return;}
+        if("lookup".equals(action)){java.io.File f=cache.lookup(call.getString("key",""));String url=f==null?"":io.github.huleixin.tingyu.LocalAudioServer.shared(getContext()).registerCachedAudio(f);call.resolve(new JSObject().put("url",url).put("info",cache.info(call.getString("key",""))));return;}
+        if("invalidate".equals(action))cache.invalidate(call.getString("key",""));
+        if("configure".equals(action))cache.configure(d);if("catalog".equals(action))jobs.catalog(d);if("enqueue".equals(action))jobs.enqueue(d.optJSONArray("tracks"),call.getString("collection","queue"),call.getString("quality","high"));else jobs.action(action);
+        call.resolve(JSObject.fromJSONObject(jobs.status()));
+    }catch(Exception e){call.reject("音频缓存暂不可用："+e.getClass().getSimpleName());}},error->call.reject("音频缓存暂不可用："+error.getClass().getSimpleName()));}
     @PluginMethod public void audioCacheBegin(PluginCall call){AUDIO_CACHE_IO.execute(()->{try{
         call.resolve(new JSObject().put("token",audioStaging().begin(call.getData().optLong("size"))));
     }catch(Exception error){call.reject("Audio cache staging unavailable");}});}
@@ -56,7 +64,7 @@ public final class TingyuPlaybackPlugin extends Plugin {
     private NativeAudioEngine engine;
     private JSObject prepared,lastState;
     private final Consumer<JSObject> events=value->{if(!"spectrum".equals(value.optString("type")))lastState=value;notifyListeners("state",value,value.optInt("status")==4&&!"spectrum".equals(value.optString("type")));};
-    @Override public void load(){if(ENABLED)PlaybackTestDiagnostics.initialize(getContext());PlaylistResourceCache cache=PlaylistResourceCache.get(getContext());cache.io.execute(cache::scheduleNext);}
+    @Override public void load(){if(ENABLED)PlaybackTestDiagnostics.initialize(getContext());PlaylistResourceCache cache=PlaylistResourceCache.get(getContext());cache.io.execute(cache::scheduleNext);AudioCacheJobs.dispatch(getContext(),AudioCacheJobs::schedule);}
     private final Consumer<JSObject> sleepEvents=value->notifyListeners("sleepTimerStateChanged",value);
     @PluginMethod public void compatiblePlayback(PluginCall call){getActivity().runOnUiThread(()->{try{
         SleepTimerController timer=SleepTimerController.get(getContext());timer.observe(sleepEvents);
@@ -299,7 +307,7 @@ public final class TingyuPlaybackPlugin extends Plugin {
      * <p>抽出来是因为"当前之后的顺序"与"上一首"必须按同一套字段解析 —— 两条路径各写一遍
      * 就是这个工程里已经踩过的坑（毫秒/秒、artwork 字段读错都发生在重复的解析里）。
      */
-    private static NativePlaylist.Track trackOf(org.json.JSONObject raw){
+    static NativePlaylist.Track trackOf(org.json.JSONObject raw){
         if(raw==null)return null;
         String songKey=raw.optString("songKey","");
         if(songKey.isEmpty())return null;
@@ -410,10 +418,10 @@ public final class TingyuPlaybackPlugin extends Plugin {
      * 绝不记录脚本内容，只记名字与体积。
      */
     @PluginMethod public void setLxScript(PluginCall call){
-        if(!ENABLED){call.reject("原生播放通道暂未启用");return;}
-        try{
+        AudioCacheJobs.dispatch(getContext(),jobs->{try{
             io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.attach(getContext().getApplicationContext());
             org.json.JSONObject data=call.getData();
+            jobs.sourceChanged(call.getString("cacheRoute",""));
             String code=data==null?"":String.valueOf(data.opt("code"));
             boolean installed=io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.install(
                 data==null?"":String.valueOf(data.opt("id")),
@@ -423,6 +431,7 @@ public final class TingyuPlaybackPlugin extends Plugin {
                 data==null?"":String.valueOf(data.opt("author")),
                 data==null?"":String.valueOf(data.opt("homepage")),
                 "null".equals(code)?"":code, data==null?"{}":data.optString("policy","{}"));
+            io.github.huleixin.tingyu.lx.LxScriptChain.INSTANCE.install(data==null?null:data.optJSONArray("fallbackScripts"));
             // 脚本换了，之前"这首取不到"的判定不再适用：清掉续播的有界预算。
             BackgroundContinuation.get().resetBudgets();
             // 预热：前台就把 QuickJS 拉起来。后台真要取地址时引擎已经是热的，
@@ -442,7 +451,7 @@ public final class TingyuPlaybackPlugin extends Plugin {
             warmer.start();
             call.resolve(new JSObject().put("installed",installed).put("warming",installed));
         }
-        catch(Exception error){call.reject("安装音源脚本失败："+error.getClass().getSimpleName());}
+        catch(Exception error){call.reject("安装音源脚本失败："+error.getClass().getSimpleName());}},error->call.reject("安装音源脚本失败："+error.getClass().getSimpleName()));
     }
 
     @PluginMethod public void validateLxScript(PluginCall call) {
