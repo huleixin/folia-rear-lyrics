@@ -83,6 +83,7 @@ fun MinimalTransport(
     onPrevious: (() -> Boolean)? = null,
     onNext: (() -> Boolean)? = null,
     modifier: Modifier = Modifier,
+    onMoreAnchor: ((androidx.compose.ui.geometry.Rect) -> Unit)? = null,
 ) {
     val live = commands.available && !controls.disabled
     Column(modifier.fillMaxWidth().padding(horizontal = 26.dp)) {
@@ -115,6 +116,7 @@ fun MinimalTransport(
             sleepLabel = sleepLabel,
             onSleepAnchor = onSleepAnchor,
             onOpenMore = onOpenMore,
+            onMoreAnchor = onMoreAnchor,
             moreMenu = moreMenu,
         )
     }

@@ -28,7 +28,7 @@ class LyricsFullScreenSettingsTest {
     @Test fun pagesCoverWindowAcrossThemesAndRetainBack(){
         LyricsPreferences.get(compose.activity).update{LyricsPreferencesState()}
         var page by mutableStateOf(0);var palette by mutableStateOf(InterfacePalette(true,"classic"));var backs=0
-        compose.setContent{CompositionLocalProvider(LocalInterfacePalette provides palette,LocalChromeRendering provides false){
+        compose.setContent{CompositionLocalProvider(LocalInterfacePalette provides palette,LocalChromeRendering provides false,LocalSettingsSafeInsets provides SettingsSafeInsets(32f,24f)){
             Box(Modifier.fillMaxSize()){key(page){
                 when(page){
                     0->LyricsSettingsSheet(compose.activity,onClose={backs++})
@@ -44,6 +44,8 @@ class LyricsFullScreenSettingsTest {
             val frame=compose.onNodeWithTag("native-settings-fullscreen").fetchSemanticsNode().boundsInRoot
             val root=compose.onRoot().fetchSemanticsNode().boundsInRoot
             assertEquals(root.width,frame.width,.1f);assertEquals(root.height,frame.height,.1f)
+            val back=compose.onNodeWithContentDescription("返回").fetchSemanticsNode().boundsInRoot
+            assertTrue("consumed WindowInsets must still honor host status bar",back.top>=48f)
             compose.runOnIdle{
                 val view=compose.activity.window.decorView;val bitmap=Bitmap.createBitmap(view.width,view.height,Bitmap.Config.ARGB_8888);view.draw(Canvas(bitmap))
                 val f=File("build/reports/lyrics-fullscreen/$theme-$light-$index.png");f.parentFile!!.mkdirs();f.outputStream().use{bitmap.compress(Bitmap.CompressFormat.PNG,100,it)};bitmap.recycle()

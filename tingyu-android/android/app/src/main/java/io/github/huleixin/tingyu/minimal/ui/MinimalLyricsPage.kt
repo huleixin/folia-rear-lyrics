@@ -134,7 +134,7 @@ fun MinimalLyricsPage(
     val playback = state.playback
     val lyrics = state.lyrics
     Column(modifier.fillMaxSize()) {
-        Header(playback, artwork, ink)
+        if(!io.github.huleixin.tingyu.chrome.LocalPadWindow.current.splitPlayer)Header(playback, artwork, ink)
         Box(Modifier.fillMaxWidth().weight(1f)) {
             when {
                 lyrics.status == MinimalLyricsStatus.NONE -> CenteredHint("这首歌没有同步歌词", ink)

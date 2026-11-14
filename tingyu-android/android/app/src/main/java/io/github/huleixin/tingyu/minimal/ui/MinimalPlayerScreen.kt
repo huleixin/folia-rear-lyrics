@@ -50,6 +50,18 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import io.github.huleixin.tingyu.chrome.liquidPlayerContent
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -185,6 +197,7 @@ fun MinimalPlayerScreen(
     val scope = rememberCoroutineScope()
     val page = pagerState.currentPage
     var menuOpen by remember { mutableStateOf(false) }
+    var moreAnchor by remember { mutableStateOf(Rect.Zero) }
     // 保留弹窗直到退场动画完成；封面和歌词页共用同一个菜单。
     var menuClosing by remember { mutableStateOf(false) }
     val dismissMenu = { menuClosing = true; menuOpen = false }
@@ -301,7 +314,7 @@ fun MinimalPlayerScreen(
                             onOpenArtist={commands.openArtist(it)},coverGesture=Modifier.coverStackDrag(coverStackState,coverController),modifier=Modifier.weight(1f))
                         MinimalTransport(playback=playback,controls=state.controls,clock=clock,ink=ink,accent=Color(palette.accent),commands=sheetCommands,light=!dark,
                             onOpenSleep=onOpenSleep,sleepActive=sleepActive,sleepLabel=sleepLabel,onSleepAnchor=onSleepAnchor,
-                            onOpenMore={menuOpen=true;menuClosing=false},moreMenu={},onPrevious={coverController.skip(DragDirection.PREV)},onNext={coverController.skip(DragDirection.NEXT)})
+                            onOpenMore={menuOpen=true;menuClosing=false},onMoreAnchor={moreAnchor=it},moreMenu={},onPrevious={coverController.skip(DragDirection.PREV)},onNext={coverController.skip(DragDirection.NEXT)})
                     }
                     Box(Modifier.weight(1.3f).padding(horizontal=22.dp)){
                         MinimalLyricsPage(state,artwork,palette,ink,clock,active=!detour,pagerBusy=false,onSeek={commands.seekTo(it)})
@@ -392,6 +405,8 @@ fun MinimalPlayerScreen(
                 effectsOn = state.controls.effectsOn,
                 shown = menuOpen,
                 safeBottom = safeBottom,
+                safeTop = safeTop,
+                anchor = moreAnchor.takeIf{padSplit&&it.width>0f},
                 onExited = { menuClosing = false },
                 onDismiss = dismissMenu,
                 onPick = { pick ->
@@ -494,11 +509,13 @@ private fun TopBar(
  * `onExited` 摘除。
  */
 @Composable
-private fun MoreMenu(
+internal fun MoreMenu(
     qualityMode: String,
     effectsOn: Boolean,
     shown: Boolean,
     safeBottom: Float,
+    safeTop: Float = 0f,
+    anchor: Rect? = null,
     onExited: () -> Unit,
     onDismiss: () -> Unit,
     onPick: (Int) -> Unit,
@@ -516,7 +533,18 @@ private fun MoreMenu(
             onExited()
         }
     }
-    Box(Modifier.fillMaxSize().zIndex(5f)) {
+    val density=LocalDensity.current
+    var origin by remember{mutableStateOf(Offset.Zero)}
+    var panelSize by remember{mutableStateOf(IntSize.Zero)}
+    BoxWithConstraints(Modifier.fillMaxSize().zIndex(5f).onGloballyPositioned{origin=it.positionInRoot()}) {
+        val viewport=IntSize(constraints.maxWidth,constraints.maxHeight)
+        val anchored=if(anchor!=null)Modifier.offset{
+            minimalMoreMenuPosition(anchor.translate(-origin),panelSize,viewport,
+                with(density){safeTop.dp.roundToPx()},with(density){safeBottom.dp.roundToPx()},
+                with(density){12.dp.roundToPx()},with(density){8.dp.roundToPx()})
+        }.widthIn(max=(maxWidth-24.dp).coerceAtLeast(0.dp))
+            .heightIn(max=(maxHeight-safeTop.dp-safeBottom.dp-24.dp).coerceAtLeast(0.dp))
+        else Modifier.align(Alignment.BottomEnd).padding(end=18.dp,bottom=(safeBottom+64f).dp)
         if (shown) {
             Box(
                 Modifier
@@ -532,12 +560,10 @@ private fun MoreMenu(
         // 运动只动这一层 graphicsLayer：位移/缩放/透明度都是渲染线程的图层属性，
         // 不触发面板重绘，更不触发面板重新排版。
         Box(
-            Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 18.dp, bottom = (safeBottom + 64f).dp)
+            anchored.testTag("minimal-more-menu").onSizeChanged{panelSize=it}
                 .graphicsLayer {
                     val p = progress.value.coerceIn(0f, 1.08f)
-                    alpha = (p * 1.35f).coerceIn(0f, 1f)
+                    alpha = if(anchor!=null&&panelSize==IntSize.Zero)0f else (p * 1.35f).coerceIn(0f, 1f)
                     translationY = 14.dp.toPx() * (1f - p)
                     val scale = 0.84f + 0.16f * p
                     scaleX = scale
@@ -545,7 +571,7 @@ private fun MoreMenu(
                     transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.92f, 1f)
                 },
         ) {
-            MoreMenuPanel(qualityMode, effectsOn, onPick)
+            Box(if(anchor!=null)Modifier.verticalScroll(rememberScrollState())else Modifier){MoreMenuPanel(qualityMode, effectsOn, onPick)}
         }
     }
 }

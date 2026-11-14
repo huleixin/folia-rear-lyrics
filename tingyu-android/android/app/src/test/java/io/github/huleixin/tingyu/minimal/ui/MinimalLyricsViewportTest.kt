@@ -27,6 +27,18 @@ class MinimalLyricsViewportTest {
     )
     private val commands=BridgeMinimalCommands(MinimalCommandSender{_,_->true}){true}
 
+    @Test fun phoneAndPortraitKeepHeaderWhileLandscapePadDropsDuplicate(){
+        val window=mutableStateOf(io.github.huleixin.tingyu.chrome.PadWindow(393f,852f))
+        compose.setContent{androidx.compose.runtime.CompositionLocalProvider(io.github.huleixin.tingyu.chrome.LocalPadWindow provides window.value){
+            MinimalLyricsPage(state,MinimalArtwork(),buildMinimalPalette(null,false),minimalInk(false),mutableLongStateOf(0),true,false,{})
+        }}
+        compose.onNodeWithText("Long song").assertExists()
+        compose.runOnIdle{window.value=io.github.huleixin.tingyu.chrome.PadWindow(800f,1280f)}
+        compose.onNodeWithText("Long song").assertExists()
+        compose.runOnIdle{window.value=io.github.huleixin.tingyu.chrome.PadWindow(1280f,800f)}
+        compose.onNodeWithText("Long song").assertDoesNotExist()
+    }
+
     @Test fun onlyViewportRowsAreComposedAndClickStillSeeks() {
         var seek=-1.0
         compose.setContent {

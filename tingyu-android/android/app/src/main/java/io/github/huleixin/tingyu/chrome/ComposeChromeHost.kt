@@ -188,7 +188,23 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         sleepMenuOpen = true
         return true
     }
-    private var supportSheet by mutableStateOf<String?>(null)
+    private var nativeSettings by mutableStateOf<NativeSettingsDestination?>(null)
+    private var nativeSettingsLayerHeld by mutableStateOf(false)
+    private val releaseNativeSettingsLayer=Runnable{nativeSettingsLayerHeld=false}
+    private fun showNativeSettings(value:NativeSettingsDestination){
+        web.removeCallbacks(releaseNativeSettingsLayer);nativeSettingsLayerHeld=true;nativeSettings=value
+    }
+    private fun closeNativeSettings(){
+        if(nativeSettings==null)return
+        nativeSettings=null
+        web.removeCallbacks(releaseNativeSettingsLayer)
+        web.postDelayed(releaseNativeSettingsLayer,if(reducedMotion)0L else TingYuMotion.PushMs.toLong())
+    }
+    fun openLyricsSettings(mode:String):Boolean {
+        if(!active||!focused||host?.isAttachedToWindow!=true||pendingStageEntry||stageExit.active)return false
+        showNativeSettings(NativeSettingsDestination(if(mode=="bluetooth")"bluetooth"else"desktop"))
+        return true
+    }
     private var supportCopyJson by mutableStateOf<String?>(null)
     /**
      * 二级操作面板（原生化专项·第 21 轮）：歌曲 ⋯ / 歌单 ⋯ / 音源选择 / 本地文件操作等
@@ -477,7 +493,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // 二级面板跟着它所属的页面走：路由一变就收起。面板里的动作对象（歌曲、集合）
         // 属于上一页的上下文，继续挂着只会让用户点到一个已经失效的目标。
         if(routeChanged && panelHost.panel != null) panelHost.dismissFromHost()
-        if(routeChanged && supportSheet != null) supportSheet = null
+        if(routeChanged){nativeSettings=null;nativeSettingsLayerHeld=false;web.removeCallbacks(releaseNativeSettingsLayer)}
         syncWebBackground()
         pageTarget=value.optString("pageTarget");entryKey=value.optString("entryKey");reducedMotion=value.optBoolean("reducedMotion")
         navigation=value.optString("navigation")
@@ -493,7 +509,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     private var active by mutableStateOf(true)
     private var focused by mutableStateOf(true)
     fun windowFocusChanged(value:Boolean){focused=value;host?.invalidate()}
-    fun requiresWebBack():Boolean=pendingStageEntry||destination!="home"||selectedTab!=0||webOverlay||stageExit.active
+    fun requiresWebBack():Boolean=nativeSettingsLayerHeld||pendingStageEntry||destination!="home"||selectedTab!=0||webOverlay||stageExit.active
     private var host: ComposeView? = null
     private var parent: ViewGroup? = null
     private var params: ViewGroup.LayoutParams? = null
@@ -769,14 +785,14 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         // （active=false）都会让这个表达式变 false → 立即释放，交还系统自动息屏规则。
         // 与全局「屏幕常亮」不冲突：两个来源都交给 NativeKeepScreenOn 统一裁决（or 关系）。
         val lyricsKeepOn = minimalLyricsKeepOnEnabled && minimalOwns && minimalCurrentPage == 1 &&
-            active && focused && !webOverlay && !stageExit.active
+            active && focused && !webOverlay && !stageExit.active && nativeSettings==null
         SideEffect {
             val hostActivity = web.context as? android.app.Activity
             if (hostActivity != null) io.github.huleixin.tingyu.NativeKeepScreenOn.attach(hostActivity)
             io.github.huleixin.tingyu.NativeKeepScreenOn.setLyrics(lyricsKeepOn)
             (hostActivity as? io.github.huleixin.tingyu.MainActivity)?.setLyricStageVisible(
                 stageDisplayActive && destination=="stage" && active && focused && !webOverlay &&
-                    !stageExit.active && panelHost.panel==null && supportSheet==null && !sleepMenuOpen && !queueOpen
+                    !stageExit.active && panelHost.panel==null && nativeSettings==null && !sleepMenuOpen && !queueOpen
             )
         }
         val nativeMinimalCollapse=stageExit.active&&stageExit.minimal
@@ -796,7 +812,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val brandAlpha = brandLaunchAlpha(brandLaunch, (page != null || minimalOwns) && startupWarmupDone,
             reducedMotion || brandLaunch.reduced, web,
             webContentReady = webOverlay || destination=="web" || destination=="stage"&&!composeOwnsMinimalEntry)
-        val settingsRoot = NativeFooterLayout.settingsRoot(destination,pageTarget,settingsRootRequested)
+        val settingsRoot = !nativeSettingsLayerHeld&&NativeFooterLayout.settingsRoot(destination,pageTarget,settingsRootRequested)
         // pendingStageEntry 不再抽走底栏：极简入场时它们会被页面自然覆盖；
         // 经典 WebView 舞台入场仍在 commit 时按路由规则收起。
         val displayedSurfaces=if(settingsHandoff!=null&&handoffFooter!=null)
@@ -973,7 +989,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     BrandLaunchSurface(palette = palette, reduced = reducedMotion || brandLaunch.reduced)
                 }
                 }
-            Box(Modifier.fillMaxSize().zIndex(if(destination!="stage")1f else 0f).then(if(legacySampling&&Build.VERSION.SDK_INT>=31&&graphics.sampleStage(destination))Modifier.layerBackdrop(backdrop)else Modifier)) {
+            Box(Modifier.fillMaxSize().zIndex(if(nativeSettingsLayerHeld)8f else if(destination!="stage")1f else 0f).then(if(legacySampling&&Build.VERSION.SDK_INT>=31&&graphics.sampleStage(destination))Modifier.layerBackdrop(backdrop)else Modifier)) {
                 Box(Modifier.fillMaxSize().zIndex(1f).then(if(!legacySampling&&Build.VERSION.SDK_INT>=31)Modifier.layerBackdrop(backdrop)else Modifier)) {
                 if(page==null&&firstHomeFrame&&destination=="home")NativePageView(bootPage,Modifier.fillMaxSize().zIndex(1f)){_,_,_->}
                 // One route-level animation, with no HTML exit animation or full-screen blur.
@@ -985,7 +1001,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 // 这些页面全是整屏，结构上绝不该缩放；sizeAnimationSpec 返回 null 即无尺寸动画。
                 androidx.compose.animation.SharedTransitionLayout {
                 val sharedScope=this
-                AnimatedContent(if(destination=="stage"&&playerReady&&!stageExit.active)null else page,modifier=Modifier.fillMaxSize().zIndex(1f),contentKey={it?.let{NativeMotionPolicy.pageRouteKey(it.key)}?:"stage"},
+                AnimatedContent(nativeSettings?.page(page?:bootPage,width,height)?:if(destination=="stage"&&playerReady&&!stageExit.active)null else page,modifier=Modifier.fillMaxSize().zIndex(1f),contentKey={it?.let{NativeMotionPolicy.pageRouteKey(it.key)}?:"stage"},
                     transitionSpec={
                         // 转场只认**路由**，不认模型 key：home/library/search 的模型 key 带着会变的
                         // 数据身份（音源、歌单 id），按它建内容实例会同时存在两份首页，旧的那份
@@ -998,7 +1014,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         val position=tween<IntOffset>(TingYuMotion.PushMs,easing=ease)
                         val opaqueSettingsEntry=from=="stage"&&to.startsWith("settings:")&&(stageVisible||settingsDrawHandoff!=null)
                         val minimalSettingsReturn=returningFromSettings&&playerPresentation=="minimal"&&!stageVisible
-                        (when(NativeMotionPolicy.kind(from,to,backwards,motionReduced||(returningFromSettings&&!minimalSettingsReturn)||opaqueSettingsEntry||stageExit.suppressReturnMotion&&from=="stage")){
+                        (when(NativeMotionPolicy.kind(from,to,NativeSettingsDestination.returning(from,to,backwards),motionReduced||(returningFromSettings&&!minimalSettingsReturn)||opaqueSettingsEntry||stageExit.suppressReturnMotion&&from=="stage")){
                             NativeMotionKind.NONE->EnterTransition.None togetherWith ExitTransition.None
                             NativeMotionKind.STAGE->when {
                                 from=="stage"&&to.startsWith("settings:")&&!opaqueSettingsEntry ->
@@ -1017,6 +1033,12 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 // SizeTransform 没有尺寸差可动画，首页退场就不会被缩成小卡片（拖影）。
                 if(shown==null){Box(Modifier.fillMaxSize())}
                 if(shown!=null) {
+                    val nativeKind=NativeSettingsDestination.fromKey(shown.key)
+                    if(nativeKind!=null){
+                        CompositionLocalProvider(LocalSettingsSafeInsets provides SettingsSafeInsets(safeTop,safeBottom)){
+                            NativeSettingsContent(nativeKind,web.context as android.app.Activity,shown.subtitle){closeNativeSettings()}
+                        }
+                    }else{
                     val coverRoute=NativeMotionPolicy.pageRouteKey(shown.key)
                     val coverDestination=remember(coverRoute){coverSelection.enter(coverRoute,backwards)}
                     CompositionLocalProvider(LocalCoverScope provides CoverScope(sharedScope,this,coverRoute,coverSelection,coverDestination),LocalDetailReveal provides rememberDetailReveal(this)) {
@@ -1054,6 +1076,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             if(active&&!pendingStageEntry&&destination=="collection"&&selectedTab==1&&library?.enabled==true&&shownLibrary!=null&&pageInteractionIsCurrent(library,shownLibrary)&&pageNavigations["home"]==navigation)
                                 pageListener?.onAction("home",library.session,library.key,action,text,value)
                         }){action,text,value->
+                            if(nativeSettingsLayerHeld)return@NativePageView
                             val current=pages[shown.id]
                             val reason=when {
                                 !active->"host-inactive"
@@ -1074,7 +1097,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             // Support sheets are fully native: intercept before the JS action bus.
                             if(action.startsWith("support:")){
                                 supportCopyJson=pages[shown.id]?.sections?.firstOrNull{it.id=="support"}?.text
-                                supportSheet=action.removePrefix("support:");return@NativePageView
+                                showNativeSettings(NativeSettingsDestination(action.removePrefix("support:"),supportCopyJson));return@NativePageView
                             }
                             pageListener?.onAction(shown.id,shown.session,shown.key,action,text,value)
                         }
@@ -1084,7 +1107,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 }
                 }
             }
-            } } // Shared route scope and per-route cover identity.
+            } } } // Shared route scope and per-route cover identity.
             if(firstHomeFrame&&destination=="home"&&!webOverlay) {
                 LaunchedEffect(Unit){withFrameNanos{NavigationTiming.mark("cached-shell-frame-boundary")}}
             }
@@ -1171,7 +1194,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         }
                     }
                     val actions: (String,Double)->Unit = actions@ { action,value ->
-                        if(settingsHandoff!=null)return@actions
+                        if(settingsHandoff!=null||nativeSettingsLayerHeld)return@actions
                         if(id=="stage"&&surface.controlsHidden)return@actions
                         if(NativeFooterLayout.imeHides(id,width,footerHiddenForIme))return@actions
                         if(id=="nav"&&destination=="settings"&&!settingsRoot)return@actions
@@ -1416,7 +1439,6 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 MiniSleepMenu(sleepUi,safeTop,safeBottom,interfaceLight,
                     preferredMinutes=surfaces["mini"]?.sleepPreferredMinutes?:30,reduced=reducedMotion){sleepMenuOpen=false}
             }
-            SupportSheetLayer(supportSheet,supportCopyJson,interfaceLight){supportSheet=null}
             // 二级操作面板：盖在底栏/迷你播放器/极简页之上，任何路由都可呈现。
             TyPanelLayer(panelHost,interfaceLight,Modifier.fillMaxSize().zIndex(9f))
             }
@@ -1425,6 +1447,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     fun destroy() {
         settingsHandoff?.complete();settingsHandoff=null;handoffFooter=null
         settingsDrawHandoff?.complete();settingsDrawHandoff=null
+        nativeSettings=null;nativeSettingsLayerHeld=false;web.removeCallbacks(releaseNativeSettingsLayer)
         sleepMenuOpen=false;sleepMenuAnchor=null;minimalSleepAnchor=androidx.compose.ui.geometry.Rect.Zero
         routeFence.close()
         webSamplingLayer.close()

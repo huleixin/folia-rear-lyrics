@@ -25,6 +25,7 @@ React 负责数据、路由、业务动作与原生桥接；Compose 负责绘制
 | 搜索 | `chrome/NativeSearchPage.kt` | `components/app/search/useNativeSearchPage.ts` | `chrome/NativeSearchPage.kt`、`chrome/NativePageInput.kt` |
 | 设置索引 / 背屏控制 | `chrome/NativeSettingsPage.kt` / `NativeRearControlPage.kt` | `components/modal/settings/useNativeSettingsPage.ts` | 对应 kt |
 | 设置二级页（语义化，已迁移分区） | `chrome/SettingsFlowPage.kt`（底色 + 毛玻璃顶栏）+ `chrome/TySettings.kt`（内容） | `components/modal/settings/flow/*`（声明式模型）→ `hooks/useNativeSettingsDocument.ts` 的 `flow` 参数 | `chrome/SettingsFlowPage.kt`、`chrome/TySettings*.kt`；**不消费任何 DOM 矩形** |
+| 桌面/车载歌词、咖啡支持、交流群 | `chrome/NativeSettingsDestination.kt` + `SettingsFullScreenFrame.kt`；同宿主路由转场 | 歌词设置沿用原生配置；支持页由原生设置动作打开 | `chrome/LyricsSettingsSheet.kt`、`BluetoothLyricsSettingsSheet.kt`、`SupportSheets.kt`；不得另开设置 Dialog |
 | 历史设置显示列表兼容（当前路由不再生产） | `chrome/NativeSettingsDocumentView.kt`（显示列表复刻） | `services/nativeSettingsDocument.ts`、`hooks/useNativeSettingsDocument.ts` | `chrome/NativeSettingsDocument*.kt`；**DOM 是排版真值源，只改样式不改结构** |
 | 二级操作面板（歌曲 ⋯ / 歌单 ⋯ / 音源选择…） | `chrome/TyPanel.kt` + `TyPanelHost.kt` | `library/suites/mobile/native/OperationPanel.tsx`（声明式模型） | `chrome/TyPanel*.kt` |
 | 极简播放器 | `minimal/ui/MinimalPlayerScreen.kt` | `hooks/useNativeMinimalPlayer.ts`、`AppOverlays.tsx` | `minimal/ui/`、`minimal/` |

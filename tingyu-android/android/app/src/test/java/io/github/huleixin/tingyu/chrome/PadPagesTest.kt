@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -75,16 +78,26 @@ class PadPagesTest {
         val state=MinimalPlayerState(playback=MinimalPlayback(track=track,anchorPositionMs=4000,source=MinimalClockSource.ENGINE),lyrics=lyrics,controls=MinimalControls(bound=true,canNext=true,canPrevious=true))
         val commands=BridgeMinimalCommands({action,_->events+=action;true},{true})
         compose.setContent{CompositionLocalProvider(LocalPadWindow provides PadWindow(1280f,800f),LocalInterfacePalette provides InterfacePalette(true,"glacier")){
-            MinimalPlayerScreen(state,MinimalArtwork(),commands,light=true,safeTop=24f,safeBottom=0f,detour=false,onCollapse={},onOpenStage={events+="full-stage"})
+            MinimalPlayerScreen(state,MinimalArtwork(),commands,light=true,safeTop=24f,safeBottom=0f,detour=false,onCollapse={},onOpenStage={events+="full-stage"},onOpenTools={events+="tool:$it"})
         }}
         compose.mainClock.advanceTimeByFrame();compose.mainClock.advanceTimeByFrame()
         shot("player-landscape")
         val cover=compose.onNodeWithContentDescription("专辑封面").fetchSemanticsNode().boundsInRoot
         val root=compose.onRoot().fetchSemanticsNode().boundsInRoot
         assertEquals("large cover centered in left player pane",root.width/2.3f/2f,cover.center.x,2f)
-        compose.onAllNodesWithText("陪我看日出").assertCountEquals(2)
+        compose.onAllNodesWithText("陪我看日出").assertCountEquals(1)
         compose.onNodeWithText("雨过了就有路").assertExists()
         compose.onNodeWithContentDescription("打开完整歌词舞台").performClick();assertEquals("full-stage",events.last())
+        compose.onNodeWithContentDescription("更多").performTouchInput{click()}
+        compose.mainClock.advanceTimeBy(1000)
+        val more=compose.onNodeWithContentDescription("更多").fetchSemanticsNode().boundsInRoot
+        val menu=compose.onNodeWithTag("minimal-more-menu").fetchSemanticsNode().boundsInRoot
+        assertTrue("menu stays beside the left-pane button",menu.right<root.width/2f)
+        assertEquals(more.right,menu.right,3f)
+        assertTrue("menu opens above the button",menu.bottom<=more.top)
+        shot("player-landscape-more-anchored")
+        compose.onNodeWithText("音质选择").performTouchInput{click()}
+        assertEquals("tool:quality",events.last())
     }
     @Test fun libraryPanesKeepIndependentActions(){
         val directory=page("home","library:qq:playlist",listOf(section("directory","rows","我的歌单",listOf(row("open:one","测试歌单")))))

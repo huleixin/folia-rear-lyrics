@@ -22,8 +22,9 @@ import androidx.compose.ui.unit.sp
     BackHandler{onClose()}
     val colors=LocalInterfacePalette.current.settingsBackgrounds
     val density=LocalDensity.current
-    val top=WindowInsets.statusBars.getTop(density)/density.density
-    val bottom=WindowInsets.navigationBars.getBottom(density)/density.density
+    val safe=LocalSettingsSafeInsets.current
+    val top=safe?.top?:WindowInsets.safeDrawing.getTop(density)/density.density
+    val bottom=safe?.bottom?:WindowInsets.safeDrawing.getBottom(density)/density.density
     val glass=rememberTyTopGlassState(estimateHeaderBottomDp=top+96f)
     Box(Modifier.fillMaxSize().testTag("native-settings-fullscreen").pointerInput(Unit){detectTapGestures(onTap={})}){
         TyTopGlassContentLayer(glass,colors,null,null,Modifier.fillMaxSize()){

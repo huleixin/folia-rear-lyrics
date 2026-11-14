@@ -55,6 +55,7 @@ internal fun MinimalPlayerTools(
     onSleepAnchor: ((Rect) -> Unit)?,
     onOpenMore: () -> Unit,
     moreMenu: @Composable () -> Unit,
+    onMoreAnchor: ((Rect) -> Unit)? = null,
 ) {
     var hint by remember { mutableStateOf<String?>(null) }
     var lastMode by remember { mutableStateOf(controls.mode) }
@@ -95,7 +96,8 @@ internal fun MinimalPlayerTools(
                 }
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                TransportButton("更多", live, ink, 48.dp, onOpenMore, onLongClick = { commands.toggleDiagBadge() }) {
+                TransportButton("更多", live, ink, 48.dp, onOpenMore, onLongClick = { commands.toggleDiagBadge() },
+                    modifier=Modifier.onGloballyPositioned{onMoreAnchor?.invoke(it.boundsInRoot())}) {
                     Canvas(Modifier.size(22.dp)) {
                         val u = size.minDimension / 22f
                         listOf(5f, 11f, 17f).forEach { dot -> drawCircle(ink.ink, 1.7f * u, Offset(dot * u, 11f * u)) }
