@@ -154,3 +154,14 @@ cap:sync:android 自动执行现有 Lucide 导出脚本，同步真实安装版�
 已查看原生截图确认三项图标可见。测试仍跳过底层 Haze 设置顶栏，不能代表实机毛玻璃、
 播放中上传或厂商背屏行为。版本已按发布脚本递增为 1.5.41 / versionCode 256。
 用户本次明确授权在云端可读取后生成正式签名安装包并发布到 GitHub。
+
+正式包已完成全新 Web 资产构建、Capacitor 同步及 assembleRelease；未使用旧资产绕过参数。
+APK 源码 commit：637102a9e16b3dc80d49d6d5a6ddeb4525466524，Build ID：1.5.41@637102a9。
+原签名 SHA256 保持 a36ef2a5324b55d1b8469bd83b081f43ec9c9ce563f0e6cf67567f8ece02249d。
+包内原生三项图标、Build ID 和真实 read/admin 凭据未泄露检查通过。
+
+正式 Release：https://github.com/huleixin/folia-rear-lyrics/releases/tag/v1.5.41
+APK：https://github.com/huleixin/folia-rear-lyrics/releases/download/v1.5.41/tingyu-1.5.41.apk
+本机：C:/Users/DELL/Documents/Codex/2026-11-10/hze/outputs/tingyu-1.5.41-release/tingyu-1.5.41.apk
+大小 57,364,080 字节；SHA256：1dd5e9d48fbf9fe0988ac24b896b7316ba200a6ca94e31af5b75b0ecac5c1c8b。
+prerelease=false，GitHub 公开附件重新下载后大小与 SHA256 均一致；没有覆盖此前测试附件。
