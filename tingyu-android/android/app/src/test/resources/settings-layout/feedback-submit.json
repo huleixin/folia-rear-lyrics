@@ -3,17 +3,17 @@
   "title": "问题反馈",
   "nodes": [
     {
-      "id": "form:4:text:0",
+      "id": "form:62:text:0",
       "kind": "note",
       "title": "告诉我们遇到了什么问题。"
     },
     {
-      "id": "form:5:text:1",
+      "id": "form:63:text:1",
       "kind": "note",
       "title": "问题类型"
     },
     {
-      "id": "form:6",
+      "id": "form:64",
       "kind": "action",
       "title": "闪退或卡死",
       "value": "",
@@ -30,7 +30,7 @@
       "detail": "✓"
     },
     {
-      "id": "form:7",
+      "id": "form:65",
       "kind": "action",
       "title": "播放异常",
       "value": "",
@@ -46,7 +46,7 @@
       "confirmLabel": "undefined"
     },
     {
-      "id": "form:8",
+      "id": "form:66",
       "kind": "action",
       "title": "播放卡顿",
       "value": "",
@@ -62,7 +62,7 @@
       "confirmLabel": "undefined"
     },
     {
-      "id": "form:9",
+      "id": "form:67",
       "kind": "action",
       "title": "歌词问题",
       "value": "",
@@ -78,7 +78,7 @@
       "confirmLabel": "undefined"
     },
     {
-      "id": "form:10",
+      "id": "form:68",
       "kind": "action",
       "title": "界面显示问题",
       "value": "",
@@ -94,7 +94,7 @@
       "confirmLabel": "undefined"
     },
     {
-      "id": "form:11",
+      "id": "form:69",
       "kind": "action",
       "title": "背屏或灵动岛问题",
       "value": "",
@@ -110,7 +110,7 @@
       "confirmLabel": "undefined"
     },
     {
-      "id": "form:12",
+      "id": "form:70",
       "kind": "action",
       "title": "Pad适配异常",
       "value": "",
@@ -126,7 +126,7 @@
       "confirmLabel": "undefined"
     },
     {
-      "id": "form:13",
+      "id": "form:71",
       "kind": "action",
       "title": "本地音乐异常",
       "value": "",
@@ -142,7 +142,7 @@
       "confirmLabel": "undefined"
     },
     {
-      "id": "form:14",
+      "id": "form:72",
       "kind": "action",
       "title": "其他问题",
       "value": "",
@@ -158,22 +158,22 @@
       "confirmLabel": "undefined"
     },
     {
-      "id": "form:15:text:11",
+      "id": "form:73:text:11",
       "kind": "note",
       "title": "问题描述"
     },
     {
-      "id": "form:16:text:12",
+      "id": "form:74:text:12",
       "kind": "note",
       "title": "4"
     },
     {
-      "id": "form:16:text:13",
+      "id": "form:74:text:13",
       "kind": "note",
       "title": "/2000"
     },
     {
-      "id": "form:17",
+      "id": "form:75",
       "kind": "input",
       "title": "问题描述",
       "value": "播放失败",
@@ -189,12 +189,12 @@
       "confirmLabel": "undefined"
     },
     {
-      "id": "form:18:text:15",
+      "id": "form:76:text:15",
       "kind": "note",
       "title": "最多 2000 字。不要填写账号、密码等个人信息。"
     },
     {
-      "id": "form:19",
+      "id": "form:77",
       "kind": "switch",
       "title": "附带诊断日志",
       "value": "1",
@@ -210,22 +210,22 @@
       "confirmLabel": "undefined"
     },
     {
-      "id": "form:20:text:17",
+      "id": "form:78:text:17",
       "kind": "note",
       "title": "附带诊断日志"
     },
     {
-      "id": "form:21:text:18",
+      "id": "form:79:text:18",
       "kind": "note",
       "title": "帮助定位问题，不含账号与歌词。"
     },
     {
-      "id": "form:22:text:19",
+      "id": "form:80:text:19",
       "kind": "note",
       "title": "复现步骤（可选）"
     },
     {
-      "id": "form:23",
+      "id": "form:81",
       "kind": "input",
       "title": "复现步骤（可选）",
       "value": "",
@@ -241,12 +241,12 @@
       "confirmLabel": "undefined"
     },
     {
-      "id": "form:24:text:21",
+      "id": "form:82:text:21",
       "kind": "note",
       "title": "提交前可检查内容。诊断不含账号、歌词或私人文件，请勿填写密码等隐私信息。"
     },
     {
-      "id": "form:25",
+      "id": "form:83",
       "kind": "action",
       "title": "近期反馈",
       "value": "",
@@ -262,7 +262,7 @@
       "confirmLabel": "undefined"
     },
     {
-      "id": "form:26",
+      "id": "form:84",
       "kind": "action",
       "title": "手动导出",
       "value": "",
@@ -278,7 +278,7 @@
       "confirmLabel": "undefined"
     },
     {
-      "id": "form:27",
+      "id": "form:85",
       "kind": "action",
       "title": "提交反馈",
       "value": "",
@@ -295,7 +295,7 @@
     }
   ],
   "layout": {
-    "id": "page:form:58",
+    "id": "page:form:116",
     "kind": "column",
     "style": {
       "padding": [
@@ -307,7 +307,7 @@
     },
     "children": [
       {
-        "id": "form:28",
+        "id": "form:86",
         "kind": "column",
         "style": {
           "gap": 16,
@@ -315,7 +315,7 @@
         },
         "children": [
           {
-            "id": "form:29",
+            "id": "form:87",
             "kind": "column",
             "style": {
               "font": 12,
@@ -330,14 +330,14 @@
             ]
           },
           {
-            "id": "form:31",
+            "id": "form:89",
             "kind": "column",
             "style": {
               "gap": 16
             },
             "children": [
               {
-                "id": "form:32",
+                "id": "form:90",
                 "kind": "column",
                 "style": {
                   "gap": 8
@@ -349,7 +349,7 @@
                     "text": "问题类型"
                   },
                   {
-                    "id": "form:33",
+                    "id": "form:91",
                     "kind": "grid",
                     "style": {
                       "columns": 2,
@@ -357,9 +357,9 @@
                     },
                     "children": [
                       {
-                        "id": "layout:form:6",
+                        "id": "layout:form:64",
                         "kind": "control",
-                        "ref": "form:6",
+                        "ref": "form:64",
                         "style": {
                           "gap": 8,
                           "align": "center",
@@ -376,7 +376,7 @@
                         },
                         "children": [
                           {
-                            "id": "content:form:6",
+                            "id": "content:form:64",
                             "kind": "row",
                             "style": {
                               "gap": 8,
@@ -384,7 +384,7 @@
                             },
                             "children": [
                               {
-                                "id": "form:34",
+                                "id": "form:92",
                                 "kind": "icon",
                                 "icon": "activity",
                                 "style": {
@@ -393,7 +393,7 @@
                                 }
                               },
                               {
-                                "id": "form:35",
+                                "id": "form:93",
                                 "kind": "column",
                                 "style": {
                                   "grow": true
@@ -411,9 +411,9 @@
                         ]
                       },
                       {
-                        "id": "layout:form:7",
+                        "id": "layout:form:65",
                         "kind": "control",
-                        "ref": "form:7",
+                        "ref": "form:65",
                         "style": {
                           "gap": 8,
                           "align": "center",
@@ -430,7 +430,7 @@
                         },
                         "children": [
                           {
-                            "id": "content:form:7",
+                            "id": "content:form:65",
                             "kind": "row",
                             "style": {
                               "gap": 8,
@@ -438,16 +438,16 @@
                             },
                             "children": [
                               {
-                                "id": "form:36",
+                                "id": "form:94",
                                 "kind": "icon",
-                                "icon": "music-4",
+                                "icon": "circle-play",
                                 "style": {
                                   "width": 15,
                                   "height": 15
                                 }
                               },
                               {
-                                "id": "form:37",
+                                "id": "form:95",
                                 "kind": "column",
                                 "style": {
                                   "grow": true
@@ -465,9 +465,9 @@
                         ]
                       },
                       {
-                        "id": "layout:form:8",
+                        "id": "layout:form:66",
                         "kind": "control",
-                        "ref": "form:8",
+                        "ref": "form:66",
                         "style": {
                           "gap": 8,
                           "align": "center",
@@ -484,7 +484,7 @@
                         },
                         "children": [
                           {
-                            "id": "content:form:8",
+                            "id": "content:form:66",
                             "kind": "row",
                             "style": {
                               "gap": 8,
@@ -492,16 +492,16 @@
                             },
                             "children": [
                               {
-                                "id": "form:38",
+                                "id": "form:96",
                                 "kind": "icon",
-                                "icon": "music-4",
+                                "icon": "audio-lines",
                                 "style": {
                                   "width": 15,
                                   "height": 15
                                 }
                               },
                               {
-                                "id": "form:39",
+                                "id": "form:97",
                                 "kind": "column",
                                 "style": {
                                   "grow": true
@@ -519,9 +519,9 @@
                         ]
                       },
                       {
-                        "id": "layout:form:9",
+                        "id": "layout:form:67",
                         "kind": "control",
-                        "ref": "form:9",
+                        "ref": "form:67",
                         "style": {
                           "gap": 8,
                           "align": "center",
@@ -538,7 +538,7 @@
                         },
                         "children": [
                           {
-                            "id": "content:form:9",
+                            "id": "content:form:67",
                             "kind": "row",
                             "style": {
                               "gap": 8,
@@ -546,7 +546,7 @@
                             },
                             "children": [
                               {
-                                "id": "form:40",
+                                "id": "form:98",
                                 "kind": "icon",
                                 "icon": "type",
                                 "style": {
@@ -555,7 +555,7 @@
                                 }
                               },
                               {
-                                "id": "form:41",
+                                "id": "form:99",
                                 "kind": "column",
                                 "style": {
                                   "grow": true
@@ -573,9 +573,9 @@
                         ]
                       },
                       {
-                        "id": "layout:form:10",
+                        "id": "layout:form:68",
                         "kind": "control",
-                        "ref": "form:10",
+                        "ref": "form:68",
                         "style": {
                           "gap": 8,
                           "align": "center",
@@ -592,7 +592,7 @@
                         },
                         "children": [
                           {
-                            "id": "content:form:10",
+                            "id": "content:form:68",
                             "kind": "row",
                             "style": {
                               "gap": 8,
@@ -600,7 +600,7 @@
                             },
                             "children": [
                               {
-                                "id": "form:42",
+                                "id": "form:100",
                                 "kind": "icon",
                                 "icon": "sparkles",
                                 "style": {
@@ -609,7 +609,7 @@
                                 }
                               },
                               {
-                                "id": "form:43",
+                                "id": "form:101",
                                 "kind": "column",
                                 "style": {
                                   "grow": true
@@ -627,9 +627,9 @@
                         ]
                       },
                       {
-                        "id": "layout:form:11",
+                        "id": "layout:form:69",
                         "kind": "control",
-                        "ref": "form:11",
+                        "ref": "form:69",
                         "style": {
                           "gap": 8,
                           "align": "center",
@@ -646,7 +646,7 @@
                         },
                         "children": [
                           {
-                            "id": "content:form:11",
+                            "id": "content:form:69",
                             "kind": "row",
                             "style": {
                               "gap": 8,
@@ -654,7 +654,7 @@
                             },
                             "children": [
                               {
-                                "id": "form:44",
+                                "id": "form:102",
                                 "kind": "icon",
                                 "icon": "activity",
                                 "style": {
@@ -663,7 +663,7 @@
                                 }
                               },
                               {
-                                "id": "form:45",
+                                "id": "form:103",
                                 "kind": "column",
                                 "style": {
                                   "grow": true
@@ -681,9 +681,9 @@
                         ]
                       },
                       {
-                        "id": "layout:form:12",
+                        "id": "layout:form:70",
                         "kind": "control",
-                        "ref": "form:12",
+                        "ref": "form:70",
                         "style": {
                           "gap": 8,
                           "align": "center",
@@ -700,7 +700,7 @@
                         },
                         "children": [
                           {
-                            "id": "content:form:12",
+                            "id": "content:form:70",
                             "kind": "row",
                             "style": {
                               "gap": 8,
@@ -708,7 +708,7 @@
                             },
                             "children": [
                               {
-                                "id": "form:46",
+                                "id": "form:104",
                                 "kind": "icon",
                                 "icon": "sparkles",
                                 "style": {
@@ -717,7 +717,7 @@
                                 }
                               },
                               {
-                                "id": "form:47",
+                                "id": "form:105",
                                 "kind": "column",
                                 "style": {
                                   "grow": true
@@ -735,9 +735,9 @@
                         ]
                       },
                       {
-                        "id": "layout:form:13",
+                        "id": "layout:form:71",
                         "kind": "control",
-                        "ref": "form:13",
+                        "ref": "form:71",
                         "style": {
                           "gap": 8,
                           "align": "center",
@@ -754,7 +754,7 @@
                         },
                         "children": [
                           {
-                            "id": "content:form:13",
+                            "id": "content:form:71",
                             "kind": "row",
                             "style": {
                               "gap": 8,
@@ -762,16 +762,16 @@
                             },
                             "children": [
                               {
-                                "id": "form:48",
+                                "id": "form:106",
                                 "kind": "icon",
-                                "icon": "music-4",
+                                "icon": "file-music",
                                 "style": {
                                   "width": 15,
                                   "height": 15
                                 }
                               },
                               {
-                                "id": "form:49",
+                                "id": "form:107",
                                 "kind": "column",
                                 "style": {
                                   "grow": true
@@ -789,9 +789,9 @@
                         ]
                       },
                       {
-                        "id": "layout:form:14",
+                        "id": "layout:form:72",
                         "kind": "control",
-                        "ref": "form:14",
+                        "ref": "form:72",
                         "style": {
                           "gap": 8,
                           "align": "center",
@@ -808,7 +808,7 @@
                         },
                         "children": [
                           {
-                            "id": "content:form:14",
+                            "id": "content:form:72",
                             "kind": "row",
                             "style": {
                               "gap": 8,
@@ -816,7 +816,7 @@
                             },
                             "children": [
                               {
-                                "id": "form:50",
+                                "id": "form:108",
                                 "kind": "icon",
                                 "icon": "file-archive",
                                 "style": {
@@ -825,7 +825,7 @@
                                 }
                               },
                               {
-                                "id": "form:51",
+                                "id": "form:109",
                                 "kind": "column",
                                 "style": {
                                   "grow": true
@@ -847,14 +847,14 @@
                 ]
               },
               {
-                "id": "form:52",
+                "id": "form:110",
                 "kind": "column",
                 "style": {
                   "gap": 8
                 },
                 "children": [
                   {
-                    "id": "form:53",
+                    "id": "form:111",
                     "kind": "row",
                     "style": {
                       "align": "between",
@@ -867,7 +867,7 @@
                         "text": "问题描述"
                       },
                       {
-                        "id": "form:16",
+                        "id": "form:74",
                         "kind": "column",
                         "style": {
                           "font": 10,
@@ -884,16 +884,16 @@
                     ]
                   },
                   {
-                    "id": "layout:form:17",
+                    "id": "layout:form:75",
                     "kind": "control",
-                    "ref": "form:17",
+                    "ref": "form:75",
                     "style": {
                       "minHeight": 112,
                       "font": 14
                     }
                   },
                   {
-                    "id": "form:18",
+                    "id": "form:76",
                     "kind": "column",
                     "style": {
                       "font": 11,
@@ -910,7 +910,7 @@
                 ]
               },
               {
-                "id": "form:54",
+                "id": "form:112",
                 "kind": "row",
                 "style": {
                   "align": "start",
@@ -926,13 +926,13 @@
                 },
                 "children": [
                   {
-                    "id": "layout:form:19",
+                    "id": "layout:form:77",
                     "kind": "control",
-                    "ref": "form:19",
+                    "ref": "form:77",
                     "style": {}
                   },
                   {
-                    "id": "form:55",
+                    "id": "form:113",
                     "kind": "column",
                     "style": {
                       "grow": true,
@@ -945,7 +945,7 @@
                         "text": "附带诊断日志"
                       },
                       {
-                        "id": "form:21",
+                        "id": "form:79",
                         "kind": "column",
                         "style": {
                           "font": 11,
@@ -964,14 +964,14 @@
                 ]
               },
               {
-                "id": "form:56",
+                "id": "form:114",
                 "kind": "column",
                 "style": {
                   "gap": 10
                 },
                 "children": [
                   {
-                    "id": "form:22",
+                    "id": "form:80",
                     "kind": "column",
                     "style": {
                       "gap": 8
@@ -983,9 +983,9 @@
                         "text": "复现步骤（可选）"
                       },
                       {
-                        "id": "layout:form:23",
+                        "id": "layout:form:81",
                         "kind": "control",
-                        "ref": "form:23",
+                        "ref": "form:81",
                         "style": {
                           "minHeight": 64,
                           "font": 14
@@ -999,13 +999,13 @@
                     "text": "提交前可检查内容。诊断不含账号、歌词或私人文件，请勿填写密码等隐私信息。"
                   },
                   {
-                    "id": "layout:form:25",
+                    "id": "layout:form:83",
                     "kind": "control",
-                    "ref": "form:25",
+                    "ref": "form:83",
                     "style": {},
                     "children": [
                       {
-                        "id": "content:form:25",
+                        "id": "content:form:83",
                         "kind": "row",
                         "style": {},
                         "children": [
@@ -1021,16 +1021,16 @@
                 ]
               },
               {
-                "id": "layout:form:26",
+                "id": "layout:form:84",
                 "kind": "control",
-                "ref": "form:26",
+                "ref": "form:84",
                 "style": {
                   "tone": "muted",
                   "font": 11
                 },
                 "children": [
                   {
-                    "id": "content:form:26",
+                    "id": "content:form:84",
                     "kind": "row",
                     "style": {},
                     "children": [
@@ -1046,16 +1046,16 @@
             ]
           },
           {
-            "id": "form:57",
+            "id": "form:115",
             "kind": "column",
             "style": {
               "gap": 8
             },
             "children": [
               {
-                "id": "layout:form:27",
+                "id": "layout:form:85",
                 "kind": "control",
-                "ref": "form:27",
+                "ref": "form:85",
                 "style": {
                   "fill": true,
                   "tone": "primary",
@@ -1073,7 +1073,7 @@
                 },
                 "children": [
                   {
-                    "id": "content:form:27",
+                    "id": "content:form:85",
                     "kind": "row",
                     "style": {
                       "center": true

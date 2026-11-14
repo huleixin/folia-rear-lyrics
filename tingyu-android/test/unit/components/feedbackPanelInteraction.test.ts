@@ -3,7 +3,7 @@ import React, { act, createElement as h } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {captureSemanticSettings} from '@/services/nativeSettingsSemantic';
-import {writeFileSync} from 'node:fs';
+import {readFileSync,writeFileSync} from 'node:fs';
 import {cloudFeedbackZh} from '@/i18n/cloudFeedbackCopy';
 
 // test/unit/components/feedbackPanelInteraction.test.ts
@@ -90,8 +90,8 @@ afterEach(() => {
 });
 
 describe('问题反馈面板：内部交互绝不触发关闭', () => {
-    it('点击 6 个问题类型只切换选中态，不关闭、不冒泡到宿主', () => {
-        const ids = ['crash', 'playback', 'lyrics', 'display', 'rear', 'other'];
+    it('点击全部问题类型只切换选中态，不关闭、不冒泡到宿主', () => {
+        const ids = ['crash', 'playback', 'stutter', 'lyrics', 'display', 'rear', 'pad', 'local', 'other'];
         for (const id of ids) {
             const button = q<HTMLButtonElement>(`[data-testid="feedback-category-${id}"]`);
             click(button);
@@ -177,6 +177,20 @@ describe('问题反馈面板：内部交互绝不触发关闭', () => {
         expect(scrim.className).toContain('pointer-events-none');
         expect(scrim.className).toContain('inset-0');
     });
+});
+
+it('every feedback category projects icon geometry bundled for the native renderer',()=>{
+    const definitions=JSON.parse(readFileSync('android/app/src/main/res/raw/native_page_icons.json','utf8'));
+    const flow=captureSemanticSettings(container,'help','Feedback').document.flow.modal!;
+    const flatten=(n:any):any[]=>[n,...(n.children??[]).flatMap(flatten)];
+    for(const button of document.querySelectorAll<HTMLElement>('[data-testid^="feedback-category-"]')){
+        const control=flow.nodes.find(n=>n.title===button.textContent)!;
+        expect(control,button.dataset.testid).toBeTruthy();
+        const icons=flatten(flow.layout).find(n=>n.ref===control.id).children.flatMap(flatten).filter((n:any)=>n.kind==='icon');
+        expect(icons,button.dataset.testid).toHaveLength(1);
+        expect(definitions[icons[0].icon]?.length,icons[0].icon).toBeGreaterThan(0);
+        for(const [kind] of definitions[icons[0].icon])expect(['path','circle','ellipse','rect','line','polyline','polygon']).toContain(kind);
+    }
 });
 
 async function openManual(){

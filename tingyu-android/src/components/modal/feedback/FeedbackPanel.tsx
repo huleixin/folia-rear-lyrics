@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { Activity, Camera, Check, ChevronLeft, FileArchive, Loader2, Music4, Send, Sparkles, Type, X } from 'lucide-react';
+import { Activity, AudioLines, Camera, Check, ChevronLeft, CirclePlay, FileArchive, FileMusic, Loader2, Send, Sparkles, Type, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useInterfaceLight } from '../../../hooks/useInterfaceAppearance';
 import { feedbackCopy } from '../../../i18n/feedbackCopy';
@@ -69,13 +69,13 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
 
     const categories: Array<{ id: FeedbackCategory; icon: React.ReactNode }> = [
         { id: 'crash', icon: <Activity size={15} aria-hidden="true" /> },
-        { id: 'playback', icon: <Music4 size={15} aria-hidden="true" /> },
-        { id: 'stutter', icon: <Music4 size={15} aria-hidden="true" /> },
+        { id: 'playback', icon: <CirclePlay size={15} aria-hidden="true" /> },
+        { id: 'stutter', icon: <AudioLines size={15} aria-hidden="true" /> },
         { id: 'lyrics', icon: <Type size={15} aria-hidden="true" /> },
         { id: 'display', icon: <Sparkles size={15} aria-hidden="true" /> },
         { id: 'rear', icon: <Activity size={15} aria-hidden="true" /> },
         { id: 'pad', icon: <Sparkles size={15} aria-hidden="true" /> },
-        { id: 'local', icon: <Music4 size={15} aria-hidden="true" /> },
+        { id: 'local', icon: <FileMusic size={15} aria-hidden="true" /> },
         { id: 'other', icon: <FileArchive size={15} aria-hidden="true" /> },
     ].filter(entry=>entry.id!=='rear'||Math.min(screen.width,screen.height)<600) as Array<{id:FeedbackCategory;icon:React.ReactNode}>;
 

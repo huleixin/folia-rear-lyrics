@@ -3,47 +3,47 @@
   "title": "问题反馈",
   "nodes": [
     {
-      "id": "form:4:text:0",
+      "id": "form:62:text:0",
       "kind": "note",
       "title": "告诉我们遇到了什么问题。"
     },
     {
-      "id": "form:59",
+      "id": "form:117",
       "kind": "group",
       "title": "确认反馈内容"
     },
     {
-      "id": "form:60:text:2",
+      "id": "form:118:text:2",
       "kind": "note",
       "title": "播放失败"
     },
     {
-      "id": "form:61:text:3",
+      "id": "form:119:text:3",
       "kind": "note",
       "title": "上传大小"
     },
     {
-      "id": "form:61:text:4",
+      "id": "form:119:text:4",
       "kind": "note",
       "title": ":"
     },
     {
-      "id": "form:61:text:5",
+      "id": "form:119:text:5",
       "kind": "note",
       "title": "0.1"
     },
     {
-      "id": "form:61:text:6",
+      "id": "form:119:text:6",
       "kind": "note",
       "title": "KB ·"
     },
     {
-      "id": "form:61:text:7",
+      "id": "form:119:text:7",
       "kind": "note",
       "title": "不附带诊断"
     },
     {
-      "id": "form:62",
+      "id": "form:120",
       "kind": "action",
       "title": "查看完整上传内容",
       "value": "",
@@ -59,7 +59,7 @@
       "confirmLabel": "undefined"
     },
     {
-      "id": "form:63",
+      "id": "form:121",
       "kind": "switch",
       "title": "我同意上传这些内容，用于开发者及 AI（Codex）排查问题。反馈在 Cloudflare 私有存储中保留30天。",
       "value": "0",
@@ -75,12 +75,12 @@
       "confirmLabel": "undefined"
     },
     {
-      "id": "form:64:text:10",
+      "id": "form:122:text:10",
       "kind": "note",
       "title": "我同意上传这些内容，用于开发者及 AI（Codex）排查问题。反馈在 Cloudflare 私有存储中保留30天。"
     },
     {
-      "id": "form:65",
+      "id": "form:123",
       "kind": "action",
       "title": "返回修改",
       "value": "",
@@ -96,7 +96,7 @@
       "confirmLabel": "undefined"
     },
     {
-      "id": "form:27",
+      "id": "form:85",
       "kind": "action",
       "title": "确认上传",
       "value": "",
@@ -113,7 +113,7 @@
     }
   ],
   "layout": {
-    "id": "page:form:58",
+    "id": "page:form:116",
     "kind": "column",
     "style": {
       "padding": [
@@ -125,7 +125,7 @@
     },
     "children": [
       {
-        "id": "form:28",
+        "id": "form:86",
         "kind": "column",
         "style": {
           "gap": 16,
@@ -133,7 +133,7 @@
         },
         "children": [
           {
-            "id": "form:29",
+            "id": "form:87",
             "kind": "column",
             "style": {
               "font": 12,
@@ -148,14 +148,14 @@
             ]
           },
           {
-            "id": "form:31",
+            "id": "form:89",
             "kind": "column",
             "style": {
               "gap": 12
             },
             "children": [
               {
-                "id": "form:66",
+                "id": "form:124",
                 "kind": "column",
                 "style": {
                   "gap": 10
@@ -177,13 +177,13 @@
                     "text": "上传大小: 0.1 KB · 不附带诊断"
                   },
                   {
-                    "id": "layout:form:62",
+                    "id": "layout:form:120",
                     "kind": "control",
-                    "ref": "form:62",
+                    "ref": "form:120",
                     "style": {},
                     "children": [
                       {
-                        "id": "content:form:62",
+                        "id": "content:form:120",
                         "kind": "row",
                         "style": {},
                         "children": [
@@ -197,7 +197,7 @@
                     ]
                   },
                   {
-                    "id": "form:67",
+                    "id": "form:125",
                     "kind": "row",
                     "style": {
                       "gap": 10,
@@ -205,9 +205,9 @@
                     },
                     "children": [
                       {
-                        "id": "layout:form:63",
+                        "id": "layout:form:121",
                         "kind": "control",
-                        "ref": "form:63",
+                        "ref": "form:121",
                         "style": {}
                       },
                       {
@@ -218,13 +218,13 @@
                     ]
                   },
                   {
-                    "id": "layout:form:65",
+                    "id": "layout:form:123",
                     "kind": "control",
-                    "ref": "form:65",
+                    "ref": "form:123",
                     "style": {},
                     "children": [
                       {
-                        "id": "content:form:65",
+                        "id": "content:form:123",
                         "kind": "row",
                         "style": {},
                         "children": [
@@ -242,16 +242,16 @@
             ]
           },
           {
-            "id": "form:57",
+            "id": "form:115",
             "kind": "column",
             "style": {
               "gap": 8
             },
             "children": [
               {
-                "id": "layout:form:27",
+                "id": "layout:form:85",
                 "kind": "control",
-                "ref": "form:27",
+                "ref": "form:85",
                 "style": {
                   "fill": true,
                   "tone": "primary",
@@ -269,7 +269,7 @@
                 },
                 "children": [
                   {
-                    "id": "content:form:27",
+                    "id": "content:form:85",
                     "kind": "row",
                     "style": {
                       "center": true

@@ -25,6 +25,15 @@ import java.io.File
 class FeedbackSubmissionLayoutTest {
     @get:Rule val compose=createAndroidComposeRule<ComponentActivity>()
     private fun fixture(name:String)=JSONObject(javaClass.classLoader!!.getResource("settings-layout/"+name+".json")!!.readText())
+    private fun screenshot(name:String,width:Int,height:Int){
+        val output=System.getenv("TINGYU_LAYOUT_SCREENSHOTS")?:return
+        compose.runOnIdle {
+            val file=File(output,name+".png");file.parentFile?.mkdirs()
+            val bitmap=android.graphics.Bitmap.createBitmap(width,height,android.graphics.Bitmap.Config.ARGB_8888)
+            compose.activity.window.decorView.draw(android.graphics.Canvas(bitmap))
+            file.outputStream().use{bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)};bitmap.recycle()
+        }
+    }
 
     private fun review(width:Int,height:Int){
         var stage by mutableStateOf("feedback-submit")
@@ -55,6 +64,8 @@ class FeedbackSubmissionLayoutTest {
         }}
         for(style in listOf("classic","glacier"))for(light in listOf(true,false)){
             compose.runOnIdle { palette=InterfacePalette(light,style);stage="feedback-submit";consent=false;events.clear() };compose.waitForIdle()
+            val variant=style+"-"+(if(light)"light" else "dark")+"-"+width
+            screenshot("feedback-categories-"+variant,width,height)
             compose.onNodeWithText("提交反馈").performScrollTo().assertIsDisplayed().performClick();compose.waitForIdle()
             val submit=compose.onNodeWithText("确认上传")
             submit.performScrollTo().assertIsDisplayed().assertIsNotEnabled()
@@ -63,13 +74,7 @@ class FeedbackSubmissionLayoutTest {
             submit.performScrollTo().assertIsEnabled()
             val bounds=submit.fetchSemanticsNode().boundsInRoot
             assertTrue(bounds.left>=0&&bounds.right<=width+1f)
-            val output=System.getenv("TINGYU_LAYOUT_SCREENSHOTS")
-            if(output!=null)compose.runOnIdle {
-                val file=File(output,"feedback-"+style+"-"+(if(light)"light" else "dark")+"-"+width+".png");file.parentFile?.mkdirs()
-                val bitmap=android.graphics.Bitmap.createBitmap(width,height,android.graphics.Bitmap.Config.ARGB_8888)
-                compose.activity.window.decorView.draw(android.graphics.Canvas(bitmap))
-                file.outputStream().use{bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)};bitmap.recycle()
-            }
+            screenshot("feedback-"+variant,width,height)
             submit.performClick();compose.waitForIdle();assertTrue(events.last().startsWith("act:"))
         }
     }
