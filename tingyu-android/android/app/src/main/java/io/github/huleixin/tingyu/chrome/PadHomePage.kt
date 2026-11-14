@@ -25,6 +25,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,58 +36,90 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 import kotlin.math.abs
+import kotlin.math.ceil
 
 // Pad recommendation layout consumes the existing sections and action identities.
 @Composable internal fun PadHomePage(page:NativePage,modifier:Modifier,action:PageAction){
     val hero=page.sections.firstOrNull{it.layout=="hero"}
     val recent=page.sections.firstOrNull{it.id=="recent"}
     val hostBottom=with(LocalDensity.current){LocalNativePageBottomPx.current.toDp()}
-    BoxWithConstraints(modifier.padding(start=112.dp,end=26.dp)){
-        val bottom=if(hostBottom>0.dp)hostBottom else (page.safeBottom+88f).dp
-        val columns=((maxWidth.value+18f)/208f).toInt().coerceIn(4,5)
-        // Reserve readable headings + the first playlist row before sizing the hero/recent band.
-        val heroHeight=(maxHeight-bottom-page.safeTop.dp-460.dp).coerceIn(220.dp,300.dp)
-        val recentHeight=((heroHeight-80.dp)/2).coerceIn(70.dp,110.dp)
-        LazyColumn(Modifier.fillMaxSize().padding(bottom=bottom).clipToBounds().testTag("pad-home-list"),
-            contentPadding=PaddingValues(top=(page.safeTop+24).dp,bottom=16.dp),verticalArrangement=Arrangement.spacedBy(20.dp)){
-            item(key="heading"){PageHeading(page,Modifier.fillMaxWidth(),large=true,action=action)}
-            if(hero!=null||recent!=null)item(key="recommendation-band"){
-                Row(horizontalArrangement=Arrangement.spacedBy(26.dp)){
-                    if(hero!=null)Box(Modifier.weight(1.65f)){PadHeroStack(hero,action,heroHeight)}
-                    if(recent!=null)Column(Modifier.weight(1f)){
-                        PageSectionHeading(recent,Modifier.padding(bottom=12.dp),action,titleSize=20)
-                        recent.items.take(4).chunked(2).forEachIndexed{index,row->
-                            if(index>0)Spacer(Modifier.height(14.dp))
-                            Row(horizontalArrangement=Arrangement.spacedBy(14.dp)){
-                                row.forEach{PadArtworkCard(it,Modifier.weight(1f),action,1.6f,recentHeight)}
-                                if(row.size==1)Spacer(Modifier.weight(1f))
+    val bottom=if(hostBottom>0.dp)hostBottom else (page.safeBottom+88f).dp
+    Column(modifier.padding(start=112.dp,end=26.dp,top=(page.safeTop+16).dp,bottom=bottom)){
+        PageHeading(page,large=true,action=action)
+        Spacer(Modifier.height(12.dp))
+        BoxWithConstraints(Modifier.weight(1f)){
+            // Width chooses the count; height caps square artwork so both sections clear the mini player.
+            val targetCover=(maxHeight*.25f).coerceIn(104.dp,164.dp)
+            val columns=ceil((maxWidth.value+18f)/(targetCover.value+18f)).toInt().coerceAtLeast(4)
+            val playlistCover=(maxWidth-18.dp*(columns-1))/columns
+            // Four extra dp absorb independent row rounding without introducing a tiny scroll range.
+            val bandBudget=(maxHeight-playlistCover-44.dp-40.dp-16.dp-16.dp-40.dp).coerceAtLeast(218.dp)
+            val paneWidth=(maxWidth-26.dp)/2
+            val coverLimit=((bandBudget-14.dp)/2-44.dp).coerceIn(72.dp,152.dp)
+            val recentColumns=((paneWidth.value+14f)/(coverLimit.value+14f)).toInt().coerceIn(2,6)
+            val recentCover=minOf((paneWidth-14.dp*(recentColumns-1))/recentColumns,coverLimit)
+            val recentHeight=(recentCover+44.dp)*2+14.dp
+            LazyColumn(Modifier.fillMaxSize().clipToBounds().testTag("pad-home-list"),
+                contentPadding=PaddingValues(bottom=12.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
+                if(hero!=null)item(key="recommendation-band"){
+                    Column{
+                        // The heading sits above the common artwork baseline, never inside the right band.
+                        Row(Modifier.fillMaxWidth().padding(bottom=10.dp),horizontalArrangement=Arrangement.spacedBy(26.dp)){
+                            Spacer(Modifier.weight(1f))
+                            if(recent!=null)PageSectionHeading(recent,Modifier.weight(1f),action,titleSize=20)
+                            else Spacer(Modifier.weight(1f).height(30.dp))
+                        }
+                        Row(horizontalArrangement=Arrangement.spacedBy(26.dp)){
+                            Box(Modifier.weight(1f)){PadHeroStack(hero,action,recentHeight-40.dp)}
+                            Column(Modifier.weight(1f)){
+                                recent?.items?.take(recentColumns*2)?.chunked(recentColumns)?.forEachIndexed{index,row->
+                                    if(index>0)Spacer(Modifier.height(14.dp))
+                                    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
+                                        row.forEach{key(it.id){PadArtworkCard(it,Modifier.width(recentCover),action,ratio=1f,completeCover=true)}}
+                                        repeat(recentColumns-row.size){Spacer(Modifier.width(recentCover))}
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
-            page.sections.filter{it!==hero&&it!==recent}.forEach{section->
-                item(key="${section.id}:heading"){PageSectionHeading(section,Modifier.fillMaxWidth(),action,titleSize=20)}
-                if(section.items.isNotEmpty())items(section.items.chunked(columns),key={"${section.id}:${it.first().id}"}){row->
-                    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(18.dp)){
-                        row.forEach{PadArtworkCard(it,Modifier.weight(1f),action)}
-                        repeat(columns-row.size){Spacer(Modifier.weight(1f))}
+                page.sections.filter{it!==hero&&(hero==null||it!==recent)}.forEach{section->
+                    // Overview playlists occupy one row; their existing “all” action opens the library.
+                    if(section.id=="playlists")item(key=section.id){
+                        Column{
+                            PageSectionHeading(section,Modifier.padding(bottom=10.dp),action,titleSize=20)
+                            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(18.dp)){
+                                section.items.take(columns).forEach{key(it.id){PadArtworkCard(it,Modifier.weight(1f),action,ratio=1f,completeCover=true)}}
+                                repeat((columns-section.items.size).coerceAtLeast(0)){Spacer(Modifier.weight(1f))}
+                            }
+                        }
+                    }else{
+                        if(section.title.isNotBlank())item(key="${section.id}:heading"){PageSectionHeading(section,action=action,titleSize=20)}
+                        if(section.layout=="rows")items(section.items,key={"${section.id}:${it.id}"}){item->
+                            NativePageRow(item,action={action(it,"",0.0)})
+                        }else if(section.items.isNotEmpty())items(section.items.chunked(columns),key={"${section.id}:${it.first().id}"}){row->
+                            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(18.dp)){
+                                row.forEach{PadArtworkCard(it,Modifier.weight(1f),action,ratio=1f,completeCover=true)}
+                                repeat(columns-row.size){Spacer(Modifier.weight(1f))}
+                            }
+                        }else if(section.text.isNotBlank())item(key="${section.id}:message"){Text(section.text,color=PageMuted)}
                     }
-                }else if(section.text.isNotBlank())item(key="${section.id}:message"){Text(section.text,color=PageMuted)}
+                }
             }
         }
     }
 }
 
-@Composable internal fun PadArtworkCard(item:NativePageItem,modifier:Modifier,action:PageAction,ratio:Float=1.5f,imageHeight:Dp?=null){
+@Composable internal fun PadArtworkCard(item:NativePageItem,modifier:Modifier,action:PageAction,ratio:Float=1.5f,imageHeight:Dp?=null,completeCover:Boolean=false){
     Column(modifier.testTag("pad-card:${item.id}")){
-        Box(Modifier.fillMaxWidth().then(if(imageHeight!=null)Modifier.height(imageHeight)else Modifier.aspectRatio(ratio)).clip(RoundedCornerShape(14.dp)).chromeClickable(enabled=!item.disabled,corner=14.dp){action(item.action,"",0.0)}){
-            PageArtwork(item.image,Modifier.fillMaxSize(),14.dp)
+        Box(Modifier.fillMaxWidth().then(if(imageHeight!=null)Modifier.height(imageHeight)else Modifier.aspectRatio(ratio)).testTag("pad-cover:${item.id}").clip(RoundedCornerShape(14.dp)).chromeClickable(enabled=!item.disabled,corner=14.dp){action(item.action,"",0.0)}){
+            PageArtwork(item.image,Modifier.fillMaxSize(),14.dp,contentScale=if(completeCover)ContentScale.Fit else ContentScale.Crop)
         }
-        Row(Modifier.fillMaxWidth().padding(top=8.dp),verticalAlignment=Alignment.CenterVertically){
+        val captionStyle=if(completeCover)TextStyle(platformStyle=PlatformTextStyle(includeFontPadding=false))else TextStyle.Default
+        Row(Modifier.fillMaxWidth().then(if(completeCover)Modifier.height(44.dp)else Modifier).padding(top=8.dp),verticalAlignment=Alignment.CenterVertically){
             Column(Modifier.weight(1f).chromeClickable(enabled=!item.disabled,corner=8.dp){action(item.action,"",0.0)}){
-                Text(item.title,color=PageInk,fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
-                Text(item.subtitle,color=PageMuted,fontSize=13.sp,lineHeight=18.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+                Text(item.title,color=PageInk,fontSize=(if(completeCover)14 else 16).sp,lineHeight=(if(completeCover)20 else 22).sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,style=captionStyle)
+                Text(item.subtitle,color=PageMuted,fontSize=(if(completeCover)12 else 13).sp,lineHeight=(if(completeCover)16 else 18).sp,maxLines=1,overflow=TextOverflow.Ellipsis,style=captionStyle)
             }
             if(item.secondary.isNotBlank())ChromeButton("更多",size=36.dp,onClick={action(item.secondary,"",0.0)}){PageIcon("ellipsis-vertical",PageMuted,Modifier.size(17.dp))}
         }
@@ -117,7 +151,7 @@ import kotlin.math.abs
             }
             AnimatedContent(index%items.size,transitionSpec={
                 (slideInVertically{32}+fadeIn()) togetherWith (slideOutHorizontally{-it*direction}+fadeOut())
-            },label="pad-hero",modifier=Modifier.fillMaxWidth().height(h).pointerInput(items.size){
+            },label="pad-hero",modifier=Modifier.fillMaxWidth().height(h).testTag("pad-hero-artwork").pointerInput(items.size){
                 detectHorizontalDragGestures(onDragStart={drag=0f;dragging=true},onDragCancel={dragging=false;manualEpoch++},onDragEnd={
                     if(abs(drag)>48.dp.toPx()){direction=if(drag<0)1 else -1;index=(index+direction+items.size)%items.size}
                     dragging=false;manualEpoch++
