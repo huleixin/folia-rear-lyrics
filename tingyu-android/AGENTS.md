@@ -10,6 +10,9 @@ https://tingyu-feedback-api.2473297053.workers.dev，两者使用同一个 Worke
 先匹配版本/commit 和完整调用链；只对有证据的问题最小修复并回归；证据不足时列明缺口。
 源码修复后状态应为待验证，实际验证通过才标记已修复；禁止自动发布正式 APK。
 远程迁移、部署、开放上传必须遵守当前会话授权，不得因为读取日志而获取 Cloudflare 管理权限。
+反馈上传失败参见 [docs/FEEDBACK-STABILITY-P0-20261114.md](docs/FEEDBACK-STABILITY-P0-20261114.md)。
+先读取复制的安全错误详情；需要且已授权时用 tools/feedback_tail.py 有界脱敏追踪。
+1.5.44-feedback-test.1是独立预发布，不得自动升为正式版或更新稳定渠道。
 
 本仓库不再把项目规则直接堆在 `AGENTS.md` 中，而是改为按 skill 组织。
 

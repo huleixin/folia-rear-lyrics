@@ -9,11 +9,16 @@ apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 def playbackTestBuild = (project.findProperty('tingyuPlaybackTest') == 'true')
 def graphicsTestBuild = (project.findProperty('tingyuGraphicsDiagnostics') == 'true')
 def motionTestBuild = (project.findProperty('tingyuMotionTest') == 'true')
+def feedbackTestBuild = (project.findProperty('tingyuFeedbackTest') == 'true')
+if (feedbackTestBuild && (motionTestBuild || playbackTestBuild || graphicsTestBuild)) {
+    throw new GradleException('Feedback test must use the ordinary app configuration')
+}
 if (motionTestBuild && (playbackTestBuild || graphicsTestBuild)) {
     throw new GradleException('Motion test must use the ordinary playback engine; do not combine test modes')
 }
 
 def packageJson = new JsonSlurper().parseText(file('../../package.json').text)
+def feedbackVersion = "${packageJson.version}-feedback-test.1"
 def playbackTestRevision = (packageJson.playbackTestRevision ?: 1) as int
 def motionTestRevision = (packageJson.motionTestRevision ?: 1) as int
 
@@ -70,7 +75,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode (motionTestBuild ? (packageJson.androidVersionCode as int) * 100 + motionTestRevision : playbackTestBuild ? (packageJson.androidVersionCode as int) * 100 + playbackTestRevision : packageJson.androidVersionCode as int)
-        versionName "${packageJson.version}${motionTestBuild ? "-motion-test.${motionTestRevision}" : playbackTestBuild ? "-playback-test.${playbackTestRevision}" : graphicsTestBuild ? '-graphics-test.1' : ''}"
+        versionName (feedbackTestBuild ? feedbackVersion : "${packageJson.version}${motionTestBuild ? "-motion-test.${motionTestRevision}" : playbackTestBuild ? "-playback-test.${playbackTestRevision}" : graphicsTestBuild ? '-graphics-test.1' : ''}")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             // Host Chromium may defer consuming modulepreload bodies. Serve packaged assets by
@@ -195,6 +200,14 @@ tasks.register('verifyPlaybackTestAssets') {
     }
 }
 tasks.named('preBuild').configure { dependsOn 'verifyPlaybackTestAssets' }
+tasks.register('verifyFeedbackTestAssets') {
+    doLast {
+        def marker = file('src/main/assets/public/tingyu-feedback-test.json')
+        if (feedbackTestBuild != marker.exists()) throw new GradleException('Feedback test flag and packaged assets differ; rebuild and sync the correct bundle')
+        if (feedbackTestBuild && new JsonSlurper().parseText(marker.text).version != feedbackVersion) throw new GradleException('Stale feedback test bundle')
+    }
+}
+tasks.named('preBuild').configure { dependsOn 'verifyFeedbackTestAssets' }
 
 /**
  * 网页源 → 入包资源的新鲜度硬校验。

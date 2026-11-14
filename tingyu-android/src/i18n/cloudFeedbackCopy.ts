@@ -1,5 +1,6 @@
 // Cloud feedback copy uses brief product language; consent retains storage and AI disclosure.
 export const cloudFeedbackZh={
+  awaiting:'文件已发送，正在确认提交结果…',retrying:'连接暂时异常，正在重试…',copyError:'复制提交错误详情',errorCopied:'错误详情已复制',
   steps:'复现步骤（可选）',prepare:'提交反馈',send:'确认上传',working:'正在处理…',reviewTitle:'确认反馈内容',
   consent:'我同意上传这些内容，用于开发者及 AI（Codex）排查问题。反馈在 Cloudflare 私有存储中保留30天。',
   privacy:'提交前可检查内容。诊断不含账号、歌词或私人文件，请勿填写密码等隐私信息。',
@@ -12,6 +13,7 @@ export const cloudFeedbackZh={
   statuses:{draft:'待提交',retry:'待重试',pending:'待处理',investigating:'排查中',verification:'待验证',fixed:'已修复',unreproduced:'无法复现',closed:'已关闭'}
 };
 export const cloudFeedbackEn={
+  awaiting:'File sent. Confirming submission…',retrying:'Connection interrupted. Retrying…',copyError:'Copy submission error',errorCopied:'Error details copied',
   steps:'Steps to reproduce (optional)',prepare:'Submit feedback',send:'Confirm upload',working:'Working…',reviewTitle:'Review your feedback',
   consent:'I agree to upload this content for developer and AI (Codex) troubleshooting, stored privately at Cloudflare for 30 days.',
   privacy:'Review before sending. Diagnostics exclude accounts, lyrics and private files. Do not enter passwords or private information.',
@@ -24,6 +26,7 @@ export const cloudFeedbackEn={
   statuses:{draft:'Not submitted',retry:'Retry needed',pending:'Pending',investigating:'Investigating',verification:'Awaiting verification',fixed:'Fixed',unreproduced:'Cannot reproduce',closed:'Closed'}
 };
 export const cloudFeedbackId={
+  awaiting:'Berkas terkirim. Mengonfirmasi…',retrying:'Koneksi terputus. Mencoba lagi…',copyError:'Salin rincian kesalahan',errorCopied:'Rincian kesalahan disalin',
   steps:'Langkah reproduksi (opsional)',prepare:'Kirim masukan',send:'Konfirmasi unggahan',working:'Memproses…',reviewTitle:'Periksa masukan',
   consent:'Saya setuju mengunggah isi ini untuk analisis pengembang dan AI (Codex), disimpan privat di Cloudflare selama 30 hari.',
   privacy:'Periksa sebelum mengirim. Diagnostik tanpa akun, lirik atau berkas pribadi. Jangan isi kata sandi atau informasi pribadi.',

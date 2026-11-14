@@ -6,6 +6,24 @@ import {hash,signed,verified} from '../src/security.mjs';
 import {sanitizeFeedback,safeStack,evidence,MAX_LOG_BYTES} from '../../src/services/feedback/schema.mjs';
 
 // Test actual handlers and SQL with injected network/storage failures; secrets are synthetic.
+test('accepted replay bypasses exhausted shared-IP and proof budgets but not capability/body/global limits',async()=>{
+ const f=fixture(),s=await submission(f),r=await f.call('/api/feedback',s.request),id=(await r.json()).id;
+ f.sql.exec("UPDATE counters SET value=120 WHERE key LIKE 'attempt:%'; UPDATE counters SET value=30 WHERE key LIKE 'new:%'");
+ const headers={...s.request.headers};delete headers['X-Feedback-Challenge'];delete headers['X-Feedback-Proof'];
+ for(let n=0;n<3;n++){const replay=await f.call('/api/feedback',{...s.request,headers});assert.equal(replay.status,200);assert.equal((await replay.json()).id,id);assert.equal(replay.headers.get('X-Feedback-Stage'),'reconcile');}
+ assert.equal((await f.call('/api/feedback',{...s.request,headers:{...headers,'X-Feedback-Status-Token':'b'.repeat(64)}})).status,409);
+ assert.equal((await f.call('/api/feedback',{...s.request,headers,body:JSON.stringify(payload({description:'changed'}))})).status,409);
+ assert.equal((await f.call('/api/feedback',(await submission(f)).request)).status,429);
+ assert.equal(f.objects.size,1);assert.equal(f.sql.prepare('SELECT count(*) n FROM feedback').get().n,1);
+ f.sql.exec("UPDATE counters SET value=60 WHERE key LIKE 'replay:%'");assert.equal((await f.call('/api/feedback',{...s.request,headers})).status,429);
+ f.sql.exec("UPDATE counters SET value=0 WHERE key LIKE 'replay:%'; UPDATE counters SET value=2000 WHERE key LIKE 'global:attempt:%'");assert.equal((await f.call('/api/feedback',{...s.request,headers})).status,429);
+});
+test('safe request tracing distinguishes D1 and R2 faults without raw exception content',async()=>{
+ const f=fixture(),s=await submission(f);f.bucket.failPut=true;let r=await f.call('/api/feedback',s.request);
+ assert.equal(r.status,503);assert.equal((await r.json()).error,'storage_retry');assert.match(r.headers.get('X-Feedback-Request-ID'),/^[a-f0-9-]{36}$/);assert.equal(r.headers.get('X-Feedback-Stage'),'storage');
+ f.env.DB={prepare(){throw Error('Cookie: private secret');}};r=await f.call('/api/feedback',s.request);assert.equal(r.status,503);assert.equal((await r.json()).error,'request_failed');
+ const g=fixture();g.env.DB={prepare(){return {async first(){throw Error('Cookie: private secret');}};}};r=await g.call('/api/feedback',s.request);assert.equal((await r.json()).error,'d1_unavailable');
+});
 test('private R2 + D1 upload, hash verification, idempotency, scoped status, permissions',async()=>{
  const f=fixture(),s=await submission(f),r=await f.call('/api/feedback',s.request);assert.equal(r.status,201);const {id}=await r.json();
  assert.equal(f.objects.size,1);assert.equal(f.sql.prepare('SELECT count(*) n FROM feedback').get().n,1);
@@ -49,7 +67,7 @@ test('proof required, challenge single use/expiry, rate and global capacity, pau
  const g=fixture();g.env.STORAGE_LIMIT_BYTES='1';assert.equal((await g.call('/api/feedback',(await submission(g)).request)).status,429);
  g.env.UPLOADS_ENABLED='false';assert.equal((await g.call('/api/feedback/challenge')).status,503);assert.equal((await g.call('/api/feedback',(await submission(g)).request)).status,503);
  const h=fixture();h.sql.prepare('INSERT INTO counters VALUES(?,?,?)').run('global:challenge:'+Math.floor(Date.now()/86400000),2000,Date.now()+1e6);assert.equal((await h.call('/api/feedback/challenge',{headers:{'CF-Connecting-IP':'1.2.3.4'}})).status,429);
- const k=fixture();for(let i=0;i<30;i++)assert.equal((await k.call('/api/feedback/challenge')).status,200);assert.equal((await k.call('/api/feedback/challenge')).status,429);
+ const k=fixture();for(let i=0;i<120;i++)assert.equal((await k.call('/api/feedback/challenge')).status,200);assert.equal((await k.call('/api/feedback/challenge')).status,429);
 });
 test('cookie CSRF, read/admin isolation, one-time mobile login, safe shell',async()=>{
  const f=fixture();assert.equal((await f.call('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status,403);

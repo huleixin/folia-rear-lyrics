@@ -6,13 +6,14 @@ import {scrubText} from './schema.mjs';
 
 // src/services/feedback/client.ts: lazy worker, no upload without an explicit send action.
 export type CloudPreview={localId:string;preview:string;bytes:number};
-export type CloudHistory={localId:string;at:number;category:string;status:string;feedbackId?:string};
+export type CloudFailure={attempts:Array<{time:string;host:string;stage:string;bytes:number;httpStatus:number;elapsedMs:number;code:string;ray?:string;requestId?:string;serverStage?:string;retries?:number}>;elapsedMs:number};
+export type CloudHistory={localId:string;at:number;category:string;status:string;feedbackId?:string;lastError?:CloudFailure};
 type Update={progress?:number;phase?:string};
 type Pending={resolve:(v:any)=>void;reject:(e:Error)=>void;update?:(u:Update)=>void};
 let worker:Worker|undefined,sequence=0;
 const calls=new Map<number,Pending>();
 function getWorker(){if(worker)return worker;worker=new Worker(new URL('./feedback.worker.mjs',import.meta.url),{type:'module'});
-  worker.onmessage=({data})=>{const p=calls.get(data.id);if(!p)return;if(data.progress!==undefined||data.phase){p.update?.(data);return;}calls.delete(data.id);if(data.error)p.reject(Error(data.error));else p.resolve(data.value);};
+  worker.onmessage=({data})=>{const p=calls.get(data.id);if(!p)return;if(data.progress!==undefined||data.phase){p.update?.(data);return;}calls.delete(data.id);if(data.error)p.reject(Object.assign(Error(data.error),{report:data.report}));else p.resolve(data.value);};
   worker.onerror=()=>{for(const p of calls.values())p.reject(Error('worker_unavailable'));calls.clear();worker?.terminate();worker=undefined;};return worker;}
 export function cloudCall<T>(action:string,input:unknown={},update?:(u:Update)=>void):Promise<T>{return new Promise((resolve,reject)=>{const id=++sequence;calls.set(id,{resolve,reject,update});try{getWorker().postMessage({id,action,input});}catch{calls.delete(id);reject(Error('worker_unavailable'));}});}
 export async function prepareCloudFeedback(draft:{category:string;description:string;steps:string;includeDiagnostics:boolean}):Promise<CloudPreview>{

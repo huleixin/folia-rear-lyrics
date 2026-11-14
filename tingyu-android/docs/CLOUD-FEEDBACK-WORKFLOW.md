@@ -36,3 +36,8 @@ API 默认 https://feedback.20262000.xyz，工具只读请求遇到网络故障�
 手机短期单次登录由显式 login-link --role admin 生成；不在URL放长期密钥。
 新增会话可先 list 验证读取；不可因为读取失败自作主张轮换密钥、部署或公开R2。
 日常新问题分析不需要 Cloudflare 权限，仅反馈read能力。
+
+上传链路证据与边界见 [FEEDBACK-STABILITY-P0-20261114.md](FEEDBACK-STABILITY-P0-20261114.md)。
+先收集“复制提交错误详情”的时间、域名、HTTP、Ray、请求ID和阶段，再匹配真实记录。
+用户已授权生产运行调查时才用 tools/feedback_tail.py 有界追踪，禁止输出原始请求头。
+常规只读拉取无须Cloudflare管理能力，也不反复上传合成反馈。

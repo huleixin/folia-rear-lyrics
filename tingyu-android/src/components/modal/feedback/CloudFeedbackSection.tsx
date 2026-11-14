@@ -26,6 +26,7 @@ export default function CloudFeedbackSection({flow}:{flow:CloudFeedbackFlow}){
       <p data-settings-style='{"font":11,"tone":"muted"}'>{copy('privacy')}</p>
     </>}
     {flow.message&&<p role="status" aria-live="polite">{flow.message}</p>}
+    {flow.failure&&<button type="button" onClick={()=>void flow.copyError(flow.failure!)}>{copy('copyError')}</button>}
     {!preview&&<button type="button" disabled={busy} onClick={()=>setHistoryOpen(v=>!v)}>{copy('history')}{flow.history.length? ' · '+flow.history.length:''}</button>}
     {!preview&&historyOpen&&flow.history.length===0&&<p>{copy('emptyHistory')}</p>}
     {!preview&&historyOpen&&flow.history.map(r=><article key={r.localId} data-settings-layout="column" data-settings-style='{"gap":6,"border":true,"radius":12,"padding":[10,10,10,10]}'>
@@ -35,6 +36,7 @@ export default function CloudFeedbackSection({flow}:{flow:CloudFeedbackFlow}){
           <button type="button" disabled={busy} onClick={()=>void flow.status(r.localId)}>{copy('refresh')}</button></>:
           <button type="button" disabled={busy} onClick={()=>void flow.prepare(r.localId)}>{copy('retry')}</button>}
         <button type="button" disabled={busy} onClick={()=>void flow.remove(r.localId)}>{copy('remove')}</button>
+        {r.lastError&&<button type="button" onClick={()=>void flow.copyError(r.lastError!)}>{copy('copyError')}</button>}
       </div>
     </article>)}
   </section>;

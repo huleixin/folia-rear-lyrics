@@ -332,7 +332,7 @@ export default async function viteConfig(_config: ConfigEnv): Promise<UserConfig
       '__BUILD_COMMIT__': JSON.stringify(buildCommit),
       '__BUILD_KIND__': JSON.stringify(buildKind.kind),
       '__BUILD_HOST__': JSON.stringify(buildKind.host ?? ''),
-      '__APP_VERSION__': JSON.stringify(JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8')).version),
+      '__APP_VERSION__': JSON.stringify(JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8')).version + (process.env.TINGYU_FEEDBACK_TEST === 'true' ? '-feedback-test.1' : '')),
       '__APP_VERSION_LABEL__': JSON.stringify(appVersionLabel),
       '__APP_RELEASE_CHANNEL__': JSON.stringify(appReleaseChannel),
       '__DOCKER_STACK_VERSION__': JSON.stringify(dockerStackVersion)

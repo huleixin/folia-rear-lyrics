@@ -45,7 +45,7 @@ PATCH /api/admin/settings body {"uploadsEnabled":true} 开启第二门。
 真实云端验收：项目根 python tools/test_feedback_live.py --allow-test-uploads --security-checks。
 该命令创建并关闭两条合成反馈，短暂检查暂停开关；必须在已授权范围内使用。
 test/live-browser.mjs 从 stdin 接收 OS 凭据读取器提供的 url/readToken/adminToken，检验手机/Pad后台。
-禁止将凭据写入文件或打印到终端；每小时上传尝试限流也适用于验收，避免反复运行。
+禁止将凭据写入文件或打印到终端；全局及新提交/重放限流也适用于验收，避免反复运行。
 变更配置门需重新部署。禁止为了调试开放 R2 或公开日志接口。
 
 安全轮换：先在受保护本机准备新值，通过 stdin secret bulk 更新 Worker，再原子替换对应系统存储。
@@ -73,7 +73,7 @@ test/live-browser.mjs 从 stdin 接收 OS 凭据读取器提供的 url/readToken
 
 状态：pending/investigating/verification/fixed/unreproduced/closed。
 后台主地址：https://feedback.20262000.xyz/admin 。备用地址：https://tingyu-feedback-api.2473297053.workers.dev/admin 。
-客户端、崩溃反馈和状态查询共享 HTTPS 主入口，网络故障时最多尝试一次固定备用入口。
+客户端、崩溃反馈和状态查询共享HTTPS主入口；主动上传最多3次（主、备、主），查询最多2次。
 上传复用同一正文、幂等键和状态凭证；失败保留草稿，由用户主动重试。暂停、限流、权限及校验错误不触发切换。
 挑战/查询每入口15秒，上传每入口60秒，PoW每次最多90秒；没有无限后台重试。
 后台 API 使用同源相对路径；Cookie 是 HttpOnly/Secure/SameSite=Strict，仅当前主机有效。
@@ -110,5 +110,8 @@ PoW默认18bit(16–22)，无APK共享秘密，攻击者伪造客户端也不能
 Workers请求和D1拒绝判定本身仍耗配额；应用内限流无法保证任意洪泛下零费用或可用性。
 必须核验当前Cloudflare计划/免费额度，平台边缘防护、用量通知及必要时暂停；未配置付费AI。
 未修改账号套餐/账单/其他项目。Worker关闭诊断观测日志，代码不输出正文/鉴权/隐私。
+上传/挑战输出安全追踪字段，不含正文/头/IP/凭证；有界tail必须用tools/feedback_tail.py过滤。
+共享IP新请求120次/小时、通过PoW的新提交30次/小时；已接受同正文/凭证重放60次/键/小时。
+具体故障证据、真实CPU与测试边界见 ../docs/FEEDBACK-STABILITY-P0-20261114.md。
 首阶段没有Turnstile或额外WAF资源绑定，PoW不是绝对反刷保证。后台登录限流可能被故意耗尽。
 未知形态的用户手填秘密无法全自动识别，因此上传前必须预览、确认且按最少数据使用。

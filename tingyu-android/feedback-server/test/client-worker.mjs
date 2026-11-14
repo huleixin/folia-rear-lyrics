@@ -27,7 +27,7 @@ try{
   await page.evaluate(()=>{
     const worker=new Worker('/worker.js',{type:'module'}),pending=new Map();let sequence=0;
     window.feedbackCall=(action,input={})=>new Promise((resolve,reject)=>{const id=++sequence;pending.set(id,{resolve,reject});worker.postMessage({id,action,input});});
-    worker.onmessage=({data})=>{if(data.phase||data.progress!==undefined)return;const p=pending.get(data.id);pending.delete(data.id);data.error?p.reject(Error(data.error)):p.resolve(data.value);};
+    worker.onmessage=({data})=>{if(data.phase||data.progress!==undefined)return;const p=pending.get(data.id);pending.delete(data.id);data.error?p.reject(Object.assign(Error(data.error),{report:data.report})):p.resolve(data.value);};
     worker.onerror=e=>{for(const p of pending.values())p.reject(Error(e.message));pending.clear();};
     window.ticks=0;setInterval(()=>window.ticks++,20);
   });
@@ -37,7 +37,7 @@ try{
   const started=Date.now(),before=await page.evaluate(()=>window.ticks);
   const uploaded=await page.evaluate(id=>window.feedbackCall('send',{localId:id}),preview.localId);
   assert.match(uploaded.id,/^TY-/);assert.equal(posts,2);assert.equal(f.sql.prepare('SELECT count(*) n FROM feedback').get().n,1,'Cross-domain lost response retry must be idempotent');
-  assert.deepEqual(origins,[PRIMARY_API,PRIMARY_API,BACKUP_API,BACKUP_API]);
+  assert.deepEqual(origins,[PRIMARY_API,PRIMARY_API,BACKUP_API]);
   assert.deepEqual(uploads.map(({origin,...u})=>u),[uploads[0],uploads[0]].map(({origin,...u})=>u));
   let rows=await page.evaluate(()=>window.feedbackCall('history'));assert.equal(rows[0].status,'pending');assert.ok(!('capability'in rows[0])&&!('body'in rows[0]));
   const elapsed=Date.now()-started,ticks=await page.evaluate(()=>window.ticks)-before;assert.ok(ticks>elapsed/100,'Main thread continues ticking during proof/upload');
@@ -45,12 +45,12 @@ try{
   const retryDraft=await page.evaluate(input=>window.feedbackCall('prepare',input),{...input,description:'Manual retry test'});
   const failSend=id=>page.evaluate(async id=>{try{await window.feedbackCall('send',{localId:id});return 'unexpected';}catch(e){return e.message;}},id);
   mode='paused';let previous=calls;assert.equal(await failSend(retryDraft.localId),'uploads_paused');assert.equal(calls-previous,1,'Pause must not be bypassed via backup');
-  mode='offline';previous=calls;assert.equal(await failSend(retryDraft.localId),'network_failed');assert.equal(calls-previous,2,'Exhaust both origins once at challenge');
+  mode='offline';previous=calls;assert.equal(await failSend(retryDraft.localId),'network_failed');assert.equal(calls-previous,3,'A user action is bounded at three attempts');
   assert.equal((await page.evaluate(id=>window.feedbackCall('preview',{localId:id}),retryDraft.localId)).preview,retryDraft.preview);
-  rows=await page.evaluate(()=>window.feedbackCall('history'));assert.equal(rows.find(r=>r.localId===retryDraft.localId).status,'retry');
-  mode='lost-responses';assert.equal(await failSend(retryDraft.localId),'network_failed');assert.equal(posts,4);
+  rows=await page.evaluate(()=>window.feedbackCall('history'));const failedRow=rows.find(r=>r.localId===retryDraft.localId);assert.equal(failedRow.status,'retry');assert.equal(failedRow.lastError.attempts.length,3);assert.ok(failedRow.lastError.uploadBytes>0);assert.equal(failedRow.lastError.attempts[0].errorType,'network');assert.ok(!JSON.stringify(failedRow.lastError).includes('private'));
+  mode='lost-responses';assert.equal(await failSend(retryDraft.localId),'network_failed');assert.equal(posts,5);
   assert.equal((await page.evaluate(id=>window.feedbackCall('preview',{localId:id}),retryDraft.localId)).preview,retryDraft.preview);
-  mode='normal';await page.evaluate(id=>window.feedbackCall('send',{localId:id}),retryDraft.localId);assert.equal(posts,5);assert.equal(f.sql.prepare('SELECT count(*) n FROM feedback').get().n,2);
+  mode='normal';await page.evaluate(id=>window.feedbackCall('send',{localId:id}),retryDraft.localId);assert.equal(posts,6);assert.equal(f.sql.prepare('SELECT count(*) n FROM feedback').get().n,2);
   assert.equal(uploads.at(-1).origin,PRIMARY_API,'A later manual action prioritizes new domain again');
   for(const u of uploads.slice(2))assert.deepEqual({body:u.body,key:u.key,cap:u.cap},{body:uploads[2].body,key:uploads[2].key,cap:uploads[2].cap});
   const noLog=await page.evaluate(input=>window.feedbackCall('prepare',{...input,includeDiagnostics:false}),input);assert.equal(JSON.parse(noLog.preview).diagnostics,null);

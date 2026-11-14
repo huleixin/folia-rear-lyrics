@@ -5,7 +5,8 @@ import {mkdir} from 'node:fs/promises';
 // feedback-server/test/live-browser.mjs
 // Credentials arrive only on stdin from the OS store; test only explicitly seeded synthetic rows.
 const chunks=[];for await(const c of process.stdin)chunks.push(c);
-const {url,readToken,adminToken}=JSON.parse(Buffer.concat(chunks).toString());
+const {url,readToken,adminToken,version='feedback-acceptance',description='Synthetic acceptance test, not user feedback'}=JSON.parse(Buffer.concat(chunks).toString());
+assert.ok(['feedback-acceptance','feedback-p0'].includes(version),'Only explicitly synthetic feedback may be managed by this test');
 const browser=await chromium.launch({headless:true});
 try{
   await mkdir(new URL('../../test-results/feedback-live/',import.meta.url),{recursive:true});
@@ -24,9 +25,9 @@ try{
     assert.equal(session.domain,new URL(url).hostname);assert.equal(session.path,'/api/admin');
     const csrf=await page.context().request.patch(url+'/api/admin/settings',{headers:{Origin:'https://untrusted.invalid'},data:{uploadsEnabled:true}});
     assert.ok([401,403].includes(csrf.status()),'Cross-origin cookie mutation must be rejected');
-    await page.locator('[name=version]').fill('feedback-acceptance');
+    await page.locator('[name=version]').fill(version);
     await page.getByRole('button',{name:'筛选',exact:true}).click();
-    const card=page.locator('#feedback article').filter({hasText:'Synthetic acceptance test, not user feedback'}).first();
+    const card=page.locator('#feedback article').filter({hasText:description}).first();
     await card.waitFor();await card.locator('button').click();await page.locator('#detail').waitFor({state:'visible'});
     assert.equal(await page.locator('#token').inputValue(),'');
     assert.equal(await page.locator('#detail select').count(),admin?1:0);
