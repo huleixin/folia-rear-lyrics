@@ -1,0 +1,294 @@
+{
+  "key": "settings-flow:help:modal",
+  "title": "问题反馈",
+  "nodes": [
+    {
+      "id": "form:4:text:0",
+      "kind": "note",
+      "title": "告诉我们遇到了什么问题。"
+    },
+    {
+      "id": "form:59",
+      "kind": "group",
+      "title": "确认反馈内容"
+    },
+    {
+      "id": "form:60:text:2",
+      "kind": "note",
+      "title": "播放失败"
+    },
+    {
+      "id": "form:61:text:3",
+      "kind": "note",
+      "title": "上传大小"
+    },
+    {
+      "id": "form:61:text:4",
+      "kind": "note",
+      "title": ":"
+    },
+    {
+      "id": "form:61:text:5",
+      "kind": "note",
+      "title": "0.1"
+    },
+    {
+      "id": "form:61:text:6",
+      "kind": "note",
+      "title": "KB ·"
+    },
+    {
+      "id": "form:61:text:7",
+      "kind": "note",
+      "title": "不附带诊断"
+    },
+    {
+      "id": "form:62",
+      "kind": "action",
+      "title": "查看完整上传内容",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "undefined"
+    },
+    {
+      "id": "form:63",
+      "kind": "switch",
+      "title": "我同意上传这些内容，用于开发者及 AI（Codex）排查问题。反馈在 Cloudflare 私有存储中保留30天。",
+      "value": "0",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "undefined"
+    },
+    {
+      "id": "form:64:text:10",
+      "kind": "note",
+      "title": "我同意上传这些内容，用于开发者及 AI（Codex）排查问题。反馈在 Cloudflare 私有存储中保留30天。"
+    },
+    {
+      "id": "form:65",
+      "kind": "action",
+      "title": "返回修改",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "undefined"
+    },
+    {
+      "id": "form:27",
+      "kind": "action",
+      "title": "确认上传",
+      "value": "",
+      "disabled": true,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "undefined"
+    }
+  ],
+  "layout": {
+    "id": "page:form:58",
+    "kind": "column",
+    "style": {
+      "padding": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "children": [
+      {
+        "id": "form:28",
+        "kind": "column",
+        "style": {
+          "gap": 16,
+          "font": 12
+        },
+        "children": [
+          {
+            "id": "form:29",
+            "kind": "column",
+            "style": {
+              "font": 12,
+              "tone": "muted"
+            },
+            "children": [
+              {
+                "id": "copy:1",
+                "kind": "text",
+                "text": "告诉我们遇到了什么问题。"
+              }
+            ]
+          },
+          {
+            "id": "form:31",
+            "kind": "column",
+            "style": {
+              "gap": 12
+            },
+            "children": [
+              {
+                "id": "form:66",
+                "kind": "column",
+                "style": {
+                  "gap": 10
+                },
+                "children": [
+                  {
+                    "id": "copy:2",
+                    "kind": "text",
+                    "text": "确认反馈内容"
+                  },
+                  {
+                    "id": "copy:3",
+                    "kind": "text",
+                    "text": "播放失败"
+                  },
+                  {
+                    "id": "copy:4",
+                    "kind": "text",
+                    "text": "上传大小: 0.1 KB · 不附带诊断"
+                  },
+                  {
+                    "id": "layout:form:62",
+                    "kind": "control",
+                    "ref": "form:62",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "content:form:62",
+                        "kind": "row",
+                        "style": {},
+                        "children": [
+                          {
+                            "id": "copy:5",
+                            "kind": "text",
+                            "text": "查看完整上传内容"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "form:67",
+                    "kind": "row",
+                    "style": {
+                      "gap": 10,
+                      "align": "start"
+                    },
+                    "children": [
+                      {
+                        "id": "layout:form:63",
+                        "kind": "control",
+                        "ref": "form:63",
+                        "style": {}
+                      },
+                      {
+                        "id": "copy:6",
+                        "kind": "text",
+                        "text": "我同意上传这些内容，用于开发者及 AI（Codex）排查问题。反馈在 Cloudflare 私有存储中保留30天。"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "layout:form:65",
+                    "kind": "control",
+                    "ref": "form:65",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "content:form:65",
+                        "kind": "row",
+                        "style": {},
+                        "children": [
+                          {
+                            "id": "copy:7",
+                            "kind": "text",
+                            "text": "返回修改"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "form:57",
+            "kind": "column",
+            "style": {
+              "gap": 8
+            },
+            "children": [
+              {
+                "id": "layout:form:27",
+                "kind": "control",
+                "ref": "form:27",
+                "style": {
+                  "fill": true,
+                  "tone": "primary",
+                  "radius": 12,
+                  "padding": [
+                    12,
+                    16,
+                    12,
+                    16
+                  ],
+                  "center": true,
+                  "font": 14,
+                  "weight": 600,
+                  "minHeight": 48
+                },
+                "children": [
+                  {
+                    "id": "content:form:27",
+                    "kind": "row",
+                    "style": {
+                      "center": true
+                    },
+                    "children": [
+                      {
+                        "id": "copy:8",
+                        "kind": "text",
+                        "text": "确认上传"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "headerActions": []
+}

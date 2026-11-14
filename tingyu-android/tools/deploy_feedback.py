@@ -10,7 +10,7 @@ from feedback_credentials import prepare, read
 ROOT = Path(__file__).resolve().parents[1] / 'feedback-server'
 def run(args, data=None):
     command = ['npx.cmd' if os.name == 'nt' else 'npx', 'wrangler', *args]
-    result = subprocess.run(command, cwd=ROOT, input=data, text=True, capture_output=True)
+    result = subprocess.run(command, cwd=ROOT, input=data, text=True, encoding='utf-8', errors='replace', capture_output=True)
     if result.returncode:
         raise RuntimeError('Wrangler operation failed: ' + ' '.join(args[:3]))
     # Wrangler responses can change; do not echo raw output for secret operations.

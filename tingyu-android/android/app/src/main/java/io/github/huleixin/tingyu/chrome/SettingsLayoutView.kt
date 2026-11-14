@@ -40,7 +40,7 @@ internal fun SettingsLayoutView(node: SettingsLayoutNode, controls: Map<String,T
     if(s.maxHeight>0)outer=outer.heightIn(max=s.maxHeight.dp)
     if(s.aspect>0)outer=outer.aspectRatio(s.aspect)
     val textStyle=LocalTextStyle.current.merge(TextStyle(
-        color=when(s.tone){"muted"->theme.muted;"accent"->theme.accent;"danger"->theme.danger;else->Color.Unspecified},
+        color=when(s.tone){"muted"->theme.muted;"accent"->theme.accent;"primary"->LocalInterfacePalette.current.onAccent;"danger"->theme.danger;else->Color.Unspecified},
         fontSize=if(s.font>0)s.font.sp else androidx.compose.ui.unit.TextUnit.Unspecified,
         lineHeight=if(s.font>0)(s.font*1.45f).sp else androidx.compose.ui.unit.TextUnit.Unspecified,
         fontWeight=if(s.weight>0)FontWeight(s.weight) else null,textAlign=if(s.center)TextAlign.Center else TextAlign.Unspecified))

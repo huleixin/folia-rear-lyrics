@@ -36,7 +36,7 @@ class Client:
     def request(self, path, body=None, method=None, limit=MAX_BYTES + 65536):
         data = None if body is None else json.dumps(body).encode()
         req = urllib.request.Request(self.base + '/api/admin/' + path, data=data, method=method,
-            headers={'Authorization': 'Bearer ' + self.config['token'], 'Content-Type': 'application/json'})
+            headers={'Authorization': 'Bearer ' + self.config['token'], 'Content-Type': 'application/json', 'User-Agent': 'Tingyu-feedback/1.0'})
         try:
             with self.opener.open(req, timeout=45) as response:
                 raw = response.read(limit + 1)

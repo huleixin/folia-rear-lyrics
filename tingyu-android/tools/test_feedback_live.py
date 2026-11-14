@@ -14,12 +14,13 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--local',action='store_true')
     parser.add_argument('--allow-test-uploads',action='store_true')
+    parser.add_argument('--security-checks',action='store_true',help='Bounded rejection and emergency-gate checks; needs approved upload scope')
     args=parser.parse_args()
     admin={'url':'http://127.0.0.1:8787','token':'local-admin-test'} if args.local else read('admin',allow_env=False)
     readonly={'url':admin['url'],'token':'local-read-test'} if args.local else read(allow_env=False)
     api=admin['url'].rstrip('/'); opener=urllib.request.build_opener(NoRedirect())
     def request(path,headers=None,body=None,method=None):
-        req=urllib.request.Request(api+path,headers=headers or {},data=body,method=method)
+        req=urllib.request.Request(api+path,headers={'User-Agent':'Tingyu-feedback/1.0',**(headers or {})},data=body,method=method)
         try:
             with opener.open(req,timeout=45) as response:return response.status,response.read(6*1024*1024),response.headers
         except urllib.error.HTTPError as error:return error.code,error.read(4096),error.headers
@@ -31,6 +32,25 @@ def main():
     assert request('/admin')[0]==200
     print('PASS live health/private access/read-admin isolation/admin shell')
     if not args.allow_test_uploads:return
+    if args.security_checks:
+        # Briefly exercise the emergency gate; restore it even if an assertion fails.
+        try:
+            assert request('/api/admin/settings',auth(admin),b'{"uploadsEnabled":false}','PATCH')[0]==200
+            assert request('/api/feedback/challenge')[0]==503
+            assert request('/api/feedback',{'Content-Type':'application/json'},b'{}','POST')[0]==503
+        finally:
+            assert request('/api/admin/settings',auth(admin),b'{"uploadsEnabled":true}','PATCH')[0]==200
+        c=json.loads(request('/api/feedback/challenge')[1]);n=0
+        while int.from_bytes(hashlib.sha256((c['token']+':'+str(n)).encode()).digest()[:4],'big')>>(32-c['bits']):n+=1
+        headers={'Content-Type':'application/json','Idempotency-Key':secrets.token_hex(32),'X-Feedback-Status-Token':secrets.token_hex(32),'X-Feedback-Challenge':c['token'],'X-Feedback-Proof':str(n)}
+        unsafe={'category':'other','description':'synthetic','cookie':'synthetic-secret-never-store'}
+        assert request('/api/feedback',headers,json.dumps(unsafe).encode(),'POST')[0]==400
+        assert request('/api/feedback',{**headers,'Content-Type':'application/zip'},b'PK\x03\x04synthetic','POST')[0]==400
+        assert request('/api/feedback',headers,b' '*(5*1024*1024+32769),'POST')[0]==400
+        assert request('/api/feedback',{'Content-Type':'application/json'},b'{}','POST')[0]==403
+        status,_,cors=request('/api/feedback',{'Origin':'https://localhost','Access-Control-Request-Method':'POST'},method='OPTIONS')
+        assert status==204 and cors['Access-Control-Allow-Origin']=='https://localhost'
+        print('PASS live emergency pause/restore; credentials and ZIP rejected; body bound; proof requirement; Android CORS')
     ids=[]
     for log in (True,False):
         c=json.loads(request('/api/feedback/challenge')[1]);assert 'token' in c,'Uploads must be enabled within approved test scope'

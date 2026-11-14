@@ -56,7 +56,8 @@ internal fun SettingsLayoutControl(node:TySettingNode,layout:SettingsLayoutNode,
             val shape=RoundedCornerShape(if(s.radius>0)s.radius.dp else 10.dp)
             var button=outer.then(if(!compact&&s.width<=0)Modifier.fillMaxWidth()else Modifier)
                 .heightIn(min=if(s.height>0)s.height.dp else if(s.minHeight>0)s.minHeight.dp else if(compact&&s.padding.isEmpty()&&!s.fill&&!s.border)0.dp else 36.dp).clip(shape)
-            if(s.fill||selected)button=button.background(if(selected)theme.accent.copy(alpha=.13f)else theme.card)
+            if(s.tone=="primary")button=button.background(theme.accent)
+            else if(s.fill||selected)button=button.background(if(selected)theme.accent.copy(alpha=.13f)else theme.card)
             if(s.border||selected)button=button.border(1.dp,if(selected)theme.accent.copy(alpha=.65f)else theme.line,shape)
             button=button.settingsSwatch(layout.text,s.radius)
             button=button.semantics(mergeDescendants=true){contentDescription=node.title;if(selected)this.selected=true}

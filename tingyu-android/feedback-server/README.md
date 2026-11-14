@@ -37,11 +37,15 @@ node test/browser.mjs 测移动/Pad/桌面管理后台；node test/client-worker
 确认后在项目根执行 python tools/deploy_feedback.py --confirmed-remote-deployment：
 1. 将0001/0002迁移应用到现有 D1；2. stdin secret bulk 配置 FEEDBACK_READ_TOKEN 和
 FEEDBACK_ADMIN_TOKEN；3. 部署当前 Worker 和内置后台及每日03:17 UTC清理 cron。
-默认 UPLOADS_ENABLED=false 且 D1 settings=false，双重暂停；部署本身不开放用户上传。
-合成云端验收需在获授权范围内短暂打开两门并最后恢复暂停。
-正式开放前需安全用例全部通过并由用户确认；更新 config=true 后，管理鉴权
+初始迁移 D1 settings=false，部署本身不会开启第二门。目前已获用户上线确认并通过云端验收，
+wrangler.jsonc 的 UPLOADS_ENABLED=true，线上 D1 门也已开启。新环境验收应在获授权范围内打开，
+未获得正式开放授权时验收后恢复暂停。正式开放前需安全用例全部通过；管理鉴权
 PATCH /api/admin/settings body {"uploadsEnabled":true} 开启第二门。
 紧急暂停可在后台点“暂停上传”，立即关闭 D1 门；配置门为false时公开上传无需访问D1。
+真实云端验收：项目根 python tools/test_feedback_live.py --allow-test-uploads --security-checks。
+该命令创建并关闭两条合成反馈，短暂检查暂停开关；必须在已授权范围内使用。
+test/live-browser.mjs 从 stdin 接收 OS 凭据读取器提供的 url/readToken/adminToken，检验手机/Pad后台。
+禁止将凭据写入文件或打印到终端；每小时上传尝试限流也适用于验收，避免反复运行。
 变更配置门需重新部署。禁止为了调试开放 R2 或公开日志接口。
 
 安全轮换：先在受保护本机准备新值，通过 stdin secret bulk 更新 Worker，再原子替换对应系统存储。

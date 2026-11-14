@@ -12,7 +12,8 @@ import {
     type FeedbackDraft,
 } from '../../../services/diagnostics/diagnosticPackage';
 import { captureScreenshots, MAX_FEEDBACK_SCREENSHOTS } from '../../../services/diagnostics/screenshotCapture';
-import CloudFeedbackSection from './CloudFeedbackSection';
+import CloudFeedbackSection, {CloudFeedbackSubmit} from './CloudFeedbackSection';
+import {useCloudFeedbackFlow} from './useCloudFeedbackFlow';
 import {useFeedbackNavigation} from '../../../services/feedback/navigation';
 
 // src/components/modal/feedback/FeedbackPanel.tsx
@@ -38,6 +39,7 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
     const [includeDiagnostics, setIncludeDiagnostics] = React.useState(true);
     const [phase, setPhase] = React.useState<Phase>('idle');
     const [preview, setPreview] = React.useState('');
+    const [manualOpen, setManualOpen] = React.useState(false);
     const fileRef = React.useRef<HTMLInputElement>(null);
 
     const palette = light
@@ -63,6 +65,7 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
         };
 
     const draft: FeedbackDraft = { category, description, includeDiagnostics, screenshots };
+    const cloud = useCloudFeedbackFlow(draft);
 
     const categories: Array<{ id: FeedbackCategory; icon: React.ReactNode }> = [
         { id: 'crash', icon: <Activity size={15} aria-hidden="true" /> },
@@ -116,7 +119,7 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
         }
     };
 
-    const busy = phase === 'working' || phase === 'previewing';
+    const busy = phase === 'working' || phase === 'previewing' || cloud.busy;
 
     // 只有「点在遮罩/容器空白处」才关闭。event.target === event.currentTarget 把面板
     // 内容区完全排除；面板自己再 stopPropagation 兜一道。这样 DOM 侧与原生镜像侧
@@ -195,6 +198,10 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                             {preview}
                         </pre>
                     </div>
+                ) : cloud.preview ? (
+                    <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4" data-settings-layout="column" data-settings-style='{"gap":12}'>
+                        <CloudFeedbackSection flow={cloud}/>
+                    </div>
                 ) : (
                     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-4" data-settings-layout="column" data-settings-style='{"gap":16}'>
                         <section data-settings-layout="column" data-settings-style='{"gap":8}'>
@@ -253,7 +260,7 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                             </p>
                         </section>
 
-                        <section data-settings-layout="column" data-settings-style='{"gap":8}'>
+                        {manualOpen&&<section data-settings-layout="column" data-settings-style='{"gap":8}'>
                             <div className="mb-2 flex items-center justify-between" data-settings-layout="row" data-settings-style='{"align":"between","gap":8,"font":12}'>
                                 <span className="text-xs font-semibold" style={{ color: palette.muted }}>
                                     {copy.screenshotsLabel}
@@ -306,7 +313,7 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                                     }}
                                 />
                             </div>
-                        </section>
+                        </section>}
 
                         <section
                             className="flex items-start gap-3 rounded-2xl p-3" data-settings-layout="row" data-settings-style='{"align":"start","gap":12,"radius":12,"fill":true,"padding":[12,12,12,12]}'
@@ -337,20 +344,18 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                             </div>
                         </section>
 
-                        <CloudFeedbackSection draft={draft}/>
-                        <section data-settings-layout="column" data-settings-style='{"gap":8}'>
-                            <div className="text-xs font-semibold">{copy.privacyTitle}</div>
-                            <p className="mt-1 text-[10px] leading-relaxed" data-settings-layout="column" data-settings-style='{"font":11,"tone":"muted"}' style={{ color: palette.muted }}>
-                                {copy.privacyBody}
-                            </p>
-                        </section>
+                        <CloudFeedbackSection flow={cloud}/>
+                        <button type="button" disabled={busy} data-settings-style='{"tone":"muted","font":11}'
+                            onClick={()=>setManualOpen(v=>!v)}>{copy.export}</button>
                     </div>
                 )}
 
                 <div
-                    className="flex items-center gap-2 border-t px-5 py-3" data-settings-layout="grid" data-settings-style='{"columns":2,"gap":8,"stackBelow":360}'
+                    className="flex flex-col gap-2 border-t px-5 py-3" data-settings-layout="column" data-settings-style='{"gap":8}'
                     style={{ borderColor: palette.border, backgroundColor: palette.surface }}
                 >
+                    {phase!=='preview'&&<CloudFeedbackSubmit flow={cloud} disabled={busy} style={{backgroundColor:palette.accent,color:palette.accentText}}/>}
+                    {manualOpen&&!cloud.preview&&<div className="flex w-full gap-2" data-settings-layout="grid" data-settings-style='{"columns":2,"gap":8,"stackBelow":360}'>
                     <button
                         type="button"
                         data-testid="feedback-preview-button" data-settings-style='{"border":true,"radius":12,"padding":[10,12,10,12],"center":true,"font":12}'
@@ -363,11 +368,11 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                     </button>
                     <button
                         type="button"
-                        data-testid="feedback-export-button" data-settings-layout="row" data-settings-style='{"fill":true,"tone":"accent","radius":12,"gap":8,"padding":[10,12,10,12],"center":true,"font":12}'
+                        data-testid="feedback-export-button" data-settings-layout="row" data-settings-style='{"border":true,"tone":"muted","radius":12,"gap":8,"padding":[10,12,10,12],"center":true,"font":12}'
                         onClick={() => void handleExport()}
                         disabled={busy}
                         className="flex flex-[1.2] items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold transition-opacity disabled:opacity-60"
-                        style={{ backgroundColor: palette.accent, color: palette.accentText }}
+                        style={{ borderColor: palette.border, color: palette.muted }}
                     >
                         {phase === 'working' ? (
                             <Loader2 size={14} className="animate-spin" />
@@ -384,6 +389,7 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                                     ? copy.exportFailed
                                     : copy.export}
                     </button>
+                    </div>}
                 </div>
             </div>
         </div>,

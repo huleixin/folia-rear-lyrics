@@ -1,0 +1,1098 @@
+{
+  "key": "settings-flow:help:modal",
+  "title": "问题反馈",
+  "nodes": [
+    {
+      "id": "form:4:text:0",
+      "kind": "note",
+      "title": "告诉我们遇到了什么问题。"
+    },
+    {
+      "id": "form:5:text:1",
+      "kind": "note",
+      "title": "问题类型"
+    },
+    {
+      "id": "form:6",
+      "kind": "action",
+      "title": "闪退或卡死",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "undefined",
+      "detail": "✓"
+    },
+    {
+      "id": "form:7",
+      "kind": "action",
+      "title": "播放异常",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "undefined"
+    },
+    {
+      "id": "form:8",
+      "kind": "action",
+      "title": "播放卡顿",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "undefined"
+    },
+    {
+      "id": "form:9",
+      "kind": "action",
+      "title": "歌词问题",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "undefined"
+    },
+    {
+      "id": "form:10",
+      "kind": "action",
+      "title": "界面显示问题",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "undefined"
+    },
+    {
+      "id": "form:11",
+      "kind": "action",
+      "title": "背屏或灵动岛问题",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "undefined"
+    },
+    {
+      "id": "form:12",
+      "kind": "action",
+      "title": "Pad适配异常",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "undefined"
+    },
+    {
+      "id": "form:13",
+      "kind": "action",
+      "title": "本地音乐异常",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "undefined"
+    },
+    {
+      "id": "form:14",
+      "kind": "action",
+      "title": "其他问题",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "undefined"
+    },
+    {
+      "id": "form:15:text:11",
+      "kind": "note",
+      "title": "问题描述"
+    },
+    {
+      "id": "form:16:text:12",
+      "kind": "note",
+      "title": "4"
+    },
+    {
+      "id": "form:16:text:13",
+      "kind": "note",
+      "title": "/2000"
+    },
+    {
+      "id": "form:17",
+      "kind": "input",
+      "title": "问题描述",
+      "value": "播放失败",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "例如：在资料库点开一首歌，播放到一半停住，进度条还在走但没有声音。",
+      "multiline": true,
+      "inputType": "textarea",
+      "immediate": true,
+      "confirmLabel": "undefined"
+    },
+    {
+      "id": "form:18:text:15",
+      "kind": "note",
+      "title": "最多 2000 字。不要填写账号、密码等个人信息。"
+    },
+    {
+      "id": "form:19",
+      "kind": "switch",
+      "title": "附带诊断日志",
+      "value": "1",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "undefined"
+    },
+    {
+      "id": "form:20:text:17",
+      "kind": "note",
+      "title": "附带诊断日志"
+    },
+    {
+      "id": "form:21:text:18",
+      "kind": "note",
+      "title": "帮助定位问题，不含账号与歌词。"
+    },
+    {
+      "id": "form:22:text:19",
+      "kind": "note",
+      "title": "复现步骤（可选）"
+    },
+    {
+      "id": "form:23",
+      "kind": "input",
+      "title": "复现步骤（可选）",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": true,
+      "inputType": "textarea",
+      "immediate": true,
+      "confirmLabel": "undefined"
+    },
+    {
+      "id": "form:24:text:21",
+      "kind": "note",
+      "title": "提交前可检查内容。诊断不含账号、歌词或私人文件，请勿填写密码等隐私信息。"
+    },
+    {
+      "id": "form:25",
+      "kind": "action",
+      "title": "近期反馈",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "undefined"
+    },
+    {
+      "id": "form:26",
+      "kind": "action",
+      "title": "手动导出",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "undefined"
+    },
+    {
+      "id": "form:27",
+      "kind": "action",
+      "title": "提交反馈",
+      "value": "",
+      "disabled": false,
+      "min": 0,
+      "max": 100,
+      "step": 0,
+      "unit": "",
+      "placeholder": "",
+      "multiline": false,
+      "inputType": "button",
+      "immediate": false,
+      "confirmLabel": "undefined"
+    }
+  ],
+  "layout": {
+    "id": "page:form:58",
+    "kind": "column",
+    "style": {
+      "padding": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "children": [
+      {
+        "id": "form:28",
+        "kind": "column",
+        "style": {
+          "gap": 16,
+          "font": 12
+        },
+        "children": [
+          {
+            "id": "form:29",
+            "kind": "column",
+            "style": {
+              "font": 12,
+              "tone": "muted"
+            },
+            "children": [
+              {
+                "id": "copy:1",
+                "kind": "text",
+                "text": "告诉我们遇到了什么问题。"
+              }
+            ]
+          },
+          {
+            "id": "form:31",
+            "kind": "column",
+            "style": {
+              "gap": 16
+            },
+            "children": [
+              {
+                "id": "form:32",
+                "kind": "column",
+                "style": {
+                  "gap": 8
+                },
+                "children": [
+                  {
+                    "id": "copy:2",
+                    "kind": "text",
+                    "text": "问题类型"
+                  },
+                  {
+                    "id": "form:33",
+                    "kind": "grid",
+                    "style": {
+                      "columns": 2,
+                      "gap": 8
+                    },
+                    "children": [
+                      {
+                        "id": "layout:form:6",
+                        "kind": "control",
+                        "ref": "form:6",
+                        "style": {
+                          "gap": 8,
+                          "align": "center",
+                          "border": true,
+                          "radius": 12,
+                          "padding": [
+                            10,
+                            10,
+                            10,
+                            10
+                          ],
+                          "font": 12,
+                          "minHeight": 44
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:6",
+                            "kind": "row",
+                            "style": {
+                              "gap": 8,
+                              "align": "center"
+                            },
+                            "children": [
+                              {
+                                "id": "form:34",
+                                "kind": "icon",
+                                "icon": "activity",
+                                "style": {
+                                  "width": 15,
+                                  "height": 15
+                                }
+                              },
+                              {
+                                "id": "form:35",
+                                "kind": "column",
+                                "style": {
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:3",
+                                    "kind": "text",
+                                    "text": "闪退或卡死"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:7",
+                        "kind": "control",
+                        "ref": "form:7",
+                        "style": {
+                          "gap": 8,
+                          "align": "center",
+                          "border": true,
+                          "radius": 12,
+                          "padding": [
+                            10,
+                            10,
+                            10,
+                            10
+                          ],
+                          "font": 12,
+                          "minHeight": 44
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:7",
+                            "kind": "row",
+                            "style": {
+                              "gap": 8,
+                              "align": "center"
+                            },
+                            "children": [
+                              {
+                                "id": "form:36",
+                                "kind": "icon",
+                                "icon": "music-4",
+                                "style": {
+                                  "width": 15,
+                                  "height": 15
+                                }
+                              },
+                              {
+                                "id": "form:37",
+                                "kind": "column",
+                                "style": {
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:4",
+                                    "kind": "text",
+                                    "text": "播放异常"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:8",
+                        "kind": "control",
+                        "ref": "form:8",
+                        "style": {
+                          "gap": 8,
+                          "align": "center",
+                          "border": true,
+                          "radius": 12,
+                          "padding": [
+                            10,
+                            10,
+                            10,
+                            10
+                          ],
+                          "font": 12,
+                          "minHeight": 44
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:8",
+                            "kind": "row",
+                            "style": {
+                              "gap": 8,
+                              "align": "center"
+                            },
+                            "children": [
+                              {
+                                "id": "form:38",
+                                "kind": "icon",
+                                "icon": "music-4",
+                                "style": {
+                                  "width": 15,
+                                  "height": 15
+                                }
+                              },
+                              {
+                                "id": "form:39",
+                                "kind": "column",
+                                "style": {
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:5",
+                                    "kind": "text",
+                                    "text": "播放卡顿"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:9",
+                        "kind": "control",
+                        "ref": "form:9",
+                        "style": {
+                          "gap": 8,
+                          "align": "center",
+                          "border": true,
+                          "radius": 12,
+                          "padding": [
+                            10,
+                            10,
+                            10,
+                            10
+                          ],
+                          "font": 12,
+                          "minHeight": 44
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:9",
+                            "kind": "row",
+                            "style": {
+                              "gap": 8,
+                              "align": "center"
+                            },
+                            "children": [
+                              {
+                                "id": "form:40",
+                                "kind": "icon",
+                                "icon": "type",
+                                "style": {
+                                  "width": 15,
+                                  "height": 15
+                                }
+                              },
+                              {
+                                "id": "form:41",
+                                "kind": "column",
+                                "style": {
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:6",
+                                    "kind": "text",
+                                    "text": "歌词问题"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:10",
+                        "kind": "control",
+                        "ref": "form:10",
+                        "style": {
+                          "gap": 8,
+                          "align": "center",
+                          "border": true,
+                          "radius": 12,
+                          "padding": [
+                            10,
+                            10,
+                            10,
+                            10
+                          ],
+                          "font": 12,
+                          "minHeight": 44
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:10",
+                            "kind": "row",
+                            "style": {
+                              "gap": 8,
+                              "align": "center"
+                            },
+                            "children": [
+                              {
+                                "id": "form:42",
+                                "kind": "icon",
+                                "icon": "sparkles",
+                                "style": {
+                                  "width": 15,
+                                  "height": 15
+                                }
+                              },
+                              {
+                                "id": "form:43",
+                                "kind": "column",
+                                "style": {
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:7",
+                                    "kind": "text",
+                                    "text": "界面显示问题"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:11",
+                        "kind": "control",
+                        "ref": "form:11",
+                        "style": {
+                          "gap": 8,
+                          "align": "center",
+                          "border": true,
+                          "radius": 12,
+                          "padding": [
+                            10,
+                            10,
+                            10,
+                            10
+                          ],
+                          "font": 12,
+                          "minHeight": 44
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:11",
+                            "kind": "row",
+                            "style": {
+                              "gap": 8,
+                              "align": "center"
+                            },
+                            "children": [
+                              {
+                                "id": "form:44",
+                                "kind": "icon",
+                                "icon": "activity",
+                                "style": {
+                                  "width": 15,
+                                  "height": 15
+                                }
+                              },
+                              {
+                                "id": "form:45",
+                                "kind": "column",
+                                "style": {
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:8",
+                                    "kind": "text",
+                                    "text": "背屏或灵动岛问题"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:12",
+                        "kind": "control",
+                        "ref": "form:12",
+                        "style": {
+                          "gap": 8,
+                          "align": "center",
+                          "border": true,
+                          "radius": 12,
+                          "padding": [
+                            10,
+                            10,
+                            10,
+                            10
+                          ],
+                          "font": 12,
+                          "minHeight": 44
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:12",
+                            "kind": "row",
+                            "style": {
+                              "gap": 8,
+                              "align": "center"
+                            },
+                            "children": [
+                              {
+                                "id": "form:46",
+                                "kind": "icon",
+                                "icon": "sparkles",
+                                "style": {
+                                  "width": 15,
+                                  "height": 15
+                                }
+                              },
+                              {
+                                "id": "form:47",
+                                "kind": "column",
+                                "style": {
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:9",
+                                    "kind": "text",
+                                    "text": "Pad适配异常"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:13",
+                        "kind": "control",
+                        "ref": "form:13",
+                        "style": {
+                          "gap": 8,
+                          "align": "center",
+                          "border": true,
+                          "radius": 12,
+                          "padding": [
+                            10,
+                            10,
+                            10,
+                            10
+                          ],
+                          "font": 12,
+                          "minHeight": 44
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:13",
+                            "kind": "row",
+                            "style": {
+                              "gap": 8,
+                              "align": "center"
+                            },
+                            "children": [
+                              {
+                                "id": "form:48",
+                                "kind": "icon",
+                                "icon": "music-4",
+                                "style": {
+                                  "width": 15,
+                                  "height": 15
+                                }
+                              },
+                              {
+                                "id": "form:49",
+                                "kind": "column",
+                                "style": {
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:10",
+                                    "kind": "text",
+                                    "text": "本地音乐异常"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "layout:form:14",
+                        "kind": "control",
+                        "ref": "form:14",
+                        "style": {
+                          "gap": 8,
+                          "align": "center",
+                          "border": true,
+                          "radius": 12,
+                          "padding": [
+                            10,
+                            10,
+                            10,
+                            10
+                          ],
+                          "font": 12,
+                          "minHeight": 44
+                        },
+                        "children": [
+                          {
+                            "id": "content:form:14",
+                            "kind": "row",
+                            "style": {
+                              "gap": 8,
+                              "align": "center"
+                            },
+                            "children": [
+                              {
+                                "id": "form:50",
+                                "kind": "icon",
+                                "icon": "file-archive",
+                                "style": {
+                                  "width": 15,
+                                  "height": 15
+                                }
+                              },
+                              {
+                                "id": "form:51",
+                                "kind": "column",
+                                "style": {
+                                  "grow": true
+                                },
+                                "children": [
+                                  {
+                                    "id": "copy:11",
+                                    "kind": "text",
+                                    "text": "其他问题"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:52",
+                "kind": "column",
+                "style": {
+                  "gap": 8
+                },
+                "children": [
+                  {
+                    "id": "form:53",
+                    "kind": "row",
+                    "style": {
+                      "align": "between",
+                      "gap": 8
+                    },
+                    "children": [
+                      {
+                        "id": "copy:12",
+                        "kind": "text",
+                        "text": "问题描述"
+                      },
+                      {
+                        "id": "form:16",
+                        "kind": "column",
+                        "style": {
+                          "font": 10,
+                          "tone": "muted"
+                        },
+                        "children": [
+                          {
+                            "id": "copy:13",
+                            "kind": "text",
+                            "text": "4/2000"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "layout:form:17",
+                    "kind": "control",
+                    "ref": "form:17",
+                    "style": {
+                      "minHeight": 112,
+                      "font": 14
+                    }
+                  },
+                  {
+                    "id": "form:18",
+                    "kind": "column",
+                    "style": {
+                      "font": 11,
+                      "tone": "muted"
+                    },
+                    "children": [
+                      {
+                        "id": "copy:14",
+                        "kind": "text",
+                        "text": "最多 2000 字。不要填写账号、密码等个人信息。"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:54",
+                "kind": "row",
+                "style": {
+                  "align": "start",
+                  "gap": 12,
+                  "radius": 12,
+                  "fill": true,
+                  "padding": [
+                    12,
+                    12,
+                    12,
+                    12
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "layout:form:19",
+                    "kind": "control",
+                    "ref": "form:19",
+                    "style": {}
+                  },
+                  {
+                    "id": "form:55",
+                    "kind": "column",
+                    "style": {
+                      "grow": true,
+                      "gap": 4
+                    },
+                    "children": [
+                      {
+                        "id": "copy:15",
+                        "kind": "text",
+                        "text": "附带诊断日志"
+                      },
+                      {
+                        "id": "form:21",
+                        "kind": "column",
+                        "style": {
+                          "font": 11,
+                          "tone": "muted"
+                        },
+                        "children": [
+                          {
+                            "id": "copy:16",
+                            "kind": "text",
+                            "text": "帮助定位问题，不含账号与歌词。"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "form:56",
+                "kind": "column",
+                "style": {
+                  "gap": 10
+                },
+                "children": [
+                  {
+                    "id": "form:22",
+                    "kind": "column",
+                    "style": {
+                      "gap": 8
+                    },
+                    "children": [
+                      {
+                        "id": "copy:17",
+                        "kind": "text",
+                        "text": "复现步骤（可选）"
+                      },
+                      {
+                        "id": "layout:form:23",
+                        "kind": "control",
+                        "ref": "form:23",
+                        "style": {
+                          "minHeight": 64,
+                          "font": 14
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "copy:18",
+                    "kind": "text",
+                    "text": "提交前可检查内容。诊断不含账号、歌词或私人文件，请勿填写密码等隐私信息。"
+                  },
+                  {
+                    "id": "layout:form:25",
+                    "kind": "control",
+                    "ref": "form:25",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "content:form:25",
+                        "kind": "row",
+                        "style": {},
+                        "children": [
+                          {
+                            "id": "copy:19",
+                            "kind": "text",
+                            "text": "近期反馈"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "layout:form:26",
+                "kind": "control",
+                "ref": "form:26",
+                "style": {
+                  "tone": "muted",
+                  "font": 11
+                },
+                "children": [
+                  {
+                    "id": "content:form:26",
+                    "kind": "row",
+                    "style": {},
+                    "children": [
+                      {
+                        "id": "copy:20",
+                        "kind": "text",
+                        "text": "手动导出"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "form:57",
+            "kind": "column",
+            "style": {
+              "gap": 8
+            },
+            "children": [
+              {
+                "id": "layout:form:27",
+                "kind": "control",
+                "ref": "form:27",
+                "style": {
+                  "fill": true,
+                  "tone": "primary",
+                  "radius": 12,
+                  "padding": [
+                    12,
+                    16,
+                    12,
+                    16
+                  ],
+                  "center": true,
+                  "font": 14,
+                  "weight": 600,
+                  "minHeight": 48
+                },
+                "children": [
+                  {
+                    "id": "content:form:27",
+                    "kind": "row",
+                    "style": {
+                      "center": true
+                    },
+                    "children": [
+                      {
+                        "id": "copy:21",
+                        "kind": "text",
+                        "text": "提交反馈"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "headerActions": []
+}

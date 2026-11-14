@@ -2,6 +2,9 @@
 import React, { act, createElement as h } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {captureSemanticSettings} from '@/services/nativeSettingsSemantic';
+import {writeFileSync} from 'node:fs';
+import {cloudFeedbackZh} from '@/i18n/cloudFeedbackCopy';
 
 // test/unit/components/feedbackPanelInteraction.test.ts
 //
@@ -25,12 +28,16 @@ const mocks = vi.hoisted(() => ({
     exportPackage: vi.fn(async () => ({ status: 'shared' })),
     exportReport: vi.fn(async () => 'shared'),
     capture: vi.fn(async () => ['data:image/png;base64,AA==']),
+    cloudPrepare: vi.fn(async () => ({localId:'synthetic-draft',preview:'{"description":"播放失败","steps":"","diagnostics":null}',bytes:120})),
+    cloudCall: vi.fn(async (action:string) => action==='history'?[]:{id:'TY-synthetic'}),
 }));
 
 vi.mock('react-i18next', () => ({
     useTranslation: () => ({ i18n: { language: 'zh-CN' }, t: (key: string) => key }),
 }));
 vi.mock('@/hooks/useInterfaceAppearance', () => ({ useInterfaceLight: () => false }));
+vi.mock('@/services/feedback/client',()=>({prepareCloudFeedback:mocks.cloudPrepare,cloudCall:mocks.cloudCall}));
+vi.mock('@/services/nativePages',()=>({absolutePageImage:(s:string)=>s}));
 vi.mock('@/services/exportDiagnosticReport', () => ({ exportDiagnosticReport: mocks.exportReport }));
 vi.mock('@/services/diagnostics/diagnosticPackage', () => ({
     buildDiagnosticPreview: mocks.preview,
@@ -40,17 +47,11 @@ vi.mock('@/services/diagnostics/screenshotCapture', () => ({
     captureScreenshots: mocks.capture,
     MAX_FEEDBACK_SCREENSHOTS: 3,
 }));
-vi.mock('lucide-react', () => {
-    const stub = () => null;
-    return {
-        Activity: stub, Camera: stub, Check: stub, ChevronLeft: stub, FileArchive: stub,
-        Loader2: stub, Music4: stub, Send: stub, Sparkles: stub, Type: stub, X: stub,
-    };
-});
 
 import FeedbackPanel from '@/components/modal/feedback/FeedbackPanel';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+vi.stubGlobal('PointerEvent',MouseEvent);
 
 let root: Root;
 let container: HTMLDivElement;
@@ -74,12 +75,12 @@ const clickAsync = async (node: Element) => {
     await act(async () => { (node as HTMLElement).click(); });
 };
 
-beforeEach(() => {
+beforeEach(async () => {
     vi.clearAllMocks();
     container = document.createElement('div');
     document.body.append(container);
     root = createRoot(container);
-    act(() => root.render(h(Host)));
+    await act(async () => root.render(h(Host)));
 });
 
 afterEach(() => {
@@ -124,6 +125,7 @@ describe('问题反馈面板：内部交互绝不触发关闭', () => {
     });
 
     it('添加截图按钮能调用采集，不关闭', async () => {
+        await openManual();
         await clickAsync(q('[data-testid="feedback-add-screenshot"]'));
         // 真实文件选择由原生 SAF 桥接；这里只保证按钮本身不把面板关掉。
         expect(q('[data-testid="feedback-panel"]')).toBeTruthy();
@@ -131,6 +133,7 @@ describe('问题反馈面板：内部交互绝不触发关闭', () => {
     });
 
     it('预览诊断信息能进入预览态，不关闭', async () => {
+        await openManual();
         await clickAsync(q('[data-testid="feedback-preview-button"]'));
         expect(mocks.preview).toHaveBeenCalledOnce();
         expect(q('[data-testid="feedback-preview"]').textContent).toBe('诊断预览文本');
@@ -138,6 +141,7 @@ describe('问题反馈面板：内部交互绝不触发关闭', () => {
     });
 
     it('导出并分享报告能调用导出，不关闭', async () => {
+        await openManual();
         await clickAsync(q('[data-testid="feedback-export-button"]'));
         expect(mocks.exportPackage).toHaveBeenCalledOnce();
         expect(q('[data-testid="feedback-panel"]')).toBeTruthy();
@@ -174,3 +178,46 @@ describe('问题反馈面板：内部交互绝不触发关闭', () => {
         expect(scrim.className).toContain('inset-0');
     });
 });
+
+async function openManual(){
+    const toggle=[...document.querySelectorAll('button')].find(b=>b.textContent==='手动导出');
+    expect(toggle).toBeTruthy();await clickAsync(toggle!);
+}
+
+it('projects the primary submission and fresh confirmation while keeping export optional',async()=>{
+    const capture=()=>{
+        const c=captureSemanticSettings(container,'help','Feedback');
+        expect(c.document.flow.modal).toBeTruthy();
+        return {...c,document:{...c.document,flow:c.document.flow.modal!}};
+    };
+    expect(document.querySelector('[data-testid="feedback-export-button"]')).toBeNull();
+    expect(document.querySelector('[data-testid="feedback-add-screenshot"]')).toBeNull();
+    let captured=capture();
+    const description=captured.document.flow.nodes.find(n=>n.kind==='input'&&n.title==='问题描述')!;
+    expect(description).toBeTruthy();
+    await act(async()=>{captured.actions['submit:'+description.id]?.({text:'播放失败'});});
+    captured=capture();
+    const primary=captured.document.flow.nodes.find(n=>n.title==='feedbackCloud.prepare')!;
+    expect(primary.disabled).toBe(false);
+    const flatten=(n:any):any[]=>[n,...(n.children??[]).flatMap(flatten)];
+    expect(flatten(captured.document.flow.layout).find(n=>n.ref===primary.id)?.style.tone).toBe('primary');
+    saveNativeFixture('feedback-submit',captured.document.flow);
+    await act(async()=>{captured.actions['act:'+primary.id]?.({text:''});});
+    expect(mocks.cloudPrepare).toHaveBeenCalledWith(expect.objectContaining({description:'播放失败'}));
+    expect(document.querySelector('[data-testid="cloud-preview"]')).toBeNull();
+    expect(document.querySelector('[data-testid="feedback-description"]')).toBeNull();
+    captured=capture();
+    expect(captured.document.flow.nodes.find(n=>n.title==='feedbackCloud.send')?.disabled).toBe(true);
+    saveNativeFixture('feedback-confirm',captured.document.flow);
+    const consent=captured.document.flow.nodes.find(n=>n.title==='feedbackCloud.consent'&&n.kind==='switch')!;
+    await act(async()=>{captured.actions['set:'+consent.id]?.({text:'1'});});
+    await clickAsync(q('[data-testid="feedback-submit-button"]'));
+    expect(mocks.cloudCall).toHaveBeenCalledWith('send',{localId:'synthetic-draft'},expect.any(Function));
+    expect(mocks.onClose).not.toHaveBeenCalled();
+    expect(mocks.onHostClick).not.toHaveBeenCalled();
+});
+
+function saveNativeFixture(name:string,flow:unknown){
+    const output=process.env.TINGYU_FEEDBACK_FIXTURES;
+    if(output)writeFileSync(output+'/'+name+'.json',JSON.stringify(flow,null,2).replace(/feedbackCloud\.([A-Za-z]+)/g,(_,key)=>String((cloudFeedbackZh as any)[key]??key)));
+}

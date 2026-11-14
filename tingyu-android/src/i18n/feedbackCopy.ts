@@ -35,7 +35,7 @@ export type FeedbackCopy = {
 
 const zh: FeedbackCopy = {
     title: '问题反馈',
-    subtitle: '描述发生了什么，附上诊断日志，开发者才能定位到具体模块。',
+    subtitle: '告诉我们遇到了什么问题。',
     categoryLabel: '问题类型',
     categories: {
         crash: '闪退或卡死',
@@ -56,12 +56,12 @@ const zh: FeedbackCopy = {
     removeScreenshot: '移除',
     screenshotLimit: '最多 3 张，导出前会自动压缩',
     includeDiagnostics: '附带诊断日志',
-    includeDiagnosticsHint: '开启后会打包最近事件、崩溃记录与性能摘要，不含账号与歌词内容。',
+    includeDiagnosticsHint: '帮助定位问题，不含账号与歌词。',
     preview: '预览诊断信息',
     previewTitle: '将随反馈发送的内容',
     previewLoading: '正在生成预览…',
     previewClose: '关闭预览',
-    export: '导出并分享报告',
+    export: '手动导出',
     exportWorking: '正在打包…',
     exportShared: '已打开系统分享',
     exportFailed: '导出失败，请重试',
@@ -74,7 +74,7 @@ const zh: FeedbackCopy = {
 
 const en: FeedbackCopy = {
     title: 'Send feedback',
-    subtitle: 'Describe what happened. With the diagnostic log attached, we can pinpoint the module.',
+    subtitle: 'Tell us what went wrong.',
     categoryLabel: 'Category',
     categories: {
         crash: 'Crash or freeze',
@@ -95,12 +95,12 @@ const en: FeedbackCopy = {
     removeScreenshot: 'Remove',
     screenshotLimit: 'Up to 3, compressed before export',
     includeDiagnostics: 'Attach diagnostic log',
-    includeDiagnosticsHint: 'Packs recent events, crash records and performance summary. No account or lyric content.',
+    includeDiagnosticsHint: 'Helps diagnose problems. No accounts or lyrics.',
     preview: 'Preview diagnostics',
     previewTitle: 'Content that will be shared',
     previewLoading: 'Building preview…',
     previewClose: 'Close preview',
-    export: 'Export & share',
+    export: 'Manual export',
     exportWorking: 'Packaging…',
     exportShared: 'System share sheet opened',
     exportFailed: 'Export failed, please retry',
@@ -119,7 +119,7 @@ const id: FeedbackCopy = {
     screenshotsLabel: 'Tangkapan layar (opsional)',
     includeDiagnostics: 'Lampirkan log diagnostik',
     preview: 'Pratinjau diagnostik',
-    export: 'Ekspor & bagikan',
+    export: 'Ekspor manual',
     privacyTitle: 'Privasi',
     cancel: 'Batal',
     close: 'Tutup',
