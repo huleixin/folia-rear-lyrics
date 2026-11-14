@@ -45,7 +45,7 @@ export default function RearLyricsGuide({backend='shizuku',diagnosticsOnly=false
             <h2 data-settings-style='{"font":20,"weight":600}' data-settings-layout="wrap">{t(`mobileSettings.guide.${topic}Title`)}</h2><p data-settings-layout="wrap">{t(`mobileSettings.guide.${topic}`)}</p>
         </div>)}
         {!diagnosticsOnly&&<details data-settings-layout="column"><summary data-settings-layout="column">{t('rearBridge.help')}</summary><p data-settings-layout="wrap">{t('rearBridge.behavior')}</p><p data-settings-layout="wrap">{t('rearBridge.lyricInfo')}</p></details>}
-        <section className="ty-settings-card" data-settings-layout="card" data-settings-style='{"gap":12,"border":true,"radius":14,"padding":[16,16,16,16]}'>
+        {diagnosticsOnly&&<><section className="ty-settings-card" data-settings-layout="card" data-settings-style='{"gap":12,"border":true,"radius":14,"padding":[16,16,16,16]}'>
             <h2 data-settings-layout="column" data-settings-style='{"font":14,"weight":600}'>{t('rearControl.status')}</h2>
             <p data-settings-layout="column" data-settings-style='{"font":13,"tone":"muted"}'>
                 {busy ? t('mobileSettings.rearState.detecting') : status
@@ -72,6 +72,6 @@ export default function RearLyricsGuide({backend='shizuku',diagnosticsOnly=false
         <details onToggle={event => { if (event.currentTarget.open && !diagnostics) void loadDiagnostics(); }} data-settings-layout="column" data-settings-style='{"gap":12}'>
             <summary data-settings-layout="row" data-settings-style='{"font":13,"minHeight":44,"tone":"accent"}'>{t('rearControl.diagnosticsBrief')}</summary>
             <pre className="ty-settings-diagnostics" data-settings-layout="column" data-settings-style='{"font":11,"maxHeight":320,"scroll":true,"fill":true,"radius":12,"padding":[12,12,12,12]}'>{busy ? t('mobileSettings.rearState.detecting') : diagnostics}</pre>
-        </details>
+        </details></>}
     </article>;
 }

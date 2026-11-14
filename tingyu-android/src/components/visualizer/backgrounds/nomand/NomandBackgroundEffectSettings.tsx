@@ -46,6 +46,7 @@ const NomandBackgroundEffectSettings: React.FC<NomandBackgroundEffectPanelProps>
                         <button
                             key={effect}
                             type="button"
+                            aria-pressed={tuning.effect === effect}
                             onClick={() => props.onTuningChange?.({ effect })}
                             className="rounded-xl border px-2 py-2 text-xs"
                             style={{

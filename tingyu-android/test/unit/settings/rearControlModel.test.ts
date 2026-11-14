@@ -53,6 +53,13 @@ it('includes every editable/readable UI fact in the existing fingerprint without
     for(const [key,value] of Object.entries({lockedRoute:'migrate',coverSleepEnabled:true,sensorAvailable:true,sleepUnsupported:true,cameraSuspended:true,message:'failed'}))expect(rearSettingsFingerprint(before)).not.toBe(rearSettingsFingerprint({...before,[key]:value}));
     expect(rearSettingsFingerprint({...before,diagnostics:'t1'})).toBe(rearSettingsFingerprint({...before,diagnostics:'t2'}));
 });
+it('keeps rear controls and help reachable without duplicate diagnostics entries',()=>{
+    for(const page of ['control','advanced'] as const){
+        const actions=buildRearControlPage(page,state,t).sections.flatMap(s=>s.items??[]).map(item=>item.action);
+        expect(actions).not.toContain('rear:diagnostics');
+        expect(actions).toContain('rear:guide');
+    }
+});
 it('routes have separate identities with an explicit shallow return path',()=>{
     expect(rearPageKey('control')).toBe('settings:rear:control');expect(rearPageKey('advanced')).toBe('settings:rear:advanced');expect(rearPageKey('diagnostics')).toBe('settings:document:rear-diagnostics');
     expect(rearPageBack('control')).toBe('index');for(const page of ['advanced','guide','diagnostics'] as const)expect(rearPageBack(page)).toBe('control');

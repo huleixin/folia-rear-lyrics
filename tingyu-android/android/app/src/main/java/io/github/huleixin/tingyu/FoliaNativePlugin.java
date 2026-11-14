@@ -773,7 +773,11 @@ public class FoliaNativePlugin extends Plugin {
     public void readSettingsFileChunk(PluginCall call) {
         String token = call.getString("id", "");
         File file = pendingSettingsFiles.get(token);
-        long offset = call.getLong("offset", -1L);
+        // JSON parses small JS integers (including the first chunk offset 0) as Integer.
+        // Capacitor getLong only accepts Long and otherwise silently returns the default.
+        Object rawOffset = call.getData().opt("offset");
+        long offset = rawOffset instanceof Integer || rawOffset instanceof Long
+            ? ((Number) rawOffset).longValue() : -1L;
         int requested = call.getInt("length", 0);
         if (file == null || !file.isFile() || offset < 0 || requested <= 0 || requested > 512 * 1024) {
             call.reject("文件读取请求无效"); return;

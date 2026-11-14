@@ -65,6 +65,7 @@ const PresetGroup = <T,>({
                     <button
                         key={String(option.value)}
                         type="button"
+                        aria-pressed={isActive}
                         onClick={() => {
                             if (!option.disabled) {
                                 onChange(option.value);

@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
 import coil.compose.AsyncImage
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/SettingsLayoutControls.kt
@@ -57,15 +58,24 @@ internal fun SettingsLayoutControl(node:TySettingNode,layout:SettingsLayoutNode,
             var button=outer.then(if(!compact&&s.width<=0)Modifier.fillMaxWidth()else Modifier)
                 .heightIn(min=if(s.height>0)s.height.dp else if(s.minHeight>0)s.minHeight.dp else if(compact&&s.padding.isEmpty()&&!s.fill&&!s.border)0.dp else 36.dp).clip(shape)
             if(s.tone=="primary")button=button.background(theme.accent)
-            else if(s.fill||selected)button=button.background(if(selected)theme.accent.copy(alpha=.13f)else theme.card)
-            if(s.border||selected)button=button.border(1.dp,if(selected)theme.accent.copy(alpha=.65f)else theme.line,shape)
+            else if(s.fill||selected)button=button.background(if(selected)theme.accent.copy(alpha=.22f)else theme.card)
+            if(s.border||selected)button=button.border(if(selected)2.dp else 1.dp,if(selected)theme.accent else theme.line,shape)
             button=button.settingsSwatch(layout.text,s.radius)
-            button=button.semantics(mergeDescendants=true){contentDescription=node.title;if(selected)this.selected=true}
+            button=button.semantics(mergeDescendants=true){contentDescription=node.title;this.selected=selected}
                 .chromeClickable(enabled=enabled){action(TySettingEvent.action(node.action),"",0.0)}.layoutEdges(s.padding)
             Box(button,contentAlignment=if(s.center)Alignment.Center else Alignment.CenterStart){
-                if(layout.children.isNotEmpty())Column{
-                    layout.children.forEach { child->SettingsLayoutView(child,controls,theme,action,compact=true) }
-                }else if(layout.text.isBlank())Text(node.title,color=if(selected)theme.accent else LocalTextStyle.current.color)
+                CompositionLocalProvider(LocalTextStyle provides LocalTextStyle.current.copy(
+                    color=if(selected) { if(s.tone=="primary")LocalInterfacePalette.current.onAccent else theme.accent } else LocalTextStyle.current.color,
+                    fontWeight=if(selected)FontWeight.SemiBold else LocalTextStyle.current.fontWeight)){
+                    Row(horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically){
+                        if(selected)PageIcon("check",LocalTextStyle.current.color,Modifier.size(14.dp).clearAndSetSemantics{})
+                        Column(Modifier.weight(1f,fill=false)){
+                            if(layout.children.isNotEmpty()){
+                                layout.children.forEach { child->SettingsLayoutView(child,controls,theme,action,compact=true) }
+                            }else if(layout.text.isBlank())Text(node.title)
+                        }
+                    }
+                }
             }
         }
     }

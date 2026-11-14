@@ -25,6 +25,7 @@ export async function pickNativeSettingsFiles(input: HTMLInputElement): Promise<
                 const result = await native.readSettingsFileChunk({ id: picked.id, offset, length: expected });
                 if (result.length !== expected) throw new Error(`文件读取不完整：${picked.name}`);
                 const raw = atob(result.base64);
+                if (raw.length !== expected) throw new Error(`文件读取不完整：${picked.name}`);
                 const buffer = new ArrayBuffer(raw.length);
                 const bytes = new Uint8Array(buffer);
                 for (let index = 0; index < raw.length; index++) bytes[index] = raw.charCodeAt(index);

@@ -164,6 +164,7 @@ const UrlBackgroundSettingsCard: React.FC<UrlBackgroundSettingsCardProps> = ({
                                 <div className="flex items-center gap-3" data-settings-style='{"align":"center","gap":12}' data-settings-layout="row">
                                     <button
                                         type="button"
+                                        aria-pressed={item.id === urlBackgroundSelectedId}
                                         onClick={() => handleSelect(item.id)}
                                         className="flex-1 text-left min-w-0"
                                      data-settings-style='{"grow":true}' data-settings-layout="column">

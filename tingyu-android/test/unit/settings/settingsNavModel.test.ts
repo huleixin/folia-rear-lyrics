@@ -22,6 +22,12 @@ const lookup = (bundle: Record<string, unknown>, key: string): unknown => (
 );
 
 describe('settingsNavModel', () => {
+    it('hides developer tools on Android while preserving other settings and desktop diagnostics', () => {
+        const items = flattenSettingsNavItems(buildSettingsNavGroups(echo, { isElectron: false, isAndroid: true }));
+        expect(items.map(item => item.id)).not.toContain('developer');
+        expect(items.map(item => item.id)).toEqual(expect.arrayContaining(['appearance', 'playback', 'graphics']));
+        expect(findSettingsNavItem(buildSettingsNavGroups(echo, { isElectron: true, isAndroid: false }), 'developer')).toBeDefined();
+    });
     it('lists every section exactly once on desktop', () => {
         const ids = flattenSettingsNavItems(buildSettingsNavGroups(echo, { isElectron: true })).map(item => item.id);
         expect([...ids].sort()).toEqual([...ALL_SECTIONS].sort());

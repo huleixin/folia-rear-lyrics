@@ -79,6 +79,7 @@ const NomandBackgroundSettingsCard: React.FC<NomandBackgroundSettingsCardProps> 
                         <button
                             key={value}
                             type="button"
+                            aria-pressed={resolvedTuning.imageSource === value}
                             disabled={value === 'uploaded-global' && !monetBackgroundImage && !isLoadingMonetBackgroundImage}
                             onClick={() => setSource(value)}
                             className="rounded-2xl border px-3 py-2 text-sm disabled:opacity-40"

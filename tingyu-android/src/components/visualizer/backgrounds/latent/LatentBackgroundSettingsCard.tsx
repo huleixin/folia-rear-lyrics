@@ -121,6 +121,7 @@ const LatentBackgroundSettingsCard: React.FC<LatentBackgroundSettingsCardProps> 
                         <button
                             key={value}
                             type="button"
+                            aria-pressed={tuning.displayMode === value}
                             onClick={() => onTuningChange?.({ displayMode: value })}
                             className="rounded-xl border px-2 py-2 text-xs"
                             style={{
@@ -144,6 +145,7 @@ const LatentBackgroundSettingsCard: React.FC<LatentBackgroundSettingsCardProps> 
                         <button
                             key={value}
                             type="button"
+                            aria-pressed={tuning.colorSource === value}
                             onClick={() => onTuningChange?.({ colorSource: value })}
                             className="rounded-xl border px-2 py-2 text-xs"
                             style={{

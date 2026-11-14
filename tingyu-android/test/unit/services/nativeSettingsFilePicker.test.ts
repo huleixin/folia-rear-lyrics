@@ -36,3 +36,11 @@ it('treats a user cancellation as an empty selection', async () => {
     expect(plugin.readSettingsFileChunk).not.toHaveBeenCalled();
     expect(plugin.releaseSettingsFiles).not.toHaveBeenCalled();
 });
+
+it('rejects truncated decoded content even when the bridge reports the requested size, and releases it', async () => {
+    plugin.pickSettingsFiles.mockResolvedValue({ files: [{ id: 'bad', name: 'wall.png', mimeType: 'image/png', size: 5 }] });
+    plugin.readSettingsFileChunk.mockResolvedValue({ base64: 'eA==', length: 5 });
+    plugin.releaseSettingsFiles.mockResolvedValue(undefined);
+    await expect(pickNativeSettingsFiles(document.createElement('input'))).rejects.toThrow('文件读取不完整');
+    expect(plugin.releaseSettingsFiles).toHaveBeenCalledWith({ ids: ['bad'] });
+});

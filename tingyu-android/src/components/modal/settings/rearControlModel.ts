@@ -52,8 +52,7 @@ export function buildRearControlPage(page:'control'|'advanced',state:RearPresent
             {id:'guide',title:t(backend==='lsp'?'rearControl.moduleGuide':'rearControl.authorizationGuide'),subtitle:t('rearControl.guideBrief'),action:'rear:guide'},
             {id:'appearance',title:t('rearAppearance.title'),subtitle:t('rearAppearance.entryHint'),action:'rear:appearance'},
             {id:'tap-controls',title:t('rearControl.tapControls'),subtitle:t('rearControl.tapControlsHint'),action:'rear:tap-controls',selected:state.tapControls!==false},
-            {id:'advanced',title:t('rearControl.advanced'),subtitle:t('rearControl.advancedBrief'),action:'rear:advanced'},
-            {id:'diagnostics',title:t('rearControl.diagnostics'),subtitle:t('rearControl.diagnosticsBrief'),action:'rear:diagnostics'}]});
+            {id:'advanced',title:t('rearControl.advanced'),subtitle:t('rearControl.advancedBrief'),action:'rear:advanced'}]});
     }else{
         if(backend==='shizuku')sections.push({...chips('engine',t('rearControl.engine'),[['plan-a','Plan A'],['legacy','Legacy']],s?.controlEngine??'plan-a',locked),text:t('rearControl.engineBrief')});
         if(backend==='shizuku')sections.push({...chips('route',t('rearControl.lockedRoute'),[['auto','Auto'],['reuse','Reuse'],['migrate','Migrate']],s?.lockedRoute??'auto',!s||state.busy),text:t('rearControl.routeBrief')});
@@ -69,8 +68,7 @@ export function buildRearControlPage(page:'control'|'advanced',state:RearPresent
             {id:'controller',title:t('rearControl.currentMode'),subtitle:backend==='lsp'?'LSP / LSPosed':'Shizuku'},
             {id:'adaptation',title:t('mobileSettings.rearAdaptation'),subtitle:[s?.build==null?'':`r${s.build}`,(s?.rearDisplayId??-1)>=0?t('options.rearLyricsDetected',{id:s?.rearDisplayId}):t('mobileSettings.rearState.unsupported')].filter(Boolean).join(' · ')},
             ...(s?.lastLaunchRoute?[{id:'last-route',title:t('rearControl.lastRoute'),subtitle:s.lastLaunchRoute}]:[]),
-            {id:'guide',title:t('mobileSettings.startupGuide'),action:'rear:guide'},
-            {id:'diagnostics',title:t('rearControl.diagnostics'),action:'rear:diagnostics'}]});
+            {id:'guide',title:t('mobileSettings.startupGuide'),action:'rear:guide'}]});
     }
     return {key:rearPageKey(page),title:t(page==='control'?'rearControl.title':'rearControl.advanced'),leading:'rear:back',trailingLabel:t('mobileSettings.back'),bottomClearance:24,sections};
 }

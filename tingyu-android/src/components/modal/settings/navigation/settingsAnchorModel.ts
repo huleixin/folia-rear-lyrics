@@ -89,7 +89,7 @@ export const settingsAnchorSubview = (anchorId: SettingsAnchorId): SettingsSubvi
 
 /** One platform policy for navigation, remembered routes and settings commands. */
 export const isSettingsSubviewAvailable = (subview: string | null | undefined, android = isAndroidNativeRuntime()): boolean => (
-    !android || (subview !== 'interaction' && subview !== 'lab')
+    !android || (subview !== 'interaction' && subview !== 'lab' && subview !== 'developer')
 );
 
 export const isSettingsAnchorAvailable = (anchorId: SettingsAnchorId, android = isAndroidNativeRuntime()): boolean => {

@@ -40,6 +40,7 @@ const NomandDitheringSettings: React.FC<NomandBackgroundEffectPanelProps> = ({
                         <button
                             key={type}
                             type="button"
+                            aria-pressed={tuning.ditheringType === type}
                             onClick={() => onTuningChange?.({ ditheringType: type })}
                             className="rounded-xl border px-2 py-2 text-xs"
                             style={{
