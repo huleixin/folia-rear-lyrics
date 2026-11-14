@@ -1,4 +1,5 @@
 import StartupDiagnosticsControl from './StartupDiagnosticsControl';
+import {useFeedbackNavigation} from '../../services/feedback/navigation';
 import React, { useState } from 'react';
 import { isAndroidNativeRuntime } from '../../utils/platform';
 import { Activity, Check, ClipboardCopy, Eraser, FileDown, Lightbulb, Loader2, MessageSquarePlus, Sparkles, Trash2 } from 'lucide-react';
@@ -39,7 +40,8 @@ const SettingsHelpActions: React.FC<SettingsHelpActionsProps> = ({
     const [canDeleteDiagnostics] = useState(() => canDeleteExportedDiagnostics());
     const [trailState, setTrailState] = useState<TrailState>('idle');
     const [faultState, setFaultState] = useState<FaultState>('idle');
-    const [feedbackOpen, setFeedbackOpen] = useState(false);
+    const feedbackOpen = useFeedbackNavigation(state=>state.open);
+    const setFeedbackOpen = (open:boolean)=>open?useFeedbackNavigation.setState({open:true,crash:false}):useFeedbackNavigation.getState().close();
 
     const handleCopyDiagnostics = async () => {
         setCopyState('working');

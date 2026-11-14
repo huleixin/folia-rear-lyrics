@@ -1,6 +1,8 @@
 
 
+import {cloudFeedbackEn} from '../cloudFeedbackCopy';
 export default {
+  feedbackCloud: cloudFeedbackEn,
   lyricsOutput: {"title":"Desktop and car lyrics","desktop":"Desktop lyrics","desktopHint":"Floating native lyrics and appearance","bluetooth":"Car Bluetooth lyrics","bluetoothHint":"Experimental title display for selected A2DP devices","desktopStyle":"Desktop lyrics appearance"},
   stageQuality: {"compatibilityFallback": "This scene could not be drawn. Lyrics remain available.", "retry": "Retry scene", "bandMotion": "Audio band motion", "bandMotionHint": "Live audio onsets drive neon, ripples and screen swells. No online analysis required.", "motionStrength": "Motion strength", "preset": "Lyric rendering quality", "description": "Auto adapts to sustained frame cost and recovers when smooth. High improves detail; Battery reduces rendering cost without changing playback or the FPS cap.", "auto": "Auto", "high": "High", "battery": "Battery", "custom": "Custom", "scope": "Apply to", "global": "Global", "follow": "Follow global", "resolution": "Canvas resolution", "antialias": "Antialiasing", "on": "On", "off": "Off", "aaHint": "Applies to supported canvas stages. Antialiasing changes recreate the drawing context. The rear display keeps its own policy."},
   nativeSettings: { moveUp: 'Move up', moveDown: 'Move down', hue: 'Hue', saturation: 'Saturation', brightness: 'Brightness' },
@@ -1847,7 +1849,7 @@ export default {
     "ponder": "Ponder Help",
     "ponderDescription": "Learn Folia's basic controls and operating model",
     "feedback": "Send feedback",
-    "feedbackDescription": "Pick a category, describe the issue, attach diagnostics",
+    "feedbackDescription": "Preview and submit cloud feedback, check status, or export diagnostics manually",
     "version": "version"
   },
   "lyricProvider": {

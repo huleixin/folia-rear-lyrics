@@ -1,4 +1,5 @@
 import { diagnosticEvent } from '../services/diagnostics/diagnosticLog';
+import {scrubText,safeStack} from '../services/feedback/schema.mjs';
 
 // src/utils/crashDiagnostics.ts
 // Last-resort crash trail for the copy-diagnostics flow. Native uncaught exceptions are written
@@ -13,6 +14,9 @@ export type CrashDiagnosticEntry = {
     stack?: string;
     device?: string;
     sdk?: number;
+    version?:string;
+    versionCode?:number;
+    commit?:string;
 };
 
 const STORAGE_KEY = 'foliaCrashDiagnosticsV1';
@@ -34,10 +38,13 @@ const normalizeEntry = (input: Partial<CrashDiagnosticEntry> & { at?: number | s
     source: String(input.source || 'unknown').slice(0, 80),
     thread: input.thread ? String(input.thread).slice(0, 120) : undefined,
     type: String(input.type || 'error').slice(0, 240),
-    message: String(input.message || '').replace(/\u0000/g, ' ').trim().slice(0, 2_000),
-    stack: input.stack ? String(input.stack).replace(/\u0000/g, ' ').trim().slice(0, MAX_STACK_CHARS) : undefined,
+    message: scrubText(input.message || '',2000),
+    stack: input.stack ? safeStack(input.stack).slice(0, MAX_STACK_CHARS) : undefined,
     device: input.device ? String(input.device).slice(0, 160) : undefined,
     sdk: input.sdk == null ? undefined : Number(input.sdk) || undefined,
+    version:input.version,
+    versionCode:input.versionCode,
+    commit:input.commit,
 });
 
 const readLocal = (): CrashDiagnosticEntry[] => {
@@ -92,6 +99,7 @@ export const recordCrashDiagnostic = (source: string, value: unknown, extra: Par
         source,
         thread: 'webview',
         type: details.type,
+        version:typeof __APP_VERSION__==='undefined'?'unknown':__APP_VERSION__,
         message: details.message,
         stack: details.stack,
         ...extra,

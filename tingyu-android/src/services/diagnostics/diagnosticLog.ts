@@ -58,6 +58,7 @@ type NativeDiagnosticsPlugin = {
         bytes?: number;
         zipBytes?: number;
         buildId?: string;
+        versionCode?: number;
         model?: string;
         manufacturer?: string;
         release?: string;

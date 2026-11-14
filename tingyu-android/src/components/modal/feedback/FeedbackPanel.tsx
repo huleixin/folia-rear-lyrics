@@ -12,6 +12,8 @@ import {
     type FeedbackDraft,
 } from '../../../services/diagnostics/diagnosticPackage';
 import { captureScreenshots, MAX_FEEDBACK_SCREENSHOTS } from '../../../services/diagnostics/screenshotCapture';
+import CloudFeedbackSection from './CloudFeedbackSection';
+import {useFeedbackNavigation} from '../../../services/feedback/navigation';
 
 // src/components/modal/feedback/FeedbackPanel.tsx
 //
@@ -30,7 +32,8 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
     const copy = feedbackCopy(i18n.language);
     const light = useInterfaceLight();
     const [category, setCategory] = React.useState<FeedbackCategory>('crash');
-    const [description, setDescription] = React.useState('');
+    const crashPrompt = useFeedbackNavigation(state=>state.crash);
+    const [description, setDescription] = React.useState(crashPrompt?i18n.t('feedbackCloud.crashPrompt'):'');
     const [screenshots, setScreenshots] = React.useState<string[]>([]);
     const [includeDiagnostics, setIncludeDiagnostics] = React.useState(true);
     const [phase, setPhase] = React.useState<Phase>('idle');
@@ -64,11 +67,14 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
     const categories: Array<{ id: FeedbackCategory; icon: React.ReactNode }> = [
         { id: 'crash', icon: <Activity size={15} aria-hidden="true" /> },
         { id: 'playback', icon: <Music4 size={15} aria-hidden="true" /> },
+        { id: 'stutter', icon: <Music4 size={15} aria-hidden="true" /> },
         { id: 'lyrics', icon: <Type size={15} aria-hidden="true" /> },
         { id: 'display', icon: <Sparkles size={15} aria-hidden="true" /> },
         { id: 'rear', icon: <Activity size={15} aria-hidden="true" /> },
+        { id: 'pad', icon: <Sparkles size={15} aria-hidden="true" /> },
+        { id: 'local', icon: <Music4 size={15} aria-hidden="true" /> },
         { id: 'other', icon: <FileArchive size={15} aria-hidden="true" /> },
-    ];
+    ].filter(entry=>entry.id!=='rear'||Math.min(screen.width,screen.height)<600) as Array<{id:FeedbackCategory;icon:React.ReactNode}>;
 
     const handleScreenshots = async (files: FileList | null) => {
         if (!files || files.length === 0) return;
@@ -331,6 +337,7 @@ const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ onClose }) => {
                             </div>
                         </section>
 
+                        <CloudFeedbackSection draft={draft}/>
                         <section data-settings-layout="column" data-settings-style='{"gap":8}'>
                             <div className="text-xs font-semibold">{copy.privacyTitle}</div>
                             <p className="mt-1 text-[10px] leading-relaxed" data-settings-layout="column" data-settings-style='{"font":11,"tone":"muted"}' style={{ color: palette.muted }}>

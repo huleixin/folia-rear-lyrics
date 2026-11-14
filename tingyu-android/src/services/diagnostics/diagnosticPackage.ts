@@ -7,7 +7,7 @@
 //  - 错误文本、性能摘要、metadata、feedback 由这里生成；
 //  - ZIP 写入与 FileProvider 分享在 android/.../diagnostics/DiagnosticPackage.java。
 //
-// 所有内容都在本机生成，没有任何上传路径。
+// 此模块只生成手动导出包。云端反馈在 services/feedback 独立白名单过滤，禁止上传这里的原始包。
 
 import { buildDiagnosticReport } from '../../utils/buildDiagnosticReport';
 import { readCrashDiagnostics, type CrashDiagnosticEntry } from '../../utils/crashDiagnostics';
@@ -22,7 +22,7 @@ import {
     nativeDiagnosticsPlugin,
 } from './diagnosticLog';
 
-export type FeedbackCategory = 'crash' | 'playback' | 'lyrics' | 'display' | 'rear' | 'other';
+export type FeedbackCategory = 'crash' | 'playback' | 'stutter' | 'lyrics' | 'display' | 'rear' | 'pad' | 'local' | 'other';
 
 export type FeedbackDraft = {
     category: FeedbackCategory;
@@ -45,6 +45,7 @@ export type DiagnosticBundleParts = {
 };
 
 export type DiagnosticEnvironment = {
+    versionCode?: number;
     buildId?: string;
     model?: string;
     manufacturer?: string;
@@ -90,6 +91,7 @@ export const collectDiagnosticEnvironment = async (): Promise<DiagnosticEnvironm
     try {
         const result = await plugin.diagnosticSession();
         return {
+            versionCode: result?.versionCode,
             buildId: result?.buildId,
             model: result?.model,
             manufacturer: result?.manufacturer,

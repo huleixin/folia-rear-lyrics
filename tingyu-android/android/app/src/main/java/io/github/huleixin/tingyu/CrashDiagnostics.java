@@ -50,6 +50,7 @@ public final class CrashDiagnostics {
     private static final int EXIT_REASON_DEPENDENCY_DIED = 12;
     private static final int EXIT_REASON_FREEZER = 14;
     private static volatile boolean installed = false;
+    private static final java.util.concurrent.atomic.AtomicBoolean HANDLING = new java.util.concurrent.atomic.AtomicBoolean();
 
     private CrashDiagnostics() {}
 
@@ -77,7 +78,9 @@ public final class CrashDiagnostics {
         }
         final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
-            record(appContext, "native-uncaught", thread == null ? "unknown" : thread.getName(), error);
+            if(!HANDLING.compareAndSet(false,true)){android.os.Process.killProcess(android.os.Process.myPid());return;}
+            try { record(appContext, "native-uncaught", thread == null ? "unknown" : thread.getName(), error); }
+            catch(Throwable ignored) { /* Still chain Android's original crash handler. */ }
             if (previous != null) {
                 previous.uncaughtException(thread, error);
             } else {
@@ -148,8 +151,11 @@ public final class CrashDiagnostics {
             entry.put("source", limit(source, 80));
             entry.put("thread", limit(threadName, 120));
             entry.put("type", limit(type, 240));
-            entry.put("message", limit(message, 2_000));
-            entry.put("stack", limit(stack, MAX_STACK_CHARS));
+            entry.put("message", limit(io.github.huleixin.tingyu.feedback.CrashPrivacy.text(message), 2_000));
+            entry.put("stack", limit(io.github.huleixin.tingyu.feedback.CrashPrivacy.stack(stack), MAX_STACK_CHARS));
+            entry.put("version", BuildConfig.VERSION_NAME);
+            entry.put("versionCode", BuildConfig.VERSION_CODE);
+            entry.put("commit", BuildConfig.BUILD_ID);
             entry.put("device", Build.MANUFACTURER + " " + Build.MODEL);
             entry.put("sdk", Build.VERSION.SDK_INT);
             next.put(entry);

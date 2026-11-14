@@ -30,7 +30,7 @@ describe('crash diagnostics', () => {
 
         expect(entries).toHaveLength(1);
         expect(entries[0]).toMatchObject({ source: 'window-error', type: 'Error', message: 'boom' });
-        expect(entries[0].stack).toContain('Error: boom');
+        expect(entries[0].stack).not.toContain('Error: boom');
     });
 
     it('prefers the native crash history and clears both stores', async () => {
@@ -87,6 +87,6 @@ describe('crash diagnostics', () => {
             type: 'process-exit:CRASH_NATIVE',
         });
         expect(entries[0].message).toContain('reason=CRASH_NATIVE');
-        expect(entries[0].stack).toContain('SIGSEGV');
+        expect(entries[0].stack).not.toContain('SIGSEGV'); // Raw native trace text is not a safe stack frame.
     });
 });

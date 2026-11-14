@@ -1,6 +1,8 @@
 
 
+import {cloudFeedbackId} from '../cloudFeedbackCopy';
 export default {
+  feedbackCloud: cloudFeedbackId,
   lyricsOutput: {"title":"Lirik desktop dan mobil","desktop":"Lirik desktop","desktopHint":"Lirik mengambang dan tampilan","bluetooth":"Lirik Bluetooth mobil","bluetoothHint":"Judul eksperimental untuk perangkat A2DP terpilih","desktopStyle":"Tampilan lirik desktop"},
   nativeSettings: { moveUp: 'Pindah ke atas', moveDown: 'Pindah ke bawah', hue: 'Rona', saturation: 'Saturasi', brightness: 'Kecerahan' },
   rearAppearance: {"unlimited": "Tanpa batas","modeLabel": "Sumber konfigurasi", "importFile": "Pilih berkas JSON tampilan belakang","title": "Rear stage appearance", "entryHint": "Follow front or use independent rear visuals", "follow": "Follow front", "independent": "Independent", "followHint": "Follow front themes, backgrounds, fonts and stage effects. Rear geometry and camera avoidance remain independent.", "independentHint": "Changes affect only the rear. Following front preserves this profile. LSP and Shizuku share it.", "edit": "Stage style and typography", "editHint": "Use the existing stage, background, font, lyrics and animation editor", "theme": "Theme and colors", "daylight": "Light stage appearance", "backup": "Backup and restore", "export": "Export rear appearance JSON", "import": "Import rear appearance JSON", "loading": "Preparing stage editor…"},
@@ -1602,7 +1604,7 @@ export default {
     "ponder": "Ponder Bantuan",
     "ponderDescription": "Pelajari kontrol dasar dan cara kerja Folia",
     "feedback": "Kirim masukan",
-    "feedbackDescription": "Pilih kategori, jelaskan masalah, lampirkan diagnostik",
+    "feedbackDescription": "Pratinjau dan kirim masukan cloud, lihat status, atau ekspor diagnostik manual",
     "version": "versi"
   },
   "lyricProvider": {

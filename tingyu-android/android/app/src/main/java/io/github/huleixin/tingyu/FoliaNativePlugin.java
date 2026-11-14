@@ -1022,6 +1022,7 @@ public class FoliaNativePlugin extends Plugin {
         result.put("zipBytes", io.github.huleixin.tingyu.diagnostics.DiagnosticPackage.totalBytes(getContext()));
         // 环境信息放在同一个调用里：前端只需要一次桥往返就能拼 metadata.json。
         result.put("buildId", BuildConfig.BUILD_ID);
+        result.put("versionCode", BuildConfig.VERSION_CODE);
         result.put("manufacturer", Build.MANUFACTURER == null ? "" : Build.MANUFACTURER);
         result.put("model", Build.MODEL == null ? "" : Build.MODEL);
         result.put("release", Build.VERSION.RELEASE == null ? "" : Build.VERSION.RELEASE);
@@ -1034,6 +1035,12 @@ public class FoliaNativePlugin extends Plugin {
             result.put("webview", "");
         }
         call.resolve(result);
+    }
+
+    /** Read the bounded previous/current event trail off the UI thread, only on feedback preview. */
+    @PluginMethod
+    public void cloudDiagnosticSnapshot(PluginCall call) {
+        io.github.huleixin.tingyu.feedback.CloudDiagnosticSnapshot.read(getContext(),call);
     }
 
     /**

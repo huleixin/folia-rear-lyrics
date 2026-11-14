@@ -1,6 +1,8 @@
 
 
+import {cloudFeedbackZh} from '../cloudFeedbackCopy';
 export default {
+  feedbackCloud: cloudFeedbackZh,
   lyricsOutput: {"title":"桌面与车载歌词","desktop":"桌面歌词","desktopHint":"原生悬浮歌词与样式设置","bluetooth":"车载蓝牙歌词","bluetoothHint":"为选定 A2DP 设备尝试显示歌词标题","desktopStyle":"桌面歌词样式"},
   stageQuality: {"compatibilityFallback": "当前设备暂时无法绘制此场景，已保留歌词显示。", "retry": "重新加载舞台", "bandMotion": "频段动感", "bandMotionHint": "根据当前音频频段的起伏驱动霓虹、涟漪和大屏呼吸，无需在线分析。", "motionStrength": "动感强度", "preset": "歌词渲染画质", "description": "自动保留当前清晰度，根据持续帧耗时调整；高画质更精细，省电减少绘制成本。不会改变播放速度或全局帧率。", "auto": "自动", "high": "高画质", "battery": "省电", "custom": "自定义", "scope": "调整范围", "global": "全局", "follow": "跟随全局", "resolution": "画布分辨率", "antialias": "抗锯齿", "on": "开启", "off": "关闭", "aaHint": "作用于支持的画布舞台；更改抗锯齿会重新创建绘制上下文。背屏保留独立策略。"},
   nativeSettings: { moveUp: '上移', moveDown: '下移', hue: '色相', saturation: '饱和度', brightness: '明度' },
@@ -1835,8 +1837,8 @@ export default {
     "majorUpdateLabel": "{{codename}} Update · 重大更新",
     "ponder": "思索帮助页",
     "ponderDescription": "了解听屿的基本操作与运行逻辑",
-    "feedback": "问题反馈",
-    "feedbackDescription": "选择问题类型、描述现象，附带诊断日志一起导出",
+    "feedback": "问题反馈与诊断",
+    "feedbackDescription": "预览并主动提交云端反馈，或手动导出诊断",
     "version": "版本"
   },
   "lyricProvider": {

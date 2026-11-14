@@ -8,7 +8,7 @@ export type FeedbackCopy = {
     title: string;
     subtitle: string;
     categoryLabel: string;
-    categories: Record<'crash' | 'playback' | 'lyrics' | 'display' | 'rear' | 'other', string>;
+    categories: Record<'crash' | 'playback' | 'stutter' | 'lyrics' | 'display' | 'rear' | 'pad' | 'local' | 'other', string>;
     descriptionLabel: string;
     descriptionPlaceholder: string;
     descriptionHint: string;
@@ -40,6 +40,9 @@ const zh: FeedbackCopy = {
     categories: {
         crash: '闪退或卡死',
         playback: '播放异常',
+        stutter: '播放卡顿',
+        pad: 'Pad适配异常',
+        local: '本地音乐异常',
         lyrics: '歌词问题',
         display: '界面显示问题',
         rear: '背屏或灵动岛问题',
@@ -63,7 +66,7 @@ const zh: FeedbackCopy = {
     exportShared: '已打开系统分享',
     exportFailed: '导出失败，请重试',
     privacyTitle: '隐私',
-    privacyBody: '诊断包只在本机生成。不含密码、Cookie、Token、账号信息、私人文件、完整歌词或音频内容；只有你点「导出并分享」后，它才会通过系统面板离开设备。',
+    privacyBody: '手动诊断包在本机生成，由你通过系统面板分享。云端反馈使用单独的白名单诊断内容，必须先预览并确认；存储于 Cloudflare 私有空间，默认保留30天，供开发者及 Codex 辅助排查。截图仅用于手动导出。请勿填写私人或登录信息。',
     cancel: '取消',
     close: '关闭',
     emptyDescription: '（没有填写描述）',
@@ -76,6 +79,9 @@ const en: FeedbackCopy = {
     categories: {
         crash: 'Crash or freeze',
         playback: 'Playback issue',
+        stutter: 'Playback stutter',
+        pad: 'Tablet layout',
+        local: 'Local music',
         lyrics: 'Lyrics issue',
         display: 'Display issue',
         rear: 'Rear screen / Dynamic Island',
@@ -99,7 +105,7 @@ const en: FeedbackCopy = {
     exportShared: 'System share sheet opened',
     exportFailed: 'Export failed, please retry',
     privacyTitle: 'Privacy',
-    privacyBody: 'The package is generated on this device. No passwords, cookies, tokens, account data, private files, full lyrics or audio are included. It only leaves the device when you tap Export & share.',
+    privacyBody: 'Manual packages are shared through the system panel. Cloud feedback uses separate allowlisted diagnostics, requires preview and consent, and is privately stored at Cloudflare for 30 days for developer and Codex analysis. Screenshots are manual-export only. Do not enter credentials or private information.',
     cancel: 'Cancel',
     close: 'Close',
     emptyDescription: '(no description)',

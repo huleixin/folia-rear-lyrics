@@ -113,5 +113,11 @@ export const useStartupExperienceGate = () => {
         setIsReleaseNotesOpen(false);
     }, [appVersion]);
 
+    useEffect(()=>{
+        if(nextStep||isReleaseNotesOpen||isPlaybackEntryViewPromptOpen||isPonderOnboardingOpen)return;
+        const timer=setTimeout(()=>{void import('../services/feedback/crashRecovery').then(m=>m.offerCrashFeedback()).catch(()=>{/* Optional feedback must not interrupt startup. */});},5000);
+        return ()=>clearTimeout(timer);
+    },[nextStep,isReleaseNotesOpen,isPlaybackEntryViewPromptOpen,isPonderOnboardingOpen]);
+
     return { isReleaseNotesOpen, closeReleaseNotes };
 };

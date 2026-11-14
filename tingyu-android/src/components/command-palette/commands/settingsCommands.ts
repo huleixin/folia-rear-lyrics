@@ -1,4 +1,5 @@
 import { isAndroidNativeRuntime } from '../../../utils/platform';
+import {openFeedback} from '../../../services/feedback/navigation';
 import { nativeLyricsAvailable, openNativeLyricsSettings } from '../../../services/nativeLyrics';
 import { syncNow } from '../../../services/sync/syncCoordinator';
 import { isSyncConfigured } from '../../../services/sync/syncConfig';
@@ -21,6 +22,7 @@ import { canUseRearCardKeepAwake, toggleRearCardKeepAwake, canUseRearLyrics, tog
 // Commands in the `settings` group: settings subviews, app toggles, theme, sync, and desktop-only switches.
 
 export const settingsCommands: CommandPaletteCommand[] = [
+    defineCommand({id:'settings-feedback',group:'settings',title:'问题反馈与诊断 / Feedback',description:'预览、主动上传诊断及查看反馈状态',keywords:['反馈','诊断','feedback','crash','闪退','bug'],execute:()=>openFeedback()}),
     defineCommand({id:'settings-desktop-lyrics',group:'settings',title:'Desktop lyrics',description:'Configure native floating lyrics',keywords:['desktop lyrics','floating lyrics','桌面歌词','悬浮歌词'],isAvailable:nativeLyricsAvailable,execute:()=>openNativeLyricsSettings('desktop')}),
     defineCommand({id:'settings-bluetooth-display',group:'settings',title:'Bluetooth lyric display',description:'Choose title, artist, album, translation and refresh settings',keywords:['car lyric display','metadata','车载歌词显示','歌词翻译','蓝牙刷新间隔','下一句歌词'],isAvailable:nativeLyricsAvailable,execute:()=>openNativeLyricsSettings('bluetooth')}),
     defineCommand({id:'settings-bluetooth-lyrics',group:'settings',title:'Bluetooth lyrics',description:'Configure experimental car lyrics',keywords:['bluetooth lyrics','car lyrics','车载歌词','蓝牙歌词'],isAvailable:nativeLyricsAvailable,execute:()=>openNativeLyricsSettings('bluetooth')}),
