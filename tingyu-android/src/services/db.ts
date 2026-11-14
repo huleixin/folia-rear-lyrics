@@ -1,3 +1,5 @@
+import { isCapacitorAndroid } from '../platform/runtime';
+import { getTingyuPlayback } from '../platform/tingyuPlayback';
 import type { LocalLibrarySnapshot, LocalSong } from '../types';
 import type { MigrationResult } from '../utils/lyrics/renderHints';
 import { appDatabase } from './appDatabase';
@@ -180,15 +182,28 @@ export const getCacheUsageByCategory = async (): Promise<{
       usage.media += await window.electron!.getAudioCacheUsage();
     }
     usage.cover += await getCoverAssetUsage();
+    if(isCapacitorAndroid()){
+      const native=getTingyuPlayback<{audioOffline(o:object):Promise<{bytes:number;cached:number}>;resourceCache(o:object):Promise<{lyricsBytes:number;artworkBytes:number}>}>();
+      const [audio,resources]=await Promise.allSettled([native.audioOffline({}),native.resourceCache({})]);
+      if(audio.status==='fulfilled'){usage.media+=audio.value.bytes;usage.mediaCount+=audio.value.cached;}
+      if(resources.status==='fulfilled'){usage.lyrics+=resources.value.lyricsBytes;usage.cover+=resources.value.artworkBytes;}
+    }
     return usage;
   } catch {
     return { playlist: 0, lyrics: 0, cover: 0, media: 0, analysis: 0, mediaCount: 0 };
   }
 };
 
+/** Clear downloadable caches without deleting the local library, session or settings database. */
+export const clearDownloadableCaches = async (): Promise<void> => {
+  for(const category of ['playlist','lyrics','cover','media','analysis'] as CacheCategory[]) await clearCacheByCategory(category);
+};
+
 export const clearCacheByCategory = async (category: CacheCategory): Promise<void> => {
   try {
     await clearBrowserCacheByCategory(category);
+    if((category==='lyrics'||category==='cover')&&isCapacitorAndroid())await getTingyuPlayback<{resourceCache(o:object):Promise<unknown>}>().resourceCache({action:'clear-'+category});
+    if(category==='media'&&isCapacitorAndroid())await getTingyuPlayback<{audioOffline(o:object):Promise<unknown>}>().audioOffline({action:'clear'});
     if (category === 'media' && hasElectronAudioCacheBridge()) {
       await window.electron!.clearAudioCache();
     }
@@ -250,6 +265,10 @@ export const deleteLocalSongs = async (ids: string[]): Promise<void> => {
 
 export const clearAllData = async (): Promise<void> => {
   try {
+    if(isCapacitorAndroid()){
+      const native=getTingyuPlayback<{audioOffline(o:object):Promise<unknown>;resourceCache(o:object):Promise<unknown>}>();
+      await Promise.all([native.audioOffline({action:'clear'}),native.resourceCache({action:'clear'})]);
+    }
     if (hasElectronAudioCacheBridge()) await window.electron!.clearAudioCache();
     await clearCoverAssets();
     await cancelLocalCoverAssetMigration();

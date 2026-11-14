@@ -712,6 +712,7 @@ export default {
       "obs-toggle-keep-main-window-animation": { "title": "OBS: pertahankan animasi jendela utama", "description": "Aktifkan atau nonaktifkan animasi jendela utama saat OBS terhubung" },
       "desktop-toggle-lyric-api": { "title": "API Lirik", "description": "Alihkan endpoint lirik lokal tanpa autentikasi" },
       "settings-obs-copy-css": { "title": "Salin CSS OBS", "description": "Salin Custom CSS OBS Browser Source yang membawa aset unggahan" },
+      "settings-feedback": { "title": "Masukan dan diagnostik", "description": "Tinjau dan kirim laporan diagnostik" },
       "settings-storage": { "title": "Pengaturan penyimpanan", "description": "Buka pengaturan cache dan penyimpanan" },
       "settings-r2-sync": { "title": "Pengaturan server sinkronisasi", "description": "Buka pengaturan server sinkronisasi" },
       "sync-now": { "title": "Sinkronkan sekarang", "description": "Sinkronkan tema AI" },

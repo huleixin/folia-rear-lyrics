@@ -4,6 +4,7 @@ import { isCapacitorAndroid } from '../../../platform/runtime';
 
 // src/components/modal/settings/useResourceCacheStatus.ts
 export interface ResourceStatus {
+    descriptor?:{name?:string};
     enabled:boolean;wifiOnly:boolean;lyricsBytes:number;artworkBytes:number;total:number;completed:number;
     failed:number;cachedSongs:number;pending:number;metadataComplete:boolean;discovered:number;
     confirmedLyrics?:number;provisionalLyrics?:number;noLyrics?:number;
@@ -11,12 +12,13 @@ export interface ResourceStatus {
 }
 export function useResourceCacheStatus(){
     const [status,setStatus]=useState<ResourceStatus|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
+    const usage=useRef('');
     const epoch=useRef(0),mounted=useRef(false),mutating=useRef(false);
     const update=useCallback(async(action?:string,next?:Partial<ResourceStatus>)=>{
         if(mutating.current)return;
         const own=++epoch.current;if(action){mutating.current=true;setBusy(true);}
         try{const value=await getTingyuPlayback<{resourceCache(o:object):Promise<ResourceStatus>}>().resourceCache({action,...next});
-            if(mounted.current&&own===epoch.current){setStatus(value);setError('');}
+            if(mounted.current&&own===epoch.current){setStatus(value);setError('');const next=value.lyricsBytes+':'+value.artworkBytes;if(usage.current&&usage.current!==next)window.dispatchEvent(new Event('tingyu-offline-cache-usage'));usage.current=next;}
             if(action==='resume'||action==='retry'){
                 void import('../../../services/platformResourcePrecache').then(m=>m.runPlatformResourcePrecache());
                 const {usePlaybackStore}=await import('../../../stores/usePlaybackStore');const song=usePlaybackStore.getState().currentSong;

@@ -1,3 +1,4 @@
+import { isCapacitorAndroid } from '../../../platform/runtime';
 import AudioCacheSettings from './AudioCacheSettings';
 import SmartResourceCacheSettings from './SmartResourceCacheSettings';
 import React from 'react';
@@ -244,7 +245,7 @@ const StorageSettingsSection: React.FC<StorageSettingsSectionProps> = ({
     return (
         <div className="storage-settings" data-settings-style='{"gap":28}' data-settings-layout="column">
             <AudioCacheSettings/>
-            <SmartResourceCacheSettings />
+            {!isCapacitorAndroid()&&<SmartResourceCacheSettings />}
             <SettingsAnchor anchorId="cacheDetails" label={t('options.cacheDetails') || 'Cache Details'} nativeLayout={{"kind":"column"}}>
                 <h3 className="storage-section-heading" data-settings-style='{"align":"between","font":13,"weight":600,"tone":"muted","margin":[2,0,2,10]}' data-settings-layout="row"><span data-settings-style='{"grow":true}' data-settings-layout="wrap"><Database size={16}/>{t('options.cacheDetails')}</span><button type="button" className="storage-text-button" onClick={onClearAll} disabled={isCleaning === 'all'} data-settings-layout="row" data-settings-style='{"gap":6,"minHeight":44,"font":13,"tone":"muted"}'>{isCleaning === 'all' ? <Loader2 size={14} className="animate-spin"/> : <Trash2 size={14}/>} {t('options.clearAll')}</button></h3>
                 <div className="cache-details-grid" data-settings-style='{"padding":[16,0,16,0],"radius":20,"border":true}' data-settings-layout="card">
@@ -291,7 +292,7 @@ const StorageSettingsSection: React.FC<StorageSettingsSectionProps> = ({
                 toggleOffBackgroundClass={toggleOffBackgroundClass}
             />
 
-            <SettingsAnchor anchorId="mediaCache" label={t('options.mediaCache') || 'Media Cache'} nativeLayout={{"kind":"column"}}>
+            {!isCapacitorAndroid()&&<SettingsAnchor anchorId="mediaCache" label={t('options.mediaCache') || 'Media Cache'} nativeLayout={{"kind":"column"}}>
                 <SettingsSectionHeading icon={Database} label={t('options.mediaCache') || 'Media Cache'} />
                 <div className={`p-4 rounded-xl border space-y-4 ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true,"gap":16,"padding":[16,16,16,16]}' data-settings-layout="card">
                     <div className="flex items-center justify-between" data-settings-style='{"align":"between"}' data-settings-layout="row">
@@ -372,7 +373,7 @@ const StorageSettingsSection: React.FC<StorageSettingsSectionProps> = ({
                         <span className="font-mono" data-settings-layout="wrap">{mediaCount} · {cacheSizes.media}</span>
                     </div>
                 </div>
-            </SettingsAnchor>
+            </SettingsAnchor>}
         </div>
     );
 };

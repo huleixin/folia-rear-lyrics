@@ -949,6 +949,7 @@ export default {
       "obs-toggle-keep-main-window-animation": { "title": "OBS: keep main window animation", "description": "Toggle whether the main window keeps its animation while OBS is connected" },
       "desktop-toggle-lyric-api": { "title": "Lyrics API", "description": "Toggle the local unauthenticated lyrics endpoint" },
       "settings-obs-copy-css": { "title": "Copy OBS CSS", "description": "Copy the OBS Browser Source Custom CSS carrying uploaded assets" },
+      "settings-feedback": { "title": "Feedback and diagnostics", "description": "Review and submit diagnostic reports" },
       "settings-storage": { "title": "Storage settings", "description": "Open cache and storage settings" },
       "settings-r2-sync": { "title": "Sync server settings", "description": "Open sync server settings" },
       "sync-now": { "title": "Sync now", "description": "Sync AI themes" },

@@ -1,3 +1,4 @@
+import { isCapacitorAndroid } from '../../../platform/runtime';
 import { isAndroidNativeRuntime } from '../../../utils/platform';
 import {openFeedback} from '../../../services/feedback/navigation';
 import { nativeLyricsAvailable, openNativeLyricsSettings } from '../../../services/nativeLyrics';
@@ -296,7 +297,7 @@ export const settingsCommands: CommandPaletteCommand[] = [
         },
     },
     createSettingsCommand('settings-storage', 'Storage settings', 'Open cache and storage settings', ['storage', 'cache', '存储', '缓存'], 'options', 'storage'),
-    createSettingsAnchorCommand('settings-media-cache', 'Media cache', 'Jump to the downloaded audio cache', ['audio cache', 'downloads', 'offline songs', '音频缓存'], 'mediaCache'),
+    {...createSettingsAnchorCommand('settings-media-cache', 'Media cache', 'Jump to the downloaded audio cache', ['audio cache', 'downloads', 'offline songs', '音频缓存'], 'mediaCache'),isAvailable:()=>!isCapacitorAndroid()},
     createSettingsAnchorCommand('settings-r2-sync', 'Sync server settings', 'Open sync server settings', ['sync server', 'd1 sync', 'cloud sync', 'sync settings', '同步', '云同步', 'd1同步'], 'r2Sync'),
     {
         id: 'sync-now',

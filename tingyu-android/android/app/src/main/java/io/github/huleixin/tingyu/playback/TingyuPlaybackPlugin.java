@@ -40,7 +40,9 @@ public final class TingyuPlaybackPlugin extends Plugin {
         if("bind".equals(action)){if(!cache.route().equals(call.getString("cacheRoute",""))){call.resolve();return;}cache.bind(call.getString("url",""),call.getString("key",""),call.getString("actualSource",""),d.optLong("durationMs"),call.getString("negotiatedQuality",""));io.github.huleixin.tingyu.LocalAudioServer.shared(getContext()).bindCacheAlias(call.getString("url",""));call.resolve();return;}
         if("lookup".equals(action)){java.io.File f=cache.lookup(call.getString("key",""));String url=f==null?"":io.github.huleixin.tingyu.LocalAudioServer.shared(getContext()).registerCachedAudio(f);call.resolve(new JSObject().put("url",url).put("info",cache.info(call.getString("key",""))));return;}
         if("invalidate".equals(action))cache.invalidate(call.getString("key",""));
-        if("configure".equals(action))cache.configure(d);if("catalog".equals(action))jobs.catalog(d);if("enqueue".equals(action))jobs.enqueue(d.optJSONArray("tracks"),call.getString("collection","queue"),call.getString("quality","high"));else jobs.action(action);
+        if("tasks".equals(action)){call.resolve(JSObject.fromJSONObject(jobs.tasks(call.getString("state","active"),call.getString("collection",""),d.optInt("offset"))));return;}
+        if("configure".equals(action)){cache.configure(d);if(d.has("resourceEnabled")||d.has("wifiOnly")){android.content.SharedPreferences preferences=getContext().getSharedPreferences("resource-cache-policy",0);PlaylistResourceCache.get(getContext()).configure(d.optBoolean("resourceEnabled",preferences.getBoolean("enabled",true)),cache.wifiOnly());}}
+if("catalog".equals(action))jobs.catalog(d);if("enqueue".equals(action))jobs.enqueue(d.optJSONArray("tracks"),call.getString("collection","queue"),call.getString("quality","high"));else jobs.action(action);
         call.resolve(JSObject.fromJSONObject(jobs.status()));
     }catch(Exception e){call.reject("音频缓存暂不可用："+e.getClass().getSimpleName());}},error->call.reject("音频缓存暂不可用："+error.getClass().getSimpleName()));}
     @PluginMethod public void audioCacheBegin(PluginCall call){AUDIO_CACHE_IO.execute(()->{try{
@@ -133,7 +135,7 @@ public final class TingyuPlaybackPlugin extends Plugin {
             try {
                 String token = call.getString("playlistId", "");
                 if (token.isEmpty() || token.length() > 100) throw new IllegalArgumentException("snapshot identity");
-                if (Boolean.TRUE.equals(call.getBoolean("begin"))) cache.begin(token);
+                if (Boolean.TRUE.equals(call.getBoolean("begin"))) cache.begin(token,Boolean.TRUE.equals(call.getBoolean("manual")));
                 org.json.JSONArray page = call.getArray("tracks");
                 if (page != null) cache.append(token, page, call.getInt("offset", 0), Boolean.TRUE.equals(call.getBoolean("finish")));
                 cache.expected(token, call.getInt("total", 0));
@@ -150,7 +152,10 @@ public final class TingyuPlaybackPlugin extends Plugin {
             try {
                 if ("configure".equals(call.getString("action"))) cache.configure(Boolean.TRUE.equals(call.getBoolean("enabled")), Boolean.TRUE.equals(call.getBoolean("wifiOnly")));
                 if("resume".equals(call.getString("action"))||"retry".equals(call.getString("action")))cache.resume("retry".equals(call.getString("action")));
+                if("pause".equals(call.getString("action")))cache.pause();
                 if ("clear".equals(call.getString("action"))) cache.clearDownloadable();
+                if("clear-lyrics".equals(call.getString("action")))cache.clearDownloadable("lyrics");
+                if("clear-cover".equals(call.getString("action")))cache.clearDownloadable("cover");
                 call.resolve(cache.status().put("containsCurrent",cache.metadata(call.getString("currentKey", ""))!=null));
             } catch (Exception error) { call.reject("Resource cache unavailable"); }
         });

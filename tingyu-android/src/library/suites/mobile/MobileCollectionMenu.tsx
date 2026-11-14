@@ -1,3 +1,6 @@
+import { cacheAudioPlaylist } from '../../../services/audioPlaylistCache';
+import { isCapacitorAndroid } from '../../../platform/runtime';
+import { useSettingsModalStore } from '../../../stores/useSettingsModalStore';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LibraryCollectionSurfaceProps } from '../../core/contracts/suite';
@@ -184,6 +187,12 @@ export default function MobileCollectionMenu({
             id: 'enqueue', label: t('mobileLibrary.enqueue'), icon: 'plus',
         }];
         handlers.enqueue = () => { model.actions.enqueueScope(); onClose(); };
+        if(isCapacitorAndroid()&&props.collection.source==='online'&&props.collection.type==='playlist'){
+            primary.push({id:'cachePlaylist',label:t('audioCache.playlist'),icon:'download',disabled:!model.snapshot?.tracks.length});
+            handlers.cachePlaylist=()=>{void cacheAudioPlaylist(props.collection,model.snapshot?.tracks??[]);onClose();};
+            primary.push({id:'cacheProgress',label:t('audioCache.progressAction'),icon:'list'});
+            handlers.cacheProgress=()=>{onClose();useSettingsModalStore.getState().openSettings('options','storage');};
+        }
         if (isLocalPlaylistCollection && onOpenManage) {
             handlers.manageSongs = () => { onOpenManage(); };
             primary.push({ id: 'manageSongs', label: t('mobileLibrary.manageSongs'), icon: 'music2' });

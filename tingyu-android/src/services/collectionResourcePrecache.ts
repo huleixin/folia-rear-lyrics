@@ -13,13 +13,13 @@ let activeToken = '';
 let catalogRunning = false;
 /** Pages use the existing Omni catalog API; only display metadata enters the native manifest. */
 export const precacheCollectionResources = async (
-    collection: LibraryCollectionDescriptor, known: readonly SongResult[], current: SongResult,
+    collection: LibraryCollectionDescriptor, known: readonly SongResult[], current: SongResult, manual = false,
 ): Promise<void> => {
     if (!isCapacitorAndroid()) return;
     if(collection.source!=='online'){rememberResourceCollectionOrigin(new Set(known.map(getPlaybackSongKey)),collection);return;}
     const token = 'collection-' + collection.providerId + '-' + collection.type + '-' + collection.id;
     const signature = token + ':' + resourceSnapshotIdentity(known.map(song => getPlaybackSongKey(song) + '|' + (song.album?.coverUrl ?? '')));
-    if (activeToken === signature && isResourceCollectionOwner(token)) return;
+    if (!manual && activeToken === signature && isResourceCollectionOwner(token)) return;
     activeToken = signature;
     const own = ++generation;
     catalogRunning = true;
@@ -32,8 +32,8 @@ export const precacheCollectionResources = async (
     claimResourceCollection(token, keys, collection);
     try {
         const policy = await native.resourceCache({});
-        if (!policy.enabled || (own !== generation || !isResourceCollectionOwner(token))) { releaseResourceCollection(token); return; }
-        await native.resourceSnapshot({ playlistId: token, begin: true, tracks: [], offset: 0, descriptor: collection });
+        if ((!manual && !policy.enabled) || (own !== generation || !isResourceCollectionOwner(token))) { releaseResourceCollection(token); return; }
+        await native.resourceSnapshot({ playlistId: token, begin: true, manual, tracks: [], offset: 0, descriptor: collection });
         let offset = 0;
         for (; offset < known.length; offset += 50) {
             if ((own !== generation || !isResourceCollectionOwner(token))) return;

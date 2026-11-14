@@ -57,7 +57,9 @@ public final class PlaylistResourceCache extends SQLiteOpenHelper {
     @Override public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         if(oldVersion<2){db.execSQL("ALTER TABLE tasks ADD COLUMN lyricState TEXT DEFAULT 'pending'");db.execSQL("ALTER TABLE tasks ADD COLUMN artworkState TEXT DEFAULT 'pending'");}
     }
-    public synchronized void begin(String token) {
+    public void begin(String token){begin(token,false);}
+    public synchronized void begin(String token,boolean manual) {
+        preferences.edit().putBoolean("manual",manual).apply();
         pausedByClear = false;preferences.edit().putBoolean("paused",false).apply();
         SQLiteDatabase db = getWritableDatabase();
         db.beginTransaction();
@@ -144,7 +146,7 @@ public final class PlaylistResourceCache extends SQLiteOpenHelper {
         });
     }
     public boolean networkAllowed() {
-        if (pausedByClear || !preferences.getBoolean("enabled", true)) return false;
+        if (pausedByClear || (!preferences.getBoolean("enabled", true)&&!preferences.getBoolean("manual",false))) return false;
         ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         if (cm == null) return false;
         NetworkCapabilities nc = cm.getNetworkCapabilities(cm.getActiveNetwork());
@@ -154,14 +156,16 @@ public final class PlaylistResourceCache extends SQLiteOpenHelper {
             nc.hasTransport(NetworkCapabilities.TRANSPORT_WIFI), metered,
             cm.getRestrictBackgroundStatus() == ConnectivityManager.RESTRICT_BACKGROUND_STATUS_ENABLED);
     }
+    public void pause(){pausedByClear=true;preferences.edit().putBoolean("paused",true).apply();}
     public void configure(boolean enabled, boolean wifiOnly) {
         preferences.edit().putBoolean("enabled", enabled).putBoolean("wifiOnly", wifiOnly).apply();
+        context.getSharedPreferences("audio-offline-v1",0).edit().putBoolean("wifiOnly",wifiOnly).apply();
         JobScheduler js = (JobScheduler) context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
         if (js != null) js.cancel(JOB_ID);
         if (enabled) {pausedByClear=false;preferences.edit().putBoolean("paused",false).apply();scheduleNext();}
     }
     void schedule(long delay) {
-        if (pausedByClear || !preferences.getBoolean("enabled", true) || token(true).isEmpty()) return;
+        if (pausedByClear || (!preferences.getBoolean("enabled", true)&&!preferences.getBoolean("manual",false)) || token(true).isEmpty()) return;
         JobScheduler js = (JobScheduler) context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
         if (js == null) {jobNote("scheduler-unavailable","");return;}
         if(js.getPendingJob(JOB_ID)!=null)return;
@@ -342,13 +346,13 @@ public final class PlaylistResourceCache extends SQLiteOpenHelper {
             return c.moveToFirst() ? new JSONObject(c.getString(0)) : null;
         } catch(Exception ignored) { return null; }
     }
-    public void clearDownloadable() {
+    public void clearDownloadable(){clearDownloadable("all");}
+    public void clearDownloadable(String category) {
         pausedByClear = true;preferences.edit().putBoolean("paused",true).apply();
         JobScheduler js=(JobScheduler)context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
         if(js!=null)js.cancel(JOB_ID);
-        UnifiedLyricsStore.get(context).clearDownloadable();
-        NativeLyricsRepository.get(context).clearDownloadable();
-        NativeArtworkRepository.get(context).clearDownloadable();
+        if(!"cover".equals(category)){UnifiedLyricsStore.get(context).clearDownloadable();NativeLyricsRepository.get(context).clearDownloadable();}
+        if(!"lyrics".equals(category))NativeArtworkRepository.get(context).clearDownloadable();
         getWritableDatabase().execSQL("UPDATE tasks SET state=0,attempt=0,due=0,platformDone=0,platformAttempt=0,platformDue=0");
         // Do not immediately redownload everything the user just cleared; next playback resumes.
     }

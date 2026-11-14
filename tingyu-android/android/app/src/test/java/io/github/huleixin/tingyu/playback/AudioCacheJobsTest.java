@@ -49,4 +49,27 @@ public class AudioCacheJobsTest {
             jobs.action("clear");assertEquals(0,jobs.status().getJSONArray("tasks").length());
         } finally {close(jobs);}
     }
+    @Test public void manualTasksArePagedAndPauseSurvivesReopening() throws Exception {
+        Context context=ApplicationProvider.getApplicationContext();context.deleteDatabase("audio-cache-jobs.db");
+        AudioCacheJobs jobs=open(context);String route=new String(new char[64]).replace("\0","a");
+        try{
+            jobs.cache.configure(new JSONObject().put("enabled",false).put("wifiOnly",true));jobs.sourceChanged(route);
+            JSONArray tracks=new JSONArray();for(int i=0;i<46;i++){
+                JSONObject track=track(route);track.put("title","Track "+i);
+                track.getJSONObject("providerData").getJSONObject("audioCacheKeys").put("standard","unique-"+i);
+                tracks.put(track);
+            }
+            jobs.enqueue(tracks,"playlist","standard");assertEquals(46,jobs.status().getInt("pending"));
+            assertEquals(0,jobs.status().getJSONArray("tasks").length());
+            assertEquals(20,jobs.tasks("active","playlist",0).getJSONArray("tasks").length());
+            assertEquals(20,jobs.tasks("active","playlist",20).getJSONArray("tasks").length());
+            assertEquals(6,jobs.tasks("active","playlist",40).getJSONArray("tasks").length());
+            assertEquals(0,jobs.tasks("failed","playlist",0).getInt("total"));
+            assertTrue(context.getSharedPreferences("resource-cache-policy",0).getBoolean("wifiOnly",false));
+            jobs.action("pause");assertTrue(jobs.status().getBoolean("paused"));
+            close(jobs);jobs=open(context);assertTrue(jobs.status().getBoolean("paused"));
+            jobs.action("resume");assertFalse(jobs.status().getBoolean("paused"));assertFalse(jobs.cache.enabled());
+        }finally{close(jobs);}
+    }
+
 }

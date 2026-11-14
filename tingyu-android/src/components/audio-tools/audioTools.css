@@ -116,3 +116,5 @@
 .ty-lx-diagnostic-action { min-height:42px; padding:9px 12px; border:1px solid var(--lx-border)!important; border-radius:10px!important; background:var(--lx-card)!important; color:var(--lx-muted)!important; text-align:left; }
 .ty-lx-card[data-selected] { box-shadow:0 0 0 1px color-mix(in srgb,var(--lx-accent) 38%,transparent); }
 .ty-lx-version-ready { color:var(--lx-muted); font-size:10px; align-self:center; }
+
+.ty-lx-routing{display:grid;gap:8px}.ty-lx-routing>button{display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-height:64px;padding:12px 14px;border:1px solid var(--lx-border);border-radius:12px;background:var(--lx-card);text-align:left;color:var(--lx-ink)}.ty-lx-routing>button[aria-pressed=true]{border-color:var(--lx-accent);background:color-mix(in srgb,var(--lx-accent) 10%,var(--lx-card))}.ty-lx-routing small{font-size:11px;line-height:1.6;color:var(--lx-muted)}

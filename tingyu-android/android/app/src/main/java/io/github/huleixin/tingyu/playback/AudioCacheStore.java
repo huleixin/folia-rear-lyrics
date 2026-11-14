@@ -31,7 +31,10 @@ public final class AudioCacheStore {
     private volatile int cachedCount;
     private long networkCheckedAt;private boolean wifiEligible;
     private long reservedBytes;
-    private AudioCacheStore(Context c){context=c;dir=new File(c.getFilesDir(),"audio-offline-v1");dir.mkdirs();prefs=c.getSharedPreferences("audio-offline-v1",0);submit(()->prune(0));}
+    private AudioCacheStore(Context c){context=c;dir=new File(c.getFilesDir(),"audio-offline-v1");dir.mkdirs();prefs=c.getSharedPreferences("audio-offline-v1",0);
+        android.content.SharedPreferences resources=c.getSharedPreferences("resource-cache-policy",0);
+        if(!prefs.getBoolean("unifiedWifi",false)){boolean wifi=prefs.getBoolean("wifiOnly",true)||resources.getBoolean("wifiOnly",false);prefs.edit().putBoolean("wifiOnly",wifi).putBoolean("unifiedWifi",true).apply();resources.edit().putBoolean("wifiOnly",wifi).apply();}
+        submit(()->prune(0));}
     public boolean enabled(){return prefs.getBoolean("enabled",false);}
     public String route(){return prefs.getString("route","");}
     public boolean routeMatches(NativePlaylist.Track track){try{return route().equals(new JSONObject(track.providerData).optString("audioCacheRoute"));}catch(Exception e){return false;}}
@@ -39,8 +42,8 @@ public final class AudioCacheStore {
         generation++;bindings.clear();for(Part p:parts.values()){p.failed=true;p.file.delete();}parts.clear();reservedBytes=0;
         prefs.edit().putString("route",route).apply();
     }
-    private boolean canWrite(){
-        if(!enabled())return false;if(!wifiOnly())return true;
+    private boolean canWrite(Binding binding){
+        if(!enabled()&&!binding.download)return false;if(!wifiOnly())return true;
         long now=android.os.SystemClock.elapsedRealtime();if(now-networkCheckedAt<1000)return wifiEligible;networkCheckedAt=now;
         android.net.ConnectivityManager cm=(android.net.ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
         android.net.NetworkCapabilities n=cm==null?null:cm.getNetworkCapabilities(cm.getActiveNetwork());
@@ -57,9 +60,10 @@ public final class AudioCacheStore {
     }
     private long limit(){return prefs.getInt("limitGb",2)*1024L*1024*1024;}
     public boolean containsFile(File file)throws java.io.IOException{return file!=null&&file.isFile()&&file.getCanonicalFile().getParentFile().equals(dir.getCanonicalFile())&&file.getName().matches("[a-f0-9]{64}\\.audio");}
-    private static final class Binding {final String key,actual,quality;final long duration;Binding(String k,String a,long d,String q){key=k;actual=a;duration=d;quality=q;}}
+    private static final class Binding {final String key,actual,quality;final long duration;final boolean download;Binding(String k,String a,long d,String q,boolean bulk){key=k;actual=a;duration=d;quality=q;download=bulk;}}
     public void bind(String url,String key,String actual,long duration){bind(url,key,actual,duration,"");}
-    public synchronized void bind(String url,String key,String actual,long duration,String quality){if(!enabled()||key.isEmpty()||key.length()>2048)return;bindings.put(url,new Binding(key,actual,duration,quality));while(bindings.size()>256)bindings.remove(bindings.keySet().iterator().next());}
+    public void bind(String url,String key,String actual,long duration,String quality){bind(url,key,actual,duration,quality,false);}
+    public synchronized void bind(String url,String key,String actual,long duration,String quality,boolean download){if((!enabled()&&!download)||key.isEmpty()||key.length()>2048)return;bindings.put(url,new Binding(key,actual,duration,quality,download));while(bindings.size()>256)bindings.remove(bindings.keySet().iterator().next());}
     public synchronized void alias(String original,String proxy){Binding b=bindings.get(original);if(b!=null){bindings.put(proxy,b);while(bindings.size()>256)bindings.remove(bindings.keySet().iterator().next());}}
     public boolean hasFiles(String key){if(key==null||key.isEmpty())return false;String id=hash(key);return new File(dir,id+".audio").isFile()&&new File(dir,id+".json").isFile();}
     public synchronized File lookup(String key){try{if(key==null||key.isEmpty())return null;String id=hash(key);File f=new File(dir,id+".audio"),m=new File(dir,id+".json");if(!f.isFile()||!m.isFile())return null;JSONObject meta=new JSONObject(readMetadata(m));if(meta.optLong("size")!=f.length()||!key.equals(meta.optString("key")))return null;f.setLastModified(System.currentTimeMillis());return f;}catch(Exception e){return null;}}
@@ -69,13 +73,13 @@ public final class AudioCacheStore {
         final String representation;final Part part;long position;boolean closed;
         Sink(String r,Part p,long start){representation=r;part=p;position=start;}
         public void write(byte[] bytes,int offset,int count){if(closed||part.failed||part.verifying||count<=0)return;long start=position;position+=count;if(position>part.total){part.failed=true;return;}byte[] copy=java.util.Arrays.copyOfRange(bytes,offset,offset+count);
-            if(!submit(()->{synchronized(AudioCacheStore.this){if(!canWrite()||part.failed||part.verifying||part.generation!=generation||parts.get(representation)!=part)return;try(RandomAccessFile out=new RandomAccessFile(part.file,"rw")){out.seek(start);out.write(copy);part.ranges.add(start,start+count);}catch(Exception e){part.failed=true;}}if(part.ranges.complete(part.total))finish(representation,part);}))part.failed=true;
+            if(!submitWrite(()->{synchronized(AudioCacheStore.this){if(!canWrite(part.binding)||part.failed||part.verifying||part.generation!=generation||parts.get(representation)!=part)return;try(RandomAccessFile out=new RandomAccessFile(part.file,"rw")){out.seek(start);out.write(copy);part.ranges.add(start,start+count);}catch(Exception e){part.failed=true;}}if(part.ranges.complete(part.total))finish(representation,part);},part.binding.download))part.failed=true;
         }
-        public void close(){if(closed)return;closed=true;if(!submit(()->finish(representation,part)))part.failed=true;}
+        public void close(){if(closed)return;closed=true;if(!submitWrite(()->finish(representation,part),part.binding.download))part.failed=true;}
     }
     /** Unknown lengths, text/DRM responses, encoded transfers and inconsistent ranges never enter the cache. */
     public synchronized Sink open(String url,long start,long total,String mime,String validator){
-        Binding b=bindings.get(url);if(!canWrite()||b==null||total<16384||total>MAX_FILE||start<0||start>=total||lookup(b.key)!=null)return null;
+        Binding b=bindings.get(url);if(b==null||!canWrite(b)||total<16384||total>MAX_FILE||start<0||start>=total||lookup(b.key)!=null)return null;
         if(mime==null||mime.matches("(?i).*(text/|json|xml|mpegurl|dash|octet-stream\\+).*"))return null;
         String representation=hash(url+"|"+validator+"|"+total+"|"+b.key);
         Part p=parts.get(representation);
@@ -89,10 +93,12 @@ public final class AudioCacheStore {
         if(p.verifying)return null;
         return new Sink(representation,p,start);
     }
+    // Downloads apply bounded backpressure instead of discarding bytes when disk IO lags.
+    private boolean submitWrite(Runnable work,boolean download){if(submit(work))return true;if(!download)return false;try{return io.getQueue().offer(work,15,TimeUnit.SECONDS);}catch(InterruptedException error){Thread.currentThread().interrupt();return false;}}
     private boolean submit(Runnable work){try{io.execute(work);return true;}catch(java.util.concurrent.RejectedExecutionException e){return false;}}
     private synchronized void removePart(String id,Part p){if(parts.get(id)==p){p.failed=true;parts.remove(id);reservedBytes-=p.total;if(p.generation==generation)p.file.delete();}}
     private void finish(String id,Part p){
-        synchronized(this){if(!canWrite()||p.generation!=generation||p.failed||parts.get(id)!=p){removePart(id,p);return;}
+        synchronized(this){if(!canWrite(p.binding)||p.generation!=generation||p.failed||parts.get(id)!=p){removePart(id,p);return;}
         if(!p.ranges.complete(p.total)||p.verifying)return;p.verifying=true;}
         MediaExtractor media=new MediaExtractor();
         try {
@@ -124,5 +130,5 @@ public final class AudioCacheStore {
     public static String key(NativePlaylist.Track track,String quality){try{return new JSONObject(track.providerData).optJSONObject("audioCacheKeys").optString(quality,"");}catch(Exception e){return "";}}
     public synchronized void invalidate(String key){File f=new File(dir,hash(key)+".audio");long size=f.length();if(f.delete()){usedBytes=Math.max(0,usedBytes-size);cachedCount=Math.max(0,cachedCount-1);}new File(dir,hash(key)+".json").delete();}
     public JSONObject status(){JSONObject s=new JSONObject();try{s.put("enabled",enabled()).put("wifiOnly",wifiOnly()).put("autoPlaylist",autoPlaylist()).put("limitGb",prefs.getInt("limitGb",2)).put("bytes",usedBytes).put("cached",cachedCount);}catch(Exception ignored){}return s;}
-    public synchronized void configure(JSONObject data){networkCheckedAt=0;SharedPreferences.Editor e=prefs.edit();for(String k:new String[]{"enabled","wifiOnly","autoPlaylist"})if(data.has(k))e.putBoolean(k,data.optBoolean(k));if(data.has("limitGb"))e.putInt("limitGb",Math.max(1,Math.min(16,data.optInt("limitGb",2))));e.apply();submit(()->prune(0));}
+    public synchronized void configure(JSONObject data){networkCheckedAt=0;SharedPreferences.Editor e=prefs.edit();for(String k:new String[]{"enabled","wifiOnly","autoPlaylist"})if(data.has(k))e.putBoolean(k,data.optBoolean(k));if(data.has("limitGb"))e.putInt("limitGb",Math.max(1,Math.min(16,data.optInt("limitGb",2))));e.apply();if(data.has("wifiOnly"))context.getSharedPreferences("resource-cache-policy",0).edit().putBoolean("wifiOnly",data.optBoolean("wifiOnly")).apply();submit(()->prune(0));}
 }

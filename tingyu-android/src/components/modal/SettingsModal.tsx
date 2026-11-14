@@ -1,3 +1,4 @@
+import { useOfflineCacheUsage } from '../../hooks/useOfflineCacheUsage';
 import {useInterfaceLight} from '../../hooks/useInterfaceAppearance';
 import SettingsPresence from './settings/SettingsPresence';
 import { isAndroidNativeRuntime } from '../../utils/platform';
@@ -7,7 +8,7 @@ import type { MotionValue } from 'framer-motion';
 import { X, Keyboard, Loader2, Check, AlertCircle, ChevronLeft, Download, ExternalLink, CircleHelp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { hasRegisteredModal } from '../../services/modalBackStack';
-import { getCacheUsageByCategory, clearCacheByCategory, clearAllData } from '../../services/db';
+import { getCacheUsageByCategory, clearCacheByCategory, clearDownloadableCaches } from '../../services/db';
 import { DualTheme, StageStatus, StageSource, Theme, ThemeMode, type CadenzaTuning, type CappellaEmojiImage, type CappellaTuning, type FumeTuning, type NowPlayingConnectionStatus, type PartitaTuning, type ReplayGainMode, type TiltTuning, type StoredCustomLyricsFont, type VisualizerMode } from '../../types';
 import { getNavidromeConfig, saveNavidromeConfig, clearNavidromeConfig, hashPassword, navidromeApi, isNavidromeEnabled, setNavidromeEnabled, getCachedNavidromeServerProfile, refreshNavidromeServerProfile, getNavidromeConfigOrigin, dismissNavidromeServerPreset } from '../../services/navidromeService';
 import { fetchNavidromeServerPreset, markNavidromeConfigAsPresetIfMatching, restoreNavidromeServerPreset } from '../../services/navidromeServerPreset';
@@ -967,6 +968,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         const timer = window.setTimeout(() => { void fetchCacheUsage(() => active); }, 0);
         return () => { active = false; window.clearTimeout(timer); };
     }, [cacheStatsVisible, fetchCacheUsage]);
+    useOfflineCacheUsage(cacheStatsVisible,fetchCacheUsage);
 
     const handleClear = async (category: 'playlist' | 'lyrics' | 'cover' | 'media' | 'analysis') => {
         setIsCleaning(category);
@@ -978,8 +980,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     const handleClearAllCache = async () => {
         if (confirm(t('options.confirmClearAll'))) {
             setIsCleaning('all');
-            await clearAllData();
-            window.location.reload();
+            await clearDownloadableCaches();
+            await fetchCacheUsage();
+            setIsCleaning(null);
         }
     };
 

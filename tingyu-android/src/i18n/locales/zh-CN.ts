@@ -939,6 +939,7 @@ export default {
       "obs-toggle-keep-main-window-animation": { "title": "OBS 连接时保持主窗口动画", "description": "切换 OBS 连接时主窗口是否继续渲染歌词动画" },
       "desktop-toggle-lyric-api": { "title": "歌词接口", "description": "切换本地免鉴权歌词接口" },
       "settings-obs-copy-css": { "title": "复制 OBS CSS", "description": "复制 OBS 浏览器源的自定义 CSS，把上传的背景/立绘等资产带到 OBS" },
+      "settings-feedback": { "title": "问题反馈与诊断", "description": "预览并主动提交诊断反馈" },
       "settings-storage": { "title": "存储设置", "description": "打开缓存和存储设置" },
       "settings-r2-sync": { "title": "同步服务设置", "description": "打开同步服务设置" },
       "sync-now": { "title": "立即同步", "description": "同步 AI 主题" },

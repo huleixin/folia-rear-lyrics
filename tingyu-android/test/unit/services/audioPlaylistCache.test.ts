@@ -4,10 +4,11 @@ import type { LibraryCollectionDescriptor } from '@/library/core/contracts/colle
 import type { SongResult } from '@/types';
 
 // Interrupted discovery resumes only after the native queue acknowledges the page.
-const mock=vi.hoisted(()=>({request:vi.fn(),page:vi.fn(),sync:vi.fn(),open:vi.fn(),message:vi.fn(),route:'a'.repeat(64),android:true,enabled:true,auto:false,network:true,offset:0,done:false,failed:false}));
+const mock=vi.hoisted(()=>({request:vi.fn(),page:vi.fn(),sync:vi.fn(),open:vi.fn(),message:vi.fn(),route:'a'.repeat(64),android:true,enabled:true,auto:false,network:true,paused:false,offset:0,done:false,failed:false}));
 vi.mock('@/platform/runtime',()=>({isCapacitorAndroid:()=>mock.android}));
 vi.mock('@/platform/tingyuPlayback',()=>({getTingyuPlayback:()=>({audioOffline:mock.request})}));
 vi.mock('@/services/onlineMusic/omni',()=>({omni:{getCollectionTracks:mock.page}}));
+vi.mock('@/services/collectionResourcePrecache',()=>({precacheCollectionResources:vi.fn()}));
 vi.mock('@/services/lxNativeScriptSync',()=>({syncLxScriptToNative:mock.sync}));
 vi.mock('@/services/onlineMusic/resourceKeys',()=>({getAudioCacheRoute:()=>mock.route}));
 vi.mock('@/services/nativePlaylistSync',()=>({toNativeResourcePayload:(song:SongResult)=>({songKey:song.id})}));
@@ -17,9 +18,9 @@ vi.mock('@/stores/useStatusMessageStore',()=>({setStatusMessage:mock.message}));
 const {cacheAudioPlaylist,resumeAudioPlaylistCatalogs}=await import('@/services/audioPlaylistCache');
 const descriptor={source:'online',providerId:'qq',type:'playlist',id:'list'} as LibraryCollectionDescriptor;
 const songs=[{id:'one'},{id:'two'}] as SongResult[];
-const status=()=>({enabled:mock.enabled,autoPlaylist:mock.auto,networkAllowed:mock.network,catalogs:mock.done||mock.failed?[]:[{id:'list',descriptor,quality:'standard',offset:mock.offset,cacheRoute:mock.route}]});
+const status=()=>({enabled:mock.enabled,autoPlaylist:mock.auto,networkAllowed:mock.network,paused:mock.paused,catalogs:mock.done||mock.failed?[]:[{id:'list',descriptor,quality:'standard',offset:mock.offset,cacheRoute:mock.route}]});
 beforeEach(()=>{
-    vi.clearAllMocks();Object.assign(mock,{route:'a'.repeat(64),android:true,enabled:true,auto:false,network:true,offset:0,done:false,failed:false});
+    vi.clearAllMocks();Object.assign(mock,{route:'a'.repeat(64),android:true,enabled:true,auto:false,network:true,paused:false,offset:0,done:false,failed:false});
     mock.sync.mockResolvedValue(undefined);
     mock.request.mockImplementation(async(data:any={})=>{if(data.action==='catalog'&&data.tracks){mock.offset=Math.max(mock.offset,data.offset);mock.done=!!data.done;}if(data.failed)mock.failed=true;return status();});
 });
@@ -42,18 +43,18 @@ describe('whole-playlist audio discovery',()=>{
         mock.page.mockImplementation(async()=>{mock.route='b'.repeat(64);return {items:songs,hasMore:false,nextOffset:2};});
         await resumeAudioPlaylistCatalogs();expect(mock.request.mock.calls.some(([d])=>d?.tracks)).toBe(false);
     });
-    it('does not request catalog pages without consent or an allowed network',async()=>{
-        mock.enabled=false;await resumeAudioPlaylistCatalogs();mock.enabled=true;mock.network=false;await resumeAudioPlaylistCatalogs();expect(mock.page).not.toHaveBeenCalled();
+    it('does not discover catalog pages while paused or without an allowed network',async()=>{
+        mock.paused=true;await resumeAudioPlaylistCatalogs();mock.paused=false;mock.network=false;await resumeAudioPlaylistCatalogs();expect(mock.page).not.toHaveBeenCalled();
         await cacheAudioPlaylist(descriptor,songs,true);expect(mock.sync).not.toHaveBeenCalled();
     });
-    it('opens storage settings for manual caching when the feature is disabled',async()=>{
-        mock.enabled=false;await cacheAudioPlaylist(descriptor,songs);expect(mock.open).toHaveBeenCalledWith('options','storage');expect(mock.request.mock.calls.some(([d])=>d?.action)).toBe(false);
+    it('manually queues songs without enabling save-while-listening',async()=>{
+        mock.enabled=false;mock.network=false;await cacheAudioPlaylist(descriptor,songs);expect(mock.open).not.toHaveBeenCalled();expect(mock.request.mock.calls.some(([d])=>d?.action==='enqueue')).toBe(true);expect(mock.enabled).toBe(false);
     });
     it('registers a durable catalog and known songs without inventing a discovery offset',async()=>{
         mock.network=false;await cacheAudioPlaylist(descriptor,songs);
         const actions=mock.request.mock.calls.filter(([d])=>d?.action).map(([d])=>d);
-        expect(mock.sync).toHaveBeenCalledOnce();expect(actions.map(d=>d.action)).toEqual(['catalog','enqueue']);
+        expect(mock.sync).toHaveBeenCalledOnce();expect(actions.map(d=>d.action)).toEqual(['catalog','enqueue','resume']);
         expect(actions[0].descriptor).toEqual(descriptor);expect(actions[1].tracks).toEqual([{songKey:'one'},{songKey:'two'}]);expect(actions[1].offset).toBeUndefined();
-        await vi.waitFor(()=>expect(mock.request).toHaveBeenCalledTimes(4));expect(mock.page).not.toHaveBeenCalled();
+        await vi.waitFor(()=>expect(mock.request).toHaveBeenCalledTimes(5));expect(mock.page).not.toHaveBeenCalled();
     });
 });
