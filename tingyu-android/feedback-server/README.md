@@ -72,7 +72,15 @@ test/live-browser.mjs 从 stdin 接收 OS 凭据读取器提供的 url/readToken
 | PATCH /api/admin/settings | admin，双门中的运行时暂停开关 |
 
 状态：pending/investigating/verification/fixed/unreproduced/closed。
-后台地址：https://tingyu-feedback-api.2473297053.workers.dev/admin 。部署前不能视为本后台已经上线。
+后台主地址：https://feedback.20262000.xyz/admin 。备用地址：https://tingyu-feedback-api.2473297053.workers.dev/admin 。
+客户端、崩溃反馈和状态查询共享 HTTPS 主入口，网络故障时最多尝试一次固定备用入口。
+上传复用同一正文、幂等键和状态凭证；失败保留草稿，由用户主动重试。暂停、限流、权限及校验错误不触发切换。
+挑战/查询每入口15秒，上传每入口60秒，PoW每次最多90秒；没有无限后台重试。
+后台 API 使用同源相对路径；Cookie 是 HttpOnly/Secure/SameSite=Strict，仅当前主机有效。
+新旧域名分别登录，不共享浏览器 Cookie，不放宽 CORS；管理员密钥不放在 URL 或 APK 内。
+Wrangler routes 明确保留自定义域名，workers_dev=true 保留旧入口，D1/R2 绑定不变。
+仅同步域名和发布 Worker 时，在 feedback-server 运行 npx wrangler deploy；**不要运行迁移或 deploy_feedback.py**。
+域名切换验收：python tools/test_feedback_live.py --allow-test-uploads --check-backup（项目根目录）。
 手机登录推荐在本机执行 python tools/feedback.py login-link --role admin，输出5分钟单次链接。
 链接是短期敏感能力，URL片段不会进入普通请求日志，打开后立即清除；不要保存/公开分享。
 后台凭据输入不写浏览器存储，所有外部文字通过textContent展示，有CSP/XSS及CSRF保护。

@@ -28,7 +28,11 @@
    --commit <7至40hex> --note <简短记录>，这是显式管理操作，普通拉取不读取admin。
    源码修复→待验证；实际设备验证通过→已修复；没有证据→说明所需诊断。
 
-后台部署后地址 https://tingyu-feedback-api.2473297053.workers.dev/admin 。
+后台主地址 https://feedback.20262000.xyz/admin；备用 https://tingyu-feedback-api.2473297053.workers.dev/admin 。
+API 默认 https://feedback.20262000.xyz，工具只读请求遇到网络故障或502/504时尝试一次固定备用。
+管理写入不自动重放，所有请求拒绝重定向，显式自定义 API 配置不发送凭据到备用域名。
+本机 TINGYU_FEEDBACK_API_URL 可覆盖接口，密钥继续存于 DPAPI；不要把密钥设置到公开环境文件。
+从旧接口升级系统加密配置可调用 feedback_credentials.migrate_origin()，只更新已知旧 URL，保留密钥。
 手机短期单次登录由显式 login-link --role admin 生成；不在URL放长期密钥。
 新增会话可先 list 验证读取；不可因为读取失败自作主张轮换密钥、部署或公开R2。
 日常新问题分析不需要 Cloudflare 权限，仅反馈read能力。

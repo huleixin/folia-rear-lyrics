@@ -11,7 +11,7 @@ import urllib.request
 import zipfile
 from collections import Counter
 from pathlib import Path
-from feedback_credentials import read
+from feedback_credentials import read, API, BACKUP_API
 
 # tools/feedback.py: bounded downloads, pagination, private capabilities, OS credential storage.
 CACHE = Path(__file__).resolve().parents[1] / '.feedback-cache'
@@ -31,22 +31,29 @@ class Client:
         if url.query or url.fragment or url.username or url.path not in ('', '/'):
             raise RuntimeError('Invalid API origin')
         self.base = self.config['url'].rstrip('/')
+        self.origins = [self.base, BACKUP_API] if self.base == API else [self.base]
         self.opener = urllib.request.build_opener(NoRedirect())
 
     def request(self, path, body=None, method=None, limit=MAX_BYTES + 65536):
         data = None if body is None else json.dumps(body).encode()
-        req = urllib.request.Request(self.base + '/api/admin/' + path, data=data, method=method,
-            headers={'Authorization': 'Bearer ' + self.config['token'], 'Content-Type': 'application/json', 'User-Agent': 'Tingyu-feedback/1.0'})
-        try:
-            with self.opener.open(req, timeout=45) as response:
-                raw = response.read(limit + 1)
-                if len(raw) > limit:
-                    raise RuntimeError('Response exceeds size limit')
-                return raw, response.headers
-        except urllib.error.HTTPError as exc:
-            raise RuntimeError('Feedback API returned HTTP ' + str(exc.code)) from None
-        except (urllib.error.URLError, TimeoutError):
-            raise RuntimeError('Feedback network request failed; retry manually') from None
+        # Only read requests may use the fixed backup. Never replay a management mutation.
+        origins = self.origins if data is None and method in (None, 'GET') else [self.base]
+        for i, origin in enumerate(origins):
+            req = urllib.request.Request(origin + '/api/admin/' + path, data=data, method=method,
+                headers={'Authorization': 'Bearer ' + self.config['token'], 'Content-Type': 'application/json', 'User-Agent': 'Tingyu-feedback/1.0'})
+            try:
+                with self.opener.open(req, timeout=20) as response:
+                    raw = response.read(limit + 1)
+                    if len(raw) > limit:
+                        raise RuntimeError('Response exceeds size limit')
+                    return raw, response.headers
+            except urllib.error.HTTPError as exc:
+                if exc.code in (502, 504) and i + 1 < len(origins):
+                    continue
+                raise RuntimeError('Feedback API returned HTTP ' + str(exc.code)) from None
+            except (urllib.error.URLError, TimeoutError, ConnectionError):
+                if i + 1 == len(origins):
+                    raise RuntimeError('Feedback network request failed; content retained, retry manually') from None
 
     def json(self, path, **kwargs):
         raw, _ = self.request(path, **kwargs)

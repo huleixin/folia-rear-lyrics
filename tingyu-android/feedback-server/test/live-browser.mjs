@@ -18,6 +18,12 @@ try{
     await page.goto(url+'/admin');
     await page.locator('#token').fill(token);await page.getByRole('button',{name:'登录',exact:true}).click();
     await page.locator('#dashboard').waitFor({state:'visible'});
+    const cookies=await page.context().cookies(url+'/api/admin/feedback');
+    const session=cookies.find(c=>c.name==='ty_session');
+    assert.ok(session?.httpOnly&&session.secure&&session.sameSite==='Strict');
+    assert.equal(session.domain,new URL(url).hostname);assert.equal(session.path,'/api/admin');
+    const csrf=await page.context().request.patch(url+'/api/admin/settings',{headers:{Origin:'https://untrusted.invalid'},data:{uploadsEnabled:true}});
+    assert.ok([401,403].includes(csrf.status()),'Cross-origin cookie mutation must be rejected');
     await page.locator('[name=version]').fill('feedback-acceptance');
     await page.getByRole('button',{name:'筛选',exact:true}).click();
     const card=page.locator('#feedback article').filter({hasText:'Synthetic acceptance test, not user feedback'}).first();
@@ -32,6 +38,6 @@ try{
     }else await page.locator('#close').click();
     await page.screenshot({path:new URL('../../test-results/feedback-live/'+name+'.png',import.meta.url).pathname.replace(/^\/(\w:)/,'$1'),fullPage:true});
     assert.equal(errors,0);await page.close();
-    console.log('PASS live admin browser '+name+' authentication/filter/detail/role/width');
+    console.log('PASS live admin browser '+name+' authentication/host-only secure cookie/CSRF/filter/detail/role/width');
   }
 }finally{await browser.close();}

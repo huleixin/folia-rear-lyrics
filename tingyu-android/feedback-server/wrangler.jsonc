@@ -4,6 +4,7 @@
   "main": "src/index.mjs",
   "compatibility_date": "2026-11-14",
   "workers_dev": true,
+  "routes": [{ "pattern": "feedback.20262000.xyz", "custom_domain": true }],
   "r2_buckets": [{ "binding": "LOGS_BUCKET", "bucket_name": "tingyu-feedback" }],
   "d1_databases": [{ "binding": "DB", "database_name": "tingyu-feedback-db", "database_id": "bf8680e8-37b3-42f4-b878-0b41fd584ea6", "migrations_dir": "migrations" }],
   "vars": { "UPLOADS_ENABLED": "true", "DAILY_UPLOAD_LIMIT": "100", "STORAGE_LIMIT_BYTES": "268435456", "POW_BITS": "18" },

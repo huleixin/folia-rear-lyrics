@@ -7,7 +7,8 @@ import subprocess
 from pathlib import Path
 
 # tools/feedback_credentials.py: DPAPI on Windows, OS keyring elsewhere; read/admin stores separated.
-API = 'https://tingyu-feedback-api.2473297053.workers.dev'
+API = 'https://feedback.20262000.xyz'
+BACKUP_API = 'https://tingyu-feedback-api.2473297053.workers.dev'
 STORE = Path(os.environ.get('LOCALAPPDATA', Path.home() / '.config')) / 'TingyuFeedback'
 
 def protect(data, decrypt=False):
@@ -47,12 +48,23 @@ def read(role='read', allow_env=True):
         path = STORE / (role + '.dpapi')
         if not path.exists():
             raise RuntimeError('Feedback credentials not configured')
-        return json.loads(protect(path.read_bytes(), True))
-    import keyring
-    raw = keyring.get_password('tingyu-feedback', role)
-    if not raw:
-        raise RuntimeError('Feedback credentials not configured')
-    return json.loads(raw)
+        value = json.loads(protect(path.read_bytes(), True))
+    else:
+        import keyring
+        raw = keyring.get_password('tingyu-feedback', role)
+        if not raw:
+            raise RuntimeError('Feedback credentials not configured')
+        value = json.loads(raw)
+    if allow_env and os.environ.get('TINGYU_FEEDBACK_API_URL'):
+        value['url'] = os.environ['TINGYU_FEEDBACK_API_URL']
+    return value
+
+def migrate_origin():
+    # Update known legacy origins in encrypted stores without rotating or exposing either credential.
+    for role in ('read', 'admin'):
+        value = read(role, allow_env=False)
+        if value['url'].rstrip('/') == BACKUP_API:
+            save(role, {**value, 'url': API})
 
 def prepare():
     # Preserve existing credentials across retries; rotating requires an explicit separate procedure.

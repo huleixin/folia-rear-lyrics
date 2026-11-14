@@ -59,7 +59,9 @@ pairings、fix_history、metrics；触发器保证字节计量及匿名累计；
 PATCH详情状态/commit/note，GET issues/stats，登录/退出/会话/一次性手机配对、PATCH暂停开关。
 完整路径和分页/筛选字段见服务README。
 
-已上线后台地址：https://tingyu-feedback-api.2473297053.workers.dev/admin 。
+已上线后台主地址：https://feedback.20262000.xyz/admin 。
+保留 https://tingyu-feedback-api.2473297053.workers.dev/admin 为备用，主/备使用同一 Worker、D1 和私有 R2。
+1.5.44 域名切换验收及设备测试边界见 [RELEASE-1.5.44.md](RELEASE-1.5.44.md)。
 登录凭据不硬编码、不存浏览器localStorage、不进长期URL；cookie一小时HttpOnly/Secure/SameSite。
 手机可由本机工具显式生成5分钟单次登录链接，打开后清除片段。未授权用户不能读取反馈或日志。
 读密钥FEEDBACK_READ_TOKEN与管理密钥FEEDBACK_ADMIN_TOKEN分离。

@@ -71,5 +71,28 @@ class FeedbackTests(unittest.TestCase):
                 else:
                     for i in range(2 if kind=='duplicate' else 5):archive.writestr('events.jsonl' if kind=='duplicate' else str(i),'x')
             with tempfile.TemporaryDirectory() as d,self.assertRaises(RuntimeError):feedback.safe_extract(raw.getvalue(),d)
+    def test_encrypted_origin_migration_preserves_secrets_and_custom_overrides(self):
+        values={'read':{'url':feedback_credentials.BACKUP_API,'token':'synthetic-read'},'admin':{'url':'https://custom.test','token':'synthetic-admin'}}
+        with patch.object(feedback_credentials,'read',side_effect=lambda role,**kw:values[role]),patch.object(feedback_credentials,'save') as save:
+            feedback_credentials.migrate_origin()
+            save.assert_called_once_with('read',{'url':feedback_credentials.API,'token':'synthetic-read'})
+    def test_bounded_read_fallback_and_no_management_replay(self):
+        from unittest.mock import MagicMock
+        import urllib.error
+        with patch.object(feedback,'read',return_value={'url':feedback_credentials.API,'token':'synthetic'}):client=feedback.Client()
+        response=MagicMock();response.__enter__.return_value=response;response.read.return_value=b'{}';response.headers={}
+        client.opener.open=MagicMock(side_effect=[urllib.error.URLError('offline'),response])
+        self.assertEqual(client.json('feedback'),{})
+        self.assertEqual([call.args[0].full_url for call in client.opener.open.call_args_list],[feedback_credentials.API+'/api/admin/feedback',feedback_credentials.BACKUP_API+'/api/admin/feedback'])
+        for error in [urllib.error.URLError('offline'),urllib.error.HTTPError('',403,'',{},None),RuntimeError('redirect refused')]:
+            client.opener.open=MagicMock(side_effect=error)
+            with self.assertRaises(RuntimeError):client.json('feedback/x',body={},method='PATCH')
+            self.assertEqual(client.opener.open.call_count,1)
+        client.opener.open=MagicMock(side_effect=urllib.error.URLError('offline'))
+        with self.assertRaises(RuntimeError):client.json('feedback')
+        self.assertEqual(client.opener.open.call_count,2)
+    def test_explicit_origin_does_not_send_credentials_to_backup(self):
+        with patch.object(feedback,'read',return_value={'url':'https://custom.test','token':'synthetic'}):client=feedback.Client()
+        self.assertEqual(client.origins,['https://custom.test'])
 
 if __name__=='__main__':unittest.main()
