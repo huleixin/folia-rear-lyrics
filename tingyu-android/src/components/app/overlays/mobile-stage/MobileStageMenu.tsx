@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { useLiquidReduced } from '../../../shared/useLiquidReduced';
 import { TY_DURATION, TY_SPRING } from '../../../shared/motionTokens';
 import { registerModalBack } from '../../../../services/modalBackStack';
-import React, { useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { AudioLines, Captions, AlarmClock, Palette, Settings2, SlidersHorizontal } from 'lucide-react';
 import PlayerControlIcon from '../../icons/PlayerControlIcon';
 import { useTranslation } from 'react-i18next';
@@ -75,23 +75,32 @@ export default function MobileStageMenu({
     }, []);
     const pendingAction = useRef<(() => void) | null>(null);
     const completed = useRef(false);
+    const closingRef = useRef(closing);
+    useLayoutEffect(() => {
+        closingRef.current = closing;
+        if (!closing) { completed.current = false; pendingAction.current = null; }
+    }, [closing]);
     const run = (action: () => void) => {
         if (closing || pendingAction.current) return;
         pendingAction.current = action;
         onClose();
     };
-    const finishClose = () => {
-        if (!closing || completed.current) return;
+    const finishClose = useCallback(() => {
+        if (!closingRef.current || completed.current) return;
         completed.current = true;
         const action = pendingAction.current;
         pendingAction.current = null;
         onClosed?.();
         action?.();
-    };
+    }, [onClosed]);
     useEffect(() => {
         // Reopening reverses the motion and cancels the previous pending navigation.
-        if (!closing) { completed.current = false; pendingAction.current = null; }
-    }, [closing]);
+        if (!closing) { completed.current = false; pendingAction.current = null; return; }
+        // Some car WebViews never deliver the exit completion. Bound the wait without
+        // changing the animation, and share its exactly-once action guard.
+        const timer = window.setTimeout(finishClose, (reduced ? 0 : TY_DURATION.popupExit * 1000) + 120);
+        return () => window.clearTimeout(timer);
+    }, [closing, reduced, finishClose]);
     // Motion 完成退场后摘除，closing 和 completed 防止入场/重复回调执行动作。
     // Android + Compose 桥可用时，这四个工具都开**原生页**（第 11 轮）；否则回退原 WebView 弹窗。
     // 原生页不占 WebView，也不触发极简页让位 —— 弹窗被遮挡/双开那类问题从根上消失。
@@ -110,7 +119,9 @@ export default function MobileStageMenu({
             data-folia-keyboard-window="true"
             data-native-chrome-overlay="nonblocking"
             className={`mps-menu${closing ? ' mps-menu--closing' : ''}`}
-            onAnimationComplete={finishClose}
+            onAnimationComplete={target => {
+                if (typeof target === 'object' && !Array.isArray(target) && target.opacity === 0) finishClose();
+            }}
         >
             <button role="menuitem" onPointerDown={warmSettingsModule} onClick={() => run(() => openSettings('options', 'visualizer', 'visualizer'))}>
                 <Palette size={18} />

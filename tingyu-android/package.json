@@ -8,8 +8,8 @@
     "email": "chthollyphile@users.noreply.github.com"
   },
   "private": true,
-  "version": "1.5.39",
-  "androidVersionCode": 254,
+  "version": "1.5.40",
+  "androidVersionCode": 255,
   "playbackTestRevision": 2,
   "motionTestRevision": 1,
   "license": "AGPL-3.0",
@@ -82,6 +82,7 @@
     "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.4.2",
     "@chenglou/pretext": "^0.0.9",
+    "@formatjs/intl-segmenter": "^12.3.2",
     "@paper-design/shaders-react": "^0.0.80",
     "@playwright/test": "^1.63.0",
     "@react-three/drei": "^10.7.8",

@@ -1,3 +1,4 @@
+import './utils/intlSegmenter';
 import React from 'react';
 import {applyRearMode,type RearModeReceipt} from './services/rearAodRuntime';
 import {rearBootTrace} from './services/rearBootTrace';

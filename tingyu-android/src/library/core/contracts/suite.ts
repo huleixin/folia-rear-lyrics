@@ -373,6 +373,8 @@ export type LibrarySuiteStageProps = {
     onLibraryHome?: () => void;
     /** Close any active search overlay through the host's history-aware navigation. */
     onCloseSearch?: () => void;
+    /** Open search through the host so collection state and browser history move together. */
+    onSearchCommitted?: LibraryHomeData['onSearchCommitted'];
     onNextTrack?: () => void;
     canNextTrack?: boolean;
     onPreviousTrack?: () => void;

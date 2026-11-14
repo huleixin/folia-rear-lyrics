@@ -98,12 +98,12 @@ export default function RearLyricsPanel() {
         return () => { refreshPausedProgress.current = null; cancelAnimationFrame(frame); };
     }, [progressVisible, active, playing,aod]);
     return <main data-testid="rear-lyrics-panel" onPointerDownCapture={reveal}
-        style={{ position: 'fixed', inset: 0, overflow: 'hidden', touchAction: 'none', userSelect: 'none', background: 'transparent' }}>
-        <div style={{ width: '100%', height: '100%', pointerEvents: 'none' }}>
+        style={{ position: 'fixed', inset: 0, isolation: 'isolate', overflow: 'hidden', touchAction: 'none', userSelect: 'none', background: 'transparent' }}>
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
             <ObsBrowserSourceApp transport={transport} onConfigured={configured} />
         </div>
         <div hidden={aod||!controlsEnabled} data-testid="rear-progress" aria-hidden={!progressVisible}
-            style={{ position: 'absolute', left: '40.6%', right: '6.6%', bottom: 'max(18px, 8%)', opacity: progressVisible ? 1 : 0,
+            style={{ position: 'absolute', zIndex: 1, left: '40.6%', right: '6.6%', bottom: 'max(18px, 8%)', opacity: progressVisible ? 1 : 0,
                 transition: 'opacity 180ms', pointerEvents: progressVisible ? 'auto' : 'none', color: theme?.primaryColor ?? '#eee' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 18, marginBottom: 7 }}>
                 {([

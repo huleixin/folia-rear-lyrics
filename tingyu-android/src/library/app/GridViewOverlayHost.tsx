@@ -646,6 +646,7 @@ const GridViewOverlayHost: React.FC<GridViewOverlayHostProps> = ({
             <LibrarySuiteStageSlot
                 onLibraryHome={handleLibraryHome}
                 onCloseSearch={surfaceProps.onCloseSearch}
+                onSearchCommitted={surfaceProps.onSearchCommitted}
                 stage={stage}
                 isInteractive={isInteractive}
                 theme={surfaceProps.theme}

@@ -87,11 +87,12 @@ test('landscape control locks and restores the display without resetting playbac
         Object.defineProperty(screen.orientation,'unlock',{configurable:true,value:()=>{calls.push('unlock');}});
         Object.defineProperty(document.documentElement,'requestFullscreen',{configurable:true,value:async()=>undefined});
     });
+    // Establish the landscape viewport before the stage requests native fullscreen.
+    await page.setViewportSize({width:844,height:390});
     await page.goto('/dev-probe.html?probe=mobileStageChrome&longTitle');
     const toggle=page.getByTestId('stage-orientation');
     const before=await page.getByTestId('stage-result').textContent();
     await toggle.click();await expect(toggle).toHaveAttribute('aria-pressed','true');
-    await page.setViewportSize({width:844,height:390});
     const header=(await page.locator('.mps-header').boundingBox())!;
     const player=(await page.locator('.mps-player').boundingBox())!;
     expect(header.width).toBeGreaterThan(700);expect(player.width).toBeLessThanOrEqual(470);

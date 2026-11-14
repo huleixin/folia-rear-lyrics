@@ -1,3 +1,4 @@
+import './utils/intlSegmenter';
 import { Capacitor } from '@capacitor/core';
 import { installAndroidMainInsets } from './services/androidMainInsets';
 import { Buffer } from 'buffer';

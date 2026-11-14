@@ -1,13 +1,26 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motionValue } from 'framer-motion';
 import type { ProbeDefinition } from './definition';
 import { PlayerState } from '../../src/types';
 import { useSettingsModalStore } from '../../src/stores/useSettingsModalStore';
 import MobileStageChrome from '../../src/components/app/overlays/mobile-stage/MobileStageChrome';
 import type { AppOverlaysModel } from '../../src/components/app/overlays/buildAppOverlaysModel';
+import { useAppViewStore } from '../../src/stores/useAppViewStore';
+import { usePlayerViewModeStore } from '../../src/stores/usePlayerViewModeStore';
 
 // dev/probes/mobileStageChrome.probe.tsx
 function Probe() {
+    useEffect(() => {
+        // The chrome uses the canonical visible-stage state for orientation and handoffs.
+        const previousView = useAppViewStore.getState().view;
+        const previousMode = usePlayerViewModeStore.getState().mode;
+        useAppViewStore.getState().setView('player');
+        usePlayerViewModeStore.getState().setMode('stage');
+        return () => {
+            useAppViewStore.getState().setView(previousView);
+            usePlayerViewModeStore.getState().setMode(previousMode);
+        };
+    }, []);
     const fixture = new URLSearchParams(location.search);
     const fixtureBackground = ({ light: '#ead9bd', dark: '#05120d', saturated: '#a71d69' } as Record<string, string>)[fixture.get('theme') || ''];
     const settingsState = useSettingsModalStore((value) => value.settingsModalState);

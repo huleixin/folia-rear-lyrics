@@ -60,12 +60,14 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
                 useMobileLibraryStore.getState().setPage(index===0?'home':'library');
                 props.onLibraryHome?.();
             }
-            else if(index===2&&!search.isSearchOpen){
-                search.restoreSearch({query:'',sourceTab:resolveHomeSearchSource(),returnView:'home'});
+            else if(index===2){
+                // Search may still be open underneath a collection. Always leave that collection
+                // through the host; changing only the search store keeps the native collection route.
+                props.onSearchCommitted?.('',resolveHomeSearchSource());
             }
         }
         scheduleNativeShellRoute();
-    }, [props.onCloseSearch, props.onLibraryHome]);
+    }, [props.onCloseSearch, props.onLibraryHome, props.onSearchCommitted]);
     const nativeGlass = useNativeGlassNav(navRef, !COMPOSE_CHROME && props.isInteractive && !settingsOpen && !searchOpen, `${collectionDetail}:${page}`, nativeNavigate);
     const reducedMotion = useReducedMotionFor('uiMicroMotion');
     const panelOpen = useAppViewStore(state => state.isPanelOpen);
@@ -118,10 +120,7 @@ function MobileLibraryStage(props: LibrarySuiteStageProps) {
                 </button>
                 <button
                     aria-current={searchOpen && !settingsOpen ? 'page' : undefined}
-                    onClick={() => {
-                        const search = useSearchNavigationStore.getState();
-                        search.restoreSearch({ query: '', sourceTab: resolveHomeSearchSource(), returnView: 'home' });
-                    }}
+                    onClick={() => nativeNavigate(2)}
                 >
                     <TingyuNavIcon name="search" active={searchOpen && !settingsOpen} />
                     <span>{t('mobileLibrary.search')}</span>
