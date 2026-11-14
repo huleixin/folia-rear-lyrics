@@ -1630,7 +1630,7 @@ export default {
     "qqLoginMethodMobile": "QQ 扫码",
     "qqLoginMethodWechat": "微信扫码",
     "switchOnlineProvider": "切换在线音乐平台",
-    "confirmOnlineProviderSwitch": "切换到 {{provider}}？当前在线播放与队列将被清空。",
+        "confirmOnlineProviderSwitch": "切换到 {{provider}}？当前播放与队列将保留，可继续添加其他平台的歌曲。",
     "onlineProvider": "在线音乐平台",
     "providerNotLoggedIn": "未登录·点击扫码",
     "providerNotConfigured": "Web 端未配置 API",

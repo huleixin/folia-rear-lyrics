@@ -20,6 +20,7 @@ import { probeAudioSource } from '../../../services/probeAudioSource';
 // src/components/app/playback/createOnlineRecoveryController.ts
 
 const explicitQualityEpoch = new WeakMap<object, number>();
+const failedSources = new WeakMap<object, { key: string; urls: Set<string> }>();
 
 type RecoveryControllerParams = {
     audioQuality: AudioQualityPreference;
@@ -131,6 +132,14 @@ export const createOnlineRecoveryController = ({
         const generation = playbackGenerationRef.current;
         const baseKey = `${songKey}#${generation}`;
         const pendingMap = onlinePlaybackRecoveryRef.current;
+        let failed = failedSources.get(pendingMap);
+        if (!failed || failed.key !== baseKey || force) {
+            failed = { key: baseKey, urls: new Set() };
+            failedSources.set(pendingMap, failed);
+        }
+        if (failedSrc && normalizedFailedSrc && !qualityOverride && !force) failed.urls.add(normalizedFailedSrc);
+        if (failed.urls.size > 4) return { status: 'not-attempted' };
+        const excludedUrls = new Set(failed.urls);
         if (!qualityOverride) {
             const qualityTask = Array.from(pendingMap.entries()).find(([key]) => key.startsWith(`${baseKey}#quality:`));
             if (qualityTask) return qualityTask[1];
@@ -151,7 +160,10 @@ export const createOnlineRecoveryController = ({
             }
 
             try {
-                const audioResult = await loadOnlineSongAudioSource(song, qualityOverride ?? audioQuality, null, { stage: 'refresh', bypassMediaCache });
+                const audioResult = await loadOnlineSongAudioSource(song, qualityOverride ?? audioQuality, null, {
+                    stage: 'refresh', bypassMediaCache, isCurrent,
+                    ...(!qualityOverride && excludedUrls.size ? { excludedUrls } : {}),
+                });
                 if (!isCurrent() || !audioRef.current) {
                     if (audioResult.kind === 'ok' && audioResult.blobUrl) {
                         URL.revokeObjectURL(audioResult.blobUrl);
@@ -204,6 +216,7 @@ export const createOnlineRecoveryController = ({
                 setAudioSrc(audioResult.audioSrc);
                 return { status: 'recovered' };
             } catch (error) {
+                if (!isCurrent()) return { status: 'stale' };
                 console.error('[App] Failed to recover online playback source', error);
                 return { status: 'failed', failure: classifyPlaybackError(error, { stage: 'refresh', providerId }) };
             } finally {

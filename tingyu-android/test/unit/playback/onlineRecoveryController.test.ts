@@ -203,7 +203,9 @@ describe('online playback recovery results', () => {
         loadAudioSourceMock.mockResolvedValue({ kind: 'ok', audioSrc: streamUrl('two') });
 
         await controller.recoverOnlinePlaybackSource({ failedSrc: 'blob:folia/cached', autoplay: true, bypassMediaCache: true });
-        expect(loadAudioSourceMock).toHaveBeenCalledWith(song, 'high', null, { stage: 'refresh', bypassMediaCache: true });
+        expect(loadAudioSourceMock).toHaveBeenCalledWith(song, 'high', null, {
+            stage: 'refresh', bypassMediaCache: true, isCurrent: expect.any(Function), excludedUrls: new Set(['blob:folia/cached']),
+        });
     });
 
     it('reports a loader failure with its reason and the refresh stage, touching neither queue nor cache', async () => {

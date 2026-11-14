@@ -792,11 +792,50 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
 
     /** 本会话内已对哪首歌做过音质降级（同一首只降一轮）。 */
     private String downgradeTriedKey="";
+    private String backupTriedToken="";
+
+    /** Try the same recording on another platform once before the existing retry/skip policy. */
+    private boolean recoverFromBackup(PlaybackException error) {
+        final String target=songKey,token=sourceId,attempt=token+"|"+target;
+        if(attempt.equals(backupTriedToken))return false;
+        final NativePlaylist.Track track=NativePlaylist.get().trackFor(target);
+        final MediaItem expected=player.getCurrentMediaItem();
+        final io.github.huleixin.tingyu.resolver.ResolverRegistry registry=io.github.huleixin.tingyu.resolver.ResolverRegistry.get();
+        if(expected==null||expected.localConfiguration==null||!registry.canTryBackup(track))return false;
+        backupTriedToken=attempt;
+        final long generation=++retryGeneration;
+        final String quality=QualityPreference.get();
+        PlaybackRecoveryWork.start(work->main.post(work),()->{
+            try {
+                io.github.huleixin.tingyu.resolver.SourceResolution result=registry.resolveBackup(track,quality);
+                if(result.ok())return new String[]{BackgroundContinuation.get().registerForPlayback(result),result.backupProviderId};
+            }catch(Exception ignored){}
+            return new String[]{null,""};
+        },()->generation==retryGeneration&&sourceId.equals(token)&&songKey.equals(target)
+            &&player.getCurrentMediaItem()==expected,result->{
+                if(result[0]==null){
+                    if(!handleUnplayableError(error)){failure=error;emit("error",false);}
+                    return;
+                }
+                JSObject tag=expected.localConfiguration.tag instanceof JSObject?copy((JSObject)expected.localConfiguration.tag):new JSObject();
+                tag.put("adoptedAt",SystemClock.elapsedRealtime()).put("backupProviderId",result[1]).put("replayGain",1);
+                MediaItem recovered=expected.buildUpon().setUri(Uri.parse(result[0])).setTag(tag).build();
+                int index=Math.max(0,player.getCurrentMediaItemIndex());
+                long position=player.getCurrentPosition();
+                player.replaceMediaItem(index,recovered);player.seekTo(index,position);
+                replayGain=1;activeDeck.processing.configure(equalizerSettings,replayGain);
+                failure=null;player.prepare();if(!desiredPaused)player.play();else player.pause();
+                PlaybackDiagnostics.note("cross-provider-backup",new JSObject()
+                    .put("song",PlaybackDiagnostics.anonKey(target)).put("provider",result[1]));
+        });
+        return true;
+    }
 
     /** 返回 true 表示这次失败已经被接管（重试/跳过/全局暂停），调用方不要再当致命错误上报。 */
     private boolean handleUnplayableError(PlaybackException error){
         // 用户主动暂停/停止：这条规则不存在。缓冲中的抖动也不会走到这里（那不是 error）。
         if(desiredPaused||sourceId.isEmpty())return false;
+        if(recoverFromBackup(error))return true;
         if(SystemClock.elapsedRealtime()<globalSuspendUntil){
             PlaybackDiagnostics.note("player-error-suspended",new JSObject()
                 .put("code",error.errorCode).put("song",PlaybackDiagnostics.anonKey(songKey))

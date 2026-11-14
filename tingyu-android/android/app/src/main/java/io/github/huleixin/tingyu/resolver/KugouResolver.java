@@ -64,9 +64,15 @@ public final class KugouResolver implements SourceResolver {
     private static final String DEV = randomHex(10);
 
     private final String cookie;
+    private final OkHttpClient client;
 
     public KugouResolver(String cookie) {
+        this(cookie, CLIENT);
+    }
+
+    KugouResolver(String cookie, OkHttpClient client) {
         this.cookie = cookie == null ? "" : cookie.trim();
+        this.client = client;
     }
 
     public static KugouResolver fromCredentials() {
@@ -445,7 +451,7 @@ public final class KugouResolver implements SourceResolver {
     }
 
     private Attempt execute(Request request, String channel) {
-        try (Response response = CLIENT.newCall(request).execute()) {
+        try (Response response = client.newCall(request).execute()) {
             int status = response.code();
             if (status < 200 || status >= 300) {
                 return Attempt.fail(channel + " HTTP " + status);

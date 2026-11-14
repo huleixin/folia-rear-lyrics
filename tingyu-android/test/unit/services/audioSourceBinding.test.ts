@@ -22,3 +22,14 @@ it('rejects an obsolete in-flight resolver instead of publishing it under the ne
     useLxSourceStore.setState({ revision: saved.revision + 1 });
     expect(() => bind({ url: 'https://example.com/stale', quality: 'high', fetchedAt: 1 })).toThrow('Audio source changed');
 });
+it('never caches backup bytes as the original after the binding is evicted', () => {
+    useLxSourceStore.setState({ activeId: null });
+    const bind = captureAudioSourceBinding(song, 'high');
+    const backup = { url: 'https://example.com/backup.mp3', quality: 'high' as const, fetchedAt: 1,
+        backupSource: { providerId: 'netease', mediaId: 'other' } };
+    bind(backup);
+    expect(resolvedAudioCacheKey(song, backup.url)).toBeNull();
+    for (let i = 0; i < 257; i++) bind({ url: 'https://example.com/' + i, quality: 'high', fetchedAt: 1 });
+    expect(resolvedAudioCacheKey(song, backup.url)).toBeNull();
+    expect(resolvedAudioCacheKey(song, 'https://example.com/unverified')).toBeNull();
+});

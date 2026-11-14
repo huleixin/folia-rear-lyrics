@@ -1641,7 +1641,7 @@ export default {
     "qqLoginMethodMobile": "QQ scan",
     "qqLoginMethodWechat": "WeChat scan",
     "switchOnlineProvider": "Switch online music provider",
-    "confirmOnlineProviderSwitch": "Switch to {{provider}}? Current online playback and queue will be cleared.",
+        "confirmOnlineProviderSwitch": "Switch to {{provider}}? Playback and your queue will continue. You can add songs from other platforms.",
     "onlineProvider": "Online music provider",
     "providerNotLoggedIn": "Not signed in · click to scan",
     "providerNotConfigured": "API is not configured for Web",

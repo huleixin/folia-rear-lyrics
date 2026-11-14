@@ -88,6 +88,8 @@ export interface ProviderPage<T> {
 }
 
 export interface ProviderAudioSource {
+    /** Actual recording used by cross-platform recovery; the queue song keeps its own identity. */
+    backupSource?: { providerId: OnlineProviderId; mediaId: MediaId };
     /** False when a custom source only negotiated a quality without inspecting decoded media. */
     qualityVerified?: boolean;
     url: string;

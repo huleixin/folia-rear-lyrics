@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SongResult } from '../../../src/types';
+import { captureAudioSourceBinding } from '../../../src/services/onlineMusic/audioSourceBinding';
 
 const hasCachedSongAudio = vi.fn<(song: SongResult) => Promise<boolean>>();
 const hasCachedSongCover = vi.fn<(song: SongResult) => Promise<boolean>>();
@@ -61,6 +62,7 @@ describe('cachePlayedTrackAssets', () => {
         vi.stubGlobal('fetch', vi.fn(async () => audioResponse()));
         vi.spyOn(console, 'log').mockImplementation(() => { });
         clearCachedSongAudioDistrust(onlineSong);
+        captureAudioSourceBinding(onlineSong, 'high')({ url: 'https://cdn.example/audio.mp3', quality: 'high', fetchedAt: 1 });
     });
 
     it('stores both when neither is cached', async () => {

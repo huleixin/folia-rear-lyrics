@@ -22,7 +22,7 @@ import io.github.huleixin.tingyu.resolver.SourceResolver;
  * 同一条原生链路（BackgroundContinuation + NativePlaylist + ResolverRegistry）、
  * 同样的"WebView 冻结、JS 全程沉默"条件：
  * - QQ 下一首能独立解析，网易云下一首也必须能独立解析；
- * - 网易云没有登录态同步时如实回落 JS 通道（前台还活着时的正常行为）；
+ * - 网易云没有登录态、也没有其他可用平台时如实回落 JS 通道；
  * - 用户主动暂停绝不被子自动恢复；
  * - 混编歌单连续多首切换，Media3 不会退回"只剩一首"。
  * 洛雪的非回归由 BackgroundContinuationTest / ResolverRoutingTest 覆盖，全量套件保证不回归。
@@ -167,19 +167,25 @@ public class CrossSourceContinuationTest {
         assertTrue(engine.adopted.get(2).endsWith("@netease"));
     }
 
-    /** 网易云凭据缺失时：不接管也不假装成功，如实回落 JS 通道（前台活着时的正常分工）。 */
+    /** 网易云凭据缺失且无备用平台时：不接管也不假装成功，如实回落 JS 通道。 */
     @Test
     public void neteaseWithoutCredentialsFallsBackToJsInsteadOfFakingSuccess() {
-        // 把网易云假解析器换成"没有 Cookie 的真解析器"：canResolveNatively 必须为 false。
+        // 仅注册没有 Cookie 的真解析器，不配置可供备用的其他平台。
         ResolverRegistry.get().resetForTest();
         ResolverRegistry.get().registerForTest(new io.github.huleixin.tingyu.resolver.NeteaseResolver(""));
-        ResolverRegistry.get().registerForTest(new PlatformResolver("qq"));
         seedPlaylist(track("n1", "netease", "netease-original"), track("n2", "netease", "netease-original"));
         engine.drain();
         continuation.consider(engine, "drained");
         assertTrue("no cookie → no takeover, WebView keeps answering while it can",
             engine.adopted.isEmpty());
         assertTrue("fallback must be observable, not silent", continuation.fallbacksForTest() > 0);
+    }
+
+    @Test public void missingPrimaryCredentialsCanStillUseAnAvailableBackupPlatform() {
+        ResolverRegistry.get().resetForTest();
+        ResolverRegistry.get().registerForTest(new io.github.huleixin.tingyu.resolver.NeteaseResolver(""));
+        ResolverRegistry.get().registerForTest(new PlatformResolver("qq"));
+        assertTrue(ResolverRegistry.get().canResolveNatively(track("n", "netease", "netease-original")));
     }
 
     /** 用户主动暂停：任何音源都不许偷偷续上。 */

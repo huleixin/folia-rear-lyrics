@@ -1,6 +1,8 @@
 import { getPlaybackSongKey as resourceSongKey } from '../../utils/appPlaybackGuards';
 import { readSharedLyricRecord } from '../sharedSongResources';
 import { captureAudioSourceBinding } from './audioSourceBinding';
+import { playbackUrlIdentity, resolvePlaybackFallback, type PlaybackSourceOptions } from './playbackFallback';
+import { toPlayableAudioUrl } from '../../utils/appPlaybackHelpers';
 import { useLxSourceStore } from '../../stores/useLxSourceStore';
 import type { SongResult, UnifiedSong } from '../../types';
 import type {
@@ -581,6 +583,10 @@ export const omni = {
         return withActiveProvider(async provider => provider.recommendations?.getPersonalFm?.(options) ?? []);
     },
 
+    async getProviderPersonalFm(providerId: OmniProviderId, options?: PersonalFmRequestOptions): Promise<UnifiedSong[]> {
+        return requireOnlineMusicProvider(providerId).recommendations?.getPersonalFm?.(options) ?? [];
+    },
+
     async getDailySongs(refresh?: boolean): Promise<UnifiedSong[]> {
         return withActiveProvider(async provider => provider.recommendations?.getDailySongs?.(refresh) ?? []);
     },
@@ -605,7 +611,33 @@ export const omni = {
         return Boolean(getOnlineMusicProviderForSong(song)?.playback);
     },
 
-    async getAudioSource(song: SongResult, quality: AudioQualityPreference): Promise<OmniAudioSource | null> {
+    async getAudioSource(song: SongResult, quality: AudioQualityPreference, options: PlaybackSourceOptions = {}): Promise<OmniAudioSource | null> {
+        const bind = captureAudioSourceBinding(song, quality);
+        const revision = useLxSourceStore.getState().revision;
+        const isCurrent = () => useLxSourceStore.getState().revision === revision && (options.isCurrent?.() ?? true);
+        // Custom scripts retain their own routing/auto-switch policy.
+        const customSource = !!useLxSourceStore.getState().activeId;
+        let originalError: unknown;
+        try {
+            const source = options.skipPrimary && !customSource ? null : await this.getPrimaryAudioSource(song, quality);
+            if (!isCurrent()) throw new DOMException('Playback changed', 'AbortError');
+            if (customSource || (toPlayableAudioUrl(source?.url) && !options.excludedUrls?.has(playbackUrlIdentity(source!.url)))) return source;
+        } catch (error) {
+            if (customSource || (error as Error)?.name === 'AbortError') throw error;
+            originalError = error;
+        }
+        const backup = await resolvePlaybackFallback(song, quality, { ...options, isCurrent });
+        if (backup) {
+            noteOnlinePlaybackOutcome({ stage: 'resolve', outcome: 'ok', providerId: backup.backupSource!.providerId,
+                mediaId: backup.backupSource!.mediaId, quality: backup.quality, kind: 'cross-provider-backup' });
+            return bind(backup);
+        }
+        if (originalError) throw originalError;
+        return null;
+    },
+
+    /** Resolve only the song's selected source. Cross-provider callers use this to avoid recursion. */
+    async getPrimaryAudioSource(song: SongResult, quality: AudioQualityPreference): Promise<OmniAudioSource | null> {
         const bind = captureAudioSourceBinding(song, quality);
         const lxState = useLxSourceStore.getState();
         if (lxState.activeId) {

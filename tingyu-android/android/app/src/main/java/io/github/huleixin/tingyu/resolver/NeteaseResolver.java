@@ -37,7 +37,7 @@ import okhttp3.Response;
  *       只存内存，绝不落盘、不进日志、不输出完整 URL。</li>
  *   <li>音质：与前台 {@code qualityCandidates} 同一条降级链
  *       （jymaster→hires→lossless→exhigh→standard），拿不到高档自动落低档，
- *       只给试听片段时最后兜底试听 —— 不改变平台原有的播放权限限制。</li>
+ *       只给试听片段时报告无法完整播放，由跨平台编排寻找可用的同一录音。</li>
  * </ul>
  *
  * 取不到就是取不到：绝不伪造地址，也绝不静默换音源。
@@ -238,7 +238,7 @@ public final class NeteaseResolver implements SourceResolver {
     /**
      * 从 /song/enhance/player/url(/v1) 响应里取地址。返回 [url, level, trial]；
      * 取不到时 url 为空串。与前台 {@code handleSongUrl} 同规则：
-     * 非试听 URL 直接采纳；试听 URL 先记住、把低档问完再兜底。
+     * 非试听 URL 直接采纳；试听 URL 先记住，低档仍无完整音频时报告失败。
      */
     static String[] parseSongUrl(String body) {
         if (body == null || body.isEmpty()) return new String[] { "", "", "" };
@@ -252,7 +252,9 @@ public final class NeteaseResolver implements SourceResolver {
             if (item == null) return new String[] { "", "", "" };
             String url = item.optString("url", "");
             if (url.isEmpty()) return new String[] { "", "", "" };
-            boolean trial = item.optJSONArray("freeTrialInfo") != null && item.optJSONArray("freeTrialInfo").length() > 0;
+            Object trialInfo = item.opt("freeTrialInfo");
+            boolean trial = (trialInfo instanceof org.json.JSONObject && ((org.json.JSONObject) trialInfo).length() > 0)
+                || (trialInfo instanceof org.json.JSONArray && ((org.json.JSONArray) trialInfo).length() > 0);
             return new String[] { url.replaceFirst("^http:", "https:"), item.optString("level", ""), trial ? "1" : "" };
         } catch (Exception error) {
             return new String[] { "", "", "" };
@@ -297,14 +299,15 @@ public final class NeteaseResolver implements SourceResolver {
             Attempt attempt = viaEapi(track.songKey, songId, level);
             if (attempt.ok()) return SourceResolution.ok(attempt.url, attempt.level, System.currentTimeMillis());
             if (!attempt.url.isEmpty()) {
-                // 试听兜底：记住这份，把低档问完，全都没有再给试听（与前台 handleSongUrl 同规则）。
+                // 记住试听结果并继续查低档；试听片段不能当成完整音频返回。
                 if (trialFallback == null) trialFallback = attempt;
                 continue;
             }
             lastReason = attempt.error;
         }
         if (trialFallback != null) {
-            return SourceResolution.ok(trialFallback.url, trialFallback.level, System.currentTimeMillis());
+            // A trial fragment is not a successful full recording, including in backup playback.
+            return SourceResolution.failure("netease preview-only");
         }
         return SourceResolution.failure(lastReason);
     }

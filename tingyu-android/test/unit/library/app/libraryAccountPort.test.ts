@@ -1,9 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // test/unit/library/app/libraryAccountPort.test.ts
-// 切换清理端口（A4，原 App.tsx 的 handleConfirmProviderSwitch）：停掉 automix 尾音与 audio、回收 blob 地址、
-// 清空当前歌曲 / 队列 / 歌词 / 封面 / FM / 播放状态、丢掉 prefetch 与 track profile、搜索运行态换到新平台、
-// 集合导航清空；App 的句柄按调用现读。
+// 浏览平台切换只更新搜索和集合导航；混合队列、播放状态、歌词和 provider 级缓存保持不变。
 
 const services = vi.hoisted(() => ({ clearPrefetchRuntime: vi.fn(), clearTrackProfileRuntime: vi.fn() }));
 vi.mock('@/services/prefetchService', () => ({ clearPrefetchRuntime: services.clearPrefetchRuntime }));
@@ -14,12 +12,22 @@ import { usePlaybackStore } from '@/stores/usePlaybackStore';
 import { useSearchNavigationStore } from '@/stores/useSearchNavigationStore';
 import { useCollectionNavigationStore } from '@/stores/useCollectionNavigationStore';
 import { PlayerState, type SongResult } from '@/types';
+import { getPlaybackSongKey } from '@/utils/appPlaybackGuards';
 
 const song = { id: 's1', name: 'Song', artists: [], album: { id: '', name: '' } } as unknown as SongResult;
 
 const fakeAudio = () => ({ pause: vi.fn(), removeAttribute: vi.fn(), load: vi.fn() });
 
 describe('provider switch cleanup port', () => {
+    it('retains both platforms when media IDs overlap', () => {
+        const queue = ['qq', 'netease'].map(providerId => ({ ...song,
+            sourceRef: { kind: 'online' as const, providerId, mediaId: 's1' } }));
+        usePlaybackStore.setState({ playQueue: queue, currentSong: queue[0] });
+        const port = createLibraryAccountSwitchCleanupPort(() => { throw new Error('must not touch playback'); });
+        port.resetForProviderSwitch('netease', 'qq');
+        expect(usePlaybackStore.getState().playQueue.map(getPlaybackSongKey)).toEqual(['online:qq:s1', 'online:netease:s1']);
+        expect(usePlaybackStore.getState().currentSong).toBe(queue[0]);
+    });
     beforeEach(() => {
         vi.clearAllMocks();
         usePlaybackStore.setState({
@@ -32,7 +40,7 @@ describe('provider switch cleanup port', () => {
         });
     });
 
-    it('stops playback and clears the outgoing provider\'s runtime before the switch commits', () => {
+    it('retains playback while clearing the outgoing provider\'s runtime before the switch commits', () => {
         const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
         const resetRuntime = vi.spyOn(useSearchNavigationStore.getState(), 'resetRuntime');
         const clearNavigation = vi.spyOn(useCollectionNavigationStore.getState(), 'clear');
@@ -48,28 +56,28 @@ describe('provider switch cleanup port', () => {
 
         port.resetForProviderSwitch('kugou', 'netease');
 
-        expect(automix.abortTransition).toHaveBeenCalledTimes(1);
-        expect(audio.pause).toHaveBeenCalledTimes(1);
-        expect(audio.removeAttribute).toHaveBeenCalledWith('src');
-        expect(audio.load).toHaveBeenCalledTimes(1);
-        expect(revoke).toHaveBeenCalledWith('blob:old-track');
-        expect(setLyrics).toHaveBeenCalledWith(null);
+        expect(automix.abortTransition).not.toHaveBeenCalled();
+        expect(audio.pause).not.toHaveBeenCalled();
+        expect(audio.removeAttribute).not.toHaveBeenCalled();
+        expect(audio.load).not.toHaveBeenCalled();
+        expect(revoke).not.toHaveBeenCalled();
+        expect(setLyrics).not.toHaveBeenCalled();
         expect(usePlaybackStore.getState()).toMatchObject({
-            audioSrc: null,
-            currentSong: null,
-            playQueue: [],
-            cachedCoverUrl: null,
-            isFmMode: false,
-            playerState: PlayerState.IDLE,
+            audioSrc: 'blob:old-track',
+            currentSong: song,
+            playQueue: [song],
+            cachedCoverUrl: 'cover.png',
+            isFmMode: true,
+            playerState: PlayerState.PLAYING,
         });
-        expect(services.clearPrefetchRuntime).toHaveBeenCalledTimes(1);
-        expect(services.clearTrackProfileRuntime).toHaveBeenCalledTimes(1);
+        expect(services.clearPrefetchRuntime).not.toHaveBeenCalled();
+        expect(services.clearTrackProfileRuntime).not.toHaveBeenCalled();
         expect(resetRuntime).toHaveBeenCalledWith('kugou');
         expect(clearNavigation).toHaveBeenCalledTimes(1);
         revoke.mockRestore();
     });
 
-    it('reads the host on every call and leaves non-blob sources alone', () => {
+    it('leaves non-blob playback running across a browsing switch', () => {
         const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
         usePlaybackStore.setState({ audioSrc: 'https://example.test/a.mp3' });
         let host: LibraryAccountSwitchHost = {
@@ -83,7 +91,7 @@ describe('provider switch cleanup port', () => {
 
         port.resetForProviderSwitch('qq', 'netease');
 
-        expect(laterAudio.pause).toHaveBeenCalledTimes(1);
+        expect(laterAudio.pause).not.toHaveBeenCalled();
         expect(revoke).not.toHaveBeenCalled();
         revoke.mockRestore();
     });

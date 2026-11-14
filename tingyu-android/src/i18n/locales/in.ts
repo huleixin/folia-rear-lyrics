@@ -1398,7 +1398,7 @@ export default {
     "qqLoginMethodMobile": "Pindai QQ",
     "qqLoginMethodWechat": "Pindai WeChat",
     "switchOnlineProvider": "Ganti penyedia musik online",
-    "confirmOnlineProviderSwitch": "Ganti ke {{provider}}? Pemutaran online dan antrean saat ini akan dihapus.",
+    "confirmOnlineProviderSwitch": "Ganti ke {{provider}}? Pemutaran dan antrean tetap berlanjut. Anda dapat menambahkan lagu dari platform lain.",
     "onlineProvider": "Penyedia musik online",
     "providerNotLoggedIn": "Belum login · klik untuk pindai",
     "providerNotConfigured": "API tidak dikonfigurasi untuk Web",

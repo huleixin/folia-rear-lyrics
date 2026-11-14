@@ -37,9 +37,16 @@ public final class SourceResolution {
      * 所以解析器必须自己声明：QQ 系地址直连，其余默认代理。
      */
     public final boolean proxied;
+    /** Actual provider when a matching backup supplies the audio; logical song identity is unchanged. */
+    public final String backupProviderId;
 
     private SourceResolution(Status status, String url, String quality, Map<String, String> headers,
                              String reason, long fetchedAt, boolean proxied) {
+        this(status, url, quality, headers, reason, fetchedAt, proxied, "");
+    }
+
+    private SourceResolution(Status status, String url, String quality, Map<String, String> headers,
+                             String reason, long fetchedAt, boolean proxied, String backupProviderId) {
         this.status = status;
         this.url = url == null ? "" : url;
         this.quality = quality == null ? "" : quality;
@@ -47,6 +54,11 @@ public final class SourceResolution {
         this.reason = reason == null ? "" : reason;
         this.fetchedAt = fetchedAt;
         this.proxied = proxied;
+        this.backupProviderId = backupProviderId;
+    }
+
+    SourceResolution asBackup(String providerId) {
+        return new SourceResolution(status, url, quality, headers, reason, fetchedAt, proxied, providerId);
     }
 
     public static SourceResolution ok(String url, String quality, long fetchedAt) {

@@ -195,7 +195,7 @@ export const resolvePrefetchAudioUrl = async (
             return null;
         }
 
-        const audioSource = await omni.getAudioSource(song, audioQuality);
+        const audioSource = await omni.getAudioSource(song, audioQuality, { isCurrent: () => !signal.aborted });
         if (signal.aborted) return null;
         const url = toPlayableAudioUrl(audioSource?.url);
         if (!url) return null;

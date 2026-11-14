@@ -32,6 +32,8 @@ import { isCachedSongAudioDistrusted } from './playbackRecovery/mediaCacheGuard'
 export interface LoadOnlineAudioSourceOptions {
     stage?: 'resolve-url' | 'refresh' | 'restore';
     bypassMediaCache?: boolean;
+    excludedUrls?: ReadonlySet<string>;
+    isCurrent?: () => boolean;
     retry?: {
         isCurrent: () => boolean;
         onRetrying?: (failure: PlaybackFailure, attempt: number) => void;
@@ -54,7 +56,7 @@ export async function loadOnlineSongAudioSource(
     // 缓存 blob 解码失败过（distrust）或调用方要求绕过时不读缓存；读缓存出错只记日志，继续走 provider。
     // resourceKeys scopes custom audio by script id + quality + provider-aware song key;
     // that path explicitly excludes legacy/platform entries when a custom source is selected.
-    if (!options.bypassMediaCache && !isCachedSongAudioDistrusted(song)) {
+    if (!options.excludedUrls?.size && !options.bypassMediaCache && !isCachedSongAudioDistrusted(song)) {
         let cachedAudioBlob: Blob | null = null;
         try {
             cachedAudioBlob = await getCachedSongAudioBlob(song,audioQuality);
@@ -76,7 +78,7 @@ export async function loadOnlineSongAudioSource(
         }
     }
 
-    if (!options.bypassMediaCache && prefetched?.audioUrl && prefetched.audioUrl !== 'CACHED_IN_DB' && isUrlValid(prefetched.audioUrlFetchedAt)) {
+    if (!options.excludedUrls?.size && !options.bypassMediaCache && prefetched?.audioUrl && prefetched.audioUrl !== 'CACHED_IN_DB' && isUrlValid(prefetched.audioUrlFetchedAt)) {
         return {
             kind: 'ok',
             audioSrc: prefetched.audioUrl,
@@ -103,10 +105,7 @@ export async function loadOnlineSongAudioSource(
                 code: cooldown.remainingMs,
                 detail: 'provider cooldown: request skipped',
             });
-            return {
-                kind: 'failed',
-                failure: { reason: 'rate-limited', stage: 'cooldown', providerId, retryAfterMs: cooldown.remainingMs },
-            };
+            // Skip this provider's transport, but allow another catalog to supply the recording.
         }
 
         // 必须在请求之前读：鉴权失败后 transport 可能已经清理了会话，事后读会把“已失效”误判成“未登录”。
@@ -115,7 +114,12 @@ export async function loadOnlineSongAudioSource(
         let source: OmniAudioSource | null = null;
         let failure: PlaybackFailure | null = null;
         try {
-            source = await omni.getAudioSource(song, audioQuality);
+            source = await omni.getAudioSource(song, audioQuality, {
+                excludedUrls: options.excludedUrls,
+                isCurrent: options.isCurrent ?? options.retry?.isCurrent,
+                skipPrimary: !!cooldown && !lxSelected,
+            });
+            if (!source && cooldown && !lxSelected) failure = { reason: 'rate-limited', stage: 'cooldown', providerId, retryAfterMs: cooldown.remainingMs };
         } catch (error) {
             console.warn('[OnlinePlayback] Provider audio source is temporarily unavailable', error);
             failure = classifyPlaybackError(error, {
@@ -125,6 +129,9 @@ export async function loadOnlineSongAudioSource(
             });
         }
 
+        if (!(options.isCurrent?.() ?? options.retry?.isCurrent?.() ?? true)) {
+            return { kind: 'failed', failure: failure ?? { reason: 'unknown', stage, providerId } };
+        }
         if (!failure) {
             const url = toPlayableAudioUrl(source?.url);
             if (url) {

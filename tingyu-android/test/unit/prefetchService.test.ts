@@ -144,7 +144,7 @@ describe('resolvePrefetchAudioUrl', () => {
             audioUrl: 'https://audio.test/song.flac',
             replayGain: { trackGain: -6 },
         });
-        expect(mocks.getAudioSource).toHaveBeenCalledWith(song, 'high');
+        expect(mocks.getAudioSource).toHaveBeenCalledWith(song, 'high', { isCurrent: expect.any(Function) });
     });
 
     it('answers the media-cache sentinel without asking the provider', async () => {

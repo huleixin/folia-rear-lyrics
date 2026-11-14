@@ -110,12 +110,17 @@ public class KugouResolverTest {
     @Test
     public void resolveFallsBackToProviderDataHashWhenMediaIdIsNotAHash() {
         // 老同步包 mediaId 可能是 mixSongId：providerData.hash 是第二身份来源。
-        KugouResolver resolver = new KugouResolver("");
+        java.util.concurrent.atomic.AtomicInteger requests = new java.util.concurrent.atomic.AtomicInteger();
+        KugouResolver resolver = new KugouResolver("", new okhttp3.OkHttpClient.Builder().addInterceptor(chain -> {
+            requests.incrementAndGet();
+            throw new java.io.IOException("simulated network unavailable");
+        }).build());
         io.github.huleixin.tingyu.playback.NativePlaylist.Track track =
             new io.github.huleixin.tingyu.playback.NativePlaylist.Track("k1", "kugou", "998877",
                 "T", "A", "B", 1L, "", "{\"hash\":\"b3a52a7a958bf0aed0ebfba2e9a818b7\",\"albumId\":\"123\"}");
-        // 这里不发真实网络：只验证身份提取成功后进入网络阶段（JVM 上网络失败如实报 failure）。
+        // 拦截传输，不发真实网络：身份提取成功后进入网络阶段，模拟失败如实报 failure。
         SourceResolution result = resolver.resolve(track, "high");
+        assertTrue(requests.get() > 0);
         assertEquals(SourceResolution.Status.FAILURE, result.status);
         assertTrue("进入网络阶段后失败原因应是网络类而非 MISSING_HASH：" + result.reason,
             !result.reason.contains("MISSING_HASH"));

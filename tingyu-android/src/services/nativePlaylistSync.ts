@@ -139,7 +139,9 @@ export const toNativeResourcePayload = (song: SongResult): NativePlaylistTrackPa
         artwork: artworkOf(song),
         // 用户选的音源：原生据此挑解析器，不再靠 providerId 猜。
         sourceId,
-        ...(online?.providerData||lxAudio ? { providerData: { ...(lxAudio?{albumId:song.album?.id}:{}),...online?.providerData } as Record<string, unknown> } : {}),
+        ...(online||lxAudio ? { providerData: { ...(lxAudio?{albumId:song.album?.id}:{}),...online?.providerData,
+            fallbackArtists: (song.artists ?? []).map(artist => artist.name).filter(Boolean),
+        } as Record<string, unknown> } : {}),
     };
 };
 

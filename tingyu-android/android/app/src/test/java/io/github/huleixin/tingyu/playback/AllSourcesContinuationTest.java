@@ -41,6 +41,7 @@ public class AllSourcesContinuationTest {
 
     private final CrossSourceContinuationTest.FakeEngine engine = new CrossSourceContinuationTest.FakeEngine();
     private BackgroundContinuation continuation;
+    private int fallbacksBefore;
 
     @Before
     public void setUp() {
@@ -52,6 +53,7 @@ public class AllSourcesContinuationTest {
         // 真实解析器注册（与生产 refresh() 同一份清单）：路由与 canResolveNatively 走真实判定。
         ResolverRegistry.get().refresh();
         continuation = BackgroundContinuation.get();
+        fallbacksBefore = continuation.fallbacksForTest();
         continuation.cancel();
         continuation.resetBudgets();
         continuation.setInlineForTest(true);
@@ -98,7 +100,7 @@ public class AllSourcesContinuationTest {
         // 解析是真实发起的（JVM 无网 → 失败），但**路由与接管语义**必须正确：
         // 失败要有界重试/熔断，而不是 FALLBACK_TO_JS。
         assertTrue("酷狗失败也应走原生重试预算而非回落 JS",
-            engine.adopted.size() > 0 || continuation.fallbacksForTest() == 0);
+            engine.adopted.size() > 0 || continuation.fallbacksForTest() == fallbacksBefore);
     }
 
     /** 波点原版：同上。波点匿名可用，canResolveNatively 恒真。 */
@@ -107,7 +109,7 @@ public class AllSourcesContinuationTest {
         seedPlaylist(track("bd1", "bodian", "bodian-original"), track("bd2", "bodian", "bodian-original"));
         engine.drain();
         continuation.consider(engine, "drained");
-        assertTrue(engine.adopted.size() > 0 || continuation.fallbacksForTest() == 0);
+        assertTrue(engine.adopted.size() > 0 || continuation.fallbacksForTest() == fallbacksBefore);
     }
 
     /** 汽水原版：同上。匿名 client-token 通道恒可尝试。 */
@@ -116,7 +118,7 @@ public class AllSourcesContinuationTest {
         seedPlaylist(track("qs1", "qishui", "qishui-original"), track("qs2", "qishui", "qishui-original"));
         engine.drain();
         continuation.consider(engine, "drained");
-        assertTrue(engine.adopted.size() > 0 || continuation.fallbacksForTest() == 0);
+        assertTrue(engine.adopted.size() > 0 || continuation.fallbacksForTest() == fallbacksBefore);
     }
 
     /** 混编歌单：三平台跨边界连切，每首歌由自己的解析器认领（路由不串台）。 */
@@ -178,6 +180,6 @@ public class AllSourcesContinuationTest {
             engine.adopted.size() > 0 || engine.queue.size() > before
                 || engine.rearms > 0 || continuation.isResolving());
         assertEquals("失败/重试路径绝不能把这次回落算成 JS fallback",
-            0, continuation.fallbacksForTest());
+            fallbacksBefore, continuation.fallbacksForTest());
     }
 }

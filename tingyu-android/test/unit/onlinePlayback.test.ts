@@ -103,7 +103,7 @@ describe('online audio ReplayGain plumbing', () => {
         sourceMock.mockResolvedValue({url:'https://audio.test/full.mp3',quality:'high',fetchedAt:1});
         try {
             expect(await loadOnlineSongAudioSource(song,'high',null)).toMatchObject({kind:'ok',audioSrc:'https://audio.test/full.mp3'});
-            expect(cachedAudioMock).toHaveBeenCalledWith(song,'high');expect(sourceMock).toHaveBeenCalledWith(song,'high');
+            expect(cachedAudioMock).toHaveBeenCalledWith(song,'high');expect(sourceMock).toHaveBeenCalledWith(song,'high',expect.objectContaining({ skipPrimary: false }));
         } finally {useLxSourceStore.setState(saved)}
     });
 
@@ -301,13 +301,14 @@ describe('online audio source failures', () => {
         });
     });
 
-    it('answers from the cooldown without asking the provider again after a stated Retry-After', async () => {
+    it('allows backup resolution while skipping a provider in cooldown', async () => {
         sourceMock.mockRejectedValueOnce(new OnlineProviderError('network', 'Too many', 'kugou', undefined, 429, 25_000));
         await loadOnlineSongAudioSource(song, 'high', null);
 
         const second = await loadOnlineSongAudioSource(song, 'high', null);
 
-        expect(sourceMock).toHaveBeenCalledTimes(1);
+        expect(sourceMock).toHaveBeenCalledTimes(2);
+        expect(sourceMock).toHaveBeenLastCalledWith(song, 'high', expect.objectContaining({ skipPrimary: true }));
         expect(second).toMatchObject({ kind: 'failed', failure: { reason: 'rate-limited', stage: 'cooldown', providerId: 'kugou' } });
         if (second.kind === 'failed') {
             expect(second.failure.retryAfterMs).toBeGreaterThan(0);

@@ -18,6 +18,7 @@ public final class ResolverRegistry {
     private static final ResolverRegistry INSTANCE = new ResolverRegistry();
 
     private final List<SourceResolver> resolvers = new ArrayList<>();
+    private volatile OriginalPlaybackFallback fallback = new OriginalPlaybackFallback(new BackupCatalog()::search);
 
     private ResolverRegistry() {
         // 顺序即优先级：先洛雪脚本（用户真正在用的音源），再平台原版解析器，最后是
@@ -37,6 +38,7 @@ public final class ResolverRegistry {
 
     /** 凭据变化时刷新（例如用户在设置里改了后端地址、登录态同步）。 */
     public synchronized void refresh() {
+        fallback = new OriginalPlaybackFallback(new BackupCatalog()::search);
         resolvers.clear();
         resolvers.add(new LxNativeResolver());
         resolvers.add(QqResolver.fromCredentials());
@@ -135,6 +137,31 @@ public final class ResolverRegistry {
      * 没有解析器认领时返回 UNSUPPORTED，调用方据此回落到 JS 通道，而不是当成失败重试。
      */
     public SourceResolution resolve(NativePlaylist.Track track, String quality) {
+        SourceResolution primary = resolvePrimary(track, quality);
+        if (primary.ok() || !OriginalPlaybackFallback.eligible(track)) return primary;
+        SourceResolution backup = resolveBackup(track, quality);
+        return backup.ok() ? backup : primary;
+    }
+
+    /** Called on media failure too, even when the original provider keeps returning a dead URL. */
+    public SourceResolution resolveBackup(NativePlaylist.Track track, String quality) {
+        return fallback.resolve(track, quality, new OriginalPlaybackFallback.Resolver() {
+            public boolean available(String provider) { return backupProviderAvailable(provider); }
+            public SourceResolution resolve(NativePlaylist.Track candidate, String requested) { return resolvePrimary(candidate, requested); }
+        });
+    }
+
+    private boolean backupProviderAvailable(String provider) {
+        return canResolvePrimary(new NativePlaylist.Track("", provider, "", "", "", "", 0, "", "", provider + "-original"));
+    }
+
+    public boolean canTryBackup(NativePlaylist.Track track) {
+        return OriginalPlaybackFallback.eligible(track)
+            && ((!"qq".equals(track.providerId) && backupProviderAvailable("qq"))
+                || (!"netease".equals(track.providerId) && backupProviderAvailable("netease")));
+    }
+
+    private SourceResolution resolvePrimary(NativePlaylist.Track track, String quality) {
         if (track == null) return SourceResolution.failure("no track");
         SourceResolver resolver = forTrack(track);
         if (resolver == null) {
@@ -152,6 +179,10 @@ public final class ResolverRegistry {
 
     /** 原生能不能不经过 WebView 拿到这首的地址。用于决定要不要走后台续播，不发请求。 */
     public boolean canResolveNatively(NativePlaylist.Track track) {
+        return canResolvePrimary(track) || canTryBackup(track);
+    }
+
+    private boolean canResolvePrimary(NativePlaylist.Track track) {
         if (track == null) return false;
         SourceResolver resolver = forTrack(track);
         if (resolver == null) return false;
@@ -183,9 +214,15 @@ public final class ResolverRegistry {
     }
 
     public synchronized void resetForTest() {
+        // Fake primary resolvers must never accidentally start live catalog requests.
+        fallback = new OriginalPlaybackFallback((provider, query) -> List.of());
         resolvers.clear();
         resolvers.add(new LxNativeResolver());
         resolvers.add(new LxScriptResolver());
+    }
+
+    void setBackupCatalogForTest(OriginalPlaybackFallback.Catalog catalog) {
+        fallback = new OriginalPlaybackFallback(catalog);
     }
 
     /** 测试用：把 provider 名规范化，避免大小写差异。 */

@@ -56,6 +56,12 @@ const { syncNativePlaylist, syncNativePlaylistMode, resetNativePlaylistSyncForTe
 );
 
 describe('nativePlaylistSync', () => {
+    it('keeps matching IDs on different providers distinct in the native queue', async () => {
+        const queue = [song('same', 'qq'), song('same', 'netease')];
+        await syncNativePlaylist({ song: queue[0], queue, loop: 'all', shuffle: false, quality: 'high' });
+        expect(lastPlaylist().tracks.map(track => track.songKey)).toEqual(['online:qq:same', 'online:netease:same']);
+        expect(lastPlaylist().tracks.map(track => track.sourceId)).toEqual(['qq-original', 'netease-original']);
+    });
     it('retains the entire round after eight of ten songs instead of handing native only three', async () => {
         const queue=Array.from({length:10},(_,i)=>song(String(i)));let current=queue[0];
         shufflePlayback.setEnabled(true);shufflePlayback.observe(queue,current);
@@ -86,7 +92,7 @@ describe('nativePlaylistSync', () => {
             .toEqual(['online:qq:a', 'online:qq:b', 'online:qq:c']);
         expect(payload.mode).toBe('off');
         expect(payload.tracks[0].providerId).toBe('qq');
-        expect(payload.tracks[0].providerData).toEqual({ mediaMid: 'mm-a' });
+        expect(payload.tracks[0].providerData).toEqual({ mediaMid: 'mm-a', fallbackArtists: ['artist'] });
         // 契约是**毫秒**。这首歌 200 秒 → 200000ms。老测试断言 200（秒），正是因为它在
         // 保护错误的契约，真机上才一路绿灯地把卡片时长发成 200ms。
         expect(payload.tracks[0].durationMs).toBe(200_000);
