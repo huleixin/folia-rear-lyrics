@@ -395,7 +395,10 @@ public class MainActivity extends BridgeActivity {
                 io.github.huleixin.tingyu.playback.PlaybackLifecycle.noteRendererGone(didCrash);
                 io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("renderer-gone",
                     new com.getcapacitor.JSObject().put("didCrash", didCrash).put("priorityAtExit", priority)
-                        .put("jsSilentMs", io.github.huleixin.tingyu.playback.PlaybackLifecycle.jsSilentMs()));
+                        .put("jsSilentMs", io.github.huleixin.tingyu.playback.PlaybackLifecycle.jsSilentMs())
+                        .put("javaHeapUsedBytes", Runtime.getRuntime().totalMemory()-Runtime.getRuntime().freeMemory())
+                        .put("javaHeapMaxBytes", Runtime.getRuntime().maxMemory())
+                        .put("nativeHeapBytes", android.os.Debug.getNativeHeapAllocatedSize()));
                 CrashDiagnostics.recordText(
                     getApplicationContext(),
                     "webview-renderer-gone",

@@ -232,7 +232,11 @@ export function createRearLyricsTransport(onClock: (clock: ObsBrowserSourceClock
                     }
                     if (closed || inactive() || acceptedGeneration!==pollGeneration) return;
                     let safe=snapshot.owner&&(authority.blocked||authority.track&&!authority.webAllowed)?{...snapshot.config,hasTrack:false,song:null,lyrics:{lines:[]}}:snapshot.config;
-                    if(authority.track&&!authority.webAllowed&&nativeAppliedEpoch===authority.track.epoch&&lastConfig){
+                    // A delayed web settings revision must not erase lyrics already loaded for this native epoch.
+                    if(authority.track&&nativeAppliedEpoch===authority.track.epoch&&lastConfig&&(
+                        !authority.webAllowed || !snapshot.config.lyrics?.lines.length ||
+                        !snapshot.clock?.sentAtMs || Date.now()-snapshot.clock.sentAtMs>NATIVE_STALE_MS
+                    )){
                         safe={...snapshot.config,playbackSongKey:lastConfig.playbackSongKey,playbackSessionId:lastConfig.playbackSessionId,playbackEpoch:lastConfig.playbackEpoch,song:lastConfig.song,songArtist:lastConfig.songArtist,hasTrack:lastConfig.hasTrack,lyrics:lastConfig.lyrics};
                     }
                     safe = resolveRearRandomVisualizer(safe);

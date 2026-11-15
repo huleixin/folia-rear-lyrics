@@ -36,7 +36,7 @@ const PLAYER_ARTWORK_QUALITY=.72;
 const PLAYER_ARTWORK_CACHE_LIMIT=24;
 const playerInflight=new Map<string,Promise<string>>();
 const playerReady=new Map<string,string>();
-const playerListeners=new Set<()=>void>();
+const playerListeners=new Set<(url:string)=>void>();
 
 /** 只在 WebView 内可解析、原生拿不到的封面地址。 */
 export const isWebManagedArtworkUrl=(url:string|null|undefined):url is string=>{
@@ -54,7 +54,7 @@ export const isWebManagedArtworkUrl=(url:string|null|undefined):url is string=>{
 export const peekNativePlayerArtwork=(url:string):string=>playerReady.get(url)??'';
 
 /** 解析完成通知：各消费方据此重推一次自己的 payload。 */
-export const subscribeNativePlayerArtwork=(listener:()=>void):(()=>void)=>{
+export const subscribeNativePlayerArtwork=(listener:(url:string)=>void):(()=>void)=>{
     playerListeners.add(listener);
     return()=>{playerListeners.delete(listener)};
 };
@@ -71,6 +71,8 @@ const drawToDataUrl=(source:CanvasImageSource):string=>{
 export const prewarmNativePlayerArtwork=(url:string):Promise<string>=>{
     const cached=playerReady.get(url);if(cached)return Promise.resolve(cached);
     const existing=playerInflight.get(url);if(existing)return existing;
+    // Never evict a running task: that permits duplicate decodes and unbounded allocations.
+    if(playerInflight.size>=4)return Promise.resolve('');
     const task=(async()=>{
         const response=await fetch(url);
         const blob=await response.blob();
@@ -96,12 +98,9 @@ export const prewarmNativePlayerArtwork=(url:string):Promise<string>=>{
         while(playerReady.size>PLAYER_ARTWORK_CACHE_LIMIT){
             playerReady.delete(playerReady.keys().next().value!);
         }
-        playerListeners.forEach(listener=>{try{listener()}catch{/* 一个消费方失败不影响其它 */}});
+        playerListeners.forEach(listener=>{try{listener(url)}catch{/* 一个消费方失败不影响其它 */}});
         return result;
     })().catch(()=>'');
-    if(playerInflight.size>=PLAYER_ARTWORK_CACHE_LIMIT){
-        playerInflight.delete(playerInflight.keys().next().value!);
-    }
     playerInflight.set(url,task);
     void task.finally(()=>{if(playerInflight.get(url)===task)playerInflight.delete(url)});
     return task;

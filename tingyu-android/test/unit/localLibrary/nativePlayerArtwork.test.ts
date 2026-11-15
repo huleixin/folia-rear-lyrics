@@ -10,6 +10,7 @@ import {
     peekNativePlayerArtwork,
     prewarmNativePlayerArtwork,
     resolveNativePlayerArtwork,
+    subscribeNativePlayerArtwork,
 } from '../../../src/services/nativeCoverThumbnail';
 
 const DATA_URL = 'data:image/jpeg;base64,AAAA';
@@ -63,5 +64,21 @@ describe('播放器封面统一解析入口', () => {
         expect(resolved).toBe('');
         expect(peekNativePlayerArtwork(url)).toBe('');
         expect(resolveNativePlayerArtwork(url)).toBe(url);
+    });
+
+    it('bounds running decodes without evicting inflight work and reports the completed URL',async()=>{
+        const pending:Array<()=>void>=[];
+        vi.stubGlobal('fetch',vi.fn(()=>new Promise(resolve=>pending.push(()=>resolve({blob:async()=>new Blob(['cover'])})))));
+        const ready=vi.fn(),stop=subscribeNativePlayerArtwork(ready);
+        const urls=Array.from({length:40},(_,i)=>'/__folia_cover/pressure-'+i);
+        const work=urls.map(prewarmNativePlayerArtwork);
+        expect(fetch).toHaveBeenCalledTimes(4);
+        expect(prewarmNativePlayerArtwork(urls[0])).toBe(work[0]);
+        expect(fetch).toHaveBeenCalledTimes(4);
+        pending.forEach(finish=>finish());await Promise.all(work);
+        expect(ready.mock.calls.map(call=>call[0])).toEqual(urls.slice(0,4));
+        vi.stubGlobal('fetch',vi.fn(async()=>({blob:async()=>new Blob(['cover'])})));
+        expect(await prewarmNativePlayerArtwork(urls[4])).toBe(DATA_URL);
+        stop();vi.unstubAllGlobals();
     });
 });

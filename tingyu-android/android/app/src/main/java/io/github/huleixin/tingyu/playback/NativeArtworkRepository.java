@@ -142,17 +142,25 @@ public final class NativeArtworkRepository {
         if (url == null || url.trim().isEmpty()) return new Result(Status.MISSING_URI, null, 0, 0, 0, 0);
         // 本地曲库封面：WebView 侧已把 blob:/__folia_cover/ 统一解析成 data:image/jpeg;base64。
         // 它没有可下载的 URL，OkHttp 分支永远失败 —— 直接解码字节，锁屏/通知才有图。
-        // 不 bind：data: 很长，不该进 URL 别名与磁盘缓存键；换歌时由 SongInfoLoader 重新解码一次。
+        // Inline covers share the same bounded bitmap cache; aliases retain only a digest.
         if (url.startsWith("data:image/") && url.contains(";base64,")) {
-            try {
-                byte[] bytes = android.util.Base64.decode(
-                        url.substring(url.indexOf(',') + 1), android.util.Base64.DEFAULT);
-                Bitmap inline = decode(bytes);
-                if (inline == null) return new Result(Status.DECODE_FAILED, null, 0, 0, 0, 0);
-                return new Result(Status.FETCHED, inline, 200, bytes.length,
-                        inline.getWidth(), inline.getHeight());
-            } catch (Exception error) {
-                return new Result(Status.DECODE_FAILED, null, 0, 0, 0, 0);
+            if (url.length() > (MAX_BYTES * 4 / 3) + 128)
+                return new Result(Status.TOO_LARGE, null, 0, 0, 0, 0);
+            bind(songKey, url);
+            synchronized (memory) {
+                Bitmap cached = peek(songKey);
+                if (cached != null) return new Result(Status.CACHE_HIT, cached, 0, 0, cached.getWidth(), cached.getHeight());
+                try {
+                    byte[] bytes = android.util.Base64.decode(
+                            url.substring(url.indexOf(',') + 1), android.util.Base64.DEFAULT);
+                    if (bytes.length > MAX_BYTES) return new Result(Status.TOO_LARGE, null, 0, 0, 0, 0);
+                    Bitmap inline = decode(bytes);
+                    if (inline == null) return new Result(Status.DECODE_FAILED, null, 0, 0, 0, 0);
+                    memory.put(memoryKey(songKey), inline);
+                    return new Result(Status.FETCHED, inline, 200, bytes.length, inline.getWidth(), inline.getHeight());
+                } catch (Exception error) {
+                    return new Result(Status.DECODE_FAILED, null, 0, 0, 0, 0);
+                }
             }
         }
         bind(songKey, url);
@@ -171,17 +179,21 @@ public final class NativeArtworkRepository {
     }
 
     public void bind(String songKey, String url) {
+        String identity = aliasIdentity(url);
         String previous = aliases.getOrDefault(songKey, "");
-        if (!url.equals(previous)) {
-            aliases.put(songKey, url);
+        if (!identity.equals(previous)) {
+            aliases.put(songKey, identity);
         }
+    }
+    private static String aliasIdentity(String url) {
+        return url.startsWith("data:image/") ? "inline:" + NativeLyricsRepository.sha1(url) : url;
     }
     private String memoryKey(String songKey) {
         String url = aliases.getOrDefault(songKey, "");
         return url.isEmpty() ? songKey : ResourceCachePolicy.artworkIdentity(url);
     }
     public boolean matches(String songKey, String url) {
-        return url.equals(aliases.getOrDefault(songKey, ""));
+        return aliasIdentity(url).equals(aliases.getOrDefault(songKey, ""));
     }
     public File cachedFile(String url) {
         File f = new File(dir, NativeLyricsRepository.sha1(ResourceCachePolicy.artworkIdentity(url)) + ".img");

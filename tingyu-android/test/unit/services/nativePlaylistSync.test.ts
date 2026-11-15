@@ -13,6 +13,16 @@ interface PlaylistPayload {
     tracks: Array<Record<string, unknown>>;
 }
 
+const artwork = vi.hoisted(() => ({
+    ready: new Map<string,string>(),
+    resolve: vi.fn((url:string):string => url),
+    listener: null as ((url:string)=>void)|null,
+}));
+vi.mock('../../../src/services/nativeCoverThumbnail',()=>({
+    resolveNativePlayerArtwork:(url:string)=>artwork.resolve(url),
+    subscribeNativePlayerArtwork:(listener:(url:string)=>void)=>{artwork.listener=listener;return()=>{}},
+}));
+
 const playlistCalls: PlaylistPayload[] = [];
 const modeCalls: Array<{ mode: string; loopAll: boolean }> = [];
 
@@ -52,7 +62,7 @@ const song = (id: string, providerId = 'qq') => ({
     sourceRef: { kind: 'online', providerId, mediaId: id, providerData: { mediaMid: `mm-${id}` } },
 }) as never;
 
-const { syncNativePlaylist, syncNativePlaylistMode, resetNativePlaylistSyncForTest } = await import(
+const { syncNativePlaylist, syncNativePlaylistMode, resetNativePlaylistSyncForTest, toNativeResourcePayload } = await import(
     '../../../src/services/nativePlaylistSync'
 );
 
@@ -190,5 +200,45 @@ describe('nativePlaylistSync artwork', () => {
     it('keeps it empty rather than inventing a cover when the album has none', async () => {
         await syncNativePlaylist({ song: song('nc'), queue: [song('nc')], loop: 'off', shuffle: false, quality: 'high' });
         expect(lastPlaylist().tracks[0].artwork).toBe('');
+    });
+});
+
+describe('bounded playlist artwork updates',()=>{
+    beforeEach(()=>{
+        resetNativePlaylistSyncForTest();setNativePlaylist.mockClear();playlistCalls.length=0;
+        artwork.ready.clear();artwork.resolve.mockClear();
+        artwork.resolve.mockImplementation(url=>artwork.ready.get(url)??url);
+    });
+    it('keeps all 400 logical tracks but warms only the adjacent covers, with stable bulk catalogs',async()=>{
+        const queue=Array.from({length:400},(_,i)=>({...song(String(i)) as object,album:{id:i,name:'album',coverUrl:'/__folia_cover/'+i}})) as never[];
+        queue.map(toNativeResourcePayload);
+        expect(artwork.resolve).not.toHaveBeenCalled();
+        const options={song:queue[0],queue,loop:'all' as const,shuffle:false,quality:'high' as const};
+        await syncNativePlaylist(options);
+        expect(lastPlaylist().tracks).toHaveLength(400);
+        expect(new Set(artwork.resolve.mock.calls.map(call=>call[0]))).toEqual(new Set(['/__folia_cover/0','/__folia_cover/1','/__folia_cover/2','/__folia_cover/399']));
+        artwork.ready.set('/__folia_cover/0','data:image/jpeg;base64,ready');
+        await syncNativePlaylist(options);await syncNativePlaylist(options);
+        expect(setNativePlaylist).toHaveBeenCalledTimes(2);
+        expect(lastPlaylist().tracks[0].artwork).toBe('data:image/jpeg;base64,ready');
+        expect(lastPlaylist().tracks[50].artwork).toBe('/__folia_cover/50');
+    });
+    it('ignores completed artwork outside the active window and coalesces adjacent updates',async()=>{
+        vi.useFakeTimers();
+        try{
+            const queue=[{...song('coalesce') as object,album:{id:1,name:'album',coverUrl:'/__folia_cover/coalesce'}}] as never[];
+            const {usePlaybackStore}=await import('../../../src/stores/usePlaybackStore');
+            usePlaybackStore.setState({activePlaybackContext:'main',currentSong:queue[0],playQueue:queue});
+            await syncNativePlaylist({song:queue[0],queue,loop:'off',shuffle:false,quality:'high'});
+            const before=setNativePlaylist.mock.calls.length;
+            artwork.listener?.('/__folia_cover/unrelated');
+            await vi.advanceTimersByTimeAsync(150);
+            expect(setNativePlaylist).toHaveBeenCalledTimes(before);
+            artwork.ready.set('/__folia_cover/coalesce','data:image/jpeg;base64,next');
+            artwork.listener?.('/__folia_cover/coalesce');artwork.listener?.('/__folia_cover/coalesce');
+            await vi.advanceTimersByTimeAsync(150);
+            expect(setNativePlaylist).toHaveBeenCalledTimes(before+1);
+            usePlaybackStore.setState({currentSong:null,playQueue:[]});
+        }finally{resetNativePlaylistSyncForTest();vi.useRealTimers()}
     });
 });

@@ -465,6 +465,7 @@ public class FoliaPlaybackService extends Service {
                 // 「URL 为空」把刚拿到的封面当成过期清掉。
                 String url = service.cachedCoverUrl == null ? "" : service.cachedCoverUrl.trim();
                 if (url.isEmpty()) url = service.currentArtworkUrl;
+                if (bitmap == service.appliedArtworkBitmap && url.equals(service.appliedArtworkUrl)) return;
                 Bitmap fitted = fitForNotification(bitmap);
                 service.appliedArtworkBitmap = fitted;
                 service.appliedArtworkUrl = url;

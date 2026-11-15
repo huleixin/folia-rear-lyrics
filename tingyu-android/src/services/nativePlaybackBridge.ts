@@ -148,7 +148,7 @@ export const installNativePlaybackBridge = async (
   };
   usePlaybackStore.subscribe(() => pushState());
   // 封面异步转成 data: 后重推一次锁屏元数据（identity 里含 coverUrl，去重不会挡住它）。
-  subscribeNativePlayerArtwork(() => { pushState(true); });
+  subscribeNativePlayerArtwork(() => { pushState(); });
   window.setInterval(() => {
     const state = usePlaybackStore.getState();
     pushState(selectDisplayPlayerState(state) === PlayerState.PLAYING);

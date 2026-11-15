@@ -90,7 +90,7 @@ const albumOf = (song: SongResult): string => {
     if (!album) return '';
     return typeof album === 'string' ? album : (album.name ?? '');
 };
-const artworkOf = (song: SongResult): string => {
+const artworkOf = (song: SongResult, warm = false): string => {
     // 封面的**唯一**真实位置是 `album.coverUrl`（`SongResult` 没有顶层 coverUrl）。
     //
     // 这里曾经只读顶层 `coverUrl`，于是交给原生的 `artwork` 恒为空串：前台播放看不出问题
@@ -99,10 +99,10 @@ const artworkOf = (song: SongResult): string => {
     // 本地曲库的 /__folia_cover/ 或 blob: 只有 WebView 能读，原生播放页 / 通知 / 背屏
     // 拿到就是占位图。统一走解析入口换成两端都能读的 data:（在线 CDN 地址原样返回）。
     const albumCover = getSongAlbumCoverUrl(song);
-    if (albumCover) return resolveNativePlayerArtwork(albumCover);
+    if (albumCover) return warm ? resolveNativePlayerArtwork(albumCover) : albumCover;
     const legacy = (song as { coverUrl?: unknown; cover?: unknown }).coverUrl
         ?? (song as { cover?: unknown }).cover;
-    return typeof legacy === 'string' ? resolveNativePlayerArtwork(legacy) : '';
+    return typeof legacy === 'string' ? (warm ? resolveNativePlayerArtwork(legacy) : legacy) : '';
 };
 
 /**
@@ -122,7 +122,7 @@ const selectedSourceId = (providerId: string): string => {
     return platform ? `lx:${platform}` : `${providerId}-original`;
 };
 
-export const toNativeResourcePayload = (song: SongResult): NativePlaylistTrackPayload | null => {
+const trackPayload = (song: SongResult, warm = false): NativePlaylistTrackPayload | null => {
     const songKey = getPlaybackSongKey(song);
     if (!songKey) return null;
     const ref = getPlaybackSourceRef(song);
@@ -140,7 +140,7 @@ export const toNativeResourcePayload = (song: SongResult): NativePlaylistTrackPa
         // 毫秒，不在这里换算：唯一一次转换发生在 `SongResult.durationMs` 本来就以毫秒表达的地方。
         // 之前这里 `/1000` 是整条错链的起点。
         durationMs: Math.max(0, Math.round(song.durationMs ?? 0)),
-        artwork: artworkOf(song),
+        artwork: artworkOf(song, warm),
         // 用户选的音源：原生据此挑解析器，不再靠 providerId 猜。
         sourceId,
         ...(online||lxAudio ? { providerData: { ...(lxAudio?{albumId:song.album?.id}:{}),...online?.providerData,
@@ -150,6 +150,9 @@ export const toNativeResourcePayload = (song: SongResult): NativePlaylistTrackPa
         } as Record<string, unknown> } : {}),
     };
 };
+
+/** Bulk catalogs keep stable URLs and never start artwork decoding. */
+export const toNativeResourcePayload = (song: SongResult): NativePlaylistTrackPayload | null => trackPayload(song);
 
 /**
  * 当前曲目之后的播放顺序。
@@ -198,6 +201,8 @@ const previousSong = (
 };
 
 let lastSignature = '';
+let activeArtwork = new Set<string>();
+let artworkTimer: ReturnType<typeof setTimeout> | undefined;
 
 /**
  * 同步逻辑歌单。同一份内容不会重复下发（避免每次渲染都换代次、作废在飞的解析）。
@@ -224,19 +229,20 @@ export const syncNativePlaylist = async (options: {
         ? shufflePlayback.recoveryOrder().map(key => byKey.get(key)).filter((item): item is SongResult => !!item)
         : [song, ...ordered];
     // 当前曲目本身也要在列表里，原生才能用它做锚点找到位置。
+    const previous = previousSong(queue, currentKey, shuffle, loop);
+    const warmSongs = [song, ...ordered.slice(0, 2), ...(previous ? [previous] : [])];
+    const warmKeys = new Set(warmSongs.map(getPlaybackSongKey));
+    activeArtwork = new Set(warmSongs.map(item => artworkOf(item)).filter(Boolean));
     const tracks: NativePlaylistTrackPayload[] = [];
-    const head = toNativeResourcePayload(song);
+    const head = trackPayload(song, true);
     if (head && !complete.some(item => getPlaybackSongKey(item) === currentKey)) tracks.push(head);
     for (const next of complete) {
-        const payload = toNativeResourcePayload(next);
+        const payload = trackPayload(next, warmKeys.has(getPlaybackSongKey(next)));
         if (payload && !tracks.some(item => item.songKey === payload.songKey)) tracks.push(payload);
     }
     const mode = resolveMode(loop, shuffle);
     // 上一首：封面堆叠右滑要放入的那张，以及"能不能往右滑"的判定。
-    const previousPayload = (() => {
-        const previous = previousSong(queue, currentKey, shuffle, loop);
-        return previous ? toNativeResourcePayload(previous) : null;
-    })();
+    const previousPayload = previous ? trackPayload(previous, true) : null;
     const signature = [
         mode,
         String(shuffle),
@@ -244,6 +250,8 @@ export const syncNativePlaylist = async (options: {
         currentKey,
         tracks.map(item => item.songKey).join('>'),
         previousPayload?.songKey ?? '',
+        ...tracks.filter(item => warmKeys.has(item.songKey)).map(item => item.artwork),
+        previousPayload?.artwork ?? '',
     ].join('|');
     if (signature === lastSignature) return;
     lastSignature = signature;
@@ -397,19 +405,21 @@ export const syncQishuiResolverCredentials = async (): Promise<void> => {
 /** 测试用：忘掉上一次的签名，强制下一次同步真的下发。 */
 export const resetNativePlaylistSyncForTest = (): void => {
     lastSignature = '';
+    activeArtwork.clear();
+    clearTimeout(artworkTimer);
+    artworkTimer = undefined;
 };
 
 /**
  * 封面异步解析完成后的补偿重推。
  *
  * 首次同步时 data: 还没生成，队列里带的是 WebView 专用地址；解析完成后必须重新下发一次，
- * 否则后台自动切歌 / 锁屏时原生手里的仍是读不了的旧地址。签名不含 artwork，先作废它。
+ * 否则后台自动切歌 / 锁屏时原生手里的仍是读不了的旧地址。仅补推相邻曲目的封面变化。
  */
 export const resyncNativePlaylistForArtwork = (): void => {
     const state = usePlaybackStore.getState();
     if (state.activePlaybackContext !== 'main' || !state.currentSong) return;
     const settings = useAudioSettingsStore.getState();
-    lastSignature = '';
     void syncNativePlaylist({
         song: state.currentSong,
         queue: state.playQueue ?? [],
@@ -419,4 +429,10 @@ export const resyncNativePlaylistForArtwork = (): void => {
     });
 };
 
-subscribeNativePlayerArtwork(() => { resyncNativePlaylistForArtwork(); });
+subscribeNativePlayerArtwork(url => {
+    if (!activeArtwork.has(url) || artworkTimer !== undefined) return;
+    artworkTimer = setTimeout(() => {
+        artworkTimer = undefined;
+        resyncNativePlaylistForArtwork();
+    }, 120);
+});

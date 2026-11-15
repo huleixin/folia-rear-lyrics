@@ -133,7 +133,16 @@ public class FoliaNativePlugin extends Plugin {
     }
 
     static void emitMediaAction(String action) {
-        if(io.github.huleixin.tingyu.playback.NativeAudioEngine.mediaAction(action))return;
+        // WebView request and provider callbacks run on workers. Media3 queue access requires main.
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> emitMediaAction(action));
+            return;
+        }
+        boolean nativeHandled = io.github.huleixin.tingyu.playback.NativeAudioEngine.mediaAction(action);
+        if (java.util.Arrays.asList("previous", "next", "play", "pause", "toggle", "stop").contains(action))
+            io.github.huleixin.tingyu.playback.PlaybackDiagnostics.note("media-control-dispatch",
+                new JSObject().put("action", action).put("native", nativeHandled).put("webAvailable", instance != null));
+        if (nativeHandled) return;
         FoliaNativePlugin plugin = instance;
         if (plugin == null) return;
         JSObject payload = new JSObject();

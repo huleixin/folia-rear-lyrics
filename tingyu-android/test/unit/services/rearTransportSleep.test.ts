@@ -95,3 +95,19 @@ it('AOD keeps config and seek clock, skips audio and calibrates at one second',a
     pos=65;target.dispatchEvent(new Event('folia-rear-refresh'));await vi.advanceTimersByTimeAsync(0);expect(clock.mock.calls.at(-1)?.[0].currentTime).toBe(65);
     stop();setRearAod(false);vi.clearAllTimers();
 });
+
+it('retains native lyrics when a matching but empty web revision arrives after background takeover',async()=>{
+    vi.useFakeTimers();const target=new EventTarget();vi.stubGlobal('window',Object.assign(target,{setTimeout,clearTimeout}));
+    const track={engine:'media3',songKey:'qq:A',outputSessionId:'native',epoch:'epoch-A',playing:false,positionMs:10000,durationMs:90000,lyric:'ready@1'};
+    let revision=1;
+    const fetcher=vi.fn(async(url:string)=>({ok:true,json:async()=>url.includes('/lyrics')?{state:'ready',lines:[{fullText:'native current lyric',startTime:0,endTime:90}]}:{revision,config:{theme:{name:'theme-'+revision},activePlaybackContext:'main',hasTrack:true,playbackSongKey:track.songKey,playbackSessionId:track.outputSessionId,playbackEpoch:track.epoch,song:{id:'A',name:'A'},lyrics:{lines:[]}},clock:{playbackSongKey:track.songKey,playbackSessionId:track.outputSessionId,playbackEpoch:track.epoch,sentAtMs:Date.now()-10000},track,owner:track}}));
+    vi.stubGlobal('fetch',fetcher);const config=vi.fn();
+    const stop=createRearLyricsTransport(()=>undefined,()=>undefined,false).subscribe({config,clock:vi.fn(),audio:vi.fn(),connected:vi.fn()});
+    await vi.advanceTimersByTimeAsync(20);
+    expect(config.mock.lastCall?.[0].lyrics.lines[0].fullText).toBe('native current lyric');
+    revision=2;await vi.advanceTimersByTimeAsync(300);
+    expect(config.mock.lastCall?.[0].theme.name).toBe('theme-2');
+    expect(config.mock.lastCall?.[0].lyrics.lines[0].fullText).toBe('native current lyric');
+    expect(fetcher.mock.calls.filter(call=>call[0].includes('/lyrics'))).toHaveLength(1);
+    stop();expect(vi.getTimerCount()).toBe(0);
+});
