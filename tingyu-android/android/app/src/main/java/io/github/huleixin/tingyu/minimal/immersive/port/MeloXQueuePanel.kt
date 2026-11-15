@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import coil.compose.AsyncImage
+import io.github.huleixin.tingyu.minimal.ui.PlaybackModeIcon
 import io.github.huleixin.tingyu.chrome.PageIcon
 import io.github.huleixin.tingyu.minimal.MinimalQueueItem
 import io.github.huleixin.tingyu.minimal.immersive.MeloXPlaybackUiState
@@ -197,7 +198,7 @@ private fun QueueModeButton(state:MeloXPlaybackUiState,interactive:Boolean,compa
             onClick={onInteract();state.queueCommands?.togglePlaybackMode()},onLongClick={onInteract();hint=true})
         .semantics { contentDescription="播放模式："+title+"，点击切换" },
         horizontalArrangement=Arrangement.spacedBy(8.dp,Alignment.CenterHorizontally),verticalAlignment=Alignment.CenterVertically) {
-        PlaybackModeGlyph(mode,Modifier.size(if(compact)14.dp else 24.dp),if(mode=="off")Color.White else Color.Black.copy(alpha=.62f))
+        PlaybackModeIcon(mode,if(mode=="off")Color.White else Color.Black.copy(alpha=.62f),Modifier.size(if(compact)14.dp else 24.dp))
         Text(if(hint) "点击切换播放模式" else title,color=if(mode=="off")Color.White else Color.Black.copy(alpha=.62f),fontSize=if(compact)12.sp else 14.sp)
     }
 }
@@ -206,7 +207,7 @@ private fun QueueModeButton(state:MeloXPlaybackUiState,interactive:Boolean,compa
 private fun QueueLocateButton(enabled:Boolean,compact:Boolean,onClick:()->Unit) {
     Box(Modifier.size(if(compact)24.dp else 48.dp).clip(CircleShape).background(Color.White.copy(alpha=.12f))
         .clickable(enabled=enabled,onClick=onClick).semantics { contentDescription="定位当前歌曲" },contentAlignment=Alignment.Center) {
-        PageIcon("audio-lines",Color.White,Modifier.size(if(compact)14.dp else 24.dp))
+        PageIcon("locate-fixed",Color.White,Modifier.size(if(compact)14.dp else 24.dp))
     }
 }
 

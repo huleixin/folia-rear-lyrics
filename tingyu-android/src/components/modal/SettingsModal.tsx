@@ -1481,6 +1481,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 {isMobileSettings ? <MobileSettingsHeader
                     primary={activeTab === 'options' && mobileSettingsIndex}
                     title={activeTab === 'help' ? t('mobileSettings.about') : mobileSettingsIndex ? t('ui.options') : mobileRearGuide ? t('mobileSettings.startupGuide') : activeSettingsNavItem?.label ?? ''}
+                    onLicenses={activeTab === 'help' && isAndroidNativeRuntime() ? () => { void chromeNative.openThirdPartyLicenses().catch(() => setLicenseError(true)); } : undefined}
                     onClose={onClose}
                     onBack={() => { if(NATIVE_FIRST&&activeTab==='help'&&initialTab==='help')returnFromMobileSection();else if (activeTab === 'help') setActiveTab('options'); else if(NATIVE_FIRST)returnFromMobileSection();else { setMobileRearGuide(false); setMobileSettingsIndex(true); } }}
                 /> : <div className="relative shrink-0 z-10 mb-6 select-none" data-settings-style='{"margin":[0,0,0,24]}' data-settings-layout="column">
@@ -1620,10 +1621,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                     <JoinCommunityButton />
                                 </div>}
 
-                                {isAndroidNativeRuntime() && <button type="button"
-                                    onClick={() => { void chromeNative.openThirdPartyLicenses().catch(() => setLicenseError(true)); }}
-                                    data-settings-style='{"fill":true,"radius":18,"font":14,"padding":[18,16,18,16],"margin":[0,16,0,0]}'
-                                    data-settings-layout="row">{t('licenses.title')}</button>}
+
                                 {licenseError && <p role="alert" data-settings-layout="column">{t('licenses.openError')}</p>}
 
                                 {/* Author Info (Moved from Footer) */}

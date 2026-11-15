@@ -526,6 +526,7 @@ internal fun MeloXIOSNowPlayingScene(
                 .fillMaxSize()
                 .meloXPlayerStatusBarsPadding()
                 .meloXPlayerNavigationBarsPadding()
+                .padding(bottom = 16.dp)
                 .padding(horizontal = 32.dp),
         ) {
         SceneGrabber(
@@ -762,6 +763,10 @@ internal fun MeloXIOSNowPlayingScene(
                     showHeartModeLabel = true,
                 )
 
+                MeloXCircleIconButton(onClick = favorite.toggle, modifier = Modifier.semantics { contentDescription = if (favorite.liked == true) "取消收藏" else "收藏" }) {
+                    MeloXAnimatedFavoriteStar(liked = favorite.liked == true, modifier = Modifier.size(22.dp), color = Color.White)
+                }
+
                 MeloXCircleIconButton(onClick = onShowActions) {
                     MeloXSymbolIcon(
                         MeloXSymbol.Ellipsis,
@@ -779,7 +784,8 @@ internal fun MeloXIOSNowPlayingScene(
             visible = bottomControlsVisible,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .meloXPlayerNavigationBarsPadding(),
+                .meloXPlayerNavigationBarsPadding()
+                .padding(bottom = 16.dp),
             enter = fadeIn(tween(220, easing = FastOutSlowInEasing)) +
                 slideInVertically(tween(260, easing = FastOutSlowInEasing)) { it / 8 },
             exit = fadeOut(tween(180, easing = FastOutSlowInEasing)) +
@@ -947,7 +953,7 @@ private val MeloXLandscapeLyricsStartInset =
  * ⚠ 三键实际占位 = 42dp 行高 + 本值 ≈ 52dp，正是 `MeloXLandscapeLyricsFadeBottom`（56dp）
  * 注释里说的"让开的量"。改本值必须一并核对那条底部渐隐带。
  */
-private val MeloXLandscapeSelectorOffsetY = 10.dp
+private val MeloXLandscapeSelectorOffsetY = 0.dp
 
 /**
  * 横屏底部三键**隐藏**时，歌词底部渐隐带的收窄值。
@@ -1543,6 +1549,10 @@ private fun MeloXIOSLandscapeNowPlayingScene(
                                     artistLineHeight = 24.sp,
                                 )
 
+                                MeloXCircleIconButton(onClick = favorite.toggle, modifier = Modifier.semantics { contentDescription = if (favorite.liked == true) "取消收藏" else "收藏" }) {
+                                    MeloXAnimatedFavoriteStar(liked = favorite.liked == true, modifier = Modifier.size(22.dp), color = Color.White)
+                                }
+
                                 MeloXCircleIconButton(onClick = onShowActions) {
                                     MeloXSymbolIcon(
                                         MeloXSymbol.Ellipsis,
@@ -1911,6 +1921,10 @@ private fun TabletLandscapePlayerColumn(
                 artistSize = 20.sp,
                 artistLineHeight = 24.sp,
             )
+
+            MeloXCircleIconButton(onClick = favorite.toggle, modifier = Modifier.semantics { contentDescription = if (favorite.liked == true) "取消收藏" else "收藏" }) {
+                MeloXAnimatedFavoriteStar(liked = favorite.liked == true, modifier = Modifier.size(22.dp), color = Color.White)
+            }
 
             MeloXCircleIconButton(onClick = onShowActions) {
                 MeloXSymbolIcon(MeloXSymbol.Ellipsis, Modifier.size(18.dp), Color.White, iconSize = 16.sp)
@@ -2298,6 +2312,9 @@ private fun LandscapeSongHeader(
             }
         }
         Spacer(Modifier.width(14.dp))
+        MeloXCircleIconButton(onClick = favorite.toggle, modifier = Modifier.semantics { contentDescription = if (favorite.liked == true) "取消收藏" else "收藏" }) {
+            MeloXAnimatedFavoriteStar(liked = favorite.liked == true, modifier = Modifier.size(22.dp), color = Color.White)
+        }
         MeloXCircleIconButton(onClick = onShowActions) {
             MeloXSymbolIcon(MeloXSymbol.Ellipsis, Modifier.size(18.dp), Color.White, iconSize = 16.sp)
         }
@@ -2314,9 +2331,7 @@ private fun SceneGrabber(onDismiss: () -> Unit, dragModifier: Modifier,
             io.github.huleixin.tingyu.chrome.PageIcon("chevron-down", Color.White, Modifier.size(24.dp))
         }
         Spacer(Modifier.weight(1f))
-        androidx.compose.material3.IconButton(enabled = LocalMeloXPlayerControlsEnabled.current, onClick = favorite.toggle, modifier = Modifier.size(44.dp).semantics { contentDescription = if (favorite.liked == true) "取消收藏" else "收藏" }) {
-            MeloXAnimatedFavoriteStar(liked = favorite.liked == true, modifier = Modifier.size(22.dp), color = Color.White)
-        }
+
     }
 }
 
@@ -2361,6 +2376,10 @@ private fun ArtworkDetailsWithoutArtwork(
                     artistSize = 20.sp,
                     artistLineHeight = 24.sp,
                 )
+
+                MeloXCircleIconButton(onClick = favorite.toggle, modifier = Modifier.semantics { contentDescription = if (favorite.liked == true) "取消收藏" else "收藏" }) {
+                    MeloXAnimatedFavoriteStar(liked = favorite.liked == true, modifier = Modifier.size(22.dp), color = Color.White)
+                }
 
                 MeloXCircleIconButton(onClick = onShowActions) {
                     MeloXSymbolIcon(MeloXSymbol.Ellipsis, Modifier.size(18.dp), Color.White, iconSize = 16.sp)

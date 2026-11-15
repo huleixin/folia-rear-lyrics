@@ -765,7 +765,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val backdrop = rememberLayerBackdrop()
         val stageBackdrop = rememberLayerBackdrop()
         val immersiveStyle = playerStyle == PlayerStyle.IMMERSIVE
-        val exitProgress=rememberStageExitProgress(stageExit,reducedMotion,playerPanelOrigin!=null,immersiveStyle)
+        val exitProgress=rememberStageExitProgress(stageExit,reducedMotion,playerPanelOrigin!=null)
         // 极简页归 Compose 所有时，WebView 那条 stage 控制条必须退场：两个传输并排出现
         // 就是两套「播放/暂停」在同一个屏幕上，和 1.3.119 里「极简页 vs 舞台」的规则一致。
         // 条件里的 bound 是握手：只有 JS 正在推帧（也就意味着它已经把 WebView 极简页让出来）
@@ -788,12 +788,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val detourAbove by remember(nativeDetour,detourOffset) { derivedStateOf { nativeDetour && detourOffset.value < .9999f } }
         val stageAboveMinimal=playerHost.stageMotionDetour||detourAbove
         val playerReady=playerPresentation!="minimal"||!minimalPlayerEnabled()||minimalBound
-        val playerEntry=rememberLiquidPlayerProgress(destination=="stage",returningFromSettings||minimalResumePending,motionReduced,stageExit.active,playerReady,playerPanelOrigin!=null,immersiveStyle)
-        val immersiveBounds = io.github.huleixin.tingyu.minimal.immersive.rememberImmersiveBoundsProgress(destination=="stage",returningFromSettings||minimalResumePending,motionReduced,stageExit.active,playerReady)
-        val immersiveClosingTime = io.github.huleixin.tingyu.minimal.immersive.rememberImmersiveClosingTime(stageExit.active && immersiveStyle, motionReduced)
-        val immersiveSinkPeak = with(LocalDensity.current) { 22.dp.toPx() }
-        val immersiveMorph=remember(playerPanelOrigin,playerOrigin,playerEntry,exitProgress,motionReduced,immersiveBounds,immersiveClosingTime,immersiveSinkPeak) {
-            io.github.huleixin.tingyu.minimal.immersive.ImmersivePlayerMotion(playerPanelOrigin,playerOrigin,playerEntry,stageExit,exitProgress,motionReduced,immersiveBounds,immersiveClosingTime,immersiveSinkPeak)
+        val playerEntry=rememberLiquidPlayerProgress(destination=="stage",returningFromSettings||minimalResumePending,motionReduced,stageExit.active,playerReady,playerPanelOrigin!=null)
+        val immersiveMorph=remember(playerPanelOrigin,playerOrigin,playerEntry,exitProgress,motionReduced) {
+            io.github.huleixin.tingyu.minimal.immersive.ImmersivePlayerMotion(playerPanelOrigin,playerOrigin,playerEntry,stageExit,exitProgress,motionReduced)
         }
         val minimalMorph=remember(playerPanelOrigin,playerOrigin,playerEntry,exitProgress,motionReduced,immersiveStyle) {
             playerPanelOrigin?.takeUnless { immersiveStyle }?.let { panel -> playerOrigin?.let { cover -> MinimalPlayerMorph(panel,cover,playerEntry,stageExit,exitProgress,motionReduced) } }
@@ -1215,7 +1212,6 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         } else if(id=="mini" && destination != "stage" && !pendingStageEntry && !stageExit.active) {
                             translationY = with(density) { (NativeFooterLayout.MiniSlideOffsetDp * (1f - miniPresence)).dp.toPx() }
                         }
-                        if(id=="mini" && immersiveStyle && stageExit.active) translationY = immersiveMorph.sinkOffset()
                     }
                     val actions: (String,Double)->Unit = actions@ { action,value ->
                         if(settingsHandoff!=null||nativeSettingsLayerHeld)return@actions

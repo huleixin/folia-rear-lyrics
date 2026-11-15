@@ -92,13 +92,7 @@ internal fun ScenePageSelector(
         ScenePageButton(SceneGlyphKind.Stage, false, state.commands?.available == true, compact) { state.openStage() }
         Box {
             ScenePageButton(SceneGlyphKind.Queue, page == MeloXNowPlayingPage.Queue, true, compact) { onPageSelected(MeloXNowPlayingPage.Queue) }
-            if (page != MeloXNowPlayingPage.Queue && state.controls.mode in listOf("all", "one", "shuffle")) {
-                val badgeSize = (if (compact) 18.dp else 20.dp) * .9025f
-                Box(Modifier.align(Alignment.TopEnd).offset(1.5.dp, (-1.5).dp).size(badgeSize)
-                    .clip(CircleShape).background(Color.Black.copy(alpha = .42f)), contentAlignment = Alignment.Center) {
-                    PlaybackModeGlyph(state.controls.mode, Modifier.size(badgeSize * .72f), Color.White.copy(alpha = .92f))
-                }
-            }
+
         }
     }
 }
@@ -116,7 +110,7 @@ private fun ScenePageButton(kind: SceneGlyphKind, selected: Boolean, enabled: Bo
     val discSize = buttonSize * .8f
     val context = LocalContext.current
     val density = LocalDensity.current
-    val icon = when (kind) { SceneGlyphKind.Lyrics -> "captions"; SceneGlyphKind.Stage -> "monitor-play"; else -> "list" }
+    val icon = when (kind) { SceneGlyphKind.Lyrics -> "message-square-quote"; SceneGlyphKind.Stage -> "monitor-play"; else -> "list-music" }
     val haptic = meloXHaptic()
     val hole = remember(context, density, icon, glyphSize, discSize) {
         val stroke = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
@@ -138,7 +132,9 @@ private fun ScenePageButton(kind: SceneGlyphKind, selected: Boolean, enabled: Bo
             this.selected = selected
         }.clickable(enabled = enabled && LocalMeloXPlayerControlsEnabled.current, interactionSource = interaction, indication = null) { meloXSelectionHaptic(haptic); onClick() }, contentAlignment = Alignment.Center) {
         if (selected) Box(Modifier.size(discSize).scenePageDisc(Color.White.copy(alpha = .88f), hole))
-        else PageIcon(icon, Color.White.copy(alpha = if (enabled) .88f else .35f), Modifier.size(glyphSize))
+        else Box(Modifier.size(discSize).clip(CircleShape).background(Color.White.copy(alpha = .08f)), contentAlignment = Alignment.Center) {
+            PageIcon(icon, Color.White.copy(alpha = if (enabled) .88f else .35f), Modifier.size(glyphSize))
+        }
     }
 }
 
