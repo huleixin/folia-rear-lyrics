@@ -22,6 +22,7 @@ const {
     resolveOnlineTracksCacheSuffix,
     resolveOnlineTracksTargetTime,
     writeOnlineTracksCache,
+    isTimedTracksCacheReadable,
 } = await import('@/library/core/services/onlineCollectionCache');
 
 const track = (id: string) => ({ id, name: id, artists: [], album: { id: 0, name: '' }, durationMs: 1 } as SongResult);
@@ -85,5 +86,35 @@ describe('online tracks cache entries', () => {
         const entry = await readOnlineTracksCache({ providerId: 'netease', type: 'playlist', id: 9 });
         expect(entry.tracks).toEqual([track('old')]);
         expect(store.has('online_provider_netease_playlist_tracks_9')).toBe(true);
+    });
+
+    it('rejects old KuGou ordering for both versioned and timed playlists, leaving media and other lists intact', async () => {
+        const playlist = { providerId: 'kugou', type: 'playlist', id: 9 } as const;
+        const key = resolveOnlineTracksCacheKey(playlist);
+        const old = { tracks: [track('old-order')], snapshotTime: 123, schemaVersion: ONLINE_TRACKS_CACHE_SCHEMA_VERSION, nextOffset: 1, hasMore: false };
+        store.set('offline-audio-existing', 'audio-file');
+        store.set(key, old);
+        expect(isOnlineTracksCacheValid(await readOnlineTracksCache(playlist), 123)).toBe(false);
+        store.set(key, { ...old, snapshotTime: 0, fetchedAt: Date.now() });
+        expect(isTimedTracksCacheReadable(await readOnlineTracksCache(playlist))).toBe(false);
+        for (const collection of [
+            { providerId: 'qq', type: 'playlist', id: 9 },
+            { providerId: 'kugou', type: 'album', id: 9 },
+            { providerId: 'kugou', type: 'cloud', id: 'cloud' },
+        ] as const) {
+            store.set(resolveOnlineTracksCacheKey(collection), old);
+            expect(isOnlineTracksCacheValid(await readOnlineTracksCache(collection), 123)).toBe(true);
+        }
+        expect(store.get('offline-audio-existing')).toBe('audio-file');
+    });
+
+    it('accepts refreshed KuGou playlists and resumes with the saved client-order cursor', async () => {
+        const collection = { providerId: 'kugou', type: 'playlist', id: 9 } as const;
+        await writeOnlineTracksCache(resolveOnlineTracksCacheKey(collection), [track('new-order')], 123, { nextOffset: 100, hasMore: true, total: 206 });
+        const entry = await readOnlineTracksCache(collection);
+        expect(entry).toMatchObject({ tracks: [track('new-order')], nextOffset: 100, hasMore: true, total: 206 });
+        expect(isOnlineTracksCacheValid(entry, 123)).toBe(true);
+        await writeOnlineTracksCache(resolveOnlineTracksCacheKey(collection), [track('new-order')], 0, { nextOffset: 1, hasMore: false, fetchedAt: Date.now() });
+        expect(isTimedTracksCacheReadable(await readOnlineTracksCache(collection))).toBe(true);
     });
 });

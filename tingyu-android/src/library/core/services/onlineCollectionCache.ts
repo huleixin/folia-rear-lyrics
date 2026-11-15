@@ -20,6 +20,7 @@ import type { CollectionSyncPage } from './onlineCollectionSync';
 // 缓存，换键不丢任何东西。
 
 export const ONLINE_TRACKS_CACHE_SCHEMA_VERSION = COLLECTION_TRACK_SNAPSHOT_SCHEMA_VERSION;
+const KUGOU_PLAYLIST_ORDER_REVISION = 1;
 
 type OnlineTracksCacheIdentity = Pick<OnlineGridViewCollectionDescriptor, 'providerId' | 'type' | 'id'>;
 
@@ -31,6 +32,7 @@ export type OnlineTracksCacheEntry = {
     hasMore?: boolean;
     total?: number;
     fetchedAt?: number;
+    kugouOrderRevision?: number;
 };
 
 type StoredOnlineTracks = Partial<OnlineTracksCacheEntry> | SongResult[];
@@ -95,7 +97,12 @@ export const readOnlineTracksCache = async (
 ): Promise<OnlineTracksCacheEntry> => {
     const suffix = resolveOnlineTracksCacheSuffix(collection, currentUserId);
     const stored = await getProviderCacheWithLegacyMigration<StoredOnlineTracks>(collection.providerId, suffix, [suffix]);
-    return parseCachedOnlineTracks(stored);
+    const entry = parseCachedOnlineTracks(stored);
+    // Old KuGou playlist snapshots contain independently reversed pages. Refetch only these
+    // track lists, including resumable/timed snapshots, without touching offline media files.
+    if (collection.providerId === 'kugou' && collection.type === 'playlist' && !isCloudDriveCollection(collection)
+        && entry.kugouOrderRevision !== KUGOU_PLAYLIST_ORDER_REVISION) return parseCachedOnlineTracks(null);
+    return entry;
 };
 
 /** 写一份快照。`snapshotTime` 与集合版本不一致的写入（例如本地删歌后）会让下次打开重新拉取。 */
@@ -107,5 +114,6 @@ export const writeOnlineTracksCache = (
     progress: OnlineTracksCacheProgress = { nextOffset: tracks.length, hasMore: false },
 ): Promise<void> => (
     saveToCache(cacheKey, { ...createCollectionTrackSnapshot({ ...progress, items: tracks }, snapshotTime),
+        ...(cacheKey.startsWith('online_provider_kugou_playlist_tracks_') ? { kugouOrderRevision: KUGOU_PLAYLIST_ORDER_REVISION } : {}),
         ...(progress.fetchedAt ? { fetchedAt: progress.fetchedAt } : {}) })
 );

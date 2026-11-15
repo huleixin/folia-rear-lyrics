@@ -26,9 +26,9 @@ export default function PlaybackEngineTestSettings({ settingsCardClass }: { sett
         <h3 className="text-sm font-semibold" data-settings-style='{"font":14,"weight":600}' data-settings-layout="wrap">{t('playbackEngine.title')}</h3>
         <p className="text-xs opacity-60 leading-relaxed" data-settings-style='{"font":12,"tone":"muted"}' data-settings-layout="wrap">{t('playbackEngine.description')}</p>
         <div className="flex gap-2" role="radiogroup" aria-label={t('playbackEngine.title')} data-settings-style='{"gap":8}' data-settings-layout="row">
-            {(['media3', 'web'] as const).map(engine => <button key={engine} type="button" disabled={busy} role="radio" aria-checked={selected === engine}
+            {(['media3', 'web'] as const).map(engine => <button key={engine} type="button" disabled={busy} role="radio" aria-checked={selected === engine} aria-label={label(engine)}
                 onClick={() => select(engine)} className={`${button} flex-1 ${selected === engine ? 'bg-current/10 font-semibold' : ''}`} data-settings-style='{"grow":true,"minHeight":36,"padding":[12,8,12,8],"font":12,"center":true,"radius":8,"border":true}' data-settings-layout="row">
-                {label(engine)}{selected === engine ? ' ✓' : ''}
+                {label(engine)}{selected === engine && <span data-native-decoration aria-hidden="true"> ✓</span>}
             </button>)}
         </div>
         <p className="text-xs leading-relaxed" aria-live="polite" data-settings-style='{"font":12}' data-settings-layout="wrap">{t('playbackEngine.actual', { engine: label(actual) })}

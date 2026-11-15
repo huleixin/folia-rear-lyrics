@@ -1202,6 +1202,79 @@ describe('kugouProvider', () => {
         });
     });
 
+    it('keeps one global client order across full pages, a partial tail and changing display limits', async () => {
+        const source = Array.from({ length: 206 }, (_, i) => ({ hash: `order-${i + 1}`, name: `Song ${i + 1}` }));
+        requestMock.mockImplementation(async (operation, params) => {
+            expect(operation).toBe('playlist_track_all');
+            expect(params.pagesize).toBe(100);
+            const start = (params.page - 1) * params.pagesize;
+            return { data: { count: source.length, songs: source.slice(start, start + params.pagesize) } };
+        });
+        const expected = source.map(s => s.hash.toUpperCase()).reverse();
+        const pages = [];
+        let offset = 0;
+        for (const limit of [150, 1000, 1000]) {
+            const page = await kugouProvider.catalog!.getPlaylistTracks!('ordered-playlist', limit, offset);
+            pages.push(page);
+            expect(page.items.map(s => s.id)).toEqual(expected.slice(offset, offset + 100));
+            offset = page.nextOffset;
+        }
+        expect(pages.flatMap(p => p.items.map(s => s.id))).toEqual(expected);
+        expect(pages.map(p => [p.nextOffset, p.hasMore, p.total])).toEqual([[100, true, 206], [200, true, 206], [206, false, 206]]);
+        const arbitrary = await kugouProvider.catalog!.getPlaylistTracks!('ordered-playlist', 37, 83);
+        expect(arbitrary.items.map(s => s.id)).toEqual(expected.slice(83, 120));
+        expect(arbitrary.nextOffset).toBe(120);
+        const pastEnd = await kugouProvider.catalog!.getPlaylistTracks!('ordered-playlist', 100, 206);
+        expect(pastEnd).toMatchObject({ items: [], hasMore: false, nextOffset: 206 });
+    });
+
+    it('fetches only the source window after discovering a large playlist total', async () => {
+        requestMock.mockImplementation(async (_operation, params) => {
+            const start = (params.page - 1) * params.pagesize;
+            return { data: { total: 10006, songs: Array.from({ length: Math.min(100, 10006 - start) }, (_, i) => ({ hash: `large-${start + i}`, name: `Song ${start + i}` })) } };
+        });
+        const page = await kugouProvider.catalog!.getPlaylistTracks!('large-order', 150, 0);
+        expect(page.items).toHaveLength(100);
+        expect(page.items[0].id).toBe('LARGE-10005');
+        expect(page.items[99].id).toBe('LARGE-9906');
+        expect(requestMock.mock.calls.map(([, params]) => params.page)).toEqual([1, 100, 101]);
+    });
+
+    it.each([0, 7, 100, 200])('finishes a %i-track playlist without an extra visible page', async total => {
+        const source = Array.from({ length: total }, (_, i) => ({ hash: `exact-${i}`, name: `Song ${i}` }));
+        requestMock.mockImplementation(async (_operation, params) => {
+            const start = (params.page - 1) * params.pagesize;
+            return { data: { count: total, songs: source.slice(start, start + params.pagesize) } };
+        });
+        const lastOffset = total > 100 ? 100 : 0;
+        const page = await kugouProvider.catalog!.getPlaylistTracks!(`exact-${total}`, 100, lastOffset);
+        expect(page.items.map(s => s.id)).toEqual(source.map(s => s.hash.toUpperCase()).reverse().slice(lastOffset));
+        expect(page).toMatchObject({ total, nextOffset: total, hasMore: false });
+    });
+
+    it('reads a full snapshot when count means this page rather than the entire playlist', async () => {
+        let source = Array.from({ length: 106 }, (_, i) => ({ hash: `page-count-${i}`, name: `Song ${i}` }));
+        requestMock.mockImplementation(async (_operation, params) => {
+            const start = (params.page - 1) * params.pagesize;
+            const songs = source.slice(start, start + params.pagesize);
+            return { data: { count: songs.length, songs } };
+        });
+        const first = await kugouProvider.catalog!.getPlaylistTracks!('count-is-page-length', 100, 0);
+        const last = await kugouProvider.catalog!.getPlaylistTracks!('count-is-page-length', 100, first.nextOffset);
+        expect([...first.items, ...last.items].map(s => s.id)).toEqual(source.map(s => s.hash.toUpperCase()).reverse());
+        expect(last).toMatchObject({ total: 106, nextOffset: 106, hasMore: false });
+        sessionState.userId = 'other-session-user';
+        source = Array.from({ length: 103 }, (_, i) => ({ hash: `other-user-${i}`, name: `Song ${i}` }));
+        const switched = await kugouProvider.catalog!.getPlaylistTracks!('count-is-page-length', 100, 0);
+        expect(switched.items[0].id).toBe('OTHER-USER-102');
+        expect(switched.total).toBe(103);
+    });
+
+    it('rejects an incomplete tail rather than caching a silently truncated order', async () => {
+        requestMock.mockImplementation(async (_operation, params) => ({ data: { total: 206, songs: Array.from({ length: params.page === 3 ? 5 : 100 }, (_, i) => ({ hash: `short-${params.page}-${i}`, name: 'Song' })) } }));
+        await expect(kugouProvider.catalog!.getPlaylistTracks!('short-tail', 100, 0)).rejects.toMatchObject({ code: 'invalid-response' });
+    });
+
     it('normalizes the nested song shape returned by album catalog endpoints', async () => {
         requestMock.mockResolvedValue({
             total: 1,

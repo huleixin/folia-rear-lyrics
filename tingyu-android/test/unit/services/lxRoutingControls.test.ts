@@ -5,8 +5,11 @@ import { createRoot } from 'react-dom/client';
 import LxManagerControls from '@/components/audio-tools/LxManagerControls';
 import { useLxSourceStore } from '@/stores/useLxSourceStore';
 import { captureSemanticSettings } from '@/services/nativeSettingsSemantic';
+import type { SettingsLayoutNode } from '@/types/settingsLayout';
 
+// test/unit/services/lxRoutingControls.test.ts
 // Exercise the native action -> original React callback -> persisted routing policy.
+const layoutText = (node: SettingsLayoutNode): string => [node.text ?? '', ...(node.children ?? []).map(layoutText)].join(' ');
 afterEach(() => { document.body.innerHTML = ''; vi.unstubAllGlobals(); });
 it('selects and persists both priorities through native semantic action rows', async () => {
     vi.stubGlobal('PointerEvent', MouseEvent);
@@ -26,6 +29,11 @@ it('selects and persists both priorities through native semantic action rows', a
             expect(useLxSourceStore.getState().policy.routing).toBe(routing);
             expect(JSON.parse(localStorage.getItem('tingyu_lx_sources_v1')!).policy.routing).toBe(routing);
             expect(host.querySelector(`[aria-label="${label}"]`)?.getAttribute('aria-pressed')).toBe('true');
+            const selected = captureSemanticSettings(host, 'lx', '音源').document.flow!;
+            expect(selected.nodes.find(n => n.title === label)).toMatchObject({ detail: '✓' });
+            expect(selected.nodes.filter(n => n.detail === '✓')).toHaveLength(1);
+            expect(layoutText(selected.layout!)).not.toContain('✓');
+            expect(host.querySelector('.ty-lx-routing')!.textContent!.match(/✓/g)).toHaveLength(1);
         }
     } finally { await act(async () => root.unmount()); }
 });

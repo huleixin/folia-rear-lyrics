@@ -1,5 +1,6 @@
 import type { SongResult, UnifiedSong } from '../../types';
 import { kugouCatalogAudioFields } from './catalogAudioSpecs';
+import { KUGOU_PLAYLIST_PAGE_SIZE, readKugouPlaylistInClientOrder } from './kugouPlaylistOrder';
 import {
     OnlineProviderError,
     type AudioQualityPreference,
@@ -365,7 +366,7 @@ export const normalizeKugouSong = (raw: unknown): UnifiedSong => {
 };
 
 const KUGOU_RECOMMENDATION_PAGE_SIZE = 30;
-const KUGOU_MAX_PAGE_SIZE = 100;
+const KUGOU_MAX_PAGE_SIZE = KUGOU_PLAYLIST_PAGE_SIZE;
 const KUGOU_RECOMMENDATION_CARDS = [
     { id: 3006, name: 'VIP 专属推荐' },
     { id: 3001, name: '私人专属好歌' },
@@ -1484,23 +1485,26 @@ export const kugouProvider: OnlineMusicProvider = {
             const recommendationPage = await getKugouRecommendationPage(collection, limit, offset);
             if (recommendationPage) return recommendationPage;
 
-            const requestLimit = Math.min(Math.max(1, limit), KUGOU_MAX_PAGE_SIZE);
-            const response = await requestKugou('playlist_track_all', { id: String(id), pagesize: requestLimit, page: Math.floor(offset / requestLimit) + 1 });
-            const tracks = listOf(response).map(normalizeKugouSong);
+            syncKugouSessionUser();
             // KuGou's playlist API returns the list in the opposite order from the official
-            // client for regular playlists. Keep the provider response intact long enough to
-            // record the transform, then expose the same top-to-bottom order the listener sees
-            // in the KuGou app.
-            if (tracks.length > 1) {
+            // client for regular playlists. Map client offsets from the end of the whole
+            // source list; reversing each source page separately breaks every page boundary.
+            const result = await readKugouPlaylistInClientOrder(String(id), limit, offset, async page => {
+                const response = await requestKugou('playlist_track_all', { id: String(id), pagesize: KUGOU_MAX_PAGE_SIZE, page });
+                const items = listOf(response).map(normalizeKugouSong);
+                return { items, total: pageOf(items, response, KUGOU_MAX_PAGE_SIZE, 0).total };
+            }, () => getKugouPlaylistTrackSongs(String(id)));
+            if (result.items.length > 1) {
                 noteLibraryStep('kugou', 'playlist:client-order', {
                     collection: String(id),
-                    tracks: tracks.length,
-                    transform: 'reversed',
+                    tracks: result.items.length,
+                    total: result.total,
+                    transform: 'global-reversed',
                     offset,
+                    nextOffset: result.nextOffset,
                 });
-                tracks.reverse();
             }
-            return pageOf(tracks, response, requestLimit, offset);
+            return result;
         },
         async getCloudTracks(limit, offset) {
             const requestLimit = Math.min(Math.max(1, limit), KUGOU_MAX_PAGE_SIZE);
