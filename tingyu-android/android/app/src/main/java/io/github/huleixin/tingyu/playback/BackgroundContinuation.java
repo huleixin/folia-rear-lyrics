@@ -155,8 +155,8 @@ public final class BackgroundContinuation {
         long msSinceJsWindow();
         /** Media3 队列里（当前位置之后）是否已经有这首歌。 */
         boolean queueContains(String songKey);
-        /** 主线程执行：把解析好的条目加进 Media3 并在需要时恢复播放。 */
-        void adopt(NativePlaylist.Track track, String uri, long requestId, long generation);
+        /** 主线程执行：加入 Media3 并在需要时恢复播放；真正入队或已在队列里才返回 true。 */
+        boolean adopt(NativePlaylist.Track track, String uri, long requestId, long generation);
         /** 让监督器在 delayMs 之后重新排程（失败后退避再试，而不是每 1.5 秒一次）。 */
         void rearmSupervision(long delayMs);
         /** 主线程执行。 */
@@ -188,7 +188,9 @@ public final class BackgroundContinuation {
      */
     public String registerForPlayback(SourceResolution resolution) throws Exception {
         if (resolution == null || !resolution.ok()) throw new IllegalArgumentException("resolution not ok");
-        return resolution.proxy() ? registrar.register(resolution.url) : resolution.url;
+        String uri = resolution.proxy() ? registrar.register(resolution.url) : resolution.url;
+        if (!PlaybackUriPolicy.supports(uri)) throw new IllegalArgumentException("Unsupported native audio URI");
+        return uri;
     }
 
     private volatile Registrar registrar = DEFAULT;
@@ -324,8 +326,8 @@ public final class BackgroundContinuation {
         boolean stale = requestId != activeRequestId
             || !track.songKey.equals(activeSongKey)
             || !NativePlaylist.get().contains(track.songKey);
-        if (requestId == activeRequestId) resolving = false;
         if (stale) {
+            if (requestId == activeRequestId) resolving = false;
             PlaybackDiagnostics.note("continuation-stale", new com.getcapacitor.JSObject()
                 .put("song", PlaybackDiagnostics.anonKey(track.songKey))
                 .put("requestId", requestId)
@@ -337,6 +339,7 @@ public final class BackgroundContinuation {
         }
         final String budgetKey = track.songKey + "|" + resolverId;
         if (resolution == null || !resolution.ok()) {
+            resolving = false;
             failures++;
             String status = resolution == null ? "null" : resolution.status.name().toLowerCase(java.util.Locale.US);
             String reason = resolution == null ? "null resolution" : resolution.reason;
@@ -366,6 +369,7 @@ public final class BackgroundContinuation {
         try {
             uri = registerForPlayback(resolution);
         } catch (Exception error) {
+            resolving = false;
             failures++;
             PlaybackDiagnostics.note("continuation-failed", new com.getcapacitor.JSObject()
                 .put("song", PlaybackDiagnostics.anonKey(track.songKey))
@@ -380,7 +384,6 @@ public final class BackgroundContinuation {
                 && anchor.equals(host.currentSongKey()))host.rearmSupervision(delay); });
             return;
         }
-        clearBudget(budgetKey);
         PlaybackDiagnostics.note("continuation-resolved", new com.getcapacitor.JSObject()
             .put("song", PlaybackDiagnostics.anonKey(track.songKey))
             .put("provider", track.providerId)
@@ -388,6 +391,7 @@ public final class BackgroundContinuation {
             .put("requestId", requestId)
             .put("generation", generation));
         host.runOnMain(() -> {
+            if (requestId == activeRequestId) resolving = false;
             // Main-loop delivery is another async boundary: Pause/Next may have cancelled us meanwhile.
             if (!isCurrentRequest(requestId, track.songKey) || host.desiredPaused()
                     || !anchor.equals(host.currentSongKey()) || !NativePlaylist.get().contains(track.songKey)) {
@@ -395,8 +399,29 @@ public final class BackgroundContinuation {
                     .put("requestId", requestId).put("song", PlaybackDiagnostics.anonKey(track.songKey)));
                 return;
             }
-            takeovers++;
-            host.adopt(track, uri, requestId, generation);
+            if (host.queueContains(track.songKey)) {
+                clearBudget(budgetKey);
+                return;
+            }
+            String rejection = "rejected";
+            try {
+                if (host.adopt(track, uri, requestId, generation)) {
+                    clearBudget(budgetKey);
+                    takeovers++;
+                    return;
+                }
+            } catch (RuntimeException error) {
+                rejection = error.getClass().getSimpleName();
+            }
+            // Resolution alone is not success: a rejected handoff must retain its retry budget.
+            if (!isCurrentRequest(requestId, track.songKey) || host.desiredPaused()
+                    || !anchor.equals(host.currentSongKey()) || !NativePlaylist.get().contains(track.songKey)) return;
+            failures++;
+            PlaybackDiagnostics.note("continuation-failed", new com.getcapacitor.JSObject()
+                .put("song", PlaybackDiagnostics.anonKey(track.songKey)).put("resolver", resolverId)
+                .put("status", "adopt").put("reason", rejection).put("requestId", requestId));
+            long backoff = noteFailure(budgetKey, SourceResolution.Status.FAILURE, "adopt");
+            if (backoff >= 0) host.rearmSupervision(backoff);
         });
     }
 

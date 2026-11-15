@@ -51,11 +51,13 @@ public class ContinuationProxyParityTest {
             for (int i = cursor; i < queue.size(); i++) if (queue.get(i).equals(songKey)) return true;
             return false;
         }
-        @Override public void adopt(NativePlaylist.Track track, String uri, long requestId, long generation) {
+        @Override public boolean adopt(NativePlaylist.Track track, String uri, long requestId, long generation) {
+            if (!PlaybackUriPolicy.supports(uri)) return false;
             adopted.add(track.songKey);
             adoptedUris.add(uri);
             queue.add(track.songKey);
             if (ended) { ended = false; cursor = queue.indexOf(track.songKey); }
+            return true;
         }
         @Override public void rearmSupervision(long delayMs) { }
         @Override public void runOnMain(Runnable action) { action.run(); }
@@ -66,11 +68,12 @@ public class ContinuationProxyParityTest {
     static final class FakeResolver implements SourceResolver {
         private final String id;
         boolean direct;
+        String directUri;
         @Override public String id() { return id; }
         @Override public boolean supports(String providerId) { return id.equals(providerId); }
         @Override public SourceResolution resolve(NativePlaylist.Track track, String quality) {
             return direct
-                ? SourceResolution.okDirect("https://cdn.example/" + track.songKey + ".mp3", quality, System.currentTimeMillis())
+                ? SourceResolution.okDirect(directUri == null ? "https://cdn.example/" + track.songKey + ".mp3" : directUri, quality, System.currentTimeMillis())
                 : SourceResolution.ok("https://cdn.example/" + track.songKey + ".mp3", quality, System.currentTimeMillis());
         }
         FakeResolver(String id) { this.id = id; }
@@ -159,5 +162,29 @@ public class ContinuationProxyParityTest {
             SourceResolution.ok("https://x/y", "high", java.util.Collections.emptyMap(), 1L).proxy());
         assertFalse("okDirect() 必须直连（QQ 与前台直连同构）",
             SourceResolution.okDirect("https://x/y", "high", 1L).proxy());
+    }
+
+    @Test public void cachedFileContinuesAfterTheQueueDrainsWithoutProxyOrJs() {
+        resolver.direct = true;
+        resolver.directUri = "file:///data/user/0/io.github.huleixin.tingyu/files/audio-offline-v1/verified.audio";
+        startSession("demo");
+        continuation.consider(engine, "drained");
+        assertEquals("song-1", engine.adopted.get(0));
+        assertEquals(resolver.directUri, engine.lastAdoptedUri());
+        assertFalse(engine.ended());
+        assertEquals(0, registrations.get());
+    }
+
+    @Test public void unsupportedDirectUriNeverCountsAsASuccessfulTakeover() {
+        resolver.direct = true; resolver.directUri = "ftp://audio.example/song.mp3";
+        startSession("demo");
+        int before = continuation.takeoversForTest();
+        for (int i = 0; i < 10; i++) {
+            continuation.consider(engine, "tick");
+            continuation.advanceClockForTest(120_000L);
+        }
+        assertTrue(engine.adopted.isEmpty());
+        assertEquals(before, continuation.takeoversForTest());
+        assertEquals(1, continuation.snapshot().optInt("budgetBlocked"));
     }
 }

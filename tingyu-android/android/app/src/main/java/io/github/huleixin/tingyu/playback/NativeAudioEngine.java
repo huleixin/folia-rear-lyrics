@@ -533,7 +533,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             decoderClaimed=false;decoderFallback.clear();offeredDecoderFailure=null;
             if(id.isEmpty())throw new IllegalArgumentException("Missing source identity");
             String url=value.optString("uri");Uri uri=Uri.parse(url);
-            if(!java.util.Arrays.asList("http","https","content","file").contains(uri.getScheme()))throw new IllegalArgumentException("Unsupported native audio URI");
+            if(!PlaybackUriPolicy.supports(url))throw new IllegalArgumentException("Unsupported native audio URI");
             MediaItem active=player.getCurrentMediaItem();
             if(value.optBoolean("adopt")){
                 sourceId=id;sequence=seq;syncRearTrack();
@@ -631,14 +631,14 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
      * 走的是与 JS 窗口同一套校验，只是来源不同：代次、请求号、用户意图、队列去重，
      * 任一不过就丢弃 —— 迟到的解析结果绝不能盖掉已经播起来的队列。
      */
-    void adoptContinuation(io.github.huleixin.tingyu.playback.NativePlaylist.Track track, String uri,
+    boolean adoptContinuation(io.github.huleixin.tingyu.playback.NativePlaylist.Track track, String uri,
                            long requestId, long generation){
-        if(track==null||uri==null||uri.isEmpty())return;
-        if(!BackgroundContinuation.get().isCurrentRequest(requestId,track.songKey))return;
+        if(track==null||uri==null||uri.isEmpty())return false;
+        if(!BackgroundContinuation.get().isCurrentRequest(requestId,track.songKey))return false;
         if(desiredPaused||sourceId.isEmpty()){
             PlaybackDiagnostics.note("continuation-rejected",new JSObject()
                 .put("song",PlaybackDiagnostics.anonKey(track.songKey)).put("reason","paused-or-detached"));
-            return;
+            return false;
         }
         // 只在「这首歌真的被移出逻辑歌单」时作废。代次相等不是条件：一次普通同步就会
         // 让代次 +1，但它并不改变这首歌的地址；拿代次卡这里，等于把已经准备好的下一首
@@ -648,20 +648,20 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 .put("song",PlaybackDiagnostics.anonKey(track.songKey)).put("reason","dropped-from-playlist")
                 .put("generation",generation)
                 .put("generationNow",io.github.huleixin.tingyu.playback.NativePlaylist.get().generation()));
-            return;
+            return false;
         }
         if(queueContainsInternal(track.songKey)){
             // JS 终究还是答了（或者这首歌本来就在窗口里）：原生这份作废，不能出现两遍。
             PlaybackDiagnostics.note("continuation-rejected",new JSObject()
                 .put("song",PlaybackDiagnostics.anonKey(track.songKey)).put("reason","duplicate")
                 .put("requestId",requestId));
-            return;
+            return true;
         }
         Uri parsed=Uri.parse(uri);
-        if(!java.util.Arrays.asList("http","https").contains(parsed.getScheme())){
+        if(!PlaybackUriPolicy.supports(uri)){
             PlaybackDiagnostics.note("continuation-rejected",new JSObject()
                 .put("song",PlaybackDiagnostics.anonKey(track.songKey)).put("reason","bad-uri"));
-            return;
+            return false;
         }
         JSObject tag=new JSObject();
         tag.put("songKey",track.songKey);
@@ -691,6 +691,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         else if(remaining>QueueSupervision.LOW_WATER)supervision.satisfied();
         // 上一首不可播放、当时队列里又没有下一首：现在补上了，把那次欠着的跳转做完。
         if(skipPending)completePendingSkip(track.songKey);
+        return true;
     }
 
     // ---------------------------------------------------------------------------------
@@ -1133,8 +1134,8 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         return SystemClock.elapsedRealtime()-lastQueueAppliedAt;
     }
     @Override public boolean queueContains(String songKey){return queueContainsInternal(songKey);}
-    @Override public void adopt(NativePlaylist.Track track,String uri,long requestId,long generation){
-        adoptContinuation(track,uri,requestId,generation);
+    @Override public boolean adopt(NativePlaylist.Track track,String uri,long requestId,long generation){
+        return adoptContinuation(track,uri,requestId,generation);
     }
     @Override public void rearmSupervision(long delayMs){
         supervision.rearm(SystemClock.elapsedRealtime());
@@ -1286,7 +1287,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         if(entries!=null)for(int i=0;i<Math.min(1000,entries.length());i++){
             org.json.JSONObject raw=entries.optJSONObject(i);if(raw==null)break;
             Uri uri=Uri.parse(raw.optString("uri"));
-            if(!java.util.Arrays.asList("http","https","content","file").contains(uri.getScheme())||raw.optString("songKey").isEmpty()){rejected++;continue;}
+            if(!PlaybackUriPolicy.supports(raw.optString("uri"))||raw.optString("songKey").isEmpty()){rejected++;continue;}
             JSObject tag=copy(raw);
             // 队列窗口的 tag 只有 `coverUrl`。原生其余读封面的人（服务、歌曲信息调度器）
             // 两个名字都认，但把这份 tag 再读出来的人可能只认 `artwork` —— 这里补齐，

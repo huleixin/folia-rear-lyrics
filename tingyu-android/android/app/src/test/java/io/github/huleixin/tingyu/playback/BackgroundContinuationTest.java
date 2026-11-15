@@ -41,6 +41,8 @@ public class BackgroundContinuationTest {
         final List<Runnable> pendingMain = new ArrayList<>();
         int rearms;
         long lastRearmDelay;
+        int rejectedAdoptionsLeft;
+        boolean throwOnAdopt;
 
         void offerInitial(String... songKeys) {
             for (String key : songKeys) queue.add(key);
@@ -55,13 +57,16 @@ public class BackgroundContinuationTest {
             for (int i = cursor; i < queue.size(); i++) if (queue.get(i).equals(songKey)) return true;
             return false;
         }
-        @Override public void adopt(NativePlaylist.Track track, String uri, long requestId, long generation) {
+        @Override public boolean adopt(NativePlaylist.Track track, String uri, long requestId, long generation) {
+            if (throwOnAdopt) throw new IllegalStateException("simulated queue failure");
+            if (rejectedAdoptionsLeft > 0) { rejectedAdoptionsLeft--; return false; }
             adopted.add(track.songKey);
             queue.add(track.songKey);
             if (ended) {
                 ended = false;
                 cursor = queue.indexOf(track.songKey);
             }
+            return true;
         }
         @Override public void rearmSupervision(long delayMs) { rearms++; lastRearmDelay = delayMs; }
         @Override public void runOnMain(Runnable action) { if(deferMain)pendingMain.add(action);else action.run(); }
@@ -432,5 +437,60 @@ public class BackgroundContinuationTest {
             assertEquals("song-"+(total-1),engine.currentSongKey());
             tearDown();
         }
+    }
+
+    @Test public void aRejectedAdoptionRearmsAndOnlyCountsTheSuccessfulRetry() {
+        startBackgroundSession(6, 1); engine.drain(); engine.rejectedAdoptionsLeft = 1;
+        int before = continuation.takeoversForTest();
+        continuation.consider(engine, "drained");
+        assertTrue(engine.adopted.isEmpty());
+        assertTrue(engine.ended());
+        assertEquals(before, continuation.takeoversForTest());
+        assertEquals(5_000L, engine.lastRearmDelay);
+        continuation.consider(engine, "tick");
+        assertEquals(1, resolver.asked.size());
+        continuation.advanceClockForTest(10_000L);
+        continuation.consider(engine, "retry");
+        assertEquals("song-1", engine.lastAdopted());
+        assertFalse(engine.ended());
+        assertEquals(before + 1, continuation.takeoversForTest());
+        assertEquals(0, continuation.snapshot().optInt("budgetTracked"));
+    }
+
+    @Test public void repeatedAdoptionFailuresCannotResetTheBudgetOrRetryForever() {
+        startBackgroundSession(6, 1); engine.drain(); engine.rejectedAdoptionsLeft = 100;
+        int before = continuation.takeoversForTest();
+        for (int i = 0; i < 10; i++) {
+            continuation.consider(engine, "tick");
+            continuation.advanceClockForTest(120_000L);
+        }
+        assertEquals(3, resolver.asked.size());
+        assertEquals(2, engine.rearms);
+        assertEquals(1, continuation.snapshot().optInt("budgetBlocked"));
+        assertEquals(before, continuation.takeoversForTest());
+    }
+
+    @Test public void anEngineExceptionAlsoRearmsWithBackoff() {
+        startBackgroundSession(6, 1); engine.drain(); engine.throwOnAdopt = true;
+        continuation.consider(engine, "drained");
+        assertTrue(engine.adopted.isEmpty());
+        assertEquals(5_000L, engine.lastRearmDelay);
+        engine.throwOnAdopt = false;
+        continuation.advanceClockForTest(10_000L);
+        continuation.consider(engine, "retry");
+        assertFalse(engine.ended());
+    }
+
+    @Test public void aQueuedMainDeliveryIsNotResolvedAgainAndPauseStillCancelsIt() {
+        startBackgroundSession(6, 1); engine.drain(); engine.deferMain = true;
+        continuation.consider(engine, "drained");
+        assertTrue(continuation.isResolving());
+        continuation.consider(engine, "tick");
+        assertEquals(1, resolver.asked.size());
+        engine.paused = true;
+        for (Runnable action : engine.pendingMain) action.run();
+        assertFalse(continuation.isResolving());
+        assertTrue(engine.adopted.isEmpty());
+        assertEquals(0, engine.rearms);
     }
 }

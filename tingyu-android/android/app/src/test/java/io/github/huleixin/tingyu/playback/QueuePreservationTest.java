@@ -100,11 +100,12 @@ public class QueuePreservationTest {
             for (int i = cursor; i < queue.size(); i++) if (queue.get(i).equals(songKey)) return true;
             return false;
         }
-        @Override public void adopt(NativePlaylist.Track track, String uri, long requestId, long generation) {
+        @Override public boolean adopt(NativePlaylist.Track track, String uri, long requestId, long generation) {
             adopted.add(track.songKey);
             adoptedGenerations.add(generation);
             queue.add(track.songKey);
             if (ended) { ended = false; cursor = queue.indexOf(track.songKey); }
+            return true;
         }
         @Override public void rearmSupervision(long delayMs) { rearms++; }
         @Override public void runOnMain(Runnable action) { action.run(); }
