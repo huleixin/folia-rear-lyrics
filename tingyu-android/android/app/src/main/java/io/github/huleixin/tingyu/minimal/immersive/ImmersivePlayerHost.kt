@@ -140,7 +140,7 @@ internal fun ImmersivePlayerHost(
             var dragFraction by remember { mutableFloatStateOf(0f) }
             val scope = rememberCoroutineScope()
             var dragJob by remember { mutableStateOf<Job?>(null) }
-            DisposableEffect(outer, active) {
+            DisposableEffect(outer) {
                 onDispose { dragJob?.cancel(); outer?.drag = 0f }
             }
             val latestPage by rememberUpdatedState(page)
@@ -193,35 +193,46 @@ internal fun ImmersivePlayerHost(
             }
             SharedTransitionLayout(Modifier.fillMaxSize().then(if (!window.isLandscape) Modifier.nestedScroll(scroll) else Modifier).then(if (page == MeloXNowPlayingPage.Artwork && !window.isLandscape) grabber else Modifier)) {
                 val shared = this
-                Box(Modifier.fillMaxSize().immersivePlayerContainer(outer).background(Color.Black)
-                    .pointerInput(entering, closing.value) {
-                        // Block taps during shell entry/exit without canceling a live downward drag.
-                        if (entering || closing.value) awaitPointerEventScope {
-                            while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+                // Retained drawing survives interaction shutdown during exit.
+                val drawing = !preview && foreground && (active || closing.value)
+                val miniSurface = ChromeGlassPresets.active().surface(LocalInterfacePalette.current.light, ChromeGlassPresets.MiniFill)
+                var paletteReady by remember { mutableStateOf(false) }
+                val paletteVisibility by animateFloatAsState(if (paletteReady) 1f else 0f, tween(if (outer?.reduced == true) 0 else 220), label = "immersive-palette-ready")
+                CompositionLocalProvider(LocalMinimalCoverOverlay provides shared) {
+                    Box(Modifier.fillMaxSize().immersivePlayerContainer(outer)
+                        .graphicsLayer { alpha = outer?.shellAlpha() ?: 1f }
+                        .background(miniSurface)
+                        .pointerInput(entering, closing.value) {
+                            // Block taps during shell entry/exit without canceling a live downward drag.
+                            if (entering || closing.value) awaitPointerEventScope {
+                                while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+                            }
+                        }) {
+                        Box(Modifier.fillMaxSize().graphicsLayer {
+                            alpha = (outer?.materialFraction() ?: 1f) * paletteVisibility
+                        }.layerBackdrop(backdrop)) {
+                            MeloXFlowingLightBackdrop(state.artworkUrl, state.artworkBitmap, state.isPlaying && active,
+                                state.mediaId, Modifier.fillMaxSize(), onPaletteReady = { paletteReady = true })
                         }
-                    }) {
-                    Box(Modifier.fillMaxSize().layerBackdrop(backdrop)) {
-                        MeloXFlowingLightBackdrop(state.artworkUrl, state.artworkBitmap, state.isPlaying && active,
-                            state.mediaId, Modifier.fillMaxSize())
-                    }
-                    CompositionLocalProvider(LocalMeloXPlayerControlsEnabled provides
-                        (active && foreground && !preview && !shellTransitioning.value)) {
-                        Box(Modifier.fillMaxSize().immersiveSceneReveal(outer)) {
-                            MeloXIOSNowPlayingScene(state, page, sourcePage, onCollapse, ::select,
-                                onShowActions, onShowQuality, grabberDragModifier = grabber,
-                                lyricsActive = foreground && active && !shellTransitioning.value, residentLayersReady = ready,
-                                residentQueueLayersReady = queueReady, orientTransition = orient,
-                                columnCenterProgress = { center.value }, shellTransitioning = shellTransitioning,
-                                closingPlayer = closing, sharedTransitionScope = shared, preview = preview)
+                        CompositionLocalProvider(LocalMeloXPlayerControlsEnabled provides
+                            (active && foreground && !preview && !shellTransitioning.value)) {
+                            Box(Modifier.fillMaxSize().immersiveSceneReveal(outer)) {
+                                MeloXIOSNowPlayingScene(state, page, sourcePage, onCollapse, ::select,
+                                    onShowActions, onShowQuality, grabberDragModifier = grabber,
+                                    lyricsActive = foreground && active && !shellTransitioning.value, residentLayersReady = ready,
+                                    residentQueueLayersReady = queueReady, orientTransition = orient,
+                                    columnCenterProgress = { center.value }, shellTransitioning = shellTransitioning,
+                                    closingPlayer = closing, sharedTransitionScope = shared, preview = preview)
+                            }
                         }
                     }
+                    SharedArtworkDestination(state, page, { select(MeloXNowPlayingPage.Lyrics) }, expanded,
+                        gesturesEnabled = foreground && active && !shellTransitioning.value,
+                        orientTransition = orient, columnCenterProgress = { center.value },
+                        closingIntent = closing.value,
+                        movingArtwork = Modifier.onGloballyPositioned { anchor.artwork(it) }
+                            .immersiveMovingCover(anchor, drawing))
                 }
-                SharedArtworkDestination(state, page, { select(MeloXNowPlayingPage.Lyrics) }, expanded,
-                    gesturesEnabled = foreground && active && !shellTransitioning.value,
-                    orientTransition = orient, columnCenterProgress = { center.value },
-                    closingIntent = closing.value,
-                    movingArtwork = Modifier.onGloballyPositioned { anchor.artwork(it) }
-                        .immersiveMovingCover(anchor, active))
             }
         }
     }

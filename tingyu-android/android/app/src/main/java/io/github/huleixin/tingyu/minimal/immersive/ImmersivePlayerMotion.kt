@@ -28,6 +28,13 @@ internal class ImmersivePlayerMotion(val panel: Rect?, val cover: Rect?,
     }
     fun coverBounds(target: Rect): Rect = lerp(classic?.coverBounds(target) ?: target, cover ?: target, drag)
     fun miniAlpha() = classic?.miniAlpha() ?: ((1f - fraction()) * 5f - 3.5f).coerceIn(0f,1f)
+    fun shellAlpha() = if (reduced) 1f else classic?.shellAlpha() ?: fraction()
+    fun materialFraction(): Float {
+        if (reduced) return 1f
+        val p = ((fraction() - .03f) / .80f).coerceIn(0f, 1f)
+        return p * p * (3f - 2f * p)
+    }
+    fun coverAlpha() = if (reduced) 1f else classic?.coverAlpha() ?: 1f
     fun sceneAlpha() = classic?.sectionAlpha("controls") ?: fraction()
 
 }
@@ -60,6 +67,7 @@ internal fun Modifier.immersiveSceneReveal(motion: ImmersivePlayerMotion?) = gra
             transformOrigin = TransformOrigin(0f, 0f)
             scaleX = bounds.width / target.width; scaleY = bounds.height / target.height
             translationX = bounds.left - target.left; translationY = bounds.top - target.top
-        } else { scaleX = 1f; scaleY = 1f; translationX = 0f; translationY = 0f }
+            alpha = motion.coverAlpha()
+        } else { scaleX = 1f; scaleY = 1f; translationX = 0f; translationY = 0f; alpha = 1f }
     }
 }

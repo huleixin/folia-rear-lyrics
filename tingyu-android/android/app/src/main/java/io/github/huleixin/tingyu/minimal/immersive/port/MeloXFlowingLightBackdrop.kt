@@ -308,6 +308,7 @@ internal fun MeloXFlowingLightBackdrop(
      * the real transition instead of a fixed timer.
      */
     mixProgress: () -> Float = { 0f },
+    onPaletteReady: () -> Unit = {},
 ) {
     val isPlayingState = rememberUpdatedState(isPlaying)
     val context = LocalContext.current
@@ -412,11 +413,21 @@ internal fun MeloXFlowingLightBackdrop(
     // that write and crashed with "Can't call setPixels() on a recycled
     // bitmap". The two bitmaps are tiny (<= 48x110), so the GC reclaims them.
 
+    var paletteInitialized by remember { mutableStateOf(retained != null) }
+    val reportPaletteReady by rememberUpdatedState(onPaletteReady)
     LaunchedEffect(artworkBitmap, artworkUrl) {
         // Decode and fetch remain owned by Tingyu's existing artwork runtime.
-        targetPalette = withContext(Dispatchers.Default) {
+        val resolved = withContext(Dispatchers.Default) {
             artworkBitmap?.let(ArtworkDynamicPaletteProvider::makePalette) ?: ArtworkDynamicPalette.Fallback
         }
+        // First reveal starts with this song, not the renderer's default purple palette.
+        if (!paletteInitialized) {
+            currentColors.indices.forEach { currentColors[it] = resolved.cells.getOrElse(it) { resolved.average } }
+            currentAverage[0] = resolved.average
+            paletteInitialized = true
+        }
+        targetPalette = resolved
+        reportPaletteReady()
     }
 
     LaunchedEffect(isPlaying, artworkUrl, mediaId, renderingQuality, backgroundFrameRate, meshBitmaps, targetPalette, appInForeground, gpuShader) {
@@ -478,6 +489,7 @@ internal fun MeloXFlowingLightBackdrop(
             awaitCancellation()
         }
         var lastRenderNanos = 0L
+        var renderedPausedFrame = false
         while (true) {
             val frameNanos = withFrameNanos { it }
             if (!MeloXAppVisibility.isForeground) continue
@@ -541,7 +553,10 @@ internal fun MeloXFlowingLightBackdrop(
             // the author's original intent for "follow the music", but it also
             // forced a full palette+mesh rebuild on every reopen. Motion still
             // stops here; only the destructive part is gone.
-            if (mediaId != null && !sample.isPlaying) continue
+            if (mediaId != null && !sample.isPlaying) {
+                if (renderedPausedFrame) continue
+                renderedPausedFrame = true
+            }
             // Shape follows the music only when a real beat analysis exists.
             // Otherwise the mesh drifts at a constant speed instead of tracking
             // the synthetic playback clock, so its brightness never pulses.
