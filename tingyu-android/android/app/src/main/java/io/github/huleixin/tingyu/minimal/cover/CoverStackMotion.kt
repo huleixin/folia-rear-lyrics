@@ -49,6 +49,52 @@ class Tween(
     }
 }
 
+/** Cubic Hermite settle: the first derivative is the measured release velocity (px/s). */
+class ReleaseTween(
+    private val from: Float,
+    private val to: Float,
+    private val velocity: Float,
+    val duration: Float,
+) {
+    private var elapsed = 0f
+    val done: Boolean get() = elapsed >= duration
+
+    fun step(dt: Float): Float {
+        elapsed += dt.coerceAtLeast(0f)
+        val t = (elapsed / duration.coerceAtLeast(1f)).coerceIn(0f, 1f)
+        val t2 = t * t
+        val t3 = t2 * t
+        return from + (to - from) * (3f * t2 - 2f * t3) +
+            velocity * duration / 1000f * (t3 - 2f * t2 + t)
+    }
+}
+
+/** Visible canvas in coordinates relative to the untransformed cover's top-left. */
+data class CoverViewport(val left: Float, val top: Float, val right: Float, val bottom: Float) {
+    fun outside(x: Float, y: Float, width: Float, margin: Float): Boolean =
+        x + width + margin <= left || x - margin >= right ||
+            y + width + margin <= top || y - margin >= bottom
+}
+
+/** Continue the release ray until the entire cover, rotated corners, shadow and trail clear the canvas. */
+fun coverExitTarget(
+    fromX: Float, fromY: Float, velocityX: Float, velocityY: Float,
+    width: Float, viewport: CoverViewport, margin: Float, durationMs: Float, inertia: Float,
+): Pair<Float, Float> {
+    val speed = hypot(velocityX, velocityY)
+    val ux = if (speed > 1f) velocityX / speed else -1f
+    val uy = if (speed > 1f) velocityY / speed else 0f
+    var distance = Float.POSITIVE_INFINITY
+    if (ux < -0.0001f) distance = min(distance, (viewport.left - width - margin - fromX) / ux)
+    if (ux > 0.0001f) distance = min(distance, (viewport.right + margin - fromX) / ux)
+    if (uy < -0.0001f) distance = min(distance, (viewport.top - width - margin - fromY) / uy)
+    if (uy > 0.0001f) distance = min(distance, (viewport.bottom + margin - fromY) / uy)
+    // At least v*T/3 keeps the Hermite path monotonic even for a very fast/deep fling.
+    // Adding distance to the release point also prevents pulling an already exited card back in.
+    distance = maxOf(distance.coerceAtLeast(0f) + 1f, speed * durationMs / 3000f) * inertia.coerceAtLeast(1f)
+    return fromX + ux * distance to fromY + uy * distance
+}
+
 /** 一个弹簧标量。半隐式欧拉，固定 4 个子步 —— 帧率高低不影响手感。 */
 class Spring(var value: Float, var velocity: Float = 0f) {
     fun step(target: Float, dt: Float, stiffness: Float = 340f, dampingRatio: Float = 0.9f) {

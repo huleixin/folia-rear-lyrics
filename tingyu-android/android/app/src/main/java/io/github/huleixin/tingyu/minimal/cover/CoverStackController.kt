@@ -133,6 +133,7 @@ class CoverStackController(
      */
     fun skip(direction: DragDirection): Boolean {
         if (state.phase != StackPhase.IDLE) return true
+        if (waitingForPlayback()) return true
         if (!canGo(direction)) return false
         val list = transitionCards(direction, window)
         if (list.size < 2) return false
@@ -169,8 +170,8 @@ class CoverStackController(
         if (direction == DragDirection.NEXT) window.canGoNext else window.canGoPrev
 
     /** 方向锁定：立刻换成过渡卡片表（否则 edge 没有作用对象，封面不会跟手）。 */
-    fun onGestureLocked(direction: DragDirection, blocked: Boolean) {
-        if (state.phase == StackPhase.COMMIT) return
+    fun onGestureLocked(direction: DragDirection, blocked: Boolean): Boolean {
+        if (state.phase != StackPhase.IDLE || waitingForPlayback()) return false
         restBeforeDrag = state.cards
         if (blocked) {
             // 这一头没有歌：只让最上面那张推一下再弹回来
@@ -183,10 +184,16 @@ class CoverStackController(
                 ),
             )
             state.applyCards(nudge)
-            return
+            return true
         }
         state.applyCards(transitionCards(direction, window))
+        return true
     }
+
+    // A completed preview still awaits a real queue: rebuilding from the old window would
+    // replace the new cover with the one that just left, then issue the same skip again.
+    private fun waitingForPlayback(): Boolean = pending != null &&
+        state.cards.firstOrNull()?.songKey != window.current?.songKey
 
     /**
      * 松手确认：从松手时的位置与速度继续，不回到起点。
@@ -199,6 +206,7 @@ class CoverStackController(
         velocityY: Float,
     ): Boolean {
         if (state.phase == StackPhase.COMMIT) return false
+        if (state.phase == StackPhase.IDLE && waitingForPlayback()) return false
         val requestId = ++requestCounter
         SkipTxLog.gestureRelease(requestId, direction, window.current?.songKey ?: "")
         val sent = if (direction == DragDirection.NEXT) sendNext(requestId) else sendPrevious(requestId)

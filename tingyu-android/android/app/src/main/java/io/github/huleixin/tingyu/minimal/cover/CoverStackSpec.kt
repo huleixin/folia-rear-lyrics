@@ -4,7 +4,7 @@ package io.github.huleixin.tingyu.minimal.cover
 //
 // 相册堆叠的全部可调参数与静止姿态。
 //
-// 数值来自已验收的 Demo（`src/dev/coverStack/params.ts` + `geometry.ts`），一个都没有重新设计：
+// 静止姿态沿用已验收的 Demo（`src/dev/coverStack/params.ts` + `geometry.ts`）；拖动补位与收尾时长按原生手势调整：
 // 后两层几乎与当前封面同尺寸，靠 ±4° 的反向微旋和轻微错位露出连续边缘，不是"缩小后在下边留一条缝"。
 // 只有平面内 rotateZ，没有 perspective，没有绕 X/Y 轴翻转。
 //
@@ -47,10 +47,10 @@ data class CoverStackSpec(
     val flingMinDistance: Float = 0.1f,
     /** 松手惯性：离场距离倍率。 */
     val inertia: Float = 1f,
-    /** 下一首离场时长 ms；上一首 = ×1.2。 */
-    val exitDurationMs: Float = 200f,
-    /** 补位推进总时长 ms（拖动越深，剩余越短）。 */
-    val promoteDurationMs: Float = 500f,
+    /** 离场基础时长 ms；实际收尾结合剩余进度和松手速度调整。 */
+    val exitDurationMs: Float = 280f,
+    /** 补位基础时长 ms，与离场共用终点时间。 */
+    val promoteDurationMs: Float = 280f,
     /** 拖动时顶层封面的最大倾角，0 = 完全不倾斜（默认关）。 */
     val dragTilt: Float = 0f,
     // ---- 运动残影 ----
@@ -59,7 +59,7 @@ data class CoverStackSpec(
 ) {
     companion object {
         /** 拖动时后方封面最多补位到这个比例，剩下的交给松手后的动画。 */
-        const val DRAG_PROGRESS_LIMIT = 0.34f
+        const val DRAG_PROGRESS_LIMIT = 0.90f
 
         /** 手势识别阈值，dp。 */
         const val GESTURE_SLOP_DP = 8f

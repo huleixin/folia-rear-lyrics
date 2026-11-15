@@ -35,6 +35,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -43,6 +44,8 @@ import androidx.compose.ui.semantics.semantics
 import io.github.huleixin.tingyu.chrome.minimalMovingCover
 import io.github.huleixin.tingyu.chrome.minimalSection
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.layout.positionInRoot
 import io.github.huleixin.tingyu.chrome.LocalPlayerArtworkAnchor
 import io.github.huleixin.tingyu.chrome.chromeClickable
 import androidx.compose.ui.Modifier
@@ -161,7 +164,12 @@ fun MinimalCoverPage(
                 .padding(start = HORIZONTAL_PADDING, end = HORIZONTAL_PADDING, top = clampDp(12f, vh.value * 0.024f, 22f), bottom = 2.dp),
             verticalArrangement = Arrangement.Bottom,
         ) {
-            Box(Modifier.size(stageWidth).then(if(splitPlayer)Modifier.align(Alignment.CenterHorizontally)else Modifier).onGloballyPositioned { anchor.artwork(it) }
+            Box(Modifier.size(stageWidth).then(if(splitPlayer)Modifier.align(Alignment.CenterHorizontally)else Modifier).onGloballyPositioned {
+                anchor.artwork(it)
+                val origin = it.positionInRoot()
+                val root = it.findRootCoordinates().size
+                stack.setViewport(-origin.x, -origin.y, root.width - origin.x, root.height - origin.y)
+            }
                 .zIndex(if (stack.phase != StackPhase.IDLE) 1f else 0f)) {
             MinimalArtworkView(
                 artwork = artwork,
@@ -173,7 +181,7 @@ fun MinimalCoverPage(
                 covers = covers,
                 gesture = coverGesture,
                 modifier = Modifier
-                    .fillMaxSize().minimalMovingCover(anchor,active)
+                    .fillMaxSize().minimalMovingCover(anchor,active) { stack.phase != StackPhase.IDLE }
                     // 拖动 / 切歌动画期间把整摞封面提到本页文字之上：只有正在移动的那一张
                     // 会越出封面区域（后两层不越界，视觉上就是"拿起最上面这张盖住文字"），
                     // 松手回弹 / 补位完成（phase 回 IDLE）后立即恢复原层级。zIndex 只改
@@ -198,29 +206,32 @@ fun MinimalCoverPage(
             // 音频还没真正开始出声（未确认/缓冲中）时补一枚"正在准备"角标：
             // 界面如实反映准备状态，不把没出声的歌画成正在播。
             val topCard = stack.cards.firstOrNull()
-            val previewing = skipTransaction.stage == SkipStage.ANIMATION_DONE &&
-                topCard != null &&
-                topCard.songKey == skipTransaction.expectedSongKey &&
-                topCard.songKey != playback.track.key
+            // Start the single metadata settle on release, alongside the cover (not after it).
+            // Use songKey on both preview and confirmation; card.key has an occurrence suffix.
+            val visualCard = stack.committedCard ?: topCard?.takeIf {
+                skipTransaction.stage == SkipStage.ANIMATION_DONE &&
+                    it.songKey == skipTransaction.expectedSongKey
+            }
+            val previewing = visualCard != null && visualCard.songKey != playback.track.key
             val displayMeta = SongMeta(
-                key = if (previewing && topCard != null) topCard.key else playback.track.key,
-                title = if (previewing && topCard != null) topCard.title else playback.track.title,
-                artist = if (previewing && topCard != null) topCard.artist else playback.track.artist,
+                key = if (previewing) visualCard.songKey else playback.track.key,
+                title = if (previewing) visualCard.title else playback.track.title,
+                artist = if (previewing) visualCard.artist else playback.track.artist,
             )
             val showPreparing = previewing || (playback.buffering && !playback.playing)
 
-            SongMetaSwap(displayMeta, vh, ink, titleSize, onOpenArtist)
+            SongMetaSwap(displayMeta, vh, ink, titleSize, still, if (previewing) ({ _: Int -> }) else onOpenArtist)
 
             Spacer(Modifier.height(clampDp(6f, vh.value * 0.009f, 8f)))
             Row(Modifier.fillMaxWidth().height(28.dp), verticalAlignment = Alignment.CenterVertically) {
                 // 全局音质标签：只按**真实播放音质**显示（Media3 所选音轨的源 Format 优先，
                 // 兼容通道按 URL 容器兜底）。没有可靠信息就整个隐藏 —— 正式播放页绝不
                 // 回退到旧版半透明金色 QualityChip：那套外观可能把未知音质渲染成金色，造成误导。
-                QualityLevel.fromWire(state.controls.qualityLevel)?.let { level ->
+                if (!previewing) QualityLevel.fromWire(state.controls.qualityLevel)?.let { level ->
                     MinimalQualityBadge(level, QualityBadgeSize.FULL, labelOverride = state.controls.qualityLabelOverride.ifBlank { null })
                 }
                 // Catalog versions are provider facts, kept visually separate from current-stream quality.
-                state.controls.catalogVersions.split(',').filter { it.isNotBlank() }.take(2).forEach { version ->
+                if (!previewing) state.controls.catalogVersions.split(',').filter { it.isNotBlank() }.take(2).forEach { version ->
                     Spacer(Modifier.width(5.dp))
                     MinimalCatalogVersionBadge(version.trim(), ink)
                 }
@@ -243,7 +254,7 @@ fun MinimalCoverPage(
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
-                    PlayingWave(playing = playback.playing && active, still = still, ink = ink)
+                    PlayingWave(playing = playback.playing && active && !previewing, still = still, ink = ink)
                 }
             }
 
@@ -260,7 +271,7 @@ fun MinimalCoverPage(
                 active = active,
                 // 未确认的切歌期间不显示歌词预览：它是旧歌的行，和新标题放在一起
                 // 就是"歌名、歌词各说各话"。确认后新歌词到位，预览自然回来。
-                suppressed = previewing,
+                suppressed = previewing || state.lyrics.songKey != playback.track.key,
                 onOpenLyrics = onOpenLyrics,
             )
             }
@@ -279,7 +290,7 @@ private data class SongMeta(val key: String, val title: String, val artist: Stri
  * 新旧标题在淡出的两百多毫秒里肉眼可见地叠在一起；而且它只认 playback.track，
  * 封面已确认换歌时文字还在等旧状态。
  *
- * 现在单一内容槽 + alpha 先降后升（110ms 出 / 150ms 入，与原 260ms 同节奏）：
+ * 现在单一内容槽 + alpha 先降后升（最多 90ms 出 / 130ms 入，与封面收尾同时开始）：
  * 同一帧永远只有一份文案，永远不会交叠；切歌瞬间与封面事务协同（见调用处）。
  * 同一首歌内的文案修正（元数据补齐）不触发淡切，直接落。
  */
@@ -289,26 +300,30 @@ private fun SongMetaSwap(
     vh: androidx.compose.ui.unit.Dp,
     ink: MinimalInk,
     titleSize: androidx.compose.ui.unit.TextUnit,
+    still: Boolean,
     onOpenArtist: (Int) -> Unit,
 ) {
     var shown by remember { mutableStateOf(meta) }
+    val latestMeta by rememberUpdatedState(meta)
     val alpha = remember { Animatable(1f) }
+    LaunchedEffect(meta.key, still) {
+        if (still) {
+            shown = latestMeta
+            alpha.snapTo(1f)
+        } else if (meta.key != shown.key) {
+            // Interrupted changes continue from their current alpha instead of flashing to 1.
+            alpha.animateTo(0f, tween((90f * alpha.value).toInt().coerceAtLeast(1), easing = LinearEasing))
+            shown = latestMeta
+            alpha.animateTo(1f, tween(130, easing = LinearEasing))
+        } else {
+            alpha.animateTo(1f, tween(130, easing = LinearEasing))
+        }
+    }
     LaunchedEffect(meta) {
-        if (meta == shown) return@LaunchedEffect
         if (meta.key == shown.key) {
             // 同一首歌：只是文案被补齐/修正，直接换，不闪。
             shown = meta
-            return@LaunchedEffect
         }
-        if (alpha.value < 1f) {
-            // 上一次淡切还没完又来一次（快速连切）：直接落到最新身份，不排队。
-            shown = meta
-            alpha.snapTo(1f)
-            return@LaunchedEffect
-        }
-        alpha.animateTo(0f, tween(110, easing = LinearEasing))
-        shown = meta
-        alpha.animateTo(1f, tween(150, easing = LinearEasing))
     }
     Column(
         Modifier

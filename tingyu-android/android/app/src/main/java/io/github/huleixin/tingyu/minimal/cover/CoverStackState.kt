@@ -59,6 +59,19 @@ class CoverStackState(spec: CoverStackSpec = CoverStackSpec()) {
     var phase by mutableStateOf(StackPhase.IDLE)
         private set
 
+    var commitDirection by mutableStateOf<DragDirection?>(null)
+        private set
+
+    /** Metadata starts its settle with the cover; confirmation keeps the same song identity. */
+    val committedCard: CoverCard? get() = if (phase == StackPhase.COMMIT) {
+        cards.getOrNull(if (commitDirection == DragDirection.NEXT) 1 else 0)
+    } else null
+
+    private var viewport: CoverViewport? = null
+    fun setViewport(left: Float, top: Float, right: Float, bottom: Float) {
+        if (right > left && bottom > top) viewport = CoverViewport(left, top, right, bottom)
+    }
+
     var cards by mutableStateOf<List<CoverCard>>(emptyList())
         private set
 
@@ -91,9 +104,9 @@ class CoverStackState(spec: CoverStackSpec = CoverStackSpec()) {
     private var lastEdgeX = 0f
     private var lastEdgeY = 0f
 
-    private var tweenP: Tween? = null
-    private var tweenX: Tween? = null
-    private var tweenY: Tween? = null
+    private var tweenP: ReleaseTween? = null
+    private var tweenX: ReleaseTween? = null
+    private var tweenY: ReleaseTween? = null
     private var springP: Spring? = null
     private var springX: Spring? = null
     private var springY: Spring? = null
@@ -129,6 +142,8 @@ class CoverStackState(spec: CoverStackSpec = CoverStackSpec()) {
     // ---- 拖动（指针直接写入，1:1）----
 
     fun drag(nextEdgeX: Float, nextEdgeY: Float, nextProgress: Float) {
+        // An unadmitted second pointer sequence must never steal an in-flight commit.
+        if (phase == StackPhase.COMMIT) return
         if (phase != StackPhase.DRAG) {
             phase = StackPhase.DRAG
             tweenP = null
@@ -171,13 +186,25 @@ class CoverStackState(spec: CoverStackSpec = CoverStackSpec()) {
         edgeX = fromX
         edgeY = fromY
         phase = StackPhase.COMMIT
+        commitDirection = direction
         leaving = direction == DragDirection.NEXT
-        val (targetX, targetY) = exitTarget(direction, velocityX, velocityY, width, spec.inertia)
-        val duration = if (direction == DragDirection.NEXT) spec.exitDurationMs else spec.exitDurationMs * 1.2f
         val remain = 1f - fromProgress
-        tweenP = Tween(fromProgress, 1f, spec.promoteDurationMs * (0.35f + 0.65f * remain))
-        tweenX = Tween(fromX, targetX, duration)
-        tweenY = Tween(fromY, targetY, duration)
+        val speedRatio = (hypot(velocityX, velocityY) / width.coerceAtLeast(1f)).coerceAtMost(5f)
+        val duration = (maxOf(spec.exitDurationMs, spec.promoteDurationMs) +
+            40f * remain - 16f * speedRatio).coerceIn(220f, 320f)
+        val (targetX, targetY) = if (leaving) coverExitTarget(
+            fromX, fromY, velocityX, velocityY, width,
+            viewport ?: CoverViewport(0f, 0f, width, width),
+            width * 0.26f + maxOf(64f, 12f * pxPerDp), duration, spec.inertia,
+        ) else 0f to 0f
+        val progressVelocity = if (fromProgress < CoverStackSpec.DRAG_PROGRESS_LIMIT) {
+            val signed = if (leaving) -velocityX else velocityX
+            (signed / (width * CoverStackSpec.DRAG_SPAN_RATIO).coerceAtLeast(1f) *
+                CoverStackSpec.DRAG_PROGRESS_LIMIT).coerceIn(0f, 3f * remain * 1000f / duration)
+        } else 0f
+        tweenP = ReleaseTween(fromProgress, 1f, progressVelocity, duration)
+        tweenX = ReleaseTween(fromX, targetX, velocityX, duration)
+        tweenY = ReleaseTween(fromY, targetY, velocityY, duration)
         lastEdgeX = fromX
         lastEdgeY = fromY
     }
@@ -204,6 +231,7 @@ class CoverStackState(spec: CoverStackSpec = CoverStackSpec()) {
 
     /** 回到静止：卡片表由调用方给定，progress / edge 归零（与提交结束时的位置精确重合）。 */
     fun rest(nextCards: List<CoverCard>) {
+        commitDirection = null
         cards = nextCards
         progress = 0f
         edgeX = 0f
@@ -225,6 +253,7 @@ class CoverStackState(spec: CoverStackSpec = CoverStackSpec()) {
 
     /** 直接掐断动画（页面切换、队列被外部改写）：不跑回调，落回静止。 */
     fun cancel() {
+        commitDirection = null
         tweenP = null
         tweenX = null
         tweenY = null
@@ -256,7 +285,7 @@ class CoverStackState(spec: CoverStackSpec = CoverStackSpec()) {
                     progress = 1f
                     phase = StackPhase.IDLE
                     onCommitDone?.invoke()
-                    return false
+                    return animating
                 }
                 return true
             }
@@ -279,7 +308,7 @@ class CoverStackState(spec: CoverStackSpec = CoverStackSpec()) {
                     trailAlpha = 0f
                     phase = StackPhase.IDLE
                     onSpringDone?.invoke()
-                    return false
+                    return animating
                 }
                 return true
             }

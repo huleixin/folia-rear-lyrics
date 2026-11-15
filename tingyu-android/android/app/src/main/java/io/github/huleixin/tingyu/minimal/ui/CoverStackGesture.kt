@@ -80,10 +80,19 @@ private suspend fun PointerInputScope.dragOnce(
                 if (event.changes.size > 1) break
                 if (max(abs(dx), abs(dy)) < slop) continue
                 if (abs(dx) < abs(dy) * CoverStackSpec.AXIS_RATIO) break
-                locked = true
                 direction = if (dx < 0f) DragDirection.NEXT else DragDirection.PREV
                 blocked = !controller.canGo(direction)
-                controller.onGestureLocked(direction, blocked)
+                if (!controller.onGestureLocked(direction, blocked)) {
+                    // Retain ownership of this rejected sequence, without touching the current
+                    // animation or accidentally handing a fast second swipe to the page pager.
+                    change.consume()
+                    do {
+                        val ignored = awaitPointerEvent(PointerEventPass.Main)
+                        ignored.changes.forEach { it.consume() }
+                    } while (ignored.changes.any { it.pressed })
+                    return@awaitEachGesture
+                }
+                locked = true
             }
 
             if (event.changes.size > 1) {

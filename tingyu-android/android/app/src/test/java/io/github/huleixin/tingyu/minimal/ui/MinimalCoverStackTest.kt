@@ -326,6 +326,37 @@ class MinimalCoverStackTest {
     }
 
     @Test
+    fun movingCoverRemainsVisibleBeyondThePagerBoundary() {
+        start()
+        val bounds = cover().fetchSemanticsNode().boundsInRoot
+        cover().performTouchInput {
+            down(center)
+            moveTo(center + Offset(-50f, 0f), delayMillis = 60)
+        }
+        // Move the admitted cover into the header, outside the pager viewport.
+        // The real layer must still be visible there until it exits the root canvas.
+        compose.runOnIdle { stack.drag(-bounds.width * 0.65f, -bounds.top + 40f, 0.9f) }
+        compose.mainClock.advanceTimeByFrame()
+        compose.runOnIdle {
+            val view = compose.activity.window.decorView
+            val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+            view.draw(AndroidCanvas(bitmap))
+            var redPixels = 0
+            for (y in 50 until 110) for (x in 20 until view.width / 3) {
+                val color = bitmap.getPixel(x, y)
+                if (((color ushr 16) and 255) > 180 && ((color ushr 8) and 255) < 130 && (color and 255) < 130) redPixels++
+            }
+            bitmap.recycle()
+            assertTrue("The outgoing cover was clipped at the pager boundary", redPixels > 1000)
+        }
+        shoot("11-cover-beyond-pager")
+        cover().performTouchInput { cancel() }
+        compose.mainClock.advanceTimeBy(800)
+        assertEquals(emptyList<String>(), calls)
+        assertEquals(0, page)
+    }
+
+    @Test
     fun aSlowDragStaysSharpAndAFastFlingGrowsTrail() {
         start()
         // 慢拖：每帧 3px ≈ 180px/s

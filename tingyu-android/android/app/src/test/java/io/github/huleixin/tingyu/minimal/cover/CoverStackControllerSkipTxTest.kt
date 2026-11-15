@@ -146,6 +146,28 @@ class CoverStackControllerSkipTxTest {
     }
 
     @Test
+    fun rapidGestureCannotResetExitingCover() {
+        assertTrue(controller.onGestureLocked(DragDirection.NEXT, false))
+        state.drag(-100f, -30f, 0.6f)
+        assertTrue(controller.onGestureCommit(DragDirection.NEXT, -1600f, -200f))
+        state.step(16f)
+        val cards = state.cards
+        val x = state.edgeX
+        assertFalse(controller.onGestureLocked(DragDirection.NEXT, false))
+        assertEquals(cards, state.cards)
+        assertEquals(x, state.edgeX, 0.001f)
+        assertEquals(StackPhase.COMMIT, state.phase)
+        finishAnimation()
+        assertEquals("b", state.cards.first().songKey)
+        // Do not rebuild from a stale queue while playback has yet to confirm the preview.
+        assertFalse(controller.onGestureLocked(DragDirection.NEXT, false))
+        assertTrue(controller.skip(DragDirection.NEXT))
+        assertEquals(1, sentCommands.size)
+        controller.sync(playbackOf("b"), queue)
+        assertTrue(controller.onGestureLocked(DragDirection.NEXT, false))
+    }
+
+    @Test
     fun `requestId 随命令单调递增`() {
         assertTrue(controller.onGestureCommit(DragDirection.NEXT, 0f, 0f))
         finishAnimation()

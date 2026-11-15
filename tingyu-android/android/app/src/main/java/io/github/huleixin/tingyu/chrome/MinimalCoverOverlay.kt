@@ -16,13 +16,13 @@ private val LocalMinimalCoverOverlay = staticCompositionLocalOf<SharedTransition
         CompositionLocalProvider(LocalMinimalCoverOverlay provides this) { content() }
     }
 }
-@Composable internal fun Modifier.minimalMovingCover(anchor: PlayerArtworkAnchor, active: Boolean): Modifier {
-    val motion=LocalMinimalMorph.current ?: return this
+@Composable internal fun Modifier.minimalMovingCover(anchor: PlayerArtworkAnchor, active: Boolean, moving: () -> Boolean = { false }): Modifier {
+    val motion=LocalMinimalMorph.current
     val overlay=LocalMinimalCoverOverlay.current ?: return this
-    val elevated=with(overlay) { renderInSharedTransitionScopeOverlay(zIndexInOverlay=5f,renderInOverlay={motion.active() && active}) }
+    val elevated=with(overlay) { renderInSharedTransitionScopeOverlay(zIndexInOverlay=5f,renderInOverlay={active && (motion?.active() == true || moving())}) }
     return elevated.graphicsLayer {
         val target=anchor.bounds
-        if(motion.active() && active && target!=null && target.width>0 && target.height>0) {
+        if(motion != null && motion.active() && active && target!=null && target.width>0 && target.height>0) {
             val bounds=motion.coverBounds(target)
             transformOrigin=TransformOrigin(0f,0f)
             scaleX=bounds.width/target.width;scaleY=bounds.height/target.height
