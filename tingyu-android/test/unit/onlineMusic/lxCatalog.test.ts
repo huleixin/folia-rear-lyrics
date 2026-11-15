@@ -49,11 +49,11 @@ describe('LX catalog platform adapters',()=>{
         const previous=useLxSourceStore.getState();
         const script={id:'test',name:'test',code:'',version:'1',description:'',author:'',homepage:'',capabilities:{kw:{name:'Kuwo',qualitys:['128k']},mg:{name:'Migu',qualitys:['flac']}}} as LxScript;
         const registered=new Map<string,OnlineMusicProvider>();
-        useLxSourceStore.setState({scripts:[script],activeId:'test',revision:1});
+        useLxSourceStore.setState({extensionEnabled:true,scripts:[script],activeId:'test',revision:1});
         const unsubscribe=installLxProviders(provider=>registered.set(provider.id,provider),id=>registered.delete(id),()=>null);
         try {
             expect([...registered.keys()]).toEqual(['lx-kw','lx-mg']);
-            useLxSourceStore.setState({activeId:null,revision:2});expect(registered.size).toBe(0);
+            useLxSourceStore.setState({extensionEnabled:true,activeId:null,revision:2});expect(registered.size).toBe(0);
         } finally {unsubscribe();useLxSourceStore.setState(previous);}
     });
 });

@@ -17,7 +17,7 @@ it('uses one matching platform from the same script after QQ fails without mutat
     const alternate={...original,sourceRef:{kind:'online',providerId:'lx-kw',mediaId:'456593448'}} as SongResult;
     mock.match.mockResolvedValueOnce(original).mockResolvedValueOnce(alternate);
     mock.request.mockRejectedValueOnce(Error('QQ音乐暂时无法获取')).mockResolvedValueOnce('https://audio.example/song.mp3');
-    useLxSourceStore.setState({revision:70,scripts:[{id:'test',name:'test',code:'',version:'1',description:'',author:'',homepage:'',capabilities:{}}],activeId:'test'});
+    useLxSourceStore.setState({extensionEnabled:true,revision:70,scripts:[{id:'test',name:'test',code:'',version:'1',description:'',author:'',homepage:'',capabilities:{}}],activeId:'test'});
     const before=structuredClone(original),result=await resolveLxSource(original,'standard');
     expect(result?.url).toBe('https://audio.example/song.mp3');
     expect(mock.request.mock.calls.map(([request])=>[request.source,request.info.musicInfo.songmid])).toEqual([['tx','qq-mid'],['kw','456593448']]);
@@ -25,15 +25,15 @@ it('uses one matching platform from the same script after QQ fails without mutat
 });
 it('does not try another platform or return an old result after a source change',async()=>{
     vi.useFakeTimers();const song={id:1,name:'Song',artists:[],album:{id:1,name:''},durationMs:236000,sourceRef:{kind:'online',providerId:'qq',mediaId:'1'}} as SongResult;
-    mock.match.mockResolvedValue(song);mock.request.mockImplementationOnce(async()=>{useLxSourceStore.setState({revision:72});throw Error('old source failed')});
-    useLxSourceStore.setState({revision:71,scripts:[{id:'test',name:'test',code:'',version:'1',description:'',author:'',homepage:'',capabilities:{}}],activeId:'test'});
+    mock.match.mockResolvedValue(song);mock.request.mockImplementationOnce(async()=>{useLxSourceStore.setState({extensionEnabled:true,revision:72});throw Error('old source failed')});
+    useLxSourceStore.setState({extensionEnabled:true,revision:71,scripts:[{id:'test',name:'test',code:'',version:'1',description:'',author:'',homepage:'',capabilities:{}}],activeId:'test'});
     await expect(resolveLxSource(song,'standard')).rejects.toMatchObject({name:'AbortError'});expect(mock.request).toHaveBeenCalledTimes(1);
 });
 it('does not retire a worker while another playback or prefetch call is still resolving',async()=>{
     vi.useFakeTimers();const song={id:1,name:'Song',artists:[],album:{id:1,name:''},durationMs:236000,sourceRef:{kind:'online',providerId:'qq',mediaId:'1'}} as SongResult;
     let finish!:(url:string)=>void;
     mock.match.mockResolvedValue(song);mock.request.mockImplementationOnce(()=>new Promise<string>(resolve=>{finish=resolve})).mockResolvedValueOnce('https://audio.example/next.mp3');
-    useLxSourceStore.setState({revision:73,scripts:[{id:'test',name:'test',code:'',version:'1',description:'',author:'',homepage:'',capabilities:{}}],activeId:'test'});
+    useLxSourceStore.setState({extensionEnabled:true,revision:73,scripts:[{id:'test',name:'test',code:'',version:'1',description:'',author:'',homepage:'',capabilities:{}}],activeId:'test'});
     const current=resolveLxSource(song,'standard');await vi.waitFor(()=>expect(mock.request).toHaveBeenCalledOnce());
     await resolveLxSource(song,'standard');mock.stop.mockClear();
     await vi.advanceTimersByTimeAsync(31000);expect(mock.stop).not.toHaveBeenCalled();

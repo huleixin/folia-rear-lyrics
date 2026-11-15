@@ -1,3 +1,4 @@
+import { selectedLxScript } from './lxSource/selection';
 import { getAudioCacheRoute, getPersistentAudioKey } from './onlineMusic/resourceKeys';
 import { recoveryReady, keepLiveQueue } from './playbackRecoverySnapshot';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
@@ -113,7 +114,7 @@ const artworkOf = (song: SongResult): string => {
  */
 const selectedSourceId = (providerId: string): string => {
     if (!providerId) return '';
-    const state=useLxSourceStore.getState(),script=state.scripts.find(s=>s.id===state.activeId);
+    const state=useLxSourceStore.getState(),script=selectedLxScript();
     if (!script||Object.keys(script.capabilities).every(key=>key==='local')) return `${providerId}-original`;
     if(providerId.startsWith('lx-'))return 'lx:'+providerId.slice(3);
     if(state.policy.routing==='original-first')return providerId+'-original-lx-fallback';

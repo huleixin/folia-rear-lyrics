@@ -14,6 +14,7 @@ export async function withLxRuntime<T>(
     script?: LxScript,
 ): Promise<T | null> {
     const state = useLxSourceStore.getState();
+    if (!state.extensionEnabled) return null;
     script ??= state.scripts.find(s => s.id === state.activeId);
     if (!script) return null;
     let session = sessions.get(script.id);

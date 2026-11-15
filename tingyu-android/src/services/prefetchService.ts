@@ -1,3 +1,4 @@
+import { selectedLxScript } from './lxSource/selection';
 import { useLxSourceStore } from '../stores/useLxSourceStore';
 /**
  * Song Prefetch Service
@@ -183,7 +184,7 @@ export const resolvePrefetchAudioUrl = async (
     const sourceRef = getPlaybackSourceRef(song);
     const providerId = sourceRef.kind === 'online' ? sourceRef.providerId : undefined;
     try {
-        const audioExists = !useLxSourceStore.getState().activeId && await hasCachedSongAudio(song);
+        const audioExists = !selectedLxScript() && await hasCachedSongAudio(song);
         if (signal.aborted) return null;
         if (audioExists) {
             console.log(`[Prefetch] Audio already cached for: ${song.name}`);

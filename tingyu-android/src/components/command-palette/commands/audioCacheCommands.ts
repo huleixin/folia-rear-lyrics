@@ -1,7 +1,6 @@
 import { Download } from 'lucide-react';
 import { isCapacitorAndroid } from '../../../platform/runtime';
 import { useSettingsModalStore } from '../../../stores/useSettingsModalStore';
-import { useLxSourceStore } from '../../../stores/useLxSourceStore';
 import { defineCommand } from '../commandFactories';
 
 // Cache actions open the native storage controls so consent and deletion confirmation remain visible.
@@ -17,6 +16,4 @@ export const audioCacheCommands = [
         id: id as string, title: title as string, description: description as string, keywords: keywords as string[],
         group: 'settings', icon: Download, isAvailable: isCapacitorAndroid, execute: storage,
     })),
-    defineCommand({ id: 'lx-routing', group: 'settings', title: 'LX playback priority', description: 'Choose original-platform first or custom-source first', keywords: ['原音源优先', '洛雪兜底'], execute: () => { useLxSourceStore.getState().show(); return true; } }),
-    defineCommand({ id: 'lx-backup-scripts', group: 'settings', title: 'LX backup scripts', description: 'Enable and order backup scripts', keywords: ['备用脚本', '多音源', '脚本顺序'], execute: () => { useLxSourceStore.getState().show(); return true; } }),
 ];

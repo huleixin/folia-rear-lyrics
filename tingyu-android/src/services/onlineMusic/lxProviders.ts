@@ -35,7 +35,7 @@ export function createLxProvider(platform: string, getOriginal: (id:string) => O
             async getAudioSource(song,quality) {
                 const {resolveLxSource} = await import('../lxSource/playback');
                 const source = await resolveLxSource(song,quality);
-                if (!source) throw Error('请先启用支持该平台的洛雪自定义源');
+                if (!source) throw Error('该歌曲的播放来源暂不可用');
                 return source;
             },
         },

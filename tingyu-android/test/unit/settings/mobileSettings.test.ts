@@ -142,14 +142,15 @@ describe('truthful rear-display settings', () => {
 });
 
 describe('mobile options navigation and existing controls', () => {
-    it('shows only the primary title and close action, then section back/help actions', () => {
-        const onClose = vi.fn(), onBack = vi.fn(), onHelp = vi.fn();
-        act(() => root.render(h(MobileSettingsHeader, { primary: true, title: '选项', onClose, onBack, onHelp })));
+    it('shows only the primary title and close action, then only section back action', () => {
+        const onClose = vi.fn(), onBack = vi.fn();
+        act(() => root.render(h(MobileSettingsHeader, { primary: true, title: '选项', onClose, onBack })));
         expect(host.querySelectorAll('button')).toHaveLength(1); expect(host.querySelector('h1')?.textContent).toBe('选项');
         act(() => host.querySelector('button')!.click()); expect(onClose).toHaveBeenCalledOnce();
-        act(() => root.render(h(MobileSettingsHeader, { primary: false, title: '视觉设置', onClose, onBack, onHelp })));
+        act(() => root.render(h(MobileSettingsHeader, { primary: false, title: '视觉设置', onClose, onBack })));
         act(() => host.querySelector<HTMLButtonElement>('[aria-label="返回"]')!.click()); expect(onBack).toHaveBeenCalledOnce();
-        act(() => host.querySelector<HTMLButtonElement>('[aria-label="使用说明"]')!.click()); expect(onHelp).toHaveBeenCalledOnce();
+        expect(host.querySelector('[aria-label="使用说明"]')).toBeNull();
+        expect(host.querySelectorAll('button')).toHaveLength(1);
         expect(host.textContent).not.toContain('全部设置');
     });
     it('keeps every existing mobile section, opens guide/help, restores the home scroll offset', async () => {

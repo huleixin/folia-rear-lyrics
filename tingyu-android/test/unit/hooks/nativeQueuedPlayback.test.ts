@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { expect,it,vi } from 'vitest';
 import { useNativeQueuedPlayback } from '@/hooks/useNativeQueuedPlayback';
 import { usePlaybackStore } from '@/stores/usePlaybackStore';
+import { useLxSourceStore } from '@/stores/useLxSourceStore';
 import { useAudioSettingsStore } from '@/stores/useAudioSettingsStore';
 
 // test/unit/hooks/nativeQueuedPlayback.test.ts
@@ -26,6 +27,10 @@ it('hands resolved upcoming tracks to native before EOF and adopts a background 
         await act(async()=>{root.render(h(Probe));});
         expect(bridge.stage.mock.calls.at(-1)![1].map((t:any)=>t.uri)).toEqual(['https://test.example/2.mp3','https://test.example/3.mp3','https://test.example/4.mp3']);
         const key=bridge.stage.mock.calls.at(-1)![1][0].songKey;
+        bridge.stage.mockClear();
+        await act(async()=>{useLxSourceStore.setState(state=>({revision:state.revision+1,extensionEnabled:false}));});
+        expect(bridge.stage.mock.calls.some(call=>call[1].length===0&&(call as unknown as [unknown,unknown,{invalidateResolved?:boolean}])[2]?.invalidateResolved===true)).toBe(true);
+
         window.dispatchEvent(new CustomEvent('tingyu-native-queue-track',{detail:{songKey:key,uri:'https://test.example/2.mp3',position:17,paused:false}}));
         expect(play).toHaveBeenCalledWith(queue[1],queue,false,{shouldNavigateToPlayer:false,nativeHandoff:{uri:'https://test.example/2.mp3',position:17,playing:true}});
     }finally{await act(()=>root.unmount());usePlaybackStore.setState(old);useAudioSettingsStore.setState(settings)}

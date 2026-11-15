@@ -145,46 +145,13 @@ describe('nativeMinimalTools', () => {
         expect(h.lyrics.onLyricTimelineOffsetChange).toHaveBeenLastCalledWith(-60000);
     });
 
-    it('activating an lx script goes through omni, removing an active one restores first', () => {
-        useLxSourceStore.setState({
-            scripts: [{ id: 'a', name: 'A', code: 'x' } as never],
-            activeId: 'a',
-        });
-        const activate = vi.spyOn(omni, 'activateLxSource').mockImplementation(() => undefined);
+    it.each(['lxImport','lxManage','lxRemove','lxSelect','lxActivate','lxToggleRouting','lxToggleScriptFallback','lxToggleBackup','lxBackupEarlier','lxTest'])('rejects retired source shortcut %s without changing configuration',action=>{
         registerNativeTools(handlers());
-        expect(runNativeToolsAction('lxRemove', 0)).toBe(true);
-        expect(activate).toHaveBeenCalledWith(null); // 删除使用中的音源先恢复原音源
-        expect(useLxSourceStore.getState().scripts).toHaveLength(0);
-        activate.mockRestore();
+        const before=useLxSourceStore.getState();
+        expect(runNativeToolsAction(action,0)).toBe(false);
+        expect(useLxSourceStore.getState()).toBe(before);
     });
-    it('routes native source selection and policy switches through the existing LX store', () => {
-        useLxSourceStore.setState({
-            scripts: [{ id: 'a', name: 'A', code: 'x' } as never, { id: 'b', name: 'B', code: 'y' } as never],
-            activeId: 'a', policy: { routing:'lx-first',scriptFallback:false,scriptOrder:[], autoDowngrade: true, autoSwitch: true, retries: 0, priority: ['kw', 'tx'], preferredSource: null },
-        });
-        registerNativeTools(handlers());
-        expect(runNativeToolsAction('lxSelect', 1)).toBe(true);
-        expect(runNativeToolsAction('lxToggleDowngrade', 0)).toBe(true);
-        expect(useLxSourceStore.getState().policy.autoDowngrade).toBe(false);
-        expect(runNativeToolsAction('lxToggleSwitch', 0)).toBe(true);
-        expect(useLxSourceStore.getState().policy.autoSwitch).toBe(false);
+    it('rejects the retired source tool page',()=>{
+        registerNativeTools(handlers());expect(runNativeToolsAction('toolsOpen',4)).toBe(false);
     });
-    it('only enables explicitly picked backup scripts and preserves their chosen order', () => {
-        useLxSourceStore.setState({scripts:['a','b','c'].map(id=>({id,name:id,code:id,capabilities:{}} as never)),activeId:'a',policy:{routing:'lx-first',scriptFallback:false,scriptOrder:[],autoDowngrade:true,autoSwitch:true,retries:0,priority:['kw','tx'],preferredSource:null}});
-        registerNativeTools(handlers());
-        expect(runNativeToolsAction('lxToggleRouting',0)).toBe(true);
-        expect(useLxSourceStore.getState().policy.routing).toBe('original-first');
-        expect(runNativeToolsAction('lxToggleScriptFallback',0)).toBe(true);
-        expect(useLxSourceStore.getState().policy.scriptFallback).toBe(true);
-        expect(runNativeToolsAction('lxToggleBackup',0)).toBe(false);
-        expect(runNativeToolsAction('lxToggleBackup',1)).toBe(true);
-        expect(runNativeToolsAction('lxToggleBackup',2)).toBe(true);
-        expect(useLxSourceStore.getState().policy.scriptOrder).toEqual(['b','c']);
-        expect(runNativeToolsAction('lxBackupEarlier',2)).toBe(true);
-        expect(useLxSourceStore.getState().policy.scriptOrder).toEqual(['c','b']);
-        expect(runNativeToolsAction('lxToggleBackup',1)).toBe(true);
-        expect(useLxSourceStore.getState().policy.scriptOrder).toEqual(['c']);
-        expect(runNativeToolsAction('lxToggleBackup',9)).toBe(false);
-    });
-
 });

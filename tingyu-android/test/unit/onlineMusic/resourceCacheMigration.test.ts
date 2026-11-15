@@ -36,7 +36,7 @@ const legacyNeteaseSong: SongResult = {
 describe('provider-aware resource cache migration', () => {
     beforeEach(() => vi.clearAllMocks());
     it('reads only the selected LX script and requested quality, never legacy/platform/sibling source bytes',async()=>{
-        const saved=useLxSourceStore.getState();useLxSourceStore.setState({activeId:'script-a'});
+        const saved=useLxSourceStore.getState();useLxSourceStore.setState({extensionEnabled:true,scripts:[{id:'script-a',name:'Fixture',code:'script-a',version:'1',author:'',homepage:'',description:'',capabilities:{}}],activeId:'script-a'});
         vi.mocked(getCachedAudioBlob).mockImplementation(async key=>key==='audio_42'||key==='audio_online:netease:42'?new Blob(['wrong']):null);
         try{
             const selectedKey=getSongResourceCacheKey('audio',legacyNeteaseSong,'lossless');

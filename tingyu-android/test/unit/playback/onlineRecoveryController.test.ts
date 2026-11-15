@@ -1,3 +1,4 @@
+import { useLxSourceStore } from '@/stores/useLxSourceStore';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const probeMock = vi.hoisted(() => vi.fn(async () => undefined));
@@ -398,4 +399,15 @@ describe('online playback recovery results', () => {
         expect(setAudioSrcMock).toHaveBeenCalledWith(streamUrl('lossless'));
     });
 
+});
+
+
+it('discards an in-flight recovery after source extension state changes',async()=>{
+    vi.clearAllMocks();
+    const pending=pendingLoad();loadAudioSourceMock.mockReturnValueOnce(pending.promise);
+    const {controller}=createController(streamUrl('old'));
+    const task=controller.recoverOnlinePlaybackSource({force:true,autoplay:true});
+    useLxSourceStore.setState(state=>({revision:state.revision+1,extensionEnabled:false}));
+    pending.finish({kind:'ok',audioSrc:streamUrl('disabled')});
+    expect(await task).toEqual({status:'stale'});expect(setAudioSrcMock).not.toHaveBeenCalled();
 });

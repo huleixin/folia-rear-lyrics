@@ -26,7 +26,7 @@ export type NativeQueueTrack={songKey:string;uri:string;title:string;artist:stri
  * `continues` is kept for older native builds and is derived from `verdict`.
  * `generation` lets a late window be recognised as late.
  */
-export type NativeQueueWindow={anchor:string;continues:boolean;generation:number;verdict?:'continues'|'finished'|'unknown'};
+export type NativeQueueWindow={anchor:string;continues:boolean;generation:number;invalidateResolved?:boolean;verdict?:'continues'|'finished'|'unknown'};
 export type NativeAudioPort={
     probe():Promise<{supported:boolean;engine:string}>;
     command(value:Record<string,unknown>):Promise<{accepted:boolean}>;

@@ -1,3 +1,4 @@
+import { selectedLxScript } from './lxSource/selection';
 import { getAudioCacheRoute } from './onlineMusic/resourceKeys';
 import { enabledLxScripts } from './lxSource/selection';
 import { useLxSourceStore } from '../stores/useLxSourceStore';
@@ -37,8 +38,8 @@ let lastSync: { at: number; installed: boolean | null; error: string | null } =
 export const readLxNativeSyncState = () => ({ ...lastSync });
 
 export const syncLxScriptToNative = (): Promise<void> => {
-    const {scripts,activeId,policy}=useLxSourceStore.getState();
-    const active=scripts.find(script=>script.id===activeId)??null;
+    const {policy}=useLxSourceStore.getState();
+    const active=selectedLxScript();
     const payload={cacheRoute:getAudioCacheRoute(),id:active?.id??'',name:active?.name??'',version:active?.version??'',description:active?.description??'',author:active?.author??'',homepage:active?.homepage??'',code:active?.code??'',policy:JSON.stringify(policy),fallbackScripts:enabledLxScripts().slice(1).map(({previous,capabilities,importUrl,...script})=>script)};
     const signature=JSON.stringify(payload);
     if(signature===queuedSignature)return syncQueue;

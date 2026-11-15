@@ -14,7 +14,7 @@ const saved = useLxSourceStore.getState(), accounts = useOnlineProviderAccountSt
 afterEach(() => { useLxSourceStore.setState(saved); useOnlineProviderAccountStore.setState(accounts); vi.clearAllMocks(); });
 it.each(['qq', 'netease', 'kugou'])('keeps %s playlist/account identity while using the selected script for playback', async provider => {
     const script = { id: 'playlist-test',name:'test',version:'1',description:'',author:'',homepage:'', code: '', capabilities: { tx: { name: 'QQ', qualitys: ['128k'] } } } as LxScript;
-    useLxSourceStore.setState({ scripts: [script], activeId: null });
+    useLxSourceStore.setState({extensionEnabled:true, scripts: [script], activeId: null });
     useOnlineProviderAccountStore.getState().setActiveProviderId(provider);
     omni.activateLxSource(script.id);
     expect(useOnlineProviderAccountStore.getState().activeProviderId).toBe(provider);

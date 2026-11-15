@@ -15,6 +15,7 @@ import {
 } from '../../../utils/appPlaybackGuards';
 import { setAudioSrc, setCurrentSong, setPlayQueue, usePlaybackStore } from '../../../stores/usePlaybackStore';
 
+import { useLxSourceStore } from '../../../stores/useLxSourceStore';
 import { probeAudioSource } from '../../../services/probeAudioSource';
 
 // src/components/app/playback/createOnlineRecoveryController.ts
@@ -130,6 +131,7 @@ export const createOnlineRecoveryController = ({
         // 成功时把进度拉回第一次出错的位置。所以按「歌曲 key + 播放代次」去重：代次变了就新开任务，不接手旧任务
         // （否则重播自己的出错会拿到旧任务的 stale 而被吞掉），旧任务的结果也按陈旧处理。
         const generation = playbackGenerationRef.current;
+        const sourceRevision = useLxSourceStore.getState().revision;
         const baseKey = `${songKey}#${generation}`;
         const pendingMap = onlinePlaybackRecoveryRef.current;
         let failed = failedSources.get(pendingMap);
@@ -151,7 +153,7 @@ export const createOnlineRecoveryController = ({
         }
         if (qualityOverride) explicitQualityEpoch.set(pendingMap, (explicitQualityEpoch.get(pendingMap) ?? 0) + 1);
         const qualityEpoch = explicitQualityEpoch.get(pendingMap) ?? 0;
-        const isCurrent = () => playbackGenerationRef.current === generation && currentSongRef.current === songKey && (explicitQualityEpoch.get(pendingMap) ?? 0) === qualityEpoch;
+        const isCurrent = () => useLxSourceStore.getState().revision === sourceRevision && playbackGenerationRef.current === generation && currentSongRef.current === songKey && (explicitQualityEpoch.get(pendingMap) ?? 0) === qualityEpoch;
 
         const providerId = getOnlineProviderIdForSong(song) ?? undefined;
         const recoveryTask = (async (): Promise<OnlineRecoveryResult> => {

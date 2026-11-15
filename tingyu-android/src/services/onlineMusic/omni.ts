@@ -617,7 +617,7 @@ export const omni = {
         const isCurrent = () => useLxSourceStore.getState().revision === revision && (options.isCurrent?.() ?? true);
         // Custom scripts retain their own routing/auto-switch policy.
         const lx = useLxSourceStore.getState();
-        const customSource = !!lx.activeId && lx.policy.routing !== 'original-first';
+        const customSource = lx.extensionEnabled && !!lx.activeId && lx.policy.routing !== 'original-first';
         let originalError: unknown;
         try {
             const source = options.skipPrimary && !customSource ? null : await this.getPrimaryAudioSource(song, quality);
@@ -627,7 +627,7 @@ export const omni = {
             if (customSource || (error as Error)?.name === 'AbortError') throw error;
             originalError = error;
         }
-        if (lx.activeId && lx.policy.routing === 'original-first' && canUseLxFallback(originalError)) {
+        if (lx.extensionEnabled && lx.activeId && lx.policy.routing === 'original-first' && canUseLxFallback(originalError)) {
             const { resolveLxSource } = await import('../lxSource/playback');
             const rescue = await resolveLxSource(song, quality);
             if (!isCurrent()) throw new DOMException('Playback changed', 'AbortError');
@@ -647,7 +647,7 @@ export const omni = {
     async getPrimaryAudioSource(song: SongResult, quality: AudioQualityPreference): Promise<OmniAudioSource | null> {
         const bind = captureAudioSourceBinding(song, quality);
         const lxState = useLxSourceStore.getState();
-        if (lxState.activeId && lxState.policy.routing !== 'original-first') {
+        if (lxState.extensionEnabled && lxState.activeId && lxState.policy.routing !== 'original-first') {
             const { resolveLxSource } = await import('../lxSource/playback');
             const lxSource = await resolveLxSource(song, quality);
             if (lxSource) return bind(lxSource);

@@ -8,6 +8,7 @@ const QualityDialog = lazy(() => import('./QualityDialog'));
 const LxSourceDialog = lazy(() => import('./LxSourceDialog'));
 import { useLxSourceStore } from '../../stores/useLxSourceStore';
 import './audioTools.css';
+import LxRiskDialog from './LxRiskDialog';
 
 // src/components/audio-tools/AudioToolsHost.tsx
 export default function AudioToolsHost({ theme, isDaylight: stageDaylight }: { theme: Theme; isDaylight: boolean }) {
@@ -15,5 +16,5 @@ export default function AudioToolsHost({ theme, isDaylight: stageDaylight }: { t
     const eq = useAudioSettingsStore(state => state.isAudioEqualizerOpen);
     const quality = useAudioToolsStore(state => state.open);
     const lx = useLxSourceStore(state => state.open);
-    return <Suspense fallback={null}>{eq && <AudioEqualizerDialog theme={theme} isDaylight={isDaylight}/>}{quality && <QualityDialog isDaylight={isDaylight}/>}{lx && <LxSourceDialog isDaylight={isDaylight}/>}</Suspense>;
+    return <><Suspense fallback={null}>{eq && <AudioEqualizerDialog theme={theme} isDaylight={isDaylight}/>}{quality && <QualityDialog isDaylight={isDaylight}/>}{lx && <LxSourceDialog isDaylight={isDaylight}/>}</Suspense><LxRiskDialog isDaylight={isDaylight}/></>;
 }

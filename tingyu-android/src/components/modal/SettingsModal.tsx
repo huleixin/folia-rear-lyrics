@@ -1481,7 +1481,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     title={activeTab === 'help' ? t('mobileSettings.about') : mobileSettingsIndex ? t('ui.options') : mobileRearGuide ? t('mobileSettings.startupGuide') : activeSettingsNavItem?.label ?? ''}
                     onClose={onClose}
                     onBack={() => { if(NATIVE_FIRST&&activeTab==='help'&&initialTab==='help')returnFromMobileSection();else if (activeTab === 'help') setActiveTab('options'); else if(NATIVE_FIRST)returnFromMobileSection();else { setMobileRearGuide(false); setMobileSettingsIndex(true); } }}
-                    onHelp={activeTab === 'options' && !mobileSettingsIndex ? () => setActiveTab('help') : undefined}
                 /> : <div className="relative shrink-0 z-10 mb-6 select-none" data-settings-style='{"margin":[0,0,0,24]}' data-settings-layout="column">
                     <div data-folia-settings-tabs="true" className="flex items-center gap-6" data-settings-style='{"align":"center","gap":24}' data-settings-layout="row">
                         <button

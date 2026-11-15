@@ -178,7 +178,7 @@ export function attachNativeAudioElement(element:HTMLAudioElement,port:NativeAud
         continues:queueWindow?.continues??true,
         // Native only ends a session on an explicit `finished`; `unknown` keeps it waiting.
         verdict:queueWindow?.verdict??(queueWindow?.continues===false?'finished':'continues'),
-        generation:queueWindow?.generation??0})});
+        generation:queueWindow?.generation??0,invalidateResolved:queueWindow?.invalidateResolved===true})});
     /**
      * Becoming visible again is a new delivery epoch for track announcements.
      *

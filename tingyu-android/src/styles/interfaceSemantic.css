@@ -26,3 +26,9 @@ html[data-interface-palette='semantic'] .ty-rear-choices button[aria-pressed='tr
 html[data-interface-palette='semantic'] .ty-settings-switch {background:var(--if-disabled);}
 html[data-interface-palette='semantic'] .ty-settings-switch[aria-checked='true'] {background:var(--if-accent);}
 html[data-interface-palette='semantic'] .ty-settings-switch::after {background:var(--if-onAccent);}
+
+/* Source extensions use the same semantic palette as their settings host. */
+html[data-interface-palette='semantic'] .ty-lx-manager {
+ --lx-ink:var(--if-ink);--lx-muted:var(--if-muted);--lx-accent:var(--if-accent);
+ --lx-card:var(--if-sheet);--lx-border:var(--ui-line);
+}

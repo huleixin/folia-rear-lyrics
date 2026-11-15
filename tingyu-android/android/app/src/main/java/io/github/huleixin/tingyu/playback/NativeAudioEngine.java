@@ -1320,6 +1320,12 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             main.postDelayed(superviseTick,1_500L);
             return new JSObject().put("accepted",false).put("reason","stale-anchor");
         }
+        // Explicit source revocation differs from an unresolved empty window.
+        // It is accepted only after the generation and current-anchor checks above.
+        if(value.optBoolean("invalidateResolved",false)){
+            int afterCurrent=player.getCurrentMediaItemIndex()+1;
+            if(afterCurrent<player.getMediaItemCount())player.removeMediaItems(afterCurrent,player.getMediaItemCount());
+        }
         if(generation>=0)supervision.continuation(verdict,generation);
         else supervision.continuation(verdict,supervision.generation());
         lastVerdict=verdict.name().toLowerCase(java.util.Locale.US);

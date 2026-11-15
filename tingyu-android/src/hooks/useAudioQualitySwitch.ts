@@ -11,10 +11,18 @@ import { diagnosticEvent } from '../services/diagnostics/diagnosticLog';
 // src/hooks/useAudioQualitySwitch.ts
 export function useAudioQualitySwitch(recover: (options: OnlineRecoveryOptions) => Promise<OnlineRecoveryResult>) {
     useEffect(()=>useLxSourceStore.subscribe((next,previous)=>{
-        const signature=(state:typeof next)=>{const script=state.scripts.find(item=>item.id===state.activeId);return [state.activeId,script?.code,JSON.stringify(state.policy)] as const};
+        const signature=(state:typeof next)=>{const script=state.extensionEnabled?state.scripts.find(item=>item.id===state.activeId):undefined;return [script?.id,script?.code,JSON.stringify(state.policy)] as const};
         const before=signature(previous),after=signature(next);
         if(before[0]===after[0]&&before[1]===after[1]&&before[2]===after[2])return;
         if(usePlaybackStore.getState().currentSong?.sourceRef?.kind!=='online')return;
+        if(previous.extensionEnabled&&!next.extensionEnabled){
+            // Revoke resolved URLs too, so Play cannot resume a disabled source.
+            document.querySelectorAll('audio').forEach(audio=>audio.pause());
+            usePlaybackStore.getState().setPlayerState(PlayerState.PAUSED);
+            usePlaybackStore.getState().setAudioSrc(null);
+            useAudioToolsStore.setState({request:null,switching:false,error:''});
+            return;
+        }
         useAudioToolsStore.setState({request:{quality:useAudioSettingsStore.getState().audioQuality,id:Date.now(),reason:'source'},error:''});
     }),[]);
     const request = useAudioToolsStore(state => state.request);

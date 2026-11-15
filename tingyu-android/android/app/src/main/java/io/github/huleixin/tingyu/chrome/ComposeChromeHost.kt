@@ -131,7 +131,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
             1 -> openNativeTools("quality")
             2 -> openNativeTools("effects")
             3 -> openNativeTools("lyrics")
-            4 -> openNativeTools("lx")
+            4 -> Unit // Third-party sources are managed only in experimental settings.
         }
     }
 
@@ -290,6 +290,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         availability = { active },
     )
     fun openNativeTools(page: String) {
+        if (page == "lx") return
         sleepMenuOpen=false
         if (toolsPage == page) return
         // 一次只叠一个工具页；从音质进效果器/洛雪是替换，不是叠加。
@@ -1390,10 +1391,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             onClose={closeNativeTools()},
                             onOpenQueue={closeNativeTools();openNativeQueue()},
                         )
-                        "lx"->io.github.huleixin.tingyu.minimal.ui.MinimalLxSheet(
-                            tools=toolsState,light=interfaceLight,actions=toolActions,
-                            onClose={closeNativeTools()},
-                        )
+
                     }
                 }
             }

@@ -14,11 +14,12 @@ afterEach(() => { document.body.innerHTML = ''; vi.unstubAllGlobals(); });
 it('selects and persists both priorities through native semantic action rows', async () => {
     vi.stubGlobal('PointerEvent', MouseEvent);
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    useLxSourceStore.setState({extensionEnabled:true});
     useLxSourceStore.getState().setPolicy({ routing: 'lx-first' });
     const host = document.createElement('div'); document.body.append(host);
     const root = createRoot(host);
     await act(async () => root.render(createElement(LxManagerControls, {
-        busy: false, selected: null, onInstall: async () => {}, onError: vi.fn(), onBusyChange: vi.fn(), onSelect: vi.fn(),
+        busy: false, selected: null, onInstall: async () => false, onError: vi.fn(), onBusyChange: vi.fn(), onSelect: vi.fn(),
     })));
     try {
         for (const [label, routing] of [['原平台优先', 'original-first'], ['优先使用自定义音源', 'lx-first']]) {

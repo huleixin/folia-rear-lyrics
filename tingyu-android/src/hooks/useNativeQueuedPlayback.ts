@@ -51,7 +51,8 @@ export function useNativeQueuedPlayback(
     const quality = useAudioSettingsStore(s => s.audioQuality);
     const loop = useAudioSettingsStore(s => s.loopMode);
     const shuffle = useAudioSettingsStore(s => s.shuffleEnabled);
-    const lx = useLxSourceStore(s => s.activeId);
+    const lx = useLxSourceStore(s => s.revision);
+    const queueSourceRevision = useRef(lx);
     const latest = useRef({ play, queue, fm });
     latest.current = { play, queue, fm };
 
@@ -104,22 +105,28 @@ export function useNativeQueuedPlayback(
         if (!enabled || !element || !song || !source || context !== 'main') return;
         const abort = new AbortController();
         const key = getPlaybackSongKey(song);
+        const sourceRevision = useLxSourceStore.getState().revision;
         const valid = () => !abort.signal.aborted
+            && useLxSourceStore.getState().revision === sourceRevision
             && usePlaybackStore.getState().currentSong != null
             && getPlaybackSongKey(usePlaybackStore.getState().currentSong!) === key;
         const send = async (
             tracks: Parameters<typeof setNativeAudioQueue>[1],
             verdict: NativeQueueVerdict,
+            invalidateResolved = false,
         ) => {
             if (valid()) {
                 await setNativeAudioQueue(element, tracks.slice(), {
                     anchor: key,
+                    invalidateResolved,
                     continues: verdict !== 'finished',
                     verdict,
                     generation: nextNativeQueueGeneration(),
                 });
             }
         };
+        // Remove already resolved successors before replacing a source route.
+        if(queueSourceRevision.current!==lx){queueSourceRevision.current=lx;void send([], 'unknown', true);}
         let retryTimer: ReturnType<typeof setTimeout> | null = null;
         let retries = 0;
         // Reads live store state so a retry heals against the queue as it is now, not as it was

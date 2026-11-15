@@ -4,10 +4,12 @@ import ThemedDialog from '../shared/ThemedDialog';
 import { useLxSourceStore } from '../../stores/useLxSourceStore';
 import { type LxScript } from '../../services/lxSource/contract';
 import { omni } from '../../services/onlineMusic/omni';
-import { checkLxScript, loadLxScriptUrl } from '../../services/lxSource/management';
+import { checkLxScript } from '../../services/lxSource/management';
 import { noteLx, redactLx } from '../../services/lxSource/diagnostics';
 import LxManagerControls, { lxPlatformLabel } from './LxManagerControls';
 import { pickLxScript } from '../../services/lxSource/importFile';
+import { createPortal } from 'react-dom';
+import { installLxSource } from '../../services/lxSource/installation';
 import { useSettingsModalStore } from '../../stores/useSettingsModalStore';
 
 // src/components/audio-tools/LxSourceDialog.tsx
@@ -16,7 +18,6 @@ export default function LxSourceDialog({ isDaylight }: { isDaylight: boolean }) 
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState('');
     const [failed, setFailed] = useState(false);
-    const [update, setUpdate] = useState<Omit<LxScript,'capabilities'> | null>(null);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     // 设置路由被其它方式关闭时，这里打开的弹窗不能留下来挂在首页上（68600）。
     // 导入/验证进行中（busy）保持不动：那是弹窗自己的操作面，等它跑完再收。
@@ -37,39 +38,30 @@ export default function LxSourceDialog({ isDaylight }: { isDaylight: boolean }) 
     }, [busy, state.close]);
     const active = state.scripts.find(script => script.id === state.activeId);
     const selected = state.scripts.find(script => script.id === (selectedId ?? state.activeId)) ?? state.scripts[0] ?? null;
-    useEffect(() => { const back = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); if (!busy) state.close(); } }; window.addEventListener('keydown', back); return () => window.removeEventListener('keydown', back); }, [busy, state.close]);
-    const test = async (script: Omit<LxScript, 'capabilities'>, save: boolean, activate = true) => {
+    const test = async (script: LxScript) => {
         setBusy(true); setFailed(false); setMessage('正在检查音源…');
         try {
             const {capabilities,updateAlert}=await checkLxScript(script);
-            if(save){const id=state.save({...script,capabilities});if(activate)omni.activateLxSource(id);}
             setMessage(`初始化成功：${Object.values(capabilities).map(c=>`${c.name} (${c.qualitys.join(' / ')||c.actions?.join(' / ')})`).join('、')}。实际取流请播放对应平台的歌曲验证。${updateAlert?` 更新提示：${updateAlert.log}`:''}`);
         }catch(error){noteLx('import','import',error);setFailed(true);setMessage(redactLx(error));}
         finally{setBusy(false);}
-    };
-    const checkUpdate=async(script:LxScript)=>{
-        if(!script.importUrl)return;
-        setBusy(true);setFailed(false);setUpdate(null);
-        try{const candidate=await loadLxScriptUrl(script.importUrl);if(candidate.name!==script.name)throw Error('更新脚本名称不一致，请使用普通导入');
-            if(candidate.code===script.code){setMessage('当前已是此地址提供的版本');return;}
-            await checkLxScript(candidate);setUpdate({...candidate,id:script.id});setMessage(`可更新：${script.version||'未知版本'} → ${candidate.version||'未知版本'}。安装后保留上一版，可回退。`);
-        }catch(error){noteLx('update','import',error);setFailed(true);setMessage(redactLx(error));}finally{setBusy(false);}
     };
     const importFile = async () => {
         if (busy) return;
         setBusy(true); setFailed(false); setMessage('请选择 .js 音源文件…');
         try {
-            const script = await pickLxScript();
-            if (script) await test(script, true); else setMessage('已取消选择');
+            const result = await installLxSource(pickLxScript);
+            setMessage(result?'音源已导入并启用':'已取消导入');
         } catch (error) { setFailed(true); setMessage(redactLx(error));noteLx('import','import',error); }
         finally { setBusy(false); }
     };
-    return <ThemedDialog isOpen onClose={state.close} closeDisabled={busy} isDaylight={isDaylight} title="洛雪自定义音源" panelKind="audio-tools" description="导入自定义脚本，为搜索和已登录平台的歌单选择播放音源。">
+    if(!state.extensionEnabled)return null;
+    return createPortal(<ThemedDialog isOpen onClose={state.close} closeDisabled={busy} isDaylight={isDaylight} title="第三方音源管理" panelKind="audio-tools" description="管理已开启的第三方音源扩展。">
         <div className="ty-lx-manager" data-settings-layout="column" data-settings-style='{"gap":12,"font":12}' data-light={isDaylight || undefined}>
             <button type="button" className="ty-lx-import" data-settings-layout="row" data-settings-style='{"gap":12,"align":"center","padding":[14,12,14,12],"radius":14,"border":true,"fill":true,"tone":"accent","minHeight":60}' disabled={busy} onClick={() => void importFile()}>
                 <Upload size={19}/><span data-settings-layout="column" data-settings-style='{"grow":true,"gap":3}'><strong data-settings-layout="column" data-settings-style='{"font":13,"weight":600}'>{busy ? '正在处理…' : '导入并启用音源'}</strong><small data-settings-layout="column" data-settings-style='{"font":11,"tone":"muted"}'>.js 文件 · 最大 1 MB</small></span>
             </button>
-            <LxManagerControls busy={busy} onBusyChange={setBusy} onInstall={(script,activate)=>test(script,true,activate)} onError={text=>{setFailed(true);setMessage(text);}} selected={selected} onSelect={script=>setSelectedId(script.id)}/>
+            <LxManagerControls busy={busy} onBusyChange={setBusy} onInstall={async(load,activate)=>!!(await installLxSource(load,activate))} onError={text=>{setFailed(true);setMessage(text);}} selected={selected} onSelect={script=>setSelectedId(script.id)}/>
             <div className="ty-lx-current" data-settings-layout="row" data-settings-style='{"gap":10,"align":"center","font":11,"padding":[2,2,2,2]}'><span data-settings-layout="column" data-settings-style='{"grow":true,"gap":3,"tone":"muted"}'>当前音源<strong data-settings-layout="column" data-settings-style='{"font":12,"weight":600,"tone":"text"}'>{active?.name || '平台原音源'}</strong></span>
                 <button type="button" data-settings-style='{"border":true,"radius":10,"font":11,"padding":[10,6,10,6],"minHeight":40}' disabled={busy || !active} onClick={() => omni.activateLxSource(null)}>{active ? '恢复原音源' : '使用中'}</button>
             </div>
@@ -80,14 +72,14 @@ export default function LxSourceDialog({ isDaylight }: { isDaylight: boolean }) 
                 <div className="ty-lx-platforms" data-settings-layout="wrap" data-settings-style='{"gap":6}'>{Object.entries(script.capabilities).map(([key, capability]) => <span key={key} data-settings-layout="column" data-settings-style='{"gap":2,"font":11,"padding":[8,5,8,5],"fill":true,"radius":8}'>{lxPlatformLabel(key)}<small data-settings-layout="column" data-settings-style='{"font":10,"tone":"muted"}'>{capability.qualitys.join(' / ')||capability.actions?.join(' / ')}</small></span>)}</div>
                 {script.description && <details className="ty-lx-description" data-settings-layout="column" data-settings-style='{"gap":8,"font":11,"tone":"muted"}'><summary data-settings-layout="row" data-settings-style='{"minHeight":40,"font":12,"tone":"accent"}'>音源说明</summary><p data-settings-layout="column">{script.description}</p></details>}
                 {script.previous&&<div className="ty-lx-updates" data-settings-layout="wrap" data-settings-style='{"gap":7}'><span className="ty-lx-version-ready">可回退上一版</span></div>}
-                <div className="ty-lx-actions" data-settings-layout="wrap" data-settings-style='{"gap":7}'><button type="button" data-settings-style='{"border":true,"radius":10,"minHeight":40,"padding":[12,7,12,7],"tone":"accent"}' disabled={busy || state.activeId === script.id} aria-pressed={state.activeId === script.id} onClick={event => {event.stopPropagation();omni.activateLxSource(script.id);}}>{state.activeId === script.id ? '已启用' : '启用'}</button><button type="button" data-settings-style='{"border":true,"radius":10,"minHeight":40,"padding":[12,7,12,7]}' disabled={busy} onClick={event => {event.stopPropagation();void test(script, false);}}>检查音源</button><button type="button" className="ty-lx-remove" data-settings-style='{"border":true,"radius":10,"minHeight":40,"padding":[12,7,12,7],"tone":"muted"}' disabled={busy} onClick={event => {event.stopPropagation();if (state.activeId===script.id) omni.activateLxSource(null); state.remove(script.id); setSelectedId(null);}}>删除</button></div>
+                <div className="ty-lx-actions" data-settings-layout="wrap" data-settings-style='{"gap":7}'><button type="button" data-settings-style='{"border":true,"radius":10,"minHeight":40,"padding":[12,7,12,7],"tone":"accent"}' disabled={busy || state.activeId === script.id} aria-pressed={state.activeId === script.id} onClick={event => {event.stopPropagation();omni.activateLxSource(script.id);}}>{state.activeId === script.id ? '已启用' : '启用'}</button><button type="button" data-settings-style='{"border":true,"radius":10,"minHeight":40,"padding":[12,7,12,7]}' disabled={busy} onClick={event => {event.stopPropagation();void test(script);}}>检查音源</button><button type="button" className="ty-lx-remove" data-settings-style='{"border":true,"radius":10,"minHeight":40,"padding":[12,7,12,7],"tone":"muted"}' disabled={busy} onClick={event => {event.stopPropagation();if (state.activeId===script.id) omni.activateLxSource(null); state.remove(script.id); setSelectedId(null);}}>删除</button></div>
             </section>)}</div>
             {message && <p role={failed ? 'alert' : 'status'} className="ty-lx-message" data-settings-layout="card" data-settings-style='{"font":11,"padding":[12,10,12,10],"radius":10}'>{message}</p>}
             <details className="ty-lx-help" data-settings-layout="column" data-settings-style='{"gap":10,"font":11,"tone":"muted"}'><summary data-settings-layout="row" data-settings-style='{"minHeight":40,"font":12,"tone":"accent"}'>使用说明与兼容性</summary>
                 <p data-settings-layout="column">启用后可在搜索页选择脚本支持的平台。已登录平台的歌单和收藏也会使用所选音源播放，收藏和歌单归属不变。切换时保留播放位置。</p>
-                <p data-settings-layout="column">跨平台按歌名、歌手和时长匹配；失败会提示，不会自动切回原音源。未启用的脚本不会运行。</p>
+                <p data-settings-layout="column">跨平台按歌名、歌手和时长匹配；按所选播放顺序尝试可用音源，失败会提示。未启用的脚本不会运行。</p>
                 <p data-settings-layout="column">支持移动版事件、Promise、request、字节数组、MD5、AES、RSA 与文本 multipart。移动版协议没有全局 Node Buffer、浏览器 API 或 zlib。音质声明不代表实际音频已验证。不内置第三方音源。</p>
             </details>
         </div>
-    </ThemedDialog>;
+    </ThemedDialog>,document.body);
 }

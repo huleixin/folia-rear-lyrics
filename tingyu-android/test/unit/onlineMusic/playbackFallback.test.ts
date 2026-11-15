@@ -29,7 +29,7 @@ describe('strict recording matching', () => {
 
 describe('cross-platform resolution', () => {
     beforeEach(() => {
-        useLxSourceStore.setState({ activeId: null });
+        useLxSourceStore.setState({extensionEnabled:true, activeId: null });
         vi.spyOn(omni, 'getProviderSummaries').mockReturnValue([
             { providerId: 'qq', availability: { configured: true } },
             { providerId: 'netease', availability: { configured: true } },
@@ -37,7 +37,7 @@ describe('cross-platform resolution', () => {
         vi.spyOn(omni, 'getProviderCapabilities').mockReturnValue({ search: true, playback: true } as ReturnType<typeof omni.getProviderCapabilities>);
         vi.spyOn(omni, 'searchProviderSongs').mockResolvedValue({ items: [song('netease')], hasMore: false, nextOffset: 1 });
     });
-    afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); useLxSourceStore.setState({ activeId: null }); });
+    afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); useLxSourceStore.setState({extensionEnabled:true, activeId: null }); });
     it('rescues failure without rewriting identity or caching backup bytes under the original song', async () => {
         vi.spyOn(omni, 'getPrimaryAudioSource').mockRejectedValueOnce(new Error('unavailable')).mockResolvedValueOnce(source);
         const original = song();
@@ -86,7 +86,7 @@ describe('cross-platform resolution', () => {
         expect(await task).toBeNull();
     });
     it('keeps an explicitly selected script in control', async () => {
-        useLxSourceStore.setState({ activeId: 'selected-script' });
+        useLxSourceStore.setState({extensionEnabled:true, activeId: 'selected-script' });
         vi.spyOn(omni, 'getPrimaryAudioSource').mockRejectedValue(new Error('script failed'));
         await expect(omni.getAudioSource(song(), 'high')).rejects.toThrow('script failed');
         expect(omni.searchProviderSongs).not.toHaveBeenCalled();

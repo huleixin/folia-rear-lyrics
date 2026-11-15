@@ -11,17 +11,17 @@ import { chooseLxQuality, parseLxScript, validateCapabilities, validateRemoteUrl
 describe('LX source protocol', () => {
     it('isolates custom-source audio caches from original and other scripts', () => {
         const song = {id:123, sourceRef:{kind:'online',providerId:'netease',mediaId:'123'}} as SongResult;
-        useLxSourceStore.setState({activeId:null});
+        useLxSourceStore.setState({extensionEnabled:true,activeId:null});
         const original = getSongResourceCacheKey('audio',song);
         try {
-            useLxSourceStore.setState({activeId:'one'});
+            useLxSourceStore.setState({extensionEnabled:true,scripts:[{id:'one',name:'Fixture',code:'one',version:'1',author:'',homepage:'',description:'',capabilities:{}}],activeId:'one'});
             const one = getSongResourceCacheKey('audio',song);
             expect(one).not.toBe(original);
             expect(getLegacySongResourceCacheKeys('audio',song)).toEqual([]);
-            useLxSourceStore.setState({activeId:'two'});
+            useLxSourceStore.setState({extensionEnabled:true,scripts:[{id:'two',name:'Fixture',code:'two',version:'1',author:'',homepage:'',description:'',capabilities:{}}],activeId:'two'});
             expect(getSongResourceCacheKey('audio',song)).not.toBe(one);
             expect(getSongResourceCacheKey('lyric',song)).not.toContain('lx_');
-        } finally { useLxSourceStore.setState({activeId:null}); }
+        } finally { useLxSourceStore.setState({extensionEnabled:true,activeId:null}); }
     });
     it('parses UTF8 metadata and refuses oversized or unnamed scripts', () => {
         expect(parseLxScript('/**\n * @name 测试源\n * @version 1.2\n */\nconst ok = true').name).toBe('测试源');

@@ -1,3 +1,4 @@
+import { selectedLxScript } from './selection';
 import type { SongResult, LyricData } from '../../types';
 import { createProviderSongMetadata } from '../../utils/songMetadata';
 import { useLxSourceStore } from '../../stores/useLxSourceStore';
@@ -10,7 +11,7 @@ import { noteLx, classifyLx } from './diagnostics';
 /** Optional fallback for local files. No file path, file bytes, or application credentials leave the host. */
 export async function resolveLxLocalResources(song:SongResult,needs:{lyric:boolean;pic:boolean}):Promise<{lyrics:LyricData|null;coverUrl:string|null}> {
     const empty={lyrics:null,coverUrl:null};
-    const state=useLxSourceStore.getState(),script=state.scripts.find(s=>s.id===state.activeId);
+    const state=useLxSourceStore.getState(),script=selectedLxScript();
     if(!script?.capabilities.local || !needs.lyric&&!needs.pic)return empty;
     try{return await withLxRuntime(async(active,_state,current)=>{
         const caps=await active.ready;current();const actions=caps.local?.actions??[];

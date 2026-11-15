@@ -1,12 +1,7 @@
 import { usePlaybackStore } from '../stores/usePlaybackStore';
 import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
 import { useAudioToolsStore, QUALITY_LABELS } from '../stores/useAudioToolsStore';
-import { useSettingsModalStore } from '../stores/useSettingsModalStore';
 import { useLxSourceStore } from '../stores/useLxSourceStore';
-import { omni } from './onlineMusic/omni';
-import { checkLxScript, loadLxScriptUrl } from './lxSource/management';
-import { noteLx, redactLx } from './lxSource/diagnostics';
-import { pickLxScript } from './lxSource/importFile';
 import { isLocalPlaybackSong, resolveNavidromePlaybackCarrier } from '../utils/appPlaybackGuards';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
 import { readLyricFile } from '../utils/lyrics/lyricFileDecoding';
@@ -133,7 +128,7 @@ export function registerNativeTools(next: NativeToolsHandlers | null): void {
  * Compose 桥可用时才走；否则调用方回退到原有 WebView 弹窗。
  */
 export async function openNativeToolPage(page: NativeToolPage): Promise<boolean> {
-    if (!isAndroidNativeRuntime()) return false;
+    if (page==='lx' || !isAndroidNativeRuntime()) return false;
     try {
         if (!(await canUseComposeChrome())) return false;
         await chromeNative.openMinimalTools({ page: PAGE_INDEX[page] });
@@ -341,47 +336,6 @@ async function importLyricsFile(translation: boolean): Promise<void> {
 
 // ---- 洛雪音源（与 LxSourceDialog 同一条链）----
 
-async function importLxScript(): Promise<void> {
-    lxBusy = true; lxMessage = '正在检查音源…'; lxFailed = false;
-    lastSent = '';
-    syncNativeTools();
-    try {
-        const script = await pickLxScript();
-        if (!script) { lxMessage = '已取消选择'; return; }
-        const {capabilities} = await checkLxScript(script);
-        const id = useLxSourceStore.getState().save({ ...script, capabilities });
-        omni.activateLxSource(id);
-        lxMessage = `初始化成功：${Object.values(capabilities).map(c => `${c.name} (${c.qualitys.join(' / ')})`).join('、')}`;
-    } catch (error) {
-        lxFailed = true;
-        lxMessage = redactLx(error);noteLx('import','import',error);
-    } finally {
-        lxBusy = false;
-        lastSent = '';
-        syncNativeTools();
-    }
-}
-
-async function testLxScript(id: string): Promise<void> {
-    const script = useLxSourceStore.getState().scripts.find(item => item.id === id);
-    if (!script) return;
-    lxBusy = true; lxMessage = '正在检查音源…'; lxFailed = false;
-    lastSent = '';
-    syncNativeTools();
-    try {
-        const {capabilities} = await checkLxScript(script);
-        useLxSourceStore.getState().save({ ...script, capabilities });
-        lxMessage = `初始化成功：${Object.values(capabilities).map(c => `${c.name} (${c.qualitys.join(' / ')})`).join('、')}。实际取流请播放对应平台的歌曲验证。`;
-    } catch (error) {
-        lxFailed = true;
-        lxMessage = redactLx(error);noteLx('import','import',error);
-    } finally {
-        lxBusy = false;
-        lastSent = '';
-        syncNativeTools();
-    }
-}
-
 /**
  * 原生发来的工具动作。编码约定：
  *  · effectsBand：value = band*100 + (gainDb + 12)（增益整数 dB，-12..12）
@@ -390,6 +344,8 @@ async function testLxScript(id: string): Promise<void> {
  *  · lyricsSource：value = 来源下标；lyricsOffset：value = 毫秒（可负）
  */
 export function runNativeToolsAction(action: string, value: number, text = ''): boolean {
+    // Legacy native LX actions cannot bypass the deep settings and consent flow.
+    if (action.startsWith('lx') || (action==='toolsOpen' && value===4)) return false;
     if (!handlers) return false;
     switch (action) {
         case 'padLike': { handlers.like?.(); return !!handlers.like; }
@@ -534,98 +490,6 @@ export function runNativeToolsAction(action: string, value: number, text = ''): 
         }
         case 'lyricsClearOnline': {
             handlers.lyrics?.onClearOnlineLyricsState();
-            lastSent = '';
-            syncNativeTools();
-            return true;
-        }
-        case 'lxManage': {
-            useSettingsModalStore.getState().openSettingsFromIndex('integration');
-            useLxSourceStore.getState().show();
-            return true;
-        }
-        case 'lxSelect': {
-            const script=useLxSourceStore.getState().scripts[value];if(!script)return false;lxSelectedId=script.id;lastSent='';syncNativeTools();return true;
-        }
-        case 'lxToggleRouting': {
-            const s=useLxSourceStore.getState();s.setPolicy({routing:s.policy.routing==='original-first'?'lx-first':'original-first'});lastSent='';syncNativeTools();return true;
-        }
-        case 'lxToggleScriptFallback': {
-            const s=useLxSourceStore.getState();s.setPolicy({scriptFallback:!s.policy.scriptFallback});lastSent='';syncNativeTools();return true;
-        }
-        case 'lxToggleBackup': {
-            const s=useLxSourceStore.getState(),script=s.scripts[value];if(!script||script.id===s.activeId)return false;
-            s.setPolicy({scriptOrder:s.policy.scriptOrder.includes(script.id)?s.policy.scriptOrder.filter(id=>id!==script.id):[...s.policy.scriptOrder,script.id]});lastSent='';syncNativeTools();return true;
-        }
-        case 'lxBackupEarlier': {
-            const s=useLxSourceStore.getState(),script=s.scripts[value];if(!script)return false;
-            const order=[...s.policy.scriptOrder],i=order.indexOf(script.id);if(i<=0)return false;
-            [order[i-1],order[i]]=[order[i],order[i-1]];s.setPolicy({scriptOrder:order});lastSent='';syncNativeTools();return true;
-        }
-        case 'lxRotatePriority': {
-            const s=useLxSourceStore.getState();s.setPolicy({priority:[...s.policy.priority.slice(1),s.policy.priority[0]]});lastSent='';syncNativeTools();return true;
-        }
-        case 'lxDefaultSource': {
-            const s=useLxSourceStore.getState(),sources=[null,...s.policy.priority];
-            s.setPolicy({preferredSource:sources[(sources.indexOf(s.policy.preferredSource)+1)%sources.length]});lastSent='';syncNativeTools();return true;
-        }
-        case 'lxToggleDowngrade': {
-            const state=useLxSourceStore.getState();state.setPolicy({autoDowngrade:!state.policy.autoDowngrade});lastSent='';syncNativeTools();return true;
-        }
-        case 'lxToggleSwitch': {
-            const state=useLxSourceStore.getState();state.setPolicy({autoSwitch:!state.policy.autoSwitch});lastSent='';syncNativeTools();return true;
-        }
-        case 'lxUpdateUrl': {
-            const state=useLxSourceStore.getState(),script=state.scripts.find(item=>item.id===lxSelectedId);
-            if(!script)return false;
-            lxBusy=true;lastSent='';syncNativeTools();
-            void (async()=>{try{state.setImportUrl(script.id,text);lxMessage=text?'更新地址已绑定':'更新地址已清除';lxFailed=false;}catch(error){lxFailed=true;lxMessage=redactLx(error);}finally{lxBusy=false;lastSent='';syncNativeTools();}})();
-            return true;
-        }
-        case 'lxCheckUpdate': {
-            const state=useLxSourceStore.getState(),script=state.scripts.find(item=>item.id===lxSelectedId);
-            if(!script?.importUrl)return false;
-            lxBusy=true;lxMessage='正在检查更新…';lxFailed=false;lastSent='';syncNativeTools();
-            void (async()=>{try{const next=await loadLxScriptUrl(script.importUrl!);if(next.name!==script.name)throw Error('更新脚本名称与原音源不一致');
-                if(next.code===script.code){lxMessage='已是最新版本';return;}
-                const {capabilities}=await checkLxScript(next);const id=state.save({...next,id:script.id,capabilities});if(state.activeId===script.id)omni.activateLxSource(id);
-                lxMessage=`已更新到 ${next.version||'新版本'}，可回退上一版`;
-            }catch(error){lxFailed=true;lxMessage=redactLx(error);noteLx('update-check','import',error);}finally{lxBusy=false;lastSent='';syncNativeTools();}})();
-            return true;
-        }
-        case 'lxRollback': {
-            const state=useLxSourceStore.getState(),script=state.scripts.find(item=>item.id===lxSelectedId);if(!script?.previous)return false;
-            try{state.rollback(script.id);lxMessage='已回退上一版';lxFailed=false;}catch(error){lxMessage=redactLx(error);lxFailed=true;}
-            lastSent='';syncNativeTools();return true;
-        }
-        case 'lxImport': {
-            void importLxScript();
-            return true;
-        }
-        case 'lxTest': {
-            const script = useLxSourceStore.getState().scripts[value];
-            if (script) void testLxScript(script.id);
-            return true;
-        }
-        case 'lxActivate': {
-            const script = useLxSourceStore.getState().scripts[value];
-            if (!script) return false;
-            omni.activateLxSource(script.id);
-            lastSent = '';
-            syncNativeTools();
-            return true;
-        }
-        case 'lxRestore': {
-            omni.activateLxSource(null);
-            lastSent = '';
-            syncNativeTools();
-            return true;
-        }
-        case 'lxRemove': {
-            const state = useLxSourceStore.getState();
-            const script = state.scripts[value];
-            if (!script) return false;
-            if (state.activeId === script.id) omni.activateLxSource(null);
-            state.remove(script.id);
             lastSent = '';
             syncNativeTools();
             return true;
