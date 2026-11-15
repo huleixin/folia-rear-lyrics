@@ -13,7 +13,18 @@ internal fun settingColor(value:String,default:Int=android.graphics.Color.TRANSP
     if(value.startsWith("rgb")){
         val values=Regex("[\\d.]+").findAll(value).map{it.value.toFloat()}.toList()
         android.graphics.Color.argb(((values.getOrNull(3)?:1f)*255).toInt().coerceIn(0,255),values[0].toInt(),values[1].toInt(),values[2].toInt())
-    }else android.graphics.Color.parseColor(value)
+    }else {
+        // All settings paints/swatches originate in CSS: #RRGGBBAA, not Android #AARRGGBB.
+        val css = value.trim()
+        val expanded = when {
+            css.startsWith("#") && css.length in listOf(4,5) ->
+                "#" + css.drop(1).map { "$it$it" }.joinToString("")
+            else -> css
+        }
+        val androidColor = if(expanded.startsWith("#") && expanded.length==9)
+            "#" + expanded.takeLast(2) + expanded.substring(1,7) else expanded
+        android.graphics.Color.parseColor(androidColor)
+    }
 }.getOrDefault(default)
 internal class SettingsDrawing(val node:SettingPaint){
     private val paint=Paint(Paint.ANTI_ALIAS_FLAG)

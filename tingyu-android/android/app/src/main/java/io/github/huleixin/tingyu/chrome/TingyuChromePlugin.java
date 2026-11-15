@@ -9,6 +9,16 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/TingyuChromePlugin.java
 @CapacitorPlugin(name = "TingyuChrome")
 public class TingyuChromePlugin extends Plugin {
+    private SystemMotionPreference systemMotionPreference;
+    @Override public void load() {
+        systemMotionPreference = new SystemMotionPreference(getContext().getContentResolver(), reduced -> notifyMotionPreference(reduced));
+    }
+    private void notifyMotionPreference(boolean reduced) {
+        notifyListeners("motionPreferenceChanged", new JSObject().put("reducedMotion", reduced));
+    }
+    @PluginMethod public void motionPreference(PluginCall call) {
+        call.resolve(new JSObject().put("reducedMotion", SystemMotionPreference.read(getContext().getContentResolver())));
+    }
     private static void traceDispatch(JSObject event) {
         if(NavigationTiming.enabled()||android.util.Log.isLoggable("TingyuNavigation",android.util.Log.DEBUG)) {
             event.put("nativeDispatchedAt",NavigationTiming.epochNow());
@@ -234,6 +244,13 @@ public class TingyuChromePlugin extends Plugin {
     }); }
     @PluginMethod public void remove(PluginCall call) { getActivity().runOnUiThread(() -> { if (host != null) host.remove(call.getString("id",""),call.getString("session","")); call.resolve(); }); }
     @Override protected void handleOnPause() { if (host != null) host.suspend(); }
-    @Override protected void handleOnResume() { if (host != null) host.resume(); }
-    @Override protected void handleOnDestroy() { if (host != null) host.destroy(); host = null; }
+    @Override protected void handleOnResume() {
+        notifyMotionPreference(SystemMotionPreference.read(getContext().getContentResolver()));
+        if (host != null) host.resume();
+    }
+    @Override protected void handleOnDestroy() {
+        if (systemMotionPreference != null) systemMotionPreference.close();
+        systemMotionPreference = null;
+        if (host != null) host.destroy(); host = null;
+    }
 }

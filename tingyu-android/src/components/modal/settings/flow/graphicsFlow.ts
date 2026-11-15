@@ -33,8 +33,8 @@ const SURFACE_LABEL_KEYS: Record<MotionSurfaceId, { label: string; desc: string 
     settingsScroll: { label: 'options.reduceMotionSettingsScroll', desc: 'options.reduceMotionSettingsScrollDesc' },
 };
 
-/** Android 上真正生效的三个面（其余是桌面/舞台专属，DOM 版同样过滤掉）。 */
-const ANDROID_SURFACES: MotionSurfaceId[] = ['monetBackground', 'uiMicroMotion', 'settingsScroll'];
+/** Android 的背景和界面动画；设置目录平滑滚动只用于桌面 DOM。 */
+const ANDROID_SURFACES: MotionSurfaceId[] = ['monetBackground', 'uiMicroMotion'];
 
 export function buildGraphicsFlow(t: TFunction, title: string): FlowBuilder {
     const b = createFlowBuilder('graphics', title);

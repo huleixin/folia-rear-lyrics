@@ -677,7 +677,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
                                 borderColor: `${accentOutlineColor}55`,
                                 backgroundColor: `${accentOutlineColor}18`,
                             }}
-                         data-settings-style='{"align":"center","center":true,"height":40,"width":40,"radius":12,"border":true,"fill":true}' data-settings-layout="row" data-settings-swatch={`${accentOutlineColor}18`}>
+                         data-settings-style='{"align":"center","center":true,"height":40,"width":40,"radius":12,"border":true,"fill":true,"tone":"accent"}' data-settings-layout="row">
                             <Settings2 size={19} />
                         </span>
                         <span className="min-w-0 flex-1 space-y-1" data-settings-style='{"grow":true,"gap":4}' data-settings-layout="column">

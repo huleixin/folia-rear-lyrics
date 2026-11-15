@@ -12,6 +12,8 @@ import type { CommandPaletteContext } from '@/components/command-palette/types';
 import { useAudioSettingsStore } from '@/stores/useAudioSettingsStore';
 import { useTypographySettingsStore } from '@/stores/useTypographySettingsStore';
 import { useMotionSettingsStore, MOTION_SURFACE_IDS } from '@/stores/useMotionSettingsStore';
+import { buildGraphicsFlow } from '@/components/modal/settings/flow/graphicsFlow';
+import type { TFunction } from 'i18next';
 
 // test/unit/settings/mobileSettingsCapabilities.test.ts
 // Exercise real preference owners and stale navigation, rather than assuming hidden controls have no consumers.
@@ -97,7 +99,8 @@ describe('Android settings retain working preferences and reject retired destina
     it('shows effective system-reduced motion without overwriting personal preferences', () => {
         useMotionSettingsStore.setState({ followSystemReducedMotion: true, systemPrefersReducedMotion: true });
         act(() => root.render(h(MotionReductionSettingsSection, { ...props, settingsDividerClass: '', toggleOffBackgroundClass: '' })));
-        expect(host.querySelectorAll('button')).toHaveLength(4);
+        expect(host.querySelectorAll('button')).toHaveLength(3);
+        expect(button('options.reduceMotionSettingsScroll')).toBeNull();
         const micro = button('options.reduceMotionUiMicroMotion');
         expect(micro.disabled).toBe(true); expect(micro.getAttribute('aria-pressed')).toBe('true');
         expect(useMotionSettingsStore.getState().reducedMotionSurfaces.uiMicroMotion).toBe(false);
@@ -107,5 +110,16 @@ describe('Android settings retain working preferences and reject retired destina
         expect(useMotionSettingsStore.getState().reducedMotionSurfaces.uiMicroMotion).toBe(true);
         expect(localStorage.getItem('reduce_motion_uiMicroMotion')).toBe('true');
         expect(useMotionSettingsStore.getState().reducedMotionSurfaces.lattice).toBe(false);
+    });
+    it('removes desktop scrolling from both Android settings models and preserves it on desktop', () => {
+        const t = ((key: string) => key) as unknown as TFunction;
+        const android = buildGraphicsFlow(t, 'Graphics');
+        expect(android.nodes.filter(node => node.id.startsWith('graphics:surface:')).map(node => node.id))
+            .toEqual(['graphics:surface:monetBackground', 'graphics:surface:uiMicroMotion']);
+        vi.stubGlobal('Capacitor', { getPlatform: () => 'web' });
+        const desktop = buildGraphicsFlow(t, 'Graphics');
+        expect(desktop.nodes.some(node => node.id === 'graphics:surface:settingsScroll')).toBe(true);
+        act(() => root.render(h(MotionReductionSettingsSection, { ...props, settingsDividerClass: '', toggleOffBackgroundClass: '' })));
+        expect(button('options.reduceMotionSettingsScroll')).not.toBeNull();
     });
 });

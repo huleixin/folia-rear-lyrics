@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { getStoredBoolean, setStoredBoolean } from './storagePrimitives';
+import { isAndroidNativeRuntime } from '../utils/platform';
 
 // src/stores/useMotionSettingsStore.ts
 // 降低动态效果的显式控制面。
@@ -56,7 +57,8 @@ const SURFACE_STORAGE_KEYS: Record<MotionSurfaceId, string> = {
 };
 
 const readSystemPreference = () => (
-    typeof window !== 'undefined'
+    !isAndroidNativeRuntime()
+    && typeof window !== 'undefined'
     && typeof window.matchMedia === 'function'
     && window.matchMedia(SYSTEM_REDUCED_MOTION_QUERY).matches
 );
@@ -137,7 +139,8 @@ export const readReducedMotion = (surface: MotionSurfaceId): boolean => (
 
 // 系统偏好只需要一份监听。挂在模块级而不是某个组件里：它跟任何一棵子树的生命周期都无关，
 // 而且 CSS 属性同步也要在没有组件挂载的时候读到正确的值。
-if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+// Android 由系统动画设置的原生观察器提供状态，避免 WebView 媒体查询覆盖权威值。
+if (!isAndroidNativeRuntime() && typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
     const query = window.matchMedia(SYSTEM_REDUCED_MOTION_QUERY);
     query.addEventListener('change', event => {
         useMotionSettingsStore.getState().setSystemPrefersReducedMotion(event.matches);

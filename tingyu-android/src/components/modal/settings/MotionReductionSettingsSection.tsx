@@ -91,7 +91,7 @@ const MotionReductionSettingsSection: React.FC<MotionReductionSettingsSectionPro
             </div>
 
             <div className={`border-t pt-4 space-y-4 ${settingsDividerClass}`} data-settings-style='{"gap":16,"padding":[0,16,0,0]}' data-settings-layout="column">
-                {MOTION_SURFACE_IDS.filter(surface => !isAndroidNativeRuntime() || ['monetBackground', 'uiMicroMotion', 'settingsScroll'].includes(surface)).map(surface => (
+                {MOTION_SURFACE_IDS.filter(surface => !isAndroidNativeRuntime() || ['monetBackground', 'uiMicroMotion'].includes(surface)).map(surface => (
                     <React.Fragment key={surface}>
                         {renderToggleRow(
                             t(SURFACE_LABEL_KEYS[surface].label),

@@ -34,6 +34,8 @@ export const chromeNative = registerPlugin<{
     navigationDiagnostics(value:{enabled?:boolean}):Promise<{enabled:boolean;nativeNow:number;startedAt:number;frames?:Record<string,unknown>;frameWindowStartedAt?:number;frameSamplingActive?:boolean;samples:{phase:string;at:number;elapsedMs?:number;gestureId?:number;detail?:Record<string,unknown>}[]}>;
     appearance(value:{mode?:string;style?:string}):Promise<{style:string;mode:'system'|'light'|'dark';systemLight:boolean;light:boolean}>;
     addListener(name:'appearanceChanged',callback:(value:{systemLight:boolean})=>void):Promise<{remove:()=>Promise<void>}>;
+    motionPreference():Promise<{reducedMotion:boolean}>;
+    addListener(name:'motionPreferenceChanged',callback:(value:{reducedMotion:boolean})=>void):Promise<{remove:()=>Promise<void>}>;
     probe(): Promise<{supported:boolean;engine:string;pages?:boolean;minimalPlayer?:boolean;
         /** 二级操作面板能力位：只有 true 时 JS 才把 ⋯ 面板交给原生绘制。 */
         panels?:boolean;

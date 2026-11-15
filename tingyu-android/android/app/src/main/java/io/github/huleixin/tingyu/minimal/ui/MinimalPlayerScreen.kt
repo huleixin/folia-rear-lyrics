@@ -4,6 +4,7 @@ import io.github.huleixin.tingyu.chrome.MinimalCoverOverlay
 import io.github.huleixin.tingyu.chrome.minimalSection
 import io.github.huleixin.tingyu.chrome.minimalBackground
 import io.github.huleixin.tingyu.chrome.LiquidIcon
+import io.github.huleixin.tingyu.chrome.LocalLiquidReduced
 import android.os.SystemClock
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -160,7 +161,8 @@ fun MinimalPlayerScreen(
     val clock = rememberMinimalClock(playback,!detour)
     // 系统关闭动画时不跑背景漂移与封面浮动；页面仍然完整可读（与 prefers-reduced-motion 对齐）。
     val context = androidx.compose.ui.platform.LocalContext.current
-    val still = remember(context) { reducedMotion(context) }
+    // 与导航、迷你播放器共用已解析的偏好，开关及系统变化均可即时生效。
+    val still = LocalLiquidReduced.current
 
     // 抽屉与工具页归宿主所有；这里只把入口按钮接到它们的开门动作上。
     // 之前这里裸用 `commands`，于是底部的列表按钮走的是另一条路 —— 同一个页面两套行为。

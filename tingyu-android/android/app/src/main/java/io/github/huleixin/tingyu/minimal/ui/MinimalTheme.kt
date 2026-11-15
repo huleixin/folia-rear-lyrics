@@ -1,7 +1,5 @@
 package io.github.huleixin.tingyu.minimal.ui
 
-import android.content.Context
-import android.provider.Settings
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -60,17 +58,8 @@ fun minimalInk(light: Boolean): MinimalInk = if (light) {
 fun clampDp(min: Float, value: Float, max: Float): Dp = min(max(value, min), max).dp
 fun clampSp(min: Float, value: Float, max: Float): TextUnit = min(max(value, min), max).sp
 
-/**
- * 系统是否关闭了动画（开发者选项 / 无障碍）。
- *
- * 与原实现的 `prefers-reduced-motion` 对齐：关闭时背景漂移、封面浮动、波形都静止，
- * 页面仍然完整可读，只是不再动。
- */
-fun reducedMotion(context: Context): Boolean = try {
-    Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
-} catch (_: Throwable) {
-    false
-}
+// 系统动画偏好通过 TingyuChrome 观察器参与应用的「跟随系统」判定。
+// 播放页读取 LocalLiquidReduced，避免自行读取系统而绕过用户选择。
 
 /** 主题色在动画开始/结束时需要插值，这里只暴露最小的一组。 */
 internal fun paletteColors(palette: MinimalPalette): List<Color> = listOf(

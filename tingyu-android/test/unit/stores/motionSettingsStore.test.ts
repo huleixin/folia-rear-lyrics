@@ -70,6 +70,26 @@ describe('motion settings store', () => {
         expect(readReducedMotion('lattice')).toBe(true);
     });
 
+    it('uses the native Android preference instead of a stale WebView media query', async () => {
+        const listen = vi.fn();
+        vi.stubGlobal('window', {
+            localStorage,
+            Capacitor: { getPlatform: () => 'android' },
+            matchMedia: () => ({ matches: true, addEventListener: listen }),
+        });
+        vi.resetModules();
+        const fresh = await import('@/stores/useMotionSettingsStore');
+        const state = fresh.useMotionSettingsStore.getState();
+        expect(state.systemPrefersReducedMotion).toBe(false);
+        expect(listen).not.toHaveBeenCalled();
+        state.setSystemPrefersReducedMotion(true);
+        expect(fresh.readReducedMotion('uiMicroMotion')).toBe(false);
+        state.handleToggleFollowSystemReducedMotion(true);
+        expect(fresh.readReducedMotion('uiMicroMotion')).toBe(true);
+        state.handleToggleFollowSystemReducedMotion(false);
+        expect(fresh.readReducedMotion('uiMicroMotion')).toBe(false);
+    });
+
     it('reduces only the surface that was switched off', () => {
         useMotionSettingsStore.getState().handleToggleReducedMotionSurface('lattice', true);
 

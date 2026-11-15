@@ -16,12 +16,14 @@ import {canPublishNativeStage} from '../utils/nativeStageCommit';
 import { isStageSurface, usePlayerViewModeStore } from '../stores/usePlayerViewModeStore';
 import { rearPageKey } from '../components/modal/settings/rearControlModel';
 import { composeMinimalOwnsSurface } from './nativeMinimalPlayer';
+import { installNativeMotionPreferences } from './nativeMotionPreferences';
 
 // src/services/nativeShellRouting.ts
 // The native shell owns its UI from process start; JS only supplies destinations and data.
 let installed=false;
 export function installNativeShellRouting() {
     if(!NATIVE_FIRST||installed)return;installed=true;
+    void installNativeMotionPreferences().catch(error => console.warn('[NativeShell] Motion preference unavailable', error));
     const generation=newChromeGeneration();let revision=0,last='',lastRoute='',navigationRevision=0;
     const publish=()=>{
         const view=useAppViewStore.getState(),settingsState=useSettingsModalStore.getState(),settings=settingsState.settingsModalState;
