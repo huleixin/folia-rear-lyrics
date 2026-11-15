@@ -3,6 +3,8 @@ import {audioCacheEn} from '../audioCacheCopy';
 
 import {cloudFeedbackEn} from '../cloudFeedbackCopy';
 export default {
+  licenses: {"title": "Third-party open-source licenses", "openError": "Licenses are temporarily unavailable. Please retry."},
+  playerStyles: {"title": "Player style", "classic": "Classic Minimal", "immersive": "Immersive Minimal", "choose": "Choose style"},
   audioCache: audioCacheEn,
   feedbackCloud: cloudFeedbackEn,
   lyricsOutput: {"title":"Desktop and car lyrics","desktop":"Desktop lyrics","desktopHint":"Floating native lyrics and appearance","bluetooth":"Car Bluetooth lyrics","bluetoothHint":"Experimental title display for selected A2DP devices","desktopStyle":"Desktop lyrics appearance"},
@@ -882,6 +884,7 @@ export default {
       "rear-tap-controls-toggle": {"title": "Toggle rear tap controls", "description": "Enable or disable music controls on rear-stage taps"},
       "settings-rear-appearance": {"title": "Rear stage appearance", "description": "Configure follow-front or independent rear visuals"},
       "settings-rear": {"title": "Rear lyrics settings", "description": "Open the rear lyrics control center"},
+      "settings-player-style": {"title": "Player style", "description": "Choose style"},
       "settings-desktop-lyrics": {"title": "Desktop lyrics settings", "description": "Open floating lyrics and style settings"},
       "settings-bluetooth-display": {"title": "Bluetooth lyric display", "description": "Choose lyric placement, translation and refresh interval"},
       "settings-bluetooth-lyrics": {"title": "Car Bluetooth lyrics", "description": "Open experimental A2DP lyrics settings"},

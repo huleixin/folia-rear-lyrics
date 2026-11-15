@@ -15,6 +15,9 @@ import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -97,10 +100,10 @@ internal fun parseSupportCopy(json: String?): SupportCopy {
     } catch (_: Exception) { fallback }
 }
 
-@Composable internal fun SupportSheets(kind: String, copyJson: String?, onDismiss: () -> Unit) {
+@Composable internal fun SupportSheets(kind: String, copyJson: String?, onDismiss: () -> Unit, onReturnAndExperience: (() -> Unit)? = null) {
     val copy = remember(kind, copyJson) { parseSupportCopy(copyJson) }
     when (kind) {
-        "coffee" -> SupportCoffeeSheet(copy, onDismiss)
+        "coffee" -> SupportCoffeeSheet(copy, onDismiss, onReturnAndExperience)
         "group" -> SupportGroupSheet(copy, onDismiss)
     }
 }
@@ -109,11 +112,12 @@ internal fun parseSupportCopy(json: String?): SupportCopy {
     if(kind!=null)Box(Modifier.fillMaxSize().zIndex(9f)){SupportSheets(kind,copyJson,onDismiss)}
 }
 
-@Composable private fun SupportCoffeeSheet(copy: SupportCopy, onDismiss: () -> Unit) {
+@Composable private fun SupportCoffeeSheet(copy: SupportCopy, onDismiss: () -> Unit, onReturnAndExperience: (() -> Unit)? = null) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var channel by remember { mutableStateOf(0) } // 0 = 微信赞赏, 1 = 支付宝
     var saving by remember { mutableStateOf(false) }
+    var zoomQr by remember { mutableStateOf(false) }
     val qrRes = if (channel == 0) SupportConfig.wechatRewardQr else SupportConfig.alipayQr
     val channelTag = if (channel == 0) "wechat" else "alipay"
     fun announce(ok: Boolean) {
@@ -126,7 +130,7 @@ internal fun parseSupportCopy(json: String?): SupportCopy {
             val ok = if (granted) writeQrToMediaStore(context, qrRes, SupportLinks.qrFileName(channelTag))
             else writeQrToAppDir(context, qrRes, SupportLinks.qrFileName(channelTag))
             withContext(Dispatchers.Main) {
-                if (granted) announce(ok) else toast(context, if (ok) copy.qrSavedAppDir else copy.qrSaveFailed)
+                if (granted) announce(ok) else { saving = false; toast(context, if (ok) copy.qrSavedAppDir else copy.qrSaveFailed) }
             }
         }
     }
@@ -153,7 +157,7 @@ internal fun parseSupportCopy(json: String?): SupportCopy {
             LiquidChoiceRow(listOf(copy.channelWechat, copy.channelAlipay), channel, theme) { channel = it }
             Spacer(Modifier.height(14.dp))
             if (qrRes != 0) Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White).padding(14.dp), contentAlignment = Alignment.Center) {
-                Image(painterResource(qrRes), null, Modifier.fillMaxWidth().widthIn(max = 300.dp).heightIn(max = 300.dp), contentScale = ContentScale.Fit)
+                Image(painterResource(qrRes), null, Modifier.fillMaxWidth().widthIn(max = 300.dp).heightIn(max = 300.dp).combinedClickable(onClick = { zoomQr = true }, onLongClick = { save() }), contentScale = ContentScale.Fit)
             } else Box(Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(16.dp)).background(theme.card)
                 .border(1.dp, theme.line, RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -170,7 +174,21 @@ internal fun parseSupportCopy(json: String?): SupportCopy {
                 Text(copy.saveQr, color = if (enabled) theme.accent else theme.muted, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
             Spacer(Modifier.height(10.dp))
-            Text(copy.voluntary, color = theme.muted, fontSize = 11.sp, lineHeight = 17.sp, textAlign = TextAlign.Center)
+            Text(if (onReturnAndExperience != null) "金额随心，每一份喜欢都值得感谢。\n捐赠完全自愿，无论是否捐赠，均不影响听屿任何播放器风格的使用。" else copy.voluntary, color = theme.muted, fontSize = 11.sp, lineHeight = 17.sp, textAlign = TextAlign.Center)
+            if (onReturnAndExperience != null) {
+                Spacer(Modifier.height(16.dp))
+                Box(Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(12.dp))
+                    .background(theme.accent.copy(alpha = .16f)).clickable(onClick = onReturnAndExperience), contentAlignment = Alignment.Center) {
+                    Text("返回并体验", color = theme.text, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+        }
+    }
+    if (zoomQr && qrRes != 0) Dialog(onDismissRequest = { zoomQr = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(Modifier.fillMaxWidth().padding(20.dp).clip(RoundedCornerShape(20.dp)).background(Color.White).padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally) {
+            Image(painterResource(qrRes), copy.saveQr, Modifier.fillMaxWidth().combinedClickable(onClick = { zoomQr = false }, onLongClick = { save() }), contentScale = ContentScale.Fit)
+            Text(copy.saveQr, color = Color.Black, modifier = Modifier.clickable { save() }.padding(16.dp))
         }
     }
 }

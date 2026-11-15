@@ -42,6 +42,7 @@ const DERIVED_LABEL_KEYS: Record<string, string> = {
 
 // Field names that already have a label elsewhere in settings are reused as-is; the rest get one.
 const FIELD_LABEL_KEYS: Record<string, string> = {
+    playerStyle: 'playerStyles.title',
     desktopLyricsStyle: 'lyricsOutput.desktopStyle',
     rearStageAppearance: 'rearAppearance.title',
     [THEME_LIGHT_KEY]: 'options.importFieldThemeLight',
@@ -283,6 +284,9 @@ const ImportConfirmDialog: React.FC<ImportConfirmDialogProps> = ({
         }
         if (key === 'visualizerBackgroundMode' && typeof value === 'string' && hasVisualizerBackgroundMode(value)) {
             return <span className={cls} data-settings-layout="wrap">{getVisualizerBackgroundModeLabel(value, k => t(k))}</span>;
+        }
+        if (key === 'playerStyle' && (value === 'classic' || value === 'immersive')) {
+            return <span className={cls} data-settings-layout="wrap">{t('playerStyles.' + value)}</span>;
         }
         if (key === 'libraryWallSeamStyle' && isLibraryWallSeamStyle(value)) {
             return <span className={cls} data-settings-layout="wrap">{t(LIBRARY_WALL_SEAM_STYLE_LABEL_KEYS[value])}</span>;

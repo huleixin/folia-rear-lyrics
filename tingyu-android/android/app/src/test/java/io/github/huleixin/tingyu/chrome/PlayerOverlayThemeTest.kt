@@ -90,9 +90,11 @@ class PlayerOverlayThemeTest {
         compose.onNodeWithText("歌曲",substring=false).performClick()
         verifyAllPalettes("song") {compose.onNodeWithText("单曲时间校准").assertDoesNotExist()}
     }
-    @Test fun sourceManagerUsesGlobalTheme() {
-        mount {MinimalLxSheet(tools,palette.light,actions,{})}
-        verifyAllPalettes("source") {compose.onNodeWithText("示例音源",substring=false).assertIsDisplayed()}
+    @Test fun playerStyleEntryUsesGlobalThemeAndKeepsOneSelectionWorkflow() {
+        mount { MoreMenuPanel("无损",false){events+=it.toString()} }
+        verifyAllPalettes("style-entry",menu=true) {
+            compose.onNodeWithText("播放器风格").performClick(); assertEquals("-1", events.last())
+        }
     }
     @Test fun queueUsesGlobalThemeAndKeepsTrack() {
         val queue=MinimalQueue(version=1,currentIndex=0,currentKey="song",mode="all",total=1,

@@ -33,8 +33,8 @@ class LyricsFullScreenSettingsTest {
                 when(page){
                     0->LyricsSettingsSheet(compose.activity,onClose={backs++})
                     1->BluetoothLyricsSettingsSheet(compose.activity,requestPermission={},onClose={backs++})
-                    2->SupportSheets("coffee",null){backs++}
-                    else->SupportSheets("group",null){backs++}
+                    2->SupportSheets("coffee",null,onDismiss={backs++})
+                    else->SupportSheets("group",null,onDismiss={backs++})
                 }
             }}
         }}

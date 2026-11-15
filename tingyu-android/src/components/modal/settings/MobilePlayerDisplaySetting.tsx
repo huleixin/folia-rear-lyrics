@@ -1,4 +1,5 @@
 import React from 'react';
+import { openPlayerStyles, snapshotPlayerStyle, usePlayerStyleStore } from '../../../stores/usePlayerStyleStore';
 import { useTranslation } from 'react-i18next';
 import type { Theme } from '../../../types';
 import { isAndroidNativeRuntime } from '../../../utils/platform';
@@ -22,6 +23,9 @@ export default function MobilePlayerDisplaySetting({ isDaylight, settingsCardCla
     const hidden = useTypographySettingsStore(state => state.hidePlayerTranslationSubtitle);
     const toggle = useTypographySettingsStore(state => state.handleToggleHidePlayerTranslationSubtitle);
     const viewMode = usePlayerViewModeStore(state => state.mode);
+    const playerStyle = usePlayerStyleStore(state => state.style);
+    const [styleError, setStyleError] = React.useState('');
+    React.useEffect(() => { if (isAndroidNativeRuntime()) void snapshotPlayerStyle().catch(error => setStyleError(String(error))); }, []);
     if (!isAndroidNativeRuntime()) return null;
     // The chosen surface is a preference, not a mode switch: the rear stage, the AOD card and the
     // LSP bridge keep reading their own settings and never look at this value.
@@ -29,6 +33,10 @@ export default function MobilePlayerDisplaySetting({ isDaylight, settingsCardCla
     return <SettingsAnchor anchorId="mobilePlayerDisplay" label={t('mobileSettings.playerDisplay')} nativeLayout={{"kind":"column"}}>
         <SettingsSectionHeading icon={Captions} label={t('mobileSettings.playerDisplay')} />
         <div className={`rounded-xl border ${settingsCardClass}`} data-settings-style='{"radius":12,"border":true}' data-settings-layout="card">
+            <SettingsRow title={t('playerStyles.title')} description={styleError || t(`playerStyles.${playerStyle}`)}
+                dividerClass={settingsDividerClassFor(isDaylight)} control={
+                    <button type="button" onClick={() => { setStyleError(''); void openPlayerStyles().catch(error => setStyleError(String(error))); }}>{t('playerStyles.choose')}</button>
+                } />
             <SettingsRow title={t('minimalStage.view')} description={t('minimalStage.viewDescription')} note={t('minimalStage.viewNote')}
                 dividerClass={settingsDividerClassFor(isDaylight)} control={null}>
                 <div role="radiogroup" aria-label={t('minimalStage.view')}

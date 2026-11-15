@@ -11,6 +11,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.click
@@ -42,5 +43,20 @@ class SupportSheetLayerTest {
         assertEquals(0, dismissals)
         compose.onNodeWithContentDescription("返回").performClick()
         assertEquals(1, dismissals)
+    }
+
+    @Test fun styleCoffeeReturnActionIsVisibleAndSeparateFromBack() {
+        var returns = 0
+        var dismissals = 0
+        compose.setContent {
+            SupportSheets("coffee", null, onDismiss = { dismissals++ },
+                onReturnAndExperience = { returns++ })
+        }
+        compose.onNodeWithText("返回并体验").performScrollTo().assertIsDisplayed().performClick()
+        assertEquals(1, returns)
+        assertEquals(0, dismissals)
+        compose.onNodeWithContentDescription("返回").performClick()
+        assertEquals(1, dismissals)
+        assertEquals(1, returns)
     }
 }

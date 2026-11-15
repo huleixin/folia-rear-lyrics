@@ -498,6 +498,7 @@ const decompressLumiere = (o: any) => normalizeLumiereTuning(Object.fromEntries(
 
 export const compressConfig = (config: any): string => {
     const minified: any = {};
+    if (config.playerStyle === 'classic' || config.playerStyle === 'immersive') minified.ps = config.playerStyle;
     if(config.rearStageAppearance)minified.rsa=config.rearStageAppearance;
     if(config.desktopLyricsStyle)minified.dls=config.desktopLyricsStyle;
     if (config.theme) {
@@ -603,6 +604,7 @@ export const decompressConfig = (str: string): any => {
     const isMinified = isCompressedShortcode
         || parsed.t !== undefined
         || parsed.rsa !== undefined
+        || parsed.ps !== undefined
         || parsed.vm !== undefined
         || parsed.rvms !== undefined
         || parsed.ccb !== undefined
@@ -641,6 +643,7 @@ export const decompressConfig = (str: string): any => {
         || parsed.lwbb !== undefined;
     if (isMinified) {
         const decompressed: any = {};
+        if (parsed.ps === 'classic' || parsed.ps === 'immersive') decompressed.playerStyle = parsed.ps;
         if(parsed.rsa)decompressed.rearStageAppearance=parsed.rsa;
         if(parsed.dls)decompressed.desktopLyricsStyle=parsed.dls;
         if (parsed.t) {
@@ -717,6 +720,7 @@ export const decompressConfig = (str: string): any => {
         return decompressed;
     } else {
         const validKeys = [
+            'playerStyle',
             'stageRenderSettings', 'rearStageAppearance', 'desktopLyricsStyle', 'theme', 'visualizerMode', 'randomVisualizerModePerSong', 'randomVisualizerModes', 'visualizerBackgroundMode', 'backgroundOpacity',
             'useCoverColorBg', 'disableVisualizerGeometricBackground', 'disableVisualizerVignette', 'staticMode',
             'visualizerOpacity', 'hidePlayerTranslationSubtitle', 'showSubtitleTranslation', 'subtitleContentMode',
@@ -737,6 +741,9 @@ export const decompressConfig = (str: string): any => {
         const hasValidKey = validKeys.some(k => parsed[k] !== undefined);
         if (!hasValidKey) {
             throw new Error('Invalid visual settings configuration');
+        }
+        if (parsed.playerStyle !== undefined && parsed.playerStyle !== 'classic' && parsed.playerStyle !== 'immersive') {
+            throw new Error('Invalid player style');
         }
         return parsed;
     }

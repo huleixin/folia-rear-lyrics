@@ -1,0 +1,23 @@
+听屿 · 第三方开源说明
+
+听屿 / Folia：AGPL-3.0。原始版权归各贡献者所有。
+上游：https://github.com/chthollyphile/folia-major
+对应源码与构建步骤：https://github.com/huleixin/folia-rear-lyrics
+本次修改：新增沉浸极简视觉层、统一风格状态与自愿体验流程；播放服务仍由听屿提供。
+
+MeloX Android 0.7.3：GPL-3.0
+来源：https://github.com/lladlam/MeloX-Android
+Commit: c04f36b9af540806b3bb185b347572e9ca12d87d
+原项目与贡献者保留原有版权。本次适配包名、业务投影、主题、控制事件、图标、后台释放及安全降级。
+
+MeloX 原始实现：https://github.com/youshen2/MeloX （GPL-3.0）
+BetterLyrics：https://github.com/jayfunc/BetterLyrics （GPL-3.0）
+MeloX Android README 记载的原始界面交互与歌词渲染来源，随组合代码保留相应许可。
+完整许可正文见本页各文件；适配映射见源码 third_party/melox/PROVENANCE.md。
+
+GPL-3.0 与 AGPL-3.0 第 13 条允许组合，分别保留许可与对应源码获取义务。
+本页不改变上游权利或为第三方音乐内容授权。
+未引入 TextPV / PVTool、YTRear、SF Pro、SF Symbols 字形或 MiSans。
+无新增支付 SDK、授权验证服务或第三方原生歌词二进制。
+现有 AndroidLiquidGlass / Backdrop 署名与许可证继续保留。
+其他既有依赖说明见源码 THIRD-PARTY-NOTICES.md。

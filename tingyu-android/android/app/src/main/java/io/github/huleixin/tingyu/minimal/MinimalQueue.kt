@@ -24,6 +24,7 @@ data class MinimalQueueItem(
     val songKey: String,
     val title: String,
     val artist: String,
+    val artwork: String = "",
 )
 
 data class MinimalQueue(
@@ -59,6 +60,7 @@ data class MinimalQueue(
                     songKey = songKey,
                     title = row.optString("t", ""),
                     artist = row.optString("a", ""),
+                    artwork = row.optString("c", ""),
                 )
             }
             val current = value.optInt("i", -1)

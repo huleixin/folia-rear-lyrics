@@ -3,6 +3,8 @@ import {audioCacheIn} from '../audioCacheCopy';
 
 import {cloudFeedbackId} from '../cloudFeedbackCopy';
 export default {
+  licenses: {"title": "Lisensi sumber terbuka pihak ketiga", "openError": "Lisensi belum tersedia. Silakan coba lagi."},
+  playerStyles: {"title": "Gaya pemutar", "classic": "Minimal klasik", "immersive": "Minimal imersif", "choose": "Pilih gaya"},
   audioCache: audioCacheIn,
   feedbackCloud: cloudFeedbackId,
   lyricsOutput: {"title":"Lirik desktop dan mobil","desktop":"Lirik desktop","desktopHint":"Lirik mengambang dan tampilan","bluetooth":"Lirik Bluetooth mobil","bluetoothHint":"Judul eksperimental untuk perangkat A2DP terpilih","desktopStyle":"Tampilan lirik desktop"},
@@ -645,6 +647,7 @@ export default {
       "rear-tap-controls-toggle": {"title": "Alihkan kontrol ketuk layar belakang", "description": "Aktifkan atau nonaktifkan kontrol musik saat mengetuk layar belakang"},
       "settings-rear-appearance": {"title": "Tampilan panggung belakang", "description": "Atur tampilan depan atau belakang terpisah"},
       "settings-rear": {"title": "Rear lyrics settings", "description": "Open the rear lyrics control center"},
+      "settings-player-style": {"title": "Gaya pemutar", "description": "Pilih gaya"},
       "settings-desktop-lyrics": {"title": "Pengaturan lirik desktop", "description": "Buka lirik mengambang dan tampilan"},
       "settings-bluetooth-display": {"title": "Tampilan lirik Bluetooth", "description": "Pilih kolom lirik, terjemahan dan interval pembaruan"},
       "settings-bluetooth-lyrics": {"title": "Lirik Bluetooth mobil", "description": "Buka pengaturan lirik A2DP eksperimental"},

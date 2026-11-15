@@ -56,3 +56,8 @@ App 中播放、展示的在线音乐音频、歌词、专辑封面等内容的�
 
 本 fork 与上游作者无关，也不代表上游项目的立场或观点。
 上游 README 中「仅供个人学习、技术交流与非营利测试使用，请勿用于商业盈利用途」的声明同样适用于本 fork。
+
+
+## 沉浸极简播放器
+
+移植自 MeloX Android 0.7.3（GPL-3.0），commit c04f36b9af540806b3bb185b347572e9ca12d87d；包含其记载的 MeloX 与 BetterLyrics GPL-3.0 实现。来源、排除项、变更及文件映射见 [移植声明](third_party/melox/PROVENANCE.md)。完整正文见 [许可证](third_party/melox/LICENSE)。应用内「设置 → 关于听屿 → 第三方开源许可证」提供离线文本与源码入口。

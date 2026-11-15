@@ -3,6 +3,8 @@ import {audioCacheZh} from '../audioCacheCopy';
 
 import {cloudFeedbackZh} from '../cloudFeedbackCopy';
 export default {
+  licenses: {"title": "第三方开源许可证", "openError": "许可证页面暂不可用，请重试"},
+  playerStyles: {"title": "播放器风格", "classic": "经典极简", "immersive": "沉浸极简", "choose": "选择风格"},
   audioCache: audioCacheZh,
   feedbackCloud: cloudFeedbackZh,
   lyricsOutput: {"title":"桌面与车载歌词","desktop":"桌面歌词","desktopHint":"原生悬浮歌词与样式设置","bluetooth":"车载蓝牙歌词","bluetoothHint":"为选定 A2DP 设备尝试显示歌词标题","desktopStyle":"桌面歌词样式"},
@@ -872,6 +874,7 @@ export default {
       "rear-tap-controls-toggle": {"title": "切换背屏点按控件", "description": "开启或关闭轻触背屏显示音乐控件"},
       "settings-rear-appearance": {"title": "背屏舞台外观", "description": "设置跟随正面或背屏独立外观"},
       "settings-rear": {"title": "背屏歌词设置", "description": "打开背屏控制中心"},
+      "settings-player-style": {"title": "播放器风格", "description": "选择风格"},
       "settings-desktop-lyrics": {"title": "桌面歌词设置", "description": "打开悬浮歌词与样式设置"},
       "settings-bluetooth-display": {"title": "车载歌词显示策略", "description": "设置歌词显示栏、翻译及刷新间隔"},
       "settings-bluetooth-lyrics": {"title": "车载蓝牙歌词", "description": "打开实验性 A2DP 歌词设置"},

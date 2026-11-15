@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/MinimalCoverOverlay.kt
-private val LocalMinimalCoverOverlay = staticCompositionLocalOf<SharedTransitionScope?> { null }
+internal val LocalMinimalCoverOverlay = staticCompositionLocalOf<SharedTransitionScope?> { null }
 /** The real cover is drawn once above pager clipping; no thumbnail copy or second image loader. */
 @Composable internal fun MinimalCoverOverlay(content: @Composable ()->Unit) {
     SharedTransitionLayout(Modifier.fillMaxSize()) {

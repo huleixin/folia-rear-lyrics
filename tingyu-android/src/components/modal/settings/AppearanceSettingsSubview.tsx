@@ -23,6 +23,7 @@ import { isFontFamilyAvailable } from '../../../utils/fontAvailability';
 import ImportConfirmDialog from './ImportConfirmDialog';
 import AndroidImmersiveSetting from './AndroidImmersiveSetting';
 import MobilePlayerDisplaySetting from './MobilePlayerDisplaySetting';
+import { snapshotPlayerStyle, restorePlayerStyle } from '../../../stores/usePlayerStyleStore';
 import AiProviderSettings from './AiProviderSettings';
 import { extractCfgFromInput } from '../../../utils/obsUrl';
 import { buildCurrentObsUrl } from '../../../services/obs/currentObsUrl';
@@ -307,6 +308,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
             theme: exportTheme,
             ...buildVisualSettingsConfig(),
             desktopLyricsStyle: await snapshotDesktopLyricsStyle(),
+            ...(isAndroidNativeRuntime() ? { playerStyle: await snapshotPlayerStyle() } : {}),
             songThemeAutoSwitchEnabled,
             songThemeAutoGenerateEnabled,
             // Mod settings and tunings (Folium param store) are visual settings too.
@@ -377,7 +379,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
             const customFont = uiStoreTypographySettings.lyricsCustomFont;
             const plan = buildImportPlan({
                 incoming: config,
-                current: { ...buildVisualSettingsConfig(), desktopLyricsStyle: await snapshotDesktopLyricsStyle(), theme: customTheme ?? null },
+                current: { ...buildVisualSettingsConfig(), desktopLyricsStyle: await snapshotDesktopLyricsStyle(), ...(isAndroidNativeRuntime() ? { playerStyle: await snapshotPlayerStyle() } : {}), theme: customTheme ?? null },
                 switches: { isCustomThemePreferred, songThemeAutoSwitchEnabled, songThemeAutoGenerateEnabled },
                 customFontSource: customFont?.source ?? null,
                 customFontLabel: customFont?.label ?? customFont?.family ?? null,
@@ -405,6 +407,7 @@ const AppearanceSettingsSubview: React.FC<AppearanceSettingsSubviewProps> = ({
     // `keys` are the plan's change keys, which are the config field names apart from the two theme
     // sides. Anything not picked is left exactly as it is.
     const applyImportedConfig = async (config: any, keys: string[]) => {
+        if (keys.includes('playerStyle')) await restorePlayerStyle(config.playerStyle);
         const has = (key: string) => keys.includes(key);
         if(has("rearStageAppearance"))void useRearStageAppearanceStore.getState().restore(config.rearStageAppearance).catch(error=>setStatusMessage({type:"error",text:String(error)}));
         try {

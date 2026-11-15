@@ -1,3 +1,4 @@
+import { chromeNative } from '../../services/nativeChrome';
 import { useOfflineCacheUsage } from '../../hooks/useOfflineCacheUsage';
 import {useInterfaceLight} from '../../hooks/useInterfaceAppearance';
 import SettingsPresence from './settings/SettingsPresence';
@@ -424,6 +425,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     } = useVisualizerAssetStore(useShallow(selectVisualizerAssetSnapshot));
     const resolvedToggleTransparentPlayerBackground = onToggleTransparentPlayerBackground ?? onToggleTransparentPlayerBackgroundFromStore;
     const setIsSubSettingsViewOpen = useSettingsModalStore(state => state.setIsSubSettingsViewOpen);
+    const [licenseError, setLicenseError] = useState(false);
     const [activeTab, setActiveTab] = useState<'help' | 'options'>(initialTab);
     const [tabDirection, setTabDirection] = useState<'left' | 'right'>('right');
     const handleTabChange = (tab: 'help' | 'options') => {
@@ -1617,6 +1619,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                     </button>
                                     <JoinCommunityButton />
                                 </div>}
+
+                                {isAndroidNativeRuntime() && <button type="button"
+                                    onClick={() => { void chromeNative.openThirdPartyLicenses().catch(() => setLicenseError(true)); }}
+                                    data-settings-style='{"fill":true,"radius":18,"font":14,"padding":[18,16,18,16],"margin":[0,16,0,0]}'
+                                    data-settings-layout="row">{t('licenses.title')}</button>}
+                                {licenseError && <p role="alert" data-settings-layout="column">{t('licenses.openError')}</p>}
 
                                 {/* Author Info (Moved from Footer) */}
                                 <div className="mt-6 text-center text-xs opacity-75" data-tingyu-attribution="true" data-settings-style='{"center":true,"font":12,"tone":"muted","gap":4}' data-settings-layout="column">

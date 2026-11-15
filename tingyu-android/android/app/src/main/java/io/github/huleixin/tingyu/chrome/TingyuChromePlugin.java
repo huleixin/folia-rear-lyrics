@@ -75,6 +75,18 @@ public class TingyuChromePlugin extends Plugin {
             call.resolve(appearanceState());
         } catch(Exception error){call.reject(error.getMessage(),error);}
     }); }
+    @PluginMethod public void playerStyle(PluginCall call) { getActivity().runOnUiThread(() -> {
+        try {
+            ComposeChromeHost shell = host();
+            shell.setPlayerStyleListener(id -> {
+                notifyListeners("playerStyleChanged", new JSObject().put("style", id));
+                return kotlin.Unit.INSTANCE;
+            });
+            if (call.getData().has("style")) shell.restorePlayerStyle(call.getString("style"));
+            if (Boolean.TRUE.equals(call.getBoolean("open", false))) shell.openPlayerStyles();
+            call.resolve(new JSObject().put("style", shell.playerStyleId()));
+        } catch(Exception error) { call.reject(error.getMessage(), error); }
+    }); }
     private JSObject appearanceState(){return new JSObject().put("mode",InterfaceAppearance.mode(getContext()))
         .put("style",InterfaceAppearance.style(getContext())).put("systemLight",InterfaceAppearance.systemLight(getContext())).put("light",InterfaceAppearance.light(getContext()));}
     @Override protected void handleOnConfigurationChanged(android.content.res.Configuration config){
@@ -161,6 +173,15 @@ public class TingyuChromePlugin extends Plugin {
     }
 
     /** 所有路由共用原生定时菜单；失败必须交给调用方显示，不能静默成功。 */
+    @PluginMethod public void openThirdPartyLicenses(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            try {
+                if (!host().openThirdPartyLicenses()) { call.reject("许可证页面暂不可用，请重试"); return; }
+                call.resolve();
+            } catch (Exception error) { call.reject("无法打开许可证页面", error); }
+        });
+    }
+
     @PluginMethod public void openSleepTimer(PluginCall call) {
         getActivity().runOnUiThread(() -> {
             try {

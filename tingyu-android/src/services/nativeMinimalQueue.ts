@@ -1,4 +1,6 @@
 import type { SongResult } from '../types';
+import { createProviderSongMetadata } from '../utils/songMetadata';
+import { resolveNativePlayerArtwork } from './nativeCoverThumbnail';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
 import { chromeNative } from './nativeChrome';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
@@ -33,7 +35,7 @@ export type NativeQueueHandlers = {
 
 /** 一条曲目。`u` 是条目身份（含出现序号，队列有重复歌曲也各自唯一），`k` 是歌曲身份。
  *  `q` 是**目录支持**的音质层级（qualityBadgeSpecs 的 QualityLevel，歌单语境——不代表当前流的容器）。 */
-export type NativeQueueItem = { u: string; k: string; t: string; a: string; q?: string };
+export type NativeQueueItem = { u: string; k: string; t: string; a: string; c?: string; q?: string };
 
 export type NativeQueueSnapshot = {
     /** 队列版本：内容或顺序一变就 +1，原生据此判断"要不要重画"。 */
@@ -185,7 +187,7 @@ export function readNativeQueue(currentKey: string): NativeQueueSnapshot | null 
     const items = queue.map((song, index) => {
         const k = getPlaybackSongKey(song);
         // 播放队列抽屉**不显示音质标签**（用户明确要求）；标签只在歌单/搜索/播放页。
-        return { u: uidFor(queue, index, k), k, t: song.name ?? '', a: getSongArtistLabel(song) };
+        return { u: uidFor(queue, index, k), k, t: song.name ?? '', a: getSongArtistLabel(song), c: resolveNativePlayerArtwork(createProviderSongMetadata(song).coverUrl) };
     });
     const index = items.findIndex(item => item.k === currentKey);
     return { v: version, i: index, ck: currentKey, mode: currentQueueMode(), n: items.length, items };

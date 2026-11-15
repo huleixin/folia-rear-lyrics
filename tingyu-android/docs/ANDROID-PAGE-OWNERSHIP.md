@@ -28,7 +28,10 @@ React 负责数据、路由、业务动作与原生桥接；Compose 负责绘制
 | 桌面/车载歌词、咖啡支持、交流群 | `chrome/NativeSettingsDestination.kt` + `SettingsFullScreenFrame.kt`；同宿主路由转场 | 歌词设置沿用原生配置；支持页由原生设置动作打开 | `chrome/LyricsSettingsSheet.kt`、`BluetoothLyricsSettingsSheet.kt`、`SupportSheets.kt`；不得另开设置 Dialog |
 | 历史设置显示列表兼容（当前路由不再生产） | `chrome/NativeSettingsDocumentView.kt`（显示列表复刻） | `services/nativeSettingsDocument.ts`、`hooks/useNativeSettingsDocument.ts` | `chrome/NativeSettingsDocument*.kt`；**DOM 是排版真值源，只改样式不改结构** |
 | 二级操作面板（歌曲 ⋯ / 歌单 ⋯ / 音源选择…） | `chrome/TyPanel.kt` + `TyPanelHost.kt` | `library/suites/mobile/native/OperationPanel.tsx`（声明式模型） | `chrome/TyPanel*.kt` |
-| 极简播放器 | `minimal/ui/MinimalPlayerScreen.kt` | `hooks/useNativeMinimalPlayer.ts`、`AppOverlays.tsx` | `minimal/ui/`、`minimal/` |
+| 经典极简播放器 | `minimal/ui/MinimalPlayerScreen.kt`，`chrome/MinimalPlayerPage.kt` 统一宿主 | `hooks/useNativeMinimalPlayer.ts`、`AppOverlays.tsx`；共享 MinimalPlayerRuntime | `minimal/ui/`、`minimal/`；保留经典布局、手势及动画 |
+| 沉浸极简播放器（1.5.55） | `minimal/immersive/ImmersivePlayerHost.kt`、`port/MeloXIOSNowPlayingScene.kt` | 同一 MinimalPlayerRuntime/Commands/Queue；无独立播放服务 | `minimal/immersive/`；仅当前风格持续渲染，无 WebView 播放器 |
+| 播放器风格/首次介绍/咖啡返回体验 | `minimal/style/PlayerStyleLayer.kt`、`PlayerStyleSheet.kt`、已有 `chrome/SupportSheets.kt` | 单一 PlayerStyleController；设置仅语义动作，外观导入导出投影 | `minimal/style/`、`chrome/SupportSheets.kt`；三入口同状态、全部免费 |
+| 第三方开源许可证 | `chrome/ThirdPartyLicensesPage.kt` + `NativeSettingsDestination.kt` | assets/licenses 离线文本及固定来源 | 对应 kt 与 assets/licenses；不新建 WebView |
 | 迷你播放器 | `chrome/ChromeMiniPlayer.kt` | `MobileMiniPlayer.tsx`（仅发 chrome 帧） | `chrome/ChromeMiniPlayer.kt` |
 | 底部导航 | `chrome/ChromeNavigation.kt` | `MobileLibraryStage.tsx`（仅发 chrome 帧） | `chrome/ChromeNavigation.kt` |
 | 舞台传输条 | `chrome/ChromeStagePlayer.kt` | `MobileStageChrome.tsx`（仅发 chrome 帧） | `chrome/ChromeStagePlayer.kt` |

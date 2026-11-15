@@ -115,6 +115,7 @@ fun MinimalPlayerScreen(
     queue: io.github.huleixin.tingyu.minimal.MinimalQueue = io.github.huleixin.tingyu.minimal.MinimalQueue(),
     /** 打开宿主的队列抽屉。极简页自己不再持有抽屉状态。 */
     onOpenQueue: () -> Unit = {},
+    onOpenStyle: () -> Unit = {},
     /** 打开宿主的工具页："quality" | "effects" | "lyrics"。不再发 JS 开 WebView 弹窗。 */
     onOpenTools: (String) -> Unit = {},
     /** 打开宿主的原生定时面板；未接入时禁用入口，不发 JS 弹窗动作。 */
@@ -414,6 +415,7 @@ fun MinimalPlayerScreen(
                 onPick = { pick ->
                     dismissMenu()
                     when (pick) {
+                        -1 -> onOpenStyle()
                         0 -> sheetCommands.openAudioQuality()
                         1 -> sheetCommands.openAudioEffects()
                         2 -> sheetCommands.openLyricsPanel()
@@ -601,6 +603,7 @@ internal fun MoreMenuPanel(
             .padding(7.dp),
     ) {
         listOf(
+            Triple("播放器风格", "当前：经典极简", MenuGlyph.Tune),
             Triple("音质选择", qualityMode, MenuGlyph.AudioLines),
             Triple("均衡器与音效", if (effectsOn) "已开启" else "已关闭", MenuGlyph.Sliders),
             Triple("歌词工具", "", MenuGlyph.Captions),
@@ -616,7 +619,7 @@ internal fun MoreMenuPanel(
                     .heightIn(min = 47.dp)
                     .clip(RoundedCornerShape(11.dp))
                     .background(if (pressed) MenuInkColor.copy(alpha = 0.07f) else Color.Transparent)
-                    .clickable(interactionSource = interaction, indication = null) { onPick(index) }
+                    .clickable(interactionSource = interaction, indication = null) { onPick(index - 1) }
                     .graphicsLayer {
                         val scale = if (pressed) 0.98f else 1f
                         scaleX = scale

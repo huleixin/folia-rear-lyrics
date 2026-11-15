@@ -1,5 +1,7 @@
 package io.github.huleixin.tingyu.chrome
 
+import io.github.huleixin.tingyu.minimal.style.PlayerStyle
+import io.github.huleixin.tingyu.minimal.immersive.immersivePlayerContainer
 import android.os.Build
 import android.os.SystemClock
 import android.view.ViewGroup
@@ -61,6 +63,11 @@ import kotlin.math.roundToInt
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ComposeChromeHost.kt
 // Stable WebView identity; native pages and the live stage use separate GPU backdrop sources.
 class ComposeChromeHost(private val web: WebView, var listener: ChromeActionListener) {
+    private val playerStyles = io.github.huleixin.tingyu.minimal.style.PlayerStyleController(web.context)
+    var playerStyleListener: ((String) -> Unit)? = null
+    fun playerStyleId(): String = playerStyles.style.value.id
+    fun openPlayerStyles() { playerStyles.open() }
+    fun restorePlayerStyle(id: String?) { playerStyles.restoreStyle(id) }
     /** Text actions use the existing action event with a text field, never a fake numeric value. */
     var nativeTextActionListener: ((String,String,String,String)->Unit)? = null
     fun setTextActionListener(value: ((String,String,String,String)->Unit)?) { nativeTextActionListener = value }
@@ -203,6 +210,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
     fun openLyricsSettings(mode:String):Boolean {
         if(!active||!focused||host?.isAttachedToWindow!=true||pendingStageEntry||stageExit.active)return false
         showNativeSettings(NativeSettingsDestination(if(mode=="bluetooth")"bluetooth"else"desktop"))
+        return true
+    }
+    fun openThirdPartyLicenses(): Boolean {
+        if (!active || !focused || host?.isAttachedToWindow != true || stageExit.active) return false
+        showNativeSettings(NativeSettingsDestination("licenses"))
         return true
     }
     private var supportCopyJson by mutableStateOf<String?>(null)
@@ -724,6 +736,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         compose.setContent { Scene() }
     }
     @Composable private fun Scene() {
+        val playerStyle by playerStyles.style.collectAsState()
+        LaunchedEffect(playerStyle) { playerStyleListener?.invoke(playerStyle.id) }
         // 原生首帧时间（录屏 68723 要求记录）：窗口背景从这一帧起被页面取代。
         LaunchedEffect(Unit){withFrameNanos{NavigationTiming.mark("first-native-frame");android.util.Log.i("TingyuEntry","first-native-frame pages=${pages.size} surfaces=${surfaces.size}")
             StartupTrace.detail("first-native-frame"){put("pages",pages.size);put("surfaces",surfaces.size);put("presented",presented?.key)} }}
@@ -750,7 +764,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val sleepUi=rememberMiniSleepUi(active&&focused)
         val backdrop = rememberLayerBackdrop()
         val stageBackdrop = rememberLayerBackdrop()
-        val exitProgress=rememberStageExitProgress(stageExit,reducedMotion,playerPanelOrigin!=null)
+        val immersiveStyle = playerStyle == PlayerStyle.IMMERSIVE
+        val exitProgress=rememberStageExitProgress(stageExit,reducedMotion,playerPanelOrigin!=null,immersiveStyle)
         // 极简页归 Compose 所有时，WebView 那条 stage 控制条必须退场：两个传输并排出现
         // 就是两套「播放/暂停」在同一个屏幕上，和 1.3.119 里「极简页 vs 舞台」的规则一致。
         // 条件里的 bound 是握手：只有 JS 正在推帧（也就意味着它已经把 WebView 极简页让出来）
@@ -773,9 +788,15 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val detourAbove by remember(nativeDetour,detourOffset) { derivedStateOf { nativeDetour && detourOffset.value < .9999f } }
         val stageAboveMinimal=playerHost.stageMotionDetour||detourAbove
         val playerReady=playerPresentation!="minimal"||!minimalPlayerEnabled()||minimalBound
-        val playerEntry=rememberLiquidPlayerProgress(destination=="stage",returningFromSettings||minimalResumePending,motionReduced,stageExit.active,playerReady,playerPanelOrigin!=null)
-        val minimalMorph=remember(playerPanelOrigin,playerOrigin,playerEntry,exitProgress,motionReduced) {
-            playerPanelOrigin?.let { panel -> playerOrigin?.let { cover -> MinimalPlayerMorph(panel,cover,playerEntry,stageExit,exitProgress,motionReduced) } }
+        val playerEntry=rememberLiquidPlayerProgress(destination=="stage",returningFromSettings||minimalResumePending,motionReduced,stageExit.active,playerReady,playerPanelOrigin!=null,immersiveStyle)
+        val immersiveBounds = io.github.huleixin.tingyu.minimal.immersive.rememberImmersiveBoundsProgress(destination=="stage",returningFromSettings||minimalResumePending,motionReduced,stageExit.active,playerReady)
+        val immersiveClosingTime = io.github.huleixin.tingyu.minimal.immersive.rememberImmersiveClosingTime(stageExit.active && immersiveStyle, motionReduced)
+        val immersiveSinkPeak = with(LocalDensity.current) { 22.dp.toPx() }
+        val immersiveMorph=remember(playerPanelOrigin,playerOrigin,playerEntry,exitProgress,motionReduced,immersiveBounds,immersiveClosingTime,immersiveSinkPeak) {
+            io.github.huleixin.tingyu.minimal.immersive.ImmersivePlayerMotion(playerPanelOrigin,playerOrigin,playerEntry,stageExit,exitProgress,motionReduced,immersiveBounds,immersiveClosingTime,immersiveSinkPeak)
+        }
+        val minimalMorph=remember(playerPanelOrigin,playerOrigin,playerEntry,exitProgress,motionReduced,immersiveStyle) {
+            playerPanelOrigin?.takeUnless { immersiveStyle }?.let { panel -> playerOrigin?.let { cover -> MinimalPlayerMorph(panel,cover,playerEntry,stageExit,exitProgress,motionReduced) } }
         }
         val playerReveal=remember(playerEntry,exitProgress){derivedStateOf{playerEntry.value*(if(stageExit.active)1f-exitProgress.value else 1f)}}
         val playerEntering by remember(playerEntry){derivedStateOf{destination=="stage"&&playerEntry.value<.9999f&&!stageExit.active}}
@@ -835,7 +856,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         BoxWithConstraints(Modifier.fillMaxSize()) {
             CompositionLocalProvider(LocalPadWindow provides padLayoutWindow(maxWidth.value,maxHeight.value,
                 if(Build.VERSION.SDK_INT>=30) (web.context.getSystemService(android.view.WindowManager::class.java)?.currentWindowMetrics?.bounds?.height()?.div(LocalDensity.current.density)?:maxHeight.value)
-                else maxHeight.value + WindowInsets.ime.getBottom(LocalDensity.current)/LocalDensity.current.density),LocalChromeRendering provides (active&&focused),LocalInterfacePalette provides palette,LocalLiquidReduced provides motionReduced,LocalMotionOrigin provides motionOrigin,LocalPlayerReveal provides playerReveal,LocalPlayerArtworkAnchor provides playerArtwork,LocalMinimalMorph provides minimalMorph) {
+                else maxHeight.value + WindowInsets.ime.getBottom(LocalDensity.current)/LocalDensity.current.density),LocalChromeRendering provides (active&&focused),LocalInterfacePalette provides palette,LocalLiquidReduced provides motionReduced,LocalMotionOrigin provides motionOrigin,LocalPlayerReveal provides playerReveal,LocalPlayerArtworkAnchor provides playerArtwork,LocalMinimalMorph provides minimalMorph,io.github.huleixin.tingyu.minimal.immersive.LocalImmersiveMorph provides (if(immersiveStyle)immersiveMorph else null)) {
             val density=LocalDensity.current;val width=maxWidth.value;val height=maxHeight.value
             val safeTop=if(nativeTop>=0)nativeTop else WindowInsets.statusBars.getTop(density)/density.density
             val safeBottom=if(nativeBottom>=0)nativeBottom else WindowInsets.navigationBars.getBottom(density)/density.density
@@ -1144,7 +1165,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         cache.chrome(id,width,height,safeBottom,safeTop).let{if(id=="nav")it.copy(selected=startupSelected?:selectedTab)else it}
                     else null
                 }
-                val miniStageAlpha = if(destination=="stage") { if(minimalMorph!=null)minimalMorph.miniAlpha() else (1f-playerReveal.value*4f).coerceIn(0f,1f) } else 1f
+                val miniStageAlpha = if(destination=="stage") { if(immersiveStyle)immersiveMorph.miniAlpha() else if(minimalMorph!=null)minimalMorph.miniAlpha() else (1f-playerReveal.value*4f).coerceIn(0f,1f) } else 1f
                 val retainFooter = when(id) {
                     "nav" -> navTarget || navPresence > 0.001f
                     "mini" -> (miniTarget || miniPresence > 0.001f) && (destination != "stage" || miniStageAlpha > 0.001f || stageExit.active || playerEntering)
@@ -1194,6 +1215,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         } else if(id=="mini" && destination != "stage" && !pendingStageEntry && !stageExit.active) {
                             translationY = with(density) { (NativeFooterLayout.MiniSlideOffsetDp * (1f - miniPresence)).dp.toPx() }
                         }
+                        if(id=="mini" && immersiveStyle && stageExit.active) translationY = immersiveMorph.sinkOffset()
                     }
                     val actions: (String,Double)->Unit = actions@ { action,value ->
                         if(settingsHandoff!=null||nativeSettingsLayerHeld)return@actions
@@ -1276,10 +1298,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         targetOffsetY = { it },
                     ) + fadeOut(tween(TingYuMotion.MinimalFadeMs))
                 },
-                modifier = Modifier.fillMaxSize().zIndex(playerZ).then(if(minimalMorph!=null)Modifier.minimalPlayerContainer(minimalMorph) else Modifier.liquidPlayer(playerOrigin,playerEntry,stageExit,exitProgress)),
+                modifier = Modifier.fillMaxSize().zIndex(playerZ).then(if(immersiveStyle)Modifier else if(minimalMorph!=null)Modifier.minimalPlayerContainer(minimalMorph) else Modifier.liquidPlayer(playerOrigin,playerEntry,stageExit,exitProgress)),
             ) {
                 MinimalPlayerSurface(
                     runtime = minimal,
+                    active = active && focused && minimalOwns,
+                    playerStyle = playerStyle,
+                    onOpenStyle = { playerStyles.open() },
                     commands = minimalCommands,
                     queue = queueState,
                     onOpenQueue = { openNativeQueue() },
@@ -1395,6 +1420,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     }
                 }
             }
+            io.github.huleixin.tingyu.minimal.style.PlayerStyleLayer(playerStyles, interfaceLight,
+                minimal, minimalCommands, queueState)
             if(stageExit.active)Box(Modifier.fillMaxSize().zIndex(4f).pointerInput(Unit){awaitPointerEventScope{while(true)awaitPointerEvent().changes.forEach{it.consume()}}})
             if(graphics.enabled)Text("N · 记闪烁",color=Color(0xFFB8FFE3),fontSize=10.sp,
                 modifier=Modifier.zIndex(20f).offset(12.dp,(safeTop+3).dp).background(Color(0xDD09251C))

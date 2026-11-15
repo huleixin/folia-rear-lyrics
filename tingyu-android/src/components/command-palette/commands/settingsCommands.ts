@@ -1,4 +1,5 @@
 import { isCapacitorAndroid } from '../../../platform/runtime';
+import { openPlayerStyles } from '../../../stores/usePlayerStyleStore';
 import { isAndroidNativeRuntime } from '../../../utils/platform';
 import {openFeedback} from '../../../services/feedback/navigation';
 import { nativeLyricsAvailable, openNativeLyricsSettings } from '../../../services/nativeLyrics';
@@ -23,6 +24,7 @@ import { canUseRearCardKeepAwake, toggleRearCardKeepAwake, canUseRearLyrics, tog
 // Commands in the `settings` group: settings subviews, app toggles, theme, sync, and desktop-only switches.
 
 export const settingsCommands: CommandPaletteCommand[] = [
+    defineCommand({id:'settings-player-style',group:'settings',title:'Player style',description:'Choose a native player appearance',keywords:['immersive player','classic player','播放器风格','沉浸极简','经典极简'],isAvailable:isAndroidNativeRuntime,execute:openPlayerStyles}),
     defineCommand({id:'settings-feedback',group:'settings',title:'问题反馈与诊断 / Feedback',description:'预览、主动上传诊断及查看反馈状态',keywords:['反馈','诊断','feedback','crash','闪退','bug'],execute:()=>openFeedback()}),
     defineCommand({id:'settings-desktop-lyrics',group:'settings',title:'Desktop lyrics',description:'Configure native floating lyrics',keywords:['desktop lyrics','floating lyrics','桌面歌词','悬浮歌词'],isAvailable:nativeLyricsAvailable,execute:()=>openNativeLyricsSettings('desktop')}),
     defineCommand({id:'settings-bluetooth-display',group:'settings',title:'Bluetooth lyric display',description:'Choose title, artist, album, translation and refresh settings',keywords:['car lyric display','metadata','车载歌词显示','歌词翻译','蓝牙刷新间隔','下一句歌词'],isAvailable:nativeLyricsAvailable,execute:()=>openNativeLyricsSettings('bluetooth')}),

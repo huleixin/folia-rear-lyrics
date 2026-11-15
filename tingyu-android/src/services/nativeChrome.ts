@@ -26,6 +26,8 @@ export type ChromeAction = {nativeDispatchedAt?:number;nativeGestureId?:number;i
 export type ChromeFrame = {id: ChromeSurfaceId; session: string; generation: number; revision: number; enabled: boolean;
     left: number; top: number; width: number; height: number; alpha: number; viewportWidth: number; safeBottom?:number; data: ChromeData & {position?: number}};
 export const chromeNative = registerPlugin<{
+    playerStyle(value:{style?:'classic'|'immersive';open?:boolean}):Promise<{style:string}>;
+    addListener(name:'playerStyleChanged',callback:(value:{style:string})=>void):Promise<{remove:()=>Promise<void>}>;
     graphicsProbe():Promise<Record<string,unknown>&{mode:GraphicsMode}>;
     graphicsConfigure(value:{mode:GraphicsMode}):Promise<{saved:boolean}>;
     addListener(name:'graphicsMark',listener:(value:Record<string,unknown>&{mode:GraphicsMode})=>void):Promise<{remove():Promise<void>}>;
@@ -59,6 +61,7 @@ export const chromeNative = registerPlugin<{
      */
     openMinimalQueue(): Promise<void>;
     /** 当前路由共享的原生睡眠定时菜单，宿主不可用时拒绝请求。 */
+    openThirdPartyLicenses(): Promise<void>;
     openSleepTimer(): Promise<{ accepted: boolean }>;
     /**
      * 原生工具页（音质/效果器/歌词工具/洛雪音源）的状态快照。

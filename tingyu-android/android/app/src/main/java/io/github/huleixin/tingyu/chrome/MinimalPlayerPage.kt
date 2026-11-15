@@ -1,6 +1,10 @@
 package io.github.huleixin.tingyu.chrome
 
-import androidx.compose.runtime.Composable
+import io.github.huleixin.tingyu.minimal.style.PlayerStyleTransition
+import io.github.huleixin.tingyu.minimal.style.PlayerStyle
+import io.github.huleixin.tingyu.minimal.immersive.ImmersivePlayerHost
+import io.github.huleixin.tingyu.minimal.immersive.ImmersiveActionsSheet
+import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -24,6 +28,8 @@ fun MinimalPlayerSurface(
     /** 队列投影由宿主收集后传进来：抽屉归宿主，页面只负责画按钮。 */
     queue: MinimalQueue,
     onOpenQueue: () -> Unit,
+    playerStyle: PlayerStyle = PlayerStyle.CLASSIC,
+    onOpenStyle: () -> Unit = {},
     /** 打开宿主的工具页（quality / effects / lyrics）。音质/效果器/歌词不再走 WebView 弹窗。 */
     onOpenTools: (String) -> Unit = {},
     /** 定时入口走宿主共享的原生面板，状态由 SleepTimerController 提供。 */
@@ -49,28 +55,43 @@ fun MinimalPlayerSurface(
 ) {
     val state by runtime.state.collectAsState()
     val artwork by runtime.artwork.collectAsState()
+    var retainedPage by remember(resetToken) { mutableIntStateOf(initialPage) }
+    val reportPage: (Int) -> Unit = { page -> retainedPage = page; onPageChanged(page) }
+    PlayerStyleTransition(playerStyle, modifier) { displayedStyle ->
+    // Exclusive visual branches share the same runtime: changing style emits no playback command.
+    if (displayedStyle == PlayerStyle.IMMERSIVE) {
+        var actions by remember { mutableStateOf(false) }
+        ImmersivePlayerHost(state, artwork, commands, queue, active, resetToken,
+            onCollapse, reportPage, { actions = true }, { onOpenTools("quality") }, Modifier,
+            initialPage = if (retainedPage == 1) io.github.huleixin.tingyu.minimal.immersive.port.MeloXNowPlayingPage.Lyrics else io.github.huleixin.tingyu.minimal.immersive.port.MeloXNowPlayingPage.Artwork)
+        ImmersiveActionsSheet(actions, light, { actions = false }, onOpenStyle,
+            onOpenSleep ?: {}, onOpenTools, commands)
+        return@PlayerStyleTransition
+    }
     MinimalPlayerScreen(
         state = state,
         artwork = artwork,
         commands = commands,
         queue = queue,
         onOpenQueue = onOpenQueue,
+        onOpenStyle = onOpenStyle,
         onOpenTools = onOpenTools,
         onOpenSleep = onOpenSleep,
         sleepActive = sleepActive,
         sleepLabel = sleepLabel,
         onSleepAnchor = onSleepAnchor,
-        initialPage = initialPage,
+        initialPage = retainedPage,
         resetToken = resetToken,
         coverStack = coverStack,
         coverArtwork = coverArtwork,
-        onPageChanged = onPageChanged,
+        onPageChanged = reportPage,
         light = light,
         safeTop = safeTop,
         safeBottom = safeBottom,
         detour = state.controls.detour || !active,
         onCollapse = onCollapse,
         onOpenStage = onOpenStage,
-        modifier = modifier,
+        modifier = Modifier,
     )
+    }
 }

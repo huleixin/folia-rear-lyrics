@@ -371,10 +371,5 @@ class MinimalParityTest {
         )
     }
 
-    @Test
-    fun lxSheet() = renderTool("tools-lx") {
-        io.github.huleixin.tingyu.minimal.ui.MinimalLxSheet(
-            tools = sampleTools("lx"), light = false, actions = stubToolActions, onClose = {},
-        )
-    }
+
 }

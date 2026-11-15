@@ -12,7 +12,7 @@ internal data class NativeSettingsDestination(val kind:String,val copyJson:Strin
     fun page(base:NativePage,width:Float,height:Float)=base.copy(id="settings",key=key,
         rect=ChromeRect(0f,0f,width,height,1f),viewport=width,document=null,home=false,subtitle=copyJson.orEmpty(),sections=emptyList(),bottomClearance=0f)
     companion object{
-        private val kinds=setOf("desktop","bluetooth","coffee","group")
+        private val kinds=setOf("desktop","bluetooth","coffee","group","licenses")
         fun fromKey(key:String):String?=key.removePrefix("settings:native:").takeIf{key.startsWith("settings:native:")&&it in kinds}
         fun returning(from:String,to:String,back:Boolean)=if(fromKey(to)!=null)false else if(fromKey(from)!=null)true else back
     }
@@ -22,6 +22,7 @@ internal data class NativeSettingsDestination(val kind:String,val copyJson:Strin
         "desktop","bluetooth"->LyricsSettingsSheet(activity,mode=kind,requestBluetooth={
             if(android.os.Build.VERSION.SDK_INT>=31)activity.requestPermissions(arrayOf(android.Manifest.permission.BLUETOOTH_CONNECT),27073)
         },onClose=onClose)
+        "licenses"->ThirdPartyLicensesPage(onClose)
         else->SupportSheets(kind,copyJson,onClose)
     }
 }
