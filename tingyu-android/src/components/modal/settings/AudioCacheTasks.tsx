@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import OperationPanel from '../../../library/suites/mobile/native/OperationPanel';
 import { audioCacheRequest, type AudioCacheStatus } from '../../../services/audioPlaylistCache';
 import { getTingyuPlayback } from '../../../platform/tingyuPlayback';
+import { formatOfflineBytes } from './OfflineCacheOverview';
 import type { ResourceStatus } from './useResourceCacheStatus';
 import type { NativePanelBlock, NativePanelModel } from '../../../types/nativePanels';
 
@@ -33,7 +34,7 @@ export default function AudioCacheTasks({ collections = [], resources, onClose }
         return () => { alive = false; clearTimeout(timer); document.removeEventListener('visibilitychange', visibility); };
     }, [filter, collection, offset]);
     const blocks: NativePanelBlock[] = [
-        {kind:'note',id:'resources',text:(resources.descriptor?.name?resources.descriptor.name+' · ':'')+t('audioCache.resourceProgress',{complete:resources.completed,total:resources.total})},
+        {kind:'note',id:'resources',text:text('resourceDetails')+(resources.descriptor?.name?' · '+resources.descriptor.name:'')+'\n'+t('audioCache.lyricsProgress',{count:resources.lyricsReady??0,total:resources.total})+'\n'+t('audioCache.artworkProgress',{count:resources.artworkReady??0,total:resources.total})+'\n'+t('audioCache.resourceOccupancy',{size:formatOfflineBytes(resources.lyricsBytes+resources.artworkBytes)})},
         { kind: 'select', id: 'playlist', label: text('allPlaylists'), value: collection, options: [{ value: '', label: text('allPlaylists') }, ...collections.map(c => ({ value: c.id, label: `${c.name} · ${c.complete}/${c.total}` }))] },
         { kind: 'select', id: 'filter', label: text('audio'), value: filter, options: ['active', 'failed', 'completed'].map((key, i) => ({ value: ['active', 'failed', 'complete'][i], label: text(key) })) },
         { kind: 'note', id: 'count', text: t('audioCache.page', { offset: page.total ? page.offset + 1 : 0, end: Math.min(page.offset + page.tasks.length, page.total), total: page.total }) },

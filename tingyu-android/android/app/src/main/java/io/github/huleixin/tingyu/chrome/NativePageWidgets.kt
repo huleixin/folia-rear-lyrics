@@ -145,7 +145,7 @@ internal val PageAccent:Color @Composable get()=topGlassForegroundColor(LocalInt
         Column(Modifier.weight(1f)) {
             Text(item.title,color=if(item.selected)PageAccent else PageInk.copy(alpha=if(item.disabled).45f else 1f),fontSize=titleSize.sp,lineHeight=(titleSize*1.4).sp,
                 fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)
-            if(item.subtitle.isNotBlank()||item.audioSpecs.isNotEmpty())NativeSongSubtitle(item,size=subtitleSize,lineHeight=(subtitleSize*1.5).sp,modifier=Modifier.padding(top=2.dp))
+            if(item.subtitle.isNotBlank()||item.audioSpecs.isNotEmpty()||item.audioCached)NativeSongSubtitle(item,size=subtitleSize,lineHeight=(subtitleSize*1.5).sp,modifier=Modifier.padding(top=2.dp))
         }
         if(item.duration.isNotBlank())Text(item.duration,color=PageMuted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
         if(item.secondary.isNotBlank())ChromeButton("更多",size=36.dp,onClick={action(item.secondary)}){PageIcon("ellipsis-vertical",PageMuted,Modifier.size(18.dp))}

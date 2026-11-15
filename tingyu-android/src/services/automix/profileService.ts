@@ -1,3 +1,7 @@
+import { isCapacitorAndroid } from '../../platform/runtime';
+import { useAudioSettingsStore } from '../../stores/useAudioSettingsStore';
+import { readNativeAnalysisAudio } from './nativeAnalysisAudio';
+import type { AudioQualityPreference } from '../../types/onlineMusic';
 import type { SongResult } from '../../types';
 import { getPlaybackSongKey, getPlaybackSourceRef } from '../../utils/appPlaybackGuards';
 import { saveAudioBlob } from '../audioCache';
@@ -174,6 +178,7 @@ interface ProfileRequest {
     audioUrl?: string | null;
     /** Song caching is on, so downloading this track now costs nothing it was not going to cost. */
     enableMediaCache: boolean;
+    audioQuality?: AudioQualityPreference;
 }
 
 /**
@@ -210,8 +215,8 @@ const readPrefix = async (audioUrl: string): Promise<BytesResult> => {
     return { bytes: await response.arrayBuffer(), partial: true };
 };
 
-const readBytes = async (
-    { song, audioUrl, enableMediaCache }: ProfileRequest,
+export const readTrackProfileBytes = async (
+    { song, audioUrl, enableMediaCache, audioQuality }: ProfileRequest,
     /** A head-only profile is already stored, so there is nothing a second range request buys. */
     hasStoredPartial: boolean,
 ): Promise<BytesResult> => {
@@ -228,7 +233,11 @@ const readBytes = async (
             return { skipped: 'the playback representation could not be read' };
         }
     }
-    const cached = await getCachedSongAudioBlob(song);
+    if(isCapacitorAndroid()){
+        const bytes=await readNativeAnalysisAudio(song,audioQuality??useAudioSettingsStore.getState().audioQuality);
+        if(bytes)return {bytes,partial:false};
+    }
+    const cached = await getCachedSongAudioBlob(song,audioQuality);
     if (cached) return { bytes: await cached.arrayBuffer(), partial: false };
 
     if (!audioUrl) return { skipped: 'not cached yet and no URL to read it from' };
@@ -237,6 +246,8 @@ const readBytes = async (
     const isLocal = audioUrl.startsWith('blob:') || audioUrl.startsWith('file:')
         || getPlaybackSourceRef(song).kind !== 'online';
 
+    // Android's old media switch must never start a second full audio download.
+    if(isCapacitorAndroid()&&!isLocal)return {skipped:'waiting for complete offline audio'};
     try {
         if (!isLocal && !enableMediaCache) {
             // Song caching is off, so the full file would be bandwidth nobody agreed to. Take the
@@ -310,7 +321,7 @@ export const ensureTrackProfile = async (request: ProfileRequest): Promise<void>
                 return;
             }
 
-            const result = await readBytes(request, Boolean(usable?.partial));
+            const result = await readTrackProfileBytes(request, Boolean(usable?.partial));
             if ('skipped' in result) {
                 if (usable) {
                     remember(songKey, usable);

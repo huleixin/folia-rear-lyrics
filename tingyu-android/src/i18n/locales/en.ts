@@ -920,7 +920,6 @@ export default {
       "audio-cache": {"title": "Save while listening", "description": "Open persistent cache settings"},
       "audio-cache-wifi": {"title": "Cache on Wi-Fi", "description": "Choose allowed networks"},
       "audio-cache-playlist": {"title": "Automatic playlist caching", "description": "Configure whole-playlist caching"},
-      "audio-cache-limit": {"title": "Audio cache limit", "description": "Choose storage capacity"},
       "audio-cache-tasks": {"title": "Cache tasks", "description": "View, retry and stop tasks"},
       "audio-cache-clear": {"title": "Clear audio cache", "description": "Review and confirm deletion"},
       "lx-routing": {"title": "LX playback priority", "description": "Choose platform or custom source first"},

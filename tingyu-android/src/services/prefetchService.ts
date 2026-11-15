@@ -75,6 +75,7 @@ const analyseForAutomix = (song: SongResult, audioUrl: string | null | undefined
         song,
         audioUrl: audioUrl === 'CACHED_IN_DB' ? null : audioUrl ?? null,
         enableMediaCache: settingsAudioSettings.enableMediaCache,
+        audioQuality: settingsAudioSettings.audioQuality,
         wantGrid: modeNeedsBeatGrid(settingsAutomixSettings.transitionMode),
     });
 };

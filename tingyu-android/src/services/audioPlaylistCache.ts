@@ -12,9 +12,9 @@ import { toNativeResourcePayload } from './nativePlaylistSync';
 
 // src/services/audioPlaylistCache.ts
 export interface AudioCacheStatus {
-    enabled:boolean;paused?:boolean;wifiOnly:boolean;autoPlaylist:boolean;limitGb:number;bytes:number;cached:number;
+    enabled:boolean;paused?:boolean;wifiOnly:boolean;autoPlaylist:boolean;bytes:number;cached:number;
     pending:number;running:number;complete:number;failed:number;cancelled:number;evicted:number;stale:number;taskLimitReached:boolean;networkAllowed:boolean;incompleteCatalogs:number;
-    collections?:{id:string;name:string;total:number;complete:number;failed:number}[];
+    collections?:{id:string;name:string;total:number;complete:number;failed:number;discovered?:number;pending?:number;running?:number;updated?:number}[];
     tasks:{title:string;state:string;bytes:number;reason:string}[];
     catalogs:{id:string;descriptor:LibraryCollectionDescriptor;quality:AudioQualityPreference;offset:number;cacheRoute:string}[];
 }

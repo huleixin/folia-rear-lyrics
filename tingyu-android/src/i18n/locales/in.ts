@@ -683,7 +683,6 @@ export default {
       "audio-cache": {"title": "Simpan sambil mendengarkan", "description": "Buka pengaturan cache audio"},
       "audio-cache-wifi": {"title": "Cache melalui Wi-Fi", "description": "Pilih jaringan yang diizinkan"},
       "audio-cache-playlist": {"title": "Cache daftar putar otomatis", "description": "Atur cache seluruh daftar putar"},
-      "audio-cache-limit": {"title": "Batas cache audio", "description": "Pilih kapasitas penyimpanan"},
       "audio-cache-tasks": {"title": "Tugas cache", "description": "Lihat, coba ulang, atau hentikan"},
       "audio-cache-clear": {"title": "Hapus cache audio", "description": "Tinjau dan konfirmasi penghapusan"},
       "lx-routing": {"title": "Prioritas pemutaran LX", "description": "Pilih sumber platform atau sumber khusus"},

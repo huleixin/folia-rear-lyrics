@@ -56,4 +56,12 @@ class NativeCatalogAudioSpecsTest {
         assertEquals(listOf("Hi-Res"),rows.get(section.copy(items=emptyList(),offset=100),0)?.audioSpecs)
         assertEquals("track",updated.id)
     }
+    @Test fun cachedAudioStateParsesAndRefreshesWithoutChangingSongIdentity(){
+        val item=parse(JSONObject().put("id","track").put("audioCached",true).put("audioCachedLabel","已缓存"))
+        assertTrue(item.audioCached);assertEquals("已缓存",item.audioCachedLabel)
+        val section=NativePageSection("tracks","","rows",listOf(item),"","","","","","","",false,1,0,"")
+        val rows=NativeRowsCache();rows.accept(section);rows.accept(section.copy(items=listOf(item.copy(audioCached=false))))
+        assertFalse(rows.get(section.copy(items=emptyList(),offset=100),0)!!.audioCached);assertEquals("track",rows.get(section.copy(items=emptyList(),offset=100),0)!!.id)
+    }
+
 }

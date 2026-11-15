@@ -1,3 +1,4 @@
+import { useNativeAudioCacheBadges } from './useNativeAudioCacheBadges';
 import { noteUiInteraction, markStartupReady } from '../services/uiWarmup';
 import { diagnosticEvent, millisecondsSinceInteraction } from '../services/diagnostics/diagnosticLog';
 import { navigationMark, navigationDetail } from '../services/navigationTiming';
@@ -40,7 +41,7 @@ export function useNativePagesAvailable() {
 // 原生继续呈递上一包 / NativeShellCache 缓存页，直到调用方给出真实模型。
 export function useNativePage(ref: RefObject<HTMLElement | null>, id: NativePageId, active: boolean,
     model: NativePageModel | null, actions: PageActions, onReady?: (ready: boolean) => void) {
-    model=useNativePageImages(useStableNativeData(model),active);
+    model=useNativePageImages(useStableNativeData(useNativeAudioCacheBadges(model,active)),active);
     // 页面进入的统一记账：sinceTapMs 是从最近一次触摸算起，正好回答「首次打开设置/搜索/
     // 资料库要多久」。只在 active 变化时记一条，不参与渲染。
     useEffect(() => {

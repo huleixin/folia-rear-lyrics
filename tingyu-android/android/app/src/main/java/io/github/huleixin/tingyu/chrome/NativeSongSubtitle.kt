@@ -38,7 +38,7 @@ internal fun catalogBadges(specs: List<String>): List<CatalogBadge> {
 /** Static catalog metadata; width budgeting reserves at least 40% of the subtitle for the artist. */
 @Composable internal fun NativeSongSubtitle(item: NativePageItem, size: Int = 11, lineHeight: TextUnit = TextUnit.Unspecified, modifier: Modifier = Modifier) {
     val badges = catalogBadges(item.audioSpecs)
-    if (badges.isEmpty()) {
+    if (badges.isEmpty()&&!item.audioCached) {
         Text(item.subtitle, color = PageMuted, fontSize = size.sp, lineHeight = lineHeight, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = modifier)
         return
     }
@@ -47,11 +47,11 @@ internal fun catalogBadges(specs: List<String>): List<CatalogBadge> {
     val measurer = rememberTextMeasurer()
     val badgeStyle = LocalTextStyle.current.copy(fontSize = 9.sp, fontWeight = FontWeight.Medium)
     BoxWithConstraints(modifier.fillMaxWidth().clearAndSetSemantics {
-        contentDescription = listOf(item.subtitle, item.audioSpecsLabel.ifBlank { badges.joinToString(", ") { it.label } })
+        contentDescription = listOf(item.subtitle, item.audioSpecsLabel.ifBlank { badges.joinToString(", ") { it.label } },if(item.audioCached)item.audioCachedLabel.ifBlank{"已缓存"}else "")
             .filter { it.isNotBlank() }.joinToString(", ")
     }) {
         val limit = catalogBadgeLimit(screenWidth, density.fontScale)
-        val budget = with(density) { (maxWidth * 0.52f).toPx() }
+        val budget = with(density) { (maxWidth * 0.52f).toPx() - if(item.audioCached)18.dp.toPx()else 0f }
         var used = 0f
         val visible = badges.take(limit).takeWhile { badge ->
             val width = measurer.measure(AnnotatedString(badge.label), badgeStyle).size.width
@@ -62,6 +62,7 @@ internal fun catalogBadges(specs: List<String>): List<CatalogBadge> {
             Text(item.subtitle, color = PageMuted, fontSize = size.sp, lineHeight = lineHeight, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false))
             visible.forEach { badge -> MinimalCatalogBadge(badge.spec, badge.label) }
+            if(item.audioCached)PageIcon("circle-check",PageInk,Modifier.size(13.dp))
         }
     }
 }

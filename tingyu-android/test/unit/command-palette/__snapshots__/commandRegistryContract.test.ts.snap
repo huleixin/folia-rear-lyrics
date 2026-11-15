@@ -40,7 +40,6 @@ exports[`command palette registry contract > keeps the registered command order 
   "audio-cache",
   "audio-cache-wifi",
   "audio-cache-playlist",
-  "audio-cache-limit",
   "audio-cache-tasks",
   "audio-cache-clear",
   "lx-routing",

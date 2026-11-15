@@ -1,3 +1,6 @@
+import { isCapacitorAndroid } from '../../../platform/runtime';
+import { useAudioCacheStatus } from './useAudioCacheStatus';
+import { useSettingsModalStore } from '../../../stores/useSettingsModalStore';
 import React from 'react';
 import { AlertTriangle, Blend, ChevronDown, Disc3, Orbit, Sparkles, Waves } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -48,6 +51,7 @@ const TransitionSettingsSection: React.FC<TransitionSettingsSectionProps> = ({
     theme,
 }) => {
     const { t } = useTranslation();
+    const offline=useAudioCacheStatus(),android=isCapacitorAndroid();
     const {
         enableMediaCache,
         onToggleMediaCache,
@@ -167,6 +171,8 @@ const TransitionSettingsSection: React.FC<TransitionSettingsSectionProps> = ({
     // most people close.
     const notice: { text: string; fix: (() => void) | null } | null = !analysable
         ? { text: t('options.transitionAutomixUnavailable'), fix: null }
+        : android
+            ? offline.status?{text:t(offline.status.cached>0?'audioCache.analysisReady':offline.status.enabled||offline.status.autoPlaylist?'audioCache.analysisWaiting':'audioCache.analysisOff'),fix:()=>useSettingsModalStore.getState().openSettings('options','storage')}:offline.error?{text:t('audioCache.error'),fix:()=>useSettingsModalStore.getState().openSettings('options','storage')}:null
         : !enableMediaCache
             ? { text: t('options.transitionAutomixNeedsCache'), fix: () => onToggleMediaCache(true) }
             : null;
@@ -280,7 +286,7 @@ const TransitionSettingsSection: React.FC<TransitionSettingsSectionProps> = ({
                                                 onClick={notice.fix}
                                                 className="ml-2 font-semibold underline underline-offset-2"
                                              data-settings-style='{"weight":600,"margin":[8,0,0,0]}' data-settings-layout="row">
-                                                {t('options.transitionAutomixEnableCache')}
+                                                {t(android?'audioCache.manage':'options.transitionAutomixEnableCache')}
                                             </button>
                                         )}
                                     </div>

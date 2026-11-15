@@ -1,3 +1,6 @@
+import { isCapacitorAndroid } from '../platform/runtime';
+import { getPersistentAudioKey } from '../services/onlineMusic/resourceKeys';
+import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
 import type { SongResult } from '../types';
 import { normalizeCatalogAudioSpecs } from '../types/catalogAudioSpecs';
 
@@ -21,12 +24,14 @@ export function getCatalogBadges(song: CatalogBadgeSong, t: (key: string) => str
 }
 
 /** Shared semantic frame for native song rows; includes the full known metadata for accessibility. */
-export function catalogBadgePageFields(song: CatalogBadgeSong, t: (key: string, options?: Record<string, unknown>) => string, local = false) {
+export function catalogBadgePageFields(song: CatalogBadgeSong & Partial<Pick<SongResult,'id'|'sourceRef'|'name'>>, t: (key: string, options?: Record<string, unknown>) => string, local = false):{audioCacheKey?:string;audioSpecs?:string[];audioSpecsLabel?:string} {
     const badges = getCatalogBadges(song, t);
-    if (!badges.length) return {};
+    const cacheFields=!local&&song.id!==undefined&&isCapacitorAndroid()?{audioCacheKey:getPersistentAudioKey(song as SongResult,useAudioSettingsStore.getState().audioQuality)}:{};
+    if (!badges.length) return cacheFields;
     const labels = (normalizeCatalogAudioSpecs(song.catalogAudioSpecs) || []).map(spec => t(`catalogAudioSpecs.${spec}`));
     if (song.catalogAccess === 'vip' || song.catalogAccess === 'paid') labels.push(t(`catalogAudioSpecs.${song.catalogAccess}`));
     return {
+        ...cacheFields,
         audioSpecs: badges.map(badge => badge.id),
         audioSpecsLabel: t(local ? 'localMusic.audioSpecsLabel' : 'catalogAudioSpecs.description', { specs: labels.join(' / ') }),
     };

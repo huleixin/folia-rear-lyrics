@@ -7,7 +7,7 @@ export interface ResourceStatus {
     descriptor?:{name?:string};
     enabled:boolean;wifiOnly:boolean;lyricsBytes:number;artworkBytes:number;total:number;completed:number;
     failed:number;cachedSongs:number;pending:number;metadataComplete:boolean;discovered:number;
-    confirmedLyrics?:number;provisionalLyrics?:number;noLyrics?:number;
+    lyricsReady?:number;artworkReady?:number;confirmedLyrics?:number;provisionalLyrics?:number;noLyrics?:number;
     paused:boolean;networkAllowed:boolean;jobState:string;nextDue:number;platformPending:number;platformFailed?:number;lastError:string;
 }
 export function useResourceCacheStatus(){

@@ -29,12 +29,15 @@ public final class AudioCacheStore {
     private volatile long generation;
     private volatile long usedBytes;
     private volatile int cachedCount;
+    private final java.util.Set<String> completedKeys=new java.util.HashSet<>();
+    private static final java.util.regex.Pattern KEY_VARIANT=java.util.regex.Pattern.compile("^offline_v1_(standard|high|lossless|hires)_[a-f0-9]{64}_");
+    private int uniqueTracks(){return (int)completedKeys.stream().map(key->KEY_VARIANT.matcher(key).replaceFirst("")).distinct().count();}
     private long networkCheckedAt;private boolean wifiEligible;
     private long reservedBytes;
     private AudioCacheStore(Context c){context=c;dir=new File(c.getFilesDir(),"audio-offline-v1");dir.mkdirs();prefs=c.getSharedPreferences("audio-offline-v1",0);
         android.content.SharedPreferences resources=c.getSharedPreferences("resource-cache-policy",0);
         if(!prefs.getBoolean("unifiedWifi",false)){boolean wifi=prefs.getBoolean("wifiOnly",true)||resources.getBoolean("wifiOnly",false);prefs.edit().putBoolean("wifiOnly",wifi).putBoolean("unifiedWifi",true).apply();resources.edit().putBoolean("wifiOnly",wifi).apply();}
-        submit(()->prune(0));}
+        prefs.edit().remove("limitGb").apply();submit(()->prune(0));}
     public boolean enabled(){return prefs.getBoolean("enabled",false);}
     public String route(){return prefs.getString("route","");}
     public boolean routeMatches(NativePlaylist.Track track){try{return route().equals(new JSONObject(track.providerData).optString("audioCacheRoute"));}catch(Exception e){return false;}}
@@ -58,7 +61,6 @@ public final class AudioCacheStore {
             byte[] b=new byte[4096];int n;while((n=input.read(b))!=-1){out.write(b,0,n);if(out.size()>65536)throw new java.io.IOException("metadata limit");}return out.toString("UTF-8");
         }
     }
-    private long limit(){return prefs.getInt("limitGb",2)*1024L*1024*1024;}
     public boolean containsFile(File file)throws java.io.IOException{return file!=null&&file.isFile()&&file.getCanonicalFile().getParentFile().equals(dir.getCanonicalFile())&&file.getName().matches("[a-f0-9]{64}\\.audio");}
     private static final class Binding {final String key,actual,quality;final long duration;final boolean download;Binding(String k,String a,long d,String q,boolean bulk){key=k;actual=a;duration=d;quality=q;download=bulk;}}
     public void bind(String url,String key,String actual,long duration){bind(url,key,actual,duration,"");}
@@ -67,6 +69,9 @@ public final class AudioCacheStore {
     public synchronized void alias(String original,String proxy){Binding b=bindings.get(original);if(b!=null){bindings.put(proxy,b);while(bindings.size()>256)bindings.remove(bindings.keySet().iterator().next());}}
     public boolean hasFiles(String key){if(key==null||key.isEmpty())return false;String id=hash(key);return new File(dir,id+".audio").isFile()&&new File(dir,id+".json").isFile();}
     public synchronized File lookup(String key){try{if(key==null||key.isEmpty())return null;String id=hash(key);File f=new File(dir,id+".audio"),m=new File(dir,id+".json");if(!f.isFile()||!m.isFile())return null;JSONObject meta=new JSONObject(readMetadata(m));if(meta.optLong("size")!=f.length()||!key.equals(meta.optString("key")))return null;f.setLastModified(System.currentTimeMillis());return f;}catch(Exception e){return null;}}
+    /** Read only verified entries; UI checks never update access times or request audio URLs. */
+    public synchronized boolean isComplete(String key){try{if(key==null||key.isEmpty()||key.length()>2048)return false;String id=hash(key);File f=new File(dir,id+".audio"),m=new File(dir,id+".json");if(!f.isFile()||!m.isFile())return false;JSONObject meta=new JSONObject(readMetadata(m));return key.equals(meta.optString("key"))&&meta.optLong("size")==f.length();}catch(Exception error){return false;}}
+    public org.json.JSONArray available(org.json.JSONArray keys){org.json.JSONArray result=new org.json.JSONArray();if(keys!=null)for(int i=0;i<Math.min(100,keys.length());i++){String key=keys.optString(i);if(isComplete(key))result.put(key);}return result;}
     public JSONObject info(String key){try{File f=new File(dir,hash(key)+".json");return new JSONObject(readMetadata(f));}catch(Exception e){return new JSONObject();}}
     private static final class Part {final File file;final Binding binding;final long total,generation;final AudioRangeCoverage ranges=new AudioRangeCoverage();volatile boolean failed,verifying;Part(File f,Binding b,long n,long g){file=f;binding=b;total=n;generation=g;}}
     public final class Sink {
@@ -86,8 +91,7 @@ public final class AudioCacheStore {
         if(p!=null&&p.failed){removePart(representation,p);p=null;}
         if(p==null){
             while(parts.size()>=4){String oldest=parts.keySet().iterator().next();Part old=parts.get(oldest);old.failed=true;removePart(oldest,old);}
-            if(reservedBytes+total>limit()||dir.getUsableSpace()<total+64L*1024*1024)return null;
-            if(usedBytes+reservedBytes+total>limit()){submit(()->prune(total));return null;}
+            if(dir.getUsableSpace()<reservedBytes+total+64L*1024*1024)return null;
             p=new Part(new File(dir,representation+".part"),b,total,generation);parts.put(representation,p);reservedBytes+=total;
         }
         if(p.verifying)return null;
@@ -117,18 +121,30 @@ public final class AudioCacheStore {
             if(audio.containsKey(MediaFormat.KEY_SAMPLE_RATE))meta.put("sampleRate",audio.getInteger(MediaFormat.KEY_SAMPLE_RATE));if(audio.containsKey(MediaFormat.KEY_BIT_RATE))meta.put("bitrate",audio.getInteger(MediaFormat.KEY_BIT_RATE));
             File tmp=new File(dir,id+"-"+p.generation+".json.tmp");try(java.io.FileOutputStream out=new java.io.FileOutputStream(tmp)){out.write(meta.toString().getBytes(StandardCharsets.UTF_8));out.getFD().sync();}
             synchronized(this){if(p.generation!=generation||parts.get(id)!=p||p.failed)throw new IllegalStateException("cache cleared");
-            prune(0);new File(dir,key+".json").delete();long replaced=dest.length();if(dest.isFile())cachedCount=Math.max(0,cachedCount-1);dest.delete();usedBytes=Math.max(0,usedBytes-replaced);if(!p.file.renameTo(dest))throw new IllegalStateException("commit failed");if(!tmp.renameTo(new File(dir,key+".json"))){dest.delete();throw new IllegalStateException("metadata commit failed");}usedBytes+=p.total;cachedCount++;}
+            new File(dir,key+".json").delete();long replaced=dest.length();dest.delete();usedBytes=Math.max(0,usedBytes-replaced);if(!p.file.renameTo(dest))throw new IllegalStateException("commit failed");if(!tmp.renameTo(new File(dir,key+".json"))){dest.delete();throw new IllegalStateException("metadata commit failed");}usedBytes+=p.total;completedKeys.add(p.binding.key);cachedCount=uniqueTracks();}
             PlaybackDiagnostics.note("audio-cache-complete",new JSONObject().put("bytes",p.total).put("durationMs",duration));
         }catch(Exception e){try{PlaybackDiagnostics.note("audio-cache-rejected",new JSONObject().put("kind",e.getClass().getSimpleName()));}catch(Exception ignored){}}
         finally{media.release();synchronized(this){if(p.generation==generation&&parts.get(id)==p)new File(dir,id+"-"+p.generation+".json.tmp").delete();removePart(id,p);}}
     }
-    private synchronized void prune(long incoming){File[] files=dir.listFiles();if(files==null)return;long used=0,now=System.currentTimeMillis();java.util.List<File> complete=new java.util.ArrayList<>();for(File f:files){if(f.getName().endsWith(".audio")){if(!new File(dir,f.getName().replace(".audio",".json")).isFile()){f.delete();continue;}used+=f.length();complete.add(f);}else if(f.getName().endsWith(".json")&&!new File(dir,f.getName().replace(".json",".audio")).isFile())f.delete();else if(f.getName().endsWith(".json.tmp")&&now-f.lastModified()>60_000L)f.delete();else if(f.getName().endsWith(".part")&&now-f.lastModified()>24*60*60_000L)f.delete();}
-        complete.sort(java.util.Comparator.comparingLong(File::lastModified));long limit=limit();for(File f:complete){if(used+reservedBytes+incoming<=limit)break;long size=f.length();if(f.delete()){used-=size;new File(dir,f.getName().replace(".audio",".json")).delete();}}usedBytes=used;cachedCount=(int)complete.stream().filter(File::isFile).count();
+    private synchronized void prune(long incoming){
+        File[] files=dir.listFiles();if(files==null)return;long used=0,now=System.currentTimeMillis();completedKeys.clear();
+        for(File f:files){
+            if(f.getName().endsWith(".audio")){
+                File metadata=new File(dir,f.getName().replace(".audio",".json"));
+                try{JSONObject meta=new JSONObject(readMetadata(metadata));String key=meta.optString("key");
+                    if(key.isEmpty()||meta.optLong("size")!=f.length()||!f.getName().equals(hash(key)+".audio"))throw new java.io.IOException("invalid cache");
+                    used+=f.length();completedKeys.add(key);
+                }catch(Exception error){f.delete();metadata.delete();}
+            }else if(f.getName().endsWith(".json")&&!new File(dir,f.getName().replace(".json",".audio")).isFile())f.delete();
+            else if(f.getName().endsWith(".json.tmp")&&now-f.lastModified()>60000)f.delete();
+            else if(f.getName().endsWith(".part")&&now-f.lastModified()>24*60*60000L)f.delete();
+        }
+        usedBytes=used;cachedCount=uniqueTracks();
     }
-    public synchronized void clear(){generation++;bindings.clear();for(Part p:parts.values())p.failed=true;parts.clear();reservedBytes=0;usedBytes=0;cachedCount=0;File[] files=dir.listFiles();if(files!=null)for(File f:files)f.delete();}
+    public synchronized void clear(){generation++;bindings.clear();for(Part p:parts.values())p.failed=true;parts.clear();reservedBytes=0;usedBytes=0;cachedCount=0;completedKeys.clear();File[] files=dir.listFiles();if(files!=null)for(File f:files)f.delete();}
     public boolean awaitWrites()throws InterruptedException{java.util.concurrent.CountDownLatch latch=new java.util.concurrent.CountDownLatch(1);if(!submit(latch::countDown))return false;return latch.await(10,TimeUnit.SECONDS);}
     public static String key(NativePlaylist.Track track,String quality){try{return new JSONObject(track.providerData).optJSONObject("audioCacheKeys").optString(quality,"");}catch(Exception e){return "";}}
-    public synchronized void invalidate(String key){File f=new File(dir,hash(key)+".audio");long size=f.length();if(f.delete()){usedBytes=Math.max(0,usedBytes-size);cachedCount=Math.max(0,cachedCount-1);}new File(dir,hash(key)+".json").delete();}
-    public JSONObject status(){JSONObject s=new JSONObject();try{s.put("enabled",enabled()).put("wifiOnly",wifiOnly()).put("autoPlaylist",autoPlaylist()).put("limitGb",prefs.getInt("limitGb",2)).put("bytes",usedBytes).put("cached",cachedCount);}catch(Exception ignored){}return s;}
-    public synchronized void configure(JSONObject data){networkCheckedAt=0;SharedPreferences.Editor e=prefs.edit();for(String k:new String[]{"enabled","wifiOnly","autoPlaylist"})if(data.has(k))e.putBoolean(k,data.optBoolean(k));if(data.has("limitGb"))e.putInt("limitGb",Math.max(1,Math.min(16,data.optInt("limitGb",2))));e.apply();if(data.has("wifiOnly"))context.getSharedPreferences("resource-cache-policy",0).edit().putBoolean("wifiOnly",data.optBoolean("wifiOnly")).apply();submit(()->prune(0));}
+    public synchronized void invalidate(String key){File f=new File(dir,hash(key)+".audio");long size=f.length();if(f.delete()){usedBytes=Math.max(0,usedBytes-size);completedKeys.remove(key);cachedCount=uniqueTracks();}new File(dir,hash(key)+".json").delete();}
+    public JSONObject status(){JSONObject s=new JSONObject();try{s.put("enabled",enabled()).put("wifiOnly",wifiOnly()).put("autoPlaylist",autoPlaylist()).put("bytes",usedBytes).put("cached",cachedCount);}catch(Exception ignored){}return s;}
+    public synchronized void configure(JSONObject data){networkCheckedAt=0;SharedPreferences.Editor e=prefs.edit();for(String k:new String[]{"enabled","wifiOnly","autoPlaylist"})if(data.has(k))e.putBoolean(k,data.optBoolean(k));e.remove("limitGb");e.apply();if(data.has("wifiOnly"))context.getSharedPreferences("resource-cache-policy",0).edit().putBoolean("wifiOnly",data.optBoolean("wifiOnly")).apply();}
 }

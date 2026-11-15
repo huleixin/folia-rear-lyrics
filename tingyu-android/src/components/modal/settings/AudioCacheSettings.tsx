@@ -1,6 +1,7 @@
+import OfflineCacheOverview from './OfflineCacheOverview';
 import {useState} from 'react';
 import {useTranslation} from 'react-i18next';
-import {Download} from 'lucide-react';
+import {Download,Trash2} from 'lucide-react';
 import {useAudioCacheStatus} from './useAudioCacheStatus';
 import {useResourceCacheStatus} from './useResourceCacheStatus';
 import AudioCacheTasks from './AudioCacheTasks';
@@ -22,31 +23,25 @@ export default function AudioCacheSettings(){
         <header className="resource-heading" data-settings-layout="row" data-settings-style='{"gap":12}'><Download size={20}/><div data-settings-layout="column"><h3 data-settings-layout="wrap">{text('title')}</h3><p data-settings-layout="wrap">{text('hint')}</p></div></header>
         {switchRow('enabled')}
         <label className="resource-setting" data-settings-layout="column" data-settings-style='{"gap":8}'>{text('automatic')}<select aria-label={text('automatic')} value={mode} disabled={busy} onChange={e=>void update({autoPlaylist:e.target.value==='all',resourceEnabled:e.target.value!=='off'})}><option value="off">{text('modeOff')}</option><option value="resources">{text('modeResources')}</option><option value="all">{text('modeAll')}</option></select></label>
+        <p className="resource-hint" data-settings-layout="wrap" data-settings-style='{"font":12,"tone":"muted"}'>{text('automaticHint')}</p>
         {switchRow('wifiOnly')}
-        <div data-settings-layout="column" data-settings-style='{"gap":8}'><span data-settings-layout="wrap">{text('limit')}</span><div data-settings-layout="grid" data-settings-style='{"columns":4,"gap":8}'>{[1,2,4,8].map(value=><button key={value} disabled={busy} aria-pressed={s.limitGb===value} className="storage-button" data-settings-layout="row" data-settings-style={JSON.stringify({center:true,minHeight:44,radius:12,border:true,fill:s.limitGb===value,tone:s.limitGb===value?'accent':'muted'})} onClick={()=>void update({limitGb:value})}>{value} GB</button>)}</div></div>
-        <div data-settings-layout="column" data-settings-style='{"gap":8}'><strong data-settings-layout="wrap">{text('audio')} · {t('audioCache.usage',{count:s.cached,size:(s.bytes/1048576).toFixed(1)})}</strong><span data-settings-layout="wrap">{text('resources')} · {((r.lyricsBytes+r.artworkBytes)/1048576).toFixed(1)} MB</span></div>
-        <div data-settings-layout="column" data-settings-style='{"gap":8}'>
-            <span data-settings-layout="wrap">{t('audioCache.overview',{complete:s.complete,pending:s.pending+s.running,failed:s.failed})}</span>
-            <span data-settings-layout="wrap">{t('audioCache.resourceProgress',{complete:r.completed,total:r.total})}</span>
-            {s.tasks.filter(task=>task.state==='running').slice(0,1).map(task=><span key={task.title} data-settings-layout="wrap">{text('state.running')}：{task.title} · {(task.bytes/1048576).toFixed(1)} MB</span>)}
-            {hasWork&&paused&&<span data-settings-layout="wrap">{text('paused')}</span>}
-            {!s.networkAllowed&&s.pending+s.running>0&&<span data-settings-layout="wrap">{text('waiting')}</span>}
-            {s.incompleteCatalogs>0&&<p className="resource-hint" data-settings-layout="wrap">{text('catalog')}</p>}
-            {s.stale>0&&<p className="resource-hint" data-settings-layout="wrap">{text('staleHint')}</p>}
-        </div>
+        <OfflineCacheOverview status={s}/>
+        {hasWork&&paused&&<span data-settings-layout="wrap">{text('paused')}</span>}
+        {!s.networkAllowed&&s.pending+s.running>0&&<span data-settings-layout="wrap">{text('waiting')}</span>}
+        {s.incompleteCatalogs>0&&<p className="resource-hint" data-settings-layout="wrap">{text('catalog')}</p>}
+        {s.stale>0&&<p className="resource-hint" data-settings-layout="wrap">{text('staleHint')}</p>}
         {(audio.error||resources.error)&&<p role="alert" data-settings-layout="wrap">{text('error')}</p>}
-        <div data-settings-layout="wrap" data-settings-style='{"gap":8}'>
-            <button className="storage-button" data-settings-layout="row" disabled={busy} onClick={()=>setTasks(true)}>{text('tasks')}</button>
-            {hasWork&&<button className="storage-text-button" data-settings-layout="row" disabled={busy} onClick={()=>void control(paused?'resume':'pause')}>{text(paused?'resume':'pause')}</button>}
-            {(s.failed>0||r.failed>0||(r.platformFailed??0)>0)&&<button className="storage-text-button" data-settings-layout="row" disabled={busy} onClick={()=>void control('retry')}>{text('retry')}</button>}
-            <button className="storage-text-button" data-settings-layout="row" disabled={busy} onClick={()=>setClean(clean?'':'choose')}>{text('clean')}</button>
+        <button className="offline-cache-primary" data-settings-layout="row" data-settings-style='{"minHeight":48,"center":true,"padding":[16,12,16,12],"radius":12,"border":true,"fill":true,"tone":"accent","font":14,"weight":650}' disabled={busy} onClick={()=>setTasks(true)}>{text('tasks')}</button>
+        <div className="offline-cache-actions" data-settings-layout="grid" data-settings-style={JSON.stringify({columns:hasWork&&(s.failed>0||r.failed>0||(r.platformFailed??0)>0)?2:1,gap:10})}>
+            {hasWork&&<button className="storage-button" data-settings-layout="row" data-settings-style='{"minHeight":46,"center":true,"padding":[12,10,12,10],"radius":12,"border":true,"font":13}' disabled={busy} onClick={()=>void control(paused?'resume':'pause')}>{text(paused?'resume':'pause')}</button>}
+            {(s.failed>0||r.failed>0||(r.platformFailed??0)>0)&&<button className="storage-button" data-settings-layout="row" data-settings-style='{"minHeight":46,"center":true,"padding":[12,10,12,10],"radius":12,"border":true,"font":13}' disabled={busy} onClick={()=>void control('retry')}>{s.failed>0&&r.failed===0&&!(r.platformFailed??0)?t('audioCache.retryCount',{count:s.failed}):text('retry')}</button>}
         </div>
+        <button className="storage-button offline-cache-clean" data-settings-layout="row" data-settings-style='{"gap":8,"minHeight":44,"padding":[12,10,12,10],"radius":12,"border":true,"tone":"muted","font":13}' disabled={busy} onClick={()=>setClean(clean?'':'choose')}><Trash2 size={16}/>{text('clean')}</button>
         {clean&&<div data-settings-layout="column" data-settings-style='{"gap":10}'>
             <p className="resource-hint" data-settings-layout="wrap">{text('cleanHint')}</p>
             {clean==='choose'?<div data-settings-layout="wrap" data-settings-style='{"gap":8}'>{['Audio','Resources','All'].map(kind=><button key={kind} data-settings-layout="row" className="storage-text-button" onClick={()=>setClean(kind)}>{text('clean'+kind)}</button>)}</div>:<div data-settings-layout="wrap" data-settings-style='{"gap":8}'><span data-settings-layout="wrap">{text('clean'+clean)}</span><button data-settings-layout="row" disabled={busy} className="storage-button" onClick={()=>{void(async()=>{if(clean!=='Resources')await audio.update('clear');if(clean!=='Audio')await resources.update('clear');setClean('');})();}}>{text('confirm')}</button></div>}
             <button data-settings-layout="row" className="storage-text-button" onClick={()=>setClean('')}>{text('back')}</button>
         </div>}
-        <p className="resource-hint" data-settings-layout="wrap">{text('resourceHint')}</p>
         {tasks&&<AudioCacheTasks resources={r} collections={s.collections??[]} onClose={()=>setTasks(false)}/>}
     </section>;
 }

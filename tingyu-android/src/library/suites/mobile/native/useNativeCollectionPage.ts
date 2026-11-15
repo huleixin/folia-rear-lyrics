@@ -21,6 +21,8 @@ import { useAppViewStore } from '../../../../stores/useAppViewStore';
 import { useSettingsModalStore } from '../../../../stores/useSettingsModalStore';
 import { collectionKey } from '../../../core/model/collectionIdentity';
 import { catalogBadgePageFields } from '../../../../utils/catalogAudioLabels';
+import { useAudioSettingsStore } from '../../../../stores/useAudioSettingsStore';
+import { useLxSourceStore } from '../../../../stores/useLxSourceStore';
 
 // src/library/suites/mobile/native/useNativeCollectionPage.ts
 // The row offset has to outlive the page: leaving for the player unmounts this hook, and starting
@@ -30,6 +32,7 @@ const savedOffsets = new Map<string, number>();
 export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:LibraryCollectionSurfaceProps,model:ReturnType<typeof useMobileCollection>,
     name:string,count:number,onSongMenu:(song:SongResult,index:number)=>void,onCollectionMenu:()=>void,onSubscribe:()=>void) {
     const {t}=useTranslation();const [filterOpen,setFilterOpen]=useState(false);
+    const cacheQuality=useAudioSettingsStore(state=>state.audioQuality),cacheRouteRevision=useLxSourceStore(state=>state.revision);
     const collectionIdentity=collectionKey(props.collection);
     const [offset,setOffsetState]=useState(()=>savedOffsets.get(collectionIdentity)??0);
     const setOffset=(value:number)=>{savedOffsets.set(collectionIdentity,value);setOffsetState(value);};
@@ -57,7 +60,7 @@ export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:L
         return{id:`${index}:${key}`,title:song.name,number:String(index+1).padStart(2,'0'),duration:formatTime(getSongDurationMs(song)/1000),subtitle:getSongArtistLabel(song),image:absolutePageImage(getSongCoverUrl(song)),
             ...catalogBadgePageFields(song,t,isLocalPlaybackSong(song)),
             action:`play:${index}:${key}`,secondary:`menu:${index}:${key}`,secondaryLabel:t('mobileLibrary.trackActions',{name:song.name}),disabled:isSongUnavailable(song),selected:key===activeKey};
-    }),[model.view.displayTracks,indexes,total,offset,activeKey,t]);
+    }),[model.view.displayTracks,indexes,total,offset,activeKey,t,cacheQuality,cacheRouteRevision]);
     const controls=[{id:'play',title:t('mobileLibrary.playAll'),action:'playAll',disabled:!model.actions.capabilities.scope.enabled}];
     if(model.mutations.capabilities.subscribe.supported)controls.push({id:'subscribe',title:t(model.mutations.subscribed?'mobileLibrary.saved':'mobileLibrary.save'),action:'subscribe',disabled:!model.mutations.capabilities.subscribe.enabled});
     const creator=model.snapshot?.detail?.creator??props.collection.creator;

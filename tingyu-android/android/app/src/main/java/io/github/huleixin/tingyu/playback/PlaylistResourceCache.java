@@ -59,6 +59,7 @@ public final class PlaylistResourceCache extends SQLiteOpenHelper {
     }
     public void begin(String token){begin(token,false);}
     public synchronized void begin(String token,boolean manual) {
+        lastAudit=0;lastQualityAt=0;
         preferences.edit().putBoolean("manual",manual).apply();
         pausedByClear = false;preferences.edit().putBoolean("paused",false).apply();
         SQLiteDatabase db = getWritableDatabase();
@@ -240,7 +241,7 @@ public final class PlaylistResourceCache extends SQLiteOpenHelper {
                         lyricReady = true;
                     } else if(r.status == NativeLyricsRepository.Status.NOT_FOUND){
                         store.put(key,"none",null,false,false,"native-none","native",false,LyricVariantConverter.currentRule(context).id);
-                        lyricReady=true;
+                        UnifiedLyricsStore.Record confirmed=store.get(key);lyricReady=confirmed!=null&&store.hasDiskRecord(key)&&(confirmed.hasTimeline()||"none".equals(confirmed.status));
                     }
                     outcome = r.status.name();
                     lyricSource = r.source+":"+r.status.name();
@@ -278,13 +279,20 @@ public final class PlaylistResourceCache extends SQLiteOpenHelper {
     }
     private synchronized void auditFiles(){
         if(System.currentTimeMillis()-lastAudit<30000)return;lastAudit=System.currentTimeMillis();
-        try(Cursor c=getReadableDatabase().rawQuery("SELECT song,payload FROM tasks WHERE state=1",null)){
+        try(Cursor c=getReadableDatabase().rawQuery("SELECT song,payload,state,lyricState,artworkState FROM tasks",null)){
             while(c.moveToNext()){
                 JSONObject payload=new JSONObject(c.getString(1));String key=c.getString(0),art=payload.optString("artwork");
-                UnifiedLyricsStore.Record lyric=UnifiedLyricsStore.get(context).get(key);
-                boolean lyrics=lyric!=null&&UnifiedLyricsStore.get(context).hasDiskRecord(key)&&(lyric.hasTimeline()||"none".equals(lyric.status));
-                if(!lyrics||(!art.isEmpty()&&NativeArtworkRepository.get(context).cachedFile(art)==null))
-                    getWritableDatabase().execSQL("UPDATE tasks SET state=0,attempt=0,due=0 WHERE song=?",new Object[]{key});
+                UnifiedLyricsStore store=UnifiedLyricsStore.get(context);UnifiedLyricsStore.Record lyric=store.get(key);
+                boolean lyrics=lyric!=null&&store.hasDiskRecord(key)&&(lyric.hasTimeline()||"none".equals(lyric.status));
+                boolean artwork=art.isEmpty()||NativeArtworkRepository.get(context).cachedFile(art)!=null;
+                int state=lyrics&&artwork?1:c.getInt(2)==1?0:c.getInt(2);
+                String lyricState=lyrics?"available":"available".equals(c.getString(3))?"pending":c.getString(3);
+                String artworkState=artwork?"available":"available".equals(c.getString(4))?"pending":c.getString(4);
+                if(state!=c.getInt(2)||!lyricState.equals(c.getString(3))||!artworkState.equals(c.getString(4))){
+                    ContentValues values=new ContentValues();values.put("state",state);values.put("lyricState",lyricState);values.put("artworkState",artworkState);
+                    if(c.getInt(2)==1&&state==0){values.put("attempt",0);values.put("due",0);}
+                    getWritableDatabase().update("tasks",values,"song=?",new String[]{key});
+                }
             }
         }catch(Exception error){jobNote("audit-failed",error.getClass().getSimpleName());}
     }
@@ -292,8 +300,8 @@ public final class PlaylistResourceCache extends SQLiteOpenHelper {
         auditFiles();
         JSObject out=new JSObject().put("playlistId",token(false))
             .put("enabled",preferences.getBoolean("enabled",true)).put("wifiOnly",preferences.getBoolean("wifiOnly",false));
-        try(Cursor c=getReadableDatabase().rawQuery("SELECT count(*),sum(CASE WHEN state=1 THEN 1 ELSE 0 END),sum(CASE WHEN state=2 THEN 1 ELSE 0 END) FROM tasks",null)){
-            if(c.moveToFirst())out.put("total",c.getInt(0)).put("completed",c.getInt(1)).put("failed",c.getInt(2));
+        try(Cursor c=getReadableDatabase().rawQuery("SELECT count(*),sum(CASE WHEN state=1 THEN 1 ELSE 0 END),sum(CASE WHEN state=2 THEN 1 ELSE 0 END),sum(CASE WHEN lyricState='available' THEN 1 ELSE 0 END),sum(CASE WHEN artworkState='available' THEN 1 ELSE 0 END) FROM tasks",null)){
+            if(c.moveToFirst())out.put("total",c.getInt(0)).put("completed",c.getInt(1)).put("failed",c.getInt(2)).put("lyricsReady",c.getInt(3)).put("artworkReady",c.getInt(4));
         }
         try (Cursor c=getReadableDatabase().rawQuery("SELECT expected,descriptor,catalogOffset,catalogComplete FROM manifest WHERE id=1", null)) {
             if(c.moveToFirst()) {
@@ -348,12 +356,13 @@ public final class PlaylistResourceCache extends SQLiteOpenHelper {
     }
     public void clearDownloadable(){clearDownloadable("all");}
     public void clearDownloadable(String category) {
+        lastAudit=0;
         pausedByClear = true;preferences.edit().putBoolean("paused",true).apply();
         JobScheduler js=(JobScheduler)context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
         if(js!=null)js.cancel(JOB_ID);
         if(!"cover".equals(category)){UnifiedLyricsStore.get(context).clearDownloadable();NativeLyricsRepository.get(context).clearDownloadable();}
         if(!"lyrics".equals(category))NativeArtworkRepository.get(context).clearDownloadable();
-        getWritableDatabase().execSQL("UPDATE tasks SET state=0,attempt=0,due=0,platformDone=0,platformAttempt=0,platformDue=0");
+        getWritableDatabase().execSQL("UPDATE tasks SET state=0,attempt=0,due=0,platformDone=0,platformAttempt=0,platformDue=0,lyricState=CASE WHEN ?='cover' THEN lyricState ELSE 'pending' END,artworkState=CASE WHEN ?='lyrics' THEN artworkState ELSE 'pending' END",new Object[]{category,category});
         // Do not immediately redownload everything the user just cleared; next playback resumes.
     }
 }

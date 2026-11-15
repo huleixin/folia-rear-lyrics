@@ -6,6 +6,7 @@ import java.lang.reflect.Constructor;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.Test;
+import org.junit.Before;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
@@ -16,6 +17,12 @@ import static org.junit.Assert.*;
 @RunWith(RobolectricTestRunner.class) @Config(sdk=34)
 @GraphicsMode(GraphicsMode.Mode.LEGACY)
 public class AudioCacheJobsTest {
+    @Before public void isolateApplicationSingleton()throws Exception{
+        java.lang.reflect.Field field=AudioCacheStore.class.getDeclaredField("instance");field.setAccessible(true);
+        AudioCacheStore old=(AudioCacheStore)field.get(null);
+        if(old!=null){old.awaitWrites();java.lang.reflect.Field io=AudioCacheStore.class.getDeclaredField("io");io.setAccessible(true);((java.util.concurrent.ExecutorService)io.get(old)).shutdownNow();}
+        field.set(null,null);
+    }
     private AudioCacheJobs open(Context context) throws Exception {
         Constructor<AudioCacheJobs> constructor=AudioCacheJobs.class.getDeclaredConstructor(Context.class);
         constructor.setAccessible(true);return constructor.newInstance(context);
@@ -69,6 +76,15 @@ public class AudioCacheJobsTest {
             jobs.action("pause");assertTrue(jobs.status().getBoolean("paused"));
             close(jobs);jobs=open(context);assertTrue(jobs.status().getBoolean("paused"));
             jobs.action("resume");assertFalse(jobs.status().getBoolean("paused"));assertFalse(jobs.cache.enabled());
+        }finally{close(jobs);}
+    }
+
+    @Test public void overlappingPlaylistsRetainTheirOwnTaskMembership()throws Exception{
+        Context context=ApplicationProvider.getApplicationContext();context.deleteDatabase("audio-cache-jobs.db");AudioCacheJobs jobs=open(context);
+        try{String route=new String(new char[64]).replace("\0","a");jobs.sourceChanged(route);JSONArray tracks=new JSONArray().put(track(route));
+            jobs.enqueue(tracks,"first","standard");jobs.enqueue(tracks,"second","standard");
+            assertEquals(1,jobs.status().getInt("pending"));assertEquals(2,jobs.status().getJSONArray("collections").length());
+            assertEquals(1,jobs.tasks("active","first",0).getInt("total"));assertEquals(1,jobs.tasks("active","second",0).getInt("total"));
         }finally{close(jobs);}
     }
 

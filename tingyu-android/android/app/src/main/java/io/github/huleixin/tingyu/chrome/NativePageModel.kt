@@ -5,7 +5,7 @@ import org.json.JSONObject
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativePageModel.kt
 data class NativePageItem(val id: String, val title: String, val subtitle: String, val image: String,
     val action: String, val secondary: String, val secondaryLabel: String, val disabled: Boolean, val selected: Boolean,
-    val number:String="", val duration:String="", val audioSpecs:List<String> = emptyList(), val audioSpecsLabel:String="")
+    val number:String="", val duration:String="", val audioSpecs:List<String> = emptyList(), val audioSpecsLabel:String="",val audioCached:Boolean=false,val audioCachedLabel:String="")
 data class NativePageSection(val id: String, val title: String, val layout: String, val items: List<NativePageItem>,
     val text: String, val value: String, val placeholder: String, val action: String, val submit: String,
     val more: String, val moreLabel: String, val busy: Boolean, val total: Int, val offset: Int, val request: String, val dataKey:String="", val image:String="",
@@ -38,7 +38,7 @@ data class NativePage(val id: String, val session: String, val generation: Long,
                         item.optString("image").take(200000),item.optString("action").take(800),item.optString("secondary").take(800),
                         item.optString("secondaryLabel",""),item.optBoolean("disabled"),item.optBoolean("selected"),item.optString("number"),item.optString("duration"),
                         item.optJSONArray("audioSpecs").let { specs -> (0 until minOf(specs?.length()?:0,8)).mapNotNull { (specs?.opt(it) as? String)?.take(16)?.takeIf { text -> text.isNotBlank() } } },
-                        item.optString("audioSpecsLabel").take(240))
+                        item.optString("audioSpecsLabel").take(240),item.optBoolean("audioCached"),item.optString("audioCachedLabel").take(100))
                 }
                 NativePageSection(block.optString("id"),block.optString("title"),layout,items,block.optString("text"),block.optString("value"),
                     block.optString("placeholder"),block.optString("action"),block.optString("submit"),block.optString("more"),

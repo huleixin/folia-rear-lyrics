@@ -910,7 +910,6 @@ export default {
       "audio-cache": {"title": "边听边存", "description": "查看并启用离线音频缓存"},
       "audio-cache-wifi": {"title": "仅 Wi-Fi 缓存", "description": "选择允许缓存的网络"},
       "audio-cache-playlist": {"title": "自动缓存歌单", "description": "设置播放歌单时自动缓存整单"},
-      "audio-cache-limit": {"title": "音频缓存上限", "description": "选择音频缓存空间"},
       "audio-cache-tasks": {"title": "缓存任务", "description": "查看进度、重试或停止缓存"},
       "audio-cache-clear": {"title": "清空音频缓存", "description": "查看并确认清空缓存"},
       "lx-routing": {"title": "洛雪播放优先级", "description": "选择原音源优先或自定义音源优先"},

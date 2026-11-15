@@ -9,6 +9,7 @@ export type PageItem = {
     secondary?: string; secondaryLabel?: string; disabled?: boolean; selected?: boolean;
     number?: string; duration?: string;
     audioSpecs?: string[]; audioSpecsLabel?: string;
+    audioCacheKey?:string; audioCached?:boolean; audioCachedLabel?:string;
 };
 export type PageSection = {
     id: string; title?: string; layout: 'rows' | 'cards' | 'hero' | 'chips' | 'input' | 'message' | 'quickLinks' | 'discoverCards';
