@@ -22,7 +22,12 @@ export async function readKugouPlaylistInClientOrder<T>(
     const invalidPage = () => new OnlineProviderError(
         'invalid-response', `KuGou playlist ${id} returned inconsistent page lengths; reload the playlist`, 'kugou',
     );
-    if (first.items.length > KUGOU_PLAYLIST_PAGE_SIZE) throw invalidPage();
+    // The Android bridge resolves the whole playlist and returns it for every page request.
+    // A snapshot longer than one page is therefore complete, not a malformed page.
+    if (first.items.length > KUGOU_PLAYLIST_PAGE_SIZE) {
+        if (Number.isSafeInteger(total) && total > first.items.length) throw invalidPage();
+        return sliceClientOrder(first.items.slice().reverse(), take, offset);
+    }
     if (first.items.length < KUGOU_PLAYLIST_PAGE_SIZE) {
         if (total > first.items.length) throw invalidPage();
         return sliceClientOrder(first.items.slice().reverse(), take, offset);
@@ -33,22 +38,25 @@ export async function readKugouPlaylistInClientOrder<T>(
         return sliceClientOrder(await loadAllInClientOrder(), take, offset);
     }
 
+    // Pages are addressed by their own length: some deployments clamp `pagesize` below 100
+    // even though the count still describes the whole playlist.
+    const pageSize = first.items.length;
     const end = Math.max(0, total - offset);
     const start = Math.max(0, end - take);
     if (end === 0) return { items: [], total, nextOffset: offset, hasMore: false };
-    const firstPage = Math.floor(start / KUGOU_PLAYLIST_PAGE_SIZE) + 1;
-    const lastPage = Math.floor((end - 1) / KUGOU_PLAYLIST_PAGE_SIZE) + 1;
+    const firstPage = Math.floor(start / pageSize) + 1;
+    const lastPage = Math.floor((end - 1) / pageSize) + 1;
     // At most two source pages intersect a display window. Page one already provided the total.
     const pages = await Promise.all(Array.from({ length: lastPage - firstPage + 1 }, async (_, i) => {
         const page = firstPage + i;
         const result = page === 1 ? first : await loadPage(page);
-        const expected = Math.min(KUGOU_PLAYLIST_PAGE_SIZE, total - (page - 1) * KUGOU_PLAYLIST_PAGE_SIZE);
+        const expected = Math.min(pageSize, total - (page - 1) * pageSize);
         if (result.items.length !== expected || (result.total !== undefined && result.total > KUGOU_PLAYLIST_PAGE_SIZE && result.total !== total)) {
             throw invalidPage();
         }
         return result.items;
     }));
-    const pageStart = (firstPage - 1) * KUGOU_PLAYLIST_PAGE_SIZE;
+    const pageStart = (firstPage - 1) * pageSize;
     const items = pages.flat().slice(start - pageStart, end - pageStart).reverse();
     const nextOffset = offset + items.length;
     return { items, total, nextOffset, hasMore: nextOffset < total };

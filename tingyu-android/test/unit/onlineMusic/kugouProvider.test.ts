@@ -1275,6 +1275,36 @@ describe('kugouProvider', () => {
         await expect(kugouProvider.catalog!.getPlaylistTracks!('short-tail', 100, 0)).rejects.toMatchObject({ code: 'invalid-response' });
     });
 
+    it('reads the whole playlist when the bridge answers every page with the full snapshot', async () => {
+        const source = Array.from({ length: 218 }, (_, i) => ({ hash: `snapshot-${i}`, name: `Song ${i}` }));
+        requestMock.mockImplementation(async (_operation, params) => ({
+            data: { total: source.length, songs: source },
+        }));
+        const first = await kugouProvider.catalog!.getPlaylistTracks!('bridge-snapshot', 100, 0);
+        const second = await kugouProvider.catalog!.getPlaylistTracks!('bridge-snapshot', 100, first.nextOffset);
+        expect(first.items.map(s => s.id)).toEqual(source.map(s => s.hash.toUpperCase()).reverse().slice(0, 100));
+        expect(second.items).toHaveLength(100);
+        expect([...first.items, ...second.items][0].id).toBe('SNAPSHOT-217');
+        expect(first).toMatchObject({ total: 218, nextOffset: 100, hasMore: true });
+        expect(second).toMatchObject({ total: 218, nextOffset: 200, hasMore: true });
+    });
+
+    it('keeps the complete liked-song order when the bridge returns more than one page at once', async () => {
+        const source = Array.from({ length: 218 }, (_, i) => ({ hash: `liked-snapshot-${i}`, name: `Song ${i}` }));
+        requestMock.mockImplementation(async (operation, params) => (
+            operation === 'user_playlist'
+                ? { data: { info: [{
+                    type: 0, source: 1, listid: 2, name: '我喜欢',
+                    global_collection_id: 'collection_3_liked_snapshot',
+                }] } }
+                : { data: { total: source.length, songs: source } }
+        ));
+        const songs = await kugouProvider.library!.getLikedSongs!('user');
+        expect(songs).toHaveLength(218);
+        expect(songs[0].id).toBe('LIKED-SNAPSHOT-217');
+        expect(requestMock.mock.calls.filter(([operation]) => operation === 'playlist_track_all')).toHaveLength(1);
+    });
+
     it('normalizes the nested song shape returned by album catalog endpoints', async () => {
         requestMock.mockResolvedValue({
             total: 1,

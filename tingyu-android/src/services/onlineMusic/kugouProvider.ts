@@ -1014,7 +1014,9 @@ const getKugouPlaylistTrackSongs = async (
         });
         const rawItems = listOf(response);
         songs.push(...rawItems.map(normalizeKugouSong));
-        if (rawItems.length === 0 || rawItems.length < KUGOU_MAX_PAGE_SIZE) {
+        // The Android bridge answers with the complete playlist regardless of `page`; taking
+        // it as page one and continuing would append the same tracks again on page two.
+        if (rawItems.length === 0 || rawItems.length !== KUGOU_MAX_PAGE_SIZE) {
             completed = true;
             break;
         }
