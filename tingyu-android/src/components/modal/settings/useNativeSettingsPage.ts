@@ -11,7 +11,8 @@ import { nativeLyricsAvailable, openNativeLyricsSettings } from '../../../servic
 // src/components/modal/settings/useNativeSettingsPage.ts
 // Same index groups and rear-display controls as MobileSettingsNavigation / AndroidRearLyricsSetting.
 export function useNativeSettingsPage(root:RefObject<HTMLElement|null>,page:RearSettingsPage|'index',onClose:()=>void,onPage:(page:RearSettingsPage)=>void,
-    groups:SettingsNavGroup[],onSelect:(section:SettingsSectionId)=>void,onHelp:()=>void,rear:RearSettingsController,onBack:()=>void) {
+    groups:SettingsNavGroup[],onSelect:(section:SettingsSectionId)=>void,onHelp:()=>void,rear:RearSettingsController,onBack:()=>void,
+    onDiscovery?:()=>void) {
     const {t}=useTranslation();
     const actions:PageActions={close:onClose,help:onHelp,...rearControlActions(rear,onPage,onBack)};
     const sections:PageSection[]=[];
@@ -24,6 +25,8 @@ export function useNativeSettingsPage(root:RefObject<HTMLElement|null>,page:Rear
         ]});
     }
     if(rear.available)sections.push({id:'rear',layout:'rows',items:[{id:'rear-entry',title:t('rearControl.title'),subtitle:rearEntrySubtitle(rear.snapshot,rear.failed,t),action:'rear:open'}]});
+    if(onDiscovery){actions['discovery:settings']=onDiscovery;
+        sections.push({id:'discovery',title:'音乐发现',layout:'rows',items:[{id:'discovery-settings',title:'推荐设置',subtitle:'推荐来源、探索程度、模块与本地偏好',action:'discovery:settings'}]});}
     for(const group of groups){
         const items:PageItem[]=group.items.map(item=>{actions[`settings:${item.id}`]=()=>onSelect(item.id);
             return{id:item.id,title:item.label,subtitle:item.description,action:`settings:${item.id}`}});
