@@ -17,7 +17,10 @@ export const resolveReloadCapability = (input: {
     status: CollectionLoadStatus;
     collectionType?: string;
 }): LibraryCapability => {
-    if (input.kind !== 'online' || input.collectionType === 'daily_recommendations' || input.collectionType === 'radio') {
+    // A discovery snapshot is local: it has no upstream page to refetch, so it must not offer a
+    // reload button whose resource is static and whose tap would do nothing.
+    if (input.kind !== 'online' || input.collectionType === 'daily_recommendations' || input.collectionType === 'radio'
+        || input.collectionType === 'discovery') {
         return UNSUPPORTED;
     }
     const pending = isLoadingStatus(input.status);

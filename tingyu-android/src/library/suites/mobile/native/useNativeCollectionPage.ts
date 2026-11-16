@@ -64,7 +64,9 @@ export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:L
     const controls=[{id:'play',title:t('mobileLibrary.playAll'),action:'playAll',disabled:!model.actions.capabilities.scope.enabled}];
     if(model.mutations.capabilities.subscribe.supported)controls.push({id:'subscribe',title:t(model.mutations.subscribed?'mobileLibrary.saved':'mobileLibrary.save'),action:'subscribe',disabled:!model.mutations.capabilities.subscribe.enabled});
     const creator=model.snapshot?.detail?.creator??props.collection.creator;
-    const source=props.collection.source==='online'?omni.getProviderLabel(props.collection.providerId):t(props.collection.source==='local'?'search.sourceLocal':'search.sourceNavidrome');
+    // Discovery snapshots are generated on this device; they must not claim a platform name or
+    // expose that platform's playlist actions.
+    const source=props.collection.source==='online'?(props.collection.type==='discovery'?'听屿推荐':omni.getProviderLabel(props.collection.providerId)):t(props.collection.source==='local'?'search.sourceLocal':'search.sourceNavidrome');
     // 统一详情契约：所有非歌手集合（歌单/专辑/每日推荐/本地文件夹…）都发 toolbar + intro +
     // controls，由 Compose 侧同一 MediaDetailScaffold 渲染（NativePageView 按 page.id 路由，
     // 不再按 intro/playlistIntro 分流标记）。歌手页走 useNativeArtistPage 独立适配器。

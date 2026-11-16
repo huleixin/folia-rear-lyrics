@@ -10,8 +10,11 @@ export type DiscoveryResult = { providerId: string; kind: DiscoveryKind; songs: 
 const requests = new DiscoveryRequestCache();
 export const discoveryDay = () => new Date().toLocaleDateString('sv-SE');
 export function discoverySources() {
-    return omni.getProviderSummaries().filter(source => source.availability.configured
-        && Object.values(omni.getRecommendationCapabilities(source.providerId)).some(Boolean));
+    return omni.getProviderSummaries().filter(source => {
+        try { return source.availability.configured
+            && Object.values(omni.getRecommendationCapabilities(source.providerId)).some(Boolean);
+        } catch { return false; }
+    });
 }
 export function discoveryOwner(providerId: string) {
     const source = omni.getProviderSummaries().find(item => item.providerId === providerId);
@@ -20,7 +23,9 @@ export function discoveryOwner(providerId: string) {
 export async function readDiscovery(providerId: string, kind: DiscoveryKind, signal?: AbortSignal): Promise<DiscoveryResult> {
     const base = { providerId, kind, songs: [], collections: [] };
     const source = discoverySources().find(item => item.providerId === providerId);
-    if (!source || !omni.getRecommendationCapabilities(providerId)[kind]) return { ...base, status: 'unsupported' };
+    let capabilities;
+    try { capabilities = omni.getRecommendationCapabilities(providerId); } catch { return { ...base, status: 'unsupported' }; }
+    if (!source || !capabilities[kind]) return { ...base, status: 'unsupported' };
     if (source.hydration !== 'ready' && source.requiresAccount) return { ...base, status: 'loading' };
     if (kind !== 'collections' && source.requiresAccount && source.status !== 'authenticated') return { ...base, status: 'login' };
     const owner = discoveryOwner(providerId);

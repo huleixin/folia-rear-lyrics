@@ -11,12 +11,14 @@ import { recordDiscoveryFeedback } from '../../../../../services/discovery/prefe
 import { startDiscoveryRoaming, endDiscoveryRoaming } from '../../../../../services/discovery/roaming';
 import { setStatusMessage } from '../../../../../stores/useStatusMessageStore';
 import { usePlaybackStore } from '../../../../../stores/usePlaybackStore';
+import { excludeSongs } from '../../../../../services/discovery/ranking';
 
 export function useDiscoveryActions(props: NativeHomeProps['props']) {
     const [notice, setNotice] = useState('');
     const [busy, setBusy] = useState(false);
     const pending = useRef(false);
     const [menu, setMenu] = useState<{ song: SongResult; queue: SongResult[]; reason?: string } | null>(null);
+    const [hidden, setHidden] = useState<Set<string>>(() => new Set());
     const openSongs = (title: string, songs: SongResult[], description = '') => {
         if (!songs.length) { setNotice('候选数据不足，请先播放或收藏一些歌曲，或启用其他推荐来源。'); return false; }
         props.onOpenGridView({ source: 'online', providerId: 'discovery', type: 'discovery',
@@ -50,10 +52,11 @@ export function useDiscoveryActions(props: NativeHomeProps['props']) {
         try {
             if (id === 'play') { endDiscoveryRoaming(false); props.onPlaySong(song, queue); }
             else if (id === 'enqueue') props.onAddSongToQueue?.(song);
-            else if (id === 'dislike') { recordDiscoveryFeedback(song, 'dislike'); setStatusMessage({ type: 'success', text: '已减少这类推荐' }); }
+            else if (id === 'dislike') { recordDiscoveryFeedback(song, 'dislike'); setHidden(previous => new Set(previous).add(getPlaybackSongKey(song))); setStatusMessage({ type: 'success', text: '已减少这类推荐' }); }
             else if (id === 'like') { const liked = await omni.toggleSongLike(song); recordDiscoveryFeedback(song, liked ? 'like' : 'unlike'); setStatusMessage({ type: 'success', text: liked ? '已收藏' : '已取消收藏' }); }
         } catch { setNotice('操作未完成，请检查账号和网络后重试。'); }
         finally { setMenu(null); }
     };
-    return { notice, setNotice, busy, menu, setMenu, openSongs, openCollection, load, roam, menuAction };
+    return { notice, setNotice, busy, menu, setMenu, openSongs, openCollection, load, roam, menuAction,
+        withoutHidden: (songs: SongResult[]) => excludeSongs(songs, hidden) };
 }

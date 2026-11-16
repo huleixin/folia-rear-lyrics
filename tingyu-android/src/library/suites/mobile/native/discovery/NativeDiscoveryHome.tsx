@@ -31,13 +31,18 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     const roaming = useDiscoveryRoaming();
     const [settingsOpen, setSettingsOpen] = useState(false), [batch, setBatch] = useState(0);
     useEffect(() => bindDiscoverySettingsPanel(() => setSettingsOpen(true)), []);
+    useEffect(() => {
+        if (!props.isInteractive) return;
+        const open = () => setSettingsOpen(true); document.addEventListener('tingyu-discovery-settings', open);
+        return () => document.removeEventListener('tingyu-discovery-settings', open);
+    }, [props.isInteractive]);
     const local = useMemo(() => settings.includeLocal ? buildLocalQueue(props.localSongs.slice(0, 600), undefined, props.localLibraryCatalog, LIST_ROW_COVER_SIZE) : [], [props.localSongs, props.localLibraryCatalog, settings.includeLocal]);
     const candidates = useMemo(() => [...feed.results.flatMap(result => result.songs), ...recent.filter(song => {
         const source = getPlaybackSourceRef(song); return source.kind === 'online' && (settings.source === 'all' ? settings.enabled[source.providerId] !== false : source.providerId === settings.source);
     }), ...(settings.source === 'all' ? local : [])], [feed.results, recent, local, settings.source, settings.enabled]);
     const seed = discoveryDay() + ':' + preferences.revision + ':' + batch;
     const ranked = useMemo(() => rankDiscovery(candidates, preferences.values, settings, 'heart', seed, Date.now(), 100), [candidates, preferences.values, settings, seed]);
-    const songs = ranked.map(item => item.song);
+    const songs = controls.withoutHidden(ranked.map(item => item.song));
     const radar = (kind: RadarKind) => rankDiscovery(candidates, preferences.values, settings, kind, seed).map(item => item.song);
     const openRadar = (kind: RadarKind) => controls.openSongs(radarNames[kind], radar(kind), kind === 'style' ? '依据真实歌手关联；未推测音乐流派。' : '根据本机偏好及已启用的真实推荐来源生成。');
     const actions: PageActions = { settings: () => setSettingsOpen(true), sources: onSources, refresh: feed.retry,
@@ -57,7 +62,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
             image: absolutePageImage(getSongCoverUrl(song)), action: key, secondary: key + ':menu', secondaryLabel: '⋮', ...catalogBadgePageFields(song, t) };
     });
     const shortcuts = feed.sources.filter(source => settings.source === 'all' ? settings.enabled[source.providerId] !== false : source.providerId === settings.source).flatMap(source => {
-        const capabilities = omni.getRecommendationCapabilities(source.providerId);
+        const capabilities = (() => { try { return omni.getRecommendationCapabilities(source.providerId); } catch { return { daily: false, fm: false }; } })();
         return (['daily','fm'] as const).filter(kind => capabilities[kind]).map(kind => {
             const action = kind + ':' + source.providerId; actions[action] = () => { void controls.load(source.providerId, kind); };
             return { id: action, title: kind === 'daily' ? '每日推荐' : '私人 FM', subtitle: source.shortName, action, image: kind === 'daily' ? 'calendar' : 'radio', disabled: controls.busy };

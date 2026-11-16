@@ -9,6 +9,11 @@ export function stableHash(text: string) {
     let value = 2166136261; for (let i = 0; i < text.length; i++) value = Math.imul(value ^ text.charCodeAt(i), 16777619);
     return (value >>> 0) / 4294967296;
 }
+/** Excluding one song must not reshuffle the rest: the same seed keeps their relative order. */
+export function excludeSongs(songs: SongResult[], excluded: Iterable<string>) {
+    const hidden = new Set(excluded);
+    return songs.filter(song => !hidden.has(getPlaybackSongKey(song)));
+}
 export function rankDiscovery(songs: SongResult[], preferences: PreferenceMap, settings: DiscoverySettings,
     kind: RadarKind = 'heart', seed = '', now = Date.now(), limit = 30): RankedSong[] {
     const unique = new Map(songs.map(song => [getPlaybackSongKey(song), song]));
