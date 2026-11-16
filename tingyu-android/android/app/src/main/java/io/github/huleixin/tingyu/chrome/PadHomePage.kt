@@ -7,6 +7,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -95,7 +98,32 @@ import kotlin.math.ceil
                         }
                     }else{
                         if(section.title.isNotBlank())item(key="${section.id}:heading"){PageSectionHeading(section,action=action,titleSize=20)}
-                        if(section.layout=="rows")items(section.items,key={"${section.id}:${it.id}"}){item->
+                        if(section.layout=="chips")item(key=section.id){NativeSourceTabs(section,Modifier.padding(bottom=8.dp),action=action)}
+                        else if(section.layout=="quickLinks")item(key=section.id){
+                            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){
+                                section.items.forEach{item->Box(Modifier.weight(1f).height(76.dp).clip(RoundedCornerShape(12.dp))
+                                    .background(LocalInterfacePalette.current.homeQuickCard).border(1.dp,LocalInterfacePalette.current.homeQuickBorder,RoundedCornerShape(12.dp))
+                                    .clickable(enabled=!item.disabled&&item.action.isNotBlank()){action(item.action,"",0.0)},contentAlignment=Alignment.Center){
+                                    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)){
+                                        PageIcon(if(item.image.isNotBlank())item.image else "music2",PageInk,Modifier.size(18.dp))
+                                        Text(item.title,color=PageInk,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+                                    }
+                                }}
+                            }
+                        }
+                        else if(section.layout=="discoverCards")item(key=section.id){
+                            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(14.dp)){
+                                section.items.forEach{item->Box(Modifier.weight(1f).heightIn(min=96.dp).clip(RoundedCornerShape(14.dp))
+                                    .background(Brush.linearGradient(0f to Color(0xFF16303C),1f to Color(0xFF0F212B)))
+                                    .clickable(enabled=!item.disabled&&item.action.isNotBlank()){action(item.action,"",0.0)}){
+                                    Column(Modifier.fillMaxWidth().padding(14.dp)){
+                                        Text(item.title,color=Color.White,fontSize=15.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+                                        Text(item.subtitle,color=Color(0xB8FFFFFF),fontSize=12.sp,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=4.dp))
+                                    }
+                                }}
+                            }
+                        }
+                        else if(section.layout=="rows")items(section.items,key={"${section.id}:${it.id}"}){item->
                             NativePageRow(item,action={action(it,"",0.0)})
                         }else if(section.items.isNotEmpty())items(section.items.chunked(columns),key={"${section.id}:${it.first().id}"}){row->
                             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(18.dp)){

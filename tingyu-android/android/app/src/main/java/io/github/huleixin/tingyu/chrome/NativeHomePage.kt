@@ -86,7 +86,7 @@ import kotlinx.coroutines.launch
                             }
                         }
                         // Real recommendation collections: square artwork rail, same caption rhythm as recent.
-                        section.layout=="cards" -> item(key=section.id){
+                        section.layout=="cards" && section.id!="playlists" -> item(key=section.id){
                             Column(Modifier.padding(top=4.dp)) {
                                 PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=4.dp),action)
                                 LazyRow(contentPadding=PaddingValues(start=start,end=end),horizontalArrangement=Arrangement.spacedBy(12.dp)) {

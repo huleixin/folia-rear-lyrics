@@ -19,6 +19,7 @@ import type { NativePageModel, PageActions, PageSection } from '../../../../../t
 import type { SongResult } from '../../../../../types';
 import OperationPanel from '../OperationPanel';
 import DiscoverySettingsPanel from './DiscoverySettingsPanel';
+import DiscoveryHistoryPanel from './DiscoveryHistoryPanel';
 import { useDiscoveryActions } from './useDiscoveryActions';
 import { bindDiscoverySettingsPanel } from '../../../../../services/discovery/settingsPanel';
 
@@ -48,8 +49,10 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     const actions: PageActions = { settings: () => setSettingsOpen(true), sources: onSources, refresh: feed.retry,
         next: () => setBatch(value => value + 1), roam: () => roaming.active ? endDiscoveryRoaming() : controls.roam(songs),
         allSongs: () => controls.openSongs('猜你想听', songs), allRadar: () => setRadarOpen(true),
+        history: () => setHistoryOpen(true), allCollections: () => setCollectionsOpen(true),
         recentAll: () => controls.openSongs('最近播放', recent), library: () => useMobileLibraryStore.getState().setPage('library') };
     const [radarOpen, setRadarOpen] = useState(false);
+    const [historyOpen, setHistoryOpen] = useState(false), [collectionsOpen, setCollectionsOpen] = useState(false);
     const sourceItems = [{ providerId: 'all', displayName: '综合推荐' }, ...feed.sources].map(source => {
         const action = 'source:' + source.providerId; actions[action] = () => settings.patch({ source: source.providerId });
         return { id: action, title: source.displayName, selected: settings.source === source.providerId, action };
@@ -76,11 +79,11 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
         collections: { id: 'discovery-collections', title: '为你精选歌单', layout: 'cards', items: feed.results.flatMap(result => result.collections).slice(0, 24).map(collection => {
             const action = 'collection:' + collection.providerId + ':' + collection.id; actions[action] = () => controls.openCollection(collection);
             return { id: action, title: collection.name, subtitle: omni.getProviderLabel(collection.providerId) + (collection.trackCount != null ? ' · ' + collection.trackCount + '首' : ''), image: absolutePageImage(collection.coverUrl), action };
-        }) },
+        }), more: 'allCollections', moreLabel: '查看更多' },
         recent: { id: 'recent', title: t('mobileLibrary.recent'), layout: 'cards', more: 'recentAll', moreLabel: '全部', items: rows(recent.slice(0, 12), 'recent:') },
         playlists: { id: 'playlists', title: '我的歌单', layout: 'cards', more: 'library', moreLabel: '全部', items: sources.online.collections.slice(0, 8).map(collection => { const action = 'mine:' + collection.id; actions[action] = () => controls.openCollection(collection); return { id: action, title: collection.name, image: absolutePageImage(collection.coverUrl), action }; }) },
     };
-    const visible: PageSection[] = [{ id: 'discovery-sources', layout: 'chips', items: sourceItems }, { id: 'discovery-tools', layout: 'chips', items: [{ id: 'sources', title: '音乐来源管理', action: 'sources' }, { id: 'refresh', title: '刷新推荐', action: 'refresh' }, { id: 'allSongs', title: '全部推荐歌曲', action: 'allSongs' }] }, ...settings.modules.filter(id => !settings.hidden.includes(id)).map(id => sections[id])];
+    const visible: PageSection[] = [{ id: 'discovery-sources', layout: 'chips', items: sourceItems }, { id: 'discovery-tools', layout: 'chips', items: [{ id: 'sources', title: '音乐来源管理', action: 'sources' }, { id: 'refresh', title: '刷新推荐', action: 'refresh' }, { id: 'allSongs', title: '全部推荐歌曲', action: 'allSongs' }, { id: 'history', title: '历史每日推荐', action: 'history' }] }, ...settings.modules.filter(id => !settings.hidden.includes(id) && sections[id]).map(id => sections[id])];
     if (feed.busy) visible.push({ id: 'discovery-loading', layout: 'message', text: '正在读取推荐，已有内容可继续使用…' });
     if (!feed.busy && !songs.length) visible.push({ id: 'discovery-empty', layout: 'message', text: '暂时没有可用推荐。可登录音乐平台或将本地音乐纳入综合推荐。' });
     feed.results.filter(result => ['login','error'].includes(result.status)).forEach(result => visible.push({ id: 'status:' + result.providerId + result.kind, layout: 'message', text: omni.getProviderLabel(result.providerId) + (result.status === 'login' ? '：登录后可获取个性化歌曲。' : '：暂时加载失败，其他来源仍可使用。') }));
@@ -91,6 +94,11 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     return <>
         <DiscoverySettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)}/>
         <OperationPanel id="discovery-radars" panel={radarOpen ? { title: '听屿雷达', blocks: [{ kind: 'actions', id: 'radars', items: (Object.keys(radarNames) as RadarKind[]).map(kind => ({ id: kind, label: radarNames[kind], hint: kind === 'local' ? '离线曲库' : '最多30首 · 真实推荐依据' })) }] } : null} onClose={() => setRadarOpen(false)} onAction={id => { setRadarOpen(false); openRadar(id as RadarKind); }}/>
+        <DiscoveryHistoryPanel open={historyOpen} sources={feed.sources} onClose={() => setHistoryOpen(false)} onSongs={(title, list) => { setHistoryOpen(false); controls.openSongs(title, list); }}/>
+        <OperationPanel id="discovery-collections" panel={collectionsOpen ? { title: '全部推荐歌单', blocks: [{ kind: 'actions', id: 'collections', items: feed.results.flatMap(result => result.collections).map(collection => ({ id: 'pick:' + collection.providerId + ':' + collection.id, label: collection.name, hint: omni.getProviderLabel(collection.providerId) })) }] } : null} onClose={() => setCollectionsOpen(false)} onAction={id => {
+            const collection = feed.results.flatMap(result => result.collections).find(item => id === 'pick:' + item.providerId + ':' + item.id);
+            setCollectionsOpen(false); if (collection) controls.openCollection(collection);
+        }}/>
         <OperationPanel id="discovery-track" panel={controls.menu ? { title: controls.menu.song.name, subtitle: controls.menu.reason, blocks: [{ kind: 'actions', id: 'track', items: [{ id: 'play', label: '播放', icon: 'play' }, { id: 'enqueue', label: '添加到队列', icon: 'plus' }, ...(getPlaybackSourceRef(controls.menu.song).kind === 'online' ? [{ id: 'like', label: omni.isSongLiked(controls.menu.song) ? '取消收藏' : '收藏', icon: 'heart' }] : []), { id: 'dislike', label: '不感兴趣' }] }] } : null} onClose={() => controls.setMenu(null)} onAction={id => { void controls.menuAction(id); }}/>
     </>;
 }
