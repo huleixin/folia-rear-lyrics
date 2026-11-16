@@ -3,7 +3,7 @@ import type { DiscoverySettings } from '../../stores/useDiscoverySettingsStore';
 import { getPlaybackSongKey, getPlaybackSourceRef } from '../../utils/appPlaybackGuards';
 import { decayedPreference, type PreferenceMap } from './preferences';
 
-export type RadarKind = 'heart' | 'style' | 'explore' | 'time' | 'local';
+export type RadarKind = 'heart' | 'style' | 'explore' | 'time' | 'local' | 'niche';
 export type RankedSong = { song: SongResult; score: number; reason: string };
 export function stableHash(text: string) {
     let value = 2166136261; for (let i = 0; i < text.length; i++) value = Math.imul(value ^ text.charCodeAt(i), 16777619);
@@ -48,4 +48,33 @@ export function rankDiscovery(songs: SongResult[], preferences: PreferenceMap, s
         const item = ranked.shift()!; selected.push(item); const artist = item.song.artists[0]?.name ?? ''; counts.set(artist, (counts.get(artist) ?? 0) + 1);
     }
     return selected;
+}
+
+export type RoamingMode = 'balanced' | 'familiar' | 'explore';
+/** 50/30/20 familiar, adjacent and new candidates; shortfalls are filled in the same order. */
+export function mixRoaming(songs: SongResult[], preferences: PreferenceMap, mode: RoamingMode = 'balanced', seed = '', limit = 60) {
+    const familiar: SongResult[] = [], adjacent: SongResult[] = [], fresh: SongResult[] = [];
+    const knownArtists = new Set(Object.values(preferences).flatMap(value => value.artists ?? []));
+    songs.forEach(song => {
+        const preference = preferences[getPlaybackSongKey(song)];
+        if (preference?.blocked) return;
+        if (preference?.listens || preference?.liked) familiar.push(song);
+        else if (song.artists.some(artist => knownArtists.has(artist.name.trim().toLowerCase()))) adjacent.push(song);
+        else fresh.push(song);
+    });
+    const ratios = mode === 'familiar' ? [.75, .2, .05] : mode === 'explore' ? [.25, .25, .5] : [.5, .3, .2];
+    const buckets = [familiar, adjacent, fresh].map(bucket => [...bucket].sort((a, b) =>
+        stableHash(seed + getPlaybackSongKey(a)) - stableHash(seed + getPlaybackSongKey(b))));
+    const result: SongResult[] = [];
+    const seen = new Set<string>();
+    const take = (bucket: SongResult[], count: number) => bucket.splice(0, count).forEach(song => {
+        const key = getPlaybackSongKey(song); if (!seen.has(key)) { seen.add(key); result.push(song); }
+    });
+    [0, 1, 2].forEach(index => take(buckets[index], Math.round(limit * ratios[index])));
+    while (result.length < limit) {
+        const before = result.length;
+        buckets.forEach(bucket => take(bucket, 1));
+        if (result.length === before) break;
+    }
+    return result.slice(0, limit);
 }

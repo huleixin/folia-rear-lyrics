@@ -23,7 +23,9 @@ import DiscoveryHistoryPanel from './DiscoveryHistoryPanel';
 import { useDiscoveryActions } from './useDiscoveryActions';
 import { bindDiscoverySettingsPanel } from '../../../../../services/discovery/settingsPanel';
 
-const radarNames: Record<RadarKind, string> = { heart: '心动雷达', style: '风格雷达', time: '时光雷达', explore: '探索雷达', local: '本地雷达' };
+// Niche is declared by the engine, but its card only appears when the source supplies trustworthy
+// popularity; no such field exists in the current provider contract, so this UI does not show it.
+const radarNames: Record<RadarKind, string> = { heart: '心动雷达', style: '风格雷达', time: '时光雷达', explore: '探索雷达', local: '本地雷达', niche: '小众雷达' };
 export default function NativeDiscoveryHome({ root, props, sources, onReady, onSources }: NativeHomeProps) {
     const { t } = useTranslation();
     const settings = useDiscoverySettingsStore(), preferences = useDiscoveryPreferences();
@@ -48,6 +50,8 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     const openRadar = (kind: RadarKind) => controls.openSongs(radarNames[kind], radar(kind), kind === 'style' ? '依据真实歌手关联；未推测音乐流派。' : '根据本机偏好及已启用的真实推荐来源生成。');
     const actions: PageActions = { settings: () => setSettingsOpen(true), sources: onSources, refresh: feed.retry,
         next: () => setBatch(value => value + 1), roam: () => roaming.active ? endDiscoveryRoaming() : controls.roam(songs),
+        roamFamiliar: () => roaming.active ? endDiscoveryRoaming() : controls.roam(songs, 'familiar'),
+        roamExplore: () => roaming.active ? endDiscoveryRoaming() : controls.roam(songs, 'explore'),
         allSongs: () => controls.openSongs('猜你想听', songs), allRadar: () => setRadarOpen(true),
         history: () => setHistoryOpen(true), allCollections: () => setCollectionsOpen(true),
         recentAll: () => controls.openSongs('最近播放', recent), library: () => useMobileLibraryStore.getState().setPage('library') };
@@ -73,6 +77,10 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     }).slice(0, 4);
     const sections: Record<string, PageSection> = {
         roam: { id: 'discovery-brand', layout: 'discoverCards', items: [{ id: 'roam', title: '听屿漫游', subtitle: roaming.active ? (roaming.exhausted ? '本批已全部加入 · 点击退出' : '漫游中 · 点击退出并恢复队列') : '让熟悉与未知，在下一首相遇', action: 'roam' }] },
+        roamModes: { id: 'discovery-roam-modes', layout: 'chips', items: [
+            { id: 'roam-familiar', title: '偏熟悉', action: 'roamFamiliar' },
+            { id: 'roam-explore', title: '多探索', action: 'roamExplore' },
+        ] },
         shortcuts: { id: 'shortcuts', layout: 'quickLinks', items: shortcuts },
         radars: { id: 'discovery-radars', title: '你的专属雷达', layout: 'discoverCards', more: 'allRadar', moreLabel: '全部', items: (['style','time','explore'] as RadarKind[]).map(kind => { const action = 'radar:' + kind; actions[action] = () => openRadar(kind); return { id: kind, title: radarNames[kind], subtitle: kind === 'style' ? '歌手与音乐的关联' : kind === 'time' ? '重逢旧日旋律' : '发现未听过的音乐', action }; }) },
         songs: { id: 'discovery-songs', title: '猜你想听', layout: 'rows', more: 'next', moreLabel: '换一批', items: rows(songs.slice(0, 6), 'song:') },
@@ -83,7 +91,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
         recent: { id: 'recent', title: t('mobileLibrary.recent'), layout: 'cards', more: 'recentAll', moreLabel: '全部', items: rows(recent.slice(0, 12), 'recent:') },
         playlists: { id: 'playlists', title: '我的歌单', layout: 'cards', more: 'library', moreLabel: '全部', items: sources.online.collections.slice(0, 8).map(collection => { const action = 'mine:' + collection.id; actions[action] = () => controls.openCollection(collection); return { id: action, title: collection.name, image: absolutePageImage(collection.coverUrl), action }; }) },
     };
-    const visible: PageSection[] = [{ id: 'discovery-sources', layout: 'chips', items: sourceItems }, { id: 'discovery-tools', layout: 'chips', items: [{ id: 'sources', title: '音乐来源管理', action: 'sources' }, { id: 'refresh', title: '刷新推荐', action: 'refresh' }, { id: 'allSongs', title: '全部推荐歌曲', action: 'allSongs' }, { id: 'history', title: '历史每日推荐', action: 'history' }] }, ...settings.modules.filter(id => !settings.hidden.includes(id) && sections[id]).map(id => sections[id])];
+    const visible: PageSection[] = [{ id: 'discovery-sources', layout: 'chips', items: sourceItems }, { id: 'discovery-tools', layout: 'chips', items: [{ id: 'sources', title: '音乐来源管理', action: 'sources' }, { id: 'refresh', title: '刷新推荐', action: 'refresh' }, { id: 'allSongs', title: '全部推荐歌曲', action: 'allSongs' }, { id: 'history', title: '历史每日推荐', action: 'history' }] }, ...settings.modules.filter(id => !settings.hidden.includes(id) && sections[id]).flatMap(id => id === 'roam' && roaming.active ? [sections[id], sections.roamModes] : [sections[id]])];
     if (feed.busy) visible.push({ id: 'discovery-loading', layout: 'message', text: '正在读取推荐，已有内容可继续使用…' });
     if (!feed.busy && !songs.length) visible.push({ id: 'discovery-empty', layout: 'message', text: '暂时没有可用推荐。可登录音乐平台或将本地音乐纳入综合推荐。' });
     feed.results.filter(result => ['login','error'].includes(result.status)).forEach(result => visible.push({ id: 'status:' + result.providerId + result.kind, layout: 'message', text: omni.getProviderLabel(result.providerId) + (result.status === 'login' ? '：登录后可获取个性化歌曲。' : '：暂时加载失败，其他来源仍可使用。') }));
@@ -93,7 +101,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     useNativePage(root, 'home', props.isInteractive, sources.online.accountView === 'resolving' || !preferences.ready ? null : model, actions, onReady);
     return <>
         <DiscoverySettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)}/>
-        <OperationPanel id="discovery-radars" panel={radarOpen ? { title: '听屿雷达', blocks: [{ kind: 'actions', id: 'radars', items: (Object.keys(radarNames) as RadarKind[]).map(kind => ({ id: kind, label: radarNames[kind], hint: kind === 'local' ? '离线曲库' : '最多30首 · 真实推荐依据' })) }] } : null} onClose={() => setRadarOpen(false)} onAction={id => { setRadarOpen(false); openRadar(id as RadarKind); }}/>
+        <OperationPanel id="discovery-radars" panel={radarOpen ? { title: '听屿雷达', blocks: [{ kind: 'actions', id: 'radars', items: (['heart','style','explore','time','local'] as RadarKind[]).map(kind => ({ id: kind, label: radarNames[kind], hint: kind === 'local' ? '离线曲库' : '最多30首 · 真实推荐依据' })) }] } : null} onClose={() => setRadarOpen(false)} onAction={id => { setRadarOpen(false); openRadar(id as RadarKind); }}/>
         <DiscoveryHistoryPanel open={historyOpen} sources={feed.sources} onClose={() => setHistoryOpen(false)} onSongs={(title, list) => { setHistoryOpen(false); controls.openSongs(title, list); }}/>
         <OperationPanel id="discovery-collections" panel={collectionsOpen ? { title: '全部推荐歌单', blocks: [{ kind: 'actions', id: 'collections', items: feed.results.flatMap(result => result.collections).map(collection => ({ id: 'pick:' + collection.providerId + ':' + collection.id, label: collection.name, hint: omni.getProviderLabel(collection.providerId) })) }] } : null} onClose={() => setCollectionsOpen(false)} onAction={id => {
             const collection = feed.results.flatMap(result => result.collections).find(item => id === 'pick:' + item.providerId + ':' + item.id);

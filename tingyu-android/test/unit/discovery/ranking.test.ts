@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 vi.mock('../../../src/services/appDatabase', () => ({ appDatabase: { session: { get: async () => undefined, put: async () => {} } } }));
-import { excludeSongs, rankDiscovery } from '../../../src/services/discovery/ranking';
+import { excludeSongs, mixRoaming, rankDiscovery } from '../../../src/services/discovery/ranking';
 import { defaultDiscoverySettings } from '../../../src/stores/useDiscoverySettingsStore';
 import { decayedPreference, type Preference } from '../../../src/services/discovery/preferences';
 import type { SongResult } from '../../../src/types';
@@ -30,5 +30,13 @@ describe('local discovery ranking', () => {
         const before = rankDiscovery([song(1),song(2),song(3),song(4)], {}, defaultDiscoverySettings, 'heart', 'same');
         const after = excludeSongs(before.map(item => item.song), [getPlaybackSongKey(song(2))]);
         expect(after.map(song => song.id)).toEqual(before.filter(item => item.song.id !== 2).map(item => item.song.id));
+    });
+    it('fills a roaming mix without duplicate songs and can lean familiar', () => {
+        const prefs = { [getPlaybackSongKey(song(1))]: preference };
+        const list = Array.from({ length: 20 }, (_, index) => song(index + 1));
+        const mixed = mixRoaming(list, prefs, 'familiar', 'x');
+        expect(new Set(mixed.map(getPlaybackSongKey)).size).toBe(mixed.length);
+        expect(mixed[0].id).toBe(1);
+        expect(mixRoaming(list, prefs, 'balanced', 'x')).toEqual(mixRoaming(list, prefs, 'balanced', 'x'));
     });
 });

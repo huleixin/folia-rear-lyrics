@@ -499,6 +499,8 @@ export const omni = {
     },
 
     canEditCollectionTracks(collection: OmniCollection): boolean {
+        // A discovery snapshot is assembled on this device and is not a provider playlist.
+        if (collection.type === 'discovery') return false;
         const provider = getOnlineMusicProvider(collection.providerId);
         if (!providerSupports(provider, 'mutations')) return false;
         if (collection.isLiked === true) {

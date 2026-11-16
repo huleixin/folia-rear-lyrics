@@ -5,7 +5,7 @@ import { getPlaybackSongKey } from '../../utils/appPlaybackGuards';
 import { useDiscoverySettingsStore } from '../../stores/useDiscoverySettingsStore';
 
 export type Preference = { score: number; lastPlayed: number; listens: number; liked: boolean; blocked: boolean;
-    day: string; earned: number; updated: number };
+    day: string; earned: number; updated: number; artists?: string[] };
 export type PreferenceMap = Record<string, Preference>;
 const KEY = 'tingyu_discovery_preferences_v1';
 export const useDiscoveryPreferences = create<{ values: PreferenceMap; revision: number; ready: boolean }>(() => ({ values: {}, revision: 0, ready: false }));
@@ -37,7 +37,8 @@ export function recordDiscoveryFeedback(song: SongResult, event: 'like' | 'unlik
     if (detail.session) { sessions.add(detail.session); if (sessions.size > 1000) sessions.delete(sessions.values().next().value!); }
     const now = detail.now ?? Date.now(), day = new Date(now).toLocaleDateString('sv-SE');
     const values = useDiscoveryPreferences.getState().values, key = getPlaybackSongKey(song);
-    const previous = values[key] ?? { score: 0, lastPlayed: 0, listens: 0, liked: false, blocked: false, day, earned: 0, updated: now };
+    const previous = values[key] ?? { score: 0, lastPlayed: 0, listens: 0, liked: false, blocked: false, day, earned: 0, updated: now,
+        artists: song.artists.map(artist => artist.name.trim().toLowerCase()) };
     const value = { ...previous, score: decayedPreference(previous, now) - (previous.liked ? 10 : 0), updated: now, day, earned: previous.day === day ? previous.earned : 0 };
     if (event === 'like' || event === 'unlike') value.liked = event === 'like';
     if (event === 'dislike') { value.blocked = true; value.score = Math.max(-30, value.score - 15); }

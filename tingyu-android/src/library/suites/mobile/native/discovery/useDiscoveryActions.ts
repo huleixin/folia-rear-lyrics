@@ -11,7 +11,8 @@ import { recordDiscoveryFeedback } from '../../../../../services/discovery/prefe
 import { startDiscoveryRoaming, endDiscoveryRoaming } from '../../../../../services/discovery/roaming';
 import { setStatusMessage } from '../../../../../stores/useStatusMessageStore';
 import { usePlaybackStore } from '../../../../../stores/usePlaybackStore';
-import { excludeSongs } from '../../../../../services/discovery/ranking';
+import { excludeSongs, mixRoaming } from '../../../../../services/discovery/ranking';
+import { useDiscoveryPreferences } from '../../../../../services/discovery/preferences';
 
 export function useDiscoveryActions(props: NativeHomeProps['props']) {
     const [notice, setNotice] = useState('');
@@ -40,10 +41,11 @@ export function useDiscoveryActions(props: NativeHomeProps['props']) {
         } catch { setNotice('推荐来源已变化，请重新打开。'); }
         finally { pending.current = false; setBusy(false); }
     };
-    const roam = (songs: SongResult[]) => {
+    const roam = (songs: SongResult[], mode: 'balanced' | 'familiar' | 'explore' = 'balanced') => {
         if (!songs.length) { setNotice('暂时没有可漫游的歌曲。'); return; }
+        const mixed = mixRoaming(songs, useDiscoveryPreferences.getState().values, mode, new Date().toLocaleDateString('sv-SE'));
         const before = usePlaybackStore.getState().playQueue;
-        startDiscoveryRoaming(songs, (song, queue) => props.onPlaySong(song, queue, false), songs => { props.onAddAllToQueue?.(songs, { suppressToast: true }); });
+        startDiscoveryRoaming(mixed, (song, queue) => props.onPlaySong(song, queue, false), songs => { props.onAddAllToQueue?.(songs, { suppressToast: true }); });
         if (usePlaybackStore.getState().playQueue === before) endDiscoveryRoaming(false);
     };
     const menuAction = async (id: string) => {
