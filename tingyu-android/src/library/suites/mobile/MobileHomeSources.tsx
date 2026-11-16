@@ -8,6 +8,7 @@ import { useHomeSourceStore, selectHomeSearchSource } from '../../../stores/useH
 import { useSearchNavigationStore } from '../../../stores/useSearchNavigationStore';
 import OperationPanel from './native/OperationPanel';
 import type { NativePanelActionRow } from '../../../types/nativePanels';
+import { providerLabel } from '../../../services/onlineMusic/providerLabel';
 
 // src/library/suites/mobile/MobileHomeSources.tsx
 //
@@ -57,7 +58,7 @@ export function MobileSourceSheet({
     providers.forEach(provider => {
         const id = `source:${provider.providerId}`;
         items.push({
-            id, label: provider.displayName,
+            id, label: providerLabel(provider.providerId, false, provider.displayName),
             hint: provider.user?.nickname || provider.error
                 || t(provider.status === 'authenticated' ? 'mobileLibrary.connected' : 'mobileLibrary.notConnected'),
             disabled: !provider.availability.configured,

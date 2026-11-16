@@ -41,23 +41,31 @@ import kotlinx.coroutines.launch
 @Composable internal fun NativeHomePage(page:NativePage,modifier:Modifier,action:PageAction) {
     if(LocalPadWindow.current.expanded){PadHomePage(page,modifier,action);return}
     val tablet=LocalPadWindow.current.tablet
+    val discovery=page.key.startsWith("home:discovery:")
     // Full summaries feed Pad; the phone retains its existing four-card overview.
     val sections=if(tablet||page.key=="home:local")page.sections else page.sections.map{if(it.id=="playlists")it.copy(items=it.items.take(4))else it}
     BoxWithConstraints(modifier){
         val wide=maxWidth>=840.dp;val short=wide&&maxHeight<=600.dp
-        val start=if(wide)if(short)108.dp else 116.dp else 22.dp
-        val end=if(wide)32.dp else 22.dp
+        val start=if(wide)if(short)108.dp else 116.dp else if(discovery)16.dp else 22.dp
+        val end=if(wide)32.dp else if(discovery)16.dp else 22.dp
         val viewport=if(wide)maxWidth.value-start.value-end.value else maxWidth.value
         // 沉浸式毛玻璃顶栏（TopGlassBar）：列表全幅滚动、真正进入顶栏玻璃后方；
         // 玻璃是顶栏材质（vibrancy+blur+tint，底部 32dp 强度平滑衰减），标题/音源选择始终清晰。
         val colors=page.surfaceColors()
-        val glass=rememberTyTopGlassState(estimateHeaderBottomDp=page.safeTop+(if(short)8 else 36)+(if(short)60 else 72)+6)
+        val headerTop=if(short)8 else if(discovery)16 else 36
+        val glass=rememberTyTopGlassState(estimateHeaderBottomDp=page.safeTop+headerTop+(if(short)60 else 72)+6)
         Box(Modifier.fillMaxSize()) {
             TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()) {
             val list = rememberLazyListState()
             LazyColumn(Modifier.fillMaxSize().testTag("native-home-list"),state=list,contentPadding=PaddingValues(top=glass.contentTop,bottom=(page.bottomClearance+page.safeBottom).dp)) {
                 sections.forEach { section ->
                     when {
+                        section.layout=="discoveryHero" -> item(key=section.id){DiscoveryHero(section,Modifier.padding(start=start,end=end,bottom=12.dp),action)}
+                        section.layout=="radarCards" -> item(key=section.id){Column(Modifier.padding(start=start,end=end,top=20.dp,bottom=12.dp)){
+                            PageSectionHeading(section,Modifier.padding(bottom=8.dp),action)
+                            DiscoveryRadars(section,action=action)
+                        }}
+                        section.layout=="textActions" -> item(key=section.id){DiscoveryTextActions(section,Modifier.padding(start=start,end=end),action)}
                         section.layout=="hero" -> item(key=section.id){NativeHeroRail(section,viewport,start,end,wide,short,action)}
                         // Discovery's provider/source chips use the same selected-pill rail as the library.
                         section.layout=="chips" -> item(key=section.id){
@@ -65,8 +73,8 @@ import kotlinx.coroutines.launch
                         }
                         // 方形封面横滑 rail：在线首页的「最近播放」与本地首页的「最近播放 / 常听专辑」共用一套。
                         section.layout=="cards" && section.id in setOf("recent","localAlbums") -> item(key=section.id){
-                            Column(Modifier.padding(top=4.dp)) {
-                                PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=4.dp),action)
+                            Column(Modifier.padding(top=if(discovery)20.dp else 4.dp)) {
+                                PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=if(discovery)8.dp else 4.dp),action)
                                 LazyRow(contentPadding=PaddingValues(start=start,end=end),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                                     items(section.items,key={it.id}) { item ->
                                         val cover=NativePageDesign.recentWidth(viewport,wide).dp
@@ -87,8 +95,8 @@ import kotlinx.coroutines.launch
                         }
                         // Real recommendation collections: square artwork rail, same caption rhythm as recent.
                         section.layout=="cards" && section.id!="playlists" -> item(key=section.id){
-                            Column(Modifier.padding(top=4.dp)) {
-                                PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=4.dp),action)
+                            Column(Modifier.padding(top=if(discovery)20.dp else 4.dp)) {
+                                PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=if(discovery)8.dp else 4.dp),action)
                                 LazyRow(contentPadding=PaddingValues(start=start,end=end),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                                     items(section.items,key={it.id}) { item ->
                                         val cover=if(wide)148.dp else 128.dp
@@ -123,7 +131,7 @@ import kotlinx.coroutines.launch
                                             .background(LocalInterfacePalette.current.homeQuickSelected),
                                             contentAlignment=Alignment.Center){PageIcon(if(item.image.isNotBlank())item.image else "music2",PageInk.copy(alpha=.92f),Modifier.size(15.dp))}
                                         Text(item.title,color=PageInk,fontSize=12.sp,lineHeight=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
-                                        Text(item.subtitle,color=PageMuted,fontSize=10.sp,lineHeight=13.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+                                        if(item.subtitle.isNotBlank())Text(item.subtitle,color=PageMuted,fontSize=10.sp,lineHeight=13.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
                                     }
                                 }
                             }
@@ -193,7 +201,7 @@ import kotlinx.coroutines.launch
                             }
                         }
                         section.layout=="rows" -> {
-                            item(key="${section.id}:heading"){PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=4.dp),action)}
+                            item(key="${section.id}:heading"){PageSectionHeading(section,Modifier.padding(start=start,end=end,top=if(discovery)20.dp else 0.dp,bottom=if(discovery)8.dp else 4.dp),action)}
                             items(section.items,key={it.id}) { item -> Box(Modifier.padding(start=start,end=end)){NativePageRow(item,62.dp,46.dp,14,12,divider=true){action(it,"",0.0)}} }
                         }
                         section.text.isNotBlank() -> item(key=section.id){Text(section.text,color=PageMuted,fontSize=13.sp,modifier=Modifier.padding(start=start,end=end,top=18.dp,bottom=18.dp))}
@@ -204,7 +212,7 @@ import kotlinx.coroutines.launch
             TyTopGlassSurface(glass,colors)
             // 顶栏内容：绘制在玻璃之上，始终清晰可操作。
             TyTopGlassForeground {
-                Column(Modifier.fillMaxWidth().padding(top=(page.safeTop+if(short)8 else 36).dp)
+                Column(Modifier.fillMaxWidth().padding(top=(page.safeTop+headerTop).dp)
                     .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}) {
                     PageHeading(page,Modifier.padding(start=start,end=end).heightIn(min=if(short)60.dp else 72.dp),large=true,action=action)
                     Spacer(Modifier.height(6.dp))

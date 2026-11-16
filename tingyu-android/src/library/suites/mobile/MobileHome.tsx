@@ -61,6 +61,11 @@ function MobileHome(props: LibraryHomeSurfaceProps) {
         },
     });
     const [showSources, setShowSources] = useState(false);
+    useEffect(() => {
+        const open = () => setShowSources(true);
+        document.addEventListener('tingyu-discovery-sources', open);
+        return () => document.removeEventListener('tingyu-discovery-sources', open);
+    }, []);
     const homeSource = useHomeSourceStore((state) => state.source);
     const setHomeSource = useHomeSourceStore((state) => state.setSource);
     const rootRef=React.useRef<HTMLElement>(null);

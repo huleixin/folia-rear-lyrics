@@ -104,9 +104,10 @@ export function useNativeSettingsDocument(root:RefObject<HTMLElement|null>,enabl
         // 具体写哪个 store 由调用方在 onFlowAction 里决定 —— 设置业务仍然只有一份。
         for(const node of flow.nodes){
             const name=node.action||node.id;
-            const prefix=node.kind==='switch'||node.kind==='checkbox'||node.kind==='select'?'set'
+            const prefix=node.kind==='switch'||node.kind==='checkbox'||node.kind==='select'||node.kind==='source'?'set'
                 :node.kind==='slider'?'slide':node.kind==='input'?'submit':'act';
             flowHandlers[`${prefix}:${name}`]=event=>onFlowAction(node.id,event);
+            if(node.kind==='source')flowHandlers[`act:${name}`]=event=>onFlowAction(node.id,event);
         }
         // 页面级返回：原生顶栏的左箭头与系统返回手势都发这一个动作。
         if(onFlowBack)flowHandlers.back=()=>onFlowBack();

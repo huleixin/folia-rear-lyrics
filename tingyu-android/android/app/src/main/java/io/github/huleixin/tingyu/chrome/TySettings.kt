@@ -718,6 +718,8 @@ private fun TySettingItemView(
         "color" -> SettingsColor(theme, node, onAction)
         "checkbox" -> SettingsCheckbox(theme, node, onAction)
         "reorder" -> SettingsOrder(theme, node, onAction)
+        "source" -> DiscoverySourceSetting(theme, node, onAction)
+        "moduleOrder" -> DiscoveryModuleOrder(theme, node, onAction)
         "preview" -> SettingsPreview(node, onAction)
         "image" -> SettingsImage(node)
         "note" -> Text(

@@ -68,7 +68,7 @@ data class TySettingsPage(
     val headerActions: List<String> = emptyList(),
 ) {
     companion object {
-        private val KINDS = setOf("group", "action", "switch", "checkbox", "select", "slider", "input", "note", "color", "preview", "image", "reorder")
+        private val KINDS = setOf("group", "action", "switch", "checkbox", "select", "slider", "input", "note", "color", "preview", "image", "reorder", "source", "moduleOrder")
         private const val MAX_NODES = 2000
         private const val MAX_PACKET = 400_000
 

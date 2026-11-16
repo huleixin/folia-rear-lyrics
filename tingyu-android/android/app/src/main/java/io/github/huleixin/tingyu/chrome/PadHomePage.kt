@@ -99,6 +99,9 @@ import kotlin.math.ceil
                     }else{
                         if(section.title.isNotBlank())item(key="${section.id}:heading"){PageSectionHeading(section,action=action,titleSize=20)}
                         if(section.layout=="chips")item(key=section.id){NativeSourceTabs(section,Modifier.padding(bottom=8.dp),action=action)}
+                        else if(section.layout=="discoveryHero")item(key=section.id){DiscoveryHero(section,action=action)}
+                        else if(section.layout=="radarCards")item(key=section.id){DiscoveryRadars(section,action=action)}
+                        else if(section.layout=="textActions")item(key=section.id){DiscoveryTextActions(section,action=action)}
                         else if(section.layout=="quickLinks")item(key=section.id){
                             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){
                                 section.items.forEach{item->Box(Modifier.weight(1f).height(76.dp).clip(RoundedCornerShape(12.dp))

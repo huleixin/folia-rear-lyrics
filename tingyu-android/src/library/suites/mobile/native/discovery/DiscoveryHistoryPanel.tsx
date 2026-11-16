@@ -26,7 +26,7 @@ export default function DiscoveryHistoryPanel({ open, sources, onClose, onSongs 
     }, [open, provider]);
     const blocks: NativePanelBlock[] = [
         ...(supported.length > 1 ? [{ kind: 'select' as const, id: 'provider', label: '来源', value: provider,
-            options: supported.map(source => ({ value: source.providerId, label: source.displayName })) }] : []),
+            options: supported.map(source => ({ value: source.providerId, label: omni.getProviderLabel(source.providerId, false) })) }] : []),
         { kind: 'actions', id: 'history', items: busy ? [] : entries.map(entry => ({ id: 'date:' + entry.id, label: entry.label, hint: '查看当天真实推荐' })) },
         ...(busy ? [{ kind: 'note' as const, id: 'busy', text: '正在读取历史每日推荐…' }] : []),
         ...(error ? [{ kind: 'note' as const, id: 'error', text: error, tone: 'error' as const }] : []),

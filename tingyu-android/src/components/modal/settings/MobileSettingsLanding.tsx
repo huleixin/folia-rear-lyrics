@@ -13,9 +13,6 @@ import { useNativeSettingsDocument } from '../../../hooks/useNativeSettingsDocum
 import { useInterfaceLight } from '../../../hooks/useInterfaceAppearance';
 import {useRearSettingsController} from './useRearSettingsController';
 import { isAndroidNativeRuntime } from '../../../utils/platform';
-import { requestDiscoverySettingsPanel } from '../../../services/discovery/settingsPanel';
-import { useMobileLibraryStore } from '../../../stores/useMobileLibraryStore';
-import { useHomeSourceStore } from '../../../stores/useHomeSourceStore';
 import {buildRearControlPage,rearPageBack,type RearSettingsPage} from './rearControlModel';
 import {rearControlActions} from './rearControlActions';
 import RearControlView from './RearControlView';
@@ -60,8 +57,7 @@ export default function MobileSettingsLanding({ onClose }: { onClose: () => void
     const root=useRef<HTMLDivElement>(null);
     const help=()=>useSettingsModalStore.getState().openSettingsFromIndex('help');
     const native=useNativeSettingsPage(root,page,onClose,openPage,groups,select,help,rear,back,
-        isAndroidNativeRuntime()?()=>{onClose();useHomeSourceStore.getState().setSource('online');
-            useMobileLibraryStore.getState().setPage('home');requestDiscoverySettingsPanel();}:undefined);
+        isAndroidNativeRuntime()?()=>useSettingsModalStore.getState().openSettingsFromIndex('discovery'):undefined);
     useNativeSettingsDocument(root,guide,`rear-${page}`,t(appearance?appearanceTitle:page==='diagnostics'?'rearControl.diagnostics':'mobileSettings.startupGuide'));
     const model=buildRearControlPage(page==='advanced'?'advanced':'control',rear,t);
     const actions=rearControlActions(rear,openPage,back);

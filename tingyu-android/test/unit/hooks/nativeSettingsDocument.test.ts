@@ -15,6 +15,32 @@ function Probe({pageKey='options:playback'}:{pageKey?:string}){
  const ref=useRef<HTMLDivElement>(null);useNativeSettingsDocument(ref,true,pageKey,'Settings');
  return h('div',{ref},h('div',{'data-native-live':'true'},h('span',null,'live')),h('button',null,'setting'));
 }
+it('routes compact discovery sources, sliders and ordering to their existing handlers',async()=>{
+ const handle=vi.fn(),back=vi.fn();
+ function DiscoveryProbe(){
+  const ref=useRef<HTMLDivElement>(null);
+  useNativeSettingsDocument(ref,true,'discovery','推荐设置',{key:'discovery',nodes:[
+   {id:'source:qq',kind:'source',value:'1'},
+   {id:'exploration',kind:'slider',value:'20'},
+   {id:'modules',kind:'moduleOrder',value:'[]'}
+  ]},handle,back);
+  return h('div',{ref});
+ }
+ await act(async()=>root.render(h(DiscoveryProbe)));
+ const {model,actions}=state.models.at(-1);
+ expect(model.key).toBe('settings:document:discovery');
+ expect(state.capture).not.toHaveBeenCalled();
+ actions['set:source:qq']({text:'0'});
+ actions['act:source:qq']({text:'weight:2'});
+ actions['slide:exploration']({value:73});
+ actions['act:modules']({text:'toggle:radars'});
+ actions.back({});
+ expect(handle.mock.calls).toEqual([
+  ['source:qq',{text:'0'}],['source:qq',{text:'weight:2'}],
+  ['exploration',{value:73}],['modules',{text:'toggle:radars'}]
+ ]);
+ expect(back).toHaveBeenCalledOnce();
+});
 beforeEach(()=>{
  vi.useFakeTimers();vi.clearAllMocks();state.models=[];
  vi.stubGlobal('ResizeObserver',class{observe(){}disconnect(){}});

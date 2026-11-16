@@ -1,3 +1,4 @@
+import { providerLabel } from './providerLabel';
 import { getPlaybackSongKey as resourceSongKey } from '../../utils/appPlaybackGuards';
 import { readSharedLyricRecord } from '../sharedSongResources';
 import { captureAudioSourceBinding } from './audioSourceBinding';
@@ -280,9 +281,9 @@ export const omni = {
         return requireOnlineMusicProvider(providerId).getAvailability?.() ?? { configured: true };
     },
 
-    getProviderLabel(providerId: OmniProviderId): string {
+    getProviderLabel(providerId: OmniProviderId, short = true): string {
         const provider = getOnlineMusicProvider(providerId);
-        return provider?.shortName || provider?.displayName || providerId;
+        return providerLabel(providerId, short, (short ? provider?.shortName : provider?.displayName) || provider?.displayName || providerId);
     },
 
     async getSearchDiscovery(providerId: OmniProviderId) {

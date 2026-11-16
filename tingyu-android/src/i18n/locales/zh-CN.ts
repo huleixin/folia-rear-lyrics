@@ -3,6 +3,7 @@ import {audioCacheZh} from '../audioCacheCopy';
 
 import {cloudFeedbackZh} from '../cloudFeedbackCopy';
 export default {
+    musicProviders: {"netease":{"full":"网易云音乐","short":"网易云"},"qq":{"full":"QQ音乐","short":"QQ音乐"},"kugou":{"full":"酷狗音乐","short":"酷狗"},"bodian":{"full":"波点音乐","short":"波点"},"qishui":{"full":"汽水音乐","short":"汽水"},"local":{"full":"本地音乐","short":"本地"}},
   licenses: {"title": "第三方开源许可证", "openError": "许可证页面暂不可用，请重试"},
   playerStyles: {"title": "播放器风格", "classic": "经典极简", "immersive": "沉浸极简", "choose": "选择风格"},
   audioCache: audioCacheZh,
@@ -874,6 +875,7 @@ export default {
       "rear-tap-controls-toggle": {"title": "切换背屏点按控件", "description": "开启或关闭轻触背屏显示音乐控件"},
       "settings-rear-appearance": {"title": "背屏舞台外观", "description": "设置跟随正面或背屏独立外观"},
       "settings-rear": {"title": "背屏歌词设置", "description": "打开背屏控制中心"},
+      "settings-discovery": {"title": "推荐设置", "description": "管理推荐来源、偏好与首页布局"},
       "settings-player-style": {"title": "播放器风格", "description": "选择风格"},
       "settings-desktop-lyrics": {"title": "桌面歌词设置", "description": "打开悬浮歌词与样式设置"},
       "settings-bluetooth-display": {"title": "车载歌词显示策略", "description": "设置歌词显示栏、翻译及刷新间隔"},

@@ -3,6 +3,7 @@ import {audioCacheEn} from '../audioCacheCopy';
 
 import {cloudFeedbackEn} from '../cloudFeedbackCopy';
 export default {
+    musicProviders: {"netease":{"full":"NetEase Cloud Music","short":"NetEase"},"qq":{"full":"QQ Music","short":"QQ Music"},"kugou":{"full":"KuGou Music","short":"KuGou"},"bodian":{"full":"Bodian Music","short":"Bodian"},"qishui":{"full":"Qishui Music","short":"Qishui"},"local":{"full":"Local music","short":"Local"}},
   licenses: {"title": "Third-party open-source licenses", "openError": "Licenses are temporarily unavailable. Please retry."},
   playerStyles: {"title": "Player style", "classic": "Classic Minimal", "immersive": "Immersive Minimal", "choose": "Choose style"},
   audioCache: audioCacheEn,
@@ -884,6 +885,7 @@ export default {
       "rear-tap-controls-toggle": {"title": "Toggle rear tap controls", "description": "Enable or disable music controls on rear-stage taps"},
       "settings-rear-appearance": {"title": "Rear stage appearance", "description": "Configure follow-front or independent rear visuals"},
       "settings-rear": {"title": "Rear lyrics settings", "description": "Open the rear lyrics control center"},
+      "settings-discovery": {"title": "Music discovery settings", "description": "Configure recommendation sources, preferences and layout"},
       "settings-player-style": {"title": "Player style", "description": "Choose style"},
       "settings-desktop-lyrics": {"title": "Desktop lyrics settings", "description": "Open floating lyrics and style settings"},
       "settings-bluetooth-display": {"title": "Bluetooth lyric display", "description": "Choose lyric placement, translation and refresh interval"},
