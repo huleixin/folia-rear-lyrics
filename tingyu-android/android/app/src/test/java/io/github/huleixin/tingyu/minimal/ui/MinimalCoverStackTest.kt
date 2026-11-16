@@ -10,6 +10,11 @@ import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -261,6 +266,37 @@ class MinimalCoverStackTest {
             shadowOf(Looper.getMainLooper()).idle()
             compose.mainClock.advanceTimeBy(16)
         }
+    }
+
+    @Test
+    fun classicPanelDragFollowsFingerAndCancelsBackToExpanded() {
+        lateinit var panel: io.github.huleixin.tingyu.minimal.PlayerPanelState
+        // Host the controller in composition so it shares the test frame clock.
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            val panelScope = rememberCoroutineScope()
+            panel = remember { io.github.huleixin.tingyu.minimal.PlayerPanelState(panelScope) }
+            CompositionLocalProvider(
+                io.github.huleixin.tingyu.chrome.LocalPlayerPanelState provides panel,
+                io.github.huleixin.tingyu.chrome.LocalMinimalMorph provides io.github.huleixin.tingyu.chrome.MinimalPlayerMorph(
+                    with(LocalDensity.current) { androidx.compose.ui.geometry.Rect(0f, 700.dp.toPx(), 393.dp.toPx(), 780.dp.toPx()) },
+                    with(LocalDensity.current) { androidx.compose.ui.geometry.Rect(20.dp.toPx(), 710.dp.toPx(), 60.dp.toPx(), 750.dp.toPx()) },
+                    mutableStateOf(1f), io.github.huleixin.tingyu.chrome.NativeStageExit(), mutableStateOf(0f), false, panel),
+            ) {
+                MinimalPlayerScreen(holder.value, artwork, FakeCommands(), queue = io.github.huleixin.tingyu.minimal.MinimalQueue(),
+                    light = false, safeTop = 24f, safeBottom = 0f, detour = false, onCollapse = {}, onOpenStage = {})
+            }
+        }
+        compose.mainClock.advanceTimeByFrame()
+        val top = compose.onNodeWithContentDescription("收起播放页")
+        val root = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        assertTrue(top.fetchSemanticsNode().boundsInRoot.top >= root.top + 24f)
+        top.performTouchInput { down(center); moveBy(Offset(0f, 50f)) }
+        compose.mainClock.advanceTimeByFrame()
+        compose.runOnIdle { assertTrue(panel.dragging); assertTrue(panel.progress < 1f) }
+        top.performTouchInput { moveBy(Offset(0f, -50f)); up() }
+        compose.mainClock.advanceTimeBy(2000)
+        compose.runOnIdle { assertEquals(1f, panel.progress, .001f) }
     }
 
     private fun shoot(name: String) {

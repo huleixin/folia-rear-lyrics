@@ -56,6 +56,16 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.layout.*
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
@@ -64,6 +74,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -85,6 +97,7 @@ import io.github.huleixin.tingyu.minimal.cover.CoverStackState
 import io.github.huleixin.tingyu.minimal.cover.DragDirection
 import io.github.huleixin.tingyu.minimal.cover.StackPhase
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 // android/app/src/main/java/io/github/huleixin/tingyu/minimal/ui/MinimalPlayerScreen.kt
 //
@@ -164,6 +177,94 @@ fun MinimalPlayerScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     // 与导航、迷你播放器共用已解析的偏好，开关及系统变化均可即时生效。
     val still = LocalLiquidReduced.current
+    val minimalMotion = io.github.huleixin.tingyu.chrome.LocalMinimalMorph.current
+    val panel = io.github.huleixin.tingyu.chrome.LocalPlayerPanelState.current?.takeIf { minimalMotion != null }
+    val density = LocalDensity.current
+    val windowTop = WindowInsets.statusBars.getTop(density) / density.density
+    val topInset = maxOf(safeTop, windowTop)
+    val screenHeight = LocalConfiguration.current.screenHeightDp.toFloat()
+    val interactiveRange = screenHeight * .86f
+    val latestReduced = rememberUpdatedState(still)
+    val latestReveal = rememberUpdatedState(io.github.huleixin.tingyu.chrome.LocalPlayerReveal.current)
+    fun beginPanelDrag() {
+        val current = panel?.takeIf { it.initialized }?.progress ?: latestReveal.value.value
+        panel?.adopt(current); panel?.beginDrag()
+    }
+    fun dragPanel(dy: Float) {
+        panel?.dragBy(dy, interactiveRange * density.density)
+    }
+    fun settlePanel(velocity: Float, canceled: Boolean = false) {
+        panel?.release(velocity, canceled, latestReduced.value)
+    }
+    // Top chrome and the empty margins around content use the same reversible panel.
+    // The cover stack keeps horizontal song switching; only vertical movement reaches here.
+    // One owner for the vertical pull. While the gesture has not committed, the child
+    // (cover stack / pager / lyric list) sees events first; only motion it leaves unconsumed
+    // starts the collapse. Once the panel owns the drag, Initial-pass consumption stops the
+    // lyric list from scrolling underneath the moving shell, so reversing the finger moves
+    // the shell back instead of fighting the list.
+    val panelGesture = Modifier.pointerInput(panel, interactiveRange, detour) {
+        if (panel == null || detour) return@pointerInput
+        val tracker = VelocityTracker()
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            var total = 0f
+            var lastY = down.position.y
+            var vertical = false
+            tracker.resetTracking()
+            tracker.addPosition(down.uptimeMillis, down.position)
+            while (true) {
+                if (vertical) {
+                    val early = awaitPointerEvent(PointerEventPass.Initial)
+                    val change = early.changes.firstOrNull { it.id == down.id } ?: break
+                    if (!change.pressed) {
+                        settlePanel(tracker.calculateVelocity().y); break
+                    }
+                    tracker.addPosition(change.uptimeMillis, change.position)
+                    val dy = change.position.y - lastY
+                    lastY = change.position.y
+                    dragPanel(dy); change.consume()
+                    continue
+                }
+                val event = awaitPointerEvent(PointerEventPass.Main)
+                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                if (!change.pressed) break
+                tracker.addPosition(change.uptimeMillis, change.position)
+                val dy = change.position.y - lastY
+                lastY = change.position.y
+                total += dy
+                if (change.isConsumed) break
+                if (total > viewConfiguration.touchSlop &&
+                    abs(total) > abs(change.position.x - down.position.x) * 1.25f) {
+                    vertical = true
+                    beginPanelDrag()
+                    dragPanel(total); change.consume()
+                }
+            }
+        }
+    }
+    val pagerState = androidx.compose.runtime.key(resetToken) {
+        rememberPagerState(initialPage = initialPage.coerceIn(0, PAGE_COUNT - 1)) { PAGE_COUNT }
+    }
+    val pageForScroll by rememberUpdatedState(pagerState.currentPage)
+    val panelScroll = remember(panel, detour) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (panel == null || detour || source != NestedScrollSource.UserInput || !panel.dragging) return Offset.Zero
+                dragPanel(available.y); return Offset(0f, available.y)
+            }
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (panel == null || detour || source != NestedScrollSource.UserInput ||
+                    pageForScroll != 1 || available.y <= 0f || consumed.y > 0f) return Offset.Zero
+                if (!panel.dragging) beginPanelDrag()
+                dragPanel(available.y); return Offset(0f, available.y)
+            }
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (panel == null || !panel.dragging) return Velocity.Zero
+                settlePanel(available.y); return available
+            }
+        }
+    }
 
     // 抽屉与工具页归宿主所有；这里只把入口按钮接到它们的开门动作上。
     // 之前这里裸用 `commands`，于是底部的列表按钮走的是另一条路 —— 同一个页面两套行为。
@@ -191,9 +292,6 @@ fun MinimalPlayerScreen(
     }
 
     // 停留页由宿主持有（进出设置不丢）；这里只在重建时读一次初值，之后随滑动上报。
-    val pagerState = androidx.compose.runtime.key(resetToken) {
-        rememberPagerState(initialPage = initialPage.coerceIn(0, PAGE_COUNT - 1)) { PAGE_COUNT }
-    }
     LaunchedEffect(pagerState,padSplit) {
         snapshotFlow { if(padSplit)1 else pagerState.currentPage }.collect { page -> onPageChanged(page) }
     }
@@ -260,7 +358,7 @@ fun MinimalPlayerScreen(
     }
 
     MinimalCoverOverlay {
-    Box(modifier.fillMaxSize()) {
+    Box(modifier.fillMaxSize().nestedScroll(panelScroll).then(panelGesture)) {
         // 渲染来源角标（临时诊断，验收后删）：看到 "Compose" 就说明这一屏是原生画的。
         if (state.controls.diag) {
             Text(
@@ -269,7 +367,7 @@ fun MinimalPlayerScreen(
                 fontSize = 11.sp,
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .padding(start = 10.dp, top = (safeTop + 6f).dp)
+                    .padding(start = 10.dp, top = (topInset + 6f).dp)
                     .background(Color(0xDD09251C), RoundedCornerShape(999.dp))
                     .padding(horizontal = 8.dp, vertical = 2.dp),
             )
@@ -283,7 +381,7 @@ fun MinimalPlayerScreen(
                     fontSize = 10.sp,
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(start = 10.dp, top = (safeTop + 34f).dp)
+                    .padding(start = 10.dp, top = (topInset + 34f).dp)
                         .background(Color(0xDD09251C), RoundedCornerShape(6.dp))
                         .padding(horizontal = 6.dp, vertical = 2.dp),
                 )
@@ -297,7 +395,7 @@ fun MinimalPlayerScreen(
             modifier = Modifier.fillMaxSize().minimalBackground().background(Color(palette.base)),
         )
 
-        Column(Modifier.fillMaxSize().padding(top = safeTop.dp, bottom = safeBottom.dp)) {
+        Column(Modifier.fillMaxSize().padding(top = topInset.dp, bottom = safeBottom.dp)) {
             TopBar(
                 ink = ink,
                 liked = state.controls.liked,

@@ -32,7 +32,14 @@ import io.github.huleixin.tingyu.minimal.immersive.MeloXPlaybackUiState
 
 internal enum class MeloXNowPlayingPage { Artwork, Lyrics, Queue }
 internal val LocalImmersiveBackdrop = staticCompositionLocalOf<Backdrop?> { null }
-internal fun Modifier.meloXPlayerStatusBarsPadding() = statusBarsPadding()
+internal val LocalImmersiveSafeTop = staticCompositionLocalOf { 0f }
+@Composable
+internal fun Modifier.meloXPlayerStatusBarsPadding(): Modifier {
+    val density = LocalDensity.current
+    val windowTop = WindowInsets.statusBars.getTop(density) / density.density
+    // The native host retains the real inset even when a parent has consumed it.
+    return padding(top = maxOf(LocalImmersiveSafeTop.current, windowTop).dp)
+}
 internal fun Modifier.meloXPlayerNavigationBarsPadding() = navigationBarsPadding()
 internal fun Modifier.meloXPlayerDisplayCutoutPadding() = displayCutoutPadding()
 internal fun Modifier.meloXIconDrawingScale() = this // Upstream drawing scale is 1f.

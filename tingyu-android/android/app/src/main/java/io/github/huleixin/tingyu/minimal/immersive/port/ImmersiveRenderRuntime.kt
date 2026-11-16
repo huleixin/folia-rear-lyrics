@@ -12,7 +12,8 @@ internal object MeloXAppVisibility {
 internal object MeloXUiMotionRuntime {
     var orientationTransition by mutableStateOf(false)
     var pageTransition by mutableStateOf(false)
-    var anyPlayerMotion by mutableStateOf(false)
+    var shellTransition by mutableStateOf(false)
+    val anyPlayerMotion: Boolean get() = shellTransition || orientationTransition || pageTransition
     var foregroundSettling by mutableStateOf(false)
 }
 

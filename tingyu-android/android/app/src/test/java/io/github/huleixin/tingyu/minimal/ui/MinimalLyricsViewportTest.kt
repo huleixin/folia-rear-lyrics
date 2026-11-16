@@ -5,6 +5,12 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import io.github.huleixin.tingyu.minimal.*
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -75,5 +81,55 @@ class MinimalLyricsViewportTest {
         repeat(30){ compose.mainClock.advanceTimeByFrame() }
         compose.mainClock.autoAdvance=true
         assertTrue("pager remains usable after returning",settledPage==0)
+    }
+
+    private fun lyricsScreen(panel: (io.github.huleixin.tingyu.minimal.PlayerPanelState)->Unit, state: MinimalPlayerState) {
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            val scope = rememberCoroutineScope()
+            val controller = remember { io.github.huleixin.tingyu.minimal.PlayerPanelState(scope).apply { adopt(1f) } }
+            panel(controller)
+            CompositionLocalProvider(
+                io.github.huleixin.tingyu.chrome.LocalPlayerPanelState provides controller,
+                io.github.huleixin.tingyu.chrome.LocalMinimalMorph provides io.github.huleixin.tingyu.chrome.MinimalPlayerMorph(
+                    with(LocalDensity.current) { androidx.compose.ui.geometry.Rect(0f, 700.dp.toPx(), 393.dp.toPx(), 780.dp.toPx()) },
+                    with(LocalDensity.current) { androidx.compose.ui.geometry.Rect(20.dp.toPx(), 710.dp.toPx(), 60.dp.toPx(), 750.dp.toPx()) },
+                    mutableStateOf(1f), io.github.huleixin.tingyu.chrome.NativeStageExit(), mutableStateOf(0f), false, controller),
+            ) {
+                MinimalPlayerScreen(state, MinimalArtwork(), commands, initialPage = 1,
+                    light = false, safeTop = 24f, safeBottom = 0f, detour = false,
+                    onCollapse = {}, onOpenStage = {})
+            }
+        }
+        compose.mainClock.advanceTimeByFrame()
+    }
+
+    @Test fun pullingDownAtLyricsTopMovesPanelAndReverseCancels() {
+        lateinit var panel: io.github.huleixin.tingyu.minimal.PlayerPanelState
+        val atTop = MinimalPlayerState(
+            playback = MinimalPlayback(track = MinimalTrack(key = "top", title = "Top"), anchorPositionMs = 0,
+                source = MinimalClockSource.ENGINE),
+            lyrics = MinimalLyrics(status = MinimalLyricsStatus.READY,
+                lines = List(20) { i -> MinimalLyricLine(startSec = i * 2.0, endSec = i * 2.0 + 2, text = "Top row $i") }),
+        )
+        lyricsScreen({ panel = it }, atTop)
+        val row = compose.onAllNodesWithText("Top row 0").fetchSemanticsNodes()
+            .first { it.boundsInRoot.right > 0f }
+        compose.onNodeWithText("Top row 0").performTouchInput { down(center); moveBy(Offset(0f, 90f)) }
+        compose.mainClock.advanceTimeByFrame()
+        compose.runOnIdle { assertTrue(panel.dragging); assertTrue(panel.progress < 1f) }
+        compose.onNodeWithText("Top row 0").performTouchInput { moveBy(Offset(0f, -90f)); up() }
+        compose.mainClock.advanceTimeBy(2000)
+        compose.runOnIdle { assertTrue(panel.progress > .999f); assertTrue(!panel.collapsePending) }
+        assertTrue(row.boundsInRoot.width > 0f)
+    }
+
+    @Test fun scrollingLyricsAwayFromTopDoesNotClosePlayer() {
+        lateinit var panel: io.github.huleixin.tingyu.minimal.PlayerPanelState
+        lyricsScreen({ panel = it }, state)
+        compose.onNodeWithText("Lyric row 50").performTouchInput { down(center); moveBy(Offset(0f, 100f)) }
+        compose.mainClock.advanceTimeByFrame()
+        compose.runOnIdle { assertTrue(!panel.dragging); assertTrue(panel.progress > .999f) }
+        compose.onNodeWithText("Lyric row 50").performTouchInput { up() }
     }
 }

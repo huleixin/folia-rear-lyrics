@@ -9,11 +9,19 @@ import androidx.compose.ui.unit.*
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/MinimalPlayerMorph.kt
 internal val LocalMinimalMorph = staticCompositionLocalOf<MinimalPlayerMorph?> { null }
+internal val LocalPlayerPanelState = staticCompositionLocalOf<io.github.huleixin.tingyu.minimal.PlayerPanelState?> { null }
 internal class MinimalPlayerMorph(val panel: Rect, val cover: Rect, val entry: State<Float>,
-    val exit: NativeStageExit, val leaving: State<Float>, val reduced: Boolean) {
-    fun active() = !reduced && (entry.value < 1f || exit.active)
+    val exit: NativeStageExit, val leaving: State<Float>, val reduced: Boolean,
+    val interactive: io.github.huleixin.tingyu.minimal.PlayerPanelState? = null) {
+    private fun interactiveFraction(): Float? = interactive?.takeIf { it.initialized }?.let {
+        (it.progress * (if(exit.active)1f-leaving.value else 1f)).coerceIn(0f,1f)
+    }
+    fun active() = interactive?.dragging == true ||
+        (interactiveFraction()?.let { it < .9999f || exit.active }
+            ?: (!reduced && (entry.value < 1f || exit.active)))
     fun elapsed() = if(exit.active)leaving.value*SaltPlayerTimeline.ExitMs else entry.value*SaltPlayerTimeline.EnterMs
     fun channels(): FloatArray {
+        interactiveFraction()?.let { progress -> return FloatArray(7) { progress } }
         val opened=SaltPlayerTimeline.sample(entry.value*SaltPlayerTimeline.EnterMs)
         if(!exit.active)return opened
         val closing=SaltPlayerTimeline.sample(leaving.value*SaltPlayerTimeline.ExitMs,true)
@@ -45,15 +53,21 @@ internal class MinimalPlayerMorph(val panel: Rect, val cover: Rect, val entry: S
         val x=((entry.value*SaltPlayerTimeline.EnterMs-start)/(end-start)).coerceIn(0f,1f)
         return x*x*(3-2*x)
     }
-    fun shellAlpha()=enterRamp(0f,35f)*(if(exit.active)1f-ramp(140f,380f)else 1f)
-    fun decorations()=if(exit.active)enterRamp(600f,980f)*(1f-ramp(0f,100f)) else enterRamp(600f,980f)
-    fun coverAlpha()=if(exit.active)1f-ramp(380f,500f) else 1f
+    private fun reveal(start: Float,end: Float): Float {
+        val x=((interactiveFraction()!!-start)/(end-start)).coerceIn(0f,1f)
+        return x*x*(3f-2f*x)
+    }
+    fun shellAlpha()=if(interactiveFraction()!=null)reveal(0f,.12f)else enterRamp(0f,35f)*(if(exit.active)1f-ramp(140f,380f)else 1f)
+    fun decorations()=if(interactiveFraction()!=null)reveal(.25f,.90f)else if(exit.active)enterRamp(600f,980f)*(1f-ramp(0f,100f)) else enterRamp(600f,980f)
+    fun coverAlpha()=if(interactiveFraction()!=null)1f else if(exit.active)1f-ramp(380f,500f) else 1f
     fun miniAlpha(): Float {
+        interactiveFraction()?.let { return ((1f-it)*5f-3.5f).coerceIn(0f,1f) }
         val before=1f-enterRamp(0f,35f)
         return if(exit.active)before+(1-before)*ramp(120f,340f) else before
     }
     fun sectionAlpha(role: String): Float {
         if(!active())return 1f
+        if(interactiveFraction()!=null)return reveal(.12f,if(role=="controls").80f else .68f)
         val opened=when(role){"header"->enterRamp(75f,190f);"controls"->enterRamp(150f,350f);else->enterRamp(100f,240f)}
         return opened*(if(exit.active)1f-ramp(0f,if(role=="controls")120f else 150f)else 1f)
     }

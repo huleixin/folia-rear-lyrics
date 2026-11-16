@@ -1849,7 +1849,10 @@ private fun MeloXIOSLandscapeNowPlayingScene(
 
         // grabber overlay：不再占流式高度（否则会把中间块往下挤，破坏与大封面对齐）。
         // ★ 横屏单点小白条也正常退出（与「下拉小白条 / 系统返回」同一条 onDismiss 退出路径）。
-        SceneGrabber(onDismiss = onDismiss, dragModifier = grabberDragModifier, favorite = favorite, tapToDismiss = true)
+        // The grabber is outside the inset-padded content column. Keep its touch target
+        // on the visible bar, below the status bar, rather than under system icons.
+        SceneGrabber(onDismiss = onDismiss, dragModifier = grabberDragModifier, favorite = favorite, tapToDismiss = true,
+            modifier = Modifier.meloXPlayerStatusBarsPadding())
     }
 
 }
@@ -2301,9 +2304,9 @@ private fun LandscapeSongHeader(
 
 @Composable
 private fun SceneGrabber(onDismiss: () -> Unit, dragModifier: Modifier,
-    favorite: MeloXTrackFavorite, tapToDismiss: Boolean = true,
+    favorite: MeloXTrackFavorite, tapToDismiss: Boolean = true, modifier: Modifier = Modifier,
 ) {
-    Row(Modifier.fillMaxWidth().height(ImmersiveTopBarHeight).then(dragModifier),
+    Row(modifier.fillMaxWidth().height(ImmersiveTopBarHeight).then(dragModifier),
         verticalAlignment = Alignment.CenterVertically) {
         androidx.compose.material3.IconButton(enabled = LocalMeloXPlayerControlsEnabled.current, onClick = { if (tapToDismiss) onDismiss() }, modifier = Modifier.size(44.dp).semantics { contentDescription = "收起播放器" }) {
             io.github.huleixin.tingyu.chrome.PageIcon("chevron-down", Color.White, Modifier.size(24.dp))

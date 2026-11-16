@@ -1,5 +1,6 @@
 package io.github.huleixin.tingyu.minimal.immersive
 
+import io.github.huleixin.tingyu.minimal.PlayerPanelState
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -18,7 +19,7 @@ internal fun immersiveSettleSpec() = spring<Float>(dampingRatio = 1f,
 
 internal class ImmersivePlayerMotion(val panel: Rect?, val cover: Rect?,
     val entry: State<Float>, val exit: NativeStageExit, val leaving: State<Float>, val reduced: Boolean,
-    val interactive: ImmersivePanelState? = null) {
+    val interactive: PlayerPanelState? = null) {
     var drag by mutableFloatStateOf(0f)
     fun fraction(): Float = ((interactive?.takeIf { it.initialized }?.progress ?: entry.value) *
         (1f - if (exit.active) leaving.value else 0f) * (1f - drag)).coerceIn(0f, 1f)
@@ -39,14 +40,18 @@ internal class ImmersivePlayerMotion(val panel: Rect?, val cover: Rect?,
 }
 
 /** Keep the live scene at its final size; its clip and artwork share reversible progress. */
+internal class ImmersiveShellShape(val bounds: Rect, val radius: Float): Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
+        Outline.Rounded(RoundRect(bounds, CornerRadius(radius.coerceAtMost(bounds.height / 2f))))
+}
 internal fun Modifier.immersivePlayerContainer(motion: ImmersivePlayerMotion?) = graphicsLayer {
+    // Read progress here, where Compose observes layer invalidation. The outline is
+    // an immutable frame snapshot, not a lazy shape reading mutable gesture state.
+    val fraction = motion?.fraction() ?: 1f
     clip = motion?.active() == true
-    if (clip) shape = object : Shape {
-        override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
-            val bounds = motion!!.panelBounds(size)
-            val radius = minOf(46f * density.density, bounds.height / 2f) * (1f - motion.fraction())
-            return Outline.Rounded(RoundRect(bounds, CornerRadius(radius)))
-        }
+    if (clip) {
+        val bounds = motion!!.panelBounds(size)
+        shape = ImmersiveShellShape(bounds, minOf(46f * density, bounds.height / 2f) * (1f - fraction))
     }
 }
 

@@ -1,5 +1,6 @@
 package io.github.huleixin.tingyu.minimal.immersive
 
+import io.github.huleixin.tingyu.minimal.PlayerPanelState
 import androidx.compose.runtime.BroadcastFrameClock
 import kotlinx.coroutines.*
 import org.junit.After
@@ -7,10 +8,10 @@ import org.junit.Assert.*
 import org.junit.Test
 
 // android/app/src/test/java/io/github/huleixin/tingyu/minimal/immersive/ImmersivePanelStateTest.kt
-class ImmersivePanelStateTest {
+class PlayerPanelStateTest {
     private val clock = BroadcastFrameClock()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined + clock)
-    private val panel = ImmersivePanelState(scope)
+    private val panel = PlayerPanelState(scope)
     private var now = 0L
     private fun frames(count: Int) { repeat(count) { now += 16_000_000; clock.sendFrame(now) } }
     @After fun releaseScope() { scope.cancel() }
@@ -45,10 +46,10 @@ class ImmersivePanelStateTest {
         panel.consumeCollapse(); frames(20); assertFalse(panel.collapsePending)
     }
     @Test fun positionAndVelocitySettleBothWays() {
-        assertEquals(1f,ImmersivePanelState.releaseTarget(.1f,-1300f),0f)
-        assertEquals(0f,ImmersivePanelState.releaseTarget(.9f,1300f),0f)
-        assertEquals(0f,ImmersivePanelState.releaseTarget(.49f,0f),0f)
-        assertEquals(1f,ImmersivePanelState.releaseTarget(.51f,0f),0f)
+        assertEquals(1f,PlayerPanelState.releaseTarget(.1f,-1300f),0f)
+        assertEquals(0f,PlayerPanelState.releaseTarget(.9f,1300f),0f)
+        assertEquals(0f,PlayerPanelState.releaseTarget(.49f,0f),0f)
+        assertEquals(1f,PlayerPanelState.releaseTarget(.51f,0f),0f)
         panel.adopt(1f); panel.beginDrag(); panel.dragBy(750f,1000f)
         panel.release(0f); frames(160)
         assertEquals(0f,panel.progress,0f); assertTrue(panel.collapsePending)

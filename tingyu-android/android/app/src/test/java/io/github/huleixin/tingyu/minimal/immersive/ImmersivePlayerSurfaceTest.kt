@@ -1,5 +1,6 @@
 package io.github.huleixin.tingyu.minimal.immersive
 
+import io.github.huleixin.tingyu.minimal.PlayerPanelState
 import androidx.activity.ComponentActivity
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -62,14 +63,14 @@ class ImmersivePlayerSurfaceTest {
     fun landscapeCoverLyricsQueueKeepActionsClear() = exerciseSurface("landscape")
 
     @Test fun actualHostDragHoldsReversesAndReturnsWithoutPlaybackCommands(){
-        lateinit var panel: ImmersivePanelState
+        lateinit var panel: PlayerPanelState
         val actions=mutableListOf<String>()
         val commands=BridgeMinimalCommands(MinimalCommandSender{action,_->actions+=action;true}){true}
         val state=MinimalPlayerState(playback=MinimalPlayback(track=MinimalTrack(key="drag",title="Drag",durationMs=180000),source=MinimalClockSource.BRIDGE,epoch="drag"))
         compose.mainClock.autoAdvance=false
         compose.setContent{
             val scope=rememberCoroutineScope()
-            panel=remember{ImmersivePanelState(scope).apply{adopt(1f)}}
+            panel=remember{PlayerPanelState(scope).apply{adopt(1f)}}
             val motion=remember{ImmersivePlayerMotion(Rect(10f,2400f,1200f,2600f),Rect(30f,2420f,110f,2500f),mutableStateOf(1f),NativeStageExit(),mutableStateOf(0f),false,panel)}
             CompositionLocalProvider(LocalLiquidReduced provides true,LocalImmersiveMorph provides motion){
                 ImmersivePlayerHost(state,MinimalArtwork(),commands,MinimalQueue(),true,0,{},{},{},{},Modifier.fillMaxSize())
@@ -88,6 +89,22 @@ class ImmersivePlayerSurfaceTest {
         compose.mainClock.advanceTimeBy(1600)
         compose.runOnIdle{assertEquals(1f,panel.progress,0f);assertFalse(panel.collapsePending)}
         assertTrue(actions.isEmpty())
+    }
+
+    @Test fun nativeTopInsetKeepsCollapseControlClearOfStatusBar(){
+        val state=MinimalPlayerState(playback=MinimalPlayback(track=MinimalTrack(key="inset",title="Inset"),source=MinimalClockSource.BRIDGE,epoch="inset"))
+        val commands=BridgeMinimalCommands(MinimalCommandSender{_,_->true}){true}
+        compose.setContent {
+            CompositionLocalProvider(LocalLiquidReduced provides true) {
+                ImmersivePlayerHost(state, MinimalArtwork(), commands, MinimalQueue(), true, 0,
+                    {}, {}, {}, {}, Modifier.fillMaxSize(), safeTop = 40f)
+            }
+        }
+        compose.waitForIdle()
+        val collapse=compose.onNodeWithContentDescription("收起播放器")
+        val root=compose.onRoot().fetchSemanticsNode().boundsInRoot
+        val bounds=collapse.fetchSemanticsNode().boundsInRoot
+        assertTrue("collapse top=${bounds.top} root=${root.top}", bounds.top >= root.top + 40f)
     }
 
     @Test fun movingCoverSurvivesExitInteractionShutdown() {

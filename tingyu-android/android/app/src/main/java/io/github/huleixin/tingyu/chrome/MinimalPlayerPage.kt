@@ -63,6 +63,7 @@ fun MinimalPlayerSurface(
         var actions by remember { mutableStateOf(false) }
         ImmersivePlayerHost(state, artwork, commands, queue, active, resetToken,
             onCollapse, reportPage, { actions = true }, { onOpenTools("quality") }, Modifier,
+            safeTop = safeTop,
             initialPage = if (retainedPage == 1) io.github.huleixin.tingyu.minimal.immersive.port.MeloXNowPlayingPage.Lyrics else io.github.huleixin.tingyu.minimal.immersive.port.MeloXNowPlayingPage.Artwork)
         ImmersiveActionsSheet(actions, light, { actions = false }, onOpenStyle,
             onOpenSleep ?: {}, onOpenTools, commands)

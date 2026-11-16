@@ -1,14 +1,15 @@
-package io.github.huleixin.tingyu.minimal.immersive
+package io.github.huleixin.tingyu.minimal
 
 import androidx.compose.animation.core.Animatable
+import io.github.huleixin.tingyu.minimal.immersive.immersiveSettleSpec
 import androidx.compose.runtime.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
-// android/app/src/main/java/io/github/huleixin/tingyu/minimal/immersive/ImmersivePanelState.kt
+// android/app/src/main/java/io/github/huleixin/tingyu/minimal/PlayerPanelState.kt
 /** One reversible timeline; routing is committed only after reaching the mini-player endpoint. */
-internal class ImmersivePanelState(private val scope: CoroutineScope) {
+internal class PlayerPanelState(private val scope: CoroutineScope) {
     var progress by mutableFloatStateOf(1f); private set
     var dragging by mutableStateOf(false); private set
     var collapsePending by mutableStateOf(false); private set

@@ -321,9 +321,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         if(destination!="stage"||webOverlay){reply();return}
         val nativeMinimal=minimalPlayerEnabled()&&playerPresentation=="minimal"&&minimal.bridgeLive()&&!minimal.state.value.controls.detour
         stageExit.begin(retained.lastBrowsing(),nativeMinimal,reply)
-        if (nativeMinimal && immersiveCollapseSettled) stageExit.finish()
+        if (nativeMinimal && playerCollapseSettled) stageExit.finish()
     }
-    private var immersiveCollapseSettled = false
+    private var playerCollapseSettled = false
     private var presented by mutableStateOf<NativePage?>(null)
     private var pageTarget=""
     private var entryKey=""
@@ -744,6 +744,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         LaunchedEffect(Unit){withFrameNanos{NavigationTiming.mark("first-native-frame");android.util.Log.i("TingyuEntry","first-native-frame pages=${pages.size} surfaces=${surfaces.size}")
             StartupTrace.detail("first-native-frame"){put("pages",pages.size);put("surfaces",surfaces.size);put("presented",presented?.key)} }}
         val configuration=androidx.compose.ui.platform.LocalConfiguration.current
+        val sceneDensity=LocalDensity.current
         val interfaceLight=InterfaceAppearance.resolve(appearanceMode,(configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK)==android.content.res.Configuration.UI_MODE_NIGHT_NO)
         val motionReduced=reducedMotion||!active
         val palette=rememberLiquidPalette(interfaceLight,appearanceStyle,motionReduced)
@@ -767,11 +768,11 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val backdrop = rememberLayerBackdrop()
         val stageBackdrop = rememberLayerBackdrop()
         val immersiveStyle = playerStyle == PlayerStyle.IMMERSIVE
-        val immersiveScope = rememberCoroutineScope()
-        val immersivePanel = remember { io.github.huleixin.tingyu.minimal.immersive.ImmersivePanelState(immersiveScope) }
-        LaunchedEffect(destination, pendingStageEntry, immersiveStyle) {
-            if (!immersiveStyle || destination != "stage" && !pendingStageEntry) {
-                immersivePanel.reset(); immersiveCollapseSettled = false
+        val playerPanelScope = rememberCoroutineScope()
+        val playerPanel = remember { io.github.huleixin.tingyu.minimal.PlayerPanelState(playerPanelScope) }
+        LaunchedEffect(destination, pendingStageEntry) {
+            if (destination != "stage" && !pendingStageEntry) {
+                playerPanel.reset(); playerCollapseSettled = false
             }
         }
         val exitProgress=rememberStageExitProgress(stageExit,reducedMotion,playerPanelOrigin!=null)
@@ -799,18 +800,25 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val playerReady=playerPresentation!="minimal"||!minimalPlayerEnabled()||minimalBound
         val playerEntry=rememberLiquidPlayerProgress(destination=="stage",returningFromSettings||minimalResumePending,motionReduced,stageExit.active,playerReady,playerPanelOrigin!=null)
         val immersiveMorph=remember(playerPanelOrigin,playerOrigin,playerEntry,exitProgress,motionReduced) {
-            io.github.huleixin.tingyu.minimal.immersive.ImmersivePlayerMotion(playerPanelOrigin,playerOrigin,playerEntry,stageExit,exitProgress,motionReduced,immersivePanel)
+            io.github.huleixin.tingyu.minimal.immersive.ImmersivePlayerMotion(playerPanelOrigin,playerOrigin,playerEntry,stageExit,exitProgress,motionReduced,playerPanel)
         }
         val minimalMorph=remember(playerPanelOrigin,playerOrigin,playerEntry,exitProgress,motionReduced,immersiveStyle) {
-            playerPanelOrigin?.takeUnless { immersiveStyle }?.let { panel -> playerOrigin?.let { cover -> MinimalPlayerMorph(panel,cover,playerEntry,stageExit,exitProgress,motionReduced) } }
+            if (immersiveStyle) null else {
+                val panel = playerPanelOrigin ?: androidx.compose.ui.geometry.Rect(
+                    0f, configuration.screenHeightDp * .9f * sceneDensity.density,
+                    configuration.screenWidthDp * sceneDensity.density,
+                    configuration.screenHeightDp * sceneDensity.density)
+                MinimalPlayerMorph(panel, playerOrigin ?: panel,
+                    playerEntry, stageExit, exitProgress, motionReduced, playerPanel)
+            }
         }
         val playerReveal=remember(playerEntry,exitProgress){derivedStateOf{playerEntry.value*(if(stageExit.active)1f-exitProgress.value else 1f)}}
         val playerEntering by remember(playerEntry,immersiveStyle,immersiveMorph){derivedStateOf{destination=="stage"&&
-            (if(immersiveStyle) immersiveMorph.active() else playerEntry.value<.9999f)&&!stageExit.active}}
-        LaunchedEffect(immersivePanel.collapsePending, destination, playerReady) {
-            if (immersiveStyle && immersivePanel.collapsePending && destination == "stage" && playerReady) {
-                immersiveCollapseSettled = true
-                immersivePanel.consumeCollapse()
+            (if(immersiveStyle) immersiveMorph.active() else minimalMorph?.active() ?: (playerEntry.value<.9999f))&&!stageExit.active}}
+        LaunchedEffect(playerPanel.collapsePending, destination, playerReady) {
+            if (playerPanel.collapsePending && destination == "stage" && playerReady) {
+                playerCollapseSettled = true
+                playerPanel.consumeCollapse()
                 minimalCommands.collapse()
             }
         }
@@ -870,7 +878,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         BoxWithConstraints(Modifier.fillMaxSize()) {
             CompositionLocalProvider(LocalPadWindow provides padLayoutWindow(maxWidth.value,maxHeight.value,
                 if(Build.VERSION.SDK_INT>=30) (web.context.getSystemService(android.view.WindowManager::class.java)?.currentWindowMetrics?.bounds?.height()?.div(LocalDensity.current.density)?:maxHeight.value)
-                else maxHeight.value + WindowInsets.ime.getBottom(LocalDensity.current)/LocalDensity.current.density),LocalChromeRendering provides (active&&focused),LocalInterfacePalette provides palette,LocalLiquidReduced provides motionReduced,LocalMotionOrigin provides motionOrigin,LocalPlayerReveal provides playerReveal,LocalPlayerArtworkAnchor provides playerArtwork,LocalMinimalMorph provides minimalMorph,io.github.huleixin.tingyu.minimal.immersive.LocalImmersiveMorph provides (if(immersiveStyle)immersiveMorph else null)) {
+                else maxHeight.value + WindowInsets.ime.getBottom(LocalDensity.current)/LocalDensity.current.density),LocalChromeRendering provides (active&&focused),LocalInterfacePalette provides palette,LocalLiquidReduced provides motionReduced,LocalMotionOrigin provides motionOrigin,LocalPlayerReveal provides playerReveal,LocalPlayerArtworkAnchor provides playerArtwork,LocalMinimalMorph provides minimalMorph,LocalPlayerPanelState provides playerPanel,io.github.huleixin.tingyu.minimal.immersive.LocalImmersiveMorph provides (if(immersiveStyle)immersiveMorph else null)) {
             val density=LocalDensity.current;val width=maxWidth.value;val height=maxHeight.value
             val safeTop=if(nativeTop>=0)nativeTop else WindowInsets.statusBars.getTop(density)/density.density
             val safeBottom=if(nativeBottom>=0)nativeBottom else WindowInsets.navigationBars.getBottom(density)/density.density
@@ -1185,7 +1193,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 val miniStageVisible by remember(miniStageOpacity) { derivedStateOf { miniStageOpacity.value > .001f } }
                 val retainFooter = when(id) {
                     "nav" -> navTarget || navPresence > 0.001f
-                    "mini" -> (miniTarget || miniPresence > 0.001f || immersiveStyle && immersivePanel.dragging) && (destination != "stage" || miniStageVisible || stageExit.active || playerEntering)
+                    "mini" -> (miniTarget || miniPresence > 0.001f || playerPanel.dragging) && (destination != "stage" || miniStageVisible || stageExit.active || playerEntering)
                     else -> false
                 }
                 // 两路数据里最多只有一个存在：live 优先，缺席时才用 seed；都没有就不画。
@@ -1263,7 +1271,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                                 playerPanelOrigin=androidx.compose.ui.geometry.Rect(rect.left*density.density,animatedY*density.density,(rect.left+rect.width)*density.density,(animatedY+rect.height)*density.density)
                                 playerOrigin=miniCoverBounds ?: androidx.compose.ui.geometry.Rect((rect.left+16f)*density.density,(animatedY+9f)*density.density,(rect.left+50f)*density.density,(animatedY+43f)*density.density)
                                 pendingStageEntry=true
-                                if(immersiveStyle) { immersiveCollapseSettled=false; immersivePanel.open(motionReduced) }
+                                playerCollapseSettled=false; playerPanel.open(motionReduced)
                                 val request=++stageEntryRequest
                                 // Hide the footer immediately, but do not promote an old WebView
                                 // frame over the outgoing native page before React commits stage.
@@ -1284,13 +1292,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     when(id) {
                         "nav" -> ChromeNavigation(surface,backdrop,interactivePlacement,actions)
                         "mini" -> ChromeMiniPlayer(surface,if(live==null)null else clocks[id],backdrop,interactivePlacement,minimal=minimal,
-                            onExpandDragStart=if(immersiveStyle) { {
+                            onExpandDragStart={
                                 val fromMini=destination!="stage"&&!pendingStageEntry
                                 if(fromMini)actions("openStage",0.0)
-                                if(immersivePanel.initialized)immersivePanel.beginDrag(if(fromMini)0f else null)
-                            } } else null,
-                            onExpandDrag={if(immersivePanel.dragging)immersivePanel.dragBy(it,height*density.density*.86f)},
-                            onExpandDragEnd={velocity,canceled->if(immersivePanel.dragging)immersivePanel.release(velocity,canceled,motionReduced)},
+                                if(playerPanel.initialized)playerPanel.beginDrag(if(fromMini)0f else null)
+                            },
+                            onExpandDrag={if(playerPanel.dragging)playerPanel.dragBy(it,height*density.density*.86f)},
+                            onExpandDragEnd={velocity,canceled->if(playerPanel.dragging)playerPanel.release(velocity,canceled,motionReduced)},
                             onCoverBounds={miniCoverBounds=it},action=actions)
                         "stage" -> Box(Modifier.fillMaxSize().zIndex(2.6f).then(if(nativeDetour)Modifier else if(minimalMorph!=null)Modifier.minimalSection("controls") else Modifier.liquidPlayer(playerOrigin,playerEntry,stageExit,exitProgress)).graphicsLayer { translationY=if(nativeDetour)height*density.density*detourOffset.value else 0f }){ChromeStagePlayer(surface,clocks[id],if(legacySampling)backdrop else stageBackdrop,interactivePlacement,actions)}
                     }
@@ -1357,10 +1365,8 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     safeTop = safeTop,
                     safeBottom = safeBottom,
                     onCollapse = {
-                        if(immersiveStyle) {
-                            immersivePanel.adopt(immersiveMorph.fraction())
-                            immersivePanel.close(motionReduced)
-                        } else minimalCommands.collapse()
+                        playerPanel.adopt(if(immersiveStyle)immersiveMorph.fraction() else playerReveal.value)
+                        playerPanel.close(motionReduced)
                     },
                     onOpenStage = { minimalCommands.openStage() },
                     modifier = Modifier.fillMaxSize().onGloballyPositioned { playerArtwork.canvas(it) },

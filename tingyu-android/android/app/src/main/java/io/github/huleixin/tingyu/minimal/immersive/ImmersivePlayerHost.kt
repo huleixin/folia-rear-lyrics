@@ -1,5 +1,6 @@
 package io.github.huleixin.tingyu.minimal.immersive
 
+import io.github.huleixin.tingyu.minimal.PlayerPanelState
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.*
@@ -13,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.*
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -50,6 +52,7 @@ internal fun ImmersivePlayerHost(
     modifier: Modifier = Modifier,
     preview: Boolean = false,
     initialPage: MeloXNowPlayingPage = MeloXNowPlayingPage.Artwork,
+    safeTop: Float = 0f,
 ) {
     val appContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
     ApplyImmersiveRenderPolicy(preview)
@@ -96,7 +99,7 @@ internal fun ImmersivePlayerHost(
         onDispose {
             if (!preview) MeloXUiMotionRuntime.orientationTransition = false
             if (!preview) MeloXUiMotionRuntime.pageTransition = false
-            if (!preview) MeloXUiMotionRuntime.anyPlayerMotion = false
+            if (!preview) MeloXUiMotionRuntime.shellTransition = false
         }
     }
     BackHandler(enabled = active && !preview) { if (page != MeloXNowPlayingPage.Artwork) select(page) else onCollapse() }
@@ -105,6 +108,7 @@ internal fun ImmersivePlayerHost(
     val outer = LocalImmersiveMorph.current
     val expanded = remember(outer) { { outer?.fraction() ?: 1f } }
     val shellTransitioning = remember(outer) { derivedStateOf { outer?.active() == true } }
+    SideEffect { if (!preview) MeloXUiMotionRuntime.shellTransition = shellTransitioning.value }
     val closing = remember(outer) { derivedStateOf { outer?.exit?.active == true } }
     var ready by remember { mutableStateOf(false) }
     var queueReady by remember { mutableStateOf(false) }
@@ -117,7 +121,7 @@ internal fun ImmersivePlayerHost(
     BoxWithConstraints(modifier) {
         val density = LocalDensity.current
         val pane = with(density) { IntSize(maxWidth.roundToPx(), maxHeight.roundToPx()) }
-        CompositionLocalProvider(LocalMeloXPaneSize provides pane, LocalImmersiveBackdrop provides backdrop) {
+        CompositionLocalProvider(LocalMeloXPaneSize provides pane, LocalImmersiveBackdrop provides backdrop, LocalImmersiveSafeTop provides safeTop) {
             val window = rememberMeloXWindowInfo()
             var orientation by remember { mutableStateOf(window.isLandscape) }
             LaunchedEffect(window.isLandscape, closing.value) {
@@ -135,7 +139,7 @@ internal fun ImmersivePlayerHost(
             // Lyrics/queue offer only unconsumed downward motion until the shell owns the drag.
             val dragRange = pane.height * .86f
             val scope = rememberCoroutineScope()
-            val localPanel = remember { ImmersivePanelState(scope) }
+            val localPanel = remember { PlayerPanelState(scope) }
             val panel = outer?.interactive ?: localPanel
             val latestPage by rememberUpdatedState(page)
             val latestCollapse by rememberUpdatedState(onCollapse)
@@ -183,7 +187,10 @@ internal fun ImmersivePlayerHost(
                     }
                 }
             }
-            SharedTransitionLayout(Modifier.fillMaxSize().then(if (!window.isLandscape) Modifier.nestedScroll(scroll) else Modifier).then(if (page == MeloXNowPlayingPage.Artwork && !window.isLandscape) grabber else Modifier)) {
+            SharedTransitionLayout(Modifier.fillMaxSize().graphicsLayer {
+                // The scene and the moving shared artwork clear one current-frame target.
+                compositingStrategy = if(shellTransitioning.value) CompositingStrategy.Offscreen else CompositingStrategy.Auto
+            }.then(if (!window.isLandscape) Modifier.nestedScroll(scroll) else Modifier).then(if (page == MeloXNowPlayingPage.Artwork && !window.isLandscape) grabber else Modifier)) {
                 val shared = this
                 // Retained drawing survives interaction shutdown during exit.
                 val drawing = !preview && foreground && (active || closing.value)
