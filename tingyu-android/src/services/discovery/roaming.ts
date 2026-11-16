@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { SongResult } from '../../types';
+import { PlayerState, type SongResult } from '../../types';
 import { usePlaybackStore } from '../../stores/usePlaybackStore';
 import { getPlaybackSongKey } from '../../utils/appPlaybackGuards';
 
@@ -25,6 +25,8 @@ export function startDiscoveryRoaming(candidates: SongResult[], play: (song: Son
         if (!owned.has(key)) { endDiscoveryRoaming(false); return; }
         const index = state.playQueue.findIndex(song => getPlaybackSongKey(song) === key);
         if (index < 0 || state.playQueue.length - index > 4) return;
+        // Only a genuine advance may replenish: a pause or a page rebuild must not append a batch.
+        if (state.playerState !== PlayerState.PLAYING) return;
         const present = new Set(state.playQueue.map(getPlaybackSongKey));
         const batch: SongResult[] = [];
         while (remaining.length && batch.length < 10) { const song = remaining.shift()!; if (!present.has(getPlaybackSongKey(song))) batch.push(song); }

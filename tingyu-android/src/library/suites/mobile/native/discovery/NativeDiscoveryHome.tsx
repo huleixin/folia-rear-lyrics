@@ -43,10 +43,13 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     const candidates = useMemo(() => [...feed.results.flatMap(result => result.songs), ...recent.filter(song => {
         const source = getPlaybackSourceRef(song); return source.kind === 'online' && (settings.source === 'all' ? settings.enabled[source.providerId] !== false : source.providerId === settings.source);
     }), ...(settings.source === 'all' ? local : [])], [feed.results, recent, local, settings.source, settings.enabled]);
-    const seed = discoveryDay() + ':' + preferences.revision + ':' + batch;
+    // Day and batch keep the snapshot stable; preference revision only re-ranks after a real
+    // feedback event, so ordinary playback progress does not reshuffle the page.
+    const seed = discoveryDay() + ':' + batch;
     const ranked = useMemo(() => rankDiscovery(candidates, preferences.values, settings, 'heart', seed, Date.now(), 100), [candidates, preferences.values, settings, seed]);
     const songs = controls.withoutHidden(ranked.map(item => item.song));
-    const radar = (kind: RadarKind) => rankDiscovery(candidates, preferences.values, settings, kind, seed).map(item => item.song);
+    // Local radar reads the local library even while the selected recommendation source is online.
+    const radar = (kind: RadarKind) => rankDiscovery(kind === 'local' ? local : candidates, preferences.values, settings, kind, seed).map(item => item.song);
     const openRadar = (kind: RadarKind) => controls.openSongs(radarNames[kind], radar(kind), kind === 'style' ? '依据真实歌手关联；未推测音乐流派。' : '根据本机偏好及已启用的真实推荐来源生成。');
     const actions: PageActions = { settings: () => setSettingsOpen(true), sources: onSources, refresh: feed.retry,
         next: () => setBatch(value => value + 1), roam: () => roaming.active ? endDiscoveryRoaming() : controls.roam(songs),

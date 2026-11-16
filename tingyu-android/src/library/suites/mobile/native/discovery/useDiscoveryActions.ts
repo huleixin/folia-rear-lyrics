@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import type { SongResult } from '../../../../../types';
 import type { ProviderCollection } from '../../../../../types/onlineMusic';
 import type { NativeHomeProps } from '../NativeHomeOverview';
-import { getPlaybackSongKey } from '../../../../../utils/appPlaybackGuards';
+import { getPlaybackSongKey, getPlaybackSourceRef } from '../../../../../utils/appPlaybackGuards';
 import { getSongCoverUrl } from '../../../../../services/onlineMusic/songMetadata';
 import { omni } from '../../../../../services/onlineMusic/omni';
 import { readDiscovery, discoveryOwner } from '../../../../../services/discovery/service';
@@ -54,7 +54,14 @@ export function useDiscoveryActions(props: NativeHomeProps['props']) {
         try {
             if (id === 'play') { endDiscoveryRoaming(false); props.onPlaySong(song, queue); }
             else if (id === 'enqueue') props.onAddSongToQueue?.(song);
-            else if (id === 'dislike') { recordDiscoveryFeedback(song, 'dislike'); setHidden(previous => new Set(previous).add(getPlaybackSongKey(song))); setStatusMessage({ type: 'success', text: '已减少这类推荐' }); }
+            else if (id === 'dislike') {
+                const source = getPlaybackSourceRef(song);
+                // A provider's own dislike changes its daily list; a local-only preference must not
+                // claim that remote action happened.
+                if (source.kind === 'online' && omni.canDislikeSong(song)) await omni.dislikeSong(song);
+                recordDiscoveryFeedback(song, 'dislike'); setHidden(previous => new Set(previous).add(getPlaybackSongKey(song)));
+                setStatusMessage({ type: 'success', text: '已减少这类推荐' });
+            }
             else if (id === 'like') { const liked = await omni.toggleSongLike(song); recordDiscoveryFeedback(song, liked ? 'like' : 'unlike'); setStatusMessage({ type: 'success', text: liked ? '已收藏' : '已取消收藏' }); }
         } catch { setNotice('操作未完成，请检查账号和网络后重试。'); }
         finally { setMenu(null); }

@@ -27,6 +27,7 @@ export function rankDiscovery(songs: SongResult[], preferences: PreferenceMap, s
     unique.forEach((song, key) => {
         const preference = preferences[key], source = getPlaybackSourceRef(song);
         if (preference?.blocked || kind === 'local' && source.kind !== 'local' || kind === 'explore' && preference?.listens) return;
+        if (kind === 'niche') return;
         if (kind === 'time' && (!preference?.lastPlayed || now - preference.lastPlayed < 7 * 86400_000)) return;
         const affinity = song.artists.reduce((max, artist) => { const stat = artists.get(artist.name.trim().toLowerCase());
             return Math.max(max, stat ? stat.sum / stat.count : 0); }, 0);
@@ -38,7 +39,8 @@ export function rankDiscovery(songs: SongResult[], preferences: PreferenceMap, s
         score += 4 * (source.kind === 'online' ? Math.max(0, Math.min(3, settings.weights[source.providerId] ?? 1)) : 1);
         score += stableHash(`${seed}:${key}`) * (2 + settings.exploration * 4);
         const reason = kind === 'time' ? '过去听过，最近较少播放' : preference?.liked ? '你收藏过这首歌' : affinity > 0 ? '与你听过的歌手有关'
-            : familiar ? '根据你的收听记录' : source.kind === 'local' ? '来自你的本地曲库' : '来自已启用平台的真实推荐';
+            : familiar ? '根据你的收听记录' : source.kind === 'local' ? '来自你的本地曲库'
+            : preference ? '来自已启用平台的真实推荐' : '来自已启用平台的每日或 FM 候选';
         ranked.push({ song, score, reason });
     });
     const selected: RankedSong[] = [], counts = new Map<string, number>();
