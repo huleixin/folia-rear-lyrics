@@ -247,6 +247,15 @@ export const omni = {
         return typeof requireOnlineMusicProvider(providerId).recommendations?.getDailySongs === 'function';
     },
 
+    getLibraryCapabilities(providerId: OmniProviderId) {
+        const library = requireOnlineMusicProvider(providerId).library;
+        return {
+            playlists: typeof library?.getUserPlaylists === 'function',
+            albums: typeof library?.getUserAlbums === 'function',
+            likedSongs: typeof library?.getLikedSongs === 'function',
+        };
+    },
+
     /** Discovery reads explicit owners; browsing another source never switches the player account. */
     getRecommendationCapabilities(providerId: OmniProviderId) {
         const recommendations = requireOnlineMusicProvider(providerId).recommendations;
@@ -544,6 +553,10 @@ export const omni = {
 
     async getUserAlbums(userId: MediaId, page: PageInput): Promise<OmniPage<OmniCollection>> {
         return withActiveProvider(async provider => provider.library?.getUserAlbums?.(userId, page.limit, page.offset) ?? emptyPage(page.offset));
+    },
+
+    async getProviderUserAlbums(providerId: OmniProviderId, userId: MediaId, page: PageInput): Promise<OmniPage<OmniCollection>> {
+        return requireOnlineMusicProvider(providerId).library?.getUserAlbums?.(userId, page.limit, page.offset) ?? emptyPage(page.offset);
     },
 
     async getLikedSongIds(userId: MediaId): Promise<MediaId[]> {

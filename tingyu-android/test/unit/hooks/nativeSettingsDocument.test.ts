@@ -19,10 +19,10 @@ it('routes compact discovery sources, sliders and ordering to their existing han
  const handle=vi.fn(),back=vi.fn();
  function DiscoveryProbe(){
   const ref=useRef<HTMLDivElement>(null);
-  useNativeSettingsDocument(ref,true,'discovery','推荐设置',{key:'discovery',nodes:[
-   {id:'source:qq',kind:'source',value:'1'},
-   {id:'exploration',kind:'slider',value:'20'},
-   {id:'modules',kind:'moduleOrder',value:'[]'}
+  useNativeSettingsDocument(ref,true,'discovery','推荐设置',{key:'discovery',title:'推荐设置',nodes:[
+   {id:'source:qq',kind:'source',title:'QQ音乐',value:'1'},
+   {id:'exploration',kind:'slider',title:'探索程度',value:'20'},
+   {id:'modules',kind:'moduleOrder',title:'模块排序',value:'[]'}
   ]},handle,back);
   return h('div',{ref});
  }
