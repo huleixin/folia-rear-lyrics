@@ -321,7 +321,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         if(destination!="stage"||webOverlay){reply();return}
         val nativeMinimal=minimalPlayerEnabled()&&playerPresentation=="minimal"&&minimal.bridgeLive()&&!minimal.state.value.controls.detour
         stageExit.begin(retained.lastBrowsing(),nativeMinimal,reply)
+        if (nativeMinimal && immersiveCollapseSettled) stageExit.finish()
     }
+    private var immersiveCollapseSettled = false
     private var presented by mutableStateOf<NativePage?>(null)
     private var pageTarget=""
     private var entryKey=""
@@ -765,6 +767,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val backdrop = rememberLayerBackdrop()
         val stageBackdrop = rememberLayerBackdrop()
         val immersiveStyle = playerStyle == PlayerStyle.IMMERSIVE
+        val immersiveScope = rememberCoroutineScope()
+        val immersivePanel = remember { io.github.huleixin.tingyu.minimal.immersive.ImmersivePanelState(immersiveScope) }
+        LaunchedEffect(destination, pendingStageEntry, immersiveStyle) {
+            if (!immersiveStyle || destination != "stage" && !pendingStageEntry) {
+                immersivePanel.reset(); immersiveCollapseSettled = false
+            }
+        }
         val exitProgress=rememberStageExitProgress(stageExit,reducedMotion,playerPanelOrigin!=null)
         // 极简页归 Compose 所有时，WebView 那条 stage 控制条必须退场：两个传输并排出现
         // 就是两套「播放/暂停」在同一个屏幕上，和 1.3.119 里「极简页 vs 舞台」的规则一致。
@@ -790,13 +799,21 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val playerReady=playerPresentation!="minimal"||!minimalPlayerEnabled()||minimalBound
         val playerEntry=rememberLiquidPlayerProgress(destination=="stage",returningFromSettings||minimalResumePending,motionReduced,stageExit.active,playerReady,playerPanelOrigin!=null)
         val immersiveMorph=remember(playerPanelOrigin,playerOrigin,playerEntry,exitProgress,motionReduced) {
-            io.github.huleixin.tingyu.minimal.immersive.ImmersivePlayerMotion(playerPanelOrigin,playerOrigin,playerEntry,stageExit,exitProgress,motionReduced)
+            io.github.huleixin.tingyu.minimal.immersive.ImmersivePlayerMotion(playerPanelOrigin,playerOrigin,playerEntry,stageExit,exitProgress,motionReduced,immersivePanel)
         }
         val minimalMorph=remember(playerPanelOrigin,playerOrigin,playerEntry,exitProgress,motionReduced,immersiveStyle) {
             playerPanelOrigin?.takeUnless { immersiveStyle }?.let { panel -> playerOrigin?.let { cover -> MinimalPlayerMorph(panel,cover,playerEntry,stageExit,exitProgress,motionReduced) } }
         }
         val playerReveal=remember(playerEntry,exitProgress){derivedStateOf{playerEntry.value*(if(stageExit.active)1f-exitProgress.value else 1f)}}
-        val playerEntering by remember(playerEntry){derivedStateOf{destination=="stage"&&playerEntry.value<.9999f&&!stageExit.active}}
+        val playerEntering by remember(playerEntry,immersiveStyle,immersiveMorph){derivedStateOf{destination=="stage"&&
+            (if(immersiveStyle) immersiveMorph.active() else playerEntry.value<.9999f)&&!stageExit.active}}
+        LaunchedEffect(immersivePanel.collapsePending, destination, playerReady) {
+            if (immersiveStyle && immersivePanel.collapsePending && destination == "stage" && playerReady) {
+                immersiveCollapseSettled = true
+                immersivePanel.consumeCollapse()
+                minimalCommands.collapse()
+            }
+        }
         val minimalBase = minimalPlayerEnabled() && destination=="stage" && playerPresentation=="minimal" && !webOverlay && minimalBound
         val minimalOwns = minimalBase && !stageAboveMinimal && !stageExit.active
         // 极简歌词页常亮（需求一）：只有「真正显示 Compose 极简歌词页」时才申请。
@@ -1162,10 +1179,13 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         cache.chrome(id,width,height,safeBottom,safeTop).let{if(id=="nav")it.copy(selected=startupSelected?:selectedTab)else it}
                     else null
                 }
-                val miniStageAlpha = if(destination=="stage") { if(immersiveStyle)immersiveMorph.miniAlpha() else if(minimalMorph!=null)minimalMorph.miniAlpha() else (1f-playerReveal.value*4f).coerceIn(0f,1f) } else 1f
+                val miniStageOpacity = remember(immersiveStyle,immersiveMorph,minimalMorph,playerReveal) { derivedStateOf {
+                    if(destination=="stage") { if(immersiveStyle)immersiveMorph.miniAlpha() else if(minimalMorph!=null)minimalMorph.miniAlpha() else (1f-playerReveal.value*4f).coerceIn(0f,1f) } else 1f
+                } }
+                val miniStageVisible by remember(miniStageOpacity) { derivedStateOf { miniStageOpacity.value > .001f } }
                 val retainFooter = when(id) {
                     "nav" -> navTarget || navPresence > 0.001f
-                    "mini" -> (miniTarget || miniPresence > 0.001f) && (destination != "stage" || miniStageAlpha > 0.001f || stageExit.active || playerEntering)
+                    "mini" -> (miniTarget || miniPresence > 0.001f || immersiveStyle && immersivePanel.dragging) && (destination != "stage" || miniStageVisible || stageExit.active || playerEntering)
                     else -> false
                 }
                 // 两路数据里最多只有一个存在：live 优先，缺席时才用 seed；都没有就不画。
@@ -1201,7 +1221,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         if(id=="stage"&&width>height)translationY=(height-rect.top)*density.density*(1f-stagePresence)
                         alpha = when {
                             NativeFooterLayout.imeHides(id,width,footerHiddenForIme) -> 0f
-                            id=="mini" -> rect.alpha * NativeFooterLayout.miniPresenceAlpha(destination,miniPresence,settingsFromStage) * miniStageAlpha
+                            id=="mini" -> rect.alpha * NativeFooterLayout.miniPresenceAlpha(destination,miniPresence,settingsFromStage) * miniStageOpacity.value
                             id=="nav" -> rect.alpha * navPresence
                             else -> rect.alpha
                         }
@@ -1243,6 +1263,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                                 playerPanelOrigin=androidx.compose.ui.geometry.Rect(rect.left*density.density,animatedY*density.density,(rect.left+rect.width)*density.density,(animatedY+rect.height)*density.density)
                                 playerOrigin=miniCoverBounds ?: androidx.compose.ui.geometry.Rect((rect.left+16f)*density.density,(animatedY+9f)*density.density,(rect.left+50f)*density.density,(animatedY+43f)*density.density)
                                 pendingStageEntry=true
+                                if(immersiveStyle) { immersiveCollapseSettled=false; immersivePanel.open(motionReduced) }
                                 val request=++stageEntryRequest
                                 // Hide the footer immediately, but do not promote an old WebView
                                 // frame over the outgoing native page before React commits stage.
@@ -1262,7 +1283,15 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     val interactivePlacement = placement.chromeInteraction(actions)
                     when(id) {
                         "nav" -> ChromeNavigation(surface,backdrop,interactivePlacement,actions)
-                        "mini" -> ChromeMiniPlayer(surface,if(live==null)null else clocks[id],backdrop,interactivePlacement,minimal=minimal,onCoverBounds={miniCoverBounds=it},action=actions)
+                        "mini" -> ChromeMiniPlayer(surface,if(live==null)null else clocks[id],backdrop,interactivePlacement,minimal=minimal,
+                            onExpandDragStart=if(immersiveStyle) { {
+                                val fromMini=destination!="stage"&&!pendingStageEntry
+                                if(fromMini)actions("openStage",0.0)
+                                if(immersivePanel.initialized)immersivePanel.beginDrag(if(fromMini)0f else null)
+                            } } else null,
+                            onExpandDrag={if(immersivePanel.dragging)immersivePanel.dragBy(it,height*density.density*.86f)},
+                            onExpandDragEnd={velocity,canceled->if(immersivePanel.dragging)immersivePanel.release(velocity,canceled,motionReduced)},
+                            onCoverBounds={miniCoverBounds=it},action=actions)
                         "stage" -> Box(Modifier.fillMaxSize().zIndex(2.6f).then(if(nativeDetour)Modifier else if(minimalMorph!=null)Modifier.minimalSection("controls") else Modifier.liquidPlayer(playerOrigin,playerEntry,stageExit,exitProgress)).graphicsLayer { translationY=if(nativeDetour)height*density.density*detourOffset.value else 0f }){ChromeStagePlayer(surface,clocks[id],if(legacySampling)backdrop else stageBackdrop,interactivePlacement,actions)}
                     }
                 }
@@ -1327,7 +1356,12 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     light = interfaceLight,
                     safeTop = safeTop,
                     safeBottom = safeBottom,
-                    onCollapse = { minimalCommands.collapse() },
+                    onCollapse = {
+                        if(immersiveStyle) {
+                            immersivePanel.adopt(immersiveMorph.fraction())
+                            immersivePanel.close(motionReduced)
+                        } else minimalCommands.collapse()
+                    },
                     onOpenStage = { minimalCommands.openStage() },
                     modifier = Modifier.fillMaxSize().onGloballyPositioned { playerArtwork.canvas(it) },
                 )

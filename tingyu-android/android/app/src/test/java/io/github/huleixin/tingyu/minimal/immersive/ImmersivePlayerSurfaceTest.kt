@@ -8,8 +8,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import io.github.huleixin.tingyu.chrome.*
 import androidx.compose.ui.Modifier
@@ -57,6 +60,35 @@ class ImmersivePlayerSurfaceTest {
     @Test
     @Config(sdk = [34], qualifiers = "w885dp-h407dp-480dpi")
     fun landscapeCoverLyricsQueueKeepActionsClear() = exerciseSurface("landscape")
+
+    @Test fun actualHostDragHoldsReversesAndReturnsWithoutPlaybackCommands(){
+        lateinit var panel: ImmersivePanelState
+        val actions=mutableListOf<String>()
+        val commands=BridgeMinimalCommands(MinimalCommandSender{action,_->actions+=action;true}){true}
+        val state=MinimalPlayerState(playback=MinimalPlayback(track=MinimalTrack(key="drag",title="Drag",durationMs=180000),source=MinimalClockSource.BRIDGE,epoch="drag"))
+        compose.mainClock.autoAdvance=false
+        compose.setContent{
+            val scope=rememberCoroutineScope()
+            panel=remember{ImmersivePanelState(scope).apply{adopt(1f)}}
+            val motion=remember{ImmersivePlayerMotion(Rect(10f,2400f,1200f,2600f),Rect(30f,2420f,110f,2500f),mutableStateOf(1f),NativeStageExit(),mutableStateOf(0f),false,panel)}
+            CompositionLocalProvider(LocalLiquidReduced provides true,LocalImmersiveMorph provides motion){
+                ImmersivePlayerHost(state,MinimalArtwork(),commands,MinimalQueue(),true,0,{},{},{},{},Modifier.fillMaxSize())
+            }
+        }
+        compose.mainClock.advanceTimeBy(1600)
+        val art=compose.onNodeWithTag("immersive-artwork")
+        art.performTouchInput{down(center);moveBy(Offset(0f,80f))}
+        val caught=compose.runOnIdle{assertTrue(panel.dragging);panel.progress}
+        compose.mainClock.advanceTimeBy(400)
+        compose.runOnIdle{assertEquals(caught,panel.progress,0f)}
+        art.performTouchInput{advanceEventTime(300);moveBy(Offset(0f,120f))}
+        val lower=compose.runOnIdle{panel.progress}
+        assertTrue(lower<caught)
+        art.performTouchInput{advanceEventTime(300);moveBy(Offset(0f,-120f));advanceEventTime(300);up()}
+        compose.mainClock.advanceTimeBy(1600)
+        compose.runOnIdle{assertEquals(1f,panel.progress,0f);assertFalse(panel.collapsePending)}
+        assertTrue(actions.isEmpty())
+    }
 
     @Test fun movingCoverSurvivesExitInteractionShutdown() {
         val entry = mutableStateOf(1f)

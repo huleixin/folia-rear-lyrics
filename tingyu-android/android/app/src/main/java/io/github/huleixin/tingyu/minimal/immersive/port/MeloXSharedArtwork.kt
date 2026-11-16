@@ -355,9 +355,8 @@ internal fun SharedArtworkDestination(
         // ★ 统一主时间线：封面尺寸/位置由**同一条 orientation Transition** 驱动
         // （与场景层共用 `orientTransition`）。转屏时封面与场景在同一 spring 上连续变形，
         // 不再是「封面独立 tween + 场景独立 tween」两套时钟。
-        // Match the approved compact artwork proportion; keep its center continuous through morphs.
-        val portraitSlot = minOf(maxWidth, portraitContentHeight - 92.dp).coerceAtLeast(1.dp)
-        val portraitSize = minOf(maxWidth * .74f, portraitSlot).coerceAtLeast(1.dp)
+        // Restore the original large artwork geometry; keep the shared destination at this size.
+        val portraitSize = minOf(maxWidth, portraitContentHeight - 92.dp).coerceAtLeast(1.dp)
         // ⚠ 横屏封面边长必须与场景层（主布局 + 天际 clip 源尺寸）**同一份**计算 ⇒ 抽到
         //   `meloXLandscapeArtworkSize` 单点维护（平板双栏要在同一公式里扣掉左列控制区）。
         val landscapeSize = meloXLandscapeArtworkSize(
@@ -389,8 +388,7 @@ internal fun SharedArtworkDestination(
         //   所以**不要**在 `ArtworkDetailsWithoutArtwork` 里加等高 Spacer（那会把歌名栏一起顶上去）。
         val portraitY = (
             contentTop +
-                (portraitContentHeight - portraitSlot - artworkFooterHeight) +
-                (portraitSlot - portraitSize) / 2f + 16.dp -
+                (portraitContentHeight - portraitSize - artworkFooterHeight) -
                 MeloXPortraitArtworkRaise
             ).coerceAtLeast(0.dp)
 

@@ -587,7 +587,7 @@ internal fun MeloXIOSNowPlayingScene(
                     // 视口底(0)」之间过渡。控件条显示时上移以防白色歌词从 8% 黑模糊底板渗出；
                     // 控件条自动隐藏（沉浸）时归零，把整块空间还给歌词。tween 平滑避免跳变。
                     val lyricsFadeTerminal by animateDpAsState(
-                        targetValue = if (showsLyricsControls) MeloXNowPlayingControlsHeight.dp else 0.dp,
+                        targetValue = if (showsLyricsControls) MeloXNowPlayingControlsHeight.dp + 16.dp else 0.dp,
                         animationSpec = tween(durationMillis = 220),
                         label = "portraitLyricsFadeTerminal",
                     )
@@ -807,30 +807,8 @@ internal fun MeloXIOSNowPlayingScene(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .meloXBackdropBlur(
-                                shape = RectangleShape,
-                                // ★ 2026-10-22（用户：「歌单进入动画还是卡，尤其是底栏在歌单封面的
-                                //   上面时最卡」）：这块面板是**全屏宽 × 279dp**，24dp 高斯每帧都在
-                                //   整块面积上跑一遍 —— 它是整个播放页里唯一一块这个量级的实时模糊，
-                                //   也是用户把"卡"指认到「底栏」的直接原因。
-                                //
-                                //   运动期间模糊降档：转屏期间彻底关到 0dp（整屏在转、控制栏在淡入淡出，
-                                //   0dp 与满档完全看不出），页间切换降到 10dp；落定立刻回到 24dp。
-                                //   那段运动里人眼锁的是移动中的封面 / 队列行 / 翻转的布局，
-                                //   模糊档位差看不出来，但高斯离屏 pass 直接省掉；转屏时这份收益**乘二**
-                                //   （两块同场）。静止态一个像素都不变 —— 这条只吃布尔判据
-                                //   （`orientationAnimating` / `pageAnimating`），不动任何曲线、时长与几何。
-                                // 转屏期间彻底关模糊(0dp)：整屏在转、控制栏在淡入淡出，0dp 与降档值
-                                // 完全看不出；落定瞬时回 24dp(与既有降档→满档突变等价)。削掉这块
-                                // 全屏玻璃的离屏高斯 pass —— 转屏时竖横两套同场，收益乘二。
-                                blurRadius = when {
-                                    orientationAnimating -> 0.dp
-                                    pageAnimating -> MeloXControlsBlurRadiusWhilePaging
-                                    else -> MeloXControlsBlurRadius
-                                },
-                            )
-                            // Consume blank-area taps so they cannot fall
-                            // through the lower lyric control surface.
+                            // Share the flowing background; a separate rectangular blur caused a visible seam.
+                            // Still consume blank-area taps above the lyrics underneath.
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
@@ -2394,25 +2372,6 @@ private fun ArtworkDetailsWithoutArtwork(
         }
     }
 }
-
-/**
- * 底栏控制区（`np-controls`）背景模糊的**静止档**。
- *
- * 这块面板是全屏宽 × [MeloXNowPlayingControlsHeight]（279dp），是整个播放页里
- * 面积最大的一块实时模糊。数值来自历史定稿（`Black 8%` + 24dp），改这里会影响
- * 静止态观感 —— 只有「页间切换运动期间」才允许临时降档，见下一项。
- */
-private val MeloXControlsBlurRadius = 24.dp
-
-/**
- * 底栏控制区背景模糊的**页间切换运动档**（2026-10-22）。
- *
- * 只在 `pageTransition.isRunning` 期间生效，落定立刻回到 [MeloXControlsBlurRadius]。
- * 依据：那三条页面过渡是 `spring(0.7, 300)`（欠阻尼），实际运动跨度约 1s，
- * 期间这块 279dp 的全宽模糊要每帧重算一整秒。运动画面上 10dp 与 24dp 是同一块
- * 磨砂，但高斯降采样链少一级。
- */
-private val MeloXControlsBlurRadiusWhilePaging = 10.dp
 
 private fun isDirectLyricsQueueTransition(
     source: MeloXNowPlayingPage,

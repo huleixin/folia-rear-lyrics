@@ -17,29 +17,28 @@ internal fun immersiveSettleSpec() = spring<Float>(dampingRatio = 1f,
     stiffness = (6.2f / .46f) * (6.2f / .46f), visibilityThreshold = .001f)
 
 internal class ImmersivePlayerMotion(val panel: Rect?, val cover: Rect?,
-    val entry: State<Float>, val exit: NativeStageExit, val leaving: State<Float>, val reduced: Boolean) {
+    val entry: State<Float>, val exit: NativeStageExit, val leaving: State<Float>, val reduced: Boolean,
+    val interactive: ImmersivePanelState? = null) {
     var drag by mutableFloatStateOf(0f)
-    fun fraction(): Float = (entry.value * (1f - if (exit.active) leaving.value else 0f) * (1f - drag)).coerceIn(0f, 1f)
-    fun active() = !reduced && (entry.value < .9999f || exit.active || drag > .0001f)
-    private val classic = if (panel != null && cover != null) MinimalPlayerMorph(panel, cover, entry, exit, leaving, reduced) else null
+    fun fraction(): Float = ((interactive?.takeIf { it.initialized }?.progress ?: entry.value) *
+        (1f - if (exit.active) leaving.value else 0f) * (1f - drag)).coerceIn(0f, 1f)
+    fun active() = interactive?.dragging == true || fraction() < .9999f || exit.active
     fun panelBounds(size: Size): Rect {
-        val bounds = classic?.panelBounds(size) ?: lerp(panel ?: Rect(0f,size.height,size.width,size.height), Rect(Offset.Zero,size), fraction())
-        return lerp(bounds, panel ?: bounds, drag)
+        return lerp(panel ?: Rect(0f,size.height,size.width,size.height), Rect(Offset.Zero,size), fraction())
     }
-    fun coverBounds(target: Rect): Rect = lerp(classic?.coverBounds(target) ?: target, cover ?: target, drag)
-    fun miniAlpha() = classic?.miniAlpha() ?: ((1f - fraction()) * 5f - 3.5f).coerceIn(0f,1f)
-    fun shellAlpha() = if (reduced) 1f else classic?.shellAlpha() ?: fraction()
+    fun coverBounds(target: Rect): Rect = lerp(cover ?: target, target, fraction())
+    fun miniAlpha() = ((1f - fraction()) * 5f - 3.5f).coerceIn(0f,1f)
+    fun shellAlpha() = (fraction() / .12f).coerceIn(0f,1f)
     fun materialFraction(): Float {
-        if (reduced) return 1f
         val p = ((fraction() - .03f) / .80f).coerceIn(0f, 1f)
         return p * p * (3f - 2f * p)
     }
-    fun coverAlpha() = if (reduced) 1f else classic?.coverAlpha() ?: 1f
-    fun sceneAlpha() = classic?.sectionAlpha("controls") ?: fraction()
+    fun coverAlpha() = 1f
+    fun sceneAlpha() = ((fraction() - .12f) / .68f).coerceIn(0f, 1f)
 
 }
 
-/** Keep the live scene at its final size: only its clip follows the classic shell geometry. */
+/** Keep the live scene at its final size; its clip and artwork share reversible progress. */
 internal fun Modifier.immersivePlayerContainer(motion: ImmersivePlayerMotion?) = graphicsLayer {
     clip = motion?.active() == true
     if (clip) shape = object : Shape {
@@ -51,7 +50,7 @@ internal fun Modifier.immersivePlayerContainer(motion: ImmersivePlayerMotion?) =
     }
 }
 
-/** Decorations consume the same classic entry/exit clock as the shared artwork. */
+/** Decorations consume the same interactive progress as the shared artwork. */
 internal fun Modifier.immersiveSceneReveal(motion: ImmersivePlayerMotion?) = graphicsLayer {
     alpha = motion?.sceneAlpha() ?: 1f
 }

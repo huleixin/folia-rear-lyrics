@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
@@ -49,7 +51,28 @@ import kotlin.math.abs
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/ChromeMiniPlayer.kt
 @Composable internal fun ChromeMiniPlayer(s: ChromeSurface, timeline: ChromeTimeline?, backdrop: Backdrop, modifier: Modifier,
     minimal: MinimalPlayerRuntime? = null,
+    onExpandDragStart: (() -> Unit)? = null,
+    onExpandDrag: (Float) -> Unit = {},
+    onExpandDragEnd: (Float, Boolean) -> Unit = { _, _ -> },
     onCoverBounds: (Rect)->Unit = {}, action: (String,Double)->Unit) {
+    val latestExpandStart by rememberUpdatedState(onExpandDragStart)
+    val latestExpandDrag by rememberUpdatedState(onExpandDrag)
+    val latestExpandEnd by rememberUpdatedState(onExpandDragEnd)
+    // Directional touch slop lets horizontal track changes keep their existing behavior.
+    // This pointer node remains mounted while the stage route takes over its drawing.
+    val expandGesture = Modifier.pointerInput(onExpandDragStart != null) {
+        if (latestExpandStart != null) {
+            val tracker = VelocityTracker()
+            detectVerticalDragGestures(
+                onDragStart = { tracker.resetTracking(); latestExpandStart?.invoke() },
+                onDragCancel = { latestExpandEnd(0f, true) },
+                onDragEnd = { latestExpandEnd(tracker.calculateVelocity().y, false) },
+                onVerticalDrag = { change, dy ->
+                    change.consume(); tracker.addPosition(change.uptimeMillis, change.position)
+                    latestExpandDrag(dy)
+                })
+        }
+    }
     val playbackFlow=remember(minimal){minimal?.state?.map{it.playback}?.distinctUntilChanged()}
     val playback=playbackFlow?.collectAsState(initial=minimal!!.state.value.playback)?.value
     val currentPlayback=playback?.takeIf{it.track.key==s.trackKey&&s.trackKey.isNotBlank()&&it.source!=MinimalClockSource.NONE}
@@ -83,7 +106,7 @@ import kotlin.math.abs
                 dx=desired.coerceIn(-width,width);scope.launch { offset.snapTo(if(allowed)dx else dx*.22f) }
             }
         }
-        Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(18.dp)).then(drag)) {
+        Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(18.dp)).then(expandGesture).then(drag)) {
             if(abs(offset.value)>8f)Text(s.label(if(offset.value<0)"next" else "previous",if(offset.value<0)"下一首" else "上一首"),color=if(s.light)ink else ink.copy(alpha=.7f),fontSize=12.sp,maxLines=1,
                 modifier=Modifier.align(Alignment.Center).graphicsLayer{translationX=offset.value+(if(offset.value<0)width else -width)})
             Row(Modifier.fillMaxSize().graphicsLayer{translationX=offset.value}.chromeClickable(role=Role.Button,corner=18.dp){action("openStage",0.0)},verticalAlignment=Alignment.CenterVertically) {

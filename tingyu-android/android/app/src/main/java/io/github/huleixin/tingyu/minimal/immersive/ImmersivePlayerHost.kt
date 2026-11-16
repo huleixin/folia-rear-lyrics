@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
@@ -30,7 +29,6 @@ import io.github.huleixin.tingyu.chrome.*
 import io.github.huleixin.tingyu.minimal.*
 import io.github.huleixin.tingyu.minimal.immersive.port.*
 import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 // SPDX-License-Identifier: GPL-3.0-only
@@ -133,42 +131,36 @@ internal fun ImmersivePlayerHost(
                 center.animateTo(if (window.supportsPlayerTwoPane && !window.ultrawidePlayer && page == MeloXNowPlayingPage.Artwork) 1f else 0f,
                     tween(460, easing = CubicBezierEasing(.33f, 0f, .2f, 1f)))
             }
-            // The upstream 0.86-screen drag range, 42% / 1200px/s release thresholds.
-            // Scrollable pages offer only unconsumed downward motion to the shell.
+            // Mini and full-screen gestures catch the same timeline at its current position.
+            // Lyrics/queue offer only unconsumed downward motion until the shell owns the drag.
             val dragRange = pane.height * .86f
-            val rebound = remember { Animatable(0f) }
-            var dragFraction by remember { mutableFloatStateOf(0f) }
             val scope = rememberCoroutineScope()
-            var dragJob by remember { mutableStateOf<Job?>(null) }
-            DisposableEffect(outer) {
-                onDispose { dragJob?.cancel(); outer?.drag = 0f }
-            }
+            val localPanel = remember { ImmersivePanelState(scope) }
+            val panel = outer?.interactive ?: localPanel
             val latestPage by rememberUpdatedState(page)
             val latestCollapse by rememberUpdatedState(onCollapse)
-            fun drag(delta: Float) {
-                dragFraction = (dragFraction + delta / dragRange.coerceAtLeast(1f)).coerceIn(0f, .999f)
-                dragJob?.cancel()
-                outer?.drag = dragFraction
-            }
-            fun settle(velocity: Float, canceled: Boolean = false) {
-                val dismiss = !canceled && (dragFraction >= .42f || velocity >= 1200f)
-                dragJob?.cancel()
-                if (dismiss) { latestCollapse(); return }
-                dragJob = scope.launch {
-                    rebound.snapTo(dragFraction)
-                    rebound.animateTo(0f, immersiveSettleSpec()) {
-                        dragFraction = value
-                        outer?.drag = value
-                    }
+            LaunchedEffect(localPanel.collapsePending) {
+                if (outer?.interactive == null && localPanel.collapsePending) {
+                    localPanel.consumeCollapse(); latestCollapse()
                 }
             }
+            fun beginDrag() {
+                panel.adopt(outer?.fraction() ?: 1f)
+                panel.beginDrag()
+            }
+            fun drag(delta: Float) {
+                if (!panel.dragging) beginDrag()
+                panel.dragBy(delta, dragRange)
+            }
+            fun settle(velocity: Float, canceled: Boolean = false) {
+                panel.release(velocity, canceled, outer?.reduced == true)
+            }
             val velocityTracker = remember { VelocityTracker() }
-            val entering = outer != null && !outer.reduced && outer.entry.value < .9999f
-            val gestureEnabled = active && !preview && !orient.isRunning && !closing.value && !entering
+            val gestureEnabled = active && !preview && !orient.isRunning && !closing.value
             val allowScrollCollapse by rememberUpdatedState(gestureEnabled && !window.isLandscape)
             val grabber = Modifier.pointerInput(gestureEnabled, dragRange, outer) {
                 if (gestureEnabled) detectVerticalDragGestures(
-                    onDragStart = { dragJob?.cancel(); dragFraction = outer?.drag ?: 0f; velocityTracker.resetTracking() },
+                    onDragStart = { beginDrag(); velocityTracker.resetTracking() },
                     onDragCancel = { settle(0f, canceled = true) },
                     onDragEnd = { settle(velocityTracker.calculateVelocity().y) },
                     onVerticalDrag = { change, dy ->
@@ -178,7 +170,7 @@ internal fun ImmersivePlayerHost(
             val scroll = remember(dragRange, outer) {
                 object : NestedScrollConnection {
                     override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                        if (!allowScrollCollapse || source != NestedScrollSource.UserInput || latestPage == MeloXNowPlayingPage.Artwork || dragFraction <= 0f) return Offset.Zero
+                        if (!allowScrollCollapse || source != NestedScrollSource.UserInput || latestPage == MeloXNowPlayingPage.Artwork || !panel.dragging) return Offset.Zero
                         drag(available.y); return Offset(0f, available.y)
                     }
                     override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
@@ -186,7 +178,7 @@ internal fun ImmersivePlayerHost(
                         drag(available.y); return Offset(0f, available.y)
                     }
                     override suspend fun onPreFling(available: Velocity): Velocity {
-                        if (!allowScrollCollapse || dragFraction <= 0f) return Velocity.Zero
+                        if (!allowScrollCollapse || !panel.dragging) return Velocity.Zero
                         settle(available.y); return available
                     }
                 }
@@ -201,13 +193,7 @@ internal fun ImmersivePlayerHost(
                 CompositionLocalProvider(LocalMinimalCoverOverlay provides shared) {
                     Box(Modifier.fillMaxSize().immersivePlayerContainer(outer)
                         .graphicsLayer { alpha = outer?.shellAlpha() ?: 1f }
-                        .background(miniSurface)
-                        .pointerInput(entering, closing.value) {
-                            // Block taps during shell entry/exit without canceling a live downward drag.
-                            if (entering || closing.value) awaitPointerEventScope {
-                                while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
-                            }
-                        }) {
+                        .background(miniSurface)) {
                         Box(Modifier.fillMaxSize().graphicsLayer {
                             alpha = (outer?.materialFraction() ?: 1f) * paletteVisibility
                         }.layerBackdrop(backdrop)) {

@@ -4,13 +4,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import io.github.huleixin.tingyu.chrome.NativeStageExit
-import io.github.huleixin.tingyu.chrome.MinimalPlayerMorph
+import androidx.compose.ui.geometry.lerp
 import org.junit.Assert.*
 import org.junit.Test
 
-// Entry, interruption and exit must follow the existing Tingyu animation timeline.
+// One timeline must produce identical geometry when revisiting a position in either direction.
 class ImmersiveMotionTest {
-    @Test fun entryAndInterruptedExitMatchClassicGeometry() {
+    @Test fun entryAndInterruptedExitShareContinuousGeometry() {
         val panel = Rect(10f,700f,390f,760f)
         val cover = Rect(20f,710f,60f,750f)
         val target = Rect(80f,160f,320f,400f)
@@ -19,18 +19,19 @@ class ImmersiveMotionTest {
         val leaving = mutableStateOf(0f)
         val exit = NativeStageExit()
         val immersive = ImmersivePlayerMotion(panel,cover,entry,exit,leaving,false)
-        val classic = MinimalPlayerMorph(panel,cover,entry,exit,leaving,false)
         for (progress in listOf(0f,.1f,.4f,.8f,1f)) {
             entry.value = progress
-            assertEquals(classic.panelBounds(size),immersive.panelBounds(size))
-            assertEquals(classic.coverBounds(target),immersive.coverBounds(target))
+            assertEquals(lerp(panel,Rect(0f,0f,400f,800f),progress),immersive.panelBounds(size))
+            assertEquals(lerp(cover,target,progress),immersive.coverBounds(target))
+            assertEquals(1f,immersive.coverAlpha(),0f)
         }
         entry.value = .4f
         exit.begin(null,true) {}
         for (progress in listOf(0f,.2f,.7f,1f)) {
             leaving.value = progress
-            assertEquals(classic.panelBounds(size),immersive.panelBounds(size))
-            assertEquals(classic.coverBounds(target),immersive.coverBounds(target))
+            val fraction = .4f * (1f-progress)
+            assertEquals(lerp(panel,Rect(0f,0f,400f,800f),fraction),immersive.panelBounds(size))
+            assertEquals(lerp(cover,target,fraction),immersive.coverBounds(target))
         }
     }
     @Test fun canceledDragRestoresExpandedGeometry() {
