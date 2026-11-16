@@ -13,6 +13,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 internal class NativeStageExit {
     var active by mutableStateOf(false);private set
     var completed by mutableStateOf(false);private set
+    /** Sticky "the collapse clock landed" flag; survives [clear] for the route handoff. */
+    var lastFinished by mutableStateOf(false);private set
     var returning:NativePage?=null;private set
     var suppressReturnMotion=false
     var minimal=false;private set
@@ -20,9 +22,9 @@ internal class NativeStageExit {
     fun begin(page:NativePage?,minimal:Boolean=false,reply:()->Unit){
         if(completed){reply();return};replies.add(reply)
         if(active)return
-        returning=page;this.minimal=minimal;completed=false;active=true;suppressReturnMotion=true
+        returning=page;this.minimal=minimal;completed=false;lastFinished=false;active=true;suppressReturnMotion=true
     }
-    fun finish(){completed=true;val callbacks=replies.toList();replies.clear();callbacks.forEach{it()}}
+    fun finish(){completed=true;lastFinished=true;val callbacks=replies.toList();replies.clear();callbacks.forEach{it()}}
     fun clear(){if(replies.isNotEmpty())finish();active=false;completed=false;returning=null;minimal=false}
 }
 @Composable internal fun rememberStageExitProgress(exit:NativeStageExit,reduced:Boolean,reference:Boolean=false,immersive:Boolean=false):State<Float>{

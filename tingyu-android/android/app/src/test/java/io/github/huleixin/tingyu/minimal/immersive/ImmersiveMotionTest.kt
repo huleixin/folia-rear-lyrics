@@ -75,4 +75,21 @@ class ImmersiveMotionTest {
         assertEquals(0f, motion.sceneTranslationY(size), 0f)
     }
 
+    @Test fun completedExitKeepsCollapsedShellAfterTheExitOwnerClears() {
+        val panel = Rect(0f,700f,400f,760f)
+        val size = Size(400f,800f)
+        val panelState = io.github.huleixin.tingyu.minimal.PlayerPanelState(kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined))
+        panelState.adopt(1f)
+        val exit = NativeStageExit()
+        val motion = ImmersivePlayerMotion(panel,Rect(10f,710f,50f,750f),mutableStateOf(1f),exit,mutableStateOf(1f),false,panelState)
+        assertEquals(Rect(0f,0f,400f,800f),motion.panelBounds(size))
+        exit.begin(null,true) {}
+        exit.finish()
+        panelState.holdCollapsed()
+        exit.clear()
+        // The shell must stay on the mini bounds across the route handoff.
+        assertEquals(0f,motion.fraction(),0f)
+        assertEquals(panel,motion.panelBounds(size))
+    }
+
 }

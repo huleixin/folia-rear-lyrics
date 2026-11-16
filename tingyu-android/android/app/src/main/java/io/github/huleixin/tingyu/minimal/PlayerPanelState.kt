@@ -75,6 +75,16 @@ internal class PlayerPanelState(private val scope: CoroutineScope) {
         initialized = false; progress = 1f; target = 1f
         classicFrame = null; dragFrame = null
     }
+    /**
+     * Route exit finished. Hold the collapsed endpoint until [reset] runs, otherwise the
+     * panel still reports progress 1 after the exit owner is cleared and the shell expands
+     * back to full screen for the frames before the next route commit.
+     */
+    fun holdCollapsed() {
+        animation?.cancel(); dragging = false; collapsePending = false
+        progress = 0f; target = 0f; cancelTarget = 0f; dragFrame = null
+        if (classic) classicFrame = ClassicPlayerFrame.Collapsed
+    }
     fun consumeCollapse() { collapsePending = false }
 
     /** Clicks keep the recorded independent classic curves; gestures use the captured frame. */

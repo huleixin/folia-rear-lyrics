@@ -27,8 +27,6 @@ internal object NativeFooterLayout {
     const val SettingsDepthOffsetDp = 14f
     const val FooterExitMs = 220
     const val FooterEnterMs = 250
-    const val FooterStageReturnDelayMs = 90
-    const val FooterStageReturnMs = 280
     const val NavSlideOffsetDp = 20f
     const val MiniSlideOffsetDp = 14f
 

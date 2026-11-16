@@ -21,8 +21,15 @@ internal class ImmersivePlayerMotion(val panel: Rect?, val cover: Rect?,
     val entry: State<Float>, val exit: NativeStageExit, val leaving: State<Float>, val reduced: Boolean,
     val interactive: PlayerPanelState? = null) {
     var drag by mutableFloatStateOf(0f)
-    fun fraction(): Float = ((interactive?.takeIf { it.initialized }?.progress ?: entry.value) *
-        (1f - if (exit.active) leaving.value else 0f) * (1f - drag)).coerceIn(0f, 1f)
+    fun fraction(): Float {
+        val live = interactive?.takeIf { it.initialized }?.progress
+        // `finish()` completes the collapse before the JS route commit clears the exit.
+        // Without this hold the fallback to `entry` (1f) snapped the shell back to full
+        // screen for the frames between the two, which read as the player "jumping".
+        if (exit.completed && (live == null || live <= .001f)) return 0f
+        return ((live ?: entry.value) *
+            (1f - if (exit.active) leaving.value else 0f) * (1f - drag)).coerceIn(0f, 1f)
+    }
     fun active() = interactive?.dragging == true || fraction() < .9999f || exit.active
     fun panelBounds(size: Size): Rect {
         return lerp(panel ?: Rect(0f,size.height,size.width,size.height), Rect(Offset.Zero,size), fraction())
@@ -58,9 +65,12 @@ internal fun Modifier.immersivePlayerContainer(motion: ImmersivePlayerMotion?) =
     val fraction = motion?.fraction() ?: 1f
     clip = motion?.active() == true
     if (clip) {
+        // Each frame shrinks the rounded clip. Without an offscreen pass the previous,
+        // larger outline stays in the layer and slow drags leave stacked shells behind.
+        compositingStrategy = CompositingStrategy.Offscreen
         val bounds = motion!!.panelBounds(size)
         shape = ImmersiveShellShape(bounds, minOf(46f * density, bounds.height / 2f) * (1f - fraction))
-    }
+    } else compositingStrategy = CompositingStrategy.Auto
 }
 
 /** Decorations consume the same interactive progress as the shared artwork. */

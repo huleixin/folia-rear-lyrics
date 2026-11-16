@@ -37,7 +37,7 @@ class PlayerFrameInvalidationTest {
             val leaving = remember { mutableStateOf(0f) }
             Box(Modifier.size(120.dp, 240.dp)
                 .drawWithContent { draws++; drawContent() }
-                .playerFrameUnderlay(Color(0x408899AA), panel, leaving) { true }) {
+                .playerFrameUnderlay(panel, leaving)) {
                 Box(Modifier.size(100.dp, 20.dp).graphicsLayer {
                     translationY = 200f * (1f - panel.progress)
                 }.background(Color.White.copy(alpha = .5f)))
