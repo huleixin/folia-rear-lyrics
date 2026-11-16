@@ -186,8 +186,8 @@ internal fun ImmersivePlayerHost(
                     }
                 }
             }
-            // The shell, scene and shared artwork each own their invalidation. A full-screen
-            // offscreen layer here kept stale pixels during slow drags and caused trails.
+            // Shell, scene and shared artwork retain separate transforms; the host redraws
+            // the complete underlay while the player is travelling.
             SharedTransitionLayout(Modifier.fillMaxSize()
                 .then(if (!window.isLandscape) Modifier.nestedScroll(scroll) else Modifier)
                 .then(if (page == MeloXNowPlayingPage.Artwork && !window.isLandscape) grabber else Modifier)) {

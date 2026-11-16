@@ -770,6 +770,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val immersiveStyle = playerStyle == PlayerStyle.IMMERSIVE
         val playerPanelScope = rememberCoroutineScope()
         val playerPanel = remember { io.github.huleixin.tingyu.minimal.PlayerPanelState(playerPanelScope) }
+        SideEffect { playerPanel.useClassicMotion(!immersiveStyle) }
         LaunchedEffect(destination, pendingStageEntry) {
             if (destination != "stage" && !pendingStageEntry) {
                 playerPanel.reset(); playerCollapseSettled = false
@@ -875,7 +876,9 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
         val sampleWeb=ChromeSamplingPolicy.webReader(destination,stageExit.active,webOverlay,active,focused,visible.size)
         SideEffect{if(!legacySampling)webSamplingLayer.update(Build.VERSION.SDK_INT>=31&&sampleWeb)}
         val savedPages=rememberSaveableStateHolder()
-        BoxWithConstraints(Modifier.fillMaxSize()) {
+        BoxWithConstraints(Modifier.fillMaxSize().playerFrameUnderlay(palette.launch,
+            playerPanel, exitProgress) { minimalPlayerEnabled() && playerPresentation == "minimal" &&
+                !webOverlay && !stageAboveMinimal && (pendingStageEntry || destination == "stage") }) {
             CompositionLocalProvider(LocalPadWindow provides padLayoutWindow(maxWidth.value,maxHeight.value,
                 if(Build.VERSION.SDK_INT>=30) (web.context.getSystemService(android.view.WindowManager::class.java)?.currentWindowMetrics?.bounds?.height()?.div(LocalDensity.current.density)?:maxHeight.value)
                 else maxHeight.value + WindowInsets.ime.getBottom(LocalDensity.current)/LocalDensity.current.density),LocalChromeRendering provides (active&&focused),LocalInterfacePalette provides palette,LocalLiquidReduced provides motionReduced,LocalMotionOrigin provides motionOrigin,LocalPlayerReveal provides playerReveal,LocalPlayerArtworkAnchor provides playerArtwork,LocalMinimalMorph provides minimalMorph,LocalPlayerPanelState provides playerPanel,io.github.huleixin.tingyu.minimal.immersive.LocalImmersiveMorph provides (if(immersiveStyle)immersiveMorph else null)) {
@@ -1277,7 +1280,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                                 playerPanelOrigin=androidx.compose.ui.geometry.Rect(rect.left*density.density,animatedY*density.density,(rect.left+rect.width)*density.density,(animatedY+rect.height)*density.density)
                                 playerOrigin=miniCoverBounds ?: androidx.compose.ui.geometry.Rect((rect.left+16f)*density.density,(animatedY+9f)*density.density,(rect.left+50f)*density.density,(animatedY+43f)*density.density)
                                 pendingStageEntry=true
-                                playerCollapseSettled=false; playerPanel.open(motionReduced)
+                                playerCollapseSettled=false; playerPanel.open(motionReduced, classicMotion = !immersiveStyle)
                                 val request=++stageEntryRequest
                                 // Hide the footer immediately, but do not promote an old WebView
                                 // frame over the outgoing native page before React commits stage.

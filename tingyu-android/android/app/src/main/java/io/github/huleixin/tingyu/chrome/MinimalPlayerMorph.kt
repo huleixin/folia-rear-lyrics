@@ -13,14 +13,20 @@ internal val LocalPlayerPanelState = staticCompositionLocalOf<io.github.huleixin
 internal class MinimalPlayerMorph(val panel: Rect, val cover: Rect, val entry: State<Float>,
     val exit: NativeStageExit, val leaving: State<Float>, val reduced: Boolean,
     val interactive: io.github.huleixin.tingyu.minimal.PlayerPanelState? = null) {
+    private fun classicFrame(): ClassicPlayerFrame? =
+        interactive?.takeIf { it.initialized }?.classicFrame?.let {
+            if (exit.active) it.closing(leaving.value) else it
+        }
     private fun interactiveFraction(): Float? = interactive?.takeIf { it.initialized }?.let {
         (it.progress * (if(exit.active)1f-leaving.value else 1f)).coerceIn(0f,1f)
     }
     fun active() = interactive?.dragging == true ||
-        (interactiveFraction()?.let { it < .9999f || exit.active }
+        (classicFrame()?.let { !it.expanded || exit.active }
+            ?: interactiveFraction()?.let { it < .9999f || exit.active }
             ?: (!reduced && (entry.value < 1f || exit.active)))
     fun elapsed() = if(exit.active)leaving.value*SaltPlayerTimeline.ExitMs else entry.value*SaltPlayerTimeline.EnterMs
     fun channels(): FloatArray {
+        classicFrame()?.let { return it.channels }
         interactiveFraction()?.let { progress -> return FloatArray(7) { progress } }
         val opened=SaltPlayerTimeline.sample(entry.value*SaltPlayerTimeline.EnterMs)
         if(!exit.active)return opened
@@ -57,17 +63,19 @@ internal class MinimalPlayerMorph(val panel: Rect, val cover: Rect, val entry: S
         val x=((interactiveFraction()!!-start)/(end-start)).coerceIn(0f,1f)
         return x*x*(3f-2f*x)
     }
-    fun shellAlpha()=if(interactiveFraction()!=null)reveal(0f,.12f)else enterRamp(0f,35f)*(if(exit.active)1f-ramp(140f,380f)else 1f)
-    fun decorations()=if(interactiveFraction()!=null)reveal(.25f,.90f)else if(exit.active)enterRamp(600f,980f)*(1f-ramp(0f,100f)) else enterRamp(600f,980f)
+    fun shellAlpha()=classicFrame()?.shell ?: if(interactiveFraction()!=null)reveal(0f,.12f)else enterRamp(0f,35f)*(if(exit.active)1f-ramp(140f,380f)else 1f)
+    fun decorations()=classicFrame()?.decorations ?: if(interactiveFraction()!=null)reveal(.25f,.90f)else if(exit.active)enterRamp(600f,980f)*(1f-ramp(0f,100f)) else enterRamp(600f,980f)
     // The cover must reach the mini endpoint with the shell. Fading it earlier made it
     // disappear while the rest of the page was still travelling.
     fun coverAlpha()=1f
     fun miniAlpha(): Float {
+        classicFrame()?.let { return it.mini }
         interactiveFraction()?.let { return ((1f-it)*5f-3.5f).coerceIn(0f,1f) }
         val before=1f-enterRamp(0f,35f)
         return if(exit.active)before+(1-before)*ramp(120f,340f) else before
     }
     fun sectionAlpha(role: String): Float {
+        classicFrame()?.let { return it.section(role) }
         if(!active())return 1f
         if(interactiveFraction()!=null)return reveal(.12f,if(role=="controls").80f else .68f)
         val opened=when(role){"header"->enterRamp(75f,190f);"controls"->enterRamp(150f,350f);else->enterRamp(100f,240f)}

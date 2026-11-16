@@ -12,9 +12,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 internal val LocalMinimalCoverOverlay = staticCompositionLocalOf<SharedTransitionScope?> { null }
 /** The real cover is drawn once above pager clipping; no thumbnail copy or second image loader. */
 @Composable internal fun MinimalCoverOverlay(content: @Composable ()->Unit) {
-    // Do not force a full-screen offscreen target during the pull. That target caches
-    // the previous frame while the clip and artwork move, producing visible trails.
-    // The moving cover has its own graphicsLayer transform below.
+    // The moving cover has its own transform; the host owns the full-frame underlay.
     SharedTransitionLayout(Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalMinimalCoverOverlay provides this) { content() }
     }

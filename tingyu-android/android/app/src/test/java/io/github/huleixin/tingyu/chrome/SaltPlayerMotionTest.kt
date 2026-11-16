@@ -98,7 +98,7 @@ class SaltPlayerMotionTest {
         assertEquals(alpha,motion.shellAlpha(),.001f);assertEquals(mini,motion.miniAlpha(),.001f)
         leaving.value=1f
         rect(panel,motion.panelBounds(size));rect(cover,motion.coverBounds(target))
-        assertEquals(1f,motion.miniAlpha(),0f);assertEquals(0f,motion.coverAlpha(),0f)
+        assertEquals(1f,motion.miniAlpha(),0f);assertEquals(1f,motion.coverAlpha(),0f)
     }
     @Test fun missingJsPhaseStillAnimatesAndReversalDoesNotSnapTheStage() {
         val detour=mutableStateOf(false);lateinit var value:State<Float>

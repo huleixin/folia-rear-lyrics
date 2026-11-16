@@ -3,7 +3,6 @@ package io.github.huleixin.tingyu.minimal.ui
 import io.github.huleixin.tingyu.chrome.MinimalCoverOverlay
 import io.github.huleixin.tingyu.chrome.minimalSection
 import io.github.huleixin.tingyu.chrome.minimalBackground
-import io.github.huleixin.tingyu.chrome.minimalStageCanvas
 import io.github.huleixin.tingyu.chrome.LiquidIcon
 import io.github.huleixin.tingyu.chrome.LocalLiquidReduced
 import android.os.SystemClock
@@ -359,8 +358,7 @@ fun MinimalPlayerScreen(
     }
 
     MinimalCoverOverlay {
-    Box(modifier.fillMaxSize().nestedScroll(panelScroll).then(panelGesture)
-        .minimalStageCanvas(minimalMotion)) {
+    Box(modifier.fillMaxSize().nestedScroll(panelScroll).then(panelGesture)) {
         // 渲染来源角标（临时诊断，验收后删）：看到 "Compose" 就说明这一屏是原生画的。
         if (state.controls.diag) {
             Text(
