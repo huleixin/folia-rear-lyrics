@@ -69,6 +69,8 @@ export interface OnlineGridViewCollectionDescriptor extends BaseGridViewCollecti
     source: 'online';
     providerId: OnlineProviderId;
     raw?: any;
+    /** Local discovery snapshot; real source identities stay on each track. No remote playlist mutation. */
+    discoveryTracks?: import('../../../types').SongResult[];
 }
 
 export type GridViewCollectionDescriptor =

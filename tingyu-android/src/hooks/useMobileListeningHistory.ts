@@ -4,10 +4,12 @@ import { usePlaybackStore, selectDisplaySong, selectDisplayPlayerState } from '.
 import { useMobileLibraryStore } from '../stores/useMobileLibraryStore';
 import { isLocalPlaybackSong, isNavidromePlaybackSong } from '../utils/appPlaybackGuards';
 import { recordLocalSongPlay } from '../services/localPlayHistory';
+import { useDiscoveryListening } from './useDiscoveryListening';
 
 // src/hooks/useMobileListeningHistory.ts
 // Subscribe to discrete playback changes, not a clock; remains active while the original stage is open.
 export const useMobileListeningHistory = () => {
+    useDiscoveryListening();
     useEffect(() => {
         const record = () => {
             const state = usePlaybackStore.getState();

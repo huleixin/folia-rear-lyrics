@@ -59,6 +59,10 @@ import kotlinx.coroutines.launch
                 sections.forEach { section ->
                     when {
                         section.layout=="hero" -> item(key=section.id){NativeHeroRail(section,viewport,start,end,wide,short,action)}
+                        // Discovery's provider/source chips use the same selected-pill rail as the library.
+                        section.layout=="chips" -> item(key=section.id){
+                            NativeSourceTabs(section,Modifier.padding(start=start,end=end,bottom=8.dp),action=action)
+                        }
                         // 方形封面横滑 rail：在线首页的「最近播放」与本地首页的「最近播放 / 常听专辑」共用一套。
                         section.layout=="cards" && section.id in setOf("recent","localAlbums") -> item(key=section.id){
                             Column(Modifier.padding(top=4.dp)) {
@@ -76,6 +80,23 @@ import kotlinx.coroutines.launch
                                                 }
                                                 if(item.secondary.isNotBlank())Box(Modifier.width(24.dp).height(36.dp).chromeClickable(corner=12.dp){action(item.secondary,"",0.0)},contentAlignment=Alignment.Center){PageIcon("ellipsis-vertical",PageMuted,Modifier.size(16.dp))}
                                             }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // Real recommendation collections: square artwork rail, same caption rhythm as recent.
+                        section.layout=="cards" -> item(key=section.id){
+                            Column(Modifier.padding(top=4.dp)) {
+                                PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=4.dp),action)
+                                LazyRow(contentPadding=PaddingValues(start=start,end=end),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                                    items(section.items,key={it.id}) { item ->
+                                        val cover=if(wide)148.dp else 128.dp
+                                        val source=rememberCoverSource(item.action,10.dp)
+                                        Column(Modifier.width(cover)) {
+                                            Box(Modifier.chromeClickable(enabled=!item.disabled,corner=12.dp){source.select();action(item.action,"",0.0)}){PageArtwork(item.image,Modifier.fillMaxWidth().aspectRatio(1f),sharedAction=source.key)}
+                                            Text(item.title,color=PageInk,fontSize=13.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=5.dp))
+                                            Text(item.subtitle,color=PageMuted,fontSize=11.sp,lineHeight=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
                                         }
                                     }
                                 }
@@ -113,8 +134,10 @@ import kotlinx.coroutines.launch
                         section.layout=="discoverCards" -> item(key=section.id){
                             Column(Modifier.padding(top=4.dp)) {
                                 PageSectionHeading(section,Modifier.padding(start=start,end=end,bottom=6.dp),action)
-                                Row(Modifier.padding(start=start,end=end),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                                    section.items.forEachIndexed { index, item ->
+                                section.items.chunked(if(section.items.size==3)3 else 2).forEachIndexed { rowIndex, rowItems ->
+                                Row(Modifier.padding(start=start,end=end,top=if(rowIndex==0)0.dp else 8.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                                    rowItems.forEachIndexed { column, item ->
+                                        val index=rowIndex*3+column
                                         val interaction=remember { MutableInteractionSource() }
                                         val pressed by interaction.collectIsPressedAsState()
                                         val scale by animateFloatAsState(if(pressed)0.97f else 1f,label="discover-press")
@@ -144,6 +167,8 @@ import kotlinx.coroutines.launch
                                                 contentAlignment=Alignment.Center){ChromeGlyph("play",Color.White,Modifier.size(13.dp))}
                                         }
                                     }
+                                    repeat((if(section.items.size==3)3 else 2)-rowItems.size){Spacer(Modifier.weight(1f))}
+                                }
                                 }
                             }
                         }

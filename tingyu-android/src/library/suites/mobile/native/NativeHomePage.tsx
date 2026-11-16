@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useLibraryHomeOnline } from '../../../core/bindings/useLibraryHomeOnline';
 import { useLibraryHomeNavidrome } from '../../../core/bindings/useLibraryHomeNavidrome';
 import { resolveNavidromeCollectionType } from '../../../core/model/navidromeHomeModel';
-import NativeHomeOverview, { type NativeHomeProps } from './NativeHomeOverview';
+import type { NativeHomeProps } from './NativeHomeOverview';
+import NativeDiscoveryHome from './discovery/NativeDiscoveryHome';
 import NativeDirectoryPage from './NativeDirectoryPage';
 import NativeLocalLibrary from './NativeLocalLibrary';
 import NativeLocalHomeOverview from './NativeLocalHomeOverview';
@@ -35,7 +36,7 @@ export default function NativeHomePage(args:NativeHomeProps&{page:'home'|'librar
     // 推荐页按「音源」切换内容：本地音乐 → 本地推荐首页，在线 → 原来的推荐首页。
     // 只换首页数据源；播放器、迷你条与队列不归它管，切来源不打断播放。
     const homeSource=useHomeSourceStore(state=>state.source);
-    if(args.page==='home')return homeSource==='local'?<NativeLocalHomeOverview {...args}/>:<NativeHomeOverview {...args}/>;
+    if(args.page==='home')return homeSource==='local'?<NativeLocalHomeOverview {...args}/>:<NativeDiscoveryHome {...args}/>;
     // 资料库以全局音源为准：选了「本地音乐」就直接进本地曲库，不再让旧的在线页签残留
     // （homeViewTab 由 useHomeSourceStore.setSource 同步，但旧版本持久化可能不一致）。
     if(homeSource==='local')return <NativeLocalLibrary {...args}/>;

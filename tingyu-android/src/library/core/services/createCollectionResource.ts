@@ -42,6 +42,8 @@ export const resolveCollectionResourceKey = (
 
 /** 按来源创建资源；本地集合的曲目由调用方算好，用 createStaticCollectionResource。 */
 export const createCollectionResource = (key: string, descriptor: LibraryCollectionDescriptor): CollectionResource => {
+    if (descriptor.source === 'online' && descriptor.type === 'discovery' && descriptor.discoveryTracks)
+        return createStaticCollectionResource(key, descriptor.discoveryTracks);
     if (descriptor.source === 'online') return createOnlineCollectionResource(key, onlineDeps);
     if (descriptor.source === 'navidrome') return createNavidromeCollectionResource(key);
     return createStaticCollectionResource(key, []);
