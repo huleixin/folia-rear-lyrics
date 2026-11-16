@@ -3,6 +3,7 @@ import type { LocalSong } from '../types';
 import type { LocalLibraryAssignment, LocalLibraryEntity } from '../types/localLibrary';
 import type { LocalCoverAsset } from '../types/localCover';
 import { migrateLegacyLocalSongRecords } from './localLibraryV8Migration';
+import type { ListeningSessionRecord } from '../types/listeningStatistics';
 
 // src/services/appDatabase.ts
 // Owns the complete typed Dexie schema for local songs, entities, and content-addressed cover assets.
@@ -45,6 +46,7 @@ export class AppDatabase extends Dexie {
   local_cover_assets!: Table<LocalCoverAsset, string>;
   /** 本地歌的播放记录（只存 songId + 次数 + 最近时间；展示用的元数据现场从曲库 join）。 */
   local_play_history!: Table<LocalPlayHistoryRecord, string>;
+  listening_sessions!: Table<ListeningSessionRecord, string>;
 
   constructor(name = APP_DATABASE_NAME) {
     super(name);
@@ -125,6 +127,11 @@ export class AppDatabase extends Dexie {
       local_cover_assets: 'id',
       appearance_profiles: 'id',
       local_play_history: 'songId, lastPlayedAt',
+    });
+
+    // Additive migration: preserve every existing table, preference and playback history.
+    this.version(3).stores({
+      listening_sessions: 'id, startedAt, songKey, [providerId+accountKey], [songKey+startedAt]',
     });
 
     this.on('versionchange', event => {
