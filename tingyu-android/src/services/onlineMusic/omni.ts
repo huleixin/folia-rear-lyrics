@@ -246,6 +246,36 @@ export const omni = {
         return typeof requireOnlineMusicProvider(providerId).recommendations?.getDailySongs === 'function';
     },
 
+    /** Discovery reads explicit owners; browsing another source never switches the player account. */
+    getRecommendationCapabilities(providerId: OmniProviderId) {
+        const recommendations = requireOnlineMusicProvider(providerId).recommendations;
+        return {
+            daily: typeof recommendations?.getDailySongs === 'function',
+            fm: typeof recommendations?.getPersonalFm === 'function',
+            collections: typeof recommendations?.getRecommendedCollections === 'function',
+            history: typeof recommendations?.getHistorySongs === 'function'
+                && (typeof recommendations?.getHistoryEntries === 'function' || typeof recommendations?.getHistoryDates === 'function'),
+        };
+    },
+
+    async getProviderDailySongs(providerId: OmniProviderId, refresh = false): Promise<UnifiedSong[]> {
+        return requireOnlineMusicProvider(providerId).recommendations?.getDailySongs?.(refresh) ?? [];
+    },
+
+    async getProviderRecommendedCollections(providerId: OmniProviderId, limit = 20): Promise<OmniCollection[]> {
+        return requireOnlineMusicProvider(providerId).recommendations?.getRecommendedCollections?.(limit) ?? [];
+    },
+
+    async getProviderRecommendationHistory(providerId: OmniProviderId): Promise<OmniHistoryEntry[]> {
+        const recommendations = requireOnlineMusicProvider(providerId).recommendations;
+        if (recommendations?.getHistoryEntries) return recommendations.getHistoryEntries();
+        return (await recommendations?.getHistoryDates?.() ?? []).map(date => ({ id: date, label: date }));
+    },
+
+    async getProviderRecommendationHistorySongs(providerId: OmniProviderId, entry: OmniHistoryEntry | string): Promise<UnifiedSong[]> {
+        return requireOnlineMusicProvider(providerId).recommendations?.getHistorySongs?.(entry) ?? [];
+    },
+
     getProviderAvailability(providerId: OmniProviderId) {
         return requireOnlineMusicProvider(providerId).getAvailability?.() ?? { configured: true };
     },
