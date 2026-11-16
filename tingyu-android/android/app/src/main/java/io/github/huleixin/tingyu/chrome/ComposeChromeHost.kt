@@ -962,7 +962,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 label = "nav-footer-presence",
             )
             val miniPresence by animateFloatAsState(
-                targetValue = if (miniTarget) 1f else 0f,
+                targetValue = if (miniTarget || playerPanel.dragging) 1f else 0f,
                 animationSpec = if (motionReduced) snap()
                     else if (miniTarget) tween(
                         durationMillis = NativeFooterLayout.FooterEnterMs,
@@ -974,6 +974,12 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     ),
                 label = "mini-footer-presence",
             )
+            // During a pull, let the mini bar enter only in the last part of the travel.
+            // It must not overlap the still-moving lyric shell.
+            val pullMiniPresence by remember(playerPanel,miniPresence) { derivedStateOf {
+                if (!playerPanel.initialized) miniPresence
+                else miniPresence * ((1f - playerPanel.progress) / .22f).coerceIn(0f, 1f)
+            } }
             val pageFooterTops=if(footerHiddenForIme)emptyList()else listOf("nav","mini").mapNotNull{id->
                 if(!NativeFooterLayout.bottomBar(id,width))return@mapNotNull null
                 val hasSurface=visible.any{it.id==id}||ChromeBootSeed.shouldSeed(id,destination,firstHomeFrame,webOverlay,liveChrome)
@@ -1229,7 +1235,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                         if(id=="stage"&&width>height)translationY=(height-rect.top)*density.density*(1f-stagePresence)
                         alpha = when {
                             NativeFooterLayout.imeHides(id,width,footerHiddenForIme) -> 0f
-                            id=="mini" -> rect.alpha * NativeFooterLayout.miniPresenceAlpha(destination,miniPresence,settingsFromStage) * miniStageOpacity.value
+                            id=="mini" -> rect.alpha * NativeFooterLayout.miniPresenceAlpha(destination,pullMiniPresence,settingsFromStage) * miniStageOpacity.value
                             id=="nav" -> rect.alpha * navPresence
                             else -> rect.alpha
                         }
@@ -1238,7 +1244,7 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                             val navScale = 0.96f + 0.04f * navPresence
                             scaleX = navScale; scaleY = navScale
                         } else if(id=="mini" && destination != "stage" && !pendingStageEntry && !stageExit.active) {
-                            translationY = with(density) { (NativeFooterLayout.MiniSlideOffsetDp * (1f - miniPresence)).dp.toPx() }
+                            translationY = with(density) { (NativeFooterLayout.MiniSlideOffsetDp * (1f - pullMiniPresence)).dp.toPx() }
                         }
                     }
                     val actions: (String,Double)->Unit = actions@ { action,value ->
@@ -1324,7 +1330,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                 // 360ms（320~380ms 目标带），入场是页面唯一的一套上滑 ——
                 // WebView 侧的同名位移已在 composeOwnsMinimalEntry 里关掉。
                 enter = EnterTransition.None, // The retained canvas is revealed by liquidPlayer below.
-                exit = when (MinimalPlayerExitPolicy.exit(destination, page != null,minimalCollapseCommitted)) {
+                // The panel already animated to the mini endpoint. Do not run a second
+                // slide/fade when the route commits; that was the visible double exit.
+                exit = when (MinimalPlayerExitPolicy.exit(destination, page != null,
+                    minimalCollapseCommitted || playerCollapseSettled)) {
                     MinimalPlayerExitPolicy.Exit.NONE -> ExitTransition.None
                     MinimalPlayerExitPolicy.Exit.SLIDE_AND_FADE -> slideOutVertically(
                         animationSpec = tween(TingYuMotion.MinimalExitMs, easing = TingYuMotion.StageExit),
@@ -1365,7 +1374,10 @@ class ComposeChromeHost(private val web: WebView, var listener: ChromeActionList
                     safeTop = safeTop,
                     safeBottom = safeBottom,
                     onCollapse = {
-                        playerPanel.adopt(if(immersiveStyle)immersiveMorph.fraction() else playerReveal.value)
+                        // The player is already fully expanded when the header button is
+                        // pressed. Adopting the entry reveal (possibly still <1) would make
+                        // the first tap close only part of the way, then finish elsewhere.
+                        playerPanel.adopt(1f)
                         playerPanel.close(motionReduced)
                     },
                     onOpenStage = { minimalCommands.openStage() },

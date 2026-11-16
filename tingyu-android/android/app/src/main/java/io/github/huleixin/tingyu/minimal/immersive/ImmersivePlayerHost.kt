@@ -14,7 +14,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.*
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -187,10 +186,11 @@ internal fun ImmersivePlayerHost(
                     }
                 }
             }
-            SharedTransitionLayout(Modifier.fillMaxSize().graphicsLayer {
-                // The scene and the moving shared artwork clear one current-frame target.
-                compositingStrategy = if(shellTransitioning.value) CompositingStrategy.Offscreen else CompositingStrategy.Auto
-            }.then(if (!window.isLandscape) Modifier.nestedScroll(scroll) else Modifier).then(if (page == MeloXNowPlayingPage.Artwork && !window.isLandscape) grabber else Modifier)) {
+            // The shell, scene and shared artwork each own their invalidation. A full-screen
+            // offscreen layer here kept stale pixels during slow drags and caused trails.
+            SharedTransitionLayout(Modifier.fillMaxSize()
+                .then(if (!window.isLandscape) Modifier.nestedScroll(scroll) else Modifier)
+                .then(if (page == MeloXNowPlayingPage.Artwork && !window.isLandscape) grabber else Modifier)) {
                 val shared = this
                 // Retained drawing survives interaction shutdown during exit.
                 val drawing = !preview && foreground && (active || closing.value)
@@ -212,7 +212,9 @@ internal fun ImmersivePlayerHost(
                             Box(Modifier.fillMaxSize().immersiveSceneReveal(outer)) {
                                 MeloXIOSNowPlayingScene(state, page, sourcePage, onCollapse, ::select,
                                     onShowActions, onShowQuality, grabberDragModifier = grabber,
-                                    lyricsActive = foreground && active && !shellTransitioning.value, residentLayersReady = ready,
+                                    // Keep the lyric renderer active through the pull; its own
+                                    // scroll-follow pause is separate from drawing/geometry.
+                                    lyricsActive = foreground && active, residentLayersReady = ready,
                                     residentQueueLayersReady = queueReady, orientTransition = orient,
                                     columnCenterProgress = { center.value }, shellTransitioning = shellTransitioning,
                                     closingPlayer = closing, sharedTransitionScope = shared, preview = preview)

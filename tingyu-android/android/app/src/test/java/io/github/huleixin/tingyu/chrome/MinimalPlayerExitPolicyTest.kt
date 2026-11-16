@@ -86,6 +86,14 @@ class MinimalPlayerExitPolicyTest {
     }
 
     @Test
+    fun completedPanelPullDoesNotRunASecondExitAnimation() {
+        for (to in listOf("home", "search", "collection")) {
+            assertEquals("已到迷你栏终点: " + to, MinimalPlayerExitPolicy.Exit.NONE,
+                MinimalPlayerExitPolicy.exit(to, covered = false, collapsed = true))
+        }
+    }
+
+    @Test
     fun holdNeverOutstaysAHumanSenseOfImmediacy() {
         assertTrue(
             "压上来之后要尽快摘掉，否则会一直占着一个全屏图层",

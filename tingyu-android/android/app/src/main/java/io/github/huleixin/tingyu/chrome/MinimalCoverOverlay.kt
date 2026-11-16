@@ -6,19 +6,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/MinimalCoverOverlay.kt
 internal val LocalMinimalCoverOverlay = staticCompositionLocalOf<SharedTransitionScope?> { null }
 /** The real cover is drawn once above pager clipping; no thumbnail copy or second image loader. */
 @Composable internal fun MinimalCoverOverlay(content: @Composable ()->Unit) {
-    val motion = LocalMinimalMorph.current
-    // Isolate the live shell plus overlay artwork while their damage bounds move.
-    // Each frame clears this one target; release it as soon as motion settles.
-    SharedTransitionLayout(Modifier.fillMaxSize().graphicsLayer {
-        compositingStrategy = if(motion?.active() == true) CompositingStrategy.Offscreen else CompositingStrategy.Auto
-    }) {
+    // Do not force a full-screen offscreen target during the pull. That target caches
+    // the previous frame while the clip and artwork move, producing visible trails.
+    // The moving cover has its own graphicsLayer transform below.
+    SharedTransitionLayout(Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalMinimalCoverOverlay provides this) { content() }
     }
 }

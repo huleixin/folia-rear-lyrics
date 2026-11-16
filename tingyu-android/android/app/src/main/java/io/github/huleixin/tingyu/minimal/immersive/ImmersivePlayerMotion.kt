@@ -29,13 +29,21 @@ internal class ImmersivePlayerMotion(val panel: Rect?, val cover: Rect?,
     }
     fun coverBounds(target: Rect): Rect = lerp(cover ?: target, target, fraction())
     fun miniAlpha() = ((1f - fraction()) * 5f - 3.5f).coerceIn(0f,1f)
-    fun shellAlpha() = (fraction() / .12f).coerceIn(0f,1f)
+    // Keep the moving shell opaque until it reaches the mini bar. Fading the whole
+    // scene during the drag exposes the page underneath and makes lyrics look static.
+    fun shellAlpha() = 1f
     fun materialFraction(): Float {
         val p = ((fraction() - .03f) / .80f).coerceIn(0f, 1f)
         return p * p * (3f - 2f * p)
     }
     fun coverAlpha() = 1f
-    fun sceneAlpha() = ((fraction() - .12f) / .68f).coerceIn(0f, 1f)
+    fun sceneAlpha() = 1f
+
+    /** Vertical travel of the full-size scene; the shell clip supplies the remaining geometry. */
+    fun sceneTranslationY(size: Size): Float {
+        val bounds = panelBounds(size)
+        return bounds.top - (size.height - bounds.height) * 0f
+    }
 
 }
 
@@ -57,7 +65,13 @@ internal fun Modifier.immersivePlayerContainer(motion: ImmersivePlayerMotion?) =
 
 /** Decorations consume the same interactive progress as the shared artwork. */
 internal fun Modifier.immersiveSceneReveal(motion: ImmersivePlayerMotion?) = graphicsLayer {
-    alpha = motion?.sceneAlpha() ?: 1f
+    if (motion != null && motion.active()) {
+        alpha = motion.sceneAlpha()
+        translationY = motion.sceneTranslationY(size)
+    } else {
+        alpha = 1f
+        translationY = 0f
+    }
 }
 
 @Composable internal fun Modifier.immersiveMovingCover(anchor: PlayerArtworkAnchor, active: Boolean): Modifier {

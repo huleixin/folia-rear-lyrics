@@ -56,7 +56,23 @@ class ImmersiveMotionTest {
         exit.begin(null,true) {}
         val closing=(0..100).map { leaving.value=it/100f;motion.materialFraction() }
         assertTrue(closing.zipWithNext().all { (a,b)->b<=a && a-b<.03f })
-        assertEquals(0f,closing.last(),0f);assertEquals(0f,motion.shellAlpha(),0f)
+        assertEquals(0f,closing.last(),0f);assertEquals(1f,motion.shellAlpha(),0f)
+    }
+
+    @Test fun closingSceneMovesWithTheShellWithoutFadingEarly() {
+        val size = Size(400f, 800f)
+        val motion = ImmersivePlayerMotion(Rect(0f, 700f, 400f, 760f),
+            Rect(10f, 710f, 50f, 750f), mutableStateOf(1f), NativeStageExit(), mutableStateOf(0f), false)
+        val travelled = listOf(0f, .2f, .5f, .8f, 1f).map { drag ->
+            motion.drag = drag
+            assertEquals(1f, motion.sceneAlpha(), 0f)
+            motion.sceneTranslationY(size)
+        }
+        assertEquals(0f, travelled.first(), 0f)
+        assertTrue(travelled.zipWithNext().all { (a, b) -> b >= a })
+        assertEquals(700f, travelled.last(), .01f)
+        motion.drag = 0f
+        assertEquals(0f, motion.sceneTranslationY(size), 0f)
     }
 
 }

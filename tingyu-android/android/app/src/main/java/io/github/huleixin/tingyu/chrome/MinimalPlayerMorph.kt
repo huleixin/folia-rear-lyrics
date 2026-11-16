@@ -59,7 +59,9 @@ internal class MinimalPlayerMorph(val panel: Rect, val cover: Rect, val entry: S
     }
     fun shellAlpha()=if(interactiveFraction()!=null)reveal(0f,.12f)else enterRamp(0f,35f)*(if(exit.active)1f-ramp(140f,380f)else 1f)
     fun decorations()=if(interactiveFraction()!=null)reveal(.25f,.90f)else if(exit.active)enterRamp(600f,980f)*(1f-ramp(0f,100f)) else enterRamp(600f,980f)
-    fun coverAlpha()=if(interactiveFraction()!=null)1f else if(exit.active)1f-ramp(380f,500f) else 1f
+    // The cover must reach the mini endpoint with the shell. Fading it earlier made it
+    // disappear while the rest of the page was still travelling.
+    fun coverAlpha()=1f
     fun miniAlpha(): Float {
         interactiveFraction()?.let { return ((1f-it)*5f-3.5f).coerceIn(0f,1f) }
         val before=1f-enterRamp(0f,35f)
