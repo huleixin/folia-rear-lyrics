@@ -4,10 +4,10 @@ import { listeningRange } from '../../../src/library/core/model/listeningRange';
 // test/unit/library/listeningRange.test.ts
 const now = new Date(2026, 10, 17, 15, 20).getTime();
 describe('calendar listening ranges', () => {
-    it('uses local day, Monday week, calendar month and year boundaries', () => {
+    it('uses local day, rolling 7-day week, rolling 30-day month and year boundaries', () => {
         expect(listeningRange('today', now)).toEqual({ from: new Date(2026, 10, 17).getTime(), to: now + 1 });
-        expect(listeningRange('week', now)?.from).toBe(new Date(2026, 10, 16).getTime());
-        expect(listeningRange('month', now)?.from).toBe(new Date(2026, 10, 1).getTime());
+        expect(listeningRange('week', now)?.from).toBe(new Date(2026, 10, 11).getTime());
+        expect(listeningRange('month', now)?.from).toBe(new Date(2026, 9, 19).getTime());
         expect(listeningRange('year', now)?.from).toBe(new Date(2026, 0, 1).getTime());
     });
     it('includes the entire final selected day and respects leap years', () => {

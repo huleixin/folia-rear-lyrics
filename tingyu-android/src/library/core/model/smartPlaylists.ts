@@ -6,10 +6,12 @@ import { getPlaybackSongKey, getPlaybackSourceRef } from '../../../utils/appPlay
 export type SmartField = 'source' | 'artist' | 'album' | 'name' | 'liked' | 'plays' | 'seconds'
     | 'lastPlayed' | 'addedAt' | 'quality' | 'duration' | 'folder' | 'tag';
 export type SmartCondition = { field: SmartField; op: 'contains' | 'is' | 'gte' | 'lte'; value: string | number | boolean };
+export type SmartTemplateId = 'most_played' | 'recent_liked' | 'artist' | 'long_time_no_see' | 'lossless' | 'custom';
 export type SmartRule = {
     id: string; name: string; match: 'all' | 'any'; conditions: SmartCondition[];
-    sort: 'name' | 'plays' | 'seconds' | 'lastPlayed' | 'addedAt'; limit: number;
+    sort: 'name' | 'plays' | 'seconds' | 'lastPlayed' | 'addedAt' | 'random'; limit: number;
     periodDays?: number; night?: { from: number; to: number }; year?: number;
+    templateId?: SmartTemplateId; updatedAt?: number;
 };
 export interface SmartCandidate {
     song: SongResult; liked?: boolean; addedAt?: number; folder?: string; tags?: string[];
@@ -101,9 +103,86 @@ function selectSmartFacts(input: readonly SmartFacts[], rule: SmartRule): SmartF
         return rule.match === 'any' ? rule.conditions.some(condition => matches(fact, condition))
             : rule.conditions.every(condition => matches(fact, condition));
     });
-    facts.sort((a,b) => (rule.sort === 'name' ? a.song.name.localeCompare(b.song.name)
-        : (b[rule.sort] || 0) - (a[rule.sort] || 0)) || getPlaybackSongKey(a.song).localeCompare(getPlaybackSongKey(b.song)));
+    if (rule.sort === 'random') {
+        facts.sort((a, b) => {
+            const ha = hashString(`${rule.id}:${getPlaybackSongKey(a.song)}`);
+            const hb = hashString(`${rule.id}:${getPlaybackSongKey(b.song)}`);
+            return ha - hb;
+        });
+    } else {
+        const sortKey = rule.sort as Exclude<SmartRule['sort'], 'name' | 'random'>;
+        facts.sort((a,b) => (rule.sort === 'name' ? a.song.name.localeCompare(b.song.name)
+            : (b[sortKey] || 0) - (a[sortKey] || 0)) || getPlaybackSongKey(a.song).localeCompare(getPlaybackSongKey(b.song)));
+    }
     return facts.slice(0, Math.min(1000, Math.max(1, Math.floor(rule.limit) || 30)));
+}
+
+function hashString(text: string): number {
+    let h = 2166136261;
+    for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+    return h >>> 0;
+}
+
+export interface SmartTemplateInfo {
+    id: SmartTemplateId;
+    title: string;
+    description: string;
+    icon: string;
+}
+
+export const SMART_TEMPLATES: readonly SmartTemplateInfo[] = [
+    { id: 'most_played', title: '百听不厌', description: '播放次数最多的歌曲', icon: 'flame' },
+    { id: 'recent_liked', title: '最近收藏', description: '近期收藏的歌曲', icon: 'heart' },
+    { id: 'artist', title: '专属歌手', description: '指定歌手的歌曲', icon: 'mic' },
+    { id: 'long_time_no_see', title: '好久不见', description: '曾听过但近期未播', icon: 'clock' },
+    { id: 'lossless', title: '无损精选', description: '确认无损音质歌曲', icon: 'sparkles' },
+    { id: 'custom', title: '高级自定义', description: '自由组合筛选条件', icon: 'sliders-horizontal' },
+];
+
+export function isTemplateSupported(
+    templateId: SmartTemplateId,
+    candidates: readonly SmartCandidate[],
+    sessions: readonly ListeningSessionRecord[],
+): { supported: boolean; reason?: string } {
+    if (templateId === 'most_played' || templateId === 'long_time_no_see') {
+        const hasHistory = sessions.length > 0 || candidates.some(c => (c.legacyLastPlayed ?? 0) > 0);
+        return hasHistory ? { supported: true } : { supported: false, reason: '暂无有效收听记录，听歌满 30 秒后即可启用' };
+    }
+    if (templateId === 'recent_liked') {
+        const hasLiked = candidates.some(c => c.liked || (c.addedAt ?? 0) > 0);
+        return hasLiked ? { supported: true } : { supported: false, reason: '暂未同步到带收藏状态的歌曲' };
+    }
+    if (templateId === 'lossless') {
+        const hasLossless = candidates.some(c => c.song.catalogAudioSpecs?.some(spec => ['lossless', 'hires', 'master', 'dolby', 'dts'].includes(spec)));
+        return hasLossless ? { supported: true } : { supported: false, reason: '当前索引曲库暂无已确认的无损音质字段' };
+    }
+    return { supported: true };
+}
+
+export function buildRuleFromTemplate(
+    templateId: SmartTemplateId,
+    options: { id: string; name?: string; artistName?: string; sort?: SmartRule['sort']; limit?: number; now?: number },
+): SmartRule {
+    const now = options.now ?? Date.now();
+    const limit = Math.min(1000, Math.max(1, options.limit ?? 30));
+    const updatedAt = now;
+    switch (templateId) {
+        case 'most_played':
+            return { id: options.id, templateId, name: options.name?.trim() || '百听不厌', match: 'all', conditions: [{ field: 'plays', op: 'gte', value: 1 }], sort: options.sort ?? 'plays', limit, updatedAt };
+        case 'recent_liked':
+            return { id: options.id, templateId, name: options.name?.trim() || '最近收藏', match: 'all', conditions: [{ field: 'liked', op: 'is', value: true }], sort: options.sort ?? 'addedAt', limit, updatedAt };
+        case 'artist': {
+            const artist = options.artistName?.trim() || '';
+            return { id: options.id, templateId, name: options.name?.trim() || (artist ? `${artist} 精选` : '专属歌手'), match: 'all', conditions: artist ? [{ field: 'artist', op: 'contains', value: artist }] : [], sort: options.sort ?? 'plays', limit, updatedAt };
+        }
+        case 'long_time_no_see':
+            return { id: options.id, templateId, name: options.name?.trim() || '好久不见', match: 'all', conditions: [{ field: 'lastPlayed', op: 'gte', value: 1 }, { field: 'lastPlayed', op: 'lte', value: now - 30 * DAY }], sort: options.sort ?? 'lastPlayed', limit, updatedAt };
+        case 'lossless':
+            return { id: options.id, templateId, name: options.name?.trim() || '无损精选', match: 'any', conditions: ['lossless', 'hires', 'master', 'dolby', 'dts'].map(value => ({ field: 'quality', op: 'is', value })), sort: options.sort ?? 'name', limit, updatedAt };
+        case 'custom':
+        default:
+            return { id: options.id, templateId: 'custom', name: options.name?.trim() || '自定义智能歌单', match: 'all', conditions: [], sort: options.sort ?? 'name', limit, updatedAt };
+    }
 }
 
 export function defaultSmartRules(now = Date.now()): SmartRule[] {

@@ -5,10 +5,12 @@ export const discoveryModules = ['roam', 'shortcuts', 'radars', 'songs', 'collec
 export type DiscoveryModule = typeof discoveryModules[number];
 export type DiscoverySettings = {
     source: string; enabled: Record<string, boolean>; weights: Record<string, number>; includeLocal: boolean;
+    hideUnloggedInPrompts: boolean;
     exploration: number; crossArtist: number; familiarity: number; record: boolean;
     modules: DiscoveryModule[]; hidden: DiscoveryModule[];
 };
 export const defaultDiscoverySettings: DiscoverySettings = { source: 'all', enabled: {}, weights: {}, includeLocal: true,
+    hideUnloggedInPrompts: true,
     exploration: .2, crossArtist: .3, familiarity: .5, record: true, modules: [...discoveryModules], hidden: [] };
 type Store = DiscoverySettings & { patch: (patch: Partial<DiscoverySettings>) => void; reset: () => void };
 export const useDiscoverySettingsStore = create<Store>()(persist(set => ({

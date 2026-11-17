@@ -509,5 +509,23 @@ if("catalog".equals(action))jobs.catalog(d);if("enqueue".equals(action))jobs.enq
         }
         catch(Exception|LinkageError error){PlaybackTestDiagnostics.error("command-error",error);call.reject("原生播放命令失败："+error.getClass().getSimpleName());}
     });}
+    @PluginMethod public void drainListeningSessions(PluginCall call){
+        if(!ENABLED){call.resolve(new JSObject().put("sessions",new org.json.JSONArray()));return;}
+        try{
+            getActivity().runOnUiThread(() -> {
+                try{
+                    call.resolve(new JSObject().put("sessions",NativeAudioEngine.drainListeningSessions(getContext())));
+                }catch(Exception error){
+                    call.resolve(new JSObject().put("sessions",new org.json.JSONArray()));
+                }
+            });
+        }catch(Exception error){
+            call.resolve(new JSObject().put("sessions",new org.json.JSONArray()));
+        }
+    }
+    @PluginMethod public void clearListeningSessions(PluginCall call){
+        try{NativeAudioEngine.clearListeningSessions(getContext());}catch(Exception ignored){}
+        call.resolve();
+    }
     @Override protected void handleOnDestroy(){SleepTimerController timer=SleepTimerController.get(getContext());timer.unobserve(sleepEvents);timer.compatibilityDestroyed(getBridge().getWebView());if(engine!=null)engine.unlisten(events);super.handleOnDestroy();}
 }

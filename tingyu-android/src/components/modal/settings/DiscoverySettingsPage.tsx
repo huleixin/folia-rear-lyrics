@@ -16,7 +16,7 @@ import { discoverySettingsModel, discoverySettingsPatch, resetDiscoveryLayout, r
 export default function DiscoverySettingsPage({onClose}:{onClose:()=>void}) {
     useTranslation(); // Refresh presentation labels after a language change.
     const root=useRef<HTMLDivElement>(null),settings=useDiscoverySettingsStore();
-    useOnlineProviderAccountStore(s=>s.accounts);
+    const accounts=useOnlineProviderAccountStore(s=>s.accounts);
     useSyncExternalStore(omni.subscribeProviders,omni.getProviderRegistryVersion);
     const fromIndex=useSettingsModalStore(s=>s.settingsModalState.returnToIndex);
     const [confirm,setConfirm]=useState<string|null>(null);
@@ -29,7 +29,7 @@ export default function DiscoverySettingsPage({onClose}:{onClose:()=>void}) {
         window.addEventListener('keydown',onKey,true);
         return ()=>window.removeEventListener('keydown',onKey,true);
     },[fromIndex,onClose]);
-    useNativeSettingsDocument(root,true,'discovery','推荐设置',discoverySettingsModel(settings,discoverySources()),(id,event)=>{
+    useNativeSettingsDocument(root,true,'discovery','推荐设置',discoverySettingsModel(settings,discoverySources().map(s=>({...s,loggedIn:Boolean(accounts[s.providerId]?.user)}))),(id,event)=>{
         if(['clear','resetLayout','resetParameters'].includes(id)){setConfirm(id);return;}
         if(id==='manageSources') {
             if(fromIndex)useSettingsModalStore.getState().openSettingsFromIndex('integration');

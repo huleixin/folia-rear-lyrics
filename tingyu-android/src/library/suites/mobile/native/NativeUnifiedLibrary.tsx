@@ -1,8 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import React, { useMemo, useState } from 'react';
+import {
+    ListPlus, SlidersHorizontal, TrendingUp, ArrowUpDown, RefreshCw,
+    LayoutGrid, Smartphone, RotateCcw, ChevronUp, ChevronDown,
+} from 'lucide-react';
 import { useNativePage } from '../../../../hooks/useNativePage';
 import { useUnifiedLibrary } from '../../../core/bindings/useUnifiedLibrary';
-import { useLibraryOrganization, collectionOrganizationKey } from '../../../core/state/useLibraryOrganization';
+import { useLibraryOrganization, collectionOrganizationKey, type LibrarySortKey } from '../../../core/state/useLibraryOrganization';
 import { omni } from '../../../../services/onlineMusic/omni';
 import { absolutePageImage } from '../../../../services/nativePages';
 import { useHomeSourceStore } from '../../../../stores/useHomeSourceStore';
@@ -10,104 +14,319 @@ import type { NativeHomeProps } from './NativeHomeOverview';
 import type { PageActions, PageSection } from '../../../../types/nativePages';
 import type { ProviderCollection } from '../../../../types/onlineMusic';
 import OperationPanel from '../../../../components/shared/OperationPanel';
+import MobileSheet from '../../../../components/shared/MobileSheet';
 import { pageRowActions } from '../../../../utils/nativePageActions';
 import { getSongCoverUrl } from '../../../../services/onlineMusic/songMetadata';
 import { privateLibrarySongs } from '../../../core/model/privateLibrarySongs';
 import { getPlaybackSongKey } from '../../../../utils/appPlaybackGuards';
 import type { SongResult } from '../../../../types';
-
 import { useLibraryInsights } from './useLibraryInsights';
 
 // src/library/suites/mobile/native/NativeUnifiedLibrary.tsx
+const SORT_LABELS: Array<{ id: LibrarySortKey; label: string }> = [
+    { id: 'source', label: '平台顺序' },
+    { id: 'recent_collect', label: '最近收藏' },
+    { id: 'recent_play', label: '最近播放' },
+    { id: 'count', label: '歌曲数量' },
+    { id: 'name', label: '歌单名称' },
+];
+
 export default function NativeUnifiedLibrary({ root, props, sources, onSources, onReady }: NativeHomeProps) {
     const { t } = useTranslation();
     const organization = useLibraryOrganization();
     const [resource, setResource] = useState<'playlists' | 'albums'>('playlists');
-    const [query, setQuery] = useState(''), [offset, setOffset] = useState(0), [group, setGroup] = useState('');
+    const [query, setQuery] = useState('');
+    const [offset, setOffset] = useState(0);
+    const [group, setGroup] = useState('');
     const [menu, setMenu] = useState<{ collection: ProviderCollection; key: string } | null>(null);
     const [manageOpen, setManageOpen] = useState(false);
+    const [platformOrderOpen, setPlatformOrderOpen] = useState(false);
+
     const feed = useUnifiedLibrary(props.isInteractive, organization.source, resource);
     const sharedInsights = useLibraryInsights(props, organization.source, feed.owner);
     const { data: insights, footprint } = sharedInsights;
-    const privateSongs = useMemo(() => privateLibrarySongs(insights.candidates, insights.sessions, query), [insights.candidates, insights.sessions, query]);
+
+    const privateSongs = useMemo(
+        () => privateLibrarySongs(insights.candidates, insights.sessions, query),
+        [insights.candidates, insights.sessions, query],
+    );
+
     const openSongs = (id: string, name: string, songs: SongResult[], description: string) => props.onOpenGridView({
-        source: 'online', providerId: 'discovery', type: 'discovery', id: 'library:' + id, name, description,
-        trackCount: songs.length, coverUrl: songs[0] ? getSongCoverUrl(songs[0]) : undefined, discoveryTracks: songs });
-    const keyOf = (item: ProviderCollection) => collectionOrganizationKey(item.providerId, feed.accountKey(item.providerId), item.type, item.id);
-    const all = feed.pages.flatMap(page => page.items).map(collection => ({ collection, key: keyOf(collection) }));
+        source: 'online',
+        providerId: 'discovery',
+        type: 'discovery',
+        id: 'library:' + id,
+        name,
+        description,
+        trackCount: songs.length,
+        coverUrl: songs[0] ? getSongCoverUrl(songs[0]) : undefined,
+        discoveryTracks: songs,
+    });
+
+    const availableProviderIds = useMemo(
+        () => feed.providers.map(p => p.providerId),
+        [feed.providers],
+    );
+
+    const effectivePlatformOrder = useMemo(() => {
+        const saved = (organization.platformOrder || []).filter(id => availableProviderIds.includes(id));
+        const rest = availableProviderIds.filter(id => !saved.includes(id));
+        return [...saved, ...rest];
+    }, [organization.platformOrder, availableProviderIds]);
+
+    const providerRank = useMemo(() => {
+        const map = new Map<string, number>();
+        effectivePlatformOrder.forEach((id, idx) => map.set(id, idx));
+        return map;
+    }, [effectivePlatformOrder]);
+
+    const lastPlayedByProvider = useMemo(() => {
+        const map = new Map<string, number>();
+        for (const s of insights.sessions) {
+            const prev = map.get(s.providerId) ?? 0;
+            if (s.startedAt > prev) map.set(s.providerId, s.startedAt);
+        }
+        return map;
+    }, [insights.sessions]);
+
+    const keyOf = (item: ProviderCollection) =>
+        collectionOrganizationKey(item.providerId, feed.accountKey(item.providerId), item.type, item.id);
+
+    const all = feed.pages.flatMap(page => page.items).map((collection, idx) => ({
+        collection,
+        key: keyOf(collection),
+        idx,
+    }));
+
     const groups = [...new Set(all.map(item => organization.collections[item.key]?.group).filter(Boolean))] as string[];
-    const selected = all.filter(({ collection, key }) => (!group || organization.collections[key]?.group === group)
+    const selected = all.filter(({ collection, key }) =>
+        (!group || organization.collections[key]?.group === group)
         && `${collection.name} ${collection.description || ''}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
-    selected.sort((a,b) => {
-        const x = organization.collections[a.key] || {}, y = organization.collections[b.key] || {};
+
+    selected.sort((a, b) => {
+        const x = organization.collections[a.key] || {};
+        const y = organization.collections[b.key] || {};
         const pinned = Number(!!y.pinned) - Number(!!x.pinned);
         if (pinned) return pinned;
         switch (organization.sort) {
-            case 'name': return a.collection.name.localeCompare(b.collection.name);
-            case 'count': return (b.collection.trackCount || 0) - (a.collection.trackCount || 0);
-            case 'updated': return (b.collection.updatedAt || 0) - (a.collection.updatedAt || 0);
-            case 'manual': return (x.order ?? Number.MAX_SAFE_INTEGER) - (y.order ?? Number.MAX_SAFE_INTEGER);
-            default: return 0;
+            case 'name':
+                return a.collection.name.localeCompare(b.collection.name);
+            case 'count':
+                return (b.collection.trackCount || 0) - (a.collection.trackCount || 0) || a.idx - b.idx;
+            case 'recent_collect':
+            case 'updated':
+                return (b.collection.updatedAt || 0) - (a.collection.updatedAt || 0) || a.idx - b.idx;
+            case 'recent_play': {
+                const pb = lastPlayedByProvider.get(b.collection.providerId) || b.collection.updatedAt || 0;
+                const pa = lastPlayedByProvider.get(a.collection.providerId) || a.collection.updatedAt || 0;
+                return pb - pa || a.idx - b.idx;
+            }
+            case 'manual':
+                return (x.order ?? Number.MAX_SAFE_INTEGER) - (y.order ?? Number.MAX_SAFE_INTEGER) || a.idx - b.idx;
+            case 'source':
+            default: {
+                const ra = providerRank.get(a.collection.providerId) ?? 999;
+                const rb = providerRank.get(b.collection.providerId) ?? 999;
+                return ra - rb || a.idx - b.idx;
+            }
         }
     });
-    const actions: PageActions = { sources: onSources, manage: () => setManageOpen(true), refresh: () => { feed.retry(); insights.retry(); },
-        filter: event => { setQuery(event.text || ''); setOffset(0); }, range: event => setOffset(Math.max(0, Math.floor((event.value || 0) / 100) * 100)),
+
+    const actions: PageActions = {
+        sources: onSources,
+        manage: () => setManageOpen(true),
+        refresh: () => { feed.retry(); insights.retry(); },
+        filter: event => { setQuery(event.text || ''); setOffset(0); },
+        range: event => setOffset(Math.max(0, Math.floor((event.value || 0) / 100) * 100)),
         layout: () => organization.patch({ layout: organization.layout === 'list' ? 'grid' : 'list' }),
-        local: () => useHomeSourceStore.getState().setSource('local') };
-    const sections: PageSection[] = [{ id: 'library-sources', layout: 'chips', items: [{ providerId: 'all' }, ...feed.providers].map(provider => {
-        const action = 'source:' + provider.providerId;
-        actions[action] = () => { organization.patch({ source: provider.providerId }); setOffset(0); };
-        return { id: action, title: provider.providerId === 'all' ? '综合' : omni.getProviderLabel(provider.providerId), action, selected: organization.source === provider.providerId };
-    }) },
-    { id: 'library-categories', layout: 'chips', items: (['playlists', 'albums'] as const).map(value => {
-        actions[value] = () => { setResource(value); setOffset(0); };
-        return { id: value, title: value === 'playlists' ? t('libraryV2.playlists') : t('libraryV2.albums'), action: value, selected: resource === value };
-    }) }, { id: 'filter', layout: 'input', value: query, placeholder: t('libraryV2.filter'), action: 'filter' },
-    { id: 'sort', layout: 'chips', items: (['source','name','count','updated','manual'] as const).map(sort => {
-        actions['sort:' + sort] = () => { organization.patch({ sort }); setOffset(0); };
-        return { id: sort, title: { source: t('libraryV2.sourceOrder'), name: t('libraryV2.name'), count: t('libraryV2.count'), updated: t('libraryV2.updated'), manual: t('libraryV2.manual') }[sort], action: 'sort:' + sort, selected: organization.sort === sort };
-    }) }, { id: 'library-view', layout: 'textActions', items: [
+        'toggle-platform-group': () => organization.patch({ groupByPlatform: !organization.groupByPlatform }),
+        'platform-order': () => setPlatformOrderOpen(true),
+        local: () => useHomeSourceStore.getState().setSource('local'),
+    };
+
+    const isUnified = organization.source === 'all';
+    const showPlatformGrouping = isUnified && organization.sort === 'source' && organization.groupByPlatform;
+
+    const viewActionItems = [
         { id: 'layout', title: organization.layout === 'list' ? t('libraryV2.grid') : t('libraryV2.list'), image: 'layout-grid', action: 'layout' },
-        { id: 'refresh', title: t('libraryV2.refresh'), image: 'refresh-cw', action: 'refresh' }] }];
-    if (groups.length) sections.push({ id: 'groups', layout: 'chips', items: ['', ...groups].map(value => {
-        const action = 'group:' + value; actions[action] = () => { setGroup(value); setOffset(0); };
-        return { id: action, title: value || t('libraryV2.groups'), action, selected: group === value };
-    }) });
-    const items = selected.slice(offset, offset + 100).map(({ collection, key }) => {
-        const action = 'open:' + key; actions[action] = () => props.onOpenGridView({ ...collection, source: 'online', raw: collection });
+        ...(isUnified && organization.sort === 'source'
+            ? [{ id: 'toggle-platform-group', title: organization.groupByPlatform ? '关闭平台分组' : '按平台分组显示', image: 'layers', action: 'toggle-platform-group' }]
+            : []),
+        ...(isUnified && effectivePlatformOrder.length > 1
+            ? [{ id: 'platform-order', title: '平台顺序', image: 'arrow-up-down', action: 'platform-order' }]
+            : []),
+        { id: 'refresh', title: t('libraryV2.refresh'), image: 'refresh-cw', action: 'refresh' },
+    ];
+
+    const sections: PageSection[] = [
+        {
+            id: 'library-sources',
+            layout: 'chips',
+            items: [{ providerId: 'all' }, ...feed.providers].map(provider => {
+                const action = 'source:' + provider.providerId;
+                actions[action] = () => { organization.patch({ source: provider.providerId }); setOffset(0); };
+                return {
+                    id: action,
+                    title: provider.providerId === 'all' ? '综合' : omni.getProviderLabel(provider.providerId),
+                    action,
+                    selected: organization.source === provider.providerId,
+                };
+            }),
+        },
+        {
+            id: 'library-categories',
+            layout: 'chips',
+            items: (['playlists', 'albums'] as const).map(value => {
+                actions[value] = () => { setResource(value); setOffset(0); };
+                return {
+                    id: value,
+                    title: value === 'playlists' ? t('libraryV2.playlists') : t('libraryV2.albums'),
+                    action: value,
+                    selected: resource === value,
+                };
+            }),
+        },
+        { id: 'filter', layout: 'input', value: query, placeholder: t('libraryV2.filter'), action: 'filter' },
+        {
+            id: 'sort',
+            layout: 'chips',
+            items: SORT_LABELS.map(item => {
+                const action = 'sort:' + item.id;
+                actions[action] = () => { organization.patch({ sort: item.id }); setOffset(0); };
+                const active = organization.sort === item.id || (item.id === 'recent_collect' && organization.sort === 'updated');
+                return { id: item.id, title: item.label, action, selected: active };
+            }),
+        },
+        { id: 'library-view', layout: 'textActions', items: viewActionItems },
+    ];
+
+    if (groups.length) {
+        sections.push({
+            id: 'groups',
+            layout: 'chips',
+            items: ['', ...groups].map(value => {
+                const action = 'group:' + value;
+                actions[action] = () => { setGroup(value); setOffset(0); };
+                return { id: action, title: value || t('libraryV2.groups'), action, selected: group === value };
+            }),
+        });
+    }
+
+    const toItem = ({ collection, key }: { collection: ProviderCollection; key: string }) => {
+        const action = 'open:' + key;
+        actions[action] = () => props.onOpenGridView({ ...collection, source: 'online', raw: collection });
         actions['menu:' + key] = () => setMenu({ collection, key });
-        return { id: key, title: (organization.collections[key]?.pinned ? '↑ ' : '') + collection.name,
-            subtitle: omni.getProviderLabel(collection.providerId) + (collection.trackCount == null ? '' : ' · ' + t('libraryV2.tracks', { count: collection.trackCount })),
-            image: absolutePageImage(collection.coverUrl), action, secondary: 'menu:' + key, secondaryLabel: t('mobileLibrary.more') };
-    });
-    sections.push({ id: 'directory', layout: organization.layout === 'list' ? 'rows' : 'cards', key: feed.owner + query + group + organization.sort, items, total: selected.length, offset, request: 'range' });
+        return {
+            id: key,
+            title: (organization.collections[key]?.pinned ? '↑ ' : '') + collection.name,
+            subtitle: omni.getProviderLabel(collection.providerId)
+                + (collection.trackCount == null ? '' : ' · ' + t('libraryV2.tracks', { count: collection.trackCount })),
+            image: absolutePageImage(collection.coverUrl),
+            action,
+            secondary: 'menu:' + key,
+            secondaryLabel: t('mobileLibrary.more'),
+        };
+    };
+
+    if (showPlatformGrouping) {
+        const byProvider = new Map<string, typeof selected>();
+        for (const entry of selected) {
+            const list = byProvider.get(entry.collection.providerId) ?? [];
+            list.push(entry);
+            byProvider.set(entry.collection.providerId, list);
+        }
+        for (const providerId of effectivePlatformOrder) {
+            const entriesForProvider = byProvider.get(providerId);
+            if (!entriesForProvider || !entriesForProvider.length) continue;
+            sections.push({
+                id: 'directory-group:' + providerId,
+                title: omni.getProviderLabel(providerId, false),
+                layout: organization.layout === 'list' ? 'rows' : 'cards',
+                key: `${feed.owner}:${providerId}:${query}:${group}:${organization.layout}`,
+                items: entriesForProvider.slice(0, 100).map(toItem),
+            });
+        }
+    } else {
+        const items = selected.slice(offset, offset + 100).map(toItem);
+        sections.push({
+            id: 'directory',
+            layout: organization.layout === 'list' ? 'rows' : 'cards',
+            key: `${feed.owner}:${query}:${group}:${organization.sort}:${organization.layout}`,
+            items,
+            total: selected.length,
+            offset,
+            request: 'range',
+        });
+    }
+
     for (const page of feed.pages) {
         const label = omni.getProviderLabel(page.providerId);
         if (!['ready', 'unsupported'].includes(page.status)) {
-            const text = { loading: t('libraryV2.loading'), login: t('libraryV2.loginHint'), empty: t('libraryV2.empty'), error: t('libraryV2.error') }[page.status as 'loading' | 'login' | 'empty' | 'error'];
-            const action = 'retry:' + page.providerId; actions[action] = () => page.status === 'login' ? void props.account.startLogin(page.providerId) : feed.retry();
-            sections.push({ id: 'state:' + page.providerId, layout: 'message', text: label + '：' + text, more: ['error','login'].includes(page.status) ? action : undefined, moreLabel: page.status === 'login' ? t('libraryV2.login') : t('libraryV2.retry') });
+            const text = {
+                loading: t('libraryV2.loading'),
+                login: t('libraryV2.loginHint'),
+                empty: t('libraryV2.empty'),
+                error: t('libraryV2.error'),
+            }[page.status as 'loading' | 'login' | 'empty' | 'error'];
+            const action = 'retry:' + page.providerId;
+            actions[action] = () => page.status === 'login' ? void props.account.startLogin(page.providerId) : feed.retry();
+            sections.push({
+                id: 'state:' + page.providerId,
+                layout: 'message',
+                text: label + '：' + text,
+                more: ['error', 'login'].includes(page.status) ? action : undefined,
+                moreLabel: page.status === 'login' ? t('libraryV2.login') : t('libraryV2.retry'),
+            });
         }
-        if (page.hasMore) { const action = 'more:' + page.providerId; actions[action] = () => { void feed.more(page.providerId); };
-            sections.push({ id: action, layout: 'textActions', items: [{ id: action, title: '加载更多 · ' + label, action }] }); }
+        if (page.hasMore) {
+            const action = 'more:' + page.providerId;
+            actions[action] = () => { void feed.more(page.providerId); };
+            sections.push({ id: action, layout: 'textActions', items: [{ id: action, title: '加载更多 · ' + label, action }] });
+        }
     }
+
     if (query && privateSongs.matches.length) {
         actions['search-all'] = () => openSongs('search', t('libraryV2.privateSearch'), privateSongs.matches, t('libraryV2.loadedScope'));
-        sections.push({ id: 'private-songs', title: t('libraryV2.privateSongs'), layout: 'rows', key: query, more: 'search-all', moreLabel: t('libraryV2.allResults'), items: privateSongs.matches.slice(0, 30).map(song => {
-            const action = 'private-song:' + getPlaybackSongKey(song); actions[action] = () => props.onPlaySong(song, privateSongs.matches);
-            return { id: action, title: song.name, subtitle: song.artists.map(artist => artist.name).join(' / '), image: absolutePageImage(getSongCoverUrl(song)), action };
-        }) });
+        sections.push({
+            id: 'private-songs',
+            title: t('libraryV2.privateSongs'),
+            layout: 'rows',
+            key: query,
+            more: 'search-all',
+            moreLabel: t('libraryV2.allResults'),
+            items: privateSongs.matches.slice(0, 30).map(song => {
+                const action = 'private-song:' + getPlaybackSongKey(song);
+                actions[action] = () => props.onPlaySong(song, privateSongs.matches);
+                return {
+                    id: action,
+                    title: song.name,
+                    subtitle: song.artists.map(artist => artist.name).join(' / '),
+                    image: absolutePageImage(getSongCoverUrl(song)),
+                    action,
+                };
+            }),
+        });
     }
-    if (query && !selected.length && !privateSongs.matches.length) sections.push({ id: 'empty-query', layout: 'message', text: t('libraryV2.emptyQuery') });
+
+    if (query && !selected.length && !privateSongs.matches.length) {
+        sections.push({ id: 'empty-query', layout: 'message', text: t('libraryV2.emptyQuery') });
+    }
+
     actions.likes = () => openSongs('likes', t('libraryV2.likes'), privateSongs.liked, t('libraryV2.likesScope'));
     actions.recent = () => openSongs('recent', t('libraryV2.recent'), privateSongs.recent, t('libraryV2.recentScope'));
-    sections.splice(3, 0, { id: 'personal-shortcuts', layout: 'quickLinks', items: [
-        { id: 'likes', title: t('libraryV2.likes'), subtitle: t('libraryV2.tracks', { count: privateSongs.liked.length }), image: 'heart', action: 'likes' },
-        { id: 'recent', title: t('libraryV2.recent'), subtitle: t('libraryV2.tracks', { count: privateSongs.recent.length }), image: 'clock', action: 'recent' },
-        { id: 'local', title: t('libraryV2.localMusic'), subtitle: t('libraryV2.tracks', { count: props.localSongs.length }), image: 'smartphone', action: 'local' },
-    ] });
+    sections.splice(3, 0, {
+        id: 'personal-shortcuts',
+        layout: 'quickLinks',
+        items: [
+            { id: 'likes', title: t('libraryV2.likes'), subtitle: t('libraryV2.tracks', { count: privateSongs.liked.length }), image: 'heart', action: 'likes' },
+            { id: 'recent', title: t('libraryV2.recent'), subtitle: t('libraryV2.tracks', { count: privateSongs.recent.length }), image: 'clock', action: 'recent' },
+            { id: 'local', title: t('libraryV2.localMusic'), subtitle: t('libraryV2.tracks', { count: props.localSongs.length }), image: 'smartphone', action: 'local' },
+        ],
+    });
+
     sections.push(...sharedInsights.sections);
     Object.assign(actions, sharedInsights.actions);
+
     const rowActions = pageRowActions(actions, id => {
         const prefix = id.startsWith('open:') ? 'open:' : id.startsWith('menu:') ? 'menu:' : null;
         if (!prefix) return;
@@ -117,38 +336,195 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
             ? props.onOpenGridView({ ...item.collection, source: 'online', raw: item.collection })
             : setMenu(item);
     });
-    useNativePage(root, 'home', props.isInteractive, sources.online.accountView === 'resolving' ? null : footprint.opened ? footprint.model
-        : { key: 'library:unified:' + feed.owner, title: t('libraryV2.library'), trailing: 'manage', trailingLabel: '资料库管理', trailingIcon: 'folder-cog', bottomClearance: 152, sections },
-        footprint.opened ? footprint.actions : rowActions, onReady);
-    // Organization is local only; remote edits remain on the existing permission-aware detail page.
+
+    useNativePage(
+        root,
+        'home',
+        props.isInteractive,
+        sources.online.accountView === 'resolving' ? null : footprint.opened ? null : {
+            key: 'library:unified:' + feed.owner,
+            title: t('libraryV2.library'),
+            trailing: 'manage',
+            trailingLabel: '资料库管理',
+            trailingIcon: 'folder-cog',
+            bottomClearance: 152,
+            sections,
+        },
+        rowActions,
+        onReady,
+    );
+
     const current = menu && organization.collections[menu.key];
+
+    const movePlatform = (index: number, direction: -1 | 1) => {
+        const target = index + direction;
+        if (target < 0 || target >= effectivePlatformOrder.length) return;
+        const next = [...effectivePlatformOrder];
+        const tmp = next[index];
+        next[index] = next[target];
+        next[target] = tmp;
+        organization.patch({ platformOrder: next });
+    };
+
+    const manageRows: Array<{ id: string; title: string; subtitle: string; icon: React.ReactNode; onClick: () => void }> = [
+        {
+            id: 'create-smart',
+            title: '创建智能歌单',
+            subtitle: '通过模板或筛选条件自动整理歌单',
+            icon: <ListPlus size={20} />,
+            onClick: () => { setManageOpen(false); sharedInsights.openCreateSmart(); },
+        },
+        {
+            id: 'manage-smart',
+            title: '管理智能歌单',
+            subtitle: '查看、编辑规则、更新或删除智能歌单',
+            icon: <SlidersHorizontal size={20} />,
+            onClick: () => { setManageOpen(false); sharedInsights.openManageSmart(); },
+        },
+        {
+            id: 'footprint',
+            title: '音乐足迹',
+            subtitle: '查看真实有效收听时长、趋势与来源占比',
+            icon: <TrendingUp size={20} />,
+            onClick: () => { setManageOpen(false); sharedInsights.openFootprint(); },
+        },
+        {
+            id: 'platform-order',
+            title: '平台排序',
+            subtitle: '自定义综合资料库中各音乐平台的展示顺序',
+            icon: <ArrowUpDown size={20} />,
+            onClick: () => { setManageOpen(false); setPlatformOrderOpen(true); },
+        },
+        {
+            id: 'refresh',
+            title: '刷新资料库',
+            subtitle: '重新同步已登录平台的歌单、专辑与本地统计',
+            icon: <RefreshCw size={20} />,
+            onClick: () => { setManageOpen(false); feed.retry(); insights.retry(); },
+        },
+        {
+            id: 'layout',
+            title: organization.layout === 'list' ? '切换为封面网格' : '切换为列表视图',
+            subtitle: '调整歌单与专辑的卡片排列方式',
+            icon: <LayoutGrid size={20} />,
+            onClick: () => { setManageOpen(false); organization.patch({ layout: organization.layout === 'list' ? 'grid' : 'list' }); },
+        },
+        {
+            id: 'local',
+            title: '本地音乐与目录管理',
+            subtitle: '管理手机本地曲库、目录扫描与标签匹配',
+            icon: <Smartphone size={20} />,
+            onClick: () => { setManageOpen(false); useHomeSourceStore.getState().setSource('local'); },
+        },
+        {
+            id: 'reset-org',
+            title: '清除本地置顶与分组',
+            subtitle: '恢复歌单默认顺序（不改动云端歌单内容）',
+            icon: <RotateCcw size={20} />,
+            onClick: () => {
+                setManageOpen(false);
+                Object.keys(organization.collections).forEach(k => organization.organize(k, { pinned: false, group: '', order: undefined }));
+                organization.patch({ sort: 'source' });
+            },
+        },
+    ];
+
     return <>
-    <OperationPanel id="library-organization" panel={menu ? { title: menu.collection.name, blocks: [
-        { id: 'pin', kind: 'toggle', label: t('libraryV2.pin'), value: !!current?.pinned },
-        { id: 'group', kind: 'input', label: t('libraryV2.group'), value: current?.group || '', placeholder: t('libraryV2.groupHint'), confirmLabel: t('libraryV2.saveGroup') },
-        { id: 'order', kind: 'actions', items: [{ id: 'first', label: t('libraryV2.first') }, { id: 'detail', label: t('libraryV2.manage') }] }
-    ] } : null} onClose={() => setMenu(null)} onAction={(id, payload) => {
-        if (!menu || keyOf(menu.collection) !== menu.key) { setMenu(null); return; }
-        if (id === 'pin') organization.organize(menu.key, { pinned: payload?.text === '1' });
-        if (id === 'group') organization.organize(menu.key, { group: payload?.text?.trim().slice(0, 60) || '' });
-        if (id === 'first') { organization.organize(menu.key, { order: Math.min(0, ...Object.values(organization.collections).map(value => value.order || 0)) - 1 }); organization.patch({ sort: 'manual' }); }
-        if (id === 'detail') props.onOpenGridView({ ...menu.collection, source: 'online', raw: menu.collection });
-        if (id !== 'pin') setMenu(null);
-    }}/>
-    <OperationPanel id="library-manage" panel={manageOpen ? { title: '资料库管理', blocks: [
-        { id: 'manage-actions', kind: 'actions', items: [
-            { id: 'refresh', label: '刷新资料库', icon: 'refresh-cw' },
-            { id: 'layout', label: organization.layout === 'list' ? '切换为封面网格' : '切换为列表视图', icon: 'layout-grid' },
-            { id: 'local', label: '管理本地音乐与导入', icon: 'smartphone' },
-            { id: 'reset-org', label: '清除本地置顶与分组', icon: 'rotate-ccw' },
-        ] }
-    ] } : null} onClose={() => setManageOpen(false)} onAction={id => {
-        setManageOpen(false);
-        if (id === 'refresh') { feed.retry(); insights.retry(); }
-        else if (id === 'layout') organization.patch({ layout: organization.layout === 'list' ? 'grid' : 'list' });
-        else if (id === 'local') useHomeSourceStore.getState().setSource('local');
-        else if (id === 'reset-org') { Object.keys(organization.collections).forEach(k => organization.organize(k, { pinned: false, group: '', order: undefined })); organization.patch({ sort: 'source' }); }
-    }}/>
-    {sharedInsights.panels}
+        <OperationPanel
+            id="library-organization"
+            panel={menu ? {
+                title: menu.collection.name,
+                blocks: [
+                    { id: 'pin', kind: 'toggle', label: t('libraryV2.pin'), value: !!current?.pinned },
+                    { id: 'group', kind: 'input', label: t('libraryV2.group'), value: current?.group || '', placeholder: t('libraryV2.groupHint'), confirmLabel: t('libraryV2.saveGroup') },
+                    { id: 'order', kind: 'actions', items: [{ id: 'first', label: t('libraryV2.first') }, { id: 'detail', label: t('libraryV2.manage') }] },
+                ],
+            } : null}
+            onClose={() => setMenu(null)}
+            onAction={(id, payload) => {
+                if (!menu || keyOf(menu.collection) !== menu.key) { setMenu(null); return; }
+                if (id === 'pin') organization.organize(menu.key, { pinned: payload?.text === '1' });
+                if (id === 'group') organization.organize(menu.key, { group: payload?.text?.trim().slice(0, 60) || '' });
+                if (id === 'first') {
+                    organization.organize(menu.key, { order: Math.min(0, ...Object.values(organization.collections).map(value => value.order || 0)) - 1 });
+                    organization.patch({ sort: 'manual' });
+                }
+                if (id === 'detail') props.onOpenGridView({ ...menu.collection, source: 'online', raw: menu.collection });
+                if (id !== 'pin') setMenu(null);
+            }}
+        />
+
+        {manageOpen && (
+            <MobileSheet title="资料库管理" onClose={() => setManageOpen(false)}>
+                <div className="flex flex-col gap-1 pb-6" style={{ paddingLeft: 4, paddingRight: 4 }}>
+                    {manageRows.map(row => (
+                        <button
+                            key={row.id}
+                            type="button"
+                            onClick={row.onClick}
+                            className="flex items-center text-left w-full rounded-2xl transition-colors"
+                            style={{ minHeight: 64, padding: '10px 8px', gap: 12 }}
+                        >
+                            <div
+                                className="flex items-center justify-center rounded-xl shrink-0"
+                                style={{
+                                    width: 36,
+                                    height: 36,
+                                    background: 'var(--tingyu-accent-soft, rgba(113,150,181,0.14))',
+                                    color: 'var(--tingyu-accent, #527E9F)',
+                                }}
+                            >
+                                {row.icon}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <div style={{ fontSize: 15, fontWeight: 500, lineHeight: '20px' }}>{row.title}</div>
+                                <div className="truncate" style={{ fontSize: 12, opacity: 0.68, marginTop: 2 }}>{row.subtitle}</div>
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            </MobileSheet>
+        )}
+
+        {platformOrderOpen && (
+            <MobileSheet title="自定义平台顺序" onClose={() => setPlatformOrderOpen(false)}>
+                <div className="flex flex-col gap-2 pb-6">
+                    <p className="text-[12px] opacity-75 m-0 mb-1">
+                        调整「综合资料库」中按平台顺序展示时的平台先后顺序；独立平台页签不受影响。
+                    </p>
+                    {effectivePlatformOrder.map((providerId, idx) => (
+                        <div
+                            key={providerId}
+                            className="flex items-center justify-between rounded-2xl px-3.5 py-3"
+                            style={{ background: 'var(--tingyu-surface-card, rgba(255,255,255,0.06))' }}
+                        >
+                            <span className="font-medium text-[15px]">{omni.getProviderLabel(providerId, false)}</span>
+                            <div className="flex items-center gap-1">
+                                <button
+                                    type="button"
+                                    aria-label="上移"
+                                    disabled={idx === 0}
+                                    onClick={() => movePlatform(idx, -1)}
+                                    className="p-2 rounded-xl disabled:opacity-30"
+                                >
+                                    <ChevronUp size={18} />
+                                </button>
+                                <button
+                                    type="button"
+                                    aria-label="下移"
+                                    disabled={idx === effectivePlatformOrder.length - 1}
+                                    onClick={() => movePlatform(idx, 1)}
+                                    className="p-2 rounded-xl disabled:opacity-30"
+                                >
+                                    <ChevronDown size={18} />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </MobileSheet>
+        )}
+
+        {sharedInsights.panels}
     </>;
 }

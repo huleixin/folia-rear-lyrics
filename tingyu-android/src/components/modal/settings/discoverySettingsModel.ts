@@ -4,7 +4,7 @@ import { providerLabel } from '../../../services/onlineMusic/providerLabel';
 
 // src/components/modal/settings/discoverySettingsModel.ts
 export const moduleNames: Record<DiscoveryModule,string> = {roam:'听屿漫游',shortcuts:'快捷入口',radars:'你的专属雷达',songs:'猜你想听',collections:'为你精选歌单',recent:'最近播放',playlists:'我的歌单'};
-type Source = {providerId:string;displayName:string};
+type Source = {providerId:string;displayName:string;loggedIn?:boolean};
 export function discoverySettingsModel(settings: DiscoverySettings, sources: Source[]): NativeSettingsFlow {
     const group = (id:string,title:string):NativeSettingsFlowNode => ({id,kind:'group',title});
     return {key:'discovery',title:'推荐设置',nodes:[
@@ -18,9 +18,14 @@ export function discoverySettingsModel(settings: DiscoverySettings, sources: Sou
             value:String(Math.round(settings[id]*100)),min:0,max:100,step:1,unit:'%'})),
         {id:'independent',kind:'note',title:'三个参数独立生效，无需相加为100%。调整后重新生成推荐。'},
         group('sources','综合推荐来源'),
-        ...sources.map((source):NativeSettingsFlowNode=>({id:'source:'+source.providerId,kind:'source',title:providerLabel(source.providerId,false,source.displayName),
-            value:settings.enabled[source.providerId]===false?'0':'1',detail:String(settings.weights[source.providerId]??1),
-            options:[.5,1,2,3].map(value=>({value:String(value),label:value+'×'}))})),
+        {id:'hideUnloggedInPrompts',kind:'switch',title:'隐藏未登录提示',hint:'开启后综合推荐页不显示未登录平台的重复提示与空白占位；不影响独立平台公开推荐',value:settings.hideUnloggedInPrompts!==false?'1':'0'},
+        ...sources.map((source):NativeSettingsFlowNode=>{
+            const label = providerLabel(source.providerId,false,source.displayName);
+            const statusSuffix = source.loggedIn === true ? '（已登录）' : source.loggedIn === false ? '（未登录）' : '';
+            return {id:'source:'+source.providerId,kind:'source',title:label+statusSuffix,
+                value:settings.enabled[source.providerId]===false?'0':'1',detail:String(settings.weights[source.providerId]??1),
+                options:[.5,1,2,3].map(value=>({value:String(value),label:value+'×'}))};
+        }),
         {id:'manageSources',kind:'action',title:'音乐来源管理',hint:'账户、登录与音乐来源',icon:'settings'},
         group('layout','页面管理'),
         {id:'modules',kind:'moduleOrder',title:'首页模块',hint:'拖动把手调整顺序，开关控制显示',value:JSON.stringify(settings.hidden),
@@ -34,7 +39,7 @@ export function discoverySettingsModel(settings: DiscoverySettings, sources: Sou
 }
 /** Validate bridge values before touching the existing persisted settings. */
 export function discoverySettingsPatch(settings:DiscoverySettings,id:string,event:{text?:string;value?:number}):Partial<DiscoverySettings>|null {
-    if(id==='record'||id==='includeLocal')return {[id]:event.text==='1'};
+    if(id==='record'||id==='includeLocal'||id==='hideUnloggedInPrompts')return {[id]:event.text==='1'};
     if(['exploration','crossArtist','familiarity'].includes(id)) {
         if(!Number.isFinite(event.value))return null;
         return {[id]:Math.max(0,Math.min(100,event.value!))/100};

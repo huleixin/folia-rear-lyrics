@@ -137,7 +137,6 @@ export default function NativeLocalLibrary(args:NativeHomeProps) {
     return <>
         <NativeDirectoryPage {...args} key={`${local.activeSection.key}:${path}`} route={`local:${local.activeSection.key}:${path}`} cards={cards}
             onOpen={open} sections={sections} tailSections={[...tailSections,...insights.sections]} onFilter={value=>{setQuery(value);setSongOffset(0)}} extraActions={{...actions,...insights.actions}} emptyMessage={local.activeSection.emptyMessage}
-            subpage={insights.footprint.opened?insights.footprint:undefined}
             headingTrailing="tools" headingTrailingLabel={t('mobileLibrary.more')}/>
         {insights.panels}
         <AnimatePresence>{tools&&<MobileSheet title={t('mobileLibrary.importMusic')} onClose={()=>setTools(false)}><MobileLocalTools homeResources={props.homeResources}/></MobileSheet>}</AnimatePresence>

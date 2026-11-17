@@ -198,6 +198,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     private static final long[] LYRIC_RETRY_MS=LyricRetryPolicy.RETRY_DELAYS_MS;
     private int lyricRetryAttempt=0;
     private String lyricRetrySongKey="";
+    private static final NativeListeningTracker listeningTracker=new NativeListeningTracker();
     private final Runnable lyricRetryTick=new Runnable(){public void run(){
         if(!LyricRetryPolicy.shouldAsk(lyricRetrySongKey,songKey,
             io.github.huleixin.tingyu.coloros.ColorOsLyricBridge.stateOf(songKey),lyricRetryAttempt))return;
@@ -218,6 +219,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     }
 
     private final Runnable heartbeat=new Runnable(){public void run(){if(!sourceId.isEmpty()){
+        listeningTracker.onTick(player.isPlaying(),SystemClock.elapsedRealtime(),System.currentTimeMillis());
         emit("clock",false);
         // 背屏的时钟权威：1 s 一次把 Media3 的真实位置与时长灌进去。
         // 只有两个 volatile 写入，不取词、不连带、不写诊断 —— 它替代的是「背屏靠
@@ -240,6 +242,15 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
     }
     private NativeAudioEngine(Context context){
         this.context=context;
+        listeningTracker.attachContext(context, snapshot -> main.post(() -> {
+            if (listener != null && !sourceId.isEmpty()) {
+                JSObject event = new JSObject();
+                event.put("type", "listening-session");
+                event.put("sourceId", sourceId);
+                event.put("session", snapshot.toJson());
+                listener.accept(event);
+            }
+        }));
         PlaybackTestDiagnostics.note("engine-create-start",new JSObject());
         PlaybackDiagnostics.initialize(context);
         android.media.AudioManager audioManager=(android.media.AudioManager)context.getSystemService(Context.AUDIO_SERVICE);
@@ -279,6 +290,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 if(sourceId.isEmpty()||item==null||item.localConfiguration==null||!(item.localConfiguration.tag instanceof JSObject))return;
                 JSObject queued=(JSObject)item.localConfiguration.tag;
                 songKey=item.mediaId;endedHandoff=false;staleNudges=0;
+                listeningTracker.onTrackOrPlayState(player.isPlaying(),SystemClock.elapsedRealtime(),System.currentTimeMillis(),currentListeningMeta(item));
                 replayGain=queued.optDouble("replayGain",1);
                 activeDeck.processing.configure(equalizerSettings,replayGain);
                 if (NativePlaylist.get().observeCurrent(songKey, reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)) {
@@ -360,6 +372,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 // 真的播出声 = 这首歌没问题：连续跳过的计数在这里清零，
                 // 否则一份开头坏几首的歌单会在后面被误判成"全是坏歌"。
                 if(isPlaying)consecutiveSkips=0;
+                listeningTracker.onTrackOrPlayState(isPlaying,SystemClock.elapsedRealtime(),System.currentTimeMillis(),currentListeningMeta(player.getCurrentMediaItem()));
                 // Backscreen clock authority: the WebView that used to feed it is frozen in the
                 // background, so playing state and position must also be readable natively.
                 syncRearTrack();
@@ -385,6 +398,9 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 if(!events.containsAny(Player.EVENT_PLAYBACK_STATE_CHANGED,Player.EVENT_IS_PLAYING_CHANGED,Player.EVENT_PLAY_WHEN_READY_CHANGED,Player.EVENT_PLAYER_ERROR,Player.EVENT_TIMELINE_CHANGED,Player.EVENT_POSITION_DISCONTINUITY))return;
                 // Media3 releases its normal wake lock at EOF. Protect only the bounded async
                 // queue/source handoff; hidden WebView animations remain stopped.
+                if(p.getPlaybackState()==Player.STATE_ENDED){
+                    listeningTracker.onEndedOrStopped(SystemClock.elapsedRealtime(),System.currentTimeMillis());
+                }
                 if(p.getPlaybackState()==Player.STATE_ENDED&&SleepTimerController.get(context).waiting())SleepTimerController.get(context).boundary();
                 if(p.getPlaybackState()==Player.STATE_ENDED&&!desiredPaused&&!sourceId.isEmpty()&&!endedHandoff){
                     endedHandoff=true;if(handoffWake!=null)handoffWake.acquire(20_000L);
@@ -1791,7 +1807,41 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         JSObject value=snapshot("spectrum",false);JSArray array=new JSArray();for(int bin:bins)array.put(bin);
         value.put("spectrum",array);listener.accept(value);
     });}
-    private void release(){mixer.close();sourceId="";io.github.huleixin.tingyu.RearNativeTrack.clear();SleepTimerController.get(context).detach();PlaybackDiagnostics.note("engine-release",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
+    private NativeListeningTracker.TrackMeta currentListeningMeta(MediaItem item){
+        String key=item!=null&&item.mediaId!=null&&!item.mediaId.isEmpty()?item.mediaId:songKey;
+        if(key==null||key.isEmpty())return null;
+        NativePlaylist.Track track=NativePlaylist.get().trackFor(key);
+        if(track!=null){
+            return new NativeListeningTracker.TrackMeta(track.songKey,track.providerId,track.mediaId,
+                track.title,track.artist,track.album,track.artwork,track.durationMs);
+        }
+        JSObject tag=item!=null&&item.localConfiguration!=null&&item.localConfiguration.tag instanceof JSObject
+            ?(JSObject)item.localConfiguration.tag:null;
+        if(tag==null)return new NativeListeningTracker.TrackMeta(key,"","","","","","",0L);
+        return new NativeListeningTracker.TrackMeta(key,tag.optString("providerId",""),tag.optString("mediaId",""),
+            tag.optString("title",""),tag.optString("artist",""),tag.optString("album",""),
+            tag.optString("artwork",tag.optString("coverUrl","")),tag.optLong("duration",0L));
+    }
+
+    public static JSArray drainListeningSessions(Context context){
+        listeningTracker.attachContext(context,null);
+        JSArray out=new JSArray();
+        for(NativeListeningTracker.SessionSnapshot s:listeningTracker.drainPending())out.put(s.toJson());
+        NativeAudioEngine engine=instance;
+        if(engine!=null&&engine.player!=null){
+            NativeListeningTracker.SessionSnapshot active=listeningTracker.peekActive(
+                engine.player.isPlaying(),SystemClock.elapsedRealtime(),System.currentTimeMillis());
+            if(active!=null)out.put(active.toJson());
+        }
+        return out;
+    }
+
+    public static void clearListeningSessions(Context context){
+        listeningTracker.attachContext(context,null);
+        listeningTracker.clearAll();
+    }
+
+    private void release(){listeningTracker.onEndedOrStopped(SystemClock.elapsedRealtime(),System.currentTimeMillis());mixer.close();sourceId="";io.github.huleixin.tingyu.RearNativeTrack.clear();SleepTimerController.get(context).detach();PlaybackDiagnostics.note("engine-release",new JSObject().put("song",PlaybackDiagnostics.anonKey(songKey))
             .put("positionMs",Math.max(0,player.getCurrentPosition())));releaseHandoff();cancelFade();main.removeCallbacksAndMessages(null);sourceId="";listener=null;PlaybackLifecycle.noteBridge(false);player.release();spectrum.close();
             io.github.huleixin.tingyu.lx.LxRuntimeHost.INSTANCE.release();}
 }

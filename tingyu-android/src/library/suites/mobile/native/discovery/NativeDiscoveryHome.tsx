@@ -147,7 +147,19 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     }),{id:'discovery-refresh',layout:'textActions',items:[{id:'refresh',title:'刷新推荐',image:'refresh-cw',action:'refresh',disabled:feed.busy}]}];
     if (feed.busy) visible.push({ id: 'discovery-loading', layout: 'message', text: '正在读取推荐，已有内容可继续使用…' });
     if (!feed.busy && !songs.length) visible.push({ id: 'discovery-empty', layout: 'message', text: '暂时没有可用推荐。可登录音乐平台或将本地音乐纳入综合推荐。' });
-    feed.results.filter(result => ['login','error'].includes(result.status)).forEach(result => visible.push({ id: 'status:' + result.providerId + result.kind, layout: 'message', text: omni.getProviderLabel(result.providerId) + (result.status === 'login' ? '：登录后可获取个性化歌曲。' : '：暂时加载失败，其他来源仍可使用。') }));
+    const hideUnloggedIn = settings.hideUnloggedInPrompts !== false && settings.source === 'all';
+    feed.results.filter(result => {
+        if (result.status === 'login') return !hideUnloggedIn;
+        return result.status === 'error';
+    }).forEach(result => {
+        if (result.status === 'login') {
+            const loginAction = 'login:' + result.providerId;
+            actions[loginAction] = () => { void props.account.startLogin(result.providerId); };
+            visible.push({ id: 'status:' + result.providerId + result.kind, layout: 'message', text: omni.getProviderLabel(result.providerId) + '：部分个性化内容需登录后获取。', more: loginAction, moreLabel: '去登录' });
+        } else {
+            visible.push({ id: 'status:' + result.providerId + result.kind, layout: 'message', text: omni.getProviderLabel(result.providerId) + '：暂时加载失败，其他来源仍可使用。' });
+        }
+    });
     if (controls.notice) visible.push({ id: 'notice', layout: 'message', text: controls.notice });
     const model: NativePageModel = { key: 'home:discovery:' + feed.owner, title: '推荐', subtitle: '发现属于你的下一首', trailing: 'settings', trailingLabel: '推荐设置', trailingIcon: 'settings', background: 'home', bottomClearance: 152, sections: visible };
     // Keep the existing account/bootstrap gate: never replace a retained native page with a false empty state.
