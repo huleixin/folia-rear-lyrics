@@ -3,6 +3,7 @@ import {audioCacheZh} from '../audioCacheCopy';
 
 import {cloudFeedbackZh} from '../cloudFeedbackCopy';
 export default {
+  searchSettings: {"sourceLoading": "加载中", "sourceFailed": "暂时加载失败", "sourceCount": "{{count}} 条结果", "title": "搜索设置", "sources": "综合搜索来源", "scope": "仅影响综合搜索；仍可单独搜索某个平台，不影响正在播放的音乐。", "priority": "优先搜索来源", "automatic": "自动", "ranking": "结果排序", "sort": "排序方式", "relevance": "综合匹配", "local": "优先本地", "provider": "平台优先", "rankingNote": "精确匹配始终优先于相关性较低的结果。", "privacy": "历史与隐私", "record": "记录搜索历史", "recordHint": "仅保存在本机；关闭后保留已有记录，不再新增。", "clear": "清空全部搜索历史", "clearHint": "仅删除搜索词，不删除收听历史、推荐偏好、收藏、歌单或本地文件。", "confirm": "清空", "cancel": "取消"},
     musicProviders: {"netease":{"full":"网易云音乐","short":"网易云"},"qq":{"full":"QQ音乐","short":"QQ音乐"},"kugou":{"full":"酷狗音乐","short":"酷狗"},"bodian":{"full":"波点音乐","short":"波点"},"qishui":{"full":"汽水音乐","short":"汽水"},"local":{"full":"本地音乐","short":"本地"}},
   licenses: {"title": "第三方开源许可证", "openError": "许可证页面暂不可用，请重试"},
   playerStyles: {"title": "播放器风格", "classic": "经典极简", "immersive": "沉浸极简", "choose": "选择风格"},
@@ -875,6 +876,8 @@ export default {
       "rear-tap-controls-toggle": {"title": "切换背屏点按控件", "description": "开启或关闭轻触背屏显示音乐控件"},
       "settings-rear-appearance": {"title": "背屏舞台外观", "description": "设置跟随正面或背屏独立外观"},
       "settings-rear": {"title": "背屏歌词设置", "description": "打开背屏控制中心"},
+      "settings-search": {"title": "搜索设置", "description": "管理搜索来源、排序及本地搜索历史"},
+      "search-history-record-toggle": {"title": "记录搜索历史", "description": "开启或关闭本地搜索词记录"},
       "settings-discovery": {"title": "推荐设置", "description": "管理推荐来源、偏好与首页布局"},
       "settings-player-style": {"title": "播放器风格", "description": "选择风格"},
       "settings-desktop-lyrics": {"title": "桌面歌词设置", "description": "打开悬浮歌词与样式设置"},

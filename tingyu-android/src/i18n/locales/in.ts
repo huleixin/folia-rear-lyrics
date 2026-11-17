@@ -3,6 +3,7 @@ import {audioCacheIn} from '../audioCacheCopy';
 
 import {cloudFeedbackId} from '../cloudFeedbackCopy';
 export default {
+  searchSettings: {"sourceLoading": "Memuat", "sourceFailed": "Sementara tidak tersedia", "sourceCount": "{{count}} hasil", "title": "Pengaturan pencarian", "sources": "Sumber pencarian gabungan", "scope": "Hanya memengaruhi pencarian gabungan. Pencarian per sumber tetap tersedia.", "priority": "Sumber pilihan", "automatic": "Otomatis", "ranking": "Urutan hasil", "sort": "Urutkan hasil", "relevance": "Relevansi", "local": "Lokal lebih dahulu", "provider": "Sumber pilihan lebih dahulu", "rankingNote": "Kecocokan tepat tetap mendahului hasil yang kurang relevan.", "privacy": "Riwayat dan privasi", "record": "Catat riwayat pencarian", "recordHint": "Disimpan di perangkat ini. Menonaktifkan tidak menghapus riwayat lama.", "clear": "Hapus seluruh riwayat pencarian", "clearHint": "Hanya kata pencarian dihapus. Riwayat dengar, preferensi, daftar putar dan berkas tetap tersimpan.", "confirm": "Hapus", "cancel": "Batal"},
     musicProviders: {"netease":{"full":"NetEase Cloud Music","short":"NetEase"},"qq":{"full":"QQ Music","short":"QQ Music"},"kugou":{"full":"KuGou Music","short":"KuGou"},"bodian":{"full":"Bodian Music","short":"Bodian"},"qishui":{"full":"Qishui Music","short":"Qishui"},"local":{"full":"Musik lokal","short":"Lokal"}},
   licenses: {"title": "Lisensi sumber terbuka pihak ketiga", "openError": "Lisensi belum tersedia. Silakan coba lagi."},
   playerStyles: {"title": "Gaya pemutar", "classic": "Minimal klasik", "immersive": "Minimal imersif", "choose": "Pilih gaya"},
@@ -648,6 +649,8 @@ export default {
       "rear-tap-controls-toggle": {"title": "Alihkan kontrol ketuk layar belakang", "description": "Aktifkan atau nonaktifkan kontrol musik saat mengetuk layar belakang"},
       "settings-rear-appearance": {"title": "Tampilan panggung belakang", "description": "Atur tampilan depan atau belakang terpisah"},
       "settings-rear": {"title": "Rear lyrics settings", "description": "Open the rear lyrics control center"},
+      "settings-search": {"title": "Pengaturan pencarian", "description": "Atur sumber, urutan dan riwayat pencarian"},
+      "search-history-record-toggle": {"title": "Catat riwayat pencarian", "description": "Aktifkan atau nonaktifkan pencatatan pencarian lokal"},
       "settings-discovery": {"title": "Pengaturan penemuan musik", "description": "Atur sumber, preferensi, dan tata letak rekomendasi"},
       "settings-player-style": {"title": "Gaya pemutar", "description": "Pilih gaya"},
       "settings-desktop-lyrics": {"title": "Pengaturan lirik desktop", "description": "Buka lirik mengambang dan tampilan"},

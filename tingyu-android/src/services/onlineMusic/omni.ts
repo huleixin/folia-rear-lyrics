@@ -299,6 +299,10 @@ export const omni = {
         return requireOnlineMusicProvider(providerId).search?.getDiscovery?.() ?? { suggestions: [], hot: [] };
     },
 
+    supportsSearchDiscovery(providerId: OmniProviderId): boolean {
+        return Boolean(getOnlineMusicProvider(providerId)?.search?.getDiscovery);
+    },
+
     async searchSongs(query: string, page: PageInput): Promise<OmniPage<UnifiedSong>> {
         return withActiveProvider(async provider => {
             if (!providerSupports(provider, 'search') || !provider.search) return emptyPage(page.offset);

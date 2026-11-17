@@ -24,6 +24,8 @@ import { canUseRearCardKeepAwake, toggleRearCardKeepAwake, canUseRearLyrics, tog
 // Commands in the `settings` group: settings subviews, app toggles, theme, sync, and desktop-only switches.
 
 export const settingsCommands: CommandPaletteCommand[] = [
+    createSettingsCommand('settings-search', 'Search settings', 'Configure sources, ranking and search history', ['query preferences','搜索设置','搜索来源'], 'options', 'search', {isAvailable:isAndroidNativeRuntime}),
+    defineCommand({id:'search-history-record-toggle',group:'settings',title:'Record search history',description:'Toggle local search history recording',keywords:['query privacy','搜索历史记录','搜索隐私'],isAvailable:isAndroidNativeRuntime,execute:async()=>{const {useSearchHistoryStore}=await import('../../../stores/useSearchHistoryStore');const store=useSearchHistoryStore.getState();store.setRecording(!store.recording);return true;}}),
     createSettingsCommand('settings-discovery', 'Music discovery settings', 'Configure recommendation sources, preferences and layout', ['recommendations', 'radar', '推荐设置', '雷达', '漫游'], 'options', 'discovery', {isAvailable:isAndroidNativeRuntime}),
     defineCommand({id:'settings-player-style',group:'settings',title:'Player style',description:'Choose a native player appearance',keywords:['immersive player','classic player','播放器风格','沉浸极简','经典极简'],isAvailable:isAndroidNativeRuntime,execute:openPlayerStyles}),
     defineCommand({id:'settings-feedback',group:'settings',title:'问题反馈与诊断 / Feedback',description:'预览、主动上传诊断及查看反馈状态',keywords:['反馈','诊断','feedback','crash','闪退','bug'],execute:()=>openFeedback()}),

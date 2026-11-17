@@ -1,6 +1,7 @@
 import {afterEach,describe,expect,it,vi} from 'vitest';
 const discovery=vi.hoisted(()=>vi.fn());
-vi.mock('../../../src/services/onlineMusic/omni',()=>({omni:{getSearchDiscovery:discovery}}));
+vi.mock('../../../src/services/onlineMusic/omni',()=>({omni:{getSearchDiscovery:discovery,supportsSearchDiscovery:()=>true}}));
+vi.mock('../../../src/services/onlineMusic/providerResourceScope',()=>({providerSearchScopeKey:(ids:string[])=>ids.join(':')}));
 import {loadSearchDiscovery} from '../../../src/components/app/search/SearchLanding';
 // A stuck hot-search request must release its pending slot so Retry can recover.
 afterEach(()=>vi.useRealTimers());

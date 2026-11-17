@@ -3,6 +3,7 @@ import {audioCacheEn} from '../audioCacheCopy';
 
 import {cloudFeedbackEn} from '../cloudFeedbackCopy';
 export default {
+  searchSettings: {"sourceLoading": "Loading", "sourceFailed": "Temporarily unavailable", "sourceCount": "{{count}} results", "title": "Search settings", "sources": "Aggregate search sources", "scope": "These switches only affect aggregate search. Single-source search remains available.", "priority": "Preferred source", "automatic": "Automatic", "ranking": "Result ranking", "sort": "Sort order", "relevance": "Relevance", "local": "Local first", "provider": "Preferred source first", "rankingNote": "Exact matches remain ahead of less relevant results.", "privacy": "History and privacy", "record": "Record search history", "recordHint": "Stored on this device. Turning this off keeps existing searches.", "clear": "Clear all search history", "clearHint": "Only search terms will be removed. Listening history, preferences, playlists and files are kept.", "confirm": "Clear", "cancel": "Cancel"},
     musicProviders: {"netease":{"full":"NetEase Cloud Music","short":"NetEase"},"qq":{"full":"QQ Music","short":"QQ Music"},"kugou":{"full":"KuGou Music","short":"KuGou"},"bodian":{"full":"Bodian Music","short":"Bodian"},"qishui":{"full":"Qishui Music","short":"Qishui"},"local":{"full":"Local music","short":"Local"}},
   licenses: {"title": "Third-party open-source licenses", "openError": "Licenses are temporarily unavailable. Please retry."},
   playerStyles: {"title": "Player style", "classic": "Classic Minimal", "immersive": "Immersive Minimal", "choose": "Choose style"},
@@ -885,6 +886,8 @@ export default {
       "rear-tap-controls-toggle": {"title": "Toggle rear tap controls", "description": "Enable or disable music controls on rear-stage taps"},
       "settings-rear-appearance": {"title": "Rear stage appearance", "description": "Configure follow-front or independent rear visuals"},
       "settings-rear": {"title": "Rear lyrics settings", "description": "Open the rear lyrics control center"},
+      "settings-search": {"title": "Search settings", "description": "Configure sources, ranking and search history"},
+      "search-history-record-toggle": {"title": "Record search history", "description": "Toggle local search history recording"},
       "settings-discovery": {"title": "Music discovery settings", "description": "Configure recommendation sources, preferences and layout"},
       "settings-player-style": {"title": "Player style", "description": "Choose style"},
       "settings-desktop-lyrics": {"title": "Desktop lyrics settings", "description": "Open floating lyrics and style settings"},

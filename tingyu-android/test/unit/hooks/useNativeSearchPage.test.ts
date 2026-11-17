@@ -38,6 +38,10 @@ it('groups matching sources, plays the selected original carrier, and uses provi
         const row=captured.sections.find(s=>s.id==='songs')!.items![0];
         await act(()=>actions[row.secondary!]({}));
         const choices=captured.sections.find(s=>s.id==='sourceChoices')!.items!;
+        expect(captured.leading).toBe('back');
+        await act(()=>actions.back({}));
+        expect(captured.key).toBe('search:aggregate');
+        await act(()=>actions[row.secondary!]({}));
         expect(choices.map(row=>row.id)).toEqual([getPlaybackSongKey(a),getPlaybackSongKey(b)]);
         await act(()=>actions[choices[1].action!]({}));expect(play).toHaveBeenCalledExactlyOnceWith(b);
         expect(captured.key).toBe('search:aggregate');

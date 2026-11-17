@@ -13,7 +13,7 @@ vi.mock('@/services/nativePages',()=>({NATIVE_FIRST:true,absolutePageImage:(valu
 vi.mock('react-i18next',async original=>({...await original<typeof import('react-i18next')>(),useTranslation:()=>({t:(key:string)=>key})}));
 vi.mock('@/components/app/search/SearchLanding',()=>({loadSearchDiscovery:vi.fn()}));
 const hot=Array.from({length:32},(_,i)=>`热搜 ${i+1}`);
-beforeEach(()=>{(globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;vi.mocked(loadSearchDiscovery).mockReset().mockResolvedValue({suggestions:[],hot})});
+beforeEach(()=>{(globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;vi.mocked(loadSearchDiscovery).mockReset().mockResolvedValue({suggestions:[],hot,providerId:'qq'})});
 const props=()=>({root:{current:null},active:true,query:'',source:'qq',mode:'landing',tab:'overview',tabs:['overview','song'],sources:['qq','local','navidrome'],
     results:[],searching:false,loadingMore:false,error:null,hasMore:false,needsSetup:false,
     artists:{items:[]},albums:{items:[]},playlists:{items:[]},suggestions:{items:[],status:'idle'},historyMatches:[],

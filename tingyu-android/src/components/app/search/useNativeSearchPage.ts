@@ -15,11 +15,16 @@ import { getPlaybackSongKey } from '../../../utils/appPlaybackGuards';
 import { pageRowActions } from '../../../utils/nativePageActions';
 import type { NativePageModel, PageActions, PageItem, PageSection } from '../../../types/nativePages';
 import { loadSearchDiscovery } from './SearchLanding';
+import type { SearchDiscovery } from '../../../services/search/searchAuxiliary';
+import { useSearchAuxiliaryKey } from './useSearchAuxiliaryKey';
+import { useSettingsModalStore } from '../../../stores/useSettingsModalStore';
 import { usePlaybackStore } from '../../../stores/usePlaybackStore';
 import { PlayerState } from '../../../types';
 import { groupMusicSources } from '../../../services/musicIdentity';
 import { bestSearchMatch } from '../../../services/search/searchRanking';
 import { nativeSearchGroupItem, nativeSearchSongItem, searchDisplayPlaybackKey } from './nativeSearchSongs';
+import type { SourcePages } from '../../../services/search/aggregateSearch';
+import { searchSourceStatus } from './searchSourceStatus';
 
 // src/components/app/search/useNativeSearchPage.ts
 // Presentation only: playback, source selection, discovery and pagination retain their existing owners.
@@ -29,7 +34,8 @@ type Props = {
     root: RefObject<HTMLElement | null>; active: boolean; query: string; source: SearchSource;
     mode: 'landing'|'suggest'|'results'; tab: Tab; tabs: Tab[]; sources: SearchSource[];
     results: UnifiedSong[]; searching: boolean; loadingMore: boolean; error: string|null;
-    hasMore: boolean; needsSetup: boolean;
+    hasMore: boolean; needsSetup: boolean; sourcePages?: SourcePages<UnifiedSong>;
+    clearHistory?(): void;
     artists: ExploreCategory<SearchArtistHit>; albums: ExploreCategory<SearchAlbumHit>; playlists: ExploreCategory<SearchPlaylistHit>;
     suggestions: { items: SearchSuggestion[]; status: string }; historyMatches: string[];
     close():void; change(text:string,composing:boolean):void; submit(text?:string):void; selectTab(tab:Tab):void;
@@ -52,7 +58,9 @@ export function useNativeSearchPage(p: Props) {
     const best=useMemo(()=>bestSearchMatch(p.query,p.results,p.artists.items,p.albums.items,p.playlists.items),
         [p.query,p.results,p.artists.items,p.albums.items,p.playlists.items]);
     const callbacks={play:p.play,menu:(song:UnifiedSong)=>{if(p.openMenu)p.openMenu(song);else setMenu(song)},label:p.sourceLabel};
-    const [discovery,setDiscovery]=useState<{suggestions:string[];hot:string[]}|null>(null);
+    const discoveryScope=useSearchAuxiliaryKey(p.source,'discovery');
+    const [discoverySnapshot,setDiscoverySnapshot]=useState<{key:string;data:SearchDiscovery}|null>(null);
+    const discovery=discoverySnapshot?.key===discoveryScope?discoverySnapshot.data:null;
     const [discoveryError,setDiscoveryError]=useState(false);
     const [retry,setRetry]=useState(0);
     const [hotExpanded,setHotExpanded]=useState(false);
@@ -60,11 +68,11 @@ export function useNativeSearchPage(p: Props) {
     useEffect(()=>{setOffset(0);setMenu(null);setSourceGroupKey(null)},[p.source,p.query,p.tab,p.active]);
     useEffect(()=>{
         if(!NATIVE_FIRST||!p.active||p.query.trim())return;
-        let alive=true;setDiscovery(null);setDiscoveryError(false);setHotExpanded(false);
+        let alive=true;setDiscoverySnapshot(null);setDiscoveryError(false);setHotExpanded(false);
         if(p.source!=='local'&&p.source!=='navidrome')void loadSearchDiscovery(p.source)
-            .then(value=>{if(alive)setDiscovery(value)}).catch(()=>{if(alive)setDiscoveryError(true)});
+            .then(value=>{if(alive)setDiscoverySnapshot({key:discoveryScope,data:value})}).catch(()=>{if(alive)setDiscoveryError(true)});
         return()=>{alive=false};
-    },[p.source,p.active,p.query,retry]);
+    },[p.source,p.active,p.query,retry,discoveryScope]);
     useEffect(()=>{
         if((!menu&&!sourceGroupKey)||!p.active)return;
         const back=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();event.stopImmediatePropagation();setMenu(null);setSourceGroupKey(null)}};
@@ -72,8 +80,8 @@ export function useNativeSearchPage(p: Props) {
     },[menu,sourceGroupKey,p.active]);
     const actions:PageActions={close:p.close,change:event=>p.change(event.text??'',event.value===1),submit:event=>p.submit(event.text),
         range:event=>setOffset(Math.max(0,Math.floor((event.value??0)/100)*100)),
-        retry:()=>p.submit(),more:p.loadMore,
-        clearHistory:()=>useSearchHistoryStore.getState().clear(p.source),discoveryRetry:()=>setRetry(v=>v+1),back:()=>{setMenu(null);setSourceGroupKey(null)},hotExpand:()=>setHotExpanded(value=>!value)};
+        retry:()=>p.submit(),more:p.loadMore,settings:()=>useSettingsModalStore.getState().openSettings('options','search'),
+        clearHistory:()=>p.clearHistory?.(),discoveryRetry:()=>setRetry(v=>v+1),back:()=>{setMenu(null);setSourceGroupKey(null)},hotExpand:()=>setHotExpanded(value=>!value)};
     const sections:PageSection[]=[{id:'query',layout:'input',value:p.query,placeholder:t('search.placeholder'),action:'change',submit:'submit'},
         {id:'sources',layout:'chips',items:p.sources.map(source=>{
             actions[`source:${source}`]=()=>p.switchSource(source);
@@ -91,7 +99,7 @@ export function useNativeSearchPage(p: Props) {
     if(!p.query.trim()) {
         words('history',t('mobileEnhancements.history'),terms,true);
         words('discovery',t('mobileEnhancements.discover'),discovery?.suggestions??[]);
-        words('hot',t('mobileEnhancements.hotSearch'),discovery?.hot.slice(0,hotExpanded?undefined:10)??[]);
+        words('hot',[t('mobileEnhancements.hotSearch'),discovery?.providerId?p.sourceLabel(discovery.providerId):''].filter(Boolean).join(' · '),discovery?.hot.slice(0,hotExpanded?undefined:10)??[]);
         if(discovery&&discovery.hot.length>10){const hot=sections.find(section=>section.id==='hot');if(hot){hot.more='hotExpand';hot.expanded=hotExpanded;hot.moreLabel=t(hotExpanded?'mobileLibrary.hotShowLess':'mobileLibrary.hotShowMore')}}
         if(discoveryError)sections.push({id:'discoveryError',layout:'message',text:t('mobileEnhancements.searchUnavailable'),more:'discoveryRetry',moreLabel:t('search.retry')});
         else if(!discovery&&p.source!=='local'&&p.source!=='navidrome')sections.push({id:'discoveryLoading',layout:'message',busy:true});
@@ -109,6 +117,11 @@ export function useNativeSearchPage(p: Props) {
                 image:absolutePageImage(item.kind==='song'?item.coverUrl:item.kind==='keyword'?undefined:item.hit.coverUrl),action};
         })});
     } else {
+        if(p.source==='aggregate') {
+            const pages=p.tab==='artist'?p.artists.sourcePages:p.tab==='album'?p.albums.sourcePages:p.tab==='playlist'?p.playlists.sourcePages:p.sourcePages;
+            const status=searchSourceStatus(pages,p.sourceLabel,t);
+            if(status)sections.push(status);
+        }
         sections.push({id:'tabs',layout:'chips',items:p.tabs.map(tab=>{
             actions[`tab:${tab}`]=()=>p.selectTab(tab);
             return{id:tab,title:t(`search.tab${tab[0].toUpperCase()}${tab.slice(1)}`),action:`tab:${tab}`,selected:tab===p.tab};
@@ -160,7 +173,7 @@ export function useNativeSearchPage(p: Props) {
     }
     // Input, suggestions and results are updates to one editable screen. A new
     // route key disposes BasicTextField and its IME composition after the first key.
-    let model:NativePageModel={key:`search:${p.source}`,title:t('search.title','搜索'),bottomClearance:122,sections};
+    let model:NativePageModel={key:`search:${p.source}`,title:t('search.title','搜索'),trailing:'settings',trailingLabel:t('searchSettings.title'),trailingIcon:'settings',bottomClearance:122,sections};
     const sourceGroup=groups.find(group=>group.key===sourceGroupKey);
     if(sourceGroup){
         model={key:`search:sources:${sourceGroup.key}`,title:t('search.choosePlaybackSource'),leading:'back',bottomClearance:122,

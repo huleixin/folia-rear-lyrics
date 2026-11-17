@@ -23,6 +23,7 @@ React 负责数据、路由、业务动作与原生桥接；Compose 负责绘制
 | 专辑 | `chrome/NativeDirectoryPage.kt`（intro 分支） | `native/useNativeCollectionPage.ts` | 同上 |
 | 歌手 | `chrome/NativeDirectoryPage.kt`（artist 分支） | `native/useNativeArtistPage.ts` | 同上 |
 | 搜索 | `chrome/NativeSearchPage.kt` | `components/app/search/useNativeSearchPage.ts` | `chrome/NativeSearchPage.kt`、`chrome/NativePageInput.kt` |
+| 搜索设置 | 现有原生设置文档渲染器 | `components/modal/settings/SearchSettingsPage.tsx`、`searchSettingsModel.ts` | 原生设置页及既有返回导航 |
 | 设置索引 / 背屏控制 | `chrome/NativeSettingsPage.kt` / `NativeRearControlPage.kt` | `components/modal/settings/useNativeSettingsPage.ts` | 对应 kt |
 | 设置二级页（语义化，已迁移分区） | `chrome/SettingsFlowPage.kt`（底色 + 毛玻璃顶栏）+ `chrome/TySettings.kt`（内容） | `components/modal/settings/flow/*`（声明式模型）→ `hooks/useNativeSettingsDocument.ts` 的 `flow` 参数 | `chrome/SettingsFlowPage.kt`、`chrome/TySettings*.kt`；**不消费任何 DOM 矩形** |
 | 桌面/车载歌词、咖啡支持、交流群 | `chrome/NativeSettingsDestination.kt` + `SettingsFullScreenFrame.kt`；同宿主路由转场 | 歌词设置沿用原生配置；支持页由原生设置动作打开 | `chrome/LyricsSettingsSheet.kt`、`BluetoothLyricsSettingsSheet.kt`、`SupportSheets.kt`；不得另开设置 Dialog |

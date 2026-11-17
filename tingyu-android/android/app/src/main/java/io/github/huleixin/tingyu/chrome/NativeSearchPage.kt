@@ -38,11 +38,11 @@ import androidx.compose.ui.unit.sp
 // Full-width search field, wrapping history chips and numbered two-column hot list.
 @OptIn(ExperimentalLayoutApi::class)
 @Composable internal fun NativeSearchPage(page:NativePage,modifier:Modifier,action:PageAction,pane:Boolean=false,headerOnly:Boolean=false){
-    if(LocalPadWindow.current.expanded&&!pane&&!headerOnly&&!page.key.startsWith("search:menu:")){PadSearchPage(page,modifier,action);return}
+    val menu=page.leading.isNotBlank()
+    if(LocalPadWindow.current.expanded&&!pane&&!headerOnly&&!menu){PadSearchPage(page,modifier,action);return}
     val bottomClearance=with(LocalDensity.current){LocalNativePageBottomPx.current.toDp()}
     val reduced = LocalLiquidReduced.current
     val padGrid=LocalPadWindow.current.expanded
-    val menu=page.key.startsWith("search:menu:")
     val caches=page.sections.filter{it.layout=="rows"}.associate{it.id to key(it.id){rememberNativeRows(page.key,it)}}
     // 沉浸式毛玻璃顶栏（TopGlassBar）：搜索结果全幅滚动进入固定搜索区玻璃后方；
     // 输入框/内联音源/分类标签是玻璃之上的清晰层，输入法弹出时列表随 imePadding 避让。
@@ -59,11 +59,11 @@ import androidx.compose.ui.unit.sp
                     Row(Modifier.fillMaxWidth().padding(top=6.dp,bottom=10.dp).heightIn(min=28.dp),verticalAlignment=Alignment.CenterVertically){
                         if(hot)PageIcon("flame",PageMuted,Modifier.padding(end=8.dp).size(19.dp))
                         Text(section.title,color=PageInk,fontSize=16.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
-                        if(history)ChromeButton("清空历史",size=40.dp,onClick={action(section.more,"",0.0)}){PageIcon("trash2",PageMuted,Modifier.size(17.dp))}
+                        if(history)ChromeButton(section.moreLabel,size=40.dp,onClick={action(section.more,"",0.0)}){PageIcon("trash2",PageMuted,Modifier.size(17.dp))}
                         if(hot&&section.more.isNotBlank()){
                             val rotation by animateFloatAsState(if(section.expanded)180f else 0f,tween(if(reduced)0 else 220),label="hot-toggle")
                             Row(Modifier.heightIn(min=40.dp).chromeClickable(role=Role.Button,corner=10.dp){action(section.more,"",0.0)}
-                                .semantics{stateDescription=if(section.expanded)"已展开" else "已收起"}.padding(horizontal=6.dp),
+                                .semantics{stateDescription=section.moreLabel}.padding(horizontal=6.dp),
                                 verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)){
                                 Text(section.moreLabel,color=PageMuted,fontSize=12.sp)
                                 PageIcon("chevron-down",PageMuted,Modifier.size(14.dp).rotate(rotation))
@@ -72,6 +72,19 @@ import androidx.compose.ui.unit.sp
                     }
                 }
                 when {
+                    section.id=="bestMatch" -> item(key=section.id){
+                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                            .background(LocalInterfacePalette.current.subtle).padding(12.dp)){
+                            section.items.forEach{item->NativePageRow(item,height=80.dp,art=64.dp,titleSize=16,alwaysArt=true,action={action(it,"",0.0)})}
+                        }
+                        Spacer(Modifier.height(14.dp))
+                    }
+                    section.id=="sourceStatus" -> item(key=section.id){
+                        FlowRow(Modifier.fillMaxWidth().padding(bottom=12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
+                            section.items.forEach{item->Text(item.title,color=PageMuted,fontSize=11.sp,
+                                modifier=Modifier.clip(RoundedCornerShape(8.dp)).background(LocalInterfacePalette.current.subtle).padding(horizontal=8.dp,vertical=6.dp))}
+                        }
+                    }
                     hot -> item(key=section.id){
                         Column(Modifier.animateContentSize(tween(if(reduced)0 else 220))){
                             section.items.chunked(2).forEachIndexed{row,items->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){
@@ -139,6 +152,7 @@ import androidx.compose.ui.unit.sp
                             val sources=page.sections.firstOrNull{it.id=="sources"}
                             NativePageInput(section,action,search=true,trailing={if(sources!=null)SearchSourceMenu(sources,compact,action)})
                         }}
+                        if(page.trailing.isNotBlank())ChromeButton(page.trailingLabel,size=48.dp,onClick={action(page.trailing,"",0.0)}){PageIcon(page.trailingIcon,PageInk,Modifier.size(21.dp))}
                     }
                     page.sections.firstOrNull{it.id=="tabs"}?.let{section->
                         NativeSourceTabs(section, Modifier.padding(top=8.dp), underline=true, action=action)

@@ -10,6 +10,8 @@ import type { SearchSuggestions } from '@/types/search';
 
 // test/unit/search/searchRefreshSafety.test.ts
 vi.mock('@/services/onlineMusic/omni', () => ({ omni: {
+    subscribeProviders: () => () => {}, getProviderRegistryVersion: () => 0,
+    getProviderSummaries: () => [{providerId:'qq',availability:{configured:true}},{providerId:'netease',availability:{configured:true}}],
     getSearchCapabilities: (source: string) => ({ song: true, artist: source !== 'kugou', album: source !== 'kugou', playlist: source !== 'kugou', suggest: source !== 'kugou' }),
     suggestProvider: vi.fn(), searchProviderArtists: vi.fn(), searchProviderAlbums: vi.fn(), searchProviderPlaylists: vi.fn(), searchProviderSongs: vi.fn(),
 } }));

@@ -98,6 +98,7 @@ export type AppOverlaysDeps = {
     handleSearchCollectionOpen: SearchOverlayProps['onOpenSearchCollection'];
     /** 本地歌单搜索要读当前歌单目录。 */
     localPlaylists: SearchOverlayProps['localPlaylists'];
+    localSongs?: SearchOverlayProps['localSongs'];
     account?: SearchOverlayProps['account'];
     devDebugSnapshot: any;
     effectiveLoopMode: 'off' | 'all' | 'one';
@@ -153,6 +154,7 @@ export const buildAppOverlaysModel = ({
     resolveSearchResultDisplay,
     handleSearchCollectionOpen,
     localPlaylists,
+    localSongs,
     account,
     isDevDebugOverlayVisible,
     isMemoryMonitorVisible,
@@ -255,6 +257,7 @@ export const buildAppOverlaysModel = ({
             resolveTrackDisplay: resolveSearchResultDisplay,
             onOpenSearchCollection: handleSearchCollectionOpen,
             localPlaylists,
+            localSongs,
             account,
         }
         : null,

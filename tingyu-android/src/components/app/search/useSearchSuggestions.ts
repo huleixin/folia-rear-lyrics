@@ -4,7 +4,8 @@ import type { OnlineProviderId } from '../../../types/onlineMusic';
 import type { SearchSuggestions } from '../../../types/search';
 import { omni } from '../../../services/onlineMusic/omni';
 import type { SearchSource } from '../../../stores/useSearchNavigationStore';
-import { sourceSupportsSuggestions } from '../../../stores/useSearchExploreStore';
+import { searchAuxiliarySource, searchAuxiliaryKey } from '../../../services/search/searchAuxiliary';
+import { useSearchAuxiliaryKey } from './useSearchAuxiliaryKey';
 
 // src/components/app/search/useSearchSuggestions.ts
 // 输入联想的请求管理：防抖 300ms、序号失效、缓存、输入清空即停。
@@ -17,7 +18,7 @@ const MIN_QUERY_LENGTH = 1;
 type CacheEntry = { data: SearchSuggestions; savedAt: number };
 const cache = new Map<string, CacheEntry>();
 
-const cacheKey = (source: SearchSource, query: string) => `${source}\u0000${query.trim().toLowerCase()}`;
+const cacheKey = (scope: string, query: string) => `${scope}\u0000${query.trim().toLowerCase()}`;
 
 const readCache = (key: string): SearchSuggestions | null => {
     const entry = cache.get(key);
@@ -61,6 +62,8 @@ export function useSearchSuggestions({
     const [state, setState] = useState<SuggestionState & { key?: string }>({ status: 'idle', items: EMPTY, error: false });
     const generation = useRef(0);
     const abortRef = useRef<AbortController | null>(null);
+    const scope = useSearchAuxiliaryKey(source, 'suggest');
+    const provider = searchAuxiliarySource(source, 'suggest');
 
     useEffect(() => {
         const trimmed = query.trim();
@@ -68,14 +71,14 @@ export function useSearchSuggestions({
         abortRef.current?.abort();
         abortRef.current = null;
 
-        if (!enabled || trimmed.length < MIN_QUERY_LENGTH || !sourceSupportsSuggestions(source)) {
+        if (!enabled || trimmed.length < MIN_QUERY_LENGTH || !provider) {
             setState(previous => (previous.status === 'idle' && previous.items.length === 0
                 ? previous
                 : { status: 'idle', items: EMPTY, error: false }));
             return;
         }
 
-        const key = cacheKey(source, trimmed);
+        const key = cacheKey(scope, trimmed);
         const cached = readCache(key);
         if (cached) {
             setState({ key, status: 'ready', items: cached.items, error: false });
@@ -87,22 +90,22 @@ export function useSearchSuggestions({
             if (generation.current !== current) return;
             const controller = new AbortController();
             abortRef.current = controller;
-            const request = searchRequestBudget(signal => omni.suggestProvider(source as OnlineProviderId, trimmed, signal), SUGGEST_REQUEST_TIMEOUT_MS, controller.signal)
+            const request = searchRequestBudget(signal => omni.suggestProvider(provider as OnlineProviderId, trimmed, signal), SUGGEST_REQUEST_TIMEOUT_MS, controller.signal)
                 .then(result => {
-                    if (!controller.signal.aborted) {
+                    if (!controller.signal.aborted && scope === searchAuxiliaryKey(source, 'suggest')) {
                         cache.set(key, { data: result, savedAt: Date.now() });
                         if (cache.size > 80) cache.delete(cache.keys().next().value!);
                     }
                     return result;
                 });
             request.then(result => {
-                if (generation.current !== current) return;
+                if (generation.current !== current || scope !== searchAuxiliaryKey(source, 'suggest')) return;
                 setState({ key, status: 'ready', items: result.items, error: false });
             }).catch(error => {
                 if (generation.current !== current) return;
                 if (error instanceof DOMException && error.name === 'AbortError') return;
                 // 联想失败只记日志：界面退回「搜索当前关键词」，不弹错误提示。
-                console.warn('[SearchSuggestions] failed:', error);
+                // Raw provider errors can contain request/account details; do not log them.
                 setState({ key, status: 'unavailable', items: EMPTY, error: true });
             });
         }, SUGGEST_DEBOUNCE_MS);
@@ -112,9 +115,9 @@ export function useSearchSuggestions({
             abortRef.current?.abort();
             abortRef.current = null;
         };
-    }, [enabled, query, source]);
+    }, [enabled, query, source, scope, provider]);
 
     // Render-time ownership check also prevents a stale frame before effect cleanup runs.
-    if (!enabled || !query.trim() || !sourceSupportsSuggestions(source)) return { status: 'idle', items: EMPTY, error: false };
-    return state.key === cacheKey(source, query) ? state : { status: 'loading', items: EMPTY, error: false };
+    if (!enabled || !query.trim() || !provider) return { status: 'idle', items: EMPTY, error: false };
+    return state.key === cacheKey(scope, query) ? state : { status: 'loading', items: EMPTY, error: false };
 }

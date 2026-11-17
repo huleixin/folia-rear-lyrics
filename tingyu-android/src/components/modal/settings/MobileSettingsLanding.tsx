@@ -57,7 +57,8 @@ export default function MobileSettingsLanding({ onClose }: { onClose: () => void
     const root=useRef<HTMLDivElement>(null);
     const help=()=>useSettingsModalStore.getState().openSettingsFromIndex('help');
     const native=useNativeSettingsPage(root,page,onClose,openPage,groups,select,help,rear,back,
-        isAndroidNativeRuntime()?()=>useSettingsModalStore.getState().openSettingsFromIndex('discovery'):undefined);
+        isAndroidNativeRuntime()?()=>useSettingsModalStore.getState().openSettingsFromIndex('discovery'):undefined,
+        isAndroidNativeRuntime()?()=>useSettingsModalStore.getState().openSettingsFromIndex('search'):undefined);
     useNativeSettingsDocument(root,guide,`rear-${page}`,t(appearance?appearanceTitle:page==='diagnostics'?'rearControl.diagnostics':'mobileSettings.startupGuide'));
     const model=buildRearControlPage(page==='advanced'?'advanced':'control',rear,t);
     const actions=rearControlActions(rear,openPage,back);

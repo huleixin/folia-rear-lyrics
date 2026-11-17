@@ -2479,6 +2479,7 @@ export default function App() {
 
     const openMinimalPlayerArtist = usePlayerArtistNavigation(navigateToCollection);
     const appOverlaysModel = useAppOverlaysModel({
+        localSongs,
         account: accountController,
         onBackFromPlayer: leavePlayer,
         onOpenPlayerArtist: openMinimalPlayerArtist,

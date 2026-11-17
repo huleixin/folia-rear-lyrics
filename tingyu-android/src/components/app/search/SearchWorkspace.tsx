@@ -10,7 +10,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { AlertCircle, Loader2, Search, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
-import type { LocalPlaylist, Theme, UnifiedSong } from '../../../types';
+import type { LocalPlaylist, LocalSong, Theme, UnifiedSong } from '../../../types';
 import type { MediaId } from '../../../types/onlineMusic';
 import type { GridViewCollectionDescriptor } from '../../../library/core/contracts/collection';
 import type { SearchAlbumHit, SearchArtistHit, SearchPlaylistHit, SearchSuggestions } from '../../../types/search';
@@ -21,6 +21,8 @@ import SearchLanding from './SearchLanding';
 import SearchSuggestionsPanel from './SearchSuggestions';
 import SearchOverview from './SearchOverview';
 import { SearchAlbumRow, SearchArtistRow, SearchCategoryStatus, SearchPlaylistRow } from './SearchCollections';
+import { useLocalSearchSuggestions } from './useLocalSearchSuggestions';
+import { useSearchSettingsStore } from '../../../stores/useSearchSettingsStore';
 import { useSearchSuggestions } from './useSearchSuggestions';
 import { useVisualViewport } from './useVisualViewport';
 import { buildSearchCollectionDescriptor } from './searchCollectionOpen';
@@ -57,6 +59,7 @@ type SearchWorkspaceProps = {
     onOpenSearchCollection: (descriptor: GridViewCollectionDescriptor) => void;
     /** 本地歌单搜索需要读当前歌单目录。 */
     localPlaylists: readonly LocalPlaylist[];
+    localSongs?: readonly LocalSong[];
     account?: LibraryAccountController;
 };
 
@@ -72,6 +75,7 @@ const TAB_LABEL: Record<ResultTab, string> = {
 
 /** 稳定引用：选择器每次返回新数组会让 zustand 认为状态一直在变。 */
 const EMPTY_TERMS: string[] = [];
+const EMPTY_LOCAL: LocalSong[] = [];
 
 const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     theme: _theme,
@@ -86,6 +90,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     resolveTrackDisplay,
     onOpenSearchCollection,
     localPlaylists,
+    localSongs=EMPTY_LOCAL,
     account,
 }) => {
     const interfaceLight=useInterfaceLight();
@@ -93,11 +98,12 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     const { t } = useTranslation();
     const {
         searchQuery, searchSourceTab, searchResults, isSearchOpen, isSearching,
-        isLoadingMore, searchError, hasMore, scrollTop, setSearchQuery, setSearchScrollTop,
+        isLoadingMore, searchError, hasMore, scrollTop, setSearchQuery, setSearchScrollTop, sourcePages,
     } = useSearchNavigationStore(useShallow(state => ({
         searchQuery: state.searchQuery,
         searchSourceTab: state.searchSourceTab,
         searchResults: state.searchResults,
+        sourcePages: state.sourcePages,
         isSearchOpen: state.isSearchOpen,
         isSearching: state.isSearching,
         isLoadingMore: state.isLoadingMore,
@@ -127,10 +133,11 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     const [tab, setTab] = useState<ResultTab>('overview');
     const [composing, setComposing] = useState(false);
     const [floatingMenuSong, setFloatingMenuSong] = useState<UnifiedSong | null>(null);
+    const [clearHistorySource,setClearHistorySource]=useState<SearchSource|null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     // Reopening an empty search must not retain the previous result tabs or mode.
     useEffect(() => {
-        if (!isSearchOpen) { useSearchExploreStore.getState().reset(); setFloatingMenuSong(null); return; }
+        if (!isSearchOpen) { useSearchExploreStore.getState().reset(); setFloatingMenuSong(null); setClearHistorySource(null); return; }
         const snapshot = useSearchNavigationStore.getState();
         setMode(!snapshot.searchQuery.trim() ? 'landing' : snapshot.searchResults || snapshot.isSearching ? 'results' : 'suggest');
         setTab('overview');
@@ -141,11 +148,15 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
         return resolveTrackDisplay ? raw.map(resolveTrackDisplay) : raw;
     }, [resolveTrackDisplay, searchResults]);
 
-    const suggestionState = useSearchSuggestions({
+    const onlineSuggestions = useSearchSuggestions({
         query: searchQuery,
         source: searchSourceTab,
         enabled: mode === 'suggest' && !composing && isSearchOpen,
     });
+
+    const includeLocal=useSearchSettingsStore(s=>!s.disabled.includes('local'));
+    const localSuggestions=useLocalSearchSuggestions(localSongs,searchQuery,mode==='suggest'&&!composing&&isSearchOpen&&(searchSourceTab==='local'||searchSourceTab==='aggregate'&&includeLocal));
+    const suggestionState={...onlineSuggestions,items:[...localSuggestions,...onlineSuggestions.items.filter(item=>item.kind!=='keyword'||!localSuggestions.some(local=>local.kind==='keyword'&&local.text.toLocaleLowerCase()===item.text.toLocaleLowerCase()))].slice(0,16)};
 
     // 空关键词永远是「默认页」，不依赖 mode：autoFocus、清除、返回搜索等路径都可能把 mode 留在别处。
     const showLanding = !searchQuery.trim();
@@ -222,7 +233,8 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     const rootRef=useRef<HTMLElement>(null);
     const native=useNativeSearchPage({root:rootRef,active:isSearchOpen&&!hasCollection,query:searchQuery,source:searchSourceTab,
         mode,tab,tabs:visibleTabs,sources,results,searching:isSearching,loadingMore:isLoadingMore,error:searchError,
-        hasMore,needsSetup:sourceNeedsSetup,artists,albums,playlists,suggestions:suggestionState,historyMatches,
+        hasMore,needsSetup:sourceNeedsSetup,sourcePages,artists,albums,playlists,suggestions:suggestionState,historyMatches,
+        clearHistory:()=>setClearHistorySource(searchSourceTab),
         close:onClose,change:(text,composing)=>{setComposing(composing);useSearchExploreStore.getState().reset();setSearchQuery(text);setMode(text.trim()?'suggest':'landing')},
         submit,selectTab:setTab,switchSource,sourceLabel:getSourceLabel,loadMore:onLoadMore,loadExplore:kind=>{void useSearchExploreStore.getState().loadMore(kind,deps)},
         openHit,play:onPlayTrack,enqueue:onAddTrackToQueue,openArtist:onOpenArtist,openAlbum:onOpenAlbum,openMenu:setFloatingMenuSong});
@@ -476,6 +488,8 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
                     )}
                     </>}
                     <OperationPanel panel={searchMenuPanel} onAction={handleSearchMenuAction} onClose={() => setFloatingMenuSong(null)} id="search-track-menu" />
+                    <OperationPanel id="search-history-confirm" panel={clearHistorySource?{title:t('mobileEnhancements.clearHistory'),kind:'dialog',blocks:[{id:'confirm',kind:'confirm',message:t('searchSettings.clearHint'),confirmLabel:t('searchSettings.confirm'),cancelLabel:t('searchSettings.cancel')}]}:null}
+                        onClose={()=>setClearHistorySource(null)} onAction={id=>{if(id==='confirm'&&clearHistorySource)useSearchHistoryStore.getState().clear(clearHistorySource);setClearHistorySource(null)}}/>
                 </motion.section>
             )}
         </AnimatePresence>

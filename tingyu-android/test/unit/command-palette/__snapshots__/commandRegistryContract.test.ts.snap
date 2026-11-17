@@ -76,6 +76,8 @@ exports[`command palette registry contract > keeps the registered command order 
   "playback-clear-queue",
   "playback-auto-match-best-lyric",
   "playback-toggle-pure-music",
+  "settings-search",
+  "search-history-record-toggle",
   "settings-discovery",
   "settings-player-style",
   "settings-feedback",

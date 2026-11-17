@@ -1,3 +1,4 @@
+import { providerLabel } from '../../../services/onlineMusic/providerLabel';
 import { Search } from 'lucide-react';
 import type { SearchSource } from '../../../stores/useSearchNavigationStore';
 import type { CommandPaletteCommand, CommandPaletteContext, CommandPaletteSearchSource } from '../types';
@@ -12,7 +13,7 @@ const getSearchSourceLabel = (sourceTab: SearchSource, context: CommandPaletteCo
     if (sourceTab === 'navidrome') {
         return context.shared.t('commandPalette.sourceNavidrome', 'Navidrome');
     }
-    return context.shared.t('commandPalette.sourceNetease', 'NetEase Cloud Music');
+    return sourceTab==='aggregate'?context.shared.t('search.aggregate'):providerLabel(sourceTab,false);
 };
 
 const buildSearchPreview = (
