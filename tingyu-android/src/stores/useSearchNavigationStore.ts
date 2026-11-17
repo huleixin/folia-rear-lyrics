@@ -1,5 +1,6 @@
-import { searchSources, appendSourceResults, type SourcePages } from '../services/search/aggregateSearch';
-import { aggregateSearchSources } from './useSearchSettingsStore';
+import { searchSources, type SourcePages } from '../services/search/aggregateSearch';
+import { aggregateSearchSources, useSearchSettingsStore } from './useSearchSettingsStore';
+import { appendRankedSearch } from '../services/search/searchRanking';
 import { providerSearchScopeKey } from '../services/onlineMusic/providerResourceScope';
 import { useOnlineProviderAccountStore } from './useOnlineProviderAccountStore';
 import { getPlaybackSongKey } from '../utils/appPlaybackGuards';
@@ -290,7 +291,8 @@ export const useSearchNavigationStore = create<SearchNavigationState>((set, get)
                 const result = await executeSearch(trimmed, source as SearchSource, offset, get().limit, deps, child);
                 return { items: result.results, hasMore: result.hasMore, nextOffset: result.nextOffset };
             }, key: getPlaybackSongKey, publish: pages => set(state => {
-                const results = appendSourceResults<UnifiedSong>(state.searchResults ?? [], pages, getPlaybackSongKey);
+                const settings = useSearchSettingsStore.getState();
+                const results = appendRankedSearch(state.searchResults ?? [], Object.values(pages).flatMap(page => page.items), trimmed, settings.sort, settings.priority);
                 const pending = Object.values(pages).some(page => page.status === 'loading');
                 const hasMore = Object.values(pages).some(page => page.hasMore);
                 const offset = Object.values(pages).reduce((sum, page) => sum + page.offset, 0);
@@ -315,7 +317,8 @@ export const useSearchNavigationStore = create<SearchNavigationState>((set, get)
                 const result = await executeSearch(state.searchQuery, source as SearchSource, offset, state.limit, deps, child);
                 return { items: result.results, hasMore: result.hasMore, nextOffset: result.nextOffset };
             }, publish: pages => set(latest => {
-                const results = appendSourceResults<UnifiedSong>(latest.searchResults ?? [], pages, getPlaybackSongKey);
+                const settings = useSearchSettingsStore.getState();
+                const results = appendRankedSearch(latest.searchResults ?? [], Object.values(pages).flatMap(page => page.items), state.searchQuery, settings.sort, settings.priority);
                 const pending = Object.values(pages).some(page => page.status === 'loading');
                 const hasMore = Object.values(pages).some(page => page.hasMore);
                 const offset = Object.values(pages).reduce((sum, page) => sum + page.offset, 0);

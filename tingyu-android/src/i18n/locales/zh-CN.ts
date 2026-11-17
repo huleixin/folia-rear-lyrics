@@ -1506,6 +1506,10 @@ export default {
     "syncFailedHint": "还有歌曲没加载成功（{{error}}）。点击从中断处继续加载"
   },
   "search": {
+    "availableSources": "{{count}} 个来源",
+    "choosePlaybackSource": "选择播放来源",
+    "metadataMatchNote": "歌名、歌手、专辑及时长相符。未获得录音标识，请留意版本差异。",
+    "catalogMatchNote": "平台曲目标识相同，所有来源数据均予以保留。",
     "sourceNeedsSetup": "请先在设置中连接 Navidrome",
     "placeholder": "搜索歌曲...",
     "sourceNetease": "网易云",

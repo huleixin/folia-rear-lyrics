@@ -1275,6 +1275,10 @@ export default {
     "syncFailedHint": "Beberapa lagu gagal dimuat ({{error}}). Klik untuk melanjutkan dari titik terakhir"
   },
   "search": {
+    "availableSources": "{{count}} sumber",
+    "choosePlaybackSource": "Pilih sumber pemutaran",
+    "metadataMatchNote": "Judul, artis, album, dan durasi cocok. Identitas rekaman belum tersedia; periksa perbedaan versi.",
+    "catalogMatchNote": "Identitas katalog platform cocok. Semua sumber asli dipertahankan.",
     "placeholder": "Cari lagu...",
     "sourceNetease": "NetEase",
     "sourceLocal": "Lokal",

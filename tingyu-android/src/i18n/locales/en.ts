@@ -1517,6 +1517,10 @@ export default {
     "syncFailedHint": "Some songs failed to load ({{error}}). Click to continue from where it stopped"
   },
   "search": {
+    "availableSources": "{{count}} sources",
+    "choosePlaybackSource": "Choose playback source",
+    "metadataMatchNote": "Title, artists, album and duration match. No recording identifier is available; check version differences.",
+    "catalogMatchNote": "The platform catalog identifier matches. All original sources are retained.",
     "sourceNeedsSetup": "Connect Navidrome in Settings first",
     "placeholder": "Search songs...",
     "sourceNetease": "NetEase",

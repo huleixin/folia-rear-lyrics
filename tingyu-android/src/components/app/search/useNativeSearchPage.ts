@@ -1,5 +1,4 @@
-import { catalogBadgePageFields } from '../../../utils/catalogAudioLabels';
-import { useEffect, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { UnifiedSong } from '../../../types';
 import type { MediaId } from '../../../types/onlineMusic';
@@ -18,6 +17,9 @@ import type { NativePageModel, PageActions, PageItem, PageSection } from '../../
 import { loadSearchDiscovery } from './SearchLanding';
 import { usePlaybackStore } from '../../../stores/usePlaybackStore';
 import { PlayerState } from '../../../types';
+import { groupMusicSources } from '../../../services/musicIdentity';
+import { bestSearchMatch } from '../../../services/search/searchRanking';
+import { nativeSearchGroupItem, nativeSearchSongItem, searchDisplayPlaybackKey } from './nativeSearchSongs';
 
 // src/components/app/search/useNativeSearchPage.ts
 // Presentation only: playback, source selection, discovery and pagination retain their existing owners.
@@ -45,12 +47,17 @@ export function useNativeSearchPage(p: Props) {
     const playing=usePlaybackStore(s=>s.playerState===PlayerState.PLAYING);
     const [offset,setOffset]=useState(0);
     const [menu,setMenu]=useState<UnifiedSong|null>(null);
+    const [sourceGroupKey,setSourceGroupKey]=useState<string|null>(null);
+    const groups=useMemo(()=>groupMusicSources(p.results),[p.results]);
+    const best=useMemo(()=>bestSearchMatch(p.query,p.results,p.artists.items,p.albums.items,p.playlists.items),
+        [p.query,p.results,p.artists.items,p.albums.items,p.playlists.items]);
+    const callbacks={play:p.play,menu:(song:UnifiedSong)=>{if(p.openMenu)p.openMenu(song);else setMenu(song)},label:p.sourceLabel};
     const [discovery,setDiscovery]=useState<{suggestions:string[];hot:string[]}|null>(null);
     const [discoveryError,setDiscoveryError]=useState(false);
     const [retry,setRetry]=useState(0);
     const [hotExpanded,setHotExpanded]=useState(false);
     const terms=useSearchHistoryStore(s=>s.terms[p.source]??EMPTY);
-    useEffect(()=>{setOffset(0);setMenu(null)},[p.source,p.query,p.tab,p.active]);
+    useEffect(()=>{setOffset(0);setMenu(null);setSourceGroupKey(null)},[p.source,p.query,p.tab,p.active]);
     useEffect(()=>{
         if(!NATIVE_FIRST||!p.active||p.query.trim())return;
         let alive=true;setDiscovery(null);setDiscoveryError(false);setHotExpanded(false);
@@ -59,14 +66,14 @@ export function useNativeSearchPage(p: Props) {
         return()=>{alive=false};
     },[p.source,p.active,p.query,retry]);
     useEffect(()=>{
-        if(!menu||!p.active)return;
-        const back=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();event.stopImmediatePropagation();setMenu(null)}};
+        if((!menu&&!sourceGroupKey)||!p.active)return;
+        const back=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();event.stopImmediatePropagation();setMenu(null);setSourceGroupKey(null)}};
         window.addEventListener('keydown',back,true);return()=>window.removeEventListener('keydown',back,true);
-    },[menu,p.active]);
+    },[menu,sourceGroupKey,p.active]);
     const actions:PageActions={close:p.close,change:event=>p.change(event.text??'',event.value===1),submit:event=>p.submit(event.text),
         range:event=>setOffset(Math.max(0,Math.floor((event.value??0)/100)*100)),
         retry:()=>p.submit(),more:p.loadMore,
-        clearHistory:()=>useSearchHistoryStore.getState().clear(p.source),discoveryRetry:()=>setRetry(v=>v+1),back:()=>setMenu(null),hotExpand:()=>setHotExpanded(value=>!value)};
+        clearHistory:()=>useSearchHistoryStore.getState().clear(p.source),discoveryRetry:()=>setRetry(v=>v+1),back:()=>{setMenu(null);setSourceGroupKey(null)},hotExpand:()=>setHotExpanded(value=>!value)};
     const sections:PageSection[]=[{id:'query',layout:'input',value:p.query,placeholder:t('search.placeholder'),action:'change',submit:'submit'},
         {id:'sources',layout:'chips',items:p.sources.map(source=>{
             actions[`source:${source}`]=()=>p.switchSource(source);
@@ -108,19 +115,28 @@ export function useNativeSearchPage(p: Props) {
         })});
         if(p.needsSetup)sections.push({id:'setup',layout:'message',text:t('search.sourceNeedsSetup')});
         else {
+            if(p.tab==='overview'&&best){
+                let item:PageItem;
+                if(best.kind==='song'){
+                    const group=groups.find(group=>group.sources.includes(best.song))!;
+                    item=nativeSearchGroupItem(group,actions,callbacks,setSourceGroupKey,t);
+                }else{
+                    const match=best, key=`best:${match.kind}:${match.hit.providerId}:${match.hit.id}`;
+                    actions[key]=()=>p.openHit(match.kind,match.hit);
+                    item={id:key,title:match.hit.name,image:absolutePageImage(match.hit.coverUrl),
+                        subtitle:p.sourceLabel(match.hit.providerId),action:key};
+                }
+                sections.push({id:'bestMatch',title:t('search.bestMatch'),layout:'rows',items:[item]});
+            }
             if(p.tab==='song'||p.tab==='overview') {
-                const songs=p.tab==='overview'?p.results.slice(0,3):p.results;
+                const songs=p.tab==='overview'?groups.slice(0,3):groups;
                 const start=p.tab==='overview'?0:offset;
                 actions.allSongs=()=>p.selectTab('song');
                 sections.push({id:'songs',title:t('search.tabSong'),layout:'rows',total:songs.length,offset:start,request:'range',
-                    activeKey,playing,pendingKey,
-                    busy:p.searching||p.loadingMore,more:p.error?'retry':p.tab==='overview'?(p.results.length>3||p.hasMore?'allSongs':undefined):p.hasMore?'more':undefined,
+                    activeKey:searchDisplayPlaybackKey(groups,activeKey),playing,pendingKey:searchDisplayPlaybackKey(groups,pendingKey),
+                    busy:p.searching||p.loadingMore,more:p.error?'retry':p.tab==='overview'?(groups.length>3||p.hasMore?'allSongs':undefined):p.hasMore?'more':undefined,
                     moreLabel:t(p.error?'search.retry':p.tab==='overview'?'search.seeAll':'home.loadMore'),
-                    items:songs.slice(start,start+100).map((song,index)=>{
-                        const key=getPlaybackSongKey(song),meta=getProviderSongMetadata(song);
-                        return{id:key,title:song.name,...catalogBadgePageFields(song,t,song.isLocal === true),subtitle:[meta.artists.map(a=>a.name).join(', '),...meta.aliases.slice(0,1)].filter(Boolean).join(' · '),image:absolutePageImage(meta.coverUrl),
-                            action:`play:${start+index}:${key}`,secondary:`menu:${start+index}:${key}`,secondaryLabel:'•••',disabled:isSongUnavailable(song)};
-                    })});
+                    items:songs.slice(start,start+100).map(group=>nativeSearchGroupItem(group,actions,callbacks,setSourceGroupKey,t))});
                 if(!p.searching&&!p.results.length)sections.push({id:'songsEmpty',layout:'message',text:t(p.error?'search.error':'home.noResults')});
             }
             for(const kind of ['artist','album','playlist'] as const) {
@@ -134,15 +150,24 @@ export function useNativeSearchPage(p: Props) {
                     text:category.error?t('search.categoryFailed',{defaultValue:'这一类暂时加载失败。'}):category.status==='ready'&&!all.length?t('home.noResults'):undefined,
                     more:category.error?`explore:${kind}`:p.tab==='overview'?(all.length>3||category.hasMore?`all:${kind}`:undefined):category.hasMore?`explore:${kind}`:undefined,
                     moreLabel:t(category.error?'search.retry':p.tab==='overview'?'search.seeAll':'home.loadMore'),
-                    items:items.slice(start,start+100).map((hit,index):PageItem=>({id:String(hit.id),title:hit.name,image:absolutePageImage(hit.coverUrl),
-                        subtitle:'artistName'in hit?hit.artistName:'creatorName'in hit?hit.creatorName:'description'in hit?hit.description:undefined,
-                        action:`hit:${kind}:${start+index}:${hit.id}`}))});
+                    items:items.slice(start,start+100).map((hit):PageItem=>{
+                        const key=`hit:${kind}:${hit.providerId}:${hit.id}`;actions[key]=()=>p.openHit(kind,hit);
+                        return{id:key,title:hit.name,image:absolutePageImage(hit.coverUrl),
+                            subtitle:[('artistName'in hit?hit.artistName:'creatorName'in hit?hit.creatorName:'description'in hit?hit.description:undefined),p.sourceLabel(hit.providerId)].filter(Boolean).join(' · '),action:key};
+                    })});
             }
         }
     }
     // Input, suggestions and results are updates to one editable screen. A new
     // route key disposes BasicTextField and its IME composition after the first key.
     let model:NativePageModel={key:`search:${p.source}`,title:t('search.title','搜索'),bottomClearance:122,sections};
+    const sourceGroup=groups.find(group=>group.key===sourceGroupKey);
+    if(sourceGroup){
+        model={key:`search:sources:${sourceGroup.key}`,title:t('search.choosePlaybackSource'),leading:'back',bottomClearance:122,
+            sections:[{id:'sourceChoices',layout:'rows',items:sourceGroup.sources.map(song=>nativeSearchSongItem(song,actions,{...callbacks,
+                play:song=>{setSourceGroupKey(null);p.play(song)},menu:song=>{setSourceGroupKey(null);callbacks.menu(song)}},t))},
+                {id:'identityEvidence',layout:'message',text:t(sourceGroup.evidence==='metadata'?'search.metadataMatchNote':'search.catalogMatchNote')}]};
+    }
     if(menu) {
         const song=menu,meta=getProviderSongMetadata(song),items:PageItem[]=[];
         const add=(id:string,title:string,callback:()=>void,disabled=false)=>{items.push({id,title,action:id,disabled});actions[id]=()=>{setMenu(null);callback()}};
@@ -155,13 +180,6 @@ export function useNativeSearchPage(p: Props) {
             add('menuAlbum',`${t('search.tabAlbum')} · ${album.name}`,()=>p.openAlbum(song,album.name,album.id,album.entityId));
         model={key:`search:menu:${getPlaybackSongKey(song)}`,title:song.name,leading:'back',sections:[{id:'songActions',layout:'rows',items}],bottomClearance:122};
     }
-    const dispatch=pageRowActions(actions,key=>{
-        const match=/^(play|menu):(\d+):(.+)$/.exec(key);
-        if(match){const song=p.results[Number(match[2])];if(!song||getPlaybackSongKey(song)!==match[3])return;
-            return()=>{if(match[1]==='menu'){if(p.openMenu)p.openMenu(song);else setMenu(song);}else if(!isSongUnavailable(song))p.play(song)};}
-        const hit=/^hit:(artist|album|playlist):(\d+):(.+)$/.exec(key);
-        if(hit){const kind=hit[1] as ExploreKind,items=kind==='artist'?p.artists.items:kind==='album'?p.albums.items:p.playlists.items;
-            const item=items[Number(hit[2])];if(item&&String(item.id)===hit[3])return()=>p.openHit(kind,item);}
-    });
+    const dispatch=pageRowActions(actions,()=>undefined);
     return useNativePage(p.root,'search',p.active,model,dispatch);
 }

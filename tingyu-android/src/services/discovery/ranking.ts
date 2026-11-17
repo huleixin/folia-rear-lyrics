@@ -2,6 +2,7 @@ import type { SongResult } from '../../types';
 import type { DiscoverySettings } from '../../stores/useDiscoverySettingsStore';
 import { getPlaybackSongKey, getPlaybackSourceRef } from '../../utils/appPlaybackGuards';
 import { decayedPreference, type PreferenceMap } from './preferences';
+import { sourceSongMap } from '../musicIdentity';
 
 export type RadarKind = 'heart' | 'style' | 'explore' | 'time' | 'local' | 'niche';
 export type RankedSong = { song: SongResult; score: number; reason: string };
@@ -16,7 +17,7 @@ export function excludeSongs(songs: SongResult[], excluded: Iterable<string>) {
 }
 export function rankDiscovery(songs: SongResult[], preferences: PreferenceMap, settings: DiscoverySettings,
     kind: RadarKind = 'heart', seed = '', now = Date.now(), limit = 30): RankedSong[] {
-    const unique = new Map(songs.map(song => [getPlaybackSongKey(song), song]));
+    const unique = sourceSongMap(songs);
     const artists = new Map<string, { sum: number; count: number }>();
     unique.forEach((song, key) => {
         const preference = preferences[key]; if (!preference) return;

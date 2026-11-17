@@ -14,6 +14,39 @@ vi.mock('@/hooks/useNativePage',()=>({useNativePage:(_ref:unknown,_id:unknown,_a
 vi.mock('@/services/nativePages',()=>({NATIVE_FIRST:false,absolutePageImage:(url:string)=>url}));
 vi.mock('react-i18next',async(importOriginal)=>({...await importOriginal<typeof import('react-i18next')>(),useTranslation:()=>({t:(key:string)=>key})}));
 vi.mock('@/components/app/search/SearchLanding',()=>({loadSearchDiscovery:vi.fn()}));
+it('groups matching sources, plays the selected original carrier, and uses provider-scoped entity keys',async()=>{
+    (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
+    const root=createRoot(document.createElement('div')),play=vi.fn(),openHit=vi.fn();
+    const empty={items:[],status:'ready',hasMore:false,offset:0,error:null};
+    const a={id:1,name:'Song',artists:[{id:1,name:'Singer'}],album:{id:1,name:'Album'},durationMs:200000,sourceRef:{kind:'online' as const,providerId:'netease',mediaId:'1'}},
+        b={...a,id:2,sourceRef:{kind:'online' as const,providerId:'qq',mediaId:'2'}};
+    const artists=[{providerId:'netease',id:7,name:'Artist A'},{providerId:'qq',id:7,name:'Artist B'}];
+    const props:any={root:{current:null},active:true,query:'Song',source:'aggregate',mode:'results',tab:'overview',
+        tabs:['overview','song','artist'],sources:['aggregate','netease','qq'],results:[a,b],searching:false,loadingMore:false,error:null,hasMore:false,needsSetup:false,
+        artists:{...empty,items:artists},albums:empty,playlists:empty,suggestions:{items:[],status:'idle'},historyMatches:[],
+        close:vi.fn(),change:vi.fn(),submit:vi.fn(),selectTab:vi.fn(),switchSource:vi.fn(),sourceLabel:(source:string)=>source,
+        loadMore:vi.fn(),loadExplore:vi.fn(),openHit,play,enqueue:vi.fn(),openArtist:vi.fn(),openAlbum:vi.fn()};
+    function Probe(){useNativeSearchPage(props);return null}
+    const previous=usePlaybackStore.getState();
+    try{
+        await act(()=>root.render(React.createElement(Probe)));
+        expect(captured.sections.find(s=>s.id==='songs')!.items).toHaveLength(1);
+        expect(captured.sections.find(s=>s.id==='bestMatch')!.items![0].title).toBe('Song');
+        const artistRows=captured.sections.find(s=>s.id==='artist')!.items!;
+        expect(new Set(artistRows.map(row=>row.id)).size).toBe(2);
+        actions[artistRows[1].action!]({});expect(openHit).toHaveBeenCalledWith('artist',artists[1]);
+        const row=captured.sections.find(s=>s.id==='songs')!.items![0];
+        await act(()=>actions[row.secondary!]({}));
+        const choices=captured.sections.find(s=>s.id==='sourceChoices')!.items!;
+        expect(choices.map(row=>row.id)).toEqual([getPlaybackSongKey(a),getPlaybackSongKey(b)]);
+        await act(()=>actions[choices[1].action!]({}));expect(play).toHaveBeenCalledExactlyOnceWith(b);
+        expect(captured.key).toBe('search:aggregate');
+        await act(()=>usePlaybackStore.setState({currentSong:b,activePlaybackContext:'main',playerState:PlayerState.PLAYING}));
+        expect(captured.sections.find(s=>s.id==='songs')!.activeKey).toBe(getPlaybackSongKey(a));
+        props.query='unrelated';await act(()=>root.render(React.createElement(Probe)));
+        expect(captured.sections.some(s=>s.id==='bestMatch')).toBe(false);
+    }finally{await act(()=>usePlaybackStore.setState(previous));await act(()=>root.unmount())}
+});
 it('keeps the editable native screen mounted across first character, composition, submit and result tabs',async()=>{
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
     const host=document.createElement('div'),root=createRoot(host),change=vi.fn(),submit=vi.fn();
