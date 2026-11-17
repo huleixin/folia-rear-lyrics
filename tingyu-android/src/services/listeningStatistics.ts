@@ -37,9 +37,9 @@ export async function clearListeningStatistics(): Promise<void> {
     await write;
 }
 
-export async function readListeningSessions(from: number, to: number): Promise<ListeningSessionRecord[]> {
+export async function readListeningSessions(from: number, to: number, limit = 50_001): Promise<ListeningSessionRecord[]> {
     await writes;
-    return appDatabase.listening_sessions.where('startedAt').between(from, to, true, false).toArray();
+    return appDatabase.listening_sessions.where('startedAt').between(from, to, true, false).reverse().limit(limit).toArray();
 }
 
 export interface ListeningSummary {

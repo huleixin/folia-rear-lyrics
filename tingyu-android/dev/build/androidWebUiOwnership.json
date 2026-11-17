@@ -55,7 +55,7 @@
     },
     {
       "id": "panel-native-first-ownership",
-      "file": "src/library/suites/mobile/native/OperationPanel.tsx",
+      "file": "src/components/shared/OperationPanel.tsx",
       "mustContain": "canUseNativePanels()",
       "why": "面板渲染必须由能力位决定，禁止写死原生或写死 DOM"
     },
@@ -103,9 +103,9 @@
     "src/components/app/overlays/mobile-stage/MobileStageChrome.tsx",
     "src/components/modal/SettingsModal.tsx",
     "src/components/modal/settings/MobileSettingsLanding.tsx",
-    "src/library/suites/mobile/MobileSheet.tsx",
+    "src/components/shared/MobileSheet.tsx",
     "src/App.tsx",
-    "src/library/suites/mobile/native/OperationPanel.tsx",
+    "src/components/shared/OperationPanel.tsx",
     "src/library/suites/mobile/native/NativeLocalLibrary.tsx",
     "index.html"
   ]

@@ -79,7 +79,23 @@ export function smartFacts(candidates: readonly SmartCandidate[], sessions: read
 
 export function evaluateSmartPlaylist(candidates: readonly SmartCandidate[], sessions: readonly ListeningSessionRecord[],
     rule: SmartRule, now = Date.now()): SmartFacts[] {
-    const facts = smartFacts(candidates, sessions, rule, now).filter(fact => {
+    return selectSmartFacts(smartFacts(candidates, sessions, rule, now), rule);
+}
+
+/** Share statistics between rules with the same time window within one data revision. */
+export function evaluateSmartPlaylists(candidates: readonly SmartCandidate[], sessions: readonly ListeningSessionRecord[],
+    rules: readonly SmartRule[], now = Date.now()): Array<{ rule: SmartRule; songs: SmartFacts[] }> {
+    const windows = new Map<string, SmartFacts[]>();
+    return rules.map(rule => {
+        const key = JSON.stringify([rule.periodDays || null, rule.year || null, rule.night || null]);
+        let facts = windows.get(key);
+        if (!facts) { facts = smartFacts(candidates, sessions, rule, now); windows.set(key, facts); }
+        return { rule, songs: selectSmartFacts(facts, rule) };
+    });
+}
+
+function selectSmartFacts(input: readonly SmartFacts[], rule: SmartRule): SmartFacts[] {
+    const facts = input.filter(fact => {
         if (rule.id === 'unheard' && fact.lastPlayed > 0) return false;
         if (rule.periodDays || rule.night || rule.year) { if (!fact.plays) return false; }
         return rule.match === 'any' ? rule.conditions.some(condition => matches(fact, condition))

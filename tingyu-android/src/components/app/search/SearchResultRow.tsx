@@ -10,7 +10,7 @@ import { canResolveSongCatalogRef } from '../../../services/onlineMusic/catalogR
 import { getProviderSongMetadata } from '../../../services/onlineMusic/songMetadata';
 import { selectDisplaySong, usePlaybackStore } from '../../../stores/usePlaybackStore';
 import { getPlaybackSongKey } from '../../../utils/appPlaybackGuards';
-import MobileSheet from '../../../library/suites/mobile/MobileSheet';
+import MobileSheet from '../../shared/MobileSheet';
 
 // src/components/app/search/SearchResultRow.tsx
 type SearchResultRowProps = {

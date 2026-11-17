@@ -27,7 +27,7 @@ React 负责数据、路由、业务动作与原生桥接；Compose 负责绘制
 | 设置二级页（语义化，已迁移分区） | `chrome/SettingsFlowPage.kt`（底色 + 毛玻璃顶栏）+ `chrome/TySettings.kt`（内容） | `components/modal/settings/flow/*`（声明式模型）→ `hooks/useNativeSettingsDocument.ts` 的 `flow` 参数 | `chrome/SettingsFlowPage.kt`、`chrome/TySettings*.kt`；**不消费任何 DOM 矩形** |
 | 桌面/车载歌词、咖啡支持、交流群 | `chrome/NativeSettingsDestination.kt` + `SettingsFullScreenFrame.kt`；同宿主路由转场 | 歌词设置沿用原生配置；支持页由原生设置动作打开 | `chrome/LyricsSettingsSheet.kt`、`BluetoothLyricsSettingsSheet.kt`、`SupportSheets.kt`；不得另开设置 Dialog |
 | 历史设置显示列表兼容（当前路由不再生产） | `chrome/NativeSettingsDocumentView.kt`（显示列表复刻） | `services/nativeSettingsDocument.ts`、`hooks/useNativeSettingsDocument.ts` | `chrome/NativeSettingsDocument*.kt`；**DOM 是排版真值源，只改样式不改结构** |
-| 二级操作面板（歌曲 ⋯ / 歌单 ⋯ / 音源选择…） | `chrome/TyPanel.kt` + `TyPanelHost.kt` | `library/suites/mobile/native/OperationPanel.tsx`（声明式模型） | `chrome/TyPanel*.kt` |
+| 二级操作面板（歌曲 ⋯ / 歌单 ⋯ / 音源选择…） | `chrome/TyPanel.kt` + `TyPanelHost.kt` | `components/shared/OperationPanel.tsx`（声明式模型） | `chrome/TyPanel*.kt` |
 | 经典极简播放器 | `minimal/ui/MinimalPlayerScreen.kt`，`chrome/MinimalPlayerPage.kt` 统一宿主 | `hooks/useNativeMinimalPlayer.ts`、`AppOverlays.tsx`；共享 MinimalPlayerRuntime | `minimal/ui/`、`minimal/`；保留经典布局、手势及动画 |
 | 沉浸极简播放器（1.5.55） | `minimal/immersive/ImmersivePlayerHost.kt`、`port/MeloXIOSNowPlayingScene.kt` | 同一 MinimalPlayerRuntime/Commands/Queue；无独立播放服务 | `minimal/immersive/`；仅当前风格持续渲染，无 WebView 播放器 |
 | 播放器风格/首次介绍/咖啡返回体验 | `minimal/style/PlayerStyleLayer.kt`、`PlayerStyleSheet.kt`、已有 `chrome/SupportSheets.kt` | 单一 PlayerStyleController；设置仅语义动作，外观导入导出投影 | `minimal/style/`、`chrome/SupportSheets.kt`；三入口同状态、全部免费 |
@@ -44,7 +44,7 @@ React 负责数据、路由、业务动作与原生桥接；Compose 负责绘制
 | Folia 歌词 / 可视化舞台 | `App.tsx`（`player-visual-surface`）、`components/visualizer/*` | 唯一渲染器 |
 | 舞台顶栏 + 更多菜单 | `components/app/overlays/mobile-stage/MobileStageChrome.tsx:109-175` | 无 Compose 等价物 |
 | 背屏歌词 | `rearLyrics.tsx`、`components/rear/*`、`RearLyricsActivity.java` | 独立 Activity 与 bundle |
-| 二级操作面板的 DOM 兜底 | `library/suites/mobile/native/OperationPanel.tsx` | 面板渲染的唯一入口：原生能力位不可用/包被拒时用 `.ml-sheet` 兜底（桌面与网页版也走它）。**不得**在具体功能里另起一层 `.ml-sheet` |
+| 二级操作面板的 DOM 兜底 | `components/shared/OperationPanel.tsx` | 面板渲染的唯一入口：原生能力位不可用/包被拒时用 `.ml-sheet` 兜底（桌面与网页版也走它）。**不得**在具体功能里另起一层 `.ml-sheet` |
 | 本地导入工具（`MobileLocalTools`） | `library/suites/mobile/native/NativeLocalLibrary.tsx` | 文件选择依赖 HTML `input[type=file]`，原生 SAF 选择器尚未实现 |
 | 歌单「管理歌曲」、登录二维码、其它确认框 | `LocalPlaylistManageSheet.tsx`、`account/*`、`components/shared/ConfirmDialog` 等 | 列表型 / 二维码 / 富内容面板，本轮不在统一面板的六种块之内 |
 | 设置实时预览岛 | `VisPlayground`、`ThemePark`、`GlobalLyricOffsetPreview` 的 `data-native-live` 节点 | 设置页唯一的真实像素预览 |
@@ -52,7 +52,7 @@ React 负责数据、路由、业务动作与原生桥接；Compose 负责绘制
 | 极简页回退 | `MinimalStage.tsx` | 握手未完成/弹层打开时的短期承载 |
 
 > **二级操作面板（原生化专项·第 21 轮）**：所有"从 ⋯ 打开的动作列表"统一走
-> `library/suites/mobile/native/OperationPanel.tsx` → `chrome/TyPanel.kt`。React 只拼声明式模型
+> `components/shared/OperationPanel.tsx` → `chrome/TyPanel.kt`。React 只拼声明式模型
 > （`types/nativePanels.ts`），Compose 负责 Sheet / Dialog / Menu 三种容器与六种内容块；
 > 点击只回传动作 id，业务规则一行都没有搬进 Kotlin。新增一个动作 = React 加一行数据，
 > 不需要改 Kotlin，也不需要新建弹窗。

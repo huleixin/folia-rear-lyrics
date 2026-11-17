@@ -30,7 +30,7 @@ data class NativePage(val id: String, val session: String, val generation: Long,
             val sections=(0 until sectionCount).mapNotNull { index ->
                 val block=blocks!!.getJSONObject(index);val rows=block.optJSONArray("items")
                 val layout=block.optString("layout")
-                if(layout !in setOf("rows","cards","hero","chips","input","message","quickLinks","discoverCards","discoveryHero","radarCards","textActions"))return@mapNotNull null
+                if(layout !in setOf("rows","cards","hero","chips","input","message","quickLinks","discoverCards","discoveryHero","radarCards","textActions","bars"))return@mapNotNull null
                 val rowCount=minOf(rows?.length()?:0,3000)
                 val items=(0 until rowCount).map { row ->
                     val item=rows!!.getJSONObject(row)

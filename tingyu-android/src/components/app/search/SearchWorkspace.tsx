@@ -1,4 +1,4 @@
-import OperationPanel from '../../../library/suites/mobile/native/OperationPanel';
+import OperationPanel from '../../shared/OperationPanel';
 import type { NativePanelModel, NativePanelActionRow } from '../../../types/nativePanels';
 import { getProviderSongMetadata } from '../../../services/onlineMusic/songMetadata';
 import { canResolveSongCatalogRef } from '../../../services/onlineMusic/catalogRefs';

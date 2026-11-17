@@ -9,7 +9,7 @@ import { discoverySources } from '../../../services/discovery/service';
 import { clearDiscoveryPreferences } from '../../../services/discovery/preferences';
 import { omni } from '../../../services/onlineMusic/omni';
 import { runTopModalBack } from '../../../services/modalBackStack';
-import OperationPanel from '../../../library/suites/mobile/native/OperationPanel';
+import OperationPanel from '../../shared/OperationPanel';
 import { discoverySettingsModel, discoverySettingsPatch, resetDiscoveryLayout, resetDiscoveryParameters } from './discoverySettingsModel';
 
 // src/components/modal/settings/DiscoverySettingsPage.tsx

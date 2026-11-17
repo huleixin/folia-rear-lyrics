@@ -17,7 +17,7 @@ import { omni } from '../../../../../services/onlineMusic/omni';
 import { catalogBadgePageFields } from '../../../../../utils/catalogAudioLabels';
 import type { NativePageModel, PageActions, PageSection } from '../../../../../types/nativePages';
 import type { SongResult } from '../../../../../types';
-import OperationPanel from '../OperationPanel';
+import OperationPanel from '../../../../../components/shared/OperationPanel';
 import { useSettingsModalStore } from '../../../../../stores/useSettingsModalStore';
 import { useHomeSourceStore } from '../../../../../stores/useHomeSourceStore';
 import { loadNewReleaseChart } from '../../../../../services/onlineMusic/newReleaseCharts';

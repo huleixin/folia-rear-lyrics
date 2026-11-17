@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 
 const positions = new Map<string, { top: number; left: number }>();
 
-// src/library/suites/mobile/MobileScrollFrame.tsx
+// src/components/shared/MobileScrollFrame.tsx
 // Native WebView scrollbars vary by vendor. These overlay cues never consume layout space.
 export default function MobileScrollFrame({
     children,

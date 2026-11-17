@@ -12,7 +12,7 @@ export type PageItem = {
     audioCacheKey?:string; audioCached?:boolean; audioCachedLabel?:string;
 };
 export type PageSection = {
-    id: string; title?: string; layout: 'rows' | 'cards' | 'hero' | 'chips' | 'input' | 'message' | 'quickLinks' | 'discoverCards' | 'discoveryHero' | 'radarCards' | 'textActions';
+    id: string; title?: string; layout: 'rows' | 'cards' | 'hero' | 'chips' | 'input' | 'message' | 'quickLinks' | 'discoverCards' | 'discoveryHero' | 'radarCards' | 'textActions' | 'bars';
     items?: PageItem[]; text?: string; value?: string; placeholder?: string; action?: string;
     submit?: string; more?: string; moreLabel?: string; busy?: boolean; expanded?: boolean;
     total?: number; offset?: number; request?: string; key?: string; image?: string;

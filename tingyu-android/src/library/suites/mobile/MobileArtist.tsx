@@ -16,7 +16,7 @@ import { useLibraryTrackPlayback } from '../../../hooks/useLibraryTrackPlayback'
 import MobileArtwork from './MobileArtwork';
 import MobileDirectory from './MobileDirectory';
 import MobileTrackList from './MobileTrackList';
-import OperationPanel from './native/OperationPanel';
+import OperationPanel from '../../../components/shared/OperationPanel';
 import type { NativePanelActionRow } from '../../../types/nativePanels';
 import { NATIVE_FIRST } from '../../../services/nativePages';
 import { useNativeArtistPage } from './native/useNativeArtistPage';

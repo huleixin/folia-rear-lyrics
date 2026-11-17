@@ -19,7 +19,7 @@ import {
     setLocalSongIdFavorite,
 } from '../../../services/localPlaylistService';
 import type { useMobileCollection } from './useMobileCollection';
-import OperationPanel, { type PanelActionPayload } from './native/OperationPanel';
+import OperationPanel, { type PanelActionPayload } from '../../../components/shared/OperationPanel';
 import {
     buildCollectionSourcePanel,
     type MobileMenuCommands,

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import OperationPanel from '../OperationPanel';
+import OperationPanel from '../../../../../components/shared/OperationPanel';
 import { omni } from '../../../../../services/onlineMusic/omni';
 import type { ProviderHistoryEntry } from '../../../../../types/onlineMusic';
 import type { SongResult } from '../../../../../types';

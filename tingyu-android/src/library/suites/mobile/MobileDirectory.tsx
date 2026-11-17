@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { LibraryHomeCard } from '../../core/contracts/homeModel';
 import MobileArtwork from './MobileArtwork';
-import MobileScrollFrame from './MobileScrollFrame';
+import MobileScrollFrame from '../../../components/shared/MobileScrollFrame';
 import { canSortDirectoryByUpdate, directoryRows, type DirectorySort } from './mobileDirectoryModel';
 
 // src/library/suites/mobile/MobileDirectory.tsx

@@ -10,7 +10,7 @@ import { useMobileCollectionAutoplay } from './useMobileCollectionAutoplay';
 import MobileArtwork from './MobileArtwork';
 import MobileTrackList from './MobileTrackList';
 import MobileCollectionMenu, { type MobileMenuTarget } from './MobileCollectionMenu';
-import MobileSheet from './MobileSheet';
+import MobileSheet from '../../../components/shared/MobileSheet';
 import LocalPlaylistManageSheet from './LocalPlaylistManageSheet';
 import MobilePlaylistHeader from './MobilePlaylistHeader';
 import MobilePlaylistBackdrop from './MobilePlaylistBackdrop';

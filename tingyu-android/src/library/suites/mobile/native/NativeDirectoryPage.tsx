@@ -10,9 +10,10 @@ import { pageRowActions } from '../../../../utils/nativePageActions';
 import { useHomeSourceStore } from '../../../../stores/useHomeSourceStore';
 
 // src/library/suites/mobile/native/NativeDirectoryPage.tsx
-export default function NativeDirectoryPage({root,props,sources,onReady,onSources,cards,onOpen,sections=[],tailSections=[],onFilter,extraActions={},emptyMessage,route,heading,enableSort=false,headingTrailing='',headingTrailingLabel=''}:NativeHomeProps&{
+export default function NativeDirectoryPage({root,props,sources,onReady,onSources,cards,onOpen,sections=[],tailSections=[],onFilter,extraActions={},emptyMessage,route,heading,enableSort=false,headingTrailing='',headingTrailingLabel='',subpage}:NativeHomeProps&{
     cards:LibraryHomeCard[];onOpen:(card:LibraryHomeCard,index:number)=>void;sections?:PageSection[];extraActions?:PageActions;emptyMessage:string;route:string;heading?:string;enableSort?:boolean;
     tailSections?:PageSection[];onFilter?:(query:string)=>void;
+    subpage?:{model:NativePageModel;actions:PageActions};
     /** 本地资料库专用：标题右上角的「更多」入口（导入/刷新收纳在同一个工具面板里）。 */
     headingTrailing?:string;headingTrailingLabel?:string;
 }) {
@@ -50,5 +51,5 @@ export default function NativeDirectoryPage({root,props,sources,onReady,onSource
         const index=Number(match[1]),card=cards[index];if(!card||String(card.id)!==match[2])return;
         return()=>onOpen(card,index);
     });
-    useNativePage(root,'home',props.isInteractive,model,bound,onReady);return null;
+    useNativePage(root,'home',props.isInteractive,subpage?.model??model,subpage?.actions??bound,onReady);return null;
 }

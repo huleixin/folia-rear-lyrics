@@ -23,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.animation.animateContentSize
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,20 +44,31 @@ import kotlin.math.roundToInt
 // android/app/src/main/java/io/github/huleixin/tingyu/chrome/NativeDirectoryPage.kt
 // The existing library has a fixed header/filter and contiguous 68px rows, not spaced cards.
 @Composable internal fun NativeDirectoryPage(page:NativePage,modifier:Modifier,action:PageAction) {
+    val states = rememberSaveableStateHolder()
+    val recent = rememberSaveable { mutableListOf<String>() }
+    LaunchedEffect(page.key) {
+        recent.remove(page.key)
+        recent.add(page.key)
+        while (recent.size > 12) states.removeState(recent.removeAt(0))
+    }
+    states.SaveableStateProvider(page.key) { NativeDirectoryContent(page,modifier,action) }
+}
+@Composable private fun NativeDirectoryContent(page:NativePage,modifier:Modifier,action:PageAction) {
     // 资料库搜索（68591）：搜索框平时是页面里的一块普通区域，点一下就升到状态栏下方成为
     // 固定层；列表在它下面继续滚动。用 pageOrigin 采集根布局坐标，供展开动画从原位起飞。
     val reduced = LocalLiquidReduced.current
     var pageOrigin by remember{mutableStateOf(Offset.Zero)}
     var searchExpanded by remember(page.key){mutableStateOf(false)}
     var fieldRect by remember{mutableStateOf<Rect?>(null)}
-    val searchSection=page.sections.firstOrNull{it.layout=="input"}
+    val footprint=page.key.startsWith("library:footprint:")
+    val searchSection=if(footprint)null else page.sections.firstOrNull{it.layout=="input"}
     // 返回键：搜索展开时先收搜索，不直接退出页面。
     BackHandler(enabled=searchExpanded){searchExpanded=false}
     BoxWithConstraints(modifier.pageOrigin{pageOrigin=it}){
         val width=maxWidth;val wide=width>=840.dp;val library=page.key.startsWith("library:")
         val start=if(wide)if(maxHeight<=600.dp)108.dp else 116.dp else if(library&&width>=374.dp)18.dp else 16.dp
         val end=if(wide)32.dp else if(library&&width>=374.dp)18.dp else 16.dp
-        val rowSections=page.sections.filter{it.layout=="rows"&&it.id!="intro"}
+        val rowSections=page.sections.filter{(it.layout=="rows"||it.layout=="cards")&&it.id!="intro"}
         val caches=rowSections.associate{it.id to key(it.id){rememberNativeRows(page.key,it)}}
         val list=rememberLazyListState();val identity=rowSections.map{it.id to it.dataKey}.toString()
         var previous by rememberSaveable { mutableStateOf(identity) }
@@ -65,13 +77,16 @@ import kotlin.math.roundToInt
         // 资料库头部（标题/分类/搜索框/排序）与歌手返回栏是玻璃之上的清晰层；
         // 搜索展开/收起时玻璃范围随头部布局测量自动适配，无分段无横带。
         val colors=page.surfaceColors()
+        val bottomClearance=maxOf((page.bottomClearance+page.safeBottom).dp,with(LocalDensity.current){LocalNativePageBottomPx.current.toDp()})
         val glass=rememberTyTopGlassState(estimateHeaderBottomDp=page.safeTop+if(library)240f else 52f)
         Box(Modifier.fillMaxSize()){
             TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()){
             val listTop by animateDpAsState(if(searchExpanded)NativeSearchBarHeight+16.dp else 0.dp,tween(if(reduced)0 else 240),label="dir-list-top")
             LazyColumn(Modifier.fillMaxSize(),state=list,contentPadding=PaddingValues(start=start,end=end,top=glass.contentTop+listTop,
-                bottom=(page.bottomClearance+page.safeBottom).dp)){
+                bottom=bottomClearance)){
                 page.sections.forEach { section ->
+                    if(library&&section.title.isNotBlank()&&(section.layout=="rows"||section.layout=="cards"))
+                        item(key="${section.id}:heading"){PageSectionHeading(section,action=action)}
                     when {
                         section.id=="intro" -> item(key=section.id){
                             Column(Modifier.padding(top=4.dp,bottom=13.dp)){
@@ -91,14 +106,19 @@ import kotlin.math.roundToInt
                             }
                         }
                         section.layout=="rows" -> pagedNativeRows(page,section,caches.getValue(section.id),if(library)NativePageDesign.DirectoryRow else 62,action,art=if(library)NativePageDesign.DirectoryArt.dp else null)
+                        library&&section.layout=="cards" -> libraryGridRows(page,section,caches.getValue(section.id),if(wide)4 else 2,action)
+                        library&&(section.layout=="textActions"||section.layout=="quickLinks") -> item(key=section.id){
+                            LibraryQuickActions(section,action)
+                        }
+                        library&&section.layout=="bars" -> item(key=section.id){NativeListeningBars(section,action)}
                         !library&&section.id=="play"&&page.key.contains("artist:") -> item(key=section.id){
                             Row(Modifier.fillMaxWidth().padding(bottom=16.dp)){
                                 section.items.firstOrNull()?.let{item->PagePill(item.title,{action(item.action,"",0.0)},
                                     selected=true,enabled=!item.disabled,height=36.dp,font=14,trailing="play")}
                             }
                         }
-                        !library&&section.layout=="chips" -> item(key=section.id){NativeSourceTabs(section,Modifier.padding(bottom=12.dp),action=action)}
-                        !library&&section.layout=="input" -> item(key=section.id){Box(Modifier.padding(bottom=10.dp)){NativePageInput(section,action)}}
+                        (!library||section.id=="groups")&&section.layout=="chips" -> item(key=section.id){NativeSourceTabs(section,Modifier.padding(bottom=12.dp),action=action)}
+                        (!library||footprint)&&section.layout=="input" -> item(key=section.id){Box(Modifier.padding(bottom=10.dp)){NativePageInput(section,action)}}
                         section.layout=="message"&&section.text.isNotBlank() -> item(key=section.id){Text(section.text,color=PageMuted,fontSize=13.sp,modifier=Modifier.padding(vertical=20.dp,horizontal=8.dp))}
                     }
                     if(section.busy)item(key="${section.id}:busy"){CircularProgressIndicator(Modifier.padding(12.dp).size(20.dp),color=PageAccent,strokeWidth=2.dp)}
@@ -122,13 +142,13 @@ import kotlin.math.roundToInt
                                     ChromeButton(tools.title,size=40.dp,onClick={action(tools.action,"",0.0)}){PageIcon("ellipsis-vertical",PageInk,Modifier.size(19.dp))}
                                 }
                             }
-                            page.sections.filter{it.layout=="chips"&&it.id!="sort"&&it.id!="song-sort"}.forEach { section ->
+                            page.sections.filter{it.layout=="chips"&&it.id!="sort"&&it.id!="song-sort"&&it.id!="groups"}.forEach { section ->
                                 NativeSourceTabs(section,Modifier.padding(start=start,end=end,bottom=12.dp),action=action)
                             }
                             page.sections.filter{it.layout=="message"&&it.more.isNotBlank()&&it.text.isBlank()}.forEach{section->
                                 Box(Modifier.padding(start=start,end=end,bottom=8.dp)){PagePill(section.moreLabel,{action(section.more,"",0.0)})}
                             }
-                            page.sections.firstOrNull{it.layout=="input"}?.let{section->
+                            searchSection?.let{section->
                                 // 被动模式：文本框自己不拿焦点，点击由外层接管 —— 直接展开固定层，
                                 // 避免“内联先弹键盘 → 层展开再收键盘”的两次输入法动画。
                                 // 第三行：完整搜索框 + 右侧紧凑排序菜单（排序项收进下拉，不再占一行）。

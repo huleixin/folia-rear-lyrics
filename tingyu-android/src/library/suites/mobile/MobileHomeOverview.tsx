@@ -22,12 +22,12 @@ import {
 } from "../../../services/onlineMusic/songMetadata";
 import MobileArtwork from "./MobileArtwork";
 import MobileDirectory from "./MobileDirectory";
-import MobileScrollFrame from "./MobileScrollFrame";
+import MobileScrollFrame from "../../../components/shared/MobileScrollFrame";
 import MobileRecommendations from "./MobileRecommendations";
 import { getPlaybackSongKey } from "../../../utils/appPlaybackGuards";
 import { collectionKey } from "../../core/model/collectionIdentity";
 import type { SongResult } from "../../../types";
-import MobileSheet from "./MobileSheet";
+import MobileSheet from "../../../components/shared/MobileSheet";
 
 // src/library/suites/mobile/MobileHomeOverview.tsx
 export default function MobileHomeOverview({

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import OperationPanel from './OperationPanel';
+import OperationPanel from '../../../../components/shared/OperationPanel';
 import type { NativePanelModel } from '../../../../types/nativePanels';
 import type { SongResult } from '../../../../types';
 

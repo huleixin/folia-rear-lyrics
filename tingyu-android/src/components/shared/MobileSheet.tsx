@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { useLiquidReduced } from '../../../components/shared/useLiquidReduced';
-import { TY_DURATION, TY_SPRING } from '../../../components/shared/motionTokens';
-import { registerModalBack } from '../../../services/modalBackStack';
+import { useLiquidReduced } from './useLiquidReduced';
+import { TY_DURATION, TY_SPRING } from './motionTokens';
+import { registerModalBack } from '../../services/modalBackStack';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import MobileScrollFrame from './MobileScrollFrame';
 
-// src/library/suites/mobile/MobileSheet.tsx
+// src/components/shared/MobileSheet.tsx
 export default function MobileSheet({
     title,
     onClose,

@@ -1,7 +1,7 @@
 import ConfirmDialog from '../../src/components/shared/ConfirmDialog';
 import React, { useCallback, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import MobileSheet from '../../src/library/suites/mobile/MobileSheet';
+import MobileSheet from '../../src/components/shared/MobileSheet';
 import MobileStageMenu from '../../src/components/app/overlays/mobile-stage/MobileStageMenu';
 import { runTopModalBack } from '../../src/services/modalBackStack';
 import { useMotionSettingsStore } from '../../src/stores/useMotionSettingsStore';

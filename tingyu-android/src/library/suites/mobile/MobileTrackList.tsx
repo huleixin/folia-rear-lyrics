@@ -10,7 +10,7 @@ import { getSizedCoverUrl } from '../../../utils/coverUrl';
 import { isSongUnavailable } from '../../../services/onlineMusic/songAvailability';
 import { formatTime } from '../../../utils/appPlaybackHelpers';
 import type { CollectionView } from '../../core/bindings/useCollectionView';
-import MobileScrollFrame from './MobileScrollFrame';
+import MobileScrollFrame from '../../../components/shared/MobileScrollFrame';
 import MobilePlayingIndicator from './MobilePlayingIndicator';
 import { useMobileTrackLocator } from './useMobileTrackLocator';
 import MobileArtwork from './MobileArtwork';

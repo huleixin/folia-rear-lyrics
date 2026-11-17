@@ -11,6 +11,7 @@ import NativeLocalHomeOverview from './NativeLocalHomeOverview';
 import { useHomeSourceStore } from '../../../../stores/useHomeSourceStore';
 import type { PageActions } from '../../../../types/nativePages';
 import { directoryContentTabs } from '../mobileDirectoryModel';
+import NativeUnifiedLibrary from './NativeUnifiedLibrary';
 
 // src/library/suites/mobile/native/NativeHomePage.tsx
 function OnlineLibrary(args:NativeHomeProps) {
@@ -42,5 +43,5 @@ export default function NativeHomePage(args:NativeHomeProps&{page:'home'|'librar
     if(homeSource==='local')return <NativeLocalLibrary {...args}/>;
     if(args.sources.tab==='local')return <NativeLocalLibrary {...args}/>;
     if(args.sources.tab==='navidrome')return <NaviLibrary {...args}/>;
-    return <OnlineLibrary {...args}/>;
+    return <NativeUnifiedLibrary {...args}/>;
 }

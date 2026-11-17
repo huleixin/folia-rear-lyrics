@@ -6,7 +6,7 @@ import { useLibraryAccountProviders } from '../../core/bindings/useLibraryAccoun
 import { useLibraryHomeActions } from '../../core/bindings/useLibraryHomeActions';
 import { useHomeSourceStore, selectHomeSearchSource } from '../../../stores/useHomeSourceStore';
 import { useSearchNavigationStore } from '../../../stores/useSearchNavigationStore';
-import OperationPanel from './native/OperationPanel';
+import OperationPanel from '../../../components/shared/OperationPanel';
 import type { NativePanelActionRow } from '../../../types/nativePanels';
 import { providerLabel } from '../../../services/onlineMusic/providerLabel';
 

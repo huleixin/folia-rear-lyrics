@@ -41,7 +41,7 @@
 
 | 组件 | 路径 | 职责 |
 |---|---|---|
-| OperationPanel | `src/library/suites/mobile/native/OperationPanel.tsx` | 二级操作面板的**唯一渲染入口**：原生可用 → 推给 Compose；否则用 `.ml-sheet` 画同一份 spec |
+| OperationPanel | `src/components/shared/OperationPanel.tsx` | 二级操作面板的**唯一渲染入口**：原生可用 → 推给 Compose；否则用 `.ml-sheet` 画同一份 spec |
 | NativePanelModel / NativePanelFrame | `src/types/nativePanels.ts` | 声明式面板契约（6 种内容块：actions / select / toggle / input / confirm / note） |
 | nativePanels | `src/services/nativePanels.ts` | 面板通道与动作命名空间解码（`act:` / `set:` / `toggle:` / `submit:` / `confirm:` / `dismiss`） |
 | TyPanel / TyPanelHost / TyPanelModel | `android/.../chrome/TyPanel*.kt` | Compose 侧 Sheet / Dialog / Menu 三容器 + 六种块渲染与宿主级状态机 |

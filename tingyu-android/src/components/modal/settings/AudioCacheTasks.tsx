@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import OperationPanel from '../../../library/suites/mobile/native/OperationPanel';
+import OperationPanel from '../../shared/OperationPanel';
 import { audioCacheRequest, type AudioCacheStatus } from '../../../services/audioPlaylistCache';
 import { getTingyuPlayback } from '../../../platform/tingyuPlayback';
 import { formatOfflineBytes } from './OfflineCacheOverview';

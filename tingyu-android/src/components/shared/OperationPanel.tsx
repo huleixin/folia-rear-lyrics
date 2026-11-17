@@ -1,6 +1,6 @@
 import { AnimatePresence } from 'framer-motion';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import MobileSheet from '../MobileSheet';
+import MobileSheet from './MobileSheet';
 import {
     canUseNativePanels,
     decodePanelAction,
@@ -9,10 +9,10 @@ import {
     onNativePanelAction,
     pushNativePanel,
     removeNativePanel,
-} from '../../../../services/nativePanels';
-import type { NativePanelBlock, NativePanelModel } from '../../../../types/nativePanels';
+} from '../../services/nativePanels';
+import type { NativePanelBlock, NativePanelModel } from '../../types/nativePanels';
 
-// src/library/suites/mobile/native/OperationPanel.tsx
+// src/components/shared/OperationPanel.tsx
 //
 // 二级操作面板的唯一渲染入口（原生化专项·第 21 轮）。
 //

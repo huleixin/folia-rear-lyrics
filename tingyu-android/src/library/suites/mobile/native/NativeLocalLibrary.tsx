@@ -7,7 +7,7 @@ import type { LibraryHomeCard } from '../../../core/contracts/homeModel';
 import type { PageActions, PageSection } from '../../../../types/nativePages';
 import type { NativeHomeProps } from './NativeHomeOverview';
 import NativeDirectoryPage from './NativeDirectoryPage';
-import MobileSheet from '../MobileSheet';
+import MobileSheet from '../../../../components/shared/MobileSheet';
 import { MobileLocalTools } from '../MobileHomeSources';
 import { hasBlockingWindow } from '../../../../utils/keyboardTargets';
 import { buildLocalQueue, LIST_ROW_COVER_SIZE } from '../../../../services/playbackAdapters';
@@ -25,6 +25,7 @@ import { openAddToPlaylistForSong } from '../../../../stores/useAddToPlaylistSto
 import { LOCAL_MUSIC_UPDATED_EVENT } from '../../../../services/localMusicService';
 import { setStatusMessage } from '../../../../stores/useStatusMessageStore';
 import LocalSongActionSheet, { type LocalSongMenu } from './LocalSongActionSheet';
+import { useLibraryInsights } from './useLibraryInsights';
 
 // 时长（毫秒）→ h:mm:ss / mm:ss；未知或非法值返回 '--:--' 占位，不写死。
 const formatPageDuration=(ms:number|undefined):string=>{
@@ -39,6 +40,7 @@ const formatPageDuration=(ms:number|undefined):string=>{
 // src/library/suites/mobile/native/NativeLocalLibrary.tsx
 export default function NativeLocalLibrary(args:NativeHomeProps) {
     const {props}=args;const {t}=useTranslation();
+    const insights=useLibraryInsights(props,'local','local');
     const local=useLibraryHomeLocal({localSongs:props.localSongs,localPlaylists:props.localPlaylists,catalog:props.localLibraryCatalog,activeRow:props.localMusicState.activeRow});
     const [tools,setTools]=useState(false),[path,setPath]=useState('');
     const tree=useMemo(()=>buildMusicFolders(props.localSongs),[props.localSongs]);
@@ -134,8 +136,10 @@ export default function NativeLocalLibrary(args:NativeHomeProps) {
     }
     return <>
         <NativeDirectoryPage {...args} key={`${local.activeSection.key}:${path}`} route={`local:${local.activeSection.key}:${path}`} cards={cards}
-            onOpen={open} sections={sections} tailSections={tailSections} onFilter={value=>{setQuery(value);setSongOffset(0)}} extraActions={actions} emptyMessage={local.activeSection.emptyMessage}
+            onOpen={open} sections={sections} tailSections={[...tailSections,...insights.sections]} onFilter={value=>{setQuery(value);setSongOffset(0)}} extraActions={{...actions,...insights.actions}} emptyMessage={local.activeSection.emptyMessage}
+            subpage={insights.footprint.opened?insights.footprint:undefined}
             headingTrailing="tools" headingTrailingLabel={t('mobileLibrary.more')}/>
+        {insights.panels}
         <AnimatePresence>{tools&&<MobileSheet title={t('mobileLibrary.importMusic')} onClose={()=>setTools(false)}><MobileLocalTools homeResources={props.homeResources}/></MobileSheet>}</AnimatePresence>
         {menu&&<LocalSongActionSheet menu={menu} liked={menuLiked}
             onClose={()=>setMenu(null)}

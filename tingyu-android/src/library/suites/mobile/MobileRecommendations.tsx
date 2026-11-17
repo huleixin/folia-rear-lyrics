@@ -10,7 +10,7 @@ import { isPersonalFmCard } from "../../core/model/homeCards";
 import { collectionKey } from "../../core/model/collectionIdentity";
 import { useMobileLibraryStore } from "../../../stores/useMobileLibraryStore";
 import { orderMobileRecommendations } from "./mobileRecommendationOrder";
-import MobileScrollFrame from "./MobileScrollFrame";
+import MobileScrollFrame from "../../../components/shared/MobileScrollFrame";
 import "./mobileRecommendations.css";
 import { useNewReleaseChart } from "../../../hooks/useNewReleaseChart";
 

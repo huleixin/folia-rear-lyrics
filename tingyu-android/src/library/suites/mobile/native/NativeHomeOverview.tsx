@@ -18,7 +18,7 @@ import { getSongArtistLabel, getSongCoverUrl } from '../../../../services/online
 import { isSongUnavailable } from '../../../../services/onlineMusic/songAvailability';
 import type { NativePageModel, PageActions, PageSection } from '../../../../types/nativePages';
 import type { NativePanelModel } from '../../../../types/nativePanels';
-import OperationPanel from './OperationPanel';
+import OperationPanel from '../../../../components/shared/OperationPanel';
 import type { SongResult } from '../../../../types';
 
 // src/library/suites/mobile/native/NativeHomeOverview.tsx
