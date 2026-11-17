@@ -214,12 +214,12 @@ private fun NativeDirectoryContent(page: NativePage, modifier: Modifier, action:
                                             color = PageMuted,
                                             fontSize = 12.sp
                                         )
-                                        Spacer(Modifier.width(8.dp))
+                                        Spacer(Modifier.width(10.dp))
                                     }
                                     PageIcon(
                                         "chevron-up",
-                                        PageMuted,
-                                        Modifier.size(18.dp).graphicsLayer { rotationZ = rotation }
+                                        PageInk.copy(alpha = 0.72f),
+                                        Modifier.size(20.dp).graphicsLayer { rotationZ = rotation }
                                     )
                                 }
                                 if (!isGroupCollapsed) Spacer(Modifier.height(8.dp))

@@ -78,8 +78,32 @@ export function useUnifiedLibrary(active: boolean, source: string, resource: Lib
         }
 
         setSyncing(true);
+        const holdInitialBatch = !cached && ids.length > 1;
+        const buffered: Record<string, LibraryPageState> = {};
+        let batchFlushed = !holdInitialBatch;
+        const flushBatch = () => {
+            if (batchFlushed || task.signal.aborted) return;
+            batchFlushed = true;
+            if (!Object.keys(buffered).length) return;
+            setSnapshot(previous => {
+                const base = previous.owner === owner ? previous.pages : {};
+                const nextPages = { ...base, ...buffered };
+                writeCachedPages(owner, nextPages);
+                return { owner, pages: nextPages };
+            });
+        };
+        const safetyTimer = holdInitialBatch ? setTimeout(flushBatch, 1200) : null;
+
         void unifiedLibrary.load(ids, resource, page => {
             if (task.signal.aborted) return;
+            if (!batchFlushed) {
+                buffered[page.providerId] = page;
+                if (ids.every(id => Boolean(buffered[id]))) {
+                    if (safetyTimer) clearTimeout(safetyTimer);
+                    flushBatch();
+                }
+                return;
+            }
             setSnapshot(previous => {
                 const base = previous.owner === owner ? previous.pages : (readCachedPages(owner)?.pages ?? {});
                 const prevPage = base[page.providerId];
@@ -90,9 +114,14 @@ export function useUnifiedLibrary(active: boolean, source: string, resource: Lib
                 return { owner, pages: nextPages };
             });
         }, task.signal).finally(() => {
+            if (safetyTimer) clearTimeout(safetyTimer);
+            flushBatch();
             if (!task.signal.aborted) setSyncing(false);
         });
-        return () => task.abort();
+        return () => {
+            if (safetyTimer) clearTimeout(safetyTimer);
+            task.abort();
+        };
     }, [active, owner, refresh]);
 
     const more = async (id: string) => {

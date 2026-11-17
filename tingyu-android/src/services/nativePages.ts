@@ -11,5 +11,5 @@ export function canUseNativePages(): Promise<boolean> {
 }
 export function absolutePageImage(url: string | null | undefined): string {
     if (!url) return '';
-    try { return new URL(url, location.href).href; } catch { return ''; }
+    try { return new URL(url, typeof location === 'undefined' ? 'https://localhost/' : location.href).href; } catch { return ''; }
 }

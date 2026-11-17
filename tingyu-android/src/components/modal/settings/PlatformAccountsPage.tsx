@@ -4,7 +4,7 @@ import { ArrowLeft, CheckCircle2, AlertCircle, UserRound, LogOut, RefreshCw, Log
 import { omni } from '../../../services/onlineMusic/omni';
 import { useOnlineProviderAccountStore } from '../../../stores/useOnlineProviderAccountStore';
 import { useSettingsModalStore } from '../../../stores/useSettingsModalStore';
-import { runTopModalBack } from '../../../services/modalBackStack';
+import { registerModalBack, runTopModalBack } from '../../../services/modalBackStack';
 import type { OnlineProviderId } from '../../../types/onlineMusic';
 import MobileSheet from '../../shared/MobileSheet';
 import { useSheetThemeTokens } from '../../../library/suites/mobile/native/sheetThemeTokens';
@@ -33,16 +33,21 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
     const [notice, setNotice] = useState('');
 
     useEffect(() => {
+        const unregister = registerModalBack(() => {
+            back();
+        });
         const onKey = (event: KeyboardEvent) => {
             if (event.key === 'Escape' && !event.defaultPrevented) {
-                if (runTopModalBack()) return;
                 event.preventDefault();
                 event.stopImmediatePropagation();
-                back();
+                if (!runTopModalBack()) back();
             }
         };
         window.addEventListener('keydown', onKey, true);
-        return () => window.removeEventListener('keydown', onKey, true);
+        return () => {
+            unregister();
+            window.removeEventListener('keydown', onKey, true);
+        };
     }, [fromIndex, onClose]);
 
     const startProviderLogin = async (providerId: OnlineProviderId) => {

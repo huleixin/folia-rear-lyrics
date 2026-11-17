@@ -18,7 +18,7 @@ function scan(directory) {
 }
 for (const directory of ['src/components/modal', 'src/components/visualizer', 'src/components/shared']) scan(directory);
 files.push('src/components/panelTab/ThemeQuickEditor.tsx');
-const names = new Set(['Layers', 'CircleCheck', 'LocateFixed', 'MessageSquareQuote', 'ListMusic', 'Calendar', 'Radio', 'Heart', 'ChartNoAxesColumn', 'GripVertical', 'RefreshCw', 'Compass', 'FolderCog', 'Monitor', 'Car', 'ArrowUpDown', 'LayoutGrid', 'List', 'Captions', 'Search', 'SlidersHorizontal', 'Clock', 'Smartphone']);
+const names = new Set(['Layers', 'CircleCheck', 'LocateFixed', 'MessageSquareQuote', 'ListMusic', 'Calendar', 'Radio', 'Heart', 'ChartNoAxesColumn', 'GripVertical', 'RefreshCw', 'Compass', 'FolderCog', 'Monitor', 'Car', 'ArrowUpDown', 'LayoutGrid', 'List', 'Captions', 'Search', 'SlidersHorizontal', 'Clock', 'Smartphone', 'ChevronUp', 'ChevronDown']);
 for (const file of files) {
     const ast = parse(fs.readFileSync(path.join(root, file), 'utf8'), { sourceType: 'module', plugins: ['typescript', 'jsx'] });
     for (const item of ast.program.body) if (item.type === 'ImportDeclaration' && item.source.value === 'lucide-react') {

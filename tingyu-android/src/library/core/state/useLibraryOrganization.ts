@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { SmartRule } from '../model/smartPlaylists';
@@ -39,3 +40,36 @@ export const useLibraryOrganization = create<Store>()(persist(set => ({
 /** Organization keys include account identity; private folders never leak across logins. */
 export const collectionOrganizationKey = (provider: string, account: string, type: string, id: string | number) =>
     JSON.stringify([provider, account, type, String(id)]);
+
+/** Merges saved platform order with available providers without letting late-arriving providers reorder saved ranks. */
+export function computeEffectivePlatformOrder(savedOrder: readonly string[] | undefined, availableProviderIds: readonly string[]): string[] {
+    const availableSet = new Set(availableProviderIds);
+    const saved = (savedOrder ?? []).filter(id => availableSet.has(id));
+    const savedSet = new Set(saved);
+    const rest = availableProviderIds.filter(id => !savedSet.has(id));
+    return [...saved, ...rest];
+}
+
+/** Builds a rank lookup prioritizing saved platformOrder directly so cold-start async availability never flickers order. */
+export function computeProviderRank(savedOrder: readonly string[] | undefined, availableProviderIds: readonly string[]): Map<string, number> {
+    const map = new Map<string, number>();
+    let rank = 0;
+    for (const id of savedOrder ?? []) {
+        if (!map.has(id)) map.set(id, rank++);
+    }
+    for (const id of availableProviderIds) {
+        if (!map.has(id)) map.set(id, rank++);
+    }
+    return map;
+}
+
+export function useLibraryOrganizationHydrated(): boolean {
+    const [hydrated, setHydrated] = useState(() => useLibraryOrganization.persist.hasHydrated());
+    useEffect(() => {
+        if (hydrated) return;
+        const unsub = useLibraryOrganization.persist.onFinishHydration(() => setHydrated(true));
+        if (useLibraryOrganization.persist.hasHydrated()) setHydrated(true);
+        return unsub;
+    }, [hydrated]);
+    return hydrated;
+}

@@ -19,70 +19,21 @@ import SaveSmartPlaylistPanel, { type SmartPlaylistExport } from './SaveSmartPla
 import { useSheetThemeTokens } from './sheetThemeTokens';
 
 // src/library/suites/mobile/native/useLibraryInsights.tsx
-const SYSTEM_ART: Record<string, { c1: string; c2: string; label: string }> = {
-    week: { c1: '#7196B5', c2: '#385B73', label: '7D' },
-    month: { c1: '#527E9F', c2: '#203747', label: '30D' },
-    forgotten: { c1: '#B9BCD9', c2: '#62678A', label: 'OLD' },
-    added: { c1: '#AAC8DF', c2: '#49677D', label: 'NEW' },
-    unheard: { c1: '#8EAEC8', c2: '#3B566B', label: 'LIKE' },
-    quality: { c1: '#6FA3B8', c2: '#234C5E', label: 'SQ' },
-    night: { c1: '#6D7A9E', c2: '#232B42', label: '22+' },
-    year: { c1: '#7E9FB8', c2: '#2F4D63', label: 'YR' },
-};
-
-const rasterArtCache = new Map<string, string>();
-
-function smartArtDataUrl(c1: string, c2: string, label: string): string {
-    const key = `${c1}|${c2}|${label}`;
-    const cached = rasterArtCache.get(key);
-    if (cached) return cached;
-    if (typeof document === 'undefined') return '';
-    try {
-        const canvas = document.createElement('canvas');
-        canvas.width = 192;
-        canvas.height = 192;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return '';
-        const grad = ctx.createLinearGradient(0, 0, 192, 192);
-        grad.addColorStop(0, c1);
-        grad.addColorStop(1, c2);
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, 192, 192);
-        ctx.fillStyle = 'rgba(255,255,255,0.10)';
-        ctx.beginPath();
-        ctx.arc(148, 44, 46, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,0.08)';
-        ctx.beginPath();
-        ctx.arc(46, 152, 58, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,0.92)';
-        ctx.font = '700 42px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(label, 96, 98);
-        const png = canvas.toDataURL('image/png');
-        rasterArtCache.set(key, png);
-        return png;
-    } catch {
-        return '';
-    }
-}
-
-function smartEntryCover(rule: SmartRule, songs: SmartFacts[], usedCovers: Set<string>): string {
-    if (!rule.id.startsWith('custom:')) {
-        const spec = SYSTEM_ART[rule.id] ?? { c1: '#7196B5', c2: '#385B73', label: 'MIX' };
-        return smartArtDataUrl(spec.c1, spec.c2, spec.label);
-    }
+/** Returns the first available song cover URL from the current sorted smart playlist tracks. */
+export function smartEntryCover(songs: readonly Pick<SmartFacts, 'song'>[]): string | undefined {
     for (const entry of songs) {
         const cover = absolutePageImage(getSongCoverUrl(entry.song));
-        if (cover && !usedCovers.has(cover)) {
-            usedCovers.add(cover);
-            return cover;
-        }
+        if (cover) return cover;
     }
-    const fallback = songs[0] ? absolutePageImage(getSongCoverUrl(songs[0].song)) : undefined;
-    return fallback || smartArtDataUrl('#7196B5', '#385B73', '♪');
+    return undefined;
+}
+
+function firstSmartSongCover(songs: readonly SongResult[]): string | undefined {
+    for (const song of songs) {
+        const cover = getSongCoverUrl(song);
+        if (cover) return cover;
+    }
+    return undefined;
 }
 
 /** Shared library insights; bottom management entry removed in favor of top-right Library Manage menu. */
@@ -122,10 +73,9 @@ export function useLibraryInsights(props: LibraryHomeSurfaceProps, source: strin
     );
 
     const coverMap = useMemo(() => {
-        const used = new Set<string>();
-        const map = new Map<string, string>();
+        const map = new Map<string, string | undefined>();
         for (const { rule, songs } of entries) {
-            map.set(rule.id, smartEntryCover(rule, songs, used));
+            map.set(rule.id, smartEntryCover(songs));
         }
         return map;
     }, [entries]);
@@ -150,7 +100,7 @@ export function useLibraryInsights(props: LibraryHomeSurfaceProps, source: strin
                 name: rule.name,
                 description: '听屿智能歌单 · ' + t('libraryV2.smartScope'),
                 trackCount: songs.length,
-                coverUrl: getSongCoverUrl(songs[0]),
+                coverUrl: firstSmartSongCover(songs),
                 discoveryTracks: songs,
             });
         }

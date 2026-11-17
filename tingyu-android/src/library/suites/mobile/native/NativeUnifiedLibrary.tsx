@@ -6,7 +6,14 @@ import {
 } from 'lucide-react';
 import { useNativePage } from '../../../../hooks/useNativePage';
 import { useUnifiedLibrary } from '../../../core/bindings/useUnifiedLibrary';
-import { useLibraryOrganization, collectionOrganizationKey, type LibrarySortKey } from '../../../core/state/useLibraryOrganization';
+import {
+    useLibraryOrganization,
+    useLibraryOrganizationHydrated,
+    collectionOrganizationKey,
+    computeEffectivePlatformOrder,
+    computeProviderRank,
+    type LibrarySortKey,
+} from '../../../core/state/useLibraryOrganization';
 import { omni } from '../../../../services/onlineMusic/omni';
 import { absolutePageImage } from '../../../../services/nativePages';
 import { useHomeSourceStore } from '../../../../stores/useHomeSourceStore';
@@ -91,11 +98,12 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
         [feed.providers],
     );
 
-    const effectivePlatformOrder = useMemo(() => {
-        const saved = (organization.platformOrder || []).filter(id => availableProviderIds.includes(id));
-        const rest = availableProviderIds.filter(id => !saved.includes(id));
-        return [...saved, ...rest];
-    }, [organization.platformOrder, availableProviderIds]);
+    const orgHydrated = useLibraryOrganizationHydrated();
+
+    const effectivePlatformOrder = useMemo(
+        () => computeEffectivePlatformOrder(organization.platformOrder, availableProviderIds),
+        [organization.platformOrder, availableProviderIds],
+    );
 
     useEffect(() => {
         if (platformOrderOpen) {
@@ -104,11 +112,10 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
         }
     }, [platformOrderOpen]);
 
-    const providerRank = useMemo(() => {
-        const map = new Map<string, number>();
-        effectivePlatformOrder.forEach((id, idx) => map.set(id, idx));
-        return map;
-    }, [effectivePlatformOrder]);
+    const providerRank = useMemo(
+        () => computeProviderRank(organization.platformOrder, availableProviderIds),
+        [organization.platformOrder, availableProviderIds],
+    );
 
     const lastPlayedByProvider = useMemo(() => {
         const map = new Map<string, number>();
@@ -206,7 +213,7 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
         {
             id: 'library-sources',
             layout: 'chips',
-            items: [{ providerId: 'all' }, ...feed.providers].map(provider => {
+            items: [{ providerId: 'all' }, ...effectivePlatformOrder.map(providerId => ({ providerId }))].map(provider => {
                 const action = 'source:' + provider.providerId;
                 actions[action] = () => { organization.patch({ source: provider.providerId }); setOffset(0); };
                 return {
@@ -421,7 +428,7 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
         root,
         'home',
         props.isInteractive && !footprint.opened && !localManageOpen,
-        sources.online.accountView === 'resolving' ? null : {
+        sources.online.accountView === 'resolving' || !orgHydrated ? null : {
             key: 'library:unified:' + feed.owner,
             title: t('libraryV2.library'),
             trailing: 'manage',

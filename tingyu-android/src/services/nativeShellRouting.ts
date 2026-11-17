@@ -38,7 +38,7 @@ export function installNativeShellRouting() {
         // Settings portals are captured into the same native document.
         // 设置弹窗本体不计入（第 12 轮）：关闭后退场动画还会把标记留在 DOM 上一两百毫秒，
         // 不排除的话路由会先发一帧 webOverlay=true 的 stage，极简页/舞台要多黑一拍才回来。
-        const webOverlay=settings.isOpen?false:
+        const webOverlay=settings.isOpen?(settings.initialSubview==='accounts'):
             nativeShellHasWebOverlay([...document.querySelectorAll<HTMLElement>('[data-folia-keyboard-window="true"]')]
                 .filter(node=>!node.closest('[data-folia-settings-overlay]')));
         const pageTarget=route==='settings'?(index?rearPageKey(settings.rearPage??'index'):(settings.initialSubview==='discovery'||settings.initialSubview==='search')?`settings:document:${settings.initialSubview}`:`settings:document:${settings.initialTab}:${resolveInitialSettingsSection({initialSubview:settings.initialSubview,hasInitialAnchor:!!settings.initialAnchor,isElectron:false})}:`):

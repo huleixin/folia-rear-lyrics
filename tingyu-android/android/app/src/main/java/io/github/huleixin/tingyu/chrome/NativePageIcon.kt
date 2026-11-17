@@ -21,7 +21,14 @@ private var definitions:JSONObject?=null
 internal fun pageIconPaths(context: android.content.Context, name: String): List<Path> {
         val root=definitions?:context.resources.openRawResource(R.raw.native_page_icons).bufferedReader().use{JSONObject(it.readText())}.also{definitions=it}
         val nodes=root.optJSONArray(name)
-        return (0 until (nodes?.length()?:0)).map { index ->
+        if (nodes == null || nodes.length() == 0) {
+            return when (name) {
+                "chevron-up" -> listOf(Path().apply { moveTo(18f, 15f); lineTo(12f, 9f); lineTo(6f, 15f) })
+                "chevron-down" -> listOf(Path().apply { moveTo(6f, 9f); lineTo(12f, 15f); lineTo(18f, 9f) })
+                else -> emptyList()
+            }
+        }
+        return (0 until nodes.length()).map { index ->
             val node=nodes!!.getJSONArray(index);val a=node.getJSONObject(1)
             fun number(key:String,default:Double=0.0)=a.optDouble(key,default).toFloat()
             Path().apply { when(node.getString(0)) {
