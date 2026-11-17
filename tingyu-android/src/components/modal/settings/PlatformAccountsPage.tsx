@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, CheckCircle2, AlertCircle, UserRound, LogOut, RefreshCw, LogIn } from 'lucide-react';
 import { omni } from '../../../services/onlineMusic/omni';
-import { useOnlineProviderAccountStore } from '../../../stores/useOnlineProviderAccountStore';
+import { useOnlineProviderAccountStore, type OnlineProviderAccountState } from '../../../stores/useOnlineProviderAccountStore';
+import { clearProviderAccountSnapshot, loadProviderAccountSnapshot, saveProviderAccountSnapshot } from '../../../services/onlineMusic/providerAccountCache';
 import { useSettingsModalStore } from '../../../stores/useSettingsModalStore';
 import { registerModalBack, runTopModalBack } from '../../../services/modalBackStack';
 import type { OnlineProviderId } from '../../../types/onlineMusic';
@@ -20,6 +21,63 @@ const BRAND_STYLES: Record<string, { bg: string; fg: string; abbr: string }> = {
     bodian: { bg: '#5B6CFF', fg: '#FFFFFF', abbr: '波' },
     qishui: { bg: '#00C2B3', fg: '#FFFFFF', abbr: '汽' },
 };
+
+export type AccountDisplayPhase = 'resolving' | 'authenticated' | 'network-error' | 'auth-required' | 'anonymous';
+
+export function resolveAccountDisplayState(account: OnlineProviderAccountState | undefined): {
+    phase: AccountDisplayPhase;
+    statusText: string;
+    buttonLabel: string;
+    isLoggedIn: boolean;
+} {
+    if (!account || account.hydration === 'loading' || account.status === 'unknown') {
+        return {
+            phase: 'resolving',
+            statusText: '正在恢复登录状态…',
+            buttonLabel: '恢复中',
+            isLoggedIn: false,
+        };
+    }
+    if (account.status === 'authenticated' && account.user) {
+        const displayName = account.user.nickname || String(account.user.id ?? '') || '已登录';
+        if (account.freshness === 'error') {
+            return {
+                phase: 'network-error',
+                statusText: `${displayName} · 网络异常，暂时无法验证`,
+                buttonLabel: '管理',
+                isLoggedIn: true,
+            };
+        }
+        return {
+            phase: 'authenticated',
+            statusText: displayName,
+            buttonLabel: '管理',
+            isLoggedIn: true,
+        };
+    }
+    if (account.error === 'auth-required') {
+        return {
+            phase: 'auth-required',
+            statusText: '授权已失效，请重新扫码',
+            buttonLabel: '重新授权',
+            isLoggedIn: false,
+        };
+    }
+    if (account.status === 'error' || account.freshness === 'error') {
+        return {
+            phase: 'network-error',
+            statusText: '网络异常，暂时无法验证登录状态',
+            buttonLabel: '重试校验',
+            isLoggedIn: false,
+        };
+    }
+    return {
+        phase: 'anonymous',
+        statusText: '未登录（可使用公开推荐与搜索）',
+        buttonLabel: '登录',
+        isLoggedIn: false,
+    };
+}
 
 export default function PlatformAccountsPage({ onClose }: { onClose: () => void }) {
     const tokens = useSheetThemeTokens();
@@ -84,6 +142,32 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
         setNotice('');
         setBusyId(providerId);
         try {
+            const currentAccount = useOnlineProviderAccountStore.getState().accounts[providerId];
+            const currentPhase = resolveAccountDisplayState(currentAccount).phase;
+            if (currentPhase === 'resolving' || currentPhase === 'network-error') {
+                const recovered = await omni.getLoginStatus(providerId).catch(() => null);
+                if (recovered) {
+                    const snapshot = await loadProviderAccountSnapshot(providerId).catch(() => null);
+                    const matching = snapshot && String(snapshot.user.id) === String(recovered.id) ? snapshot : null;
+                    useOnlineProviderAccountStore.getState().updateAccount(providerId, {
+                        status: 'authenticated',
+                        user: recovered,
+                        collections: matching?.collections || [],
+                        likedSongIds: matching?.likedSongIds || [],
+                        error: undefined,
+                        hydration: 'ready',
+                        freshness: 'fresh',
+                        lastUpdatedAt: Date.now(),
+                    });
+                    await saveProviderAccountSnapshot(providerId, {
+                        user: recovered,
+                        collections: matching?.collections || [],
+                        likedSongIds: matching?.likedSongIds || [],
+                    }).catch(() => {});
+                    setNotice(`${omni.getProviderLabel(providerId, false)}登录状态已恢复`);
+                    return;
+                }
+            }
             const methods = omni.getQrLoginMethods(providerId);
             const qr = await omni.createQrLogin(providerId, methods[0]?.id);
             if (!qr?.key || !qr?.imageUrl) {
@@ -97,6 +181,7 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
                         freshness: 'fresh',
                         lastUpdatedAt: Date.now(),
                     });
+                    await saveProviderAccountSnapshot(providerId, { user, collections: [], likedSongIds: [] }).catch(() => {});
                     setNotice(`${omni.getProviderLabel(providerId, false)}状态已刷新`);
                 } else {
                     setNotice(`${omni.getProviderLabel(providerId, false)}暂未返回二维码，请在独立平台页面登录`);
@@ -113,14 +198,21 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
                         const res = await omni.checkQrLogin(providerId, qr.key);
                         if (res.state === 'confirmed') {
                             const user = await omni.getLoginStatus(providerId).catch(() => null);
-                            useOnlineProviderAccountStore.getState().updateAccount(providerId, {
-                                status: 'authenticated',
-                                user: user ?? null,
-                                error: undefined,
-                                hydration: 'ready',
-                                freshness: 'fresh',
-                                lastUpdatedAt: Date.now(),
-                            });
+                            if (user) {
+                                useOnlineProviderAccountStore.getState().updateAccount(providerId, {
+                                    status: 'authenticated',
+                                    user,
+                                    error: undefined,
+                                    hydration: 'ready',
+                                    freshness: 'fresh',
+                                    lastUpdatedAt: Date.now(),
+                                });
+                                await saveProviderAccountSnapshot(providerId, {
+                                    user,
+                                    collections: [],
+                                    likedSongIds: [],
+                                }).catch(() => {});
+                            }
                             setQrLogin(null);
                             setNotice(`${omni.getProviderLabel(providerId, false)}登录成功`);
                             return;
@@ -147,7 +239,7 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
         setBusyId(providerId);
         setNotice('');
         try {
-            await omni.logout(providerId);
+            await Promise.allSettled([omni.logout(providerId), clearProviderAccountSnapshot(providerId)]);
             useOnlineProviderAccountStore.getState().clearAccount(providerId);
             setNotice(`已退出 ${omni.getProviderLabel(providerId, false)}`);
         } catch {
@@ -224,15 +316,12 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
                 >
                     {providers.map((provider, idx) => {
                         const account = accounts[provider.providerId];
-                        const loggedIn = account?.status === 'authenticated' && Boolean(account?.user);
-                        const expired = account?.status === 'error' || Boolean(account?.error);
+                        const display = resolveAccountDisplayState(account);
+                        const loggedIn = display.isLoggedIn;
+                        const expired = display.phase === 'auth-required' || display.phase === 'network-error';
                         const brand = BRAND_STYLES[provider.providerId] ?? { bg: tokens.accent, fg: '#FFFFFF', abbr: provider.displayName.slice(0, 1) };
                         const label = omni.getProviderLabel(provider.providerId, false);
-                        const statusText = loggedIn
-                            ? (account?.user?.nickname || String(account?.user?.id ?? '') || '已登录')
-                            : expired
-                                ? '登录已失效，请重新授权'
-                                : '未登录（可使用公开推荐与搜索）';
+                        const statusText = display.statusText;
 
                         return (
                             <div
@@ -288,7 +377,7 @@ export default function PlatformAccountsPage({ onClose }: { onClose: () => void 
                                             color: loggedIn ? tokens.secondaryBtnText : tokens.primaryBtnText,
                                         }}
                                     >
-                                        {busyId === provider.providerId ? '处理中' : loggedIn ? '管理' : '登录'}
+                                        {busyId === provider.providerId ? '处理中' : display.buttonLabel}
                                     </span>
                                 </button>
                             </div>

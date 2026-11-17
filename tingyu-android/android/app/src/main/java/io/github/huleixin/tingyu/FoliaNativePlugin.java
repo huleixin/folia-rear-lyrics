@@ -234,6 +234,130 @@ public class FoliaNativePlugin extends Plugin {
         call.resolve();
     }
 
+    private static final String SECURE_AUTH_PREFS = "tingyu_secure_auth_v1";
+    private static final String SECURE_KEY_ALIAS = "tingyu_qishui_auth_v1";
+    private static final int GCM_IV_BYTES = 12;
+    private static final int GCM_TAG_BITS = 128;
+
+    private static boolean isAllowedSecureAuthKey(String key) {
+        return "qishuiSessionV1".equals(key) || "qishuiDeviceId".equals(key);
+    }
+
+    private static javax.crypto.SecretKey getOrCreateAuthSecretKey() throws Exception {
+        java.security.KeyStore keyStore = java.security.KeyStore.getInstance("AndroidKeyStore");
+        keyStore.load(null);
+        java.security.Key existing = keyStore.getKey(SECURE_KEY_ALIAS, null);
+        if (existing instanceof javax.crypto.SecretKey) {
+            return (javax.crypto.SecretKey) existing;
+        }
+        javax.crypto.KeyGenerator generator = javax.crypto.KeyGenerator.getInstance(
+            android.security.keystore.KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
+        generator.init(new android.security.keystore.KeyGenParameterSpec.Builder(
+            SECURE_KEY_ALIAS,
+            android.security.keystore.KeyProperties.PURPOSE_ENCRYPT | android.security.keystore.KeyProperties.PURPOSE_DECRYPT)
+            .setBlockModes(android.security.keystore.KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(android.security.keystore.KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setKeySize(256)
+            .build());
+        return generator.generateKey();
+    }
+
+    @PluginMethod
+    public void getSecureItem(PluginCall call) {
+        String key = call.getString("key", "");
+        if (!isAllowedSecureAuthKey(key)) {
+            call.reject("Unsupported secure key");
+            return;
+        }
+        Context context = getContext();
+        if (context == null) {
+            call.reject("Context unavailable");
+            return;
+        }
+        try {
+            String encoded = context.getSharedPreferences(SECURE_AUTH_PREFS, Context.MODE_PRIVATE).getString(key, null);
+            JSObject result = new JSObject();
+            if (encoded == null || encoded.isEmpty()) {
+                result.put("value", JSObject.NULL);
+                call.resolve(result);
+                return;
+            }
+            byte[] payload = android.util.Base64.decode(encoded, android.util.Base64.NO_WRAP);
+            if (payload.length <= GCM_IV_BYTES) {
+                result.put("value", JSObject.NULL);
+                call.resolve(result);
+                return;
+            }
+            byte[] iv = java.util.Arrays.copyOfRange(payload, 0, GCM_IV_BYTES);
+            byte[] cipherText = java.util.Arrays.copyOfRange(payload, GCM_IV_BYTES, payload.length);
+            javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding");
+            cipher.init(javax.crypto.Cipher.DECRYPT_MODE, getOrCreateAuthSecretKey(),
+                new javax.crypto.spec.GCMParameterSpec(GCM_TAG_BITS, iv));
+            String plain = new String(cipher.doFinal(cipherText), java.nio.charset.StandardCharsets.UTF_8);
+            result.put("value", plain);
+            call.resolve(result);
+        } catch (Exception error) {
+            JSObject result = new JSObject();
+            result.put("value", JSObject.NULL);
+            call.resolve(result);
+        }
+    }
+
+    @PluginMethod
+    public void setSecureItem(PluginCall call) {
+        String key = call.getString("key", "");
+        String value = call.getString("value", null);
+        if (!isAllowedSecureAuthKey(key) || value == null) {
+            call.reject("Invalid secure item arguments");
+            return;
+        }
+        Context context = getContext();
+        if (context == null) {
+            call.reject("Context unavailable");
+            return;
+        }
+        try {
+            javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding");
+            cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, getOrCreateAuthSecretKey());
+            byte[] iv = cipher.getIV();
+            byte[] cipherText = cipher.doFinal(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            byte[] payload = new byte[iv.length + cipherText.length];
+            System.arraycopy(iv, 0, payload, 0, iv.length);
+            System.arraycopy(cipherText, 0, payload, iv.length, cipherText.length);
+            String encoded = android.util.Base64.encodeToString(payload, android.util.Base64.NO_WRAP);
+            boolean ok = context.getSharedPreferences(SECURE_AUTH_PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .putString(key, encoded)
+                .commit();
+            JSObject result = new JSObject();
+            result.put("ok", ok);
+            call.resolve(result);
+        } catch (Exception error) {
+            call.reject("Failed to persist secure item");
+        }
+    }
+
+    @PluginMethod
+    public void removeSecureItem(PluginCall call) {
+        String key = call.getString("key", "");
+        if (!isAllowedSecureAuthKey(key)) {
+            call.reject("Unsupported secure key");
+            return;
+        }
+        Context context = getContext();
+        if (context == null) {
+            call.reject("Context unavailable");
+            return;
+        }
+        boolean ok = context.getSharedPreferences(SECURE_AUTH_PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .remove(key)
+            .commit();
+        JSObject result = new JSObject();
+        result.put("ok", ok);
+        call.resolve(result);
+    }
+
     static boolean emitBackPressed() {
         return emitBackPressed(false);
     }

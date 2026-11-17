@@ -269,9 +269,33 @@ export function qishuiParams(deviceId) {
 
 const storage = {
   get(key) { try { return localStorage.getItem(key); } catch { return null; } },
-  set(key, value) { try { localStorage.setItem(key, value); } catch { /* memory only */ } },
+  set(key, value) { try { localStorage.setItem(key, value); return true; } catch { return false; } },
   remove(key) { try { localStorage.removeItem(key); } catch { /* memory only */ } },
 };
+
+function getNativeSecureAuth() {
+  if (typeof window === 'undefined') return null;
+  const plugin = window.Capacitor?.Plugins?.FoliaNative;
+  if (!plugin || typeof plugin.getSecureItem !== 'function' || typeof plugin.setSecureItem !== 'function') {
+    return null;
+  }
+  return plugin;
+}
+
+const sessionDiagnostics = {
+  hasPersistedSession: false,
+  sessionSchemaValid: false,
+  deviceIdChanged: false,
+  expiresRemainingMs: null,
+  renewAttempted: false,
+  loginCheckResult: 'none',
+  upstreamCode: '',
+  sessionClearedReason: '',
+};
+
+export function getQishuiAuthDiagnostics() {
+  return { ...sessionDiagnostics };
+}
 
 /** The stored record, or null when it is not a complete car account. */
 export function readSessionRecord(raw) {
@@ -295,32 +319,104 @@ function createSessionRepository() {
   let loaded = false;
   let current = null;
   let revision = 0;
+  let hydratedPromise = null;
   let deviceId = storage.get(DEVICE_KEY);
-  if (!isQishuiDeviceId(deviceId)) {
+  const hadLocalDeviceId = isQishuiDeviceId(deviceId);
+  if (!hadLocalDeviceId) {
     deviceId = createQishuiDeviceId();
     storage.set(DEVICE_KEY, deviceId);
   }
+  const mirrorSet = (key, value) => {
+    const native = getNativeSecureAuth();
+    if (native) void native.setSecureItem({ key, value }).catch(() => {});
+  };
+  const mirrorRemove = (key) => {
+    const native = getNativeSecureAuth();
+    if (native && typeof native.removeSecureItem === 'function') {
+      void native.removeSecureItem({ key }).catch(() => {});
+    }
+  };
+  const hydrate = () => {
+    if (hydratedPromise) return hydratedPromise;
+    hydratedPromise = (async () => {
+      const native = getNativeSecureAuth();
+      const localRaw = storage.get(SESSION_KEY);
+      const localParsed = readSessionRecord(localRaw);
+      if (native) {
+        try {
+          const devRes = await native.getSecureItem({ key: DEVICE_KEY });
+          const nativeDeviceId = devRes?.value;
+          if (isQishuiDeviceId(nativeDeviceId)) {
+            if (nativeDeviceId !== deviceId) {
+              sessionDiagnostics.deviceIdChanged = hadLocalDeviceId;
+              deviceId = nativeDeviceId;
+              storage.set(DEVICE_KEY, deviceId);
+            }
+          } else {
+            mirrorSet(DEVICE_KEY, deviceId);
+          }
+          const sessRes = await native.getSecureItem({ key: SESSION_KEY });
+          const nativeRaw = sessRes?.value;
+          const nativeParsed = readSessionRecord(nativeRaw);
+          if (nativeParsed && !localParsed) {
+            current = nativeParsed;
+            loaded = true;
+            storage.set(SESSION_KEY, serializeSession(nativeParsed));
+          } else if (localParsed && !nativeParsed) {
+            mirrorSet(SESSION_KEY, serializeSession(localParsed));
+          }
+        } catch {
+          // Keep localStorage/memory session if native bridge is temporarily unavailable.
+        }
+      }
+      if (!loaded) {
+        loaded = true;
+        current = readSessionRecord(storage.get(SESSION_KEY));
+      }
+      sessionDiagnostics.hasPersistedSession = Boolean(current || localRaw);
+      sessionDiagnostics.sessionSchemaValid = Boolean(current);
+      sessionDiagnostics.expiresRemainingMs = current ? current.expiresAt - Date.now() : null;
+    })();
+    return hydratedPromise;
+  };
   return {
-    deviceId,
+    get deviceId() { return deviceId; },
     get revision() { return revision; },
+    hydrate,
     get() {
       if (!loaded) {
         loaded = true;
         current = readSessionRecord(storage.get(SESSION_KEY));
+        sessionDiagnostics.hasPersistedSession = Boolean(current);
+        sessionDiagnostics.sessionSchemaValid = Boolean(current);
+        sessionDiagnostics.expiresRemainingMs = current ? current.expiresAt - Date.now() : null;
       }
       return current;
     },
     set(value) {
       loaded = true;
-      current = { ...value, version: 1 };
+      current = { ...value, version: 1, deviceId: value.deviceId || deviceId };
       revision += 1;
-      storage.set(SESSION_KEY, serializeSession(current));
+      const serialized = serializeSession(current);
+      storage.set(SESSION_KEY, serialized);
+      storage.set(DEVICE_KEY, deviceId);
+      mirrorSet(SESSION_KEY, serialized);
+      mirrorSet(DEVICE_KEY, deviceId);
+      sessionDiagnostics.hasPersistedSession = true;
+      sessionDiagnostics.sessionSchemaValid = true;
+      sessionDiagnostics.expiresRemainingMs = current.expiresAt - Date.now();
+      sessionDiagnostics.sessionClearedReason = '';
     },
-    clear() {
+    clear(reason = 'cleared') {
       loaded = true;
       current = null;
       revision += 1;
       storage.remove(SESSION_KEY);
+      mirrorRemove(SESSION_KEY);
+      sessionDiagnostics.hasPersistedSession = false;
+      sessionDiagnostics.sessionSchemaValid = false;
+      sessionDiagnostics.expiresRemainingMs = null;
+      sessionDiagnostics.sessionClearedReason = reason;
     },
   };
 }
@@ -1010,12 +1106,16 @@ function createAuth(client, { onSignOut = () => {} } = {}) {
     };
   }
   async function renew() {
+    await sessions.hydrate();
     const old = sessions.get();
-    if (!old) return null;
+    if (!old) {
+      sessionDiagnostics.loginCheckResult = 'anonymous';
+      return null;
+    }
     let revision = sessions.revision;
-    const signOut = () => {
+    const signOut = (reason = 'auth-rejected') => {
       if (revision !== sessions.revision) return;
-      sessions.clear();
+      sessions.clear(reason);
       onSignOut();
       log('[Qishui] Stored account was rejected; signed out');
     };
@@ -1032,16 +1132,17 @@ function createAuth(client, { onSignOut = () => {} } = {}) {
       };
       const renewTicket = async () => {
         if (revision !== sessions.revision) return false;
+        sessionDiagnostics.renewAttempted = true;
         let access = { access_code: candidate.accessCode, open_id: candidate.openId, expires_time: candidate.expiresAt };
         if (candidate.expiresAt < Date.now() + 3600000) {
-          const result = await http(query(`https://open.qishui.com${QISHUI_PREFIX}/access/code/refresh/`, { access_code: candidate.accessCode }, candidate.deviceId));
+          const result = await http(query(`https://open.qishui.com${QISHUI_PREFIX}/access/code/refresh/`, { access_code: candidate.accessCode }, candidate.deviceId || sessions.deviceId));
           const value = result.data.data || result.data;
           if (typeof value.access_code !== 'string' || !value.access_code) throw new QishuiError('invalid-response', 'Access code is missing');
           access = { ...value, open_id: value.open_id || value.open_uid || candidate.openId };
           if (!retain({ ...candidate, accessCode: access.access_code, openId: access.open_id,
             expiresAt: qishuiCredentialExpiry(access.expires_time).getTime() })) return false;
         }
-        const next = await ticket(access, candidate, candidate.deviceId);
+        const next = await ticket(access, candidate, candidate.deviceId || sessions.deviceId);
         return retain(next);
       };
       let renewed = false;
@@ -1058,12 +1159,20 @@ function createAuth(client, { onSignOut = () => {} } = {}) {
         if (!await renewTicket()) return null;
         user = await getUser(candidate);
       }
-      if (user.id !== old.userId) { signOut(); throw new QishuiError('auth-required', 'Qishui account identity changed'); }
+      if (user.id !== old.userId) { signOut('identity-mismatch'); throw new QishuiError('auth-required', 'Qishui account identity changed'); }
       if (revision !== sessions.revision) return null;
       sessions.set({ ...candidate, userId: user.id, user });
+      sessionDiagnostics.loginCheckResult = 'authenticated';
+      sessionDiagnostics.upstreamCode = '';
       return user;
     } catch (error) {
-      if (error instanceof QishuiError && error.code === 'auth-required' && error.upstreamCode) signOut();
+      sessionDiagnostics.upstreamCode = error instanceof QishuiError && error.upstreamCode ? String(error.upstreamCode) : '';
+      if (error instanceof QishuiError && error.code === 'auth-required' && error.upstreamCode) {
+        sessionDiagnostics.loginCheckResult = 'auth-required';
+        signOut(`upstream:${error.upstreamCode}`);
+      } else {
+        sessionDiagnostics.loginCheckResult = 'network-error';
+      }
       throw error;
     }
   }
@@ -1115,7 +1224,7 @@ function createAuth(client, { onSignOut = () => {} } = {}) {
       return value.task;
     },
     cancel(key) { pending.delete(key); },
-    logout() { generation += 1; pending.clear(); sessions.clear(); log('[Qishui] Signed out'); },
+    logout() { generation += 1; pending.clear(); sessions.clear('manual-logout'); log('[Qishui] Signed out'); },
     status() {
       if (!refreshing) refreshing = renew().finally(() => { refreshing = undefined; });
       return refreshing;
