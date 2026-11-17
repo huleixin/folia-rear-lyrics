@@ -84,7 +84,7 @@ export function useNativeCollectionPage(root:RefObject<HTMLElement|null>,props:L
         ...(filterOpen||model.query?[{id:'filter',layout:'input' as const,value:model.query,placeholder:t('mobileLibrary.filter'),action:'filter',more:'filterClose',moreLabel:t('ui.cancel')}]:[]),
         {id:'tracks',key:`${model.query}:${model.field}:${model.direction}`,layout:'rows',total,offset,request:'range',items,
             activeKey,playing,activeIndex,locateRevision}];
-    if(!total)sections.push({id:'empty',layout:'message',text:t(model.snapshot?.status==='loading'?'mobileLibrary.loading':'mobileLibrary.emptyCollection')});
+    if(!total)sections.push({id:'empty',layout:'message',text:props.collection.type==='discovery'&&props.collection.description?props.collection.description:t(model.snapshot?.status==='loading'?'mobileLibrary.loading':'mobileLibrary.emptyCollection'),more:props.collection.type==='discovery'?'back':undefined,moreLabel:props.collection.type==='discovery'?t('mobileLibrary.back'):undefined});
     if(model.snapshot?.error)sections.push({id:'error',layout:'message',text:model.snapshot.error.kind==='generic'?model.snapshot.error.message:t('mobileLibrary.loadFailed'),more:'reload',moreLabel:t('mobileLibrary.retry')});
     if(model.snapshot?.sync.status==='interrupted')sections.push({id:'resume',layout:'message',more:'resume',moreLabel:t('mobileLibrary.resumeSync')});
     const nativeModel:NativePageModel={key:`collection:${model.sessionKey}`,title:name,leading:'back',trailing:'menu',trailingLabel:'⋯',bottomClearance:100,sections};

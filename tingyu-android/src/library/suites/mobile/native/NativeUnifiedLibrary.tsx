@@ -25,6 +25,7 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
     const [resource, setResource] = useState<'playlists' | 'albums'>('playlists');
     const [query, setQuery] = useState(''), [offset, setOffset] = useState(0), [group, setGroup] = useState('');
     const [menu, setMenu] = useState<{ collection: ProviderCollection; key: string } | null>(null);
+    const [manageOpen, setManageOpen] = useState(false);
     const feed = useUnifiedLibrary(props.isInteractive, organization.source, resource);
     const sharedInsights = useLibraryInsights(props, organization.source, feed.owner);
     const { data: insights, footprint } = sharedInsights;
@@ -49,20 +50,20 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
             default: return 0;
         }
     });
-    const actions: PageActions = { sources: onSources, refresh: () => { feed.retry(); insights.retry(); },
+    const actions: PageActions = { sources: onSources, manage: () => setManageOpen(true), refresh: () => { feed.retry(); insights.retry(); },
         filter: event => { setQuery(event.text || ''); setOffset(0); }, range: event => setOffset(Math.max(0, Math.floor((event.value || 0) / 100) * 100)),
         layout: () => organization.patch({ layout: organization.layout === 'list' ? 'grid' : 'list' }),
         local: () => useHomeSourceStore.getState().setSource('local') };
     const sections: PageSection[] = [{ id: 'library-sources', layout: 'chips', items: [{ providerId: 'all' }, ...feed.providers].map(provider => {
         const action = 'source:' + provider.providerId;
         actions[action] = () => { organization.patch({ source: provider.providerId }); setOffset(0); };
-        return { id: action, title: provider.providerId === 'all' ? t('libraryV2.aggregate') : omni.getProviderLabel(provider.providerId), action, selected: organization.source === provider.providerId };
-    }).concat([{ id: 'local', title: t('libraryV2.local'), action: 'local', selected: false }]) },
+        return { id: action, title: provider.providerId === 'all' ? '综合' : omni.getProviderLabel(provider.providerId), action, selected: organization.source === provider.providerId };
+    }) },
     { id: 'library-categories', layout: 'chips', items: (['playlists', 'albums'] as const).map(value => {
         actions[value] = () => { setResource(value); setOffset(0); };
         return { id: value, title: value === 'playlists' ? t('libraryV2.playlists') : t('libraryV2.albums'), action: value, selected: resource === value };
     }) }, { id: 'filter', layout: 'input', value: query, placeholder: t('libraryV2.filter'), action: 'filter' },
-    { id: 'sort', title: resource === 'playlists' ? t('libraryV2.myPlaylists') : t('libraryV2.albums'), layout: 'chips', items: (['source','name','count','updated','manual'] as const).map(sort => {
+    { id: 'sort', layout: 'chips', items: (['source','name','count','updated','manual'] as const).map(sort => {
         actions['sort:' + sort] = () => { organization.patch({ sort }); setOffset(0); };
         return { id: sort, title: { source: t('libraryV2.sourceOrder'), name: t('libraryV2.name'), count: t('libraryV2.count'), updated: t('libraryV2.updated'), manual: t('libraryV2.manual') }[sort], action: 'sort:' + sort, selected: organization.sort === sort };
     }) }, { id: 'library-view', layout: 'textActions', items: [
@@ -117,7 +118,7 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
             : setMenu(item);
     });
     useNativePage(root, 'home', props.isInteractive, sources.online.accountView === 'resolving' ? null : footprint.opened ? footprint.model
-        : { key: 'library:unified:' + feed.owner, title: t('libraryV2.library'), trailing: 'sources', trailingLabel: t('libraryV2.sources'), bottomClearance: 152, sections },
+        : { key: 'library:unified:' + feed.owner, title: t('libraryV2.library'), trailing: 'manage', trailingLabel: '资料库管理', trailingIcon: 'folder-cog', bottomClearance: 152, sections },
         footprint.opened ? footprint.actions : rowActions, onReady);
     // Organization is local only; remote edits remain on the existing permission-aware detail page.
     const current = menu && organization.collections[menu.key];
@@ -133,6 +134,20 @@ export default function NativeUnifiedLibrary({ root, props, sources, onSources, 
         if (id === 'first') { organization.organize(menu.key, { order: Math.min(0, ...Object.values(organization.collections).map(value => value.order || 0)) - 1 }); organization.patch({ sort: 'manual' }); }
         if (id === 'detail') props.onOpenGridView({ ...menu.collection, source: 'online', raw: menu.collection });
         if (id !== 'pin') setMenu(null);
+    }}/>
+    <OperationPanel id="library-manage" panel={manageOpen ? { title: '资料库管理', blocks: [
+        { id: 'manage-actions', kind: 'actions', items: [
+            { id: 'refresh', label: '刷新资料库', icon: 'refresh-cw' },
+            { id: 'layout', label: organization.layout === 'list' ? '切换为封面网格' : '切换为列表视图', icon: 'layout-grid' },
+            { id: 'local', label: '管理本地音乐与导入', icon: 'smartphone' },
+            { id: 'reset-org', label: '清除本地置顶与分组', icon: 'rotate-ccw' },
+        ] }
+    ] } : null} onClose={() => setManageOpen(false)} onAction={id => {
+        setManageOpen(false);
+        if (id === 'refresh') { feed.retry(); insights.retry(); }
+        else if (id === 'layout') organization.patch({ layout: organization.layout === 'list' ? 'grid' : 'list' });
+        else if (id === 'local') useHomeSourceStore.getState().setSource('local');
+        else if (id === 'reset-org') { Object.keys(organization.collections).forEach(k => organization.organize(k, { pinned: false, group: '', order: undefined })); organization.patch({ sort: 'source' }); }
     }}/>
     {sharedInsights.panels}
     </>;

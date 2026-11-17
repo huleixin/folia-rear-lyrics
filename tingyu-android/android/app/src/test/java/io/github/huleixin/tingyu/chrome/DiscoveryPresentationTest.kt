@@ -61,7 +61,7 @@ class DiscoveryPresentationTest {
             val hero=compose.onNodeWithTag("discovery-hero").fetchSemanticsNode().boundsInRoot
             assertEquals((w-32).toFloat(),hero.width,.5f)
             assertTrue(hero.height>=136f)
-            if(w==393)assertTrue("Default hero should remain compact",hero.height<=145f)
+            if(w==393)assertTrue("Default hero should remain compact",hero.height<=152f)
             compose.onNodeWithText("立即漫游").assertIsDisplayed().performClick();assertEquals("roam",actions.last())
             val widths=page.sections[1].items.map { item->
                 val card=compose.onNodeWithTag("discovery-radar:"+item.id).fetchSemanticsNode().boundsInRoot

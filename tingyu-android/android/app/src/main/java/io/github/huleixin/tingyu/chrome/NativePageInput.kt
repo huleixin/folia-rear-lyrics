@@ -49,14 +49,14 @@ import androidx.compose.ui.unit.sp
         if(autoFocus){withFrameNanos{};runCatching{focusRequester?.requestFocus()}}
     }
     LaunchedEffect(section.value,focused){if(!focused&&draft.text!=section.value)draft=TextFieldValue(section.value)}
-    val shape=RoundedCornerShape(if(search)999.dp else 14.dp)
-    val fieldHeight=if(bare)46.dp else (if(search)NativePageDesign.SearchField else NativePageDesign.LibraryFilter).dp
+    val shape=RoundedCornerShape(if(search)16.dp else 14.dp)
+    val fieldHeight=if(bare)46.dp else if(search)48.dp else NativePageDesign.LibraryFilter.dp
     Row(Modifier.fillMaxWidth().height(fieldHeight)
         .then(if(bare)Modifier else Modifier.background(LocalInterfacePalette.current.subtle,shape)
             .border(1.dp,if(focused)LocalInterfacePalette.current.focus else LocalInterfacePalette.current.inputBorder,shape))
         .padding(start=12.dp,end=4.dp),
-        verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-        PageIcon("search",PageMuted,Modifier.size(17.dp))
+        verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(if(search)8.dp else 10.dp)) {
+        PageIcon("search",PageMuted,Modifier.size(if(search)20.dp else 17.dp))
         BasicTextField(draft,{draft=it;action(section.action,it.text,if(it.composition!=null)1.0 else 0.0)},
             modifier=Modifier.weight(1f)
                 .then(if(focusRequester!=null)Modifier.focusRequester(focusRequester)else Modifier)

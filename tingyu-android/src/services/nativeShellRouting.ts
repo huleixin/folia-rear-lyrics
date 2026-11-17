@@ -41,7 +41,7 @@ export function installNativeShellRouting() {
         const webOverlay=settings.isOpen?false:
             nativeShellHasWebOverlay([...document.querySelectorAll<HTMLElement>('[data-folia-keyboard-window="true"]')]
                 .filter(node=>!node.closest('[data-folia-settings-overlay]')));
-        const pageTarget=route==='settings'?(index?rearPageKey(settings.rearPage??'index'):`settings:document:${settings.initialTab}:${resolveInitialSettingsSection({initialSubview:settings.initialSubview,hasInitialAnchor:!!settings.initialAnchor,isElectron:false})}:`):
+        const pageTarget=route==='settings'?(index?rearPageKey(settings.rearPage??'index'):(settings.initialSubview==='discovery'||settings.initialSubview==='search')?`settings:document:${settings.initialSubview}`:`settings:document:${settings.initialTab}:${resolveInitialSettingsSection({initialSubview:settings.initialSubview,hasInitialAnchor:!!settings.initialAnchor,isElectron:false})}:`):
             route==='collection'?`collection:${stack?.at(-1)?.type==='artist'?'artist:':''}${collectionKey(stack?.at(-1))}`:'';
         // The mounted document owns nested editor identity. Do not reconstruct its flags here.
         const documentKey=document.querySelector<HTMLElement>('[data-native-document-root]')?.dataset.nativeSettingsKey;

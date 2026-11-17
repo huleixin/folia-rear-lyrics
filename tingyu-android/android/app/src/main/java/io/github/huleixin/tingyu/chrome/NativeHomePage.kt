@@ -1,6 +1,7 @@
 package io.github.huleixin.tingyu.chrome
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -46,28 +47,40 @@ import kotlinx.coroutines.launch
     val sections=if(tablet||page.key=="home:local")page.sections else page.sections.map{if(it.id=="playlists")it.copy(items=it.items.take(4))else it}
     BoxWithConstraints(modifier){
         val wide=maxWidth>=840.dp;val short=wide&&maxHeight<=600.dp
-        val start=if(wide)if(short)108.dp else 116.dp else if(discovery)16.dp else 22.dp
-        val end=if(wide)32.dp else if(discovery)16.dp else 22.dp
+        val start=if(wide)if(short)108.dp else 116.dp else if(discovery)UnifiedHeaderTokens.HorizontalPadding else 22.dp
+        val end=if(wide)32.dp else if(discovery)UnifiedHeaderTokens.HorizontalPadding else 22.dp
         val viewport=if(wide)maxWidth.value-start.value-end.value else maxWidth.value
-        // 沉浸式毛玻璃顶栏（TopGlassBar）：列表全幅滚动、真正进入顶栏玻璃后方；
-        // 玻璃是顶栏材质（vibrancy+blur+tint，底部 32dp 强度平滑衰减），标题/音源选择始终清晰。
         val colors=page.surfaceColors()
-        val headerTop=if(short)8 else if(discovery)16 else 36
-        val glass=rememberTyTopGlassState(estimateHeaderBottomDp=page.safeTop+headerTop+(if(short)60 else 72)+6)
+        val headerTop=if(short)8 else if(discovery)12 else 36
+        val list = rememberLazyListState()
+        val collapseProgress by if (discovery) rememberCollapsingProgress(list, 32.dp, LocalLiquidReduced.current) else remember { mutableFloatStateOf(0f) }
+        val glass=rememberTyTopGlassState(estimateHeaderBottomDp=page.safeTop+(if(discovery)88f else headerTop+(if(short)60 else 72)+6f))
+        val platformSection = if (discovery) sections.firstOrNull { it.id == "discovery-sources" } else null
+        val contentTopPadding = if (discovery) (page.safeTop + 88f).dp else glass.contentTop
         Box(Modifier.fillMaxSize()) {
             TyTopGlassContentLayer(glass,colors,ambientImage=null,ambientViewportHeight=null,modifier=Modifier.fillMaxSize()) {
-            val list = rememberLazyListState()
-            LazyColumn(Modifier.fillMaxSize().testTag("native-home-list"),state=list,contentPadding=PaddingValues(top=glass.contentTop,bottom=(page.bottomClearance+page.safeBottom).dp)) {
+            LazyColumn(Modifier.fillMaxSize().testTag("native-home-list"),state=list,contentPadding=PaddingValues(top=contentTopPadding,bottom=(page.bottomClearance+page.safeBottom).dp)) {
                 sections.forEach { section ->
                     when {
-                        section.layout=="discoveryHero" -> item(key=section.id){DiscoveryHero(section,Modifier.padding(start=start,end=end,bottom=12.dp),action)}
-                        section.layout=="radarCards" -> item(key=section.id){Column(Modifier.padding(start=start,end=end,top=20.dp,bottom=12.dp)){
-                            PageSectionHeading(section,Modifier.padding(bottom=8.dp),action)
+                        section.layout=="discoveryHero" -> item(key=section.id){DiscoveryHero(section,Modifier.padding(start=start,end=end,top=12.dp,bottom=12.dp),action)}
+                        section.layout=="radarCards" -> item(key=section.id){Column(Modifier.padding(start=start,end=end,top=24.dp)){
+                            Row(Modifier.fillMaxWidth().padding(bottom=12.dp),verticalAlignment=Alignment.CenterVertically){
+                                Text(section.title,color=PageInk,fontSize=18.sp,fontWeight=FontWeight(650),modifier=Modifier.weight(1f))
+                                if(section.more.isNotBlank()){
+                                    Row(Modifier.heightIn(min=48.dp).chromeClickable(corner=10.dp){action(section.more,"",0.0)}.padding(horizontal=4.dp),
+                                        verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){
+                                        Text(section.moreLabel.ifBlank{"全部"},color=PageMuted,fontSize=13.sp)
+                                        PageIcon("chevron-right",PageMuted,Modifier.size(15.dp))
+                                    }
+                                }
+                            }
                             DiscoveryRadars(section,action=action)
                         }}
                         section.layout=="textActions" -> item(key=section.id){DiscoveryTextActions(section,Modifier.padding(start=start,end=end),action)}
                         section.layout=="hero" -> item(key=section.id){NativeHeroRail(section,viewport,start,end,wide,short,action)}
-                        // Discovery's provider/source chips use the same selected-pill rail as the library.
+                        section.layout=="chips" && section.id=="discovery-sources" -> item(key=section.id){
+                            UnifiedPlatformFilterBar(section,Modifier.padding(top=8.dp),horizontalPadding=start,action=action)
+                        }
                         section.layout=="chips" -> item(key=section.id){
                             NativeSourceTabs(section,Modifier.padding(start=start,end=end,bottom=8.dp),action=action)
                         }
@@ -113,6 +126,29 @@ import kotlinx.coroutines.launch
                         // 本地首页的四个快捷入口：四张独立轻量玻璃卡（深绿半透明、小圆角、
                         // 圆形图标容器），图标在上 / 名称居中 / 真实数量在下，无竖线分隔；
                         // 按压沿用 ChromeMaterial 的缩放+透明度反馈。导航与计数逻辑不变。
+                        section.layout=="quickLinks" && discovery -> item(key=section.id){
+                            val tintColors = listOf(Color(0x1F3B82F6), Color(0x1FEF4444), Color(0x1F10B981), Color(0x1FF59E0B))
+                            val iconColors = listOf(Color(0xFF3B82F6), Color(0xFFEF4444), Color(0xFF10B981), Color(0xFFD97706))
+                            Row(Modifier.padding(start=start,end=end,top=12.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                                section.items.forEachIndexed { idx, item ->
+                                    val interaction=remember { MutableInteractionSource() }
+                                    val pressed by interaction.collectIsPressedAsState()
+                                    val scale by animateFloatAsState(if(pressed)0.97f else 1f,tween(120),label="quick-press")
+                                    Column(Modifier.weight(1f).height(76.dp)
+                                        .graphicsLayer{scaleX=scale;scaleY=scale;alpha=if(item.disabled)0.48f else if(pressed)0.85f else 1f}
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(LocalInterfacePalette.current.homeQuickCard)
+                                        .clickable(interactionSource=interaction,indication=null,enabled=!item.disabled&&item.action.isNotBlank()){action(item.action,"",0.0)},
+                                        horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
+                                        Box(Modifier.size(36.dp).clip(RoundedCornerShape(18.dp))
+                                            .background(tintColors[idx % tintColors.size]),
+                                            contentAlignment=Alignment.Center){PageIcon(if(item.image.isNotBlank())item.image else "music2",iconColors[idx % iconColors.size],Modifier.size(23.dp))}
+                                        Spacer(Modifier.height(6.dp))
+                                        Text(item.title,color=PageInk,fontSize=12.sp,lineHeight=15.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)
+                                    }
+                                }
+                            }
+                        }
                         section.layout=="quickLinks" -> item(key=section.id){
                             Row(Modifier.padding(start=start,end=end,top=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                                 section.items.forEach { item ->
@@ -209,13 +245,40 @@ import kotlinx.coroutines.launch
                 }
             }
             }
-            TyTopGlassSurface(glass,colors)
-            // 顶栏内容：绘制在玻璃之上，始终清晰可操作。
-            TyTopGlassForeground {
-                Column(Modifier.fillMaxWidth().padding(top=(page.safeTop+headerTop).dp)
-                    .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}) {
-                    PageHeading(page,Modifier.padding(start=start,end=end).heightIn(min=if(short)60.dp else 72.dp),large=true,action=action)
-                    Spacer(Modifier.height(6.dp))
+            if (discovery) {
+                TyTopGlassForeground {
+                    Box(Modifier.onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}) {
+                        UnifiedCollapsingHeader(
+                            title = page.title,
+                            subtitle = page.subtitle,
+                            safeTopDp = page.safeTop.toFloat(),
+                            expandedHeightDp = 88f,
+                            collapsedHeightDp = 56f,
+                            progress = collapseProgress,
+                            horizontalPadding = start,
+                            platformSection = platformSection,
+                            action = action,
+                            trailingActions = {
+                                if (page.trailing.isNotBlank()) {
+                                    UnifiedHeaderIconButton(
+                                        description = page.trailingLabel.ifBlank { "推荐设置" },
+                                        icon = page.trailingIcon.ifBlank { "settings" },
+                                        tint = PageInk,
+                                        onClick = { action(page.trailing, "", 0.0) }
+                                    )
+                                }
+                            }
+                        )
+                    }
+                }
+            } else {
+                TyTopGlassSurface(glass,colors)
+                TyTopGlassForeground {
+                    Column(Modifier.fillMaxWidth().padding(top=(page.safeTop+headerTop).dp)
+                        .onGloballyPositioned{glass.reportHeader(it.positionInWindow().y,it.size.height)}) {
+                        PageHeading(page,Modifier.padding(start=start,end=end).heightIn(min=if(short)60.dp else 72.dp),large=true,action=action)
+                        Spacer(Modifier.height(6.dp))
+                    }
                 }
             }
         }

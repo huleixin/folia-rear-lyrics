@@ -47,18 +47,26 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
         const open = openSettings; document.addEventListener('tingyu-discovery-settings', open);
         return () => document.removeEventListener('tingyu-discovery-settings', open);
     }, [props.isInteractive]);
-    const local = useMemo(() => settings.includeLocal ? buildLocalQueue(props.localSongs.slice(0, 600), undefined, props.localLibraryCatalog, LIST_ROW_COVER_SIZE) : [], [props.localSongs, props.localLibraryCatalog, settings.includeLocal]);
-    const candidates = useMemo(() => [...feed.results.flatMap(result => result.songs), ...recent.filter(song => {
+    const local = useMemo(() => settings.includeLocal && settings.source === 'all' ? buildLocalQueue(props.localSongs.slice(0, 600), undefined, props.localLibraryCatalog, LIST_ROW_COVER_SIZE) : [], [props.localSongs, props.localLibraryCatalog, settings.includeLocal, settings.source]);
+    const scopedResults = useMemo(() => feed.results.filter(result => settings.source === 'all' ? settings.enabled[result.providerId] !== false : result.providerId === settings.source), [feed.results, settings.source, settings.enabled]);
+    const candidates = useMemo(() => [...scopedResults.flatMap(result => result.songs), ...recent.filter(song => {
         const source = getPlaybackSourceRef(song); return source.kind === 'online' && (settings.source === 'all' ? settings.enabled[source.providerId] !== false : source.providerId === settings.source);
-    }), ...(settings.source === 'all' ? local : [])], [feed.results, recent, local, settings.source, settings.enabled]);
+    }), ...local], [scopedResults, recent, local, settings.source, settings.enabled]);
     // Day and batch keep the snapshot stable; preference revision only re-ranks after a real
     // feedback event, so ordinary playback progress does not reshuffle the page.
     const seed = discoveryDay() + ':' + batch;
     const ranked = useMemo(() => rankDiscovery(candidates, preferences.values, settings, 'heart', seed, Date.now(), 100), [candidates, preferences.values, settings, seed]);
     const songs = controls.withoutHidden(ranked.map(item => item.song));
     // Local radar reads the local library even while the selected recommendation source is online.
-    const radar = (kind: RadarKind) => rankDiscovery(kind === 'local' ? local : candidates, preferences.values, settings, kind, seed).map(item => item.song);
-    const openRadar = (kind: RadarKind) => controls.openSongs(radarNames[kind], radar(kind), kind === 'style' ? '依据真实歌手关联；未推测音乐流派。' : '根据本机偏好及已启用的真实推荐来源生成。');
+    const radar = (kind: RadarKind) => rankDiscovery(kind === 'local' ? buildLocalQueue(props.localSongs.slice(0, 600), undefined, props.localLibraryCatalog, LIST_ROW_COVER_SIZE) : candidates, preferences.values, settings, kind, seed).map(item => item.song);
+    const openRadar = (kind: RadarKind) => {
+        const list = radar(kind);
+        const emptyHint = kind === 'time' ? '多听一些音乐，时光雷达将为你找回曾经的旋律。'
+            : kind === 'local' ? '暂无本地音乐，可在资料库导入本地曲库。'
+            : '当前平台候选数据不足，请先收听或收藏一些歌曲，或切换其他平台。';
+        const desc = list.length ? (kind === 'style' ? '依据真实歌手关联；未推测音乐流派。' : '根据本机偏好及当前筛选来源生成。') : emptyHint;
+        controls.openSongs(radarNames[kind], list, desc, true);
+    };
     const actions: PageActions = { settings: openSettings, sources: onSources, refresh: feed.retry,
         next: () => setBatch(value => value + 1), roam: () => roaming.active ? endDiscoveryRoaming() : controls.roam(songs),
         roamFamiliar: () => roaming.active ? endDiscoveryRoaming() : controls.roam(songs, 'familiar'),
@@ -72,8 +80,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
         const action = 'source:' + source.providerId; actions[action] = () => settings.patch({ source: source.providerId });
         return { id: action, title: source.providerId==='all'?'综合推荐':omni.getProviderLabel(source.providerId), selected: settings.source === source.providerId, action };
     });
-    actions.local = () => useHomeSourceStore.getState().setSource('local');
-    sourceItems.push({id:'local',title:omni.getProviderLabel('local'),selected:false,action:'local'});
+    const activePlatformLabel = settings.source === 'all' ? '' : omni.getProviderLabel(settings.source);
     const rows = (list: SongResult[], prefix: string) => list.map(song => {
         const key = prefix + getPlaybackSongKey(song), source = getPlaybackSourceRef(song);
         const reason = ranked.find(item => getPlaybackSongKey(item.song) === getPlaybackSongKey(song))?.reason;
@@ -84,13 +91,31 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
     const selectedSources = feed.sources.filter(source => settings.source === 'all' ? settings.enabled[source.providerId] !== false : source.providerId === settings.source);
     const capableSources = (kind:'daily'|'fm'|'charts') => selectedSources.filter(source => kind==='charts'
         ? ['netease','qq'].includes(source.providerId) : omni.getRecommendationCapabilities(source.providerId)[kind]);
-    const shortcuts = (['daily','heart','fm','charts'] as const).filter(kind => kind==='heart'||capableSources(kind).length>0).map(kind=>{
-        const action='quick:'+kind;actions[action]=()=>kind==='heart'?actions.roamFamiliar({}):setShortcut(kind);
+    const openChartFor = (providerId: string) => {
+        const request=++chartRequest.current;
+        setChartBusy(true);setChartError('');void loadNewReleaseChart(providerId).then(collection=>{if(request===chartRequest.current){setShortcut(null);controls.openCollection(collection);}})
+            .catch(()=>{if(request===chartRequest.current){setChartError('榜单暂时无法加载，请重试。');controls.setNotice('榜单暂时无法加载，请重试。');}}).finally(()=>{if(request===chartRequest.current)setChartBusy(false);});
+    };
+    const shortcuts = (['daily','heart','fm','charts'] as const).map(kind=>{
+        const targets = kind==='heart' ? [] : capableSources(kind);
+        const available = kind==='heart' ? songs.length>0 : targets.length>0;
+        const action='quick:'+kind;
+        actions[action]=()=>{
+            if(kind==='heart'){actions.roamFamiliar({});return;}
+            if(!available){controls.setNotice((activePlatformLabel||'当前启用平台')+'暂不支持'+({daily:'每日推荐',fm:'私人 FM',charts:'排行榜'}[kind])+'。');return;}
+            if(settings.source!=='all' && targets.length===1 && kind!=='daily'){
+                if(kind==='charts') openChartFor(targets[0].providerId);
+                else void controls.load(targets[0].providerId, kind);
+                return;
+            }
+            setShortcut(kind);
+        };
         return {id:action,title:{daily:'每日推荐',heart:'心动模式',fm:'私人 FM',charts:'排行榜'}[kind],action,
-            image:{daily:'calendar',heart:'heart',fm:'radio',charts:'chart-no-axes-column'}[kind],disabled:controls.busy||(kind==='heart'&&!songs.length)};
+            image:{daily:'calendar',heart:'heart',fm:'radio',charts:'chart-no-axes-column'}[kind],disabled:controls.busy||!available};
     });
+    const roamIdleSubtitle = activePlatformLabel ? `在${activePlatformLabel}发现属于你的下一首` : '让熟悉与未知，在下一首相遇';
     const sections: Record<string, PageSection> = {
-        roam: { id: 'discovery-brand', layout: 'discoveryHero', items: [{ id: 'roam', title: '听屿漫游', subtitle: roaming.active ? (roaming.exhausted ? '本批已全部加入' : '正在漫游 · 下一首继续发现') : '让熟悉与未知，在下一首相遇', action: 'roam', secondaryLabel:roaming.active?'退出漫游':'立即漫游',disabled:!roaming.active&&!songs.length }] },
+        roam: { id: 'discovery-brand', layout: 'discoveryHero', items: [{ id: 'roam', title: '听屿漫游', subtitle: roaming.active ? (roaming.exhausted ? '本批已全部加入' : '正在漫游 · 下一首继续发现') : roamIdleSubtitle, action: 'roam', secondaryLabel:roaming.active?'退出漫游':'立即漫游',disabled:!roaming.active&&!songs.length }] },
         roamModes: { id: 'discovery-roam-modes', layout: 'chips', items: [
             { id: 'roam-familiar', title: '偏熟悉', action: 'roamFamiliar' },
             { id: 'roam-explore', title: '多探索', action: 'roamExplore' },
@@ -103,7 +128,7 @@ export default function NativeDiscoveryHome({ root, props, sources, onReady, onS
             return { id: kind, title: radarNames[kind], subtitle: kind === 'style' ? '歌手与音乐的关联' : kind === 'time' ? '重逢旧日旋律' : '发现未听过的音乐', action, secondary:list.length?action+':play':'' };
         }) },
         songs: { id: 'discovery-songs', title: '猜你想听', layout: 'rows', more: 'next', moreLabel: '换一批', items: rows(songs.slice(0, 6), 'song:') },
-        collections: { id: 'discovery-collections', title: '为你精选歌单', layout: 'cards', items: feed.results.flatMap(result => result.collections).slice(0, 24).map(collection => {
+        collections: { id: 'discovery-collections', title: '为你精选歌单', layout: 'cards', items: scopedResults.flatMap(result => result.collections).slice(0, 24).map(collection => {
             const action = 'collection:' + collection.providerId + ':' + collection.id; actions[action] = () => controls.openCollection(collection);
             return { id: action, title: collection.name, subtitle: omni.getProviderLabel(collection.providerId) + (collection.trackCount != null ? ' · ' + collection.trackCount + '首' : ''), image: absolutePageImage(collection.coverUrl), action };
         }), more: 'allCollections', moreLabel: '查看更多' },

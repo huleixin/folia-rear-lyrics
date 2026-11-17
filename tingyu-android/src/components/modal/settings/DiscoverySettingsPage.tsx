@@ -31,7 +31,11 @@ export default function DiscoverySettingsPage({onClose}:{onClose:()=>void}) {
     },[fromIndex,onClose]);
     useNativeSettingsDocument(root,true,'discovery','推荐设置',discoverySettingsModel(settings,discoverySources()),(id,event)=>{
         if(['clear','resetLayout','resetParameters'].includes(id)){setConfirm(id);return;}
-        if(id==='manageSources') {document.dispatchEvent(new Event('tingyu-discovery-sources'));return;}
+        if(id==='manageSources') {
+            if(fromIndex)useSettingsModalStore.getState().openSettingsFromIndex('integration');
+            else {onClose();document.dispatchEvent(new Event('tingyu-discovery-sources'));}
+            return;
+        }
         const patch=discoverySettingsPatch(settings,id,event);if(patch)settings.patch(patch);
     },back);
     const message=confirm==='clear'?'仅清空推荐偏好，不删除收藏、歌单、播放历史或本地音乐。':confirm==='resetLayout'?'恢复模块默认顺序并显示所有模块？':'恢复探索、跨歌手、熟悉音乐及来源权重的默认值？';

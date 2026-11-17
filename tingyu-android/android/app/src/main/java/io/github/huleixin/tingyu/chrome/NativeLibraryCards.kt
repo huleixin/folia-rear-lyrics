@@ -13,25 +13,26 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // NativeLibraryCards.kt: existing page protocol, lazy grids and compact library actions.
-internal fun LazyListScope.libraryGridRows(page:NativePage,section:NativePageSection,cache:NativeRowsCache,columns:Int,action:PageAction){
+internal fun LazyListScope.libraryGridRows(page:NativePage,section:NativePageSection,cache:NativeRowsCache,columns:Int,action:PageAction,horizontalPadding:Dp=0.dp){
     items((section.total+columns-1)/columns,key={"${section.id}:${section.dataKey}:grid:$it"}){row->
-        Row(Modifier.fillMaxWidth().padding(bottom=16.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){
+        Row(Modifier.fillMaxWidth().padding(start=horizontalPadding,end=horizontalPadding,bottom=14.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)){
             repeat(columns){column->
                 val index=row*columns+column
                 val item=if(index<section.total)cache.get(section,index)else null
-                if(item!=null)Column(Modifier.weight(1f).chromeClickable(corner=16.dp){action(item.action,"",0.0)}){
+                if(item!=null)Column(Modifier.weight(1f).chromeClickable(corner=10.dp){action(item.action,"",0.0)}){
                     Box(Modifier.fillMaxWidth().aspectRatio(1f)){
-                        PageArtwork(item.image,Modifier.fillMaxSize(),16.dp)
-                        if(item.secondary.isNotBlank())Box(Modifier.align(Alignment.TopEnd).padding(4.dp)){
-                            ChromeButton(item.secondaryLabel.ifBlank{item.title},modifier=Modifier.background(Color.Black.copy(alpha=.64f),CircleShape),size=48.dp,onClick={action(item.secondary,"",0.0)}){PageIcon("ellipsis-vertical",Color.White,Modifier.size(18.dp))}
+                        PageArtwork(item.image,Modifier.fillMaxSize(),10.dp)
+                        if(item.secondary.isNotBlank())Box(Modifier.align(Alignment.TopEnd).padding(2.dp)){
+                            ChromeButton(item.secondaryLabel.ifBlank{item.title},modifier=Modifier.background(Color.Black.copy(alpha=.58f),CircleShape),size=40.dp,onClick={action(item.secondary,"",0.0)}){PageIcon("ellipsis-vertical",Color.White,Modifier.size(18.dp))}
                         }
                     }
-                    Text(item.title,color=PageInk,fontSize=15.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.fillMaxWidth().padding(top=7.dp))
-                    if(item.subtitle.isNotBlank()) Text(item.subtitle,color=PageMuted,fontSize=12.sp,maxLines=2,overflow=TextOverflow.Ellipsis)
+                    Text(item.title,color=PageInk,fontSize=13.sp,lineHeight=17.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.fillMaxWidth().padding(top=6.dp))
+                    if(item.subtitle.isNotBlank()) Text(item.subtitle,color=PageMuted,fontSize=12.sp,lineHeight=16.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=2.dp))
                 }else{
                     Spacer(Modifier.weight(1f).aspectRatio(1f))
                     if(index<section.total&&section.request.isNotBlank())LaunchedEffect(page.key,page.session,section.dataKey,index/100){

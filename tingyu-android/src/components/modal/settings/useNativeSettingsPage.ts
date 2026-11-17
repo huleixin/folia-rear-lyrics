@@ -16,18 +16,29 @@ export function useNativeSettingsPage(root:RefObject<HTMLElement|null>,page:Rear
     const {t}=useTranslation();
     const actions:PageActions={close:onClose,help:onHelp,...rearControlActions(rear,onPage,onBack)};
     const sections:PageSection[]=[];
+    const lyricsItems: PageItem[] = [];
     if (nativeLyricsAvailable()) {
         actions['lyrics:desktop'] = () => openNativeLyricsSettings('desktop');
         actions['lyrics:bluetooth'] = () => openNativeLyricsSettings('bluetooth');
-        sections.push({id:'lyrics-output',title:t('lyricsOutput.title'),layout:'rows',items:[
+        lyricsItems.push(
             {id:'desktop-lyrics',title:t('lyricsOutput.desktop'),subtitle:t('lyricsOutput.desktopHint'),action:'lyrics:desktop'},
             {id:'bluetooth-lyrics',title:t('lyricsOutput.bluetooth'),subtitle:t('lyricsOutput.bluetoothHint'),action:'lyrics:bluetooth'},
-        ]});
+        );
     }
-    if(rear.available)sections.push({id:'rear',layout:'rows',items:[{id:'rear-entry',title:t('rearControl.title'),subtitle:rearEntrySubtitle(rear.snapshot,rear.failed,t),action:'rear:open'}]});
+    if (rear.available) {
+        lyricsItems.push({id:'rear-entry',title:t('rearControl.title'),subtitle:rearEntrySubtitle(rear.snapshot,rear.failed,t),action:'rear:open'});
+    }
+    if (lyricsItems.length) {
+        sections.push({id:'lyrics-output',title:'歌词功能',layout:'rows',items:lyricsItems});
+    }
+    const discoveryItems: PageItem[] = [];
     if(onDiscovery){actions['discovery:settings']=onDiscovery;
-        sections.push({id:'discovery',title:'音乐发现',layout:'rows',items:[{id:'discovery-settings',title:'推荐设置',subtitle:'推荐来源、探索程度、模块与本地偏好',action:'discovery:settings'}]});}
-    if(onSearch){actions['search:settings']=onSearch;sections.push({id:'search',layout:'rows',items:[{id:'search-settings',title:t('searchSettings.title'),subtitle:t('searchSettings.scope'),action:'search:settings'}]});}
+        discoveryItems.push({id:'discovery-settings',title:'推荐设置',subtitle:'推荐来源、探索偏好与内容模块',action:'discovery:settings'});}
+    if(onSearch){actions['search:settings']=onSearch;
+        discoveryItems.push({id:'search-settings',title:t('searchSettings.title'),subtitle:'搜索来源与结果偏好',action:'search:settings'});}
+    if (discoveryItems.length) {
+        sections.push({id:'discovery',title:'音乐发现',layout:'rows',items:discoveryItems});
+    }
     for(const group of groups){
         const items:PageItem[]=group.items.map(item=>{actions[`settings:${item.id}`]=()=>onSelect(item.id);
             return{id:item.id,title:item.label,subtitle:item.description,action:`settings:${item.id}`}});
@@ -49,6 +60,6 @@ export function useNativeSettingsPage(root:RefObject<HTMLElement|null>,page:Rear
         {id:'coffee',title:t('mobileSettings.supportCoffee'),subtitle:t('mobileSettings.supportCoffeeDescription'),action:'support:coffee'},
         {id:'community',title:t('mobileSettings.supportCommunity'),subtitle:t('mobileSettings.supportCommunityDescription'),action:'support:group'},
     ]});
-    const model:NativePageModel=page==='control'||page==='advanced'?buildRearControlPage(page,rear,t):{key:'settings:index',title:t('ui.options'),bottomClearance:74,sections};
+    const model:NativePageModel=page==='control'||page==='advanced'?buildRearControlPage(page,rear,t):{key:'settings:index',title:t('ui.settingsNav')==='ui.settingsNav'?'设置':t('ui.settingsNav'),bottomClearance:74,sections};
     return useNativePage(root,'settings',page!=='guide'&&page!=='diagnostics'&&!page.startsWith('appearance'),model,actions);
 }
