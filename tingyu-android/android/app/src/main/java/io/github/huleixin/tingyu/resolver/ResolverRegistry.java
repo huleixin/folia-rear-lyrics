@@ -220,7 +220,7 @@ public final class ResolverRegistry {
         if (resolver instanceof LxNativeResolver) return ((LxNativeResolver) resolver).canAttempt(track);
         // QQ：只有在用户自建后端可用、或 musicu 熔断未打开时才值得接管。
         if (resolver instanceof QqResolver) return ((QqResolver) resolver).canAttempt();
-        // 网易云：JS 同步过 Cookie（含匿名设备 Cookie）才值得接管；没有就回落 JS 通道。
+        // 网易云：支持匿名 eapi 设备头解析免费曲目，也支持同步后的登录态 Cookie。
         if (resolver instanceof NeteaseResolver) return ((NeteaseResolver) resolver).canAttempt();
         // 酷狗/波点/汽水：匿名链不依赖登录态，恒可接管；登录曲目缺凭据时由各自 resolve 如实报错。
         return true;

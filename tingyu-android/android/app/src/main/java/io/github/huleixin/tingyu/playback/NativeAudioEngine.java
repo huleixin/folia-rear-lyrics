@@ -1346,7 +1346,7 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
         boolean wasEnded=player.getPlaybackState()==Player.STATE_ENDED;
         int next=player.getCurrentMediaItemIndex()+1;
         int before=player.getMediaItemCount();
-        int removed=0,preserved=0;
+        int removed=0,preserved=0,actuallyAdded=0;
         String droppedFirst="",droppedAdopted="",addedFirst=items.isEmpty()?"":items.get(0).mediaId;
         // 空窗口的意思是「这一轮一首都没解析出来」，不是「当前曲后面应该清空」。
         //
@@ -1367,41 +1367,46 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
                 if(existing!=null&&droppedFirst.isEmpty())droppedFirst=existing.mediaId;
             }
             QueuePrune.Plan prune=QueuePrune.plan(afterIds,afterAdopted,offered);
-            if(prune.replace&&next<player.getMediaItemCount()){
+            if(prune.replace&&next<=player.getMediaItemCount()){
                 java.util.ArrayList<MediaItem> keep=new java.util.ArrayList<>();
                 java.util.HashSet<String> keptIds=new java.util.HashSet<>();
-                for(int index:prune.keepIndices){
-                    MediaItem existing=player.getMediaItemAt(next+index);
-                    if(existing!=null){
-                        keep.add(existing);
-                        keptIds.add(existing.mediaId);
-                        if(droppedAdopted.isEmpty())droppedAdopted=existing.mediaId;
+                if(next<player.getMediaItemCount()){
+                    for(int index:prune.keepIndices){
+                        MediaItem existing=player.getMediaItemAt(next+index);
+                        if(existing!=null){
+                            keep.add(existing);
+                            keptIds.add(existing.mediaId);
+                            if(droppedAdopted.isEmpty())droppedAdopted=existing.mediaId;
+                        }
                     }
+                    // 已接管项与 JS 窗口同曲时只保留一份：旧代码把同名项删了重加，队列在
+                    // queue-diff 里反复 removed/added 抖动，还可能把原生握着的可用地址换掉。
+                    // 与保留项重复的窗口项直接丢弃，不参与"删除后重加"。
+                    int beforeDedupe=items.size();
+                    java.util.ArrayList<MediaItem> deduped=new java.util.ArrayList<>();
+                    for(MediaItem item:items){
+                        if(item!=null&&keptIds.contains(item.mediaId))continue;
+                        deduped.add(item);
+                    }
+                    int dedupedOut=beforeDedupe-deduped.size();
+                    items=deduped;
+                    removed=player.getMediaItemCount()-next;
+                    player.removeMediaItems(next,player.getMediaItemCount());
+                    if(dedupedOut>0)PlaybackDiagnostics.note("queue-dedupe",new JSObject()
+                        .put("dropped",dedupedOut).put("preserved",keep.size()));
                 }
-                // 已接管项与 JS 窗口同曲时只保留一份：旧代码把同名项删了重加，队列在
-                // queue-diff 里反复 removed/added 抖动，还可能把原生握着的可用地址换掉。
-                // 与保留项重复的窗口项直接丢弃，不参与"删除后重加"。
-                int beforeDedupe=items.size();
-                java.util.ArrayList<MediaItem> deduped=new java.util.ArrayList<>();
-                for(MediaItem item:items){
-                    if(item!=null&&keptIds.contains(item.mediaId))continue;
-                    deduped.add(item);
+                if(!items.isEmpty()){
+                    player.addMediaItems(items);
+                    actuallyAdded=items.size();
                 }
-                int dedupedOut=beforeDedupe-deduped.size();
-                items=deduped;
-                removed=player.getMediaItemCount()-next;
-                player.removeMediaItems(next,player.getMediaItemCount());
-                player.addMediaItems(items);
                 if(!keep.isEmpty()){player.addMediaItems(keep);preserved=keep.size();}
-                if(dedupedOut>0)PlaybackDiagnostics.note("queue-dedupe",new JSObject()
-                    .put("dropped",dedupedOut).put("preserved",preserved));
             }
         }
         queueAccepted++;
         lastQueueAppliedAt=SystemClock.elapsedRealtime();
         staleNudges=0;
         int remaining=Math.max(0,player.getMediaItemCount()-player.getCurrentMediaItemIndex()-1);
-        PlaybackDiagnostics.note("queue-replenish",new JSObject().put("accepted",items.size()).put("rejected",rejected)
+        PlaybackDiagnostics.note("queue-replenish",new JSObject().put("accepted",actuallyAdded).put("rejected",rejected)
             .put("trimmed",start).put("removed",removed).put("preserved",preserved).put("items",player.getMediaItemCount())
             .put("index",player.getCurrentMediaItemIndex()).put("remaining",remaining)
             .put("verdict",verdict.name().toLowerCase(java.util.Locale.US)).put("continues",supervision.continues())
@@ -1410,12 +1415,12 @@ public final class NativeAudioEngine implements BackgroundContinuation.Host {
             .put("emptyWindow",items.isEmpty()));
         PlaybackDiagnostics.note("queue-diff",new JSObject()
             .put("before",before).put("after",player.getMediaItemCount())
-            .put("removed",removed).put("preserved",preserved).put("added",items.size())
+            .put("removed",removed).put("preserved",preserved).put("added",actuallyAdded)
             .put("droppedFirst",PlaybackDiagnostics.anonKey(droppedFirst))
             .put("droppedAdopted",PlaybackDiagnostics.anonKey(droppedAdopted))
             .put("addedFirst",PlaybackDiagnostics.anonKey(addedFirst))
             .put("generation",supervision.generation()).put("source","js-window"));
-        lastQueueRemoved=removed;lastQueuePreserved=preserved;lastQueueAdded=items.size();
+        lastQueueRemoved=removed;lastQueuePreserved=preserved;lastQueueAdded=actuallyAdded;
         lastQueueDroppedAdopted=droppedAdopted;lastQueueAddedFirst=addedFirst;
         lastQueueDiffAtMs=SystemClock.elapsedRealtime();
         if(items.isEmpty()){

@@ -233,10 +233,22 @@ public final class BackgroundContinuation {
 
         if (decision != Decision.TAKE_OVER) {
             if (decision == Decision.FALLBACK_TO_JS) fallbacks++;
+            boolean activityAlive = isActivityAlive();
+            boolean audioCacheHit = hasAudioCache(hasNext ? step.track : null);
+            String jsFallbackReason = "";
+            if (decision == Decision.FALLBACK_TO_JS) {
+                if (!canDecide) jsFallbackReason = "ledger-cannot-decide";
+                else if (!hasNext) jsFallbackReason = "end-of-playlist";
+                else jsFallbackReason = "not-natively-resolvable";
+            }
             PlaybackDiagnostics.note("continuation-decision", new com.getcapacitor.JSObject()
                 .put("decision", lastOutcome)
                 .put("reason", reason == null ? "" : reason)
                 .put("song", PlaybackDiagnostics.anonKey(current))
+                .put("source", hasNext ? step.track.sourceId : "")
+                .put("audioCacheHit", audioCacheHit)
+                .put("activityAlive", activityAlive)
+                .put("jsFallbackReason", jsFallbackReason)
                 .put("remaining", facts.remaining)
                 .put("ended", facts.ended)
                 .put("jsQuietMs", facts.msSinceJsWindow)
@@ -286,10 +298,18 @@ public final class BackgroundContinuation {
         final String anchor = current;
         final String quality = QualityPreference.get();
 
+        final boolean audioCacheHit = hasAudioCache(track);
+        final boolean activityAlive = isActivityAlive();
+        final String precacheStatus = facts.ended ? "on-demand-drained" : "precache-ahead";
+        final long startedAtMs = System.currentTimeMillis();
         PlaybackDiagnostics.note("continuation-fetch", new com.getcapacitor.JSObject()
             .put("song", PlaybackDiagnostics.anonKey(track.songKey))
             .put("provider", track.providerId)
+            .put("source", track.sourceId)
             .put("resolver", resolverId)
+            .put("audioCacheHit", audioCacheHit)
+            .put("precacheStatus", precacheStatus)
+            .put("activityAlive", activityAlive)
             .put("attempt", attemptCount(budgetKey) + 1)
             .put("requestId", requestId)
             .put("generation", generation)
@@ -303,7 +323,9 @@ public final class BackgroundContinuation {
             } catch (Throwable error) {
                 resolution = SourceResolution.failure("resolver crashed: " + error.getClass().getSimpleName());
             }
-            finish(host, resolution, track, requestId, generation, anchor, quality, resolverId);
+            final long elapsedMs = Math.max(0L, System.currentTimeMillis() - startedAtMs);
+            finish(host, resolution, track, requestId, generation, anchor, quality, resolverId,
+                audioCacheHit, precacheStatus, elapsedMs);
         };
         // 测试开关：让"后台续播 30 首"这类模拟可以在 JVM 上确定性重放，正式代码永远走线程池。
         if (inlineForTest) job.run();
@@ -318,7 +340,7 @@ public final class BackgroundContinuation {
 
     private void finish(Host host, SourceResolution resolution, NativePlaylist.Track track,
                         long requestId, long generation, String anchor, String quality,
-                        String resolverId) {
+                        String resolverId, boolean audioCacheHit, String precacheStatus, long elapsedMs) {
         // 过期结果拒绝：请求号、歌曲身份、以及「这首歌是否还在逻辑歌单里」。
         // 代次**不**参与判定：一次普通同步就会让代次 +1，但它不会让已经取到的地址失效。
         // 真机 1.3.50 就是在这里把握手成功的地址丢掉的（generation 5→7 → stale），
@@ -345,7 +367,12 @@ public final class BackgroundContinuation {
             String reason = resolution == null ? "null resolution" : resolution.reason;
             PlaybackDiagnostics.note("continuation-failed", new com.getcapacitor.JSObject()
                 .put("song", PlaybackDiagnostics.anonKey(track.songKey))
+                .put("source", track.sourceId)
                 .put("resolver", resolverId)
+                .put("audioCacheHit", audioCacheHit)
+                .put("precacheStatus", precacheStatus)
+                .put("activityAlive", isActivityAlive())
+                .put("elapsedMs", elapsedMs)
                 .put("status", status)
                 .put("reason", reason)
                 .put("requestId", requestId));
@@ -387,6 +414,13 @@ public final class BackgroundContinuation {
         PlaybackDiagnostics.note("continuation-resolved", new com.getcapacitor.JSObject()
             .put("song", PlaybackDiagnostics.anonKey(track.songKey))
             .put("provider", track.providerId)
+            .put("source", track.sourceId)
+            .put("resolver", resolution.backupProviderId != null && !resolution.backupProviderId.isEmpty()
+                ? resolution.backupProviderId : resolverId)
+            .put("audioCacheHit", audioCacheHit)
+            .put("precacheStatus", precacheStatus)
+            .put("activityAlive", isActivityAlive())
+            .put("elapsedMs", elapsedMs)
             .put("quality", resolution.quality)
             .put("requestId", requestId)
             .put("generation", generation));
@@ -426,6 +460,24 @@ public final class BackgroundContinuation {
     }
 
     // ------------------------------------------------------------------ budget internals
+
+    private static boolean isActivityAlive() {
+        try {
+            return PlaybackLifecycle.snapshot().optBoolean("activityAlive", false);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static boolean hasAudioCache(NativePlaylist.Track track) {
+        if (track == null) return false;
+        try {
+            AudioCacheStore cache = AudioCacheStore.peek();
+            return cache != null && cache.hasFiles(AudioCacheStore.key(track, QualityPreference.get()));
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
 
     private Budget budget(String key) {
         synchronized (budgets) {

@@ -70,14 +70,14 @@ public final class NeteaseResolver implements SourceResolver {
         this.cookie = cookie == null ? "" : cookie.trim();
     }
 
-    /** 从内存凭据构造；没有 Cookie 时 canAttempt=false，续播继续回落 JS 通道。 */
+    /** 从内存凭据构造；无 Cookie 时仍可通过匿名 eapi 设备头解析免费曲目。 */
     public static NeteaseResolver fromCredentials() {
         return new NeteaseResolver(ResolverCredentials.value("netease", "cookie"));
     }
 
-    /** 是否具备可用的登录态上下文：JS 同步过 Cookie（匿名设备 Cookie 也算，可解析免费曲目）。 */
+    /** 匿名 eapi 请求头已由 buildEapiHeader 补齐设备标识，免费曲目无需登录即可尝试解析；VIP 曲目由 resolve 如实报错。 */
     public boolean canAttempt() {
-        return !cookie.isEmpty();
+        return true;
     }
 
     @Override

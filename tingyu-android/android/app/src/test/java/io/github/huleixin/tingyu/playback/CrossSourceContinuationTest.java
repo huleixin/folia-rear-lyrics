@@ -168,18 +168,34 @@ public class CrossSourceContinuationTest {
         assertTrue(engine.adopted.get(2).endsWith("@netease"));
     }
 
-    /** 网易云凭据缺失且无备用平台时：不接管也不假装成功，如实回落 JS 通道。 */
+    /** 网易云无登录 Cookie 时仍可使用匿名 eapi 设备头尝试原生解析免费曲目，不再直接回落被冻结的 WebView。 */
     @Test
-    public void neteaseWithoutCredentialsFallsBackToJsInsteadOfFakingSuccess() {
-        // 仅注册没有 Cookie 的真解析器，不配置可供备用的其他平台。
+    public void neteaseWithoutCookieIsNativelyResolvableForFreeTracks() {
         ResolverRegistry.get().resetForTest();
         ResolverRegistry.get().registerForTest(new io.github.huleixin.tingyu.resolver.NeteaseResolver(""));
-        seedPlaylist(track("n1", "netease", "netease-original"), track("n2", "netease", "netease-original"));
+        assertTrue(ResolverRegistry.get().canResolveNatively(track("n2", "netease", "netease-original")));
+    }
+
+    /** 连续 12 首未缓存的在线曲目在后台（无缓存命中）必须全部由原生续播接管完成。 */
+    @Test
+    public void twelveUncachedOnlineTracksContinueContinuouslyInBackground() {
+        ResolverRegistry.get().resetForTest();
+        ResolverRegistry.get().registerForTest(new PlatformResolver("netease"));
+        ResolverRegistry.get().registerForTest(new PlatformResolver("qq"));
+        NativePlaylist.Track[] tracks = new NativePlaylist.Track[12];
+        for (int i = 0; i < 12; i++) {
+            String provider = (i % 2 == 0) ? "netease" : "qq";
+            tracks[i] = track("u" + i, provider, provider + "-original");
+        }
+        seedPlaylist(tracks);
         engine.drain();
-        continuation.consider(engine, "drained");
-        assertTrue("no cookie → no takeover, WebView keeps answering while it can",
-            engine.adopted.isEmpty());
-        assertTrue("fallback must be observable, not silent", continuation.fallbacksForTest() > 0);
+        for (int i = 0; i < 11; i++) {
+            continuation.consider(engine, "drained");
+            assertEquals("track " + (i + 1) + " should be adopted", i + 1, engine.adopted.size());
+            engine.drain();
+        }
+        assertEquals(11, engine.adopted.size());
+        assertEquals(0, continuation.fallbacksForTest());
     }
 
     @Test public void missingPrimaryCredentialsCanStillUseAnAvailableBackupPlatform() {

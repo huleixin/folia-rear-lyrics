@@ -167,11 +167,11 @@ public class NeteaseResolverTest {
         // sourceId 未知的旧同步包沿用既有设计：平台已映射的歌优先判给洛雪（无脚本时它明确
         // 回 UNSUPPORTED 而不是假装成功）。这不是本次改动引入的，断言只做非回归锚定。
         assertTrue(registry.forTrack(neteaseTrack("")) instanceof LxNativeResolver);
-        // 有 Cookie 才接管；没有就回落 JS 通道（前台 WebView 自己能取）。
+        // 有 Cookie 或无 Cookie（匿名 eapi 设备头）均可由原生接管尝试解析免费曲目，避免后台 WebView 冻结后停播。
         assertTrue(registry.canResolveNatively(neteaseTrack("netease-original")));
         ResolverCredentials.clearAll();
         registry.refresh();
-        assertFalse(registry.canResolveNatively(neteaseTrack("netease-original")));
+        assertTrue(registry.canResolveNatively(neteaseTrack("netease-original")));
         // 严格音源隔离：用户选 QQ 原版的歌绝不能落到网易云解析器。
         NativePlaylist.Track qqTrack = new NativePlaylist.Track("qq-1", "qq", "0039MnYb0qxYhV", "t", "a", "al",
                 180_000L, "", "{}", "qq-original");
