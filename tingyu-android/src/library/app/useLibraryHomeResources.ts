@@ -12,6 +12,7 @@ import { invalidateLeftHomeTab, releaseLibraryHomeResources } from '../core/serv
 import { closeOpenLibraryDirectory } from '../core/state/useLibraryDirectorySessionStore';
 import { useSearchNavigationStore } from '../../stores/useSearchNavigationStore';
 import { createLibraryHomePort } from './createLibraryHomePort';
+import { subscribeCollectionChanges } from '../../services/library/collectionChanges';
 
 // src/library/app/useLibraryHomeResources.ts
 // 首页外壳持有的首页资源（与 useLibraryDirectoryBatchController 同一个做法）：一个首页一份，生命周期跟着首页，
@@ -69,6 +70,14 @@ export const useLibraryHomeResources = (
         window.addEventListener(FAVORITE_ALBUMS_CHANGED_EVENT, reloadFavoriteAlbums);
         return () => window.removeEventListener(FAVORITE_ALBUMS_CHANGED_EVENT, reloadFavoriteAlbums);
     }, [resources]);
+
+    useEffect(() => subscribeCollectionChanges(change => {
+        if (change.providerId !== 'navidrome') return;
+        resources.navidromeOverview.invalidate();
+        if (active && useSearchNavigationStore.getState().homeViewTab === 'navidrome') {
+            void resources.navidromeOverview.ensure();
+        }
+    }), [active, resources]);
 
     return resources;
 };

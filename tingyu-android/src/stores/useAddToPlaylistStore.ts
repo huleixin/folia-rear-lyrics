@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import type { SongResult } from '../types';
+import { selectDisplaySong, usePlaybackStore } from './usePlaybackStore';
+import { captureSongAction, type SongActionTarget } from '../services/library/songActions';
 
 // src/stores/useAddToPlaylistStore.ts
 // The "add the current song to a playlist" dialog: whether it is up, and whether it could do
@@ -35,6 +37,7 @@ type AddToPlaylistState = {
      * 携带被点的那首歌 —— 用户加进歌单的必须是列表里点的那首，不是碰巧在播的。
      */
     targetSong: SongResult | null;
+    actionTarget: SongActionTarget | null;
     open: (target?: SongResult) => void;
     close: () => void;
     setAvailability: (availability: AddToPlaylistAvailability) => void;
@@ -44,8 +47,13 @@ export const useAddToPlaylistStore = create<AddToPlaylistState>((set) => ({
     isOpen: false,
     availability: UNAVAILABLE,
     targetSong: null,
-    open: (target) => set({ isOpen: true, targetSong: target ?? null }),
-    close: () => set({ isOpen: false, targetSong: null }),
+    actionTarget: null,
+    // Freeze the displayed song at the explicit action, including the player's current-song entry.
+    open: (target) => {
+        const song = target ?? selectDisplaySong(usePlaybackStore.getState()) ?? null;
+        set({ isOpen: true, targetSong: song, actionTarget: song ? captureSongAction(song) : null });
+    },
+    close: () => set({ isOpen: false, targetSong: null, actionTarget: null }),
     setAvailability: (availability) => set({ availability }),
 }));
 

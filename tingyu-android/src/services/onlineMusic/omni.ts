@@ -1,4 +1,8 @@
 import { providerLabel } from './providerLabel';
+import { captureAccountAction } from './accountActionScope';
+import { notifyCollectionChanged } from '../library/collectionChanges';
+import { removeFromCache } from '../db';
+import { getProviderCacheKey } from './providerStorage';
 import { getPlaybackSongKey as resourceSongKey } from '../../utils/appPlaybackGuards';
 import { readSharedLyricRecord } from '../sharedSongResources';
 import { captureAudioSourceBinding } from './audioSourceBinding';
@@ -112,6 +116,7 @@ const runOnlineMutation = async <T>(
 // 点赞状态改完要落盘：只更内存的话，重启后靠快照 hydration 的那一帧会恢复旧心形，
 // 后台刷新再失败就一直是旧的。行号是会话级的，不进快照。
 const persistProviderLikedSongIds = async (providerId: OmniProviderId): Promise<void> => {
+    const assertAccount = captureAccountAction(providerId);
     const account = useOnlineProviderAccountStore.getState().accounts[providerId];
     if (!account?.user) return;
     try {
@@ -119,7 +124,7 @@ const persistProviderLikedSongIds = async (providerId: OmniProviderId): Promise<
             user: account.user,
             collections: account.collections || [],
             likedSongIds: account.likedSongIds || [],
-        });
+        }, assertAccount);
     } catch (error) {
         // 落盘失败不能把一次成功的 mutation 变成失败，下一次刷新会补上。
         console.warn('[Omni] Failed to persist liked songs after a like mutation', {
@@ -427,6 +432,7 @@ export const omni = {
 
     // Refreshes one provider's playlist catalog and keeps the Omni account cache current.
     async refreshProviderPlaylists(providerId: OmniProviderId): Promise<OmniCollection[]> {
+        const assertAccount = captureAccountAction(providerId);
         const account = useOnlineProviderAccountStore.getState().accounts[providerId];
         const userId = account?.user?.id;
         if (userId === undefined || userId === null) return [];
@@ -445,12 +451,14 @@ export const omni = {
             let hasMore = true;
             while (hasMore && offset < 1000) {
                 const page = await this.getProviderUserPlaylists(providerId, userId, { limit, offset });
+                assertAccount();
                 playlists.push(...page.items.filter(collection => collection.type === 'playlist'));
                 hasMore = page.hasMore && page.nextOffset > offset;
                 offset = page.nextOffset;
             }
 
-            const existingCollections = account.collections || [];
+            const latestAccount = useOnlineProviderAccountStore.getState().accounts[providerId];
+            const existingCollections = latestAccount.collections || [];
             const collections = [
                 ...existingCollections.filter(collection => collection.type !== 'playlist'),
                 ...playlists,
@@ -458,8 +466,9 @@ export const omni = {
             const snapshot = await saveProviderAccountSnapshot(providerId, {
                 user: account.user!,
                 collections,
-                likedSongIds: account.likedSongIds || [],
-            });
+                likedSongIds: latestAccount.likedSongIds || [],
+            }, assertAccount);
+            assertAccount();
             useOnlineProviderAccountStore.getState().updateAccount(providerId, {
                 collections,
                 freshness: 'fresh',
@@ -467,6 +476,7 @@ export const omni = {
             });
             return playlists;
         } catch (error) {
+            assertAccount();
             useOnlineProviderAccountStore.getState().updateAccount(providerId, {
                 freshness: 'error',
                 error: error instanceof Error ? error.message : 'provider_playlist_refresh_failed',
@@ -893,6 +903,7 @@ export const omni = {
     },
 
     async addSongToPlaylist(song: SongResult, playlist: OmniCollection): Promise<void> {
+        const assertAccount = captureAccountAction(playlist.providerId);
         const source = getPlaybackSourceRef(song);
         if (source.kind !== 'online') {
             throw new OnlineProviderError('unsupported', 'Only online songs can be added to online playlists');
@@ -908,6 +919,23 @@ export const omni = {
             throw new OnlineProviderError('unsupported', 'Playlist does not accept track mutations', source.providerId);
         }
         await this.updateCollectionTracks(playlist, 'add', [song]);
+        assertAccount();
+        try {
+            await Promise.all(['playlist_tracks_', 'playlist_detail_'].map(prefix =>
+                removeFromCache(getProviderCacheKey(playlist.providerId, prefix + playlist.id))));
+        } catch {
+            console.warn('[Omni] Playlist cache invalidation failed');
+        }
+        assertAccount();
+        notifyCollectionChanged({ providerId: playlist.providerId, collectionId: String(playlist.id) });
+        if (playlist.isLiked === true) {
+            const latest = useOnlineProviderAccountStore.getState().accounts[playlist.providerId];
+            const ids = latest?.likedSongIds ?? [];
+            if (!ids.some(id => String(id) === String(source.mediaId))) {
+                useOnlineProviderAccountStore.getState().updateAccount(playlist.providerId, { likedSongIds: [...ids, source.mediaId] });
+                await persistProviderLikedSongIds(playlist.providerId);
+            }
+        }
         try {
             await this.refreshProviderPlaylists(playlist.providerId);
             // Netease owns its liked state in useNeteaseLibrary; avoid its cached /likelist here.
@@ -917,6 +945,7 @@ export const omni = {
                     const userId = account.user.id;
                     // A full liked list may be large. Do not delay success or overwrite a newer account/mutation.
                     void this.getProviderLikedSongIds(playlist.providerId, userId).then(async likedSongIds => {
+                        assertAccount();
                         const latest = useOnlineProviderAccountStore.getState().accounts[playlist.providerId];
                         if (latest?.user?.id !== userId || latest.likedSongIds !== account.likedSongIds) return;
                         useOnlineProviderAccountStore.getState().updateAccount(playlist.providerId, { likedSongIds });
@@ -948,6 +977,7 @@ export const omni = {
         const songKey = String(source.mediaId);
         const account = useOnlineProviderAccountStore.getState().accounts[source.providerId];
         const cachedFileId = account?.likedSongFileIds?.[songKey];
+        const assertAccount = captureAccountAction(source.providerId);
 
         try {
             if (cachedFileId === undefined) {
@@ -957,6 +987,7 @@ export const omni = {
             }
         } catch (error) {
             // 失败时只丢掉可能已经失效的 fileId，点赞状态保持原样——调用方会把错误往上抛。
+            assertAccount();
             dropProviderLikedFileId(source.providerId, songKey);
             noteOnlineMutationFailure({
                 providerId: source.providerId,
@@ -975,6 +1006,8 @@ export const omni = {
         // store（见 useNeteaseLibrary 里的 updateProviderAccount effect），而 isSongLiked 对网易云
         // 优先读调用方传进来的那一份。所以从 GridView 直接调用这里，网易云的播放器心形不会跟着变，
         // 要等下一次账号刷新。真要统一得把那份 state 挪进 store，不在这次改动范围内。
+        // S4: useNeteaseLibrary now observes this store directly; the historical note above no longer applies.
+        assertAccount();
         const latest = useOnlineProviderAccountStore.getState().accounts[source.providerId];
         const likedSongIds = (latest?.likedSongIds || []).filter(id => String(id) !== songKey);
         const likedSongFileIds = { ...(latest?.likedSongFileIds || {}) };
@@ -984,6 +1017,15 @@ export const omni = {
             likedSongFileIds,
         });
         await persistProviderLikedSongIds(source.providerId);
+        assertAccount();
+        for (const collection of latest?.collections ?? []) {
+            if (collection.isLiked !== true) continue;
+            try {
+                await removeFromCache(getProviderCacheKey(source.providerId, `playlist_tracks_${collection.id}`));
+            } catch { console.warn('[Omni] Liked playlist cache invalidation failed'); }
+            assertAccount();
+            notifyCollectionChanged({ providerId: source.providerId, collectionId: String(collection.id) });
+        }
     },
 
     async dislikeSong(song: SongResult): Promise<{ replacement?: UnifiedSong; limitReached?: boolean }> {

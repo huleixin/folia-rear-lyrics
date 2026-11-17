@@ -74,4 +74,23 @@ describe('provider account snapshot cache', () => {
         await clearProviderAccountSnapshot('netease');
         expect(removeFromCache).toHaveBeenCalledWith(getProviderAccountSnapshotCacheKey('netease'));
     });
+
+    it('finishes an older disk write before logout removes the snapshot', async () => {
+        let finish!: () => void;
+        vi.mocked(saveToCache).mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+        const write = saveProviderAccountSnapshot('qq', { user: { id: 'old', nickname: '' }, collections: [], likedSongIds: [] });
+        await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
+        const clear = clearProviderAccountSnapshot('qq');
+        await Promise.resolve();
+        expect(removeFromCache).not.toHaveBeenCalled();
+        finish();
+        await Promise.all([write, clear]);
+        expect(removeFromCache).toHaveBeenCalledWith(getProviderAccountSnapshotCacheKey('qq'));
+    });
+
+    it('checks queued snapshot ownership immediately before writing', async () => {
+        const guard = () => { throw new DOMException('Account changed', 'AbortError'); };
+        await expect(saveProviderAccountSnapshot('qq', { user: { id: 'old', nickname: '' }, collections: [], likedSongIds: [] }, guard)).rejects.toMatchObject({ name: 'AbortError' });
+        expect(saveToCache).not.toHaveBeenCalled();
+    });
 });

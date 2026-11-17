@@ -6,6 +6,7 @@ import type { OnlineGridViewCollectionDescriptor } from '@/library/core/contract
 import { createOnlineCollectionResource, type OnlineCollectionResourceDeps } from '@/library/core/services/onlineCollectionResource';
 import { ONLINE_TRACKS_CACHE_SCHEMA_VERSION, type OnlineTracksCacheEntry } from '@/library/core/services/onlineCollectionCache';
 import { getPlaybackSongKey } from '@/utils/appPlaybackGuards';
+import { notifyCollectionChanged } from '@/services/library/collectionChanges';
 
 // test/unit/library/core/onlineCollectionResource.test.ts
 // 在线集合资源：读缓存 → 首页 → 后台补页的规则与 GridView 原先一致；请求归属在资源上，
@@ -87,6 +88,24 @@ const harness = (
 };
 
 describe('online collection resource: loading', () => {
+    it('refreshes only the changed playlist while preserving its visible rows', async () => {
+        const h = harness(songs(2));
+        const resource = createOnlineCollectionResource('mutation-test', h.deps);
+        resource.ensure(playlist({ id: 'mutation-list' }), {});
+        await settle();
+        const updated = deferred<OmniPage<SongResult>>();
+        vi.mocked(h.deps.getCollectionTracks).mockReturnValueOnce(updated.promise);
+        const calls = vi.mocked(h.deps.getCollectionTracks).mock.calls.length;
+        notifyCollectionChanged({ providerId: 'other', collectionId: 'mutation-list' });
+        expect(h.deps.getCollectionTracks).toHaveBeenCalledTimes(calls);
+        notifyCollectionChanged({ providerId: 'p', collectionId: 'mutation-list' });
+        expect(resource.getSnapshot().tracks).toHaveLength(2);
+        expect(resource.getSnapshot().status).toBe('ready');
+        updated.resolve(pageOf(songs(3), 50, 0));
+        await settle();
+        expect(resource.getSnapshot().tracks).toHaveLength(3);
+        resource.dispose();
+    });
     it('uses a valid cache without asking for the first page, then fills the rest from the cached cursor', async () => {
         const all = songs(300);
         const h = harness(all, {}, { tracks: all.slice(0, 200), snapshotTime: TARGET_TIME, schemaVersion: ONLINE_TRACKS_CACHE_SCHEMA_VERSION, nextOffset: 200, hasMore: true, total: 300 });

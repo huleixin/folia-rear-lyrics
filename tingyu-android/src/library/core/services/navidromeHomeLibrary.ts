@@ -69,6 +69,7 @@ export const createNavidromeHomeLibrary = (deps: NavidromeHomeLibraryDeps): Libr
         ensure: () => (requested ? inFlight : resource.load()),
         invalidate: () => {
             requested = false;
+            generation += 1;
         },
     };
 

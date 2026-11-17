@@ -2,6 +2,8 @@ import React from 'react';
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import ThemedDialog from './ThemedDialog';
+import { setStatusMessage } from '../../stores/useStatusMessageStore';
+import { useDialogSubmission } from './useDialogSubmission';
 
 interface PlaylistSelectionDialogItem {
     id: string | number;
@@ -43,14 +45,8 @@ const PlaylistSelectionDialog: React.FC<PlaylistSelectionDialogProps> = ({
         return (playlistSongIds[String(playlistId)] ?? []).includes(existingSongId);
     };
     const { t } = useTranslation();
-    const [submittingId, setSubmittingId] = React.useState<string | number | null>(null);
+    const { busy: isSubmitting, submit } = useDialogSubmission(isOpen);
     const panelClass = isDaylight ? 'bg-black/[0.04] border-black/5 hover:bg-black/[0.06]' : 'bg-white/[0.05] border-white/10 hover:bg-white/[0.08]';
-
-    React.useEffect(() => {
-        if (!isOpen) {
-            setSubmittingId(null);
-        }
-    }, [isOpen]);
 
     return (
         <ThemedDialog
@@ -68,7 +64,7 @@ const PlaylistSelectionDialog: React.FC<PlaylistSelectionDialogProps> = ({
                         <button
                             type="button"
                             onClick={onCreate}
-                            disabled={submittingId !== null}
+                            disabled={isSubmitting}
                             className={`flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed px-5 py-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${panelClass}`}
                         >
                             <Plus size={16} />
@@ -81,16 +77,10 @@ const PlaylistSelectionDialog: React.FC<PlaylistSelectionDialogProps> = ({
                             key={playlist.id}
                             type="button"
                             data-folia-playlist-option="true"
-                            onClick={async () => {
-                                try {
-                                    setSubmittingId(playlist.id);
-                                    await onSelect(playlist.id);
-                                    onClose();
-                                } finally {
-                                    setSubmittingId(null);
-                                }
-                            }}
-                            disabled={submittingId !== null}
+                            onClick={() => void submit(() => onSelect(playlist.id), onClose, () => {
+                                    setStatusMessage({ type: 'error', text: t('search.error') });
+                            })}
+                            disabled={isSubmitting}
                             className={`flex w-full items-center gap-3 rounded-2xl border px-5 py-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${panelClass}`}
                         >
                             <div className="min-w-0 flex-1">
@@ -112,7 +102,7 @@ const PlaylistSelectionDialog: React.FC<PlaylistSelectionDialogProps> = ({
                         <button
                             type="button"
                             onClick={onCreate}
-                            disabled={submittingId !== null}
+                            disabled={isSubmitting}
                             className={`flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed px-5 py-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${panelClass}`}
                         >
                             <Plus size={16} />

@@ -37,6 +37,10 @@ import { getNavidromeConfig } from '../../../services/navidromeService';
 import { hasBlockingWindow } from '../../../utils/keyboardTargets';
 import { NATIVE_FIRST } from '../../../services/nativePages';
 import { useNativeSearchPage } from './useNativeSearchPage';
+import { canFavoriteSong, toggleFavoriteSong } from '../../../services/library/songActions';
+import { openAddToPlaylistForSong } from '../../../stores/useAddToPlaylistStore';
+import { setStatusMessage } from '../../../stores/useStatusMessageStore';
+import { getPlaybackSourceRef } from '../../../utils/appPlaybackGuards';
 import './searchWorkspace.css';
 
 // src/components/app/search/SearchWorkspace.tsx
@@ -133,6 +137,10 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     const [tab, setTab] = useState<ResultTab>('overview');
     const [composing, setComposing] = useState(false);
     const [floatingMenuSong, setFloatingMenuSong] = useState<UnifiedSong | null>(null);
+    const menuAccount = useOnlineProviderAccountStore(state => {
+        const source = floatingMenuSong && getPlaybackSourceRef(floatingMenuSong);
+        return source?.kind === 'online' ? state.accounts[source.providerId] : undefined;
+    });
     const [clearHistorySource,setClearHistorySource]=useState<SearchSource|null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     // Reopening an empty search must not retain the previous result tabs or mode.
@@ -248,6 +256,16 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
             { id: 'play', label: t('search.playTrack'), icon: 'play-circle', disabled: unavailable },
             { id: 'queue', label: t('navidrome.addToQueue'), icon: 'list-plus', disabled: unavailable },
         ];
+        const source = getPlaybackSourceRef(song);
+        if (canFavoriteSong(song)) {
+            const liked = source.kind === 'local'
+                ? localPlaylists.some(playlist => playlist.isFavorite && playlist.songIds.includes(String(source.mediaId)))
+                : omni.isSongLiked(song);
+            items.push({ id: 'favorite', label: t(liked ? 'player.unlike' : 'player.like'), icon: 'heart' });
+        }
+        if (source.kind === 'local' || source.kind === 'navidrome' || source.kind === 'online' && omni.canAddSongToPlaylist(song)) {
+            items.push({ id: 'playlist', label: t('localMusic.addToPlaylist'), icon: 'list-plus' });
+        }
         meta.artists.filter(a => song.isLocal ? a.entityId : song.isNavidrome ? song.navidromeData?.artistId : canResolveSongCatalogRef(song, 'artist', a)).forEach((a, index) => {
             items.push({ id: 'artist:' + index, label: t('search.tabArtist') + ' · ' + a.name, icon: 'user' });
         });
@@ -260,7 +278,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
             kind: 'sheet',
             blocks: [{ kind: 'actions', id: 'search-track-actions', items }],
         };
-    }, [floatingMenuSong, t]);
+    }, [floatingMenuSong, t, menuAccount, localPlaylists]);
 
     const handleSearchMenuAction = useCallback((actionId: string) => {
         if (!floatingMenuSong) return;
@@ -271,6 +289,12 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
             if (!isSongUnavailable(song)) onPlayTrack(song);
         } else if (actionId === 'queue') {
             if (!isSongUnavailable(song)) onAddTrackToQueue(song);
+        } else if (actionId === 'playlist') {
+            openAddToPlaylistForSong(song);
+        } else if (actionId === 'favorite') {
+            void toggleFavoriteSong(song).then(liked => {
+                setStatusMessage({ type: 'success', text: t(liked ? 'status.liked' : 'status.unliked') });
+            }).catch(() => setStatusMessage({ type: 'error', text: t('status.likeFailed') }));
         } else if (actionId.startsWith('artist:')) {
             const index = Number(actionId.slice(7));
             const validArtists = meta.artists.filter(a => song.isLocal ? a.entityId : song.isNavidrome ? song.navidromeData?.artistId : canResolveSongCatalogRef(song, 'artist', a));
@@ -280,7 +304,7 @@ const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
             const album = meta.album;
             if (album) onOpenAlbum(song, album.name, album.id, album.entityId);
         }
-    }, [floatingMenuSong, onPlayTrack, onAddTrackToQueue, onOpenArtist, onOpenAlbum]);
+    }, [floatingMenuSong, onPlayTrack, onAddTrackToQueue, onOpenArtist, onOpenAlbum, t]);
 
     return (
         <AnimatePresence>

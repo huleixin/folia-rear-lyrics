@@ -1,6 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import ThemedDialog from './ThemedDialog';
+import { setStatusMessage } from '../../stores/useStatusMessageStore';
+import { useDialogSubmission } from './useDialogSubmission';
 
 interface TextInputDialogProps {
     isOpen: boolean;
@@ -27,12 +29,11 @@ const TextInputDialog: React.FC<TextInputDialogProps> = ({
 }) => {
     const { t } = useTranslation();
     const [value, setValue] = React.useState(initialValue);
-    const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const { busy: isSubmitting, submit } = useDialogSubmission(isOpen);
 
     React.useEffect(() => {
         if (isOpen) {
             setValue(initialValue);
-            setIsSubmitting(false);
         }
     }, [initialValue, isOpen]);
 
@@ -49,13 +50,9 @@ const TextInputDialog: React.FC<TextInputDialogProps> = ({
             return;
         }
 
-        try {
-            setIsSubmitting(true);
-            await onConfirm(trimmedValue);
-            onClose();
-        } finally {
-            setIsSubmitting(false);
-        }
+        await submit(() => onConfirm(trimmedValue), onClose, () => {
+            setStatusMessage({ type: 'error', text: t('search.error') });
+        });
     };
 
     return (

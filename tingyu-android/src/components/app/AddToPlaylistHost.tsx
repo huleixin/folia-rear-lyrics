@@ -11,8 +11,8 @@ import { omni } from '../../services/onlineMusic/omni';
 import { selectDisplaySong, usePlaybackStore } from '../../stores/usePlaybackStore';
 import { useAddToPlaylistStore } from '../../stores/useAddToPlaylistStore';
 import { setStatusMessage } from '../../stores/useStatusMessageStore';
-import { addLocalSongIdsToPlaylist, createLocalPlaylistWithSongIds } from '../../services/localPlaylistService';
-import { LOCAL_MUSIC_UPDATED_EVENT } from '../../services/localMusicService';
+import { useOnlineProviderAccountStore } from '../../stores/useOnlineProviderAccountStore';
+import { assertSongAction, addTargetToPlaylist, createTargetPlaylist, type SongActionTarget } from '../../services/library/songActions';
 
 // src/components/app/AddToPlaylistHost.tsx
 // The playlist picker for the current song, and the "new playlist" prompt behind it.
@@ -38,37 +38,38 @@ type PlaylistEntry = { id: string; name: string; description?: string };
 export const AddToPlaylistHost: React.FC<AddToPlaylistHostProps> = ({
     isDaylight: stageDaylight,
     localPlaylists,
-    onlinePlaylists,
-    onAddCurrentSongToOnlinePlaylist,
-    onAddCurrentSongToNavidromePlaylist,
-    onCreateCurrentNavidromePlaylist,
 }) => {
     const isDaylight=useInterfaceLight(stageDaylight);
     const { t } = useTranslation();
     // The song as the listener sees it, so a blend shows the track that is on screen.
     const currentSong = usePlaybackStore(selectDisplaySong);
-    const { isOpen, close, setAvailability, targetSong } = useAddToPlaylistStore(useShallow(state => ({
+    const { isOpen, close, setAvailability, targetSong, actionTarget } = useAddToPlaylistStore(useShallow(state => ({
         isOpen: state.isOpen,
         close: state.close,
         setAvailability: state.setAvailability,
         targetSong: state.targetSong,
+        actionTarget: state.actionTarget,
     })));
     // 阶段二：从歌曲列表菜单进入时带目标歌曲；老入口（播放器星标/命令）不带，仍是「当前播放的歌」。
     const song = targetSong ?? currentSong;
-    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [createTarget, setCreateTarget] = useState<SongActionTarget | null>(null);
     const [navidromePlaylists, setNavidromePlaylists] = useState<PlaylistEntry[]>([]);
 
     const isStage = Boolean(song && (song as any).isStage === true);
-    const isNavidrome = Boolean(song && (song as any).isNavidrome === true);
-    const isLocal = Boolean(song && !isNavidrome && (((song as any).isLocal === true) || Boolean((song as any).localRef?.songId)));
     const playbackSourceRef = song ? getPlaybackSourceRef(song) : null;
+    const isNavidrome = playbackSourceRef?.kind === 'navidrome';
+    const isLocal = playbackSourceRef?.kind === 'local';
     const isOnline = playbackSourceRef?.kind === 'online';
     const onlineProviderLabel = playbackSourceRef?.kind === 'online'
         ? omni.getProviderLabel(playbackSourceRef.providerId)
         : '';
-    const canAddOnlineSong = Boolean(currentSong && isOnline && omni.canAddSongToPlaylist(currentSong));
+    const canAddOnlineSong = Boolean(song && isOnline && omni.canAddSongToPlaylist(song));
+    const providerAccount = useOnlineProviderAccountStore(state => playbackSourceRef?.kind === 'online' ? state.accounts[playbackSourceRef.providerId] : undefined);
+    const onlinePlaylists = useMemo(() => song && playbackSourceRef?.kind === 'online' ? omni.getPlaylistsForSong(song).filter(item => item.providerId === playbackSourceRef.providerId) : [], [song, isOnline, providerAccount]);
 
-    const refreshNavidromePlaylists = useCallback(async () => {
+    const refreshNavidromePlaylists = useCallback(async (isCurrent: () => boolean = () => true) => {
+        if (!actionTarget) return;
+        assertSongAction(actionTarget);
         const { getNavidromeConfig, navidromeApi } = await import('../../services/navidromeService');
         const config = getNavidromeConfig();
         if (!config) {
@@ -77,21 +78,34 @@ export const AddToPlaylistHost: React.FC<AddToPlaylistHostProps> = ({
         }
 
         const playlists = await navidromeApi.getPlaylists(config);
-        setNavidromePlaylists(playlists.map((playlist) => ({
+        assertSongAction(actionTarget);
+        if (!isCurrent()) return;
+        setNavidromePlaylists(playlists.filter(playlist => playlist.owner === config.username).map((playlist) => ({
             id: playlist.id,
             name: playlist.name,
             description: `${playlist.songCount} ${t('playlist.tracks')}`,
         })));
-    }, [t]);
+    }, [t, actionTarget]);
 
     useEffect(() => {
-        if (!isNavidrome) {
+        if (!isNavidrome || !isOpen) {
             setNavidromePlaylists([]);
             return;
         }
 
-        void refreshNavidromePlaylists();
-    }, [currentSong?.id, isNavidrome, refreshNavidromePlaylists]);
+        let current = true;
+        void refreshNavidromePlaylists(() => current).catch(() => {
+            if (current) setStatusMessage({ type: 'error', text: t('search.error') });
+        });
+        return () => { current = false; };
+    }, [song?.id, isNavidrome, isOpen, refreshNavidromePlaylists]);
+
+    useEffect(() => {
+        if (!isOpen || !canAddOnlineSong || playbackSourceRef?.kind !== 'online' || providerAccount?.status !== 'authenticated') return;
+        void omni.refreshProviderPlaylists(playbackSourceRef.providerId).catch(() => {
+            setStatusMessage({ type: 'error', text: t('search.error') });
+        });
+    }, [isOpen, song, canAddOnlineSong, t]);
 
     const availablePlaylists = useMemo<PlaylistEntry[]>(() => {
         if (isLocal) {
@@ -120,7 +134,7 @@ export const AddToPlaylistHost: React.FC<AddToPlaylistHostProps> = ({
     const isApplicable = Boolean(song && !isStage && (isLocal || isOnline || isNavidrome));
     // Local and Navidrome can make a playlist on the spot, so having none is not a refusal there.
     const canAdd = (isLocal)
-        || (isOnline && canAddOnlineSong && onlinePlaylists.length > 0)
+        || (isOnline && canAddOnlineSong)
         || (isNavidrome);
     const disabledReason = isOnline && !canAddOnlineSong
         ? t('status.providerPlaylistMutationUnavailable', { provider: onlineProviderLabel })
@@ -129,7 +143,7 @@ export const AddToPlaylistHost: React.FC<AddToPlaylistHostProps> = ({
     // The track can change under an open dialog — a blend lands, the queue advances — and the new
     // one may have nowhere to go. Closing beats leaving a picker up that cannot pick.
     useEffect(() => {
-        if (isOpen && !(isApplicable && canAdd)) {
+        if (isOpen && !isApplicable) {
             close();
         }
     }, [canAdd, close, isApplicable, isOpen]);
@@ -150,9 +164,10 @@ export const AddToPlaylistHost: React.FC<AddToPlaylistHostProps> = ({
                 description={t('home.playlists') || 'Playlists'}
                 playlists={availablePlaylists}
                 onSelect={async (playlistId) => {
+                    if (!actionTarget) throw new Error('Selected song is unavailable');
                     if (isLocal) {
                         // 本地分支直连歌单服务：目标歌曲可能不是正在播放的那首。
-                        const songId = (song as any).localRef?.songId as string | undefined;
+                        const songId = playbackSourceRef?.kind === 'local' ? String(playbackSourceRef.mediaId) : undefined;
                         if (!songId) throw new Error('Selected song is not a local track');
                         const playlist = localPlaylists.find(item => item.id === String(playlistId));
                         if (!playlist) throw new Error('Selected playlist is unavailable');
@@ -160,8 +175,7 @@ export const AddToPlaylistHost: React.FC<AddToPlaylistHostProps> = ({
                             setStatusMessage({ type: 'info', text: t('localMusic.songAlreadyInPlaylist', { name: playlist.name }) });
                             return;
                         }
-                        await addLocalSongIdsToPlaylist(playlist.id, [songId]);
-                        window.dispatchEvent(new Event(LOCAL_MUSIC_UPDATED_EVENT));
+                        await addTargetToPlaylist(actionTarget, playlist.id);
                         setStatusMessage({ type: 'success', text: t('localMusic.addedToPlaylist', { name: playlist.name }) });
                         return;
                     }
@@ -169,18 +183,20 @@ export const AddToPlaylistHost: React.FC<AddToPlaylistHostProps> = ({
                     if (isOnline) {
                         const playlist = onlinePlaylists.find(item => String(item.id) === String(playlistId));
                         if (!playlist) throw new Error('Selected playlist is unavailable');
-                        await onAddCurrentSongToOnlinePlaylist(playlist);
+                        await addTargetToPlaylist(actionTarget, String(playlist.id));
+                        setStatusMessage({ type: 'success', text: t('localMusic.addedToPlaylist', { name: playlist.name }) });
                         return;
                     }
 
                     if (isNavidrome) {
-                        await onAddCurrentSongToNavidromePlaylist(String(playlistId));
+                        await addTargetToPlaylist(actionTarget, String(playlistId));
+                        setStatusMessage({ type: 'success', text: t('localMusic.addedToPlaylist', { name: navidromePlaylists.find(item => item.id === String(playlistId))?.name }) });
                         await refreshNavidromePlaylists();
                     }
                 }}
                 onCreate={(isLocal || isNavidrome) ? () => {
+                    setCreateTarget(actionTarget);
                     close();
-                    setIsCreateOpen(true);
                 } : undefined}
                 // 已在歌单里的本地歌单照常可点（服务端幂等去重），反馈用轻提示。
                 existingSongId={isLocal ? ((song as any).localRef?.songId as string | undefined) : undefined}
@@ -191,27 +207,17 @@ export const AddToPlaylistHost: React.FC<AddToPlaylistHostProps> = ({
             />
 
             <TextInputDialog
-                isOpen={isCreateOpen}
-                onClose={() => setIsCreateOpen(false)}
+                isOpen={createTarget !== null}
+                onClose={() => setCreateTarget(null)}
                 isDaylight={isDaylight}
-                title={t(isNavidrome ? 'navidrome.createPlaylist' : 'localMusic.createPlaylist')}
+                title={t(createTarget && getPlaybackSourceRef(createTarget.song).kind === 'navidrome' ? 'navidrome.createPlaylist' : 'localMusic.createPlaylist')}
                 description={t('localMusic.enterPlaylistName')}
                 placeholder={t('localMusic.enterPlaylistName')}
                 confirmLabel={t('options.save')}
                 onConfirm={async (name) => {
-                    if (isLocal) {
-                        const songId = (song as any).localRef?.songId as string | undefined;
-                        if (!songId) throw new Error('Selected song is not a local track');
-                        const created = await createLocalPlaylistWithSongIds(name, [songId]);
-                        window.dispatchEvent(new Event(LOCAL_MUSIC_UPDATED_EVENT));
-                        setStatusMessage({ type: 'success', text: t('localMusic.addedToPlaylist', { name: created.name }) });
-                        return;
-                    }
-
-                    if (isNavidrome) {
-                        await onCreateCurrentNavidromePlaylist(name);
-                        await refreshNavidromePlaylists();
-                    }
+                    if (!createTarget) throw new Error('Selected song is unavailable');
+                    const createdName = await createTargetPlaylist(createTarget, name);
+                    setStatusMessage({ type: 'success', text: t('localMusic.addedToPlaylist', { name: createdName }) });
                 }}
             />
         </div>

@@ -58,6 +58,35 @@ afterEach(() => {
 });
 
 describe('omni routing', () => {
+    it('discards a playlist page from a previous account without changing the new account', async () => {
+        let resolve!: (value: any) => void;
+        registerOnlineMusicProvider({ ...provider(providerId, { searchSongs: async () => ({ items: [], hasMore: false, nextOffset: 0 }) }),
+            library: { getUserPlaylists: () => new Promise(done => { resolve = done; }) } });
+        const store = useOnlineProviderAccountStore.getState();
+        store.updateAccount(providerId, { user: { id: 'old', nickname: 'Old' } });
+        const pending = omni.refreshProviderPlaylists(providerId);
+        const collections = [{ providerId, type: 'playlist' as const, id: 'new', name: 'New' }];
+        store.updateAccount(providerId, { user: { id: 'new', nickname: 'New' }, collections, freshness: 'fresh' });
+        resolve({ items: [{ ...collections[0], id: 'old' }], hasMore: false, nextOffset: 1 });
+        await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+        expect(useOnlineProviderAccountStore.getState().accounts[providerId]).toMatchObject({ collections, freshness: 'fresh' });
+    });
+    it('does not apply a late like or failure to a replacement account', async () => {
+        for (const fails of [false, true]) {
+            let finish!: () => void;
+            registerOnlineMusicProvider({ ...provider(providerId, { searchSongs: async () => ({ items: [], hasMore: false, nextOffset: 0 }) }),
+                capabilities: { ...capabilities, mutations: true, likes: true },
+                mutations: { likeSong: () => new Promise<void>((resolve, reject) => { finish = () => fails ? reject(new Error('offline')) : resolve(); }) } });
+            const store = useOnlineProviderAccountStore.getState();
+            store.updateAccount(providerId, { user: { id: 'old', nickname: 'Old' }, likedSongIds: [] });
+            const pending = omni.likeSong(song(providerId, 'track'), true);
+            store.clearAccount(providerId);
+            store.updateAccount(providerId, { user: { id: 'new', nickname: 'New' }, likedSongIds: ['new-like'], likedSongFileIds: { track: 'new-file' } });
+            finish();
+            await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+            expect(useOnlineProviderAccountStore.getState().accounts[providerId]).toMatchObject({ likedSongIds: ['new-like'], likedSongFileIds: { track: 'new-file' } });
+        }
+    });
     it('falls back from a persisted provider missing in the current build', () => {
         useOnlineProviderAccountStore.getState().setActiveProviderId(missingProviderId);
 
@@ -428,7 +457,7 @@ describe('omni like mutations', () => {
 
         expect(saveProviderAccountSnapshot).toHaveBeenCalledWith(providerId, expect.objectContaining({
             likedSongIds: [],
-        }));
+        }), expect.any(Function));
     });
 
     it('keeps the mutation successful when persisting the snapshot fails', async () => {

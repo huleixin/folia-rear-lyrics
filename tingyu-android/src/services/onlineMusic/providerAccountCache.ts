@@ -6,6 +6,16 @@ import { getProviderCacheKey } from './providerStorage';
 
 const SNAPSHOT_VERSION = 1;
 const SNAPSHOT_CACHE_NAME = 'user_home_snapshot';
+// Serialize writes and logout removal per provider so an earlier write cannot resurrect a cleared account.
+const pendingWrites = new Map<string, Promise<unknown>>();
+function enqueueSnapshotWrite<T>(providerId: string, write: () => Promise<T>): Promise<T> {
+    const task = (pendingWrites.get(providerId) ?? Promise.resolve()).catch(() => undefined).then(write);
+    pendingWrites.set(providerId, task);
+    void task.finally(() => {
+        if (pendingWrites.get(providerId) === task) pendingWrites.delete(providerId);
+    }).catch(() => undefined);
+    return task;
+}
 
 export type ProviderAccountSnapshot = {
     version: 1;
@@ -26,6 +36,7 @@ export const getProviderAccountSnapshotCacheKey = (providerId: OnlineProviderId)
 export const loadProviderAccountSnapshot = async (
     providerId: OnlineProviderId,
 ): Promise<ProviderAccountSnapshot | null> => {
+    await pendingWrites.get(providerId)?.catch(() => undefined);
     const cached = await getFromCache<ProviderAccountSnapshot>(getProviderAccountSnapshotCacheKey(providerId));
     if (!cached || cached.version !== SNAPSHOT_VERSION || !cached.user) return null;
     if (!Array.isArray(cached.collections) || !Array.isArray(cached.likedSongIds)) return null;
@@ -41,16 +52,20 @@ export const loadProviderAccountSnapshot = async (
 export const saveProviderAccountSnapshot = async (
     providerId: OnlineProviderId,
     snapshot: Omit<ProviderAccountSnapshot, 'version' | 'savedAt'>,
+    assertCurrent?: () => void,
 ): Promise<ProviderAccountSnapshot> => {
     const value: ProviderAccountSnapshot = {
         version: SNAPSHOT_VERSION,
         savedAt: Date.now(),
         ...snapshot,
     };
-    await saveToCache(getProviderAccountSnapshotCacheKey(providerId), value);
+    await enqueueSnapshotWrite(providerId, async () => {
+        assertCurrent?.();
+        await saveToCache(getProviderAccountSnapshotCacheKey(providerId), value);
+    });
     return value;
 };
 
 export const clearProviderAccountSnapshot = async (providerId: OnlineProviderId): Promise<void> => {
-    await removeFromCache(getProviderAccountSnapshotCacheKey(providerId));
+    await enqueueSnapshotWrite(providerId, () => removeFromCache(getProviderAccountSnapshotCacheKey(providerId)));
 };

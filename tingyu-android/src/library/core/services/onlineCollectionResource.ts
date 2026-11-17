@@ -6,6 +6,7 @@ import type { CollectionLoadError, CollectionResource, CollectionResourceContext
 import { getPlaybackSongKey } from '../../../utils/appPlaybackGuards';
 import { collectionRevision } from '../model/collectionIdentity';
 import { recordCollectionOrderMerged } from '../../../utils/collectionOrderDiagnostics';
+import { subscribeCollectionChanges } from '../../../services/library/collectionChanges';
 import { createCollectionResourceState } from './collectionResourceState';
 import {
     isOnlineTracksCacheValid,
@@ -66,6 +67,25 @@ export const createOnlineCollectionResource = (key: string, deps: OnlineCollecti
     let pausedSyncOffset: number | null = null;
     let fetchedAt = 0;
     let refreshing = false;
+    let active = false;
+    let dirty = false;
+    const unsubscribeChanges = subscribeCollectionChanges(change => {
+        if (!descriptor || change.providerId !== descriptor.providerId || change.collectionId !== String(descriptor.id)) return;
+        loadGeneration += 1;
+        syncGeneration += 1;
+        dirty = true;
+        started = false;
+        loading = false;
+        refreshing = false;
+        tombstones.clear();
+        state.set({ detail: null }, 'urgent');
+        if (active) {
+            dirty = false;
+            started = true;
+            void load({ bypassCache: true, preserveVisible: true });
+            fetchDetail(descriptor);
+        }
+    });
     const tombstones = new Set<string>();
 
     const cacheKey = () => (descriptor ? resolveOnlineTracksCacheKey(descriptor, context.currentUserId) : '');
@@ -270,6 +290,14 @@ export const createOnlineCollectionResource = (key: string, deps: OnlineCollecti
             if (disposed || next.source !== 'online') return;
             descriptor = next;
             context = nextContext;
+            active = true;
+            if (dirty) {
+                dirty = false;
+                started = true;
+                void load({ bypassCache: true, preserveVisible: true });
+                fetchDetail(next);
+                return;
+            }
             if (!started) {
                 started = true;
                 // load 先同步换代，详情再记下这一代：之后的重新加载会让还没回来的详情作废。
@@ -333,13 +361,14 @@ export const createOnlineCollectionResource = (key: string, deps: OnlineCollecti
         },
         canReuse: (next) => {
             const { status, sync, revision } = state.get();
-            return !disposed
+            return !disposed && !dirty
                 && next.source === 'online'
                 && collectionRevision(next) === revision
                 && (resolveOnlineTracksTargetTime(next) > 0 || supportsTimedTracksCache(next))
                 && (status === 'ready' || sync.status === 'interrupted');
         },
         pause: () => {
+            active = false;
             if (refreshing) {
                 loadGeneration += 1;
                 refreshing = false;
@@ -357,6 +386,7 @@ export const createOnlineCollectionResource = (key: string, deps: OnlineCollecti
             syncGeneration += 1;
         },
         dispose: () => {
+            unsubscribeChanges();
             disposed = true;
             loadGeneration += 1;
             syncGeneration += 1;

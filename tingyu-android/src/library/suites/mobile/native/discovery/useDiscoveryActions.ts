@@ -13,6 +13,7 @@ import { setStatusMessage } from '../../../../../stores/useStatusMessageStore';
 import { usePlaybackStore } from '../../../../../stores/usePlaybackStore';
 import { excludeSongs, mixRoaming } from '../../../../../services/discovery/ranking';
 import { useDiscoveryPreferences } from '../../../../../services/discovery/preferences';
+import { toggleFavoriteSong } from '../../../../../services/library/songActions';
 
 export function useDiscoveryActions(props: NativeHomeProps['props']) {
     const [notice, setNotice] = useState('');
@@ -62,7 +63,7 @@ export function useDiscoveryActions(props: NativeHomeProps['props']) {
                 recordDiscoveryFeedback(song, 'dislike'); setHidden(previous => new Set(previous).add(getPlaybackSongKey(song)));
                 setStatusMessage({ type: 'success', text: '已减少这类推荐' });
             }
-            else if (id === 'like') { const liked = await omni.toggleSongLike(song); recordDiscoveryFeedback(song, liked ? 'like' : 'unlike'); setStatusMessage({ type: 'success', text: liked ? '已收藏' : '已取消收藏' }); }
+            else if (id === 'like') { const liked = await toggleFavoriteSong(song); setStatusMessage({ type: 'success', text: liked ? '已收藏' : '已取消收藏' }); }
         } catch { setNotice('操作未完成，请检查账号和网络后重试。'); }
         finally { setMenu(null); }
     };
